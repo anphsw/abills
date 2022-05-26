@@ -1,9 +1,9 @@
-<link href='/styles/default_adm/css/info.css' rel='stylesheet'>
+<link href='/styles/default/css/info.css' rel='stylesheet'>
 
 <div id='form_6' class='card for_sort'>
   <div class='card-header with-border'>
     <h4 class='card-title'>_{COMMENTS}_</h4>
-    <div class='card-tools pull-right'>
+    <div class='card-tools float-right'>
       %COMMENTS_CONTROLS%
       <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>
@@ -28,4 +28,4 @@
   var lang_admin = '_{ADMIN}_';
 </script>
 
-<script src='/styles/default_adm/js/info/info.js'></script>
+<script src='/styles/default/js/info/info.js'></script>

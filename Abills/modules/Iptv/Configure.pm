@@ -69,22 +69,17 @@ sub iptv_tp{
     my %F_ARGS = (TP => $Tariffs);
     $index = get_function_index( 'iptv_tp' );
 
-    $Tariffs->{NAME_SEL} = $html->form_main(
-      {
-        CONTENT => $html->form_select(
-          'TP_ID',
-          {
-            SELECTED  => $FORM{TP_ID},
-            SEL_LIST  => $Tariffs->list( { %LIST_PARAMS, NEW_MODEL_TP => 1, MODULE => 'Iptv', COLS_NAME => 1 } ),
-            SEL_KEY   => 'tp_id',
-            SEL_VALUE => 'name',
-          }
-        ),
-        HIDDEN  => { index => $index },
-        # SUBMIT  => { show => $lang{SHOW} },
-        class   => 'navbar-form navbar-right',
-      }
-    );
+    $Tariffs->{NAME_SEL} = $html->form_main({
+      CONTENT => $html->form_select('TP_ID', {
+        SELECTED  => $FORM{TP_ID},
+        SEL_LIST  => $Tariffs->list({ %LIST_PARAMS, NEW_MODEL_TP => 1, MODULE => 'Iptv', COLS_NAME => 1 }),
+        SEL_KEY   => 'tp_id',
+        SEL_VALUE => 'name',
+      }),
+      HIDDEN  => { index => $index },
+      # SUBMIT  => { show => $lang{SHOW} },
+      class   => 'navbar-form navbar-right',
+    });
 
     func_menu({ $lang{NAME} => $Tariffs->{NAME_SEL} },
       [
@@ -157,6 +152,7 @@ sub iptv_tp{
     $tarif_info->{POSTPAID_DAY_FEE} = ($tarif_info->{POSTPAID_DAY_FEE}) ? 'checked' : '';
     $tarif_info->{POSTPAID_MONTH_FEE} = ($tarif_info->{POSTPAID_MONTH_FEE}) ? 'checked' : '';
     $tarif_info->{ABON_DISTRIBUTION} = ($tarif_info->{ABON_DISTRIBUTION}) ? 'checked' : '';
+    $tarif_info->{PROMOTIONAL} = ($tarif_info->{PROMOTIONAL}) ? 'checked' : '';
 
     $tarif_info->{SMALL_DEPOSIT_ACTION_SEL} = sel_tp({
       SELECT          => 'SMALL_DEPOSIT_ACTION',
@@ -184,7 +180,7 @@ sub iptv_tp{
 
     $tarif_info->{STATUS} = "checked" if $tarif_info->{STATUS};
 
-    $html->tpl_show( _include( 'iptv_tp', 'Iptv' ), { %FORM, %{$tarif_info} } );
+    $html->tpl_show(_include('iptv_tp', 'Iptv'), { %FORM, %{$tarif_info} });
   }
 
   my $service_name = tv_services_sel({ ALL => 1, HASH_RESULT => 1 });

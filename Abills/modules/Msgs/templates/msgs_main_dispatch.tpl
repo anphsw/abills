@@ -1,6 +1,6 @@
 <div class='card box-primary'>
   <div class='card-header with-border'>
-    <div class='card-tools pull-right'>
+    <div class='card-tools float-right'>
       %DEL_BTN%
       <button type='button' class='btn btn-box-tool' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>

@@ -1,6 +1,0 @@
-{
-  "name": "ABON_TARRIFS",
-  "method": "GET",
-  "path": "abon/tariffs/",
-  "params": {}
-}

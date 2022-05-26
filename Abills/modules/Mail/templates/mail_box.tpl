@@ -9,7 +9,7 @@
 <div class='card card-primary card-outline box-form box-big-form'>
 	<div class='card-header with-border'>
 		<h4 class='card-title'>E-Mail</h4>
-		<div class='card-tools pull-right'>
+		<div class='card-tools float-right'>
 			<button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i class='fa fa-minus'></i>
 			</button>
 		</div>

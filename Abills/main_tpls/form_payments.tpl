@@ -1,4 +1,4 @@
-<form class='form-horizontal' action='$SELF_URL' method='post' id='user_form' name='user_form' role='form'>
+<form action='$SELF_URL' method='post' id='user_form' name='user_form' role='form'>
   <input type=hidden name=index value='$index'>
   <input type=hidden name=subf value='$FORM{subf}'>
   <input type=hidden name=OP_SID value='%OP_SID%'>
@@ -13,7 +13,7 @@
     <div class='card card-primary card-outline container-md'>
       <div class='card-header with-border'>
         <h4 class='card-title'>_{PAYMENTS}_</h4>
-        <span class='pull-right'>%CARDS_BTN%<span>
+        <span class='float-right'>%CARDS_BTN%<span>
       </div>
 
       <div class='card-body'>
@@ -82,13 +82,7 @@
         </div>
       <div class='card-footer'>
         %BACK_BUTTON%
-        <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
+        <input type=submit name=%ACTION% value='%LNG_ACTION%' class='btn btn-primary double_click_check'>
       </div>
     </div>
 </form>
-
-<script>
-    jQuery('#user_form').on('submit', function(){
-        renameAndDisable('submitbutton', '_{IN_PROGRESS}_...' );
-    });
-</script>

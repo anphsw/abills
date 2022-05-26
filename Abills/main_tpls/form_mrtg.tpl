@@ -10,21 +10,21 @@
     <!-- body -->
     <div class='card-body'>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='col-md-3 control-label'>MRTG WorkDir</label>
         <div class="col-md-9">
           <input type="text" name="WORK_DIR" class="form-control" value="/usr/abills/webreports/%NAME%" required>
         </div>
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-sm-2 col-md-3'>SNMP Community</label>
         <div class='col-sm-10 col-md-9'>
           <input type="text" name="COMMUNITY" class="form-control" value="public" required>
         </div>
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-sm-2 col-md-3'>MRTG Template</label>
         <div class='col-sm-10 col-md-9'>
           %SELECT%

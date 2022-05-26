@@ -3,7 +3,7 @@
   <input type='hidden' name='chg' value='%MSGS_ID%'/>
   <input type='hidden' name='UID' value='%UID%'/>
 
-  <button type="button" id='accordion_open_all' class="btn btn-secondary btn-xs pull-right" >_{OPEN}_ _{ALL}_</button>
+  <button type="button" id='accordion_open_all' class="btn btn-secondary btn-xs float-right" >_{OPEN}_ _{ALL}_</button>
 
   <ul id='accordion'>
    %LIST%

@@ -1,5 +1,3 @@
-use Abills::Base qw(in_array);
-
 #Iner_ID : Main or Sub or if -1 user menu func list
 our %FUNCTIONS_LIST = (
   "01:-1:$lang{MESSAGES}:msgs_admin:UID"                             => 15,
@@ -17,13 +15,14 @@ our %FUNCTIONS_LIST = (
   "15:8:$lang{REPLYS}:msgs_reports_replys:"                          => 4,
   "16:8:$lang{MSGS_TAGS}:msgs_report_tags:"                          => 4,
   "17:8:$lang{TIME_IN_WORK}:msgs_admin_time_spend_report:"           => 4,
-  "18:0:$lang{OPERATOR_STATISTICS}:msgs_operator_statistics:"        => 9,
-  "19:8:$lang{TEMPLATES}:msgs_templates_report:"                     => 4,
-  "20:8:$lang{ADMIN_STATISTICS}:msgs_admin_statistics:"              => 4,
-  "20:8:$lang{REPLYS_AND_TIME}:report_replys_and_time:"              => 4,
-  "22:8:$lang{TICKET_REPORT_BY_ADMINS}:msgs_admin_report:"           => 4,
-  "23:8:$lang{TICKET_REPORT}:msgs_works_report:"                     => 4,
-  "24:8:$lang{SUPPORT_SYSTEM_STATS}:msgs_support_stats:"             => 4,
+  "18:8:$lang{MESSAGES_COEFFICIENT}:msgs_messages_coefficients:"     => 4,
+  "19:0:$lang{OPERATOR_STATISTICS}:msgs_operator_statistics:"        => 9,
+  "20:8:$lang{TEMPLATES}:msgs_templates_report:"                     => 4,
+  "21:8:$lang{ADMIN_STATISTICS}:msgs_admin_statistics:"              => 4,
+  "22:8:$lang{REPLYS_AND_TIME}:report_replys_and_time:"              => 4,
+  "23:8:$lang{TICKET_REPORT_BY_ADMINS}:msgs_admin_report:"           => 4,
+  "24:8:$lang{TICKET_REPORT}:msgs_works_report:"                     => 4,
+  "25:8:$lang{SUPPORT_SYSTEM_STATS}:msgs_support_stats:"             => 4,
 
   "70:2:$lang{PLUGINS}:msgs_plugins_list:"                           => 5,
   "71:70:Msgs:msgs_plugin_priority:AJAX"                             => 5,
@@ -40,7 +39,6 @@ if($conf{MSGS_CHAT}) {
 }
 
 load_module("Msgs", $html);
-
 if ( defined($user->{UID}) ) {
   my $count = msgs_new({ UID => $user->{UID} });
   if ( $count ne '' ) {

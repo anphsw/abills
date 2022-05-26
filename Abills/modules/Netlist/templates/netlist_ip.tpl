@@ -1,4 +1,4 @@
-<div class='noprint'>
+<div class='d-print-none'>
   <FORM action='$SELF_URL' METHOD='POST' class='form form-horizontal'>
     <input type='hidden' name='index' value='$index'>
     <input type='hidden' name='IP_NUM' value='%IP_NUM%'>
@@ -9,7 +9,7 @@
       <div class='card-header with-border'>%ACTION_LNG%</div>
       <div class='card-body'>
         <div class='form-group'>
-          <a class='col-md-6 pull-right' href='index.cgi?index=%IP_SCAN_INDEX%'>_{SCAN}_ <span
+          <a class='col-md-6 float-right' href='index.cgi?index=%IP_SCAN_INDEX%'>_{SCAN}_ <span
               class='fa fa-search'></span></a>
         </div>
         <div class='form-group'>
@@ -105,7 +105,7 @@
   </FORM>
 </div>
 
-<script src='/styles/default_adm/js/modules/netlist/ipv4.js'></script>
+<script src='/styles/default/js/modules/netlist/ipv4.js'></script>
 
 <script>
   jQuery(function () {

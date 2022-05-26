@@ -1,7 +1,7 @@
-<link rel='stylesheet' href='/styles/default_adm/css/modules/cablecat/raphael.context-menu.css'>
-<link rel='stylesheet' href='/styles/default_adm/css/modules/cablecat/commutation.css'>
-<link rel='stylesheet' href='/styles/default_adm/css/modules/cablecat/jquery.contextMenu.min.css'>
-<link rel='stylesheet' type='text/css' href='/styles/default_adm/fonts/google-static/Roboto.css'>
+<link rel='stylesheet' href='/styles/default/css/modules/cablecat/raphael.context-menu.css'>
+<link rel='stylesheet' href='/styles/default/css/modules/cablecat/commutation.css'>
+<link rel='stylesheet' href='/styles/default/css/modules/cablecat/jquery.contextMenu.min.css'>
+<link rel='stylesheet' type='text/css' href='/styles/default/fonts/google-static/Roboto.css'>
 
 <div class='row'>
   <div class='col-md-12'>
@@ -53,13 +53,13 @@
 </script>
 
 <!-- Drawing -->
-<script src='/styles/default_adm/js/raphael.min.js'></script>
+<script src='/styles/default/js/raphael.min.js'></script>
 
 <!-- Draggable -->
-<script src='/styles/default_adm/js/modules/cablecat/raphael.drag.set.js'></script>
+<script src='/styles/default/js/modules/cablecat/raphael.drag.set.js'></script>
 
 <!-- Context Menu -->
-<!--<script src='/styles/default_adm/js/modules/cablecat/jquery.ui.position.min.js'></script>-->
-<script src='/styles/default_adm/js/modules/cablecat/jquery.contextMenu.min.js'></script>
+<!--<script src='/styles/default/js/modules/cablecat/jquery.ui.position.min.js'></script>-->
+<script src='/styles/default/js/modules/cablecat/jquery.contextMenu.min.js'></script>
 
-<script src='/styles/default_adm/js/modules/cablecat/big.commutation.js?v=7.61'></script>
+<script src='/styles/default/js/modules/cablecat/big.commutation.js?v=7.61'></script>

@@ -16,7 +16,7 @@ use Cams;
 use Address;
 use Tariffs;
 use Abills::Experimental;
-use Maps2::Auxiliary;
+use Maps::Auxiliary;
 
 our ($db, $admin, %conf, $html, %lang, %ADMIN_REPORT, %permissions);
 
@@ -32,7 +32,7 @@ my $Address = Address->new($db, $admin, \%conf);
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Users = Users->new($db, $admin, \%conf);
 my $Fees = Fees->new($db, $admin, \%conf);
-my $Auxiliary = Maps2::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+my $Auxiliary = Maps::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 my @service_status = ("$lang{ENABLE}",
   $lang{DISABLE},
@@ -100,7 +100,7 @@ sub cams_main {
           }
         }
 
-        $FORM{POINT_ID} = $Auxiliary->maps2_add_external_object(33, \%FORM);
+        $FORM{POINT_ID} = $Auxiliary->maps_add_external_object(33, \%FORM);
 
         delete $FORM{GROUP_ID} if $FORM{FOLDER_ID};
 
@@ -297,7 +297,7 @@ sub cams_main {
       });
     }
 
-    my $maps_btn = $Auxiliary->maps2_show_object_button(33, $one_camera->{POINT_ID}, { CHECK_POINT => 1 });
+    my $maps_btn = $Auxiliary->maps_show_object_button(33, $one_camera->{POINT_ID}, { CHECK_POINT => 1 });
 
     $change_button = $html->button('', "index=$index&chg_cam=$one_camera->{ID}", { class => 'change' });
     $delete_button = $html->button('', "index=$index&del_cam=$one_camera->{ID}", { MESSAGE => "$lang{DEL} $one_camera->{NAME}?", class => 'del' });
@@ -826,7 +826,7 @@ sub cams_user_folders {
     $Cams = $attr->{SERVICE_INFO};
   }
 
-  if ($FORM{change_now}) {
+  if ($FORM{change_now} && $FORM{CHANGE_FOLDERS}) {
     $Cams->user_folders(\%FORM);
   }
 
@@ -1321,7 +1321,7 @@ sub _cams_result_former_point_id_filter {
     # Else should change existing object
     else {
       return $html->button('', "index=$map_index&add=CUSTOM_POINT&OBJECT_ID=$point_id",
-        { ICON => 'fa fa-map-marker' })
+        { ICON => 'fa fa-map-marker-alt' })
     }
   }
   # If no object defined, propose to add it
@@ -1347,85 +1347,6 @@ sub _cams_metres_to_mercator {
   my $coordy = $attr->{coordy} + (360 * cos(($attr->{angel} * $pi) / 180) * $attr->{length}) / (40075696 * cos($coordx * ($pi / 180)));
 
   return { COORDX => $coordx, COORDY => $coordy };
-}
-
-#**********************************************************
-=head2 cams_payments_maked($attr) - Cross module payment maked
-
-=cut
-#**********************************************************
-sub cams_payments_maked {
-  my ($attr) = @_;
-
-  my $user;
-  $user = $attr->{USER_INFO} if ($attr->{USER_INFO});
-
-  my $list = $Cams->users_list({
-    UID            => $user->{UID},
-    SERVICE_STATUS => '_SHOW',
-    SERVICE_ID     => '_SHOW',
-    ID             => '_SHOW',
-    COLS_NAME      => 1,
-  });
-
-  if ($Cams->{TOTAL} < 1) {
-    return 0;
-  }
-
-  my $users_disable = $users->{DISABLE};
-  foreach my $service_user (@{$list}) {
-
-    $service_user->{status} = $service_user->{service_status};
-    my $cams_service_info = $Cams->services_info($service_user->{service_id});
-    my $cams_info_ = $Cams->_info($service_user->{id});
-
-    if ($FORM{newpassword}) {
-      cams_account_action({
-        %{($Cams && ref $Cams eq 'HASH') ? $Cams : {}},
-        NEW_PASSWORD => $FORM{newpassword},
-        change       => 1,
-        USER_INFO    => $user,
-        SILENT       => 1,
-        MODULE       => $cams_service_info->{MODULE} || "",
-        SERVICE_ID   => $service_user->{service_id}
-      });
-
-      next;
-    }
-
-    if (defined $service_user->{status} && $service_user->{status} != 5) {
-      next;
-    }
-
-    if (!$cams_info_->{TP_ID}) {
-      return 0;
-    }
-
-    if ($FORM{DISABLE} && !$users_disable) {
-      $Cams->{STATUS} = 1;
-      cams_account_action({
-        %{($Cams && ref $Cams eq 'HASH') ? $Cams : {}},
-        change    => 1,
-        USER_INFO => $user,
-        STATUS    => 1,
-        SILENT    => 1,
-        MODULE    => $cams_service_info->{MODULE} || "",
-      });
-    }
-    else {
-      cams_user_activate($Cams, {
-        %{$cams_info_},
-        USER       => $user,
-        SILENT     => 0,
-        MODULE     => $cams_service_info->{MODULE} || "",
-        REACTIVATE => $users_disable ? 1 : 0,
-        MODULE     => $cams_service_info->{MODULE} || "",
-        SERVICE_ID => $service_user->{service_id}
-      });
-    }
-  }
-
-  return 1;
 }
 
 #**********************************************************
@@ -1495,11 +1416,12 @@ sub cams_user_activate {
   foreach my $service (@{$users_services{$uid}}) {
     cams_account_action({
       %{$attr},
-      add       => 1,
-      UID       => $uid,
-      ID        => $service->{ID} || $Cams_info->{ID} || $attr->{ID},
-      USER_INFO => $user,
-      DEBUG     => $debug
+      add               => 1,
+      UID               => $uid,
+      ID                => $service->{ID} || $Cams_info->{ID} || $attr->{ID},
+      USER_INFO         => $user,
+      DEBUG             => $debug,
+      SERVICE_ACTIVATED => 1
     });
 
     my $sum = $conf{CAMS_CUSTOM_PERIOD} && $user->{DEPOSIT} + $user->{CREDIT} >= $Cams_info->{TP_CHANGE_PRICE}
@@ -1737,73 +1659,6 @@ sub cams_get_group_folders {
 }
 
 #**********************************************************
-=head2 cams_docs($attr) - get services for invoice
-
-  Arguments:
-    UID
-  Results:
-
-=cut
-#**********************************************************
-sub cams_docs {
-  my ($attr) = @_;
-
-  my $uid = $attr->{UID};
-  my @services = ();
-  my %info = ();
-
-  my $list = $Cams->_list({
-    UID             => $uid,
-    ACCOUNT_DISABLE => 0,
-    TP_ID           => '_SHOW',
-    STATUS          => '_SHOW',
-    COLS_NAME       => 1,
-  });
-
-  foreach my $service_info (@{$list}) {
-    my $tp_info = $Cams->tp_list({ COLS_NAME => 1, TP_ID => $service_info->{tp_id}, SHOW_ALL_COLUMNS => 1 });
-
-    next unless $Cams->{TOTAL} || defined($tp_info->[0]{month_fee});
-
-    if ($tp_info->[0]{month_fee} > 0) {
-      my %FEES_DSC = (
-        MODULE          => "Cams",
-        SERVICE_NAME    => $lang{CAMERAS},
-        TP_ID           => $tp_info->[0]{tp_id},
-        TP_NAME         => $tp_info->[0]{name},
-        FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
-      );
-
-      $info{service_name} = fees_dsc_former(\%FEES_DSC);
-      $info{service_desc} = q{};
-      $info{tp_name} = $tp_info->[0]{tp_name};
-      $info{status} = $service_info->{status};
-      $info{day} = $tp_info->[0]{day_fee};
-      $info{month} = $tp_info->[0]{month_fee};
-
-      if ($service_info->{status} && $service_info->{status} != 5 && $attr->{SKIP_DISABLED}) {
-        $info{day} = 0;
-        $info{month} = 0;
-        $info{abon_distribution} = 0;
-      }
-
-      if ($attr->{FULL_INFO}) {
-        push @services, { %info };
-      }
-      else {
-        push @services, fees_dsc_former(\%FEES_DSC) . "||$tp_info->[0]{month_fee}||$tp_info->[0]{name}";
-      }
-    }
-  }
-
-  if ($attr->{FEES_INFO}) {
-    return \%info;
-  }
-
-  return \@services;
-}
-
-#**********************************************************
 =head2 cams_users_list($attr)
 
   Arguments:
@@ -1874,6 +1729,7 @@ sub cams_users_list {
       'subscribe_id'   => $lang{SUBSRIBES},
       'service_name'   => $lang{SERVICE}
     },
+    STATUS_VALS    => sel_status({ HASH_RESULT => 1 }),
     TABLE          => {
       width   => '100%',
       caption => ($FORM{UID}) ? "$lang{SERVICES}" : "$lang{CAMERAS} - $lang{USERS}",
@@ -1963,70 +1819,28 @@ sub cams_get_badge_info {
   return $subscriptions, $cameras;
 }
 
-#**********************************************************
-=head cams_quick_info($attr) - Quick information
+#*******************************************************************
+=head2 cams_user_del($uid) - Delete user from module
 
   Arguments:
-    $attr
-      UID
-      LOGIN
+    $uid
 
 =cut
-#**********************************************************
-sub cams_quick_info {
-  my ($attr) = @_;
-  my $result;
+#*******************************************************************
+sub cams_user_del {
+  my ($uid, $attr) = @_;
 
-  my $uid = $attr->{UID} || $FORM{UID};
+  my $users_list = $Cams->users_list({ ID => '_SHOW', UID => $uid, COLS_NAME => 1 });
 
-  if ($attr->{GET_PARAMS}) {
-    return {
-      HEADER    => $lang{CAMERAS},
-      QUICK_TPL => 'cams_qi_box',
-      FIELDS    => {
-        TP_NAME     => $lang{TARIF_PLAN},
-        STATUS      => $lang{STATUS},
-        MONTH_FEE   => $lang{MONTH_FEE},
-        TP_COMMENTS => $lang{COMMENTS},
-      }
-    };
+  foreach my $line (@{$users_list}) {
+    my $user_info = $Cams->user_info($line->{uid});
+    cams_account_action({ %{$user_info}, del => 1, UID => $uid });
   }
 
-  if ($attr->{UID}) {
-    my $user_info = $Cams->user_info($uid);
-    return {} if $Cams->{TOTAL} < 1;
+  $Cams->{UID} = $uid;
+  $Cams->users_del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
 
-    my $service_status = sel_status({ HASH_RESULT => 1 });
-    $user_info->{STATUS} = defined($user_info->{SERVICE_STATUS}) ? $service_status->{ $user_info->{SERVICE_STATUS} } : '';
-    ($user_info->{STATUS}, undef) = split(':', $user_info->{STATUS});
-
-    return $user_info;
-  }
-
-  my $fn_name = $functions{$attr->{FN_INDEX}} || 0;
-  return 0 if !$fn_name;
-
-  if ($fn_name eq 'cams_user') {
-    $Cams->_list({
-      UID         => $uid,
-      LOGIN       => (!$uid && $attr->{LOGIN}) ? $attr->{LOGIN} : '_SHOW',
-      TP_NAME     => '_SHOW',
-      MONTH_FEE   => '_SHOW',
-      CID         => '_SHOW',
-      TP_COMMENTS => '_SHOW',
-      STATUS      => '_SHOW',
-      IP          => '_SHOW',
-      COLS_NAME   => 1,
-      COLS_UPPER  => 1
-    });
-    return $Cams->{TOTAL} < 1 ? 0 : $Cams->{TOTAL};
-  }
-
-  return 0 if !$uid;
-
-  $Cams->user_total_cameras($uid);
-  return $Cams->{TOTAL} < 1 ? 0 : $Cams->{TOTAL}
+  return 0;
 }
-
 
 1;

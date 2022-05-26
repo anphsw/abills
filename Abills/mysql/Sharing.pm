@@ -2506,5 +2506,77 @@ sub sharing_download_dynamic {
   return $self->{list};
 }
 
+sub sharing_user_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
+
+  my $GROUP = '';
+
+  if ( $attr->{SH_FILE} ){
+    $GROUP = "GROUP BY s.uid";
+  }
+
+  my $WHERE = $self->search_former( $attr, [
+    [ 'LOGIN',   'STR',    'u.id AS login',     1],
+    [ 'DATE',    'DATE',   's.date_to',         1],
+    [ 'DEMO',    'INT',    's.demo',            1],
+  ],
+    {
+      WHERE        => 1,
+      USE_USERS_PI => 1,
+      SKIP_USERS_FIELDS => ['COMMENTS']
+    }
+  );
+
+  my $EXT_TABLES = $self->{EXT_TABLES} || '';
+
+  $self->query(
+    "SELECT
+      s.uid,
+    $self->{SEARCH_FIELDS}
+      s.file_id
+    FROM sharing_users s
+    LEFT JOIN users u ON (u.uid=s.uid)
+    LEFT JOIN sharing_files sf ON (sf.id=s.file_id)
+    WHERE s.file_id = ?
+    $EXT_TABLES
+    $WHERE
+    $GROUP
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+      {
+        %$attr,
+        Bind => [ $attr->{SH_FILE} ]
+      }
+  );
+
+  my $list = $self->{list};
+
+  if ( $self->{TOTAL} > 0 || $PG > 0 ){
+    $self->query(
+      "SELECT
+        COUNT(s.uid) AS total_users,
+        SUM(sf.amount) AS total_sum
+       FROM sharing_users s
+        INNER JOIN sharing_files sf ON (sf.id=s.file_id)
+      WHERE s.file_id = ?
+      $GROUP
+      $EXT_TABLES;",
+      undef,
+      {
+        INFO => 1,
+        Bind => [ $attr->{SH_FILE} ]
+      }
+    );
+  }
+
+  return $list;
+}
 1;
 

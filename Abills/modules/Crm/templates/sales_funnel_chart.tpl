@@ -17,9 +17,9 @@
     background-color: white;
   }
 </style>
-<script src="/styles/default_adm/js/charts/amcharts/amcharts.js"></script>
-<script src="/styles/default_adm/js/charts/amcharts/funnel.js"></script>
-<script src="/styles/default_adm/js/charts/amcharts/light.js"></script>
+<script src="/styles/default/js/charts/amcharts/amcharts.js"></script>
+<script src="/styles/default/js/charts/amcharts/funnel.js"></script>
+<script src="/styles/default/js/charts/amcharts/light.js"></script>
 <script>
   var chart = AmCharts.makeChart( "chartdiv", {
     "type": "funnel",

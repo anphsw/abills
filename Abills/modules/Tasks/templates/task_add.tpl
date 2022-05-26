@@ -4,7 +4,7 @@
   
     <div class='card card-form  card-primary card-outline box-form'>
       <div class='card-header with-border'><h3 class='card-title'>%BOX_TITLE%</h3>
-        <div class='card-tools pull-right'>
+        <div class='card-tools float-right'>
         <button type='button' class='btn btn-tool' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>
           </button>
@@ -44,7 +44,7 @@
           <label class='col-md-4 col-form-label text-md-right' for='responsible'>_{PARTCIPIANTS}_:</label>
           <div class='col-md-8'>
             <input type='hidden' id='PARTCIPIANTS_LIST' name='PARTCIPIANTS_LIST' value='%PARTCIPIANTS_LIST%'>
-            <button type='button' class='btn btn-primary pull-left' data-toggle='modal' data-target='#myModal' 
+            <button type='button' class='btn btn-primary float-left' data-toggle='modal' data-target='#myModal'
                     onClick='return openModal()'>_{SELECTED}_: <span class='admin_count'></span></button>
           </div>
         </div>

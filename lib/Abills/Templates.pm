@@ -65,7 +65,9 @@ sub _include {
     $Bin . '/../Abills/templates/'. $domain_path . $module . '_' . $tpl . $sufix,
     $Bin . '/../Abills/templates/' . $module . '_' . $tpl . "_$language" . $sufix,
     #Fixme for unifi hotspot
-    $Bin . '/../../../../../../../Abills/templates/'. $domain_path . $module . '_' . $tpl . $sufix
+    $Bin . '/../../../../../../../Abills/templates/'. $domain_path . $module . '_' . $tpl . $sufix,
+    #Fixme for paysys_cons
+    $Bin . '/../../../Abills/templates/'. $domain_path . $module . '_' . $tpl . $sufix
   );
 
   foreach my $result_template (@search_paths) {

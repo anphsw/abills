@@ -137,7 +137,7 @@
     _{CHAT}_
     <span id="Chat_count" data-toggle="tooltip" title="" class="label alert-danger" style="display: none">0</span>
     <audio preload="auto">
-      <source src="/styles/default_adm/bb2_new.mp3" type="audio/mpeg">
+      <source src="/styles/default/bb2_new.mp3" type="audio/mpeg">
     </audio>
   </div>
   <div class="body panel panel-default">

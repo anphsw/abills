@@ -10,8 +10,6 @@ use strict;
 use parent 'dbcore';
 my $MODULE = 'Extreceipt';
 
-use Abills::Base qw/_bp/;
-
 #**********************************************************
 =head2 new($db, $admin, \%conf)
 
@@ -43,11 +41,11 @@ sub list {
   my ($attr) = @_;
 
   my $WHERE =  $self->search_former($attr, [
-      ['STATUS',     'INT', 'e.status', 1],
-      ['UID',        'INT', 'p.uid',    1],
-      ['PAYMENT_ID', 'INT', 'p.id',     1],
-      ['FROM_DATE',  'DATE','p.date',   1],
-      ['PAYMENT_METHOD', 'INT', 'p.id', 'p.id AS payment_method'],
+      ['STATUS',            'INT', 'e.status',                            1],
+      ['UID',               'INT', 'p.uid',                               1],
+      ['PAYMENT_ID',        'INT', 'p.id',                                1],
+      ['FROM_DATE|TO_DATE', 'DATE', 'DATE_FORMAT(p.date, \'%Y-%m-%d\')'   ],
+      ['PAYMENT_METHOD',    'INT', 'p.id',    'p.id AS payment_method'    ],
     ],
     { WHERE => 1 }
   );
@@ -97,6 +95,14 @@ sub info {
   my $self = shift;
   my ($id) = @_;
 
+  my $EXT_TABLES = '';
+
+  if ($self->{conf}->{EXTRECEIPTS_USER_CELL_PHONE}) {
+    $EXT_TABLES = " LEFT JOIN users_contacts ucp ON (ucp.uid = p.uid AND ucp.type_id=1)";
+  } else {
+    $EXT_TABLES = " LEFT JOIN users_contacts ucp ON (ucp.uid = p.uid AND ucp.type_id=2)";
+  }
+
   $self->query("SELECT
       e.*,
       ek.api_id,
@@ -110,15 +116,15 @@ sub info {
       FROM extreceipts e
       LEFT JOIN extreceipts_kkt ek ON (e.kkt_id = ek.kkt_id)
       LEFT JOIN payments p ON (p.id = e.payments_id)
-      LEFT JOIN users_contacts ucp ON (ucp.uid = p.uid AND ucp.type_id=2)
       LEFT JOIN users_contacts ucm ON (ucm.uid = p.uid AND ucm.type_id=9)
       LEFT JOIN users_pi pi ON (pi.uid = p.uid)
+      $EXT_TABLES
       WHERE e.payments_id = ?;",
     undef,
     { Bind => [ $id ], COLS_NAME => 1 }
   );
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -129,7 +135,7 @@ sub info {
 sub add {
   my $self = shift;
   my ($payment_id, $api) = @_;
-  
+
   $self->query('INSERT INTO extreceipts (`payments_id`, `api`)
       VALUES (?, ?);',
     'do',
@@ -154,13 +160,13 @@ sub get_new_payments {
   );
   my $last_id = $self->{list}[0][0];
 
-  my $kkt_list = $self->kkt_list();
-
   if ($self->{TOTAL} < 1) {
     $self->{error}=111;
     $self->{errstr}="NO KKT_LIST VALUES";
     return 0;
   }
+
+  my $kkt_list = $self->kkt_list();
 
   my $CASE = "CASE\n";
   foreach my $kkt (@$kkt_list) {
@@ -214,7 +220,7 @@ sub change {
     DATA         => $attr
   });
   
-  return 1
+  return 1;
 }
 
 #**********************************************************
@@ -261,7 +267,7 @@ sub payments_list {
 
   my $list = $self->{list};
 
-  $self->query("SELECT COUNT(*) AS total
+  $self->query("SELECT COUNT(*) AS total, SUM(sum) AS total_sum
       FROM payments p
       LEFT JOIN extreceipts e ON (p.id = e.payments_id)
       LEFT JOIN users u ON (u.uid = p.uid)
@@ -306,7 +312,8 @@ sub kkt_list {
   $self->query("SELECT
       $self->{SEARCH_FIELDS}
       ek.*,
-      ea.api_name
+      ea.api_name,
+      ea.conf_name
       FROM extreceipts_kkt ek
       LEFT JOIN extreceipts_api ea ON (ek.api_id = ea.api_id)
       $WHERE;",
@@ -332,7 +339,7 @@ sub kkt_change {
     DATA         => $attr
   });
   
-  return 1
+  return 1;
 }
 
 #**********************************************************
@@ -357,7 +364,7 @@ sub kkt_del {
 sub api_add {
   my $self = shift;
   my ($attr) = @_;
-  
+
   $self->query_add( 'extreceipts_api', $attr );
 
   return 1;
@@ -381,9 +388,9 @@ sub api_list {
   );
 
   $self->query(
-    'SELECT * FROM `extreceipts_api` ea '. $WHERE .';',
+    "SELECT *, DECODE(password, ?) as password FROM `extreceipts_api` ea ". $WHERE .';',
     undef,
-    { COLS_NAME => 1, COLS_UPPER => 1 }
+    { COLS_NAME => 1, COLS_UPPER => 1, Bind => [ $self->{conf}->{secretkey} ] }
   );
 
   return $self->{list};
@@ -404,7 +411,7 @@ sub api_change {
     DATA         => $attr
   });
   
-  return 1
+  return 1;
 }
 
 #**********************************************************
@@ -421,4 +428,4 @@ sub api_del {
   return 1;
 }
 
-1
+1;

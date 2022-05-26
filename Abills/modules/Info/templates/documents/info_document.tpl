@@ -7,7 +7,7 @@
                 <span class='fa fa-save'></span>
             </a>
             <a class='docDelBtn' data-document_id='%DOCUMENT_ID%'>
-                <span class='fa fa-remove'></span>
+                <span class='fa fa-times'></span>
             </a>
             <span><b>_{ADMIN}_</b> : %ADMIN%</span>
             <span><b>_{DATE}_</b> : %DATE%</span>

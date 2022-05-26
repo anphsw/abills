@@ -71,7 +71,7 @@
 
       <div class='checkbox'>
         <label>
-          <input type=checkbox name='is_js_confirmed' value='1' class='noprint'>
+          <input type=checkbox name='is_js_confirmed' value='1' class='d-print-none'>
           <strong>_{DEL}_ _{CONFIRM}_</strong>
         </label>
       </div>
@@ -80,7 +80,7 @@
 
   </div>
   <div class='card-footer'>
-    <input type=submit class='btn btn-danger noprint' form='vlan_user_form' name='del' value='_{DEL}_'>
-    <input type=submit class='btn btn-success noprint' form='vlan_user_form' name='%ACTION%' value='%LNG_ACTION%'>
+    <input type=submit class='btn btn-danger d-print-none' form='vlan_user_form' name='del' value='_{DEL}_'>
+    <input type=submit class='btn btn-success d-print-none' form='vlan_user_form' name='%ACTION%' value='%LNG_ACTION%'>
   </div>
 </div>

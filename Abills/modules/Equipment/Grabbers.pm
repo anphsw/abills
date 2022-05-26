@@ -11,6 +11,10 @@ use Abills::Base qw( in_array );
 require Equipment::Snmp_cmd;
 require Equipment::Defs;
 
+our (
+  %FORM,
+);
+
 use POSIX qw(strftime);
 
 my $debug = (defined($FORM{DEBUG})) ? $FORM{DEBUG} : 0;

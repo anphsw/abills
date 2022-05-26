@@ -309,7 +309,7 @@ sub work_planning_add {
     my $Admin_name  = $Admins->info($item->{aid});
     
     my $del_button  = $html->button("", "index=$index&DELETE=$item->{id}", { class => "text-danger", ADD_ICON => "fa fa-trash" });
-    my $edit_button = $html->button("", "index=$index&EDIT=$item->{id}", { class => "", ADD_ICON => "fa fa-pencil" });
+    my $edit_button = $html->button("", "index=$index&EDIT=$item->{id}", { class => "", ADD_ICON => "fa fa-pencil-alt" });
     $table->addrow(
       $item->{id},     $item->{date_of_creation}, $item->{date_of_execution},     "$Admin_name->{A_FIO}", $item->{description},                     $arr_status_option[ $item->{status} ],
       $item->{budget}, $Users->{FIO},             $build_name->{NUMBER}, $item->{comment},       $Admins->info($item->{creator})->{A_FIO}, $msgs_indicator, "$edit_button$del_button"

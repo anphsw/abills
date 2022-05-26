@@ -548,13 +548,13 @@ sub notepad_calendar {
   our $base_dir ||= '/usr/abills';
 
   my $locale_code = $html->{content_language};
-  my $locale_script_src = '/styles/lte_adm/plugins/fullcalendar/locale-all.js';
+  my $locale_script_src = '/styles/default/plugins/fullcalendar/locale-all.js';
 
-  if ($locale_code && -e $base_dir . '/cgi-bin/styles/lte_adm/plugins/fullcalendar/locale/' . $locale_code . '.js') {
-    $locale_script_src = "/styles/lte_adm/plugins/fullcalendar/locale/$locale_code.js";
+  if ($locale_code && -e $base_dir . '/cgi-bin/styles/default/plugins/fullcalendar/locale/' . $locale_code . '.js') {
+    $locale_script_src = "/styles/default/plugins/fullcalendar/locale/$locale_code.js";
   }
   else {
-    $html->message('warn', 'File not found', "/styles/lte_adm/plugins/fullcalendar/locale/$locale_code.js")
+    $html->message('warn', 'File not found', "/styles/default/plugins/fullcalendar/locale/$locale_code.js")
   }
 
   $html->tpl_show(_include('notepad_calendar', 'Notepad'),

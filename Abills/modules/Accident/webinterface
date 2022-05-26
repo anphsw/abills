@@ -231,7 +231,7 @@ sub accident_log {
     }
 
     push @fields_array, $html->button($lang{CHANGE}, "&change=$line->{id}&index=" . get_function_index('accident_log_add'),
-      { ICON => 'fa fa-pencil' });
+      { ICON => 'fa fa-pencil-alt' });
     push @fields_array, $html->button($lang{DEL}, "&del=1&ID=" . ($line->{id} || '') . "&index=" . get_function_index('accident_log'),
       { MESSAGE => $lang{DEL}, class => 'text-danger', ICON => 'fa fa-trash' });
     push @fields_array, $html->button('', "&compensation=1&ID=" . ($line->{id} || '') . "&index=" . get_function_index('accident_compensation'),
@@ -773,7 +773,7 @@ sub accident_equipment_log {
 
     my $change = $html->button($lang{CHANGE},
       "index=$index&change=$equipment_element->{id}&actions=1",
-      { ICON => 'fa fa-pencil' });
+      { ICON => 'fa fa-pencil-alt' });
 
     $table->addrow(
       $equipment_element->{id},
@@ -1250,64 +1250,6 @@ sub accident_user {
 }
 
 #**********************************************************
-=head2 accident_quick_info($attr) - Quick information
-
-  Arguments:
-    $attr
-
-=cut
-#**********************************************************
-sub accident_quick_info {
-  my ($attr) = @_;
-  my $uid = $attr->{UID} || $FORM{UID};
-
-  return () if ($FORM{sid});
-
-  if ($attr->{UID}) {
-    my $list = $Accident->user_accident_list({
-      UID       => $uid,
-      COLS_NAME => 1
-    });
-
-    my @result = ();
-    my $admins_list = sel_admins({ HASH => 1 });
-
-    foreach my $line (@$list) {
-
-      push @result, {
-        NAME   => $line->{name},
-        DESC   => $line->{descr},
-        STATUS => $status{ $line->{status} },
-        AID    => $admins_list->{ $line->{aid} },
-      };
-    }
-
-    return \@result;
-  }
-  elsif ($attr->{GET_PARAMS}) {
-    my %result = (
-      HEADER => $lang{ACCIDENT_LOG},
-      SLIDES => [
-        { NAME => $lang{NAME} },
-        { DESC => $lang{DESCRIBE} },
-        { STATUS => $lang{STATUS} },
-        { AID => $lang{RESPONSIBLE} },
-      ]
-    );
-
-    return \%result;
-  }
-
-  $Accident->user_accident_list({
-    UID       => $uid,
-    COLS_NAME => 1
-  });
-
-  return ($Accident->{TOTAL} > 0) ? $Accident->{TOTAL} : '';
-}
-
-
-#**********************************************************
 =head2 accident_warning($attr) - Send warning to telegram or viber
 
   Arguments:
@@ -1343,20 +1285,19 @@ sub accident_warning {
 
 =cut
 #**********************************************************
-sub  accident_auto_close{
+sub accident_auto_close {
   my ($attr) = @_;
   my $debug = $attr->{DEBUG} || 0;
 
   return 0 if(!$DATE);
 
-  $Accident->{debug} = $debug;
+  $Accident->{debug} = 1 if ($debug > 6);
 
   my $list = $Accident->list({
     STATUS   => 0,
     END_TIME => "<$DATE",
     COLS_NAME => 1,
   });
-
 
   if($Accident->{TOTAL} > 0) {
     foreach (@$list) {
@@ -1370,7 +1311,6 @@ sub  accident_auto_close{
   else {
     print "NO Accidents to close\n" if($debug);
   }
-
 
   return 1;
 }

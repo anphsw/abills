@@ -28,7 +28,6 @@ our Users $users;
 sub form_groups {
 
   if ($FORM{add_form}) {
-    $LIST_PARAMS{PAGE_ROWS}=9999;
     if ($permissions{0} && !$permissions{0}{28}) {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
       return 0
@@ -37,11 +36,20 @@ sub form_groups {
     $users->{LNG_ACTION} = $lang{ADD};
     if(in_array('Multidoms', \@MODULES)) {
       load_module('Multidoms', $html);
-      $users->{DOMAIN_FORM} = $html->tpl_show(templates('form_row'), { ID    => '',
-          NAME  => "DOMAIN_ID",
-          VALUE => multidoms_domains_sel({ SHOW_ID => 1, DOMAIN_ID => $admin->{DOMAIN_ID} })
-        },
-        { OUTPUT2RETURN => 1 });
+      $users->{DOMAIN_FORM} = $html->tpl_show(templates('form_row'), {
+        ID    => '',
+        NAME  => $lang{DOMAIN},
+        VALUE => multidoms_domains_sel({ SHOW_ID => 1, DOMAIN_ID => $admin->{DOMAIN_ID} })
+      }, { OUTPUT2RETURN => 1 });
+    }
+
+    if(in_array('Sms', \@MODULES)) {
+      load_module('Sms', $html);
+      $users->{SMS_FORM} = $html->tpl_show(templates('form_row'), {
+        ID    => '',
+        NAME  => $lang{SMS_GATEWAY},
+        VALUE => sel_sms_systems({ SELECTED => $users->{SMS_SERVICE} })
+      }, { OUTPUT2RETURN => 1 });
     }
 
     $html->tpl_show(templates('form_groups'), $users);
@@ -56,10 +64,8 @@ sub form_groups {
       $html->message( 'err', $lang{ERROR}, $lang{ERR_ACCESS_DENY} );
     }
     else {
-      $users->group_add({%FORM});
-      if (!$users->{errno}) {
-        $html->message( 'info', $lang{ADDED}, "$lang{ADDED} [". ($FORM{GID} || q{}) ."]" );
-      }
+      $users->group_add({ %FORM });
+      $html->message( 'info', $lang{ADDED}, "$lang{ADDED} [". ($FORM{GID} || q{}) ."]" ) if !$users->{errno};
     }
   }
   elsif ($FORM{change}) {
@@ -68,7 +74,7 @@ sub form_groups {
       return 0;
     }
 
-    $users->group_change($FORM{chg}, {%FORM});
+    $users->group_change($FORM{chg}, { %FORM });
     if (!$users->{errno}) {
       $html->message( 'info', $lang{CHANGED}, "$lang{CHANGED} ". ($FORM{chg} || q{}));
     }
@@ -85,65 +91,64 @@ sub form_groups {
     delete $LIST_PARAMS{GIDS};
     $pages_qs = '&GID=' . ($users->{GID} || $FORM{GID}) . (($FORM{subf}) ? "&subf=$FORM{subf}" : q{} );
 
-    my $groups = $html->form_main(
-      {
-        CONTENT => $html->form_select(
-          'GID',
-          {
-            SELECTED  => $users->{GID} || $FORM{GID},
-            SEL_LIST  => $users->groups_list({ 
-              GID             => '_SHOW',
-              NAME            => '_SHOW',
-              DESCR           => '_SHOW',
-              ALLOW_CREDIT    => '_SHOW',
-              DISABLE_PAYSYS  => '_SHOW',
-              DISABLE_CHG_TP  => '_SHOW',
-              USERS_COUNT     => '_SHOW',
-              COLS_NAME => 1
-            }),
-            SEL_KEY   => 'gid',
-            NO_ID     => 1
-          }
-        ),
-        HIDDEN => { index => $index },
-        SUBMIT => { show  => $lang{SHOW} },
-        class  => 'navbar-form navbar-right',
-      }
-    );
+    my $groups = $html->form_main({
+      CONTENT => $html->form_select('GID', {
+        SELECTED => $users->{GID} || $FORM{GID},
+        SEL_LIST => $users->groups_list({
+          GID            => '_SHOW',
+          NAME           => '_SHOW',
+          DESCR          => '_SHOW',
+          ALLOW_CREDIT   => '_SHOW',
+          DISABLE_PAYSYS => '_SHOW',
+          DISABLE_CHG_TP => '_SHOW',
+          USERS_COUNT    => '_SHOW',
+          COLS_NAME      => 1
+        }),
+        SEL_KEY  => 'gid',
+        NO_ID    => 1
+      }),
+      HIDDEN  => { index => $index },
+      SUBMIT  => { show => $lang{SHOW} },
+      class   => 'form-inline ml-auto flex-nowrap',
+    });
 
-    func_menu(
-      {
-        $lang{NAME} => $groups
-      },
+    func_menu({ $lang{NAME} => $groups },
       [
-        $lang{CHANGE}   . '::GID=' . ($users->{GID} || $FORM{GID}) . ':change',
-        $lang{USERS}    . ':11:GID=' . ($users->{GID} || $FORM{GID}) . ':users',
+        $lang{CHANGE} . '::GID=' . ($users->{GID} || $FORM{GID}) . ':change',
+        $lang{USERS} . ':11:GID=' . ($users->{GID} || $FORM{GID}) . ':users',
         $lang{PAYMENTS} . ':2:GID=' . ($users->{GID} || $FORM{GID}) . ':payments',
-        $lang{FEES}     . ':3:GID=' . ($users->{GID} || $FORM{GID}) . ':fees',
+        $lang{FEES} . ':3:GID=' . ($users->{GID} || $FORM{GID}) . ':fees',
       ]
     );
 
-    if (!$permissions{0}{4}) {
-      return 0;
-    }
+    return 0 if !$permissions{0}{4};
 
-    $users->{ACTION}        = 'change';
-    $users->{LNG_ACTION}    = $lang{CHANGE};
-    $users->{SEPARATE_DOCS} = ($users->{SEPARATE_DOCS})  ? 'checked' : '';
-    $users->{ALLOW_CREDIT}  = ($users->{ALLOW_CREDIT})   ? 'checked' : '';
-    $users->{DISABLE_PAYSYS}= ($users->{DISABLE_PAYSYS}) ? 'checked' : '';
-    $users->{DISABLE_PAYMENTS}= ($users->{DISABLE_PAYMENTS}) ? 'checked' : '';
-    $users->{DISABLE_CHG_TP}= ($users->{DISABLE_CHG_TP}) ? 'checked' : '';
-    $users->{BONUS}         = ($users->{BONUS}) ? 'checked' : '';
-    $users->{GID_DISABLE}   = 'disabled';
+    $users->{ACTION} = 'change';
+    $users->{LNG_ACTION} = $lang{CHANGE};
+    $users->{SEPARATE_DOCS} = ($users->{SEPARATE_DOCS}) ? 'checked' : '';
+    $users->{ALLOW_CREDIT} = ($users->{ALLOW_CREDIT}) ? 'checked' : '';
+    $users->{DISABLE_PAYSYS} = ($users->{DISABLE_PAYSYS}) ? 'checked' : '';
+    $users->{DISABLE_PAYMENTS} = ($users->{DISABLE_PAYMENTS}) ? 'checked' : '';
+    $users->{DISABLE_CHG_TP} = ($users->{DISABLE_CHG_TP}) ? 'checked' : '';
+    $users->{BONUS} = ($users->{BONUS}) ? 'checked' : '';
+    $users->{GID_DISABLE} = 'disabled';
 
     if(in_array('Multidoms', \@MODULES)) {
       load_module('Multidoms', $html);
-      $users->{DOMAIN_FORM} = $html->tpl_show(templates('form_row'), { ID    => '',
-          NAME  => "DOMAIN_ID",
-          VALUE => multidoms_domains_sel({ SHOW_ID => 1, DOMAIN_ID => $users->{DOMAIN_ID} })
-        },
-        { OUTPUT2RETURN => 1 });
+      $users->{DOMAIN_FORM} = $html->tpl_show(templates('form_row'), {
+        ID    => '',
+        NAME  => $lang{DOMAIN},
+        VALUE => multidoms_domains_sel({ SHOW_ID => 1, DOMAIN_ID => $users->{DOMAIN_ID} })
+      }, { OUTPUT2RETURN => 1 });
+    }
+
+    if(in_array('Sms', \@MODULES)) {
+      load_module('Sms', $html);
+      $users->{SMS_FORM} = $html->tpl_show(templates('form_row'), {
+        ID    => '',
+        NAME  => $lang{SMS_GATEWAY},
+        VALUE => sel_sms_systems({ SELECTED => $users->{SMS_SERVICE} })
+      }, { OUTPUT2RETURN => 1 });
     }
 
     $html->tpl_show(templates('form_groups'), $users);
@@ -151,16 +156,15 @@ sub form_groups {
     return 0;
   }
   elsif (defined($FORM{del}) && $FORM{COMMENTS} && $permissions{0}{5}) {
+    $FORM{del} = 0 if !$FORM{del};
     $users->list({ GID => $FORM{del} });
 
     if ($users->{TOTAL} && $users->{TOTAL} > 0 && $FORM{del} > 0) {
-      $html->message( 'info', $lang{DELETED}, $lang{USER_EXIST} );
+      $html->message('warning', $lang{WARNING}, $lang{GROUP_USERS_EXISTS});
     }
     else {
       $users->group_del($FORM{del});
-      if (!$users->{errno}) {
-        $html->message( 'info', $lang{DELETED}, "$lang{DELETED} GID: $FORM{del}" );
-      }
+      $html->message('info', $lang{DELETED}, "$lang{DELETED} GID: $FORM{del}")  if !$users->{errno};
     }
   }
 
@@ -181,7 +185,7 @@ sub form_groups {
     INPUT_DATA      => $users,
     FUNCTION        => 'groups_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'G_NAME,DISABLE_PAYMENTS,DISABLE_PAYMENTS,USERS_COUNT,NAME,DESCR,ALLOW_CREDIT,DISABLE_PAYSYS,DISABLE_CHG_TP',
+    DEFAULT_FIELDS  => 'DISABLE_PAYMENTS,DISABLE_PAYMENTS,USERS_COUNT,NAME,DESCR,ALLOW_CREDIT,DISABLE_PAYSYS,DISABLE_CHG_TP',
     HIDDEN_FIELDS   => 'GID',
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => \%ext_titles,

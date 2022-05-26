@@ -2,7 +2,7 @@
   <input type='hidden' name='index' value='$index'>
   <div class='well well-sm'>
     <!--<input type='hidden' name='visual' value='$FORM{visual}'>-->
-    <div class='pull-right'>
+    <div class='float-right'>
       <div class='form-group text-left'>
         %DEVICE_SEL%
       </div>

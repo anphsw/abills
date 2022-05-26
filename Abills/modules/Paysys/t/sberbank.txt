@@ -1,4 +1,0 @@
-amount -> 1.00
-number -> 1231
-action -> check
-type -> 0

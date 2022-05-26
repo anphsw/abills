@@ -1,4 +1,4 @@
-<form action='$SELF_URL' method='post' class='form form-horizontal pswd-confirm'>
+<form action='$SELF_URL' method='post' class='form pswd-confirm'>
   <input type=hidden name=index value=$index>
   <input type=hidden name=sid value='$sid'>
 
@@ -61,35 +61,34 @@
 
 
       <div class='form-group row %PHONE_HAS_ERROR% %PHONE_HIDDEN%'>
-        <label class='col-md-4 required control-label'>_{PHONE}_:</label>
+        <label class='col-md-4 required control-label' for='PHONE'>_{PHONE}_:</label>
         <div class='col-md-8'>
           <div class='input-group'>
-            <input type=text name=PHONE value='%PHONE_ALL%' class='form-control' %PHONE_DISABLE%>
+            <input type=text name=PHONE id='PHONE' value='%PHONE_ALL%' class='form-control' %PHONE_DISABLE%>
           </div>
         </div>
       </div>
 
       <div class='form-group row %CELL_PHONE_HAS_ERROR% %CELL_PHONE_HIDDEN%'>
-        <label class='col-md-4 required control-label'>_{CELL_PHONE}_:</label>
+        <label class='col-md-4 required control-label' for=CELL_PHONE>_{CELL_PHONE}_:</label>
         <div class='col-md-8'>
           <div class='input-group'>
-            <input type=text name=CELL_PHONE value='%CELL_PHONE_ALL%' class='form-control' %CELL_PHONE_DISABLE%>
+            <input type=text name=CELL_PHONE id=CELL_PHONE value='%CELL_PHONE_ALL%' class='form-control' %CELL_PHONE_DISABLE%>
           </div>
         </div>
       </div>
 
       <div class='form-group row %EMAIL_HAS_ERROR% %EMAIL_HIDDEN%'>
-        <label class='col-md-4 control-label required'>E-mail:</label>
+        <label class='col-md-4 control-label required' for=EMAIL>E-mail:</label>
         <div class='col-md-8 %EMAIL_HAS_ERROR% %EMAIL_HIDDEN%'>
           <div class='input-group'>
-            <input type=text name=EMAIL value='%EMAIL%' class='form-control' %EMAIL_DISABLE%>
+            <input type=text name=EMAIL id=EMAIL value='%EMAIL%' class='form-control' %EMAIL_DISABLE%>
           </div>
         </div>
       </div>
       <hr/>
 
       %ADDRESS_SEL%
-
       %INFO_FIELDS%
       %INFO_FIELDS_POPUP%
 

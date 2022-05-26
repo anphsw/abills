@@ -1018,7 +1018,7 @@ sub dv_user {
 
     $Dv->{CALLBACK}          = ($Dv->{CALLBACK} == 1) ? ' checked' : '';
     $Dv->{DETAIL_STATS}      = ($Dv->{DETAIL_STATS} && $Dv->{DETAIL_STATS} == 1) ? ' checked' : '';
-    $Dv->{REGISTRATION_INFO} = $html->button("", "qindex=$index&UID=$Dv->{UID}&REGISTRATION_INFO=1", { class => 'btn btn-sm btn-secondary', ICON => 'fa fa-print', ex_params => 'target=_new' });
+    $Dv->{REGISTRATION_INFO} = $html->button("", "qindex=$index&UID=$Dv->{UID}&REGISTRATION_INFO=1", { class => 'btn btn-sm btn-secondary', ICON => 'fas fa-print', ex_params => 'target=_new' });
 
     if ($permissions{0}{14}) {
       $Dv->{DEL_FORM}       = $html->tpl_show(templates('form_row'), { ID => "del",
@@ -1055,7 +1055,7 @@ sub dv_user {
     }
 
     if ($conf{DOCS_PDF_PRINT}) {
-      $Dv->{REGISTRATION_INFO_PDF} = $html->button("", "qindex=$index&UID=$Dv->{UID}&REGISTRATION_INFO=1&pdf=1", { ex_params => 'target=_new', class => 'btn btn-sm btn-secondary', ICON => 'fa fa-print' });
+      $Dv->{REGISTRATION_INFO_PDF} = $html->button("", "qindex=$index&UID=$Dv->{UID}&REGISTRATION_INFO=1&pdf=1", { ex_params => 'target=_new', class => 'btn btn-sm btn-secondary', ICON => 'fas fa-print' });
       $Dv->{PDF_VISIBLE} = 'blok';
     }
   }

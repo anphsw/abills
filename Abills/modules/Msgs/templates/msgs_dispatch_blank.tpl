@@ -76,7 +76,7 @@ table.naryad td {
 
 
 </table>
-<div class='noprint' align=center>
+<div class='d-print-none' align=center>
 <p>
     <a href='javascript:window.print();' class=linkm1><b>_{PRINT}_</b></a> ::
 <a href='$SELF_URL?qindex=$FORM{qindex}&print=$FORM{print}&pdf=1' target=_pdf class=linkm1><b>PDF</b></a> ::

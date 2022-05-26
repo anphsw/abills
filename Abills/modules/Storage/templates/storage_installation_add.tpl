@@ -7,9 +7,6 @@
       <h4 class='card-title'>_{ARTICLE}_</h4>
     </div>
     <div class='card-body'>
-      <div id='address_form_source'>
-        %ADDRESS_FORM%
-      </div>
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' for='COUNT_id'>_{COUNT}_:</label>
         <div class='col-md-8'><input class='form-control' name='COUNT' id='COUNT_id' value='%COUNT%' type='number'/>
@@ -54,6 +51,10 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <div id='address_form_source'>
+        %ADDRESS_FORM%
       </div>
     </div>
     <div class='card-footer'>

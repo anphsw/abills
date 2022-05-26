@@ -3,7 +3,7 @@
   
 <div class='card card-primary card-outline box-form form-horizontal'>
   
-<div class='card-heading with-border text-primary'><h4 class='card-title'>_{FILTERS}_</h4></div>
+<div class='card-header with-border text-primary'><h4 class='card-title'>_{FILTERS}_</h4></div>
 
 <div class='card-body'>
   <div class='form-group' data-visible='%STATUS_VISIBILITY%'>
@@ -36,7 +36,7 @@
 <div class='card-footer'>
   <button type='submit' class='btn btn-primary'>_{FILTER}_</button>
   <a href='$SELF_URL?index=$index&refresh=1'  type='button' class='btn btn-success' data-tooltip='_{FILLING_DATA}_' data-visible='%REFRESH_VISIBILITY%'>
-    <span class='fa fa-refresh' aria-hidden='true'></span>
+    <span class='fas fa-sync' aria-hidden='true'></span>
   </a>
 </div>
 </div>

@@ -45,7 +45,7 @@
 
 </script>
 
-<script src='/styles/default_adm/js/filter_panel.js'></script>
+<script src='/styles/default/js/filter_panel.js'></script>
 <script>
   jQuery(function () {
     new FilterPanel('%ID%', JSON.parse('%FILTERS_JSON%'));

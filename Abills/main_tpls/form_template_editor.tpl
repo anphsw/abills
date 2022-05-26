@@ -39,8 +39,9 @@
     autofocus  : true
   });
 
-  jQuery(function () {
+  jQuery('.CodeMirror').css('resize', 'vertical');
 
+  jQuery(function () {
     var _form = jQuery('#template_form');
 
     _form.on('submit', function () {
@@ -60,8 +61,8 @@
       var preview      = previewFrame.contentDocument || previewFrame.contentWindow.document;
 
       var bootstrapStyles =
-              '<link href=/styles/default_adm/css/bootstrap.min.css rel=stylesheet>'
-              + '<link href=/styles/default_adm/css/style.css rel=stylesheet>';
+              '<link href=/styles/default/css/bootstrap.min.css rel=stylesheet>'
+              + '<link href=/styles/default/css/style.css rel=stylesheet>';
 
       preview.open();
 
@@ -76,11 +77,11 @@
       );
 
       var script = document.createElement('script');
-      script.src = '/styles/default_adm/js/jquery.min.js';
+      script.src = '/styles/default/js/jquery.min.js';
       preview.getElementsByTagName('head')[0].appendChild(script);
 
 //        var script2     = document.createElement('script');
-//        script2.src = '/styles/default_adm/js/bootstrap.min.js';
+//        script2.src = '/styles/default/js/bootstrap.bundle.min.js';
 //        preview.getElementsByTagName('head')[0].appendChild(script2);
 
       preview.addEventListener('DOMContentLoaded', function (event) {

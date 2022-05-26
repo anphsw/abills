@@ -1,4 +1,4 @@
-<script src='/styles/default_adm/js/modules/config/password_generator.js'></script>
+<script src='/styles/default/js/modules/config/password_generator.js'></script>
 
 <script>
   jQuery(function () {

@@ -12,7 +12,7 @@
                         <label class='col-md-3 col-form-label text-md-right' for='A_LOGIN'>_{LOGIN}_:</label>
                         <div class='col-md-9'>
                             <input id='A_LOGIN' name='A_LOGIN' value='%A_LOGIN%' placeholder='%A_LOGIN%'
-                                   class='form-control' type='text'>
+                                   class='form-control' type='text' pattern='\S{1,}'>
                         </div>
                     </div>
 
@@ -82,10 +82,10 @@
 
                     <div class='card card-primary card-outline collapsed-card'>
                         <div class='card-header with-border' class='center'>
-                            <h3 class="card-title">_{PASPORT}_:</h3>
-                            <div class="card-tools pull-right">
-                                <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                                    <i class="fa fa-plus"></i>
+                            <h3 class='card-title'>_{PASPORT}_:</h3>
+                            <div class='card-tools float-right'>
+                                <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+                                    <i class='fa fa-plus'></i>
                                 </button>
                             </div>
                         </div>
@@ -142,8 +142,8 @@
         <div class='col-md-6'>
             <div class='card card-primary card-outline'>
                 <div class='card-header with-border' class='center'>
-                    <h3 class="card-title">_{OTHER}_</h3>
-                    <div class='card-tools pull-right'>
+                    <h3 class='card-title'>_{OTHER}_</h3>
+                    <div class='card-tools float-right'>
                         <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                             <i class='fa fa-minus'></i>
                         </button>

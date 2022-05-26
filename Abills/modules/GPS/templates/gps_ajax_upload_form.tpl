@@ -68,7 +68,7 @@
     jQuery(function () {
         /** Anykey : pictures inside select **/
 
-        var BASE_DIR = '/styles/default_adm/img/maps/adm_thumbnails/';
+        var BASE_DIR = '/styles/default/img/maps/adm_thumbnails/';
         var EXTENSION = '.png';
 
         var select = jQuery('#ICON_SELECT');
@@ -113,4 +113,4 @@
     });
 
 </script>
-<script src='/styles/default_adm/js/ajax_upload.js'></script>
+<script src='/styles/default/js/ajax_upload.js'></script>

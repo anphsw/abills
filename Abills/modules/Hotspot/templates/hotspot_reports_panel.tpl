@@ -2,7 +2,7 @@
   <form method='get' name='HOTSPOT_REPORTS_FORM' class='form form-inline'>
     <input type='hidden' name='index' value='$index'/>
 
-    <div class="form-group pull-left" data-visible="%FILTER_VISIBLE%">
+    <div class="form-group float-left" data-visible="%FILTER_VISIBLE%">
       <label for='FILTER'>_{FILTER}_</label>
       %FILTER_SELECT%
     </div>

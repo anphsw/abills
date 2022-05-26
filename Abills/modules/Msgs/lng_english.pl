@@ -133,7 +133,6 @@ $lang{SUNDAY_FULL}='Sunday';
 $lang{ERR_NO_MESSAGE} = 'Message is not set';
 $lang{MASS_MAILING} = 'Mass mailing! Continue?';
 $lang{ATTACH_ADDRESS} = 'Attach to the address';
-$lang{FULL_MESSAGE_ADDRESS} = 'Full message address';
 $lang{TAKEN_TO_WORK} = 'Taken to work';
 
 $lang{REPEAT_MSG_USER} = 'A message from this user has already been accepted today!';
@@ -192,5 +191,20 @@ $lang{RESPONSE_TIME} = 'Response time';
 $lang{SUPPORT_SYSTEM_STATS} = 'Support system stats';
 
 $lang{DYNAMICS_OF_MESSAGES_AND_REPLIES} = 'Dynamics of messages and replies';
+$lang{MSGS_HOURS} = 'h';
+$lang{MSGS_MINUTES} = 'min';
+
+$lang{AVERAGE_COEFFICIENT} = 'Average coefficient';
+$lang{TOTAL_MESSAGES} = 'Total messages';
+$lang{MESSAGES_COEFFICIENT} = 'Messages coefficient';
+$lang{COEFFICIENT} = 'Coefficient';
+$lang{RESPONSIBLE_NOT_SPECIFIED} = 'Responsible not specified';
+
+$lang{SEND} = 'Send';
+
+$lang{AUTHOR} = 'Author';
+$lang{CLOSED_THE_TICKET} = 'Closed the ticket';
+
+$lang{NEW_MESSAGE} = 'New message';
 
 1;

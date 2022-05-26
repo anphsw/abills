@@ -1,4 +1,4 @@
-<div class='noprint'>
+<div class='d-print-none'>
     <form action='$SELF_URL' method='post' class='form-horizontal'>
         <input type=hidden name='index' value='$index'>
         <input type=hidden name=chg value='%ROUTE_ID%'>

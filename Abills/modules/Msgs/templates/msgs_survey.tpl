@@ -19,7 +19,7 @@
 
 <div class='card-footer'>
   %RUN_TIME% %ATTACHMENT%
-  <div class='pull-right'>%QUOTING% %DELETE%</div>
+  <div class='float-right'>%QUOTING% %DELETE%</div>
 </div>
 
 </div>

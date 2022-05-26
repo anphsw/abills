@@ -12,6 +12,10 @@
         </div>
       </div>
       <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{NAS}_:</label>
+        <div class='col-md-8'>%NAS_SEL%</div>
+      </div>
+      <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right'>_{INSTALLED}_:</label>
         <div class='col-md-8'>%INSTALLED_AID%</div>
       </div>
@@ -47,9 +51,9 @@
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right'>_{DATE}_:</label>
         <div class='col-md-8'>
-          <div class="input-group">
-            <div class="input-group-prepend">
-              <span class="input-group-text">
+          <div class='input-group'>
+            <div class='input-group-prepend'>
+              <span class='input-group-text'>
                 <input type='checkbox' class='form-control-static' data-input-enables='DATE'/>
               </span>
             </div>
@@ -72,8 +76,8 @@
     jQuery('select#ARTICLE_SEARCH_id').select2({
       ajax: {
         url: '/admin/index.cgi',
-        dataType: "json",
-        type: "POST",
+        dataType: 'json',
+        type: 'POST',
         quietMillis: 50,
         data: function (term) {
           return {

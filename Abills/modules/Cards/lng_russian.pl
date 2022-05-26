@@ -6,7 +6,7 @@ $lang{ERR_COMPANY_DISABLE}='Пополнять компаниям запреще
 $lang{ERR_TRY_AGAIN}='Произошла ошибка, попробуйт еще раз';
 $lang{DILLERS_USE}='Отдано дилерам';
 $lang{TRANSFERRED_TO_PRODUCTION}='Передано в производство';
-$lang{ERR_SUPPORT}='ОБратитесь в службу поддержки';
+$lang{ERR_SUPPORT}='Обратитесь в службу поддержки';
 
 $lang{SEARCH}='Поиск';
 $lang{DOCUMENT}='Договор';

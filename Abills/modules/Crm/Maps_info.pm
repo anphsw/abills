@@ -27,7 +27,6 @@ our (
 my ($Crm, $Maps, $Auxiliary, $Tags);
 my @priority_colors = ('', '#6c757d', '#17a2b8', '#28a745', '#ffc107', '#dc3545');
 
-use Maps2::Auxiliary qw/maps2_point_info_table/;
 use Abills::Base qw(in_array);
 
 #**********************************************************
@@ -61,7 +60,9 @@ sub new {
   Maps->import();
   $Maps = Maps->new($db, $admin, $CONF);
 
-  $Auxiliary = Maps2::Auxiliary->new($db, $admin, $CONF, { HTML => $html, LANG => $lang });
+  require Maps::Auxiliary;
+  Maps::Auxiliary->import();
+  $Auxiliary = Maps::Auxiliary->new($db, $admin, $CONF, { HTML => $html, LANG => $lang });
 
   return $self;
 }
@@ -132,9 +133,10 @@ sub maps_leads {
       address_flat => $lead->{ADDRESS_FLAT},
       address_full => $lead->{ADDRESS_FULL},
       step         => $html->color_mark(::_translate($lead->{STEP}), $lead->{COLOR}),
-      phone        => $lead->{PHONE},
+      comments     => $lead->{COMMENTS},
       uid          => $lead->{UID} ? $html->button($lead->{UID}, 'index=' . ::get_function_index('form_users') . "&UID=$lead->{UID}") : '',
-      competitor   => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' . ::get_function_index('crm_competitors') . "&chg=$lead->{COMPETITOR_ID}") : ''
+      competitor   => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' . 
+        ::get_function_index('crm_competitors') . "&chg=$lead->{COMPETITOR_ID}") : ''
     };
   }
 
@@ -143,12 +145,12 @@ sub maps_leads {
 
     my $type = _crm_get_icon($lead->{COLOR});
 
-    my $marker_info = maps2_point_info_table($html, $lang, {
+    my $marker_info = $Auxiliary->maps_point_info_table({
       TABLE_TITLE       => $lang->{LEADS},
       OBJECTS           => $build_info{$lead->{BUILD_ID}},
-      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'UID', 'COMPETITOR', 'ADDRESS_FULL', 'ADDRESS_FLAT' ],
+      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'UID', 'COMPETITOR', 'ADDRESS_FULL', 'ADDRESS_FLAT', 'COMMENTS' ],
       TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{USER},
-        $lang->{COMPETITOR}, $lang->{ADDRESS}, $lang->{FLAT} ],
+        $lang->{COMPETITOR}, $lang->{ADDRESS}, $lang->{FLAT}, $lang->{COMMENTS} ],
       EDITABLE_FIELDS   => [ 'FIO', 'PHONE' ],
       CHANGE_FUNCTION   => 'crm_leads'
     });
@@ -241,6 +243,7 @@ sub maps_leads_by_tags {
       phone        => $lead->{PHONE},
       address_flat => $lead->{ADDRESS_FLAT},
       address_full => $lead->{ADDRESS_FULL},
+      comments     => $lead->{COMMENTS},
       icon_color   => $tags_list->[0]{color},
       name         => $tags_list->[0]{name},
       tags         => $tags_container,
@@ -254,12 +257,12 @@ sub maps_leads_by_tags {
 
     my $type = _crm_get_icon($build_info{$lead->{BUILD_ID}}[0]{icon_color});
 
-    my $marker_info = maps2_point_info_table($html, $lang, {
+    my $marker_info = $Auxiliary->maps_point_info_table({
       TABLE_TITLE       => "$lang->{LEADS} ($lang->{TAGS})",
       OBJECTS           => $build_info{$lead->{BUILD_ID}},
-      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR', 'ADDRESS_FULL', 'ADDRESS_FLAT' ],
+      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR', 'ADDRESS_FULL', 'ADDRESS_FLAT', 'COMMENTS' ],
       TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{TAGS},
-        $lang->{COMPETITOR}, $lang->{ADDRESS}, $lang->{FLAT} ],
+        $lang->{COMPETITOR}, $lang->{ADDRESS}, $lang->{FLAT}, $lang->{COMMENTS} ],
       EDITABLE_FIELDS   => [ 'FIO', 'PHONE' ],
       CHANGE_FUNCTION   => 'crm_leads'
     });
@@ -326,8 +329,10 @@ sub maps_leads_by_competitors {
       address_full => $lead->{ADDRESS_FULL},
       step         => $html->color_mark(::_translate($lead->{STEP}), $lead->{COLOR}),
       phone        => $lead->{PHONE},
+      comments     => $lead->{COMMENTS},
       uid          => $lead->{UID} ? $html->button($lead->{UID}, 'index=' . ::get_function_index('form_users') . "&UID=$lead->{UID}") : '',
-      competitor   => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' . ::get_function_index('crm_competitors') . "&chg=$lead->{COMPETITOR_ID}") : ''
+      competitor   => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' .
+        ::get_function_index('crm_competitors') . "&chg=$lead->{COMPETITOR_ID}") : ''
     };
   }
 
@@ -336,12 +341,12 @@ sub maps_leads_by_competitors {
 
     my $type = _crm_get_icon($lead->{competitor_color});
 
-    my $marker_info = maps2_point_info_table($html, $lang, {
+    my $marker_info = $Auxiliary->maps_point_info_table({
       TABLE_TITLE       => "$lang->{LEADS} ($lang->{COMPETITORS})",
       OBJECTS           => $build_info{$lead->{BUILD_ID}},
-      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR', 'ADDRESS_FULL', 'ADDRESS_FLAT' ],
+      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR', 'ADDRESS_FULL', 'ADDRESS_FLAT', 'COMMENTS' ],
       TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{TAGS},
-        $lang->{COMPETITOR}, $lang->{ADDRESS}, $lang->{FLAT} ],
+        $lang->{COMPETITOR}, $lang->{ADDRESS}, $lang->{FLAT}, $lang->{COMMENTS} ],
       EDITABLE_FIELDS   => [ 'FIO', 'PHONE' ],
       CHANGE_FUNCTION   => 'crm_leads'
     });
@@ -386,11 +391,23 @@ sub maps_leads_by_competitors {
 sub _crm_get_icon {
   my $color = shift;
 
-  return qq{<svg xmlns="http://www.w3.org/2000/svg" version="1.1" class="svg-icon-svg" style="width:23px; height:38">
-    <path class="svg-icon-path" d="M 9.6 11.2 L 16.08 11.2 C 19.04 11.04 18.32 12.96 18.4 23.92 C 18.64 25.6 15.2 24.72 14.24
-    24.96 V 36.8 C 14.4 38.4 11.68 37.6 6.16 37.84 C 4.32 38 4.96 37.36 4.8 36.8 V 24.88 C 1.44 24.88 1.2 25.04 1.04 24.08 V
-    12.48 C 1.28 10.64 3.68 11.04 9.6 11.2 M 9.68 1.6 A 3.2 3.2 90 0 1 9.6 9.6 A 3.2 3.2 90 0 1 9.68 1.6" stroke-width="2"
-    stroke="$color" stroke-opacity="1" fill="$color" fill-opacity="0.4"></path></svg>}
+  return qq{
+    <svg style="width:23px; height:38" xmlns="http://www.w3.org/2000/svg" viewBox="10 10 44 44" aria-labelledby="title"
+    aria-describedby="desc" role="img" xmlns:xlink="http://www.w3.org/1999/xlink">
+      <title>Person</title>
+      <desc>A color styled icon from Orion Icon Library.</desc>
+      <circle data-name="layer1"
+      cx="32" cy="9" r="7" fill="$color"></circle>
+      <path data-name="layer1" d="M43 22h-5l-6 10-6-10h-5a3 3 0 0 0-3 3v16a3 3 0 0 0 3 3h3v15a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V44h3a3 3 0 0 0 3-3V25a3 3 0 0 0-3-3z"
+      fill="$color"></path>
+      <path data-name="opacity" d="M32 16a7 7 0 0 0 2-.3 7 7 0 0 1 0-13.4A7 7 0 1 0 32 16zm-4 43V44h-3a3 3 0 0 1-3-3V25a3 3 0 0 1 3-3h-4a3 3 0 0 0-3 3v16a3 3 0 0 0 3 3h3v15a3 3 0 0 0 3 3h4a3 3 0 0 1-3-3z"
+      fill="#000064" opacity=".15"></path>
+      <circle data-name="stroke" cx="32" cy="9" r="7" fill="none" stroke="#000000"
+      stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></circle>
+      <path data-name="stroke" d="M43 22h-5l-6 10-6-10h-5a3 3 0 0 0-3 3v16a3 3 0 0 0 3 3h3v15a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V44h3a3 3 0 0 0 3-3V25a3 3 0 0 0-3-3z"
+      fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round"
+      stroke-width="2"></path>
+    </svg>
+  };
 }
-
 1;

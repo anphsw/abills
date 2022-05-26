@@ -82,7 +82,7 @@ $lang{SPEED_OUT}='Исходящая скорость(Mb/s)';
 $lang{SIGNAL} = 'Сигнал';
 
 $lang{REPORT_ON_UNREGISTERED_ONU} = "Отчет по незарегистрированным ONU";
-$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES} = "Занятые и свободные порты на коммутаторах";
+$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES} = "Порты на коммутаторах";
 $lang{TOTAL_SWITCH_COUNT} = "Количество коммутаторов";
 $lang{TOTAL_ALL_PORTS} = "Общее количество портов";
 $lang{TOTAL_BUSY_PORTS} = "Количество занятых портов";

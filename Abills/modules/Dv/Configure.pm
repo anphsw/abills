@@ -492,7 +492,7 @@ sub dv_traffic_classes {
       width      => '100%',
       caption    => "$lang{TRAFFIC_CLASS}",
       title      => [ '#', "$lang{NAME}", 'NETS', "$lang{COMMENTS}", "$lang{CHANGED}", '-', '-' ],
-      cols_align => [ 'right', 'left', 'left', 'center:noprint', 'center:noprint' ],
+      cols_align => [ 'right', 'left', 'left', 'center:d-print-none', 'center:d-print-none' ],
       qs         => $pages_qs,
       pages      => $Dv->{TOTAL},
       ID         => 'DV_TRAFFIC_CLASSES'

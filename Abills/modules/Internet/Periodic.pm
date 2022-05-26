@@ -95,10 +95,11 @@ sub internet_daily_fees {
 
   my $list = $Tariffs->list({
     %LIST_PARAMS,
-    EXT_BILL_ACCOUNT=>'_SHOW',
-    MODULE          => 'Dv;Internet',
-    COLS_NAME       => 1,
-    COLS_UPPER      => 1
+    EXT_BILL_ACCOUNT     =>'_SHOW',
+    EXT_BILL_FEES_METHOD => '_SHOW',
+    MODULE               => 'Dv;Internet',
+    COLS_NAME            => 1,
+    COLS_UPPER           => 1
   });
 
   my %FEES_METHODS = %{ get_fees_types({ SHORT => 1 }) };
@@ -180,6 +181,7 @@ sub internet_daily_fees {
           #CREDIT    => ($u->{credit} > 0) ? $u->{credit} : ($conf{user_credit_change}) ? 0 : $TP_INFO->{CREDIT},
           CREDIT    => ($u->{credit} > 0) ? $u->{credit} : $TP_INFO->{CREDIT},
           INTERNET_STATUS => $u->{internet_status},
+          EXT_BILL_ID=> $u->{ext_bill_id}
         );
 
         if (defined($user{BILL_ID}) && $user{BILL_ID} > 0 && defined($user{DEPOSIT})) {
@@ -200,7 +202,7 @@ sub internet_daily_fees {
             }
 
             my %FEES_DSC = (
-              MODULE          => 'Dv;Internet',
+              MODULE          => 'Internet',
               TP_NUM          => $TP_INFO->{ID},
               TP_ID           => $TP_INFO->{TP_ID},
               TP_NAME         => $TP_INFO->{NAME},
@@ -211,6 +213,7 @@ sub internet_daily_fees {
             my %PARAMS = (
               DATE     => "$ADMIN_REPORT{DATE} $TIME",
               METHOD   => ($TP_INFO->{FEES_METHOD}) ? $TP_INFO->{FEES_METHOD} : 1,
+              EXT_BILL_METHOD => ($TP_INFO->{EXT_BILL_FEES_METHOD}) ? $TP_INFO->{EXT_BILL_FEES_METHOD} : undef,
               DESCRIBE => fees_dsc_former(\%FEES_DSC),
             );
 
@@ -692,6 +695,7 @@ sub internet_monthly_fees {
     %LIST_PARAMS,
     MODULE          => 'Dv;Internet',
     EXT_BILL_ACCOUNT=> '_SHOW',
+    EXT_BILL_FEES_METHOD=> '_SHOW',
     DOMAIN_ID       => '_SHOW',
     FIXED_FEES_DAY  => '_SHOW',
     COLS_NAME       => 1,
@@ -798,11 +802,10 @@ sub internet_monthly_fees {
           ACTIVATE     => $u->{internet_activate},
           DEPOSIT      => $u->{deposit} || 0,
           CREDIT       => ($u->{credit} > 0) ? $u->{credit} : $TP_INFO->{CREDIT},
-          #Old
-          # CREDIT       => ($u->{credit} > 0) ? $u->{credit} : ($conf{user_credit_change}) ? 0 : $TP_INFO->{CREDIT},
           COMPANY_ID   => $u->{company_id},
           INTERNET_STATUS => $u->{internet_status},
           EXT_DEPOSIT  => ($u->{ext_deposit}) ? $u->{ext_deposit} : 0,
+          EXT_BILL_ID  => $u->{ext_bill_id}
         );
 
         my %FEES_DSC = (
@@ -835,8 +838,9 @@ sub internet_monthly_fees {
         }
 
         my %FEES_PARAMS = (
-          DATE   => $ADMIN_REPORT{DATE},
-          METHOD => ($TP_INFO->{FEES_METHOD}) ? $TP_INFO->{FEES_METHOD} : 1,
+          DATE            => $ADMIN_REPORT{DATE},
+          METHOD          => ($TP_INFO->{FEES_METHOD}) ? $TP_INFO->{FEES_METHOD} : 1,
+          EXT_BILL_METHOD => ($TP_INFO->{EXT_BILL_FEES_METHOD}) ? $TP_INFO->{EXT_BILL_FEES_METHOD} : undef,
         );
         my $sum = 0;
 
@@ -919,8 +923,9 @@ sub internet_monthly_fees {
                 if($sum > 0) {
                   $Fees->take(\%user, $sum, {
                     %FEES_PARAMS,
-                    DATE => $pre_month_end,
-                    METHOD => $conf{MIN_USE_FEES_CONSIDE} || 1
+                    DATE   => $pre_month_end,
+                    METHOD => $conf{MIN_USE_FEES_CONSIDE} || 1,
+                    USER   => $users
                   });
                 }
 
@@ -1468,7 +1473,7 @@ sub internet_users_warning_messages {
 
     if ($email eq '') { next; }
 
-    my $info = sprintf("%-14s| %4d|%-20s| %9.4f| %8.2f| %6s|\n", $u->{login},
+    my $info = sprintf("%-14s| %4d|%-20s| %-14s| %8.2f| %6s|\n", $u->{login},
       $u->{tp_num},
       $u->{tp_name},
       format_sum($u->{deposit}),
@@ -1563,11 +1568,11 @@ sub internet_sheduler {
       }
 
       $user = undef;
-      $FORM{RECALCULATE} = 1;
       service_get_month_fee($Internet, {
-        QUITE    => 1,
-        SHEDULER => 1,
-        DATE     => $attr->{DATE}
+        QUITE       => 1,
+        SHEDULER    => 1,
+        DATE        => $attr->{DATE},
+        RECALCULATE => 1
       });
     }
   }
@@ -1609,6 +1614,7 @@ sub internet_sheduler {
       if ($conf{INTERNET_HOLDUP_COMPENSATE}) {
         $Internet->{TP_INFO_OLD} = $Tariffs->info(0, { TP_ID => $Internet->{TP_ID} });
         if ($Internet->{TP_INFO_OLD}->{PERIOD_ALIGNMENT}) {
+          $user = $users->info($uid);
           #$Internet->{TP_INFO}->{MONTH_FEE} = 0;
           service_recalculate($Internet, { RECALCULATE => 1, QUITE => 1, USER_INFO => $user });
         }

@@ -87,8 +87,8 @@ sub save_file_to_disk {
   
   # Can be changed later
   my $filename_to_save = $attr->{DISK_FILENAME} || $original_filename;
-  
-  if ( $attr->{UID} ) {
+
+  if ($attr->{UID}) {
     # Add additional directory level
     $directory_to_save .= '/' . $attr->{UID} . '/';
     if (!$attr->{DISK_FILENAME}) {
@@ -97,6 +97,9 @@ sub save_file_to_disk {
       my $field_name = ($attr->{FIELD_NAME}) ? "_$attr->{FIELD_NAME}" : '';
       $filename_to_save = $file_date . $field_name . '_' . $attr->{FILENAME};
     }
+  }
+  elsif ($attr->{DIRECTORY_TO_SAVE}) {
+    $directory_to_save .= $attr->{DIRECTORY_TO_SAVE};
   }
   
   # Now check if directory we want to write is not a file

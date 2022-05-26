@@ -173,7 +173,7 @@ sub sysinfo_remote_servers {
           $html->button($lang{CREATE},
             "index=$services_index&add_form=1&SERVER_ID=$line->{id}",
             {
-              class    => 'btn btn-xs btn-success pull-right',
+              class    => 'btn btn-xs btn-success float-right',
               ADD_ICON => 'fa fa-plus'
             }
           );
@@ -181,8 +181,8 @@ sub sysinfo_remote_servers {
         my $create_btn = $html->button($lang{CHANGE},
           "qindex=$index&header=2&add_form=1&set_services=1&SERVER_ID=$line->{id}",
           {
-            class         => 'btn btn-xs btn-secondary pull-right',
-            ADD_ICON      => 'fa fa-pencil',
+            class         => 'btn btn-xs btn-secondary float-right',
+            ADD_ICON      => 'fa fa-pencil-alt',
             LOAD_TO_MODAL => 1
           }
         );
@@ -202,7 +202,7 @@ sub sysinfo_remote_servers {
     TOTAL           => 1
   });
 
-  print $html->element('script', '', { src => '/styles/default_adm/js/modules/sysinfo/services.js' });
+  print $html->element('script', '', { src => '/styles/default/js/modules/sysinfo/services.js' });
 
   return 1;
 }
@@ -357,8 +357,8 @@ sub sysinfo_server_services {
         }
 
         my $edit_button = $html->button($lang{CHANGE}, "qindex=$index&header=2&set_servers=1&SERVICE_ID=$line->{id}", {
-          ADD_ICON      => 'fa fa-pencil',
-          class         => 'btn btn-secondary btn-xs pull-right',
+          ADD_ICON      => 'fa fa-pencil-alt',
+          class         => 'btn btn-secondary btn-xs float-right',
           LOAD_TO_MODAL => 1
         });
 
@@ -387,7 +387,7 @@ sub sysinfo_server_services {
     );
   }
 
-  print $html->element('script', '', { src => '/styles/default_adm/js/modules/sysinfo/services.js' });
+  print $html->element('script', '', { src => '/styles/default/js/modules/sysinfo/services.js' });
 
   return 1;
 }

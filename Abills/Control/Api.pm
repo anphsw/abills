@@ -44,8 +44,8 @@ sub form_system_info {
 
     },
     'api_version' => {
-      version => '0.7',
-      date    => '2017-11-01'
+      version => '0.9',
+      date    => '2022-04-01'
     }
   );
 

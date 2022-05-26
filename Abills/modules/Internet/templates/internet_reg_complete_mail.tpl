@@ -1,6 +1,6 @@
 Thank you!
 =================================================
-You are register on server %SERVER%.
+You are registered on server %SERVER%.
 
 Your account information:
 
@@ -10,7 +10,7 @@ PASSWORD: %PASSWORD%
 FIO:      %FIO%
 EMAIL:    %EMAIL%
 
-Site: http://
+Site: %BILL_URL%
 
 ================================================
 ~AsmodeuS~ Billing System

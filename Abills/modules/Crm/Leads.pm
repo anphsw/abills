@@ -286,7 +286,8 @@ sub crm_leads {
         LOCATION_ID  => $client_info->{LOCATION_ID} || 0,
         DISTRICT_ID  => 0,
         STREET_ID    => 0,
-        ADDRESS_FLAT => $client_info->{ADDRESS_FLAT} || ''
+        ADDRESS_FLAT => $client_info->{ADDRESS_FLAT} || '',
+        SHOW_BUTTONS => 1
       });
 
     $FORM{ASSESSMENTS_SEL} = crm_assessments_select(\%FORM);
@@ -1324,7 +1325,7 @@ sub crm_leads_progress_report {
 
   print $leads_progress_table->show();
 
-  print $html->chart({
+  $html->chart({
     TYPE              => 'bar',
     X_LABELS          => \@dates,
     DATA              => {
@@ -1335,6 +1336,7 @@ sub crm_leads_progress_report {
       "$lang{LEADS_COMES}"    => 'rgba(2, 99, 2, 0.5)',
       "$lang{LEADS_FINISHED}" => 'rgba(255, 99, 255, 0.5)',
     },
+    IN_CONTAINER      => 1
   });
 
   return 1;
@@ -2126,6 +2128,12 @@ sub _crm_lead_to_client {
   my $lead_info = $Crm->crm_lead_info({ ID => $lead_id });
 
   map { $lead_info->{$_} ? $FORM{$_} = $lead_info->{$_} : () } keys %{$lead_info};
+
+  my %contacts = ();
+  push @{$contacts{2}}, $lead_info->{PHONE} if $lead_info->{PHONE};
+  push @{$contacts{9}}, $lead_info->{EMAIL} if $lead_info->{EMAIL};
+
+  $FORM{CONTACTS_ENTERED} = json_former(\%contacts);
 
   if ($lead_info->{COMPANY}) {
     $FORM{company} = 1;

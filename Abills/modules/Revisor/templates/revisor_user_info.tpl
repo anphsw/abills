@@ -2,7 +2,7 @@
   <div class='col-md-6'>
     <div class='card card-primary card-outline box-form'>
       <div class='card-header with-border'><h3 class='card-title'>%LOGIN%</h3>
-        <div class='card-tools pull-right'>
+        <div class='card-tools float-right'>
         <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>
           </button>
@@ -30,7 +30,7 @@
       <div class='card collapsed-box' style='margin-bottom: 0px; border-top-width: 1px;'>
         <div class='card-header with-border'>
           <h3 class='card-title'>_{PASPORT}_</h3>
-          <div class='card-tools pull-right'>
+          <div class='card-tools float-right'>
             <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'><i class='fa fa-plus'></i>
             </button>
           </div>
@@ -65,7 +65,7 @@
   <div class='col-md-6'>
     <div class='card card-primary card-outline box-form'>
       <div class='card-header with-border'><h3 class='card-title'>_{STATUS}_</h3>
-        <div class='card-tools pull-right'>
+        <div class='card-tools float-right'>
         <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>
           </button>

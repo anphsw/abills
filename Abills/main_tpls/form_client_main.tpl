@@ -1,4 +1,4 @@
-<nav class='main-header navbar navbar-expand navbar-dark navbar-lightblue'>
+<nav class='main-header navbar navbar-expand %NAVBAR_SKIN%'>
 
   <ul class='navbar-nav'>
     <li class='nav-item'>
@@ -33,7 +33,7 @@
   </ul>
 </nav>
 <!-- menu -->
-  <aside id='main-sidebar' class='main-sidebar sidebar-dark-lightblue elevation-4'>
+  <aside id='main-sidebar' class='main-sidebar %SIDEBAR_SKIN% elevation-4'>
     <a href='%INDEX_NAME%' class='logo' %S_MENU%>
       <a href='index.cgi' class='brand-link pb-2 text-center' style='font-size: 1.25rem; padding: .55rem .5rem;'>
         <img src='/img/abills.svg' class='brand-image-xl logo-xs'>
@@ -55,7 +55,7 @@
 <!-- client_start End -->
 
 <!-- AdminLTE App -->
-<script src='/styles/lte_adm/dist/js/app.js'></script>
+<script src='/styles/default/js/old/app.js'></script>
 
 <script>
   if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {

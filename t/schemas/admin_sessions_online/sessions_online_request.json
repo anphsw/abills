@@ -1,6 +1,0 @@
-{
-  "name": "SESSION_ONLINE",
-  "method": "GET",
-  "path": "online/",
-  "params": {}
-}

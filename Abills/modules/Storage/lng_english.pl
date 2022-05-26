@@ -159,4 +159,9 @@ $lang{STORAGE_COMPLETED} = 'Completed';
 $lang{ATTACH_EQUIPMENT_TO_TICKET} = 'Ability to attach equipment to a ticket';
 $lang{ITEM_ADDED_TO} = 'Item added to';
 
+$lang{MOVED} = 'Moved';
+
+$lang{INSTALLATION_ADDRESS} = 'Installation address';
+$lang{INVENTORY_ITEMS} = 'Inventory items';
+
 1;

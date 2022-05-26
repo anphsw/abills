@@ -489,7 +489,7 @@ sub profile_get_admin_sender_subscribe_block {
         my $link_url = 'https://telegram.me/' . $conf{TELEGRAM_BOT_NAME} . '/?start=a_' . ($admin->{SID} || $sid || $admin->{sid});
         push @buttons_html, $make_subscribe_btn->(
           'Telegram',
-          'fa fa-telegram',
+          'fab fa-telegram',
           undef,
           {
             HREF => $link_url

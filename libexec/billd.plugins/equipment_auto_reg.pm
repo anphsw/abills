@@ -227,7 +227,7 @@ sub _auto_reg {
                 tr_069_setting($ont->{DATABASE_ID}, $user_info->[0]);
               }
 
-              $Internet->change({
+              $Internet->user_change({
                 UID         => $user_infos->{uid},
                 ID          => $user_infos->{id},
                 CPE_MAC     => $ont_info->{mac_serial},

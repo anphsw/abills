@@ -86,7 +86,7 @@ my %sms_status = (
 sub sms_send {
   my ($attr) = @_;
 
-  my $Sms_service = init_sms_service($db, $admin, \%conf);
+  my $Sms_service = init_sms_service($db, $admin, \%conf, $attr);
   my $status = 0;
 
   return 0 if ($Sms_service->{errno});
@@ -110,7 +110,7 @@ sub sms_send {
   $conf{SMS_NUMBER}= "[0-9]{12}" if (!$conf{SMS_NUMBER});
 
   if (!$attr->{NUMBER} && !$attr->{NUMBERS}) {
-    $html->message('err', $lang{ERROR}, "$lang{ERR_PHONE_NOT_DEFINED}", { ID => 1601 });
+    $html->message('err', $lang{ERROR}, $lang{ERR_PHONE_NOT_DEFINED}, { ID => 1601 });
   }
   elsif (!$attr->{NUMBERS} && $conf{SMS_NUMBER} && $attr->{NUMBER} !~ /$conf{SMS_NUMBER}/) {
     $html->message('warn', $lang{ERROR}, ($lang{ERR_WRONG_PHONE} || q{})
@@ -128,7 +128,7 @@ sub sms_send {
     });
 
     if ($uid_sms_list && scalar(@$uid_sms_list) >= $conf{SMS_LIMIT}) {
-      $html->message( 'err', $lang{ERROR}, "Превышен лимит СМС для этого пользователя" );
+      $html->message('err', $lang{ERROR}, $lang{EXCEEDED_SMS_LIMIT});
 
       return 0;
     }
@@ -560,6 +560,54 @@ sub sms_send_register {
     sms                     => 1,
     step                    => $attr->{step}
   }, { ID => 'sms_send_end_register' });
+}
+
+#**********************************************************
+=head2 sel_sms_systems($attr)
+
+=cut
+#**********************************************************
+sub sel_sms_systems {
+  my ($attr) = @_;
+
+  my %enable_sms_systems = ();
+  my %sms_systems = (
+    SMS_PLAYMOBILE_LOGIN   => 'Playmobile',
+    SMS_CMD                => 'Cmd',
+    SMS_TXTLOCAL_APIKEY    => 'Txtlocal',
+    SMS_SMSC_USER          => 'Smsc',
+    SMS_LITTLESMS_USER     => 'Littlesms',
+    SMS_EPOCHTASMS_OPENKEY => 'Epochtasms',
+    SMS_TURBOSMS_PASSWD    => 'Turbosms',
+    SMS_JASMIN_USER        => 'Jasmin',
+    SMS_SMSEAGLE_USER      => 'Smseagle',
+    SMS_BULKSMS_LOGIN      => 'Bulksms',
+    SMS_IDM_LOGIN          => 'IDM',
+    SMS_TERRA_USER         => 'Sms_terra',
+    SMS_UNIVERSAL_URL      => 'Universal_sms_module',
+    SMS_ESKIZ_URL          => 'Eskizsms',
+    SMS_BROKER_LOGIN       => 'Sms_Broker',
+    SMS_OMNICELL_URL       => 'Omnicell',
+    SMS_LIKON_URL          => 'LikonSms',
+    SMS_MSGAM_URL          => 'MsgAm',
+    SMS_CABLENET_LOGIN     => 'Cablenet',
+    SMS_WEBSMS_URL         => 'WebSms',
+    SMS_FENIX_URL          => 'Fenix',
+    SMS_AMD_URL            => 'AMD',
+  );
+
+  foreach my $config_key (sort keys %sms_systems) {
+    next if !$conf{$config_key};
+
+    $enable_sms_systems{$config_key} = $sms_systems{$config_key};
+  }
+
+  return $html->form_select($attr->{NAME} || 'SMS_SERVICE', {
+    SELECTED => $attr->{SELECTED} || '',
+    SEL_HASH => { '' => '--', %enable_sms_systems },
+    NO_ID    => 1,
+    SORT_KEY => 1
+  });
 }
 
 1

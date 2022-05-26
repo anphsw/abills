@@ -220,7 +220,7 @@ sub _msgs_get_plugins {
 
   my $admin_plugins_list = $Msgs->msgs_plugin_list({
     PLUGIN_NAME => '_SHOW',
-    ID          => '_SHOW',
+    ID          => $attr->{AID} || '_SHOW',
     PRIORITY    => '_SHOW'
   });
 
@@ -412,7 +412,7 @@ sub _msgs_show_right_plugins {
 
   my $plugins_info = '';
 
-  my $plugins = _msgs_get_plugins({ POSITION => 'RIGHT' });
+  my $plugins = _msgs_get_plugins({ POSITION => 'RIGHT', AID => $admin->{AID} });
   foreach my $plugin (@{$plugins}) {
     next if (!$plugin->{PLUGIN}->can('new') || !$plugin->{PLUGIN}->can('plugin_show'));
 
@@ -438,7 +438,7 @@ sub _msgs_show_bottom_plugins {
 
   my $plugins_info = '';
 
-  my $plugins = _msgs_get_plugins({ POSITION => 'BOTTOM' });
+  my $plugins = _msgs_get_plugins({ POSITION => 'BOTTOM', AID => $admin->{AID} });
   foreach my $plugin (@{$plugins}) {
     next if (!$plugin->{PLUGIN}->can('new') || !$plugin->{PLUGIN}->can('plugin_show'));
 

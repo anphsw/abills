@@ -228,7 +228,7 @@ sub netlist_ip_calc {
       my $ip_offset = ($addr_per_network + 2) * $i;
       $int = ip2int("$ip_prefix") + $ip_offset;
       $table->addrow(
-        $html->form_input( $i . "_POOL", int2ip($int), { TYPE => 'checkbox', EX_PARAMS => 'class="noprint"' } ),
+        $html->form_input( $i . "_POOL", int2ip($int), { TYPE => 'checkbox', EX_PARAMS => 'class="d-print-none"' } ),
         int2ip($int), "$FORM{SUBNET_MASK}", $addr_per_network,
         int2ip($int + 1) . " - " . int2ip($int + $addr_per_network), int2ip($int + $addr_per_network + 1) );
     }
@@ -402,8 +402,8 @@ sub netlist_list {
       [ '', 'ID', 'IP', 'NETMASK', 'HOSTNAME', $lang{DESCRIBE}, $lang{GROUP}, $lang{STATE}, $lang{CHANGE}, '-', '-',
         '-' ],
       cols_align =>
-      [ '', 'right', 'right', 'right', 'left', 'left', 'left', 'center', 'right', 'center:noprint', 'center:noprint',
-        'center:noprint' ],
+      [ '', 'right', 'right', 'right', 'left', 'left', 'left', 'center', 'right', 'center:d-print-none', 'center:d-print-none',
+        'center:d-print-none' ],
       qs         => $pages_qs,
       pages      => $Netlist->{TOTAL},
       ID         => 'NETLIST_LIST',
@@ -420,7 +420,7 @@ sub netlist_list {
     my $change = $html->button( $lang{INFO}, "index=$index&chg=$line->{ip_id}", { class => 'show' } );
 
     $table->addrow(
-      $html->form_input( 'IDS', "$line->{ip_id}", { TYPE => 'checkbox', EX_PARAMS => 'class="noprint"' } ),
+      $html->form_input( 'IDS', "$line->{ip_id}", { TYPE => 'checkbox', EX_PARAMS => 'class="d-print-none"' } ),
       $line->{ip_id},
         ($Netlist->db_version() < 5.6) ? "$line->{ip}" : $line->{ip},
       $line->{netmask},
@@ -440,7 +440,7 @@ sub netlist_list {
   my $table2 = $html->table(
     {
       width       => '100%',
-      class       => 'noprint',
+      class       => 'd-print-none',
       title_plain => [ "$lang{GROUP}: " . $Netlist->{GROUP_SEL}, "$lang{STATUS}: " . $Netlist->{STATE_SEL},
         "RESOLVE: " . $html->form_input( 'RESOLV', '1', { TYPE => 'checkbox' } ),
         $html->form_input( 'change', $lang{CHANGE}, { TYPE => 'SUBMIT' } ) ]
@@ -877,7 +877,7 @@ sub netlist_ip_scan {
       my $i = 0;
       while ( my ($ip_address, $host_info) = each %{$scan_results} ){
         $table->addrow(
-          $html->form_input( $i++ . "_ADDRESS", $ip_address, { TYPE => 'checkbox', EX_PARAMS => 'class="noprint"' } ),
+          $html->form_input( $i++ . "_ADDRESS", $ip_address, { TYPE => 'checkbox', EX_PARAMS => 'class="d-print-none"' } ),
           $ip_address,
           $html->element( 'abbr', $host_info->{mac_addr}, { title => $host_info->{mac_vendor} || q{} } )
         );

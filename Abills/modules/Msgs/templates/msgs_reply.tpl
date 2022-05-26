@@ -1,8 +1,4 @@
 <style>
-  body {
-    font-family: Arial, Helvetica, sans-serif;
-  }
-
   .attachment_responsive {
     border-radius: 5px;
     cursor: pointer;
@@ -122,7 +118,7 @@
           </div>
         </div>
         <div class='col-md-6'>
-          <div class='form-group custom-control custom-checkbox'>
+          <div class='form-group custom-control custom-checkbox mt-2 mb-0'>
             <input class='custom-control-input custom-control-input-warning' type='checkbox' id='REPLY_INNER_MSG'
                    name='REPLY_INNER_MSG' value='1' %INNER_MSG%>
             <label for='REPLY_INNER_MSG' class='custom-control-label'>_{PRIVATE}_</label>
@@ -131,10 +127,10 @@
       </div>
     </div>
 
-    <div class='card card-primary card-outline collapsed-card'>
+    <div class='card card-default card-outline collapsed-card'>
 
       <div class='card-header with-border'><h3 class='card-title'>_{EXTRA}_</h3>
-        <div class='card-tools pull-right'>
+        <div class='card-tools float-right'>
           <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-plus'></i></button>
         </div>
       </div>
@@ -144,7 +140,7 @@
           <label class='col-md-3 control-label'>_{ATTACHMENT}_:</label>
           <div class='col-md-9'>
             <div class='input-group'>
-              <div id='file_upload_holder' style='border : 1px solid #d2d6de'>
+              <div id='file_upload_holder' class='form-file-input'>
                 <div class='form-group m-1'>
                   <input name='FILE_UPLOAD' type='file' data-number='0' class='fixed'>
                 </div>
@@ -157,7 +153,6 @@
               </div>
             </div>
           </div>
-
         </div>
 
         <div class='form-group row'>
@@ -173,7 +168,7 @@
             <input class='form-control' id='RUN_TIME' type='text' name='RUN_TIME' %RUN_TIME_STATUS%>
             <div class='input-group-append'>
               <div class='input-group-text'>
-                <a class='fa fa-clock-o'></a>
+                <a class='far fa-clock'></a>
               </div>
             </div>
 
@@ -185,7 +180,7 @@
 
             <div id='func_rst' run_status='1' class='input-group-append'>
               <div class='input-group-text'>
-                <a class='fa fa-refresh'></a>
+                <a class='fas fa-sync'></a>
               </div>
             </div>
           </div>
@@ -204,7 +199,7 @@
   </div>
   <div class='card-footer'>
     <input type='hidden' name='sid' value='$sid'/>
-    <input type='submit' class='btn btn-primary' name='%ACTION%' value='  %LNG_ACTION%  ' id='go' title='Ctrl+C'/>
+    <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%' id='go' title='Ctrl+C'/>
   </div>
 </div>
 
@@ -217,7 +212,7 @@
   <br/><br/>
 </div>
 
-<script src='/styles/default_adm/js/msgs_reply_timer.js'></script>
+<script src='/styles/default/js/msgs_reply_timer.js'></script>
 <script>
 
   var saveStr = '_{SAVE}_';
@@ -285,4 +280,4 @@
     }
   });
 </script>
-<script src='/styles/default_adm/js/draganddropfile.js'></script>
+<script src='/styles/default/js/draganddropfile.js'></script>

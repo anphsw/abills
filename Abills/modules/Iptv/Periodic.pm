@@ -8,6 +8,7 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(sendmail days_in_month);
 use Tariffs;
+require Iptv::Base;
 
 our (
   %lang,
@@ -22,6 +23,7 @@ our (
 
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Fees = Fees->new($db, $admin, \%conf);
+my $Iptv_base = Iptv::Base->new($db, $admin, \%conf, { LANG => \%lang });
 
 #**********************************************************
 #=head2 iptv_daily_screen_fees($attr)
@@ -218,6 +220,7 @@ sub iptv_monthly_next_tp {
   $debug_output = "Iptv - Change tp to next tp\n" if ($debug > 1);
   $Tariffs->{debug} = 1 if ($debug > 6);
   my %USERS_LIST_PARAMS = ();
+  $USERS_LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
   my $START_PERIOD_DAY = ($conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} : 1;
 
   my $tp_list = $Tariffs->list({
@@ -245,13 +248,9 @@ sub iptv_monthly_next_tp {
 
     my $ulist = $Iptv->user_list({
       IPTV_ACTIVATE  => "<=$ADMIN_REPORT{DATE}",
-      #EXPIRE         => "0000-00-00,>$ADMIN_REPORT{DATE}",
-      #IPTV_EXPIRE    => "0000-00-00,>$ADMIN_REPORT{DATE}",
       SERVICE_STATUS => 0,
       LOGIN_STATUS   => 0,
       TP_ID          => $tp_info->{tp_id},
-      SORT           => 1,
-      PAGE_ROWS      => 1000000,
       DELETED        => 0,
       LOGIN          => '_SHOW',
       REDUCTION      => '_SHOW',
@@ -259,9 +258,10 @@ sub iptv_monthly_next_tp {
       CREDIT         => '_SHOW',
       COMPANY_ID     => '_SHOW',
       IPTV_EXPIRE    => '_SHOW',
-      #IPTV_ACTIVATE  => '_SHOW',
-      COLS_NAME      => 1,
       BILL_ID        => '_SHOW',
+      SORT           => 1,
+      PAGE_ROWS      => 1000000,
+      COLS_NAME      => 1,
       %USERS_LIST_PARAMS
     });
 
@@ -320,6 +320,8 @@ sub iptv_monthly_next_tp {
         $expire = '0000-00-00';
       }
 
+      $Iptv->{db}{db}->{AutoCommit} = 0;
+      $Iptv->{db}->{TRANSACTION} = 1;
       my $change_tp_info = $Iptv->user_change({
         UID            => $user{UID},
         ID             => $user{ID},
@@ -459,6 +461,7 @@ sub iptv_monthly_fees {
     ABON_DISTRIBUTION    => '_SHOW',
     SMALL_DEPOSIT_ACTION => '_SHOW',
     CREDIT               => '_SHOW',
+    AGE                  => '_SHOW',
     COLS_NAME            => 1,
     NEW_MODEL_TP         => 1
   });
@@ -493,14 +496,14 @@ sub iptv_monthly_fees {
     my %users_services = ();
     my %users_services_duplicates = ();
 
-    $debug_output .= iptv_channels_fees({
+    $debug_output .= $Iptv_base->iptv_channels_fees({
       %USERS_LIST_PARAMS,
       TP             => $tp,
       DEBUG          => $debug,
       USERS_SERVICES => \%users_services,
     });
 
-    $debug_output .= iptv_screen_fees({
+    $debug_output .= $Iptv_base->iptv_screen_fees({
       %USERS_LIST_PARAMS,
       TP             => $tp,
       DEBUG          => $debug,
@@ -508,14 +511,13 @@ sub iptv_monthly_fees {
     });
 
     #Monthfee & min use
-    if ($tp->{abon_distribution}) {
-      $month_fee = $month_fee / $days_in_month;
-    }
+    $month_fee = $month_fee / $days_in_month if $tp->{abon_distribution};
 
     my $ulist_main = $Iptv->user_list({
       LOGIN          => '_SHOW',
       IPTV_ACTIVATE  => "<=$ADMIN_REPORT{DATE}",
-      IPTV_EXPIRE    => "0000-00-00,<=$ADMIN_REPORT{DATE}",
+      # IPTV_EXPIRE    => "0000-00-00,<=$ADMIN_REPORT{DATE}",
+      IPTV_EXPIRE    => "_SHOW",
       LOGIN_STATUS   => 0,
       SUBSCRIBE_ID   => '_SHOW',
       DEPOSIT        => '_SHOW',
@@ -540,23 +542,34 @@ sub iptv_monthly_fees {
         }
       }
       else {
-        $debug_output .= "SERVICE_ENDED. LOGIN: $u->{login} ($u->{id})\n";
-        $Iptv->{SERVICE_ID} = $u->{service_id} if !$Iptv->{SERVICE_ID};
-        my $result = iptv_account_action({
-          change       => 1,
-          STATUS       => 1,
-          FILTER_ID    => $tp->{filter_id},
-          ID           => $u->{id},
-          UID          => $u->{uid},
-          LOGIN        => $u->{login},
-          SUBSCRIBE_ID => $u->{subscribe_id}
-        });
+        if (_date2timestamp($ADMIN_REPORT{DATE}) > _date2timestamp($u->{iptv_expire})) {
+          $debug_output .= "SERVICE_ENDED. LOGIN: $u->{login} ($u->{id})\n";
+          $Iptv->{SERVICE_ID} = $u->{service_id} if !$Iptv->{SERVICE_ID};
+          my $result = iptv_account_action({
+            change       => 1,
+            STATUS       => 1,
+            FILTER_ID    => $tp->{filter_id},
+            ID           => $u->{id},
+            UID          => $u->{uid},
+            LOGIN        => $u->{login},
+            SUBSCRIBE_ID => $u->{subscribe_id}
+          });
 
-        if (!$result) {
-          $Iptv->user_change({ ID => $u->{id}, STATUS => 1, UID => $u->{uid} });
-          _external('', { EXTERNAL_CMD => 'Iptv', %{$Iptv}, QUITE => 1 });
+          if (!$result) {
+            $Iptv->user_change({ ID => $u->{id}, STATUS => 1, UID => $u->{uid} });
+            _external('', { EXTERNAL_CMD => 'Iptv', %{$Iptv}, QUITE => 1 });
+          }
+          next;
         }
-        next;
+        elsif ($tp->{age}) {
+          next;
+        }
+        elsif ($d != $START_PERIOD_DAY && !$tp->{abon_distribution} && (!$u->{iptv_activate}
+          || $u->{iptv_activate} eq '0000-00-00')) {
+          $debug_output .= "Next period\n" if ($debug > 2);
+          $DEBUG = $debug_output;
+          next;
+        }
       }
 
       delete $users_services{ $u->{uid} } if $users_services_duplicates{$tp->{tp_id}}{$u->{uid}};
@@ -867,6 +880,24 @@ sub iptv_monthly_next_tp_take_fees {
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 _date2timestamp($date)
+
+   Arguments:
+     $date
+
+   Results:
+     timestamp
+
+=cut
+#**********************************************************
+sub _date2timestamp {
+  my $date = shift;
+
+  my ($year, $month, $day) = split(/[\-]+/, $date);
+  return timelocal(0,0,0,$day,$month-1,$year);
 }
 
 1;

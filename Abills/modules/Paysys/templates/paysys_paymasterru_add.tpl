@@ -23,7 +23,7 @@
         </div>
         <div class='card-body pt-0'>
             <div class='form-group text-center'>
-                <img src='/styles/default_adm/img/paysys_logo/paymasterru-logo.png'
+                <img src='/styles/default/img/paysys_logo/paymasterru-logo.png'
                      style='width: auto; max-height: 200px;'
                      alt='paymaster RU'>
             </div>

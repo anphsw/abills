@@ -310,7 +310,7 @@ sub add_time {
       });
       my $edit_button = $html->button("", "index=$index&chg=$date&NAME=$admin->{AID}", {
           class => "",
-          ADD_ICON => "fa fa-pencil"
+          ADD_ICON => "fa fa-pencil-alt"
       });
       $tables{$week}->addrow($d->wdayname . " " . $d->dmy, @num_element, "$edit_button$del_button");
     }
@@ -445,7 +445,7 @@ sub add_item {
     });
     my $edit_button = $html->button("", "index=$index&chg=$item->{id}", {
       class => "",
-      ADD_ICON => "fa fa-pencil"
+      ADD_ICON => "fa fa-pencil-alt"
     });
     $table->addrow(
       $item->{id},

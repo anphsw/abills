@@ -6,19 +6,23 @@
   }
 
   .start-panel > .card:not(.collapsed-card-widget) > div.card-body {
-    min-height: 270px;
-    max-height: 270px;
+    height: 270px;
   }
 
   .start-panel .card .card-header {
     cursor: move;
   }
+
+  #sortable {
+    padding: .5rem .3rem 0;
+  }
+
 </style>
 <form action='$SELF_URL' method='post' id='FORM_QUICK_REPORT_POSITION'>
   <input type='hidden' name='AWEB_OPTIONS' value='1'/>
   <input type='hidden' name='QUICK' value='1'/>
 </form>
-<div class="row" id='sortable' style="padding-top: 10px;">
+<div class="row" id='sortable'>
   %INFO%
 </div>
 <script>

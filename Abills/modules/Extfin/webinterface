@@ -311,7 +311,7 @@ sub extfin_periodic_paids {
 
   if ($attr->{LOGIN}) {
     $Users->info(undef, {LOGIN => $attr->{LOGIN}});
-    if (defined($Users->{UID})) {
+    if ($Users->{UID}) {
       $attr->{UID} = $Users->{UID};
     }
     else {
@@ -322,7 +322,14 @@ sub extfin_periodic_paids {
   }
   $debug_output .= "Extfin periodic paids\n" if ($debug > 1);
 
-  my $list = $Extfin->paid_periodic_list({ UID => $attr->{UID}, SUM => '>0', EXPIRE => '_SHOW', ACTIVATE => '_SHOW', COLS_NAME => 1 });
+  my $list = $Extfin->paid_periodic_list({
+    UID       => $attr->{UID},
+    SUM       => '>0',
+    EXPIRE    => '_SHOW',
+    ACTIVATE  => '_SHOW',
+    DISABLE   => 0,
+    COLS_NAME => 1
+  });
 
   foreach my $line (@$list) {
     $Users->info($line->{uid});
@@ -333,16 +340,9 @@ sub extfin_periodic_paids {
     my $diff_active = date_diff($ADMIN_REPORT{DATE}, $line->{activate});
     my $make_payment = 0;
     my $sum = $line->{sum};
-    if (date_diff($ADMIN_REPORT{DATE}, $line->{expire}) <= 0) {
-      if($line->{expire} eq '0000-00-00') {
-        $debug_output .= "ACCRUAL: UID: $line->{uid} SUM: $line->{sum} TYPE: $line->{name} ($line->{id}])\n" if ($debug > 2);
-        $line->{comments} = "$lang{ACCRUALS}: $line->{comments}";
-        $make_payment = 1;
-      }
-      else {
-        $debug_output .= "EXPIRE: UID: $line->{uid} SUM: $line->{sum} TYPE: $line->{name} ($line->{id}])\n" if ($debug > 2);
-        $Extfin->paid_periodic_del({ UID => $line->{uid}, ID => $line->{pt_id} });
-      }
+    if ((date_diff($ADMIN_REPORT{DATE}, $line->{expire}) <= 0) && ($line->{expire} ne '0000-00-00')) {
+      $debug_output .= "EXPIRE: UID: $line->{uid} SUM: $line->{sum} TYPE: $line->{name} ($line->{id}])\n" if ($debug > 2);
+      $Extfin->paid_periodic_del({ UID => $line->{uid}, ID => $line->{pt_id} });
     }
     elsif($diff_active > 0) {
       $debug_output .= "NOT ACTIVATED: UID: $line->{uid} SUM: $line->{sum} TYPE: $line->{name} ($line->{id}])\n" if ($debug > 2);
@@ -415,7 +415,7 @@ sub extfin_paids {
   my ( $attr ) = @_;
   $Extfin->{ACTION} = 'add';
   $Extfin->{ACTION_LNG} = $lang{ADD};
-  my $PAYMENT_METHODS = get_payment_methods();
+  #my $PAYMENT_METHODS = get_payment_methods();
 
   if ($FORM{PERIODIC}) {
     if (defined($FORM{IDS})) {
@@ -423,16 +423,25 @@ sub extfin_paids {
       my @form_ids = split(/, /, $FORM{IDS});
 
       $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
-      my $active_list = $Extfin->paid_periodic_list({ ACTIVE => 1, PERIODIC => 1, UID => $FORM{UID}, COLS_NAME => 1});
+      my $active_list = $Extfin->paid_periodic_list({
+        ACTIVE    => 1,
+        PERIODIC  => 1,
+        UID       => $FORM{UID},
+        COLS_NAME => 1
+      });
+
       for my $periodics (@$active_list) {
         push @stock_ids, $periodics->{id};
       }
-      @form_ids = grep {my $id = $_; not grep $_ eq $id, @stock_ids} @form_ids;
+      @form_ids = grep { my $id = $_; not grep $_ eq $id, @stock_ids } @form_ids;
+
       my $Payments = Payments->new($db, $admin, \%conf);
       foreach my $id (@form_ids) {
-        if (date_diff($FORM{'ACTIVATE_'. $id}, $ADMIN_REPORT{DATE}) < 0) {
+
+        if (! $FORM{'ACTIVATE_'. $id} || date_diff($FORM{'ACTIVATE_'. $id}, $ADMIN_REPORT{DATE}) < 0) {
           next;
         }
+
         my (undef, undef, $day) = split(/-/, $DATE, 3);
         $Extfin->paid_type_info({ ID => $id });
         my $sum = $FORM{'SUM_'. $id};
@@ -525,20 +534,14 @@ sub extfin_paids {
     }
   }
 
-  if ($Extfin->{errno}) {
-    $html->message('err', $lang{ERROR}, "[$Extfin->{errno}] $err_strs{$Extfin->{errno}}");
-  }
-
+  _error_show($Extfin);
   $Extfin->{STATUS} = ($Extfin->{STATUS}) ? ' checked' : '';
 
-  $Extfin->{TYPE_SEL} = $html->form_select(
-    'TYPE',
-    {
+  $Extfin->{TYPE_SEL} = $html->form_select('TYPE', {
       SELECTED    => $Extfin->{TYPE} || '',
       SEL_LIST    => $Extfin->paid_types_list({ COLS_NAME => 1 }),
       SEL_OPTIONS => { 0 => '--' },
-    }
-  );
+  });
 
   $Extfin->{MACCOUNT_SEL} = $html->form_select(
     'MACCOUNT_ID',
@@ -556,18 +559,24 @@ sub extfin_paids {
     form_search({ SEARCH_FORM => $html->tpl_show(_include('extfin_search_paids', 'Extfin'), { %FORM }, { notprint => 1 }) });
   }
   else {
-    my $list = $Extfin->paid_periodic_list({ PERIODIC => 1, UID => $LIST_PARAMS{UID}, COLS_NAME => 1});
+    my $list = $Extfin->paid_periodic_list({
+      PERIODIC => 1,
+      UID => $LIST_PARAMS{UID},
+      COLS_NAME => 1
+    });
     if ($Extfin->{TOTAL} > 0) {
       my $table = $html->table({
         width   => '80%',
-        caption => "$lang{PERIODIC_ACCRUALS}",
+        caption => $lang{PERIODIC_ACCRUALS},
         border  => 1,
-        title   =>
-          [ '#', "$lang{TYPE}", "$lang{SUM}", "$lang{DESCRIBE}", "$lang{ACCOUNT}", "$lang{ADMIN}", "$lang{DATE}", "$lang{ACTIVATE}", "$lang{EXPIRE_DATE}" ],
+        title   => [ '#', $lang{TYPE}, $lang{SUM}, $lang{DESCRIBE}, $lang{ACCOUNT}, $lang{ADMIN}, $lang{DATE}, $lang{ACTIVATE}, $lang{EXPIRE_DATE} ],
         ID      => 'EXTFIN_PERIOD'
       });
 
       foreach my $line (@$list) {
+        # if (! $line->{id} ) {
+        #   next;
+        # }
         my $MACCOUNT = $html->form_select(
           'MACCOUNT_ID_' . $line->{id},
           {
@@ -577,7 +586,7 @@ sub extfin_paids {
         );
 
         $table->addrow(
-          $html->form_input('IDS', "$line->{id}", { TYPE  => 'checkbox', STATE => (defined($line->{expire})) ? 1 : 0 })
+          $html->form_input('IDS', $line->{id}, { TYPE  => 'checkbox', STATE => (defined($line->{expire})) ? 1 : 0 })
             . $html->b($line->{id}),
           $line->{name},
           $html->form_input("SUM_$line->{id}", $line->{sum} || '', { SIZE => '10' }),
@@ -585,7 +594,7 @@ sub extfin_paids {
           $MACCOUNT,
           $line->{admin},
           $line->{date},
-          $html->date_fld2("ACTIVATE_$line->{id}", { MONTHES => \@MONTHES, DATE => $line->{activate} || ' '}),
+          $html->date_fld2("ACTIVATE_$line->{id}", { MONTHES => \@MONTHES, DATE => $line->{activate} || $DATE}),
           $html->date_fld2("EXPIRE_$line->{id}", { MONTHES => \@MONTHES, DATE => $line->{expire} || ' ' })
         );
       }
@@ -2000,5 +2009,132 @@ sub extfin_quick_info {
 
   return ($Extfin->{TOTAL_SERVICES} && $Extfin->{TOTAL_SERVICES} > 0) ? $Extfin->{TOTAL_SERVICES} : '';
 }
+
+#**********************************************************
+=head2 internet_service_activate($attr)
+
+  Arguments:
+    $attr
+      TP_INFO
+      USER_INFO
+        UID
+        ID
+      DEBUG
+
+=cut
+#**********************************************************
+sub extfin_service_activate {
+  my ($attr)=@_;
+
+  my $debug_output = q{};
+  my $user_info = $attr->{USER_INFO};
+  my $debug = $attr->{DEBUG} || 0;
+  my $date = $attr->{DATE} || $DATE;
+  my (undef, undef, $d)=split(/\-/, $date);
+
+  if ($d == 1) {
+    return 1;
+  }
+
+  my $user_tariff_list = $Extfin->paid_periodic_list({
+    %LIST_PARAMS,
+    UID       => $user_info->{UID},
+    #DISABLE   => 3,
+    DELETED   => 0,
+    COLS_NAME => 1
+  });
+
+  foreach my $user ( @$user_tariff_list ) {
+    if (! $user->{date}) {
+      next;
+    }
+
+    my $days_in_month = days_in_month({ DATE => $date });
+    my $sum = sprintf("%.2f", $user->{sum} / $days_in_month * ($days_in_month - $d + 1));
+
+    if ($sum > 0) {
+      require Payments;
+      my $Payments = Payments->new($db, $admin, \%conf);
+      $Payments->add({
+          BILL_ID  => $user_info->{BILL_ID},
+          UID      => $user_info->{UID}
+        },
+        {
+          SUM      => $sum,
+          METHOD   => $user->{pt_id},
+          DESCRIBE => ($user->{comments} ne '') ? $user->{comments} : "$lang{PERIOD}: $sum",
+          INNER_DESCRIBE => $attr->{INNER_DESCRIBE}
+        }
+      );
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 internet_service_deactivate($attr)
+
+  Arguments:
+    $attr
+      TP_INFO
+      USER_INFO
+      DEBUG
+      STATUS - Disable status
+
+=cut
+#**********************************************************
+sub extfin_service_deactivate {
+  my ($attr)=@_;
+
+  my $debug_output = q{};
+  my $user_info = $attr->{USER_INFO};
+  my $debug = $attr->{DEBUG} || 0;
+  my $date = $attr->{DATE} || $DATE;
+  my (undef, undef, $d)=split(/\-/, $date);
+  my $user_tariff_list = $Extfin->paid_periodic_list({
+    %LIST_PARAMS,
+    UID => $user_info->{UID},
+    COLS_NAME => 1
+  });
+
+  foreach my $user ( @$user_tariff_list ) {
+    if (! $user->{date}) {
+      next;
+    }
+
+    my $days_in_month = days_in_month({ DATE => $date });
+    my $days = $days_in_month - $d + 1;
+    my $next_abon = next_month({ DATE => $date });
+
+    my $sum = $user->{sum} / $days_in_month * $days;
+    if($debug > 0) {
+      print "$user->{sum} DATE: $user->{date} NEXT: $next_abon ID: $user->{id} | $sum\n";
+    }
+
+    if ($sum > 0) {
+      require Fees;
+      my $Fees = Fees->new($db, $admin, \%conf);
+      $Fees->take({
+        BILL_ID  => $user_info->{BILL_ID},
+        UID      => $user_info->{UID}
+      },
+        $sum,
+        {
+          SUM      => $sum,
+          METHOD   => 6,
+          DESCRIBE => "$lang{COMPENSATION}. $lang{DAYS}:" .
+            "$date/$next_abon ($days)" . (($attr->{DESCRIBE}) ? ". $attr->{DESCRIBE}" : ''),
+          INNER_DESCRIBE => $attr->{INNER_DESCRIBE}
+        }
+      );
+    }
+  }
+
+  return $debug_output;
+}
+
+
+
 1;
 

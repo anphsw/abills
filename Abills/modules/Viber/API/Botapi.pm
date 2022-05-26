@@ -1,40 +1,54 @@
-#!/usr/bin/perl
-
 package Botapi;
+=head NAME
+
+  Viber Bot API
+
+=head DOCUMENTATION
+
+  ALL API
+    https://developers.viber.com/docs/api/
+  REST Bot API
+    https://developers.viber.com/docs/api/rest-bot-api/
+
+=cut
+
 use strict;
 use warnings FATAL => 'all';
-use JSON;
 
-use Abills::Fetcher qw/web_request/;
-
-my $debug = 0;
-my $curl = '';
+use Abills::Fetcher qw(web_request);
 
 #**********************************************************
-=head2 new($token)
+=head2 new($class, $token, $receiver)
+
+    Arguments:
+    $class    -
+    $token    - Viber bot token
+    $receiver - Receiver of message
+
+  Returns:
+    object
 
 =cut
 #**********************************************************
 sub new {
-  my ($class, $token, $receiver, $curl_path, $SELF_URL) = @_;
+  my ($class, $token, $receiver, $SELF_URL) = @_;
 
   $receiver //= "";
-  $curl = $curl_path;
 
   my $self = {
-    token  => $token,
-    receiver  => $receiver,
-    SELF_URL => "https://$SELF_URL:9443",
-    api_url => 'https://chatapi.viber.com/pa/'
+    token    => $token,
+    receiver => $receiver,
+    SELF_URL => $SELF_URL,
+    api_url  => 'https://chatapi.viber.com/pa/'
   };
-  
+
   bless($self, $class);
-  
+
   return $self;
 }
 
 #**********************************************************
-=head2 send_message()
+=head2 send_message() send message to Viber
 
 =cut
 #**********************************************************
@@ -43,21 +57,15 @@ sub send_message {
   my ($attr) = @_;
 
   $attr->{receiver} ||= $self->{receiver};
-
   $attr->{min_api_version} = 7;
 
-  my $json_str = $self->perl2json($attr);
-  my $url      = $self->{api_url} . 'send_message';
-
-  my @header = ( 'Content-Type: application/json', 'X-Viber-Auth-Token: '.$self->{token} );
-  $json_str =~ s/\"/\\\"/g;
-
+  my $url = $self->{api_url} . 'send_message';
+  my @headers = ('Content-Type: application/json', "X-Viber-Auth-Token: $self->{token}");
 
   web_request($url, {
-    POST         => $json_str,
-    HEADERS      => \@header,
-    CURL         => 1,
-    CURL_OPTIONS => '-XPOST',
+    HEADERS   => \@headers,
+    JSON_BODY => $attr,
+    METHOD    => 'POST',
   });
 
   return 1;
@@ -69,7 +77,7 @@ sub send_message {
 =cut
 #**********************************************************
 sub get_file {
-  my $self = shift;
+  shift;
   my ($file_id) = @_;
 
   my ($file_path, $file_name, $file_size) = $file_id =~ /(.*)\|(.*)\|(.*)/;
@@ -82,35 +90,30 @@ sub get_file {
 }
 
 #**********************************************************
-=head2 perl2json()
+=head2 fetch_api($attr)
 
 =cut
 #**********************************************************
-sub perl2json {
+sub fetch_api {
   my $self = shift;
-  my ($data) = @_;
-  my @json_arr = ();
+  my ($attr) = @_;
 
-  if (ref $data eq 'ARRAY') {
-    foreach my $key (@{$data}) {
-      push @json_arr, $self->perl2json($key);
-    }
-    return '[' . join(',', @json_arr) . "]";
+  my @req_headers = ('Content-Type: application/json', 'USERBOT: VIBER', "USERID: $self->{receiver}");
+  my $req_body = q{};
+
+  if ($attr->{method} ne 'GET') {
+    $req_body = $attr->{body};
   }
-  elsif (ref $data eq 'HASH') {
-    foreach my $key (sort keys %$data) {
-      my $val = $self->perl2json($data->{$key});
-      push @json_arr, qq{\"$key\":$val};
-    }
-    return '{' . join(',', @json_arr) . "}";
-  }
-  else {
-    $data //='';
-    return "true" if ($data eq "true");
-    return qq{\"$data\"};
-  }
+
+  my $result = web_request($attr->{url}, {
+    HEADERS     => \@req_headers,
+    JSON_BODY   => $req_body,
+    JSON_RETURN => 1,
+    INSECURE    => 1,
+    METHOD      => $attr->{method}
+  });
+
+  return $result;
 }
 
-
 1;
-

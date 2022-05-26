@@ -100,5 +100,6 @@ $lang{DEPOSIT} = 'Deposit';
 $lang{MSGS_CREATE} = 'Message begin for tag: ';
 $lang{WEB_SITE} = 'Website';
 $lang{PAYMENT_CREDENTIAL} = 'Payment credential';
+$lang{NO_PAYMENT_SYSTEMS} = 'No available payment systems';
 
 1;

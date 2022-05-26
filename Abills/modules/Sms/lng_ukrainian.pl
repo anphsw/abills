@@ -35,5 +35,8 @@ $lang{SERVICE_NOT_HOLDING_UP} = 'Служба не затримується';
 $lang{SERVICE_NOT_ACTIVE} = 'Сервіс не активний';
 $lang{PUBLIC_HOTSPOT_SMS} = 'Публічний хот-спот (СМС)';
 $lang{ADD_SUM_TRANSFER} = 'Переказав кошти в сумі';
+$lang{SMS_GATEWAY} = 'СМС шлюз';
+
+$lang{EXCEEDED_SMS_LIMIT} = 'Перевищено ліміт SMS для цього користувача';
 
 1

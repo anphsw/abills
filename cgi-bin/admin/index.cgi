@@ -39,7 +39,6 @@ BEGIN {
 }
 
 our (
-#  $libpath,
   $base_dir,
   %err_strs,
   %LANG,
@@ -54,12 +53,12 @@ our (
 
 
 use Abills::Defs;
-use Abills::Base qw(in_array mk_unique_value date_diff decode_base64 convert gen_time);
-use POSIX qw(strftime mktime);
+use Abills::Base qw(in_array mk_unique_value decode_base64 convert gen_time);
 use Admins;
 use Users;
 use Finance;
 use Shedule;
+use Abills::Fetcher qw(web_request);
 
 our $db    = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { %conf, CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 our $admin = Admins->new($db, \%conf);
@@ -67,24 +66,21 @@ our $Conf  = Conf->new($db, $admin, \%conf, { SKIP_PAYSYS => 1 });
 
 require Abills::Misc;
 require Abills::Result_former;
-use Abills::Fetcher qw(web_request);
 
 $conf{base_dir}=$base_dir if (! $conf{base_dir});
 
-our $html = Abills::HTML->new(
-  {
-    CONF     => \%conf,
-    NO_PRINT => 0,
-    PATH     => $conf{WEB_IMG_SCRIPT_PATH} || '../',
-    CHARSET  => $conf{default_charset},
-    #COLORS   => $conf{DEFAULT_ADMIN_WEBCOLORS},
-    LANG     => \%lang,
-    HTML_SECURE=> 'SameSite=Lax'
-  }
-);
+our $html = Abills::HTML->new({
+  CONF       => \%conf,
+  NO_PRINT   => 0,
+  PATH       => $conf{WEB_IMG_SCRIPT_PATH} || '../',
+  CHARSET    => $conf{default_charset},
+  LANG       => \%lang,
+  HTML_SECURE=> 'SameSite=Lax'
+});
 
 require Abills::Templates;
 require Control::Auth;
+
 if(! auth_admin() ) {
   if($ENV{DEBUG}) {
     die;
@@ -168,7 +164,8 @@ if ($conf{LANGS}) {
 }
 
 if ($conf{CALLCENTER_MENU}) {
-  $html->{CALLCENTER_MENU} = $html->tpl_show(templates('form_callcenter_menu'), { CALLCENTER_MENU => '' }, { OUTPUT2RETURN => 1 });
+  $html->{CALLCENTER_MENU} = $html->tpl_show(templates('form_callcenter_menu'),
+    { CALLCENTER_MENU => '' }, { OUTPUT2RETURN => 1 });
 }
 
 $html->{METATAGS} = templates('metatags');
@@ -202,13 +199,6 @@ if ($permissions{0} && (($FORM{UID} && $FORM{UID} =~ /^(\d+)$/
 }
 
 print $html->header();
-
-if ($conf{NEW_WIKI}) {
-  $ENV{DOC_URL} = "https://support.abills.net.ua/doc.cgi?url=";
-}
-else {
-  $ENV{DOC_URL} = 'http://abills.net.ua/wiki/doku.php/abills:docs:manual:admin:%FUNCTION_NAME%';
-}
 
 my ($menu_text, $navigat_menu) = mk_navigator();
 
@@ -245,6 +235,7 @@ sub form_admin_qm {
   my @a = split(/,/, $admin->{SETTINGS}->{qm});
   my $i = 0;
   $admin->{QUICK_MENU} = "<ul class='nav nav-pills nav-sidebar flex-column' id='admin-quick-menu'>";
+  $admin->{QUICK_MENU} .= $html->element('h5', $lang{QUICK_MENU});
   my $quick_menu_script = "<script>";
   my $qm_btns_counter = 0;
 
@@ -260,8 +251,13 @@ sub form_admin_qm {
     }
 
     $qm_id =~ s/sub//;
+    my $active = '';
 
-    my $active = ($qm_id eq $index) ? " active" : '';
+    if ($qm_id eq $index) {
+      $active = 'active';
+      $admin->{RIGHT_MENU_OPEN} = !$admin->{SETTINGS}{RIGHT_MENU_HIDDEN} ? 'control-sidebar-slide-open' : '';
+    }
+
     if ( !$qm_name ) {
       next if (!$menu_names{$qm_id});
       $qm_name = $menu_names{$qm_id};
@@ -269,37 +265,37 @@ sub form_admin_qm {
 
     my $button = '';
     if ( defined($menu_args{$qm_id}) && $menu_args{$qm_id} !~ /=/ ) { #XXX broken when there's comma (',') in $menu_args{$qm_id} or arg name is not 'LOGIN'
-      $button = "<a class='$active' onclick='openModal($qm_btns_counter, \"ArrayBased\")' ><i class='fa fa-circle-o'></i>$qm_name</a>";
+      $button = "<a class='$active' onclick='openModal($qm_btns_counter, \"ArrayBased\")' ><i class='nav-icon fas fa-search'></i>$qm_name</a>";
       $quick_menu_script .= "modalsSearchArray.push(['$lang{LOGIN}','LOGIN',$qm_id,'$SELF_URL']);\n";
       $qm_btns_counter++;
     }
     else {
       my $args = ($menu_args{$qm_id} && $menu_args{$qm_id} =~ /=/) ? '&' . $menu_args{$qm_id} : '';
-      $button = $html->button( $html->element( 'i', '', { class => 'fa fa-circle-o' } ) . $qm_name, "index=$qm_id$args",
+      $button = $html->button( $html->element( 'i', '', { class => 'nav-icon far fa-circle' } ) . $qm_name, "index=$qm_id$args",
         { class => $active } );
     }
     $i++;
-    $admin->{QUICK_MENU} .= $html->li( $button, { class => $active } );
+    $admin->{QUICK_MENU} .= $html->li( $button, { class => "nav-item $active" } );
   }
 
   if ($admin->{SETTINGS}{ql}) {
     foreach my $ql (split(/,/, $admin->{SETTINGS}->{ql})) {
       my ($ql_name, $ql_url) = split(/\|/, $ql, 2);
-      my $custom_button = $html->button( $html->element( 'i', '', { class => 'fa fa-external-link' } )
+      my $custom_button = $html->button( $html->element( 'i', '', { class => 'nav-icon fas fa-external-link-alt' } )
         . $ql_name, "", { GLOBAL_URL => $ql_url, ex_params => ' target=_blank' } );
-      $admin->{QUICK_MENU} .= $html->li( $custom_button, { } );
+      $admin->{QUICK_MENU} .= $html->li( $custom_button, { class => 'nav-item' });
     }
   }
 
   $admin->{QUICK_MENU} .= $html->li( $html->button( $lang{ADD}, "index=110",
-      { class => "btn bg-green btn-block btn-flat" } ) );
+      { class => "btn bg-green btn-block btn-flat mt-2" } ) );
 
   $admin->{QUICK_MENU} .= $quick_menu_script . "</script>";
 
   if ($qm_btns_counter){
-    $admin->{QUICK_MENU} .= '<script src="/styles/default_adm/js/dynamicForms.js"></script>';
+    $admin->{QUICK_MENU} .= '<script src="/styles/default/js/dynamicForms.js"></script>';
   }
-  $admin->{QUICK_MENU} .= "</ul>";
+  $admin->{QUICK_MENU} .= '</ul>';
 
   return 1;
 }
@@ -428,7 +424,7 @@ sub form_start {
 
   return 1;
 }
-
+# TODO: need to rewrite func_menu to normal html -> table_header
 #**********************************************************
 =head2 func_menu($header, $items, $f_args) - Functions menu
 
@@ -458,18 +454,36 @@ sub func_menu {
     if(ref $items eq 'ARRAY') {
       foreach my $line (@$items) {
         my ($name, $subf, $ext_url, undef, $main_fn_index) = split(/:/, $line, 5);
+        my $active = ($FORM{subf} && $FORM{subf} eq $subf) ? 'active' : '';
         $elements .= $html->li( $html->button($name, "index=". (($f_args->{MAIN_INDEX}) ? $f_args->{MAIN_INDEX} : (($main_fn_index) ? $main_fn_index : $index))
             . (($ext_url) ? '&'.$ext_url : q{})
-            . (($subf) ? "&subf=$subf" : q{}), {class => 'nav-link'}),
-        { class => ($FORM{subf} && $FORM{subf} eq $subf) ? 'nav-item  active' : 'nav-item ' });
+            . (($subf) ? "&subf=$subf" : q{}), {class => "nav-link $active"}),
+        { class =>  'nav-item' });
       }
     }
   }
 
-  $buttons_list = $html->element( 'ul', $elements, { class => 'navbar-nav mr-auto mt-2 mt-lg-0' } ). $buttons_list;
+  $buttons_list = $html->element( 'ul', $elements, { class => 'nav-tabs navbar-nav' } ). $buttons_list;
+  $buttons_list = $html->element( 'div', $buttons_list, { class => 'collapse navbar-collapse', id => 'AbillsNavbar'});
+
+  my $expand_button = $html->element('button',
+    $html->element('span', '', { class => 'navbar-toggler-icon'} ),
+    {
+      class           => 'navbar-toggler',
+      type            => 'button',
+      'aria-controls' => 'AbillsNavbar',
+      'aria-label'    => 'Toggle',
+      'data-target'   => '#AbillsNavbar',
+      'aria-expanded' => 'false',
+      'data-toggle'   => 'collapse'
+    }
+  );
+
+  $buttons_list = $html->element( 'span', $lang{MENU}, { class => 'navbar-brand d-lg-none pl-3' }) . $expand_button . $buttons_list;;
+
   my $menu = $html->element( 'div',
     $buttons_list,
-    { class => 'navbar navbar-expand-lg navbar-light bg-light' } );
+    { class => 'abills-navbar navbar navbar-expand-lg navbar-light mb-2' } );
 
   print $menu if (! $f_args->{SILENT});
 
@@ -622,7 +636,7 @@ sub form_image_mng {
       print $html->element('div',
         $html->element('div',
           $del_button,
-          { class => 'pull-left' }
+          { class => 'float-left' }
         ),
         { class => 'row' }
       );
@@ -701,9 +715,6 @@ sub form_nas_allow{
     if(in_array('Internet', \@MODULES)) {
       internet_tp();
     }
-    # else {
-    #   dv_tp();
-    # }
 
     return 0;
   }
@@ -942,24 +953,18 @@ sub form_changes {
     $pages_qs2 .= "&UID=$LIST_PARAMS{UID}" if($pages_qs !~ /UID/);
   }
 
-  $search_params{MODULES_SEL} = $html->form_select(
-    'MODULE',
-    {
-      SELECTED      => $FORM{MODULE},
-      SEL_ARRAY     => [ '', @MODULES ],
-      OUTPUT2RETURN => 1
-    }
-  );
+  $search_params{MODULES_SEL} = $html->form_select('MODULE', {
+    SELECTED      => $FORM{MODULE},
+    SEL_ARRAY     => [ '', @MODULES ],
+    OUTPUT2RETURN => 1
+  });
 
-  $search_params{TYPE_SEL} = $html->form_select(
-    'TYPE',
-    {
-      SELECTED      => $FORM{TYPE},
-      SEL_HASH      => { '' => $lang{ALL}, %action_types },
-      SORT_KEY      => 1,
-      OUTPUT2RETURN => 1
-    }
-  );
+  $search_params{TYPE_SEL} = $html->form_select('TYPE', {
+    SELECTED      => $FORM{TYPE},
+    SEL_HASH      => { '' => $lang{ALL}, %action_types },
+    SORT_KEY      => 1,
+    OUTPUT2RETURN => 1
+  });
 
   $search_params{ADMIN_SEL}=sel_admins();
   # $search_params{ADMIN} = $html->form_select(
@@ -998,15 +1003,15 @@ sub form_changes {
   my $tps_hash = sel_tp({ MODULE => 'Internet;Iptv;Cams;Ureports;Voip;Dv' });
 
   $pages_qs .= $pages_qs2;
-  if($FORM{FROM_DATE}) {
-    $pages_qs2 .= "&FROM_DATE=" . $FORM{FROM_DATE};
-    $LIST_PARAMS{FROM_DATE}=$FORM{FROM_DATE};
-  }
-
-  if($FORM{TO_DATE}) {
-    $pages_qs2 .= "&TO_DATE=" . $FORM{TO_DATE};
-    $LIST_PARAMS{TO_DATE}=$FORM{TO_DATE};
-  }
+  # if($FORM{FROM_DATE}) {
+  #   $pages_qs2 .= "&FROM_DATE=" . $FORM{FROM_DATE};
+  #   $LIST_PARAMS{FROM_DATE}=$FORM{FROM_DATE};
+  # }
+  #
+  # if($FORM{TO_DATE}) {
+  #   $pages_qs2 .= "&TO_DATE=" . $FORM{TO_DATE};
+  #   $LIST_PARAMS{TO_DATE}=$FORM{TO_DATE};
+  # }
 
   my $list = $admin->action_list({
     LOGIN       => '_SHOW',
@@ -1021,7 +1026,7 @@ sub form_changes {
     COLS_NAME     => 1
   });
 
-  if($attr->{PAGES_QS}) {
+  if ($attr->{PAGES_QS}) {
     $pages_qs2 .= $attr->{PAGES_QS};
   }
 
@@ -1360,8 +1365,8 @@ sub fl {
     "31:15:$lang{SEARCH}:user_modal_search:user_search_form::",
     "32:15:$lang{LOGIN}:check_login_availability:AJAX::",
 
-    "2:0:<i class='nav-icon fa fa-plus-square-o'></i><p class='d-inline'>$lang{PAYMENTS}</p>:form_payments:::",
-    "3:0:<i class='nav-icon fa fa-minus-square-o'></i><p class='d-inline'>$lang{FEES}</p>:form_fees:::",
+    "2:0:<i class='nav-icon far fa-plus-square'></i><p class='d-inline'>$lang{PAYMENTS}</p>:form_payments:::",
+    "3:0:<i class='nav-icon far fa-minus-square'></i><p class='d-inline'>$lang{FEES}</p>:form_fees:::",
 #Config
 
     "7:0:<i class='nav-icon fa fa-search'></i><p class='d-inline'>$lang{SEARCH}</p>:form_search:::",
@@ -1408,7 +1413,7 @@ sub fl {
 
   #Monitoring
   if ($permissions{5} && $permissions{5}{0}){
-    push @m, "6:0:<i class='nav-icon fa fa-eye'></i><p class='d-inline'>$lang{MONITORING}</p>:null:::";
+    push @m, "6:0:<i class='nav-icon far fa-eye'></i><p class='d-inline'>$lang{MONITORING}</p>:null:::";
   }
 
   #Profile
@@ -1422,17 +1427,21 @@ sub fl {
 
   if ($conf{NON_PRIVILEGES_LOCATION_OPERATION}) {
     require Control::Address_mng;
-    push @m, "70:8:$lang{LOCATIONS}:form_districts:::", "71:70:$lang{STREETS}:form_streets::";
-    push @m, "135:70:Address update:form_address_select2:AJAX::";
+    push @m, "70:8:$lang{LOCATIONS}:form_districts:::",
+             "71:70:$lang{STREETS}:form_streets::",
+             "135:70:Address update:form_address_select2:AJAX::";
   }
   else {
     require Control::Address_mng;
-    push @m, "70:5:$lang{LOCATIONS}:form_districts:::", "71:70:$lang{STREETS}:form_streets::";
+    if ($permissions{4}) {
+      push @m, "70:5:$lang{LOCATIONS}:form_districts:::",
+               "71:70:$lang{STREETS}:form_streets::";
+    }
     push @m, "135:70:Address update:form_address_select2:AJAX::";
   }
 
   #Reports
-  push @m, "4:0:<i class='nav-icon fa fa-bar-chart'></i><p class='d-inline'>$lang{REPORTS}</p>:form_reports:::";
+  push @m, "4:0:<i class='nav-icon far fa-chart-bar'></i><p class='d-inline'>$lang{REPORTS}</p>:form_reports:::";
 
   #Reports
   if($permissions{3}){
@@ -1446,6 +1455,7 @@ sub fl {
       push @m, "132:131:$lang{REPORT_NEW_ALL_USERS}:report_new_all_customers:::";
       push @m, "133:131:$lang{REPORT_NEW_ARPU_USERS}:report_new_arpu:::";
       push @m, "134:131:$lang{REPORT_BALANCE_BY_STATUS}:report_balance_by_status:::";
+      push @m, "136:131:$lang{REPORT_SWITCH_WITH_USERS}:switch_report:::";
     }
 
     if($conf{AUTH_FACEBOOK_ID}){
@@ -1481,7 +1491,7 @@ sub fl {
   if ($permissions{4}) {
     require Control::System;
 
-    push (@m, "5:0:<i class='nav-icon fa fa-gear'></i><p class='d-inline'>$lang{CONFIG}</p>:null:::",
+    push (@m, "5:0:<i class='nav-icon fas fa-cog'></i><p class='d-inline'>$lang{CONFIG}</p>:null:::",
       "62:5:$lang{NAS}:form_nas:::",
       "63:62:$lang{IP_POOLS}:form_ip_pools:::",
       "64:62:$lang{NAS_STATISTIC}:form_nas_stats:::",
@@ -1540,7 +1550,7 @@ sub fl {
 
   if ($conf{AUTH_METHOD}) {
     $permissions{9}{1}=1;
-    push @m, "10:0:<i class='nav-icon fa fa-sign-out'></i><p class='d-inline'>$lang{LOGOUT}</p>:null:::";
+    push @m, "10:0:<i class='nav-icon fa fa-sign-out-alt'></i><p class='d-inline'>$lang{LOGOUT}</p>:null:::";
   }
 
   my $custom_menu = custom_menu();
@@ -1900,7 +1910,8 @@ sub form_search {
 
         $address_form = form_address_select2({ %FORM,
           HIDE_ADD_BUILD_BUTTON => $conf{HIDE_SEARCH_BUILD_INPUT} ? 1 : 0,
-          MULTIPLE              => 1
+          MULTIPLE              => 1,
+          SHOW_BUTTONS          => 1
         });
       }
       else {
@@ -2176,8 +2187,8 @@ sub form_shedule {
 
   my %TYPES = (
     'tp'     => "$lang{CHANGE} $lang{TARIF_PLAN}",
-    'fees'   => "$lang{FEES}",
-    'status' => "$lang{STATUS}",
+    'fees'   => $lang{FEES},
+    'status' => $lang{STATUS},
     'sql'    => 'SQL'
   );
 
@@ -2192,23 +2203,20 @@ sub form_shedule {
 
   my $service_status = sel_status({ HASH_RESULT => 1 });
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => $lang{SHEDULE},
-      title      =>
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $lang{SHEDULE},
+    title      =>
       [ $lang{HOURS}, $lang{DAY}, $lang{MONTH}, $lang{YEAR}, $lang{COUNT}, $lang{USER}, $lang{TYPE},
         $lang{VALUE}, $lang{MODULES}, $lang{ADMINS}, $lang{CREATED}, $lang{COMMENTS}, "-" ],
-      qs         => $pages_qs,
-      pages      => $Shedule->{TOTAL},
-      header     =>
-      [ "$lang{ALL}:index=$index" . $pages_qs, "$lang{ERROR}:index=$index&SHEDULE_DATE=<=$DATE" . $pages_qs ],
-      ID         => 'SHEDULE',
-      EXPORT     => 1,
-      FIELDS_IDS => $Shedule->{COL_NAMES_ARR},
-      MENU       => ($FORM{UID}) ? '' : "$lang{ADD}:index=$index&add_form=1:add",
-    }
-  );
+    qs         => $pages_qs,
+    pages      => $Shedule->{TOTAL},
+    header     => [ "$lang{ALL}:index=$index" . $pages_qs, "$lang{ERROR}:index=$index&SHEDULE_DATE=<=$DATE" . $pages_qs ],
+    ID         => 'SHEDULE',
+    EXPORT     => 1,
+    FIELDS_IDS => $Shedule->{COL_NAMES_ARR},
+    MENU       => ($FORM{UID}) ? '' : "$lang{ADD}:index=$index&add_form=1:add",
+  });
 
   my ($y, $m, $d) = (0,0,0);
 
@@ -2224,13 +2232,18 @@ sub form_shedule {
         { MESSAGE => "$lang{DEL} [$line->{id}]?", class => 'del' } ) : '-';
     my $value = convert($line->{action}, { text2html => 1 });
 
-    my $shedule_date = $line->{y} . $line->{m} . $line->{d};
+    if (! $line->{y}) {
+      print "NO YEAR: $line->{id} ";
+      next;
+    }
+
+    my $shedule_date = ($line->{y} || 2000) . ($line->{m} || '01') . ($line->{d} || 01);
     if ( $line->{y} ne '*'
       && $line->{m} ne '*'
       && $line->{d} ne '*'
       && $shedule_date =~ /^\d+$/ && $shedule_date <= int($y . $m . $d)
       ){
-      $table->{rowcolor} = 'danger';
+      $table->{rowcolor} = 'bg-danger';
     }
     else {
       $table->{rowcolor} = undef;
@@ -2388,9 +2401,10 @@ sub admin_quick_setting {
   Arguments:
     NAME     - Element name
     SELECTED - value
-    REQUIRED - Required optins
+    REQUIRED - Required options
     HASH     - Hash return
     DISABLE  - 0 = Active; 1 = Disable; 2 = Fired;
+    MULTIPLE - multiple admins
 
   Returns:
     Select element
@@ -2429,6 +2443,7 @@ sub sel_admins {
     SEL_OPTIONS        => { '' => '--' },
     REQUIRED           => ($attr->{REQUIRED}) ? 'required' : undef,
     ID                 => $attr->{ID} ? $attr->{ID} : undef,
+    MULTIPLE           => $attr->{MULTIPLE} ? 1 : undef,
     %{($attr->{EX_PARAMS} && ref $attr->{EX_PARAMS} eq 'HASH') ? $attr->{EX_PARAMS} : {}}
   });
 }
@@ -2505,7 +2520,7 @@ sub quick_functions {
   elsif($FORM{key}) {
     if($conf{US_API}) {
       require Userside::Api;
-      userside_api($FORM{request});
+      userside_api($FORM{request}, \%FORM);
     }
     else {
       print "Content-Type: text/plain\n\n";
@@ -2547,7 +2562,7 @@ sub quick_functions {
     $html->{METATAGS} = templates('metatags');
     print $html->header(\%FORM);
 
-    if ($FORM{UID} || ($FORM{type} && $FORM{type} == 11 && ! $FORM{xml})) {
+    if ($FORM{UID} || ($FORM{type} && $FORM{type} == 11 && ! $FORM{xml} && ! $FORM{json} && ! $FORM{csv} && ! $FORM{xls})) {
       $ui = user_info($FORM{UID}, { %FORM, LOGIN => (! $FORM{UID} && $FORM{LOGIN}) ? $FORM{LOGIN} : undef });
       if ($FORM{xml} && $ui && $ui->{UID}) {
         $xml_start_teg = 'user_info';
@@ -2717,6 +2732,9 @@ sub set_admin_params {
     print "Location: $SELF_URL?index=$FORM{index}\n\n";
     exit;
   }
+
+  #TODO: need to check, some interesting
+
   $admin->{SETTINGS}{SKIN} = $admin->{SETTINGS}{SKIN} || 'navbar-white navbar-light';
   $admin->{SETTINGS}{SKIN} = $admin->{SETTINGS}{SKIN} || 'navbar-white navbar-light';
   $admin->{SETTINGS}{RIGHT_MENU_SKIN} = ($admin->{SETTINGS}{MENU_SKIN}) ? 'control-sidebar-light' : 'control-sidebar-dark';
@@ -2977,10 +2995,10 @@ sub post_page {
     # $admin->{PASSWORD_MATCH}. Unexpected inverted logic
     # True means password NOT matches.
     # False means this is 'abills' admin with 'abills' password
-    if (!$admin->{PASSWORD_MATCH}){
-      $html->reminder($lang{WARNING}, $html->button($lang{PLEASE_CHANGE_DEFAULT_PASSWORD}, "index=50&subf=54&AID=1"), {
-          class => 'danger'
-        });
+    if (!$admin->{PASSWORD_MATCH}) {
+      $html->message('callout', $lang{WARNING}, $html->button($lang{PLEASE_CHANGE_DEFAULT_PASSWORD}, "index=50&subf=54&AID=1"), {
+        class => 'danger'
+      });
     }
     else {
       $Conf->config_add({ PARAM => 'DEFAULT_PASSWORD_CHANGED', VALUE => 1, REPLACE => 1});
@@ -2991,7 +3009,7 @@ sub post_page {
 
   if ($conf{tech_works}) {
     #$admin->{TECHWORK} = $html->message('err', $conf{tech_works}, $conf{tech_works}, { OUTPUT2RETURN => 1 });
-    $html->reminder($lang{WARNING}, $conf{tech_works}, { class => 'warning'  });
+    $html->message('callout', $lang{WARNING}, $conf{tech_works}, { class => 'warning' });
   }
 
   if (!$conf{GUIDE_DISABLED} && $html->{TYPE} eq 'html'){
@@ -3060,8 +3078,15 @@ sub post_page {
   }
 
   if(! $FORM{xml}) {
-    $html->{_RIGHT_MENU} = $html->menu_right($html->element('i', '', { class=>'fa fa-th-list' }), "quick_menu", $admin->{QUICK_MENU}, { HTML => $html->{_RIGHT_MENU} } );
-    $html->{_RIGHT_MENU} = $html->menu_right($html->element('i', '', { class=>'fa fa-user' }), "user_menu", $admin->{USER_MENU}, { HTML => $html->{_RIGHT_MENU} } ) if (defined($admin->{USER_MENU}));
+    #TODO: rewrite this scary code
+    if (defined($admin->{USER_MENU})) {
+      $html->{_RIGHT_MENU} = $html->menu_right($html->element('i', '', { class=>'fa fa-user' }), "user_menu", $admin->{USER_MENU},
+        { HTML => $html->{_RIGHT_MENU}, TITLE => $lang{USER_INFO}} ) ;
+    }
+    else {
+      $html->{_RIGHT_MENU} = $html->menu_right($html->element('i', '', { class=>'fa fa-th-list' }), "quick_menu", $admin->{QUICK_MENU},
+        { HTML => $html->{_RIGHT_MENU}, TITLE  => $lang{QUICK_MENU}} );
+    }
 
     $html->tpl_show(templates('footer'), {
         RIGHT_MENU  => $html->{_RIGHT_MENU},
@@ -3069,7 +3094,7 @@ sub post_page {
         DEBUG_FORM  => $admin->{DEBUG_FORM},
         PUSH_SCRIPT => ($conf{PUSH_ENABLED}
           ? "<script>window['GOOGLE_API_KEY']='".($conf{GOOGLE_API_KEY} // '')."'</script>"
-            ."<script src='/styles/default_adm/js/push_subscribe.js'></script>"
+            ."<script src='/styles/default/js/push_subscribe.js'></script>"
           : '<!-- PUSH DISABLED -->'
         )
       });

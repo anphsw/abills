@@ -328,7 +328,7 @@ sub form_builds{
   $Address->{ACTION} = 'add';
   $Address->{LNG_ACTION} = "$lang{ADD}";
 
-  my $maps_enabled = in_array( 'Maps2', \@MODULES );
+  my $maps_enabled = in_array( 'Maps', \@MODULES );
 
   if ( !$FORM{qindex} && !$FORM{xml} && $FORM{BUILDS} ){
     my @header_arr = (
@@ -567,8 +567,8 @@ sub form_add_map {
   my (undef, $attr) = @_;
 
   if (!$Auxiliary) {
-    use Maps2::Auxiliary;
-    $Auxiliary = Maps2::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+    use Maps::Auxiliary;
+    $Auxiliary = Maps::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
   }
 
   if ($attr->{DISTRICT_ID}) {
@@ -581,7 +581,7 @@ sub form_add_map {
     my $district_info = $Maps->districts_list({ DISTRICT_ID => $attr->{DISTRICT_ID}, OBJECT_ID => '_SHOW' });
     my $object_id = ($Maps->{TOTAL}) ? ($district_info->[0]{object_id} || q{}) : '';
 
-    return $Auxiliary->maps2_show_object_button(4, $object_id);
+    return $Auxiliary->maps_show_object_button(4, $object_id);
   }
 
   my $object_id = $attr->{BUILD_ID} || $attr->{VALUES}{ID};
@@ -589,11 +589,11 @@ sub form_add_map {
 
   my %params = (CHECK_BUILD => 1, ADD_POINT => 1, LOAD_TO_MODAL => 1, BTN_CLASS => 'btn btn-sm btn-success');
   if (!$Address->{COORDX} || !$Address->{COORDY}) {
-    $params{ICON} = 'fa fa-map-marker';
+    $params{ICON} = 'fa fa-map-marker-alt';
     $params{BTN_CLASS} = 'btn btn-sm btn-primary';
   }
 
-  return $Auxiliary->maps2_show_object_button(1, $object_id, \%params);
+  return $Auxiliary->maps_show_object_button(1, $object_id, \%params);
 }
 
 #**********************************************************
@@ -852,7 +852,7 @@ sub sel_streets {
     SEL_VALUE      => 'street_name',
     NO_ID          => 1,
     SEL_OPTIONS    => $attr->{SEL_OPTIONS},
-    MAIN_MENU      => get_function_index('form_streets'),
+    MAIN_MENU      => $admin->{permissions}{0} && $admin->{permissions}{0}{34} ? get_function_index('form_streets') : '',
     MAIN_MENU_ARGV => ($attr->{STREET_ID} || $FORM{STREETS}) ? "chg=" . ($attr->{STREET_ID} || $FORM{BUILDS}) : '',
     ID             => $attr->{SELECT_ID},
     SORT_VALUE     => 'street_name',
@@ -880,6 +880,7 @@ sub sel_builds {
   $attr ||= {};
   $attr->{SELECT_ID} ||= 'BUILD_ID';
   $attr->{SELECT_NAME} ||= 'BUILD_ID';
+  $attr->{HIDE_ADD_BUILD_BUTTON} = 1 if !$admin->{permissions}{0} || !$admin->{permissions}{0}{35};
 
   $attr->{STREET_ID} =~ s/,/;/g if $attr->{STREET_ID};
   my $builds = $Address->build_list({
@@ -1032,7 +1033,7 @@ sub form_address {
     if (in_array('Dom', \@MODULES)) {
       $Address->{DOM_BTN} = $html->button("", 'index=' . get_function_index('dom_info') . "&LOCATION_ID=$attr->{LOCATION_ID}", {
         class     => 'btn btn-success btn-sm',
-        ex_params => "data-tooltip-position='top' data-tooltip='$lang{BUILD_SCHEMA}'", ICON => 'fa fa-building-o '
+        ex_params => "data-tooltip-position='top' data-tooltip='$lang{BUILD_SCHEMA}'", ICON => 'far fa-building '
       });
     }
     $Address->{FLAT_CHECK_FREE} = 1;
@@ -1177,17 +1178,17 @@ sub form_address_select2 {
     return 1;
   }
 
-  my $district_button = $html->button("", 'get_index=form_districts&full=1&header=1', {
+  my $district_button = $admin->{permissions}{4} ? $html->button("", 'get_index=form_districts&full=1&header=1', {
     class => 'btn btn-success btn-sm',
     ICON => "fa fa-street-view",
     ex_params => "data-tooltip-position='top' data-tooltip='$lang{ADD} $lang{DISTRICT}'",
-  });
-  my $street_button = $html->button("", 'get_index=form_streets&full=1&header=1', {
-    class => 'btn btn-success btn-sm',
-    ICON => "fa fa-road",
+  }) : '';
+  my $street_button = $admin->{permissions}{0} && $admin->{permissions}{0}{34} ? $html->button("", 'get_index=form_streets&full=1&header=1', {
+    class     => 'btn btn-success btn-sm',
+    ICON      => "fa fa-road",
     ex_params => "data-tooltip-position='top' data-tooltip='$lang{ADD} $lang{STREET}'",
-  });
-  my $maps2_btn = in_array('Maps2', \@MODULES) ? $html->button('', 'get_index=maps2_main&QUICK=1&SMALL=1&header=2&MODAL=1&CREATE_MARKER=1', {
+  }) : '';
+  my $maps_btn = in_array('Maps', \@MODULES) ? $html->button('', 'get_index=maps_main&QUICK=1&SMALL=1&header=2&MODAL=1&CREATE_MARKER=1', {
     LOAD_TO_MODAL => 1,
     class         => 'btn btn-sm btn-success',
     title         => $lang{SHOW},
@@ -1220,8 +1221,8 @@ sub form_address_select2 {
       DOM_BTN             => $attr->{DOM_BTN} && $attr->{SHOW_BUTTONS} ? $attr->{DOM_BTN} : q{},
       EXT_SEL_STYLE       => $attr->{EXT_SEL_STYLE} ? $attr->{EXT_SEL_STYLE} : q{},
       ADDRESS_ADD_BUTTONS => $attr->{SHOW_ADD_BUTTONS} ? "$district_button $street_button" : q{},
-      MAPS2_BTN           => $maps2_btn && $attr->{SHOW_BUTTONS} ? $maps2_btn : q{},
-      MAPS2_SHOW_OBJECTS  => $maps2_btn && $attr->{SHOW_BUTTONS} ? 1 : 0,
+      MAPS_BTN            => $maps_btn && $attr->{SHOW_BUTTONS} ? $maps_btn : q{},
+      MAPS_SHOW_OBJECTS   => $maps_btn && $attr->{SHOW_BUTTONS} ? 1 : '',
       BUILD_SELECTED      => $attr->{LOCATION_ID} || 0
     }, { OUTPUT2RETURN => 1, ID => 'form_address_sel2' });
   }

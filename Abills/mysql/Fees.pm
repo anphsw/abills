@@ -82,9 +82,19 @@ sub take {
 
   $sum = sprintf("%.4f", $sum);
   $self->{db}{db}->{AutoCommit} = 0;
+
   if ($fees_priority) {
     if ($fees_priority =~ /^bonus/ && $user->{EXT_BILL_ID}) {
       if ($user->{EXT_BILL_ID} && !defined($self->{EXT_BILL_DEPOSIT})) {
+        if (! $user->{EXT_BILL_ID} || ! defined($self->{EXT_BILL_DEPOSIT})) {
+          my $uid = $user->{UID};
+          my $fn  = 'user::info';
+          if (! defined( &$fn )) {
+            $user = Users->new($self->{db}, $admin, $CONF);
+          }
+          $user->info($uid);
+        }
+
         $user->info($user->{UID});
       }
 
@@ -103,6 +113,7 @@ sub take {
             %$attr,
             SUM          => $self->{SUM},
             LAST_DEPOSIT => $Bill->{DEPOSIT},
+            METHOD       => $attr->{EXT_BILL_METHOD} || $attr->{METHOD}
           });
 
           $sum = $sum - $user->{EXT_BILL_DEPOSIT};
@@ -110,6 +121,9 @@ sub take {
       }
       else {
         $user->{BILL_ID} = $user->{EXT_BILL_ID};
+        if($attr->{EXT_BILL_METHOD}) {
+          $attr->{METHOD} = $attr->{EXT_BILL_METHOD};
+        }
       }
     }
     elsif ($fees_priority =~ /^main,bonus/) {
@@ -148,6 +162,9 @@ sub take {
           $sum = $sum - $self->{SUM};
         }
         $user->{BILL_ID} = $user->{EXT_BILL_ID};
+        if($attr->{EXT_BILL_METHOD}) {
+          $attr->{METHOD} = $attr->{EXT_BILL_METHOD};
+        }
       }
     }
 
@@ -308,6 +325,7 @@ sub list {
     $EXT_TABLES = 'LEFT JOIN admins a ON (a.aid=f.aid) ' . $EXT_TABLES;
   }
 
+  #TODO we really need in default params inner_describe
   $self->query("SELECT f.id,
      $self->{SEARCH_FIELDS}
    f.inner_describe,
@@ -324,7 +342,7 @@ sub list {
   $self->{SUM}         = '0.00';
   $self->{TOTAL_USERS} = 0;
 
-  return $self->{list} if ($self->{TOTAL} < 1);
+  return [] if ($self->{TOTAL} < 1);
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
@@ -521,9 +539,9 @@ sub fees_type_list {
     ],
   { WHERE => 1, });
 
-  $self->query("SELECT name, default_describe, sum,
+  $self->query("SELECT id,
     $self->{SEARCH_FIELDS}
-    id
+    name, default_describe, sum
   FROM fees_types
   $WHERE
   ORDER BY $SORT $DESC

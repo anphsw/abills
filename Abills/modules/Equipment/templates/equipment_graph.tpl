@@ -1,6 +1,6 @@
-<link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/morris/morris.css'>
-<script type='text/javascript' src='/styles/default_adm/js/raphael.min.js'></script>
-<script type='text/javascript' src='/styles/lte_adm/plugins/morris/morris.min.js'></script>
+<link rel='stylesheet' type='text/css' href='/styles/default/plugins/morris/morris.css'>
+<script type='text/javascript' src='/styles/default/js/raphael.min.js'></script>
+<script type='text/javascript' src='/styles/default/plugins/morris/morris.min.js'></script>
 
 <div class='card card-primary card-outline container-md'>
   <div class='card-header with-border'>

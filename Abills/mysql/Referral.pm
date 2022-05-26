@@ -405,6 +405,7 @@ sub log_list{
     $self->query("SELECT rr.referrer, COUNT(rl.id) as count, rl.uid, rl.id, rr.tp_id, rl.referral_request
     FROM referral_log rl
     LEFT JOIN referral_requests rr ON (rl.referral_request = rr.id)
+    WHERE rl.tp_id != 0
     GROUP BY uid;", undef, $attr);
     return $self->{list};
   }

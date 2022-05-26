@@ -7,4 +7,4 @@
     </div>
 </div>
 
-<script src='/styles/default_adm/js/info/info/locations.js'></script>
+<script src='/styles/default/js/info/info/locations.js'></script>

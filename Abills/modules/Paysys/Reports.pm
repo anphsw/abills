@@ -172,11 +172,10 @@ sub paysys_log {
       $line->{sum},
       (($PAY_SYSTEMS{$line->{system_id}}) ? $PAY_SYSTEMS{$line->{system_id}} : "Unknown: " . $line->{system_id}),
       $html->button("$line->{transaction_id}", "index=2&EXT_ID=$line->{transaction_id}&search=1"),
-      #"$line->{status}:$status[$line->{status}]"
       "$line->{status}:" . $html->color_mark($status[$line->{status}], $status_color[$line->{status}]),
     );
 
-    for (my $i = 7; $i < 7 + $Paysys->{SEARCH_FIELDS_COUNT}; $i++) {
+    for (my $i = 0; $i < $Paysys->{SEARCH_FIELDS_COUNT}; $i++) {
       push @fields_array, $line->{$Paysys->{COL_NAMES_ARR}->[$i]};
     }
 
@@ -244,13 +243,13 @@ sub paysys_reports {
     NAME => 'DATE_FROM/DATE_TO',
     DATE => $DATE
   });
-  $date_form = $html->element('div', $date_form, { class => 'input-group pull-left' });
+  $date_form = $html->element('div', $date_form, { class => 'input-group float-left' });
 
   my $systems = $html->form_main({
     CONTENT => $date_form . $selection_group,
     HIDDEN  => { index => $index },
     SUBMIT  => { show => $lang{SHOW} },
-    class   => 'navbar navbar-expand-lg navbar-light bg-light form-main',
+    class   => 'form-inline ml-auto flex-nowrap',
   });
 
   func_menu({ $lang{NAME} => $systems });

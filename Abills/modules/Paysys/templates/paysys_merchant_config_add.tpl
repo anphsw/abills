@@ -42,102 +42,104 @@
 <script>
   try {
     var arr = JSON.parse('%JSON_LIST%');
-  }
-  catch (err) {
+  } catch (err) {
     console.log('JSON parse error.');
   }
 
-  var KEY_NAME;
+  var KEY_NAME = '';
   var SHOW_SELECT = 0;
 
   var defaultSelectedValue = jQuery('#MODULE').serialize();
   jQuery('#ACCOUNT_KEYS_SELECT').hide();
 
   jQuery('#KEYS')
-          .append(new Option('CONTRACT_ID', 'CONTRACT_ID'))
-          .append(new Option('UID', 'UID'))
-          .append(new Option('LOGIN', 'LOGIN'))
-          .append(new Option('EMAIL', 'EMAIL'))
-          .append(new Option('PHONE', 'PHONE'))
-          .append(new Option('BILL_ID', 'BILL_ID'));
-
+    .append(new Option('CONTRACT_ID', 'CONTRACT_ID'))
+    .append(new Option('UID', 'UID'))
+    .append(new Option('LOGIN', 'LOGIN'))
+    .append(new Option('EMAIL', 'EMAIL'))
+    .append(new Option('PHONE', 'PHONE'))
+    .append(new Option('BILL_ID', 'BILL_ID'))
+    .append(new Option('_PIN_ABS', '_PIN_ABS'));
 
   function rebuild_form(type) {
     jQuery('.appended_field').remove();
-    var keys = Object.keys(arr[type]['CONF']);
-    var sorted = keys.sort();
-    var systemID = arr[type]['SYSTEM_ID'];
+    let keys = Object.keys(arr[type]['CONF']);
+    let sorted = keys.sort();
+    let systemID = arr[type]['SYSTEM_ID'];
+    let checkBoxes = arr[type]['CHECKBOX_FIELDS'] || [];
     jQuery('#SYSTEM_ID').attr('value', systemID);
 
-    if(defaultSelectedValue !== jQuery('#MODULE').serialize()){
+    if (defaultSelectedValue !== jQuery('#MODULE').serialize()) {
       jQuery('#ACCOUNT_KEYS_SELECT').show();
-    }
-    else if (jQuery('#BTN_ADD').attr('name') === 'change'){
+    } else if (jQuery('#BTN_ADD').attr('name') === 'change') {
       jQuery('#ACCOUNT_KEYS_SELECT').show();
     }
 
-    for (var i = 0; i < sorted.length; i++) {
-      var val = arr[type]['CONF'][sorted[i]];
-      var param = sorted[i];
-      param = param.replace(/(_NAME_)/,'_'+ type.toUpperCase()+'_');
+    for (let i = 0; i < sorted.length; i++) {
+      let val = arr[type]['CONF'][sorted[i]];
+      let param = sorted[i];
+      param = param.replace(/(_NAME_)/, '_' + type.toUpperCase() + '_');
 
       jQuery("input[name*='MFO']").attr('maxlength', '6')
-              .attr('title', 'Поле должно содержать 6 цифр')
-              .hover(function(){
-                jQuery(this).tooltip()
-              });
+        .attr('title', 'Поле должно содержать 6 цифр')
+        .hover(() => {
+          jQuery(this).tooltip()
+        });
 
-      if(param.includes('ACCOUNT_KEY')){
+      if (param.includes('ACCOUNT_KEY')){
         SHOW_SELECT = 1;
         KEY_NAME = param;
         jQuery('#KEY_NAME').text(param);
-        if(val) {
+        if (val) {
           jQuery('#KEYS').val(val).change();
-        }
-        else {
+        } else {
           jQuery('#KEYS').val('UID').change();
         }
-      }
-      else {
-        var element = jQuery("<div></div>").addClass('form-group appended_field');
+      } else if (checkBoxes.includes(param)) {
+        const checked = (val === '1') ? 'checked' : '';
+        let element = jQuery('<div></div>').addClass('form-group appended_field');
         element.append(jQuery("<label for=''></label>").text(param).addClass('col-md-12 col-sm-12'));
-        element.append(jQuery("<div></div>").addClass("col-md-12 col-sm-12").append(
-                jQuery("<input name='" + param + "' id='" + param + "' value='" + (val || '') + "'>").addClass('form-control')));
+        element.append(jQuery("<div style='display: flex; justify-content: center;'></div>").addClass('col-md-12 col-sm-12').append(
+          jQuery(`<input ${checked} style='height: 20px; width:20px' type='checkbox' name='${param}' id='${param}' value='1' data-return='1' data-checked='1'>`)));
+
+        jQuery('#paysys_connect_system_body').append(element);
+      } else {
+        let element = jQuery('<div></div>').addClass('form-group appended_field');
+        element.append(jQuery("<label for='" + param + "'></label>").text(param).addClass('col-md-12 col-sm-12'));
+        element.append(jQuery("<div></div>").addClass('col-md-12 col-sm-12').append(
+          jQuery("<input name='" + param + "' id='" + param + "' value='" + (val || '') + "'>").addClass('form-control')));
 
         jQuery('#paysys_connect_system_body').append(element);
       }
 
-      if(i+1 === sorted.length && SHOW_SELECT === 0){
+      if (i + 1 === sorted.length && SHOW_SELECT === 0) {
         jQuery('#ACCOUNT_KEYS_SELECT').hide();
-      }
-      else if(i+1 === sorted.length && SHOW_SELECT === 1) {
+      } else if (i + 1 === sorted.length && SHOW_SELECT === 1) {
         SHOW_SELECT = 0;
       }
     }
   }
 
-  jQuery('#BTN_ADD').click(function(){
-    if(!(jQuery('#' + KEY_NAME).size()) && jQuery('#ACCOUNT_KEYS_SELECT:visible').length !== 0) {
-      var element = jQuery("<div></div>").addClass('form-group appended_field hidden');
+  jQuery('#BTN_ADD').on('click', () => {
+    if (!(jQuery('#' + KEY_NAME).length) && jQuery('#ACCOUNT_KEYS_SELECT:visible').length !== 0) {
+      let element = jQuery('<div></div>').addClass('form-group appended_field hidden');
       element.append(jQuery("<label for=''></label>").text(KEY_NAME).addClass('col-md-12 col-sm-12'));
-      element.append(jQuery("<div></div>").addClass("col-md-12 col-sm-12").append(
-              jQuery("<input name='" + KEY_NAME + "' id='selected_value' value='" + (jQuery('#KEYS').find(":selected").text() || '') + "'>").addClass('form-control')));
+      element.append(jQuery("<div></div>").addClass('col-md-12 col-sm-12').append(
+        jQuery("<input name='" + KEY_NAME + "' id='selected_value' value='" + (jQuery('#KEYS').find(':selected').text() || '') + "'>").addClass('form-control')));
 
       jQuery('#paysys_connect_system_body').append(element);
-    }
-    else if(jQuery('#ACCOUNT_KEYS_SELECT:visible').length === 0){
+    } else if (jQuery('#ACCOUNT_KEYS_SELECT:visible').length === 0) {
       jQuery('#selected_value').remove();
     }
   });
 
-  jQuery(function () {
+  jQuery(() => {
     if (jQuery('#MODULE').val()) {
       rebuild_form(jQuery('#MODULE').val());
     }
 
-    jQuery('#MODULE').change(function () {
+    jQuery('#MODULE').on('change', () => {
       rebuild_form(jQuery('#MODULE').val());
-
     });
   });
 </script>

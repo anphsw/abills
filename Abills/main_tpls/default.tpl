@@ -4,7 +4,7 @@
   <div class='card card-primary card-outline container-md'>
     <div class='card-header with-border'>
       <h4 class='card-title'>_{HEADER}_</h4>
-      <div class='card-tools pull-right'>
+      <div class='card-tools float-right'>
         <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-minus'></i></button>
       </div>
     </div>
@@ -60,8 +60,8 @@
             <input type='text' id='MIN_SESSION_COST' name='MIN_SESSION_COST' value='%MIN_SESSION_COST%'
                    class='form-control'>
             <div class='input-group-append'>
-              <div class='input-group-text clear_results' style='cursor:pointer;'>
-                <span class='fa fa-remove'></span>
+              <div class='input-group-text clear_results cursor-pointer'>
+                <span class='fa fa-times'></span>
               </div>
             </div>
           </div>

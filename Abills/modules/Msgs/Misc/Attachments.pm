@@ -70,18 +70,19 @@ sub new {
 #**********************************************************
 sub attachment_add {
   my ($self, $attr) = @_;
-  
-  if ( $self->{save_to_disk} ) {
-    
+
+  if ($self->{save_to_disk}) {
+
     # If have one attachment linked to a lot messages, will save it as one file
     my @msgs_ids = (ref $attr->{MSG_ID} eq 'ARRAY') ? @{$attr->{MSG_ID}} : ($attr->{MSG_ID});
-    
+
     # If have less than 5 ids, will concatenate them all, else just show first and last IDS (hope they will be consistent)
-    my $main_message_name = ($#msgs_ids > 5 ) ? "$msgs_ids[0]-$msgs_ids[$#msgs_ids]"  : join('_', @msgs_ids);
+    my $main_message_name = $attr->{DELIVERY_ID} ? ''
+      : ($#msgs_ids > 5) ? "$msgs_ids[0]-$msgs_ids[$#msgs_ids]" : join('_', @msgs_ids);
 
     my $file_path = $self->_save_to_disk($main_message_name, $attr->{REPLY_ID}, $attr->{FILENAME}, $attr);
-    return 0 if ( !$file_path || $self->{errno} );
-    
+    return 0 if (!$file_path || $self->{errno});
+
     $attr->{CONTENT} = "FILE: $file_path";
   }
   
@@ -150,15 +151,13 @@ sub attachment_info {
 #**********************************************************
 sub delete_attachment {
   my ($self, $attachment_id) = @_;
-  
-  if ( $self->{save_to_disk} ) {
+
+  if ($self->{save_to_disk}) {
     # Should first get file path to remove it too
     my $attachment_info = $Msgs->attachment_info({ ID => $attachment_id });
-    
+
     my $path = $self->_read_file_params($attachment_info->{CONTENT});
-    if ($path && -f $path){
-      unlink $path;
-    }
+    unlink $path if ($path && -f $path);
   }
   
   return $Msgs->attachment_del($attachment_id);
@@ -186,16 +185,16 @@ sub _save_to_disk {
   $filename =~ s/[^a-zA-Z0-9._-]/_/g;
   
   # Should change filename. map will replace undefined values with 0
-  my $disk_filename = join('_', map {$_ // '0'} ($msg_id, $reply_id, $filename));
-  
-  
+  my $disk_filename = $attr->{DELIVERY_ID} ? $filename : join('_', map {$_ // '0'} ($msg_id, $reply_id, $filename));
+
   my $final_path = $Attach->save_file_to_disk({
     %{$attr},
-    FILENAME      => $filename,
-    DISK_FILENAME => $disk_filename,
+    FILENAME          => $filename,
+    DISK_FILENAME     => $disk_filename,
+    DIRECTORY_TO_SAVE => $attr->{DELIVERY_ID} ? "/delivery/$attr->{DELIVERY_ID}/" : ''
   });
-  
-  if ( $Attach->{errno} ) {
+
+  if ($Attach->{errno}) {
     $self->{errno} = $Attach->{errno};
     $self->{errstr} = $Attach->{errstr};
     return 0;
@@ -217,10 +216,8 @@ sub _save_to_disk {
 #**********************************************************
 sub _read_file_from_disk {
   my ($self, $directory, $filename) = @_;
-  
-  if ( $directory =~ /\.\.\// ) {
-    return 0;
-  }
+
+  return 0 if ($directory =~ /\.\.\//);
   
   if ( open(my $fh, '<', $directory . $filename) ) {
     my $content = '';
@@ -251,11 +248,11 @@ sub _read_file_from_disk {
 #**********************************************************
 sub _read_file_params {
   my ($self, $content_field_value) = @_;
-  
-  if ( $content_field_value && $content_field_value =~ /FILE: (.+\/)+\/?([a-zA-Z0-9_\-.]+)/ ) {
+
+  if ($content_field_value && $content_field_value =~ /FILE: (.+\/)+\/?([a-zA-Z0-9_\-.]+)/) {
     my $directory = $1;
     my $filename = $2;
-    
+
     return wantarray ? ($directory, $filename) : "$directory/$filename";
   };
   
@@ -276,14 +273,13 @@ sub attachment_copy {
     COLS_NAME        => 1,
     COLS_UPPER       => 1,
   });
+
   foreach my $line (@$at_list) {
-    if ($line->{CONTENT} =~ /^FILE/){
+    if ($line->{CONTENT} =~ /^FILE/) {
       my ($directory, $filename) = $self->_read_file_params($line->{CONTENT});
-      if ( $directory && $filename && -f "$directory/$filename" ) {
+      if ($directory && $filename && -f "$directory/$filename") {
         $line->{CONTENT} = $self->_read_file_from_disk($directory, $filename);
-        if ( $self->{errno} ) {
-          next;
-        }
+        next if $self->{errno};
       }
     }
 

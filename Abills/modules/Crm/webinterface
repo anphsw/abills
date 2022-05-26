@@ -243,7 +243,7 @@ sub crm_competitors_tp {
 
   $Crm->{ACTION} = 'add';
   $Crm->{LNG_ACTION} = $lang{ADD};
-  my $competitor_info = {};
+  my %competitor_info = ();
 
   if ($FORM{add}) {
     $Crm->crm_competitors_tps_add(\%FORM);
@@ -253,7 +253,9 @@ sub crm_competitors_tp {
     $Crm->{ACTION} = 'change';
     $Crm->{LNG_ACTION} = $lang{CHANGE};
 
-    $competitor_info = $Crm->crm_competitors_tps_info({ ID => $FORM{chg} });
+    my $competitor_info = $Crm->crm_competitors_tps_info({ ID => $FORM{chg} });
+
+    %competitor_info = %{ $competitor_info };
   }
   elsif ($FORM{change}) {
     $Crm->crm_competitors_tps_change(\%FORM);
@@ -267,12 +269,21 @@ sub crm_competitors_tp {
   _crm_competitor_tps_geolocation(\%FORM) if ($FORM{CLEAR} || $FORM{change_geo});
 
   if ($Crm->{ACTION} && $Crm->{ACTION} eq 'add') {
-    $competitor_info->{GEO_MESSAGE} = $html->message('info', $lang{INFO}, $lang{LOCALITIES_CREATED_TP}, { OUTPUT2RETURN => 1});
+    $competitor_info{GEO_MESSAGE} = $html->message('info', $lang{INFO}, $lang{LOCALITIES_CREATED_TP}, { OUTPUT2RETURN => 1});
   }
 
-   $html->tpl_show(_include('crm_competitors_tp', 'Crm'), { %{$Crm}, %{ ($competitor_info) ? $competitor_info : {} },
-     COMPETITORS_SEL => _crm_competitors_select({ %{ ($competitor_info) ? $competitor_info : {} }, %FORM }),
-     INFO_FIELDS     => crm_lead_info_field_tpl({ TP_INFO_FIELDS => 1, %{ ($competitor_info) ? $competitor_info : {} } }),
+   my $info_fields = crm_lead_info_field_tpl({
+    TP_INFO_FIELDS => 1,
+    %competitor_info
+   });
+
+  my $competitors_select = _crm_competitors_select({ %competitor_info, %FORM });
+
+   $html->tpl_show(_include('crm_competitors_tp', 'Crm'), {
+     %{$Crm},
+     %competitor_info,
+     COMPETITORS_SEL => $competitors_select,
+     INFO_FIELDS     => $info_fields,
    });
 
   my $competitors_tps = $Crm->crm_competitors_tps_list({
@@ -568,7 +579,7 @@ sub crm_assessment_stars {
   my $stars = '';
   map $stars .= $html->element('i', '', { class => 'fa fa-star' }), (1..$assessment);
   if (int($assessment) < $assessment && int($assessment) + 0.5 <= $assessment) {
-    $stars .= $html->element('i', '', { class => 'fa fa-star-half-o' });
+    $stars .= $html->element('i', '', { class => 'far fa-star-half' });
   }
 
   return $stars;
@@ -595,6 +606,26 @@ sub crm_client_to_lead {
   return {} if $Users->{TOTAL} < 1;
 
   return $user_info;
+}
+
+#**********************************************************
+=head2 crm_registration($attr)
+
+=cut
+#**********************************************************
+sub crm_registration {
+  my ($attr) = @_;
+
+  if ($FORM{reg}) {
+    $Crm->crm_lead_add(\%FORM);
+    $html->message('info', $lang{SUCCESS}, $lang{ADDED}) if !_error_show($Crm);
+  }
+
+  $Crm->{ADDRESS_TPL} = form_address_select2();
+  $Crm->{INFO_FIELDS} = crm_lead_info_field_tpl({ REGISTRATION => 1 });
+  $Crm->{INFO_FIELDS} .= $html->element('hr', '', { OUTPUT2RETURN => 1 }) if $Crm->{INFO_FIELDS};
+
+  $html->tpl_show(_include('crm_registration', 'Crm'), { %{$Crm}, %FORM, %{$attr} }, { ID => 'CRM_REGISTRATION' });
 }
 
 1

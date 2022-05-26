@@ -7,22 +7,22 @@
   <meta name='viewport' content='width=device-width, initial-scale=1'>
 
   <!-- Bootstrap core CSS -->
-  <link href='/styles/default_adm/css/bootstrap.min.css' rel='stylesheet'>
-  <link href='/styles/default_adm/css/chosen.min.css' rel='stylesheet'>
-  <link href='/styles/default_adm/css/font-awesome.min.css' rel='stylesheet'>
+  <link href='/styles/default/css/bootstrap.min.css' rel='stylesheet'>
+  <link href='/styles/default/css/chosen.min.css' rel='stylesheet'>
+  <link href='/styles/default/css/font-awesome.min.css' rel='stylesheet'>
   <link href='login.css' rel='stylesheet'>
 
-  <script src='/styles/default_adm/js/jquery.min.js'></script>
-  <script src='/styles/default_adm/js/bootstrap.min.js'></script>
+  <script src='/styles/default/js/jquery.min.js'></script>
+  <script src='/styles/default/js/bootstrap.bundle.min.js'></script>
 
   <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
   <!--[if lt IE 9]>
-  <script src='/styles/default_adm/js/html5shiv.min.js'></script>
-  <script src='/styles/default_adm/js/respond.min.js'></script>
+  <script src='/styles/default/js/html5shiv.min.js'></script>
+  <script src='/styles/default/js/respond.min.js'></script>
   <![endif]-->
 
-  <script src='/styles/default_adm/js/jquery.cookie.js'></script>
-  <script src='/styles/lte_adm/plugins/moment/moment.min.js'></script>
+  <script src='/styles/default/js/jquery.cookie.js'></script>
+  <script src='/styles/default/plugins/moment/moment.min.js'></script>
 
 </head>
 <body>
@@ -38,7 +38,7 @@
       <div class='modal-body'>
         <p class='text-center' id='status'>
           Please wait while your device is being authorized.
-          <img src='/styles/default_adm/img/ajax-loader.gif'/>
+          <img src='/styles/default/img/ajax-loader.gif'/>
         </p>
       </div>
     </div>

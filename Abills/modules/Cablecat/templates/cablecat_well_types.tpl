@@ -54,7 +54,7 @@
 
   function updateIcons(fileName) {
     let selectedIcon = fileName ? fileName : jQuery('#ICON_SELECT').val();
-    jQuery.get('$SELF_URL', 'get_index=_maps2_icon_filename_select&GET_SELECT=1&header=2&ICON=' + selectedIcon, function (result) {
+    jQuery.get('$SELF_URL', 'get_index=_maps_icon_filename_select&GET_SELECT=1&header=2&ICON=' + selectedIcon, function (result) {
       if (result.match("<select")){
         jQuery('#DIV_SELECT').html(result);
         initChosen();

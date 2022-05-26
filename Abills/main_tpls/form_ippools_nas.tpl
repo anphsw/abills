@@ -1,11 +1,12 @@
-<form name='IP_POOLS_CHECKBOXES_FORM' id='IP_POOLS_CHECKBOXES_FORM' method='get' class='form form-horizontal'>
+<form name='IP_POOLS_CHECKBOXES_FORM' id='IP_POOLS_CHECKBOXES_FORM' method='get'>
   <input type='hidden' name='ids' id='ids_not_save' value='$FORM{ids}'/>
   <input type='hidden' name='ids_remove' id='ids_remove'/>
   %TABLE_IPPOOLS%
 </form>
+
 <script>
   var chkArray = [ ];
-  jQuery("input[name=ids]:checkbox").each(function() {
+  jQuery('input[name=ids]:checkbox').each(function() {
     chkArray.push(jQuery(this).val());
   });
 

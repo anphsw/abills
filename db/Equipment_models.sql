@@ -9,13 +9,13 @@ REPLACE INTO `equipment_models` (
 ) VALUES (101, 1, 2, '', 'DES-3028', 'http://dlink.ru/ru/products/1/706_i.html', 24, '', '', 'dlink.snmp', '0', 2, 6, '', 0, 0, 0,
         0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL),
        (102, 1, 2, '', 'DES-3526', 'http://dlink.ru/ua/products/1/407.html', 24, '', '', 'dlink_des_3526.snmp', '0', 2, 4, '', 1, 0, 0, 0,
-        0, 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL),
+        0, 0, 1, 0, 0, 0, NULL, NULL, NULL, 'https://www.dlink.ru/up/prod_fotos/DES-3526_1.jpg'),
        (103, 1, 2, '', 'DES-1210-26', 'http://www.dlink.ru/ua/products/1/1844.html', 24, '', '', '', '0', 2, 4, '', 1,
         0, 0, 0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL),
        (104, 1, 2, '', 'DES-1228', 'http://www.dlink.ru/ru/products/1/643.html', 24, '', '', '', '0', 2, 4, '', 1, 0, 0,
         0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL),
        (105, 1, 2, '', 'DES-3528', 'http://www.dlink.ru/ua/products/1/1054.html', 24, '', '', 'dlink.snmp', '0', 2, 4, '', 1, 0,
-        0, 0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL),
+        0, 0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, 'https://www.dlink.ru/up/prod_fotos/DES-3528_Front.jpg'),
        (106, 1, 2, '', 'DES-3550', 'http://www.dlink.ru/ua/products/1/408.html', 48, '', '', '', '0', 2, 8, '', 1, 0, 0,
         0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL),
        (107, 1, 2, '', 'DES-3200-10-Gigabit', 'http://www.dlink.ru/ua/products/1/1277.html', 8, '', '', '', '0', 2, 4,
@@ -23,7 +23,7 @@ REPLACE INTO `equipment_models` (
        (108, 1, 2, '', 'DES-3200-10-SFP', 'http://www.dlink.ru/ua/products/1/1277.html', 8, '', '', '', '0', 2, 4, '',
         1, 0, 0, 0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL),
        (109, 1, 2, '', 'DES-3200-18', 'http://www.dlink.ru/ua/products/1/2063.html', 16, '', '', 'dlink.snmp', '0', 2, 4, '', 1,
-        0, 0, 0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL),
+        0, 0, 0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, 'https://www.dlink.ru/up/prod_fotos/DES-3200-18_A1_Front.jpg'),
        (110, 1, 2, '', 'DES-3200-26', 'http://www.dlink.ru/ua/products/1/1586.html', 24, '', '', 'dlink.snmp', '0', 2, 4, '', 1,
         0, 0, 0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL),
        (111, 1, 2, '', 'DES-3200-28', 'http://www.dlink.ru/ru/products/1/1587.html', 24, '', '', 'dlink.snmp', '0', 2, 4, '', 1,
@@ -47,7 +47,7 @@ REPLACE INTO `equipment_models` (
        (122, 1, 2, '', 'DES-1210-28', 'http://www.dlink.ru/ua/products/1/1301.html', 24, '', '', '', '0', 2, 4, '', 1,
         0, 0, 0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL),
        (123, 1, 2, '', 'DES-1228/ME', 'http://www.dlink.ru/ua/products/1/1281.html', 24, '', '', 'dlink.snmp', '0', 2, 4, '', 1,
-        0, 0, 0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL),
+        0, 0, 0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, 'https://www.dlink.ru/up/prod/600/DES-1228_ME_B1.jpg'),
        (124, 1, 2, '', 'DGS-3120-24SC', 'http://www.dlink.ru/ua/products/1/1365.html', 16, '', '', 'dlink_dgs_3120_24sc.snmp', '0', 2, 4, '', 1,
         0, 0, 0, 0, 0, 4, 0, 0, 0, NULL, NULL, NULL, NULL),
        (125, 1, 9, '', 'TL-SL2210', 'http://www.tp-link.com/kz/products/details/cat-40_TL-SL2210.html', 8, '', '', '',
@@ -430,7 +430,7 @@ REPLACE INTO `equipment_models` (
        (306, 4, 12, '', 'C300', 'https://ecolan.com.ua/zte-zxa-c300', 0, '', '', 'zte.snmp', '', 1, 0, '', 1, 0, 0, 0,
         0, 0, 1, 0, 0, 0, NULL, NULL, NULL, 'https://ecolan.com.ua/components/com_jshopping/files/img_products/full_zte_c300_3.jpg'),
        (307, 1, 2, '', 'DES-1210-28/ME/B2', 'http://www.dlink.ru/ru/products/1/1617.html', 24, '', '', 'dlink_des_1210_28_me_b2.snmp',
-        '', 2, 8, '', 1, 0, 0, 0, 0, 0, 1, 0, 0, 16, NULL, NULL, NULL, NULL),
+        '', 2, 8, '', 1, 0, 0, 0, 0, 0, 1, 0, 0, 16, NULL, NULL, NULL, 'https://www.dlink.ru/up/prod_fotos/DES-1210-28ME_B2_Front.jpg'),
        (308, 1, 2, '', 'DES-1210-28/ME/B3', 'http://www.dlink.ru/ru/products/1/1617.html', 24, '', '', 'dlink_des_1210_28_me_b3.snmp',
         '', 2, 8, '', 1, 0, 0, 0, 0, 0, 1, 0, 0, 16, NULL, NULL, NULL, NULL),
        (309, 4, 12, '', 'C301', 'https://ecolan.com.ua/zte-zxa-c300', 0, '', '', 'zte.snmp', 'ZTE C300 with firmware 1.*', 1, 0, '', 1, 0, 0, 0,
@@ -453,7 +453,9 @@ REPLACE INTO `equipment_models` (
        (317, 4, 34, '', 'G008',     'https://www.hsgq.com/gpon-olt/8-pon-port-gpon-olt.html', 8, '', '', 'default.snmp',             '', 1, 8, '', 0, 0,
         0, 0, 0, 0, 7, 0, 0, 110,NULL, NULL, NULL, 'https://www.hsgq.com/static/upload/image/20201120/1605852142461169.png'),
        (318, 4, 30, '', 'FD1616SN', 'https://cdatatec.com/product-item/16pon-gpon-olt-fd1616sn/', 16, '', '', 'cdata_fd16.snmp',     '', 1, 16,'', 0, 0,
-        0, 0, 0, 0, 7, 0, 0, 70, NULL, NULL, NULL, 'https://cdatatec.com/wp-content/uploads/2019/03/GPON-OLT-1616SN-R1.jpg');
+        0, 0, 0, 0, 7, 0, 0, 70, NULL, NULL, NULL, 'https://cdatatec.com/wp-content/uploads/2019/03/GPON-OLT-1616SN-R1.jpg'),
+       (319, 4, 29, '', 'V1600G1-B', 'https://www.vsolcn.com/products/gpon-olt-8-port', 8, '', '', 'vsolution.snmp', '', 1, 4, '', 0, 0,
+        0, 0, 0, 0, 7, 0, 0, 45, NULL, NULL, NULL, 'https://ueeshop.ly200-cdn.com/u_file/UPAH/UPAH607/2111/products/16/53b0772100.jpg');
 
 REPLACE INTO `equipment_extra_ports` (`model_id`, `port_number`, `port_type`, `port_combo_with`, `row`)
 VALUES (101, 1, 4, 0, 0),
@@ -1148,7 +1150,17 @@ VALUES (101, 1, 4, 0, 0),
        (318, 9,  4, 0, 0),
        (318, 10, 4, 0, 0),
        (318, 11, 4, 0, 0),
-       (318, 12, 1, 0, 0);
+       (318, 12, 1, 0, 0),
+       (319, 1,  6, 0, 0),
+       (319, 2,  6, 0, 0),
+       (319, 3,  6, 0, 0),
+       (319, 4,  6, 0, 0),
+       (319, 5,  1, 0, 0),
+       (319, 6,  1, 0, 0),
+       (319, 7,  1, 0, 0),
+       (319, 8,  1, 0, 0),
+       (319, 9,  1, 0, 0),
+       (319, 10, 1, 0, 0);
 
 
 REPLACE INTO `equipment_vendors` (`id`, `name`, `support`, `site`)

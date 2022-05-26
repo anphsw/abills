@@ -155,19 +155,19 @@ Content-type: text/html\n\n
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Bootstrap core CSS -->
-    <link href="/hotspot/styles/default_adm/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/hotspot/styles/default_adm/css/hotspotlogin.css" rel="stylesheet">
+    <link href="/hotspot/styles/default/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/hotspot/styles/default/css/hotspotlogin.css" rel="stylesheet">
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
-    <script src="/hotspot/styles/default_adm/js/html5shiv.min.js"></script>
-    <script src="/hotspot/styles/default_adm/js/respond.min.js"></script>
+    <script src="/hotspot/styles/default/js/html5shiv.min.js"></script>
+    <script src="/hotspot/styles/default/js/respond.min.js"></script>
     <![endif]-->
-    <script src="/hotspot/styles/default_adm/js/jquery.min.js"></script>
+    <script src="/hotspot/styles/default/js/jquery.min.js"></script>
     <!--[if lt IE 9]>
-      <script src='/hotspot/styles/default_adm/js/jquery-1.11.3.min.js' type='text/javascript'></script>
+      <script src='/hotspot/styles/default/js/jquery-1.11.3.min.js' type='text/javascript'></script>
     <![endif]-->
-    <script src="/hotspot/styles/default_adm/js/bootstrap.min.js"></script>
-    <script src="/hotspot/styles/lte_adm/plugins/moment/moment.min.js"></script>
+    <script src="/hotspot/styles/default/js/bootstrap.bundle.min.js"></script>
+    <script src="/hotspot/styles/default/plugins/moment/moment.min.js"></script>
     <script type="text/javascript">
       
       jQuery(function () {
@@ -321,7 +321,7 @@ Content-type: text/html\n\n
         <h4 class="modal-title">Status...</h4>
       </div>
       <div class="modal-body">
-        <p class="text-center" id="status">$lang{WAIT_FOR_AUTH}<img src='/hotspot/styles/default_adm/img/ajax-loader.gif' /></p>
+        <p class="text-center" id="status">$lang{WAIT_FOR_AUTH}<img src='/hotspot/styles/default/img/ajax-loader.gif' /></p>
       </div>
     </div>
   </div>
@@ -451,7 +451,7 @@ if ( exists $FORM{clientState} && $FORM{clientState} == 0 ) {
          logon(username, pass);
       });
       jQuery('#loading').on('hidden.bs.modal', function () {
-        jQuery("#status").html("$lang{WAIT_FOR_AUTH}. <img src='/hotspot/styles/default_adm/img/ajax-loader.gif'/>");
+        jQuery("#status").html("$lang{WAIT_FOR_AUTH}. <img src='/hotspot/styles/default/img/ajax-loader.gif'/>");
       });
     </script>
 </body>

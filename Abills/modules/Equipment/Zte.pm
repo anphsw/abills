@@ -4,6 +4,12 @@
 
   VERSION: 0.02
 
+=head1 MODELS
+
+  C300
+  C320
+  C320
+
 =cut
 
 use strict;
@@ -147,6 +153,7 @@ sub _zte_onu_list {
         $onu_info{ONU_DHCP_PORT} = $port_dhcp_id;
 
         foreach my $oid_name (keys %{$snmp}) {
+
           if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' || $oid_name eq 'catv_port_manage' || $oid_name eq 'LLID' || $snmp->{$oid_name}->{SKIP}) { #XXX add SKIP for all these oids?
             next;
           }
@@ -166,14 +173,29 @@ sub _zte_onu_list {
           my $oid_value = '';
           if ($snmp->{$oid_name}->{OIDS}) {
             my $oid = $snmp->{$oid_name}->{OIDS} . '.' . $interface_index;
-            $oid_value = snmp_get({ %{$attr}, OID => $oid, SILENT => 1 });
+            $oid_value = snmp_get({ %{$attr}, OID => $oid, SILENT => 1, WALK => $snmp->{$oid_name}->{WALK} });
+
+            # if ($oid_value && ref $oid_value eq 'ARRAY') {
+            #   $oid_value = join(', ', @$oid_value);
+            # }
           }
 
           my $function = $snmp->{$oid_name}->{PARSER};
           if ($function && defined(&{$function})) {
-            ($oid_value) = &{\&$function}($oid_value);
+            my $secocond_value = q{};
+            ($oid_value, $secocond_value) = &{\&$function}($oid_value);
+            if($secocond_value) {
+              $oid_value = $secocond_value;
+            }
           }
           $onu_info{$oid_name} = $oid_value;
+
+          # if ($oid_name eq 'VLAN') {
+          #   print " -- $oid_name ->  ";
+          #   print $oid_value;
+          #   print "// \n";
+          # }
+
         }
         push @all_rows, { %onu_info };
       }
@@ -448,7 +470,6 @@ sub _zte {
       'ONU_STATUS'     => {
         NAME   => 'STATUS',
         OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.17',
-        PARSER => ''
       },
       'ONU_TX_POWER'   => {
         NAME   => 'ONU_TX_POWER',
@@ -463,7 +484,6 @@ sub _zte {
       'OLT_RX_POWER'   => {
         NAME   => 'OLT_RX_POWER',
         OIDS   => '',
-        PARSER => ''
       },
       'ONU_DESC'       => {
         NAME   => 'DESCRIBE',
@@ -483,6 +503,12 @@ sub _zte {
         OIDS   => '', #.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.1
         PARSER => '_zte_convert_epon_temperature'
       },
+      'VLAN'           => {
+        NAME   => 'VLAN',
+        OIDS   => '1.3.6.1.4.1.3902.1015.1010.1.1.1.10.2.1.1',
+        PARSER => '_zte_convert_eth_vlan',
+        WALK   => 1
+      },
       'reset'          => {
         NAME        => '',
         OIDS        => '.1.3.6.1.4.1.3902.1015.1010.1.1.2.1.1.1', #tested on ZTE C220, system description: ZXR10 ROS Version V4.8.01A ZXPON C220 Software, Version V2.8.01A.21
@@ -490,8 +516,14 @@ sub _zte {
         PARSER      => ''
       },
       main_onu_info    => {
+        'VLAN'           => {
+          NAME   => 'VLAN',
+          OIDS   => '1.3.6.1.4.1.3902.1015.1010.1.1.1.10.2.1.1',
+          PARSER => '_zte_convert_eth_vlan',
+          WALK   => 1
+        },
         'HARD_VERSION' => {
-          NAME   => 'Hhard_Version',
+          NAME   => 'Hard_Version',
           OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.5',
           PARSER => ''
         },
@@ -534,6 +566,12 @@ sub _zte {
           NAME                        => 'MAC_BEHIND_ONU',
           USE_MAC_LOG                 => 1,
           MAC_LOG_SEARCH_BY_PORT_NAME => 'no_pon_type'
+        },
+        'ONU_PORTS_STATUS' => {
+          NAME   => 'ONU_PORTS_STATUS',
+          OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.5.1.2 ',
+          PARSER => '_zte_eth_status',
+          WALK   => 1
         }
       }
     },
@@ -717,12 +755,10 @@ sub _zte {
       # Online time
       RTD              => {
         OIDS   => '.1.3.6.1.4.1.3902.1012.3.13.3.1.4',
-        PARSER => '',
         WALK   => '1'
       },
       ONU_PASSWORD     => {
         OIDS   => '.1.3.6.1.4.1.3902.1012.3.13.3.1.5',
-        PARSER => '',
         WALK   => '1'
       },
       #      ??? RTD \ Online time
@@ -791,6 +827,42 @@ sub _zte {
   }
 
   return \%snmp;
+}
+
+#**********************************************************
+=head2 _zte_convert_eth_vlan();
+
+=cut
+#**********************************************************
+sub _zte_convert_eth_vlan {
+  my ($data) = @_;
+
+  if (! $data) {
+    return '';
+  }
+
+  my $result =  join('', @$data);
+
+  my ($port, $vlan) = split(/:/, $result, 2);
+
+  return ($port, $vlan);
+}
+
+#**********************************************************
+=head2 _zte_eth_status($data);
+
+  1 - down
+  2 - up
+
+=cut
+#**********************************************************
+sub _zte_eth_status {
+  my ($data)=@_;
+
+  my ($port, $status)=split(/:/, $data);
+  $status--;
+
+  return($port, $status);
 }
 
 #**********************************************************

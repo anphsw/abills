@@ -392,8 +392,8 @@ sub only_put_script {
   my $tree_script = '';
 
   if (!$scripts_showed){
-    $tree_script = "<link rel='stylesheet' type='text/css' href='/styles/default_adm/css/tree.css'>
-        <script src='/styles/default_adm/js/tree_menu.js'></script>";
+    $tree_script = "<link rel='stylesheet' type='text/css' href='/styles/default/css/tree.css'>
+        <script src='/styles/default/js/tree_menu.js'></script>";
     $scripts_showed = 1;
   }
   

@@ -741,6 +741,8 @@ sub radius_request {
     print "Radius Return: " . ($type || q{}) . "\n Result: " . ($result || 'Empty');
   }
 
+  $self->{RESULT}=$result;
+
   return $result;
 }
 

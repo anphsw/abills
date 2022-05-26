@@ -31,7 +31,7 @@
       <div class='form-group row'>
         <label class='control-label col-md-3' for='CID'>MAC/CID:</label>
         <div class='col-md-9'>
-          <input id='CID' name='CID' value='%CID%' placeholder='%CID%' class='form-control' type='text'>
+          <input id='CID' name='CID' value='%CID%' placeholder='%CID%' class='form-control' type='text' %DISABLED_INPUT%>
         </div>
       </div>
 
@@ -39,7 +39,7 @@
         <label class='control-label col-md-3' for='SERIAL'>_{SERIAL}_:</label>
         <div class='col-md-9'>
           <input id='SERIAL' name='SERIAL' value='%SERIAL%' placeholder='%SERIAL%' class='form-control'
-                 type='text'>
+                 type='text' %DISABLED_INPUT%>
         </div>
       </div>
 

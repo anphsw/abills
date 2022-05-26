@@ -1,4 +1,4 @@
-package Acct2 v2.2.0;
+package Acct2 v3.0.0;
 
 =head1 NAME
 
@@ -14,15 +14,18 @@ my ($conf);
 my $Billing;
 my $input_gigawords='Acct-Output-Gigawords';
 my $output_gigawords='Acct-Input-Gigawords';
+my $input_octets='Acct-Output-Octets';
+my $output_octets='Acct-Input-Octets';
 
-my %ACCT_TYPES = (
-  'Start'          => 1,
-  'Stop'           => 2,
-  'Alive'          => 3,
-  'Interim-Update' => 3,
-  'Accounting-On'  => 7,
-  'Accounting-Off' => 8
-);
+#our %ACCT_TYPES;
+# my %ACCT_TYPES = (
+#   'Start'          => 1,
+#   'Stop'           => 2,
+#   'Alive'          => 3,
+#   'Interim-Update' => 3,
+#   'Accounting-On'  => 7,
+#   'Accounting-Off' => 8
+# );
 
 my %ACCT_TERMINATE_CAUSES = (
   'User-Request'             => 1,
@@ -75,12 +78,14 @@ sub new {
 #**********************************************************
 sub accounting {
   my $self = shift;
-  my ($RAD, $NAS) = @_;
+  my ($RAD, $NAS, $attr) = @_;
 
   $self->{SUM}              = 0 if (!$self->{SUM});
-  my $acct_status_type      = $ACCT_TYPES{ $RAD->{'Acct-Status-Type'} };
+  my $acct_status_type      = $attr->{ACCT_STATUS_TYPE} || 0; #$ACCT_TYPES{ $RAD->{'Acct-Status-Type'} };
   $RAD->{$input_gigawords}  = 0 if (!$RAD->{$input_gigawords});
   $RAD->{$output_gigawords} = 0 if (!$RAD->{$output_gigawords});
+  $RAD->{$input_octets}     = 0 if (!$RAD->{$input_octets});
+  $RAD->{$output_octets}    = 0 if (!$RAD->{$output_octets});
 
   $RAD->{'Framed-IP-Address'}     = '0.0.0.0' if (!$RAD->{'Framed-IP-Address'});
   $RAD->{'Acct-Session-Time'}     = 0         if (!defined($RAD->{'Acct-Session-Time'}));
@@ -281,15 +286,15 @@ sub accounting {
               $RAD->{'Acct-Session-Time'},
               $self->{TP_ID},
               $RAD->{'Acct-Session-Time'},
-              $RAD->{OUTBYTE},
-              $RAD->{INBYTE},
+              $RAD->{$output_octets} || 0,
+              $RAD->{$input_octets} || 0,
               $self->{SUM},
               $NAS->{NAS_ID},
               $RAD->{'NAS-Port'} || 0,
               $RAD->{'Framed-IP-Address'},
               $RAD->{'Calling-Station-Id'} || '_1',
-              $self->{OUTBYTE2},
-              $self->{INBYTE2},
+              $self->{OUTBYTE2} || 0,
+              $self->{INBYTE2}  || 0,
               $RAD->{'Acct-Session-Id'},
               $self->{BILL_ID},
               $terminate_cause,
@@ -352,15 +357,15 @@ sub accounting {
             $RAD->{'Acct-Session-Time'},
             $self->{TP_ID} || 0,
             $RAD->{'Acct-Session-Time'},
-            $RAD->{OUTBYTE},
-            $RAD->{INBYTE},
+            $RAD->{$output_octets} || 0,
+            $RAD->{$input_octets} || 0,
             $self->{SUM} || 0,
             $NAS->{NAS_ID},
             $RAD->{'NAS-Port'} || 0,
             $RAD->{'Framed-IP-Address'},
             $RAD->{'Calling-Station-Id'} || '_2',
-            $RAD->{OUTBYTE2},
-            $RAD->{INBYTE2},
+            $RAD->{OUTBYTE2} || 0,
+            $RAD->{INBYTE2} || 0,
             $RAD->{'Acct-Session-Id'},
             $self->{BILL_ID},
             $terminate_cause,
@@ -413,11 +418,11 @@ sub accounting {
         }
         elsif ($self->{SUM} < 0) {
           $self->{LOG_DEBUG} = "ACCT [" . $RAD->{'User-Name'} . "] small session (" .
-            $RAD->{'Acct-Session-Time'} . ", $RAD->{INBYTE}, $RAD->{OUTBYTE})";
+            $RAD->{'Acct-Session-Time'} . ", $RAD->{$input_octets}, $RAD->{$output_octets})";
         }
         elsif ($self->{UID} <= 0) {
           $self->{LOG_DEBUG} = 'ACCT [' . $RAD->{'User-Name'} . "] small session (" .
-            $RAD->{'Acct-Session-Time'} . ", $RAD->{INBYTE}, $RAD->{OUTBYTE}), $self->{UID}";
+            $RAD->{'Acct-Session-Time'} . ", $RAD->{$input_octets}, $RAD->{$output_octets}), $self->{UID}";
         }
         else {
           $self->query2("INSERT INTO internet_log SET
@@ -444,15 +449,15 @@ sub accounting {
               $RAD->{'Acct-Session-Time'},
               $self->{TP_ID} || $EXT_ATTR{TP_ID},
               $RAD->{'Acct-Session-Time'},
-              $RAD->{OUTBYTE},
-              $RAD->{INBYTE},
+              $RAD->{$output_octets} || 0,
+              $RAD->{$input_octets} || 0,
               $self->{SUM},
               $NAS->{NAS_ID},
               $RAD->{'NAS-Port'} || 0,
               $RAD->{'Framed-IP-Address'},
               $RAD->{'Calling-Station-Id'} || '',
-              $RAD->{OUTBYTE2},
-              $RAD->{INBYTE2},
+              $RAD->{OUTBYTE2}  || 0,
+              $RAD->{INBYTE2}  || 0,
               $RAD->{'Acct-Session-Id'},
               $self->{BILL_ID},
               $terminate_cause,
@@ -489,10 +494,10 @@ sub accounting {
       my $ipn_fields = '';
       if ($NAS->{IPN_COLLECTOR}) {
         $ipn_fields = "sum=sum+$self->{SUM},
-      acct_input_octets='$RAD->{INBYTE}',
-      acct_output_octets='$RAD->{OUTBYTE}',
-      ex_input_octets=ex_input_octets + $RAD->{INBYTE2},
-      ex_output_octets=ex_output_octets + $RAD->{OUTBYTE2},
+      acct_input_octets='$RAD->{$input_octets}',
+      acct_output_octets='$RAD->{$output_octets}',
+      ex_input_octets=ex_input_octets + ". ($RAD->{INBYTE2}  || 0) .",
+      ex_output_octets=ex_output_octets + ". ($RAD->{OUTBYTE2} || 0). ",
       acct_input_gigawords='". $RAD->{$input_gigawords} ."',
       acct_output_gigawords='". $RAD->{$output_gigawords} ."',";
       }
@@ -555,8 +560,8 @@ sub accounting {
       AND nas_id= ? ;', 'do',
       { Bind => [
           $acct_status_type,
-          $RAD->{'INBYTE'},
-          $RAD->{'OUTBYTE'},
+          $RAD->{$input_octets},
+          $RAD->{$output_octets},
           $RAD->{'Framed-IP-Address'},
           $self->{'SUM'},
           $RAD->{$input_gigawords},
@@ -596,8 +601,8 @@ sub accounting {
           $RAD->{'Acct-Session-Id'},
           $NAS->{NAS_ID},
           $acct_status_type,
-          $RAD->{INBYTE} +  (($RAD->{$input_gigawords})  ? $RAD->{$input_gigawords} * 4294967296  : 0),
-          $RAD->{OUTBYTE} + (($RAD->{$output_gigawords}) ? $RAD->{$output_gigawords} * 4294967296 : 0),
+          $RAD->{$input_octets} +  (($RAD->{$input_gigawords})  ? $RAD->{$input_gigawords} * 4294967296  : 0),
+          $RAD->{$output_octets} + (($RAD->{$output_gigawords}) ? $RAD->{$output_gigawords} * 4294967296 : 0),
           $RAD->{INBYTE2}  || 0,
           $RAD->{OUTBYTE2} || 0,
           $self->{UID} || 0,
@@ -616,7 +621,7 @@ sub accounting {
 #**********************************************************
 sub rt_billing {
   my $self = shift;
-  my ($RAD, $NAS) = @_;
+  my ($RAD, $NAS, $attr) = @_;
 
   if (! $RAD->{'Acct-Session-Id'}) {
     $self->{errno}  = 2;
@@ -624,14 +629,18 @@ sub rt_billing {
     return $self;
   }
 
-  $self->query2("SELECT IF(UNIX_TIMESTAMP() > lupdated, lupdated, 0), UNIX_TIMESTAMP()-lupdated,
-   IF($RAD->{INBYTE}   >= acct_input_octets AND ". $RAD->{$input_gigawords} ."=acct_input_gigawords,
-        $RAD->{INBYTE} - acct_input_octets,
-        IF(". $RAD->{$input_gigawords} ." > acct_input_gigawords, 4294967296 * (". $RAD->{$input_gigawords} ." - acct_input_gigawords) + $RAD->{INBYTE} - acct_input_octets, 0)),
+  my $acct_session_id = $RAD->{'Acct-Session-Id'};
+  $RAD->{INBYTE2}  //= 0;
+  $RAD->{OUTBYTE2} //= 0;
 
-   IF($RAD->{OUTBYTE}  >= acct_output_octets AND ". $RAD->{$output_gigawords} ."=acct_output_gigawords,
-        $RAD->{OUTBYTE} - acct_output_octets,
-        IF(". $RAD->{$output_gigawords} ." > acct_output_gigawords, 4294967296 * (". $RAD->{$output_gigawords} ." - acct_output_gigawords) + $RAD->{OUTBYTE} - acct_output_octets, 0)),
+  $self->query2("SELECT IF(UNIX_TIMESTAMP() > lupdated, lupdated, 0), UNIX_TIMESTAMP()-lupdated,
+   IF($RAD->{$input_octets}   >= acct_input_octets AND ". $RAD->{$input_gigawords} ."=acct_input_gigawords,
+        $RAD->{$input_octets} - acct_input_octets,
+        IF(". $RAD->{$input_gigawords} ." > acct_input_gigawords, 4294967296 * (". $RAD->{$input_gigawords} ." - acct_input_gigawords) + $RAD->{$input_octets} - acct_input_octets, 0)),
+
+   IF($RAD->{$output_octets}  >= acct_output_octets AND ". $RAD->{$output_gigawords} ."=acct_output_gigawords,
+        $RAD->{$output_octets} - acct_output_octets,
+        IF(". $RAD->{$output_gigawords} ." > acct_output_gigawords, 4294967296 * (". $RAD->{$output_gigawords} ." - acct_output_gigawords) + $RAD->{$output_octets} - acct_output_octets, 0)),
    IF($RAD->{INBYTE2}  >= ex_input_octets, $RAD->{INBYTE2}  - ex_input_octets, ex_input_octets),
    IF($RAD->{OUTBYTE2} >= ex_output_octets, $RAD->{OUTBYTE2} - ex_output_octets, ex_output_octets),
    sum,
@@ -640,30 +649,40 @@ sub rt_billing {
    service_id,
    guest
    FROM internet_online
-  WHERE nas_id='$NAS->{NAS_ID}' AND acct_session_id='". $RAD->{'Acct-Session-Id'} ."';");
+  WHERE nas_id='$NAS->{NAS_ID}' AND acct_session_id='". $acct_session_id ."';");
 
   if ($self->{errno}) {
     return $self;
   }
   elsif ($self->{TOTAL} < 1) {
     $self->{errno}  = 2;
-    $self->{errstr} = "Session account rt Not Exist '$RAD->{'Acct-Session-Id'}'";
+    $self->{errstr} = "Session account rt Not Exist '$acct_session_id'";
     return $self;
   }
 
-  ($RAD->{INTERIUM_SESSION_START},
-    $RAD->{INTERIUM_ACCT_SESSION_TIME},
-    $RAD->{INTERIUM_INBYTE},
-    $RAD->{INTERIUM_OUTBYTE},
+  my $interium_acct_session_time=0;
+  my $interium_session_start=0;
+  my $interium_inbyte = 0;
+  my $interium_outbyte = 0;
+
+  ($interium_session_start,
+    $interium_acct_session_time,
+    $interium_inbyte,
+    $interium_outbyte,
     $RAD->{INTERIUM_INBYTE1},
     $RAD->{INTERIUM_OUTBYTE1},
     $self->{CALLS_SUM},
     $self->{TP_ID},
     $self->{UID},
-    $self->{SERVICE_ID}) = @{ $self->{list}->[0] };
+    $self->{SERVICE_ID},
+    $self->{GUEST}) = @{ $self->{list}->[0] };
 
-  my $out_byte = $RAD->{OUTBYTE} + $RAD->{$output_gigawords} * 4294967296;
-  my $in_byte  = $RAD->{INBYTE} + $RAD->{$input_gigawords} * 4294967296;
+  my $out_byte = $RAD->{$output_octets} + $RAD->{$output_gigawords} * 4294967296;
+  my $in_byte  = $RAD->{$input_octets} + $RAD->{$input_gigawords} * 4294967296;
+
+  if ($attr->{BILLING}) {
+    $Billing = $attr->{BILLING};
+  }
 
   ($self->{UID},
     $self->{SUM},
@@ -672,16 +691,16 @@ sub rt_billing {
     $self->{TIME_TARIF},
     $self->{TRAF_TARIF}) = $Billing->session_sum(
     $RAD->{'User-Name'},
-    $RAD->{INTERIUM_SESSION_START},
-    $RAD->{INTERIUM_ACCT_SESSION_TIME},
+    $interium_session_start,
+    $interium_acct_session_time,
     {
-      OUTBYTE  => ($out_byte == $RAD->{INTERIUM_OUTBYTE}) ? $RAD->{INTERIUM_OUTBYTE} : $out_byte - $RAD->{INTERIUM_OUTBYTE},
-      INBYTE   => ($in_byte  == $RAD->{INTERIUM_INBYTE}) ? $RAD->{INTERIUM_INBYTE} : $in_byte - $RAD->{INTERIUM_INBYTE},
+      OUTBYTE  => ($out_byte == $interium_outbyte) ? $interium_outbyte : $out_byte - $interium_outbyte,
+      INBYTE   => ($in_byte  == $interium_inbyte) ? $interium_inbyte : $in_byte - $interium_inbyte,
       OUTBYTE2 => $RAD->{OUTBYTE2} - $RAD->{INTERIUM_OUTBYTE1},
       INBYTE2  => $RAD->{INBYTE2} - $RAD->{INTERIUM_INBYTE1},
 
-      INTERIUM_OUTBYTE  => $RAD->{INTERIUM_OUTBYTE},
-      INTERIUM_INBYTE   => $RAD->{INTERIUM_INBYTE},
+      INTERIUM_OUTBYTE  => $interium_outbyte,
+      INTERIUM_INBYTE   => $interium_inbyte,
       INTERIUM_OUTBYTE1 => $RAD->{INTERIUM_OUTBYTE1},
       INTERIUM_INBYTE1  => $RAD->{INTERIUM_INBYTE1},
     },
@@ -703,23 +722,23 @@ sub rt_billing {
     return $self;
   }
   elsif ($self->{UID} == -3) {
-    my $filename = "$RAD->{'User-Name'}.$RAD->{'Acct-Session-Id'}";
+    my $filename = "$RAD->{'User-Name'}.$acct_session_id";
     $self->{errno}  = 1;
     $self->{errstr} = "ACCT [$RAD->{'User-Name'}] Not allow start period '$filename'";
     $Billing->mk_session_log($RAD);
     return $self;
   }
   elsif ($self->{UID} == -5) {
-    $self->{LOG_DEBUG} = "ACCT [$RAD->{'User-Name'}] Can't find TP: $self->{TP_ID} Session id: $RAD->{'Acct-Session-Id'}";
+    $self->{LOG_DEBUG} = "ACCT [$RAD->{'User-Name'}] Can't find TP: $self->{TP_ID} Session id: $acct_session_id";
     $self->{errno}     = 1;
-    print "ACCT [$RAD->{'User-Name'}] Can't find TP: $self->{TP_ID} Session id: $RAD->{'Acct-Session-Id'}\n";
+    print "ACCT [$RAD->{'User-Name'}] Can't find TP: $self->{TP_ID} Session id: $acct_session_id\n";
     return $self;
   }
   elsif ($self->{SUM} < 0) {
-    $self->{LOG_DEBUG} = "ACCT [$RAD->{'User-Name'}] small session (". $RAD->{'Acct-Session-Time'}.", $RAD->{INBYTE}, $RAD->{OUTBYTE})";
+    $self->{LOG_DEBUG} = "ACCT [$RAD->{'User-Name'}] small session (". $RAD->{'Acct-Session-Time'}.", $RAD->{$input_octets}, $RAD->{$output_octets})";
   }
   elsif ($self->{UID} <= 0) {
-    $self->{LOG_DEBUG} = "ACCT [$RAD->{'User-Name'}] small session (". $RAD->{'Acct-Session-Time'} .", $RAD->{INBYTE}, $RAD->{OUTBYTE}), $self->{UID}";
+    $self->{LOG_DEBUG} = "ACCT [$RAD->{'User-Name'}] small session (". $RAD->{'Acct-Session-Time'} .", $RAD->{$input_octets}, $RAD->{$output_octets}), $self->{UID}";
     $self->{errno}     = 1;
     return $self;
   }
@@ -735,7 +754,7 @@ sub rt_billing {
            AND interval_id= ?
            AND uid= ? FOR UPDATE;',
       undef,
-      { Bind => [ $RAD->{'Acct-Session-Id'}, $Billing->{TI_ID}, $self->{UID} ] }
+      { Bind => [ $acct_session_id, $Billing->{TI_ID}, $self->{UID} ] }
     );
 
     my %intrval_traffic = ();
@@ -763,10 +782,10 @@ sub rt_billing {
             $RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
             $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
 
-            $RAD->{'INTERIUM_ACCT_SESSION_TIME'},
+            $interium_acct_session_time,
             $self->{SUM},
             $Billing->{TI_ID},
-            $RAD->{'Acct-Session-Id'},
+            $acct_session_id,
             $traffic_type,
             $self->{UID}
           ] }
@@ -779,10 +798,10 @@ sub rt_billing {
             $Billing->{TI_ID},
             $RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
             $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
-            $RAD->{INTERIUM_ACCT_SESSION_TIME},
+            $interium_acct_session_time,
             $traffic_type,
             $self->{SUM},
-            $RAD->{'Acct-Session-Id'},
+            $acct_session_id,
             $self->{UID}
           ] });
       }

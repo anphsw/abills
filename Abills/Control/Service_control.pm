@@ -9,20 +9,25 @@ package Control::Service_control;
 use strict;
 use parent 'dbcore';
 
-our (
+my (
   $admin,
   $CONF,
   $db,
   $lang,
-  $html
 );
+
+my Abills::HTML $html;
 
 require Internet;
 require Users;
 require Finance;
 require Shedule;
 require Tariffs;
-my ($Internet, $Users, $Shedule, $Tariffs);
+my ($Internet);
+
+my Users $Users;
+my Tariffs $Tariffs;
+my Shedule $Shedule;
 
 use Abills::Base qw(in_array date_diff cmd);
 
@@ -109,7 +114,7 @@ sub user_set_credit {
       TO_DATE   => "$y-$m-31"
     });
     if ($admin->{TOTAL} >= $month_changes) {
-      return { error => 4303, errstr => 'ERR_CREDIT_CHANGE_LIMIT_REACH', MONTH_CHANGES => $month_changes };
+      return { error => 4304, errstr => 'ERR_CREDIT_CHANGE_LIMIT_REACH', MONTH_CHANGES => $month_changes };
     }
   }
   $credit_info->{CREDIT_SUM} = sprintf("%.2f", $sum);
@@ -139,7 +144,8 @@ sub user_set_credit {
       $Fees->take($Users, $price, { DESCRIBE => ::_translate('$lang{CREDIT} $lang{ENABLE}') });
     }
 
-    ::cross_modules_call('_payments_maked', { USER_INFO => $user_info, SUM => $sum, SILENT => 1 });
+
+    ::cross_modules('payments_maked', { USER_INFO => $user_info, SUM => $sum, SILENT => 1 });
     if ($CONF->{external_userchange}) {
       return () if (!::_external($CONF->{external_userchange}, $user_info));
     }
@@ -275,6 +281,8 @@ sub internet_add_compensation {
   Arguments:
     $attr
        UID
+       ID  - Internet Service ID
+       USER_INFO - user_info_obj
 
   Returns:
     Success:
@@ -290,30 +298,45 @@ sub user_holdup {
   my ($attr) = @_;
 
   return { error => 4401, errstr => 'ERR_UID_NOT_DEFINED' } if (!$attr->{UID});
-  return { error => 4402, errstr => 'ERR_INTERNET_ID_NOT_DEFINED' } if (!$attr->{ID});
-  return { error => 4403, errstr => 'ERR_NO_SERVICE_HOLDUP_ACCESS' } if (!$CONF->{INTERNET_USER_SERVICE_HOLDUP});
+
+  my $user_info = $attr->{USER_INFO} || $Users->info($attr->{UID});
+  my $internet_info;
+  my $status = 0;
+  if ($CONF->{HOLDUP_ALL}) {
+    $CONF->{INTERNET_USER_SERVICE_HOLDUP}=$CONF->{HOLDUP_ALL};
+    $status = $user_info->{DISABLE};
+  }
+  else {
+    return { error => 4402, errstr => 'ERR_INTERNET_ID_NOT_DEFINED' } if (!$attr->{ID});
+    return { error => 4403, errstr => 'ERR_NO_SERVICE_HOLDUP_ACCESS' } if (!$CONF->{INTERNET_USER_SERVICE_HOLDUP});
+    $internet_info = $Internet->user_info($attr->{UID}, { ID => $attr->{ID} });
+    $status = $internet_info->{DISABLE};
+    if (!$Internet->{TOTAL} || $Internet->{TOTAL} < 1) {
+      return { error => 4406, errstr => 'ERR_NO_SERVICE_ID' }
+    }
+    return q{} if ($CONF->{HOLDUP_ALL});
+  }
 
   my ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $hold_up_day_fee,
     undef, $active_fees, $holdup_skip_gids, $user_del_shedule, $expr_) = split(/:/, $CONF->{INTERNET_USER_SERVICE_HOLDUP});
-  my $user_info = $Users->info($attr->{UID});
-  my $internet_info = $Internet->user_info($attr->{UID}, { ID => $attr->{ID} });
-  return { error => 4406, errstr => 'ERR_NO_SERVICE_HOLDUP_ACCESS' } if (!$Internet->{TOTAL} || $Internet->{TOTAL} < 1);
 
   if ($holdup_skip_gids) {
     my @holdup_skip_gids_arr = split(/,\s?/, $holdup_skip_gids);
-    return { error => 4404, errstr => 'ERR_NO_SERVICE_HOLDUP_ACCESS' } if (in_array($user_info->{GID}, \@holdup_skip_gids_arr));
+    if ($user_info->{GID} && in_array($user_info->{GID}, \@holdup_skip_gids_arr)) {
+      return { error => 4404, errstr => 'ERR_WRONG_GID' };
+    }
   }
 
   my $check_exp_result = $self->_check_holdup_exp($expr_, $user_info);
-  return $check_exp_result if $check_exp_result->{error};
+  return $check_exp_result if ($check_exp_result->{error});
 
-  if ($attr->{add} && $active_fees && $active_fees > 0 && $user_info->{DEPOSIT} < $active_fees) {
+ if ($attr->{add} && $active_fees && $active_fees > 0 && $user_info->{DEPOSIT} < $active_fees) {
     $self->_show_message('err', '$lang{HOLD_UP}', '$lang{ERR_SMALL_DEPOSIT}');
     return { error => 4407, errstr => 'ERR_SMALL_DEPOSIT' };
   }
 
   if ($hold_up_day_fee && $hold_up_day_fee > 0) {
-    $internet_info->{DAY_FEES} = ::_translate('$lang{DAY_FEE}') . ": " . sprintf("%.2f", $hold_up_day_fee);
+    $internet_info->{DAY_FEES} = ::_translate('$_' .'DAY_FEE') . ": " . sprintf("%.2f", $hold_up_day_fee);
   }
 
   if ($attr->{del} && $user_del_shedule) {
@@ -321,12 +344,17 @@ sub user_holdup {
   }
 
   if ($attr->{add} && $attr->{ACCEPT_RULES}) {
-    return $self->_add_holdup({ %{$attr}, HOLD_UP_MAX_PERIOD => $hold_up_max_period, HOLD_UP_MIN_PERIOD => $hold_up_min_period });
+    return $self->_add_holdup({
+      %{$attr},
+      HOLD_UP_MAX_PERIOD => $hold_up_max_period,
+      HOLD_UP_MIN_PERIOD => $hold_up_min_period,
+      MODULE             => ($CONF->{HOLDUP_ALL}) ? 'ALL' : undef
+    });
   }
 
   my ($y, $m) = split(/\-/, $main::DATE);
   if ($hold_up_max_period && $CONF->{INTERNET_USER_SERVICE_HOLDUP_MP}) {
-    $self->{TO_DATE} = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $hold_up_max_period)),
+    $self->{TO_DATE} = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $hold_up_max_period));
   }
 
   if ($hold_up_period) {
@@ -366,7 +394,8 @@ sub user_holdup {
   }
 
   my ($del_ids, $shedule_date) = $self->_get_holdup_ids($attr->{UID}, $attr->{ID});
-  if ($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0 && !$internet_info->{STATUS}) {
+
+  if ($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0 && !$status) {
     return {
       DEL       => 1,
       DEL_IDS   => (($Shedule->{TOTAL} > 1 && $user_del_shedule) ? $del_ids : ''),
@@ -412,18 +441,19 @@ sub available_tariffs {
   if ($user_info->{GID}) {
     $Users->group_info($user_info->{GID});
     if ($user_info->{DISABLE_CHG_TP}) {
-      return { error => 4505, message => '$lang{NOT_ALLOWED_TO_CHANGE_TP}', MODULE => $attr->{MODULE} };
+      return { error => 4505, message => '$lang{NOT_ALLOWED_TO_CHANGE_TP}', MODULE => $attr->{MODULE} }; #XXX lang
     }
   }
 
   $Tariffs->tp_group_info($service_info->{TP_GID});
   if (!$Tariffs->{USER_CHG_TP}) {
-    return { error => 4506, message => '$lang{NOT_ALLOWED_TO_CHANGE_TP}', MODULE => $attr->{MODULE} };
+    return { error => 4506, message => '$lang{NOT_ALLOWED_TO_CHANGE_TP}', MODULE => $attr->{MODULE} }; #XXX lang
   }
 
   my $tp_list = $Tariffs->list({
     TP_GID            => $service_info->{TP_GID} || '_SHOW',
-    CHANGE_PRICE      => ($attr->{skip_check_deposit}) ? undef : '<=' . ($user_info->{DEPOSIT} + $user_info->{CREDIT}),
+    CHANGE_PRICE      => ($attr->{skip_check_deposit} || $CONF->{uc $attr->{MODULE} . '_USER_CHG_TP_SMALL_DEPOSIT'}) ?
+      undef : '<=' . ($user_info->{DEPOSIT} + $user_info->{CREDIT}),
     MODULE            => $attr->{MODULE},
     STATUS            => '<1',
     MONTH_FEE         => '_SHOW',
@@ -1364,9 +1394,10 @@ sub _several_credit_rules {
 
   my $table = $html->table({
     width       => '100%',
-    caption     => $lang->{CREDIT},
+    caption     => $lang->{SETTING_CREDIT},
     title_plain => [ $lang->{DAYS}, $lang->{PRICE}, '-' ],
-    ID          => 'CREDIT_FORM'
+    ID          => 'CREDIT_FORM',
+    HIDE_TABLE  => 1
   });
 
   for (my $i = 0; $i <= $#{$attr->{CREDIT_RULES}}; $i++) {
@@ -1404,7 +1435,12 @@ sub _get_credit_limit {
   my $credit_limit = 0;
 
   if ($self->{conf}{user_credit_all_services}) {
-    require Control::Services;
+    do 'Control/Services.pm';
+    # if ($@) {
+    #   print "Content-TYpe: text/html\n\n";
+    #   print $@;
+    # }
+
     my $service_info = get_services({
       UID          => $attr->{UID},
       REDUCTION    => $attr->{REDUCTION},
@@ -1414,6 +1450,7 @@ sub _get_credit_limit {
     foreach my $service (@{$service_info->{list}}) {
       $credit_limit += $service->{SUM};
     }
+
     return ($credit_limit + 1);
   }
 
@@ -1524,6 +1561,10 @@ sub _check_holdup_exp {
        TO_DATE
        UID
        ID
+       MODULES
+
+  Return:
+
 
 =cut
 #**********************************************************
@@ -1536,11 +1577,11 @@ sub _add_holdup {
   my $block_days = ::date_diff($attr->{FROM_DATE}, $attr->{TO_DATE});
   my $err_msg = '';
 
-  if ($block_days < $attr->{HOLD_UP_MIN_PERIOD}) {
-    $err_msg = '$lang{MIN} $lang{HOLD_UP} ' . $attr->{HOLD_UP_MIN_PERIOD} . ' $lang{DAYS}';
+  if ($attr->{HOLD_UP_MIN_PERIOD} && $block_days < $attr->{HOLD_UP_MIN_PERIOD}) {
+    $err_msg = '$lang{MIN} $lang{HOLD_UP} ' . $attr->{HOLD_UP_MIN_PERIOD} . ' $lang{DAYS} ' . $block_days;
   }
-  elsif ($block_days > $attr->{HOLD_UP_MAX_PERIOD}) {
-    $err_msg = '$lang{MAX} $lang{HOLD_UP} ' . $attr->{HOLD_UP_MAX_PERIOD} . ' $lang{DAYS}';
+  elsif ($attr->{HOLD_UP_MAX_PERIOD} && $block_days > $attr->{HOLD_UP_MAX_PERIOD}) {
+    $err_msg = '$lang{MAX} $lang{HOLD_UP} (' . $attr->{HOLD_UP_MAX_PERIOD} . ') $lang{DAYS} ' . $block_days ;
   }
   elsif (::date_diff($main::DATE, $attr->{FROM_DATE}) < 1) {
     $err_msg = '$lang{ERR_WRONG_DATA}\n $lang{FROM}: ' . $attr->{FROM_DATE};
@@ -1548,7 +1589,7 @@ sub _add_holdup {
   elsif ($block_days < 1) {
     $err_msg = '$lang{ERR_WRONG_DATA}\n $lang{TO}: ' . $attr->{TO_DATE};
   }
-  elsif (!$attr->{ID}) {
+  elsif (!$attr->{ID} && ! $CONF->{HOLDUP_ALL}) {
     $err_msg = '$lang{ERR_NO_DATA}: ID';
   }
 
@@ -1564,7 +1605,7 @@ sub _add_holdup {
     D      => $from_day,
     M      => $from_month,
     Y      => $from_year,
-    MODULE => 'Internet'
+    MODULE => $attr->{MODULE} || 'Internet'
   });
 
   $Shedule->add({
@@ -1574,7 +1615,7 @@ sub _add_holdup {
     D      => $to_day,
     M      => $to_month,
     Y      => $to_year,
-    MODULE => 'Internet'
+    MODULE => $attr->{MODULE} || 'Internet'
   });
 
   return { errno => $Shedule->{errno}, errstr => $Shedule->{errstr}, MODULE => 'Shedule' } if ($Shedule->{errno});
@@ -1649,7 +1690,7 @@ sub _get_holdup_ids {
   my $list = $Shedule->list({
     UID        => $uid,
     SERVICE_ID => $id,
-    MODULE     => 'Internet',
+    #MODULE     => 'Internet',
     TYPE       => 'status',
     COLS_NAME  => 1
   });

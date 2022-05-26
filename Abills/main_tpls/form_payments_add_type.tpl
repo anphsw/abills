@@ -54,10 +54,11 @@
         </div>
       </div>
 
-      <div class='card-footer'>
-        <input class='btn btn-primary pull-center' name='%BUTTON_LABALE%' value='%BUTTON_NAME%' type='submit'>
-      </div>
     </div>
+    <div class='card-footer'>
+      <input class='btn btn-primary pull-center' name='%BUTTON_LABALE%' value='%BUTTON_NAME%' type='submit'>
+    </div>
+
   </div>
 
 </form>

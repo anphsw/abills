@@ -26,57 +26,33 @@ our Abills::HTML $html;
 #**********************************************************
 sub msgs_reports {
 
-  reports(
-    {
-      DATE_RANGE=> 1,
-      DATE      => $FORM{DATE},
-      REPORT    => '',
-      EX_PARAMS => {
-        DATE   => $lang{DATE},
-        USERS  => $lang{USERS},
-        ADMINS => $lang{ADMINS},
-      },
-      PERIOD_FORM => 1,
-      EXT_TYPE    => {
-        ADMINS     => $lang{ADMINS},
-        RESPOSIBLE => $lang{RESPOSIBLE},
-        CHAPTERS   => $lang{CHAPTERS},
-        PER_MONTH  => $lang{PER_MONTH},
-        DISTRICT   => $lang{DISTRICT},
-        STREET     => $lang{STREET},
-        BUILD      => $lang{BUILD},
-        REPLY      => $lang{REPLY},
-        PER_CLOSED => $lang{CLOSED},
-      },
-      # FIELDS => {
-      #   "1:STATE" => $lang{OPEN},
-      #   "2:STATE" => $lang{CLOSED_UNSUCCESSFUL},
-      #   "3:STATE" => $lang{CLOSED_SUCCESSFUL}
-      # },
+  reports({
+    DATE_RANGE  => 1,
+    DATE        => $FORM{DATE},
+    REPORT      => '',
+    EX_PARAMS   => {
+      DATE   => $lang{DATE},
+      USERS  => $lang{USERS},
+      ADMINS => $lang{ADMINS},
+    },
+    PERIOD_FORM => 1,
+    EXT_TYPE    => {
+      ADMINS     => $lang{ADMINS},
+      RESPOSIBLE => $lang{RESPOSIBLE},
+      CHAPTERS   => $lang{CHAPTERS},
+      PER_MONTH  => $lang{PER_MONTH},
+      DISTRICT   => $lang{DISTRICT},
+      STREET     => $lang{STREET},
+      BUILD      => $lang{BUILD},
+      REPLY      => $lang{REPLY},
+      PER_CLOSED => $lang{CLOSED},
     }
-  );
+  });
   if ($FORM{TYPE} && $FORM{TYPE} eq 'PER_CLOSED') {
     report_per_month();
     return 1;
   }
-  my ($table_sessions);
-  my $output = '';
-  my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
-  my %msgs_status_without_color = map { $_ => [split(':', $msgs_status->{$_})]->[0] } keys %$msgs_status;
-  
-  my %DATA_HASH2 = ();
-  my %CHARTS = (
-    TYPES => {
-      $html->color_mark($msgs_status->{0} || '') => 'column',
-      $html->color_mark($msgs_status->{1} || '') => 'column',
-      $html->color_mark($msgs_status->{2} || '') => 'column',
-      $lang{OTHER}      => 'column',
-      $lang{COUNT}      => 'line'
-    }
-  );
-
-  my $graph_type = '';
-  #Day reposrt
+  #Day report
   if ($FORM{DATE} || $FORM{DAYS}) {
     if (!defined($FORM{sort})) {
       $LIST_PARAMS{SORT} = 1;
@@ -89,143 +65,102 @@ sub msgs_reports {
     msgs_list();
     return 1;
   }
-  else {
-    my $type   = $FORM{TYPE} || '';
-    my @caption = ($lang{DATE},
-      $html->color_mark($msgs_status->{0}),
-      $html->color_mark($msgs_status->{1}),
-      $html->color_mark($msgs_status->{2}),
-      $lang{OTHER}, $lang{COUNT},
-      $lang{RUN_TIME});
 
-    if ( $type eq 'ADMINS' ){
-      $caption[0] = $lang{ADMINS};
-    }
-    elsif ( $type eq 'HOURS' ){
-      $caption[0] = $lang{HOURS};
-      $graph_type = 'hour';
-    }
-    elsif ( $type eq 'USER' ){
-      $caption[0] = $lang{USERS};
-      $pages_qs .= "&TYPE=USER"
-    }
-    elsif ( $type eq 'RESPOSIBLE' ){
-      $caption[0] = $lang{RESPOSIBLE};
-    }
-    elsif ( $type eq 'CHAPTERS' ){
-      $caption[0] = $lang{CHAPTERS};
-      $CHARTS{TYPES}{$lang{COUNT}} = 'pie';
-    }
-    elsif ( $type eq 'DISTRICT' ){
-      $caption[0] = $lang{DISTRICT};
-      $graph_type = '';
-    }
-    elsif ( $type eq 'STREET' ){
-      $caption[0] = $lang{STREET};
-      $graph_type = '';
-    }
-    elsif ( $type eq 'BUILD' ){
-      $caption[0] = $lang{BUILDS};
-      $graph_type = '';
-    }
-    elsif ( $type eq 'REPLY' ){
-      $type = undef;
-      $caption[$#caption+1] = $lang{REPLY};
-      $graph_type = '';
-    }
-    else{
-      $graph_type = 'month_stats';
-    }
+  my $output = '';
+  my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
+  my %msgs_status_without_color = map { $_ => [split(':', $msgs_status->{$_})]->[0] } keys %$msgs_status;
+  my $type = $FORM{TYPE} || 'DAYS';
+  my @caption = (
+    $lang{DATE},
+    $html->color_mark($msgs_status->{0}),
+    $html->color_mark($msgs_status->{1}),
+    $html->color_mark($msgs_status->{2}),
+    $lang{OTHER}, $lang{COUNT},
+    $lang{RUN_TIME}
+  );
 
-    $table_sessions = $html->table({
-      width   => '100%',
-      caption => $lang{MESSAGES},
-      title   => \@caption,
-      qs      => $pages_qs,
-      ID      => 'MSGS_REPORT',
-    });
+  my %x_variables = (
+    ADMINS     => 'admin_name',
+    HOURS      => 'hours',
+    DAYS       => 'date',
+    USER       => 'login',
+    RESPOSIBLE => 'admin_name',
+    CHAPTERS   => 'chapter_name',
+    DISTRICT   => 'district_name',
+    STREET     => 'street_name',
+    BUILD      => 'build',
+    REPLY      => 'date',
+    PER_MONTH  => 'month'
+  );
 
-    my $num = -1;
-    my $list = $Msgs->messages_reports({
-      %LIST_PARAMS,
-      COLS_NAME =>  0
-    });
-
-    foreach my $line (@$list) {
-      my @rows = ();
-      my $first_field = $html->button($line->[0], "index=$index&". ($type || 'DATE') ."=". ($line->[0] || q{}) . $pages_qs);
-      if ($type) {
-        if ($type eq 'USER') {
-          $first_field = $html->button($line->[0], "index=15&UID=$line->[7]");
-          $num++;
-          $CHARTS{X_TEXT}[$num] = $line->[0];
-        }
-        elsif ($type eq 'HOURS') {
-          $num = $line->[0];
-        }
-        elsif ($type eq 'ADMINS' || $type eq 'RESPOSIBLE') {
-          $first_field = $html->button($line->[0], "index=$index&RESPOSIBLE=". ($line->[0] || q{}));
-          $num++;
-          $CHARTS{X_TEXT}[$num] = $line->[0];
-        }
-        elsif ($type eq 'CHAPTERS') {
-          $first_field = $html->button($line->[0], "index=$index&CHAPTER_ID=$line->[8]");
-          $num++;
-          $CHARTS{X_TEXT}[$num] = $line->[0];
-        }
-        else {
-          $num++;
-          $CHARTS{X_TEXT}[$num] = $line->[0];
-        }
-      }
-      if (! $type || $type eq 'DAYS') {
-        @rows = ($first_field,
-          $html->button( $line->[1], "index=$index&STATE=0&DATE=$line->[0]"),
-          $html->button( $line->[2], "index=$index&STATE=1&DATE=$line->[0]"),
-          $html->button( $line->[3], "index=$index&STATE=2&DATE=$line->[0]"),
-          $html->button( $line->[4], "index=$index&STATE=>2&DATE=$line->[0]"),
-          $line->[5],
-          $line->[6]);
-      }
-      else {
-        @rows = ($first_field,
-          $line->[1],
-          $line->[2],
-          $line->[3],
-          $line->[4],
-          $line->[5],
-          $line->[6]);
-      }
-
-      if($#caption == 7) {
-        push @rows, $line->[7];
-      }
-
-      if ($line->[0] && $line->[0] =~ /(\d+)-(\d+)-(\d+)/) {
-        $num = int($3);
-      }
-      elsif ($line->[0] && $line->[0] =~ /(\d+)-(\d+)/) {
-        $num++;
-        $CHARTS{X_LINE}[$num] = $line->[0];
-      }
-
-      $DATA_HASH2{ $msgs_status_without_color{0} }[$num] = $line->[1];
-      $DATA_HASH2{ $msgs_status_without_color{1} }[$num] = $line->[2];
-      $DATA_HASH2{ $msgs_status_without_color{2} }[$num] = $line->[3];
-      $DATA_HASH2{$lang{OTHER}}[$num] = $line->[4];
-      $DATA_HASH2{$lang{COUNT}}[$num] = $line->[5];
-
-      $table_sessions->addrow(@rows);
-    }
-
-    $output = $html->make_charts({
-      PERIOD        => $graph_type,
-      DATA          => \%DATA_HASH2,
-      TRANSITION    => 1,
-      OUTPUT2RETURN => 1,
-      %CHARTS
-    });
+  if ($type eq 'REPLY') {
+    push @caption, $lang{REPLY};
   }
+  elsif ($lang{$type}) {
+    $caption[0] = $lang{$type};
+  }
+
+  my $table_sessions = $html->table({
+    width   => '100%',
+    caption => $lang{MESSAGES},
+    title   => \@caption,
+    qs      => $pages_qs,
+    ID      => 'MSGS_REPORT',
+  });
+
+  my $list = $Msgs->messages_reports({ %LIST_PARAMS, COLS_NAME => 1 });
+  my $x = $x_variables{$FORM{TYPE} || ''} || 'date';
+  my %legend_names = (
+    open       => $lang{OPEN},
+    maked      => $lang{CLOSED_SUCCESSFUL},
+    unmaked    => $lang{CLOSED_UNSUCCESSFUL},
+    other      => $lang{OTHER},
+    total_msgs => $lang{TOTAL}
+  );
+  my %chart_data = ();
+  my @labels = ();
+
+  foreach my $line (@{$list}) {
+    my @row = ($line->{open}, $line->{unmaked}, $line->{maked}, $line->{other}, $line->{total_msgs}, $line->{run_time});
+
+    my $value = $line->{$x_variables{$type} || 'date'};
+    if ($type eq 'USER') {
+      unshift @row, $html->button($value, "index=15&UID=$line->{uid}");
+    }
+    elsif ($type eq 'ADMINS' || $type eq 'RESPOSIBLE') {
+      unshift @row, $html->button($value, "index=$index&RESPOSIBLE=" . ($line->{aid} || q{}));
+    }
+    elsif ($type eq 'CHAPTERS') {
+      unshift @row, $html->button($value, "index=$index&CHAPTER_ID=$line->{chapter}");
+    }
+    else {
+      unshift @row, $value;
+    }
+    push @row, $line->{replies_count} if $type eq 'REPLY';
+    $table_sessions->addrow(@row);
+
+    next if !exists $line->{$x};
+
+    push @labels, $line->{$x} || '-';
+    foreach my $data (sort keys %legend_names) {
+      push @{$chart_data{$legend_names{$data}}}, $line->{$data} || 0;
+    }
+  }
+
+  $html->chart({
+    TYPE              => 'bar',
+    X_LABELS          => \@labels,
+    DATA              => \%chart_data,
+    SCALES            => "scales: { y: { type: 'logarithmic' } },",
+    BACKGROUND_COLORS => {
+      $legend_names{open}       => 'rgba(0, 0, 255, 0.8)',
+      $legend_names{maked}      => 'rgba(0, 157, 0, 0.8)',
+      $legend_names{unmaked}    => 'rgba(200, 0, 0, 0.8)',
+      $legend_names{other}      => 'rgba(255, 204, 0, 0.8)',
+      $legend_names{total_msgs} => 'rgba(33, 150, 243, 0.8)',
+    },
+    IN_CONTAINER      => 1
+  });
   
   my $table = $html->table({
     width      => '100%',
@@ -267,40 +202,24 @@ sub msgs_reports_tasks_rating {
   my %admin_name;
   my $admin_id_string = '';
 
-  my $msg_list = $Msgs->messages_list(
-    {
-      ID          => '_SHOW',
-      RATING      => '_SHOW',
-      UID         => '_SHOW',
-      ADMIN_LOGIN => '_SHOW',
-      A_NAME      => '_SHOW',
-      RESPOSIBLE  => '_SHOW',
-      STATE_ID    => '1;2',
-      PAGE_ROWS   => 18446744073709551615,
-      COLS_NAME   => 1
-    }
-  );
+  my $msg_list = $Msgs->messages_list({
+    ID          => '_SHOW',
+    RATING      => '_SHOW',
+    UID         => '_SHOW',
+    ADMIN_LOGIN => '_SHOW',
+    A_NAME      => '_SHOW',
+    RESPOSIBLE  => '_SHOW',
+    STATE_ID    => '1;2',
+    PAGE_ROWS   => 18446744073709551615,
+    COLS_NAME   => 1
+  });
 
   foreach my $msg (@$msg_list) {
     if (!defined($statistic{ $msg->{resposible} }{rating_1})) {
       $admin_id_string .= "$msg->{resposible};";
     }
     if (defined($msg->{rating})) {
-      if ($msg->{rating} == 1) {
-        $statistic{ $msg->{resposible} }{rating_1} += 1;
-      }
-      elsif ($msg->{rating} == 2) {
-        $statistic{ $msg->{resposible} }{rating_2} += 1;
-      }
-      elsif ($msg->{rating} == 3) {
-        $statistic{ $msg->{resposible} }{rating_3} += 1;
-      }
-      elsif ($msg->{rating} == 4) {
-        $statistic{ $msg->{resposible} }{rating_4} += 1;
-      }
-      elsif ($msg->{rating} == 5) {
-        $statistic{ $msg->{resposible} }{rating_5} += 1;
-      }
+      $statistic{ $msg->{resposible} }{'rating_' . $msg->{rating}} += 1;
 
       $statistic{ $msg->{resposible} }{rating_1} //= 0;
       $statistic{ $msg->{resposible} }{rating_2} //= 0;
@@ -315,28 +234,24 @@ sub msgs_reports_tasks_rating {
       }
       else{
         $statistic{ $msg->{resposible} }{rating_sum} += 0;
-        $statistic{ $msg->{resposible} }{midl_rating_sum} = 0;
+        $statistic{ $msg->{resposible} }{midl_rating_sum} += 0;
       }
     }
   }
-  my $table = $html->table(
-    {
-      caption => $html->element('i', '', { class => 'fa fa-fw fa-bar-chart', style => 'font-size:28px;' }) . '&nbsp' . $lang{EVALUATION_OF_PERFORMANCE},
-      title_plain => [ "$lang{ADMIN}", "$lang{AVERAGE_RATING}", "1", "2", "3", "4", "5" ],
-      width       => '100%',
-      qs          => $pages_qs,
-      ID          => 'LIST_OF_LOGS_TABLE',
-    }
-  );
+  my $table = $html->table({
+    caption     => $html->element('i', '', { class => 'fa fa-fw fa-chart-bar', style => 'font-size:28px;' }) . '&nbsp' . $lang{EVALUATION_OF_PERFORMANCE},
+    title_plain => [ "$lang{ADMIN}", "$lang{AVERAGE_RATING}", "1", "2", "3", "4", "5" ],
+    width       => '100%',
+    qs          => $pages_qs,
+    ID          => 'LIST_OF_LOGS_TABLE',
+  });
 
-  my $admin_list = $admin->list(
-    {
-      AID       => $admin_id_string,
-      LOGIN     => '_SHOW',
-      PAGE_ROWS => 50000,
-      COLS_NAME => 1
-    }
-  );
+  my $admin_list = $admin->list({
+    AID       => $admin_id_string,
+    LOGIN     => '_SHOW',
+    PAGE_ROWS => 50000,
+    COLS_NAME => 1
+  });
 
   foreach my $admin_ (@$admin_list) {
     $admin_name{ $admin_->{aid} } = $admin_->{login};
@@ -347,7 +262,8 @@ sub msgs_reports_tasks_rating {
       $html->button($admin_name{$statistic_key} ? $admin_name{$statistic_key} : $lang{ALL},
         "index=" . get_function_index('employees_main') . "&subf=51&AID=$statistic_key"
       ),
-        ($statistic{$statistic_key}{midl_rating_sum}) ? ($statistic{$statistic_key}{midl_rating_sum} =~ m|.{4}| ? $& : $statistic{$statistic_key}{midl_rating_sum}) : 0,
+        ($statistic{$statistic_key}{midl_rating_sum}) ? ($statistic{$statistic_key}{midl_rating_sum} =~ m|.{4}| ?
+          $& : $statistic{$statistic_key}{midl_rating_sum}) : 0,
       $statistic{$statistic_key}{rating_1},
       $statistic{$statistic_key}{rating_2},
       $statistic{$statistic_key}{rating_3},
@@ -434,61 +350,50 @@ sub msgs_report_menu {
 =cut
 #**********************************************************
 sub msgs_reports_requests {
+
   my %admin_name;
   my @x_column_name;
   my %COLUMN;
   my %date;
 
   if( $FORM{FROM_DATE} && $FORM{TO_DATE} ){
-    %date = (
-        FROM_DATE => $FORM{FROM_DATE} . ' 00:00:01',
-        TO_DATE   => $FORM{TO_DATE}   . ' 23:59:59',
-    );
+    %date = (FROM_DATE => $FORM{FROM_DATE} . ' 00:00:01', TO_DATE => $FORM{TO_DATE} . ' 23:59:59');
   }
 
-  my $admins_list = $Msgs->admins_list(
-    {
-      AID                     => '_SHOW',
-      PAGE_ROWS               => 10000,
-      COLS_NAME               => 1,
-    }
-  );
+  my $admins_list = $Msgs->admins_list({
+    AID       => '_SHOW',
+    PAGE_ROWS => 10000,
+    COLS_NAME => 1,
+  });
 
   foreach my $line (@{$admins_list}) {
-    $admin_name{$line->{aid}}      = $line->{admin_login};
+    $admin_name{$line->{aid}} = $line->{admin_login};
   }
 
-  my $admin_select = $html->form_select(
-    'ADMINS_LOGIN',
-    {
-      SEL_HASH    => \%admin_name,
-      SEL_OPTIONS => { '' => '' },
-      SELECTED    => $FORM{ADMINS_LOGIN} || '',
-    }
-  );
+  my $admin_select = $html->form_select('ADMINS_LOGIN', {
+    SEL_HASH    => \%admin_name,
+    SEL_OPTIONS => { '' => '' },
+    SELECTED    => $FORM{ADMINS_LOGIN} || '',
+  });
 
-  reports(
-    {
-      DATE_RANGE        => 1,
-      REPORT            => '',
-      NO_GROUP          => 1,
-      NO_STANDART_TYPES => 1,
-      NO_TAGS           => 1,
-      EXT_SELECT_NAME   => $lang{ADMINS},
-      EXT_SELECT        => $admin_select,
-      PERIOD_FORM       => 1,
-      EXT_TYPE          => { ADMINS => $lang{ADMINS} },
-    }
-  );
+  reports({
+    DATE_RANGE        => 1,
+    REPORT            => '',
+    NO_GROUP          => 1,
+    NO_STANDART_TYPES => 1,
+    NO_TAGS           => 1,
+    EXT_SELECT_NAME   => $lang{ADMINS},
+    EXT_SELECT        => $admin_select,
+    PERIOD_FORM       => 1,
+    EXT_TYPE          => { ADMINS => $lang{ADMINS} },
+  });
 
-  my $msgs_list = $Msgs->messages_admins_reports(
-    {
-      AID                     => $FORM{ADMINS_LOGIN},
-      %date,
-      PAGE_ROWS               => 10000,
-      COLS_NAME               => 1,
-    }
-  );
+  my $msgs_list = $Msgs->messages_admins_reports({
+    AID       => $FORM{ADMINS_LOGIN},
+    %date,
+    PAGE_ROWS => 10000,
+    COLS_NAME => 1,
+  });
 
   if(! $Msgs->{TOTAL}) {
     $html->message('warning', $lang{WARNING}, $lang{NO_DATA});
@@ -498,8 +403,8 @@ sub msgs_reports_requests {
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
 
   if(! defined($msgs_status->{0})) {
-    $html->message('warn', "", "Please add default status 'OPEN' with ID 0 ". $html->button('Msgs status',
-        "index=". get_function_index('msgs_status') ));
+    $html->message('warn', "", "Please add default status 'OPEN' with ID 0 " .
+      $html->button('Msgs status', "index=" . get_function_index('msgs_status') ));
     return 0;
   }
 
@@ -513,10 +418,10 @@ sub msgs_reports_requests {
   );
 
   my $i=-1;
-  
+
   my $table = $html->table({
-      width      => '100%',
-      title      => [ "$lang{ADMIN}", "$lang{TOTAL}", "$lang{CLOSED}" ],
+    width => '100%',
+    title => [ $lang{ADMIN}, $lang{TOTAL}, $lang{CLOSED} ],
   });
   
   foreach my $line (@{$msgs_list}) {
@@ -534,15 +439,13 @@ sub msgs_reports_requests {
 
   print $table->show();
   
-  $html->make_charts_simple(
-    {
-      TRANSITION    => 1,
-      TYPES         => \%column_type,
-      X_TEXT        => \@x_column_name, # name x admin login
-      DATA          => \%COLUMN,
-    }
-  );
-  
+  $html->make_charts_simple({
+    TRANSITION => 1,
+    TYPES      => \%column_type,
+    X_TEXT     => \@x_column_name, # name x admin login
+    DATA       => \%COLUMN,
+  });
+
   return 1
 }
 
@@ -560,17 +463,13 @@ sub msgs_reports_replys {
 
   my $Admins = Admins->new($db, \%conf);
 
-  msgs_report_menu(
-    {
-      TO_DATE      => $FORM{TO_DATE},
-      FROM_DATE    => $FORM{FROM_DATE},
-      ADMINS_LOGIN => $FORM{ADMINS_LOGIN},
-    }
-  );
+  msgs_report_menu({
+    TO_DATE      => $FORM{TO_DATE},
+    FROM_DATE    => $FORM{FROM_DATE},
+    ADMINS_LOGIN => $FORM{ADMINS_LOGIN},
+  });
 
-  if ($FORM{ADMINS_LOGIN}) {
-    $FORM{ADMINS_LOGIN} =~ s/,/;/g;
-  }
+  $FORM{ADMINS_LOGIN} =~ s/,/;/g if $FORM{ADMINS_LOGIN};
 
   my $admins_list = $Admins->list({
     COLS_NAME => 1, 
@@ -578,25 +477,17 @@ sub msgs_reports_replys {
     DISABLE   => '0',
     AID => $FORM{ADMINS_LOGIN} || '_SHOW' 
   });
-  my %date;
-  if ($FORM{FROM_DATE} && $FORM{TO_DATE}) {
-    %date = (
-      FROM_DATE => $FORM{FROM_DATE},
-      TO_DATE   => $FORM{TO_DATE},
-    );
-  }
+  my %date = $FORM{FROM_DATE} && $FORM{TO_DATE} ? (FROM_DATE => $FORM{FROM_DATE}, TO_DATE => $FORM{TO_DATE}) : ();
 
-  my $reply_list = $Msgs->messages_reply_list(
-    {
-      LOGIN => '_SHOW',
-      ADMIN => '_SHOW',
-      %date,
-      AID => $FORM{ADMINS_LOGIN} || '_SHOW',
-      COLS_NAME           => 1,
-      PAGE_ROWS           => 10000,
-      'FROM_DATE|TO_DATE' => $FORM{FROM_DATE_TO_DATE},
-    }
-  );
+  my $reply_list = $Msgs->messages_reply_list({
+    LOGIN               => '_SHOW',
+    ADMIN               => '_SHOW',
+    %date,
+    AID                 => $FORM{ADMINS_LOGIN} || '_SHOW',
+    COLS_NAME           => 1,
+    PAGE_ROWS           => 10000,
+    'FROM_DATE|TO_DATE' => $FORM{FROM_DATE_TO_DATE},
+  });
 
   my @admin_name_array;
 
@@ -604,7 +495,6 @@ sub msgs_reports_replys {
     push @admin_name_array, $admin_info->{login};
   }
 
-  my $column_type = _make_chart_column_type({ COLUMNS_ARRAY => \@admin_name_array, COLUM_TYPE => 'COLUMN' });
   my ($x_column_name, $chart_date, $name_column_index, $function_ref);
 
   if ($FORM{FROM_DATE} && $FORM{TO_DATE} && $FORM{FROM_DATE} ne $FORM{TO_DATE}) {
@@ -616,51 +506,27 @@ sub msgs_reports_replys {
     $function_ref = \&_msgs_report_reply_time;
   }
 
-  $chart_date = _make_chart_date(
-    {
-      DATE            => $chart_date,
-      NAME_INDEX_JOIN => $name_column_index,
-      LIST            => $reply_list,
-      CHART_LINE      => \@admin_name_array,
-      FUNCTION        => $function_ref,
-      CREATE_CHART    => 1,
-    }
-  );
+  $chart_date = _make_chart_date({
+    DATE            => $chart_date,
+    NAME_INDEX_JOIN => $name_column_index,
+    LIST            => $reply_list,
+    CHART_LINE      => \@admin_name_array,
+    FUNCTION        => $function_ref,
+    CREATE_CHART    => 1,
+  });
 
-  print $html->make_charts_simple(
-    {
-      TRANSITION => 1,
-      TYPES      => $column_type,
-      X_TEXT     => $x_column_name,
-      DATA       => $chart_date,
-    }
-  );
+  my $colors = ();
+  map $colors->{$_} = '#' . join("", map { sprintf "%02x", rand(255) } (0..2)), keys %{$chart_date};
+
+  $html->chart({
+    TYPE              => 'bar',
+    X_LABELS          => $x_column_name,
+    DATA              => $chart_date,
+    BACKGROUND_COLORS => $colors,
+    IN_CONTAINER      => 1
+  });
 
   return 1;
-}
-
-#**********************************************************
-=head2 _make_chart_column_type() = make colum type
-
-  Arguments:
-    $attr -
-      COLUMNS_ARRAY = Columns name : ARRAYREF
-      COLUM_TYPE    = Columns name : STRING
-
-  Return: HASHREF with NAME => TYPE
-
-=cut
-#**********************************************************
-sub _make_chart_column_type {
-  my ($attr) = @_;
-
-  my %result_colum_type;
-
-  foreach my $colum_name (@{ $attr->{COLUMNS_ARRAY} }) {
-    $result_colum_type{$colum_name} = $attr->{COLUM_TYPE};
-  }
-
-  return \%result_colum_type;
 }
 
 #**********************************************************
@@ -1343,24 +1209,20 @@ sub report_per_month {
 
   print $table->show();
 
-  $html->make_charts_simple(
-    {
-      TRANSITION    => 1,
-      TYPES         => { $lang{NEW} => 'LINE', $lang{CLOSED} => 'LINE'},
-      X_TEXT        => \@x_column_name,
-      DATA          => \%column_date,
-      TITLE         => "$lang{MESSAGES}, $lang{COUNT}",
-    }
-  );
-  $html->make_charts_simple(
-    {
-      TRANSITION    => 1,
-      TYPES         => { $lang{CLOSED_RATIO} => 'LINE'},
-      X_TEXT        => \@x_column_name,
-      DATA          => \%column_date2,
-      TITLE         => $lang{CLOSED_RATIO},
-    }
-  );
+  $html->make_charts_simple({
+    TRANSITION => 1,
+    TYPES      => { $lang{NEW} => 'LINE', $lang{CLOSED} => 'LINE ' },
+    X_TEXT     => \@x_column_name,
+    DATA       => \%column_date,
+    TITLE      => "$lang{MESSAGES}, $lang{COUNT}"
+  });
+  $html->make_charts_simple({
+    TRANSITION => 1,
+    TYPES      => { $lang{CLOSED_RATIO} => 'LINE' },
+    X_TEXT     => \@x_column_name,
+    DATA       => \%column_date2,
+    TITLE      => $lang{CLOSED_RATIO}
+  });
 
   return 1;
 }
@@ -1530,17 +1392,17 @@ sub msgs_admin_report {
 
   my $admins_list = $admin->list({ COLS_NAME => 1 });
 
-  my $dispatch_list = $Msgs->messages_list({ 
-    RESPOSIBLE_ADMIN_LOGIN    => '_SHOW',
-    STATE                     => '_SHOW',
-    RUN_TIME                  => '_SHOW',
-    DONE_SUM                  => '_SHOW',
-    GROUP_BY                  => 'm.resposible',
-    STATE_DONE                => 2,
-    FROM_DATE                 => $FORM{FROM_DATE},
-    TO_DATE                   => $FORM{TO_DATE},
-    COLS_NAME                 => 1,
-    PAGE_ROWS                 => 10000,
+  my $dispatch_list = $Msgs->messages_list({
+    RESPOSIBLE_ADMIN_LOGIN => '_SHOW',
+    STATE                  => '_SHOW',
+    RUN_TIME               => '_SHOW',
+    DONE_SUM               => '_SHOW',
+    GROUP_BY               => 'm.resposible',
+    STATE                  => 2,
+    FROM_DATE              => $FORM{FROM_DATE},
+    TO_DATE                => $FORM{TO_DATE},
+    COLS_NAME              => 1,
+    PAGE_ROWS              => 999999,
   });
 
   my $msgs_reply_list = $Msgs->messages_reply_list({
@@ -1753,6 +1615,54 @@ sub msgs_works_report {
   $works_table->addfooter($lang{TOTAL}, $total_works, $total_done, $total_sum, '');
 
   print $works_table->show();
+}
+
+#**********************************************************
+=head2 msgs_messages_coefficients()
+
+=cut
+#**********************************************************
+sub msgs_messages_coefficients {
+
+  reports({
+    DATE_RANGE  => 1,
+    DATE        => $FORM{DATE},
+    PERIOD_FORM => 1,
+    NO_GROUP    => 1,
+    NO_TAGS     => 1
+  });
+
+  my $report_info = $Msgs->msgs_messages_and_users_by_months(\%FORM);
+
+  my $coefficient_table = $html->table({
+    caption => $lang{MESSAGES_COEFFICIENT},
+    title   => [ $lang{MONTH}, $lang{USERS}, $lang{MESSAGES}, $lang{COEFFICIENT} ],
+    ID      => 'MSGS_MESSAGES_COEFFICIENTS',
+  });
+
+  my $total_messages = 0;
+  my $total_coefficient = 0;
+  
+  foreach my $info (@{$report_info}) {
+    $total_messages += $info->{messages};
+
+    my $coefficient = $info->{messages} > 0 && $info->{users} > 0 ? $info->{messages} / $info->{users} * 100 : 0;
+    $total_coefficient += $coefficient;
+
+    $coefficient_table->addrow($info->{month}, $info->{users}, $info->{messages},
+      sprintf("%.2f", $coefficient) . '%');
+  }
+
+  $total_coefficient = $Msgs->{TOTAL} > 0 && $total_coefficient != 0 ? $total_coefficient / $Msgs->{TOTAL} : 0;
+  my $total_table = $html->table({
+    width => '100%',
+    ID    => 'MSGS_MESSAGES_COEFFICIENTS_TOTAL',
+    rows  => [
+      [ "$lang{TOTAL_MESSAGES}:", $html->b($total_messages) ],
+      [ "$lang{AVERAGE_COEFFICIENT}:", $html->b(sprintf("%.2f", $total_coefficient) . '%') ]
+    ]
+  });
+  print $coefficient_table->show() . $total_table->show();
 }
 
 1;

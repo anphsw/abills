@@ -26,8 +26,6 @@ our (
 );
 my $Paysys;
 
-use Maps2::Auxiliary qw/maps2_point_info_table/;
-
 #**********************************************************
 =head2 new()
 

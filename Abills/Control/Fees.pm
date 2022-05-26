@@ -149,30 +149,28 @@ sub form_fees {
       }
     }
 
-    my $list = $Shedule->list(
-      {
-        UID  => $user->{UID},
-        TYPE => 'fees'
-      }
-    );
+    my $list = $Shedule->list({
+      UID       => $user->{UID},
+      TYPE      => 'fees',
+      COLS_NAME => 1
+    });
 
     if ($Shedule->{TOTAL} > 0) {
-      my $table2 = $html->table(
-        {
-          width       => '100%',
-          caption     => $lang{SHEDULE},
-          title_plain => [ '#', $lang{DATE}, $lang{SUM}, '-' ],
-          qs          => $pages_qs,
-          ID          => 'USER_SHEDULE'
-        }
-      );
+      my $table2 = $html->table({
+        width       => '100%',
+        caption     => $lang{SHEDULE},
+        title_plain => [ '#', $lang{DATE}, $lang{SUM}, '-' ],
+        qs          => $pages_qs,
+        ID          => 'USER_SHEDULE'
+      });
 
       foreach my $line (@$list) {
-        my ($sum, undef) = split(/:/, $line->[7]);
-        my $delete = ($permissions{2}{2}) ? $html->button( $lang{DEL}, "index=85&del=$line->[14]",
-          { MESSAGE => "$lang{DEL} ID: $line->[13]?", class => 'del' } ) : '';
+        my ($sum, undef) = split(/:/, $line->{action});
+        my $delete = ($permissions{2}{2}) ? $html->button( $lang{DEL}, "index=85&del=$line->{id}",
+          { MESSAGE => "$lang{DEL} ID: $line->{id}?", class => 'del' } ) : '';
 
-        $table2->addrow($line->[13], "$line->[3]-$line->[2]-$line->[1]", sprintf('%.2f', $sum), $delete);
+        $table2->addrow($line->{admin_action} || $line->{comments}, "$line->{y}-$line->{m}-$line->{d}",
+          sprintf('%.2f', $sum || 0), $delete);
       }
 
       $Fees->{SHEDULE_FORM} = $table2->show();
@@ -182,19 +180,16 @@ sub form_fees {
 
     if ($permissions{2} && $permissions{2}{1}) {
       #exchange rate sel
-      $Fees->{SEL_ER} = $html->form_select(
-        'ER',
-        {
-          SELECTED   => undef,
-          SEL_LIST   => $Fees->exchange_list({ COLS_NAME => 1 }),
-          SEL_KEY    => 'id',
-          SEL_VALUE  => 'money,short_name',
-          NO_ID      => 1,
-          MAIN_MENU     => get_function_index('form_exchange_rate'),
-          MAIN_MENU_ARGV=> "chg=". ($FORM{ER} || q{}),
-          SEL_OPTIONS=> { '' => ''}
-        }
-      );
+      $Fees->{SEL_ER} = $html->form_select('ER', {
+        SELECTED   => undef,
+        SEL_LIST   => $Fees->exchange_list({ COLS_NAME => 1 }),
+        SEL_KEY    => 'id',
+        SEL_VALUE  => 'money,short_name',
+        NO_ID      => 1,
+        MAIN_MENU     => get_function_index('form_exchange_rate'),
+        MAIN_MENU_ARGV=> "chg=". ($FORM{ER} || q{}),
+        SEL_OPTIONS=> { '' => ''}
+      });
 
       if ($conf{EXT_BILL_ACCOUNT}) {
         $Fees->{EXT_DATA_FORM} = $html->form_select('BILL_ID',
@@ -209,16 +204,13 @@ sub form_fees {
         $Fees->{DOCS_FEES_ELEMENT} = $html->tpl_show(_include('docs_create_fees', 'Docs'), {},{ OUTPUT2RETURN => 1 });
       }
 
-      $Fees->{SEL_METHOD} = $html->form_select(
-        'METHOD',
-        {
-          SELECTED      => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : 0,
-          SEL_HASH      => dynamic_types({FEES_METHODS_HASH => $FEES_METHODS}),
-          NO_ID         => 1,
-          SORT_KEY_NUM  => 1,
-          MAIN_MENU     => get_function_index('form_fees_types'),
-        }
-      );
+      $Fees->{SEL_METHOD} = $html->form_select('METHOD', {
+        SELECTED      => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : 0,
+        SEL_HASH      => dynamic_types({FEES_METHODS_HASH => $FEES_METHODS}),
+        NO_ID         => 1,
+        SORT_KEY_NUM  => 1,
+        MAIN_MENU     => get_function_index('form_fees_types'),
+      });
 
       $html->tpl_show(templates('form_fees'), $Fees, { ID => 'form_fees' }) if (!$attr->{REGISTRATION});
     }
@@ -302,6 +294,7 @@ sub form_fees_list {
     TABLE => {
       width   => '100%',
       caption => $lang{FEES},
+      SHOW_FULL_LIST => ($FORM{UID}) ? 1 : undef,
       qs      => $pages_qs,
       pages   => $Fees->{TOTAL},
       ID      => 'FEES',

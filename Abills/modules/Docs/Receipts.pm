@@ -97,7 +97,7 @@ sub docs_receipt_add {
               . (defined($conf{DOCS_INVOICE_TERMO_PRINTER}) ?
                 $html->button('',
               "qindex=$index&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}&termo_printer_tpl=1",
-              { ex_params => 'target=_new', class => 'fa fa-print text-warning', TITLE => $lang{PRINT_TERMO_PRINTER}} ) : ' ')
+              { ex_params => 'target=_new', class => 'fas fa-print text-warning', TITLE => $lang{PRINT_TERMO_PRINTER}} ) : ' ')
           );
         }
       }
@@ -310,7 +310,7 @@ sub docs_receipt{
         $current_receipt{ $line->{orders} } = $line->{receipt_id};
       }
 
-      my $cross_modules_return = cross_modules_call( '_docs' );
+      my $cross_modules_return = cross_modules('docs');
       my $next_period = $FORM{NEXT_PERIOD};
       if ( $users->{ACTIVATE} ne '0000-00-00' ){
         ($Y, $M, $D) = split( /-/, POSIX::strftime( "%Y-%m-%d", localtime( (POSIX::mktime( 0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0,

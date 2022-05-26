@@ -4,7 +4,7 @@
   
 <div class='card card-primary card-outline box-form form-horizontal'>
   
-<div class='card-heading with-border text-primary'><h4 class='card-title'>_{FILTERS}_</h4></div>
+<div class='card-header with-border text-primary'><h4 class='card-title'>_{FILTERS}_</h4></div>
 
 <div class='card-body'>
 

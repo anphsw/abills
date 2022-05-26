@@ -1,4 +1,4 @@
-<script src='/styles/default_adm/js/modules/config/password_generator.js'></script>
+<script src='/styles/default/js/modules/config/password_generator.js'></script>
 
 <form action='$SELF_URL' METHOD='POST'>
   <input type='hidden' name='index' value='$index'>
@@ -78,8 +78,8 @@
   var password_configuration_string = '%CONFIG_PASSWORD%';
 
   var password_config_params = {
-    LENGTH : '%PW_LENGTH%',
-    SYMBOLS : '%PW_CHARS%' || '1234567890abcdefgjhiklmnopqrstyquvwxyz'
+    LENGTH: '%PW_LENGTH%',
+    SYMBOLS: '%PW_CHARS%' || '1234567890abcdefgjhiklmnopqrstyquvwxyz'
   };
 
   if (password_configuration_string !== ''){
@@ -118,7 +118,7 @@
   });
 </script>
 
-<link rel='stylesheet' href='/styles/default_adm/css/client_social_icons.css'>
+<link rel='stylesheet' href='/styles/default/css/client_social_icons.css'>
 <div class='row col-md-offset-2'>
   <ul class='social-network social-circle'>
     %SOCIAL_AUTH_BLOCK%

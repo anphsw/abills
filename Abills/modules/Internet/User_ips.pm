@@ -12,10 +12,11 @@ no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 our(
   $admin,
   $db,
-  $html,
   %conf,
   %lang
 );
+
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 internet_get_static_ip($pool_id) - Get static ip from pool
@@ -68,12 +69,12 @@ sub get_static_ip {
     $users_ips{ $line->{ip_num} } = 1;
   }
 
-  for (my $ip_cur = $start_ip ; $ip_cur <= $end_ip ; $ip_cur++) {
+  for (my $ip_cur = $start_ip ; $ip_cur < $end_ip ; $ip_cur++) {
     if ( !$users_ips{ $ip_cur }) {
-      my $ip = int2ip($ip_cur);
+      my $ip_ = int2ip($ip_cur);
 
-      if(!($ip ~~ @arr_ip_skip)) {
-        return $ip;
+      if(!($ip_ ~~ @arr_ip_skip)) {
+        return $ip_;
       }
     }
   }

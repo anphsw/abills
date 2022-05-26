@@ -145,6 +145,7 @@ sub quick_info_fees {
 =cut
 #**********************************************************
 sub form_slides_info {
+  my $uid = shift;
 
   my @base_slides = (
     { ID     => 'MAIN_INFO',
@@ -214,16 +215,21 @@ sub form_slides_info {
   );
 
   foreach my $module (@MODULES) {
-    load_module($module, $html);
-    my $fn = lc($module) . '_quick_info';
-    if (defined(&$fn)) {
-      my $slide_info = &{ \&$fn }({ GET_PARAMS => 1 });
 
-      $slide_info->{FN} = $fn;
-      $slide_info->{ID} = uc($module);
-      $slide_info->{MODULE} = $module;
-      push @base_slides, $slide_info;
-    }
+    my $plugin_name = $module . '::Base';
+    eval "require $plugin_name;";
+    my $function_name = lc $module . '_quick_info';
+
+    next if ($@ || !$plugin_name->can('new') || !$plugin_name->can($function_name));
+
+    my $plugin_api = $plugin_name->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+    my $slide_info = $plugin_api->$function_name({ GET_PARAMS => 1 });
+    
+    # $slide_info->{FN} = $plugin_api->$function_name;
+    $slide_info->{INFO} = $plugin_api->$function_name({ UID => $uid });
+    $slide_info->{ID} = uc($module);
+    $slide_info->{MODULE} = $module;
+    push @base_slides, $slide_info;
   }
 
   require Admin_slides;
@@ -266,31 +272,29 @@ sub form_slides_info {
 sub user_full_info {
   my ($attr) = @_;
 
-  my ($base_slides, $active_slides) = form_slides_info();
   my $content;
-  my $info     = '';
+  my $info = '';
   my @info_arr = ();
-  my $uid      = $attr->{UID} || $FORM{UID} || $LIST_PARAMS{UID};
+  my $uid = $attr->{UID} || $FORM{UID} || $LIST_PARAMS{UID};
 
-  if(! $uid) {
+  if (!$uid) {
     push @info_arr, q/{ "ERROR" : "Undefined UID" }/;
     return $info = join(",\n", @info_arr);
   }
 
-  for(my $slide_num=0; $slide_num <= $#{ $base_slides }; $slide_num++ ) {
+  my ($base_slides, $active_slides) = form_slides_info($uid);
+
+  for (my $slide_num = 0; $slide_num <= $#{$base_slides}; $slide_num++) {
     my @content_arr = ();
+    my $slide_name = $base_slides->[$slide_num]->{ID};
 
-    my $slide_name   = $base_slides->[$slide_num]->{ID};
-
-    if (scalar keys %$active_slides > 0 && ! $active_slides->{$slide_name} ) {
-      next;
-    }
+    next if scalar keys %$active_slides > 0 && !$active_slides->{$slide_name};
 
     my $field_info;
-    if($base_slides->[$slide_num]->{FN}) {
-      if(defined(&{$base_slides->[$slide_num]{FN}}))  {
+    if ($base_slides->[$slide_num]->{FN}) {
+      if (defined(&{$base_slides->[$slide_num]{FN}})) {
         my $fn = $base_slides->[$slide_num]->{FN};
-        $field_info = &{ \&$fn }({ UID => $uid });
+        $field_info = &{\&$fn}({ UID => $uid });
         next if (!$field_info);
       }
       else {
@@ -298,65 +302,67 @@ sub user_full_info {
       }
     }
 
+    $field_info = $base_slides->[$slide_num]{INFO} || {};
+
     if ($base_slides->[$slide_num]{SLIDES}) {
       my @slides = ();
-      foreach my $slide_line ( @{ $field_info } ) {
+      foreach my $slide_line (@{$field_info}) {
         my @slide_arr = ();
-        foreach my $filed_name ( @{ $base_slides->[$slide_num]->{SLIDES} }) {
-          while(my ($k, $v) = each %$filed_name) {
-            push @slide_arr, (($attr->{SHOW_ID}) ? qq{"$k" : "} : '"'. ((defined($v)) ? $v : q{}) .'" : "')
+        foreach my $filed_name (@{$base_slides->[$slide_num]->{SLIDES}}) {
+          while (my ($k, $v) = each %$filed_name) {
+            push @slide_arr, (($attr->{SHOW_ID}) ? qq{"$k" : "} : '"' . ((defined($v)) ? $v : q{}) . '" : "')
               . ((defined($slide_line->{$k})) ? $slide_line->{$k} : q{}) . '"';
           }
         }
-        push @slides, '{'. join(', ', @slide_arr) .'}';
+        push @slides, '{' . join(', ', @slide_arr) . '}';
       }
 
-      $content = '"SLIDES": [ '. join(",\n", @slides ) .' ]' ;
+      $content = '"SLIDES": [ ' . join(",\n", @slides) . ' ]';
     }
     else {
-      foreach my $field_name ( sort keys %{ $base_slides->[$slide_num]{FIELDS} } ) {
+      foreach my $field_name (sort keys %{$base_slides->[$slide_num]{FIELDS}}) {
         $field_name //= '';
         my $field_value = ($base_slides->[$slide_num]{FIELDS}->{$field_name}) ? $base_slides->[$slide_num]{FIELDS}->{$field_name} : q{};
-        if($conf{DEPOSIT_FORMAT} && $field_name eq 'DEPOSIT') {
+        if ($conf{DEPOSIT_FORMAT} && $field_name eq 'DEPOSIT') {
           if (defined($field_info->{$field_name}) && $field_info->{$field_name} =~ /\d+/) {
             $field_info->{$field_name} = sprintf($conf{DEPOSIT_FORMAT}, $field_info->{$field_name});
           }
         }
 
         my $information = (($attr->{SHOW_ID}) ? qq{"$field_name" : "} : qq{"$field_value" : "});
-          if(ref $field_info eq 'ARRAY') {
-           $information .= '-';
-         }
-         elsif(defined($field_info->{$field_name})) {
-           my $value = $field_info->{$field_name} || q{};
-           $value =~ s/[\r\n]+/ /g;
-           $value =~ s/\\/\\\\/g;
-           $value =~ s/\"/\\\\\\\"/g;
+        if (ref $field_info eq 'ARRAY') {
+          $information .= '-';
+        }
+        elsif (defined($field_info->{$field_name})) {
+          my $value = $field_info->{$field_name} || q{};
+          $value =~ s/[\r\n]+/ /g;
+          $value =~ s/\\/\\\\/g;
+          $value =~ s/\"/\\\\\\\"/g;
 
-           $information .= $value;
-         }
+          $information .= $value;
+        }
 
         $information .= qq{" };
 
         push @content_arr, $information;
       }
 
-      $content = '"CONTENT" : {'. join(",\n", @content_arr) . '}' ;
+      $content = '"CONTENT" : {' . join(",\n", @content_arr) . '}';
     }
 
-    foreach my $field_name ( keys %{ $base_slides->[$slide_num]{FIELDS} } ) {
+    foreach my $field_name (keys %{$base_slides->[$slide_num]{FIELDS}}) {
       my $field_value = ($base_slides->[$slide_num]{FIELDS}->{$field_name}) ? $base_slides->[$slide_num]{FIELDS}->{$field_name} : q{};
-      push @content_arr, qq{"$field_value" : "}. (ref $field_info eq 'HASH' && defined($field_info->{$field_name}) ? $field_info->{$field_name} : $field_name ) . qq{" };
+      push @content_arr, qq{"$field_value" : "} . (ref $field_info eq 'HASH' && defined($field_info->{$field_name}) ? $field_info->{$field_name} : $field_name) . qq{" };
     }
 
-    my $slide_info =  qq/
-  "NAME": "$slide_name",
-  "HEADER": "/. ( $base_slides->[$slide_num]->{HEADER} || $slide_name ) . qq/",
-  "SIZE": "/. (($active_slides->{$slide_name} && $active_slides->{$slide_name}->{SIZE}) ? $active_slides->{$slide_name}->{SIZE} : 1 ) . qq/",
-  "PROPORTION": "/ . ( $base_slides->[$slide_num]->{PROPORTION} || 2 ) . '",'
-  . (($base_slides->[$slide_num]->{MODULE}) ? qq/"MODULE" : "$base_slides->[$slide_num]->{MODULE}",\n/ : '')
-  . (($base_slides->[$slide_num]->{QUICK_TPL}) ? qq/"QUICK_TPL" : "$base_slides->[$slide_num]->{QUICK_TPL}",\n/ : '')
-  . qq/$content /;
+    my $slide_info = qq/
+      "NAME": "$slide_name",
+      "HEADER": "/ . ($base_slides->[$slide_num]->{HEADER} || $slide_name) . qq/",
+      "SIZE": "/ . (($active_slides->{$slide_name} && $active_slides->{$slide_name}->{SIZE}) ? $active_slides->{$slide_name}->{SIZE} : 1) . qq/",
+      "PROPORTION": "/ . ($base_slides->[$slide_num]->{PROPORTION} || 2) . '",'
+      . (($base_slides->[$slide_num]->{MODULE}) ? qq/"MODULE" : "$base_slides->[$slide_num]->{MODULE}",\n/ : '')
+      . (($base_slides->[$slide_num]->{QUICK_TPL}) ? qq/"QUICK_TPL" : "$base_slides->[$slide_num]->{QUICK_TPL}",\n/ : '')
+      . qq/$content /;
     push @info_arr, "{ $slide_info }";
   }
 

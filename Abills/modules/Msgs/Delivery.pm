@@ -20,6 +20,7 @@ our Abills::HTML $html;
 
 my $Msgs = Msgs->new($db, $admin, \%conf);
 my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+my $Attachments = Msgs::Misc::Attachments->new($db, $admin, \%conf);
 
 my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
 
@@ -64,6 +65,7 @@ sub msgs_delivery_main {
     $Msgs->msgs_delivery_add({ %FORM });
 
     if (!$Msgs->{errno}) {
+      _msgs_delivery_add_attachments($Msgs->{INSERT_ID});
       $html->message('success', $lang{INFO}, $lang{MESSAGE} . ' ' . $lang{ADDED});
     }
   }
@@ -77,6 +79,8 @@ sub msgs_delivery_main {
   elsif ($FORM{chg}) {
     $Msgs->{ACTION} = 'change';
     $Msgs->{ACTION_LNG} = $lang{CHANGE};
+    $Msgs->{ATTACHMENTS} = Abills::Base::json_former(_msgs_get_attachments($FORM{chg}) || [], { ESCAPE_DQ => 1 });
+
     $Msgs->msgs_delivery_info($FORM{chg});
     $FORM{STATUS} = $Msgs->{STATUS};
   }
@@ -91,6 +95,7 @@ sub msgs_delivery_main {
     $Msgs->msgs_delivery_change({ %FORM });
 
     if (!$Msgs->{errno}) {
+      _msgs_delivery_add_attachments($FORM{ID});
       $html->message('success', $lang{INFO}, $lang{MESSAGE} . ' ' . $lang{CHANGED});
     }
   }
@@ -348,6 +353,69 @@ sub sel_deliverys {
   );
 
   return $DELIVERY_SEL;
+}
+
+#**********************************************************
+=head2 _msgs_delivery_add_attachments($id)
+
+=cut
+#**********************************************************
+sub _msgs_delivery_add_attachments {
+  my $id = shift;
+
+  return if $Msgs->{errno} || !$id || !$FORM{UPLOAD_FILES};
+
+  my $attachments = $Msgs->attachments_list({
+    DELIVERY_ID  => $id,
+    FILENAME     => '_SHOW',
+    CONTENT_SIZE => '_SHOW'
+  });
+
+  foreach my $attachment (@{$attachments}) {
+    $Attachments->delete_attachment($attachment->{id});
+  }
+
+  for (my $i = 0; $i <= 2; $i++) {
+    my $input_name = 'FILE_UPLOAD' . (($i > 0) ? "_$i" : '');
+
+    next if !$FORM{ $input_name }->{filename};
+
+    $Attachments->attachment_add({
+      DELIVERY_ID  => $id,
+      FILENAME     => $FORM{ $input_name }->{filename},
+      CONTENT_TYPE => $FORM{ $input_name }->{'Content-Type'},
+      FILESIZE     => $FORM{ $input_name }->{Size},
+      CONTENT      => $FORM{ $input_name }->{Contents},
+    });
+  }
+
+  return;
+}
+
+#**********************************************************
+=head2 _msgs_get_attachments($delivery_id)
+
+=cut
+#**********************************************************
+sub _msgs_get_attachments {
+  my $delivery_id = shift;
+
+  my $attachments = $Msgs->attachments_list({
+    DELIVERY_ID  => $delivery_id,
+    FILENAME     => '_SHOW',
+    CONTENT_SIZE => '_SHOW'
+  });
+
+  my @attachments_buttons = ();
+  foreach my $attachment (@{$attachments}) {
+    push @attachments_buttons, {
+      filename => $attachment->{filename},
+      url      => "?get_index=msgs_admin&ATTACHMENT=$attachment->{id}",
+      size     => int2byte($attachment->{content_size})
+    };
+  }
+
+  return \@attachments_buttons;
 }
 
 1

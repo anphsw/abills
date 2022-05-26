@@ -240,8 +240,13 @@ sub user_change{
     $self->expire_date($attr, $Tariffs) if $Tariffs->{AGE} > 0;
     $attr->{EXPIRE} = $attr->{IPTV_EXPIRE} if $attr->{IPTV_EXPIRE};
   }
-  elsif ( ($old_info->{STATUS} == 1 || $old_info->{STATUS} == 2 || $old_info->{STATUS} == 4
-    || $old_info->{STATUS} == 5) && $attr->{STATUS} == 0 ){
+  elsif ( ($old_info->{STATUS}
+    && ($old_info->{STATUS} == 1
+    || $old_info->{STATUS} == 2
+    || $old_info->{STATUS} == 3
+    || $old_info->{STATUS} == 4
+    || $old_info->{STATUS} == 5))
+    && (defined($attr->{STATUS}) && $attr->{STATUS} == 0) ){
     my $tariffs = Tariffs->new( $self->{db}, $CONF, $admin );
     $self->{TP_INFO} = $tariffs->info( $old_info->{TP_ID} );
   }
@@ -308,6 +313,7 @@ sub user_list{
   }
   my $EXT_TABLE = '';
   $self->{EXT_TABLES} = '';
+  delete $self->{errno};
 
   my $WHERE = $self->search_former(
     $attr,
@@ -327,7 +333,7 @@ sub user_list{
       [ 'TP_ID',             'INT', 'service.tp_id',                                                             1 ],
       [ 'TV_SERVICE_ID',     'INT', 'tp.service_id', 'tp.service_id AS tv_service_id'                              ],
       [ 'TV_SERVICE_NAME',   'INT', 'tv_service.name', 'tv_service.name AS tv_service_name'                        ],
-      [ 'TP_CREDIT',         'INT', 'tp.credit:', 'tp_credit'                                                      ],
+      [ 'TP_CREDIT',         'INT', 'tp.credit', 'tp.credit AS tp_credit'                                          ],
       [ 'TP_FILTER',         'INT', 'tp.filter_id',                                                              1 ],
       [ 'TP_REDUCTION_FEE',  'INT', 'tp.reduction_fee', 'tp.reduction_fee AS tp_reduction_fee'                     ],
       [ 'PAYMENT_TYPE',      'INT', 'tp.payment_type',                                                           1 ],
@@ -356,8 +362,8 @@ sub user_list{
 
   $EXT_TABLE = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
   if ( $attr->{SHOW_CONNECTIONS} ){
-    $EXT_TABLE .= "LEFT JOIN dhcphosts_hosts dhcp ON (dhcp.uid=u.uid)
-                  LEFT JOIN nas  ON (nas.id=dhcp.nas)";
+    $EXT_TABLE .= "LEFT JOIN internet_main dhcp ON (dhcp.uid=u.uid)
+                  LEFT JOIN nas  ON (nas.id=dhcp.nas_id)";
 
     $self->{SEARCH_FIELDS} .= "INET_NTOA(nas.ip) AS nas_ip, dhcp.ports, nas.nas_type, nas.mng_user,
       DECODE(nas.mng_password, '$CONF->{secretkey}') AS mng_password, nas.mng_host_port, nas.id AS nas_id, ";
@@ -969,7 +975,7 @@ sub online{
 
       [ 'TP_NAME',          'STR',  'tp.name AS tp_name', 1 ],
       [ 'TP_BILLS_PRIORITY','INT',  'tp.bills_priority', 1 ],
-      [ 'TP_CREDIT',        'INT',  'tp.credit AS tp_credit', 1 ],
+      [ 'TP_CREDIT',        'INT',  'tp.credit', 'tp.credit AS tp_credit' ],
       [ 'NAS_NAME',         'STR',  'nas.name', 1 ],
       [ 'PAYMENT_METHOD',   'INT',  'tp.payment_type', 1 ],
       [ 'EXPIRED',          'DATE', "if(u.expire>'0000-00-00' AND u.expire <= curdate(), 1, 0) AS expired", 1 ],
@@ -1775,9 +1781,7 @@ sub services_add{
   my $self = shift;
   my ($attr) = @_;
 
-  if($attr->{PASSWORD}) {
-    $attr->{PASSWORD} = "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')",
-  }
+  $attr->{PASSWORD} = "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')"  if $attr->{PASSWORD};
 
   $self->query_add('iptv_services', $attr);
 
@@ -1796,13 +1800,11 @@ sub services_change{
   $attr->{USER_PORTAL} //= 0;
   $attr->{DISABLE} //= 0;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'iptv_services',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'iptv_services',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -2087,10 +2089,10 @@ sub extra_params_list {
     s.module as SERVICE_MODULE,
     g.name as GROUP_NAME,
     t.name as TP_NAME
-   FROM iptv_extra_params e
-    LEFT JOIN iptv_services s ON (e.service_id=s.id)
-    LEFT JOIN groups g ON (e.group_id=g.gid)
-    LEFT JOIN tarif_plans t ON (e.tp_id=t.tp_id)
+   FROM `iptv_extra_params` e
+    LEFT JOIN `iptv_services` s ON (e.service_id=s.id)
+    LEFT JOIN `groups` g ON (e.group_id=g.gid)
+    LEFT JOIN `tarif_plans` t ON (e.tp_id=t.tp_id)
     $WHERE
     ORDER BY $SORT $DESC",
     undef,
@@ -2270,6 +2272,25 @@ sub iptv_get_channels_by_service {
   );
 
   return $self->{list};
+}
+
+#**********************************************************
+=head2 iptv_promotion_tps()
+
+=cut
+#**********************************************************
+sub iptv_promotion_tps {
+  my $self = shift;
+
+  $self->query("SELECT t.tp_id, t.name, s.module, s.id AS service_id, t.name AS tp_name, t.month_fee, t.day_fee
+    FROM  tarif_plans t
+    LEFT JOIN iptv_services s ON (s.id = t.service_id)
+      WHERE t.promotional <> 0 AND t.module = 'Iptv'
+    GROUP BY t.tp_id",
+    undef, { COLS_NAME => 1 }
+  );
+
+  return $self->{list} || [];
 }
 
 1

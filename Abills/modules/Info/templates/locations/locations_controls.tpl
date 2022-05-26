@@ -6,6 +6,6 @@
         <span class='fa fa-plus'></span>
     </button>
     <button class='btn btn-xs btn-success' id='locationsShow'>
-        <span class='fa fa-map-marker'></span>
+        <span class='fa fa-map-marker-alt'></span>
     </button>
 </div>

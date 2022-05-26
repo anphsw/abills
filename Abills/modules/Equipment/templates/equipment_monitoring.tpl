@@ -8,5 +8,5 @@
     %status_charts%
   </div>
 </div>
-<script src='/styles/lte_adm/plugins/easypiechart/jquery.easypiechart.min.js'></script>
-<script src='/styles/lte_adm/plugins/easypiechart/easy-pie-chart.init.js'></script>
+<script src='/styles/default/plugins/easypiechart/jquery.easypiechart.min.js'></script>
+<script src='/styles/default/plugins/easypiechart/easy-pie-chart.init.js'></script>

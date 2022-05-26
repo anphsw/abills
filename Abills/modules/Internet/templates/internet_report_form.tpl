@@ -17,7 +17,7 @@
 
     <div class='form-group row' style='margin: 0 5px;'>
       <label class='control-label' for='REFRESH'>_{REFRESH}_ (sec): </label>
-      <input type='text' name='REFRESH' value='0' size='4' class='form-control' id='REFRESH'>
+      <input type='text' name='REFRESH' value='%REFRESH%' size='4' class='form-control' id='REFRESH'>
       <input type='SUBMIT' name='SHOW' value='_{SHOW}_' class='btn btn-primary' id='SHOW'>
     </div>
 

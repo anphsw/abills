@@ -7,7 +7,7 @@
     </div>
   </div>
 </form>
-<script src='/styles/default_adm/js/jquery.min.js'></script>
+<script src='/styles/default/js/jquery.min.js'></script>
 <script>
 jQuery(function(){
   setInterval(function(){ check_call(); }, 3000);

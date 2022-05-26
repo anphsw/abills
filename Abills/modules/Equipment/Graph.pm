@@ -110,12 +110,12 @@ sub add_graph {
       del_graph_data($attr);
     }
   }
+
   unless (-f $rrdfile) {
     $rrd->create(
       step => $step,
       @datasource,
       @{$archive->{$step} || $archive->{0}}
-
     );
   }
 
@@ -133,6 +133,8 @@ sub add_graph {
        PORT     - Port id
        TYPE     - Graph type: SPEED, SIGNAL, TEMPERATURE
        DS_NAMES - Array data source names
+       START_TIME - Start unixtime
+       END_TIME - End unixtime
 
 =cut
 #**********************************************************
@@ -145,6 +147,8 @@ sub get_graph_data {
   }
 
   my $rrdfile = $var_dir."db/rrd/".$attr->{NAS_ID}."_".$attr->{PORT}."_".lc($attr->{TYPE}).".rrd";
+  #$rrdfile = '/home/asm/tmp/101_4194304000.11_signal.rrd';
+  #$rrdfile = '/home/asm/tmp/101_4194304000.14_speed.rrd';
 
   unless (-f $rrdfile) {
     $html->message( 'err', $lang{ERROR}, "Can't open file '$rrdfile' $!" );
@@ -156,22 +160,37 @@ sub get_graph_data {
   my @def = ();
   my @xport = ();
 
+  if ($FORM{DEBUG}) {
+    foreach my $ds (keys %$ds_info) {
+      print "<b>$ds</b><br>";
+      foreach my $key (keys %{$ds_info->{$ds}}) {
+        print "$key - $ds_info->{$ds}->{$key} <br>";
+      }
+    }
+
+    my $start_rrd_time = $rrd->first();
+    my $stop_rrd_time = $rrd->last();
+
+    print "START_RRD: $start_rrd_time STOP_RRD: $stop_rrd_time";
+  }
+
   foreach my $ds_name (@{ $attr->{DS_NAMES} }) {
     if ($ds_info->{$ds_name}) {
       push @def, {
-          vname  => $ds_name."_vname",
-          file   => $rrdfile,
-          dsname => $ds_name,
-          cfunc  => "MAX"
-        };
+        vname  => $ds_name."_vname",
+        file   => $rrdfile,
+        dsname => $ds_name,
+        cfunc  => "MAX"
+      };
+
       push @xport, {
-          vname  => $ds_name."_vname",
-          legend => $ds_name
-        };
+        vname  => $ds_name."_vname",
+        legend => $ds_name
+      };
     }
   }
 
-  my $start_time = $attr->{START_TIME} || time() - 24 * 3600;
+  my $start_time = $attr->{START_TIME} || time() - 120 * 3600;
   my $end_time = $attr->{END_TIME} || time();
 
   if (@def) {

@@ -1,4 +1,4 @@
-<script src='/styles/default_adm/js/modules/ureports/sender_contact_choose.js'></script>
+<script src='/styles/default/js/modules/ureports/sender_contact_choose.js'></script>
 <script>
   var LANG = {
     NO_CONTACTS_FOR_TYPE: '_{NO_CONTACTS_FOR_TYPE}_'
@@ -63,7 +63,7 @@
 
         <div class='col-md-1 d-flex'>
           <button class='btn btn-default' id='MANUAL_EDIT_CONTACT_BTN'>
-            <span class='fa fa-pencil'></span>
+            <span class='fa fa-pencil-alt'></span>
           </button>
         </div>
       </div>
@@ -84,6 +84,7 @@
 
     </div>
 
+
     <div class='card-footer'>
       <input type=submit class='btn btn-primary' id='SUBMIT_UREPORTS_USER' name='%ACTION%' value='%LNG_ACTION%'>
       %HISTORY_BTN%
@@ -92,4 +93,6 @@
   </div>
 
   <div>%REPORTS_LIST%</div>
+
+  %SERVICES_LIST%
 </form>

@@ -7,5 +7,5 @@ PASSWORD: %PASSWORD%
 FIO:      %FIO%
 PHONE:    %PHONE%
 
-Site: http://
+Site: %BILL_URL%
 

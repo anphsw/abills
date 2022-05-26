@@ -98,7 +98,7 @@ sub ureports_send_reports {
         MESSAGE     => $message,
         SUBJECT     => $attr->{SUBJECT} || '',
         DEBUG       => ($debug > 2) ? $debug - 2 : undef
-      });
+      }) || $status;
     }
 
     if ($debug < 5) {

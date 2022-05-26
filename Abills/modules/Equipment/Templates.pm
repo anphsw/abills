@@ -297,7 +297,7 @@ sub equipment_stats_edit {
   		$table->addrow( $var->{param}, $var->{measure_type},$var->{comments},
     					$html->button('', "index=$index$pages_qs&EDIT=$var->{id}",
       							{
-    								ICON  => 'fa fa-pencil text-info',
+    								ICON  => 'fa fa-pencil-alt text-info',
     								title => $lang{DEL},
       							}
       						).
@@ -475,7 +475,7 @@ sub equipment_snmp_port_data {
             "$lang{STATS}: $lang{PORT} $key",
             "index=$stats_index&NAS_ID=$attr->{NAS_ID}&PORT=$key",
             {
-              ICON  => 'fa fa-pencil',
+              ICON  => 'fa fa-pencil-alt',
               title => "$lang{INFO}Port $key"
             }
           )
@@ -542,7 +542,7 @@ sub equipment_panel_new {
         $key->{nas_id}, $html->button($key->{nas_name}, "index=$index&NAS_ID=$key->{nas_id}"),
         $key->{nas_ip}, $key->{type_name}, $key->{model_name}, $key->{address_full},
         $html->button($lang{TRAPS}, "index=$traps_index&NAS_IP=$key->{nas_ip}", { ICON => 'fa fa-table', }).
-        $html->button($lang{EDIT},  "index=$edit_index&NAS_ID=$key->{nas_id}",  { ICON => 'fa fa-pencil-square-o', })
+        $html->button($lang{EDIT},  "index=$edit_index&NAS_ID=$key->{nas_id}",  { ICON => 'far fa-pencil-alt-square', })
       );
     }
     print $html->element('div', $table->show(),);
@@ -767,7 +767,7 @@ sub equipment_snmp_data {
       }
     );
 
-    my $edit = $html->button($lang{EDIT}, "index=$index&edit=1", { ICON => 'fa fa-pencil-square-o', });
+    my $edit = $html->button($lang{EDIT}, "index=$index&edit=1", { ICON => 'far fa-pencil-alt-square', });
 
     my $rows_count = 0;
     foreach my $key (@$tit) {
@@ -1230,7 +1230,7 @@ sub equipment_obj_data {
       }
     );
 
-    my $edit = $html->button($lang{EDIT}, "index=$index&edit=1", { ICON => 'fa fa-pencil-square-o', });
+    my $edit = $html->button($lang{EDIT}, "index=$index&edit=1", { ICON => 'far fa-pencil-alt-square', });
 
     foreach my $key (@$info) {
        $edit = $html->button( $lang{CHANGE}, "index=$index$pages_qs&OID=$oids->{$key->{oid_id}}",
@@ -1326,7 +1326,7 @@ sub oid_table {
   
   }
 
-  	my $edit = $html->button($lang{EDIT}, "index=$index&edit=1", { ICON => 'fa fa-pencil-square-o', });
+  	my $edit = $html->button($lang{EDIT}, "index=$index&edit=1", { ICON => 'far fa-pencil-alt-square', });
 
 	my $ul = $html->element('ul', "@li", { class => 'nav nav-tabs' });
 	my $tab = $html->element('div', "@panel", { class => 'tab-content' });
@@ -1441,7 +1441,7 @@ sub nms_snmp_get {
 	  $set_button = $html->element( 'span', undef,
       							{
 									ex_params  => qq/onclick=renewLeftBox($oid,'SET',$iid)/,
-    								class  => 'fa fa-pencil text-info',
+    								class  => 'fa fa-pencil-alt text-info',
       							}
       						);
   }
@@ -1642,8 +1642,8 @@ sub mibs_browser {
 
   my $IP = ($FORM{IP})? $FORM{IP} : 0 ;
   my $scr = qq(
-  			<link rel='stylesheet' href='/styles/default_adm/css/modules/cablecat/jquery.contextMenu.min.css'>
-  			<script src='/styles/default_adm/js/modules/cablecat/jquery.contextMenu.min.js'></script>
+  			<link rel='stylesheet' href='/styles/default/css/modules/cablecat/jquery.contextMenu.min.css'>
+  			<script src='/styles/default/js/modules/cablecat/jquery.contextMenu.min.js'></script>
 			<script>
 				\$(function(){
 					\$.contextMenu({

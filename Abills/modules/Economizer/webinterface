@@ -769,7 +769,7 @@ sub site_electric {
     $curl_cons->setopt(CURLOPT_WRITEDATA, \$response_body_cons);
     my $retcode_cons = $curl_cons->perform;
     while ($response_body_cons =~
-m/<tr >\s+<td class="text-center">\s+ <strong>\s+(.*?)\.(.*?)\s+<\/strong>\s+<\/td>\s+<td class="text-right"> (.*?)\.(.*?)<\/td>\s+<td>\s+<p>((.*?)<span class="pull-right"> (.*?)\.(.*?)<\/span>  <\/p>\s+)?(<p>(.*?)<span class="pull-right"> (.*?)\.(.*?)<\/span>  <\/p>\s+)?((<p>)(.*?)(<span class="pull-right">) (.*?)\.(.*?)<\/span>  <\/p>\s+)?(<p>(.*?)<span class="pull-right">(.*?)\.(.*?)<\/span>  <\/p>\s+)<p class="pull-right">\s+<a class="detailLink" (.*?)(\s+<strong class="text-danger">Докладніше<\/strong>\s+<i class="fa fa-arrow-down"><\/i>\s+<\/a>\s+<\/p>\s+<\/td>\s+<td class="text-right">\s+)(.*?)\.(.*?)\s+<\/td>\s+<td class="text-right">\s+(.*?)\.(.*?)\s+<\/td>\s+<\/tr>/g
+m/<tr >\s+<td class="text-center">\s+ <strong>\s+(.*?)\.(.*?)\s+<\/strong>\s+<\/td>\s+<td class="text-right"> (.*?)\.(.*?)<\/td>\s+<td>\s+<p>((.*?)<span class="float-right"> (.*?)\.(.*?)<\/span>  <\/p>\s+)?(<p>(.*?)<span class="pull-right"> (.*?)\.(.*?)<\/span>  <\/p>\s+)?((<p>)(.*?)(<span class="pull-right">) (.*?)\.(.*?)<\/span>  <\/p>\s+)?(<p>(.*?)<span class="pull-right">(.*?)\.(.*?)<\/span>  <\/p>\s+)<p class="pull-right">\s+<a class="detailLink" (.*?)(\s+<strong class="text-danger">Докладніше<\/strong>\s+<i class="fa fa-arrow-down"><\/i>\s+<\/a>\s+<\/p>\s+<\/td>\s+<td class="text-right">\s+)(.*?)\.(.*?)\s+<\/td>\s+<td class="text-right">\s+(.*?)\.(.*?)\s+<\/td>\s+<\/tr>/g
     )
     {
 

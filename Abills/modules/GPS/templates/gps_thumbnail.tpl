@@ -7,7 +7,7 @@
     <div class='card-body text-center' id='DELETE_THUMBNAIL_PANEL_BODY'>
         <img src='%IMG_PATH%' alt='admin_thumbnail'/>
         <button id='thumbnail_delete_button' class='btn btn-xs btn-danger' data-aid='%AID%' data-index='%DEL_INDEX%'>
-            <span class='fa fa-remove'></span>
+            <span class='fa fa-times'></span>
         </button>
 
     </div>

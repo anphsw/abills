@@ -223,7 +223,7 @@ sub ashield_tp {
       caption     => "$lang{TARIF_PLANS}",
       border      => 1,
       title_plain => [ '#', $lang{NAME}, $lang{PAYMENT_TYPE}, $lang{DAY_FEE}, $lang{MONTH_FEE}, $lang{AGE}, $lang{GROUP}, '-', '-' ],
-      cols_align  => [ 'right', 'left', 'center', 'center', 'center', 'right', 'right', 'right', 'right', 'center:noprint', 'center:noprint', 'center:noprint' ],
+      cols_align  => [ 'right', 'left', 'center', 'center', 'center', 'right', 'right', 'right', 'right', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none' ],
       ID          => 'ASHIELD_TARIF_PLANS'
     }
   );
@@ -272,7 +272,7 @@ sub ashield_tp {
       caption     => "Dr.Web AV Desk $lang{TARIF_PLANS}",
       border      => 1,
       title_plain => [ '#', $lang{NAME}, "$lang{DESCRIBE}", "$lang{GRACEPERIOD}", $lang{GROUP}, '-', '-' ],
-      cols_align  => [ 'right', 'left', 'center', 'center', 'center', 'right', 'right', 'right', 'right', 'center:noprint', 'center:noprint', 'center:noprint' ],
+      cols_align  => [ 'right', 'left', 'center', 'center', 'center', 'right', 'right', 'right', 'right', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none' ],
       ID          => 'ASHIELD_DR_WEB_TARIF_PLANS'
     }
   );
@@ -1154,7 +1154,7 @@ sub ashield_drweb_groups {
         caption    => "Ashield $lang{GROUPS}",
         border     => 1,
         title      => [ '#', $lang{NAME}, $lang{TYPE}, $lang{COMMENTS}, $lang{CHANGED}, $lang{CREATED}, 'Platform', '-' ],
-        cols_align => [ 'left', 'left', 'left', 'left', 'right', 'right', 'left', 'center:noprint', 'center:noprint' ],
+        cols_align => [ 'left', 'left', 'left', 'left', 'right', 'right', 'left', 'center:d-print-none', 'center:d-print-none' ],
         qs         => $pages_qs,
         pages      => $Ashield->{TOTAL},
         ID         => 'ASHIELD_GROUPS_LIST',

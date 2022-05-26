@@ -240,7 +240,7 @@ sub online_count {
     $WHERE = ($WHERE) ? "$WHERE AND c.status<11" : " WHERE c.status<11";
 
     $self->query(
-      "SELECT 1, COUNT(c.uid) AS total_users,
+      "SELECT 1, COUNT(DISTINCT c.uid) AS total_users,
       SUM(IF (c.status=1 or c.status>=3, 1, 0)) AS online,
       SUM(IF (c.status=2, 1, 0)) AS zaped
    FROM internet_online c
@@ -391,7 +391,7 @@ sub online {
       ['GUEST',             'INT', 'c.guest',                                      1 ],
       ['TURBO_MODE',        'INT', 'c.turbo_mode',                                 1 ],
       ['TURBO_BEGIN',       'INT', 'tm.start', 'tm.start AS turbo_begin' ],
-      ['TURBO_END',         'INT', 'tm.start + interval tm.time second', 'tm.start + interval tm.time second AS turbo_end' ],
+      ['TURBO_END',         'STR', 'tm.start + interval tm.time second', 'tm.start + interval tm.time second AS turbo_end' ],
       ['JOIN_SERVICE',      'INT', 'c.join_service',                               1 ],
       ['NAS_IP',            'IP',  'c.nas_ip_address',  'c.nas_ip_address AS nas_ip' ],
       ['ACCT_SESSION_TIME', 'INT', 'UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started) AS acct_session_time',1 ],
@@ -411,8 +411,8 @@ sub online {
       ['EXPIRE',            'DATE','u.expire',                                     1 ],
       ['INTERNET_EXPIRED',        'DATE',"IF(internet.expire>'0000-00-00' AND internet.expire <= CURDATE(), 1, 0) AS internet_expired", 1 ],
       ['INTERNET_EXPIRE',         'DATE','internet.expire AS internet_expire',      1 ],
-      ['DV_EXPIRED',        'DATE',"IF(internet.expire>'0000-00-00' AND internet.expire <= CURDATE(), 1, 0) AS internet_expired", 1 ],
-      ['DV_EXPIRE',         'DATE','internet.expire AS internet_expire',            1 ],
+      # ['DV_EXPIRED',        'DATE',"IF(internet.expire>'0000-00-00' AND internet.expire <= CURDATE(), 1, 0) AS internet_expired", 1 ],
+      # ['DV_EXPIRE',         'DATE','internet.expire AS internet_expire',            1 ],
       ['IP',                'IP',  'internet.ip',       'INET_NTOA(internet.ip) AS ip' ],
       ['SIMULTANEONSLY',    'INT', 'internet.logins',                               1 ],
       ['PORT',              'INT', 'internet.port',                                 1 ],
@@ -1174,7 +1174,7 @@ sub list {
       [ 'SENT2',           'INT', 'l.sent2',                      1],
       [ 'RECV2',           'INT', 'l.recv2',                      1],
       [ 'IP',              'IP',  'l.ip',   'INET_NTOA(l.ip) AS ip'],
-      [ 'FRAMED_IPV6_PREFIX',   'IP', 'c.framed_ipv6_prefix',  'INET6_NTOA(c.framed_ipv6_prefix) AS framed_ipv6_prefix', 1 ],
+      [ 'FRAMED_IPV6_PREFIX', 'IP', 'l.framed_ipv6_prefix',  'INET6_NTOA(l.framed_ipv6_prefix) AS framed_ipv6_prefix', 1 ],
       [ 'CID',             'STR', 'l.cid',                        1],
       [ 'TP_ID',           'INT', 'l.tp_id',                      1],
       [ 'TP_NUM',          'INT', 'tp.id   AS tp_num',            1],

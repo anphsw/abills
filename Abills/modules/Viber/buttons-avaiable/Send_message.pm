@@ -82,7 +82,7 @@ sub simple_msgs {
   my $self = shift;
   my ($attr) = @_;
 
-  my $subject = "Telegram Bot";
+  my $subject = "Viber Bot";
   my $chapter = 1;
 
   use Msgs;

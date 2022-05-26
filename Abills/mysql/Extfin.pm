@@ -9,7 +9,7 @@ package Extfin;
 use strict;
 use parent qw(dbcore);
 
-our $VERSION = 2.07;
+our $VERSION = 2.08;
 my ($admin, $CONF);
 my $MODULE = 'Extfin';
 
@@ -155,15 +155,15 @@ sub customers_list{
                          u.uid
                        $self->{SEARCH_FIELDS}
 
-     FROM users u
-     LEFT JOIN users_pi pi ON (u.uid = pi.uid)
-     LEFT JOIN companies company ON  (u.company_id=company.id)
-     LEFT JOIN bills b ON (u.bill_id = b.id)
-     LEFT JOIN bills cb ON  (company.bill_id=cb.id)
-     LEFT JOIN groups g ON  (u.gid=g.gid)
+     FROM `users` u
+     LEFT JOIN `users_pi` pi ON (u.uid = pi.uid)
+     LEFT JOIN `companies` company ON  (u.company_id=company.id)
+     LEFT JOIN `bills` b ON (u.bill_id = b.id)
+     LEFT JOIN `bills` cb ON  (company.bill_id=cb.id)
+     LEFT JOIN `groups` g ON  (u.gid=g.gid)
 
-     LEFT JOIN builds ON (builds.id=pi.location_id)
-     LEFT JOIN streets ON (streets.id=builds.street_id)
+     LEFT JOIN `builds` ON (builds.id=pi.location_id)
+     LEFT JOIN `streets` ON (streets.id=builds.street_id)
 
      $WHERE
      GROUP BY 12
@@ -642,6 +642,8 @@ sub paid_periodic_list{
       [ 'SUM',      'INT',  'pp.sum'      ],
       [ 'EXPIRE',   'DATE', 'pp.expire'   ],
       [ 'ACTIVATE', 'DATE', 'pp.activate' ],
+      [ 'DISABLE',  'INT',  'u.disable', 1 ],
+      [ 'DELETED',  'INT',  'u.deleted', 1 ]
     ],
     {
       WHERE       => 1,
@@ -661,10 +663,13 @@ sub paid_periodic_list{
      pp.aid,
      pp.uid,
      pp.id AS pt_id,
-     pp.activate
+     pp.activate,
+     u.id AS login,
+     u.disable
    FROM extfin_paids_types pt
-   LEFT join extfin_paids_periodic pp on (pt.id=pp.type_id $JOIN_WHERE)
-   LEFT join admins a on (pp.aid=a.aid)
+   LEFT JOIN extfin_paids_periodic pp FORCE INDEX FOR JOIN (`type_id`) ON (pt.id=pp.type_id $JOIN_WHERE)
+   LEFT JOIN admins a ON (pp.aid=a.aid)
+   LEFT JOIN users u FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.uid=pp.uid)
    $WHERE;",
     undef,
     $attr
@@ -672,15 +677,15 @@ sub paid_periodic_list{
 
   my $list = $self->{list};
 
-  if (defined($attr->{UID}) && $self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
+  if ($attr->{UID} && $self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
     $self->query(
       "SELECT
-        COUNT( DISTINCT u.id) AS total_services,
+        COUNT(DISTINCT u.id) AS total_services,
         COUNT(u.id) AS total_services
       FROM users u
         INNER JOIN extfin_paids_periodic pp ON (u.uid=pp.uid)
         LEFT JOIN extfin_paids_types pt ON (pt.id=pp.type_id)
-      WHERE u.uid = $attr->{UID}",
+      WHERE u.uid = '$attr->{UID}';",
       undef,
       { INFO => 1 }
     );
@@ -922,7 +927,7 @@ sub paid_reports{
   if ( $self->{TOTAL} > 0 || $PG > 0 ){
     $self->query( "SELECT count(p.id) AS total, SUM(sum) AS sum
      FROM extfin_paids p, admins a, users u 
-    WHERE p.uid=u.uid and p.aid=a.aid $WHERE;",
+    WHERE p.uid=u.uid and p.aid=a.aid;",
       undef,
       { INFO => 1 }
     );

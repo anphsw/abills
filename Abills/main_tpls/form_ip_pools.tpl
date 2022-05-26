@@ -1,4 +1,4 @@
-<script src='/styles/default_adm/js/modules/netlist/ipv4network.js'></script>
+<script src='/styles/default/js/modules/netlist/ipv4network.js'></script>
 <script>
     jQuery(document).ready(function () {
         var ip_input = jQuery('input#IP_id');
@@ -236,7 +236,7 @@
                         <div class='card-title'>
                             <h3 class="card-title">IPv6</h3>
                         </div>
-                        <div class='card-tools pull-right'>
+                        <div class='card-tools float-right'>
                             <button type='button' class='btn btn-tool' data-card-widget='collapse'
                                     data-parent='#accordion'
                                     href='#pool_v6' aria-expanded='false' aria-controls='pool_v6'><i
@@ -304,7 +304,7 @@
                         <div class='card-title'>
                             <h4 class="card-title">_{EXTRA}_</h4>
                         </div>
-                        <div class='card-tools pull-right'>
+                        <div class='card-tools float-right'>
                             <button type='button' class='btn btn-tool' data-card-widget='collapse'
                                     data-parent='#accordion'
                                     href='#pool_advanced' aria-expanded='false' aria-controls='pool_advanced'><i

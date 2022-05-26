@@ -13,7 +13,7 @@
       <div class='card-header with-border'>
         <div class='row' style='display: %RULES_SHOW_STYLE%;'>
           <div class='col-md-2'>
-            <button type='button' id='rules-btn' class='btn btn-success pull-left' data-toggle='modal' data-target='#rulesModal'>
+            <button type='button' id='rules-btn' class='btn btn-success float-left' data-toggle='modal' data-target='#rulesModal'>
               _{RULES}_
             </button>
           </div>

@@ -43,7 +43,7 @@
       console.log(jQuery(this).val());
       var val = jQuery(this).val();
 
-      jQuery.post('/admin/index.cgi', 'header=2&get_index=storage_invoces_payments&invoice_sum=1&INVOICE_ID=' + val, function (result) {
+      jQuery.post('/admin/index.cgi', 'header=2&get_index=storage_invoices_payments&invoice_sum=1&INVOICE_ID=' + val, function (result) {
         console.log(result);
         jQuery('#TOTAL_INVOICE_SUM').val(result);
       });

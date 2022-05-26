@@ -1,7 +1,7 @@
-<link rel='stylesheet' href='/styles/default_adm/css/modules/cablecat/cablecat.css'>
+<link rel='stylesheet' href='/styles/default/css/modules/cablecat/cablecat.css'>
 
-<script src='/styles/default_adm/js/dynamicForms.js'></script>
-<script src='/styles/default_adm/js/modules/cablecat/cablecat_link_info.js'></script>
+<script src='/styles/default/js/dynamicForms.js'></script>
+<script src='/styles/default/js/modules/cablecat/cablecat_link_info.js'></script>
 
 <script>
   if (typeof LANG === 'undefined') LANG = {};

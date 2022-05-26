@@ -44,7 +44,7 @@ sub click {
   my $self = shift;
   my ($attr) = @_;
   my $uid = $self->{bot}->{uid};
-  my $money_currency = $self->{conf}->{DOCS_MONEY_NAMES} || '';
+  my $money_currency = $self->{conf}->{MONEY_UNIT_NAMES} || '';
 
   use Users;
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});

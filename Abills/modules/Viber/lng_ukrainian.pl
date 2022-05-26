@@ -100,5 +100,6 @@ $lang{DEPOSIT} = 'Депозит';
 $lang{MSGS_CREATE} = 'Повідомлення повинно починатися з тега: ';
 $lang{WEB_SITE} = 'Сайт';
 $lang{PAYMENT_CREDENTIAL} = 'Платіжні реквізити';
+$lang{NO_PAYMENT_SYSTEMS} = 'Немає доступних платіжних систем';
 
 1;

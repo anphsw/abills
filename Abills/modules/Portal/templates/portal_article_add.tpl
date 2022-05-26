@@ -1,4 +1,4 @@
-<script src='/styles/default_adm/js/modules/portal.js'></script>
+<script src='/styles/default/js/modules/portal.js'></script>
 
 <form action=$SELF_URL name='portal_form' method=POST class='form-horizontal'>
   <input type=hidden name=index value=$index>

@@ -7,7 +7,7 @@ package Billing;
 =cut
 
 use strict;
-our $VERSION = 8.01;
+our $VERSION = 9.01;
 use parent 'main';
 use Tariffs;
 my $CONF;
@@ -66,8 +66,8 @@ sub traffic_calculations {
   my $self = shift;
   my ($RAD, $attr) = @_;
 
-  my $sent  = $RAD->{OUTBYTE}  || 0;    #default from server
-  my $recv  = $RAD->{INBYTE}   || 0;    #default to server
+  my $sent  = $RAD->{'Acct-Input-Octets'} || 0;    #default from server
+  my $recv  = $RAD->{'Acct-Output-Octets'} || 0;    #default to server
   my $sent2 = $RAD->{OUTBYTE2} || 0;
   my $recv2 = $RAD->{INBYTE2}  || 0;
 
@@ -354,36 +354,9 @@ sub get_traffic {
     $self->{PERIOD_TRAFFIC} = \%result;
     return \%result;
   }
-  # elsif ($CONF->{DV_INTERVAL_PREPAID}) {
-  #   my $period2 =$period;
-  #   $period2 =~ s/start/li\.added/g;
-  #   my $sql = "SELECT li.traffic_type,
-  #     SUM(li.sent) / $CONF->{MB_SIZE},
-  #     SUM(li.recv) / $CONF->{MB_SIZE}
-  #     FROM dv_log_intervals li
-  #     WHERE li.uid $WHERE
-  #       AND li.interval_id='$self->{TI_ID}'
-  #       AND ($period2)";
-  #   $self->query2($sql);
-  #
-  #   if ($self->{TOTAL} > 0) {
-  #     foreach my $line (@{ $self->{list} }) {
-  #       my $sufix = (! $line->[0]) ? '' : "_".($line->[0]+1);
-  #       $result{'TRAFFIC_OUT'.$sufix} = ($result{'TRAFFIC_OUT'.$sufix}) ? $result{'TRAFFIC_OUT'.$sufix} + $line->[1] : $line->[1];
-  #       $result{'TRAFFIC_IN'.$sufix}  = ($result{'TRAFFIC_IN'.$sufix}) ? $result{'TRAFFIC_IN'.$sufix} + $line->[2] : $line->[2];
-  #     }
-  #   }
-  #
-  #   $self->{PERIOD_TRAFFIC} = \%result;
-  #   return \%result;
-  # }
 
-  # my $log_table = 'dv_log';
-  # my $online_table = 'dv_calls';
-  # if($self->{INTERNET}) {
   my $log_table ='internet_log';
   my $online_table ='internet_online';
-  #}
 
   $self->query2("SELECT
       SUM(sent)  / $CONF->{MB_SIZE} + SUM(acct_output_gigawords) * 4096,
@@ -535,8 +508,8 @@ sub session_sum {
   if(! $SESSION_START) {
     $SESSION_START = 'UNIX_TIMESTAMP()';
   }
-  my $sent  = $RAD->{OUTBYTE}  || 0;    #from server
-  my $recv  = $RAD->{INBYTE}   || 0;    #to server
+  my $sent  = $RAD->{'Acct-Input-Octets'}  || 0;    #from server
+  my $recv  = $RAD->{'Acct-Output-Octets'}   || 0;    #to server
   my $sent2 = $RAD->{OUTBYTE2} || 0;
   my $recv2 = $RAD->{INBYTE2}  || 0;
 
@@ -565,7 +538,8 @@ sub session_sum {
     u.credit,
     u.ext_bill_id,
     i.tp_id,
-    i.detail_stats
+    i.detail_stats,
+    $SESSION_START AS session_start
    FROM users u
    INNER JOIN internet_main i ON (i.uid=u.uid)
    WHERE i.id='$attr->{SERVICE_ID}';",
@@ -617,8 +591,6 @@ sub session_sum {
         return -3, 0, 0, 0, 0, 0;
       }
     }
-
-    #$self->{TP_NUM} = $attr->{TP_NUM};
   }
   elsif ($attr->{UID}) {
     $self->query2("SELECT
@@ -672,29 +644,6 @@ sub session_sum {
       );
       $self->{TP_ID}=$attr->{TP_ID};
     }
-   #  else {
-   #    $self->query2("SELECT
-   #  tp.min_session_cost,
-   #  tp.payment_type,
-   #  tp.octets_direction,
-   #  tp.traffic_transfer_period,
-   #  tp.total_time_limit,
-   #  tp.total_traf_limit,
-   #  tp.month_traf_limit,
-   #  tp.tp_id,
-   #  tp.neg_deposit_filter_id,
-   #  tp.bills_priority,
-   #  tp.credit AS tp_credit
-   # FROM tarif_plans tp
-   # WHERE tp.id= ? AND tp.domain_id= ? ;",
-   #      undef,
-   #      { INFO => 1,
-   #        Bind => [
-   #          $attr->{TP_NUM},
-   #          $self->{DOMAIN_ID} || 0
-   #        ] }
-   #    );
-   #  }
 
     if ($self->{errno}) {
       #TP not found
@@ -705,65 +654,7 @@ sub session_sum {
         return -3, 0, 0, 0, 0, 0;
       }
     }
-
-    #$self->{TP_NUM} = $attr->{TP_NUM};
   }
-  #If defined TP_NUM
-  # elsif ($attr->{TP_NUM}) {
-  #   $self->query2("SELECT
-  #   u.uid,
-  #   UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')) AS day_begin,
-  #   DAYOFWEEK(FROM_UNIXTIME($SESSION_START)) AS day_of_week,
-  #   DAYOFYEAR(FROM_UNIXTIME($SESSION_START)) AS day_of_year,
-  #   u.reduction,
-  #   u.bill_id,
-  #   u.activate,
-  #   u.company_id,
-  #   u.ext_bill_id
-  #  FROM users u
-  #  WHERE  u.id='$USER_NAME' and u.domain_id='$attr->{DOMAIN_ID}';",
-  #  undef,
-  #  { INFO => 1 }
-  #   );
-  #
-  #   if ($self->{errno}) {
-  #     #user not found
-  #     if ($self->{errno} == 2) {
-  #       return -2, 0, 0, 0, 0, 0;
-  #     }
-  #     else {
-  #       return -3, 0, 0, 0, 0, 0;
-  #     }
-  #   }
-  #
-  #   $self->query2("SELECT
-  #   tp.min_session_cost,
-  #   tp.payment_type,
-  #   tp.octets_direction,
-  #   tp.traffic_transfer_period,
-  #   tp.total_time_limit,
-  #   tp.total_traf_limit,
-  #   tp.month_traf_limit,
-  #   tp.tp_id,
-  #   tp.bills_priority,
-  #   tp.credit
-  #  FROM tarif_plans tp
-  #  WHERE tp.id='$attr->{TP_NUM}' AND tp.domain_id='$attr->{DOMAIN_ID}';",
-  #  undef,
-  #  { INFO => 1 }
-  #   );
-  #
-  #   if ($self->{errno}) {
-  #     #TP not found
-  #     if ($self->{errno} == 2) {
-  #       return -5, 0, 0, 0, 0, 0;
-  #     }
-  #     else {
-  #       return -3, 0, 0, 0, 0, 0;
-  #     }
-  #   }
-  #   $self->{TP_NUM} = $attr->{TP_NUM};
-  # }
   elsif ($self->{INTERNET}) {
     return 0, 0, 0, 0, 0, 0;
   }
@@ -810,47 +701,6 @@ sub session_sum {
       }
     }
   }
-
-#  if ($self->{JOIN_SERVICE}) {
-#    if ($self->{JOIN_SERVICE} > 1) {
-#      $self->query2("SELECT
-#        tp.id as tp_num,
-#        tp.min_session_cost,
-#        tp.payment_type,
-#        tp.octets_direction,
-#        tp.traffic_transfer_period,
-#        tp.neg_deposit_filter_id,
-#        tp.tp_id,
-#        tp.credit AS tp_credit
-#       FROM (dv_main dv,  tarif_plans tp)
-#       WHERE dv.tp_id=tp.id AND tp.domain_id='$attr->{DOMAIN_ID}'
-#       and dv.uid='$self->{JOIN_SERVICE}';",
-#       undef,
-#       { INFO => 1 }
-#      );
-#
-#      if ($self->{errno}) {
-#        #user not found
-#        if ($self->{errno} == 2) {
-#          return -2, 0, 0, 0, 0, 0;
-#        }
-#        else {
-#          return -3, 0, 0, 0, 0, 0;
-#        }
-#      }
-#
-#      $self->{UIDS} = "$self->{JOIN_SERVICE}";
-#    }
-#    else {
-#      $self->{UIDS}         = $self->{UID};
-#      $self->{JOIN_SERVICE} = $self->{UID};
-#    }
-#
-#    $self->query2("SELECT uid FROM dv_main WHERE join_service='$self->{JOIN_SERVICE}';");
-#    foreach my $line (@{ $self->{list} }) {
-#      $self->{UIDS} .= ", $line->[0]";
-#    }
-#  }
 
   if ($self->{TOTAL_TIME_LIMIT} && $self->{CHECK_SESSION}) {
     if ($SESSION_DURATION >= $self->{TOTAL_TIME_LIMIT}) {
@@ -905,13 +755,13 @@ sub session_sum {
     return $self->{UID}, $sum, $self->{BILL_ID}, $self->{TP_ID}, 0, 0;
   }
 
-  $self->session_splitter($SESSION_START, $SESSION_DURATION, $self->{DAY_BEGIN},
+  $self->session_splitter($self->{SESSION_START} || $SESSION_START, $SESSION_DURATION, $self->{DAY_BEGIN},
     $self->{DAY_OF_WEEK}, $self->{DAY_OF_YEAR}, { TP_ID => $self->{TP_ID} });
 
   #session devisions
   my @sd = @{ $self->{TIME_DIVISIONS_ARR} };
 
-  if (!defined($self->{NO_TPINTERVALS})) {
+  if (!$self->{NO_TPINTERVALS}) {
     if ($#sd < 0) {
       print "NOT_ALLOW_START_PERIOD" if ($self->{debug});
       return -16, 0, 0, 0, 0, 0;
@@ -1093,8 +943,10 @@ sub session_splitter {
     }
 
     $count++;
-    print "Count: $count TARRIF_DAY: $tarif_day\n" if ($debug == 1);
-    print "\t> Start: $start (" . Abills::Base::sec2time($start, { str => 'yes' }) . ") Duration: $duration\n" if ($debug == 1);
+    if ($debug == 1) {
+      print "Count: $count TARRIF_DAY: $tarif_day\n";
+      print "\t> Start: $start (" . Abills::Base::sec2time($start, { str => 'yes' }) . ") Duration: $duration\n";
+    }
 
     my $cur_int = $time_intervals->{$tarif_day};
     my $i;
@@ -1124,7 +976,6 @@ sub session_splitter {
 
         #IF Start + DUARATION < END period last the calculation
         if ($start + $duration < $int_end) {
-
           #experimental division time arr
           push @division_time_arr, "$int_id,$duration";
           $duration = 0;
@@ -1224,7 +1075,7 @@ sub time_calculation {
   #session devisions
   my @sd = @{ $self->{TIME_DIVISIONS_ARR} };
 
-  if (!defined($self->{NO_TPINTERVALS})) {
+  if (!$self->{NO_TPINTERVALS}) {
     if ($#sd < 0) {
       $self->{errno}  = 3;
       $self->{errstr} = "Not allow start period-";

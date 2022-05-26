@@ -668,6 +668,7 @@ sub auth_user {
 
     if ($user->{TOTAL} < 1) {
       delete $FORM{REFERER};
+      delete $user->{errno};
       #$html->message('err', "$lang{ERROR}", "$lang{NOT_LOGINED}");
       #return 0;
     }
@@ -800,7 +801,7 @@ sub auth_user {
       );
 
       $OUTPUT{MESSAGE} = $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD},
-        { OUTPUT2RETURN => 1 } );
+        { OUTPUT2RETURN => 1, ID => 900 } );
     }
     $ret = 0;
   }

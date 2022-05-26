@@ -29,14 +29,14 @@
   <div class='form-group'>
     <label class='control-sidebar-subheading'>
       _{DISABLE}_
-      <input type='checkbox' class='pull-right' data-return='1' name='NO_EVENT'
+      <input type='checkbox' class='float-right' data-return='1' name='NO_EVENT'
              value='1' data-checked='%NO_EVENT%'/>
     </label>
   </div>
   <div class='form-group'>
     <label class='control-sidebar-subheading'>
       _{DISABLE}_ _{SOUND}_
-      <input type='checkbox' class='pull-right' data-return='1'
+      <input type='checkbox' class='float-right' data-return='1'
              name='NO_EVENT_SOUND' value='1' data-checked='%NO_EVENT_SOUND%'/>
     </label>
   </div>
@@ -44,7 +44,7 @@
   <div class='form-group'>
     <label class='control-sidebar-subheading'>
       _{LIGHT_SKIN_MENU}_
-      <input type='checkbox' data-sidebarskin='toggle' class='pull-right' data-return='1'
+      <input type='checkbox' data-sidebarskin='toggle' class='float-right' data-return='1'
              name='MENU_SKIN' value='1' data-checked='%MENU_SKIN%'/>
     </label>
   </div>
@@ -52,21 +52,21 @@
   <!--    <div class='form-group'>
           <label class='control-sidebar-subheading'>
               _{FIXED_LAYOUT}_
-              <input type='checkbox' data-layout='fixed' class='pull-right' data-return='1'
+              <input type='checkbox' data-layout='fixed' class='float-right' data-return='1'
                      name='FIXED' value='1' data-checked='%FIXED%'/>
           </label>
       </div>-->
   <div class='form-group'>
     <label class='control-sidebar-subheading'>
       _{FIXED_HEADER}_
-      <input type='checkbox' data-header='fixed' class='pull-right' data-return='1'
+      <input type='checkbox' data-header='fixed' class='float-right' data-return='1'
              name='HEADER_FIXED' value='1' data-checked='%HEADER_FIXED%'/>
     </label>
   </div>
   <div class='form-group'>
     <label class='control-sidebar-subheading'>
       _{ALWAYS_HIDE_RIGHT_MENU}_
-      <input type='checkbox' class='pull-right' data-return='1'
+      <input type='checkbox' class='float-right' data-return='1'
              name='RIGHT_MENU_HIDDEN' value='1' data-checked='%RIGHT_MENU_HIDDEN%'/>
     </label>
   </div>

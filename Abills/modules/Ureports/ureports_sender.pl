@@ -40,32 +40,30 @@ use Abills::Templates;
 use Abills::Misc;
 use Admins;
 use Shedule;
-use Dv_Sessions;
 use Internet::Sessions;
 use Finance;
 use Fees;
 use Ureports;
+use Ureports::Base;
 use Tariffs;
 use POSIX qw(strftime);
 
 require Control::Services;
 
-our $html = Abills::HTML->new(
-  {
-    IMG_PATH => 'img/',
-    NO_PRINT => 1,
-    CONF     => \%conf,
-    CHARSET  => $conf{default_charset},
-    csv      => 1
-  }
-);
+our $html = Abills::HTML->new({
+  IMG_PATH => 'img/',
+  NO_PRINT => 1,
+  CONF     => \%conf,
+  CHARSET  => $conf{default_charset},
+  csv      => 1
+});
 
 
 #my $begin_time = check_time();
 $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
   { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 
-require Ureports::Send; # qw/ureports_send_reports/;
+# require Ureports::Send; # qw/ureports_send_reports/;
 
 #Always our for crossmodules
 our $admin = Admins->new($db, \%conf);
@@ -76,6 +74,7 @@ my $Fees = Fees->new($db, $admin, \%conf);
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Shedule = Shedule->new($db, $admin, \%conf);
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+my $Ureports_base = Ureports::Base->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 if ($html->{language} ne 'english') {
   do $Bin . "/../language/english.pl";
@@ -194,6 +193,12 @@ sub ureports_periodic_reports {
       #Skip disabled user
       next if ($internet_status == 1 || $internet_status == 2 || $internet_status == 3);
       $user->{VALUE} =~ s/,/\./s;
+
+      if (! $user->{DESTINATION_ID}) {
+        print "ERROR! LOGIN: $user->{LOGIN} Not defined destination id. \n Check sending information\n";
+        next;
+      }
+
       $debug_output .= "LOGIN: $user->{LOGIN} ($user->{UID}) DEPOSIT: $user->{deposit} CREDIT: $user->{credit} Report id: $user->{REPORT_ID} INTERNET STATUS: $internet_status $user->{DESTINATION_ID}\n" if ($debug > 3);
 
       if ($user->{BILL_ID} && defined($user->{DEPOSIT})) {
@@ -545,7 +550,7 @@ sub ureports_periodic_reports {
       next if (scalar keys %PARAMS <= 0);
 
       #Send reports section
-      my $send_status = ureports_send_reports(
+      my $send_status = $Ureports_base->ureports_send_reports(
         $user->{DESTINATION_TYPE},
         $user->{DESTINATION_ID},
         $PARAMS{MESSAGE},

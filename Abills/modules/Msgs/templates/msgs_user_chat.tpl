@@ -137,7 +137,7 @@
     _{CHAT}_
     <span id="Chat_count" class="label alert-danger ch_count" style="display: none">0</span>
     <audio preload="auto">
-      <source src="/styles/default_adm/bb2_new.mp3" type="audio/mpeg">
+      <source src="/styles/default/bb2_new.mp3" type="audio/mpeg">
     </audio>
   </div>
   <div class="body panel panel-default">
@@ -154,7 +154,7 @@
     </div>
   </div>
 </section>
-<script src="/styles/default_adm/js/msgs/jquery-ui.min.js"></script>
+<script src="/styles/default/js/msgs/jquery-ui.min.js"></script>
 <script>
   var stop_scroll = 0;
   var mytimeout;

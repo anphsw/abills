@@ -92,7 +92,7 @@ sub plugin_show {
 
   return $html->button('', $url, {
     class     => 'btn btn-primary group-btn',
-    ICON      => 'fa fa-print print',
+    ICON      => 'fas fa-print print',
     TITLE     => $lang->{PRINT},
     ex_params => 'target=new, data-button-group=1'
   });

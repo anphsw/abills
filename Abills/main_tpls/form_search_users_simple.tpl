@@ -24,48 +24,6 @@
 
 <script>
 
-jQuery.getScript('/styles/default_adm/js/select2.min.js', function () {
-  var example = jQuery('select#LOGIN_SEARCH_id').select2();
-  example.select2({
-//    dropdownParent: jQuery('#CurrentOpenedModal'),
-    ajax: {
-      url        : '/admin/index.cgi',
-      dataType   : "json",
-      type       : "POST",
-      quietMillis: 50,
-      data: function(term) {
-        return {
-          qindex        : 7,
-          header        : 1,
-          search        : 1,
-          type          : 10,
-          json          : 1,
-          SKIP_FULL_INFO: 1,
-          LOGIN         : term.term,
-          EXPORT_CONTENT: 'USERS_LIST'
-        }
-      },
-      processResults : function(data) {
-        var results = [];
-//
-        if (data['DATA_1']) {
-          jQuery.each(data['DATA_1'], function (i, val) {
-            results.push({
-              id: val.login,
-              text : val.login
-              + ( val.fio ? ' ' + val.fio : '')
-              + ( val.address_full ? ' (' + val.address_full + ') ' : '')
-            });
-          });
-
-          return {results: results};
-        }
-        // Additional AJAX parameters go here; see the end of this chapter for the full code of this example
-      }
-    }
-  });
-});
-
   function setupSearchForm() {
     var search_form = jQuery('form#form-search');
 
@@ -76,7 +34,7 @@ jQuery.getScript('/styles/default_adm/js/select2.min.js', function () {
 
     // Set up inner window logic
     var search_button = jQuery('button#search');
-    var have_results  = jQuery('.clickSearchResult').length > 0;
+    var have_results = jQuery('.clickSearchResult').length > 0;
 
     if (search_button.length) {
       search_button.on('click', function () {
@@ -96,8 +54,43 @@ jQuery.getScript('/styles/default_adm/js/select2.min.js', function () {
   }
 
   jQuery(function () {
-    pageInit(jQuery('form#form-search'));
     setupSearchForm();
 
+    jQuery.getScript('/styles/default/js/select2.min.js', function () {
+      jQuery('select#LOGIN_SEARCH_id').select2({
+        ajax: {
+          url: '/admin/index.cgi',
+          dataType: "json",
+          type: "POST",
+          quietMillis: 50,
+          data: function (term) {
+            return {
+              qindex: 7,
+              header: 1,
+              search: 1,
+              type: 10,
+              json: 1,
+              SKIP_FULL_INFO: 1,
+              LOGIN: term.term,
+              EXPORT_CONTENT: 'USERS_LIST'
+            }
+          },
+          processResults: function (data) {
+            var results = [];
+            if (!data['DATA_1']) return {};
+            jQuery.each(data['DATA_1'], function (i, val) {
+              results.push({
+                id: val.login,
+                text: val.login + (val.fio ? ' ' + val.fio : '')
+                  + (val.address_full ? ' (' + val.address_full + ') ' : '')
+              });
+            });
+
+            return {results: results};
+            // Additional AJAX parameters go here; see the end of this chapter for the full code of this example
+          }
+        }
+      });
+    });
   });
 </script>

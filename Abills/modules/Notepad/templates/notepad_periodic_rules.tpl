@@ -46,6 +46,6 @@
   </div>
 </div>
 
-<script src='/styles/default_adm/js/modules/notepad/periodic.js'></script>
+<script src='/styles/default/js/modules/notepad/periodic.js'></script>
 
 <hr/>

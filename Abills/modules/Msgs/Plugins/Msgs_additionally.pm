@@ -123,7 +123,7 @@ sub _get_additionally_data {
 
   my $icon_button = $html->element('i', '', { class => 'fa fa-plus' });
   my $button_plus = $html->element('button', $icon_button, { class => 'btn btn-tool', 'data-card-widget' => 'collapse' });
-  my $button_collapse = $html->element('div', $button_plus, { class => 'card-tools pull-right' });
+  my $button_collapse = $html->element('div', $button_plus, { class => 'card-tools float-right' });
 
   my $head_title = $html->element('h4', $lang->{EXTRA}, { class => 'card-title' });
   my $head_box = $html->element('div', $head_title . $button_collapse, { class => 'card-header' });

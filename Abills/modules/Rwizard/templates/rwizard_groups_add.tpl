@@ -21,7 +21,7 @@
         <label class='control-label col-md-3' for='ADMINS'>_{ADMINS}_</label>
         <div class='col-md-9'>
           <input type='hidden' id='ADMINS' name='ADMINS' value=''>
-          <button type='button' class='btn btn-primary pull-left' data-toggle='modal' data-target='#myModal' 
+          <button type='button' class='btn btn-primary float-left' data-toggle='modal' data-target='#myModal'
                   onClick='return openModal()'>_{SELECTED}_: <span class='admin_count'></span></button>
         </div>
       </div>

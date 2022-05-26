@@ -564,48 +564,41 @@ sub cards_bruteforce {
   if ($FORM{del} && $FORM{COMMENTS}) {
     $Cards->bruteforce_del({ UID => $FORM{del} });
     if (!$Cards->{errno}) {
-      $html->message('info', $lang{DELETED}, "$lang{DELETED} ");
+      $html->message('info', $lang{DELETED}, $lang{DELETED});
     }
   }
   elsif ($FORM{UID}) {
-
     $LIST_PARAMS{UID} = $FORM{UID};
     my $list  = $Cards->bruteforce_list({%LIST_PARAMS});
-    my $table = $html->table(
-      {
-        width      => '100%',
-        title      => [ $lang{USER}, "PIN", $lang{DATE} ],
-        qs         => $pages_qs,
-        pages      => $Cards->{TOTAL}
-      }
-    );
+    my $table = $html->table({
+      width      => '100%',
+      title      => [ $lang{USER}, "PIN", $lang{DATE} ],
+      qs         => $pages_qs,
+      pages      => $Cards->{TOTAL}
+    });
 
     foreach my $line (@$list) {
       $table->addrow($html->button($line->[0], "index=15&UID=". ($line->[4] || q{})), $line->[1], $line->[2]);
     }
 
     print $table->show();
-    $table = $html->table(
-      {
-        width      => '100%',
-        rows       => [ [ "$lang{TOTAL}:", $html->b($Cards->{TOTAL}) ] ]
-      }
-    );
+    $table = $html->table({
+      width      => '100%',
+      rows       => [ [ "$lang{TOTAL}:", $html->b($Cards->{TOTAL}) ] ]
+    });
     print $table->show();
 
     return 0;
   }
 
   my $list  = $Cards->bruteforce_list({%LIST_PARAMS});
-  my $table = $html->table(
-    {
-      width      => '100%',
-      title      => [ $lang{USER}, $PERIODS[0], $lang{TOTAL}, $lang{DATE}, '-' ],
-      qs         => $pages_qs,
-      pages      => $Cards->{TOTAL},
-      ID         => 'CARDS_BRUTEFORCE_LIST'
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    title      => [ $lang{USER}, $PERIODS[0], $lang{TOTAL}, $lang{DATE}, '-' ],
+    qs         => $pages_qs,
+    pages      => $Cards->{TOTAL},
+    ID         => 'CARDS_BRUTEFORCE_LIST'
+  });
 
   foreach my $line (@$list) {
     $table->addrow(
@@ -613,19 +606,19 @@ sub cards_bruteforce {
       $line->[1],
       $line->[2],
       $line->[3],
-      $html->button("$lang{SHOW}", "index=$index&UID=$line->[4]", { class => 'show' })
-       . $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->[4]", { MESSAGE => "$lang{DEL} [$line->[0]] ?", class => 'del' })
+      $html->button($lang{SHOW}, "index=$index&UID=$line->[4]", { class => 'show' })
+       . $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->[4]", {
+        MESSAGE => "$lang{DEL} [". ($line->[0] || q{}) ."] ?", class => 'del' })
     );
   }
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", $html->b($Cards->{TOTAL}) ] ]
-    }
-  );
+  $table = $html->table({
+    width      => '100%',
+    rows       => [ [ "$lang{TOTAL}:", $html->b($Cards->{TOTAL}) ] ]
+  });
+
   print $table->show();
 
   return 1;
@@ -850,27 +843,29 @@ sub cards_user_payment  {
   }
 
   my $rand = rand();
+  my $uid = $user->{UID} || $FORM{UID} || 0;
   my DBI $_db = $db->{db};
   if (($FORM{PIN} && $FORM{SERIAL}) || ($FORM{PIN} && $conf{CARDS_PIN_ONLY})) {
     $_db->{AutoCommit} = 0;
 
     my $BRUTE_LIMIT = ($conf{CARDS_BRUTE_LIMIT}) ? $conf{CARDS_BRUTE_LIMIT} : 5;
     if(! $user->{UID}) {
-      $LIST_PARAMS{UID}  = $FORM{UID}
+      $uid  = $FORM{UID};
+      $LIST_PARAMS{UID}=$uid;
     }
 
-    $Cards->bruteforce_list({ UID => $LIST_PARAMS{UID} });
+    $Cards->bruteforce_list({ UID => $uid });
     if ($Cards->{BRUTE_COUNT} && $Cards->{BRUTE_COUNT} >= $BRUTE_LIMIT) {
       $html->message('err', $lang{ERROR}, "$lang{BRUTE_ATACK} $Cards->{BRUTE_COUNT} >= $BRUTE_LIMIT", { ID => 601 });
       return 0;
     }
 
-    $Cards->cards_info({ %FORM, UID => $LIST_PARAMS{UID}, PAYMENTS => 1 });
+    $Cards->cards_info({ %FORM, UID => $uid, PAYMENTS => 1 });
 
     if ($Cards->{errno}) {
       if ($Cards->{errno} == 2) {
         $html->message('err', "$lang{CARD_SERVICE}:$lang{ERROR}", "$lang{NOT_EXIST} (". ($Cards->{BRUTE_COUNT} || q{}) .")", { ID => 603 });
-        $Cards->bruteforce_add({ UID => $LIST_PARAMS{UID}, PIN => $FORM{PIN} });
+        $Cards->bruteforce_add({ UID => $uid, PIN => $FORM{PIN} });
         $_db->commit();
       }
       else {
@@ -882,10 +877,11 @@ sub cards_user_payment  {
       $html->message('err', $lang{ERROR}, "$lang{EXPIRE} '$Cards->{EXPIRE}'", { ID => 602 });
       return 0;
     }
-    elsif ($Cards->{TOTAL} < 1) {
+    elsif ($Cards->{TOTAL} < 1 || ! $Cards->{NUMBER}) {
       $html->message('err', "$lang{CARD_SERVICE}:$lang{ERROR}", $lang{NOT_EXIST}, { ID => 603 });
-      $Cards->bruteforce_add({ UID => $LIST_PARAMS{UID}, PIN => $FORM{PIN} });
+      $Cards->bruteforce_add({ UID => $uid, PIN => $FORM{PIN} });
       $_db->commit();
+      return 0;
     }
     elsif ($user->{GID} && $Cards->{ALLOW_GID} && ! in_array($user->{GID}, [ split(/,\s?/, $Cards->{ALLOW_GID}) ])) {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { ID => 611 });
@@ -895,7 +891,7 @@ sub cards_user_payment  {
       $html->message('err', $lang{ERROR}, "$lang{SUM}: $Cards->{SUM}", { ID => 604 });
       return 0;
     }
-    elsif ($Cards->{UID} == $LIST_PARAMS{UID}) {
+    elsif ($Cards->{UID} == $uid) {
       $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_DATA}, { ID => 605 });
       return 0;
     }
@@ -926,7 +922,7 @@ sub cards_user_payment  {
 
       if (! $user->{BILL_ID}) {
         $user=$users;
-        $user->info($LIST_PARAMS{UID});
+        $user->info($uid);
       }
 
       if ($conf{CARDS_DEBUG}) {
@@ -945,41 +941,37 @@ sub cards_user_payment  {
 
       my $Payments  = Payments->new($db, $admin, \%conf);
       #Sucsess
-      cross_modules_call('_pre_payment', {
+      cross_modules('pre_payment', {
         USER_INFO    => $user,
         SUM          => $Cards->{SUM},
         SKIP_MODULES => 'Cards,Sqlcmd',
         QUITE        => 1,
         SILENT       => 1,
         METHOD       => 2,
-        timeout      => 8
+        timeout      => 8,
+        FORM         => \%FORM
       });
 
       my $cards_number_length = $conf{CARDS_NUMBER_LENGTH} || 11;
-      $Payments->add(
-        $user,
-        {
-          SUM          => $Cards->{SUM},
-          METHOD       => 2,
-          DESCRIBE     => sprintf("%s%." . $cards_number_length . "d", $Cards->{SERIAL}, $Cards->{NUMBER}),
-          EXT_ID       => "$Cards->{SERIAL}$Cards->{NUMBER}",
-          CHECK_EXT_ID => "$Cards->{SERIAL}$Cards->{NUMBER}",
-          TRANSACTION  => 1
-        }
-      );
+      $Payments->add($user,{
+        SUM          => $Cards->{SUM},
+        METHOD       => 2,
+        DESCRIBE     => sprintf("%s%." . $cards_number_length . "d", $Cards->{SERIAL}, $Cards->{NUMBER}),
+        EXT_ID       => "$Cards->{SERIAL}$Cards->{NUMBER}",
+        CHECK_EXT_ID => "$Cards->{SERIAL}$Cards->{NUMBER}",
+        TRANSACTION  => 1
+      });
 
       if (!$Payments->{errno}) {
         #FIX ME
         # $user->{DEPOSIT} += $Cards->{SUM} - $Cards->{COMMISSION};
 
-        $Cards->cards_change(
-          {
-            ID       => $Cards->{ID},
-            STATUS   => 2,
-            UID      => $user->{UID},
-            DATETIME => "$DATE $TIME",
-          }
-        );
+        $Cards->cards_change({
+          ID       => $Cards->{ID},
+          STATUS   => 2,
+          UID      => $user->{UID},
+          DATETIME => "$DATE $TIME",
+        });
 
         if ($Cards->{errno}) {
           $_db->rollback();
@@ -1058,14 +1050,15 @@ sub cards_user_payment  {
         }
 
         $_db->{AutoCommit} = 1;
-        cross_modules_call('_payments_maked', {
+        cross_modules('payments_maked', {
           USER_INFO    => $user,
           SUM          => $Cards->{SUM},
           SKIP_MODULES => 'Cards,Sqlcmd',
           QUITE        => 1,
           SILENT       => 1,
           METHOD       => 2,
-          timeout      => 8
+          timeout      => 8,
+          FORM         => \%FORM
         });
 
         return 0;
@@ -1093,6 +1086,8 @@ sub cards_user_payment  {
   }
 
   $db->{AutoCommit} = 1;
+  $Cards->{UID}=$uid;
+  $Cards->{sid}=$FORM{sid};
   $html->tpl_show(_include('cards_payment_add', 'Cards'), $Cards);
 
   return 1;
@@ -1513,7 +1508,7 @@ sub cards_report_payments {
   my $box_footer = $html->element( 'div', $html->form_input( 'show', $lang{SHOW}, { class => 'btn btn-primary btn-block', TYPE => 'submit', OUTPUT2RETURN => 1 } ), {
     class => 'card-footer',
   } );
-  my $box_header = $html->element( 'div', $lang{FILTERS} . '<div class="card-tools pull-right">
+  my $box_header = $html->element( 'div', $lang{FILTERS} . '<div class="card-tools float-right">
       <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse">
       <i class="fa fa-minus"></i></button></div>',
     { class => 'card-header with-border'} );

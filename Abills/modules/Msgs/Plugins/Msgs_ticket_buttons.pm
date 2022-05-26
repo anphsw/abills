@@ -97,7 +97,12 @@ sub plugin_show {
     role         => 'group',
     'aria-label' => 'Basic example'
   });
-  my $div = $html->element('div', $info, { class => 'col-md-12', id => 'btn-group' });
+  my $div = $html->element('div', $info,
+    {
+      class => 'col-md-12 d-flex flex-wrap justify-content-center',
+      id    => 'btn-group'
+    }
+  );
 
   return $html->element('div', $div, { class => 'form-group' });
 }
@@ -159,7 +164,7 @@ sub _get_export_button {
 
   return $html->button('', "qindex=$attr->{index}&header=2&UID=$attr->{UID}&export=1&ID=$Msgs->{ID}&PLUGIN=$self->{PLUGIN_NAME}", {
     class         => 'btn btn-primary group-btn',
-    ICON          => 'fa fa-external-link',
+    ICON          => 'fa fa-external-link-alt',
     TITLE         => $lang->{EXPORT},
     LOAD_TO_MODAL => 1,
   });
@@ -195,7 +200,7 @@ sub _get_history_button {
 
   return $html->button('', "index=$attr->{index}&ID=$Msgs->{ID}&PLUGIN=$self->{PLUGIN_NAME}&MSG_HISTORY=1", {
     class => 'btn btn-primary group-btn',
-    ICON  => 'fa fa-clock-o',
+    ICON  => 'far fa-clock',
     TITLE => $lang->{LOG}
   });
 }
@@ -243,13 +248,13 @@ sub _get_delegate_buttons {
 
   my $delegated_down_btn = $html->button('', "index=$attr->{index}&change=1&deligate=$Msgs->{ID}&ID=$Msgs->{ID}&PLUGIN=$self->{PLUGIN_NAME}&level=$Msgs->{DELIGATED_DOWN}&UID=$uid", {
     class => 'btn btn-primary group-btn',
-    ICON  => 'fa fa-hand-o-down',
+    ICON  => 'fa fa-hand-point-down',
     TITLE => "$lang->{COMPETENCE} $lang->{DOWN} ($Msgs->{DELIGATED_DOWN})"
   });
 
   my $delegated_btn = $html->button('', "index=$attr->{index}&change=1&deligate=$Msgs->{ID}&ID=$Msgs->{ID}&PLUGIN=$self->{PLUGIN_NAME}&level=$Msgs->{DELIGATED}&UID=$uid", {
     class => 'btn btn-primary group-btn',
-    ICON  => 'fa fa-hand-o-up',
+    ICON  => 'fa fa-hand-point-up',
     TITLE => "$lang->{COMPETENCE} $lang->{UP} ($Msgs->{DELIGATED})"
   });
 

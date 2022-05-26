@@ -33,7 +33,7 @@ our (%conf,
   @MODULES
 );
 
-my $VERSION       = 4.02;
+my $VERSION       = 4.03;
 my $config_file   = '/usr/abills/libexec/config.pl';
 
 $conf{OS}       = uc($^O);
@@ -203,6 +203,26 @@ if (!-f $config_file) {
 
         $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password='$mysql_root_passwd' -e "$add_mysql_user"`;
         print $res;
+
+        my $mysql_version = `$mysql -N --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password='$mysql_root_passwd' -e "SELECT VERSION()"`;
+        if($mysql_version && $mysql_version =~ /^8/) {
+          my $mysql_80_encodes = q{
+          DELIMITER $$
+          CREATE DEFINER=root`@`localhost FUNCTION IF NOT EXISTS DECODE(ENCR BLOB, KEY VARCHAR(100)) RETURNS varchar(100) CHARSET utf8mb4
+            DETERMINISTIC
+              return cast(AES_DECRYPT(ENCR,sha2(KEY,256)) as char(200))$$
+          DELIMITER ;
+
+          DELIMITER $$
+          CREATE DEFINER=root`@`localhost FUNCTION IF NOT EXISTS ENCODE(STR VARCHAR(200), KEY VARCHAR(100)) RETURNS blob
+            DETERMINISTIC
+              return AES_ENCRYPT(STR,sha2(KEY,256))$$
+          DELIMITER ;
+          };
+
+          $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password='$mysql_root_passwd' -e "$mysql_80_encodes"`;
+        }
+
         print "Upload Main Dump and modules\n";
         $res = `$mysql --default-character-set=$mk_config{dbcharset} -u $mysql_root_user --password='$mysql_root_passwd' -D $mk_config{dbname} < ../db/abills.sql`;
 

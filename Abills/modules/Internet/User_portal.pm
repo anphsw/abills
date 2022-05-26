@@ -279,7 +279,7 @@ sub internet_user_info_proceed {
     $Internet->{STATUS_FIELD} = 'text-warning';
 
     $Internet->{STATUS_BTN} = ($user->{DISABLE} > 0) ? $html->b("($lang{ACCOUNT} $lang{DISABLE})")
-                                                  : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ID=>'ACTIVATE', class=> 'btn btn-sm btn-success pull-right' });
+                                                  : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ID=>'ACTIVATE', class=> 'btn btn-sm btn-success float-right' });
   }
   elsif ($Internet->{STATUS} == 5) {
     $Internet->{STATUS_VALUE} = $status;
@@ -287,7 +287,7 @@ sub internet_user_info_proceed {
 
     if ($Internet->{MONTH_ABON} && $user->{DEPOSIT} && $Internet->{MONTH_ABON} <= $user->{DEPOSIT}) {
       $Internet->{STATUS_BTN} = ($user->{DISABLE} > 0) ? $html->b("($lang{ACCOUNT} $lang{DISABLE})")
-                                                    : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ex_params => ' ID="ACTIVATE"', class=> 'btn btn-sm btn-success pull-right' });
+                                                    : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ex_params => ' ID="ACTIVATE"', class=> 'btn btn-sm btn-success float-right' });
     }
     else {
       if ($functions{$index} && $functions{$index} eq 'internet_user_info') {
@@ -309,7 +309,7 @@ sub internet_user_info_proceed {
     $Internet->{TP_CHANGE} = $html->button($lang{CHANGE},
       'index=' . get_function_index('internet_user_chg_tp')
         . '&ID=' . $Internet->{ID}
-        . '&sid=' . $sid, { class => 'pull-right', ICON => 'fa fa-pencil' });
+        . '&sid=' . $sid, { class => 'float-right', ICON => 'fa fa-pencil-alt' });
 
   }
 
@@ -453,6 +453,8 @@ sub internet_service_info {
     "INTERNET_EXPIRE:0000-00-00:\$_EXPIRE",
     "TP_AGE:0:\$_AGE",
     "IP:0.0.0.0:\$_STATIC IP",
+    "IPV6::\$_STATIC IPv6",
+    "IPV6_PREFIX::IPv6 Prefix",
     "CID::MAC",
     'ACTIVATE:0000-00-00:$_ACTIVATE',
   );
@@ -1222,10 +1224,14 @@ sub internet_dhcp_get_mac {
       $PARAMS{MAC}   = _mac_former($list->[0]->{cid});
       $PARAMS{PORTS} = $list->[0]->{switch_port};
       $PARAMS{PORT}  = $list->[0]->{switch_port};
-      $PARAMS{VLAN}  = $list->[0]->{vlan};
       $PARAMS{UID}   = $list->[0]->{uid};
       $PARAMS{IP}    = int2ip($list->[0]->{framed_ip_address});
+
+      $PARAMS{VLAN}  = $list->[0]->{vlan};
       $PARAMS{SERVER_VLAN} = $list->[0]->{server_vlan};
+
+      $PARAMS{VID}  = $list->[0]->{vlan};
+      $PARAMS{SERVER_VID} = $list->[0]->{server_vlan};
     }
 
     $PARAMS{CUR_IP}=$ip;
@@ -1283,12 +1289,14 @@ sub internet_dhcp_get_mac {
 #**********************************************************
 sub internet_holdup_service {
 
+  return '' if ($conf{HOLDUP_ALL});
+
   my $holdup_info = $Service_control->user_holdup({ %FORM, UID => $user->{UID}, ID => $Internet->{ID} });
 
   if (!$holdup_info->{DEL}) {
     return '' if ($holdup_info->{error} || _error_show($holdup_info) || $holdup_info->{success});
 
-    if (($Internet->{STATUS} && $Internet->{STATUS} == 3) || $Internet->{DISABLE}) {
+    if (($Internet->{STATUS} && $Internet->{STATUS} == 3)) { # || $Internet->{DISABLE}) {
       $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n " .
         $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=". ($FORM{ID} || q{}) ."&sid=$sid",
           { BUTTON => 2, MESSAGE => "$lang{ACTIVATE}?" }) );

@@ -1,4 +1,4 @@
-<div class='noprint'>
+<div class='d-print-none'>
 
   <form action='$SELF_URL' method='POST' name='compensation' class='form-horizontal'>
     <div class='card card-primary card-outline container-md col-md-6'>

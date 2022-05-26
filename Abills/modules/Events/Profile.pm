@@ -198,22 +198,22 @@ sub events_profile {
     LIST_FUNC       => "events_list",
     DEFAULT_FIELDS  => "ID,TITLE,COMMENTS,PRIORITY_NAME,STATE_NAME,GROUP_NAME",
     HIDDEN_FIELDS   => "PRIORITY_ID,STATE_ID,GROUP_ID,COMMENTS,EXTRA,CREATED,MODULE,AID",
-    #MULTISELECT_ACTIONS => [
-    #  {
-    #    TITLE    => $lang{DEL},
-    #    ICON     => 'fa fa-trash',
-    #    ACTION   => "$SELF_URL?index=$index&del=1",
-    #    PARAM    => "IDS",
-    #    CLASS    => 'btn-danger',
-    #    COMMENTS => "$lang{DEL}?"
-    #  },
-    #  {
-    #    TITLE  => $lang{SEEN},
-    #    ICON   => 'fa fa-check',
-    #    ACTION => "$SELF_URL?index=$index&seen=1",
-    #    PARAM  => "IDS"
-    #  }
-    # ],
+    MULTISELECT_ACTIONS => [
+      {
+        TITLE    => $lang{DEL},
+        ICON     => 'fa fa-trash',
+        ACTION   => "$SELF_URL?index=$index&del=1",
+        PARAM    => "IDS",
+        CLASS    => 'text-danger',
+        COMMENTS => "$lang{DEL}?"
+      },
+      {
+        TITLE  => $lang{SEEN},
+        ICON   => 'fa fa-eye',
+        ACTION => "$SELF_URL?index=$index&seen=1",
+        PARAM  => "IDS"
+      }
+    ],
     EXT_TITLES      => {
       id            => "#",
       comments      => $lang{COMMENTS},

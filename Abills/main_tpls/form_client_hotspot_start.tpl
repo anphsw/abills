@@ -11,10 +11,10 @@
 
   <meta name='viewport' content='width=device-width, initial-scale=1'>
 
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/bootstrap.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/font-awesome.min.css'>
-  <link rel='stylesheet' href='/styles/default_adm/css/ionicons.min.css'>
-  <link rel='stylesheet' href='/styles/lte_adm/dist/css/AdminLTE.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/default/css/bootstrap.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/default/css/font-awesome.min.css'>
+  <link rel='stylesheet' href='/styles/default/css/ionicons.min.css'>
+  <link rel='stylesheet' href='/styles/default/css/adminlte.min.css'>
 
   <style>
     #dropdown_language ul {
@@ -50,14 +50,14 @@
 
   </style>
 
-  <script src='/styles/default_adm/js/jquery.min.js'></script>
+  <script src='/styles/default/js/jquery.min.js'></script>
   <!--[if lt IE 9]>
-  <script src='/styles/default_adm/js/jquery-1.11.3.min.js' type='text/javascript'></script>
+  <script src='/styles/default/js/jquery-1.11.3.min.js' type='text/javascript'></script>
   <![endif]-->
-  <script src='/styles/default_adm/js/bootstrap.min.js'></script>
-  <script src='/styles/default_adm/js/js.cookies.js'></script>
-  <script src='/styles/default_adm/js/modals.js'></script>
-  <script src='/styles/lte_adm/dist/js/app.js'></script>
+  <script src='/styles/default/js/bootstrap.bundle.min.js'></script>
+  <script src='/styles/default/js/js.cookies.js'></script>
+  <script src='/styles/default/js/modals.js'></script>
+  <script src='/styles/default/js/old/app.js'></script>
   <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
   <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
   <!--[if lt IE 9]>
@@ -94,7 +94,7 @@
                     <li class='dropdown' id='dropdown_language'>
                       <a class='dropdown-toggle' data-toggle='dropdown' data-target='#dropdown_language'
                         id='flag_active'>
-                        <img src='/styles/default_adm/img/flags/%LANG_CURRENT%.png' alt='%LANG_CURRENT%'/>
+                        <img src='/styles/default/img/flags/%LANG_CURRENT%.png' alt='%LANG_CURRENT%'/>
                       </a>
                       <ul class='dropdown-menu list-unstyled' id='flag_list'>%LANG_LIST%</ul>
                     </li>
@@ -177,7 +177,7 @@
 
 <script type='text/javascript'>
   var language_current = '%LANG_CURRENT%' || '';
-  var lang_active      = '<img src=\'/styles/default_adm/img/flags/' + language_current + '.png\'  alt=\'' + language_current + '\' />';
+  var lang_active      = '<img src=\'/styles/default/img/flags/' + language_current + '.png\'  alt=\'' + language_current + '\' />';
 
   if ('%SHOW_PAYSYS_BUY%' === '1'){
     jQuery('#paysys_buy_cards').show();

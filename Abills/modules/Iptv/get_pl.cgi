@@ -31,6 +31,7 @@ use Shedule;
 use Abills::Sender::Core;
 require Abills::Misc;
 require Iptv::User_portal;
+require Iptv::Base;
 use JSON qw/decode_json encode_json/;
 
 our $DATE = strftime("%Y-%m-%d", localtime(time));
@@ -57,6 +58,7 @@ my $Log = Log->new($db, \%conf);
 my $Tariff = Tariffs->new($db, $admin, \%conf);
 my $Shedule = Shedule->new($db, $admin, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
+my $Iptv_base = Iptv::Base->new($db, $admin, \%conf, { LANG => \%lang });
 
 iptv_check_service();
 exit;

@@ -6,7 +6,7 @@
   LANG['COMBO_PORT'] = '_{COMBO_PORT}_';
 </script>
 
-<script src='/styles/default_adm/js/modules/equipment.js'></script>
+<script src='/styles/default/js/modules/equipment.js'></script>
 
 <FORM action='$SELF_URL' METHOD='POST' class='form-horizontal' id='EQUIPMENT_MODEL_INFO_FORM'>
   <input type='hidden' name='index' value='$index'>
@@ -85,7 +85,7 @@
         <div class='card box-default collapsed-card'>
           <div class='card-header with-border'>
             <h3 class='card-title'>_{MANAGE}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-box-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
@@ -135,7 +135,7 @@
         <div class='card box-default collapsed-card'>
           <div class='card-header with-border'>
             <h3 class='card-title'>_{PORTS}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-box-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
@@ -220,7 +220,7 @@
                   <button class='btn btn-xs btn-danger' id='removePortBtn'
                       data-tooltip='_{DEL}_ _{PORT}_'
                       data-tooltip-position='bottom'>
-                    <span class='fa fa-remove'></span>
+                    <span class='fa fa-times'></span>
                   </button>
                   <button class='btn btn-xs btn-success' id='addPortBtn'
                       data-tooltip='_{ADD}_ _{PORT}_'>
@@ -237,7 +237,7 @@
         <div class='card box-default collapsed-card' id='equipmentModelPon' %EQUIPMENT_MODEL_PON_HIDDEN%>
           <div class='card-header with-border'>
             <h3 class='card-title'>PON</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-box-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
@@ -270,7 +270,7 @@
         <div class='card box-default collapsed-card' id='equipmentModelZte' %EQUIPMENT_MODEL_ZTE_HIDDEN%>
           <div class='card-header with-border'>
             <h3 class='card-title'>ZTE</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-box-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>

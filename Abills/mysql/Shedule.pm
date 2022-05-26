@@ -148,7 +148,7 @@ sub list{
   my $WHERE = $self->search_former( $attr, [
       [ 'UID',          'INT', 's.uid'          ],
       [ 'AID',          'INT', 's.aid'          ],
-      [ 'TYPE',         'INT', 's.type'         ],
+      [ 'TYPE',         'STR', 's.type'         ],
       [ 'Y',            'STR', 's.y'            ],
       [ 'M',            'STR', 's.m'            ],
       [ 'D',            'STR', 's.d'            ],

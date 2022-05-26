@@ -261,7 +261,7 @@
         <div class='card collapsed-card card-primary card-outline box-big-form'>
           <div class='card-header with-border text-center'>
             <h3 class='card-title'>_{EXTRA}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
@@ -452,7 +452,7 @@
 
       let icon = document.createElement('span');
       icon.classList.add('fa');
-      icon.classList.add('fa-remove');
+      icon.classList.add('fa-times');
       icon.classList.add('text-danger');
       icon.classList.add('p-1');
 

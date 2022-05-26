@@ -12,7 +12,7 @@
         </div>
         <div class='card-body pt-0'>
             <div class='text-center'>
-                <img src='/styles/default_adm/img/paysys_logo/stripe-logo.png'
+                <img src='/styles/default/img/paysys_logo/stripe-logo.png'
                      style='width: auto; max-height: 200px;'
                      alt='Stripe'>
             </div>

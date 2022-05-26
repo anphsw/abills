@@ -20,7 +20,7 @@
     <div class='card card-primary card-outline  form-horizontal'>
       <div class="card-header with-border">
         <h3 class="card-title">_{DIFFERENCE_PUBLIC_UTILITIES_FOR_PERIODS}_</h3>
-        <div class="card-tools pull-right">
+        <div class="card-tools float-right">
           <button type="button" class="btn btn-box-tool" data-card-widget="collapse"><i class="fa fa-minus"></i></button>
         </div>
         <!-- /.box-tools -->
@@ -35,7 +35,7 @@
     <div class='card card-primary card-outline  form-horizontal'>
       <div class="card-header with-border">
         <h3 class="card-title">_{SPENT_MONEY_FOR_PUB_UTILITIES_FOR_PERIODS}_</h3>
-        <div class="card-tools pull-right">
+        <div class="card-tools float-right">
           <button type="button" class="btn btn-box-tool" data-card-widget="collapse"><i class="fa fa-minus"></i></button>
         </div>
         <!-- /.box-tools -->
@@ -50,7 +50,7 @@
     <div class='card card-primary card-outline  form-horizontal'>
       <div class="card-header with-border">
         <h3 class="card-title">_{AMOUNT_MONEY_SPENT}_</h3>
-        <div class="card-tools pull-right">
+        <div class="card-tools float-right">
           <button type="button" class="btn btn-box-tool" data-card-widget="collapse"><i class="fa fa-minus"></i></button>
         </div>
         <!-- /.box-tools -->

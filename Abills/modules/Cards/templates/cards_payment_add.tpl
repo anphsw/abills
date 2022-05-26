@@ -6,9 +6,9 @@
     </div>
     <div class='card-body form'>
         <form action='$SELF_URL' METHOD='POST' name='form_card_add'>
-            <input type='hidden' name='sid' value='$FORM{sid}'>
+            <input type='hidden' name='sid' value='%sid%'>
             <input type='hidden' name='index' value='$index'>
-            <input type='hidden' name='UID' value='$FORM{UID}'>
+            <input type='hidden' name='UID' value='%UID%'>
 
             <div class='form-group row'>
                 <label class='col-sm-4 col-md-4' for='SERIAL'>_{NUMBER_AND_SERIA}_</label>
@@ -31,4 +31,4 @@
         </form>
     </div>
 </div>
-</div>
+

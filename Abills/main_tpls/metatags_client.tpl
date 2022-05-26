@@ -16,19 +16,17 @@
   <title>%TITLE%</title>
   <!-- CSS -->
 
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/select2.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/dist/css/adminlte.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/default/css/select2.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/adminlte.min.css'>
 
   <!-- Theme style -->
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/currencies.css'>
-
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/pace/pace.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datepicker/datepicker3.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/QBInfo.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/default/css/QBInfo.css'>
 
   <!-- Ionicons -->
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/font-awesome.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/ionicons.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/default/css/font-awesome.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/default/css/ionicons.min.css'>
   <!-- Pace style -->
 
   <!-- DataTables -->
@@ -36,44 +34,37 @@
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/timepicker/bootstrap-timepicker.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/daterangepicker/daterangepicker.css'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/style.css'>
-
-  <!-- Toogle Style -->
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/bootstrap2-toggle.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/default/css/style.css'>
 
   <!-- Bootstrap -->
-  <script src='/styles/default_adm/js/popper.min.js'></script>
-  <script src='/styles/default_adm/js/jquery.min.js'></script>
-  <script src='/styles/default_adm/js/bootstrap.min.js'></script>
-  <script src='/styles/%HTML_STYLE%/dist/js/adminlte.min.js'></script>
-
-  <!-- Toggle script -->
-  <script src='/styles/default_adm/js/bootstrap2-toggle.min.js'></script>
+  <script src='/styles/default/js/jquery.min.js'></script>
+  <script src='/styles/default/js/bootstrap.bundle.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/adminlte.min.js'></script>
 
   <!-- ECMA6 functions -->
-  <script src='/styles/default_adm/js/polyfill.js'></script>
+  <script src='/styles/default/js/polyfill.js'></script>
 
   <!-- Cookies and LocalStorage from JavaScript -->
-  <script src='/styles/default_adm/js/js.cookies.js'></script>
-  <script src='/styles/default_adm/js/permanent_data.js'></script>
+  <script src='/styles/default/js/js.cookies.js'></script>
+  <script src='/styles/default/js/permanent_data.js'></script>
 
   <!-- Navigation bar saving show/hide state -->
-  <script  src='/styles/default_adm/js/navBarCollapse.js'></script>
+  <script  src='/styles/default/js/navBarCollapse.js'></script>
 
   <!--Javascript template engine-->
-  <script src='/styles/default_adm/js/mustache.min.js'></script>
+  <script src='/styles/default/js/mustache.min.js'></script>
 
-  <script  src='/styles/default_adm/js/QBinfo.js'></script>
+  <script  src='/styles/default/js/QBinfo.js'></script>
 
   <!-- Modal popup windows management -->
-  <script src='/styles/default_adm/js/modals.js?v=76.1.9'></script>
+  <script src='/styles/default/js/modals.js?v=76.1.9'></script>
 
   <!-- AJAX Search scripts -->
-  <script src='/styles/default_adm/js/search.js?v=0.76.34'></script>
+  <script src='/styles/default/js/search.js?v=0.76.34'></script>
 
-  <script src='/styles/default_adm/js/messageChecker.js?v=0.77.26'></script>
+  <script src='/styles/default/js/messageChecker.js?v=0.77.26'></script>
 
-  <script src='/styles/default_adm/js/msgs/jquery-ui.min.js'></script>
+  <script src='/styles/default/js/msgs/jquery-ui.min.js'></script>
 
   <!-- date-range-picker -->
   <script src='/styles/%HTML_STYLE%/plugins/moment/moment.min.js'></script>
@@ -86,11 +77,11 @@
   <script src='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.js'></script>
 
   <script src='/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>
-  <script src='/styles/default_adm/js/select2.min.js'></script>
+  <script src='/styles/default/js/select2.min.js'></script>
 
   <!-- functions.js -->
-  <script src='/styles/default_adm/js/functions.js'></script>
-  <script src='/styles/default_adm/js/functions-client.js'></script>
+  <script src='/styles/default/js/functions.js'></script>
+  <script src='/styles/default/js/functions-client.js'></script>
 
   <script>
     window['IS_ADMIN_INTERFACE'] = false;

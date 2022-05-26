@@ -105,7 +105,7 @@
     </div>
     <div class='card-footer'>
         <input type='submit' class='btn btn-secondary' form='form_DOCS_REGISTRATION' name='generate' value='_{PREVIEW}_'>
-        <button class='btn btn-primary' id='EXPORT_BTN'><span class='fa fa-print'></span> _{PRINT}_</button>
+        <button class='btn btn-primary' id='EXPORT_BTN'><span class='fas fa-print'></span> _{PRINT}_</button>
     </div>
 </div>
 <div class='row'>

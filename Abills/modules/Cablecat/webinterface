@@ -14,12 +14,12 @@ our $Maps;
 _bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } }) if ( $FORM{json} );
 
 # DB module is available
-exit if (form_purchase_module({ HEADER => $user->{UID}, MODULE => 'Cablecat', REQUIRE_VERSION => 7.89 }));
+exit if (form_purchase_module({ HEADER => $user->{UID}, MODULE => 'Cablecat', REQUIRE_VERSION => 7.91 }));
 
 if ( !defined $Maps ) {
   eval { require Maps; };
   if (!$@) {
-    load_module('Maps2', $html);
+    load_module('Maps', $html);
     Maps->import();
     $Maps = Maps->new($db, $admin, \%conf);
   }
@@ -161,7 +161,7 @@ sub cablecat_main {
   };
 
   $html->tpl_show(_include('cablecat_main', 'Cablecat'), {
-    GO_TO_MAP_BTN     => $menu_button->($lang{MAP}, 'maps2_main', 'success'),
+    GO_TO_MAP_BTN     => $menu_button->($lang{MAP}, 'maps_main', 'success'),
     COLOR_SCHEMES_BTN => $menu_button->($lang{COLOR_SCHEMES}, 'cablecat_color_schemes'),
     CABLES_BTN        => $menu_button->($lang{CABLES}, 'cablecat_cables'),
     WELLS_BTN         => $menu_button->($lang{WELLS}, 'cablecat_wells'),
@@ -1390,7 +1390,7 @@ sub cablecat_links_check {
 
     my $del_button = $html->button('', "index=$index&del=$bad_link->{id}", {
         class   => 'btn btn-danger btn-xs',
-        ICON    => 'fa fa-remove',
+        ICON    => 'fa fa-times',
         CONFIRM => "$lang{DEL}?",
       });
 
@@ -1738,7 +1738,7 @@ sub _cablecat_link_info_cell {
 
   my $del_btn = $html->button('', '', {
       class     => 'btn btn-xs btn-danger',
-      ICON      => 'fa fa-remove',
+      ICON      => 'fa fa-times',
       SKIP_HREF => 1,
       ex_params => "onClick='clearLinkInfo(\"$element_type\", $element_id, $fiber_num, $direction)'"
     });

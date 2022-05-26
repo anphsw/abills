@@ -33,7 +33,7 @@
     <div class='card'>
       <div class='card-header with-border'>
         <h3 class='card-title'>_{CONTACTS}_</h3>
-        <div class='card-tools pull-right'>
+        <div class='card-tools float-right'>
           <button type='button' class='btn btn-tool' data-card-widget='collapse'>
             <i class='fa fa-minus'></i>
           </button>
@@ -109,14 +109,14 @@
     <div class='col-sm-2 col-md-1'>
       {{^is_default}}
         <a data-target='#' class='contact-remove-btn text-red form-control-static' data-id='{{id}}'>
-          <span class='fa fa-remove'></span>
+          <span class='fa fa-times'></span>
         </a>
       {{/is_default}}
     </div>
   </div>
 </script>
 
-<script src='/styles/default_adm/js/contacts_form.js?v=0.77.78'></script>
+<script src='/styles/default/js/contacts_form.js?v=0.77.78'></script>
 
 <style>
   .contact {

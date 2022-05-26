@@ -4,7 +4,7 @@
 
         <div class='card-header'>
             <h3 class='card-title'>_{OTHER}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
                 <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                     <i class='fa fa-plus'></i>
                 </button>

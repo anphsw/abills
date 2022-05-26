@@ -19,6 +19,7 @@
    SKIP_WRONG_MAIL
    SYNC_COMPANY      - Add company main account
    IMPORT_LIMIT      - Import limit count
+   REQUEST_TIMEOUT   - Default (10 sec)
 
    ODOO_CUSTOM=1
    PRODUCT_TYPES
@@ -47,6 +48,7 @@ use Internet;
 use Companies;
 use Shedule;
 use Address;
+use Encode;
 
 our (
   $argv,
@@ -66,14 +68,15 @@ my $Companies    = Companies->new($db, $Admin, \%conf);
 my $Address      = Address->new($db, $Admin, \%conf);
 my $Tariffs      = Tariffs->new($db, \%conf, $Admin);
 our $admin       = $Admin;
-our $html = Abills::HTML->new( { CONF => \%conf } );
+our $html        = Abills::HTML->new( { CONF => \%conf } );
 my $import_limit = $argv->{IMPORT_LIMIT} || 1000000000;
 require Internet::Users;
 require Abills::Misc;
 
 my $main_file = $base_dir . '/language/english.pl';
 require $main_file;
-
+my $userside_default_url = q{http://demo.ubilling.net.ua:9999/billing/?module=remoteapi&key=UB45fc024bbb2632be0b3de41ff8a8b15b&action=userside};
+my $request_timeout   = $argv->{REQUEST_TIMEOUT} || 15;
 
 if($argv->{ODOO_CUSTOM}) {
   odoo_custom();
@@ -95,20 +98,30 @@ else {
 =cut
 #**********************************************************
 sub us_get_street_list {
-  my %street_list = ();
 
   _log('LOG_DEBUG', "Userside: get_street_list");
 
-  my $url = $argv->{URL} || q{http://demo.ubilling.net.ua:9999/billing/?module=remoteapi&key=UB45fc024bbb2632be0b3de41ff8a8b15b&action=userside};
+  my $url = $argv->{URL} || $userside_default_url;
+
   $url .= '&request=get_street_list';
 
   my $result = web_request($url, {
     JSON_RETURN => 1,
     CURL        => 1,
+    JSON_UTF8   => 1,
+    DEBUG       => ($debug > 4) ? 1 : 0,
+    TIMEOUT     => $request_timeout,
+    FILE_CURL   => $conf{FILE_CURL}
   });
 
+  if (! $result || $result->{errno}) {
+    print "ERROR:". ($result->{errstr} || q{});
+    return {};
+  }
+
+  my %street_list = ();
   foreach my $street_id ( keys %{ $result } ) {
-    $street_list{$street_id}{NAME}        = $result->{$street_id}->{full_name};
+    $street_list{$street_id}{NAME} = $result->{$street_id}->{full_name};
   }
 
   return \%street_list;
@@ -128,22 +141,28 @@ sub us_get_city_district_list {
 
   _log('LOG_DEBUG', "Userside: get_city_district_list");
 
-  my $url = $argv->{URL} || q{http://demo.ubilling.net.ua:9999/billing/?module=remoteapi&key=UB45fc024bbb2632be0b3de41ff8a8b15b&action=userside};
+  my $url = $argv->{URL} || $userside_default_url;
 
   $url .= '&request=get_city_district_list';
 
   my $result = web_request($url, {
     JSON_RETURN => 1,
     CURL        => 1,
+    JSON_UTF8   => 1,
+    DEBUG       => ($debug > 4) ? 1 : 0,
+    TIMEOUT     => $request_timeout,
+    FILE_CURL   => $conf{FILE_CURL}
   });
 
-  if ($result->{errno}) {
-    print "ERROR:". $result->{errstr};
-
+  if (! $result || $result->{errno}) {
+    print "ERROR:". (($result) ? $result->{errstr} : q{NO_RESULT});
     return \%city_district;
   }
 
   foreach my $city_district (keys %{$result}) {
+    if ($city_district && $city_district == -1) {
+      next;
+    }
     $city_district{$city_district}{NAME}    = $result->{$city_district}->{name};
     $city_district{$city_district}{CITY_ID} = $result->{$city_district}->{city_id};
   }
@@ -170,13 +189,17 @@ sub us_get_house_list {
   my $city_district_list = us_get_city_district_list();
   my $street_list = us_get_street_list();
 
-  my $url = $argv->{URL} || q{http://demo.ubilling.net.ua:9999/billing/?module=remoteapi&key=UB45fc024bbb2632be0b3de41ff8a8b15b&action=userside};
+  my $url = $argv->{URL} || $userside_default_url;
 
   $url .= '&request=get_house_list';
 
   my $result = web_request($url, {
     JSON_RETURN => 1,
     CURL        => 1,
+    JSON_UTF8   => 1,
+    DEBUG       => ($debug > 4) ? 1 : 0,
+    TIMEOUT     => $request_timeout,
+    FILE_CURL   => $conf{FILE_CURL}
   });
 
   foreach my $build_id ( keys %{ $result } ) {
@@ -184,7 +207,13 @@ sub us_get_house_list {
     $build_list{$build_id}{NUMBER}      = $result->{$build_id}->{number};
     $build_list{$build_id}{STREET_NAME} = $street_list->{$result->{$build_id}->{street_id}}->{NAME};
     $build_list{$build_id}{CITY}        = ($result->{$build_id}->{city_district_id}
-      && $city_district_list->{$result->{$build_id}->{city_district_id}}) ? $city_district_list->{$result->{$build_id}->{city_district_id}} : q{};
+      && $city_district_list->{$result->{$build_id}->{city_district_id}}) ? $city_district_list->{$result->{$build_id}->{city_district_id}}->{NAME} : q{};
+
+    # if ($build_list{$build_id}{CITY})  {
+    #   #Encode::_utf8_off($build_list{$build_id}{CITY});
+    #   #print $build_list{$build_id}{CITY} ."\n";
+    #   #decode('utf8', $build_list{$build_id}{CITY})
+    # }
 
     my ($coordx, $coordy)=(0,0);
     my @poligon = ();
@@ -215,17 +244,26 @@ sub us_get_house_list {
 sub userside_import {
   my @users_info = ();
 
-  _log('LOG_DEBUG', "Userside: get_user_list");
+  _log('LOG_DEBUG', "Userside: userside_import");
 
   my $build_list = us_get_house_list();
 
-  my $url = $argv->{URL} || q{http://demo.ubilling.net.ua:9999/billing/?module=remoteapi&key=UB45fc024bbb2632be0b3de41ff8a8b15b&action=userside};
+  my $url = $argv->{URL} || $userside_default_url;
   $url .= '&request=get_user_list';
 
   my $result = web_request($url, {
     JSON_RETURN => 1,
-    CURL        => 1
+    CURL        => 1,
+    JSON_UTF8   => 1,
+    DEBUG       => ($debug > 4) ? 1 : 0,
+    TIMEOUT     => $request_timeout,
+    FILE_CURL   => $conf{FILE_CURL}
   });
+
+  if (! $result || $result->{errno}) {
+    print "ERROR:". (($result) ? $result->{errstr} : q{NO RESULT});
+    return {};
+  }
 
   #_log('LOG_DEBUG', $result);
   my $imported = 1;
@@ -233,18 +271,46 @@ sub userside_import {
     my $u = $result->{$login};
 
     my %services = ();
+    my $tarif;
+    my $ip_mac;
+    if (ref $u->{tariff}->{current} eq 'ARRAY') {
+      $tarif = $u->{tariff}->{current}->[0];
+    }
+    else {
+      my $id = (keys %{ $u->{tariff}->{current} })[0] || q{};
+      $tarif = $u->{tariff}->{current}->{$id}
+    }
 
-    if($u->{tariff}->{current}->[0]->{id}) {
+    if (ref $u->{ip_mac} eq 'ARRAY') {
+      $ip_mac = $u->{ip_mac}->[0];
+    }
+    else {
+      my $id = (keys %{ $u->{ip_mac} })[0] || q{};
+      $ip_mac = $u->{ip_mac}->{$id}
+    }
+
+    if($tarif) {
       %services = (
         4 => {
-          TP_NAME => $u->{tariff}->{current}->[0]->{id} || q{},
-          CID     => $u->{ip_mac}->[0]->{mac} || q{},
-          IP      => int2ip($u->{ip_mac}->[0]->{ip} || 0),
+          TP_NAME => $tarif->{name} || $tarif->{id} || q{},
+          CID     => $ip_mac->{mac} || q{},
+          IP      => int2ip($ip_mac->{ip} || 0),
         }
       );
     }
 
+    my $group;
+    if (ref $u->{group} eq 'ARRAY') {
+      $group = $u->{group}->[0];
+    }
+    else {
+      my $id = (keys %{ $group })[0] || q{};
+      $group = $group->{$id}
+    }
+
     my $house_id = $u->{address}->[0]->{house_id} || 0;
+    # print "// $u->{login} //";
+    # print "// $build_list->{$house_id}->{CITY} //\n\n";
     push @users_info, {
       LOGIN            => $u->{login},
       CITY             => $build_list->{$house_id}->{CITY} || q{},
@@ -259,7 +325,7 @@ sub userside_import {
       EMAIL            => $u->{email}->[0]->{address} || q{},
       FIO              => $u->{full_name} || q{},
       PASSWORD         => $u->{password} || q{},
-      GID              => $u->{group}->[0] || 0,
+      GID              => $group || 0,
       DEPOSIT          => $u->{balance} || 0,
       CREDIT           => $u->{credit} || 0,
       DISCOUNT         => $u->{discount} || 0,
@@ -516,7 +582,11 @@ sub user_import {
   my $sync_field = 'LOGIN';
 
   foreach my $user_info ( @$users_list ) {
-    print "Sync field: $sync_field Remote filed: ". (($user_info->{$sync_field}) ? $user_info->{$sync_field} : 'Not defined' )."\n" if ($debug > 1);
+    my $sync_value = (($user_info->{$sync_field}) ? $user_info->{$sync_field} : 'Not defined');
+    if ($debug > 1) {
+      Encode::_utf8_off($sync_value);
+      print "Sync field: $sync_field Remote filed: " . $sync_value . "\n";
+    }
 
     #Get location_id
     my $location_id = get_location_id($user_info);
@@ -597,7 +667,7 @@ sub user_import {
     }
 
     if($debug > 0) {
-      print "ADD LOGIN $sync_field: $user_info->{$sync_field}\n";
+      print "ADD LOGIN $sync_field: $sync_value\n";
     }
 
     if(! $user_info->{PASSWORD}) {
@@ -647,7 +717,6 @@ sub user_import {
       $user_info->{SERVICES}->{4}->{QUITE}=1;
       internet_service_add($user_info->{SERVICES}->{4});
     }
-
   }
 
   if($debug > 1) {
@@ -1230,7 +1299,7 @@ sub add_user {
     }
 
     if($debug > 6) {
-       $Users->{debug}=1;
+      $Users->{debug}=1;
     }
 
     my $u_list = $Users->list({ LOGIN => $service_info->{contract_id}, COLS_NAME => 1 });
@@ -1495,8 +1564,6 @@ sub odoo_service_sync_company {
       exit;
     }
 
-
-    print "!!!!!!!\n";
     next;
     my $service_count = scalar(keys %user_tp);
 
@@ -1549,7 +1616,7 @@ sub odoo_service_sync_company {
           delete $user_tp{$list->{tp_id}};
         }
 
-        $Internet->change({
+        $Internet->user_change({
           ID    => $internet_list->[0]->{id},
           UID   => $internet_list->[0]->{uid},
           CID   => $cid,
@@ -1641,6 +1708,7 @@ sub get_location_id {
     else {
       $Address->district_add({ NAME => $user_info->{CITY} || 'DEFAULT' });
       $district_id = $Address->{DISTRICT_ID};
+      $Address->{debug}=0;
     }
 
     my $streets_list = $Address->street_list({
@@ -1675,6 +1743,8 @@ sub get_location_id {
     });
 
     if ($Address->{errno}) {
+      Encode::_utf8_off($user_info->{ADDRESS_STREET});
+      Encode::_utf8_off($user_info->{ADDRESS_BUILD});
       print "ERROR: $street_id ($user_info->{ADDRESS_STREET}) $user_info->{ADDRESS_BUILD}\n";
     }
     else {

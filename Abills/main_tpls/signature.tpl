@@ -9,7 +9,7 @@
 
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <link rel="stylesheet" href="../styles/default_adm/css/signature-pad.css">
+  <link rel="stylesheet" href="../styles/default/css/signature-pad.css">
 
   <!--[if IE]>
     <link rel="stylesheet" type="text/css" href="css/ie9.css">
@@ -41,7 +41,7 @@
     <input type='hidden' name='signature' id='signData' value='' />
   </form>
 
-  <script src="../styles/default_adm/js/signature_pad.js"></script>
-  <script src="../styles/default_adm/js/signature_app.js"></script>
+  <script src="../styles/default/js/signature_pad.js"></script>
+  <script src="../styles/default/js/signature_app.js"></script>
 </body>
 </html>

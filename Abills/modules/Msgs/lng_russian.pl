@@ -144,7 +144,6 @@ $lang{SUNDAY_FULL}='Воскресенье';
 $lang{ERR_NO_MESSAGE} = 'Текст сообщения не задан';
 $lang{MASS_MAILING} = 'Массовая рассылка! Продолжить?';
 $lang{ATTACH_ADDRESS} = 'Прикрепить к адресу';
-$lang{FULL_MESSAGE_ADDRESS} = 'Полный адрес сообщения';
 $lang{TAKEN_TO_WORK} = 'Взято в работу';
 
 $lang{REPEAT_MSG_USER} = 'Сообщение от этого пользователя сегодня уже принято!';
@@ -202,5 +201,20 @@ $lang{RESPONSE_TIME} = 'Время ответа';
 $lang{SUPPORT_SYSTEM_STATS} = 'Статистика службы поддержки';
 
 $lang{DYNAMICS_OF_MESSAGES_AND_REPLIES} = 'Динамика сообщений и ответов';
+$lang{MSGS_HOURS} = 'ч';
+$lang{MSGS_MINUTES} = 'мин';
+
+$lang{AVERAGE_COEFFICIENT} = 'Средний коэффициент';
+$lang{TOTAL_MESSAGES} = 'Всего сообщений';
+$lang{MESSAGES_COEFFICIENT} = 'Коэффициент сообщений';
+$lang{COEFFICIENT} = 'Коэффициент';
+$lang{RESPONSIBLE_NOT_SPECIFIED} = 'Ответственный не указан';
+
+$lang{SEND} = 'Отправить';
+
+$lang{AUTHOR} = 'Автор';
+$lang{CLOSED_THE_TICKET} = 'Закрывший заявку';
+
+$lang{NEW_MESSAGE} = 'Новое сообщение';
 
 1

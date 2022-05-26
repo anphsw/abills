@@ -3,7 +3,7 @@
 <head>
     <meta charset='utf-8'>
     <title>Выписка по счету</title>
-    <link href='/styles/default_adm/css/bootstrap.min.css' rel='stylesheet'>
+    <link href='/styles/default/css/bootstrap.min.css' rel='stylesheet'>
 </head>
 <script language='JavaScript'>
     function autoReload() {
@@ -66,7 +66,7 @@
                     <h4>Выписка</h4>
                 </div>
 
-                <div class='row col-md-6 pull-left'>
+                <div class='row col-md-6 float-left'>
                     <div class='col-md-6 text-right'>
                         <br>
                         <b>Номер выписки:</b> <br>
@@ -83,7 +83,7 @@
 
                 </div>
 
-                <div class='row col-md-6 pull-right'>
+                <div class='row col-md-6 float-right'>
                     <div class='col-md-6 text-right'>
                         <br>
                         <b>Плательщик:</b>
@@ -110,6 +110,7 @@
                     <th>Дата </th>
                     <th>Логин</th>
                     <th>Денежный счет</th>
+                    <th>Счет</th>
                     <th>Описание</th>
                     <th>Списание</th>
                     <th>Платеж</th>

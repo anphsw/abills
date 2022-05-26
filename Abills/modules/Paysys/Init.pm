@@ -28,7 +28,7 @@ our @EXPORT_OK = qw(
 =cut
 #**********************************************************
 sub _configure_load_payment_module {
-  my ($payment_system) = @_;
+  my ($payment_system, $return_error) = @_;
 
   if (!$payment_system) {
     return 0;
@@ -44,9 +44,17 @@ sub _configure_load_payment_module {
     $require_module->import($payment_system);
   }
   else {
-    print "Content-Type: text/html\n\n";
-    print "Error loading\n";
-    print $@;
+    if ($return_error) {
+      return {
+        errno  => '600',
+        errstr => 'Can\'t load module'
+      }
+    }
+    else {
+      print "Content-Type: text/html\n\n";
+      print "Error loading\n";
+      print $@;
+    }
   }
 
   return $require_module;

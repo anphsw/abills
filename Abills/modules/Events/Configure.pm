@@ -46,26 +46,18 @@ sub events_main {
     show_result($api, $lang{ADDED});
   }
   else {
-    events_uni_page_logic(
-      'events', # Table name
-      {
-        # Template variables
-        SELECTS    => {
-          PRIVACY_SELECT  => { func => '_events_privacy_select', argument => 'PRIVACY_ID' },
-          PRIORITY_SELECT => { func => '_events_priority_select', argument => 'PRIORITY_ID' },
-          GROUP_SELECT    => { func => '_events_group_select', argument => 'GROUP_ID' },
-          STATE_SELECT    => { func => '_events_state_select', argument => 'STATE_ID' },
-          AID_SELECT      => sel_admins({ SELECTED => $FORM{AID} || $admin->{AID} }),
-        },
-
-        # Template attr
-        HAS_HELP   => 1,
-
-        # Result former variables
-        HAS_VIEW   => 1,
-        HAS_SEARCH => 1
-      }
-    );
+    events_uni_page_logic('events', {
+      SELECTS    => {
+        PRIVACY_SELECT  => { func => '_events_privacy_select', argument => 'PRIVACY_ID' },
+        PRIORITY_SELECT => { func => '_events_priority_select', argument => 'PRIORITY_ID' },
+        GROUP_SELECT    => { func => '_events_group_select', argument => 'GROUP_ID' },
+        STATE_SELECT    => { func => '_events_state_select', argument => 'STATE_ID' },
+        AID_SELECT      => sel_admins({ SELECTED => $FORM{AID} || $admin->{AID} }),
+      },
+      HAS_HELP   => 1,
+      HAS_VIEW   => 1,
+      HAS_SEARCH => 1
+    });
   }
   return 1 if ( $FORM{MESSAGE_ONLY} );
   
@@ -77,22 +69,22 @@ sub events_main {
     LIST_FUNC       => "events_list",
     DEFAULT_FIELDS  => "ID,TITLE,COMMENTS,PRIORITY_NAME,STATE_NAME,GROUP_NAME,AID",
     HIDDEN_FIELDS   => "PRIORITY_ID,STATE_ID,GROUP_ID,COMMENTS,EXTRA,CREATED,MODULE",
-    #MULTISELECT_ACTIONS => [
-    #  {
-    #    TITLE    => $lang{DEL},
-    #    ICON     => 'fa fa-trash',
-    #    ACTION   => "$SELF_URL?index=$index&del=1",
-    #    PARAM    => "IDS",
-    #    CLASS    => 'btn-danger',
-    #    COMMENTS => "$lang{DEL}?"
-    #  },
-    #  {
-    #    TITLE  => $lang{SEEN},
-    #    ICON   => 'fa fa-check',
-    #    ACTION => "$SELF_URL?index=$index&seen=1",
-    #    PARAM  => "IDS"
-    #  }
-    #],
+    MULTISELECT_ACTIONS => [
+      {
+        TITLE    => $lang{DEL},
+        ICON     => 'fa fa-trash',
+        ACTION   => "$SELF_URL?index=$index&del=1",
+        PARAM    => "IDS",
+        CLASS    => 'text-danger',
+        COMMENTS => "$lang{DEL}?"
+      },
+      {
+        TITLE  => $lang{SEEN},
+        ICON   => 'fa fa-check',
+        ACTION => "$SELF_URL?index=$index&seen=1",
+        PARAM  => "IDS"
+      }
+    ],
     EXT_TITLES      => {
       id            => "#",
       comments      => $lang{COMMENTS},

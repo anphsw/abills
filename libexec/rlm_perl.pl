@@ -7,7 +7,7 @@
 #***********************************************************
 
 use strict;
-our (%RAD_REQUEST, %RAD_REPLY, %RAD_CHECK, %AUTH, $RAD_PAIRS, %ACCT, %conf);
+our (%RAD_REQUEST, %RAD_REPLY, %RAD_CHECK, %AUTH, $RAD_PAIRS, %ACCT, %conf, %ACCT_TYPES);
 
 #
 # This the remapping of return values
@@ -26,7 +26,7 @@ use constant RLM_MODULE_NUMCODES => 9;    #  /* How many return codes there are 
 ############################################################
 # Accounting status types
 # rfc2866
-my %ACCT_TYPES = (
+%ACCT_TYPES = (
   'Start'          => 1,
   'Stop'           => 2,
   'Alive'          => 3,
@@ -220,7 +220,7 @@ sub accounting {
   $Log->{ACTION} = 'ACCT';
   if ( $RAD_REQUEST{'Service-Type'}
     && $USER_TYPES{ $RAD_REQUEST{'Service-Type'} }
-    && ($USER_TYPES{ $RAD_REQUEST{'Service-Type'} } > 5)) {
+    && $USER_TYPES{ $RAD_REQUEST{'Service-Type'} } > 5) {
     $Log->log_print('LOG_DEBUG', $RAD_REQUEST{'User-Name'}, $RAD_REQUEST{'Service-Type'}, { NAS => $nas });
     return RLM_MODULE_OK;
   }
@@ -231,63 +231,12 @@ sub accounting {
   #   return RLM_MODULE_OK;
   # }
 
-  $RAD_REQUEST{INTERIUM_INBYTE}   = 0;
-  $RAD_REQUEST{INTERIUM_OUTBYTE}  = 0;
-  $RAD_REQUEST{INTERIUM_INBYTE2}  = 0;
-  $RAD_REQUEST{INTERIUM_OUTBYTE2} = 0;
-  $RAD_REQUEST{INBYTE2}           = 0;
-  $RAD_REQUEST{OUTBYTE2}          = 0;
-
-  #if ($conf{octets_direction} && $conf{octets_direction} eq 'user') {
-  $RAD_REQUEST{INBYTE}  = $RAD_REQUEST{'Acct-Output-Octets'}  || 0;    # FROM client
-  $RAD_REQUEST{OUTBYTE} = $RAD_REQUEST{'Acct-Input-Octets'} || 0;    # TO client
-  #}
-  # From client
-  #  else {
-  #    $RAD_REQUEST{INBYTE}  = $RAD_REQUEST{'Acct-Output-Octets'} || 0;                  # FROM client
-  #    $RAD_REQUEST{OUTBYTE} = $RAD_REQUEST{'Acct-Input-Octets'}  || 0;                  # TO client
-  #    ($RAD_REQUEST{'Acct-Input-Octets'}, $RAD_REQUEST{'Acct-Output-Octets'}) = ($RAD_REQUEST{'Acct-Output-Octets'}, $RAD_REQUEST{'Acct-Input-Octets'});
-  #
-  #    if ($nas->{NAS_TYPE} eq 'mpd5' && $RAD_REQUEST{MPD_INPUT_OCTETS}) {
-  #
-  #      if (ref $RAD_REQUEST{MPD_INPUT_OCTETS} eq 'ARRAY') {
-  #        ($RAD_REQUEST{INBYTE}, $RAD_REQUEST{OUTBYTE}, $RAD_REQUEST{'Acct-Input-Octets'}, $RAD_REQUEST{'Acct-Output-Octets'}) = (0, 0, 0, 0);
-  #        for (my $i = 0 ; $i <= $#{ $RAD_REQUEST{MPD_INPUT_OCTETS} } ; $i++) {
-  #          my ($class, $byte) = split(/:/, $RAD_REQUEST{MPD_INPUT_OCTETS}->[$i]);
-  #          $class = ($class == 0) ? '' : $class + 1;
-  #          if ($class eq '' && $byte > 4294967296) {
-  #            $RAD_REQUEST{'Acct-Output-Octets'} = int($byte / 4294967296);
-  #            $byte = $byte - ($RAD_REQUEST{'Acct-Output-Octets'} * 4294967296);
-  #          }
-  #          $RAD_REQUEST{ 'OUTBYTE' . $class } = $byte;
-  #          (undef, $byte) = split(/:/, $RAD_REQUEST{MPD_OUTPUT_OCTETS}->[$i]);
-  #
-  #          if ($class eq '' && $byte > 4294967296) {
-  #            $RAD_REQUEST{'Acct-Input-Octets'} = int($byte / 4294967296);
-  #            $byte = $byte - ($RAD_REQUEST{'Acct-Input-Octets'} * 4294967296);
-  #          }
-  #
-  #          $RAD_REQUEST{ 'INBYTE' . $class } = $byte;
-  #        }
-  #      }
-  #      else {
-  #        my ($class, $byte) = split(/:/, $RAD_REQUEST{MPD_INPUT_OCTETS});
-  #        if ($class == 1) {
-  #          ($RAD_REQUEST{INBYTE}, $RAD_REQUEST{OUTBYTE}, $RAD_REQUEST{'Acct-Input-Octets'}, $RAD_REQUEST{'Acct-Output-Octets'}) = (0, 0, 0, 0);
-  #          $RAD_REQUEST{'OUTBYTE2'} = $byte;
-  #        }
-  #
-  #        ($class, $byte) = split(/:/, $RAD_REQUEST{MPD_OUTPUT_OCTETS});
-  #        if ($class == 1) {
-  #          $RAD_REQUEST{'INBYTE2'} = $byte;
-  #        }
-  #        else {
-  #          $RAD_REQUEST{INBYTE}  = $RAD_REQUEST{'Acct-Output-Octets'} || 0;    # FROM client
-  #          $RAD_REQUEST{OUTBYTE} = $RAD_REQUEST{'Acct-Input-Octets'}  || 0;    # TO client
-  #        }
-  #      }
-  #    }
-  #  }
+  # $RAD_REQUEST{INTERIUM_INBYTE}   = 0;
+  # $RAD_REQUEST{INTERIUM_OUTBYTE}  = 0;
+  # $RAD_REQUEST{INTERIUM_INBYTE2}  = 0;
+  # $RAD_REQUEST{INTERIUM_OUTBYTE2} = 0;
+  # $RAD_REQUEST{INBYTE2}           = 0;
+  # $RAD_REQUEST{OUTBYTE2}          = 0;
 
   #Cisco-AVPair
   if ($RAD_REQUEST{'Cisco-AVPair'}) {
@@ -354,58 +303,16 @@ sub accounting {
 #    }
 #  }
 
-  if (defined($ACCT{ $nas->{NAS_TYPE} })) {
-    my $acct_module = $ACCT{ $nas->{NAS_TYPE} };
-    if (!defined($acct_mod{$acct_module})) {
-      require $acct_module . '.pm';
-      $acct_module->import();
-    }
-
-    $acct_mod{$acct_module} = $acct_module->new($db, \%conf);
-    $r = $acct_mod{$acct_module}->accounting(\%RAD_REQUEST, $nas, {
-      ACCT_STATUS_TYPE => $acct_status_type
-    });
+  my $acct_module = $ACCT{ $nas->{NAS_TYPE} } || 'Acct2';
+  if (!defined($acct_mod{$acct_module})) {
+    require $acct_module . '.pm';
+    $acct_module->import();
   }
-  elsif (defined($ACCT{ default })) {
-    my $acct_module = $ACCT{ default };
-    if (!defined($acct_mod{$acct_module})) {
-      require $acct_module . '.pm';
-      $acct_module->import();
-    }
 
-    $acct_mod{$acct_module} = $acct_module->new($db, \%conf);
-    $r = $acct_mod{$acct_module}->accounting(\%RAD_REQUEST, $nas, {
-      ACCT_STATUS_TYPE => $acct_status_type
-    });
-  }
-  else {
-    if ($nas->{NAS_TYPE} eq 'mpd5' && $RAD_REQUEST{MPD_INPUT_OCTETS}) {
-      ($RAD_REQUEST{OUTBYTE}, $RAD_REQUEST{INBYTE}, $RAD_REQUEST{'Acct-Input-Octets'}, $RAD_REQUEST{'Acct-Output-Octets'}) = (0, 0, 0, 0);
-
-      for (my $i = 0 ; $i <= $#{ $RAD_REQUEST{MPD_INPUT_OCTETS} } ; $i++) {
-        my ($class, $byte) = split(/:/, $RAD_REQUEST{MPD_INPUT_OCTETS}->[$i]);
-        $class = ($class == 0) ? '' : $class + 1;
-
-        if ($class eq '' && $byte > 4294967296) {
-          $RAD_REQUEST{'Acct-Input-Octets'} = int($byte / 4294967296);
-          $byte = $byte - ($RAD_REQUEST{'Acct-Input-Octets'} * 4294967296);
-        }
-
-        $RAD_REQUEST{ 'INBYTE' . $class } = $byte;
-        (undef, $byte) = split(/:/, $RAD_REQUEST{MPD_OUTPUT_OCTETS}->[$i]);
-
-        if ($class eq '' && $byte > 4294967296) {
-          $RAD_REQUEST{'Acct-Output-Octets'} = int($byte / 4294967296);
-          $byte = $byte - ($RAD_REQUEST{'Acct-Output-Octets'} * 4294967296);
-        }
-
-        $RAD_REQUEST{ 'OUTBYTE' . $class } = $byte;
-      }
-    }
-
-    $acct_mod{'default'} = Acct->new($db, \%conf);
-    $r = $acct_mod{'default'}->accounting(\%RAD_REQUEST, $nas, { ACCT_STATUS_TYPE => $acct_status_type });
-  }
+  $acct_mod{$acct_module} = $acct_module->new($db, \%conf);
+  $r = $acct_mod{$acct_module}->accounting(\%RAD_REQUEST, $nas, {
+    ACCT_STATUS_TYPE => $acct_status_type
+  });
 
   if ($r && $r->{errno}) {
     $Log->log_print('LOG_WARNING', $RAD_REQUEST{USER_NAME}, "[$r->{errno}] $r->{errstr}", { NAS => $nas });
@@ -605,7 +512,7 @@ sub get_nas_info {
       $nas->{errno}=1;
     }
   }
-  elsif (!$nas->{NAS_TYPE} eq 'dhcp' && (!defined($RAD->{'User-Name'}) || $RAD->{'User-Name'} eq '')) {
+  elsif (!$nas->{NAS_TYPE} eq 'dhcp' && ! $RAD->{'User-Name'}) {
     $nas->{errno}=2;
   }
   elsif ($nas->{NAS_DISABLE} > 0) {
@@ -631,57 +538,55 @@ sub auth_ {
     &radiusd::radlog(2, "_auth Auth-Type: $RAD_CHECK{'Auth-Type'} User-Name: $RAD->{'User-Name'}");
   }
 
+  #accep all for tech works
   if ($conf{tech_works}) {
     $RAD_REPLY{'Reply-Message'} = $conf{tech_works};
-    return 1;
+    $RAD_CHECK{'Auth-Type'} = 'Accept';
+    return 0;
   }
 
   if ($RAD->{'DHCP-Message-Type'}) {
     $nas->{NAS_TYPE} = 'dhcp';
   }
 
-  my $nas_type = $nas->{NAS_TYPE};
+  my $nas_type = $nas->{NAS_TYPE} || 'default';
   my $extra_info = q{};
-  if ($AUTH{ $nas_type }) {
-    my $auth_module = $AUTH{ $nas_type };
-    if (!defined($auth_mod{ $nas_type })) {
-      require $auth_module . ".pm";
-      $auth_module->import();
-    }
-
-    delete($auth_mod{$nas_type}->{INFO});
-    $auth_mod{$nas_type} = $auth_module->new($db, \%conf);
-    ($r, $RAD_PAIRS) = $auth_mod{$nas_type}->auth($RAD, $nas);
-    $RAD_REQUEST{'User-Name'} = $auth_mod{$nas_type}->{LOGIN} if ($auth_mod{$nas_type}->{LOGIN});
-
-    $extra_info = ($auth_mod{$nas_type}->{INFO}) ? $auth_mod{$nas_type}->{INFO} : '';
-  }
-  elsif ($AUTH{ default }) {
-    my $auth_module = $AUTH{ default };
-    if (!defined($auth_mod{ default })) {
-      require $auth_module . ".pm";
-      $auth_module->import();
-    }
-
-    delete($auth_mod{default}->{INFO});
-    $auth_mod{default} = $auth_module->new($db, \%conf);
-    ($r, $RAD_PAIRS) = $auth_mod{default}->auth($RAD, $nas);
-    $RAD_REQUEST{'User-Name'} = $auth_mod{"default"}->{LOGIN} if ($auth_mod{"default"}->{LOGIN});
-    $extra_info = ($auth_mod{ default }->{INFO}) ? $auth_mod{default}->{INFO} : '';
-
-    $nas_type = 'default';
-  }
-  else {
-    $auth_mod{'default'} = Auth->new($db, \%conf);
-
-    ($r, $RAD_PAIRS) = $auth_mod{"default"}->dv_auth($RAD, $nas, { MAX_SESSION_TRAFFIC => $conf{MAX_SESSION_TRAFFIC} });
-    $nas_type='default';
-    $RAD->{'User-Name'} = $auth_mod{"default"}->{LOGIN} if ($auth_mod{"default"}->{LOGIN});
+  #if ($AUTH{ $nas_type }) {
+  my $auth_module = $AUTH{ $nas_type } || 'Auth2';
+  if (!defined($auth_mod{ $nas_type })) {
+    require $auth_module . ".pm";
+    $auth_module->import();
   }
 
-  if($auth_mod{$nas_type}->{GUEST_MODE}) {
-    $Log->{ACTION} = 'GUEST_MODE';
-  }
+  delete($auth_mod{$nas_type}->{INFO});
+  $auth_mod{$nas_type} = $auth_module->new($db, \%conf);
+  ($r, $RAD_PAIRS) = $auth_mod{$nas_type}->auth($RAD, $nas);
+  $RAD_REQUEST{'User-Name'} = $auth_mod{$nas_type}->{LOGIN} if ($auth_mod{$nas_type}->{LOGIN});
+
+  $extra_info = ($auth_mod{$nas_type}->{INFO}) ? $auth_mod{$nas_type}->{INFO} : '';
+  #}
+  # else {  #if ($AUTH{ default }) {
+  #   my $auth_module = $AUTH{ default } || 'Auth2';
+  #   if (!defined($auth_mod{ default })) {
+  #     require $auth_module . ".pm";
+  #     $auth_module->import();
+  #   }
+  #
+  #   delete($auth_mod{default}->{INFO});
+  #   $auth_mod{default} = $auth_module->new($db, \%conf);
+  #   ($r, $RAD_PAIRS) = $auth_mod{default}->auth($RAD, $nas);
+  #   $RAD_REQUEST{'User-Name'} = $auth_mod{"default"}->{LOGIN} if ($auth_mod{"default"}->{LOGIN});
+  #   $extra_info = ($auth_mod{ default }->{INFO}) ? $auth_mod{default}->{INFO} : '';
+  #
+  #   $nas_type = 'default';
+  # }
+  # else {
+  #   $auth_mod{'default'} = Auth->new($db, \%conf);
+  #
+  #   ($r, $RAD_PAIRS) = $auth_mod{"default"}->dv_auth($RAD, $nas, { MAX_SESSION_TRAFFIC => $conf{MAX_SESSION_TRAFFIC} });
+  #   $nas_type='default';
+  #   $RAD->{'User-Name'} = $auth_mod{"default"}->{LOGIN} if ($auth_mod{"default"}->{LOGIN});
+  # }
 
   if($RAD_PAIRS) {
     #@RAD_REPLY{keys %$RAD_PAIRS} = values %$RAD_PAIRS;
@@ -736,7 +641,11 @@ sub auth_ {
   }
 
   if ($r == 0 || $r == 8) {
-    $Log->log_print( 'LOG_INFO', $RAD_REQUEST{'User-Name'}, "$extra_info$CID$GT", { NAS => $nas } );
+    if($auth_mod{$nas_type}->{GUEST_MODE}) {
+      $Log->{ACTION} = 'GUEST_MODE';
+    }
+
+    $Log->log_print( 'LOG_INFO', $RAD_REQUEST{'User-Name'}, $extra_info.$CID.$GT, { NAS => $nas } );
   }
 
   return $r;

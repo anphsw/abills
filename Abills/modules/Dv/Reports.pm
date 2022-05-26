@@ -560,8 +560,8 @@ sub dv_report_use {
       gid             => sel_groups({ HASH_RESULT => 1 }),
       tp_id           => \%TP_NAMES
     },
-    CHARTS          => 'users_count,sessions_count,traffic_recv,traffic_sent,duration_sec',
-    CHARTS_XTEXT    => 'auto', #$x_text,
+    # CHARTS          => 'users_count,sessions_count,traffic_recv,traffic_sent,duration_sec',
+    # CHARTS_XTEXT    => 'auto', #$x_text,
     EXT_TITLES      => \%ext_fields,
     FILTER_COLS     => {
       duration_sec    => 'sec2time_str',

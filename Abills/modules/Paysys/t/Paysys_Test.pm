@@ -148,7 +148,7 @@ sub paysys_test {
 
   my $params = paysys_get_params({ MODULE => $FORM{module} });
 
-  my $responce = q{};
+  my $response = q{};
   my $url = $conf{PAYSYS_TEST_URL} || qq{$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/paysys_check.cgi?};
   my @request_params = ();
   my %request_params = ();
@@ -182,7 +182,7 @@ sub paysys_test {
 
   $url .= join('&', @request_params);
 
-  $responce = Abills::Fetcher::web_request("$url", {
+  $response = Abills::Fetcher::web_request("$url", {
     INSECURE => 1,
     DEBUG    => $FORM{DEBUG},
     TIMEOUT  => 5,
@@ -190,28 +190,23 @@ sub paysys_test {
     %request_params
   });
 
-  if (!$responce) {
+  if (!$response) {
     $html->message('err', $lang{ERROR}, $lang{NO_DATA});
   }
   else {
-    #return 0;
-    if ($responce =~ /500 Internal Server Error/) {
-      $responce = "paysys_check.cgi SCRIPT ERROR\n Check apache (Web server) log\n\n" . $responce;
+    if ($response =~ /500 Internal Server Error/) {
+      $response = "paysys_check.cgi SCRIPT ERROR\n Check apache (Web server) log\n\n" . $response;
     }
   }
 
-  #my $params = paysys_get_params({ MODULE => $FORM{module} });
-  #my $test_result = q{};
-
   if ($params->{$FORM{_action}}{result}) {
     foreach my $item (@{$params->{$FORM{_action}}{result}}) {
-      if ($responce =~ /$item/) {
+      if ($response =~ /$item/) {
         $item =~ s/</&lt;/g;
         $item =~ s/>/&gt;/g;
         print $html->element('div', $html->element('strong',
           "Успешно! Результат правильный\n"),
           { class => 'alert alert-success' });
-        #$test_result .= "$responce => $item / OK\n======\n";
       }
       else {
         $item =~ s/</&lt;/g;
@@ -219,16 +214,17 @@ sub paysys_test {
         print $html->element('div', $html->element('strong',
           $lang{ERR_TRANSACTION_ERROR}),
           { class => 'alert alert-danger' });
-        #$test_result .= "$responce => $item / ERROR\n======\n";
       }
     }
   }
 
-  print $html->element('textarea', $responce, {
-    name  => 'results',
-    rows  => '10',
-    class => 'form-control'
-  });
+  if ($FORM{DEBUG} < 1) {
+    print $html->element('textarea', $response, {
+      name  => 'results',
+      rows  => '10',
+      class => 'form-control'
+    });
+  }
 
   return 1;
 }
@@ -262,6 +258,5 @@ sub paysys_get_params {
 
   return $test_params;
 }
-
 
 1;

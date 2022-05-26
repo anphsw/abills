@@ -160,4 +160,9 @@ $lang{STORAGE_COMPLETED} = 'Завершено';
 $lang{ATTACH_EQUIPMENT_TO_TICKET} = 'Возможность прикрепить оборудование к тикету';
 $lang{ITEM_ADDED_TO} = 'Товар добавлено к';
 
+$lang{MOVED} = 'Перемещено';
+
+$lang{INSTALLATION_ADDRESS} = 'Адрес установки';
+$lang{INVENTORY_ITEMS} = 'ТМЦ';
+
 1;

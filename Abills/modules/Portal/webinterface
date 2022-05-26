@@ -643,7 +643,7 @@ sub portal_s_page {
 
   our %QT_LANG;
   our %OUTPUT;
-  $OUTPUT{HTML_STYLE} = 'default_adm';
+  $OUTPUT{HTML_STYLE} = 'default';
   $OUTPUT{SEL_LANGUAGE} = $html->form_select('language', {
     EX_PARAMS  => 'onChange="selectLanguage()"',
     SELECTED   => $html->{language},

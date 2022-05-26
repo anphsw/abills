@@ -26,22 +26,3 @@
     </div>
   </div>
 </div>
-
-
-
-<!-- <TABLE width=500 class='form'>
-<tr><th class='form_title'>
-Congratulation
-</th></tr>
-<tr><td>
-<p>Registration Complete</p>
-
-<p><b>LOGIN: %LOGIN%</b></p>
-<p><b>_{PASSWD}_: %PASSWD%</b></p>
-<br><b>_{FIO}_:</b> %FIO%
-<br><b>EMAIL:</b> %EMAIL%
-<p>All information has been sent to your E-mail</p>
-</td>
-</tr>
-</table>
- -->

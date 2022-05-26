@@ -681,7 +681,7 @@ sub table_title{
       }
 
       $self->{table_title} .= $self->button(
-        "<img src=\"$IMG_PATH/$img\" width=\"12\" height=\"10\" border=\"0\" alt=\"Sort\" title=\"Sort\" class=\"noprint\">"
+        "<img src=\"$IMG_PATH/$img\" width=\"12\" height=\"10\" border=\"0\" alt=\"Sort\" title=\"Sort\" class=\"d-print-none\">"
         , "$op$qs&pg=$pg&sort=$i&desc=$desc" );
     }
     else{

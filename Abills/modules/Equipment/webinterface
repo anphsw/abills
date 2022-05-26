@@ -121,6 +121,7 @@ if ($permissions{4}) {
 my $EQUIPMENT_MAPS_LAYER_ID = 7;
 my $PON_MAPS_LAYER_ID = 20;
 
+# TODO: rewrite equipment_panel to normal table_header
 #********************************************************
 =head2 equipment_panel($attr)
 
@@ -148,9 +149,9 @@ sub equipment_panel {
   $pages_qs .= ($FORM{NAS_ID}) ? "&NAS_ID=$FORM{NAS_ID}" : q{};
 
   $ports_visualisation{4} = "PON" if ($attr->{TYPE_ID} && $attr->{TYPE_ID} == 4);
-
-  my $buttons = $html->li($html->button($lang{MAIN}, "index=$index$pages_qs", { ex_params => "class='nav-link'" }),
-    { class => ((!defined($FORM{visual})) ? 'nav-item active' : 'nav-item') });
+  my $first_active = (!defined($FORM{visual})) ? 'active' : '';
+  my $buttons = $html->li($html->button($lang{MAIN}, "index=$index$pages_qs", { ex_params => "class='nav-link $first_active'" }),
+    { class => "nav-item $first_active" });
 
   foreach my $key (sort {$a <=> $b} keys %ports_visualisation) {
     my $value = $ports_visualisation{$key};
@@ -179,9 +180,11 @@ sub equipment_panel {
       }
     }
     else {
+      my $eindex = ($key && $key == 7) ? get_function_index('snmp_info_form') : $index;
+      my $active = (defined($FORM{visual}) && $FORM{visual} eq $key) ? 'active' : '';
       $buttons .= $html->li($html->button($value,
-        "index=" . (($key && $key == 7) ? get_function_index('snmp_info_form') : $index) . "&visual=$key$pages_qs", { ex_params => "class='nav-link'" }),
-        { class => (defined($FORM{visual}) && $FORM{visual} eq $key) ? 'nav-item active' : 'nav-item' });
+        "index=$eindex&visual=$key$pages_qs", { ex_params => "class='nav-link $active'" }),
+        { class => "nav-item $active" });
     }
   }
 
@@ -215,15 +218,15 @@ sub equipment_panel {
         },
         NAME    => 'equipment_nas_panel',
         ID      => 'equipment_nas_panel',
-        class   => 'form-inline ml-auto',
+        class   => 'form-inline ml-auto flex-nowrap',
       }
     );
 
-    my $buttons_list = $html->element('ul', $buttons, { class => 'navbar-nav' });
+    my $buttons_list = $html->element('ul', $buttons, { class => 'nav-tabs navbar-nav' });
 
     my $navbar_collapse = $html->element('div', $buttons_list . $nas_select_form, { id => 'equipment_menu', class => 'collapse navbar-collapse' });
     my $menu = $html->element('nav',
-      $html->element('span', $lang{MENU}, { class => 'navbar-brand d-lg-none' }) .
+      $html->element('span', $lang{EQUIPMENT}, { class => 'navbar-brand d-lg-none pl-3' }) .
       $html->element('button',
         $html->element('span', '', { class => 'navbar-toggler-icon' }),
         {
@@ -237,7 +240,7 @@ sub equipment_panel {
         }
       ) .
       $navbar_collapse,
-      { class => 'navbar navbar-expand-lg navbar-light bg-light' }
+      { class => 'abills-navbar navbar navbar-expand-lg navbar-light mb-2' }
     );
 
     print $menu;
@@ -491,9 +494,9 @@ sub equipment_info {
     $Equipment->{IPTV_VLAN} ||= q{};
     # Show map btn
     if ($Nas->{LOCATION_ID} && in_array('Maps', \@MODULES)) {
-
-      load_module('Maps', $html);
-      $Nas->{MAP_BTN} = maps_show_object_button($EQUIPMENT_MAPS_LAYER_ID, $Nas->{NAS_ID}, {
+      use Maps::Auxiliary;
+      my $Auxiliary = Maps::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+      $Nas->{MAP_BTN} = $Auxiliary->maps_show_object_button($EQUIPMENT_MAPS_LAYER_ID, $Nas->{NAS_ID}, {
         GO_TO_MAP => 1,
         NAME      => $lang{MAP}
       });
@@ -1113,7 +1116,7 @@ sub equipment_vlans {
   }
   #=== NAV TABS ===
   if ((!$attr->{NAS_INFO}->{TYPE_ID} || ($attr->{NAS_INFO}->{TYPE_ID} && $attr->{NAS_INFO}->{TYPE_ID} != 4)) && !$conf{SKIP_UNNUMBERED_TAB}) {
-    my $active_button->{$FORM{sub}} = { class => 'nav-item' };
+    my $active_button->{$FORM{sub}} = 'active';
     my %nav_tabs = (
       1 => "Vlans",
       2 => "Unnumbered vlans",
@@ -1121,11 +1124,17 @@ sub equipment_vlans {
 
     my $buttons = '';
     foreach (sort {$a <=> $b} keys(%nav_tabs)) {
-      $buttons .= $html->li($html->button($nav_tabs{$_}, "index=$index&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&sub=$_", { class => 'nav-link' }), $active_button->{$_})
+      $buttons .= $html->li(
+        $html->button($nav_tabs{$_},
+          "index=$index&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&sub=$_",
+          { class => "nav-link " . ($active_button->{$_} // '') }
+        ),
+          { class => 'nav-item' }
+      )
     }
 
-    my $ul_nav_bar = $html->element('ul', $buttons, { class => 'navbar-nav' });
-    print $html->element('nav', $ul_nav_bar, { class => 'navbar navbar-expand-lg navbar-light bg-light' });
+    my $ul_nav_bar = $html->element('ul', $buttons, { class => 'nav-tabs navbar-nav' });
+    print $html->element('nav', $ul_nav_bar, { class => 'abills-navbar navbar navbar-expand-lg navbar-light' });
   }
   #=== NAV TABS END ===
 
@@ -2160,7 +2169,7 @@ sub equipment_user_info {
         { class => 'btn btn-xs btn-secondary' })
         . $html->button($lang{SPEED_CHARTS},
           "get_index=internet_user&full=1&UID=$attr->{UID}&GRAPH=1&NAS_ID=$nas_id&PORT=$attr->{PORT}",
-          { ICON => 'fa fa-bar-chart' }
+          { ICON => 'fa fa-chart-bar' }
         )
         . equipment_run_cmd_on_equipment_button({
           nas_id   => $nas_id,

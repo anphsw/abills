@@ -1101,8 +1101,7 @@ sub ipoe_use{
   $HIDDEN{COMPANY_ID} = $FORM{COMPANY_ID} if ($FORM{COMPANY_ID});
   $HIDDEN{sid} = $sid if ($FORM{sid});
 
-  reports(
-    {
+  reports({
       DATE        => $FORM{DATE},
       REPORT      => '',
       HIDDEN      => \%HIDDEN,
@@ -1122,8 +1121,8 @@ sub ipoe_use{
       TIME_FORM   => 1,
       DATE_RANGE  => 1,
       EX_INPUTS   => [
-        $html->element('label', " $lang{DIMENSION}: ", {class => 'col-md-12 control-label'})
-        . $html->element('div', $html->form_select(
+        $html->element('label', " $lang{DIMENSION}: ", {class => 'col-md-2 control-label'})
+          . $html->element('div', $html->form_select(
           'DIMENSION',
           {
             SELECTED => $FORM{DIMENSION},
@@ -1136,10 +1135,9 @@ sub ipoe_use{
             },
             NO_ID    => 1
           }
-        ), {class => 'col-md-12 '})
+        ), { class => 'col-md-8' })
       ]
-    }
-  );
+  });
 
   my %totals = ();
   our %DATA_HASH;
@@ -1181,30 +1179,28 @@ sub ipoe_use{
       $LIST_PARAMS{HOURS} = 1;
     }
 
-    $list = $Internet_ipoe->reports_users( {
+    $list = $Internet_ipoe->reports_users({
       TRAFFIC_IN  => '_SHOW',
       TRAFFIC_OUT => '_SHOW',
       TRAFFIC_SUM => '_SHOW',
       SUM         => '_SHOW',
       %LIST_PARAMS,
       COLS_NAME   => 1
-    } );
+    });
 
     if ( _error_show( $Internet_ipoe ) ){
       #return 0;
     }
 
-    #Used Fraffic
-    $table_sessions = $html->table(
-      {
-        width      => '100%',
-        caption    => $lang{SESSIONS},
-        title      => [ $lang{DATE}, $lang{USERS}, $lang{TRAFFIC_CLASS}, $lang{NAME}, $lang{RECV}, $lang{SENT}, $lang{TOTAL}, $lang{SUM} ],
-        qs         => $pages_qs,
-        ID         => 'IPN_USERS_STATS',
-        EXPORT     => 1,
-      }
-    );
+    #Used Traffic
+    $table_sessions = $html->table({
+      width   => '100%',
+      caption => $lang{SESSIONS},
+      title   => [ $lang{DATE}, $lang{USERS}, $lang{TRAFFIC_CLASS}, $lang{NAME}, $lang{RECV}, $lang{SENT}, $lang{TOTAL}, $lang{SUM} ],
+      qs      => $pages_qs,
+      ID      => 'IPN_USERS_STATS',
+      EXPORT  => 1,
+    });
 
     my %report = ();
 
@@ -1298,17 +1294,15 @@ sub ipoe_use{
         $DATA_HASH{MONEY}[$h] = int( $user_sum );
       }
 
-      $out = $html->make_charts(
-        {
-          DEBUG => 1,
-          PERIOD        => $graph_type,
-          DATA          => \%DATA_HASH,
-          #AVG           => \%AVG,
-          TRANSITION    => 1,
-          %CHARTS,
-          OUTPUT2RETURN => 1
-        }
-      );
+      $out = $html->make_charts({
+        DEBUG         => 1,
+        PERIOD        => $graph_type,
+        DATA          => \%DATA_HASH,
+        #AVG           => \%AVG,
+        TRANSITION    => 1,
+        %CHARTS,
+        OUTPUT2RETURN => 1
+      });
     }
     #Report by users
     else{
@@ -1555,22 +1549,20 @@ sub ipoe_use{
     print $table->show();
   }
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      rows       => [
-        [
-          "$lang{USERS}: " . $html->b( $Internet_ipoe->{USERS_COUNT} ),
-          "$lang{RECV}: " . $html->b( int2byte( $Internet_ipoe->{TRAFFIC_IN_SUM}, { DIMENSION => $FORM{DIMENSION} } ) ),
-          "$lang{SENT}: " . $html->b( int2byte( $Internet_ipoe->{TRAFFIC_OUT_SUM}, { DIMENSION => $FORM{DIMENSION} } ) ),
-          "$lang{TRAFFIC}: " . $html->b( int2byte( ($Internet_ipoe->{TRAFFIC_IN_SUM} || 0) + ($Internet_ipoe->{TRAFFIC_OUT_SUM} || 0),
-            { DIMENSION => $FORM{DIMENSION} } ) ),
-          "$lang{SUM}: " . $html->b( $Internet_ipoe->{SUM} )
-        ]
-      ],
-      rowcolor   => 'bg-success'
-    }
-  );
+  $table = $html->table({
+    width    => '100%',
+    rows     => [
+      [
+        "$lang{USERS}: " . $html->b($Internet_ipoe->{USERS_COUNT}),
+        "$lang{RECV}: " . $html->b(int2byte($Internet_ipoe->{TRAFFIC_IN_SUM}, { DIMENSION => $FORM{DIMENSION} })),
+        "$lang{SENT}: " . $html->b(int2byte($Internet_ipoe->{TRAFFIC_OUT_SUM}, { DIMENSION => $FORM{DIMENSION} })),
+        "$lang{TRAFFIC}: " . $html->b(int2byte(($Internet_ipoe->{TRAFFIC_IN_SUM} || 0) + ($Internet_ipoe->{TRAFFIC_OUT_SUM} || 0),
+          { DIMENSION => $FORM{DIMENSION} })),
+        "$lang{SUM}: " . $html->b($Internet_ipoe->{SUM})
+      ]
+    ],
+    rowcolor => 'bg-success'
+  });
 
   print ( ($table_sessions) ? $table_sessions->show() : '' );
   print $table->show() . $out;

@@ -32,7 +32,7 @@
   <div class='card card-outline card-big-form mb-0 border-top'>
     <div class='card-header with-border'>
       <h3 class='card-title'>_{CONTACTS}_</h3>
-      <div class='card-tools pull-right'>
+      <div class='card-tools float-right'>
         <button type='button' class='btn btn-tool' data-card-widget='collapse'>
           <i class='fa fa-minus'></i>
         </button>
@@ -130,7 +130,7 @@
          </span>
         </a>
         {{^is_default}}
-            <span data-target='#' class='fa fa-remove contact-remove-btn text-red form-control-static' data-id='{{id}}'></span>
+            <span data-target='#' class='fa fa-times contact-remove-btn text-red form-control-static' data-id='{{id}}'></span>
         {{/is_default}}
       </div>
     </div>
@@ -138,7 +138,7 @@
   </li>
 </script>
 
-<script src='/styles/default_adm/js/contacts_form.js?v=0.77.78'></script>
+<script src='/styles/default/js/contacts_form.js?v=0.77.78'></script>
 
 <style>
   .contact {

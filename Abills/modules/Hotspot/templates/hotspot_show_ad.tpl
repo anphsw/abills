@@ -6,8 +6,8 @@
   <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
 
   <title>Hotspot Advertisement</title>
-  <link rel='stylesheet' href='/styles/default_adm/css/bootstrap.min.css'>
-  <script src='/styles/default_adm/js/jquery.min.js'></script>
+  <link rel='stylesheet' href='/styles/default/css/bootstrap.min.css'>
+  <script src='/styles/default/js/jquery.min.js'></script>
 
   <style>
     #ad_page {
@@ -27,7 +27,7 @@
   <div class='row'>
     <div class='well-sm'>
       <div class='col-xs-3' id='refresh_time_left'>%PERIOD%</div>
-      <div class='col-xs-3 pull-right'>
+      <div class='col-xs-3 float-right'>
         <a href='%ORIGIN_URL%'>_{SKIP}_</a>
       </div>
       <div class='clearfix'></div>

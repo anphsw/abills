@@ -1,5 +1,106 @@
 Список запланированных изменений [[abills:todo:todo|Todo List]]
 ====0.90====
+14.06.2021
+  * Исправлена проблема с кодировкой в всплывающем сообщении о входящем звонке.
+  * Журнал оплат: поле "Внутреннее сообщение" теперь отображается отдельно от описания.
+  * ''Equipment''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=53641248|Кабельный тестер]]: добавлена поддержка моделей оборудования D-Link DES-1210-28/ME/B2, DES-1210-28/ME/B3, DES-1228/ME.
+  * ''Crm''. Добавлено отображение конкурента на карте в окне потенциального клиента.
+  * ''Crm''. Добавлено отображение номера квартиры на карте в окне потенциального клиента.
+  * ''Equipment''. Добавлена возможность [[http://abills.net.ua:8090/pages/viewpage.action?pageId=63898004|отображения конфигурации ONU для GPON Huawei]].
+  * ''Equipment''. Добавлено отображение [[http://abills.net.ua:8090/pages/viewpage.action?pageId=63897697|MAC-адресов за ONU]] для EPON V-SOLUTION, GPON Huawei, GPON BDCOM, ZTE C300/C320.
+  * Добавлена возможность [[http://abills.net.ua:8090/pages/viewpage.action?pageId=63898049|одновременной работы двух и более веб-сессий в кабинете пользователя]].
+  * ''Paysys''. Добавлен прямой отчёт с системы [[http://abills.net.ua:8090/display/AB/Concord|Concord]].
+  * ''Iptv''. Iptvportal. Добавлен [[http://abills.net.ua:8090/display/AB/Iptvportal#Iptvportal-%D0%A1%D0%B8%D0%BD%D1%85%D1%80%D0%BE%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8FIP%D0%B0%D0%B1%D0%BE%D0%BD%D0%B5%D0%BD%D1%82%D0%B0|billd-плагин для синхронизации IP-адресов абонентов]].
+  * ''Equipment''. billd-плагин [[http://abills.net.ua:8090/display/AB/MAC+GRabber|equipment_mac]]: добавлен параметр TRANSACTION=1 (ускоряет запись в БД).
+  * ''Accident''. Добавлена [[http://abills.net.ua:8090/display/AB/Accident#Accident-%D0%9E%D0%BF%D0%BE%D0%B2%D0%B5%D1%89%D0%B5%D0%BD%D0%B8%D0%B5%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8F%D0%BE%D0%B0%D0%B2%D0%B0%D1%80%D0%B8%D0%B8|возможность оповещать пользователей о аварии через Telegram или Viber]].
+  * ''Cams''. [[http://abills.net.ua:8090/display/AB/Trassir|Trassir]]. Добавлена возможность просмотра архива средствами биллинга.
+  * ''Equipment''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=7504045#id-%D0%A3%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5%D1%83%D1%81%D0%BB%D1%83%D0%B3%D0%BE%D0%B9-%D0%9F%D0%B0%D0%BD%D0%B5%D0%BB%D1%8C%22%D0%9E%D0%B1%D0%BE%D1%80%D1%83%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%22|Панель "Оборудование" в карточке абонента]]: переработано поведение кнопки включения/отключения порта
+  * ''Cams''. Модуль доработан для возможности работы с сервером VIDEO [[http://abills.net.ua:8090/display/AB/Axiostv+Cams|АКСИОСТВ]].
+  * ''Iptv''. Добавлен модуль [[http://abills.net.ua:8090/display/AB/YouTV|YouTV]].
+  * ''Equipment''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=63897720|Страница "Порты"]]: исправлено изменение админ. статуса порта по SNMP. Исправлено сохранение админ. статусов портов в БД.
+  * ''Iptv''.  [[http://abills.net.ua:8090/display/AB/Megogo+TV#MegogoTV-%D0%97%D0%B0%D0%B2%D0%B5%D0%B4%D0%B5%D0%BD%D0%B8%D0%B5%D1%83%D1%81%D0%BB%D1%83%D0%B3%D0%B8%D0%B0%D0%B1%D0%BE%D0%BD%D0%B5%D0%BD%D1%82%D1%83|Megogo TV]]. Теперь, если у пользователя uid или пароль меньше 6 символов, перед отправкой запроса на добавление в Megogo он будет дополнен символами "0" до длины 6 символов.
+  * ''Equipment''. Исправлены отчёты по PON ([[http://abills.net.ua:8090/pages/viewpage.action?pageId=31883408|PON Статистика]], [[http://abills.net.ua:8090/pages/viewpage.action?pageId=9601185#id-%D0%91%D1%8B%D1%81%D1%82%D1%80%D1%8B%D0%B5%D0%BE%D1%82%D1%87%D0%B5%D1%82%D1%8B%D0%BF%D0%BE%D0%BE%D0%B1%D0%BE%D1%80%D1%83%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8E%D0%B4%D0%BB%D1%8F%D0%BF%D0%B5%D1%80%D0%B2%D0%BE%D0%B9%D1%81%D1%82%D1%80%D0%B0%D0%BD%D0%B8%D1%86%D1%8B-%D0%9E%D1%82%D1%87%D1%91%D1%82%D0%BF%D0%BEPON|быстрый отчёт "Отчёт по PON"]]).
+  * ''Msgs''. Добавлен [[http://abills.net.ua:8090/display/AB/Msgs|параметр для выбора плагинов для отправки оповещения пользователю об ответе на заявку ($conf{MSGS_SEND_MESSAGES_TYPES})]].
+  * ''Crm''. Добавлена [[http://abills.net.ua:8090/pages/viewpage.action?pageId=63897834#Crm:%D0%98%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%BD%D1%8B%D0%B5%D0%BF%D0%BE%D0%BB%D1%8F-%D0%9D%D0%BE%D0%B2%D1%8B%D0%B5%D0%B8%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%BD%D1%8B%D0%B5%D0%BF%D0%BE%D0%BB%D1%8F%D0%B4%D0%BB%D1%8F%D1%82%D0%B0%D1%80%D0%B8%D1%84%D0%BD%D1%8B%D1%85%D0%BF%D0%BB%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%BE%D0%BD%D0%BA%D1%83%D1%80%D0%B5%D0%BD%D1%82%D0%B0|возможность создавать информационные поля для тарифных планов конкурента]].
+  * ''Msgs''. Добавлена возможность поиска по тегам с логикой "или" - поиск сообщений, у которых есть хотя бы один из перечисленных тегов. Также, если выбрать "все" в поиске по тегам, отобразятся все сообщения, у которых есть хоть какие-то теги, но не сообщения без тегов.
+  * ''Crm''. Добавлено право доступа отображать всех потенциальных клиентов. Администратору без этого права отображаются только те потенциальные клиенты, к которым он привязан.
+  * ''Cablecat''. Добавлена возможность редактирования названия коммутации.
+  * ''Iptv''. Добавлен параметр для отображения услуг с ценой 0 в шапке абонента ($conf{IPTV_SHOW_FREE_TPS}).
+  * Добавлен [[http://abills.net.ua:8090/pages/viewpage.action?pageId=7503987#id-%D0%9F%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D1%8B-%D0%9F%D1%80%D0%B8%D0%BE%D1%82%D1%81%D1%83%D1%82%D1%81%D1%82%D0%B2%D0%B8%D0%B8%D1%82%D1%80%D0%B0%D1%84%D0%B8%D0%BA%D0%B0%D0%B1%D0%BE%D0%BB%D0%B5%D0%B590%D0%B4%D0%BD%D0%B5%D0%B9%D0%BF%D0%B5%D1%80%D0%B5%D0%B2%D0%BE%D0%B4%D0%B8%D1%82%D0%B2%D1%81%D1%82%D0%B0%D1%82%D1%83%D1%81%22%D0%9D%D0%B5%D0%B4%D0%BE%D1%81%D1%82%D0%B0%D1%82%D0%BE%D1%87%D0%BD%D0%BE%D1%81%D1%80%D0%B5%D0%B4%D1%81%D1%82%D0%B2%22|billd-плагин, который отключает абонентов, которые не пользовались интернетом определённое количество времени]].
+  * ''Crm''. Добавлены [[http://abills.net.ua:8090/pages/viewpage.action?pageId=3211400#id-%D0%9F%D0%BE%D1%82%D0%B5%D0%BD%D1%86%D0%B8%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5%D0%BA%D0%BB%D0%B8%D0%B5%D0%BD%D1%82%D1%8B-%D0%9C%D0%BD%D0%BE%D0%B3%D0%BE%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D0%BA%D0%B8%D0%B5%D0%BE%D0%BF%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8|многопользовательские операции]].
+  * Унифицировано использование разделителей при отображении адреса (разделитель вставляется между улицей и домом, и т. д.). Разделитель теперь настраивается параметром [[http://abills.net.ua:8090/pages/viewpage.action?pageId=11403583|$conf{BUILD_DELIMITER}]].
+  * ''Equipment''. Исправлена работа ARP-таблицы на GCOM.
+  * ''Iptv''. Добавлен параметр для отображения отключенных услуг в баннере оплат ($conf{IPTV_SHOW_ALL_SERVICES}).
+  * ''Cablecat''. Добавлена [[http://abills.net.ua:8090/pages/viewpage.action?pageId=8782014#id-%D0%A1%D1%85%D0%B5%D0%BC%D0%B0%D0%BA%D0%BE%D0%BC%D0%BC%D1%83%D1%82%D0%B0%D1%86%D0%B8%D0%B8-%D0%9F%D0%B5%D1%80%D0%B5%D0%BC%D0%B5%D1%89%D0%B5%D0%BD%D0%B8%D0%B5%D1%8D%D0%BB%D0%B5%D0%BC%D0%B5%D0%BD%D1%82%D0%BE%D0%B2|возможность передвигать кабеля на схеме коммутации]].
+  * ''Cablecat''. Добавлено локализацию [[http://abills.net.ua:8090/pages/viewpage.action?pageId=8782014#id-%D0%A1%D1%85%D0%B5%D0%BC%D0%B0%D0%BA%D0%BE%D0%BC%D0%BC%D1%83%D1%82%D0%B0%D1%86%D0%B8%D0%B8-%D0%9F%D0%B5%D1%87%D0%B0%D1%82%D0%BD%D0%B0%D1%8F%D1%84%D0%BE%D1%80%D0%BC%D0%B0|печатной формы]].
+  * ''Cablecat''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=8782014#id-%D0%A1%D1%85%D0%B5%D0%BC%D0%B0%D0%BA%D0%BE%D0%BC%D0%BC%D1%83%D1%82%D0%B0%D1%86%D0%B8%D0%B8-%D0%9F%D0%B5%D1%87%D0%B0%D1%82%D0%BD%D0%B0%D1%8F%D1%84%D0%BE%D1%80%D0%BC%D0%B0|Печатная форма]]. Добавлено отображение типа портов для кросса.
+  * ''Cablecat''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=8782014#id-%D0%A1%D1%85%D0%B5%D0%BC%D0%B0%D0%BA%D0%BE%D0%BC%D0%BC%D1%83%D1%82%D0%B0%D1%86%D0%B8%D0%B8-%D0%9F%D0%B5%D1%87%D0%B0%D1%82%D0%BD%D0%B0%D1%8F%D1%84%D0%BE%D1%80%D0%BC%D0%B0|Печатная форма]]. Добавлено отображение затухания для делителей.
+  * ''Equipment''. Исправлена ошибка, когда на странице ONU трафик округлялся до целых ГиБ, когда трафик был >= 4 ГиБ.
+  * ''Cablecat''. Добавлены [[http://abills.net.ua:8090/pages/viewpage.action?pageId=58785793#Cablecat%D0%B8%D0%BC%D0%BF%D0%BE%D1%80%D1%82%D0%BE%D0%B1%D1%8A%D0%B5%D0%BA%D1%82%D0%BE%D0%B2-%D0%A1%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5%D0%BF%D1%80%D0%B5%D1%81%D0%B5%D1%82%D0%BE%D0%B2|импорт и сохранение пресетов]].
+  * ''Equipment''. Добавлена [[http://abills.net.ua:8090/pages/viewpage.action?pageId=63897697|возможность показывать все MAC-адреса за ONU, которые когда-либо появлялись за ONU (параметр конфига $conf{EQUIPMENT_SHOW_OLD_MAC_BEHIND_ONU})]].
+  * ''Equipment''. Вкладки [[http://abills.net.ua:8090/pages/viewpage.action?pageId=63897900|"MAC"]], [[http://abills.net.ua:8090/pages/viewpage.action?pageId=63897720|"Порты"]]: добавлена кнопка определения производителя устройства по MAC-адресу.
+  * ''Equipment''. Добавлено поле [[http://abills.net.ua:8090/display/AB/ONU+last+down+cause|ONU Last Down Cause]] на странице ONU для OLT Huawei и GPON BDCOM.
+  * ''Equipment''. Страница "Порты": добавлено [[http://abills.net.ua:8090/pages/viewpage.action?pageId=63897720#id-%D0%92%D0%BA%D0%BB%D0%B0%D0%B4%D0%BA%D0%B0%22%D0%9F%D0%BE%D1%80%D1%82%D1%8B%22-%D0%94%D0%BE%D0%BF%D0%BE%D0%BB%D0%BD%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5%D0%BF%D0%BE%D0%BB%D1%8F|доп. поле "MAC dynamic", в котором отображаются динамически полученные MAC'и на портах]].
+  * ''Paysys''. Добавлен billd-плагин payments_pool (оплаты сначала заносятся в таблицу payments_pool, а потом проходятся cross_modules). При большом количестве платежей исключает возможность незачисления.
+  * ''Equipment''. Добавлена возможность изменять список пропускаемых портов на странице "Порты" с помощью [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258991|параметра конфига $conf{EQUIPMENT_SKIP_PORTS_TYPES}]].
+  * ''Equipment''. Исправлено отображение [[http://abills.net.ua:8090/pages/viewpage.action?pageId=63897697|MAC-адресов за ONU]] на новых версиях прошивок EPON BDCOM.
+  * ''Equipment''. Теперь на странице "Порты" в [[http://abills.net.ua:8090/pages/viewpage.action?pageId=63897720#id-%D0%92%D0%BA%D0%BB%D0%B0%D0%B4%D0%BA%D0%B0%22%D0%9F%D0%BE%D1%80%D1%82%D1%8B%22-%D0%94%D0%BE%D0%BF%D0%BE%D0%BB%D0%BD%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5%D0%BF%D0%BE%D0%BB%D1%8F|столбце "MAC"]] показываются MAC-адреса на этом порте, взятые с MAC log (раньше показывалась кнопка с количеством MAC-адресов, ведущая на страницу MAC log).
+  * ''Equipment''. Исправлена ошибка, когда на странице "Порты" некорректно показывался трафик, если он больше, чем 4 ГиБ.
+  * ''Equipment''. Добавлена [[http://abills.net.ua:8090/pages/viewpage.action?pageId=63897817|возможность работы с внешними системами учета (на ONU отображаются ссылки на внешнюю систему)]].
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=16973982|Cudload]]. Добавлена возможность удалять старые бекапы с облака.
+  * ''Equipment''. Добавлена возможность задавать количество поддерживаемых ONU на ветке для конкретной модели оборудования по типам веток [[http://abills.net.ua:8090/pages/viewpage.action?pageId=18612229#id-%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D1%82%D1%8C%D0%B6%D1%83%D1%80%D0%BD%D0%B0%D0%BB%D0%BE%D0%B1%D0%BE%D1%80%D1%83%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F-PON|(подробнее)]].
+  * ''Equipment''. В списке портов оборудования добавлена колонка "Ошибки на порту".
+  * ''Docs''. Добавлена [[http://abills.net.ua:8090/pages/viewpage.action?pageId=11403889|переменная шаблона DOCS_ABON_SUM_SERVICE]] - общая сумма всех сервисов у абонента.
+  * [[http://abills.net.ua:8090/display/AB/mikrotik_dhcp_leases.pl|mikrotik_dhcp_leases.pl]]. Добавлена проверка на изменение ТП.
+
+<accordion title="20210614"><panel title="MySQL"><code mysql>
+ALTER TABLE `cablecat_splitters` ADD COLUMN `name` VARCHAR(32) NOT NULL DEFAULT '';
+
+ALTER TABLE `cablecat_splitters` MODIFY `commutation_x` DOUBLE(6, 2) NULL;
+ALTER TABLE `cablecat_splitters` MODIFY `commutation_y` DOUBLE(6, 2) NULL;
+ALTER TABLE `cablecat_commutation_equipment` MODIFY `commutation_x` DOUBLE(6, 2) NULL;
+ALTER TABLE `cablecat_commutation_equipment` MODIFY `commutation_y` DOUBLE(6, 2) NULL;
+ALTER TABLE `cablecat_commutation_crosses` MODIFY `commutation_x` DOUBLE(6, 2) NULL;
+ALTER TABLE `cablecat_commutation_crosses` MODIFY `commutation_y` DOUBLE(6, 2) NULL;
+ALTER TABLE `cablecat_commutations` ADD COLUMN `height` DOUBLE(6, 2) NULL;
+
+ALTER TABLE `equipment_models` ADD COLUMN image_url VARCHAR(500) DEFAULT '';
+UPDATE equipment_models SET image_url = 'https://www.edge-core.com/timthumb.php?src=_upload/images/1605181111021.png&h=357&w=490&zc=3' WHERE id = 158;
+UPDATE equipment_models SET image_url = 'https://i.mt.lv/cdn/rb_images/1606_l.jpg' WHERE id = 161;
+UPDATE equipment_models SET image_url = 'https://www.juniper.net/assets/img/products/image-library/mx-series/mx80/mx80-front-high.jpg' WHERE id = 162;
+UPDATE equipment_models SET image_url = 'https://www.dlink.ru/up/prod_fotos/DGS-1100-06ME_A1_Front.jpg' WHERE id = 232;
+UPDATE equipment_models SET image_url = 'https://eltex-co.ru/upload/iblock/32f/olt-ma4000_px_front.png' WHERE id = 262;
+
+ALTER TABLE `extreceipts_api` ADD COLUMN `conf_name` VARCHAR(50) NOT NULL DEFAULT '' AFTER api_id;
+
+ALTER TABLE `cablecat_commutations` ADD COLUMN `name` VARCHAR(64) NOT NULL DEFAULT '';
+UPDATE equipment_models SET image_url = 'https://ecolan.com.ua/components/com_jshopping/files/img_products/full_zte_c300_3.jpg' WHERE id = 306;
+ALTER TABLE equipment_mac_log MODIFY port VARCHAR(16) NOT NULL DEFAULT '';
+
+ALTER TABLE `maps_points` MODIFY `name` VARCHAR(64) NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS `cablecat_import_presets` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `preset_name` varchar(64) NOT NULL DEFAULT '',
+  `default_preset_name` varchar(64) NOT NULL DEFAULT '',
+  `object_name` varchar(64) NOT NULL DEFAULT '',
+  `type_id` varchar(64) NOT NULL DEFAULT '',
+  `default_type_id` SMALLINT(6) NOT NULL,
+  `object` varchar(64) NOT NULL DEFAULT '',
+  `object_add` TINYINT(1) NOT NULL DEFAULT 0,
+  `coordx` varchar(64) NOT NULL DEFAULT '',
+  `coordy` varchar(64) NOT NULL DEFAULT '',
+  `load_url` varchar(128) NOT NULL DEFAULT '',
+  `json_path` varchar(64) NOT NULL DEFAULT '',
+  `filters` varchar(128) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`)
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Presets for wells import';
+ALTER TABLE equipment_extra_ports ADD COLUMN port_combo_with SMALLINT NOT NULL DEFAULT 0 AFTER port_type;
+ALTER TABLE equipment_extra_ports DROP COLUMN state;
+</code></panel></accordion>
+
 06.05.2021
   * ''Crm''. Добавлена [[http://abills.net.ua:8090/pages/viewpage.action?pageId=63897834|возможность ведения дополнительных полей в карточке потенциального клиента]].
   * [[http://abills.net.ua:8090/display/AB/Telegram+Bot|Telegram bot]]. Добавлены кнопки быстрой оплаты (PrivatBank, Easypay, City24).

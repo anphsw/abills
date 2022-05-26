@@ -566,7 +566,7 @@ sub filearch_video {
       caption => "Video",
       border  => 1,
       title   => [ '-', "$lang{NAME}", "$lang{YEAR}", "$lang{GENRE}", "$lang{QUALITY}", "$lang{FORMAT}", "$lang{SIZE}", "$lang{ADDED}", "-", "-", "-" ],
-      cols_align => [ 'center', 'left', 'right', 'left', 'left', 'right', 'right', 'center:noprint', 'center:noprint' ],
+      cols_align => [ 'center', 'left', 'right', 'left', 'left', 'right', 'right', 'center:d-print-none', 'center:d-print-none' ],
       qs         => $pages_qs,
       pages      => $Filearch->{TOTAL}
     }
@@ -738,7 +738,7 @@ sub filearch_user_video {
       caption => "Video",
       border  => 1,
       title   => [ '-', "$lang{NAME}", "$lang{YEAR}", "$lang{GENRE}", "$lang{QUALITY}", "$lang{FORMAT}", "$lang{SIZE}", "$lang{ADDED}", "$lang{STATE}", "-" ],
-      cols_align => [ 'center', 'left', 'right', 'left', 'left', 'right', 'right', 'center:noprint' ],
+      cols_align => [ 'center', 'left', 'right', 'left', 'left', 'right', 'right', 'center:d-print-none' ],
       qs         => $pages_qs,
       pages      => $Filearch->{TOTAL}
     }
@@ -848,7 +848,7 @@ sub filearch_video_actors {
       caption    => "Video",
       border     => 1,
       title      => [ '-', "$lang{NAME}", "$lang{ORIGIN_NAME}", "$lang{FILMS}", "-", "-" ],
-      cols_align => [ 'center', 'left', 'left', 'right', 'center:noprint', 'center:noprint' ],
+      cols_align => [ 'center', 'left', 'left', 'right', 'center:d-print-none', 'center:d-print-none' ],
       qs         => $pages_qs,
       pages      => $Filearch->{TOTAL}
     }
@@ -920,7 +920,7 @@ sub filearch_video_genres {
       caption    => "$lang{GENRES}",
       border     => 1,
       title      => [ "$lang{NAME}", "$lang{COUNT}", "ShareReaktor", "ImDB", "-", "-" ],
-      cols_align => [ 'left', 'right', 'left', 'left', 'center:noprint', 'center:noprint' ],
+      cols_align => [ 'left', 'right', 'left', 'left', 'center:d-print-none', 'center:d-print-none' ],
       qs         => $pages_qs,
     }
   );
@@ -1011,7 +1011,7 @@ sub filearch_chapters {
       caption => "$lang{CHAPTERS}",
       border  => 1,
       title   => [ "ID", "$lang{NAME}", "$lang{TYPE}", "$lang{FOLDER}", '-', '-' ],
-      cols_align => [ 'right', 'left', 'left', 'center:noprint', 'center:noprint' ],
+      cols_align => [ 'right', 'left', 'left', 'center:d-print-none', 'center:d-print-none' ],
       qs         => $pages_qs,
     }
   );

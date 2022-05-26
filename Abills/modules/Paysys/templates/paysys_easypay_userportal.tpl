@@ -14,7 +14,7 @@
         <div class='card-body pt-0'>
             <div class='text-center'>
                 <img style='width: auto; max-height: 200px;'
-                     src='/styles/default_adm/img/paysys_logo/easypay-logo.png'
+                     src='/styles/default/img/paysys_logo/easypay-logo.png'
                      alt='EasyPay'>
             </div>
 

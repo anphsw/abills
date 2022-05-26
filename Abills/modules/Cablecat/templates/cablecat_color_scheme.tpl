@@ -1,4 +1,4 @@
-<link rel='stylesheet' href='/styles/default_adm/css/jquery-ui.min.css'>
+<link rel='stylesheet' href='/styles/default/css/jquery-ui.min.css'>
 <style>
   ul.color-container {
     min-height: 50px;
@@ -141,5 +141,5 @@
         '#9c3232' : '_{CHERRY}_',
     };
 </script>
-<script src='/styles/default_adm/js/modules/cablecat/color_editor.js'></script>
+<script src='/styles/default/js/modules/cablecat/color_editor.js'></script>
 

@@ -16,7 +16,8 @@ our (
   %conf,
   %FORM,
   $pages_qs,
-  $index
+  $index,
+  %permissions
 );
 
 our Iptv $Iptv;
@@ -42,6 +43,7 @@ sub tv_services {
   }
   elsif ($FORM{add}) {
     $Iptv->services_add({ %FORM });
+    $FORM{DEBUG} = 0;
     if (!$Iptv->{errno}) {
       $html->message('info', $lang{SERVICES}, $lang{ADDED});
       tv_service_info($Iptv->{INSERT_ID});
@@ -50,6 +52,7 @@ sub tv_services {
   elsif ($FORM{change}) {
     $FORM{STATUS} ||= 0;
     $Iptv->services_change(\%FORM);
+    $FORM{DEBUG} = 0;
     if (!_error_show($Iptv)) {
       $html->message('info', $lang{SERVICES}, $lang{CHANGED});
       tv_service_info($FORM{ID});
@@ -66,36 +69,37 @@ sub tv_services {
   }
   _error_show($Iptv);
 
-  $Iptv->{USER_PORTAL_SEL} = $html->form_select(
-    'USER_PORTAL',
-    {
-      SELECTED => $Iptv->{USER_PORTAL} || $FORM{USER_PORTAL} || 0,
-      SEL_HASH => {
-        0 => '--',
-        1 => $lang{INFO},
-        2 => $lang{CONTROL} || 'Control'
-      },
-      NO_ID    => 1
-    }
-  );
+  $Iptv->{USER_PORTAL_SEL} = $html->form_select('USER_PORTAL', {
+    SELECTED => $Iptv->{USER_PORTAL} || $FORM{USER_PORTAL} || 0,
+    SEL_HASH => {
+      0 => '--',
+      1 => $lang{INFO},
+      2 => $lang{CONTROL} || 'Control'
+    },
+    NO_ID    => 1
+  });
 
-  $Iptv->{DEBUG_SEL} = $html->form_select(
-    'DEBUG',
-    {
-      SELECTED  => $Iptv->{DEBUG} || $FORM{DEBUG} || 0,
-      SEL_ARRAY => [ 0, 1, 2, 3, 4, 5, 6, 7 ],
-    }
-  );
+  $Iptv->{DEBUG_SEL} = $html->form_select('DEBUG', {
+    SELECTED  => $Iptv->{DEBUG} || $FORM{DEBUG} || 0,
+    SEL_ARRAY => [ 0, 1, 2, 3, 4, 5, 6, 7 ],
+  });
 
   $html->tpl_show(_include('iptv_services_add', 'Iptv'), { %FORM, %$Iptv });
+
+  my @service_functions = ();
+  push @service_functions, 'change' if $permissions{4} && $permissions{4}{2};
+  push @service_functions, 'del' if $permissions{4} && $permissions{4}{3};
 
   result_former({
     INPUT_DATA        => $Iptv,
     FUNCTION          => 'services_list',
     DEFAULT_FIELDS    => 'NAME,MODULE,STATUS,COMMENT',
-    FUNCTION_FIELDS   => 'change,del',
+    FUNCTION_FIELDS   => join(',', @service_functions),
     EXT_TITLES        => {
       comment => $lang{COMMENTS},
+      name    => $lang{NAME},
+      module  => $lang{MODULE},
+      status  => $lang{STATUS}
     },
     SKIP_USERS_FIELDS => 1,
     TABLE             => {
@@ -398,6 +402,7 @@ sub tv_services_sel {
 
   $params{SEL_OPTIONS} = { '' => $lang{ALL} } if ($attr->{ALL} || $FORM{search_form});
   $params{SEL_OPTIONS}->{0} = $lang{UNKNOWN} if ($attr->{UNKNOWN});
+  $params{NO_ID} = $attr->{NO_ID};
 
   my $active_service = $attr->{SERVICE_ID} || $FORM{SERVICE_ID};
 
@@ -406,7 +411,8 @@ sub tv_services_sel {
     NAME        => '_SHOW',
     USER_PORTAL => $attr->{USER_PORTAL},
     COLS_NAME   => 1,
-    PAGE_ROWS   => 1
+    PAGE_ROWS   => 1,
+    SORT        => 's.id'
   });
 
   if ($attr->{HASH_RESULT}) {
@@ -432,17 +438,19 @@ sub tv_services_sel {
     }
   }
 
-  if (!$attr->{HIDE_MENU_BTN}) {
+  if (!$attr->{HIDE_MENU_BTN} && $permissions{4} && $permissions{4}{2}) {
     $params{MAIN_MENU} = get_function_index('tv_services');
     $params{MAIN_MENU_ARGV} = ($active_service) ? "chg=$active_service" : q{};
   }
 
   my $result = $html->form_select('SERVICE_ID', {
-    SELECTED       => $active_service,
-    SEL_LIST       => $service_list,
-    EX_PARAMS      => defined($attr->{EX_PARAMS}) ? $attr->{EX_PARAMS} : "onchange='autoReload()'",
+    SELECTED  => $active_service,
+    SEL_LIST  => $service_list,
+    EX_PARAMS => defined($attr->{EX_PARAMS}) ? $attr->{EX_PARAMS} : "onchange='autoReload()'",
     %params
   });
+
+  return $result if $attr->{RETURN_SELECT};
 
   if (!$active_service && $service_list->[0] && !$FORM{search_form} && ! $attr->{SKIP_DEF_SERVICE}) {
     $FORM{SERVICE_ID} = $service_list->[0]->{id};

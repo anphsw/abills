@@ -45,7 +45,8 @@ sub info {
     undef,
     { Bind => [ $uid ], COLS_NAME => 1, COLS_UPPER => 1}
   );
-  return [ ] if ($self->{errno});
+
+  return [] if ($self->{errno});
 
   return $self->{list}->[0];
 }
@@ -109,4 +110,4 @@ sub truncate {
   return 1;
 }
 
-1
+1;

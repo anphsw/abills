@@ -1,5 +1,5 @@
-<link rel='stylesheet' href='/styles/lte_adm/plugins/fullcalendar/fullcalendar.min.css'/>
-<script src='/styles/lte_adm/plugins/fullcalendar/fullcalendar.min.js'></script>
+<link rel='stylesheet' href='/styles/default/plugins/fullcalendar/fullcalendar.min.css'/>
+<script src='/styles/default/plugins/fullcalendar/fullcalendar.min.js'></script>
 
 <script src='%CALENDAR_LOCALE_SCRIPT%'></script>
 

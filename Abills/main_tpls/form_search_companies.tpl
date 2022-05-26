@@ -2,7 +2,7 @@
     <div class='card card-primary card-outline'>
         <div class='card-header with-border'>
             <h3 class='card-title'>_{INFO}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
                 <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
                     <i class='fa fa-minus'></i>
                 </button>
@@ -38,7 +38,7 @@
             <div class='card card-primary card-outline collapsed-card'>
                 <div class='card-header with-border'>
                     <h3 class='card-title'>_{OTHER}_</h3>
-                    <div class='card-tools pull-right'>
+                    <div class='card-tools float-right'>
                         <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'><i class='fa fa-plus'></i>
                         </button>
                     </div>
@@ -81,7 +81,7 @@
             <div class='card card-primary card-outline collapsed-card'>
                 <div class='card-header with-border'>
                     <h3 class='card-title'>_{BANK}_</h3>
-                    <div class='card-tools pull-right'>
+                    <div class='card-tools float-right'>
                         <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'><i class='fa fa-plus'></i>
                         </button>
                     </div>
@@ -143,7 +143,7 @@
             <div class='card card-primary card-outline collapsed-card'>
                 <div class='card-header with-border'>
                     <h3 class='card-title'>_{EXTRA_ABBR}_. _{FIELDS}_</h3>
-                    <div class='card-tools pull-right'>
+                    <div class='card-tools float-right'>
                         <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'><i class='fa fa-plus'></i>
                         </button>
                     </div>

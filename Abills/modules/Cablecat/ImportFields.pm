@@ -15,7 +15,7 @@ sub cablecat_import_wells {
     {
       NAME       => $lang{NAME},
       FIELD_NAME => 'NAME',
-      INPUT      => $html->form_input('', '', { ID => 'DEFAULT_OBJECT_NAME', EX_PARAMS => "class='pull-right' placeholder='$lang{NAME} $lang{DEFAULT}'", OUTPUT2RETURN => 1 })
+      INPUT      => $html->form_input('', '', { ID => 'DEFAULT_OBJECT_NAME', EX_PARAMS => "class='float-right' placeholder='$lang{NAME} $lang{DEFAULT}'", OUTPUT2RETURN => 1 })
     },
     {
       NAME       => $lang{TYPE},
@@ -30,7 +30,7 @@ sub cablecat_import_wells {
     {
       NAME       => $lang{'OBJECT'},
       FIELD_NAME => 'ADD_OBJECT',
-      INPUT      => $html->form_input('', '', { ID => 'DEFAULT_ADD_OBJECT', TYPE => 'checkbox',  EX_PARAMS => "class='pull-right'", OUTPUT2RETURN => 1 })
+      INPUT      => $html->form_input('', '', { ID => 'DEFAULT_ADD_OBJECT', TYPE => 'checkbox',  EX_PARAMS => "class='float-right'", OUTPUT2RETURN => 1 })
     },
     {
       NAME       => 'COORDX',

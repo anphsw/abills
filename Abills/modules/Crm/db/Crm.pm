@@ -191,6 +191,7 @@ sub crm_lead_list {
     $DESC = 'DESC';
   }
 
+  $attr->{SKIP_DEL_CHECK} = 1;
   $attr->{SEARCH_COLUMNS} = $attr->{SEARCH_COLUMNS} && ref $attr->{SEARCH_COLUMNS} eq 'ARRAY' ? $attr->{SEARCH_COLUMNS} : ();
   my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
   my $search_columns = [
@@ -1245,6 +1246,10 @@ sub crm_competitors_tps_info {
 
   $self->query("SELECT * FROM crm_competitors_tps cct WHERE cct.id = ?;", undef, { COLS_NAME => 1, COLS_UPPER => 1, Bind => [ $attr->{ID} ] });
 
+  if (! $self->{list} ) {
+    return {};
+  }
+
   return $self->{list}->[0] || {};
 }
 
@@ -1473,7 +1478,7 @@ sub crm_lead_points_list {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
   my @WHERE_RULES = ();
 
   if ($admin->{permissions} && !$admin->{permissions}{7} || !$admin->{permissions}{7}{4}) {
@@ -1709,19 +1714,20 @@ sub fields_list {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former($attr, [
-    [ 'ID',       'INT', 'id',        1 ],
-    [ 'NAME',     'STR', 'name',      1 ],
-    [ 'SQL_FIELD','STR', 'sql_field', 1 ],
-    [ 'TYPE',     'INT', 'type',      1 ],
-    [ 'PRIORITY', 'INT', 'priority',  1 ],
-    [ 'COMMENT',  'STR', 'comment',   1 ],
-  ],{ WHERE => 1, });
+    [ 'ID',           'INT', 'id',           1 ],
+    [ 'NAME',         'STR', 'name',         1 ],
+    [ 'SQL_FIELD',    'STR', 'sql_field',    1 ],
+    [ 'TYPE',         'INT', 'type',         1 ],
+    [ 'PRIORITY',     'INT', 'priority',     1 ],
+    [ 'COMMENT',      'STR', 'comment',      1 ],
+    [ 'REGISTRATION', 'INT', 'registration', 1 ]
+  ], { WHERE => 1 });
 
   my $table_name = $attr->{TP_INFO_FIELDS} ? 'crm_tp_info_fields' : 'crm_info_fields';
 
   $self->query(
     "SELECT *
-     FROM $table_name
+     FROM `$table_name`
      $WHERE
      ORDER BY $SORT $DESC;",
     undef,
@@ -1740,6 +1746,8 @@ sub fields_list {
 sub fields_change {
   my $self = shift;
   my ($attr) = @_;
+
+  $attr->{REGISTRATION} //= 0;
 
   $self->changes({
     CHANGE_PARAM => 'ID',

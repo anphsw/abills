@@ -17,11 +17,12 @@ our (
   %lang, 
   %permissions, 
   @MONTHES, 
-  $html, 
+
   $db, 
   $admin, 
-  );
+);
 
+our Abills::HTML $html;
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Int_sessions = Internet::Sessions->new($db, $admin, \%conf);
 my $Payments = Finance->payments($db, $admin, \%conf);
@@ -33,7 +34,7 @@ my $Payments = Finance->payments($db, $admin, \%conf);
 =cut
 
 #**********************************************************
-sub page {
+sub userside_page {
   my ($uid) = @_;
   my $Internet_info = $Internet->user_info($uid);
   if ($Internet_info->{errno}) {
@@ -201,7 +202,7 @@ sub page {
   }
 
   $user_info->{PASSWD_BTN} = ($permissions{0}{3}) 
-   ? $html->button("", "index=" . get_function_index('form_passwd') . "&UID=$uid", { class => '', ICON => 'fa fa-pencil' })
+   ? $html->button("", "index=" . get_function_index('form_passwd') . "&UID=$uid", { class => '', ICON => 'fa fa-pencil-alt' })
    : $lang{NO_DATAS};
 
   $user_info->{GROUP_BTN} = ($permissions{0}{10})

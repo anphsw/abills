@@ -5,7 +5,7 @@
   }
 </script>
 
-<script src='/styles/default_adm/js/storage.js'></script>
+<script src='/styles/default/js/storage.js'></script>
 <form class='form form-horizontal' action='$SELF_URL?index=$index\&storage_status=1' name='depot_form' method=POST>
   <input type=hidden name=index value=$index>
   <input type=hidden name=ID value=$FORM{chg}>

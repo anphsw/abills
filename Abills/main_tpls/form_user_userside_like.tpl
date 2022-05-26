@@ -305,7 +305,7 @@
 								</div>
 
 								<div class="row col-md-12 text-left">
-<!-- 									<br><btn class="fa fa-pencil text-primary"> </btn> <a href="#">_{EDIT}_</a>  
+<!-- 									<br><btn class="fa fa-pencil-alt text-primary"> </btn> <a href="#">_{EDIT}_</a>
 									<br><btn class="fa fa-wrench text-primary"> </btn> <a href="#">Відмітки на абоненті</a> 
 									<br><btn class="fa fa-bullhorn text-primary"> </btn> <a href="#">Рекламні кампанії</a>  -->
 								</div>

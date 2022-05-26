@@ -741,7 +741,9 @@ sub user_list {
   );
 
   return [] if ($self->{errno});
-
+  if (!$self->{list}){
+    $self->{list} = [];
+  }
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
@@ -978,7 +980,7 @@ sub get_speed {
   $attr
   );
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -1276,6 +1278,9 @@ sub users_outflow_report {
     $EXT_TABLE .= 'LEFT JOIN streets ON (streets.id=builds.street_id)';
   }
 
+  $attr->{TO_DATE} = $attr->{TO_DATE} ? "'$attr->{TO_DATE}'" : 'CURDATE()';
+  push @WHERE_RULES, "f.date <= $attr->{TO_DATE}";
+
   my $WHERE = $self->search_former(
     $attr,
     [
@@ -1299,7 +1304,7 @@ sub users_outflow_report {
       $EXT_TABLE
     $WHERE
     GROUP BY $GROUP_BY
-    HAVING COUNT(f.date)<>0 AND DATEDIFF(CURDATE(),  last_fee) > 30
+    HAVING COUNT(f.date)<>0 AND DATEDIFF($attr->{TO_DATE},  last_fee) > 30
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;",
     undef,

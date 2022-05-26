@@ -9,16 +9,22 @@ use Abills::Base qw(int2byte in_array int2ip _bp);
 
 our(
   %lang,
-  $html,
   $admin,
   $db,
   %conf,
   %permissions,
   @port_types,
-  @skip_ports_types
+  @skip_ports_types,
+  %FORM,
+  @MODULES,
+  %LIST_PARAMS,
+  $index,
+  @_COLORS
 );
 
-my @service_status_colors = ($_COLORS[9], "840000", '#808080', '#0000FF', $_COLORS[6], '#009999');
+our Abills::HTML $html;
+
+#my @service_status_colors = ($_COLORS[9], "840000", '#808080', '#0000FF', $_COLORS[6], '#009999');
 my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{ERROR}, $lang{BREAKING}, $lang{NOT_MONITORING});
 
 my @ports_state = ('', "Up", "Down", 'Damage', 'Corp vlan', 'Dormant', 'Not Present', 'lowerLayerDown');
@@ -28,6 +34,7 @@ my @ports_state_color = ('', '#008000', '#FF0000');
 
 require Equipment::Pon_mng;
 require Equipment::Defs;
+use Nas;
 
 our Equipment $Equipment;
 my $used_ports;
@@ -350,14 +357,14 @@ sub equipment_ports_full {
         my $value = join ($html->br(),
           map {
             $html->element('code',
-              $_->{1}, # 1 - mac
+              ($_->{1} || q{-}), # 1 - mac
               {
                 'data-tooltip-position' => 'top',
-                'data-tooltip' => $html->b('VLAN:') . $html->br() . $_->{4} # 4 - vlan
+                'data-tooltip' => $html->b('VLAN:') . $html->br() . ($_->{4} || q{-}) # 4 - vlan
               }
             ) .
             $html->button($lang{VENDOR},
-              "index=$index&visual=2&NAS_ID=$FORM{NAS_ID}&mac_info=$_->{1}", # 1 - mac
+              "index=$index&visual=2&NAS_ID=$FORM{NAS_ID}&mac_info=". ($_->{1} || q{-}), # 1 - mac
               { class => 'info', ONLY_IN_HTML => 1 }
             )
           } sort {$a->{1} cmp $b->{1}} @{$macs_dynamic{$port}} # 1 - mac
@@ -659,7 +666,7 @@ sub equipment_ports_select {
   $Equipment->_info($nas_id);
   $Equipment->model_info( $Equipment->{MODEL_ID} );
 
-  my $ports = $Equipment->{PORTS} || 0;
+  #my $ports = $Equipment->{PORTS} || 0;
 
   print $html->element('div', equipment_port_panel( $Equipment ), { class => 'modal-body' });
   return 1;
@@ -688,6 +695,7 @@ sub equipments_get_used_ports{
 
   my %used_ports = ();
   my $list;
+  my $Equipment_ = Equipment->new( $db, \%conf, $admin ); #XXX why do we need second Equipment object?
 
   if(in_array('Internet', \@MODULES)) {
     require Internet;
@@ -774,7 +782,7 @@ sub equipments_get_used_ports{
   }
 
   if ($attr->{PORTS_ONLY} && !$attr->{FULL_LIST}) {
-    my $port_list = $Equipment->port_list({
+    my $port_list = $Equipment_->port_list({
       NAS_ID     => $attr->{NAS_ID},
       UPLINK     => '_SHOW',
       PAGE_ROWS  => 1000,
@@ -787,7 +795,7 @@ sub equipments_get_used_ports{
     }
     return \%used_ports;
   }
-  my $Equipment_ = Equipment->new( $db, \%conf, $admin ); #XXX why do we need second Equipment object?
+
   my $equipment_list = $Equipment_->_list( {
     NAS_ID          => '_SHOW',
     MAC             => '_SHOW',
@@ -927,7 +935,7 @@ sub equipment_port_panel {
   my $number = 0;
 
   my $panel = "<div class='equipment-panel'>\n";
-  $panel .= "<link rel='stylesheet' type='text/css' href='/styles/default_adm/css/modules/equipment.css'>";
+  $panel .= "<link rel='stylesheet' type='text/css' href='/styles/default/css/modules/equipment.css'>";
 
   my @reversed_rows = ();
 
@@ -1129,8 +1137,11 @@ sub port_result_former {
   $html->tpl_show( _include( 'equipment_icons', 'Equipment' ));
 
   my @info        = ();
-  my @info_fields = '';
-  my @skip_params = ('PORT_OUT', 'PORT_OUT_ERR', 'PORT_OUT_DISCARDS', 'ONU_OUT_BYTE', 'ONU_TX_POWER', 'OLT_RX_POWER', 'VIDEO_RX_POWER', 'CATV_PORTS_COUNT', 'ETH_ADMIN_STATE', 'ETH_DUPLEX', 'ETH_SPEED', 'VLAN', 'ADMIN_PORT_STATUS');
+  my @info_fields = ();
+  my @skip_params = ('PORT_OUT', 'PORT_OUT_ERR', 'PORT_OUT_DISCARDS', 'ONU_OUT_BYTE', 'ONU_TX_POWER',
+    'OLT_RX_POWER', 'VIDEO_RX_POWER', 'CATV_PORTS_COUNT', 'ETH_ADMIN_STATE', 'ETH_DUPLEX', 'ETH_SPEED',
+    'VLAN',
+    'ADMIN_PORT_STATUS');
   my $port_id     = $attr->{PORT};
 
   if($attr->{INFO_FIELDS}) {
@@ -1185,7 +1196,7 @@ sub port_result_former {
         );
       }
     }
-    elsif ($key eq 'RF_PORT_ON') { #TODO: rename to CATV
+    elsif($key eq 'RF_PORT_ON') { #TODO: rename to CATV
       my ($text, $color) = split(/:/, $value);
       $value = $html->color_mark($text, $color);
     }
@@ -1370,7 +1381,7 @@ sub port_result_former {
       $key = "CATV $lang{PORTS}:";
     }
     elsif($key eq 'CABLE_TESTER') {
-      $key = $html->element( 'i', "", { class => 'fa fa-bar-chart' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$lang{$key}" );
+      $key = $html->element( 'i', "", { class => 'fa fa-chart-bar' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$lang{$key}" );
 
       if(ref $value eq 'HASH') {
         $value = cable_tester_result_former($value);
@@ -1418,7 +1429,7 @@ sub port_result_former {
       $key = $html->element( 'i', "", { class => "fa fa-globe $attr->{COLOR_STATUS}" } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;$lang{STATUS}" );
     }
     elsif($key eq 'PORT_UPTIME') {
-      $key = $html->element( 'i', "", { class => "fa fa-clock-o" } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;$lang{PORT_UPTIME}" );
+      $key = $html->element( 'i', "", { class => "far fa-clock" } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;$lang{PORT_UPTIME}" );
     }
     elsif($key eq 'MAC_BEHIND_ONU') {
       next if (!$value);
@@ -1431,6 +1442,7 @@ sub port_result_former {
         } grep { $value->{$_}->{old} } (keys %$value))
       );
     }
+
     $key = ($lang{$key}) ? $lang{$key} : $key;
     push @info, [ $key, $value ];
   }

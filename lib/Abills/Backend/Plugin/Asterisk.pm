@@ -10,13 +10,17 @@ use Users;
 use Callcenter;
 use Admins;
 
-my $Users;
-my $Callcenter;
-my $Admins;
+my Users $Users;
+my Callcenter $Callcenter;
+my Admins $Admins;
 
 
 # Used in local thread and can't be global
-my ($admin, $db, %conf);
+my (
+  #$admin,
+  $db,
+  %conf
+);
 
 our (@MODULES);
 
@@ -32,7 +36,6 @@ my $Event_log = Abills::Backend::Log->new('FILE', 7, 'Asterisk debug', {
 
 use Abills::Backend::Defs;
 use Abills::Backend::Plugin::Websocket::API;
-
 my Abills::Backend::Plugin::Websocket::API $websocket_api = get_global('WEBSOCKET_API');
 
 # Cache
@@ -62,18 +65,17 @@ sub new {
     SCOPE   => 2
   });
 
+  $Admins = Admins->new($db, $CONF);
+  $Users = Users->new($db, $Admins, $CONF);
+  $Callcenter = Callcenter->new($db, $Admins, $CONF);
 
   my $self = {
     db    => $db,
-    admin => $admin,
+    admin => $Admins,
     conf  => $CONF,
   };
 
   bless($self, $class);
-
-  $Users = Users->new($db, $admin, $CONF);
-  $Callcenter = Callcenter->new($db, $admin, $CONF);
-  $Admins = Admins->new($db, $CONF);
 
   return $self;
 }
@@ -212,7 +214,7 @@ sub process_asterisk_newchannel {
 
     return unless $caller_number && $called_number;
 
-    return 0 if ($event->{CallerIDNum} =~ /unknown/);
+    return 0 if ($caller_number =~ /unknown/);
 
     if ($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}) {
       $caller_number =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
@@ -220,18 +222,17 @@ sub process_asterisk_newchannel {
 
     # CALLCENTER CODE
     if (in_array('Callcenter', \@MODULES)) {
-      if ($event->{CallerIDNum} && $event->{Exten}) {
+      if ($caller_number && $called_number) {
         my ($call_id, undef) = split('\.', $event->{Uniqueid} || q{});
 
         my $newchannel_handler = sub {
 
-          my $user = $Users->list(
-            {
-              UID       => '_SHOW',
-              PHONE     => $caller_number,
-              COLS_NAME => 1
-            }
-          );
+          my $user = $Users->list({
+            UID       => '_SHOW',
+            PHONE     => $caller_number,
+            COLS_NAME => 1
+          });
+
           my $uid = 0;
           if ($Users->{TOTAL} && $Users->{TOTAL} > 0) {
             $uid = $user->[0]->{uid};
@@ -303,9 +304,8 @@ sub process_asterisk_newstate {
   my ($asterisk, $event) = @_;
 
   if ($event->{ChannelStateDesc} eq 'Up' && $event->{ConnectedLineNum} ne '') {
-
     my ($call_id, undef) = split('\.', $event->{Uniqueid});
-    $Callcenter->{debug} = 1;
+
     $Callcenter->callcenter_change_calls({
       STATUS => 2,
       ID     => $call_id
@@ -316,7 +316,7 @@ sub process_asterisk_newstate {
       $Log->info("Call in process. ID: $call_id");
     }
     else {
-      $Log->info("Can't change status call");
+      $Log->info("Can't change status call ($Callcenter->{errno}/$Callcenter->{errstr})");
     }
   }
 
@@ -338,7 +338,7 @@ sub process_asterisk_newstate {
 sub process_asterisk_softhangup {
   my ($asterisk, $event) = @_;
 
-  if ($event->{ConnectedLineNum} =~ /\d+/) {
+  if ($event->{ConnectedLineNum} && $event->{ConnectedLineNum} =~ /\d+/) {
 
     my ($call_id, undef) = split('\.', $event->{Uniqueid});
 
@@ -349,16 +349,17 @@ sub process_asterisk_softhangup {
       });
 
       delete $calls_statuses{$call_id};
-      $Log->info("Call processed. ID: $call_id");
+      $Log->info("CALL_PROCESSED ID: $call_id");
     }
     else {
       $Callcenter->callcenter_change_calls({
         STATUS => 4,
         ID     => $call_id
       });
-      $Log->warning("Call not proceessed. ID: $call_id");
+      $Log->warning("CALL_NOT_PROCEESSED ID: $call_id");
     }
   }
+
   return 1
 }
 
@@ -512,7 +513,7 @@ sub _create_user_notification {
 
   if (in_array('Internet', \@MODULES)) {
     require Internet;
-    my $Internet = Internet->new($db, $admin, \%conf);
+    my $Internet = Internet->new($db, $Admins, \%conf);
 
     my $user_internet_main = $Internet->user_list({
       UID             => $user_info->{UID},
@@ -600,7 +601,7 @@ sub _create_lead_notification {
   if (in_array('Crm', \@MODULES)) {
     require Crm::db::Crm;
     Crm->import();
-    my $Crm = Crm->new($db, $admin, \%conf);
+    my $Crm = Crm->new($db, $Admins, \%conf);
     my $crm_leads = $Crm->crm_lead_list({
       PHONE           => '*' . $number . '*',
       FIO             => '_SHOW',
@@ -670,7 +671,7 @@ sub process_default {
   # Start debuging events, Will be removed
   my $debug_event = "\n================EVENT START=================\n";
   foreach my $key (sort keys %{$event}) {
-    $debug_event .= ($key || '') . "-" . ($event->{$key} || '') . "\n";
+    $debug_event .= ($key || '') . ": " . ($event->{$key} || '') . "\n";
   }
   $debug_event .= "================EVENT END=================\n";
   $Event_log->info("$debug_event");

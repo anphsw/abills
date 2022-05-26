@@ -77,6 +77,16 @@
           </div>
         </div>
       </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='REGISTRATION'>_{CRM_SHOW_AT_REGISTRATION}_:</label>
+        <div class='col-md-8'>
+          <div class='form-check'>
+            <input type='checkbox' class='form-check-input' id='REGISTRATION' name='REGISTRATION' %REGISTRATION% value='1'>
+          </div>
+        </div>
+      </div>
+
     </div>
     <div class='card-footer text-center'>
       <input type='submit' form='form_crm_info_fields' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>

@@ -98,38 +98,26 @@ sub tags_user {
 
   my $list  = $Tags->tags_user({ %FORM, COLS_NAME => 1 });
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => $lang{TAGS},
-      title      => [ '-', $lang{NAME}, $lang{DATE}, $lang{COMMENTS}, $lang{RESPONSIBLE} ],
-      FIELDS_IDS => $Tags->{COL_NAMES_ARR},
-      qs         => $pages_qs,
-      ID         => 'TAG_USER',
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $lang{TAGS},
+    title      => [ '-', $lang{NAME}, $lang{DATE}, $lang{COMMENTS}, $lang{RESPONSIBLE} ],
+    FIELDS_IDS => $Tags->{COL_NAMES_ARR},
+    qs         => $pages_qs,
+    ID         => 'TAG_USER',
+  });
 
   foreach my $line (@$list) {
     $table->addrow(
-      $html->form_input(
-        'IDS',
-        $line->{id},
-        {
-          TYPE  => 'CHECKBOX',
-          STATE => ($line->{date}) ? 1 : undef
-        }
-      ),
+      $html->form_input('IDS', $line->{id}, {
+        TYPE  => 'CHECKBOX',
+        STATE => ($line->{date}) ? 1 : undef
+      }),
       $line->{name},
       $line->{date},
       $line->{comments},
       $line->{responsible},
-      $html->form_input(
-        'RESPONSIBLE_HIDDEN',
-        $line->{responsible},
-        {
-          TYPE  => 'HIDDEN'
-        }
-      )
+      $html->form_input('RESPONSIBLE_HIDDEN', $line->{responsible}, { TYPE => 'HIDDEN' })
     );
   }
 
@@ -146,21 +134,19 @@ sub tags_user {
   $table->{extra} = 'colspan=4';
   $table->addrow($action);
 
-  my $service_info1 = $html->form_main(
-    {
-      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-      HIDDEN  => {
-        index       => $index,
-        UID         => $FORM{UID},
-        step        => $FORM{step}
-      },
-      METHOD   => 'GET',
-      NAME     => $FORM{FORM_NAME} || 'TAGS_USER',
-      ID       => $FORM{FORM_NAME} || 'TAGS_USER'
-    }
-  );
+  my $service_info1 = $html->form_main({
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => {
+      index => $index,
+      UID   => $FORM{UID},
+      step  => $FORM{step}
+    },
+    METHOD  => 'GET',
+    NAME    => $FORM{FORM_NAME} || 'TAGS_USER',
+    ID      => $FORM{FORM_NAME} || 'TAGS_USER'
+  });
 
-  if($attr->{PROFILE_MODE}) {
+  if ($attr->{PROFILE_MODE}) {
     return '', $service_info1;
   }
 
@@ -180,22 +166,18 @@ sub tags_list {
 
   if( $FORM{add} ) {
     $Tags->add({ %FORM });
-
-    my $id_tag = $Tags->{INSERT_ID};
-    split_responsible($FORM{RESPONSIBLE}, $id_tag);
-
-    $html->message('info', $lang{INFO}, "$lang{ADDED}") if (!_error_show($Tags));
+    if (!_error_show($Tags)) {
+      $Tags->add_responsible({ ID => $Tags->{INSERT_ID}, AID => $FORM{RESPONSIBLE} });
+      $html->message('info', $lang{INFO}, "$lang{ADDED}") ;
+    }
   }
   elsif( $FORM{change} ) {
     $Tags->change({ %FORM });
-
     $html->message('info', $lang{INFO}, "$lang{CHANGED}") if (!_error_show($Tags));
-
-    $Tags->del_responsible($FORM{ID});
-    split_responsible($FORM{RESPONSIBLE}, $FORM{ID});
+    $Tags->add_responsible({ ID => $FORM{ID}, AID => $FORM{RESPONSIBLE} });
   }
   elsif( $FORM{chg} ) {
-    $Tags->info($FORM{chg}, { RESPONSIBLE => 1 });
+    $Tags->info($FORM{chg});
 
     if (!_error_show($Tags)) {
       $html->message('info', $lang{INFO}, "$lang{CHANGING}");
@@ -217,7 +199,11 @@ sub tags_list {
     ARRAY_NUM_ID => 1
   });
 
-  $Tags->{RESPONSIBLE} = tags_sel({ ADMIN => 1, RESPONSIBLE => $Tags->{RESPONSIBLE} });
+  $Tags->{RESPONSIBLE} = sel_admins({
+    NAME      => 'RESPONSIBLE',
+    SELECTED  => $Tags->{AID},
+    EX_PARAMS => { EX_PARAMS => 'multiple="multiple"' }
+  });
 
   $html->tpl_show(_include('tags_form', 'Tags'), $Tags);
   
@@ -307,12 +293,6 @@ sub tags_search_form {
 #**********************************************************
 sub tags_sel {
   my ($attr) = @_;
-  my $admins_list = ();
-
-  $admins_list = $admin->list({
-    ID        => '_SHOW',
-    COLS_NAME => 1
-  }) if ($attr->{ADMIN});
 
   my $tags_list = $Tags->list({
     NAME              => '_SHOW',
@@ -324,11 +304,12 @@ sub tags_sel {
   my $input_checkbox = $html->element('input', '', { type => 'checkbox', name => 'TAGS', 'data-input-disables' => 'TAGS', value => '!' });
   my $ext_button = $html->element('div', $html->element('i', '', { class => 'fa fa-exclamation' }) . $input_checkbox, { class => 'btn btn-sm' });
 
-  my $form = $html->form_select($attr->{ADMIN} ? 'RESPONSIBLE' : 'TAGS', {
-    SELECTED   => ($attr->{ADMIN} ? $attr->{RESPONSIBLE} : $FORM{TAGS}) || '',
-    SEL_LIST   => $attr->{ADMIN} ? $admins_list : $tags_list,
+  my $form = $html->form_select('TAGS', {
+    SELECTED   => $FORM{TAGS} || '',
+    SEL_LIST   => $tags_list,
     EX_PARAMS  => 'multiple="multiple"',
-    EXT_BUTTON => $attr->{SHOW_EXT_BUTTON} ? $ext_button : ''
+    EXT_BUTTON => $attr->{SHOW_EXT_BUTTON} ? $ext_button : '',
+    ID         => $attr->{ID} || ''
   });
 
   return($form, $tags_list) if ($attr->{HASH});
@@ -445,43 +426,6 @@ sub tags_multiuser_form {
   print $table->show();
 
   return 1;
-}
-
-#**********************************************************
-=head2 split_responsible()
-
-  Arguments:
-    $responsible    - admins responsible
-    $id_tag         - id tag
-
-  Returns:
-    -
-
-=cut
-#**********************************************************
-sub split_responsible {
-  my ($responsible, $id_tag) = @_;
-
-  my $admin_aid = $admin->list({
-    ID        => '_SHOW',
-    COLS_NAME => 1
-  });
-
-  my @admin_array = ();
-
-  return 0 if (!$responsible);
-  push @admin_array, split(/, /, $responsible);
-
-  my %admins_hash = map { $_->{id} => $_->{aid} } @{ $admin_aid };
-
-  foreach my $admin_element (@admin_array) {
-    $Tags->add_responsible({
-      AID     => $admins_hash{ $admin_element },
-      TAGS_ID => $id_tag
-    });
-  }
-
-  return 0;
 }
 
 #**********************************************************

@@ -54,15 +54,13 @@ if($debug > 6) {
   $Msgs->{debug}=1;
 }
 
-my $attachments_list = $Msgs->attachments_list(
-  {
-    MESSAGE_ID   => '_SHOW',
-    FILENAME     => '_SHOW',
-    CONTENT      => '_SHOW',
-    CONTENT_TYPE => '_SHOW',
-    PAGE_ROWS    => 1000000,
-  }
-);
+my $attachments_list = $Msgs->attachments_list({
+  MESSAGE_ID   => '_SHOW',
+  FILENAME     => '_SHOW',
+  CONTENT      => '_SHOW',
+  CONTENT_TYPE => '_SHOW',
+  PAGE_ROWS    => 1000000,
+});
 _error_show($Msgs);
 
 if(!$attachments_list){
@@ -71,18 +69,16 @@ if(!$attachments_list){
 }
 
 my $count = 0;
-foreach my $attach (@$attachments_list){
+foreach my $attach (@$attachments_list) {
   next if ($attach->{content} =~ /^FILE: $conf{TPL_DIR}/);
 
-  my $messages_reply_list = $Msgs->messages_reply_list(
-    {
-      ID        => $attach->{message_id},
-      MSG_ID    => '_SHOW',
-      UID       => '_SHOW',
-      COLS_NAME => '_SHOW',
-      PAGE_ROWS => 10000000
-    }
-  );
+  my $messages_reply_list = $Msgs->messages_reply_list({
+    ID        => $attach->{message_id},
+    MSG_ID    => '_SHOW',
+    UID       => '_SHOW',
+    COLS_NAME => '_SHOW',
+    PAGE_ROWS => 10000000
+  });
 
   if(_error_show($Msgs)) {
     next;
@@ -98,14 +94,12 @@ foreach my $attach (@$attachments_list){
       print "ERROR: Can't find user for $attach->{id} : $attach->{filename}\n";
     }
 
-    $messages_reply_list = $Msgs->messages_list(
-      {
-        MSG_ID    => $attach->{message_id},
-        UID       => '_SHOW',
-        COLS_NAME => '_SHOW',
-        PAGE_ROWS => 10000000
-      }
-    );
+    $messages_reply_list = $Msgs->messages_list({
+      MSG_ID    => $attach->{message_id},
+      UID       => '_SHOW',
+      COLS_NAME => '_SHOW',
+      PAGE_ROWS => 10000000
+    });
 
     if($Msgs->{TOTAL} && $Msgs->{TOTAL} > 0) {
       $message_reply = $messages_reply_list->[0];
@@ -144,12 +138,10 @@ foreach my $attach (@$attachments_list){
     print $fh $attach->{content};
   close $fh;
 
-  $Msgs->attachment_change(
-    {
-      ID      => $attach->{id},
-      CONTENT => "FILE: " . $filename,
-    }
-  );
+  $Msgs->attachment_change({
+    ID      => $attach->{id},
+    CONTENT => "FILE: " . $filename,
+  });
   _error_show($Msgs);
 
   $count++;

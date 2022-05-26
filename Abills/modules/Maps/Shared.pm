@@ -12,23 +12,29 @@ use warnings FATAL => 'all';
 
 =cut
 
+use Exporter;
 use parent 'Exporter';
 
 use constant {
   LAYER_ID_BY_NAME         => {
-    'BUILD'        => 1,
-    'WIFI'         => 2,
-    'ROUTE'        => 3,
-    'DISTRICT'     => 4,
-    'TRAFFIC'      => 5,
-    'CUSTOM_POINT' => 6,
-    'EQUIPMENT'    => 7,
-    'GPS'          => 8,
-    'GPS_ROUTE'    => 9,
-    'BUILD2'       => 12,
-    'PON'          => 20,
-    'CAMS'         => 33,
-    'CAMS_REVIEW'  => 34,
+    'BUILD'             => 1,
+    'WIFI'              => 2,
+    'ROUTE'             => 3,
+    'DISTRICT'          => 4,
+    'TRAFFIC'           => 5,
+    'CUSTOM_POINT'      => 6,
+    'EQUIPMENT'         => 7,
+    'GPS'               => 8,
+    'GPS_ROUTE'         => 9,
+    'CABLE'             => 10,
+    'WELL'              => 11,
+    'BUILD2'            => 12,
+    'PON'               => 20,
+    'CAMS'              => 33,
+    'CAMS_REVIEW'       => 34,
+    'TERMINALS'         => 35,
+    'CRM_LEADS'         => 36,
+    'CRM_LEADS_BY_TAGS' => 37,
   },
   MAPS_ICONS_DIR_WEB_PATH  => '/images/maps/icons/',
   MAPS_ICONS_DIR           => '/Abills/templates/maps/icons/',

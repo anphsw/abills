@@ -77,7 +77,8 @@ sub address_info {
         d.zip,
         s.second_name,
         b.coordx,
-        s.second_name AS address_street2
+        s.second_name AS address_street2,
+        d.country
       FROM builds b
       LEFT JOIN streets s  ON (s.id=b.street_id)
       LEFT JOIN districts d  ON (d.id=s.district_id)

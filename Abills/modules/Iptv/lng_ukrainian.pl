@@ -111,4 +111,7 @@ $lang{IPTV_ERROR_CREATING_USER} = "Помилка при створенні ко
 $lang{IPTV_ERROR_ADDING_TP} = "Помилка при додаванні ТП";
 $lang{IPTV_ERROR_DEL_TP} = "Помилка видалення тарифного плану";
 
+$lang{IPTV_PROMOTIONAL_TP} = "Акційний ТП";
+$lang{SUGGEST_ACTIVATE_TP} = "Пропонуємо активувати тарифний план";
+
 1;

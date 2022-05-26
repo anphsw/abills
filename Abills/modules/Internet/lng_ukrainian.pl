@@ -1,4 +1,4 @@
-$lang{INTERNET}='Інтернет+';
+$lang{INTERNET}='Інтернет';
 $lang{ADD_SERVICE}='Додати послугу';
 $lang{MASK}='Маска';
 $lang{SWITCH}='Комутатор';

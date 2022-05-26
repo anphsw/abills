@@ -13,9 +13,15 @@ our (
   $db,
   $admin,
   %lang,
+  %conf,
+  %FORM,
+  $index,
   @service_status,
   $SNMP_TPL_DIR,
-  %permissions
+  %permissions,
+  %LIST_PARAMS,
+  @MODULES,
+  $pages_qs
 );
 
 our Equipment $Equipment;
@@ -851,7 +857,7 @@ sub equipment_pon {
           push @row, $html->button($lang{EXTERNAL_SYSTEM_LINK}, '',
             {
               class      => 'btn btn-secondary',
-              ICON       => 'fa fa-external-link',
+              ICON       => 'fa fa-external-link-alt',
               GLOBAL_URL => $link
             }
           );
@@ -1421,7 +1427,7 @@ sub equipment_pon_onu {
 
   if($FORM{IN_MODAL}) {
     %show_cols = (
-      mac_serial     => "MAC_SERIAL",
+      mac_serial   => "MAC_SERIAL",
       status       => $lang{STATUS},
       rx_power     => "RX_POWER",
       tx_power     => "TX_POWER",
@@ -1858,7 +1864,7 @@ sub pon_onu_state {
       $html->button($lang{EXTERNAL_SYSTEM_LINK}, '',
         {
           class      => 'btn btn-secondary',
-          ICON       => 'fa fa-external-link',
+          ICON       => 'fa fa-external-link-alt',
           GLOBAL_URL => $link
         }
       )
@@ -1868,7 +1874,7 @@ sub pon_onu_state {
   push @info, [
     $lang{ONU_BILLING_DESC} . $html->button('',
     "NAS_ID=$nas_id&header=2&get_index=equipment_change_onu_billing_desc_ajax&ONU=" . ($attr->{ONU_SNMP_ID} || q{}),
-    { MESSAGE => $lang{CHANGE_ONU_DESC}, ALLOW_EMPTY_MESSAGE => 1, class => 'fa fa-pencil ml-1', TITLE => $lang{CHANGE_ONU_DESC}, AJAX => 'onu_billing_desc_changed' })
+    { MESSAGE => $lang{CHANGE_ONU_DESC}, ALLOW_EMPTY_MESSAGE => 1, class => 'fa fa-pencil-alt ml-1', TITLE => $lang{CHANGE_ONU_DESC}, AJAX => 'onu_billing_desc_changed' })
     . "<script>
          Events.on('AJAX_SUBMIT.onu_billing_desc_changed', function(e){
            if (!e.error) {\$('#ONU_BILLING_DESC').text(e.new_desc)}
@@ -2047,7 +2053,8 @@ sub default_get_onu_info {
       %$attr,
       OID     => $oid . '.' . $id . $add_2_oid,
       SILENT  => 1,
-      TIMEOUT => $timeout || 2
+      TIMEOUT => $timeout || 2,
+      WALK    => $snmp_info->{$oid_name}->{WALK}
     });
 
     my $function = $snmp_info->{$oid_name}->{PARSER};
@@ -2073,6 +2080,7 @@ sub default_get_onu_info {
 
   if ($onu_info{$id}{STATUS} && $onu_info{$id}{STATUS} != $ONU_STATUS_TEXT_CODES{DEREGISTERED}) { #TODO: add statuses to skip?
     foreach my $oid_name (sort keys %{$snmp_info->{main_onu_info}}) {
+
       if ($#show_fields > -1 && !in_array($oid_name, \@show_fields)) {
         next;
       }
@@ -2125,8 +2133,8 @@ sub default_get_onu_info {
 
         $value = snmp_get({
           %{$attr},
-          OID => $oid . '.' . $id . $add_2_oid,
-          TIMEOUT => $timeout || 2
+          OID     => $oid . '.' . $id . $add_2_oid,
+          TIMEOUT => $timeout || 2,
         });
 
         my $function = $snmp_info->{main_onu_info}->{$oid_name}->{PARSER};
@@ -2584,16 +2592,17 @@ sub equipment_pon_onu_graph {
         push @time_arr, POSIX::strftime("%b %d %H:%M", localtime($val->[0]));
 
         for (my $i = 0; $i <= $#{$graph->{meta}->{legend}}; $i++) {
-          my $index = $i + 1;
+          my $_index = $i + 1;
           if ($graph_type eq 'SPEED') {
-            $val->[$index] = sprintf("%.2f", $val->[$index] / (1024 * 1024) * 8) if ($val->[$index]);
+            $val->[$_index] = sprintf("%.2f", $val->[$_index] / (1024 * 1024) * 8) if ($val->[$_index]);
           }
           else {
-            $val->[$index] = sprintf("%.2f", $val->[$index]) if ($val->[$index]);
+            $val->[$_index] = sprintf("%.2f", $val->[$_index]) if ($val->[$_index]);
           }
           push @{$graph_data{ $graph->{meta}->{legend}->[$i] }}, $val->[$index];
         }
       }
+
       push @graphs, $html->make_charts_simple({
         GRAPH_ID      => lc($graph_type),
         DIMENSION     => $graph->{DIMENSION},
@@ -2807,6 +2816,8 @@ sub equipment_tv_port {
     print "Disable or enable port? Exiting.\n" if ($attr->{DEBUG});
     return 0;
   }
+
+  return if !$snmp_info->{catv_port_manage}->{OIDS};
 
   my $set_result = snmp_set({
     SNMP_COMMUNITY => $SNMP_COMMUNITY,

@@ -195,11 +195,11 @@ sub notify_user {
   my ($attr) = @_;
   return 0 if ($attr->{INNER_MSG} || $attr->{REPLY_INNER_MSG});
 
-  if ( $attr->{MESSAGES_BATCH} && ref $attr->{MESSAGES_BATCH} ) {
+  if ($attr->{MESSAGES_BATCH} && ref $attr->{MESSAGES_BATCH}) {
     # Call self for each message id
-    my %msg_id_for_user = %{ $attr->{MESSAGES_BATCH} };
+    my %msg_id_for_user = %{$attr->{MESSAGES_BATCH}};
 
-    foreach my $_uid  ( sort keys %msg_id_for_user ) {
+    foreach my $_uid (sort keys %msg_id_for_user) {
       $self->notify_user({
         UID            => $_uid,
         MSG_ID         => $msg_id_for_user{$_uid}->{MSG_ID},
@@ -293,7 +293,8 @@ sub notify_user {
       LANG        => \%lang,
       PARSE_MODE  => 'HTML',
       ALL         => 1,
-      USER_EMAIL  => !$CONF->{CONTACTS_NEW} ? $user_info->{email} : ''
+      USER_EMAIL  => !$CONF->{CONTACTS_NEW} ? $user_info->{email} : '',
+      SEND_TYPE   => $attr->{SEND_TYPE}
     });
 
     $html->message('err', $lang{ERROR},  "[$Sender->{errno}] $Sender->{errstr}") if $Sender->{errno};

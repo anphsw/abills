@@ -3,7 +3,7 @@
   <div class='card-body'>
 
     <div class="col-md-2 col-xs-2 no-padding">
-      <img src="/styles/lte_adm/dist/img/avatar0.png" class="img-fluid pull-left" alt="">
+      <img src="/styles/default/img/admin/avatar0.png" class="img-fluid float-left" alt="">
     </div>
     
     <div class="col-md-10">

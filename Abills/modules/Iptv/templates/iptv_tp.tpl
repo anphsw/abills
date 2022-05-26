@@ -8,7 +8,7 @@
         <div class='card card-primary card-outline card-big-form'>
           <div class='card-header with-border'>
             <h4 class='card-title'>_{TARIF_PLAN}_</h4>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-minus'></i>
               </button>
@@ -61,6 +61,15 @@
               </div>
             </div>
 
+            <div class='form-group row'>
+              <label class='col-sm-4 col-md-4 text-right' for='PROMOTIONAL'>_{IPTV_PROMOTIONAL_TP}_:</label>
+              <div class='col-sm-8'>
+                <div class='form-check text-left'>
+                  <input type='checkbox' class='form-check-input' id='PROMOTIONAL' name='PROMOTIONAL' %PROMOTIONAL% value='1'>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -68,7 +77,7 @@
         <div class='card collapsed-card card-primary card-outline box-big-form'>
           <div class='card-header with-border'>
             <h3 class='card-title'>_{ABON}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
@@ -165,7 +174,7 @@
         <div class='card collapsed-card card-primary card-outline'>
           <div class='card-header with-border'>
             <h3 class='card-title'>_{OTHER}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>

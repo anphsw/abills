@@ -41,7 +41,7 @@
 </div>
 <div class='card-footer'>
 
-<input class='btn btn-primary pull-left' type=submit name='%ACTION%' value='%LNG_ACTION%'>
+<input class='btn btn-primary float-left' type=submit name='%ACTION%' value='%LNG_ACTION%'>
 	%DEL_BUTTON%
 </div>
 

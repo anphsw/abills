@@ -52,7 +52,7 @@ sub click {
 
   my $uid = $self->{bot}->{uid};
   my $credit_warn = 0;
-  my $money_currency = $self->{conf}->{DOCS_MONEY_NAMES} || '';
+  my $money_currency = $self->{conf}->{MONEY_UNIT_NAMES} || '';
 
   use Users;
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});

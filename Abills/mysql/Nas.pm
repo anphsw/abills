@@ -56,6 +56,7 @@ sub list {
   delete($self->{COL_NAMES_ARR});
 
   my $EXT_TABLES = '';
+  my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
 
   my $WHERE =  $self->search_former($attr, [
       ['NAS_ID',           'INT', 'nas.id',      'nas.id AS nas_id'      ],
@@ -81,8 +82,10 @@ sub list {
       ['NAS_IDS',          'INT', 'nas.id'                               ],
       ['NAS_FLOOR',            'STR', 'nas.floor',          'nas.floor AS nas_floor'        ],
       ['NAS_ENTRANCE',         'STR', 'nas.entrance',      'nas.entrance AS nas_entrance'     ],
-      ['ADDRESS_FULL',     'STR', "CONCAT(districts.name, '$self->{conf}->{BUILD_DELIMITER}', streets.name, '$self->{conf}->{BUILD_DELIMITER}', builds.number)",
-        "CONCAT(streets.name, '$self->{conf}->{BUILD_DELIMITER}', builds.number) AS address_full" ],
+      ['ADDRESS_FULL',     'STR', "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
+        "streets.name, '$build_delimiter', builds.number, '$build_delimiter', nas.address_flat)",
+        "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
+          "streets.name, '$build_delimiter', builds.number, '$build_delimiter', nas.address_flat) AS address_full" ],
       ['ZABBIX_HOSTID',  'INT', 'nas.zabbix_hostid', 1 ]
     ],
     { WHERE => 1 }
@@ -446,12 +449,13 @@ sub nas_ip_pools_list {
     [ 'NAS_NAME',           'STR', 'n.name AS nas_name',                                    1],
     [ 'POOL_NAME',          'STR', 'pool.name AS pool_name',                                1],
     [ 'FIRST_IP',           'IP',  'INET_NTOA(pool.ip) AS first_ip',                        1],
-    [ 'LAST_IP',            'IP',  'INET_NTOA(pool.ip + (pool.counts - 1)) AS last_ip',           1],
+    [ 'LAST_IP',            'IP',  'INET_NTOA(pool.ip + (pool.counts - 1)) AS last_ip',     1],
     [ 'IP',                 'INT', 'pool.ip',                                               1],
-    [ 'LAST_IP_NUM',        'INT', '(pool.ip + (pool.counts - 1)) AS last_ip_num',                1],
+    [ 'LAST_IP_NUM',        'INT', '(pool.ip + (pool.counts - 1)) AS last_ip_num',          1],
     [ 'IP_COUNT',           'INT', 'pool.counts AS ip_count',                               1],
     #[ 'IP_FREE',           'INT', '(pool.counts - (SELECT COUNT(*) FROM dv_main dv WHERE dv.ip > pool.ip AND dv.ip <= pool.ip + pool.counts )) AS ip_free', 1],
-    [ 'INTERNET_IP_FREE',   'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_main internet WHERE internet.ip > pool.ip AND internet.ip <= pool.ip + pool.counts )) AS internet_ip_free', 1],
+    [ 'INTERNET_IP_FREE',   'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_main internet
+      WHERE internet.ip >= pool.ip AND internet.ip < pool.ip + pool.counts )) AS internet_ip_free', 1],
     [ 'PRIORITY',           'INT', 'pool.priority',                                         1],
     [ 'SPEED',              'INT', 'pool.speed',                                            1],
     [ 'NAME',               'STR', 'pool.name AS name',                                     1],
@@ -547,12 +551,16 @@ sub nas_ip_pools_set {
 #**********************************************************
 sub ip_pools_info {
   my $self = shift;
-  my ($id) = @_;
+  my $id = shift;
+  my ($attr) = @_;
 
-  my $fields_v6 = ($IPV6) ? ", INET6_NTOA(ipv6_prefix) AS ipv6_prefix, INET6_NTOA(ipv6_pd) AS ipv6_pd" : '';
+  my $EXT_FIELDS = ($IPV6) ? ", INET6_NTOA(ipv6_prefix) AS ipv6_prefix, INET6_NTOA(ipv6_pd) AS ipv6_pd" : '';
+  $EXT_FIELDS .= ', (ippools.counts - (SELECT if(COUNT(*) > ippools.counts, ippools.counts, COUNT(*)) FROM internet_main internet
+      WHERE internet.ip >= ippools.ip AND internet.ip < ippools.ip + ippools.counts )) AS internet_ip_free' if $attr->{INTERNET_IP_FREE};
+
   $self->query2("SELECT *,
       INET_NTOA(ip) AS ip
-      $fields_v6
+      $EXT_FIELDS
     FROM ippools  WHERE id= ? ;",
     undef,
     { INFO => 1,

@@ -46,7 +46,7 @@ sub send_message {
   }
 
   my $Sms = Sms->new($self->{db}, $self->{admin}, $self->{conf});
-  my $Sms_service = init_sms_service($self->{db}, $self->{admin}, $self->{conf});
+  my $Sms_service = init_sms_service($self->{db}, $self->{admin}, $self->{conf}, { UID => $attr->{UID} || $self->{UID} || 0 });
 
   $attr->{TO_ADDRESS} =  $self->{conf}->{SMS_NUMBER_EXPR} ?
     _expr($attr->{TO_ADDRESS}, $self->{conf}->{SMS_NUMBER_EXPR}) : $attr->{TO_ADDRESS};

@@ -197,5 +197,6 @@ $lang{ASTERISK} = 'Зірочка';
 $lang{TRUNKS} = 'Транки';
 $lang{VOIP}='Телефонія';
 
+$lang{REC_WARNING}='Увага. Розмова може бути записана';
 
 1;

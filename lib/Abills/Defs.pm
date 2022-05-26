@@ -24,7 +24,6 @@ use vars qw(
   %conf
   %FUNCTIONS_LIST
   %USER_FUNCTION_LIST
-  @EX_PAYMENT_METHODS
   $TIME
   $DATE
 
@@ -53,30 +52,31 @@ our %LANG = (
 
 #Error strings
 our %err_strs = (
-  1 => 'ERROR',
-  2 => 'ERROR_NOT_EXIST',
-  3 => 'ERROR_SQL',
-  4 => 'ERROR_NO_DATA_FOR_CHANGE', # 'ERROR_WRONG_PASSWORD',
-  5 => 'ERROR_WRONG_CONFIRM',
-  6 => 'ERROR_SHORT_PASSWORD',
-  7 => 'ERROR_DUPLICATE',
-  8 => 'ERROR_ENTER_NAME',
-  9 => 'ERROR_LONG_USERNAME',
-  10 => 'ERROR_WRONG_NAME',
-  11 => 'ERROR_WRONG_EMAIL',
-  12 => 'ERROR_ENTER_SUM',
-  13 => 'PERMISIION_DENIED',
-  14 => 'NO_BILLING_ACCOUNT',
-  15 => 'SMALL_DEPOSIT',
-  16 => 'WRONG_START_PERIOD',
-  17 => 'WRONG_NETWORK',
-  18 => 'ERROR_ENTER_UID',
-  19 => 'ERROR_USER_NOT_EXIST',
-  20 => 'ERROR_PHONE_NOT_EXIST',
-  21 => 'ERROR_WRONG_PHONE',
-  50 => 'TIMEOUT',
-  91 => 'TP_NOT_EXIST',
-  700 => 'Free license expired. Upgrade license'
+  1   => 'ERROR',
+  2   => 'ERROR_NOT_EXIST',
+  3   => 'ERROR_SQL',
+  4   => 'ERROR_NO_DATA_FOR_CHANGE', # 'ERROR_WRONG_PASSWORD',
+  5   => 'ERROR_WRONG_CONFIRM',
+  6   => 'ERROR_SHORT_PASSWORD',
+  7   => 'ERROR_DUPLICATE',
+  8   => 'ERROR_ENTER_NAME',
+  9   => 'ERROR_LONG_USERNAME',
+  10  => 'ERROR_WRONG_NAME',
+  11  => 'ERROR_WRONG_EMAIL',
+  12  => 'ERROR_ENTER_SUM',
+  13  => 'PERMISIION_DENIED',
+  14  => 'NO_BILLING_ACCOUNT',
+  15  => 'SMALL_DEPOSIT',
+  16  => 'WRONG_START_PERIOD',
+  17  => 'WRONG_NETWORK',
+  18  => 'ERROR_ENTER_UID',
+  19  => 'ERROR_USER_NOT_EXIST',
+  20  => 'ERROR_PHONE_NOT_EXIST',
+  21  => 'ERROR_WRONG_PHONE',
+  50  => 'TIMEOUT',
+  91  => 'TP_NOT_EXIST',
+  700 => 'Free license expired. Upgrade license',
+  113 => 'ERROR_WRONG_FIELD_VALUE'
 );
 
 #Global files

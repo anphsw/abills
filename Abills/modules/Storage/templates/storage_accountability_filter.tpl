@@ -48,4 +48,4 @@
 
 </form>
 
-<script src='/styles/default_adm/js/storage.js'></script>
+<script src='/styles/default/js/storage.js'></script>

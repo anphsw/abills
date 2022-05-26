@@ -18,6 +18,7 @@ our(
   @PERIODS
 );
 
+use Internet::Sessions;
 our Abills::HTML $html;
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);

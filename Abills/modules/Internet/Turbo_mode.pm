@@ -230,7 +230,7 @@ sub internet_turbo_mode {
   if (form_purchase_module({
     HEADER           => $user->{UID},
     MODULE           => 'Turbo',
-    REQUIRE_VERSION  => 2.20
+    REQUIRE_VERSION  => 7.51
   })) {
     return 0;
   }
@@ -239,9 +239,9 @@ sub internet_turbo_mode {
   #my $sessions = Turbo->new($db, $admin, \%conf);
 
   if ($FORM{del} && defined($FORM{COMMENTS})) {
-    $Turbo->del({ ID => $FORM{del} });
+    $Turbo->extra_hangup({ ID => $FORM{del} });
     if (!_error_show($Turbo)) {
-      $html->message('info', $lang{INFO}, "Torbo $lang{DELETED}");
+      $html->message('info', $lang{INFO}, "Turbo $lang{DELETED}");
     }
   }
 

@@ -615,9 +615,10 @@ sub callcenter_ivr_menu {
 
   _error_show($Callcenter);
 
-  my $list = $Callcenter->ivr_menu_list({ MAIN_ID => 0,
-    NUMBER => '_SHOW',
-    NAME => '_SHOW',
+  my $list = $Callcenter->ivr_menu_list({
+    MAIN_ID => 0,
+    NUMBER  => '_SHOW',
+    NAME    => '_SHOW',
     COLS_NAME => 1
   });
 
@@ -643,14 +644,14 @@ sub callcenter_ivr_menu {
   $Callcenter->{CHAPTER_SEL} = $html->form_select(
     'CHAPTER_ID',
     {
-      SELECTED    => $Callcenter->{CHAPTER_ID},
+      SELECTED    => $Callcenter->{CHAPTER_ID} || $FORM{CHAPTER_ID},
       SEL_LIST    => $Callcenter->ivr_menu_chapters_list({ COLS_NAME => 1, NUMBERS => '_SHOW', NAME => '_SHOW' }),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'id,numbers,name',
       NO_ID       => 1,
       SEL_OPTIONS => { 0 => $lang{MAIN_MENU} },
       MAIN_MENU      => get_function_index('callcenter_ivr_menu_chapters'),
-      MAIN_MENU_ARGV => "chg=$Callcenter->{CHAPTER_ID}",
+      MAIN_MENU_ARGV => "chg=". ($Callcenter->{CHAPTER_ID} || q{}),
     }
   );
 
@@ -785,7 +786,7 @@ sub callcenter_cdr {
         ID          => 'CALLCENTER_CDR',
         DATA_TABLE  => 1,
         title_plain => 1,
-        MENU        => "$lang{REFRESH}:index=$index&refresh=1:fa fa-refresh",
+        MENU        => "$lang{REFRESH}:index=$index&refresh=1:fas fa-sync",
       },
       SELECT_VALUE    => {
         disposition => {
@@ -1223,7 +1224,7 @@ sub callcenter_sound {
 #       width      => '100%',
 #       caption    => "$_IVR",
 #       title      => [ "ID", "$_NAME", "$_DESCRIBE", "$_MESSAGE", "$_INVALID_LOOPS", "$_TIMEOUT", "$_ERR_MESSAGE", "$_UNDEF_MESSAGE", "-", "-" ],
-#       cols_align => [ 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint' ],
+#       cols_align => [ 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none' ],
 #       ID         => 'IVR',
 #       qs         => $pages_qs,
 #       pages      => $Callcenter->{TOTAL},
@@ -1480,7 +1481,7 @@ sub callcenter_sound {
 #       width      => '100%',
 #       caption    => "$_MESSAGES",
 #       title      => [ "ID", "$_NAME", "$_TYPE", "$_VALUE", "-", "-" ],
-#       cols_align => [ 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint' ],
+#       cols_align => [ 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none' ],
 #       ID         => 'MESSAGES',
 #       qs         => $pages_qs,
 #       pages      => $Callcenter->{TOTAL},
@@ -1620,7 +1621,7 @@ sub callcenter_sound {
 #       width      => '100%',
 #       caption    => "$_WELCOME",
 #       title      => [ "ID", "$_NAME", "$_MESSAGE", "$_DEST_TYPE", "$_DEST_ID", "-", "-" ],
-#       cols_align => [ 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint' ],
+#       cols_align => [ 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none' ],
 #       ID         => 'WELCOME',
 #       qs         => $pages_qs,
 #       pages      => $Callcenter->{TOTAL},
@@ -1910,7 +1911,7 @@ sub callcenter_sound {
 #       width   => '100%',
 #       caption => "$_TERMS_TIME",
 #       title   => [ "ID", "$_NAME", "$_TIME_BEGIN", "$_TIME_END", "$_WEEK_BEGIN", "$_WEEK_END", "$_DAY_BEGIN", "$_DAY_END", "$_MONTH_BEGIN", "$_MONTH_END", "$_DEST_TYPE true", "$_DEST_ID true", "$_DEST_TYPE false", "$_DEST_ID false", "-", "-" ],
-#       cols_align => [ 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint' ],
+#       cols_align => [ 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none' ],
 #       ID         => 'INTERVALS',
 #       qs         => $pages_qs,
 #       pages      => $Callcenter->{TOTAL},
@@ -2797,7 +2798,7 @@ sub callcenter_sound {
 #       width      => '100%',
 #       caption    => "$_OUT_NUM",
 #       title      => [ "ID", "$_PHONE", "$_FIO", "-", "-" ],
-#       cols_align => [ 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', ],
+#       cols_align => [ 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', ],
 #       ID         => 'OUT_NUM',
 #       qs         => $pages_qs,
 #       pages      => $Callcenter->{TOTAL},
@@ -2895,7 +2896,7 @@ sub callcenter_sound {
 #       width      => '100%',
 #       caption    => "$_SYSTEM_FUNC",
 #       title      => [ "ID", "$_NAME", "$_FUNC", "$_DEST_TYPE", "$_DEST_ID", "-", "-" ],
-#       cols_align => [ 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint', 'center:noprint' ],
+#       cols_align => [ 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none', 'center:d-print-none' ],
 #       ID         => 'SYS_FUNC',
 #       qs         => $pages_qs,
 #       pages      => $Callcenter->{TOTAL},
@@ -3056,7 +3057,7 @@ sub callcenter_sound {
 #     <input class='TEMPLATE form-control' type=text value=\"$line->{EXTEN}\" name=TEMPLATE\_$i>
 #    </div> 
 #    <div class='col-md-2'> 
-#      <a  type='button' href=# onclick='remtemplate($i);'><span class='btn fa fa-remove'></span></a>
+#      <a  type='button' href=# onclick='remtemplate($i);'><span class='btn fa fa-times'></span></a>
 #    </div> 
 #    </div>";
 #       $i++;
@@ -3072,7 +3073,7 @@ sub callcenter_sound {
 #     <input class='TEMPLATE form-control' type=text value=\"$line->{EXTEN}\" name=TEMPLATE\_$i>
 #    </div> 
 #    <div class='col-md-2'> 
-#      <a  type='button' href=# onclick='remtemplate($i);'><span class='btn fa fa-remove'></span></a>
+#      <a  type='button' href=# onclick='remtemplate($i);'><span class='btn fa fa-times'></span></a>
 #    </div> 
 #    </div>";
 
@@ -3142,7 +3143,7 @@ sub callcenter_sound {
 #     <input class='TEMPLATE form-control' type=text value=\"\" name=TEMPLATE\_1>
 #    </div> 
 #    <div class='col-md-2'> 
-#      <a  type=submit href=# onclick='remtemplate($i);'><span class='btn fa fa-remove'></span></a>
+#      <a  type=submit href=# onclick='remtemplate($i);'><span class='btn fa fa-times'></span></a>
 #    </div>
 #    </div>";
 
@@ -3481,7 +3482,7 @@ sub callcenter_sound {
 #     <input class='form-control' type=text value=''3+template+'' name=TEMPLATE_'+c+'>
 #    </div>  
 #      <div class='col-md-2'> 
-#      <a class='btn btn-link' type=button href=# onclick='remtemplate($i);'><span class='btn  fa fa-remove'></span><</a>
+#      <a class='btn btn-link' type=button href=# onclick='remtemplate($i);'><span class='btn  fa fa-times'></span><</a>
 #    </div> 
 #    </div>";
 #       $i++;

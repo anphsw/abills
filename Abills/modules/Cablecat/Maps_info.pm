@@ -26,8 +26,6 @@ our (
 );
 my ($Cablecat, $Maps, $Auxiliary);
 
-use Maps2::Auxiliary qw/maps2_point_info_table/;
-
 our %MAP_TYPE_ID = (
   'WELL'      => 1,
   'WIFI'      => 2,
@@ -67,7 +65,9 @@ sub new {
   Maps->import();
   $Maps = Maps->new($db, $admin, $CONF);
 
-  $Auxiliary = Maps2::Auxiliary->new($db, $admin, $CONF, { HTML => $html, LANG => $lang });
+  require Maps::Auxiliary;
+  Maps::Auxiliary->import();
+  $Auxiliary = Maps::Auxiliary->new($db, $admin, $CONF, { HTML => $html, LANG => $lang });
 
   return $self;
 }
@@ -88,9 +88,8 @@ sub maps_layers {
       clustering      => 0,
       add_func        => 'cablecat_cables',
       custom_params   => {
-        OBJECT_TYPE_ID               => $MAP_TYPE_ID{CABLE},
-        SAVE_AS_GEOMETRY             => 1,
-        CALCULATE_PARAMS_JS_FUNCTION => 'findClosestWellsForCable'
+        OBJECT_TYPE_ID   => $MAP_TYPE_ID{CABLE},
+        SAVE_AS_GEOMETRY => 1
       },
       export_function => 'maps_cables'
     }, {
@@ -105,8 +104,7 @@ sub maps_layers {
         OBJECT_TYPE_ID => $MAP_TYPE_ID{WELL}
       },
       export_function => 'maps_wells'
-    } ],
-    SCRIPTS => [ '/styles/default_adm/js/maps/modules/cablecat.js' ]
+    } ]
   }
 }
 
@@ -219,7 +217,7 @@ sub maps_wells {
 
     $marker_info .= qq{
       <button class="btn btn-danger" onclick="showRemoveConfirmModal({ layer_id : 11, id : $point->{id} })">
-        <span class="fa fa-remove"></span><span>$lang->{DEL}</span>
+        <span class="fa fa-times"></span><span>$lang->{DEL}</span>
       </button>
     } if ($main::permissions{5} && $attr->{EDIT_MODE});
 
@@ -290,12 +288,12 @@ sub maps_cables {
       [ $lang->{CABLE_TYPE}, $cable->{cable_type} ],
       [ "$lang->{WELL} 1", ($cable->{well_1} && $cable->{well_1_id})
         ? $html->button($cable->{well_1}, "index=$well_index&chg=$cable->{well_1_id}", { target => '_blank' })
-        . $Auxiliary->maps2_show_object_button(11, $cable->{well_1_point_id}, { SHOW_IN_MAP => 1 })
+        . $Auxiliary->maps_show_object_button(11, $cable->{well_1_point_id}, { SHOW_IN_MAP => 1 })
         : $lang->{NO}
       ],
       [ "$lang->{WELL} 2", ($cable->{well_2} && $cable->{well_2_id})
         ? $html->button($cable->{well_2}, "index=$well_index&chg=$cable->{well_2_id}", { target => '_blank' })
-        . $Auxiliary->maps2_show_object_button(11, $cable->{well_2_point_id}, { SHOW_IN_MAP => 1 })
+        . $Auxiliary->maps_show_object_button(11, $cable->{well_2_point_id}, { SHOW_IN_MAP => 1 })
         : $lang->{NO}
       ],
       [ $lang->{LENGTH}, "$cable->{length}, ( $cable->{length_calculated} )" ],
@@ -508,7 +506,7 @@ sub _cablecat_get_cable_info {
     }
   }
 
-  $marker_info = maps2_point_info_table($html, $lang, {
+  $marker_info = $Auxiliary->maps_point_info_table({
     OBJECTS           => \@objects,
     TABLE_TITLES      => [ 'WELL', 'INSTALLED', 'COMMUTATIONS', 'COMMENTS' ],
     TABLE_LANG_TITLES => [ $lang->{WELL}, $lang->{INSTALLED}, $lang->{COMMUTATIONS}, $lang->{COMMENTS} ],

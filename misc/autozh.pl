@@ -4,8 +4,8 @@
 
   Auto zap/hangup console utility
 
-  VERSION: 0.28
-  REVISION: 20210610
+  VERSION: 0.29
+  REVISION: 20220221
 
 =cut
 
@@ -23,7 +23,7 @@ BEGIN {
 }
 
 my $debug = 0;
-my $VERSION = 0.28;
+my $VERSION = 0.29;
 
 use Abills::SQL;
 use Abills::Base qw(check_time parse_arguments gen_time days_in_month in_array);
@@ -257,7 +257,7 @@ if ($argv->{HANGUP}) {
   }
 
   if ($LIST_PARAMS{USER_NAME} && $Sessions->{TOTAL} == 0) {
-    print "1:INFO=Not online '$LIST_PARAMS{USER_NAME}'";
+    print "1:INFO=Not online '". (($LIST_PARAMS{USER_NAME} && $LIST_PARAMS{USER_NAME} ne '_SHOW') ? $LIST_PARAMS{USER_NAME} : q{}) ."'";
   }
 }
 elsif ($argv->{ACTION_EXPR}) {

@@ -7,7 +7,7 @@
 use strict;
 use warnings;
 use Paysys::Maps_info;
-use Maps2::Maps_view;
+use Maps::Maps_view;
 
 our (
   $db,
@@ -25,7 +25,7 @@ our (
 sub paysys_maps_new {
 
   my $Paysys_maps = Paysys::Maps_info->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
-  my $Maps_info = Maps2::Maps_view->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+  my $Maps_info = Maps::Maps_view->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
   return $Maps_info->show_map(\%FORM, {
     QUICK          => 1,

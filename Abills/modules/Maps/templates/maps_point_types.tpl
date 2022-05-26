@@ -1,85 +1,71 @@
-<style>
-  #ICON_SELECT, #ICON_SELECT_chosen, #ICON_SELECT_chosen > .chosen-single {
-    min-height: 60px;
-  }
+<form name='MAPS_POINT_TYPES_FORM' id='form_MAPS_POINT_TYPES_FORM' method='post' class='form form-horizontal'>
+  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='chg' value='%ID%'/>
 
-  #ADD_ICON_BUTTON {
-    margin-top: 35%;
-  }
-</style>
+  <div class='card card-primary card-outline card-form'>
+    <div class='card-header with-border'><h4 class='card-title'>_{OBJECT}_: _{TYPE}_</h4></div>
 
-<div class='card card-primary card-outline box-form'>
-  <div class='card-header with-border text-center'>
-    <h4>_{OBJECT}_ _{TYPE}_</h4>
-  </div>
-  <div class='card-body'>
-    <form name='MAPS_POINT_TYPES_FORM' id='form_MAPS_POINT_TYPES_FORM' method='post' class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index'/>
-      <input type='hidden' name='%CHANGE_ID%' value='%ID%'/>
-      <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
-
-      <div class='form-group'>
-        <label class='control-label col-md-3 required' for='NAME_id'>_{NAME}_</label>
+    <div class='card-body'>
+      <div class='form-group row'>
+        <label class='control-label col-md-3 required' for='NAME'>_{NAME}_: </label>
         <div class='col-md-9'>
-          <input type='text' class='form-control' value='%NAME%' required name='NAME' id='NAME_id'/>
+          <input type='text' disabled class='form-control' value='%NAME%' required name='NAME' id='NAME'/>
         </div>
       </div>
 
-      <div class='form-group'>
-        <label class='control-label col-md-3' for='ICON_SELECT'>_{ICON}_</label>
-        <div class="col-md-9">
-          <div class='col-md-10'>
-            %ICON_SELECT%
-          </div>
-          <div class="col-md-2">
-            %ADD_ICON_BUTTON%
+      <div class='form-group row'>
+        <label class='control-label col-md-3' for='ICON_SELECT'>_{ICON}_: </label>
+        <div class='col-md-9'>
+          <div class='d-flex bd-highlight'>
+            <div class='p-2 bd-highlight' id='DIV_ICON'></div>
+            <div class='p-2 flex-fill bd-highlight' id='DIV_SELECT'>%ICON_SELECT%</div>
+            <div class='p-2 flex-fill bd-highlight'>%UPLOAD_BTN%</div>
           </div>
         </div>
       </div>
 
-      <div class='form-group'>
-        <label class='control-label col-md-3' for='COMMENTS_id'>_{COMMENTS}_</label>
+      <div class='form-group row'>
+        <label class='control-label col-md-3' for='COMMENTS'>_{COMMENTS}_: </label>
         <div class='col-md-9'>
-          <textarea class='form-control' rows='5' name='COMMENTS' id='COMMENTS_id'>%COMMENTS%</textarea>
+          <textarea class='form-control' rows='5' name='COMMENTS' id='COMMENTS'>%COMMENTS%</textarea>
         </div>
       </div>
-    </form>
+    </div>
+    <div class='card-footer'>
+      <input type='submit' class='btn btn-primary' name='change' value='_{CHANGE}_'>
+    </div>
+  </div>
 
-  </div>
-  <div class='card-footer'>
-    <input type='submit' form='form_MAPS_POINT_TYPES_FORM' class='btn btn-primary' name='submit'
-           value='%SUBMIT_BTN_NAME%'>
-  </div>
-</div>
+</form>
 
 <script>
+  jQuery(document).ready(function () {
+    let icon_select = jQuery('#ICON_SELECT');
+    jQuery('#DIV_ICON').html('<img style="max-width: 100px" src="/images/maps/icons/' + icon_select.val() + '.png"/>');
 
-  /** Anykey : pictures inside select **/
+    icon_select.on('change', function () {
+      jQuery('#DIV_ICON').html('<img style="max-width: 100px" src="/images/maps/icons/' + icon_select.val() + '.png"/>');
+    });
 
-  var BASE_DIR = '%MAPS_ICONS_WEB_DIR%';
-
-  var select  = jQuery('#ICON_SELECT');
-  var options = select.find('option');
-
-  jQuery.each(options, function (i, option) {
-    var _opt = jQuery(option);
-
-    var icon_name = _opt.text();
-
-    var icon_src = BASE_DIR + icon_name;
-
-    var img = document.createElement('img');
-    img.src = icon_src;
-    jQuery(img).addClass('img-fluid img-thumbnail');
-
-    var strong = document.createElement('strong');
-    jQuery(strong).addClass('text-left col-md-6');
-    strong.innerText = icon_name;
-
-    _opt.addClass('text-center');
-    _opt.html(strong.outerHTML + img.outerHTML);
+    jQuery('#ajax_upload_submit').on('click', function () {
+      setTimeout(function () {
+        jQuery('.modal').modal('hide');
+      }, 2000);
+    });
   });
 
-  updateChosen();
+  function updateIcons(fileName) {
+    let selectedIcon = fileName ? fileName : jQuery('#ICON_SELECT').val();
+    jQuery.get('$SELF_URL', 'get_index=_maps_icon_filename_select&GET_SELECT=1&header=2&ICON=' + selectedIcon, function (result) {
+      if (result.match("<select")){
+        jQuery('#DIV_SELECT').html(result);
+        initChosen();
 
+        jQuery('#DIV_ICON').html('<img style="max-width: 100px" src="/images/maps/icons/' + selectedIcon + '.png"/>');
+        jQuery('#ICON_SELECT').on('change', function () {
+          jQuery('#DIV_ICON').html('<img style="max-width: 100px" src="/images/maps/icons/' + jQuery('#ICON_SELECT').val() + '.png"/>');
+        });
+      }
+    });
+  }
 </script>

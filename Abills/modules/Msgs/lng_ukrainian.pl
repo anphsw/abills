@@ -51,7 +51,7 @@ $lang{IDEALLY} = 'Ідеально';
 $lang{POTENTIAL_CLIENT} = 'Потенційний клієнт';
 $lang{OPEN_MSGS} = 'Відкриті повідомлення';
 $lang{NOTE} = 'Замітка';
-$lang{LAST_CONTACT} = 'Послідній контакт с клієнтом';
+$lang{LAST_CONTACT} = 'Останній контакт с клієнтом';
 $lang{SUBSEQENT_CONTACT} = 'Подальший контакт з клієнтом';
 $lang{WATCHED} = 'Відслідковуються';
 $lang{ADD_DELIVERY} = 'Додати розсилку';
@@ -143,7 +143,6 @@ $lang{SUNDAY_FULL}='Неділя';
 $lang{ERR_NO_MESSAGE} = 'Відсутній текст повідомлення';
 $lang{MASS_MAILING} = 'Масове розсилання! Продовжити?';
 $lang{ATTACH_ADDRESS} = 'Прикріпити до адреси';
-$lang{FULL_MESSAGE_ADDRESS} = 'Повна адреса повідомлення';
 $lang{TAKEN_TO_WORK} = 'Узято в роботу';
 
 $lang{REPEAT_MSG_USER} = 'Повідомлення по даному користувачу сьогодні уже прийнято!';
@@ -204,5 +203,20 @@ $lang{RESPONSE_TIME} = 'Час відповіді';
 $lang{SUPPORT_SYSTEM_STATS} = 'Статистика служби підримки';
 
 $lang{DYNAMICS_OF_MESSAGES_AND_REPLIES} = 'Динаміка повідомлень та відповідей';
+$lang{MSGS_HOURS} = 'г';
+$lang{MSGS_MINUTES} = 'хв';
+
+$lang{AVERAGE_COEFFICIENT} = 'Середній коефіцієнт';
+$lang{TOTAL_MESSAGES} = 'Усього повідомлень';
+$lang{MESSAGES_COEFFICIENT} = 'Коефіцієнт повідомлень';
+$lang{COEFFICIENT} = 'Коефіцієнт';
+$lang{RESPONSIBLE_NOT_SPECIFIED} = 'Відповідальний не вказаний';
+
+$lang{SEND} = 'Відправити';
+
+$lang{AUTHOR} = 'Автор';
+$lang{CLOSED_THE_TICKET} = 'Закрив заявку';
+
+$lang{NEW_MESSAGE} = 'Нове повідомлення';
 
 1

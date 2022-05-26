@@ -1,12 +1,11 @@
 =head1 Vauth
 
   Viber auth
-=cut
 
+=cut
 
 use strict;
 use warnings FATAL => 'all';
-
 
 our (
   $Contacts,
@@ -51,8 +50,6 @@ sub get_aid {
 
   return $list->[0]->{aid};
 }
-
-
 
 #**********************************************************
 =head2 subscribe($message)

@@ -1,6 +1,6 @@
-<link rel="stylesheet" type="text/css" href="/styles/default_adm/css/jquery-ui.min.css">
+<link rel="stylesheet" type="text/css" href="/styles/default/css/jquery-ui.min.css">
 
-<script src="/styles/default_adm/js/modules/notepad/sticker.js"></script>
+<script src="/styles/default/js/modules/notepad/sticker.js"></script>
 <script>
     STICKIES.open()
 </script>

@@ -12,7 +12,6 @@ use warnings;
 our (
   $begin_time,
   %FORM,
-#  %LANG,
   $DATE,
   $TIME,
   $CHARSET,
@@ -85,7 +84,6 @@ my $error_str = '';
 
 do "Abills/Misc.pm";
 
-#Arguments
 my $argv = parse_arguments(\@ARGV);
 
 if ($#ARGV < 0 || defined($argv->{help}) || defined($argv->{'-h'}) ) {
@@ -229,15 +227,13 @@ sub paysys_import_form_cons {
   }
   else {
     $Users->{debug} = 1 if ($debug > 7);
-    $accounts_list = $Users->list(
-      {
-        FIO            => '_SHOW',
-        LOGIN          => '_SHOW',
-        $BINDING_FIELD => $ids,
-        PAGE_ROWS      => 1000000,
-        COLS_NAME      => 1
-      }
-    );
+    $accounts_list = $Users->list({
+      FIO            => '_SHOW',
+      LOGIN          => '_SHOW',
+      $BINDING_FIELD => $ids,
+      PAGE_ROWS      => 1000000,
+      COLS_NAME      => 1
+    });
   }
 
   my $binding_field_id = lc($BINDING_FIELD);
@@ -336,20 +332,20 @@ sub paysys_import_form_cons {
           # adding standart payment to bss-table
           if(!$Payments->{errno} && $argv->{METHOD} && $argv->{METHOD}==113){
             $bss_date = $DATA_ARR->[$i]->{DATE};
-            if($conf{PAYSYS_NEW_SCHEME}){
-              my $module = 'Bss.pm';
-              my $paysysy_plugin = _configure_load_payment_module($module);
-              my $Paysys_plugin = $paysysy_plugin->new($db, $admin, \%conf, {USERS => $Users, DATE => $DATE});
+            # if($conf{PAYSYS_NEW_SCHEME}){
+            my $module = 'Bss.pm';
+            my $paysysy_plugin = _configure_load_payment_module($module);
+            my $Paysys_plugin = $paysysy_plugin->new($db, $admin, \%conf, { USERS => $Users, DATE => $DATE });
 
-              $Paysys_plugin->bss_log({
-                AFTER_PAYMENT  =>1,
-                UID     => $user->{UID},
-                SUM     => $DATA_ARR->[$i]->{SUM},
-                DATE    => $DATA_ARR->[$i]->{DATE},
-                EXT_ID  => $ext_id,
-                STATUS  => 1
-              });
-            }
+            $Paysys_plugin->bss_log({
+              AFTER_PAYMENT => 1,
+              UID           => $user->{UID},
+              SUM           => $DATA_ARR->[$i]->{SUM},
+              DATE          => $DATA_ARR->[$i]->{DATE},
+              EXT_ID        => $ext_id,
+              STATUS        => 1
+            });
+            # }
           }
           elsif($Payments->{errno} && $argv->{METHOD} && $argv->{METHOD}==113){
             $bss_date = $DATA_ARR->[$i]->{DATE};
@@ -389,7 +385,7 @@ sub paysys_import_form_cons {
         }
         else {
           if (! $argv->{SKIP_CROSSMODULES_CALLS}) {
-            cross_modules_call('_payments_maked', {
+            cross_modules('payments_maked', {
               USER_INFO    => $user,
               QUITE        => 1,
               SUM          => $DATA_ARR->[$i]->{SUM},
@@ -426,7 +422,12 @@ sub paysys_import_form_cons {
         for (my $num = 0 ; $num <= $#{$DATA_ARR} ; $num++) {
           #my $ID = $DATA_ARR->[$num]->{PAYSYS_EXT_ID} || $i;
           if ($DATA_ARR->[$num]->{EXT_ID}) {
-            push @payments_arr, $DATA_ARR->[$i]->{EXT_ID};
+            if ($argv->{PAYSYS_EXT_ID}) {
+              push @payments_arr, "$DATA_ARR->[$num]->{DATE}*$DATA_ARR->[$i]->{EXT_ID}";
+            }
+            else {
+              push @payments_arr, $DATA_ARR->[$i]->{EXT_ID};
+            }
           }
         }
 
@@ -435,13 +436,11 @@ sub paysys_import_form_cons {
           return 0;
         }
 
-        my $payment_list = $Payments->list(
-          {
-            EXT_ID    => join(';', @payments_arr),
-            PAGE_ROWS => 10000000,
-            COLS_NAME => 1
-          }
-        );
+        my $payment_list = $Payments->list({
+          EXT_ID    => join(';', @payments_arr),
+          PAGE_ROWS => 10000000,
+          COLS_NAME => 1
+        });
 
         foreach my $p (@$payment_list) {
           $Payments->del({ UID => $p->{uid} }, $p->{id});
@@ -823,14 +822,12 @@ sub paysys_import_ftp {
           $content = convert($content, { $argv->{DECODE} => 1 });
         }
 
-        my $import_result = paysys_import_form_cons(
-          {
-            TYPE         => $argv->{TYPE},
-            IMPORT_RULE  => $argv->{IMPORT_RULE},
-            IMPORT_RULES => $conf{PAYSYS_IMPORT_RULES},
-            CONTENT      => $content
-          }
-        );
+        my $import_result = paysys_import_form_cons({
+          TYPE         => $argv->{TYPE},
+          IMPORT_RULE  => $argv->{IMPORT_RULE},
+          IMPORT_RULES => $conf{PAYSYS_IMPORT_RULES},
+          CONTENT      => $content
+        });
 
         if ($import_result){
           if ($argv->{BACKUP_FILES} && -d $argv->{BACKUP_FILES}) {
@@ -838,9 +835,9 @@ sub paysys_import_ftp {
           }
           unlink $local_filename;
 
-          $ftp->delete("$filename")
-          or die "Ftp del failed '$filename'\n", $ftp->message;
-          print "Delete LOCAL:$local_filename 'FTP:$filename'\n" if ($debug == 1);
+          $ftp->delete("$filename") or die "Ftp del failed '$filename'\n", $ftp->message;
+
+          print "Delete LOCAL:$local_filename 'FTP:$filename'\n" if ($debug > 0);
         }
         else {
           my $message = "ERROR paysys_cons:
@@ -899,6 +896,7 @@ $import_rules
   BACKUP_FILES=[DIR]   - Backup ftp files
   SKIP_CROSSMODULES_CALLS - Skip cros modules calls
   METHOD=[0..]         - Method for fees or payments
+  PAYSYS_EXT_ID=1      - Combine EXT_ID like PAYSYS_EXT_ID with wildcard (DATE*EXT_ID)
   FILE=                - Import FILE
   DATE=                - Import Date
   DEBUG=1,2..5         - Debug Mode

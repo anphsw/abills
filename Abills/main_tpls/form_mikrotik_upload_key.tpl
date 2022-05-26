@@ -5,18 +5,18 @@
   <input type='hidden' name='upload_key' value='1'/>
   <input type='hidden' name='NAS_ID' value='%NAS_ID%'/>
 
-  <div class='card card-primary card-outline box-form'>
+  <div class='card card-primary card-outline card-form'>
     <div class='card-header with-border'><h4>Mikrotik SSH Key Upload</h4></div>
     <div class='card-body'>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-3'>_{LOGIN}_</label>
         <div class='col-md-9'>
           <input class='form-control' type='text' name='SYSTEM_ADMIN' id='SYSTEM_ADMIN' value='%SYSTEM_ADMIN%'/>
         </div>
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-3'>_{PASSWD}_</label>
         <div class='col-md-9'>
           <input class='form-control' type='password' name='SYSTEM_PASSWD' id='SYSTEM_PASSWD' value='%SYSTEM_LOGIN%'/>

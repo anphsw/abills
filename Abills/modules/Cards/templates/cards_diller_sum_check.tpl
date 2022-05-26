@@ -11,7 +11,7 @@ _{SUM}_:    %TOTAL_SUM%
 </CODE></pre>
 </td></tr></table>
 
-<div class='noprint' align=center>
+<div class='d-print-none' align=center>
 <p>
 <a href=\"javascript:window.print();\" class=linkm1><b>_{PRINT}_</b></a> ::
 <a href=\"javascript:window.close();\" class=linkm1><b>_{CLOSE}_</b></a>

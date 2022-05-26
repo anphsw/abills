@@ -61,4 +61,4 @@
   var MAX_FILES_COUNT = 3;
   initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
 </script>
-<script src='/styles/default_adm/js/draganddropfile.js'></script>
+<script src='/styles/default/js/draganddropfile.js'></script>

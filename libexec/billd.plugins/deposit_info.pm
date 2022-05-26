@@ -78,7 +78,7 @@ sub deposit_info {
       next;
     }
 
-    $Internet->change({
+    $Internet->user_change({
       UID => $line->{uid},
       FILTER_ID => ''
     });

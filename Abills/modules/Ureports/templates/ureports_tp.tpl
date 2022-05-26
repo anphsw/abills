@@ -1,4 +1,4 @@
-<div class='noprint' id='UREPORTS'>
+<div class='d-print-none' id='UREPORTS'>
   <form action='$SELF_URL' METHOD='POST' ID='FORM_UREPORTS'>
     <input type=hidden name='index' value='$index'>
     <input type=hidden name='TP_ID' value='%TP_ID%'>
@@ -27,7 +27,7 @@
         <div class='card collapsed-card card-primary card-outline'>
           <div class='card-header with-border text-center'>
             <h3 class='card-title'>_{ABON}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
@@ -73,7 +73,7 @@
         <div class='card collapsed-card card-primary card-outline'>
           <div class='card-header with-border text-center'>
             <h3 class='card-title'>_{OTHER}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>

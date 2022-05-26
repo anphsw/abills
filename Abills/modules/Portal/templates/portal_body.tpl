@@ -2,12 +2,12 @@
 <html>
 <head>
   <meta http-equiv='Content-Type' content='text/html; charset=utf-8'/>
-  <link href='/styles/default_adm/css/font-awesome.min.css' rel='stylesheet'>
+  <link href='/styles/default/css/font-awesome.min.css' rel='stylesheet'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/bootstrap.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/bootstrap-theme.min.css'>
+
   <script src='/styles/%HTML_STYLE%/js/jquery.min.js'></script>
   <!--[if lt IE 9]>
-  <script src='/styles/default_adm/js/jquery-1.11.3.min.js' type='text/javascript'></script>
+  <script src='/styles/default/js/jquery-1.11.3.min.js' type='text/javascript'></script>
   <![endif]-->
   <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
   <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -22,11 +22,11 @@
   <![endif]-->
 
   <!-- TRY TO WITHOUT IT -->
-  <!-- <script src='/styles/%HTML_STYLE%/js/bootstrap.min.js'></script> -->
+  <!-- <script src='/styles/%HTML_STYLE%/js/bootstrap.bundle.min.js'></script> -->
   <!-- <script src='/styles/%HTML_STYLE%/js/chosen.jquery.min.js'></script> -->
-  <!-- <script src='/styles/default_adm/js/navBarCollapse.js' language='javascript'></script> -->
-  <script src='/styles/lte_adm/plugins/datepicker/bootstrap-datepicker.js'></script>
-  <script src='/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.js'></script>
+  <!-- <script src='/styles/%HTML_STYLE%/js/navBarCollapse.js' language='javascript'></script> -->
+  <script src='/styles/%HTML_STYLE%/plugins/datepicker/bootstrap-datepicker.js'></script>
+  <script src='/styles/%HTML_STYLE%/plugins/timepicker/bootstrap-timepicker.min.js'></script>
 
   <script>
     \$(document).ready(function () {
@@ -170,7 +170,7 @@
             </div>
             <div class='form-group text-center'>
               <p class="col-md-12">_{SOCIAL_NETWORKS}_</p>
-              <link rel='stylesheet' href='/styles/default_adm/css/client_social_icons.css'>
+              <link rel='stylesheet' href='/styles/default/css/client_social_icons.css'>
               <ul class='social-network social-circle'>
                 %SOCIAL_AUTH_BLOCK%
               </ul>

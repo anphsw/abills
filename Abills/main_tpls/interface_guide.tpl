@@ -1,5 +1,5 @@
-<link rel='stylesheet' href='/styles/default_adm/css/bootstrap-tourist.css'>
-<script src='/styles/default_adm/js/bootstrap-tourist.min.js'></script>
+<link rel='stylesheet' href='/styles/default/css/bootstrap-tourist.css'>
+<script src='/styles/default/js/bootstrap-tourist.min.js'></script>
 
 <script>
   jQuery(function () {

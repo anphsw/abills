@@ -203,6 +203,7 @@ $lang{REST} = 'Осталось';
 $lang{BANK_NAME} = 'Название банка';
 $lang{DISCUSSION} = 'Обсуждение';
 $lang{USER_EXIST} = 'Такой пользователь уже существует';
+$lang{GROUP_USERS_EXISTS} = 'В данной группе присутствуют пользователи';
 $lang{RESET} = 'Сбросить';
 $lang{GET} = 'Снять';
 $lang{DAYS} = 'Дни';
@@ -742,6 +743,7 @@ $lang{NO_DATAS} = 'н.д.';
 $lang{NOTES} = 'Заметки';
 $lang{ADDITIONAL_DATA} = 'Дополнительные данные';
 $lang{CONNECTION_POINT} = 'Точка подключения';
+$lang{CONNECTION_FEE} = 'Плата за подключение';
 $lang{TECHNICAL_DATA} = 'Технические данные';
 $lang{CONSIGNMENT_NOTE} = 'Накладная на передачу';
 $lang{DRESS_FOR_WORK} = 'Наряд на работу';
@@ -928,4 +930,29 @@ $lang{EXPIRE_DATE} = 'Дата окончания';
 $lang{MODE} = 'Режим';
 $lang{ERROR_VIEW_INFORMATION} = 'Нет разрешения на просмотр информации';
 
+$lang{QUICK_MENU} = 'Быстрое меню';
+
+$lang{CLEAR} = 'Очистить';
+
+$lang{LOGIN_BY_PHONE_NUMBER} = 'Войти по номеру телефона';
+$lang{SEND_AGAIN} = 'Отправить снова';
+$lang{USER_NOT_FOUND} = 'Пользователь не найден';
+$lang{USED_ALL_PIN_ATTEMPTS} = 'Использованы все попытки ввести PIN';
+$lang{USE_LOGIN_AND_PASSWORD} = 'Войдите с помощью логина и пароля';
+$lang{BACK_TO_LOGIN_WITH_PASSWORD} = 'Вернуться к входу с паролем';
+$lang{FOUND_SEVERAL_USERS} = 'По номеру телефона найдено несколько пользователей';
+$lang{CODE_EXPIRED} = 'Срок действия кода истек';
+$lang{CODE_IS_INVALID} = 'Данный код неверный';
+
+$lang{TPL_NOT_CHANGED} = 'Шаблон не изменён';
+$lang{CHECK_FILE_PERMISSIONS} = 'Проверьте права на файл';
+
+$lang{QUERIES} = 'Запросы';
+$lang{ALREADY_HAVE_A_PIN} = 'У меня уже есть PIN';
+
+$lang{REPORT_SWITCH_WITH_USERS} = 'Отчет по коммутаторам';
+$lang{QUANTITY_USERS_REQUEST} = 'Заявки за посл 30 дн.';
+$lang{COEFFICIENT_OF_DISABLE_USERS} = 'Коефициент отключенных';
+$lang{COEFFICIENT_OF_REQUESTS_USERS} = 'Коефициент заявок';
+$lang{BOTS} = 'Боты';
 1

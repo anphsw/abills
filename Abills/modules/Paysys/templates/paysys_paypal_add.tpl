@@ -1,41 +1,42 @@
-<form action='%PP_LINK%' method='post'> 
-<input type='hidden' name='index' value='$index'>
-<input type='hidden' name='sid' value='$sid'>
-<input type='hidden' name='OPERATION_ID' value='$FORM{OPERATION_ID}'>
-<input type='hidden' name='FULL_SUM' value='$FORM{FULL_SUM}'>
-<input type='hidden' name='SUM' value='$FORM{SUM}'>
-<input type='hidden' name='DESCRIBE' value='$FORM{DESCRIBE}'>
-<input type='hidden' name='PAYMENT_SYSTEM' value='$FORM{PAYMENT_SYSTEM}'>
-<input type='hidden' name='STEP' value='1'>
+<div class='card card-primary card-outline'>
+  <div class='card-header with-border text-center pb-0'>
+    <h4>_{BALANCE_RECHARCHE}_</h4>
+  </div>
+  <div class='card-body'>
+    <div class='text-center mt-3'>
+      <div id='paypal-button-container'></div>
+    </div>
+    <script src='%BUTTON_LINK%'
+            data-sdk-integration-source='button-factory'>
+    </script>
+    <script>
+      {
+        paypal.Buttons({
+          style: {
+            shape: 'rect',
+            color: 'blue',
+            layout: 'vertical',
+            label: 'pay',
+          },
 
-<table width=400 border=0>
-<tr><th class='form_title' colspan=2>PayPal</th></tr>
-<tr><td colspan=2 align=center><img src='https://www.paypal.com/en_US/i/logo/paypal_logo.gif'></td></tr>
-    <tr>
-        <td>_{TRANSACTION}_ #:</td>
-        <td>$FORM{OPERATION_ID}</td>
-    </tr>
-    <tr>
-        <td>_{SUM}_:</td>
-        <td>$FORM{SUM}</td>
-    </tr>
-    <tr>
-        <td>_{FEES}_:</td>
-        <td>$FORM{COMMISION}</td>
-    </tr>
-    <tr>
-        <td>_{DESCRIBE}_:</td>
-        <td>$FORM{DESCRIBE}</td>
-    </tr>
-    <tr>
-        <th colspan=2><input type='submit' value='_{PAY}_'>
+          createOrder: function (data, actions) {
+            return actions.order.create({
+              purchase_units: JSON.parse('%PURCHASE_UNITS%')
+            });
+          },
 
+          onApprove: function (data, actions) {
+            return actions.order.capture().then(function (orderData) {
+              const url = `%SUCCESS_URL%&PAYPAL_ORDER_ID=${orderData.id}`
+              actions.redirect(url);
+            });
+          },
 
-
-</table>
-</form>
-
-
-
-
-
+          onError: function (err) {
+            console.log(err);
+          }
+        }).render('#paypal-button-container');
+      }
+    </script>
+  </div>
+</div>

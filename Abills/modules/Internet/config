@@ -32,6 +32,7 @@ our %FUNCTIONS_LIST = (
   "32:17:$lang{USERS} $lang{GROUPS}:group_tp_user_groups:ID" => 5,
   "69:0::internet_tp_clone:AJAX"                             => 5,
   "79:0::tp_radius_pairs_save:AJAX:"                         => 5,
+  "80:0::internet_ip_pool_check:AJAX:"                       => 5,
   #  "38:0:$lang{INTERNET} $lang{STATS}:internet_use:COMPANY_ID"  => 13
 );
 if ($conf{INTERNET_USERS_POOL}) {

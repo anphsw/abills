@@ -59,8 +59,8 @@ sub click {
   $Users->pi({UID => $uid});
   $Users->group_info($Users->{GID});
   $credit_warn = 1 if ($Users->{DEPOSIT} + $Users->{CREDIT} <= 0);
-  my $money_currency = $self->{conf}->{DOCS_MONEY_NAMES} || '';
-    
+  my $money_currency = $self->{conf}->{MONEY_UNIT_NAMES} || '';
+
   use Payments;
   my $Payments = Payments->new($self->{db}, $self->{admin}, $self->{conf});
   my $last_payments = $Payments->list({

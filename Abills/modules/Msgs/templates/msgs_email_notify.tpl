@@ -1,4 +1,4 @@
-_{NEW}_ _{MESSAGE}_
+_{NEW_MESSAGE}_
 =======================================
 ID: %ID%
 _{SUBJECT}_: %SUBJECT%

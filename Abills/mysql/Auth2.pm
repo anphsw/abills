@@ -92,9 +92,8 @@ sub auth {
     ($ret, $RAD_PAIRS) = $self->internet_auth($RAD, $NAS, $attr);
 
     if($ret == 2) {
-      #FIXME  delete if(! $self->{USER_NAME});
       $self->{USER_NAME}=$RAD->{'User-Name'};
-      #if(! $self->{USER_NAME});
+
       return $self->neg_deposit_filter_former($RAD, $NAS, 'IPOE_LOGIN_NOT_EXIST',
         {
           RAD_PAIRS   => $RAD,
@@ -228,18 +227,12 @@ sub auth {
       'do');
     }
     else {
-      #if ($CONF->{INTERNET_STATUS_NEG_DEPOSIT} && $self->{NEG_DEPOSIT_FILTER_ID}) {
-      #Fixme - Why i add this ?
-      #return $self->neg_deposit_filter_former($RAD, $NAS, $self->{NEG_DEPOSIT_FILTER_ID} || 'STATUS_NEG_DEPOSIT',
       return $self->neg_deposit_filter_former($RAD, $NAS, $self->{NEG_DEPOSIT_FILTER_ID},
       {
         RAD_PAIRS   => $RAD_PAIRS,
         FILTER_TYPE => 'SERVICE_DISABLE',
         MESSAGE     => "SERVICE_DISABLED: $self->{INTERNET_DISABLE}"
       });
-      #}
-      #$RAD_PAIRS->{'Reply-Message'} = "Service Disabled $self->{DISABLE}";
-      #return 1, $RAD_PAIRS;
     }
   }
 #  elsif (!$self->{JOIN_SERVICE} && $self->{TP_NUM} < 1) {
@@ -811,6 +804,10 @@ sub nas_pair_former {
       #$RAD_PAIRS->{'Mikrotik-Xmit-Limit'}  = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE}); #/ 2);
     }
 
+    if ($self->{IPV6_PREFIX}) {
+      $RAD_PAIRS->{'Mikrotik-Delegated-IPv6-Pool'} = $self->{IPV6_PREFIX} . '/' . $self->{IPV6_PREFIX_MASK};
+    }
+
     #Shaper
     #global Traffic
     if ($self->{USER_SPEED} > 0) {
@@ -835,7 +832,6 @@ sub nas_pair_former {
       }
 
       $RAD_PAIRS->{'Mikrotik-Address-List'} = "CLIENTS_$self->{TP_ID}";
-
     }
   }
   elsif ($nas_type eq 'accel_ipoe') {
@@ -1845,7 +1841,7 @@ sub get_ip {
     push @used_pools_arr, $id;
     my %pools = ();
 
-    for (my $i = $sip ; $i <= $sip + $count ; $i++) {
+    for (my $i = $sip ; $i < $sip + $count ; $i++) {
       $pools{$i} = 1;
     }
 
@@ -2337,11 +2333,6 @@ sub neg_deposit_filter_former {
 
   $RAD_PAIRS->{'Acct-Interim-Interval'} = $NAS->{NAS_ALIVE} if ($NAS->{NAS_ALIVE});
 
-  #Fixme remove on 0.8
-  #if ($CONF->{NEG_DEPOSIT_USER_IP}) {
-  #  $CONF->{INTERNET_GUEST_STATIC_IP} = $CONF->{NEG_DEPOSIT_USER_IP};
-  #}
-
   $self->{IP} //= 0;
 
   if (!$attr->{USER_FILTER}) {
@@ -2407,9 +2398,8 @@ sub neg_deposit_filter_former {
   $NEG_DEPOSIT_FILTER_ID =~ s/{IP}/$RAD_PAIRS->{'Framed-IP-Address'}/g;
   $NEG_DEPOSIT_FILTER_ID =~ s/{LOGIN}/$RAD->{'User-Name'}/g;
 
-  if ($NEG_DEPOSIT_FILTER_ID =~ /RAD:(.+)/) {
-    my $rad_pairs = $1;
-    rad_pairs_former($rad_pairs, $attr);
+  if ($NEG_DEPOSIT_FILTER_ID =~ /RAD:/) {
+    rad_pairs_former($NEG_DEPOSIT_FILTER_ID, $attr);
   }
   else {
     $RAD_PAIRS->{'Filter-Id'} = $NEG_DEPOSIT_FILTER_ID;
@@ -2435,12 +2425,16 @@ sub neg_deposit_filter_former {
 =head2 rad_pairs_former($content, $attr) - Forming RAD pairs
 
   Arguments:
+    $content - Filter content
     $attr
       RAD_PAIRS - HASH_REF of return rad pairs
 
   Returns:
     Result  TRUE or FALSE
     HAS_REF of formed rad reply
+
+  Example:
+    rad_pairs_former( $self->{NEG_DEPOSIT_FILTER_ID}, { RAD_PAIRS => \%RAD_REPLY } );
 
 =cut
 #**********************************************************
@@ -2663,7 +2657,11 @@ sub dhcp_info {
     $self->{conf} = $CONF;
   }
 
-  if (($CONF->{NAS_PORT_AUTH} || $attr->{NAS_PORT_AUTH}) && ! $attr->{MAC_AUTH}) {
+  if ($CONF->{AUTH_IP} && $attr->{IP}) {
+    push @WHERE_RULES, "internet.ip=INET_ATON('$attr->{IP}')";
+    $self->{INFO} = "AUTH IP '$attr->{IP}'";
+  }
+  elsif (($CONF->{NAS_PORT_AUTH} || $attr->{NAS_PORT_AUTH}) && ! $attr->{MAC_AUTH}) {
     my $auth_options = "n.mac='$attr->{NAS_MAC}' AND internet.port='$attr->{PORT}'";
 
     if($CONF->{NAS_SECOND_MAC_AUTH}) {
@@ -2678,10 +2676,24 @@ sub dhcp_info {
     $self->{INFO} = "q2q: $attr->{SERVER_VLAN}-$attr->{VLAN} MAC: $attr->{USER_MAC}";
   }
   elsif ($CONF->{AUTH_PARAMS}) {
-    push @WHERE_RULES, "((n.mac='$attr->{NAS_MAC}' OR n.mac IS null)
+    if ($CONF->{AUTH_PARAMS} ne '1') {
+      my %AUTH_PARAMS_VALUES = (
+        NAS_MAC  => "n.mac",
+        USER_MAC => "internet.cid",
+        VLAN     => "internet.vlan",
+        SERVER_VLAN => "internet.svlan",
+        PORT     => "internet.port"
+      );
+
+      my @params = split(/,\s?/, $CONF->{AUTH_PARAMS});
+      push @WHERE_RULES, join(' AND ',  map { $AUTH_PARAMS_VALUES{$_} .'=\''. $attr->{$_} .'\''  } @params);
+    }
+    else {
+      push @WHERE_RULES, "((n.mac='$attr->{NAS_MAC}' OR n.mac IS null)
       AND (internet.cid='$attr->{USER_MAC}' OR internet.cid='')
       AND (internet.vlan='$attr->{VLAN}' OR internet.vlan='')
       AND (internet.port='$attr->{PORT}' OR internet.port=''))";
+    }
 
     $self->{INFO} = "NAS_MAC: $attr->{NAS_MAC} PORT: $attr->{PORT} VLAN: $attr->{VLAN} MAC: $attr->{USER_MAC}";
   }
@@ -2691,14 +2703,10 @@ sub dhcp_info {
   # elsif($CONF->{AUTH_INTERNET_CID}) {
   #   push @WHERE_RULES, "internet.cid='". $attr->{USER_MAC} ."'";
   # }
-  elsif ($CONF->{AUTH_IP}) {
-    push @WHERE_RULES, "internet.ip=INET_ATON('$attr->{IP}')";
-    $self->{INFO} = "AUTH IP '$attr->{IP}'";
-  }
-#Depricated not used
-#  elsif ($attr->{LOGIN}) {
-#    push @WHERE_RULES, "u.id='$attr->{LOGIN}'";
-#  }
+  #Depricated not used
+  #  elsif ($attr->{LOGIN}) {
+  #    push @WHERE_RULES, "u.id='$attr->{LOGIN}'";
+  #  }
   elsif ($attr->{USER_MAC}) {
     push @WHERE_RULES, "internet.cid='$attr->{USER_MAC}'";
     $self->{INFO} = "USER MAC '$attr->{USER_MAC}'";

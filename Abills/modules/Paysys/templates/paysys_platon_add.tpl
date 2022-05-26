@@ -17,7 +17,7 @@
 
         <div class='form-group text-center'>
           <img
-               src='/styles/default_adm/img/paysys_logo/platon-logo.png' style='width: auto; max-height: 200px;'>>
+               src='/styles/default/img/paysys_logo/platon-logo.png' style='width: auto; max-height: 200px;'>>
         </div>
 
         <div class='form-group'>

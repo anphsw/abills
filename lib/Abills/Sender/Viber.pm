@@ -1,19 +1,24 @@
 package Abills::Sender::Viber;
+=head1 Viber
+
+  Send viber message
+
+=cut
+
+
 use strict;
-use warnings;
+use warnings FATAL => 'all';
 
-use AnyEvent;
-use AnyEvent::Handle;
-use AnyEvent::Socket;
-use Abills::Fetcher qw/web_request/;
+use Abills::Sender::Plugin;
 use parent 'Abills::Sender::Plugin';
-use Abills::Base qw(_bp);
-use JSON;
-
-our $VERSION = 0.01;
+use Sms::Init;
+use Sms;
 
 my %conf = ();
-
+my @viber_msgs = (
+  'SMS_OMNICELL_VIBER',
+  'SMS_TURBOSMS_VIBER'
+);
 
 #**********************************************************
 =head2 new($db, $admin, $CONF, $attr) - Create new Viber object
@@ -35,207 +40,98 @@ sub new {
 
   %conf = %{$conf};
 
-  my $self = {
-    token   => $conf{VIBER_TOKEN},
-    name    => $conf{VIBER_BOT_NAME},
-    api_url => 'https://chatapi.viber.com/pa/'
-  };
-  die 'No Viber token ($conf{VIBER_TOKEN})' if ( !$self->{token} );
+  my $self = {};
+
+  foreach my $viber_check (@viber_msgs) {
+    if ($conf{ $viber_check }) {
+      $self->{VIBER_TOKEN} = $conf{ $viber_check };
+      last;
+    }
+  }
+
+  die 'No Viber token ($conf{SMS_OMNICELL_VIBER} or $conf{SMS_TURBOSMS_VIBER})' if !$self->{VIBER_TOKEN};
 
   bless $self, $class;
 
   return $self;
 }
 
-
 #**********************************************************
-=head2 send_message() - Send message to user with his user_id or to channel with username(@<CHANNELNAME>)
+=head2 send_message($attr)
 
   Arguments:
-    $attr:
-      TO_ADDRESS - Telegram ID
-      MESSAGE    - text of the message
-      PARSE_MODE - parse mode of the message. u can use 'markdown' or 'html'
-      DEBUG      - debug mode
+    MESSAGE
+    SUBJECT
+    PRIORITY_ID
+    TO_ADDRESS   - Sms address
+    UID
+    debug
 
   Returns:
-
-  Examples:
-    $Telegram->send_message({
-      AID        => "235570079",
-      MESSAGE    => "testing",
-      PARSE_MODE => 'markdown',
-      DEBUG      => 1
-    });
+    result_hash_ref
 
 =cut
 #**********************************************************
 sub send_message {
   my $self = shift;
-  my ($attr, $callback) = @_;
+  my ($attr) = @_;
 
-  my $text = $attr->{MESSAGE} || return 0;
-  #
-  # if ( $attr->{PARSE_MODE} ) {
-  #   $attr->{VIBER_ATTR} = {} if ( !$attr->{VIBER_ATTR} );
-  #   $attr->{VIBER_ATTR}->{type} = $attr->{TYPE}
-  # }
 
-  if ( $attr->{SUBJECT} ) {
-    $text = $attr->{SUBJECT} . "\n\n" . $text;
-  }
-
-  if ($attr->{DEBUG}){
-    $self->{api}{debug} = $attr->{DEBUG};
-  }
-
-  $text =~ s/\r//g;
-  $text =~ s/\n/\\n/g;
-  $text =~ s/<b>//g;
-  $text =~ s/<\/b>//g;
-
-    $text .= "\\n+ATTACHMENTS" if($attr->{ATTACHMENTS});
-
-  if($attr->{MAKE_REPLY}) {
-    $text .= "\\n\\n$attr->{LANG}->{MSGS_REPLY}: ";
-    $text .= make_reply($attr->{MAKE_REPLY}, $attr);
-  }
-  my $message = {
-    receiver        => $attr->{TO_ADDRESS},
-    text            => $text,
-    min_api_version => 7,
-    type            => 'text',
+  unless ($attr->{TO_ADDRESS}) {
+    print "No recipient address given \n" if ($self->{debug});
+    return 0;
   };
 
-
-  my $result = $self->send_request($message, $callback);
-
-  if ( $attr->{DEBUG} && $attr->{DEBUG} > 1 ) {
-    _bp("Result", $result, { TO_CONSOLE => 1 });
+  my $number_pattern = $self->{conf}{SMS_NUMBER} || "[0-9]{12}";
+  if ($attr->{TO_ADDRESS} !~ /$number_pattern/) {
+    return 0;
   }
 
-  if ( $attr->{RETURN_RESULT} ) {
-    return $result;
-  }
+  my $Sms_service = init_sms_service($self->{db}, $self->{admin}, $self->{conf});
 
-
-  return $result && $result->{status_message} eq 'ok';
-}
-
-
-#**********************************************************
-=head2 send_request()
-
-=cut
-#**********************************************************
-sub send_request {
-  my $self = shift;
-  my ($attr, $callback) = @_;
-
-  my $waiter = undef;
-  if ( !$callback ) {
-    $waiter = AnyEvent->condvar;
-  }
-
-  if ( $@ ) {
-    # $Log->alert('REQUEST PARAMS ERROR : ' . $@);
-    # $Log->alert('REQUEST PARAMS ERROR : ' . $attr);
-
-    my $res = { error => $@, ok => 0, type => 'on_write' };
-    (!$callback) ? $waiter->send($res) : $callback->($res);
-  }
-
-  $attr->{min_api_version} = 7;
-
-  my $json_str = $self->perl2json($attr);
-
-  my $url      = $self->{api_url} . 'send_message';
-
-  my @header = ( 'Content-Type: application/json', 'X-Viber-Auth-Token: '.$self->{token} );
-  $json_str =~ s/\"/\\\"/g;
-
-
-  my $result = web_request($url, {
-    POST         => $json_str,
-    HEADERS      => \@header,
-    CURL         => 1,
-    CURL_OPTIONS => '-XPOST',
+  my $sms_result = $Sms_service->send_sms({
+    NUMBER  => $attr->{TO_ADDRESS},
+    MESSAGE => $attr->{MESSAGE},
+    VIBER   => $self->{VIBER_TOKEN}
   });
 
-  $result = decode_json($result);
+  my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
+  my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
 
-  (!$callback) ? $waiter->send($result) : $callback->($result);
+  my $Sms = Sms->new($self->{db}, $self->{admin}, $self->{conf});
 
-  return $result;
+  $Sms->add({
+    UID         => $attr->{UID} || $self->{UID} || 0,
+    MESSAGE     => $attr->{MESSAGE} || q{},
+    PHONE       => $attr->{TO_ADDRESS},
+    DATETIME    => "$DATE $TIME",
+    STATUS      => $sms_result || 0,
+    EXT_ID      => $Sms_service->{id} || '',
+    STATUS_DATE => "$DATE $TIME",
+    EXT_STATUS  => $Sms_service->{status} || '',
+  });
+
+  return 1;
 }
 
 #**********************************************************
-=head2 perl2json()
+=head2 contact_types() -
 
 =cut
 #**********************************************************
-sub perl2json {
+sub contact_types {
   my $self = shift;
-  my ($data) = @_;
-  my @json_arr = ();
 
-  if (ref $data eq 'ARRAY') {
-    foreach my $key (@{$data}) {
-      push @json_arr, $self->perl2json($key);
-    }
-    return '[' . join(',', @json_arr) . "]";
-  }
-  elsif (ref $data eq 'HASH') {
-    foreach my $key (sort keys %$data) {
-      my $val = $self->perl2json($data->{$key});
-      push @json_arr, qq{\"$key\":$val};
-    }
-    return '{' . join(',', @json_arr) . "}";
-  }
-  else {
-    $data //='';
-    return "true" if ($data eq "true");
-    return qq{\"$data\"};
-  }
+  return $self->{conf}{SMS_CONTACT_ID} || 1;
 }
 
 #**********************************************************
-=head2 make_reply() - return reply url
-
-  Returns:
-    string - reply url
+=head2 support_batch() - tells Sender, we can accept more than one recepient per call
 
 =cut
 #**********************************************************
-sub make_reply(){
-  my ($message_id, $sender_attr) = @_;
-
-  my $referer = (
-    # Allow users to use their own portal URL
-    ($sender_attr->{UID} ? $conf{CLIENT_INTERFACE_URL} : '')
-      || $conf{BILLING_URL}
-      || $ENV{HTTP_REFERER}
-      || ''
-  );
-
-  if ($referer =~ /(https?:\/\/[a-zA-Z0-9:\.\-]+)\/?/g) {
-    my $site_url = $1;
-
-    if ($site_url) {
-      my $link = $site_url;
-
-      if ($sender_attr->{UID}) {
-        $link .= "/index.cgi?get_index=msgs_user&ID=$message_id#last_msg";
-      }
-      elsif ($sender_attr->{AID}) {
-        my $receiver_uid = $sender_attr->{SENDER_UID} ? '&UID=' . $sender_attr->{SENDER_UID} : '';
-        $link .= "/admin/index.cgi?get_index=msgs_admin&full=1$receiver_uid&chg=$message_id#last_msg";
-      }
-      return $link;
-    }
-
-  }
-  return "";
+sub support_batch {
+  return 1;
 }
 
 1;

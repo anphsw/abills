@@ -23,10 +23,10 @@
 
   # Maintain
   "80:0:$lang{STORAGE}:null"                                                        => 8,
-  "81:80:ТМЦ:storage_main:"                                                         => 8,
+  "81:80:$lang{INVENTORY_ITEMS}:storage_main:"                                      => 8,
   "82:80:$lang{INVENTORY}:storage_inventory:"                                       => 8,
   "82:80:$lang{STORAGE_INVOICES}:storage_invoices:"                                 => 8,
-  "83:82:$lang{INVOICE_PAYMENTS}:storage_invoces_payments:"                         => 8,
+  "83:82:$lang{INVOICE_PAYMENTS}:storage_invoices_payments:"                        => 8,
   "84:80:$lang{LOG}:storage_log:"                                                   => 8,
 );
 

@@ -4,7 +4,7 @@
 <input type='hidden' name='ADDITIONAL_FIELDS' id='additional_fields' value='%ADDITIONAL_FIELDS%'>
   <div class='card card-primary card-outline'>
     <div class='card-header with-border'><h3 class='card-title'>_{NEW_TYPE}_</h3>
-      <div class='card-tools pull-right'>
+      <div class='card-tools float-right'>
       <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
       <i class='fa fa-minus'></i>
         </button>
@@ -25,7 +25,7 @@
             <input type='hidden' id='RESPONSIBLE_LIST' name='RESPONSIBLE_LIST' value='%RESPONSIBLE_LIST%'>
             <label class='control-label col-md-4'>_{ASSIGNED_ADMINS}_:</label>
             <div class='col-md-8'>
-              <button type='button' class='btn btn-secondary pull-left' data-toggle='modal' data-target='#adminsModal' 
+              <button type='button' class='btn btn-secondary float-left' data-toggle='modal' data-target='#adminsModal'
                       onClick='return openModal()'>_{SELECTED}_: <span class='admin_count'></span></button>
             </div>
           </div>
@@ -34,7 +34,7 @@
             <input type='hidden' id='PARTCIPIANTS_LIST' name='PARTCIPIANTS_LIST' value='%PARTCIPIANTS_LIST%'>
             <label class='control-label col-md-4'>_{PARTCIPIANTS}_:</label>
             <div class='col-md-8'>
-              <button type='button' class='btn btn-secondary pull-left' data-toggle='modal' data-target='#partcipiantsModal' 
+              <button type='button' class='btn btn-secondary float-left' data-toggle='modal' data-target='#partcipiantsModal'
                       onClick='return openModal()'>_{SELECTED}_: <span class='partcipiants_count'></span></button>
             </div>
           </div>
@@ -43,7 +43,7 @@
             <input type='hidden' id='PLUGINS' name='PLUGINS' value='%PLUGINS%'>
             <label class='control-label col-md-4'>_{PLUGINS}_:</label>
             <div class='col-md-8'>
-              <button type='button' class='btn btn-secondary pull-left' data-toggle='modal' data-target='#pluginsModal' 
+              <button type='button' class='btn btn-secondary float-left' data-toggle='modal' data-target='#pluginsModal'
                       onClick='return openModal()'>_{SELECTED}_: <span class='plugins_count'></span></button>
             </div>
           </div>

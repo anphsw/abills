@@ -1,0 +1,66 @@
+#!/usr/bin/perl
+=head1 NAME
+
+ Api report of API requests
+
+=cut
+
+use strict;
+use warnings FATAL => 'all';
+use Api;
+
+our (
+  $db,
+  $admin,
+  %conf,
+  %lang
+);
+
+my $Api = Api->new($db, $admin, \%conf);
+
+#**********************************************************
+=head2 api_log_list()
+
+  Print logs of API
+
+=cut
+#**********************************************************
+sub api_log_list {
+  my ($table, undef) = result_former({
+    INPUT_DATA      => $Api,
+    FUNCTION        => 'list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,REQUEST_URL,REQUEST_BODY,HTTP_STATUS,RESPONSE,HTTP_METHOD,DATE,RESPONSE_TIME',
+    SELECT_VALUE    => {
+      http_status => {}
+    },
+    EXT_TITLES      => {
+      id            => 'id',
+      aid           => 'aid',
+      uid           => 'uid',
+      sid           => 'sid',
+      request_url   => 'request_url',
+      request_body  => 'request_body',
+      response_time => 'response_time',
+      response      => 'response',
+      http_status   => 'http_status',
+      http_method   => 'http_method',
+      date          => 'date',
+      ip            => 'ip',
+    },
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{API_LOGS},
+      qs      => $pages_qs,
+      ID      => 'API_LOG',
+      MENU    => "$lang{SEARCH}:index=$index&search_form=1:search;",
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Api'
+  });
+
+  return print $table->show();
+}
+
+1;

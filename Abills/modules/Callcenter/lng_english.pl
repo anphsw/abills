@@ -132,6 +132,8 @@ $lang{ADD_AGENTS}='Добавление агентов';
 $lang{ADD_AGENT}='Добавить агента';
 $lang{OPTIONS}='Настройки';
 
+
+
 ###################################################
 
 $lang{EXIT}='Exit';
@@ -258,6 +260,7 @@ $lang{NAS_TECH_WORK} = 'Nas maintenice';
 $lang{ASTERISK} = 'Astrisk';
 $lang{TRUNKS} = 'Trunks';
 $lang{VOIP} = 'VoIP';
+$lang{REC_WARNING}='Warning. Call will recording';
 
 
 

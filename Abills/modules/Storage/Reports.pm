@@ -233,16 +233,27 @@ sub storage_remnants_report {
     DATE_RANGE  => 1,
     NO_GROUP    => 1,
     NO_TAGS     => 1,
+    EXT_SELECT  => {
+      STORAGE_ID => {
+        LABEL  => $lang{STORAGE},
+        SELECT => storage_storage_sel($Storage, {
+          ALL                  => 1,
+          DOMAIN_ID            => ($admin->{DOMAIN_ID} || undef),
+          DISABLE_CHANGE_EVENT => 1
+        })
+      }
+    }
   });
 
   my $list = $Storage->storage_remnants_list({
-    FROM_DATE => $FORM{FROM_DATE} || '_SHOW',
-    TO_DATE   => $FORM{TO_DATE} || '_SHOW',
+    FROM_DATE  => $FORM{FROM_DATE} || '_SHOW',
+    TO_DATE    => $FORM{TO_DATE} || '_SHOW',
+    STORAGE_ID => $FORM{STORAGE_ID} || '_SHOW',
     COLS_NAME => 1
   });
 
   my $report_table = $html->table({
-    title      => [ $lang{NAME}, $lang{MEASURE}, $lang{TOTAL}, $lang{ACCOUNTABILITY}, $lang{DISCARDED},
+    title      => [ $lang{NAME}, $lang{TYPE}, $lang{MEASURE}, $lang{TOTAL}, $lang{ACCOUNTABILITY}, $lang{DISCARDED},
       $lang{INSTALLED}, $lang{RESERVED}, $lang{INNER_USE}, $lang{REST} ],
     width      => '100%',
     caption    => $lang{REMNANTS},
@@ -257,6 +268,7 @@ sub storage_remnants_report {
       ($item->{inner_use_count} || 0) + ($item->{count} || 0);
     $report_table->addrow(
       ($item->{name} || "$lang{NOT_EXIST}"),
+      $item->{type},
       _translate($item->{measure_name}),
       ($total_count),
       ($item->{accountability_count} || 0),
@@ -265,8 +277,7 @@ sub storage_remnants_report {
       ($item->{reserve_count} || 0),
       ($item->{inner_use_count} || 0),
       ($item->{main_article_id} == 0 ?
-        $item->{count} - ($item->{accountability_count} || 0) - ($item->{reserve_count} || 0):
-        $item->{count}),
+        $item->{count} - ($item->{accountability_count} || 0) - ($item->{reserve_count} || 0) : $item->{count}),
     );
   }
   print $report_table->show();
@@ -285,8 +296,12 @@ sub storage_remnants_report {
 #**********************************************************
 sub storage_statistics {
 
-  my $admins_select  = sel_admins({NAME => 'INSTALLED_AID'});
-  my $storage_select = storage_storage_sel($Storage, {ALL => 1, DOMAIN_ID => ($admin->{DOMAIN_ID} || undef)});
+  my $admins_select = sel_admins({ NAME => 'INSTALLED_AID' });
+  my $storage_select = storage_storage_sel($Storage, {
+    ALL                  => 1,
+    DOMAIN_ID            => ($admin->{DOMAIN_ID} || undef),
+    DISABLE_CHANGE_EVENT => 1
+  });
   my $type_select = $html->form_select('TYPE_ID', {
     SELECTED    => $FORM{TYPE_ID} || 0,
     SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
@@ -295,15 +310,15 @@ sub storage_statistics {
   });
 
   reports({
-    PERIOD_FORM => 1,
-    DATE_RANGE  => 1,
-    NO_GROUP    => 1,
-    NO_TAGS     => 1,
+    PERIOD_FORM   => 1,
+    DATE_RANGE    => 1,
+    NO_GROUP      => 1,
+    NO_TAGS       => 1,
     ADMINS_SELECT => 1,
-    EXT_SELECT => {
-      STORAGE   => { LABEL => $lang{STORAGE}, SELECT => $storage_select },
-      REPSOBILE => { LABEL => $lang{RESPOSIBLE}, SELECT => $admins_select },
-      TYPE      => { LABEL => $lang{TYPE}, SELECT => $type_select },
+    EXT_SELECT    => {
+      STORAGE     => { LABEL => $lang{STORAGE}, SELECT => $storage_select },
+      RESPONSIBLE => { LABEL => $lang{RESPOSIBLE}, SELECT => $admins_select },
+      TYPE        => { LABEL => $lang{TYPE}, SELECT => $type_select },
     }
   });
 
@@ -408,7 +423,6 @@ sub storage_statistics {
           borderWidth     => 2,
           borderColor     => \@popular_count_colors,
           backgroundColor => \@popular_bg_count_colors,
-          yAxisID         => 'left-y-axis',
           fill            => 'false',
         },
       {
@@ -418,42 +432,23 @@ sub storage_statistics {
         borderColor     => \@popular_price_colors,
         backgroundColor => \@popular_bg_price_colors,
         fill            => 'false',
-        yAxisID         => 'right-y-axis',
         type            => 'bar',
       }
       ]
     },
     OPTIONS    => {
-      scales   => {
-        yAxes => [ {
-            id       => 'right-y-axis',
-            type     => 'linear',
-            position => 'right',
-            ticks    => {
-              stepSize => sprintf( "%.2f", $val_price ),
-              min => 0
-            }
-          },
-          {
-            id       => 'left-y-axis',
-            type     => 'linear',
-            position => 'left',
-            ticks    => {
-              stepSize => sprintf( "%.f", $val_count ),
-              min      => 0
-            }
-          }
-        ]
+      scales => {
+        y => {
+          type => 'logarithmic'
+        }
       }
     }
   });
 
-  $html->tpl_show(_include('storage_reports_installation', 'Storage'),
-    {
-      POPULAR_CHART    => $popular_chart,
-      TABLE            => $table->show()
-    },
-  );
+  $html->tpl_show(_include('storage_reports_installation', 'Storage'), {
+    POPULAR_CHART => $popular_chart,
+    TABLE         => $table->show()
+  });
 }
 
 #**********************************************************
@@ -469,43 +464,78 @@ sub storage_statistics {
 sub storage_incoming_report {
 
   reports({
-    PERIOD_FORM => 1,
-    DATE_RANGE  => 1,
-    NO_GROUP    => 1,
-    NO_TAGS     => 1,
+    PERIOD_FORM   => 1,
+    DATE_RANGE    => 1,
+    NO_GROUP      => 1,
+    NO_TAGS       => 1,
     ADMINS_SELECT => 1,
+    EXT_SELECT    => {
+      STORAGE_ID => {
+        LABEL  => $lang{STORAGE},
+        SELECT => storage_storage_sel($Storage, {
+          ALL                  => 1,
+          DOMAIN_ID            => $admin->{DOMAIN_ID} || undef,
+          DISABLE_CHANGE_EVENT => 1
+        })
+      },
+      INVOICE_ID => {
+        LABEL  => $lang{STORAGE_INVOICE},
+        SELECT => storage_invoice_select($Storage, {
+          ALL                  => 1,
+          INVOICE_NUMBER       => '_SHOW',
+          DATE                 => '_SHOW',
+          DESC                 => 'DESC',
+          SORT                 => 'si.id',
+          DOMAIN_ID            => $admin->{DOMAIN_ID} || undef,
+          DISABLE_CHANGE_EVENT => 1
+        })
+      },
+      TYPE_ID => {
+        LABEL  => $lang{TYPE},
+        SELECT => $html->form_select('TYPE_ID', {
+          SELECTED    => $FORM{TYPE_ID} || 0,
+          SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => $admin->{DOMAIN_ID} || undef, COLS_NAME => 1 }),
+          NO_ID       => 1,
+          SEL_OPTIONS => { '' => '--' },
+        })
+      }
+    }
   });
 
   my $goods_list = $Storage->storage_incoming_report_by_date({
-    FROM_DATE   => $FORM{FROM_DATE} || $DATE,
-    TO_DATE     => $FORM{TO_DATE}   || $DATE,
-    COLS_NAME   => 1
+    %FORM,
+    FROM_DATE => $FORM{FROM_DATE} || $DATE,
+    TO_DATE   => $FORM{TO_DATE} || $DATE,
+    COLS_NAME => 1
   });
 
-  if(scalar @{$goods_list} == 0){
-    print $html->message('warn', "$lang{NO_ITEMS_FOR_CHOSEN_DATE}", "$lang{CHANGE} $lang{DATE}");
+  if (!$Storage->{TOTAL} || $Storage->{TOTAL} < 1) {
+    print $html->message('warn', $lang{NO_ITEMS_FOR_CHOSEN_DATE}, "$lang{CHANGE} $lang{DATE}");
     return 1;
   }
 
   my $report_table = $html->table({
     width      => '100%',
     caption    => $lang{INCOMING_INVOICE_REPORT},
-    title      => [ $lang{NAME}, $lang{COUNT}, $lang{STORAGE_INVOICE}, $lang{DATE},],
+    title      => [ $lang{NAME}, $lang{TYPE},$lang{COUNT}, $lang{STORAGE_INVOICE}, $lang{DATE}, $lang{STORAGE} ],
     ID         => 'STORAGE_INCOMING_REPORT',
-    DATA_TABLE => { "order"=> [[1, "desc"]]},
-    EXPORT => 1,
+    DATA_TABLE => { order => [ [ 1, 'desc' ] ] },
+    qs         => $pages_qs,
+    EXPORT     => 1,
   });
 
-  foreach my $item (@$goods_list){
+  foreach my $item (@$goods_list) {
     $report_table->addrow(
-      ($item->{type_name}     || '') . ' ' . ($item->{article_name} || ''),
-      ($item->{total_count}   || 0)  . ' ' . _translate(($item->{measure_name} || '')),
+      $item->{article_name} || '',
+      $item->{type_name} || '',
+      ($item->{total_count} || 0) . ' ' . _translate($item->{measure_name} || ''),
       $item->{invoice_number} || '',
-      $item->{date} || '');
+      $item->{date} || '',
+      $item->{storage_name}
+    );
   }
 
   print $report_table->show();
-
 }
 
 #**********************************************************
@@ -521,7 +551,11 @@ sub storage_incoming_report {
 sub storage_in_installments_statistics {
 
   my $admins_select = sel_admins({ NAME => 'INSTALLED_AID' });
-  my $storage_select = storage_storage_sel($Storage, { ALL => 1, DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) });
+  my $storage_select = storage_storage_sel($Storage, {
+    ALL                  => 1,
+    DOMAIN_ID            => ($admin->{DOMAIN_ID} || undef),
+    DISABLE_CHANGE_EVENT => 1
+  });
   my $type_select = $html->form_select('TYPE_ID', {
     SELECTED    => $FORM{TYPE_ID} || 0,
     SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
@@ -550,32 +584,31 @@ sub storage_in_installments_statistics {
     $FORM{TO_DATE} = $DATE;
   }
 
-
   my $in_installments_items = $Storage->storage_in_installments_stats({
-    DATE          => ($FORM{TO_DATE} ? "<=$FORM{TO_DATE}" : "<=$DATE"),
-    TYPE_ID       => $FORM{TYPE_ID} || '_SHOW',
-    INSTALLED_AID => $FORM{INSTALLED_AID} || '_SHOW',
-    STORAGE_ID    => $FORM{STORAGE_ID} || '_SHOW',
-    DOMAIN_ID     => $admin->{DOMAIN_ID} || undef,
-    STA_NAME      => '_SHOW',
-    SAT_NAME      => '_SHOW',
-    COUNT         => '_SHOW',
-    ARTICLE_ID    => '_SHOW',
-    SELL_PRICE    => '_SHOW',
-    SUM_PRICE     => '_SHOW',
-    ADMIN_PERCENT => '_SHOW',
-    TOTAL_MONTHS  => '_SHOW',
-    SUM           => '_SHOW',
+    DATE                  => $FORM{TO_DATE} ? "<=$FORM{TO_DATE}" : "<=$DATE",
+    TYPE_ID               => $FORM{TYPE_ID} || '_SHOW',
+    INSTALLED_AID         => $FORM{INSTALLED_AID} || '_SHOW',
+    STORAGE_ID            => $FORM{STORAGE_ID} || '_SHOW',
+    DOMAIN_ID             => $admin->{DOMAIN_ID} || undef,
+    STA_NAME              => '_SHOW',
+    SAT_NAME              => '_SHOW',
+    COUNT                 => '_SHOW',
+    ARTICLE_ID            => '_SHOW',
+    SELL_PRICE            => '_SHOW',
+    SUM_PRICE             => '_SHOW',
+    ADMIN_PERCENT         => '_SHOW',
+    TOTAL_MONTHS          => '_SHOW',
+    SUM                   => '_SHOW',
     AMOUNT_PER_MONTH      => '_SHOW',
     MONTHES               => '_SHOW',
     IN_INSTALLMENTS_PRICE => '_SHOW',
     PAYMENTS_COUNT        => '_SHOW',
-    LAST_PAYMENT_DATE     => ($FORM{FROM_DATE} ? ">=$FORM{FROM_DATE}" : ">=$DATE"),
+    LAST_PAYMENT_DATE     => $FORM{FROM_DATE} ? ">=$FORM{FROM_DATE}" : ">=$DATE",
     TO_DATE               => $FORM{TO_DATE} || $DATE,
     FROM_DATE             => $FORM{FROM_DATE} || $DATE,
-    SORT          => 'count',
-    TYPE          => 3,
-    COLS_NAME     => 1
+    SORT                  => 'count',
+    TYPE                  => 3,
+    COLS_NAME             => 1
   });
 
   my $table = $html->table({
@@ -618,7 +651,11 @@ sub storage_in_installments_statistics {
 sub storage_rent_statistics {
 
   my $admins_select = sel_admins({ NAME => 'INSTALLED_AID' });
-  my $storage_select = storage_storage_sel($Storage, { ALL => 1, DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) });
+  my $storage_select = storage_storage_sel($Storage, {
+    ALL                  => 1,
+    DOMAIN_ID            => ($admin->{DOMAIN_ID} || undef),
+    DISABLE_CHANGE_EVENT => 1
+  });
   my $type_select = $html->form_select('TYPE_ID', {
     SELECTED    => $FORM{TYPE_ID} || 0,
     SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
@@ -716,7 +753,11 @@ sub storage_rent_statistics {
 sub storage_installation_report {
 
   my $admins_select = sel_admins({ NAME => 'INSTALLED_AID' });
-  my $storage_select = storage_storage_sel($Storage, { ALL => 1, DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) });
+  my $storage_select = storage_storage_sel($Storage, {
+    ALL                  => 1,
+    DOMAIN_ID            => $admin->{DOMAIN_ID} || undef,
+    DISABLE_CHANGE_EVENT => 1
+  });
   my $type_select = $html->form_select('TYPE_ID', {
     SELECTED    => $FORM{TYPE_ID} || 0,
     SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
@@ -731,9 +772,9 @@ sub storage_installation_report {
     NO_TAGS       => 1,
     ADMINS_SELECT => 1,
     EXT_SELECT    => {
-      STORAGE   => { LABEL => $lang{STORAGE}, SELECT => $storage_select },
-      REPSOBILE => { LABEL => $lang{RESPOSIBLE}, SELECT => $admins_select },
-      TYPE      => { LABEL => $lang{TYPE}, SELECT => $type_select },
+      STORAGE     => { LABEL => $lang{STORAGE}, SELECT => $storage_select },
+      RESPONSIBLE => { LABEL => $lang{RESPOSIBLE}, SELECT => $admins_select },
+      TYPE        => { LABEL => $lang{TYPE}, SELECT => $type_select },
     }
   });
 

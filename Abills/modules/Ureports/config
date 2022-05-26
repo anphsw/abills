@@ -18,8 +18,8 @@ our %USER_FUNCTION_LIST = (
 );
 
 our %PERIODIC = (
-  daily => [ 'ureports_daily_resets' ],
-  monthly => ['ureports_monthly_periodic']
+  daily   => [ 'ureports_daily_resets' ],
+  monthly => [ 'ureports_monthly_periodic' ]
 );
 
 1

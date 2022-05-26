@@ -553,3 +553,6 @@ $lang{ONE_TIME}=' Birdəfəlik';
 $lang{SUCCESS}='Ugurlu';
 $lang{MAX_SESSION_DURATION}=' Max. Sessiya vaxtı';
 $lang{NO_RECORD}=' Qeydlər yoxdur';
+$lang{CONNECTION_FEE} = 'Qoşulma haqqı';
+
+1;

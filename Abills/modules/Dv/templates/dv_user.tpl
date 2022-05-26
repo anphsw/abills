@@ -28,7 +28,7 @@
   <div class='card card-primary card-outline'>
     <div class='card-header with-border'>
       <h4 class='card-title'>_{DV}_</h4>
-      <div class='card-tools pull-right'>
+      <div class='card-tools float-right'>
         <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i class='fa fa-minus'></i>
         </button>
       </div>
@@ -50,7 +50,7 @@
 
         %LOGIN_FORM%
         <div class='form-group'>
-          <label class='control-label col-xs-4 pull-left' for='TP'>_{TARIF_PLAN}_</label>
+          <label class='control-label col-xs-4 float-left' for='TP'>_{TARIF_PLAN}_</label>
           <div class='col-xs-8'>
             %TP_ADD%
             <div class='input-group' %TP_DISPLAY_NONE%>
@@ -113,7 +113,7 @@
       <div class='card box-default box-big-form collapsed-box'>
         <div class='card-header with-border'>
           <h3 class='card-title'>_{EXTRA}_</h3>
-          <div class='card-tools pull-right'>
+          <div class='card-tools float-right'>
             <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i class='fa fa-plus'></i>
             </button>
           </div>
@@ -175,7 +175,7 @@
           </div>
 
           <div class='form-group'>
-            <label class='control-label col-md-3 pull-left'>_{PERSONAL}_ _{TARIF_PLAN}_</label>
+            <label class='control-label col-md-3 float-left'>_{PERSONAL}_ _{TARIF_PLAN}_</label>
             <div class='col-md-9'>
               <input type='text' class='form-control' name='PERSONAL_TP' value='%PERSONAL_TP%'>
             </div>

@@ -1,6 +1,6 @@
 <div class='form-group'>
     <div class='col-md-12'>
-        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <nav class="navbar navbar-expand-lg">
             <div class="container-fluid">
                 <div class="collapse navbar-collapse">
                     <div class="navbar-nav">

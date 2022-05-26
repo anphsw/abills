@@ -1,4 +1,4 @@
-<link href='/styles/default_adm/css/client.css' rel='stylesheet'>
+<link href='/styles/default/css/client.css' rel='stylesheet'>
 
 <FORM action='$SELF_URL' METHOD=POST ID='REGISTRATION' class='form-horizontal'>
 <input type=hidden name=index value=$index>

@@ -10,8 +10,8 @@
 
 =head1 VERSION
 
-  VERSION: 0.03
-  UPDATED: 20210317
+  VERSION: 0.04
+  UPDATED: 20220509
 
 =cut
 
@@ -21,6 +21,7 @@ use Paysys;
 use Conf;
 use Time::Local;
 use Data::Dumper;
+use Abills::Base qw(int2ip);
 
 our (
   $db,
@@ -61,7 +62,7 @@ sub paysys_extcmd_start {
 
   my $uid = $argv->{UID} || q{};
 
-  if ($argv->{NAS_TYPE} && $argv->{NAS_TYPE} eq 'mx80') {
+  if ($argv->{NAS_TYPE} && ($argv->{NAS_TYPE} eq 'mx80' || $argv->{NAS_TYPE} eq 'me60')) {
     my $Nas_cmd = Abills::Nas::Control->new($db, \%conf);
 
     if ($debug > 6) {
@@ -84,42 +85,68 @@ sub paysys_extcmd_start {
       USER_NAME            => '_SHOW',
       DEPOSIT              => '_SHOW',
       CREDIT               => '_SHOW',
+      CONNECT_INFO         => '_SHOW',
       INTERNET             => 1
     });
 
     if ($Sessions->{TOTAL} > 0) {
       foreach my $online (@$sessions_list) {
         _log('LOG_DEBUG', "NAS_ID: $online->{nas_id} GUEST: $online->{guest} ACCT_SESSION_ID: $online->{acct_session_id}");
-
         if (($online->{credit} || 0) + ($online->{deposit} || 0) > 0) {
           next;
         }
 
         my $nas_info = $Nas->info({ NAS_ID => $online->{nas_id} });
+        my $guest_profile = ($online->{connect_info} && $online->{connect_info} =~ /demux0/) ? 'svc-guest-pppoe' : 'svc-guest-ipoe';
 
         my @coa_action = ();
 
         if ($argv->{START}) {
-          @coa_action = (
-            { 'ERX-Service-Deactivate' => 'svc-guest-ipoe',
-              'Acct-Session-Id'        => $online->{acct_session_id}
-            },
-            {
-              'ERX-Service-Activate:1' => 'svc-guest-ipoe(svc-filter-in-paysys)',
-              'Acct-Session-Id'        => $online->{acct_session_id}
+          if ($argv->{NAS_TYPE} eq 'me60') {
+            my $user_group = $conf{ME60_STATIC_USER_GROUP} || "static_users"; 
+            if (int2ip($online->{framed_ip_address}) =~ /^10\./) {
+              $user_group = $conf{ME60_NAT_USER_GROUP} || "nat_users";
             }
-          );
+            @coa_action = (
+              {
+                'Filter-Id'              => $user_group,
+                'Acct-Session-Id'        => $online->{acct_session_id}
+              }
+            );
+          }
+          #MX80
+          else {
+            @coa_action = (
+              { 'ERX-Service-Deactivate' => $guest_profile,
+                'Acct-Session-Id'        => $online->{acct_session_id}
+              },
+              {
+                'ERX-Service-Activate:1' => $guest_profile.'(svc-filter-in-paysys)',
+                'Acct-Session-Id'        => $online->{acct_session_id}
+              }
+            );
+          }
         }
         else {
-          @coa_action = (
-            { 'ERX-Service-Deactivate' => 'svc-guest-ipoe',
-              'Acct-Session-Id'        => $online->{acct_session_id}
-            },
-            {
-              'ERX-Service-Activate:1' => 'svc-guest-ipoe(svc-filter-in-nomoney)',
-              'Acct-Session-Id'        => $online->{acct_session_id}
-            }
-          );
+          if ($argv->{NAS_TYPE} eq 'me60') {
+             @coa_action = (
+              { 'Filter-Id'              => 'guest',
+                'Acct-Session-Id'        => $online->{acct_session_id}
+              }
+            );
+          }
+          #MX80
+          else {
+            @coa_action = (
+              { 'ERX-Service-Deactivate' => $guest_profile,
+                'Acct-Session-Id'        => $online->{acct_session_id}
+              },
+              {
+                'ERX-Service-Activate:1' => $guest_profile.'(svc-filter-in-nomoney)',
+                'Acct-Session-Id'        => $online->{acct_session_id}
+              }
+            );
+          }
         }
 
         $Nas_cmd->hangup(

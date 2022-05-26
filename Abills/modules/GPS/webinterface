@@ -38,14 +38,12 @@ my $close_outer_modal_script = qq\
 sub gps_unregistered_trackers {
   my $unregistered_trackers_list = $Gps->unregistered_trackers_list({ COLS_NAME => 1 });
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => "Tracker",
-      title   => [ '#', 'GPS IMEI', $lang{ADDED}, "IP Address" ],
-      ID      => "GPS_UNREGISTERED_TRACKERS"
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => "Tracker",
+    title   => [ '#', 'GPS IMEI', $lang{ADDED}, "IP Address" ],
+    ID      => "GPS_UNREGISTERED_TRACKERS"
+  });
 
   my $i = 1;
   foreach my $tracker (@{$unregistered_trackers_list}) {
@@ -74,21 +72,13 @@ sub gps_tracked_admins {
   if ($FORM{change}) {
     my $result = $Gps->admins_color_info({ AID => $FORM{AID} });
     if (!$Gps->{TOTAL}) {
-      $Gps->admins_color_add({
-        AID   => $FORM{AID},
-        COLOR => $FORM{COLOR}
-      });
+      $Gps->admins_color_add({ AID => $FORM{AID}, COLOR => $FORM{COLOR} });
     }
     else {
-      $Gps->admins_color_change({
-        ID    => $result->{ID},
-        COLOR => $FORM{COLOR}
-      });
+      $Gps->admins_color_change({ ID => $result->{ID}, COLOR => $FORM{COLOR} });
     }
 
-    if (!_error_show($Gps)) {
-      $html->message("info", $lang{CHANGED});
-    }
+    $html->message("info", $lang{CHANGED}) if !_error_show($Gps);
   }
 
   if ($FORM{COLOR_FORM}) {
@@ -106,32 +96,18 @@ sub gps_tracked_admins {
     return 1;
   }
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{ADMIN_ROUTES},
-      title   => [ 'Admin ID', $lang{LOGIN}, "GPS IMEI", $lang{ROUTE_COLOR}, $lang{LAST_UPDATE} ],
-      ID      => "GPS_TRACKED_ADMINS"
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{ADMIN_ROUTES},
+    title   => [ 'Admin ID', $lang{LOGIN}, "GPS IMEI", $lang{ROUTE_COLOR}, $lang{LAST_UPDATE} ],
+    ID      => "GPS_TRACKED_ADMINS"
+  });
 
   foreach my $admin_ (@{$admins_list}) {
 
     my $last_row = $Gps->tracked_admin_info($admin_->{aid});
 
     next if ($last_row == 0);
-
-    my $last_x = $last_row->{coord_x};
-    my $last_y = $last_row->{coord_y};
-
-    my $last_coords_btn = gps_map_button($last_x, $last_y, $admin_->{aid});
-
-    my ($last_date, $route_btn) = ("", "");
-
-    if (defined $last_row->{gps_time}) {
-      $last_date = $last_row->{gps_time} =~ /(.*) \d+[:]/;
-      $route_btn = gps_route_button($last_x, $last_y, $admin_->{aid}, $last_date);
-    }
 
     my $color = "#0000FF";
     my $result = $Gps->admins_color_info({ AID => $admin_->{aid} });
@@ -142,13 +118,7 @@ sub gps_tracked_admins {
       ex_params     => "style='color: $color;'"
     });
 
-    $table->addrow(
-      $admin_->{aid},
-      $admin_->{name} || $admin->{login},
-      $admin_->{gps_imei},
-      $colorBtn,
-      "$last_row->{gps_time} $last_coords_btn $route_btn"
-    );
+    $table->addrow($admin_->{aid}, $admin_->{name} || $admin->{login}, $admin_->{gps_imei}, $colorBtn, $last_row->{gps_time});
   }
 
   print $table->show();
@@ -173,21 +143,17 @@ sub gps_tracked_admins {
 sub gps_map_button {
   my ($coord_x, $coord_y, $admin_id) = @_;
 
-  unless ($coord_x && $coord_y) {
-    return '';
-  }
+  return '' if !$coord_x || !$coord_y;
 
   my $maps_index = get_function_index('maps_show_map');
   my $link = "?index=$maps_index&show_gps=$admin_id&NO_ROUTE=1";
 
-  return $html->button("<span class='fa fa-globe'></span>", undef,
-    {
-      GLOBAL_URL     => $link,
-      target         => '_blank',
-      class          => 'btn btn-xs btn-info',
-      NO_LINK_FORMER => 1
-    });
-
+  return $html->button("<span class='fa fa-globe'></span>", undef, {
+    GLOBAL_URL     => $link,
+    target         => '_blank',
+    class          => 'btn btn-xs btn-info',
+    NO_LINK_FORMER => 1
+  });
 }
 
 #**********************************************************
@@ -240,7 +206,7 @@ sub gps_add_thumbnail {
 
     # Copy icon to template_folder
     my $file_name = "thumbnail_aid_$icon_name";
-    cmd("cp $base_dir/cgi-bin/styles/default_adm/img/maps/adm_thumbnails/$icon_name $conf{TPL_DIR}/$file_name");
+    cmd("cp $base_dir/cgi-bin/styles/default/img/maps/adm_thumbnails/$icon_name $conf{TPL_DIR}/$file_name");
 
     $Gps->thumbnail_add({
       AID            => $aid,
@@ -442,21 +408,17 @@ sub gps_report {
   foreach my $adm (@{$admins_list}) {
     my $aid = $adm->{aid};
 
-    my $info = $Gps->tracked_admin_route_info(
-      $aid, undef, {
-      DATE_START => $date_start,
-      DATE_END   => $date_end,
-      PAGE_ROWS  => 10000,
+    my $info = $Gps->tracked_admin_route_info($aid, undef, {
+      FROM_DATE => $date_start,
+      TO_DATE   => $date_end,
+      PAGE_ROWS => 10000,
     });
 
-    next if ($info == 0);
+    next if $info == 0;
 
-    my $list = $info->{list};
-    unless (defined $list && scalar @{$list} > 0) {
-      next;
-    }
+    next unless (defined $info && scalar @{$info} > 0);
 
-    $by_date = group_by_date($list, 'gps_time');
+    $by_date = group_by_date($info, 'gps_time');
     my @dates = sort (keys %{$by_date});
 
     foreach my $date (@dates) {
@@ -505,8 +467,9 @@ sub gps_report {
       my $link = "?index=$maps_index&show_gps=$aid";
 
       $route_btn = $html->button("<span class='fa fa-globe'></span>", undef, {
-        GLOBAL_URL => $link, target => '_blank',
-        class      => 'btn btn-xs btn-info', NO_LINK_FORMER => 1
+        GLOBAL_URL     => $link, target => '_blank',
+        class          => 'btn btn-xs btn-info',
+        NO_LINK_FORMER => 1
       });
     }
 
@@ -568,8 +531,8 @@ sub group_by_date {
 sub get_work_time {
   my ($list) = @_;
 
-  my $last = extract_date($list->[0]->{gps_time}, 1);
-  my $first = extract_date($list->[scalar @{$list} - 1]->{gps_time}, 1);
+  my $first = extract_date($list->[0]->{gps_time}, 1);
+  my $last = extract_date($list->[scalar @{$list} - 1]->{gps_time}, 1);
 
   return(time2sec($last) - time2sec($first));
 }
@@ -604,37 +567,6 @@ sub get_route_length {
   }
   # ground to meters
   return int($sum) / 1000;
-}
-
-#**********************************************************
-=head2 gps_maps_layers()
-
-=cut
-#**********************************************************
-sub gps_maps_layers {
-  return {
-    LAYERS      => [ {
-      id         => 8,
-      name       => 'GPS',
-      lang_name  => 'GPS',
-      module     => 'GPS',
-      structure  => 'MARKER',
-      clustering => '0'
-    },
-      {
-        id         => 9,
-        name       => 'GPS_ROUTE',
-        lang_name  => 'GPS ' . $lang{ROUTE},
-        module     => 'GPS',
-        structure  => 'MARKERS_POLYLINE',
-        clustering => '0'
-      } ],
-    SCRIPTS     => [ '/styles/default_adm/js/maps/modules/gps.js' ],
-    EXPORT_FUNC => {
-      8 => 'maps_gps_show',
-      9 => 'maps_gps_route_show'
-    }
-  }
 }
 
 

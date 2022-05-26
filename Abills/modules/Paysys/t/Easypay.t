@@ -28,12 +28,13 @@ $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || q{};
 my $sign = q{};
 my $service_id = q{2431};
 my $order_id = int(rand(1000000000));
+my $date = $main::DATE . 'T' . $main::TIME;
 
 our @requests = (
   {
     name    => 'GET_USER',
     request => qq{<Request>
-  <DateTime>2021-05-21T16:19:50</DateTime>
+  <DateTime>$date</DateTime>
   <Sign>$sign</Sign>
   <Check>
     <ServiceId>$service_id</ServiceId>
@@ -45,7 +46,7 @@ our @requests = (
   {
     name    => 'PAY',
     request => qq{<Request>
-  <DateTime>2021-05-21T16:19:50</DateTime>
+  <DateTime>$date</DateTime>
   <Sign>$sign</Sign>
   <Payment>
     <ServiceId>$service_id</ServiceId>
@@ -59,7 +60,7 @@ our @requests = (
   {
     name    => 'CONFIRM',
     request => qq{<Request>
-  <DateTime>2021-05-21T16:19:50</DateTime>
+  <DateTime>$date</DateTime>
   <Sign>$sign</Sign>
   <Confirm>
     <ServiceId>$service_id</ServiceId>
@@ -71,7 +72,7 @@ our @requests = (
   {
     name    => 'CANCEL',
     request => qq{<Request>
-  <DateTime>2021-05-21T16:19:50</DateTime>
+  <DateTime>$date</DateTime>
   <Sign>$sign</Sign>
   <Cancel>
     <ServiceId>$service_id</ServiceId>

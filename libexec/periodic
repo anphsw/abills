@@ -404,6 +404,7 @@ sub sheduler{
     D         => "$D,\\*",
     COUNTS    => '_SHOW',
     COLS_NAME => 1,
+    BILL_ID   => '_SHOW',
     %LIST_PARAMS,
     DOMAIN_ID => undef,
     PAGE_ROWS => 1000000,
@@ -475,7 +476,6 @@ sub sheduler{
         }
       }
     }
-
     #Call function
     elsif ( $type eq 'call_fn') {
       my $action_hash;
@@ -508,7 +508,9 @@ sub sheduler{
         }
       }
     }
-
+    elsif($s->{module} && $s->{module} eq 'ALL') {
+      $ret = service_status_change({ UID => $s->{uid},  BILL_ID => $s->{bill_id} }, $action);
+    }
     #Required modules
     elsif ( $type ne '' ){
       my %ext_params = ();
@@ -560,6 +562,59 @@ sub sheduler{
   }
 
   return $DEBUG
+}
+
+#**********************************************************
+=head2 service_status_change($uid, $status)
+
+  Arguments:
+    $uid
+    $status
+
+  Results:
+
+=cut
+#**********************************************************
+sub service_status_change {
+  my ($user_info, $status)=@_;
+
+  $status =~ /:(\d+)/;
+  $status = $1;
+
+  my @modules = @MODULES;
+
+  if (in_array('Triplay', \@modules)) {
+    @modules = ('Triplay');
+  }
+
+  foreach my $module ( @modules ) {
+    my $fn = lc($module) . (($status == 3) ? '_service_deactivate' : '_service_activate');
+    if (defined(&$fn)) {
+      if ($debug > 3) {
+        print "run: $fn\n";
+      }
+
+      &{\&$fn}({
+        USER_INFO   => {
+          UID     => $user_info->{UID},
+          BILL_ID => $user_info->{BILL_ID}
+          #ID  => $service_id,
+        },
+        # TP_INFO   => {
+        #   SMALL_DEPOSIT_ACTION => -1
+        # },
+        STATUS      => $status,
+        GET_ABON    => 1,
+        QUITE       => 1,
+        DATE        => $ADMIN_REPORT{DATE},
+        RECALCULATE => 1
+      });
+    }
+  }
+
+  $users->change($user_info->{UID}, { DISABLE => $status });
+
+  return 1;
 }
 
 #**********************************************************
@@ -1170,7 +1225,7 @@ sub credit_full_set{
       my $uid = $line->{uid};
 
       $DEBUG .= "$line->{login} UID: $uid\n" if ($debug > 0);
-      my $cross_modules_return = cross_modules_call( '_docs', {
+      my $cross_modules_return = cross_modules('docs', {
         UID           => $uid,
         SKIP_MODULES  => 'Docs,Sqlcmd,Multidoms,Bsr1000',
         DEBUG         => ($debug > 3) ? 1 : undef,
@@ -1183,6 +1238,7 @@ sub credit_full_set{
 
           foreach my $service_info ( @{ $cross_modules_return->{$module} } ){
             my (undef, undef, $sum) = split( /\|/, $service_info );
+            next if !$sum;
 
             if($debug > 5) {
               print "$module: $sum\n";
@@ -1243,7 +1299,7 @@ sub credit_full_set{
       my $uid = $u->{uid};
 
       $DEBUG .= "  $u->{login} UID: $uid" if ($debug > 0);
-      my $cross_modules_return = cross_modules_call( '_docs', {
+      my $cross_modules_return = cross_modules('docs', {
         UID          => $uid,
         SKIP_MODULES => 'Docs,Sqlcmd,Multidoms,Bsr1000',
         DEBUG        => ($debug > 3) ? 1 : undef
@@ -1255,6 +1311,8 @@ sub credit_full_set{
           foreach my $service_info ( @{ $cross_modules_return->{$module} } ){
             #($name, $describe, $sum)
             my $sum = (split( /\|/, $service_info ))[2];
+            next if !$sum;
+
             $full_sum += $sum;
           }
         }
@@ -1291,16 +1349,20 @@ sub reduction_operation{
   $DEBUG .= "Reset reduction\n" if ($debug > 1);
 
   # For users
-  my $list = $users->list(
-    {
-      REDUCTION_DATE => ">0000-00-00;<=$ADMIN_REPORT{DATE}",
-      REDUCTION      => ">0",
-      LOGIN_STATUS   => '_SHOW',
-      %LIST_PARAMS,
-      PAGE_ROWS      => 1000000,
-      COLS_NAME      => 1
-    }
-  );
+  my $list = $users->list({
+    REDUCTION_DATE => ">0000-00-00;<=$ADMIN_REPORT{DATE}",
+    REDUCTION      => ">0",
+    LOGIN_STATUS   => '_SHOW',
+    %LIST_PARAMS,
+    PAGE_ROWS      => 1000000,
+    COLS_NAME      => 1
+  });
+
+  if ($users->{errno}) {
+    print "ERROR: $users->{errno} $users->{errstr}\n";
+    exit;
+    #return 0;
+  }
 
   foreach my $line ( @{$list} ){
     $DEBUG .= "$line->{login} ($line->{uid}) REDUCTION: $line->{reduction} REDUCTION_DATE: $line->{reduction_date}\n" if ($debug > 1);
@@ -1611,7 +1673,7 @@ sub restore_by_table {
 #*******************************************************************
 sub rotate_logs {
   my $rotate_level = 5;
-  my $debug = $argv->{DEBUG} || 0;
+  #my $debug = $argv->{DEBUG} || 0;
   my @logs_list = glob '/usr/abills/var/log/*.log';
   foreach my $logfile (@logs_list) {
     print "Rotate $logfile\n" if ($debug);

@@ -27,7 +27,7 @@ sub cams_service_report {
   my $services = $html->form_main({
     CONTENT => cams_services_sel(),
     HIDDEN  => { index => $index },
-    class   => 'navbar-form navbar-right',
+    class   => 'form-inline ml-auto flex-nowrap',
   });
 
   func_menu({ $lang{NAME} => $services });

@@ -3,8 +3,9 @@
     <input type='hidden' name='chg' value=$FORM{chg}>
 
     <div class='card card-primary card-outline card-form'>
+        <div class='card-header with-border'>
         <h4 class='card-title'>_{TARIF_PLAN}_</h4>
-
+        </div>
         <div class='card-body'>
             <div class='form-group row'>
                 <label class='col-md-3 control-label' for='NAME'>_{NAME}_</label>
@@ -43,6 +44,20 @@
                 <div class='col-md-9'>
                     <textarea class='form-control' placeholder='_{COMMENTS}_' name='COMMENT'
                               id='COMMENT'>%COMMENT%</textarea>
+                </div>
+            </div>
+
+            <div class='form-group row'>
+                <label class='col-md-3 control-label' for='PAYMENT_TYPE_SEL'>_{PAYMENT_TYPE}_:</label>
+                <div class='col-md-9'>
+                    %PAYMENT_TYPE_SEL%
+                </div>
+            </div>
+
+            <div class='form-group row'>
+                <label class='col-md-3 control-label' for='METHOD'>_{FEES}_ _{TYPE}_:</label>
+                <div class='col-md-9'>
+                    %SEL_METHOD%
                 </div>
             </div>
 

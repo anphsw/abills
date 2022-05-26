@@ -71,10 +71,6 @@ sub cards_service_info {
     $WHERE = "AND tp.domain_id='$admin->{DOMAIN_ID}'";
   }
 
-  if($self->{INTERNET}) {
-    $internet_user_table='internet_main';
-  }
-
   $self->query("SELECT u.id AS login,
     DECODE(u.password, '$CONF->{secretkey}') AS password,
     tp.name AS tp_name,
@@ -461,10 +457,6 @@ sub cards_list {
     $GROUP_BY='';
   }
 
-  if($self->{INTERNET}) {
-    $internet_user_table='internet_main';
-  }
-
   if ($admin->{DOMAIN_ID} == 0) {
     my @domain_id = split(/;/, $attr->{DOMAIN_ID});
 
@@ -548,13 +540,13 @@ sub cards_list {
         cu.sum,
         tp.age,
         tp.total_time_limit
-         FROM cards_users cu
-      LEFT JOIN admins a ON (cu.aid = a.aid)
-      LEFT JOIN groups g ON (cu.gid = g.gid)
-      LEFT JOIN cards_dillers cd ON (cu.diller_id = cd.id)
-      LEFT JOIN users u ON (cu.uid = u.uid)
-      LEFT JOIN $internet_user_table internet ON (u.uid = internet.uid)
-      LEFT JOIN tarif_plans tp ON (tp.domain_id='$admin->{DOMAIN_ID}' AND internet.tp_id = tp.tp_id)
+         FROM `cards_users` cu
+      LEFT JOIN `admins` a ON (cu.aid = a.aid)
+      LEFT JOIN `groups` g ON (cu.gid = g.gid)
+      LEFT JOIN `cards_dillers` cd ON (cu.diller_id = cd.id)
+      LEFT JOIN `users` u ON (cu.uid = u.uid)
+      LEFT JOIN `$internet_user_table` internet ON (u.uid = internet.uid)
+      LEFT JOIN `tarif_plans` tp ON (tp.domain_id='$admin->{DOMAIN_ID}' AND internet.tp_id = tp.tp_id)
       $WHERE
       GROUP BY 1,2
       ORDER BY $SORT $DESC
@@ -566,13 +558,14 @@ sub cards_list {
       return $self if ($self->{errno});
       $list = $self->{list};
 
-      $self->query("SELECT COUNT(*) AS total, SUM(cu.sum) AS total_sum FROM cards_users cu
-      LEFT JOIN admins a ON (cu.aid = a.aid)
-      LEFT JOIN groups g ON (cu.gid = g.gid)
-      LEFT JOIN cards_dillers cd ON (cu.diller_id = cd.id)
-      LEFT JOIN users u ON (cu.uid = u.uid)
-      LEFT JOIN $internet_user_table internet ON (u.uid = internet.uid)
-      LEFT JOIN tarif_plans tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and internet.tp_id = tp.id)
+      $self->query("SELECT COUNT(*) AS total, SUM(cu.sum) AS total_sum
+      FROM `cards_users` cu
+      LEFT JOIN `admins` a ON (cu.aid = a.aid)
+      LEFT JOIN `groups` g ON (cu.gid = g.gid)
+      LEFT JOIN `cards_dillers` cd ON (cu.diller_id = cd.id)
+      LEFT JOIN `users` u ON (cu.uid = u.uid)
+      LEFT JOIN `$internet_user_table` internet ON (u.uid = internet.uid)
+      LEFT JOIN `tarif_plans` tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and internet.tp_id = tp.id)
       $WHERE;",
       undef, { INFO => 1 }
       );
@@ -583,13 +576,13 @@ sub cards_list {
          COUNT(*) AS count,
          SUM(sum) AS sum,
          tp.id AS tp_id
-         FROM cards_users cu
-      LEFT JOIN admins a ON (cu.aid = a.aid)
-      LEFT JOIN groups g ON (cu.gid = g.gid)
-      LEFT JOIN cards_dillers cd ON (cu.diller_id = cd.id)
-      LEFT JOIN users u ON (cu.uid = u.uid)
-      LEFT JOIN $internet_user_table internet ON (u.uid = internet.uid)
-      LEFT JOIN tarif_plans tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and internet.tp_id = tp.tp_id)
+         FROM `cards_users` cu
+      LEFT JOIN `admins` a ON (cu.aid = a.aid)
+      LEFT JOIN `groups` g ON (cu.gid = g.gid)
+      LEFT JOIN `cards_dillers` cd ON (cu.diller_id = cd.id)
+      LEFT JOIN `users` u ON (cu.uid = u.uid)
+      LEFT JOIN `$internet_user_table` internet ON (u.uid = internet.uid)
+      LEFT JOIN `tarif_plans` tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and internet.tp_id = tp.tp_id)
       $WHERE
       GROUP BY 1,2
       ORDER BY $SORT $DESC
@@ -605,18 +598,18 @@ sub cards_list {
   else {
     my $EXT_TABLES = '';
     if ($attr->{TP_ID}) {
-      $EXT_TABLES = "LEFT JOIN $internet_user_table internet ON (u.uid = internet.uid)
-        LEFT JOIN tarif_plans tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and internet.tp_id = tp.id)";
+      $EXT_TABLES = "LEFT JOIN `$internet_user_table` internet ON (u.uid = internet.uid)
+        LEFT JOIN `tarif_plans` tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and internet.tp_id = tp.id)";
     }
 
     $self->query("SELECT cu.serial, $self->{SEARCH_FIELDS}
         cu.id, cu.uid, cu.diller_id, cd.uid AS diller_uid
-     FROM cards_users cu
-     LEFT JOIN admins a ON (cu.aid = a.aid)
-     LEFT JOIN groups g ON (cu.gid = g.gid)
-     LEFT JOIN cards_dillers cd ON (cu.diller_id = cd.id)
-     LEFT JOIN users_pi cd_users ON (cd.uid = cd_users.uid)
-     LEFT JOIN users u ON (cu.uid = u.uid)
+     FROM `cards_users` cu
+     LEFT JOIN `admins` a ON (cu.aid = a.aid)
+     LEFT JOIN `groups` g ON (cu.gid = g.gid)
+     LEFT JOIN `cards_dillers` cd ON (cu.diller_id = cd.id)
+     LEFT JOIN `users_pi` cd_users ON (cd.uid = cd_users.uid)
+     LEFT JOIN `users` u ON (cu.uid = u.uid)
      $EXT_TABLES
      $WHERE
      $GROUP_BY
@@ -653,11 +646,11 @@ sub cards_list {
 
        COUNT(DISTINCT serial) AS serial
 
-     FROM cards_users cu
-     LEFT JOIN admins a ON (cu.aid = a.aid)
-     LEFT JOIN groups g ON (cu.gid = g.gid)
-     LEFT JOIN cards_dillers cd ON (cu.diller_id = cd.id)
-     LEFT JOIN users u ON (cu.uid = u.uid)
+     FROM `cards_users` cu
+     LEFT JOIN `admins` a ON (cu.aid = a.aid)
+     LEFT JOIN `groups` g ON (cu.gid = g.gid)
+     LEFT JOIN `cards_dillers` cd ON (cu.diller_id = cd.id)
+     LEFT JOIN `users` u ON (cu.uid = u.uid)
      $EXT_TABLES
      $WHERE;",
      undef,
@@ -749,10 +742,10 @@ sub cards_report_dillers {
        COUNT(*),
         SUM(c.sum)
 
-    FROM cards_users c
-    LEFT join cards_dillers cd ON (c.diller_id = cd.id)
-    LEFT JOIN users u ON (c.uid = u.uid)
-    LEFT JOIN users_pi pi ON (cd.uid = pi.uid)
+    FROM `cards_users` c
+    LEFT JOIN `cards_dillers` cd ON (c.diller_id = cd.id)
+    LEFT JOIN `users` u ON (c.uid = u.uid)
+    LEFT JOIN `users_pi` pi ON (cd.uid = pi.uid)
      $WHERE
      GROUP BY $GROUP_BY
      ORDER BY 1;",
@@ -781,9 +774,9 @@ sub cards_report_dillers {
        COUNT(*) as count_total,
         SUM(c.sum) as count_total_sum
 
-    FROM (cards_users c)
-    LEFT join cards_dillers cd ON (c.diller_id = cd.id)
-    LEFT JOIN users u ON (c.uid = u.uid)
+    FROM `cards_users` c
+    LEFT JOIN `cards_dillers` cd ON (c.diller_id = cd.id)
+    LEFT JOIN `users` u ON (c.uid = u.uid)
      $WHERE
      ORDER BY 1;",
      undef, { INFO => 1 }
@@ -1429,8 +1422,8 @@ sub cards_gids_list {
   }
 
   $self->query("SELECT g.gid, g.name, cg.serial, cg.gid AS assign
-   FROM groups g
-   LEFT JOIN cards_gids cg ON (g.gid=cg.gid $JOIN_WHERE)
+   FROM `groups` g
+   LEFT JOIN `cards_gids` cg ON (g.gid=cg.gid $JOIN_WHERE)
    GROUP BY g.gid
    ORDER BY 1;",
     undef, $attr);

@@ -8,194 +8,195 @@
   }
 </style>
 
-<input type="hidden" id="fileName" value="%FILE_NAME%">
-<input type="hidden" id="dcs" value='%DSC%'>
-<input type="hidden" id="pdf_base64" value="%PDF_BASE64%">
-<input type="hidden" id="saveIndex" value="%SAVE_INDEX%">
+<input type='hidden' id='fileName' value='%FILE_NAME%'>
+<input type='hidden' id='dcs' value='%DSC%'>
+<input type='hidden' id='pdf_base64' value='%PDF_BASE64%'>
+<input type='hidden' id='saveIndex' value='%SAVE_INDEX%'>
 
-<div class="card">
-  <div class="card-header"></div>
-  <div class="card-body">
-    <div class="container-fluid">
-      <div class="row">
-        <div class="card col-6">
-          <div class="card-header">
+<div class='card'>
+  <div id='pdf_header'></div>
+  <div>
+    <div class='container-fluid'>
+      <div class='row'>
+        <div class='card col-6'>
+          <div class='card-header'>
             <h6>_{AVAILABLE}_</h6>
           </div>
 
-          <div class="card-body" id="available_fields">
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">_{FIO}_</div>
-              <button data-variable="FIO" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+          <div class='card-body' id='available_fields'>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>_{FIO}_</div>
+              <button data-variable='FIO' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">_{ADDRESS}_</div>
-              <button data-variable="ADDRESS_FULL" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>_{ADDRESS}_</div>
+              <button data-variable='ADDRESS_FULL' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">UID</div>
-              <button data-variable="UID" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>UID</div>
+              <button data-variable='UID' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">_{LOGIN}_</div>
-              <button data-variable="LOGIN" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>_{LOGIN}_</div>
+              <button data-variable='LOGIN' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">PASSWORD</div>
-              <button data-variable="PASSWORD" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>PASSWORD</div>
+              <button data-variable='PASSWORD' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">_{DEPOSIT}_</div>
-              <button data-variable="DEPOSIT" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>_{DEPOSIT}_</div>
+              <button data-variable='DEPOSIT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">_{CREDIT}_</div>
-              <button data-variable="CREDIT" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>_{CREDIT}_</div>
+              <button data-variable='CREDIT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">_{CREDIT}_ _{DATE}_</div>
-              <button data-variable="CREDIT_DATE" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>_{CREDIT}_ _{DATE}_</div>
+              <button data-variable='CREDIT_DATE' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">ID _{COMPANY}_</div>
-              <button data-variable="COMPANY_ID" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>ID _{COMPANY}_</div>
+              <button data-variable='COMPANY_ID' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">_{NAME}_ _{COMPANY}_</div>
-              <button data-variable="COMPANY_NAME" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>_{NAME}_ _{COMPANY}_</div>
+              <button data-variable='COMPANY_NAME' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">_{GROUP}_ ID</div>
-              <button data-variable="CREDIT_DATE" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>_{GROUP}_ ID</div>
+              <button data-variable='CREDIT_DATE' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">_{PHONE}_</div>
-              <button data-variable="PHONE" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>_{PHONE}_</div>
+              <button data-variable='PHONE' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">EMAIL</div>
-              <button data-variable="EMAIL" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>EMAIL</div>
+              <button data-variable='EMAIL' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">PASPORT_NUM</div>
-              <button data-variable="PASPORT_NUM" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>PASPORT_NUM</div>
+              <button data-variable='PASPORT_NUM' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">PASPORT_DATE</div>
-              <button data-variable="PASPORT_DATE" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>PASPORT_DATE</div>
+              <button data-variable='PASPORT_DATE' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">PASPORT_DATE_LIT</div>
-              <button data-variable="PASPORT_DATE_LIT" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>PASPORT_DATE_LIT</div>
+              <button data-variable='PASPORT_DATE_LIT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">PASPORT_DATE_EURO</div>
-              <button data-variable="PASPORT_DATE_EURO" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>PASPORT_DATE_EURO</div>
+              <button data-variable='PASPORT_DATE_EURO' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">PASPORT_GRANT</div>
-              <button data-variable="PASPORT_GRANT" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>PASPORT_GRANT</div>
+              <button data-variable='PASPORT_GRANT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">CONTRACT_ID</div>
-              <button data-variable="CONTRACT_ID" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>CONTRACT_ID</div>
+              <button data-variable='CONTRACT_ID' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">CONTRACT_DATE</div>
-              <button data-variable="CONTRACT_DATE" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>CONTRACT_DATE</div>
+              <button data-variable='CONTRACT_DATE' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">PASPORT_GRANT</div>
-              <button data-variable="PASPORT_GRANT" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>PASPORT_GRANT</div>
+              <button data-variable='PASPORT_GRANT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">CONTRACT_PREFIX</div>
-              <button data-variable="CONTRACT_PREFIX" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>CONTRACT_PREFIX</div>
+              <button data-variable='CONTRACT_PREFIX' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">_{COUNTRY}_</div>
-              <button data-variable="ADDRESS_COUNTRY" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>_{COUNTRY}_</div>
+              <button data-variable='ADDRESS_COUNTRY' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">_{CITY}_</div>
-              <button data-variable="CITY" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>_{CITY}_</div>
+              <button data-variable='CITY' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">_{STREET}_</div>
-              <button data-variable="ADDRESS_STREET" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>_{STREET}_</div>
+              <button data-variable='ADDRESS_STREET' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">_{ADDRESS_FLAT}_</div>
-              <button data-variable="ADDRESS_FLAT" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>_{ADDRESS_FLAT}_</div>
+              <button data-variable='ADDRESS_FLAT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
 
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="available_field_title">CONTRACT_DATE_LIT</div>
-              <button data-variable="CONTRACT_DATE_LIT" data-example-value="_{VALUE}_" class="btn available_field_add">_{ADD}_</button>
+            <div class='d-flex align-items-center justify-content-between'>
+              <div class='available_field_title'>CONTRACT_DATE_LIT</div>
+              <button data-variable='CONTRACT_DATE_LIT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
             </div>
           </div>
         </div>
 
-        <div class="card col-6">
-          <div class="card-header">
+        <div class='card col-6'>
+          <div class='card-header'>
             <h6>_{USED}_</h6>
           </div>
 
-          <div class="card-body" id="used_fields"></div>
+          <div class='card-body' id='used_fields'></div>
         </div>
       </div>
     </div>
 
-
-    <ul class="pagination" id="pdf_editor_pages"></ul>
-    <button id="save_dsc" class="pull-right btn btn-success">_{SAVE}_</button>
+    <div class='card-footer'>
+      <ul class='float-left pagination' id='pdf_editor_pages'></ul>
+      <button id='save_dsc' class='float-right float-right btn btn-success'>_{SAVE}_</button>
+    </div>
   </div>
 </div>
 
-<canvas id="pdf_editor"></canvas>
+<canvas id='pdf_editor'></canvas>
 
-<script src='/styles/default_adm/js/pdf.min.js'></script>
-<script src='/styles/default_adm/js/pdf.worker.min.js'></script>
+<script src='/styles/default/js/pdf.min.js'></script>
+<script src='/styles/default/js/pdf.worker.min.js'></script>
 
 <script id='used_field' type='x-tmpl-mustache'>
-  <div class="card used_field mb-2">
-    <div class="card-header d-flex align-items-center justify-content-between">
-      <div class="used_field_select">
+  <div class='card used_field mb-2'>
+    <div class='card-header d-flex align-items-center justify-content-between'>
+      <div class='used_field_select'>
         {{ title }}
-        <span class="used_field_selected d-none">
-          <i class="fa fa-check"></i>
+        <span class='used_field_selected d-none'>
+          <i class='fa fa-check'></i>
         </span>
       </div>
 
-      <input type="number" min="1" placeholder="px" class="used_field_font_size m-2 ml-auto" value="{{ fontSize }}">
-      <input type="color" class='form-control col-1 used_field_color p-1' name='COLOR' value='{{ fontColor }}' type="color">
+      <input type='number' min='1' placeholder='px' class='used_field_font_size m-2 ml-auto' value='{{ fontSize }}''>
+      <input type='color' class='form-control col-1 used_field_color p-1' name='COLOR' value='{{ fontColor }}' type='color'>
 
-      <button class="ml-4 btn btn-danger btn-sm used_field_remove">D</button>
+      <button class='ml-4 btn btn-danger btn-sm used_field_remove'>D</button>
     </div>
   </div>
 </script>
@@ -276,7 +277,7 @@
       return dsc
   }
 
-  document.addEventListener("DOMContentLoaded", async () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     const pdfData = document.getElementById('pdf_base64').value.replaceAll('\n', '')
     const pdfLoader = pdfjsLib.getDocument({ data: atob(pdfData) })
 
@@ -360,7 +361,7 @@
       .map(pageNumber => pageNumber + 1)
       .forEach(pageNumber => {
         pages.push([])
-        pagesSelectBar.innerHTML += `<li class="page-item"><a class="page-link" href="#">${ pageNumber }</a></li>`
+        pagesSelectBar.innerHTML += `<li class='page-item'><a class='page-link' href='#'>${ pageNumber }</a></li>`
       });
 
     [...Object.keys(dcs)]
@@ -411,19 +412,39 @@
 
   jQuery('#save_dsc').click(() => {
     const dscFileContent = buildDscFile()
-    jQuery('#save_dsc').toggleClass('btn-success')
-    jQuery('#save_dsc').addClass('btn-info')
-
-    jQuery.post(SELF_URL, {
+    jQuery('#pdf_header').html('<span class="offset-6 fa fa-spin fa-spinner"></span>');
+    var templateInfo = {
       qindex: jQuery('#saveIndex').val(),
       header: 2,
       JSON: 1,
       AJAX: 1,
       DSC_CONTENT: dscFileContent,
       FILE_NAME: jQuery('#fileName').val()
-    }, () => {
-      jQuery('#save_dsc').removeClass('btn-info')
-      jQuery('#save_dsc').toggleClass('btn-success')
-    })
-  })
+    };
+
+    jQuery.post(SELF_URL, templateInfo)
+    .catch((e) => (console.log(e)))
+    .then((data) => {
+      var res = (() => {
+        try {
+          return JSON.parse(data);
+        } catch(e) {
+          return { "status": 403 };
+        }
+      })('');
+
+      if (res.status == 200) {
+        var pdfAlert = '';
+        pdfAlert = '<div class="alert alert-success text-left"> \
+        <h4><span class="fa fa-check-circle"></span> _{SUCCESS}_</h4> \
+        ' + jQuery('#fileName').val() + '.pdf' + ' _{TPL_CHANGED}_ </div>'
+      } else {
+        pdfAlert = '<div class="alert alert-danger text-left"> \
+        <h4><span class="fa fa-times-circle"></span> _{ERROR}_ - _{TPL_NOT_CHANGED}_</h4> \
+        _{CHECK_FILE_PERMISSIONS}_ ' + jQuery('#fileName').val() + '.pdf' + '</div>'
+      }
+
+      jQuery('#pdf_header').html(pdfAlert);
+    });
+  });
 </script>

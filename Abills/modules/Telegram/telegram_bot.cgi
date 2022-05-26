@@ -85,7 +85,7 @@ elsif ($ENV{'REQUEST_METHOD'} eq "POST") {
     $message = $hash->{message};
   }
 
-  my $bot_addr = $ENV{SERVER_NAME} || $ENV{SERVER_ADDR};
+  my $bot_addr = "https://" . ($ENV{SERVER_NAME} || $ENV{SERVER_ADDR}) . ":$ENV{SERVER_PORT}";
   $Bot = Botapi->new($conf{TELEGRAM_TOKEN}, $message->{chat}{id}, ($conf{FILE_CURL} || 'curl'), $bot_addr);
 }
 else {
@@ -103,7 +103,7 @@ else {
 }
 
 $Bot->{lang} = \%lang;
-my %buttons_list = %{buttons_list({bot => $Bot, bot_db => $Bot_db})};
+my %buttons_list = %{buttons_list({ bot => $Bot, bot_db => $Bot_db })};
 my %commands_list = reverse %buttons_list;
 
 message_process();
@@ -120,9 +120,7 @@ sub message_process {
   if ($aid) {
     my $admin_info = $admin->info($aid);
     if($admin_info->{DISABLE} != 0){
-      $Bot->send_message({
-        text => $lang{YOU_FRIED},
-      });
+      $Bot->send_message({ text => $lang{YOU_FRIED} });
       exit 1;
     }
     admin_fast_replace($message, $fn_data);
@@ -131,9 +129,27 @@ sub message_process {
 
   my $uid = get_uid($message->{chat}{id});
   if (!$uid) {
+    my $message_text = encode_utf8($message->{text}) || '';
+
     if ($message->{text} && $message->{text} =~ m/^\/start/) {
       subscribe($message);
       main_menu();
+      exit 1;
+    }
+    if ($message_text eq $lang{THE_SUBSCRIBER_WITH_THIS_PHONE_IS_NOT_REGISTERED}) {
+      if ($commands_list{$message_text} && $fn_data) {
+        my @fn_argv = split('&', $fn_data);
+        telegram_button_fn({
+          button => $fn_argv[0],
+          fn     => $fn_argv[1],
+          text   => $message_text,
+          argv   => \@fn_argv,
+          user   => $message->{chat} || {},
+          bot    => $Bot,
+          bot_db => $Bot_db,
+        });
+      }
+      exit 1;
     }
     elsif ($message->{contact}) {
       if ($message->{contact}{user_id} eq $message->{chat}{id}) {
@@ -148,7 +164,7 @@ sub message_process {
   }
 
   $Bot->{uid} = $uid;
-  my $text    = $message->{text} ? encode_utf8($message->{text}) : "";
+  my $text = $message->{text} ? encode_utf8($message->{text}) : "";
 
   my $info = $Bot_db->info($uid);
   if ($Bot_db->{TOTAL} > 0 && $info->{button} && $info->{fn}) {
@@ -217,7 +233,7 @@ sub main_menu {
   my ($attr) = @_;
   my @line = ();
   my $i = 0;
-  my $text = "$lang{USE_BUTTON}";
+  my $text = $lang{USE_BUTTON};
 
   foreach my $button (sort keys %commands_list) {
     push (@{$line[$i%4]}, { text => $button });
@@ -253,12 +269,9 @@ sub admin_fast_replace {
     @msgs_text = $msgs->{text} =~ /(MSGS_ID=[0-9]+)(\s|\n)*(.*)/gs;
   }
 
-  unless (($msgs_text[0])
-    || ($msgs->{photo} || $msgs->{document})) {
+  unless (($msgs_text[0]) || ($msgs->{photo} || $msgs->{document})) {
 
-    $Bot->send_message({
-      text         => "$lang{SEND_ERROR}",
-    });
+    $Bot->send_message({ text => $lang{SEND_ERROR} });
 
     return 1;
   }
@@ -293,9 +306,7 @@ sub admin_fast_replace {
   if($Bot_db->{TOTAL} > 0 && (defined $msgs->{caption} || !$#msgs_text)) {
     my $msg_hash = decode_json($info->{args});
 
-    $Bot->send_message({
-      text         => "$lang{SEND_ERROR}",
-    }) unless ($msg_hash->{message}->{id});
+    $Bot->send_message({ text => $lang{SEND_ERROR}, }) if !$msg_hash->{message}{id};
 
     my $message_id = $msg_hash->{message}->{id};
     my $original =  $msg_hash->{message}->{msg_id};
@@ -353,16 +364,14 @@ sub admin_fast_replace {
       CHARSET  => $conf{default_charset},
     });
 
-    load_module('Msgs', {
-      language => $conf{TELEGRAM_LANG}
-    });
+    load_module('Msgs', { language => $conf{TELEGRAM_LANG} });
 
     my $Notify = Msgs::Notify->new($db, $admin, \%conf, {LANG => \%lang, HTML => $html});
     $Notify->notify_user({
-      REPLY_ID               => $Msgs->{INSERT_ID},
-      MSG_ID                 => $msgs_text[0],
-      MESSAGE                => $msgs_text[2] || '',
-      FIND_USER              => 1,
+      REPLY_ID  => $Msgs->{INSERT_ID},
+      MSG_ID    => $msgs_text[0],
+      MESSAGE   => $msgs_text[2] || '',
+      FIND_USER => 1,
     });
 
   }

@@ -18,15 +18,15 @@
       <h4 class='card-title'>_{SCRUB_BOX}_</h4>
     </div>
     <div class='card-body'>
-      <div class="row">
+      <div class='row'>
         %MSGS_BODY%
       </div>
     </div>
   </div>
 </form>
 <script>
-  var index    = jQuery('#MSGS_INDEX').val();
-  var msgs_id  = '';
+  var index = jQuery('#MSGS_INDEX').val();
+  var msgs_id = '';
 
   jQuery('.status').each((index, value) => {
     jQuery(value).height(jQuery(value).parent().height());
@@ -34,8 +34,8 @@
 
   function dragStart(event) {
     event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData("Text", event.target.getAttribute('id'));
-    event.dataTransfer.setDragImage(event.target,50,50);
+    event.dataTransfer.setData('Text', event.target.getAttribute('id'));
+    event.dataTransfer.setDragImage(event.target, 50, 50);
 
     msgs_id = event.srcElement.id;
 
@@ -52,10 +52,10 @@
   }
 
   function dragDrop(event) {
-    var data    = event.dataTransfer.getData("Text");
+    var data = event.dataTransfer.getData('Text');
     var stateId = event.srcElement.id;
 
-    var uid     = jQuery('#' + msgs_id).attr('user_id');
+    var uid = jQuery('#' + msgs_id).attr('user_id');
 
     if (!event.target.offsetParent.offsetParent.id) {
       if (!/drop_/.test(stateId)) {
@@ -77,18 +77,15 @@
       return 1;
     }
 
+    jQuery('#MSGS_' + msgs_id).removeClass();
     if (stateId == 1) {
-      jQuery('#MSGS_' + msgs_id).removeClass();
-      jQuery('#MSGS_' + msgs_id).addClass('card box-danger');
+      jQuery('#MSGS_' + msgs_id).addClass('card card-outline card-danger');
     } else if (stateId == 2) {
-      jQuery('#MSGS_' + msgs_id).removeClass();
-      jQuery('#MSGS_' + msgs_id).addClass('card box-success');
+      jQuery('#MSGS_' + msgs_id).addClass('card card-outline card-success');
     } else if (stateId == 4) {
-      jQuery('#MSGS_' + msgs_id).removeClass();
-      jQuery('#MSGS_' + msgs_id).addClass('card box-warning');
+      jQuery('#MSGS_' + msgs_id).addClass('card card-outline card-warning');
     } else {
-      jQuery('#MSGS_' + msgs_id).removeClass();
-      jQuery('#MSGS_' + msgs_id).addClass('card');
+      jQuery('#MSGS_' + msgs_id).addClass('card card-outline card-info');
     }
 
     jQuery('.status').each((index, value) => {
@@ -103,16 +100,17 @@
 
     event.stopPropagation();
 
-    let url = SELF_URL + "?index=" + index + "&UID=" + uid + "&ID=" + msgs_id[0] + "&reply=close&STATE=" + stateId[0];
+    let url = SELF_URL + '?index=' + index + '&UID=' + uid + '&ID=' + msgs_id[0] + '&reply=close&MAIN_INNER_MESSAGE=1&STATE=' + stateId[0];
 
     jQuery.ajax({
-      url        : url,
-      type       : "get",
-      data       : data,
+      url: url,
+      type: 'get',
+      data: data,
       contentType: false,
-      cache      : false,
+      cache: false,
       processData: false,
-      success    : function (data) { }
+      success: function (data) {
+      }
     });
 
     jQuery('.status').each((index, value) => {

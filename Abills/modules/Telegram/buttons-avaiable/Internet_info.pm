@@ -50,7 +50,7 @@ sub click {
   my ($attr) = @_;
 
   my $uid = $self->{bot}->{uid};
-  my $money_currency = $self->{conf}->{DOCS_MONEY_NAMES} || '';
+  my $money_currency = $self->{conf}->{MONEY_UNIT_NAMES} || '';
 
   require Internet;
   my $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});

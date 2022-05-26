@@ -21,11 +21,11 @@ my @priority_lit = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $la
 my @priority = ();
 if ($html) {
   @priority = (
-    $html->element('span', '', { class => 'fa fa-thermometer-0', OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-1', OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-2', OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-3', OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-4', OUTPUT2RETURN => 1 })
+    $html->element('span', '', { class => 'fa fa-thermometer-empty',          OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-quarter',        OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-half',           OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-three-quarters', OUTPUT2RETURN => 1 }),
+    $html->element('span', '', { class => 'fa fa-thermometer-full',           OUTPUT2RETURN => 1 })
   );
 }
 
@@ -132,7 +132,7 @@ sub msgs_list {
   $pages_qs .= "&STATE=$FORM{STATE}" if ($FORM{STATE} && !$FORM{search_form});
   $pages_qs .= "&STATE=0" if (defined($FORM{STATE}) && !$FORM{STATE});
   $pages_qs .= "&ALL_MSGS=$FORM{ALL_MSGS}" if ($FORM{ALL_MSGS});
-  $pages_qs .= "&ALL_OPENED=$FORM{ALL_OPENED}RESPOSIBLE" if ($FORM{ALL_OPENED});
+  $pages_qs .= "&ALL_OPENED=$FORM{ALL_OPENED}" if ($FORM{ALL_OPENED});
 
   my $table_add_msg_btn = !(defined($FORM{CHAPTER})) ||
     (
@@ -173,7 +173,7 @@ sub msgs_list {
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'ID,CLIENT_ID,SUBJECT,CHAPTER_NAME,DATETIME,STATE,PRIORITY_ID,RESPOSIBLE_ADMIN_LOGIN',
     HIDDEN_FIELDS   => 'UID,ADMIN_DISABLE,PRIORITY,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ,REPLIES_COUNTS,' .
-      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,DISTRICT_ID,PERFORMERS,DOMAIN_ID,MSGS_TAGS_IDS',
+      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,PERFORMERS,DOMAIN_ID,MSGS_TAGS_IDS,TAGS_COLORS,CLOSED_ADMIN',
     APPEND_FIELDS   => 'UID',
     FUNCTION        => 'messages_list',
     FUNCTION_FIELDS => 'msgs_admin:show:chg_msgs;uid,msgs_admin:del:del_msgs;state:&ALL_MSGS=1' . $uid_statement,
@@ -242,7 +242,7 @@ sub msgs_list {
         },
         id                     => sub {
           my ($id, $line) = @_;
-          return ($line->{inner_msg})
+          return ($line->{inner_msg} && !$FORM{json})
             ? $id . $html->b("($lang{PRIVATE_MSGS_CHAR})")
             : $id
         },
@@ -293,9 +293,9 @@ sub msgs_list {
         'del_msgs'               => $lang{NUM},
         'uid'                    => 'UID',
         'downtime'               => $lang{DOWNTIME},
-        'address_by_location_id' => $lang{FULL_MESSAGE_ADDRESS},
         'performers'             => $lang{PERFORMERS},
-        'msgs_tags_ids'          => $lang{MSGS_TAGS}
+        'msgs_tags_ids'          => $lang{MSGS_TAGS},
+        'closed_admin'           => $lang{CLOSED_THE_TICKET}
       },
       TABLE         => {
         width      => '100%',
@@ -379,7 +379,7 @@ sub msgs_list {
 
   # Quick message preview
   if ($html->{TYPE} && $html->{TYPE} eq 'html') {
-    print '<script src="/styles/default_adm/js/msgs/message_preview.js"></script>';
+    print '<script src="/styles/default/js/msgs/message_preview.js"></script>';
   }
 
   return 1;

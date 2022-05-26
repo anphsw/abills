@@ -4,31 +4,25 @@
   }
 
   .pagination a {
-    color: black;
     float: left;
     padding: 8px 16px;
     text-decoration: none;
   }
 
-  .pagination a.active {
-    background-color: #158cfa;
-    color: white;
-    border-radius: 5px;
-  }
-
   .pagination a:hover:not(.active) {
     background-color: #ddd;
+    color: black;
     border-radius: 5px;
   }
 </style>
 
 <form method='get' action='$SELF_URL' name='PAGE_IPPOOLS' id='PAGE_IPPOOLS'>
-  <input type='hidden' name='%PG_INDEX%' id='pg_index' value="%PG_INDEX%"/>
-  <div class="pagination">
-    <a href="%FAST_FIST_PAGE%">&laquo;</a>
-    <a href="%FIRST_PAGE%" id='btn_page_0' class="btn btn-info active">1</a>
+  <input type='hidden' name='%PG_INDEX%' id='pg_index' value='%PG_INDEX%'/>
+  <div class='pagination'>
+    <a href='%FAST_FIST_PAGE%'>&laquo;</a>
+    <a href='%FIRST_PAGE%' id='btn_page_0' class='btn btn-default active'>1</a>
     %PAGE_IP_POOLS%
-    <a href="%FAST_END_PAGE%">&raquo;</a>
+    <a href='%FAST_END_PAGE%'>&raquo;</a>
   </div>
 </form>
 

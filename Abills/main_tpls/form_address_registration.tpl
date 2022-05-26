@@ -67,5 +67,5 @@
   document['FLAT_CHECK_FREE']     = '%FLAT_CHECK_FREE%' || false;
   document['FLAT_CHECK_OCCUPIED'] = '%FLAT_CHECK_OCCUPIED%' || false;
 </script>
-<script src='/styles/default_adm/js/searchLocation.js'></script>
+<script src='/styles/default/js/searchLocation.js'></script>
 

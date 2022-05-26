@@ -9,8 +9,8 @@
         </div>
         <div class='card-body pt-0'>
             <div class='text-center'>
-                <img src='https://static.tildacdn.com/tild6661-6134-4564-b761-306638373830/liqpaypngpagespeedce.png'
-                     style='max-width: 320px; max-height: 200px;'
+                <img src='https://obed.mk.ua/uploads/redactor/5e53f3c770f8d.png'
+                     style='max-width: 300px; max-height: 200px;'
                      alt='LiqPay'>
             </div>
 

@@ -62,7 +62,7 @@ our $html = Abills::HTML->new(
     CHARSET  => $conf{default_charset},
     METATAGS => templates('metatags'),
     COLORS   => $conf{UI_COLORS},
-    STYLE    => 'default_adm',
+    STYLE    => 'default',
   }
 );
 
@@ -357,28 +357,28 @@ sub form_social_nets {
   my %first_page = ();
   if ($conf{AUTH_VK_ID}) {
     $first_page{SOCIAL_AUTH_BLOCK} = $html->element('li',
-      $html->button('', "external_auth=Vk&DOMAIN_ID=$DOMAIN_ID", { class => 'icon-vk', ICON => 'fa fa-vk' }),
+      $html->button('', "external_auth=Vk&DOMAIN_ID=$DOMAIN_ID", { class => 'icon-vk', ICON => 'fab fa-vk' }),
       { OUTPUT2RETURN => 1 }
     )
   }
 
   if ($conf{AUTH_FACEBOOK_ID}) {
     $first_page{SOCIAL_AUTH_BLOCK} .= $html->element('li',
-      $html->button('', "external_auth=Facebook&DOMAIN_ID=$DOMAIN_ID", { class => 'icon-facebook', ICON => 'fa fa-facebook' }),
+      $html->button('', "external_auth=Facebook&DOMAIN_ID=$DOMAIN_ID", { class => 'icon-facebook', ICON => 'fab fa-facebook' }),
       { OUTPUT2RETURN => 1 }
     );
   }
 
   if ($conf{AUTH_GOOGLE_ID}) {
     $first_page{SOCIAL_AUTH_BLOCK} .= $html->element('li',
-      $html->button('', "external_auth=Google&DOMAIN_ID=$DOMAIN_ID", { class => 'icon-google', ICON => 'fa fa-google' }),
+      $html->button('', "external_auth=Google&DOMAIN_ID=$DOMAIN_ID", { class => 'icon-google', ICON => 'fab fa-google' }),
       { OUTPUT2RETURN => 1 }
     );
   }
 
   if ($conf{AUTH_INSTAGRAM_ID}) {
     $first_page{SOCIAL_AUTH_BLOCK} .= $html->element('li',
-      $html->button('', "external_auth=Instagram&DOMAIN_ID=$DOMAIN_ID", { class => 'icon-instagram', ICON => 'fa fa-instagram' }),
+      $html->button('', "external_auth=Instagram&DOMAIN_ID=$DOMAIN_ID", { class => 'icon-instagram', ICON => 'fab fa-instagram' }),
       { OUTPUT2RETURN => 1 }
     );
   }
@@ -1116,7 +1116,7 @@ sub get_language_flags_list {
     my $short_name = uc(substr($name, 0, 2));
     $result .= qq{
       <li>
-        <a href="$href_base&language=$name"><img src='/styles/default_adm/img/flags/$name.png' alt='$name'/>&nbsp;$short_name</a>
+        <a href="$href_base&language=$name"><img src='/styles/default/img/flags/$name.png' alt='$name'/>&nbsp;$short_name</a>
       </li>
     }
   }
@@ -1993,7 +1993,7 @@ sub hotspot_card {
     }
 
     $_db->{AutoCommit} = 1;
-    cross_modules_call('_payments_maked', {
+    cross_modules('payments_maked', {
       USER_INFO    => $user,
       SUM          => $Cards->{SUM},
       SKIP_MODULES => 'Cards,Sqlcmd',

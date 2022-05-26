@@ -47,7 +47,7 @@ sub user_contract {
     }
 
     #Modules info
-    my $cross_modules_return = cross_modules_call('_docs', { UID => $uid });
+    my $cross_modules_return = cross_modules('docs', { UID => $uid });
     my $service_num = 1;
     foreach my $module (sort keys %$cross_modules_return) {
       if (ref $cross_modules_return->{$module} eq 'ARRAY') {
@@ -175,10 +175,10 @@ sub _user_contracts_table {
 
     if ($permissions{0} && $permissions{0}{4}) {
       $print_button = $html->button('', "qindex=" . $f_index . "&UID=$uid&print_add_contract=$line->{id}&pdf=1",
-            { ICON => 'fa fa-print', target => '_new', ex_params => "data-tooltip='$lang{PRINT}' data-tooltip-position='top'" });
+            { ICON => 'fas fa-print', target => '_new', ex_params => "data-tooltip='$lang{PRINT}' data-tooltip-position='top'" });
 
       $edit_button = $html->button('', "index=" . $f_index . "&chg=$line->{id}&UID=$uid",
-            { ICON => 'fa fa-pencil', ex_params => "data-tooltip='$lang{EDIT}' data-tooltip-position='top'" });
+            { ICON => 'fa fa-pencil-alt', ex_params => "data-tooltip='$lang{EDIT}' data-tooltip-position='top'" });
       
       $delete_button = $html->button('', "index=" . $f_index . "&del=$line->{id}&UID=$uid",
             { ICON => 'fa fa-trash text-danger', ex_params => "data-tooltip='$lang{DEL}' data-tooltip-position='top'" });
@@ -244,7 +244,7 @@ sub _contract_type_table {
 
   foreach my $line (@$list) {
     my $edit_button = $html->button('', "index=" . get_function_index('contracts_type') . "&chg=$line->{id}",
-            { ICON => 'fa fa-pencil', ex_params => "data-tooltip='$lang{EDIT}' data-tooltip-position='top'" });
+            { ICON => 'fa fa-pencil-alt', ex_params => "data-tooltip='$lang{EDIT}' data-tooltip-position='top'" });
     my $delete_button = $html->button('', "index=" . get_function_index('contracts_type') . "&del=$line->{id}",
             { ICON => 'fa fa-trash text-danger', ex_params => "data-tooltip='$lang{DEL}' data-tooltip-position='top'" });
     $table->addrow($line->{name}, $line->{template}, $edit_button . $delete_button);

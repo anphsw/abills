@@ -1,6 +1,13 @@
 =head1 NAME
 
-  VSOLUTION
+  V-SOLUTION
+
+=head TESTING
+
+  V1600D4
+  V1600D8
+  V1600D16
+  V1600G-1B
 
 =cut
 
@@ -278,12 +285,10 @@ sub _vsolution {
       'ONU_MAC_SERIAL' => {
         NAME   => 'Mac/Serial',
         OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.25.1.5', #'.1.3.6.1.4.1.37950.1.1.5.12.2.1.2.1.5',
-        PARSER => ''
       },
       'ONU_STATUS'     => {
         NAME   => 'STATUS',
         OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.25.1.4', #'.1.3.6.1.4.1.37950.1.1.5.12.1.12.1.5',
-        PARSER => ''
       },
       'ONU_TX_POWER'   => {
         NAME   => 'ONU_TX_POWER',
@@ -299,17 +304,14 @@ sub _vsolution {
         NAME   => 'DESCRIBE',
         OIDS   => 'iso.3.6.1.4.1.37950.1.1.5.12.1.25.1.9',
                   #'.1.3.6.1.4.1.37950.1.1.5.12.1.25.1.6', #'.1.3.6.1.4.1.37950.1.1.5.12.1.12.1.10',
-        PARSER => ''
       },
       'ONU_IN_BYTE'    => {
         NAME   => 'ONU_IN_BYTE',
         OIDS   => '1.3.6.1.4.1.37950.1.1.5.12.1.20.1.10', #'.1.3.6.1.4.1.37950.1.1.5.10.1.2.2.1.44', ?
-        PARSER => ''
       },
       'ONU_OUT_BYTE'   => {
         NAME   => 'ONU_OUT_BYTE',
         OIDS   => '1.3.6.1.4.1.37950.1.1.5.12.1.20.1.3', #'.1.3.6.1.4.1.37950.1.1.5.10.1.2.2.1.45', ?
-        PARSER => ''
       },
       'TEMPERATURE'    => {
         NAME   => 'TEMPERATURE',
@@ -320,18 +322,15 @@ sub _vsolution {
         NAME        => '',
         OIDS        => '.1.3.6.1.4.1.37950.1.1.5.12.1.15',
         SEPARATE    => 1,
-        PARSER      => ''
       },
       main_onu_info    => {
         'HARD_VERSION'     => {
           NAME   => 'VERSION',
           OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.2.1.2.1.6',
-          PARSER => ''
         },
         'FIRMWARE'         => {
           NAME   => 'FIRMWARE',
           OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.2.1.2.1.7',
-          PARSER => ''
         },
         'VOLTAGE'          => {
           NAME   => 'VOLTAGE',
@@ -339,7 +338,7 @@ sub _vsolution {
         },
         'DISTANCE'         => {
           NAME   => 'DISTANCE',
-          OIDS   => '1.3.6.1.4.1.37950.1.1.5.12.1.25.1.17',
+          OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.25.1.17',
           PARSER => '_vsolution_convert_distance'
         },
         #'MAC'              => { #XXX its same as ONU_MAC_SERIAL, but with different indexes, and only online ONUs(?). do we need this?
@@ -359,17 +358,109 @@ sub _vsolution {
         'ONU_PORTS_STATUS' => {
           NAME   => 'ONU_PORTS_STATUS',
           OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.25.1.4',
-          PARSER => '',
           WALK   => 1
         },
         'MAC_BEHIND_ONU' => {
           NAME                        => 'MAC_BEHIND_ONU',
           USE_MAC_LOG                 => 1,
           MAC_LOG_SEARCH_BY_PORT_NAME => 1
-        }
+        },
+        'UPTIME'         => {
+          NAME   => 'UPTIME',
+          OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.25.1.20',
+        },
       }
     },
     gpon => {
+
+      'ONU_MAC_SERIAL' => {
+        NAME   => 'Mac/Serial',
+        OIDS   => '1.3.6.1.4.1.37950.1.1.6.1.1.4.1.5', #
+      },
+      'ONU_STATUS'     => {
+        NAME   => 'STATUS',
+        OIDS   => '1.3.6.1.4.1.37950.1.1.6.1.1.1.1.4', #
+      },
+      'ONU_TX_POWER'   => {
+        NAME   => 'ONU_TX_POWER',
+        OIDS   => '.1.3.6.1.4.1.37950.1.1.6.1.1.3.1.6', #
+        #PARSER => '_vsolution_convert_power'
+      }, #tx_power = tx_power * 0.1;
+      'ONU_RX_POWER'   => {
+        NAME   => 'ONU_RX_POWER',
+        OIDS   => '.1.3.6.1.4.1.37950.1.1.6.1.1.3.1.7', #
+        #PARSER => '_vsolution_convert_power'
+      }, #rx_power = rx_power * 0.1;
+      'ONU_DESC'       => {
+        NAME   => 'DESCRIBE',
+        OIDS   => '.1.3.6.1.4.1.37950.1.1.6.1.1.4.1.24', #
+      },
+      'ONU_IN_BYTE'    => {
+        NAME   => 'ONU_IN_BYTE',
+        OIDS   => '.1.3.6.1.4.1.37950.1.1.6.1.1.17.1.13', #
+      },
+      'ONU_OUT_BYTE'   => {
+        NAME   => 'ONU_OUT_BYTE',
+        OIDS   => '.1.3.6.1.4.1.37950.1.1.6.1.1.17.1.15', #
+      },
+      'TEMPERATURE'    => {
+        NAME   => 'TEMPERATURE',
+        OIDS   => '.1.3.6.1.4.1.37950.1.1.6.1.1.3.1.3', #
+        PARSER => '_vsolution_convert_temperature'
+      }, #@remared -> temperature = temperature / 256;
+      'reset'          => {
+        NAME        => '',
+        OIDS        => '.1.3.6.1.4.1.37950.1.1.6.1.1.5.3', #
+        SEPARATE    => 1,
+      },
+      main_onu_info    => {
+        'HARD_VERSION'     => {
+          NAME   => 'VERSION',
+          OIDS   => '.1.3.6.1.4.1.37950.1.1.6.1.1.4.1.3', # Vendor
+        },
+        'FIRMWARE'         => {
+          NAME   => 'FIRMWARE',
+          OIDS   => '.1.3.6.1.4.1.37950.1.1.6.1.1.4.1.4', #
+        },
+        'VOLTAGE'          => {
+          NAME   => 'VOLTAGE',
+          OIDS   => '.1.3.6.1.4.1.37950.1.1.6.1.1.3.1.4' #
+        },
+        'DISTANCE'         => {
+          NAME   => 'DISTANCE',
+          OIDS   => '.1.3.6.1.4.1.37950.1.1.6.1.1.12.1.3', #
+          PARSER => '_vsolution_convert_distance'
+        },
+        #'MAC'              => { #XXX its same as ONU_MAC_SERIAL, but with different indexes, and only online ONUs(?). do we need this?
+        #  NAME   => 'MAC',
+        #  OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.9.1.5',
+        #  PARSER => '_vsolution_mac_list',
+        #  WALK   => 1
+        #},
+        #'VLAN'             => { #XXX this is not VLAN per ONU OID. do we need this?
+        #  NAME   => 'VLAN',
+        #  OIDS   => '.1.3.6.1.4.1.37950.1.1.5.10.2.6.1.5',
+        #  PARSER => '',
+        #  WALK   => 1
+        #},
+        # 0-1 - Active
+        # 2 - Not connected
+        'ONU_PORTS_STATUS' => {
+          NAME   => 'ONU_PORTS_STATUS',
+          OIDS   => '',
+          WALK   => 1
+        },
+        'MAC_BEHIND_ONU' => {
+          NAME                        => 'MAC_BEHIND_ONU',
+          USE_MAC_LOG                 => 1,
+          MAC_LOG_SEARCH_BY_PORT_NAME => 1
+        },
+        'UPTIME'         => {
+          NAME   => 'UPTIME',
+          OIDS   => '.1.3.6.1.4.1.37950.1.1.6.1.1.4.1.20', #
+        },
+      }
+
     },
     #Catv
     # iso.3.6.1.4.1.37950.1.1.5.12.3.2.2.1.3.1.1 i 1 or 0
@@ -410,6 +501,7 @@ sub _vsolution_onu_status {
 
   return \%status;
 }
+
 #**********************************************************
 =head2 _vsolution_set_desc_port($attr) - Set Description to OLT ports
 

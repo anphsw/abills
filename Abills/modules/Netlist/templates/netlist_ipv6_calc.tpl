@@ -43,4 +43,4 @@
   </div>
 </form>
 
-<script src='/styles/default_adm/js/modules/netlist/ipv6.js'></script>
+<script src='/styles/default/js/modules/netlist/ipv6.js'></script>

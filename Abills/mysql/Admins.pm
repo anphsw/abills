@@ -51,7 +51,7 @@ sub admins_groups_list {
   }
 
   $self->query("SELECT ag.gid, ag.aid, g.name
-    FROM admins_groups ag, groups g
+    FROM `admins_groups` ag, `groups` g
     WHERE g.gid=ag.gid $WHERE ORDER BY $SORT $DESC;",
   undef,
   $attr
@@ -77,7 +77,7 @@ sub admin_groups_change {
     push @MULTI_QUERY, [ $attr->{AID}, $gid ];
   }
 
-  $self->query("INSERT INTO admins_groups (aid, gid) VALUES (?, ?);",
+  $self->query("INSERT INTO `admins_groups` (aid, gid) VALUES (?, ?);",
     undef,
     { MULTI_QUERY =>  \@MULTI_QUERY });
 
@@ -306,10 +306,10 @@ sub info {
       a.name AS a_fio,
       a.g2fa
      FROM
-      admins a
-     LEFT JOIN admins_groups ag ON (a.aid=ag.aid)
-     LEFT JOIN domains d ON (a.domain_id=d.id)
-     LEFT JOIN admins_access aa ON (aa.aid=a.aid)
+      `admins` a
+     LEFT JOIN `admins_groups` ag ON (a.aid=ag.aid)
+     LEFT JOIN `domains` d ON (a.domain_id=d.id)
+     LEFT JOIN `admins_access` aa ON (aa.aid=a.aid)
      $WHERE
      GROUP BY a.aid
      ORDER BY a.aid DESC
@@ -329,7 +329,7 @@ sub info {
   }
 
   if ($self->{GIDS_}) {
-    $self->query("SELECT gid FROM admins_groups WHERE aid= ? ;", undef, {
+    $self->query("SELECT gid FROM `admins_groups` WHERE aid= ? ;", undef, {
       Bind => [ $self->{AID} ]
     });
 
@@ -392,7 +392,7 @@ sub list {
   }
 
   if ($attr->{GID}) {
-    $EXT_TABLES .= 'LEFT JOIN admins_groups ag ON (a.aid=ag.aid) ';
+    $EXT_TABLES .= 'LEFT JOIN `admins_groups` ag ON (a.aid=ag.aid) ';
     $GROUP_BY = 'GROUP BY a.aid';
     push @WHERE_RULES, "(a.gid IN ($attr->{GID}) OR ag.gid IN ($attr->{GID}))";
   }
@@ -457,8 +457,8 @@ sub list {
     $EMPLOYEE_COLS
     $self->{SEARCH_FIELDS}
     g.name AS g_name
-    FROM admins a
-    LEFT JOIN groups g ON (a.gid=g.gid)
+    FROM `admins` a
+    LEFT JOIN `groups` g ON (a.gid=g.gid)
     $EMPLOYEE_JOIN
     $EXT_TABLES
     $WHERE
@@ -477,8 +477,8 @@ sub list {
   my $list = $self->{list};
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
     $self->query("SELECT COUNT(DISTINCT a.aid) AS total
-      FROM admins a
-      LEFT JOIN groups g ON (a.gid=g.gid)
+      FROM `admins` a
+      LEFT JOIN `groups` g ON (a.gid=g.gid)
       $EXT_TABLES
       $WHERE",
       undef,

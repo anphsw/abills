@@ -10,13 +10,13 @@
 use strict;
 use warnings FATAL => 'all';
 
-our ($db, $admin, $html, %lang, %err_strs, $PAGE_ROWS);
+our ($db, $admin, %lang, %err_strs, $PAGE_ROWS);
 
 use Sqlcmd;
 use Abills::Base qw(int2byte in_array sec2time urlencode urldecode);
 my $Sqlcmd      = Sqlcmd->new($db, $admin, \%conf);
 my $Sqlcmd_main = Sqlcmd->new($db, $admin, \%conf);
-
+our Abills::HTML $html;
 my (%Com_vals);
 my ($stat_name, $stat_val, $stat_label);
 my (%stats,     %vars);                    # SHOW STATUS, SHOW VARIABLES
@@ -103,15 +103,14 @@ sub sqlcmd {
   #History
   my $list = $Sqlcmd_main->history_list({%LIST_PARAMS});
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => $FORM{TABLE_INFO},
-      title_plain => [ $lang{DATE}, $lang{COMMENTS}, '-', '-' ],
-      qs          => $pages_qs,
-      pages       => $Sqlcmd->{TOTAL}
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $FORM{TABLE_INFO},
+    title_plain => [ $lang{DATE}, $lang{COMMENTS}, '-', '-' ],
+    qs          => $pages_qs,
+    pages       => $Sqlcmd->{TOTAL},
+    ID          => 'SQLCMD_SAVED_QUERIES'
+  });
 
   foreach my $line (@$list) {
     $table->addrow($line->{datetime}, $line->{comments}, $html->button('QUERY', "index=$index&QUERY_ID=$line->{id}", { class => 'sql' }), $html->button("$lang{DEL}", "index=$index&del=$line->{id}", { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' }));
@@ -228,7 +227,7 @@ sub sqlcmd {
         my $i=0;
         foreach my $l ( @{$line} ){
           if($CAPTION[$i] eq 'login' && $caption2id{uid}) {
-            $l = $html->button($l, "index=15&UID=$line->[$caption2id{uid}]");
+            $l = $html->button($l, "index=15&UID=". ($line->[$caption2id{uid}] || q{}));
           }
 
           push @table_row, $l;
@@ -1228,8 +1227,8 @@ sub sqlcmd_cluster {
       $html->message('err', $lang{ERROR} . ' : DB_ID: ' . $id . ' : ' . $db_host . ' / ' . ($conf{ 'SQLCMD_HOST' . $id . '_HOSTNAME' } || ''), "$lang{ERROR}: " . $db_slave->err . '/' . $db_slave->errstr);
     }
 
-    if ($db_slave->rows < 1) {
-      $html->message('err', $lang{ERROR}, 'No result');
+    if ($q->rows < 1) {
+      $html->message('err', $lang{ERROR}, 'NO_RESULT');
       next;
     }
     $Sqlcmd->{MYSQL_FIELDS_NAMES} = $q->{NAME};

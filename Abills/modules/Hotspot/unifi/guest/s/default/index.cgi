@@ -11,7 +11,7 @@
 
   Must be placed in abills/cgi-bin/guest/s/$conf{UNIFI_SITENAME} folder
 
-  Uses abills/cgi-bin/styles/default_adm/ folder for Bootstrap, Jquery, etc assets
+  Uses abills/cgi-bin/styles/default/ folder for Bootstrap, Jquery, etc assets
 
 
 =head1 CONFIG

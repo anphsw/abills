@@ -3,7 +3,7 @@
   
     <div class='card card-form card-outline box-form'>
       <div class='card-header with-border'><h3 class='card-title'>%TITLE%</h3>
-        <div class='card-tools pull-right'>
+        <div class='card-tools float-right'>
         <button type='button' class='btn btn-tool' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>
           </button>

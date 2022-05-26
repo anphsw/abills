@@ -61,7 +61,7 @@
         <div class='card box-default box-big-form collapsed-card'>
           <div class='card-header with-border'>
             <h3 class='card-title'>_{EXTRA}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool btn-sm' data-card-widget='collapse'><i
                   class='fa fa-plus'></i>
               </button>
@@ -156,9 +156,9 @@
   autoReload();
 
   function autoReload() {
-    var services = document.getElementById("SERVICE_ID");
-    var result = services.value;
-    jQuery.post('$SELF_URL', 'header=2&get_index=iptv_get_service_tps&SERVICE_ID=' + result, function (data) {
+    var service_id = jQuery('#SERVICE_ID').val();
+    var uid = jQuery(`[name='UID']`).val();
+    jQuery.post('$SELF_URL', 'header=2&get_index=iptv_get_service_tps&SERVICE_ID=' + service_id + '&UID=' + uid, function (data) {
       tp_select.textContent = "";
       tp_select.value = "";
       tp_select.innerHTML = data;

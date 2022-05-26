@@ -53,7 +53,7 @@
     </div>
 </div>
 <p>
-<img class='img-fluid center-block' src='styles/default_adm/img/paysys_logo/masterpass-des.png'>
+<img class='img-fluid center-block' src='styles/default/img/paysys_logo/masterpass-des.png'>
 </p>
 <script>
     jQuery(function () {

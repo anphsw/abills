@@ -1,7 +1,7 @@
 <div class='card card-primary card-outline %PARAMS% collapsed-card'>
   <div class='card-header with-border'>
     <h4 class='card-title'>_{MULTIUSER_OP}_</h4>
-    <div class='card-tools pull-right'>
+    <div class='card-tools float-right'>
       <button type='button' id='mu_status_box_btn' class='btn btn-tool' data-card-widget='collapse'>
         <i class='fa fa-plus'></i>
       </button>

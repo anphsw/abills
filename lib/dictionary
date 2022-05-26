@@ -83,6 +83,7 @@ ATTRIBUTE       Digest-Stale                            120     string
 ATTRIBUTE       Digest-HA1                              121     string
 ATTRIBUTE       SIP-AOR                                 122     string
 
+#ATTRIBUTE       Delegated-IPv6-Prefix                   123     ipv6addr
 
 #ATTRIBUTE  Digest-Response      206  string
 #ATTRIBUTE  Digest-Attributes    207  sublist

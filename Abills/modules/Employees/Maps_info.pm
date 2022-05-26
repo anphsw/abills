@@ -27,7 +27,6 @@ our (
 my ($Employees, $Maps, $Auxiliary, $Tags);
 my @priority_colors = ('', '#6c757d', '#17a2b8', '#28a745', '#ffc107', '#dc3545');
 
-use Maps2::Auxiliary qw/maps2_point_info_table/;
 use Abills::Base qw(in_array);
 
 #**********************************************************
@@ -61,7 +60,9 @@ sub new {
   Maps->import();
   $Maps = Maps->new($db, $admin, $CONF);
 
-  $Auxiliary = Maps2::Auxiliary->new($db, $admin, $CONF, { HTML => $html, LANG => $lang });
+  require Maps::Auxiliary;
+  Maps::Auxiliary->import();
+  $Auxiliary = Maps::Auxiliary->new($db, $admin, $CONF, { HTML => $html, LANG => $lang });
 
   return $self;
 }
@@ -113,7 +114,7 @@ sub maps_works {
       name      => $work->{name},
       uid       => $work->{uid} ? $html->button($work->{uid}, 'index=' . ::get_function_index('form_users') . "&UID=$work->{uid}") : '',
       done      => $work->{work_done} ? $html->element('span', '', {
-        class => 'fa fa-check-circle-o text-green',
+        class => 'fas fa-check-circle text-green',
         title => $lang->{DONE}
       }) : ''
     };
@@ -132,8 +133,8 @@ sub maps_works {
     my $type = _work_get_icon($build_work_status{$work->{build_id}}{1} && (!$build_work_status{$work->{build_id}}{0} ||
       $build_work_status{$work->{build_id}}{1} > $build_work_status{$work->{build_id}}{0}) ? 'green' : 'black');
 
-    my $marker_info = maps2_point_info_table($html, $lang, {
-      TABLE_TITLE       => "$lang->{WORK}",
+    my $marker_info = $Auxiliary->maps_point_info_table({
+      TABLE_TITLE       => $lang->{WORK},
       OBJECTS           => $build_info{$work->{build_id}},
       TABLE_TITLES      => [ 'ID', 'NAME', 'DONE', 'UID', 'DATE', 'COMMENTS' ],
       TABLE_LANG_TITLES => [ 'ID', $lang->{WORK}, $lang->{DONE}, $lang->{USER}, $lang->{DATE}, $lang->{COMMENTS} ],

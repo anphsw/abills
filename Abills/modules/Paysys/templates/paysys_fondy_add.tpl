@@ -1,7 +1,6 @@
 ﻿<div class='card card-primary card-outline'>
     <form action=%FORM_ACTION% method='POST' name='tocheckout'>
         <input type='hidden' name='server_callback_url' value=%SERVER_CALLBACK_URL%>
-        <!--<input type='hidden' name='response_url' value=%RESPONSE_URL%>-->
         <input type='hidden' name='order_id' value='%ORDER_ID%'>
         <input type='hidden' name='order_desc' value='%ORDER_DESC%'>
         <input type='hidden' name='currency' value='%CURRENCY%'>
@@ -18,7 +17,7 @@
         <div class='card-body pt-0'>
             <div class='text-center'>
                 <img style='width: auto; max-height: 200px;'
-                     src='/styles/default_adm/img/paysys_logo/fondy-logo.png'
+                     src='/styles/default/img/paysys_logo/fondy-logo.png'
                      alt='Fondy'>
             </div>
 
@@ -34,16 +33,6 @@
                 <li class='list-group-item'>
                     <b>_{BALANCE_RECHARCHE_SUM}_</b>
                     <div class='float-right'>%SUM%</div>
-                </li>
-                <li class='list-group-item'>
-                    <b>_{REGULAR_PAYMENT}_</b>
-                    <div class='float-right'>
-                        <input type='checkbox'
-                               data-sidebarskin='toggle'
-                               data-return='1'
-                               name='required_rectoken'
-                               value='Y'/>
-                    </div>
                 </li>
             </ul>
             <input type='submit' class='btn btn-primary float-right' value='_{PAY}_'>

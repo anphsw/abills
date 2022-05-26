@@ -317,7 +317,15 @@ sub query{
       $self->{errno} = 3;
       $self->{errstr} = 'SQL_ERROR';
       $self->{sql_query} = $query;
-      my $caller = join(', ', caller());
+      my $caller = q{}; #join(', ', caller());
+      my ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash);
+      my $i = 1;
+      my @r = ();
+      while (@r = caller($i)) {
+        ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash) = @r;
+        $caller .= "$filename:$line $subroutine\n";
+        $i++;
+      }
       require Log;
       Log->import( 'log_print' );
       Log::log_print( undef, 'LOG_ERR', '',
@@ -424,7 +432,7 @@ sub query_add{
   if(! $q) {
     $self->{errno}=200;
     $self->{errstr}="query_add: Error sql connections";
-    return $self
+    return $self;
   }
 
   while (defined( my $row = $q->fetchrow_hashref() )) {
@@ -440,12 +448,14 @@ sub query_add{
       elsif ( $column eq 'IPV6' || $column eq 'IPV6_PD' ){
         push @inserts_arr, "$row->{COLUMN_NAME}=INET6_ATON( ? )";
       }
-      elsif ( $values->{$column} =~ /^INET_ATON\(/i ){
-        push @inserts_arr, "$row->{COLUMN_NAME}=$values->{$column}";
+      elsif ( $values->{$column} =~ /^INET_ATON\(['"]+([0-9a-f\.]+)['"]+\)/i ){
+        push @values_arr, $1;
+        push @inserts_arr, "$row->{COLUMN_NAME}=INET_ATON(?)";
         next;
       }
-      elsif ( $values->{$column} =~ m/^ENCODE\(/i ){
-        push @inserts_arr, "$row->{COLUMN_NAME}=$values->{$column}";
+      elsif ( $values->{$column} =~ m/^ENCODE\(['"]+(.+)['"]+,\s['"]+(.+)['"]+\)/i ){
+        push @values_arr, $1, $2;
+        push @inserts_arr, "$row->{COLUMN_NAME}=ENCODE(?, ?)";
         next;
       }
       elsif ( $column =~ /SUBJECT|MESSAGE|REPLY|TEXT/i ){
@@ -800,8 +810,12 @@ sub search_expr{
   if ( $field ){
     $field =~ s/ (as) ([a-z0-9_]+)//gi;
   }
-
   my $delimiter = ($value =~ s/;/,/g) ? 'and' : 'or';
+  if ( $type eq 'INT' && ! $attr->{_MULTI_HIT} && ( $value !~ /^[0-9,\-\.\s\<\>\=\*!]+$/g) ){
+    $self->{errno}=113;
+    $self->{errstr} = 'ERROR_WRONG_FIELD_VALUE '.$field. " VALUE: ". $value;
+    return [];
+  }
 
   if ( $value && $delimiter eq 'and' && $value !~ /[<>=]+/ ){
     my @val_arr = split( /,/, $value );
@@ -1012,10 +1026,10 @@ sub search_expr_users{
     COMMENTS       => 'STR:pi.comments',
     FIO            => 'STR:CONCAT_WS(" ", pi.fio, pi.fio2, pi.fio3) AS fio',
     PHONE          => ($self && $self->{conf} && $self->{conf}{CONTACTS_NEW})
-      ? q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id IN (1,2)) AS phone/
+      ? q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id IN (1,2)) AS phone/
       : 'STR:pi.phone',
     EMAIL          => ($self && $self->{conf} && $self->{conf}{CONTACTS_NEW})
-      ? q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id=9) AS email/
+      ? q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=9) AS email/
       : 'STR:pi.email',
     ACCEPT_RULES   => 'INT:pi.accept_rules',
 
@@ -1023,8 +1037,8 @@ sub search_expr_users{
     PASPORT_NUM    => 'STR:pi.pasport_num',
     PASPORT_GRANT  => 'STR:pi.pasport_grant',
     #CONTRACT_ID   => 'STR:if(u.company_id=0, concat(pi.contract_sufix,pi.contract_id), concat(company.contract_sufix,company.contract_id)) AS contract_id',
-    CONTRACT_ID    => 'STR:IF(u.company_id=0, CONCAT(pi.contract_id), CONCAT(company.contract_id)) AS contract_id',
-    CONTRACT_DATE  => 'STR:IF(u.company_id=0, CONCAT(pi.contract_date), CONCAT(company.contract_date)) AS contract_date',
+    CONTRACT_ID    => 'STR:IF(u.company_id=0, pi.contract_id, company.contract_id) AS contract_id',
+    CONTRACT_DATE  => 'STR:IF(u.company_id=0, pi.contract_date, company.contract_date) AS contract_date',
     CONTRACT_SUFIX => 'STR:pi.contract_sufix',
     CONTRACT_DATE  => 'DATE:pi.contract_date',
 
@@ -1035,14 +1049,14 @@ sub search_expr_users{
     CREDIT         => 'INT:IF(u.credit > 0, u.credit, IF(company.id IS NULL, 0, company.credit)) AS credit',
     CREDIT_DATE    => 'DATE:u.credit_date',
     REDUCTION      => 'INT:u.reduction',
-    REDUCTION_DATE => 'INT:u.reduction_date',
+    REDUCTION_DATE => 'DATE:u.reduction_date',
     COMMENTS       => 'STR:pi.comments',
     BILL_ID        => 'INT:IF(company.id IS NULL,b.id,cb.id) AS bill_id',
     PASSWORD       => "STR:DECODE(u.password, '" . ($CONF->{secretkey} || q{}) . "') AS password",
     EXT_DEPOSIT    => 'INT:IF(company.id IS NULL, ext_b.deposit, ext_cb.deposit) AS ext_deposit',
     EXT_BILL_ID    => 'INT:IF(company.id IS NULL, u.ext_bill_id, company.ext_bill_id) AS ext_bill_id',
-    LAST_PAYMENT   => 'INT:(SELECT MAX(p.date) FROM payments p WHERE p.uid=u.uid) AS last_payment',
-    LAST_FEES      => 'INT:(SELECT max(f.date) FROM fees f WHERE f.uid=u.uid) AS last_fees',
+    LAST_PAYMENT   => 'INT:(SELECT MAX(p.date) FROM `payments` p WHERE p.uid=u.uid) AS last_payment',
+    LAST_FEES      => 'INT:(SELECT max(f.date) FROM `fees` f WHERE f.uid=u.uid) AS last_fees',
     BIRTH_DATE     => 'DATE:pi.birth_date',
     FLOOR          => 'INT:pi.floor',
     ENTRANCE       => 'INT:pi.entrance'
@@ -1052,18 +1066,18 @@ sub search_expr_users{
   # Add cell_phone, viber, telegram
   if ($self->{conf}{CONTACTS_NEW}){
     $users_fields_hash{CELL_PHONE}=
-      q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id=1) AS cell_phone/;
+      q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=1) AS cell_phone/;
 
     $users_fields_hash{TELEGRAM} =
-      q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id = 6) AS telegram/;
+      q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 6) AS telegram/;
     $users_fields_hash{VIBER} =
-      q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id = 5) AS viber/;
+      q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 5) AS viber/;
 
   }
-  
+
   if ( $attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW' ){
     #$users_fields_hash{DEPOSIT} = 'INT:b.deposit'
-    $users_fields_hash{DEPOSIT} = 'INT:IF(company.id IS NULL, b.deposit, cb.deposit) as deposit';
+    $users_fields_hash{DEPOSIT} = 'INT:IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit';
   }
 
   if ( $attr->{CONTRACT_SUFIX} ){
@@ -1095,8 +1109,9 @@ sub search_expr_users{
       #      }
 
       push @fields, @{ $self->search_expr( $attr->{$key}, $type, $field,
-          { EXT_FIELD => in_array( $key, $attr->{EXT_FIELDS} ),
-            NOTFILLED => ($attr->{'NOTFILLED_'.$key}) ? 1 : undef
+          { EXT_FIELD  => in_array($key, $attr->{EXT_FIELDS}),
+            NOTFILLED  => ($attr->{'NOTFILLED_' . $key}) ? 1 : undef,
+            _MULTI_HIT => $attr->{_MULTI_HIT}
           } ) };
       $filled{$key} = 1;
     }
@@ -1105,12 +1120,88 @@ sub search_expr_users{
     }
   }
 
+  if ($self->{errno}) {
+    return [];
+  }
+
   #Info fields
-  if ( $info_field && $self->can( 'config_list' ) ){
+  if ($self->{conf}->{info_fields_new}) {
+    $self->query("SELECT
+      name,
+      sql_field,
+      type,
+      id
+    FROM `info_fields`;", undef, { COLS_NAME => 1 });
+    my $list = $self->{list};
+
+    if ( $self->{TOTAL} > 0 ){
+      foreach my $line ( @{$list} ){
+        my $field_name = $line->{sql_field};
+        my $field_id   = uc($field_name);
+        my $type       = $line->{type} || 0;
+
+        if ( defined( $attr->{$field_id} ) && $type == 4 ){
+          push @fields,
+            @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", {
+              EXT_FIELD  => 1,
+              _MULTI_HIT => $attr->{_MULTI_HIT}
+            } ) };
+        }
+        #Skip for bloab
+        elsif ( $type == 5 ){
+          next;
+        }
+        elsif ( $attr->{$field_id} ){
+          if ( $type == 1 ){
+            push @fields,
+              @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", {
+                EXT_FIELD  => 1,
+                _MULTI_HIT => $attr->{_MULTI_HIT}
+              } ) };
+          }
+          elsif ( $type == 2 ){
+            push @fields, @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", {
+              EXT_FIELD  => $field_name . '_list.name AS ' . $field_name,
+              _MULTI_HIT => $attr->{_MULTI_HIT}
+            })
+              };
+            $self->{EXT_TABLES} .= "LEFT JOIN $field_name" . "_list ON (pi.$field_name = $field_name" . "_list.id)";
+          }
+          elsif ( $type == 16 ){
+            if($attr->{$field_id} && $attr->{$field_id} ne '_SHOW') {
+              my ($sn_type, $info) = split( /, /, $attr->{$field_id} );
+              push @fields, @{ $self->search_expr( "$sn_type*". ($info || q{}), 'STR', "pi.$field_name",
+                { EXT_FIELD  => 1,
+                  _MULTI_HIT => $attr->{_MULTI_HIT}
+                } ) };
+            }
+            else {
+              push @fields, @{ $self->search_expr( $attr->{$field_id}, 'STR', "pi.$field_name", {
+                EXT_FIELD  => 1,
+                _MULTI_HIT => $attr->{_MULTI_HIT}
+              } ) };
+            }
+          }
+          else{
+            push @fields,
+              @{ $self->search_expr( $attr->{uc( $field_name )}, 'STR', "pi.$field_name", {
+                EXT_FIELD  => 1,
+                _MULTI_HIT => $attr->{_MULTI_HIT}
+              } ) };
+          }
+        }
+
+      }
+      $self->{EXTRA_FIELDS} = $list;
+      if($#fields > -1) {
+        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      }
+    }
+  }
+  elsif ( $info_field && $self->can( 'config_list' ) ){
     my $list = $self->config_list( { PARAM => 'ifu*', SORT => 2 } );
 
     if ( $self->{TOTAL} > 0 ){
-
       foreach my $line ( @{$list} ){
         if ( $line->[0] =~ /ifu(\S+)/ ){
           my $field_name = $1;
@@ -1124,23 +1215,31 @@ sub search_expr_users{
 
           if ( defined( $attr->{uc( $field_name )} ) && $type == 4 ){
             push @fields,
-              @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", { EXT_FIELD => 1 } ) };
+              @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", {
+                EXT_FIELD  => 1,
+                _MULTI_HIT => $attr->{_MULTI_HIT}
+              } ) };
           }
           #Skip for bloab
           elsif ( $type == 5 ){
             next;
           }
           elsif ( $attr->{$field_id} ){
-
             if ( $type == 1 ){
               push @fields,
-                @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", { EXT_FIELD => 1 } ) };
+                @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", {
+                  EXT_FIELD => 1,
+                  _MULTI_HIT => $attr->{_MULTI_HIT}
+                } )
+              };
             }
             elsif ( $type == 2 ){
               push @fields, @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", {
-                                 EXT_FIELD => $field_name . '_list.name AS ' . $field_name
-                               })
-                            };
+                EXT_FIELD => $field_name . '_list.name AS ' . $field_name,
+                _MULTI_HIT => $attr->{_MULTI_HIT}
+                })
+              };
+
               $self->{EXT_TABLES} .= "LEFT JOIN $field_name" . "_list ON (pi.$field_name = $field_name" . "_list.id)";
             }
             elsif ( $type == 16 ){
@@ -1226,20 +1325,24 @@ sub search_expr_users{
       $EXT_TABLE_JOINS_HASH{streets} = 1;
       $self->{SEARCH_FIELDS_COUNT} += 3;
     }
-    if ( $attr->{MAPS_COORDS} ){
-      push @fields, @{ $self->search_expr( $attr->{MAPS_COORDS}, 'INT', '',
-        { EXT_FIELD => 'CONCAT(builds.coordx, ":", builds.coordy) AS maps_coords' } ) };
+    if ($attr->{MAPS_COORDS}) {
+      push @fields, @{$self->search_expr($attr->{MAPS_COORDS}, 'INT', 'builds.coordx',
+        { EXT_FIELD => 'builds.coordx AS coordx' })};
+      push @fields, @{$self->search_expr($attr->{MAPS_COORDS}, 'INT', 'builds.coordy',
+        { EXT_FIELD => 'builds.coordy AS coordy' })};
       $EXT_TABLE_JOINS_HASH{builds} = 1;
     }
   }
-  elsif ( $attr->{STREET_ID} ){
-    push @fields, @{ $self->search_expr( $attr->{STREET_ID}, 'INT', 'builds.street_id',
-        { EXT_FIELD => 'streets.name AS address_street, builds.number AS address_build' } ) };
+  elsif ($attr->{STREET_ID}) {
+    if (!$attr->{SKIP_USERS_FIELDS} || !in_array('STREET_ID', $attr->{SKIP_USERS_FIELDS})) {
+      push @fields, @{$self->search_expr($attr->{STREET_ID}, 'INT', 'builds.street_id',
+        { EXT_FIELD => 'streets.name AS address_street, builds.number AS address_build' })};
 
-    $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-    $EXT_TABLE_JOINS_HASH{builds} = 1;
-    $EXT_TABLE_JOINS_HASH{streets} = 1;
-    $self->{SEARCH_FIELDS_COUNT} += 1;
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+      $EXT_TABLE_JOINS_HASH{streets} = 1;
+      $self->{SEARCH_FIELDS_COUNT} += 1;
+    }
   }
   # elsif ( $attr->{DISTRICT_ID} ){
   #   push @fields, @{ $self->search_expr( $attr->{DISTRICT_ID}, 'INT', 'streets.district_id',
@@ -1260,10 +1363,8 @@ sub search_expr_users{
         $EXT_TABLE_JOINS_HASH{districts} = 1;
       }
 
-      if ( $attr->{DISTRICT_ID} ){
-        push @fields, @{ $self->search_expr( $attr->{DISTRICT_ID}, 'INT', 'streets.district_id',
-          { EXT_FIELD => 1 } ) }; # 'districts.name AS district_name' }) };
-
+      if ($attr->{DISTRICT_ID} && !in_array('DISTRICT_ID', $attr->{SKIP_USERS_FIELDS})) {
+        push @fields, @{ $self->search_expr( $attr->{DISTRICT_ID}, 'INT', 'streets.district_id', { EXT_FIELD => 1 } ) };
         $EXT_TABLE_JOINS_HASH{users_pi} = 1;
         $EXT_TABLE_JOINS_HASH{builds} = 1;
         $EXT_TABLE_JOINS_HASH{streets} = 1;
@@ -1305,7 +1406,7 @@ sub search_expr_users{
         $EXT_TABLE_JOINS_HASH{districts} = 1;
       }
 
-      if ( $attr->{ADDRESS_STREET} ){
+      if ($attr->{ADDRESS_STREET} && !in_array('ADDRESS_STREET', $attr->{SKIP_USERS_FIELDS})){
         push @fields, @{ $self->search_expr( $attr->{ADDRESS_STREET}, 'STR', 'streets.name AS address_street',
             { EXT_FIELD => 1 } ) };
         $EXT_TABLE_JOINS_HASH{users_pi} = 1;
@@ -1319,15 +1420,15 @@ sub search_expr_users{
         $EXT_TABLE_JOINS_HASH{users_pi} = 1;
         $EXT_TABLE_JOINS_HASH{builds} = 1;
         $EXT_TABLE_JOINS_HASH{streets} = 1;
-      }
 
-      #      elsif ( $attr->{SHOW_ADDRESS} ){
-      #        push @{ $self->{SEARCH_FIELDS_ARR} }, 'streets.name AS address_street', 'builds.number AS address_build',
-      #          'pi.address_flat', 'streets.id AS street_id';
-      #        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-      #        $EXT_TABLE_JOINS_HASH{builds} = 1;
-      #        $EXT_TABLE_JOINS_HASH{streets} = 1;
-      #      }
+        if ($attr->{ADDRESS_FULL} && !in_array('ADDRESS_FULL', $attr->{SKIP_USERS_FIELDS})) {
+          my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
+          push @fields, @{$self->search_expr($attr->{ADDRESS_FULL}, "STR",
+            "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
+              "streets.second_name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full2",
+            { EXT_FIELD => 1 })};
+        }
+      }
 
       if ( $attr->{ADDRESS_STREET_2} ){
         push @fields,
@@ -1417,7 +1518,8 @@ sub search_expr_users{
     $attr->{TAGS} =~ s/,\s?/\;/g;
     my @tags_fields = (
       'GROUP_CONCAT(DISTINCT tags.name ORDER BY tags.name SEPARATOR ", ") AS tags',
-      'GROUP_CONCAT(tags.priority ORDER BY tags.name SEPARATOR ", ") AS priority'
+      'GROUP_CONCAT(tags.priority ORDER BY tags.name SEPARATOR ", ") AS priority',
+      'GROUP_CONCAT(tags.color ORDER BY tags.name SEPARATOR ", ") AS tags_colors',
     );
 
     if($attr->{TAGS_ID}) {
@@ -1537,18 +1639,18 @@ sub mk_ext_tables{
   }
 
   my @EXT_TABLES_JOINS = (
-    'groups:LEFT JOIN groups g ON (g.gid=u.gid)',
-    'companies:LEFT JOIN companies company FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.company_id=company.id)',
-    "bills:LEFT JOIN bills b ON (u.bill_id = b.id)\n" .
-      " LEFT JOIN bills cb ON (company.bill_id=cb.id)",
-    "ext_bills:LEFT JOIN bills ext_b ON (u.ext_bill_id = ext_b.id)\n" .
-      " LEFT JOIN bills ext_cb ON  (company.ext_bill_id=ext_cb.id)",
-    'users_pi:LEFT JOIN users_pi pi FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.uid=pi.uid)',
-    'builds:LEFT JOIN builds ON (builds.id=pi.location_id)',
-    'streets:LEFT JOIN streets ON (streets.id=builds.street_id)',
-    'districts:LEFT JOIN districts ON (districts.id=streets.district_id)',
-    'admin_actions:LEFT JOIN admin_actions aa ON (u.uid=aa.uid)',
-    'domain_name:LEFT JOIN domains ON (u.domain_id=domains.id)'
+    'groups:LEFT JOIN `groups` g ON (g.gid=u.gid)',
+    'companies:LEFT JOIN `companies` company FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.company_id=company.id)',
+    "bills:LEFT JOIN `bills` b ON (u.bill_id = b.id)\n" .
+      " LEFT JOIN `bills` cb ON (company.bill_id=cb.id)",
+    "ext_bills:LEFT JOIN `bills` ext_b ON (u.ext_bill_id = ext_b.id)\n" .
+      " LEFT JOIN bills `ext_cb` ON  (company.ext_bill_id=ext_cb.id)",
+    'users_pi:LEFT JOIN `users_pi` pi FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.uid=pi.uid)',
+    'builds:LEFT JOIN `builds` ON (builds.id=pi.location_id)',
+    'streets:LEFT JOIN `streets` ON (streets.id=builds.street_id)',
+    'districts:LEFT JOIN `districts` ON (districts.id=streets.district_id)',
+    'admin_actions:LEFT JOIN `admin_actions` aa ON (u.uid=aa.uid)',
+    'domain_name:LEFT JOIN `domains` ON (u.domain_id=domains.id)'
   );
 
   if ( $attr->{EXTRA_PRE_JOIN} ){
@@ -1823,7 +1925,7 @@ sub changes {
   my $CHANGES_QUERY = join( ', ', @change_fields );
 
   $self->query(
-    "UPDATE $TABLE SET $CHANGES_QUERY WHERE $change_params_list $extended",
+    "UPDATE `$TABLE` SET $CHANGES_QUERY WHERE $change_params_list $extended",
     'do',
     { Bind => \@bind_values }
   );

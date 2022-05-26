@@ -21,7 +21,7 @@ our (
   %permissions,
   @WEEKDAYS,
   @MONTHES,
-  @MONTHES_LIT,
+  @MONTHES_LIT
 );
 
 our Abills::HTML $html;
@@ -186,6 +186,10 @@ sub msgs_admin {
       }
 
       $FORM{chg} ||= $FORM{STORAGE_MSGS_ID};
+      $html->redirect("?index=$index" . "&UID=" . ($FORM{UID} || q{}) . "&chg=" . ($FORM{chg} || q{}) . "#last_msg", {
+        WAIT         => '0'
+      });
+      return;
     }
     else {
       storage_hardware();
@@ -261,7 +265,6 @@ sub msgs_admin {
   elsif ($FORM{del} && $FORM{COMMENTS} && _msgs_check_admin_privileges($A_PRIVILEGES, { ID => $FORM{del} })) {
     msgs_redirect_filter({ DEL => 1, UID => $uid, MSG_ID => $FORM{del} });
 
-    $Msgs->msgs_address_del({ ID => $FORM{del} }) if $conf{MSGS_ADDRESS};
     $Msgs->message_team_del($FORM{del});
     if (!_error_show($Msgs)) {
       $Msgs->message_del({ ID => $FORM{del}, UID => $uid });
@@ -466,21 +469,22 @@ sub _msgs_admin_send_message {
     $LIST_PARAMS{PAGE_ROWS} = 25;
   }
 
+  my $att_result = _msgs_add_attachments(\@ATTACHMENTS, ($#msgs_ids > -1) ?
+    \@msgs_ids : $Msgs->{MSG_ID}, ($#uids == 0) ? $uids[0] : '_');
+
   if (!$FORM{INNER_MSG}) {
     #Web redirect
     if ($FORM{SEND_TYPE} && $FORM{SEND_TYPE} == 3) {
       msgs_redirect_filter({ UID => join(',', @uids) });
     }
     else {
-      my @attachments_list;
-
-      foreach (@ATTACHMENTS)  {
-        push @attachments_list, {
-          filename     => $_->{FILENAME},
-          content      => $_->{CONTENT},
-          content_type => $_->{CONTENT_TYPE}
-        }
-      }
+      my $attachments_list = $Msgs->attachments_list({
+        MESSAGE_ID   => ($#msgs_ids > -1) ? $msgs_ids[0] : $Msgs->{MSG_ID},
+        FILENAME     => '_SHOW',
+        CONTENT      => '_SHOW',
+        CONTENT_TYPE => '_SHOW',
+        CONTENT_SIZE => '_SHOW'
+      });
 
       $Notify->notify_user({
         STATE_ID       => $FORM{STATE},
@@ -489,12 +493,10 @@ sub _msgs_admin_send_message {
         MSGS           => $Msgs,
         SEND_TYPE      => $FORM{SEND_TYPE},
         MESSAGES_BATCH => \%msg_for_uid,
-        ATTACHMENTS    => \@attachments_list
+        ATTACHMENTS    => $attachments_list
       });
     }
   }
-
-  my $att_result = _msgs_add_attachments(\@ATTACHMENTS, ($#msgs_ids > -1) ? \@msgs_ids : $Msgs->{MSG_ID}, ($#uids == 0) ? $uids[0] : '_');
   return $att_result if $att_result;
 
   return 0 if ($attr->{SEND_ONLY} || $attr->{REGISTRATION});
@@ -557,16 +559,6 @@ sub _msgs_make_delivery {
 
     my $plugin_result = _msgs_call_action_plugin('AFTER_CREATE', { %{($attr) ? $attr : {}} }, { ID => $Msgs->{MSG_ID} });
     return $plugin_result if defined $plugin_result;
-
-    if (!_error_show($Msgs)) {
-      $Msgs->msgs_address_add({
-        ID        => $Msgs->{MSG_ID},
-        DISTRICTS => $FORM{DISTRICT_ID} || 0,
-        STREET    => $FORM{STREET_ID} || 0,
-        BUILD     => $FORM{LOCATION_ID} || 0,
-        FLAT      => $FORM{ADDRESS_FLAT} || 0
-      });
-    }
 
     return 1 if ($attr->{REGISTRATION});
 
@@ -760,10 +752,7 @@ sub msgs_admin_add_form {
 
   if ((!$FORM{UID} || $FORM{UID} =~ /;/) && !$FORM{TASK}) {
     $tpl_info{GROUP_SEL} = sel_groups({ MULTISELECT => 1 });
-    $tpl_info{ADDRESS_FORM} = form_address({
-      LOCATION_ID       => $FORM{LOCATION_ID} || '',
-      SHOW_ADD_BUTTONS  => $conf{MSGS_ADDRESS} ? 1 : 0,
-    });
+    $tpl_info{ADDRESS_FORM} = form_address({ LOCATION_ID => $FORM{LOCATION_ID} || '', SHOW_ADD_BUTTONS => 1 });
 
     if (in_array('Tags', \@MODULES)) {
       if (!$admin->{MODULES} || $admin->{MODULES}{'Tags'}) {
@@ -906,8 +895,8 @@ sub msgs_ticket_show {
   my $A_PRIVILEGES = $attr->{A_PRIVILEGES};
   my $CHAPTERS_DELIGATION = $attr->{CHAPTERS_DELIGATION};
   my $message_id = $attr->{ID} || $FORM{chg} || 0;
-  my $msgs_managment_tpl = ($conf{MSGS_SIMPLIFIED_MODE}) ? 'msgs_managment_simplified_mode' : 'msgs_managment';
-  my $msgs_show_tpl = ($conf{MSGS_SIMPLIFIED_MODE}) ? 'msgs_show_simplified_mode' : 'msgs_show';
+  my $msgs_managment_tpl = 'msgs_managment';
+  my $msgs_show_tpl = 'msgs_show';
   $FORM{UID} ||= $attr->{UID};
 
   $html->message('info', '', $FORM{MESSAGE}) if ($FORM{MESSAGE});
@@ -963,7 +952,7 @@ sub msgs_ticket_show {
 
   $Msgs->{MAIN_ID} = $Msgs->{ID};
   $Msgs->{ACTION} = 'reply';
-  $Msgs->{LNG_ACTION} = $lang{REPLY};
+  $Msgs->{LNG_ACTION} = $lang{SEND};
   $Msgs->{STATE} //= 0;
   $Msgs->{PRIORITY} //= 0;
   $Msgs->{CHAPTER} //= 0;
@@ -992,21 +981,18 @@ sub msgs_ticket_show {
     CHAPTERS_DELIGATION => $CHAPTERS_DELIGATION
   });
 
-  my $ticket_address = $conf{MSGS_ADDRESS} ? msgs_address({ %FORM }) : '';
   $Msgs->{EXT_INFO} = $html->tpl_show(_include($msgs_managment_tpl, 'Msgs'), { %{$users}, %{$Msgs},
-    PHONE          => $users->{PHONE} || $users->{CELL_PHONE} || '--',
-    TICKET_ADDRESS => $ticket_address,
-  }, { OUTPUT2RETURN => 1 });
-
-  $Msgs->{ADDRESS_SET} = $html->tpl_show(_include('msgs_address_set', 'Msgs'), {
-    TICKET_ADDRESS => $ticket_address
-  }, { OUTPUT2RETURN => 1 });
+    PHONE => $users->{PHONE} || $users->{CELL_PHONE} || '--' }, { OUTPUT2RETURN => 1 });
 
   my $REPLIES = msgs_ticket_reply($message_id);
 
   $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, json => $FORM{json}, SHOW_URL => 1 });
   my $subject_before_convert = $Msgs->{SUBJECT} || '';
   $Msgs->{SUBJECT} = convert($Msgs->{SUBJECT}, { text2html => 1, json => $FORM{json} });
+  if (!defined $Msgs->{TIMELINE_LAST_ITEM}) {
+    $Msgs->{TIMELINE_LAST_ITEM} = $html->element('i', '', { 'class' => 'fas fa-clock bg-gray' })
+  }
+
 
   my $msgs_rating_message = '';
   my $rating_icons = '';
@@ -1027,6 +1013,7 @@ sub msgs_ticket_show {
       RATING_COMMENT => $Msgs->{RATING_COMMENT},
       SIGNATURE      => $sig_image,
     }, { OUTPUT2RETURN => 1 });
+    $Msgs->{TIMELINE_LAST_ITEM} = $html->element('i', '', { 'class' => 'fas fa-check bg-green' })
   }
 
   my %params = ();
@@ -1046,12 +1033,6 @@ sub msgs_ticket_show {
       %{$Msgs},
       REPLY_TEXT      => "",
       QUOTING         => $Msgs->{REPLY_QUOTE} || '',
-      RUN_TIME_FORM   => $html->tpl_show(templates('form_row'), {
-        ID    => "RUN_TIME",
-        NAME  => "$lang{RUN_TIME} (mins.)",
-        VALUE => $html->form_input('RUN_TIME', '00:00:00',
-          { EX_PARAMS => " STYLE='background-color:  $_COLORS[3]' DISABLED  size=9" })
-      }, { OUTPUT2RETURN => 1 }),
       RUN_TIME_STATUS => 'DISABLE',
       MAIN_INNER_MSG  => $Msgs->{INNER_MSG},
       INNER_MSG       => ($FORM{INNER_MSG}) ? ' checked ' : '',
@@ -1092,7 +1073,7 @@ sub msgs_ticket_show {
   if ($Msgs->{TOTAL}) {
     foreach my $msg_tag (@{$msg_tags_list}) {
       $params{MSG_TAGS} .= ' ' . $html->element('span', $msg_tag->{reply}, {
-        'class'                 => 'label new-tags',
+        'class'                 => 'label new-tags mr-1',
         'style'                 => "background-color:" . ($msg_tag->{color} || q{}) . ";border-color:" . ($msg_tag->{color} || q{}) . ";font-weight: bold;",
         'data-tooltip'          => $msg_tag->{comment} || $msg_tag->{reply},
         'data-tooltip-position' => 'top'
@@ -1120,6 +1101,7 @@ sub msgs_ticket_show {
   }
 
   return 0 if(!_msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER} }));
+
   if (_msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER}, PRIVILEGE_LVL => 3, HIDE_ALERT => 1 })) {
     $subject_before_convert =~ s/\'/\\\'/g;
     $params{CHANGE_SUBJECT_BUTTON} = $html->button("$lang{CHANGE} $lang{SUBJECT}",
@@ -1136,12 +1118,12 @@ sub msgs_ticket_show {
   $params{PROGRESSBAR} = msgs_progress_bar_show($Msgs);
 
   $params{PARENT_MSG} = $html->button('PARENT: ' . $Msgs->{PAR}, 'index=' . $index . "&chg=$Msgs->{PAR}",
-      { class => 'btn btn-xs btn-secondary text-right' }) if ($Msgs->{PAR});
+      { class => 'btn btn-xs btn-default text-right' }) if ($Msgs->{PAR});
   $params{RATING_ICONS} = $rating_icons;
   $params{LOGIN} = ($Msgs->{AID}) ? $html->b($Msgs->{A_NAME}) . " ($lang{ADMIN})" : $html->button($Msgs->{LOGIN}, "index=15&UID=$uid");
   $params{ADMIN_LOGIN} = $admin->{A_LOGIN};
   $params{INNER_MSG_TAG} = $html->element('span', $lang{INNER}, {
-    'class' => 'label new-tags',
+    'class' => 'label new-tags mr-1',
     'style' => "background-color:#f39c12;border-color:#f39c12;font-weight: bold;"
   }) if $Msgs->{INNER_MSG};
 
@@ -1154,7 +1136,7 @@ sub msgs_ticket_show {
     $Msgs->message_change({ %msgs_params });
   }
 
-  if($conf{MSGS_CHAT}) {
+  if ($conf{MSGS_CHAT}) {
     require Msgs::Chat;
     show_admin_chat();
   }
@@ -1175,7 +1157,6 @@ sub msgs_ticket_reply {
 
   my $uid = $Msgs->{UID} || 0;
   my @REPLIES = ();
-  my $msgs_reply_show_tpl = ($conf{MSGS_SIMPLIFIED_MODE}) ? 'msgs_reply_show_simplified_mode' : 'msgs_reply_show';
 
   if ($Msgs->{SURVEY_ID}) {
     my $main_message_survey = msgs_survey_show({
@@ -1195,6 +1176,7 @@ sub msgs_ticket_reply {
 
   if (!$Msgs->{TOTAL} || $Msgs->{TOTAL} < 1) {
     $Msgs->{REPLY_QUOTE} = '> ' . ($Msgs->{MESSAGE} || q{});
+    $Msgs->{TIMELINE_LAST_ITEM} = '';
   }
 
   foreach my $line (@{$list}) {
@@ -1213,26 +1195,14 @@ sub msgs_ticket_reply {
 
     $Msgs->{REPLY_QUOTE} = '>' . $line->{text}  if ($FORM{QUOTING} && $FORM{QUOTING} == $line->{id});
 
-    my $reply_color = 'card-outline card-success';
-    if ($conf{MSGS_SIMPLIFIED_MODE}) {
-      if ($line->{inner_msg}) {
-        $reply_color = 'bg-yellow';
-      }
-      elsif ($line->{aid} > 0) {
-        $reply_color = 'bg-green';
-      }
-      else {
-        $reply_color = 'bg-aqua';
-      }
+    my $reply_color = 'fas fa-user bg-green';
+    if ($line->{inner_msg}) {
+      $reply_color = 'fas fa-lock bg-yellow';
     }
-    else {
-      if ($line->{inner_msg}) {
-        $reply_color = 'card-warning';
-      }
-      elsif ($line->{aid} > 0) {
-        $reply_color = 'card-success';
-      }
+    elsif ($line->{aid} > 0) {
+      $reply_color = 'fas fa-envelope bg-blue';
     }
+
 
     my $del_reply_button = $html->button($lang{DEL}, "&index=$index&chg=$message_id&reply_del=$line->{id}&UID=$uid", {
       MESSAGE => "$lang{DEL}  $line->{id}?",
@@ -1261,7 +1231,7 @@ sub msgs_ticket_reply {
       $attachment_html = msgs_get_attachments_view($attachments_list);
     }
 
-    push @REPLIES, $html->tpl_show(_include($msgs_reply_show_tpl, 'Msgs'), {
+    push @REPLIES, $html->tpl_show(_include('msgs_reply_show', 'Msgs'), {
       ADMIN_MSG  => $line->{aid},
       LAST_MSG   => ($total_reply == $#REPLIES + 2) ? 'last_msg' : '',
       REPLY_ID   => $line->{id},
@@ -1356,12 +1326,12 @@ sub _msgs_change_responsible {
   }) : [];
 
   $Notify->notify_admins({
-      SENDER_AID      => $admin->{AID},
-      MSG_ID          => $message_id,
-      AID             => $new_responsible_aid,
-      ATTACHMENTS     => $attachments_list,
-      NEW_RESPONSIBLE => 1
-    });
+    SENDER_AID      => $admin->{AID},
+    MSG_ID          => $message_id,
+    AID             => $new_responsible_aid,
+    ATTACHMENTS     => $attachments_list,
+    NEW_RESPONSIBLE => 1
+  });
 
 
   return 1;
@@ -1493,16 +1463,11 @@ sub _msgs_reply_admin {
 
   if ($FORM{REPLY_SUBJECT} || $FORM{REPLY_TEXT} || $FORM{FILE_UPLOAD} || $FORM{SURVEY_ID}) {
 
-    $Msgs->message_reply_add({
-      %FORM,
-      AID => $admin->{AID},
-      IP  => $admin->{SESSION_IP},
-    });
+    $Msgs->message_reply_add({ %FORM, AID => $admin->{AID}, IP => $admin->{SESSION_IP} });
     $reply_id = $Msgs->{INSERT_ID};
     $FORM{REPLY_ID} = $reply_id;
 
     if (!_error_show($Msgs)) {
-
       # Fixing empty attachment filename
       if ($FORM{FILE_UPLOAD} && $FORM{FILE_UPLOAD}->{'Content-Type'} && !$FORM{FILE_UPLOAD}->{filename}) {
         my $extension = 'dat';
@@ -1537,7 +1502,9 @@ sub _msgs_reply_admin {
   my $msg_state = $FORM{STATE} || 0;
   $params{CHAPTER} = $FORM{CHAPTER_ID} if ($FORM{CHAPTER_ID});
   $params{STATE} = ($msg_state == 0 && !$FORM{MAIN_INNER_MESSAGE} && !$FORM{REPLY_INNER_MSG}) ? 6 : $msg_state;
-  $params{CLOSED_DATE} = "$DATE  $TIME" if ($msg_state == 1 || $msg_state == 2);
+
+  $Msgs->status_info($msg_state);
+  $params{CLOSED_DATE} = "$DATE  $TIME" if ($Msgs->{TOTAL} > 0 && $Msgs->{TASK_CLOSED});
   $params{DONE_DATE} = $DATE if ($msg_state > 1);
 
   $Msgs->message_change({
@@ -1592,21 +1559,23 @@ sub _msgs_reply_admin {
   $Msgs->message_info($FORM{ID});
 
   my $attachments_list = $reply_id ? $Msgs->attachments_list({
-    REPLY_ID   => $reply_id,
+    REPLY_ID     => $reply_id,
     FILENAME     => '_SHOW',
     CONTENT      => '_SHOW',
     CONTENT_TYPE => '_SHOW',
+    CONTENT_SIZE => '_SHOW'
   }) : [];
 
   $Notify->notify_user({
-    UID        => $FORM{UID},
-    STATE_ID   => $Msgs->{STATE},
-    SEND_TYPE  => $Msgs->{SEND_TYPE},
-    STATE      => $msgs_status->{$Msgs->{STATE}},
-    REPLY_ID   => $reply_id,
-    MSG_ID     => $FORM{ID},
-    MSGS       => $Msgs,
-    SENDER_AID => $admin->{AID},
+    UID         => $FORM{UID},
+    STATE_ID    => $Msgs->{STATE},
+    SEND_TYPE   => $Msgs->{SEND_TYPE},
+    STATE       => $msgs_status->{$Msgs->{STATE}},
+    REPLY_ID    => $reply_id,
+    MSG_ID      => $FORM{ID},
+    MSGS        => $Msgs,
+    SENDER_AID  => $admin->{AID},
+    ATTACHMENTS => $attachments_list
   });
 
   $Msgs->message_change({
@@ -1718,7 +1687,7 @@ sub msgs_repeat_ticket {
       COLS_NAME              => 1,
     });
 
-    $answer = $Msgs->{TOTAL} ? ":$lang{REPEAT_MSG_LOCATION_1} '$msgs_list->[0]{address_by_location_id}'" .
+    $answer = $Msgs->{TOTAL} > 0 ? ":$lang{REPEAT_MSG_LOCATION_1} '$msgs_list->[0]{address_by_location_id}'" .
       "$lang{REPEAT_MSG_LOCATION_2} $lang{ADD_ANOTHER_ONE}" : "";
   }
 
@@ -1833,7 +1802,7 @@ sub _msgs_edit_reply_button {
 
   return '' if (!$permissions{7} || !$permissions{7}{1});
 
-  return $html->button($lang{EDIT}, "", {
+  return $html->button($lang{EDIT}, '', {
     class => 'btn btn-default btn-xs reply-edit-btn',
     ex_params => "reply_id='$reply_id'"
   });
@@ -1865,10 +1834,7 @@ sub _msgs_check_admin_privileges {
     $chapter = $Msgs->{CHAPTER};
   }
 
-  if (!$chapter) {
-    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { ID => 791 }) if !$attr->{HIDE_ALERT};
-    return 0 ;
-  }
+  return 1 if !$chapter;
 
   return 1 if scalar keys %{$privileges} == 0;
   return ($privileges->{$chapter} >= $attr->{PRIVILEGE_LVL} ? 1 : 0) if $attr->{PRIVILEGE_LVL};

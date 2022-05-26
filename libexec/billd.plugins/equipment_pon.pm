@@ -776,11 +776,13 @@ sub _save_port_and_nas_to_internet_main {
           print "User:$attached_onu->{uid},  server_vlan does not match. user_server_vlan:'$attached_onu->{user_server_vlan}'/onu_server_vlan:'$attached_onu->{onu_server_vlan}'\n";
         }
       }
-      elsif (($attached_onu->{onu_vlan} != $attached_onu->{user_vlan} || $attached_onu->{onu_server_vlan} != $attached_onu->{user_server_vlan})) {
+      elsif (($attached_onu->{onu_vlan} != $attached_onu->{user_vlan}
+         || $attached_onu->{onu_server_vlan} != $attached_onu->{user_server_vlan})) {
         my $vlan_to_set = $attached_onu->{user_vlan};
         my $server_vlan_to_set = $attached_onu->{user_server_vlan};
 
-        if ($attached_onu->{onu_vlan} != $attached_onu->{user_vlan} && (!$attached_onu->{user_vlan} || $argv->{FORCE_FILL})) {
+        if (($attached_onu->{onu_vlan} && $attached_onu->{onu_vlan} != $attached_onu->{user_vlan})
+          && (!$attached_onu->{user_vlan} || $argv->{FORCE_FILL})) {
           $vlan_to_set = $attached_onu->{onu_vlan};
           print "User:$uid add vlan ($attached_onu->{onu_vlan})\n"
         }

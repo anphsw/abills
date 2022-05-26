@@ -89,7 +89,7 @@ sub payments_pool {
     }
 
     if ($payments_pool->{status} != 1) {
-      cross_modules_call('_pre_payment', {
+      cross_modules('pre_payment', {
         USER_INFO    => $user,
         SKIP_MODULES => 'Sqlcmd, Cards',
         #SILENT       => 1,
@@ -105,7 +105,7 @@ sub payments_pool {
         print "SPOOL_ID: $payments_pool->{payment_id} PAYMENTS_ID: $payments_pool->{payment_id} pre_payment\n";
       }
 
-      cross_modules_call('_payments_maked', {
+      cross_modules('payments_maked', {
         USER_INFO  => $user,
         PAYMENT_ID => $payments_pool->{payment_id},
         SUM        => $payments_pool->{sum},

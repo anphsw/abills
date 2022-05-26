@@ -278,6 +278,7 @@ sub list {
       ['EXT_ID',         'STR', 'p.ext_id',                                              1 ],
       ['ADMIN_NAME',     'STR', '', "IF(a.name is null, 'Unknown', a.name) AS admin_name"  ],
       ['INVOICE_NUM',    'INT', 'd.invoice_num',                                         1 ],
+      ['INVOICE_DATE',   'INT', 'd.date', 'd.date AS invoice_date',                        ],
       ['DATE',           'DATE','DATE_FORMAT(p.date, \'%Y-%m-%d\')'                        ],
       ['REG_DATE',       'DATE','p.reg_date',                                            1 ],
       ['MONTH',          'DATE','DATE_FORMAT(p.date, \'%Y-%m\')'                           ],
@@ -301,11 +302,12 @@ sub list {
 
   if ($attr->{INVOICE_NUM}) {
     $EXT_TABLES  .= '  LEFT JOIN (SELECT payment_id, invoice_id FROM docs_invoice2payments GROUP BY payment_id) i2p ON (p.id=i2p.payment_id)
-  LEFT JOIN (SELECT id, invoice_num FROM docs_invoices GROUP BY id) d ON (d.id=i2p.invoice_id)
+  LEFT JOIN (SELECT id, invoice_num, date FROM docs_invoices GROUP BY id) d ON (d.id=i2p.invoice_id)
 ';
   }
 
   my $list;
+  #TODO we really need in default params inner_describe
   if (!$attr->{TOTAL_ONLY}) {
     $self->query("SELECT p.id,
       $self->{SEARCH_FIELDS}
@@ -323,7 +325,7 @@ sub list {
     );
     $self->{SUM} = '0.00';
 
-    return $self->{list} if ($self->{TOTAL} < 1);
+    return [] if ($self->{TOTAL} < 1);
     $list = $self->{list};
   }
 

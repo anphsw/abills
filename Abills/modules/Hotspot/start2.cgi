@@ -49,7 +49,7 @@ our $html = Abills::HTML->new(
     CHARSET  => $conf{default_charset},
     METATAGS => templates('metatags'),
     COLORS   => $conf{UI_COLORS},
-    STYLE    => 'default_adm',
+    STYLE    => 'default',
   }
 );
 $html->{show_header} = 1;

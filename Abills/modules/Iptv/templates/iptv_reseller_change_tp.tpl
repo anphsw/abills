@@ -4,7 +4,7 @@
   
   <div class='card card-primary card-outline box-big-form'>
     <div class='card-header with-border'><h3 class="card-title">_{CHANGE}_ _{TP}_</h3>
-      <div class="card-tools pull-right">
+      <div class="card-tools float-right">
       </div>
     </div>
 

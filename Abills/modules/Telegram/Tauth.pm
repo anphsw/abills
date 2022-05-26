@@ -11,7 +11,8 @@ our (
   $Users,
   $admin,
   $Bot,
-  %conf
+  %conf,
+  %lang
 );
 
 #**********************************************************
@@ -124,16 +125,13 @@ sub subscribe_phone {
   my $phone = $message->{contact}{phone_number};
   $phone =~ s/\D//g;
 
-
   if($conf{TELEGRAM_NUMBER_EXPR}) {
-
     my ($left, $right) = split "/", $conf{TELEGRAM_NUMBER_EXPR};
 
     $phone =~ s/$left/$right/ge;
-
   }
 
-    my $list = $Contacts->contacts_list({
+  my $list = $Contacts->contacts_list({
     VALUE => $phone,
     UID   => '_SHOW',
   });
@@ -167,10 +165,17 @@ sub subscribe_phone {
     exit 0;
   }
   else {
+    my @inline_keyboard = ();
+    my $inline_button = {
+      text          => $lang{SUBMIT_YOUR_APPLICATION},
+      callback_data => "Crm_new_lead&add_request&$phone",
+    };
+    push (@inline_keyboard, [$inline_button]);
+
     $Bot->send_message({
-      text => "Абонент с таким телефоном не зарегистрирован.",
+      text  => $lang{THE_SUBSCRIBER_WITH_THIS_PHONE_IS_NOT_REGISTERED},
+      phone => $phone
     });
-    subscribe_info();
     exit 0;
   }
   
@@ -183,16 +188,17 @@ sub subscribe_phone {
 =cut
 #**********************************************************
 sub subscribe_info {
-   my @keyboard = ();
+
+  my @keyboard = ();
   my $button = {
-    text => "Подтвердить телефон",
+    text            => "Подтвердить телефон",
     request_contact => "true",
   };
-  push (@keyboard, [$button]);
+  push(@keyboard, [ $button ]);
 
   $Bot->send_message({
     text         => "Для подключения телеграм-бота нажмите <b>Подтвердить телефон</b> или используйте кнопку <b>Подписаться</b> в кабинете пользователя.",
-    reply_markup => { 
+    reply_markup => {
       keyboard        => \@keyboard,
       resize_keyboard => "true",
     },

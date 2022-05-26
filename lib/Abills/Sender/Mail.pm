@@ -50,6 +50,22 @@ sub send_message {
     $attr->{TO_ADDRESS} = join(';', split(',\s?', $attr->{TO_ADDRESS}));
   }
 
+  if ($attr->{ATTACHMENTS} && ref $attr->{ATTACHMENTS} eq 'ARRAY') {
+    foreach my $attachment (@{$attr->{ATTACHMENTS}}) {
+      my $content = $attachment->{CONTENT} || '';
+      next if $content !~ /FILE/;
+
+      my ($filename) = $content =~ /FILE: (.*)/;
+      open(my $fh, '<', $filename) or next;
+      {
+        local $/;
+        $content = <$fh>;
+      }
+      close($fh);
+      $attachment->{CONTENT} = $content;
+    }
+  }
+
   my $sent = sendmail(
     $sender,
     $attr->{TO_ADDRESS},

@@ -862,7 +862,7 @@ sub money_transfer {
   });
 
   if (!$Payments->{errno}) {
-    cross_modules_call('_payments_maked', {
+    cross_modules('payments_maked', {
       USER_INFO   => $user2,
       SUM         => $sum,
       SILENT      => 1,
@@ -1029,7 +1029,7 @@ sub _set_credit {
     $user->info($uid);
 
 
-    cross_modules_call('_payments_maked', {
+    cross_modules('payments_maked', {
       USER_INFO   => $user,
       SUM         => $attr->{CREDIT} + 2,
       SILENT      => 1,

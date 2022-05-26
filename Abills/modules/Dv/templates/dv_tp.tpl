@@ -75,14 +75,14 @@
 
             <div class='form-group'>
               <label class='control-label col-md-8' for='ACTIVE_DAY_FEE'>_{ACTIVE_DAY_FEE}_:</label>
-              <div class='checkbox pull-left'>
+              <div class='checkbox float-left'>
                 <input style='margin-left:15px;' id='ACTIVE_DAY_FEE' name='ACTIVE_DAY_FEE' value='1' %ACTIVE_DAY_FEE% type='checkbox'>
               </div>
             </div>
 
             <div class='form-group'>
               <label class='control-label col-md-8' for='POSTPAID_DAY_FEE'>_{DAY_FEE}_ _{POSTPAID}_:</label>
-              <div class='checkbox pull-left'>
+              <div class='checkbox float-left'>
                 <input style='margin-left:15px;' id='POSTPAID_DAY_FEE' name='POSTPAID_DAY_FEE' value=1 %POSTPAID_DAY_FEE% type='checkbox'>
               </div>
             </div>
@@ -99,21 +99,21 @@
 
             <div class='form-group'>
               <label class='control-label col-md-8' for='POSTPAID_MONTH_FEE'>_{MONTH_FEE}_ _{POSTPAID}_:</label>
-              <div class='checkbox pull-left'>
+              <div class='checkbox float-left'>
                 <input style='margin-left:15px;' id='POSTPAID_MONTH_FEE' name='POSTPAID_MONTH_FEE' value='1' %POSTPAID_MONTH_FEE% type='checkbox'>
               </div>
             </div>
 
             <div class='form-group'>
               <label class='control-label col-md-8' for='PERIOD_ALIGNMENT'>_{MONTH_ALIGNMENT}_:</label>
-              <div class='checkbox pull-left'>
+              <div class='checkbox float-left'>
                 <input style='margin-left:15px;' id='PERIOD_ALIGNMENT' name='PERIOD_ALIGNMENT' value=1 %PERIOD_ALIGNMENT% type='checkbox'>
               </div>
             </div>
 
             <div class='form-group'>
               <label class='control-label col-md-8' for='ABON_DISTRIBUTION'>_{ABON_DISTRIBUTION}_:</label>
-              <div class='checkbox pull-left'>
+              <div class='checkbox float-left'>
                 <input style='margin-left:15px;' id='ABON_DISTRIBUTION' name='ABON_DISTRIBUTION' value='1' %ABON_DISTRIBUTION%
                        type='checkbox'>
               </div>
@@ -121,7 +121,7 @@
 
             <div class='form-group'>
               <label class='control-label col-md-8' for='FIXED_FEES_DAY'>_{FIXED_FEES_DAY}_:</label>
-              <div class='checkbox pull-left'>
+              <div class='checkbox float-left'>
                 <input style='margin-left:15px;' id='FIXED_FEES_DAY' name='FIXED_FEES_DAY' value=1 %FIXED_FEES_DAY% type='checkbox'>
               </div>
             </div>
@@ -136,7 +136,7 @@
 
             <div class='form-group'>
               <label class='control-label col-md-8' for='REDUCTION_FEE'>_{REDUCTION}_:</label>
-              <div class='checkbox pull-left'>
+              <div class='checkbox float-left'>
                 <input style='margin-left:15px;' id='REDUCTION_FEE' name='REDUCTION_FEE' value='1' %REDUCTION_FEE% type='checkbox'>
               </div>
             </div>

@@ -208,10 +208,7 @@ sub dv_user_info {
     
     if ($tp_list && ref $tp_list eq 'ARRAY' && scalar @$tp_list){
       my $next_tp_name = $tp_list->[0]{name};
-      $Dv->{TP_CHANGE_WARNING} = $html->reminder($lang{TP_CHANGE_SHEDULED}, "$next_tp_name ($next_tp_date)", {
-          OUTPUT2RETURN => 1,
-          class         => 'info'
-        });
+      $Dv->{TP_CHANGE_WARNING} = $html->message('callout', $lang{TP_CHANGE_SHEDULED}, "$next_tp_name ($next_tp_date)", {OUTPUT2RETURN => 1});
     }
   }
 
@@ -221,7 +218,7 @@ sub dv_user_info {
   if ($Dv->{STATUS} == 2) {
     $Dv->{STATUS_VALUE} = $html->color_mark($status, $color) . ' ';
     $Dv->{STATUS_VALUE} .= ($user->{DISABLE} > 0) ? $html->b("($lang{ACCOUNT} $lang{DISABLE})")
-                                            : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ID => 'ACTIVATE', class => 'btn btn-success pull-right' });
+                                            : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ID => 'ACTIVATE', class => 'btn btn-success float-right' });
   }
   elsif ($Dv->{STATUS} == 5) {
     $Dv->{STATUS_VALUE} = $html->color_mark($status, $color) . ' ';

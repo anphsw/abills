@@ -1,4 +1,4 @@
-<form action='$SELF_URL' class='form-horizontal' method='post' ID=user name=user role='form' onsubmit=\"postthread('submitbutton');\">
+<form action='$SELF_URL' method='post' ID='user' name=user role='form' onsubmit=\"postthread('submitbutton');\">
     <input type=hidden name=UID value='%UID%'>
     <input type=hidden name=index value='$index'>
     <input type=hidden name=subf value='$FORM{subf}'>
@@ -66,15 +66,9 @@
             %DOCS_FEES_ELEMENT%
 
             <div class='card-footer'>
-                <input type=submit name='take' value='_{TAKE}_' class='btn btn-primary' id='submitbutton'>
+                <input type=submit name='take' value='_{TAKE}_' class='btn btn-primary double_click_check' id='submitbutton'>
             </div>
 
 
         </div>
 </form>
-
-<script>
-jQuery('#user').on('submit', function(){
-    renameAndDisable('submitbutton', '_{IN_PROGRESS}_...' );
-});
-</script>

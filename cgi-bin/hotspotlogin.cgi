@@ -211,7 +211,7 @@ print qq{Content-type: text/html\n\n
     <script src="/wifi/js/respond.min.js"></script>
     <![endif]-->
     <script src="/wifi/js/jquery.min.js"></script>
-    <script src="/wifi/js/bootstrap.min.js"></script>
+    <script src="/wifi/js/bootstrap.bundle.min.js"></script>
     <script src="/wifi/js/moment.js"></script>
     <script type="text/javascript">
 

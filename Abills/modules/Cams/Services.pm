@@ -471,7 +471,7 @@ sub cams_load_service {
   my $Cams_service = Cams->new($db, $admin, \%conf);
   if ($attr->{SERVICE_ID}) {
     $Cams_service->services_info($attr->{SERVICE_ID});
-    $service_name = $Cams_service->{MODULE} || q{};
+    $service_name = $Cams_service->{TOTAL} && $Cams_service->{TOTAL} > 0 ? $Cams_service->{MODULE} : '';
   }
 
   return $api_object  if (!$service_name);

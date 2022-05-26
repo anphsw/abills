@@ -550,20 +550,12 @@ sub msgs_status {
   $Msgs->{ACTION_LNG} = $lang{ADD};
 
   if($FORM{add}){
-    $Msgs->status_add({%FORM,
-      TASK_CLOSED => ($FORM{TASK_CLOSED} && $FORM{TASK_CLOSED} eq 'on') ? 1 : 0});
-
-    if(!$Msgs->{errno}){
-      $html->message('success', $lang{INFO}, $lang{ADDED});
-    }
+    $Msgs->status_add({ %FORM, TASK_CLOSED => $FORM{TASK_CLOSED} || '0' });
+    $html->message('success', $lang{INFO}, $lang{ADDED}) if !$Msgs->{errno};
   }
-  elsif($FORM{change}){
-    $Msgs->status_change({%FORM,
-      TASK_CLOSED => ($FORM{TASK_CLOSED} && $FORM{TASK_CLOSED} eq 'on') ? 1 : 0});
-
-    if(!$Msgs->{errno}){
-      $html->message('success', $lang{INFO}, $lang{CHANGED});
-    }
+  elsif ($FORM{change}) {
+    $Msgs->status_change({ %FORM, TASK_CLOSED => $FORM{TASK_CLOSED} || '0' });
+    $html->message('success', $lang{INFO}, $lang{CHANGED}) if !$Msgs->{errno};
   }
   elsif($FORM{chg}){
     $Msgs->{ACTION}   = 'change';

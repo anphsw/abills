@@ -67,16 +67,15 @@ sub form_payments {
   our $Docs;
   if (in_array('Docs', \@MODULES)) {
     load_module('Docs', $html);
-  }
-
-  if ($FORM{print}) {
-    if ($FORM{INVOICE_ID}) {
-      docs_invoice({%FORM});
+    if ($FORM{print}) {
+      if ($FORM{INVOICE_ID}) {
+        docs_invoice(\%FORM);
+      }
+      else {
+        docs_receipt(\%FORM);
+      }
+      exit;
     }
-    else {
-      docs_receipt({%FORM});
-    }
-    exit;
   }
 
   if (($FORM{search_form} || $FORM{search}) && $index != 7) {
@@ -92,6 +91,7 @@ sub form_payments {
       }
     );
   }
+
   if ($attr->{USER_INFO}) {
     my $user = $attr->{USER_INFO};
     $Payments->{UID} = $user->{UID};
@@ -451,16 +451,16 @@ sub payment_add {
 
     my $uid = $user->{UID};
     #Make pre payments functions in all modules
-    cross_modules_call('_pre_payment', { %$attr });
+    cross_modules('pre_payment', { %$attr, FORM => \%FORM });
+    # cross_modules_call('_pre_payment', { %$attr });
     if (!$conf{PAYMENTS_NOT_CHECK_INVOICE_SUM} && ($FORM{INVOICE_SUM} && $FORM{INVOICE_SUM} != $FORM{PAYMENT_SUM})) {
       $html->message( 'err', "$lang{PAYMENTS}: $lang{ERR_WRONG_SUM}",
         " $lang{INVOICE} $lang{SUM}: $Docs->{TOTAL_SUM}\n $lang{PAYMENTS} $lang{SUM}: $FORM{SUM}" );
     }
     else {
       $user->{UID} = $uid;
-      $Payments->add($user, { %FORM,
-          INNER_DESCRIBE => ($FORM{INNER_DESCRIBE} || q{})
-            . (($FORM{DATE} && $COOKIES{hold_date}) ? " $DATE $TIME" : '') });
+      $Payments->add($user, { %FORM, INNER_DESCRIBE => ($FORM{INNER_DESCRIBE} || q{})
+        . (($FORM{DATE} && $COOKIES{hold_date}) ? " $DATE $TIME" : '') });
 
       if (_error_show($Payments)) {
         return 0 if ($attr->{REGISTRATION});
@@ -503,24 +503,26 @@ sub payment_add {
 
         #Make cross modules Functions
         $FORM{PAYMENTS_ID} = $Payments->{PAYMENT_ID};
-        cross_modules_call('_payments_maked', {
+
+        require Control::Services;
+        cross_modules('payments_maked', {
           %$attr,
           METHOD       => $FORM{METHOD},
           SUM          => $FORM{SUM},
           AMOUNT       => $attr->{AMOUNT},
           PAYMENT_ID   => $Payments->{PAYMENT_ID},
           SKIP_MODULES => 'Sqlcmd',
+          FORM         => \%FORM
         });
       }
     }
 
     if ($attr->{GET_FEES}) {
       my $Fees = Finance->fees($db, $admin, \%conf);
-      $Fees->take($user, $FORM{SUM},
-        {
-          DESCRIBE=> ($FORM{DESCRIBE} || q{}) . " PAYMENT: $Payments->{PAYMENT_ID}",
-          METHOD  => $attr->{GET_FEES}
-        });
+      $Fees->take($user, $FORM{SUM}, {
+        DESCRIBE => ($FORM{DESCRIBE} || q{}) . " PAYMENT: $Payments->{PAYMENT_ID}",
+        METHOD   => $attr->{GET_FEES}
+      });
     }
   }
 
@@ -575,42 +577,43 @@ sub form_payments_list {
   my $payments_list;
 
   ($table, $payments_list) = result_former({
-      INPUT_DATA      => $Payments,
-      FUNCTION        => 'list',
-      BASE_FIELDS     => 1,
-      HIDDEN_FIELDS   => 'ADMIN_DISABLE',
-      DEFAULT_FIELDS  => 'DATETIME,LOGIN,DSC,SUM,LAST_DEPOSIT,METHOD,EXT_ID',
-      FUNCTION_FIELDS => 'del',
-      EXT_TITLES      => {
-        'id'              => $lang{NUM},
-        'datetime'        => $lang{DATE},
-        'dsc'             => $lang{DESCRIBE},
-        'dsc2'            => "$lang{DESCRIBE} 2",
-        'inner_describe2' => "$lang{INNER}",
-        'sum'             => $lang{SUM},
-        'last_deposit'    => $lang{OPERATION_DEPOSIT},
-        'deposit'         => $lang{CURRENT_DEPOSIT},
-        'method'          => $lang{PAYMENT_METHOD},
-        'ext_id'          => 'EXT ID',
-        'reg_date'        => "$lang{PAYMENTS} $lang{REGISTRATION}",
-        'ip'              => 'IP',
-        'admin_name'      => $lang{ADMIN},
-        'invoice_num'     => $lang{INVOICE},
-        amount            => "$lang{ALT} $lang{SUM}",
-        currency          => $lang{CURRENCY},
-        after_deposit     => $lang{AFTER_OPERATION_DEPOSIT}
-      },
-      TABLE           => {
-          width   => '100%',
-          caption => $lang{PAYMENTS},
-          qs      => $pages_qs,
-          EXPORT  => 1,
-          ID      => 'PAYMENTS',
-          MENU    => "$lang{SEARCH}:search_form=1&index=2". (($FORM{UID}) ? "&UID=$FORM{UID}&LOGIN=". ($users->{LOGIN} || q{}) : q{}) .":search",
-          SHOW_COLS_HIDDEN => {
-            TYPE_PAGE => $FORM{type}
-          }
-      },
+    INPUT_DATA      => $Payments,
+    FUNCTION        => 'list',
+    BASE_FIELDS     => 1,
+    HIDDEN_FIELDS   => 'ADMIN_DISABLE',
+    DEFAULT_FIELDS  => 'DATETIME,LOGIN,DSC,SUM,LAST_DEPOSIT,METHOD,EXT_ID',
+    FUNCTION_FIELDS => 'del',
+    EXT_TITLES      => {
+      'id'              => $lang{NUM},
+      'datetime'        => $lang{DATE},
+      'dsc'             => $lang{DESCRIBE},
+      'dsc2'            => "$lang{DESCRIBE} 2",
+      'inner_describe2' => "$lang{INNER}",
+      'sum'             => $lang{SUM},
+      'last_deposit'    => $lang{OPERATION_DEPOSIT},
+      'deposit'         => $lang{CURRENT_DEPOSIT},
+      'method'          => $lang{PAYMENT_METHOD},
+      'ext_id'          => 'EXT ID',
+      'reg_date'        => "$lang{PAYMENTS} $lang{REGISTRATION}",
+      'ip'              => 'IP',
+      'admin_name'      => $lang{ADMIN},
+      'invoice_num'     => $lang{INVOICE},
+      amount            => "$lang{ALT} $lang{SUM}",
+      currency          => $lang{CURRENCY},
+      after_deposit     => $lang{AFTER_OPERATION_DEPOSIT}
+    },
+    TABLE           => {
+      width            => '100%',
+      SHOW_FULL_LIST   => ($FORM{UID}) ? 1 : undef,
+      caption          => $lang{PAYMENTS},
+      qs               => $pages_qs,
+      EXPORT           => 1,
+      ID               => 'PAYMENTS',
+      MENU             => "$lang{SEARCH}:search_form=1&index=2" . (($FORM{UID}) ? "&UID=$FORM{UID}&LOGIN=" . ($users->{LOGIN} || q{}) : q{}) . ":search",
+      SHOW_COLS_HIDDEN => {
+        TYPE_PAGE => $FORM{type}
+      }
+    },
   });
 
   $table->{SKIP_FORMER}=1;

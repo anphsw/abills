@@ -390,7 +390,7 @@ sub check_password {
   elsif ($special_chars == 3) {
     $special_chars_part = '';
   }
-  
+
   if (
     ( !$case_part || $password =~ /[$case_part]+/ )
     && ( !$special_chars_part || $password =~ /[$special_chars_part]+/ )
@@ -401,24 +401,4 @@ sub check_password {
   return 0;
 }
 
-#**********************************************************
-=head2 config_del_by_part_of_param()
-
-  Arguments:
-     -
-
-  Returns:
-
-=cut
-#**********************************************************
-sub config_del_by_part_of_param {
-  my $self = shift;
-  my ($param) = @_;
-
-  $self->query("DELETE FROM config WHERE param LIKE '$param%';", 'do');
-
-  return $self;
-}
-
-
-1
+1;

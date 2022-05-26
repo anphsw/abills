@@ -47,7 +47,7 @@ sub click {
   my @inline_keyboard = ();
   my $uid = $self->{bot}->{uid};
   my $message = "$self->{bot}->{lang}->{FIRST_PAYMENT}\\n";
-  my $money_currency = $self->{conf}->{DOCS_MONEY_NAMES} || '';
+  my $money_currency = $self->{conf}->{MONEY_UNIT_NAMES} || '';
   
   use Users;
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});

@@ -66,7 +66,7 @@
         <div class='card collapsed-card card-primary card-outline'>
           <div class='card-header with-border text-center'>
             <h4 class='card-title'>_{CONTACTS}_</h4>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
@@ -123,7 +123,7 @@
         <div class='card card-primary card-outline'>
           <div class='card-header with-border text-center'>
             <h4 class='card-title'>_{BANK_ESSENTIAL}_</h4>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-minus'></i>
               </button>
@@ -157,7 +157,7 @@
         <div class='card collapsed-card card-primary card-outline'>
           <div class='card-header with-border text-center'>
             <h3 class='card-title'>_{GUIDANCE}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>

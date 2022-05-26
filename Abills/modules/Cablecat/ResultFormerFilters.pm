@@ -10,8 +10,8 @@ our (
   %permissions
 );
 
-use Maps2::Auxiliary;
-my $Auxiliary = Maps2::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+use Maps::Auxiliary;
+my $Auxiliary = Maps::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 #**********************************************************
 =head2 _cablecat_result_former_color_scheme_filter()
@@ -74,7 +74,7 @@ sub _cablecat_result_former_point_id_filter {
   }
   state $map_index = undef;
   if (!$map_index) {
-    $map_index = get_function_index('maps2_main');
+    $map_index = get_function_index('maps_main');
   }
 
   my $layer_id = ($attr && $attr->{PARAMS} && $attr->{PARAMS}->[0]) ? $attr->{PARAMS}->[0] : 1;
@@ -85,7 +85,7 @@ sub _cablecat_result_former_point_id_filter {
 
     # If have location, we can show it on map
     if (!$map_points_by_id->{$point_id}{coordx} || !$map_points_by_id->{$point_id}{coordy}) {
-      $icon = 'fa fa-map-marker';
+      $icon = 'fa fa-map-marker-alt';
       $link .= '&ADD_POINT=1'
     }
 
@@ -113,7 +113,7 @@ sub _cablecat_result_former_cable_point_id_filter {
   $Maps->points_info($point_id);
   return '' if !$Maps->{TOTAL};
 
-  return $Auxiliary->maps2_show_object_button($MAP_LAYER_ID{CABLE}, $point_id, {
+  return $Auxiliary->maps_show_object_button($MAP_LAYER_ID{CABLE}, $point_id, {
     GO_TO_MAP => 1,
     POINT_ID  => $point_id,
     SINGLE    => $point_id,

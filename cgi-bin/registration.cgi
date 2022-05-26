@@ -34,9 +34,9 @@ use Admins;
 use Tariffs;
 use Sharing;
 
-our $sid  = '';
+our $sid = '';
 our $html = Abills::HTML->new({ CONF => \%conf, NO_PRINT => 1, });
-our $db   = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 
 if ($conf{LANGS}) {
   $conf{LANGS} =~ s/\n//g;
@@ -99,15 +99,16 @@ if($conf{FB_REGISTRATION} && !$FORM{LOCATION_ID}) {
   my $log_url = "external_auth=Facebook";
   $log_url .= "&module=$FORM{module}" if ($FORM{module});
   $log_url .= "&user_registration=1" if ($FORM{user_registration});
-  $INFO_HASH{FB_INFO} = $html->button("<i class='fa fa-facebook'></i>Facebook", $log_url, { class => 'btn btn-social btn-facebook'});
+  $INFO_HASH{FB_INFO} = $html->button("<i class='fab fa-facebook'></i>Facebook", $log_url, { class => 'btn btn-social btn-facebook'});
   $INFO_HASH{FB_INFO_BLOCK} = $html->button("Facebook", $log_url, { class => 'btn btn-primary btn-block' });
 }
 
 my %lang_module = (
-    'Employees' => $lang{JOBS},
-    'Internet'  => $lang{INTERNET},
-    'Iptv'      => $lang{IPTV},
-    'Msgs'      => $lang{APPLICATIONS}
+  'Employees' => $lang{JOBS},
+  'Internet'  => $lang{INTERNET},
+  'Iptv'      => $lang{IPTV},
+  'Msgs'      => $lang{APPLICATIONS},
+  'Crm'       => $lang{LEAD}
 );
 
 my $choose_module_buttons = '';
@@ -154,10 +155,12 @@ elsif ($#REGISTRATION > -1) {
     $INFO_HASH{user_registration} = $FORM{user_registration} || '';
   }
   else {
-    $choose_module_buttons = "<nav class='mt-2'><ul style='padding-left: 10px; padding-right: 10px;' class='nav nav-pills nav-sidebar flex-column nav-child-indent' data-card-widget='tree'>";
+    $choose_module_buttons = "<nav class='mt-2'><ul class='nav nav-pills nav-sidebar flex-column nav-child-indent' data-card-widget='tree'>";
     if (defined $#REGISTRATION > 0 && !$FORM{registration}) {
       foreach my $registration_module (@REGISTRATION) {
-        $choose_module_buttons .= "<li class='nav-item'><a class='nav-link' href='?module=" . $registration_module ."'><p>" . ($lang_module{ $registration_module } || $registration_module). "</p></a></li>"
+        my $active = $FORM{module} && $FORM{module} eq $registration_module ? 'active' : '';
+        $choose_module_buttons .= "<li class='nav-item'><a class='nav-link $active' href='?module=$registration_module'><p>" .
+          ($lang_module{ $registration_module } || $registration_module). "</p></a></li>"
       }
     }
     if (!$FORM{LOCATION_ID} && !$FORM{no_addr} && $conf{CHECK_ADDRESS_REGISTRATION}) {
@@ -251,7 +254,7 @@ if (!($FORM{header} && $FORM{header} == 2)) {
     });
   }
 
-  $OUTPUT{HTML_STYLE} = 'lte_adm';
+  $OUTPUT{HTML_STYLE} = 'default';
   $OUTPUT{CONTENT_LANGUAGE} = lc $CONTENT_LANGUAGE;
   $OUTPUT{INDEX_NAME} = 'registration.cgi';
   $OUTPUT{CHECK_ADDRESS_MODAL} = $html->tpl_show(templates('form_address_modal'), { ADDRESS => $address_modal_form }, {OUTPUT2RETURN => 1});
@@ -265,7 +268,17 @@ if (!($FORM{header} && $FORM{header} == 2)) {
   $OUTPUT{IP} = $ENV{'REMOTE_ADDR'};
   $OUTPUT{BODY} = $html->{OUTPUT};
   $html->{OUTPUT} = '';
-  $OUTPUT{SKIN} = 'navbar-light navbar-orange';
+  if (exists $conf{client_theme} && defined $conf{client_theme}) {
+    my ($theme_type, $theme_color) = split('-', $conf{client_theme});
+    $theme_type ||= 'dark';
+    $theme_color ||= 'primary';
+    $OUTPUT{NAVBAR_SKIN} = "navbar-dark navbar-$theme_color";
+    $OUTPUT{SIDEBAR_SKIN} = "sidebar-$theme_type-$theme_color";
+  }
+  else {
+    $OUTPUT{NAVBAR_SKIN} = 'navbar-dark navbar-lightblue';
+    $OUTPUT{SIDEBAR_SKIN} = 'sidebar-dark-lightblue';
+  }
   $OUTPUT{MENU} = $choose_module_buttons;
   $OUTPUT{BODY} = $html->tpl_show(templates('form_client_main'), \%OUTPUT);
   $OUTPUT{DOMAIN_ID}=$FORM{DOMAIN_ID} || q{};
@@ -325,10 +338,9 @@ sub password_recovery_process {
   }
 
   my $users_list = $users->list({
-    PHONE         => '_SHOW',
     EMAIL         => '_SHOW',
-    FORGOT_PASSWD => '_SHOW',
     %FORM,
+    PHONE         => '_SHOW',
     COLS_NAME => 1
   });
 
@@ -339,23 +351,30 @@ sub password_recovery_process {
   }
 
   my $user = $users_list->[0];
+  
+  if ($FORM{PHONE}) {
+    use Contacts;
+    my $Contacts = Contacts->new($db, $admin, \%conf);
+    $Contacts->contacts_list({ VALUE => "$FORM{PHONE},+$FORM{PHONE}", UID => $user->{uid} });
+
+    if ($Contacts->{TOTAL} < 1) {
+      $html->message('err', $lang{ERROR}, "$lang{CELL_PHONE} $lang{NOT_EXIST}");
+      return 0;
+    }
+  }
 
   my $email = $user->{email};
-  my $phone = $user->{phone};
+  my $phone = $FORM{PHONE};
   my $uid   = $user->{uid};
 
   my $pi = $users->pi({ UID => $uid });
   my $user_info = $users->info($uid, { SHOW_PASSWORD => 1 });
 
-  my $message = $html->tpl_show(
-    templates('msg_passwd_recovery'),
-    {
-      MESSAGE => "$lang{LOGIN}:  $users->{LOGIN}\n" . "$lang{PASSWD}: $users->{PASSWORD}\n\n",
-      %{$user_info},
-      %{$pi}
-    },
-    { OUTPUT2RETURN => 1 }
-  );
+  my $message = $html->tpl_show(templates('msg_passwd_recovery'), {
+    MESSAGE => "$lang{LOGIN}:  $users->{LOGIN}\n" . "$lang{PASSWD}: $users->{PASSWORD}\n\n",
+    %{$user_info},
+    %{$pi}
+  }, { OUTPUT2RETURN => 1 });
 
   if ($FORM{SEND_SMS} && in_array('Sms', \@MODULES)) {
     load_module('Sms', $html);
@@ -389,8 +408,9 @@ sub password_recovery_process {
       UID     => $uid
     });
 
-    if ($sms_sent){
-      $html->message('info', "$lang{INFO}", "SMS $lang{SENDED}");
+    if ($sms_sent) {
+      $html->message('info', $lang{INFO}, "SMS $lang{SENDED}");
+      $html->redirect('/index.cgi', { WAIT => 1 });
     }
   }
   else {

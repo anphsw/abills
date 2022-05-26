@@ -37,7 +37,7 @@ sub form_admins {
   my $Employees;
 
   if (in_array('Employees', \@MODULES)) {
-    load_module('Employees', $html);
+    use Employees;
     $Employees = Employees->new($db, $admin, \%conf);
   }
 
@@ -84,7 +84,7 @@ sub form_admins {
         subf  => $FORM{subf}
       },
       SUBMIT  => { show => $lang{SHOW} },
-      class   => 'navbar navbar-expand-lg navbar-light bg-light form-main',
+      class   => 'form-inline ml-auto flex-nowrap',
     });
 
     $LIST_PARAMS{AID} = $admin_form->{AID};
@@ -240,29 +240,6 @@ sub form_admins {
     $admin_form->{DOMAIN_SEL} = '';
   }
 
-  #check if have GPS modules and position. If so, show a link to map
-  if (in_array('Maps', \@MODULES) && $admin_form->{GPS_IMEI} && $admin_form->{GPS_IMEI} ne '') {
-    my $maps_index = get_function_index('maps_show_map');
-    my $link = "?index=$maps_index&show_gps=$admin_form->{AID}";
-    $admin_form->{GPS_ROUTE_BTN} = $html->button('', '', {
-      GLOBAL_URL     => $link,
-      target         => '_blank',
-      class          => 'btn btn-info',
-      INCON          => 'fa fa-globe',
-      NO_LINK_FORMER => 1
-    });
-
-    $admin_form->{GPS_ICON_BTN} = $html->button('', '', {
-      GLOBAL_URL     => $link,
-      class          => 'btn btn-secondary',
-      ICON           => 'fa fa-picture-o',
-      NO_LINK_FORMER => 1,
-      JAVASCRIPT     => '#',
-      ex_params      => qq/onclick='loadToModal("?get_index=gps_add_thumbnail&header=2&AID=$FORM{AID}")'/,
-      SKIP_HREF      => 1
-    });
-  }
-
   $admin_form->{INDEX} = 50;
   $admin_form->{HEADER_NAME} = $lang{ADMINS};
 
@@ -390,7 +367,7 @@ sub form_admins {
 
     my $geo_button = '';
     if (in_array('Employees', \@MODULES)) {
-      $geo_button = $html->button($lang{GEO}, "index=" . get_function_index('employees_geolocation') . "&eid=$line->{aid}", { ICON => 'fa fa-map-marker' })
+      $geo_button = $html->button($lang{GEO}, "index=" . get_function_index('employees_geolocation') . "&eid=$line->{aid}", { ICON => 'fa fa-map-marker-alt' })
     }
 
     $table->addrow(@fields_array,
@@ -604,7 +581,7 @@ sub form_admins_full_log_analyze {
     CONTENT => $date_picker . sel_admins(),
     HIDDEN  => { index => $index },
     SUBMIT  => { show => $lang{SHOW} },
-    class   => 'navbar-form navbar-right form-inline',
+    class   => 'form-inline ml-auto flex-nowrap',
   });
   delete $FORM{subf};
   func_menu({ $lang{NAME} => $A_LOGIN }, {}, {});
@@ -809,7 +786,8 @@ sub form_admin_permissions {
   my ($attr) = @_;
 
   my @actions = (
-    [ $lang{INFO},
+    [
+      $lang{INFO},
       $lang{ADD},
       $lang{LIST},
       $lang{PASSWD},
@@ -842,12 +820,15 @@ sub form_admin_permissions {
       "$lang{SHOW} $lang{LOG}",
       "$lang{DEL} $lang{COMMENTS}",
       "$lang{ADD} $lang{SERVICE}",
-      $lang{LAST_LOGIN} # 33
+      $lang{LAST_LOGIN}, # 33
+      $lang{STREETS},
+      $lang{BUILDS}
     ],
     # Users
-    [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ],                                              # Payments
-    [ $lang{LIST}, $lang{GET}, $lang{DEL}, $lang{ALL} ],                                                                          # Fees
-    [ $lang{LIST},
+    [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ], # Payments
+    [ $lang{LIST}, $lang{GET}, $lang{DEL}, $lang{ALL} ],                             # Fees
+    [
+      $lang{LIST},
       $lang{DEL},
       $lang{PAYMENTS},
       $lang{FEES},
@@ -855,9 +836,11 @@ sub form_admin_permissions {
       $lang{SETTINGS},
       $lang{LAST_LOGIN},
       $lang{ERROR_LOG},
-      $lang{USERS} ], # reports view
+      $lang{USERS}
+    ], # reports view
 
-    [ $lang{LIST},
+    [
+      $lang{LIST},
       $lang{ADD},
       $lang{CHANGE},
       $lang{DEL},
@@ -868,11 +851,13 @@ sub form_admin_permissions {
       $lang{REBOOT_SERVICE},
       "$lang{SHOW} PIN $lang{ICARDS}",
       $lang{MOBILE_PAY},
-      "$lang{SEND} SMS" ], # system management
+      "$lang{SEND} SMS"
+    ], # system management
 
     [ $lang{MONITORING}, 'ZAP', $lang{HANGUP} ],
 
-    [ $lang{SEARCH} ],                                                          # Search
+    [ $lang{SEARCH} ], # Search
+
     [
       $lang{ALL},
       "$lang{EDIT} $lang{MESSAGE}",
@@ -881,6 +866,7 @@ sub form_admin_permissions {
       $lang{CRM_SHOW_ALL_LEADS},
       "$lang{EDIT} $lang{EQUIPMENT}"
     ], # Modules managments
+
     [ $lang{PROFILE}, $lang{SHOW_ADMINS_ONLINE} ],
     [ $lang{LIST}, $lang{ADD}, $lang{CHANGE}, $lang{DEL} ],
   );
@@ -976,7 +962,7 @@ sub form_admin_permissions {
 
     foreach my $k (sort keys(%ADMIN_TYPES)) {
 
-      my $btn_css_style = ($FORM{ADMIN_TYPE} && $k && $FORM{ADMIN_TYPE} eq $k) ? 'btn btn-info btn-sm' : 'btn btn-secondary btn-sm';
+      my $btn_css_style = ($FORM{ADMIN_TYPE} && $k && $FORM{ADMIN_TYPE} eq $k) ? 'btn btn-info btn-sm' : 'btn btn-default btn-sm';
       my $url_btn = "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$k";
 
       my $button = $html->button($ADMIN_TYPES{$k}, $url_btn, { class => $btn_css_style }) . '  ';
@@ -984,7 +970,7 @@ sub form_admin_permissions {
       my $button_del = ($FORM{ADMIN_TYPE} eq $k)
         ? $html->button("", "index=$index" .
         (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&del_permits=$k",
-        { ADD_ICON => "fa fa-remove", MESSAGE => "$lang{DEL} $ADMIN_TYPES{$k}" }) : '';
+        { ADD_ICON => "fa fa-times", MESSAGE => "$lang{DEL} $ADMIN_TYPES{$k}" }) : '';
 
       $buttons .= $button;
       $buttons .= $button_del;
@@ -993,7 +979,7 @@ sub form_admin_permissions {
   else {
     foreach my $k (sort keys(%ADMIN_TYPES)) {
 
-      my $btn_css_style = ($FORM{ADMIN_TYPE} && $k && $FORM{ADMIN_TYPE} eq $k) ? 'btn btn-info btn-sm' : 'btn btn-secondary btn-sm';
+      my $btn_css_style = ($FORM{ADMIN_TYPE} && $k && $FORM{ADMIN_TYPE} eq $k) ? 'btn btn-info btn-sm' : 'btn btn-default btn-sm';
       my $url_btn = "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$k";
       my $button = $html->button($ADMIN_TYPES{$k}, $url_btn, { class => $btn_css_style }) . '  ';
 
@@ -1148,7 +1134,7 @@ sub form_admin_payment_types {
       AID => $FORM{AID}
     });
 
-    if($FORM{ADMIN_PAYMENTS_TYPE}) {
+    if(defined($FORM{ADMIN_PAYMENTS_TYPE})) {
       my @payments_type_ids = split(',', $FORM{ADMIN_PAYMENTS_TYPE});
 
       foreach (@payments_type_ids) {
@@ -1158,21 +1144,22 @@ sub form_admin_payment_types {
         });
       }
     }
+    if(!$admin_->{errno}) {
+      $html->message('info', $lang{CHANGED});
+    }
   }
 
   my $payments_type_list = $Payments->payment_type_list({
-      COLS_NAME => 1,
-      AID => $admin_->{AID},
+    COLS_NAME => 1,
+    AID => $admin_->{AID},
   });
 
-  my $table = $html->table(
-    {
-      width       => '90%',
-      caption     => $lang{PAYMENT_TYPE},
-      title_plain => [ $lang{NAME}, '-' ],
-      ID          => 'ADMIN_PERMISSIONS',
-    }
-  );
+  my $table = $html->table({
+    width       => '90%',
+    caption     => $lang{PAYMENT_TYPE},
+    title_plain => [ $lang{NAME}, '-' ],
+    ID          => 'ADMIN_PERMISSIONS',
+  });
 
   foreach my $payments_type(@{ $payments_type_list }) {
     $table->addrow(

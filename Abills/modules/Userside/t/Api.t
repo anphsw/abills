@@ -976,6 +976,7 @@ sub get_json {
     'local'          => \$opts{local},
     'userside'       => \$opts{userside},
     'remote=s'       => \$opts{remote},
+    'key=s'          => \$opts{key},
     'debug=s'        => \$opts{debug},
     'request=s'      => \$opts{request},
     'max_rows=s'     => \$opts{max_rows},
@@ -1007,6 +1008,10 @@ sub get_json {
     }
 
     if ($opts{remote}) {
+      if ($opts{key}) {
+        $request_list->{$request}->{params}{key}=$opts{key};
+      }
+
       $json = get_remote_request($opts{remote} . '/admin/index.cgi', $request_list->{$request}->{params}, $request);
     }
     elsif ($opts{userside}) {
@@ -1037,6 +1042,8 @@ sub get_json {
       if ($opts{debug} > 2) {
         print $count . ".<schema>" . Dumper($request_list->{$request}->{schema}) . "<schema>\n";
       }
+
+      $debug = $opts{remote};
     }
 
     my $end = Time::HiRes::gettimeofday();
@@ -1075,7 +1082,10 @@ sub get_remote_request {
 
   $url .= "request=$request";
 
-  return web_request($url, { INSECURE => 1 });
+  return web_request($url, {
+    INSECURE => 1,
+    DEBUG    => ($debug && $debug > 3) ? 1 : 0
+  });
 }
 
 sub help {
@@ -1084,6 +1094,7 @@ sub help {
   -local
   -userside
   -remote=
+    -key=[REMOTE API KEY]
   -debug=0..10
   -request=
   -max_rows=

@@ -1,4 +1,4 @@
-<button type='button' class='btn btn-primary btn-xs pull-right' data-toggle='modal' data-target='#holdupModal_%ID%'>
+<button type='button' class='btn btn-primary btn-xs float-right' data-toggle='modal' data-target='#holdupModal_%ID%'>
   _{HOLD_UP}_
 </button>
 

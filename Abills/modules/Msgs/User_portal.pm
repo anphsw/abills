@@ -131,7 +131,7 @@ sub msgs_user_show {
   }
 
   $Msgs->{ACTION}        = 'reply';
-  $Msgs->{LNG_ACTION}    = $lang{REPLY};
+  $Msgs->{LNG_ACTION}    = $lang{SEND};
   $Msgs->{STATE_NAME}    = $html->color_mark($msgs_status->{$Msgs->{STATE}}) if(defined($Msgs->{STATE}) && $msgs_status->{$Msgs->{STATE}});
   $Msgs->{PRIORITY_TEXT} = $html->color_mark($priority[ $Msgs->{PRIORITY} ], $priority_colors[ $Msgs->{PRIORITY} ]);
 
@@ -149,160 +149,148 @@ sub msgs_user_show {
   }
 
   my @REPLIES = ();
-  if ($Msgs->{ID}) {
-    my $main_msgs_id = $Msgs->{ID};
+  return if !$Msgs->{ID};
 
-    my $replies_list = $Msgs->messages_reply_list({
-      MSG_ID       => $main_msgs_id,
-      CONTENT_SIZE => '_SHOW',
-      INNER_MSG    => 0,
-      CONTENT_TYPE => '_SHOW',
-      COLS_NAME    => 1
+  my $main_msgs_id = $Msgs->{ID};
+
+  my $replies_list = $Msgs->messages_reply_list({
+    MSG_ID       => $main_msgs_id,
+    CONTENT_SIZE => '_SHOW',
+    INNER_MSG    => 0,
+    CONTENT_TYPE => '_SHOW',
+    COLS_NAME    => 1
+  });
+
+  my $total_reply = $Msgs->{TOTAL};
+  my $reply = '';
+
+  if ($Msgs->{SURVEY_ID}) {
+    my $main_message_survey = msgs_survey_show({
+      SURVEY_ID        => $Msgs->{SURVEY_ID},
+      MSG_ID           => $Msgs->{ID},
+      MAIN_MSG         => 1,
+      NOTIFICATION_MSG => ($Msgs->{STATE} && $Msgs->{STATE} == 9) ? 1 : 0,
     });
 
-    my $total_reply = $Msgs->{TOTAL};
-    my $reply = '';
+    if ($main_message_survey) {
+      push @REPLIES, $main_message_survey;
+    }
+  }
 
-    if ($Msgs->{SURVEY_ID}) {
-      my $main_message_survey = msgs_survey_show({
-        SURVEY_ID => $Msgs->{SURVEY_ID},
-        MSG_ID    => $Msgs->{ID},
-        MAIN_MSG  => 1,
-        NOTIFICATION_MSG => ($Msgs->{STATE} && $Msgs->{STATE} == 9) ? 1 : 0,
+  foreach my $line (@$replies_list) {
+
+    $FORM{REPLY_ID} = $line->{id};
+
+    if ($line->{survey_id}) {
+      push @REPLIES, msgs_survey_show({
+        SURVEY_ID => $line->{survey_id},
+        REPLY_ID  => $line->{id},
+        TEXT      => $line->{text}
       });
-
-      if($main_message_survey){
-        push @REPLIES, $main_message_survey;
-      }
-    }
-
-    foreach my $line (@$replies_list) {
-
-      $FORM{REPLY_ID} = $line->{id};
-
-      if ($line->{survey_id}) {
-        push @REPLIES, msgs_survey_show({
-          SURVEY_ID => $line->{survey_id},
-          REPLY_ID  => $line->{id},
-          TEXT      => $line->{text}
-        });
-      }
-      else {
-        if ($FORM{QUOTING} && $FORM{QUOTING} == $line->{id}) {
-          $reply = $line->{text} if (! $FORM{json});
-        }
-
-        # Should check multiple attachments if got at least one
-        my $attachment_html = '';
-        if ($line->{attachment_id}){
-          my $attachments_list = $Msgs->attachments_list({
-            REPLY_ID     => $line->{id},
-            FILENAME     => '_SHOW',
-            CONTENT_SIZE => '_SHOW',
-            CONTENT_TYPE => '_SHOW',
-            COORDX       => '_SHOW',
-            COORDY       => '_SHOW',
-          });
-
-          $attachment_html = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
-        }
-
-        $FORM{ID} //= q{};
-
-        my $quoting_button = $html->button($lang{QUOTING}, "", {
-          class     => 'btn btn-default btn-xs quoting-reply-btn',
-          ex_params => "quoting_id='$line->{id}'"
-        });
-
-        push @REPLIES, $html->tpl_show(
-          _include('msgs_reply_show', 'Msgs'),
-          {
-            LAST_MSG   => ($total_reply == $#REPLIES + 2) ? 'last_msg' : '',
-            REPLY_ID   => $line->{id},
-            DATE       => $line->{datetime},
-            CAPTION    => convert($line->{caption}, { text2html => 1, json => $FORM{json} }),
-            PERSON     => ($line->{creator_fio} || $line->{creator_id}),
-            MESSAGE    => msgs_text_quoting($line->{text}),
-            COLOR      => (($line->{aid} > 0) ? 'card-success' : 'card-outline card-success'),
-            QUOTING    => $quoting_button,
-            ATTACHMENT => $attachment_html,
-          },
-          { OUTPUT2RETURN => 1,
-            ID => 'REPLY_'.$line->{id}
-          }
-        );
-
-        if ($reply ne '') {
-          $reply =~ s/^/>  /g;
-          $reply =~ s/\n/> /g;
-        }
-      }
-    }
-
-    if (!$Msgs->{ACTIVE_SURWEY} && ($Msgs->{STATE} < 1 || $Msgs->{STATE} == 6)) {
-      push @REPLIES, $html->tpl_show(_include('msgs_client_reply', 'Msgs'),
-        { %$Msgs, REPLY_TEXT => $reply, MAX_FILES => $conf{MSGS_MAX_FILES} || 3 }, { OUTPUT2RETURN => 1, ID => 'REPLY' });
-    }
-
-    $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, SHOW_URL => 1, json => $FORM{json} });
-    $Msgs->{SUBJECT} = convert($Msgs->{SUBJECT}, { text2html => 1, json => $FORM{json} });
-
-    if ($Msgs->{FILENAME}) {
-      # Should check multiple attachments if got at least one
-      my $attachments_list = $Msgs->attachments_list({
-        MESSAGE_ID     => $Msgs->{ID},
-        FILENAME     => '_SHOW',
-        CONTENT_SIZE => '_SHOW',
-        CONTENT_TYPE => '_SHOW',
-        COORDX       => '_SHOW',
-        COORDY       => '_SHOW',
-      });
-
-      $Msgs->{ATTACHMENT} = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
-    }
-
-    if ($Msgs->{STATE} == 9) {
-      push @REPLIES, $html->button( "$lang{CLOSE}", "index=$index&STATE=10&ID=$FORM{ID}&change=1&sid=$sid",
-        { class => 'btn btn-primary' } );
-    }
-
-    $Msgs->{REPLY} = join(($FORM{json}) ? ',' : '', @REPLIES);
-
-    while ($Msgs->{MESSAGE} && $Msgs->{MESSAGE} =~ /\[\[(\d+)\]\]/) {
-      my $msg_button = $html->button( $1, "&index=$index&ID=$1",
-        { class => 'badge bg-blue'});
-      $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
-    }
-
-    if (my $last_reply_index = scalar (@$replies_list)){
-      $Msgs->{UPDATED} = $replies_list->[$last_reply_index - 1]->{datetime};
     }
     else {
-      $Msgs->{UPDATED} = '--';
+      if ($FORM{QUOTING} && $FORM{QUOTING} == $line->{id}) {
+        $reply = $line->{text} if (!$FORM{json});
+      }
+
+      # Should check multiple attachments if got at least one
+      my $attachment_html = '';
+      if ($line->{attachment_id}) {
+        my $attachments_list = $Msgs->attachments_list({
+          REPLY_ID     => $line->{id},
+          FILENAME     => '_SHOW',
+          CONTENT_SIZE => '_SHOW',
+          CONTENT_TYPE => '_SHOW',
+          COORDX       => '_SHOW',
+          COORDY       => '_SHOW',
+        });
+
+        $attachment_html = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
+      }
+
+      $FORM{ID} //= q{};
+
+      my $quoting_button = $html->button($lang{QUOTING}, "", {
+        class     => 'btn btn-default btn-xs quoting-reply-btn',
+        ex_params => "quoting_id='$line->{id}'"
+      });
+
+      push @REPLIES, $html->tpl_show(_include('msgs_reply_show', 'Msgs'), {
+        LAST_MSG   => ($total_reply == $#REPLIES + 2) ? 'last_msg' : '',
+        REPLY_ID   => $line->{id},
+        DATE       => $line->{datetime},
+        CAPTION    => convert($line->{caption}, { text2html => 1, json => $FORM{json} }),
+        PERSON     => ($line->{creator_fio} || $line->{creator_id}),
+        MESSAGE    => msgs_text_quoting($line->{text}),
+        COLOR      => (($line->{aid} > 0) ? 'fas fa-envelope bg-blue' : 'fas fa-user bg-green'),
+        QUOTING    => $quoting_button,
+        ATTACHMENT => $attachment_html,
+      }, { OUTPUT2RETURN => 1, ID => 'REPLY_' . $line->{id} });
+
+      if ($reply ne '') {
+        $reply =~ s/^/>  /g;
+        $reply =~ s/\n/> /g;
+      }
     }
-
-    $html->tpl_show(_include('msgs_client_show', 'Msgs'), {
-      %$Msgs,
-      ID => $main_msgs_id
-    }, { ID => 'MSGS_CLIENT_INFO' });
-
-    my %params = ();
-    my $state = $FORM{STATE};
-    $params{CLOSED_DATE} = $DATE if ($state && $state > 0);
-    $params{DONE_DATE} = $DATE if ($state && $state > 1);
-
-    $Msgs->message_change({
-      UID       => $LIST_PARAMS{UID},
-      ID        => $FORM{ID},
-      USER_READ => "$DATE $TIME",
-      %params
-    });
-
-    msgs_redirect_filter({
-      DEL => 1,
-      UID => $LIST_PARAMS{UID},
-    });
   }
+
+  $Msgs->{TIMELINE_LAST_ITEM} = $html->element('i', '', { 'class' => 'fas fa-check bg-green', OUTPUT2RETURN => 1 });
+  if (!$Msgs->{ACTIVE_SURWEY} && ($Msgs->{STATE} < 1 || $Msgs->{STATE} == 6)) {
+    $Msgs->{REPLY_BLOCK} = $html->tpl_show(_include('msgs_client_reply', 'Msgs'), { %$Msgs,
+      REPLY_TEXT => $reply,
+      MAX_FILES  => $conf{MSGS_MAX_FILES} || 3
+    }, { OUTPUT2RETURN => 1, ID => 'REPLY' });
+    $Msgs->{TIMELINE_LAST_ITEM} = $html->element('i', '', { 'class' => 'fas fa-clock bg-gray', OUTPUT2RETURN => 1 });
+  }
+
+  $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, SHOW_URL => 1, json => $FORM{json} });
+  $Msgs->{SUBJECT} = convert($Msgs->{SUBJECT}, { text2html => 1, json => $FORM{json} });
+
+  if ($Msgs->{FILENAME}) {
+    # Should check multiple attachments if got at least one
+    my $attachments_list = $Msgs->attachments_list({
+      MESSAGE_ID   => $Msgs->{ID},
+      FILENAME     => '_SHOW',
+      CONTENT_SIZE => '_SHOW',
+      CONTENT_TYPE => '_SHOW',
+      COORDX       => '_SHOW',
+      COORDY       => '_SHOW',
+    });
+
+    $Msgs->{ATTACHMENT} = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
+  }
+
+  if ($Msgs->{STATE} == 9) {
+    push @REPLIES, $html->button($lang{CLOSE}, "index=$index&STATE=10&ID=$FORM{ID}&change=1&sid=$sid",
+      { class => 'btn btn-primary' });
+  }
+
+  $Msgs->{TIMELINE_LAST_ITEM} = '' if !scalar @REPLIES;
+  $Msgs->{REPLY} = join(($FORM{json}) ? ',' : '', @REPLIES);
+
+  while ($Msgs->{MESSAGE} && $Msgs->{MESSAGE} =~ /\[\[(\d+)\]\]/) {
+    my $msg_button = $html->button($1, "&index=$index&ID=$1",
+      { class => 'badge bg-blue' });
+    $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
+  }
+
+  if (my $last_reply_index = scalar(@$replies_list)) {
+    $Msgs->{UPDATED} = $replies_list->[$last_reply_index - 1]->{datetime};
+  }
+  else {
+    $Msgs->{UPDATED} = '--';
+  }
+
+  $html->tpl_show(_include('msgs_client_show', 'Msgs'), { %{$Msgs}, ID => $main_msgs_id }, { ID => 'MSGS_CLIENT_INFO' });
+
+  my %params = ();
+  my $state = $FORM{STATE};
+  $params{CLOSED_DATE} = $DATE if ($state && $state > 0);
+  $params{DONE_DATE} = $DATE if ($state && $state > 1);
+
+  $Msgs->message_change({ UID => $LIST_PARAMS{UID}, ID => $FORM{ID}, USER_READ => "$DATE $TIME", %params });
+
+  msgs_redirect_filter({ DEL => 1, UID => $LIST_PARAMS{UID} });
 
   return 0;
 }

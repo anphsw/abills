@@ -171,31 +171,27 @@ sub employees_cashbox_balance {
   }
 
   # get list of comings and spendings
-  my $coming_cashbox_list = $Employees->employees_list_coming(
-    {
-      COLS_NAME      => 1,
-      CASHBOX_ID     => $FORM{ID} || $FORM{CASHBOX_ID},
-      COMING_TYPE_ID => $FORM{COMING_TYPE_ID} || '',
-      FROM_DATE      => $from_date,
-      TO_DATE        => $to_date,
-      SORT           => 5,
-      PAGE_ROWS      => 9999,
-      DESC           => 'desc',
-    }
-  );
+  my $coming_cashbox_list = $Employees->employees_list_coming({
+    COLS_NAME      => 1,
+    CASHBOX_ID     => $FORM{ID} || $FORM{CASHBOX_ID},
+    COMING_TYPE_ID => $FORM{COMING_TYPE_ID} || '',
+    FROM_DATE      => $from_date,
+    TO_DATE        => $to_date,
+    SORT           => 5,
+    PAGE_ROWS => 9999,
+    DESC      => 'desc',
+  });
 
-  my $spending_cashbox_list = $Employees->employees_list_spending(
-    {
-      COLS_NAME        => 1,
-      CASHBOX_ID       => $FORM{ID} || $FORM{CASHBOX_ID},
-      SPENDING_TYPE_ID => $FORM{SPENDING_TYPE_ID} || '',
-      FROM_DATE        => $from_date,
-      TO_DATE          => $to_date,
-      SORT             => 5,
-      PAGE_ROWS        => 9999,
-      DESC             => 'desc',
-    }
-  );
+  my $spending_cashbox_list = $Employees->employees_list_spending({
+    COLS_NAME        => 1,
+    CASHBOX_ID       => $FORM{ID} || $FORM{CASHBOX_ID},
+    SPENDING_TYPE_ID => $FORM{SPENDING_TYPE_ID} || '',
+    FROM_DATE        => $from_date,
+    TO_DATE          => $to_date,
+    SORT             => 5,
+    PAGE_ROWS        => 9999,
+    DESC             => 'desc',
+  });
 
   my $total_coming_amount = 0.00;
   my $total_spending_amount = 0.00;
@@ -257,15 +253,11 @@ sub employees_cashbox_balance {
       "$lang{SPENDING}" => 'rgba(5, 99, 132, 0.5)'
     },
     OUTPUT2RETURN     => 1,
+    IN_CONTAINER      => 1
   });
 
   #COMING BALANCE TABLE
-  my @coming_title_plain = ("$lang{SUM}",
-    "$lang{CASHBOX}",
-    "$lang{COMING} $lang{TYPE}",
-    "$lang{DATE}",
-    "$lang{ADMIN}",
-    "$lang{COMMENTS}");
+  my @coming_title_plain = ($lang{SUM}, $lang{CASHBOX}, "$lang{COMING} $lang{TYPE}", $lang{DATE}, $lang{ADMIN}, $lang{COMMENTS});
 
   my $coming_list = $Employees->employees_list_coming({
     FROM_DATE      => $from_date,
@@ -276,16 +268,14 @@ sub employees_cashbox_balance {
     COLS_NAME      => 1,
   });
 
-  my $coming_report_table = $html->table(
-    {
-      width       => '100%',
-      caption     => $lang{COMING},
-      title_plain => \@coming_title_plain,
-      ID          => 'EMPLOYEES_COMING_REPORT',
-      DATA_TABLE  => 1,
-      DT_CLICK    => 1,
-    }
-  );
+  my $coming_report_table = $html->table({
+    width       => '100%',
+    caption     => $lang{COMING},
+    title_plain => \@coming_title_plain,
+    ID          => 'EMPLOYEES_COMING_REPORT',
+    DATA_TABLE  => 1,
+    DT_CLICK    => 1
+  });
 
   my $month_total_sum = 0.00;
   my $month_total_count = 0;
@@ -307,24 +297,23 @@ sub employees_cashbox_balance {
   push @coming_total_rows, [ "$lang{SUM}:", $html->b(sprintf('%.2f', $month_total_sum)) ];
   push @coming_total_rows, [ "$lang{COUNT}", $html->b($month_total_count) ];
 
-  my $coming_total_table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'right' ],
-      rows       => \@coming_total_rows
-    }
-  );
+  my $coming_total_table = $html->table({
+    width      => '100%',
+    cols_align => [ 'right', 'right' ],
+    rows       => \@coming_total_rows
+  });
 
   $CASHBOX{COMING_TABLE} = $coming_report_table->show();
   $CASHBOX{TOTAL_COMING_TABLE} = $coming_total_table->show();
 
   #SPENDING BALANCE TABLE
-  my @spending_title_plain = ("$lang{SUM}",
-    "$lang{CASHBOX}",
+  my @spending_title_plain = ($lang{SUM},
+    $lang{CASHBOX},
     "$lang{SPENDING} $lang{TYPE}",
-    "$lang{DATE}",
-    "$lang{ADMIN}",
-    "$lang{COMMENTS}");
+    $lang{DATE},
+    $lang{ADMIN},
+    $lang{COMMENTS}
+  );
 
   my $spending_list = $Employees->employees_list_spending({
     FROM_DATE        => $from_date,
@@ -335,16 +324,14 @@ sub employees_cashbox_balance {
     COLS_NAME        => 1,
   });
 
-  my $spending_report_table = $html->table(
-    {
-      width       => '100%',
-      caption     => $lang{SPENDING},
-      title_plain => \@spending_title_plain,
-      ID          => 'EMPLOYEES_SPENDING_REPORT',
-      DATA_TABLE  => 1,
-      DT_CLICK    => 1,
-    }
-  );
+  my $spending_report_table = $html->table({
+    width       => '100%',
+    caption     => $lang{SPENDING},
+    title_plain => \@spending_title_plain,
+    ID          => 'EMPLOYEES_SPENDING_REPORT',
+    DATA_TABLE  => 1,
+    DT_CLICK    => 1,
+  });
 
   my $spending_month_total_sum = 0.00;
   my $spending_month_total_count = 0;
@@ -366,30 +353,25 @@ sub employees_cashbox_balance {
   push @spending_total_rows, [ "$lang{SUM}:", $html->b(sprintf('%.2f', $spending_month_total_sum)) ];
   push @spending_total_rows, [ "$lang{COUNT}", $html->b($spending_month_total_count) ];
 
-  my $spending_total_table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'right' ],
-      rows       => \@spending_total_rows
-    }
-  );
+  my $spending_total_table = $html->table({
+    width      => '100%',
+    cols_align => [ 'right', 'right' ],
+    rows       => \@spending_total_rows
+  });
 
   $CASHBOX{SPENDING_TABLE} = $spending_report_table->show();
   $CASHBOX{TOTAL_SPENDING_TABLE} = $spending_total_table->show();
 
-  $html->tpl_show(
-    _include('employees_balance', 'Employees'),
-    {
-      %CASHBOX,
-      FROM_DATE      => $from_date,
-      TO_DATE        => $to_date,
-      ACTION         => $action,
-      ACTION_LANG    => $action_lang,
-      BALANCE        => $balance,
-      TOTAL_COMING   => $total_coming_amount,
-      TOTAL_SPENDING => $total_spending_amount,
-    }
-  );
+  $html->tpl_show(_include('employees_balance', 'Employees'), {
+    %CASHBOX,
+    FROM_DATE      => $from_date,
+    TO_DATE        => $to_date,
+    ACTION         => $action,
+    ACTION_LANG    => $action_lang,
+    BALANCE        => $balance,
+    TOTAL_COMING   => $total_coming_amount,
+    TOTAL_SPENDING => $total_spending_amount,
+  });
 
   return 1;
 }
@@ -455,41 +437,36 @@ sub employees_cashbox_spending_type {
     $CASHBOX{COMMENTS} = $spending_type->{COMMENTS};
   }
 
-  $html->tpl_show(
-    _include('employees_spending_type', 'Employees'),
-    {
-      %CASHBOX,
-      ACTION      => $action,
-      ACTION_LANG => $action_lang,
-    }
-  );
+  $html->tpl_show(_include('employees_spending_type', 'Employees'), {
+    %CASHBOX,
+    ACTION      => $action,
+    ACTION_LANG => $action_lang,
+  });
 
-  result_former(
-    {
-      INPUT_DATA      => $Employees,
-      FUNCTION        => 'employees_list_spending_type',
-      BASE_FIELDS     => 3,
-      DEFAULT_FIELDS  => "id, name, comments",
-      FUNCTION_FIELDS => "change, del",
-      EXT_TITLES      => {
-        'name'     => "$lang{NAME}",
-        'id'       => "#",
-        'comments' => "$lang{COMMENTS}"
-      },
-      TABLE           => {
-        width   => '100%',
-        caption => "$lang{SPENDING} $lang{TYPE}",
-        qs      => $pages_qs,
-        ID      => 'EMPLOYEES',
-        header  => '',
-        EXPORT  => 1,
-      },
-      MAKE_ROWS       => 1,
-      SEARCH_FORMER   => 1,
-      MODULE          => 'Employees',
-      TOTAL           => 1
-    }
-  );
+  result_former({
+    INPUT_DATA      => $Employees,
+    FUNCTION        => 'employees_list_spending_type',
+    BASE_FIELDS     => 3,
+    DEFAULT_FIELDS  => "id, name, comments",
+    FUNCTION_FIELDS => "change, del",
+    EXT_TITLES      => {
+      'name'     => "$lang{NAME}",
+      'id'       => "#",
+      'comments' => "$lang{COMMENTS}"
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{SPENDING} $lang{TYPE}",
+      qs      => $pages_qs,
+      ID      => 'EMPLOYEES',
+      header  => '',
+      EXPORT  => 1,
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    MODULE          => 'Employees',
+    TOTAL           => 1
+  });
 
   return 1;
 }
@@ -1433,7 +1410,7 @@ sub employees_report_list {
       $bage = '';
     }
     else {
-      $bage = $html->element('i', '', { class => "fa fa-fw fa-close" });
+      $bage = $html->element('i', '', { class => 'fa fa-fw fa-times' });
     }
 
     if (defined($srm_table_info_id{ $srm_referens->{'id'} })) {
@@ -1540,7 +1517,7 @@ sub employees_salary {
       );
       my $payment_statement_button = $html->button("$lang{PRINT}",
         "qindex=" . get_function_index("employees_print_payment_statement") . "&header=2&AID=$FORM{AID}&PRINT_STATEMENT=1", {
-          ICON   => 'fa fa-print',
+          ICON   => 'fas fa-print',
           target => '_blank',
         });
       $html->message("success", "$lang{ADDED}", "Платежная ведомость: $payment_statement_button");
@@ -1924,7 +1901,7 @@ sub employees_admins_bet {
       $aid_schedule->{bet_per_hour} ? $aid_schedule->{bet_per_hour} : '-',
       $aid_schedule->{bet_overtime} ? $aid_schedule->{bet_overtime} : '-',
       $html->button('', "index=$index&AID_SCHEDULE=$admin_info->{aid}&FIO=$admin_info->{name}",
-        { ICON => 'fa fa-pencil', })
+        { ICON => 'fa fa-pencil-alt', })
     );
   }
 

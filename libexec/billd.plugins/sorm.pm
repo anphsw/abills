@@ -28,6 +28,9 @@
   DICTIONARIES
   WIFI
   SHOW_ERRORS - Get errors
+  REPORT - Add only one report
+  TYPE=[Fenix|Yahon(default)]
+
 
 =cut
 
@@ -74,7 +77,8 @@ if (eval {
 }) {
   $type = "Sorm::".$type;
   $type->new(\%conf, $db, $Admin, $argv);
-}else {
+}
+else {
   print $@;
 }
 
@@ -108,7 +112,7 @@ sub _ftp_upload {
   }
 
   my $file = $attr->{FILE} || q{};
-  print "Send $file\n";
+  print "Send $file\n" if ($debug > 2);
 
   my $ftp = Net::FTP->new($server_ip, Debug => 0, Passive => $conf{FTP_PASSIVE_MODE} || 0) or die "Cannot connect to $server_ip: $@";
     $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
@@ -116,7 +120,7 @@ sub _ftp_upload {
       $ftp->cwd($attr->{DIR}) or die "Cannot change working directory ", $ftp->message;
     }
     $ftp->put($file) or die "$file put failed ", $ftp->message;
-    print $ftp->message;
+    print $ftp->message if ($debug > 2);
   $ftp->quit;
 
   return 1;

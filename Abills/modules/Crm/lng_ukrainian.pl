@@ -76,5 +76,8 @@ $lang{CRM_RECENT_ACTIVITY} = 'Останні дії';
 $lang{CRM_SHORT_LEADS} = 'Потен. клієнти';
 $lang{CRM_USER_NOT_FOUND} = 'Користувача не знайдено';
 $lang{CRM_USER_LINKED} = "Користувач уже прив'язаний";
+$lang{CRM_SHOW_AT_REGISTRATION} = "Показати під час реєстрації";
+
+$lang{CRM_TECH} = "Технічні дані";
 
 1

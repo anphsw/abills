@@ -37,9 +37,7 @@ sub form_nas {
   }
 
   if ($FORM{NAS_ID} && !$FORM{del}) {
-    if(form_nas_mng($FORM{NAS_ID})) {
-      return 1;
-    }
+    return 1 if form_nas_mng($FORM{NAS_ID});
   }
   elsif ($FORM{add_form}) {
     $Nas->{ACTION}     = 'add';
@@ -142,9 +140,7 @@ sub form_nas_mng {
 
   $Nas->info({ NAS_ID => $nas_id });
 
-  if (_error_show($Nas, { MESSAGE => "NAS_ID: $nas_id" })) {
-    return 1;
-  }
+  return 1 if _error_show($Nas, { MESSAGE => "NAS_ID: $nas_id" });
 
   $pages_qs .= "&NAS_ID=$nas_id&subf=" . ($FORM{subf} || '');
 
@@ -175,7 +171,7 @@ sub form_nas_mng {
       );
     }
     else {
-      $html->reminder('Install wrt_configure.cgi', $html->button("ABillS Wiki ", '', { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:docs:nas:chillispot:openwrt#abills' }));
+      $html->message('callout', 'Install wrt_configure.cgi', $html->button("ABillS Wiki ", '', { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:docs:nas:chillispot:openwrt#abills' }));
     }
   }
   elsif ($Nas->{NAS_TYPE} && $Nas->{NAS_TYPE} =~ /mikrotik/) {
@@ -201,7 +197,7 @@ sub form_nas_mng {
         subf  => $FORM{subf}
       },
       SUBMIT => { show => "$lang{SHOW}" },
-      class  => 'navbar navbar-expand-lg navbar-light bg-light form-main',
+      class  => 'form-inline ml-auto flex-nowrap',
     }
   );
 
@@ -214,6 +210,12 @@ sub form_nas_mng {
   if (in_array('Snmputils', \@MODULES)) {
     load_module('Snmputils', $html);
     push @nas_menu, 'SNMP:' . (get_function_index('snmp_info_form')) . ":NAS_ID=$Nas->{NAS_ID}&console=1&full=1";
+  }
+
+  if (in_array('Storage', \@MODULES)) {
+    load_module('Storage', $html);
+    my $storage_index = get_function_index('storage_main');
+    push @nas_menu, "$lang{INVENTORY_ITEMS}:$storage_index:NAS_ID=$Nas->{NAS_ID}&show_installation=1&search=1::$storage_index";
   }
 
   func_menu(
@@ -328,7 +330,7 @@ sub form_nas_list {
     entrances        => "$lang{ADDRESS} $lang{ENTRANCES}",
     flats            => "$lang{ADDRESS} $lang{FLATS}",
     street_name      => "$lang{ADDRESS} $lang{STREETS}",
-    address_full     => "$lang{ADDRESS}",
+    address_full     => "$lang{FULL} $lang{ADDRESS}",
 
     #users_count      => "$lang{CONNECTED} $lang{USERS}",
     #users_connections=> "$lang{DENSITY_OF_CONNECTIONS}",
@@ -631,11 +633,6 @@ sub form_nas_console_command {
 
   my $wait_char = ']';
 
-  #require Log;
-  #Log->import('log_print');
-  #my $Log = Log->new($db, \%conf);
-  #$Log->{PRINT} = 1;
-
   require Abills::Nas::Control;
   Abills::Nas::Control->import(qw/rsh_cmd/);
   Abills::Nas::Control->new($db, \%conf);
@@ -647,20 +644,20 @@ sub form_nas_console_command {
     $attr->{CMD}  = $2 || q{};
   }
 
-  my $table = $html->table(
-    {
-      caption    => "$lang{RESULT}: $attr->{CMD}" . ($attr->{NAS_INFO_IN_CAPTION} ? " (NAS $Nas_->{NAS_ID}: $Nas_->{NAS_NAME}, $Nas_->{NAS_IP})" : ''),
-      ID         => 'CONSOLE_RESULT',
-      qs         => $pages_qs,
-      DATA_TABLE => 1,
-      EXPORT     => 1,
-      MENU       => "$lang{SAVE}::btn bg-olive margin export-btn", #XXX does not work
-    }
-  );
+  my $table = $html->table({
+    caption    => "$lang{RESULT}: $attr->{CMD}" . ($attr->{NAS_INFO_IN_CAPTION} ? " (NAS $Nas_->{NAS_ID}: $Nas_->{NAS_NAME}, $Nas_->{NAS_IP})" : ''),
+    ID         => 'CONSOLE_RESULT',
+    qs         => $pages_qs,
+    DATA_TABLE => 1,
+    EXPORT     => 1,
+    MENU       => "$lang{SAVE}::btn bg-olive margin export-btn", #XXX does not work
+  });
 
   my $total_rows = 0;
 
   my $type = $attr->{TYPE} || '';
+  my $online_index = get_function_index('internet_online');
+
   if ($Nas_->{NAS_TYPE} =~ /mpd|accel/ || ($type eq 'telnet')) {
     my $telnet_attr = {
       PROMPT  => ($conf{NAS_MNG_PROMPT} ? $conf{NAS_MNG_PROMPT} : '\n.*[\$%#\]>\?] ?$'),
@@ -736,44 +733,7 @@ sub form_nas_console_command {
           $ip_col = 3;
         }
 
-        my $users_online_list = undef;
-        if ( in_array('Internet', \@MODULES) ) {
-          require Internet::Sessions;
-          Internet::Sessions->import();
-          my Internet::Sessions $Sessions = Internet::Sessions->new($db, $admin, \%conf);
-          $users_online_list = $Sessions->online({
-            COLS_NAME       => 1,
-            NAS_ID          => $nas_id,
-            CLIENT_IP       => '_SHOW',
-            LOGIN           => '_SHOW',
-            #NAS_ID          => '_SHOW',
-            NAS_PORT_ID     => '_SHOW',
-            ACCT_SESSION_ID => '_SHOW',
-            USER_NAME       => '_SHOW',
-          });
-          _error_show($Sessions);
-        }
-        # else {
-        #   require Dv_Sessions;
-        #   Dv_Sessions->import();
-        #   my $Dv_Sessions = Dv_Sessions->new($db, $admin, \%conf);
-        #   $users_online_list = $Dv_Sessions->online({
-        #     COLS_NAME       => 1,
-        #     NAS_ID          => $nas_id,
-        #     CLIENT_IP       => '_SHOW',
-        #     LOGIN           => '_SHOW',
-        #     #NAS_ID          => '_SHOW',
-        #     NAS_PORT_ID     => '_SHOW',
-        #     ACCT_SESSION_ID => '_SHOW',
-        #     USER_NAME       => '_SHOW',
-        #   });
-        #   _error_show($Dv_Sessions);
-        # }
-
-        my $online_index = get_function_index('internet_online');
-
-        require Abills::Experimental;
-        my $users_online_hash = sort_array_to_hash($users_online_list, 'client_ip');
+        my $users_online = _get_online({ NAS_ID => $nas_id });
 
         foreach my $line ( @{$result} ) {
           if($line){
@@ -785,11 +745,11 @@ sub form_nas_console_command {
             $ip =~ s/\s+//g;
             next if(! $ip);
 
-            my $uid             = $users_online_hash->{$ip}->{uid} || '';
-            my $login           = $users_online_hash->{$ip}->{login} || '';
-            my $nas_port_id     = $users_online_hash->{$ip}->{nas_port_id} ? $users_online_hash->{$ip}->{nas_port_id} : '';
-            my $acct_session_id = $users_online_hash->{$ip}->{acct_session_id} || $row[$acct_session_col] || '';
-            my $user_name       = $users_online_hash->{$ip}->{user_name} || '';
+            my $uid             = $users_online->{$ip}->{uid} || '';
+            my $login           = $users_online->{$ip}->{login} || '';
+            my $nas_port_id     = $users_online->{$ip}->{nas_port_id} ? $users_online->{$ip}->{nas_port_id} : '';
+            my $acct_session_id = $users_online->{$ip}->{acct_session_id} || $row[$acct_session_col] || '';
+            my $user_name       = $users_online->{$ip}->{user_name} || '';
 
             if($uid && $login){
               $line .= " |". $html->button($login, "index=15&UID=$uid");
@@ -802,6 +762,8 @@ sub form_nas_console_command {
               , { TITLE => 'Hangup', class => 'off',
                 NO_LINK_FORMER => 1
               });
+
+            delete $users_online->{$ip};
           }
         }
       }
@@ -883,41 +845,13 @@ sub form_nas_console_command {
         if ($cmd_list{$cmd} eq 'firewall_address__list') {
           push(@columns, $lang{USER}, $lang{DEL});
 
-          # Get Online
-          my $users_online_list = undef;
-          if ( in_array('Internet', \@MODULES) ) {
-            require Internet::Sessions;
-            Internet::Sessions->import();
-            my Internet::Sessions $Sessions = Internet::Sessions->new($db, $admin, \%conf);
-            $users_online_list = $Sessions->online({
-              COLS_NAME => 1,
-              NAS_ID    => $nas_id,
-              CLIENT_IP => '_SHOW',
-              LOGIN     => '_SHOW'
-            });
-            _error_show($Sessions);
-          }
-          # else {
-          #   require Dv_Sessions;
-          #   Dv_Sessions->import();
-          #   my $Dv_Sessions = Dv_Sessions->new($db, $admin, \%conf);
-          #   $users_online_list = $Dv_Sessions->online({
-          #     COLS_NAME => 1,
-          #     NAS_ID    => $nas_id,
-          #     CLIENT_IP => '_SHOW',
-          #     LOGIN     => '_SHOW'
-          #   });
-          #   _error_show($Dv_Sessions);
-          # }
-
-          require Abills::Experimental;
-          my $users_online_hash = sort_array_to_hash($users_online_list, 'client_ip');
+          my $users_online = _get_online({ NAS_ID => $nas_id });
 
           foreach my $line ( @{$result} ) {
             $line->{ $lang{USER} } =
-              ($line->{address} && exists $users_online_hash->{ $line->{address} })
-                ? user_ext_menu($users_online_hash->{ $line->{address} }->{uid},
-                $users_online_hash->{ $line->{address} }->{login})
+              ($line->{address} && exists $users_online->{ $line->{address} })
+                ? user_ext_menu($users_online->{ $line->{address} }->{uid},
+                $users_online->{ $line->{address} }->{login})
                 : '';
 
             $line->{ $lang{DEL} } = $html->button(
@@ -926,7 +860,7 @@ sub form_nas_console_command {
                 class     => 'btn btn-xs btn-danger removeIpBtn',
                 ex_params => "data-address-number='" . ($line->{id} || $line->{'.id'} || q{}) . "'",
                 SKIP_HREF => 1,
-                ICON      => 'fa fa-remove'
+                ICON      => 'fa fa-times'
               }
             );
           }
@@ -993,8 +927,13 @@ sub form_nas_console_command {
     }
   }
 
+  my $internet_online = {};
   if ($attr->{CMD} =~ /^sh sss session$/) {
     $col_delimeter = '\s+';
+    $internet_online = _get_online({
+      NAS_ID    => $nas_id,
+      KEY_FIELD => 'login',
+    });
   }
 
   if ($attr->{SIMPLER_OUTPUT}) {
@@ -1024,8 +963,23 @@ sub form_nas_console_command {
         if ($#row > 6) {
           next;
         }
-        if ($row[0] !~ /^Current/) {
-          push @row, $html->button($lang{SHOW}, "index=$index&console=1&NAS_ID=$nas_id&full=1&CMD=rsh:sh sss session uid $row[0]&ACTION=1");
+        if ($row[0] && $row[0] !~ /^Current/) {
+          push @row, $html->button($lang{SHOW},
+            "index=$index&console=1&NAS_ID=$nas_id&full=1&CMD=rsh:sh sss session uid $row[0]&ACTION=1",
+            { BUTTON => 1});
+        }
+
+        if ($row[6]) {
+          my $user_name = $row[6];
+          if ($internet_online && $internet_online->{$user_name}) {
+            my $nas_port_id = q{};
+            my $acct_session_id = q{};
+            my $ip = $internet_online->{$user_name}->{client_ip};
+            $row[6] = $html->button($user_name,
+              "index=$online_index&FRAMED_IP_ADDRESS=$ip&hangup=$nas_id%2B$nas_port_id%2B$acct_session_id%2B$user_name");
+
+            delete $internet_online->{$user_name};
+          }
         }
       }
 
@@ -1033,16 +987,24 @@ sub form_nas_console_command {
       $total_rows++;
     }
 
+    foreach my $user_name (keys %$internet_online) {
+      my $ip = $internet_online->{$user_name}->{client_ip};
+      print "$ip - ". $html->button($user_name, "index=$online_index&LOGIN=$user_name") . $html->br();
+    }
+
     print $table->show();
 
-    # $table = $html->table(
-    #   {
-    #     width => '100%',
-    #     rows  => [ [ "$lang{TOTAL}:", $html->b($total_rows) ] ]
-    #   }
-    # );
+    # foreach my $login (keys %$internet_online) {
+    #   print "$login<br>";
+    # }
 
-    #    print $table->show();
+    if ($total_rows) {
+      $table = $html->table({
+        width => '100%',
+        rows  => [ [ "$lang{TOTAL}:", $html->b($total_rows) ] ]
+      });
+      print $table->show();
+    }
   }
 
   return 1;
@@ -1620,12 +1582,15 @@ sub form_ip_pools {
   my @bit_masks = ('-----', 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16);
 
   $Nas->{ACTION}     = 'add';
-  $Nas->{LNG_ACTION} = "$lang{ADD}";
-
+  $Nas->{LNG_ACTION} = $lang{ADD};
 
   if ($attr->{NAS}) {
     $Nas               = $attr->{NAS};
     $pages_qs          = "&NAS_ID=$Nas->{NAS_ID}";
+  }
+
+  if ($FORM{subf}) {
+    $pages_qs .= "&subf=$FORM{subf}";
   }
 
   my $mask = 0b0000000000000000000000000000001;
@@ -1820,128 +1785,126 @@ sub form_ip_pools {
   _error_show($Nas);
   $index = get_function_index('form_ip_pools');
   my Abills::HTML $pools_table;
-  ($pools_table, undef) = result_former(
-    {
-      INPUT_DATA      => $Nas,
-      FUNCTION        => 'nas_ip_pools_list',
-      DEFAULT_FIELDS  => 'ID,NAS_NAME,POOL_NAME,FIRST_IP,LAST_IP,IP_COUNT,' . (in_array('Internet', \@MODULES) ? 'INTERNET_IP_FREE' : 'IP_FREE'),
-      HIDDEN_FIELDS   => 'STATIC,ACTIVE_NAS_ID,NAS',
-      FUNCTION_FIELDS => 'change, del',
-      SKIP_USER_TITLE => 1,
-      EXT_TITLES      => {
-        id               => '#',
-        nas_name         => 'NAS',
-        pool_name        => $lang{NAME},
-        first_ip         => $lang{BEGIN},
-        last_ip          => $lang{END},
-        ip_count         => $lang{COUNT},
-        internet_ip_free => $lang{FREE},
-        priority         => $lang{PRIORITY},
-        speed            => "$lang{SPEED} (Kbits)",
-        ip_skip          => $lang{IP_SKIP},
-        netmask          => $lang{MASK},
-        ipv6_prefix      => 'IPV6 ' . $lang{PREFIX},
-        ipv6_mask        => 'IPV6 ' . $lang{MASK},
-        ipv6_temp        => 'IPV6 ' . $lang{TEMPLATE},
-        ipv6_pd          => 'IPV6 PD ' . $lang{PREFIX},
-        ipv6_pd_mask     => 'IPV6 PD ' . $lang{MASK},
-        ipv6_pd_temp     => 'IPV6 PD ' . $lang{TEMPLATE},
-        guest            => $lang{GUEST},
-        comments         => $lang{COMMENTS},
-        static           => $lang{STATIC},
-        dns              => 'DNS',
-        vlan             => 'Vlan',
-        next_pool        => $lang{NEXT_POOL},
-        gateway          => $lang{DEFAULT_GATEWAY},
+
+  ($pools_table, undef) = result_former({
+    INPUT_DATA      => $Nas,
+    FUNCTION        => 'nas_ip_pools_list',
+    DEFAULT_FIELDS  => 'ID,NAS_NAME,POOL_NAME,FIRST_IP,LAST_IP,IP_COUNT,' . (in_array('Internet', \@MODULES) ? 'INTERNET_IP_FREE' : 'IP_FREE'),
+    HIDDEN_FIELDS   => 'STATIC,ACTIVE_NAS_ID,NAS',
+    FUNCTION_FIELDS => 'change, del',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      id               => '#',
+      nas_name         => 'NAS',
+      pool_name        => $lang{NAME},
+      first_ip         => $lang{BEGIN},
+      last_ip          => $lang{END},
+      ip_count         => $lang{COUNT},
+      internet_ip_free => $lang{FREE},
+      priority         => $lang{PRIORITY},
+      speed            => "$lang{SPEED} (Kbits)",
+      ip_skip          => $lang{IP_SKIP},
+      netmask          => $lang{MASK},
+      ipv6_prefix      => 'IPV6 ' . $lang{PREFIX},
+      ipv6_mask        => 'IPV6 ' . $lang{MASK},
+      ipv6_temp        => 'IPV6 ' . $lang{TEMPLATE},
+      ipv6_pd          => 'IPV6 PD ' . $lang{PREFIX},
+      ipv6_pd_mask     => 'IPV6 PD ' . $lang{MASK},
+      ipv6_pd_temp     => 'IPV6 PD ' . $lang{TEMPLATE},
+      guest            => $lang{GUEST},
+      comments         => $lang{COMMENTS},
+      static           => $lang{STATIC},
+      dns              => 'DNS',
+      vlan             => 'Vlan',
+      next_pool        => $lang{NEXT_POOL},
+      gateway          => $lang{DEFAULT_GATEWAY},
+    },
+    FILTER_VALUES   => {
+      id        => sub {
+        my ($id, $line) = @_;
+
+        my $static = ($line->{static}) ? $html->badge('static',
+          { TYPE => 'badge-secondary align-text-top' }) : '';
+
+        my $select_checkbox = $html->form_input(
+          'ids',
+          $line->{id},
+          {
+            class   => 'checked_ippool_' . $line->{id},
+            TYPE    => 'checkbox',
+            FORM_ID => 'IP_POOLS_CHECKBOXES_FORM',
+            STATE   => ($line->{active_nas_id}) ? 'checked' : undef
+          }
+        );
+
+        my $checked_id = $id . '&nbsp;' . $select_checkbox . '&nbsp;' . $static;
+        ($html && $html->{TYPE} && $html->{TYPE} eq 'html') ? $checked_id : $id;
       },
-      FILTER_VALUES   => {
-        id       => sub {
-          my ($id, $line) = @_;
+      pool_name => sub {
+        my ($name, $line) = @_;
 
-          my $static = ($line->{static}) ? $html->badge('static',
-            {TYPE => 'badge-secondary align-text-top'}) : '';
+        my $internet_users_index = get_function_index('internet_users_list');
+        my $users_button = $html->button($name,
+          "index=$internet_users_index&IP_POOL=$line->{id}&search=1&search_form=1");
 
-          my $select_checkbox = $html->form_input(
-              'ids',
-              $line->{id},
-              {
-                class   => 'checked_ippool_' . $line->{id},
-                TYPE    => 'checkbox',
-                FORM_ID => 'IP_POOLS_CHECKBOXES_FORM',
-                STATE   => ($line->{active_nas_id}) ? 'checked' : undef
-              }
-            );
-
-          my $checked_id = $id . '&nbsp;' . $select_checkbox . '&nbsp;' . $static;
-          ($html && $html->{TYPE} && $html->{TYPE} eq 'html') ? $checked_id : $id;
-        },
-        pool_name => sub {
-          my ($name, $line) = @_;
-
-          my $internet_users_index = get_function_index('internet_users_list');
-          my $users_button = $html->button($name,
-            "index=$internet_users_index&IP_POOL=$line->{id}&search=1&search_form=1");
-
-          return $line->{static} ? $users_button : $name;
-        },
-        nas_name => sub {
-          my ($name, $line) = @_;
-          ($line->{nas_id} && $line->{active_nas_id})
-            ? $html->button($name, "index=62&NAS_ID=$line->{active_nas_id}")
-            : '';
-        },
-        netmask  => sub {
-          my ($netmask) = @_;
-          return int2ip($netmask);
-        },
-        guest    => sub {
-          my ($guest) = @_;
-          if ($guest) {
-            return $html->element('label', '', { class => 'fa fa-check' });
-          }
-          else {
-            return $html->element('label', '', { class => 'fa fa-close' });
-          }
-        },
-        static   => sub {
-          my ($static) = @_;
-          if ($static) {
-            return $html->element('label', '', { class => 'fa fa-check' });
-          }
-          else {
-            return $html->element('label', '', { class => 'fa fa-close' });
-          }
-        },
-        next_pool => sub {
-          my ($next_pool) = @_;
-
-          foreach my $pool_value (@$list_next_pool) {
-            return $pool_value->{pool_name} if ($next_pool && $pool_value->{id} && $pool_value->{id} == $next_pool);
-          }
-        },
-        gateway => sub {
-          my ($gateway) = @_;
-
-          return int2ip($gateway);
+        return $line->{static} ? $users_button : $name;
+      },
+      nas_name  => sub {
+        my ($name, $line) = @_;
+        ($line->{nas_id} && $line->{active_nas_id})
+          ? $html->button($name, "index=62&NAS_ID=$line->{active_nas_id}")
+          : '';
+      },
+      netmask   => sub {
+        my ($netmask) = @_;
+        return int2ip($netmask);
+      },
+      guest     => sub {
+        my ($guest) = @_;
+        if ($guest) {
+          return $html->element('label', '', { class => 'fa fa-check' });
+        }
+        else {
+          return $html->element('label', '', { class => 'fa fa-times' });
         }
       },
-      TABLE           => {
-        width   => '100%',
-        caption => "NAS IP POOLs",
-        SHOW_FULL_LIST => 1,
-        qs      => $pages_qs,
-        ID      => 'NAS_IP_POOLS',
-        header  => '',
-        EXPORT  => 1,
-        IMPORT  => "$SELF_URL?get_index=form_ip_pools&import=1&header=2",
-        MENU    => "$lang{ADD}:index=63&add_form=1&$pages_qs:add",
+      static    => sub {
+        my ($static) = @_;
+        if ($static) {
+          return $html->element('label', '', { class => 'fa fa-check' });
+        }
+        else {
+          return $html->element('label', '', { class => 'fa fa-times' });
+        }
       },
-      MAKE_ROWS       => 1,
-      SEARCH_FORMER   => 1,
-      TOTAL           => 1,
-      OUTPUT2RETURN   => 1
-    }
-  );
+      next_pool => sub {
+        my ($next_pool) = @_;
+
+        foreach my $pool_value (@$list_next_pool) {
+          return $pool_value->{pool_name} if ($next_pool && $pool_value->{id} && $pool_value->{id} == $next_pool);
+        }
+      },
+      gateway   => sub {
+        my ($gateway) = @_;
+        return int2ip($gateway);
+      }
+    },
+    TABLE           => {
+      width          => '100%',
+      caption        => "NAS IP POOLs",
+      SHOW_FULL_LIST => 1,
+      qs             => $pages_qs,
+      ID             => 'NAS_IP_POOLS',
+      header         => '',
+      EXPORT         => 1,
+      IMPORT         => "$SELF_URL?get_index=form_ip_pools&import=1&header=2",
+      MENU           => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    TOTAL           => 1,
+    OUTPUT2RETURN   => 1
+  });
 
   $html->tpl_show(templates('form_ippools_nas'), { TABLE_IPPOOLS => $pools_table });
 
@@ -1949,7 +1912,7 @@ sub form_ip_pools {
     {
       ID     => 'IP_POOLS_CHECKBOXES_FORM',
       HIDDEN => {
-        index  => 63,
+        index  => get_function_index('form_ip_pools'),
         NAS_ID => $FORM{NAS_ID} || '',
       },
       SUBMIT => { ($FORM{NAS_ID}) ? (set => $lang{SET}) : () }
@@ -1982,27 +1945,20 @@ sub form_nas_stats {
     Internet::Sessions->import();
     $Sessions = Internet::Sessions->new($db, $admin, \%conf);
   }
-  # else {
-  #   require Dv_Sessions;
-  #   Dv_Sessions->import();
-  #   $Sessions = Dv_Sessions->new($db, $admin, \%conf);
-  # }
 
   require Log;
   Log->import();
 
   my $Log = Log->new($db, \%conf);
 
-  my $last_session = $Log->log_list(
-    {
-      COLS_NAME => 1,
-      NAS_ID    => $FORM{NAS_ID},
-      SORT      => 1,
-      LOG_TYPE  => 6,
-      DESC      => 'desc',
-      PAGE_ROWS => 1
-    }
-  );
+  my $last_session = $Log->log_list({
+    COLS_NAME => 1,
+    NAS_ID    => $FORM{NAS_ID},
+    SORT      => 1,
+    LOG_TYPE  => 6,
+    DESC      => 'desc',
+    PAGE_ROWS => 1
+  });
 
   my $first_session = $Log->log_list(
     {
@@ -2062,14 +2018,12 @@ sub form_nas_stats {
     }
   );
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => $lang{STATS},
-      title      => [ "NAS", $lang{PORT}, $lang{SESSIONS}, $lang{LAST_LOGIN}, $lang{AVG}, $lang{MIN}, $lang{MAX} ],
-      ID         => 'NAS_STATS',
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $lang{STATS},
+    title      => [ "NAS", $lang{PORT}, $lang{SESSIONS}, $lang{LAST_LOGIN}, $lang{AVG}, $lang{MIN}, $lang{MAX} ],
+    ID         => 'NAS_STATS',
+  });
 
   my $list = $Nas->stats({%LIST_PARAMS, INTERNET => in_array('Internet', \@MODULES)});
 
@@ -2583,6 +2537,51 @@ sub add_ip_import {
 sub _uniq {
     my %seen;
     grep !$seen{$_}++, @_;
+}
+
+#**********************************************************
+=head2 _get_online($attr) -
+
+  Arguments:
+    $attr
+      NAS_ID
+      KEY_FIELD
+
+  Return:
+    \%users_online
+
+=cut
+#**********************************************************
+sub _get_online {
+  my ($attr) = @_;
+
+  if (! in_array('Internet', \@MODULES) ) {
+    return {};
+  }
+
+  require Internet::Sessions;
+  Internet::Sessions->import();
+  my Internet::Sessions $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+
+  $Sessions->{debug}=1 if ($FORM{DEBUG});
+  my $users_online_list = $Sessions->online({
+    COLS_NAME       => 1,
+    NAS_ID          => $attr->{NAS_ID},
+    CLIENT_IP       => '_SHOW',
+    LOGIN           => '_SHOW',
+    #NAS_ID          => '_SHOW',
+    NAS_PORT_ID     => '_SHOW',
+    ACCT_SESSION_ID => '_SHOW',
+    USER_NAME       => '_SHOW',
+  });
+
+  _error_show($Sessions);
+
+  require Abills::Experimental;
+  my $key_field = $attr->{KEY_FIELD} || 'client_ip';
+  my $users_online = sort_array_to_hash($users_online_list, $key_field);
+
+  return $users_online;
 }
 
 1;

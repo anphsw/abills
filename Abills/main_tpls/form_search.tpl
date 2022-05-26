@@ -1,6 +1,6 @@
 %SEL_TYPE%
 
-<form action='$SELF_URL' METHOD='GET' name='form_search' id='form_search' class='form form-horizontal'>
+<form action='$SELF_URL' METHOD='GET' name='form_search' id='form_search' class='pb-4 pt-4'>
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='search_form' value='1'>
   %HIDDEN_FIELDS%
@@ -15,7 +15,7 @@
         <div class='card card-primary card-outline '>
           <div class='card-header with-border'>
             <h3 class='card-title'>_{USER}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-minus'></i>
               </button>
@@ -80,7 +80,7 @@
       </div>
       %SEARCH_FORM%
     </div>
-    <button class='btn btn-primary btn-block mb-4' type='submit' name='search' id='go' value=1>
+    <button class='btn btn-primary btn-block' type='submit' name='search' id='go' value=1>
       <i class='fa fa-search'></i> _{SEARCH}_
     </button>
 

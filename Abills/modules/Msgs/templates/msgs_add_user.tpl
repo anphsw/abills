@@ -10,62 +10,69 @@
 
   <fieldset>
 
-    <div class='card card-primary card-outline box-form'>
-      <div class='card-header'><h4 class='card-title'>_{ADD_USER}_</h4></div>
+    <div class='card card-primary card-outline card-form'>
+      <div class='card-header'>
+        <h4 class='card-title'>_{ADD_USER}_</h4>
+        <div class='card-tools float-right'>
+          <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-minus'></i></button>
+        </div>
+      </div>
       <div class='card-body'>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-md-3' for='ID'>#</label>
           <p class='form-control-static col-md-9'>%ID%</p>
         </div>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-md-3' for='LOGIN'>_{LOGIN}_:</label>
           <div class=' col-md-9'>
             <input id='LOGIN' name='LOGIN' value='%LOGIN%' placeholder='%LOGIN%' class='form-control' type='text'>
           </div>
         </div>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-md-3' for='FIO'>_{FIO}_:</label>
           <div class=' col-md-9'>
             <input id='FIO' name='FIO' value='%FIO%' placeholder='%FIO%' class='form-control' type='text'>
           </div>
         </div>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-md-3' for='TP_ID'>_{TARIF_PLAN}_:</label>
-          <div class=' col-md-9'>%TP_SEL%</div>
+          <div class='col-md-9'>
+            %TP_SEL%
+          </div>
         </div>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-md-3' for='GID'>_{GROUP}_:</label>
-          <div class=' col-md-9'>
+          <div class='col-md-9'>
             %GID_SEL%
           </div>
         </div>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-md-3' for='PHONE'>_{PHONE}_:</label>
-          <div class=' col-md-9'>
+          <div class='col-md-9'>
             <input id='PHONE' name='phone' value='%PHONE%' placeholder='%PHONE%' class='form-control' type='text'>
           </div>
         </div>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-md-3' for='EMAIL'>E-MAIL:</label>
-          <div class=' col-md-9'>
+          <div class='col-md-9'>
             <input id='EMAIL' name='email' value='%EMAIL%' placeholder='%EMAIL%' class='form-control' type='text'>
           </div>
         </div>
 
         %REFERRAL_TP%
 
-        <div class='card-footer'><input id='REG_REQUEST_BTN' type='submit' class='btn btn-primary' name='add_user_' value='%ACTION_LNG%'>
-        </div>
-
-
       </div>
+      <div class='card-footer'>
+        <input id='REG_REQUEST_BTN' type='submit' class='btn btn-primary' name='add_user_' value='%ACTION_LNG%'>
+      </div>
+
     </div>
 
   </fieldset>

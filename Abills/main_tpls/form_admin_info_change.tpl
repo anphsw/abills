@@ -5,7 +5,7 @@
   <div class='card card-primary card-outline card-form'>
     <div class='card-header with-border'>
       <h3 class='card-title'>_{ADMIN}_</h3>
-      <div class='card-tools pull-right'>
+      <div class='card-tools float-right'>
         %CLEAR_SETTINGS%
         %CHG_PSW%
         <button type='button' class='btn btn-tool' data-card-widget='collapse'>

@@ -1,7 +1,7 @@
 <form action='$SELF_URL' method='GET' class='form-horizontal'>
   <input type='hidden' name='index' value=$index>
 
-  <div class='card box-form card-primary card-outline'>
+  <div class='card card-form card-primary card-outline'>
 
     <div class='card-header with-border'><h4 class='card-title'>_{SEARCH}_</h4></div>
 
@@ -31,9 +31,9 @@
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3'>SN:</label>
+        <label class='control-label col-md-3' for='SERIAL'>SN:</label>
         <div class='col-md-9'>
-          <input class='form-control' type='text' name='SERIAL' value='%SERIAL%'>
+          <input class='form-control' type='text' id='SERIAL' name='SERIAL' value='%SERIAL%'>
         </div>
       </div>
 
@@ -55,4 +55,4 @@
 
 </form>
 
-<script src='/styles/default_adm/js/storage.js'></script>
+<script src='/styles/default/js/storage.js'></script>

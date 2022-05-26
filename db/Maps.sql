@@ -105,7 +105,7 @@ DELETE FROM `maps_layers` WHERE `id`='3';
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (4, '$lang{DISTRICT}', 'POLYGON', 'district');
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (5, '$lang{TRAFFIC}', 'MARKER', 'build');
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (6, '$lang{OBJECTS}', 'MARKER', 'custom');
-REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (12, '$lang{BUILD}2', 'POLYGON', 'build');
+REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (12, '$lang{PLOT}', 'POLYGON', 'build');
 
 CREATE TABLE IF NOT EXISTS `maps_circles` (
   `id` INT(11) UNSIGNED PRIMARY KEY  AUTO_INCREMENT,
@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS `maps_polygons` (
 
 CREATE TABLE IF NOT EXISTS `maps_polygon_points` (
   `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `polygon_id` SMALLINT(6) UNSIGNED REFERENCES `maps_polygons` (`id`)
+  `polygon_id` INT(11) UNSIGNED REFERENCES `maps_polygons` (`id`)
     ON DELETE CASCADE,
   `coordx` DOUBLE NOT NULL,
   `coordy` DOUBLE NOT NULL,
@@ -190,7 +190,7 @@ CREATE TABLE IF NOT EXISTS `maps_icons` (
 CREATE TABLE IF NOT EXISTS `maps_districts` (
   `district_id` SMALLINT(6) UNSIGNED REFERENCES `districts` (`id`)
     ON DELETE CASCADE,
-  `object_id` INT(11) REFERENCES `maps_points` (`id`)
+  `object_id` INT(11) UNSIGNED REFERENCES `maps_points` (`id`)
     ON DELETE CASCADE
 )
   COMMENT = 'District polygons';

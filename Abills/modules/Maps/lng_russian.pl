@@ -87,5 +87,23 @@ $lang{WELL} = 'Узел связи';
 $lang{WELLS} = 'Узлы связи';
 
 $lang{DISPLAYED_ITEMS} = "Отображено элементов";
+$lang{DELETE} = "Удалить";
+
+$lang{DELETE_ITEM_FROM_MAP} = "Удалить объект с карты?";
+$lang{CHOOSE_ADDRESS} = "Выберите адрес";
+
+$lang{FEEL_ALL} = 'Заполнить все';
+$lang{SEVERAL_RESULTS} = 'Несколько результатов';
+$lang{COORDS_NOT_FOUND} = 'Не найдено';
+$lang{NO_COORDINATES_SPECIFIED} = 'Не указаны координаты';
+
+$lang{COMPLETE_PREVIOUS_CHANGE} = 'Завершите предыдущие изменения';
+
+$lang{SHOW_MSGS_MAP} = 'Отобразить сообщение на карте';
+$lang{MAPS_SCALE} = 'Масштаб';
+
+$lang{PLOT} = 'Участок дома';
+
+$lang{NO_MOVES_FOUND} = 'В этот период не найдено перемещений';
 
 1;

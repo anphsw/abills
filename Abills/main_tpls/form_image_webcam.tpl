@@ -1,5 +1,5 @@
 <!-- Loading WebCam script -->
-<script src='/styles/default_adm/js/webcam/webcam.min.js'></script>
+<script src='/styles/default/js/webcam/webcam.min.js'></script>
 
 <style>
     #camera_preview {
@@ -62,7 +62,7 @@
 
 
 <!-- After page loaded, load WebCam custom script-->
-<script src='/styles/default_adm/js/webcam/webcam-script.js'></script>
+<script src='/styles/default/js/webcam/webcam-script.js'></script>
 
 <script>
     function successCall() {

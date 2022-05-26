@@ -1,4 +1,4 @@
-<script src='/styles/default_adm/js/modules/ureports/sender_contact_choose.js'></script>
+<script src='/styles/default/js/modules/ureports/sender_contact_choose.js'></script>
 <script>
   var LANG = {
     NO_CONTACTS_FOR_TYPE: '_{NO_CONTACTS_FOR_TYPE}_'

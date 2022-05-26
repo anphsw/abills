@@ -37,7 +37,9 @@ sub iptv_subcribe_add {
     USER_PORTAL      => 2,
     STATUS           => 0,
     FORM_ROW         => 1,
-    SKIP_DEF_SERVICE => 1
+    SKIP_DEF_SERVICE => 1,
+    RETURN_SELECT    => 1,
+    NO_ID            => 1
   });
 
   my $tp_list = $Tariffs->list({
@@ -51,7 +53,7 @@ sub iptv_subcribe_add {
     FILTER_ID    => '_SHOW',
     NEW_MODEL_TP => 1,
     COLS_NAME    => 1,
-    DOMAIN_ID    => $user->{DOMAIN_ID},
+    DOMAIN_ID    => $user->{DOMAIN_ID} || '_SHOW',
     COLS_UPPER   => 1,
     STATUS       => '0',
     PAYMENT_TYPE => '_SHOW'
@@ -62,18 +64,26 @@ sub iptv_subcribe_add {
     return 1;
   }
 
-  my @skip_tp_changes = ();
-  if ($conf{IPTV_SKIP_CHG_TPS}) {
-    @skip_tp_changes = split(/,\s?/, $conf{IPTV_SKIP_CHG_TPS});
-  }
-
+  my @skip_tp_changes = $conf{IPTV_SKIP_CHG_TPS} ? split(/,\s?/, $conf{IPTV_SKIP_CHG_TPS}) : ();
   $Tv_service = tv_load_service('', { SERVICE_ID => $FORM{SERVICE_ID} || $Iptv->{SERVICE_ID} });
+
+  my $tps_table = $html->table({
+    width       => '100%',
+    title_plain => [ '', $lang{NAME}, $lang{PRICE} ],
+    ID          => 'IPTV_TP'
+  });
 
   my $tp_list_show = '';
   foreach my $tp (@$tp_list) {
     next if (in_array($tp->{tp_id}, \@skip_tp_changes));
     next if ($Iptv->{TP_ID} && $tp->{tp_id} == $Iptv->{TP_ID} && $user->{EXPIRE} eq '0000-00-00');
-    $tp->{RADIO_BUTTON} = '';
+
+    $tp->{RADIO_BUTTON} = $html->element('i', '', {
+      class                   => 'fa fa-ban text-danger',
+      'data-tooltip'          => $lang{ERR_SMALL_DEPOSIT},
+      'data-tooltip-position' => 'right',
+      OUTPUT2RETURN           => 1
+    });
 
     $user->{CREDIT} = ($user->{CREDIT} > 0) ? $user->{CREDIT} : (($tp->{credit} > 0) ? $tp->{credit} : 0);
 
@@ -81,24 +91,21 @@ sub iptv_subcribe_add {
       $tp->{RADIO_BUTTON} = $html->form_input('TP_ID', $tp->{tp_id}, {
         TYPE          => 'radio',
         STATE         => ($Tariffs->{TOTAL} == 1) ? 'checked' : '',
-        OUTPUT2RETURN => 1 });
-    }
-    else {
-      $tp->{RADIO_BUTTON} = $lang{ERR_SMALL_DEPOSIT};
+        OUTPUT2RETURN => 1
+      });
     }
 
-    if ($Tv_service && $Tv_service->can('service_info')) {
-      $tp->{COMMENTS} = $Tv_service->service_info($tp);
-    }
+    $tp->{COMMENTS} = $Tv_service->service_info($tp)  if $Tv_service && $Tv_service->can('service_info');
 
-    $tp_list_show .= $html->tpl_show(_include('iptv_tp_info_panel', 'Iptv'), $tp, { OUTPUT2RETURN => 1 });
+    my $tp_name = $html->tpl_show(_include('iptv_tp_info_panel', 'Iptv'), $tp, { OUTPUT2RETURN => 1 });
+    $tps_table->addrow($tp->{RADIO_BUTTON}, $tp_name, $tp->{MONTH_FEE} || $tp->{DAY_FEE});
   }
 
   $user->pi({ UID => $user->{UID} });
   my ($subscribe_id, $subscribe_name, $subscribe_describe) = split(/:/, $conf{IPTV_SUBSCRIBE_ID} || q{});
 
   $html->tpl_show(_include('iptv_subscribes', 'Iptv'), {
-    TP_SEL                   => $tp_list_show,
+    TP_SEL                   => $tps_table->show({ OUTPUT2RETURN => 1 }),
     SERVICE_SEL              => $services,
     SUBSCRIBE_PARAM_NAME     => $subscribe_name || 'E-mail',
     SUBSCRIBE_PARAM_ID       => $subscribe_id || 'EMAIL',
@@ -174,7 +181,11 @@ sub iptv_user_info {
         }
       }
 
-      $Iptv->user_add({ %FORM, UID => $user->{UID}, IPTV_ACTIVATE => $DATE || '0000-00-00' });
+      $Tariffs->info($FORM{TP_ID});
+      $Iptv->user_add({ %FORM,
+        UID           => $user->{UID},
+        IPTV_ACTIVATE => !$Tariffs->{PERIOD_ALIGNMENT} && $DATE ? $DATE : '0000-00-00'
+      });
       if (!$Iptv->{errno}) {
         $Iptv->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE};
         $Iptv->{TP_INFO}{ABON_DISTRIBUTION} ||= 0;
@@ -210,8 +221,6 @@ sub iptv_user_info {
 
             $db_->rollback();
             $Iptv->{ID} = undef;
-            #            my $message = '';
-            #            $html->message( 'err', $lang{ERROR}, $message);
             return 1;
           }
           delete($Iptv->{db}->{TRANSACTION});
@@ -498,7 +507,7 @@ sub iptv_user_service {
   }
 
   $Iptv->user_info($service_id_info);
-  iptv_users_screens($Iptv, { SHOW_FULL => $PORTAL_ACTIONS->{$Iptv->{SERVICE_ID}} });
+  iptv_users_screens($Iptv, { SHOW_FULL => $PORTAL_ACTIONS->{$Iptv->{SERVICE_ID}}, DISABLED_INPUT => 1 });
   iptv_user_channels({ SERVICE_INFO => $Iptv, SHOW_ONLY => (!$conf{IPTV_USER_CHG_CHANNELS}) ? 1 :
     undef, CHANNEL_DISABLE => $user_portal_info });
 

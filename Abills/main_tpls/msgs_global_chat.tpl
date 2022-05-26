@@ -1,4 +1,4 @@
-<script src='/styles/default_adm/js/chat/%SCRIPT%'></script>
+<script src='/styles/default/js/chat/%SCRIPT%'></script>
 <!--Chat notification-->
 <li class='dropdown messages-menu'>
   <a href='#' id="chat_open" fn_index='%FN_INDEX%' type='button' title='_{CHAT}_ _{MESSAGES}_'

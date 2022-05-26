@@ -37,75 +37,66 @@ my $Internet = Internet->new($db, $admin, \%conf);
 #**********************************************************
 sub report_new_all_customers {
   my ($search_year, undef, undef) = split('-', $DATE);
-  if ($FORM{NEXT} || $FORM{PRE}) {
-    $search_year = $FORM{NEXT} || $FORM{PRE};
-  }
+  $search_year = $FORM{NEXT} || $FORM{PRE} if ($FORM{NEXT} || $FORM{PRE});
 
   my $all_data = $Users->all_new_report({ COLS_NAME => 1, YEAR => $search_year });
-  my @data_array = ();
-  my @data_array2 = ();
+  my @new_users = ();
+  my @all_users = ();
 
   foreach my $line (@$all_data) {
-    push @data_array, $line->{count_new_users};
-    push @data_array2, $line->{count_all_users};
+    push @new_users, $line->{count_new_users};
+    push @all_users, $line->{count_all_users};
   }
-
-  my $val1 = max @data_array;
-  my $val2 = max @data_array2;
-  $val1 = $val1 > 300 ? 150 : 50;
-  $val2 = $val2 > 1500 ? 750 : 150;
 
   my $chart3 = $html->chart({
     TYPE       => 'line',
     DATA_CHART => {
       datasets => [ {
-        data            => \@data_array,
+        data            => \@new_users,
         label           => $lang{NEW_CUST},
         yAxisID         => 'left-y-axis',
         borderColor     => '#5cc',
         fill            => 'false',
         backgroundColor => '#5cc',
+        tension         => 0.3
       }, {
-        data            => \@data_array2,
+        data            => \@all_users,
         label           => $lang{ALL},
         yAxisID         => 'right-y-axis',
         borderColor     => '#a6f',
         fill            => 'false',
         backgroundColor => '#a6f',
+        tension         => 0.3
       } ],
       labels   => \@MONTHES
     },
     OPTIONS    => {
-      tooltips => {
-        mode => 'index',
-      },
-      scales   => {
-        yAxes => [ {
-          id       => 'left-y-axis',
+      scales => {
+        'left-y-axis'  => {
           type     => 'linear',
           position => 'left',
-          ticks    => {
-            stepSize => sprintf("%.f", $val1),
-            min      => 0
-          }
-        }, {
-          id       => 'right-y-axis',
+        },
+        'right-y-axis' => {
           type     => 'linear',
           position => 'right',
-          ticks    => {
-            stepSize => sprintf("%.f", $val2),
-            min      => 0
-          }
-        } ]
+        },
       }
     }
   });
 
-  my $pre_button = $html->button(" ", "index=$index&PRE=" . ($search_year - 1),
-    { class => ' btn btn-sm btn-secondary', ICON => 'fa fa-arrow-left', TITLE => $lang{BACK} });
-  my $next_button = $html->button(" ", "index=$index&NEXT=" . ($search_year + 1),
-    { class => 'btn btn-sm btn-secondary', ICON => 'fa fa-arrow-right', TITLE => $lang{NEXT} });
-  print " <div class='col-lg-10' style='padding-left: 0'>
+  my $pre_button = $html->button(" ", "index=$index&PRE=" . ($search_year - 1), {
+    class => 'btn btn-sm btn-default ml-1 mr-1',
+    ICON => 'fa fa-arrow-left',
+    TITLE => $lang{BACK}
+  });
+
+  my $next_button = $html->button(" ", "index=$index&NEXT=" . ($search_year + 1), {
+    class => 'btn btn-sm btn-default ml-1',
+    ICON => 'fa fa-arrow-right',
+    TITLE => $lang{NEXT}
+  });
+
+  print "<div class='pl-0'>
             <div class='card card-primary card-outline'>
               <div class='card-header with-border'>$pre_button $search_year $next_button<h4 class='card-title'>$lang{REPORT_NEW_ALL_USERS}</h4></div>
               <div class='card-body'>
@@ -179,13 +170,6 @@ sub report_new_arpu {
   pop(@data_array5);
 
   my @array_all_data = (@data_array2, @data_array3, @data_array4, @data_array5);
-  my $val1 = 0;
-  my $val2 = 0;
-
-  $val1 = max @data_array;
-  $val2 = max @array_all_data;
-  $val1 = $val1 > 300 ? 150 : 50;
-  $val2 = $val2 > 1500 ? 750 : 150;
 
   my $chart3 = $html->chart({
     TYPE       => 'line',
@@ -194,79 +178,60 @@ sub report_new_arpu {
         {
           data            => \@data_array2,
           label           => 'ARPU',
-          yAxisID         => 'left-y-axis',
           borderColor     => '#3af',
           fill            => 'false',
           backgroundColor => '#3af',
+          tension         => 0.3
         },
         {
           data            => \@data_array,
           label           => $lang{NEW_CUST},
-          yAxisID         => 'right-y-axis',
           borderColor     => '#f68',
           fill            => 'false',
           backgroundColor => '#f68',
+          tension         => 0.3
         },
         {
           data            => \@data_array3,
           label           => $lang{AVR_FEES_AUTHORIZED},
-          yAxisID         => 'left-y-axis',
           borderColor     => '#0f8',
           fill            => 'false',
           backgroundColor => '#0f8',
+          tension         => 0.3
         },
         {
           data            => \@data_array4,
           label           => $lang{AVR_AMOUNT_ACTIVE_SERV},
-          yAxisID         => 'left-y-axis',
           borderColor     => '#fa1',
           fill            => 'false',
           backgroundColor => '#fa1',
+          tension         => 0.3
         },
         {
           data            => \@data_array5,
           label           => $lang{ARPU_FUTURE},
-          yAxisID         => 'left-y-axis',
           borderColor     => '#00d',
           fill            => 'false',
           backgroundColor => '#00d',
+          tension         => 0.3
         }
       ],
       labels   => \@MONTHES
     },
-    OPTIONS    => {
-      tooltips => {
-        mode => 'index',
-      },
-      scales   => {
-        yAxes => [ {
-          id       => 'right-y-axis',
-          type     => 'linear',
-          position => 'right',
-          ticks    => {
-            stepSize => sprintf("%.2f", $val1),
-            min      => 0
-          }
-        },
-          {
-            id       => 'left-y-axis',
-            type     => 'linear',
-            position => 'left',
-            ticks    => {
-              stepSize => sprintf("%.f", $val2),
-              min      => 0
-            }
-          }
-        ]
-      }
-    }
+    OPTIONS    => {}
   });
 
-  my $pre_button = $html->button(" ", "index=$index&PRE=" . ($search_year - 1),
-    { class => ' btn btn-sm btn-secondary', ICON => 'fa fa-arrow-left', TITLE => $lang{BACK} });
-  my $next_button = $html->button(" ", "index=$index&NEXT=" . ($search_year + 1),
-    { class => 'btn btn-sm btn-secondary', ICON => 'fa fa-arrow-right', TITLE => $lang{NEXT} });
-  print " <div class='col-lg-10' style='padding-left: 0'>
+  my $pre_button = $html->button(" ", "index=$index&PRE=" . ($search_year - 1), {
+    class => ' btn btn-sm btn-default',
+    ICON  => 'fa fa-arrow-left',
+    TITLE => $lang{BACK}
+  });
+  my $next_button = $html->button(" ", "index=$index&NEXT=" . ($search_year + 1), {
+    class => 'btn btn-sm btn-default',
+    ICON  => 'fa fa-arrow-right',
+    TITLE => $lang{NEXT}
+  });
+  print " <div class='pl-0'>
             <div class='card card-primary card-outline'>
               <div class='card-header with-border'>$pre_button $search_year $next_button<h4 class='card-title'>$lang{REPORT_NEW_ARPU_USERS}</h4></div>
               <div class='card-body'>
@@ -320,6 +285,76 @@ sub report_balance_by_status {
       (defined $report_data->{status} && ($item->{id} eq $report_data->{status})) ? format_sum($report_data->{deposit}) : 0,
     );
   }
+
+  print $table->show();
+
+  return 1;
+}
+
+#*******************************************************************
+=head1 switch_report ($attr) - show list of switches with quantity of all users, active and inactive users
+
+=cut
+#*******************************************************************
+sub switch_report {
+
+  my $switch_list = $Users->switch_list({
+    ALL       => 1,
+    COLS_NAME => 1,
+    SORT      => $FORM{sort},
+    DESC      => $FORM{desc},
+  });
+
+  my $table = $html->table({
+    width               => '100%',
+    caption             => $lang{REPORT_SWITCH_WITH_USERS},
+    border              => 1,
+    title               => [ '#', 'ID', $lang{SWITCHBOARDS}, $lang{USERS}, $lang{DISABLE}, $lang{ENABLED},
+      $lang{QUANTITY_USERS_REQUEST}, $lang{COEFFICIENT_OF_DISABLE_USERS}, $lang{COEFFICIENT_OF_REQUESTS_USERS} ],
+    ID                  => 'SWITCH_REPORT_ID',
+    EXPORT              => 1,
+  });
+
+  my $i = 1;
+  my ($switch_total, $users_total, $user_off_total, $user_on_total, $users_request_total, $coef_users_off, $coef_users_request_total);
+
+  foreach my $line (@$switch_list) {
+    $table->addrow(
+      $i,
+      $html->button($line->{switch_id},"index=62&NAS_ID=". ($line->{switch_id} || 0)),
+      $line->{switch_name},
+      $line->{switch_users},
+      $line->{user_off},
+      $line->{user_on},
+      $line->{users_request},
+      sprintf("%.2f", ($line->{switch_users}) ? $line->{user_off} / $line->{switch_users} * 100 : 0),
+      sprintf("%.2f", ($line->{switch_users}) ? $line->{users_request} / $line->{switch_users} * 100 : 0),
+    );
+
+    $i++;
+    $switch_total ++;
+    $users_total += $line->{switch_users};
+    $user_off_total += $line->{user_off};
+    $user_on_total += $line->{user_on};
+    $users_request_total += $line->{users_request};
+  }
+
+  if ($users_total) {
+    $coef_users_off = sprintf("%.2f", $user_off_total / $users_total * 100);
+    $coef_users_request_total = sprintf("%.2f", $users_request_total / $users_total * 100);
+  }
+
+  $table->addfooter(
+    "$lang{TOTAL}: ",
+    '',
+    $switch_total,
+    $users_total,
+    $user_off_total,
+    $user_on_total,
+    $users_request_total,
+    $coef_users_off,
+    $coef_users_request_total,
+  );
 
   print $table->show();
 

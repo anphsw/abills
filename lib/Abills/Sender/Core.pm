@@ -47,7 +47,7 @@ our %PLUGIN_NAME_FOR_TYPE_ID = (
   # 2  => 'Sms',
   #  3  => 'Web redirect' # Old skype 'Skype',
   #  4  => 'ICQ',
-  5  => 'Viber',
+  5  => 'Viber_bot',
   6  => 'Telegram',
   #  7  => 'Facebook',
   #  8  => 'VK',
@@ -55,7 +55,8 @@ our %PLUGIN_NAME_FOR_TYPE_ID = (
   10 => 'Push',
   11 => 'Hyber',
   12 => 'XMPP',
-  13 => 'Iptv_message'
+  13 => 'Iptv_message',
+  14 => 'Viber'
 );
 our %TYPE_ID_FOR_PLUGIN_NAME = reverse %{PLUGIN_NAME_FOR_TYPE_ID};
 
@@ -290,7 +291,7 @@ sub send_message_auto {
 
   my $contacts_list;
   if ($attr->{UID}) {
-    $contacts_list = $Contacts->contacts_list({ UID => $attr->{UID}, SHOW_ALL_COLUMNS => 1 });
+    $contacts_list = $Contacts->contacts_list({ UID => $attr->{UID}, SHOW_ALL_COLUMNS => 1, TYPE => $attr->{SEND_TYPE} || '_SHOW' });
     push(@{$contacts_list}, { type_id => 9, value => $attr->{USER_EMAIL} }) if $attr->{USER_EMAIL};
   }
   elsif ($attr->{AID}) {

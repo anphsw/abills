@@ -90,5 +90,22 @@ $lang{WELL} = 'Well';
 $lang{WELLS} = 'Wells';
 
 $lang{DISPLAYED_ITEMS} = "Displayed items";
+$lang{DELETE} = "Delete";
+
+$lang{DELETE_ITEM_FROM_MAP} = "Delete item from map?";
+$lang{CHOOSE_ADDRESS} = "Choose address";
+
+$lang{FEEL_ALL} = 'Feel all';
+$lang{SEVERAL_RESULTS} = 'Several results';
+$lang{COORDS_NOT_FOUND} = 'Not found';
+$lang{NO_COORDINATES_SPECIFIED} = 'No coordinates specified';
+
+$lang{COMPLETE_PREVIOUS_CHANGE} = 'Complete previous changes';
+
+$lang{SHOW_MSGS_MAP} = 'Show message on map';
+$lang{MAPS_SCALE} = 'Scale';
+
+$lang{PLOT} = 'Plot';
+$lang{NO_MOVES_FOUND} = 'No moves found during this period';
 
 1;

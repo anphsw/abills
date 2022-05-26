@@ -61,8 +61,7 @@ sub events_uni_result_former {
     EXT_TITLES      => $attr->{EXT_TITLES},
     MULTISELECT     => 'IDS:id:DELETE_EVENTS_FORM',
     TABLE           => {
-      # MULTISELECT_ACTIONS => $attr->{MULTISELECT_ACTIONS}, #TODO: need to review, it doesn't works correctly and broke UI
-      # DATA_TABLE          => 1,
+      MULTISELECT_ACTIONS => $attr->{MULTISELECT_ACTIONS},
       width               => '100%',
       caption             => $attr->{READABLE_NAME},
       ID                  => uc $attr->{LIST_FUNC},

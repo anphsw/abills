@@ -69,7 +69,7 @@ sub sel_tp {
 
   my $list = $Tariffs->list({
     NEW_MODEL_TP => 1,
-    DOMAIN_ID    => $users->{DOMAIN_ID} || $admin->{DOMAIN_ID} || $attr->{DOMAIN_D},
+    DOMAIN_ID    => $users->{DOMAIN_ID} || $admin->{DOMAIN_ID} || $attr->{DOMAIN_ID},
     COLS_NAME    => 1,
     STATUS       => '_SHOW',
     TP_GID       => $tp_gids || '_SHOW',
@@ -145,13 +145,22 @@ sub get_services {
 
   my %result = ();;
 
-  my $cross_modules_return = ::cross_modules_call('_docs', {
+  # my $cross_modules_return = ::cross_modules_call('_docs', {
+  #   UID          => $user_info->{UID},
+  #   REDUCTION    => $user_info->{REDUCTION},
+  #   FULL_INFO    => 1,
+  #   SKIP_MODULES => $attr->{SKIP_MODULES}
+  #   #PAYMENT_TYPE => 0
+  # });
+
+  my $cross_modules_return = ::cross_modules('docs', {
     UID          => $user_info->{UID},
     REDUCTION    => $user_info->{REDUCTION},
     FULL_INFO    => 1,
-    SKIP_MODULES => $attr->{SKIP_MODULES}
+    SKIP_MODULES => $attr->{SKIP_MODULES},
+    FORM         => \%FORM
     #PAYMENT_TYPE => 0
-  });
+  }) || {};
 
   my $days_in_month = days_in_month({ DATE => $DATE });
 

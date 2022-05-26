@@ -6,7 +6,7 @@
   <button role='button' class='btn btn-xs btn-success' id='info_comments_refresh'
           data-object_id='%OBJECT_ID%' data-object_type='%TABLE_NAME%'
           data-renews='#commentsBlock' data-source='info_comments_renew' title='_{REFRESH}_'>
-    <span class='fa fa-refresh'></span>
+    <span class='fas fa-sync'></span>
   </button>
 </div>
 <input id='OBJECT_TYPE' type='hidden' value='%TABLE_NAME%'>

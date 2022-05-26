@@ -365,7 +365,10 @@ sub form_templates_pdf_edit {
 }
 
 sub form_templates_pdf_save {
-  return 0 unless ($FORM{FILE_NAME});
+  if(!defined($FORM{FILE_NAME})) {
+    print Abills::Base::json_former({ 'status' => 400, 'text' => 'UNDEFINED_FILE_NAME'});
+    return 0;
+  }
 
   my $dcs_file_name = $FORM{FILE_NAME} =~ s/pdf/dsc/rg;
   open(my $dsc_file, '+>', "$conf{TPL_DIR}/" . $dcs_file_name . '.dsc') || die "Can't open file $!";
@@ -378,7 +381,13 @@ sub form_templates_pdf_save {
   close($dsc_file);
   close($tpl_file);
 
-  return 1;
+  # If this script breaks - printing html error by default, unfortunately
+  if ($@) {
+    return 0;
+  }
+
+  print Abills::Base::json_former({ 'status' => 200, 'text' => 'SUCCESS'});
+  return 0;
 }
 
 #**********************************************************
@@ -747,7 +756,7 @@ sub form_templates {
             $lang{EDIT},
             "index=$pdf_editor_index&file=$file_without_extention",
             {
-              ICON => 'fa fa-pencil'
+              ICON => 'fa fa-pencil-alt'
             }
           );
       }
@@ -2076,7 +2085,7 @@ sub form_fees_types {
   result_former({
     INPUT_DATA      => $Fees,
     FUNCTION        => 'fees_type_list',
-    BASE_FIELDS     => 3,
+    BASE_FIELDS     => 4,
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {

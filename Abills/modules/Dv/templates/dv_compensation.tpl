@@ -1,4 +1,4 @@
-<div class='noprint'>
+<div class='d-print-none'>
 <div class="card card-primary card-outline box-form">
 <div class="card-body">
 

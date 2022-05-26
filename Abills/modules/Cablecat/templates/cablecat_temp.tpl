@@ -8,7 +8,7 @@
 </div>
 
 
-<script src='/styles/default_adm/js/raphael.min.js'></script>
+<script src='/styles/default/js/raphael.min.js'></script>
 
 <script>
 

@@ -576,99 +576,100 @@ sub docs_print{
   }
 }
 
-#**********************************************************
-=head2 docs_payments_maked($attr) - Cross ,odule calls
-
-  Arguments:
-    $attr
-      CHANGE_CREDIT
-
-
-=cut
-#**********************************************************
-sub docs_payments_maked{
-  my ($attr) = @_;
-
-  if ( $attr->{CHANGE_CREDIT} ){
-    return 0;
-  }
-  #Add invoice number
-  elsif ( !$FORM{SUM} || $FORM{SUM} == 0 ){
-    if ( $FORM{APPLY_TO_INVOICE} || $FORM{INVOICE_ID} ){
-      print %FORM;
-      $html->message( 'err', "$lang{DOCS}:$lang{ERROR}", "$lang{ERR_WRONG_SUM}", { ID => 561  });
-    }
-    return 0;
-  }
-
-  if ( $FORM{APPLY_TO_INVOICE} || ($FORM{INVOICE_ID} && $FORM{INVOICE_ID} ne 'create') ){
-    delete( $FORM{INVOICE_ID} ) if (defined( $FORM{INVOICE_ID} ) && $FORM{INVOICE_ID} == 0);
-    my $list = $Docs->invoices_list( {
-      UNPAIMENT => ($FORM{INVOICE_ID}) ? undef : 1,
-      ID        => $FORM{INVOICE_ID},
-      UID       => $FORM{UID},
-      PAGE_ROWS => 50,
-      COLS_NAME => 1,
-      SORT      => 1,
-      DESC      => 'ASC'
-    } );
-
-    my $total_payment_sum = $FORM{SUM};
-    my $payment_sum       = $FORM{SUM};
-
-    if ( $Docs->{TOTAL} > 0 ){
-      foreach my $doc ( @{$list} ){
-        if ( $doc->{payment_sum} && $doc->{total_sum} < $doc->{payment_sum} ){
-          print " //     my $payment_sum       = $FORM{SUM}; // $doc->{total_sum} < $doc->{payment_sum} ";
-          next;
-        }
-
-        if ( $FORM{SUM} > $doc->{total_sum} - ($doc->{payment_sum} || 0) ){
-          $payment_sum = $doc->{total_sum} - ($doc->{payment_sum} || 0);
-          if ($attr->{USER_INFO} && $attr->{USER_INFO}->{COMPANY_ID}) {
-            return 1;
-          }
-          print "Pre link: ADD_SUM: $FORM{SUM} total_sum: $doc->{total_sum} payment_sum: ". ($doc->{payment_sum} || 0) ." Doc id: $doc->{id}\n";
-        }
-
-        $Docs->invoices2payments( {
-          PAYMENT_ID => $attr->{PAYMENT_ID},
-          INVOICE_ID => $doc->{id},
-          SUM        => $payment_sum
-        } );
-        
-        if ( !_error_show( $Docs, { MESSAGE => "$lang{INVOICE}", ID => 562 } ) 
-              && !$conf{PAYMENTS_NOT_CHECK_INVOICE_SUM} 
-              && $Docs->{TOTAL_SUM} != $FORM{SUM} ){
-          $html->message( 'warn', $lang{ERROR}, "$lang{PAYMENTS_NOT_EQUAL_DOC} \n  $lang{INVOICE} $lang{SUM}: $Docs->{TOTAL_SUM} \n$lang{PAYMENTS} $lang{SUM}: $FORM{SUM}" );
-        }
-
-        if ( $total_payment_sum - $payment_sum == 0 ){
-          last;
-        }
-      }
-    }
-    else{
-      print "Invoice not found ($Docs->{TOTAL})";
-    }
-  }
-
-  if ( $FORM{CREATE_RECEIPT} ){
-    docs_receipt_add({
-      DATE         => $FORM{DATE} || $DATE,
-      CUSTOMER   => '-',
-      PHONE      => '',
-      UID        => $FORM{UID},
-      ORDER      => $FORM{DESCRIBE} || '-',
-      SUM        => $FORM{SUM},
-      create     => 1,
-      PAYMENT_ID => $attr->{PAYMENT_ID},
-      SEND_EMAIL => $FORM{SEND_EMAIL}
-    });
-  }
-
-  return 1;
-}
+# #**********************************************************
+# =head2 docs_payments_maked($attr) - Cross ,odule calls
+#
+#   Arguments:
+#     $attr
+#       CHANGE_CREDIT
+#
+#
+# =cut
+# #**********************************************************
+# sub docs_payments_maked {
+#   my ($attr) = @_;
+#
+#   if ( $attr->{CHANGE_CREDIT} ){
+#     return 0;
+#   }
+#   #Add invoice number
+#   elsif ( !$FORM{SUM} || $FORM{SUM} == 0 ){
+#     if ( $FORM{APPLY_TO_INVOICE} || $FORM{INVOICE_ID} ){
+#       print %FORM;
+#       $html->message( 'err', "$lang{DOCS}:$lang{ERROR}", "$lang{ERR_WRONG_SUM}", { ID => 561  });
+#     }
+#     return 0;
+#   }
+#
+#   if ( $FORM{APPLY_TO_INVOICE} || ($FORM{INVOICE_ID} && $FORM{INVOICE_ID} ne 'create') ){
+#     delete( $FORM{INVOICE_ID} ) if (defined( $FORM{INVOICE_ID} ) && $FORM{INVOICE_ID} == 0);
+#
+#     my $list = $Docs->invoices_list( {
+#       UNPAIMENT => ($FORM{INVOICE_ID}) ? undef : 1,
+#       ID        => $FORM{INVOICE_ID},
+#       UID       => $FORM{UID},
+#       PAGE_ROWS => 50,
+#       COLS_NAME => 1,
+#       SORT      => 1,
+#       DESC      => 'ASC'
+#     } );
+#
+#     my $total_payment_sum = $FORM{SUM};
+#     my $payment_sum       = $FORM{SUM};
+#
+#     if ( $Docs->{TOTAL} > 0 ){
+#       foreach my $doc ( @{$list} ){
+#         if ( $doc->{payment_sum} && $doc->{total_sum} < $doc->{payment_sum} ){
+#           print " //     my $payment_sum       = $FORM{SUM}; // $doc->{total_sum} < $doc->{payment_sum} ";
+#           next;
+#         }
+#
+#         if ( $FORM{SUM} > $doc->{total_sum} - ($doc->{payment_sum} || 0) ){
+#           $payment_sum = $doc->{total_sum} - ($doc->{payment_sum} || 0);
+#           if ($attr->{USER_INFO} && $attr->{USER_INFO}->{COMPANY_ID}) {
+#             return 1;
+#           }
+#           print "Pre link: ADD_SUM: $FORM{SUM} total_sum: $doc->{total_sum} payment_sum: ". ($doc->{payment_sum} || 0) ." Doc id: $doc->{id}\n";
+#         }
+#
+#         $Docs->invoices2payments( {
+#           PAYMENT_ID => $attr->{PAYMENT_ID},
+#           INVOICE_ID => $doc->{id},
+#           SUM        => $payment_sum
+#         } );
+#
+#         if ( !_error_show( $Docs, { MESSAGE => "$lang{INVOICE}", ID => 562 } )
+#               && !$conf{PAYMENTS_NOT_CHECK_INVOICE_SUM}
+#               && $Docs->{TOTAL_SUM} != $FORM{SUM} ){
+#           $html->message( 'warn', $lang{ERROR}, "$lang{PAYMENTS_NOT_EQUAL_DOC} \n  $lang{INVOICE} $lang{SUM}: $Docs->{TOTAL_SUM} \n$lang{PAYMENTS} $lang{SUM}: $FORM{SUM}" );
+#         }
+#
+#         if ( $total_payment_sum - $payment_sum == 0 ){
+#           last;
+#         }
+#       }
+#     }
+#     else{
+#       print "Invoice not found ($Docs->{TOTAL})";
+#     }
+#   }
+#
+#   if ( $FORM{CREATE_RECEIPT} ){
+#     docs_receipt_add({
+#       DATE         => $FORM{DATE} || $DATE,
+#       CUSTOMER   => '-',
+#       PHONE      => '',
+#       UID        => $FORM{UID},
+#       ORDER      => $FORM{DESCRIBE} || '-',
+#       SUM        => $FORM{SUM},
+#       create     => 1,
+#       PAYMENT_ID => $attr->{PAYMENT_ID},
+#       SEND_EMAIL => $FORM{SEND_EMAIL}
+#     });
+#   }
+#
+#   return 1;
+# }
 
 #**********************************************************
 =head2 docs_users_list($attr) - Docs user
@@ -887,39 +888,6 @@ sub docs_user{
 }
 
 #**********************************************************
-=head2 docs_pre_payment($attr)
-
-=cut
-#**********************************************************
-sub docs_pre_payment{
-
-  if ( $FORM{INVOICE_ID} && $FORM{INVOICE_ID} eq 'create' ){
-    delete $FORM{INVOICE_ID};
-    docs_invoice({
-      INVOICE_DATA => {
-        INCLUDE_DEPOSIT   => 1,
-        create            => 1,
-        CUSTOMER          => '-',
-        ORDER             => $FORM{DESCRIBE},
-        $LIST_PARAMS{UID} => $FORM{UID},
-        SUM               => $FORM{SUM}
-      }
-    });
-  }
-  elsif ( $FORM{INVOICE_ID} ){
-    $Docs->invoice_info( $FORM{INVOICE_ID} );
-    if ( $Docs->{TOTAL} == 0 ){
-      $FORM{INVOICE_SUM} = 0;
-    }
-    else{
-      $FORM{INVOICE_SUM} = $Docs->{TOTAL_SUM};
-    }
-  }
-
-  return 1;
-}
-
-#**********************************************************
 =head2 docs_statement_of_account($attr)
 
 =cut
@@ -952,7 +920,7 @@ sub docs_statement_of_account {
     DSC        => '_SHOW',
     SUM        => '_SHOW',
     LAST_DEPOSIT=>'_SHOW',
-    BILL_ID     => '_SHOW',
+    BILL_ID     =>'_SHOW',
     %LIST_PARAMS,
     COLS_NAME  => 1,
     COLS_UPPER => 1
@@ -969,10 +937,9 @@ sub docs_statement_of_account {
     DSC         => '_SHOW',
     DEPOSIT     => '_SHOW',
     INVOICE_NUM => '_SHOW',
+    INVOICE_DATE=> '_SHOW',
     LAST_DEPOSIT=> '_SHOW',
     SUM         => '_SHOW',
-    BILL_ID     => '_SHOW',
-    BILL_ID     => '_SHOW',
     BILL_ID     => '_SHOW',
     %LIST_PARAMS,
     COLS_NAME   => 1,
@@ -985,10 +952,9 @@ sub docs_statement_of_account {
 
   $users->pi( { UID => $LIST_PARAMS{UID} } );
 
-  my @xls_data = ();
   my @data_upload = ();
-  my @title_upload = ( $lang{DATE}, $lang{TYPE}, $lang{ACCOUNT}, $lang{BALANCE}, $lang{FEES}, $lang{PAYMENTS}, $lang{DESCRIBE} );
-
+  my @title_upload = ( $lang{DATE}, $lang{LOGIN}, $lang{BILLS}, $lang{INVOICE}, $lang{DESCRIBE}, $lang{FEES},
+    $lang{PAYMENTS}, $lang{BALANCE});
   my %BILL_ACCOUNTS = ();
 
   if ($conf{EXT_BILL_ACCOUNT}) {
@@ -996,13 +962,14 @@ sub docs_statement_of_account {
     $BILL_ACCOUNTS{ $users->{EXT_BILL_ID} } = "$lang{EXTRA} : $users->{EXT_BILL_ID}" if ($users->{EXT_BILL_ID});
   }
 
-  foreach my $date ( sort keys %operations ) {
+  foreach my $date_ ( sort keys %operations ) {
 
-    foreach my $money_operation ( @{ $operations{$date} } ) {
+    my @xls_data = ();
+    foreach my $money_operation ( @{ $operations{$date_} } ) {
       my $date = ($money_operation->{FEES}) ? $money_operation->{datetime} : $html->b(($money_operation->{datetime}));
       my $login = ($money_operation->{FEES}) ? $users->{LOGIN} : $html->b($users->{LOGIN});
       my $bill_id = ($money_operation->{FEES}) ? $BILL_ACCOUNTS{$money_operation->{bill_id}} : $BILL_ACCOUNTS{$money_operation->{bill_id}};
-      my $invoice = $html->b($money_operation->{invoice_num});
+      my $invoice = ($money_operation->{invoice_num})  ? $html->b($money_operation->{invoice_num}) ."\n". $money_operation->{invoice_date} : q{};
       my $fio = ($money_operation->{FEES}) ? $users->{FIO} : $html->b($users->{FIO});
       my $fees = ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{sum} || 0) : '';
       my $payments = ($money_operation->{FEES}) ? '' : $html->b(sprintf("%.2f", $money_operation->{sum} || 0));
@@ -1014,7 +981,7 @@ sub docs_statement_of_account {
           date        => $date,
           login       => $login,
           bill_id     => $bill_id,
-          invoice_num => $invoice,
+          invoice     => $invoice,
           fio         => $fio,
           fees_sum    => $fees,
           payment_sum => $payments,
@@ -1023,15 +990,10 @@ sub docs_statement_of_account {
         },
         { OUTPUT2RETURN => 1 } );
 
-        push @xls_data, ($date, $login, $bill_id, $invoice, $deposit, $fees, $payments, $describe);
-        
-        if ($#xls_data > 7) {
-          push @data_upload, [ $xls_data[8], $xls_data[9], $xls_data[10], $xls_data[11], $xls_data[12], $xls_data[13], $xls_data[14] ];
-        }
-    } 
+        push @xls_data, ($date, $login, $bill_id, $invoice, $describe, $fees, $payments, $deposit);
+    }
     
     push @data_upload, [ @xls_data ];  
-    @xls_data = ();
   }
 
   my ($y)=split(/-/, $DATE);
@@ -1057,14 +1019,14 @@ sub docs_statement_of_account {
 
   if ($FORM{xls}) {
     my $table = $html->table({
-       ID         => 'DOCS',
-       title      => \@title_upload, 
-       rows       => \@data_upload,
+      ID         => 'DOCS',
+      title      => \@title_upload,
+      rows       => \@data_upload,
     });
     $table->show();
   }
   else {
-    my $tpl = $html->tpl_show( _include( 'docs_statement_of_account', 'Docs' ),
+    $html->tpl_show( _include( 'docs_statement_of_account', 'Docs' ),
       {
         %{$users},
         %{$Docs},
@@ -1109,19 +1071,17 @@ sub docs_sp_invoice_summary{
 
   my $qs = "&FROM_DATE=$Y-$M-01&TO_DATE=$Y-$M-$D&search=1";
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => "$lang{INVOICES}",
-      ID      => 'DOCS_INVOICE',
-      rows    => [
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{INVOICES},
+    ID      => 'DOCS_INVOICE',
+    rows    => [
         [ "$lang{TOTAL}:", $html->button( $Docs->{TOTAL_}, 'index=' . get_function_index( 'docs_invoices_list' ) . $qs ) ],
         [ "$lang{USERS}:", $html->b( $Docs->{TOTAL_USERS} || 0 ) ],
         [ "$lang{UNPAID}:", $html->button( (($Docs->{TOTAL_} || 0) - ($Docs->{PAYMENT_COUNT} || 0)),
             "UNPAIMENT=1&index=" . get_function_index( 'docs_invoices_list' ) . $qs ) ]
       ]
-    }
-  );
+  });
 
   my $reports = $table->show();
 
@@ -1160,7 +1120,7 @@ sub docs_registration_create{
     # If HTML we need to load bootstrap
     if ( $FORM{OUTPUT} eq 'html' ){
       print $html->header();
-      $html->tpl_show( templates( 'metatags' ), { HTML_STYLE => 'default_adm' } );
+      $html->tpl_show( templates( 'metatags' ), { HTML_STYLE => 'default' } );
     }
 
     docs_print( 'registration', { %{$Docs}, %FORM, NO_HEADER => 1 } );
@@ -1448,7 +1408,7 @@ sub docs_module_info {
   my %doc = ();
 
   #Modules info
-  my $cross_modules_return = cross_modules_call('_docs', {
+  my $cross_modules_return = cross_modules('docs', {
     UID      => $attr->{UID},
     SHOW_ALL => 1
   });

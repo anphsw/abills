@@ -18,7 +18,7 @@ our(
 use Triplay;
 my $Triplay = Triplay->new($db, $admin, \%conf);
 my $Fees     = Fees->new($db, $admin, \%conf);
-my $Tariffs  = Tariffs->new($db, \%conf, $admin);
+#my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 
 
 #**********************************************************
@@ -93,6 +93,7 @@ sub triplay_monthly_fees {
     MONTH_FEE   => '>0',
     CREDIT      => '_SHOW',
     MODULES     => 'Triplay',
+    PAYMENT_TYPE=> '_SHOW',
     COLS_NAME   => 1,
     COLS_UPPER  => 1
   });
@@ -150,6 +151,7 @@ sub triplay_monthly_fees {
           MODULE            => 'Triplay',
           TP_ID             => $TP_INFO->{TP_ID},
           TP_NAME           => $TP_INFO->{NAME},
+          SERVICE_NAME      => 'Triplay',
           FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT},
           FEES_METHOD       => $FEES_METHODS->{$TP_INFO->{FEES_METHOD}},
           DATE              => $ADMIN_REPORT{DATE},
@@ -187,7 +189,14 @@ sub triplay_monthly_fees {
             next;
           }
 
-          $Fees->take(\%user, $month_fee, \%FEES_DSC);
+          my %PARAMS = (
+            DATE     => "$ADMIN_REPORT{DATE} $TIME",
+            METHOD   => ($TP_INFO->{FEES_METHOD}) ? $TP_INFO->{FEES_METHOD} : 1,
+            DESCRIBE => fees_dsc_former(\%FEES_DSC),
+          );
+          $PARAMS{DESCRIBE} .= " ($cure_month_begin-$cure_month_end)";
+
+          $Fees->take(\%user, $month_fee, \%PARAMS);
           if ($Fees->{errno}) {
             print "Triplay Error: [ $user{UID} ] $user{LOGIN} SUM: $month_fee [$Fees->{errno}] $Fees->{errstr} ";
             if ($Fees->{errno} == 14) {
@@ -200,8 +209,6 @@ sub triplay_monthly_fees {
           }
         }
       }
-
-
     }
   }
 
@@ -287,7 +294,7 @@ sub triplay_service_deactivate {
   my $debug = $attr->{DEBUG} || 0;
   my $action = 0;
 
-  if ($user_info->{SERVICE_STATUS} != 5) {
+  if (defined($user_info->{SERVICE_STATUS}) && $user_info->{SERVICE_STATUS} != 5) {
     $Triplay->user_change({
       UID    => $user_info->{UID},
       DISABLE => 5

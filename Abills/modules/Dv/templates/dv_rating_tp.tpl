@@ -1,4 +1,4 @@
-<div class='noprint' name='FORM_TP'>
+<div class='d-print-none' name='FORM_TP'>
 <form action='$SELF_URL' METHOD='POST'>
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='TP_ID' value='$FORM{TP_ID}'>

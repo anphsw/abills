@@ -2,8 +2,9 @@
 <div class='small-box bg-yellow'>
   <div class='inner'>
     <h4>_{TARIF_PLAN}_ %INTERNET_TP_NAME%</h4>
+    <p>_{STATUS}_: %INTERNET_STATUS%</p>
     <p>MAC: %INTERNET_CID%</p>
-    <p>_{PRICE}_: %INTERNET_MONTH_FEE% %MONEY_UNIT_NAME%/_{MONTH}_</p>
+    <p>_{PRICE}_: %INTERNET_MONTH_FEE% %MONEY_UNIT_NAME%/%INTERNET_PERIOD%</p>
     <p>%INTERNET_COMMENTS%</p>
   </div>
   <div class='icon'>

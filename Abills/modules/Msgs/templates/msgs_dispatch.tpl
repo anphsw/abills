@@ -7,7 +7,7 @@
       <div class='col-md-12'>
         <div class='card card-primary card-outline box-big-form'>
           <div class='card-header with-border'><h4 class='card-title'>_{DISPATCH}_</h4>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-minus'></i>
               </button>
             </div>
@@ -83,7 +83,7 @@
       <div class='col-md-12'>
         <div class='card card-primary card-outline collapsed-card'>
           <div class='card-header with-border'><h4 class='card-title'>_{BRIGADE}_</h4>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'><i
                   class='fa fa-plus'></i>
               </button>

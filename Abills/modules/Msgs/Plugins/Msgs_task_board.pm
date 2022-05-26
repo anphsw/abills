@@ -101,7 +101,7 @@ sub _get_info {
     ICON           => 1,
     TIME_HIDDEN_ID => 'PLAN_TIME',
     DATE_HIDDEN_ID => 'PLAN_DATE',
-    EX_PARAMS      => q{pattern='^\d\d\d\d-(0?[1-9]|1[0-2])-(0?[1-9]|[12][0-9]|3[01]) (00|0?[0-9]|1[0-9]|2[0-3]):([0-9]|[0-5][0-9])$'},
+    # EX_PARAMS      => q{pattern='^\d\d\d\d-(0?[1-9]|1[0-2])-(0?[1-9]|[12][0-9]|3[01]) (00|0?[0-9]|1[0-9]|2[0-3]):([0-9]|[0-5][0-9])$'},
   );
 
   my $date = $html->form_datetimepicker('PLAN_DATETIME', _generated_datetime(), { %data_datepicker });

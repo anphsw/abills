@@ -786,14 +786,18 @@ sub hotspot_configure {
     }
     ],
   ]);
-  $self->execute([
-    [
-      '/ip dns static add', {
-      name    => "$dns_name",
-      address => $address
-    }
-    ],
-  ]);
+
+  if ($dns_name) {
+    $self->execute([
+      [
+        '/ip dns static add', {
+        name    => $dns_name,
+        address => $address
+      }
+      ],
+    ]);
+  }
+
   $self->execute([
     [ '/ip dhcp-server config set', { 'store-leases-disk' => '5m' } ],
   ]);

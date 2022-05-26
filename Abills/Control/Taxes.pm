@@ -117,7 +117,7 @@ sub taxes {
 
   foreach my $item (@$taxes_list) {
     my $del_button  = $html->button("", "index=$index&del=$item->{id}", { class => "del", MESSAGE => "$lang{DEL}?", class => 'del'  });
-    my $edit_button = $html->button("", "index=$index&chg=$item->{id}", { class => "",            ADD_ICON => "fa fa-pencil" });
+    my $edit_button = $html->button("", "index=$index&chg=$item->{id}", { class => "",            ADD_ICON => "fa fa-pencil-alt" });
     $table->addrow($item->{id}, $item->{ratecode}, $item->{rateamount}, $item->{ratedescr}, $current[$item->{current}],  "$edit_button$del_button");
   }
 

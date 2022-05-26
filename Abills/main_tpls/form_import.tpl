@@ -60,4 +60,4 @@
 </div>
 
 
-<script src='/styles/default_adm/js/ajax_upload.js'></script>
+<script src='/styles/default/js/ajax_upload.js'></script>

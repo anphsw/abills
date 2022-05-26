@@ -113,4 +113,7 @@ $lang{IPTV_ERROR_CREATING_USER} = "Error creating user";
 $lang{IPTV_ERROR_ADDING_TP} = "Error adding TP";
 $lang{IPTV_ERROR_DEL_TP} = "Tariff plan deletion error";
 
+$lang{IPTV_PROMOTIONAL_TP} = "Promotional tariff plan";
+$lang{SUGGEST_ACTIVATE_TP} = "We suggest you activate the tariff plan";
+
 1;

@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `internet_filters`
     UNIQUE KEY `filter` (`filter`)
 ) DEFAULT CHARSET = utf8
     COMMENT = 'Internet filters list';
-ALTER TABLE `referral_tp` ADD COLUMN `spend_percent` SMALLINT(3) UNSIGNED NUT NULL DEFAULT '0';
+ALTER TABLE `referral_tp` ADD COLUMN `spend_percent` SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0';
 ALTER TABLE `referral_tp` ADD COLUMN `is_default` SMALLINT(1) DEFAULT 0 NOT NULL;
 ALTER TABLE `referral_log` ADD COLUMN `log_type` SMALLINT(1) UNSIGNED NOT NULL DEFAULT 0;
 

@@ -1,4 +1,4 @@
-<script src='/styles/default_adm/js/modules/poll.js'></script>
+<script src='/styles/default/js/modules/poll.js'></script>
 <form action=$SELF_URL METHOD=POST class='form-horizontal' id='POLL_ANSWER_FORM'>
 
 <input type='hidden' name='index' value="%INDEX%">
@@ -59,7 +59,7 @@
               <button class='btn btn-xs btn-danger' id='removeAnswerBtn'
                       data-tooltip='_{DEL_POLL_ANSWER}_'
                       data-tooltip-position='bottom'>
-                  <span class='fa fa-remove'></span>
+                  <span class='fa fa-times'></span>
               </button>
               <button class='btn btn-xs btn-success' id='addAnswerBtn'
                       data-tooltip='_{ADD_POLL_ANSWER}_'>

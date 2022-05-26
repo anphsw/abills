@@ -1,6 +1,6 @@
 <div class='form-address'>
   <input type='hidden' name='LOCATION_ID' id='ADD_LOCATION_ID' value='%LOCATION_ID%' class='HIDDEN-BUILD'>
-  <input type='hidden' name='MAPS2_SHOW_OBJECTS' id='MAPS2_SHOW_OBJECTS' value='%MAPS2_SHOW_OBJECTS%'>
+  <input type='hidden' name='MAPS_SHOW_OBJECTS' id='MAPS_SHOW_OBJECTS' value='%MAPS_SHOW_OBJECTS%'>
 
   <div class='form-group row' style='%EXT_SEL_STYLE%'>
     <label class='col-sm-3 col-md-4 col-form-label text-md-right LABEL-DISTRICT'>_{DISTRICTS}_:</label>
@@ -27,7 +27,7 @@
         <input type='text' id='ADD_ADDRESS_BUILD_ID' name='ADD_ADDRESS_BUILD' class='form-control INPUT-ADD-BUILD'/>
         <div class='input-group-append'>
           <div class='input-group-text'>
-            <a class='BUTTON-ENABLE-SEL'>
+            <a class='BUTTON-ENABLE-SEL cursor-pointer'>
               <span class='fa fa-list'></span>
             </a>
           </div>
@@ -45,11 +45,11 @@
 
   %EXT_ADDRESS%
 
-  <div class='pull-right'>
+  <div class='float-right'>
     %ADDRESS_ADD_BUTTONS%
     %MAP_BTN%
     %DOM_BTN%
-    <span id='map_add_btn' style='display: none'>%MAPS2_BTN%</span>
+    <span id='map_add_btn' style='display: none'>%MAPS_BTN%</span>
   </div>
 </div>
 
@@ -71,8 +71,10 @@
       + '&STREET=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%', function (result) {
       jQuery('#%STREET_ID%').html(result);
       initChosen();
-      jQuery("#%STREET_ID%").focus();
-      jQuery("#%STREET_ID%").select2('open');
+      if (!jQuery("#" + data.id).prop('multiple')) {
+        jQuery("#%STREET_ID%").focus();
+        jQuery("#%STREET_ID%").select2('open');
+      }
     });
   }
 
@@ -90,8 +92,11 @@
       function (result) {
         jQuery('#%BUILD_ID%').html(result);
         initChosen();
-        jQuery("#%BUILD_ID%").focus();
-        jQuery("#%BUILD_ID%").select2('open');
+
+        if (!jQuery("#" + data.id).prop('multiple')) {
+          jQuery("#%BUILD_ID%").focus();
+          jQuery("#%BUILD_ID%").select2('open');
+        }
 
         activateBuildButtons();
       });
@@ -103,7 +108,7 @@
 
     if (item == '--') item = '';
 
-    if (jQuery('#MAPS2_SHOW_OBJECTS').val()) {
+    if (jQuery('#MAPS_SHOW_OBJECTS').val()) {
       if (item && item !== '0') {
         jQuery('#map_add_btn').fadeIn(300);
         getObjectToMap();
@@ -118,7 +123,7 @@
   }
 
   let selected_builds = jQuery('#ADD_LOCATION_ID').attr('value');
-  if (selected_builds && !item && jQuery('#MAPS2_SHOW_OBJECTS').val()){
+  if (selected_builds && !item && jQuery('#MAPS_SHOW_OBJECTS').val()){
     item = selected_builds;
     jQuery('#map_add_btn').fadeIn(300);
     getObjectToMap();

@@ -180,7 +180,7 @@ sub info_comments_make{
       <span class='fa fa-trash text-danger'></span>
     </a>};
       $edit_button = qq{ <a class='commentEditBtn' data-id='$comment->{id}' title="$lang{EDIT}">
-      <span class='fa fa-pencil text-primary'></span>
+      <span class='fa fa-pencil-alt text-primary'></span>
     </a>};
     }
 
@@ -369,7 +369,7 @@ sub info_images_make {
     #    print "<hr>" . $image_row->{filename};
   }
 
-  push @images, "<link href='/styles/default_adm/css/info.css' rel='stylesheet'>";
+  push @images, "<link href='/styles/default/css/info.css' rel='stylesheet'>";
 
   return \@images;
 }
@@ -561,44 +561,44 @@ sub info_locations_show_map {
   my $locations = $Info->get_locations($type, $obj_id, { COLS_NAME => 1 });
   _error_show($Info);
 
-  if (in_array('Maps', \@MODULES)) {
-    load_module('Maps', $html);
-
-    foreach my $location (@{$locations}) {
-      $location->{street_name} = $type;
-      $location->{number} = $obj_id;
-      my $comment = ($location->{comment}) ? "<b>$lang{COMMENTS}: </b>$location->{comment}" : '';
-      my $timestamp = ($location->{timestamp} ne '0000-00-00 00:00:00') ? "<br/><b>$lang{TIME}: </b>$location->{timestamp}" : '';
-
-      $location->{info} = qq\
-      <div class='row text-left'>
-        <div class='row pull-right'>
-           <a class='locationRemoveBtn' title='$lang{DEL}' onclick=removeLocation($location->{id})>
-             <span class='fa fa-times-circle'></span>
-           </a>
-        </div>
-      $comment
-      $timestamp
-      <br/>
-        <br/><b>$lang{ADMIN}: </b>$location->{admin}
-        <br/><b>$lang{ADDED}: </b>$location->{date}
-      </div>\;
-      # JSON doesn't allow carret return symbol
-      $location->{info} =~ s/\n//g;
-    }
-
-    maps_show_map(
-      {
-        OBJECTS_LIST => $locations,
-        POINT_TYPE   => 'default',
-        QUICK        => 1,
-        NO_BUILDS    => 1,
-      }
-    );
-  }
-  else {
-    $html->message('err', "$lang{ERROR}", "No 'Maps' module");
-  }
+  # if (in_array('Maps', \@MODULES)) {
+  #   load_module('Maps', $html);
+  #
+  #   foreach my $location (@{$locations}) {
+  #     $location->{street_name} = $type;
+  #     $location->{number} = $obj_id;
+  #     my $comment = ($location->{comment}) ? "<b>$lang{COMMENTS}: </b>$location->{comment}" : '';
+  #     my $timestamp = ($location->{timestamp} ne '0000-00-00 00:00:00') ? "<br/><b>$lang{TIME}: </b>$location->{timestamp}" : '';
+  #
+  #     $location->{info} = qq\
+  #     <div class='row text-left'>
+  #       <div class='row float-right'>
+  #          <a class='locationRemoveBtn' title='$lang{DEL}' onclick=removeLocation($location->{id})>
+  #            <span class='fa fa-times-circle'></span>
+  #          </a>
+  #       </div>
+  #     $comment
+  #     $timestamp
+  #     <br/>
+  #       <br/><b>$lang{ADMIN}: </b>$location->{admin}
+  #       <br/><b>$lang{ADDED}: </b>$location->{date}
+  #     </div>\;
+  #     # JSON doesn't allow carret return symbol
+  #     $location->{info} =~ s/\n//g;
+  #   }
+  #
+  #   maps_show_map(
+  #     {
+  #       OBJECTS_LIST => $locations,
+  #       POINT_TYPE   => 'default',
+  #       QUICK        => 1,
+  #       NO_BUILDS    => 1,
+  #     }
+  #   );
+  # }
+  # else {
+  #   $html->message('err', "$lang{ERROR}", "No 'Maps' module");
+  # }
 
   return 1;
 }
@@ -764,7 +764,7 @@ sub info_documents_make {
     {
       width       => '100%',
       caption     => $lang{DOCUMENTS},
-      cols_align  => [ 'left', 'left', 'left', 'left', 'right:noprint' ],
+      cols_align  => [ 'left', 'left', 'left', 'left', 'right:d-print-none' ],
       title_plain => [ 'ID', $lang{NAME}, "$lang{ADMIN}", "$lang{DATE}", '-' ],
       qs          => $pages_qs,
       ID          => 'INFO_DOCUMENTS'
@@ -780,7 +780,7 @@ sub info_documents_make {
 
     my $deleteURL = "/admin/index.cgi?get_index=info_document_del&OBJ_ID=$line->{id}&header=2";
     my $delete_btn = "<a id='documentDelBtn' class='btn btn-xs btn-danger' onclick='loadToModal(\"$deleteURL\")'>
-      <span class='fa fa-remove'></span></a>";
+      <span class='fa fa-times'></span></a>";
 
     my $action_btns = "<div class='btn-group btn-group-xs'>$delete_btn$download_btn</div>";
 
@@ -1106,7 +1106,7 @@ sub log_comments_edit {
       $item_log->{date_change} || $item_log->{date},
       ($FORM{chg} || $FORM{COMMENT}) ? $html->button("", 'index=' . $index . '&chg=' . ($item_log->{id_comments} || $item_log->{id}) .
         '&uid=' . ($item_log->{uid} || $item_log->{obj_id}) . '&text=' . $item_log->{text},
-        { class => "", ADD_ICON => "fa fa-pencil" }) : ''
+        { class => "", ADD_ICON => "fa fa-pencil-alt" }) : ''
     );
   }
 

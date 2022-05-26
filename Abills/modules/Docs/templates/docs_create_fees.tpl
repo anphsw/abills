@@ -1,7 +1,7 @@
 <div class='card card-outline collapsed-card mb-0 border-top'>
   <div class='card-header with-border'>
     <h3 class='card-title'>_{DOCS}_</h3>
-    <div class='card-tools pull-right'>
+    <div class='card-tools float-right'>
       <button type='button' class='btn btn-tool' data-card-widget='collapse'>
         <i class='fa fa-plus'></i>
       </button>

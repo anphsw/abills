@@ -18,6 +18,7 @@ use parent qw(dbcore main);
 use Tariffs;
 my $Tariffs;
 
+my $MODULE = 'Cams';
 my ($SORT, $DESC, $PG, $PAGE_ROWS);
 my ($db, $admin, $CONF);
 
@@ -121,7 +122,6 @@ sub _list {
   return $self->{list};
 }
 
-
 #**********************************************************
 
 =head2 _info($id)
@@ -197,9 +197,19 @@ sub _info {
 #**********************************************************
 sub _del {
   my $self = shift;
-  my ($id) = @_;
+  my $id = shift;
+  my ($attr) = @_;
 
   $self->query_del('cams_main', undef, { id => $id });
+
+  $admin->{MODULE} = $MODULE;
+
+  my @del_descr = ();
+  push @del_descr, "UID: $attr->{UID}" if $attr->{UID};
+  push @del_descr, "ID: $attr->{ID}" if $attr->{ID};
+  push @del_descr, "COMMENTS: $attr->{COMMENTS}" if $attr->{COMMENTS};
+
+  $admin->action_add($self->{UID}, join(' ', @del_descr), { TYPE => 10 });
 
   return $self;
 }
@@ -239,6 +249,7 @@ sub users_list {
     [ 'TP_STREAMS_COUNT',   'INT', 'ctp.streams_count as tp_streams_count', 1 ],
     [ 'USER_STREAMS_COUNT', 'INT', 'COUNT(*) as user_streams_count',        1 ],
     [ 'SERVICE_NAME',       'STR', 's.name as service_name',                1 ],
+    [ 'MODULE',             'STR', 's.module',                              1 ],
     [ 'SERVICE_ID',         'INT', 'ctp.service_id',                        1 ],
     [ 'MONTH_FEE',          'INT', 'tp.month_fee',                          1 ],
     [ 'PERIOD_ALIGNMENT',   'INT', 'tp.PERIOD_ALIGNMENT',                   1 ],
@@ -349,6 +360,23 @@ sub user_add {
   $attr->{ACTIVATE} = '0000-00-00' if (!$start_active && !$Tariffs->{AGE});
   $self->query_add('cams_main', $attr);
 
+  return if $self->{errno};
+
+  $admin->{MODULE} = $MODULE;
+
+  my @info = ('SERVICE_ID', 'ID', 'TP_ID', 'STATUS', 'EMAIL');
+  my @actions_history = ();
+
+  foreach my $param (@info) {
+    next if !defined $attr->{$param};
+
+    push @actions_history, $param . ":" . $attr->{$param};
+  }
+
+  $self->{ID} = $self->{INSERT_ID};
+
+  $admin->action_add($attr->{UID}, "ID: $self->{INSERT_ID} ".  join(', ', @actions_history), { TYPE => 1 } );
+
   return $self->{INSERT_ID};
 }
 
@@ -396,11 +424,13 @@ sub user_change {
   my $old_info = $self->_info($attr->{ID});
   $self->{OLD_STATUS} = $old_info->{STATUS};
   $attr->{EXPIRE}  = $attr->{SERVICE_EXPIRE};
+  $attr->{DISABLE} = $attr->{STATUS};
 
+  $admin->{MODULE} = $MODULE;
   $self->changes({
     CHANGE_PARAM => 'ID',
     TABLE        => 'cams_main',
-    DATA         => $attr,
+    DATA         => $attr
   });
 
   $self->_info($attr->{ID});
@@ -748,6 +778,19 @@ sub stream_add {
   });
 
   return undef if $self->{errno};
+
+  $admin->{MODULE} = $MODULE;
+  my @info = ('NAME', 'TITLE');
+  my @actions_history = ();
+
+  foreach my $param (@info) {
+    if (defined($attr->{$param})) {
+      push @actions_history, $param . ":" . $attr->{$param};
+    }
+  }
+
+  $admin->action_add(0, "CAMERA: ID: $self->{INSERT_ID} ".  join(', ', @actions_history), { TYPE => 1 } );
+
   return $self->{INSERT_ID};
 }
 
@@ -769,6 +812,14 @@ sub stream_del {
   my ($attr) = @_;
 
   $self->query_del('cams_streams', $attr);
+
+  $admin->{MODULE} = $MODULE;
+
+  my @del_descr = ("CAMERA: ");
+  push @del_descr, "ID: $attr->{ID}" if $attr->{ID};
+  push @del_descr, "COMMENTS: $attr->{COMMENTS}" if $attr->{COMMENTS};
+
+  $admin->action_add(0, join(' ', @del_descr), { TYPE => 10 });
 
   return 1;
 }
@@ -1260,6 +1311,9 @@ sub user_groups {
     { MULTI_QUERY => \@MULTI_QUERY }
   );
 
+  $admin->{MODULE} = $MODULE;
+  $admin->action_add($attr->{UID}, "GROUPS: $attr->{IDS}", { TYPE => 2 } );
+
   return $self;
 }
 
@@ -1345,6 +1399,9 @@ sub user_folders {
 
   $self->query("INSERT INTO cams_users_folders (id, tp_id, folder_id, changed) VALUES (?, ?, ?, NOW());",
     undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  $admin->{MODULE} = $MODULE;
+  $admin->action_add($attr->{UID}, "FOLDERS: $attr->{IDS}", { TYPE => 2 } );
   
   return $self;
 }

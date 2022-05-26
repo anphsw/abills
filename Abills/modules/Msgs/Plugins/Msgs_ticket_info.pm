@@ -86,6 +86,7 @@ sub plugin_show {
 
   $info .= $self->_get_responsible_select($attr);
   $info .= $self->_get_priority_select($attr);
+  # $info .= $self->_get_plan_date_input($attr);
 
   return $info;
 }
@@ -145,6 +146,33 @@ sub _get_main_info {
   my $col_div = $html->element('div', $info_str, { class => 'col-md-12 text-left' });
 
   return $html->element('div', $html->element('hr') . $col_div . $html->element('hr'), { class => 'form-group' });
+}
+
+#**********************************************************
+=head2 _get_plan_date_input($attr)
+
+=cut
+#**********************************************************
+sub _get_plan_date_input {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $plan_date = $Msgs->{PLAN_DATE} && $Msgs->{PLAN_DATE} ne '0000-00-00' ? $Msgs->{PLAN_DATE} : '';
+  my $plan_time = $Msgs->{PLAN_DATE} && $Msgs->{PLAN_TIME} && $Msgs->{PLAN_TIME} ne '00:00:00' ? $Msgs->{PLAN_TIME} : '';
+  my $datetimepicker = $html->form_datetimepicker('PLAN_DATETIME', join(' ', ($plan_date, $plan_time)), {
+    ICON           => 1,
+    TIME_HIDDEN_ID => 'PLAN_TIME',
+    DATE_HIDDEN_ID => 'PLAN_DATE',
+    # EX_PARAMS      => q{pattern='^\d\d\d\d-(0?[1-9]|1[0-2])-(0?[1-9]|[12][0-9]|3[01]) (00|0?[0-9]|1[0-9]|2[0-3]):([0-9]|[0-5][0-9])$'},
+  });
+
+  $datetimepicker .= $html->element('input', '', { name => 'PLAN_DATE', id => 'PLAN_DATE', type => 'hidden' });
+  $datetimepicker .= $html->element('input', '', { name => 'PLAN_TIME', id => 'PLAN_TIME', type => 'hidden' });
+
+  my $col_div = $html->element('div', $datetimepicker, { class => 'col-md-12' });
+  my $label = $html->element('label', "$lang->{EXECUTION}:", { class => 'col-md-12' });
+
+  return $html->element('div', $label . $col_div, { class => 'form-group' });
 }
 
 #**********************************************************

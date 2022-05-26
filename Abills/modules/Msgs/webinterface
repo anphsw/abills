@@ -73,10 +73,6 @@ if ($conf{MSGS_CHAT}) {
   require Msgs::Chat;
 }
 
-if ($conf{MSGS_ADDRESS}) {
-  require Msgs::Msgs_address;
-}
-
 if ($conf{MSGS_SCRUB_BOX}) {
   require Msgs::Msgs_scrub_box;
 }
@@ -188,6 +184,7 @@ sub msgs_status_bar {
   }
 
   my $status_bar = $html->table_header(\@header_arr, {
+    CAPTION   => $lang{MSGS},
     TABS      => $attr->{NO_UID} || $attr->{TABS},
     SHOW_ONLY => $attr->{SHOW_ONLY} || 5
   });
@@ -401,6 +398,8 @@ sub msgs_new {
     $Msgs->{TODAY} = 0;
 
     foreach my $line (@{$list}) {
+      $line->{id} ||= 0;
+      $line->{name} ||= '';
       $id++;
       my $count = '';
       if ($line->{open_count} > 0) {
@@ -1348,10 +1347,16 @@ sub _quick_replys_tags_table {
   my $type_name = '';
 
   foreach my $line (sort keys %{$info}) {
-    $table->addrow($html->form_input('TAGS_IDS', $info->{$line}->{id}, {
-      TYPE  => 'CHECKBOX',
-      STATE => $tags_info->{$info->{$line}->{id}} ? 1 : undef,
-    }), $tags_info->{"reply_$info->{$line}->{id}"});
+    my $reply = $tags_info->{"reply_$info->{$line}->{id}"};
+    my $comment = $tags_info->{"comment_$info->{$line}->{id}"};
+
+    $table->addrow(
+      $html->form_input('TAGS_IDS', $info->{$line}->{id}, {
+        TYPE  => 'CHECKBOX',
+        STATE => $tags_info->{$info->{$line}->{id}} ? 1 : undef,
+      }),
+      $html->element('div', $reply, { 'data-tooltip' => $comment, 'data-tooltip-position' => 'left' })
+    );
     $type_name = $info->{$line}->{type};
   }
 
@@ -1395,6 +1400,7 @@ sub msgs_quick_replys_tags {
     TYPE_ID   => '_SHOW',
     ID        => '_SHOW',
     REPLY     => '_SHOW',
+    COMMENT   => '_SHOW',
     COLS_NAME => 1
   });
 
@@ -1426,6 +1432,7 @@ sub msgs_quick_replys_tags {
 
     $tag_info{$msg_tag->{quick_reply_id}} = 1;
     $tag_info{'reply_' . $msg_tag->{quick_reply_id}} = $msg_tag->{reply};
+    $tag_info{'comment_'. $msg_tag->{quick_reply_id}} = $msg_tag->{comment};
   }
 
   foreach my $type_key (sort keys %quick_replys_list) {
@@ -1691,7 +1698,7 @@ sub msgs_operator_statistics {
       {
         ID     => mk_unique_value(10),
         NUMBER => sec2time($time_applications_per_month{$admin->{AID}}, { str => 1 }),
-        ICON   => 'clock-o',
+        ICON   => 'clock',
         TEXT   => $lang{TIME_SPENT_ON_APPLICATIONS},
         COLOR  => 'warning',
         SIZE   => 4
@@ -2046,7 +2053,7 @@ sub msgs_assessment_stars {
   my $stars = '';
   map $stars .= $html->element('i', '', { class => 'fa fa-star text-yellow' }), (1..$assessment);
   if (int($assessment) < $assessment && int($assessment) + 0.5 <= $assessment) {
-    $stars .= $html->element('i', '', { class => 'fa fa-star-half-o text-yellow' });
+    $stars .= $html->element('i', '', { class => 'fa fa-star-half text-yellow' });
     $assessment++;
   }
 

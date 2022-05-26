@@ -73,4 +73,4 @@
 
 </script>
 
-<script src='/styles/default_adm/js/msgs/msgs_plugin.js?v=0.77.78'></script>
+<script src='/styles/default/js/msgs/msgs_plugin.js?v=0.77.78'></script>

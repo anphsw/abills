@@ -164,20 +164,25 @@ sub msgs_delivery {
     $LIST_PARAMS{PAGE_ROWS} = 1000000;
     $LIST_PARAMS{MDELIVERY_ID} = $mdelivery->{id};
 
-    $Msgs_delivery->attachment_info({ MSG_ID => $mdelivery->{id}, COLS_NAME => 1 });
+    my $attachments = $Msgs_delivery->attachments_list({
+      FILENAME     => '_SHOW',
+      CONTENT_TYPE => '_SHOW',
+      CONTENT_SIZE => '_SHOW',
+      CONTENT      => '_SHOW',
+      DELIVERY_ID  => $mdelivery->{id},
+      COLS_NAME    => 1
+    });
 
     my @ATTACHMENTS = ();
-
     if ($Msgs_delivery->{TOTAL} > 0) {
-      foreach my $line (@{$Msgs_delivery->{list}}) {
-        push @ATTACHMENTS,
-          {
-            ATTACHMENT_ID => $line->{attachment_id},
-            FILENAME      => $line->{filename},
-            CONTENT_TYPE  => $line->{content_type},
-            FILESIZE      => $line->{filesize},
-            CONTENT       => $line->{content}
-          };
+      foreach my $attachment (@{$attachments}) {
+        push @ATTACHMENTS, {
+          ATTACHMENT_ID => $attachment->{id},
+          FILENAME      => $attachment->{filename},
+          CONTENT_TYPE  => $attachment->{content_type},
+          FILESIZE      => $attachment->{content_size},
+          CONTENT       => $attachment->{content}
+        };
       }
     }
 
@@ -189,27 +194,19 @@ sub msgs_delivery {
     });
 
     foreach my $u (@$user_list) {
-
       $Msgs_delivery->{SENDER} = ($Msgs_delivery->{SENDER}) ? $Msgs_delivery->{SENDER} : $conf{ADMIN_MAIL};
 
       $Log->log_print('LOG_DEBUG', $u->{uid}, "Delivery: $mdelivery->{id} Send method: $send_methods->{$send_method_id} ($send_method_id) UID: $u->{uid}");
 
       my $user_pi = $users->pi({ UID => $u->{uid} });
-      my $internet_info = {};
-      if (in_array('Internet', \@MODULES)) {
-        $internet_info = $Internet->user_info($u->{uid});
-      }
+      my $internet_info = in_array('Internet', \@MODULES) ? $Internet->user_info($u->{uid}) : {};
 
       my $message = $html->tpl_show($Msgs_delivery->{TEXT}, {
         %$user_pi,
         %$internet_info,
         USER_LOGIN => $u->{login},
         PASSWORD   => $u->{password}
-      },
-        {
-          OUTPUT2RETURN      => 1,
-          SKIP_DEBUG_MARKERS => 1
-        });
+      }, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
 
       if ($debug < 6) {
         if (!$Msgs_delivery->{SEND_METHOD}) {
@@ -223,7 +220,6 @@ sub msgs_delivery {
           });
         }
         else {
-
           my $status = $Sender->send_message({
             SENDER      => $Msgs_delivery->{SENDER},
             MESSAGE     => $message,
@@ -249,9 +245,7 @@ sub msgs_delivery {
         }
       }
       elsif ($debug > 7) {
-        $debug_output .= "TYPE: $Msgs_delivery->{SEND_METHOD} TO: "
-          . "$u->{id} "
-          . "$message\n";
+        $debug_output .= "TYPE: $Msgs_delivery->{SEND_METHOD} TO: " . "$u->{id} " . "$message\n";
       }
     }
 

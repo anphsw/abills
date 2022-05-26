@@ -1,10 +1,9 @@
-<script src="/styles/default_adm/js/cytoscape.min.js"></script>
+<script src="/styles/default/js/cytoscape.min.js"></script>
 
-<script src="/styles/default_adm/js/popper.min.js"></script>
-<script src="/styles/default_adm/js/cytoscape-popper.js"></script>
+<script src="/styles/default/js/cytoscape-popper.js"></script>
 
-<script src="/styles/default_adm/js/tippy.all.min.js"></script>
-<link rel="stylesheet" href="/styles/default_adm/css/tippy.css"/>
+<script src="/styles/default/js/tippy.all.min.js"></script>
+<link rel="stylesheet" href="/styles/default/css/tippy.css"/>
 
 <div id="cy">
   <div class="info-table">
@@ -73,6 +72,7 @@
   var nodes = [];
   var edges = [];
   var nodes_count = 0;
+  var tippys = [];
   jQuery.each(data.nodes, function (k, v) {
     nodes.push({
       data: {
@@ -161,15 +161,13 @@
       },
 
       layout: {
-        name: 'breadthfirst',
+        name: 'concentric',
         fit: true,
-        avoidOverlap: true,
-        avoidOverlapPadding: 100,
+        avoidOverlap: false,
         animate: false,
         padding: 100,
-        spacingFactor: 1.5,
+        spacingFactor: 10,
         nodeDimensionsIncludeLabels: true,
-        minNodeSpacing: 10,
         startAngle: 0
       }
     });
@@ -180,7 +178,7 @@
       return tippy(node.popperRef(), {
         content: function () {
           var div = document.createElement('div');
-
+          div.className = "tippy";
           div.innerHTML = text;
 
           return div;
@@ -193,14 +191,26 @@
       });
     };
 
-    jQuery.each(nodes, function (k, v) {
-      var n = cy.getElementById(v.data.id);
-      var tippy = makeTippy(n, v.data.ip);
-      tippy.show();
-    });
+    if(nodes.length <= 50) {
+      jQuery.each(nodes, function (k, v) {
+        var n = cy.getElementById(v.data.id);
+        var tippy = makeTippy(n, v.data.ip);
+        tippy.show();
+      });
+    }
 
+    cy.on('zoom', function (evt) {
+      jQuery(".tippy").css("width", cy.nodes()[0].width()*cy.zoom());
+      jQuery(".tippy").css("font-size", cy.zoom()+"vh");
+    });
     cy.on('tap', function (evt) {
       jQuery('.info-table').css('display', 'none');
+      jQuery.each(tippys, function (k, v) {
+        if(v !== undefined) {
+          v.destroy();
+          v = undefined;
+        }
+      });
     });
 
 
@@ -229,10 +239,36 @@
         '</tr>';
       jQuery('.info-table').css('display', 'block');
       jQuery('.info-table table').html(html);
+      if(nodes.length > 50) {
+        jQuery.each(tippys, function (k, v) {
+          if(v !== undefined) {
+            v.destroy();
+            var index = tippys.indexOf(v);
+            if (index !== -1) {
+              tippys.splice(v, 1);
+            }
+          }
+        });
+        showChildTippy(node, makeTippy);
+        jQuery(".tippy").css("width", node.width()*cy.zoom());
+        jQuery(".tippy").css("font-size", cy.zoom()+"vh");
+      }
     });
 
     var time = (window.performance.timing.domContentLoadedEventStart - window.performance.timing.connectEnd) / 1000;
     jQuery('.time-count').text('_{TIME}_: ' + time);
   });
+
+  function showChildTippy(node, makeTippy) {
+    var n = cy.getElementById(node.id());
+    var tippy = makeTippy(n, node.data().ip);
+    tippys.push(tippy);
+    tippy.show();
+
+    edges = cy.edges('[source = "'+node.id()+'"]:visible"');
+    jQuery.each(edges, function (k, v) {
+      showChildTippy(v.target(), makeTippy);
+    });
+  }
 
 </script>

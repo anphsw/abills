@@ -14,21 +14,7 @@
   }*/
 </style>
 
-<script>
-  /*jQuery(function () {
-    jQuery('span.clear_button').on('click', function () {
-
-      jQuery(this).parent().find('input').val('');
-
-      jQuery(this).parent().find('select').each(function () {
-        renewChosenValue(jQuery(this), '')
-      });
-
-    });
-  });*/
-</script>
-
-<form class='form-horizontal' action='$SELF_URL' method='post'>
+<form action='$SELF_URL' method='post'>
 
   <input type=hidden name='index' value='$index'>
   <input type=hidden name='UID' value='$FORM{UID}'>
@@ -44,7 +30,7 @@
   <div id='form_3' class='card card-primary card-outline card-big-form for_sort container-md pl-0 pr-0'>
     <div class='card-header with-border'>
       <h4 class='card-title'>_{INTERNET}_: %ID%</h4>
-      <div class='card-tools pull-right'>
+      <div class='card-tools float-right'>
         <a href='$SELF_URL?get_index=internet_user&full=1&UID=%UID%&add_form=1'
            title='_{ADD_SERVICE}_' class='btn btn-tool btn-success'>
           <i class='fa fa-plus'></i>
@@ -80,7 +66,7 @@
             <div class='input-group'>
               %TP_ADD%
               <div class='input-group' %TP_DISPLAY_NONE%>
-                <div class='input-group-append'>
+                <div class='input-group-prepend'>
                   <div class='input-group-text'>
                     <span class='hidden-xs'>%TP_NUM%</span>
                   </div>
@@ -151,7 +137,7 @@
     <div class='card mb-0 border-top card-outline card-big-form %IPOE_SHOW_BOX%'>
       <div class='card-header with-border'>
         <h3 class='card-title'>IPoE / DHCP Option 82</h3>
-        <div class='card-tools pull-right'>
+        <div class='card-tools float-right'>
           <button type='button' class='btn btn-tool' data-card-widget='collapse'>
             <i class='fa fa-plus'></i>
           </button>
@@ -180,8 +166,8 @@
           <div class='input-group col-md-4 col-xs-8'>
             <input type='text' id='VLAN' name='VLAN' value='%VLAN%' class='form-control'/>
             <div class='input-group-append'>
-              <div class='input-group-text clear_results' style='cursor:pointer;'>
-                <span class='fa fa-remove'></span>
+              <div class='input-group-text clear_results cursor-pointer'>
+                <span class='fa fa-times'></span>
               </div>
             </div>
           </div>
@@ -207,7 +193,7 @@
       <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
         <div class='card-header with-border'>
           <h3 class='card-title'>_{EXTRA}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
@@ -325,7 +311,7 @@
             %TURBO_MODE_FORM%
 
             <div class='form-group row'>
-              <label class='col-form-label text-md-right col-xs-4 col-md-3' for='DETAIL_STATS'>_{COMMENTS}_</label>
+              <label class='col-form-label text-md-right col-xs-4 col-md-3' for='COMMENTS'>_{COMMENTS}_</label>
               <div class='col-xs-8 col-md-9'>
                 <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='3'>%INTERNET_COMMENT%</textarea>
               </div>
@@ -334,8 +320,28 @@
         </div>
     <div class='card-footer text-left'>
       %BACK_BUTTON%
-      <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'/>
+      <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary double_click_check'/>
       %DEL_BUTTON%
     </div>
   </div>
 </form>
+
+<script>
+  jQuery('#STATIC_IP_POOL').on('change', function () {
+    let pool = jQuery(this);
+    if (!pool.val()) return;
+
+    jQuery.post('$SELF_URL', 'header=2&get_index=internet_ip_pool_check&PRINT_JSON=1&POOL_ID=' + pool.val(), function (data) {
+
+      try {
+        let json_data = JSON.parse(data);
+        if (!json_data.status) return;
+
+        jQuery('#select2-STATIC_IP_POOL-container').children().next().addClass(`text-${json_data.status}`)
+      }
+      catch (error) {
+        console.log(error);
+      }
+    });
+  });
+</script>

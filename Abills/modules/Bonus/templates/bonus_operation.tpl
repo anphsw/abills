@@ -12,7 +12,7 @@ function postthread(param) {
 
 </script>
 
-<div class='noprint'>
+<div class='d-print-none'>
     <form action='$SELF_URL' METHOD='POST' name='bonus_payment' onsubmit='postthread(\"submitbutton\");'>
         <input type=hidden name=index value=$index>
         <input type=hidden name=OP_SID value=%OP_SID%>

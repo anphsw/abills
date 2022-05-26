@@ -1,9 +1,9 @@
-<link href='/styles/default_adm/css/info.css' rel='stylesheet'>
+<link href='/styles/default/css/info.css' rel='stylesheet'>
 
 
 <div id='imagesWrapper' class='row'>
     <div class='row comments-controls'>
-        <div class='col-md-3 pull-right'>
+        <div class='col-md-3 float-right'>
             %IMAGES_CONTROLS%
         </div>
     </div>
@@ -14,4 +14,4 @@
     </div>
 </div>
 
-<script src='/styles/default_adm/js/info/info.js'></script>
+<script src='/styles/default/js/info/info.js'></script>

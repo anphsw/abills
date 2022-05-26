@@ -11,7 +11,7 @@ use warnings FATAL => 'all';
 use Abon;
 use Fees;
 use Abills::Defs;
-use Abills::Base qw(in_array sendmail days_in_month cmd);
+use Abills::Base qw(in_array sendmail days_in_month cmd date_diff);
 
 our ($db,
   $admin,
@@ -43,53 +43,6 @@ sub abon_user_del {
   $Abon->del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
 
   return 0;
-}
-
-#*******************************************************************
-=head2 abon_quick_info($attr) - Abon user quick info
-
-  Arguments:
-    $attr
-      UID
-
-  Returns:
-
-=cut
-#*******************************************************************
-sub abon_quick_info {
-  my ($attr) = @_;
-
-  my $uid = $attr->{UID} || $FORM{UID};
-  if ($attr->{UID}) {
-    my $list = $Abon->user_tariff_list($uid, { COLS_NAME => 1, ACTIVE_ONLY => 1 });
-    my @result = ();
-    foreach my $line (@{$list}) {
-      push @result, {
-        TP_NAME  => $line->{name},
-        COMMENTS => $line->{comments},
-        PRICE    => $line->{price},
-
-        #STATUS  => $line->{tp_name},
-      };
-    }
-    return \@result;
-    #return { MULTI_RESULT => \@result };
-  }
-  elsif ($attr->{GET_PARAMS}) {
-    my %result = (
-      HEADER    => $lang{ABON},
-      QUICK_TPL => 'abon_qi_box',
-      SLIDES    => [ { TP_NAME => $lang{TARIF_PLAN} }, { SCOMMENTS => $lang{COMMENTS} }, { PRICE => $lang{PRICE} }, ]
-    );
-
-    return \%result;
-  }
-
-  if ($uid) {
-    $Abon->user_tariff_summary({ UID => $uid });
-  }
-
-  return ($Abon->{TOTAL_ACTIVE} && $Abon->{TOTAL_ACTIVE} > 0) ? $Abon->{TOTAL_ACTIVE} : '';
 }
 
 #*******************************************************************
@@ -200,15 +153,12 @@ sub abon_user {
     }
 
     my @docs_ids = ();
-
     if ($#new_arr > -1) {
-      my $list = $Abon->tariff_list(
-        {
-          IDS              => join('; ', @new_arr),
-          EXT_BILL_ACCOUNT => '_SHOW',
-          COLS_NAME        => 1
-        }
-      );
+      my $list = $Abon->tariff_list({
+        IDS              => join(';', @new_arr),
+        EXT_BILL_ACCOUNT => '_SHOW',
+        COLS_NAME        => 1
+      });
 
       my $ext_cmd;
       my $activate_notification;
@@ -419,14 +369,12 @@ sub abon_user {
     }
 
     delete $FORM{IDS};
-    $Abon->user_tariff_change(
-      {
-        %FORM,
-        UID => $uid,
-        IDS => join(', ', @add_arr),
-        DEL => (!$attr->{ACTIVATE_ONLY}) ? join(', ', @del_arr) : undef
-      }
-    );
+    $Abon->user_tariff_change({
+      %FORM,
+      UID => $uid,
+      IDS => join(', ', @add_arr),
+      DEL => (!$attr->{ACTIVATE_ONLY}) ? join(', ', @del_arr) : undef
+    });
 
     if ($#docs_ids > -1) {
       $FORM{create} = 1;
@@ -440,26 +388,25 @@ sub abon_user {
     $html->message('info', $lang{ABON}, $message) if ($message);
     return 1 if ($attr->{QUITE} || $attr->{REGISTRATION});
   }
-  my $list = $Abon->user_tariff_list($uid, { COLS_NAME => 1 });
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{ABON},
-      title   => [ '-', "$lang{TARIF_PLAN} (ID)", "$lang{SERVICE} $lang{NAME}",
-        $lang{COMMENTS}, $lang{SUM}, $lang{PERIOD}, "$lang{SERVICE_COUNT}", $lang{FEES_PERIOD}, $lang{LAST_ABON}, $lang{NEXT_ABON}, "$lang{REDUCTION} (%)",
-        "$lang{CREATE} $lang{DOCS}", $lang{SEND_NOTIFICATION}, $lang{MANUAL_ACTIVATE}, '-' ],
-      FIELDS_IDS => $Abon->{COL_NAMES_ARR},
-      qs      => $pages_qs,
-      ID      => 'USER_ABON',
-    }
-  );
+
+  my $user_tariff_list = $Abon->user_tariff_list($uid, { %LIST_PARAMS, COLS_NAME => 1 });
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{ABON},
+    title   => [ '-', "$lang{TARIF_PLAN} (ID)", "$lang{SERVICE} $lang{NAME}",
+      $lang{COMMENTS}, $lang{SUM}, $lang{PERIOD}, $lang{SERVICE_COUNT}, $lang{FEES_PERIOD}, $lang{LAST_ABON}, $lang{NEXT_ABON}, "$lang{REDUCTION} (%)",
+      "$lang{CREATE} $lang{DOCS}", $lang{SEND_NOTIFICATION}, $lang{MANUAL_ACTIVATE}, '-' ],
+    FIELDS_IDS => $Abon->{COL_NAMES_ARR},
+    qs      => $pages_qs,
+    ID      => 'USER_ABON',
+  });
 
   my @ids = ();
   if ($FORM{step} && $FORM{IDS}) {
     @ids = split(/, /, $FORM{IDS});
   }
 
-  foreach my $line (@{$list}) {
+  foreach my $line (@{$user_tariff_list}) {
     my $describe = $line->{comments} || $FORM{ 'COMMENTS_' . $line->{id} } || q{};
     my $state = ($#ids > -1) ? in_array($line->{id}, \@ids) : $line->{active_service};
 
@@ -606,17 +553,17 @@ sub abon_user_list {
   $LIST_PARAMS{COMPANY_ID} = $FORM{COMPANY_ID} if ($FORM{COMPANY_ID});
 
   my $list = $Abon->user_list({ %LIST_PARAMS, COLS_NAME => 1 });
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => "$lang{ABON} - $lang{USERS}",
-      title   => [ $lang{LOGIN}, $lang{FIO}, $lang{TARIF_PLAN}, "$lang{COMMENTS}", $lang{SUM}, $lang{COUNT}, $lang{PERIOD}, $lang{LAST_ABON}, $lang{NEXT_ABON}, "$lang{MANUAL_ACTIVATE}" ],
-      qs      => $pages_qs,
-      pages   => $Abon->{TOTAL},
-      ID      => "ABON_USERS",
-      MENU    => "$lang{SEARCH}:search_form=1&index=$index:search",
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$lang{ABON} - $lang{USERS}",
+    title   => [ $lang{LOGIN}, $lang{FIO}, $lang{TARIF_PLAN}, "$lang{COMMENTS}", $lang{SUM}, $lang{COUNT},
+      $lang{PERIOD}, $lang{LAST_ABON}, $lang{NEXT_ABON}, $lang{MANUAL_ACTIVATE} ],
+    qs      => $pages_qs,
+    pages   => $Abon->{TOTAL},
+    ID      => "ABON_USERS",
+    MENU    => "$lang{SEARCH}:search_form=1&index=$index:search",
+    EXPORT  => 1
+  });
 
   foreach my $line (@{$list}) {
     my $date_if = 0;
@@ -1185,7 +1132,7 @@ sub abon_get_month_fee {
   my $message = '';
 
   # If zero price, should do nothing
-  return '' if ($Abon_->{TP_INFO}->{PRICE} <= 0);
+  return '' if (! $Abon_->{TP_INFO}->{PRICE} || $Abon_->{TP_INFO}->{PRICE} <= 0);
 
   #Get month fee
   my $sum = $Abon_->{TP_INFO}->{PRICE};
@@ -1297,73 +1244,6 @@ sub abon_get_month_fee {
 }
 
 #**********************************************************
-=head2 abon_docs($attr) - get services for invoice
-
-  Arguments:
-    $attr
-      FULL_INFO
-      PAYMENT_TYPE
-      FEES_INFO
-
-=cut
-#**********************************************************
-sub abon_docs {
-  my ($attr) = @_;
-
-  my @services = ();
-  my $uid = $attr->{UID} || $FORM{UID};
-
-  my $list = $Abon->user_tariff_list(
-    $uid,
-    {
-      PAYMENT_TYPE => $attr->{PAYMENT_TYPE},
-      COLS_NAME    => 1
-    }
-  );
-
-  my %info = ();
-  foreach my $line (@{$list}) {
-    %info = ();
-    if ($line->{date}) {
-      if ($line->{discount} > 0) {
-        $line->{price} = $line->{price} * ((100 - $line->{discount}) / 100);
-      }
-
-      if ($line->{service_count} > 1) {
-        $line->{price} = $line->{price} * $line->{service_count};
-      }
-
-      $info{service_name} = "$lang{ABON}: ($line->{id}) " . "$line->{name}";
-      $info{module_name}  = $lang{ABON};
-
-      if ($line->{period} == 1) {
-        $info{month} += $line->{price};
-      }
-      elsif ($line->{period} == 0) {
-        $info{day} += $line->{price};
-      }
-
-      if($attr->{FULL_INFO}) {
-        push @services, { %info };
-      }
-      else {
-        # NAME| ID | SUM
-        if ($line->{period} == 0) {
-          $line->{price} = $line->{price} * 30;
-        }
-        push @services, "$lang{ABON}: ($line->{id}) " . "$line->{name}" . "|$line->{comments} |$line->{price}|$line->{id}|$line->{name}";
-      }
-    }
-  }
-
-  if ($attr->{FEES_INFO}) {
-    return \%info;
-  }
-
-  return \@services;
-}
-
-#**********************************************************
 =head1 abon_client($attr) - client interface
 
   Attributes:
@@ -1469,6 +1349,106 @@ sub abon_check_tps {
   }
 
   return \%ids;
+}
+
+#**********************************************************
+=head2 internet_service_activate($attr)
+
+  Arguments:
+    $attr
+      TP_INFO
+      USER_INFO
+        UID
+        ID
+      DEBUG
+
+=cut
+#**********************************************************
+sub abon_service_activate {
+  my ($attr)=@_;
+
+  #my $debug_output = q{};
+  my $user_info = $attr->{USER_INFO};
+  my $debug = $attr->{DEBUG} || 0;
+  my $date = $attr->{DATE} || $DATE;
+  #my (undef, undef, $d)=split(/\-/, $date);
+  my $user_tariff_list = $Abon->user_tariff_list($user_info->{UID}, {
+    %LIST_PARAMS,
+    PERIOD_ALIGNMENT => 1,
+    COLS_NAME        => 1
+  });
+
+  foreach my $user ( @$user_tariff_list ) {
+    if (! $user->{date} || ! $user->{period}) {
+      next;
+    }
+
+    $user->{TP_INFO}->{PERIOD_ALIGNMENT} = $user->{period_alignment};
+    $user->{TP_INFO}->{TP_ID} = $user->{id};
+    $user->{TP_INFO}->{TP_NAME} = $user->{name};
+    $user->{TP_INFO}->{PRICE} = $user->{price};
+    $user->{UID} = $user_info->{UID};
+    $user->{BILL_ID} = $user_info->{BILL_ID};
+    $user->{ACTIVATE} = $date;
+
+    my $message = abon_get_month_fee($user, { SHOW_SUM => $debug });
+    print $message if($debug > 1);
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 internet_service_deactivate($attr)
+
+  Arguments:
+    $attr
+      TP_INFO
+      USER_INFO
+      DEBUG
+      STATUS - Disable status
+
+=cut
+#**********************************************************
+sub abon_service_deactivate {
+  my ($attr)=@_;
+
+  my $debug_output = q{};
+  my $user_info = $attr->{USER_INFO};
+  my $debug = $attr->{DEBUG} || 0;
+  my $date = $attr->{DATE} || $DATE;
+  my (undef, undef, $d)=split(/\-/, $date);
+  my $user_tariff_list = $Abon->user_tariff_list($user_info->{UID}, { %LIST_PARAMS, COLS_NAME => 1 });
+
+  foreach my $user ( @$user_tariff_list ) {
+    if (! $user->{date} || ! $user->{period}) {
+      next;
+    }
+
+    my $days_in_month = days_in_month({ DATE => $date });
+    my $days = $days_in_month - $d + 1;
+
+    my $sum = $user->{price} / $days_in_month * $days;
+    #print "$user->{price} DATE: $user->{date} NEXT: $user->{next_abon} / $user->{period} ID: $user->{id} | $sum\n";
+    if ($sum > 0) {
+      require Payments;
+      my $Payments = Payments->new($db, $admin, \%conf);
+      $Payments->add({
+        BILL_ID  => $user_info->{BILL_ID},
+        UID      => $user_info->{UID}
+        },
+        {
+          SUM      => $sum,
+          METHOD   => 6,
+          DESCRIBE => "$lang{COMPENSATION}. $lang{DAYS}:" .
+          "$date/$user->{next_abon} ($days)" . (($attr->{DESCRIBE}) ? ". $attr->{DESCRIBE}" : ''),
+          INNER_DESCRIBE => $attr->{INNER_DESCRIBE}
+        }
+      );
+    }
+  }
+
+  return $debug_output;
 }
 
 1

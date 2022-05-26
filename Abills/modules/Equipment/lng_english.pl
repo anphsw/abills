@@ -81,7 +81,7 @@ $lang{SPEED_OUT}='Out speed(Mb/s)';
 $lang{SIGNAL} = 'Signal';
 
 $lang{REPORT_ON_UNREGISTERED_ONU} = "Report on unregistered onu";
-$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES} = "Busy and free ports on switches";
+$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES} = "Ports on switches";
 $lang{TOTAL_SWITCH_COUNT} = "Number of switches";
 $lang{TOTAL_ALL_PORTS} = "Total number of ports";
 $lang{TOTAL_BUSY_PORTS} = "Number of busy ports";

@@ -122,7 +122,7 @@
 
     let icon = document.createElement('span');
     icon.classList.add('fa');
-    icon.classList.add('fa-remove');
+    icon.classList.add('fa-times');
     icon.classList.add('text-danger');
     icon.classList.add('p-1');
 

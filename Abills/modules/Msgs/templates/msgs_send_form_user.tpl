@@ -1,4 +1,4 @@
-<div class=noprint id=form_msg_add>
+<div class=d-print-none id=form_msg_add>
 
   <form action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='MsgSendForm' id='MsgSendForm'>
     <input type='hidden' name='index' value='$index'/>
@@ -75,4 +75,4 @@
   }());
 </script>
 
-<script src='/styles/default_adm/js/draganddropfile.js'></script>
+<script src='/styles/default/js/draganddropfile.js'></script>

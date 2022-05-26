@@ -1,6 +1,0 @@
-{
-  "name": "ABON_USER_INFO",
-  "method": "GET",
-  "path": "users/1/abon/",
-  "params": {}
-}

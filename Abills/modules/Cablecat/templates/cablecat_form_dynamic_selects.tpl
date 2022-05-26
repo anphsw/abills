@@ -1,4 +1,4 @@
-<script src='/styles/default_adm/js/dynamicForms.js'></script>
+<script src='/styles/default/js/dynamicForms.js'></script>
 
 <div id="cablecat_choose_connection"></div>
 <script>

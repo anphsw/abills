@@ -1,6 +1,0 @@
-{
-  "name": "STREET_INFO",
-  "method": "GET",
-  "path": "streets/1/",
-  "params": {}
-}

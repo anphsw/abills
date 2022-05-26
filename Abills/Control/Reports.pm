@@ -293,7 +293,7 @@ sub reports {
     });
 
     my $box_header = $html->element('div', $html->element('h4', $lang{SET_PARAMS}, { class => 'card-title table-caption' })
-      . '<div class="card-tools pull-right">' . ($attr->{EXTRA_HEADER_BTN} || "") . '
+      . '<div class="card-tools float-right">' . ($attr->{EXTRA_HEADER_BTN} || "") . '
       <button type="button" class="btn btn-tool" data-card-widget="collapse">
       <i class="fa fa-minus"></i></button></div>',
       { class => 'card-header with-border' });
@@ -460,127 +460,90 @@ sub report_fees {
     form_fees();
     return 0;
   }
-  else {
-    my $type = ($FORM{TYPE}) ? $FORM{TYPE} : 'DATE';
-    $CHARTS{DAYS} = $FORM{FROM_DATE} ? days_in_month({ DATE => $FORM{FROM_DATE} }) : 31;
 
-    if ($type) {
-      $type = $type;
-      $pages_qs .= "&TYPE=$type" if $pages_qs !~ /&TYPE=/;
-    }
-    else {
-      $graph_type = 'month_stats';
-    }
+  my $type = ($FORM{TYPE}) ? $FORM{TYPE} : 'DATE';
+  $CHARTS{DAYS} = $FORM{FROM_DATE} ? days_in_month({ DATE => $FORM{FROM_DATE} }) : 31;
 
-    my $x_text = 'date';
-    if ($type eq 'PAYMENT_METHOD') {
-      $x_text = 'method';
-    }
-    elsif ($type eq 'ADMINS') {
-      $x_text = 'admin_name';
-    }
-    elsif ($type eq 'BUILD') {
-      $x_text = 'build';
-    }
-    elsif ($type eq 'PER_MONTH') {
-      $x_text = 'month';
-      undef $graph_type;
-    }
-    elsif ($type eq 'DISTRICT') {
-      $x_text = 'district_name';
-    }
-    elsif ($type eq 'STREET') {
-      $x_text = 'street_name';
-    }
-    elsif ($type eq 'HOURS') {
-      $graph_type = 'hour_stats';
-    }
-    elsif ($type eq 'DAYS') {
-      $x_text = 'month';
-    }
-    elsif ($type eq 'GID') {
-      $x_text = 'gid';
-    }
-
-    $CHARTS{TYPES} = {
-      login_count => 'column',
-      count       => 'column',
-      sum         => 'line',
-      arppu       => 'line',
-      arpu        => 'line',
-    };
-    $CHARTS{SKIP_COMPARE} = 1;
-
-    ($table_fees, $list) = result_former({
-      INPUT_DATA      => $Fees,
-      FUNCTION        => 'reports',
-      BASE_FIELDS     => ($type =~ /MONTH/) ? 6 : 4,
-      SKIP_USER_TITLE => 1,
-      SELECT_VALUE    => {
-        method => $FEES_METHODS,
-        gid    => sel_groups({ HASH_RESULT => 1 }),
-      },
-      CHARTS          => 'login_count,count,sum' . (($type =~ /MONTH/) ? ',arppu,arpu' : ''),
-      CHARTS_XTEXT    => $x_text,
-      EXT_TITLES      => {
-        #          arpu          => $lang{ARPU},
-        #          arpuu         => $lang{ARPPU},
-        date          => $lang{DATE},
-        month         => $lang{MONTH},
-        login         => $lang{USER},
-        fio           => $lang{FIO},
-        hour          => $lang{HOURS},
-        build         => $lang{ADDRESS_BUILD},
-        district_name => $lang{DISTRICT},
-        street_name   => $lang{ADDRESS_STREET},
-        method        => $lang{PAYMENT_METHOD},
-        admin_name    => $lang{ADMIN},
-        login_count   => $lang{USERS},
-        count         => $lang{COUNT},
-        sum           => $lang{SUM},
-        tax_sum       => $lang{TAX},
-        gid           => $lang{GROUPS}
-      },
-      FILTER_COLS     => {
-        admin_name    => "search_link:report_fees:ADMIN_NAME,$type=1,$pages_qs",
-        method        => "search_link:report_fees:METHOD,TYPE=USER,$pages_qs",
-        login         => "search_link:from_users:UID,$type=1,$pages_qs",
-        date          => "search_link:report_fees:DATE,DATE",
-        build         => "search_link:report_fees:LOCATION_ID,LOCATION_ID,TYPE=USER,$pages_qs",
-        district_name => "search_link:report_fees:DISTRICT_ID,DISTRICT_ID,TYPE=USER,$pages_qs",
-        street_name   => "search_link:report_fees:STREET_ID,STREET_ID,TYPE=USER,$pages_qs",
-      },
-      TABLE           => {
-        width   => '100%',
-        caption => "$lang{REPORTS} - $lang{FEES}",
-        qs      => $pages_qs,
-        ID      => 'REPORTS_FEES',
-        EXPORT  => 1,
-      },
-      MAKE_ROWS       => 1,
-      SEARCH_FORMER   => 1,
-    });
+  if ($type) {
+    $type = $type;
+    $pages_qs .= "&TYPE=$type" if $pages_qs !~ /&TYPE=/;
   }
 
-  print $html->make_charts(
-    {
-      PERIOD        => $graph_type || '',
-      DATA          => \%DATA_HASH,
-      TRANSITION    => 1,
-      OUTPUT2RETURN => 1,
-      %CHARTS
-    }
+  my %x_variable = (
+    DAYS           => 'date',
+    DISTRICT       => 'district_name',
+    STREET         => 'street_name',
+    PER_MONTH      => 'date',
+    BUILD          => 'build',
+    ADMINS         => 'admin_name',
+    PAYMENT_METHOD => 'method',
+    GID            => 'gid',
+    HOURS          => 'hour',
+    USER           => 'login',
   );
+
+  my @charts_dataset = split(',', 'login_count,count,sum' . (($type =~ /MONTH/) ? ',arppu,arpu' : ''));
+  ($table_fees, $list) = result_former({
+    INPUT_DATA      => $Fees,
+    FUNCTION        => 'reports',
+    BASE_FIELDS     => ($type =~ /MONTH/) ? 6 : 4,
+    SKIP_USER_TITLE => 1,
+    SELECT_VALUE    => {
+      method => $FEES_METHODS,
+      gid    => sel_groups({ HASH_RESULT => 1 }),
+    },
+    CHARTS      => {
+      DATASET => \@charts_dataset,
+      PERIOD  => $x_variable{$type} || 'date',
+    },
+    EXT_TITLES      => {
+      #          arpu          => $lang{ARPU},
+      #          arpuu         => $lang{ARPPU},
+      date          => $lang{DATE},
+      month         => $lang{MONTH},
+      login         => $lang{USER},
+      fio           => $lang{FIO},
+      hour          => $lang{HOURS},
+      build         => $lang{ADDRESS_BUILD},
+      district_name => $lang{DISTRICT},
+      street_name   => $lang{ADDRESS_STREET},
+      method        => $lang{PAYMENT_METHOD},
+      admin_name    => $lang{ADMIN},
+      login_count   => $lang{USERS},
+      count         => $lang{COUNT},
+      sum           => $lang{SUM},
+      tax_sum       => $lang{TAX},
+      gid           => $lang{GROUPS}
+    },
+    FILTER_COLS     => {
+      admin_name    => "search_link:report_fees:ADMIN_NAME,$type=1,$pages_qs",
+      method        => "search_link:report_fees:METHOD,TYPE=USER,$pages_qs",
+      login         => "search_link:from_users:UID,$type=1,$pages_qs",
+      date          => "search_link:report_fees:DATE,DATE",
+      build         => "search_link:report_fees:LOCATION_ID,LOCATION_ID,TYPE=USER,$pages_qs",
+      district_name => "search_link:report_fees:DISTRICT_ID,DISTRICT_ID,TYPE=USER,$pages_qs",
+      street_name   => "search_link:report_fees:STREET_ID,STREET_ID,TYPE=USER,$pages_qs",
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{REPORTS} - $lang{FEES}",
+      qs      => $pages_qs,
+      ID      => 'REPORTS_FEES',
+      EXPORT  => 1,
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+  });
+
+  _report_chart_info(\%DATA_HASH, \@charts_dataset);
 
   print $table_fees->show();
 
-  my $table = $html->table(
-    {
-      width => '100%',
-      rows  => [ [ "$lang{USERS}: " . $html->b($Fees->{USERS}), "$lang{TOTAL}: " . $html->b($Fees->{TOTAL}),
-        "$lang{SUM}: " . $html->b($Fees->{SUM}) ] ],
-    }
-  );
+  my $table = $html->table({
+    width => '100%',
+    rows  => [ [ "$lang{USERS}: " . $html->b($Fees->{USERS}), "$lang{TOTAL}: " . $html->b($Fees->{TOTAL}),
+      "$lang{SUM}: " . $html->b($Fees->{SUM}) ] ],
+  });
 
   print $table->show();
 
@@ -608,6 +571,7 @@ sub report_payments_month {
 =cut
 #**********************************************************
 sub report_payments {
+
   if (!$permissions{1} || !$permissions{1}{0}) {
     $html->message('err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
     return 0;
@@ -632,33 +596,27 @@ sub report_payments {
     $FORM{FIELDS} = $FORM{METHOD};
   }
 
-  reports(
-    {
-      DATE        => $FORM{FROM_DATE_TO_DATE} || $FORM{DATE},
-      REPORT      => '',
-      PERIOD_FORM => 1,
-      DATE_RANGE  => 1,
-      FIELDS      => \%METHODS_HASH,
-      EXT_TYPE    => {
-        PAYMENT_METHOD => $lang{PAYMENT_METHOD},
-        ADMINS         => $lang{ADMINS},
-        PER_MONTH      => $lang{PER_MONTH},
-        DISTRICT       => $lang{DISTRICT},
-        STREET         => $lang{STREET},
-        BUILD          => $lang{BUILD},
-        GID            => $lang{GROUPS},
-      }
+  reports({
+    DATE        => $FORM{FROM_DATE_TO_DATE} || $FORM{DATE},
+    REPORT      => '',
+    PERIOD_FORM => 1,
+    DATE_RANGE  => 1,
+    FIELDS      => \%METHODS_HASH,
+    EXT_TYPE    => {
+      PAYMENT_METHOD => $lang{PAYMENT_METHOD},
+      ADMINS         => $lang{ADMINS},
+      PER_MONTH      => $lang{PER_MONTH},
+      DISTRICT       => $lang{DISTRICT},
+      STREET         => $lang{STREET},
+      BUILD          => $lang{BUILD},
+      GID            => $lang{GROUPS},
     }
-  );
+  });
 
   $LIST_PARAMS{PAGE_ROWS} = 1000000;
   my $Payments = Finance->payments($db, $admin, \%conf);
+  $Payments->{debug} = 1 if ($FORM{DEBUG});
 
-  if ($FORM{DEBUG}) {
-    $Payments->{debug} = 1;
-  }
-
-  my $graph_type = '';
   my Abills::HTML $table;
   my $list;
   if ($FORM{DATE} || $FORM{search}) {
@@ -673,200 +631,155 @@ sub report_payments {
 
     return 0;
   }
-  else {
-    my $type = $FORM{TYPE} || '';
-    if ($type) {
-      $type = $type;
-      $pages_qs .= "&TYPE=$type" if $pages_qs !~ /&TYPE=/;
-    }
-    else {
-      $graph_type = 'month_stats';
-    }
-    my $x_text = 'date';
 
-    if ($type eq 'PAYMENT_METHOD') {
-      $x_text = 'method';
-    }
-    elsif ($type eq 'ADMINS') {
-      $x_text = 'admin_name';
-    }
-    elsif ($type eq 'BUILD') {
-      $x_text = 'build';
-    }
-    elsif ($type eq 'PER_MONTH') {
-      $x_text = 'month';
-      undef $graph_type;
-    }
-    elsif ($type eq 'DISTRICT') {
-      $x_text = 'district_name';
-    }
-    elsif ($type eq 'STREET') {
-      $x_text = 'street_name';
-    }
-    elsif ($type eq 'HOURS') {
-      $graph_type = 'hour_stats';
-    }
-    elsif ($type eq 'DAYS') {
-      $x_text = 'month';
-    }
-    elsif ($type eq 'GID') {
-      $x_text = 'gid';
-    }
+  my $type = $FORM{TYPE} || '';
+  $pages_qs .= "&TYPE=$type" if $type && $pages_qs !~ /&TYPE=/;
+  $pages_qs .= "&FIELDS=$FORM{FIELDS}" if defined $FORM{FIELDS} && $pages_qs !~ /&FIELDS=/;
 
-    %CHARTS = (
-      TYPES        => {
-        login_count => 'column',
-        count       => 'column',
-        sum         => 'line',
-        arppu       => 'line',
-        arpu        => 'line',
-      },
-      SKIP_COMPARE => 1
-    );
-    my %ext_titles = (
-      'ADMINS'         => {
-        admin_name  => $lang{ADMIN},
-        login_count => $lang{COUNT} . $lang{USERS},
-        count       => $lang{COUNT} . $lang{PAYMENTS},
-        sum         => $lang{SUM},
-        gid         => $lang{GROUP},
-        tags        => $lang{TAGS},
-      },
-      'PAYMENT_METHOD' => {
-        login_count => $lang{COUNT} . $lang{USERS},
-        count       => $lang{COUNT} . $lang{PAYMENTS},
-        sum         => $lang{SUM},
-        method      => $lang{PAYMENT_METHOD},
-        gid         => $lang{GROUP},
-        tags        => $lang{TAGS},
-      },
-      'GID'            => {
-        login_count => $lang{COUNT} . $lang{USERS},
-        count       => $lang{COUNT} . $lang{PAYMENTS},
-        sum         => $lang{SUM},
-        gid         => $lang{GROUP},
-        tags        => $lang{TAGS},
-      },
-      'DAYS'           => {
-        login_count => $lang{COUNT} . $lang{USERS},
-        count       => $lang{COUNT} . $lang{PAYMENTS},
-        sum         => $lang{SUM},
-        date        => $lang{DATE},
-        gid         => $lang{GROUP},
-        tags        => $lang{TAGS},
-      },
-      'PER_MONTH'      => {
-        month       => $lang{MONTH},
-        login_count => $lang{COUNT} . $lang{USERS},
-        count       => $lang{COUNT} . $lang{PAYMENTS},
-        sum         => $lang{SUM},
-        arpu        => $lang{ARPU},
-        arppu       => $lang{ARPPU},
-        gid         => $lang{GROUP},
-        tags        => $lang{TAGS},
-      },
-      'USER'           => {
-        login       => $lang{USER},
-        login_count => $lang{COUNT} . $lang{USERS},
-        count       => $lang{COUNT} . $lang{PAYMENTS},
-        sum         => $lang{SUM},
-        fio         => $lang{FIO},
-        gid         => $lang{GROUP},
-        tags        => $lang{TAGS},
-      },
-      'DISTRICT'       => {
-        district_name => $lang{DISTRICT},
-        login_count   => $lang{COUNT} . $lang{USERS},
-        count         => $lang{COUNT} . $lang{PAYMENTS},
-        sum           => $lang{SUM},
-        gid           => $lang{GROUP},
-        tags          => $lang{TAGS},
-      },
-      'STREET'         => {
-        street_name => $lang{ADDRESS_STREET},
-        login_count => $lang{COUNT} . $lang{USERS},
-        count       => $lang{COUNT} . $lang{PAYMENTS},
-        sum         => $lang{SUM},
-        gid         => $lang{GROUP},
-        tags        => $lang{TAGS},
-      },
-      'HOURS'          => {
-        hour        => $lang{HOURS},
-        login_count => $lang{COUNT} . $lang{USERS},
-        count       => $lang{COUNT} . $lang{PAYMENTS},
-        sum         => $lang{SUM},
-        gid         => $lang{GROUP},
-        tags        => $lang{TAGS},
-      },
-    );
+  my %x_variable = (
+    DAYS           => 'date',
+    DISTRICT       => 'district_name',
+    STREET         => 'street_name',
+    PER_MONTH      => 'month',
+    BUILD          => 'build',
+    ADMINS         => 'admin_name',
+    PAYMENT_METHOD => 'method',
+    GID            => 'gid',
+    HOURS          => 'hour',
+    USER           => 'login',
+  );
 
-    ($table, $list) = result_former({
-      INPUT_DATA      => $Payments,
-      FUNCTION        => 'reports',
-      BASE_FIELDS     => ($type =~ /MONTH/) ? 6 : 4,
-      HIDDEN_FIELDS   => 'UID,TOTAL_USERS,PRIORITY',
-      SKIP_USER_TITLE => 1,
-      SELECT_VALUE    => {
-        method => $PAYMENT_METHODS,
-        gid    => sel_groups({ HASH_RESULT => 1 }),
-      },
-      CHARTS          => 'login_count,count,sum' . (($type =~ /MONTH/) ? ',arppu,arpu' : ''),
-      CHARTS_XTEXT    => $x_text,
-      EXT_TITLES      => $ext_titles{$type} || $ext_titles{'DAYS'},
-      FILTER_COLS     => {
-        admin_name    => "search_link:report_payments:ADMIN_NAME,$type=1,$pages_qs,$fields",
-        method        => "search_link:report_payments:METHOD,TYPE=USER,$pages_qs",
-        login         => "search_link:from_users:UID,$type=1,$pages_qs",
-        date          => "search_link:report_payments:DATE,DATE,$fields",
-        month         => "search_link:report_payments:MONTH,$pages_qs,$fields",
-        build         => "search_link:report_payments:LOCATION_ID,LOCATION_ID,TYPE=USER,$pages_qs",
-        district_name => "search_link:report_payments:DISTRICT_ID,DISTRICT_ID,TYPE=USER,$pages_qs",
-        street_name   => "search_link:report_payments:STREET_ID,STREET_ID,TYPE=USER,$pages_qs",
-        sum           => "_format_sum_for_payments::sum",
-      },
-      TABLE           => {
-        width            => '100%',
-        caption          => "$lang{REPORTS}",
-        qs               => $pages_qs,
-        ID               => 'REPORTS_PAYMENTS',
-        EXPORT           => 1,
-        SHOW_COLS_HIDDEN => {
-          TYPE      => $type || 'DAYS',
-          FROM_DATE => $FORM{FROM_DATE} || $DATE,
-          TO_DATE   => $FORM{TO_DATE} || $DATE,
-          show      => $lang{SHOW}
-        },
-      },
-      MAKE_ROWS       => 1,
-      SEARCH_FORMER   => 1,
-    });
-  }
+  my %ext_titles = (
+    'ADMINS'         => {
+      admin_name  => $lang{ADMIN},
+      login_count => $lang{COUNT} . $lang{USERS},
+      count       => $lang{COUNT} . $lang{PAYMENTS},
+      sum         => $lang{SUM},
+      gid         => $lang{GROUP},
+      tags        => $lang{TAGS},
+    },
+    'PAYMENT_METHOD' => {
+      login_count => $lang{COUNT} . $lang{USERS},
+      count       => $lang{COUNT} . $lang{PAYMENTS},
+      sum         => $lang{SUM},
+      method      => $lang{PAYMENT_METHOD},
+      gid         => $lang{GROUP},
+      tags        => $lang{TAGS},
+    },
+    'GID'            => {
+      login_count => $lang{COUNT} . $lang{USERS},
+      count       => $lang{COUNT} . $lang{PAYMENTS},
+      sum         => $lang{SUM},
+      gid         => $lang{GROUP},
+      tags        => $lang{TAGS},
+    },
+    'DAYS'           => {
+      login_count => $lang{COUNT} . $lang{USERS},
+      count       => $lang{COUNT} . $lang{PAYMENTS},
+      sum         => $lang{SUM},
+      date        => $lang{DATE},
+      gid         => $lang{GROUP},
+      tags        => $lang{TAGS},
+    },
+    'PER_MONTH'      => {
+      month       => $lang{MONTH},
+      login_count => $lang{COUNT} . $lang{USERS},
+      count       => $lang{COUNT} . $lang{PAYMENTS},
+      sum         => $lang{SUM},
+      arpu        => $lang{ARPU},
+      arppu       => $lang{ARPPU},
+      gid         => $lang{GROUP},
+      tags        => $lang{TAGS},
+    },
+    'USER'           => {
+      login       => $lang{USER},
+      login_count => $lang{COUNT} . $lang{USERS},
+      count       => $lang{COUNT} . $lang{PAYMENTS},
+      sum         => $lang{SUM},
+      fio         => $lang{FIO},
+      gid         => $lang{GROUP},
+      tags        => $lang{TAGS},
+    },
+    'DISTRICT'       => {
+      district_name => $lang{DISTRICT},
+      login_count   => $lang{COUNT} . $lang{USERS},
+      count         => $lang{COUNT} . $lang{PAYMENTS},
+      sum           => $lang{SUM},
+      gid           => $lang{GROUP},
+      tags          => $lang{TAGS},
+    },
+    'STREET'         => {
+      street_name => $lang{ADDRESS_STREET},
+      login_count => $lang{COUNT} . $lang{USERS},
+      count       => $lang{COUNT} . $lang{PAYMENTS},
+      sum         => $lang{SUM},
+      gid         => $lang{GROUP},
+      tags        => $lang{TAGS},
+    },
+    'HOURS'          => {
+      hour        => $lang{HOURS},
+      login_count => $lang{COUNT} . $lang{USERS},
+      count       => $lang{COUNT} . $lang{PAYMENTS},
+      sum         => $lang{SUM},
+      gid         => $lang{GROUP},
+      tags        => $lang{TAGS},
+    },
+  );
 
-  my $legend_names = ();
-  $legend_names = {
-    sum         => $lang{SUM},
-    login_count => $lang{COUNT} . $lang{USERS},
-    count       => $lang{COUNT} . $lang{PAYMENTS},
-  };
-
-  print $html->make_charts({
-    PERIOD        => $graph_type,
-    DATA          => \%DATA_HASH,
-    LEGEND        => $legend_names,
-    OUTPUT2RETURN => 1,
-    %CHARTS
+  my @charts_dataset = split(',', 'login_count,count,sum' . (($type =~ /MONTH/) ? ',arppu,arpu' : ''));
+  ($table, $list) = result_former({
+    INPUT_DATA      => $Payments,
+    FUNCTION        => 'reports',
+    BASE_FIELDS     => ($type =~ /MONTH/) ? 6 : 4,
+    HIDDEN_FIELDS   => 'UID,TOTAL_USERS,PRIORITY',
+    SKIP_USER_TITLE => 1,
+    SELECT_VALUE    => {
+      method => $PAYMENT_METHODS,
+      gid    => sel_groups({ HASH_RESULT => 1 }),
+    },
+    CHARTS      => {
+      DATASET => \@charts_dataset,
+      PERIOD  => $x_variable{$type} || 'date',
+    },
+    EXT_TITLES      => $ext_titles{$type} || $ext_titles{'DAYS'},
+    FILTER_COLS     => {
+      admin_name    => "search_link:report_payments:ADMIN_NAME,$type=1,$pages_qs,$fields",
+      method        => "search_link:report_payments:METHOD,TYPE=USER,$pages_qs",
+      login         => "search_link:from_users:UID,$type=1,$pages_qs",
+      date          => "search_link:report_payments:DATE,DATE,$fields",
+      month         => "search_link:report_payments:MONTH,$pages_qs,$fields",
+      build         => "search_link:report_payments:LOCATION_ID,LOCATION_ID,TYPE=USER,$pages_qs",
+      district_name => "search_link:report_payments:DISTRICT_ID,DISTRICT_ID,TYPE=USER,$pages_qs",
+      street_name   => "search_link:report_payments:STREET_ID,STREET_ID,TYPE=USER,$pages_qs",
+      sum           => "_format_sum_for_payments::sum",
+    },
+    TABLE           => {
+      width            => '100%',
+      caption          => "$lang{REPORTS}",
+      qs               => $pages_qs,
+      ID               => 'REPORTS_PAYMENTS',
+      EXPORT           => 1,
+      SHOW_COLS_HIDDEN => {
+        TYPE      => $type || 'DAYS',
+        FROM_DATE => $FORM{FROM_DATE} || $DATE,
+        TO_DATE   => $FORM{TO_DATE} || $DATE,
+        show      => $lang{SHOW}
+      },
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
   });
+
+  _report_chart_info(\%DATA_HASH, \@charts_dataset);
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width => '100%',
-      rows  => [ [ "$lang{USERS}: " . $html->b($Payments->{TOTAL_USERS}),
-        "$lang{TOTAL}: " . $html->b($Payments->{TOTAL_OPERATION}),
-        "$lang{SUM}: " . $html->b($Payments->{TOTAL_SUM}) ] ],
-    }
-  );
+  $table = $html->table({
+    width => '100%',
+    rows  => [ [ "$lang{USERS}: " . $html->b($Payments->{TOTAL_USERS}),
+      "$lang{TOTAL}: " . $html->b($Payments->{TOTAL_OPERATION}),
+      "$lang{SUM}: " . $html->b($Payments->{TOTAL_SUM}) ] ],
+  });
 
   print $table->show();
 
@@ -1316,17 +1229,15 @@ sub logs_list {
 
     @File = reverse @File;
     if ($FORM{file} eq $var_dir . 'log/') {
-      my $table = $html->table(
-        {
-          caption       => $FORM{file} . $FORM{name},
-          qs            => $pages_qs,
-          title_plain   => [ $lang{DATE}, $lang{TIME}, $lang{TYPE}, $lang{INFO} ],
-          width         => '100%',
-          ID            => 'LOGS_TABLE',
-          EXPORT        => 1,
-          OUTPUT2RETURN => 1
-        }
-      );
+      my $table = $html->table({
+        caption       => $FORM{file} . $FORM{name},
+        qs            => $pages_qs,
+        title_plain   => [ $lang{DATE}, $lang{TIME}, $lang{TYPE}, $lang{INFO} ],
+        width         => '100%',
+        ID            => 'LOGS_TABLE',
+        EXPORT        => 1,
+        OUTPUT2RETURN => 1
+      });
       foreach my $FileSting (@File) {
         my @lines = split(/\s/, $FileSting, 4);
         $table->addrow($lines[0], $lines[1], $lines[2], $lines[3]);
@@ -1336,15 +1247,13 @@ sub logs_list {
       $html->tpl_show(templates('form_logs_text_search'), \%list);
     }
     else {
-      my $table = $html->table(
-        {
-          cation => $FORM{file},
-          qs     => $pages_qs,
-          width  => '100%',
-          ID     => 'LOGS_TABLE',
-          EXPORT => 1,
-        }
-      );
+      my $table = $html->table({
+        cation => $FORM{file},
+        qs     => $pages_qs,
+        width  => '100%',
+        ID     => 'LOGS_TABLE',
+        EXPORT => 1,
+      });
       foreach my $FileSting (@File) {
         $table->addrow($FileSting);
       }
@@ -1358,14 +1267,11 @@ sub logs_list {
   else {
     my $prime_dir = @files_dir[$FORM{DIRACTORY}] ? @files_dir[$FORM{DIRACTORY}] : $files_dir[0];
 
-    $list{LOGS_SELECT} = $html->form_select(
-      'DIRACTORY',
-      {
-        SEL_ARRAY    => \@files_dir,
-        NORMAL_WIDTH => 1,
-        ARRAY_NUM_ID => 1,
-      }
-    );
+    $list{LOGS_SELECT} = $html->form_select('DIRACTORY', {
+      SEL_ARRAY    => \@files_dir,
+      NORMAL_WIDTH => 1,
+      ARRAY_NUM_ID => 1,
+    });
 
     opendir(my $dir, $prime_dir) or do {
       $html->message('err', $lang{ERROR}, "Error in opening dir '$prime_dir'");
@@ -1375,13 +1281,11 @@ sub logs_list {
     };
     $html->tpl_show(templates('form_log_select_list'), \%list);
 
-    my $table = $html->table(
-      {
-        title_plain => [ $lang{NAME}, $lang{VALUE}, $lang{LAST_UPDATE} ],
-        width       => '100%',
-        ID          => 'LIST_OF_LOGS_TABLE',
-      }
-    );
+    my $table = $html->table({
+      title_plain => [ $lang{NAME}, $lang{VALUE}, $lang{LAST_UPDATE} ],
+      width       => '100%',
+      ID          => 'LIST_OF_LOGS_TABLE',
+    });
 
     my @fnamelist = grep /\.log$/, readdir $dir;
 
@@ -1464,7 +1368,7 @@ sub analiz_user_statistic {
 
   my $watch_table = $html->table(
     {
-      caption     => $html->element('i', '', { class => 'fa fa-fw fa-bar-chart', style => 'font-size:28px;' })
+      caption     => $html->element('i', '', { class => 'fa fa-fw fa-chart-bar', style => 'font-size:28px;' })
         . '&nbsp'
         . $lang{POPULAR_MENU},
       title_plain => [ $lang{NAME}, $lang{VISITS}, $lang{PERCENTAGE} ],
@@ -1494,7 +1398,7 @@ sub analiz_user_statistic {
 
   my $time_table = $html->table(
     {
-      caption     => $html->element('i', '', { class => 'fa fa-fw fa-clock-o', style => 'font-size:28px;' })
+      caption     => $html->element('i', '', { class => 'fa fa-fw fa-clock', style => 'font-size:28px;' })
         . '&nbsp'
         . $lang{AVERAGE_TIME},
       width       => '100%',
@@ -1635,7 +1539,6 @@ sub reports_facebook_users_info {
     $new_sum
 =cut
 #**********************************************************
-
 sub _format_sum_for_payments {
   my ($attr) = @_;
   my $new_sum = q{};
@@ -1643,6 +1546,97 @@ sub _format_sum_for_payments {
   $new_sum = format_sum($attr);
 
   return $new_sum;
+}
+
+#**********************************************************
+=head2 _report_chart_info - print report chart
+
+  Arguments:
+    $chart_data
+    $charts_dataset
+
+=cut
+#**********************************************************
+sub _report_chart_info {
+  my ($chart_data, $charts_dataset) = @_;
+
+  my %columns_info = (
+    sum         => {
+      label => $lang{SUM},
+      color => 'rgba(187, 33, 36, 0.8)',
+      id    => 'right-y-axis',
+      type  => 'line',
+      index => 0
+    },
+    login_count => {
+      label       => $lang{COUNT} . $lang{USERS},
+      color       => 'rgba(34, 187, 51, 0.8)',
+      borderColor => 'rgb(0, 66, 37)',
+      borderWidth => 1,
+      id          => 'left-y-axis',
+      index       => 1
+    },
+    count       => {
+      label       => $lang{COUNT} . $lang{PAYMENTS},
+      color       => 'rgba(91, 192, 222, 0.8)',
+      borderColor => 'rgb(0, 166, 147)',
+      borderWidth => 1,
+      id          => 'left-y-axis',
+      index       => 1
+    },
+    arppu       => {
+      label => 'arppu',
+      color => 'rgba(240, 173, 78, 0.8)',
+      id    => 'right-y-axis',
+      type  => 'line',
+      index => 0
+    },
+    arpu        => {
+      label => 'arpu',
+      color => 'rgba(10, 60, 83, 0.8)',
+      id    => 'right-y-axis',
+      type  => 'line',
+      index => 0
+    }
+  );
+  my @labels = sort keys %{$chart_data};
+  my %dataset = ( labels => \@labels );
+
+  foreach my $key (@{$charts_dataset}) {
+    my $column = $columns_info{$key};
+    next if !$column;
+
+    my %dataset_info = (
+      backgroundColor => $column->{color},
+      borderColor     => $column->{borderColor} || $column->{color},
+      data            => [ map $chart_data->{$_}{$key}, @labels ],
+      label           => $column->{label},
+      yAxisID         => $column->{id},
+      order           => $column->{index}
+    );
+    $dataset_info{type} = $column->{type} if $column->{type};
+    $dataset_info{borderWidth} = $column->{borderWidth} if $column->{borderWidth};
+
+    push @{$dataset{datasets}}, \%dataset_info;
+  }
+
+  print $html->chart({
+    TYPE         => 'bar',
+    DATA_CHART   => \%dataset,
+    OPTIONS      => {
+      scales => {
+        'left-y-axis'  => {
+          type     => 'linear',
+          position => 'left',
+        },
+        'right-y-axis' => {
+          type     => 'linear',
+          position => 'right',
+        },
+      }
+    },
+    IN_CONTAINER => 1
+  });
 }
 
 1

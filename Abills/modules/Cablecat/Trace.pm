@@ -376,6 +376,7 @@ sub get_user_nas_port_services {
 
   return 0 if $self->{errno};
 
+  $module_name ||= '';
   if (!$search_list || !ref $search_list eq 'ARRAY' || !scalar(@{$search_list})) {
     $self->_raise_error(2211, "User is not linked to any equipment port ($module_name)");
     return 0;

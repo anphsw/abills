@@ -529,7 +529,7 @@ sub admin_group_add {
   }
   
   $self->query(
-    "INSERT INTO events_admin_group(`aid`, `group_id`)
+    "INSERT INTO `events_admin_group` (`aid`, `group_id`)
      VALUES (?, ?);",
     undef,
     { MULTI_QUERY => [ map { [ $data->{AID}, $_ ] } @groups ] }
@@ -557,7 +557,7 @@ sub admins_for_group {
   
   $self->query(
     "SELECT GROUP_CONCAT(`group_id` SEPARATOR ', ')
-     FROM events_admin_group
+     FROM `events_admin_group`
      WHERE group_id=?",
     undef, { Bind => [ $group_id ] });
   
@@ -587,7 +587,7 @@ sub groups_for_admin {
   
   $self->query(
     "SELECT GROUP_CONCAT(`group_id` SEPARATOR ', ')
-     FROM events_admin_group
+     FROM `events_admin_group`
      WHERE aid=?",
     undef, { Bind => [ $aid ] });
   

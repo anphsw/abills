@@ -10,14 +10,14 @@ CREATE TABLE IF NOT EXISTS `multidoms_nas_tps` (
 )
   COMMENT = 'Multidoms Dillers NAS TPS. For postpaid cards fees';
 
-CREATE TABLE `domains_admins` (
+CREATE TABLE IF NOT EXISTS `domains_admins` (
   `aid` smallint(5) unsigned NOT NULL DEFAULT '0',
   `domain_id` smallint(5) unsigned NOT NULL DEFAULT '0',
   UNIQUE KEY `domain_id_aid` (`domain_id`,`aid`)
 ) 
   COMMENT='Domain admin list';
 
-CREATE TABLE `domains_modules` (
+CREATE TABLE IF NOT EXISTS `domains_modules` (
   `id` smallint(6) unsigned NOT NULL DEFAULT '0',
   `module` varchar(12) NOT NULL DEFAULT '',
   UNIQUE KEY `id_module` (`id`,`module`),

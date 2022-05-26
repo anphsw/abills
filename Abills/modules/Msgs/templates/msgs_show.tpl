@@ -7,60 +7,49 @@
   <input type='hidden' name='INNER_MSG' value='%INNER_MSG%'/>
 
   <div class='row' style='word-wrap: break-word;'>
-    <div class='col-md-9 mt-2' id='reply_wrapper'>
+    <div class='col-md-9' id='reply_wrapper'>
       <div class='card card-outline %MAIN_PANEL_COLOR%'>
-        <div class='card-header with-border'>
-          <div class='row'>
-            <div class='col-md-12'>
-              <div class='card-title'>
-                <span class='badge badge-primary'>%ID%</span>
-                %SUBJECT% %CHANGE_SUBJECT_BUTTON%
-              </div>
-              <div class='card-tools pull-right'>
-                %RATING_ICONS% %PARENT_MSG% %INNER_MSG_TAG%
-              </div>
-            </div>
+        <div class='card-header'>
+          <h3 class='card-title'>
+            <span class='badge badge-primary'>%ID%</span>
+              %SUBJECT% %CHANGE_SUBJECT_BUTTON%
+          </h3>
+          <div class='card-tools'>
+            %RATING_ICONS% %MSG_TAGS% %PARENT_MSG% %INNER_MSG_TAG%
           </div>
         </div>
-        <div class='card-body text-left'>
-          <div class='row'>
-            <div class='col-md-3'><strong>_{STATUS}_:</strong></div>
-            <div class='col-md-3'>%STATE_NAME%</div>
-            <div class='col-md-3'><strong>_{PRIORITY}_:</strong></div>
-            <div class='col-md-3'>%PRIORITY_TEXT%</div>
-          </div>
-          <div class='row'>
-            <div class='col-md-3'><strong>_{CREATED}_:</strong></div>
-            <div class='col-md-3'>%DATE%</div>
-            <div class='col-md-3'><strong>_{CHAPTER}_:</strong></div>
-            <div class='col-md-3'>%CHAPTER_NAME%</div>
-          </div>
-          <div class='row' style='display: %MSG_TAGS_DISPLAY_STATUS%'>
-            <div class='col-md-12'>%MSG_TAGS%</div>
-          </div>
-          %PROGRESSBAR%
-        </div>
-      </div>
 
-      <div class='card card-primary'>
-        <div class='card-header with-border'>
-          <h5 class='card-title'>%LOGIN% _{ADDED}_: %DATE%</h5>
-        </div>
         <div class='card-body text-left'>
           %MESSAGE%
+          %PROGRESSBAR%
         </div>
         <div class='card-footer'>
-          %RUN_TIME% %ATTACHMENT%
-          <div class='pull-right'>%QUOTING% %DELETE% %EDIT%</div>
+          %ATTACHMENT%
+          <div class='row'>
+            <div class='col-md-3'>_{AUTHOR}_: %LOGIN%</div>
+          </div>
+          <div class='row'>
+            <div class='col-md-3'>_{STATUS}_: %STATE_NAME%</div>
+            <div class='col-md-3'>_{PRIORITY}_: %PRIORITY_TEXT%</div>
+          </div>
+          <div class='row'>
+            <div class='col-md-3'>_{CREATED}_: %DATE%</div>
+            <div class='col-md-3'>_{CHAPTER}_: %CHAPTER_NAME%</div>
+            <div class='col-md-6 text-right'>%QUOTING% %DELETE% %EDIT%</div>
+          </div>
         </div>
       </div>
 
-      %REPLY%
+      <div class='timeline'>
+        %REPLY%
+        <div>
+          %TIMELINE_LAST_ITEM%
+        </div>
+      </div>
       %REPLY_FORM%
-<!--      %ADDRESS_SET%-->
       %WORKPLANNING%
     </div>
-    <div class='col-md-3 mt-2' id='ext_wrapper'>
+    <div class='col-md-3' id='ext_wrapper'>
       %EXT_INFO%
     </div>
   </div>
@@ -82,18 +71,22 @@
       .replace(/\n/g, "<br />");
 
     jQuery(element).parent().html(replyHtml);
-
-    console.log(jQuery.post('$SELF_URL', 'header=2&get_index=_msgs_edit_reply&edit_reply=' + replyId + '&replyText=' + replyText));
+    jQuery.post('$SELF_URL', 'header=2&get_index=_msgs_edit_reply&edit_reply=' + replyId + '&replyText=' + replyText);
   }
 
   function edit_reply(element) {
     if (replyId == 0) {
       replyId = jQuery(element).attr('reply_id');
-      var replyElement = jQuery(element).closest(".card").find(".card-body");
+      var replyElement = jQuery(element).closest(".timeline-item").children(".timeline-body");
+
+      if (!replyElement.length) {
+        replyElement = jQuery(element).closest(".card").children(".card-body");
+      }
+
       var oldReplyHtml = replyElement[0].innerHTML;
       var oldReply = replyElement[0].innerText;
       replyElement.html("")
-        .append("<textarea class='form-control reply-edit' rows='10' style='width:100%; margin-left:auto;margin-right:auto'>" + oldReply + "</textarea>")
+        .append("<textarea class='form-control reply-edit w-100' rows='10'>" + oldReply + "</textarea>")
         .append("<button type='button' class='btn btn-default btn-xs reply-save group-btn'>" + saveStr + "</button>")
         .append("<button type='button' class='btn btn-default btn-xs reply-cancel group-btn'>" + cancelStr + "</button>");
       replyElement.children().first().focus();
@@ -115,16 +108,13 @@
   }
 
   function quoting_reply(element) {
-    var replyField = jQuery('#REPLY_TEXT');
-
-    var replyElement = jQuery(element).closest(".card").find(".card-body");
-    var oldReplyHtml = replyElement[0].innerHTML;
-    var oldReply = replyElement[0].innerText;
+    let replyElement = jQuery(element).closest('.timeline-item').children('.timeline-body');
+    let oldReply = replyElement[0].innerText;
 
     oldReply = oldReply.replace(/^/g, '> ');
     oldReply = oldReply.replace(/\n/g, '\n> ');
 
-    replyField.val(oldReply);
+    jQuery('#REPLY_TEXT').val(oldReply);
   }
 
   jQuery(function () {

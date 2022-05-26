@@ -34,5 +34,5 @@
     </tr>
 %SAMBA_ADD%
 </table>
-<input type=submit name='%ACTION%' value='%LNG_ACTION%' class='noprint'>
+<input type=submit name='%ACTION%' value='%LNG_ACTION%' class='d-print-none'>
 </form>

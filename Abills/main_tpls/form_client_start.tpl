@@ -67,6 +67,13 @@
       });
     }
   });
+  jQuery(window).ready(function() {
+    jQuery('.content-wrapper').css('height', jQuery('body').height() - 48);
+  });
+  jQuery(window).resize(function () {
+    jQuery('.content-wrapper').css('height', jQuery('body').height() - 48);
+  });
+  jQuery(window).trigger('resize');
 </script>
 <!--Color-->
 <div id='primary' class='bg-primary hidden'></div>

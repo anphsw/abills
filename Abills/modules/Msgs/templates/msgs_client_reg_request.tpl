@@ -20,7 +20,7 @@
           </div>
           <hr/>
 
-          <div class='form-group'>
+          <div class='form-group row'>
             <label class='control-label required col-md-3' for='FIO'>_{FIO}_</label>
             <div class='col-md-9'>
               <input type='text' id='FIO' name='FIO' value='%FIO%' required placeholder='%FIO%'
@@ -28,7 +28,7 @@
             </div>
           </div>
 
-          <div class='form-group'>
+          <div class='form-group row'>
             <label class='control-label required col-md-3' for='PHONE'>_{PHONE}_</label>
             <div class='col-md-9'>
               <input type='text' id='PHONE' name='PHONE' value='%PHONE%' required='required' placeholder='%PHONE%'
@@ -36,7 +36,7 @@
             </div>
           </div>
 
-          <div class='form-group'>
+          <div class='form-group row'>
             <label class='control-label col-md-3' for='EMAIL'>E-mail</label>
             <div class='col-md-9'>
               <input type='text' id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='account@mail.com'
@@ -46,7 +46,7 @@
 
           <hr/>
 
-          <div class='form-group'>
+          <div class='form-group row'>
             <label class='control-label required col-md-3' for='CONNECTION_TIME'>_{CONNECTION_TIME}_</label>
             <div class='col-md-9'>
               <input type='text' id='CONNECTION_TIME' name='CONNECTION_TIME' required value='%CONNECTION_TIME%'
@@ -54,7 +54,7 @@
             </div>
           </div>
 
-          <div class='form-group'>
+          <div class='form-group row'>
             <label class='control-label col-md-3' for='SUBJECT'>_{SUBJECT}_</label>
             <div class='col-md-9'>
               <input type='text' id='SUBJECT' name='SUBJECT' value='_{REGISTRATION}_' readonly='readonly'
@@ -63,7 +63,7 @@
             </div>
           </div>
 
-          <div class='form-group'>
+          <div class='form-group row'>
             <label class='control-label col-sm-3' for='COMMENTS'>_{COMMENTS}_</label>
             <div class='col-md-9'>
               <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='3'

@@ -9,13 +9,13 @@
   </div>
   <div class='col-xs-2'>
 	  <button class='btn btn-danger btn-xs note-del'>
-      <span class='fa fa-remove'></span>
+      <span class='fa fa-times'></span>
     </button>
   </div>
 </div>
 
 </script>
-<script src='/styles/default_adm/js/modules/notepad/checklist.js'></script>
+<script src='/styles/default/js/modules/notepad/checklist.js'></script>
 <style>
   #note_submit {
     margin-left: 25px;

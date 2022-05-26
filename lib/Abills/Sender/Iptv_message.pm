@@ -77,7 +77,7 @@ sub send_message {
     my $tv_service = _load_service({ SERVICE_ID => $user->{service_id} });
     $Tv_services{$user->{service_id}} = $tv_service;
 
-    next if !$tv_service->can('send_iptv_message');
+    next if !$tv_service || !$tv_service->can('send_iptv_message');
 
     $tv_service->send_iptv_message({ %{$attr}, %{$user} });
     $total += 1;

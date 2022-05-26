@@ -1,5 +1,5 @@
 <!-- Main container -->
-<script src='/styles/default_adm/js/jquery.marcopolo.min.js'></script>
+<script src='/styles/default/js/jquery.marcopolo.min.js'></script>
 <nav class='main-header navbar navbar-expand %HEADER_FIXED_CLASS% $admin->{SETTINGS}{SKIN}'
     role='navigation'>
   <ul class='navbar-nav'>
@@ -21,12 +21,12 @@
 
     <li class='nav-item dropdown' id='messages-menu' data-meta='{%ADMIN_MSGS%}'>
       <a href='#' class='nav-link dropdown-toggle' data-toggle='dropdown' title='_{MESSAGES}_ _{ALL}_'>
-        <i class='fa fa-envelope-o'></i>
+        <i class='far fa-envelope'></i>
         <span id='badge_messages-menu' class='icon-label label label-danger hidden'></span>
       </a>
       <div class='dropdown-menu dropdown-menu-lg dropdown-menu-right' id='dropdown_messages-menu'>
         <span class='dropdown-item dropdown-header' id='header_messages-menu'>
-          <h6 class='header_text pull-left pt-1'></h6>
+          <h6 class='header_text float-left pt-1'></h6>
             <div class='text-right'>
               <div class='btn-group'>
                 <form action='$SELF_URL' class='form-horizontal'>
@@ -37,7 +37,7 @@
               </div>
               <div class='btn-group'>
                 <button class='btn btn-sm btn-success header_refresh'>
-                  <i class='fa fa-refresh' role='button'></i>
+                  <i class='fas fa-sync' role='button'></i>
                 </button>
               </div>
             </div>
@@ -72,17 +72,17 @@
 
     <li class='nav-item dropdown' id='responsible-menu' data-meta='{%ADMIN_RESPONSIBLE%}'>
       <a href='#' class='nav-link dropdown-toggle' data-toggle='dropdown' title='_{MESSAGES}_ _{RESPOSIBLE}_'>
-        <i class='fa fa-flag-o'></i>
+        <i class='far fa-flag'></i>
         <span id='badge_responsible-menu' class='icon-label label label-danger hidden'></span>
       </a>
 
       <div class='dropdown-menu dropdown-menu-lg dropdown-menu-right' id='dropdown_responsible-menu'>
         <span class='dropdown-item dropdown-header' id='header_responsible-menu'>
-          <h6 class='header_text pull-left pt-1'></h6>
+          <h6 class='header_text float-left pt-1'></h6>
             <div class='text-right'>
               <div class='btn-group'>
                 <button class='btn btn-sm btn-success header_refresh'>
-                  <i class='fa fa-refresh' role='button'></i>
+                  <i class='fas fa-sync' role='button'></i>
                 </button>
               </div>
             </div>
@@ -106,17 +106,17 @@
           }'>
 
       <a href='#' class='nav-link dropdown-toggle' data-toggle='dropdown' title='_{EVENTS}_'>
-        <i class='fa fa-bell-o'></i>
+        <i class='far fa-bell'></i>
         <span id='badge_events-menu' class='icon-label label label-danger hidden'></span>
       </a>
 
       <div class='dropdown-menu dropdown-menu-lg dropdown-menu-right' id='dropdown_events-menu'>
         <span class='dropdown-item dropdown-header' id='header_events-menu'>
-          <h6 class='header_text pull-left pt-1'></h6>
+          <h6 class='header_text float-left pt-1'></h6>
             <div class='text-right'>
               <div class='btn-group'>
                 <button class='btn btn-sm btn-success header_refresh'>
-                  <i class='fa fa-refresh' role='button'></i>
+                  <i class='fas fa-sync' role='button'></i>
                 </button>
               </div>
             </div>
@@ -164,7 +164,7 @@
       </ul>
     </li>
 
-    <form class='no-live-select UNIVERSAL_SEARCH_FORM' action='$SELF_URL'>
+    <form class='no-live-select UNIVERSAL_SEARCH_FORM d-inline-flex' action='$SELF_URL'>
       <input type='hidden' name='index' value='7'>
       <input type='hidden' name='search' value='1'>
       <li class='header nav-item mr-2 d-none d-md-inline-block'>
@@ -187,7 +187,7 @@
     </form>
 
     <li id='wiki-link' class='nav-item d-none d-sm-inline-block'>
-      <a href='$ENV{DOC_URL}%FUNCTION_NAME%'
+      <a href='https://support.abills.net.ua/doc.cgi?url=%FUNCTION_NAME%'
           id='wiki_url' target='_blank' rel='noopener' title='ABillS Wiki' class='nav-link'>
         <i class='fa fa-question'></i>
       </a>
@@ -209,6 +209,13 @@
   </ul>
 </nav>
 <script>
+
+  if('$admin->{RIGHT_MENU_OPEN}' !== '') {
+    if(document.body.clientWidth > 992) {
+      document.body.classList.add('control-sidebar-slide-open');
+    }
+  }
+
   jQuery(function () {
     var EVENT_PARAMS = {
       portal: 'admin',
@@ -219,7 +226,6 @@
     };
     AMessageChecker.start(EVENT_PARAMS);
 
-    const treeView = jQuery('li.nav-item');
     const menuItems = jQuery('li.for_search');
     const menuItemsContainers = jQuery('ul.for_search');
 
@@ -228,10 +234,6 @@
 
       if (searchValue) {
         menuItemsContainers.css('display', 'block');
-
-        treeView.addClass('active');
-        menuItems.addClass('active');
-
         menuItems.css('display', 'none');
 
         menuItems.filter(function () {
@@ -239,22 +241,18 @@
         }).css('display', 'block');
 
       } else {
-        treeView.removeClass('active');
-
-        menuItems.removeClass('active');
         menuItems.css('display', 'block');
-
         menuItemsContainers.css('display', 'none');
       }
     });
 
-    var urlWiki = jQuery('#wiki_url').attr('href');
-    var pattern = /doc.cgi/
-    if (pattern.test(urlWiki)) {
-      jQuery('#wiki_url').attr('href', urlWiki);
-    } else {
-      jQuery('#wiki_url').attr('href', '$ENV{DOC_URL}');
-    }
+    // var urlWiki = jQuery('#wiki_url').attr('href');
+    // var pattern = /doc.cgi/
+    // if (pattern.test(urlWiki)) {
+    //   jQuery('#wiki_url').attr('href', urlWiki);
+    // } else {
+    //   jQuery('#wiki_url').attr('href', '$ENV{DOC_URL}');
+    // }
   });
 </script>
 
@@ -263,11 +261,11 @@
     <img src='/img/abills.svg' class='brand-image-xl logo-xs'>
     <span class='brand-text font-weight'><b><span style='color: red;'>A</span></b>BillS</span>
   </a>
-  <div class='sidebar'>
+  <div class='sidebar' style='overflow-y: auto'>
     <div class='user-panel mt-3 pb-3 mb-3 d-flex'>
       <div class='image'>
         <a href='$SELF_URL?index=9'>
-          <img src='/styles/lte_adm/dist/img/avatar5.png' class='img-circle elevation-2' alt='User Image'>
+          <img src='/styles/default/img/admin/avatar5.png' class='img-circle elevation-2' alt='User Image'>
         </a>
       </div>
       <div class='info'>
@@ -291,11 +289,6 @@
   </div>
 </aside>
 <div class='content-wrapper' id='content-wrapper'>
-  <script>
-    if (jQuery('nav.navbar.navbar-static-top.navbar-fixed-top').length) {
-      jQuery('div.content-wrapper').css({'padding-top': '50px'});
-    }
-  </script>
   %ISP_EXPRESSION%
 
   %BREADCRUMB%

@@ -13,7 +13,8 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Defs;
-use Abills::Base qw(date_diff in_array sendmail sec2time show_log mk_unique_value int2byte _bp int2ip ip2int days_in_month clearquotes next_month);
+use Abills::Base qw(date_diff in_array sendmail sec2time show_log time2sec
+  mk_unique_value int2byte _bp int2ip ip2int days_in_month clearquotes next_month);
 use Abills::Filters qw(_mac_former human_exp);
 use Internet;
 use Internet::Sessions;
@@ -225,32 +226,36 @@ sub internet_multiuser {
   if ($FORM{MU_ACTIVATE}) {
     $params{ACTIVATE} = $FORM{MU_ACTIVATE_DATE};
   }
+  if ($FORM{MU_SERVICE_ACTIVATE}) {
+    $params{SERVICE_ACTIVATE} = $FORM{MU_SERVICE_ACTIVATE_DATE};
+  }
+  if ($FORM{MU_SERVICE_EXPIRE}) {
+    $params{SERVICE_EXPIRE} = $FORM{MU_SERVICE_EXPIRE_DATE};
+  }
+
 
   if ($#multiuser_arr < 0) {
-    $html->message('err', $lang{MULTIUSER_OP}, "$lang{SELECT_USER}");
+    $html->message('err', $lang{MULTIUSER_OP}, $lang{SELECT_USER});
     return 1;
   }
   elsif ($FORM{MU_TP} && $FORM{TP_SHEDULE} ne '0000-00-00') {
     my ($year, $month, $day) = split(/-/, $FORM{TP_SHEDULE}, 3);
     foreach my $id (@multiuser_arr) {
       $Internet->user_info($uid_hash->{$id}, { ID => $id });
-      $Shedule->add(
-        {
-          UID          => $uid_hash->{$id},
-          TYPE         => 'tp',
-          ACTION       => "$id:$FORM{INTERNET_MU_TP}",
-          D            => $day,
-          M            => $month,
-          Y            => $year,
-          MODULE       => 'Internet',
-          COMMENTS     => "$lang{FROM}: $Internet->{TP_ID}:". ($Internet->{TP_NAME} || ""),
-          ADMIN_ACTION => 1
-        }
-      );
+      $Shedule->add({
+        UID          => $uid_hash->{$id},
+        TYPE         => 'tp',
+        ACTION       => "$id:$FORM{INTERNET_MU_TP}",
+        D            => $day,
+        M            => $month,
+        Y            => $year,
+        MODULE       => 'Internet',
+        COMMENTS     => "$lang{FROM}: $Internet->{TP_ID}:" . ($Internet->{TP_NAME} || ""),
+        ADMIN_ACTION => 1
+      });
 
-      if ( _error_show($Shedule) ) {
-        last;
-      }
+      last if _error_show($Shedule);
+
       push @multiuser_no_error, $id;
     }
     $html->message('info', $lang{MULTIUSER_OP}, "$lang{TO_PLAN}\n$lang{SERVICE}: " . join(', ', @multiuser_no_error) );
@@ -261,12 +266,7 @@ sub internet_multiuser {
 
     my %uids_hash = reverse %$uid_hash;
     foreach my $uid (keys %uids_hash) {
-      $users->change( $uid,
-        {
-          UID    => $uid,
-          %params
-        }
-      );
+      $users->change($uid, { UID => $uid, %params });
     }
   }
   elsif ($FORM{MU_SET_IPV6}) {
@@ -317,20 +317,18 @@ sub internet_multiuser {
     }
   }
   elsif (!%params) {
-    $html->message('warn', $lang{MULTIUSER_OP}, "$lang{THERE_ARE_NO_SETTINGS_TO_CHANGE}");
+    $html->message('warn', $lang{MULTIUSER_OP}, $lang{THERE_ARE_NO_SETTINGS_TO_CHANGE});
     return 1;
   }
   else {
     foreach my $id (@multiuser_arr) {
-      $Internet->user_change(
-        {
-          ID  => $id,
-          UID => $uid_hash->{$id},
-          %params
-        }
-      );
+      $Internet->user_change({
+        ID  => $id,
+        UID => $uid_hash->{$id},
+        %params
+      });
 
-      if ( _error_show($Internet, { MODULE_NAME => $lang{INTERNET} }) ) {
+      if (_error_show($Internet, { MODULE_NAME => $lang{INTERNET} })) {
         last;
       }
       push @multiuser_no_error, $id;
@@ -455,6 +453,9 @@ sub internet_users_list {
       }
 
       $LIST_PARAMS{TP_ID} = $FORM{TP_NUM} || $FORM{TP_ID};
+      if ($FORM{subf} && $pages_qs !~ /subf/) {
+        $pages_qs .= "&subf=$FORM{subf}";
+      }
     }
     elsif ($FORM{TP_ID} || $FORM{TP_NUM}) {
       if(defined(&internet_tp)) {
@@ -521,12 +522,49 @@ sub internet_users_list {
   my $list;
 
   my %EXT_PARAM_FORMER = ();
-  if (in_array('Maps2', \@MODULES)) {
+  if (in_array('Maps', \@MODULES)) {
     $EXT_PARAM_FORMER{MAP} = 1;
     $EXT_PARAM_FORMER{MAP_FIELDS} = 'ADDRESS_FLAT,LOGIN,DEPOSIT,FIO,TP_NAME,ONLINE';
   }
 
   $LIST_PARAMS{GID} = $FORM{GID} if $FORM{GID};
+
+  my %internet_extra_fields = (
+    'ip_num'                => 'IP',
+    'netmask'               => 'NETMASK',
+    'speed'                 => $lang{SPEED},
+    'port'                  => $lang{PORT},
+    'cid'                   => 'CID',
+    'filter_id'             => 'Filter ID',
+    'tp_name'               => $lang{TARIF_PLAN},
+    'tp_id'                 => "$lang{TARIF_PLAN} ID",
+    'internet_status'       => "Internet $lang{STATUS}",
+    'internet_status_date'  => "$lang{STATUS} $lang{DATE}",
+    'internet_comments'     => "Internet $lang{COMMENTS}",
+    'online'                => 'Online',
+    'online_ip'             => 'Online IP',
+    'online_cid'            => 'Online CID',
+    'online_duration'       => 'Online ' . $lang{DURATION},
+    'month_fee'             => $lang{MONTH_FEE},
+    'day_fee'               => $lang{DAY_FEE},
+    'internet_activate'     => "Internet $lang{ACTIVATE}",
+    'internet_expire'       => "Internet $lang{EXPIRE}",
+    'internet_login'        => "Internet $lang{LOGIN}",
+    'internet_password'     => "Internet $lang{PASSWD}",
+    'month_traffic_in'      => "$lang{MONTH} $lang{RECV}",
+    'month_traffic_out'     => "$lang{MONTH} $lang{SENT}",
+    'month_ipn_traffic_in'  => "$lang{MONTH} IPN $lang{RECV}",
+    'month_ipn_traffic_out' => "$lang{MONTH} IPN $lang{SENT}",
+    'personal_tp'           => "$lang{PERSONAL} $lang{TARIF_PLAN}",
+    'shedule'               => $lang{SHEDULE},
+    'cpe_mac'               => 'CPE MAC',
+    'nas_id'                => 'NAS_ID',
+    'id'                    => $lang{ID_TP_SEARCH},
+    'ipv6'                  => 'IPv6 Address',
+    'ipv6_prefix'           => 'IPv6 Prefix',
+    'vlan'                  => 'VLAN',
+    'server_vlan'           => 'SERVER VLAN'
+  );
 
   ($table, $list) = result_former({
     INPUT_DATA      => $Internet,
@@ -541,40 +579,7 @@ sub internet_users_list {
       #online => ''
     },
     MULTISELECT     => ($permissions{0}{7}) ? 'IDS:id:internet_users_list' : '',
-    EXT_TITLES      => {
-      'ip_num'                => 'IP',
-      'netmask'               => 'NETMASK',
-      'speed'                 => $lang{SPEED},
-      'port'                  => $lang{PORT},
-      'cid'                   => 'CID',
-      'filter_id'             => 'Filter ID',
-      'tp_name'               => $lang{TARIF_PLAN},
-      'tp_id'                 => "$lang{TARIF_PLAN} ID",
-      'internet_status'       => "Internet $lang{STATUS}",
-      'internet_status_date'  => "$lang{STATUS} $lang{DATE}",
-      'internet_comments'     => "Internet $lang{COMMENTS}",
-      'online'                => 'Online',
-      'online_ip'             => 'Online IP',
-      'online_cid'            => 'Online CID',
-      'online_duration'       => 'Online ' . $lang{DURATION},
-      'month_fee'             => $lang{MONTH_FEE},
-      'day_fee'               => $lang{DAY_FEE},
-      'internet_activate'     => "Internet $lang{ACTIVATE}",
-      'internet_expire'       => "Internet $lang{EXPIRE}",
-      'internet_login'        => "Internet $lang{LOGIN}",
-      'internet_password'     => "Internet $lang{PASSWD}",
-      'month_traffic_in'      => "$lang{MONTH} $lang{RECV}",
-      'month_traffic_out'     => "$lang{MONTH} $lang{SENT}",
-      'month_ipn_traffic_in'  => "$lang{MONTH} IPN $lang{RECV}",
-      'month_ipn_traffic_out' => "$lang{MONTH} IPN $lang{SENT}",
-      'personal_tp'           => "$lang{PERSONAL} $lang{TARIF_PLAN}",
-      'shedule'               => $lang{SHEDULE},
-      'cpe_mac'               => "CPE MAC",
-      'nas_id'                => 'NAS_ID',
-      'id'                    => $lang{ID_TP_SEARCH},
-      'ipv6'                  => 'IPv6 Address',
-      'ipv6_prefix'           => 'IPv6 Prefix'
-    },
+    EXT_TITLES      => \%internet_extra_fields,
     SELECT_VALUE => {
       internet_status => $service_status,
       login_status    => $service_status
@@ -616,7 +621,7 @@ sub internet_users_list {
     $ui = user_info($list->[0]->{uid});
 
     if ($ui) {
-      print $ui->{TABLE_SHOW};
+      print $ui->{TABLE_SHOW} if ($ui->{TABLE_SHOW});
       form_users({ USER_INFO => $ui });
       return 1;
     }
@@ -646,10 +651,8 @@ sub internet_users_list {
 
       if (in_array('Tags', \@MODULES)) {
         load_module('Tags', $html);
-        $Internet->{MU_USER_TAGS} = tags_sel();
-      }
-      else {
-        $Internet->{VISIBLE} = 'display: none;';
+        $Internet->{MU_USER_TAGS} = tags_sel({ ID => 'MU_USER_TAGS' });
+        $Internet->{MU_USER_TAGS_VISIBLE} = 'd-block';
       }
 
       my $pool_ipv6_list = $Nas->ip_pools_list({
@@ -988,125 +991,125 @@ sub internet_error {
 
 =cut
 #**********************************************************
-sub internet_payments_maked {
-  my ($attr) = @_;
-
-  $user=$attr->{USER_INFO} if ($attr->{USER_INFO});
-  return '' if ($FORM{DISABLE});
-
-  my $service_list = $Internet->user_list({
-    UID         => $user->{UID},
-    TP_NUM      => '>0',
-    GROUP_BY    => 'internet.id',
-    COLS_NAME   => 1
-  });
-
-  foreach my $service (@$service_list) {
-    $Internet->user_info($user->{UID}, { ID => $service->{id} });
-
-    if ($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
-      $Internet->{MONTH_ABON} = $Internet->{PERSONAL_TP};
-    }
-
-    my $deposit = (defined($user->{DEPOSIT})) ? $user->{DEPOSIT} + (($user->{CREDIT} > 0) ? $user->{CREDIT} : $Internet->{TP_CREDIT}) : 0;
-
-    my $abon_fees = ($user->{REDUCTION} == 0) ? $Internet->{MONTH_ABON} + $Internet->{DAY_ABON} : ($Internet->{MONTH_ABON} + $Internet->{DAY_ABON}) * (100 - $user->{REDUCTION}) / 100;
-
-    if ($conf{INTERNET_FULL_MONTH}) {
-      $abon_fees = ($user->{REDUCTION} == 0) ? $Internet->{MONTH_ABON} + $Internet->{DAY_ABON} * 30 : ($Internet->{MONTH_ABON} + $Internet->{DAY_ABON} * 30) * (100 - $user->{REDUCTION}) / 100;
-    }
-    elsif ($Internet->{ABON_DISTRIBUTION}) {
-      my $days_in_month = days_in_month({ DATE => $DATE });
-      $abon_fees = ($Internet->{MONTH_ABON} / $days_in_month) + $Internet->{DAY_ABON};
-    }
-
-    #OLd method. Always change activate period with payments
-    #@deprecated
-    if ($conf{payment_chg_activate} && $Internet->{SERVICE_ACTIVATE} ne '0000-00-00') {
-      if ($conf{payment_chg_activate} ne 2
-        || date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30) {
-        $Internet->user_change({
-          ACTIVATE => $DATE,
-          UID      => $user->{UID},
-          ID       => $Internet->{ID},
-        });
-      }
-    }
-
-    if($user->{REDUCTION} && $user->{REDUCTION} > 0) {
-      $abon_fees = $abon_fees * (100 - $user->{REDUCTION}) / 100;
-    }
-
-    if (in_array($Internet->{STATUS}, [4,5]) && $deposit > $abon_fees) {
-      my %params = ();
-      if ($conf{INTERNET_CUSTOM_PERIOD}) {
-        if ($deposit >= $Internet->{TP_CHANGE_PRICE}) {
-          if ($Internet->{TP_AGE}) {
-            my ($y, $m, $d) = split(/-/, $DATE);
-            $params{SERVICE_EXPIRE} = POSIX::strftime("%Y-%m-%d",
-              localtime(POSIX::mktime(0, 0, 0, $d, ($m - 1), ($y - 1900), 0, 0, 0) + $Internet->{TP_AGE} * 86400));
-
-            my $Fees = Fees->new($db, $admin, \%conf);
-            $Fees->take($user, $Internet->{TP_CHANGE_PRICE}, { DESCRIBE => $lang{ACTIVATE_TARIF_PLAN} });
-            $service->{DESCRIBE} = ($Internet->{TP_NAME} || "") . " $lang{SUM}: $Internet->{TP_CHANGE_PRICE}";
-            $html->message('info', "$lang{ACTIVATE} $lang{INTERNET}", $service->{DESCRIBE});
-          }
-        }
-        else {
-          return 1;
-        }
-      }
-
-      $Internet->user_change({
-        UID    => $user->{UID},
-        ID     => $Internet->{ID},
-        STATUS => 0,
-        %params
-      });
-
-      if ($conf{INTERNET_FULL_MONTH} && $Internet->{OLD_STATUS} && $Internet->{OLD_STATUS} == 5) {
-        $attr->{FULL_MONTH_FEE} = 1;
-      }
-
-      #$Internet->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE} || '0000-00-00';
-      $conf{MONTH_FEE_TIME}='01:00:00';
-
-      #Skip month fee before month periodic
-      if ($conf{MONTH_FEE_TIME}) {
-        my $start_day = $conf{START_PERIOD_DAY} || 1;
-        my (undef, undef, $d)=split(/\-/, $DATE, 3);
-        if ($start_day == $d && time2sec($TIME) < time2sec($conf{MONTH_FEE_TIME}) ) {
-          $attr->{SHEDULER} = 1;
-        }
-      }
-      service_get_month_fee($Internet, $attr);
-    }
-    elsif ($conf{INTERNET_PAY_ACTIVATE}) {
-      my $sum = $attr->{SUM} || 0;
-      if ($Internet->{SERVICE_ACTIVATE} ne '0000-00-00' && date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30
-        && $deposit - $sum <= 0 && $deposit > $abon_fees) {
-        #&& $deposit - $sum <= 0 && $deposit > 0) {
-
-        my %service_params = (
-          UID              => $user->{UID},
-          ID               => $Internet->{ID},
-          STATUS           => 0,
-          SERVICE_ACTIVATE => $DATE
-        );
-
-        if ($Internet->{STATUS}) {
-          $service_params{STATUS} = 0;
-        }
-
-        $Internet->user_change(\%service_params);
-        service_get_month_fee($Internet, $attr);
-      }
-      #service_get_month_fee($Internet, $attr);
-    }
-  }
-
-  return 1;
-}
+# sub internet_payments_maked {
+#   my ($attr) = @_;
+#
+#   $user=$attr->{USER_INFO} if ($attr->{USER_INFO});
+#   return '' if ($FORM{DISABLE});
+#
+#   my $service_list = $Internet->user_list({
+#     UID         => $user->{UID},
+#     TP_NUM      => '>0',
+#     GROUP_BY    => 'internet.id',
+#     COLS_NAME   => 1
+#   });
+#
+#   foreach my $service (@$service_list) {
+#     $Internet->user_info($user->{UID}, { ID => $service->{id} });
+#
+#     if ($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
+#       $Internet->{MONTH_ABON} = $Internet->{PERSONAL_TP};
+#     }
+#
+#     my $deposit = (defined($user->{DEPOSIT})) ? $user->{DEPOSIT} + (($user->{CREDIT} > 0) ? $user->{CREDIT} : $Internet->{TP_CREDIT}) : 0;
+#
+#     my $abon_fees = ($user->{REDUCTION} == 0) ? $Internet->{MONTH_ABON} + $Internet->{DAY_ABON} : ($Internet->{MONTH_ABON} + $Internet->{DAY_ABON}) * (100 - $user->{REDUCTION}) / 100;
+#
+#     if ($conf{INTERNET_FULL_MONTH}) {
+#       $abon_fees = ($user->{REDUCTION} == 0) ? $Internet->{MONTH_ABON} + $Internet->{DAY_ABON} * 30 : ($Internet->{MONTH_ABON} + $Internet->{DAY_ABON} * 30) * (100 - $user->{REDUCTION}) / 100;
+#     }
+#     elsif ($Internet->{ABON_DISTRIBUTION}) {
+#       my $days_in_month = days_in_month({ DATE => $DATE });
+#       $abon_fees = ($Internet->{MONTH_ABON} / $days_in_month) + $Internet->{DAY_ABON};
+#     }
+#
+#     #OLd method. Always change activate period with payments
+#     #@deprecated
+#     if ($conf{payment_chg_activate} && $Internet->{SERVICE_ACTIVATE} ne '0000-00-00') {
+#       if ($conf{payment_chg_activate} ne 2
+#         || date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30) {
+#         $Internet->user_change({
+#           ACTIVATE => $DATE,
+#           UID      => $user->{UID},
+#           ID       => $Internet->{ID},
+#         });
+#       }
+#     }
+#
+#     if($user->{REDUCTION} && $user->{REDUCTION} > 0) {
+#       $abon_fees = $abon_fees * (100 - $user->{REDUCTION}) / 100;
+#     }
+#
+#     if (in_array($Internet->{STATUS}, [4,5]) && $deposit > $abon_fees) {
+#       my %params = ();
+#       if ($conf{INTERNET_CUSTOM_PERIOD}) {
+#         if ($deposit >= $Internet->{TP_CHANGE_PRICE}) {
+#           if ($Internet->{TP_AGE}) {
+#             my ($y, $m, $d) = split(/-/, $DATE);
+#             $params{SERVICE_EXPIRE} = POSIX::strftime("%Y-%m-%d",
+#               localtime(POSIX::mktime(0, 0, 0, $d, ($m - 1), ($y - 1900), 0, 0, 0) + $Internet->{TP_AGE} * 86400));
+#
+#             my $Fees = Fees->new($db, $admin, \%conf);
+#             $Fees->take($user, $Internet->{TP_CHANGE_PRICE}, { DESCRIBE => $lang{ACTIVATE_TARIF_PLAN} });
+#             $service->{DESCRIBE} = ($Internet->{TP_NAME} || "") . " $lang{SUM}: $Internet->{TP_CHANGE_PRICE}";
+#             $html->message('info', "$lang{ACTIVATE} $lang{INTERNET}", $service->{DESCRIBE});
+#           }
+#         }
+#         else {
+#           return 1;
+#         }
+#       }
+#
+#       $Internet->user_change({
+#         UID    => $user->{UID},
+#         ID     => $Internet->{ID},
+#         STATUS => 0,
+#         %params
+#       });
+#
+#       if ($conf{INTERNET_FULL_MONTH} && $Internet->{OLD_STATUS} && $Internet->{OLD_STATUS} == 5) {
+#         $attr->{FULL_MONTH_FEE} = 1;
+#       }
+#
+#       #$Internet->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE} || '0000-00-00';
+#       $conf{MONTH_FEE_TIME}='01:00:00';
+#
+#       #Skip month fee before month periodic
+#       if ($conf{MONTH_FEE_TIME}) {
+#         my $start_day = $conf{START_PERIOD_DAY} || 1;
+#         my (undef, undef, $d)=split(/\-/, $DATE, 3);
+#         if ($start_day == $d && time2sec($TIME) < time2sec($conf{MONTH_FEE_TIME}) ) {
+#           $attr->{SHEDULER} = 1;
+#         }
+#       }
+#       service_get_month_fee($Internet, $attr);
+#     }
+#     elsif ($conf{INTERNET_PAY_ACTIVATE}) {
+#       my $sum = $attr->{SUM} || 0;
+#       if ($Internet->{SERVICE_ACTIVATE} ne '0000-00-00' && date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30
+#         && $deposit - $sum <= 0 && $deposit > $abon_fees) {
+#         #&& $deposit - $sum <= 0 && $deposit > 0) {
+#
+#         my %service_params = (
+#           UID              => $user->{UID},
+#           ID               => $Internet->{ID},
+#           STATUS           => 0,
+#           SERVICE_ACTIVATE => $DATE
+#         );
+#
+#         if ($Internet->{STATUS}) {
+#           $service_params{STATUS} = 0;
+#         }
+#
+#         $Internet->user_change(\%service_params);
+#         service_get_month_fee($Internet, $attr);
+#       }
+#       #service_get_month_fee($Internet, $attr);
+#     }
+#   }
+#
+#   return 1;
+# }
 
 #**********************************************************
 =head2 internet_period_select($attr) - period select
@@ -1167,6 +1170,31 @@ sub internet_period_select {
 sub internet_registration {
   my ($attr) = @_;
 
+  my $referral_login;
+
+  if($FORM{REFERRER}) {
+    $attr->{HIDE_TP} = 'hidden';
+    $Internet->{TP_SEL} = "";
+
+    my ($y, $m, $d) = split '-', $DATE, 3;
+
+    my $patern = "10001$y$m$d-";
+
+    my $num = 1;
+    my $list = $users->list({
+      UID        => '_SHOW',
+      LOGIN      => "10001*",
+      SORT       => 'UID',
+      DESC       => 'DESC',
+      COLS_NAME => 1
+    });
+
+    $num =  (scalar @$list)+1 if($list->[0]);
+
+    $attr->{LOGIN} = $referral_login =  "$patern$num";
+    $attr->{LOGIN_READONLY} = 'readonly';
+  }
+
   if ($FORM{reg}) {
 #    if ($attr->{CAPTCHA} && $attr->{CAPTCHA_OBJ}->check_code($FORM{CCODE}, $FORM{C}) != 1) {
 #      $Internet->{MESSAGE} = $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_CAPTCHA}", { ID => 991 });
@@ -1175,9 +1203,9 @@ sub internet_registration {
     if ($attr->{SKIP_EMAIL_CHECK} && $FORM{EMAIL} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
       $Internet->{MESSAGE} = $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_EMAIL}");
     }
-    elsif ($conf{REGISTRATION_CHECK_PHONE}
-      && (!$FORM{PHONE} || ($conf{PHONE_FORMAT} && $FORM{PHONE} !~ /$conf{PHONE_FORMAT}/ )) ) {
-      $Internet->{MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PHONE}. (($conf{PHONE_FORMAT}) ? ' '.human_exp($conf{PHONE_FORMAT}) : q{}));
+#    elsif ($conf{REGISTRATION_CHECK_PHONE}
+    elsif (!$FORM{PHONE} || ($conf{PHONE_FORMAT} && $FORM{PHONE} !~ m/$conf{PHONE_FORMAT}/ ))  {
+      $Internet->{MESSAGE} = $html->message('err', $lang{ERROR}, "// $FORM{PHONE} / $conf{PHONE_FORMAT} /". $lang{ERR_WRONG_PHONE}. (($conf{PHONE_FORMAT}) ? ' '.human_exp($conf{PHONE_FORMAT}) : q{}));
     }
     elsif (! $FORM{ACCEPT_RULES}) {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCEPT_RULES});
@@ -1187,7 +1215,7 @@ sub internet_registration {
 
       $users->add(
         {
-          LOGIN       => $FORM{LOGIN},
+          LOGIN       => $referral_login ? $referral_login : $FORM{LOGIN},
           CREATE_BILL => 1,
           PASSWORD    => $password,
           GID         => $conf{REGISTRATION_GID},
@@ -1258,29 +1286,41 @@ sub internet_registration {
         }
 
         #3 personal info
-        $users->pi_add(
-          {
-            %FORM,
-            UID   => $uid,
-            FIO   => $FORM{FIO},
-            EMAIL => $FORM{EMAIL}
-          }
-        );
+        $users->pi_add({
+          %FORM,
+          UID   => $uid,
+          FIO   => $FORM{FIO},
+          EMAIL => $FORM{EMAIL}
+        });
 
         if ($users->{errno}) {
           $Internet->{MESSAGE} = $html->message('err', $lang{ERROR}, "[$users->{errno}] $err_strs{$users->{errno}}");
           goto REG_FORM;
         }
 
-        #4 Dv
+        #4 Internet
         $conf{REGISTRATION_DEFAULT_TP} = 0 if (!$conf{REGISTRATION_DEFAULT_TP});
-        $Internet->user_add(
-          {
-            UID   => $uid,
-            TP_ID => $FORM{TP_ID} || $conf{REGISTRATION_DEFAULT_TP},
-            STATUS=> $FORM{STATUS}
-          }
-        );
+
+        my $cid = q{};
+        require Internet::Sessions;
+        Internet::Sessions->import();
+        my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+        $Sessions->online({
+          CLIENT_IP => $ENV{REMOTE_ADDR},
+          CID       => '_SHOW',
+          COLS_NAME => 1
+        });
+
+        if ( $Sessions->{TOTAL} ) {
+          $cid = $Sessions->{list}->[0]->{cid};
+        }
+
+        $Internet->user_add({
+          UID    => $uid,
+          TP_ID  => $FORM{TP_ID} || $conf{REGISTRATION_DEFAULT_TP},
+          STATUS => $FORM{STATUS},
+          CID    => $cid
+        });
 
         if (!$Internet->{errno}) {
           if ($conf{REGISTRATION_SHOW_PASSWD}) {
@@ -1310,9 +1350,17 @@ sub internet_registration {
             }
           }
 
+          my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+          my $addr = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}$ENV{SCRIPT_NAME}" : '';
+
           #show complete when user added
           if ($attr->{SHOW_SMS}) {
-            $html->tpl_show(_include('internet_reg_complete_sms', 'Internet'), { %$Internet, %FORM, %{ ($users) ? $users : {} }, PASSWORD => "$password" });
+            $html->tpl_show(_include('internet_reg_complete_sms', 'Internet'),
+                            {
+                              %$Internet, %FORM, %{($users) ? $users : {}},
+                              PASSWORD => "$password",
+                              BILL_URL => $addr
+                            });
           }
           elsif (! $attr->{QUITE}) {
             $html->tpl_show(_include('internet_reg_complete', 'Internet'), { %$Internet, %FORM, %{ ($users) ? $users : {} } });
@@ -1322,7 +1370,12 @@ sub internet_registration {
           if ($FORM{PHONE} && in_array('Sms', \@MODULES) && $conf{INTERNET_REGISTRATION_SEND_SMS} && ! $FORM{REGISTRATION_SKIP_SEND_SMS}) {
             load_module('Sms', $html);
 
-            my $message = $html->tpl_show(_include('internet_reg_complete_sms', 'Internet'), { %FORM }, { OUTPUT2RETURN => 1  });;
+            my $message = $html->tpl_show(_include('internet_reg_complete_sms', 'Internet'),
+                                          {
+                                            %$Internet, %FORM,
+                                            PASSWORD => "$password",
+                                            BILL_URL => $addr
+                                          }, { OUTPUT2RETURN => 1 });
             sms_send({
               NUMBER  => $FORM{PHONE},
               MESSAGE => $message,
@@ -1331,7 +1384,13 @@ sub internet_registration {
           }
           #Send mail
           if ($FORM{EMAIL}) {
-            my $message = $html->tpl_show(_include('internet_reg_complete_mail', 'Internet'), { %$Internet, %FORM, PASSWORD => "$password" }, { OUTPUT2RETURN => 1 });
+            my $message = $html->tpl_show(_include('internet_reg_complete_mail', 'Internet'),
+                                          {
+                                            %$Internet, %FORM,
+                                            PASSWORD => "$password",
+                                            BILL_URL => $addr
+                                          }, { OUTPUT2RETURN => 1 });
+
             sendmail($conf{ADMIN_MAIL}, $FORM{EMAIL}, $lang{REGISTRATION}, $message, $conf{MAIL_CHARSET}, '');
           }
 
@@ -1391,207 +1450,12 @@ sub internet_registration {
 #      { OUTPUT2RETURN => 1, ID => 'form_address_sel' });
   }
 
-  $html->tpl_show(_include('internet_registration', 'Internet'), { %$Internet, %$attr, %FORM }, { ID => 'INTERNET_REGISTRATION' });
+  $html->tpl_show(_include('internet_registration', 'Internet'), { %$Internet, %$attr, %FORM,
+    PHONE_NUMBER_PATTERN => $conf{PHONE_NUMBER_PATTERN}
+  }, { ID => 'INTERNET_REGISTRATION' });
 
   return 0;
 }
-
-#**********************************************************
-=head2 internet_docs($attr) - get services for invoice
-
-  Arguments:
-    UID
-    FEES_INFO
-    SKIP_DISABLED
-    FULL_INFO
-
-  Returns:
-
-
-=cut
-#**********************************************************
-sub internet_docs {
-  my ($attr) = @_;
-
-  my $uid      = $attr->{UID} || $FORM{UID};
-  my @services = ();
-  my %info     = ();
-  our %FEES_METHODS;
-
-  my $service_list = $Internet->user_list({
-    UID              => $uid,
-    MONTH_FEE        => '_SHOW',
-    DAY_FEE          => '_SHOW',
-    PERSONAL_TP      => '_SHOW',
-    INTERNET_STATUS  => '_SHOW',
-    ABON_DISTRIBUTION=> '_SHOW',
-    TP_NAME          => '_SHOW',
-    FEES_METHOD      => '_SHOW',
-    TP_ID            => '_SHOW',
-    TP_NUM           => '_SHOW',
-    TP_FIXED_FEES_DAY=> '_SHOW',
-    INTERNET_ACTIVATE=> '_SHOW',
-    INTERNET_EXPIRE  => '_SHOW',
-    TP_REDUCTION_FEE => '_SHOW',
-    GROUP_BY         => 'internet.id',
-    COLS_NAME        => 1
-  });
-
-  if ($attr->{FEES_INFO} || $attr->{FULL_INFO}) {
-    foreach my $service_info ( @{ $service_list } ) {
-      my %FEES_DSC = (
-        MODULE          => 'Internet',
-        TP_ID           => $service_info->{tp_id},
-        TP_NAME         => $service_info->{tp_name},
-        FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
-        FEES_METHOD     => $service_info->{fees_method} ? $FEES_METHODS{$service_info->{fees_method}} : undef,
-      );
-
-      $info{service_name}      = fees_dsc_former(\%FEES_DSC);
-      $info{service_desc}      = q{};
-      $info{tp_name}           = $service_info->{tp_name};
-      $info{service_activate}  = $service_info->{internet_activate};
-      $info{service_expire}    = $service_info->{internet_expire};
-      $info{tp_fixed_fees_day} = $service_info->{tp_fixed_fees_day} || 0;
-      $info{status}            = $service_info->{internet_status};
-      $info{tp_reduction_fee}  = $service_info->{tp_reduction_fee};
-      $info{module_name}       = $lang{INTERNET};
-
-      if ($service_info->{internet_status} && $service_info->{internet_status} != 5 && $attr->{SKIP_DISABLED}) {
-        $info{day} = 0;
-        $info{month} = 0;
-        $info{abon_distribution} = 0;
-      }
-      else {
-        if ($service_info->{personal_tp} && $service_info->{personal_tp} > 0) {
-          $info{day}   = $service_info->{day_fee};
-          $info{month} = $service_info->{personal_tp};
-          $info{abon_distribution} = $service_info->{abon_distribution};
-        }
-        else {
-          $info{day} = $service_info->{day_fee};
-          $info{month} = $service_info->{month_fee};
-          $info{abon_distribution} = $service_info->{abon_distribution};
-        }
-      }
-
-      return \%info if(! $attr->{FULL_INFO});
-
-      push @services, { %info };
-    }
-  }
-
-  if($attr->{FULL_INFO}) {
-    return \@services;
-  }
-
-  if ($Internet->{TOTAL} < 1
-#  if ($Internet->{TOTAL}==0 || ($Internet->{STATUS} && $Internet->{STATUS} != 5)
-#    #|| ($attr->{PAYMENT_TYPE} && ($Internet->{POSTPAID_ABON} || $Internet->{PAYMENT_TYPE}))
-  ) {
-    return \@services;
-  }
-
-  foreach my $service_info ( @$service_list ) {
-    if($service_info->{internet_status} && $service_info->{internet_status} != 5 && ! $attr->{SHOW_ALL}) {
-      next
-    }
-
-    if($service_info->{personal_tp} && $service_info->{personal_tp} > 0) {
-      $service_info->{month_fee} = $service_info->{personal_tp};
-    }
-
-    if ($service_info->{month_fee} && $service_info->{month_fee} > 0) {
-      my %FEES_DSC = (
-        MODULE          => 'Internet',
-        TP_ID           => $service_info->{tp_id},
-        TP_NAME         => $service_info->{tp_name},
-        FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
-        FEES_METHOD     => $service_info->{fees_method} ? $FEES_METHODS{$service_info->{fees_method}} : undef,
-      );
-
-      #Fixme / make hash export
-      push @services, fees_dsc_former(\%FEES_DSC) . "||$service_info->{month_fee}|$service_info->{tp_num}|$service_info->{tp_name}"
-        ."|$service_info->{fees_method}|$service_info->{internet_activate}|$service_info->{internet_status}";
-    }
-
-    if ($service_info->{day_fee} && $service_info->{day_fee} > 0) {
-      my $days_in_month = days_in_month({ DATE => next_month({ DATE => $DATE }) });
-      #Describe| days | sum
-      push @services, "Internet: $lang{MONTH_FEE_SHORT}: $service_info->{tp_name} ($service_info->{tp_id})|$days_in_month $lang{DAY}|"
-        . sprintf("%.2f", ($service_info->{day_fee} * $days_in_month)) . "||$service_info->{tp_name}"
-        . "|$service_info->{fees_method}|$service_info->{internet_activate}";
-    }
-  }
-
-  return \@services;
-}
-
-
-#**********************************************************
-=head internet_quick_info($attr) - Quick information
-
-  Arguments:
-    $attr
-      UID
-
-  Return:
-
-=cut
-#**********************************************************
-sub internet_quick_info {
-  my ($attr) = @_;
-  my $result;
-
-  my $uid = $attr->{UID} || $FORM{UID};
-
-  if ($attr->{UID}) {
-    my $list = $Internet->user_list({
-      UID        =>  $uid,
-      TP_NAME    => '_SHOW',
-      MONTH_FEE  => '_SHOW',
-      CID        => '_SHOW',
-      TP_COMMENTS=> '_SHOW',
-      INTERNET_STATUS => '_SHOW',
-      INTERNET_STATUS_ID => '_SHOW',
-      IP         => '_SHOW',
-      COLS_NAME  => 1,
-      COLS_UPPER => 1
-    });
-
-    $result = $list->[0];
-    my $service_status = sel_status({ HASH_RESULT => 1 });
-    $result->{STATUS} = (defined($result->{INTERNET_STATUS})) ? $service_status->{ $result->{INTERNET_STATUS} } : '';
-    ($result->{STATUS}, undef)=split(/:/, $result->{STATUS});
-    return $result;
-  }
-  elsif($attr->{GET_PARAMS}) {
-    $result = {
-      HEADER    => $lang{INTERNET},
-      QUICK_TPL => 'internet_qi_box',
-      FIELDS => {
-        TP_NAME     => $lang{TARIF_PLAN},
-        CID         => 'CID',
-        IP          => 'IP',
-        STATUS      => $lang{STATUS},
-        INTERNET_STATUS_ID => "$lang{STATUS} ID",
-        MONTH_FEE   => $lang{MONTH_FEE},
-        TP_COMMENTS => $lang{COMMENTS},
-      }
-    };
-
-    return $result;
-  }
-
-  $Internet->user_list({
-    UID       => $uid,
-    LOGIN     => (! $uid && $attr->{LOGIN}) ? $attr->{LOGIN} : undef,
-    COLS_NAME => 1,
-  });
-
-  return ($Internet->{TOTAL_SERVICES} && $Internet->{TOTAL_SERVICES} > 0) ? $Internet->{TOTAL_SERVICES} : '';
-}
-
 
 #**********************************************************
 =head2 _sec2time_str($sec);
@@ -1803,14 +1667,27 @@ sub set_tags_users {
 sub internet_service_activate {
   my ($attr)=@_;
 
-  $Internet->user_change({
-    ID     => $attr->{USER_INFO}->{ID},
-    UID    => $attr->{USER_INFO}->{UID},
-    STATUS => 0
+  my $internet_list = $Internet->user_list({
+    UID => $attr->{USER_INFO}->{UID},
+    ID  => $attr->{USER_INFO}->{ID},
+    GROUP_BY  => 'internet.id',
+    COLS_NAME => 1
   });
-  $attr->{USER_INFO}->{INTERNET_STATUS} = 0;
 
-  _external('', { EXTERNAL_CMD => 'Internet', %{ $attr->{USER_INFO} }, %{$Internet}, QUITE => 1 });
+  foreach my $user_info_ (@$internet_list) {
+    $Internet->user_change({
+      ID     => $user_info_->{id},
+      UID    => $attr->{USER_INFO}->{UID},
+      STATUS => 0
+    });
+    $attr->{USER_INFO}->{INTERNET_STATUS} = 0;
+
+    if ($attr->{GET_ABON}) {
+      service_get_month_fee($Internet, $attr);
+    }
+
+    _external('', { EXTERNAL_CMD => 'Internet', %{$attr->{USER_INFO}}, %{$Internet}, QUITE => 1 });
+  }
 
   return 1;
 }
@@ -1823,6 +1700,8 @@ sub internet_service_activate {
       TP_INFO
       USER_INFO
       DEBUG
+      STATUS - Disable status
+      RECALCULATE -
 
 =cut
 #**********************************************************
@@ -1835,7 +1714,7 @@ sub internet_service_deactivate {
   my $debug = $attr->{DEBUG} || 0;
   my $action = 0;
 
-  if ($TP_INFO->{SMALL_DEPOSIT_ACTION} && $TP_INFO->{SMALL_DEPOSIT_ACTION} == -1) {
+  if ($TP_INFO && $TP_INFO->{SMALL_DEPOSIT_ACTION} && $TP_INFO->{SMALL_DEPOSIT_ACTION} == -1) {
     if ($debug < 8) {
       if (! $user_info->{INTERNET_STATUS} || $user_info->{INTERNET_STATUS} != 5) {
         $Internet->user_change({
@@ -1860,6 +1739,33 @@ sub internet_service_deactivate {
 
     $action++;
     $debug_output .= " SMALL_DEPOSIT_CHG_TP." if ($debug > 3);
+  }
+  elsif($attr->{STATUS}) {
+    my $internet_list = $Internet->user_list({
+      UID       => $user_info->{UID},
+      GROUP_BY  => 'internet.id',
+      COLS_NAME => 1
+    });
+
+    foreach my $user_info_ (@$internet_list) {
+      if ($debug < 8) {
+        $Internet->user_change({
+          UID    => $user_info->{UID},
+          ID     => $user_info_->{id},
+          STATUS => $attr->{STATUS},
+        });
+
+        if ($attr->{RECALCULATE} && $Internet->{MONTH_ABON}) {
+          $Internet->{TP_INFO_OLD}->{MONTH_FEE} = $Internet->{MONTH_ABON};
+          $Internet->{TP_INFO_OLD}->{NAME} = $Internet->{TP_NAME};
+          $Internet->{TP_INFO_OLD}->{ID} = $Internet->{TP_NUM};
+          service_recalculate($Internet, $attr);
+        }
+      }
+
+      $action++;
+      $debug_output .= " SMALL_DEPOSIT_CHG_TP." if ($debug > 3);
+    }
   }
 
   if ($action) {

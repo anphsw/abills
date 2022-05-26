@@ -8,10 +8,10 @@
       <h4 class='card-title'>_{RESERVE}_</h4>
     </div>
     <div class='card-body'>
-      <div class='form-group row'>
-        <label class='col-md-3 control-label'>_{RESERVED}_:</label>
-        <div class='col-md-9'>%AID%</div>
-      </div>
+<!--      <div class='form-group row'>-->
+<!--        <label class='col-md-3 control-label'>_{RESERVED}_:</label>-->
+<!--        <div class='col-md-9'>%AID_SEL%</div>-->
+<!--      </div>-->
       <div class='form-group row'>
         <label class='col-md-3 control-label'>_{COUNT}_:</label>
         <div class='col-md-9'><input class='form-control' name='COUNT' type='text' value='%COUNT%'/></div>

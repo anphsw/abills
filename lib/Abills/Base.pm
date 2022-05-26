@@ -62,6 +62,9 @@ our @EXPORT = qw(
   dirname
   json_former
   xml_former
+  escape_for_sql
+  camelize
+  decamelize
 );
 
 our @EXPORT_OK = qw(
@@ -103,6 +106,9 @@ our @EXPORT_OK = qw(
   dirname
   json_former
   xml_former
+  escape_for_sql
+  camelize
+  decamelize
 );
 
 # As said in perldoc, should be called once on a program
@@ -2241,7 +2247,11 @@ sub show_hash {
 
   Examples:
 
-    load_pmodule('Simple::XML');
+    use Simple::XML;
+    load_pmodule('Simple::XML', { IMPORT => '' });
+
+    use Digest::SHA qw(sha1_hex);
+    load_pmodule('Digest::SHA', { IMPORT => 'sha1_hex' });
 
 =cut
 #**********************************************************
@@ -2344,7 +2354,11 @@ sub dirname {
 =head2 json_former($request) - hash2json
 
   Arguments
-    $var (strinf|arr|hash)
+    $request (strinf|arr|hash)
+    $attr
+      ESCAPE_DQ           - escape double quotes
+      USE_CAMELIZE        - camelize keys of hash
+      CONTROL_CHARACTERS  - escape \t and \n
 
   Result
     JSON_string
@@ -2352,35 +2366,56 @@ sub dirname {
 =cut
 #**********************************************************
 sub json_former {
-  my ($request) = @_;
+  my ($request, $attr) = @_;
   my @text_arr = ();
+
+  #TODO: if data is string, but contains only digits, it's returned as numbers
 
   if (ref $request eq 'ARRAY') {
     foreach my $key (@{$request}) {
-      push @text_arr, json_former($key);
+      push @text_arr, json_former($key, $attr);
     }
-    return '[' . join(', ', @text_arr) . "]";
+    return '[' . join(', ', @text_arr) . ']';
   }
   elsif (ref $request eq 'HASH') {
-    foreach my $key (keys %{$request}) {
-      my $val = json_former($request->{$key});
-      push @text_arr, qq{\"$key\":$val};
+    foreach my $key (sort keys %{$request}) {
+      my $val = json_former($request->{$key}, $attr);
+
+      if ($attr->{USE_CAMELIZE}) {
+        my $new_key = camelize($key, { RM_SPACES => 1 });
+        $request->{$new_key} = $request->{$key};
+        $key = $new_key;
+      }
+
+      $attr->{ESCAPE_DQ} ? push @text_arr, qq{\\"$key\\":$val} :
+        push @text_arr, qq{\"$key\":$val};
     }
-    return '{' . join(', ', @text_arr) . "}";
+    return '{' . join(', ', @text_arr) . '}';
   }
   else {
     $request //= '';
+    $request =~ s/"/\\"/gm;
+    if ($attr->{CONTROL_CHARACTERS}){
+      $request =~ s/[\t]/\\t/g;
+      $request =~ s/[\n]/\\n/g;
+    }
+
+    $request =~ s/[\x{00}-\x{1f}]+//ig;
+
     if ($request =~ '^([0])' && $request =~'^\w{2,}$') {
-      return qq{\"$request\"};
+      $attr->{ESCAPE_DQ} ? return qq{\\"$request\\"} :
+        return qq{\"$request\"};
     }
     elsif (!$request && !($request =~ '[0]')){
-      return qq{\"$request\"};
+      $attr->{ESCAPE_DQ} ? return qq{\\"$request\\"} :
+        return qq{\"$request\"};
     }
-    elsif ($request =~ '^-?\d*\.?\d*$') {
+    elsif ($request =~ '^-?\d*\.?\d+$') {
       return qq{$request};
     }
     else {
-      return qq{\"$request\"};
+      $attr->{ESCAPE_DQ} ? return qq{\\"$request\\"} :
+        return qq{\"$request\"};
     }
   }
 }
@@ -2442,8 +2477,8 @@ sub xml_former {
   Arguments
     $response string
     %PARAMS
-      indent    - good looking xml
-      nl        - parent element(name)
+      indent    - spaces
+      nl        - next next line
   Result
     xml string
 
@@ -2458,13 +2493,13 @@ sub xml_former_body {
         push @result,
           $params->{indent}, '<', $key, '>', $params->{nl},
           xml_former_body($response->{$key}, { indent => "$params->{indent}  ", nl => $params->{nl} }),
-          $params->{indent}, '</', $key, '>', $params->{nl};
+          $params->{indent}, '</', $key =~ /^\S+/g, '>', $params->{nl};
       }
       else {
         push @result,
           $params->{indent}, '<', $key, '>',
           $response->{$key},
-          '</', $key, '>', $params->{nl};
+          '</', $key =~ /^\S+/g, '>', $params->{nl};
       }
     }
   }
@@ -2475,6 +2510,113 @@ sub xml_former_body {
     return join('', @result);
   }
   return (join('', @result));
+}
+
+#***********************************************************
+=head2 escape_from_sql($input) - escapes data so it will be safe to put it to DB functions
+
+  Same escaping is done in Abills::HTML::form_parse.
+  This function is meant to be used when Abills::HTML::form_parse is not applied.
+
+  Arguments:
+    $input - data to be escaped. if it's hashref or arrayref, it's values will be recursively escaped.
+             may contain nested hashrefs/arrayrefs
+
+  Return:
+    $result - escaped data
+
+=cut
+#***********************************************************
+sub escape_for_sql {
+  my ($input, $processed_refs) = @_;
+
+  if (ref $input ne '') { #prevent infinite recursion when there are circular references
+    if ($processed_refs->{int($input)}) {
+      return $input;
+    }
+    $processed_refs->{int($input)} = 1;
+  }
+
+  if (ref $input eq '') {
+    $input =~ s/\\/\\\\/g;
+    $input =~ s/\"/\\\"/g;
+    $input =~ s/\'/\\\'/g;
+  }
+  elsif (ref $input eq 'ARRAY') {
+    foreach my $val (@$input) {
+      $val = escape_for_sql($val, $processed_refs);
+    }
+  }
+  elsif (ref $input eq 'HASH') {
+    #TODO: escape hash keys?
+    foreach my $key (keys %$input) {
+      $input->{$key} = escape_for_sql($input->{$key}, $processed_refs);
+    }
+  }
+  else {
+    undef $input;
+  }
+
+  return $input;
+}
+
+#**********************************************************
+=head2 camelize($string)
+
+  Arguments:
+     $string - make snake_case string to camelCase
+     $attr
+        RM_SPACES   - remove all spaces from
+
+   Return:
+     $camel_string
+=cut
+#**********************************************************
+sub camelize {
+  my ($string, $attr) = @_;
+
+  $string =~ s{(\w+)}{
+    ($a = lc $1) =~ s<(^[a-z]|_[a-z])><
+      ($b = uc $1) =~ s/^_//;
+      $b;
+    >eg;
+    $a;
+  }eg;
+
+  if ($attr->{RM_SPACES}) {
+    $string =~ s/ //eg;
+  }
+
+  return lcfirst($string);
+}
+
+#**********************************************************
+=head2 decamelize($string)
+
+  Arguments:
+     $string - make camelCase string to snake_case
+
+   Return:
+     $snake_case
+=cut
+#**********************************************************
+sub decamelize {
+  my ($string) = @_;
+
+  if ($string eq uc($string)) {
+    return $string;
+  }
+
+  $string = ucfirst($string);
+
+  $string =~ s{(\w+)}{
+    ($a = $1) =~ s<(^[A-Z]|(?![a-z])[A-Z])><
+      "_" . lc $1
+    >eg;
+    substr $a, 1;
+  }eg;
+
+  return uc($string);
 }
 
 =head1 AUTHOR

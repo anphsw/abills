@@ -37,23 +37,12 @@ sub info{
   my $self = shift;
   my ($id, $attr) = @_;
 
-  $self->query( "SELECT * FROM tags WHERE id = ? ;",
-    undef,
-    {
-      INFO => 1,
-      Bind => [ $id ]
-    }
-  );
-
-  if ($attr->{RESPONSIBLE}) {
-    $self->query( "SELECT GROUP_CONCAT(DISTINCT a.id) AS responsible FROM tags_responsible AS tr
-                    LEFT JOIN  admins AS a ON tr.aid = a.aid
-                  WHERE tr.tags_id = ?",
-      undef,
-      { INFO => 1,
-        Bind => [ $id ] }
-    );
-  }
+  $self->query("SELECT t.*, GROUP_CONCAT(DISTINCT tr.aid) AS aid FROM tags t
+   LEFT JOIN tags_responsible tr ON (tr.tags_id = t.id)
+   WHERE t.id = ? ;", undef, {
+    INFO => 1,
+    Bind => [ $id ]
+  });
 
   return $self;
 }
@@ -368,7 +357,22 @@ sub add_responsible {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add( 'tags_responsible', $attr );
+  return $self if !$attr->{ID};
+
+  $self->query_del('tags_responsible', undef, { TAGS_ID => $attr->{ID} });
+  return $self if !$attr->{AID};
+
+  my @MULTI_QUERY = ();
+  my @ids = split(/, /, $attr->{AID});
+
+  foreach my $id (@ids) {
+    push @MULTI_QUERY, [ $id, $attr->{ID} ];
+  }
+
+  $self->query(
+    "INSERT INTO tags_responsible (aid, tags_id) VALUES (?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY }
+  );
 
   return $self;
 }
@@ -409,17 +413,17 @@ sub user_tags_info {
   my ($attr) = @_;
 
   $self->query("SELECT tu.uid, tu.tag_id, GROUP_CONCAT(DISTINCT t.name) AS name, GROUP_CONCAT(DISTINCT tu.tag_id) AS tags
-                FROM tags_users AS tu
-                LEFT JOIN tags AS t ON tu.tag_id = t.id
-                LEFT JOIN tags_responsible AS tr ON t.id = tr.tags_id
-                LEFT JOIN admins AS a ON tr.aid = a.aid
-                WHERE a.aid = ?
-                GROUP BY tu.uid", undef, {
+    FROM tags_users AS tu
+    LEFT JOIN tags AS t ON tu.tag_id = t.id
+    LEFT JOIN tags_responsible AS tr ON t.id = tr.tags_id
+    LEFT JOIN admins AS a ON tr.aid = a.aid
+      WHERE a.aid = ?
+      GROUP BY tu.uid", undef, {
     COLS_NAME => 1,
     Bind      => [ $attr->{AID} ]
   });
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -446,23 +450,16 @@ sub responsible_tag_list {
       ['ID',        'INT',    'tr.id',      1 ],
       ['AID',       'INT',    'tr.aid',     1 ],
       ['TAGS_ID',   'INT',    'tr.tags_id', 1 ],
-    ],
-    {
-      WHERE => 1,
-    }
+    ], { WHERE => 1 }
   );
 
   $self->query("SELECT $self->{SEARCH_FIELDS} tr.id 
-                FROM tags_responsible AS tr 
-                $WHERE", 
-                undef, 
-                { 
-                  COLS_NAME => 1
-                });
+    FROM tags_responsible AS tr
+    $WHERE", undef, {
+    COLS_NAME => 1
+  });
 
-  my $list = $self->{list};
-
-  return $list;
+  return $self->{list} || [];
 }
 
 1

@@ -12,8 +12,7 @@ CREATE TABLE IF NOT EXISTS `extfin_paids` (
   `maccount_id` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
   `status_date` DATE NOT NULL DEFAULT '0000-00-00',
   `ext_id` VARCHAR(24) NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`)
+  PRIMARY KEY (`id`)
 )
   COMMENT = 'Extfin paids list';
 
@@ -29,6 +28,9 @@ CREATE TABLE IF NOT EXISTS `extfin_paids_periodic` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `comments` VARCHAR(100) NOT NULL DEFAULT '',
   `maccount_id` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  KEY `uid` (`uid`),
+  KEY `aid` (`aid`),
+  KEY `type_id` (`type_id`),
   PRIMARY KEY (`id`)
 )
   COMMENT = 'Extfin periodic paids';
@@ -53,7 +55,6 @@ CREATE TABLE IF NOT EXISTS `extfin_reports` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `date` DATE NOT NULL DEFAULT '0000-00-00',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   UNIQUE KEY `period` (`period`, `bill_id`)
 )
   COMMENT = 'Extfin reports';
@@ -67,7 +68,6 @@ CREATE TABLE IF NOT EXISTS `extfin_balance_reports` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `date` DATE NOT NULL DEFAULT '0000-00-00',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   UNIQUE KEY `period` (`period`, `bill_id`)
 )
   COMMENT = 'Extfin users balance reports';

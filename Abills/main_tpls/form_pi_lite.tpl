@@ -8,7 +8,7 @@
   <div id='form_2' class='card card-big-form card-primary card-outline for_sort'>
     <div class='card-header with-border'>
       <h3 class='card-title'>_{INFO}_</h3>
-      <div class='card-tools pull-right'>
+      <div class='card-tools float-right'>
         %EDIT_BUTTON%
         <button type='button' class='btn btn-tool' data-card-widget='collapse'>
           <i class='fa fa-minus'></i>
@@ -104,7 +104,7 @@
     <div class='card collapsed-card mb-0 border-top card-outline'>
       <div class='card-header with-border'>
         <h3 class='card-title'>_{PASPORT}_</h3>
-        <div class='card-tools pull-right'>
+        <div class='card-tools float-right'>
           <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-plus'></i>
           </button>
         </div>
@@ -170,71 +170,12 @@
       </div>
     </div>
 
-    <div class='card collapsed-card mb-0 border-top card-outline'>
-      <div class='card-header with-border'>
-        <h3 class='card-title'>_{CONTRACT}_</h3>
-        <div class='card-tools pull-right'>
-          <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-plus'></i>
-          </button>
-        </div>
-      </div>
-      <div class='card-body'>
-        %ACCEPT_RULES_FORM%
-
-        <div class='form-group row'>
-          <label class='col-sm-4 col-md-3 col-form-label' for='CONTRACT_ID'>_{CONTRACT_ID}_ %CONTRACT_SUFIX%</label>
-          <div class='col-sm-8 col-md-9'>
-            <div class='input-group'>
-              <input id='CONTRACT_ID' name='CONTRACT_ID' value='%CONTRACT_ID%'
-                     placeholder='%CONTRACT_ID%' class='form-control' type='text'>
-              <div class='input-group-append'>
-                <div class='input-group-text'>
-                  %PRINT_CONTRACT%
-                </div>
-              </div>
-
-              <div class='input-group-append'>
-                <div class='input-group-text'>
-                  <a href='$SELF_URL?qindex=15&UID=$FORM{UID}&PRINT_CONTRACT=%CONTRACT_ID%&SEND_EMAIL=1&pdf=1'
-                     class='fa fa-envelope' target=_new></a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class='form-group row'>
-          <label class='col-sm-4 col-md-3 col-form-label' for='CONTRACT_DATE'>_{DATE}_</label>
-          <div class='col-sm-8 col-md-9'>
-            <div class='input-group'>
-              <input id='CONTRACT_DATE' type='text' name='CONTRACT_DATE'
-                     value='%CONTRACT_DATE%' class='datepicker form-control'>
-            </div>
-          </div>
-        </div>
-
-        <div class='form-group'>
-          <div class='row'>
-            <div class='col-sm-12 col-md-12'>
-              %CONTRACT_TYPE%
-            </div>
-          </div>
-        </div>
-
-        <div class='form-group'>
-          <div class='row'>
-            <div class='col-sm-12 col-md-12'>
-              %CONTRACTS_TABLE%
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    %DOCS_TEMPLATE%
 
     <div class='card collapsed-card mb-0 border-top card-outline'>
       <div class='card-header with-border'>
         <h3 class='card-title'>_{EXTRA_ABBR}_. _{FIELDS}_</h3>
-        <div class='card-tools pull-right'>
+        <div class='card-tools float-right'>
           <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-plus'></i>
           </button>
         </div>

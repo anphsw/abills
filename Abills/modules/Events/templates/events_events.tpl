@@ -1,4 +1,4 @@
-<div class='card card-primary card-outline box-form'>
+<div class='card card-primary card-outline card-form'>
   <div class='card-header with-border'><h4 class='card-title'>_{EVENTS}_</h4></div>
   <div class='card-body'>
 

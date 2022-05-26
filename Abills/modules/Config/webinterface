@@ -8,7 +8,8 @@ use strict;
 use warnings FATAL => 'all';
 use Conf;
 
-our ($db, $admin, %conf, $html, %lang, @bool_vals);
+our ($db, $admin, %conf, %lang, @bool_vals);
+our Abills::HTML $html;
 
 my $Config = Conf->new($db, $admin, \%conf, { SKIP_CONF => 1 });
 my $debug = $FORM{DEBUG} || 0;

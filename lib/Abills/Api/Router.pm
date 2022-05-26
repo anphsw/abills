@@ -7,27 +7,7 @@ no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 use JSON;
 
-BEGIN {
-  our $libpath = '../../';
-  my $sql_type = 'mysql';
-  unshift(@INC,
-    $libpath . "Abills/$sql_type/",
-    $libpath . "Abills/$sql_type/Internet/",
-    $libpath . "Abills/modules/",
-    $libpath . "Abills/Control/",
-    $libpath . "/lib/",
-    $libpath . "/Abills/",
-    $libpath
-  );
-}
-
-do "libexec/config.pl";
-
-our (
-  %conf
-);
-
-use Abills::Api::Camelize;
+use Abills::Base qw(escape_for_sql);
 use Abills::Api::Paths;
 
 #**********************************************************
@@ -36,45 +16,99 @@ use Abills::Api::Paths;
 =cut
 #**********************************************************
 sub new {
-  my ($class, $url, $db, $user, $admin, $conf, $query_params) = @_;
+  my ($class, $url, $db, $user, $admin, $conf, $query_params, $lang, $modules, $debug) = @_;
 
-  my $self = {};
+  my $self = {
+    db      => $db,
+    admin   => $admin,
+    conf    => $conf,
+    lang    => $lang,
+    user    => $user,
+    modules => $modules,
+    debug   => ($debug || 0),
+  };
+
+  bless($self, $class);
+
+  $self->preprocess($url, $query_params);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 preprocess($url, $query_params) - preprocess request
+
+  Gets params from request. Sets $self attrs
+
+  Arguments:
+    $url          - part of URL that goes after "api.cgi/" (name of API route)
+    $query_params - query params. \%FORM variable goes here
+
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub preprocess {
+  my $self = shift;
+  my ($url, $query_params) = @_;
 
   my @params = split('/', $url);
-  my $resource_name = $params[1];
+  my $resource_name = $params[1] || q{};
+  my $resource_name_user_api = $params[3] || q{};
+  my $Paths = Abills::Api::Paths->new($self->{db}, $self->{conf}, $self->{admin}, $self->{lang});
 
-  $self->{params} = \@params;
-  $self->{resource_name} = $resource_name;
+  if ($ENV{REQUEST_METHOD} ~~ [ 'GET', 'DELETE' ]) {
+    $self->{query_params} = $query_params;
+  }
+  elsif ($query_params->{__BUFFER}) {
+    my $q_params = eval {decode_json($query_params->{__BUFFER}) };
 
-  $self->{db} = $db;
-  $self->{admin} = $admin;
-  $self->{conf} = $conf;
+    if ($@) {
+      $self->{result} = {
+        errno  => 1,
+        errstr => 'There was an error parsing the body'
+      };
+      $self->{status} = '400';
 
-  $self->{user} = $user;
-  $self->{paths} = Abills::Api::Paths::list();
-
-  $self->{resource} = load_resource_info($self, $resource_name);
-  $self->{request_path} = join('/', @params) . "/";
-
-  $self->{credentials} = ();
-  $self->{allowed} = 0;
-  $self->{query_params} = ($ENV{REQUEST_METHOD} ~~ [ "GET", "DELETE" ]) ? $query_params : $query_params->{__BUFFER} ? decode_json $query_params->{__BUFFER} : ();
-  if ($ENV{REQUEST_METHOD} eq "DELETE") {
-    my @pairs = split(/[&,;]/, $ENV{QUERY_STRING});
-
-    foreach my $pair (@pairs) {
-      my ($name, $value) = split(/=/, $pair);
-      $self->{query_params}->{$name} = $value;
+      return $self;
     }
+    else {
+      $self->{query_params} = escape_for_sql($q_params);
+    }
+  }
+  else {
+    $self->{query_params} = undef;
   }
 
   if (defined $self->{query_params}->{__BUFFER}) {
     delete $self->{query_params}->{__BUFFER};
   }
 
-  $self->{status} = 0;
+  #TODO: if in future one Router object will be used for multiple queries, move this to new()
+  if ($resource_name eq 'user' && $resource_name_user_api) {
+    $self->{resource_own} = $Paths->load_own_resource_info({
+      package => $resource_name_user_api,
+      modules => $self->{modules},
+      debug   => $self->{debug}
+    });
+  }
+  elsif ($resource_name ne 'user') {
+    $self->{resource_own} = $Paths->load_own_resource_info({
+      package => $resource_name,
+      modules => $self->{modules},
+      debug   => $self->{debug}
+    });
+  }
 
-  bless($self, $class);
+  if (!$self->{resource_own}) {
+    $self->{paths} = $Paths->list();
+    $self->{resource} = $self->load_resource_info($resource_name);
+  }
+
+  $self->{request_path} = join('/', @params) . '/';
+  $self->{allowed} = 0;
+  $self->{status} = 0;
 
   return $self;
 }
@@ -85,9 +119,10 @@ sub new {
 =cut
 #***********************************************************
 sub transform {
-  my ($self, $transformer) = @_;
+  my $self = shift;
+  my ($transformer) = @_;
 
-  $self->{result} = $transformer->($self->{result}, $self->{response_type});
+  $self->{result} = $transformer->($self->{result});
 }
 
 #***********************************************************
@@ -98,7 +133,7 @@ sub transform {
 sub add_credential {
   my ($self, $credential_name, $credential_handler) = @_;
 
-  $self->{credentials}->{$credential_name} = $credential_handler
+  $self->{credentials}->{$credential_name} = $credential_handler;
 }
 
 #***********************************************************
@@ -107,13 +142,26 @@ sub add_credential {
 =cut
 #***********************************************************
 sub handle {
-  my ($self) = @_;
+  my $self = shift;
 
-  my $handler = parse_request($self, $self->{query_params});
+  if ($self->{status}) {
+    $self->{allowed} = 1;
+    return;
+  }
 
-  my $route = $handler->{route};
+  my $handler = $self->parse_request();
+  my $route = $handler->{route} if ($handler);
 
-  $route->{subpackage} = $route->{subpackage} || '';
+  if (!$route) {
+    $self->{result} = {
+      errno  => 2,
+      errstr => 'No such route'
+    };
+    $self->{status} = '404';
+    $self->{allowed} = 1;
+
+    return;
+  }
 
   if (defined $route->{credentials}) {
     foreach my $credential_name (@{$route->{credentials}}) {
@@ -132,99 +180,80 @@ sub handle {
     $self->{allowed} = 1;
   }
 
-  if ($route->{custom}) {
-    my $result = $route->{handler}->(
-      $handler->{path_params},
-      $self->{query_params}
-    );
+  my $module_obj;
+  if ($route->{module} && $self->{resource}) {
+    if ($route->{module} !~ /^[a-zA-Z0-9_:]+$/) {
+      $self->{result} = {
+        errno  => 3,
+        errstr => 'Module is not found'
+      };
+      return;
+    }
 
-    $self->{result} = $result;
-    $self->{response_type} = $handler->{route}->{type} || 'HASH';
+    eval "use $route->{module}";
+
+    if ($@ || !$route->{module}->can('new')) {
+      $self->{result} = {
+        errno  => 4,
+        errstr => 'Module is not found'
+      };
+      return;
+    }
+
+    $module_obj = $route->{module}->new($self->{db}, $self->{admin}, $self->{conf});
+    $module_obj->{debug} = $self->{debug};
+  }
+
+  my $result = $handler->{handler_fn}->(
+    $handler->{path_params},
+    $handler->{query_params},
+    $module_obj
+  );
+
+  if ($module_obj->{errno}) {
+    $self->{result} = {
+      errno  => $module_obj->{errno},
+      errstr => $module_obj->{errstr}
+    };
+    $self->{status} = '400';
   }
   else {
-    my $module_package = $route->{subpackage} . ($route->{subpackage} ? '::' : '') . $handler->{route}->{module};
-
-    $self->{response_type} = $route->{type} || 'HASH';
-
-    eval "use $module_package";
-
-    if ($@) {
-      $self->{errno} = 1;
-      $self->{errstr} = 'Module is not found';
-
-      return;
-    }
-
-    my $module = eval "$module_package->new(\$self->{db}, \$self->{admin}, \$self->{conf})";
-
-    if ($module && $handler->{function_name} && $module->can($handler->{function_name})) {
-      my $function_name = $handler->{function_name};
-      $self->{result} = eval {$module->$function_name($handler->{signature_params});};
+    if (ref $result ne 'HASH' && ref $result ne 'ARRAY' && ref $result ne '') {
+      foreach my $key (keys %{$result}) {
+        next if (defined $self->{$key} && $key ne 'result');
+        $self->{result}->{$key} = $result->{$key};
+      }
     }
     else {
-      $self->{result} = eval "\$module->$handler->{signature}";
-    }
+      $self->{result} = $result;
 
-    if(defined ($route->{conf_params})) {
-      foreach my $conf_param (@{$route->{conf_params}}) {
-        next if(!$conf{$conf_param});
-        $self->{result}->{$conf_param} = $conf{$conf_param};
+      unless (defined($self->{result})) {
+        $self->{result} = {};
+      }
+
+      unless (ref $self->{result}) {
+        $self->{result} = {
+          result => $self->{result} ? 'OK' : 'BAD'
+        }
       }
     }
-
-    if ($@) {
-      $self->{errno} = 2;
-      $self->{errstr} = $@;
-
-      return;
-    }
-
-    unless ($self->{result}) {
-      if ($self->{response_type} eq 'ARRAY') {
-        $self->{result} = []
-      }
-      else {
-        $self->{result} = {}
-      }
-    }
-
-    $self->{errno} = $module->{errno};
-    $self->{errstr} = $module->{errstr};
   }
+
+  return 1;
 }
 
 #***********************************************************
 =head2 load_resource_info($resource_name)
 
    Return:
-     @router - list of available mathods for this resource
+     @router - list of available methods for this resource
 =cut
 #***********************************************************
 sub load_resource_info {
-  my ($self, $resource_name) = @_;
+  my $self = shift;
+  my ($resource_name) = @_;
 
   return $self->{paths}->{$resource_name};
-}
-
-#***********************************************************
-=head2 out($formatter)
-
-   Arguments:
-     $formatter
-
-   Return:
-     $string - plain string for response
-=cut
-#***********************************************************
-sub out {
-  my ($self, $formatter) = @_;
-
-  return $formatter->format(
-    $self->{result},
-    $self->{response_type},
-    $self->{errno},
-    $self->{errstr}
-  );
 }
 
 #***********************************************************
@@ -235,86 +264,85 @@ sub out {
 sub add_custom_handler {
   my ($self, $resource_name, $info) = @_;
 
-  $info->{custom} = 1;
-
   push(@{$self->{paths}->{$resource_name}}, $info);
 }
 
 #***********************************************************
-=head2 parse_request()
+=head2 parse_request() - parses request and returns data, required to process it
 
-   Return:
-     %(
-        route
-        signature
-        path_params
-      )
+   Returns:
+    {
+      route        - hashref of route's info. look at docs in Abills::Api::Paths
+      handler_fn   - coderef of route's handler function
+      path_params  - params from path. hashref.
+                     Example: if route's path is '/users/:uid/', and queried
+                     URL is '/users/9/', there will be { uid => 9 }.
+                     always numerical
+      query_params - params from query. for details look at sub new(). hashref.
+                     keys will be converted from camelCase to UPPER_SNAKE_CASE
+                     using Abills::Base::decamelize unless
+                     $route->{no_decamelize_params} is set
+      conf_params  - variables from $conf to be returned in result. arrayref.
+                     experimental feature, currently disabled
+    }
+
 =cut
 #***********************************************************
 sub parse_request {
-  my ($self) = @_;
+  my $self = shift;
 
   my $request_path = $self->{request_path};
   my $query_params = $self->{query_params};
 
-  foreach my $route (@{$self->{resource}}) {
+  my $resource = ($self->{resource_own} || $self->{resource});
+
+  foreach my $route (@{$resource}) {
     next if ($route->{method} ne $ENV{REQUEST_METHOD});
 
+    my $route_handler = $route->{handler};
+    next if (ref $route_handler ne 'CODE');
+
     my $route_path_template = $route->{path};
-    my $route_conf_params = $route->{conf_params};
-    my $router_handler = $route->{handler};
 
-    my @path_keys = $route_path_template =~ m/(?<=\:)(.*?)(?=\/)/gm;
+    my @path_keys = $route_path_template =~ m/:([a-zA-Z0-9_]+)(?=\/)/g;
 
-    $route_path_template =~ s/(?=\:)(.*?)(?=\/)/(\\d*?)/g;
+    $route_path_template =~ s/:([a-zA-Z0-9_]+)(?=\/)/(\\d+)/g;
     $route_path_template =~ s/(\/)/\\\//g;
     $route_path_template = '^' . $route_path_template . '$';
 
+    #TODO: make possible ti put not only numbers but also letters into path variables
     next unless ($request_path =~ $route_path_template);
 
     my @request_values = $request_path =~ $route_path_template;
+
     my %path_params = ();
-    my $signature_params = ();
 
     while (@path_keys) {
       my $key = shift(@path_keys);
       my $value = shift(@request_values);
 
       $path_params{$key} = $value;
-
-      $signature_params->{$key} = $value;
-      $router_handler =~ s/\:$key/\"$value\"/gm;
     }
 
-    my $rest_params = '';
+    my %query_params = ();
 
     for my $query_key (keys %{$query_params}) {
-      my $key = Abills::Api::Camelize::decamelize($query_key);
-      my $value = $query_params->{$query_key} || q{};
-      $signature_params->{$key} = $value;
-      $value =~ s/\'/\\\'/g;
-      $rest_params .= "$key => '" . qq{$value} . "',";
+      my $key = $route->{no_decamelize_params} ? $query_key : Abills::Base::decamelize($query_key);
+
+      if ($key eq 'SORT') {
+        $query_params->{$query_key} = Abills::Base::decamelize($query_params->{$query_key});
+      }
+
+      $query_params{$key} = $query_params->{$query_key};
     }
 
-    chop($rest_params);
-
-    $router_handler =~ s/\:(\w*)/undef/gm;
-
-    $router_handler =~ s/\.\.\.PARAMS/$rest_params/gm;
-
-    my ($function_name, undef) = split(/\(/, $router_handler);
-
     return {
-      route            => $route,
-      signature        => $router_handler,
-      signature_params => $signature_params,
-      conf_params      => $route_conf_params,
-      function_name    => $route->{use_function} ? $function_name : undef,
-      path_params      => \%path_params,
+      route        => $route,
+      handler_fn   => $route_handler,
+      path_params  => \%path_params,
+      query_params => \%query_params,
     };
   }
-
-  return { status => '404' }
 }
 
 1;

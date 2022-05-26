@@ -61,7 +61,7 @@
 
         <div class='card-footer'>
             <input type='submit' class='btn btn-primary' name='ACTION' value='_{SEND}_'>
-            <label class='checkbox-inline pull-right'><input type='checkbox' name='SAVE' value='1'><strong>_{SAVE}_</strong></label>
+            <label class='checkbox-inline float-right'><input type='checkbox' name='SAVE' value='1'><strong>_{SAVE}_</strong></label>
         </div>
       </div>
     </div>

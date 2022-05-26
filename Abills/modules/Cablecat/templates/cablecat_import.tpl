@@ -52,7 +52,7 @@
         <div class='card card-primary card-outline'>
           <div class='card-header'>
             <h4 class='card-title'>API _{FIELDS}_</h4>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               %LOAD_PRESET_BTN%
             </div>
           </div>
@@ -125,7 +125,7 @@
       <span class='import-field-name'></span>
       <a data-tooltip-position='top' data-html='true' data-toggle='popover' data-trigger='hover'
          data-placement='top' data-container='body' data-original-title='' title=''>
-        <i class='pull-right import-field-examples fa fa-info'></i>
+        <i class='float-right import-field-examples fa fa-info'></i>
       </a>
     </div>
   </div>

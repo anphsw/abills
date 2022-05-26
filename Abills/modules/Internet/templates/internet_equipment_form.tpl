@@ -1,9 +1,9 @@
 <div id='form_4' class='card card-primary card-outline card-big-form for_sort container-md pr-0 pl-0'>
   <div class='card-header with-border'>
     <h3 class='card-title'>_{EQUIPMENT}_</h3>
-    <div class='card-tools pull-right'>
+    <div class='card-tools float-right'>
       <button id='reload_equipment_info_button' type='button' class='btn btn-tool' title='_{RELOAD_EQUIPMENT_INFO}_' disabled>
-        <i class='fa fa-refresh'></i>
+        <i class='fas fa-sync'></i>
       </button>
       <button type='button' class='btn btn-tool' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>

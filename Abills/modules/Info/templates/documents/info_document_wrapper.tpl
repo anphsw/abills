@@ -1,10 +1,10 @@
 
-<link href='/styles/default_adm/css/info.css' rel='stylesheet'>
+<link href='/styles/default/css/info.css' rel='stylesheet'>
 
 
 <div class='row' id='docWrapper'>
     <div class='col-md-12 comments-controls'>
-        <div class='pull-right'>
+        <div class='float-right'>
             %DOCUMENTS_CONTROLS%
         </div>
     </div>
@@ -13,4 +13,4 @@
     </div>
 </div>
 
-<script src='/styles/default_adm/js/info/info.js'></script>
+<script src='/styles/default/js/info/info.js'></script>

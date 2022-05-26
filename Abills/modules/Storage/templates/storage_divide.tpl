@@ -18,13 +18,13 @@
 
 
 <script>
-  //    jQuery('#REG_REQUEST_BTN').prop('disabled', true);
   var timeout = null;
 
   function doDelayedSearch(val, element) {
     if (timeout) {
       clearTimeout(timeout);
     }
+    document.getElementById('DIVIDE_BUTTON').disabled = true;
     timeout = setTimeout(function() {
       doSearch(val, element); //this is your existing function
     }, 500);
@@ -33,22 +33,41 @@
   function doSearch(val, element) {
     if(!val){
       jQuery(element).parent().parent().removeClass('has-success').addClass('has-error');
+      document.getElementById('DIVIDE_BUTTON').disabled = false;
       return 1;
     }
-    document.getElementById('DIVIDE_BUTTON').disabled = true;
+
+    if (checkInputsDuplicates(val)) {
+      changeInputStatus(element, false);
+      return 1;
+    }
+
     jQuery.post('$SELF_URL', 'header=2&qindex=' + '%CHECK_SN_INDEX%' + '&sn_check=' + val, function (data) {
-      document.getElementById('DIVIDE_BUTTON').disabled = false;
-      if(data === 'success'){
-        jQuery(element).parent().removeClass('has-error').addClass('has-success');
-        jQuery(element).css('border', '3px solid green');
-        element.setCustomValidity('');
-      }
-      else{
-        jQuery(element).parent().removeClass('has-success').addClass('has-error');
-        jQuery(element).css('border', '3px solid red');
-        element.setCustomValidity('_{SERIAL_NUMBER_IS_ALREADY_IN_USE}_');
-      }
+      changeInputStatus(element, data === 'success');
     });
+  }
+
+  function checkInputsDuplicates(val) {
+    let coincidences = 0;
+
+    jQuery('.sn_check_class').each(function() {
+      if (jQuery(this).val() === val) coincidences++;
+    });
+
+    return coincidences > 1;
+  }
+
+  function changeInputStatus(element, success = true) {
+    document.getElementById('DIVIDE_BUTTON').disabled = false;
+    if (success) {
+      jQuery(element).parent().removeClass('has-error').addClass('has-success');
+      jQuery(element).css('border', '3px solid green');
+      element.setCustomValidity('');
+      return;
+    }
+    jQuery(element).parent().removeClass('has-success').addClass('has-error');
+    jQuery(element).css('border', '3px solid red');
+    element.setCustomValidity('_{SERIAL_NUMBER_IS_ALREADY_IN_USE}_');
   }
 
   jQuery('.sn_check_class').on('input', function(event){

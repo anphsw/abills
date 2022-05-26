@@ -538,16 +538,16 @@ sub msgs_unreg_requests {
 
   if ($FORM{REGISTRATION_REQUEST}) {
     if (in_array('Maps', \@MODULES)) {
-      load_module('Maps', $html);
-      $Msgs->{MAPS} = maps_show_map({
-        QUICK             => 1,
-        OUTPUT2RETURN     => 1,
-        SMALL             => 1,
-        SHOW_BUILDS       => 1,
-        GET_USER_POSITION => 1,
-        MAP_HEIGHT        => 40,
-        CLIENT_MAP        => 1,
-      });
+      # load_module('Maps2', $html);
+      # $Msgs->{MAPS} = maps2_show_map({
+      #   QUICK             => 1,
+      #   OUTPUT2RETURN     => 1,
+      #   SMALL             => 1,
+      #   SHOW_BUILDS       => 1,
+      #   GET_USER_POSITION => 1,
+      #   MAP_HEIGHT        => 40,
+      #   CLIENT_MAP        => 1,
+      # });
 
       $map_visible = 1;
     }

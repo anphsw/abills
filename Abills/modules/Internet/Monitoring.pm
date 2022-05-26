@@ -140,17 +140,10 @@ sub internet_online {
   }
   elsif ($FORM{tolog}) {
     $FORM{IDS} =~ s/\s+//g if ($FORM{IDS});
-    my $Acct;
-    if (in_array('Internet', \@MODULES)) {
-      require Acct2;
-      Acct2->import();
-      $Acct = Acct2->new($db, \%conf);
-    }
-    else {
-      require Acct;
-      Acct->import();
-      $Acct = Acct->new($db, \%conf);
-    }
+
+    require Acct2;
+    Acct2->import();
+    my $Acct = Acct2->new($db, \%conf);
 
     $Sessions->online({
       ACCT_SESSION_ID    => '_SHOW',
@@ -183,30 +176,32 @@ sub internet_online {
     my @added = ();
     my $ACCT_INFO;
 
-    foreach my $nas_row (@$nas_list) {
-      next if (!defined($online_list->{ $nas_row->{NAS_ID} }));
-      foreach my $line (@{$online_list->{ $nas_row->{NAS_ID} }}) {
+    foreach my $nas_info (@$nas_list) {
+      next if (!defined($online_list->{ $nas_info->{NAS_ID} }));
+      foreach my $line (@{$online_list->{ $nas_info->{NAS_ID} }}) {
+
         push @added, $line->{acct_session_id};
 
-        $ACCT_INFO->{INBYTE} = $line->{acct_input_octets};
-        $ACCT_INFO->{OUTBYTE} = $line->{acct_output_octets};
+        $ACCT_INFO->{'Acct-Output-Octets'} = $line->{acct_input_octets};
+        $ACCT_INFO->{'Acct-Input-Octets'} = $line->{acct_output_octets};
         $ACCT_INFO->{INBYTE2} = $line->{ex_input_octets};
         $ACCT_INFO->{OUTBYTE2} = $line->{ex_output_octets};
         $ACCT_INFO->{'Acct-Session-Time'} = $line->{acct_session_time};
         $ACCT_INFO->{'Acct-Session-Id'} = $line->{acct_session_id};
         $ACCT_INFO->{'NAS-Port'} = $line->{nas_port_id};
-        $ACCT_INFO->{'Nas-IP-Address'} = $nas_row->{nas_ip};
+        $ACCT_INFO->{'Nas-IP-Address'} = $nas_info->{nas_ip};
         $ACCT_INFO->{'Framed-IP-Address'} = $line->{client_ip};
         $ACCT_INFO->{'Connect-Info'} = $line->{connect_info};
         $ACCT_INFO->{'Calling-Station-Id'} = $line->{calling_station_id} || $line->{CID};
         $ACCT_INFO->{'User-Name'} = $line->{user_name};
         $ACCT_INFO->{SESSION_START} = $line->{session_start};
         $ACCT_INFO->{'Acct-Terminate-Cause'} = 3;
+
         $ACCT_INFO->{'Acct-Status-Type'} = 'Stop';
 
-        $Acct->accounting($ACCT_INFO, $nas_row);
+        $Acct->accounting($ACCT_INFO, $nas_info, { ACCT_STATUS_TYPE => 2 });
 
-        push @results, "$ACCT_INFO->{'User-Name'} ($line->{acct_session_id}) " . (($Acct->{errno}) ? $lang{ERROR} : $lang{ADDED});
+        push @results, "$ACCT_INFO->{'User-Name'} ($line->{acct_session_id}) " . (($Acct->{errno}) ? "$lang{ERROR} $Acct->{errstr}" : $lang{ADDED});
       }
     }
 
@@ -289,7 +284,7 @@ sub internet_online {
         ID            => mk_unique_value(10),
         NUMBER        => $Sessions->{ZAPED} || ' 0',
         NUMBER_SIZE   => '40px',
-        ICON          => 'remove',
+        ICON          => 'times',
         TEXT          => $lang{ZAPED},
         COLOR         => 'orange',
         SIZE          => 12,
@@ -322,8 +317,8 @@ sub internet_online {
           $html->button($lang{SHOW}, "index=$index&NAS_ID=$line->{nas_id}", { class => 'show' }));
       }
 
-      if (in_array('Maps2', \@MODULES)) {
-        _internet_map2_menu({
+      if (in_array('Maps', \@MODULES)) {
+        _internet_map_menu({
           TABLE => $table->show(),
         });
         return 1;
@@ -428,15 +423,15 @@ sub internet_online {
         { class   => 'btn btn-secondary btn-danger', ICON => 'fa fa-trash',
           MESSAGE => $lang{MSG_WANT_ZAP} }) : '')
         . $html->button("$lang{GRAPH} $lang{NAS}", "#",
-        { class           => 'btn btn-secondary', ICON => 'fa  fa-server',
+        { class           => 'btn btn-default', ICON => 'fas fa-server',
           NEW_WINDOW      => internet_get_chart_query('NAS_ID=all', '1', $chart_new_window_width, $chart_height),
           NEW_WINDOW_SIZE => "$new_window_size" })
         . $html->button("$lang{GRAPH} $lang{TARIF_PLANS}", "#",
-        { class           => 'btn btn-secondary', ICON => 'fa fa-opera',
+        { class           => 'btn btn-default', ICON => 'fab fa-opera',
           NEW_WINDOW      => internet_get_chart_query('TP_ID=all', '1', $chart_new_window_width, $chart_height),
           NEW_WINDOW_SIZE => "$new_window_size" })
         . $html->button("$lang{GRAPH} $lang{GROUPS}", "#",
-        { class           => 'btn btn-secondary', ICON => 'fa fa-group',
+        { class           => 'btn btn-default', ICON => 'fas fa-users',
           NEW_WINDOW      => internet_get_chart_query('GID=all', '1', $chart_new_window_width, $chart_height),
           NEW_WINDOW_SIZE => "$new_window_size" });
   }
@@ -494,7 +489,7 @@ sub internet_online {
         { class => 'btn btn-secondary' })
         . $html->button('', "#",
         { class                                                        => 'btn btn-secondary', ICON =>
-          'fa fa-bar-chart', TITLE                                     => "$lang{GRAPH} $lang{NAS}",
+          'fa fa-chart-bar', TITLE                                     => "$lang{GRAPH} $lang{NAS}",
           NEW_WINDOW                                                   =>
             internet_get_chart_query("NAS_ID=$nas_id", '1',
               $chart_new_window_width, $chart_height), NEW_WINDOW_SIZE => "$new_window_size" })
@@ -674,8 +669,8 @@ sub internet_online {
     $output = $output_filters . $output;
   }
 
-  if (in_array('Maps2', \@MODULES) && !$FORM{ZAPED}) {
-    _internet_map2_menu({
+  if (in_array('Maps', \@MODULES) && !$FORM{ZAPED}) {
+    _internet_map_menu({
       TABLE   => $output_map,
       FILTERS => $output_filters,
       ZAPED   => $output_zaped,
@@ -740,24 +735,16 @@ sub internet_online_search {
     $FILTER_FIELDS{TAGS} = $lang{TAGS};
   }
 
-  my $FIELDS_SEL = $html->form_select(
-    'FILTER_FIELD',
-    {
-      SELECTED   => $FORM{FILTER_FIELD} || q{},
-      SEL_HASH   => \%FILTER_FIELDS,
-      NO_ID      => 1,
-      ID         => 'FILTER_FIELD',
-      SEL_OPTIONS=> { '' => '--' },
-      SEL_WIDTH => '300px'
-    }
-  );
-
-  return $html->tpl_show(_include('internet_report_form', 'Internet'), {
-    FIELDS_SEL => $FIELDS_SEL,
-    %FORM
-  },{
-    OUTPUT2RETURN => 1
+  my $FIELDS_SEL = $html->form_select('FILTER_FIELD', {
+    SELECTED    => $FORM{FILTER_FIELD} || q{},
+    SEL_HASH    => \%FILTER_FIELDS,
+    NO_ID       => 1,
+    ID          => 'FILTER_FIELD',
+    SEL_OPTIONS => { '' => '--' }
   });
+
+  return $html->tpl_show(_include('internet_report_form', 'Internet'),
+    { FIELDS_SEL => $FIELDS_SEL, REFRESH => $FORM{REFRESH} || 0, %FORM }, { OUTPUT2RETURN => 1 });
 }
 
 #**********************************************************
@@ -1002,11 +989,11 @@ sub _internet_get_build_tooltip {
 }
 
 #**********************************************************
-=head2 _internet_map2_menu() - show menu with map2
+=head2 _internet_map_menu() - show menu with map2
 
 =cut
 #**********************************************************
-sub _internet_map2_menu {
+sub _internet_map_menu {
   my ($attr) = @_;
 
   eval { require Maps; };
@@ -1027,8 +1014,8 @@ sub _internet_map2_menu {
   my @build_ids = ();
   map push(@build_ids, $_->{build_id}), @{$builds_for_users} if $Maps->{TOTAL};
 
-  use Maps2::Maps_view;
-  my $Maps_view = Maps2::Maps_view->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+  use Maps::Maps_view;
+  my $Maps_view = Maps::Maps_view->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
   $html->tpl_show(_include('internet_online_map', 'Internet'), {
     FILTERS => $attr->{FILTERS},

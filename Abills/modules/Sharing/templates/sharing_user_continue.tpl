@@ -11,12 +11,12 @@
     <div class='modal-dialog' role='document'>
       <div class='modal-content'>
         <div class='modal-header'>
+          <h4 class='modal-title' id='myModalLabel'>_{CONTINUE}_ _{ACCESS}_</h4>
           <button type='button' class='close' data-dismiss='modal' aria-label='Close'><span
               aria-hidden='true'>&times;</span></button>
-          <h4 class='modal-title' id='myModalLabel'>_{CONTINUE}_ _{ACCESS}_</h4>
         </div>
         <div class='modal-body'>
-          <div class='form-group'>
+          <div class='form-group row'>
             <label class='col-md-3 control-label' for='DATE'>_{DATE}_</label>
             <div class='col-md-9'>
               <input type='text' id='DATE' name='DATE' value='%DATE%' class='form-control datepicker' required>

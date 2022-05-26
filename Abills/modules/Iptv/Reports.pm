@@ -66,6 +66,9 @@ sub iptv_use {
       total      => $lang{SUBSCRIBES},
       users      => $lang{USERS},
     },
+    FILTER_COLS     => {
+      users => '_iptv_users_link::USERS,SERVICE_ID',
+    },
     TABLE           => {
       width   => '100%',
       caption => $lang{SERVICES},
@@ -75,12 +78,26 @@ sub iptv_use {
       EXPORT  => 1
     },
     MAKE_ROWS       => 1,
-    TOTAL           => "TOTAL_USERS:USERS;TOTAL_ACTIVE_USERS:ACTIV;SUBSCRIBES:SUBSCRIBES"
+    TOTAL           => 'TOTAL_USERS:USERS;TOTAL_ACTIVE_USERS:ACTIV;SUBSCRIBES:SUBSCRIBES'
   });
 
   return 1;
 }
 
+#**********************************************************
+=head2 _iptv_users_link($users, $attr)
+
+=cut
+#**********************************************************
+sub _iptv_users_link {
+  my ($users, $attr) = @_;
+
+  my $service_id = $attr->{VALUES}{SERVICE_ID} || '';
+  return $users if !defined $service_id;
+
+  return $html->button($users, "index=" . get_function_index('iptv_users_list') .
+    "&search_form=1&search=1&SERVICE_ID=$service_id");
+}
 
 #**********************************************************
 =head2 iptv_reports_channels($attr) - Reports: channels use
@@ -176,7 +193,7 @@ sub iptv_console {
     CONTENT => tv_services_sel(),
     HIDDEN  => { index => $index },
     SUBMIT  => { show => $lang{SHOW} },
-    class   => 'navbar-form navbar-right',
+    class   => 'form-inline ml-auto flex-nowrap',
   });
 
   func_menu({ $lang{NAME} => $services });

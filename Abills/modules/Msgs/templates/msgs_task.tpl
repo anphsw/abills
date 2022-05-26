@@ -110,7 +110,7 @@
       <div class="card card-primary card-outline box-big-form collapsed-box">
         <div class="card-header with-border">
           <h4 class="card-title">_{ADDITIONALLY}_</h4>
-          <div class='card-tools pull-right'>
+          <div class='card-tools float-right'>
             <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i class='fa fa-plus'></i>
             </button>
           </div>
@@ -244,7 +244,7 @@
       <div class="card card-primary card-outline box-big-form collapsed-box">
         <div class="card-header with-border">
           <h4 class="card-title">_{SHEDULE}_</h4>
-          <div class='card-tools pull-right'>
+          <div class='card-tools float-right'>
             <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i class='fa fa-plus'></i>
             </button>
           </div>

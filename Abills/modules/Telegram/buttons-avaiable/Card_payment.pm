@@ -187,7 +187,7 @@ sub check_serial {
 
 
       #Sucsess
-      main::cross_modules_call('_pre_payment', {
+      main::cross_modules('pre_payment', {
         USER_INFO    => $user,
         SUM          => $Cards->{SUM},
         SKIP_MODULES => 'Cards,Sqlcmd',
@@ -295,7 +295,7 @@ sub check_serial {
 
 
         $_db->{AutoCommit} = 1;
-        main::cross_modules_call('_payments_maked', {
+        main::cross_modules('payments_maked', {
           USER_INFO    => $user,
           SUM          => $Cards->{SUM},
           SKIP_MODULES => 'Cards,Sqlcmd',

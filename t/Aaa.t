@@ -120,7 +120,6 @@ sub show_reply{
   print (($message) ? $message : "RAD_REPLY");
   print ":\n";
 
-
   foreach my $k (sort keys %$RAD_REPLY) {
     my $v = $RAD_REPLY->{$k};
     if ( ref $v eq 'ARRAY' ){
@@ -240,9 +239,9 @@ sub _rad {
   if ( $argv->{get_db_users} ) {
     require Users;
 
-    my $users = Users->new($db, undef, \%conf);
+    my $Users = Users->new($db, undef, \%conf);
 
-    my $list = $users->list({
+    my $users_list = $Users->list({
       LOGIN     => '_SHOW',
       PASSWORD  => '_SHOW',
       DOMAIN_ID => 0,
@@ -250,24 +249,24 @@ sub _rad {
       COLS_NAME => 1
     });
 
-    foreach my $line (@$list) {
+    foreach my $u (@$users_list) {
       push @users_arr, {
-        'User-Name'      => $line->{login},
-        'Password'       => $line->{password},
+        'User-Name'      => $u->{login},
+        'Password'       => $u->{password},
         'NAS-IP-Address' => '127.0.0.1'
       };
     }
   }
   elsif($rad_file) {
     my $load_file = (-f $rad_file . '.auth') ? $rad_file . '.auth' : $rad_file;
-
     %RAD_REQUEST = %{ load_rad_pairs($load_file) };
   }
   else {
     %RAD_REQUEST = (
       'User-Name'      => 'test',
       'Password'       => '123456',
-      'NAS-IP-Address' => '127.0.0.1'
+      'NAS-IP-Address' => '127.0.0.1',
+      'Acct-Session-Id'=> 'test_id' . mk_unique_value(10)
     );
   }
 
@@ -389,7 +388,7 @@ sub aaa_base{
   }
   else {
     $RAD_REQUEST{'Acct-Status-Type'} = 'Start';
-    $RAD_REQUEST{'Acct-Session-Id'} = 'testsesion_1';
+    $RAD_REQUEST{'Acct-Session-Id'} =  $RAD_REQUEST{'Acct-Session-Id'} || ('test_id' . mk_unique_value(10)),  # 'testsesion_1';
     $RAD_REQUEST{'Framed-IP-Address'} = '192.168.100.20';
   }
 

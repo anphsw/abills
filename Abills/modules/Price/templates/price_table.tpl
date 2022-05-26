@@ -410,7 +410,7 @@
                     </div>
                     <div class='col-md-6'>
                         <button class='btn btn-block btn-primary' type=submit formnovalidate name='RES'
-                                value='_{RESET}_'>_{RESET}_<span class='fa fa-refresh'></span></button>
+                                value='_{RESET}_'>_{RESET}_<span class='fas fa-sync'></span></button>
                     </div>
                 </div>
             </div>

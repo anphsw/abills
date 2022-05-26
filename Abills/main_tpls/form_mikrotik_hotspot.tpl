@@ -10,7 +10,7 @@
       <input type='hidden' name='WALLED_GARDEN_ENTRIES' id='WALLED_GARDEN_ENTRIES' value='0'/>
 
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-3 required' for='HOTSPOT_DNS_NAME_id'>ABillS IP _{ADDRESS}_</label>
         <div class='col-md-9'>
           <input type='text' class='form-control ip-input' required name='BILLING_IP_ADDRESS' value='%BILLING_IP_ADDRESS%'/>
@@ -21,14 +21,14 @@
         <h4>Hotspot</h4>
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-3 required'>Hotspot _{INTERFACE}_</label>
         <div class='col-md-9'>
           %INTERFACE_SELECT%
         </div>
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-3 required' for='HOTSPOT_ADDRESS_id'>IP _{ADDRESS}_</label>
         <div class='col-md-9'>
           <input type='text' class='form-control ip-input' required name='ADDRESS' value='%ADDRESS%'
@@ -36,7 +36,7 @@
         </div>
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-3 required' for='HOTSPOT_NETMASK_id'>_{SIZE}_ _{NETWORK}_ </label>
         <div class='col-md-9'>
           <input type='text' class='form-control' required name='NETMASK' value=%NETMASK%
@@ -44,7 +44,7 @@
         </div>
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-3 required' for='HOTSPOT_NETWORK_id'>_{NETWORK}_</label>
         <div class='col-md-9'>
           <input type='text' class='form-control ip-input' required name='NETWORK' value='%NETWORK%'
@@ -52,7 +52,7 @@
         </div>
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-3 required' for='DHCP_RANGE_id'>DHCP _{RANGE}_</label>
         <div class='col-md-9'>
           <input type='text' class='form-control' required name='DHCP_RANGE' value='%DHCP_RANGE%' id='DHCP_RANGE_id'/>
@@ -61,7 +61,7 @@
 
       <hr>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-3 required' for='MIKROTIK_DNS_id'>DNS</label>
         <div class='col-md-9'>
           <input type='text' class='form-control ip-input' required name='DNS' value='%MIKROTIK_DNS%'
@@ -92,10 +92,10 @@
 
 <script id='form-group_template' type='x-tmpl-mustache'>
 
- <div class='form-group' data-counter='{{counter}}'>
+ <div class='form-group row' data-counter='{{counter}}'>
    <label class='control-label col-md-3'>
    <a class='text-danger remove_host_btn form-control-static'>
-       <span class='fa fa-remove'></span>
+       <span class='fa fa-times'></span>
      </a>
    {{#label}}{{label}}{{/label}}
       </label>

@@ -241,7 +241,7 @@ sub _msgs_dispatches_job_list {
   });
 
   my $dispatches_table = $html->table({
-    caption     => "$print_btn $dispatch_link: <h5>$dispatch->{admins}</h5>",
+    caption     => "$print_btn $dispatch_link: <b>$dispatch->{admins}</b>",
     title_plain => [ "Id", $lang{TIME}, $lang{MESSAGE}, $lang{LOGIN}, $lang{ADDRESS}, $lang{STATUS}, $lang{PHONE}, $lang{RESPOSIBLE} ],
     width       => '100%',
     qs          => $pages_qs,
@@ -308,7 +308,7 @@ sub _msgs_dispatches_job_list {
         TITLE => $user_list->[0]{FIO} || $user_list->[0]{LOGIN}
       });
 
-      $user_address = ($user_list->[0]{DISTRICT_NAME} || "") . $build_delimiter . ($user_list->[0]{ADDRESS_FULL} || "");
+      $user_address = $user_list->[0]{ADDRESS_FULL} || "";
     }
     elsif ($message->{location_id}) {
       my $address_info = $Address->address_info($message->{location_id});
@@ -332,21 +332,18 @@ sub _msgs_dispatches_job_list {
 
     my $status_span = $html->element('span', '&nbsp;', {
       class                   => 'fa fa-record',
-      "data-tooltip-position" => 'top',
+      "data-tooltip-position" => 'right',
       "data-tooltip"          => $title || "",
       style                   => "color: " . ($color || ""),
     });
 
     my $status_color = ($color || "black");
-    $status_span = $html->button('',
-      "qindex=$index&header=2&MSGS_STATUS_ID=$message->{id}&MSGS_STATUS=$message->{state_id}",
-      {
-        LOAD_TO_MODAL => 1,
-        ADD_ICON      => 'fa fa-circle',
-        TITLE         => $lang{MSGS_TAGS},
-        ex_params     => "style='color:$status_color' data-tooltip-position='top' data-tooltip='$title'"
-      }
-    );
+    $status_span = $html->button('', "qindex=$index&header=2&MSGS_STATUS_ID=$message->{id}&MSGS_STATUS=$message->{state_id}", {
+      LOAD_TO_MODAL => 1,
+      ADD_ICON      => 'fa fa-circle',
+      TITLE         => $lang{MSGS_TAGS},
+      ex_params     => "style='color:$status_color' data-tooltip-position='right' data-tooltip='$title'"
+    });
 
     my $user_phone = ref $user_main_list eq "ARRAY" && $user_main_list->[0] ? $user_main_list->[0]{PHONE} : $message->{msg_phone} ? $message->{msg_phone} : "";
     $dispatches_table->addrow($message->{id}, $message->{plan_time}, $link, $user_link, $user_address,
@@ -473,7 +470,7 @@ sub msgs_dispatch {
         . ' ' . ($line->{address_build} || q{})
         . ', ' . ($line->{address_flat} || q{});
       if ($line->{district_name} && $line->{address_full}) {
-        $address_full = ($line->{district_name} || "") . ", " . ($line->{address_full} || "");
+        $address_full = $line->{address_full} || "";
       }
       $line->{message} =~ s/$lang{CHANGED}(.+)// if $line->{message};
 

@@ -1,15 +1,6 @@
 <input type='hidden' name='MAIN_INNER_MESSAGE' value='%MAIN_INNER_MSG%'/>
 <input type='hidden' name='RATING' id='rating'/>
 
-<script type='text/javascript'>
-  'use strict';
-  // Multi upload logic
-  jQuery(function () {
-    var MAX_FILES_COUNT = 3;
-    initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
-  });
-
-</script>
 <style type='text/css'>
     .fa-star {
         color: #c4c3be;
@@ -69,7 +60,7 @@
   </div>
 </div>
 
-<div class='noprint'>
+<div class='d-print-none'>
   <div class='card card-primary card-outline'>
     <div class='card-header with-border'>
       <h4 class='card-title'>_{REPLY}_</h4>
@@ -110,9 +101,9 @@
   </div>
 </div>
 
-<script src="/styles/default_adm/js/draganddropfile.js"></script>
-<script src="/styles/default_adm/js/signature_pad.js"></script>
-<script type="text/javascript">
+<script src='/styles/default/js/draganddropfile.js'></script>
+<script src='/styles/default/js/signature_pad.js'></script>
+<script type='text/javascript'>
 
   jQuery(function () {
 
@@ -216,19 +207,19 @@
       addBtn();
       initSigpad();
     } else {
-      if (document.querySelector("#signature-pad")) {
-        document.querySelector("#signature-pad").remove();
+      if (document.querySelector('#signature-pad')) {
+        document.querySelector('#signature-pad').remove();
       }
     }
   }
 
   function addSigpad() {
-    var sigpad = document.createElement("div");
-    sigpad.id = "signature-pad";
-    sigpad.className = "signature-pad";
+    var sigpad = document.createElement('div');
+    sigpad.id = 'signature-pad';
+    sigpad.className = 'signature-pad';
 
-    var sigpadbody = document.createElement("div");
-    sigpadbody.className = "signature-pad--body";
+    var sigpadbody = document.createElement('div');
+    sigpadbody.className = 'signature-pad--body';
     sigpadbody.innerHTML = "<canvas style='border:solid #000000; width: 100%; position: relative;'></canvas> ";
 
     sigpad.appendChild(sigpadbody);
@@ -238,21 +229,21 @@
 
   function initSigpad() {
     var ratio = Math.max(window.devicePixelRatio || 1, 1);
-    var canvas = document.querySelector("canvas");
+    var canvas = document.querySelector('canvas');
     signaturePad = new SignaturePad(canvas, {
       backgroundColor: 'rgb(255, 255, 255)'
     });
     canvas.width = canvas.offsetWidth * ratio;
     canvas.height = canvas.offsetHeight * ratio;
-    canvas.getContext("2d").scale(ratio, ratio);
+    canvas.getContext('2d').scale(ratio, ratio);
     signaturePad.clear();
   }
 
   window.onresize = initSigpad;
 
   function addBtn() {
-    var sigpad = document.querySelector("#signature-pad");
-    var buttons = document.createElement("div");
+    var sigpad = document.querySelector('#signature-pad');
+    var buttons = document.createElement('div');
     buttons.innerHTML = "<button type='button' class='btn btn-default' data-action='clear'>_{CLEAR}_</button> "
       + "<button type='button' class='btn btn-default' data-action='sign'>_{SIGN}_</button>";
     sigpad.appendChild(buttons);
@@ -260,13 +251,13 @@
     var clearButton = sigpad.querySelector("[data-action=clear]");
     var signButton = sigpad.querySelector("[data-action=sign]");
 
-    clearButton.addEventListener("click", function (event) {
+    clearButton.addEventListener('click', function (event) {
       signaturePad.clear();
     });
 
-    signButton.addEventListener("click", function (event) {
-      document.getElementById("signData").value = signaturePad.toDataURL();
-      document.querySelector("#signature-pad").remove();
+    signButton.addEventListener('click', function (event) {
+      document.getElementById('signData').value = signaturePad.toDataURL();
+      document.querySelector('#signature-pad').remove();
     });
   }
 

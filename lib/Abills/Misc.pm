@@ -397,7 +397,7 @@ sub _function {
 
       push @info_buttons, {
         ID     => mk_unique_value( 10 ),
-        NUMBER => $html->button( $menu_items{$key}{$index}, "index=$key$ext_args" ),
+        NUMBER => $html->button( $menu_items{$key}{$index}, "index=$key$ext_args", { class => 'd-block' }),
         SIZE   => 4
       };
     }
@@ -471,18 +471,173 @@ $inputs
 </form>
 [END]
 
-    die "Error functionm execute: '$function_name' $! // ". (($@) ? $@ : q{});
-#    my $rr = `echo "$function_name" >> /tmp/fe`;
+    my $caller = q{}; #join(', ', caller());
+    my ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash);
+    my $i = 0;
+    my @r = ();
+    while (@r = caller($i)) {
+      ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash) = @r;
+      $caller .= "$filename:$line $subroutine\n";
+      $i++;
+    }
+
+    die "Error functionm execute: '$function_name' $! // \nCaller: "
+      . $caller ."\n"
+      .(($@) ? $@ : q{});
   }
 
   return @returns;
 }
 
 #**********************************************************
-=head2 cross_modules_call($function_sufix, $attr); - Calls function for all registration modules if function exist
+=head2 cross_modules($function_suffix, $attr) - Calls function for all registration modules if function exist
 
   Arguments:
-    $function_sufix - Function sufix
+    $function_suffix - Function suffix
+    $attr           - Extra attributes
+      SILENT       - silent mode without output (Default: enable)
+      SKIP_MODULES - Skip modules
+      timeout      - Max timeout for function execute (Default: 4 sec)
+      DEBUG        - Debug mode
+      USER_INFO    - User information hash
+      HTML         - $html object
+      FORM         - Form info
+
+  Return:
+    return all modules return hash
+
+  Example:
+
+    cross_modules('payments_maked', {
+        USER_INFO    => $user,
+        SUM          => $sum,
+        PAYMENT_ID   => $payments->{PAYMENT_ID},
+        SKIP_MODULES => 'Paysys,Sqlcmd',
+        FORM         => \%FORM
+    });
+
+=cut
+#**********************************************************
+sub cross_modules {
+  my ($function_index, $attr) = @_;
+  my $timeout = $attr->{timeout} || 4;
+
+  $html = $attr->{HTML} if $attr->{HTML};
+
+  if ($attr->{SUM} && ! $attr->{USER_INFO}{PAYMENTS_ADDED}) {
+    $attr->{USER_INFO}->{DEPOSIT} += $attr->{SUM};
+    $attr->{USER_INFO}->{PAYMENTS_ADDED}=1;
+  }
+
+  my @users_uids = ();
+  if ($attr->{USER_INFO}{COMPANY_ID}) {
+    if ($users && $users->can('list')) {
+      my $users_list = $users->list({ COMPANY_ID => $attr->{USER_INFO}{COMPANY_ID}, COLS_NAME => 1 });
+      foreach my $user_info (@{$users_list}) {
+        push @users_uids, $user_info->{uid};
+      }
+    }
+  }
+  else {
+    push @users_uids, $attr->{USER_INFO}{UID} || $attr->{UID};
+  }
+
+  my $modules_dir = ($base_dir || '/usr/abills/') . 'Abills/modules/';
+  my $silent = defined $attr->{SILENT} ? $attr->{SILENT} : 0;
+  my %full_return = ();
+  my $check_time = 0;
+  my @skip_modules = ();
+  my $SAVEOUT;
+  my $output_redirect = '/dev/null';
+
+  if ($attr->{SKIP_MODULES}) {
+    $attr->{SKIP_MODULES} =~ s/\s+//g;
+    @skip_modules = split(/,/, $attr->{SKIP_MODULES});
+  }
+
+  my $user_count = 0;               #FIXME: Problem 1 Part 1
+  foreach my $uid (@users_uids) {
+    $user_count++;
+    $attr->{USER_INFO}{UID} = $uid;
+
+    if ($attr->{DEBUG}) {
+      print "Function:  $function_sufix Timout: $timeout Silent: " . ($silent || 'no') . "<br>\n";
+      $check_time = check_time();
+    }
+
+    eval {
+      if ($silent) {
+        if ($conf{CROSS_MODULES_DEBUG}) {
+          $output_redirect = $conf{CROSS_MODULES_DEBUG};
+        }
+
+        #disable stdout output
+        open($SAVEOUT, ">&", \*STDOUT) or die "Save STDOUT: $!";
+        #Reset out
+        open STDIN, '>', '/dev/null';
+        open STDOUT, '>>', $output_redirect;
+        open STDERR, '>>', $output_redirect;
+      }
+
+      if ($user_count > 1) {              #
+        push @skip_modules, 'Extreceipt'; #FIXME: Problem 1 Part 3
+      }
+
+      if ($silent) {
+        local $SIG{ALRM} = sub {die "alarm\n"}; # NB: \n required
+        alarm $timeout;
+      }
+
+      foreach my $module (@MODULES) {
+        if (in_array($mod, \@skip_modules)) {
+          next;
+        }
+
+        my $module_path = $modules_dir . $module . '/Base.pm';
+        next if !(-f $module_path);
+
+        my $module_name = $module . '::Base';
+        eval "use $module_name;";
+        next if $@;
+
+        if ($attr->{DEBUG}) {
+          print " $module -> " . lc($module) . '_' . $function_index . "<br>\n";
+        }
+
+        my $function = lc $module . '_' . $function_index;
+
+        next unless ($module_name->can('new'));
+        next unless ($module_name->can($function));
+
+        my $module_api = $module_name->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+        $full_return{$module} = $module_api->$function($attr);
+
+        if ($attr->{DEBUG} && $check_time) {
+          print gen_time($check_time) . " <br>\n ";
+          $check_time = check_time();
+        }
+      }
+    };
+
+    if ($silent && $SAVEOUT) {
+      # off disable stdout output
+      open(STDOUT, ">&", $SAVEOUT);
+    }
+  }
+
+  if ($@) {
+    print "Error: \n";
+    print $@;
+  }
+
+  return \%full_return;
+}
+
+#**********************************************************
+=head2 cross_modules_call($function_suffix, $attr) - Calls function for all registration modules if function exist
+
+  Arguments:
+    $function_suffix - Function suffix
     $attr           - Extra attributes
       SILENT       - silent mode without output (Default: enable)
       SKIP_MODULES - Skip modules
@@ -533,7 +688,6 @@ sub cross_modules_call {
     push @users_uids, $attr->{USER_INFO}->{UID} || $attr->{UID};
   }
 
-
   #Default silent mode (off)
   #our $silent=0;
   my $silent=0;
@@ -544,7 +698,9 @@ sub cross_modules_call {
     $silent=$attr->{SILENT};
   }
 
+  my $user_count = 0;               #FIXME: Problem 1 Part 1
   foreach my $uid ( @users_uids ) {
+    $user_count++;                  #FIXME: Problem 1 Part 2
     $attr->{USER_INFO}->{UID}=$uid;
 
     if ($attr->{DEBUG}) {
@@ -574,6 +730,10 @@ sub cross_modules_call {
         $attr->{SKIP_MODULES} =~ s/\s+//g;
         @skip_modules = split(/,/, $attr->{SKIP_MODULES});
       }
+
+      if ($user_count > 1) {              #
+        push @skip_modules, 'Extreceipt'; #FIXME: Problem 1 Part 3
+      }                                   #
 
       if ($silent) {
         local $SIG{ALRM} = sub {die "alarm\n"}; # NB: \n required
@@ -733,7 +893,7 @@ sub get_period_dates {
 sub fees_dsc_former {
   my ($attr) = @_;
 
-  my $template_key_name = $attr->{TEMPLATE_KEY_NAME} || 'DV_FEES_DSC';
+  my $template_key_name = $attr->{TEMPLATE_KEY_NAME} || 'INTERNET_FEES_DSC';
 
   if (!defined($attr->{SERVICE_NAME})) {
     $attr->{SERVICE_NAME} = 'Internet';
@@ -798,11 +958,12 @@ sub service_recalculate {
   my $rest_day_sum2 = 0;
   my $return_sum    = 0;
   my $message       = '';
+  my $date          = $attr->{DATE} || $DATE;
   my $tp            = $Service->{TP_INFO};
   my $Payments      = Finance->payments($Service->{db}, $admin, \%conf);
   my $Users         = $attr->{USER_INFO};
-  my $days_in_month = days_in_month({ DATE => $DATE });
-  my (undef, undef, $d)   = split(/-/, $DATE, 3);
+  my $days_in_month = days_in_month({ DATE => $date });
+  my (undef, undef, $d)   = split(/-/, $date, 3);
   my $service_activate = $Service->{ACTIVATE} || $Users->{ACTIVATE} || '0000-00-00';
   my $start_day = $conf{START_PERIOD_DAY} || 1;
 
@@ -840,7 +1001,7 @@ sub service_recalculate {
     }
   }
   else {
-    if ( $attr->{SHEDULER} && date_diff($service_activate, $DATE) >= 31 ) {
+    if ( $attr->{SHEDULER} && date_diff($service_activate, $date) >= 31 ) {
       #if ($attr->{SHEDULER}) {
       undef $user;
       #}
@@ -848,8 +1009,8 @@ sub service_recalculate {
       #return \%total_sum;
       return 0;
     }
-    elsif (! $attr->{SHEDULER} && date_diff($service_activate, $DATE) < 31) {
-      $rest_days     = 30 - date_diff($service_activate, $DATE);
+    elsif (! $attr->{SHEDULER} && date_diff($service_activate, $date) < 31) {
+      $rest_days     = 30 - date_diff($service_activate, $date);
       if($Service->{TP_INFO_OLD}->{MONTH_FEE}) {
         $rest_day_sum2 = (!$Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} && $rest_days > 0) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} / 30 * $rest_days : 0;
       }
@@ -979,7 +1140,8 @@ sub service_get_month_fee {
   my $TIME = "00:00:00";
   my %FEES_PARAMS = (
     DATE   => "$DATE $TIME",
-    METHOD => ($tp->{FEES_METHOD}) ? $tp->{FEES_METHOD} : 1
+    METHOD => ($tp->{FEES_METHOD}) ? $tp->{FEES_METHOD} : 1,
+    EXT_BILL_METHOD => ($tp->{EXT_BILL_FEES_METHOD}) ? $tp->{EXT_BILL_FEES_METHOD} : undef,
   );
 
   if($Service->{PERSONAL_TP} && $Service->{PERSONAL_TP} > 0) {
@@ -1279,7 +1441,7 @@ sub service_get_month_fee {
       }
 
       if ($debug < 6) {
-        if ($conf{EXT_BILL_ACCOUNT}) {
+        if ($conf{EXT_BILL_ACCOUNT} && ! $conf{FEES_PRIORITY}) {
           if ($user->{EXT_BILL_DEPOSIT} && $user->{EXT_BILL_DEPOSIT} < $sum && $user->{MAIN_BILL_ID}) {
             $sum = $sum - $user->{EXT_BILL_DEPOSIT};
             $Fees->take($Users, $user->{EXT_BILL_DEPOSIT}, \%FEES_PARAMS);
@@ -2301,7 +2463,6 @@ sub mk_menu_extra {
 
   my @sordet_module_menu = sort keys %$module_menu;
 
-
   my $default_index=0;
   my %module_fl = ();
 
@@ -2605,11 +2766,11 @@ sub recomended_pay {
   my ($user_, $attr) = @_;
 
   $user_->{TOTAL_DEBET} = 0;
-  my $cross_modules_return = cross_modules_call('_docs', {
-      UID          => $user_->{UID},
-      REDUCTION    => $user_->{REDUCTION},
-      #PAYMENT_TYPE => 0
-    });
+  my $cross_modules_return = cross_modules('docs', {
+    UID       => $user_->{UID},
+    REDUCTION => $user_->{REDUCTION},
+    #PAYMENT_TYPE => 0
+  });
 
   foreach my $module (sort keys %$cross_modules_return) {
     if (ref $cross_modules_return->{$module} eq 'ARRAY') {

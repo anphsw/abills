@@ -1,7 +1,7 @@
-<link rel='stylesheet' href='/styles/default_adm/css/modules/cablecat/raphael.context-menu.css'>
-<link rel='stylesheet' href='/styles/default_adm/css/modules/cablecat/commutation.css'>
-<link rel='stylesheet' href='/styles/default_adm/css/modules/cablecat/jquery.contextMenu.min.css'>
-<link rel='stylesheet' type='text/css' href='/styles/default_adm/fonts/google-static/Roboto.css'>
+<link rel='stylesheet' href='/styles/default/css/modules/cablecat/raphael.context-menu.css'>
+<link rel='stylesheet' href='/styles/default/css/modules/cablecat/commutation.css'>
+<link rel='stylesheet' href='/styles/default/css/modules/cablecat/jquery.contextMenu.min.css'>
+<link rel='stylesheet' type='text/css' href='/styles/default/fonts/google-static/Roboto.css'>
 
 %INFO_TABLE%
 
@@ -49,11 +49,16 @@
                   _{SIZE}_
                 </button>
               </div>
+              <div class='btn-group'>
+                <button id='STRAIGHTEN_BTN' type='button' role='button' class='btn btn-default' title='_{STRAIGHTEN}_'>
+                  _{STRAIGHTEN}_
+                </button>
+              </div>
             </div>
           </div>
           <div class='ml-auto bd-highlight'>
             <!-- ZOOM BUTTON GROUP -->
-            <div class='btn-group pull-right'>
+            <div class='btn-group float-right'>
               <button type='button' role='button' class='btn btn-default' title='ZOOM_IN' id='ZOOM_IN'>
                 <span class='fa fa-search-minus'></span>
               </button>
@@ -135,25 +140,25 @@
 </script>
 
 <!-- Drawing -->
-<script src='/styles/default_adm/js/raphael.min.js'></script>
+<script src='/styles/default/js/raphael.min.js'></script>
 
 <!-- Draggable -->
-<script src='/styles/default_adm/js/modules/cablecat/raphael.extensions.js'></script>
-<script src='/styles/default_adm/js/modules/cablecat/raphael.filters.js'></script>
+<script src='/styles/default/js/modules/cablecat/raphael.extensions.js'></script>
+<script src='/styles/default/js/modules/cablecat/raphael.filters.js'></script>
 
-<script src='/styles/default_adm/js/modules/cablecat/commutation.drag.js'></script>
+<script src='/styles/default/js/modules/cablecat/commutation.drag.js'></script>
 
 <!-- Context Menu -->
-<script src='/styles/default_adm/js/modules/cablecat/jquery.ui.position.min.js'></script>
-<script src='/styles/default_adm/js/modules/cablecat/jquery.contextMenu.min.js'></script>
+<script src='/styles/default/js/modules/cablecat/jquery.ui.position.min.js'></script>
+<script src='/styles/default/js/modules/cablecat/jquery.contextMenu.min.js'></script>
 
 <!-- Touch responsive -->
-<script src='/styles/default_adm/js/modules/cablecat/hammer.min.js'></script>
+<script src='/styles/default/js/modules/cablecat/hammer.min.js'></script>
 
 <!-- Zoom -->
-<script src='/styles/default_adm/js/modules/cablecat/raphael.pan-zoom.js'></script>
+<script src='/styles/default/js/modules/cablecat/raphael.pan-zoom.js'></script>
 
-<script src='/styles/default_adm/js/dynamicForms.js'></script>
-<script src='/styles/default_adm/js/modules/cablecat/commutation.js?v=7.61'></script>
-<script id='maps_print' src='/styles/default_adm/js/maps/html2canvas.min.js' async></script>
+<script src='/styles/default/js/dynamicForms.js'></script>
+<script src='/styles/default/js/modules/cablecat/commutation.js?v=7.61'></script>
+<script id='maps_print' src='/styles/default/js/maps/html2canvas.min.js' async></script>
 

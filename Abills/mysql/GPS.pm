@@ -93,20 +93,16 @@ sub location_info {
   my ($attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
-    [ 'ID', 'INT', 'gtl.id', 1 ],
-    [ 'AID', 'INT', 'gtl.aid', 1 ],
-    [ 'GPS_TIME', 'DATE', 'gtl.gps_time', 1 ],
-    [ 'COORD_X', 'INT', 'gtl.coord_x', 1 ],
-    [ 'COORD_Y', 'INT', 'gtl.coord_y', 1 ],
-    [ 'SPEED', 'INT', 'gtl.speed', 1 ],
-    [ 'ALTITUDE', 'INT', "gtl.altitude", 1 ],
-    [ 'BEARING', 'INT', "gtl.bearing", 1 ],
-    [ 'BATTERY', 'INT', "gtl.batt AS battery", 1 ],
-  ],
-    {
-      WHERE => 1
-    }
-  );
+    [ 'ID',       'INT',  'gtl.id',              1 ],
+    [ 'AID',      'INT',  'gtl.aid',             1 ],
+    [ 'GPS_TIME', 'DATE', 'gtl.gps_time',        1 ],
+    [ 'COORD_X',  'INT',  'gtl.coord_x',         1 ],
+    [ 'COORD_Y',  'INT',  'gtl.coord_y',         1 ],
+    [ 'SPEED',    'INT',  'gtl.speed',           1 ],
+    [ 'ALTITUDE', 'INT',  'gtl.altitude',        1 ],
+    [ 'BEARING',  'INT',  'gtl.bearing',         1 ],
+    [ 'BATTERY',  'INT',  'gtl.batt AS battery', 1 ],
+  ], { WHERE => 1 });
 
   $self->query("SELECT $self->{SEARCH_FIELDS} gtl.id
       FROM gps_tracker_locations gtl
@@ -128,10 +124,10 @@ sub locations_list {
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'gtl.gps_time';
-  my $DESC = ($attr->{DESC}) ? 'DESC' : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = 10000;
+  my $SORT = $attr->{SORT} ? $attr->{SORT} : 'gtl.gps_time';
+  my $DESC = $attr->{DESC} ? 'DESC' : '';
+  my $PG = $attr->{PG} ? $attr->{PG} : 0;
+  my $PAGE_ROWS = $attr->{PAGE_ROWS} || 10000;
 
   my $WHERE = '';
 
@@ -150,35 +146,27 @@ sub locations_list {
   }
 
   my $search_columns = [
-    [ 'ID', 'INT', 'gtl.id', 1 ],
-    [ 'AID', 'INT', 'gtl.aid', 1 ],
-    [ 'GPS_TIME', 'DATE', 'gtl.gps_time', 1 ],
-    [ 'COORD_X', 'INT', 'gtl.coord_x', 1 ],
-    [ 'COORD_Y', 'INT', 'gtl.coord_y', 1 ],
-    [ 'SPEED', 'INT', 'gtl.speed', 1 ],
-    [ 'ALTITUDE', 'INT', "gtl.altitude", 1 ],
-    [ 'BEARING', 'INT', "gtl.bearing", 1 ],
-    [ 'BATTERY', 'INT', "gtl.batt AS battery", 1 ],
+    [ 'ID',                'INT',  'gtl.id',                                            1 ],
+    [ 'AID',               'INT',  'gtl.aid',                                           1 ],
+    [ 'GPS_TIME',          'DATE', 'gtl.gps_time',                                      1 ],
+    [ 'GPS_DATE',          'DATE', 'DATE_FORMAT(gtl.gps_time, "%Y-%m-%d") AS gps_date', 1 ],
+    [ 'COORD_X',           'INT',  'gtl.coord_x',                                       1 ],
+    [ 'COORD_Y',           'INT',  'gtl.coord_y',                                       1 ],
+    [ 'SPEED',             'INT',  'gtl.speed',                                         1 ],
+    [ 'ALTITUDE',          'INT',  'gtl.altitude',                                      1 ],
+    [ 'BEARING',           'INT',  'gtl.bearing',                                       1 ],
+    [ 'BATTERY',           'INT',  'gtl.batt AS battery',                               1 ],
+    [ 'FROM_DATE|TO_DATE', 'DATE', 'gtl.gps_time'                                         ],
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}) {
     map {$attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]}} @$search_columns;
   }
 
-  $WHERE = $self->search_former($attr, $search_columns,
-    {
-      WHERE => 1
-    }
-  );
+  $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
 
   # Glue for two search expressions
-  my $WHERE_CONCAT =
-    ($WHERE ne '' && $WHERE_TIME ne '')
-      ? ' AND '
-      :
-      (($WHERE_TIME ne '')
-        ? "WHERE"
-        : '');
+  my $WHERE_CONCAT = ($WHERE ne '' && $WHERE_TIME ne '') ? ' AND ' :(($WHERE_TIME ne '') ? "WHERE" : '');
 
   $self->query("SELECT $self->{SEARCH_FIELDS} gtl.id
       FROM gps_tracker_locations gtl
@@ -188,13 +176,6 @@ sub locations_list {
   );
 
   my $list = $self->{list};
-
-  #  $self->query("SELECT *
-  #      FROM gps_tracker_locations gtl
-  #      $WHERE",
-  #    undef,
-  #    { INFO => 1 }
-  #  );
 
   return $list;
 }
@@ -258,15 +239,7 @@ sub tracked_admin_info {
     DESC      => 1
   });
 
-  if (ref $location eq 'ARRAY') {
-    my $result = $location->[0];
-    my $admin_info = $admin->info($admin_id);
-
-    $result = { %{$result}, %{$admin_info} };
-    return $result;
-  }
-
-  return 0;
+  return ref $location eq 'ARRAY' ? $location->[0] : 0;
 };
 
 
@@ -294,42 +267,19 @@ sub tracked_admin_info {
 sub tracked_admin_route_info {
   my ($self, $aid, $date, $attr) = @_;
 
-  unless ($aid) {return 0};
-
-  my $gps_time_expr = "*";
-
-  if ($date && !($attr->{DATE_START} && $attr->{DATE_END})) {
-    if ($attr->{FROM_TIME} && $attr->{TO_TIME} && $attr->{FROM_TIME} ne 'undefined' && $attr->{TO_TIME} ne 'undefined') {
-      $gps_time_expr = { DATE => $date, FROM_TIME => $attr->{FROM_TIME}, TO_TIME => $attr->{TO_TIME} };
-    }
-    else {
-      $gps_time_expr = "$date/" . date_inc($date);
-    }
-  }
-  elsif ($attr->{DATE_START} && $attr->{DATE_END}) {
-    $gps_time_expr = "$attr->{DATE_START}/$attr->{DATE_END}";
-  }
+  return 0 if !$aid;
 
   $self->locations_list({ (
-    AID              => $aid,
-    COLS_NAME        => 1,
-    BATTERY          => '_SHOW',
-    GPS_TIME         => $gps_time_expr,
-    SHOW_ALL_COLUMNS => 1,
-    PAGE_ROWS        => 86400,
+    AID                 => $aid,
+    COLS_NAME           => 1,
+    BATTERY             => '_SHOW',
+    'FROM_DATE|TO_DATE' => ($attr->{FROM_DATE} && $attr->{TO_DATE}) ? "$attr->{FROM_DATE}|$attr->{TO_DATE}" : '_SHOW',
+    SHOW_ALL_COLUMNS    => 1,
+    PAGE_ROWS           => 86400,
     %{$attr}
   ), });
 
-  my $route_list = $self->{list};
-
-  if (ref $route_list eq 'ARRAY') {
-    return {
-      list  => $route_list,
-      admin => $admin->info($aid)
-    };
-  }
-
-  return 0;
+  return $self->{list} || 0;
 }
 
 
@@ -345,11 +295,7 @@ sub tracked_admin_id_by_imei {
   $self->query("SELECT a.aid FROM admins a WHERE a.gps_imei= ?", undef,
     { Bind => [ $gps_id ], COLS_NAME => 1, INFO => 1 });
 
-  if ($self->{errno}) {
-    return 0;
-  }
-
-  return $self->{list}[0]->{aid};
+  return $self->{errno} ? 0 : $self->{list}[0]->{aid};
 }
 
 #**********************************************************
@@ -369,11 +315,7 @@ sub thumbnail_add {
     THUMBNAIL_PATH => $thumnail_path
   });
 
-  if ($self->{errno}) {
-    return 0;
-  }
-
-  return 1;
+  return $self->{errno} ? 0 : 1;
 }
 
 #**********************************************************
@@ -396,12 +338,7 @@ sub thumbnail_get {
 
   my $list = $self->{list};
 
-  if ($list && scalar @{$list} == 1) {
-    return @{$list}[0]->{thumbnail_path};
-  }
-  else {
-    return 0;
-  }
+  return $list && scalar @{$list} == 1 ? @{$list}[0]->{thumbnail_path} : 0;
 }
 
 #**********************************************************
@@ -466,7 +403,6 @@ sub unregistered_trackers_list {
   my $self = shift;
   my ($attr) = @_;
 
-
   $self->query("SELECT *, INET_NTOA(gut.ip) as ip FROM gps_unregistered_trackers gut ORDER BY gut.gps_time",
     undef, $attr
   );
@@ -515,11 +451,7 @@ sub unregistered_trackers_info {
     [ 'IP', 'INT', 'INET_NTOA(gut.ip)' ],
     [ 'GPS_IMEI', 'STR', 'gut.gps_imei', ],
     [ 'GPS_TIME', 'DATE', 'gut.gps_time', ],
-  ],
-    {
-      WHERE => 1
-    }
-  );
+  ], { WHERE => 1 });
 
   $self->query("SELECT * FROM gps_unregistered_trackers gut $WHERE ORDER BY gut.gps_time LIMIT 1", undef, $attr);
 
@@ -549,13 +481,7 @@ sub admins_color_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("SELECT * FROM gps_admins_color
-    WHERE aid=$attr->{AID}",
-    undef,
-    {
-      INFO => 1,
-    }
-  );
+  $self->query("SELECT * FROM gps_admins_color WHERE aid=$attr->{AID}", undef,{ INFO => 1 });
 
   return $self;
 }

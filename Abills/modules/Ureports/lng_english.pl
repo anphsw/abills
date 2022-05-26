@@ -24,3 +24,4 @@ $lang{INTERNET_DISABLED}='Internet Service disabled';
 $lang{ACCOUNT_REPLENISHMENT} = 'Account replenishment';
 $lang{PAYMENT_MAKED}='Payment maked';
 $lang{LAST_MESSAGE} = 'Last message';
+$lang{AUTHOR} = 'Author';

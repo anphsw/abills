@@ -47,38 +47,36 @@ sub triplay_users_services {
     ABONPLATA => '_SHOW',
   });
 
-  result_former(
-    {
-      INPUT_DATA     => $Triplay,
-      LIST           => $users_services_list,
-      BASE_FIELDS    => 0,
-      DEFAULT_FIELDS => "uid, internet_name, iptv_name, voip_name, abonplata",
-      FILTER_COLS    => {
+  result_former({
+    INPUT_DATA     => $Triplay,
+    LIST           => $users_services_list,
+    BASE_FIELDS    => 0,
+    DEFAULT_FIELDS => "uid, internet_name, iptv_name, voip_name, abonplata",
+    FILTER_COLS    => {
       abonplata => '_triplay_abonplata_count::ABONPLATA'
     },
-      #      FUNCTION_FIELDS => 'change, del',
-      EXT_TITLES     => {
-        'uid'         => 'UID',
-        'internet_name' => "Internet",
-        'iptv_name'     => "IPTV",
-        'voip_name'     => "VOIP",
-        'abonplata'     => $lang{ABON}
-      },
-      TABLE          => {
-        width   => '100%',
-        caption => "$lang{USERS}",
-        qs      => $pages_qs,
-        ID      => 'TRIPLAY_USER_SERVICES',
-        header  => '',
-        EXPORT  => 1,
-        #        MENU    => "$lang{ADD}:index=" . get_function_index( 'triplay_main' ) . ':add' . ";",
-      },
-      MAKE_ROWS      => 1,
-      SEARCH_FORMER  => 1,
-      MODULE         => 'Triplay',
-      TOTAL          => 1
-    }
-  );
+    #      FUNCTION_FIELDS => 'change, del',
+    EXT_TITLES     => {
+      'uid'           => 'UID',
+      'internet_name' => "Internet",
+      'iptv_name'     => "IPTV",
+      'voip_name'     => "VOIP",
+      'abonplata'     => $lang{ABON}
+    },
+    TABLE          => {
+      width   => '100%',
+      caption => "$lang{USERS}",
+      qs      => $pages_qs,
+      ID      => 'TRIPLAY_USER_SERVICES',
+      header  => '',
+      EXPORT  => 1,
+      #        MENU    => "$lang{ADD}:index=" . get_function_index( 'triplay_main' ) . ':add' . ";",
+    },
+    MAKE_ROWS      => 1,
+    SEARCH_FORMER  => 1,
+    MODULE         => 'Triplay',
+    TOTAL          => 1
+  });
 
   return 1;
 }
@@ -105,9 +103,7 @@ sub _triplay_abonplata_count {
 
   return 'This user has not services  ' if (! $uid);
 
-  my $user_services_information = cross_modules_call('_docs', {
-      UID => $uid,
-    });
+  my $user_services_information = cross_modules('docs', { UID => $uid });
 
   my $total_sum = 0;
   if($user_services_information->{Internet}){

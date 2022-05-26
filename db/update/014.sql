@@ -10,10 +10,10 @@ REPLACE INTO `msgs_status` (`id`, `name`, `readiness`, `task_closed`, `color`, `
   ('2', '$lang{CLOSED_SUCCESSFUL}',                '100', '1', '#009D00', 'fa fa-check text-green'),
   ('3', '$lang{IN_WORK}',                          '10',  '0', '#707070', 'fa fa-wrench'),
   ('4', '$lang{NEW_MESSAGE}',                      '0',   '0', '#FF8000', 'fa fa-reply text-blue'),
-  ('5', '$lang{HOLD_UP}',                          '0',   '0', '0',       'fa fa-clock-o'),
-  ('6', '$lang{ANSWER_WAIT}',                      '50',  '0', '',        'fa fa-envelope-open-o'),
+  ('5', '$lang{HOLD_UP}',                          '0',   '0', '0',       'far fa-clock'),
+  ('6', '$lang{ANSWER_WAIT}',                      '50',  '0', '',        'far fa-envelope-open'),
   ('9', '$lang{NOTIFICATION_MSG}',                 '0',   '0', '',        'fa fa-flag text-red'),
-  ('10', '$lang{NOTIFICATION_MSG}  $lang{READED}', '100', '0', '',        'fa fa-flag-o text-red'),
+  ('10', '$lang{NOTIFICATION_MSG}  $lang{READED}', '100', '0', '',        'far fa-flag text-red'),
   ('11', '$lang{POTENTIAL_CLIENT}',                '0',   '0', '',        'fa fa-user-plus text-green');
 
 ALTER TABLE `msgs_proggress_bar` ADD COLUMN `user_notice` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0;

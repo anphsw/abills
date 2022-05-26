@@ -19,7 +19,7 @@ use strict;
 use warnings 'FATAL' => 'all';
 use v5.16;
 
-our $VERSION = 0.80;
+our $VERSION = 0.91;
 
 our $begin_time;
 BEGIN {
@@ -35,16 +35,17 @@ BEGIN {
   }
 
   print "Content-Type: text/html\n\n";
-  open(STDERR, ">&STDOUT");
+  # open(STDERR, ">&STDOUT");
 }
 use POSIX qw(strftime);
 use Time::Local qw/timelocal/;
 use lib '../lib';
 
 use Abills::Init qw/$admin $db %conf $DATE $base_dir @MODULES $var_dir/;
-use Abills::Base qw (in_array days_in_month convert gen_time _bp load_pmodule);
+use Abills::Base qw(in_array days_in_month convert gen_time _bp load_pmodule);
 use Abills::HTML;
 
+our Admins $admin;
 our (%lang, $var_dir);
 
 # To avoid loading Abills::Templates, redefining _error_show
@@ -74,14 +75,13 @@ my $is_ipn = 1;
 #Flag for showing 'all' of the type
 my $MULTI_SEL = 0;
 
-my $html = Abills::HTML->new(
-  {
-    CONF     => \%conf,
-    NO_PRINT => 0,
-    PATH     => $conf{WEB_IMG_SCRIPT_PATH} || '../',
-    CHARSET  => $conf{default_charset},
-  }
-);
+my $html = Abills::HTML->new({
+  CONF       => \%conf,
+  NO_PRINT   => 0,
+  PATH       => $conf{WEB_IMG_SCRIPT_PATH} || '../',
+  CHARSET    => $conf{default_charset},
+  #HTML_STYLE => 'default_adm'
+});
 
 if ($html->{language} ne 'english') {
   do $base_dir . "/language/english.pl";
@@ -129,7 +129,7 @@ my $SENT_TRAFF_NAME_LOCAL = "$lang{SENT} $lang{LOCAL}";
 load_pmodule('JSON');
 load_pmodule('Time::Local');
 
-if (scalar (keys %FORM) > 0) {
+if (scalar(keys %FORM) > 0) {
 
   #Read debug from $FORM
   $DEBUG = $FORM{DEBUG} || $DEBUG;
@@ -165,10 +165,8 @@ if (scalar (keys %FORM) > 0) {
 else {
   print_head();
   $html->message('err', 'Incorrect parameters');
-  #  print_select_form();
 }
 
-exit 0;
 
 #**********************************************************
 =head2 form_charts_configuration($attr)
@@ -196,20 +194,13 @@ sub form_charts_configuration {
     $CAPTION = "ACCT_SESSION_ID";
     @ids = ($attr->{'ACCT_SESSION_ID'});
   }
-
-  ################## LOGIN #########################
   elsif ($attr->{'LOGIN'}) {
     $type = 'USER';
     $CAPTION = "LOGIN";
 
     my @logins_arr = split(',\s?', $FORM{LOGIN});
-    my $login_placeholders = join(', ', ('?') x scalar(@logins_arr) );
-    if ($conf{DV_LOGIN}) {
-      $admin->query("SELECT uid FROM dv_main WHERE dv_login IN ($login_placeholders);", undef, { Bind => \@logins_arr });
-    }
-    else {
-      $admin->query("SELECT uid FROM users WHERE id IN ($login_placeholders);", undef, { Bind => \@logins_arr });
-    }
+    my $login_placeholders = join(', ', ('?') x scalar(@logins_arr));
+    $admin->query("SELECT uid FROM users WHERE id IN ($login_placeholders);", undef, { Bind => \@logins_arr });
     _error_show($admin) and return 0;
 
     @ids = map {$_->[0]} @{$admin->{list}};
@@ -219,9 +210,7 @@ sub form_charts_configuration {
       INNER JOIN users u ON (u.uid=l.uid)
       ";
   }
-  ################## UID #########################
   elsif ($attr->{'UID'}) {
-
     $type = 'USER';
     if ($attr->{'UID'} eq 'all') {
       $MULTI_SEL = 1;
@@ -231,14 +220,12 @@ sub form_charts_configuration {
     else {
       @ids = split(',\s?', $attr->{'UID'});
     }
-    $WHERE = "u.uid=?";
+    $WHERE = "l.uid=?";
     push(@{$bind_values}, $attr->{UID});
     $CAPTION = "USER UID";
 
-    $EXT_TABLE = "INNER JOIN users u ON (u.uid=l.uid) ";
+    #$EXT_TABLE = "INNER JOIN users u ON (u.uid=l.uid) ";
   }
-
-  ################## NAS_ID #########################
   elsif ($attr->{'NAS_ID'}) {
     $CAPTION = "NAS_ID";
     $type = 'NAS';
@@ -254,8 +241,6 @@ sub form_charts_configuration {
     $WHERE = "l.nas_id=?";
     push(@{$bind_values}, $attr->{'NAS_ID'});
   }
-
-  ################## TP_ID #########################
   elsif ($attr->{'TP_ID'}) {
     $type = 'TP';
     $CAPTION = "TP_ID";
@@ -269,15 +254,13 @@ sub form_charts_configuration {
       @ids = ($attr->{TP_ID});
     }
 
-    $WHERE = "dv.tp_id= ?";
+    $WHERE = "internet.tp_id= ?";
 
-    my $internet_table = (in_array('Internet', \@MODULES)) ? 'internet_main' : 'dv_main';
+    my $internet_table = 'internet_main';
 
     $EXT_TABLE = "INNER JOIN users u ON (u.uid=l.uid)
-      INNER JOIN $internet_table dv ON (dv.uid=u.uid) ";
+      INNER JOIN $internet_table internet ON (internet.uid=u.uid) ";
   }
-
-  ################## GID #########################
   elsif ($attr->{'GID'}) {
     $type = 'GROUP';
     $CAPTION = "GROUP ID";
@@ -296,10 +279,7 @@ sub form_charts_configuration {
 
     $EXT_TABLE = "INNER JOIN users u ON (u.uid=l.uid) ";
   }
-
-  ################## TAGS #########################
   elsif ($attr->{'TAG_ID'}) {
-
     $type = 'TAG';
     $CAPTION = $lang{TAGS};
 
@@ -338,7 +318,7 @@ sub form_charts_configuration {
 sub build_graphics {
   my ($EXT_TABLE, $WHERE, $bind_values, $type, $ids, $current_time) = @_;
 
-  if (scalar(@$ids) > 1){
+  if (scalar(@$ids) > 1) {
     $MULTI_SEL = 1;
   }
 
@@ -393,7 +373,7 @@ sub build_graphics {
 =cut
 #**********************************************************
 sub get_traffic {
-  my ($EXT_TABLE, $WHERE, $bind_values, $start, $end_time ) = @_;
+  my ($EXT_TABLE, $WHERE, $bind_values, $start, $end_time) = @_;
 
   my $multiply_for_bytes = ($FORM{type} ne 'bytes')
     ? ' * 8 '
@@ -432,7 +412,7 @@ sub get_ipn_traffic {
 
   #form query for each traffic class
   my $select_query_traffic_classes = '';
-  my @traffic_classes_ids = sort (keys(%{$traffic_classes}));
+  my @traffic_classes_ids = sort(keys(%{$traffic_classes}));
   my @query_fields = ('UNIX_TIMESTAMP(l.start) AS start');
   for (my ($i, $len) = (0, scalar @traffic_classes_ids); $i < $len; $i++) {
     push @query_fields, " SUM(IF(traffic_class=$i, l.traffic_in, 0)) $multiply_for_bytes",
@@ -449,7 +429,7 @@ sub get_ipn_traffic {
       GROUP BY 1
       ORDER BY l.start;";
 
-  $admin->query($sql, undef,  { Bind => $bind_values });
+  $admin->query($sql, undef, { Bind => $bind_values });
 
   return $admin->{list} || [];
 }
@@ -514,10 +494,10 @@ sub get_speed_for_traffic {
     return "No data";
   }
 
-  my @traffic_list = @{ $attr->{LIST} };
+  my @traffic_list = @{$attr->{LIST}};
 
   #check input params
-  my $list_length = scalar @{ $traffic_list[0] } || 0;
+  my $list_length = scalar @{$traffic_list[0]} || 0;
   my $series_count = $list_length - 1;
   unless ($list_length) {
     return "No data";
@@ -531,7 +511,7 @@ sub get_speed_for_traffic {
   my $pause = 1;
 
   foreach my $line (@traffic_list) {
-    $timestamp = + ($line->[0]);
+    $timestamp = +($line->[0]);
     $pause = ($timestamp - $previous_row[0]) || 300;
 
     my ($traffic_delta, $speed) = (0, undef);
@@ -544,7 +524,7 @@ sub get_speed_for_traffic {
         }
         # Ignore negative speed values
         elsif ($previous_row[$i] && ($line->[$i] >= $previous_row[$i])) {
-          $traffic_delta = + ($line->[$i] - $previous_row[$i]);
+          $traffic_delta = +($line->[$i] - $previous_row[$i]);
         }
 
         $speed = $traffic_delta / $pause;
@@ -569,7 +549,7 @@ sub get_speed_for_traffic {
 
 
 #**********************************************************
-=head2 get_speed_cached()
+=head2 get_speed_cached($EXT_TABLE, $WHERE, $bind_values, $start_time, $current_time, $type, $key)
 
 =cut
 #**********************************************************
@@ -727,16 +707,14 @@ sub make_chart {
 
   my $chart_type = $FORM{type} || 'bits';
 
-  my $chart = get_highchart(
-    {
-      TITLE   => "<b>$title</b>",
-      Y_TITLE => "$lang{SPEED}, $chart_type",
-      TYPE    => 'area',
-      SERIES  => $series,
-      HEIGHT  => $FORM{height},
-      WIDTH   => $FORM{width},
-    }
-  );
+  my $chart = get_highchart({
+    TITLE   => $html->b($title),
+    Y_TITLE => "$lang{SPEED}, $chart_type",
+    TYPE    => 'area',
+    SERIES  => $series,
+    HEIGHT  => $FORM{height},
+    WIDTH   => $FORM{width},
+  });
 
   return $chart;
 }
@@ -780,7 +758,7 @@ sub get_highchart {
   my $months_start = $current_time - $TIME_PERIODS{4}{PERIOD} * 1000;
 
   my $chartSeries = $json->encode($series);
-
+#print $chartSeries;
   my $dimensions = '; width : 700px';
   if ($attr->{HEIGHT}) {
     $dimensions = "; height : $attr->{HEIGHT}";
@@ -958,7 +936,6 @@ sub get_charts_series {
 
     # Highcharts needs data to be sorted
     @{$result_data_array[$i]} = sort {$a->{x} <=> $b->{x}} @{$result_data_array[$i]};
-
     push @series, { name => $names[$i - 1], data => $result_data_array[$i] };
   }
 
@@ -1103,7 +1080,7 @@ sub _get_nas_list {
   my $WHERE = '';
   my @BIND_VALUES = ();
 
-  if ($id && $id ne '') {
+  if ($id) {
     $WHERE = "id= ?  AND";
     push @BIND_VALUES, $id;
   }
@@ -1123,7 +1100,7 @@ sub _get_group_list {
   my $WHERE = '';
   my @BIND_VALUES = ();
 
-  if ($id && $id ne '') {
+  if ($id) {
     $WHERE = "WHERE gid=?";
     push @BIND_VALUES, $id;
   }
@@ -1196,45 +1173,45 @@ sub _get_tags_list {
 =cut
 #**********************************************************
 sub print_head {
-  print <<'[END]';
+  print <<"[END]";
 <!DOCTYPE HTML>
 <HTML>
 <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset='utf-8'>
+  <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+  <meta name='viewport' content='width=device-width, initial-scale=1'>
 
-    <meta http-equiv="Cache-Control" content="no-cache" />
-    <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv='Cache-Control' content='no-cache' />
+  <meta http-equiv='Pragma' content='no-cache' />
 
-    <link href="favicon.ico" rel="shortcut icon" />
+  <link href='favicon.ico' rel='shortcut icon' />
 
-    <!-- CSS -->
-    <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/bootstrap.min.css' >
+  <!-- CSS -->
+  <link rel='stylesheet' type='text/css' href='/styles/$html->{HTML_STYLE}/css/bootstrap.min.css' >
 
-    <!-- Bootstrap -->
-    <script src='/styles/default_adm/js/jquery.min.js'></script>
-    <script src='/styles/default_adm/js/bootstrap.min.js'></script>
+  <!-- Bootstrap -->
+  <script src='/styles/$html->{HTML_STYLE}/js/jquery.min.js'></script>
+  <script src='/styles/$html->{HTML_STYLE}/js/bootstrap.bundle.min.js'></script>
 
-    <script src='/styles/default_adm/js/functions.js' type='text/javascript' language='javascript'></script>
+  <script src='/styles/$html->{HTML_STYLE}/js/functions.js' type='text/javascript' language='javascript'></script>
 
-    <script src='/styles/lte_adm/plugins/moment/moment.min.js'></script>
-    <script src="/styles/default_adm/js/charts/highcharts.js"></script>
-    <script src='/styles/default_adm/js/select2.min.js'></script>
-    <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/select2.css'>
-    <title>ABillS Users Traffic</title>
+  <script src='/styles/$html->{HTML_STYLE}/plugins/moment/moment.min.js'></script>
+  <script src='/styles/$html->{HTML_STYLE}/js/charts/highcharts.js'></script>
+  <script src='/styles/$html->{HTML_STYLE}/js/select2.min.js'></script>
+  <link rel='stylesheet' type='text/css' href='/styles/$html->{HTML_STYLE}/css/select2.css'>
+  <title>ABillS Users Traffic</title>
 
-    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
-    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
-    <!--[if lt IE 9]>
-      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
-      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
-    <![endif]-->
+  <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+  <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+  <!--[if lt IE 9]>
+    <script src='https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js'></script>
+    <script src='https://oss.maxcdn.com/respond/1.4.2/respond.min.js'></script>
+  <![endif]-->
 </head>
 <body>
 <div class='container'>
-<div class='row'>
-<noscript> JavaScript required </noscript>
+  <div class='row'>
+    <noscript> JavaScript required </noscript>
 [END]
 
   return 1;
@@ -1251,7 +1228,7 @@ sub print_footer {
 
   if (!$FORM{SHOW_GRAPH}) {
     foreach my $name ('bits', 'bytes') {
-      if ($FORM{type} && $FORM{type} eq "$name") {
+      if ($FORM{type} && $FORM{type} eq $name) {
         $traffic_type_html .= $html->b($name) . ' ';
       }
       else {
@@ -1267,7 +1244,7 @@ sub print_footer {
   }
 
   print <<"[FOOTER]";
-    <div id='type' class='col-md-4 pull-right'>  $traffic_type_html </div>
+    <div id='type' class='col-md-4 float-right'>  $traffic_type_html </div>
 
   </div> <!--row-->
   <script>
@@ -1315,4 +1292,4 @@ sub print_footer {
   return 1;
 }
 
-1
+1;

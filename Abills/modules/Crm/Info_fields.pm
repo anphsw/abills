@@ -8,8 +8,6 @@ use warnings FATAL => 'all';
 =cut
 
 our (
-  $Crm,
-  $html,
   %lang,
   %conf,
   $admin,
@@ -17,6 +15,10 @@ our (
   %permissions,
   %LIST_PARAMS
 );
+
+use Time::Piece;
+our Crm $Crm;
+our Abills::HTML $html;
 
 my @fields_types = (
   'string',
@@ -82,6 +84,7 @@ sub crm_info_fields {
     $Crm->field_info($FORM{chg});
     $TEMPLATE_VARIABLES{READONLY2} = "disabled";
     $TEMPLATE_VARIABLES{READONLY} = "readonly";
+    $TEMPLATE_VARIABLES{REGISTRATION} = 'checked' if $Crm->{REGISTRATION};
     $TEMPLATE_VARIABLES{TYPE_SELECT} = $html->element('input', '', {
       readonly => 'readonly',
       type     => 'text',
@@ -271,7 +274,7 @@ sub crm_info_lists {
       LIST_TABLE_NAME => $FORM{LIST_TABLE_NAME}
     },
     SUBMIT  => { show => $lang{SHOW} },
-    class   => 'navbar navbar-expand-lg navbar-light bg-light',
+    class   => 'navbar navbar-expand-lg',
   });
 
   func_menu({ $lang{NAME} => $lists });
@@ -324,7 +327,12 @@ sub crm_info_lists {
 sub crm_lead_info_field_tpl {
   my ($attr) = @_;
 
-  my $fields_list = $Crm->fields_list({ SORT => 5, TP_INFO_FIELDS => $attr->{TP_INFO_FIELDS} || 0 });
+  my $fields_list = $Crm->fields_list({
+    SORT           => 5,
+    TP_INFO_FIELDS => $attr->{TP_INFO_FIELDS} || 0,
+    REGISTRATION   => $attr->{REGISTRATION} || '_SHOW'
+  });
+
   my @field_result = ();
 
   foreach my $field (@{$fields_list}) {
@@ -340,11 +348,12 @@ sub crm_lead_info_field_tpl {
     $field->{PLACEHOLDER} ||= '';
     $field->{SQL_FIELD} = uc $field->{SQL_FIELD} if $field->{SQL_FIELD};
 
-    my $input = &{\&{$function_name}}($field, {
+    my $input = defined(&$function_name) ? &{\&{$function_name}}($field, {
       DISABLED       => $disabled_ex_params || '',
       VALUE          => $attr->{$field->{SQL_FIELD}} || '',
       TP_INFO_FIELDS => $attr->{TP_INFO_FIELDS} || 0
-    });
+    }) : '';
+
     next if !$input;
 
     push @field_result, $html->tpl_show(templates('form_row'), {
@@ -410,21 +419,22 @@ sub crm_info_field_time_zone {
   my $field = shift;
   my ($attr) = @_;
 
-  my $val = 1;
+  my $val = $attr->{VALUE} || 0;
   my @sel_list = map {{ id => $_, name => "UTC" . sprintf("%+.2d", $_) . ":00" }} (-12 ... 12);
   my $select = $html->form_select($field->{SQL_FIELD}, {
     SEL_LIST      => \@sel_list,
-    SELECTED      => $attr->{VALUE},
+    SELECTED      => $val,
     NO_ID         => 1,
     OUTPUT2RETURN => 1
   });
 
-  my $input = $html->element('div', $select, { class => 'col-md-8' });
+  my $input = $html->element('div', $select, { class => 'col-md-8', OUTPUT2RETURN => 1 });
   my Time::Piece $t = gmtime();
   $t = $t + 3600 * $val;
-  $input .= $html->element('label', $t->hms, { class => 'control-label col-md-4' });
 
-  return $html->element('div', $input, { class => 'row' });
+  $input .= $html->element('label', $t->hms, { class => 'control-label col-md-4', OUTPUT2RETURN => 1 });
+
+  return $html->element('div', $input, { class => 'row', OUTPUT2RETURN => 1 });
 }
 
 #**********************************************************

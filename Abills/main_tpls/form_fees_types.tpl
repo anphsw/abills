@@ -1,4 +1,4 @@
-<div class='noprint'>
+<div class='d-print-none'>
   <form action='$SELF_URL' name=user class='form form-horizontal'>
     <input type=hidden name=UID value='%UID%'>
     <input type=hidden name=index value='$index'>

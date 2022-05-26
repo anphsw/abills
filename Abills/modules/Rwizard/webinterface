@@ -115,36 +115,34 @@ $Reports->{FIELDS}
   _error_show($Reports);
 
   if ($show_template) {
-    $Reports->{GROUP_SEL} = $html->form_select(
-      'GID',
-      {
-        SELECTED    => $FORM{GID} || $Reports->{GID},
-        SEL_LIST    => $Reports->list_groups({ COLS_NAME => 1 }),
-        NO_ID       => 1,
-        SEL_OPTIONS => { '' => '--' },
-      }
-    );
+    $Reports->{GROUP_SEL} = $html->form_select('GID', {
+      SELECTED          => $FORM{GID} || $Reports->{GID},
+      SEL_LIST          => $Reports->list_groups({ COLS_NAME => 1 }),
+      NO_ID             => 1,
+      SEL_OPTIONS       => { '' => '--' },
+      MAIN_MENU         => get_function_index('rwizard_groups'),
+      MAIN_MENU_ARGV    => ($Reports->{GID}) ? "chg=$Reports->{GID}" : '',
+    });
+
     _error_show($Reports) and return 0;
 
     $html->tpl_show(_include('rwizard_config', 'Rwizard'), { %FORM, %{$Reports} },
       { SKIP_VARS =>
-        'PG,PAGE_ROWS,SORT,DESC,PAGES,DATE_FROM,DATE_TO,MONTH,GID,Y,m,d,i,h,DEPOSIT,PARAMETER,ADDRESS,ADMIN_ID' });
+        'PG,PAGE_ROWS,SORT,DESC,PAGES,DATE_FROM,DATE_TO,MONTH,GID,Y,m,d,i,h,DEPOSIT,PARAMETER,ADDRESS,ADMIN_ID,TP_ID,IP' });
   }
   my $list = $Reports->list({ %LIST_PARAMS, COLS_NAME => 1 });
   _error_show($Reports) and return 0;
 
-  my $table = $html->table(
-    {
-      width               => '100%',
-      caption             => "$lang{REPORTS}",
-      title               => [ "ID", "$lang{NAME}", "$lang{GROUP}", "$lang{COMMENTS}" ],
-      ID                  => 'REPORTS_LIST',
-      EXPORT              => 1,
-      MENU                => "$lang{ADD}:index=" . get_function_index('rwizard_config') . '&add_form=1:add',
-      pages               => $Reports->{TOTAL},
-      HAS_FUNCTION_FIELDS => 1,
-    }
-  );
+  my $table = $html->table({
+    width               => '100%',
+    caption             => $lang{REPORTS},
+    title               => [ "ID", $lang{NAME}, $lang{GROUP}, $lang{COMMENTS} ],
+    ID                  => 'REPORTS_LIST',
+    EXPORT              => 1,
+    MENU                => "$lang{ADD}:index=" . get_function_index('rwizard_config') . '&add_form=1:add',
+    pages               => $Reports->{TOTAL},
+    HAS_FUNCTION_FIELDS => 1,
+  });
 
   foreach my $line (@$list) {
     my $delete = $html->button($lang{DEL}, "index=$index&del=$line->{id}", { MESSAGE => "$lang{DEL} '$line->{id}'?", class => 'del', TEXT => $lang{DEL} });
@@ -155,9 +153,9 @@ $Reports->{FIELDS}
       $line->{group_name},
       $line->{comments},
       $html->button("", "qindex=$index&export=$line->{id}", { class => 'fa fa-share', TEXT => $lang{DOWNLOAD} }) .
-        $html->button("$lang{SHOW}", "index=" . get_function_index('rwizard') . "&REPORT=$line->{id}", { class => 'show', TEXT => $lang{SHOW} }) .
-        $html->button("$lang{PRINT}", "qindex=" . get_function_index('rwizard') . "&print=$line->{id}", { class => 'print', TEXT => $lang{PRINT}, TARGET => '_print' }) .
-        $html->button("$lang{CHANGE}", "index=$index&chg=$line->{id}", { class => 'change', TEXT => $lang{CHANGE} }) .
+        $html->button($lang{SHOW}, "index=" . get_function_index('rwizard') . "&REPORT=$line->{id}", { class => 'show', TEXT => $lang{SHOW} }) .
+        $html->button($lang{PRINT}, "qindex=" . get_function_index('rwizard') . "&print=$line->{id}", { class => 'print', TEXT => $lang{PRINT}, TARGET => '_print' }) .
+        $html->button($lang{CHANGE}, "index=$index&chg=$line->{id}", { class => 'change', TEXT => $lang{CHANGE} }) .
         $delete);
   }
   print $table->show();

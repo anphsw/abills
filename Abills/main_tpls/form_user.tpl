@@ -110,7 +110,7 @@
 
 </script>
 
-<form class='form-horizontal' action='$SELF_URL' method='post' id='user_form' name='user_form' role='form'>
+<form action='$SELF_URL' method='post' id='user_form' name='user_form' role='form'>
   <input type=hidden name='index' value='$index'>
   <input type=hidden name='COMPANY_ID' value='%COMPANY_ID%'>
   <input type=hidden name='step' value='$FORM{step}'>
@@ -124,7 +124,7 @@
   <div id='form_1' class='card card-primary card-outline container-md for_sort pr-0 pl-0'> <!-- XXX card-big-form? -->
     <div class='card-header with-border'>
       <h4 class='card-title'>_{USER_ACCOUNT}_</h4>
-      <div class='card-tools pull-right'>
+      <div class='card-tools float-right'>
         <button type='button' class='btn btn-tool' data-card-widget='collapse'>
           <i class='fa fa-minus'></i>
         </button>
@@ -164,12 +164,14 @@
                  class='datepicker form-control d-0-11'>
         </div>
       </div>
+
       <div id='DISABLE_FORM' class='form-group row h-0-18 %DISABLE_COLOR%' %HIDE_DISABLE_FORM%>
         <label class='col-form-label text-right col-4 col-md-2' for='DISABLE'>_{DISABLE}_:</label>
         <div class='col-1 col-md-1'>
           <div class='form-check'>
             <input type='checkbox' class='form-check-input' id='DISABLE' name='DISABLE' value='1'
                    data-checked='%DISABLE%'>
+            %FORM_DISABLE%
           </div>
         </div>
         <div class='col-7 col-md-9'>
@@ -177,6 +179,7 @@
                  style='display: none;'>
         </div>
       </div>
+
       <div %HIDE_PASSWORD% class='text-center'>%PASSWORD%</div>
     </div>
 
@@ -184,7 +187,7 @@
     <div class='card card-outline card-big-form collapsed-card mb-0 border-top'>
       <div class='card-header with-border'>
         <h3 class='card-title'>_{EXTRA}_</h3>
-        <div class='card-tools pull-right'>
+        <div class='card-tools float-right'>
           <button type='button' class='btn btn-tool' data-card-widget='collapse'>
             <i class='fa fa-plus'></i>
           </button>
@@ -205,7 +208,7 @@
                 </div>
                 <div class='input-group-text'>
                   <a href='$SELF_URL?index=21&amp;UID=$FORM{UID}'>
-                    <i class='fa fa-pencil'></i>
+                    <i class='fa fa-pencil-alt'></i>
                   </a>
                 </div>
               </div>
@@ -249,7 +252,7 @@
     </div>
 
     <div class='card-footer'>
-      <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
+      <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary double_click_check'>
     </div>
   </div>
 

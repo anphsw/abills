@@ -30,7 +30,8 @@ our (
   @status,
   @PERIODS,
   @MONTHES,
-  %ADMIN_REPORT
+  %ADMIN_REPORT,
+  %LIST_PARAMS
 );
 
 my $Sharing = Sharing->new($db, $admin, \%conf);
@@ -2666,7 +2667,8 @@ sub sharing_user_main {
       NO_ID       => 1,
       SEL_OPTIONS => { '' => '' },
       EX_PARAMS   => "data-auto-submit='form'"
-    });
+    }
+  );
 
   my $table = $html->table({
     width   => '100%',
@@ -2695,10 +2697,11 @@ sub sharing_user_main {
     _include('sharing_user_main', 'Sharing'),
     {
       GROUP_SELECT => $group_select,
-      FILES        => ($FORM{TABLE_FILE} || $FORM{sort}) ? $table->show() : join(($FORM{json} ? ', ' : ' '), @file_panels),
+      ROW          => ($FORM{TABLE_FILE} || $FORM{sort}) ? '' : 'row',
+      FILES        => ($FORM{TABLE_FILE} || $FORM{sort}) ? $table->show({ OUTPUT2RETURN => 1 }) : join(($FORM{json} ? ', ' : ' '), @file_panels),
       BUTTON_STYLE => $html->button(($FORM{TABLE_FILE} || $FORM{sort}) ? ' ' . $lang{PLATE_MODE} : ' ' . $lang{TABLE_MODE},
         "index=$index$table_mode",
-        { class => ($FORM{TABLE_FILE} || $FORM{sort}) ? 'btn btn-primary fa fa-file' : 'btn btn-primary fa fa-table' })
+        { class => ($FORM{TABLE_FILE} || $FORM{sort}) ? 'btn btn-primary fas fa-file' : 'btn btn-primary fas fa-table' })
     },
   );
 
@@ -3301,6 +3304,43 @@ sub sharing_report {
   my $downloaded_files_count = $Sharing->sharing_get_downloaded_files_count();
   my $subscriptions_count = $Sharing->sharing_get_subscriptions({ DATE => $DATE });
 
+  if(defined($FORM{SH_FILE})) {
+    $LIST_PARAMS{SH_FILE} = $FORM{SH_FILE};
+
+    my ($user_table, undef) = result_former({
+      INPUT_DATA      => $Sharing,
+      FUNCTION        => 'sharing_user_list',
+      BASE_FIELDS     => 1,
+      DEFAULT_FIELDS  => 'ID,LOGIN,DATE,DEMO',
+      FUNCTION_FIELDS => 'del',
+      EXT_TITLES      => {
+        uid      => "UID",
+        date_to => $lang{DATE},
+        login   => $lang{USER},
+        demo    => $lang{DEMO}
+      },
+      SKIP_USER_TITLE => 1,
+      TABLE           => {
+        width   => '100%',
+        caption => "$lang{MODULE} - $lang{USERS}",
+        qs      => $pages_qs,
+        ID      => 'SHARING_USER_LIST',
+        EXPORT  => 1,
+      },
+      MAKE_ROWS       => 1,
+      MODULE          => 'Sharing'
+    });
+
+    my $user_table_end = $html->table({
+      width => '100%',
+      rows  => [
+        [ "$lang{TOTAL}:", $html->b($Sharing->{TOTAL}), "$lang{SUM}: ", $html->b($Sharing->{TOTAL_SUM} * $Sharing->{TOTAL}) ]
+      ]
+    });
+
+    print $user_table->show() . $user_table_end->show();
+  }
+
   my %table_info = ();
 
   my @popular_data = ();
@@ -3312,6 +3352,7 @@ sub sharing_report {
     push @popular_data, $file->{count};
     push @popular_colors, 'rgba(120, 99, 132, 0.6)';
     $table_info{$file->{name}}{bought_info} = $file->{count};
+    $table_info{$file->{name}}{file_id}     = $file->{file_id};
   }
 
   my $popular_chart = $html->chart({
@@ -3382,8 +3423,14 @@ sub sharing_report {
     DATA_TABLE => { "order" => [ [ 1, "desc" ], [ 2, "desc" ] ] },
   });
 
+  $index = get_function_index('sharing_report');
+
   foreach my $file (keys %table_info) {
-    $table->addrow($file, ($table_info{$file}{bought_info} || 0), ($table_info{$file}{download_info} || 0));
+    $table->addrow(
+      $html->element('a', $file, { href => "index.cgi?index=$index&SH_FILE=$table_info{$file}->{file_id}" }),
+      ($table_info{$file}{bought_info} || 0),
+      ($table_info{$file}{download_info} || 0)
+    );
   }
 
   $html->tpl_show(_include('sharing_reports', 'Sharing'),

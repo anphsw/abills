@@ -96,6 +96,7 @@ sub result_row_former {
       HIDDEN_FIELDS   - Requested but not showed in HTML table ('FIELD1,FIELD2')
       INPUT_DATA      - DB object
       FUNCTION        - object list function name
+      FUNCTION_PARAMS - params of function (hash)
       LIST            - get input data from list (array_hash)
       BASE_FIELDS     - count of default field for list ( Show first %BASE_FIELDS% $search_columns fields )
       APPEND_FIELDS   - Additional fields to extract from the sheet
@@ -689,7 +690,7 @@ sub table_function_fields {
 }
 
 #**********************************************************
-=head2 _result_former_maps2_show($list, $attr)
+=head2 _result_former_maps_show($list, $attr)
 
   Attributes:
 
@@ -697,10 +698,10 @@ sub table_function_fields {
 
 =cut
 #**********************************************************
-sub _result_former_maps2_show {
+sub _result_former_maps_show {
   my ($list, $attr) = @_;
 
-  load_module('Maps2', $html);
+  load_module('Maps', $html);
 
   $list = [] if (ref($list) ne "ARRAY");
   my $date_list;
@@ -716,7 +717,7 @@ sub _result_former_maps2_show {
     push @{$date_list->{$object->{location_id}}}, $object;
   }
 
-  print maps2_show_map({
+  print maps_show_map({
     DATA           => $date_list || {},
     QUICK          => 1,
     MAP_SHOW_ITEMS => $attr->{MAP_SHOW_ITEMS},
@@ -875,6 +876,7 @@ sub _result_former_data {
     $data->{debug} = 1 if ($FORM{DEBUG});
     my $list = $data->$fn({
       COLS_NAME      => 1,
+      %{$attr->{FUNCTION_PARAMS} || {}},
       %LIST_PARAMS,
       SHOW_COLUMNS   => $FORM{show_columns},
       HIDDEN_COLUMNS => $hidden_fields
@@ -901,7 +903,7 @@ sub _result_former_data {
 sub _result_former_data_extra_fields {
   my ($data, $SEARCH_TITLES) = @_;
 
-  return $SEARCH_TITLES unless $data->{EXTRA_FIELDS};
+  return $SEARCH_TITLES if (! $data->{EXTRA_FIELDS});
 
   foreach my $line (@{$data->{EXTRA_FIELDS}}) {
     if (ref $line eq 'ARRAY' && $line->[0] =~ /ifu(\S+)/) {
@@ -987,8 +989,8 @@ sub _get_search_titles {
     $SEARCH_TITLES{tags} = $lang{TAGS} if (!$admin->{MODULES} || $admin->{MODULES}{Tags});
   }
 
-  if (in_array('Maps2', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Maps2})) {
-    $SEARCH_TITLES{build_id} = $lang{LOCATION} if (!$admin->{MODULES} || $admin->{MODULES}{Maps2});
+  if (in_array('Maps', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Maps})) {
+    $SEARCH_TITLES{build_id} = $lang{LOCATION} if (!$admin->{MODULES} || $admin->{MODULES}{Maps});
   }
 
   if (in_array('Multidoms', \@MODULES) && (!$admin->{DOMAIN_ID} || $admin->{DOMAIN_ID} =~ /[,;]+/)) {
@@ -1191,7 +1193,7 @@ sub _get_status_value {
   my $val = '';
 
   if ($attr->{STATUS_VALS} && ref($attr->{STATUS_VALS}) eq "HASH") {
-    return $val if (!$attr->{STATUS_VALS}{$line->{$col_name} || q{}});
+    return $val if (!$attr->{STATUS_VALS}{$line->{$col_name} // q{}});
 
     my ($status_value, $status_color) = split(':', $attr->{STATUS_VALS}{$line->{$col_name}});
     $val = (defined $line->{$col_name} && $line->{$col_name} >= 0) ? $html->color_mark($status_value, $status_color) :
@@ -1243,7 +1245,7 @@ sub _get_tags_value {
 sub _get_location_value {
   my ($line, $col_name) = @_;
 
-  return $line->{$col_name} if (!in_array('Maps2', \@MODULES) || ($admin->{MODULES} && !$admin->{MODULES}{Maps2}));
+  return $line->{$col_name} if (!in_array('Maps', \@MODULES) || ($admin->{MODULES} && !$admin->{MODULES}{Maps}));
   return $line->{$col_name} if (!$line->{$col_name} || $line->{$col_name} eq '');
 
   my $location_btn = $line->{$col_name};
@@ -1285,8 +1287,8 @@ sub _result_former_map {
   print $html->table_header(\@header_arr, { TABS => 1 });
 
   if ($FORM{MAP}) {
-    if (in_array('Maps2', \@MODULES)) {
-      _result_former_maps2_show($data->{list}, $attr);
+    if (in_array('Maps', \@MODULES)) {
+      _result_former_maps_show($data->{list}, $attr);
       return 1;
     }
   }
@@ -1301,7 +1303,7 @@ sub _result_former_map {
 }
 
 #**********************************************************
-=head2 _result_former_make_charts($attr, $line, $data, $chart_num)
+=head2 _result_former_make_chart($attr, $line, $data, $chart_num)
 
   Arguments:
 
@@ -1309,37 +1311,15 @@ sub _result_former_map {
 
 =cut
 #**********************************************************
-sub _result_former_make_charts {
-  my ($attr, $line, $data, $chart_num) = @_;
+sub _result_former_make_chart {
+  my ($attr, $line, $dataset, $period) = @_;
 
-  return 0 if !$attr->{CHARTS};
+  foreach my $data (@{$dataset}) {
+    next if !exists $line->{$period};
 
-  my @charts = split(/,\s?/, $attr->{CHARTS});
-  if ($line->{date} && $line->{date} =~ /\d{4}-\d{2}-(\d{2})/) {
-    $$chart_num = $1 || 0;
+    $line->{$period} //= '-';
+    $DATA_HASH{$line->{$period}}{$data} = $line->{$data};
   }
-  else {
-    $$chart_num++;
-    if ($attr->{CHARTS_XTEXT} && defined $line->{$attr->{CHARTS_XTEXT}}) {
-
-      $attr->{CHARTS_XTEXT} = $data->{COL_NAMES_ARR}->[0] if ($attr->{CHARTS_XTEXT} eq 'auto');
-      my $col_name = $attr->{CHARTS_XTEXT};
-      $CHARTS{X_TEXT}->[$$chart_num - 1] = ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$col_name}
-        && $attr->{SELECT_VALUE}->{$col_name}->{ $line->{$col_name} })
-        ? $attr->{SELECT_VALUE}->{$col_name}->{ $line->{$col_name} }
-        : $line->{$col_name};
-    }
-  }
-
-  foreach my $c_val (@charts) {
-    $DATA_HASH{$c_val}->[$$chart_num] = $line->{$c_val} || 0;
-    my $num = int($$chart_num);
-    next if (!$num);
-
-    $CHARTS{X_TEXT}->[$num - 1] ||= $$chart_num;
-  }
-
-  return 0;
 }
 
 #**********************************************************
@@ -1367,8 +1347,6 @@ sub _result_former_make_charts {
 sub _result_former_make_rows {
   my ($attr, $data, $table) = @_;
 
-  my $chart_num = 0;
-
   if ($data->{errno}) {
     _error_show($data, { MESSAGE => 'RESULT_FORMER: ' . ($attr->{TABLE}->{caption} || q{}) });
     return 0;
@@ -1378,6 +1356,7 @@ sub _result_former_make_rows {
     return 0;
   }
 
+  my $total = $data->{TOTAL} || 0;
   my $search_color_mark = q{};
   if ($FORM{_MULTI_HIT}) {
     $FORM{_MULTI_HIT} =~ s/\*//g;
@@ -1422,10 +1401,14 @@ sub _result_former_make_rows {
       }
     }
 
-    _result_former_make_charts($attr, $line, $data, \$chart_num);
+    if ($attr->{CHARTS} && ref $attr->{CHARTS} eq 'HASH') {
+      _result_former_make_chart($attr, $line, $attr->{CHARTS}{DATASET}, $attr->{CHARTS}{PERIOD});
+    }
 
     $table->addrow(@fields_array);
   }
+
+  $data->{TOTAL} = $total;
 
   return 1;
 }

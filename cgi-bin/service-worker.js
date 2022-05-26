@@ -1,7 +1,7 @@
 'use strict';
 
 // Used to persist messages_url
-self.importScripts('/styles/default_adm/js/localforage.min.js');
+self.importScripts('/styles/default/js/localforage.min.js');
 
 self.addEventListener('push', function (event) {
   console.log('Received a push message', event);

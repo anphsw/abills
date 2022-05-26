@@ -7,7 +7,7 @@
         <div class='card card-primary card-outline'>
           <div class='card-header with-border'>
             <h4 class='card-title'>_{TARIF_PLAN}_</h4>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-minus'></i>
               </button>
@@ -49,7 +49,7 @@
         <div class='card card-primary card-outline collapsed-card'>
           <div class='card-header with-border'>
             <h3 class='card-title'>_{LIMIT}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
@@ -79,7 +79,7 @@
         <div class='card card-primary card-outline collapsed-card'>
           <div class='card-header with-border'>
             <h3 class='card-title'>_{TIME}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
@@ -131,7 +131,7 @@
         <div class='card card-primary card-outline'>
           <div class='card-header with-border'>
             <h3 class='card-title'>_{ABON}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-minus'></i>
               </button>
@@ -175,7 +175,7 @@
         <div class='card card-primary card-outline collapsed-card'>
           <div class='card-header with-border'>
             <h3 class='card-title'>_{OTHER}_</h3>
-            <div class='card-tools pull-right'>
+            <div class='card-tools float-right'>
               <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>

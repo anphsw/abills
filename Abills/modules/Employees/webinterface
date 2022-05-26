@@ -17,7 +17,6 @@ our (
   $admin,
   %conf,
   %lang,
-  $html,
   @WEEKDAYS,
   @MONTHES,
   @status,
@@ -30,6 +29,8 @@ use Address;
 
 my $Employees = Employees->new($db, $admin, \%conf);
 my $Address = Address->new($db, $admin, \%conf);
+our Abills::HTML $html;
+
 #**************************************************
 =head employees_main() -
 
@@ -47,24 +48,20 @@ sub employees_main {
   $admin_form->{LNG_ACTION} = $lang{ADD};
   if ($FORM{AID}) {
     $admin_form->info($FORM{AID});
-    _error_show($admin_form);
+    if (_error_show($admin_form)) {
+      return 0;
+    }
     
     if(! $FORM{DOMAIN_ID}) {
       $FORM{DOMAIN_ID}  = $admin_form->{DOMAIN_ID} if($admin_form->{DOMAIN_ID});
     }
 
-    $pages_qs         = "&AID=$admin_form->{AID}". (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
+    my $aid = $admin_form->{AID} || q{};
+    $pages_qs = "&AID=$admin_form->{AID}" if ($admin_form->{AID});
+    $pages_qs = "&subf=$FORM{subf}" if ($FORM{subf});
 
     my $A_LOGIN = $html->form_main({
-        CONTENT => $html->form_select(
-          'AID',
-          {
-            SELECTED  => $FORM{AID},
-            SEL_LIST  => $admin->list({%LIST_PARAMS, COLS_NAME => 1}),
-            SEL_KEY   => 'aid',
-            SEL_VALUE => 'login,name',
-          }
-        ),
+        CONTENT => sel_admins({ AID => $FORM{AID} }),
         HIDDEN => {
           index => $index,
           subf  => $FORM{subf}
@@ -73,21 +70,22 @@ sub employees_main {
         class  => 'navbar-form navbar-right',
     });
 
-    $LIST_PARAMS{AID} = $admin_form->{AID};
+    $LIST_PARAMS{AID} = $aid;
     my @admin_menu = (
-      $lang{INFO}       . "::AID=$admin_form->{AID}:change",
-      $lang{LOG}        . ':'. get_function_index('form_changes') . ":AID=$admin_form->{AID}:history",
-      $lang{FEES}       . ":3:AID=$admin_form->{AID}:fees",
-      $lang{PAYMENTS}   . ":2:AID=$admin_form->{AID}:payments",
-      $lang{PERMISSION} . ":52:AID=$admin_form->{AID}:permissions",
-      $lang{PASSWD}     . ":54:AID=$admin_form->{AID}:password",
-      $lang{GROUP}      . ":58:AID=$admin_form->{AID}:users",
-      $lang{ACCESS}     . ":59:AID=$admin_form->{AID}:",
-      'Paranoid'   . ':'. get_function_index('form_admins_full_log') .":AID=$admin_form->{AID}:",
+      $lang{INFO}       . "::AID=$aid:change",
+      $lang{LOG}        . ':'. get_function_index('form_changes') . ":AID=$aid:history",
+      $lang{FEES}       . ":3:AID=$aid:fees",
+      $lang{PAYMENTS}   . ":2:AID=$aid:payments",
+      $lang{PERMISSION} . ":52:AID=$aid:permissions",
+      $lang{PASSWD}     . ":54:AID=$aid:password",
+      $lang{GROUP}      . ":58:AID=$aid:users",
+      $lang{ACCESS}     . ":59:AID=$aid:",
+      'Paranoid'   . ':'. get_function_index('form_admins_full_log') .":AID=$aid:",
     );
 
     if(in_array('Msgs', \@MODULES)) {
-      push @admin_menu, "$lang{MESSAGES}:".get_function_index('msgs_admin') .":AID=$admin_form->{AID}:msgs";
+      push @admin_menu, "$lang{MESSAGES}:".get_function_index('msgs_admin')
+        .":AID=$aid:msgs";
     }
 
     func_menu(
@@ -226,13 +224,13 @@ sub employees_main {
     my $maps_index = get_function_index('maps_show_map');
     my $link = "?index=$maps_index&show_gps=$admin_form->{AID}";
     $admin_form->{GPS_ROUTE_BTN} = $html->button($html->element('span', '', { class=> 'fa fa-globe' }), undef , {
-         GLOBAL_URL => $link, 
-         target     => '_blank',
-         class      => 'btn btn-info', 
-         NO_LINK_FORMER => 1
+      GLOBAL_URL => $link,
+      target     => '_blank',
+      class      => 'btn btn-info',
+      NO_LINK_FORMER => 1
     });
 
-    $admin_form->{GPS_ICON_BTN} = $html->button($html->element('span', '', { class => 'fa fa-picture-o' }), undef , {
+    $admin_form->{GPS_ICON_BTN} = $html->button($html->element('span', '', { class => 'far fa-picture' }), undef , {
          GLOBAL_URL     => $link,
          class          => 'btn btn-secondary',
          NO_LINK_FORMER => 1,
@@ -316,7 +314,7 @@ sub employees_main {
       width      => '100%',
       caption    => $lang{EMPLOYEES},
       qs         => $pages_qs,
-      ID         => 'ADMINS_LIST',
+      ID         => 'EMPLOYEES_LIST',
       header     => \@status_bar,
       MENU       => "$lang{ADD}:index=$index&add_form=1:add;$lang{SEARCH}:search_form=1&index=$index:search"
     }
@@ -349,7 +347,7 @@ sub employees_main {
 
     my $geo_button = '';
     if(in_array('Employees', \@MODULES)){
-      $geo_button = $html->button($lang{GEO}, "index=" . get_function_index('employees_geolocation') ."&eid=$line->{aid}")
+      $geo_button = $html->button($lang{GEO}, "index=" . get_function_index('employees_geolocation') ."&eid=$line->{aid}", { class => 'geo'})
     }
 
     $table->addrow(@fields_array,
@@ -364,13 +362,10 @@ sub employees_main {
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$lang{TOTAL}:", $html->b($admin_form->{TOTAL}) ] ]
-    }
-  );
+  $table = $html->table({
+    width      => '100%',
+    rows       => [ [ "$lang{TOTAL}:", $html->b($admin_form->{TOTAL}) ] ]
+  });
   print $table->show();
 
   system_info();
@@ -656,7 +651,7 @@ sub employees_positions {
   my $positions_list=$Employees->position_list({ COLS_NAME => 1 });
   my Abills::HTML $table;
   my $list;
-  #my $i = 0;
+
   ($table, $list) = result_former({
     INPUT_DATA      => $Employees,
     FUNCTION        => 'position_list',
@@ -780,7 +775,7 @@ sub form_admins_time_sheet {
     {
       target => '_new',
       class  => 'btn btn-secondary',
-      ICON   => 'fa fa-print',
+      ICON   => 'fas fa-print',
       ex_params => 'data-toggle="tooltip" data-placement="bottom"'
     });
 
@@ -796,12 +791,12 @@ sub form_admins_time_sheet {
 
   my @day_types_icons = (
     '',
-    "<i class='fa fa-globe fa-lg' title='$lang{VACATIONS}' aria-hidden='true'></i>", # �������
-    "<i class='fa fa-h-square fa-lg' title='$lang{HOSPITAL}' aria-hidden='true'></i>", # ���������� 
-    "<i class='fa fa-plane fa-lg' title='$lang{BUSINESS_TRIP}' aria-hidden='true'></i>", # ������������ 
-    "<i class='fa fa-close fa-lg' title='$lang{DAY_OFF}' aria-hidden='true'></i>", # �������� 
-    "<i class='fa fa-thumbs-o-down fa-lg' title='$lang{SLACK}' aria-hidden='true'></i>", # �� ����� 
-    "<i class='fa fa-flash fa-lg' title='$lang{DUTY}' aria-hidden='true'></i>", # ��������� 
+    "<i class='fas fa-globe fa-lg' title='$lang{VACATIONS}' aria-hidden='true'></i>", # �������
+    "<i class='fas fa-h-square fa-lg' title='$lang{HOSPITAL}' aria-hidden='true'></i>", # ����������
+    "<i class='fas fa-plane fa-lg' title='$lang{BUSINESS_TRIP}' aria-hidden='true'></i>", # ������������
+    "<i class='fas fa-times fa-lg' title='$lang{DAY_OFF}' aria-hidden='true'></i>", # ��������
+    "<i class='far fa-thumbs-down fa-lg' title='$lang{SLACK}' aria-hidden='true'></i>", # �� �����
+    "<i class='fas fa-bolt fa-lg' title='$lang{DUTY}' aria-hidden='true'></i>", # ���������
   );
 
   my ($start_y, $start_m, $start_d) = split(/-/, $FORM{DATE} || $DATE);
@@ -900,36 +895,36 @@ sub form_admins_time_sheet {
   $work_time_norms_table_show = $work_time_norms_table->show();
 
   #Fixme
-  my $tooltip_info = qq{$lang{WORKING_TIME_NORMS} $lang{HOURS}: $work_time_norms->[0]{hours}<br>$lang{WORKING_TIME_NORMS} $lang{DAYS}: $work_time_norms->[0]{days}};
+  my $tooltip_info = qq{$lang{WORKING_TIME_NORMS} $lang{HOURS}: }
+    . ($work_time_norms->[0]{hours} || 0)
+    . q{<br>$lang{WORKING_TIME_NORMS} $lang{DAYS}: }
+    . ($work_time_norms->[0]{days} || 0);
+
   my $info_button = qq{<a href="#" data-tooltip="$tooltip_info" data-tooltip-position='top'><i class="fa fa-info-circle"></i></a>};
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => $lang{TIME_SHEET} . ' ' . $info_button,
-      title_plain => \@title_days,
-      class       => 'table table-hover table-condensed table-striped table-bordered',
-      ID          => 'ADMINS_WORKS_LIST',
-      header      =>
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{TIME_SHEET} . ' ' . $info_button,
+    title_plain => \@title_days,
+    class       => 'table table-hover table-condensed table-striped table-bordered',
+    ID          => 'ADMINS_WORKS_LIST',
+    header      =>
         $html->button('', "index=$index&DATE=$PREV_YEAR&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-secondary fa fa-arrow-left' })
       . $html->button('', "index=$index&DATE=$PREV_MONTH&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-secondary fa fa-arrow-left' })
       . $html->button($MONTHES[ $start_m - 1 ]." $start_y", "index=$index&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-primary' })
       . $html->button('', "index=$index&DATE=$NEXT_MONTH&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-secondary fa fa-arrow-right' })
       . $html->button('', "index=$index&DATE=$NEXT_YEAR&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-secondary fa fa-arrow-right' })
-    }
-  );
+  });
 
-  $list = $admin->list(
-    {
-      %LIST_PARAMS,
-      DOMAIN_ID => $admin->{DOMAIN_ID},
-      COLS_NAME => 1,
-      WITH_POSITION => 1,
-      DISABLE => 0,
-      POSITION => $FORM{POSITION} || "",
-      DEPARTMENT => $FORM{DEPARTMENT} || "",
-    }
-  );
+  $list = $admin->list({
+    %LIST_PARAMS,
+    DOMAIN_ID => $admin->{DOMAIN_ID},
+    COLS_NAME => 1,
+    WITH_POSITION => 1,
+    DISABLE => 0,
+    POSITION => $FORM{POSITION} || "",
+    DEPARTMENT => $FORM{DEPARTMENT} || "",
+  });
 
   foreach my $line (@$list) {
     my $planing_days = 0;
@@ -943,7 +938,7 @@ sub form_admins_time_sheet {
                 . $html->br() 
                 . $html->button($line->{login}, "AID=$line->{aid}&index=" . get_function_index('employees_main')) # button to change ADMIN INFO
                 . $html->br()
-                . $html->button('', "ADMIN=$line->{aid}&index=" . get_function_index('employees_rfid_log') . "&START_DATE=" . ($FORM{DATE} || $DATE), {ICON => 'fa fa-clock-o', target => '_blank'}) # button to watch RFID LOG
+                . $html->button('', "ADMIN=$line->{aid}&index=" . get_function_index('employees_rfid_log') . "&START_DATE=" . ($FORM{DATE} || $DATE), {ICON => 'far fa-clock', target => '_blank'}) # button to watch RFID LOG
                 )
     );
 
@@ -1052,7 +1047,7 @@ sub form_admins_time_sheet {
     {
       LOAD_TO_MODAL  => 1,
       class          => 'btn  btn-secondary',
-      ICON           => 'fa fa-calendar-plus-o',
+      ICON           => 'far fa-calendar-plus',
       ex_params => 'data-toggle="tooltip" data-placement="bottom"'
     } );
 
@@ -1061,7 +1056,7 @@ sub form_admins_time_sheet {
     {
       class          => 'btn  btn-secondary',
       target         => '_blank',
-      ICON           => 'fa fa-bar-chart',
+      ICON           => 'fa fa-chart-bar',
       ex_params      => 'data-toggle="tooltip" data-placement="bottom"'
     } );
 
@@ -1103,7 +1098,6 @@ sub form_admins_time_sheet {
     day               => $FORM{day},
     BUTTON_NAME       => 'change',
   });
-
 
   return 1;
 }
@@ -2216,7 +2210,7 @@ sub employees_timesheet_print {
   }
 
 
-  print $html->button("","qindex=" . get_function_index('employees_timesheet_print') . "&header=2&test=1", {target => '_new', class=> 'btn btn-secondary', ICON => 'fa fa-print'});
+  print $html->button("","qindex=" . get_function_index('employees_timesheet_print') . "&header=2&test=1", {target => '_new', class=> 'btn btn-secondary', ICON => 'fas fa-print'});
 
   return 1;
 }
@@ -2588,14 +2582,14 @@ sub employees_duty {
   our $base_dir ||= '/usr/abills';
 
   my $locale_code = $html->{content_language};
-  my $locale_script_src = '/styles/lte_adm/plugins/fullcalendar/locale-all.js';
+  my $locale_script_src = '/styles/default/plugins/fullcalendar/locale-all.js';
 
-  if ( $locale_code && -e $base_dir . '/cgi-bin/styles/lte_adm/plugins/fullcalendar/locale/' . $locale_code . '.js' ) {
-    $locale_script_src = "/styles/lte_adm/plugins/fullcalendar/locale/$locale_code.js";
+  if ( $locale_code && -e $base_dir . '/cgi-bin/styles/default/plugins/fullcalendar/locale/' . $locale_code . '.js' ) {
+    $locale_script_src = "/styles/default/plugins/fullcalendar/locale/$locale_code.js";
   }
 
   else {
-    $html->message('warn', 'File not found', "/styles/lte_adm/plugins/fullcalendar/locale/$locale_code.js")
+    $html->message('warn', 'File not found', "/styles/default/plugins/fullcalendar/locale/$locale_code.js")
   }
 
   my $events_list = $Employees->employees_duty_list({

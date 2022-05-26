@@ -11,7 +11,7 @@
             <div class='form-group'>
                 <div class='font-weight-bold text-center col-md-12 form-control-label'>
                     <br>
-                    <label> _{UNSUBSCRIBE_LIQPAY}_ </label>
+                    <label> _{UNSUBSCRIBE}_ LiqPay </label>
                     <br>
                     <label> На суму %SUM% наступна дата списання %DATE% </label>
                 </div>

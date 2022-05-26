@@ -8,11 +8,11 @@
 use strict;
 use warnings FATAL => 'all';
 
+use Abills::Sender::Core;
 use Extreceipt::db::Extreceipt;
 use Extreceipt::Base;
 use Reports;
 use Conf;
-
 
 our (
   $index,
@@ -20,6 +20,7 @@ our (
   $admin,
   $db,
   %conf,
+  $pages_qs
 );
 
 our Abills::HTML $html;
@@ -35,47 +36,46 @@ my $Config = Conf->new($db, $admin, \%conf);
 sub extreceipt_api {
   my $admin_list = '';
 
-  $Receipt->{ACTION}='add';
-  $Receipt->{LNG_ACTION}=$lang{ADD};
+  $Receipt->{ACTION} = 'add';
+  $Receipt->{LNG_ACTION} = $lang{ADD};
 
   if ($FORM{del} && $FORM{COMMENTS}) {
     $Receipt->api_del($FORM{del});
-    $html->message('info', $lang{SUCCESS}) if (_error_show($Receipt));
+    $html->message('info', $lang{SUCCESS}) if (!_error_show($Receipt));
   }
   elsif ($FORM{change}) {
-    $admin_list = $admin->list({AID => $FORM{AID}, COLS_NAME => 1 });
+    $admin_list = $admin->list({ AID => $FORM{AID}, COLS_NAME => 1 });
 
     $FORM{AUTHOR} = $admin_list->[0]->{name};
 
     $Receipt->api_change({ %FORM, API_ID => $FORM{chg} });
-    $html->message('info', $lang{SUCCESS}) if (_error_show($Receipt));
+    $html->message('info', $lang{SUCCESS}) if (!_error_show($Receipt));
   }
   elsif ($FORM{chg}) {
     my $api_info = $Receipt->api_list({ API_ID => $FORM{chg} });
 
-    %FORM = %{ $api_info->[0] };
-    $FORM{add_form}=1;
-    $FORM{ID}=$FORM{API_ID};
-    $FORM{ACTION}='change';
-    $FORM{LNG_ACTION}=$lang{CHANGE};
+    %FORM = %{$api_info->[0]};
+    $FORM{add_form} = 1;
+    $FORM{ID} = $FORM{API_ID};
+    $FORM{ACTION} = 'change';
+    $FORM{LNG_ACTION} = $lang{CHANGE};
   }
   elsif ($FORM{add}) {
-    $admin_list = $admin->list({AID => $FORM{AID}, COLS_NAME => 1 });
+    $admin_list = $admin->list({ AID => $FORM{AID}, COLS_NAME => 1 });
     $FORM{AUTHOR} = $admin_list->[0]->{name};
 
     $Receipt->api_add(\%FORM);
-    $html->message('info', $lang{SUCCESS}) if (_error_show($Receipt));
+    $html->message('info', $lang{SUCCESS}) if (!_error_show($Receipt));
   }
   elsif ($FORM{test}) {
     $html->message('info', $lang{TEST});
-    my $Receipt_apies = receipt_init($Receipt, { API => $FORM{test} });
-
+    my $Receipt_apies = receipt_init($Receipt, { API_ID => $FORM{test} });
     my $Receip_api = $Receipt_apies->{$FORM{test}};
 
-    if ($Receip_api->can('test')) {
+    if ($Receip_api && $Receip_api->can('test')) {
       $Receip_api->test();
       if ($Receip_api->{error}) {
-        _error_show($Receip_api);
+        _error_show($Receip_api, { MESSAGE => $lang{TEST} });
       }
       else {
         my $table = $html->table({
@@ -97,22 +97,14 @@ sub extreceipt_api {
 
   if ($FORM{add_form}) {
     $FORM{AID} = sel_admins({
-      NAME => 'AID',
+      NAME     => 'AID',
       SELECTED => $Receipt->{AID} || $FORM{AID}
     });
 
-    $html->tpl_show(
-      _include('receipts_api', 'Extreceipt'),
-      {
-        %$Receipt,
-        %FORM,
-      }
-    );
+    $html->tpl_show(_include('extreceipt_api', 'Extreceipt'), { %$Receipt, %FORM });
   }
 
-  $Receipt->{debug}=1;
   my $api_list = $Receipt->api_list();
-
   my $table = $html->table({
     width               => '100%',
     caption             => "Receipts API : ",
@@ -128,8 +120,8 @@ sub extreceipt_api {
       $api->{api_name},
       $api->{author},
       $html->button($lang{CHANGE}, "index=$index&chg=$api->{api_id}", { class => 'change' })
-      . $html->button($lang{DELETE}, "index=$index&del=$api->{api_id}", { class => 'del', MESSAGE => $lang{DEL} })
-      . $html->button($lang{TEST}, "index=$index&test=$api->{api_id}", { class => 'test' })
+        . $html->button($lang{DELETE}, "index=$index&del=$api->{api_id}", { class => 'del', MESSAGE => $lang{DEL} })
+        . $html->button($lang{TEST}, "index=$index&test=$api->{api_id}", { class => 'test' })
     );
   }
   print $table->show();
@@ -143,52 +135,69 @@ sub extreceipt_api {
 =cut
 #**********************************************************
 sub extreceipt_kkt {
-
   my %params = (
-    ACTION => 'add',
-    LNG_ACTION   => $lang{ADD},
+    ACTION     => 'add',
+    LNG_ACTION => $lang{ADD},
+    methods    => ''
   );
+
+  $FORM{METHODS} =~ s/\b(0)\b/\'0\'/ if (defined($FORM{METHODS}));
 
   if ($FORM{add}) {
     my $api_list = $Receipt->api_list({ API_ID => $FORM{API_ID}, COLS_NAME => 1 });
     $FORM{ADMINS} = $api_list->[0]->{AUTHOR};
 
     $Receipt->kkt_add(\%FORM);
-    $html->message('info', $lang{SUCCESS}) if (_error_show($Receipt));
+    $html->message('info', $lang{SUCCESS}) if (!_error_show($Receipt));
   }
   elsif ($FORM{change}) {
     $Receipt->kkt_change({ %FORM, KKT_ID => $FORM{chg} });
-    $html->message('info', $lang{SUCCESS}) if (_error_show($Receipt));
+    $html->message('info', $lang{SUCCESS}) if (!_error_show($Receipt));
   }
   elsif ($FORM{chg}) {
     my $kkt_info = $Receipt->kkt_list({ KKT_ID => $FORM{chg} });
 
-    %params = %{ $kkt_info->[0] };
-    $FORM{add_form}=1;
-    $params{ID}=$params{KKT_ID};
-    $params{ACTION}='change';
-    $params{LNG_ACTION}=$lang{CHANGE};
+    %params = %{$kkt_info->[0]};
+    $FORM{add_form} = 1;
+    $params{ID} = $params{KKT_ID};
+    $params{ACTION} = 'change';
+    $params{LNG_ACTION} = $lang{CHANGE};
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Receipt->kkt_del($FORM{del});
-    $html->message('info', $lang{SUCCESS}) if (_error_show($Receipt));
+    $html->message('info', $lang{SUCCESS}) if (!_error_show($Receipt));
   }
 
   if ($FORM{add_form}) {
-    $params{API_SEL}=$html->form_select('API_ID', {
-      SEL_LIST => $Receipt->api_list(),
-      SELECTED => $params{api_id},
-      SEL_KEY  => 'api_id',
-      SEL_VALUE=> 'api_name,conf_name'
+    use Payments;
+    my $Payments = Payments->new($db, $admin, \%conf);
+
+    $params{methods} =~ s/'//gm;
+    $params{METHODS_SEL} = $html->form_select('METHODS', {
+      SEL_LIST  => $Payments->payment_type_list({ COLS_NAME => 1 }),
+      SELECTED  => $params{methods},
+      SEL_KEY   => 'id',
+      SEL_VALUE => 'name',
+      MULTIPLE  => 1
+    });
+
+    $params{API_SEL} = $html->form_select('API_ID', {
+      SEL_LIST  => $Receipt->api_list(),
+      SELECTED  => $params{api_id},
+      SEL_KEY   => 'api_id',
+      SEL_VALUE => 'api_name,conf_name'
     });
 
     $params{ADMINS_SEL} = sel_admins({
-      NAME => 'AID',
+      NAME     => 'AID',
+      MULTIPLE => 1,
       SELECTED => $params{AID} || $FORM{AID}
     });
+    $params{CHECK_FOOTER} =~ s/\\\\/\\/g if ($params{CHECK_FOOTER});
+    $params{CHECK_HEADER} =~ s/\\\\/\\/g if ($params{CHECK_HEADER});
+    $params{CHECK_DESC}   =~ s/\\\\/\\/g if ($params{CHECK_DESC});
 
-    $html->tpl_show('', \%params,
-      { TPL => 'receipts_kkt', MODULE => 'Extreceipt' });
+    $html->tpl_show(_include('extreceipt_kkt', 'Extreceipt'), { %params });
   }
 
   my $kkt_list = $Receipt->kkt_list();
@@ -197,7 +206,7 @@ sub extreceipt_kkt {
     width               => '100%',
     caption             => "KKT",
     ID                  => 'KKT',
-    title               => [ "#", "API name", "KKT $lang{GROUP}", $lang{PAYMENT_METHOD}, $lang{GROUPS}, $lang{ADMIN}, "" ],
+    title               => [ "#", "API name", 'API conf name', "KKT $lang{GROUP}", $lang{PAYMENT_METHOD}, $lang{GROUPS}, $lang{ADMIN}, "" ],
     HAS_FUNCTION_FIELDS => 1,
     MENU                => "$lang{ADD}:index=$index&add_form=1:add"
   });
@@ -206,6 +215,7 @@ sub extreceipt_kkt {
     $table->addrow(
       $kkt->{kkt_id},
       $kkt->{api_name},
+      $kkt->{conf_name},
       $kkt->{kkt_group},
       $kkt->{methods},
       $kkt->{groups},
@@ -238,12 +248,16 @@ sub extreceipt_check_list {
     _extreceipt_info($FORM{info});
   }
   elsif ($FORM{undo}) {
-    if (_extreceipt_undo($FORM{undo})) {
-      $html->message('info', $lang{INFO}, $lang{DELETED});
-    }
+    _extreceipt_undo($FORM{undo});
   }
   elsif ($FORM{resend}) {
-    _extreceipt_resend($FORM{resend});
+    _extreceipt_send($FORM{send}, { API => $Receipt->{API} });
+  }
+  elsif ($FORM{print}) {
+    _extreceipt_get_receipt($FORM{print});
+  }
+  elsif ($FORM{send_user}) {
+    _extreceipt_send_receipt($FORM{send_user});
   }
 
   if (!$FORM{sort}) {
@@ -284,20 +298,20 @@ sub extreceipt_check_list {
       RECEIPT_STATUS => { LABEL => $lang{STATUS}, SELECT => $receipt_status_select },
     },
     EX_INPUTS   => [
-      "$lang{ROWS}: " . $html->form_input( 'PAGE_ROWS', $html->{PAGE_ROWS},
-        { OUTPUT2RETURN => 1 } ),
-      "$lang{DEBUG}: " . $html->form_input( 'DEBUG', 1,
-        { OUTPUT2RETURN => 1, TYPE => 'checkbox', STATE => $FORM{DEBUG} } ),
+      "$lang{ROWS}: " . $html->form_input('PAGE_ROWS', $html->{PAGE_ROWS},
+        { OUTPUT2RETURN => 1 }),
+      "$lang{DEBUG}: " . $html->form_input('DEBUG', 1,
+        { OUTPUT2RETURN => 1, TYPE => 'checkbox', STATE => $FORM{DEBUG} }),
     ]
   });
 
   if ($FORM{DEBUG}) {
-    $Receipt->{debug}=1;
+    $Receipt->{debug} = 1;
   }
 
   my @params = ('PAYMENT_METHOD', 'STATUS');
   foreach my $k (@params) {
-    if ($FORM{$k}) {
+    if (defined($FORM{$k})) {
       $LIST_PARAMS{$k} = $FORM{$k};
       $pages_qs .= "&$k=$FORM{$k}";
     }
@@ -338,7 +352,7 @@ sub extreceipt_check_list {
     },
     MAKE_ROWS      => 1,
     SEARCH_FORMER  => 1,
-    TOTAL          => 1
+    TOTAL          => "TOTAL:$lang{TOTAL};TOTAL_SUM:$lang{SUM}"
   });
 
   return 1;
@@ -379,40 +393,50 @@ sub _extreceipt_new {
 #**********************************************************
 sub _extreceipt_send {
   my ($payment_id, $attr) = @_;
-
   my $info = $Receipt->info($payment_id);
 
-  if (! $Receipt->{TOTAL}) {
-
+  if (!$Receipt->{TOTAL}) {
     return 0;
   }
 
-  if (! $attr->{API}) {
+  if (!$attr->{API}) {
     $Receipt->{API} = receipt_init($Receipt);
   }
 
   my $api_id = $info->[0]->{api_id} || 0;
 
-  if (! $Receipt->{API}->{$api_id}) {
-    $html->message('err', $lang{ERROR}, "$api_id NOT_ACTIVATE");
+  if (!$Receipt->{API}->{$api_id}) {
+    $html->message('error', $lang{WARNING}, $lang{INACCESSIBLE});
     return 0;
   }
 
-
-  # $info->[0]->{phone} //= '';
-  # $info->[0]->{phone} =~ s/\s+//g;
-  # $info->[0]->{phone} =~ s/\W+//g;
-  # $info->[0]->{mail} //= ($info->[0]->{uid} . '@myISP.ru');
+  ($info->[0]->{check_header}, $info->[0]->{check_desc}, $info->[0]->{check_footer}) = $conf{EXTRECEIPTS_EXT_RECEIPT_INFO} ?
+    _extreceipt_receipt_ext_info($info->[0]) : ('', '', '');
 
   my $command_id = $Receipt->{API}->{$api_id}->payment_register($info->[0]);
-  if ($command_id) {
+  if (ref $command_id eq 'HASH' && $command_id->{ERROR}) {
+    $html->message('error', "$lang{ERROR} $lang{CHECKS}", $command_id->{ERROR});
+  }
+  elsif ($command_id) {
     $Receipt->change({
       PAYMENTS_ID => $info->[0]->{payments_id},
       COMMAND_ID  => $command_id,
-      STATUS      => 1
+      STATUS      => 1,
     });
-  }
 
+    if ($Receipt->{API}->{$api_id}->can('get_receipt')) {
+      $index = get_function_index('extreceipt_check_list');
+      $html->message('info', $lang{CHECK_ADDED}, "$lang{RECEIPT} $lang{NUM} [$command_id]\nID $lang{IN_BILLING} [$info->[0]->{payments_id}]\n"
+        . $html->button($lang{PRINT}, "qindex=$index&print=$info->[0]->{payments_id}&header=1", {
+        class     => 'print',
+        ex_params => "target='_blank'" })
+        . ($conf{EXTRECEIPTS_SEND_USER} ? $html->button($lang{SEND}, "index=$index&send_user=$info->[0]->{payments_id}",
+        {}) : ''));
+    }
+    else {
+      $html->message('warning', $lang{ERROR_PRINT_RECEIPT}, 'ID 501');
+    }
+  }
   return 1;
 }
 
@@ -428,29 +452,42 @@ sub _extreceipt_info {
   my ($id) = @_;
 
   my $info = $Receipt->info($id);
-  my ($fdn, $fda, $date, $payments_id, $error) = $Receipt->{API}->{$info->[0]->{api_id}}->get_info($info->[0]);
+  if (defined($info->[0]->{api_id})) {
+    my ($fdn, $fda, $date, $payments_id, $error, $attr) = $Receipt->{API}->{$info->[0]->{api_id}}->get_info($info->[0]);
 
-  if ($error) {
-    $Receipt->change({
-      PAYMENTS_ID => $payments_id || $info->[0]->{command_id},
-      STATUS      => 4,
-    });
-  }
-  elsif ($fda) {
-    $date =~ s/T/ /;
-    $date =~ s/\+.*//;
-    $Receipt->change({
-      PAYMENTS_ID  => $payments_id || $info->[0]->{command_id},
-      FDN          => $fdn,
-      FDA          => $fda,
-      RECEIPT_DATE => $date,
-      STATUS       => 2,
-    });
+    if ($error) {
+      $Receipt->change({
+        PAYMENTS_ID => $payments_id || $info->[0]->{command_id},
+        STATUS      => 4,
+      });
+    }
+    elsif ($fda) {
+      $date =~ s/T/ /;
+      $date =~ s/\+.*//;
+      $Receipt->change({
+        PAYMENTS_ID  => $payments_id || $info->[0]->{command_id},
+        FDN          => $fdn,
+        FDA          => $fda,
+        RECEIPT_DATE => $date,
+        STATUS       => 2,
+      });
+    }
+    elsif (defined($attr) && $attr) {
+      if ($attr->{registered}) {
+        $Receipt->change({
+          PAYMENTS_ID => $payments_id || $info->[0]->{command_id},
+          STATUS      => 2,
+        });
+      }
+      $html->message('info', "$attr->{msg}, ID $payments_id");
+    }
+    else {
+      $html->message('info', "FDN = $fdn, FDA = $fda");
+    }
   }
   else {
-    $html->message('info', "FDN = $fdn, FDA = $fda");
+    $html->message('error', $lang{WARNING}, $lang{INACCESSIBLE});
   }
-
   return 1;
 }
 
@@ -469,18 +506,27 @@ sub _extreceipt_undo {
   my ($payment_id) = @_;
 
   my $info = $Receipt->info($payment_id);
-  my $command_id = $Receipt->{API}->{$info->[0]->{api_id}}->payment_cancel($info->[0]);
+  if (defined($info->[0]->{api_id})) {
+    ($info->[0]->{check_header}, $info->[0]->{check_desc}, $info->[0]->{check_footer}) = $conf{EXTRECEIPTS_EXT_RECEIPT_INFO} ?
+      _extreceipt_receipt_ext_info($info->[0]) : ('', '', '');
+    my $command_id = $Receipt->{API}->{$info->[0]->{api_id}}->payment_cancel($info->[0]);
 
-  if ($command_id) {
-    $Receipt->change({
-      PAYMENTS_ID => $payment_id,
-      CANCEL_ID => $command_id,
-      STATUS => 3
-    });
-    return 1;
+    if (ref $command_id eq 'HASH' && $command_id->{ERROR}) {
+      $html->message('error', "$lang{ERROR} $lang{CHECKS}", $command_id->{ERROR});
+    }
+    elsif ($command_id) {
+      $Receipt->change({
+        PAYMENTS_ID => $payment_id,
+        CANCEL_ID   => $command_id,
+        STATUS      => 3
+      });
+      $html->message('info', $lang{INFO}, $lang{DELETED});
+    }
   }
-
-  return 0;
+  else {
+    $html->message('error', $lang{WARNING}, $lang{INACCESSIBLE});
+  }
+  return 1;
 }
 
 #**********************************************************
@@ -491,6 +537,78 @@ sub _extreceipt_undo {
 sub _extreceipt_resend {
   my ($payment_id) = @_;
   $html->message('warning', $payment_id);
+  return 1;
+}
+
+#**********************************************************
+=head2 _extreceipt_get_receipt()
+
+=cut
+#**********************************************************
+sub _extreceipt_get_receipt {
+  my ($payment_id) = @_;
+
+  my $info = $Receipt->info($payment_id);
+  if ($Receipt->{API}->{$info->[0]->{api_id}}->can('get_receipt')) {
+    if (defined($info->[0]->{api_id})) {
+      if ($info->[0]->{cancel_id}) {
+        $info->[0]->{command_id} = $info->[0]->{cancel_id};
+      }
+      my $check = $Receipt->{API}->{$info->[0]->{api_id}}->get_receipt($info->[0]);
+      $html->tpl_show(_include('extreceipt_receipt_preview', 'Extreceipt'), { CHECK => $check });
+    }
+    else {
+      $html->message('error', $lang{WARNING}, $lang{INACCESSIBLE});
+    }
+  }
+  else {
+    $html->tpl_show(_include('extreceipt_receipt_preview', 'Extreceipt'), { CHECK => '', ERROR => $lang{ERROR_PRINT_RECEIPT} });
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _extreceipt_send_receipt()
+
+=cut
+#**********************************************************
+sub _extreceipt_send_receipt {
+  my ($payment_id) = @_;
+
+  my $info = $Receipt->info($payment_id);
+  if ($Receipt->{API}->{$info->[0]->{api_id}}->can('get_receipt')) {
+    if (defined($info->[0]->{api_id})) {
+      if ($info->[0]->{cancel_id}) {
+        $info->[0]->{command_id} = $info->[0]->{cancel_id};
+      }
+      if ($conf{EXTRECEIPTS_SEND_USER} eq 'Viber' || $conf{EXTRECEIPTS_SEND_USER} eq 'Sms') {
+        my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+        my $check = $Receipt->{API}->{$info->[0]->{api_id}}->get_receipt($info->[0]);
+
+        my $status = $Sender->send_message({
+          TO_ADDRESS  => $info->[0]->{phone},
+          MESSAGE     => $check,
+          SENDER_TYPE => $conf{EXTRECEIPTS_SEND_USER},
+          UID         => $info->[0]->{uid},
+        });
+
+        if ($status) { #TODO: FIX STATUSES SENDER_TYPE - Viber
+          $html->message('info', $lang{SUCCESS}, $lang{SUCCESS_SEND_RECEIPT});
+        }
+        else {
+          $html->message('error', $lang{ERROR}, $lang{ERROR_SEND_RECEIPT});
+        }
+      }
+    }
+    else {
+      $html->message('error', $lang{WARNING}, $lang{INACCESSIBLE});
+    }
+  }
+  else {
+    $html->message('warning', $lang{ERROR_SEND_RECEIPT}, 'ID 502');
+  }
+
   return 1;
 }
 
@@ -514,22 +632,42 @@ sub _extreceipt_buttons_filter {
   elsif (!$attr->{extst}) {
     $buttons = $html->button($lang{SEND}, "index=$index&send=$attr->{id}&$pages_qs", { class => 'btn btn-xs btn-success' });
   }
-  elsif ($attr->{extst} == 1) {
-    $buttons = $html->button($lang{INFO}, "index=$index&info=$attr->{id}&$pages_qs", { class => 'btn btn-xs btn-info' });
-  }
-  elsif ($attr->{extst} == 2) {
-    $buttons = $html->button($lang{UNDO}, "index=$index&undo=$attr->{id}&$pages_qs", { class => 'btn btn-xs btn-danger' });
-  }
-  elsif ($attr->{extst} == 3) {
-    # Чек отменен
-  }
-  elsif ($attr->{extst} == 4) {
-    $buttons = $html->button($lang{RESEND}, "index=$index&resend=$attr->{id}&$pages_qs", { class => 'btn btn-xs btn-success' });
-  }
-  elsif ($attr->{extst} == 5) {
-    $buttons = $html->button($lang{RESEND}, "index=$index&resend=$attr->{id}&$pages_qs", { class => 'btn btn-xs btn-success' });
-  }
+  else {
+    my %buttons_list = (
+      print     => $html->button($lang{PRINT}, '#', {
+        class           => 'btn btn-xs btn-primary',
+        ex_params       => "style='margin-right:5px'",
+        NEW_WINDOW      => "index.cgi?qindex=$index&print=$attr->{id}&header=1",
+        NEW_WINDOW_SIZE => '640:750' }),
+      info      => $html->button($lang{INFO},
+        "index=$index&info=$attr->{id }&$pages_qs",
+        { class => 'btn btn-xs btn-info', ex_params => "style='margin-right:5px'" }),
+      cancel    => $html->button($lang{CANCEL},
+        "index=$index&undo=$attr->{id}&$pages_qs",
+        { class => 'btn btn-xs btn-danger', ex_params => "style='margin-right:5px'", MESSAGE => $lang{CANCEL} }),
+      resend    => $html->button($lang{RESEND}, "index=$index&resend=$attr->{id}&$pages_qs",
+        { class => 'btn btn-xs btn-success' }),
+      send_user => $conf{EXTRECEIPTS_SEND_USER} ?
+        $html->button("$lang{SEND} $lang{IN} $conf{EXTRECEIPTS_SEND_USER}", "index=$index&send_user=$attr->{id}&$pages_qs",
+          { class => 'btn btn-xs btn-success' }) : '',
+    );
 
+    if ($attr->{extst} == 1) {
+      $buttons = $buttons_list{info} . $buttons_list{cancel} . $buttons_list{print} . $buttons_list{send_user};
+    }
+    elsif ($attr->{extst} == 2) {
+      $buttons = $buttons_list{cancel} . $buttons_list{print} . $buttons_list{send_user};
+    }
+    elsif ($attr->{extst} == 3) {
+      $buttons = $buttons_list{print} . $buttons_list{send_user};
+    }
+    elsif ($attr->{extst} == 4) {
+      $buttons = $buttons_list{resend};
+    }
+    elsif ($attr->{extst} == 5) {
+      $buttons = $buttons_list{resend};
+    }
+  }
   return $buttons;
 }
 
@@ -548,23 +686,158 @@ sub _extreceipt_payment_filter {
 }
 
 #**********************************************************
-=head2 extreceipt_payments_maked($attr) - Cross module payment maked
-
-  Arguments:
-    $attr
-      USER_INFO
-      SUM
+=head2 _extreceipt_receipt_ext_info()
 
 =cut
 #**********************************************************
-sub extreceipt_payments_maked {
+sub _extreceipt_receipt_ext_info {
   my ($attr) = @_;
 
-  _extreceipt_new();
-  _extreceipt_send($attr->{PAYMENT_ID});
+  my $kkt_info = $Receipt->kkt_list({ KKT_ID => $attr->{kkt_id} });
+  my $header = $kkt_info->[0]->{check_header} || '';
+  my $footer = $kkt_info->[0]->{check_footer} || '';
+  my $desc = '';
 
+  if ($kkt_info->[0]->{check_desc}) {
+    my $Users = Users->new($db, $admin, \%conf);
+    my $users_pi = $Users->pi({ UID => $attr->{uid} });
+
+    my @vars = $kkt_info->[0]->{check_desc} =~ /\&(.+?)\&/g;
+    foreach my $var (@vars) {
+      $kkt_info->[0]->{check_desc} =~ s/\&$var\&/($users_pi->{$var} || '')/ge;
+    }
+    $desc = $kkt_info->[0]->{check_desc};
+  }
+
+  return ($header, $desc, $footer);
+}
+
+#**********************************************************
+=head2 extreceipt_cash_register_report
+
+  Arguments:
+    -
+
+  Returns:
+    $table->show() - table with sum of each API KKT
+=cut
+#**********************************************************
+sub extreceipt_cash_register_report {
+  my $Receipt_api = receipt_init($Receipt);
+  $Receipt->{API} = $Receipt_api;
+
+  if ($FORM{del} && $FORM{COMMENTS}) {
+    my $service_receipt = $Receipt->{API}->{$FORM{del}}->create_service_receipt(-$FORM{SUM});
+    if ($service_receipt->{ERROR}) {
+      $html->message('error', $lang{ERROR}, $service_receipt->{ERROR});
+    }
+    else {
+      $html->message('info', $lang{SUCCESS}, "ID: $service_receipt->{id}, STATUS: $service_receipt->{status}");
+    }
+  }
+  elsif ($FORM{chg}) {
+    my %params = (
+      ACTION     => 'change_val',
+      LNG_ACTION => "$lang{CHANGE_BALANCE}",
+      ID         => $FORM{chg}
+    );
+    $html->tpl_show(_include('extreceipt_cash_register', 'Extreceipt'), { %params });
+  }
+  elsif ($FORM{change}) {
+    my $service_receipt = $Receipt->{API}->{$FORM{change}}->create_service_receipt($FORM{SUM});
+    if ($service_receipt->{ERROR}) {
+      $html->message('error', $lang{ERROR}, $service_receipt->{ERROR});
+    }
+    else {
+      $html->message('info', $lang{SUCCESS}, "ID: $service_receipt->{id}, STATUS: $service_receipt->{status}");
+    }
+  }
+
+  my $table = $html->table({
+    width               => '100%',
+    caption             => $lang{CASH_REGISTER_BALANCE},
+    ID                  => 'KKT',
+    title               => [ '#', $lang{NAME}, 'KKT', "$lang{INITIAL_BALANCE}", "$lang{CURRENT_BALANCE}" ],
+    HAS_FUNCTION_FIELDS => 1,
+  });
+
+  my $kkt_list = $Receipt->kkt_list();
+
+  my @kkt_keys = ();
+  foreach my $kkt (@{$kkt_list}) {
+    if (defined($kkt->{kkt_key}) && $kkt->{kkt_key}) {
+      next if (!$Receipt->{API}->{$kkt->{api_id}});
+      my $key_exist = q{};
+      foreach my $key (@kkt_keys) {
+        next if ($key ne $kkt->{kkt_key});
+        $key_exist = 1;
+        last;
+      }
+
+      if ($key_exist) {
+        next;
+      }
+
+      my $x_report = $Receipt->{API}->{$kkt->{api_id}}->create_x_report();
+      if ($x_report->{ERROR}) {
+        $kkt->{initial_balance} = "$lang{ERROR}:";
+        $kkt->{current_balance} = $x_report->{ERROR};
+      }
+      else {
+        $kkt->{initial_balance} = $x_report->{initial_balance} / 100;
+        $kkt->{current_balance} = $x_report->{current_balance} / 100;
+      }
+
+      $table->addrow(
+        $kkt->{kkt_id},
+        $kkt->{conf_name},
+        $kkt->{kkt_group},
+        $kkt->{initial_balance},
+        $kkt->{current_balance},
+        $html->button($lang{CHANGE_BALANCE}, 'index=' . get_function_index('extreceipt_cash_registers') . "&chg=$kkt->{api_id}", { class => 'change' })
+          . $html->button($lang{CASH_IN_TRANSIT}, 'index=' . get_function_index('extreceipt_cash_registers') . "&del=$kkt->{api_id}&SUM=$kkt->{current_balance}",
+          { class => 'del', MESSAGE => $lang{TAKE_ALL_MONEY} })
+      );
+
+      push @kkt_keys, $kkt->{kkt_key};
+    }
+  }
+
+  return $table->show();
+}
+
+#**********************************************************
+=head2 extreceipt_cash_registers
+
+  Arguments:
+    -
+
+  Returns:
+    print table
+=cut
+#**********************************************************
+sub extreceipt_cash_registers {
+  print extreceipt_cash_register_report();
   return 1;
 }
 
+#**********************************************************
+=head2 extreceipt_start_page
+
+  Arguments:
+    -
+
+  Returns:
+    Widget functions hash
+
+=cut
+#**********************************************************
+sub extreceipt_start_page {
+  my %START_PAGE_F = (
+    'extreceipt_cash_register_report' => $lang{CASH_REGISTER_BALANCE},
+  );
+
+  return \%START_PAGE_F;
+}
 
 1;

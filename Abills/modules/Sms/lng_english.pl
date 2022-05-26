@@ -35,5 +35,8 @@ $lang{SERVICE_NOT_HOLDING_UP} = 'Service is not holding up';
 $lang{SERVICE_NOT_ACTIVE} = 'Service is not active';
 $lang{PUBLIC_HOTSPOT_SMS} = 'Public hotspot SMS';
 $lang{ADD_SUM_TRANSFER} = 'Add payment sum';
+$lang{SMS_GATEWAY} = 'SMS gateway';
+
+$lang{EXCEEDED_SMS_LIMIT} = 'Exceeded SMS limit for this user';
 
 1

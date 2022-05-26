@@ -10,7 +10,7 @@
     <input type='hidden' name='STREET_ID' value='$FORM{STREET_ID}'>
     <input type='hidden' name='ADDRESS_FLAT' value='$FORM{ADDRESS_FLAT}'>
 
-    <div class='card card-primary card-outline col-md-6 container'>
+    <div class='card card-primary card-outline card-form'>
         <div class='card-header with-border'>
             <h4 class='card-title'>SMS</h4>
         </div>
@@ -36,10 +36,10 @@
                            class='form-control' required>
                 </div>
             </div>
-            <div class='card-footer'>
-                %BACK_BUTTON%
-                <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'/>
-            </div>
+        </div>
+        <div class='card-footer'>
+            %BACK_BUTTON%
+            <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'/>
         </div>
     </div>
 </form>

@@ -59,7 +59,12 @@
 	.card-info {
 		min-height: 9rem;
 		background-color: white;
+		box-shadow: 0 0 1px rgba(0,0,0,.125),0 1px 3px rgba(0,0,0,.2);
 	}
+
+  .dark-mode .card-info {
+    background-color: #343a40;
+  }
 
   .border-55 {
 		border-radius: 0.55rem !important;

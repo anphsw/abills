@@ -10,9 +10,9 @@ use Abills::Base qw(in_array);
 
 our ($db,
   %lang,
-  $html,
   $admin);
 
+our Abills::HTML $html;
 #**********************************************************
 =head2 form_quick_reports($attr)
 
@@ -92,32 +92,52 @@ sub form_quick_reports {
 =cut
 #**********************************************************
 sub start_page_add_users {
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => $html->button($lang{REGISTRATION}, "index=11&sort=uid&desc=DESC"),
-      title_plain => [ $lang{LOGIN}, $lang{REGISTRATION}, $lang{ADDRESS}, $lang{DEPOSIT} ],
-      ID          => 'QR_REGISTRATION'
-    }
-  );
+
+  my @priority_colors = ('btn-secondary', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $html->button($lang{REGISTRATION}, "index=11&sort=uid&desc=DESC"),
+    title_plain => [ $lang{LOGIN}, $lang{REGISTRATION}, $lang{ADDRESS}, $lang{DEPOSIT}, $lang{TAGS} ],
+    ID          => 'QR_REGISTRATION'
+  });
 
   my $list = $users->list({
     LOGIN        => '_SHOW',
     REGISTRATION => '_SHOW',
     ADDRESS_FULL => '_SHOW',
     DEPOSIT      => '_SHOW',
+    TAGS         => '_SHOW',
     SORT         => 'uid',
     DESC         => 'desc',
     PAGE_ROWS    => 5,
     COLS_NAME    => 1
   });
 
+
   foreach my $line (@{$list}) {
+    my $tags = '';
+    if ($line->{tags}) {
+      my @tags_name = split(/,\s?/, $line->{tags});
+      my @tags_priority = split(/,\s?/, $line->{priority});
+      my @tags_colors = split(/,\s?/, $line->{tags_colors});
+
+      for (my $tag_index= 0; $tag_index < scalar @tags_name; $tag_index++) {
+        my $color = $tags_colors[$tag_index] || '';
+        my $priority_color = $tags_priority[$tag_index] ? $priority_colors[$tags_priority[$tag_index]] : '';
+        
+        $tags .= $html->element('span', $tags_name[$tag_index], {
+          class => $color ? 'label new-tags mb-1' : "btn btn-xs $priority_color",
+          style => $color ? "background-color: $color; border-color: $color" : ''
+        });
+      }
+    }
+
     $table->addrow(
       $html->button($line->{login}, "index=11&UID=$line->{uid}"),
       $line->{registration},
       $line->{address_full},
-      $line->{deposit}
+      $line->{deposit},
+      $tags
     );
   }
 
@@ -131,14 +151,13 @@ sub start_page_add_users {
 =cut
 #**********************************************************
 sub start_page_last_payments {
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => "$lang{LAST_PAYMENT}",
-      title_plain => [ "$lang{LOGIN}", "$lang{DATE}", "$lang{SUM}", "$lang{ADMIN}" ],
-      ID          => 'LAST_PAYMENTS'
-    }
-  );
+
+  my $table = $html->table({
+    width       => '100%',
+    caption     => "$lang{LAST_PAYMENT}",
+    title_plain => [ "$lang{LOGIN}", "$lang{DATE}", "$lang{SUM}", "$lang{ADMIN}" ],
+    ID          => 'LAST_PAYMENTS'
+  });
 
   my $Payments = Finance->payments($db, $admin, \%conf);
 
@@ -175,20 +194,18 @@ sub start_page_fin_summary {
   my $Payments = Finance->payments($db, $admin, \%conf);
   $Payments->reports_period_summary();
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => $lang{PAYMENTS},
-      title_plain => [ "$lang{PERIOD}", "$lang{COUNT}", "$lang{SUM}" ],
-      ID          => 'FIN_SUMMARY',
-      rows        => [
-        [ $html->button($lang{DAY}, "index=2&DATE=$DATE&search=1"),
-          $Payments->{DAY_COUNT}, $Payments->{DAY_SUM} ],
-        [ $lang{WEEK}, $Payments->{WEEK_COUNT}, $Payments->{WEEK_SUM} ],
-        [ $lang{MONTH}, $Payments->{MONTH_COUNT}, $Payments->{MONTH_SUM} ],
-      ]
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{PAYMENTS},
+    title_plain => [ "$lang{PERIOD}", "$lang{COUNT}", "$lang{SUM}" ],
+    ID          => 'FIN_SUMMARY',
+    rows        => [
+      [ $html->button($lang{DAY}, "index=2&DATE=$DATE&search=1"),
+        $Payments->{DAY_COUNT}, $Payments->{DAY_SUM} ],
+      [ $lang{WEEK}, $Payments->{WEEK_COUNT}, $Payments->{WEEK_SUM} ],
+      [ $lang{MONTH}, $Payments->{MONTH_COUNT}, $Payments->{MONTH_SUM} ],
+    ]
+  });
   my $reports = $table->show();
 
   return $reports;
@@ -220,14 +237,12 @@ sub start_page_payments_types {
   my $today_btn = $html->button($lang{TODAY}, "today=1", { class => "$today_class" });
   my $yesterday_btn = $html->button($lang{YESTERDAY}, "yesterday=1", { class => "$yesterday_class" });
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => "$lang{PAYMENT_TYPE} " . $today_btn . " " . $yesterday_btn,
-      title_plain => [ "$lang{TYPE}", "$lang{COUNT}", "$lang{SUM}" ],
-      ID          => 'PAYMENTS_TYPES',
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    caption     => "$lang{PAYMENT_TYPE} " . $today_btn . " " . $yesterday_btn,
+    title_plain => [ "$lang{TYPE}", "$lang{COUNT}", "$lang{SUM}" ],
+    ID          => 'PAYMENTS_TYPES',
+  });
 
   foreach my $line (@{$list}) {
     $table->addrow(
@@ -251,26 +266,24 @@ sub start_page_payments_types {
 sub start_page_users_summary {
   $users->report_users_summary({});
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => "$lang{USERS}",
-      ID      => 'USERS_SUMMARY',
-      rows    => [
-        [ $html->button($lang{TOTAL}, "index=11"),
-          $users->{TOTAL_USERS}, '' ],
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$lang{USERS}",
+    ID      => 'USERS_SUMMARY',
+    rows    => [
+      [ $html->button($lang{TOTAL}, "index=11"),
+        $users->{TOTAL_USERS}, '' ],
 
-        [ $html->button($lang{DISABLE}, "index=11&USERS_STATUS=3"),
-          $users->{DISABLED_USERS}, '' ],
+      [ $html->button($lang{DISABLE}, "index=11&USERS_STATUS=3"),
+        $users->{DISABLED_USERS}, '' ],
 
-        [ $html->button($lang{DEBETORS}, "index=11&USERS_STATUS=2"),
-          $users->{DEBETORS_COUNT}, $users->{DEBETORS_SUM} ],
+      [ $html->button($lang{DEBETORS}, "index=11&USERS_STATUS=2"),
+        $users->{DEBETORS_COUNT}, $users->{DEBETORS_SUM} ],
 
-        [ $html->button($lang{CREDIT}, "index=11&USERS_STATUS=5"),
-          $users->{CREDITORS_COUNT}, $users->{CREDITORS_SUM} ],
-      ]
-    }
-  );
+      [ $html->button($lang{CREDIT}, "index=11&USERS_STATUS=5"),
+        $users->{CREDITORS_COUNT}, $users->{CREDITORS_SUM} ],
+    ]
+  });
 
   return $table->show();
 }
@@ -295,14 +308,12 @@ sub start_page_payments_self {
 
   $admin->info($admin->{AID});
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => "$lang{PAYMENTS} $lang{ADDED}",
-      ID      => 'TODAY_PAYMENTS',
-      EXPORT  => 1,
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$lang{PAYMENTS} $lang{ADDED}",
+    ID      => 'TODAY_PAYMENTS',
+    EXPORT  => 1,
+  });
 
   $table->addrow($lang{DATE}, $DATE);
   $table->addrow($lang{ADMIN}, $admin->{A_FIO});

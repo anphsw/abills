@@ -442,7 +442,7 @@ sub run_in_background {
   });
   
   if ($sended && !$attr->{SILENT}){
-    $html->reminder($lang{SENT}, $command);
+    $html->message('callout', $lang{SENT}, $command);
   }
   
   return 1;

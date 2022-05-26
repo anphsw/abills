@@ -1,4 +1,7 @@
 <div class='card card-primary card-outline'>
+    <div class='card-header with-border'>
+      <h3 class='card-title'>_{ACCESS}_</h3>
+    </div>
     <div class='card-body'>
 
         <form class='form-horizontal' action='$SELF_URL' method='post' role='form'>
@@ -9,24 +12,24 @@
 
             <div class="form-group">
                 <div class="row">
-                    <div class="col-sm-12 col-md-4">
-                        <label class='col-md-10 control-label' for='DAYS'>_{DAY}_</label>
-                        <div class="input-group">
+                    <div class="col-sm-12 col-md-4 row">
+                        <label class='col-md-3 control-label' for='DAYS'>_{DAY}_</label>
+                        <div class="input-group col-md-9">
                             %SEL_DAYS%
                         </div>
                     </div>
 
-                    <div class="col-sm-12 col-md-4">
-                        <label class='col-md-10 control-label' for='BEGIN'>_{BEGIN}_</label>
-                        <div class="input-group">
+                    <div class="col-sm-12 col-md-4 row">
+                        <label class='control-label col-md-3' for='BEGIN'>_{BEGIN}_</label>
+                        <div class="input-group col-md-9">
                             <input id='BEGIN' name='BEGIN' value='%BEGIN%' placeholder='%BEGIN%' class='form-control'
                                 type='text'>
                         </div>
                     </div>
 
-                    <div class="col-sm-12 col-md-4">
-                        <label class='col-md-10 control-label' for='END'>_{END}_</label>
-                        <div class="input-group">
+                    <div class="col-sm-12 col-md-4 row">
+                        <label class='control-label col-md-3' for='END'>_{END}_</label>
+                        <div class="input-group col-md-9">
                             <input id='END' name='END' value='%END%' placeholder='%END%' class='form-control' type='text'>
                         </div>
                     </div>
@@ -35,16 +38,16 @@
 
             <div class="form-group">
                 <div class="row">
-                    <div class="col-sm-12 col-md-4">
-                        <label class='col-md-10 control-label' for='IP'>_{ALLOW}_ IP</label>
-                        <div class="input-group">
+                    <div class="col-sm-12 col-md-4 row">
+                        <label class='control-label col-md-3' for='IP'>_{ALLOW}_ IP</label>
+                        <div class="input-group col-md-9">
                             <input id='IP' name='IP' value='%IP%' placeholder='%IP%' class='form-control' type='text'>
                         </div>
                     </div>
 
-                    <div class="col-sm-12 col-md-4">
-                        <label class='col-md-2 control-label' for='BIT_MASK'>MASK</label>
-                        <div class="input-group">
+                    <div class="col-sm-12 col-md-4 row">
+                        <label class='control-label col-md-3' for='BIT_MASK'>MASK</label>
+                        <div class="input-group col-md-9">
                             %BIT_MASK_SEL%
                         </div>
                     </div>
@@ -54,9 +57,8 @@
             <div class="form-group">
                 <div class="row">
                     <div class="col-sm-12 col-md-12">
-                        <label class='col-md-10 control-label' for='COMMENTS'>_{COMMENTS}_</label>
-                        <div class="input-group">
-                            <textarea id='COMMENTS' name='COMMENTS' class='form-control' rows=3>%COMMENTS%</textarea>
+                        <div class="input-group col-md-12">
+                            <textarea id='COMMENTS' name='COMMENTS' placeholder='_{COMMENTS}_' class='form-control' rows=3>%COMMENTS%</textarea>
                         </div>
                     </div>
                 </div>

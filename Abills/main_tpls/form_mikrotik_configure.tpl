@@ -8,18 +8,18 @@
   <div class='card card-primary card-outline box-form'>
     <div class='card-header with-border'>
       <h4 class='card-title'>_{CONFIGURATION}_ : $FORM{CONNECTION_TYPE}</h4>
-      <div class='pull-right'>%CLEAN_BTN%</div>
+      <div class='float-right'>%CLEAN_BTN%</div>
     </div>
     <div class='card-body'>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-3 required' for='RADIUS_IP_ID'>RADIUS IP</label>
         <div class='col-md-9'>
           %RADIUS_IP_SELECT%
         </div>
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-3' for='DNS_ID'>DNS (,)</label>
         <div class='col-md-9'>
           <input type='text' class='form-control' value='%DNS%' name='DNS' id='DNS_ID'/>
@@ -27,7 +27,7 @@
       </div>
 
       <!--
-            <div class='form-group'>
+            <div class='form-group row'>
               <label class='control-label col-md-3' for='CLIENTS_POOL_ID'>IP Pool</label>
               <div class='col-md-9'>
                 %IP_POOL_SELECT%
@@ -55,7 +55,7 @@
           </div>
           <div class='card-body'>
 
-            <div class='form-group'>
+            <div class='form-group row'>
               <label class='control-label col-md-3' for='RADIUS_IP_ID'>_{INTERNAL_NETWORK}_</label>
               <div class='col-md-9'>
                 %INTERNAL_NETWORK_SELECT%

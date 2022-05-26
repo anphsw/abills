@@ -4,7 +4,7 @@
 <br>
 <a href="sms://123456?body=%SMS_FREE_CODE%" %HIDE_BUTTON%>Send free SMS (30 min internet)</a>
 
-<script src='/styles/default_adm/js/jquery.min.js'></script>
+<script src='/styles/default/js/jquery.min.js'></script>
 <script>
 jQuery(function(){
   setInterval(function(){ check_call(); }, 3000);

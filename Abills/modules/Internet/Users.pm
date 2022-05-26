@@ -7,7 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(date_diff days_in_month in_array int2byte int2ip sendmail
-  mk_unique_value clearquotes);
+  mk_unique_value clearquotes json_former);
 require Abills::Result_former;
 require Internet::Stats;
 require Control::Service_control;
@@ -169,7 +169,7 @@ sub internet_user {
     if ($permissions{0}{10}) {
       $Internet->{CHANGE_TP_BUTTON} = $html->button('',
         'ID=' . $Internet->{ID} . '&UID=' . $uid . '&index=' . get_function_index('internet_chg_tp'),
-        { class => 'btn btn-sm hidden-print fa fa-pencil', TITLE => $lang{CHANGE} });
+        { class => 'btn btn-sm hidden-print fa fa-pencil-alt', TITLE => $lang{CHANGE} });
     }
 
     my $warning_info = $Service_control->service_warning({
@@ -231,13 +231,13 @@ sub internet_user {
     $Internet->{DETAIL_STATS} = ($Internet->{DETAIL_STATS} && $Internet->{DETAIL_STATS} == 1) ? ' checked' : '';
     $Internet->{IPN_ACTIVATE} = ($Internet->{IPN_ACTIVATE}) ? 'checked' : '';
     $Internet->{REGISTRATION_INFO} = $html->button("", "qindex=$index&UID=$uid&REGISTRATION_INFO=1",
-      { class => 'btn btn-info', ICON => 'fa fa-print', ex_params => 'target=_new' });
+      { class => 'btn btn-info', ICON => 'fas fa-print', ex_params => 'target=_new' });
 
     if ($permissions{0} && $permissions{0}{14}) {
       $Internet->{DEL_BUTTON} = $html->button($lang{DEL}, "index=$index&del=1&UID=$uid&ID=$Internet->{ID}",
         {
           MESSAGE => "$lang{DEL} $lang{SERVICE} Internet $lang{FOR} $lang{USER} $uid?",
-          class   => 'btn btn-danger pull-right'
+          class   => 'btn btn-danger float-right'
         });
     }
 
@@ -289,7 +289,7 @@ sub internet_user {
     if ($conf{DOCS_PDF_PRINT}) {
       $Internet->{REGISTRATION_INFO_PDF} = $html->button("", "qindex=$index&UID=$uid&REGISTRATION_INFO=1&pdf=1",
         { ex_params => 'target=_new', class => 'btn btn-sm btn-info', ICON =>
-          'fa fa-print' });
+          'fas fa-print' });
       $Internet->{PDF_VISIBLE} = 'blok'; # FIXME: 'block'?
     }
   }
@@ -336,19 +336,17 @@ sub internet_user {
 
     if (!$FORM{STATIC_IP_POOL} && $ip_pool->{ip} <= $user_ip_num && $ip_pool->{last_ip_num} >= $user_ip_num) {
       $Internet->{CHOOSEN_STATIC_IP_POOL} = $ip_pool->{name};
+      $FORM{STATIC_IP_POOL} = $ip_pool->{id};
     }
   }
 
-  $Internet->{STATIC_IP_POOL} = $html->form_select(
-    'STATIC_IP_POOL',
-    {
-      SELECTED    => $conf{INTERNET_DEFAULT_IP_POOL} || $FORM{STATIC_IP_POOL} || 0,
-      SEL_LIST    => $static_ip_pools,
-      SEL_OPTIONS => { '' => '' },
-      MAIN_MENU   => get_function_index('form_ip_pools'),
-      NO_ID       => 1
-    }
-  );
+  $Internet->{STATIC_IP_POOL} = $html->form_select('STATIC_IP_POOL', {
+    SELECTED    => $FORM{STATIC_IP_POOL} || $conf{INTERNET_DEFAULT_IP_POOL} || 0,
+    SEL_LIST    => $static_ip_pools,
+    SEL_OPTIONS => { '' => '' },
+    MAIN_MENU   => get_function_index('form_ip_pools'),
+    NO_ID       => 1
+  });
 
   my $pool_ipv6_list = $Nas->ip_pools_list({
     IPV6      => 1,
@@ -357,31 +355,23 @@ sub internet_user {
     COLS_NAME => 1
   });
 
-  $Internet->{STATIC_IPV6_POOL} = $html->form_select(
-    'STATIC_IPV6_POOL',
-    {
-      SELECTED    => $conf{INTERNET_DEFAULT_IP_POOL} || $FORM{STATIC_IPV6_POOL} || 0,
-      SEL_LIST    => $pool_ipv6_list,
-      SEL_OPTIONS => { '0' => '--' },
-      MAIN_MENU   => get_function_index('form_ip_pools'),
-      NO_ID       => 1,
-      EX_PARAMS => 'style="width: 100%"',
-    }
-  );
+  $Internet->{STATIC_IPV6_POOL} = $html->form_select('STATIC_IPV6_POOL', {
+    SELECTED    => $conf{INTERNET_DEFAULT_IP_POOL} || $FORM{STATIC_IPV6_POOL} || 0,
+    SEL_LIST    => $pool_ipv6_list,
+    SEL_OPTIONS => { '0' => '--' },
+    MAIN_MENU   => get_function_index('form_ip_pools'),
+    NO_ID       => 1
+  });
 
-  $Internet->{IPV6_MASK_SEL} = $html->form_select('IPV6_MASK',
-    {
-      SELECTED  => $Internet->{IPV6_MASK} || $FORM{IPV6_MASK},
-      SEL_ARRAY => [ 32 .. 128 ],
-    }
-  );
+  $Internet->{IPV6_MASK_SEL} = $html->form_select('IPV6_MASK', {
+    SELECTED  => $Internet->{IPV6_MASK} || $FORM{IPV6_MASK},
+    SEL_ARRAY => [ 32 .. 128 ],
+  });
 
-  $Internet->{IPV6_PREFIX_MASK_SEL} = $html->form_select('IPV6_PREFIX_MASK',
-    {
-      SELECTED  => $Internet->{IPV6_PREFIX_MASK} || $FORM{IPV6_PREFIX_MASK},
-      SEL_ARRAY => [ 32 .. 128 ],
-    }
-  );
+  $Internet->{IPV6_PREFIX_MASK_SEL} = $html->form_select('IPV6_PREFIX_MASK', {
+    SELECTED  => $Internet->{IPV6_PREFIX_MASK} || $FORM{IPV6_PREFIX_MASK},
+    SEL_ARRAY => [ 32 .. 128 ],
+  });
 
   internet_payment_message($Internet, $users);
 
@@ -407,12 +397,16 @@ sub internet_user {
   if (!$FORM{json} && $Internet->{NAS_ID}) {
     my $Nas_info = Nas->new($db, \%conf, $admin);
     $Nas_info->info({ NAS_ID => $Internet->{NAS_ID} });
-    _error_show($Nas_info, { ID => 976 });
+    _error_show($Nas_info, { ID => 976, MESSAGE => $lang{NAS} });
 
     $Internet->{NAS_NAME} = $Nas_info->{NAS_NAME} || '';
     $Internet->{NAS_IP} = $Nas_info->{NAS_IP} || '';
+    $Internet->{NAS_MAC} = $Nas_info->{MAC} || '';
 
-    $select_input_tooltip = "<b>$lang{NAME}</b> :  $Internet->{NAS_NAME}<br><b>IP</b> : $Internet->{NAS_IP}";
+    $select_input_tooltip =
+       $html->b($lang{NAME}) . ': ' . $Internet->{NAS_NAME} . $html->br()
+      .$html->b('IP')        . ': ' . $Internet->{NAS_IP}   . $html->br()
+      .$html->b('MAC')       . ': ' . $Internet->{NAS_MAC}  . $html->br();
   }
 
   $Internet->{NAS_ID} = $FORM{NAS_ID} if ($FORM{NAS_ID});
@@ -450,11 +444,11 @@ sub internet_user {
       }
     );
 
-    load_module('Equipment', $html);
     require Equipment;
     Equipment->import();
 
     if ($FORM{GRAPH}) {
+      load_module('Equipment', $html);
       equipment_user_graph();
     }
 
@@ -478,7 +472,7 @@ sub internet_user {
     }
     else {
       $Internet->{VLAN_SEL} = $html->element('div', $html->form_input('SERVER_VLAN', ($Internet->{SERVER_VLAN} || q{}), { SIZE => 5 })
-        . "<div class='input-group-append'><div class='input-group-text clear_results' style='cursor:pointer;'><span class='fa fa-remove'></span></div></div>", { class => 'input-group' } );
+        . "<div class='input-group-append'><div class='input-group-text clear_results' style='cursor:pointer;'><span class='fa fa-times'></span></div></div>", { class => 'input-group' } );
     }
 
     if (!$attr->{REGISTRATION}) {
@@ -1345,7 +1339,7 @@ sub internet_user_online {
 
       my @row = (
         $html->element('abbr', $alive_check . $client_ip, {
-          'data-tooltip-position' => 'top',
+          'data-tooltip-position' => 'right',
           'data-tooltip'          => $online->{cid}. $html->br() .$vendor_info }),
         _sec2time_str($online->{duration_sec2}),
         int2byte($online->{acct_input_octets}),
@@ -1808,8 +1802,12 @@ sub internet_form_shedule {
   if ($FORM{add} && $permissions{0}{18} && defined($FORM{ACTION})) {
     my ($Y, $M, $D) = split(/-/, ($FORM{DATE} || $DATE), 3);
 
-    $Shedule->add(
-      {
+    print date_diff("$Y-$M-$D", $DATE);
+    if (date_diff($DATE, "$Y-$M-$D") < 1) {
+      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}: $lang{DATE}");
+    }
+    else {
+      $Shedule->add({
         UID    => $FORM{UID},
         TYPE   => $FORM{Shedule} || q{},
         ACTION => "$service_id:$FORM{ACTION}",
@@ -1817,11 +1815,10 @@ sub internet_form_shedule {
         M      => $M,
         Y      => $Y,
         MODULE => 'Internet'
+      });
+      if (!_error_show($Shedule, { ID => 971 })) {
+        $html->message('info', $lang{CHANGED}, "$lang{SHEDULE} $lang{ADDED}");
       }
-    );
-
-    if (!_error_show($Shedule, { ID => 971 })) {
-      $html->message('info', $lang{CHANGED}, "$lang{SHEDULE} $lang{ADDED}");
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS} && $permissions{0}{18}) {
@@ -1860,7 +1857,7 @@ sub internet_form_shedule {
 
     print $html->form_main(
       {
-        CONTENT => $html->element('div', $info, { class => 'navbar navbar-expand-lg navbar-light bg-light' }),
+        CONTENT => $html->element('div', $info, { class => 'navbar navbar-expand-lg' }),
         HIDDEN  => {
           sid     => $sid,
           index   => $index,
@@ -3110,7 +3107,6 @@ sub internet_wizard_fin {
     $params->{SUM} =~ s/,/\./g;
     if ($params->{SUM} > 0) {
       my $er = ($params->{ER}) ? $Finance->exchange_info($params->{ER}) : { ER_RATE => 1 };
-      $Payments->{debug}=1;
       $Payments->add($user, { %{$params}, ER => $er->{ER_RATE} });
       $users->{DEPOSIT}=$params->{SUM};
       if ($Payments->{errno}) {
@@ -3258,7 +3254,6 @@ sub _check_tp {
   return $attr->{TP_ID};
 }
 
-
 #**********************************************************
 =head2 internet_users_pools($attr) - Binding ip_pool to user
 
@@ -3295,11 +3290,10 @@ sub internet_users_pools {
   $template_args{LNG_ACTION} = $lang{SAVE};
   $template_args{DEL} = 'del';
   $template_args{LNG_DEL} = $lang{RESET};
-  $template_args{DEL_BUTTON} = $html->button($lang{DEL}, "index=$index&del=1&ID=$FORM{ID}&UID=$FORM{UID}",
-    {
-      MESSAGE => "$lang{DEL}? ",
-      class   => 'btn btn-danger pull-right'
-    });
+  $template_args{DEL_BUTTON} = $html->button($lang{DEL}, "index=$index&del=1&ID=$FORM{ID}&UID=$FORM{UID}", {
+    MESSAGE => "$lang{DEL}? ",
+    class   => 'btn btn-danger float-right'
+  });
 
   if ($FORM{add}) {
     $Internet->add_user_ippool({
@@ -3308,21 +3302,16 @@ sub internet_users_pools {
       COMMENTS   => $FORM{COMMENTS}
     });
 
-    if (!$Internet->{errno}) {
-      $html->message('success', "$lang{SUCCESS}", "$lang{ADDED}");
-    }
+    $html->message('success', $lang{SUCCESS}, $lang{ADDED}) if !$Internet->{errno};
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Internet->del_user_ippool({ SERVICE_ID => $FORM{ID} });
-    if (!$Internet->{errno}) {
-      $html->message('success', "$lang{SUCCESS}", "$lang{DELETED}");
-    }
+    $html->message('success', $lang{SUCCESS}, $lang{DELETED}) if !$Internet->{errno};
   }
 
   my $info_users_pool = $Internet->info_user_ippool({ SERVICE_ID => $FORM{ID} });
   $template_args{COMMENTS} = $info_users_pool->{comments} || '';
-  $template_args{POOL_ID} = $html->form_select('POOL_ID',
-    {
+  $template_args{POOL_ID} = $html->form_select('POOL_ID', {
     SELECTED    => $info_users_pool->{pool_id} || '',
     SEL_LIST    => $get_ip_pool,
     NO_ID       => 1,
@@ -3332,6 +3321,30 @@ sub internet_users_pools {
   $html->tpl_show(_include('internet_users_pool', 'Internet'), { %template_args, ID => $FORM{ID}, UID => $FORM{UID} });
 
   return 1;
+}
+
+#**********************************************************
+=head2 internet_ip_pool_check($attr)
+
+=cut
+#**********************************************************
+sub internet_ip_pool_check {
+  my ($attr) = @_;
+
+  my $pool_id = $attr->{POOL_ID} || $FORM{POOL_ID};
+  return -1 if !$pool_id;
+
+  my $static_ip_pools = $Nas->ip_pools_info($pool_id, { INTERNET_IP_FREE => 1 });
+
+  return -1 if $static_ip_pools->{TOTAL} < 1 || !defined $static_ip_pools->{INTERNET_IP_FREE};
+
+  if ($FORM{PRINT_JSON}) {
+    my $status_color = !$static_ip_pools->{INTERNET_IP_FREE} ? 'danger' : $static_ip_pools->{INTERNET_IP_FREE} < 4 ?
+      'warning' : '';
+    print json_former({ status => $status_color, free => $static_ip_pools->{INTERNET_IP_FREE} });
+  }
+
+  return $static_ip_pools->{INTERNET_IP_FREE};
 }
 
 1;

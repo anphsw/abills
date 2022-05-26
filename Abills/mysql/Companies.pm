@@ -15,6 +15,7 @@ use Bills;
 my $users;
 my $admin;
 my $CONF;
+my $MODULE = 'Companies';
 
 #**********************************************************
 # Init
@@ -79,6 +80,18 @@ sub add {
       }
     );
   }
+
+  $admin->{MODULE} = $MODULE;
+
+  my @info = ('CREATE_BILL', 'CREDIT', 'BANK_NAME', 'BANK_ACCOUNT', 'BANK_BIC', 'COR_BANK_ACCOUNT', 'TAX_NUMBER', 'REPRESENTATIVE');
+  my %actions_history = ();
+
+  foreach my $param (@info) {
+    next if ! $attr->{$param};
+    $actions_history{$param} = $attr->{$param};
+  }
+
+  $admin->action_add(0, join(", ", map { "$_: $actions_history{$_}" } keys %actions_history), { TYPE => 1 } );
 
   return $self;
 }
@@ -157,6 +170,19 @@ sub change {
     }
   );
 
+  $admin->{MODULE} = $MODULE;
+
+  my @info = ('CREATE_BILL', 'CREDIT', 'BANK_NAME', 'BANK_ACCOUNT', 'BANK_BIC', 'COR_BANK_ACCOUNT', 'TAX_NUMBER', 'REPRESENTATIVE');
+  my %actions_history = ();
+
+  foreach my $param (@info) {
+    next if ! $attr->{$param};
+    $actions_history{$param} = $attr->{$param};
+  }
+
+  $admin->action_add(0, join(", ", map { "$_: $actions_history{$_}" } keys %actions_history), { TYPE => 2 } );
+
+
   $self->info($attr->{ID});
 
   return $self;
@@ -172,6 +198,10 @@ sub del {
   my ($company_id) = @_;
 
   $self->query_del('companies', { ID => $company_id });
+
+  $admin->{MODULE} = $MODULE;
+
+  $admin->action_add(0, "DELETED COMPANY: $company_id", { TYPE => 10 } );
 
   return $self;
 }

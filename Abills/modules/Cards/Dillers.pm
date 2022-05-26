@@ -108,7 +108,7 @@ sub cards_diller {
     $Diller->{DEL_BUTTON} = $html->button($lang{DEL}, "index=$index&del=1&UID=$uid&ID=$diller_id",
       {
         MESSAGE => "$lang{DEL} $lang{SERVICE} Internet $lang{FOR} $lang{USER} $uid?",
-        class   => 'btn btn-danger pull-right'
+        class   => 'btn btn-danger float-right'
       });
   }
 
@@ -971,10 +971,10 @@ sub cards_diller_stats {
     my @button_footer = (
       $html->button("$lang{PRINT} PDF", "qindex=$index&pdf=1&print_cards=1&$pages_qs", {
         ex_params => 'target=_new',
-        class     => 'btn btn-primary pull-right col-md-12 col-sm-12' }),
+        class     => 'btn btn-primary float-right col-md-12 col-sm-12' }),
       $html->button('CSV', "qindex=$index&csv=1&print_cards=1&$pages_qs", {
         ex_params => 'target=_new',
-        class     => 'btn btn-primary pull-right col-md-12 col-sm-12' })
+        class     => 'btn btn-primary float-right col-md-12 col-sm-12' })
     );
 
     $table->addfooter(@button_footer);

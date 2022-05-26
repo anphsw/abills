@@ -40,21 +40,15 @@
   });
 </script>
 
-<div class='card card-primary card-outline form form-horizontal'>
-  <div class='card-header with-border'>
+<div class='card card-primary card-outline'>
+  <div class='card-header'>
     <h6 class='card-title'>_{MANAGE}_</h6>
   </div>
 
   <div class='card-body'>
-
     %PLUGINS%
-
     <div class='form-group'>
       <div>%TASKS_LIST%</div>
-    </div>
-
-    <div class='form-group'>
-      %TICKET_ADDRESS%
     </div>
 
   </div>

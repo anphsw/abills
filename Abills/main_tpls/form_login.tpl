@@ -50,12 +50,11 @@
   </div>
 
   <div class='row p-0 m-0 justify-content-center'>
-    <div class='pr-0 col-xs-12 col-sm-6 col-md-4'>
-      <form action='$SELF_URL' METHOD='post' name='frm' id='form_login' class='form-horizontal'>
+    <div class='col-xs-12 col-sm-6 col-md-6 col-lg-4 col-11'>
+      <form action='$SELF_URL' METHOD='post' name='frm' id='form_login'>
 
         <input type=hidden name=DOMAIN_ID value='$FORM{DOMAIN_ID}'>
         <input type=hidden ID=REFERER name=REFERER value='$FORM{REFERER}'>
-        <input type='hidden' name='LOGIN' value='1'/>
 
         <div class='form-group row has-feedback'>
           <div class='input-group'>
@@ -118,12 +117,12 @@
 <script type='text/javascript'>
   jQuery('#form_login').on('submit', function () {
     var userLogin = jQuery('#user').val();
-    if (typeof (Storage) !== "undefined") {
-      localStorage.setItem("lastLogin", userLogin);
+    if (typeof (Storage) !== 'undefined') {
+      localStorage.setItem('lastLogin', userLogin);
     }
   });
 
   jQuery(function () {
-    jQuery('#user').val(localStorage.getItem("lastLogin"));
+    jQuery('#user').val(localStorage.getItem('lastLogin'));
   }())
 </script>

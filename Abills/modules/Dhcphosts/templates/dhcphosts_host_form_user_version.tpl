@@ -18,7 +18,7 @@
 
                 <div class='card-header with-border text-center'>
                     <h3 class="card-title">DHCP</h3>
-                    <div class="card-tools pull-right">
+                    <div class="card-tools float-right">
                         <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse"><i
                                 class="fa fa-minus"></i>
                         </button>
@@ -101,7 +101,7 @@
             <div class='card box-default box-big-form collapsed-box' style="border-top: 1px solid #d2d6de; border-radius: 0px;margin-bottom: 0px">
                 <div class='card-header with-border'>
                     <h3 class="card-title">_{INFO}_</h3>
-                    <div class="card-tools pull-right">
+                    <div class="card-tools float-right">
                         <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse"><i
                                 class="fa fa-plus"></i>
                         </button>
@@ -115,7 +115,7 @@
             <div class='card box-default box-big-form collapsed-box' style="border-top: 1px solid #d2d6de;border-radius: 0px;margin-bottom: 0px"">
                 <div class='card-header'>
                     <h3 class="card-title">_{EXTRA}_</h3>
-                    <div class="card-tools pull-right">
+                    <div class="card-tools float-right">
                         <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse"><i
                                 class="fa fa-plus"></i>
                         </button>

@@ -14,26 +14,26 @@
   <meta http-equiv='Content-Language' content='%CONTENT_LANGUAGE%'/>
   <link rel='manifest' href='/manifest.json'>
   <meta name='Author' content='~AsmodeuS~'/>
+  <!-- Some new feature, need to actualize -->
+  <!-- <meta name='theme-color' content="#db5945"> -->
 
   <title>%TITLE% %BREADCRUMB%</title>
   <link rel='shortcut icon' type='image/png' href='/favicon.ico'>
   <!-- CSS -->
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/select2.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/dist/css/adminlte.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/bs-stepper.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/select2.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/adminlte.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/bs-stepper.min.css'>
 
   <!-- Theme style -->
-  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/dist/css/skins/_all-skins.css'>
-
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/currencies.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/skins/_all-skins.css'>
 
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/pace/pace.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datepicker/datepicker3.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/QBInfo.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/QBInfo.css'>
 
   <!-- Ionicons -->
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/font-awesome.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/ionicons.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/font-awesome.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/ionicons.min.css'>
   <!-- Pace style -->
 
   <!-- DataTables -->
@@ -41,58 +41,51 @@
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/timepicker/bootstrap-timepicker.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/daterangepicker/daterangepicker.css'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/style.css'>
-
-  <!-- Toogle Style -->
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/bootstrap2-toggle.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/style.css'>
 
   <!-- Admin's permissions clases-->
   %PERM_CLASES%
 
   <!-- Bootstrap -->
-  <script src='/styles/default_adm/js/popper.min.js'></script>
-  <script src='/styles/default_adm/js/jquery.min.js'></script>
-  <script src='/styles/default_adm/js/bootstrap.min.js'></script>
-  <script src='/styles/default_adm/js/bs-stepper.min.js'></script>
-  <script src='/styles/%HTML_STYLE%/dist/js/adminlte.min.js'></script>
-
-  <!-- Toggle script -->
-  <script src='/styles/default_adm/js/bootstrap2-toggle.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/jquery.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/bootstrap.bundle.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/bs-stepper.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/adminlte.min.js'></script>
 
   <!-- ECMA6 functions -->
-  <script src='/styles/default_adm/js/polyfill.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/polyfill.js'></script>
 
   <!-- Cookies and LocalStorage from JavaScript -->
-  <script src='/styles/default_adm/js/js.cookies.js'></script>
-  <script src='/styles/default_adm/js/permanent_data.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/js.cookies.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/permanent_data.js'></script>
 
   <!-- temp -->
-  <script src='/styles/default_adm/js/functions.js?v=76.1.9'></script>
-  <script src='/styles/default_adm/js/functions-admin.js?v=0.77.26'></script>
+  <script src='/styles/%HTML_STYLE%/js/functions.js?v=76.1.9'></script>
+  <script src='/styles/%HTML_STYLE%/js/functions-admin.js?v=0.77.26'></script>
 
   <!--Keyboard-->
-  <script src='/styles/default_adm/js/keys.js?v=77.70'></script>
+  <script src='/styles/%HTML_STYLE%/js/keys.js?v=77.70'></script>
 
   <!-- Navigation bar saving show/hide state -->
-  <script  src='/styles/default_adm/js/navBarCollapse.js'></script>
+  <script  src='/styles/%HTML_STYLE%/js/navBarCollapse.js'></script>
 
   <!--Javascript template engine-->
-  <script src='/styles/default_adm/js/mustache.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/mustache.min.js'></script>
 
-  <script  src='/styles/default_adm/js/QBinfo.js'></script>
+  <script  src='/styles/%HTML_STYLE%/js/QBinfo.js'></script>
 
   <!--Event PubSub-->
-  <script src='/styles/default_adm/js/events.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/events.js'></script>
 
   <!-- Modal popup windows management -->
-  <script src='/styles/default_adm/js/modals.js?v=76.1.9'></script>
+  <script src='/styles/%HTML_STYLE%/js/modals.js?v=76.1.9'></script>
 
   <!-- AJAX Search scripts -->
-  <script src='/styles/default_adm/js/search.js?v=0.76.34'></script>
+  <script src='/styles/%HTML_STYLE%/js/search.js?v=0.76.34'></script>
 
-  <script src='/styles/default_adm/js/messageChecker.js?v=0.77.26'></script>
+  <script src='/styles/%HTML_STYLE%/js/messageChecker.js?v=0.77.26'></script>
 
-  <script src='/styles/default_adm/js/msgs/jquery-ui.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/msgs/jquery-ui.min.js'></script>
 
   <!-- Textarea autosize -->
   %AUTOSIZE_INCLUDE%
@@ -108,7 +101,7 @@
   <script src='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.js'></script>
 
   <script src='/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>
-  <script src='/styles/default_adm/js/select2.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/select2.min.js'></script>
   <script>
     window['IS_ADMIN_INTERFACE'] = true;
     window['IS_CLIENT_INTERFACE'] = false;
@@ -120,6 +113,7 @@
     var _COMMENTS_PLEASE      = '_{COMMENTS_PLEASE}_' || 'Comments please';
     var _WORLD_PLEASE         = '_{ENTER_DEL}_' || 'Enter please';
     var _DEL                  = '_{DEL}_' || 'Delete';
+    var _UNIVERSAL_SEARCH_FIELDS = '$conf{UNIVERSAL_SEARCH_FIELDS}';
     document['WEBSOCKET_URL'] = '%WEBSOCKET_URL%';
 
     //CHOSEN INIT PARAMS
@@ -164,17 +158,25 @@
 
 
   <!-- Needs WEBSOCKET_URL defined above -->
-  <script src='/styles/default_adm/js/websocket_client.js?v=0.76.28'></script>
+  <script src='/styles/default/js/websocket_client.js?v=0.76.28'></script>
 
 </head>
 <body class='hold-transition
-  sidebar-mini
   $admin->{SETTINGS}{FIXED_LAYOUT}
   $admin->{MENU_HIDDEN}
   %SIDEBAR_HIDDEN%
-  $admin->{RIGHT_MENU_OPEN}
   $admin->{SETTINGS}{BODY_SKIN}
-  text-sm'>
+  sidebar-mini
+  layout-fixed
+  text-sm'
+>
+
+<script>
+  if(document.body.clientWidth < 992) {
+    document.body.classList.add('sidebar-collapse');
+  }
+</script>
+
 <div class='wrapper'>
   %CALLCENTER_MENU%
 

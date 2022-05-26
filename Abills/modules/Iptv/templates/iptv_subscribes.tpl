@@ -10,13 +10,15 @@
   <input type='hidden' name='sid' value='$sid'>
   <input type='hidden' name='add_form' value=1>
 
-  <div class='card box-primary'>
+  <div class='card card-primary card-outline'>
     <div class='card-header with-border text-center'><h4 class='card-title'>_{SUBSCRIBES}_</h4></div>
     <div class='card-body'>
 
-      <div class='form-group text-center'>
-        <label class='col-md-12 bg-primary text-center'>_{CHOOSE_SYSTEM}_</label>
-        %SERVICE_SEL%
+      <div class='form-group row text-center'>
+        <label class='col-md-3 col-form-label text-md-right' for='SERVICE_ID'>_{CHOOSE_SERVICE}_:</label>
+        <div class='col-md-9'>
+          %SERVICE_SEL%
+        </div>
       </div>
 
       <div class='panel panel-default'>
@@ -24,8 +26,8 @@
       </div>
 
       <div class='form-group text-center row'>
-        <label class='col-md-3 bg-primary' for='%SUBSCRIBE_PARAM_ID%'>%SUBSCRIBE_PARAM_NAME%
-          %SUBSCRIBE_PARAM_DESCRIBE%</label>
+        <label class='col-md-3 col-form-label text-md-right'
+               for='%SUBSCRIBE_PARAM_ID%'>%SUBSCRIBE_PARAM_NAME% %SUBSCRIBE_PARAM_DESCRIBE%:</label>
         <div class='col-md-9'>
           <input type='text' name='%SUBSCRIBE_PARAM_ID%' value='%SUBSCRIBE_PARAM_VALUE%' class='form-control'
                  id='%SUBSCRIBE_PARAM_ID%'>
@@ -33,6 +35,8 @@
       </div>
     </div>
 
-    <div class='card-footer'><input class='btn btn-primary' type='submit' name=add value='_{ADD}_'></div>
+    <div class='card-footer'>
+      <input class='btn btn-primary float-right' type='submit' name=add value='_{DO_ENABLE}_'>
+    </div>
   </div>
 </form>

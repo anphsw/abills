@@ -76,36 +76,22 @@ sub internet_report_use {
     company_name    => $lang{COMPANY}
   );
 
-  reports(
-    {
-      DATE        => $FORM{DATE},
-      HIDDEN      => \%HIDDEN,
-      REPORT      => '',
-      PERIOD_FORM => 1,
-      EXT_TYPE    => {
-        PER_MONTH       => $lang{PER_MONTH},
-        DISTRICT        => $lang{DISTRICT},
-        STREET          => $lang{STREET},
-        BUILD           => $lang{BUILD},
-        TP              => $lang{TARIF_PLANS},
-        GID             => $lang{GROUPS},
-        TERMINATE_CAUSE => 'TERMINATE_CAUSE',
-        COMPANIES       => $lang{COMPANIES}
-      },
-    }
-  );
-
-  %CHARTS    = (
-    TYPES => {
-      login_count    => 'column',
-      users_count    => 'column',
-      sessions_count => 'column',
-      traffic_recv   => 'column',
-      traffic_sent   => 'column',
-      duration_sec   => 'column'
+  reports({
+    DATE        => $FORM{DATE},
+    HIDDEN      => \%HIDDEN,
+    REPORT      => '',
+    PERIOD_FORM => 1,
+    EXT_TYPE    => {
+      PER_MONTH       => $lang{PER_MONTH},
+      DISTRICT        => $lang{DISTRICT},
+      STREET          => $lang{STREET},
+      BUILD           => $lang{BUILD},
+      TP              => $lang{TARIF_PLANS},
+      GID             => $lang{GROUPS},
+      TERMINATE_CAUSE => 'TERMINATE_CAUSE',
+      COMPANIES       => $lang{COMPANIES}
     },
-    PERIOD        => (! $FORM{TYPE} && ! $FORM{DATE}) ? 'month_stats' : ''
-  );
+  });
 
   my $TP_NAMES = sel_tp();
 
@@ -124,29 +110,44 @@ sub internet_report_use {
   my $list;
   our %DATA_HASH;
 
-  if ($LIST_PARAMS{MONTH}) {
-    delete($LIST_PARAMS{MONTH});
-  }
+  delete $LIST_PARAMS{MONTH} if $LIST_PARAMS{MONTH};
   if ($FORM{DISTRICT_ID}) {
     $pages_qs =~ s/&TYPE=[A-Z,\+ ]+//;
     $pages_qs .= "&DISTRICT_ID=$FORM{DISTRICT_ID}&TYPE=USER";
   }
 
+  my %x_variable = (
+    DAYS            => 'date',
+    DISTRICT        => 'district_name',
+    STREET          => 'street_name',
+    PER_MONTH       => 'month',
+    BUILD           => 'build',
+    ADMINS          => 'admin_name',
+    PAYMENT_METHOD  => 'method',
+    GID             => 'gid',
+    HOURS           => 'hour',
+    USER            => 'login',
+    COMPANIES       => 'company_name',
+    TERMINATE_CAUSE => 'terminate_cause'
+  );
+  my @charts_dataset = split(',', 'users_count,sessions_count,traffic_recv,traffic_sent,duration_sec');
   ($table, $list) = result_former({
     INPUT_DATA      => $Sessions,
     FUNCTION        => 'reports2',
     BASE_FIELDS     => 1,
     DEFAULT_FIELDS  => 'USERS_COUNT,SESSIONS_COUNT,TRAFFIC_RECV,TRAFFIC_SENT,DURATION_SEC,SUM',
-    SKIP_USER_TITLE => (! $FORM{TYPE} || $FORM{TYPE} ne 'USER') ? 1 : undef,
+    SKIP_USER_TITLE => (!$FORM{TYPE} || $FORM{TYPE} ne 'USER') ? 1 : undef,
     SELECT_VALUE    => {
       terminate_cause => internet_terminate_causes({ REVERSE => 1 }),
       gid             => sel_groups({ HASH_RESULT => 1 }),
       tp_id           => $TP_NAMES
     },
-    CHARTS       => 'users_count,sessions_count,traffic_recv,traffic_sent,duration_sec',
-    CHARTS_XTEXT => 'auto',
-    EXT_TITLES   => \%ext_fields,
-    FILTER_COLS  => {
+    CHARTS      => {
+      DATASET => \@charts_dataset,
+      PERIOD  => $x_variable{$FORM{TYPE} || ''} || 'date',
+    },
+    EXT_TITLES      => \%ext_fields,
+    FILTER_COLS     => {
       duration_sec    => '_sec2time_str',
       traffic_recv    => 'int2byte',
       traffic_sent    => 'int2byte',
@@ -162,60 +163,84 @@ sub internet_report_use {
       district_name   => "search_link:internet_report_use:DISTRICT_ID,DISTRICT_ID,TYPE=USER,$pages_qs",
       street_name     => "search_link:internet_report_use:STREET_ID,STREET_ID,TYPE=USER,$pages_qs",
     },
-    TABLE   => {
+    TABLE           => {
       width            => '100%',
       caption          => $lang{REPORTS},
       qs               => $pages_qs,
-      pages            => $#{ $Sessions->{list} },
+      pages            => $#{$Sessions->{list}},
       ID               => 'REPORTS_DV_USE',
       EXPORT           => 1,
       SHOW_COLS_HIDDEN => {
-        TYPE        => $FORM{TYPE},
-        show        => 1,
-        FROM_DATE   => $FORM{FROM_DATE},
-        TO_DATE     => $FORM{TO_DATE},
+        TYPE      => $FORM{TYPE},
+        show      => 1,
+        FROM_DATE => $FORM{FROM_DATE},
+        TO_DATE   => $FORM{TO_DATE},
       },
     },
-    MAKE_ROWS     => 1,
-    SEARCH_FORMER => 1,
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
   });
 
-  print $html->make_charts({
-    DATA          => \%DATA_HASH,
-    TITLE         => 'Internet',
-    TRANSITION    => 1,
-    OUTPUT2RETURN => 1,
-    %CHARTS
+  my $legend_names = {
+    users_count    => $lang{USERS},
+    sessions_count => $lang{SESSIONS},
+    traffic_recv   => $lang{RECV},
+    traffic_sent   => $lang{SENT},
+    duration_sec   => $lang{DURATION}
+  };
+
+  my %data = ();
+  my @labels = sort keys %DATA_HASH;
+  foreach my $key (@charts_dataset) {
+    $data{$legend_names->{$key} || $key} = [ map $DATA_HASH{$_}{$key}, @labels ]
+  }
+
+  $html->chart({
+    TYPE              => 'bar',
+    X_LABELS          => \@labels,
+    DATA              => \%data,
+    TYPES             => {
+      $legend_names->{traffic_recv} => 'line',
+      $legend_names->{traffic_sent} => 'line'
+    },
+    SCALES            => "scales: { y: { type: 'logarithmic' } },",
+    BACKGROUND_COLORS => {
+      $legend_names->{users_count}    => 'rgba(244, 67, 54, 0.8)',
+      $legend_names->{sessions_count} => 'rgba(255, 235, 59, 0.8)',
+      $legend_names->{traffic_recv}   => 'rgba(76, 175, 80, 0.8)',
+      $legend_names->{traffic_sent}   => 'rgba(0, 188, 212, 0.8)',
+      $legend_names->{duration_sec}   => 'rgba(33, 150, 243, 0.8)',
+    },
+    IN_CONTAINER      => 1
   });
+
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      rows       => [
-        [
-          "$lang{USERS}: " . $html->b($Sessions->{USERS}),
-          "$lang{SESSIONS}: " . $html->b($Sessions->{SESSIONS}),
-          "$lang{TRAFFIC}: "
-            . $html->b(int2byte($Sessions->{TRAFFIC}))
-            . $html->br()
-            . "$lang{TRAFFIC} IN: "
-            . $html->b(int2byte($Sessions->{TRAFFIC_IN}))
-            . $html->br()
-            . "$lang{TRAFFIC} OUT: "
-            . $html->b(int2byte($Sessions->{TRAFFIC_OUT}))
-          ,
+  $table = $html->table({
+    width    => '100%',
+    rows     => [
+      [
+        "$lang{USERS}: " . $html->b($Sessions->{USERS}),
+        "$lang{SESSIONS}: " . $html->b($Sessions->{SESSIONS}),
+        "$lang{TRAFFIC}: "
+          . $html->b(int2byte($Sessions->{TRAFFIC}))
+          . $html->br()
+          . "$lang{TRAFFIC} IN: "
+          . $html->b(int2byte($Sessions->{TRAFFIC_IN}))
+          . $html->br()
+          . "$lang{TRAFFIC} OUT: "
+          . $html->b(int2byte($Sessions->{TRAFFIC_OUT}))
+        ,
 
-          "$lang{TRAFFIC} 2: " . $html->b(int2byte($Sessions->{TRAFFIC_2})) . $html->br() . "$lang{TRAFFIC} 2 IN: " . $html->b(int2byte($Sessions->{TRAFFIC_2_IN})) . $html->br() . "$lang{TRAFFIC} 2 OUT: " . $html->b(int2byte($Sessions->{TRAFFIC_2_OUT})),
+        "$lang{TRAFFIC} 2: " . $html->b(int2byte($Sessions->{TRAFFIC_2})) . $html->br() . "$lang{TRAFFIC} 2 IN: " . $html->b(int2byte($Sessions->{TRAFFIC_2_IN})) . $html->br() . "$lang{TRAFFIC} 2 OUT: " . $html->b(int2byte($Sessions->{TRAFFIC_2_OUT})),
 
-          "$lang{DURATION}: " . $html->b(sec2time($Sessions->{DURATION_SEC}, { str => 1 })),
-          "$lang{SUM}: " . $html->b($Sessions->{SUM})
-        ]
-      ],
-      rowcolor => 'even'
-    }
-  );
+        "$lang{DURATION}: " . $html->b(sec2time($Sessions->{DURATION_SEC}, { str => 1 })),
+        "$lang{SUM}: " . $html->b($Sessions->{SUM})
+      ]
+    ],
+    rowcolor => 'even'
+  });
 
   print $table->show();
 
@@ -526,25 +551,21 @@ sub internet_pools_report {
     my $pool = $pools_by_id{$pool_id};
     my $errornous_fill = ($pools_by_id{$pool_id}->{static}) ? 'dynamic' : 'static';
 
-
     my $internet_users_index = get_function_index('internet_users_list');
     my $users_button = $html->button($ips_for_pool{$pool_id}->{count} // 0,
       "index=$internet_users_index&IP_POOL=$pool_id&search=1&search_form=1");
 
-    $result .= $html->tpl_show(_include('internet_pool_report_single', 'Internet'),
-      {
-        NAME        => $html->button($pool->{pool_name}, "index=$pools_index&chg=$pool->{id}"),
-        NAS_NAME    => $pool->{static} ? $lang{STATIC} : ($pool->{nas_name} || $lang{NO}),
-        IP_RANGE    => $pool->{first_ip} . '-' . $pool->{last_ip},
+    $result .= $html->tpl_show(_include('internet_pool_report_single', 'Internet'), {
+      NAME        => $html->button($pool->{pool_name}, "index=$pools_index&chg=$pool->{id}"),
+      NAS_NAME    => $pool->{static} ? $lang{STATIC} : ($pool->{nas_name} || $lang{NO}),
+      IP_RANGE    => $pool->{first_ip} . '-' . $pool->{last_ip},
 
-        USED        => $pool->{static} ? $users_button : $ips_for_pool{$pool_id}->{count} // 0,
-        FREE        => $ips_for_pool{$pool_id}->{usage}{free} // 100,
-        ERROR       => $ips_for_pool{$pool_id}->{usage}{$errornous_fill} // 0,
+      USED        => $pool->{static} ? $users_button : $ips_for_pool{$pool_id}->{count} // 0,
+      FREE        => $ips_for_pool{$pool_id}->{usage}{free} // 100,
+      ERROR       => $ips_for_pool{$pool_id}->{usage}{$errornous_fill} // 0,
 
-        USAGE_CHART => $charts{$pool_id},
-      },
-      { OUTPUT2RETURN => 1 }
-    );
+      USAGE_CHART => $charts{$pool_id},
+    }, { OUTPUT2RETURN => 1 });
 
     $current_charts_in_row += 1;
     if ( $current_charts_in_row >= $charts_in_row ) {
@@ -565,7 +586,7 @@ sub internet_pools_report {
       $ip_pools_page .= $html->element('a', $iterations, {
         href => $next_page,
         id   => 'btn_page_' . $iterations,
-        class => 'btn btn-secondary'
+        class => 'btn btn-default'
       });
     }
   }
@@ -582,10 +603,7 @@ sub internet_pools_report {
   push (@rows, $html->element('div', $result, { class => 'row' })) if ( $result );
 
   my $return_html = ($attr->{RETURN_HTML} || $attr->{OUTPUT2RETURN});
-  $result = $html->element('div', join('', @rows), {
-      OUTPUT2RETURN => $return_html
-    }
-  );
+  $result = $html->element('div', join('', @rows), { OUTPUT2RETURN => $return_html });
   return $result if ( $attr->{RETURN_HTML} );
 
   if ( !$attr->{OUTPUT2RETURN} ) {
@@ -622,7 +640,8 @@ sub internet_user_outflow {
 
   reports({
     PERIOD_FORM => 1,
-    NO_PERIOD   => 1,
+    DATE_RANGE  => 1,
+    DATE        => $DATE,
     NO_GROUP    => 1,
     NO_TAGS     => 1,
     EXT_SELECT  => {
@@ -650,11 +669,12 @@ sub internet_user_outflow {
     caption    => $lang{USERS_OUTFLOW},
     title      => [ 'UID', $lang{LOGIN}, $lang{TARIF_PLAN}, "Последнее списание", $lang{DEPOSIT} ],
     ID         => 'INTERNET_OUTFLOW_USERS',
+    EXPORT     => 1,
     DATA_TABLE => 1
   });
 
   foreach my $user (@{$outflow_users}) {
-    my $user_btn = $html->button($user->{login}, "get_index=form_user&header=1&full=1&UID=$user->{uid}");
+    my $user_btn = $html->button($user->{login}, "get_index=form_users&header=1&full=1&UID=$user->{uid}");
     $outflow_users_table->addrow($user->{uid}, $user_btn, $user->{tp_name}, $user->{last_fee}, $user->{deposit});
   }
 

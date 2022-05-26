@@ -1,15 +1,15 @@
 <div class='row text-left'>
-  <div class='col-md-6' style='padding-left: 10px;'>
+  <div class='col-md-6'>
     %TP_SEL%
   </div>
   <div class='col-md-6' id='div1'>
-    <button class='btn btn-secondary' id='btn1'><i class="fa fa-clock-o" style="font-size:16px;"></i></button>
+    <button class='btn btn-default' id='btn1'><i class='far fa-clock'></i></button>
   </div>
-  <div class='col-md-4' id='div2' style="display: none;">
+  <div class='col-md-4' id='div2' style='display: none;'>
     %DATE_SEL%
   </div>
-  <div class='col-md-2' id='div3' style="display: none;">
-    <button class='btn btn-secondary' id='btn2'><i class="fa fa-ban" style="font-size:16px;color:red"></i></button>
+  <div class='col-md-2' id='div3' style='display: none;'>
+    <button class='btn btn-default text-danger' id='btn2'><i class='fa fa-ban'></i></button>
   </div>
 </div>
 

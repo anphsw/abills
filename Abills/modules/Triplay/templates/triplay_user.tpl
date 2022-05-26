@@ -38,7 +38,9 @@
         </div>
 
         <div class='card-footer'>
+            %BACK_BUTTON%
             <input type='submit' class='btn btn-primary' name='%ACTION%' id='%ACTION%' value='%ACTION_LNG%'>
+            %DEL_BUTTON%
         </div>
 
     </div>

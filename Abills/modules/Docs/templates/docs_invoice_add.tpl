@@ -10,10 +10,10 @@
   <input type=hidden name='SEND_EMAIL' value='1'>
   <input type=hidden name=INCLUDE_DEPOSIT value=1>
 
-  <div class='card container-md'>
+  <div class='card card-primary card-outline container-md'>
     <div class='card-header with-border'>
       <h4 class='card-title'>%CAPTION%</h4>
-      <span class='pull-right'>
+      <span class='float-right'>
         <a href='$SELF_URL?full=1&get_index=docs_invoice_company&UID=%UID%' class='btn btn-xs btn-success' >_{NEXT_PERIOD_INVOICE}_</a>
       </span>
     </div>
@@ -21,18 +21,18 @@
 
       %FORM_INVOICE_ID%
 
-      <div class="form-group row">
-        <label class="control-label col-sm-12 col-md-3" for='DATE'>_{DATE}_:</label>
-        <div class="col-sm-12 col-md-9">
+      <div class='form-group row'>
+        <label class='control-label col-sm-12 col-md-3' for='DATE'>_{DATE}_:</label>
+        <div class='col-sm-12 col-md-9'>
           <div class='input-group'>
             %DATE_FIELD%
           </div>
         </div>
       </div>
 
-      <div class="form-group row">
-        <label class="control-label col-sm-12 col-md-3" for='CUSTOMER'>_{CUSTOMER}_:</label>
-        <div class="col-sm-12 col-md-9">
+      <div class='form-group row'>
+        <label class='control-label col-sm-12 col-md-3' for='CUSTOMER'>_{CUSTOMER}_:</label>
+        <div class='col-sm-12 col-md-9'>
           <div class='input-group'>
             <input type='text' id='CUSTOMER' name='CUSTOMER' value='%CUSTOMER%' placeholder='%CUSTOMER%'
               class='form-control'>
@@ -40,9 +40,9 @@
         </div>
       </div>
 
-      <div class="form-group row">
-        <label class="control-label col-sm-12 col-md-3" for='PHONE'>_{PHONE}_:</label>
-        <div class="col-sm-12 col-md-9">
+      <div class='form-group row'>
+        <label class='control-label col-sm-12 col-md-3' for='PHONE'>_{PHONE}_:</label>
+        <div class='col-sm-12 col-md-9'>
           <div class='input-group'>
             <input type='text' id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control'>
           </div>
@@ -93,10 +93,10 @@
             <tr id='addr2'></tr>
             </tbody>
           </table>
-          <a id='add_row' class='btn btn-sm btn-secondary pull-left'>
+          <a id='add_row' class='btn btn-sm btn-secondary float-left'>
             <span class='fa fa-plus'></span>
           </a>
-          <a id='delete_row' class='btn btn-sm btn-secondary pull-right'>
+          <a id='delete_row' class='btn btn-sm btn-secondary float-right'>
             <span class='fa fa-minus'></span>
           </a>
 
@@ -104,7 +104,9 @@
 
     </div>
 
-    <div class='card-footer'><input type=submit name=create value='_{CREATE}_' class='btn btn-primary'></div>
+    <div class='card-footer'>
+      <input type=submit name=create value='_{CREATE}_' class='btn btn-primary'>
+    </div>
 
   </div>
 

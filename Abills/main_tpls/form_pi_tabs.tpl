@@ -21,7 +21,7 @@
     <!-- General panel -->
     <div class='card card-primary card-outline box-big-form'>
         <div class='card-header with-border'><h3 class="card-title">_{INFO}_</h3>
-            <div class="card-tools pull-right">
+            <div class="card-tools float-right">
                 <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse"><i class="fa fa-minus"></i>
                 </button>
                 <button type="button" class="btn btn-secondary btn-xs" data-card-widget="remove"><i class="fa fa-times"></i></button>

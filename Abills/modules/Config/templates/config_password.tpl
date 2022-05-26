@@ -1,4 +1,4 @@
-<script src='/styles/default_adm/js/modules/config/password_generator.js'></script>
+<script src='/styles/default/js/modules/config/password_generator.js'></script>
 <form action='$SELF_URL' method='post' class='form form-horizontal' id='PASSWORD_GENERATOR_FORM'>
   <input type='hidden' name='index' value='$index'>
 

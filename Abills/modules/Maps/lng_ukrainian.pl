@@ -1,4 +1,4 @@
-﻿$lang{MAPS} = 'Мапа мережі';
+$lang{MAPS} = 'Мапа мережі';
 $lang{ANGLE} = 'Кут';
 $lang{CLEAR} = 'Очистити';
 $lang{HOUSE_NUM} = 'Номер будинку';
@@ -87,5 +87,24 @@ $lang{WELL} = 'Вузол звязку';
 $lang{WELLS} = 'Вузли зв&#39;язку';
 
 $lang{DISPLAYED_ITEMS} = "Відображено елементів";
+$lang{DELETE} = "Видалити";
+
+$lang{DELETE_ITEM_FROM_MAP} = "Видалити об&#39;єкт з карти?";
+$lang{CHOOSE_ADDRESS} = "Виберіть адресу";
+
+$lang{FEEL_ALL} = 'Заповнити всі';
+$lang{SEVERAL_RESULTS} = 'Декілька результатів';
+$lang{COORDS_NOT_FOUND} = 'Не знайдено';
+$lang{NO_COORDINATES_SPECIFIED} = 'Не вказані координати';
+
+$lang{COMPLETE_PREVIOUS_CHANGE} = 'Завершіть попередні зміни';
+
+$lang{SHOW_MSGS_MAP} = 'Відобразити повідемлення на карті';
+$lang{MAPS_SCALE} = 'Масштаб';
+
+$lang{PLOT} = 'Ділянка будинку';
+
+$lang{NO_MOVES_FOUND} = 'У цей період не знайдено переміщень';
+
 
 1;

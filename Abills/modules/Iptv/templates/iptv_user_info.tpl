@@ -6,7 +6,7 @@
   <div class='card card-primary card-outline'>
     <div class='card-header with-border'>
       <h4 class='card-title'>_{TV}_: %ID%</h4>
-      <div class='card-tools pull-right'>
+      <div class='card-tools float-right'>
         %TP_CHANGE_BTN%
         %DISABLE_BTN%
         <button type='button' class='btn btn-tool' data-card-widget='collapse'>

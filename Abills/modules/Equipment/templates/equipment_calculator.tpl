@@ -1,12 +1,12 @@
-<script src='/styles/default_adm/js/cytoscape.min.js'></script>
+<script src='/styles/default/js/cytoscape.min.js'></script>
 <script src='https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.10/lodash.js'></script>
-<script src='/styles/default_adm/js/cytoscape-edgehandles.js'></script>
+<script src='/styles/default/js/cytoscape-edgehandles.js'></script>
 
-<script src="/styles/default_adm/js/popper.min.js"></script>
-<script src="/styles/default_adm/js/cytoscape-popper.js"></script>
+<script src="/styles/default/js/popper.min.js"></script>
+<script src="/styles/default/js/cytoscape-popper.js"></script>
 
-<script src="/styles/default_adm/js/tippy.all.min.js"></script>
-<link rel="stylesheet" href="/styles/default_adm/css/tippy.css"/>
+<script src="/styles/default/js/tippy.all.min.js"></script>
+<link rel="stylesheet" href="/styles/default/css/tippy.css"/>
 
 <style>
     #cy{
@@ -65,10 +65,10 @@
 <div class='card card-primary card-outline container-md collapsed-card'>
     <div class='card-header with-border'>
         <div class="row">
-            <div class="col-md-10 pull-left text-left">
+            <div class="col-md-10 float-left text-left">
         <h3 class='card-title'> _{TYPES}_</h3>
             </div>
-        <div class="col-md-2 pull-right text-right">
+        <div class="col-md-2 float-right text-right">
             <div class="btn-group">
                 <button type="button" title="Show/Hide" class="btn btn-tool" data-card-widget="collapse">
                     <i class="fa fa-plus"></i>

@@ -26,7 +26,7 @@
 
 <script>
 
-  jQuery.getScript('/styles/default_adm/js/ajax-chosen.jquery.min.js', function(){
+  jQuery.getScript('/styles/default/js/ajax-chosen.jquery.min.js', function(){
     jQuery('select#LOGIN_SEARCH_id').ajaxChosen({
       jsonTermKey : 'LOGIN',
       type: 'GET',

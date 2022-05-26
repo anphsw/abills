@@ -67,7 +67,7 @@
           <div class='card card-primary card-outline collapsed-card'>
             <div class='card-header with-border'>
               <h3 class='card-title'>_{INFO_FIELDS}_</h3>
-              <div class='card-tools pull-right'>
+              <div class='card-tools float-right'>
                 <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                   <i class='fa fa-plus'></i>
                 </button>
@@ -96,7 +96,7 @@
     let spin = document.createElement('i');
     spin.classList.add('fa');
     spin.classList.add('fa-3x');
-    spin.classList.add('fa-refresh');
+    spin.classList.add('fa-sync');
     spin.classList.add('fa-spin');
 
     overlay.appendChild(spin);

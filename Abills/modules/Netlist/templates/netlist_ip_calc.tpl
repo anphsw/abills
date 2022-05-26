@@ -77,5 +77,5 @@
 </script>
 
 
-<script src='/styles/default_adm/js/modules/netlist/ipv4.js'></script>
+<script src='/styles/default/js/modules/netlist/ipv4.js'></script>
 

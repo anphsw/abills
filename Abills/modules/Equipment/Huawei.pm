@@ -11,13 +11,13 @@ use Abills::Filters qw(bin2hex bin2mac);
 use Equipment::Misc qw(equipment_get_telnet_tpl);
 
 our (
-  $html,
   %lang,
   %html_color,
   %ONU_STATUS_TEXT_CODES
 );
 
 my $Telnet;
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 _huawei_get_ports($attr) - Get OLT ports
@@ -1472,15 +1472,20 @@ sub _huawei_get_fdb {
   my ($attr) = @_;
 
   my %hash = ();
+  my $debug = $attr->{DEBUG} || 0;
   if (_huawei_telnet_open($attr)) {
     my $data = _huawei_telnet_cmd("display mac-address all");
     $Telnet->close();
-    #$data =~ s/\n/<br>/g;
+    if ($debug > 6) {
+      print "<pre>$data</pre>";
+    }
+
     my @list = split("\n", $data || q{});
     my $port_types = ({ eth => 'ethernet', gpon => 'GPON ', epon => 'EPON ' });
     foreach my $line (@list) {
       #print "$line ||| <br>";
-      if ($line =~ /([-0-9]+)\s+.+\s+([a-z]+)\s+([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\s+([a-z]+)\s+(\d+)\s+\/(\d+)\s+\/(\d+)\s+\w?\s*([-0-9]+)\s+([-0-9]+)\s+(\d+)/) {
+      #219     -  gpon 0495-e65f-c4b0 dynamic  0 /0 /7   8    1         174
+      if ($line =~ /([-0-9]+)\s+.+\s+([a-z]+)\s+([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\s+([a-z]+)\s+(\d+)\s+\/(\d+)\s+\/(\d+)\s+\w?\s+([-0-9]+)\s+([-0-9]+)\s+(\d+)/) {
         #print "$1 | $2 | $3 | $4 | $5 | $6 | $7 | $8 | $9 | $10 | $11 | $12 | $13 | $14 | $15 | <br>";
         my $mac = "$3:$4:$5:$6:$7:$8";
         my ($srv_port, $port_type, $frame, $slot, $port, $onu_id, $van_id) = ($1, $2, $10, $11, $12, $13, $15);

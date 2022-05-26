@@ -1,5 +1,5 @@
-<script src='/styles/default_adm/js/raphael.min.js'></script>
-<script src='/styles/default_adm/js/build_construct.js'></script>
+<script src='/styles/default/js/raphael.min.js'></script>
+<script src='/styles/default/js/build_construct.js'></script>
 
 
 <style type='text/css'>
@@ -15,51 +15,66 @@
     max-width: 200px;
   }
 
+   .dom-control-panel {
+		 padding: 6px 10px 6px 6px;
+		 color: #333;
+		 background: #fff;
+		 position: absolute;
+     top: 10px;
+     right: 20px;
+     z-index: 999;
+		 box-shadow: 0 1px 5px rgb(0 0 0);
+		 border-radius: 5px;
+   }
 </style>
 
 <form method='post' class='form form-horizontal'>
-  <div class='card  card-primary card-outline no-padding'>
+  <div class='card card-primary card-outline no-padding'>
+    <div class='card-header with-border'>
+      <h4 class='card-title'>%DISTRICT_NAME% %STREET_NAME% %BUILD_NAME%</h4>
+    </div>
     <div class='card-body no-padding' id='body'>
       <div class='info-box-content' style='margin-left:5px'>
-        <span class='info-box-number'>%DISTRICT_NAME% %STREET_NAME% %BUILD_NAME%</span>
-
-        <div class='col-md-12'>
-          <p>_{ENTRANCES}_: %BUILD_ENTRANCES%</p>
-          <p>_{FLORS}_: %BUILD_FLORS%</p>
-          <p>_{MAP}_ _{FLATS}_: %CLIENTS_FLATS_SUM%/%BUILD_FLATS% </p>
+        <div class='col-md-12 text-center'>
+          <p><b>_{ENTRANCES}_:</b> %BUILD_ENTRANCES%</p>
+          <p><b>_{FLORS}_:</b> %BUILD_FLORS%</p>
+          <p><b>_{MAP}_ _{FLATS}_:</b> %CLIENTS_FLATS_SUM%/%BUILD_FLATS% </p>
         </div>
-
-        <!--         <div class='col-md-6'>
-                  <p>_{FLATS}_: %BUILD_FLATS%</p>
-                  <p>_{USER_FLAT_NUM_NO_CORRECT}_: %USER_SUM_WITH_NO_ROOM%
-                    <span>
-                       <a title='_{SHOW}_' id='no_correct_flat' href=''>_{SHOW}_</a>
-                     </span>
-                  </p>
-                </div> -->
 
         <div class='col-md-12'>
           <div class='progress '>
-            <div class='progress-bar'><span class='badge bg-light-blue-active color-palette'>%PERCENTAGE% %</span>
+            <div class='progress-bar'>
+              <span class='badge bg-light-blue-active color-palette' id='progress-bar'>%USER_PERCENTAGE% %</span>
             </div>
           </div>
         </div>
       </div>
       <!-- Canvas -->
-      <div class='col-sm-12' id='scroll_canvas_container' style='padding: 0px'>
-        <div id='canvas_container' style='overflow: scroll; width: 100%; padding: 0px'>
-          <div id='tip' style='display: none'></div>
-          <div >
-            <p>
-              <strong><i class="fa fa-list margin-r-5"></i>_{DESCRIBE}_</strong>
-              <span class="badge badge-success">_{ENABLE}_</span>
-              <span class="badge badge-danger">_{NEGATIVE}_ _{DEPOSIT}_</span>
-              <span class="badge badge-warning">_{CREDIT}_</span>
-              <span class="badge badge-secondary">_{DISABLED}_</span>
-            </p>
+      <div class='col-sm-12 p-0' id='scroll_canvas_container'>
+        <div class='form-group dom-control-panel'>
+          <div class='form-check'>
+            <input class='form-check-input' type='radio' id='user-radio' name='range' value='user' checked>
+            <label class='form-check-label' for='user-radio'>_{USERS}_</label>
           </div>
-          %TABLE_NAS%
+          <div class='form-check'>
+            <input class='form-check-input' id='pon-radio' type='radio' name='range' value='pon'>
+            <label class='form-check-label' for='pon-radio'>PON</label>
+          </div>
         </div>
+
+        <div id='tip' style='display: none'></div>
+        <div id='canvas_container' class='w-100 p-0' style='overflow: scroll;'>
+        </div>
+        <div>
+          <p class='text-center'>
+            <strong><i class='fa fa-list margin-r-5'></i>_{DESCRIBE}_</strong>
+            <span class='badge badge-success'>_{ENABLE}_</span>
+            <span class='badge badge-danger'>_{NEGATIVE}_ _{DEPOSIT}_</span>
+            <span class='badge badge-warning'>_{CREDIT}_</span>
+            <span class='badge badge-secondary'>_{DISABLED}_</span>
+          </p>
+        </div>
+        %TABLE_NAS%
       </div>
 
     </div>
@@ -71,26 +86,43 @@
 <script type='application/javascript'>
   jQuery(document).ready(function () {
 
-    jQuery('.progress-bar').width('%PERCENTAGE%' + '%');
-    jQuery('#no_correct_flat').attr('href', '%SHOW_USERS%');
+    let percentages = {
+      user: '%USER_PERCENTAGE%' + '%',
+      pon: '%PON_PERCENTAGE%' + '%'
+    }
 
-    var canvas_height = jQuery(window).height() * 0.8;
+    let info = {
+      user: '%USER_INFO%',
+      pon: '%PON_INFO%'
+    }
 
-    jQuery('#canvas_container').height(canvas_height);
+    jQuery("input[name='range']").on('click', function() {
+      let type = jQuery(this).val();
 
-    build_construct(
-      '%BUILD_FLORS%',
-      '%BUILD_ENTRANCES%',
-      '%FLORS_ROOMS%',
-      'canvas_container',
-      '%USER_INFO%',
-      '%LANG_PACK%',
-      'canvas_height',
-      '%BUILD_FLATS%',
-      '%BUILD_SCHEMA%',
-      '%NUMBERING_DIRECTION%'
-    );
+      setView(type);
+    });
 
+    function setView(type) {
+      jQuery('.progress-bar').width(percentages[type]);
+      jQuery('#progress-bar').text(percentages[type]);
+      jQuery('#no_correct_flat').attr('href', '%SHOW_USERS%');
+
+      jQuery('#canvas_container').html('');
+      build_construct(
+        '%BUILD_FLORS%',
+        '%BUILD_ENTRANCES%',
+        '%FLORS_ROOMS%',
+        'canvas_container',
+        info[type],
+        '%LANG_PACK%',
+        'canvas_height',
+        '%BUILD_FLATS%',
+        '%BUILD_SCHEMA%',
+        '%NUMBERING_DIRECTION%'
+      );
+    }
+
+    setView('user');
   })
 </script>
 

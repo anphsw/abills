@@ -17,11 +17,13 @@ our (
   $admin,
   %conf,
   %lang,
-  $html,
   @state_colors,
   %LANG,
   @bool_vals
 );
+
+our Abills::HTML $html;
+
 
 my %payments_type = (
   0 => $lang{PREPAID},
@@ -64,7 +66,6 @@ my @status    = ($lang{ENABLE}, $lang{DISABLE}, $lang{USED}, $lang{DELETED}, $la
 =cut
 #**********************************************************
 sub multidoms_reseller_nas_reconfig {
-  #my ($attr) = @_;
 
   cmd($conf{RADIUS_RESTART});
 
@@ -91,24 +92,22 @@ sub multidoms_reseller_nas_groups {
     $pages_qs .= "&NAS_GID=$FORM{NAS_GID}&subf=$FORM{subf}";
     my %F_ARGS = (NAS_GID => $FORM{NAS_GID});
 
-    $Nas->{NAME_SEL} = $html->form_main(
-      {
-        CONTENT => $html->form_select(
-          'NAS_GID',
-          {
-            SELECTED  => $FORM{NAS_GID},
-            SEL_LIST  => $Nas->nas_group_list({ %LIST_PARAMS, DOMAIN_ID => $admin->{DOMAIN_ID}, COLS_NAME => 1 }),
-            SEL_KEY   => 0,
-            SEL_VALUE => '0,1',
-            NO_ID     => 1,
+    $Nas->{NAME_SEL} = $html->form_main({
+      CONTENT       => $html->form_select(
+        'NAS_GID',
+        {
+          SELECTED  => $FORM{NAS_GID},
+          SEL_LIST  => $Nas->nas_group_list({ %LIST_PARAMS, DOMAIN_ID => $admin->{DOMAIN_ID}, COLS_NAME => 1 }),
+          SEL_KEY   => 0,
+          SEL_VALUE => '0,1',
+          NO_ID     => 1,
 
-          }
-        ),
-        HIDDEN        => { index => "$index" },
-        SUBMIT        => { show  => "$lang{SHOW}" },
-        OUTPUT2RETURN => 1,
-      }
-    );
+        }
+      ),
+      HIDDEN        => { index => "$index" },
+      SUBMIT        => { show => "$lang{SHOW}" },
+      OUTPUT2RETURN => 1,
+    });
 
     func_menu(
       {
@@ -190,8 +189,8 @@ sub multidoms_reseller_nas_groups {
 
     $table->addrow(
       $html->b($line->[0]),
-      "$line->[1]",
-      "$line->[2]",
+      $line->[1],
+      $line->[2],
       $html->color_mark($status[ $line->[3] ], $state_colors[ $line->[3] ]),
       $html->button($lang{NAS}, "index=" . ($index - 3) . "&GID=$line->[0]", { BUTTON => 1 }),
       $html->button($lang{CHANGE}, "index=$index&chg=$line->[0]", { BUTTON => 1 }),
@@ -200,12 +199,10 @@ sub multidoms_reseller_nas_groups {
   }
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", $html->b($Nas->{TOTAL}) ] ]
-    }
-  );
+  $table = $html->table({
+    width      => '100%',
+    rows       => [ [ "$lang{TOTAL}:", $html->b($Nas->{TOTAL}) ] ]
+  });
 
   print $table->show();
 
@@ -515,7 +512,7 @@ sub multidoms_reseller_nas_groups_templates {
       ((-f "$conf{TPL_DIR}/$module" . "$f")
         ? $html->button($lang{SHOW}, "index=$index#", { NEW_WINDOW => "$SELF_URL?qindex=$index&NAS_GID=$FORM{NAS_GID}&SHOW=$module:$file:$lang", BUTTON => 1 }) . '<br>' . $html->button($html->b($lang{CHANGE}), "index=$index&NAS_GID=$FORM{NAS_GID}&tpl_name=$module" . "$f")
         : $html->button($lang{CREATE}, "index=$index&NAS_GID=$FORM{NAS_GID}&create=$module:$file" . '.tpl' . ":$lang", { BUTTON => 1 }))
-      . '<br>'
+      . $html->br()
       . ((-f "$conf{TPL_DIR}/$module" . "$f") ? $html->button($lang{DEL}, "index=$index&NAS_GID=$FORM{NAS_GID}&del=$module" . "$f", { MESSAGE => "$lang{DEL} $file", BUTTON => 1 }) : '');
     }
 
@@ -523,7 +520,7 @@ sub multidoms_reseller_nas_groups_templates {
   }
 
   while (my ($k, $v) = each %templates) {
-    $table->addrow($html->b($k), "$v", $html->button($lang{CHANGE}, "index=$index&NAS_GID=$FORM{NAS_GID}&tpl_name=$k", { button => 1 }));
+    $table->addrow($html->b($k), $v, $html->button($lang{CHANGE}, "index=$index&NAS_GID=$FORM{NAS_GID}&tpl_name=$k", { button => 1 }));
   }
   print $table->show();
 
@@ -970,7 +967,7 @@ sub multidoms_reseller_ip_pools {
   );
 
   return 0;
-
+=comments
   $table = $html->table(
     {
       width   => '100%',
@@ -992,6 +989,7 @@ sub multidoms_reseller_ip_pools {
   print $table->show();
 
   return 1;
+=cut
 }
 
 #**********************************************************
@@ -1207,12 +1205,10 @@ sub multidoms_reseller_tp {
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", $html->b($Tariffs->{TOTAL}) ] ]
-    }
-  );
+  $table = $html->table({
+    width      => '100%',
+    rows       => [ [ "$lang{TOTAL}:", $html->b($Tariffs->{TOTAL}) ] ]
+  });
 
   print $table->show();
 

@@ -143,14 +143,15 @@ CREATE TABLE IF NOT EXISTS `crm_admin_actions` (
   DEFAULT CHARSET=utf8 COMMENT = 'Crm leads changes log';
 
 CREATE TABLE IF NOT EXISTS `crm_info_fields` (
-  `id`          TINYINT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name`        VARCHAR(60)          NOT NULL DEFAULT '',
-  `sql_field`   VARCHAR(60)          NOT NULL DEFAULT '',
-  `type`        TINYINT(2) UNSIGNED  NOT NULL DEFAULT 0,
-  `priority`    TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
-  `comment`     VARCHAR(60)          NOT NULL DEFAULT '',
-  `pattern`     VARCHAR(60)          NOT NULL DEFAULT '',
-  `title`       VARCHAR(255)         NOT NULL DEFAULT '',
+  `id`           TINYINT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name`         VARCHAR(60)          NOT NULL DEFAULT '',
+  `sql_field`    VARCHAR(60)          NOT NULL DEFAULT '',
+  `type`         TINYINT(2) UNSIGNED  NOT NULL DEFAULT 0,
+  `priority`     TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
+  `comment`      VARCHAR(60)          NOT NULL DEFAULT '',
+  `pattern`      VARCHAR(60)          NOT NULL DEFAULT '',
+  `title`        VARCHAR(255)         NOT NULL DEFAULT '',
+  `registration` TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY (`name`),
   UNIQUE KEY (`sql_field`)

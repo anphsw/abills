@@ -25,7 +25,7 @@
             <tbody id='radius_parameters'></tbody>
         </table>
     </div>
-    <div class='col-12 pull-right d-flex'>
+    <div class='col-12 float-right d-flex'>
         <span id='operation_result_message' class="flex-grow-1"></span>
         <a title='_{ADD}_' class='d-block m-1 btn btn-sm btn-info' id='add_field'>
             <span class='fa fa-plus'></span>

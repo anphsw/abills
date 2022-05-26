@@ -10,7 +10,7 @@
         </div>
         <div class='card-body'>
             <div class='form-group text-center'>
-                <img src='/styles/default_adm/img/paysys_logo/upay-logo.png'
+                <img src='/styles/default/img/paysys_logo/upay-logo.png'
                      style='width: auto; max-height: 200px;'
                      alt='upay'>
             </div>

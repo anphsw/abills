@@ -88,6 +88,7 @@ $lang{PAYMENT_DELETED} = 'Payment deleted';
 $lang{PAYMENT_ADDED} = 'Payment added';
 $lang{PAYMENT_NOTEXIST} = 'Payment does not exist';
 $lang{USER_EXIST} = 'User exists';
+$lang{GROUP_USERS_EXISTS} = 'In this group present users';
 $lang{USER_NOT_EXIST} = 'User does not exist';
 $lang{NOE_ENOUGHT_SIZE_FOR_SUFFIX}='Login size is too small for adding suffix. You should make it longer in the config file';
 $lang{SUFFIX_ADDED}='Suffix was added';
@@ -632,6 +633,7 @@ $lang{FIXED_HEADER} = 'Fixed header';
 $lang{ALWAYS_HIDE_RIGHT_MENU} = 'Always hide right menu';
 $lang{MODULE} = 'Module';
 $lang{PLANNED_TO_CONNECT} = 'Planned to connect';
+$lang{CONNECTION_FEE} = 'Connection fee';
 $lang{COPY} = 'Copy';
 $lang{RESET_SCHEMA} = 'Reset placement information panels';
 $lang{INSTALLED} = 'Installed';
@@ -962,4 +964,29 @@ $lang{EXPIRE_DATE} = 'Expiration date';
 $lang{MODE} = 'Mode';
 $lang{ERROR_VIEW_INFORMATION} = 'No permission to view information';
 
+$lang{QUICK_MENU} = 'Quick menu';
+
+$lang{CLEAR} = 'Clear';
+
+$lang{LOGIN_BY_PHONE_NUMBER} = 'Login by phone number';
+$lang{SEND_AGAIN} = 'Send again';
+$lang{USER_NOT_FOUND} = 'User not found';
+$lang{USED_ALL_PIN_ATTEMPTS} = 'All attempts to enter PIN have been used';
+$lang{USE_LOGIN_AND_PASSWORD} = 'Log in with a login and password';
+$lang{BACK_TO_LOGIN_WITH_PASSWORD} = 'Back to login with password';
+$lang{FOUND_SEVERAL_USERS} = 'Several users have been found on your phone number';
+$lang{CODE_EXPIRED} = 'Code expired';
+$lang{CODE_IS_INVALID} = 'This code is invalid';
+
+$lang{TPL_NOT_CHANGED} = 'Template does not changed';
+$lang{CHECK_FILE_PERMISSIONS} = 'Check file permissions';
+
+$lang{QUERIES} = 'Queries';
+$lang{ALREADY_HAVE_A_PIN} = 'I already have a PIN';
+
+$lang{REPORT_SWITCH_WITH_USERS} = 'Switch Report';
+$lang{QUANTITY_USERS_REQUEST} = 'Users requests for the last 30 days';
+$lang{COEFFICIENT_OF_DISABLE_USERS} = 'Coefficient of disable users';
+$lang{COEFFICIENT_OF_REQUESTS_USERS} = 'Coefficient of requests';
+$lang{BOTS} = 'Bots';
 1;

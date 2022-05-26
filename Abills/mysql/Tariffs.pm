@@ -497,6 +497,8 @@ sub change {
     SERVICE_ID              => 'service_id',
     STATUS                  => 'status',
     DESCRIBE_AID            => 'describe_aid',
+    PROMOTIONAL             => 'promotional',
+    EXT_BILL_FEES_METHOD    => 'ext_bill_fees_method'
   );
 
   $attr->{REDUCTION_FEE}        = 0 if (!$attr->{REDUCTION_FEE});
@@ -510,18 +512,17 @@ sub change {
   $attr->{ACTIVE_DAY_FEE}       = 0 if (!$attr->{ACTIVE_DAY_FEE});
   $attr->{FIXED_FEES_DAY}       = 0 if (!$attr->{FIXED_FEES_DAY});
   $attr->{STATUS}               = 0 if (!$attr->{STATUS});
+  $attr->{PROMOTIONAL}          = 0 if (!$attr->{PROMOTIONAL});
 
-  $self->changes(
-    {
-      CHANGE_PARAM    => 'TP_ID',
-      TABLE           => 'tarif_plans',
-      FIELDS          => \%FIELDS,
-      OLD_INFO        => $self->info($tp_id),
-      DATA            => $attr,
-      EXTENDED        => ($attr->{MODULE}) ? "and module='$attr->{MODULE}'" : undef,
-      EXT_CHANGE_INFO => "TP_ID:$tp_id"
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM    => 'TP_ID',
+    TABLE           => 'tarif_plans',
+    FIELDS          => \%FIELDS,
+    OLD_INFO        => $self->info($tp_id),
+    DATA            => $attr,
+    EXTENDED        => ($attr->{MODULE}) ? "and module='$attr->{MODULE}'" : undef,
+    EXT_CHANGE_INFO => "TP_ID:$tp_id"
+  });
 
   $self->info($tp_id);
 
@@ -537,9 +538,7 @@ sub del {
   my $self = shift;
   my ($id, $attr) = @_;
 
-  $self->query_del('tarif_plans', undef, { tp_id  => $id,
-                                           module => $attr->{MODULE} 
-                                          });
+  $self->query_del('tarif_plans', undef, { tp_id => $id, module => $attr->{MODULE} });
 
   $self->{admin}->system_action_add("TP:$id", { TYPE => 10 });
 
@@ -702,6 +701,7 @@ sub list {
     [ 'COMMENTS',            'STR', 'tp.comments',                 1 ],
     [ 'DOMAIN_ID',           'INT', 'tp.domain_id',                1 ],
     [ 'EXT_BILL_ACCOUNT',    'INT', 'tp.ext_bill_account',         1 ],
+    [ 'EXT_BILL_FEES_METHOD','INT', 'tp.ext_bill_fees_method',     1 ],
     [ 'INNER_TP_ID',         'INT', 'tp.tp_id',                    1 ],
     [ 'TP_ID_',              'INT', 'tp.tp_id', 'tp.tp_id AS tp_id_' ],
     [ 'MODULE',              'STR', 'tp.module',                   1 ],
@@ -716,6 +716,7 @@ sub list {
     [ 'STATUS',              'INT', 'tp.status',                   1 ],
     [ 'DESCRIBE_AID',        'STR', 'tp.describe_aid',             1 ],
     [ 'IPPOOL',              'STR', 'tp.ippool',                   1 ],
+    [ 'PROMOTIONAL',         'INT', 'tp.promotional',              1 ],
     );
 
   if ($attr->{SHOW_ALL_COLUMNS}){

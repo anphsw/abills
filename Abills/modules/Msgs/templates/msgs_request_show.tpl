@@ -189,7 +189,7 @@
 </form>
 
 
-<div class='noprint' align=center>
+<div class='d-print-none' align=center>
 <p>
     <a href='javascript:window.print();' class='btn btn-secondary btn-xs print'>_{PRINT}_</a>
     <a href='javascript:window.close();' class='btn btn-secondary btn-xs del'>_{CLOSE}_</a>

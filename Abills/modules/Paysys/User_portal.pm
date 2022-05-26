@@ -18,6 +18,7 @@ our (
   %lang,
   @status,
   @status_color,
+  %FORM
 );
 
 our Paysys $Paysys;
@@ -54,6 +55,7 @@ sub paysys_payment {
     }
   }
 
+  my $paysys_id = $FORM{PAYMENT_SYSTEM};
   if ($conf{PAYSYS_MIN_SUM} && $FORM{SUM}>0 && $conf{PAYSYS_MIN_SUM} > $FORM{SUM}  ) {
     $html->message( 'err', $lang{ERROR}, "$lang{PAYSYS_MIN_SUM_MESSAGE} $conf{PAYSYS_MIN_SUM}" );
     delete $FORM{PAYMENT_SYSTEM};
@@ -136,7 +138,7 @@ sub paysys_payment {
   }
 
   $TEMPLATES_ARGS{OPERATION_ID} = mk_unique_value(8, { SYMBOLS => '0123456789' });
-  if (in_array('Maps2', \@MODULES) && !$FORM{json}) {
+  if ($conf{PAYSYS_USER_PORTAL_MAP} && in_array('Maps', \@MODULES) && !$FORM{json}) {
     require Paysys::Maps;
     $TEMPLATES_ARGS{MAP} = paysys_maps_new();
   }
@@ -155,29 +157,48 @@ sub paysys_payment {
 
   my $count = 1;
   my @payment_systems = ();
+  my $Users = Users->new($db, $admin, \%conf);
+  my $gid_list = $Users->groups_list({
+    COLS_NAME      => 1,
+    GID            => '_SHOW'
+  });
+
   foreach my $payment_system (@$connected_systems) {
-    if(defined($user->{GID})
-        && exists $group_to_paysys_id{$user->{GID}}
-        && !( in_array($payment_system->{paysys_id}, $group_to_paysys_id{$user->{GID}}) ) ) {
-      next;
+    my $zero_gid = 1;
+
+    if (defined($user->{GID}) && !$user->{GID}) {
+      $zero_gid = 0;
+      foreach my $gid (@{$gid_list}) {
+        next if ($gid->{gid} != 0);
+        $zero_gid = 1;
+      }
     }
 
-    if(defined($user->{GID}) && !$group_to_paysys_id{$user->{GID}}){
-      next;
-    }
+    next if (defined($user->{GID})
+      && exists $group_to_paysys_id{$user->{GID}}
+      && !(in_array($payment_system->{paysys_id}, $group_to_paysys_id{$user->{GID}}))
+      && $zero_gid);
+
+    next if (defined($user->{GID}) && !$group_to_paysys_id{$user->{GID}} && $zero_gid);
+
     my $Plugin = _configure_load_payment_module($payment_system->{module});
     if ($Plugin->can('user_portal')) {
+      my $checked = ($paysys_id) ?
+        (($paysys_id == $payment_system->{paysys_id}) ?
+          'checked' : '') : $count == 1 ? 'checked' : '';
+
       push @payment_systems, _paysys_system_radio({
         NAME    => $payment_system->{merchant_name} || $payment_system->{name},
         MODULE  => $payment_system->{module},
         ID      => $payment_system->{paysys_id},
-        CHECKED => $count == 1 ? 'checked' : '',
+        CHECKED => $checked,
       });
       $count++;
     }
     elsif ($Plugin->can('user_portal_special')) {
       my $Paysys_plugin = $Plugin->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, INDEX => $index, SELF_URL => $SELF_URL });
-      $TEMPLATES_ARGS{IPAY_HTML} = $Paysys_plugin->user_portal_special($user, { %FORM });
+      my $portal = $Paysys_plugin->user_portal_special($user, { %FORM });
+      $TEMPLATES_ARGS{IPAY_HTML} = $portal if ($portal);
     }
   }
 
@@ -228,17 +249,20 @@ sub paysys_external_cmd {
       });
     }
     else {
-      if ($user_info->{ATTEMPTS} && (!$attempts || $user_info->{ATTEMPTS} < $attempts)) {
-        my (undef, $now_month) = split('-', $DATE);
-        my (undef, $last_month) = split('-', $user_info->{EXTERNAL_LAST_DATE});
+      my (undef, $now_month) = split('-', $DATE);
+      my (undef, $last_month) = split('-', $user_info->{EXTERNAL_LAST_DATE});
+
+      if (int($now_month) > int($last_month)
+        || ($user_info->{ATTEMPTS} && (!$attempts || $user_info->{ATTEMPTS} < $attempts))) {
         my $paysys_id = $user_info->{PAYSYS_ID};
-        if (int($now_month) != int($last_month)) {
+        if (int($now_month) > int($last_month)) {
           $Paysys->user_change({
             ATTEMPTS           => 1,
             UID                => $uid,
             PAYSYS_ID          => $paysys_id,
             EXTERNAL_LAST_DATE => "$DATE $TIME",
             EXTERNAL_USER_IP   => ip2int($ENV{REMOTE_ADDR}),
+            CLOSED             => (int($now_month) > int($last_month)) ? 0 : 1
           });
         }
         else {
@@ -297,7 +321,7 @@ sub _paysys_system_radio {
   my ($attr) = @_;
 
   my $radio_paysys;
-  my $paysys_logo_path = $base_dir . 'cgi-bin/styles/default_adm/img/paysys_logo/';
+  my $paysys_logo_path = $base_dir . 'cgi-bin/styles/default/img/paysys_logo/';
   my $file_path = q{};
 
   my $paysys_name = $attr->{NAME};
@@ -306,7 +330,7 @@ sub _paysys_system_radio {
   $paysys_module = lc($paysys_module);
 
   if (-e "$paysys_logo_path" . lc($paysys_module) . "-logo.png") {
-    $file_path = "/styles/default_adm/img/paysys_logo/" . lc($paysys_module) . "-logo.png";
+    $file_path = "/styles/default/img/paysys_logo/" . lc($paysys_module) . "-logo.png";
   }
   else {
     $file_path = "http://abills.net.ua/wiki/lib/exe/fetch.php/abills:docs:modules:paysys:" . lc("$paysys_module") . "-logo.png";
@@ -319,6 +343,7 @@ sub _paysys_system_radio {
       PAY_SYSTEM      => $attr->{ID},
       PAY_SYSTEM_NAME => $paysys_name,
       CHECKED         => $attr->{CHECKED},
+      HIDDEN          => $conf{PAYSYS_USER_PORTAL_BTN_TEXT} ? '' : 'hidden hidden-btn-text'
     },
     { OUTPUT2RETURN => 1,
       ID            => 'PAYSYS_' . $attr->{ID}
@@ -481,7 +506,7 @@ sub paysys_subscribe {
   }
 
   if ($paysys_subscribe->{EXTERNAL_LAST_DATE}) {
-    my $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . '&SUM=1.00';
+    my $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . '&SUM=1.00&UNTOKEN=1';
     my $Users = Users->new($db, $admin, \%conf);
     if ($paysys_subscribe->{PAYSYS_ID} == 62) {
       my $list = $Users->list({
@@ -592,4 +617,5 @@ sub paysys_recurrent_payment {
 
   return 1;
 }
+
 1;

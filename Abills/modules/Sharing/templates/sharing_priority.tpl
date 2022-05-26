@@ -1,4 +1,4 @@
-<div class='noprint'>
+<div class='d-print-none'>
 <form action='$SELF_URL' method='POST'>
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='ID' value='$FORM{chg}'>

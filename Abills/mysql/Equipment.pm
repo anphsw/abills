@@ -476,6 +476,7 @@ sub _list {
     [ 'NAS_GID',                       'INT',  'nas.gid',                         1 ],
     [ 'NAS_GROUP_NAME',                'STR',  'ng.name', 'ng.name AS nas_group_name' ],
     [ 'DISTRICT_ID',                   'INT',  'streets.district_id', 'districts.name' ],
+    [ 'STREET_ID',                     'INT',  'streets.id', 'streets.id AS street_id' ],
     [ 'LOCATION_ID',                   'INT',  'nas.location_id',                 1 ],
     [ 'DOMAIN_ID',                     'INT',  'nas.domain_id',                   1 ],
     [ 'DOMAIN_NAME',                   'INT',  'domains.name', 'domains.name AS domain_name' ],
@@ -1151,7 +1152,7 @@ sub equipment_box_list {
 
   return [] if ($self->{errno});
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   if ($self->{TOTAL} >= 0) {
     $self->query("SELECT COUNT(id) AS total FROM equipment_box_types $WHERE",
@@ -2119,7 +2120,7 @@ sub onu_list {
     $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0) {
     $self->query("SELECT COUNT(*) AS total

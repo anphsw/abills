@@ -36,6 +36,8 @@ our @EXPORT = qw(
   PON_MAPS_LAYER_ID
 );
 
+my $Auxiliary;
+
 #**********************************************************
 =head2 new()
 
@@ -63,18 +65,15 @@ sub new {
   Equipment->import();
   $Equipment = Equipment->new($db, $admin, $CONF);
 
+  require Maps::Auxiliary;
+  Maps::Auxiliary->import();
+  $Auxiliary = Maps::Auxiliary->new($db, $admin, $CONF, { HTML => $html, LANG => $lang });
+
   return $self;
 }
 
 #**********************************************************
-=head2 maps2_point_color($point_count, $max_points) - get color for point
-
-  Arguments:
-    $point_count  - Point object count
-    $max_points   - Points max objects
-
-  Returns:
-    string - color name
+=head2 location_info($attr)
 
 =cut
 #**********************************************************
@@ -239,86 +238,64 @@ sub pon_maps {
 
   my $equipment_list = $Equipment->onu_list({ #XXX pay attention to DELETED status?
     LOCATION_ID => '!',
+    MAPS_COORDS => '!',
     LOGIN       => '_SHOW',
     UID         => '_SHOW',
     RX_POWER    => '_SHOW',
     NAS_NAME    => '_SHOW',
-    MAPS_COORDS => '_SHOW',
     COLS_NAME   => 1,
     PAGE_ROWS   => 100000
   });
   ::_error_show($Equipment);
 
-  my %showed_equipment = ();
   my @export_arr = ();
   my $count = 0;
+  my %builds_info = ();
 
   foreach my $point (@{$equipment_list}) {
-    next if (!($point->{build_id} && $point->{maps_coords}));
+    my ($color, $panel_color) = _pon_state($point->{rx_power});
 
-    my ($coordy, $coordx) = split(/:/, $point->{maps_coords});
-    next if ($coordx eq "0.00000000000000" && $coordy eq "0.00000000000000");
-
-    if ($showed_equipment{$point->{maps_coords}}) {
-      $coordx = $coordx + 0.000005 * + +$showed_equipment{$point->{maps_coords}};
-    }
-    else {
-      $showed_equipment{$point->{maps_coords}} = 1;
-    }
-
-    my $color = 'normal';
-    my $panel_color = "success";
-    if (!$point->{rx_power} || $point->{rx_power} == 65535) {
-      $color = "off";
-      $panel_color = "default";
-    }
-    elsif ($point->{rx_power} > 0) {
-      $color = "off";
-      $panel_color = "default";
-    }
-    elsif ($point->{rx_power} < -8 && $point->{rx_power} > -27) {
-      $color = "normal";
-      $panel_color = "success";
-    }
-    elsif ($point->{rx_power} < -8 && $point->{rx_power} > -30) {
-      $color = "not_normal";
-      $panel_color = "danger";
-    }
-    else {
-      $color = "off";
-      $panel_color = "default";
-    }
-
-    my $link = "UID:<a href='index.cgi?index=15&UID=" . ($point->{uid} || "") . "' target='_blank'>" . ($point->{uid} || "") . "</a>";
-    my $tb = "<div class='card card-$panel_color'>" .
-      "<div class='card-header'><h3 class='card-title'>$link</h3></div>" .
-      "<ul class='list-group'>" .
-      "<li class='list-group-item'>$lang->{SIGNAL}: $point->{rx_power}</li>" .
-      "<li class='list-group-item'>$lang->{ADDRESS}: $point->{address_street},$point->{address_build}</li>" .
-      "</ul>" .
-      "</div>";
-    my $info = "<div class='panel-group'>$tb</div>";
-
-    $count++;
-    $point->{location_id} ||= $point->{build_id};
-
-    my %pon = (
-      MARKER   => {
-        ID           => $point->{nas_id} . $count,
-        COORDX       => $coordx,
-        COORDY       => $coordy,
-        INFO         => $info,
-        TYPE         => "pon_$color",
-        OBJECT_ID    => $point->{location_id},
-        DISABLE_EDIT => 1,
-        LAYER_ID     => PON_MAPS_LAYER_ID
-      },
-      LAYER_ID => PON_MAPS_LAYER_ID
-    );
-
-    push @export_arr, \%pon;
+    push @{$builds_info{$point->{build_id}}}, {
+      rx_power  => $point->{rx_power},
+      color     => $color,
+      row_color => $panel_color,
+      uid       => $point->{uid} || '',
+      address   => "$point->{address_street}, $point->{address_build}",
+      coordx    => $point->{coordx},
+      coordy    => $point->{coordy}
+    };
   }
 
+  foreach my $build (keys %builds_info) {
+    my $build_info = $builds_info{$build}[0];
+    my $marker_info = $Auxiliary->maps_point_info_table($html, $lang, {
+      OBJECTS           => $builds_info{$build},
+      TABLE_TITLES      => [ 'UID', 'RX_POWER', 'ADDRESS', ],
+      TABLE_LANG_TITLES => [ $lang->{USER}, $lang->{SIGNAL}, $lang->{ADDRESS} ],
+      LINK_ITEMS        => {
+        'uid' => {
+          'index'        => 15,
+          'EXTRA_PARAMS' => { 'UID' => 'uid' }
+        },
+      }
+    });
+
+    push @export_arr, {
+      MARKER   => {
+        LAYER_ID     => PON_MAPS_LAYER_ID,
+        OBJECT_ID    => $build,
+        COORDX       => $build_info->{coordy},
+        COORDY       => $build_info->{coordx},
+        TYPE         => "pon_" . $build_info->{color},
+        INFOWINDOW   => $marker_info,
+        NAME         => $build_info->{address},
+        DISABLE_EDIT => 1
+      },
+      LAYER_ID => PON_MAPS_LAYER_ID
+    };
+  }
+
+  my %showed_equipment = ();
   $equipment_list = $Equipment->_list({
     MODEL_NAME  => '_SHOW',
     NAS_NAME    => '_SHOW',
@@ -403,6 +380,41 @@ sub pon_maps {
   }
 
   return $export_string;
+}
+
+#**********************************************************
+=head2 _pon_state($rx_power)
+
+=cut
+#**********************************************************
+sub _pon_state {
+  my $rx_power = shift;
+
+  my $color = 'normal';
+  my $panel_color = "success";
+
+  if (!$rx_power || $rx_power == 65535) {
+    $color = "off";
+    $panel_color = "default";
+  }
+  elsif ($rx_power > 0) {
+    $color = "off";
+    $panel_color = "default";
+  }
+  elsif ($rx_power < -8 && $rx_power > -27) {
+    $color = "normal";
+    $panel_color = "success";
+  }
+  elsif ($rx_power < -8 && $rx_power > -30) {
+    $color = "not_normal";
+    $panel_color = "danger";
+  }
+  else {
+    $color = "off";
+    $panel_color = "default";
+  }
+
+  return ( $color, $panel_color );
 }
 
 1;

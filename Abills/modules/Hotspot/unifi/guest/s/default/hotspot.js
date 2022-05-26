@@ -67,7 +67,7 @@ $(function () {
   });
   
   $('#loading').on('hidden.bs.modal', function () {
-    $("#status").html("Please wait while your device is being authorized. <img src='/styles/default_adm/img/ajax-loader.gif'/>");
+    $("#status").html("Please wait while your device is being authorized. <img src='/styles/default/img/ajax-loader.gif'/>");
   });
   
   // Try to fill remembered values

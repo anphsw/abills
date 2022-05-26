@@ -36,7 +36,7 @@ sub add_company {
   if (in_array('Docs', \@MODULES)) {
     $Company->{PRINT_CONTRACT} = $html->button( '',
       "qindex=15&UID=". ($Company->{UID} || '') ."&PRINT_CONTRACT=". ($Company->{UID} || '')  . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''),
-      { ex_params => ' target=new', ADD_ICON => 'fa fa-print' } );
+      { ex_params => ' target=new', ADD_ICON => 'fas fa-print' } );
 
     if ($conf{DOCS_CONTRACT_TYPES}) {
       $conf{DOCS_CONTRACT_TYPES} =~ s/\n//g;
@@ -222,7 +222,7 @@ sub form_companies {
     if (in_array('Docs', \@MODULES)) {
       $Company->{PRINT_CONTRACT} = $html->button( '',
         "qindex=$index$pages_qs&PRINT_CONTRACT=$Company->{ID}" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '')
-        , { ex_params => ' target=new', ADD_ICON => 'fa fa-print' } );
+        , { ex_params => ' target=new', ADD_ICON => 'fas fa-print' } );
     }
 
     my @menu_functions = (
@@ -254,7 +254,7 @@ sub form_companies {
           index => $index,
         },
         SUBMIT => { show => $lang{SHOW} },
-        class  => 'navbar navbar-expand-lg navbar-light bg-light form-main'
+        class  => 'form-inline ml-auto flex-nowrap'
       }
     );
 

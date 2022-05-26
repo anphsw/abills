@@ -292,7 +292,7 @@ sub send_with_attachments {
         $param = 'document';
       }
 
-      my $content = $file->{content};
+      my $content = $file->{content} || '';
       if($content =~ /FILE/){
         my ($filename) = $content =~ /FILE: (.*)/;
         open(my $fh, '<', $filename) or next;

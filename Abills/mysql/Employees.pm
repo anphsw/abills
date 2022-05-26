@@ -1881,7 +1881,7 @@ sub employees_list_cashbox {
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $SORT = ($attr->{SORT} && $attr->{SORT} < 5) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;

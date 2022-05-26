@@ -81,7 +81,7 @@
           <div class='card card-primary card-outline'>
             <div class="card-header with-border">
               <h3 class="card-title">Burst Mode</h3>
-              <div class="card-tools pull-right">
+              <div class="card-tools float-right">
                 <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse" data-toggle='collapse' data-parent='#accordion' href='#burstModeCollapse'
                         aria-expanded='false' aria-controls='collapseOne'>
                   <i class="fa fa-plus"></i>

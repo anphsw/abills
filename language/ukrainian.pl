@@ -84,6 +84,7 @@ $lang{EXT_BILL_ACCOUNT}='Додатковий рахунок';
 $lang{REDUCTION}='Знижка';
 $lang{ADDED}='Додано';
 $lang{USER_EXIST}='Такий користувач вже існує';
+$lang{GROUP_USERS_EXISTS} = 'В даній групі присутні користувачі';
 $lang{TRAF_LIMIT}='Ліміт трафіку';
 $lang{EXIST}='Запис вже існує';
 $lang{SENT}='Відправлено';
@@ -741,6 +742,7 @@ $lang{NO_DATAS} = 'н.д.';
 $lang{NOTES} = 'Нотатки';
 $lang{ADDITIONAL_DATA} = 'Додаткові дані';
 $lang{CONNECTION_POINT} = 'Точка підключення';
+$lang{CONNECTION_FEE} = 'Плата за підключення';
 $lang{TECHNICAL_DATA} = 'Технічні дані';
 $lang{CONSIGNMENT_NOTE} = 'Накладна на передачу';
 $lang{DRESS_FOR_WORK} = 'Наряд на роботу';
@@ -929,5 +931,29 @@ $lang{ERROR_VIEW_INFORMATION} = 'Немає дозволу на перегляд
 
 $lang{TRANSFER} = 'Переказ';
 
-1;
+$lang{QUICK_MENU} = 'Швидке меню';
 
+$lang{CLEAR} = 'Очистити';
+
+$lang{LOGIN_BY_PHONE_NUMBER} = 'Увійти за номером телефону';
+$lang{SEND_AGAIN} = 'Надіслати знову';
+$lang{USER_NOT_FOUND} = 'Користувач не знайдений';
+$lang{USED_ALL_PIN_ATTEMPTS} = 'Використані всі спроби ввести PIN';
+$lang{USE_LOGIN_AND_PASSWORD} = 'Увійдіть за допомогою логіна та пароля';
+$lang{BACK_TO_LOGIN_WITH_PASSWORD} = 'Повернутися до входу з паролем';
+$lang{FOUND_SEVERAL_USERS} = 'За вашим номером телефону знайдено кілька користувачів';
+$lang{CODE_EXPIRED} = 'Термін дії коду закінчився';
+$lang{CODE_IS_INVALID} = 'Цей код неправильний';
+
+$lang{TPL_NOT_CHANGED} = 'Шаблон не змінено';
+$lang{CHECK_FILE_PERMISSIONS} = 'Перевірте права на файл';
+
+$lang{QUERIES} = 'Запити';
+$lang{ALREADY_HAVE_A_PIN} = 'У мене вже є PIN';
+
+$lang{REPORT_SWITCH_WITH_USERS} = 'Звіт по комутаторам';
+$lang{QUANTITY_USERS_REQUEST} = 'Заявки за ост 30 дн.';
+$lang{COEFFICIENT_OF_DISABLE_USERS} = 'Коефіцієнт відключених';
+$lang{COEFFICIENT_OF_REQUESTS_USERS} = 'Коефіцієнт заявок';
+$lang{BOTS} = 'Боти';
+1;

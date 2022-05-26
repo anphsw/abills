@@ -6,6 +6,10 @@
 =head1 PARAMETERS
 
   SPEED=IN:OUT  Cusctom speed Kb
+  PROFILE=  - Profile name
+  START=1   - Start custom profile
+  NAT       - Use nat profile
+  DEPOSIT   - Deposit filter
 
 =cut
 #**********************************************************
@@ -15,16 +19,17 @@ use strict;
 use Abills::Base qw(cmd startup_files);
 
 our (
-  $Nas,
-  $Internet,
-  $Sessions,
   $debug,
   $db,
   $argv
 );
 
-mx80_change_profile();
 
+our Internet::Sessions $Sessions;
+our Internet $Internet;
+our Nas $Nas;
+
+mx80_change_profile();
 
 #**********************************************************
 =head2 mx80_change_profile()
@@ -35,17 +40,26 @@ sub mx80_change_profile {
   #my ($attr)=@_;
   #my $Nas_cmd = Abills::Nas::Control->new( $db, \%conf );
 
+  my $Nas_cmd = Abills::Nas::Control->new($db, \%conf);
   my $files = startup_files({ TPL_DIR => $conf{TPL_DIR} });
   my $RADCLIENT = $files->{RADCLIENT} || $conf{FILE_RADCLIENT} || '/usr/local/bin/radclient';
 
   print "mx80_change_profile\n" if ($debug > 1);
   my $debug_output = '';
-  #Get speed
+
   if (!$LIST_PARAMS{NAS_IDS}) {
     $LIST_PARAMS{TYPE} = 'mx80';
   }
 
-  if ($debug > 7) {
+  if ($argv->{TP_ID}) {
+    $LIST_PARAMS{TP_ID}=$argv->{TP_ID};
+  }
+
+  if ($argv->{DEPOSIT}) {
+    $LIST_PARAMS{DEPOSIT}=$argv->{DEPOSIT};
+  }
+
+  if ($debug > 6) {
     $Nas->{debug} = 1;
     $Internet->{debug} = 1;
     $Sessions->{debug} = 1;
@@ -100,7 +114,9 @@ sub mx80_change_profile {
 
     #if don't have online users skip it
     my $l = $online_list->{ $nas_info->{NAS_ID} };
+
     next if ($#{$l} < 0);
+    my @coa_action = ();
     foreach my $online (@$l) {
       my $connection_info = $online->{'connect_info'} || q{};
       print "User: $online->{user_name} TP: $online->{tp_id} Connect info: $connection_info\n" if ($debug > 0);
@@ -111,19 +127,19 @@ sub mx80_change_profile {
         $online->{'user_name'} = $online->{cid} || $online->{user_name};
       }
 
-      if ($online->{tp_id} && $TPS_SPEEDS{$online->{tp_id}}) {
-        my $num = 3;
+      if (($online->{tp_id} && $TPS_SPEEDS{$online->{tp_id}}) || $argv->{PROFILE}) {
+        my $num = scalar(keys %{ $TPS_SPEEDS{$online->{tp_id}} } ); # old static value 3;
         my %RAD_REPLY_DEACTIVATE = ();
         my %RAD_REPLY_ACTIVATE = ();
 
         foreach my $tt_id (keys %{$TPS_SPEEDS{$online->{tp_id}}}) {
-
-          print "$tt_id -> " . $TPS_SPEEDS{$online->{tp_id}}{$tt_id} . "\n" if ($debug > 3);
+          print "TT_ID: tt_id -> " . $TPS_SPEEDS{$online->{tp_id}}{$tt_id} . "\n" if ($debug > 3);
 
           my $traffic_class_name = ($tt_id > 0) ? "local_$tt_id" : 'global';
           if ($TPS_SPEEDS{$online->{tp_id}}{$tt_id}) {
+            my $profile_num = $num - $tt_id;
             push @{$RAD_REPLY_DEACTIVATE{'ERX-Service-Deactivate'}}, "svc-$traffic_class_name-$profile_sufix";
-            push @{$RAD_REPLY_ACTIVATE{'ERX-Service-Activate:' . ($num - $tt_id)}}, "svc-$traffic_class_name-$profile_sufix(" . $TPS_SPEEDS{$online->{tp_id}}{$tt_id} . ")";
+            push @{$RAD_REPLY_ACTIVATE{'ERX-Service-Activate:' . $profile_num }}, "svc-$traffic_class_name-$profile_sufix(" . $TPS_SPEEDS{$online->{tp_id}}{$tt_id} . ")";
           }
         }
 
@@ -143,33 +159,108 @@ sub mx80_change_profile {
 
         $RAD_REPLY_DEACTIVATE{'Acct-Session-Id'} = $online->{'acct_session_id'};
         $RAD_REPLY_ACTIVATE{'Acct-Session-Id'}   = $online->{'acct_session_id'};
-        #        Abills::Nas::Control::hangup_radius($nas_info,
-        #        {
-        #          USER              => $online->{user_name},
-        #          FRAMED_IP_ADDRESS => $online->{client_ip},
-        #          COA               => 1,
-        #          RAD_PAIRS         => \%RAD_REPLY_DEACTIVATE,
-        #          DEBUG             => (($debug > 2) ? 1 : 0)
-        #        });
+        if (! $argv->{OLD_VERSION}) {
+          my $profile = $argv->{PROFILE};
+          if ($argv->{START}) {
+            $RAD_REPLY_DEACTIVATE{'ERX-Service-Deactivate'}[0] =~ /(.+)\(?/;
+            my $sub_profile = $1;
 
-        my $rad_vals = make_rad_pairs(\%RAD_REPLY_DEACTIVATE);
-        my $run = "echo \"$rad_vals\" | $RADCLIENT $nas_info->{NAS_MNG_IP_PORT} coa $nas_info->{NAS_MNG_PASSWORD}";
-        cmd($run, { DEBUG => $debug });
+            @coa_action = ({
+              'ERX-Service-Deactivate' => $sub_profile,
+              'Acct-Session-Id'        => $online->{acct_session_id}
+            });
 
-        $rad_vals = make_rad_pairs(\%RAD_REPLY_ACTIVATE);
-        $run = "echo \"$rad_vals\" | $RADCLIENT $nas_info->{NAS_MNG_IP_PORT} coa $nas_info->{NAS_MNG_PASSWORD}";
-        cmd($run, { DEBUG => $debug });
-        #        hangup_radius($nas_info, $online->{'nas_port_id'}, $online->{'user_name'},
-        #              { FRAMED_IP_ADDRESS => $online->{ip},
-        #                COA               => 1,
-        #                RAD_PAIRS         => \%RAD_REPLY_ACTIVATE,
-        #                DEBUG             => (($debug > 2) ? 1 : 0)
-        #                });
+            if ($argv->{NAT}) {
+              $argv->{NAT} =~ /(.+)\(?/;
+              $sub_profile = $1;
+
+              push @coa_action, {
+                'ERX-Service-Deactivate' => $sub_profile,
+                'Acct-Session-Id'        => $online->{acct_session_id}
+              };
+            }
+
+            push @coa_action, {
+                'ERX-Service-Activate:1' => $profile,
+                'Acct-Session-Id'        => $online->{acct_session_id}
+              };
+          }
+          else {
+            $profile =~ /(.+)\(/;
+            my $sub_profile = $1;
+
+            @coa_action = (
+              { 'ERX-Service-Deactivate' => $sub_profile,
+                'Acct-Session-Id'        => $online->{acct_session_id}
+              }
+            );
+
+            if ($RAD_REPLY_ACTIVATE{'ERX-Service-Activate:'.1}[0]) {
+              push @coa_action, {
+                'ERX-Service-Activate:1' => $RAD_REPLY_ACTIVATE{'ERX-Service-Activate:'.1}[0],
+                'Acct-Session-Id'        => $online->{acct_session_id}
+              }
+            }
+
+            if ($argv->{NAT}) {
+              $sub_profile = $argv->{NAT};
+
+              push @coa_action, {
+                'ERX-Service-Deactivate' => $sub_profile,
+                'Acct-Session-Id'        => $online->{acct_session_id}
+              };
+            }
+
+          }
+
+          $Nas_cmd->hangup(
+            $nas_info,
+            $online->{nas_port_id},
+            $online->{user_name},
+            {
+              %{$nas_info},
+              ACCT_SESSION_ID      => $online->{acct_session_id},
+              CALLING_STATION_ID   => $online->{CID} || $online->{cid},
+              FRAMED_IP_ADDRESS    => $online->{client_ip},
+              NETMASK              => $online->{netmask},
+              UID                  => $online->{uid},
+              DEBUG                => $debug,
+              FILTER_ID            => $online->{filter_id},
+              OLD_TP_ID            => $online->{tp_id},
+              ACCT_TERMINATE_CAUSE => 15,
+              GUEST                => $online->{guest},
+              #INTERNET             => 1,
+              COA_ACTION           => \@coa_action
+            }
+          );
+
+          print @coa_action;
+        }
+        else {
+          my $rad_vals = make_rad_pairs(\%RAD_REPLY_DEACTIVATE);
+          my $run = "echo \"$rad_vals\" | $RADCLIENT $nas_info->{NAS_MNG_IP_PORT} coa $nas_info->{NAS_MNG_PASSWORD}";
+          cmd($run, { DEBUG => $debug });
+
+          $rad_vals = make_rad_pairs(\%RAD_REPLY_ACTIVATE);
+          $run = "echo \"$rad_vals\" | $RADCLIENT $nas_info->{NAS_MNG_IP_PORT} coa $nas_info->{NAS_MNG_PASSWORD}";
+          cmd($run, { DEBUG => $debug });
+        }
       }
     }
   }
 
-=comments
+  print $debug_output;
+  return \%nas_speeds;
+}
+
+#***********************************************************
+=head2 make_rad_request($request)
+
+  Arguments:
+    $request   - Request hash
+  Results:
+    rad_pairs
+
 ERX-Service-Activate:3 = svc-global-ipoe(73400320,73400320)
 
         Acct-Interim-Interval = 90
@@ -177,12 +268,15 @@ ERX-Service-Activate:3 = svc-global-ipoe(73400320,73400320)
         Framed-IP-Address = 192.168.109.189
         Framed-IP-Netmask = 255.255.255.255
         ERX-Service-Activate:3 = "svc-global-ipoe(2076672,1048576)"
+
+
 =cut
+#***********************************************************
+sub make_rad_request {
 
-  print $debug_output;
-  return \%nas_speeds;
+
+  return 1;
 }
-
 
 #***********************************************************
 =head2 make_rad_pairs($request)

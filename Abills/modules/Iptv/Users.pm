@@ -113,7 +113,7 @@ sub iptv_user {
     }
   }
   elsif ($FORM{change}) {
-    iptv_user_change({ %FORM, USER_INFO => $attr->{USER_INFO} || () });
+    iptv_user_change({ %FORM, USER_INFO => $attr->{USER_INFO} || {} });
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Iptv->user_info($FORM{del});
@@ -479,8 +479,6 @@ sub iptv_user_add {
       MODULE                     => 'Iptv'
     });
 
-    _iptv_get_fees_mandatory_channels({ %{$Iptv}, UID => $attr->{UID} }) if $Iptv->{MANDATORY_CHANNELS};
-
     if ($attr->{SERVICE_ADD}) {
       $FORM{add} = 1;
       $Tv_service = iptv_user_services($attr);
@@ -656,7 +654,7 @@ sub iptv_mandatory_channels {
 
   Arguments:
     $attr
-      negdeposit
+      NEGDEPOSIT
       add
       change
       del
@@ -797,7 +795,8 @@ sub iptv_account_action {
   elsif ($attr->{change}) {
     iptv_dv_crypt() if ($conf{IPTV_DVCRYPT_FILENAME});
 
-    if ($attr->{DISABLE}) {
+    #if ($attr->{DISABLE}) {
+    if ($attr->{STATUS}) {
       $disable_catv_port = 1;
     }
 
@@ -1006,7 +1005,7 @@ sub iptv_account_action {
     if ($Tv_service && $Tv_service->can('user_del')) {
       $users->pi({ UID => $uid });
       $Tv_service->user_del({ %{$users}, %$attr, %{$Iptv}, ID => $attr->{del} });
-      if ($Tv_service->{error}) {
+      if ($Tv_service->{error} || $Tv_service->{errno}) {
         $Iptv->{errno} = $Tv_service->{errno};
         $Iptv->{errstr} = $Tv_service->{errstr};
         $result = 1;
@@ -1224,6 +1223,10 @@ sub iptv_additional_functions {
 sub iptv_get_service_tps {
   my ($attr) = @_;
 
+  my $uid = $FORM{UID} || 0;
+  my $user_info = $users->pi({ UID => $uid });
+  my $tp_gids = ($user_info->{LOCATION_ID}) ? tp_gids_by_geolocation($user_info->{LOCATION_ID}, $Tariffs, $user_info->{GID}) : '';
+
   $attr->{EX_PARAMS} ||= $FORM{EX_PARAMS};
 
   my $tp_sel = $html->form_select('TP_ID', {
@@ -1231,9 +1234,10 @@ sub iptv_get_service_tps {
       MODULE       => 'Iptv',
       NEW_MODEL_TP => 1,
       COLS_NAME    => 1,
-      DOMAIN_ID    => $admin->{DOMAIN_ID},
+      DOMAIN_ID    => $admin->{DOMAIN_ID} || '_SHOW',
       SERVICE_ID   => $FORM{SERVICE_ID},
-      STATUS       => '0'
+      STATUS       => '0',
+      TP_GID       => $tp_gids || '_SHOW',
     }),
     SEL_KEY   => 'tp_id',
     SEL_VALUE => 'id,name',
@@ -1384,7 +1388,7 @@ sub _iptv_add_shedule_form {
       COLS_NAME    => 1,
       STATUS       => '0',
       TP_GID       => $tp_gids || '_SHOW',
-      DOMAIN_ID    => $admin->{DOMAIN_ID},
+      DOMAIN_ID    => $admin->{DOMAIN_ID} || '_SHOW',
     }),
     SEL_KEY        => 'tp_id',
     SEL_VALUE      => 'id,name',

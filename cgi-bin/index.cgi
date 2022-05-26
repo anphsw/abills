@@ -29,12 +29,13 @@ BEGIN {
 }
 
 use Abills::Defs;
-use Abills::Base qw(gen_time in_array mk_unique_value load_pmodule sendmail cmd decode_base64 encode_base64);
+use Abills::Base qw(gen_time in_array mk_unique_value load_pmodule sendmail cmd decode_base64
+  encode_base64 json_former date_inc);
 use Users;
 use Finance;
 use Admins;
 use Conf;
-use POSIX qw(mktime strftime);
+
 our (%LANG,
   %lang,
   @MONTHES,
@@ -47,16 +48,14 @@ do "../libexec/config.pl";
 
 $conf{web_session_timeout} = ($conf{web_session_timeout}) ? $conf{web_session_timeout} : '86400';
 
-our $html = Abills::HTML->new(
-  {
-    IMG_PATH  => 'img/',
-    NO_PRINT  => 1,
-    CONF      => \%conf,
-    CHARSET   => $conf{default_charset},
-    HTML_STYLE=> $conf{UP_HTML_STYLE},
-    LANG      => \%lang,
-  }
-);
+our $html = Abills::HTML->new({
+  IMG_PATH  => 'img/',
+  NO_PRINT  => 1,
+  CONF      => \%conf,
+  CHARSET   => $conf{default_charset},
+  HTML_STYLE=> $conf{UP_HTML_STYLE},
+  LANG      => \%lang,
+});
 
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
   { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
@@ -78,7 +77,8 @@ our $admin = Admins->new($db, \%conf);
 $admin->info($conf{USERS_WEB_ADMIN_ID} ? $conf{USERS_WEB_ADMIN_ID} : 3,
   { DOMAIN_ID => $FORM{DOMAIN_ID},
     IP        => $ENV{REMOTE_ADDR},
-    SHORT     => 1 });
+    SHORT     => 1
+  });
 
 # Load DB %conf;
 our $Conf = Conf->new($db, $admin, \%conf);
@@ -97,100 +97,106 @@ our %OUTPUT = ();
 my $login = $FORM{user} || '';
 my $passwd = $FORM{passwd} || '';
 my $default_index;
-our %module;
-my %menu_args;
+our %module = ();
+my %menu_args = ();
 
 delete($conf{PASSWORDLESS_ACCESS}) if ($FORM{xml});
 
 our Users $user = Users->new($db, $admin, \%conf);
 
-if ($FORM{SHOW_MESSAGE}) {
-  ($uid, $sid, $login) = auth($login, $passwd, $sid, { PASSWORDLESS_ACCESS => 1 });
+_start();
 
-  $admin->{sid} = $sid;
+#**********************************************************
+=head2 _start()
 
-  if ($uid) {
-    load_module('Msgs', $html);
-    msgs_show_last({ UID => $uid });
+=cut
+#**********************************************************
+sub _start {
 
-    print $html->header();
-    $OUTPUT{BODY} = "$html->{OUTPUT}";
-    $OUTPUT{INDEX_NAME} = 'index.cgi';
-    print $html->tpl_show(templates('form_client_start'), \%OUTPUT, {
-      MAIN => 1,
-      ID   => 'form_client_start' });
+  if ($FORM{SHOW_MESSAGE}) {
+    ($uid, $sid, $login) = auth($login, $passwd, $sid, { PASSWORDLESS_ACCESS => 1 });
 
-    exit;
+    $admin->{sid} = $sid;
+
+    if ($uid) {
+      load_module('Msgs', $html);
+      msgs_show_last({ UID => $uid });
+
+      print $html->header();
+      $OUTPUT{BODY} = $html->{OUTPUT};
+      $OUTPUT{INDEX_NAME} = 'index.cgi';
+      print $html->tpl_show(templates('form_client_start'), \%OUTPUT, {
+        MAIN => 1,
+        ID   => 'form_client_start' });
+
+      return 1;
+    }
+    else {
+      $html->message('err', $lang{ERROR}, "IP_NOT_FOUND");
+    }
   }
-  else {
-    $html->message('err', $lang{ERROR}, "IP not found");
+
+  require Control::Auth;
+  ($uid, $sid, $login) = auth_user($login, $passwd, $sid);
+
+  # if after auth user $uid not exist - show message about wrong password
+  if (!$uid && exists $FORM{logined}) {
+    $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD}, { OUTPUT2RETURN => 1 });
   }
-}
-
-my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HOLD_UP},
-  "$lang{DISABLE}: $lang{NON_PAYMENT}", $lang{ERR_SMALL_DEPOSIT},
-  $lang{VIRUS_ALERT});
-
-
-require Control::Auth;
-($uid, $sid, $login) = auth_user($login, $passwd, $sid);
-
-# if after auth user $uid not exist - show message about wrong password
-if (!$uid && exists $FORM{logined}) {
-  $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD}, { OUTPUT2RETURN => 1 });
-}
-#Cookie section ============================================
-$html->set_cookies('OP_SID', $FORM{OP_SID}, '', $html->{web_path}, { SKIP_SAVE => 1 }) if ($FORM{OP_SID});
-if ($sid) {
-  $html->set_cookies('sid', $sid, '', $html->{web_path});
-  $FORM{sid} = $sid;
-  $COOKIES{sid} = $sid;
-  $html->{SID} = $sid;
-}
-#===========================================================
-elsif ($FORM{AJAX} || $FORM{json}) {
-  print qq{Content-Type:application/json\n\n{"TYPE":"error","errstr":"Access Deny"}};
-  exit 0;
-}
-elsif ($FORM{xml}) {
-  print qq{Content-Type:application/xml\n\n<?xml version="1.0" encoding="UTF-8"?>
+  #Cookie section ============================================
+  $html->set_cookies('OP_SID', $FORM{OP_SID}, '', $html->{web_path}, { SKIP_SAVE => 1 }) if ($FORM{OP_SID});
+  if ($sid) {
+    $html->set_cookies('sid', $sid, '', $html->{web_path});
+    $FORM{sid} = $sid;
+    $COOKIES{sid} = $sid;
+    $html->{SID} = $sid;
+  }
+  #===========================================================
+  elsif ($FORM{AJAX} || $FORM{json}) {
+    print qq{Content-Type:application/json\n\n{"TYPE":"error","errstr":"Access Deny"}};
+    return 0;
+  }
+  elsif ($FORM{xml}) {
+    print qq{Content-Type:application/xml\n\n<?xml version="1.0" encoding="UTF-8"?>
         <error><TYPE>error</TYPE><errstr>Access Deny</errstr></error>};
-  exit 0;
-}
-
-if (($conf{PORTAL_START_PAGE} && !$conf{tech_works} && !$uid) || $FORM{article} || $FORM{menu_category} ) {
-  print $html->header();
-  load_module('Portal', $html);
-  my $wrong_auth = 0;
-
-  # wrong passwd
-  if ($FORM{user} && $FORM{passwd}) {
-    $wrong_auth = 1;
+    return 0;
   }
-  # wrong social acc
-  if ($FORM{code} && !$login) {
-    $wrong_auth = 2;
+
+  if (($conf{PORTAL_START_PAGE} && !$conf{tech_works} && !$uid) || $FORM{article} || $FORM{menu_category} ) {
+    print $html->header();
+    load_module('Portal', $html);
+    my $wrong_auth = 0;
+
+    # wrong passwd
+    if ($FORM{user} && $FORM{passwd}) {
+      $wrong_auth = 1;
+    }
+    # wrong social acc
+    if ($FORM{code} && !$login) {
+      $wrong_auth = 2;
+    }
+    portal_s_page($wrong_auth);
+
+    $html->fetch({ DEBUG => $ENV{DEBUG} });
+    return 1;
   }
-  portal_s_page($wrong_auth);
 
-  $html->fetch({ DEBUG => $ENV{DEBUG} });
-  exit;
-}
+  quick_functions();
 
-quick_functions();
-
-if ($conf{USER_FN_LOG}) {
-  require Log;
-  Log->import();
-  my $user_fn_log = $conf{USER_FN_LOG} || '/tmp/fn_speed';
-  my $Log = Log->new($db, \%conf, { LOG_FILE => $user_fn_log });
-  if (defined($functions{$index})) {
-    my $time = gen_time($begin_time, { TIME_ONLY => 1 });
-    $Log->log_print('LOG_INFO', '', "$sid : $functions{$index} : $time", { LOG_LEVEL => 6 });
+  if ($conf{USER_FN_LOG}) {
+    require Log;
+    Log->import();
+    my $user_fn_log = $conf{USER_FN_LOG} || '/tmp/fn_speed';
+    my $Log = Log->new($db, \%conf, { LOG_FILE => $user_fn_log });
+    if (defined($functions{$index})) {
+      my $time = gen_time($begin_time, { TIME_ONLY => 1 });
+      $Log->log_print('LOG_INFO', '', "$sid : $functions{$index} : $time", { LOG_LEVEL => 6 });
+    }
+    $html->test() if ($conf{debugmods} =~ /LOG_DEBUG/);
   }
-  $html->test() if ($conf{debugmods} =~ /LOG_DEBUG/);
-}
 
+  return 1;
+}
 
 #**********************************************************
 =head2 logout()
@@ -214,8 +220,12 @@ sub quick_functions {
     #  #Quick Amon Alive Update
     if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/ && $FORM{REFERER} !~ /index=1000/) {
       print "Location: $FORM{REFERER}\n\n";
-      exit;
+      return 1;
     }
+
+    my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HOLD_UP},
+      "$lang{DISABLE}: $lang{NON_PAYMENT}", $lang{ERR_SMALL_DEPOSIT},
+      $lang{VIRUS_ALERT});
 
     accept_rules() if ($conf{ACCEPT_RULES});
 
@@ -256,7 +266,7 @@ sub quick_functions {
 
     if ($html->{ERROR}) {
       $html->message('err', $lang{ERROR}, $html->{ERROR});
-      exit;
+      return 0;
     }
 
     $OUTPUT{DATE} = $DATE;
@@ -282,33 +292,33 @@ sub quick_functions {
     if ($FORM{qindex}) {
       if ($FORM{qindex} eq '100002') {
         form_events();
-        exit(0);
+        return 0;
       }
       elsif ($FORM{qindex} eq '100001') {
         print "Content-Type:text/json;\n\n";
         if (!$conf{PUSH_ENABLED} || !$conf{GOOGLE_API_KEY}) {
           print qq{{"ERROR":"PUSH_DISABLED"}};
-          exit 0;
+          return 0;
         }
 
         require Abills::Sender::Push;
         my Abills::Sender::Push $Push = Abills::Sender::Push->new(\%conf);
 
         $Push->register_client({ UID => $user->{UID} }, \%FORM) if ($Push);
-        exit 0;
+        return 0;
       }
       elsif ($FORM{qindex} eq '100003') {
         print "Content-Type:text/json;\n\n";
         if (!$conf{PUSH_ENABLED} || !$conf{GOOGLE_API_KEY}) {
           print qq{{"ERROR":"PUSH_DISABLED"}};
-          exit 0;
+          return 0;
         }
 
         require Abills::Sender::Push;
         my Abills::Sender::Push $Push = Abills::Sender::Push->new(\%conf);
 
         $Push->message_request($FORM{contact_id}) if ($Push);
-        exit 0;
+        return 0;
       }
       elsif ($FORM{qindex} eq '30') {
         require Control::Address_mng;
@@ -324,7 +334,7 @@ sub quick_functions {
       }
 
       print($html->{OUTPUT} || q{});
-      exit;
+      return 0;
     }
 
     if (defined($functions{$index})) {
@@ -354,7 +364,7 @@ sub quick_functions {
 
     $OUTPUT{PUSH_SCRIPT} = ($conf{PUSH_ENABLED}
       ? "<script>window['GOOGLE_API_KEY']='" . ($conf{GOOGLE_API_KEY} // '') . "'</script>"
-      . "<script src='/styles/default_adm/js/push_subscribe.js'></script>"
+      . "<script src='/styles/default/js/push_subscribe.js'></script>"
       : '<!-- PUSH DISABLED -->'
     );
 
@@ -372,6 +382,19 @@ sub quick_functions {
     }
 
     $OUTPUT{USER_SID} = $user->{SID};
+
+    if (exists $conf{client_theme} && defined $conf{client_theme}) {
+      my ($theme_type, $theme_color) = split('-', $conf{client_theme});
+      $theme_type ||= 'dark';
+      $theme_color ||= 'primary';
+      $OUTPUT{NAVBAR_SKIN} = "navbar-dark navbar-$theme_color";
+      $OUTPUT{SIDEBAR_SKIN} = "sidebar-$theme_type-$theme_color";
+    }
+    else {
+      $OUTPUT{NAVBAR_SKIN} = 'navbar-dark navbar-lightblue';
+      $OUTPUT{SIDEBAR_SKIN} = 'sidebar-dark-lightblue';
+    }
+
     $OUTPUT{BODY} = $html->tpl_show(templates('form_client_main'), \%OUTPUT, {
       MAIN               => 1,
       ID                 => 'form_client_main',
@@ -406,18 +429,11 @@ sub quick_functions {
     $OUTPUT{CONFIRM_CHANGES} = 1;
   }
 
-  if (exists $conf{client_theme} && defined $conf{client_theme}) {
-    $OUTPUT{SKIN} = $conf{client_theme};
-  }
-  else {
-    $OUTPUT{SKIN} = 'navbar-dark navbar-primary';
-  }
-
-    print $html->tpl_show(templates('form_client_start'), \%OUTPUT, {
-      MAIN               => 1,
-      SKIP_DEBUG_MARKERS => 1,
-      ID                 => 'FORM_CLIENT_START'
-    });
+  print $html->tpl_show(templates('form_client_start'), \%OUTPUT, {
+    MAIN               => 1,
+    SKIP_DEBUG_MARKERS => 1,
+    ID                 => 'FORM_CLIENT_START'
+  });
 
   $html->fetch({ DEBUG => $ENV{DEBUG} });
 
@@ -525,12 +541,22 @@ sub form_info {
     return 1;
   }
 
-  form_credit();
   $user->{CREDIT} //= 0;
   my $deposit = ($user->{CREDIT} == 0) ? ($user->{DEPOSIT} || 0) + ($user->{TP_CREDIT} || 0) : ($user->{DEPOSIT} || 0) + $user->{CREDIT};
+
   if ($deposit < 0) {
     form_neg_deposit($user);
   }
+
+  if (!$conf{DOCS_SKIP_NEXT_PERIOD_INVOICE}) {
+    if (in_array('Docs', \@MODULES)) {
+      $FORM{ALL_SERVICES} = 1;
+      load_module('Docs', $html);
+      docs_invoice({ UID => $user->{UID}, USER_INFO => $user });
+    }
+  }
+
+  form_credit();
 
   $user->pi();
 
@@ -549,233 +575,11 @@ sub form_info {
   }
 
   if ($conf{user_chg_pi}) {
-    if($conf{ADDRESS_REGISTER}){
-      require Control::Address_mng;
-      if (defined($user->{FLOOR}) || defined($user->{ENTRANCE})) {
-        $user->{EXT_ADDRESS} = $html->tpl_show(templates('form_ext_address'), { ENTRANCE => $user->{ENTRANCE} || '', FLOOR => $user->{FLOOR} || '' }, { OUTPUT2RETURN => 1 });
-      }
-      $user->{ADDRESS_SEL} = form_address_select2($user,{ HIDE_ADD_BUILD_BUTTON => 1});
-    }
-    else{
-      require Control::Address_mng;
-      my $countries_hash;
-
-      ($countries_hash, $user->{COUNTRY_SEL}) = sel_countries({
-        NAME    => 'COUNTRY_ID',
-        COUNTRY => $user->{COUNTRY_ID},
-        });
-
-      $user->{ADDRESS_SEL} = $html->tpl_show(templates('form_address'), { %$user,  }, { OUTPUT2RETURN => 1 });
-    }
-
-
-    if ($FORM{chg}) {
-      my $user_pi = $user->pi();
-      $user->{ACTION} = 'change';
-      $user->{LNG_ACTION} = $lang{CHANGE};
-
-      if (exists $conf{user_chg_info_fields} && $conf{user_chg_info_fields}) {
-        require Control::Users_mng;
-        $user->{INFO_FIELDS} = form_info_field_tpl({
-          VALUES                => $user_pi,
-          CALLED_FROM_CLIENT_UI => 1,
-          COLS_LEFT             => 'col-md-3',
-          COLS_RIGHT            => 'col-md-12'
-        });
-      }
-
-      my %contacts = ();
-      if ($conf{CONTACTS_NEW}) {
-        # Show all contacts of this type in one field
-        $contacts{PHONE} = $user_pi->{PHONE_ALL};
-        $contacts{CELL_PHONE} = $user_pi->{CELL_PHONE_ALL};
-        $contacts{EMAIL} = $user_pi->{EMAIL_ALL};
-      }
-      else{
-        $contacts{CELL_PHONE_HIDDEN} = 'hidden';
-      }
-
-      if ($user_pi->{FIO2} && $user_pi->{FIO3}) {
-        $user_pi->{FIO_READONLY} = 'readonly';
-      }
-
-      if($conf{CHECK_CHANGE_PI}){
-        my @all_fields = ('FIO', 'PHONE', 'ADDRESS', 'EMAIL', 'CELL_PHONE');
-        my @fields_allow_to_change = split(',\s?', $conf{CHECK_CHANGE_PI});
-        foreach my $key (@all_fields){
-          next if in_array($key, \@fields_allow_to_change);
-
-          $contacts{$key . '_DISABLE'} = 'disabled';
-        }
-      }
-
-      $html->tpl_show(templates('form_chg_client_info'), { %$user_pi, %contacts }, { SKIP_DEBUG_MARKERS => 1 });
-      return 1;
-    }
-    elsif ($FORM{change}) {
-
-      if ($FORM{REMOVE_SUBSCRIBE}) {
-        require Contacts;
-        Contacts->import();
-
-        my $Contacts = Contacts->new($db, $admin, \%conf);
-        $Contacts->contacts_del({
-          UID     => $user->{UID},
-          TYPE_ID => $Contacts->contact_type_id_for_name(uc($FORM{REMOVE_SUBSCRIBE}))
-        });
-
-        $html->redirect('/index.cgi');
-        return 1;
-      }
-
-      my $title = '';
-      if ($conf{user_chg_pi_verification}) {
-
-        #PHONE VERIFY
-        if ($FORM{PHONE} && $FORM{PHONE} ne $user->{PHONE} && in_array('Sms', \@MODULES)) {
-          if ($FORM{CONFIRMATION_PHONE} && $FORM{CONFIRMATION_PHONE} eq string_encoding($FORM{PHONE}, $user->{UID})) {
-            $user->pi_change({ PHONE => $FORM{PHONE}, UID => $user->{UID} });
-            if (_error_show($user)) {
-              return 1;
-            }
-            $html->message('info', $lang{CHANGED}, "$lang{YOUR_PHONE_NUMBER}: $FORM{PHONE}");
-            $user->pi();
-          }
-          else {
-            if ($FORM{enter_more} && $FORM{enter_more} eq 'CONFIRMATION_PHONE') {
-              $title = $lang{DO_AGAIN};
-            }
-            else {
-              load_module('Sms', $html);
-              sms_send(
-                {
-                  NUMBER     => $FORM{PHONE},
-                  MESSAGE    => '$lang{YOUR_VERIFICATION_CODE}: ',
-                  UID        => string_encoding($FORM{PHONE}, $user->{UID}),
-                  RIZE_ERROR => $user->{UID},
-                }
-              );
-              $title = $lang{PHONE_VERIFICATION};
-            }
-            $user->{FORM_CONFIRMATION_CLIENT_PHONE} = $html->tpl_show(
-              templates('form_confirmation_client_info'),
-              {
-                INPUT_NAME => 'CONFIRMATION_PHONE',
-                PHONE      => $FORM{PHONE},
-                EMAIL      => $FORM{EMAIL},
-                TITLE      => $title
-              },
-              { OUTPUT2RETURN => 1 }
-            );
-
-            $user->{CONFIRMATION_CLIENT_PHONE_OPEN_INFO} = 1;
-            delete $FORM{PHONE};
-          }
-        }
-        else {
-          $user->{CONFIRMATION_CLIENT_PHONE_OPEN_INFO} = 0;
-        }
-
-        #MAIL VERIFY
-        if ($FORM{EMAIL} && $FORM{EMAIL} ne $user->{EMAIL}) {
-          if ($FORM{CONFIRMATION_EMAIL} && $FORM{CONFIRMATION_EMAIL} eq string_encoding($FORM{EMAIL}, $user->{UID})) {
-            $user->pi_change({ EMAIL => $FORM{EMAIL}, UID => $user->{UID} });
-            if (_error_show($user)) {
-              return 1;
-            }
-            $html->message('info', $lang{CHANGED}, "$lang{YOUR_MAIL}: $FORM{EMAIL}");
-            $user->pi();
-          }
-          else {
-            if ($FORM{enter_more} && $FORM{enter_more} eq 'CONFIRMATION_EMAIL') {
-              $title = $lang{DO_AGAIN};
-            }
-            else {
-              sendmail("$conf{ADMIN_MAIL}", "$FORM{EMAIL}", "$conf{WEB_TITLE}", "$lang{YOUR_VERIFICATION_CODE}: " . string_encoding($FORM{EMAIL}, $user->{UID}) . "", "$conf{MAIL_CHARSET}", '', {});
-              $title = $lang{EMAIL_VERIFICATION};
-            }
-            $user->{FORM_CONFIRMATION_CLIENT_EMAIL} = $html->tpl_show(
-              templates('form_confirmation_client_info'),
-              {
-                INPUT_NAME => 'CONFIRMATION_EMAIL',
-                EMAIL      => $FORM{EMAIL},
-                PHONE      => $FORM{PHONE},
-                TITLE      => $title
-              },
-              { OUTPUT2RETURN => 1 }
-            );
-            $user->{CONFIRMATION_EMAIL_OPEN_INFO} = 1;
-            delete $FORM{EMAIL};
-          }
-        }
-        else {
-          $user->{CONFIRMATION_EMAIL_OPEN_INFO} = 0;
-        }
-      }
-
-      if ($conf{user_confirm_changes}) {
-        return 1 unless ($FORM{PASSWORD});
-        $user->info($user->{UID}, { SHOW_PASSWORD => 1 });
-        if ($FORM{PASSWORD} ne $user->{PASSWORD}) {
-          $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD});
-          return 1;
-        }
-      }
-      $FORM{FIO} = $FORM{FIO1} if ($FORM{FIO1});
-
-      if($conf{CHECK_CHANGE_PI}){
-        my @fields_allow_to_change = split(',\s?', $conf{CHECK_CHANGE_PI});
-        foreach my $key (keys %FORM){
-          if(!(in_array($key, \@fields_allow_to_change))){
-            delete $FORM{$key};
-          }
-        }
-      }
-
-      $user->pi_change({ %FORM, UID => $user->{UID} });
-      if ($user->{errno} && $user->{errno} == 21) {
-        $html->message('err', $user->{errstr});
-        return 1;
-      }
-      $html->message('info', $lang{CHANGED}, $lang{CHANGED});
-      $user->pi();
-    }
-    elsif ($conf{CHECK_CHANGE_PI}) {
-      $user->{TEMPLATE_BODY} = change_pi_popup();
-    }
-    elsif (!$user->{FIO}
-      || !$user->{PHONE}
-      || !$user->{CELL_PHONE}
-      || !$user->{ADDRESS_STREET}
-      || !$user->{ADDRESS_BUILD}
-      || !$user->{EMAIL}) {
-      # scripts for address
-      $user->{MESSAGE_CHG} = $html->message('info', '', "$lang{INFO_CHANGE_MSG}", { OUTPUT2RETURN => 1 });
-
-      $user->{PINFO} = 1;
-      $user->{ACTION} = 'change';
-      $user->{LNG_ACTION} = $lang{CHANGE};
-
-      #mark or disable input
-      (! $user->{FIO} || $user->{FIO} eq '') ? ($user->{FIO_HAS_ERROR} = 'has-error') : ($user->{FIO_DISABLE} = 'disabled');
-      (! $user->{PHONE} || $user->{PHONE} eq '') ? ($user->{PHONE_HAS_ERROR} = 'has-error') : ($user->{PHONE_DISABLE} = 'disabled');
-      (! $user->{EMAIL} || $user->{EMAIL} eq '') ? ($user->{EMAIL_HAS_ERROR} = 'has-error') : ($user->{EMAIL_DISABLE} = 'disabled');
-
-      # Instead of hiding, just not printing address form
-      if ($user->{ADDRESS_HIDDEN}) {
-        delete $user->{ADDRESS_SEL};
-      }
-      # template to modal
-      $user->{TEMPLATE_BODY} = $html->tpl_show(templates('form_chg_client_info'), $user, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
-    }
+    _user_pi();
   }
 
-  if (!$conf{DOCS_SKIP_NEXT_PERIOD_INVOICE}) {
-    if (in_array('Docs', \@MODULES)) {
-      $FORM{ALL_SERVICES} = 1;
-      load_module('Docs', $html);
-      docs_invoice({ UID => $user->{UID}, USER_INFO => $user });
-    }
+  if ($conf{HOLDUP_ALL}) {
+    $user->{STATUS_CHG_BUTTON}=form_holdup(\%FORM);
   }
 
   my $Payments = Finance->payments($db, $admin, \%conf);
@@ -795,7 +599,7 @@ sub form_info {
     $user->{EXT_DATA} = $html->tpl_show(templates('form_client_ext_bill'), $user, { OUTPUT2RETURN => 1 });
   }
 
-  $user->{STATUS} = ($user->{DISABLE}) ? $html->color_mark("$lang{DISABLE}", $_COLORS[6]) : $lang{ENABLE};
+  $user->{STATUS} = ($user->{DISABLE}) ? $html->color_mark($lang{DISABLE}, $_COLORS[6]) : $lang{ENABLE};
   $deposit = sprintf("%.2f", $user->{DEPOSIT} || 0);
 
   $user->{DEPOSIT} = $deposit;
@@ -805,7 +609,7 @@ sub form_info {
   if (in_array('Docs', \@MODULES) && !$conf{DOCS_SKIP_USER_MENU}) {
     my $fn_index = get_function_index('docs_invoices_list');
     $user->{DOCS_ACCOUNT} = $html->button("$lang{INVOICE_CREATE}", "index=$fn_index$pages_qs", {
-      ex_params => "class='btn btn-primary btn-xs'"
+      ex_params => "class='btn btn-secondary btn-lg'"
     });
   }
 
@@ -815,7 +619,7 @@ sub form_info {
       if ((exists($group_info->{DISABLE_PAYSYS}) && $group_info->{DISABLE_PAYSYS} == 0) || $group_info->{TOTAL} == 0) {
         my $fn_index = get_function_index('paysys_payment');
         $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", {
-          ex_params => "class='btn btn-primary btn-xs'"
+          ex_params => "class='btn btn-primary btn-lg'"
         });
       }
     }
@@ -824,7 +628,7 @@ sub form_info {
   if (in_array('Cards', \@MODULES)) {
     my $fn_index = get_function_index('cards_user_payment');
     $user->{CARDS_PAYMENTS} = $html->button($lang{ICARDS}, "index=$fn_index$pages_qs", {
-      ex_params => "class='btn btn-primary btn-xs'"
+      ex_params => "class='btn btn-secondary btn-lg'"
     });
   }
 
@@ -837,7 +641,6 @@ sub form_info {
   });
 
   foreach my $info_field_view (@$info_fields_view) {
-
     my $name = $info_field_view->{NAME};
     my $view = $info_field_view->{VIEW};
 
@@ -846,16 +649,15 @@ sub form_info {
   }
 
   if ($conf{user_chg_pi}) {
-    $user->{FORM_CHG_INFO} = $html->form_main(
-      {
-        CONTENT       => $html->form_input('chg', "$lang{CHANGE}", { TYPE => 'SUBMIT', OUTPUT2RETURN => 1 }),
-        HIDDEN        => {
-          sid   => $sid,
-          index => "$index"
-        },
-        OUTPUT2RETURN => 1
-      }
-    );
+    $user->{FORM_CHG_INFO} = $html->form_main({
+      CONTENT       => $html->form_input('chg', "$lang{CHANGE}", { TYPE => 'SUBMIT', OUTPUT2RETURN => 1 }),
+      HIDDEN        => {
+        sid   => $sid,
+        index => "$index"
+      },
+      OUTPUT2RETURN => 1
+    });
+
     $user->{FORM_CHG_INFO} = $html->button($lang{CHANGE}, "index=$index&sid=$sid&chg=1", {
       class         => 'btn btn-success btn-xs',
       OUTPUT2RETURN => 1
@@ -905,7 +707,6 @@ sub form_info {
     $contacts{EMAIL} = $user->{EMAIL_ALL} || q{};
   }
 
-
   if (in_array('Accident', \@MODULES) && $conf{USER_ACCIDENT_LOG}) {
     load_module('Accident', $html);
     accident_dashboard_mess();
@@ -928,6 +729,9 @@ sub form_info {
       $LIST_PARAMS{UID} = $user->{UID};
       internet_user_info();
     }
+
+    # cross_modules_call('_promotional_tp', { USER => $user });
+    cross_modules('promotional_tp', { USER => $user });
   }
   else {
     require Control::Qrcode;
@@ -936,6 +740,296 @@ sub form_info {
       AUTH_G2FA_MAIL => $conf{ADMIN_MAIL},
     });
   }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 form_holdup()
+
+=cut
+#**********************************************************
+sub form_holdup {
+
+  require Control::Service_control;
+  Control::Service_control->import();
+  my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+
+  my $holdup_info = $Service_control->user_holdup({
+    %FORM,
+    UID       => $user->{UID},
+    USER_INFO => $user
+  });
+
+  if ($holdup_info->{error}) {
+    $html->message('err', $lang{ERROR}, $holdup_info->{errstr}, { ID => $holdup_info->{error} })
+  }
+
+  if (!$holdup_info->{DEL}) {
+    return '' if ($holdup_info->{error} || _error_show($holdup_info) || $holdup_info->{success});
+    if (($user->{STATUS} && $user->{STATUS} == 3) || $user->{DISABLE}) {
+      $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n " .
+        $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=". ($FORM{ID} || q{}) ."&sid=$sid",
+          { BUTTON => 2, MESSAGE => "$lang{ACTIVATE}?" }) );
+      return '';
+    }
+
+    $holdup_info->{FROM_DATE} = date_inc($DATE);
+    $holdup_info->{TO_DATE} = $Service_control->{TO_DATE} || next_month({ DATE => $DATE });
+
+    return $html->tpl_show(templates('form_holdup'), $holdup_info, { OUTPUT2RETURN => 1 });
+  }
+  else {
+    $html->message('info', $lang{INFO}, "$lang{HOLD_UP}: $holdup_info->{DATE_FROM} $lang{TO} $holdup_info->{DATE_TO}"
+      . ($holdup_info->{DEL_IDS} ? ($html->br() . $html->button($lang{DEL},
+      "index=$index&ID=". ($FORM{ID} || q{}) ."&del=1&IDS=$holdup_info->{DEL_IDS}". (($sid) ? "&sid=$sid" : q{}),
+      { class => 'btn btn-primary', MESSAGE => "$lang{DEL} $lang{HOLD_UP}?" })) : q{}));
+  }
+
+  return q{};
+}
+
+#**********************************************************
+=head2 _user_pi()
+
+=cut
+#**********************************************************
+sub _user_pi {
+
+  require Control::Address_mng;
+  if($conf{ADDRESS_REGISTER}){
+    if (defined($user->{FLOOR}) || defined($user->{ENTRANCE})) {
+      $user->{EXT_ADDRESS} = $html->tpl_show(templates('form_ext_address'),
+        { ENTRANCE => $user->{ENTRANCE} || '', FLOOR => $user->{FLOOR} || '' },
+        { OUTPUT2RETURN => 1 });
+    }
+    $user->{ADDRESS_SEL} = form_address_select2($user,{ HIDE_ADD_BUILD_BUTTON => 1});
+  }
+  else{
+    my $countries_hash;
+
+    ($countries_hash, $user->{COUNTRY_SEL}) = sel_countries({
+      NAME    => 'COUNTRY_ID',
+      COUNTRY => $user->{COUNTRY_ID},
+    });
+
+    $user->{ADDRESS_SEL} = $html->tpl_show(templates('form_address'), { %$user,  }, { OUTPUT2RETURN => 1 });
+  }
+
+  if ($FORM{chg}) {
+    my $user_pi = $user->pi();
+    $user->{ACTION} = 'change';
+    $user->{LNG_ACTION} = $lang{CHANGE};
+
+    if (exists $conf{user_chg_info_fields} && $conf{user_chg_info_fields}) {
+      require Control::Users_mng;
+      $user->{INFO_FIELDS} = form_info_field_tpl({
+        VALUES                => $user_pi,
+        CALLED_FROM_CLIENT_UI => 1,
+        COLS_LEFT             => 'col-md-3',
+        COLS_RIGHT            => 'col-md-12'
+      });
+    }
+
+    my %contacts = ();
+    if ($conf{CONTACTS_NEW}) {
+      # Show all contacts of this type in one field
+      $contacts{PHONE} = $user_pi->{PHONE_ALL};
+      $contacts{CELL_PHONE} = $user_pi->{CELL_PHONE_ALL};
+      $contacts{EMAIL} = $user_pi->{EMAIL_ALL};
+    }
+    else{
+      $contacts{CELL_PHONE_HIDDEN} = 'hidden';
+    }
+
+    if ($user_pi->{FIO2} && $user_pi->{FIO3}) {
+      $user_pi->{FIO_READONLY} = 'readonly';
+    }
+
+    if($conf{CHECK_CHANGE_PI}){
+      my @all_fields = ('FIO', 'PHONE', 'ADDRESS', 'EMAIL', 'CELL_PHONE');
+      my @fields_allow_to_change = split(',\s?', $conf{CHECK_CHANGE_PI});
+      foreach my $key (@all_fields){
+        next if in_array($key, \@fields_allow_to_change);
+
+        $contacts{$key . '_DISABLE'} = 'disabled';
+      }
+    }
+
+    $html->tpl_show(templates('form_chg_client_info'), { %$user_pi, %contacts }, { SKIP_DEBUG_MARKERS => 1 });
+    return 1;
+  }
+  elsif ($FORM{change}) {
+    user_pi_change(\%FORM);
+  }
+  elsif ($conf{CHECK_CHANGE_PI}) {
+    $user->{TEMPLATE_BODY} = change_pi_popup();
+  }
+  elsif (!$user->{FIO}
+    || !$user->{PHONE}
+    || !$user->{CELL_PHONE}
+    || !$user->{ADDRESS_STREET}
+    || !$user->{ADDRESS_BUILD}
+    || !$user->{EMAIL}) {
+    # scripts for address
+    $user->{MESSAGE_CHG} = $html->message('info', '', "$lang{INFO_CHANGE_MSG}", { OUTPUT2RETURN => 1 });
+
+    $user->{PINFO} = 1;
+    $user->{ACTION} = 'change';
+    $user->{LNG_ACTION} = $lang{CHANGE};
+
+    #mark or disable input
+    (! $user->{FIO} || $user->{FIO} eq '') ? ($user->{FIO_HAS_ERROR} = 'has-error') : ($user->{FIO_DISABLE} = 'disabled');
+    (! $user->{PHONE} || $user->{PHONE} eq '') ? ($user->{PHONE_HAS_ERROR} = 'has-error') : ($user->{PHONE_DISABLE} = 'disabled');
+    (! $user->{EMAIL} || $user->{EMAIL} eq '') ? ($user->{EMAIL_HAS_ERROR} = 'has-error') : ($user->{EMAIL_DISABLE} = 'disabled');
+
+    # Instead of hiding, just not printing address form
+    if ($user->{ADDRESS_HIDDEN}) {
+      delete $user->{ADDRESS_SEL};
+    }
+    # template to modal
+    $user->{TEMPLATE_BODY} = $html->tpl_show(templates('form_chg_client_info'), $user, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 user_pi_change($attr)
+
+=cut
+#**********************************************************
+sub user_pi_change {
+  my ($attr)=@_;
+
+  if ($FORM{REMOVE_SUBSCRIBE}) {
+    require Contacts;
+    Contacts->import();
+
+    my $Contacts = Contacts->new($db, $admin, \%conf);
+    $Contacts->contacts_del({
+      UID     => $user->{UID},
+      TYPE_ID => $Contacts->contact_type_id_for_name(uc($attr->{REMOVE_SUBSCRIBE}))
+    });
+
+    $html->redirect('/index.cgi');
+    return 1;
+  }
+
+  my $title = '';
+  if ($conf{user_chg_pi_verification}) {
+    #PHONE VERIFY
+    if (in_array('Sms', \@MODULES) && $attr->{PHONE} && $attr->{PHONE} ne $user->{PHONE}) {
+      if ($attr->{CONFIRMATION_PHONE} && $attr->{CONFIRMATION_PHONE} eq string_encoding($attr->{PHONE}, $user->{UID})) {
+        $user->pi_change({ PHONE => $attr->{PHONE}, UID => $user->{UID} });
+        if (_error_show($user)) {
+          return 1;
+        }
+        $html->message('info', $lang{CHANGED}, "$lang{YOUR_PHONE_NUMBER}: $attr->{PHONE}");
+        $user->pi();
+      }
+      else {
+        if ($attr->{enter_more} && $attr->{enter_more} eq 'CONFIRMATION_PHONE') {
+          $title = $lang{DO_AGAIN};
+        }
+        else {
+          load_module('Sms', $html);
+          sms_send({
+            NUMBER     => $attr->{PHONE},
+            MESSAGE    => '$lang{YOUR_VERIFICATION_CODE}: ',
+            UID        => string_encoding($attr->{PHONE}, $user->{UID}),
+            RIZE_ERROR => $user->{UID},
+          });
+          $title = $lang{PHONE_VERIFICATION};
+        }
+        $user->{FORM_CONFIRMATION_CLIENT_PHONE} = $html->tpl_show(
+          templates('form_confirmation_client_info'),
+          {
+            INPUT_NAME => 'CONFIRMATION_PHONE',
+            PHONE      => $attr->{PHONE},
+            EMAIL      => $attr->{EMAIL},
+            TITLE      => $title
+          },
+          { OUTPUT2RETURN => 1 }
+        );
+
+        $user->{CONFIRMATION_CLIENT_PHONE_OPEN_INFO} = 1;
+        delete $attr->{PHONE};
+      }
+    }
+    else {
+      $user->{CONFIRMATION_CLIENT_PHONE_OPEN_INFO} = 0;
+    }
+
+    #MAIL VERIFY
+    if ($attr->{EMAIL} && $attr->{EMAIL} ne $user->{EMAIL}) {
+      if ($attr->{CONFIRMATION_EMAIL} && $attr->{CONFIRMATION_EMAIL} eq string_encoding($attr->{EMAIL}, $user->{UID})) {
+        $user->pi_change({ EMAIL => $attr->{EMAIL}, UID => $user->{UID} });
+        if (_error_show($user)) {
+          return 1;
+        }
+        $html->message('info', $lang{CHANGED}, "$lang{YOUR_MAIL}: $attr->{EMAIL}");
+        $user->pi();
+      }
+      else {
+        if ($attr->{enter_more} && $attr->{enter_more} eq 'CONFIRMATION_EMAIL') {
+          $title = $lang{DO_AGAIN};
+        }
+        else {
+          sendmail("$conf{ADMIN_MAIL}", "$attr->{EMAIL}", "$conf{WEB_TITLE}",
+            "$lang{YOUR_VERIFICATION_CODE}: " . string_encoding($attr->{EMAIL}, $user->{UID}) . "",
+            "$conf{MAIL_CHARSET}", '', {});
+
+          $title = $lang{EMAIL_VERIFICATION};
+        }
+
+        $user->{FORM_CONFIRMATION_CLIENT_EMAIL} = $html->tpl_show(
+          templates('form_confirmation_client_info'),
+          {
+            INPUT_NAME => 'CONFIRMATION_EMAIL',
+            EMAIL      => $attr->{EMAIL},
+            PHONE      => $attr->{PHONE},
+            TITLE      => $title
+          },
+          { OUTPUT2RETURN => 1 }
+        );
+        $user->{CONFIRMATION_EMAIL_OPEN_INFO} = 1;
+        delete $attr->{EMAIL};
+      }
+    }
+    else {
+      $user->{CONFIRMATION_EMAIL_OPEN_INFO} = 0;
+    }
+  }
+
+  if ($conf{user_confirm_changes}) {
+    return 1 unless ($attr->{PASSWORD});
+    $user->info($user->{UID}, { SHOW_PASSWORD => 1 });
+    if ($attr->{PASSWORD} ne $user->{PASSWORD}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD});
+      return 1;
+    }
+  }
+
+  $attr->{FIO} = $attr->{FIO1} if ($attr->{FIO1});
+
+  if($conf{CHECK_CHANGE_PI}){
+    my @fields_allow_to_change = split(',\s?', $conf{CHECK_CHANGE_PI});
+    foreach my $key (keys %FORM){
+      if(!(in_array($key, \@fields_allow_to_change))){
+        delete $attr->{$key};
+      }
+    }
+  }
+
+  $user->pi_change({ %FORM, UID => $user->{UID} });
+  if ($user->{errno} && $user->{errno} == 21) {
+    $html->message('err', $user->{errstr});
+    return 1;
+  }
+
+  $html->message('info', $lang{CHANGED}, $lang{CHANGED});
+  $user->pi();
 
   return 1;
 }
@@ -959,6 +1053,11 @@ sub string_encoding {
 sub form_login_clients {
   my %first_page = ();
 
+  if ($FORM{LOGIN_BY_PHONE}) {
+    _login_send_pin();
+    _login_confirm_pin();
+  }
+  
   $first_page{LOGIN_ERROR_MESSAGE} = $OUTPUT{LOGIN_ERROR_MESSAGE} || '';
   $first_page{PASSWORD_RECOVERY} = $conf{PASSWORD_RECOVERY};
   $first_page{FORGOT_PASSWD_LINK} = '/registration.cgi&FORGOT_PASSWD=1';
@@ -1009,12 +1108,18 @@ sub form_login_clients {
   }
 
   $OUTPUT{S_MENU} = 'style="display: none;"';
-  $OUTPUT{BODY} = $html->tpl_show(templates('form_client_login'),
-    \%first_page,
-    {
-      MAIN => 1,
-      ID   => 'form_client_login'
-    });
+
+  if ($conf{AUTH_BY_PHONE}) {
+    $first_page{AUTH_BY_PHONE} = 'd-block' ;
+    $first_page{LOGIN_BY_PHONE} = $html->tpl_show(templates('form_login_by_phone'), {
+      PHONE_NUMBER_PATTERN => $conf{PHONE_NUMBER_PATTERN} || ''
+    }, { OUTPUT2RETURN => 1 });
+  }
+
+  $OUTPUT{BODY} = $html->tpl_show(templates('form_client_login'), \%first_page, {
+    MAIN => 1,
+    ID   => 'form_client_login'
+  });
 }
 
 #**********************************************************
@@ -1095,7 +1200,7 @@ sub form_passwd {
 
     if (!_error_show($user)) {
       $html->message('info', $lang{INFO}, $lang{CHANGED});
-      cross_modules_call('_payments_maked', { USER_INFO => $user });
+      cross_modules('payments_maked', { USER_INFO => $user });
     }
 
     return 0;
@@ -1110,6 +1215,7 @@ sub form_passwd {
   $password_form{ACTION} = 'change';
   $password_form{LNG_ACTION} = $lang{CHANGE};
   $password_form{GEN_PASSWORD} = mk_unique_value(8);
+  $password_form{CONFIG_PASSWORD} = $conf{CONFIG_PASSWORD} || '';
 
 
   $password_form{G2FA_HIDDEN} = 'hidden';
@@ -1724,7 +1830,7 @@ sub form_money_transfer {
 
               $html->message('info', $lang{PAYMENTS}, $message);
               $user2->{PAYMENT_ID} = $Payments->{INSERT_ID};
-              cross_modules_call('_payments_maked', { USER_INFO => $user2, QUITE => 1 });
+              cross_modules('payments_maked', { USER_INFO => $user2, QUITE => 1 });
             }
           }
 
@@ -2118,7 +2224,7 @@ sub make_social_auth_manage_buttons {
     }
     my $reg_button = $html->button($name, $link, {
       class    => "btn btn-block btn-social btn-$lc_name",
-      ADD_ICON => 'fa fa-' . $lc_name,
+      ADD_ICON => 'fab fa-' . $lc_name,
       %{$attr ? $attr : {}}
     });
 
@@ -2231,7 +2337,6 @@ sub make_sender_subscribe_buttons_block {
       });
     }
 
-    my $button_wrapper = $html->element('div', $button, { class => 'col-md-4', OUTPUT2RETURN => 1 });
     my $lang_text = '';
     if ($lang_vars && ref $lang_vars eq 'HASH') {
       $lang_text = join "; \n", map {
@@ -2241,7 +2346,7 @@ sub make_sender_subscribe_buttons_block {
 
     my $lang_script = ($lang_text) ? $html->element('script', $lang_text) : '';
 
-    $button_wrapper . $lang_script;
+    $button . $lang_script;
   };
 
   if ($conf{PUSH_ENABLED}) {
@@ -2289,7 +2394,7 @@ sub make_sender_subscribe_buttons_block {
         my $link_url = 'https://telegram.me/' . $conf{TELEGRAM_BOT_NAME} . '/?start=u_' . ($user->{SID} || $sid);
         $buttons_block .= $make_subscribe_btn->(
           'Telegram',
-          'fa fa-telegram',
+          'fab fa-telegram',
           undef,
           {
             HREF => $link_url
@@ -2591,20 +2696,162 @@ sub form_credit {
   my $credit_info = $Service_control->user_set_credit({ UID => $user->{UID}, REDUCTION => $user->{REDUCTION}, %FORM });
 
   if ($credit_info->{errstr} && $credit_info->{errstr} eq 'ERR_CREDIT_CHANGE_LIMIT_REACH' && $credit_info->{MONTH_CHANGES}) {
-    $user->{CREDIT_CHG_BUTTON} = $html->color_mark("$lang{ERR_CREDIT_CHANGE_LIMIT_REACH}. " .
-      "$lang{TOTAL}: $admin->{TOTAL}/$credit_info->{MONTH_CHANGES}", 'bg-danger');
+    $user->{CREDIT_CHG_BUTTON} = $html->color_mark(
+      "$lang{ERR_CREDIT_CHANGE_LIMIT_REACH}. "."$lang{TOTAL}: $admin->{TOTAL}/$credit_info->{MONTH_CHANGES}",
+      'bg-danger',
+      {
+        ID => "credit-button"
+      }
+    );
   }
 
   if (!$credit_info->{errstr} && !$FORM{change_credit}) {
     %{$user} = (%{$user}, %{$credit_info});
     $user->{CREDIT_CHG_BUTTON} = $html->button("$lang{SET} $lang{CREDIT}", '#', {
       ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'",
-      class     => 'btn btn-success btn-xs',
-      SKIP_HREF => 1
+      class     => 'btn btn-success btn-lg',
+      SKIP_HREF => 1,
+      ID        => "credit-button"
     });
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 _login_send_pin()
+
+=cut
+#**********************************************************
+sub _login_send_pin() {
+
+  return if !$FORM{PHONE} || $FORM{PIN_CODE};
+
+  my $params = ();
+
+  use Contacts;
+  my $Contacts = Contacts->new($db, $admin, \%conf);
+  my $contacts = $Contacts->contacts_list({ VALUE => "$FORM{PHONE},+$FORM{PHONE}", UID => '_SHOW' });
+
+  foreach my $contact (@{$contacts}) {
+    $user->info($contact->{uid});
+    last if $user->{UID};
+  }
+
+  if ($Contacts->{TOTAL} < 1 || !in_array('Sms', \@MODULES) || !$user->{UID}) {
+    $params->{message} = $lang{USER_NOT_FOUND};
+    print "Content-Type: application/json\n\n";
+    print json_former($params);
+    exit;
+  }
+
+  if ($FORM{PIN_ALREADY_EXIST}) {
+    my $pin_info = $user->phone_pin_info($user->{UID});
+
+    if ($user->{TOTAL} != 1) {
+      $params->{message} = $lang{CODE_EXPIRED};
+    }
+    else {
+      $params->{uid} = $user->{UID};
+    }
+
+    print "Content-Type: application/json\n\n";
+    print json_former($params);
+    exit;
+  }
+
+  load_module('Sms', $html);
+  my $pin_code = pin_code_generate();
+  my $message = $html->tpl_show(_include('sms_login_by_phone', 'Sms'), {
+    LOGIN    => $user->{LOGIN},
+    PHONE    => $FORM{PHONE},
+    PIN_CODE => $pin_code
+  }, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
+
+  if ($conf{SMS_LIMIT}) {
+    use Sms;
+    my $Sms = Sms->new($db, $admin, \%conf);
+    $Sms->list({
+      UID      => $user->{UID},
+      INTERVAL => "$DATE/$DATE",
+      NO_SKIP  => 1,
+    });
+
+    if ($Sms->{TOTAL} && $Sms->{TOTAL} >= $conf{SMS_LIMIT}) {
+      $params->{message} = $lang{EXCEEDED_SMS_LIMIT};
+      print "Content-Type: application/json\n\n";
+      print json_former($params);
+      exit;
+    }
+  }
+
+  my $sms_sent = sms_send({
+    NUMBER  => $FORM{PHONE},
+    MESSAGE => $message,
+    UID     => $user->{UID}
+  });
+
+  if ($sms_sent) {
+    $params->{uid} = $user->{UID};
+    $user->phone_pin_add({ UID => $user->{UID}, PIN_CODE => $pin_code });
+  }
+
+  print "Content-Type: application/json\n\n";
+  print json_former($params);
+  exit;
+}
+
+#**********************************************************
+=head2 _login_confirm_pin()
+
+=cut
+#**********************************************************
+sub _login_confirm_pin {
+
+  return if !$FORM{PIN_CODE} || !$FORM{UID} || !$FORM{PHONE};
+
+  my $params = ();
+  my $pin_info = $user->phone_pin_info($FORM{UID});
+
+  if ($user->{TOTAL} != 1) {
+    $params->{message} = $lang{CODE_EXPIRED};
+  }
+  elsif ($pin_info->{ATTEMPTS} > 4) {
+    $user->phone_pin_del($FORM{UID});
+    $params->{message} = $lang{USED_ALL_PIN_ATTEMPTS};
+  }
+  elsif ($pin_info->{PIN_CODE} ne $FORM{PIN_CODE}) {
+    $user->phone_pin_update_attempts($FORM{UID});
+    $params->{message} = $lang{CODE_IS_INVALID};
+  }
+  else {
+    $user->phone_pin_del($FORM{UID});
+    use Contacts;
+    my $Contacts = Contacts->new($db, $admin, \%conf);
+    my $contacts = $Contacts->contacts_list({ VALUE => "$FORM{PHONE},+$FORM{PHONE}", UID => '_SHOW' });
+    $params->{buttons} = [];
+    foreach my $contact (@{$contacts}) {
+      $user->info($contact->{uid}, { SHOW_PASSWORD => 1 });
+      my ($uid, $sid, undef) = auth_user($user->{LOGIN}, $user->{PASSWORD}, '');
+      
+      push @{$params->{users}}, { url => "/index.cgi?sid=$sid", login => $user->{LOGIN} } if $sid;
+    }
+  }
+
+  print "Content-Type: application/json\n\n";
+  print json_former($params);
+  exit;
+}
+
+#**********************************************************
+=head2 pin_code_generate()
+
+=cut
+#**********************************************************
+sub pin_code_generate {
+  my @alphanumeric = (0 .. 9);
+
+  return join '', map $alphanumeric[rand @alphanumeric], 0 .. 4;
 }
 
 1

@@ -316,7 +316,7 @@ sub human_exp {
   my $counter     = -1;
   my $mask_leng   = 0;
   my $isopen      = 0;
-
+  $exp =~ s/^\\//;
   while ($counter++ < $exp_leng) {
     next if (( substr $exp, $counter, 1 ) eq '$');
   

@@ -29,9 +29,9 @@ sub storage_monthly_fees{
   $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
   my $d = (split(/-/, $ADMIN_REPORT{DATE}, 3))[2];
 
-  _storage_rent_fees({ DAY => $d, %{$attr} });
+  _storage_rent_fees({ DAY => $d, %{$attr}, DATE => $ADMIN_REPORT{DATE} });
 
-  _storage_installments_fees() if ($d == 1);
+  _storage_installments_fees({ DATE => $ADMIN_REPORT{DATE} }) if ($d == 1);
 
   return 1;
 }
@@ -48,7 +48,7 @@ sub storage_monthly_fees{
 sub _storage_rent_fees {
   my ($attr) = @_;
 
-  my $list = $Storage->storage_rent_fees({ COLS_NAME => 1 });
+  my $list = $Storage->storage_rent_fees({ DATE => $attr->{DATE}, COLS_NAME => 1 });
 
   my $START_PERIOD_DAY = ($conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} : 1;
   return 1 if !$attr->{DAY};
@@ -118,7 +118,7 @@ sub _storage_get_fees {
 sub _storage_installments_fees {
   my ($attr) = @_;
 
-  my $list = $Storage->storage_by_installments_fees({ COLS_NAME => 1 });
+  my $list = $Storage->storage_by_installments_fees({ DATE => $attr->{DATE}, COLS_NAME => 1 });
 
   foreach my $line (@{$list}) {
     $users->{BILL_ID} = $line->{bill_id};

@@ -13,10 +13,10 @@ use warnings FATAL => 'all';
 =cut
 our ($db, $admin, %conf, %lang, $html, %permissions, $Cablecat, $Maps, $Equipment, %MAP_LAYER_ID);
 use Abills::Base qw/in_array/;
-use Maps2::Auxiliary;
+use Maps::Auxiliary;
 use Internet;
 use Abills::Experimental;
-my $Auxiliary = Maps2::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+my $Auxiliary = Maps::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 my $Internet = Internet->new($db, $admin, \%conf);
 
 #**********************************************************
@@ -980,7 +980,7 @@ sub _cablecat_form_commutation_name {
   my $invalid_div = $html->element('div', '', { class => 'invalid-feedback', id => 'INVALID_NAME_FEEDBACK' });
 
   my $check_span = $html->element('span', '', { class => 'fa fa-check' });
-  my $pencil_span = $html->element('span', '', { class => 'fa fa-pencil' });
+  my $pencil_span = $html->element('span', '', { class => 'fa fa-pencil-alt' });
 
   my $change_input_group = $html->element('div', $pencil_span, {
     class => 'input-group-text cursor-pointer',
@@ -1092,7 +1092,7 @@ sub _cablecat_commutation_cables_prepare_json {
         well_2_id          => $cable->{well_2_id},
         well_1             => $cable->{well_1},
         well_2             => $cable->{well_2},
-        map_btn => $Auxiliary->maps2_show_object_button($MAP_LAYER_ID{CABLE}, $cable->{point_id}, {
+        map_btn => $Auxiliary->maps_show_object_button($MAP_LAYER_ID{CABLE}, $cable->{point_id}, {
           RETURN_HREF => 1
         }),
         other_commutations => \%other_commutation_hash
@@ -1184,6 +1184,12 @@ sub _cablecat_commutation_equipment {
     COLS_UPPER       => 0,
   });
   _error_show($Cablecat);
+
+  foreach my $equipment (@{$equipment_list}) {
+    next if $equipment->{ports_type} ne '4';
+
+    $equipment->{ports_type} = $Cablecat->ports_type_by_equipment($equipment->{nas_id});
+  }
 
   return [
     map {

@@ -20,12 +20,12 @@ our (
   $db,
   $admin,
   %conf,
-  $html,
   $base_dir,
   %lang,
   $Isg
 );
 
+our Abills::HTML $html;
 #our Log $Log;
 my $Log = Log->new($db, \%conf);
 my $Nas = Nas->new($db, \%conf, $admin);
@@ -141,15 +141,13 @@ sub cisco_isg_cmd {
     my $message = "No responce from CoA server NAS ID: $Nas->{NAS_ID} '$Nas->{NAS_MNG_IP_PORT}' $! / ";
 
     $html->message('err', $lang{ERROR}, $message, { ID => 106 });
-    $Log->log_add(
-      {
-        LOG_TYPE  => $Log::log_levels{'LOG_WARNING'},
-        ACTION    => 'AUTH',
-        USER_NAME => $attr->{USER_NAME} || '-',
-        MESSAGE   => $message,
-        NAS_ID    => $Nas->{NAS_ID} || 0
-      }
-    );
+    $Log->log_add({
+      LOG_TYPE  => $Log::log_levels{'LOG_WARNING'},
+      ACTION    => 'AUTH',
+      USER_NAME => $attr->{USER_NAME} || '-',
+      MESSAGE   => $message,
+      NAS_ID    => $Nas->{NAS_ID} || 0
+    });
 
     return 0;
   }
@@ -210,9 +208,9 @@ sub cisco_isg_cmd {
         #print "// $Isg->{ISG_CID_CUR} //";
         $DHCP_INFO = internet_dhcp_get_mac($Isg->{ISG_CID_CUR});
       }
-      else {
-        $DHCP_INFO = dv_dhcp_get_mac($Isg->{ISG_CID_CUR});
-      }
+      # else {
+      #   $DHCP_INFO = dv_dhcp_get_mac($Isg->{ISG_CID_CUR});
+      # }
 
       $Isg->{ISG_CID_CUR} = $DHCP_INFO->{MAC} || '';
       if ($Isg->{ISG_CID_CUR} eq '') {

@@ -8,7 +8,7 @@
           Оплата заказа банковской картой. Оплата происходит через ПАО СБЕРБАНК с использованием банковских карт следующих платёжных систем:
         </h6>
         <ul>
-          <li class='col-md-6'>МИР                  <img src='/styles/default_adm/img/paysys_logo/mir_logo.jpg' width=100 height=50 border=0></li>
+          <li class='col-md-6'>МИР                  <img src='/styles/default/img/paysys_logo/mir_logo.jpg' width=100 height=50 border=0></li>
           <li class='col-md-6'>VISA International   <img src='/img/v-visa.gif' width=100 height=50 border=0></li>
           <li class='col-md-6'>Mastercard Worldwide <img src='/img/mastercard-sc.gif' width=100 height=50 border=0></li>
         </ul>

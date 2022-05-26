@@ -25,7 +25,7 @@ sub new {
     api_url  => "https://api.telegram.org/bot$token/",
     file_url => "https://api.telegram.org/file/bot$token/",
     chat_id  => $chat_id,
-    SELF_URL => "https://$SELF_URL:9443"
+    SELF_URL => $SELF_URL
   };
   
   bless($self, $class);

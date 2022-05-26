@@ -7,7 +7,7 @@
     <input type=hidden name=_action value='%ACTION%'>
 
     <div class='card card-primary card-outline'>
-      <div class='card-heading with-border'><h4 class='card-title'>%ACTION% %MODULE%</h4></div>
+      <div class='card-header with-border'><h4 class='card-title'>%ACTION% %MODULE%</h4></div>
       <div class='card-body'>
 
         %INPUTS%
@@ -32,7 +32,7 @@
   <script>
     jQuery(function () {
       jQuery('#%ACTION%Submit').on('click', function () {
-        var data = jQuery('#%ACTION%Form').serialize();
+        let data = jQuery('#%ACTION%Form').serialize();
 
         jQuery.post('/admin/index.cgi', data, function (result) {
           jQuery('#%ACTION%Results').html(result);

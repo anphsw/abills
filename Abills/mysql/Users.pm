@@ -80,12 +80,12 @@ sub info {
     @values= ($attr->{LOGIN}, $attr->{PASSWORD});
 
     if ($attr->{ACTIVATE}) {
-      my $value = $self->search_expr("$attr->{ACTIVATE}", 'INT');
+      my $value = $self->search_expr($attr->{ACTIVATE}, 'DATE');
       $WHERE .= " AND u.activate$value";
     }
 
     if ($attr->{EXPIRE}) {
-      my $value = $self->search_expr("$attr->{EXPIRE}", 'INT');
+      my $value = $self->search_expr($attr->{EXPIRE}, 'DATE');
       $WHERE .= " AND u.expire$value";
     }
 
@@ -139,10 +139,10 @@ sub info {
       u.deleted,
       $password
     FROM `users` u
-    LEFT JOIN bills b ON (u.bill_id=b.id)
-    LEFT JOIN groups g ON (u.gid=g.gid)
-    LEFT JOIN companies c ON (u.company_id=c.id)
-    LEFT JOIN bills cb ON (c.bill_id=cb.id)
+    LEFT JOIN `bills` b ON (u.bill_id=b.id)
+    LEFT JOIN `groups` g ON (u.gid=g.gid)
+    LEFT JOIN `companies` c ON (u.company_id=c.id)
+    LEFT JOIN `bills` cb ON (c.bill_id=cb.id)
     $WHERE;",
     undef,
     { INFO => 1,
@@ -332,6 +332,7 @@ sub pi {
     $self->{STREET_ID} = $Address->{STREET_ID};
     $self->{ZIP} = $Address->{ZIP};
     $self->{COORDX} = $Address->{COORDX};
+    $self->{COUNTRY} = $Address->{COUNTRY};
 
     $self->{ADDRESS_STREET} = $Address->{ADDRESS_STREET};
     $self->{ADDRESS_STREET2} = $Address->{ADDRESS_STREET2};
@@ -339,9 +340,12 @@ sub pi {
     if ($self->{conf}->{STREET_TYPE}) {
       $self->{ADDRESS_STREET_TYPE_NAME} = (split (';', $self->{conf}->{STREET_TYPE}))[$Address->{STREET_TYPE}];
     }
-    else {
-      $self->{ADDRESS_STREET_TYPE_NAME} = '';
-    }
+    #else {
+    $self->{ADDRESS_STREET_TYPE_NAME} //= '';
+    #}
+    $self->{ADDRESS_STREET} //= q{};
+    $self->{ADDRESS_BUILD} //= q{};
+    $self->{ADDRESS_FLAT} //= q{};
     $self->{ADDRESS_FULL} = "$self->{ADDRESS_STREET_TYPE_NAME} $self->{ADDRESS_STREET}$self->{conf}->{BUILD_DELIMITER}$self->{ADDRESS_BUILD}$self->{conf}->{BUILD_DELIMITER}$self->{ADDRESS_FLAT}";
   }
 
@@ -351,10 +355,10 @@ sub pi {
     my $Contacts = Contacts->new($self->{db}, $admin, $self->{conf});
 
     my $contact_types = $Contacts->contact_types_list({
-      ID        => '_SHOW',
+      #ID        => '_SHOW',
       NAME      => '_SHOW',
       COLS_NAME => 1,
-      PAGE_ROWS => 10000
+      PAGE_ROWS => 1000
     });
 
     my $contacts;
@@ -553,28 +557,27 @@ sub groups_list {
   }
 
   my $WHERE = $self->search_former($attr, [
-      ['BONUS',            'INT', 'g.bonus',                1 ],
-      ['DOMAIN_ID',        'INT', 'g.domain_id',            1 ],
-      ['G_NAME',           'STR', 'g.name AS g_name',       1 ],
-      ['DISABLE_PAYMENTS', 'INT', 'g.disable_payments',     1 ],
-      ['GID',              'INT', 'g.gid',                  1 ],
-      ['NAME',             'STR', 'g.name',                 1 ],
-      ['DESCR',            'STR', 'g.descr',                1 ],
-      ['ALLOW_CREDIT',     'INT', 'g.allow_credit',         1 ],
-      ['DISABLE_PAYSYS',   'INT', 'g.disable_paysys',       1 ],
-      ['DISABLE_CHG_TP',   'INT', 'g.disable_chg_tp',       1 ],
-      ['USERS_COUNT',      'INT', 'COUNT(u.uid) AS users_count', 1],
+      ['BONUS',            'INT', 'g.bonus',                     1 ],
+      ['DOMAIN_ID',        'INT', 'g.domain_id',                 1 ],
+      ['G_NAME',           'STR', 'g.name AS g_name',            1 ],
+      ['DISABLE_PAYMENTS', 'INT', 'g.disable_payments',          1 ],
+      ['GID',              'INT', 'g.gid',                       1 ],
+      ['NAME',             'STR', 'g.name',                      1 ],
+      ['DESCR',            'STR', 'g.descr',                     1 ],
+      ['ALLOW_CREDIT',     'INT', 'g.allow_credit',              1 ],
+      ['DISABLE_PAYSYS',   'INT', 'g.disable_paysys',            1 ],
+      ['DISABLE_CHG_TP',   'INT', 'g.disable_chg_tp',            1 ],
+      ['USERS_COUNT',      'INT', 'COUNT(u.uid) AS users_count', 1 ],
+      ['SMS_SERVICE',      'STR', 'g.sms_service',               1 ]
     ],
-    { WHERE       => 1,
-      WHERE_RULES => \@WHERE_RULES
-    }
+    { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
   );
 
   $self->query("SELECT g.gid AS id,
         $self->{SEARCH_FIELDS}
         g.domain_id
-        FROM groups g
-        LEFT JOIN users u ON (u.gid=g.gid $USERS_WHERE)
+        FROM `groups` g
+        LEFT JOIN `users` u ON (u.gid=g.gid $USERS_WHERE)
         $WHERE
         GROUP BY g.gid
         ORDER BY $SORT $DESC",
@@ -585,7 +588,7 @@ sub groups_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
-    $self->query("SELECT COUNT(*) AS total FROM groups g $WHERE", undef, { INFO => 1 });
+    $self->query("SELECT COUNT(*) AS total FROM `groups` g $WHERE", undef, { INFO => 1 });
   }
 
   return $list;
@@ -600,7 +603,7 @@ sub group_info {
   my $self = shift;
   my ($gid) = @_;
 
-  $self->query("SELECT * FROM groups g WHERE g.gid= ? ;",
+  $self->query("SELECT * FROM `groups` g WHERE g.gid= ? ;",
    undef,
    { INFO => 1,
      Bind => [ $gid ]   });
@@ -764,6 +767,10 @@ sub list {
     SKIP_GID    => ($admin->{GID} && $attr->{_MULTI_HIT}) ? 1 : undef
   }) };
 
+  #Presql error field parse
+  if ($self->{errno}) {
+    return $self;
+  }
 
   if($attr->{REGISTRATION_FROM_REGISTRATION_TO}){
     my ($from, $to) = split '/', $attr->{REGISTRATION_FROM_REGISTRATION_TO};
@@ -795,23 +802,23 @@ sub list {
     push @WHERE_RULES, "p.date IS NULL";
   }
 
-  if ($attr->{FORGOT_PASSWD} && $attr->{EMAIL} eq '_SHOW') {
-    @WHERE_RULES = ();
-    push @WHERE_RULES, "(((SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id IN (1,2))
-                        LIKE '%" . $attr->{PHONE} ."%') AND (u.id='" . $attr->{LOGIN} . "') AND u.deleted='0') AND u.deleted=0";
-  }
-
-  if ($attr->{LOCATION_ID}) {
-    $self->{SEARCH_FIELDS} .= 'pi.location_id, ';
-  }
-
-  if ($attr->{STREET_ID}) {
-    $self->{SEARCH_FIELDS} .= 'builds.street_id, ';
-    $self->{SEARCH_FIELDS} .= 'streets.name, ';
-  }
+  # if ($attr->{FORGOT_PASSWD} && $attr->{EMAIL} eq '_SHOW') {
+  #   @WHERE_RULES = ();
+  #   push @WHERE_RULES, "(((SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id IN (1,2))
+  #                       LIKE '%" . $attr->{PHONE} ."%') AND (u.id='" . $attr->{LOGIN} . "') AND u.deleted='0') AND u.deleted=0";
+  # }
+  #
+  # if ($attr->{LOCATION_ID}) {
+  #   $self->{SEARCH_FIELDS} .= 'pi.location_id, ';
+  # }
+  #
+  # if ($attr->{STREET_ID}) {
+  #   $self->{SEARCH_FIELDS} .= 'builds.street_id, ';
+  #   $self->{SEARCH_FIELDS} .= 'streets.name, ';
+  # }
 
   #Show last
-  if ($attr->{PAYMENTS} || $attr->{PAYMENT_DAYS}) {
+  if ($attr->{PAYMENTS} || ($attr->{PAYMENT_DAYS} && $attr->{PAYMENT_DAYS} =~ /[0-9\s,<>=]+/)) {
     my @HAVING_RULES = @WHERE_RULES;
     if ($attr->{PAYMENTS}) {
       my $value = @{ $self->search_expr($attr->{PAYMENTS}, 'INT') }[0];
@@ -831,7 +838,6 @@ sub list {
         $value = $1 . $value;
         push @where_, "DATE_FORMAT(p.date, '%Y-%m-%d')$value";
         push @having_, "MAX(p.date)$value";
-
       }
 
       push @WHERE_RULES, '('. join(' AND ', @where_) . ')';
@@ -886,7 +892,7 @@ sub list {
       if ($attr->{PAYMENT}) {
         $WHERE_RULES[$#WHERE_RULES] = @{ $self->search_expr($attr->{PAYMENTS}, 'INT', 'p.date') };
       }
-      elsif ($attr->{PAYMENT_DAYS}) {
+      elsif ($attr->{PAYMENT_DAYS} && $attr->{PAYMENT_DAYS} =~ /[0-9\s,<>=]+/) {
         my @params = split(/,/, $attr->{PAYMENT_DAYS});
 
         foreach my $payment_days (@params) {
@@ -914,8 +920,7 @@ sub list {
   }
 
   #Show last fees
-  #if ($attr->{FEES} || $attr->{FEES_DAYS} || $attr->{LAST_FEES}) {
-  if ($attr->{FEES} || $attr->{FEES_DAYS}) {
+  if ($attr->{FEES} || ($attr->{FEES_DAYS} && $attr->{FEES_DAYS} =~ /[0-9\s,<>=]+/)) {
     my @HAVING_RULES = @WHERE_RULES;
     if ($attr->{FEES}) {
       my $value = @{ $self->search_expr($attr->{FEES}, 'INT') }[0];
@@ -924,7 +929,7 @@ sub list {
       $self->{SEARCH_FIELDS} .= 'MAX(f.date) AS last_fees, ';
       $self->{SEARCH_FIELDS_COUNT}++;
     }
-    elsif ($attr->{FEES_DAYS} || $attr->{LAST_FEES}) {
+    elsif ($attr->{FEES_DAYS}) {
       my @params = split(/,/, $attr->{FEES_DAYS});
 
       foreach my $operation_days (@params) {
@@ -982,7 +987,7 @@ sub list {
       if ($attr->{FEES}) {
         $WHERE_RULES[$#WHERE_RULES] = @{ $self->search_expr($attr->{PAYMENTS}, 'INT', 'f.date') };
       }
-      elsif ($attr->{FEES_DAYS}) {
+      elsif ($attr->{FEES_DAYS} && $attr->{FEES_DAYS} =~ /[0-9\s,<>=]+/) {
         my @params = split(/,/, $attr->{FEES_DAYS});
         foreach my $operation_days (@params) {
           my $value = "CURDATE() - INTERVAL $operation_days DAY";
@@ -992,14 +997,16 @@ sub list {
         }
       }
 
-      my $where_delimeter = ' AND ';
       if ( $attr->{_MULTI_HIT} ) {
         $where_delimeter = ' OR ';
+      }
+      else {
+        $where_delimeter = ' AND ';
       }
 
       my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(" $where_delimeter ", @WHERE_RULES) : '';
 
-      $self->query("SELECT count(DISTINCT u.uid) AS total FROM users u
+      $self->query("SELECT COUNT(DISTINCT u.uid) AS total FROM users u
         LEFT JOIN fees f ON (u.uid = f.uid)
         $EXT_TABLES
         $WHERE;",
@@ -1034,15 +1041,16 @@ sub list {
   if($self->{SORT_BY}) {
     $SORT=$self->{SORT_BY};
   }
+
   my $GROUP_BY = q{};
-    if($attr->{TAGS}) {
-      if($attr->{TAG_SEARCH_VAL} == 1){
-        my $tags_c = split(',', $attr->{TAGS});
-        $GROUP_BY = "GROUP BY u.id HAVING COUNT(tags_users.tag_id ) = '$tags_c'";
-      }
-      else{
-        $GROUP_BY = 'GROUP BY u.id';
-      }
+  if($attr->{TAGS}) {
+    if($attr->{TAG_SEARCH_VAL} == 1){
+      my $tags_c = split(',', $attr->{TAGS});
+      $GROUP_BY = "GROUP BY u.id HAVING COUNT(tags_users.tag_id ) = '$tags_c'";
+    }
+    else{
+      $GROUP_BY = 'GROUP BY u.id';
+    }
   }
 
   $self->query("SELECT u.id AS login,
@@ -2624,6 +2632,67 @@ sub user_contacts_validation {
 }
 
 #**********************************************************
+=head2 phone_pin_info($uid)
+
+=cut
+#**********************************************************
+sub phone_pin_info {
+  my $self = shift;
+  my ($uid) = @_;
+
+  $self->query("SELECT * FROM users_phone_pin WHERE uid = ? AND time_code > NOW();",
+    undef, { INFO => 1, Bind => [ $uid ] });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 phone_pin_update_attempts($uid)
+
+=cut
+#**********************************************************
+sub phone_pin_update_attempts {
+  my $self = shift;
+  my ($uid) = @_;
+
+  $self->query("UPDATE users_phone_pin SET attempts = attempts + 1 WHERE uid = ?", undef, { Bind => [ $uid ] });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 phone_pin_add($attr)
+
+=cut
+#**********************************************************
+sub phone_pin_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $interval = $CONF->{AUTH_BY_PHONE_PIN_INTERVAL} || 5;
+
+  $self->query("REPLACE INTO users_phone_pin (uid, pin_code, time_code)
+    VALUES(?, ?, NOW() + INTERVAL $interval MINUTE);", undef, { Bind => [ $attr->{UID}, $attr->{PIN_CODE} ] });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 phone_pin_del($attr)
+
+=cut
+#**********************************************************
+sub phone_pin_del {
+  my $self = shift;
+  my $uid = shift;
+
+  $self->query("DELETE FROM users_phone_pin WHERE uid = ?;", undef, { Bind => [ $uid ] });
+
+  return $self;
+}
+
+
+#**********************************************************
 =head2 _change_having($HAVING)
 
   Arguments:
@@ -2664,4 +2733,78 @@ sub _change_having {
   return $HAVING;
 }
 
+
+#**********************************************************
+=head1 switch_list ($attr) - returns list of switches and users
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+  switch_id
+  switch_name
+  switch_users
+  user_off
+  user_on
+  users_request
+
+=cut
+#**********************************************************
+sub switch_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
+
+  my $search_columns = [
+    [ 'EQUIPMENT_ID',               'INT', 'nas.id',                1 ],
+    [ 'EQUIPMENT_NAME',             'STR', 'nas.name',              1 ],
+    [ 'USER_ID',                    'STR', 'users.uid',             1 ],
+    [ 'USER_ACTIVE',                'STR', 'internet_main.disable', 1 ],
+    [ 'MESSAGES',                   'STR', 'msgs_messages.uid',     1 ],
+  ];
+
+  my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
+  $self->query("
+    SELECT nas.id AS switch_id,
+       nas.name AS switch_name,
+       (SELECT COUNT(uid)
+        FROM internet_main
+        WHERE internet_main.nas_id = nas.id
+       ) AS switch_users,
+       (SELECT COUNT(disable)
+        FROM internet_main
+        WHERE disable = 1
+        AND internet_main.nas_id = nas.id
+        ) AS user_off,
+       (SELECT COUNT(disable)
+        FROM internet_main
+        WHERE disable = 0
+        AND internet_main.nas_id = nas.id
+       ) AS user_on,
+       SUM((SELECT COUNT(id)
+        FROM msgs_messages
+        WHERE msgs_messages.date >= (NOW() - INTERVAL 30 DAY)
+          AND msgs_messages.uid = users.uid
+          AND users.uid = internet_main.uid
+          AND internet_main.nas_id = nas.id
+       )) AS users_request
+
+    FROM internet_main
+    LEFT JOIN nas           ON internet_main.nas_id = nas.id
+    LEFT JOIN users         ON internet_main.uid = users.uid
+    GROUP BY switch_id
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef, $attr
+  );
+
+  my $list = $self->{list};
+
+  return $list;
+}
 1;

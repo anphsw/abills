@@ -129,7 +129,7 @@ sub cams_user_info {
 
     $Cams->_info($FORM{del});
     if (!$Cams->{errno}) {
-      $Cams->_del($FORM{del});
+      $Cams->_del($FORM{del}, { %FORM, ID => $FORM{del} });
       if (!$Cams->{errno}) {
         $Cams->{ID} = $FORM{del};
         $html->message('info', $lang{INFO}, "$lang{DELETED} [ $Cams->{ID} ]");
@@ -174,16 +174,17 @@ sub cams_user_info {
     INPUT_DATA      => $Cams,
     FUNCTION        => 'users_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'ID,TP_NAME,STATUS',
+    DEFAULT_FIELDS  => 'ID,TP_NAME,SERVICE_STATUS',
     HIDDEN_FIELDS   => 'LOGIN',
     FUNCTION_FIELDS => 'change',
     SKIP_USER_TITLE => 1,
-    EXT_TITLES      => {
-      'id'           => "#",
-      'tp_name'      => $lang{TARIF_PLAN},
-      'status'       => $lang{STATUS},
-      'service_name' => $lang{SERVICE},
+    EXT_TITLES => {
+      id             => "#",
+      tp_name        => $lang{TARIF_PLAN},
+      service_status => $lang{STATUS},
+      service_name   => $lang{SERVICE},
     },
+    STATUS_VALS     => sel_status({ HASH_RESULT => 1 }),
     TABLE           => {
       width   => '100%',
       caption => $lang{TARIF_PLANS},

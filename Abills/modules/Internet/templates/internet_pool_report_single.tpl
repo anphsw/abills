@@ -1,7 +1,7 @@
-<div class='col-md-3 padding-min'>
+<div class='col-md-3'>
   <div class='card card-primary card-outline'>
     <div class='card-header'>
-      <h4 class='card-header with-border'>%NAME%</h4>
+      <h4 class='card-title with-border'>%NAME%</h4>
     </div>
     <div class='card-body'>
       <p>%IP_RANGE%</p>

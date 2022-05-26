@@ -64,5 +64,5 @@
   </div>
 </div>
 
-<script src='/styles/default_adm/js/searchLocation.js'></script>
+<script src='/styles/default/js/searchLocation.js'></script>
 

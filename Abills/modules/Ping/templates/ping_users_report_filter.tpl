@@ -6,7 +6,7 @@
   <div class='card card-primary card-outline collapsed-box'>
         <div class="card-header with-border">
           <h3 class="card-title"><i class='fa fa-fw fa-filter'></i>_{FILTERS}_</h3>
-          <div class="card-tools pull-right">
+          <div class="card-tools float-right">
             <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse"><i class="fa fa-plus"></i>
             </button>
           </div>
@@ -46,7 +46,7 @@
           <div class="card card-primary card-outline collapsed-box">
             <div class="card-header with-border">
               <h4 class="card-title">_{ADDRESS}_</h4>
-              <div class="card-tools pull-right">
+              <div class="card-tools float-right">
                 <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse"><i class="fa fa-plus"></i>
                 </button>
               </div>

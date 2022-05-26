@@ -4,7 +4,7 @@
     <div class='col-sm col-12 form-group'>
       <div class='info-box h-100'>
         <span class='info-box-icon bg-success'>
-          <i class='fa fa-money'></i>
+          <i class='far fa-money-bill-alt'></i>
         </span>
         <div class='info-box-content'>
           <div class='row'>
@@ -27,8 +27,7 @@
           <div class='info-box-content'>
             <div class='text-center'> <!-- %DISABLE% -->
               <div class='custom-control custom-switch custom-switch-on-danger custom-switch-off-success'>
-                <input class='custom-control-input' type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%' style='display: none;'>
-                <label class='custom-control-label' for='DISABLE' id='DISABLE_LABEL'>%DISABLE_LABEL%</label>
+                %FORM_DISABLE%
               </div>
             </div>
             <input class='form-control' type='text' name='ACTION_COMMENTS' ID='ACTION_COMMENTS' value='%DISABLE_COMMENTS%' size='40'
@@ -56,10 +55,16 @@
       <div class='input-group-append'>
         <div class='input-group-text'>
           <a href='$SELF_URL?index=12&UID=$FORM{UID}'>
-            <i class='fa fa-pencil'></i>
+            <i class='fa fa-pencil-alt'></i>
           </a>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+  jQuery(function (){
+    initChosen();
+  });
+</script>

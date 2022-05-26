@@ -1,10 +1,18 @@
 package Abills::Api::FildsGrouper;
 
+use warnings FATAL => 'all';
+use strict;
+
+#***********************************************************
+=head2 group_fields()
+
+=cut
+#***********************************************************
 sub group_fields {
   my ($result) = @_;
 
-  if(ref $result eq 'ARRAY') {
-    foreach(@$result) {
+  if (ref $result eq 'ARRAY') {
+    foreach (@$result) {
       $_ = group($_)
     }
   }
@@ -15,23 +23,38 @@ sub group_fields {
   return $result;
 }
 
+#***********************************************************
+=head2 group()
+
+=cut
+#***********************************************************
 sub group {
   my ($result) = @_;
 
-  foreach my $field_name (keys %$result) {
-    if($field_name =~ m/(.*)_(\d*)$/gm) {
-      delete $result->{$field_name};
-    }
-  }
+  my @del_fields_array = (
+    '',
+    'COL_NAMES_ARR'
+  );
 
-  foreach my $field_name (keys %$result) {
-    if($field_name =~ m/(.*)_ALL$/gm) {
-      my $old_fild_name = $field_name;
-      $field_name =~ s/_ALL$//gm;
+  if (ref $result eq 'HASH') {
+    foreach my $field_name (keys %$result) {
+      if ($field_name =~ m/(.*)_(\d*)$/gm) {
+        delete $result->{$field_name};
+      }
+      else {
+        foreach my $field (@del_fields_array) {
+          delete $result->{$field_name} if ($field_name eq $field)
+        }
+      }
 
-      my @list = split (', ', $result->{$old_fild_name});
-      $result->{$field_name} = \@list;
-      delete $result->{$old_fild_name};
+      if ($field_name =~ m/(.*)_ALL$/gm) {
+        my $old_field_name = $field_name;
+        $field_name =~ s/_ALL$//gm;
+
+        my @list = split(', ', $result->{$old_field_name});
+        $result->{$field_name} = \@list;
+        delete $result->{$old_field_name};
+      }
     }
   }
 

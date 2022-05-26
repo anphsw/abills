@@ -1,8 +1,8 @@
 <div class='small-box bg-green'>
   <div class='inner'>
     <h3>IPTV</h3>
-
-    <p>%IPTV_TP_NAME% %IPTV_MONTH_FEE% грн./мес</p>
+    <p>%IPTV_TP_NAME% %IPTV_MONTH_FEE% %MONEY_UNIT_NAME%/%IPTV_PERIOD%</p>
+    <p>_{STATUS}_: %IPTV_STATUS%</p>
   </div>
   <div class='icon'>
     <i class='ion ion-stats-bars'></i>
