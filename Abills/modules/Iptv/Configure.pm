@@ -131,8 +131,8 @@ sub iptv_tp{
       SELECTED       => $tarif_info->{TP_GID} || '',
       SEL_LIST       => $Tariffs->tp_group_list({ COLS_NAME => 1 }),
       SEL_OPTIONS    => { '' => '--' },
-      MAIN_MENU      => $index + 10,
-      MAIN_MENU_ARGV => "chg=$tarif_info->{TP_GID}"
+      MAIN_MENU      => get_function_index('form_tp_groups'),
+      MAIN_MENU_ARGV => "chg=". ($tarif_info->{TP_GID} || q{})
     });
 
     $tarif_info->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
@@ -145,6 +145,55 @@ sub iptv_tp{
       CHECKBOX       => 'create_fees_type',
       CHECKBOX_TITLE => $lang{CREATE}
     });
+
+    if ($conf{EXT_BILL_ACCOUNT}) {
+      my $checked = ($tarif_info->{EXT_BILL_ACCOUNT}) ? ' checked' : '';
+      $tarif_info->{EXT_BILL_ACCOUNT} = $html->tpl_show(templates('form_row'), {
+        ID    => 'EXT_BILL_ACCOUNT',
+        NAME  => $lang{EXTRA_BILL},
+        VALUE => "<div class='form-check text-left'>" .
+          "<input type='checkbox' id='EXT_BILL_ACCOUNT' name='EXT_BILL_ACCOUNT' value='1' class='form-check-input' $checked></div>",
+      }, { OUTPUT2RETURN => 1 });
+
+      $tarif_info->{EXT_BILL_FEES_METHOD} = $html->form_select(
+        'EXT_BILL_FEES_METHOD',
+        {
+          SELECTED    => $tarif_info->{EXT_BILL_FEES_METHOD} || 1,
+          SEL_HASH    => get_fees_types(),
+          NO_ID       => 1,
+          SORT_KEY    => 1,
+          SEL_OPTIONS => { 0 => '' },
+          MAIN_MENU   => get_function_index('form_fees_types'),
+          # CHECKBOX    => 'create_fees_type',
+          # CHECKBOX_TITLE => $lang{CREATE},
+        }
+      );
+
+      $tarif_info->{EXT_BILL_ACCOUNT} .= $html->tpl_show(templates('form_row'), {
+        ID    => 'EXT_BILL_ACCOUNT',
+        NAME  => "$lang{EXTRA_BILL} $lang{FEES} $lang{TYPE}",
+        VALUE => $tarif_info->{EXT_BILL_FEES_METHOD},
+      }, { OUTPUT2RETURN => 1 });
+
+      if ($conf{BONUS_EXT_FUNCTIONS}) {
+        my @BILL_ACCOUNT_PRIORITY = (
+          "$lang{PRIMARY} $lang{BILL_ACCOUNT}",
+          "$lang{EXT_BILL_ACCOUNT}, $lang{PRIMARY} $lang{BILL_ACCOUNT}",
+          "$lang{EXT_BILL_ACCOUNT}"
+        );
+
+        $tarif_info->{BILLS_PRIORITY_SEL} = $html->form_select(
+          'BILLS_PRIORITY',
+          {
+            SELECTED     => $tarif_info->{BILLS_PRIORITY},
+            SEL_ARRAY    => \@BILL_ACCOUNT_PRIORITY,
+            ARRAY_NUM_ID => 1
+          }
+        );
+
+        $tarif_info->{BONUS} = $html->tpl_show(_include('bonus_tp_row', 'Bonus'), $tarif_info, { OUTPUT2RETURN => 1 });
+      }
+    }
 
     $tarif_info->{REDUCTION_FEE} = ($tarif_info->{REDUCTION_FEE}) ? 'checked' : '';
     $tarif_info->{POSTPAID_FEE} = ($tarif_info->{POSTPAID_FEE}) ? 'checked' : '';
@@ -170,13 +219,6 @@ sub iptv_tp{
     });
 
     $tarif_info->{SERVICE_SEL} = tv_services_sel({ %$tarif_info, ALL => 1, EX_PARAMS => '' });
-
-    $tarif_info->{EXT_BILL_ACCOUNT} = $html->tpl_show(templates('form_row'), {
-      ID    => 'EXT_BILL_ACCOUNT',
-      NAME  => $lang{EXTRA_BILL},
-      VALUE => $html->form_input('EXT_BILL_ACCOUNT', '1', { ID => 'EXT_BILL_ACCOUNT', TYPE => 'checkbox', STATE =>
-        ($tarif_info->{EXT_BILL_ACCOUNT}) ? 'checked' : undef })
-    }, { OUTPUT2RETURN => 1 }) if $conf{EXT_BILL_ACCOUNT};
 
     $tarif_info->{STATUS} = "checked" if $tarif_info->{STATUS};
 
@@ -222,6 +264,7 @@ sub iptv_tp{
       service_id           => "SERVICE_ID",
       service_name         => $lang{SERVICE},
       inner_tp_id          => 'ID',
+      ext_bill_fees_method => "EXT_BILL $lang{FEES} $lang{TYPE}",
     },
     SKIP_USER_TITLE => 1,
     TABLE           => {

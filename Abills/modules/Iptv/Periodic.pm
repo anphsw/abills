@@ -103,6 +103,8 @@ sub iptv_daily_fees {
     DAY_FEE      => '_SHOW',
     FEES_METHOD  => '_SHOW',
     PAYMENT_TYPE => '_SHOW',
+    EXT_BILL_ACCOUNT=> '_SHOW',
+    EXT_BILL_FEES_METHOD=> '_SHOW',
     NEW_MODEL_TP => 1,
     COLS_NAME    => 1
   });
@@ -113,6 +115,11 @@ sub iptv_daily_fees {
 
     if ($tp->{day_fee} > 0) {
       $Iptv->{debug} = 1 if ($debug > 6);
+      if($tp->{EXT_BILL_ACCOUNT}) {
+        $USERS_LIST_PARAMS{EXT_BILL_ID} = '_SHOW';
+        $USERS_LIST_PARAMS{EXT_DEPOSIT} = '_SHOW';
+      }
+
       my $ulist = $Iptv->user_list({
         IPTV_ACTIVATE  => "<=$ADMIN_REPORT{DATE}",
         IPTV_EXPIRE    => "0000-00-00,>$ADMIN_REPORT{DATE}",
@@ -149,6 +156,7 @@ sub iptv_daily_fees {
           DESCRIBE => fees_dsc_former(\%FEES_DSC),
           DATE     => "$ADMIN_REPORT{DATE} $TIME",
           METHOD   => ($tp->{fees_method}) ? $tp->{fees_method} : 1,
+          EXT_BILL_METHOD => ($tp->{EXT_BILL_FEES_METHOD}) ? $tp->{EXT_BILL_FEES_METHOD} : undef,
         );
         if ($tp->{payment_type} || $u->{deposit} + $u->{credit} > 0) {
           $Fees->take(\%user, $tp->{day_fee}, \%PARAMS);
@@ -456,12 +464,13 @@ sub iptv_monthly_fees {
     POSTPAID_MONTH_FEE   => '_SHOW',
     REDUCTION_FEE        => '_SHOW',
     FEES_METHOD          => '_SHOW',
-    EXT_BILL_ACCOUNT     => '_SHOW',
     FILTER_ID            => '_SHOW',
     ABON_DISTRIBUTION    => '_SHOW',
     SMALL_DEPOSIT_ACTION => '_SHOW',
     CREDIT               => '_SHOW',
     AGE                  => '_SHOW',
+    EXT_BILL_ACCOUNT     => '_SHOW',
+    EXT_BILL_FEES_METHOD => '_SHOW',
     COLS_NAME            => 1,
     NEW_MODEL_TP         => 1
   });
@@ -512,6 +521,11 @@ sub iptv_monthly_fees {
 
     #Monthfee & min use
     $month_fee = $month_fee / $days_in_month if $tp->{abon_distribution};
+
+    if($tp->{EXT_BILL_ACCOUNT}) {
+      $USERS_LIST_PARAMS{EXT_BILL_ID} = '_SHOW';
+      $USERS_LIST_PARAMS{EXT_DEPOSIT} = '_SHOW';
+    }
 
     my $ulist_main = $Iptv->user_list({
       LOGIN          => '_SHOW',
@@ -589,6 +603,7 @@ sub iptv_monthly_fees {
         CREDIT       => ($u->{credit} > 0) ? $u->{credit} : $tp->{credit},
         IPTV_STATUS  => $u->{service_status},
         SUBSCRIBE_ID => $u->{subscribe_id},
+        EXT_BILL_ID  => $u->{ext_bill_id}
       );
       
       my %FEES_DSC = (
@@ -598,7 +613,8 @@ sub iptv_monthly_fees {
         TP_ID             => $tp->{tp_id},
         TP_NAME           => $tp->{name},
         FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT},
-        FEES_METHOD       => $FEES_METHODS->{ $tp->{fees_method} }
+        FEES_METHOD       => $FEES_METHODS->{ $tp->{fees_method} },
+        EXT_BILL_METHOD   => ($tp->{EXT_BILL_FEES_METHOD}) ? $tp->{EXT_BILL_FEES_METHOD} : undef,
       );
       
       my $total_sum = 0;
@@ -615,7 +631,8 @@ sub iptv_monthly_fees {
         push @{$users_services{ $u->{uid} }}, {
           SUM      => $user_month_fee,
           DESCRIBE => fees_dsc_former(\%FEES_DSC),
-          ID       => $user{ID}
+          ID       => $user{ID},
+          EXT_BILL_METHOD   => ($tp->{EXT_BILL_FEES_METHOD}) ? $tp->{EXT_BILL_FEES_METHOD} : undef,
         };
 
         #If deposit is above-zero or TARIF PALIN is POST PAID or PERIODIC PAYMENTS is POSTPAID

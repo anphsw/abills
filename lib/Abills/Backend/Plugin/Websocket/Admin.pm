@@ -10,6 +10,7 @@ use Abills::Backend::Defs;
 use Abills::Backend::Plugin::Websocket::Client;
 use parent 'Abills::Backend::Plugin::Websocket::Client';
 
+#FIXME: Do we really need this test admins?
 my %cache = (
   aid_by_sid => {
     'testadmin1' => 1,
@@ -26,36 +27,48 @@ my %cache = (
 #**********************************************************
 sub authenticate {
   my ($chunk) = @_;
-  
-  if ( $chunk && $chunk =~ /^Cookie: .*$/m ) {
-    
+
+  if ($chunk && $chunk =~ /^Cookie: .*$/m) {
     my (@sids) = $chunk =~ /sid=([a-zA-Z0-9]*)/gim;
-    
-    return - 1 unless ( scalar @sids );
+
+    return -1 unless (scalar @sids);
     my $aid = undef;
-    foreach my $sid ( @sids ) {
-      
-      $Log->debug("Will try to authentificate admin with sid $sid") if ( defined $Log );
-      
+    foreach my $sid (@sids) {
+      $Log->debug("Will try to authentificate admin with sid $sid") if (defined $Log);
+
       # Try to retrieve from cache
-      if ( $aid = $cache{aid_by_sid}->{$sid} ) {
-        $Log->debug("cache hit $sid") if ( defined $Log );
+      if ($aid = $cache{aid_by_sid}->{$sid}) {
+        $Log->debug("cache hit $sid") if (defined $Log);
         return $aid;
       }
-      
+
       my $admin_with_this_sid = $admin->online_info({ SID => $sid, COLS_NAME => 1 });
-      
-      if ( $admin->{TOTAL} ) {
+
+      if ($admin->{TOTAL}) {
         $aid = $admin_with_this_sid->{AID};
         $cache{aid_by_sid}->{$sid} = $aid;
         return $aid;
       }
-      
     }
   }
-  
-  return - 1;
-}
+  elsif ($chunk && $chunk =~ /(?<=\bADMINSID:\s)(\w+)/gim) {
+    my $aid = undef;
 
+    # Try to retrieve from cache
+    if ($aid = $cache{aid_by_sid}->{$1}) {
+      $Log->debug("cache hit $1") if (defined $Log);
+      return $aid;
+    }
+
+    my $admin_with_this_sid = $admin->online_info({ SID => $1, COLS_NAME => 1 });
+    if ($admin->{TOTAL}) {
+      $aid = $admin_with_this_sid->{AID};
+      $cache{aid_by_sid}->{$1} = $aid;
+      return $aid;
+    }
+  }
+
+  return -1;
+}
 
 1;

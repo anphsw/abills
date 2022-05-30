@@ -76,8 +76,6 @@ my %commands_list = reverse %buttons_list;
 
 message_process();
 
-return 1;
-
 #**********************************************************
 =head2 message_process()
 
@@ -196,3 +194,5 @@ sub main_menu {
 
   return 1;
 }
+
+1;

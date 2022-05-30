@@ -83,6 +83,11 @@ sub _start {
     $response = Abills::Base::json_former({ errstr => 'API didn\'t enable please enable API in config $conf{API_ENABLE}=1;', errno => 301 });
   }
   else {
+    if ($conf{API_NGINX} && $ENV{REQUEST_URI}) {
+      $ENV{REQUEST_URI} =~ s/\/api.cgi//;
+      $ENV{PATH_INFO} = $ENV{REQUEST_URI};
+    }
+
     #TODO : Fix %FORM add make possible to paste query params with request body
     my $router = Abills::Api::Router->new(($ENV{PATH_INFO} || q{}), $db, $user, $admin, $Conf->{conf}, \%FORM, \%lang, \@MODULES);
 

@@ -46,17 +46,17 @@ my Abills::Backend::Log $Log = Abills::Backend::Log->new('FILE', $local_debug,
 #**********************************************************
 sub init {
   my ($self, $attr) = @_;
-  
+
   my $server_port = $conf{WEBSOCKET_INTERNAL_PORT} || 19444;
-  
+
   # Starting websocket server
   $Log->info("Starting internal commands server on 127.0.0.1:$server_port");
-  AnyEvent::Socket::tcp_server ('127.0.0.1', $server_port, sub {
-      $self->accept_internal_admin_client(@_);
-    });
-  
+  AnyEvent::Socket::tcp_server('127.0.0.1', $server_port, sub {
+    $self->accept_internal_admin_client(@_);
+  });
+
   $WEBSOCKET_API = get_global('WEBSOCKET_API');
-  
+
   $self->{type_handle} = {
     MESSAGE      => \&process_browser_message,
     REQUEST_LIST => \&process_list_request,
@@ -64,7 +64,7 @@ sub init {
     PING         => '{"TYPE":"PONG"}',
     PROXY        => \&process_proxy_message
   };
-  
+
   return Abills::Backend::Plugin::Internal::API->new($self->{conf}, $self);
 }
 
@@ -76,18 +76,18 @@ sub init {
 #**********************************************************
 sub accept_internal_admin_client {
   my ($self, $socket_pipe_handle, $host, $port) = @_;
-  
+
   my $socket_id = "$host:$port";
   $Log->notice("Internal connection : $socket_id");
-  
+
   my $handle = AnyEvent::Handle->new(
     fh       => $socket_pipe_handle,
     no_delay => 1
   );
-  
+
   # On message
   $handle->on_read(sub {$self->process_message(@_)});
-  
+
   $handle->on_eof(
     sub {
       my AnyEvent::Handle $this_client_handle = shift;
@@ -95,7 +95,7 @@ sub accept_internal_admin_client {
       $this_client_handle = undef;
     }
   );
-  
+
   $handle->on_error(
     sub {
       my AnyEvent::Handle $read_handle = shift;
@@ -114,57 +114,57 @@ sub accept_internal_admin_client {
 sub process_message {
   my $self = shift;
   my AnyEvent::Handle $this_client_handle = shift;
-  
+
   my $chunk = $this_client_handle->{rbuf};
   $this_client_handle->{rbuf} = undef;
-  
+
   $Log->notice("Processing message " . $chunk);
-  
+
   my $parsed_chunk = json_decode_safe($chunk);
-  
+
   my %type_handle = %{$self->{type_handle}};
-  
+
   my $response = '';
-  
-  if ( !$parsed_chunk || !(ref $parsed_chunk eq 'HASH' && $parsed_chunk->{TYPE}) ) {
+
+  if (!$parsed_chunk || !(ref $parsed_chunk eq 'HASH' && $parsed_chunk->{TYPE})) {
     $Log->debug("Got wrong request ");
-    
+
     $response = qq{ {"TYPE":"ERROR", "ERROR":"INCORRECT REQUEST"} };
-    
+
     $this_client_handle->push_write($response);
     return;
   }
-  elsif ( exists $type_handle{$parsed_chunk->{TYPE}} ) {
+  elsif (exists $type_handle{$parsed_chunk->{TYPE}}) {
     my $handler = $type_handle{$parsed_chunk->{TYPE}};
-    
-    if ( !ref $handler ) {
+
+    if (!ref $handler) {
       $response = $handler;
     }
-    elsif ( ref $handler eq 'CODE' ) {
+    elsif (ref $handler eq 'CODE') {
       eval {
         # Indirect call of $self->$handler($parsed_chunk)
         $response = $handler->($self, $parsed_chunk);
       };
-      if ( $@ ) {
+      if ($@) {
         $response = qq{ {"TYPE":"ERROR", "ERROR":"$@"} }
       }
     }
-    
+
     # Error handling
-    if ( !$response ) {
+    if (!$response) {
       $response = '{"TYPE":"ERROR", "ERROR":"Error while processing request"}';
     }
-    
+
   }
   else {
     $response = '{"TYPE":"ERROR", "ERROR":"UNKNOWN MESSAGE TYPE"}';
   }
-  
+
   # Client says he does not want result
-  if ( $parsed_chunk->{SILENT} ) {
+  if ($parsed_chunk->{SILENT}) {
     return;
   }
-  
+
   $this_client_handle->push_write(ref $response ? json_encode_safe($response) : $response);
 }
 
@@ -175,39 +175,34 @@ sub process_message {
 #**********************************************************
 sub process_browser_message {
   my ($self, $data) = @_;
-  
+
   my $responce = '';
-  
-  # Check who is reciever
-  if ( !$data->{ID} ) {
+
+  # Check who is receiver
+  if (!$data->{ID}) {
     $Log->error("Trying to send message without recipient ID specified");
     return 0;
   }
-  elsif ( !$data->{DATA} ) {
+  elsif (!$data->{DATA}) {
     $Log->error("No data in message");
     return 0;
   }
-  elsif ( $data->{TO} eq 'ADMIN' ) {
+  elsif ($data->{TO} eq 'ADMIN') {
     $Log->debug("Sending data to admin $data->{ID} " . (ref $data->{DATA} ? Dumper($data->{DATA}) : $data->{DATA}));
     my $result = $WEBSOCKET_API->notify_admin($data->{ID}, $data->{DATA}, $data);
     $Log->debug("Received " . (ref $result ? Dumper($result) : $result));
-    
-    #    if ( $data->{DATA} && $data->{DATA}{TYPE} eq 'PING' ) {
-    #      if ($result->{TYPE} eq 'RESULT' && $result->{RESULT} && ref $result->{RESULT} eq 'ARRAY'
-    #        && $result->{RESULT}->[0]
-    #      ) {
-    #        $result = { TYPE => 'PONG' };
-    #      }
-    #    }
-    
+
     $responce = json_encode_safe($result);
   }
-  elsif ( $data->{TO} eq 'CLIENT' ) {
-    #TODO: client connections
-    $Log->notice("Somebody tried send message to client \n");
-    $responce = '{"TYPE":"ERROR", "ERROR":"NOT IMPLEMENTED"}';
+  elsif ($data->{TO} eq 'USER') {
+    $Log->debug("Sending data to user $data->{ID} " . (ref $data->{DATA} ? Dumper($data->{DATA}) : $data->{DATA}));
+    $data->{TO} = 'user';
+    my $result = $WEBSOCKET_API->notify_admin($data->{ID}, $data->{DATA}, $data);
+    $Log->debug("Received " . (ref $result ? Dumper($result) : $result));
+
+    $responce = json_encode_safe($result);
   }
-  
+
   return $responce;
 };
 
@@ -218,22 +213,22 @@ sub process_browser_message {
 #**********************************************************
 sub process_list_request {
   my ($self, $data) = @_;
-  
+
   my $list_type = $data->{LIST_TYPE};
-  
+
   my @result_list = ();
-  
-  return q{{"TYPE":"ERROR", "ERROR":"UNDEFINED 'LIST_TYPE'"}} unless ( $list_type );
-  
-  if ( $list_type eq 'ADMINS' ) {
+
+  return q{{"TYPE":"ERROR", "ERROR":"UNDEFINED 'LIST_TYPE'"}} unless ($list_type);
+
+  if ($list_type eq 'ADMINS') {
     @result_list = $WEBSOCKET_API->admins_connected;
   }
-  
+
   my %responce = (
     TYPE => "RESULT",
     LIST => \@result_list
   );
-  
+
   return json_encode_safe(\%responce);
 }
 
@@ -258,52 +253,52 @@ sub process_list_request {
 #**********************************************************
 sub process_command {
   my ($self, $data) = @_;
-  
+
   my $aid = $data->{AID};
   my $program = $data->{PROGRAM};
-  
-  return if ( !$aid || !$program );
-  
+
+  return if (!$aid || !$program);
+
   # Check $program contains only single word
-  if ( $program =~ /^([-\@\w.]+)$/ ) {
-    $program = $1;                     # $string now untainted.
+  if ($program =~ /^([-\@\w.]+)$/) {
+    $program = $1; # $string now untainted.
   }
   else {
     $Log->error("Insecure command $program");
     return 'Bad command';
   }
-  
-  if ( $data->{PROGRAM_ARGS} && ref $data->{PROGRAM_ARGS} eq 'ARRAY' ) {
-    foreach my $arg ( @{$data->{PROGRAM_ARGS}} ) {
-      next if ( $arg =~ /;/ );
-      
+
+  if ($data->{PROGRAM_ARGS} && ref $data->{PROGRAM_ARGS} eq 'ARRAY') {
+    foreach my $arg (@{$data->{PROGRAM_ARGS}}) {
+      next if ($arg =~ /;/);
+
       $arg =~ s/"/\'\"\'/;
       $arg =~ s/`/\\\`/;
-      
+
       $program .= ' ' . $arg;
     }
   }
-  
+
   my $args = $data->{ARGS} || {};
-  
+
   my $success_notification = $data->{SUCCESS};
   my $error_notification = $data->{ERROR};
-  
+
   $Log->notice("Command requested is $program");
-  
+
   # Create command
   my $command = Abills::Backend::Plugin::Internal::Command->new($program, $args);
-  
+
   # Run in new thread with callback
   $command->run(sub {
     my ($status, $result) = @_;
-    
+
     $Log->info("Command finished $program : " . ($result || 'Error'));
-    
+
     my $notification = $status ? $success_notification
-                               : $error_notification;
-    
-    
+      : $error_notification;
+
+
     # If user left notifications empty, use command result as notification
     $notification ||= {
       TYPE  => 'MESSAGE',
@@ -311,10 +306,10 @@ sub process_command {
       TEXT  => $result || 'Error',
       ID    => $data->{ID} || ''
     };
-    
+
     $WEBSOCKET_API->notify_admin($aid, $notification);
   });
-  
+
   return 1;
 }
 
@@ -334,15 +329,15 @@ sub process_command {
 #**********************************************************
 sub process_proxy_message {
   my ($self, $data) = @_;
-  
+
   my $plugin_name = $data->{PROXY_TO};
-  return 0 unless ( $plugin_name );
-  
+  return 0 unless ($plugin_name);
+
   my $plugin_api_name = uc($plugin_name) . "_API";
   my Abills::Backend::Plugin::BaseAPI $API = get_global($plugin_api_name);
-  
-  return 0 unless ( $API );
-  
+
+  return 0 unless ($API);
+
   return $API->process_internal_message($data->{MESSAGE})
 }
 

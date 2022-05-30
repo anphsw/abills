@@ -32,7 +32,7 @@ use Abills::Backend::Plugin::Satellite::Server;
 #**********************************************************
 sub process_internal_message {
   my ($self, $data) = @_;
-  
+
   my $control_plugin = $self->{plugin_object};
   
   my $check_keys = sub {

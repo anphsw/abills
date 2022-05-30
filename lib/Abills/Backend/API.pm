@@ -8,7 +8,7 @@ use warnings FATAL => 'all';
 
 =head2 SYNOPSIS
 
-  This package allows conenction and data exchange to Internal plugin
+  This package allows connection and data exchange to Internal plugin
 
 =cut
 
@@ -21,7 +21,7 @@ use Abills::Backend::Utils qw/json_decode_safe/;
 use JSON qw//;
 
 my $PING_REQUEST = { "TYPE" => "PING" };
-my $PING_RESPONCE = { "TYPE" => "PONG" };
+my $PING_RESPONSE = { "TYPE" => "PONG" };
 
 my JSON::XS $json = JSON->new->utf8(0)->allow_nonref(1);
 
@@ -41,12 +41,12 @@ my JSON::XS $json = JSON->new->utf8(0)->allow_nonref(1);
 sub new {
   my $class = shift;
   my ($conf, $attr) = @_;
-  
+
   my $host = $attr->{HOST} || $conf->{WEBSOCKET_HOST} || '127.0.0.1';
   my $port = $attr->{PORT} || $conf->{WEBSOCKET_INTERNAL_PORT} || '19444';
-  
+
   my $connection_host = $host . ':' . $port;
-  
+
   my $self = {
     conf            => $conf,
     connection_host => $connection_host,
@@ -54,13 +54,13 @@ sub new {
     port            => $port,
     token           => $attr->{SECRET_TOKEN} || $conf->{WEBSOCKET_TOKEN}
   };
-  
+
   bless($self, $class);
-  
-  unless ( $attr->{ASYNC_CONNECT} ) {
+
+  unless ($attr->{ASYNC_CONNECT}) {
     $self->connect();
   }
-  
+
   return $self;
 }
 
@@ -77,9 +77,9 @@ sub new {
 #**********************************************************
 sub connect {
   my ($self, $callback) = @_;
-  
-  if ( $self->{fh} ) {
-    if ( $callback ) {
+
+  if ($self->{fh}) {
+    if ($callback) {
       $callback->($self->{fh});
       return 1;
     }
@@ -87,33 +87,32 @@ sub connect {
       return $self->{fh};
     }
   }
-  
+
   my $cv = AnyEvent->condvar;
-  tcp_connect ($self->{host}, $self->{port}, sub {
-      my ($fh) = @_;
-      
-      my $handler = $fh
-        ? AnyEvent::Handle->new(
-          fh       => $fh,
-          no_delay => 1,
-          on_error => sub {
-            $self->{fh} = 0;
-          },
-          on_eof   => sub {
-            $self->{fh} = 0;
-          }
-        )
-        : 0;
-      
-      $self->{fh} = $handler;
-      $cv->send($self->{fh});
-    }
+  tcp_connect($self->{host}, $self->{port}, sub {
+    my ($fh) = @_;
+
+    my $handler = $fh
+      ? AnyEvent::Handle->new(
+      fh       => $fh,
+      no_delay => 1,
+      on_error => sub {
+        $self->{fh} = 0;
+      },
+      on_eof   => sub {
+        $self->{fh} = 0;
+      }
+    )
+      : 0;
+
+    $self->{fh} = $handler;
+    $cv->send($self->{fh});
+  }
   );
-  
-  
+
   # Wait until got connection TODO: async
   $cv->recv;
-  if ( !$callback ) {
+  if (!$callback) {
     return $self->{fh}
   }
   else {
@@ -129,9 +128,9 @@ sub connect {
 #**********************************************************
 sub is_connected {
   my ($self) = @_;
-  
+
   my $response = $self->json_request({ MESSAGE => $PING_REQUEST });
-  
+
   return $response && ($response->{TYPE} && $response->{TYPE} eq 'PONG');
 }
 
@@ -148,31 +147,24 @@ sub is_connected {
 #**********************************************************
 sub is_admin_connected {
   my ($self, $aid) = @_;
-  return unless ( $aid );
-  
+  return unless ($aid);
+
   my $res = $self->json_request({
     MESSAGE => {
-      TYPE => "MESSAGE",
-      TO   => "ADMIN",
+      TYPE => 'MESSAGE',
+      TO   => 'ADMIN',
       ID   => $aid,
       DATA => {
         TYPE => q/PING/
       }
     }
   });
-  
-  #  RESULT:$VAR1 = {
-  #    'RESULT' => [
-  #      1
-  #    ],
-  #    'TYPE' => 'RESULT'
-  #  };
-  
-  if ( $res && ref $res eq 'HASH' && $res->{RESULT} && scalar @{$res->{RESULT}} ) {
+
+  if ($res && ref $res eq 'HASH' && $res->{RESULT} && scalar @{$res->{RESULT}}) {
     # At least one tab responds for ping
     return grep {$_ == 1} @{$res->{RESULT}};
   }
-  
+
   return 0;
 }
 
@@ -185,21 +177,21 @@ sub is_admin_connected {
       DATA
 
   Returns:
-    hash - responce
+    hash - response
 
 =cut
 #**********************************************************
 sub call {
   my $self = shift;
   my ($aid, $message, $attr) = @_;
-  
+
   $attr->{MESSAGE} = {
     TYPE => 'MESSAGE',
-    TO   => 'ADMIN',
+    TO   => $attr->{SEND_TO} ? $attr->{SEND_TO} : 'ADMIN',
     ID   => $aid,
     DATA => $message,
   };
-  
+
   return $self->json_request($attr);
 }
 
@@ -218,13 +210,13 @@ sub call {
 #**********************************************************
 sub call_plugin {
   my ($self, $plugin, $data, $attr) = @_;
-  
+
   $attr->{MESSAGE} = {
     TYPE     => 'PROXY',
     PROXY_TO => $plugin,
     MESSAGE  => $data
   };
-  
+
   return $self->json_request($attr);
 }
 
@@ -244,25 +236,23 @@ sub call_plugin {
 sub json_request {
   my $self = shift;
   my ($attr) = @_;
-  
-  if ( $attr->{ASYNC} ) {
+
+  if ($attr->{ASYNC}) {
     my $cb = $attr->{ASYNC};
-    
+
     # Override function to make it receive perl structure
     $attr->{ASYNC} = sub {
       my $res = shift;
       $cb->($res ? json_decode_safe($res) : $res);
     };
   }
-  
-  #  _bp('', $attr, {TO_CONSOLE => 1});
-  $attr->{RETURN_RESULT} = 1;
-  my $responce = $self->_request($attr, $attr->{MESSAGE});
-  
-  return 0 if ( !$responce || $responce eq q{"0"} );
-  return json_decode_safe($responce);
-}
 
+  $attr->{RETURN_RESULT} = 1;
+  my $response = $self->_request($attr, $attr->{MESSAGE});
+
+  return 0 if (!$response || $response eq q{"0"});
+  return json_decode_safe($response);
+}
 
 #**********************************************************
 =head2 _request($attr) - Request types wrapper
@@ -281,25 +271,25 @@ sub json_request {
 sub _request {
   my ($self, $attr, $payload) = @_;
 
-  if ( $attr->{NON_SAFE} ) {
+  if ($attr->{NON_SAFE}) {
     return $self->_instant_request({
       MESSAGE => $payload,
       SILENT  => 1
     });
   }
-  elsif ( $attr->{ASYNC} && ref $attr->{ASYNC} ) {
+  elsif ($attr->{ASYNC} && ref $attr->{ASYNC}) {
     $self->_asynchronous_request({
       MESSAGE  => $payload,
       CALLBACK => $attr->{ASYNC},
     });
     return;
   }
-  
-  my $sended = $self->_synchronous_request({
+
+  my $sent = $self->_synchronous_request({
     MESSAGE => $payload
   });
-  
-  return ($attr->{RETURN_RESULT}) ? $sended : defined $sended;
+
+  return ($attr->{RETURN_RESULT}) ? $sent : defined $sent;
 }
 
 #**********************************************************
@@ -322,24 +312,24 @@ sub _request {
 #**********************************************************
 sub _asynchronous_request {
   my ($self, $attr) = @_;
-  
+
   my $callback_func = $attr->{CALLBACK};
   my $message = $attr->{MESSAGE};
-  
+
   $self->connect(sub {
     my AnyEvent::Handle $handle = shift;
-    # Setup recieve callback
+    # Setup receive callback
     $handle->on_read(
       sub {
-        my ($responce_handle) = shift;
-        
-        my $readed = $responce_handle->{rbuf};
-        $responce_handle->{rbuf} = undef;
-        
-        $callback_func->($readed);
+        my ($response_handle) = shift;
+
+        my $read = $response_handle->{rbuf};
+        $response_handle->{rbuf} = undef;
+
+        $callback_func->($read);
       }
     );
-    
+
     $handle->push_write($message);
   });
   return 1;
@@ -366,38 +356,38 @@ sub _synchronous_request {
     warn 'No $attr->{MESSAGE} in WebSocket::API ' . __LINE__ . " \n";
     return 0;
   };
-  
-  # Setup recieve callback
+
+  # Setup receive callback
   my $operation_end_waiter = AnyEvent->condvar;
 
   # Set timeout to 2 seconds
   my $timeout_waiter = AnyEvent->timer(
     after => 2,
     cb    => sub {
-      _bp("Abills::Sender::Browser", "$self->{host} Timeout", { TO_CONSOLE => 1 }) if ( $self->{debug} );
+      _bp("Abills::Sender::Browser", "$self->{host} Timeout", { TO_CONSOLE => 1 }) if ($self->{debug});
       $operation_end_waiter->send(undef);
     }
   );
 
   $self->connect unless ($self->{fh});
-  
+
   my AnyEvent::Handle $handle = $self->{fh};
 
   return 0 unless $handle;
 
   $handle->on_read(
     sub {
-      my ($responce_handle) = shift;
-      
-      my $readed = $responce_handle->{rbuf};
-      $responce_handle->{rbuf} = undef;
-      
-      $operation_end_waiter->send($readed);
+      my ($response_handle) = shift;
+
+      my $read = $response_handle->{rbuf};
+      $response_handle->{rbuf} = undef;
+
+      $operation_end_waiter->send($read);
     }
   );
-  
+
   $handle->push_write($json->encode($message));
-  
+
   # Script will hang here until receives result from async operation above
   my $result = $operation_end_waiter->recv;
   undef $timeout_waiter;
@@ -420,13 +410,14 @@ sub _synchronous_request {
 sub _instant_request {
   my $self = shift;
   my ($attr) = @_;
-  
+
   # Make sub that sends or connects ands sends
   $self->connect(sub {
     my AnyEvent::Handle $fh = shift;
     $fh->push_write($json->encode($attr));
   });
-  
+
   return 1;
 }
+
 1;

@@ -164,6 +164,8 @@
               </div>
             </div>
 
+            %EXT_BILL_ACCOUNT%
+
           </div>
         </div>
       </div>

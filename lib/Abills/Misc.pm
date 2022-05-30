@@ -523,6 +523,7 @@ sub cross_modules {
   my $timeout = $attr->{timeout} || 4;
 
   $html = $attr->{HTML} if $attr->{HTML};
+  require Control::Services if $function_index && $function_index eq 'payments_maked';
 
   if ($attr->{SUM} && ! $attr->{USER_INFO}{PAYMENTS_ADDED}) {
     $attr->{USER_INFO}->{DEPOSIT} += $attr->{SUM};
@@ -599,7 +600,6 @@ sub cross_modules {
         my $module_name = $module . '::Base';
         eval "use $module_name;";
         next if $@;
-
         if ($attr->{DEBUG}) {
           print " $module -> " . lc($module) . '_' . $function_index . "<br>\n";
         }

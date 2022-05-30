@@ -23,7 +23,6 @@ use AnyEvent;
 #**********************************************************
 sub new {
   my $class = shift;
-  
   my ($prog_name, $args) = @_;
   
   my $self = {};

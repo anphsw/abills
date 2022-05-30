@@ -30,9 +30,10 @@ use Abills::Backend::Utils qw/json_encode_safe/;
 =cut
 #**********************************************************
 sub process_internal_message {
-  my ($self, $data) = @_;
+  my $self = shift;
+  my ($data) = @_;
   return 0 unless ( $data || !ref $data );
-  
+
   my $responce = 1;
   
   if ( $data->{ECHO} ) {
@@ -41,7 +42,5 @@ sub process_internal_message {
   
   return (ref $responce ? json_encode_safe($responce) : $responce);
 }
-
-
 
 1;

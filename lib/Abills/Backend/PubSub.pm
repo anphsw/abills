@@ -37,7 +37,8 @@ sub new {
 =cut
 #**********************************************************
 sub debug {
-  my ($self, $level) = @_;
+  my $self = shift;
+  my ($level) = @_;
   
   if ( defined $level ) {
     $self->{debug} = $level;
@@ -53,8 +54,9 @@ sub debug {
 
 =cut
 #**********************************************************
-sub on($$) {
-  my ($self, $topic, $handler) = @_;
+sub on {
+  my $self = shift;
+  my ($topic, $handler) = @_;
   
   $self->{topics}->{$topic} //= [];
   push(@{$self->{topics}->{$topic}}, $handler);
@@ -69,8 +71,9 @@ sub on($$) {
 
 =cut
 #**********************************************************
-sub once($$) {
-  my ($self, $topic, $handler) = @_;
+sub once {
+  my $self = shift;
+  my ($topic, $handler) = @_;
   
   # Defining wrapper for handler to remove it from self scope
   my $sub;
@@ -92,8 +95,9 @@ sub once($$) {
 
 =cut
 #**********************************************************
-sub off($;$) {
-  my ($self, $topic, $handler) = @_;
+sub off {
+  my $self = shift;
+  my ($topic, $handler) = @_;
   
   if ( !defined $handler ) {
     $self->{topics}->{$topic} = [];
@@ -112,8 +116,9 @@ sub off($;$) {
   
 =cut
 #**********************************************************
-sub emit($$) {
-  my ($self, $topic, $data) = @_;
+sub emit {
+  my $self = shift;
+  my ($topic, $data) = @_;
   
   if ( $self->{debug} && $Log ) {
     $Log->debug(' PubSub ', 'emitted ' . $topic);

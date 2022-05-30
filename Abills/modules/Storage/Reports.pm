@@ -230,7 +230,7 @@ sub storage_remnants_report {
 
   reports({
     PERIOD_FORM => 1,
-    DATE_RANGE  => 1,
+    NO_PERIOD  => 1,
     NO_GROUP    => 1,
     NO_TAGS     => 1,
     EXT_SELECT  => {
@@ -242,14 +242,18 @@ sub storage_remnants_report {
           DISABLE_CHANGE_EVENT => 1
         })
       }
-    }
+    },
+    EX_INPUTS   => [
+      $html->element('label', "$lang{DATE}:", { class=> 'col-md-2 col-form-label text-md-right' }) .
+        $html->element('div', $html->form_datepicker('REMNANTS_DATE', $FORM{REMNANTS_DATE} || '',
+          { EX_PARAMS => "autocomplete='off'"}), { class=> 'col-md-10' })
+    ]
   });
 
   my $list = $Storage->storage_remnants_list({
-    FROM_DATE  => $FORM{FROM_DATE} || '_SHOW',
-    TO_DATE    => $FORM{TO_DATE} || '_SHOW',
-    STORAGE_ID => $FORM{STORAGE_ID} || '_SHOW',
-    COLS_NAME => 1
+    REMNANTS_DATE => $FORM{REMNANTS_DATE} || '_SHOW',
+    STORAGE_ID    => $FORM{STORAGE_ID} || '_SHOW',
+    COLS_NAME     => 1
   });
 
   my $report_table = $html->table({

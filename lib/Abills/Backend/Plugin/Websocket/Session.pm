@@ -17,7 +17,7 @@ my $main_frame = Protocol::WebSocket::Frame->new;
 #**********************************************************
 sub new {
   my $class = shift;
-  
+
   my ($handle, $socket_id, $aid) = @_;
   
   my $self = {
@@ -45,7 +45,7 @@ sub new {
 #**********************************************************
 sub handle {
   my $self = shift;
-  
+
   return $self->{handle};
 }
 
@@ -63,7 +63,7 @@ sub handle {
 sub request {
   my $self = shift;
   my ( $data ) = @_;
-  
+
   $self->{handle}->push_write($main_frame->new($data)->to_bytes);
   
   return 1;
@@ -81,7 +81,7 @@ sub request {
 sub kill {
   my $self = shift;
   my ($reason) = @_;
-  
+
   $reason //= "unknown";
   
   my $handle = $self->{handle};

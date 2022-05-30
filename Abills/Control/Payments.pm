@@ -504,7 +504,6 @@ sub payment_add {
         #Make cross modules Functions
         $FORM{PAYMENTS_ID} = $Payments->{PAYMENT_ID};
 
-        require Control::Services;
         cross_modules('payments_maked', {
           %$attr,
           METHOD       => $FORM{METHOD},

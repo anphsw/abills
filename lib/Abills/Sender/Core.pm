@@ -56,7 +56,8 @@ our %PLUGIN_NAME_FOR_TYPE_ID = (
   11 => 'Hyber',
   12 => 'XMPP',
   13 => 'Iptv_message',
-  14 => 'Viber'
+  14 => 'Viber',
+  20 => 'Mobile_push'
 );
 our %TYPE_ID_FOR_PLUGIN_NAME = reverse %{PLUGIN_NAME_FOR_TYPE_ID};
 
@@ -395,6 +396,11 @@ sub get_contacts_for {
     });
 
     return wantarray ? @contacts : \@contacts;
+  }
+  elsif ( $send_type eq 'Mobile_push' ) {
+    # This is just a dummy. Mobile_push plugin will handle contact logic itself
+    my $contact_for_browser = { value => '', type_id => 0 };
+    return wantarray ? @{[ $contact_for_browser ]} : [ $contact_for_browser ];
   }
 
   my $plugin_contact_type = ($self->{$send_type} && $self->{$send_type}->contact_types($TYPE_ID_FOR_PLUGIN_NAME{$send_type}));

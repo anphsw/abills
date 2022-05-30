@@ -32,18 +32,17 @@ my $log_user = ' SessionsManager ';
 sub new {
   my $class = shift;
   my ($attr) = @_;
-  
-  die "No client class defined " unless ( $attr->{CLIENT_CLASS} );
-  
+  die "No client class defined " unless ($attr->{CLIENT_CLASS});
+
   my $self = {
     clients => {},
   };
-  
+
   $self->{client_class} = 'Abills::Backend::Plugin::Websocket::' . $attr->{CLIENT_CLASS};
   load $self->{client_class};
-  
+
   bless($self, $class);
-  
+
   return $self;
 }
 
@@ -54,18 +53,18 @@ sub new {
 #**********************************************************
 sub save_handle {
   my ($self, $handle, $socket_id, $id) = @_;
-  
-  if ( !exists $self->{clients}->{$id} ) {
+
+  if (!exists $self->{clients}->{$id}) {
     $self->{clients}->{$id} = $self->{client_class}->new($id);
   }
-  
+
   $self->{session_handler_for_socket_id}->{$socket_id} = $self->{clients}->{$id};
-  
+
   $Log->debug(
-    " $self->{client_class}. Saved handle $socket_id for $id. Total : " . scalar (keys %{ $self->{clients} }));
-  
+    " $self->{client_class}. Saved handle $socket_id for $id. Total : " . scalar(keys %{$self->{clients}}));
+
   $self->{clients}->{$id}->save_handle($handle, $socket_id);
-  
+
   return 1;
 }
 
@@ -81,11 +80,11 @@ sub save_handle {
 #**********************************************************
 sub get_handle_by_socket_id {
   my ($self, $socket_id) = @_;
-  
-  if ( my $handler = $self->_find_sessions_handler_for_socket_id($socket_id) ) {
+
+  if (my $handler = $self->_find_sessions_handler_for_socket_id($socket_id)) {
     return $handler->get_handle_for($socket_id);
   }
-  
+
   return 0;
 }
 
@@ -104,19 +103,8 @@ sub get_handle_by_socket_id {
 sub _find_sessions_handler_for_socket_id {
   my $self = shift;
   my ($socket_id) = @_;
-  
+
   return $self->{session_handler_for_socket_id}->{$socket_id} || 0;
-  
-  
-  #  foreach my $sessions_handle ( values %{$self->{clients}} ) {
-  #    if ( $sessions_handle->has_session_for($socket_id) ) {
-  #      return $sessions_handle;
-  #    }
-  #  };
-  #
-  #  print "Can't find session handle for $socket_id \n";
-  #
-  #  return 0;
 }
 
 #**********************************************************
@@ -128,15 +116,14 @@ sub _find_sessions_handler_for_socket_id {
 #**********************************************************
 sub remove_session_by_socket_id {
   my ($self, $socket_id, $reason) = @_;
-  #  $Log->critical( "Remove $socket_id " ) if (defined $Log);
-  
+
   my $sessions_handler = $self->_find_sessions_handler_for_socket_id($socket_id);
-  
-  return 0 if ( !$sessions_handler );
-  
+
+  return 0 if (!$sessions_handler);
+
   $sessions_handler->remove_handle($socket_id, $reason);
   delete $self->{session_handler_for_socket_id}->{$socket_id};
-  
+
   return 1;
 }
 
@@ -153,7 +140,7 @@ sub remove_session_by_socket_id {
 #**********************************************************
 sub has_client_with_id {
   my ($self, $id) = @_;
-  
+
   return exists $self->{clients}->{$id};
 }
 
@@ -170,8 +157,8 @@ sub has_client_with_id {
 #**********************************************************
 sub has_client_with_socket_id {
   my ($self, $socket_id) = @_;
-  
-  return $self->_find_sessions_handler_for_socket_id($socket_id) ne '0';
+
+  return $self->_find_sessions_handler_for_socket_id($socket_id);
 }
 
 #**********************************************************
@@ -188,9 +175,9 @@ sub has_client_with_socket_id {
 #@returns Abills::Backend::Plugin::Websocket::Client
 sub get_client_for_id {
   my ($self, $id) = @_;
-  
-  return 0 if ( !$id );
-  
+
+  return 0 if (!$id);
+
   return $self->{clients}->{$id};
 }
 
@@ -201,8 +188,8 @@ sub get_client_for_id {
 #**********************************************************
 sub get_all_clients {
   my $self = shift;
-  
-  return [ values %{ $self->{clients} } ];
+
+  return [ values %{$self->{clients}} ];
 }
 
 #**********************************************************
@@ -218,7 +205,7 @@ sub get_all_clients {
 #**********************************************************
 sub get_client_ids {
   my $self = shift;
-  
+
   return [ keys %{$self->{clients}} ];
 }
 
@@ -229,16 +216,11 @@ sub get_client_ids {
 #**********************************************************
 sub drop_all_clients {
   my ($self, $reason) = @_;
-  
-  foreach ( values %{$self->{clients}} ) {
-    $_->kill($reason) if ( defined $_ );
-  }
-  
-}
 
-#DESTROY {
-#  my $self = shift;
-#  $self->drop_all_clients('Closing');
-#}
+  foreach (values %{$self->{clients}}) {
+    $_->kill($reason) if (defined $_);
+  }
+
+}
 
 1;

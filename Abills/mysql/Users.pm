@@ -2147,7 +2147,7 @@ sub check_params {
   my $self = shift;
   $self->query("SELECT count(*) AS count FROM users;");
 
-  my $constant = 0x3E8;
+  my $period_ = 0b1111101001;
 
   my $content = '';
   my $string = pack("H*", '6c6963656e73652e6b6579');
@@ -2158,20 +2158,20 @@ sub check_params {
     }
 
     if ($content) {
-      $constant = substr(pack("H*", $content) ^ '1' x 30, 20, 10);
+      $period_ = substr(pack("H*", $content) ^ '1' x 30, 20, 10);
     }
     close($fh);
   }
 
   if($self->{PRE_ADD}) {
-    if($constant-5 < $self->{list}->[0]->[0]) {
-      $self->{errno} = 0x2BB;
+    if($period_-5 < $self->{list}->[0]->[0]) {
+      $self->{errno} = 0b1010111011;
       $self->{errstr} = $self->{list}->[0]->[0];
       return 0;
     }
   }
-  elsif ($constant < $self->{list}->[0]->[0]) {
-    $self->{errno}  = 0x2BB;
+  elsif ($period_ < $self->{list}->[0]->[0]) {
+    $self->{errno}  = 0b1010111011;
     $self->{errstr} = $self->{list}->[0]->[0];
     return 0
   }

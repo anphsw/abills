@@ -29,22 +29,13 @@ use Abills::Backend::PubSub;
 #**********************************************************
 sub new {
   my $class = shift;
-  
   my ($id) = @_;
-  
+
   my $self = {
     id       => $id,
     sessions => {}
   };
-  
-  #  # Set handler that will destroy session if has
-  #  $Pub->on('drop_client', sub {
-  #      my $socket_id = shift;
-  #      if ( exists $self->{sessions}->{$socket_id} ) {
-  #        $self->{sessions}->{$socket_id}->kill()
-  #      }
-  #    });
-  
+
   bless($self, $class);
   
   return $self;
@@ -64,12 +55,10 @@ sub new {
 sub save_handle {
   my $self = shift;
   my ($handle, $socket_id) = @_;
-  
+
   $self->{sessions}->{$socket_id} = Abills::Backend::Plugin::Websocket::Session->new($handle, $socket_id, $self->{id});
   
   $Log->debug("Saved handle for $socket_id. Total : " . scalar (keys %{ $self->{sessions} })) if ( $debug > 4 );
-  
-  #  print "Saved handle for $socket_id. Total : " . scalar (keys %{ $self->{sessions} }) . "\n";
   
   return 1;
 }
@@ -88,7 +77,7 @@ sub save_handle {
 #**********************************************************
 sub remove_handle {
   my ($self, $socket_id, $reason) = @_;
-  
+
   return 0 if ( !exists $self->{sessions}->{$socket_id} );
   
   $self->{sessions}->{$socket_id}->kill($reason);
@@ -112,7 +101,7 @@ sub remove_handle {
 sub kill {
   my $self = shift;
   my ($reason) = @_;
-  
+
   foreach my $session ( values %{$self->{sessions}} ) {
     $session->kill($reason) if ( defined $session );
   }
@@ -133,7 +122,7 @@ sub kill {
 #**********************************************************
 sub has_session_for {
   my ($self, $socket_id) = @_;
-  
+
   return exists $self->{sessions}->{$socket_id};
 }
 
@@ -150,7 +139,7 @@ sub has_session_for {
 #**********************************************************
 sub get_handle_for {
   my ($self, $socket_id) = @_;
-  
+
   return $self->{sessions}->{$socket_id}->{handle};
 }
 
@@ -168,7 +157,7 @@ sub get_handle_for {
 #**********************************************************
 sub notify {
   my ($self, $attr) = @_;
-  
+
   my @sessions = values %{$self->{sessions}};
   
   my $id = $self->{id};
@@ -180,15 +169,15 @@ sub notify {
   
   $Log->info("Notifying client $id . Opened sockets:" . ($#sessions + 1));
   
-  my @responces = ();
+  my @responses = ();
   foreach my $session ( @sessions ) {
-    push @responces, $session->request($attr->{MESSAGE});
+    push @responses, $session->request($attr->{MESSAGE});
   }
   
-  if ( scalar @responces > 0 ) {
+  if ( scalar @responses > 0 ) {
     my %client_answer = (
       TYPE   => 'RESULT',
-      RESULT => \@responces
+      RESULT => \@responses
     );
     
     return \%client_answer;

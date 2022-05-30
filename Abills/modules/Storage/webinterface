@@ -50,7 +50,7 @@ my @item_status = ($lang{INSTALLED}, $lang{SOLD}, $lang{RENT}, $lang{BY_INSTALLM
 if (form_purchase_module({
   HEADER          => $users->{UID} || $user->{UID} || $FORM{UID},
   MODULE          => 'Storage',
-  REQUIRE_VERSION => 8.43,
+  REQUIRE_VERSION => 8.44,
 })) {
   exit;
 }
@@ -1133,13 +1133,12 @@ sub storage_main {
       TABLE           => {
         width            => '100%',
         caption          => $lang{DISCARDED},
-        qs               => $pages_qs,
+        qs               => $pages_qs . '&storage_status=5',
         ID               => 'STORAGE_DISCARD',
         MENU             => "",
         DATA_TABLE       => 1,
-        SHOW_COLS_HIDDEN => {
-          storage_status => 5,
-        }
+        SHOW_COLS_HIDDEN => { storage_status => 5 },
+        EXPORT           => 1
       },
       SELECT_VALUE    => {
       },

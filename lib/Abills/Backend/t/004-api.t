@@ -4,12 +4,14 @@ use warnings;
 use Test::More;
 plan tests => 6;
 
+use lib '../../../';
+
 our ($db, $admin, %conf);
 
 if (use_ok ('Abills::Backend::API')) {
   require Abills::Backend::API;
   Abills::Backend::API->import()
-};
+}
 
 my Abills::Backend::API $api = new_ok('Abills::Backend::API', [ $db, $admin, \%conf ]);
 

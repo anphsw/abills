@@ -96,7 +96,8 @@ sub notify_admin {
 
   $Log->info("AID: $aid MESSAGE : " . $message);
 
-  my Abills::Backend::Plugin::Websocket::SessionsManager $adminSessions = $self->{session_managers}->{admin};
+  my $sessions = lc($attr->{TO}) || 'admin';
+  my Abills::Backend::Plugin::Websocket::SessionsManager $adminSessions = $self->{session_managers}->{$sessions};
 
   if ($aid eq '*') {
     my $admins_to_notify = $adminSessions->get_all_clients();
@@ -121,7 +122,6 @@ sub notify_admin {
 
   return $Admin->notify({ MESSAGE => $message, %{$attr ? $attr : {}} });
 }
-
 
 #**********************************************************
 =head2 admins_connected()
@@ -154,7 +154,5 @@ sub has_connected {
 
   return $self->{session_managers}->{$type}->has_client_with_id($id);
 }
-
-
 
 1;

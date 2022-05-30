@@ -882,7 +882,7 @@ sub nas_pair_former {
   ###########################################################
   # pppd + RADIUS plugin (Linux) http://samba.org/ppp/
   elsif ($nas_type eq 'accel_ppp'
-    || ($nas_type eq 'pppd'))
+    || $nas_type eq 'pppd')
   {
     my $EX_PARAMS = $self->ex_traffic_params(
       {
@@ -919,6 +919,16 @@ sub nas_pair_former {
     elsif (defined($EX_PARAMS->{speed}->{0})) {
       $RAD_PAIRS->{'PPPD-Downstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{IN});
       $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'}   = int($EX_PARAMS->{speed}->{0}->{OUT});
+    }
+
+    if($self->{DNS}) {
+      my @dns_arr = split(/,\s?/, $self->{DNS});
+      if ($#dns_arr > -1) {
+        $RAD_PAIRS->{'MS-Primary-DNS-Server'} = $dns_arr[0];
+        if ($#dns_arr > 0) {
+          $RAD_PAIRS->{'MS-Secondary-DNS-Server'} = $dns_arr[1];
+        }
+      }
     }
 
     $RAD_PAIRS->{'Acct-Interim-Interval'} = $NAS->{NAS_ALIVE} if ($NAS->{NAS_ALIVE});

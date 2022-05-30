@@ -58,7 +58,7 @@
           </div>
 
           <div class='form-group row'>
-            <label class='col-sm-4 col-md-4 control-label'>_{DESCRIBE}_ (_{ADMIN}_):</label>
+            <label class='col-sm-4 col-md-4 control-label' for='DESCRIBE_AID'>_{DESCRIBE}_ (_{ADMIN}_):</label>
             <div class='col-sm-8 col-md-8'>
               <textarea cols='40' rows='2' name='DESCRIBE_AID' class='form-control'
                         id='DESCRIBE_AID'>%DESCRIBE_AID%</textarea>
