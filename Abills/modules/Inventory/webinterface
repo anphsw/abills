@@ -414,16 +414,17 @@ sub inventory_bugs {
       $Inventory->{STATUS_SEL} = $html->form_select(
         'STATUS',
         {
-          SELECTED => $Inventory->{STATUS},
+          SELECTED => $Inventory->{STATUS} || 4,
           SEL_HASH => \%status,
         }
       );
 
       $Inventory->{RESPONSIBLE_SEL} = sel_admins({
         NAME     => 'RESPONSIBLE',
-        SELECTED => $Inventory->{RESPONSIBLE}
+        SELECTED => $Inventory->{RESPONSIBLE} || $admin->{AID}
       });
 
+      ($Inventory->{FIX_VERSION}, undef)=split(/ /, get_version());
       $html->tpl_show(_include('inventory_bug', 'Inventory'), $Inventory);
     }
   }
@@ -434,7 +435,7 @@ sub inventory_bugs {
     }
   }
 
-  if (!$FORM{SORT}) {
+  if (!$FORM{sort}) {
     $LIST_PARAMS{SORT} = '1';
     $LIST_PARAMS{DESC} = 'DESC';
     #$LIST_PARAMS{STATUS} = 0;
@@ -498,7 +499,8 @@ sub inventory_bugs {
       'comments'    => $lang{COMMENTS},
       'cur_version' => $lang{CUR_VERSION},
       'fix_version' => 'FIX_VERSION',
-      'responsible' => $lang{RESPONSIBLE}
+      'responsible' => $lang{RESPONSIBLE},
+      'inventory_uid' => 'Inventory UID'
     },
     TABLE           => {
       width   => '100%',
@@ -608,17 +610,17 @@ sub inventory_hosts {
     INPUT_DATA      => $Inventory,
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
-      'id'          => 'ID',
-      'datetime'    => $lang{DATE},
-      'ip'          => 'IP',
-      'hostname',   => $lang{HOSTNAME},
-      'status',     => $lang{STATUS},
-      'sign',       => 'SYS_ID',
-      'users',      => $lang{USERS},
-      'admins',     => $lang{ADMIN},
-      'tps',        => 'TPS',
-      'version_maj' => 'V1',
-      'version_min' => 'V2'
+      'id'            => 'ID',
+      'datetime'      => $lang{DATE},
+      'ip'            => 'IP',
+      'hostname',     => $lang{HOSTNAME},
+      'status',       => $lang{STATUS},
+      'sign',         => 'SYS_ID',
+      'users',        => $lang{USERS},
+      'admins',       => $lang{ADMIN},
+      'tps',          => 'TPS',
+      'version_maj'   => 'V1',
+      'version_min'   => 'V2',
     },
     TABLE           => {
       width   => '100%',

@@ -1,4 +1,4 @@
-<form class='form-horizontal' action='$SELF_URL' method='post' id='admin_info'>
+<form class='form-horizontal' action='$SELF_URL' method='post' enctype='multipart/form-data' id='admin_info'>
   <input type=hidden name=index value='$index'>
   <input type=hidden name=aedit value=1>
 
@@ -26,6 +26,13 @@
         <label class='control-label col-md-3' for='FIO'>_{FIO}_:</label>
         <div class='col-md-9'>
           <input id='FIO' name='name' value='%A_FIO%' class='form-control' type='text'>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-3 control-label' for='UPLOAD_FILE'>_{AVATAR}_:</label>
+        <div class='col-md-9'>
+          <input type='file' name='UPLOAD_FILE' id='UPLOAD_FILE' value='%UPLOAD_FILE%'>
         </div>
       </div>
 

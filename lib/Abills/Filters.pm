@@ -37,6 +37,7 @@ bin2mac
 mac2dec
 dec2hex
 bin2hex
+serial2mac
 $IPV4
 $IPV4CIDR
 $HD
@@ -57,6 +58,7 @@ bin2mac
 mac2dec
 dec2hex
 bin2hex
+serial2mac
 $IPV4
 $IPV4CIDR
 $HD
@@ -399,6 +401,26 @@ sub inn_check {
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 serial2mac($bin); - Convert bit value to hex
+
+  Arguments:
+    $bin
+
+  Return:
+    Upper Hex string
+
+  Results:
+    ATCV00090987
+
+=cut
+#**********************************************************
+sub serial2mac {
+  my ($bin) = @_;
+
+  return uc(join('', unpack("AAAAH*", $bin || q{})));
 }
 
 

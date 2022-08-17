@@ -599,7 +599,7 @@ sub build_list {
       $attr
     );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   if ($self->{TOTAL} && $self->{TOTAL} > 0) {
     $self->query("SELECT COUNT(*) AS total FROM builds b

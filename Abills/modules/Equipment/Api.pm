@@ -6,8 +6,8 @@ package Equipment::Api;
 =head VERSION
 
   DATE: 20220210
-  UPDATE: 20220210
-  VERSION: 0.01
+  UPDATE: 20220711
+  VERSION: 0.02
 
 =cut
 
@@ -29,7 +29,7 @@ our (
 =cut
 #**********************************************************
 sub new {
-  my ($class, $Db, $conf, $Admin, $lang, $debug) = @_;
+  my ($class, $Db, $conf, $Admin, $lang, $debug, $type) = @_;
 
   my $self = {
     db    => $Db,
@@ -43,13 +43,19 @@ sub new {
   $admin = $self->{admin};
   %conf = %{$self->{conf}};
 
+  $self->{routes_list} = ();
+
+  if ($type eq 'admin') {
+    $self->{routes_list} = $self->admin_routes();
+  }
+
   bless($self, $class);
 
   return $self;
 }
 
 #**********************************************************
-=head2 routes_list() - Returns available API paths
+=head2 admin_routes() - Returns available API paths
 
   Returns:
     {
@@ -104,7 +110,7 @@ sub new {
 
 =cut
 #**********************************************************
-sub routes_list {
+sub admin_routes {
   my $self = shift;
   my $Equipment = Equipment->new($self->{db}, $self->{admin}, $self->{conf});
   $Equipment->{debug} = $self->{debug} || 0;

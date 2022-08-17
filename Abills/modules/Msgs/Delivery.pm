@@ -13,7 +13,8 @@ our ($db,
   @bool_vals,
   @_COLORS,
   $admin,
-  %conf
+  %conf,
+  %msgs_permissions
 );
 
 our Abills::HTML $html;
@@ -39,6 +40,12 @@ my @priority_colors = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[
 =cut
 #**********************************************************
 sub msgs_delivery_main {
+
+  if (!$msgs_permissions{2}{0}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return 1;
+  };
+
   my $msgs_status = {
     0 => "$lang{D_ACTIVE}:#0000FF",
     1 => "$lang{DEFERRED}:#ff0638",
@@ -62,6 +69,11 @@ sub msgs_delivery_main {
     $Msgs->{ACTION_LNG} = $lang{ADD};
   }
   elsif ($FORM{add}) {
+    if (!$msgs_permissions{2}{1}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+      return 1;
+    };
+
     $Msgs->msgs_delivery_add({ %FORM });
 
     if (!$Msgs->{errno}) {
@@ -70,13 +82,20 @@ sub msgs_delivery_main {
     }
   }
   elsif ($FORM{del_delivery} && $FORM{COMMENTS}) {
-    $Msgs->msgs_delivery_del({ ID => $FORM{del_delivery} });
-
-    if (!$Msgs->{errno}) {
-      $html->message('success', $lang{INFO}, $lang{MESSAGE} . ' ' . $FORM{del_delivery} . ' ' . $lang{DELETED});
+    if (!$msgs_permissions{2}{3}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    }
+    else {
+      $Msgs->msgs_delivery_del({ ID => $FORM{del_delivery} });
+      $html->message('success', $lang{INFO}, join(' ', ($lang{MESSAGE}, $FORM{del_delivery}, $lang{DELETED}))) if !$Msgs->{errno};
     }
   }
   elsif ($FORM{chg}) {
+    if (!$msgs_permissions{2}{2}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+      return 1;
+    };
+
     $Msgs->{ACTION} = 'change';
     $Msgs->{ACTION_LNG} = $lang{CHANGE};
     $Msgs->{ATTACHMENTS} = Abills::Base::json_former(_msgs_get_attachments($FORM{chg}) || [], { ESCAPE_DQ => 1 });
@@ -92,6 +111,11 @@ sub msgs_delivery_main {
     $FORM{STATUS} = $Msgs->{STATUS};
   }
   elsif ($FORM{change}) {
+    if (!$msgs_permissions{2}{2}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+      return 1;
+    };
+
     $Msgs->msgs_delivery_change({ %FORM });
 
     if (!$Msgs->{errno}) {
@@ -127,9 +151,12 @@ sub msgs_delivery_main {
       NO_ID    => 1
     });
 
-    if($Msgs->{TEXT}) {
-      $Msgs->{TEXT} =~ s/\%/\&#37;/g;
-    }
+    $Msgs->{TEXT} =~ s/\%/\&#37;/g if$Msgs->{TEXT};
+
+    if ($FORM{show} && !$msgs_permissions{2}{4}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+      return 1;
+    };
 
     $html->tpl_show(_include('msgs_add_delivery', 'Msgs'), { %$Msgs });
 
@@ -176,7 +203,7 @@ sub msgs_delivery_main {
         caption    => $lang{DELIVERY},
         qs         => $pages_qs,
         ID         => 'DILIVERY_LIST',
-        MENU       => "$lang{ADD}:add_form=1&index=$index:add",
+        MENU       => $msgs_permissions{2}{1} ? "$lang{ADD}:add_form=1&index=$index:add" : '',
         DATA_TABLE => 1
       },
     });
@@ -203,9 +230,11 @@ sub msgs_delivery_main {
         push @fields_array, $val;
 
       }
-      push @fields_array, $html->button($lang{SHOW}, "index=$index&show=$line->{id}", { class => 'user' }) .
-          $html->button($lang{CHANGE}, "index=$index&chg=$line->{id}", { class => 'change' }) .
-          $html->button($lang{DELETE}, "index=$index&del_delivery=$line->{id}", { MESSAGE => "$lang{DEL}",  class => 'del' });
+      my $chg_btn = $msgs_permissions{2}{2} ? $html->button($lang{CHANGE}, "index=$index&chg=$line->{id}", { class => 'change' }) : '';
+      my $del_btn = $msgs_permissions{2}{3} ?
+        $html->button($lang{DELETE}, "index=$index&del_delivery=$line->{id}", { MESSAGE => "$lang{DEL}",  class => 'del' }) : '';
+
+      push @fields_array, $html->button($lang{SHOW}, "index=$index&show=$line->{id}", { class => 'user' }) . $chg_btn . $del_btn;
       $table->addrow(@fields_array);
     }
 

@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS `ring_rules` (
   `every_month` SMALLINT(1) UNSIGNED NOT NULL DEFAULT 0,
   `file` CHAR(40) NOT NULL DEFAULT '',
   `update_day` VARCHAR(25) NOT NULL DEFAULT '',
-  `sql_query` VARCHAR(200) NOT NULL DEFAULT '',
+  `sql_query` TEXT NOT NULL,
   `message` TEXT NULL,
   `comment` TEXT NULL,
   PRIMARY KEY (`id`)

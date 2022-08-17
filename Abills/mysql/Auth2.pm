@@ -1814,6 +1814,10 @@ sub get_ip {
     }
     else {
       $WHERE .= $guest;
+
+      if($CONF->{AUTH_VLAN_FOR_IP} && $attr->{SERVER_VLAN}) {
+        $WHERE .= " AND (ippools.vlan='$attr->{SERVER_VLAN}')";
+      }
     }
 
     $self->query2("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id,

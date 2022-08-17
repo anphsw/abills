@@ -3,7 +3,7 @@
     <input type=hidden name='SAVE_INDEX' id="SAVE_INDEX" value='%SAVE_INDEX%'>
     <input type=hidden name='RESOURCE_ID' id="RESOURSE_ID" value='%ID%'>
 
-    <label class='col-sm-offset-2 col-sm-8'>RADIUS Parameters</label>
+    <label class='col-sm-offset-2 col-sm-8'>RADIUS</label>
     <div class='col-md-12'>
         <table class='table table-bordered table-hover'>
             <thead>

@@ -642,7 +642,7 @@ sub wordpress_export_abon {
       $table->addrow(
         $html->form_input( 'ABON_IDS', $service->{id}, { TYPE => 'checkbox' } ),
         $service->{id},
-        $service->{name},
+        $service->{tp_name},
         ($service->{period} == 0) ? $service->{price} : '',
         ($service->{period} == 1) ? $service->{price} : '',
       );

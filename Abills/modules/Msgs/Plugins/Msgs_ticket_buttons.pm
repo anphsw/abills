@@ -3,7 +3,7 @@ package Msgs::Plugins::Msgs_ticket_buttons;
 use strict;
 use warnings FATAL => 'all';
 
-my ($admin, $CONF, $db);
+my ($admin, $CONF, $db, $msgs_permissions);
 my $json;
 my Abills::HTML $html;
 my $lang;
@@ -27,6 +27,7 @@ sub new {
 
   $html = $attr->{HTML} if $attr->{HTML};
   $lang = $attr->{LANG} if $attr->{LANG};
+  $msgs_permissions = $attr->{MSGS_PERMISSIONS};
 
   my $self = {
     MODULE      => 'Msgs',
@@ -120,6 +121,8 @@ sub _get_watch_button {
   my $self = shift;
   my ($attr) = @_;
 
+  return '' if !$msgs_permissions->{1}{17};
+
   if ($attr->{PLUGIN} && $attr->{WATCH}) {
     if ($attr->{del_watch}) {
       $Msgs->msg_watch_del({ ID => $Msgs->{ID} || $attr->{ID}, AID => $admin->{AID} });
@@ -157,6 +160,7 @@ sub _get_export_button {
   my $self = shift;
   my ($attr) = @_;
 
+  return '' if !$msgs_permissions->{1}{15};
   if ($attr->{PLUGIN} && $attr->{export}) {
     $self->export_ticket($attr);
     return { RETURN_VALUE => 1 };
@@ -218,7 +222,8 @@ sub _get_delegate_buttons {
   my $self = shift;
   my ($attr) = @_;
 
-  my $CHAPTERS_DELIGATION = $attr->{CHAPTERS_DELIGATION} || ();
+  return '' if !$msgs_permissions->{1}{9};
+
   my $chapter = $Msgs->{CHAPTER} || $attr->{CHAPTER} || '';
   my $uid = $attr->{UID} || '';
 
@@ -243,7 +248,7 @@ sub _get_delegate_buttons {
   }
 
   $Msgs->{DELIGATED} = '-';
-  $Msgs->{DELIGATED} = $CHAPTERS_DELIGATION->{$chapter} + 1 if (defined($CHAPTERS_DELIGATION->{$chapter}));
+  $Msgs->{DELIGATED} = $msgs_permissions->{deligation_level}{$chapter} + 1 if (defined $msgs_permissions->{deligation_level}{$chapter});
   $Msgs->{DELIGATED_DOWN} = 0;
 
   my $delegated_down_btn = $html->button('', "index=$attr->{index}&change=1&deligate=$Msgs->{ID}&ID=$Msgs->{ID}&PLUGIN=$self->{PLUGIN_NAME}&level=$Msgs->{DELIGATED_DOWN}&UID=$uid", {
@@ -298,6 +303,7 @@ sub _get_tags_button {
   my $self = shift;
   my ($attr) = @_;
 
+  return '' if !$msgs_permissions->{1}{18} || !$msgs_permissions->{1}{19};
   return '' if $attr->{PLUGIN} && !$attr->{change};
 
   return '' if (!$admin->{permissions}->{4} && !$CONF->{MSGS_TAGS_NON_PRIVILEGED});

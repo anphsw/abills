@@ -35,7 +35,7 @@
   document['DOMAIN_ID'] = '%DOMAIN_ID%';
 
   jQuery(function () {
-    if (typeof EVENT_PARAMS !== 'undefined') {
+    if (typeof EVENT_PARAMS !== 'undefined' && AMessageChecker) {
       AMessageChecker.start(EVENT_PARAMS);
     }
 
@@ -81,7 +81,7 @@
   <form id='mForm'>
     <div class='modal-dialog modal-sm'>
       <div class='modal-content'>
-        <div id='mHeader' class='modal-header alert-info'>
+        <div id='mHeader' class='modal-header alert-default-info'>
           <h4 id='mTitle' class='modal-title'>&nbsp;</h4>
           <button type='button' class='close' data-dismiss='modal' aria-hidden='true'>&times;</button>
         </div>
@@ -100,20 +100,20 @@
 </div>
 
 <!-- Password modal -->
-<div id="passwordModal" class="modal fade" role="dialog">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
-        <h4 class="modal-title">_{CONFIRM_CHANGES}_</h4>
+<div id='passwordModal' class='modal fade' role='dialog'>
+  <div class='modal-dialog'>
+    <div class='modal-content'>
+      <div class='modal-header'>
+        <h4 class='modal-title'>_{CONFIRM_CHANGES}_</h4>
+        <button type='button' class='close' data-dismiss='modal'>&times;</button>
       </div>
-      <div class="modal-body">
+      <div class='modal-body'>
         <div class='form-group'>
-          <input type='text' name="PASSWORD" id="modal_password" class="form-control">
+          <input type='text' name='PASSWORD' id='modal_password' class='form-control'>
         </div>
       </div>
-      <div class="modal-footer">
-        <input type="submit" class="btn btn-primary" id="modal_submit">
+      <div class='modal-footer'>
+        <input type='submit' class='btn btn-primary' id='modal_submit'>
       </div>
     </div>
   </div>

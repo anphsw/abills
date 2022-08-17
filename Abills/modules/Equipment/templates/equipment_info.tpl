@@ -74,9 +74,7 @@
                    readonly value='_{NAME}_: %NAS_NAME% (%NAS_IP%)'>
             <div class='input-group-append'>
               <div class='input-group-text'>
-                <a title='info' href='$SELF_URL?get_index=form_nas&NAS_ID=%NAS_ID%&full=1'>
-                  <span class='fa fa-list-alt'></span>
-                </a>
+                %NAS_ID_INFO%
               </div>
             </div>
           </div>

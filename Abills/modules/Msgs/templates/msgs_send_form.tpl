@@ -1,46 +1,44 @@
 <script TYPE='text/javascript'>
   function add_comments() {
 
-    var DISPATCH_CREATE = document.getElementById('DISPATCH_CREATE');
+    let DISPATCH_CREATE = document.getElementById('DISPATCH_CREATE');
+    let new_dispatch = document.getElementById('new_dispatch');
+    let dispatch_list = document.getElementById('dispatch_list');
+    let DISPATCH_COMMENTS = document.getElementById('DISPATCH_COMMENTS');
 
     if (DISPATCH_CREATE.checked) {
       DISPATCH_CREATE.checked = false;
-      var comments = prompt('_{COMMENTS}_', '');
-
-      var new_dispatch = document.getElementById('new_dispatch');
-      var dispatch_list = document.getElementById('dispatch_list');
-      var DISPATCH_COMMENTS = document.getElementById('DISPATCH_COMMENTS');
+      let comments = prompt('_{COMMENTS}_', '');
 
       if (comments === '' || comments === null) {
         alert('Enter comments');
         DISPATCH_CREATE.checked = false;
-        new_dispatch.style.display = 'none';
-        dispatch_list.style.display = 'block';
+        new_dispatch.classList.add('d-none');
+        dispatch_list.classList.remove('d-none');
       } else {
         DISPATCH_CREATE.checked = true;
         DISPATCH_COMMENTS.value = comments;
-        new_dispatch.style.display = 'block';
-        dispatch_list.style.display = 'none';
+        new_dispatch.classList.remove('d-none');
+        dispatch_list.classList.add('d-none');
       }
     } else {
       DISPATCH_CREATE.checked = false;
       DISPATCH_COMMENTS.value = '';
-      new_dispatch.style.display = 'none';
-      dispatch_list.style.display = 'block';
+      new_dispatch.classList.add('d-none');
+      dispatch_list.classList.remove('d-none');
     }
   }
 
   function add_delivery() {
 
-    var DELIVERY_CREATE = document.getElementById('DELIVERY_CREATE');
+    let DELIVERY_CREATE = document.getElementById('DELIVERY_CREATE');
+    let new_delivery = document.getElementById('new_delivery');
+    let delivery_list = document.getElementById('delivery_list');
+    let DELIVERY_COMMENTS = document.getElementById('SUBJECT_INPUT');
 
     if (DELIVERY_CREATE.checked) {
       DELIVERY_CREATE.checked = false;
-      var comments = prompt('_{SUBJECT}_', '');
-
-      var new_delivery = document.getElementById('new_delivery');
-      var delivery_list = document.getElementById('delivery_list');
-      var DELIVERY_COMMENTS = document.getElementById('SUBJECT');
+      let comments = prompt('_{SUBJECT}_', '');
 
       if (comments === '' || comments === null) {
         alert('Enter comments');
@@ -67,10 +65,7 @@
 
 <FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'
       class='form-horizontal'>
-  <div>
-    %PREVIEW_FORM%
-  </div>
-
+  <div>%PREVIEW_FORM%</div>
 
   <div class='card card-primary card-outline container-md'>
     <div class='card-header with-border'><h4 class='card-title'>_{MESSAGES}_</h4></div>
@@ -95,29 +90,65 @@
       <div class='form-group row'>
         <label class='control-label col-md-3' for='SUBJECT'>_{SUBJECT}_:</label>
         <div class='col-md-9'>
-          <input type='text' name='SUBJECT' id='SUBJECT' value='%SUBJECT%' placeholder='%SUBJECT%'
-                 class='form-control'>
+
+          <div class='input-container d-none'>
+            <div class='d-flex bd-highlight'>
+              <div class='flex-fill bd-highlight'>
+                <div class='select'>
+                  <div class='input-group-append select2-append'>
+                    %SUBJECT_SEL%
+                  </div>
+                </div>
+              </div>
+              <div class='bd-highlight'>
+                <div class='input-group-append h-100'>
+                  <div class='input-group-text p-0 rounded-left-0'>
+                    <a class='btn-sm cursor-pointer' data-change-input='SUBJECT_INPUT'>
+                      <span class='fa fa-pen p-1'></span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class='input-container input-group'>
+            <input type='text' id='SUBJECT_INPUT' name='SUBJECT' class='form-control'/>
+            <div class='input-group-append'>
+              <div class='input-group-text p-0'>
+                <a data-tooltip='_{SELECT_FROM_LIST}_' class='cursor-pointer' style='padding: 0.375rem 0.75rem'
+                   data-change-input='SUBJECT'>
+                  <span class='fa fa-list'></span>
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='SUBJECT'>_{MESSAGE}_:</label>
+        <label class='control-label col-md-3' for='MESSAGE'>_{MESSAGE}_:</label>
         <div class='col-md-9'>
             <textarea data-action='drop-zone' class='form-control' id='MESSAGE' name='MESSAGE'
                       rows='3'>%TPL_MESSAGE%</textarea>
         </div>
       </div>
 
+      %TAGS_FORM%
       %SEND_TYPES_FORM%
       %SEND_EXTRA_FORM%
 
-      <div class='form-group custom-control custom-checkbox'>
-        <input class='custom-control-input' type='checkbox' id='CHECK_FOR_ADDRESS' name='CHECK_FOR_ADDRESS'>
-        <label for='CHECK_FOR_ADDRESS' class='custom-control-label'>_{ATTACH_ADDRESS}_</label>
+
+      <div class='form-group row %ATTACH_ADDRESS_HIDE%'>
+        <label class='col-md-4 col-form-label text-md-right' for='CHECK_FOR_ADDRESS'>_{ATTACH_ADDRESS}_:</label>
+        <div class='col-md-8'>
+          <div class='form-check'>
+            <input type='checkbox' class='form-check-input' id='CHECK_FOR_ADDRESS' name='CHECK_FOR_ADDRESS' value='1'>
+          </div>
+        </div>
       </div>
 
-      %ADDRESS_FORM%
-      %TAGS_FORM%
+      <div class='mb-3'>%ADDRESS_FORM%</div>
       %SEND_DELIVERY_FORM%
 
       <div class='card collapsed-card'>
@@ -130,11 +161,15 @@
           </div>
         </div>
 
-        <div id='nas_misc' class='card-body'>
+        <div class='card-body'>
 
-          <div class='form-group custom-control custom-checkbox'>
-            <input class='custom-control-input' type='checkbox' id='INNER_MSG' value='1' name='INNER_MSG' %INNER_MSG%>
-            <label for='INNER_MSG' class='custom-control-label'>_{PRIVATE}_</label>
+          <div class='form-group row %INNER_MSG_HIDE%'>
+            <label class='col-md-3 col-form-label text-md-right' for='INNER_MSG'>_{PRIVATE}_:</label>
+            <div class='col-md-9'>
+              <div class='form-check'>
+                <input type='checkbox' class='form-check-input' id='INNER_MSG' name='INNER_MSG' %INNER_MSG% value='1'>
+              </div>
+            </div>
           </div>
 
           <div class='form-group row'>
@@ -180,6 +215,13 @@
             </div>
           </div>
 
+          <div class='form-group row %MSGS_TAGS_HIDE%'>
+            <label class='control-label col-md-3' for='MSGS_TAGS'>_{MSGS_TAGS}_:</label>
+            <div class='col-md-9' id='accordion'>
+              %MSGS_TAGS%
+            </div>
+          </div>
+
           <div class='form-group row'>
             <label class='control-label col-md-3' for='PLAN_TIME'>_{EXECUTION}_:</label>
             <div class='col-md-9'>
@@ -191,24 +233,47 @@
             </div>
           </div>
 
-          <div class='form-group row'>
+          <div class='form-group row %DISPATCH_HIDE%' id='dispatch_list'>
             <label class='control-label col-md-3' for='DISPATCH'>_{DISPATCH}_:</label>
             <div class='col-md-9'>
-              <div class='input-group'>
-                <div class='input-group-prepend'>
-                  <div class='input-group-text'>
-                    _{ADD}_
-                    <input type='checkbox' id='DISPATCH_CREATE' name='DISPATCH_CREATE' value='1'
-                           onClick='add_comments();' title='_{CREATE}_ _{DISPATCH}_'>
+              <div class='d-flex'>
+                <span class='input-group-prepend input-group-text rounded-right-0 %DISPATCH_ADD_HIDE%'>_{ADD}_
+                  <input type='checkbox' id='DISPATCH_CREATE' name='DISPATCH_CREATE' value='1'
+                         onClick='add_comments();' title='_{CREATE}_ _{DISPATCH}_'>
+                </span>
+                %DISPATCH_SEL%
+              </div>
+            </div>
+          </div>
+
+          <div class='form-group row d-none' id='new_dispatch'>
+            <label class='control-label col-md-3' for='DISPATCH_COMMENTS'>_{DISPATCH}_:</label>
+            <div class='col-md-9'>
+              <div class='row'>
+                <div class='col-sm-12 col-md-6'>
+                  <div class='input-group'>
+                    <input type='text' id='DISPATCH_COMMENTS' name='DISPATCH_COMMENTS' value='%DISPATCH_COMMENTS%'
+                           class='form-control'>
                   </div>
-                  %DISPATCH_SEL%
+                </div>
+
+                <div class='col-sm-12 col-md-6'>
+                  <div class='row'>
+                    <label class='control-label col-md-3' for='DISPATCH_PLAN_DATE'>_{DATE}_</label>
+                    <div class='col-md-9'>
+                      <div class='input-group'>
+                        <input id='DISPATCH_PLAN_DATE' type='text' name='DISPATCH_PLAN_DATE'
+                               value='%DISPATCH_PLAN_DATE%' class='datepicker form-control'>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           <div class='form-group row'>
-            <label class='control-label col-md-3' for='CALL_PHONE'>_{PHONE}_:</label>
+            <label class='control-label col-md-3' for='PHONE'>_{PHONE}_:</label>
             <div class='col-md-9'>
               <div class='input-group'>
                 <div class='input-group-prepend'>
@@ -216,7 +281,7 @@
                     <i class='fa fa-phone'></i>
                   </div>
                 </div>
-                <input class='form-control' name='PHONE' value='%PHONE%'
+                <input class='form-control' id='PHONE' name='PHONE' value='%PHONE%'
                        placeholder='%PHONE%'
                        data-inputmask='{"mask" : "(999) 999-9999", "removeMaskOnSubmit" : true}'
                        type='text'/>
@@ -224,31 +289,10 @@
             </div>
           </div>
 
-          <div class='form-group row'>
+          <div class='form-group row %SURVEY_HIDE%'>
             <label class='control-label col-md-3' for='SURVEY'>_{TEMPLATES}_ (_{SURVEY}_):</label>
             <div class='col-md-9'>
               %SURVEY_SEL%
-            </div>
-          </div>
-
-          <div class='form-group' style='display: none;'>
-            <div class='row'>
-              <div class='col-sm-12 col-md-6'>
-                <label class='control-label col-md-10' for='DISPATCH_PLAN_DATE'>_{COMMENTS}_</label>
-                <div class='input-group'>
-                  <input type='text' id='DISPATCH_COMMENTS' name='DISPATCH_COMMENTS' value='%DISPATCH_COMMENTS%'
-                         class='form-control'>
-                </div>
-              </div>
-
-              <div class='col-sm-12 col-md-6'>
-                <label class='control-label col-md-10' for='DISPATCH_PLAN_DATE'>_{DATE}_</label>
-                <div class='input-group'>
-                  <input id='DISPATCH_PLAN_DATE' type='text' name='DISPATCH_PLAN_DATE'
-                         value='%DISPATCH_PLAN_DATE%'
-                         class='datepicker form-control'>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -267,12 +311,12 @@
             <label for='PERIODIC' class='custom-control-label'>_{PERIODICALLY}_</label>
           </div>
           <div class='row'>
-            <label class='control-label col-md-2'>_{DAY}_:</label>
-            <div class='col-md-2'><input class='form-control' name='DAY' value='%DAY%'></div>
-            <label class='control-label col-md-2'>_{MONTH}_:</label>
-            <div class='col-md-2'><input class='form-control' name='MONTH' value='%MONTH%'></div>
-            <label class='control-label col-md-2'>_{YEAR}_:</label>
-            <div class='col-md-2'><input class='form-control' name='YEAR' value='%YEAR%'></div>
+            <label class='control-label col-md-2' for='DAY'>_{DAY}_:</label>
+            <div class='col-md-2'><input class='form-control' id='DAY' name='DAY' value='%DAY%'></div>
+            <label class='control-label col-md-2' for='MONTH'>_{MONTH}_:</label>
+            <div class='col-md-2'><input class='form-control' id='MONTH' name='MONTH' value='%MONTH%'></div>
+            <label class='control-label col-md-2' for='YEAR'>_{YEAR}_:</label>
+            <div class='col-md-2'><input class='form-control' id='YEAR' name='YEAR' value='%YEAR%'></div>
           </div>
         </div>
       </div>
@@ -289,8 +333,8 @@
     <div class='modal-dialog'>
       <div class='modal-content'>
         <div class='modal-header'>
-          <button type='button' class='close' data-dismiss='modal'>&times;</button>
           <h4 class='modal-title'>_{MASS_MAILING}_</h4>
+          <button type='button' class='close' data-dismiss='modal'>&times;</button>
         </div>
         <div class='modal-footer'>
           <input type='submit' name='%ACTION%' class='btn btn-primary' value='%LNG_ACTION%'
@@ -368,9 +412,7 @@
     });
 
     var form_hash = getFormData();
-    if (form_hash['UID']) {
-      jQuery('#CHECK_ADDRESS').hide();
-    }
+    if (form_hash['UID']) jQuery('#CHECK_ADDRESS').hide();
   });
 
   function getFormData() {
@@ -394,3 +436,15 @@
     }
   });
 </script>
+
+<style type='text/css'>
+	#accordion li {
+		color: #3c8dbc;
+		cursor: pointer;
+	}
+
+	#accordion li:hover {
+		color: #437ea0;
+		cursor: pointer;
+	}
+</style>

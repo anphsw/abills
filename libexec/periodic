@@ -89,6 +89,13 @@ $admin->{TIME} = $TIME;
 my $argv = parse_arguments( \@ARGV );
 $ADMIN_REPORT{HOSTNAME} = hostname();
 
+my $debug = 0;
+if ( $argv->{DEBUG} ){
+  $debug = $argv->{DEBUG} || 0;
+  $DEBUG = "DATE: $DATE $TIME\n";
+  print $DEBUG;
+}
+
 if ($argv->{rotate}) {
   rotate_logs();
 }
@@ -124,13 +131,6 @@ if($argv->{GID}) {
 
 if($argv->{UID}) {
   $LIST_PARAMS{UID}=$argv->{UID};
-}
-
-my $debug = 0;
-if ( $argv->{DEBUG} ){
-  $debug = $argv->{DEBUG} || 0;
-  $DEBUG = "DATE: $DATE $TIME\n";
-  print $DEBUG;
 }
 
 if ( $argv->{ALONE} ){
@@ -509,7 +509,11 @@ sub sheduler{
       }
     }
     elsif($s->{module} && $s->{module} eq 'ALL') {
-      $ret = service_status_change({ UID => $s->{uid},  BILL_ID => $s->{bill_id} }, $action);
+      $ret = service_status_change({ UID => $s->{uid}, BILL_ID => $s->{bill_id} },
+        $action,
+        { DEBUG => $debug,
+          DATE  => $ADMIN_REPORT{DATE}
+        });
     }
     #Required modules
     elsif ( $type ne '' ){
@@ -562,59 +566,6 @@ sub sheduler{
   }
 
   return $DEBUG
-}
-
-#**********************************************************
-=head2 service_status_change($uid, $status)
-
-  Arguments:
-    $uid
-    $status
-
-  Results:
-
-=cut
-#**********************************************************
-sub service_status_change {
-  my ($user_info, $status)=@_;
-
-  $status =~ /:(\d+)/;
-  $status = $1;
-
-  my @modules = @MODULES;
-
-  if (in_array('Triplay', \@modules)) {
-    @modules = ('Triplay');
-  }
-
-  foreach my $module ( @modules ) {
-    my $fn = lc($module) . (($status == 3) ? '_service_deactivate' : '_service_activate');
-    if (defined(&$fn)) {
-      if ($debug > 3) {
-        print "run: $fn\n";
-      }
-
-      &{\&$fn}({
-        USER_INFO   => {
-          UID     => $user_info->{UID},
-          BILL_ID => $user_info->{BILL_ID}
-          #ID  => $service_id,
-        },
-        # TP_INFO   => {
-        #   SMALL_DEPOSIT_ACTION => -1
-        # },
-        STATUS      => $status,
-        GET_ABON    => 1,
-        QUITE       => 1,
-        DATE        => $ADMIN_REPORT{DATE},
-        RECALCULATE => 1
-      });
-    }
-  }
-
-  $users->change($user_info->{UID}, { DISABLE => $status });
-
-  return 1;
 }
 
 #**********************************************************

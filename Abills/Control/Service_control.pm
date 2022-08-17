@@ -202,7 +202,7 @@ sub internet_add_compensation {
   $month_abon = $Internet->{PERSONAL_TP} if ($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0);
 
   if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00') {
-    $days = ::date_diff($attr->{FROM_DATE}, $attr->{TO_DATE});
+    $days = date_diff($attr->{FROM_DATE}, $attr->{TO_DATE});
     $sum = $days * ($month_abon / 30);
     if ($Internet->{DAY_ABON} > 0 && !$attr->{HOLD_UP}) {
       $sum += $days * $Internet->{DAY_ABON};
@@ -243,7 +243,7 @@ sub internet_add_compensation {
   $sum = $sum - (($sum / 100) * $Users->{REDUCTION}) if ($Users->{REDUCTION});
 
   if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00') {
-    my $days_to_holdup = ::date_diff($main::DATE, $attr->{TO_DATE});
+    my $days_to_holdup = date_diff($main::DATE, $attr->{TO_DATE});
     $sum = 0 if ($attr->{HOLD_UP} && $days_to_holdup > 30);
   }
   else {
@@ -397,10 +397,11 @@ sub user_holdup {
 
   if ($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0 && !$status) {
     return {
-      DEL       => 1,
-      DEL_IDS   => (($Shedule->{TOTAL} > 1 && $user_del_shedule) ? $del_ids : ''),
-      DATE_FROM => $shedule_date->{3} || '-',
-      DATE_TO   => $shedule_date->{0} || '-'
+      DEL           => 1,
+      DEL_IDS       => (($Shedule->{TOTAL} > 1 && $user_del_shedule) ? $del_ids : ''),
+      DATE_FROM     => $shedule_date->{3} || '-',
+      DATE_TO       => $shedule_date->{0} || '-',
+      CAN_CANCEL    => $user_del_shedule ? 'true' : 'false'
     };
   }
 
@@ -720,7 +721,7 @@ sub service_warning {
           $self->{ABON_DATE} = sprintf("%d-%02d-%02d", $Y, $M, $D);
         }
 
-        $days_to_fee = ::date_diff($main::DATE, $self->{ABON_DATE});
+        $days_to_fee = date_diff($main::DATE, $self->{ABON_DATE});
         if ($days_to_fee > 0) {
           $warning = ::_translate('$lang{NEXT_FEES_THROUGHT}');
         }
@@ -743,7 +744,7 @@ sub service_warning {
     }
 
     if ($service_info->{EXPIRE} && $service_info->{EXPIRE} ne '0000-00-00') {
-      my $to_expire = ::date_diff($main::DATE, $service_info->{EXPIRE});
+      my $to_expire = date_diff($main::DATE, $service_info->{EXPIRE});
       if ($days_to_fee > $to_expire) {
         $days_to_fee = $to_expire;
       }
@@ -786,6 +787,9 @@ sub service_warning {
       TP_ID
       DATE
       period
+        0 - $conf{INTERNET_USER_CHG_TP_NOW}
+        1 - $conf{INTERNET_USER_CHG_TP_NEXT_MONTH}
+        2 - $conf{INTERNET_USER_CHG_TP_SHEDULE}
 
   Return:
     SUCCESS:
@@ -1040,7 +1044,7 @@ sub get_next_abon_date {
   # Renew expired accounts
   if ($service_expire ne '0000-00-00' && $tp_age > 0) {
     # Renew expire tarif
-    if (::date_diff($service_expire, $main::DATE) > 1) {
+    if (date_diff($service_expire, $main::DATE) > 1) {
       my ($NEXT_EXPIRE_Y, $NEXT_EXPIRE_M, $NEXT_EXPIRE_D) = split(/-/, POSIX::strftime("%Y-%m-%d",
         localtime((POSIX::mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) + $tp_age * 86400))));
 
@@ -1348,7 +1352,7 @@ sub _service_info {
     message       => '$lang{ERR_NO_DATA}',
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => 4501
+    error         => 4601
   } if (!$attr->{UID} || !$attr->{MODULE});
 
   my %info_function = ('Iptv' => $attr->{ID});
@@ -1359,7 +1363,7 @@ sub _service_info {
     message       => $@,
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => 4502
+    error         => 4602
   } if ($@);
 
   my $module = $attr->{MODULE}->new($db, $admin, $CONF);
@@ -1368,7 +1372,7 @@ sub _service_info {
     message       => 'CANNOT_GET_SERVICE_INFO',
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => 4503
+    error         => 4603
   } if !$module->can('user_info') ;
 
   return $module->user_info($info_function{$attr->{MODULE}} ?
@@ -1574,28 +1578,34 @@ sub _add_holdup {
 
   my ($from_year, $from_month, $from_day) = split(/-/, $attr->{FROM_DATE}, 3);
   my ($to_year, $to_month, $to_day) = split(/-/, $attr->{TO_DATE}, 3);
-  my $block_days = ::date_diff($attr->{FROM_DATE}, $attr->{TO_DATE});
+  my $block_days = date_diff($attr->{FROM_DATE}, $attr->{TO_DATE});
   my $err_msg = '';
+  my $err_status = 0;
 
   if ($attr->{HOLD_UP_MIN_PERIOD} && $block_days < $attr->{HOLD_UP_MIN_PERIOD}) {
     $err_msg = '$lang{MIN} $lang{HOLD_UP} ' . $attr->{HOLD_UP_MIN_PERIOD} . ' $lang{DAYS} ' . $block_days;
+    $err_status = 4421;
   }
   elsif ($attr->{HOLD_UP_MAX_PERIOD} && $block_days > $attr->{HOLD_UP_MAX_PERIOD}) {
-    $err_msg = '$lang{MAX} $lang{HOLD_UP} (' . $attr->{HOLD_UP_MAX_PERIOD} . ') $lang{DAYS} ' . $block_days ;
+    $err_msg = '$lang{MAX} $lang{HOLD_UP} (' . $attr->{HOLD_UP_MAX_PERIOD} . ') $lang{DAYS} ' . $block_days;
+    $err_status = 4422;
   }
-  elsif (::date_diff($main::DATE, $attr->{FROM_DATE}) < 1) {
+  elsif (date_diff($main::DATE, $attr->{FROM_DATE}) < 1) {
     $err_msg = '$lang{ERR_WRONG_DATA}\n $lang{FROM}: ' . $attr->{FROM_DATE};
+    $err_status = 4423;
   }
   elsif ($block_days < 1) {
     $err_msg = '$lang{ERR_WRONG_DATA}\n $lang{TO}: ' . $attr->{TO_DATE};
+    $err_status = 4424;
   }
   elsif (!$attr->{ID} && ! $CONF->{HOLDUP_ALL}) {
     $err_msg = '$lang{ERR_NO_DATA}: ID';
+    $err_status = 4425;
   }
 
   if ($err_msg) {
     $self->_show_message('err', '$lang{ERR_WRONG_DATA}', $err_msg);
-    return { error => 4409, errstr => $err_msg };
+    return { error => $err_status, errstr => $err_msg };
   }
 
   $Shedule->add({
@@ -1724,6 +1734,93 @@ sub _show_message {
   return '' if !$html || !$lang;
 
   $html->message($type, ::_translate($title), ::_translate($msg));
+}
+
+#**********************************************************
+=head2 all_info($attr) - Get All info about active user tariffs
+
+  Arguments:
+    $attr: hash
+      MODULE: string        - type of module
+      FUNCTION_PARAMS: hash - params for module user_list function
+      UID: integer          - user id
+      SERVICE_INFO: object  - module object
+
+  Results:
+    $result: array of hashes
+
+=cut
+#**********************************************************
+sub all_info {
+  my $self = shift;
+  my ($attr)= @_;
+
+  my $service_info = $attr->{SERVICE_INFO} || $self->_service_info($attr);
+
+  my $tariffs_list = $service_info->user_list({
+    %{$attr->{FUNCTION_PARAMS} || {}},
+    UID         => $attr->{UID},
+    CID         => '_SHOW',
+    TP_NAME     => '_SHOW',
+    TP_COMMENTS => '_SHOW',
+    MONTH_FEE   => '_SHOW',
+    DAY_FEE     => '_SHOW',
+    TP_ID       => '_SHOW',
+    COLS_NAME   => 1,
+  });
+
+  foreach my $tariff (@{$tariffs_list}) {
+    $Shedule->info({ UID => $attr->{UID}, TYPE => 'tp', MODULE => $attr->{MODULE} });
+
+    if ($Shedule->{TOTAL} > 0)  {
+      my $action = $Shedule->{ACTION};
+      my $service_id = 0;
+      if ($action =~ /:/) {
+        ($service_id, $action) = split(/:/, $action);
+      }
+      $tariff->{schedule} = {
+        SHEDULE_ID => $Shedule->{SHEDULE_ID},
+        DATE       => $Shedule->{DATE},
+        DATE_FROM  => "$Shedule->{Y}-$Shedule->{M}-$Shedule->{D}",
+        TP_ID      => $action
+      };
+    }
+
+    my $next_abon = $self->service_warning({
+      UID    => $attr->{UID},
+      ID     => $tariff->{id},
+      MODULE => $attr->{MODULE}
+    });
+
+    if (!$next_abon->{errno}) {
+      delete @{$next_abon}{qw/WARNING MESSAGE_TYPE/};
+      $tariff->{next_abon} = $next_abon;
+    }
+
+    if ($attr->{MODULE} eq 'Internet') {
+      my $speed = $service_info->get_speed({
+        UID       => $attr->{UID},
+        TP_ID     => $tariff->{tp_id},
+        COLS_NAME => 1,
+        PAGE_ROWS => 1
+      });
+
+      $tariff->{in_speed} = $speed->[0]->{in_speed};
+      $tariff->{out_speed} = $speed->[0]->{out_speed};
+
+      my $res = $self->user_holdup({
+        UID          => $attr->{UID},
+        ID           => $tariff->{id},
+        ACCEPT_RULES => 1
+      });
+
+      if ($res) {
+        $tariff->{holdup}  = $res;
+      }
+    }
+  }
+
+  return $tariffs_list;
 }
 
 1;

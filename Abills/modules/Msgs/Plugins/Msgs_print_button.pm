@@ -3,7 +3,7 @@ package Msgs::Plugins::Msgs_print_button;
 use strict;
 use warnings FATAL => 'all';
 
-my ($admin, $CONF, $db);
+my ($admin, $CONF, $db, $msgs_permissions);
 my $json;
 my Abills::HTML $html;
 my $lang;
@@ -27,6 +27,7 @@ sub new {
 
   $html = $attr->{HTML} if $attr->{HTML};
   $lang = $attr->{LANG} if $attr->{LANG};
+  $msgs_permissions = $attr->{MSGS_PERMISSIONS};
 
   my $self = {
     MODULE      => 'Msgs',
@@ -74,6 +75,8 @@ sub plugin_info {
 sub plugin_show {
   my $self = shift;
   my ($attr) = @_;
+
+  return '' if !$msgs_permissions->{1}{14};
 
   $attr->{index} ||= $attr->{qindex};
   return '' if !$attr->{index};

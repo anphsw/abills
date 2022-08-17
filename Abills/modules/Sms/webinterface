@@ -367,7 +367,7 @@ sub sms_reports {
         $line->{id},
         $line->{msg_id},
         $html->button( $destination,
-          "index=" . get_function_index( 'ureports_users_list' ) . "&DESTINATION=". ($destination || q{}) ."&search=1&search_form=1" ),
+          "index=" . get_function_index( 'ureports_users_list' ) . "&DESTINATION_ID=". ($destination || q{}) ."&search=1&search_form=1" ),
         $line->{sign},
         $line->{message},
         $line->{wappush},

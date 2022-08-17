@@ -1,14 +1,10 @@
 package Abills::Backend::Plugin::Websocket::Admin;
 use strict;
 use warnings FATAL => 'all';
-
-my $log_user = ' Websocket::Admin ';
-
-our ($admin, $db, %conf, $Log, $base_dir, $debug, $ARGS, @MODULES);
-use Abills::Backend::Defs;
-
-use Abills::Backend::Plugin::Websocket::Client;
 use parent 'Abills::Backend::Plugin::Websocket::Client';
+
+our ($admin, $Log);
+use Abills::Backend::Defs;
 
 #FIXME: Do we really need this test admins?
 my %cache = (

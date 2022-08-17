@@ -34,6 +34,15 @@
     </div>
 
     <div class='form-group row'>
+      <label class='col-form-label text-md-right col-md-4'>_{PRIORITY}_:</label>
+      <div class='col-md-8'>
+        <div class='input-group'>
+          %PRIORITY_COMMENT_SEL%
+        </div>
+      </div>
+    </div>
+
+    <div class='form-group row'>
       <label class='col-md-4 col-form-label text-md-right' for='MESSAGE-%ID%'>_{MESSAGE}_:</label>
       <div class='col-md-8'>
         <textarea id='MESSAGE-%ID%' class='form-control custom-control' rows='3' style='resize:none'

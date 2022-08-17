@@ -446,7 +446,7 @@ sub iptv_monthly_fees {
   #close period Fees
   if ($conf{IPTV_CLOSE_PERIOD}) {
     $Conf->config_info({ PARAM => 'IPTV_CLOSED_PERIOD' });
-    if ($Conf->{VALUE} ne '1') {
+    if ($Conf->{VALUE} && $Conf->{VALUE} ne '1') {
       $debug_output .= "Period not closed\n" if ($debug > 1);
       $DEBUG .= $debug_output;
       return $debug_output;

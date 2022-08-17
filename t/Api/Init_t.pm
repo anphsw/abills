@@ -31,7 +31,7 @@ our (
   @MODULES
 );
 
-our $VERSION = 0.01;
+our $VERSION = 0.03;
 
 my $db = Abills::SQL->connect(
   $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
@@ -47,11 +47,13 @@ my $Conf = Conf->new($db, $admin, \%conf);
 our @EXPORT = qw(
   test_runner
   folder_list
+  help
 );
 
 our @EXPORT_OK = qw(
   test_runner
   folder_list
+  help
 );
 
 my %colors = (
@@ -61,6 +63,9 @@ my %colors = (
   BLUE     => 'bold BRIGHT_CYAN',
   INFO     => 'bold white'
 );
+
+my $login = $conf{API_TEST_USER_LOGIN} || 'test';
+my $password = $conf{API_TEST_USER_PASSWORD} || '123456';
 
 #**********************************************************
 =head2 test_runner($attr, $tests)
@@ -80,19 +85,23 @@ sub test_runner {
   my ($attr, $tests) = @_;
   my $url = $conf{API_TEST_URL} ? $conf{API_TEST_URL} : 'https://localhost:9443';
   my $debug = $attr->{debug} || 0;
-  my ($uid, $sid) = _user_login($url);
+  my ($uid, $sid) = _user_login($url, $debug);
+
+  print color($colors{INFO});
 
   if (!$uid) {
-    print color($colors{INFO}),
-      "No user: " . ($conf{API_TEST_USER_LOGIN} || 'test') .
+    print "No user with login: " . ($conf{API_TEST_USER_LOGIN} || 'test') .
         " with password: " . ($conf{API_TEST_USER_PASSWORD} || '123456') . "\n";
   }
   else {
+    print $attr->{message} if ($attr->{message});
+
     my @params = ({
       url => $url,
       uid => $uid,
       sid => $sid,
-      %$attr }, $tests);
+      %$attr
+    }, $tests);
 
     if ($debug < 5) {
       _test_run_web_request(@params);
@@ -121,6 +130,8 @@ sub _test_run_web_request {
   my ($attr, $tests) = @_;
   my $test_number = 0;
   my $url = $attr->{url};
+  my $sid = $attr->{sid};
+
   foreach my $test (@{$tests}) {
     $test_number++;
 
@@ -135,7 +146,7 @@ sub _test_run_web_request {
     my $query = '';
 
     if ($test->{path} =~ /user\//m) {
-      push @req_headers, "USERSID: $attr->{sid}";
+      push @req_headers, "USERSID: $sid";
     }
     else {
       push @req_headers, "KEY: $attr->{apiKey}";
@@ -144,7 +155,7 @@ sub _test_run_web_request {
     if ($test->{method} eq 'POST' || $test->{method} eq 'PUT') {
       $req_body = $test->{body};
     }
-    elsif ($test->{method} eq 'GET') {
+    elsif ($test->{method} eq 'GET' && $test->{params} && %{$test->{params}}) {
       my %params = %{$test->{params}};
 
       $query .= '?';
@@ -157,7 +168,7 @@ sub _test_run_web_request {
       HEADERS   => \@req_headers,
       JSON_BODY => $test->{body},
       INSECURE  => 1,
-      DEBUG     => $attr->{debug} ? 4 : 0,
+      DEBUG     => $attr->{debug} ? 6 : 0,
       METHOD    => $test->{method},
       MORE_INFO => 1
     });
@@ -180,26 +191,31 @@ sub _test_run_web_request {
 
     if (ok_json($result)) {
       my $res = decode_json($result);
-      if (ref $res eq 'HASH' && defined($res->{error})) {
+
+      #renew sid if path users/login
+      if ($test->{path} eq 'users/login/') {
+        $sid = $res->{sid};
+      }
+
+      if (ref $res eq 'HASH' && (defined $res->{error} || defined $res->{errno})) {
         print color($colors{BAD}), "Error: \n";
         print "RESPONSE $result \n";
         print "ERROR NUMBER: " .
-          ($res->{error} || q{UNKNOWN}) . "\nERROR STRING: " .
+          ($res->{error} || $res->{errno} || q{UNKNOWN}) . "\nERROR STRING: " .
           ($res->{errstr} || q{UNKNOW}) . "\n", color($colors{INFO});
       }
       else {
         print color($colors{INFO}), "Does JSON belong to schema: ", color($colors{CONTRAST});
         if (!ok_json_schema($result, $test->{schema})) {
           print($result);
-          print color($colors{BAD}), "JSON SCHEMA IS INCORRECT \n";
+          print color($colors{BAD}), "\nJSON SCHEMA IS INCORRECT \n";
         }
       }
     }
     else {
       print "JSON: $result \n";
     }
-
-    print "------------------------------------\n";
+    print color($colors{INFO}), "------------------------------------\n";
   }
 }
 
@@ -275,9 +291,7 @@ sub _test_run_directly {
 =cut
 #**********************************************************
 sub _user_login {
-  my ($url) = @_;
-  my $login = $conf{API_TEST_USER_LOGIN} || 'test';
-  my $password = $conf{API_TEST_USER_PASSWORD} || '123456';
+  my ($url, $debug) = @_;
 
   my ($result) = web_request("$url/api.cgi/users/login", {
     HEADERS     => [ 'Content-Type: application/json' ],
@@ -285,6 +299,7 @@ sub _user_login {
       login    => $login,
       password => $password
     },
+    DEBUG       => $debug,
     JSON_RETURN => 1,
     INSECURE    => 1,
     METHOD      => 'POST',
@@ -328,6 +343,7 @@ sub folder_list {
     push @folders, _read_dir('user', $main_dir);
   }
 
+  @folders = sort @folders;
   foreach my $folder (@folders) {
     my $request_file = "$folder/request.json";
     my $schema_file = "$folder/schema.json";
@@ -378,6 +394,32 @@ sub _read_dir {
   }
 
   return @folders;
+}
+
+#*******************************************************************
+=head2 help() - Help
+
+=cut
+#*******************************************************************
+sub help {
+
+  print << "[END]";
+  ABillS Api test systems
+  Runs tests with user with login \$conf{API_TEST_USER_LOGIN} or 'test and with password: \$conf{API_TEST_USER_PASSWORD} or '123456'
+  Curl requests send to url defined in param \$conf{API_TEST_URL} or default https://localhost:9443
+
+  default runs all available tests in selected module
+    ADMIN=1 - run only admin tests
+    USER=1  - run only admin tests
+
+  debug=[0..5]
+    debug > 1 - run all tests with curl debug printing requests and responses
+    debug > 5 - run all tests directly with mysql printing requests
+
+  KEY=      - test admin API key,
+
+  help
+[END]
 }
 
 1;

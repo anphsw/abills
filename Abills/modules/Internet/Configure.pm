@@ -224,6 +224,7 @@ sub internet_tp {
     user_credit_limit       => "$lang{USER_PORTAL} $lang{CREDIT}",
     max_session_duration    => "$lang{MAX_SESSION_DURATION} (sec.)",
     filter_id               => $lang{FILTERS},
+    ippool                  => $lang{IP_POOLS},
     age                     => "$lang{AGE} ($lang{DAYS})",
     payment_type            => $lang{PAYMENT_TYPE},
     min_session_cost        => $lang{MIN_SESSION_COST},
@@ -234,8 +235,8 @@ sub internet_tp {
     priority                => $lang{PRIORITY},
     fine                    => $lang{FINE},
     next_tarif_plan         => "$lang{TARIF_PLAN} $lang{NEXT_PERIOD}",
-    rad_pairs               => "RADIUS Parameters (,)",
-    comments                => $lang{DESCRIBE},
+    rad_pairs               => "RADIUS",
+    comments                => $lang{DESCRIBE_FOR_SUBSCRIBER},
     inner_tp_id             => 'ID',
 
     in_speed                => "$lang{SPEED} $lang{RECV}",

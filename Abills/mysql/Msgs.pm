@@ -107,8 +107,8 @@ sub messages_new {
      SUM(IF(state = 0, 1, 0)) AS open_count,
      SUM(IF(resposible = $admin->{AID}, 1, 0)) AS resposible_count,
      1, 1, 1
-    FROM msgs_messages m
-    LEFT JOIN msgs_chapters c ON (m.chapter= c.id AND m.state=0)
+    FROM msgs_chapters c
+    LEFT JOIN msgs_messages m ON (m.chapter= c.id AND m.state=0)
     $EXT_TABLE
     $WHERE
     GROUP BY c.id;",
@@ -242,7 +242,13 @@ sub messages_list {
   }
 
   if ($attr->{SEARCH_MSGS_BY_WORD}) {
-    push @WHERE_RULES, "(m.subject LIKE '%$attr->{SEARCH_MSGS_BY_WORD}%' OR m.message LIKE '%$attr->{SEARCH_MSGS_BY_WORD}%' OR r.text LIKE '%$attr->{SEARCH_MSGS_BY_WORD}%')";
+    push @WHERE_RULES, "(m.subject LIKE '%$attr->{SEARCH_MSGS_BY_WORD}%' OR m.message LIKE '%$attr->{SEARCH_MSGS_BY_WORD}%'
+      OR r.text LIKE '%$attr->{SEARCH_MSGS_BY_WORD}%')";
+  }
+
+  if ($attr->{SEARCH_MSGS}) {
+    push @WHERE_RULES, "(m.subject LIKE '%$attr->{SEARCH_MSGS}%' OR u.id LIKE '%$attr->{SEARCH_MSGS}%'
+      OR CONCAT_WS(' ', pi.fio, pi.fio2, pi.fio3) LIKE '%$attr->{SEARCH_MSGS}%')";
   }
 
   my @search_params = (
@@ -281,6 +287,7 @@ sub messages_list {
     [ 'DISPATCH_ID',            'INT',    'm.dispatch_id',                                                             1 ],
     [ 'IP',                     'IP',     'm.ip', 'INET_NTOA(m.ip) AS ip'                                                ],
     [ 'FROM_DATE|TO_DATE',      'DATE',   "DATE_FORMAT(m.date, '%Y-%m-%d')"                                              ],
+    [ 'CLOSED_FROM_DATE|CLOSED_TO_DATE',      'DATE',   "DATE_FORMAT(m.closed_date, '%Y-%m-%d')"                         ],
     [ 'ADMIN_LOGIN',            'INT',    'a.aid', 'a.id AS admin_login',                                              1 ],
     [ 'A_NAME',                 'INT',    'a.name', 'a.name AS admin_name',                                            1 ],
     [ 'REPLIES_COUNTS',         '',       '', 'IF(r.id IS NULL, 0, COUNT(r.id)) AS replies_counts'                       ],
@@ -308,7 +315,9 @@ sub messages_list {
     [ 'SEND_TYPE',              'INT',   'm.send_type',                                                                1 ],
     [ 'MSGS_TAGS_IDS',          'INT',    'GROUP_CONCAT(DISTINCT qrt.quick_reply_id  ORDER BY qrt.quick_reply_id SEPARATOR ", ") AS msgs_tags',
       'GROUP_CONCAT(DISTINCT qrt.quick_reply_id  ORDER BY qrt.quick_reply_id SEPARATOR ", ") AS msgs_tags_ids'],
-    [ 'CLOSED_ADMIN',           'INT',    'ca.name', 'ca.name AS closed_admin',                                        1 ]
+    [ 'CLOSED_ADMIN',           'INT',    'ca.name', 'ca.name AS closed_admin',                                        1 ],
+    [ 'WATCHERS',               'INT',   "(SELECT GROUP_CONCAT(DISTINCT admins.name SEPARATOR ', ') FROM msgs_watch mw
+      LEFT JOIN admins ON mw.aid = admins.aid WHERE mw.main_msg = m.id GROUP BY mw.main_msg) AS watchers",             1 ]
   );
 
   push(@search_params, [ 'PERFORMERS', 'INT', 'GROUP_CONCAT(DISTINCT ea.name) AS performers', 1 ]) if (Abills::Base::in_array('Employees', \@main::MODULES));
@@ -350,16 +359,16 @@ sub messages_list {
   }
 
   if ($self->{SEARCH_FIELDS} =~ /builds\./) {
-    $EXT_TABLES .= "\nLEFT JOIN users_pi pi ON (pi.uid=u.uid)" if $EXT_TABLES !~ 'JOIN users_pi';
-    if ($EXT_TABLES =~ 'LEFT JOIN builds') {
+    $EXT_TABLES .= "\nLEFT JOIN `users_pi` pi ON (pi.uid=u.uid)" if $EXT_TABLES !~ 'JOIN \`?users_pi';
+    if ($EXT_TABLES =~ 'LEFT JOIN \`?builds') {
       $EXT_TABLES =~ s/builds.id=pi.location_id/builds.id=IF(pi.location_id IS NOT NULL, pi.location_id, m.location_id)/;
     }
     else {
-      $EXT_TABLES .= "\nLEFT JOIN builds ON (builds.id=IF(pi.location_id IS NOT NULL, pi.location_id, m.location_id))";
-      $EXT_TABLES .= "\nLEFT JOIN streets ON (streets.id=builds.street_id)";
+      $EXT_TABLES .= "\nLEFT JOIN `builds` ON (builds.id=IF(pi.location_id IS NOT NULL, pi.location_id, m.location_id))";
+      $EXT_TABLES .= "\nLEFT JOIN `streets` ON (streets.id=builds.street_id)";
     }
-    $EXT_TABLES .= "\nLEFT JOIN streets ON (streets.id=builds.street_id)" if ($EXT_TABLES !~ 'LEFT JOIN streets');
-    $EXT_TABLES .= "\nLEFT JOIN districts ON (districts.id=streets.district_id)" if ($EXT_TABLES !~ 'LEFT JOIN districts');
+    $EXT_TABLES .= "\nLEFT JOIN `streets` ON (streets.id=builds.street_id)" if ($EXT_TABLES !~ 'JOIN \`?streets');
+    $EXT_TABLES .= "\nLEFT JOIN `districts` ON (districts.id=streets.district_id)" if ($EXT_TABLES !~ 'JOIN \`?districts');
   }
 
   if ($admin->{DOMAIN_ID}) {
@@ -425,9 +434,11 @@ sub message_add {
   my $self = shift;
   my ($attr) = @_;
 
+  $attr->{CLOSED_DATE} = ($attr->{STATE} == 1 || $attr->{STATE} == 2) ? 'NOW()' : "0000-00-00 00:00:00";
+  $attr->{CLOSED_AID} = $admin->{AID} if $attr->{CLOSED_DATE} ne "0000-00-00 00:00:00";
+
   $self->query_add('msgs_messages', {
     %$attr,
-    CLOSED_DATE => ($attr->{STATE} == 1 || $attr->{STATE} == 2) ? 'NOW()' : "0000-00-00 00:00:00",
     AID         => ($attr->{USER_SEND}) ? 0 : $admin->{AID},
     DATE        => 'NOW()',
     DOMAIN_ID   => $attr->{UID} ? 0 : $admin->{DOMAIN_ID} || $attr->{DOMAIN_ID},
@@ -528,7 +539,13 @@ sub message_info {
       Bind => [ $id ] }
   );
 
+  #TODO: created fix returns error if no attachment
+  #TODO: so need to check was error before if dont return error
+  #TODO: because mostly all messages dont have attachments
+
   $self->attachment_info({ MSG_ID => $self->{ID} });
+
+  delete @{$self}{qw/errno errstr/} if (!$self->{errno} && $self->{errstr});
 
   return $self;
 }
@@ -703,20 +720,15 @@ sub admins_list {
 
   my $WHERE = $self->search_former($attr, [
     [ 'AID',          'INT', 'ma.aid'          ],
-    [ 'EMAIL_NOTIFY', 'INT', 'ma.email_notify' ],
-    [ 'EMAIL',        'STR', 'a.email',        ],
     [ 'CHAPTER_ID',   'INT', 'ma.chapter_id'   ],
     [ 'DISABLE',      'INT', 'a.disable'       ]
   ], { WHERE => 1 });
 
   $self->query("SELECT a.id AS admin_login,
      mc.name AS chapter_name,
-     ma.priority,
      ma.deligation_level,
      a.aid,
-     IF(ma.chapter_id IS NULL, 0, ma.chapter_id) AS chapter_id,
-     ma.email_notify,
-     a.email
+     IF(ma.chapter_id IS NULL, 0, ma.chapter_id) AS chapter_id
     FROM admins a
     LEFT join msgs_admins ma ON (a.aid=ma.aid)
     LEFT join msgs_chapters mc ON (ma.chapter_id=mc.id)
@@ -746,19 +758,12 @@ sub admin_change {
   my @MULTI_QUERY = ();
 
   foreach my $id (@chapters) {
-    push @MULTI_QUERY, [
-      $attr->{AID},
-      $id,
-      $attr->{ 'PRIORITY_' . $id },
-      $attr->{ 'EMAIL_NOTIFY_' . $id } || 0,
-      $attr->{ 'DELIGATION_LEVEL_' . $id }
-    ];
+    next if !$attr->{ 'DELIGATION_LEVEL_' . $id};
+    push @MULTI_QUERY, [ $attr->{AID}, $id, $attr->{ 'DELIGATION_LEVEL_' . $id } ];
   }
 
-  $self->query("INSERT INTO msgs_admins (aid, chapter_id, priority, email_notify, deligation_level)
-        VALUES (?, ?, ?, ?, ?);",
-    undef,
-    { MULTI_QUERY => \@MULTI_QUERY });
+  $self->query("INSERT INTO msgs_admins (aid, chapter_id, deligation_level) VALUES (?, ?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
 
   return $self;
 }
@@ -773,23 +778,6 @@ sub admin_del {
   my ($attr) = @_;
 
   $self->query_del('msgs_admins', undef, { aid => $attr->{AID} });
-
-  return $self;
-}
-
-#**********************************************************
-=head2 admin_info($attr)
-
-=cut
-#**********************************************************
-sub admin_info {
-  my $self = shift;
-  my ($id) = @_;
-
-  $self->query("SELECT * FROM msgs_chapters WHERE id= ? ", undef, {
-    INFO => 1,
-    Bind => [ $id ]
-  });
 
   return $self;
 }
@@ -2083,7 +2071,7 @@ sub survey_subjects_list {
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  delete $self->{COL_NAMES_ARR};
+  # delete $self->{COL_NAMES_ARR};
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',         'INT', 'ms.id',                         ],
@@ -2094,9 +2082,7 @@ sub survey_subjects_list {
     [ 'ADMIN_NAME', 'STR', 'ms.aid', 'ms.aid AS admin_name' ],
     [ 'CREATED',    'STR', 'ms.created',                  1 ],
     [ 'FILENAME',   'STR', 'm.filename',                  1 ],
-  ],
-    { WHERE => 1 }
-  );
+  ], { WHERE => 1 });
 
   $self->query("SELECT ms.id, ms.name, $self->{SEARCH_FIELDS} ms.id AS survey_id
     FROM msgs_survey_subjects ms
@@ -2107,7 +2093,7 @@ sub survey_subjects_list {
     $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
   $self->query("SELECT count(*) AS total FROM msgs_survey_subjects ms $WHERE", undef, { INFO => 1 }) if ($self->{TOTAL} > 0);
 
   return $list;
@@ -2607,12 +2593,10 @@ sub msg_watch_del {
   my $self = shift;
   my ($attr) = @_;
 
-  my $admin_id = q{};
-  if ($attr->{AID}) {
-    $admin_id = $admin->{AID};
-  }
+  my $del_params = { MAIN_MSG => $attr->{ID} };
+  $del_params->{AID} = $attr->{AID} if $attr->{AID};
 
-  $self->query_del('msgs_watch', undef, { AID => $admin_id, MAIN_MSG => $attr->{ID} });
+  $self->query_del('msgs_watch', undef, $del_params);
 
   return $self->{list};
 }
@@ -3427,7 +3411,7 @@ sub quick_replys_tags_add {
 
   $self->query_del('msgs_quick_replys_tags', undef, { msg_id => $attr->{MSG_ID} });
 
-  my @ids = split(/, /, $attr->{IDS});
+  my @ids = split(/,\s?/, $attr->{IDS});
   my @MULTI_QUERY = ();
 
   foreach my $id (@ids) {
@@ -4269,5 +4253,232 @@ sub msgs_messages_and_users_by_months {
   return $self->{list} || [];
 }
 
+#**********************************************************
+=head2 subjects_list($attr)
+
+=cut
+#**********************************************************
+sub subjects_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = $attr->{SORT} // 'id';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',          'INT', 'id',          1 ],
+    [ 'NAME',        'STR', 'name',        1 ],
+    [ 'DOMAIN_ID',   'INT', 'domain_id',   1 ],
+  ], { WHERE => 1 });
+
+  $self->query("SELECT * FROM msgs_subjects
+    $WHERE
+    ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  $self->query("SELECT COUNT(*) AS total FROM msgs_subjects", undef, { INFO => 1 });
+
+  return $list || [];
+}
+
+#**********************************************************
+=head2 subject_info()
+
+=cut
+#**********************************************************
+sub subject_info {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query("SELECT * FROM msgs_subjects WHERE id= ? ", undef, { INFO => 1, Bind => [ $id ] });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 subject_add($attr)
+
+=cut
+#**********************************************************
+sub subject_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('msgs_subjects', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 subject_del()
+
+=cut
+#**********************************************************
+sub subject_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('msgs_subjects', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 subject_change()
+
+=cut
+#**********************************************************
+sub subject_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_subjects',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 permissions_list($aid)
+
+=cut
+#**********************************************************
+sub permissions_list {
+  my $self = shift;
+  my $aid = shift;
+
+  if ($aid) {
+    $self->query("SELECT section, actions FROM msgs_permits WHERE aid = ?;", undef, { Bind => [ $aid ], COLS_NAME => 1 });
+  }
+  else {
+    $self->query("SELECT aid, section, actions FROM msgs_permits;", undef, { COLS_NAME => 1 });
+  }
+
+  my $msgs_permissions = {};
+  foreach my $line (@{$self->{list}}) {
+    if ($line->{aid}) {
+      $msgs_permissions->{$line->{aid}}{$line->{section}}{$line->{actions}} = 1;
+      next;
+    }
+
+    $msgs_permissions->{$line->{section}}{$line->{actions}} = 1;
+  }
+
+  if (!$self->{errno} && $aid) {
+    my $admin_info = $self->admins_list({
+      CHAPTER_ID => !$msgs_permissions->{4} ? '_SHOW' : join(';', keys %{$msgs_permissions->{4}}),
+      AID        => $aid,
+      COLS_NAME  => 1
+    });
+    
+    map $msgs_permissions->{deligation_level}{$_->{chapter_id}} = $_->{deligation_level}, @{$admin_info};
+  }
+
+  return $msgs_permissions;
+}
+
+#**********************************************************
+=head2 set_permissions($aid, $permissions) - Set admin msgs permissions
+
+=cut
+#**********************************************************
+sub set_permissions {
+  my $self = shift;
+  my ($aid, $permissions) = @_;
+
+  return $self if !$aid;
+
+  my @MULTI_QUERY = ();
+  foreach my $section (sort keys %{$permissions}) {
+    foreach my $action (sort keys %{$permissions->{$section}}) {
+      push @MULTI_QUERY, [ $aid, $section, $action ];
+    }
+  }
+
+  $self->query("DELETE FROM `msgs_permits` WHERE `aid`= ? ;", 'do', { Bind => [ $aid ] });
+
+  $self->query("INSERT INTO `msgs_permits` (`aid`, `section`, `actions`) VALUES (?, ?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 msgs_type_permits_list($attr) - Msgs type permits list
+
+=cut
+#**********************************************************
+sub msgs_type_permits_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former( $attr, [
+    [ 'TYPE',    'STR', 'type',     1],
+    [ 'SECTION', 'INT', 'section', 1 ],
+    [ 'ACTIONS', 'INT', 'actions', 1 ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT type, section, actions
+    FROM msgs_type_permits
+    $WHERE;",
+    undef,
+    { COLS_NAME => 1 }
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 msgs_set_type_permits($permissions) - Set msgs type permits
+
+  Arguments:
+    $permissions - hash of permits
+    $type - name of template
+
+=cut
+#**********************************************************
+sub msgs_set_type_permits {
+  my $self = shift;
+  my ($type, $permissions) = @_;
+
+  return $self if !$type;
+
+  my @MULTI_QUERY = ();
+  foreach my $section (sort keys %{$permissions}) {
+    foreach my $action (sort keys %{$permissions->{$section}}) {
+      push @MULTI_QUERY, [ $type, $section, $action ];
+    }
+  }
+
+  $self->query("DELETE FROM `msgs_type_permits` WHERE `type` = ? ;", 'do', { Bind => [ $type ] });
+
+  $self->query("INSERT INTO `msgs_type_permits` (`type`, `section`, `actions`) VALUES (?, ?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 msgs_del_type_permits($type)
+
+  Arguments:
+    $type - name of template
+
+=cut
+#**********************************************************
+sub msgs_del_type_permits {
+  my $self = shift;
+  my $type = shift;
+
+  $self->query("DELETE FROM msgs_type_permits WHERE type = ? ;", 'do', { Bind => [ $type ] });
+
+  return $self;
+}
 
 1;

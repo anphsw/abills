@@ -127,6 +127,7 @@ sub user_info {
     tp.period_alignment AS tp_period_alignment,
     tp.fixed_fees_day,
     tp.comments,
+    tp.describe_aid,
     tp.reduction_fee,
     tp.user_credit_limit,
     DECODE(internet.password, '$self->{conf}->{secretkey}') AS password
@@ -327,7 +328,7 @@ sub user_change {
     {
       if ($user->{DEPOSIT} + $user->{CREDIT} < $Tariffs->{CHANGE_PRICE}) {
         $self->{errno} = 15;
-        $self->{errstr} = "Change price too hight";
+        $self->{errstr} = "Change price too high";
         return $self;
       }
 
@@ -488,7 +489,7 @@ sub user_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $GROUP_BY = 'u.uid';
-
+  delete $self->{errno};
   if ($attr->{UNIVERSAL_SEARCH}) { # || $self->{GLOBAL}) {
     $attr->{_MULTI_HIT}     = 1;
     $attr->{SKIP_GID}       = 1 if ($attr->{GID});
@@ -1367,6 +1368,103 @@ sub users_outflow_by_address {
 
   return $self->{list} || [];
 }
+
+#**********************************************************
+=head1 users_development_add($attr)
+
+=cut
+#**********************************************************
+sub users_development_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('users_development', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head1 users_development_report($attr)
+
+=cut
+#**********************************************************
+sub users_development_report {
+  my $self = shift;
+  my $date = shift;
+  my ($attr) = @_;
+
+  $attr->{GROUP_BY} //= 'districts.name';
+  my $GROUP_BY = !$attr->{TOTAL} ? "GROUP BY $attr->{GROUP_BY}" : '';
+  my $WHERE = "WHERE ud.date = DATE_FORMAT(NOW(), '%Y-%m-%d')";
+  if ($date && $date =~ '^<(.+)') {
+    $WHERE = "WHERE ud.date = (SELECT date FROM users_development WHERE date < '$1' GROUP BY date ORDER BY date DESC LIMIT 1)";
+  }
+  elsif ($date) {
+    $WHERE = "WHERE ud.date = '$date'";
+  }
+
+  $self->query("SELECT id, name, users_count, city,
+      allowed, sum_allowed, (sum_allowed / allowed) AS allowed_arpu,
+
+      denied, sum_denied, (sum_denied / denied) AS denied_arpu,
+
+      outflow, sum_outflow, (sum_outflow / outflow) AS outflow_arpu,
+
+      outflow_disable, sum_outflow_disable, (sum_outflow_disable / outflow_disable) AS outflow_disable_arpu,
+
+      outflow_neg_deposit, sum_outflow_neg_deposit, (sum_outflow_neg_deposit / outflow_neg_deposit)
+      AS outflow_neg_deposit_arpu,
+
+      outflow_holdup, sum_outflow_holdup, (sum_outflow_holdup / outflow_holdup) AS outflow_holdup_arpu,
+
+      (outflow / users_count * 100) AS outflow_percent,
+      (outflow_disable / outflow * 100) AS outflow_disable_percent,
+      (outflow_neg_deposit / outflow * 100) AS outflow_neg_deposit_percent,
+      (outflow_holdup / outflow * 100) AS outflow_holdup_percent,
+
+      (sum_outflow / total_sum * 100) AS sum_outflow_percent,
+      (sum_outflow_disable / sum_outflow * 100) AS sum_outflow_disable_percent,
+      (sum_outflow_neg_deposit / sum_outflow * 100) AS sum_outflow_neg_deposit_percent,
+      (sum_outflow_holdup / sum_outflow * 100) AS sum_outflow_holdup_percent
+
+    FROM (
+      SELECT districts.id AS id, $attr->{GROUP_BY} AS name, districts.city, COUNT(u.uid) as users_count, SUM(ud.sum) as total_sum,
+          COUNT(IF(ud.disable = 0 AND b.deposit > -5, ud.id, null)) AS allowed,
+          COUNT(IF(ud.disable = 0 AND b.deposit <= -5, ud.id, null)) AS denied,
+          COUNT(IF(ud.disable = 1 OR ud.disable = 3 OR ud.disable = 5, ud.id, null)) AS outflow,
+          COUNT(IF(ud.disable = 1, ud.id, null)) AS outflow_disable,
+          COUNT(IF(ud.disable = 5, ud.id, null)) AS outflow_neg_deposit,
+          COUNT(IF(ud.disable = 3, ud.id, null)) AS outflow_holdup,
+
+          SUM(IF(ud.disable = 0 AND b.deposit > -5, ud.sum, 0)) AS sum_allowed,
+          SUM(IF(ud.disable = 0 AND b.deposit <= -5, ud.sum, 0)) AS sum_denied,
+
+          SUM(IF(ud.disable = 1 OR ud.disable = 3 OR ud.disable = 5, ud.sum, 0)) AS sum_outflow,
+          SUM(IF(ud.disable = 1, ud.sum, 0)) AS sum_outflow_disable,
+          SUM(IF(ud.disable = 5, ud.sum, 0)) AS sum_outflow_neg_deposit,
+          SUM(IF(ud.disable = 3, ud.sum, 0)) AS sum_outflow_holdup
+
+
+      FROM users_development ud
+      LEFT JOIN users u ON (u.uid = ud.uid)
+      LEFT JOIN bills b ON (u.bill_id = b.id)
+      LEFT JOIN users_pi pi ON (u.uid=pi.uid)
+      LEFT JOIN builds ON (builds.id=pi.location_id)
+      LEFT JOIN streets ON (streets.id=builds.street_id)
+      LEFT JOIN districts ON (districts.id=streets.district_id)
+
+      $WHERE
+
+      $GROUP_BY
+    ) T1
+    ORDER BY city, name",
+    undef,
+    { COLS_NAME => 1 }
+  );
+
+  return $attr->{TOTAL} ? $self->{list}[0] : $self->{list} || [];
+}
+
 
 1
 

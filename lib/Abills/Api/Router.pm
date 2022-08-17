@@ -16,16 +16,17 @@ use Abills::Api::Paths;
 =cut
 #**********************************************************
 sub new {
-  my ($class, $url, $db, $user, $admin, $conf, $query_params, $lang, $modules, $debug) = @_;
+  my ($class, $url, $db, $user, $admin, $conf, $query_params, $lang, $modules, $debug, $additional_params) = @_;
 
   my $self = {
-    db      => $db,
-    admin   => $admin,
-    conf    => $conf,
-    lang    => $lang,
-    user    => $user,
-    modules => $modules,
-    debug   => ($debug || 0),
+    db                => $db,
+    admin             => $admin,
+    conf              => $conf,
+    lang              => $lang,
+    user              => $user,
+    modules           => $modules,
+    debug             => ($debug || 0),
+    additional_params => $additional_params
   };
 
   bless($self, $class);
@@ -53,6 +54,7 @@ sub preprocess {
   my $self = shift;
   my ($url, $query_params) = @_;
 
+  $url  =~ s/\?.+//g;
   my @params = split('/', $url);
   my $resource_name = $params[1] || q{};
   my $resource_name_user_api = $params[3] || q{};
@@ -88,16 +90,20 @@ sub preprocess {
   #TODO: if in future one Router object will be used for multiple queries, move this to new()
   if ($resource_name eq 'user' && $resource_name_user_api) {
     $self->{resource_own} = $Paths->load_own_resource_info({
-      package => $resource_name_user_api,
-      modules => $self->{modules},
-      debug   => $self->{debug}
+      package           => $resource_name_user_api,
+      modules           => $self->{modules},
+      debug             => $self->{debug},
+      type              => 'user',
+      additional_params => $self->{additional_params}
     });
   }
   elsif ($resource_name ne 'user') {
     $self->{resource_own} = $Paths->load_own_resource_info({
-      package => $resource_name,
-      modules => $self->{modules},
-      debug   => $self->{debug}
+      package           => $resource_name,
+      modules           => $self->{modules},
+      debug             => $self->{debug},
+      type              => 'admin',
+      additional_params => $self->{additional_params}
     });
   }
 

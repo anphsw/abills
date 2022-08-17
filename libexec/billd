@@ -280,7 +280,7 @@ sub check_lines{
     'LOGIN_STATUS'        => '_SHOW',
     'SERVICE_STATUS'      => '_SHOW',
     'SESSION_SUM'         => '_SHOW',
-    'CALLS_TP_ID'         => '_SHOW',
+    'ONLINE_TP_ID'         => '_SHOW',
     'STATUS'              => '_SHOW',
     'FILTER_ID'           => '_SHOW',
     'TP_BILLS_PRIORITY'   => '_SHOW',
@@ -367,7 +367,7 @@ sub check_lines{
         next if ($nas->{NAS_ALIVE} > 0 && ($online->{last_alive} < $nas->{NAS_ALIVE} * $error_alive_count));
       }
       elsif ( $state && ! $online->{guest}){
-        session_hangup( $nas, $online, "CHANGE_STATE DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $online->{session_sum}",
+        session_hangup( $nas, $online, "CHANGE_STATE DEPOSIT: $deposit CREDIT: $credit DISABLE: $state",
           { COA_ACTION => 'DISABLE' });
         #next;
       }
@@ -756,7 +756,7 @@ sub coa_former {
       if (($client_ip_num & $NETMASK) == ($IP & $NETMASK)) {
         if ($conf{MX80_NAT_PROFILE}) {
           my $nat_profile = ($online->{connect_info} && $online->{connect_info} =~ /demux/) ? 'svc-cgn-nat-pppoe' : 'svc-cgn-nat-ipoe';
-          $COA_PARAMS{RECHARGE}{'ERX-Service-Activate:2'} = $nat_profile;
+          push @{ $COA_PARAMS{$coa_marker} }, { 'ERX-Service-Activate:2' => $nat_profile, 'Acct-Session-Id' => $online->{acct_session_id} };
         }
         $online->{user_group} = $conf{ME60_NAT_USER_GROUP} || 'nat_users';
       }
@@ -768,7 +768,7 @@ sub coa_former {
       DOMAIN_ID => $online->{domain_id}
     });
 
-    $speed_in  = $list->[0]->{ in_speed} || 0;
+    $speed_in  = $list->[0]->{in_speed} || 0;
     $speed_out = $list->[0]->{out_speed} || 0;
     #speed in kbit
     $online->{speed_in}=$list->[0]->{in_speed} || 0;
@@ -837,10 +837,11 @@ sub session_hangup{
     }
   }
 
+  my $coa_actions = {};
   if ($attr->{COA_ACTION} && ($conf{INTERNET_SERVICE_COA} || $argv->{COA_ACTION})) {
     $coa_action = $argv->{COA_ACTION} || $attr->{COA_ACTION};
-    $coa_action = coa_former($coa_action, $online, );
-    $coa_request = 'coa' if ($coa_action);
+    $coa_actions = coa_former($coa_action, $online, $nas_info);
+    $coa_request = 'coa' if ($coa_actions);
   }
 
   if(! $argv->{SKIP_HANGUP}) {
@@ -855,17 +856,22 @@ sub session_hangup{
         FRAMED_IP_ADDRESS    => $online->{client_ip},
         NETMASK              => $online->{netmask},
         UID                  => $online->{uid},
-        DEBUG                => 2, #$debug,
+        DEBUG                => $debug,
         FILTER_ID            => $online->{filter_id},
         OLD_TP_ID            => $online->{tp_id},
         ACCT_TERMINATE_CAUSE => 15,
         GUEST                => $online->{guest},
-        INTERNET             => in_array('Internet', \@MODULES),
-        COA_ACTION           => $coa_action
+        #INTERNET             => in_array('Internet', \@MODULES),
+        COA_ACTION           => ($coa_request) ? $coa_actions : undef
       }
     );
+
     #ZAP unknown sessions Session-Context-Not-Found
     if ($Nas_cmd->{RESULT} && $Nas_cmd->{RESULT} =~ /Session-Context-Not-Found/) {
+      $Log->log_print( 'LOG_WARNING', $online->{user_name},
+        "UNKNOWN_HANGUP_SESSION: $online->{last_alive} SESSION_ID: $online->{acct_session_id} DURATION: $online->{duration}",
+        { ACTION => 'UNKNOWN_SESSION', NAS => $nas_info } );
+
       $Sessions->zap( $nas_info->{NAS_ID}, $online->{nas_port_id}, $online->{acct_session_id} );
       return 0;
     }
@@ -898,10 +904,21 @@ sub session_hangup{
     }
 
     if ($coa_request && ! $argv->{COA_ACTION}) {
+      my %change_params = (
+        GUEST           => ($online->{guest}) ? 0 : 1
+      );
+
+      if ($coa_action eq 'CHANGE_TP') {
+        %change_params = (TP_ID => $online->{tp_id});
+      }
+      elsif($coa_action eq 'EXPIRED') {
+        %change_params = (GUEST => 1);
+      }
+
       $Sessions->online_update({
         ACCT_SESSION_ID => $online->{acct_session_id},
         USER_NAME       => $online->{user_name},
-        GUEST           => ($online->{guest}) ? 0 : 1
+        %change_params
       });
     }
   }
@@ -1651,7 +1668,7 @@ sub check_speed{
   $Sessions->online({
     USER_NAME    => '_SHOW',
     NAS_PORT_ID  => '_SHOW',
-    CALLS_TP_ID  => '_SHOW',
+    ONLINE_TP_ID  => '_SHOW',
     SPEED        => '_SHOW',
     JOIN_SERVICE => '_SHOW',
     CLIENT_IP    => '_SHOW',
@@ -1697,7 +1714,7 @@ sub check_speed{
 
       if ($debug > 1) {
         print "$online->{user_name} IF:$online->{nas_port_id} "
-          . "TP: ". ($online->{calls_tp_id} || $online->{online_tp_id} || 'n/d')
+          . "TP: ". ($online->{online_tp_id} || 'n/d')
           . "SPEED: ". ($user_speed || '--')
           . "JOIN: ". ($online->{join_service} || q{})
           . "IP: ". ($online->{client_ip} || '')
@@ -1708,7 +1725,7 @@ sub check_speed{
 
       push @{ $USER_IFACES{ $online->{user_name} } },
           ($online->{nas_port_id} || q{}) .":"
-          . ($online->{calls_tp_id} || $online->{online_tp_id}) .":$user_speed:"
+          . ($online->{online_tp_id}) .":$user_speed:"
           . ($online->{join_service} || q{}) .":$online->{client_ip}:$online->{uid}:$online->{duration_sec}:"
           . ($online->{CONNECT_INFO} || $online->{connect_info} || q{}) .":$online->{started}";
     }
@@ -2584,6 +2601,10 @@ sub check_ifaces{
 sub get_db_info{
   my ($ip_pid_hash) = @_;
 
+  if (! $ip_pid_hash){
+    return 1;
+  }
+
   $Sessions->{debug} = 1 if ($debug > 4);
   my $list = $Sessions->online( {
     CLIENT_IP => '_SHOW',
@@ -2595,7 +2616,7 @@ sub get_db_info{
     my $ip = $line->{client_ip};
     print "exist: $ip\n" if ($debug > 3);
 
-    if ( ref $ip_pid_hash->{"$ip"} eq 'ARRAY' && $#{ $ip_pid_hash->{"$ip"} } > 0 ){
+    if (ref $ip_pid_hash->{"$ip"} eq 'ARRAY' && $#{ $ip_pid_hash->{"$ip"} } > 0){
       next;
     }
 
@@ -2890,6 +2911,10 @@ sub check_nas_ifaces{
     }
     elsif($attr->{TYPE} && $attr->{TYPE} =~ /accel/) {
       $info_hash = get_accel_ppp_info($nas_info, { GET_IP => 1 });
+    }
+
+    if (! $info_hash) {
+      return;
     }
 
     get_db_info( $info_hash );
@@ -3389,7 +3414,7 @@ sub get_online_list {
     {
       USER_NAME          => '_SHOW',
       NAS_PORT_ID        => '_SHOW',
-      CALLS_TP_ID        => '_SHOW',
+      ONLINE_TP_ID        => '_SHOW',
       #SHOW_TP_ID         => '_SHOW',
       SPEED              => '_SHOW',
       JOIN_SERVICE       => '_SHOW',
@@ -3665,6 +3690,70 @@ sub get_result{
   }
 
   return \%RESULT;
+}
+
+
+#**********************************************************
+=head2 get_accel_ppp_info($nas, $attr) - Get speed from accel
+
+  Arguments:
+    $nas
+    $attr
+      GET_IP
+
+  Returns:
+    \%info - information
+
+=cut
+#**********************************************************
+sub get_accel_ppp_info {
+  my ($nas, $attr) = @_;
+
+  if ( $debug > 2 ){
+    print "NAS_ID: $nas->{nas_id} MNG: $nas->{nas_mng_ip_port}\n";
+  }
+
+  my ($nas_ip, undef, $nas_telnet_port) = split( /:/, $nas->{nas_mng_ip_port} );
+
+  if(! $nas_ip) {
+    print "nas_mng_ip_port not defined\n";
+    return 0;
+  }
+
+  if ( !$nas_telnet_port ){
+    $nas_telnet_port = 2001;
+  }
+
+  my $output = telnet_cmd3( "$nas_ip:$nas_telnet_port", [
+    "assword\t$nas->{nas_mng_password}",
+    "#\tshow sessions",
+    "#\texit"
+  ], { debug => ($debug > 3) ? 1 : undef } );
+
+  if ( $debug > 4 || $argv->{SHOW_SPEED} ){
+    print $output;
+  }
+
+  my %info = ();
+
+  my @rows = split( /[\n\r?]/, $output );
+  foreach my $nas_info_ ( @rows ){
+    next if ($nas_info_ !~ /^\s/);
+    my ($ifname, $username, $calling_cid, $ip, $rate_limit, $type, $comp, $state, $uptime) = split( /\s+\|\s+/,
+      $nas_info_ );
+    print "> $ifname, $username, $calling_cid, $ip, $rate_limit,  $type,  $comp, $state, $uptime //\n" if ($debug > 3);
+    my ($out, $in) = split( /\//, $rate_limit );
+
+    if($attr->{GET_IP}) {
+      $info{$ip}="$username:$ifname:$calling_cid";
+    }
+    else {
+      $info{$username}{IN} = $in;
+      $info{$username}{OUT} = $out;
+    }
+  }
+
+  return \%info;
 }
 
 #**********************************************************

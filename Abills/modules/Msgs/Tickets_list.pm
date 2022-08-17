@@ -6,7 +6,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(convert);
+use Abills::Base qw(convert in_array);
 
 our ($db,
   %lang,
@@ -14,6 +14,7 @@ our ($db,
   $admin,
   %conf,
   %permissions,
+  %msgs_permissions
 );
 
 my @priority_lit = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
@@ -48,26 +49,23 @@ my $Msgs = Msgs->new($db, $admin, \%conf);
 sub msgs_form_search {
   my ($attr) = @_;
 
-  my $A_PRIVILEGES = $attr->{A_PRIVILEGES};
   $Msgs->{STATE_SEL} = msgs_sel_status({ ALL => 1, MULTI_SEL => 1 });
   $Msgs->{MSGS_TAGS_SEL} = msgs_sel_tags({ ALL => 1, MULTI_SEL => 1 });
 
-  $Msgs->{PRIORITY_SEL} = $html->form_select(
-    'PRIORITY',
-    {
-      SELECTED     => $FORM{PRIORITY} || '_SHOW',
-      SEL_OPTIONS  => { '_SHOW' => $lang{ALL} },
-      SEL_ARRAY    => \@priority_lit,
-      STYLE        => \@priority_colors,
-      ARRAY_NUM_ID => 1
-    }
-  );
+  $Msgs->{PRIORITY_SEL} = $html->form_select('PRIORITY', {
+    SELECTED     => $FORM{PRIORITY} || '_SHOW',
+    SEL_OPTIONS  => { '_SHOW' => $lang{ALL} },
+    SEL_ARRAY    => \@priority_lit,
+    STYLE        => \@priority_colors,
+    ARRAY_NUM_ID => 1
+  });
 
   $Msgs->{CHAPTER_SEL} = $html->form_select('CHAPTER', {
     SELECTED    => $FORM{CHAPTER} || '_SHOW',
-    SEL_LIST    => $Msgs->chapters_list({ CHAPTER => join(',', keys %{$A_PRIVILEGES}), COLS_NAME => 1 }),
-    # MAIN_MENU      => get_function_index('msgs_chapters'),
-    # MAIN_MENU_ARGV => "chg=" . ($Msgs->{CHAPTER} || q{}),
+    SEL_LIST    => $Msgs->chapters_list({
+      CHAPTER   => $msgs_permissions{4} ? join(',', keys %{$msgs_permissions{4}}) : '_SHOW',
+      COLS_NAME => 1
+    }),
     SEL_OPTIONS => { '_SHOW' => $lang{ALL} },
     MULTIPLE    => 1
   });
@@ -77,14 +75,12 @@ sub msgs_form_search {
   $Msgs->{MSG_ID} = undef;
   $Msgs->{RESPOSIBLE_SEL} = sel_admins({ NAME => 'RESPOSIBLE' });
   $Msgs->{ADMIN_SEL} = sel_admins({ NAME => 'ADMIN_LOGIN' });
-  $Msgs->{PLAN_DATE_PICKER} = $html->form_daterangepicker({
-    NAME => 'PLAN_FROM_DATE/PLAN_TO_DATE',
-  });
+  $Msgs->{PLAN_DATE_PICKER} = $html->form_daterangepicker({ NAME => 'PLAN_FROM_DATE/PLAN_TO_DATE' });
   $Msgs->{MSGS_TAGS_STATEMENT} = $html->form_select('TAGS_STATEMENT', {
     ID          => 'TAGS_STATEMENT',
     SELECTED    => 0,
     NO_ID       => 1,
-    SEL_OPTIONS => { 0 => "$lang{AND}", 1 => "$lang{OR}", },
+    SEL_OPTIONS => { 0 => $lang{AND}, 1 => $lang{OR}, },
   });
 
   form_search({
@@ -118,8 +114,6 @@ sub msgs_list {
 
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
 
-  my $A_CHAPTER = $attr->{A_CHAPTER};
-
   if ($FORM{RESPOSIBLE}) {
     $LIST_PARAMS{RESPOSIBLE} = $FORM{RESPOSIBLE};
     $pages_qs .= "&RESPOSIBLE=$FORM{RESPOSIBLE}";
@@ -133,14 +127,6 @@ sub msgs_list {
   $pages_qs .= "&STATE=0" if (defined($FORM{STATE}) && !$FORM{STATE});
   $pages_qs .= "&ALL_MSGS=$FORM{ALL_MSGS}" if ($FORM{ALL_MSGS});
   $pages_qs .= "&ALL_OPENED=$FORM{ALL_OPENED}" if ($FORM{ALL_OPENED});
-
-  my $table_add_msg_btn = !(defined($FORM{CHAPTER})) ||
-    (
-      $attr->{A_PRIVILEGES} &&
-        $attr->{A_PRIVILEGES}->{ $FORM{CHAPTER} } &&
-        $attr->{A_PRIVILEGES}->{ $FORM{CHAPTER} } > 1
-    ) ||
-    !(defined($attr->{A_PRIVILEGES}->{$FORM{CHAPTER}})) ? "$lang{ADD}:add_form=1&UID=" . ($FORM{UID} || '') . "&index=$index:add" : '';
 
   $attr->{MODULE} = 'Msgs';
   my Abills::HTML $table;
@@ -157,164 +143,178 @@ sub msgs_list {
     $LIST_PARAMS{MSG_ID} = join(';', map {$_->{main_msg}} @$watched_links) || '';
   }
 
-  if (!$FORM{FROM_DATE} && !$FORM{TO_DATE} && $FORM{CLOSE_FROM_DATE} && $FORM{CLOSE_TO_DATE}) {
-    $LIST_PARAMS{CLOSED_DATE} = ">=$FORM{CLOSE_FROM_DATE};<=$FORM{CLOSE_TO_DATE}";
-  }
+  if ($FORM{CHAPTER} && $msgs_permissions{4}) {
+    my @available_chapters = keys %{$msgs_permissions{4}};
 
-  if ($FORM{CHAPTER}) {
+    $FORM{CHAPTER} = $FORM{CHAPTER} eq '_SHOW' ? join(';', @available_chapters)
+      : join(';', grep { in_array($_, \@available_chapters) } split(',\s?', $FORM{CHAPTER}));
+  }
+  elsif ($FORM{CHAPTER}) {
     $FORM{CHAPTER} =~ s/,/;/g;
     $LIST_PARAMS{CHAPTER} = $FORM{CHAPTER};
   }
+  elsif ($msgs_permissions{4}) {
+    $FORM{CHAPTER} = join(';', keys %{$msgs_permissions{4}});
+  }
+
   $LIST_PARAMS{MSGS_TAGS} =~ s/,/;/g if $LIST_PARAMS{MSGS_TAGS} && $LIST_PARAMS{TAGS_STATEMENT};
 
-  my $uid_statement = $FORM{UID} ? "&UID=$FORM{UID}" : '';
+  my @function_fields = ('msgs_admin:show:chg_msgs;uid');
+  push @function_fields, "msgs_admin:del:del_msgs;state:&ALL_MSGS=1" if $msgs_permissions{1}{1};
+
+  $LIST_PARAMS{RESPOSIBLE} = $admin->{AID} if $msgs_permissions{1}{21};
   ($table, $list) = result_former({
-    INPUT_DATA      => $Msgs,
-    BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'ID,CLIENT_ID,SUBJECT,CHAPTER_NAME,DATETIME,STATE,PRIORITY_ID,RESPOSIBLE_ADMIN_LOGIN',
-    HIDDEN_FIELDS   => 'UID,ADMIN_DISABLE,PRIORITY,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ,REPLIES_COUNTS,' .
-      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,PERFORMERS,DOMAIN_ID,MSGS_TAGS_IDS,TAGS_COLORS,CLOSED_ADMIN',
-    APPEND_FIELDS   => 'UID',
-    FUNCTION        => 'messages_list',
-    FUNCTION_FIELDS => 'msgs_admin:show:chg_msgs;uid,msgs_admin:del:del_msgs;state:&ALL_MSGS=1' . $uid_statement,
-    MAP             => (!$FORM{UID}) ? 1 : undef,
-    MAP_FIELDS      => 'ADDRESS_FLAT,ID,CLIENT_ID,SUBJECT',
-    MAP_FILTERS     => {
+    INPUT_DATA        => $Msgs,
+    BASE_FIELDS       => 0,
+    DEFAULT_FIELDS    => 'ID,CLIENT_ID,SUBJECT,CHAPTER_NAME,DATETIME,STATE,PRIORITY_ID,RESPOSIBLE_ADMIN_LOGIN',
+    HIDDEN_FIELDS     => 'UID,ADMIN_DISABLE,PRIORITY,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ,REPLIES_COUNTS,' .
+      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,PERFORMERS,DOMAIN_ID,MSGS_TAGS_IDS,TAGS_COLORS,CLOSED_ADMIN,WATCHERS',
+    APPEND_FIELDS     => 'UID',
+    FUNCTION          => 'messages_list',
+    FUNCTION_FIELDS   => join(',', @function_fields),
+    MAP               => (!$FORM{UID}) ? 1 : undef,
+    MAP_FIELDS        => 'ADDRESS_FLAT,ID,CLIENT_ID,SUBJECT',
+    MAP_FILTERS       => {
       id => 'search_link:msgs_admin:UID,chg={ID}',
     },
-    MAP_SHOW_ITEMS  => {
-      'subject'       => $lang{SUBJECT},
-      'chapter_name'  => $lang{CHAPTER},
-      'user_name'     => $lang{LOGIN},
-      'date'          => $lang{DATE},
-      'LINK_ITEMS'    => {
-        'user_name' => {
-          'index'        => get_function_index("form_users"),
-          'EXTRA_PARAMS' => {
-            'UID' => 'uid',
+    MAP_SHOW_ITEMS    => {
+      subject       => $lang{SUBJECT},
+      chapter_name  => $lang{CHAPTER},
+      user_name     => $lang{LOGIN},
+      date          => $lang{DATE},
+      LINK_ITEMS    => {
+        user_name => {
+          index        => get_function_index("form_users"),
+          EXTRA_PARAMS => {
+            UID => 'uid',
           }
         },
-        'subject'   => {
-          'index'        => get_function_index("msgs_admin"),
-          'EXTRA_PARAMS' => {
-            'UID' => 'uid',
-            'chg' => 'id',
+        subject   => {
+          index        => get_function_index("msgs_admin"),
+          EXTRA_PARAMS => {
+            UID => 'uid',
+            chg => 'id',
           }
         }
       },
-      'DEFAULT_VALUE' => {
-        'subject' => $lang{NO_SUBJECT}
+      DEFAULT_VALUE => {
+        subject => $lang{NO_SUBJECT}
       }
     },
-    MAP_TYPE_ICON => {
-      'ICON_PATH'       => "/images/chapters/chapter_",
-      'ICON_FIELD'      => "chapter_id",
-      'ICON_EXIST_PATH' => 'chapters/chapter_',
+    MAP_TYPE_ICON     => {
+      ICON_PATH       => '/images/chapters/chapter_',
+      ICON_FIELD      => 'chapter_id',
+      ICON_EXIST_PATH => 'chapters/chapter_',
     },
     MAP_FULL_TYPE_URL => 1,
-    MULTISELECT     => scalar keys %{$attr->{CHAPTERS_DELIGATION}} == 0 ? 'del:id:MSGS_LIST' : '',
-      FILTER_VALUES => {
-        rating                 => sub {
-          my ($rating) = @_;
-          msgs_rating_icons($rating);
-        },
-        state                  => sub {
-          my ($state_id, $line) = @_;
-          _msgs_list_state_form($state_id, $line, $msgs_status, $attr->{CHAPTERS_DELIGATION})
-        },
-        state_id               => sub {
-          "$_[0]";
-        },
-        priority_id            => sub {
-          my ($priority_id) = @_;
-          $priority_id //= 3; # Normal
-          $priority_id = 3 if !$priority[$priority_id];
-          my $icon = $html->color_mark($priority[$priority_id], $priority_colors[$priority_id]);
-          $html->element('span', $icon, { "data-tooltip" => "$priority_lit[$priority_id]" || "", "data-tooltip-position" => 'top' });
-        },
-        deposit                => sub {
-          my ($deposit, $line) = @_;
-          ($permissions{0} && !$permissions{0}{12})
-            ? '--'
-            : (($deposit || 0) + ($line->{credit} || 0) < 0)
-            ? $html->color_mark($deposit, 'text-danger')
-            : $deposit
-        },
-        id                     => sub {
-          my ($id, $line) = @_;
-          return ($line->{inner_msg} && !$FORM{json})
-            ? $id . $html->b("($lang{PRIVATE_MSGS_CHAR})")
-            : $id
-        },
-        resposible_admin_login => sub {
-          my ($resposible_admin_login, $admin_disable) = @_;
-          _status_color_state($resposible_admin_login, $admin_disable->{admin_disable});
-        },
-        admin_login            => sub {
-          my ($admin_login, $admin_disable) = @_;
-          _status_color_state($admin_login, $admin_disable->{admin_disable});
-        }
+    MULTISELECT       => !$msgs_permissions{deligation_level} ? 'del:id:MSGS_LIST' : '',
+    FILTER_VALUES     => {
+      rating                 => sub {
+        my ($rating) = @_;
+        msgs_rating_icons($rating);
       },
-      FILTER_COLS => {
-        login                  =>
-          "_msgs_list_login_form::FUNCTION=msgs_list,UID" . ($attr->{MODULES} ? ", MODULES=$attr->{MODULES}" : ''),
-        client_id              => "_msgs_list_client_id_form::FUNCTION=msgs_list,UID,FIO,AID",
-        subject                => "_msgs_list_subject_form::FUNCTION=msgs_list,UID,ID",
-        plan_date_time         => "_msgs_list_plan_date_time_form::FUNCTION=msgs_list,ID",
-        status                 => "_msgs_list_status_form::FUNCTION=msgs_list",
-        disable                => "_msgs_list_status_form::FUNCTION=msgs_list",
-        msgs_tags_ids          => '_msgs_message_tags_name::MSGS_TAGS_IDS'
+      state                  => sub {
+        my ($state_id, $line) = @_;
+        _msgs_list_state_form($state_id, $line, $msgs_status)
       },
-      EXT_TITLES    => {
-        'id'                     => $lang{NUM},
-        'client_id'              => $lang{USER},
-        'subject'                => $lang{SUBJECT},
-        'chapter_name'           => $lang{CHAPTERS},
-        'datetime'               => $lang{DATE},
-        'state'                  => $lang{STATE},
-        'closed_date'            => $lang{CLOSED},
-        'resposible_admin_login' => $lang{RESPOSIBLE},
-        'admin_login'            => $lang{ADMIN},
-        'priority_id'            => $lang{PRIORITY},
-        'plan_date_time'         => $lang{EXECUTION},
-        'run_time'               => $lang{RUN_TIME},
-        'soft_deadline'          => 'Soft deadline',
-        'hard_deadline'          => 'Hard deadline',
-        'user_read'              => $lang{USER_READ},
-        'admin_read'             => $lang{ADMIN_READ},
-        'replies_counts'         => "replies_counts",
-        'dispatch_id'            => $lang{DISPATCH},
-        'message'                => $lang{MESSAGE},
-        'ip'                     => 'IP',
-        'msg_phone'              => "CALL $lang{PHONE}",
-        'last_replie_date'       => $lang{LAST_ACTIVITY},
-        'rating'                 => $lang{RATING},
-        'chg_msgs'               => $lang{NUM},
-        'del_msgs'               => $lang{NUM},
-        'uid'                    => 'UID',
-        'downtime'               => $lang{DOWNTIME},
-        'performers'             => $lang{PERFORMERS},
-        'msgs_tags_ids'          => $lang{MSGS_TAGS},
-        'closed_admin'           => $lang{CLOSED_THE_TICKET}
+      state_id               => sub {
+        "$_[0]";
       },
-      TABLE         => {
-        width      => '100%',
-        caption    => $lang{MESSAGES},
-        qs         => $pages_qs
-          . (defined($FORM{CHAPTER}) && $FORM{CHAPTER} ne '_SHOW' ? "&CHAPTER=$FORM{CHAPTER}" : '')
-          . (!$FORM{UID} ? '&UID=' : ''),
-        ID         => $attr->{LIST_ID} || 'MSGS_LIST',
-        header     => msgs_status_bar({ MSGS_STATUS => $msgs_status, NEXT => 1 }),
-        SELECT_ALL =>
-          ($attr->{CHAPTERS_DELIGATION} && scalar keys %{$attr->{CHAPTERS_DELIGATION}} == 0) || $attr->{SELECT_ALL_ON} ? "MSGS_LIST:del:$lang{SELECT_ALL}" : ''
-          ,
-        EXPORT     => 1,
-        MENU       => $table_add_msg_btn
-          . ";$lang{SEARCH}:search_form=1&index=" . get_function_index('msgs_admin') . ":search"
+      priority_id            => sub {
+        my ($priority_id) = @_;
+        $priority_id //= 3; # Normal
+        $priority_id = 3 if !$priority[$priority_id];
+        my $icon = $html->color_mark($priority[$priority_id], $priority_colors[$priority_id]);
+        $html->element('span', $icon, { "data-tooltip" => "$priority_lit[$priority_id]" || "", "data-tooltip-position" => 'top' });
       },
-      MAKE_ROWS     => 1,
-      SEARCH_FORMER => 1,
-      MODULE        => 'Msgs',
+      deposit                => sub {
+        my ($deposit, $line) = @_;
+        ($permissions{0} && !$permissions{0}{12})
+          ? '--'
+          : (($deposit || 0) + ($line->{credit} || 0) < 0)
+          ? $html->color_mark($deposit, 'text-danger')
+          : $deposit
+      },
+      id                     => sub {
+        my ($id, $line) = @_;
+        return ($line->{inner_msg} && !$FORM{json}) ? $id . $html->b("($lang{PRIVATE_MSGS_CHAR})") : $id
+      },
+      resposible_admin_login => sub {
+        my ($resposible_admin_login, $admin_disable) = @_;
+        _status_color_state($resposible_admin_login, $admin_disable->{admin_disable});
+      },
+      admin_login            => sub {
+        my ($admin_login, $admin_disable) = @_;
+        _status_color_state($admin_login, $admin_disable->{admin_disable});
+      }
+    },
+    FILTER_COLS       => {
+      login          => "_msgs_list_login_form::FUNCTION=msgs_list,UID" .
+        ($attr->{MODULES} ? ", MODULES=$attr->{MODULES}" : ''),
+      client_id      => "_msgs_list_client_id_form::FUNCTION=msgs_list,UID,FIO,AID",
+      subject        => "_msgs_list_subject_form::FUNCTION=msgs_list,UID,ID",
+      plan_date_time => "_msgs_list_plan_date_time_form::FUNCTION=msgs_list,ID",
+      status         => "_msgs_list_status_form::FUNCTION=msgs_list",
+      disable        => "_msgs_list_status_form::FUNCTION=msgs_list",
+      msgs_tags_ids  => '_msgs_message_tags_name::MSGS_TAGS_IDS'
+    },
+    EXT_TITLES        => {
+      'id'                     => $lang{NUM},
+      'client_id'              => $lang{USER},
+      'subject'                => $lang{SUBJECT},
+      'chapter_name'           => $lang{CHAPTERS},
+      'datetime'               => $lang{DATE},
+      'state'                  => $lang{STATE},
+      'closed_date'            => $lang{CLOSED},
+      'resposible_admin_login' => $lang{RESPOSIBLE},
+      'admin_login'            => $lang{ADMIN},
+      'priority_id'            => $lang{PRIORITY},
+      'plan_date_time'         => $lang{EXECUTION},
+      'run_time'               => $lang{RUN_TIME},
+      'soft_deadline'          => 'Soft deadline',
+      'hard_deadline'          => 'Hard deadline',
+      'user_read'              => $lang{USER_READ},
+      'admin_read'             => $lang{ADMIN_READ},
+      'replies_counts'         => "replies_counts",
+      'dispatch_id'            => $lang{DISPATCH},
+      'message'                => $lang{MESSAGE},
+      'ip'                     => 'IP',
+      'msg_phone'              => "CALL $lang{PHONE}",
+      'last_replie_date'       => $lang{LAST_ACTIVITY},
+      'rating'                 => $lang{RATING},
+      'chg_msgs'               => $lang{NUM},
+      'del_msgs'               => $lang{NUM},
+      'uid'                    => 'UID',
+      'downtime'               => $lang{DOWNTIME},
+      'performers'             => $lang{PERFORMERS},
+      'msgs_tags_ids'          => $lang{MSGS_TAGS},
+      'closed_admin'           => $lang{CLOSED_THE_TICKET},
+      'watchers'               => $lang{WATCHERS},
+    },
+    TABLE             => {
+      MULTISELECT_ACTIONS => [ {
+        TITLE    => $lang{DEL},
+        ICON     => 'fa fa-trash',
+        ACTION   => "$SELF_URL?index=$index",
+        PARAM    => 'del',
+        CLASS    => 'text-danger',
+        COMMENTS => "$lang{DEL}?"
+      } ],
+      width               => '100%',
+      caption             => $lang{MESSAGES},
+      qs                  => $pages_qs
+        . (defined($FORM{CHAPTER}) && $FORM{CHAPTER} ne '_SHOW' ? "&CHAPTER=$FORM{CHAPTER}" : '')
+        . (!$FORM{UID} ? '&UID=' : ''),
+      ID                  => $attr->{LIST_ID} || 'MSGS_LIST',
+      header              => msgs_status_bar({ MSGS_STATUS => $msgs_status, NEXT => 1 }),
+      SELECT_ALL          => !$msgs_permissions{deligation_level} || $attr->{SELECT_ALL_ON} ? "MSGS_LIST:del:$lang{SELECT_ALL}" : '',
+      EXPORT              => $msgs_permissions{1}{15},
+      MENU                => ($msgs_permissions{1}{0} ? "$lang{ADD}:add_form=1&UID=" . ($FORM{UID} || '') . "&index=$index:add;" : '')
+        . "$lang{SEARCH}:search_form=1&index=" . get_function_index('msgs_admin') . ":search",
+    },
+    MAKE_ROWS         => 1,
+    SEARCH_FORMER     => 1,
+    MODULE            => 'Msgs',
   });
 
   $index = get_function_index('msgs_admin');
@@ -338,13 +338,7 @@ sub msgs_list {
     my $dispatch_arr = msgs_dispatch_sel($attr->{ALLOW_TO_CLEAR_DISPATCH} ? {
       SELECTED    => $attr->{DISPATCH_ID},
       SEL_OPTIONS => { '' => '' },
-    } : undef
-    );
-
-    if ($A_CHAPTER && $#{$A_CHAPTER} == -1) {
-      $actions_msgs{DELETE_MULTI_MSGS} = $html->form_input('COMMENTS', "$lang{DEL} $lang{MESSAGES}",
-        { TYPE => 'submit', class => 'btn btn-danger', FORM_ID => 'MSGS_LIST' });
-    }
+    } : undef);
 
     $actions_msgs{DISPATCH_WORK} = @{ $dispatch_arr }[0];
     $actions_msgs{DISPATCH_ACTION} = @{ $dispatch_arr }[1];
@@ -535,14 +529,13 @@ sub _msgs_list_plan_date_time_form {
     $state_id
     $attr
     $status
-    $deligation
 
   Results:
 
 =cut
 #**********************************************************
 sub _msgs_list_state_form {
-  my ($state_id, $attr, $status, $deligation) = @_;
+  my ($state_id, $attr, $status) = @_;
 
   my $state = $html->color_mark($status->{ $state_id });
 
@@ -555,8 +548,9 @@ sub _msgs_list_state_form {
     $state = $icon . ($state || '');
   }
 
-  if ($attr->{deligation} && $attr->{deligation} > 0) {
-    if ($attr->{chapter_id} && $deligation->{$attr->{chapter_id}} && $deligation->{$attr->{chapter_id}} == $attr->{deligation}) {
+  if ($msgs_permissions{deligation_level}) {
+    if ($attr->{chapter_id} && $msgs_permissions{deligation_level}{$attr->{chapter_id}}
+      && $msgs_permissions{deligation_level}{$attr->{chapter_id}} == $attr->{deligation}) {
       $state = $html->element('span', '', {
         class => 'fa fa-wrench text-danger',
         alt   => $lang{DELIVERY} }) . $state;

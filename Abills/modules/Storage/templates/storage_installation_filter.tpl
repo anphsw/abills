@@ -25,6 +25,22 @@
           %INSTALLED_AID_SEL%
         </div>
       </div>
+      <hr>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{TYPE}_:</label>
+        <div class='col-md-8'>
+          %ARTICLE_TYPES_SELECT%
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{NAME}_:</label>
+        <div class='col-md-8'>
+          <div class='ARTICLES_S'>
+            %ARTICLE_ID_SELECT%
+          </div>
+        </div>
+      </div>
+
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' for='ARTICLE_SEARCH_id'>_{ARTICLE}_:</label>
         <div class='col-md-8'>
@@ -70,6 +86,7 @@
   </div>
 </form>
 
+<script src='/styles/default/js/storage.js'></script>
 <script>
   jQuery(document).ready(function () {
 

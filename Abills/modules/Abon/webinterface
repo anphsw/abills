@@ -213,7 +213,7 @@ sub abon_user {
           || $line->{payment_type}
           || time() < $seltime) {
           $Abon->{TP_INFO}->{PERIOD_ALIGNMENT} = $line->{period_alignment} || 0;
-          $Abon->{TP_INFO}->{TP_NAME} = $line->{name};
+          $Abon->{TP_INFO}->{TP_NAME} = $line->{tp_name};
           $Abon->{COMMENTS} = $FORM{ 'COMMENTS_' . $line->{tp_id} };
           $Abon->{TP_INFO}->{FEES_TYPE} = $line->{fees_type} || 1;
           $Abon->{TP_INFO}->{CREATE_ACCOUNT} = $line->{create_account};
@@ -335,7 +335,7 @@ sub abon_user {
           push @add_arr, $line->{tp_id};
         }
         else {
-          $html->message('err', "$lang{ABON} : $lang{ERROR}", "$lang{TARIF_PLAN}: [$line->{tp_id}] $line->{name}\n $lang{ERR_SMALL_DEPOSIT}\n $lang{SUM}: $Abon->{TP_INFO}->{PRICE}", { ID => 241 });
+          $html->message('err', "$lang{ABON} : $lang{ERROR}", "$lang{TARIF_PLAN}: [$line->{tp_id}] $line->{tp_name}\n $lang{ERR_SMALL_DEPOSIT}\n $lang{SUM}: $Abon->{TP_INFO}->{PRICE}", { ID => 241 });
           delete $FORM{ACTIVATE};
           $FORM{ 'error_' . $line->{tp_id} } = 1;
           $FORM{ 'error_comments_' . $line->{tp_id} } = $lang{ERR_SMALL_DEPOSIT};
@@ -356,7 +356,7 @@ sub abon_user {
       );
 
       foreach my $line (@{$list}) {
-        my $seltime = 0;
+        #my $seltime = 0;
         my $ext_cmd = $line->{ext_cmd};
 
         if ($ext_cmd) {
@@ -364,7 +364,6 @@ sub abon_user {
           $cmd .= " ACTION=ALERT UID=$users->{UID} TP_ID=$line->{tp_id}";
           cmd($cmd);
         }
-
       }
     }
 
@@ -427,7 +426,7 @@ sub abon_user {
         }
       ),
       $line->{id},
-      ($permissions{5}) ? $html->button($line->{name}, "index=" . get_function_index('abon_tariffs') . '&ABON_ID=' . $line->{id}) : "$line->{name}",
+      ($permissions{5}) ? $html->button($line->{tp_name}, "index=" . get_function_index('abon_tariffs') . '&ABON_ID=' . $line->{id}) : "$line->{tp_name}",
       $html->form_input('COMMENTS_' . $line->{id}, $describe || $FORM{ 'error_comments_' . $line->{id} } || q{}, { SIZE => 40 }),
       $line->{price},
       $PERIODS[ $line->{period} ],
@@ -531,7 +530,7 @@ sub abon_user_list {
         SEL_LIST    => $Abon->tariff_list({ COLS_NAME => 1, %LIST_PARAMS }),
         SEL_OPTIONS => { '' => '--' },
         SEL_KEY     => 'tp_id',
-        SEL_VALUE   => 'name',
+        SEL_VALUE   => 'tp_name',
         EX_PARAMS   => 'multiple="multiple"',
         NO_ID       => 1,
       }
@@ -636,7 +635,7 @@ sub abon_tariffs {
         SELECTED  => $Abon->{ID} || $FORM{ABON_ID},
         SEL_LIST  => $Abon->tariff_list({ COLS_NAME => 1 }),
         SEL_KEY   => 'tp_id',
-        SEL_VALUE => 'name',
+        SEL_VALUE => 'tp_name',
       }),
       HIDDEN => {
         index => $index,
@@ -765,11 +764,11 @@ sub abon_tariffs {
   my $user_index = get_function_index('abon_user_list');
   foreach my $line (@{$list}) {
     if ($permissions{4}{1}) {
-      $delete = $html->button($lang{DEL}, "index=$index&del=$line->{tp_id}", { MESSAGE => "$lang{DEL} $line->{name}?", class => 'del' });
+      $delete = $html->button($lang{DEL}, "index=$index&del=$line->{tp_id}", { MESSAGE => "$lang{DEL} $line->{tp_name}?", class => 'del' });
     }
     $table->{rowcolor} = ($FORM{ABON_ID} && $FORM{ABON_ID} == $line->{tp_id}) ? $_COLORS[0] : undef;
     $table->addrow(
-      $html->button("$line->{name}", "index=$index&ABON_ID=$line->{tp_id}"),
+      $html->button("$line->{tp_name}", "index=$index&ABON_ID=$line->{tp_id}"),
       "$line->{price}",
       $PERIODS[ $line->{period} ],
       $Payment_Types[ $line->{payment_type} ],
@@ -1105,7 +1104,6 @@ sub abon_periodic {
 }
 
 #**********************************************************
-
 =head2 abon_get_month_fee($Abon, $attr)
 
   Arguments:
@@ -1114,7 +1112,6 @@ sub abon_periodic {
        SHOW_SUM
 
 =cut
-
 #**********************************************************
 sub abon_get_month_fee {
   my Abon $Abon_ = shift;
@@ -1144,7 +1141,8 @@ sub abon_get_month_fee {
   }
 
   #Current Month
-  my ($y, $m, $d) = split(/-/, $DATE, 3);
+  my $cur_date = $attr->{DATE} || $DATE;
+  my ($y, $m, $d) = split(/-/, $cur_date, 3);
   my ($active_y, $active_m, $active_d) = split(/-/, $Abon_->{ACTIVATE}, 3);
 
   if (int("$y$m$d") < int("$active_y$active_m$active_d")) {
@@ -1296,7 +1294,7 @@ sub abon_client {
       next;
     }
 
-    push @rows, [ $line->{name}, $line->{description}, $line->{price}, $PERIODS[ $line->{period} ], $line->{date}, $line->{next_abon}, $button ];
+    push @rows, [ $line->{tp_name}, $line->{description}, $line->{price}, $PERIODS[ $line->{period} ], $line->{date}, $line->{next_abon}, $button ];
   }
 
   if($#rows == -1) {
@@ -1324,7 +1322,7 @@ sub abon_client {
 
   Attributes:
     $attr
-     TP_NAMES = Tarif plan names
+     TP_NAMES = Tariff plan names
 
   Results:
     tp_ids_arr_ref
@@ -1367,11 +1365,9 @@ sub abon_check_tps {
 sub abon_service_activate {
   my ($attr)=@_;
 
-  #my $debug_output = q{};
   my $user_info = $attr->{USER_INFO};
   my $debug = $attr->{DEBUG} || 0;
   my $date = $attr->{DATE} || $DATE;
-  #my (undef, undef, $d)=split(/\-/, $date);
   my $user_tariff_list = $Abon->user_tariff_list($user_info->{UID}, {
     %LIST_PARAMS,
     PERIOD_ALIGNMENT => 1,
@@ -1385,13 +1381,20 @@ sub abon_service_activate {
 
     $user->{TP_INFO}->{PERIOD_ALIGNMENT} = $user->{period_alignment};
     $user->{TP_INFO}->{TP_ID} = $user->{id};
-    $user->{TP_INFO}->{TP_NAME} = $user->{name};
+    $user->{TP_INFO}->{TP_NAME} = $user->{tp_name};
     $user->{TP_INFO}->{PRICE} = $user->{price};
     $user->{UID} = $user_info->{UID};
     $user->{BILL_ID} = $user_info->{BILL_ID};
     $user->{ACTIVATE} = $date;
 
-    my $message = abon_get_month_fee($user, { SHOW_SUM => $debug });
+    my $message = abon_get_month_fee($user, { SHOW_SUM => $debug, DATE => $date });
+
+    $Abon->user_tariff_change({
+      ACTIVATE => $user->{TP_INFO}->{TP_ID},
+      UID => $user->{UID},
+      ABON_DATE => $date,
+    });
+
     print $message if($debug > 1);
   }
 

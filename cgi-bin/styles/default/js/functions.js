@@ -754,6 +754,8 @@ function defineLinkedInputsLogic(context) {
   var $linkedForDisableInputs = $('[data-input-disables]', context);
   var $linkedForEnableInputs = $('[data-input-enables]', context);
   var $linkedForMultipleSelects = $('[data-select-multiple]', context);
+  var $linkedForChangeInputs = $('[data-change-input]', context);
+  var $linkedForFilterInputs = $('[data-filter]', context);
 
   if ($linkedForDisableInputs.length > 0) {
     $.each($linkedForDisableInputs, function (i, e) {
@@ -798,6 +800,49 @@ function defineLinkedInputsLogic(context) {
       });
 
       setSelectMultiple(e, true, false)
+    });
+  }
+
+  if ($linkedForChangeInputs.length > 0) {
+    $.each($linkedForChangeInputs, function (i, e) {
+      var $this = $(e);
+      $this.on('click', function () {
+        let display_input = jQuery(`#${$this.data('change-input')}`);
+        if (display_input.length !== 1) return;
+
+        let parent_container = $this.closest('.input-container');
+
+        parent_container.find('input').attr('disabled', 'disabled');
+        parent_container.find('select').attr('disabled', 'disabled');
+        display_input.removeAttr('disabled');
+
+        parent_container.addClass('d-none');
+        display_input.closest('.input-container').removeClass('d-none');
+      });
+    });
+  }
+
+  if ($linkedForFilterInputs.length > 0) {
+    $.each($linkedForFilterInputs, function (i, e) {
+      let $this = $(e);
+      let filter = $this.data('filter');
+
+      $this.on('keyup', function() {
+        let value = jQuery(this).val().toLowerCase();
+
+        jQuery(`.${filter} td`).filter(function() {
+          jQuery(this).toggle(jQuery(this).text().toLowerCase().indexOf(value) > -1)
+        });
+
+        if ( value !== '') {
+          jQuery(`.${filter}`).css('display', 'grid');
+          jQuery(`.${filter} td`).addClass('pl-3');
+        }
+        else {
+          jQuery(`.${filter}`).css('display', '');
+          jQuery(`.${filter} td`).removeClass('pl-3');
+        }
+      });
     });
   }
 }

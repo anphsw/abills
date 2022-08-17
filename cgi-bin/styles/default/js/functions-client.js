@@ -55,22 +55,6 @@ function setIcons() {
     else {
       $entry.html('<i class="nav-icon ' + icon + '"></i>' +  $entry.html());
     }
-
-  });
-  
-  // Load custom icons
-  $.getJSON('/images/client_menu_icons.js', function(custom_icons){
-    
-    $.each(Object.keys(custom_icons), function(i, id){
-      var $a = $sidebar.find('a#' + id);
-    
-      // Removes default icon
-      $a.find('.fa.fa-circle').remove();
-    
-      // Inserts icon <span> saving .chevron-left if have one
-      $a.html('<i class="' + custom_icons[id] + '"></i><span>' +  $a.html() + '</span>');
-    });
-    
   });
 }
 

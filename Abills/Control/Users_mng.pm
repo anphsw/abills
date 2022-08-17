@@ -648,8 +648,18 @@ sub form_user_change {
       $credit_changed = 1;
     }
 
-    cross_modules('payments_maked', { USER_INFO => $user_info, CHANGE_CREDIT => $credit_changed, FORM => \%FORM });
-
+    if ($user_info->{DISABLE} && $user_info->{DISABLE} == 3 && $form->{DISABLE} == 0) {
+      require Control::Services;
+      my $action = 0;
+      service_status_change({ UID => $user_info->{UID}, BILL_ID => $user_info->{BILL_ID} },
+        $action,
+        { #DEBUG => 4,
+          DATE  => $DATE
+        });
+    }
+    else {
+      cross_modules('payments_maked', { USER_INFO => $user_info, CHANGE_CREDIT => $credit_changed, FORM => \%FORM });
+    }
     #External scripts
     if ($conf{external_userchange}) {
       if (!_external($conf{external_userchange}, \%FORM)) {
@@ -1726,12 +1736,14 @@ sub user_form {
     my $credit_describe = $admin->action_list({
       TYPE      => 5,
       UID       => $user_info->{UID},
+      DATETIME  => '_SHOW',
       COLS_NAME => 1,
       PAGE_ROWS => 1,
-      SORT      => 'id DESC'
+      SORT      => 'id DESC',
+      PAGE_ROWS => 1
     });
 
-    if ($credit_describe->[0]{datetime}) { #XXX may be broken
+    if ($credit_describe->[0] && $credit_describe->[0]{datetime}) {
       $user_info->{DATE_CREDIT} = $credit_describe->[0]{datetime};
     }
     else {
@@ -2466,12 +2478,15 @@ sub form_users_list {
 
   $LIST_PARAMS{_MULTI_HIT} = ' OR ' if ($FORM{UID} && $FORM{UID} =~ /.*\,.*/);
 
+  my $hidden_fields = 'PRIORITY';
+  $hidden_fields .= ',BUILD_ID' if !in_array('Maps', \@MODULES) || ($admin->{MODULES} && !$admin->{MODULES}{Maps});
+
   ($table, $list) = result_former({
     INPUT_DATA      => $users,
     FUNCTION        => 'list',
     BASE_FIELDS     => 1,
     DEFAULT_FIELDS  => "LOGIN,FIO,DEPOSIT,CREDIT,LOGIN_STATUS,$ext_fields",
-    HIDDEN_FIELDS   => 'PRIORITY',
+    HIDDEN_FIELDS   => $hidden_fields,
     FUNCTION_FIELDS => 'form_payments, form_fees',
     TABLE           => {
       width            => '100%',
@@ -2485,7 +2500,8 @@ sub form_users_list {
       EXPORT           => 1,
       MAIN_BODY        => 1,
       IMPORT           => "$SELF_URL?get_index=form_users&import=1&header=2",
-      MENU             => "$lang{ADD}:index=" . get_function_index('form_wizard') . ':add' . ";$lang{SEARCH}:index=" . get_function_index('form_search') . ":search",
+      MENU             => "$lang{ADD}:index=" . get_function_index('form_wizard') . (($FORM{COMPANY_ID}) ? '&COMPANY_ID=' . $FORM{COMPANY_ID} : '') .
+        ':add' . ";$lang{SEARCH}:index=" . get_function_index('form_search') . ":search",
     }
   });
 
@@ -2546,6 +2562,7 @@ sub form_users_list {
     for ($i = $base_fields; $i < $base_fields + $users->{SEARCH_FIELDS_COUNT}; $i++) {
       my $col_name = $users->{COL_NAMES_ARR}->[$i] || '';
 
+      next if $col_name eq 'build_id' && (!in_array('Maps', \@MODULES) || ($admin->{MODULES} && !$admin->{MODULES}{Maps}));
       if ($conf{EXT_BILL_ACCOUNT} && $col_name eq 'ext_bill_deposit') {
         $line->{ext_bill_deposit} = ($line->{ext_bill_deposit} < 0) ? $html->color_mark($line->{ext_bill_deposit}, 'text-danger') : $line->{ext_bill_deposit};
       }
@@ -2618,8 +2635,8 @@ sub form_users_list {
     @fields_array = ($table->td(user_ext_menu($uid, $line->{login}, {
       login_status => $line->{login_status},
       deleted      => $line->{_del},
-      NO_CHANGE    => 1 })),
-      @fields_array);
+      NO_CHANGE    => 1
+    })), @fields_array);
 
     if ($permissions{0}{7}) {
       @fields_array = ($table->td($html->form_input('IDS', "$uid", { TYPE => 'checkbox', FORM_ID => 'users_list' })), @fields_array);
@@ -2643,12 +2660,10 @@ sub form_users_list {
     push @totals_rows, [ $html->button("$lang{DELETED}:", "index=$index&USERS_STATUS=9"), $html->b($users->{TOTAL_DELETED}) ],;
   }
 
-  my $table2 = $html->table(
-    {
-      width => '100%',
-      rows  => \@totals_rows
-    }
-  );
+  my $table2 = $html->table({
+    width => '100%',
+    rows  => \@totals_rows
+  });
 
   if ($permissions{0}{7} && !$FORM{EXPORT_CONTENT} && !$FORM{xml}) {
     $html->{FORM_ID} = 'users_list';
@@ -2691,12 +2706,10 @@ sub form_users_list {
       #Fixme to require Msgs::Delivery;
       load_module('Msgs', $html);
       my %info = ();
+      our %msgs_permissions;
       my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
 
-      my %send_methods = (
-        0 => $lang{MESSAGE},
-        1 => 'E-MAIL'
-      );
+      my %send_methods = (0 => $lang{MESSAGE}, 1 => 'E-MAIL');
 
       my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
       my $sender_send_types = $Sender->available_types({ HASH_RETURN => 1, CLIENT => 1 });
@@ -2715,41 +2728,36 @@ sub form_users_list {
       $info{DATE_PIKER} = $html->form_datepicker('DELIVERY_SEND_DATE');
       $info{TIME_PIKER} = $html->form_timepicker('DELIVERY_SEND_TIME');
       $info{STATUS_SELECT} = msgs_sel_status({ NAME => 'STATUS' });
-      $info{PRIORITY_SELECT} = $html->form_select(
-        'PRIORITY',
-        {
-          SELECTED     => 2,
-          SEL_ARRAY    => \@priority,
-          STYLE        => \@priority_colors,
-          ARRAY_NUM_ID => 1
-        }
-      );
+      $info{PRIORITY_SELECT} = $html->form_select('PRIORITY', {
+        SELECTED     => 2,
+        SEL_ARRAY    => \@priority,
+        STYLE        => \@priority_colors,
+        ARRAY_NUM_ID => 1
+      });
+      $info{SEND_METHOD_SELECT} = $html->form_select('SEND_METHOD', {
+        SELECTED => 2,
+        SEL_HASH => \%send_methods,
+        NO_ID    => 1
+      });
+      $info{DELIVERY_ADD_HIDE} = 'd-none' if !$msgs_permissions{2}{1};
 
-      $info{SEND_METHOD_SELECT} = $html->form_select(
-        'SEND_METHOD',
-        {
-          SELECTED => 2,
-          SEL_HASH => \%send_methods,
-          NO_ID    => 1
-        }
-      );
+      if ($msgs_permissions{2}{0} && $msgs_permissions{2}{4}) {
+        my $delivery_tpl = $html->tpl_show(templates('form_user_delivery_add'), \%info, { OUTPUT2RETURN => 1 });
 
-      my $delivery_tpl = $html->tpl_show(templates('form_user_delivery_add'), \%info, { OUTPUT2RETURN => 1 });
-
-      @multi_operation = ([ $html->form_input('MU_DELIVERY', 1, { TYPE => 'checkbox', }) . $lang{DELIVERY}, $delivery_tpl ],
-        @multi_operation);
+        @multi_operation = ([ $html->form_input('MU_DELIVERY', 1, { TYPE => 'checkbox', }) . $lang{DELIVERY}, $delivery_tpl ],
+          @multi_operation);
+      }
     }
 
     #Ureport muliuser select options
     if (in_array('Ureports', \@MODULES)) {
       load_module('Ureports', $html);
 
-      my $load_to_modal_btn = $html->button($lang{ADD}, 'qindex=' . get_function_index('ureports_multiuser_sel') . '&header=2&FORM_ID=users_list',
-        {
-          LOAD_TO_MODAL => 1,
-          class         => 'btn btn-secondary',
-        }
-      );
+      my $load_to_modal_btn = $html->button($lang{ADD}, 'qindex=' . get_function_index('ureports_multiuser_sel') .
+        '&header=2&FORM_ID=users_list', {
+        LOAD_TO_MODAL => 1,
+        class         => 'btn btn-default',
+      });
 
       @multi_operation = (
         [
@@ -2763,12 +2771,11 @@ sub form_users_list {
     #Tags muliuser select options
     if (in_array('Tags', \@MODULES)) {
       load_module('Tags', $html);
-      my $load_to_modal_btn = $html->button($lang{ADD}, 'qindex=' . get_function_index('tags_multiuser_form') . "&header=2&MULTIUSER_INDEX=$index&FORM_ID=users_list",
-        {
-          LOAD_TO_MODAL => 1,
-          class         => 'btn btn-secondary',
-        }
-      );
+      my $load_to_modal_btn = $html->button($lang{ADD}, 'qindex=' . get_function_index('tags_multiuser_form') .
+        "&header=2&MULTIUSER_INDEX=$index&FORM_ID=users_list", {
+        LOAD_TO_MODAL => 1,
+        class         => 'btn btn-default',
+      });
 
       @multi_operation = (
         [
@@ -2864,7 +2871,9 @@ sub user_del {
         $html->message('err', $lang{DELETED}, "External cmd: $conf{external_userdel}");
       }
     }
-    $html->message('info', $lang{DELETED}, "UID: $user_info->{UID}\n $lang{DELETED} $user_info->{LOGIN}");
+    $html->message('info', $lang{DELETED}, "UID: ". ($user_info->{UID} || q{n/d})
+      . "\n $lang{DELETED} "
+      . ( $user_info->{LOGIN} || q{n/d}) );
   }
 
   if ($FORM{FULL_DELETE}) {
@@ -4067,8 +4076,10 @@ sub users_import {
     require Bills;
     Bills->import();
     my $Bills = Bills->new($db, $admin, \%conf);
-
     foreach my $_user (@$import_accounts) {
+      if (! $_user->{$main_id}) {
+        next;
+      }
       my $list = $users->list({
         LOGIN     => '_SHOW',
         $main_id  => $_user->{$main_id},
@@ -4458,11 +4469,10 @@ sub check_address_registration {
 sub form_user_holdup {
   my ($user_) = @_;
   my $uid = $user_->{UID};
+
   require Control::Service_control;
   Control::Service_control->import();
   my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
-
-  $Service_control->{debug}=1;
 
   my $holdup_info = $Service_control->user_holdup({
     %FORM,

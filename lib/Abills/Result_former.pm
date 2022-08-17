@@ -990,7 +990,7 @@ sub _get_search_titles {
   }
 
   if (in_array('Maps', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Maps})) {
-    $SEARCH_TITLES{build_id} = $lang{LOCATION} if (!$admin->{MODULES} || $admin->{MODULES}{Maps});
+    $SEARCH_TITLES{build_id} = $lang{LOCATION};
   }
 
   if (in_array('Multidoms', \@MODULES) && (!$admin->{DOMAIN_ID} || $admin->{DOMAIN_ID} =~ /[,;]+/)) {
@@ -1200,9 +1200,11 @@ sub _get_status_value {
       (defined $status_value ? $status_value : '');
   }
   else {
-    $val = ($line->{$col_name} && $line->{$col_name} > 0) ? $html->color_mark($service_status->[ $line->{$col_name} ],
-      $service_status_colors->[ $line->{$col_name} ]) :
-      (defined $line->{$col_name} ? $service_status->[$line->{$col_name}] : '');
+    if (!$attr->{SKIP_STATUS_CHECK}) {
+      $val = ($line->{$col_name} && $line->{$col_name} > 0) ? $html->color_mark($service_status->[ $line->{$col_name} ],
+        $service_status_colors->[ $line->{$col_name} ]) :
+        (defined $line->{$col_name} ? $service_status->[$line->{$col_name}] : '');
+    }
   }
 
   return $val;

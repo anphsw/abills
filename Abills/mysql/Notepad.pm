@@ -56,9 +56,6 @@ sub notes_list{
 
   delete $self->{COL_NAMES_ARR};
 
-  # Abills::Base::_bp('', $attr, {HEADER=>1});
-
-  #$self->{debug} = 1;
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'n.id';
   my $DESC = ($attr->{DESC}) ? '' : 'DESC';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
@@ -108,7 +105,6 @@ sub notes_list{
 
   return [] if $self->{errno};
 
- # use Data::Dumper; print "list: <pre>" . Dumper($self->{list}) . "</pre>";
   return $self->{list} || [];
 }
 
@@ -124,7 +120,8 @@ sub notes_list{
 =cut
 #**********************************************************
 sub notes_info{
-  my ($self, $id, $attr) = @_;
+  my $self = shift;
+  my ($id, $attr) = @_;
 
   my $list = $self->notes_list( {
     ID               => $id,
@@ -146,15 +143,11 @@ sub notes_add{
   my $self = shift;
   my ($attr) = @_;
 
-  Abills::Base::_bp('', $attr, {HEADER=>1});
-
-  $self->query_add( 'notepad',
-    {
-      %{$attr},
-      AID          => $attr->{AID} || $self->{admin}->{AID},
-      CREATE_DATE  => 'NOW()',
-    }
-  );
+  $self->query_add('notepad', {
+    %{$attr},
+    AID         => $attr->{AID} || $self->{admin}->{AID},
+    CREATE_DATE => 'NOW()',
+  });
 
   return 1;
 }
@@ -168,13 +161,11 @@ sub notes_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'notepad',
-      DATA         => $attr,
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'notepad',
+    DATA         => $attr,
+  });
 
   return $self;
 }
@@ -264,16 +255,17 @@ sub periodic_rules_list{
 
 =cut
 #**********************************************************
-sub periodic_rules_info{
-  my ($self, $id, $attr) = @_;
-  
-  my $list = $self->periodic_rules_list( {
+sub periodic_rules_info {
+  my $self = shift;
+  my ($id, $attr) = @_;
+
+  my $list = $self->periodic_rules_list({
     ID               => $id,
     COLS_NAME        => 1,
     SHOW_ALL_COLUMNS => 1,
     COLS_UPPER       => 1,
-    %{ $attr // { } }
-  } );
+    %{$attr // {}}
+  });
   
   return $list->[0] || {};
 }
@@ -348,13 +340,12 @@ sub periodic_rules_change{
   foreach (@fields){
     $attr->{$_} = (defined $attr->{$_}) ? "$attr->{$_}" : 0;
   };
-  
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'notepad_reminders',
-      DATA         => $attr,
-    });
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'notepad_reminders',
+    DATA         => $attr,
+  });
   
   return 1;
 }
@@ -414,7 +405,8 @@ sub checklist_rows_list{
 =cut
 #**********************************************************
 sub checklist_rows_info{
-  my ($self, $id) = @_;
+  my $self = shift;
+  my ($id) = @_;
   
   my $list = $self->checklist_rows_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
   
@@ -477,13 +469,12 @@ sub checklist_rows_change{
   my ($attr) = @_;
   
   $attr->{STATE} = (defined $attr->{STATE} && $attr->{STATE}) ? 1 : '0';
-  
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'notepad_checklist_rows',
-      DATA         => $attr,
-    });
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'notepad_checklist_rows',
+    DATA         => $attr,
+  });
   
   return 1;
 }
@@ -523,28 +514,20 @@ sub notepad_get_active_count{
 
 =cut
 #**********************************************************
-sub show_reminders_list{
-  my ($self, $attr) = @_;
+sub show_reminders_list {
+  my $self = shift;
+  my ($attr) = @_;
 
-#  our $DATE;
-#  if (!$DATE){
-#    require POSIX;
-#    POSIX->import();
-#    $DATE = POSIX::strftime("%d-%m-%Y %H:%M:%S", localtime);
-#  }
-  
-  return $self->notes_list( {
-      SHOW_ALL_COLUMNS => 1,
-      COLS_UPPER       => $attr->{COLS_UPPER} || 1,
-      COLS_NAME        => 1,
-      STATUS           => 0,
-      NEW              => 1,
-      AID              => '_SHOW', # Can be overriden in $attr
-      %{ $attr // {} }
-    } );
+  return $self->notes_list({
+    SHOW_ALL_COLUMNS => 1,
+    COLS_UPPER       => $attr->{COLS_UPPER} || 1,
+    COLS_NAME        => 1,
+    STATUS           => 0,
+    NEW              => 1,
+    AID              => '_SHOW', # Can be overriden in $attr
+    %{$attr // {}}
+  });
 }
-
-
 
 #**********************************************************
 =head2 _date_is($time, $attr) - checks given epoch timestamp
@@ -709,4 +692,4 @@ sub get_sticker {
   return $self->{list};
 }
 
-1
+1;

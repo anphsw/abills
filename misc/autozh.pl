@@ -45,27 +45,29 @@ if ($argv->{help}) {
 
 autozap.pl Version: $VERSION
 
-  NAS_ID=        - NAS ID for ZAP
-  ACTION_EXPR=   - Extr for action (wildcard *)
-  ACTION_COUNT=  - Count of some actions default 20
+  NAS_ID=             - NAS ID for ZAP
+  ACTION_EXPR=        - Extr for action (wildcard *)
+  ACTION_COUNT=       - Count of some actions default 20
   LAST_ACTIONS_COUNT= - last history actions. default 250.
   NEGATIVE_DEPOSIT=1  - Hangup only with negtive deposit
-  DAYS2FINISH="x,x"   -  Hangup when les then xx days to finich (Only for days or distributed tarrifs)
-  PAYMENT_METHOD      -  FIlter only payment type user
-  SLEEP=COUNT:TIME    -  Sleep after count of actions
-  GUEST=1        - Select only guest session
-  HANGUP=1       - Make Hangup
-  DURATION=      - Max duration more then
-  LOGIN=...      - login for hangup
-  COUNT=         - Hangup or zap records (Default: infinity)
-  UID=...        - UID for hangup
-  TP_ID=...      - TP_ID for hangup
-  GID=...        - Group ID for hangup
-  LIMIT=100      - Hangup limit
-  HANGUP_PERIOD  - Hangup only users with hangup period (Extra field: _hangup_period)
-  TURBO          - Turbomode manage
-  DEBUG=1..6     -
-  help           - This help
+  DAYS2FINISH="x,x"   - Hangup when les then xx days to finich (Only for days or distributed tarrifs)
+  PAYMENT_METHOD      - FIlter only payment type user
+  SLEEP=COUNT:TIME    - Sleep after count of actions
+  GUEST=1             - Select only guest session
+  HANGUP=1            - Make Hangup
+  DURATION=           - Max duration more then
+  LOGIN=...           - login for hangup
+  COUNT=              - Hangup or zap records (Default: infinity)
+  UID=...             - UID for hangup
+  TP_ID=...           - TP_ID for hangup
+  GID=...             - Group ID for hangup
+  LIMIT=100           - Hangup limit
+  HANGUP_PERIOD       - Hangup only users with hangup period (Extra field: _hangup_period)
+  TURBO               - Turbomode manage
+  DEBUG=1..6          -
+  VLAN                - VLAN of client
+  SERVER_VLAN         - VLAN of server
+  help                - This help
 [END]
 
   exit;
@@ -165,6 +167,14 @@ if ($argv->{HANGUP}) {
     $Sessions->{debug} = 1;
     $Nas->{debug} = 1;
   }
+
+if ($argv->{VLAN}) {
+  $LIST_PARAMS{VLAN} = $argv->{VLAN};
+}
+
+if ($argv->{SERVER_VLAN}) {
+  $LIST_PARAMS{SERVER_VLAN} = $argv->{SERVER_VLAN};
+}
 
   $Sessions->online(\%LIST_PARAMS);
 

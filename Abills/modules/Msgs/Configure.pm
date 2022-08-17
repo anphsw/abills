@@ -13,10 +13,92 @@ our(
   $html,
   %lang,
   @bool_vals,
-  $admin
+  $admin,
+  %msgs_permissions
 );
 
 my $Msgs = Msgs->new($db, $admin, \%conf);
+
+#**********************************************************
+=head2 msgs_admin_permissions()
+
+=cut
+#**********************************************************
+sub msgs_admin_permissions {
+
+  $FORM{ADMIN_ID} ||= $admin->{AID};
+  return if !$FORM{ADMIN_ID};
+
+  my %permits = ();
+  if ($FORM{set}) {
+    foreach my $key (keys %FORM) {
+      next if $key !~ /(\d{1,})_(\d{1,})/;
+
+      my $section_index = $1;
+      my $action_index = $2;
+
+      $permits{$section_index}{$action_index} = 1;
+    }
+
+    $Msgs->set_permissions($FORM{ADMIN_ID}, \%permits);
+    $html->message('info', $lang{INFO}, $lang{CHANGED}) if !_error_show($Msgs);
+  }
+  elsif ($FORM{add_permits} && $FORM{TYPE}) {
+    foreach my $key (keys %FORM) {
+      next if $key !~ /(\d{1,})_(\d{1,})/;
+
+      my $section_index = $1;
+      my $action_index = $2;
+
+      $permits{$section_index}{$action_index} = 1;
+    }
+
+    $Msgs->msgs_set_type_permits($FORM{TYPE}, \%permits);
+    $html->message('info', $lang{INFO}, $lang{ADDED}) if !_error_show($Msgs);
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Msgs->msgs_del_type_permits($FORM{del}, \%permits);
+    $html->message('info', $lang{INFO}, $lang{DELETED}) if !_error_show($Msgs);
+  }
+
+  my ($type_permits, $types) = _msgs_permits_types();
+
+  my $admin_permissions = $FORM{TYPE} ? $type_permits : $Msgs->permissions_list($FORM{ADMIN_ID});
+  my $permissions = _msgs_permissions_list();
+
+  my $table = $html->table({
+    caption     => $lang{PERMISSION},
+    title_plain => [ 'ID', $lang{NAME}, '' ],
+    ID          => 'ADMIN_MSGS_PERMISSIONS',
+  });
+
+  foreach my $section_key (sort keys(%{$permissions})) {
+    my $section = $permissions->{$section_key};
+
+    $table->{rowcolor} = 'table-active';
+    $table->addrow("$section_key:", $html->b($section->{NAME}), '');
+
+    $table->{rowcolor} = '';
+    foreach my $action_key (sort {$a <=> $b} (keys %{$section->{ACTIONS}})) {
+      my $action = $section->{ACTIONS}{$action_key};
+      my $action_id = $section_key . '_'. $action_key;
+
+      my $checkbox = $html->form_input($action_id, 1, {
+        STATE         => defined($admin_permissions->{$section_key}{$action_key}) ? 1 : undef,
+        TYPE          => 'checkbox',
+        OUTPUT2RETURN => 1
+      });
+
+      $table->addrow($action_key, $html->element('label', $action, { FOR => $action_id, class => 'font-weight-normal mb-0' }), $checkbox);
+    }
+  }
+
+  $html->tpl_show(_include('msgs_add_permits', 'Msgs'), {
+    PERMISSIONS_TABLE => $table->show({ OUTPUT2RETURN => 1 }),
+    ADMIN_ID          => $FORM{ADMIN_ID},
+    BUTTONS           => $types
+  });
+}
 
 #**********************************************************
 =head2 msgs_admins() -  Message  system admins
@@ -24,62 +106,35 @@ my $Msgs = Msgs->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub msgs_admins {
-  my @privilages_arr = ('READ', 'WRITE', 'ADD', 'ALL');
 
   if ($FORM{change}) {
     $Msgs->admin_change({%FORM});
-    $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" ) if (!$Msgs->{errno});
+    $html->message( 'info', $lang{INFO}, $lang{CHANGED} ) if (!$Msgs->{errno});
   }
   elsif ($FORM{chg}) {
-    my $a_list = $Msgs->admins_list({ AID => $FORM{AID} });
-    my %A_PRIVILEGES = ();
-    my %A_MAIL_SEND = ();
-    my %A_DELEGATION_LEVEL = ();
+    my $admin_permissions = $Msgs->permissions_list($FORM{AID});
 
-    foreach my $line (@$a_list) {
-      $A_PRIVILEGES{ $line->[5] } = $line->[2];
-      $A_DELEGATION_LEVEL{ $line->[5] } = $line->[3];
-      $A_MAIL_SEND{ $line->[5] } = $line->[6];
-      $Msgs->{ADMIN} = $line->[0];
-    }
-
-    my $list = $Msgs->chapters_list({ AID => $FORM{AID}, COLS_NAME => 1 });
+    my $chapters = $Msgs->chapters_list({
+      CHAPTER   => !$admin_permissions->{4} ? '_SHOW' : join(';', keys %{$admin_permissions->{4}}),
+      AID       => $FORM{AID},
+      COLS_NAME => 1,
+    });
 
     my $table = $html->table({
       width => '100%',
-      title => [ 'ID', $lang{CHAPTERS}, $lang{ACCESS}, 'E-mail', $lang{PRIORITY} ],
+      title => [ 'Id', $lang{CHAPTERS}, $lang{PRIORITY} ],
       ID    => 'ADMIN_ACCESS'
     });
 
-    my @DELEGATION_LEVEL_ARR = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-
-    foreach my $line (@$list) {
-      my $privileges = $html->form_select('PRIORITY_' . $line->{id}, {
-        SELECTED     => ($A_PRIVILEGES{ $line->{id} }) ? $A_PRIVILEGES{ $line->{id} } : 0,
-        SEL_ARRAY    => \@privilages_arr,
-        NORMAL_WIDTH => 1,
+    foreach my $chapter (@{$chapters}) {
+      my $delegation_level = $html->form_select('DELIGATION_LEVEL_' . $chapter->{id}, {
+        SELECTED     => $admin_permissions->{deligation_level}{$chapter->{id}} || 0,
+        SEL_ARRAY    => [ 0 .. 10 ],
         ARRAY_NUM_ID => 1
       });
 
-      my $delegation_level = $html->form_select('DELIGATION_LEVEL_' . $line->{id}, {
-        SELECTED     => ($A_DELEGATION_LEVEL{ $line->{id} }) ? $A_DELEGATION_LEVEL{ $line->{id} } : 0,
-        NORMAL_WIDTH => 1,
-        SEL_ARRAY    => \@DELEGATION_LEVEL_ARR,
-        ARRAY_NUM_ID => 1
-      });
-
-      $table->addrow(
-        $line->{id} . $html->form_input('IDS', "$line->{id}", {
-          TYPE  => 'checkbox',
-          STATE => (defined($A_PRIVILEGES{ $line->{id} })) ? 1 : undef
-        }),
-        $line->{name}, $privileges,
-        $html->form_input('EMAIL_NOTIFY_' . $line->{id}, 1, {
-          TYPE  => 'checkbox',
-          STATE => ($A_MAIL_SEND{ $line->{id} }) ? 1 : undef
-        }),
-        $delegation_level
-      );
+      $table->addrow($html->element('input', $chapter->{id}, { value => $chapter->{id}, name => 'IDS', type => 'hidden' }),
+        $chapter->{name}, $delegation_level);
     }
 
     $Msgs->{CHAPTERS} = $table->show();
@@ -92,7 +147,7 @@ sub msgs_admins {
   my $table = $html->table({
     width   => '100%',
     caption => $lang{ADMINS},
-    title   => [ $lang{ADMIN}, $lang{CHAPTERS}, $lang{PERMISSION}, $lang{MESSAGES}, 'E-mail', $lang{PRIORITY}, "-" ],
+    title   => [ $lang{ADMIN}, $lang{CHAPTERS}, $lang{PRIORITY}, "-" ],
     qs      => $pages_qs,
     ID      => 'MSGS_ADMINS'
   });
@@ -100,37 +155,32 @@ sub msgs_admins {
   my %A_PRIVILEGES = ();
   foreach my $line (@$list) {
     $line->{chapter_name} = $line->{chapter_name} || '';
-    $line->{priority} = $line->{priority} || '';
     $line->{deligation_level} = $line->{deligation_level} || '';
     $line->{aid} = $line->{aid} || '';
     $line->{chapter_id} = $line->{chapter_id} || '';
-    $line->{email_notify} = $line->{email_notify} || '';
-    $line->{email} = $line->{email} || '';
 
-    push @{ $A_PRIVILEGES{ $line->{admin_login} } }, "$line->{chapter_name}|$line->{priority}|$line->{deligation_level}|$line->{aid}|$line->{chapter_id}|$line->{email_notify}|$line->{email}";
+    push @{ $A_PRIVILEGES{ $line->{admin_login} } }, "$line->{chapter_name}|$line->{deligation_level}|$line->{aid}|$line->{chapter_id}";
   }
-  my $msgs;
+  my $permissions_index = get_function_index('msgs_admin_permissions');
   foreach my $admin_id (sort keys %A_PRIVILEGES) {
     my $rows = $#{ $A_PRIVILEGES{$admin_id} } || 0;
     my @arr = @{ $A_PRIVILEGES{$admin_id} };
-    my ($chapter_name, $privilege, $deligation_level, $aid, $chapter_id, $mail_send, $priority_level) = split(/\|/, $arr[0]);
+    my ($chapter_name, $deligation_level, $aid, $chapter_id) = split(/\|/, $arr[0]);
     $table->{rowcolor} = ($FORM{chg} && $FORM{chg} eq $aid) ? $table->{rowcolor} = 'bg-success' : undef;
 
     $table->addtd(
       $table->td($admin_id, { rowspan => ($rows > 0) ? $rows + 1 : 1 }),
       $table->td($chapter_name),
-      $table->td( ($rows == 0) ? $lang{ALL} : $privilages_arr[$privilege || 0] ),
-      $table->td($msgs),
-      $table->td($bool_vals[$mail_send || 0]),
-      $table->td($deligation_level),
-      $table->td( $html->button( $lang{CHANGE}, "index=$index&chg=$aid&AID=$aid", { class => 'change' } ),
-        { rowspan => (($rows > 0) ? $rows + 1 : 1) } )
+      $table->td($deligation_level || ($chapter_name ? '0' : '')),
+      $table->td($html->button($lang{CHANGE}, "index=$index&chg=$aid&AID=$aid", { class => 'change' }) .
+        $html->button($lang{PERMISSION}, "index=$permissions_index&ADMIN_ID=$aid", { ICON => 'fa fa-check' }),
+        { rowspan => (($rows > 0) ? $rows + 1 : 1) })
     );
 
     next if $rows <= 0;
     for (my $i = 1; $i <= $rows; $i++) {
-      ($chapter_name, $privilege, $deligation_level, $aid, $chapter_id, $mail_send, $priority_level) = split(/\|/, $arr[$i]);
-      $table->addrow($chapter_name, $privilages_arr[$privilege || 0], $msgs, $bool_vals[($mail_send || 0)], $deligation_level);
+      ($chapter_name, $deligation_level, undef, undef) = split(/\|/, $arr[$i]);
+      $table->addrow($chapter_name, $deligation_level || '0');
     }
   }
 
@@ -779,7 +829,7 @@ sub msgs_survey_questions {
 #**********************************************************
 sub msgs_quick_replys {
 
-  if ( $FORM{add_form} ) {
+  if ($FORM{add_form}) {
     $Msgs->{ACTION} = 'added';
     $Msgs->{ACTION_LNG} = $lang{ADD};
 
@@ -791,27 +841,15 @@ sub msgs_quick_replys {
 
     $html->tpl_show(_include('msgs_quick_replys', 'Msgs'), { %{$Msgs} });
   }
-  elsif ( $FORM{added} ) {
+  elsif ($FORM{added}) {
     $Msgs->messages_quick_replys_add({ %FORM });
-
-    if ( !$Msgs->{errno} ) {
-      $html->message('info', $lang{INFO}, "$lang{ADDED}");
-    }
-    else {
-      $html->message('err', $lang{ERROR}, $Msgs->{errno});
-    }
+    $html->message('success', $lang{INFO}, $lang{ADDED}) if !_error_show($Msgs);
   }
-  elsif ( $FORM{del} ) {
+  elsif ($FORM{del}) {
     $Msgs->messages_quick_replys_del({ ID => $FORM{del} });
-
-    if ( !$Msgs->{errno} ) {
-      $html->message('info', $lang{INFO}, "$lang{DELETED}");
-    }
-    else {
-      $html->message('err', $lang{ERROR}, $Msgs->{errno});
-    }
+    $html->message('success', $lang{INFO}, $lang{DELETED}) if !_error_show($Msgs);
   }
-  elsif ( $FORM{chg} ) {
+  elsif ($FORM{chg}) {
     $Msgs->messages_quick_replys_info($FORM{chg});
 
     $Msgs->{QUICK_REPLYS_CATEGORY} = $html->form_select('TYPE_ID', {
@@ -821,25 +859,16 @@ sub msgs_quick_replys {
       REQUIRED => 1,
     });
 
-    if (!$Msgs->{errno}) {
+    if (!_error_show($Msgs)) {
       $Msgs->{ACTION} = 'change';
       $Msgs->{ACTION_LNG} = $lang{CHANGE};
 
       $html->tpl_show(_include('msgs_quick_replys', 'Msgs'), { %{$Msgs} });
     }
-    else {
-      $html->message('err', $lang{ERROR}, $Msgs->{errno});
-    }
   }
-  elsif ( $FORM{change} ) {
+  elsif ($FORM{change}) {
     $Msgs->messages_quick_replys_change({ %FORM });
-
-    if (!$Msgs->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
-    }
-    else {
-      $html->message('err', $lang{ERROR}, $Msgs->{errno});
-    }
+    $html->message('success', $lang{INFO}, $lang{CHANGED}) if !_error_show($Msgs);
   }
 
   result_former({
@@ -859,7 +888,7 @@ sub msgs_quick_replys {
     SKIP_USER_TITLE => 1,
     TABLE           => {
       width   => '100%',
-      caption => "$lang{MSGS_TAGS}",
+      caption => $lang{MSGS_TAGS},
       qs      => $pages_qs,
       ID      => 'QUICK_REPLYS',
       MENU    => "$lang{ADD}:add_form=1&index=$index:add"
@@ -871,5 +900,174 @@ sub msgs_quick_replys {
   return 1;
 }
 
+#**********************************************************
+=head2 msgs_subjects()
+
+=cut
+#**********************************************************
+sub msgs_subjects {
+
+  $Msgs->{ACTION} = 'add';
+  $Msgs->{ACTION_LNG} = $lang{ADD};
+
+  if ($FORM{add}) {
+    $Msgs->subject_add(\%FORM);
+    $html->message('success', $lang{INFO}, $lang{ADDED}) if !_error_show($Msgs);
+  }
+  elsif ($FORM{change}) {
+    $Msgs->subject_change({ %FORM, TASK_CLOSED => $FORM{TASK_CLOSED} || '0' });
+    $html->message('success', $lang{INFO}, $lang{CHANGED}) if !_error_show($Msgs);
+  }
+  elsif ($FORM{chg}) {
+    $Msgs->{ACTION} = 'change';
+    $Msgs->{ACTION_LNG} = $lang{CHANGE};
+    $Msgs->subject_info($FORM{chg});
+  }
+  elsif ($FORM{del} && $FORM{del} =~ /\d+/s && $FORM{COMMENTS}) {
+    $Msgs->subject_del({ ID => $FORM{del} });
+    $html->message('success', $lang{INFO}, $lang{DELETED}) if !_error_show($Msgs);
+  }
+
+  $html->tpl_show(_include('msgs_subject', 'Msgs'), $Msgs);
+
+  result_former({
+    INPUT_DATA      => $Msgs,
+    FUNCTION        => 'subjects_list',
+    DEFAULT_FIELDS  => 'ID,NAME',
+    FUNCTION_FIELDS => 'change,del',
+    EXT_TITLES      => {
+      id          => '#',
+      name        => $lang{NAME}
+    },
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{SUBJECTS},
+      qs      => $pages_qs,
+      ID      => 'SUBJECTS_LIST'
+    },
+    MAKE_ROWS => 1,
+    TOTAL     => 1
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _msgs_permissions_list()
+
+=cut
+#**********************************************************
+sub _msgs_permissions_list {
+
+  my $chapters = {};
+  map $chapters->{$_->{id}} = $_->{name}, @{ $Msgs->chapters_list({ COLS_NAME => 1 }) };
+
+  return {
+    1 => {
+      NAME    => $lang{MESSAGES},
+      ACTIONS => {
+        0  => $lang{ADDING_MESSAGES},
+        1  => $lang{DELETING_MESSAGES},
+        2  => $lang{EDITING_MESSAGES},
+        3  => $lang{CLOSING_MESSAGES},
+        4  => $lang{CHANGING_MESSAGE_SUBJECT},
+        5  => $lang{EDITING_MAIN_MESSAGE},
+        6  => $lang{CREATE_MESSAGES_LINKED_TO_ADDRESS},
+        7  => $lang{ABILITY_TO_SEND_PRIVATE_MESSAGES},
+        8  => $lang{ABILITY_CHANGE_MESSAGE_SECTION},
+        9  => $lang{DELIGATE},
+        10 => $lang{EDITING_REPLY},
+        11 => $lang{DELETING_REPLY},
+        12 => $lang{QUOTING_REPLIES},
+        13 => $lang{CHANGE_PRIORITY},
+        14 => $lang{PRINT},
+        15 => $lang{EXPORTING_MESSAGES},
+        16 => $lang{CHANGE_OF_RESPONSIBLE},
+        17 => $lang{MESSAGE_MONITORING},
+        18 => $lang{VIEW_TAGS},
+        19 => $lang{TAG_ASSIGNMENT},
+        20 => $lang{ACCESS_TO_QUICK_RESPONSE_TEMPLATES},
+        21 => $lang{SHOW_ONLY_ASSIGNED_TICKETS},
+        22 => $lang{VIEW_EQUIPMENT},
+        23 => $lang{ADDING_EQUIPMENT},
+      }
+    },
+    2 => {
+      NAME    => $lang{DELIVERY},
+      ACTIONS => {
+        0 => $lang{VIEW_DELIVERY},
+        1 => $lang{ADDING_DELIVERY},
+        2 => $lang{EDITING_DELIVERY},
+        3 => $lang{DELETING_DELIVERY},
+        4 => $lang{USERS_CHOICE}
+      }
+    },
+    3 => {
+      NAME    => $lang{DISPATCH},
+      ACTIONS => {
+        0 => $lang{VIEW_DISPATCHES},
+        1 => $lang{ADDING_DISPATCHES},
+        2 => $lang{EDITING_DISPATCHES},
+        3 => $lang{DELETING_DISPATCHES},
+        4 => $lang{PRINT},
+      }
+    },
+    4 => {
+      NAME    => $lang{CHAPTER},
+      ACTIONS => $chapters
+    },
+    5 => {
+      NAME    => $lang{NOTIFICATIONS},
+      ACTIONS => {
+        0  => 'Browser',
+        1  => 'Sms',
+        5  => 'Viber_bot',
+        6  => 'Telegram',
+        9  => 'Mail',
+        10 => 'Push',
+        13 => 'Iptv_message',
+        14 => 'Viber',
+      }
+    },
+    6 => {
+      NAME    => "$lang{NOTIFICATIONS}: $lang{CHAPTERS}",
+      ACTIONS => $chapters
+    }
+  };
+}
+
+#**********************************************************
+=head2 _msgs_permits_types()
+
+=cut
+#**********************************************************
+sub _msgs_permits_types {
+
+  my $permits_types = $Msgs->msgs_type_permits_list({ COLS_NAME => 1 });
+  return '' if _error_show($Msgs);
+
+  my $buttons = '';
+  my %admin_types = ();
+
+  foreach my $item (@{$permits_types}) {
+    $item->{type} = _translate($item->{type});
+    $admin_types{$item->{type}}{$item->{section}}{$item->{actions}} = 1;
+  }
+
+  foreach my $type (sort keys %admin_types) {
+    my $class = 'btn btn-default btn-sm ' . (!$FORM{add_permits} && $FORM{TYPE} && $FORM{TYPE} eq  $type ? 'active' : '');
+    my $type_btn = $html->button($type, "index=$index&ADMIN_ID=$FORM{ADMIN_ID}&TYPE=$type", { class => $class });
+    my $del_btn = $html->button('', "index=$index&ADMIN_ID=$FORM{ADMIN_ID}&del=$type", {
+      class   => "$class text-danger",
+      ICON    => 'fa fa-times',
+      MESSAGE => "$lang{DEL} $lang{TEMPLATE}?"
+    });
+
+    $buttons .= $html->element('div', $type_btn . $del_btn, { class => 'btn-group mb-1 mr-1' })
+  }
+
+  return ($FORM{TYPE} ? $admin_types{$FORM{TYPE}} : {}, $buttons)
+}
 
 1;

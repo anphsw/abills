@@ -96,10 +96,6 @@ sub log_list {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  # if ($attr->{LOGIN}) {
-  #   push @WHERE_RULES, "l.user = '$attr->{LOGIN}'";
-  # }
-
   if ($attr->{TEXT}) {
     push @WHERE_RULES, "message REGEXP '$attr->{TEXT}'";
   }
@@ -107,7 +103,7 @@ sub log_list {
   my $WHERE =  $self->search_former($attr, [
       ['DATE',              'DATE', "DATE_FORMAT(l.date, '%Y-%m-%d')", 1 ],
       ['LOG_TYPE',          'INT',  'l.log_type',                      1 ],
-      ['ACTION',            'INT',  'l.action',                        1 ],
+      ['ACTION',            'STR',  'l.action',                        1 ],
       ['LOGIN',             'STR',  'l.user',                          1 ],
       ['USER',              'STR',  'l.user',                          1 ],
       ['MESSAGE',           'STR',  'l.message',                       1 ],

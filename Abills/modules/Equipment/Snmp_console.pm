@@ -255,13 +255,16 @@ sub snmp_info_form {
 
     my %result  = &snmpwalkhash($SNMP_COMMUNITY, \&my_simple_hash, ($_oids{$FORM{TYPE}}) ? $_oids{$FORM{TYPE}} : $FORM{TYPE});
     my @CAPTION = keys %result;
-    my @RES_ARR = sort {
-      #$a <=> $b
+    my @RES_ARR = ();
 
-      length($result{$CAPTION[0]}{$a} || 0) <=> length($result{$CAPTION[0]}{$b} || 0)
-        || ($result{$CAPTION[0]}{$a} || q{}) cmp ($result{$CAPTION[0]}{$b} || q{});
+    if ($#CAPTION > -1) {
+      @RES_ARR = sort {
+        #$a <=> $b
+        length($result{$CAPTION[0]}{$a} || 0) <=> length($result{$CAPTION[0]}{$b} || 0)
+          || ($result{$CAPTION[0]}{$a} || q{}) cmp ($result{$CAPTION[0]}{$b} || q{});
 
-    } keys %{ $result{$CAPTION[0]} };
+      } keys %{$result{$CAPTION[0]}};
+    }
 
     if ($SNMP_Session::errmsg) {
       print $html->message( 'err', $lang{ERROR},
@@ -270,14 +273,12 @@ sub snmp_info_form {
 
     my $table ;
     if ($#RES_ARR > 0 && $FORM{TYPE} ne 'system') {
-      $table = $html->table(
-        {
-          width      => '100%',
-          caption    => "$lang{RESULT}: $SNMP_COMMUNITY",
-          title      => [ 'index', @CAPTION ],
-          ID         => 'SNMP_INFO'
-        }
-      );
+      $table = $html->table({
+        width      => '100%',
+        caption    => "$lang{RESULT}: $SNMP_COMMUNITY",
+        title      => [ 'index', @CAPTION ],
+        ID         => 'SNMP_INFO'
+      });
 
       foreach my $k (@RES_ARR) {
         my @arr = ($k);
@@ -289,14 +290,12 @@ sub snmp_info_form {
       }
     }
     else {
-      $table = $html->table(
-        {
-          width      => '100%',
-          caption    => "$FORM{TYPE} $lang{RESULT}: $SNMP_COMMUNITY",
-          title      => [ 'MIB', 'OID Name', "inst", "$lang{VALUE}", "ACCESS", "$lang{DESCRIBE}" ],
-          ID         => 'SNMP_RESULT',
-        }
-      );
+      $table = $html->table({
+        width      => '100%',
+        caption    => "$FORM{TYPE} $lang{RESULT}: $SNMP_COMMUNITY",
+        title      => [ 'MIB', 'OID Name', "inst", $lang{VALUE}, "ACCESS", $lang{DESCRIBE} ],
+        ID         => 'SNMP_RESULT',
+      });
 
       foreach my $oid (keys %result) {
         foreach my $inst (keys %{ $result{$oid} }) {

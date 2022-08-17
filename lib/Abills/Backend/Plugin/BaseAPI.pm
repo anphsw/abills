@@ -19,7 +19,6 @@ use warnings FATAL => 'all';
 #**********************************************************
 sub new {
   my $class = shift;
-  
   my ($CONF, $plugin_object) = @_;
   
   my $self = {
@@ -46,7 +45,5 @@ sub new {
 sub process_internal_message {
   return { "TYPE" => "ERROR", "ERROR" => "NOT IMPLEMENTED" };
 }
-
-
 
 1;

@@ -60,7 +60,8 @@ sub form_groups {
       $html->message( 'err', $lang{ERROR}, $lang{ERR_ACCESS_DENY} );
       return 0;
     }
-    elsif ($permissions{0} && !$permissions{0}{28}) {
+
+    if ($permissions{0} && !$permissions{0}{28}) {
       $html->message( 'err', $lang{ERROR}, $lang{ERR_ACCESS_DENY} );
     }
     else {
@@ -75,9 +76,7 @@ sub form_groups {
     }
 
     $users->group_change($FORM{chg}, { %FORM });
-    if (!$users->{errno}) {
-      $html->message( 'info', $lang{CHANGED}, "$lang{CHANGED} ". ($FORM{chg} || q{}));
-    }
+    $html->message('info', $lang{CHANGED}, "$lang{CHANGED} ". ($FORM{chg} || q{})) if !$users->{errno};
   }
   elsif (defined($FORM{GID}) || $FORM{chg}) {
     if ($FORM{chg}) {
@@ -131,6 +130,7 @@ sub form_groups {
     $users->{DISABLE_PAYMENTS} = ($users->{DISABLE_PAYMENTS}) ? 'checked' : '';
     $users->{DISABLE_CHG_TP} = ($users->{DISABLE_CHG_TP}) ? 'checked' : '';
     $users->{BONUS} = ($users->{BONUS}) ? 'checked' : '';
+    $users->{DOCUMENTS_ACCESS} = ($users->{DOCUMENTS_ACCESS}) ? 'checked' : '';
     $users->{GID_DISABLE} = 'disabled';
 
     if(in_array('Multidoms', \@MODULES)) {
@@ -171,42 +171,32 @@ sub form_groups {
   _error_show($users);
 
   my %ext_titles = (
-    'id'                => '#',
-    'name'              => $lang{NAME},
-    'users_count'       => $lang{USERS},
-    'descr'             => $lang{DESCRIBE},
-    'allow_credit'      => "$lang{ALLOW} $lang{CREDIT}",
-    'disable_paysys'    => "$lang{DISABLE} Paysys",
-    'disable_payments'  => "$lang{DISABLE} $lang{PAYMENTS} $lang{CASHBOX}",
-    'disable_chg_tp'    => "$lang{DISABLE} $lang{USER_CHG_TP}",
+    id               => '#',
+    name             => $lang{NAME},
+    users_count      => $lang{USERS},
+    descr            => $lang{DESCRIBE},
+    allow_credit     => "$lang{ALLOW} $lang{CREDIT}",
+    disable_paysys   => "$lang{DISABLE} Paysys",
+    disable_payments => "$lang{DISABLE} $lang{PAYMENTS} $lang{CASHBOX}",
+    disable_chg_tp   => $lang{FORBIDDEN_TO_CHANGE_TP_BY_USER},
+    documents_access => $lang{ALLOW_ACCESS_DOCUMENTS}
   );
 
   my ($table, $list) = result_former({
     INPUT_DATA      => $users,
     FUNCTION        => 'groups_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'DISABLE_PAYMENTS,DISABLE_PAYMENTS,USERS_COUNT,NAME,DESCR,ALLOW_CREDIT,DISABLE_PAYSYS,DISABLE_CHG_TP',
+    DEFAULT_FIELDS  => 'DISABLE_PAYMENTS,DISABLE_PAYMENTS,USERS_COUNT,NAME,DESCR,ALLOW_CREDIT,DISABLE_PAYSYS,DISABLE_CHG_TP,DOCUMENTS_ACCESS',
     HIDDEN_FIELDS   => 'GID',
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => \%ext_titles,
     SKIP_USER_TITLE => 1,
     FILTER_VALUES   => {
-      allow_credit => sub {
-        my ($allow_credit) = @_;
-        return $bool_vals[ $allow_credit ];
-      },
-      disable_paysys => sub {
-        my ($disable_paysys) = @_;
-        return $bool_vals[ $disable_paysys ];
-      },
-      disable_payments => sub {
-        my ($disable_payments) = @_;
-        return $bool_vals[ $disable_payments ];
-      },
-      disable_chg_tp => sub {
-        my ($disable_chg_tp) = @_;
-        return $bool_vals[ $disable_chg_tp ];
-      },
+      allow_credit     => sub {return $bool_vals[ shift ]},
+      disable_paysys   => sub {return $bool_vals[ shift ]},
+      disable_payments => sub {return $bool_vals[ shift ]},
+      disable_chg_tp   => sub {return $bool_vals[ shift ]},
+      documents_access => sub {return $bool_vals[ shift ]},
       users_count => sub {
         my ($users_count, $line) = @_;
 
@@ -225,7 +215,7 @@ sub form_groups {
       MENU    => "$lang{ADD}:index=$index&add_form=1:add"
     },
     MAKE_ROWS  => 1,
-    TOTAL      => 1,
+    TOTAL      => 1
   });
 
   return 1;

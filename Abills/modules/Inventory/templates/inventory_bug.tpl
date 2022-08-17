@@ -31,14 +31,14 @@
 
             <div class='form-group row'>
                 <div class='col-md-10'>
-                  <label class='bg-info container-fluid'>Comments</label>
-                  <textarea cols='60' rows='5' ID='COMMENTS' class='form-control'>%COMMENTS%</textarea>
+                  <label class='bg-info container-fluid' for='COMMENTS'>Comments</label>
+                  <textarea cols='60' rows='5' ID='COMMENTS' id='COMMENTS' class='form-control'>%COMMENTS%</textarea>
                 </div>
 
                 <div class='form-group col-md-2'>
-                  <label>_{FIX_VERSION}_</label>
+                  <label for='FIX_VERSION'>_{FIX_VERSION}_</label>
                   <div>
-                    <input type='text' class='form-control' name='FIX_VERSION' value='%FIX_VERSION%'>
+                    <input type='text' class='form-control' name='FIX_VERSION' id='FIX_VERSION' value='%FIX_VERSION%'>
                   </div>
                   <label>_{STATUS}_</label>
                   <div>%STATUS_SEL%</div>

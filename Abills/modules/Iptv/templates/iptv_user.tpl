@@ -1,5 +1,5 @@
-<form action='$SELF_URL' method=post name='iptv_user_info' class='form-horizontal'>
-  <input type=hidden name=index value=$index>
+<form action='%SELF_URL%' method=post name='iptv_user_info' class='form-horizontal'>
+  <input type=hidden name=index value=%index%>
   <input type=hidden name=ID value='$FORM{chg}'>
   <input type=hidden name=UID value='$FORM{UID}'>
   <input type=hidden name=TP_IDS value='%TP_IDS%'>
@@ -20,12 +20,12 @@
           <div class='col-md-9'>
             %TP_ADD%
             <div class='input-group' %TP_DISPLAY_NONE%>
-              <div class="input-group-prepend">
+              <div class='input-group-prepend'>
                 <span class='input-group-text bg-light'>%TP_NUM%</span>
               </div>
               <input type=text name='GRP' value='%TP_NAME%' ID='TP' class='form-control hidden-xs' readonly>
-              <div class="input-group-append">
-                <div class="input-group-text">
+              <div class='input-group-append'>
+                <div class='input-group-text'>
                   %CHANGE_TP_BUTTON%
                 </div>
               </div>
@@ -133,15 +133,11 @@
           </div>
         </div>
 
-
-        <div class="card-footer" style="border-top: 1px solid rgba(0,0,0,.125);">
-          %BACK_BUTTON%
-          <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
-        </div>
-
-
       </div>
-
+      <div class='card-footer'>
+        %BACK_BUTTON%
+        <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
+      </div>
     </div>
 
   </fieldset>
@@ -149,9 +145,9 @@
 </form>
 
 <script>
-  var tp_select = document.getElementById("TP_ID");
-  tp_select.textContent = "";
-  tp_select.value = "";
+  var tp_select = document.getElementById('TP_ID');
+  tp_select.textContent = '';
+  tp_select.value = '';
 
   autoReload();
 
@@ -159,8 +155,8 @@
     var service_id = jQuery('#SERVICE_ID').val();
     var uid = jQuery(`[name='UID']`).val();
     jQuery.post('$SELF_URL', 'header=2&get_index=iptv_get_service_tps&SERVICE_ID=' + service_id + '&UID=' + uid, function (data) {
-      tp_select.textContent = "";
-      tp_select.value = "";
+      tp_select.textContent = '';
+      tp_select.value = '';
       tp_select.innerHTML = data;
     });
   }

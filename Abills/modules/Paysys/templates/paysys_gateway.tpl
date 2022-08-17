@@ -1,20 +1,22 @@
-<form action='$SELF_URL' method='POST' class='form-horizontal'>
+<form id='payment_gateway' method='POST' class='form-horizontal mt-2'>
 
-  <div class='card box-success box-form'>
+  <div class='card card-primary card-outline container'>
     <div class='card-header'>
       <h3>_{BALANCE_RECHARCHE}_</h3>
     </div>
+
     <div class='card-body'>
-      <div class='form-group'>
-        <label class='control-label'>_{ENTER_ID}_</label>
-        <div><input type="text" class="form-control" placeholder="" name='IDENTIFIER'></div>
-
+      <div class='form-group row'>
+        <label class='control-label col-md-3' for='IDENTIFIER'>%IDENTIFIER_TEXT%</label>
+        <div class='col-md-9'>
+          <input type='text' class='form-control' placeholder='' name='IDENTIFIER' id='IDENTIFIER'>
+        </div>
       </div>
-      <div class='card-footer'>
-        <div class='col-md-3'><button type="submit" class="btn btn-success btn-lg">_{NEXT}_</button></div>
-      </div>
-
     </div>
-  </div>
 
+    <div class='card-footer'>
+      <button type='submit' class='btn btn-primary btn-lg float-right'>_{NEXT}_</button>
+    </div>
+
+  </div>
 </form>

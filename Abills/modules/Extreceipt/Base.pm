@@ -51,10 +51,11 @@ sub new {
   Arguments:
     $Receipts
     $attr
-      API_ID - API ID
-      AID - Admin ID
-      API_NAME -
-      DEBUG -
+      API_ID: number     - API ID
+      AID: number        - Admin ID
+      API_NAME: string   - Api name - example: Checkbox
+      DEBUG: number      - level of DEBUG
+      SKIP_INIT: number  - skip init if needs public info
 
   Return
     $Receipt_apies
@@ -76,14 +77,14 @@ sub receipt_init {
       next;
     }
 
-    if (eval {
+    eval {
       require "Extreceipt/API/$api_name.pm";
-    }) {
+    };
+
+    if (!$@) {
       $Receipt_api->{$api_id} = $api_name->new($Receipt->{conf}, $api);
-      $Receipt_api->{$api_id}->{debug} = 1 if ($debug);
-      if (!$Receipt_api->{$api_id}->init()) {
-        #$Receipt_api->{$api_id} = ();
-      }
+      $Receipt_api->{$api_id}->{debug} = $debug if ($debug);
+      $Receipt_api->{$api_id}->init() if (!$attr->{SKIP_INIT});
     }
     else {
       print $@;

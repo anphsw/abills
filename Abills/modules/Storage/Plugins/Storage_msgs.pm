@@ -3,7 +3,7 @@ package Storage::Plugins::Storage_msgs;
 use strict;
 use warnings FATAL => 'all';
 
-my ($admin, $CONF, $db);
+my ($admin, $CONF, $db, $msgs_permissions);
 my $json;
 my Abills::HTML $html;
 my $lang;
@@ -26,6 +26,7 @@ sub new {
 
   $html = $attr->{HTML} if $attr->{HTML};
   $lang = $attr->{LANG} if $attr->{LANG};
+  $msgs_permissions = $attr->{MSGS_PERMISSIONS};
 
   my $self = {
     MODULE      => 'Storage',
@@ -77,6 +78,8 @@ sub plugin_show {
   my $self = shift;
   my ($attr) = @_;
 
+  return '' if !$msgs_permissions->{1}{22};
+
   $attr->{UID} ||= '';
   $attr->{chg} ||= $attr->{ID};
   return '' if !$attr->{chg} || !$attr->{index} || !$attr->{UID};
@@ -87,7 +90,7 @@ sub plugin_show {
     caption    => $lang->{STORAGE},
     qs         => 1,
     ID         => 'MSGS_STORAGE_ITEMS',
-    MENU       => "$lang->{ADD}:index=$attr->{index}&STORAGE_MSGS_ID=$attr->{chg}&UID=$attr->{UID}:add",
+    MENU       => $msgs_permissions->{1}{23} ? "$lang->{ADD}:index=$attr->{index}&STORAGE_MSGS_ID=$attr->{chg}&UID=$attr->{UID}:add" : '',
     DATA_TABLE => 1
   });
 

@@ -74,6 +74,7 @@ $lang{PAYMENTS} = 'Плацяжы';
 $lang{EXTERNAL_PAYMENTS} = 'Знешнія плацяжы';
 $lang{NUM} = 'Нумар';
 $lang{DESCRIBE} = 'Апісанне';
+$lang{DESCRIBE_FOR_SUBSCRIBER} = 'Апісанне для падпісчыка';
 $lang{OPERATOR} = 'Аператар';
 $lang{DATE} = 'Дата';
 $lang{OPTIONS} = 'Параметры';

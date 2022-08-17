@@ -6,7 +6,9 @@ CREATE TABLE IF NOT EXISTS `callcenter_calls_handler` (
   `status` INT(2) NOT NULL DEFAULT 0,
   `id` VARCHAR(20) NOT NULL DEFAULT '',
   `date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `stop` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `outgoing` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 ) DEFAULT CHARSET = utf8
   COMMENT = 'Callcenter calls handler';
@@ -38,7 +40,7 @@ CREATE TABLE IF NOT EXISTS `callcenter_ivr_menu` (
   `audio_file` VARCHAR(200) NOT NULL DEFAULT '',
   `chapter_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`main_id`, `name`)
+  UNIQUE KEY `name` (`main_id`, `name`, `chapter_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Voip IVR Menu';

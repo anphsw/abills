@@ -351,7 +351,6 @@ sub _bdcom {
       'VLAN'           => {
         NAME   => 'VLAN',
         OIDS   => '1.3.6.1.4.1.3320.101.12.1.1.3',
-        PARSER => '',
         WALK   => 1
       },
       'catv_port_manage'    => {
@@ -454,9 +453,16 @@ sub _bdcom {
         OIDS   => '.1.3.6.1.2.1.31.1.1.1.6', #ifHCInOctets. reversed because we need traffic from ONU side
         PARSER => ''
       },
+      # 'VLAN'           => {
+      #   NAME   => 'VLAN',
+      #   OIDS   => '1.3.6.1.4.1.3320.101.12.1.1.3',
+      #   PARSER => '',
+      #   WALK   => 1
+      # },
+      # Port temperature
       # 'TEMPERATURE'    => {
       #   NAME   => 'TEMPERATURE',
-      #   OIDS   => '.1.3.6.1.4.1.3320.101.10.5.1.2',
+      #   OIDS   => '1.3.6.1.4.1.3320.10.2.2.1.4',
       #   PARSER => '_bdcom_convert_temperature'
       # }, #temperature = temperature / 256;
       'reset'               => {
@@ -469,12 +475,10 @@ sub _bdcom {
         'HARD_VERSION'        => {
           NAME   => 'VERSION',
           OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.9',
-          PARSER => ''
         },
         'FIRMWARE'            => {
           NAME   => 'FIRMWARE',
           OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.9',
-          PARSER => ''
         },
         # 'VOLTAGE'          => {
         #   NAME   => 'VOLTAGE',
@@ -491,7 +495,6 @@ sub _bdcom {
         'ONU_PORTS_STATUS'    => {
           NAME   => 'ONU_PORTS_STATUS',
           OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.8',
-          PARSER => '',
           WALK   => 1
         },
         'UPTIME'              => {

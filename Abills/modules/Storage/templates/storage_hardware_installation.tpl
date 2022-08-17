@@ -190,7 +190,7 @@
                 <div class='form-group row'>
                   <label class='col-md-4 control-label'>_{COUNT}_:</label>
                   <div class='col-md-8'>
-                    <input class='form-control' name='COUNT' type='text' value='%COUNT%' %DISABLE%/>
+                    <input class='form-control' name='COUNT' type='text' %DISABLE%/>
                   </div>
                 </div>
                 <div class='form-group row'>
@@ -220,7 +220,7 @@
                 <div class='form-group row'>
                   <label class='col-md-4 control-label'>_{COUNT}_:</label>
                   <div class='col-md-8'>
-                    <input class='form-control' name='COUNT_ACCOUNTABILITY' type='text' value='%COUNT%' %DISABLE%/>
+                    <input class='form-control' name='COUNT_ACCOUNTABILITY' type='text' %DISABLE%/>
                   </div>
                 </div>
                 <div class='form-group row'>

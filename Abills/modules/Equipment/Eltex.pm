@@ -14,7 +14,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Filters qw(bin2mac mac2dec);
+use Abills::Filters qw(bin2mac mac2dec serial2mac);
 use Abills::Base qw(_bp);
 
 our (
@@ -316,7 +316,7 @@ sub _eltex_onu_list {
         $onu_snmp_id = mac2dec($onu_mac);
       }
       else {
-        $onu_mac = _eltex_convert_mac($mac);
+        $onu_mac = serial2mac($mac);
         $onu_snmp_id = $type;
       }
 
@@ -508,7 +508,7 @@ sub _eltex {
       'ONU_MAC_SERIAL' => {
         NAME   => 'Mac/Serial',
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.2',
-        PARSER => '_eltex_convert_mac'
+        PARSER => 'serial2mac'
       },
       'ONU_STATUS'     => {
         NAME   => 'STATUS',
@@ -697,17 +697,6 @@ sub _eltex_convert_rf_port_status {
 }
 
 #**********************************************************
-=head2 _eltex_convert_mac($mac);
-
-=cut
-#**********************************************************
-sub _eltex_convert_mac {
-  my ($mac) = @_;
-
-  return uc(join('', unpack("AAAAH*", $mac || q{})));
-}
-
-#**********************************************************
 =head2 _eltex_convert_onu_type($id);
 
 =cut
@@ -833,7 +822,7 @@ sub _eltex_unregister {
     foreach my $line (@{$mac_serials}) {
       next if (!$line);
       my ($snmp_id, $mac) = split(/:/, $line);
-      my $onu_mac = _eltex_convert_mac($mac);
+      my $onu_mac = serial2mac($mac);
       if($onus{$snmp_id}) {
         $onus{$snmp_id}{mac_serial} = $onu_mac;
       }

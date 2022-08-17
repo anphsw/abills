@@ -282,44 +282,7 @@ sub form_payment_add {
         { OUTPUT2RETURN => 1 });
     }
 
-    if (in_array('Docs', \@MODULES) && ! $conf{DOCS_PAYMENT_DOCS_SKIP}) {
-      $Payments->{INVOICE_SEL} = $html->form_select(
-        "INVOICE_ID",
-        {
-          SELECTED         => $FORM{INVOICE_ID} || 'create' || 0,
-          SEL_LIST         => $Docs->invoices_list({ UID       => $FORM{UID},
-            UNPAIMENT => 1,
-            PAGE_ROWS => 200,
-            SORT      => 2,
-            DESC      => 'DESC',
-            COLS_NAME => 1 }),
-          SEL_KEY          => 'id',
-          SEL_VALUE        => 'invoice_num,date,total_sum,payment_sum',
-          SEL_VALUE_PREFIX => "$lang{NUM}: ,$lang{DATE}: ,$lang{SUM}: ,$lang{PAYMENTS}: ",
-          SEL_OPTIONS      => { 0 => "$lang{DONT_CREATE_INVOICE}",
-            %{ (!$conf{PAYMENTS_NOT_CREATE_INVOICE}) ? { create => $lang{CREATE} } : { } }
-          },
-          NO_ID            => 1,
-          MAIN_MENU        => get_function_index('docs_invoices_list'),
-          MAIN_MENU_ARGV   => "UID=$FORM{UID}&INVOICE_ID=". ($FORM{INVOICE_ID} || q{}),
-          EX_PARAMS =>  "style='width:100%'",
-        }
-      );
-      delete($FORM{pdf});
-      if(! $conf{DOCS_PAYMENT_RECEIPT_SKIP}) {
-        $Payments->{CREATE_RECEIPT_CHECKED}='checked';
-      }
-
-      if($conf{DOCS_PAYMENT_SENDMAIL}) {
-        $Payments->{SEND_MAIL}=1;
-      }
-      else {
-        $Payments->{SEND_MAIL}=0;
-      }
-
-      $Payments->{DOCS_INVOICE_RECEIPT_ELEMENT} = $html->tpl_show(_include('docs_create_invoice_receipt', 'Docs'),
-        {%$Payments}, { OUTPUT2RETURN => 1 });
-    }
+    _docs_invoice_receipt($user);
 
     if ($attr->{ACTION}) {
       $Payments->{ACTION}     = $attr->{ACTION};
@@ -388,6 +351,51 @@ sub form_payment_add {
   return 1;
 }
 
+#**********************************************************
+=head2 _docs_invoice_receipt()
+
+=cut
+#**********************************************************
+sub _docs_invoice_receipt {
+  my $user = shift;
+  
+  return if !in_array('Docs', \@MODULES) || $conf{DOCS_PAYMENT_DOCS_SKIP};
+
+  if ($user->{GID}) {
+    $user->group_info($user->{GID});
+    return if !$user->{DOCUMENTS_ACCESS};
+  }
+  
+  our $Docs;
+  $Payments->{INVOICE_SEL} = $html->form_select('INVOICE_ID', {
+    SELECTED         => $FORM{INVOICE_ID} || 'create' || 0,
+    SEL_LIST         => $Docs->invoices_list({
+      UID       => $FORM{UID},
+      UNPAIMENT => 1,
+      PAGE_ROWS => 200,
+      SORT      => 2,
+      DESC      => 'DESC',
+      COLS_NAME => 1
+    }),
+    SEL_KEY          => 'id',
+    SEL_VALUE        => 'invoice_num,date,total_sum,payment_sum',
+    SEL_VALUE_PREFIX => "$lang{NUM}: ,$lang{DATE}: ,$lang{SUM}: ,$lang{PAYMENTS}: ",
+    SEL_OPTIONS      => {
+      0 => $lang{DONT_CREATE_INVOICE},
+      %{(!$conf{PAYMENTS_NOT_CREATE_INVOICE}) ? { create => $lang{CREATE} } : {}}
+    },
+    NO_ID            => 1,
+    MAIN_MENU        => get_function_index('docs_invoices_list'),
+    MAIN_MENU_ARGV   => "UID=$FORM{UID}&INVOICE_ID=" . ($FORM{INVOICE_ID} || q{}),
+  });
+
+  delete($FORM{pdf});
+  $Payments->{CREATE_RECEIPT_CHECKED}='checked'  if !$conf{DOCS_PAYMENT_RECEIPT_SKIP};
+  $Payments->{SEND_MAIL}= $conf{DOCS_PAYMENT_SENDMAIL} ? 1 : 0;
+
+  $Payments->{DOCS_INVOICE_RECEIPT_ELEMENT} = $html->tpl_show(_include('docs_create_invoice_receipt', 'Docs'),
+    { %$Payments }, { OUTPUT2RETURN => 1 });
+}
 
 #**********************************************************
 =head2 payment_add($attr)

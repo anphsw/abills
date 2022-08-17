@@ -14,8 +14,6 @@ our (
   $admin
 );
 
-
-
 #**********************************************************
 =head2 buttons_list()
   
@@ -29,9 +27,10 @@ sub buttons_list {
     my (undef, $button) = $file =~ m/(.*)\/(.*)\.pm/;
     if (eval { require "buttons-enabled/$button.pm"; 1; }) {
       my $obj = $button->new($db, $admin, \%conf, $attr->{bot}, $attr->{bot_db});
-      if ($obj->can('btn_name')) {
-        $BUTTONS{$button} = $obj->btn_name();
-      }
+      next if $attr->{for_admins} && !$obj->{for_admins};
+      next if !$attr->{for_admins} && $obj->{for_admins};
+
+      $BUTTONS{$button} = $obj->btn_name() if $obj->can('btn_name');
     }
     else {
       print $@;
@@ -64,6 +63,7 @@ sub telegram_button_fn {
       $ret = $obj->$fn($attr);
     }
   }
+
   return $ret;
 }
 

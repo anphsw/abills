@@ -78,12 +78,14 @@ sub form_companies {
   my $Customer = Customers->new($db, $admin, \%conf);
   my $Company  = $Customer->company();
 
-  if ($FORM{add_form}) {
-    add_company();
-    return 0;
+  if ($FORM{add_form} ) {
+    if( $permissions{0}{37} ) {
+      add_company();
+      return 0;
+    }
   }
   elsif ($FORM{add}) {
-    if (!$permissions{0}{1}) {
+    if (!$permissions{0}{37}) {
       $html->message( 'err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}" );
       return 0;
     }
@@ -108,7 +110,7 @@ sub form_companies {
     }
   }
   elsif ($FORM{import}) {
-    if (!$permissions{0}{1}) {
+    if (!$permissions{0}{37}) {
       $html->message( 'err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}" );
       return 0;
     }
@@ -150,7 +152,7 @@ sub form_companies {
     }
   }
   elsif ($FORM{change}) {
-    if (!$permissions{0}{4}) {
+    if (!$permissions{0}{38}) {
       $html->message( 'err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}" );
       return 0;
     }
@@ -179,7 +181,7 @@ sub form_companies {
       $html->message( 'info', $lang{INFO}, $lang{CHANGED} . " # $Company->{NAME}" );
     }
   }
-  elsif ($FORM{del} && $FORM{COMMENTS} && $permissions{0}{5} && !$FORM{subf}) {
+  elsif ($FORM{del} && $FORM{COMMENTS} && $permissions{0}{39} && !$FORM{subf}) {
     $Company->list({ COMPANY_ID => $FORM{del}, USERS_COUNT => '_SHOW', COLS_NAME => 1, });
 
     if ($Company->{TOTAL} > 0) {
@@ -271,9 +273,12 @@ sub form_companies {
 
     #Sub functions
     if (!$FORM{subf}) {
-      if ($permissions{0}{4}) {
+      if ($permissions{0}{38}) {
         $Company->{ACTION}     = 'change';
         $Company->{LNG_ACTION} = $lang{CHANGE};
+      } else {
+        $Company->{LNG_ACTION} = "$lang{LIST} $lang{COMPANIES}";
+        $html->message( 'secondary', $lang{INFO}, $lang{NO_CHANGES} );
       }
       $Company->{DISABLE} = ($Company->{DISABLE} > 0) ? 'checked' : '';
 
@@ -322,12 +327,19 @@ sub form_companies {
 
     $LIST_PARAMS{SKIP_GID} = 1;
 
+    my $add_form_button = '';
+    if ($permissions{0}{37}){
+      $add_form_button = "$lang{ADD}:index=$index&add_form=1".':add';
+    } else {
+      $add_form_button = '';
+    }
+
     result_former({
       INPUT_DATA      => $Company,
       FUNCTION        => 'list',
       DEFAULT_FIELDS  => 'NAME,DEPOSIT,CREDIT,USERS_COUNT,DISABLE',
       BASE_FIELDS     => 1,
-      FUNCTION_FIELDS => defined( $permissions{0}{5} ) ? 'company_id,del' : 'company_id',
+      FUNCTION_FIELDS => defined( $permissions{0}{39} ) ? 'company_id,del' : 'company_id',
       EXT_TITLES      => {
         'name'          => $lang{NAME},
         'users_count'   => $lang{USERS},
@@ -359,8 +371,7 @@ sub form_companies {
         qs      => $pages_qs,
         ID      => 'COMPANY_ID',
         EXPORT  => 1,
-        MENU    => "$lang{ADD}:index=$index&add_form=1".':add'.
-          ";$lang{SEARCH}:index=".get_function_index( 'form_search' )."&type=13:search",
+        MENU    => $add_form_button. ";$lang{SEARCH}:index=".get_function_index( 'form_search' )."&type=13:search",
         SHOW_COLS_HIDDEN => {
           TYPE_PAGE => $FORM{type}
         }
@@ -449,17 +460,14 @@ sub form_companie_admins {
     $LIST_PARAMS{SORT} = 2;
   }
 
-  my $list = $Company->admins_list(
-    {
-      COMPANY_ID => $FORM{COMPANY_ID},
-      PAGE_ROWS  => 10000
-    }
-  );
+  my $list = $Company->admins_list({
+    COMPANY_ID => $FORM{COMPANY_ID},
+    PAGE_ROWS  => 10000
+  });
 
   if ($attr->{REGISTRATION}) {
     if ($FORM{add} && $Company->{TOTAL} == 1 && !$list->[0]->[0]) {
       $FORM{IDS} = $FORM{UID};
-      #      goto ADD_ADMIN;
     }
     return 0;
   }

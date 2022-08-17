@@ -135,7 +135,7 @@ sub is_connected {
 }
 
 #**********************************************************
-=head2 is_admin_connected($aid) - pings admin browser tabs
+=head2 is_receiver_connected($aid) - pings admin browser tabs
 
   Arguments:
     $aid - AID
@@ -145,17 +145,17 @@ sub is_connected {
     
 =cut
 #**********************************************************
-sub is_admin_connected {
-  my ($self, $aid) = @_;
-  return unless ($aid);
+sub is_receiver_connected {
+  my ($self, $receiver, $type) = @_;
+  return unless ($receiver);
 
   my $res = $self->json_request({
     MESSAGE => {
       TYPE => 'MESSAGE',
-      TO   => 'ADMIN',
-      ID   => $aid,
+      TO   => $type,
+      ID   => $receiver,
       DATA => {
-        TYPE => q/PING/
+        TYPE => 'PING'
       }
     }
   });

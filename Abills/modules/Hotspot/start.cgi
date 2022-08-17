@@ -996,8 +996,8 @@ sub buy_cards {
     }
   }
 
-  if ($conf{DV_REGISTRATION_TP_GIDS}) {
-    $LIST_PARAMS{TP_GID} = $conf{DV_REGISTRATION_TP_GIDS};
+  if ($conf{INTERNET_REGISTRATION_TP_GIDS}) {
+    $LIST_PARAMS{TP_GID} = $conf{INTERNET_REGISTRATION_TP_GIDS};
   }
   #else {
   #  $LIST_PARAMS{TP_GID} = '>0';
@@ -1294,7 +1294,7 @@ sub fast_login {
   $FORM{mac} = $FORM{mac} || $COOKIES{mac} || '';
   if ($FORM{mac} !~ /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/) {
     print $html->header();
-    print $html->message('err', $lang{ERROR}, "Wrong MAC format.", { ID => 1537 });
+    print $html->message('err', $lang{ERROR}, "ERR_WRONG_MAC_FORMAT", { ID => 1537 });
     exit;
   }
 
@@ -1528,14 +1528,16 @@ sub hotspot_registration {
       COLS_NAME    => 1,
       NEW_MODEL_TP => 1,
     });
+
     if ($Tariffs->{TOTAL} < 1) {
       print $html->header();
-      print $html->message('err', $lang{ERROR}, "NO_GUEST_TP", { ID => 1545 });
+      print $html->message('err', $lang{ERROR}, "ERR_NO_GUEST_TP", { ID => 1545 });
       exit;
     }
-    $FORM{'4.TP_ID'} = $tp_list->[0]->{tp_id};
 
-    `echo "TP_ID: $FORM{'4.TP_ID'} //" >> /usr/abills/cgi-bin/hotspot_debug.log`;
+    $FORM{'4.TP_ID'} = $tp_list->[0]->{tp_id};
+    $FORM{'4.REGISTRATION'}=1;
+    `echo "> TP_ID: $FORM{'4.TP_ID'} //" >> /usr/abills/cgi-bin/hotspot_debug.log`;
   }
 
   $FORM{create} = 1;
@@ -1717,8 +1719,8 @@ sub phone_verifycation {
 
   if ($FORM{PHONE} && $conf{PHONE_FORMAT} && $FORM{PHONE} !~ /$conf{PHONE_FORMAT}/) {
     print $html->header();
-    print $html->message('err', $lang{ERROR}, "Wrong phone format", { ID => 1548 });
-    _error_show({ errno => 21, err_str => 'ERR_WRONG_PHONE' }, { ID => 1505 });
+    print $html->message('err', $lang{ERROR}, "WRONG_PHONE_FORMAT " . human_exp($conf{PHONE_FORMAT}), { ID => 1548 });
+    _error_show({ errno => 21, err_str => 'ERR_WRONG_PHONE', MESSAGE => human_exp($conf{PHONE_FORMAT}) }, { ID => 1505 });
 
     if ($phone_replace_tpl) {
       print $html->tpl_show(templates($phone_replace_tpl), \%FORM);

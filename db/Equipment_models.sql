@@ -455,7 +455,12 @@ REPLACE INTO `equipment_models` (
        (318, 4, 30, '', 'FD1616SN', 'https://cdatatec.com/product-item/16pon-gpon-olt-fd1616sn/', 16, '', '', 'cdata_fd16.snmp',     '', 1, 16,'', 0, 0,
         0, 0, 0, 0, 7, 0, 0, 70, NULL, NULL, NULL, 'https://cdatatec.com/wp-content/uploads/2019/03/GPON-OLT-1616SN-R1.jpg'),
        (319, 4, 29, '', 'V1600G1-B', 'https://www.vsolcn.com/products/gpon-olt-8-port', 8, '', '', 'vsolution.snmp', '', 1, 4, '', 0, 0,
-        0, 0, 0, 0, 7, 0, 0, 45, NULL, NULL, NULL, 'https://ueeshop.ly200-cdn.com/u_file/UPAH/UPAH607/2111/products/16/53b0772100.jpg');
+        0, 0, 0, 0, 7, 0, 0, 45, NULL, NULL, NULL, 'https://ueeshop.ly200-cdn.com/u_file/UPAH/UPAH607/2111/products/16/53b0772100.jpg'),
+       (320, 4, 12, '', 'C610/8G-T', 'https://www.zte.com.cn/global/products/access/xpon/PON-OLT/ZXA10-C610', 8, '', '', 'zte_c3xx.snmp' , '', 2, 8, '', 0, 1,
+        0, 0, 0, 0, 7, 0, 0, 20, NULL, NULL, NULL, 'https://lanmarket.ua/upload/resize_cache/iblock/f18/800_800_105328d7ed3192a3f62f2b54f8e94d8fb/f18bac2d545b383c404333bab4a7db69.jpg'),
+       (321, 4, 12, '', 'C610/16G-T', 'https://www.zte.com.cn/global/products/access/xpon/PON-OLT/ZXA10-C610', 16, '', '', 'zte_c3xx.snmp', '', 2, 8, '', 0, 1,
+        0, 0, 0, 0, 7, 0, 0, 40, NULL, NULL, NULL, 'https://lanmarket.ua/upload/resize_cache/iblock/f18/800_800_105328d7ed3192a3f62f2b54f8e94d8fb/f18bac2d545b383c404333bab4a7db69.jpg');
+
 
 REPLACE INTO `equipment_extra_ports` (`model_id`, `port_number`, `port_type`, `port_combo_with`, `row`)
 VALUES (101, 1, 4, 0, 0),
@@ -1160,7 +1165,22 @@ VALUES (101, 1, 4, 0, 0),
        (319, 7,  1, 0, 0),
        (319, 8,  1, 0, 0),
        (319, 9,  1, 0, 0),
-       (319, 10, 1, 0, 0);
+       (319, 10, 1, 0, 0),
+       (320, 1,  4, 0, 0),
+       (320, 2,  4, 0, 0),
+       (320, 3,  1, 0, 0),
+       (320, 4,  1, 0, 0),
+       (320, 5,  1, 0, 0),
+       (321, 1,  4, 0, 0),
+       (321, 2,  4, 0, 0),
+       (321, 3,  1, 0, 0),
+       (321, 4,  1, 0, 0),
+       (321, 5,  1, 0, 0),
+       (321, 6,  4, 0, 1),
+       (321, 7,  4, 0, 1),
+       (321, 8,  1, 0, 1),
+       (321, 9,  1, 0, 1),
+       (321, 10, 1, 0, 1);
 
 
 REPLACE INTO `equipment_vendors` (`id`, `name`, `support`, `site`)

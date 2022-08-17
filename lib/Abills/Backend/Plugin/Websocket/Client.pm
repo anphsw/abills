@@ -6,12 +6,8 @@ our (%conf, $base_dir, $debug, $ARGS, @MODULES);
 use Abills::Backend::Log;
 our Abills::Backend::Log $Log;
 
-my $log_user = ' Websocket::Client ';
-
 # Localizing global variables
 use Abills::Backend::Defs;
-use Abills::Base qw/_bp/;
-
 use Abills::Backend::PubSub;
 
 #**********************************************************

@@ -35,4 +35,17 @@ $lang{PACKET_COUNT} = 'Packet count';
 $lang{PASTE} = 'Paste';
 
 $lang{NO_TARIFF_SELECTED} = 'No tariff plan selected!';
+
+$lang{DEVELOPMENT_REPORT} = 'Development report';
+$lang{ACCESS_ALLOWED} = 'Access is allowed';
+$lang{ACCESS_DENIED} = 'Access is denied';
+$lang{ACRONYM_NUMBER_OF_USERS} = 'Users';
+$lang{ACRONYM_USERS} = 'users';
+$lang{WITHOUT_DISTRICT} = 'Without district';
+$lang{AVERAGE_CHECK} = 'Average check';
+$lang{WITHOUT_CITY} = 'Without a city';
+$lang{IP_MAC_NOT_FOUND} = 'IP address and MAC was not found';
+$lang{TOTAL_CONNECTED} = 'Total connected';
+$lang{GROWTH} = 'Growth';
+
 1;

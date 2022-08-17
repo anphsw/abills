@@ -78,7 +78,7 @@ sub iptv_tp{
       }),
       HIDDEN  => { index => $index },
       # SUBMIT  => { show => $lang{SHOW} },
-      class   => 'navbar-form navbar-right',
+      class   => 'ml-auto',
     });
 
     func_menu({ $lang{NAME} => $Tariffs->{NAME_SEL} },
@@ -155,19 +155,16 @@ sub iptv_tp{
           "<input type='checkbox' id='EXT_BILL_ACCOUNT' name='EXT_BILL_ACCOUNT' value='1' class='form-check-input' $checked></div>",
       }, { OUTPUT2RETURN => 1 });
 
-      $tarif_info->{EXT_BILL_FEES_METHOD} = $html->form_select(
-        'EXT_BILL_FEES_METHOD',
-        {
-          SELECTED    => $tarif_info->{EXT_BILL_FEES_METHOD} || 1,
-          SEL_HASH    => get_fees_types(),
-          NO_ID       => 1,
-          SORT_KEY    => 1,
-          SEL_OPTIONS => { 0 => '' },
-          MAIN_MENU   => get_function_index('form_fees_types'),
-          # CHECKBOX    => 'create_fees_type',
-          # CHECKBOX_TITLE => $lang{CREATE},
-        }
-      );
+      $tarif_info->{EXT_BILL_FEES_METHOD} = $html->form_select('EXT_BILL_FEES_METHOD', {
+        SELECTED    => $tarif_info->{EXT_BILL_FEES_METHOD} || 1,
+        SEL_HASH    => get_fees_types(),
+        NO_ID       => 1,
+        SORT_KEY    => 1,
+        SEL_OPTIONS => { 0 => '' },
+        MAIN_MENU   => get_function_index('form_fees_types'),
+        # CHECKBOX    => 'create_fees_type',
+        # CHECKBOX_TITLE => $lang{CREATE},
+      });
 
       $tarif_info->{EXT_BILL_ACCOUNT} .= $html->tpl_show(templates('form_row'), {
         ID    => 'EXT_BILL_ACCOUNT',
@@ -182,14 +179,11 @@ sub iptv_tp{
           "$lang{EXT_BILL_ACCOUNT}"
         );
 
-        $tarif_info->{BILLS_PRIORITY_SEL} = $html->form_select(
-          'BILLS_PRIORITY',
-          {
-            SELECTED     => $tarif_info->{BILLS_PRIORITY},
-            SEL_ARRAY    => \@BILL_ACCOUNT_PRIORITY,
-            ARRAY_NUM_ID => 1
-          }
-        );
+        $tarif_info->{BILLS_PRIORITY_SEL} = $html->form_select('BILLS_PRIORITY', {
+          SELECTED     => $tarif_info->{BILLS_PRIORITY},
+          SEL_ARRAY    => \@BILL_ACCOUNT_PRIORITY,
+          ARRAY_NUM_ID => 1
+        });
 
         $tarif_info->{BONUS} = $html->tpl_show(_include('bonus_tp_row', 'Bonus'), $tarif_info, { OUTPUT2RETURN => 1 });
       }
@@ -238,9 +232,7 @@ sub iptv_tp{
     BASE_FIELDS     => 2,
     DEFAULT_FIELDS  => 'ID,NAME,PAYMENT_TYPE,DAY_FEE,MONTH_FEE',
     FUNCTION_FIELDS => 'intervals,change,del',
-    SELECT_VALUE     => {
-      service_name => $service_name
-    },
+    SELECT_VALUE     => { service_name => $service_name },
     EXT_TITLES      => {
       name                 => $lang{NAME},
       time_tarifs          => $lang{HOUR_TARIF},
@@ -263,6 +255,7 @@ sub iptv_tp{
       comments             => $lang{DESCRIBE},
       service_id           => "SERVICE_ID",
       service_name         => $lang{SERVICE},
+      module               => $lang{MODULE},
       inner_tp_id          => 'ID',
       ext_bill_fees_method => "EXT_BILL $lang{FEES} $lang{TYPE}",
     },
@@ -272,19 +265,17 @@ sub iptv_tp{
       caption => $lang{TARIF_PLAN},
       qs      => $pages_qs,
       ID      => 'IPTV_TARIF_PLANS',
-      MENU    => "$lang{ADD}:index=$index&add_form=1:add",
+      MENU    => $permissions{4}{1} ? "$lang{ADD}:index=$index&add_form=1:add" : '',
       EXPORT  => 1,
     },
     MODULE          => 'Iptv',
   });
 
-  my ($delete, $change);
   foreach my $line ( @{$list} ){
-    if ( $permissions{4}{1} ){
-      $delete = $html->button( $lang{DEL}, "index=$index&del=$line->{tp_id}",
-        { MESSAGE => "$lang{DEL} $line->{id} $line->{name}?", class => 'del' } );
-      $change = $html->button( $lang{CHANGE}, "index=$index&TP_ID=$line->{tp_id}", { class => 'change' } );
-    }
+    my $delete = $permissions{4}{3} ? $html->button($lang{DEL}, "index=$index&del=$line->{tp_id}",
+      { MESSAGE => "$lang{DEL} $line->{id} $line->{name}?", class => 'del' }) : '';
+    my $change = $permissions{4}{2} ? $html->button($lang{CHANGE}, "index=$index&TP_ID=$line->{tp_id}", { class => 'change' }) : '';
+
     if ( $FORM{TP_ID} && $FORM{TP_ID} eq $line->{tp_id} ){
       $table->{rowcolor} = 'success';
     }
@@ -796,21 +787,18 @@ sub iptv_screens{
 sub upload_m3u{
   #my ($attr) = @_;
 
-  # options uploading channels
   my @VARIATION = ('', "$lang{NO_CHANGES}", "$lang{DELETE_EXIST}", "$lang{CHANGE_EXIST}");
-  my $select_variants = $html->form_select( 'SELECT_VARIANTS',
-    {
-      SELECTED     => $FORM{SELECT_VARIANTS},
-      SEL_ARRAY    => \@VARIATION,
-      ARRAY_NUM_ID => 1,
-      SEL_OPTIONS  => { '' => '--' },
-    }
-  );
+  my $select_variants = $html->form_select('SELECT_VARIANTS', {
+    SELECTED     => $FORM{SELECT_VARIANTS},
+    SEL_ARRAY    => \@VARIATION,
+    ARRAY_NUM_ID => 1,
+    SEL_OPTIONS  => { '' => '--' },
+  });
 
   # list of channels
   my $list = $Iptv->channel_list({
-    STREAM    => "_SHOW",
-    GENRE_ID  => "_SHOW",
+    STREAM    => '_SHOW',
+    GENRE_ID  => '_SHOW',
     COLS_NAME => 1,
     PAGE_ROWS => 10000
   });

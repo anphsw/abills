@@ -13,6 +13,7 @@
     hosting.pl ACTION=ACTIVE UID=1112 TP_ID=5 COMMENTS="Hosting: user.domain.com" SUM="15.5"
 
 =cut
+
 no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 use strict;
 
@@ -141,11 +142,11 @@ sub active {
           "COMMENTS_" . $argv->{TP_ID}      => $argv->{COMMENTS},
         });
 
-        my $description = "$line->{name} ($line->{id})";
+        my $description = "$line->{tp_name} ($line->{id})";
 
         my %PARAMS = (
            DESCRIBE => $description,
-           METHOD   => $line->{name}
+           METHOD   => $line->{tp_name}
         );
 
         $Fees->take($users, $line->{price}, { %PARAMS });
@@ -177,8 +178,8 @@ sub alert {
   foreach my $line (@{$list}) {
     if ($line->{id} eq $argv->{TP_ID}) {
       $Abon->user_tariff_del({
-        UID           => $argv->{UID},
-        TP_IDS           => $line->{id},
+        UID    => $argv->{UID},
+        TP_IDS => $line->{id},
       });
       print $fh "\n$DATE $TIME Tariff plan ID = $argv->{TP_ID} subscriber's UID = $argv->{UID} delete =========================\n";
       print "\n$DATE $TIME Tariff plan ID = $argv->{TP_ID} subscriber's UID = $argv->{UID} delete =========================\n";

@@ -17,6 +17,9 @@ our(
   %LANG,
   %permissions,
   %OUTPUT,
+  %FORM,
+  $index,
+  %COOKIES
 );
 
 our Admins $admin;
@@ -613,6 +616,7 @@ sub auth_user {
       exit;
     }
     elsif($Auth->{USER_ID}) {
+      $sid = $session_id if ($attr->{API});
       $user->list({
         $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
         LOGIN                => '_SHOW',
@@ -712,6 +716,12 @@ sub auth_user {
       );
 
       if ($user->{TOTAL} > $conf{wi_bruteforce}) {
+        if ($attr->{API}) {
+          return {
+            error  => 10000,
+            errstr => 'You try to brute password and system block your account. Please contact system administrator.'
+          }
+        }
         $OUTPUT{BODY} = $html->tpl_show(templates('form_bruteforce_message'), undef);
         return 0;
       }

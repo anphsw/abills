@@ -7,7 +7,6 @@
 use strict;
 use warnings 'FATAL' => 'all';
 
-use Abills::Base qw/_bp/;
 use Abills::Experimental;
 
 our (
@@ -16,7 +15,6 @@ our (
   $admin, $db, %conf,
   %permissions,
   @DEFAULT_SEND_TYPES,
-#  @PRIORITY_SEND_TYPES
 );
 
 
@@ -26,7 +24,7 @@ our Events $Events = Events->new($db, $admin, \%conf);
 
 require Events::Selects;
 
-if ( $permissions{5} ) {
+if ( $permissions{4} ) {
   require Events::Configure;
 }
 
@@ -57,7 +55,7 @@ sub events_events {
   if ( $attr->{CLIENT_INTERFACE} ) {
     return '';
   }
-# Abills::Base::_bp('','$translated_events_list',{TO_FILE=>'/usr/abills/var/log/text.txt'});
+
   return events_notice({ EXPORT => 1 }) if ($FORM{AJAX});
   
   my $events_index = get_function_index('events_main') || 0;
@@ -142,7 +140,7 @@ sub events_event_to_json {
 #**********************************************************
 sub events_notice {
   my ($attr) = @_;
-  
+
   my $events_list = $Events->events_list({
     ID            => '_SHOW',
     TITLE         => '_SHOW',
@@ -177,7 +175,6 @@ sub events_notice {
     return join(", ", @events_list);
   }
   
-  
   my @new_events_list = ();
   foreach my $event (@$translated_events_list) {
     if ($event->{send_types} && $event->{send_types} =~ /Browser/) {
@@ -186,12 +183,12 @@ sub events_notice {
   }
 
   print JSON::to_json({
-      CAPTION => $lang{EVENTS},
-      ID      => "EVENTS_LIST",
-      DATA_1  => \@new_events_list,
-      TOTAL   => $Events->{TOTAL},
-    },
-    { pretty => 1 });
+    CAPTION => $lang{EVENTS},
+    ID      => "EVENTS_LIST",
+    DATA_1  => \@new_events_list,
+    TOTAL   => $Events->{TOTAL},
+  },
+  { pretty => 1 });
   
   return 1;
 }

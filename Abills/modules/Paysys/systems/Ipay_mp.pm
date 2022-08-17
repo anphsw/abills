@@ -22,8 +22,8 @@ package Paysys::systems::Ipay_mp;
 =head2 VERSION
 
   Date: 07.06.2018
-  UPDATED: 20220317
-  VERSION: 8.26
+  UPDATED: 20220812
+  VERSION: 8.28
 
 =cut
 
@@ -33,12 +33,12 @@ use parent 'dbcore';
 use utf8;
 
 use Paysys;
-use Abills::Base qw(load_pmodule);
+use Abills::Base qw(load_pmodule json_former);
 use Abills::Fetcher;
 require Abills::Templates;
 require Paysys::Paysys_Base;
 
-our $PAYSYSTEM_VERSION   = '8.26';
+our $PAYSYSTEM_VERSION   = '8.28';
 my $PAYSYSTEM_NAME       = 'Ipay_mp';
 my $PAYSYSTEM_SHORT_NAME = 'IPAY';
 my $PAYSYSTEM_ID         = 72;
@@ -133,11 +133,6 @@ sub create_request_params {
   my $merchant_key = $self->{conf}->{PAYSYS_IPAY_MERCHANT_KEY} || q{};
   my $sign_key     = $self->{conf}->{PAYSYS_IPAY_SIGN_KEY} || q{};
 
-  # TODO: заменить добавление количество часов на правильное время таймзоны Киева
-#    my $time = time();
-#    $time = $time + 2 * 60 * 60;
-#    my $date = POSIX::strftime("%F %X", gmtime($time));
-#  $REQUEST_HASH{request}{auth}{time}  = $date;                                    # now time
   use Time::Piece;
   my $t = localtime;
   my $time = $t->epoch + (($t->isdst) ? 3 : 2) * 60 * 60;
@@ -147,7 +142,6 @@ sub create_request_params {
   $md5->add($sign_string);
   my $md5_sign = $md5->hexdigest();
   my $account_key = 'UID';
-
 
   my %request = ();
   $request{request}{action}        = $action;
@@ -185,17 +179,7 @@ sub create_request_params {
     $request{request}{body}{pmt_info}{acc}     = $account_key;
 
     $request{request}{body}{threeds_info}{notification_url} = "http://$ENV{SERVER_NAME}" . (($ENV{SERVER_PORT} != 80) ? ":$ENV{SERVER_PORT}" : '') . "/paysys_check.cgi"
-        ."?ipay_purchase=1&invoice=" . ($attr->{INVOICE} * 100) . "&pmt_id=$attr->{ACC}&UID=$user->{UID}";
-
-    # $request{request}{body}{threeds_info}{threeds_requestor_url}='';
-    # $request{request}{body}{threeds_info}{browser_color_depth}='';
-    # $request{request}{body}{threeds_info}{browser_language}='en-US';
-    # $request{request}{body}{threeds_info}{browser_screen_height}="1920";
-    # $request{request}{body}{threeds_info}{browser_screen_width}="1080";
-    # $request{request}{body}{threeds_info}{browser_tz}="-120";
-    # $request{request}{body}{threeds_info}{browser_accept_header}="text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9";
-    # $request{request}{body}{threeds_info}{browser_user_agent}='';
-    #$request{request}{body}{threeds_info}{user_ip} = $ENV{REMOTE_ADD};
+      ."?ipay_purchase=1&invoice=" . ($attr->{INVOICE} * 100) . "&pmt_id=$attr->{ACC}&UID=$user->{UID}";
   }
   elsif ($action eq 'AddcardByURL') {
     $request{request}{body}{lang}        = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ru';
@@ -223,12 +207,11 @@ sub create_request_params {
     $request{request}{body}{success_url} = "$SELF_URL?index=$self->{index}"; # url after success registration
     $request{request}{body}{error_url}   = "$SELF_URL?index=$self->{index}"; # url after fail registration
   }
-  elsif ($action eq 'TestInvite') {
-    $request{request}{body}{lang}    = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ru';
+  elsif ($action eq 'UnlinkUser') {
+    delete $request{request}{body}{user_id};
   }
 
-  #my $json_request_string = $json->encode(\%request);
-  my $json_request_string = Abills::Base::json_former(\%request);
+  my $json_request_string = json_former(\%request);
   $json_request_string =~ s/\"/\\\"/g;
 
   return $json_request_string;
@@ -281,7 +264,6 @@ sub _request {
   my $check_result = web_request($self->{conf}->{PAYSYS_IPAY_REQUEST_URL}, {
     POST       => $request,
     DEBUG2FILE => '/tmp/ipay.log',
-    #PAGE_HEADER=> 1,
     DEBUG      => 1
   });
 
@@ -296,8 +278,14 @@ sub _request {
 
   my $result = $json->decode($check_result);
 
-  if($result->{response} && $result->{response}->{error}){
-    $html->message('err', $self->{lang}->{ERROR}, $result->{response}->{error}, { ID => 1791 });
+  if ($result->{response} && $result->{response}->{error} && $result->{response}->{error}) {
+    if ($result->{response}->{error} eq 'user validation failed') { #user validation failed
+      $html->message('error', "$self->{lang}->{IPAY_ERR_NUMBER}",
+        $html->button("$self->{lang}->{UNLINK}", "index=$self->{index}&ipay_unlink_user=1"));
+    } else {
+      $html->message('err', $self->{lang}->{ERROR}, $result->{response}->{error}, { ID => 1793 });
+    }
+
     return {};
   }
 
@@ -443,30 +431,21 @@ sub user_portal_special {
 
     my $result = $self->_request($register_purchse_by_url_string, { TREE => 'response' });
 
-    if ($result) {
-      #Info section, pre section
-      # print "Content-Type: text/html\n\n";
-      # my $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
-      # $Paysys->add({
-      #   SYSTEM_ID      => $PAYSYSTEM_ID,
-      #   SUM            => $attr->{SUM},
-      #   UID            => $user_->{UID},
-      #   IP             => $ENV{REMOTE_ADDR},
-      #   TRANSACTION_ID => "$PAYSYSTEM_SHORT_NAME:$attr->{OPERATION_ID}",
-      #   INFO           => $attr->{DESCRIBE},
-      #   PAYSYS_IP      => $ENV{REMOTE_ADDR},
-      #   STATUS         => 1,
-      #   DOMAIN_ID      => $user_->{DOMAIN_ID},
-      #   USER_INFO      => $user_,
-      # });
-    }
-
     $html->tpl_show(
       main::_include('paysys_ipay_register_purchase', 'Paysys'),
       {
         URL => $result->{url}
       }
     );
+  }
+  elsif ($attr->{ipay_unlink_user}) {
+    my $unlink_string = $self->create_request_params('UnlinkUser', { USER => $user_ });
+
+    my $result = $self->_request($unlink_string);
+
+    if ($result->{response} && $result->{response}->{status} eq 'success') {
+      $html->message('info', "$self->{lang}->{SUCCESS} $self->{lang}->{UNLINKED}");
+    }
   }
 
   # send REQUEST_HASH to IPAY for check
@@ -616,7 +595,6 @@ sub report {
 #**********************************************************
 sub has_test {
   my $self = shift;
-  #my ($attr) = @_;
 
   our @requests;
   eval { require "Paysys/t/Ipay_mp.t" };
@@ -837,7 +815,7 @@ sub show_result {
   }
 
   main::mk_log($result, {
-    PAYSYS_ID => 'Ipay',
+    PAYSYS_ID => $PAYSYSTEM_ID,
     REPLY     => 1
   });
 

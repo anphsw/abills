@@ -3,9 +3,6 @@ package Internet_info;
 use strict;
 use warnings FATAL => 'all';
 
-require Control::Service_control;
-my $Service_control;
-
 #**********************************************************
 =head2 new($Botapi)
 
@@ -23,8 +20,6 @@ sub new {
   };
   
   bless($self, $class);
-
-  $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
   
   return $self;
 }
@@ -58,6 +53,9 @@ sub click {
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
   $Users->info($uid);
   $Users->group_info($Users->{GID});
+
+  require Control::Service_control;
+  my $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
 
   my $list = $Internet->user_list({
     ID              => '_SHOW',
@@ -163,6 +161,9 @@ sub stop_holdup {
   my $self = shift;
   my ($attr) = @_;
 
+  require Control::Service_control;
+  my $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
+
   my $stop_holdup_result = $Service_control->user_holdup({
     UID => $attr->{uid},
     ID  => $attr->{argv}[2],
@@ -186,6 +187,9 @@ sub stop_holdup {
 sub credit {
   my $self = shift;
   my ($attr) = @_;
+
+  require Control::Service_control;
+  my $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
 
   my $credit_info = $Service_control->user_set_credit({ UID => $attr->{uid}, change_credit => 1 });
 

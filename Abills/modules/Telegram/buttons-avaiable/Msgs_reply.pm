@@ -146,6 +146,7 @@ sub send_msg {
   $Msgs->message_change({
     ID         => $msg_hash->{message}->{id},
     STATE      => 0,
+    ADMIN_READ => '0000-00-00 00:00:00'
   });
 
   if (!$Msgs->{errno} && $msg_hash->{message}->{files}) {

@@ -1,14 +1,13 @@
 package Abills::Backend::Plugin::Websocket::User;
 use strict;
 use warnings FATAL => 'all';
-
-our ($Log, $db, $admin, %conf);
-use Abills::Backend::Defs;
-
-use Abills::Backend::Plugin::Websocket::Client;
 use parent 'Abills::Backend::Plugin::Websocket::Client';
 
+our ($Log, $db, $admin, %conf);
+
+use Abills::Backend::Defs;
 use Users;
+
 my Users $user = Users->new($db, $admin, \%conf);
 
 my %cache = (
@@ -27,27 +26,6 @@ sub authenticate {
 
   if ($chunk && $chunk =~ /^Cookie: .*$/m) {
     # TODO LOGIN WITH Cookie
-    # my (@sids) = $chunk =~ /sid=([a-zA-Z0-9]*)/gim;
-    #
-    # return -1 unless (scalar @sids);
-    # my $aid = undef;
-    # foreach my $sid (@sids) {
-    #   $Log->debug("Will try to authentificate admin with sid $sid") if (defined $Log);
-    #
-    #   # Try to retrieve from cache
-    #   if ($aid = $cache{aid_by_sid}->{$sid}) {
-    #     $Log->debug("cache hit $sid") if (defined $Log);
-    #     return $aid;
-    #   }
-    #
-    #   my $admin_with_this_sid = $admin->online_info({ SID => $sid, COLS_NAME => 1 });
-    #
-    #   if ($admin->{TOTAL}) {
-    #     $aid = $admin_with_this_sid->{AID};
-    #     $cache{aid_by_sid}->{$sid} = $aid;
-    #     return $aid;
-    #   }
-    # }
     return -1;
   }
   elsif ($chunk && $chunk =~ /(?<=\bUSERSID:\s)(\w+)/gim) {

@@ -40,6 +40,7 @@ our %conf;
       JSON_RETURN    - aggregate result as JSON, return JSON hash result
       JSON_UTF8      - treat result as UTF8 (may be needed for JSON::XS)
       JSON_BODY      - hash params to json
+      JSON_FORMER    - Extra params for json former
       AGENT          - Agent info
       CURL_OPTIONS   - curl options
       HEADERS        - curl -H option (ARRAY_ref)
@@ -89,7 +90,7 @@ sub web_request {
 
   my $result = '';
 
-  if ($request_url =~ /^https/ || $attr->{CURL} || $attr->{POST}) {
+  if ($request_url =~ /^https/ || $attr->{CURL} || $attr->{POST} || $attr->{METHOD}) {
     $result = _curl_request($request_url, $attr);
   }
   else {
@@ -154,7 +155,7 @@ sub json_return {
   #Else other error
   elsif (ref $perl_scalar eq 'HASH' && $perl_scalar->{status} && $perl_scalar->{status} eq 'error') {
     $perl_scalar->{errno} = 1;
-    $perl_scalar->{errstr} = "$perl_scalar->{message}";
+    $perl_scalar->{errstr} = $perl_scalar->{message} || "";
   }
 
   return $perl_scalar;
@@ -243,7 +244,7 @@ sub _curl_request {
   }
 
   if ($attr->{JSON_BODY}) {
-    $request_params = '-d "' . json_former($attr->{JSON_BODY}, { ESCAPE_DQ => 1 }) . '"';
+    $request_params = '-d "' . json_former($attr->{JSON_BODY}, { ESCAPE_DQ => 1, %{$attr->{JSON_FORMER} || {}} }) . '"';
   }
   elsif ($attr->{REQUEST_PARAMS_JSON}) {
     $request_params = '-d "{' . join(',', @request_params_arr) . '}"';

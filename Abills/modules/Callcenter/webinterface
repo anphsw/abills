@@ -89,8 +89,10 @@ sub callcenter_calls_handler {
   }
   elsif ($FORM{call_status} && $FORM{call_status} == 2) {
 
-    $Callcenter->callcenter_change_calls({ STATUS => $FORM{call_status},
-      ID                                          => $FORM{call_id} });
+    $Callcenter->callcenter_change_calls({
+      STATUS => $FORM{call_status},
+      ID     => $FORM{call_id}
+    });
 
     if (!$Callcenter->{errno}) {
       print "Status changed to 2";
@@ -102,7 +104,6 @@ sub callcenter_calls_handler {
     return 1;
   }
   elsif ($FORM{call_status} && $FORM{call_status} == 3) {
-
     $Callcenter->callcenter_change_calls({
       STATUS => $FORM{call_status},
       ID     => $FORM{call_id}
@@ -150,38 +151,37 @@ sub callcenter_calls_handler {
         USER          => $call_info->{user_phone},
         ADMIN         => $call_info->{operator_phone},
         ID            => $call_info->{id}
-      },);
+      });
 
     return 1;
   }
 
-  if ($FORM{del}) {
+  if ($FORM{del} && $FORM{COMMENTS}) {
     $Callcenter->callcenter_delete_calls({ ID => $FORM{del} });
     if (!$Callcenter->{errno}) {
-      $html->message('info', "$lang{SUCCESS}", "$lang{DELETED}");
-    }
-    else {
-      $html->message('err', "$lang{ERROR}",);
+      $html->message('info', $lang{SUCCESS}, $lang{DELETED});
     }
   }
-
-  if ($FORM{change}) {
-    $Callcenter->callcenter_change_calls({ STATUS => $FORM{STATUS},
-      ID                                          => $FORM{change} });
+  elsif ($FORM{change}) {
+    $Callcenter->callcenter_change_calls({
+      STATUS => $FORM{STATUS},
+      ID     => $FORM{change}
+    });
 
     if (!$Callcenter->{errno}) {
       $html->message('info', "$lang{SUCCESS}", "$lang{CHANGED}");
     }
-    else {
-      $html->message('err', "$lang{ERROR}",);
-    }
   }
+
+  _error_show($Callcenter);
 
   if ($FORM{refresh} && $FORM{refresh} == 1) {
     my $not_found_users = 0;
-    my $unrecognized_users_list = $Callcenter->callcenter_list_calls({ COLS_NAME => 1,
-      UNRECOGNIZED                                                               => 1,
-      USER_PHONE                                                                 => '_SHOW', });
+    my $unrecognized_users_list = $Callcenter->callcenter_list_calls({
+      COLS_NAME    => 1,
+      UNRECOGNIZED => 1,
+      USER_PHONE   => '_SHOW'
+    });
 
     foreach my $unrecognized_user (@$unrecognized_users_list) {
       my $unrecognized_user_phone = $unrecognized_user->{user_phone};
@@ -201,9 +201,12 @@ sub callcenter_calls_handler {
         next;
       }
 
-      $Callcenter->callcenter_change_calls({ ID => $unrecognized_user->{id},
-        UID                                     => $u_info->{uid} });
+      $Callcenter->callcenter_change_calls({
+        ID  => $unrecognized_user->{id},
+        UID => $u_info->{uid}
+      });
     }
+
     if ($not_found_users > 0) {
       $html->message('success', "$lang{NOT_FOUND} $not_found_users $lang{USERS}");
     }
@@ -213,15 +216,15 @@ sub callcenter_calls_handler {
     $LIST_PARAMS{STATUS} = $FORM{STATUS};
   }
 
-  if (defined $FORM{ADMIN_SELECT}) {
+  if ($FORM{ADMIN_SELECT}) {
     $LIST_PARAMS{OPERATOR_PHONE} = $FORM{ADMIN_SELECT};
   }
 
-  if (defined $FORM{DATE_START}) {
+  if ($FORM{DATE_START}) {
     $LIST_PARAMS{DATE_START} = $FORM{DATE_START};
   }
 
-  if (defined $FORM{DATE_END}) {
+  if ($FORM{DATE_END}) {
     $LIST_PARAMS{DATE_END} = $FORM{DATE_END};
   }
 
@@ -230,7 +233,7 @@ sub callcenter_calls_handler {
       STATUS_VISIBILITY  => 1,
       ADMINS_SELECT      => $ADMINS_SELECT,
       REFRESH_VISIBILITY => 1,
-    },);
+    });
 
   if (!$FORM{sort}) {
     $LIST_PARAMS{SORT} = 'date';
@@ -247,23 +250,24 @@ sub callcenter_calls_handler {
       EXT_TITLES      => {
         'id'             => "ID",
         # 'uid'            => "$lang{USER}",
-        'user_phone'     => "$lang{CALL_FROM}",
-        'admin'          => "$lang{ADMIN}",
-        'status'         => "$lang{STATUS}",
-        'date'           => "$lang{DATE}",
-        'operator_phone' => "$lang{CALL_TO}",
-        'fio'            => "$lang{FIO}",
-        'login'          => "$lang{USER}",
-        'address_full'   => "$lang{ADDRESS}",
+        'user_phone'     => $lang{CALL_FROM},
+        'admin'          => $lang{ADMIN},
+        'status'         => $lang{STATUS},
+        'date'           => $lang{DATE},
+        'operator_phone' => $lang{CALL_TO},
+        'fio'            => $lang{FIO},
+        'login'          => $lang{USER},
+        'address_full'   => $lang{ADDRESS},
         'city'           => $lang{CITY},
+        'stop'           => $lang{END},
+        'duration'       => $lang{DURATION}
       },
       TABLE           => {
         width   => '100%',
-        caption => "$lang{CALL_CENTER}",
+        caption => $lang{CALL_CENTER},
         qs      => $pages_qs,
         ID      => 'CALLCENTER_CALLS_HANDLER',
         EXPORT  => 1,
-
         # MENU    => "$lang{ADD}:index=" . get_function_index('poll_main') . ':add' . ";",
       },
       MAKE_ROWS       => 1,
@@ -655,7 +659,17 @@ sub callcenter_ivr_menu {
     }
   );
 
+  $Callcenter->{NUMBER_SEL} = $html->form_select(
+    'NUMBER',
+    {
+      SELECTED    => $Callcenter->{NUMBER} || $FORM{NUMBER},
+      SEL_ARRAY   => [0,1,2,3,4,5,6,7,8,9],
+      NO_ID       => 1,
+    }
+  );
+
   $Callcenter->{DISABLE} = 'checked' if ($Callcenter->{DISABLE});
+
   $html->tpl_show(_include('callcenter_ivr_menu', 'Callcenter'), $Callcenter);
 
   $html->short_form({
@@ -728,10 +742,12 @@ sub callcenter_cdr {
   if ($FORM{refresh} && $FORM{refresh} == 1) {
     my $not_found_users = 0;
 
-    my $unrecognized_users_list = $Callcenter->callcenter_cdr_list({ COLS_NAME => 1,
-      UNRECOGNIZED                                                             => 1,
-      SRC                                                                      => '_SHOW',
-      CALLDATE                                                                 => '_SHOW', });
+    my $unrecognized_users_list = $Callcenter->callcenter_cdr_list({
+      COLS_NAME    => 1,
+      UNRECOGNIZED => 1,
+      SRC          => '_SHOW',
+      CALLDATE     => '_SHOW',
+    });
 
     foreach my $unrecognized_user (@$unrecognized_users_list) {
       my $unrecognized_user_phone = $unrecognized_user->{src};
@@ -774,8 +790,8 @@ sub callcenter_cdr {
         userfield   => $lang{USER},
         src         => $lang{PHONE},
         dst         => "$lang{ADMIN} $lang{PHONE}",
-        disposition => "$lang{STATUS}",
-        calldate    => "$lang{DATE}",
+        disposition => $lang{STATUS},
+        calldate    => $lang{DATE},
         duration    => "$lang{DURATION} ($lang{SECONDS})",
       },
       TABLE           => {

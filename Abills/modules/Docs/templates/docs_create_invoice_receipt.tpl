@@ -25,11 +25,12 @@
       </div>
     </div>
 
-    <div class='form-group'>
-      <div class='form-check'>
-        <input type='checkbox' class='form-check-input' name='CREATE_RECEIPT' value='1' %CREATE_RECEIPT_CHECKED%
-               id='CREATE_RECEIPT'>
-        <label class='form-check-label' for='CREATE_RECEIPT'>_{RECEIPT}_</label>
+    <div class='form-group row'>
+      <label class='col-md-4 col-form-label text-md-right' for='CREATE_RECEIPT'>_{RECEIPT}_:</label>
+      <div class='col-md-8'>
+        <div class='form-check'>
+          <input type='checkbox' class='form-check-input' id='CREATE_RECEIPT' name='CREATE_RECEIPT' %CREATE_RECEIPT_CHECKED% value='1'>
+        </div>
       </div>
     </div>
 

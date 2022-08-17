@@ -19,9 +19,6 @@
             <option value='tab'>(TAB)
             <option value='csv'>CSV (,)
             <option value='JSON'>JSON
-              <!--
-              <option value='xml'>XML
-              -->
           </select>
         </div>
       </div>

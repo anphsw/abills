@@ -162,6 +162,7 @@ sub equipment_panel {
             $value,
             undef, {
             target     => "_blank",
+            class      => 'nav-link',
             GLOBAL_URL => $conf{ZABBIX_URL} . '/charts.php?hostid=' . $Nas->{ZABBIX_HOSTID}
           }), { class => 'nav-item' }
         );
@@ -174,6 +175,7 @@ sub equipment_panel {
             $value,
             undef, {
             target     => '_blank',
+            class      => 'nav-link',
             GLOBAL_URL => $conf{ZABBIX_URL} . '/latest.php?hostid=' . $Nas->{ZABBIX_HOSTID}
           }), { class => 'nav-item' }
         );
@@ -373,8 +375,19 @@ sub equipment_info {
   elsif (!$Equipment->{errno} || $Equipment->{errno} != '2') {
     $Equipment->vendor_info($Equipment->{VENDOR_ID});
     #   $Equipment->{PORTS} = $ports if ($ports);
-    $Equipment->{ACTION} = 'change';
-    $Equipment->{ACTION_LNG} = $lang{CHANGE};
+    # if allowed the right to edit equipment:
+    if ($permissions{7}{6}) {
+      $Equipment->{ACTION} = 'change';
+      $Equipment->{ACTION_LNG} = $lang{CHANGE};
+      $Equipment->{NAS_ID_INFO} = $html->button('', "get_index=form_nas&NAS_ID=%NAS_ID%&full=1",
+        { ADD_ICON => 'fa fa-list-alt', TITLE => $lang{INFO} });
+
+    } else {
+      $html->message( 'secondary', $lang{INFO}, $lang{NO_CHANGES} );
+      $Equipment->{ACTION} = '';
+      $Equipment->{ACTION_LNG} = "$lang{NO_CHANGES}";
+      $Equipment->{NAS_ID_INFO} = "";
+    }
   }
 
   if (_error_show($Equipment, {
@@ -409,7 +422,7 @@ sub equipment_info {
         SEL_LIST       => $Equipment->type_list({ COLS_NAME => 1 }),
         NO_ID          => 1,
         EX_PARAMS      => "onchange='autoReload()'",
-        MAIN_MENU      => get_function_index('equipment_types'),
+        MAIN_MENU      => defined( $permissions{7}{6} ) ? get_function_index('equipment_types') : '',
         MAIN_MENU_ARGV => "chg=" . ($Equipment->{TYPE_ID} || '')
       }
     );
@@ -428,7 +441,7 @@ sub equipment_info {
         SEL_VALUE      => 'vendor_name,model_name',
         WRITE_TO_DATA  => 'vendor_name',
         NO_ID          => 1,
-        MAIN_MENU      => get_function_index('equipment_model'),
+        MAIN_MENU      => defined( $permissions{7}{6} ) ? get_function_index('equipment_model') : '',
         MAIN_MENU_ARGV => "chg=" . ($Equipment->{MODEL_ID} || ''),
         EXT_BUTTON     => $html->button(undef, undef, {
           GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:docs:manual:admin:equipment:equipment_info',
@@ -963,13 +976,17 @@ sub equipment_list {
   if (defined($LIST_PARAMS{DISTRICT_ID}) && !$LIST_PARAMS{DISTRICT_ID}) {
     delete $LIST_PARAMS{DISTRICT_ID};
   }
+  my $equipment_del_button = '';
+  if ($permissions{7}{7}){
+    $equipment_del_button= "equipment_info:del:nas_id;&del=nas_id':'nas_id'";
+  }
 
   result_former({
     INPUT_DATA      => $Equipment,
     FUNCTION        => '_list',
     DEFAULT_FIELDS  => 'NAS_NAME,STATUS,NAS_IP,MODEL_NAME,VENDOR_NAME,TYPE_NAME,PORTS_WITH_EXTRA,ADDRESS_FULL',
     HIDDEN_FIELDS   => 'MODEL_ID,STATUS',
-    FUNCTION_FIELDS => 'FUNCTION_NAME=equipment_run_cmd_on_equipment_button,equipment_traps:show:nas_id,equipment_info:change:nas_id,equipment_info:del:nas_id;&del=nas_id',
+    FUNCTION_FIELDS => "FUNCTION_NAME=equipment_run_cmd_on_equipment_button,equipment_traps:show:nas_id,equipment_info:change:nas_id,".$equipment_del_button,
     MAP             => 1,
     MAP_SHOW_ITEMS  => {
       'nas_name'      => $lang{NAS},

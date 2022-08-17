@@ -1,19 +1,4 @@
 package Abills::Backend::Plugin::Websocket::API;
-use strict;
-use v5.16;
-use warnings FATAL => 'all';
-
-use Abills::Backend::Plugin::BaseAPI;
-use parent 'Abills::Backend::Plugin::BaseAPI';
-
-use Abills::Backend::Log;
-our Abills::Backend::Log $Log;
-
-my $log_user = ' Websocket::API ';
-
-use Abills::Backend::Plugin::Websocket::SessionsManager;
-use Abills::Backend::Defs;
-use Abills::Backend::Utils qw/json_encode_safe json_decode_safe/;
 
 =head2 NAME
 
@@ -25,6 +10,19 @@ use Abills::Backend::Utils qw/json_encode_safe json_decode_safe/;
 
 =cut
 
+use v5.16;
+use strict;
+use warnings FATAL => 'all';
+use parent 'Abills::Backend::Plugin::BaseAPI';
+
+use Abills::Backend::Plugin::BaseAPI;
+
+use Abills::Backend::Log;
+our Abills::Backend::Log $Log;
+
+use Abills::Backend::Plugin::Websocket::SessionsManager;
+use Abills::Backend::Defs;
+use Abills::Backend::Utils qw/json_encode_safe json_decode_safe/;
 
 #**********************************************************
 =head2 new(\%session_managers) - constructor for Websocket API
@@ -96,11 +94,18 @@ sub notify_admin {
 
   $Log->info("AID: $aid MESSAGE : " . $message);
 
-  my $sessions = lc($attr->{TO}) || 'admin';
-  my Abills::Backend::Plugin::Websocket::SessionsManager $adminSessions = $self->{session_managers}->{$sessions};
+  my $recipient;
+  if ($attr->{TO})  {
+    $recipient = lc($attr->{TO})
+  }
+  else {
+    $recipient = 'admin';
+  }
+
+  my Abills::Backend::Plugin::Websocket::SessionsManager $sessions = $self->{session_managers}->{$recipient};
 
   if ($aid eq '*') {
-    my $admins_to_notify = $adminSessions->get_all_clients();
+    my $admins_to_notify = $sessions->get_all_clients();
 
     if ($admins_to_notify && ref $admins_to_notify eq 'ARRAY') {
       $_->notify({ MESSAGE => $message, %{$attr ? $attr : {}} }) foreach (@{$admins_to_notify});
@@ -113,7 +118,7 @@ sub notify_admin {
     return 1;
   }
 
-  my $Admin = $adminSessions->get_client_for_id($aid);
+  my $Admin = $sessions->get_client_for_id($aid);
 
   if (!$Admin) {
     $Log->alert("Trying to notify when admin $aid was not online");
@@ -124,16 +129,17 @@ sub notify_admin {
 }
 
 #**********************************************************
-=head2 admins_connected()
+=head2 clients_connected()
 
   Returns: arrayref of admin ids connected
 
 =cut
 #**********************************************************
-sub admins_connected {
+sub clients_connected {
   my $self = shift;
+  my ($type) = @_;
 
-  return $self->{session_managers}->{admin}->get_client_ids();
+  return $self->{session_managers}->{$type}->get_client_ids();
 }
 
 #**********************************************************

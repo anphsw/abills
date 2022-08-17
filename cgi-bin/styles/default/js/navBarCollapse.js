@@ -4,7 +4,7 @@
 
 var MENU_AUTO_HIDDEN_WIDTH = 992;
 var cookieValue            = Cookies.get('menuHidden');
-var menuHidden             = isDefined(cookieValue) && cookieValue === 'false';
+var menuHidden             = typeof cookieValue !== 'undefined' && cookieValue === 'false';
 var $body                  = $('body');
 var MENU_TOGGLE_CLASS      = 'sidebar-collapse';
 //console.log('menuhidden: ' + menuHidden);

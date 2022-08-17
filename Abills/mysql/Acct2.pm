@@ -680,6 +680,9 @@ sub rt_billing {
   my $out_byte = $RAD->{$output_octets} + $RAD->{$output_gigawords} * 4294967296;
   my $in_byte  = $RAD->{$input_octets} + $RAD->{$input_gigawords} * 4294967296;
 
+  $RAD->{INTERIUM_INBYTE} = $interium_inbyte;
+  $RAD->{INTERIUM_OUTBYTE} = $interium_outbyte;
+
   if ($attr->{BILLING}) {
     $Billing = $attr->{BILLING};
   }

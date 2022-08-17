@@ -16,13 +16,13 @@ our (
 
 our Abills::HTML $html;
 our Paysys $Paysys;
+
 #**********************************************************
 =head2 paysys_log() - Show paysys operations
 
 =cut
 #**********************************************************
 sub paysys_log {
-
   if (form_purchase_module({
     HEADER          => $user->{UID},
     MODULE          => 'Paysys',
@@ -93,12 +93,6 @@ sub paysys_log {
 
   if ($FORM{search_form} && !$user->{UID}) {
     my %ACTIVE_SYSTEMS = %PAY_SYSTEMS;
-
-    #    while (my ($k, $v) = each %CONF_OPTIONS) {
-    #      if (!$conf{$k}) {
-    #        delete $ACTIVE_SYSTEMS{$v};
-    #      }
-    #    }
 
     $info{PAY_SYSTEMS_SEL} = $html->form_select(
       'PAYMENT_SYSTEM',
@@ -298,6 +292,7 @@ sub paysys_reports {
 
   return 1;
 }
+
 #**********************************************************
 =head2 _paysys_get_exchange_rates() - get user exchange rates
 
@@ -500,11 +495,11 @@ sub get_reg_payments {
 
   my $payments_list = $Payments->list({
     FROM_DATE => $attr->{DATE_FROM},
-    TO_DATE   => date_inc($attr->{DATE_TO}),
+    TO_DATE   => date_inc($DATE),
     EXT_ID    => ($attr->{EXT_ID} || q{}) . ':*',
     LOGIN     => '_SHOW',
     SUM       => '_SHOW',
-    PAGE_ROWS => 10000,
+    PAGE_ROWS => 100000,
     COLS_NAME => 1
   });
 

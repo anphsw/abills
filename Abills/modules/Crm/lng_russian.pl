@@ -7,6 +7,7 @@ $lang{ALL_LEADS} = 'Все лиды';
 $lang{UNITS} = 'Единиц';
 $lang{LEAD} = 'Потенциальный клиент';
 $lang{LEADS} = 'Потенциальные клиенты';
+$lang{OF_LEAD} = 'потенциального клиента';
 $lang{POTENTIAL_LEADS} = 'Потенциальные';
 $lang{CONVERT_LEADS} = 'Конвертированные';
 $lang{LEAD_NOT_FOUND} = 'Потенциальный клиент не найден';
@@ -80,5 +81,9 @@ $lang{CRM_USER_LINKED} = 'Пользователь уже привязан';
 $lang{CRM_SHOW_AT_REGISTRATION} = "Показать при регистрации";
 
 $lang{CRM_TECH} = "Технические данные";
+
+$lang{WATCHING} = "Наблюдаю";
+$lang{WATCH} = "Следить";
+$lang{DUBLICATE_LEADS} = "Дубликаты";
 
 1

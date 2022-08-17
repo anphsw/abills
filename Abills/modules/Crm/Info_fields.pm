@@ -330,7 +330,7 @@ sub crm_lead_info_field_tpl {
   my $fields_list = $Crm->fields_list({
     SORT           => 5,
     TP_INFO_FIELDS => $attr->{TP_INFO_FIELDS} || 0,
-    REGISTRATION   => $attr->{REGISTRATION} || '_SHOW'
+    REGISTRATION   => $attr->{REGISTRATION} || '_SHOW' # ????
   });
 
   my @field_result = ();

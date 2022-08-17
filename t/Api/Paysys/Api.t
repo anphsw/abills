@@ -28,7 +28,7 @@ BEGIN {
 }
 
 use Abills::Defs;
-use Init_t qw(test_runner folder_list);
+use Init_t qw(test_runner folder_list help);
 use Abills::Base qw(parse_arguments);
 use Admins;
 use Paysys;
@@ -48,9 +48,16 @@ my $admin = Admins->new($db, \%conf);
 my $Paysys = Paysys->new($db, $admin, \%conf);
 
 my $ARGS = parse_arguments(\@ARGV);
+
+if (($ARGV[0] && lc($ARGV[0]) eq 'help') || defined($ARGS->{help}) || defined($ARGS->{HELP})) {
+  help();
+  exit 0;
+}
+
 my $apiKey = $ARGS->{KEY} || $ARGV[$#ARGV] || q{};
 my @test_list = folder_list($ARGS, $RealBin);
 my $debug = $ARGS->{DEBUG} || 0;
+my @tests = ();
 
 foreach my $test (@test_list) {
   if ($test->{path} =~ /\/transaction\/status\//g) {
@@ -69,28 +76,28 @@ foreach my $test (@test_list) {
       COLS_NAME => 1,
     });
 
-    #FIXME multiple fast_pay_link tests
     foreach my $paysys_module (@{$list}) {
+      my %_test = %{$test};
       my ($paysys_name) = $paysys_module->{module} =~ /(.+)\.pm/;
       my $module = "Paysys::systems::$paysys_name";
       eval "use $module";
 
       if ($module->can('fast_pay_link')) {
-        $test->{name} = "USER_PAYSYS_PAY_$paysys_name";
-        $test->{body}->{systemId} = $paysys_module->{id};
-        $test->{body}->{operationId} = int(rand(1000000));
-        $test->{body}->{sum} = 1;
+        $_test{name} = "USER_PAYSYS_PAY_$paysys_name";
+        $_test{body}->{systemId} = $paysys_module->{id};
+        $_test{body}->{operationId} = int(rand(1000000));
+        $_test{body}->{sum} = 1;
+        push @tests, \%_test;
       }
     }
   }
-  else {
-  }
+  push @tests, $test;
 }
 
 test_runner({
   apiKey => $apiKey,
   debug  => $debug
-}, \@test_list);
+}, \@tests);
 
 done_testing();
 

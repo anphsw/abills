@@ -7,4 +7,10 @@ our %FUNCTIONS_LIST = (
   "22:20:API:extreceipt_api"                             => 5,
 );
 
+if ($conf{EXTRECEIPT_USER_PORTAL}) {
+  %USER_FUNCTION_LIST = (
+    "01:0:$lang{CHECKS}:extreceipts_list:"  => 0,
+  );
+}
+
 1;

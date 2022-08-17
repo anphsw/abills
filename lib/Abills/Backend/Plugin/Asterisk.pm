@@ -17,7 +17,6 @@ my Admins $Admins;
 
 # Used in local thread and can't be global
 my (
-  #$admin,
   $db,
   %conf
 );
@@ -40,6 +39,7 @@ my Abills::Backend::Plugin::Websocket::API $websocket_api = get_global('WEBSOCKE
 
 # Cache
 my %calls_statuses = ();
+my @skip_nums = ();
 
 #**********************************************************
 =head2 new($db, $admin, $CONF)
@@ -74,6 +74,10 @@ sub new {
     admin => $Admins,
     conf  => $CONF,
   };
+
+  if ($conf{CALLCENTER_SKIP_LOG}) {
+    @skip_nums = split(/,\s?/, $conf{CALLCENTER_SKIP_LOG});
+  }
 
   bless($self, $class);
 
@@ -217,7 +221,15 @@ sub process_asterisk_newchannel {
     return 0 if ($caller_number =~ /unknown/);
 
     if ($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}) {
-      $caller_number =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
+      $caller_number =~ s/^$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
+    }
+
+    if ($conf{CALLCENTER_SKIP_LOG}) {
+      if (in_array($caller_number, \@skip_nums)) {
+        `echo "$caller_number calling to $called_number (Skip)" >> /tmp/a`;
+        $Log->info("Got Newchannel event. $caller_number calling to $called_number (Skip)");
+        return 1;
+      }
     }
 
     # CALLCENTER CODE
@@ -229,7 +241,7 @@ sub process_asterisk_newchannel {
 
           my $user = $Users->list({
             UID       => '_SHOW',
-            PHONE     => $caller_number,
+            PHONE     => "*$caller_number",
             COLS_NAME => 1
           });
 
@@ -250,7 +262,7 @@ sub process_asterisk_newchannel {
             $Log->info("NEW_CALL ID: $call_id");
           }
           else {
-            $Log->info("ERR_CANT_ADD_CALL");
+            $Log->info("ERR_CANT_ADD_CALL ID: ". $call_id);
           }
         };
 
@@ -283,7 +295,7 @@ sub process_asterisk_newchannel {
 
     $Log->info("Got Newchannel event. $caller_number calling to $called_number ");
 
-    notify_admin_about_new_call($called_number, $caller_number);
+    notify_admin_about_new_call($called_number, $caller_number, $event);
   }
 
   return 1;
@@ -303,7 +315,7 @@ sub process_asterisk_newchannel {
 sub process_asterisk_newstate {
   my ($asterisk, $event) = @_;
 
-  if ($event->{ChannelStateDesc} eq 'Up' && $event->{ConnectedLineNum} ne '') {
+  if ($event->{ConnectedLineNum} && $event->{ChannelStateDesc} eq 'Up') {
     my ($call_id, undef) = split('\.', $event->{Uniqueid});
 
     $Callcenter->callcenter_change_calls({
@@ -312,12 +324,13 @@ sub process_asterisk_newstate {
     });
 
     if (!$Callcenter->{errno}) {
-      $calls_statuses{$call_id} = 2;
-      $Log->info("Call in process. ID: $call_id");
+      $Log->info("CALL_IN_PROCESS. ID: $call_id");
     }
     else {
-      $Log->info("Can't change status call ($Callcenter->{errno}/$Callcenter->{errstr})");
+      $Log->info("CAN_T_CHANGE_STATUS_CALL ($Callcenter->{errno}/$Callcenter->{errstr})");
     }
+
+    $calls_statuses{$call_id} = 2;
   }
 
   return 1;
@@ -325,10 +338,12 @@ sub process_asterisk_newstate {
 
 
 #**********************************************************
-=head2 process_asterisk_softhangup () -
+=head2 process_asterisk_softhangup($asterisk, $event) -
 
   Arguments:
-    ATTRIBUTES -
+    $asterisk
+    $event
+
   Returns:
 
   Examples:
@@ -338,27 +353,35 @@ sub process_asterisk_newstate {
 sub process_asterisk_softhangup {
   my ($asterisk, $event) = @_;
 
-  if ($event->{ConnectedLineNum} && $event->{ConnectedLineNum} =~ /\d+/) {
-
+  #if ($event->{ConnectedLineNum} && $event->{ConnectedLineNum} =~ /\d+/) {
+    my $called_number = $event->{Exten} || q{};
     my ($call_id, undef) = split('\.', $event->{Uniqueid});
 
     if (defined $calls_statuses{$call_id} && $calls_statuses{$call_id} == 2) {
       $Callcenter->callcenter_change_calls({
         STATUS => 3,
-        ID     => $call_id
+        ID     => $call_id,
+        STOP   => 'NOW()'
       });
 
       delete $calls_statuses{$call_id};
-      $Log->info("CALL_PROCESSED ID: $call_id");
+      $Log->info("CALL_PROCESSED ID: $call_id NUMBER: $called_number");
     }
     else {
-      $Callcenter->callcenter_change_calls({
-        STATUS => 4,
+      $Callcenter->callcenter_info_calls({
         ID     => $call_id
       });
-      $Log->warning("CALL_NOT_PROCEESSED ID: $call_id");
+
+      if ($Callcenter->{STATUS} && $Callcenter->{STATUS} < 3) {
+        $Callcenter->callcenter_change_calls({
+          STATUS => 4,
+          ID     => $call_id,
+          STOP   => 'NOW()'
+        });
+        $Log->warning("CALL_NOT_PROCEESSED ID: $call_id NUMBER: $called_number");
+      }
     }
-  }
+  #}
 
   return 1
 }
@@ -412,7 +435,7 @@ sub get_admin_by_sip_number {
 =cut
 #**********************************************************
 sub notify_admin_about_new_call {
-  my ($called_number, $caller_number) = @_;
+  my ($called_number, $caller_number, $event) = @_;
 
   my $admin_aids = get_admin_by_sip_number($called_number);
   my @online_aids = ();
@@ -427,7 +450,7 @@ sub notify_admin_about_new_call {
   }
 
   if ($#online_aids == -1) {
-    $Log->notice("Online admin not present for number: $called_number");
+    $Log->notice("ONLINE_ADMIN_NOT_PRESENT NUMBER: $called_number");
     return 1;
   }
 
@@ -436,7 +459,7 @@ sub notify_admin_about_new_call {
   }
 
   my $search_list = $Users->list({
-    PHONE        => "*$caller_number",
+    PHONE        => "*$caller_number*",
     UID          => '_SHOW',
     FIO          => '_SHOW',
     DEPOSIT      => '_SHOW',
@@ -523,7 +546,8 @@ sub _create_user_notification {
       DESC            => 'DESC',
       COLS_NAME       => 1,
       COLS_UPPER      => 1,
-      PAGE_ROWS       => 1 });
+      PAGE_ROWS       => 1
+    });
 
     $tp_name = $user_internet_main->[0]->{tp_name} || '';
     $internet_status = $user_internet_main->[0]->{internet_status} || '0';

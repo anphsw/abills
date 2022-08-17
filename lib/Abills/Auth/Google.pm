@@ -9,7 +9,7 @@ package Abills::Auth::Google;
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw(urlencode mk_unique_value _bp show_hash load_pmodule);
+use Abills::Base qw(urlencode mk_unique_value show_hash);
 use Abills::Fetcher;
 
 my $auth_endpoint_url   = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -36,7 +36,10 @@ sub check_access {
 
   print "Content-Type: text/html\n\n" if ($self->{debug});
 
-  if (!exists $attr->{code}) {
+  if ($attr->{API} && $attr->{token}) {
+    $self->validate_token({ TOKEN => $attr->{token} });
+  }
+  elsif (!exists $attr->{code}) {
     my $session_state = mk_unique_value(10);
 
     $self->{auth_url} = join('', "$auth_endpoint_url?",
@@ -70,7 +73,6 @@ sub check_access {
 
   return $self;
 }
-
 
 #**********************************************************
 =head2  get_token() - Get token
@@ -182,6 +184,73 @@ sub get_info {
   if ($result->{etag}) {
     delete($result->{etag});
   }
+
+  return $result;
+}
+
+#**********************************************************
+=head2 validate_token($attr)
+
+  Check is OAUTH token is valid
+
+  Arguments:
+  TOKEN - Google services ID or OAuth 2.0 Token
+
+  Returns:
+    result_from_google
+
+=cut
+#**********************************************************
+sub validate_token {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $token = $attr->{TOKEN};
+  my $url   = "$get_me_url?access_token=" . ($token || q{});
+
+  # get user info with user token
+  my $result = web_request($url, {
+    GET         => 1,
+    JSON_RETURN => 1,
+    JSON_UTF8   => 1,
+  });
+
+  return 0 unless $result;
+
+  # check is present error
+  if ($result->{error}) {
+    $self->{errno}  = $result->{error}->{code};
+    $self->{errstr} = $result->{error}->{message};
+  } elsif ($result->{name}) {
+
+    # no error we can check is really user present in our system
+    my $api_key    = $self->{conf}->{GOOGLE_API_KEY};
+    my $check_url = $get_public_info_url . $result->{id} . "?personFields=photos,names&key=$api_key";
+
+    my $check_result = web_request($check_url, {
+      GET         => 1,
+      JSON_RETURN => 1,
+      JSON_UTF8   => 1,
+    });
+
+    return 0 unless $check_result;
+
+    # check is present error
+    if ($result->{error}) {
+      $self->{errno}  = $result->{error}->{code};
+      $self->{errstr} = $result->{error}->{message};
+    } else {
+      if ($result->{etag}) {
+        delete($result->{etag});
+      }
+      # no error return user google id for look for
+      $self->{USER_ID}     = 'google, ' . $result->{id};
+      $self->{USER_NAME}   = $result->{name};
+      $self->{CHECK_FIELD} = '_GOOGLE';
+    }
+  }
+
+  $self->{result} = $result;
 
   return $result;
 }

@@ -1,5 +1,5 @@
-<form action='$SELF_URL' METHOD='POST' class='form-horizontal'>
-  <input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' METHOD='POST' class='form-horizontal'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='TP_ID' value='%TP_ID%'>
   <div class='container-fluid'>
 

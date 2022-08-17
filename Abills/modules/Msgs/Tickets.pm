@@ -21,7 +21,8 @@ our (
   %permissions,
   @WEEKDAYS,
   @MONTHES,
-  @MONTHES_LIT
+  @MONTHES_LIT,
+  %msgs_permissions
 );
 
 our Abills::HTML $html;
@@ -55,6 +56,7 @@ if ($conf{MSGS_REDIRECT_FILTER_ADD}) {
 
 =cut
 #**********************************************************
+#TODO: Delete function
 sub msgs_admin_privileges {
   my ($aid) = @_;
 
@@ -85,7 +87,7 @@ sub msgs_admin_privileges {
 sub msgs_admin {
   my ($attr) = @_;
 
-  $Msgs->{TAB1_ACTIVE} = "active";
+  $Msgs->{TAB1_ACTIVE} = 'active';
 
   $FORM{chg} = $FORM{CHG_MSGS} if ($FORM{CHG_MSGS});
   $FORM{del} = $FORM{DEL_MSGS} if ($FORM{DEL_MSGS});
@@ -95,6 +97,17 @@ sub msgs_admin {
 
   if ($FORM{chg}) {
     $Msgs->message_info($FORM{chg});
+    
+    if ($msgs_permissions{1}{21} && (!$Msgs->{RESPOSIBLE} || $Msgs->{RESPOSIBLE} ne $admin->{AID})) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+      return 1;
+    }
+
+    if ($msgs_permissions{4} && !$msgs_permissions{4}{$Msgs->{CHAPTER}}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+      return 1;
+    }
+
     if ($Msgs->{UID} && !$FORM{UID}) {
       my $user_info = user_info($Msgs->{UID});
       print $user_info->{TABLE_SHOW} || q{};
@@ -106,7 +119,7 @@ sub msgs_admin {
 
   my $uid = $FORM{UID};
   #Get admin privileges
-  my ($A_CHAPTER, $A_PRIVILEGES, $CHAPTERS_DELIGATION) = msgs_admin_privileges($admin->{AID});
+  # my ($A_CHAPTER, $A_PRIVILEGES, $CHAPTERS_DELIGATION) = msgs_admin_privileges($admin->{AID});
 
   if ($FORM{ajax} && $FORM{SURVEY_ID}) {
     $Msgs->survey_subject_info($FORM{SURVEY_ID});
@@ -121,8 +134,7 @@ sub msgs_admin {
       $Msgs->message_info($FORM{chg} || $FORM{ID});
       my $result = $plugin->plugin_show({ %{$Msgs}, %FORM,
         PRIORITY_COLORS     => \@priority_colors,
-        PRIORITY_ARRAY      => \@priority,
-        CHAPTERS_DELIGATION => $CHAPTERS_DELIGATION
+        PRIORITY_ARRAY      => \@priority
       });
       delete $FORM{PLUGIN};
 
@@ -244,10 +256,7 @@ sub msgs_admin {
   }
   if ($FORM{chg}) {
     $Msgs->{TAB2_ACTIVE} = (!$Msgs->{TAB1_ACTIVE}) ? "active" : "";
-    msgs_ticket_show({
-      A_PRIVILEGES        => $A_PRIVILEGES,
-      CHAPTERS_DELIGATION => $CHAPTERS_DELIGATION,
-    });
+    msgs_ticket_show();
 
     return 0;
   }
@@ -255,14 +264,11 @@ sub msgs_admin {
     my $plugin_result = _msgs_call_action_plugin('BEFORE_CHANGE', { %{($attr) ? $attr : {}} });
     msgs_ticket_change() if (!defined($plugin_result));
 
-    msgs_ticket_show({
-      A_PRIVILEGES        => $A_PRIVILEGES,
-      CHAPTERS_DELIGATION => $CHAPTERS_DELIGATION,
-    });
+    msgs_ticket_show();
 
     return 1;
   }
-  elsif ($FORM{del} && $FORM{COMMENTS} && _msgs_check_admin_privileges($A_PRIVILEGES, { ID => $FORM{del} })) {
+  elsif ($FORM{del} && $FORM{COMMENTS}) {# && _msgs_check_admin_privileges($A_PRIVILEGES, { ID => $FORM{del} })) {
     msgs_redirect_filter({ DEL => 1, UID => $uid, MSG_ID => $FORM{del} });
 
     $Msgs->message_team_del($FORM{del});
@@ -275,14 +281,14 @@ sub msgs_admin {
     }
   }
 
-  if (scalar keys %{$CHAPTERS_DELIGATION} > 0) {
-    $LIST_PARAMS{CHAPTERS_DELIGATION} = $CHAPTERS_DELIGATION;
-    $LIST_PARAMS{PRIVILEGES} = $A_PRIVILEGES;
-    $LIST_PARAMS{UID} = undef if (!$uid);
-  }
+  # if (scalar keys %{$CHAPTERS_DELIGATION} > 0) {
+  #   $LIST_PARAMS{CHAPTERS_DELIGATION} = $CHAPTERS_DELIGATION;
+  #   $LIST_PARAMS{PRIVILEGES} = $A_PRIVILEGES;
+  #   $LIST_PARAMS{UID} = undef if (!$uid);
+  # }
 
   if ($FORM{search_form}) {
-    msgs_form_search({ A_PRIVILEGES => $A_PRIVILEGES });
+    msgs_form_search();
   }
   elsif ($FORM{add_form}) {
     my $return = msgs_admin_add();
@@ -295,11 +301,7 @@ sub msgs_admin {
   $LIST_PARAMS{DESC} = 'DESC' if (!$FORM{sort});
   $LIST_PARAMS{RESPOSIBLE} = $attr->{ADMIN}->{AID} if ($attr->{ADMIN}->{AID});
 
-  msgs_list({
-    A_PRIVILEGES        => $A_PRIVILEGES,
-    A_CHAPTER           => $A_CHAPTER,
-    CHAPTERS_DELIGATION => $CHAPTERS_DELIGATION,
-  });
+  msgs_list();
 
   return 1;
 }
@@ -321,18 +323,18 @@ sub msgs_ticket_change {
     # _msgs_change_resposible will need AID of current responsible admin,
     # so should be executed first
     # We skip changing inside to avoid unnecessary queries
-    if (defined $FORM{RESPOSIBLE}) {
-      _msgs_change_responsible($FORM{ID}, $FORM{RESPOSIBLE}, {
-        SKIP_CHANGE => 1
-      });
-    }
+    _msgs_change_responsible($FORM{ID}, $FORM{RESPOSIBLE}, { SKIP_CHANGE => 1 }) if defined $FORM{RESPOSIBLE};
     $Msgs->message_change({ %FORM, USER_READ => "0000-00-00  00:00:00" });
   }
 
-  $html->message('info', $lang{INFO}, "$lang{CHANGED}") if !_error_show($Msgs);
+  $html->message('info', $lang{INFO}, $lang{CHANGED}) if !_error_show($Msgs);
 
+  if (defined $FORM{WATCHERS}) {
+    $Msgs->msg_watch_del({ ID => $FORM{ID} });
+    map $Msgs->msg_watch({ AID => $_, ID => $FORM{ID} }), split(',\s?', $FORM{WATCHERS}) if $FORM{WATCHERS};
+  }
 
-  $FORM{chg} = $FORM{ID} if ($FORM{ID});
+  $FORM{chg} = $FORM{ID} if $FORM{ID};
 
   return 1;
 }
@@ -344,6 +346,8 @@ sub msgs_ticket_change {
 #**********************************************************
 sub msgs_admin_add {
   my ($attr) = @_;
+
+  return 1 if !$msgs_permissions{1}{0};
 
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
   $FORM{send_message} = 1 if ($FORM{add} && $FORM{next});
@@ -416,12 +420,6 @@ sub _msgs_admin_send_message {
   _msgs_show_preview($users_list);
   return if $FORM{PREVIEW_FORM};
 
-  #TODO: Check address
-  # if ($users->{TOTAL} < 1 || _error_show($users)) {
-  #   $html->message('err', $lang{ERROR}, "$lang{USER_NOT_EXIST} $FORM{UID}", { ID => 700 });
-  #   return 0;
-  # }
-
   my $plugin_result = _msgs_call_action_plugin('BEFORE_CREATE', {
     %{($attr) ? $attr : {}},
     MSGS_STATUS => $msgs_status,
@@ -443,7 +441,7 @@ sub _msgs_admin_send_message {
 
   my @uids = ();
   my %msg_for_uid = ();
-  if (!$FORM{UID} && $FORM{LOCATION_ID} && $FORM{CHECK_FOR_ADDRESS}) {
+  if (!$FORM{UID} && $FORM{LOCATION_ID} && $FORM{CHECK_FOR_ADDRESS} && $msgs_permissions{1}{6}) {
     $Msgs->message_add({
       %FORM,
       MESSAGE    => $FORM{MESSAGE},
@@ -452,6 +450,7 @@ sub _msgs_admin_send_message {
       USER_READ  => '0000-00-00 00:00:00',
       IP         => $admin->{SESSION_IP}
     });
+    $Msgs->quick_replys_tags_add({ IDS => $FORM{TAGS_IDS}, MSG_ID => $Msgs->{MSG_ID} }) if $FORM{TAGS_IDS} && !_error_show($Msgs);
   }
   else {
     my $result = _msgs_make_delivery(\@uids, \%NUMBERS, \@msgs_ids, \%msg_for_uid, $users_list, $attr);
@@ -469,8 +468,8 @@ sub _msgs_admin_send_message {
     $LIST_PARAMS{PAGE_ROWS} = 25;
   }
 
-  my $att_result = _msgs_add_attachments(\@ATTACHMENTS, ($#msgs_ids > -1) ?
-    \@msgs_ids : $Msgs->{MSG_ID}, ($#uids == 0) ? $uids[0] : '_');
+  my $msg_id = ($#msgs_ids > -1) ? $msgs_ids[0] : $Msgs->{MSG_ID};
+  my $att_result = _msgs_add_attachments(\@ATTACHMENTS, $msg_id, ($#uids == 0) ? $uids[0] : '_');
 
   if (!$FORM{INNER_MSG}) {
     #Web redirect
@@ -479,7 +478,7 @@ sub _msgs_admin_send_message {
     }
     else {
       my $attachments_list = $Msgs->attachments_list({
-        MESSAGE_ID   => ($#msgs_ids > -1) ? $msgs_ids[0] : $Msgs->{MSG_ID},
+        MESSAGE_ID   => $msg_id,
         FILENAME     => '_SHOW',
         CONTENT      => '_SHOW',
         CONTENT_TYPE => '_SHOW',
@@ -498,6 +497,8 @@ sub _msgs_admin_send_message {
     }
   }
   return $att_result if $att_result;
+
+  $Notify->notify_admins({ MSG_ID => $msg_id, %FORM })  if $FORM{RESPOSIBLE} && $FORM{INNER_MSG};
 
   return 0 if ($attr->{SEND_ONLY} || $attr->{REGISTRATION});
 
@@ -555,7 +556,9 @@ sub _msgs_make_delivery {
       IP         => $admin->{SESSION_IP}
     });
 
-    return 0 if (_error_show($Msgs));
+    return 0 if _error_show($Msgs);
+
+    $Msgs->quick_replys_tags_add({ IDS => $FORM{TAGS_IDS}, MSG_ID => $Msgs->{MSG_ID} }) if $FORM{TAGS_IDS};
 
     my $plugin_result = _msgs_call_action_plugin('AFTER_CREATE', { %{($attr) ? $attr : {}} }, { ID => $Msgs->{MSG_ID} });
     return $plugin_result if defined $plugin_result;
@@ -681,7 +684,7 @@ sub _msgs_add_attachments {
   $html->message('info', $lang{MESSAGES}, "$lang{SENDED} $lang{MESSAGE}");
 
   if ($FORM{INNER_MSG}) {
-    $Notify->notify_admins();
+    # $Notify->notify_admins();
     if ($FORM{SURVEY_ID}) {
       $FORM{chg} = $Msgs->{MSG_ID};
       msgs_admin();
@@ -717,55 +720,50 @@ sub msgs_admin_add_form {
     $tpl_info{LNG_ACTION} = $lang{SEND};
   }
 
-  my $a_list = $Msgs->admins_list({
-    AID       => $admin->{AID},
-    DISABLE   => 0,
-    COLS_NAME => 1
-  });
-  my @A_CHAPTER = ();
-
-  if ($Msgs->{TOTAL} > 0) {
-    foreach my $line (@{$a_list}) {
-      next if $line->{chapter_id} <= 0;
-      push @A_CHAPTER, $line->{chapter_id} if ($line->{priority} > 0);
-    }
-
-    return 0 if ($#A_CHAPTER == -1);
-    $LIST_PARAMS{CHAPTER} = join(',  ', @A_CHAPTER);
-    $LIST_PARAMS{UID} = undef if (!$FORM{UID});
+  if ($msgs_permissions{3}{0} && $msgs_permissions{3}{2}) {
+    $Msgs->{DISPATCH_SEL} = $html->form_select('DISPATCH_ID', {
+      SELECTED    => $Msgs->{DISPATCH_ID} || '',
+      SEL_LIST    => $Msgs->dispatch_list({ COMMENTS => '_SHOW', PLAN_DATE => '_SHOW', STATE => 0, COLS_NAME => 1 }),
+      SEL_OPTIONS => { '' => '--' },
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'plan_date,comments'
+    });
+  }
+  else {
+    $tpl_info{DISPATCH_HIDE} = 'd-none';
   }
 
-  $Msgs->{CHAPTER_SEL} = $html->form_select('CHAPTER', {
+  $Msgs->{CHAPTER_SEL} =$html->form_select('CHAPTER', {
     SELECTED       => $Msgs->{CHAPTER},
-    SEL_LIST       => $Msgs->chapters_list({ CHAPTER => $LIST_PARAMS{CHAPTER} || undef, DOMAIN_ID => $users->{DOMAIN_ID}, COLS_NAME => 1 }),
+    SEL_LIST => $Msgs->chapters_list({
+      CHAPTER   => $msgs_permissions{4} ? join(',', keys %{$msgs_permissions{4}}) : '_SHOW',
+      DOMAIN_ID => $users->{DOMAIN_ID},
+      COLS_NAME => 1
+    }),
     MAIN_MENU      => get_function_index('msgs_chapters'),
     MAIN_MENU_ARGV => ($Msgs->{CHAPTER}) ? "chg=$Msgs->{CHAPTER}" : ''
   });
-
-  $Msgs->{DISPATCH_SEL} = $html->form_select('DISPATCH_ID', {
-    SELECTED    => $Msgs->{DISPATCH_ID} || '',
-    SEL_LIST    => $Msgs->dispatch_list({ COMMENTS => '_SHOW', PLAN_DATE => '_SHOW', STATE => 0, COLS_NAME => 1 }),
-    SEL_OPTIONS => { '' => '--' },
-    SEL_KEY     => 'id',
-    SEL_VALUE   => 'plan_date,comments'
-  });
+  $tpl_info{ATTACH_ADDRESS_HIDE} = 'd-none' if $FORM{UID} || !$msgs_permissions{1}{6};
+  $tpl_info{INNER_MSG_HIDE} = 'd-none' if !$msgs_permissions{1}{7};
+  $tpl_info{DISPATCH_ADD_HIDE} = 'd-none' if !$msgs_permissions{3}{1};
 
   if ((!$FORM{UID} || $FORM{UID} =~ /;/) && !$FORM{TASK}) {
     $tpl_info{GROUP_SEL} = sel_groups({ MULTISELECT => 1 });
-    $tpl_info{ADDRESS_FORM} = form_address({ LOCATION_ID => $FORM{LOCATION_ID} || '', SHOW_ADD_BUTTONS => 1 });
+    $tpl_info{ADDRESS_FORM} = form_address({
+      LOCATION_ID      => $FORM{LOCATION_ID} || '',
+      SHOW_ADD_BUTTONS => 1,
+      ADDRESS_HIDE     => 1
+    });
 
     if (in_array('Tags', \@MODULES)) {
       if (!$admin->{MODULES} || $admin->{MODULES}{'Tags'}) {
         load_module('Tags', $html);
 
-        my (undef, $tags_count) = tags_sel({ HASH => 1 });
-        $tpl_info{TAGS_FORM} = $html->tpl_show(templates('form_show_hide'), {
-          CONTENT     => tags_search_form(),
-          NAME        => $lang{TAGS},
-          ID          => 'TAGS_FORM',
-          PARAMS      => 'collapsed-box',
-          BUTTON_ICON => 'plus'
-        }, { OUTPUT2RETURN => 1 }) if ($tags_count);
+        $tpl_info{TAGS_FORM} = $html->tpl_show(templates('form_row'), {
+          VALUE => tags_sel(),
+          NAME  => $lang{TAGS},
+          ID    => 'TAGS'
+        }, { OUTPUT2RETURN => 1 });
       }
     }
 
@@ -785,12 +783,12 @@ sub msgs_admin_add_form {
       SEL_ARRAY    => \@send_methods,
       ARRAY_NUM_ID => 1
     });
+    $tpl_info{DELIVERY_ADD_HIDE} = 'd-none' if !$msgs_permissions{2}{1};
 
     $tpl_info{DELIVERY_SELECT_FORM} = sel_deliverys({ SKIP_MULTISELECT => 1, SELECTED => $FORM{DELIVERY} || '' });
-    $tpl_info{SEND_DELIVERY_FORM} = $html->tpl_show(_include('msgs_delivery_form', 'Msgs'),
-      { %{$attr}, %FORM, %tpl_info, %{$Msgs} },
-      { OUTPUT2RETURN => 1 },
-    );
+    $tpl_info{SEND_DELIVERY_FORM} = $msgs_permissions{2}{0} && $msgs_permissions{2}{4} ?
+      $html->tpl_show(_include('msgs_delivery_form', 'Msgs'),
+        { %{$attr}, %FORM, %tpl_info, %{$Msgs} }, { OUTPUT2RETURN => 1 }) : '';
 
     $tpl_info{BACK_BUTTON} = $html->form_input('PREVIEW', $lang{PRE}, { TYPE => 'submit' });
     $tpl_info{GROUP_HIDE} = 'display: none' unless ($permissions{0}{28});
@@ -801,11 +799,11 @@ sub msgs_admin_add_form {
   }
 
   #Message send  type
-  my %send_types = (0 => "$lang{MESSAGE}",);
+  my %send_types = (0 => $lang{MESSAGE});
   my $sender_send_types = $Sender->available_types({ HASH_RETURN => 1, CLIENT => 1 });
 
   %send_types = (%send_types, %$sender_send_types);
-  $send_types{3} = 'Msgs redirect' if ($conf{MSGS_REDIRECT_FILTER_ADD});
+  $send_types{3} = 'Msgs redirect' if $conf{MSGS_REDIRECT_FILTER_ADD};
 
   my $send_types = $html->form_select('SEND_TYPE', {
     SELECTED => $Msgs->{SEND_TYPE} || $FORM{SEND_TYPE} || 0,
@@ -838,9 +836,17 @@ sub msgs_admin_add_form {
     ARRAY_NUM_ID => 1
   });
 
+  if ($msgs_permissions{1}{19}) {
+    $tpl_info{MSGS_TAGS} = msgs_quick_replys_tags({ RETURN_LIST => 1 });
+  }
+  else {
+    $tpl_info{MSGS_TAGS_HIDE} = 'd-none';
+  }
   $tpl_info{RESPOSIBLE} = sel_admins({ NAME => 'RESPOSIBLE', SELECTED => $admin->{AID}, DISABLE => 0 });
   $tpl_info{INNER_MSG} = 'checked' if ($conf{MSGS_INNER_DEFAULT});
   $tpl_info{SURVEY_SEL} = msgs_survey_sel();
+  $tpl_info{SURVEY_HIDE} = !$msgs_permissions{1}{20} ? 'd-none' : '';
+  $tpl_info{SUBJECT_SEL} = msgs_sel_subject({ EX_PARAMS => 'disabled=disabled required' });
   $tpl_info{PERIODIC} = 'checked' if ($FORM{PERIODIC});
   $tpl_info{PAR} = $attr->{PAR} if ($attr->{PAR});
   $tpl_info{PLAN_DATETIME_INPUT} = $html->form_datetimepicker(
@@ -881,8 +887,6 @@ sub msgs_admin_add_form {
   Arguments:
     $attr
       ID
-      A_PRIVILEGES
-      CHAPTERS_DELIGATION
 
   Returns:
     TRUE or FALSE
@@ -892,8 +896,6 @@ sub msgs_admin_add_form {
 sub msgs_ticket_show {
   my ($attr) = @_;
 
-  my $A_PRIVILEGES = $attr->{A_PRIVILEGES};
-  my $CHAPTERS_DELIGATION = $attr->{CHAPTERS_DELIGATION};
   my $message_id = $attr->{ID} || $FORM{chg} || 0;
   my $msgs_managment_tpl = 'msgs_managment';
   my $msgs_show_tpl = 'msgs_show';
@@ -926,15 +928,15 @@ sub msgs_ticket_show {
 
   if ($FORM{reply_del} && $FORM{COMMENTS}) {
     if ($FORM{SURVEY_ID} && $FORM{CLEAN}) {
-      $Msgs->survey_answer_del({ SURVEY_ID => $FORM{SURVEY_ID}, UID => $FORM{UID}, %FORM });
+      $Msgs->survey_answer_del(\%FORM);
     }
     else {
       $Msgs->message_reply_del({ ID => $FORM{reply_del} });
     }
-    $html->message('info', $lang{INFO}, "$lang{DELETED}  [$FORM{reply_del}] ") if (!$Msgs->{errno});
+    $html->message('info', $lang{INFO}, "$lang{DELETED}  [$FORM{reply_del}] ") if !$Msgs->{errno};
   }
 
-  my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
+  my $msgs_status = msgs_sel_status({ HASH_RESULT => 1, TASK_CLOSED => !$msgs_permissions{1}{3} ? 0 : undef });
   print msgs_status_bar({
     NO_UID      => ($FORM{UID}) ? undef : 1,
     TABS        => 1,
@@ -943,7 +945,7 @@ sub msgs_ticket_show {
   });
 
   $Msgs->message_info($message_id);
-  return 1 if (_error_show($Msgs));
+  return 1 if _error_show($Msgs);
 
   if ($FORM{chg} && !($Msgs->{ID})) {
     $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}");
@@ -958,10 +960,11 @@ sub msgs_ticket_show {
   $Msgs->{CHAPTER} //= 0;
   $Msgs->{STATE_NAME} = $html->color_mark($msgs_status->{ $Msgs->{STATE} });
 
-  $Msgs->{EDIT} = $html->button("$lang{EDIT}", "", {
+  $Msgs->{EDIT} = $html->button($lang{EDIT}, '', {
     class     => 'btn btn-default btn-xs reply-edit-btn',
     ex_params => "reply_id='m$message_id'" }
-  ) if ($permissions{7} && $permissions{7}->{1});
+  ) if $msgs_permissions{1}{5};
+  $Msgs->{INNER_MSG_HIDE} = 'd-none' if !$msgs_permissions{1}{7};
 
   $Msgs->{STATE_SEL} = $html->form_select('STATE', {
     SELECTED     => $Msgs->{STATE} || 0,
@@ -977,8 +980,7 @@ sub msgs_ticket_show {
 
   $Msgs->{PLUGINS} = _msgs_show_right_plugins($Msgs, { %FORM,
     PRIORITY_COLORS     => \@priority_colors,
-    PRIORITY_ARRAY      => \@priority,
-    CHAPTERS_DELIGATION => $CHAPTERS_DELIGATION
+    PRIORITY_ARRAY      => \@priority
   });
 
   $Msgs->{EXT_INFO} = $html->tpl_show(_include($msgs_managment_tpl, 'Msgs'), { %{$users}, %{$Msgs},
@@ -1018,30 +1020,39 @@ sub msgs_ticket_show {
 
   my %params = ();
 
-  if (!$Msgs->{ACTIVE_SURWEY} && _msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER}, HIDE_ALERT => 1 })) {
-    my $survey_sel = msgs_survey_sel();
+  if (!$Msgs->{ACTIVE_SURWEY}) {# && _msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER}, HIDE_ALERT => 1 })) {
 
-    $Msgs->{CHAPTERS_SEL} = $html->form_select('CHAPTER_ID', {
-      SELECTED       => '',
-      SEL_LIST       => $Msgs->chapters_list({ DOMAIN_ID => $users->{DOMAIN_ID}, CHAPTER => join(',', keys %{$A_PRIVILEGES}), COLS_NAME => 1 }),
-      MAIN_MENU      => get_function_index('msgs_chapters'),
-      MAIN_MENU_ARGV => "chg=$Msgs->{CHAPTER}",
-      SEL_OPTIONS    => { '' => '--' },
-    });
+    if ($msgs_permissions{1}{8}) {
+      $Msgs->{CHAPTERS_SEL} = $html->form_select('CHAPTER_ID', {
+        SELECTED       => '',
+        SEL_LIST       => $Msgs->chapters_list({
+          DOMAIN_ID => $users->{DOMAIN_ID},
+          CHAPTER   => $msgs_permissions{4} ? join(',', keys %{$msgs_permissions{4}}) : '_SHOW',
+          COLS_NAME => 1
+        }),
+        MAIN_MENU      => get_function_index('msgs_chapters'),
+        MAIN_MENU_ARGV => "chg=$Msgs->{CHAPTER}",
+        SEL_OPTIONS    => { '' => '--' },
+      });
+    }
+    else {
+      $Msgs->{CHANGE_CHAPTER_HIDE} = 'd-none';
+    }
 
     $params{REPLY_FORM} = $html->tpl_show(_include('msgs_reply', 'Msgs'), {
       %{$Msgs},
-      REPLY_TEXT      => "",
+      REPLY_TEXT      => '',
       QUOTING         => $Msgs->{REPLY_QUOTE} || '',
       RUN_TIME_STATUS => 'DISABLE',
       MAIN_INNER_MSG  => $Msgs->{INNER_MSG},
       INNER_MSG       => ($FORM{INNER_MSG}) ? ' checked ' : '',
-      SURVEY_SEL      => $survey_sel,
+      SURVEY_SEL      => msgs_survey_sel(),
+      SURVEY_HIDE     => !$msgs_permissions{1}{20} ? 'd-none' : '',
       MAX_FILES       => $conf{MSGS_MAX_FILES} || 3
     }, { OUTPUT2RETURN => 1, ID => 'MSGS_REPLY', NO_SUBJECT => $lang{NO_SUBJECT} });
   }
 
-  $params{REPLY} = join(($FORM{json}) ? ',' : '', @{$REPLIES});
+  $params{REPLY} = join($FORM{json} ? ',' : '', @{$REPLIES});
 
   if ($Msgs->{FILENAME}) {
     my $attachments_list = $Msgs->attachments_list({
@@ -1069,28 +1080,28 @@ sub msgs_ticket_show {
     $params{MAIN_PANEL_COLOR} = 'card-primary';
   }
 
-  my $msg_tags_list = $Msgs->quick_replys_tags_list({ MSG_ID => $message_id, COLS_NAME => 1 });
-  if ($Msgs->{TOTAL}) {
-    foreach my $msg_tag (@{$msg_tags_list}) {
-      $params{MSG_TAGS} .= ' ' . $html->element('span', $msg_tag->{reply}, {
-        'class'                 => 'label new-tags mr-1',
-        'style'                 => "background-color:" . ($msg_tag->{color} || q{}) . ";border-color:" . ($msg_tag->{color} || q{}) . ";font-weight: bold;",
-        'data-tooltip'          => $msg_tag->{comment} || $msg_tag->{reply},
-        'data-tooltip-position' => 'top'
-      });
+  if ($msgs_permissions{1}{18}) {
+    my $msg_tags_list = $Msgs->quick_replys_tags_list({ MSG_ID => $message_id, COLS_NAME => 1 });
+    if ($Msgs->{TOTAL}) {
+      foreach my $msg_tag (@{$msg_tags_list}) {
+        $params{MSG_TAGS} .= ' ' . $html->element('span', $msg_tag->{reply}, {
+          'class'                 => 'label new-tags mr-1',
+          'style'                 => "background-color:" . ($msg_tag->{color} || q{}) . ";border-color:" . ($msg_tag->{color} || q{}) . ";font-weight: bold;",
+          'data-tooltip'          => $msg_tag->{comment} || $msg_tag->{reply},
+          'data-tooltip-position' => 'top'
+        });
+      }
     }
-  }
-  else {
-    $params{MSG_TAGS_DISPLAY_STATUS} = 1;
-    $params{MSG_TAGS} = $html->button('',
-      'qindex=' . get_function_index('msgs_quick_replys_tags') . "&header=2&MSGS_ID=$message_id&UID=$uid",
-      {
+    elsif ($msgs_permissions{1}{19}) {
+      $params{MSG_TAGS_DISPLAY_STATUS} = 1;
+      $params{MSG_TAGS} = $html->button('', 'qindex=' . get_function_index('msgs_quick_replys_tags') .
+        "&header=2&MSGS_ID=$message_id&UID=$uid", {
         LOAD_TO_MODAL => 1,
         class         => 'btn btn-sm btn-danger',
         ICON          => 'fa fa-tags',
         TITLE         => "$lang{ADD} $lang{TAGS}"
-      }
-    );
+      });
+    }
   }
 
   $Msgs->{ID} = $Msgs->{MAIN_ID};
@@ -1100,19 +1111,18 @@ sub msgs_ticket_show {
     $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
   }
 
-  return 0 if(!_msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER} }));
+  # return 0 if(!_msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER} }));
 
-  if (_msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER}, PRIVILEGE_LVL => 3, HIDE_ALERT => 1 })) {
+  if ($msgs_permissions{1}{4}) {
     $subject_before_convert =~ s/\'/\\\'/g;
-    $params{CHANGE_SUBJECT_BUTTON} = $html->button("$lang{CHANGE} $lang{SUBJECT}",
-      "qindex=" . get_function_index('_msgs_show_change_subject_template') . "&header=2&subject=$subject_before_convert&msg_id=$Msgs->{ID}",
-      {
-        LOAD_TO_MODAL  => 1,
-        NO_LINK_FORMER => 1,
-        class          => 'change',
-        TITLE          => $lang{SUBJECT}
-      }
-    );
+    $params{CHANGE_SUBJECT_BUTTON} = $html->button("$lang{CHANGE} $lang{SUBJECT}", "qindex=" .
+      get_function_index('_msgs_show_change_subject_template') .
+      "&header=2&subject=$subject_before_convert&msg_id=$Msgs->{ID}", {
+      LOAD_TO_MODAL  => 1,
+      NO_LINK_FORMER => 1,
+      class          => 'change',
+      TITLE          => $lang{SUBJECT}
+    });
   }
 
   $params{PROGRESSBAR} = msgs_progress_bar_show($Msgs);
@@ -1171,7 +1181,6 @@ sub msgs_ticket_reply {
   }
 
   my $list = $Msgs->messages_reply_list({ MSG_ID => $Msgs->{ID}, COLS_NAME => 1 });
-
   my $total_reply = $Msgs->{TOTAL};
 
   if (!$Msgs->{TOTAL} || $Msgs->{TOTAL} < 1) {
@@ -1203,17 +1212,16 @@ sub msgs_ticket_reply {
       $reply_color = 'fas fa-envelope bg-blue';
     }
 
-
-    my $del_reply_button = $html->button($lang{DEL}, "&index=$index&chg=$message_id&reply_del=$line->{id}&UID=$uid", {
+    my $del_reply_button = $msgs_permissions{1}{11} ? $html->button($lang{DEL}, "&index=$index&chg=$message_id&reply_del=$line->{id}&UID=$uid", {
       MESSAGE => "$lang{DEL}  $line->{id}?",
       BUTTON  => 1,
       class   => 'btn btn-default btn-xs'
-    });
+    }) : '';
 
-    my $quote_button = $html->button($lang{QUOTING}, "", {
+    my $quote_button = $msgs_permissions{1}{12} ? $html->button($lang{QUOTING}, '', {
       class     => 'btn btn-default btn-xs quoting-reply-btn',
       ex_params => "quoting_id='$line->{id}'"
-    });
+    }) : '';
 
     my $run_time = ($line->{run_time} && $line->{run_time} ne '00:00:00') ? "$lang{RUN_TIME}: $line->{run_time}" : '';
 
@@ -1344,11 +1352,11 @@ sub _msgs_change_responsible {
 #**********************************************************
 sub msgs_survey_sel {
 
-  my $list = $Msgs->survey_subjects_list({ PAGE_ROWS => 10000, COLS_NAME => 1 });
+  return '' if !$msgs_permissions{1}{20};
 
   return $html->form_select('SURVEY_ID', {
-    SELECTED       => '' || $FORM{SURVEY_ID},
-    SEL_LIST       => $list,
+    SELECTED       => $FORM{SURVEY_ID} || '',
+    SEL_LIST       => $Msgs->survey_subjects_list({ PAGE_ROWS => 10000, COLS_NAME => 1 }),
     SEL_OPTIONS    => { '' => '' },
     MAIN_MENU      => get_function_index('msgs_survey'),
     MAIN_MENU_ARGV => $FORM{SURVEY_ID} ? "chg=$FORM{SURVEY_ID}" : ''
@@ -1800,7 +1808,7 @@ sub _msgs_new_topic_button {
 sub _msgs_edit_reply_button {
   my ($reply_id) = @_;
 
-  return '' if (!$permissions{7} || !$permissions{7}{1});
+  return '' if !$msgs_permissions{1}{10};
 
   return $html->button($lang{EDIT}, '', {
     class => 'btn btn-default btn-xs reply-edit-btn',

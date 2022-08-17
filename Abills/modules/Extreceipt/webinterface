@@ -27,6 +27,11 @@ our Abills::HTML $html;
 
 my $Receipt = Extreceipt->new($db, $admin, \%conf);
 my $Config = Conf->new($db, $admin, \%conf);
+my $debug = $conf{EXTRECEIPTS_DEBUG} || 0;
+
+if ($user && $user->{UID}) {
+  require Extreceipt::User_portal;
+}
 
 #**********************************************************
 =head2 extreceipt_api()
@@ -69,7 +74,7 @@ sub extreceipt_api {
   }
   elsif ($FORM{test}) {
     $html->message('info', $lang{TEST});
-    my $Receipt_apies = receipt_init($Receipt, { API_ID => $FORM{test} });
+    my $Receipt_apies = receipt_init($Receipt, { API_ID => $FORM{test}, DEBUG => $debug });
     my $Receip_api = $Receipt_apies->{$FORM{test}};
 
     if ($Receip_api && $Receip_api->can('test')) {
@@ -107,7 +112,7 @@ sub extreceipt_api {
   my $api_list = $Receipt->api_list();
   my $table = $html->table({
     width               => '100%',
-    caption             => "Receipts API : ",
+    caption             => "$lang{CHECKS} API : ",
     ID                  => 'API',
     title               => [ "#", "CONF_NAME", "API plugin", "Autor", "" ],
     HAS_FUNCTION_FIELDS => 1,
@@ -172,7 +177,7 @@ sub extreceipt_kkt {
     use Payments;
     my $Payments = Payments->new($db, $admin, \%conf);
 
-    $params{methods} =~ s/'//gm;
+    $params{methods} =~ s/'//gm if ($params{methods});
     $params{METHODS_SEL} = $html->form_select('METHODS', {
       SEL_LIST  => $Payments->payment_type_list({ COLS_NAME => 1 }),
       SELECTED  => $params{methods},
@@ -221,7 +226,7 @@ sub extreceipt_kkt {
       $kkt->{groups},
       $kkt->{aid},
       $html->button($lang{CHANGE}, "index=$index&chg=$kkt->{kkt_id}", { class => 'change' })
-      . $html->button($lang{DELETE}, "index=$index&del=$kkt->{kkt_id}", { class => 'del', MESSAGE => $lang{DEL} })
+        . $html->button($lang{DELETE}, "index=$index&del=$kkt->{kkt_id}", { class => 'del', MESSAGE => $lang{DEL} })
     );
   }
   print $table->show();
@@ -235,7 +240,7 @@ sub extreceipt_kkt {
 =cut
 #**********************************************************
 sub extreceipt_check_list {
-  my $Receipt_api = receipt_init($Receipt);
+  my $Receipt_api = receipt_init($Receipt, { DEBUG => $debug });
   $Receipt->{API} = $Receipt_api;
 
   if ($FORM{new}) {
@@ -400,7 +405,7 @@ sub _extreceipt_send {
   }
 
   if (!$attr->{API}) {
-    $Receipt->{API} = receipt_init($Receipt);
+    $Receipt->{API} = receipt_init($Receipt, { DEBUG => $debug });
   }
 
   my $api_id = $info->[0]->{api_id} || 0;
@@ -723,7 +728,7 @@ sub _extreceipt_receipt_ext_info {
 =cut
 #**********************************************************
 sub extreceipt_cash_register_report {
-  my $Receipt_api = receipt_init($Receipt);
+  my $Receipt_api = receipt_init($Receipt, { DEBUG => $debug });
   $Receipt->{API} = $Receipt_api;
 
   if ($FORM{del} && $FORM{COMMENTS}) {
@@ -784,8 +789,8 @@ sub extreceipt_cash_register_report {
         $kkt->{current_balance} = $x_report->{ERROR};
       }
       else {
-        $kkt->{initial_balance} = $x_report->{initial_balance} / 100;
-        $kkt->{current_balance} = $x_report->{current_balance} / 100;
+        $kkt->{initial_balance} = ($x_report->{initial_balance})  ? $x_report->{initial_balance} / 100 : 0;
+        $kkt->{current_balance} = ($x_report->{current_balance}) ? $x_report->{current_balance} / 100 : 0;
       }
 
       $table->addrow(

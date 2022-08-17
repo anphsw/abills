@@ -63,6 +63,31 @@
   } else {
     jQuery('#language').on('change', selectLanguage);
   }
+
+
+  /* Double click mouse control */
+  jQuery('form').submit(() => {
+    if (jQuery('input[type=submit]:focus').hasClass('double_click_check')) {
+      jQuery('input[type=submit]:focus').addClass('disabled');
+      const val = jQuery('input[type=submit]:focus').attr('val') || '1';
+      const name = jQuery('input[type=submit]:focus').attr('name');
+      jQuery('<input />').attr('type', 'hidden')
+        .attr('name', name)
+        .attr('value', val)
+        .appendTo('form');
+      jQuery('input[type=submit]:focus').attr('disabled', true);
+    }
+    if (jQuery('button[type=submit]:focus').hasClass('double_click_check')) {
+      jQuery('button[type=submit]:focus').addClass('disabled');
+      const val = jQuery('button[type=submit]:focus').attr('val') || '1';
+      const name = jQuery('button[type=submit]:focus').attr('name');
+      jQuery('<input />').attr('type', 'hidden')
+        .attr('name', name)
+        .attr('value', val)
+        .appendTo('form');
+      jQuery('button[type=submit]:focus').attr('disabled', true);
+    }
+  });
 </script>
 %PUSH_SCRIPT%
 </body>

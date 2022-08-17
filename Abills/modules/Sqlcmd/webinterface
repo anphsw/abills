@@ -226,7 +226,7 @@ sub sqlcmd {
       if ( ref $line eq 'ARRAY' ){
         my $i=0;
         foreach my $l ( @{$line} ){
-          if($CAPTION[$i] eq 'login' && $caption2id{uid}) {
+          if($CAPTION[$i] && $CAPTION[$i] eq 'login' && $caption2id{uid}) {
             $l = $html->button($l, "index=15&UID=". ($line->[$caption2id{uid}] || q{}));
           }
 
@@ -453,11 +453,12 @@ sub sqlcmd_triggers {
 =cut
 #**********************************************************
 sub sqlcmd_tables {
+
   sqlcmd_cluster_info();
 
-  $FORM{sort} = 1 if (!$FORM{sort});
+  $FORM{sort} = 1 if !$FORM{sort};
 
-  my @ACTIVE_FIELDS = ('Name', 'Engine', 'Row_format', "Comment", 'Collation', 'Rows', "Size");
+  my @ACTIVE_FIELDS = ('Name', 'Engine', 'Row_format', 'Comment', 'Collation', 'Rows', 'Size');
 
   if ($FORM{ACTION}) {
     if ($FORM{ACTION} eq 'BACKUP') {
@@ -472,45 +473,42 @@ sub sqlcmd_tables {
   }
 
   $html->short_form({
-    METHOD => 'GET',
+    METHOD         => 'GET',
     LABELED_FIELDS => {
       "$lang{TABLES}: " => $html->form_input('TABLES', $FORM{TABLES}),
     },
     FIELDS         => [
       $html->form_input('search', $lang{SEARCH}, { TYPE => 'submit' }),
-      $html->form_input('index', $index, {TYPE => 'hidden'})],
-    'class'        => 'form-inline',
+      $html->form_input('index', $index, { TYPE => 'hidden' })
+    ],
+    class          => 'form-inline',
     IN_BOX         => 1,
-    NO_BOX_HEADER      => 1,
+    NO_BOX_HEADER  => 1,
   });
 
   my $list = $Sqlcmd->info({ TYPE => 'showtables', %LIST_PARAMS, %FORM });
 
-  if (_error_show($Sqlcmd)) {
-    return 0;
-  }
+  return 0 if _error_show($Sqlcmd);
 
   push @ACTIVE_FIELDS, "ext_info", '-';
 
   @ACTIVE_FIELDS = split(/, /, $FORM{'fields'}) if ($FORM{'fields'});
   $ACTIVE_FIELDS[0] = 'Name' if ($ACTIVE_FIELDS[0] ne 'Name');
   if ($FORM{ACTION} && $FORM{ACTION} eq 'SEARCH') {
-    $Sqlcmd->{debug}=1;
+    $Sqlcmd->{debug} = 1;
     push @ACTIVE_FIELDS, 'ext_info';
   }
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => $lang{TABLES},
-      title      => \@ACTIVE_FIELDS,
-      qs         => "&fields=". ($FORM{fields} || ''),
-      ID         => 'SQLCMD_TABLES',
-      SELECT_ALL => "tables_list:TABLES:$lang{SELECT_ALL}",
-      EXPORT     => 1,
-      MENU       => "$lang{ADD}:index=" . get_function_index('sqlcmd') . ':sql',
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $lang{TABLES},
+    title      => \@ACTIVE_FIELDS,
+    qs         => "&fields=" . ($FORM{fields} || ''),
+    ID         => 'SQLCMD_TABLES',
+    SELECT_ALL => "tables_list:TABLES:$lang{SELECT_ALL}",
+    EXPORT     => 1,
+    MENU       => "$lang{ADD}:index=" . get_function_index('sqlcmd') . ':add',
+  });
 
   my $tables_total = 0;
   my $tables_size  = 0;
@@ -581,12 +579,10 @@ sub sqlcmd_tables {
     $tables_size += ($line->{'Index_length'} || 0) + ($line->{'Data_length'} || 0);
   }
 
-  my $table2 = $html->table(
-    {
-      width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", $tables_total, "$lang{SIZE}:", int2byte($tables_size) ] ]
-    }
-  );
+  my $table2 = $html->table({
+    width => '100%',
+    rows  => [ [ "$lang{TOTAL}:", $tables_total, "$lang{SIZE}:", int2byte($tables_size) ] ]
+  });
 
   my $table3 = $html->table({ width => '100%' });
   my @arr = ();
@@ -635,16 +631,14 @@ sub sqlcmd_tables {
     $table->td("$lang{VALUE}:" . $html->form_input('VALUE', $FORM{VALUE} || ''), { colspan => 2 })
   );
 
-  print $html->form_main(
-    {
-      CONTENT => $table->show() . $table2->show() . $table3->show(),
-      HIDDEN  => { index => "$index" },
-      METHOD  => 'POST',
-      SUBMIT  => { $lang{SHOW} => "$lang{ACTION}" },
-      NAME    => 'tables_list',
-      ID      => 'TABLES_LIST',
-    }
-  );
+  print $html->form_main({
+    CONTENT => $table->show() . $table2->show() . $table3->show(),
+    HIDDEN  => { index => "$index" },
+    METHOD  => 'POST',
+    SUBMIT  => { $lang{SHOW} => $lang{ACTION} },
+    NAME    => 'tables_list',
+    ID      => 'TABLES_LIST',
+  });
 
   return 1;
 }

@@ -370,7 +370,7 @@ sub crm_leads {
       }),
       TP_ID             => $lead_info->{TP_ID},
       COMPETITOR_ID     => $lead_info->{COMPETITOR_ID},
-      INFO_FIELDS       => crm_lead_info_field_tpl($lead_info),
+      INFO_FIELDS       => crm_lead_info_field_tpl({ %$lead_info, REGISTRATION => undef }),
       AJAX_SUBMIT_FORM  => 'ajax-submit-form'
     });
 
@@ -381,7 +381,7 @@ sub crm_leads {
     $html->message('info', $lang{ADDED}) if (!_error_show($Crm));
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $Crm->crm_lead_delete({ ID => $FORM{del} });
+    $Crm->crm_lead_delete({ ID => $FORM{ID} });
     delete $FORM{COMMENTS};
     $html->message('info', $lang{DELETED}) if (!_error_show($Crm));
   }
@@ -416,9 +416,11 @@ sub crm_leads {
     "$lang{ALL}:index=$index&ALL_LEADS=1&show_columns=" . ($FORM{show_columns} || ''),
     "$lang{POTENTIAL_LEADS}:index=$index&POTENTIAL=1&show_columns=" . ($FORM{show_columns} || ''),
     "$lang{CONVERT_LEADS}:index=$index&CONVERTED=1&show_columns=" . ($FORM{show_columns} || ''),
+    "$lang{WATCHING}:index=$index&WATCHING=1&show_columns=" . ($FORM{show_columns} || ''),
+    "$lang{DUBLICATE_LEADS}:index=$index&DUBLICATE=1&show_columns=" . ($FORM{show_columns} || ''),
   );
 
-  my $header = $html->table_header(\@header_arr, { SHOW_ONLY => 3 });
+  my $header = $html->table_header(\@header_arr, { SHOW_ONLY => 4 });
   $header .= $html->button('', '', {
     NO_LINK_FORMER => 1,
     JAVASCRIPT     => 1,
@@ -435,8 +437,14 @@ sub crm_leads {
   elsif ($FORM{CONVERTED}) {
     $LIST_PARAMS{'CL_UID'} = '!0';
   }
-  elsif (($FORM{POTENTIAL}) || !$FORM{CONVERTED} || !$FORM{ALL_LEADS} || !$FORM{POTENTIAL}) {
+  elsif ($FORM{POTENTIAL}) {
     $LIST_PARAMS{'CL_UID'} = '0';
+  }
+  elsif ($FORM{WATCHING}) {
+    $LIST_PARAMS{'WATCHER'} = $admin->{AID};
+  }
+  elsif ($FORM{DUBLICATE}) {
+    $LIST_PARAMS{'DUBLICATE'} = 1;
   }
 
   %LIST_PARAMS = %FORM if ($FORM{search});
@@ -486,7 +494,8 @@ sub crm_leads {
     DEFAULT_FIELDS  => "LEAD_ID,FIO,PHONE,EMAIL,COMPANY,ADMIN_NAME,DATE,CURRENT_STEP_NAME,LAST_ACTION,PRIORITY,UID,USER_LOGIN,TAG_IDS",
     HIDDEN_FIELDS   => 'STEP_COLOR,CURRENT_STEP,COMPETITOR_NAME,TP_NAME,ASSESSMENT,LEAD_ADDRESS,SOURCE',
     MULTISELECT     => 'ID:lead_id:' . ($FORM{delivery} ? 'CRM_LEADS' : 'crm_lead_multiselect'),
-    FUNCTION_FIELDS => 'crm_lead_info:change:lead_id,del',
+    FUNCTION_FIELDS => 'crm_lead_info:change:lead_id,:del:id:&del=1',
+    FUNCTION_INDEX  => $index,
     FILTER_COLS     => {
       current_step_name => '_crm_current_step_color::STEP_COLOR,',
       last_action       => '_crm_last_action::LEAD_ID',
@@ -570,6 +579,15 @@ sub crm_lead_info {
     $html->message('success', "$lang{SUCCESS} $lang{IMPORT}", "");
   }
 
+  if ($FORM{WATCH}) {
+    if ($FORM{WATCH_DEL}){
+      $Crm->crm_lead_watch_del({ LEAD_ID => $FORM{LEAD_ID}, AID => $admin->{AID} });
+    } else {
+      $Crm->crm_lead_watch_add({ %FORM });
+    }
+  }
+
+
   $lead_id = $FORM{LEAD_ID} if $FORM{LEAD_ID};
 
   if (defined $FORM{CUR_STEP}) {
@@ -650,6 +668,21 @@ sub crm_lead_info {
     class => 'btn btn-success btn-block',
   });
 
+
+  $Crm->crm_lead_watch_list ({LEAD_ID => $lead_id, AID => $admin->{AID}});
+
+  my $watching_button = '';
+  if ($Crm->{TOTAL} >= 1){
+    $watching_button = $html->button('', "index=$index&LEAD_ID=$lead_id&WATCH=1&WATCH_DEL=1", {
+        class => 'btn btn-primary btn-sm fa fa-eye-slash',
+    });
+  } else {
+    $watching_button = $html->button('', "index=$index&LEAD_ID=$lead_id&WATCH=1", {
+        class => 'btn btn-primary btn-sm fa fa-eye',
+    });
+  }
+
+
   my $source_info = $Crm->leads_source_info({ ID => $lead_info->{SOURCE}, COLS_NAME => 1 });
   $lead_info->{SOURCE} = _translate($source_info->{NAME});
 
@@ -677,6 +710,7 @@ sub crm_lead_info {
     ADD_USER_BUTTON     => $add_user_button,
     USER_BUTTON         => $user_button,
     DELETE_USER_BUTTON  => $delete_user_button,
+    WATCHING_BUTTON     => $watching_button,
     TAGS                => $lead_tags,
     TAGS_BUTTON         => $tags_button,
     CONVERT_LEAD_BUTTON => $convert_lead_to_client,
@@ -848,6 +882,7 @@ sub crm_progressbar_show {
       ADMIN        => '_SHOW',
       ACTION       => '_SHOW',
       PLANNED_DATE => '_SHOW',
+      PRIORITY     => '_SHOW',
       COLS_NAME    => 1,
       COLS_UPPER   => 1,
     });
@@ -859,12 +894,27 @@ sub crm_progressbar_show {
           MESSAGE   => $message->{MESSAGE},
           DATE      => $message->{DATE},
           STEP_ID   => $message->{STEP_ID},
-          DOMAIN_ID => ($admin->{DOMAIN_ID} || 0)
+          DOMAIN_ID => ($admin->{DOMAIN_ID} || 0),
+          PRIORITY  => $message->{PRIORITY},
         });
       }
     }
 
+    my @priority_lit = ($lang{LOW}, $lang{NORMAL}, $lang{HIGH});
+
+    my @priority = (
+        $html->element('span', '', { class => 'fa fa-thermometer-empty',          OUTPUT2RETURN => 1 }),
+        $html->element('span', '', { class => 'fa fa-thermometer-half',           OUTPUT2RETURN => 1 }),
+        $html->element('span', '', { class => 'fa fa-thermometer-full',           OUTPUT2RETURN => 1 })
+      );
+
+    $_COLORS[6] //= 'red';
+    $_COLORS[9] //= '#FFFFFF';
+    my @priority_colors = ('#8A8A8A', $_COLORS[9], $_COLORS[6]);
+
     my $timeline_items;
+    my $priority_id = '';
+    my $priority_icon = '';
 
     foreach my $message (@$messages_list) {
       my %TIMELIINE_ITEM_TEMPLATE = (
@@ -874,11 +924,15 @@ sub crm_progressbar_show {
           { ICON => 'fa fa-trash text-red' }),
       );
 
+      $priority_id = $message->{priority};
+      $priority_icon = $html->color_mark($priority[$priority_id], $priority_colors[$priority_id]);
+      $html->element('span', $priority_icon, { "data-tooltip" => "$priority_lit[$priority_id]" || "", "data-tooltip-position" => 'top' });
+
       if ($message->{admin} && $message->{action}) {
         my %ACTION_STATUSES = ('0' => 'bg-red', '1' => 'bg-green');
 
         $TIMELIINE_ITEM_TEMPLATE{ICON} = 'fa fa-wrench ' . $ACTION_STATUSES{$message->{status} || 0};
-        $TIMELIINE_ITEM_TEMPLATE{HEADER} = "$lang{ACTION}: $message->{action} [ $lang{PLANNED} $lang{DATE}:" . ($message->{planned_date} || '') . " ]";
+        $TIMELIINE_ITEM_TEMPLATE{HEADER} = "$lang{ACTION}: $message->{action} ( $lang{PLANNED} $lang{DATE}: " . ($message->{planned_date} || '') . ", $lang{PRIORITY}: ".($priority_icon || '')." )";
       };
 
       $timeline_items .= $html->tpl_show(_include('crm_timeline_item', 'Crm'), {
@@ -890,14 +944,24 @@ sub crm_progressbar_show {
     my $admin_sel = sel_admins({ ID => 'AID_' . $line->{id} });
     my $action_sel = _actions_sel({ ID => 'ACTION_' . $line->{id} });
 
+    my $priority_comment_select = $html->form_select('PRIORITY', {
+      ID           => 'PRIORITY_SEL_' . $line->{id},
+      SELECTED     => $FORM{PRIORITY} || q{},
+      SEL_ARRAY    => \@PRIORITY,
+      NO_ID        => 1,
+      SEL_OPTIONS  => { "" => "" },
+      ARRAY_NUM_ID => 1
+    });
+
     $timeline .= $html->tpl_show(_include('crm_pb_timeline', 'Crm'), {
-      ID             => $line->{id},
-      ACTIVE         => $active_element_data,
-      TIMELINE_ITEMS => $timeline_items,
-      ADMIN_SEL      => $admin_sel,
-      ACTION_SEL     => $action_sel,
-      INDEX          => get_function_index('crm_lead_info'),
-      LEAD_ID        => $FORM{LEAD_ID},
+      ID                   => $line->{id},
+      ACTIVE               => $active_element_data,
+      TIMELINE_ITEMS       => $timeline_items,
+      ADMIN_SEL            => $admin_sel,
+      ACTION_SEL           => $action_sel,
+      INDEX                => get_function_index('crm_lead_info'),
+      LEAD_ID              => $FORM{LEAD_ID},
+      PRIORITY_COMMENT_SEL => $priority_comment_select
     }, { OUTPUT2RETURN => 1 });
   }
 
@@ -1446,6 +1510,7 @@ sub crm_lead_convert {
     SEL_LIST  => $leads_list,
     SEL_KEY   => 'id',
     SEL_VALUE => 'fio',
+    SEL_OPTIONS => { '' => '--' },
     EX_PARAMS => "data-auto-submit='form'"
   });
 
@@ -2127,10 +2192,10 @@ sub _crm_lead_to_client {
 
   my $lead_info = $Crm->crm_lead_info({ ID => $lead_id });
 
-  map { $lead_info->{$_} ? $FORM{$_} = $lead_info->{$_} : () } keys %{$lead_info};
+  map { $lead_info->{$_} && $_ ne 'PHONE' && $_ ne 'EMAIL' ? $FORM{$_} = $lead_info->{$_} : () } keys %{$lead_info};
 
   my %contacts = ();
-  push @{$contacts{2}}, $lead_info->{PHONE} if $lead_info->{PHONE};
+  push @{$contacts{1}}, $lead_info->{PHONE} if $lead_info->{PHONE};
   push @{$contacts{9}}, $lead_info->{EMAIL} if $lead_info->{EMAIL};
 
   $FORM{CONTACTS_ENTERED} = json_former(\%contacts);

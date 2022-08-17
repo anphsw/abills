@@ -59,7 +59,7 @@ sub get_aid {
 #**********************************************************
 sub subscribe {
   my ($message) = @_;
-  my ($type, $sid) = $message->{text} =~ m/^\/start ([ua])_([a-zA-Z0-9]+)/;
+  my ($type, $sid) = $message->{text} =~ m/^\/start ([uae])_([a-zA-Z0-9]+)/;
 
   if ($type && $sid && $type eq 'u') {
     my $uid = $Users->web_session_find($sid);
@@ -68,8 +68,8 @@ sub subscribe {
         TYPE  => 6,
         VALUE => $message->{chat}{id},
       });
-      
-      if ( !$Contacts->{TOTAL} || scalar (@{$list}) == 0 ) {
+
+      if (!$Contacts->{TOTAL} || scalar(@{$list}) == 0) {
         $Contacts->contacts_add({
           UID      => $uid,
           TYPE_ID  => 6,
@@ -79,31 +79,32 @@ sub subscribe {
       }
     }
   }
-  elsif ($type && $sid && $type eq 'a') {
-    $admin->online_info({SID => $sid});
+  elsif ($type && $sid && ($type eq 'e' || $type eq 'a')) {
+    $admin->online_info({ SID => $sid });
+    my $telegram_id = ($type eq 'e' ? 'e_' : '') . $message->{chat}{id};
     my $aid = $admin->{AID};
-    if ( $aid ) {
+    if ($aid) {
       my $list = $admin->admins_contacts_list({
         TYPE  => 6,
-        VALUE => $message->{chat}{id},
+        VALUE => $telegram_id,
       });
-      
-      if ( !$admin->{TOTAL} || scalar (@{$list}) == 0 ) {
+
+      if (!$admin->{TOTAL} || scalar(@{$list}) == 0) {
         $admin->admin_contacts_add({
           AID      => $aid,
           TYPE_ID  => 6,
-          VALUE    => $message->{chat}{id},
+          VALUE    => $telegram_id,
           PRIORITY => 0,
         });
         $Bot->send_message({
           text         => "Welcome admin.",
-          reply_markup => { 
+          reply_markup => {
             remove_keyboard => "true"
           },
         });
       }
     }
-    exit 0;
+    exit 0 if $type ne 'e';
   }
   else {
     subscribe_info();
@@ -125,7 +126,7 @@ sub subscribe_phone {
   my $phone = $message->{contact}{phone_number};
   $phone =~ s/\D//g;
 
-  if($conf{TELEGRAM_NUMBER_EXPR}) {
+  if ($conf{TELEGRAM_NUMBER_EXPR}) {
     my ($left, $right) = split "/", $conf{TELEGRAM_NUMBER_EXPR};
 
     $phone =~ s/$left/$right/ge;
@@ -158,7 +159,7 @@ sub subscribe_phone {
     });
     $Bot->send_message({
       text         => "Welcome admin.",
-      reply_markup => { 
+      reply_markup => {
         remove_keyboard => "true"
       },
     });
@@ -170,7 +171,7 @@ sub subscribe_phone {
       text          => $lang{SUBMIT_YOUR_APPLICATION},
       callback_data => "Crm_new_lead&add_request&$phone",
     };
-    push (@inline_keyboard, [$inline_button]);
+    push(@inline_keyboard, [ $inline_button ]);
 
     $Bot->send_message({
       text  => $lang{THE_SUBSCRIBER_WITH_THIS_PHONE_IS_NOT_REGISTERED},
@@ -178,7 +179,7 @@ sub subscribe_phone {
     });
     exit 0;
   }
-  
+
   return 1;
 }
 #**********************************************************
@@ -191,16 +192,16 @@ sub subscribe_info {
 
   my @keyboard = ();
   my $button = {
-    text            => "Подтвердить телефон",
-    request_contact => "true",
+    text            => $lang{TELEGRAM_VERIFY_PHONE},
+    request_contact => 'true',
   };
   push(@keyboard, [ $button ]);
 
   $Bot->send_message({
-    text         => "Для подключения телеграм-бота нажмите <b>Подтвердить телефон</b> или используйте кнопку <b>Подписаться</b> в кабинете пользователя.",
+    text         => $lang{TELEGRAM_SUBSCRIBE_INFO},
     reply_markup => {
       keyboard        => \@keyboard,
-      resize_keyboard => "true",
+      resize_keyboard => 'true',
     },
     parse_mode   => 'HTML'
   });

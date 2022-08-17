@@ -9,7 +9,7 @@
 
 use warnings FATAL => 'all';
 use strict;
-use Abills::Base qw(int2ip convert ip2int in_array cmd);
+use Abills::Base qw(convert ip2int in_array cmd);
 use POSIX qw(strftime);
 
 our (
@@ -24,21 +24,11 @@ our (
 
 our Abills::HTML $html;
 
-
 my %payments_type = (
   0 => $lang{PREPAID},
   1 => $lang{POSTPAID},
   2 => $lang{GUEST}
 );
-
-
-if (form_purchase_module({
-  HEADER          => $user->{UID} || $html->{show_header},
-  MODULE          => 'Cards',
-  REQUIRE_VERSION => 7.22
-  })) {
-  exit;
-}
 
 if (form_purchase_module({
   HEADER          => $user->{UID} || $html->{show_header},
@@ -52,6 +42,7 @@ use Payments;
 use Fees;
 use Tariffs;
 use Nas;
+use Cards;
 
 my $Tariffs   = Tariffs->new($db, \%conf, $admin);
 my $payments  = Payments->new($db, $admin, \%conf);
@@ -109,9 +100,8 @@ sub multidoms_reseller_nas_groups {
       OUTPUT2RETURN => 1,
     });
 
-    func_menu(
-      {
-        'ID'   => $Nas->{ID},
+    func_menu({
+        'ID'        => $Nas->{ID},
         $lang{NAME} => $Nas->{NAME_SEL}
       },
       [
@@ -122,7 +112,6 @@ sub multidoms_reseller_nas_groups {
     );
 
     if ($FORM{subf}) {
-
       #multidoms_reseller_tp_nas({ TP => $tariffs });
       return 0;
     }
@@ -1401,7 +1390,6 @@ sub multidoms_domains {
     $LIST_PARAMS{DOOMAIN_ID} = $FORM{info};
     $Multidoms = $Multidoms->multidoms_domain_info({ ID => $FORM{info} });
     $html->tpl_show(_include('multidoms_domain_info', 'Multidoms'), $Multidoms);
-    #cards_main();
     return 0;
   }
   elsif ($FORM{add}) {
@@ -1435,16 +1423,14 @@ sub multidoms_domains {
   $html->tpl_show(_include('multidoms_domain', 'Multidoms'), $Multidoms);
 
   my $list = $Multidoms->multidoms_domains_list({%LIST_PARAMS});
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "$lang{DOMAINS}",
-      title      => [ 'ID', $lang{NAME}, $lang{STATE}, $lang{REGISTRATION}, '-' ],
-      qs         => $pages_qs,
-      pages      => $Multidoms->{TOTAL},
-      ID         => 'DOMAINS_LIST'
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$lang{DOMAINS}",
+    title   => [ 'ID', $lang{NAME}, $lang{STATE}, $lang{REGISTRATION}, '-' ],
+    qs      => $pages_qs,
+    pages   => $Multidoms->{TOTAL},
+    ID      => 'DOMAINS_LIST'
+  });
 
   foreach my $line (@$list) {
     $table->addrow($line->[0], $line->[1], $status[ $line->[2] ], $line->[3],
@@ -1455,292 +1441,29 @@ sub multidoms_domains {
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", $html->b($Multidoms->{TOTAL}) ] ]
-    }
-  );
+  $table = $html->table({
+    width => '100%',
+    rows  => [ [ "$lang{TOTAL}:", $html->b($Multidoms->{TOTAL}) ] ]
+  });
+
   print $table->show();
 
   return 1;
 }
 
-#**********************************************************
-=head2 multidoms_cards_dillers()
-
-=cut
-#**********************************************************
-sub multidoms_cards_dillers {
-
-  $Cards->{ACTION}     = 'add';
-  $Cards->{LNG_ACTION} = $lang{ADD};
-
-  print "content-type: text/html\n\n";
-
-  if ($FORM{info}) {
-
-    $pages_qs = "&info=$FORM{info}";
-    $LIST_PARAMS{DILLER_ID} = $FORM{info};
-
-    #$FORM{SERIA}=0;
-
-    $Cards = $Cards->cards_diller_info({ ID => $FORM{info} });
-    $html->tpl_show(_include('cards_diller_info', 'Cards'), $Cards);
-    cards_main();
-    return 0;
-  }
-  elsif ($FORM{add}) {
-    $Cards->cards_diller_add({%FORM});
-    if (!$Cards->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{ADDED}");
-    }
-  }
-  elsif ($FORM{change}) {
-    $Cards->cards_diller_change({%FORM});
-    if (!$Cards->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
-    }
-  }
-  elsif ($FORM{chg}) {
-    $Cards->cards_diller_info({ ID => $FORM{chg} });
-    if (!$Cards->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGING}");
-    }
-    $Cards->{ACTION}     = 'change';
-    $Cards->{LNG_ACTION} = $lang{CHANGE};
-
-  }
-  elsif ($FORM{del} && $FORM{is_js_confirmed}) {
-    $Cards->cards_diller_del({ ID => $FORM{del} });
-    if (!$Cards->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{DELETED}");
-    }
-  }
-
-  _error_show($Cards);
-
-  $Cards->{DISABLE} = ($Cards->{DISABLE} == 1) ? 'checked' : '';
-  $html->tpl_show(_include('cards_dillers', 'Cards'), $Cards);
-
-  my $list = $Cards->cards_dillers_list({%LIST_PARAMS});
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => "$lang{DILLERS}",
-      title   => [ 'ID', "$lang{NAME}", "$lang{ADDRESS}", "E-Mail", "$lang{REGISTRATION}", "$lang{PERCENTAGE}", "$lang{STATE}", "$lang{COUNT}", "$lang{ENABLE}", '-', '-', '-' ],
-      qs         => $pages_qs,
-      pages      => $Cards->{TOTAL},
-      ID         => 'CARDS_DILLERS'
-    }
-  );
-
-  foreach my $line (@$list) {
-    $table->addrow(
-      $line->[0],
-      $line->[1],
-      $line->[2],
-      $line->[3],
-      $line->[4],
-      $line->[5],
-      $status[ $line->[6] ],
-      $line->[7], $line->[8],
-      $html->button($lang{INFO},   "index=$index$pages_qs&info=$line->[0]"),
-      $html->button($lang{CHANGE}, "index=$index$pages_qs&chg=$line->[0]"),
-      $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$lang{DEL} [$line->[0]] ?" })
-    );
-  }
-
-  print $table->show();
-
-  $table = $html->table(
-    {
-      width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", $html->b($Cards->{TOTAL}) ] ]
-    }
-  );
-  print $table->show();
-
-  return 1;
-}
-
-##**********************************************************
-##
-##**********************************************************
-#sub cards_report_dillers {
-#  my ($attr) = @_;
-#
-#  if ($FORM{DILLER_ID}) {
-#    $LIST_PARAMS{DILLER_ID} = $FORM{DILLER_ID};
-#
-#    cards_report();
-#    return 0;
-#  }
-#  elsif ($FORM{SERIAL}) {
-#    $LIST_PARAMS{SERIAL} = $FORM{SERIAL};
-#    cards_report();
-#    return 0;
-#  }
-#
-#  if (!$FORM{DATE}) {
-#    reports(
-#      {
-#        DATE        => $FORM{DATE},
-#        REPORT      => '',
-#        EX_PARAMS   => { 1 => $lang{DILLERS}, 2 => $lang{ICARDS} },
-#        PERIOD_FORM => 1
-#      }
-#    );
-#  }
-#
-#  my $list = $Cards->cards_report_dillers({%LIST_PARAMS});
-#  $table = $html->table(
-#    {
-#      width   => '100%',
-#      caption => $attr->{CAPTION},
-#
-#      #title      => ['ID', "$lang{LOGIN}", "$lang{ADDED}", "$lang{GROUP}", "$lang{STATUS}", "$lang{EXPIRE}", "$lang{DILLERS}", "$lang{ADMINS}", '-'],
-#      qs         => $pages_qs,
-#      pages      => $Cards->{TOTAL}
-#    }
-#  );
-#
-#  $table->addtd(
-#    $table->td($attr->{CAPTION}, { bgcolor => $_COLORS[0], rowspan => 2 }),
-#    $table->td($lang{ENABLE},         { bgcolor => $_COLORS[0], colspan => 2 }),
-#    $table->td($lang{DISABLE},        { bgcolor => $_COLORS[0], colspan => 2 }),
-#    $table->td($lang{PAYMENTS},       { bgcolor => $_COLORS[0], colspan => 2 }),
-#    $table->td($lang{LOGIN},          { bgcolor => $_COLORS[0], colspan => 2 }),
-#    $table->td($lang{TAKE},           { bgcolor => $_COLORS[0], colspan => 2 }),
-#    $table->td($lang{SOLD},           { bgcolor => $_COLORS[0], colspan => 3 }),
-#    $table->td($lang{RETURNED},       { bgcolor => $_COLORS[0], colspan => 2 }),
-#    $table->td($lang{TOTAL},          { bgcolor => $_COLORS[0], colspan => 2 })
-#  );
-#
-#  $table->{rowcolor} = $_COLORS[0];
-#  $table->addrow("$lang{COUNT}", "$lang{SUM}", "$lang{COUNT}", "$lang{SUM}", "$lang{COUNT}", "$lang{SUM}", "$lang{COUNT}", "$lang{SUM}", "$lang{COUNT}", "$lang{SUM}", "$lang{COUNT}", "$lang{SUM}", "$lang{PERCENTAGE}", "$lang{COUNT}", "$lang{SUM}", "$lang{COUNT}", "$lang{SUM}");
-#
-#  $table->{rowcolor} = undef;
-#
-#  foreach $line (@$list) {
-#    my $button = ($LIST_PARAMS{GROUP}) ? $html->button($line->[0], "index=$index&SERIAL=$line->[0]$pages_qs") : $html->button($line->[0], "index=$index&DILLER_ID=$line->[18]$pages_qs");
-#    $table->addrow(
-#      $button,
-#      $line->[1],
-#      $line->[2],
-#      $line->[3],
-#      $line->[4],
-#      $line->[5],
-#      $line->[6],
-#      $line->[7],
-#      $line->[8],
-#      $line->[9],
-#      $line->[10],
-#      $line->[11],
-#      $line->[12],
-#      $line->[13],
-#      $line->[14],
-#      $line->[15],
-#      $line->[16],
-#      $line->[17]
-#
-#    );
-#
-#  }
-#
-#  $table->{rowcolor} = $_COLORS[3];
-#  $table->addrow(
-#    "$lang{TOTAL}:",           $Cards->{ENABLE_TOTAL},   $Cards->{ENABLE_TOTAL_SUM}, $Cards->{DISABLE_TOTAL},  $Cards->{DISABLE_TOTAL_SUM},     $Cards->{PAYMENT_TOTAL}, $Cards->{PAYMENT_TOTAL_SUM}, $Cards->{LOGIN_TOTAL}, $Cards->{LOGIN_TOTAL_SUM},
-#    $Cards->{TAKE_TOTAL}, $Cards->{TAKE_TOTAL_SUM}, $Cards->{SOLD_TOTAL},       $Cards->{SOLD_TOTAL_SUM}, $Cards->{SOLD_TOTAL_PERCENTAGE}, $Cards->{RETURN_TOTAL},  $Cards->{RETURN_TOTAL_SUM},  $Cards->{COUNT_TOTAL}, $Cards->{COUNT_TOTAL_SUM}
-#  );
-#  print $table->show();
-#}
-
-#**********************************************************
-#
-#**********************************************************
-sub multidoms_paysys {
-  #my ($attr) = @_;
-
-  if ($FORM{add}) {
-    $Conf->config_add(
-      {
-        PARAM     => 'PAYSYS_UKRPAYS_SERVICE_ID',
-        VALUE     => $FORM{PAYSYS_UKRPAYS_SERVICE_ID},
-        DOMAIN_ID => $admin->{DOMAIN_ID}
-      }
-    );
-    $Conf->config_add(
-      {
-        PARAM     => 'PAYSYS_UKRPAYS_SECRETKEY',
-        VALUE     => $FORM{PAYSYS_UKRPAYS_SECRETKEY},
-        DOMAIN_ID => $admin->{DOMAIN_ID}
-      }
-    );
-
-    if (!$user->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{ADDED}: PAYSYS_UKRPAYS_ID");
-    }
-  }
-  elsif ($FORM{change}) {
-    $Conf->config_change(
-      {
-        PARAM     => 'PAYSYS_UKRPAYS_SERVICE_ID',
-        VALUE     => $FORM{PAYSYS_UKRPAYS_SERVICE_ID},
-        DOMAIN_ID => $admin->{DOMAIN_ID}
-      }
-    );
-
-    $Conf->config_change(
-      {
-        PARAM     => 'PAYSYS_UKRPAYS_SECRETKEY',
-        VALUE     => $FORM{PAYSYS_UKRPAYS_SECRETKEY},
-        DOMAIN_ID => $admin->{DOMAIN_ID}
-      }
-    );
-
-    if (!$user->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{ADDED}: PAYSYS_UKRPAYS_ID");
-    }
-  }
-
-  my $list = $Conf->config_list(
-    {
-      PARAM     => 'PAYSYS_UKRPAYS_SERVICE_ID;PAYSYS_UKRPAYS_SECRETKEY',
-      DOMAIN_ID => $admin->{DOMAIN_ID},
-      SORT      => 2
-    }
-  );
-
-  if ($user->{TOTAL}) {
-    $Multidoms->{ACTION}     = 'change';
-    $Multidoms->{LNG_ACTION} = $lang{CHANGE};
-    foreach my $line (@$list) {
-      $Multidoms->{ $line->[0] } = $line->[1];
-    }
-  }
-  else {
-    $Multidoms->{ACTION}     = 'add';
-    $Multidoms->{LNG_ACTION} = $lang{ADD};
-  }
-
-  $html->tpl_show(_include('multidoms_paysys', 'Multidoms'), { %FORM, %$Multidoms });
-
-  return 1;
-}
 #**********************************************************
 =head2 multidoms_report()
 
 =cut
 #**********************************************************
 sub multidoms_report {
-  
+
   my $Users = Users->new($db, $admin, \%conf);
 
   $Users->list({DOMAIN_ID => 0});
   $Nas->list({DOMAIN_ID => 0});
   $Tariffs->list({DOMAIN_ID => 0, MODULE => 'Dv'});
-  
+
   my $table = $html->table({
     width      => '100%',
     title      => ['', $lang{USERS}, $lang{TARIF_PLANS}, $lang{NAS}],
@@ -1754,7 +1477,7 @@ sub multidoms_report {
     NAME      => '_SHOW',
     COLS_NAME => 1,
   });
-  
+
   $table = $html->table({
     width      => '100%',
     border     => 1,
@@ -1763,16 +1486,16 @@ sub multidoms_report {
     title      => ['ID', $lang{DOMAIN}, $lang{USERS}, $lang{TARIF_PLANS}, $lang{NAS}],
     pages      => $Multidoms->{TOTAL},
   });
-  
+
   foreach my $line (@$domains_list) {
     $Users->list({DOMAIN_ID => $line->{id}});
     $Nas->list({DOMAIN_ID => $line->{id}});
     $Tariffs->list({DOMAIN_ID => $line->{id}, MODULE => 'Dv'});
     $table->addrow($line->{id},$line->{name},$Users->{TOTAL},$Tariffs->{TOTAL},$Nas->{TOTAL});
   };
-  
+
   print $table->show();
-  
+
   $table = $html->table({
     width      => '100%',
     rows       => [ [ "$lang{TOTAL}:", $html->b( $Multidoms->{TOTAL} ) ] ]
@@ -1789,7 +1512,7 @@ sub multidoms_report {
 =cut
 #**********************************************************
 sub multidoms_domains_modules {
-  
+
   if($FORM{set}) {
     my @new_modules = ();
     while (my ($k, undef) = each(%FORM)) {
@@ -1798,7 +1521,7 @@ sub multidoms_domains_modules {
       }
     }
     $Multidoms->domain_modules_change($FORM{chg}, @new_modules);
-    
+
     if (!$Multidoms->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{CHANGED}");
     }
@@ -1807,7 +1530,7 @@ sub multidoms_domains_modules {
   _error_show($Multidoms);
 
   my $modules_list = $Multidoms->domain_modules_info({ ID => $FORM{chg} });
-  
+
   my $table = $html->table(
     {
       width       => '500',
@@ -1843,4 +1566,4 @@ sub multidoms_domains_modules {
   return 1;
 }
 
-1
+1;

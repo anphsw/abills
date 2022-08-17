@@ -125,7 +125,7 @@ sub employees_works_list {
   my Abills::HTML $table = $html->table({
     width       => '100%',
     caption     => $lang->{WORK},
-    title_plain => [ '#', $lang->{DATE}, $lang->{ADMIN}, $lang->{WORK}, $lang->{SUM}, $lang->{COMMENTS}, $lang->{FEE_TAKEN}, $lang->{WORK_DONE}, '', '' ],
+    title_plain => [ '#', $lang->{DATE}, $lang->{PERFORMER}, $lang->{WORK}, $lang->{SUM}, $lang->{COMMENTS}, $lang->{FEE_TAKEN}, $lang->{WORK_DONE}, $lang->{ADMIN}, '', '' ],
     ID          => 'EMPLOYEES_WORKS',
     qs          => $attr->{pages_qs},
     DATA_TABLE  => 1,
@@ -145,9 +145,9 @@ sub employees_works_list {
       MESSAGE => "$lang->{DEL} " . ($work->{work} || $work->{id} || q{-}) . "?"
     });
 
-    $table->addrow($work->{id}, $work->{date}, $work->{admin_name}, $work->{work}, $work->{sum}, $work->{comments},
+    $table->addrow($work->{id}, $work->{date}, $work->{employee}, $work->{work}, $work->{sum}, $work->{comments},
       $work->{fees_id} ? $html->color_mark($lang->{YES}, 'text-primary') : $html->color_mark($lang->{NO}, 'text-danger'),
-      $work->{work_done} ? $html->color_mark($lang->{YES}, 'text-success') : $html->color_mark($lang->{NO}, 'text-danger'),
+      $work->{work_done} ? $html->color_mark($lang->{YES}, 'text-success') : $html->color_mark($lang->{NO}, 'text-danger'), $work->{admin_name},
       $chg_button, $del_button
     );
   }

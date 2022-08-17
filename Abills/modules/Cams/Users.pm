@@ -904,9 +904,9 @@ sub _cams_get_access_user_cameras {
 
   foreach my $group (@$groups) {
     my $cameras = $Cams->streams_list({
-      GROUP_ID         => $group->{group_id} || 0,
-      FOLDER_ID        => $group->{folder_id} || 0,
-      UID              => 0,
+      GROUP_ID         => $group->{group_id} || '_SHOW',
+      FOLDER_ID        => $group->{folder_id} || '_SHOW',
+      UID              => "0;$attr->{UID}",
       COLS_NAME        => 1,
       SHOW_ALL_COLUMNS => 1,
     });

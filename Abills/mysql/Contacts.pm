@@ -218,12 +218,11 @@ sub contacts_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'users_contacts',
-      DATA         => $attr,
-    });
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'users_contacts',
+    DATA         => $attr,
+  });
 
   return 1;
 }
@@ -244,16 +243,16 @@ sub contacts_change{
 #**********************************************************
 sub contacts_change_all_of_type {
   my ($self, $type_id, $attr) = @_;
-  
+
   return unless $type_id && $attr->{UID};
-  
+
   # Simplest way is to delete all contacts of this type, and add it again
   $self->contacts_del({
     UID     => $attr->{UID},
     TYPE_ID => $type_id
   });
-  
-  
+
+
   if ( $attr->{VALUE} ) {
     # Check if have multiple values in a row
     foreach ( split(/,\s/, $attr->{VALUE}) ) {
@@ -263,12 +262,12 @@ sub contacts_change_all_of_type {
         VALUE   => $_
       });
     }
-    
+
   }
   else {
     return 0;
   }
-  
+
   return 1;
 }
 
@@ -298,11 +297,11 @@ sub contact_types_list{
   my $WHERE = '';
 
   $WHERE = $self->search_former( $attr, [
-      [ 'ID',         'INT', 'id',         1 ],
-      [ 'NAME',       'STR', 'name',       1 ],
-      [ 'IS_DEFAULT', 'INT', 'is_default', 1 ],
-      [ 'HIDDEN',     'INT', 'hidden'        ]
-    ],
+    [ 'ID',         'INT', 'id',         1 ],
+    [ 'NAME',       'STR', 'name',       1 ],
+    [ 'IS_DEFAULT', 'INT', 'is_default', 1 ],
+    [ 'HIDDEN',     'INT', 'hidden'        ]
+  ],
     {
       WHERE => 1
     }
@@ -455,17 +454,17 @@ sub social_list_info {
   #}
 
   my $WHERE = $self->search_former($attr, [
-      # ['UID',               'INT',  'usi.uid',               1 ],
-      ['SOCIAL_NETWORK_ID', 'INT',  'usi.social_network_id', 1 ],
-      ['NAME',              'STR',  'usi.name',              1 ],
-      ['EMAIL',             'STR',  'usi.email as social_email', 1 ],
-      ['BIRTHDAY',          'DATE', 'usi.birthday',          1 ],
-      ['GENDER',            'STR',  'usi.gender',            1 ],
-      ['LIKES',             'STR',  'usi.likes',             1 ],
-      ['PHOTO',             'STR',  'usi.photo',             1 ],
-      ['LOCALE',            'STR',  'usi.locale',            1 ],
-      ['FRIENDS_COUNT',     'STR',  'usi.friends_count',     1 ],
-    ],
+    # ['UID',               'INT',  'usi.uid',               1 ],
+    ['SOCIAL_NETWORK_ID', 'INT',  'usi.social_network_id', 1 ],
+    ['NAME',              'STR',  'usi.name',              1 ],
+    ['EMAIL',             'STR',  'usi.email as social_email', 1 ],
+    ['BIRTHDAY',          'DATE', 'usi.birthday',          1 ],
+    ['GENDER',            'STR',  'usi.gender',            1 ],
+    ['LIKES',             'STR',  'usi.likes',             1 ],
+    ['PHOTO',             'STR',  'usi.photo',             1 ],
+    ['LOCALE',            'STR',  'usi.locale',            1 ],
+    ['FRIENDS_COUNT',     'STR',  'usi.friends_count',     1 ],
+  ],
     {   WHERE            => 1,
       USE_USER_PI      => 1,
       USERS_FIELDS_PRE => 1,
@@ -507,19 +506,19 @@ sub social_list_info {
 
   Arguments:
     $name -
-    
+
   Returns:
-    
-    
+
+
 =cut
 #**********************************************************
 sub contact_type_id_for_name {
   my ($self, $name) = @_;
-  
+
   if ($TYPES{$name}){
     return $TYPES{$name};
   }
-  
+
   state $contact_types;
   if (!defined $contact_types){
     my $contact_types_list = $self->contact_types_list({ID => '_SHOW', 'NAME' => '_SHOW', COLS_NAME => 1});
@@ -527,7 +526,7 @@ sub contact_type_id_for_name {
     map { $id_name_hash{uc $_->{name}} = $_->{id} } @{$contact_types_list};
     $contact_types = \%id_name_hash;
   }
-  
+
   return $contact_types->{uc $name} || 0;
 }
 
@@ -536,25 +535,25 @@ sub contact_type_id_for_name {
 
   Arguments:
     $type_id -
-    
+
   Returns:
     name
-    
+
 =cut
 #**********************************************************
 sub contact_name_for_type_id {
   my ($self, $type_id) = @_;
-  
+
   state $contact_types_by_id;
   if (!defined $contact_types_by_id){
     my $contact_types_list = $self->contact_types_list({ID => '_SHOW', 'NAME' => '_SHOW', COLS_NAME => 1});
-    
+
     my %id_name_hash = ();
     map { $id_name_hash{$_->{id}} = uc $_->{name}} @{$contact_types_list};
     $contact_types_by_id = \%id_name_hash;
-  
+
   }
-  
+
   return $contact_types_by_id->{$type_id} || 0;
 }
 
@@ -569,39 +568,36 @@ sub contact_name_for_type_id {
 
 =cut
 #**********************************************************
-sub push_contacts_list{
+sub push_contacts_list {
   my ($self, $attr) = @_;
-  
+
   my $SORT = $attr->{SORT} || 'id';
   my $DESC = ($attr->{DESC}) ? '' : 'DESC';
   my $PG = $attr->{PG} || '0';
   my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
-  
+
   my $search_columns = [
-    ['ID',             'INT',        'id'             ,1 ],
-    ['TYPE',           'INT',        'type'           ,1 ],
-    ['CLIENT_ID',      'INT',        'client_id'      ,1 ],
-    ['ENDPOINT',       'STR',        'endpoint'       ,1 ],
-    ['KEY',            'STR',        'key'            ,1 ],
-    ['AUTH',           'STR',        'auth'           ,1 ],
+    [ 'AID',      'INT', 'aid',     1],
+    [ 'UID',      'INT', 'uid',     1],
+    [ 'TYPE_ID',  'INT', 'type_id', 1],
+    [ 'VALUE',    'STR', 'value',   1],
   ];
   if ($attr->{SHOW_ALL_COLUMNS}){
     map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
   }
   my $WHERE =  $self->search_former($attr, $search_columns, { WHERE => 1 });
-  
+
   $self->query( "SELECT $self->{SEARCH_FIELDS} id
    FROM push_contacts
    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
-      COLS_NAME => 1,
-      %{ $attr // {}}}
+    COLS_NAME => 1,
+    %{ $attr // {}}}
   );
-  
-  return [] if $self->{errno};
-  
-  return $self->{list};
-}
 
+  return [] if $self->{errno};
+
+  return $self->{list} || [];
+}
 
 #**********************************************************
 =head2 push_contacts_info($id)
@@ -614,12 +610,12 @@ sub push_contacts_list{
 
 =cut
 #**********************************************************
-sub push_contacts_info{
+sub push_contacts_info {
   my $self = shift;
   my ($id) = @_;
-  
+
   my $list = $self->push_contacts_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
-  
+
   return $list->[0] || {};
 }
 
@@ -634,14 +630,14 @@ sub push_contacts_info{
 
 =cut
 #**********************************************************
-sub push_contacts_add{
+sub push_contacts_add {
   my $self = shift;
   my ($attr) = @_;
-  
+
   delete $self->{INSERT_ID};
-  
+
   $self->query_add('push_contacts', $attr, { REPLACE => 1 });
-  
+
   return $self->{INSERT_ID} || 0;
 }
 
@@ -656,12 +652,12 @@ sub push_contacts_add{
 
 =cut
 #**********************************************************
-sub push_contacts_del{
+sub push_contacts_del {
   my $self = shift;
   my ($attr) = @_;
-  
+
   $self->query_del('push_contacts', undef, $attr);
-  
+
   return 1;
 }
 
@@ -676,20 +672,19 @@ sub push_contacts_del{
 
 =cut
 #**********************************************************
-sub push_contacts_change{
+sub push_contacts_change {
   my $self = shift;
   my ($attr) = @_;
-  
+
   $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'push_contacts',
       DATA         => $attr,
     });
-  
+
   return 1;
 }
-
 
 #**********************************************************
 =head2 push_messages_list($attr)
@@ -702,40 +697,52 @@ sub push_contacts_change{
 
 =cut
 #**********************************************************
-sub push_messages_list{
-  my ($self, $attr) = @_;
-  
+sub push_messages_list {
+  my $self = shift;
+  my ($attr) = @_;
+
   my $SORT = $attr->{SORT} || 'id';
   my $DESC = ($attr->{DESC}) ? '' : 'DESC';
   my $PG = $attr->{PG} || '0';
   my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
-  
+
   my $search_columns = [
-    ['ID',            'INT',        'id'           ,1 ],
-    ['TAG',           'STR',        'tag'          ,1 ],
-    ['CONTACT_ID',    'INT',        'contact_id'   ,1 ],
-    ['TITLE',         'STR',        'title'        ,1 ],
-    ['MESSAGE',       'STR',        'message'      ,1 ],
-    ['CREATED',       'INT',        'created'      ,1 ],
-    ['TTL',           'INT',        'ttl'          ,1 ],
-    ['OUTDATED',      'INT',        'IF(UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(created) > ttl, 1, 0)',
-      'IF(UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(created) > ttl, 1, 0) AS outdated'],
+    [ 'ID',         'INT', 'id',        1],
+    [ 'TYPE_ID',    'INT', 'type_id',   1],
+    [ 'TITLE',      'STR', 'title',     1],
+    [ 'MESSAGE',    'STR', 'message',   1],
+    [ 'REQUEST',    'STR', 'request',   1],
+    [ 'RESPONSE',   'STR', 'response',  1],
+    [ 'CREATED',    'DATE','created',   1],
+    [ 'STATUS',     'INT', 'status',    1],
+    [ 'UID',        'INT', 'uid',       1],
+    [ 'AID',        'INT', 'aid',       1],
   ];
+
   if ($attr->{SHOW_ALL_COLUMNS}){
     map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
   }
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
-  
-  $self->query( "SELECT $self->{SEARCH_FIELDS} id
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
    FROM push_messages
    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
-      COLS_NAME => 1,
-      %{ $attr // {}}}
+    COLS_NAME => 1,
+    %{$attr || {}} }
   );
-  
-  return [] if $self->{errno};
-  
-  return $self->{list};
+
+  return [] if ($self->{errno} || $self->{TOTAL} < 1);
+
+  my $list = $self->{list};
+
+  $self->query("SELECT COUNT(id) AS total
+   FROM push_messages push_messages
+   $WHERE",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
 }
 
 #**********************************************************
@@ -749,11 +756,12 @@ sub push_messages_list{
 
 =cut
 #**********************************************************
-sub push_messages_info{
-  my ($self, $id) = @_;
-  
+sub push_messages_info {
+  my $self = shift;
+  my ($id) = @_;
+
   my $list = $self->push_messages_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
-  
+
   return $list->[0] || {};
 }
 
@@ -768,12 +776,12 @@ sub push_messages_info{
 
 =cut
 #**********************************************************
-sub push_messages_add{
-  my ($self, $attr) = @_;
-  
-  
+sub push_messages_add {
+  my $self = shift;
+  my ($attr) = @_;
+
   $self->query_add('push_messages', $attr, { REPLACE => 1 });
-  
+
   return 1;
 }
 
@@ -788,11 +796,12 @@ sub push_messages_add{
 
 =cut
 #**********************************************************
-sub push_messages_del{
-  my ($self, $attr) = @_;
-  
+sub push_messages_del {
+  my $self = shift;
+  my ($attr) = @_;
+
   $self->query_del('push_messages', undef, $attr);
-  
+
   return 1;
 }
 
@@ -801,13 +810,13 @@ sub push_messages_del{
 
 =cut
 #**********************************************************
-sub push_messages_outdated_del{
-  my ($self) = @_;
-  
+sub push_messages_outdated_del {
+  my $self = shift;
+
   $self->query(
     'DELETE FROM `push_messages` WHERE UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(created) > ttl;', 'do'
   );
-  
+
   return 1;
 }
 
@@ -822,18 +831,18 @@ sub push_messages_outdated_del{
 
 =cut
 #**********************************************************
-sub push_messages_change{
-  my ($self, $attr) = @_;
-  
+sub push_messages_change {
+  my $self = shift;
+  my ($attr) = @_;
+
   $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'push_messages',
       DATA         => $attr,
     });
-  
+
   return 1;
 }
-
 
 1;

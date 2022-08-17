@@ -31,6 +31,7 @@ use Abills::Defs;
 do "../libexec/config.pl";
 
 use Abills::Filters;
+use Abills::Base qw(decode_base64);
 use Users;
 use Paysys;
 use Paysys::Init;
@@ -97,9 +98,9 @@ if ($conf{PAYSYS_PASSWD}) {
   }
 }
 
-our $Paysys = Paysys->new($db, $admin, \%conf);
-our $payments = Finance->payments($db, $admin, \%conf);
-our $users = Users->new($db, $admin, \%conf);
+our Paysys $Paysys = Paysys->new($db, $admin, \%conf);
+our Finance $payments = Finance->payments($db, $admin, \%conf);
+our Users $users = Users->new($db, $admin, \%conf);
 
 #debug =========================================
 if ($debug > 1) {
@@ -143,6 +144,7 @@ sub paysys_new_scheme {
     my $remote_ip = $ENV{REMOTE_ADDR};
     my $paysys_ip = $connected_system->{paysys_ip} || '';
     my $module    = $connected_system->{module};
+    my $id        = $connected_system->{paysys_id};
 
     if ($test_system) {
       if ($test_system ne $module) {
@@ -151,15 +153,27 @@ sub paysys_new_scheme {
       $paysys_ip = $ENV{REMOTE_ADDR};
     }
 
-    if(check_ip($remote_ip, $paysys_ip)){
-      if($debug > 0) {
-        mk_log('', { PAYSYS_ID => $module, DATA => \%FORM });
+    if ($conf{PAYSYS_ALLOW_DOMAIN} && $paysys_ip =~ /domain/) {
+      my ($domain) = $paysys_ip =~ /(?<=domain: ).*/g;
+
+      require Socket;
+      Socket->import();
+
+      my @addresses = gethostbyname($domain) or next;
+      @addresses = map { inet_ntoa($_) } @addresses[4 .. $#addresses];
+
+      $paysys_ip = join(', ', @addresses);
+    }
+
+    if (check_ip($remote_ip, $paysys_ip)){
+      if ($debug > 0) {
+        mk_log('', { PAYSYS_ID => $id, DATA => \%FORM });
       }
 
       my $Paysys_plugin = _configure_load_payment_module($module);
 
-      if($debug > 2) {
-        mk_log("$module loaded", { PAYSYS_ID => $module });
+      if ($debug > 2) {
+        mk_log("$module loaded", { PAYSYS_ID => $id });
       }
 
       my $Payment_system = $Paysys_plugin->new($db, $admin, \%conf, {
@@ -167,15 +181,15 @@ sub paysys_new_scheme {
         CUSTOM_ID   => $connected_system->{paysys_id}
       });
 
-      if($debug > 2) {
-        mk_log("$module object created", { PAYSYS_ID => $module });
+      if ($debug > 2) {
+        mk_log("$module object created", { PAYSYS_ID => $id });
       }
 
       if ($Payment_system->can('proccess')) {
         $Payment_system->proccess(\%FORM);
 
-        if($debug > 2) {
-          mk_log("$module process ended", { PAYSYS_ID => $module });
+        if ($debug > 2) {
+          mk_log("$module process ended", { PAYSYS_ID => $id });
         }
       }
       else {
@@ -193,6 +207,10 @@ sub paysys_new_scheme {
   # payment function
   paysys_payment_gateway();
 
+  if ($debug > 1) {
+    mk_log('', { REPLY => 1 });
+  }
+
   return 1;
 }
 
@@ -209,9 +227,15 @@ sub paysys_new_scheme {
 sub paysys_payment_gateway {
   # load header
   $html->{METATAGS} = templates('metatags');
-  $html->{WEB_TITLE} = 'Payment Gateway';
+  $html->{WEB_TITLE} = $lang{MAKE_PAYMENT};
 
   print $html->header();
+
+  if ($html->{TYPE} && $html->{TYPE} eq 'xml') {
+    print qq{  <info>Welcome to xml payment gateway</info>
+  <error>403</error>};
+    return 1;
+  }
 
   my ($result, $user_info) = paysys_check_user({
     CHECK_FIELD => $conf{PAYSYS_GATEWAY_IDENTIFIER} || 'UID',
@@ -241,34 +265,62 @@ sub paysys_payment_gateway {
   }
 
   if($result == 0){
-    #SHOW TEMPLATE WITH PAYMENT SYSTEMS SELECT
+    # SHOW TEMPLATE WITH PAYMENT SYSTEMS SELECT
     $TEMPLATES_ARGS{IDENTIFIER} = $FORM{IDENTIFIER};
-    my $connected_systems = $Paysys->paysys_connect_system_list({
+
+    # GENERATE OPERATION_ID
+    $TEMPLATES_ARGS{OPERATION_ID} = mk_unique_value(8, { SYMBOLS => '0123456789' });
+
+    my $allowed_systems = $Paysys->groups_settings_list({
+      GID       => $user_info->{gid},
       PAYSYS_ID => '_SHOW',
+      COLS_NAME => 1,
+    });
+
+    my $systems = $Paysys->paysys_connect_system_list({
       NAME      => '_SHOW',
       MODULE    => '_SHOW',
+      ID        => '_SHOW',
+      PAYSYS_ID => '_SHOW',
       STATUS    => 1,
       COLS_NAME => 1,
     });
 
-    $TEMPLATES_ARGS{OPERATION_ID} = mk_unique_value(8, { SYMBOLS => '0123456789' });
-    if (in_array('Maps', \@MODULES)) {
-      #      $TEMPLATES_ARGS{MAP} = paysys_maps();
+    if (!$user_info->{gid}) {
+      my $gid_list = $users->groups_list({
+        COLS_NAME      => 1,
+        GID            => '0'
+      });
+
+      if (!$gid_list) {
+        $allowed_systems = $systems;
+      }
+    }
+
+    my @systems_list;
+    foreach my $allowed_system (@{$allowed_systems}) {
+      foreach my $system (@{$systems}) {
+        next if ($system->{paysys_id} != $allowed_system->{paysys_id});
+        my $Module = _configure_load_payment_module($system->{module}, 1);
+        next if (ref $Module eq 'HASH' || !$Module->can('user_portal'));
+        push(@systems_list, $system);
+      }
     }
 
     my $count = 1;
-    foreach my $payment_system (@$connected_systems) {
-      my $Module = _configure_load_payment_module($payment_system->{module});
+    foreach my $payment_system (@systems_list) {
+      $TEMPLATES_ARGS{PAY_SYSTEM_SEL} .= _paysys_system_radio({
+        NAME    => $payment_system->{name},
+        MODULE  => $payment_system->{module},
+        ID      => $payment_system->{paysys_id},
+        CHECKED => $count == 1 ? 'checked' : '',
+      });
+      $count++;
+    }
 
-      if ($Module->can('user_portal')) {
-        $TEMPLATES_ARGS{PAY_SYSTEM_SEL} .= _paysys_system_radio({
-          NAME    => $payment_system->{name},
-          MODULE  => $payment_system->{module},
-          ID      => $payment_system->{paysys_id},
-          CHECKED => $count == 1 ? 'checked' : '',
-        });
-        $count++;
-      }
+    if (defined(&recomended_pay) && $users) {
+      $users->pi({UID => $user_info->{uid}});
+      $TEMPLATES_ARGS{SUM} = recomended_pay($users);
     }
 
     $html->tpl_show(_include('paysys_main', 'Paysys'), \%TEMPLATES_ARGS,
@@ -276,12 +328,14 @@ sub paysys_payment_gateway {
 
     return 1;
   }
-  elsif($result == 1){
+  elsif ($result == 1) {
     $html->message("err", $lang{USER_NOT_EXIST});
   }
-  elsif($result == 11){
+  elsif ($result == 11) {
     $html->message("err", "Paysys" . $lang{DISABLE});
   }
+
+  $TEMPLATES_ARGS{IDENTIFIER_TEXT} = $lang{ENTER} . ' ' . ($lang{$conf{PAYSYS_GATEWAY_IDENTIFIER}} || 'UID');
 
   $html->tpl_show(_include('paysys_gateway', 'Paysys'), \%TEMPLATES_ARGS, { });
 

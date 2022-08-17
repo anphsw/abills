@@ -59,6 +59,10 @@
         <label class='col-sm-3 col-md-3 mt-4 col-form-label'>_{CHOOSE_SYSTEM}_:</label>
       </div>
 
+      <div class='form-group'>
+        <div id='GooglePay'></div>
+      </div>
+
       <div class='form-group text-center'>
         %IPAY_HTML%
       </div>
@@ -68,9 +72,38 @@
       </div>
     </div>
 
-    <div class='card-footer'><input class='btn btn-primary float-right' type='submit' name=pre value='_{NEXT}_'></div>
+    <div class='modal fade' id='modal' role='dialog'>
+      <div class='modal-dialog'>
+        <div class='modal-content'>
+          <div class='modal-header'>
+            <h4 class='modal-title'>_{PAYMENT_MADE}_</h4>
+            <button type='button' class='close' data-dismiss='modal'>&times;</button>
+          </div>
+
+          <div class='modal-body'>
+            <ul class='list-group list-group-unbordered mb-3'>
+              <li class='list-group-item'>
+                <b>_{BALANCE_RECHARCHE_SUM}_</b>
+                <div class='float-right' id='sum-info'></div>
+              </li>
+              <li class='list-group-item'>
+                <b>_{TRANSACTION}_ #:</b>
+                <div class='float-right' id='transaction-info'></div>
+              </li>
+            </ul>
+          </div>
+
+          <div class='modal-footer'>
+            <button type='button' class='btn btn-primary' data-dismiss='modal'>_{CLOSE}_</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class='card-footer'>
+      <input class='btn btn-primary float-right' type='submit' name=pre value='_{NEXT}_'>
+    </div>
   </div>
 </form>
-
 
 %MAP%

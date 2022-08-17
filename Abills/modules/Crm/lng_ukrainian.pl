@@ -7,6 +7,8 @@ $lang{ALL_LEADS} = 'Всі ліди';
 $lang{UNITS} = 'Одиниць';
 $lang{CHOOSE} = 'Виберіть';
 $lang{LEADS} = 'Потенційні кліенти';
+$lang{LEAD} = 'Потенційний кліент';
+$lang{OF_LEAD} = 'потенційного кліента';
 $lang{POTENTIAL_LEADS} = 'Потенційні';
 $lang{CONVERT_LEADS} = 'Конвертовані';
 $lang{MINUTES} = 'Хвилини';
@@ -79,5 +81,9 @@ $lang{CRM_USER_LINKED} = "Користувач уже прив'язаний";
 $lang{CRM_SHOW_AT_REGISTRATION} = "Показати під час реєстрації";
 
 $lang{CRM_TECH} = "Технічні дані";
+
+$lang{WATCHING} = "Спостерігаю";
+$lang{WATCH} = "Слідкувати";
+$lang{DUBLICATE_LEADS} = "Дублікати";
 
 1

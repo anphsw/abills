@@ -1,4 +1,4 @@
-/* TODO: some strange thing, not used anywhere, but signature_pad.js used is dragndrop
+/* TODO: some strange thing, not used anywhere, but signature_pad.js used is dragndrop */
 
 var wrapper = document.getElementById("signature-pad");
 var clearButton = wrapper.querySelector("[data-action=clear]");

@@ -21,30 +21,25 @@ function make_tree(data, keys) {
       branch = branch[e[keysArray[i]]];
     }
   });
-  // console.log(TreeHash);
-  jQuery.when(drawTree(TreeHash, 1)).then(jQuery('#show_tree').html(htmlTree));
+  jQuery.when(drawTree(TreeHash, true)).then(jQuery('#show_tree').html(htmlTree));
   htmlTree = "";
 }
 
-function drawTree(treeData, i) {
-  if (i == 1) {
-    htmlTree += "<ul class='ul-list'>";
-  }
-  else {
-    htmlTree += "<ul class='ul-list' style='display: none'>";
-  }
+var _EMPTY_FIELD;
+function drawTree(treeData, start = false) {
+  htmlTree += start ? "<ul class='ul-list'>" : "<ul class='ul-list' style='display: none'>";
 
   for (const key of Object.keys(treeData)) {
-    if (key != "") {
-      if (treeData[key] && treeData[key] != 1) {
-        htmlTree += "<li class='ul-item '><a class='children-toggle' class='btn btn-lg'><i class='fa fa-plus-circle mn'></i></a><span class='parent'>" + key + "</span>";
-        drawTree(treeData[key]);
-      }
-      else {
-        htmlTree += "<li class='ul-item'><span class='parent'>" + key + "</span>";
-      }
-      htmlTree += "</li>";
+    if (key === "") continue;
+
+    if (treeData[key] && treeData[key] != 1) {
+      htmlTree += "<li class='ul-item '><a class='children-toggle' class='btn btn-lg'><i class='fa fa-plus-circle mn'></i>" +
+        "</a><span class='parent'>" + (key !== 'undefined' ? key : _EMPTY_FIELD) + "</span>";
+      drawTree(treeData[key]);
+    } else {
+      htmlTree += "<li class='ul-item'><span class='parent'>" + key + "</span>";
     }
+    htmlTree += "</li>";
   }
   htmlTree += "</ul>";
 }

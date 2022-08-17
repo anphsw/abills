@@ -165,4 +165,16 @@ $lang{MOVED} = 'Перемещено';
 $lang{INSTALLATION_ADDRESS} = 'Адрес установки';
 $lang{INVENTORY_ITEMS} = 'ТМЦ';
 
+$lang{PAYERS} = 'Плательщики';
+$lang{PAYER} = 'Плательщик';
+$lang{STORAGE_NAS_INSTALLATIONS_REPORT} = 'Отчёт по установленным на сервер доступа товарам';
+$lang{PURCHASE_EQUIPMENT_WAS_SUCCESSFUL} = 'Покупка оборудования прошла успешно';
+$lang{ENTER_CORRECT_AMOUNT} = 'Введите корректное количество';
+$lang{YOU_CANNOT_BUY_MORE_THAN} = 'Вы не можете купить больше чем';
+$lang{PRODUCT_PURCHASE_ERROR} = 'Ошибка покупки товара';
+$lang{AVAILABLE_FOR_PUBLIC_SALE} = 'Доступно для публичной продажи';
+$lang{REDEMPTION_OF_GOODS} = 'Выкуп товаров';
+$lang{REDEMPTION_SUM} = 'Сумма выкупа';
+$lang{PRODUCT_PURCHASED} = 'Товар выкуплено';
+
 1;

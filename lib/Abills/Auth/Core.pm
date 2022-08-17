@@ -9,7 +9,7 @@ package Abills::Auth::Core;
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(show_hash);
-use Log qw( log_print );
+use Log qw(log_print);
 
 #**********************************************************
 =head2
@@ -28,11 +28,12 @@ sub new {
 
   my $auth_type = $attr->{AUTH_TYPE} || '';
   my $conf      = $attr->{CONF};
-  my $self      = { conf     => $conf,
-                    self_url => $attr->{SELF_URL} || q{},
-                    username => $attr->{USERNAME} || q{},
-                    domain_id=> $attr->{DOMAIN_ID}
-                  };
+  my $self      = {
+    conf     => $conf,
+    self_url => $attr->{SELF_URL} || q{},
+    username => $attr->{USERNAME} || q{},
+    domain_id=> $attr->{DOMAIN_ID}
+  };
 
   bless($self, $class);
   my $name = "Abills::Auth::$auth_type";

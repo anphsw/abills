@@ -304,7 +304,8 @@ sub info {
       COUNT(aa.aid) AS admin_access,
       a.aid,
       a.name AS a_fio,
-      a.g2fa
+      a.g2fa,
+      a.avatar_link
      FROM
       `admins` a
      LEFT JOIN `admins_groups` ag ON (a.aid=ag.aid)
@@ -723,7 +724,7 @@ sub action_list {
       ['DATETIME',     'DATE', 'aa.datetime',    1 ],
       ['MODULE',       'STR',  'aa.module',      1 ],
       ['TYPE',         'INT',  'aa.action_type', 1 ],
-      ['ACTIONS',      'INT',  'aa.actions',     1 ],
+      ['ACTIONS',      'STR',  'aa.actions',     1 ],
       ['ADMIN_LOGIN',  'STR',  'a.id', 'a.id AS admin_login'               ],
       ['IP',           'IP',   'aa.ip',         "INET_NTOA(aa.ip) AS ip"   ],
       ['DATE',         'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')", "DATE_FORMAT(aa.datetime, '%Y-%m-%d') AS date" ],

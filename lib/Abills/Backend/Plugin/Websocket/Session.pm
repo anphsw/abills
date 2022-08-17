@@ -3,11 +3,9 @@ package Abills::Backend::Plugin::Websocket::Session;
 use strict;
 use warnings FATAL => 'all';
 
-use Protocol::WebSocket::Frame;
-
 use Abills::Backend::Defs;
-use Abills::Base qw/_bp/;
 
+use Protocol::WebSocket::Frame;
 my $main_frame = Protocol::WebSocket::Frame->new;
 
 #**********************************************************

@@ -429,28 +429,29 @@ sub internet_holdup_fees {
   $USERS_LIST_PARAMS{EXT_BILL} = 1              if ($conf{BONUS_EXT_FUNCTIONS});
   $USERS_LIST_PARAMS{TP_ID}    = $attr->{TP_ID} if ($attr->{TP_ID});
 
-  my $internet_list = $Internet->user_list(
-    {
-      INTERNET_ACTIVATE     => "<=$ADMIN_REPORT{DATE}",
-      #INTERNET_EXPIRE       => "0000-00-00,>$ADMIN_REPORT{DATE}",
-      INTERNET_EXPIRE    => "0000-00-00,>$ADMIN_REPORT{DATE}",
-      INTERNET_STATUS    => "3",
-      LOGIN_STATUS => 0,
-      SORT         => 1,
-      PAGE_ROWS    => 1000000,
-      TP_CREDIT    => '_SHOW',
-      LOGIN        => '_SHOW',
-      BILL_ID      => '_SHOW',
-      REDUCTION    => '_SHOW',
-      DEPOSIT      => '_SHOW',
-      CREDIT       => '_SHOW',
-      COMPANY_ID   => '_SHOW',
-      EXT_DEPOSIT  => '_SHOW',
-      COLS_NAME    => 1,
-      GROUP_BY     => 'internet.id',
-      %USERS_LIST_PARAMS
-    }
-  );
+  if ($debug > 6) {
+    $Internet->{debug} = 1;
+  }
+
+  my $internet_list = $Internet->user_list({
+    INTERNET_ACTIVATE => "<=$ADMIN_REPORT{DATE}",
+    INTERNET_EXPIRE   => "0000-00-00,>$ADMIN_REPORT{DATE}",
+    INTERNET_STATUS   => "3",
+    LOGIN_STATUS      => 0,
+    SORT              => 1,
+    PAGE_ROWS         => 1000000,
+    TP_CREDIT         => '_SHOW',
+    LOGIN             => '_SHOW',
+    BILL_ID           => '_SHOW',
+    REDUCTION         => '_SHOW',
+    DEPOSIT           => '_SHOW',
+    CREDIT            => '_SHOW',
+    COMPANY_ID        => '_SHOW',
+    EXT_DEPOSIT       => '_SHOW',
+    COLS_NAME         => 1,
+    GROUP_BY          => 'internet.id',
+    %USERS_LIST_PARAMS
+  });
 
   my $ext_deposit_op = 0;
 
@@ -469,7 +470,9 @@ sub internet_holdup_fees {
       EXT_DEPOSIT  => ($u->{ext_deposit}) ? $u->{ext_deposit} : 0,
     );
 
-    $debug_output .= " Login: $user{LOGIN} ($user{UID}) TP_ID: ($u->{tp_id} Fees: $holdup_fees REDUCTION: $user{REDUCTION} DEPOSIT: $u->{deposit} CREDIT $user{CREDIT} ACTIVE: $user{ACTIVATE} TP: $u->{tp_num}\n" if ($debug > 3);
+    $debug_output .= " Login: $user{LOGIN} ($user{UID}) TP_ID: ($u->{tp_id} Fees: $holdup_fees"
+      . " REDUCTION: $user{REDUCTION} DEPOSIT: ". ($u->{deposit} || 'n/d') ." CREDIT $user{CREDIT}"
+      . " ACTIVE: $user{ACTIVATE} TP: ". ($u->{tp_num} || q{-}) ."\n" if ($debug > 3);
 
     if (($user{BILL_ID} && $user{BILL_ID} > 0) && defined($user{DEPOSIT})) {
       if ($debug > 4) {
@@ -1542,9 +1545,10 @@ sub internet_sheduler {
     my %params = ();
     my $user = $Internet->user_info($uid, { ID => $service_id });
 
-    # if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00' && !$Internet->{STATUS}) {
-    #   $params{ACTIVATE} = $DATE;
-    # }
+    #Change activation date after change TP
+    if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00' && !$Internet->{STATUS}) {
+      $params{ACTIVATE} = $ADMIN_REPORT{DATE};
+    }
 
     $Internet->user_change({
       UID         => $uid,
@@ -1616,7 +1620,13 @@ sub internet_sheduler {
         if ($Internet->{TP_INFO_OLD}->{PERIOD_ALIGNMENT}) {
           $user = $users->info($uid);
           #$Internet->{TP_INFO}->{MONTH_FEE} = 0;
-          service_recalculate($Internet, { RECALCULATE => 1, QUITE => 1, USER_INFO => $user });
+          service_recalculate($Internet,
+            { RECALCULATE => 1,
+              QUITE       => 1,
+              SHEDULER    => 1,
+              USER_INFO   => $user,
+              DATE        => $ADMIN_REPORT{DATE}
+            });
         }
       }
 

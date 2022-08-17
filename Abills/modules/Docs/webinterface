@@ -225,9 +225,17 @@ sub docs_print{
 
     $attr->{FROM_DATE_LIT} = "$d " . $MONTHES_LIT[ int( $m ) - 1 ] . " $y $lang{YEAR_SHORT}";
     $attr->{DAY} = $d;
+    $attr->{MONTH} = $m;
     $attr->{MONTH_LIT} = $MONTHES_LIT[ int( $m ) - 1 ];
     $attr->{YEAR} = $y;
+    $attr->{YEAR_SHORT} = substr($y,2);
     $attr->{DATE_EURO_STANDART} = "$d.$m.$y";
+  }
+
+  if ($Docs->{CONTRACT_DATE}) {
+    my ($contract_y, $contract_m, $contract_d) = split(/-/, $Docs->{CONTRACT_DATE} || $DATE, 3);
+    $attr->{CONTRACT_DATE_LIT} = "$contract_d " . $MONTHES_LIT[ int($contract_m) - 1 ] . " $contract_y $lang{YEAR_SHORT}";
+    $attr->{CONTRACT_DATE_EURO_STANDART} = "$contract_d.$contract_m.$contract_y";
   }
 
   my @lit_arr = (
@@ -446,8 +454,9 @@ sub docs_print{
             SUFIX => $attr->{SUFIX}
           }
         ),
-        { %{$users},
+        {
           %{$attr},
+          %{$users},
           QR_CODE_DOCS => $qr_code_pay,
         },
         { TITLE         => $template,
@@ -908,13 +917,13 @@ sub docs_statement_of_account {
     $LIST_PARAMS{DATE}.=';<'. date_format($year_date, ($y+1) ."-01-01");
   }
 
-  $LIST_PARAMS{PAGE_ROWS}=1000;
-  if($FORM{ALL}) {
-    $LIST_PARAMS{PAGE_ROWS}=10000;
+  $LIST_PARAMS{PAGE_ROWS} = 1000;
+  if ($FORM{ALL}) {
+    $LIST_PARAMS{PAGE_ROWS} = 10000;
     delete $LIST_PARAMS{DATE};
   }
 
-  $Fees->{debug}=1 if($FORM{DEBUG} && $FORM{DEBUG} > 5);
+  $Fees->{debug} = 1 if $FORM{DEBUG} && $FORM{DEBUG} > 5;
   my $fees_list = $Fees->list({
     DATETIME   => '_SHOW',
     DSC        => '_SHOW',
@@ -931,7 +940,7 @@ sub docs_statement_of_account {
     push @{ $operations{$line->{datetime}} },  { %$line, FEES => 1 };
   }
 
-  $Payments->{debug}=1 if($FORM{DEBUG} && $FORM{DEBUG} > 5);
+  $Payments->{debug} = 1 if $FORM{DEBUG} && $FORM{DEBUG} > 5;
   my $payments_list = $Payments->list({
     DATETIME    => '_SHOW',
     DSC         => '_SHOW',
@@ -950,7 +959,7 @@ sub docs_statement_of_account {
     push @{ $operations{$line->{datetime}} }, $line;
   }
 
-  $users->pi( { UID => $LIST_PARAMS{UID} } );
+  $users->pi({ UID => $LIST_PARAMS{UID} });
 
   my @data_upload = ();
   my @title_upload = ( $lang{DATE}, $lang{LOGIN}, $lang{BILLS}, $lang{INVOICE}, $lang{DESCRIBE}, $lang{FEES},
@@ -976,19 +985,17 @@ sub docs_statement_of_account {
       my $describe = ($money_operation->{FEES}) ? $money_operation->{dsc} : $html->b($money_operation->{dsc} || q{});
       my $deposit = ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{last_deposit} || 0) : $html->b(sprintf("%.2f", $money_operation->{last_deposit} || 0));
 
-      $Docs->{ROWS} .= $html->tpl_show( _include( 'docs_statement_of_account_row', 'Docs' ),
-        {
-          date        => $date,
-          login       => $login,
-          bill_id     => $bill_id,
-          invoice     => $invoice,
-          fio         => $fio,
-          fees_sum    => $fees,
-          payment_sum => $payments,
-          describe    => $describe,
-          deposit     => $deposit,
-        },
-        { OUTPUT2RETURN => 1 } );
+      $Docs->{ROWS} .= $html->tpl_show(_include('docs_statement_of_account_row', 'Docs'), {
+        date        => $date,
+        login       => $login,
+        bill_id     => $bill_id,
+        invoice     => $invoice,
+        fio         => $fio,
+        fees_sum    => $fees,
+        payment_sum => $payments,
+        describe    => $describe,
+        deposit     => $deposit,
+      }, { OUTPUT2RETURN => 1 });
 
         push @xls_data, ($date, $login, $bill_id, $invoice, $describe, $fees, $payments, $deposit);
     }
@@ -1002,19 +1009,17 @@ sub docs_statement_of_account {
     $date_list{"$i-01-01"}="$i-01-01";
   }
 
-  $Docs->{YEAR_SEL} = $html->form_select('DATE',
-    {
-      SELECTED  => $FORM{DATE} || $DATE,
-      SEL_HASH  => \%date_list,
-      NO_ID     => 1,
-      EX_PARAMS => "onchange='autoReload()'",
-    }
-  );
+  $Docs->{YEAR_SEL} = $html->form_select('DATE', {
+    SELECTED  => $FORM{DATE} || $DATE,
+    SEL_HASH  => \%date_list,
+    NO_ID     => 1,
+    EX_PARAMS => "onchange='autoReload()'",
+  });
 
   my $uid = $FORM{UID} || 0;
   my $upload_xml = $html->button('XLS', "qindex=15&STATMENT_ACCOUNT=1&UID=$uid&header=2&xls=1&EXPORT_CONTENT=DOCS"
     .(($FORM{DATE}) ? "&DATE=$FORM{DATE}" : q{}), {
-    class => 'btn btn-secondary'
+    class => 'btn btn-light border mt-1'
   });
 
   if ($FORM{xls}) {
@@ -1026,15 +1031,12 @@ sub docs_statement_of_account {
     $table->show();
   }
   else {
-    $html->tpl_show( _include( 'docs_statement_of_account', 'Docs' ),
-      {
-        %{$users},
-        %{$Docs},
-        DATE        => $DATE,
-        UPLOAD_XML  => $upload_xml
-      },
-      { }
-    );
+    $html->tpl_show(_include('docs_statement_of_account', 'Docs'), {
+      %{$users},
+      %{$Docs},
+      DATE       => $DATE,
+      UPLOAD_XML => $upload_xml
+    });
   }
 
   return 1;
@@ -1102,18 +1104,15 @@ sub docs_registration_create{
     my $registration_url = "$base_url/registration.cgi";
 
     eval { require Control::Qrcode };
+    print $@ if $@;
 
-    if($@) {
-      print $@;
-    }
-
-    $Docs->{QR_CODE} = qr_make( $SELF_URL, {
-        SHOW_IMG      => 1,
-        GLOBAL_URL    => $registration_url,
-        OUTPUT2RETURN    => 1,
-        size          => 5,
-        margin        => 0,
-        WRITE_TO_DISK => ($FORM{OUTPUT} eq 'pdf') ? 1 : 0
+    $Docs->{QR_CODE} = qr_make($SELF_URL, {
+      SHOW_IMG      => 1,
+      GLOBAL_URL    => $registration_url,
+      OUTPUT2RETURN => 1,
+      size          => 5,
+      margin        => 0,
+      WRITE_TO_DISK => ($FORM{OUTPUT} eq 'pdf') ? 1 : 0
     });
     $Docs->{BASE_LINK} = $registration_url;
 
@@ -1129,15 +1128,13 @@ sub docs_registration_create{
 
   $FORM{OUTPUT} = $FORM{OUTPUT} || 'html';
 
-  $html->tpl_show( _include( 'docs_registration_form_create', 'Docs' ), {
-      HTML_CHECKED => $FORM{OUTPUT} eq 'html' ? "checked='checked'" : '',
-      PDF_CHECKED  => $FORM{OUTPUT} eq 'pdf' ? "checked='checked'" : '',
-      %FORM
-    } );
+  $html->tpl_show(_include('docs_registration_form_create', 'Docs'), {
+    HTML_CHECKED => $FORM{OUTPUT} eq 'html' ? "checked='checked'" : '',
+    PDF_CHECKED  => $FORM{OUTPUT} eq 'pdf' ? "checked='checked'" : '',
+    %FORM
+  });
 
-  if ( $FORM{generate} ){
-    docs_registration_preview();
-  }
+  docs_registration_preview() if $FORM{generate};
 
   return 1;
 }

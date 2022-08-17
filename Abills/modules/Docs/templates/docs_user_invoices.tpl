@@ -1,4 +1,4 @@
-<form action='$SELF_URL' method='GET' name='DOCS_SERVICES_INVOICE'>
+<form action='%SELF_URL%' method='GET' name='DOCS_SERVICES_INVOICE'>
   <input type='hidden' name='index' value='%index%' />
   <input type='hidden' name='UID' value='%UID%' />
   <input type='hidden' name='DATE' value='%DATE%' />

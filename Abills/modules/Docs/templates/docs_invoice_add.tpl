@@ -14,7 +14,7 @@
     <div class='card-header with-border'>
       <h4 class='card-title'>%CAPTION%</h4>
       <span class='float-right'>
-        <a href='$SELF_URL?full=1&get_index=docs_invoice_company&UID=%UID%' class='btn btn-xs btn-success' >_{NEXT_PERIOD_INVOICE}_</a>
+        <a href='$SELF_URL?full=1&get_index=docs_invoice_company&UID=%UID%' class='btn btn-xs btn-success'>_{NEXT_PERIOD_INVOICE}_</a>
       </span>
     </div>
     <div class='card-body'>
@@ -35,7 +35,7 @@
         <div class='col-sm-12 col-md-9'>
           <div class='input-group'>
             <input type='text' id='CUSTOMER' name='CUSTOMER' value='%CUSTOMER%' placeholder='%CUSTOMER%'
-              class='form-control'>
+                   class='form-control'>
           </div>
         </div>
       </div>
@@ -50,55 +50,56 @@
       </div>
 
       <div class='form-group'>
-          <table class='table table-bordered' id='tab_logic'>
-            <thead>
-            <tr>
-              <th style='width: 10px'>
-                #
-              </th>
-              <th style='width: 300px'>
-                _{NAME}_
-              </th>
-              <th style='width: 200px'>
-                _{LIST_OF_CHARGES}_
-              </th>
-              <th style='width: 75px'>
-                _{COUNT}_
-              </th>
-              <th style='width: 75px'>
-                _{SUM}_
-              </th>
-            </tr>
-            </thead>
-            <tbody>
+        <table class='table table-bordered' id='tab_logic'>
+          <thead>
+          <tr>
+            <th style='width: 10px'>
+              #
+            </th>
+            <th style='width: 300px'>
+              _{NAME}_
+            </th>
+            <th style='width: 200px'>
+              _{LIST_OF_CHARGES}_
+            </th>
+            <th style='width: 75px'>
+              _{COUNT}_
+            </th>
+            <th style='width: 75px'>
+              _{SUM}_
+            </th>
+          </tr>
+          </thead>
+          <tbody>
 
-            <tr id='addr1'>
-              <td>
-                <input type=hidden name=IDS value='1'>
-                1
-              </td>
-              <td>
-                <input type='text' name='ORDER_1' id='ORDER_1' value='%ORDER_1%' placeholder='_{ORDER}_' class='form-control'/>
-              </td>
-              <td>
-                %TYPES_FEES%
-              </td>
-              <td>
-                <input type='text' name='COUNTS_1' value='%COUNTS_1%' placeholder='1' class='form-control'/>
-              </td>
-              <td>
-                <input type='text' name='SUM_1' id='SUM_1' value='%SUM_1%' placeholder='0.00' class='form-control'/>
-              </td>
-            </tr>
-            <tr id='addr2'></tr>
-            </tbody>
-          </table>
-          <a id='add_row' class='btn btn-sm btn-secondary float-left'>
-            <span class='fa fa-plus'></span>
-          </a>
-          <a id='delete_row' class='btn btn-sm btn-secondary float-right'>
-            <span class='fa fa-minus'></span>
-          </a>
+          <tr id='addr1'>
+            <td>
+              <input type=hidden name=IDS value='1'>
+              1
+            </td>
+            <td>
+              <input type='text' name='ORDER_1' id='ORDER_1' value='%ORDER_1%' placeholder='_{ORDER}_'
+                     class='form-control'/>
+            </td>
+            <td>
+              %TYPES_FEES%
+            </td>
+            <td>
+              <input type='text' name='COUNTS_1' value='%COUNTS_1%' placeholder='1' class='form-control'/>
+            </td>
+            <td>
+              <input type='text' name='SUM_1' id='SUM_1' value='%SUM_1%' placeholder='0.00' class='form-control'/>
+            </td>
+          </tr>
+          <tr id='addr2'></tr>
+          </tbody>
+        </table>
+        <a id='add_row' class='btn btn-sm btn-default float-left'>
+          <span class='fa fa-plus'></span>
+        </a>
+        <a id='delete_row' class='btn btn-sm btn-default float-right'>
+          <span class='fa fa-minus'></span>
+        </a>
 
       </div>
 
@@ -132,6 +133,7 @@
         i--;
       }
     });
+
     function checkSelect() {
       jQuery("select[name^='TYPE_FEES_']").on('change', (function () {
         var changedId = jQuery(this).attr('name');

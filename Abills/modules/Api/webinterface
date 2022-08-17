@@ -54,7 +54,9 @@ sub api_log_list {
       caption => $lang{API_LOGS},
       qs      => $pages_qs,
       ID      => 'API_LOG',
+      pages   => $Api->{TOTAL},
       MENU    => "$lang{SEARCH}:index=$index&search_form=1:search;",
+      EXPORT  => 1,
     },
     MAKE_ROWS       => 1,
     MODULE          => 'Api'

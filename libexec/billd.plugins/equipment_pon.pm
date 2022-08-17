@@ -248,6 +248,11 @@ sub _equipment_pon_load {
           COLS_UPPER => 1,
           NAS_ID     => $nas_id
         });
+
+        if ($Equipment->{TOTAL} < 1) {
+          _generate_new_event("NAS_ID: $nas_id CANT_GET_PORTS");
+          return 1;
+        }
       }
 
       foreach my $line (@$port_list) {
@@ -264,6 +269,7 @@ sub _equipment_pon_load {
         }
         push @$query_oids, 'ONU_MAC_SERIAL', 'ONU_STATUS';
       }
+
       my $onu_snmp_list = &{\&$onu_list_fn}($olt_ports, {
         VERSION        => $nas_info->{snmp_version} || 1,
         SNMP_COMMUNITY => $SNMP_COMMUNITY,
@@ -274,6 +280,11 @@ sub _equipment_pon_load {
         QUERY_OIDS     => $query_oids,
         TYPE           => 'dhcp'
       });
+
+      if (! $onu_snmp_list || $#{$onu_snmp_list} < 0) {
+        _generate_new_event("NAS_ID: $nas_id NOT_RESPONSE_SNMP");
+        return 1;
+      }
 
       $onu_counts = $#{$onu_snmp_list} + 1;
 
@@ -294,7 +305,6 @@ sub _equipment_pon_load {
         $created_onu->{ $onu->{onu_snmp_id} }->{ONU_STATUS} = $onu->{status};
         $created_onu->{ $onu->{onu_snmp_id} }->{DELETED} = $onu->{deleted};
       }
-
 
       my $onu_status_fn = $nas_type . '_onu_status';
 
@@ -590,7 +600,7 @@ sub _generate_new_event {
   my ($comments) = @_;
 
   #  print "EVENT: $name, $comments \n";
-  print $comments . "\n" if ($argv->{DEBUG});
+  _log('LOG_CRIT', $comments);
 
   $Events->add_event({
     MODULE      => "Equipment",
@@ -702,13 +712,19 @@ sub _scan_mac_serial_on_all_nas {
 #**********************************************************
 sub _save_port_and_nas_to_internet_main {
   require Internet;
-  my $onu_list = $Equipment->onu_and_internet_cpe_list({NAS_IDS => $argv->{NAS_IDS}, DELETED => 0});
+  Internet->import();
   my $Internet = Internet->new($db, $Admin, \%conf);
+
+  if($debug > 6) {
+    $Equipment->{debug}=1;
+  }
+  my $onu_list = $Equipment->onu_and_internet_cpe_list({NAS_IDS => $argv->{NAS_IDS}, DELETED => 0});
 
   my $check_mode = $argv->{CPE_CHECK} && !$argv->{CPE_FILL} && !$argv->{FORCE_FILL};
 
-  my %onus_by_uid;
-  my %attached_onu_by_uid;
+  my %onus_by_uid = ();
+  my %attached_onu_by_uid = ();
+
   foreach my $onu (@$onu_list) {
     next if (!$onu->{onu_nas});
 
@@ -768,6 +784,12 @@ sub _save_port_and_nas_to_internet_main {
     if ($argv->{VLANS}) {
       my $attached_onu = $attached_onu_by_uid{$uid};
       next if (!$attached_onu);
+      if ($attached_onu->{onu_status} && $attached_onu->{onu_status} == 4) {
+        next;
+      }
+      my $pon_port_vlan = $attached_onu->{pon_port_vlan} || 0;
+      $attached_onu->{user_server_vlan} ||= $pon_port_vlan || 0;
+
       if ($check_mode) {
         if ($attached_onu->{onu_vlan} != $attached_onu->{user_vlan}) {
           print "User:$uid,  vlan does not match. user_vlan:'$attached_onu->{user_vlan}'/onu_vlan:'$attached_onu->{onu_vlan}'\n";
@@ -776,12 +798,16 @@ sub _save_port_and_nas_to_internet_main {
           print "User:$attached_onu->{uid},  server_vlan does not match. user_server_vlan:'$attached_onu->{user_server_vlan}'/onu_server_vlan:'$attached_onu->{onu_server_vlan}'\n";
         }
       }
-      elsif (($attached_onu->{onu_vlan} != $attached_onu->{user_vlan}
-         || $attached_onu->{onu_server_vlan} != $attached_onu->{user_server_vlan})) {
+      elsif (($attached_onu->{onu_vlan} || 0) != ($attached_onu->{user_vlan} || 0)
+         || ($attached_onu->{onu_server_vlan} || 0) != ($attached_onu->{user_server_vlan} || 0)) {
+
+ #         print "      elsif (($attached_onu->{onu_vlan} != ($attached_onu->{user_vlan} || q{})
+ #          || $attached_onu->{onu_server_vlan} != $attached_onu->{user_server_vlan})) {
+ # ";
         my $vlan_to_set = $attached_onu->{user_vlan};
         my $server_vlan_to_set = $attached_onu->{user_server_vlan};
 
-        if (($attached_onu->{onu_vlan} && $attached_onu->{onu_vlan} != $attached_onu->{user_vlan})
+        if (($attached_onu->{onu_vlan} && $attached_onu->{onu_vlan} != ($attached_onu->{user_vlan} || 0))
           && (!$attached_onu->{user_vlan} || $argv->{FORCE_FILL})) {
           $vlan_to_set = $attached_onu->{onu_vlan};
           print "User:$uid add vlan ($attached_onu->{onu_vlan})\n"

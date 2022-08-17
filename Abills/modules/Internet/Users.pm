@@ -8,6 +8,7 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(date_diff days_in_month in_array int2byte int2ip sendmail
   mk_unique_value clearquotes json_former);
+use Log;
 require Abills::Result_former;
 require Internet::Stats;
 require Control::Service_control;
@@ -22,10 +23,22 @@ our (
   @MONTHES,
   @WEEKDAYS,
   $ui,
-  $users
+  %FORM,
+  $DATE,
+  $TIME,
+  $index,
+  @MODULES,
+  %LIST_PARAMS,
+  $pages_qs,
+  $SELF_URL,
+  #$sid,
+  #$user,
+  @_COLORS,
+  $Conf
 );
 
 our Abills::HTML $html;
+our Users $users;
 
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
@@ -109,7 +122,9 @@ sub internet_user {
     $Internet->{TP_ADD} = sel_tp({
       CHECK_GROUP_GEOLOCATION => $user_info->{LOCATION_ID} || 0,
       USER_GID                => $user_info->{GID} || 0,
-      SELECT                  => 'TP_ID'
+      SELECT                  => 'TP_ID',
+      GROUP_SORT              => 1,
+      EX_PARAMS               => { SORT_KEY => 1 }
     });
 
     $Internet->{TP_DISPLAY_NONE} = "style='display:none'";
@@ -166,10 +181,19 @@ sub internet_user {
       $Internet->{LNG_ACTION} = $lang{CHANGE};
     }
 
+    # Show tooltip COMMENTS for user and admin
+    my $tarif_plan_tooltip = '';
+    if ($Internet->{TP_ID}) {
+      $tarif_plan_tooltip =
+        $html->b($lang{DESCRIBE_FOR_SUBSCRIBER}) . ': ' . ($Internet->{COMMENTS} || '') . $html->br()
+          .$html->b($lang{DESCRIBE}.' '.$lang{ADMIN})    . ': ' . ($Internet->{DESCRIBE_AID} || '') . $html->br();
+    }
+
     if ($permissions{0}{10}) {
       $Internet->{CHANGE_TP_BUTTON} = $html->button('',
         'ID=' . $Internet->{ID} . '&UID=' . $uid . '&index=' . get_function_index('internet_chg_tp'),
         { class => 'btn btn-sm hidden-print fa fa-pencil-alt', TITLE => $lang{CHANGE} });
+      $Internet->{TARIF_PLAN_TOOLTIP} = "data-tooltip='$tarif_plan_tooltip' data-tooltip-position='top'";
     }
 
     my $warning_info = $Service_control->service_warning({
@@ -393,7 +417,7 @@ sub internet_user {
   }
 
   # Show NAS_INFO tooltip
-  my $select_input_tooltip = undef;
+  my $select_input_tooltip = '';
   if (!$FORM{json} && $Internet->{NAS_ID}) {
     my $Nas_info = Nas->new($db, \%conf, $admin);
     $Nas_info->info({ NAS_ID => $Internet->{NAS_ID} });
@@ -642,20 +666,36 @@ sub internet_user_add {
       return 0;
     }
     else {
-      $html->message('info', $lang{INFO}, $lang{ADDED}) if (!$attr->{QUITE});
+      if ($attr->{API}) {
+        return {
+          result => 'Successfully added'
+        }
+      }
+      else {
+        $html->message('info', $lang{INFO}, $lang{ADDED}) if (!$attr->{QUITE});
+      }
     }
 
     internet_ipoe_activate_manual($attr);
   }
 
   if (!$service_id) {
-    _error_show($Internet, { ID => 961, MODULE => 'Internet' });
+    if ($attr->{API}) {
+      return {
+        errno => $Internet->{errno},
+        error => 961,
+        errstr => $Internet->{errstr},
+      }
+    }
+    else {
+      _error_show($Internet, { ID => 961, MODULE => 'Internet' });
+    }
+
     return -1;
   }
 
   return $service_id;
 }
-
 
 #**********************************************************
 =head2 internet_ipoe_activate_manual($attr)
@@ -702,6 +742,10 @@ sub internet_user_change {
   my $uid = $attr->{UID} || $LIST_PARAMS{UID} || 0;
 
   if (!$permissions{0}{4}) {
+    return {
+      errno => 950,
+      errstr => 'ACCESS DENIED',
+    } if ($attr->{API});
     $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
     return 0;
   }
@@ -808,7 +852,14 @@ sub internet_user_change {
     }
 
     $FORM{chg} = $attr->{ID};
-    $html->message('info', $lang{INTERNET}, $lang{CHANGED});
+    if ($attr->{API}) {
+      return {
+        result => 'Successfully changed'
+      }
+    }
+    else {
+      $html->message('info', $lang{INTERNET}, $lang{CHANGED});
+    }
     return 0 if ($attr->{REGISTRATION});
   }
 
@@ -1859,7 +1910,7 @@ sub internet_form_shedule {
       {
         CONTENT => $html->element('div', $info, { class => 'navbar navbar-expand-lg' }),
         HIDDEN  => {
-          sid     => $sid,
+          #sid     => $sid,
           index   => $index,
           Shedule => "status",
           UID     => $FORM{UID},
@@ -2132,22 +2183,6 @@ sub internet_chg_tp {
     MODULE => 'Internet'
   });
 
-  my $user_info = $users->pi({ UID => $uid });
-  my $tp_gids = $user_info->{LOCATION_ID} ? tp_gids_by_geolocation($user_info->{LOCATION_ID}, $Tariffs, $user_info->{GID}) : '';
-
-  my $tp_list = $Tariffs->list({
-    MODULE        => 'Dv;Internet',
-    DOMAIN_ID     => $users->{DOMAIN_ID} || $admin->{DOMAIN_ID},
-    NEW_MODEL_TP  => 1,
-    COMMENTS      => '_SHOW',
-    TP_GROUP_NAME => '_SHOW',
-    MONTH_FEE     => '_SHOW',
-    DAY_FEE       => '_SHOW',
-    STATUS        => '_SHOW',
-    TP_GID        => $tp_gids || '_SHOW',
-    COLS_NAME     => 1
-  });
-
   my $table;
   #Sheduler for TP change
 
@@ -2194,26 +2229,22 @@ sub internet_chg_tp {
     $Tariffs->{SHEDULE_LIST} .= $table->show();
   }
 
-  # GID:ID=>NAME
-  my %TPS_HASH = ();
-  foreach my $line (@$tp_list) {
-    next if ($line->{status});
-    my $small_deposit = '';
+  my $user_info = $users->pi({ UID => $uid });
 
-    if (($users->{DEPOSIT} || 0) + $users->{CREDIT} < $line->{month_fee} + $line->{day_fee}) {
-      $small_deposit = ' (' . $lang{ERR_SMALL_DEPOSIT} . ')';
+  $Tariffs->{TARIF_PLAN_SEL} = sel_tp({
+    CHECK_GROUP_GEOLOCATION => $user_info->{LOCATION_ID} || 0,
+    USER_GID                => $user_info->{GID} || 0,
+    SELECT                  => 'TP_ID',
+    SHOW_ALL                => 1,
+    TP_ID                   => $Internet->{TP_ID},
+    GROUP_SORT              => 1,
+    EX_PARAMS               => {
+      SORT_VALUE     => 1, # Sort for sub groups
+      SORT_KEY       => 1,
+      GROUP_COLOR    => 1,
+      MAIN_MENU      => $permissions{4} ? get_function_index('internet_tp') : undef,
+      MAIN_MENU_ARGV => "TP_ID=" . ($Internet->{TP_ID} || '')
     }
-
-    $TPS_HASH{($line->{tp_group_name} || '')}{ $line->{tp_id} } = "$line->{id} $line->{name}" . $small_deposit;
-  }
-
-  $Tariffs->{TARIF_PLAN_SEL} = $html->form_select('TP_ID', {
-    SELECTED       => $Internet->{TP_ID},
-    SEL_HASH       => \%TPS_HASH,
-    SORT_KEY       => 1,
-    GROUP_COLOR    => 1,
-    MAIN_MENU      => ($permissions{0}{10}) ? get_function_index('internet_tp') : undef,
-    MAIN_MENU_ARGV => "TP_ID=" . ($Internet->{TP_ID} || '')
   });
 
   $Tariffs->{PARAMS} .= form_period($period, { ABON_DATE => $Internet->{ABON_DATE} });
@@ -2280,7 +2311,7 @@ sub internet_compensation {
   }
 
   if ($FORM{add} && $FORM{FROM_DATE}) {
-    my $uid = $users->{UID} || $user->{UID} || $FORM{UID};
+    my $uid = $users->{UID} || $FORM{UID};
 
     require Control::Service_control;
     my $Service_control = Control::Service_control->new($db, $admin, \%conf);
@@ -3069,7 +3100,9 @@ sub internet_wizard_add {
         $html->message('err', "$lang{ERROR}", "$login: '" . $html->button($login, "index=7&LOGIN=$login&search=1&type=11") . "' $lang{USER_EXIST}");
       }
       my $list = $users->list({ LOGIN => $login, COLS_NAME => 1 });
-      $uid = $list->[0]->{uid};
+      if ($users->{TOTAL} > 0) {
+        $uid = $list->[0]->{uid} || 0;
+      }
     }
     elsif ($users->{errno} == 10) {
       $html->message('err', $lang{ERROR}, "'$login' $lang{ERR_WRONG_NAME} ($conf{USERNAMEREGEXP})", { ID => 951 });
@@ -3099,6 +3132,7 @@ sub internet_wizard_fin {
   my $Finance = Finance->new($db, $admin, \%conf);
   my $message = q{};
 
+  my $user;
   if($params->{USER}) {
     $user = $params->{USER};
   }

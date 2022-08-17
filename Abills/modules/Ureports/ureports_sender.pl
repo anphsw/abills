@@ -476,6 +476,8 @@ sub ureports_periodic_reports {
         }
         # Reports 16 Next period TP
         elsif ($user->{REPORT_ID} == 16) {
+          # TODO: delete next row if something broken fix for XX report if no needed
+          next if ($user->{EXPIRE_DAYS} && $user->{EXPIRE_DAYS} <= $user->{VALUE});
           $Shedule->list({
             UID        => $user->{UID},
             Y          => '',
@@ -484,11 +486,6 @@ sub ureports_periodic_reports {
           });
 
           my $recomended_payment = $user->{RECOMMENDED_PAYMENT};
-
-          if ($Shedule->{TOTAL} > 0) {
-
-          }
-
           my $message .= "\n $lang{RECOMMENDED_PAYMENT}: $recomended_payment\n";
 
           %PARAMS = (

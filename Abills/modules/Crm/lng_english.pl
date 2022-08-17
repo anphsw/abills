@@ -9,6 +9,7 @@ $lang{UNITS} = 'Units';
 $lang{CHOOSE} = 'Choose';
 $lang{LEAD} = 'Lead';
 $lang{LEADS} = 'Leads';
+$lang{OF_LEAD} = 'lead';
 $lang{POTENTIAL_LEADS} = 'Potential';
 $lang{CONVERT_LEADS} = 'Converted';
 $lang{LEAD_NOT_FOUND} = 'Lead not found';
@@ -74,5 +75,8 @@ $lang{CRM_USER_LINKED} = 'User is already linked';
 $lang{CRM_SHOW_AT_REGISTRATION} = "Show at registration";
 
 $lang{CRM_TECH} = "Tech data";
+
+$lang{WATCHING} = "Watching";
+$lang{DUBLICATE_LEADS} = "Dublicate";
 
 1

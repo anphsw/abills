@@ -6,6 +6,7 @@ our %FUNCTIONS_LIST = (
   "04:2:$lang{ADMINS}:msgs_admins:"                                  => 5,
   "05:2:$lang{TEMPLATES}:msgs_survey:"                               => 5,
   "06:2:$lang{STATUS}:msgs_status:"                                  => 5,
+  "07:2:$lang{SUBJECTS}:msgs_subjects:"                              => 5,
   "08:0:$lang{MESSAGES}:msgs_reports:"                               => 4,
   "09:8:$lang{EVALUATION_OF_PERFORMANCE}:msgs_reports_tasks_rating:" => 4,
   "11:8:$lang{REQUESTS}:msgs_reports_requests:"                      => 4,
@@ -27,6 +28,8 @@ our %FUNCTIONS_LIST = (
   "70:2:$lang{PLUGINS}:msgs_plugins_list:"                           => 5,
   "71:70:Msgs:msgs_plugin_priority:AJAX"                             => 5,
   "72:8:Msgs:shedule_hour_work:AJAX"                                 => 4,
+
+  "73:4:$lang{PERMISSION}:msgs_admin_permissions:"                   => 5,
 );
 
 if ($conf{MSGS_SCRUB_BOX}) {
@@ -75,7 +78,4 @@ elsif ( defined($admin->{AID}) ) {
 
 %PERIODIC = (daily => []);
 
-if ( $conf{PUSH_ENABLED} ) {
-  push (@{$PERIODIC{daily}}, 'msgs_clear_push_messages');
-}
-1
+1;

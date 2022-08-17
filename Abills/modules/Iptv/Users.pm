@@ -306,7 +306,7 @@ sub iptv_user {
     delete $FORM{chg};
   }
 
-  $service_info_subscribes .= iptv_users_list({ USER_ACCOUNT => $subscribe_count || 1 });
+  $service_info_subscribes .= iptv_users_list({ USER_ACCOUNT => 1 });
   $service_info_subscribes .= $additional_infos if ($additional_infos);
 
   if ($attr->{PROFILE_MODE}) {
@@ -936,9 +936,9 @@ sub iptv_account_action {
 
     ::_error_show($Tv_service, { ID => 833, MESSAGE => ($Tv_service->{DEVICE_ID} ? "ID: " . $Tv_service->{DEVICE_ID} : q{}) });
   }
-  elsif ($attr->{ACTIVATE}) {
+  # elsif ($attr->{ACTIVATE}) {
     #iptv_account_action({ add => 1 });
-  }
+  # }
   elsif ($attr->{chg}) {
 
     if ($attr->{add_service}) {

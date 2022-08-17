@@ -1,27 +1,24 @@
-<div class='card box-primary'>
-  <div class='card-header with-border'>
-    <h5 class='card-title'>%NAME%</h5>
+<div class='mr-0'>
+  <i class='%COLOR%'></i>
+  <div class='timeline-item mr-0'>
+    <div class='timeline-body'>
+      %TPL%
+
+      %SURVEY%
+      %SURVEY_ID%
+      %REPLY_ID%
+      %NOTIFICATION_MSG%
+      %ACTION%
+    </div>
+    <div class='timeline-footer' style='background-color: rgba(0, 0, 0, .03);'>
+      %ATTACHMENT%
+      <div class='float-left'>%RUN_TIME%</div>
+      <div class='text-right'>%QUOTING% %EDIT% %DELETE%</div>
+    </div>
   </div>
-  <div class='card-body' style='text-align: left'>
-    %TPL%
-
-
-<div>
-%SURVEY%
-%SURVEY_ID%
-%REPLY_ID%
-  %NOTIFICATION_MSG%
-<!--  <input type='text' name='STATE' value='0'/> -->
-%ACTION%
 </div>
 
-</div>
 
-<div class='card-footer'>
-  %RUN_TIME% %ATTACHMENT%
-  <div class='float-right'>%QUOTING% %DELETE%</div>
-</div>
 
-</div>
 
 

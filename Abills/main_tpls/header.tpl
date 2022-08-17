@@ -226,26 +226,6 @@
     };
     AMessageChecker.start(EVENT_PARAMS);
 
-    const menuItems = jQuery('li.for_search');
-    const menuItemsContainers = jQuery('ul.for_search');
-
-    jQuery('#Search_menus').on('input', function () {
-      const searchValue = this.value.toLowerCase()
-
-      if (searchValue) {
-        menuItemsContainers.css('display', 'block');
-        menuItems.css('display', 'none');
-
-        menuItems.filter(function () {
-          return this.textContent.toLowerCase().includes(searchValue)
-        }).css('display', 'block');
-
-      } else {
-        menuItems.css('display', 'block');
-        menuItemsContainers.css('display', 'none');
-      }
-    });
-
     // var urlWiki = jQuery('#wiki_url').attr('href');
     // var pattern = /doc.cgi/
     // if (pattern.test(urlWiki)) {
@@ -265,7 +245,7 @@
     <div class='user-panel mt-3 pb-3 mb-3 d-flex'>
       <div class='image'>
         <a href='$SELF_URL?index=9'>
-          <img src='/styles/default/img/admin/avatar5.png' class='img-circle elevation-2' alt='User Image'>
+          <img src='%AVATAR_LOGO%' class='img-circle elevation-2' alt='User Image'>
         </a>
       </div>
       <div class='info'>
@@ -279,7 +259,7 @@
         <input class='form-control form-control-sidebar' type='search' id='Search_menus' placeholder='_{SEARCH}_'
           aria-label='Search'>
         <div class='input-group-append'>
-          <button class='btn btn-sidebar'>
+          <button id='sidebar_button' class='btn btn-sidebar'>
             <i class='fa fa-search fa-fw'></i>
           </button>
         </div>

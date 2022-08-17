@@ -194,7 +194,7 @@ sub equipment_pon_init {
       DEBUG
 
   Returns:
-    TRUE or FALSE
+    $port_hash_ref
 
 =cut
 #********************************************************
@@ -212,6 +212,7 @@ sub equipment_pon_get_ports {
   foreach my $line (@$port_list) {
     $ports->{$line->{snmp_id}} = $line;
   }
+
   my $get_ports_fn = $attr->{NAS_TYPE} . '_get_ports';
 
   if (!$Equipment->{STATUS}) { #XXX check certain equipment statuses, not only Active
@@ -222,6 +223,7 @@ sub equipment_pon_get_ports {
         SNMP_TPL       => $attr->{SNMP_TPL},
         MODEL_NAME     => $attr->{MODEL_NAME}
       });
+
       foreach my $snmp_id (keys %{$olt_ports}) {
         if (!$ports->{$snmp_id}) {
           $Equipment->pon_port_list({
@@ -613,6 +615,7 @@ sub equipment_pon {
   $LIST_PARAMS{PON_TYPE} = $FORM{PON_TYPE} || '';
   $LIST_PARAMS{OLT_PORT} = $FORM{OLT_PORT} || '';
   $LIST_PARAMS{BRANCH} = '_SHOW';
+  $LIST_PARAMS{PAGE_ROWS} = 10000;
 
   my %EXT_TITLES = (
     onu_snmp_id          => "SNMP ID",
@@ -627,11 +630,13 @@ sub equipment_pon {
     onu_desc             => "ONU $lang{COMMENTS}",
     onu_billing_desc     => $lang{ONU_BILLING_DESC},
     address_full         => $lang{ADDRESS},
+    district_name        => $lang{DISTRICT},
     login                => $lang{LOGIN},
     traffic              => $lang{TRAFFIC},
     onu_dhcp_port        => "DHCP $lang{PORTS}",
     distance             => $lang{DISTANCE},
     fio                  => $lang{FIO},
+    phone                => $lang{PHONE},
     user_mac             => "$lang{USER} MAC",
     mac_behind_onu       => $lang{MAC_BEHIND_ONU},
     vlan_id              => 'Native VLAN Statics',
@@ -1015,12 +1020,13 @@ sub equipment_register_onu {
   });
 
   if ($Equipment->{TOTAL}) {
-    $attr->{NAS_INFO}{MNG_HOST_PORT} = $list->[0]->{nas_mng_ip_port};
+    $attr->{NAS_INFO}{NAS_MNG_IP_PORT} = $list->[0]->{nas_mng_ip_port};
     $attr->{NAS_INFO}{MNG_USER} = $list->[0]->{mng_user};
     $attr->{NAS_INFO}{NAS_MNG_USER} = $list->[0]->{nas_mng_user};
     $attr->{NAS_INFO}{NAS_MNG_PASSWORD} = $conf{EQUIPMENT_OLT_PASSWORD} || $list->[0]->{nas_mng_password};
     $attr->{NAS_INFO}{PROFILE} = $conf{EQUIPMENT_ONU_PROFILE} if ($conf{EQUIPMENT_ONU_PROFILE});
     $attr->{NAS_INFO}{ONU_TYPE} = $conf{EQUIPMENT_ONU_TYPE} if ($conf{EQUIPMENT_ONU_TYPE});
+    delete $attr->{NAS_INFO}->{ACTION_LNG};
 
     my $port_list = $Equipment->pon_port_list({
       %$attr,
@@ -1421,6 +1427,7 @@ sub equipment_pon_onu {
   $LIST_PARAMS{OLT_PORT} = $FORM{OLT_PORT} || '';
   $LIST_PARAMS{BRANCH} = $FORM{BRANCH} || '_SHOW' || '';
   $LIST_PARAMS{DELETED} = 0;
+  $LIST_PARAMS{PAGE_ROWS}=10000;
   delete($LIST_PARAMS{GROUP_BY}) if ($LIST_PARAMS{GROUP_BY});
 
   my %show_cols = ();
@@ -1687,7 +1694,8 @@ sub pon_onu_state {
       BRANCH           => '_SHOW',
       ONU_BILLING_DESC => '_SHOW',
       #ONU_SNMP_ID     => '_SHOW',
-      COLS_NAME        => 1
+      COLS_NAME        => 1,
+      PAGE_ROWS        => 10000
     });
     _error_show($Equipment);
 
@@ -2599,7 +2607,7 @@ sub equipment_pon_onu_graph {
           else {
             $val->[$_index] = sprintf("%.2f", $val->[$_index]) if ($val->[$_index]);
           }
-          push @{$graph_data{ $graph->{meta}->{legend}->[$i] }}, $val->[$index];
+          push @{$graph_data{ $graph->{meta}->{legend}->[$i] }}, $val->[$_index];
         }
       }
 

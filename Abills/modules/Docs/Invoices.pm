@@ -1109,7 +1109,7 @@ sub docs_invoice {
     my $table = $html->table({
       width       => ($user && $user->{UID}) ? '600' : '100%',
       border      => 1,
-      caption     => "$lang{INVOICE}: $Docs->{INVOICE_NUM} $lang{DATE}: $Docs->{DATE}",
+      caption     => "$lang{INVOICE}: ". ($Docs->{INVOICE_NUM} || q{}) ." $lang{DATE}: $Docs->{DATE}",
       title_plain => [ '#', $lang{NAME}, $lang{COUNT}, $lang{PRICE}, $lang{SUM}, $lang{TAX} ],
       ID          => 'DOCS_INVOCE_ORDERS',
     });
@@ -1236,7 +1236,7 @@ sub docs_invoice_period {
     }
 
     if ( !$attr->{INCLUDE_CUR_BILLING_PERIOD} ){
-      $FORM{FROM_DATE} = "$Y-01-01";
+      #$FORM{FROM_DATE} = "$Y-01-01";
     }
 
     my %fees_tax = ();
@@ -1354,13 +1354,13 @@ sub docs_invoice_period {
 
     #Next period payments
     if ( $FORM{NEXT_PERIOD} ){
-      ($FORM{FROM_DATE}, $FORM{TO_DATE}) = _next_payment_period({
+      my ($from_date, $to_date) = _next_payment_period({
         PERIOD => $FORM{NEXT_PERIOD},
         DATE   => $date
       });
 
-      my $period_from = $FORM{FROM_DATE};
-      my $period_to   = $FORM{FROM_DATE};
+      my $period_from = $from_date;
+      my $period_to   = $to_date;
 
       delete $INC{"Control/Services.pm"};
       eval {require Control::Services};
@@ -1377,7 +1377,7 @@ sub docs_invoice_period {
         my $fees_type = 0;
         my $module   = $service->{MODULE};
         my $activate = $service->{ACTIVATE};
-        my $describe = $service->{SERVICE_DESC};
+        my $describe = $service->{SERVICE_DESC} || q{};
         next if ($sum < 0);
 
         my $module_service_activate = $service_activate;
@@ -1435,22 +1435,36 @@ sub docs_invoice_period {
       }
 
       foreach my $module (keys %services_order) {
-        my $service_user = '';
         foreach my $row ( @{ $services_order{$module} } ) {
-          $service_user .= $html->tpl_show(_include('docs_invoice_service', 'Docs'), {
-            ORDER       => $row->[0],
-            DATE        => $row->[1],
-            LOGIN       => $row->[2],
-            DESCRIBE    => $row->[3],
-            SUM         => $row->[4],
-            TAX         => $row->[5],
-          }, { OUTPUT2RETURN => 1 });
+          # $service_user .= $html->tpl_show(_include('docs_invoice_service', 'Docs'), {
+          #   ORDER       => $row->[0],
+          #   DATE        => $row->[1],
+          #   LOGIN       => $row->[2],
+          #   DESCRIBE    => $row->[3],
+          #   SUM         => $row->[4],
+          #   TAX         => $row->[5],
+          # }, { OUTPUT2RETURN => 1 });
+
+          my $num_             = $row->[0];
+          my $date_            = $row->[1];
+          my $order            = $row->[3];
+          my $extra_result_sum = $row->[4];
+          my $extra_tax_sum    = $row->[5];
+
+          $table->addrow(
+            $num_,
+            $date_,
+            $users->{LOGIN},
+            $order,
+            sprintf("%.2f", $extra_result_sum),
+            ($user) ? undef : sprintf("%.2f", $extra_tax_sum)
+          );
         }
 
-        $service_invoice .= $html->tpl_show(_include('docs_invoice_category', 'Docs'), {
-          MODULE  => $module,
-          SERVICE => $service_user
-        }, { OUTPUT2RETURN => 1 });
+        # $service_invoice .= $html->tpl_show(_include('docs_invoice_category', 'Docs'), {
+        #   MODULE  => $module,
+        #   SERVICE => $service_user
+        # }, { OUTPUT2RETURN => 1 });
       }
     }
 
@@ -1486,8 +1500,8 @@ sub docs_invoice_period {
       $table->addrow(
         $html->form_input('SUM_' . $num, $extra_result_sum, { TYPE => 'hidden', OUTPUT2RETURN => 1 })
           . $html->form_input('EXTRA_INVOICE_ID', $num, { TYPE => 'hidden', OUTPUT2RETURN => 1 })
-          . $html->form_input('ORDER_' . $num, "$order", { TYPE => 'hidden', OUTPUT2RETURN => 1 })
-          . $html->form_input('IDS', "$num", { TYPE => ($users->{UID}) ? 'hidden' : 'checkbox', STATE => 'checked', OUTPUT2RETURN => 1 })
+          . $html->form_input('ORDER_' . $num, $order, { TYPE => 'hidden', OUTPUT2RETURN => 1 })
+          . $html->form_input('IDS', $num, { TYPE => ($users->{UID}) ? 'hidden' : 'checkbox', STATE => 'checked', OUTPUT2RETURN => 1 })
           . $num
         ,
         $DATE,
@@ -1538,6 +1552,7 @@ sub docs_invoice_period {
         $money_main_unit=(split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
       }
 
+      $service_invoice = $table->show({ OUTPUT2RETURN => 1 });
       my $title_form = ($users->{UID}) ? sprintf('%s: %.2f %s', $lang{ACTIVATE_NEXT_PERIOD}, $total_sum, $money_main_unit) : "$lang{INVOICE} $lang{PERIOD}: $Y-$M";
       $html->tpl_show(_include('docs_user_invoices', 'Docs'), {
         index             => $index,
@@ -1552,9 +1567,14 @@ sub docs_invoice_period {
     }
     else{
       $Docs->{ORDERS} = $table->show( { OUTPUT2RETURN => 1 } );
+      $Docs->{ORDERS} .= $service_invoice;
       if (!$FORM{pdf}) {
         $html->tpl_show(_include('docs_receipt_add', 'Docs'),
-          { %FORM, %{$attr}, %{$Docs}, %{$users} }, { ID => 'docs_receipt_add' });
+          { %FORM,
+            %{$attr},
+            %{$Docs},
+            %{$users} },
+          { ID => 'docs_receipt_add' });
       }
     }
     delete $table->{SKIP_FORMER};
@@ -1572,6 +1592,7 @@ sub docs_invoice_period {
       },
       { OUTPUT2RETURN => 1 }
     );
+
     my $myf = $html->form_select(
       'TYPE_FEES_1',
       {
@@ -1630,11 +1651,11 @@ sub _next_payment_period {
     my $start_period_unixtime = (POSIX::mktime( 0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0 ));
     ($Y, $M, $D) = split( /-/, POSIX::strftime( "%Y-%m-%d", localtime( (POSIX::mktime( 0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0,
       0 ) + ((($start_period_unixtime > time) ? 0 : 1) + 30 * (($start_period_unixtime > time) ? 0 : 1)) * 86400) ) ) );
-    $FORM{FROM_DATE} = "$Y-$M-$D";
+    $from_date = "$Y-$M-$D";
 
     ($Y, $M, $D) = split( /-/, POSIX::strftime( "%Y-%m-%d", localtime( (POSIX::mktime( 0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0,
       0 ) + ((($start_period_unixtime > time) ? 1 : (1 * $next_period - 1)) + 30 * (($start_period_unixtime > time) ? 1 : $next_period)) * 86400) ) ) );
-    $FORM{TO_DATE} = "$Y-$M-$D";
+    $to_date = "$Y-$M-$D";
   }
   else{
     $M += 1;

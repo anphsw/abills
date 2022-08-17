@@ -1511,21 +1511,26 @@ sub user_cameras_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query(
-    "SELECT uc.tp_id, uc.id, uc.camera_id, uc.changed, c.name as camera_name, c.title,
+  my $WHERE = $self->search_former($attr,[
+    [ 'ID',        'INT', 'uc.id',        1 ],
+    [ 'TP_ID',     'INT', 'uc.tp_id',     1 ],
+    [ 'CAMERA_ID', 'INT', 'uc.camera_id', 1 ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT uc.tp_id, uc.id, uc.camera_id, uc.changed, c.name as camera_name, c.title,
       s.name as service_name, s.id as service_id, c.number_id as number
-     FROM cams_users_cameras uc
-     LEFT JOIN cams_tp t ON (uc.tp_id=t.tp_id)
-     LEFT JOIN cams_streams c ON (uc.camera_id=c.id)
-     LEFT JOIN cams_services s ON (s.id=t.service_id)
-     WHERE uc.tp_id= ? AND uc.id = ?;",
+    FROM cams_users_cameras uc
+    LEFT JOIN cams_tp t ON (uc.tp_id=t.tp_id)
+    LEFT JOIN cams_streams c ON (uc.camera_id=c.id)
+    LEFT JOIN cams_services s ON (s.id=t.service_id)
+    $WHERE",
     undef,
-    { %{$attr}, Bind => [ $attr->{TP_ID}, $attr->{ID} ] }
+    $attr
   );
 
   $self->{USER_CAMERAS} = $self->{TOTAL};
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************

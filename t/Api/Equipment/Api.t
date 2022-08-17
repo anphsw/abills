@@ -28,7 +28,7 @@ BEGIN {
 }
 
 use Abills::Defs;
-use Init_t qw(test_runner folder_list);
+use Init_t qw(test_runner folder_list help);
 use Abills::Base qw(parse_arguments);
 use Admins;
 use Paysys;
@@ -41,6 +41,11 @@ my $ARGS = parse_arguments(\@ARGV);
 my $apiKey = $ARGS->{KEY} || $ARGV[$#ARGV] || q{};
 my @test_list = folder_list($ARGS, $RealBin);
 my $debug = $ARGS->{DEBUG} || 0;
+
+if (lc($ARGV[0]) eq 'help') {
+  help();
+  exit 0;
+}
 
 test_runner({
   apiKey => $apiKey,

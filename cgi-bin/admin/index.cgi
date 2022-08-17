@@ -119,9 +119,6 @@ if ($index == 2) {
 }
 
 if (defined($FORM{DOMAIN_ID})){
-  if($html->get_cookies()->{DOMAIN_ID}) {
-    delete $COOKIES{DOMAIN_ID};
-  }
   $html->set_cookies('DOMAIN_ID', "$FORM{DOMAIN_ID}", "Fri, 1-Jan-2038 00:00:01", $html->{web_path});
 }
 
@@ -1395,7 +1392,7 @@ sub fl {
       push @m, "27:1:$lang{GROUPS}:form_groups:::";
     }
 
-    if ($permissions{0}{29}) {
+    if ($permissions{0}{36}) {
       push @m, "13:1:$lang{COMPANY}:form_companies:::";
       push @m, "21:15:$lang{COMPANY}:user_company:UID::";
     }
@@ -1838,10 +1835,10 @@ sub form_search {
           }
         }
 
-        if(in_array('Multidoms', \@MODULES) && $permissions{10}) {
+        if (in_array('Multidoms', \@MODULES) && $permissions{10}) {
           load_module('Multidoms', $html);
 
-          $info{DOMAIN_FORM}=$html->tpl_show(templates('form_row'), {
+          $info{DOMAIN_FORM} = $html->tpl_show(templates('form_row'), {
             ID    => 'DOMAIN_ID',
             NAME  => "Domains:",
             VALUE => multidoms_domains_sel(),
@@ -2541,22 +2538,6 @@ sub quick_functions {
 #    print "Can't Find function ($admin->{A_LOGIN}) : '$function_args'\n";
     return 1;
   }
-  elsif ($index eq '100001'){
-    print "Content-Type:text/json;\n\n";
-    require Abills::Sender::Push;
-    my Abills::Sender::Push $Push = Abills::Sender::Push->new(\%conf);
-
-    $Push->register_client({ AID => $admin->{AID} }, \%FORM);
-    exit 0;
-  }
-  elsif ($index eq '100003'){
-    print "Content-Type:text/json;\n\n";
-    require Abills::Sender::Push;
-    my Abills::Sender::Push $Push = Abills::Sender::Push->new(\%conf);
-
-    $Push->message_request($FORM{contact_id});
-    exit 0;
-  }
 
   if ($FORM{header}) {
     $html->{METATAGS} = templates('metatags');
@@ -2627,11 +2608,37 @@ sub quick_functions {
 }
 
 #**********************************************************
+=head2 push_actions($attr) - push actions
+
+=cut
+#**********************************************************
+sub push_actions {
+  require Contacts;
+  Contacts->import();
+  my $Contacts = Contacts->new($db, $admin, \%conf);
+
+  if ($FORM{PUSH_ENABLED}) {
+    $Contacts->push_contacts_add({
+      TYPE_ID => 1,
+      VALUE   => $FORM{TOKEN},
+      AID     => $admin->{AID},
+    });
+  }
+  else {
+    $Contacts->push_contacts_del({
+      TYPE_ID => 1,
+      AID     => $admin->{AID},
+    });
+  }
+}
+
+#**********************************************************
 =head2 set_admin_params($attr) - Quick index functions
 
 =cut
 #**********************************************************
 sub set_admin_params {
+  push_actions() if (defined $FORM{PUSH_ENABLED});
 
   if ($FORM{RSCHEMA}) {
     $Conf->config_add({
@@ -2767,13 +2774,13 @@ sub set_admin_params {
   if (in_array('Multidoms', \@MODULES) && $permissions{10}) {
     load_module('Multidoms', $html);
     $FORM{DOMAIN_ID}        = $COOKIES{DOMAIN_ID};
-    $admin->{DOMAIN_ID}     = $FORM{DOMAIN_ID} if($FORM{DOMAIN_ID});
-    $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID} if($admin->{DOMAIN_ID} && $admin->{DOMAIN_ID} =~ /\d+/);
+    $admin->{DOMAIN_ID}     = $FORM{DOMAIN_ID} if ($FORM{DOMAIN_ID});
+    $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID} if ($admin->{DOMAIN_ID} && $admin->{DOMAIN_ID} =~ /\d+/);
 
-    $admin->{SEL_DOMAINS} = $html->element( 'div', $html->form_main(
+    $admin->{SEL_DOMAINS} = $html->element('div', $html->form_main(
       {
         CONTENT       => $html->element('label', "$lang{DOMAINS}: ", { class => 'col-md-1 ' })
-                        .$html->element('div', multidoms_domains_sel(), {class => 'col-md-4'}),
+                        . $html->element('div', multidoms_domains_sel(), { class => 'col-md-4' }),
         HIDDEN        => {
           index      => $index,
           COMPANY_ID => $FORM{COMPANY_ID}
@@ -2782,7 +2789,7 @@ sub set_admin_params {
         ID            => 'MULTIDOMS_LIST',
         OUTPUT2RETURN => 1
       }
-    ), { class => 'form-group' } );
+    ), { class => 'form-group' });
   }
 
 
@@ -2936,13 +2943,22 @@ sub pre_page {
     });
   }
 
+  my $avatar_logo = '';
+  if ($admin->{AVATAR_LINK}){
+    $avatar_logo = "/images/$admin->{AVATAR_LINK}";
+  } else {
+    $avatar_logo = '/styles/default/img/admin/avatar5.png';
+  }
+
+
   print $html->tpl_show(templates('header'), {
     %$admin,
     HEADER_FIXED_CLASS => $admin->{SETTINGS}{HEADER_FIXED} ? 'navbar-fixed-top' : '',
     MENU               => $menu_text,
     BREADCRUMB         => $navigat_menu,
     GLOBAL_CHAT        => $global_chat || '',
-    FUNCTION_NAME      => "$module_name$function_name"
+    FUNCTION_NAME      => "$module_name$function_name",
+    AVATAR_LOGO        => $avatar_logo
   },
     { OUTPUT2RETURN => 1 });
   return 1;
@@ -3089,15 +3105,18 @@ sub post_page {
     }
 
     $html->tpl_show(templates('footer'), {
-        RIGHT_MENU  => $html->{_RIGHT_MENU},
-        VERSION     => $admin->{VERSION},
-        DEBUG_FORM  => $admin->{DEBUG_FORM},
-        PUSH_SCRIPT => ($conf{PUSH_ENABLED}
-          ? "<script>window['GOOGLE_API_KEY']='".($conf{GOOGLE_API_KEY} // '')."'</script>"
-            ."<script src='/styles/default/js/push_subscribe.js'></script>"
-          : '<!-- PUSH DISABLED -->'
-        )
-      });
+      RIGHT_MENU  => $html->{_RIGHT_MENU},
+      VERSION     => $admin->{VERSION},
+      DEBUG_FORM  => $admin->{DEBUG_FORM},
+      PUSH_SCRIPT => ($conf{PUSH_ENABLED}
+        ? "<script src='/styles/default/js/push_subscribe.js'></script>"
+        . "<script src='https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js'></script>"
+        . "<script src='https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js'></script>"
+        . "<script>window['FIREBASE_CONFIG']='" . (Abills::Base::json_former($conf{FIREBASE_CONFIG}) // '') . "'</script>"
+        . "<script>window['FIREBASE_VAPID_KEY']='" . ($conf{FIREBASE_VAPID_KEY} // '') . "'</script>"
+        : '<!-- PUSH DISABLED -->'
+      )
+    });
   }
 
   $html->test();

@@ -368,7 +368,8 @@ sub _maps_del_cablecat_objects {
 
   return 0 if !in_array('Cablecat', \@MODULES);
 
-  use Cablecat;
+  require Cablecat;
+  Cablecat->import();
   my $Cablecat = Cablecat->new($db, $admin, \%conf);
 
   if ($attr->{LAYER_ID} == LAYER_ID_BY_NAME->{CABLE}) {

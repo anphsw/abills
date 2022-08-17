@@ -120,6 +120,9 @@ sub cards_main {
     my $list;
     my $FROM = '';
 
+    $Cards->cards_info({ ID => $FORM{IDS} });
+    $FORM{NUMBER} = $Cards->{NUMBER};
+
     $Cards->cards_change({ %FORM });
     if (!$Cards->{errno}) {
       my $status_text = ($FORM{STATUS} && $status[ ($FORM{STATUS}  - 1) ]) ? $status[ ($FORM{STATUS}  - 1) ] : q{};
@@ -177,10 +180,12 @@ sub cards_main {
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Cards->cards_info({ ID => $FORM{ID} });
     $Cards->cards_del(
       {
-        SERIA => $FORM{SERIAL},
-        ID    => $FORM{ID},
+        SERIA  => $FORM{SERIAL},
+        ID     => $FORM{ID},
+        NUMBER => $Cards->{NUMBER}
       }
     );
     if (!$Cards->{errno}) {
@@ -891,7 +896,7 @@ sub cards_user_payment  {
       $html->message('err', $lang{ERROR}, "$lang{SUM}: $Cards->{SUM}", { ID => 604 });
       return 0;
     }
-    elsif ($Cards->{UID} == $uid) {
+    elsif ($Cards->{UID} && $Cards->{UID} == $uid) {
       $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_DATA}, { ID => 605 });
       return 0;
     }
@@ -1595,8 +1600,8 @@ sub cards_groups {
     $Cards->cards_gids_change(\%FORM);
     if (! $Cards->{errno}) {
       $html->message('info', $lang{INFO}, $lang{CHANGED} ."\n"
-        . 'GID: '. $FORM{GID} ."\n"
-        . 'SERIAL '. $FORM{SERIAL});
+        . 'GID: '. ($FORM{GID} || q{})."\n"
+        . 'SERIAL '. ($FORM{SERIAL} || q{}));
     }
   }
 

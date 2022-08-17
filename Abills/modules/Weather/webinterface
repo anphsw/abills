@@ -62,6 +62,8 @@ sub weather_map {
 sub weather_today_actions {
   my ($attr) = @_;
   $attr = $attr || {};
+  my $lng = $html->{language} || 'en';
+  my $city_weather_select = '';
 
   return $html->tpl_show(_include('weather_error', 'Weather'), { ERROR => $lang{ERROR_NO_KEY} }, { OUTPUT2RETURN => 1 }) if (!$conf{WEATHER_KEY});
 
@@ -73,25 +75,39 @@ sub weather_today_actions {
   );
 
   if (!$attr->{COORDINATES}) {
-    $attr->{COORDINATES} = web_request("https://ipapi.co/json/", {
-      METHOD      => 'GET',
-      JSON_RETURN => 1,
-    });
+    if ($conf{WEATHER_COORDINATES}) {
+      my ($latitude, $longitude) = split(/:/, $conf{WEATHER_COORDINATES});
+      $attr->{COORDINATES}->{latitude} = $latitude;
+      $attr->{COORDINATES}->{longitude} = $longitude;
+    }
+    else {
+      $attr->{COORDINATES} = web_request("https://ipapi.co/json/", {
+        METHOD      => 'GET',
+        JSON_RETURN => 1,
+      });
+    }
   }
 
   my $weather = make_request({
     method   => 'GET',
     pathAttr => 'lat=' . sprintf("%.4f", ($attr->{COORDINATES}->{latitude} || 1)) . '&lon=' .
       sprintf("%.4f", ($attr->{COORDINATES}->{longitude} || 1)) . '&appid=' . ($conf{WEATHER_KEY} || '') .
-      '&units=metric&lang=' . ($abills2open_weather{$html->{language} || 'en'}),
+      '&units=metric&lang=' . ($abills2open_weather{$lng}),
   });
 
   return $html->tpl_show(_include('weather_error', 'Weather'), { ERROR => "$lang{ERROR_WEATHER}. HTTP $lang{ERROR} №$weather->{cod}" }, { OUTPUT2RETURN => 1 }) if ($weather->{cod} != 200);
 
   my $today_warnings = '';
   my %forecast = ();
+  my $weather_cast_time = '';
 
-  foreach my $weather_cast (@{$weather->{list}}) {
+  foreach my $weather_cast (@{$weather->{list}}[1..4]) {
+
+      $weather_cast_time = $weather_cast->{dt_txt};
+      $weather_cast_time =~ s/(\d{4})-(\d{2})-(\d{2}) //g;
+      $weather_cast_time = substr($weather_cast_time,0,5);
+      $weather_cast->{time_txt} = $weather_cast_time;
+
     if ($weather_cast->{dt_txt} =~ /$main::DATE/ && $weather_cast->{weather}->[0]->{id} =~ /^2/) {
       $weather_cast->{dt_txt} =~ s/$main::DATE //g;
       $today_warnings = "$lang{EXPECTED_ID} $weather_cast->{dt_txt} $weather_cast->{weather}->[0]->{description}" if (!$today_warnings);
@@ -104,36 +120,38 @@ sub weather_today_actions {
 
   my @weather_cast = ();
   foreach my $day (sort keys %forecast) {
-    next if (scalar(@{$forecast{$day}}) < 8);
 
     my $temp_max = 1;
     my $temp_min = 100;
     my $icon = '';
     my $desc = '';
+    my $time = '';
 
     foreach my $day_part (@{$forecast{$day}}) {
       $temp_min = $day_part->{main}->{temp_min} if ($day_part->{main}->{temp_min} < $temp_min);
       $temp_max = $day_part->{main}->{temp_max} if ($day_part->{main}->{temp_min} > $temp_max);
+      $time = $day_part->{time_txt};
 
       if ($day_part->{weather}->[0]->{id} =~ /^2/) {
         $icon = $day_part->{weather}->[0]->{icon};
         $desc = $day_part->{weather}->[0]->{description};
       }
-    }
 
-    if (!$icon) {
-      $icon = $forecast{$day}->[5]->{weather}->[0]->{icon};
-      $desc = $forecast{$day}->[5]->{weather}->[0]->{description};
-    }
+      if (!$icon) {
+        $icon = $forecast{$day}->[0]->{weather}->[0]->{icon};
+        $desc = $forecast{$day}->[0]->{weather}->[0]->{description};
+      }
 
-    $day =~ /(\d{4})-(\d{2})-(\d{2})/;
-    push @weather_cast, {
-      DATE     => "$3-$2",
-      ICON     => $icon,
-      DESC     => $desc,
-      TEMP_MAX => sprintf("%.1f", $temp_max),
-      TEMP_MIN => sprintf("%.1f", $temp_min)
-    };
+      $day =~ /(\d{4})-(\d{2})-(\d{2})/;
+      push @weather_cast, {
+        DATE     => "$3.$2",
+        TIME     => $time,
+        ICON     => $icon,
+        DESC     => $desc,
+        TEMP_MAX => sprintf("%.0f", $temp_max),
+        TEMP_MIN => sprintf("%.0f", $temp_min)
+      };
+    }
   }
 
   my $json_data = json_former(\@weather_cast);
@@ -141,12 +159,14 @@ sub weather_today_actions {
   $main::DATE =~ /(\d{4})-(\d{2})-(\d{2})/;
   return $html->tpl_show(_include('weather', 'Weather'),
     {
-      DATA           => "$3-$2-$1, $weather->{city}->{name}",
-      DEG            => sprintf("%.1f", ($weather->{list}->[0]->{main}->{temp} || 1)),
+      DATA           => "$3.$2.$1, $weather->{city}->{name}",
+      DEG            => sprintf("%.0f", ($weather->{list}->[0]->{main}->{temp} || 1)),
       ICON           => $weather->{list}->[0]->{weather}->[0]->{icon},
-      DESC           => "$weather->{list}->[0]->{weather}->[0]->{description} $lang{FEEL_LIKE} " . sprintf("%.1f", ($weather->{list}->[0]->{main}->{feels_like} || 1)),
+      DESC           => "$weather->{list}->[0]->{weather}->[0]->{description} $lang{FEEL_LIKE} " . sprintf("%.0f", ($weather->{list}->[0]->{main}->{feels_like} || 1)),
       JSON_LIST      => $json_data,
-      TODAY_WARNINGS => $today_warnings
+      TODAY_WARNINGS => $today_warnings,
+      WEATHER_LINK   => ($conf{WEATHER_SITE}) ? $conf{WEATHER_SITE} : 'https://openweathermap.org',
+      CITY_SELECT    => $city_weather_select,
     },
     { OUTPUT2RETURN => 1 });
 }

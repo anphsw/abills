@@ -92,7 +92,7 @@ sub new {
       FILTER_ID
       CID
       LOG         - Log object
-      COA_ACTION  -
+      COA_ACTION  - ARRAY_ref of RADIUS pairs
 
   Returns:
 
@@ -130,10 +130,6 @@ sub hangup {
     if (ref $attr->{COA_ACTION} eq 'ARRAY') {
       foreach my $coa_request ( @{ $attr->{COA_ACTION} } ) {
         $params{RAD_PAIRS} = $coa_request;
-
-        # while(my($k, $v)=each %$coa_request) {
-        #   print "  $k -> $v\n";
-        # }
 
         $self->radius_request($Nas, \%params);
       }
@@ -738,7 +734,7 @@ sub radius_request {
   }
 
   if ($attr->{DEBUG}) {
-    print "Radius Return: " . ($type || q{}) . "\n Result: " . ($result || 'Empty');
+    print "Radius Return: " . ($type || q{}) . "\n Result: " . ($result || "Empty\n");
   }
 
   $self->{RESULT}=$result;
@@ -800,9 +796,9 @@ sub hangup_ipoe {
     $netmask = 32 - length(sprintf("%b", $ips)) + 1;
   }
 
-  require Ipn_Collector;
-  Ipn_Collector->import();
-  my $Ipn = Ipn_Collector->new($db, $CONF);
+  require Internet::Collector;
+  Internet::Collector->import();
+  my $Ipn = Internet::Collector->new($db, $CONF);
 
   if ($debug > 6) {
     $Ipn->{debug} = 1;

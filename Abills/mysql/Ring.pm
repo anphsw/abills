@@ -14,9 +14,9 @@ my $Ring = Ring->new($db, $admin, \%conf);
 package Ring;
 
 use strict;
-use parent qw(main);
+use parent qw(dbcore);
 
-our $VERSION = 0.03;
+our $VERSION = 0.04;
 
 my ($admin, $CONF);
 
@@ -124,7 +124,7 @@ sub select_rule {
   my ($attr) = @_;
 
   if ($attr->{RULE_ID}) {
-    $self->query2(
+    $self->query(
       "SELECT * FROM ring_rules
       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{RULE_ID} ] }
     );
@@ -157,7 +157,7 @@ sub change_rule {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'ring_rules',
@@ -198,7 +198,7 @@ sub list_rule {
 
   my $WHERE = $self->search_former( $attr, [
       [ 'ID',          'INT',  'id',          1],
-      [ 'NAME',         'STR',  'name',       1],
+      [ 'NAME',        'STR',  'name',       1],
       [ 'DATE_START',  'DATE', 'date_start',  1],
       [ 'DATE_END',    'DATE', 'date_end',    1],
       [ 'TIME_START',  'STR',  'time_start',  1],
@@ -217,7 +217,7 @@ sub list_rule {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} id FROM ring_rules
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -229,9 +229,9 @@ sub list_rule {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
-    "SELECT count(*) AS total
-     FROM ring_rules",
+  $self->query(
+    "SELECT COUNT(*) AS total
+     FROM ring_rules $WHERE",
     undef,
     { INFO => 1 }
   );
@@ -315,10 +315,11 @@ sub rule_users {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM ring_users_filters
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr,
     { INFO => 1 }
@@ -328,9 +329,10 @@ sub rule_users {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
-    "SELECT count(*) AS total
-   FROM ring_users_filters WHERE r_id = $attr->{RID}",
+  $self->query(
+    "SELECT COUNT(*) AS total
+   FROM ring_users_filters
+   $WHERE",
     undef,
     { INFO => 1 }
   );
@@ -365,7 +367,7 @@ sub change_user {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'UID,R_ID',
       TABLE        => 'ring_users_filters',
@@ -413,7 +415,7 @@ sub add_users_by_rule {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("$attr->{SQL_QUERY}", undef, {COLS_NAME => 1});
+  $self->query("$attr->{SQL_QUERY}", undef, {COLS_NAME => 1});
   my $list = $self->{list};
 
   foreach my $item (@$list) {

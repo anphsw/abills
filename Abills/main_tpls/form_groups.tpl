@@ -57,7 +57,7 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right' for='DISABLE_CHG_TP'>_{DISABLE}_: _{USER_CHG_TP}_:</label>
+        <label class='col-md-4 col-form-label text-md-right' for='DISABLE_CHG_TP'>_{FORBIDDEN_TO_CHANGE_TP_BY_USER}_:</label>
         <div class='col-md-8'>
           <div class='form-check'>
             <input type='checkbox' class='form-check-input' id='DISABLE_CHG_TP' name='DISABLE_CHG_TP' %DISABLE_CHG_TP% value='1'>
@@ -82,6 +82,16 @@
           </div>
         </div>
       </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='DOCUMENTS_ACCESS'>_{ALLOW_ACCESS_DOCUMENTS}_:</label>
+        <div class='col-md-8'>
+          <div class='form-check'>
+            <input type='checkbox' class='form-check-input' id='DOCUMENTS_ACCESS' name='DOCUMENTS_ACCESS' %DOCUMENTS_ACCESS% value='1'>
+          </div>
+        </div>
+      </div>
+
 
       %DOMAIN_FORM%
       %SMS_FORM%

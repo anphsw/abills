@@ -35,4 +35,16 @@ $lang{PACKET_COUNT} = 'Кількість пакетів';
 $lang{PASTE} = 'Вставити';
 
 $lang{NO_TARIFF_SELECTED} = 'Тарифний план не обрано!';
+$lang{DEVELOPMENT_REPORT} = 'Звіт розвитку';
+$lang{ACCESS_ALLOWED} = 'Доступ дозволено';
+$lang{ACCESS_DENIED} = 'Доступ заборонено';
+$lang{ACRONYM_NUMBER_OF_USERS} = 'К-сть абон.';
+$lang{ACRONYM_USERS} = 'абон.';
+$lang{WITHOUT_DISTRICT} = 'Без району';
+$lang{AVERAGE_CHECK} = 'Середній чек';
+$lang{WITHOUT_CITY} = 'Без міста';
+$lang{IP_MAC_NOT_FOUND} = 'IP адреса і MAC не знайдено';
+$lang{TOTAL_CONNECTED} = 'Всього підключено';
+$lang{GROWTH} = 'Приріст';
+
 1;

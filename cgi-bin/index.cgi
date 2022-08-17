@@ -294,32 +294,6 @@ sub quick_functions {
         form_events();
         return 0;
       }
-      elsif ($FORM{qindex} eq '100001') {
-        print "Content-Type:text/json;\n\n";
-        if (!$conf{PUSH_ENABLED} || !$conf{GOOGLE_API_KEY}) {
-          print qq{{"ERROR":"PUSH_DISABLED"}};
-          return 0;
-        }
-
-        require Abills::Sender::Push;
-        my Abills::Sender::Push $Push = Abills::Sender::Push->new(\%conf);
-
-        $Push->register_client({ UID => $user->{UID} }, \%FORM) if ($Push);
-        return 0;
-      }
-      elsif ($FORM{qindex} eq '100003') {
-        print "Content-Type:text/json;\n\n";
-        if (!$conf{PUSH_ENABLED} || !$conf{GOOGLE_API_KEY}) {
-          print qq{{"ERROR":"PUSH_DISABLED"}};
-          return 0;
-        }
-
-        require Abills::Sender::Push;
-        my Abills::Sender::Push $Push = Abills::Sender::Push->new(\%conf);
-
-        $Push->message_request($FORM{contact_id}) if ($Push);
-        return 0;
-      }
       elsif ($FORM{qindex} eq '30') {
         require Control::Address_mng;
         our $users = $user;
@@ -362,9 +336,11 @@ sub quick_functions {
     $OUTPUT{SELECT_LANGUAGE} = language_select('language');
     $OUTPUT{SELECT_LANGUAGE_MOBILE} = language_select('language_mobile');
 
-    $OUTPUT{PUSH_SCRIPT} = ($conf{PUSH_ENABLED}
-      ? "<script>window['GOOGLE_API_KEY']='" . ($conf{GOOGLE_API_KEY} // '') . "'</script>"
-      . "<script src='/styles/default/js/push_subscribe.js'></script>"
+    $OUTPUT{PUSH_SCRIPT} = (($conf{PUSH_ENABLED} && $conf{PUSH_USER_PORTAL})
+      ? "<script src='https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js'></script>"
+      . "<script src='https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js'></script>"
+      . "<script>window['FIREBASE_CONFIG']='" . (json_former($conf{FIREBASE_CONFIG}) // '') . "'</script>"
+      . "<script>window['FIREBASE_VAPID_KEY']='" . ($conf{FIREBASE_VAPID_KEY} // '') . "'</script>"
       : '<!-- PUSH DISABLED -->'
     );
 
@@ -549,7 +525,7 @@ sub form_info {
   }
 
   if (!$conf{DOCS_SKIP_NEXT_PERIOD_INVOICE}) {
-    if (in_array('Docs', \@MODULES)) {
+    if (in_array('Docs', \@MODULES) && (!$user->{GID} || $user->{DOCUMENTS_ACCESS})) {
       $FORM{ALL_SERVICES} = 1;
       load_module('Docs', $html);
       docs_invoice({ UID => $user->{UID}, USER_INFO => $user });
@@ -574,13 +550,9 @@ sub form_info {
     return 1;
   }
 
-  if ($conf{user_chg_pi}) {
-    _user_pi();
-  }
+  _user_pi() if $conf{user_chg_pi};
 
-  if ($conf{HOLDUP_ALL}) {
-    $user->{STATUS_CHG_BUTTON}=form_holdup(\%FORM);
-  }
+  $user->{STATUS_CHG_BUTTON} = form_holdup(\%FORM) if $conf{HOLDUP_ALL};
 
   my $Payments = Finance->payments($db, $admin, \%conf);
   my $payment_list = $Payments->list({
@@ -607,10 +579,13 @@ sub form_info {
   $pages_qs = "&SUM=$sum&sid=$sid";
 
   if (in_array('Docs', \@MODULES) && !$conf{DOCS_SKIP_USER_MENU}) {
-    my $fn_index = get_function_index('docs_invoices_list');
-    $user->{DOCS_ACCOUNT} = $html->button("$lang{INVOICE_CREATE}", "index=$fn_index$pages_qs", {
-      ex_params => "class='btn btn-secondary btn-lg'"
-    });
+    if (!$user->{GID} || $user->{DOCUMENTS_ACCESS}) {
+      my $fn_index = get_function_index('docs_invoices_list');
+      $user->{DOCS_ACCOUNT} = $html->button($lang{INVOICE_CREATE}, "index=$fn_index$pages_qs", {
+        ex_params => "class='btn btn-secondary btn-lg'"
+      });
+      $user->{DOCS_VISIBLE} = 1;
+    }
   }
 
   if (in_array('Paysys', \@MODULES)) {
@@ -1354,27 +1329,45 @@ sub reports {
   }
 
   if ($attr->{PERIOD_FORM}) {
-    @rows =
-      ("$lang{DATE}: " . $html->date_fld2('FROM_DATE',
-        { DATE => $FORM{FROM_DATE}, MONTHES => \@MONTHES, FORM_NAME => 'form_reports', WEEK_DAYS =>
-          \@WEEKDAYS }) . " - " . $html->date_fld2('TO_DATE',
-        { MONTHES => \@MONTHES, FORM_NAME => 'form_reports', WEEK_DAYS => \@WEEKDAYS }));
+    if ($attr->{DATE_RANGE}) {
+      my $date = $attr->{DATE};
+
+      if ($FORM{'FROM_DATE_TO_DATE'}) {
+        $date = $FORM{'FROM_DATE_TO_DATE'};
+      }
+      elsif(! $attr->{DATE}) {
+        ($y, $m, $d) = split(/-/, $DATE, 3) if (! $y);
+        $date = "$y-$m-01/$DATE";
+      }
+
+      push @rows, $html->element('label', "$lang{DATE}: ", { class => 'col-md-2 control-label', OUTPUT2RETURN => 1 })
+        . $html->element('div', $html->form_daterangepicker({
+        NAME      => 'FROM_DATE/TO_DATE',
+        FORM_NAME => 'report_panel',
+        VALUE     => $date,
+        WITH_TIME => $attr->{TIME_FORM} || 0,
+      }), { class => 'col-md-8', OUTPUT2RETURN => 1 });
+    }
+    else {
+      push @rows, $html->element('label', "$lang{DATE} $lang{FROM}: ", { class => 'col-md-2 control-label', OUTPUT2RETURN => 1 })
+        . $html->element('div', $html->date_fld2('FROM_DATE', { FORM_NAME => 'report_panel' }), { class => 'col-md-8', OUTPUT2RETURN => 1 });
+
+      push @rows, $html->element('label', "$lang{TO}: ", { class => 'col-md-2 control-label', OUTPUT2RETURN => 1 })
+        . $html->element('div', $html->date_fld2('TO_DATE', { FORM_NAME => 'report_panel' }), { class => 'col-md-8', OUTPUT2RETURN => 1 });
+    }
 
     if (!$attr->{NO_GROUP}) {
-      push @rows, "$lang{TYPE}:",
-        $html->form_select(
-          'TYPE',
-          {
-            SELECTED => $FORM{TYPE},
-            SEL_HASH => {
-              DAYS  => $lang{DAYS},
-              USER  => $lang{USERS},
-              HOURS => $lang{HOURS},
-              ($attr->{EXT_TYPE}) ? %{$attr->{EXT_TYPE}} : ''
-            },
-            NO_ID    => 1
-          }
-        );
+      push @rows, $html->element('label', "$lang{TYPE}: ", { class => 'col-md-2 control-label', OUTPUT2RETURN => 1 })
+        . $html->element('div', $html->form_select('TYPE', {
+        SELECTED => $FORM{TYPE},
+        SEL_HASH => {
+          DAYS  => $lang{DAYS},
+          USER  => $lang{USERS},
+          HOURS => $lang{HOURS},
+          ($attr->{EXT_TYPE}) ? %{$attr->{EXT_TYPE}} : ''
+        },
+        NO_ID    => 1
+      }), { class => 'col-md-8', OUTPUT2RETURN => 1 });
     }
 
     if ($attr->{EX_INPUTS}) {
@@ -1383,30 +1376,36 @@ sub reports {
       }
     }
 
-    my $table = $html->table(
-      {
-        width    => '100%',
-        rows     => [
-          [
-            @rows,
-            ($attr->{XML})
-              ? $html->form_input('NO_MENU', 1, { TYPE => 'hidden' }) . $html->form_input('xml', 1, { TYPE => 'checkbox', OUTPUT2RETURN => 1 }) . "XML"
-              : '' . $html->form_input('show', $lang{SHOW}, { TYPE => 'submit', OUTPUT2RETURN => 1 })
-          ]
-        ],
-      }
-    );
+    my %info = ();
+    my $info_rows = '';
+    foreach my $val (@rows) {
+      $info{ROWS} = $html->element('div', ($val || q{ }), { class => 'form-group row', OUTPUT2RETURN => 1 });
+      $info_rows .= $html->element('div', ($info{ROWS} || q{ }), { class => ($attr->{col_md} || 'col-md-6'), OUTPUT2RETURN => 1 });
+    }
+    my $row_body = $html->element('div', $info_rows, { class => 'row', OUTPUT2RETURN => 1});
+    my $box_body = $html->element('div', $row_body . $FIELDS, { class => 'card-body', OUTPUT2RETURN => 1 });
+    my $box_footer = $html->element('div', $html->form_input('show', $lang{SHOW}, {
+      class => 'btn btn-primary btn-block', TYPE => 'submit', FORM_ID => 'form_reports', OUTPUT2RETURN => 1
+    }), { class => 'card-footer', OUTPUT2RETURN => 1 });
 
-    print $html->form_main(
-      {
-        CONTENT => $table->show({ OUTPUT2RETURN => 1 }) . $FIELDS,
-        NAME    => 'form_reports',
-        HIDDEN  => {
-          'index' => $index,
-          ($attr->{HIDDEN}) ? %{$attr->{HIDDEN}} : undef
-        }
+    my $box_header = $html->element('div', $html->element('h4', $lang{SET_PARAMS}, {
+      class => 'card-title table-caption', OUTPUT2RETURN => 1
+    }) . '<div class="card-tools float-right">' . ($attr->{EXTRA_HEADER_BTN} || "") . '
+      <button type="button" class="btn btn-tool" data-card-widget="collapse">
+      <i class="fa fa-minus"></i></button></div>', { class => 'card-header with-border', OUTPUT2RETURN => 1 });
+    my $report_form = $html->element('div', $box_header . $box_body . $box_footer, {
+      class => 'card card-primary card-outline', OUTPUT2RETURN => 1
+    });
+
+    print $html->form_main({
+      CONTENT => $report_form,
+      NAME    => 'form_reports',
+      ID    => 'form_reports',
+      HIDDEN  => {
+        'index' => $index,
+        ($attr->{HIDDEN}) ? %{$attr->{HIDDEN}} : undef
       }
-    );
+    });
 
     if (defined($FORM{show})) {
       $FORM{FROM_DATE} //= q{};
@@ -2122,6 +2121,7 @@ sub form_custom {
           foreach my $field_id (keys %{$key->{SLIDES}->[$i]}) {
             my $id = $main_name . '_' . $field_id . '_' . $i;
             $html->{OUTPUT} .= "$i  $id ---------------- $key->{SLIDES}->[$i]->{$field_id}<br>" if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 10);
+            $info{$main_name . '' . $field_id. '' . $i} = $key->{SLIDES}->[$i]->{$field_id};
           }
         }
       }
@@ -2349,7 +2349,7 @@ sub make_sender_subscribe_buttons_block {
     $button . $lang_script;
   };
 
-  if ($conf{PUSH_ENABLED}) {
+  if ($conf{PUSH_ENABLED} && $conf{PUSH_USER_PORTAL}) {
     $buttons_block .= $make_subscribe_btn->(
       'Push',
       'js-push-icon fa fa-bell',
@@ -2627,7 +2627,8 @@ sub change_pi_popup {
       next;
     }
 
-    (!$user->{$field}) && in_array($field, \@check_fields)
+    $user->{PHONE} = '' if $field eq 'PHONE' && $user->{PHONE} && $user->{PHONE} eq $user->{CELL_PHONE};
+      (!$user->{$field}) && in_array($field, \@check_fields)
       ? ($user->{ $field . "_HAS_ERROR" } = 'has-error' && $user->{PINFO} = 1)
       : ($user->{ $field . "_DISABLE" } = 'disabled' && $user->{ $field . "_HIDDEN" } = 'hidden');
   }

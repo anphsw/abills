@@ -89,7 +89,7 @@ sub paysys_payment {
 
       my $paysys_plugin = _configure_load_payment_module('Ipay_mp.pm');
       my $Paysys_plugin = $paysys_plugin->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, INDEX => $index, SELF_URL => $SELF_URL });
-      $TEMPLATES_ARGS{IPAY_HTML} = $Paysys_plugin->user_portal_special($user, { %FORM, %{ ($attr) ? $attr : { }  } });
+      $TEMPLATES_ARGS{IPAY_HTML} .= $Paysys_plugin->user_portal_special($user, { %FORM, %{ ($attr) ? $attr : { }  } });
       return 1;
     }
   }
@@ -198,7 +198,7 @@ sub paysys_payment {
     elsif ($Plugin->can('user_portal_special')) {
       my $Paysys_plugin = $Plugin->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, INDEX => $index, SELF_URL => $SELF_URL });
       my $portal = $Paysys_plugin->user_portal_special($user, { %FORM });
-      $TEMPLATES_ARGS{IPAY_HTML} = $portal if ($portal);
+      $TEMPLATES_ARGS{IPAY_HTML} .= $portal if ($portal);
     }
   }
 
@@ -215,7 +215,8 @@ sub paysys_payment {
   }
 
   return $html->tpl_show(_include('paysys_main', 'Paysys'), {
-    %TEMPLATES_ARGS, SUM => $FORM{SUM}
+    %TEMPLATES_ARGS,
+    SUM               => $FORM{SUM}
   }, {
     OUTPUT2RETURN => $attr->{OUTPUT2RETURN},
     ID            => 'PAYSYS_FORM'
@@ -352,7 +353,6 @@ sub _paysys_system_radio {
 
   return $radio_paysys;
 }
-
 
 #**********************************************************
 =head2 paysys_user_log()

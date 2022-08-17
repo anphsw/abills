@@ -9,6 +9,7 @@ use strict;
 use Abills::Base qw(in_array time2sec sec2time date_diff);
 use Address;
 use Referral;
+use Msgs;
 
 our (
   $admin,
@@ -16,7 +17,17 @@ our (
   %conf,
   %lang,
   $html,
-  @priority_colors
+  @priority_colors,
+  %FORM,
+  $users,
+  $DATE,
+  $TIME,
+  $index,
+  %LIST_PARAMS,
+  $SELF_URL,
+  @_COLORS,
+  @MODULES,
+  $pages_qs
 );
 
 my $Msgs = Msgs->new($db, $admin, \%conf);

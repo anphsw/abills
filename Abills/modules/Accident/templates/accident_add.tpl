@@ -1,105 +1,127 @@
-<form METHOD=POST action='$SELF_URL' class='container-md'>
-    <input type='hidden' name='index' value='%INDEX%'>
-    <input type='hidden' name='%ADD_CHG%' value='1'>
-    <input type='hidden' name='al_id' id='al_id' value='%ID_CHANGE%'>
-    <input type='hidden' name='al_chg' id='al_chg' value='%CHG_JS%'>
-    <input type='hidden' name='add_form' id='add_form' value='1'>
-    <input type='hidden' name='USER_ACCIDENT' id='USER_ACCIDENT' value='%USER_ACCIDENT%'>
+<form METHOD=POST action='%SELF_URL%'>
+  <input type='hidden' name='index' value='%index%'>
+  <input type='hidden' name='ID' value='%chg%'>
 
-    <div class='card card-primary card-outline box-form'>
-        <div class='card-header with-border'>
-            <h4 class='card-title'>
-                _{ADD_ACCIDENT}_
-            </h4>
+  <div class='card card-primary card-outline container-md'>
+    <div class='card-header with-border'>
+      <h4 class='card-title'>
+        _{ADD_ACCIDENT}_
+      </h4>
+    </div>
+    <div class='card-body'>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='NAME'>_{NAME}_:</label>
+        <div class='col-md-8'>
+          <input type='text' name='NAME' id='NAME' value='%NAME%' placeholder='_{NAME}_' class='form-control' required>
         </div>
-        <div class='card-body'>
+      </div>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='DESCR'>_{DESCRIBE}_:</label>
+        <div class='col-md-8'>
+          <textarea name='DESCR' id='DESCR' placeholder='_{DESCRIBE}_' class='form-control' required>%DESCR%</textarea>
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{PRIORITY}_:</label>
+        <div class='col-md-8'>
+          %SELECT_PRIORITY%
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{STATUS}_:</label>
+        <div class='col-md-8'>
+          %SELECT_STATUS%
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{ADMIN}_:</label>
+        <div class='col-md-8'>
+          %ADMIN_SELECT%
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{DATE}_:</label>
+        <div class='col-md-8'>
+          %DATE%
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{WORK_END_DATE}_:</label>
+        <div class='col-md-8'>
+          %DATEPICKER_END%
+        </div>
+      </div>
 
-            <div class='form-group row'>
-                <label class='control-label col-md-2 col-sm-3' for='NAME'>_{NAME}_:</label>
-                <div class='col-md-9 col-sm-8'>
-                    <input type='text' name='NAME' id='NAME' value='%NAME%' placeholder='%P_NAME%'
-                           class='form-control' required>
-                </div>
-            </div>
-            <div class='form-group row'>
-                <label class='control-label col-md-2 col-sm-3' for='DESCR'>_{DESCRIBE}_:</label>
-                <div class='col-md-9 col-sm-8'>
-                    <textarea  name='DESCR' id='DESCR' placeholder='%DESCRIBE%'
-                               class='form-control' required>%DESCR%</textarea>
-                </div>
-            </div>
-            <div class='form-group row'>
-                <label class='control-label col-md-2 col-sm-3'>_{PRIORITY}_:</label>
-                <div class='col-md-9 col-sm-8'>
-                    %SELECT_PRIORITY%
-                </div>
-            </div>
-            <div class='form-group row'>
-                <label class='control-label col-md-2 col-sm-3'>_{STATUS}_:</label>
-                <div class='col-md-9 col-sm-8'>
-                    %SELECT_STATUS%
-                </div>
-            </div>
-            <div class='form-group row'>
-                <label class='control-label col-md-2 col-sm-3'>_{ADMIN}_:</label>
-                <div class='col-md-9 col-sm-8'>
-                    %ADMIN_SELECT%
-                </div>
-            </div>
-            <div class='form-group row'>
-                <label class='control-label col-md-2 col-sm-3'>_{DATE}_:</label>
-                <div class='col-md-9 col-sm-8'>
-                    %DATE%
-                </div>
-            </div>
-            <div class='form-group row'>
-                <label class='control-label col-md-2 col-sm-3'>_{WORK_END_DATE}_:</label>
-                <div class='col-md-9 col-sm-8'>
-                    %DATEPICKER_END%
-                </div>
-            </div>
-
-            <div class='form-group row'>
-                <label class='col-sm-2 col-md-2 control-label' for='REGISTRATION'>_{WORK_REALY_DATE}_:</label>
-                <div class='col-md-9'>
-                    <div class='input-group'>
-                        <div class='input-group-prepend'>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{WORK_REALY_DATE}_:</label>
+        <div class='col-md-8'>
+          <div class='input-group'>
+            <div class='input-group-prepend'>
               <span class='input-group-text'>
                 <input type='checkbox' class='form-control-static' data-input-enables='REALY_TIME'/>
               </span>
-                        </div>
-                        %DATEPICKER_REAL%
-                    </div>
-                </div>
             </div>
-            %GEO_TREE%
+            %DATEPICKER_REAL%
+          </div>
         </div>
-        <div class='card-footer'>
-            <input type='submit' class='btn btn-primary' name='ADD' value='%ADD%'>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>Населенные пункты:</label>
+        <div class='col-md-8'>
+          %GEOLOCATION_TREE%
         </div>
+      </div>
     </div>
+    <div class='card-footer'>
+      <input type='submit' class='btn btn-primary float-right' name='%ACTION%' value='%LNG_ACTION%'>
+    </div>
+  </div>
 </form>
+
 <script>
-    jQuery(document).on('click', '#show_tree input', function(){
-        let parent = jQuery(this).parent().parent();
-        if(parent.attr('class') === 'parent'){
-            parent.parent().find('.ul-list').find('input').prop('checked', jQuery(this).prop('checked'));
+  var _EMPTY_FIELD = '_{WITHOUT_CITY}_';
+
+  jQuery(document).ready(function () {
+    jQuery('.tree_box').each(function () {
+      if (jQuery(this).prop('checked')) {
+        checkParent(jQuery(this));
+        jQuery(this).parent().addClass('text-success');
+        jQuery(this).closest('li').find('ul').find('input').each(function () {
+          jQuery(this).prop('checked', true);
+          jQuery(this).prop('disabled', true);
+          jQuery(this).parent().addClass('text-success');
+        })
+      }
+    });
+    jQuery('.tree_box').change(function () {
+      var a = jQuery(this).prop('checked');
+      if (a) {
+        jQuery(this).parent().addClass('text-success');
+      } else {
+        jQuery(this).parent().removeClass('text-success');
+      }
+      jQuery(this).closest('li').find('ul').find('input').each(function () {
+        if (a) {
+          jQuery(this).prop('checked', true);
+          jQuery(this).prop('disabled', true);
+          jQuery(this).parent().addClass('text-success');
+        } else {
+          jQuery(this).prop('checked', false);
+          jQuery(this).prop('disabled', false);
+          jQuery(this).parent().removeClass('text-success');
         }
+      });
     });
 
-    let date = jQuery('#al_chg').val();
-    let result = date.match(/[0-9]{1,9}/g);
+    function checkParent(e) {
+      let parent_id = e.data('parentId');
+      if (!parent_id) return;
+      let parent = jQuery('#' + parent_id);
+      if (parent.prop('checked')) return;
 
-    if (result.length > 0) {
-        setTimeout(function() {
-            for (var i = 0; i < result.length; i++) {
-                jQuery('#'+result[i]).trigger('click');
-            }
-        }, 1500);
+      parent.parent().addClass('text-info');
+      checkParent(parent);
     }
-    else {
-        setTimeout(function(){
-            jQuery('#'+jQuery('#al_chg').val()).trigger('click');
-        }, 1500);
-    }
+  });
 </script>

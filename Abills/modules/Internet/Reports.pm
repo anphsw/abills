@@ -688,6 +688,218 @@ sub internet_user_outflow {
 }
 
 #**********************************************************
+=head2 users_development_report()
+
+=cut
+#**********************************************************
+sub users_development_report {
+
+  reports({
+    PERIOD_FORM => 1,
+    NO_PERIOD   => 1,
+    NO_GROUP    => 1,
+    NO_TAGS     => 1,
+    EX_INPUTS   => [
+      $html->element('label', "$lang{DATE}:", { class => 'col-md-2 col-form-label text-md-right' }) .
+        $html->element('div', $html->form_datepicker('PERIOD', $FORM{PERIOD} || $DATE,
+          { EX_PARAMS => "autocomplete='off'" }), { class => 'col-md-10' })
+    ]
+  });
+
+  my $date_report = $FORM{PERIOD} || $DATE;
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$lang{DEVELOPMENT_REPORT} - $date_report",
+    qs      => $pages_qs,
+    class   => 'table table-hover table-condensed table-striped table-bordered',
+    ID      => 'DEVELOPMENT_REPORT',
+    EXPORT  => 1
+  });
+
+  $table->{rowcolor} = 'bg-inherit';
+  $table->addtd(
+    $table->td($lang{DISTRICT}, { colspan => 2, rowspan => 3, class => 'pl-2 text-center text-bold align-middle' }),
+    $table->td($lang{TOTAL_CONNECTED}, { rowspan => 3, class => 'pl-2 text-center text-bold align-middle' }),
+    $table->td($lang{GROWTH}, { rowspan => 3, class => 'pl-2 text-center text-bold align-middle' }),
+    $table->td($lang{ENABLE},     { class => 'text-center text-bold align-middle', colspan => 8 }),
+    $table->td($lang{USERS_OUTFLOW},  { class => 'text-center text-bold align-middle', rowspan => 2, colspan => 6 }),
+    $table->td($lang{DISABLED}, { class => 'text-center text-bold align-middle', rowspan => 2, colspan => 6 }),
+    $table->td($lang{ERR_SMALL_DEPOSIT}, { class => 'text-center text-bold align-middle', rowspan => 2, colspan => 6 }),
+    $table->td($lang{HOLD_UP}, { class => 'pr-2 text-center text-bold align-middle', rowspan => 2, colspan => 6 }),
+  );
+
+  $table->addtd(
+    $table->td($lang{ACCESS_ALLOWED}, { class => 'pl-2 text-center text-bold align-middle', colspan => 4 }),
+    $table->td($lang{ACCESS_DENIED}, { class => 'pr-2 text-center text-bold align-middle', colspan => 4 }),
+  );
+
+  $table->addtd(
+    (
+      $table->td($lang{ACRONYM_NUMBER_OF_USERS}, { class => 'pl-2 text-center text-bold align-middle' }),
+      $table->td($lang{SUM}, { class => 'text-center text-bold align-middle' }),
+      $table->td($lang{AVERAGE_CHECK}, { class => 'text-center text-bold align-middle' }),
+      $table->td("Δ, $lang{ACRONYM_USERS}", { class => 'text-center text-bold align-middle' }),
+    ) x 2,
+    (
+      $table->td($lang{ACRONYM_NUMBER_OF_USERS}, { class => 'text-center text-bold align-middle' }),
+      $table->td('%', { class => 'text-center text-bold align-middle' }),
+      $table->td($lang{SUM}, { class => 'text-center text-bold align-middle' }),
+      $table->td('%', { class => 'text-center text-bold align-middle' }),
+      $table->td($lang{AVERAGE_CHECK}, { class => 'text-center text-bold align-middle' }),
+      $table->td("Δ, $lang{ACRONYM_USERS}", { class => 'pr-2 text-center text-bold align-middle' }),
+    ) x 4,
+  );
+  delete $table->{rowcolor};
+
+  my $current_period = $Internet->users_development_report($date_report, { GROUP_BY => 'districts.city' });
+  my $total_current = $Internet->{TOTAL} && $Internet->{TOTAL} > 0 ?
+    $Internet->users_development_report($date_report, { TOTAL => 1, GROUP_BY => 'districts.city' }) : undef;
+  my $prev_period = $Internet->users_development_report("<$date_report", { GROUP_BY => 'districts.city' });
+  my $total_prev = $Internet->{TOTAL} && $Internet->{TOTAL} > 0 ?
+    $Internet->users_development_report("<$date_report", { TOTAL => 1, GROUP_BY => 'districts.city' }) : {};
+  my %prev_values = ();
+
+  map $prev_values{$_->{id} || 0} = {
+    allowed             => $_->{allowed},
+    denied              => $_->{denied},
+    outflow             => $_->{outflow},
+    outflow_disable     => $_->{outflow_disable},
+    outflow_neg_deposit => $_->{outflow_neg_deposit},
+    outflow_holdup      => $_->{outflow_holdup},
+    users_count         => $_->{users_count}
+  }, @{$prev_period};
+
+  $table->{rowcolor} = 'text-right';
+  my %total_sum = (
+    sum_allowed              => 0,
+    allowed_arpu             => 0,
+    sum_denied               => 0,
+    denied_arpu              => 0,
+    sum_outflow              => 0,
+    outflow_arpu             => 0,
+    sum_outflow_disable      => 0,
+    outflow_disable_arpu     => 0,
+    sum_outflow_neg_deposit  => 0,
+    outflow_neg_deposit_arpu => 0,
+    sum_outflow_holdup       => 0,
+    outflow_holdup_arpu      => 0
+  );
+
+  $table->addrow(
+    $table->td($html->element('span', $lang{TOTAL}, { class => 'font-italic' }), { class => 'skip', colspan => 2 }),
+    _internet_form_development_row($total_current, $total_prev)
+  ) if $total_current;
+
+  foreach my $item (@{$current_period}) {
+    my $district_name = $html->element('span', $lang{TOTAL} . ' ' . ($item->{name} || $lang{WITHOUT_CITY}), { class => 'font-italic' });
+    my $prev_value = $prev_values{$item->{id} || 0} || {};
+
+    map $total_sum{$_} += $item->{$_} || 0, keys %total_sum;
+
+    $table->addrow(
+      $table->td($district_name, { class => 'skip', colspan => 2 }),
+      _internet_form_development_row($item, $prev_value)
+    );
+  }
+
+  $table->{rowcolor} = 'table-info';
+  $table->addrow($table->td('', { colspan => 40 }));
+  $table->{rowcolor} = 'text-right';
+  _internet_development_report_by_district($date_report, $table);
+
+  $table->{footer_extra} = 'class="text-right"';
+  $Internet->{TOTAL} ||= 1;
+  $table->addfooter('', '', '', '', '',
+    $total_sum{sum_allowed}, sprintf('%.2f', $total_sum{allowed_arpu} / $Internet->{TOTAL}), '', '',
+    $total_sum{sum_denied}, sprintf('%.2f', $total_sum{denied_arpu} / $Internet->{TOTAL}), '', '', '',
+    $total_sum{sum_outflow}, '', sprintf('%.2f', $total_sum{outflow_arpu} / $Internet->{TOTAL}), '', '', '',
+    $total_sum{sum_outflow_disable}, '', sprintf('%.2f', $total_sum{outflow_disable_arpu} / $Internet->{TOTAL}), '', '', '',
+    $total_sum{sum_outflow_neg_deposit}, '', sprintf('%.2f', $total_sum{outflow_neg_deposit_arpu} / $Internet->{TOTAL}), '', '', '',
+    $total_sum{sum_outflow_holdup}, '', sprintf('%.2f', $total_sum{outflow_holdup_arpu} / $Internet->{TOTAL})
+  );
+  print $table->show();
+}
+
+#**********************************************************
+=head2 _internet_form_development_row($item, $prev_value)
+
+=cut
+#**********************************************************
+sub _internet_form_development_row {
+  my ($item, $prev_value) = @_;
+
+  return ( $item->{users_count}, defined $prev_value->{users_count} ? $item->{users_count} - $prev_value->{users_count} : 0,
+    $item->{allowed}, $item->{sum_allowed}, sprintf('%.2f', $item->{allowed_arpu} || 0),
+    defined $prev_value->{allowed} ? $item->{allowed} - $prev_value->{allowed} : 0,
+
+    $item->{denied}, $item->{sum_denied}, sprintf('%.2f', $item->{denied_arpu} || 0),
+    $prev_value->{denied} ? $item->{denied} - $prev_value->{denied} : 0,
+
+    $item->{outflow}, sprintf('%.2f', $item->{outflow_percent} || 0) . '%', $item->{sum_outflow},
+    sprintf('%.2f', $item->{sum_outflow_percent} || 0) . '%', sprintf('%.2f', $item->{outflow_arpu} || 0),
+    defined $prev_value->{outflow} ? $item->{outflow} - $prev_value->{outflow} : 0,
+
+    $item->{outflow_disable}, sprintf('%.2f', $item->{outflow_disable_percent} || 0) . '%', $item->{sum_outflow_disable},
+    sprintf('%.2f', $item->{sum_outflow_disable_percent} || 0) . '%', sprintf('%.2f', $item->{outflow_disable_arpu} || 0),
+    defined $prev_value->{outflow_disable} ? $item->{outflow_disable} - $prev_value->{outflow_disable} : 0,
+
+    $item->{outflow_neg_deposit}, sprintf('%.2f', $item->{outflow_neg_deposit_percent} || 0) . '%', $item->{sum_outflow_neg_deposit},
+    sprintf('%.2f', $item->{sum_outflow_neg_deposit_percent} || 0) . '%', sprintf('%.2f', $item->{outflow_neg_deposit_arpu} || 0),
+    defined $prev_value->{outflow_neg_deposit} ? $item->{outflow_neg_deposit} - $prev_value->{outflow_neg_deposit} : 0,
+
+    $item->{outflow_holdup}, sprintf('%.2f', $item->{outflow_holdup_percent} || 0) . '%', $item->{sum_outflow_holdup},
+    sprintf('%.2f', $item->{sum_outflow_holdup_percent} || 0) . '%', sprintf('%.2f', $item->{outflow_holdup_arpu} || 0),
+    defined $prev_value->{outflow_holdup} ? $item->{outflow_holdup} - $prev_value->{outflow_holdup} : 0
+  )
+}
+
+#**********************************************************
+=head2 _internet_development_report_by_district($date_report, $table)
+
+=cut
+#**********************************************************
+sub _internet_development_report_by_district {
+  my $date_report = shift;
+  my $table = shift;
+
+  return {} if !$date_report || !$table;
+
+  my $district_report = {};
+  my $current_period = $Internet->users_development_report($date_report);
+  my $prev_period = $Internet->users_development_report("<$date_report");
+  my %prev_values = ();
+
+  map $prev_values{$_->{id} || 0} = {
+    allowed             => $_->{allowed},
+    denied              => $_->{denied},
+    outflow             => $_->{outflow},
+    outflow_disable     => $_->{outflow_disable},
+    outflow_neg_deposit => $_->{outflow_neg_deposit},
+    outflow_holdup      => $_->{outflow_holdup}
+  }, @{$prev_period};
+
+  foreach my $item (@{$current_period}) {
+    my $district_name = $html->element('span', $item->{name} || $lang{WITHOUT_DISTRICT}, { class => 'font-italic' });
+    my $city_name = $html->element('span', $item->{city} || $lang{WITHOUT_CITY}, { class => 'font-italic' });
+    my $prev_value = $prev_values{$item->{id} || 0} || {};
+
+    push @{$district_report->{$city_name}}, [
+      $district_name,
+      _internet_form_development_row($item, $prev_value)
+    ];
+  }
+
+  foreach my $city (sort keys %{$district_report}) {
+    unshift @{$district_report->{$city}[0]}, $table->td($city, {
+      style   => 'writing-mode: vertical-rl; text-orientation: upright;',
+      class   => 'p-2 text-center text-bold skip',
+      rowspan => scalar(@{$district_report->{$city}})
+    });
+    map $table->addrow(@{$_}), @{$district_report->{$city}};
+  }
+}
+
+#**********************************************************
 =head2 _internet_get_builds_outflow_charts()
 
 =cut

@@ -9,9 +9,11 @@
       <div class='card card-primary card-outline box-big-form'>
         <div class='card-header with-border'>
           <h4 class='card-title'>_{TARIF_PLAN}_</h4>
-          %CLONE_BTN%
-          <a title='_{PASTE}_' class='btn btn-sm btn-default' style='float: right' id='paste_btn'><span class='fa fa-paste'></span></a>
-          <a title='_{COPY}_' class='btn btn-sm btn-default' style='float: right' id='copy_btn'><span class='fa fa-copy'></span></a>
+          <div class='btn-group float-right'>
+            <a title='_{COPY}_' class='btn btn-sm btn-default' id='copy_btn'><span class='fa fa-copy'></span></a>
+            <a title='_{PASTE}_' class='btn btn-sm btn-default' id='paste_btn'><span class='fa fa-paste'></span></a>
+            %CLONE_BTN%
+          </div>
         </div>
         <div class='card-body'>
           <div class='form-group row'>
@@ -22,7 +24,7 @@
           </div>
 
           <div class='form-group row'>
-            <label class='col-sm-4 col-md-4 control-label' for='NAME'>_{NAME}_:</label>
+            <label class='col-sm-4 col-md-4 control-label required' for='NAME'>_{NAME}_:</label>
             <div class='col-sm-8 col-md-8'>
               <input id='NAME' name='NAME' value='%NAME%' placeholder='%NAME%' class='form-control' type='text'>
             </div>
@@ -51,7 +53,7 @@
           </div>
 
           <div class='form-group row'>
-            <label class='col-sm-4 col-md-4 control-label' for='COMMENTS'>_{DESCRIBE}_:</label>
+            <label class='col-sm-4 col-md-4 control-label' for='COMMENTS'>_{DESCRIBE_FOR_SUBSCRIBER}_:</label>
             <div class='col-sm-8 col-md-8'>
               <textarea cols='40' rows='2' name='COMMENTS' class='form-control' id='COMMENTS'>%COMMENTS%</textarea>
             </div>
@@ -76,12 +78,13 @@
 
         </div>
       </div>
-      <div class='card  card-primary card-outline box-big-form'>
+
+      <div class='card  card-primary card-outline box-big-form collapsed-card'>
         <div class='card-header with-border text-center'>
           <h3 class='card-title'>_{OTHER}_</h3>
           <div class='card-tools float-right'>
             <button type='button' class='btn btn-tool' data-card-widget='collapse'>
-              <i class='fa fa-minus'></i>
+              <i class='fa fa-plus'></i>
             </button>
           </div>
         </div>
@@ -142,13 +145,6 @@
           </div>
 
           <div class='form-group row'>
-            <label class='col-sm-4 col-md-4 control-label' for='FILTER_ID'>_{FILTERS}_:</label>
-            <div class='col-sm-8 col-md-8'>
-              <input class='form-control' id='FILTER_ID' placeholder='%FILTER_ID%' name='FILTER_ID' value='%FILTER_ID%'>
-            </div>
-          </div>
-
-          <div class='form-group row'>
             <label class='col-sm-4 col-md-4 control-label' for='PAYMENT_TYPE_SEL'>_{PAYMENT_TYPE}_:</label>
             <div class='col-sm-8 col-md-8'>
               %PAYMENT_TYPE_SEL%
@@ -176,29 +172,6 @@
             <div class='col-sm-8 col-md-8'>
               <input class='form-control' id='TRAFFIC_TRANSFER_PERIOD' placeholder='%TRAFFIC_TRANSFER_PERIOD%'
                      name='TRAFFIC_TRANSFER_PERIOD' value='%TRAFFIC_TRANSFER_PERIOD%'>
-            </div>
-          </div>
-
-          <div class='form-group row'>
-            <label class='col-sm-4 col-md-4 control-label'
-                   for='NEG_DEPOSIT_FILTER_ID'>_{NEG_DEPOSIT_FILTER_ID}_:</label>
-            <div class='col-sm-8 col-md-8'>
-              <input class='form-control' id='NEG_DEPOSIT_FILTER_ID' placeholder='%NEG_DEPOSIT_FILTER_ID%'
-                     name='NEG_DEPOSIT_FILTER_ID' value='%NEG_DEPOSIT_FILTER_ID%'>
-            </div>
-          </div>
-
-          <div class='form-group row'>
-            <label class='col-sm-4 col-md-4 control-label' for='NEG_DEPOSIT_IPPOOL_SEL'>_{NEG_DEPOSIT_IP_POOL}_:</label>
-            <div class='col-sm-8 col-md-8'>
-              %NEG_DEPOSIT_IPPOOL_SEL%
-            </div>
-          </div>
-
-          <div class='form-group row'>
-            <label class='col-sm-4 col-md-4 control-label' for='IPPOOL'>IP Pool:</label>
-            <div class='col-sm-8 col-md-8'>
-              %IP_POOLS_SEL%
             </div>
           </div>
 
@@ -231,12 +204,71 @@
           </div>
           %FORM_DOMAINS%
 
-          %RAD_PAIRS_FORM%
-
           %BONUS%
 
         </div>
       </div>
+
+      <div class='card  card-primary card-outline box-big-form collapsed-card'>
+        <div class='card-header with-border text-center'>
+          <h3 class='card-title'>_{FILTERS}_</h3>
+          <div class='card-tools float-right'>
+            <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+              <i class='fa fa-plus'></i>
+            </button>
+          </div>
+        </div>
+        <div class='card-body'>
+
+          <div class='form-group row'>
+            <label class='col-sm-4 col-md-4 control-label' for='FILTER_ID'>_{FILTERS}_:</label>
+            <div class='col-sm-8 col-md-8'>
+              <input class='form-control' id='FILTER_ID' placeholder='%FILTER_ID%' name='FILTER_ID' value='%FILTER_ID%'>
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='col-sm-4 col-md-4 control-label' for='IPPOOL'>IP Pool:</label>
+            <div class='col-sm-8 col-md-8'>
+              %IP_POOLS_SEL%
+            </div>
+          </div>
+
+           <div class='form-group row'>
+            <label class='col-sm-4 col-md-4 control-label'
+                   for='NEG_DEPOSIT_FILTER_ID'>_{NEG_DEPOSIT_FILTER_ID}_:</label>
+            <div class='col-sm-8 col-md-8'>
+              <input class='form-control' id='NEG_DEPOSIT_FILTER_ID' placeholder='%NEG_DEPOSIT_FILTER_ID%'
+                     name='NEG_DEPOSIT_FILTER_ID' value='%NEG_DEPOSIT_FILTER_ID%'>
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='col-sm-4 col-md-4 control-label' for='NEG_DEPOSIT_IPPOOL_SEL'>_{NEG_DEPOSIT_IP_POOL}_:</label>
+            <div class='col-sm-8 col-md-8'>
+              %NEG_DEPOSIT_IPPOOL_SEL%
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class='card  card-primary card-outline box-big-form collapsed-card'>
+        <div class='card-header with-border text-center'>
+          <h3 class='card-title'>RADIUS</h3>
+          <div class='card-tools float-right'>
+            <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+              <i class='fa fa-plus'></i>
+            </button>
+          </div>
+        </div>
+        <div class='card-body'>
+
+          %RAD_PAIRS_FORM%
+
+        </div>
+      </div>
+
     </div>
 
     <div class='col-md-6'>
@@ -352,12 +384,12 @@
 
         </div>
       </div>
-      <div class='card  card-primary card-outline box-big-form'>
+      <div class='card  card-primary card-outline box-big-form collapsed-card'>
         <div class='card-header with-border text-center'>
           <h3 class='card-title'>_{TIME_LIMIT}_ (sec)</h3>
           <div class='card-tools float-right'>
             <button type='button' class='btn btn-tool' data-card-widget='collapse'>
-              <i class='fa fa-minus'></i>
+              <i class='fa fa-plus'></i>
             </button>
           </div>
         </div>
@@ -395,12 +427,12 @@
           </div>
         </div>
       </div>
-      <div class='card  card-primary card-outline box-big-form'>
+      <div class='card  card-primary card-outline box-big-form collapsed-card'>
         <div class='card-header with-border text-center'>
           <h3 class='card-title'>_{TRAF_LIMIT}_ (Mb)</h3>
           <div class='card-tools float-right'>
             <button type='button' class='btn btn-tool' data-card-widget='collapse'>
-              <i class='fa fa-minus'></i>
+              <i class='fa fa-plus'></i>
             </button>
           </div>
         </div>

@@ -1020,3 +1020,16 @@ body:not(.dark-mode) .user_header .btn.btn-default:hover {
 .dark-mode .callout a {
 	color: #3c8dbc;
 }
+
+.sidebar-search-open .btn {
+  border-top-right-radius: .25rem !important;
+  border-bottom-right-radius: .25rem !important;
+}
+
+.bg-inherit {
+	background-color: inherit !important;
+}
+
+.card.container-md, .card.container {
+  padding: 0;
+}

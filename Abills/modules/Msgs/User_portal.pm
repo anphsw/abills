@@ -55,8 +55,7 @@ sub msgs_user_show {
     });
 
     if ($FORM{REPLY_SUBJECT} || $FORM{REPLY_TEXT} || $FORM{FILE_UPLOAD} || $FORM{SURVEY_ID}) {
-      $Msgs->message_reply_add({
-        %FORM,
+      $Msgs->message_reply_add({ %FORM,
         AID => 0,
         IP  => $admin->{SESSION_IP},
         UID => $LIST_PARAMS{UID}
@@ -72,12 +71,10 @@ sub msgs_user_show {
         if ( $FORM{FILE_UPLOAD}->{filename} && $Msgs->{REPLY_ID} ) {
           my $attachment_saved = msgs_receive_attachments($Msgs->{MSG_ID} || $FORM{ID}, {
             REPLY_ID => $Msgs->{REPLY_ID},
-            MSG_INFO => {
-              UID => $user->{UID}
-            }
+            MSG_INFO => { UID => $user->{UID} }
           });
 
-          if ( !$attachment_saved ) {
+          if (!$attachment_saved) {
             _error_show($Msgs);
             $html->message('err', $lang{ERROR}, "Can't save attachment");
           }
@@ -112,23 +109,16 @@ sub msgs_user_show {
       UID        => $LIST_PARAMS{UID},
       ID         => $FORM{ID},
       ADMIN_READ => "0000-00-00 00:00:00",
-      STATE      => $FORM{STATE} || 0,
+      STATE      => $FORM{STATE} || 0
     });
 
-    if ($FORM{SURVEY_ANSWER}) {
-      msgs_survey_show({ SURVEY_ANSWER => $FORM{SURVEY_ANSWER} });
-    }
+    msgs_survey_show({ SURVEY_ANSWER => $FORM{SURVEY_ANSWER} }) if $FORM{SURVEY_ANSWER};
   }
 
-  if ($Msgs->{LAST_ID}) {
-    $FORM{ID} = $Msgs->{LAST_ID};
-  }
+  $FORM{ID} = $Msgs->{LAST_ID} if $Msgs->{LAST_ID};
 
   $Msgs->message_info($FORM{ID}, { UID => $LIST_PARAMS{UID} });
-  _error_show($Msgs);
-  if ($Msgs->{errno}) {
-    return 1;
-  }
+  return 1 if _error_show($Msgs);
 
   $Msgs->{ACTION}        = 'reply';
   $Msgs->{LNG_ACTION}    = $lang{SEND};
@@ -172,13 +162,10 @@ sub msgs_user_show {
       NOTIFICATION_MSG => ($Msgs->{STATE} && $Msgs->{STATE} == 9) ? 1 : 0,
     });
 
-    if ($main_message_survey) {
-      push @REPLIES, $main_message_survey;
-    }
+    push @REPLIES, $main_message_survey if ($main_message_survey);
   }
 
   foreach my $line (@$replies_list) {
-
     $FORM{REPLY_ID} = $line->{id};
 
     if ($line->{survey_id}) {
@@ -187,50 +174,47 @@ sub msgs_user_show {
         REPLY_ID  => $line->{id},
         TEXT      => $line->{text}
       });
+      next;
     }
-    else {
-      if ($FORM{QUOTING} && $FORM{QUOTING} == $line->{id}) {
-        $reply = $line->{text} if (!$FORM{json});
-      }
+    $reply = $line->{text} if ($FORM{QUOTING} && $FORM{QUOTING} == $line->{id} && !$FORM{json});
 
-      # Should check multiple attachments if got at least one
-      my $attachment_html = '';
-      if ($line->{attachment_id}) {
-        my $attachments_list = $Msgs->attachments_list({
-          REPLY_ID     => $line->{id},
-          FILENAME     => '_SHOW',
-          CONTENT_SIZE => '_SHOW',
-          CONTENT_TYPE => '_SHOW',
-          COORDX       => '_SHOW',
-          COORDY       => '_SHOW',
-        });
-
-        $attachment_html = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
-      }
-
-      $FORM{ID} //= q{};
-
-      my $quoting_button = $html->button($lang{QUOTING}, "", {
-        class     => 'btn btn-default btn-xs quoting-reply-btn',
-        ex_params => "quoting_id='$line->{id}'"
+    # Should check multiple attachments if got at least one
+    my $attachment_html = '';
+    if ($line->{attachment_id}) {
+      my $attachments_list = $Msgs->attachments_list({
+        REPLY_ID     => $line->{id},
+        FILENAME     => '_SHOW',
+        CONTENT_SIZE => '_SHOW',
+        CONTENT_TYPE => '_SHOW',
+        COORDX       => '_SHOW',
+        COORDY       => '_SHOW',
       });
 
-      push @REPLIES, $html->tpl_show(_include('msgs_reply_show', 'Msgs'), {
-        LAST_MSG   => ($total_reply == $#REPLIES + 2) ? 'last_msg' : '',
-        REPLY_ID   => $line->{id},
-        DATE       => $line->{datetime},
-        CAPTION    => convert($line->{caption}, { text2html => 1, json => $FORM{json} }),
-        PERSON     => ($line->{creator_fio} || $line->{creator_id}),
-        MESSAGE    => msgs_text_quoting($line->{text}),
-        COLOR      => (($line->{aid} > 0) ? 'fas fa-envelope bg-blue' : 'fas fa-user bg-green'),
-        QUOTING    => $quoting_button,
-        ATTACHMENT => $attachment_html,
-      }, { OUTPUT2RETURN => 1, ID => 'REPLY_' . $line->{id} });
+      $attachment_html = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
+    }
 
-      if ($reply ne '') {
-        $reply =~ s/^/>  /g;
-        $reply =~ s/\n/> /g;
-      }
+    $FORM{ID} //= q{};
+
+    my $quoting_button = $html->button($lang{QUOTING}, "", {
+      class     => 'btn btn-default btn-xs quoting-reply-btn',
+      ex_params => "quoting_id='$line->{id}'"
+    });
+
+    push @REPLIES, $html->tpl_show(_include('msgs_reply_show', 'Msgs'), {
+      LAST_MSG   => ($total_reply == $#REPLIES + 2) ? 'last_msg' : '',
+      REPLY_ID   => $line->{id},
+      DATE       => $line->{datetime},
+      CAPTION    => convert($line->{caption}, { text2html => 1, json => $FORM{json} }),
+      PERSON     => ($line->{creator_fio} || $line->{creator_id}),
+      MESSAGE    => msgs_text_quoting($line->{text}),
+      COLOR      => (($line->{aid} > 0) ? 'fas fa-envelope bg-blue' : 'fas fa-user bg-green'),
+      QUOTING    => $quoting_button,
+      ATTACHMENT => $attachment_html,
+    }, { OUTPUT2RETURN => 1, ID => 'REPLY_' . $line->{id} });
+
+    if ($reply ne '') {
+      $reply =~ s/^/>  /g;
+      $reply =~ s/\n/> /g;
     }
   }
 
@@ -361,14 +345,8 @@ sub msgs_user {
       }
     }
 
-    my $chapters_list = $Msgs->chapters_list({
-      CHAPTER   => $FORM{CHAPTER},
-      COLS_NAME => 1
-    });
-
-    if ($chapters_list && $chapters_list->[0] && $chapters_list->[0]{responsible}) {
-      $FORM{RESPOSIBLE} = $chapters_list->[0]{responsible};
-    }
+    my $chapter = $Msgs->chapter_info($FORM{CHAPTER});
+    $FORM{RESPOSIBLE} = $chapter->{RESPONSIBLE} if $chapter->{RESPONSIBLE};
 
     $Msgs->message_add({
       UID       => $user->{UID},
@@ -378,44 +356,37 @@ sub msgs_user {
       %FORM,
       USER_SEND => 1,
     });
+    return 1 if _error_show($Msgs);
 
-    if ( !$Msgs->{errno} ) {
+    my $new_msg_id = $Msgs->{MSG_ID} || 0;
+    if ($FORM{FILE_UPLOAD}->{filename} && $Msgs->{MSG_ID}) {
+      my $attachment_saved = msgs_receive_attachments($Msgs->{MSG_ID}, { MSG_INFO => { UID => $user->{UID} } });
 
-      my $new_msg_id = $Msgs->{MSG_ID} || 0;
-      #Add attachment
-      if ( $FORM{FILE_UPLOAD}->{filename} && $Msgs->{MSG_ID} ) {
-
-        my $attachment_saved = msgs_receive_attachments($Msgs->{MSG_ID}, { MSG_INFO => { UID => $user->{UID} } });
-
-        if (!$attachment_saved){
-          _error_show($Msgs);
-          $html->message('err', $lang{ERROR}, "Can't save attachment");
-        }
+      if (!$attachment_saved) {
+        _error_show($Msgs);
+        $html->message('err', $lang{ERROR}, "Can't save attachment");
       }
-
-      $html->message('info', $lang{INFO}, "$lang{MESSAGE} # $Msgs->{MSG_ID}.  $lang{MSG_SENDED} ");
-
-      $Notify->notify_admins({ MSG_ID => $new_msg_id });
-      _admin_notify_by_chapter($FORM{CHAPTER}, $new_msg_id) if !$FORM{RESPOSIBLE} && $FORM{CHAPTER};
-
-      my $message_added_text = "$lang{MESSAGE} " . ($Msgs->{MSG_ID} ? " #$Msgs->{MSG_ID} " : '') . $lang{MSG_SENDED};
-      my $header_message = urlencode($message_added_text);
-      my $message_link = "?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid})
-        . "&MESSAGE=$header_message&ID=" . ($Msgs->{MSG_ID} || q{}) . '#last_msg';
-
-      $html->redirect($message_link, {
-        MESSAGE_HTML => $html->message(
-          'info',
-          $lang{INFO},
-          $html->button($message_added_text, $message_link, { class => 'alert-link' }),
-          { OUTPUT2RETURN => 1 }
-        ),
-        WAIT         => '0'
-      });
-      exit 0;
     }
 
-    return 1;
+    $html->message('info', $lang{INFO}, "$lang{MESSAGE} # $Msgs->{MSG_ID}.  $lang{MSG_SENDED} ");
+
+    $Notify->notify_admins({ MSG_ID => $new_msg_id });
+    _notify_admins_by_chapter($FORM{CHAPTER}, $new_msg_id) if !$FORM{RESPOSIBLE} && $FORM{CHAPTER};
+
+    my $message_added_text = "$lang{MESSAGE} " . ($Msgs->{MSG_ID} ? " #$Msgs->{MSG_ID} " : '') . $lang{MSG_SENDED};
+    my $header_message = urlencode($message_added_text);
+    my $message_link = "?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid})
+      . "&MESSAGE=$header_message&ID=" . ($Msgs->{MSG_ID} || q{}) . '#last_msg';
+
+    $html->redirect($message_link, {
+      MESSAGE_HTML => $html->message(
+        'info',
+        $lang{INFO},
+        $html->button($message_added_text, $message_link, { class => 'alert-link' }), { OUTPUT2RETURN => 1 }
+      ),
+      WAIT         => '0'
+    });
+    exit 0;
   }
   elsif ($FORM{ATTACHMENT}) {
     return msgs_attachment_show(\%FORM);
@@ -428,16 +399,15 @@ sub msgs_user {
       SELECTED       => $Msgs->{CHAPTER} || $conf{MSGS_USER_DEFAULT_CHAPTER} || undef,
       SEL_LIST       => $Msgs->chapters_list({ INNER_CHAPTER => 0, COLS_NAME => 1 }),
       MAIN_MENU      => get_function_index('msgs_chapters'),
-      MAIN_MENU_ARGV => ($Msgs->{CHAPTER}) ? "chg=$Msgs->{CHAPTER}" : ''
+      MAIN_MENU_ARGV => $Msgs->{CHAPTER} ? "chg=$Msgs->{CHAPTER}" : ''
     });
+
+    $Msgs->{SUBJECT_SEL} = msgs_sel_subject({ EX_PARAMS => 'disabled=disabled required' });
 
     $html->tpl_show(_include('msgs_send_form_user', 'Msgs'),{ %$Msgs, MAX_FILES => $conf{MSGS_MAX_FILES} || 3 });
   }
 
-  if ($FORM{MESSAGE}) {
-    $html->message('info', '', "$FORM{MESSAGE}");
-  }
-
+  $html->message('info', '', $FORM{MESSAGE}) if ($FORM{MESSAGE});
   _error_show($Msgs);
 
   my %statusbar_status = (
@@ -465,14 +435,10 @@ sub msgs_user {
   delete($LIST_PARAMS{STATE}) if ($FORM{STATE} && $FORM{STATE} =~ /\d+/ && $FORM{STATE} == 3);
   delete($LIST_PARAMS{PRIORITY}) if ($FORM{PRIORITY} && $FORM{PRIORITY} == 5);
 
-  if (!defined($FORM{STATE}) && !$FORM{ALL_MSGS}) {
-    $FORM{ALL_OPENED} = 1;
-  }
+  $FORM{ALL_OPENED} = 1 if !defined($FORM{STATE}) && !$FORM{ALL_MSGS};
 
-  #===================================
   $html->tpl_show(_include('msgs_user_search_form', 'Msgs'), {%$Msgs}, { ID => 'MSGS_USER_SEARCH_FORM' });
 
-  #If search messeges create custom table, else create deffult
   my $table;
 
   if ($FORM{SEARCH_MSG_TEXT}) {
@@ -640,7 +606,7 @@ my ($attr, $msgs_status, $list) = @_;
 sub _add_color_search {
   my ($word, $full_text, $attr) = @_;
 
-  return '' if (!$word || !$full_text);
+  return '' if !$word || !$full_text;
 
   #Turn off special characters for regexp
   my $quote_word = quotemeta($word);
@@ -689,6 +655,7 @@ sub _user_edit_reply {
   });
 
   return 1 unless ($list->[0]->{creator_id} eq $user->{LOGIN});
+
   my $n = gmtime() + 3600 * 3;
   my $d = Time::Piece->strptime($list->[0]->{datetime}, "%Y-%m-%d %H:%M:%S");
   if (($n - $d) / 60 < 5) {
@@ -701,23 +668,23 @@ sub _user_edit_reply {
 }
 
 #**********************************************************
-=head2 _user_edit_reply()
+=head2 _notify_admins_by_chapter()
 
 =cut
 #**********************************************************
-sub _admin_notify_by_chapter {
+sub _notify_admins_by_chapter {
   my ($chapter_id, $msg_id) = @_;
 
   return '' if !$chapter_id || !$msg_id;
 
-  my $admins = $Msgs->admins_list({
-    CHAPTER_ID   => $chapter_id,
-    EMAIL_NOTIFY => 1,
-    COLS_NAME    => 1
-  });
+  my $admins_permissions = $Msgs->permissions_list();
 
-  foreach my $send_admin (@{$admins}) {
-    $Notify->notify_admins({ MSG_ID => $msg_id, SEND_TO_AID => $send_admin->{aid}, AID => $send_admin->{aid} });
+  foreach my $aid (keys %{$admins_permissions}) {
+    my $admin_permission = $admins_permissions->{$aid};
+    next if !$admin_permission->{5} || !$admin_permission->{6}{$chapter_id};
+    next if $admin_permission->{4} && !$admin_permission->{4}{$chapter_id};
+
+    $Notify->notify_admins({ MSG_ID => $msg_id, SEND_TO_AID => $aid, AID => $aid });
   }
 
   return;

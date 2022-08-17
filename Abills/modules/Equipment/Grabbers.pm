@@ -6,8 +6,8 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Filters qw( dec2hex _mac_former bin2mac);
-use Abills::Base qw( in_array );
+use Abills::Filters qw(dec2hex _mac_former bin2mac);
+use Abills::Base qw(in_array sec2time);
 require Equipment::Snmp_cmd;
 require Equipment::Defs;
 
@@ -946,7 +946,7 @@ sub cisco_get_fdb {
 
   my @vlans = ();
   foreach my $vlan_info (@$value) {
-     if($vlan_info =~ /(\d+):/) {
+     if($vlan_info && $vlan_info =~ /(\d+):/) {
        push @vlans, $1;
      }
   }

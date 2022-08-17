@@ -69,12 +69,12 @@ CREATE TABLE IF NOT EXISTS `maps_coords` (
 CREATE TABLE IF NOT EXISTS `maps_points` (
   `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   `name` VARCHAR(64) NOT NULL DEFAULT '',
-  `coord_id` INT(11) REFERENCES `maps_coords` (`id`)
+  `coord_id` INT(11) UNSIGNED REFERENCES `maps_coords` (`id`)
     ON DELETE CASCADE,
-  `type_id` SMALLINT(6) REFERENCES `maps_point_types` (`id`)
+  `type_id` SMALLINT(6) UNSIGNED REFERENCES `maps_point_types` (`id`)
     ON DELETE RESTRICT,
   `created` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `parent_id` INT(11) REFERENCES `maps_points` (`id`)
+  `parent_id` INT(11) UNSIGNED REFERENCES `maps_points` (`id`)
     ON DELETE RESTRICT,
   `comments` TEXT,
   `location_id` INT(11) UNSIGNED REFERENCES `builds` (`id`)

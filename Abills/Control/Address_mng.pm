@@ -15,11 +15,11 @@ our (
   $admin,
   %conf,
   %lang,
-  $html,
   @bool_vals,
   $users
 );
 
+our Abills::HTML $html;
 my $Address = Address->new($db, $admin, \%conf);
 my $Auxiliary;
 
@@ -566,6 +566,8 @@ sub form_location_media{
 sub form_add_map {
   my (undef, $attr) = @_;
 
+  return '' if (!in_array('Maps', \@MODULES) || ($admin->{MODULES} && !$admin->{MODULES}{Maps}));
+
   if (!$Auxiliary) {
     use Maps::Auxiliary;
     $Auxiliary = Maps::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
@@ -895,7 +897,7 @@ sub sel_builds {
   my %builds_hash = ();
 
   foreach my $build (@{$builds}) {
-    next if !$build->{street_id} || !$build->{street_name};
+    next if (! $build || !$build->{street_id} || !$build->{street_name});
 
     push(@{$builds_hash{$build->{street_name}}}, [ $build->{id}, $build->{number} ]);
   }
@@ -1452,6 +1454,7 @@ sub geolocation_tree {
     DISTRICT_NAME     => '_SHOW',
     DISTRICT_ID       => '_SHOW',
     NUMBER            => '_SHOW',
+    CITY              => '_SHOW',
     COLS_NAME         => 1,
     WITH_STREETS_ONLY => 1,
     SORT              => 'district_name,street_name,number+0',
@@ -1460,7 +1463,10 @@ sub geolocation_tree {
 
   my %address = ();
   foreach (@{$checked_list}) {
-    if ($_->{street_id}) {
+    if ($_->{city_id}) {
+      $address{"CITY_ID_$_->{city_id}"} = 1;
+    }
+    elsif ($_->{street_id}) {
       $address{"STREET_ID_$_->{street_id}"} = 1;
     }
     elsif ($_->{build_id}) {
@@ -1471,7 +1477,7 @@ sub geolocation_tree {
     }
   }
 
-  my $keys = "district_name_check,street_name_check,number_check";
+  my $keys = ($attr->{CITY_BRANCH} ? 'city_check,' : '') . "district_name_check,street_name_check,number_check";
 
   foreach my $build (@{$builds}) {
     my $build_input = $html->form_input("BUILD_ID", $build->{id}, {
@@ -1493,14 +1499,27 @@ sub geolocation_tree {
     my $district_input = $html->form_input("DISTRICT_ID", $build->{district_id}, {
       TYPE      => 'checkbox',
       class     => 'tree_box',
-      EX_PARAMS => $address{"DISTRICT_ID_$build->{district_id}"} ? 'checked' : '',
+      EX_PARAMS => ($build->{city} ? "data-parent-id='CITY_$build->{city}' " : '') .
+        ($address{"DISTRICT_ID_$build->{district_id}"} ? 'checked' : ''),
       ID        => 'DISTRICT_' . $build->{district_id}
     });
     $build->{district_name_check} = $html->element('label', ($district_input || q{}) . ' ' . ($build->{district_name} || q{}));
+
+    next if !$build->{city} || !$attr->{CITY_BRANCH};
+    my $city_input = $html->form_input("CITY_ID", $build->{city}, {
+      TYPE      => 'checkbox',
+      class     => 'tree_box',
+      EX_PARAMS => $address{"CITY_ID_$build->{city}"} ? 'checked' : '',
+      ID        => 'CITY_' . $build->{city}
+    });
+    $build->{city_check} = $html->element('label', ($city_input || q{}) . ' ' . ($build->{city} || q{}));
   }
 
+  my $geolocation_tree = $html->html_tree($builds, $keys);
+  return $geolocation_tree if $attr->{RETURN_TREE};
+
   return $html->tpl_show(templates('form_geolocation_tree'), {
-    GEOLOCATION_TREE => $html->html_tree($builds, $keys),
+    GEOLOCATION_TREE => $geolocation_tree,
     TITLE            => $attr->{TITLE},
     index            => $attr->{INDEX},
     BTN_LNG          => $attr->{BTN_LNG},

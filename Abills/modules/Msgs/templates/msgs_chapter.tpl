@@ -1,4 +1,4 @@
-<FORM action='$SELF_URL' METHOD='POST' class='form form-horizontal' enctype='multipart/form-data'>
+<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data'>
   <input type='hidden' name='index' value='$index'/>
   <input type='hidden' name='ID' value='%ID%'/>
 
@@ -10,7 +10,7 @@
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' for='NAME'>_{NAME}_:</label>
         <div class='col-md-8'>
-          <input class='form-control' type='text' name='NAME' id='NAME' value='%NAME%' maxlength='20'>
+          <input class='form-control' type='text' name='NAME' id='NAME' value='%NAME%'>
         </div>
       </div>
 

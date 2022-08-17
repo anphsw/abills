@@ -28,7 +28,8 @@ our ($db,
   %uf_menus,
   %conf,
   %lang,
-  %err_strs
+  %err_strs,
+  $DATE,
 );
 
 #**********************************************************
@@ -590,9 +591,7 @@ sub cross_modules {
       }
 
       foreach my $module (@MODULES) {
-        if (in_array($mod, \@skip_modules)) {
-          next;
-        }
+        next if (in_array($mod, \@skip_modules));
 
         my $module_path = $modules_dir . $module . '/Base.pm';
         next if !(-f $module_path);
@@ -609,8 +608,11 @@ sub cross_modules {
         next unless ($module_name->can('new'));
         next unless ($module_name->can($function));
 
-        my $module_api = $module_name->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
-        $full_return{$module} = $module_api->$function($attr);
+        eval {
+          my $module_api = $module_name->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+          $full_return{$module} = $module_api->$function($attr);
+        };
+        next if $@;
 
         if ($attr->{DEBUG} && $check_time) {
           print gen_time($check_time) . " <br>\n ";
@@ -991,13 +993,15 @@ sub service_recalculate {
     if ($d != $start_day) {
       $rest_days     = $days_in_month - $d + 1;
       $rest_day_sum2 = (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} && $Service->{TP_INFO_OLD}->{MONTH_FEE}) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} /  $days_in_month * $rest_days : 0;
-      $return_sum           = $rest_day_sum2;
+      $return_sum    = $rest_day_sum2;
       #PERIOD_ALIGNMENT
       $tp->{PERIOD_ALIGNMENT}=1;
     }
     # Get back full month abon in 1 day of month
     elsif (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) {
-      $return_sum = $Service->{TP_INFO_OLD}->{MONTH_FEE};
+      if (! $attr->{SHEDULER}) {
+        $return_sum = $Service->{TP_INFO_OLD}->{MONTH_FEE};
+      }
     }
   }
   else {
@@ -1017,12 +1021,11 @@ sub service_recalculate {
       else {
         $rest_day_sum2 = 0;
       }
-
       $return_sum = $rest_day_sum2;
     }
   }
 
-  if ($Users->{REDUCTION} && $Users->{REDUCTION} > 0 && $tp->{REDUCTION_FEE}) {
+  if ($Users->{REDUCTION} && $Users->{REDUCTION} > 0 && $Service->{TP_INFO_OLD}->{REDUCTION_FEE}) {
     $return_sum = $return_sum * (100 - $Users->{REDUCTION}) / 100;
   }
 
@@ -1234,6 +1237,9 @@ sub service_get_month_fee {
       if (int($active_d) > int($d)) {
         $periods--;
       }
+    }
+    elsif ($tp->{FIXED_FEES_DAY} && int($active_d) <= int($d) && (int($active_m) != int($m) && int($active_y) == int($y))) {
+      $periods=1;
     }
 
     #Make reduction
@@ -2013,7 +2019,7 @@ sub upload_file {
     binmode $fh;
     print $fh $file->{Contents};
     close($fh);
-    $html->message('info', $lang{INFO}, "$lang{ADDED}: '$file_name' $lang{SIZE}: $file->{Size}");
+    $html->message('info', $lang{INFO}, "$lang{ADDED}: '$file_name'. $lang{SIZE}: $file->{Size} b");
   }
   else {
     $html->message('err', $lang{ERROR}, "$lang{ERROR} '$dir/$file_name'  '$!'");
@@ -2138,10 +2144,11 @@ sub sel_status {
   foreach my $line (@$list) {
     my $color = $line->{color} || '';
     $hash{$line->{id}} = ((exists $line->{name}) ? _translate($line->{name}) : '');
-    if ($attr->{HASH_RESULT}){
-      $hash{$line->{id}} .= ":$color";
+
+    if (!$attr->{SKIP_COLORS}) {
+      $hash{$line->{id}} .= ":$color" if $attr->{HASH_RESULT};
+      $style[$line->{id}] = '#'.$color;
     }
-    $style[$line->{id}] = '#'.$color;
   }
 
   my $SERVICE_SEL = '';
@@ -2314,7 +2321,21 @@ sub import_former {
 
   my @import_data = ();
 
-  if($attr->{IMPORT_TYPE} && $attr->{IMPORT_TYPE} eq 'JSON') {
+  my %file_ext = (
+    csv  => '.csv',
+    JSON => '.json',
+    TAB  => '.txt'
+  );
+
+  my $import_type = $attr->{IMPORT_TYPE} || q{};
+  my $filename = $attr->{UPLOAD_FILE}{filename} || q{};
+
+  if ($file_ext{$import_type} && $filename !~ /$file_ext{$import_type}$/i) {
+    $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_FILE_NAME}: $attr->{UPLOAD_FILE}{filename}");
+    return [];
+  }
+
+  if($import_type eq 'JSON') {
     load_pmodule('JSON');
     my $json = JSON->new->allow_nonref;
 
@@ -2355,7 +2376,7 @@ sub import_former {
     return \@import_data;
   }
 
-  if ($attr->{IMPORT_TYPE} && $attr->{IMPORT_TYPE} eq 'csv') {
+  if ($import_type eq 'csv') {
     $attr->{IMPORT_DELIMITER}=',';
   }
 

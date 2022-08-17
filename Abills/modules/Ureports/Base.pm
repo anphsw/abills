@@ -300,6 +300,8 @@ sub ureports_send_reports {
   my $self = shift;
   my ($type, $destination, $message, $attr) = @_;
 
+  return 0 if !$type;
+
   my @types = split(',\s?', $type);
   my @destinations = split(',\s?', $destination);
   my $debug = $attr->{DEBUG} || 0;

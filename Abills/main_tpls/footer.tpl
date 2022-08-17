@@ -4,14 +4,14 @@
 <!-- /.content-wrapper -->
 
 <!-- Main Footer -->
-<footer class="main-footer">
+<footer class='main-footer'>
   <!-- To the right -->
-  <div class="float-right hidden-xs">
+  <div class='float-right hidden-xs'>
 
   </div>
   <b><span style='color: red'>A</span>BillS</b> %VERSION%
   <div class='float-right'>
-    <button id='feedback_modal_btn' type="button" class="btn btn-primary btn-xs"
+    <button id='feedback_modal_btn' type='button' class='btn btn-primary btn-xs'
             onclick="loadToModal('?POPUP=1&FEEDBACK=1')">
       <span class='fa fa-comment'></span>
     </button>
@@ -40,14 +40,27 @@
   }
   window.addEventListener('resize', controlRightMenu, false);
 
-
   /* Double click mouse control */
-  jQuery('form').submit(function() {
+  jQuery('form').submit(() => {
     if (jQuery('input[type=submit]:focus').hasClass('double_click_check')) {
       jQuery('input[type=submit]:focus').addClass('disabled').val('_{IN_PROGRESS}_...');
+      const val = jQuery('input[type=submit]:focus').attr('val') || '1';
+      const name = jQuery('input[type=submit]:focus').attr('name');
+      jQuery('<input />').attr('type', 'hidden')
+        .attr('name', name)
+        .attr('value', val)
+        .appendTo('form');
+      jQuery('input[type=submit]:focus').attr('disabled', true);
     }
     if (jQuery('button[type=submit]:focus').hasClass('double_click_check')) {
       jQuery('button[type=submit]:focus').addClass('disabled');
+      const val = jQuery('button[type=submit]:focus').attr('val') || '1';
+      const name = jQuery('button[type=submit]:focus').attr('name');
+      jQuery('<input />').attr('type', 'hidden')
+        .attr('name', name)
+        .attr('value', val)
+        .appendTo('form');
+      jQuery('button[type=submit]:focus').attr('disabled', true);
     }
   });
 </script>

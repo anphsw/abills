@@ -351,7 +351,7 @@ sub form_parse {
   elsif ($ENV{'REQUEST_METHOD'} ~~ ['GET', 'DELETE']) {
     $buffer = $ENV{'QUERY_STRING'};
   }
-  elsif ($ENV{'REQUEST_METHOD'} eq 'POST' || $ENV{'REQUEST_METHOD'} eq 'PUT') {
+  elsif ($ENV{'REQUEST_METHOD'} eq 'POST' || $ENV{'REQUEST_METHOD'} eq 'PUT' || $ENV{'REQUEST_METHOD'} eq 'PATCH') {
     read(STDIN, $buffer, $ENV{'CONTENT_LENGTH'});
   }
 
@@ -851,7 +851,7 @@ sub form_select {
   }
 
   if ($attr->{MULTIPLE}) {
-    $ex_params .= ' multiple="multiple"';
+    $ex_params .= ' multiple=multiple';
   }
 
   my $element_id = ($attr->{ID}) ? $attr->{ID} : $name;
@@ -999,7 +999,11 @@ sub form_select {
 
         my @sorted_list = ();
         if ($attr->{SORT_VALUE}) {
-          @sorted_list = sort {$attr->{SEL_HASH}->{$k}->{$a} cmp $attr->{SEL_HASH}->{$k}->{$b}} keys %{$attr->{SEL_HASH}->{$k}};
+          @sorted_list = sort {
+            ($attr->{SEL_HASH}->{$k}->{$a} || q{}) cmp ($attr->{SEL_HASH}->{$k}->{$b} || q{})
+              ||
+            ($attr->{SEL_HASH}->{$k}->{$a} || 0) <=> ($attr->{SEL_HASH}->{$k}->{$b} || 0)
+          } keys %{$attr->{SEL_HASH}->{$k}};
         }
         else {
           @sorted_list = sort {length($a || 0) <=> length($b || 0) || $a cmp $b} keys %{$attr->{SEL_HASH}->{$k}};
@@ -1271,6 +1275,10 @@ sub set_cookies {
   my $self = shift;
   my ($name, $value, $expiration, $path, $attr) = @_;
 
+  if ($name eq 'DOMAIN_ID' && $path =~ /^\/admin\/$/) {
+    chop($path);
+  }
+
   $expiration = gmtime(time() + (($CONF->{web_session_timeout}) ? $CONF->{web_session_timeout} : 86400)) . " GMT" if (!$expiration);
   $value = '' if (!$value);
 
@@ -1279,14 +1287,6 @@ sub set_cookies {
   if ($path && $path ne "") {
     $cookie .= " path=$path; ";
   }
-
-  # TODO: remove if enything won't be broken
-  # if ($self->{domain}) {
-  #   $cookie .= " domain=$self->{domain}; ";
-  # }
-  # elsif ($attr->{DOMAIN}) {
-  #   $cookie .= " domain=$attr->{DOMAIN}; ";
-  # }
 
   if ($attr->{DOMAIN}) {
     $cookie .= " domain=$attr->{DOMAIN}; ";
@@ -1471,16 +1471,16 @@ sub menu {
       ? "index=$index"
       : "index=" . (($ID =~ /^sub([0-9]+)/) ? $1 : $ID) . "$ext_args", { ex_params => $ex_params });
 
-    $menu_text .= "<li class='nav-item $opened for_search'>$link\n";
+    $menu_text .= "<li class='nav-item $opened'>$link\n";
 
     if (!$menu{$ID}) {
       $menu_text .= qq{</li>\n};
     }
     elsif (defined($tree->{$ID})) {
-      $menu_text .= qq{<ul class='nav nav-treeview for_search' style='display: block;'>\n};
+      $menu_text .= qq{<ul class='nav nav-treeview' style='display: block;'>\n};
     }
     else {
-      $menu_text .= qq{<ul class='nav nav-treeview for_search'>\n};
+      $menu_text .= qq{<ul class='nav nav-treeview'>\n};
     }
 
     if (defined($menu{$ID})) {
@@ -2255,7 +2255,7 @@ sub table {
       <div class='row float-right p-1 mr-0'>
         <div class='card-tools'>
           <div class='col-md-6 float-right text-right'>
-            <div class='hidden-print'>
+            <div class='d-print-none'>
               $pagination
             </div>
           </div>
@@ -2342,7 +2342,12 @@ sub addrow {
   $self->{rows} .= '<tr' . $css_class . $row_extra . '>'; # id='row_$row_number'>";
 
   for (my $num = 0; $num <= $#row; $num++) {
-    my $val = $row[$num];
+    my $val = $row[$num] || q{};
+    if ($val =~ '<TD.+skip.+>.+<.+/TD>') {
+      $self->{rows} .= $val ;
+      next;
+    }
+
     $self->{rows} .= '<TD' . $extra . '>';
     if ($self->{sub_ref}) {
       my $sub_val = '';
@@ -2378,7 +2383,8 @@ sub addrow {
 sub addfooter{
   my ($self, @row) = @_;
 
-  $self->{footer} = "<tfoot><tr>";
+  my $footer_extra = $self->{footer_extra} || '';
+  $self->{footer} = "<tfoot><tr $footer_extra>";
 
   if($self->{COL_NAMES_ARR} && ref $row[0] eq 'HASH') {
     my $footer_info = $row[0];
@@ -2840,16 +2846,13 @@ sub table_actions_panel {
     my ($action) = @_;
 
     return '' if (ref $action ne 'HASH' || !$action->{ACTION});
+
     my $action_param = '';
     if ($action->{PARAM} && !$panel_param) {
       $panel_param = $action->{PARAM};
-      $action_param = $action->{PARAM}
-        ? qq{data-param-name="$action->{PARAM}"}
-        : '';
+      $action_param = $action->{PARAM} ? qq{data-param-name="$action->{PARAM}"} : '';
     }
-    my $comments_param = $action->{COMMENTS}
-      ? qq{data-comments="$action->{COMMENTS}"}
-      : '';
+    my $comments_param = $action->{COMMENTS} ? qq{data-comments="$action->{COMMENTS}"} : '';
 
     return $self->button($action->{TITLE}, $action->{ACTION}, {
       ICON           => $action->{ICON},
@@ -3113,7 +3116,7 @@ sub button {
     }
     elsif ($css_class eq 'payments') {
       $name = " <span class='" . ($CONF->{CURRENCY_ICON} || 'fas fa-euro-sign') . " p-1'></span>";
-      $css_class = " class='hidden-print'";
+      $css_class = " class='d-print-none'";
     }
     elsif ($css_class =~ /show/) {
       $css_class = '';
@@ -3432,11 +3435,11 @@ sub pages {
   }
 
   return qq{
-  <div class='hidden-print'>
+  <div class='d-print-none'>
     <ul class='pagination pagination-sm float-right'>
       <li class='page-item'>
         <a data-toggle='modal' data-target='#gotopage' class='page-link'>
-          <span class="fa fa-chevron-down"></span>
+          <span class='fa fa-chevron-down'></span>
         </a>
       </li>
       $self->{pages}
@@ -3618,7 +3621,11 @@ sub tpl_show {
     }
   }
 
+
   if (!$attr->{SOURCE} && $tpl) {
+    $variables_ref->{SELF_URL} //= $SELF_URL;
+    $variables_ref->{index} //= $index;
+
     while ($tpl =~ /\%(\w{1,60})(\=?)([A-Za-z0-9\_\.\/\\\]\[:\-]{0,50})\%/g) {
       my $var = $1;
       my $delimiter = $2;

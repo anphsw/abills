@@ -5,6 +5,7 @@
         %FIO%
         <button type='button' id='addTag' data-toggle='modal' data-target='#leadTags'
                 class='btn btn-primary btn-sm fa fa-tags' style='display: %TAGS_BUTTON%'></button>
+        %WATCHING_BUTTON%
       </h3>
 
       <div class='col-md-12'>

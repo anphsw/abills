@@ -8,6 +8,8 @@
     </div>
   </div>
   <div class='card-body'>
+    <Table>
     %SERVICE%
+    </Table>
   </div>
 </div>

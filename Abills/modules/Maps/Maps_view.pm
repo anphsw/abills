@@ -79,7 +79,7 @@ sub new {
 sub show_map {
   my $self = shift;
   my ($form, $attr) = @_;
-  
+
   return 1 if $self->maps_get_objects_to_show($form, $attr);
   
   my ($icon, $watermark_url) = $CONF->{MAPS_WATERMARK} ? split('\|', $CONF->{MAPS_WATERMARK}) : ('', '');

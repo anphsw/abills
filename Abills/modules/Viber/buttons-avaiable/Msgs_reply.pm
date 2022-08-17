@@ -119,6 +119,7 @@ sub send_reply {
     ID         => $msgs_text[0],
     UID        => $self->{bot}->{uid},
     STATE      => 0,
+    ADMIN_READ => '0000-00-00 00:00:00'
   });
   
   if (!$Msgs->{errno} && $attr->{photo}) {

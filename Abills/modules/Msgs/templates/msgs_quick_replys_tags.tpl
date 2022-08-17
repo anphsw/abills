@@ -3,7 +3,7 @@
   <input type='hidden' name='chg' value='%MSGS_ID%'/>
   <input type='hidden' name='UID' value='%UID%'/>
 
-  <button type="button" id='accordion_open_all' class="btn btn-secondary btn-xs float-right" >_{OPEN}_ _{ALL}_</button>
+  <button type='button' id='accordion_open_all' class='btn btn-default btn-xs float-right' >_{OPEN_ALL}_</button>
 
   <ul id='accordion'>
    %LIST%
@@ -12,18 +12,8 @@
 </form>
 
 
-
-
-
-
-
-
-
-
-
-
-<style type="text/css">
- #accordion li {
+<style type='text/css'>
+	#accordion li {
     color : #3c8dbc;
     cursor: pointer;
   }
@@ -39,7 +29,7 @@
   }
 </style>
 
-<script type="text/javascript">
+<script type='text/javascript'>
   jQuery('#accordion_open_all').on('click', function () {
     jQuery('#accordion .collapse').collapse('toggle');
 });

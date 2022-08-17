@@ -20,7 +20,6 @@ our (
   $SELF_URL,
 );
 
-#use base 'Exporter';
 use Encode qw(decode decode_utf8);
 
 our $VERSION = 2.01;
@@ -804,8 +803,8 @@ sub element {
   my $self = shift;
   my ($name, $value, $attr) = @_;
 
-  $self->{FORM_INPUT} = '';
-  if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
+  $self->{FORM_INPUT} = $value;
+  if ($self->{NO_PRINT} && ! $attr->{OUTPUT2RETURN}) {
     $self->{OUTPUT} .= $self->{FORM_INPUT};
     $self->{FORM_INPUT} = '';
   }

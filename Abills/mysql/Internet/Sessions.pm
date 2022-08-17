@@ -136,6 +136,10 @@ sub online_update {
     push @SET_RULES, "guest='$attr->{GUEST}'";
   }
 
+  if ($attr->{TP_ID}) {
+    push @SET_RULES, "tp_id='$attr->{TP_ID}'";
+  }
+
   if ($attr->{CONNECT_INFO}) {
     push @SET_RULES, "connect_info='$attr->{CONNECT_INFO}'";
   }
@@ -381,16 +385,15 @@ sub online {
       ['STARTED',           'DATE','c.started', 'IF(DATE_FORMAT(c.started, "%Y-%m-%d")=CURDATE(), DATE_FORMAT(c.started, "%H:%i:%s"), c.started) AS started' ],
       ['NETMASK',           'IP',  'internet.netmask',        'INET_NTOA(internet.netmask) AS netmask'],
       ['CONNECT_INFO',      'STR', 'c.connect_info',                               1 ],
-      ['SPEED',             'INT', 'internet.speed',                                1 ],
+      ['SPEED',             'INT', 'internet.speed',                               1 ],
       ['SESSION_SUM',       'INT', 'c.sum AS session_sum',                         1 ],
-      ['CALLS_TP_ID',       'INT', 'c.tp_id AS online_tp_id',                      1 ],
-      ['ONLINE_TP_ID',      'INT', 'c.tp_id AS online_tp_id',                      1 ],
+      ['ONLINE_TP_ID',      'INT', 'c.tp_id',              'c.tp_id AS online_tp_id' ],
       ['STATUS',            'INT', 'c.status',                                     1 ],
-      ['TP_ID',             'INT', 'internet.tp_id',                                1 ],
-      ['SERVICE_CID',       'STR', 'internet.cid',       'internet.cid AS service_cid' ],
+      ['TP_ID',             'INT', 'internet.tp_id',                               1 ],
+      ['SERVICE_CID',       'STR', 'internet.cid',     'internet.cid AS service_cid' ],
       ['GUEST',             'INT', 'c.guest',                                      1 ],
       ['TURBO_MODE',        'INT', 'c.turbo_mode',                                 1 ],
-      ['TURBO_BEGIN',       'INT', 'tm.start', 'tm.start AS turbo_begin' ],
+      ['TURBO_BEGIN',       'INT', 'tm.start', 'tm.start AS turbo_begin'             ],
       ['TURBO_END',         'STR', 'tm.start + interval tm.time second', 'tm.start + interval tm.time second AS turbo_end' ],
       ['JOIN_SERVICE',      'INT', 'c.join_service',                               1 ],
       ['NAS_IP',            'IP',  'c.nas_ip_address',  'c.nas_ip_address AS nas_ip' ],
@@ -1384,7 +1387,8 @@ sub reports {
   }
   elsif ($attr->{INTERVAL}) {
     my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
-    push @WHERE_RULES, "DATE_FORMAT(l.start, '%Y-%m-%d')>='$from' and DATE_FORMAT(l.start, '%Y-%m-%d')<='$to'";
+    #push @WHERE_RULES, "DATE_FORMAT(l.start, '%Y-%m-%d')>='$from' and DATE_FORMAT(l.start, '%Y-%m-%d')<='$to'";
+    push @WHERE_RULES, "DATE(l.start)<='$to' and DATE(l.start + INTERVAL l.duration SECOND)>='$from'";
     $attr->{TYPE} = '-' if (!$attr->{TYPE});
     if ($attr->{TYPE} eq 'HOURS') {
       $date = "DATE_FORMAT(l.start, '\%H') AS hour";

@@ -365,7 +365,7 @@ sub supplement_services_dictionary {
   foreach (@$list) {
     my $string = '"' . $self->{conf}->{SORM_ISP_ID} .'";';
     $string .= '"' . $_->{tp_id} . '";';      # номер услуги
-    $string .= '"' . $_->{name} . '";';       # название услуги
+    $string .= '"' . $_->{tp_name} . '";';    # название услуги
     $string .= '"' . $start_date . '";';      # дата начала действия услуги
     $string .= '"";';                         # дата окончания действия услуги
     $string .= '"' . $_->{name} . '"' . "\n"; # описание

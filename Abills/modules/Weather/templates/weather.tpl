@@ -2,7 +2,10 @@
   <div class='card card-weather'>
     <div class='card-header pb-2'>
       <div>
-        <h3>%DATA%</h3>
+        %CITY_SELECT%
+      </div>
+      <div>
+        <h3><a href='%WEATHER_LINK%' target=blank>%DATA% </a></h3>
       </div>
       <div class='d-flex flex-row'>
         <img src='https://openweathermap.org/img/wn/%ICON%@2x.png'
@@ -39,7 +42,7 @@
     console.log(item);
     let element = `<div class='weakly-weather-item'>
             <h5 class='mb-0'>
-              ` + item.DATE + `
+              ` + item.TIME + `
             </h5>
             <img src='https://openweathermap.org/img/wn/` + item.ICON + `.png'>
             <h5 class='mb-0'>

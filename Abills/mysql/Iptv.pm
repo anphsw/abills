@@ -446,7 +446,7 @@ sub user_list{
     }
   }
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
@@ -949,7 +949,7 @@ sub online{
       [ 'CID',             'STR', 'c.CID', 1 ],
       [ 'SERVICE_CID',     'STR', 'service.cid', 1 ],
       [ 'TP_ID',           'INT', 'service.tp_id', 1 ],
-      [ 'CALLS_TP_ID',     'INT', 'c.tp_id AS calls_tp_id', 1 ],
+      [ 'ONLINE_TP_ID',     'INT', 'c.tp_id', 'c.tp_id AS online_tp_id' ],
       [ 'CONNECT_INFO',    'STR', 'c.CONNECT_INFO', 1 ],
       [ 'SPEED',           'INT', 'service.speed', 1 ],
       [ 'SUM',             'INT', 'c.sum AS session_sum', 1 ],

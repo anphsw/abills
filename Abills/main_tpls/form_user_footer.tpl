@@ -16,11 +16,6 @@
  %SECOND_MENU%
 </ul>
 
-
-
 </div>
 
 </div>
-
-
-

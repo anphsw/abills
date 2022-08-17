@@ -233,6 +233,7 @@ sub cams_clients_streams {
     my $user_cams = $Cams->user_cameras_list({
       TP_ID     => $tariff->{tp_id},
       ID        => $tariff->{id},
+      CAMERA_ID => $FORM{camera} || '_SHOW',
       PAGE_ROWS => 10000,
       COLS_NAME => 1
     });
@@ -251,12 +252,17 @@ sub cams_clients_streams {
       if ($Cams_service && $Cams_service->can('get_stream')) {
         $users_->info($uid, { SHOW_PASSWORD => 1 });
         $users_->pi({ UID => $uid });
-        my $result = $Cams_service->get_stream({
-          %$stream, %$users_
-        });
+        my $result = $Cams_service->get_stream({ %$stream, %$users_, %FORM });
+
         if ($result && $result->{CAMERA}) {
+
+          if ($FORM{camera}) {
+            print $result->{CAMERA};
+            return;
+          }
+
           $streams_html .= $html->tpl_show(_include('cams_stream_div', 'Cams'), {
-            CAMERA      => $result->{CAMERA} || "",
+            CAMERA      => $result->{CAMERA} || '',
             STREAM_NAME => $stream->{title} || $stream->{camera_name},
           }, { OUTPUT2RETURN => 1 });
         }
@@ -287,9 +293,9 @@ sub cams_clients_streams {
   my @access_cameras = ();
   my @active_streams = ();
   my @private_cameras = ();
-  my $service_id = "";
+  my $service_id = '';
 
-  $FORM{UID} = $user->{UID} ? $user->{UID} : "";
+  $FORM{UID} = $user->{UID} ? $user->{UID} : '';
   $FORM{USER_INFO} = $user;
 
   $html->tpl_show(_include('cams_choose_service', 'Cams'), {
@@ -301,7 +307,7 @@ sub cams_clients_streams {
   });
 
   if ($FORM{show_cameras} && !$FORM{TP_ID}) {
-    $html->message("err", $lang{ERROR}, "$lang{CHOOSE} $lang{TARIF_PLAN}");
+    $html->message('err', $lang{ERROR}, "$lang{CHOOSE} $lang{TARIF_PLAN}");
   }
 
   return 1 if (!$FORM{TP_ID});
@@ -348,7 +354,7 @@ sub cams_clients_streams {
       }
     }
     else {
-      $html->message("err", "$lang{ERROR}", "$lang{ONLY_LATIN_LETTER}") if $FORM{HOST};
+      $html->message('err', $lang{ERROR}, $lang{ONLY_LATIN_LETTER}) if $FORM{HOST};
       $correct_name = 0;
     }
 
@@ -368,7 +374,7 @@ sub cams_clients_streams {
       }
     }
     else {
-      $html->message("err", "$lang{ERROR}", "$lang{ONLY_LATIN_LETTER}") if $FORM{HOST};
+      $html->message('err', $lang{ERROR}, $lang{ONLY_LATIN_LETTER}) if $FORM{HOST};
       $correct_name = 0;
     }
 
@@ -383,7 +389,7 @@ sub cams_clients_streams {
   }
   elsif ($FORM{del_cam}) {
     my $cams_info = $Cams->stream_info($FORM{del_cam});
-    $FORM{CAM_NAME} = $cams_info->{NAME} || "";
+    $FORM{CAM_NAME} = $cams_info->{NAME} || '';
     $Cams->stream_del({ ID => $FORM{del_cam} });
     show_result($Cams, $lang{DELETED});
   }
@@ -444,8 +450,8 @@ sub cams_clients_streams {
     $CAMS_STREAM{SOUND_SELECT} = $html->form_select('SOUND', {
       SELECTED => $CAMS_STREAM{SOUND} || q{},
       SEL_LIST => [
-        { id => 1, name => "PCMA/PCMU" },
-        { id => 2, name => "AAC" },
+        { id => 1, name => 'PCMA/PCMU' },
+        { id => 2, name => 'AAC' },
       ],
       NO_ID    => 1
     });
@@ -518,7 +524,7 @@ sub cams_clients_streams {
   }
 
   my %submit_h = ();
-  $submit_h{change_camera_now} = "$lang{CHANGE}";
+  $submit_h{change_camera_now} = $lang{CHANGE};
 
   print $html->form_main({
     CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
@@ -594,11 +600,7 @@ sub cams_archives {
 }
 
 #**********************************************************
-=head2 cams_show_camera_archive($attr)
-
-  Arguments:
-
-  Return:
+=head2 cams_show_camera_archive()
 
 =cut
 #**********************************************************
@@ -626,12 +628,12 @@ sub cams_show_camera_archive {
 
   return 0 if (!$result || !$result->{CAMERA});
 
-  if (ref $result->{CAMERA} ne "ARRAY") {
+  if (ref $result->{CAMERA} ne 'ARRAY') {
     $result->{CAMERA} = ($result->{CAMERA});
   }
   for my $cam (@{$result->{CAMERA}}) {
     $streams_html .= $html->tpl_show(_include('cams_stream_div', 'Cams'), {
-      CAMERA      => $cam || "",
+      CAMERA      => $cam || '',
       STREAM_NAME => $camera->{title} || $camera->{camera_name},
     }, { OUTPUT2RETURN => 1 });
   }
@@ -640,20 +642,12 @@ sub cams_show_camera_archive {
     CAMS              => $streams_html,
     ADDITIONAL_SCRIPT => $result->{ADDITIONAL_SCRIPT} || ''
   });
-  #
-  # if ($result->{CALLBACK}) {
-  #   Abills::Base::_bp('', ref $result->{CALLBACK}, {HEADER=>1});
-  #   $result->{CALLBACK}();
-  # }
 
   return 0;
 }
 
 #*******************************************************************
-=head2 cams_user_get_group_folders($attr)
-
-  Arguments:
-    $attr
+=head2 cams_user_get_group_folders()
 
 =cut
 #*******************************************************************

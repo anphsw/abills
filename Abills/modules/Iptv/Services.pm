@@ -17,7 +17,8 @@ our (
   %FORM,
   $pages_qs,
   $index,
-  %permissions
+  %permissions,
+  $DATE,
 );
 
 our Iptv $Iptv;
@@ -371,7 +372,7 @@ sub tv_service_export_form {
       %extra_option,
       chg       => $Iptv->{ID},
     },
-    METHOD  => 'get',
+    METHOD  => 'post',
     SUBMIT  => { import => $lang{IMPORT} }
   });
 

@@ -1,25 +1,25 @@
 <form >
 <input type='hidden' name='index' value='$index'>
-  <div class='card card-primary card-outline box-form form-horizontal col-md-6 container'>
+  <div class='card card-primary card-outline card-form'>
     <div class='card-body'>
 
-      <div class='form-group'>
-        <label class='control-label'>_{MONTH}_</label>
-        <div class='col-md-12'>
-        %MONTH%
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{MONTH}_</label>
+        <div class='col-md-8'>
+          %MONTH%
         </div>
       </div>
 
-      <div class='form-group'>
-        <label class='control-label'>_{YEAR}_</label>
-        <div class='col-md-12'>
-        %YEAR%
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{YEAR}_</label>
+        <div class='col-md-8'>
+          %YEAR%
         </div>
       </div>
 
-      <div class='form-group'>
-        <label class='control-label'>_{POSITION}_</label>
-        <div class='col-md-12'>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{POSITION}_</label>
+        <div class='col-md-8'>
           %POSITIONS%
         </div>
       </div>

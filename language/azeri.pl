@@ -532,6 +532,7 @@ $lang{GETED}=' Alınan';
 $lang{UNAPPLIED}=' Qəbul olunmamış';
 $lang{RELAYS}=' Retranslyasiya,';
 $lang{DESCRIBE}=' Təsviri';
+$lang{DESCRIBE_FOR_SUBSCRIBER} = 'Abunəçi üçün təsvir';
 $lang{VERY_HIGH}=' Çox yüksək';
 $lang{SELECTED}=' Seçilən';
 $lang{PATH}='Yollar';

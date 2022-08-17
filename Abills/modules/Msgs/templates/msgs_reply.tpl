@@ -89,40 +89,26 @@
   </div>
   <div class='card-body form form-horizontal'>
 
-    <div class='form-group'>
-      <div class='row'>
-        <div class='col-sm-12 col-md-12'>
-          <div class='form-input'>
-            <textarea id='REPLY_TEXT' name='REPLY_TEXT' data-action='drop-zone' class='form-control' rows=10>%QUOTING%%REPLY_TEXT%</textarea>
+    <div class='form-group row w-100'>
+        <textarea id='REPLY_TEXT' name='REPLY_TEXT' data-action='drop-zone' class='form-control' rows=10>%QUOTING%%REPLY_TEXT%</textarea>
+    </div>
+
+    <div class='form-group row'>%ATTACHMENT%</div>
+
+    <div class='form-group row'>
+      <div class='col-md-6'>
+        <div class='row'>
+          <label class='col-md-3 control-label'>_{STATUS}_:</label>
+          <div class='col-md-9'>
+            %STATE_SEL%
           </div>
         </div>
       </div>
-    </div>
-
-    <div class='form-group'>
-      <div class='row'>
-        <div class='col-sm-12 col-md-12'>
-          <label class='col-md-12'>%ATTACHMENT%</label>
-        </div>
-      </div>
-    </div>
-
-    <div class='form-group'>
-      <div class='row'>
-        <div class='col-md-6'>
-          <div class='row'>
-            <label class='col-md-3 control-label'>_{STATUS}_:</label>
-            <div class='col-md-9'>
-              %STATE_SEL%
-            </div>
-          </div>
-        </div>
-        <div class='col-md-6'>
-          <div class='form-group custom-control custom-checkbox mt-2 mb-0'>
-            <input class='custom-control-input custom-control-input-warning' type='checkbox' id='REPLY_INNER_MSG'
-                   name='REPLY_INNER_MSG' value='1' %INNER_MSG%>
-            <label for='REPLY_INNER_MSG' class='custom-control-label'>_{PRIVATE}_</label>
-          </div>
+      <div class='col-md-6 %INNER_MSG_HIDE%'>
+        <div class='form-group custom-control custom-checkbox mt-2 mb-0'>
+          <input class='custom-control-input custom-control-input-warning' type='checkbox' id='REPLY_INNER_MSG'
+                 name='REPLY_INNER_MSG' value='1' %INNER_MSG%>
+          <label for='REPLY_INNER_MSG' class='custom-control-label'>_{PRIVATE}_</label>
         </div>
       </div>
     </div>
@@ -155,7 +141,7 @@
           </div>
         </div>
 
-        <div class='form-group row'>
+        <div class='form-group row %SURVEY_HIDE%'>
           <label class='col-md-3 control-label'>_{TEMPLATES}_ (_{SURVEY}_):</label>
           <div class='col-md-9'>
             %SURVEY_SEL%
@@ -186,8 +172,8 @@
           </div>
         </div>
 
-        <div class='form-group row'>
-          <label class='col-md-3 control-label'>_{CHANGE}_ _{CHAPTERS}_:</label>
+        <div class='form-group row %CHANGE_CHAPTER_HIDE%'>
+          <label class='col-md-3 control-label'>_{CHANGE_CHAPTER}_:</label>
           <div class='col-md-9'>
             %CHAPTERS_SEL%
           </div>
@@ -199,7 +185,7 @@
   </div>
   <div class='card-footer'>
     <input type='hidden' name='sid' value='$sid'/>
-    <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%' id='go' title='Ctrl+C'/>
+    <input type='submit' class='btn btn-primary double_click_check' name='%ACTION%' value='%LNG_ACTION%' id='go' title='Ctrl+C'/>
   </div>
 </div>
 

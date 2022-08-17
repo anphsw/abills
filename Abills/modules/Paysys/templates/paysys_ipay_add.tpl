@@ -1,4 +1,5 @@
-<form id=pay name=pay method='POST' action='https://api.ipay.ua/simple/'>
+<div class='card card-primary card-outline'>
+  <form id=pay name=pay method='POST' action='https://api.ipay.ua/simple/'>
     <input type='hidden' name='good'
            value='https://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}$ENV{REQUEST_URI}?index=$index&PAYMENT_SYSTEM=$FORM{PAYMENT_SYSTEM}&ipay_transaction=%IPAY_PAYMENT_NO%'>
     <input type='hidden' name='bad'
@@ -13,35 +14,34 @@
     <input type='hidden' name='desc' value='%desc%'>
     <input type='hidden' name='info' value='%info%'>
 
-    <div class='card box-primary'>
-        <div class='card-header with-border text-center'>IPAY: _{BALANCE_RECHARCHE}_</div>
-
-        <div class='card-body'>
-            <div class='form-group row'>
-                <label class='col-md-6 control-label'>_{ORDER}_:</label>
-                <label class='col-md-6 control-label'>%IPAY_PAYMENT_NO%</label>
-            </div>
-
-            <div class='form-group row'>
-                <label class='col-md-6 control-label'>_{DESCRIBE}_:</label>
-                <label class='col-md-6 control-label'>%desc%</label>
-            </div>
-
-            <div class='form-group row'>
-                <label class='control-label col-md-6'>_{SUM}_:</label>
-                <label class='control-label col-md-6'> %SUM% %amount_with_point%</label>
-            </div>
-
-            <div class='form-group row'>
-                <label class='control-label col-md-12'>
-                    <a href=https://ipay.ua/ua/menu/questions_and_answers/ target=_new
-                       class='btn btn-default'>_{HELP}_</a></label>
-            </div>
-
-        </div>
-        <div class='card-footer row'>
-            <input class='btn btn-primary' type=submit value='_{PAY}_'>
-        </div>
+    <div class='card-header with-border text-center pb-0'>
+      <h4>_{BALANCE_RECHARCHE}_</h4>
     </div>
 
-</form>
+
+    <div class='card-body pt-0'>
+      <div class='text-center'>
+        <img style='width: auto; max-height: 200px;'
+             src='/styles/default/img/paysys_logo/ipay-logo.png'
+             alt='iPay'>
+      </div>
+
+      <ul class='list-group list-group-unbordered mb-3'>
+        <li class='list-group-item'>
+          <b>_{DESCRIBE}_</b>
+          <div class='float-right'>$FORM{DESCRIBE}</div>
+        </li>
+        <li class='list-group-item'>
+          <b>_{ORDER}_</b>
+          <div class='float-right'>%IPAY_PAYMENT_NO%</div>
+        </li>
+        <li class='list-group-item'>
+          <b>_{SUM}_</b>
+          <div class='float-right'>%SUM% %amount_with_point%</div>
+        </li>
+      </ul>
+
+      <input type='submit' class='btn btn-primary float-right' value='_{PAY}_'>
+    </div>
+  </form>
+</div>

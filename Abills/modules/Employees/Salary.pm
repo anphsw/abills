@@ -1561,7 +1561,9 @@ sub employees_salary {
     }
   );
 
-  my @YEARS = ('', '2016', '2017', '2018', '2019', '2020', '2021',);
+  my ($current_year, undef, undef) = split('-', $DATE);
+  my @YEARS = reverse sort ($current_year - 4 ... $current_year);
+
   my $year_select = $html->form_select(
     'YEAR',
     {
@@ -1601,9 +1603,9 @@ sub employees_salary {
     $html->tpl_show(
       _include('employees_date_choose', 'Employees'),
       {
-        MONTH     => $month_select,
-        YEAR      => $year_select,
-        POSITIONS => $position_select,
+        MONTH      => $month_select,
+        YEAR       => $year_select,
+        POSITIONS  => $position_select,
       }
     );
     $html->message("info", "$lang{TIME_SHEET} $lang{EMPTY}", "$lang{CHANGE} $lang{DATE}");
@@ -1806,7 +1808,7 @@ sub employees_salary {
 
   }
 
-  my $salary_table_template =  $html->form_main(
+  my $salary_table_template = $html->form_main(
     {
       CONTENT =>$salary_table->show({ OUTPUT2RETURN => 1 }),
       HIDDEN  => {
@@ -1955,6 +1957,31 @@ sub employees_pay_salary {
 
   my $admin_info = $Admins->info($FORM{aid}, { COLS_NAME => 1 });
 
+  my ($year, $month, undef) = split('-', $DATE);
+
+  $month = ($FORM{MONTH} + 1) if (defined $FORM{MONTH} && $FORM{MONTH} =~ /^\d+$/);
+  $year = ($FORM{YEAR}) if ($FORM{YEAR});
+
+  my $month_select = $html->form_select(
+    'MONTH',
+    {
+      SELECTED     => $FORM{MONTH} || $month - 1,
+      SEL_ARRAY    => \@MONTHES,
+      ARRAY_NUM_ID => 1,
+    }
+  );
+
+  my ($current_year, undef, undef) = split('-', $DATE);
+  my @YEARS = reverse sort ($current_year - 4 ... $current_year);
+
+  my $year_select = $html->form_select(
+    'YEAR',
+    {
+      SELECTED  => $FORM{year},
+      SEL_ARRAY => \@YEARS,
+    }
+  );
+
   my $cashbox_select = employees_cashbox_select();
 
   my $spend_types_select = $html->form_select(
@@ -1971,7 +1998,7 @@ sub employees_pay_salary {
   );
 
   $html->message('info', $lang{CHECK_DATA_AND_CHOOSE_CASHBOX});
-  my $month = $FORM{month} || 1;
+
   my $sum_to_pay = $FORM{sum_to_pay} || 0;
 
   $html->tpl_show(
@@ -1982,8 +2009,8 @@ sub employees_pay_salary {
       EXTRA_AMOUNT     => $FORM{extra_amount},
       SUM              => sprintf('%.2f', $sum_to_pay), #sprintf('%.2f', $bet + $extra_amount + $sum_for_works),
       TEXT_MONTH       => $MONTHES[ $month - 1 ],
-      MONTH            => $month,
-      YEAR             => $FORM{year},
+      MONTH            => $month_select,
+      YEAR             => $year_select,
       CASHBOX          => $cashbox_select,
       SPENDING_TYPE_ID => $spend_types_select,
       AID              => $FORM{aid},
@@ -2666,7 +2693,31 @@ sub employees_pay_salary_all {
  #my %info;
   my $admin_info = '';
   my $all_admins = '';
+  my ($year, $month, undef) = split('-', $DATE);
 
+  $month = ($FORM{MONTH} + 1) if (defined $FORM{MONTH} && $FORM{MONTH} =~ /^\d+$/);
+  $year = ($FORM{YEAR}) if ($FORM{YEAR});
+
+  my $month_select = $html->form_select(
+    'MONTH',
+    {
+      SELECTED     => $FORM{MONTH} || $month - 1,
+      SEL_ARRAY    => \@MONTHES,
+      ARRAY_NUM_ID => 1,
+    }
+  );
+
+  my ($current_year, undef, undef) = split('-', $DATE);
+  my @YEARS = reverse sort ($current_year - 4 ... $current_year);
+
+  my $year_select = $html->form_select(
+    'YEAR',
+    {
+      SELECTED  => $FORM{year},
+      SEL_ARRAY => \@YEARS,
+    }
+  );
+  
   foreach my $key (keys %FORM) {
     if($key =~ /SALARY_(\d+)/){
       $FORM{aid_salary} = $1;
@@ -2700,7 +2751,7 @@ sub employees_pay_salary_all {
   );
 
   $html->message('info', $lang{CHECK_DATA_AND_CHOOSE_CASHBOX});
-  my $month = $FORM{month} || 1;
+
   my $sum_to_pay = $FORM{sum_to_pay} || 0;
 
   $html->tpl_show(
@@ -2712,8 +2763,8 @@ sub employees_pay_salary_all {
       FIO_1            => $all_admins,
     #  SUM              => sprintf('%.2f', $sum_to_pay), #sprintf('%.2f', $bet + $extra_amount + $sum_for_works),
       TEXT_MONTH       => $MONTHES[ $month - 1 ],
-      MONTH            => $month,
-      YEAR             => $FORM{year},
+      MONTH            => $month_select,
+      YEAR             => $year_select,
       CASHBOX          => $cashbox_select,
       SPENDING_TYPE_ID => $spend_types_select,
      # AID              => $FORM{aid_salary},$FORM{aid_salary},$FORM{aid_salary},

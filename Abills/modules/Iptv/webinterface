@@ -92,7 +92,7 @@ sub iptv_user_del {
     $Iptv->user_info($line->{id});
     iptv_account_action({
       %$Iptv,
-      del => 1,
+      del => $line->{id},
     });
   }
 

@@ -447,7 +447,7 @@ sub admins_list {
   $self->query("SELECT IF(ca.uid IS null, 0, 1) AS is_company_admin,
       u.id AS login,
       pi.fio,
-      pi.email,
+      (SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=9) AS email,
       u.uid
     FROM companies  c
     INNER JOIN users u ON (u.company_id=c.id)

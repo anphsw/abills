@@ -175,13 +175,13 @@
                 <div class='d-flex bd-highlight'>
                   <div class='bd-highlight'>%CONTRACT_ID%%CONTRACT_SUFIX%%NO_CONTRACT_MSG%</div>
                   <div class='ml-auto bd-highlight'>
-                    <div class='bd-example' data-visible='%VISIBLE_DOCS%'>
+                    <div class='bd-example' data-visible='%DOCS_VISIBLE%'>
                       <a %NO_DISPLAY% title='_{PRINT}_' target='new' class='p-2'
                          href='$SELF_URL?qindex=10&PRINT_CONTRACT=%CONTRACT_ID%&sid=$sid&pdf=$conf{DOCS_PDF_PRINT}'>
                         <span class='fas fa-print'></span>
                       </a>
 
-                      <a href='$SELF_URL?index=10&CONTRACT_LIST=1%&sid=$sid' title='_{LIST}_' class='p-2'>
+                      <a href='$SELF_URL?index=10&CONTRACT_LIST=1&sid=$sid' title='_{LIST}_' class='p-2'>
                         <span class='fa fa-list'></span>
                       </a>
                     </div>
@@ -252,7 +252,7 @@
             </h2>
           </div>
           <div class='credit-block'>
-            <h6 class='text'>%PAYMENT_DATE%</h1>
+            <h6 class='text'>%PAYMENT_DATE%</h6>
           </div>
         </div>
       </div>
@@ -273,15 +273,16 @@
 </div>
 
 <script>
+  var UID = '$user->{UID}';
   let show = %SHOW_SUBSCRIBE_BLOCK%;
-  if(!show){
+  if (!show) {
     jQuery('#notifications-subscribe-block').hide();
   }
 
   let depositBlock = document.getElementById('deposit');
   let depositCard = document.getElementById('depositCard');
   let deposit = parseFloat(depositBlock.innerText);
-  console.log(deposit);
+
   if(deposit > 0) {
     depositBlock.classList.add('text-success');
     depositBlock.classList.remove('text-danger');
@@ -307,5 +308,11 @@
 
   if(paymentSum.innerText == "") {
     paymentSum.innerText = "_{PAYMENT_NOTEXIST}_";
+  }
+
+  if ('$user->{conf}->{PUSH_ENABLED}') {
+    let scriptElement = document.createElement('script');
+    scriptElement.src = '/styles/default/js/push_subscribe.js';
+    document.body.appendChild(scriptElement);
   }
 </script>

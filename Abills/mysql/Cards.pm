@@ -227,6 +227,8 @@ sub cards_add {
 
   #$admin->action_add($uid, "DELETE $self->{SERIAL}");
 
+  $admin->action_add($attr->{UID}, "ADDED $self->{TOTAL} cards, $self->{SERIAL}",{ TYPE=>1 });
+
   $self->{CARD_ID}     = $self->{INSERT_ID};
   $self->{CARD_NUMBER} = $self->{NUMBER};
 
@@ -270,6 +272,8 @@ sub cards_change {
     }
   }
 
+  $action_info = "$attr->{SERIAL}/$attr->{NUMBER}";
+
   if ($attr->{SERIAL} && $attr->{NUMBER} && $attr->{STATUS}) {
     my $status_date = ($attr->{STATUS} == 2) ? ", datetime=now()" : '';
 
@@ -284,7 +288,7 @@ sub cards_change {
       }
     );
 
-    $admin->action_add($attr->{UID}, "USE $attr->{IDS}");
+    $admin->action_add($attr->{UID}, "USE id:$attr->{IDS}, STATUS:$attr->{STATUS}, $action_info",{ TYPE=>2 });
     return $self;
   }
   elsif ($attr->{IDS} && $attr->{SOLD}) {
@@ -294,7 +298,7 @@ sub cards_change {
        WHERE diller_id='$attr->{DILLER_ID}' AND $WHERE; ", 'do'
     );
 
-    $admin->action_add($attr->{UID}, "SOLD $action_info");
+    $admin->action_add($attr->{UID}, "SOLD $action_info", { TYPE=>2 });
 
     return $self;
   }
@@ -313,7 +317,7 @@ sub cards_change {
       $self->query("DELETE FROM cards_users
           WHERE domain_id='$admin->{DOMAIN_ID}' AND $WHERE; ", 'do'
       );
-      $admin->action_add(0, "DELETE $action_info");
+      $admin->action_add(0, "DELETE $action_info",{ TYPE=>10 });
       return $self;
     }
 
@@ -332,7 +336,7 @@ sub cards_change {
        WHERE domain_id='$admin->{DOMAIN_ID}' AND $WHERE; ", 'do'
     );
 
-    $admin->action_add(0, "STATUS $attr->{STATUS} $action_info");
+    $admin->action_add(0, "STATUS: $attr->{STATUS}, $action_info",{ TYPE=>2 });
 
     return $self;
   }
@@ -344,7 +348,7 @@ sub cards_change {
       WHERE domain_id='$admin->{DOMAIN_ID}' AND $WHERE; ", 'do'
     );
 
-    $admin->action_add(0, "DILLER ADD $attr->{DILLER_ID} $action_info");
+    $admin->action_add(0, "DILLER ADD $attr->{DILLER_ID} $action_info", { TYPE=>1 });
 
     return $self;
   }
@@ -426,7 +430,7 @@ sub cards_del {
     $self->query("DELETE from cards_users WHERE $WHERE;", 'do');
   }
 
-  $admin->action_add($uid, "DELETE $attr->{SERIA}/$attr->{NUMBER}", { TYPE => 10 });
+  $admin->action_add($uid, "DELETE $attr->{SERIA}/$attr->{NUMBER}", { TYPE=>10 });
   return $self->{result};
 }
 
@@ -1401,7 +1405,7 @@ sub cards_gids_change {
     $self->query("INSERT INTO cards_gids (gid, serial) VALUES ('$gid', '$serial');", 'do');
   }
 
-  $admin->action_add($uid, "CARDS_GIDS $serial");
+  $admin->action_add($uid, "CARDS_GIDS $serial,", { TYPE=>2 });
 
   return $self;
 }

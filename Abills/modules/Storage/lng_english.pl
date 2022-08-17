@@ -164,4 +164,16 @@ $lang{MOVED} = 'Moved';
 $lang{INSTALLATION_ADDRESS} = 'Installation address';
 $lang{INVENTORY_ITEMS} = 'Inventory items';
 
+$lang{PAYERS} = 'Payers';
+$lang{PAYER} = 'Payer';
+$lang{STORAGE_NAS_INSTALLATIONS_REPORT} = 'Nas installations report';
+$lang{PURCHASE_EQUIPMENT_WAS_SUCCESSFUL} = 'Purchase of equipment was successful';
+$lang{ENTER_CORRECT_AMOUNT} = 'Enter the correct amount';
+$lang{YOU_CANNOT_BUY_MORE_THAN} = 'You cannot buy more than';
+$lang{PRODUCT_PURCHASE_ERROR} = 'Product purchase error';
+$lang{AVAILABLE_FOR_PUBLIC_SALE} = 'Available for public sale';
+$lang{REDEMPTION_OF_GOODS} = 'Redemption of goods';
+$lang{REDEMPTION_SUM} = 'Redemption sum';
+$lang{PRODUCT_PURCHASED} = 'Product purchased';
+
 1;

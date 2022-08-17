@@ -14,7 +14,8 @@ our (
   %conf,
   %lang,
   $html,
-  $base_dir
+  $base_dir,
+  %msgs_permissions
 );
 
 my $modules_dir = ($base_dir || '/usr/abills/') . 'Abills/modules/';
@@ -79,7 +80,7 @@ sub _created_plugins_table {
 
   my $table = '';
 
-  foreach my $position (@{ $plugins_types }) {
+  foreach my $position (@{$plugins_types}) {
     my $plugins = _msgs_get_plugins({ SKIP_ENABLE => 1, $type => $position });
 
     $FORM{POSITION} = $position;
@@ -145,7 +146,7 @@ sub _plugin_priority_change {
 
   my $error_change = 'Success';
 
-  foreach my $plugin (@{ $plugin_scalar }) {
+  foreach my $plugin (@{$plugin_scalar}) {
     $Msgs->msgs_plugin_change({
       PLUGIN_NAME => $plugin->{VALUE},
       ID          => $plugin->{AID},
@@ -239,18 +240,22 @@ sub _msgs_get_plugins {
 
     foreach my $plugin (@{$plugin_files}) {
       $plugin =~ s/\.pm//g;
-      my $plugin_name = $module. '::Plugins::' . $plugin;
+      my $plugin_name = $module . '::Plugins::' . $plugin;
 
       eval "require $plugin_name;";
       if ($@) {
-        $html->message( 'err', $lang{ERROR}, "$lang{PLUGIN_LOADING_ERROR}: $plugin ($@)" );
+        $html->message('err', $lang{ERROR}, "$lang{PLUGIN_LOADING_ERROR}: $plugin ($@)");
         next;
       }
 
       next unless ($plugin_name->can('new'));
       next unless ($plugin_name->can('plugin_info'));
 
-      my $plugin_api = $plugin_name->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+      my $plugin_api = $plugin_name->new($db, $admin, \%conf, {
+        HTML             => $html,
+        LANG             => \%lang,
+        MSGS_PERMISSIONS => \%msgs_permissions
+      });
       my $info = $plugin_api->plugin_info();
 
       next if ref $info ne 'HASH';
@@ -286,11 +291,11 @@ sub _msgs_get_enable_plugins {
   foreach my $plugin (@{$admin_plugins}) {
     return if !$plugin->{module} || !$plugin->{plugin_name} || !defined($plugin->{priority});
 
-    my $plugin_name = $plugin->{module}. '::Plugins::' . $plugin->{plugin_name};
+    my $plugin_name = $plugin->{module} . '::Plugins::' . $plugin->{plugin_name};
 
     eval "require $plugin_name;";
     if ($@) {
-      $html->message( 'err', $lang{ERROR}, "$lang{PLUGIN_LOADING_ERROR}: $plugin->{plugin_name} ($@)" );
+      $html->message('err', $lang{ERROR}, "$lang{PLUGIN_LOADING_ERROR}: $plugin->{plugin_name} ($@)");
       next;
     }
 
@@ -364,7 +369,7 @@ sub _created_modal_priority {
 
   my $priority_link = "?qindex=$index&header=2&POSITION=$position&TYPE=$type";
 
-  return $html->button( '', undef, {
+  return $html->button('', undef, {
     JAVASCRIPT     => '',
     SKIP_HREF      => 1,
     NO_LINK_FORMER => 1,
@@ -393,7 +398,7 @@ sub _msgs_get_save_plugin {
 
   return $plugins_enabled if ($attr->{HASH});
 
-  my %list = map { $_->{plugin_name} => $_->{plugin_name} } @{ $plugins_enabled };
+  my %list = map {$_->{plugin_name} => $_->{plugin_name}} @{$plugins_enabled};
 
   return \%list
 }
@@ -416,7 +421,12 @@ sub _msgs_show_right_plugins {
   foreach my $plugin (@{$plugins}) {
     next if (!$plugin->{PLUGIN}->can('new') || !$plugin->{PLUGIN}->can('plugin_show'));
 
-    my $plugin_api = $plugin->{PLUGIN}->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, MSGS => $Msgs });
+    my $plugin_api = $plugin->{PLUGIN}->new($db, $admin, \%conf, {
+      HTML             => $html,
+      LANG             => \%lang,
+      MSGS             => $Msgs,
+      MSGS_PERMISSIONS => \%msgs_permissions
+    });
 
     $plugins_info .= $plugin_api->plugin_show($attr);
   }
@@ -442,7 +452,12 @@ sub _msgs_show_bottom_plugins {
   foreach my $plugin (@{$plugins}) {
     next if (!$plugin->{PLUGIN}->can('new') || !$plugin->{PLUGIN}->can('plugin_show'));
 
-    my $plugin_api = $plugin->{PLUGIN}->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, MSGS => $Msgs });
+    my $plugin_api = $plugin->{PLUGIN}->new($db, $admin, \%conf, {
+      HTML             => $html,
+      LANG             => \%lang,
+      MSGS             => $Msgs,
+      MSGS_PERMISSIONS => \%msgs_permissions
+    });
 
     $plugins_info .= $plugin_api->plugin_show($attr);
   }
@@ -472,13 +487,17 @@ sub msgs_get_plugin_by_name {
     my $plugin_name = $module . '::Plugins::' . $plugin;
     eval "require $plugin_name;";
     if ($@) {
-      $html->message( 'err', $lang{ERROR}, "$lang{PLUGIN_LOADING_ERROR}: $plugin ($@)" );
+      $html->message('err', $lang{ERROR}, "$lang{PLUGIN_LOADING_ERROR}: $plugin ($@)");
       return 0;
     }
 
     return 0 if (!$plugin_name->can('new'));
 
-    return $plugin_name->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+    return $plugin_name->new($db, $admin, \%conf, {
+      HTML             => $html,
+      LANG             => \%lang,
+      MSGS_PERMISSIONS => \%msgs_permissions
+    });
   }
 
   return 0;
@@ -496,9 +515,9 @@ sub msgs_get_plugin_by_name {
 sub _plugin_enabled {
   my ($plugins_list, $enabled_plugins, $attr) = @_;
 
-  my %hash_priory = map { $_->{plugin_name} => $_->{priority} } @{ $enabled_plugins };
+  my %hash_priory = map {$_->{plugin_name} => $_->{priority}} @{$enabled_plugins};
 
-  foreach my $plugin (@{ $plugins_list }) {
+  foreach my $plugin (@{$plugins_list}) {
     my $name = $plugin->{PLUGIN};
     $name =~ s/$plugin->{MODULE}::Plugins:://g;
 

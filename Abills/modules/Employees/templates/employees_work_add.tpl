@@ -12,7 +12,7 @@
     <div class='card-body'>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='ADMIN'>_{ADMIN}_:</label>
+        <label class='control-label col-md-3' for='ADMIN'>_{PERFORMER}_:</label>
         <div class='col-md-9'>
           %ADMIN_SEL%
         </div>

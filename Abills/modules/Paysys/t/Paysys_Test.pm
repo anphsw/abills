@@ -7,7 +7,9 @@
 
 use strict;
 use warnings;
-use Abills::Fetcher qw/web_request/;
+use Abills::Fetcher qw(web_request);
+use Abills::Base qw(json_former);
+use JSON qw(decode_json);
 
 our (
   $admin,
@@ -62,7 +64,7 @@ sub paysys_main_test {
   foreach my $action (sort keys %{$test_params}) {
     my $inputs = q{};
     foreach my $request_key (sort keys %{$test_params->{$action}}) {
-      next if ($request_key eq 'result' || $request_key eq 'result_type');
+      next if ($request_key eq 'result' || $request_key eq 'result_type' || $request_key eq 'headers');
       my $ex_params = $test_params->{$action}{$request_key}{ex_params} || '';
       my $tooltip = $test_params->{$action}{$request_key}{tooltip} || '';
       my $type = $test_params->{$action}{$request_key}{type} || '';
@@ -104,7 +106,8 @@ sub paysys_main_test {
       INDEX        => $fn_index,
       MODULE       => $FORM{MODULE},
       ACTION       => $action,
-      SELECT_DEBUG => $debug_select
+      SELECT_DEBUG => $debug_select,
+      HEADERS      => json_former($test_params->{$action}->{headers}),
     }, { OUTPUT2RETURN => 1 });
   }
 
@@ -146,6 +149,8 @@ sub paysys_test {
     return 1;
   }
 
+  my $debug = $FORM{DEBUG} || 0;
+
   my $params = paysys_get_params({ MODULE => $FORM{module} });
 
   my $response = q{};
@@ -168,6 +173,8 @@ sub paysys_test {
   }
   elsif ($FORM{_POST_}) {
     $request_params{POST} = $FORM{_POST_};
+    $FORM{headers} =~ s/\\//gm;
+    $request_params{HEADERS} = eval{decode_json($FORM{headers})};
   }
   else {
     foreach my $key (sort keys %FORM) {
@@ -182,9 +189,9 @@ sub paysys_test {
 
   $url .= join('&', @request_params);
 
-  $response = Abills::Fetcher::web_request("$url", {
+  $response = web_request("$url", {
     INSECURE => 1,
-    DEBUG    => $FORM{DEBUG},
+    DEBUG    => $debug,
     TIMEOUT  => 5,
     CURL     => 1,
     %request_params
@@ -218,7 +225,7 @@ sub paysys_test {
     }
   }
 
-  if ($FORM{DEBUG} < 1) {
+  if ($debug < 1) {
     print $html->element('textarea', $response, {
       name  => 'results',
       rows  => '10',

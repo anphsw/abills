@@ -235,18 +235,15 @@ sub ring_rule_add {
   my @files_select = files_list();
 
   my $file_upload_link = "$SELF_URL?index=" . get_function_index('ring_file_upload');
-  $html->tpl_show(
-    _include('ring_add_rule', 'Ring'),
-    {
-      ACTION_TYPE => $action_type,
-      BUTTON      => $button,
-      TIME_START  => $html->form_datetimepicker('TIME_START'),
-      TIME_END    => $html->form_datetimepicker('TIME_END'),
-      FILE_SELECT => @files_select,
-      UPLOAD_FILE => $file_upload_link,
-      INDEX       => get_function_index('ring_rule_add'),
-    }
-  );
+  $html->tpl_show(_include('ring_add_rule', 'Ring'), {
+    ACTION_TYPE => $action_type,
+    BUTTON      => $button,
+    TIME_START  => $html->form_datetimepicker('TIME_START'),
+    TIME_END    => $html->form_datetimepicker('TIME_END'),
+    FILE_SELECT => @files_select,
+    UPLOAD_FILE => $file_upload_link,
+    INDEX       => get_function_index('ring_rule_add'),
+  });
 }
 
 #*******************************************************************
@@ -270,14 +267,11 @@ sub files_list {
     $file = substr $file, $dir_len;
   }
 
-  my @files_select = $html->form_select(
-    'FILE_SELECT',
-    {
-      SELECTED => $FORM{FILE_SELECT} || $attr->{FILE},
-      SEL_ARRAY   => \@files,
-      SEL_OPTIONS => { '' => '--' },
-    }
-  );
+  my @files_select = $html->form_select('FILE_SELECT', {
+    SELECTED    => $FORM{FILE_SELECT} || $attr->{FILE},
+    SEL_ARRAY   => \@files,
+    SEL_OPTIONS => { '' => '--' },
+  });
 
   return @files_select;
 }
@@ -289,156 +283,114 @@ sub files_list {
 #*******************************************************************
 sub ring_user_filters {
 
-  my @STATUS = ("$lang{WAITING}", "$lang{SUCCESS}", "$lang{INTERRUPTED}", "$lang{ANSWERPHONE}", "$lang{NOT_AVAILABLE}");
+  my @STATUS = ($lang{WAITING}, $lang{SUCCESS}, $lang{INTERRUPTED}, $lang{ANSWERPHONE}, $lang{NOT_AVAILABLE});
   my $list;
-  if($FORM{ID}){
-    $list = $Ring->rule_users({ RID => $FORM{ID}, COLS_NAME => 1 });
-  }
-
-  my $tags_list = $Tags->list(
-    {
-      NAME      => '_SHOW',
-      COLS_NAME => 1
-    }
-  );
-
-  my $Tags_info = '';
-  foreach my $tag (@$tags_list) {
-    $Tags_info .= "<div class='form-group'>
-                    <label class='col-md-3 control-label' for=tag_$tag->{id}>$tag->{name}</label>
-                    <input type='checkbox' name='TAGS' value=$tag->{id} />
-                    </div>";
-  }
+  $list = $Ring->rule_users({ RID => $FORM{ID}, COLS_NAME => 1, PAGE_ROWS => 1000000 }) if $FORM{ID};
 
   my $group_select = sel_groups();
+  my $tags_list = $Tags->list({ NAME => '_SHOW', COLS_NAME => 1 });
+  my $Tags_info = '';
+  foreach my $tag (@$tags_list) {
+    $Tags_info .= "<div class='form-group row'>" .
+      "<label class='col-md-3 control-label' for=tag_$tag->{id}>$tag->{name}</label>" .
+      "<input type='checkbox' name='TAGS' value=$tag->{id} /></div>";
+  }
 
-  # добавить пользователей к правилу, если у него есть уже добавленные пользователи
   if ($FORM{action} && $FORM{action} eq 'addmore') {
-    $html->tpl_show(
-      _include('ring_filters', 'Ring'),
-      {
+    $html->tpl_show(_include('ring_filters', 'Ring'), {
+      ADDRESS_FORM => $html->tpl_show(templates('form_address_search'), {}, { OUTPUT2RETURN => 1 }),
+      TAGS         => $Tags_info,
+      GROUPS       => $group_select,
+    });
+    return 1;
+  }
+
+  if ($FORM{ID}) {
+    my $users_count = $list ? scalar @$list : 0;
+    if ( $users_count <= 0) {
+      $html->tpl_show(_include('ring_filters', 'Ring'), {
         ADDRESS_FORM => $html->tpl_show(templates('form_address_search'), {}, { OUTPUT2RETURN => 1 }),
         TAGS         => $Tags_info,
-        GROUPS       => $group_select,
-      }
-    );
-    return 1;
-  }
+        GROUPS       => $group_select
+      });
 
-  # переход на поиск пользователей через таблицу правил
-  if ($FORM{ID}) {
-    # если в таблице нету пользователей с этим правилом
-        
-      my $users_count = $list ? scalar @$list : 0;
-    if ( $users_count <= 0) {
-      $html->tpl_show(
-        _include('ring_filters', 'Ring'),
-        {
-          ADDRESS_FORM => $html->tpl_show(templates('form_address_search'), {}, { OUTPUT2RETURN => 1 }),
-          TAGS         => $Tags_info,
-          GROUPS       => $group_select
-        }
+      return 1;
+    }
+    my $table = $html->table({
+      width   => '100%',
+      caption => $lang{FILTERS},
+      title   => [ 'UID', $lang{RULE}, $lang{DATE}, $lang{TIME}, $lang{STATUS} ],
+      ID      => 'FILTERS',
+      MENU    => "$lang{ADD}:index=" . get_function_index('ring_user_filters') . "&action=addmore&ID=$FORM{ID}" . ':add;'
+    });
+    my $r_info = $Ring->select_rule({ RULE_ID => $FORM{ID} });
+    foreach my $line (@$list) {
+      $table->addrow(
+        $html->button($line->{uid}, "index=15&UID=$line->{uid}", { class => 'btn btn-primary btn-xs', target => '_blank' }),
+        $html->button($r_info->{NAME}, "index=" . get_function_index('ring_main') . "&chg=$r_info->{ID}", {
+          class => 'btn btn-primary btn-xs', target => '_blank' }),
+        $line->{date},
+        $line->{time},
+        $STATUS[$line->{status}],
+        $html->button($lang{DEL}, "index=$index&del=$line->{uid}&r_id=$line->{r_id}", {
+          MESSAGE => "$lang{DEL} $line->{uid}?", class => 'del' })
       );
     }
-    else {
-      # table with rule's users
-      my $table = $html->table(
-        {
-          width   => '100%',
-          caption => $lang{FILTERS},
-          title   => [ 'UID', $lang{RULE}, $lang{DATE}, $lang{TIME}, $lang{STATUS} ],
-          ID      => 'FILTERS',
-          MENU    => "$lang{ADD}:index=" . get_function_index('ring_user_filters') . "&action=addmore&ID=$FORM{ID}" . ':add;'
-        }
-      );
-      my $r_info = $Ring->select_rule({ RULE_ID => $FORM{ID} });
-      foreach my $line (@$list) {
-        $table->addrow(
-          $html->button("$line->{uid}", "index=15&UID=$line->{uid}", { class => 'btn btn-primary btn-xs', target => '_blank' }),
-          $html->button("$r_info->{NAME}", "index=" . get_function_index('ring_main') . "&chg=$r_info->{ID}", { class => 'btn btn-primary btn-xs', target => '_blank' }),
-          $line->{date},
-          $line->{time},
-          $STATUS[$line->{status}],
-          $html->button($lang{DEL}, "index=$index&del=$line->{uid}&r_id=$line->{r_id}", { MESSAGE => "$lang{DEL} $line->{uid}?", class => 'del' })
-        );
-      }
-      print $table->show();
-    }
+    print $table->show();
 
     return 1;
   }
 
-  # если начал поиск
   if ($FORM{action} && $FORM{action} eq 'filter') {
-    #my $checkbox = $html->form_input('IDS', $line->{UID}, { TYPE => 'checkbox' });
     my $r_id = $FORM{rule};
 
-    if (! $FORM{DEPOSIT}) {
-      $FORM{DEPOSIT} = '*';
-    }
-    if (! $FORM{CREDIT}) {
-      $FORM{CREDIT} = '*';
-    }
+    $FORM{DEPOSIT} ||= '*';
+    $FORM{CREDIT} ||= '*';
 
-    $list = $users->list(
-      {
-        UID    => '_SHOW',
-        LOGIN  => '_SHOW',
-        FIO    => '_SHOW',
-        PHONE  => '_SHOW',
-        EMAIL  => '_SHOW',
-        TAG_ID => '_SHOW',
-        %FORM,
-        UID => ($FORM{UID}) ? $FORM{UID} : undef,
-        GID => $FORM{GID},
-        PAGE_ROWS => 1000000,
-        #DISABLE   => ($FORM{GID}) ? 0 : undef,
-        COLS_NAME => 1
-      }
-    );
+    $list = $users->list({
+      UID       => '_SHOW',
+      LOGIN     => '_SHOW',
+      FIO       => '_SHOW',
+      PHONE     => '_SHOW',
+      EMAIL     => '_SHOW',
+      TAG_ID    => '_SHOW',
+      %FORM,
+      UID       => ($FORM{UID}) ? $FORM{UID} : undef,
+      GID       => $FORM{GID},
+      PAGE_ROWS => 1000000,
+      COLS_NAME => 1
+    });
 
-    my ($table) = result_former(
-      {
-        INPUT_DATA      => $users,
-        LIST            => $list,
-        BASE_FIELDS     => 1,
-        MULTISELECT     => 'UID:uid',
-        FUNCTION_FIELDS => '',
-        TABLE           => {
-          width => '100%',
-          #caption    => "$lang{PRE} - $lang{USERS}",
-          qs         => $pages_qs,
-          ID         => 'USERS_FILTER',
-          SELECT_ALL => "users_list:UID:$lang{SELECT_ALL}",
-        },
-        MAKE_ROWS     => 1,
-        OUTPUT2RETURN => 1
-      }
-    );
+    my ($table) = result_former({
+      INPUT_DATA      => $users,
+      LIST            => $list,
+      BASE_FIELDS     => 1,
+      MULTISELECT     => 'UID:uid',
+      FUNCTION_FIELDS => '',
+      TABLE           => {
+        width      => '100%',
+        #caption    => "$lang{PRE} - $lang{USERS}",
+        qs         => $pages_qs,
+        ID         => 'USERS_FILTER',
+        SELECT_ALL => "users_list:UID:$lang{SELECT_ALL}",
+      },
+      MAKE_ROWS       => 1,
+      OUTPUT2RETURN   => 1
+    });
 
-    $html->tpl_show(
-      _include('ring_add_users', 'Ring'),
-      {
-        USER_TABLE => $table->show(),
-        RULE       => $r_id
-      }
-    );
+    $html->tpl_show(_include('ring_add_users', 'Ring'), {
+      USER_TABLE => $table->show(),
+      RULE       => $r_id
+    });
     return 1;
   }
 
-  # если добавляешь пользователей в таблицу с правилом
-  if ($FORM{action} && $FORM{action} eq "$lang{ADD}") {
-    my @u_list = split(', ', $FORM{UID});
+  if ($FORM{action} && $FORM{action} eq $lang{ADD}) {
+    my @u_list = split(',\s?', $FORM{UID});
     my $success_adding = 0;
     my $not_success_adding = 0;
     foreach my $id (@u_list) {
-
-      $Ring->add_user(
-        {
-          UID  => $id,
-          R_ID => $FORM{rule}
-        }
-      );
+      $Ring->add_user({ UID  => $id, R_ID => $FORM{rule} });
 
       if(!$Ring->{errno}){
         $success_adding++;
@@ -450,19 +402,14 @@ sub ring_user_filters {
     print $html->message('info', "$lang{ADDED} - $success_adding<br>$lang{EXIST} - $not_success_adding");
   }
 
-  # переход через меню без ИД правила
-  my $rule_select = $html->form_select(
-    'ID',
-    {
-      SELECTED  => $FORM{RULE_ID},
-      SEL_LIST  => $Ring->list_rule({ MODULE => 'Ring', NAME => '_SHOW', COLS_NAME => 1 }),
-      SEL_KEY   => 'id',
-      SEL_VALUE => 'name',
-      NO_ID     => 1,
-    }
-  );
+  my $rule_select = $html->form_select('ID', {
+    SELECTED  => $FORM{RULE_ID},
+    SEL_LIST  => $Ring->list_rule({ MODULE => 'Ring', NAME => '_SHOW', COLS_NAME => 1 }),
+    SEL_KEY   => 'id',
+    SEL_VALUE => 'name',
+    NO_ID     => 1,
+  });
 
-  # delete user from rule
   if($FORM{del}){
     $Ring->del_user({UID => $FORM{del}, R_ID => $FORM{r_id}});
 
@@ -470,30 +417,24 @@ sub ring_user_filters {
 
     if (! $Ring->{TOTAL}) {
       $FORM{ID} =  $FORM{r_id};
-      $html->tpl_show(
-        _include('ring_filters', 'Ring'),
-        {
-          ADDRESS_FORM => $html->tpl_show(templates('form_address_search'), {}, { OUTPUT2RETURN => 1 }),
-          TAGS         => $Tags_info,
-          GROUPS       => $group_select,
-        }
-      );
+      $html->tpl_show(_include('ring_filters', 'Ring'),{
+        ADDRESS_FORM => $html->tpl_show(templates('form_address_search'), {}, { OUTPUT2RETURN => 1 }),
+        TAGS         => $Tags_info,
+        GROUPS       => $group_select,
+      });
     }
     else {
-      # table after deleting user
-      my $table = $html->table(
-        {
-          width   => '100%',
-          caption => $lang{FILTERS},
-          title   => [ 'UID', $lang{RULE}, $lang{DATE}, $lang{TIME}, $lang{STATUS} ],
-          ID      => 'FILTERS',
-          MENU    => "$lang{ADD}:index=" . get_function_index('ring_user_filters') . "&action=addmore&ID=$FORM{r_id}" . ':add;'
-        }
-      );
+      my $table = $html->table({
+        width   => '100%',
+        caption => $lang{FILTERS},
+        title   => [ 'UID', $lang{RULE}, $lang{DATE}, $lang{TIME}, $lang{STATUS} ],
+        ID      => 'FILTERS',
+        MENU    => "$lang{ADD}:index=" . get_function_index('ring_user_filters') . "&action=addmore&ID=$FORM{r_id}" . ':add;'
+      });
       my $r_info = $Ring->select_rule({ RULE_ID => $FORM{r_id} });
       foreach my $line (@$list) {
         $table->addrow(
-          $html->button("$line->{uid}", "index=15&UID=$line->{uid}", { class => 'btn btn-primary btn-xs',target => '_blank' }),
+          $html->button("$line->{uid}", "index=15&UID=$line->{uid}", { class => 'btn btn-primary btn-xs', target => '_blank' }),
           $html->button("$r_info->{NAME}", "index=" . get_function_index('ring_main') . "&chg=$r_info->{ID}", { class => 'btn btn-primary btn-xs', target => '_blank' }),
           $line->{date},
           $line->{time},
@@ -501,7 +442,7 @@ sub ring_user_filters {
           $html->button($lang{DEL}, "index=$index&del=$line->{uid}&r_id=$line->{r_id}", { MESSAGE => "$lang{DEL} $line->{uid}?", class => 'del' })
         );
       }
-    print $table->show();
+      print $table->show();
     }
     return 1;
   }

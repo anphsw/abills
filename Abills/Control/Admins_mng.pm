@@ -816,13 +816,17 @@ sub form_admin_permissions {
       $lang{PERSONAL_INFO},
       "$lang{CHANGE} $lang{LOGIN}",
       "$lang{SHOW} $lang{GROUPS}",
-      "$lang{SHOW} $lang{COMPANIES}",
+      "", # 29 permission is empty !!!
       "$lang{SHOW} $lang{LOG}",
       "$lang{DEL} $lang{COMMENTS}",
       "$lang{ADD} $lang{SERVICE}",
       $lang{LAST_LOGIN}, # 33
       $lang{STREETS},
-      $lang{BUILDS}
+      $lang{BUILDS},
+      "$lang{SHOW} $lang{COMPANIES}", # 36
+      "$lang{ADD} $lang{COMPANIES}", # 37
+      "$lang{EDIT} $lang{COMPANIES}", # 38
+      "$lang{DEL} $lang{COMPANIES}", # 39
     ],
     # Users
     [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ], # Payments
@@ -860,11 +864,13 @@ sub form_admin_permissions {
 
     [
       $lang{ALL},
-      "$lang{EDIT} $lang{MESSAGE}",
+      "", # 1 permission is empty !!!
       "$lang{ADD} CRM $lang{STEP}",
       $lang{TIME_SHEET},
       $lang{CRM_SHOW_ALL_LEADS},
-      "$lang{EDIT} $lang{EQUIPMENT}"
+      "$lang{SHOW} $lang{EQUIPMENT}",
+      "$lang{EDIT} $lang{EQUIPMENT}",
+      "$lang{DEL} $lang{EQUIPMENT}"
     ], # Modules managments
 
     [ $lang{PROFILE}, $lang{SHOW_ADMINS_ONLINE} ],
@@ -1016,7 +1022,7 @@ sub form_admin_permissions {
     if (defined($menu_items{$k}{0}) && $k > 0) {
       next if ($k >= 10);
 
-      $table->{rowcolor} = 'active';
+      $table->{rowcolor} = 'table-active';
       $table->addrow("$k:", $html->b($menu_items{$k}{0}), '', '');
       $k--;
 

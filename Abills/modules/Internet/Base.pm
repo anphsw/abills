@@ -4,13 +4,13 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db);
-my $json;
+#my $json;
 my Abills::HTML $html;
 my $lang;
 my $Internet;
 our $DATE;
 
-use Abills::Base qw(in_array days_in_month next_month date_diff);
+use Abills::Base qw(in_array days_in_month next_month date_diff time2sec);
 
 #**********************************************************
 =head2 new($html, $lang)
@@ -136,6 +136,8 @@ sub internet_docs {
     INTERNET_ACTIVATE => '_SHOW',
     INTERNET_EXPIRE   => '_SHOW',
     TP_REDUCTION_FEE  => '_SHOW',
+    CPE_MAC           => '_SHOW',
+    CID               => '_SHOW',
     GROUP_BY          => 'internet.id',
     COLS_NAME         => 1
   });
@@ -159,6 +161,8 @@ sub internet_docs {
       $info{status} = $service_info->{internet_status};
       $info{tp_reduction_fee} = $service_info->{tp_reduction_fee};
       $info{module_name} = $lang->{INTERNET};
+      $info{extra}{cpe_mac} = $lang->{CPE_MAC};
+      $info{extra}{cid} = $lang->{CID};
 
       if ($service_info->{internet_status} && $service_info->{internet_status} != 5 && $attr->{SKIP_DISABLED}) {
         $info{day} = 0;
@@ -238,7 +242,10 @@ sub internet_payments_maked {
   my $self = shift;
   my ($attr) = @_;
 
-  my $user = $attr->{USER_INFO} if ($attr->{USER_INFO});
+  $attr->{DO_NOT_USE_GLOBAL_USER_PLS} = 1;
+  my $user;
+
+  $user = $attr->{USER_INFO} if ($attr->{USER_INFO});
   # return '' if ($FORM{DISABLE});
 
   my $service_list = $Internet->user_list({

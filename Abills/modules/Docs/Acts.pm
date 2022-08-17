@@ -507,12 +507,13 @@ sub docs_acts_print {
     $Docs->{TOTAL_ORDERS}  = $Docs->{TOTAL} || 0;
 
     return docs_print( 'act', {
-      %{($attr) ? $attr : {} },
+      %{($attr) ? $attr : {}},
       %{$Docs},
       %{$Company},
-      SUFIX     => ($Company->{VAT} && $Company->{VAT} > 0) ? 'vat' : '',
+      SUFIX => ($Company->{VAT} && $Company->{VAT} > 0) ? 'vat' : '',
       #FILE_NAME => 'Act_'.$Docs->{DOC_ID},
-      CERT      => $attr->{CERT},
+      CERT  => $attr->{CERT},
+      DOCS  => $Docs
     } );
   }
   else{

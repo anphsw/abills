@@ -62,18 +62,32 @@ sub admin_profile {
     $events_groups_show = '';
   }
 
-  my $subscribe_mng_block = profile_get_admin_sender_subscribe_block($admin->{AID}, 6);
+
+  # download avatar to DB
+  if ($FORM{UPLOAD_FILE}){
+    my $file_name = "avatar_$admin->{AID}.png";
+     my $is_uploaded = upload_file($FORM{UPLOAD_FILE},
+      {
+        FILE_NAME => $file_name,
+        EXTENTIONS => 'gif, png, jpg, jpeg',
+        REWRITE   => 1
+      });
+
+    if($is_uploaded ){
+      $admin->change({ AID => $admin->{AID}, AVATAR_LINK => $file_name});
+    }
+  }
+
+  my $subscribe_mng_block = profile_get_admin_sender_subscribe_block($admin->{AID});
 
   $html->tpl_show(templates('form_admin_profile'), {
     QUICK_REPORTS        => $quick_reports,
     SEL_LANGUAGE         => $SEL_LANGUAGE,
     NO_EVENT             => $admin->{SETTINGS}->{NO_EVENT},
     NO_EVENT_SOUND       => $admin->{SETTINGS}->{NO_EVENT_SOUND},
-    CONF_PUSH_ENABLED    => $conf{PUSH_ENABLED},
-    PUSH_ENABLED         => $admin->{SETTINGS}->{PUSH_ENABLED},
     RIGHT_MENU_HIDDEN    => $admin->{SETTINGS}->{RIGHT_MENU_HIDDEN},
     SUBSCRIBE_BLOCK      => $subscribe_mng_block,
-
+    HIDE_SUBSCRIBE_BLOCK => !$subscribe_mng_block ? 'd-none' : '',
     EVENT_GROUPS_SELECT  => $events_groups_select,
     EVENTS_GROUPS_HIDDEN => $events_groups_show,
   });
@@ -379,13 +393,26 @@ sub form_slides_create {
 =cut
 #**********************************************************
 sub profile_get_admin_sender_subscribe_block {
-  my ($aid, $col_size) = @_;
-  return '' unless ( $aid );
-  
-  $col_size //= 6;
-  
+  my ($aid) = @_;
+  return '' unless ($aid);
+
+  my $col_size = 12;
+  my @buttons_html = ();
+
+  if ($conf{PUSH_ENABLED}) {
+    push @buttons_html, _make_subscribe_btn('Push', 'js-push-icon fa fa-bell', {
+      ENABLE_PUSH           => $lang{ENABLE_PUSH},
+      DISABLE_PUSH          => $lang{DISABLE_PUSH},
+      PUSH_IS_NOT_SUPPORTED => $lang{PUSH_IS_NOT_SUPPORTED},
+      PUSH_IS_DISABLED      => $lang{PUSH_IS_DISABLED},
+    }, {
+      BUTTON_CLASSES => 'js-push-button btn-info',
+      TEXT_CLASS     => 'js-push-text'
+    });
+    # (un)subscribe is made via Javascript
+  }
+
   my %allowed_subscribes = (
-    #    PUSH     => $conf{PUSH_ENABLED},
     TELEGRAM   => $conf{TELEGRAM_TOKEN},
     VIBER      => $conf{VIBER_TOKEN},
     CELL_PHONE => in_array('Sms', \@MODULES)
@@ -394,19 +421,17 @@ sub profile_get_admin_sender_subscribe_block {
   require Contacts;
   
   my @types_to_search = grep {$allowed_subscribes{$_}} keys %allowed_subscribes;
-  return '' unless ( @types_to_search );
-  
-  if ( $FORM{REMOVE_SUBSCRIBE} ) {
-    if ( defined $Contacts::TYPES{uc($FORM{REMOVE_SUBSCRIBE})} ) {
-      $admin->admin_contacts_del({
-        AID     => $aid,
-        TYPE_ID => $Contacts::TYPES{uc($FORM{REMOVE_SUBSCRIBE})}
-      });
-      _error_show($admin)
-        and print $html->message('info', "$lang{UNSUBSCRIBE_FROM} $FORM{REMOVE_SUBSCRIBE}", $lang{SUCCESS});
-    }
-    else {
-      $html->message('err', $lang{ERROR}, "Can't do it now");
+  return join('', map { $col_size && $_ ? "<div class='col-md-$col_size'>$_</div>" : $_ } @buttons_html)
+    unless ( @types_to_search );
+
+  if ($FORM{REMOVE_SUBSCRIBE}) {
+    $admin->admin_contacts_del({
+      AID => $aid,
+      ID  => $FORM{REMOVE_SUBSCRIBE}
+    });
+
+    if (!_error_show($admin)) {
+      $html->message('info', "$lang{UNSUBSCRIBE_FROM} $FORM{REMOVE_SUBSCRIBE}", $lang{SUCCESS})
     }
   }
 
@@ -416,108 +441,24 @@ sub profile_get_admin_sender_subscribe_block {
     VALUE => '_SHOW'
   });
   _error_show($admin);
-  
-  my @buttons_html = ();
-  
-  my $make_subscribe_btn = sub {
-    my ($name, $icon_classes, $lang_vars, $attr) = @_;
-    
-    my $button_text = (!$attr->{UNSUBSCRIBE}) ? "$lang{SUBSCRIBE_TO} $name" : "$lang{UNSUBSCRIBE_FROM} $name";
-    
-    my $icon_html = $html->element('span', '', { class => $icon_classes, OUTPUT2RETURN => 1 });
-    my $text = $html->element('strong', $button_text, { class => $attr->{TEXT_CLASS}, OUTPUT2RETURN => 1 });
-    
-    my $button = '';
-    if ( $attr->{HREF} ) {
-      $button = $html->element('a', $icon_html. ' ' . $text, {
-          href       => $attr->{HREF},
-          class      => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
-          target     => '_blank',
-          OUTPUT2RETURN => 1
-        });
-    }
-    else {
-      $button = $html->element('button', $icon_html. ' ' . $text, {
-          class => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
-          OUTPUT2RETURN => 1
-        });
-    }
-    
-    my $lang_text = '';
-    if ( $lang_vars && ref $lang_vars eq 'HASH' ) {
-      $lang_text = join "; \n", map {
-          qq{window['$_'] = '$lang_vars->{$_}'};
-        } keys %{$lang_vars};
-    }
-    
-    my $lang_script = ($lang_text) ? $html->element('script', $lang_text) : '';
-    
-    $button . $lang_script;
-  };
-  
-  if ( $conf{PUSH_ENABLED} ) {
-    push @buttons_html, $make_subscribe_btn->(
-      'Push',
-      'js-push-icon fa fa-bell',
-      {
-        ENABLE_PUSH           => $lang{ENABLE_PUSH},
-        DISABLE_PUSH          => $lang{DISABLE_PUSH},
-        PUSH_IS_NOT_SUPPORTED => $lang{PUSH_IS_NOT_SUPPORTED},
-        PUSH_IS_DISABLED      => $lang{PUSH_IS_DISABLED},
-      },
-      {
-        BUTTON_CLASSES => 'js-push-button btn-info',
-        TEXT_CLASS     => 'js-push-text'
-      }
-    );
-    # Unsubscribe is made via Javascript
-  }
-  
-  if ( $conf{TELEGRAM_TOKEN} ) {
-    my $telegram_cont = grep {$_->{type_id} == $Contacts::TYPES{TELEGRAM}} @{$contacts_list};
-  
-    if (!$telegram_cont) {
-      # To build a subscribe link, should get bot name
-      if ( !$conf{TELEGRAM_BOT_NAME} ) {
-        require Abills::Sender::Telegram;
-        Abills::Sender::Telegram->import();
-        my $Telegram = Abills::Sender::Telegram->new(\%conf);
-        $conf{TELEGRAM_BOT_NAME} = $Telegram->get_bot_name(\%conf, $db);
-      }
-    
-      if ( $conf{TELEGRAM_BOT_NAME} ) {
-        my $link_url = 'https://telegram.me/' . $conf{TELEGRAM_BOT_NAME} . '/?start=a_' . ($admin->{SID} || $sid || $admin->{sid});
-        push @buttons_html, $make_subscribe_btn->(
-          'Telegram',
-          'fab fa-telegram',
-          undef,
-          {
-            HREF => $link_url
-          }
-        );
-      }
-    }
-    else {
-      push @buttons_html, $make_subscribe_btn->(
-        'Telegram',
-        'fa fa-bell-slash',
-        undef,
-        {
-          HREF        => $SELF_URL . '/admin/index.cgi?index=9&REMOVE_SUBSCRIBE=Telegram',
-          UNSUBSCRIBE => 1,
-          BUTTON_CLASSES => 'btn-success'
-        }
-      );
-    }
-  }
+
+  push @buttons_html, _telegram_button($contacts_list);
+  push @buttons_html, _telegram_admin_button($contacts_list);
 
   if($conf{VIBER_TOKEN} && $conf{VIBER_BOT_NAME}){
     # Check if subscribed
-    my $viber_cont = grep {$_->{type_id} == $Contacts::TYPES{VIBER}} @{$contacts_list};
+    my $viber_cont = 0;
+    foreach my $contact (@{$contacts_list}) {
+      if ($contact->{type_id} == $Contacts::TYPES{VIBER}) {
+        $viber_cont = $contact->{id};
+        last;
+      }
+    }
+
     if (!$viber_cont) {
       if ($conf{VIBER_BOT_NAME}) {
         my $link_url = 'viber://pa?chatURI=' . $conf{VIBER_BOT_NAME} . '&context=a_' . ($admin->{SID} || $sid || $admin->{sid}).'&text=/start';
-        push @buttons_html, $make_subscribe_btn->(
+        push @buttons_html, _make_subscribe_btn(
           'Viber',
           'fa fa-phone',
           undef,
@@ -527,25 +468,15 @@ sub profile_get_admin_sender_subscribe_block {
         );
       }
     } else {
-      push @buttons_html, $make_subscribe_btn->(
-        'Viber',
-        'fa fa-phone',
-        undef,
-        {
-          HREF        => $SELF_URL . '/admin/index.cgi?index=9&REMOVE_SUBSCRIBE=Viber',
-          UNSUBSCRIBE => 1,
-          BUTTON_CLASSES => 'btn-success'
-        }
-      );
+      push @buttons_html, _make_subscribe_btn('Viber', 'fa fa-phone', undef, {
+        HREF           => "$SELF_URL/admin/index.cgi?index=9&REMOVE_SUBSCRIBE=$viber_cont",
+        UNSUBSCRIBE    => 1,
+        BUTTON_CLASSES => 'btn-success'
+      });
     }
   }
   
-  my $subscribe_block = join('', map {
-      $col_size
-        ? "<div class='col-md-$col_size'>$_</div>"
-        : $_
-    } @buttons_html
-  );
+  my $subscribe_block = join('', map { $col_size && $_ ? "<div class='col-md-$col_size'>$_</div>" : $_ } @buttons_html);
   
   return $subscribe_block;
 }
@@ -674,6 +605,105 @@ sub admin_info_change {
   });
 
   return 1;
+}
+
+#**********************************************************
+=head2 _make_subscribe_btn() - $name, $icon_classes, $lang_vars, $attr
+
+=cut
+#**********************************************************
+sub _make_subscribe_btn {
+  my ($name, $icon_classes, $lang_vars, $attr) = @_;
+
+  my $button_text = (!$attr->{UNSUBSCRIBE}) ? "$lang{SUBSCRIBE_TO} $name" : "$lang{UNSUBSCRIBE_FROM} $name";
+
+  my $icon_html = $html->element('span', '', { class => $icon_classes, OUTPUT2RETURN => 1 });
+  my $text = $html->element('strong', $button_text, { class => $attr->{TEXT_CLASS}, OUTPUT2RETURN => 1 });
+
+  my $button = '';
+  if ($attr->{HREF}) {
+    $button = $html->element('a', $icon_html . ' ' . $text, {
+      href          => $attr->{HREF},
+      class         => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
+      target        => '_blank',
+      OUTPUT2RETURN => 1
+    });
+  }
+  else {
+    $button = $html->element('button', $icon_html . ' ' . $text, {
+      class         => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
+      OUTPUT2RETURN => 1
+    });
+  }
+
+  my $lang_text = '';
+  if ($lang_vars && ref $lang_vars eq 'HASH') {
+    $lang_text = join "; \n", map {
+      qq{window['$_'] = '$lang_vars->{$_}'};
+    } keys %{$lang_vars};
+  }
+
+  my $lang_script = ($lang_text) ? $html->element('script', $lang_text) : '';
+
+  return $button . $lang_script;
+}
+
+#**********************************************************
+=head2 _telegram_button() - $contacts_list
+
+=cut
+#**********************************************************
+sub _telegram_button {
+  my ($contacts_list) = @_;
+
+  return '' if !$conf{TELEGRAM_TOKEN};
+
+  foreach my $contact (@{$contacts_list}) {
+    if ($contact->{type_id} == $Contacts::TYPES{TELEGRAM} && $contact->{value} !~ /e\_.*/) {
+      return _make_subscribe_btn('Telegram', 'fa fa-bell-slash', undef, {
+        HREF           => $SELF_URL . '/admin/index.cgi?index=9&REMOVE_SUBSCRIBE=' . $contact->{id},
+        UNSUBSCRIBE    => 1,
+        BUTTON_CLASSES => 'btn-success'
+      });
+    }
+  }
+
+  if (!$conf{TELEGRAM_BOT_NAME}) {
+    require Abills::Sender::Telegram;
+    Abills::Sender::Telegram->import();
+    my $Telegram = Abills::Sender::Telegram->new(\%conf);
+    $conf{TELEGRAM_BOT_NAME} = $Telegram->get_bot_name(\%conf, $db);
+  }
+
+  return '' if !$conf{TELEGRAM_BOT_NAME};
+
+  my $link_url = 'https://telegram.me/' . $conf{TELEGRAM_BOT_NAME} . '/?start=a_' . ($admin->{SID} || $sid || $admin->{sid});
+  return _make_subscribe_btn('Telegram', 'fab fa-telegram', undef, { HREF => $link_url });
+}
+
+#**********************************************************
+=head2 _telegram_admin_button() - $contacts_list
+
+=cut
+#**********************************************************
+sub _telegram_admin_button {
+  my ($contacts_list) = @_;
+
+  return '' if !$conf{TELEGRAM_ADMIN_TOKEN};
+
+  foreach my $contact (@{$contacts_list}) {
+    if ($contact->{type_id} == $Contacts::TYPES{TELEGRAM} && $contact->{value} =~ /e\_.*/) {
+      return _make_subscribe_btn($lang{TELEGRAM_FOR_ADMINS}, 'fa fa-bell-slash', undef, {
+        HREF           => $SELF_URL . '/admin/index.cgi?index=9&REMOVE_SUBSCRIBE=' . $contact->{id},
+        UNSUBSCRIBE    => 1,
+        BUTTON_CLASSES => 'btn-success'
+      });
+    }
+  }
+  return '' if !$conf{TELEGRAM_ADMIN_BOT_NAME};
+
+  my $link_url = 'https://telegram.me/' . $conf{TELEGRAM_ADMIN_BOT_NAME} . '/?start=e_' . ($admin->{SID} || $sid || $admin->{sid});
+  return _make_subscribe_btn($lang{TELEGRAM_FOR_ADMINS}, 'fab fa-telegram', undef, { HREF => $link_url });
 }
 
 1;

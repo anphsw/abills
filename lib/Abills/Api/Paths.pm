@@ -52,8 +52,8 @@ sub load_own_resource_info {
     return 0;
   }
   else {
-    my $module_obj = $attr->{package}->new($self->{db}, $self->{conf}, $self->{admin}, $self->{lang}, $attr->{debug});
-    return $module_obj->routes_list();
+    my $module_obj = $attr->{package}->new($self->{db}, $self->{conf}, $self->{admin}, $self->{lang}, $attr->{debug}, $attr->{type}, $attr->{additional_params});
+    return $module_obj->{routes_list};
   }
 }
 
@@ -114,7 +114,7 @@ sub load_own_resource_info {
 =cut
 #**********************************************************
 sub list {
-  shift;
+  my $self = shift;
   #TODO: for each path, add list of $query_params that may be passed from API client to function
   #TODO: check how it works with groups, multidoms
   #TODO: on some routes it returns array [..., ...] when it found data, and empty object {} when not found. example: '/user/:uid/msgs/:id/reply/'
@@ -579,22 +579,6 @@ sub list {
           'ADMIN'
         ]
       },
-      # {
-      #   method => 'POST',
-      #   path   => '/users/login/',
-      #   handler              => sub {
-      #     my ($path_params, $query_params, $module_obj) = @_;
-      #
-      #     my ($uid, $sid, $login) = auth_user($query_params->{login}, $query_params->{password}, '');
-      #
-      #     return {
-      #       UID   => $uid,
-      #       SID   => $sid,
-      #       LOGIN => $login
-      #     }
-      #   },
-      #   no_decamelize_params => 1
-      # }
     ],
     admins    => [
       {
@@ -679,101 +663,6 @@ sub list {
         ]
       }
     ],
-    abon      => [
-      {
-        method      => 'GET',
-        path        => '/abon/tariffs/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->tariff_list({
-            %$query_params,
-            COLS_NAME => 1
-          });
-        },
-        module      => 'Abon',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-      {
-        method      => 'POST',
-        path        => '/abon/tariffs/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->tariff_add({
-            %$query_params
-          });
-        },
-        module      => 'Abon',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-      {
-        method      => 'GET',
-        path        => '/abon/tariffs/:id/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->tariff_info($path_params->{id});
-        },
-        module      => 'Abon',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-      {
-        method      => 'POST',
-        path        => '/abon/tariffs/:id/users/:uid/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->user_tariff_change({
-            %$query_params,
-            IDS => $path_params->{id},
-            UID => $path_params->{uid}
-          });
-        },
-        module      => 'Abon',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-      {
-        method      => 'DELETE',
-        path        => '/abon/tariffs/:id/users/:uid/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->user_tariff_change({
-            DEL => $path_params->{id},
-            UID => $path_params->{uid}
-          });
-        },
-        module      => 'Abon',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-      {
-        method      => 'GET',
-        path        => '/abon/users/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->user_list({
-            %$query_params,
-            COLS_NAME => 1
-          });
-        },
-        module      => 'Abon',
-        credentials => [
-          'ADMIN'
-        ]
-      }
-    ],
     intervals => [
       {
         method      => 'GET',
@@ -811,125 +700,6 @@ sub list {
         ]
       }
     ],
-    msgs      => [
-      {
-        method      => 'POST',
-        path        => '/msgs/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->message_add({
-            %$query_params
-          });
-        },
-        module      => 'Msgs',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-      {
-        method      => 'GET',
-        path        => '/msgs/:id/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->message_info($path_params->{id});
-        },
-        module      => 'Msgs',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-      {
-        method      => 'POST',
-        path        => '/msgs/list/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->messages_list({
-            %$query_params,
-            COLS_NAME    => 1,
-            SUBJECT      => '_SHOW',
-            STATE_ID     => '_SHOW',
-            DATE         => '_SHOW'
-          });
-        },
-        module      => 'Msgs',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-      {
-        method      => 'POST',
-        path        => '/msgs/:id/reply/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->message_reply_add({
-            %$query_params,
-            ID => $path_params->{id}
-          });
-        },
-        module      => 'Msgs',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-      {
-        method      => 'GET',
-        path        => '/msgs/:id/reply/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->messages_reply_list({
-            %$query_params,
-            MSG_ID    => $path_params->{id},
-            LOGIN     => '_SHOW',
-            ADMIN     => '_SHOW',
-            COLS_NAME => 1
-          });
-        },
-        module      => 'Msgs',
-        type        => 'ARRAY',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-      {
-        #TODO: we can save attachment with wrong filesize. fix it?
-        method       => 'POST',
-        path         => '/msgs/reply/:reply_id/attachment/',
-        handler      => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->attachment_add({
-            %$query_params,
-            REPLY_ID  => $path_params->{reply_id},
-            COLS_NAME => 1
-          });
-        },
-        module       => 'Msgs',
-        credentials  => [
-          'ADMIN'
-        ]
-      },
-      {
-        method      => 'GET',
-        path        => '/msgs/chapters/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->chapters_list({
-            %$query_params,
-            COLS_NAME => 1
-          });
-        },
-        module      => 'Msgs',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-    ],
     #TODO DELETE IT IF USELESS
     # pages     => [
     #   {
@@ -945,7 +715,7 @@ sub list {
     #   };
     # ],
     version   => [],
-    currency  => [],
+    config    => [],
     builds    => [
       {
         method      => 'GET',
@@ -1289,6 +1059,22 @@ sub list {
     ],
     user      => [
       {
+        method      => 'DELETE',
+        path        => '/user/:uid/logout/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          $module_obj->web_session_del({ SID => $ENV{HTTP_USERSID} });
+          return {
+            result => 'Success logout',
+          };
+        },
+        module      => 'Users',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
         method      => 'GET',
         path        => '/user/:uid/',
         handler     => sub {
@@ -1322,8 +1108,6 @@ sub list {
 
           $module_obj->user_set_credit({
             UID           => $path_params->{uid},
-            COLS_NAME     => 1,
-            PAGE_ROWS     => 1,
             change_credit => 1
           });
         },
@@ -1340,11 +1124,74 @@ sub list {
 
           $module_obj->user_set_credit({
             UID       => $path_params->{uid},
-            COLS_NAME => 1,
-            PAGE_ROWS => 1
           });
         },
         module      => 'Control::Service_control',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/user/:uid/internet/:id/activate/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+          require Users;
+          Users->import();
+          my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+          my $user_info = $Users->info($path_params->{uid});
+
+          #TODO ADD ACTIVATION FROM STATUS 3
+
+          $module_obj->user_info($path_params->{uid}, {
+            ID        => $path_params->{id},
+            DOMAIN_ID => $user_info->{DOMAIN_ID}
+          });
+
+          return {
+            result => 'Already active'
+          } if (defined $module_obj->{STATUS} && $module_obj->{STATUS} == 0);
+          return {
+            errno  => 200,
+            errstr => 'Can\'t activate'
+          } unless (
+            $module_obj->{STATUS} &&
+              ($module_obj->{STATUS} == 2 || $module_obj->{STATUS} == 5 ||
+                ($module_obj->{STATUS} == 3 && $self->{conf}->{INTERNET_USER_SERVICE_HOLDUP})));
+
+          if ($module_obj->{STATUS} == 3) {
+            require Control::Service_control;
+            Control::Service_control->import();
+            my $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
+            my $del_result = $Service_control->user_holdup({ del => 1, UID => $path_params->{uid}, ID => $path_params->{id} });
+            return $del_result;
+          }
+
+          $module_obj->user_change({
+            UID      => $path_params->{uid},
+            ID       => $path_params->{id},
+            STATUS   => 0,
+            ACTIVATE => ($self->{conf}->{INTERNET_USER_ACTIVATE_DATE}) ? strftime("%Y-%m-%d", localtime(time)) : undef
+          });
+
+          if (!$module_obj->{errno}) {
+            if (!$module_obj->{STATUS}) {
+              require Abills::Misc;
+              ::service_get_month_fee($module_obj);
+            }
+
+            return {
+              result  => 'OK. Success activation'
+            }
+          }
+          else {
+            return {
+              errno  => $module_obj->{errno},
+              errstr => $module_obj->{errstr} || "",
+            }
+          }
+        },
+        module      => 'Internet',
         credentials => [
           'USER'
         ]
@@ -1355,19 +1202,16 @@ sub list {
         handler     => sub {
           my ($path_params, $query_params, $module_obj) = @_;
 
-          $module_obj->user_list({
+          $module_obj->all_info({
             UID             => $path_params->{uid},
-            CID             => '_SHOW',
-            INTERNET_STATUS => '_SHOW',
-            TP_NAME         => '_SHOW',
-            MONTH_FEE       => '_SHOW',
-            DAY_FEE         => '_SHOW',
-            TP_ID           => '_SHOW',
-            COLS_NAME       => 1,
-            PAGE_ROWS       => 1
+            MODULE          => 'Internet',
+            FUNCTION_PARAMS => {
+              GROUP_BY        => 'internet.id',
+              INTERNET_STATUS => '_SHOW',
+            },
           });
         },
-        module      => 'Internet',
+        module      => 'Control::Service_control',
         credentials => [
           'USER'
         ]
@@ -1407,6 +1251,23 @@ sub list {
         ]
       },
       {
+        method      => 'GET',
+        path        => '/user/:uid/internet/:id/holdup/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          $module_obj->user_holdup({
+            UID          => $path_params->{uid},
+            ID           => $path_params->{id},
+            ACCEPT_RULES => 1
+          });
+        },
+        module      => 'Control::Service_control',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
         method      => 'POST',
         path        => '/user/:uid/internet/:id/holdup/',
         handler     => sub {
@@ -1416,8 +1277,6 @@ sub list {
             %$query_params,
             UID          => $path_params->{uid},
             ID           => $path_params->{id},
-            COLS_NAME    => 1,
-            PAGE_ROWS    => 1,
             add          => 1,
             ACCEPT_RULES => 1
           });
@@ -1434,11 +1293,9 @@ sub list {
           my ($path_params, $query_params, $module_obj) = @_;
 
           $module_obj->user_holdup({
-            UID       => $path_params->{uid},
-            ID        => $path_params->{id},
-            del       => 1,
-            COLS_NAME => 1,
-            PAGE_ROWS => 1
+            UID         => $path_params->{uid},
+            ID          => $path_params->{id},
+            del         => 1,
           });
         },
         module      => 'Control::Service_control',
@@ -1504,9 +1361,25 @@ sub list {
 
           $module_obj->user_chg_tp({
             %$query_params,
-            UID    => $path_params->{uid},
-            ID     => $path_params->{id},
-            MODULE => 'Internet'
+            UID          => $path_params->{uid},
+            ID           => $path_params->{id}, #ID from internet main
+            MODULE       => 'Internet'
+          });
+        },
+        module      => 'Control::Service_control',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'DELETE',
+        path        => '/user/:uid/internet/:id/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          $module_obj->del_user_chg_shedule({
+            UID        => $path_params->{uid},
+            SHEDULE_ID => $path_params->{id}
           });
         },
         module      => 'Control::Service_control',
@@ -1516,156 +1389,20 @@ sub list {
       },
       {
         method      => 'GET',
-        path        => '/user/:uid/msgs/chapters/',
+        path        => '/user/:uid/iptv/',
         handler     => sub {
           my ($path_params, $query_params, $module_obj) = @_;
 
-          my $chapters = $module_obj->chapters_list({
-            INNER_CHAPTER => 0,
-            COLS_NAME     => 1,
-          });
-
-          foreach my $chapter (@{$chapters}) {
-            if (ref $chapter eq 'HASH') {
-              delete $chapter->{admin_login};
-              delete $chapter->{autoclose};
-              delete $chapter->{inner_chapter};
-              delete $chapter->{responsible};
-            }
-          }
-
-          return $chapters;
-        },
-        module      => 'Msgs',
-        credentials => [
-          'USER'
-        ]
-      },
-      {
-        method      => 'GET',
-        path        => '/user/:uid/msgs/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->messages_list({
-            COLS_NAME     => 1,
-            SUBJECT       => '_SHOW',
-            STATE_ID      => '_SHOW',
-            DATE          => '_SHOW',
-            MESSAGE       => '_SHOW',
-            CHAPTER_NAME  => '_SHOW',
-            CHAPTER_COLOR => '_SHOW',
-            STATE         => '_SHOW',
-            UID           => $path_params->{uid}
+          $module_obj->all_info({
+            UID             => $path_params->{uid},
+            MODULE          => 'Iptv',
+            FUNCTION_PARAMS => {
+              SERVICE_STATUS => '_SHOW',
+              IPTV_EXPIRE    => '_SHOW',
+            },
           });
         },
-        module      => 'Msgs',
-        credentials => [
-          'USER'
-        ]
-      },
-      {
-        method      => 'POST',
-        path        => '/user/:uid/msgs/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->message_add({
-            %$query_params,
-            UID => $path_params->{uid}
-          });
-        },
-        module      => 'Msgs',
-        credentials => [
-          'USER'
-        ]
-      },
-      {
-        method      => 'GET',
-        path        => '/user/:uid/msgs/:id/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->message_info($path_params->{id}, { UID => $path_params->{uid} });
-        },
-        module      => 'Msgs',
-        credentials => [
-          'USER'
-        ]
-      },
-      {
-        method      => 'GET',
-        path        => '/user/:uid/msgs/:id/reply/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          my $list = $module_obj->messages_reply_list({
-            MSG_ID    => $path_params->{id},
-            UID       => $path_params->{uid},
-            LOGIN     => '_SHOW',
-            ADMIN     => '_SHOW',
-            COLS_NAME => 1
-          });
-
-          my $first_msg = $module_obj->message_info($path_params->{id}, { UID => $path_params->{uid} });
-
-          unshift @$list, {
-            'creator_id' => ($first_msg->{AID} || q{}),
-            'admin' => '',
-            'datetime' => ($first_msg->{DATE} || q{}),
-            'survey_id' => ($first_msg->{SURVEY_ID} || q{}),
-            'status' => 0,
-            'uid' => ($first_msg->{UID} || q{}),,
-            'caption' => '',
-            'run_time' => '',
-            'creator_fio' => '',
-            'inner_msg' => ($first_msg->{INNER_MSG} || q{}),
-            'content_size' => undef,
-            'main_msg' => 0,
-            'ip' => ($first_msg->{IP} || q{}),
-            'attachment_id' => undef,
-            'text' => ($first_msg->{MESSAGE} || q{}),
-            'filename' => undef,
-            'id' => $path_params->{id},
-            'aid' => ($first_msg->{AID} || q{})
-          };
-
-          return $list;
-        },
-        module      => 'Msgs',
-        credentials => [
-          'USER'
-        ]
-      },
-      {
-        #TODO: ticket status is not changing
-        method      => 'POST',
-        path        => '/user/:uid/msgs/:id/reply/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->message_reply_add({
-            %$query_params,
-            ID  => $path_params->{id},
-            UID => $path_params->{uid}
-          });
-        },
-        module      => 'Msgs',
-        credentials => [
-          'USER'
-        ]
-      },
-      {
-        method      => 'GET',
-        path        => '/user/:uid/abon/',
-        handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
-
-          $module_obj->user_tariff_list($path_params->{uid}, {
-            COLS_NAME => 1
-          });
-        },
-        module      => 'Abon',
+        module      => 'Control::Service_control',
         credentials => [
           'USER'
         ]
@@ -1707,6 +1444,113 @@ sub list {
           });
         },
         module      => 'Fees',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/user/:uid/contacts/push/subscribe/:id/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          return {
+            errstr => 'No field token in body',
+            errno  => '5000'
+          } if (!$query_params->{TOKEN});
+
+          my $list = $module_obj->push_contacts_list({
+            UID     => $path_params->{uid},
+            TYPE_ID => $path_params->{id},
+            VALUE   => '_SHOW'
+          });
+
+          if ($list && !scalar(@{$list})) {
+            $module_obj->push_contacts_add({
+              TYPE_ID => $path_params->{id},
+              VALUE   => $query_params->{TOKEN},
+              UID     => $path_params->{uid},
+            });
+          }
+          else {
+            if ($query_params->{TOKEN} ne $list->[0]->{value}) {
+              $module_obj->push_contacts_change({
+                ID    => $list->[0]->{id},
+                VALUE => $query_params->{TOKEN},
+              });
+
+              return 1;
+            }
+            else {
+              return {
+                errstr => 'You are already subscribed',
+                errno  => '5001'
+              }
+            }
+          }
+        },
+        module      => 'Contacts',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method  => 'DELETE',
+        path    => '/user/:uid/contacts/push/subscribe/:id/',
+        handler => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          $module_obj->push_contacts_del({
+            TYPE_ID => $path_params->{id},
+            UID     => $path_params->{uid},
+          });
+
+          return 1;
+        },
+        module      => 'Contacts',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/contacts/push/subscribe/:id/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          my $list = $module_obj->push_contacts_list({
+            UID     => $path_params->{uid},
+            TYPE_ID => $path_params->{id},
+            VALUE   => '_SHOW'
+          });
+
+          delete @{$list->[0]}{qw/type_id id/} if ($list->[0]);
+
+          return $list->[0] || {};
+        },
+        module      => 'Contacts',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/contacts/push/messages/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          my $list = $module_obj->push_messages_list({
+            UID     => $path_params->{uid},
+            TITLE   => '_SHOW',
+            MESSAGE => '_SHOW',
+            CREATED => '_SHOW',
+            STATUS  => 0,
+            TYPE_ID => $query_params->{TYPE_ID} ? $query_params->{TYPE_ID} : '_SHOW',
+          });
+
+          return $list || [];
+        },
+        module      => 'Contacts',
         credentials => [
           'USER'
         ]

@@ -1230,7 +1230,7 @@ sub paysys_merchant_select {
     });
 
     foreach my $merch (@$list) {
-      if ($merch->{system_id} eq $system->{id}) {
+      if ($merch->{system_id} && $merch->{system_id} eq $system->{id}) {
         $selected_val = $selected_values->{$merch->{system_id}} || '';
         $select_name = qq{SETTINGS_$attr->{chg}_$system->{id}};
         $merch_select_hash{$merch->{id}} = $merch->{merchant_name};

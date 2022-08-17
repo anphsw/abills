@@ -383,7 +383,7 @@ sub internet_online {
     'ip'                  => "$lang{STATIC} IP",
     'netmask'             => 'NETMASK',
     'speed'               => $lang{SPEED},
-    'calls_tp_id'         => 'Online TP_ID',
+    'online_tp_id'        => 'Online TP_ID',
     'tp_id',              => 'TP_ID',
     'cid'                 => 'CID',
     'filter_id'           => 'Filter ID',

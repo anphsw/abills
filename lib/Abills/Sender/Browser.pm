@@ -74,7 +74,7 @@ sub send_message {
   
   #  return 0 unless $self->{fh};
   
-  my $receiver_type = (exists $attr->{AID}) ? 'ADMIN' : 'CLIENT';
+  my $receiver_type = (exists $attr->{AID}) ? 'ADMIN' : 'USER';
   my $receiver_id = $attr->{AID} || $attr->{UID};
   
   # Has no one to send message to

@@ -66,7 +66,7 @@ sub abon_docs {
     $line->{price} = $line->{price} * ((100 - $line->{discount}) / 100) if $line->{discount} > 0;
     $line->{price} = $line->{price} * $line->{service_count} if $line->{service_count} > 1;
 
-    $info{service_name} = "$lang->{ABON}: ($line->{id}) " . "$line->{name}";
+    $info{service_name} = "$lang->{ABON}: ($line->{id}) " . "$line->{tp_name}";
     $info{module_name} = $lang->{ABON};
 
     if ($line->{period} == 1) {
@@ -81,8 +81,8 @@ sub abon_docs {
     }
     else {
       $line->{price} = $line->{price} * 30 if $line->{period} == 0;
-      push @services, "$lang->{ABON}: ($line->{id}) " . "$line->{name}" .
-        "|$line->{comments} |$line->{price}|$line->{id}|$line->{name}";
+      push @services, "$lang->{ABON}: ($line->{id}) " . "$line->{tp_name}" .
+        "|$line->{comments} |$line->{price}|$line->{id}|$line->{tp_name}";
     }
   }
 
@@ -114,7 +114,7 @@ sub abon_quick_info {
     my @result = ();
     foreach my $line (@{$list}) {
       push @result, {
-        TP_NAME  => $line->{name},
+        TP_NAME  => $line->{tp_name},
         COMMENTS => $line->{comments},
         PRICE    => $line->{price}
       };

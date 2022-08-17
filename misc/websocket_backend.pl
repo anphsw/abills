@@ -19,6 +19,7 @@
   stop
   restart
   status
+  debug
   help
 
   LOG_FILE
@@ -162,10 +163,6 @@ else {
 
   if ($conf{EVENTS_ASTERISK}) {
     start_plugin('Asterisk');
-  }
-
-  if ($conf{ANDROID_PUSH} && $conf{ANDROID_PUSH_URL}) {
-    start_plugin('Android');
   }
 }
 

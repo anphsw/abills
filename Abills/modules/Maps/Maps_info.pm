@@ -758,8 +758,9 @@ sub maps_layers_list {
 
   my $layers = ();
   my $modules_extra_layers = ();
-  my @modules = $self->{admin}{MODULES} && ref $self->{admin}{MODULES} eq 'HASH' ? keys %{$self->{admin}{MODULES}} : @main::MODULES;
-  foreach (@modules) {
+  foreach (@main::MODULES) {
+    next if $self->{admin}{MODULES} && !$self->{admin}{MODULES}{$_};
+
     my $module = $Auxiliary->maps_load_module($_);
 
     next if !$module;

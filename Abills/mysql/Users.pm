@@ -419,15 +419,6 @@ sub pi_change {
 
   $self->_space_trim($attr);
 
-#FIXME:Commented 30.05.2019. It is used new contacts validation(Users_mng.pm). Delete 30.06.2019.
-#  if($attr->{PHONE} && $CONF->{PHONE_FORMAT}){
-#    if ($attr->{PHONE} !~ /$CONF->{PHONE_FORMAT}/) {
-#      $self->{errno}=21;
-#      $self->{errstr}='Wrong phone';
-#      return $self;
-#    }
-#  }
-
   $self->user_contacts_validation($attr);
 
   if ($self->{errno}) {
@@ -568,7 +559,8 @@ sub groups_list {
       ['DISABLE_PAYSYS',   'INT', 'g.disable_paysys',            1 ],
       ['DISABLE_CHG_TP',   'INT', 'g.disable_chg_tp',            1 ],
       ['USERS_COUNT',      'INT', 'COUNT(u.uid) AS users_count', 1 ],
-      ['SMS_SERVICE',      'STR', 'g.sms_service',               1 ]
+      ['SMS_SERVICE',      'STR', 'g.sms_service',               1 ],
+      ['DOCUMENTS_ACCESS', 'INT', 'g.documents_access',          1 ]
     ],
     { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
   );
@@ -620,23 +612,22 @@ sub group_change {
   my $self = shift;
   my ($gid, $attr) = @_;
 
-  $attr->{SEPARATE_DOCS} = ($attr->{SEPARATE_DOCS}) ? 1 : 0;
-  $attr->{ALLOW_CREDIT}  = ($attr->{ALLOW_CREDIT}) ? 1 : 0;
-  $attr->{DISABLE_PAYSYS}= ($attr->{DISABLE_PAYSYS}) ? 1 : 0;
-  $attr->{DISABLE_PAYMENTS}= ($attr->{DISABLE_PAYMENTS}) ? 1 : 0;
-  $attr->{DISABLE_CHG_TP}= ($attr->{DISABLE_CHG_TP}) ? 1 : 0;
-  $attr->{BONUS}         = ($attr->{BONUS}) ? 1 : 0;
+  $attr->{SEPARATE_DOCS} = $attr->{SEPARATE_DOCS} ? 1 : 0;
+  $attr->{ALLOW_CREDIT} = $attr->{ALLOW_CREDIT} ? 1 : 0;
+  $attr->{DISABLE_PAYSYS} = $attr->{DISABLE_PAYSYS} ? 1 : 0;
+  $attr->{DISABLE_PAYMENTS} = $attr->{DISABLE_PAYMENTS} ? 1 : 0;
+  $attr->{DISABLE_CHG_TP} = $attr->{DISABLE_CHG_TP} ? 1 : 0;
+  $attr->{BONUS} = $attr->{BONUS} ? 1 : 0;
+  $attr->{DOCUMENTS_ACCESS} = $attr->{DOCUMENTS_ACCESS} ? 1 : 0;
 
-  $attr->{GID}=$gid;
+  $attr->{GID} = $gid;
 
-  $self->changes(
-    {
-      CHANGE_PARAM    => 'GID',
-      TABLE           => 'groups',
-      DATA            => $attr,
-      EXT_CHANGE_INFO => "GID:$gid"
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM    => 'GID',
+    TABLE           => 'groups',
+    DATA            => $attr,
+    EXT_CHANGE_INFO => "GID:$gid"
+  });
 
   return $self;
 }
@@ -747,8 +738,8 @@ sub list {
     'TAX_NUMBER'
   );
 
-  if($admin->{DOMAIN_ID}) {
-    $attr->{SKIP_DOMAIN}=1;
+  if ($admin->{DOMAIN_ID}) {
+    $attr->{SKIP_DOMAIN} = 1;
     delete $attr->{DOMAIN_ID};
   }
   else {
@@ -1155,20 +1146,17 @@ sub add {
 
   return $self if ($self->{errno});
 
-  $self->{UID}   = $self->{INSERT_ID};
+  $self->{UID} = $self->{INSERT_ID};
 
   if($CONF->{USERNAME_CREATE_FN}) {
     my $fn = $CONF->{USERNAME_CREATE_FN};
     my $login = &{ \&$fn  }($self);
 
-    $self->change(
-      $self->{UID},
-      {
-        DISABLE => int($attr->{DISABLE} || 0),
-        ID      => $login,
-        UID     => $self->{UID},
-      }
-    );
+    $self->change($self->{UID}, {
+      DISABLE => int($attr->{DISABLE} || 0),
+      ID      => $login,
+      UID     => $self->{UID},
+    });
     $self->{LOGIN} = $login;
   }
   else {
@@ -1184,15 +1172,12 @@ sub add {
   });
 
   if ($attr->{CREATE_BILL}) {
-    $self->change(
-      $self->{UID},
-      {
-        DISABLE         => int($attr->{DISABLE} || 0),
-        UID             => $self->{UID},
-        CREATE_BILL     => 1,
-        CREATE_EXT_BILL => $attr->{CREATE_EXT_BILL}
-      }
-    );
+    $self->change($self->{UID}, {
+      DISABLE         => int($attr->{DISABLE} || 0),
+      UID             => $self->{UID},
+      CREATE_BILL     => 1,
+      CREATE_EXT_BILL => $attr->{CREATE_EXT_BILL}
+    });
   }
 
   return $self;
@@ -1285,15 +1270,13 @@ sub change {
   }
 
   $attr->{UID} ||= $uid;
-  $self->changes(
-    {
-      CHANGE_PARAM => 'UID',
-      TABLE        => 'users',
-      DATA         => $attr,
-      ACTION_ID    => $attr->{ACTION_ID},
-      ACTION_COMMENTS => $attr->{ACTION_COMMENTS}
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM    => 'UID',
+    TABLE           => 'users',
+    DATA            => $attr,
+    ACTION_ID       => $attr->{ACTION_ID},
+    ACTION_COMMENTS => $attr->{ACTION_COMMENTS}
+  });
 
   return $self->{result};
 }
@@ -2735,7 +2718,7 @@ sub _change_having {
 
 
 #**********************************************************
-=head1 switch_list ($attr) - returns list of switches and users
+=head2 switch_list ($attr) - returns list of switches and users
 
   Arguments:
     $attr - hash_ref

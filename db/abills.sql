@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS `admins` (
   `expire`           DATETIME             NOT NULL DEFAULT '0000-00-00 00:00:00',
   `department`       SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
   `g2fa`             VARCHAR (255)        NOT NULL DEFAULT '',
+  `avatar_link`      VARCHAR (100)        NOT NULL DEFAULT '',
   PRIMARY KEY (`aid`),
   UNIQUE KEY `id` (`id`),
   KEY domain_id (`domain_id`)
@@ -464,17 +465,18 @@ CREATE TABLE IF NOT EXISTS `fees` (
   COMMENT = 'Fees list';
 
 CREATE TABLE IF NOT EXISTS `groups` (
-  `gid`            SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
-  `name`           VARCHAR(60)          NOT NULL DEFAULT '',
-  `descr`          VARCHAR(200)         NOT NULL DEFAULT '',
-  `domain_id`      SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
-  `separate_docs`  TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
-  `allow_credit`   TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
-  `disable_paysys` TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
+  `gid`              SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `name`             VARCHAR(60)          NOT NULL DEFAULT '',
+  `descr`            VARCHAR(200)         NOT NULL DEFAULT '',
+  `domain_id`        SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `separate_docs`    TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
+  `allow_credit`     TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
+  `disable_paysys`   TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
   `disable_payments` TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
-  `disable_chg_tp` TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
-  `bonus`          TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
-  `sms_service`    VARCHAR(60)          NOT NULL DEFAULT '',
+  `disable_chg_tp`   TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
+  `bonus`            TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
+  `sms_service`      VARCHAR(60)          NOT NULL DEFAULT '',
+  `documents_access` TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
   PRIMARY KEY (`gid`),
   UNIQUE KEY `name` (`domain_id`, `name`)
 )
@@ -784,12 +786,72 @@ CREATE TABLE IF NOT EXISTS `msgs_admins` (
   `aid`              SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `chapter_id`       INT(11) UNSIGNED     NOT NULL DEFAULT '0',
   `priority`         TINYINT(4) UNSIGNED  NOT NULL DEFAULT '0',
-  `email_notify`     TINYINT(4) UNSIGNED  NOT NULL DEFAULT '0',
   `deligation_level` TINYINT(4) UNSIGNED  NOT NULL DEFAULT '0',
   UNIQUE KEY `aid` (`aid`, `chapter_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Msgs admins';
+
+CREATE TABLE IF NOT EXISTS `msgs_permits` (
+  `aid`     SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `section` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `actions` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  UNIQUE KEY `aid_action` (`aid`, `section`, `actions`),
+  KEY `aid` (`aid`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Admin msgs permissions';
+
+CREATE TABLE IF NOT EXISTS `msgs_type_permits` (
+  `type`    VARCHAR(60)          NOT NULL DEFAULT '',
+  `section` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `actions` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0'
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Msgs type permits';
+
+REPLACE INTO `msgs_type_permits` (`type`, `section`, `actions`) VALUES
+  ('$lang{ALL} $lang{PERMISSION}', 1, 0),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 1),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 2),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 3),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 4),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 5),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 6),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 7),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 8),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 9),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 10),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 11),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 12),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 13),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 14),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 15),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 16),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 17),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 18),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 19),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 20),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 22),
+  ('$lang{ALL} $lang{PERMISSION}', 1, 23),
+  ('$lang{ALL} $lang{PERMISSION}', 2, 0),
+  ('$lang{ALL} $lang{PERMISSION}', 2, 1),
+  ('$lang{ALL} $lang{PERMISSION}', 2, 2),
+  ('$lang{ALL} $lang{PERMISSION}', 2, 3),
+  ('$lang{ALL} $lang{PERMISSION}', 2, 4),
+  ('$lang{ALL} $lang{PERMISSION}', 3, 0),
+  ('$lang{ALL} $lang{PERMISSION}', 3, 1),
+  ('$lang{ALL} $lang{PERMISSION}', 3, 2),
+  ('$lang{ALL} $lang{PERMISSION}', 3, 3),
+  ('$lang{ALL} $lang{PERMISSION}', 3, 4),
+  ('$lang{ALL} $lang{PERMISSION}', 5, 0),
+  ('$lang{ALL} $lang{PERMISSION}', 5, 1),
+  ('$lang{ALL} $lang{PERMISSION}', 5, 5),
+  ('$lang{ALL} $lang{PERMISSION}', 5, 6),
+  ('$lang{ALL} $lang{PERMISSION}', 5, 9),
+  ('$lang{ALL} $lang{PERMISSION}', 5, 10),
+  ('$lang{ALL} $lang{PERMISSION}', 5, 13),
+  ('$lang{ALL} $lang{PERMISSION}', 5, 14);
 
 CREATE TABLE IF NOT EXISTS `msgs_attachments` (
   `id`           BIGINT(20) UNSIGNED   NOT NULL  AUTO_INCREMENT,
@@ -816,7 +878,7 @@ CREATE TABLE IF NOT EXISTS `msgs_attachments` (
 CREATE TABLE IF NOT EXISTS `msgs_chapters` (
   `id`            SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
   `responsible`   SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `name`          VARCHAR(20)          NOT NULL DEFAULT '',
+  `name`          VARCHAR(100)          NOT NULL DEFAULT '',
   `inner_chapter` TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0',
   `autoclose`     SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `color`         VARCHAR(7)           NOT NULL DEFAULT '',
@@ -1086,6 +1148,16 @@ CREATE TABLE IF NOT EXISTS `msgs_delivery_users` (
   DEFAULT CHARSET = utf8
   COMMENT = 'Msgs delivery users';
 
+CREATE TABLE IF NOT EXISTS `msgs_subjects` (
+  `id`            SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name`          VARCHAR(20)          NOT NULL DEFAULT '',
+  `domain_id`     SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`, `domain_id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Msgs subjects';
+
 CREATE TABLE IF NOT EXISTS `msgs_storage` (
   `id`              INT UNSIGNED     NOT NULL AUTO_INCREMENT,
   `msgs_id`         INT(11) UNSIGNED NOT NULL DEFAULT 0,
@@ -1114,14 +1186,14 @@ CREATE TABLE IF NOT EXISTS `msgs_team_ticket` (
   `responsible` SMALLINT(6)  UNSIGNED NOT NULL DEFAULT 0,
   `state`       TINYINT(3)   UNSIGNED NOT NULL DEFAULT 0,
   `id_team`     INT(11)      UNSIGNED NOT NULL DEFAULT 0,
-  
+
   PRIMARY KEY (`id`),
   KEY `msgs_id_team_fk` (`id_team`),
 
   CONSTRAINT `msgs_dispatch_fk` FOREIGN KEY (`id`) REFERENCES `msgs_messages` (`id`),
   CONSTRAINT `msgs_id_team_fk` FOREIGN KEY (`id_team`) REFERENCES `msgs_dispatch` (`id`)
 )
-DEFAULT CHARSET=utf8 
+DEFAULT CHARSET=utf8
 COMMENT='Table team ticket';
 
 
@@ -1131,10 +1203,10 @@ CREATE TABLE IF NOT EXISTS `msgs_team_address` (
   `district_id` SMALLINT(3)   UNSIGNED NOT NULL DEFAULT 0,
   `street_id`   SMALLINT(3)   UNSIGNED NOT NULL DEFAULT 0,
   `build_id`    SMALLINT(3)   UNSIGNED NOT NULL DEFAULT 0,
-  
+
   PRIMARY KEY (`id`)
-) 
-DEFAULT CHARSET=utf8 
+)
+DEFAULT CHARSET=utf8
 COMMENT='Table team location';
 
 CREATE TABLE IF NOT EXISTS `nas` (
@@ -1209,27 +1281,35 @@ CREATE TABLE IF NOT EXISTS `nas_ippools` (
 
 CREATE TABLE IF NOT EXISTS `push_contacts`
 (
-    `id`        int(11) unsigned     NOT NULL AUTO_INCREMENT,
-    `type`      tinyint(1) unsigned  NOT NULL DEFAULT 0,
-    `client_id` smallint(6) unsigned NOT NULL DEFAULT 0,
-    `endpoint`  varchar(210)         NOT NULL DEFAULT '',
-    `key`       varchar(65)          NOT NULL DEFAULT '',
-    `auth`      varchar(65)          NOT NULL DEFAULT '',
+    `id`      INT(11) UNSIGNED    NOT NULL AUTO_INCREMENT,
+    `uid`     INT(11) UNSIGNED    NOT NULL DEFAULT 0,
+    `aid`     SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+    `type_id` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
+    `value`   VARCHAR(210)        NOT NULL DEFAULT '',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `_type_id_endpoint` (`type`, `client_id`, `endpoint`, `auth`)
-) DEFAULT CHARSET = utf8;
+    KEY `uid` (`uid`),
+    KEY `aid` (`aid`),
+    UNIQUE KEY `_type_id_endpoint` (`value`)
+)
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Push contacts';
 
 CREATE TABLE IF NOT EXISTS `push_messages`
 (
-    `id`         int(11) unsigned NOT NULL AUTO_INCREMENT,
-    `tag`        varchar(50)      NOT NULL DEFAULT '',
-    `contact_id` int(11) unsigned NOT NULL DEFAULT 0,
-    `title`      varchar(64)      NOT NULL DEFAULT '',
-    `message`    text,
-    `created`    datetime         NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `ttl`        int(6)           NOT NULL DEFAULT '86400',
+    `id`       INT(11) UNSIGNED     NOT NULL AUTO_INCREMENT,
+    `type_id`  TINYINT(2) UNSIGNED  NOT NULL DEFAULT 0,
+    `title`    VARCHAR(64)          NOT NULL DEFAULT '',
+    `message`  TEXT,
+    `request`  TEXT,
+    `response` TEXT,
+    `created`  DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `status`   SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
+    `uid`      INT(11) UNSIGNED     NOT NULL DEFAULT 0,
+    `aid`      SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`)
-) DEFAULT CHARSET = utf8;
+)
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Push messages log';
 
 CREATE TABLE IF NOT EXISTS `payments` (
   `date`           DATETIME             NOT NULL  DEFAULT CURRENT_TIMESTAMP,
@@ -1674,6 +1754,17 @@ CREATE TABLE IF NOT EXISTS `users_contacts` (
   DEFAULT CHARSET = utf8
   COMMENT = 'Main user contacts table';
 
+CREATE TABLE IF NOT EXISTS `users_development` (
+  `id`      INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `uid`     INT(11) UNSIGNED       NOT NULL DEFAULT 0,
+  `sum`     DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `date`    DATE                   NOT NULL DEFAULT '0000-00-00',
+  `disable` TINYINT(1) UNSIGNED    NOT NULL DEFAULT '0',
+  INDEX `uid` (`uid`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Users development table';
+
 CREATE TABLE IF NOT EXISTS `sqlcmd_history` (
   `id`        INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `datetime`  DATETIME             NOT NULL,
@@ -1712,6 +1803,7 @@ CREATE TABLE IF NOT EXISTS `streets` (
   `second_name` VARCHAR(50)          NOT NULL DEFAULT '',
   `type`        TINYINT(1)           NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
+  KEY `district_id` (`district_id`),
   UNIQUE KEY `name_district` (`name`, `district_id`)
 )
   DEFAULT CHARSET = utf8
@@ -1938,6 +2030,10 @@ REPLACE INTO `admin_type_permits` (`type`, `section`, `actions`, `module`) VALUE
   ('$lang{ALL} $lang{PERMISSION}', 0, 33, ''),
   ('$lang{ALL} $lang{PERMISSION}', 0, 34, ''),
   ('$lang{ALL} $lang{PERMISSION}', 0, 35, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0, 36, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0, 37, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0, 38, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0, 39, ''),
   ('$lang{ALL} $lang{PERMISSION}', 1, 0, ''),
   ('$lang{ALL} $lang{PERMISSION}', 1, 1, ''),
   ('$lang{ALL} $lang{PERMISSION}', 1, 2, ''),
@@ -1979,6 +2075,8 @@ REPLACE INTO `admin_type_permits` (`type`, `section`, `actions`, `module`) VALUE
   ('$lang{ALL} $lang{PERMISSION}', 7, 3, ''),
   ('$lang{ALL} $lang{PERMISSION}', 7, 4, ''),
   ('$lang{ALL} $lang{PERMISSION}', 7, 5, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 7, 6, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 7, 7, ''),
   ('$lang{ALL} $lang{PERMISSION}', 8, 0, ''),
   ('$lang{ALL} $lang{PERMISSION}', 8, 1, ''),
 
@@ -2089,7 +2187,7 @@ SET `id` = 0
 WHERE `name` = '$lang{ONE_TIME}';
 
 REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (0, '$lang{ENABLE}', '4CAF50', 0, 0);
-REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (1, '$lang{DISABLE}', 'F44336', 0, 0);
+REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (1, '$lang{DISABLED}', 'F44336', 0, 0);
 REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`)
 VALUES (2, '$lang{NOT_ACTIVE}', 'FF9800', 0, 0);
 REPLACE INTO `service_status` (`id`, `name`, `color`, `type`, `get_fees`) VALUES (3, '$lang{HOLD_UP}', '2196F3', 0, 0);
@@ -2192,7 +2290,7 @@ CREATE TABLE IF NOT EXISTS `contracts_type` (
   DEFAULT CHARSET = utf8
   COMMENT ='Contracts type';
 
-CREATE TABLE IF NOT EXISTS `taxes` ( 
+CREATE TABLE IF NOT EXISTS `taxes` (
   `id`            SMALLINT(6) UNSIGNED  NOT NULL AUTO_INCREMENT,
   `ratecode`      VARCHAR(30)           NOT NULL DEFAULT '',
   `ratedescr`     VARCHAR(130)          NOT NULL DEFAULT '',
@@ -2221,7 +2319,7 @@ CREATE TABLE IF NOT EXISTS `msgs_admin_plugins` (
   `plugin_name`  VARCHAR(30)           NOT NULL DEFAULT '',
   `module`       VARCHAR(15)           NOT NULL DEFAULT '',
   `priority`     TINYINT(2)  UNSIGNED  NOT NULL DEFAULT 0
-)   
+)
   DEFAULT CHARSET = utf8
   COMMENT = 'Set admin msgs plugin';
 

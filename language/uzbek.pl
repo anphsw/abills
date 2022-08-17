@@ -292,6 +292,7 @@ $lang{LOCATIONS} = "Manzillar jurnali";
 $lang{FINISH} = "Tamomlash";
 $lang{ADD_USER} = "Yangi foydalanuvchini kiritish";
 $lang{DESCRIBE} = "Tavsif";
+$lang{DESCRIBE_FOR_SUBSCRIBER} = 'Abonent uchun tavsif';
 $lang{STATIC} = "Muqim";
 $lang{GEN_PASSWD} = "Yaratilgan tilsim so'z";
 $lang{FLATS} = "Xonadonlar";

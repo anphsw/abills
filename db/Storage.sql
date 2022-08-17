@@ -17,13 +17,14 @@ CREATE TABLE IF NOT EXISTS `storage_accountability`
 
 CREATE TABLE IF NOT EXISTS `storage_articles`
 (
-    `id`           INT(11) UNSIGNED     NOT NULL AUTO_INCREMENT,
-    `name`         VARCHAR(255)         NOT NULL DEFAULT '',
-    `article_type` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-    `measure`      VARCHAR(2)           NOT NULL DEFAULT '0',
-    `comments`     TEXT,
-    `add_date`     DATE                 NOT NULL,
-    `domain_id`    SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    `id`                 INT(11) UNSIGNED     NOT NULL AUTO_INCREMENT,
+    `name`               VARCHAR(255)         NOT NULL DEFAULT '',
+    `article_type`       SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    `measure`            VARCHAR(2)           NOT NULL DEFAULT '0',
+    `comments`           TEXT,
+    `add_date`           DATE                 NOT NULL,
+    `domain_id`          SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    `equipment_model_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
     PRIMARY KEY (`id`),
     KEY `article_type` (`article_type`)
 )
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS `storage_incoming`
     `supplier_id`    SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
     `storage_id`     TINYINT(4) UNSIGNED  NOT NULL DEFAULT '0',
     `domain_id`      SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    `payer_id`       INT(10) UNSIGNED     NOT NULL DEFAULT '0',
     PRIMARY KEY (`id`),
     KEY `supplier_id` (`supplier_id`)
 )
@@ -84,6 +86,7 @@ CREATE TABLE IF NOT EXISTS `storage_incoming_articles`
     `in_installments_price` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
     `fees_method`           TINYINT(4) UNSIGNED    NOT NULL DEFAULT '0',
     `abon_distribution`     TINYINT(1)             NOT NULL DEFAULT '0',
+    `public_sale`           TINYINT(1)             NOT NULL DEFAULT '0',
     PRIMARY KEY (`id`),
     KEY `storage_incoming_id` (`storage_incoming_id`),
     KEY `article_id` (`article_id`),
@@ -125,17 +128,18 @@ CREATE TABLE IF NOT EXISTS `storage_installation`
 
 CREATE TABLE IF NOT EXISTS `storage_log`
 (
-    `id`                      INT(11)             NOT NULL AUTO_INCREMENT,
-    `date`                    DATETIME            NOT NULL,
-    `aid`                     TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
-    `storage_main_id`         INT(10) UNSIGNED    NOT NULL DEFAULT '0',
-    `storage_id`              TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
+    `id`                      INT(11)              NOT NULL AUTO_INCREMENT,
+    `date`                    DATETIME             NOT NULL,
+    `aid`                     SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    `storage_main_id`         INT(10) UNSIGNED     NOT NULL DEFAULT '0',
+    `storage_id`              TINYINT(3) UNSIGNED  NOT NULL DEFAULT '0',
     `comments`                TEXT,
-    `action`                  TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
-    `ip`                      INT(10) UNSIGNED    NOT NULL DEFAULT '0',
-    `count`                   INT(10) UNSIGNED    NOT NULL DEFAULT '0',
-    `uid`                     INT(10) UNSIGNED    NOT NULL DEFAULT '0',
-    `storage_installation_id` INT(10) UNSIGNED    NOT NULL DEFAULT '0',
+    `action`                  TINYINT(3) UNSIGNED  NOT NULL DEFAULT '0',
+    `ip`                      INT(10) UNSIGNED     NOT NULL DEFAULT '0',
+    `count`                   INT(10) UNSIGNED     NOT NULL DEFAULT '0',
+    `uid`                     INT(10) UNSIGNED     NOT NULL DEFAULT '0',
+    `storage_installation_id` INT(10) UNSIGNED     NOT NULL DEFAULT '0',
+    `nas_id`                  INT(10) UNSIGNED     NOT NULL DEFAULT '0',
     PRIMARY KEY (`id`)
 )
     DEFAULT CHARSET = utf8 COMMENT = 'Storage operation log';
@@ -302,3 +306,13 @@ CREATE TABLE IF NOT EXISTS `storage_invoices_payments`
     KEY `invoice_id` (`invoice_id`)
 )
     DEFAULT CHARSET = utf8 COMMENT = 'Storage payments for invoice';
+
+CREATE TABLE IF NOT EXISTS `storage_payers`
+(
+  `id`        INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name`      VARCHAR(30)      NOT NULL DEFAULT '',
+  `comments`  VARCHAR(60)      NOT NULL DEFAULT '',
+  `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8 COMMENT = 'Storage payers';

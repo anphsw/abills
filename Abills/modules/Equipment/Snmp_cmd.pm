@@ -12,10 +12,11 @@ use BER;
 use Abills::Base qw(in_array);
 
 our(
-  $html,
-  %lang
+  %lang,
+  %conf
 );
 
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 snmp_get($attr); - Set SNMP value
@@ -50,6 +51,10 @@ sub snmp_get {
   #$SNMP_util::Max_log_level      = 'none';
   $SNMP_Session::suppress_warnings= 2;
   $SNMP_Session::errmsg           = undef;
+
+  if ($conf{EQUIPMENT_SNMP_SILENT}) {
+    $attr->{SILENT} = 1;
+  }
 
   my $debug = 0;
   if ($attr->{DEBUG}) {

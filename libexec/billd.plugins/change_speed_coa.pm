@@ -50,7 +50,7 @@ sub change_mpd_speed {
 	$LIST_PARAMS{NAS_ID} = $argv->{NAS_IDS};
   }
   if ($argv->{TP_IDS}) {
-	$LIST_PARAMS{CALLS_TP_ID} = $argv->{TP_IDS};
+	$LIST_PARAMS{ONLINE_TP_ID} = $argv->{TP_IDS};
   }
   if ($debug > 6) {
     $Sessions->{debug} = 1;
@@ -65,7 +65,7 @@ sub change_mpd_speed {
       SPEED           => '_SHOW',
       ACCT_SESSION_ID => '_SHOW',
       GUEST           => '_SHOW',
-      CALLS_TP_ID     => '_SHOW',
+      ONLINE_TP_ID     => '_SHOW',
       NAS_ID          => '_SHOW',
       GUEST           => 0,
       %LIST_PARAMS,

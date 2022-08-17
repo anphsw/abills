@@ -18,13 +18,15 @@
         <td><span class='%STATUS_FIELD%'>%STATUS_VALUE%</span>%HOLDUP_BTN%%STATUS_BTN%</td>
       </tr>
       <tr>
-        <td>_{TARIF_PLAN}_</td>
-        <td>%TP_NAME%%TP_CHANGE%</td>
+        <td><strong>_{TARIF_PLAN}_</strong></td>
+        <td><strong>%TP_NAME%%TP_CHANGE%</strong></td>
+      </tr>
+      <tr>
+        <td>_{DESCRIBE}_</td>
+        <td>%COMMENTS%</td>
       </tr>
       %EXTRA_FIELDS%
     </table>
     %PREPAID_INFO%
-
-    %COMMENTS%
   </div>
 </div>

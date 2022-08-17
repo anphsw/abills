@@ -1,29 +1,25 @@
 package Abills::Backend::Plugin::Websocket::SessionsManager;
 use strict;
 use warnings FATAL => 'all';
-# Needed for CLIENT_CLASS definitions below
 
 use Abills::Backend::Plugin::Websocket::Session;
 use Module::Load qw/load/;
-use Abills::Base qw/_bp/;
 
-our (%conf, $base_dir, $debug, $ARGS, @MODULES);
 use Abills::Backend::Log;
 our Abills::Backend::Log $Log;
 
+# use Contacts;
+
+# our ($admin, $db, %conf);
+
 # Localizing global variables
 use Abills::Backend::Defs;
-
-my $log_user = ' SessionsManager ';
 
 #**********************************************************
 =head2 new($db, $admin, $CONF)
 
   Arguments:
-    $db    - ref to DB
-    $admin - current Web session admin
-    $CONF  - ref to %conf
-    
+
   Returns:
     object
     
@@ -35,8 +31,11 @@ sub new {
   die "No client class defined " unless ($attr->{CLIENT_CLASS});
 
   my $self = {
-    clients => {},
+    clients     => {},
+    client_name => $attr->{CLIENT_CLASS},
   };
+
+  # $self->{Contacts} = Contacts->new($db, $admin, \%conf);
 
   $self->{client_class} = 'Abills::Backend::Plugin::Websocket::' . $attr->{CLIENT_CLASS};
   load $self->{client_class};
@@ -52,11 +51,22 @@ sub new {
 =cut
 #**********************************************************
 sub save_handle {
-  my ($self, $handle, $socket_id, $id) = @_;
+  my $self = shift;
+  my ($handle, $socket_id, $id) = @_;
 
   if (!exists $self->{clients}->{$id}) {
     $self->{clients}->{$id} = $self->{client_class}->new($id);
   }
+
+  # if ($self->{client_name} eq 'User') {
+  #   my $list = $self->{Contacts}->contacts_list({ UID => $id, TYPE => 20 });
+  #
+  #   $self->{Contacts}->contacts_add({
+  #     TYPE_ID => 20,
+  #     VALUE   => $socket_id,
+  #     UID     => $id,
+  #   }) if ($list && !scalar(@{$list}));
+  # }
 
   $self->{session_handler_for_socket_id}->{$socket_id} = $self->{clients}->{$id};
 
@@ -79,7 +89,8 @@ sub save_handle {
 =cut
 #**********************************************************
 sub get_handle_by_socket_id {
-  my ($self, $socket_id) = @_;
+  my $self = shift;
+  my ($socket_id) = @_;
 
   if (my $handler = $self->_find_sessions_handler_for_socket_id($socket_id)) {
     return $handler->get_handle_for($socket_id);
@@ -115,7 +126,8 @@ sub _find_sessions_handler_for_socket_id {
 =cut
 #**********************************************************
 sub remove_session_by_socket_id {
-  my ($self, $socket_id, $reason) = @_;
+  my $self = shift;
+  my ($socket_id, $reason) = @_;
 
   my $sessions_handler = $self->_find_sessions_handler_for_socket_id($socket_id);
 
@@ -123,6 +135,13 @@ sub remove_session_by_socket_id {
 
   $sessions_handler->remove_handle($socket_id, $reason);
   delete $self->{session_handler_for_socket_id}->{$socket_id};
+
+  # if ($self->{client_name} eq 'User') {
+  #   $self->{Contacts}->contacts_del({
+  #     TYPE_ID => 20,
+  #     VALUE   => $socket_id,
+  #   });
+  # }
 
   return 1;
 }
@@ -139,7 +158,8 @@ sub remove_session_by_socket_id {
 =cut
 #**********************************************************
 sub has_client_with_id {
-  my ($self, $id) = @_;
+  my $self = shift;
+  my ($id) = @_;
 
   return exists $self->{clients}->{$id};
 }
@@ -156,7 +176,8 @@ sub has_client_with_id {
 =cut
 #**********************************************************
 sub has_client_with_socket_id {
-  my ($self, $socket_id) = @_;
+  my $self = shift;
+  my ($socket_id) = @_;
 
   return $self->_find_sessions_handler_for_socket_id($socket_id);
 }
@@ -174,7 +195,8 @@ sub has_client_with_socket_id {
 #**********************************************************
 #@returns Abills::Backend::Plugin::Websocket::Client
 sub get_client_for_id {
-  my ($self, $id) = @_;
+  my $self = shift;
+  my ($id) = @_;
 
   return 0 if (!$id);
 
@@ -215,12 +237,12 @@ sub get_client_ids {
 =cut
 #**********************************************************
 sub drop_all_clients {
-  my ($self, $reason) = @_;
+  my $self = shift;
+  my ($reason) = @_;
 
   foreach (values %{$self->{clients}}) {
     $_->kill($reason) if (defined $_);
   }
-
 }
 
 1;

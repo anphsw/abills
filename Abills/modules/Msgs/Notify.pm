@@ -32,7 +32,6 @@ my $users;
 
 =cut
 #**********************************************************
-
 sub new {
   my $class = shift;
   my $attr;
@@ -89,13 +88,11 @@ sub notify_admins {
   }
 
   my $message_info = $Msgs->message_info($message_id);
-  if ($Msgs->{errno} || (!$attr->{AID} && !$message_info->{RESPOSIBLE})) {
-    return 0;
-  }
+  return 0 if $Msgs->{errno} || (!$attr->{AID} && !$message_info->{RESPOSIBLE});
 
-  my $resposible_aid = $message_info->{RESPOSIBLE} || q{};
+  my $responsible_aid = $message_info->{RESPOSIBLE} || q{};
+  return 1 if ($attr->{SENDER_AID} && $attr->{SENDER_AID} eq $responsible_aid && !$attr->{NEW_RESPONSIBLE});
 
-  return 1 if ($attr->{SENDER_AID} && $attr->{SENDER_AID} eq $resposible_aid);
   my $subject = ($message_info->{SUBJECT} || $FORM{SUBJECT} || q{});
   my $message = $FORM{MESSAGE} || $FORM{REPLY_TEXT} || $attr->{MESSAGE} || $message_info->{MESSAGE} || '';
   $message = ($message_info->{MESSAGE} || '') if ($attr->{NEW_RESPONSIBLE});
@@ -119,7 +116,7 @@ sub notify_admins {
   }
 
   my $ATTACHMENTS = $attr->{ATTACHMENTS} || [];
-  my $RESPONSIBLE = ($FORM{RESPOSIBLE} && $FORM{RESPOSIBLE} eq $resposible_aid) ? $lang{YES} : $lang{NO};
+  my $RESPONSIBLE = ($FORM{RESPOSIBLE} && $FORM{RESPOSIBLE} eq $responsible_aid) ? $lang{YES} : $lang{NO};
   my $preview_url = ($preview_url_without_message_id && $message_id ne '--')
     ? $preview_url_without_message_id . $message_id : undef;
   $preview_url .= "&UID=$message_info->{UID}" if $message_info->{UID} && $preview_url;
@@ -140,15 +137,16 @@ sub notify_admins {
     SUBJECT_URL => $preview_url,
   }, { OUTPUT2RETURN => 1 });
 
-  if ($attr->{NEW_RESPONSIBLE}) {
-    $subject = $lang{YOU_HAVE_BEEN_SET_AS_RESPONSIBLE_IN} . " '" . $subject . "'";
-  }
-  else {
-    $subject = "#$message_id " . $lang{YOU_HAVE_NEW_REPLY} . " '" . $subject . "'" . $state_msg;
-  }
+  $subject = $attr->{NEW_RESPONSIBLE} ? $lang{YOU_HAVE_BEEN_SET_AS_RESPONSIBLE_IN} . " '" . $subject . "'"
+    : "#$message_id " . $lang{YOU_HAVE_NEW_REPLY} . " '" . $subject . "'" . $state_msg;
+  my $aid = $attr->{NEW_RESPONSIBLE} ? $attr->{AID} : ($responsible_aid || $attr->{SEND_TO_AID});
+
+  my $msgs_permissions = $Msgs->permissions_list($aid);
+  return 1 if !$msgs_permissions->{5} || !$msgs_permissions->{6}{$message_info->{CHAPTER}};
+  return 1 if $msgs_permissions->{4} && !$msgs_permissions->{4}{$message_info->{CHAPTER}};
 
   $Sender->send_message_auto({
-    AID         => $attr->{NEW_RESPONSIBLE} ? $attr->{AID} : ($resposible_aid || $attr->{SEND_TO_AID}),
+    AID         => $aid,
     SUBJECT     => $subject,
     MESSAGE     => $message,
     MAIL_TPL    => $mail_message,
@@ -158,7 +156,8 @@ sub notify_admins {
     MAKE_REPLY  => $message_id,
     LANG        => \%lang,
     PARSE_MODE  => 'HTML',
-    ALL         => 1
+    ALL         => 1,
+    SEND_TYPES  => join(',', keys %{$msgs_permissions->{5}})
   });
 
   return 1;

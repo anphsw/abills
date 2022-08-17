@@ -72,13 +72,11 @@ sub config_main {
     my $debug_out = '';
     foreach my $p (sort keys %post_conf) {
       $debug_out .= "$p -> " . ($post_conf{$p} || q{}) . "\n";
-      $Config->config_add(
-        {
-          PARAM   => $p,
-          VALUE   => $post_conf{$p},
-          REPLACE => 1
-        }
-      );
+      $Config->config_add({
+        PARAM   => $p,
+        VALUE   => $post_conf{$p},
+        REPLACE => 1
+      });
     }
 
     if (!_error_show($Config)) {
@@ -89,41 +87,35 @@ sub config_main {
     $html->message('err', $lang{ERROR}, $lang{ERROR_PUBLIC_MODE});
   }
 
-  form_search(
-    {
-      SIMPLE => {
-        $lang{PARAM}    => 'PARAM',
-        $lang{DESCRIBE} => 'COMMENTS'
-      }
+  form_search({
+    SIMPLE => {
+      $lang{PARAM}    => 'PARAM',
+      $lang{DESCRIBE} => 'COMMENTS'
     }
-  );
+  });
 
   my $list = $Config->list({ %LIST_PARAMS, COLS_NAME => 1 });
 
   if (_error_show($Config)) { return 0 }
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => "Options",
-      title   => [ $lang{PARAM}, $lang{VALUE} ],
-      qs      => $pages_qs,
-      pages   => $Config->{TOTAL},
-      ID      => 'CONFIG'
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{OPTIONS},
+    title   => [ $lang{PARAM}, $lang{VALUE} ],
+    qs      => $pages_qs,
+    pages   => $Config->{TOTAL},
+    ID      => 'CONFIG'
+  });
 
   foreach my $line (@{$list}) {
     my $value = '';
 
     #bool
     if ($line->{type} == 1) {
-
-      #my @arr = split( /, ?/, $line->{value} );
       foreach my $v (0, 1) {
         $value .= "$conf{$line->{param}} / $v / " if ($debug);
         $value .= $html->form_input(
-          "$line->{param}",
+          $line->{param},
           $v,
           {
             TYPE  => 'radio',
@@ -228,15 +220,13 @@ sub config_main {
     );
   }
 
-  print $html->form_main(
-    {
-      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-      HIDDEN  => {
-        index => $index,
-      },
-      SUBMIT => { change => $lang{CHANGE} }
-    }
-  );
+  print $html->form_main({
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => {
+      index => $index,
+    },
+    SUBMIT => { change => $lang{CHANGE} }
+  });
 
   return 1;
 }
@@ -251,9 +241,6 @@ sub config_main {
 sub config_manage {
 
   my @types = ('STRING', 'BOOL', 'INT', 'MULTIVAL', 'SELECT', 'MULTISTR');
-
-  #my @types_colors = (
-  #);
 
   if($conf{PUBLIC_MODE}&&($FORM{add}||$FORM{change}||$FORM{del})){
     $html->message('err', $lang{ERROR}, $lang{ERROR_PUBLIC_MODE});
@@ -291,10 +278,8 @@ sub config_manage {
   $Config->{TYPE_SEL} = $html->form_select(
     'TYPE',
     {
-      SELECTED => $Config->{TYPE} || $FORM{TYPE},
-      SEL_ARRAY => \@types,
-
-      #STYLE        => \@types_colors,
+      SELECTED     => $Config->{TYPE} || $FORM{TYPE},
+      SEL_ARRAY    => \@types,
       ARRAY_NUM_ID => 1
     }
   );
@@ -305,19 +290,21 @@ sub config_manage {
 
   if (_error_show($Config)) { return 0 }
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => "Options",
-      title   => [ $lang{KEY}, $lang{VALUE}, 'Type', "-", "-" ],
-      qs      => $pages_qs,
-      pages   => $Config->{TOTAL},
-      ID      => 'SPAM_AWL'
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{OPTIONS},
+    title   => [ $lang{KEY}, $lang{VALUE}, $lang{TYPE}, "-", "-" ],
+    qs      => $pages_qs,
+    pages   => $Config->{TOTAL},
+    ID      => 'CONFIG_OPTIONS'
+  });
 
   foreach my $line (@{$list}) {
-    $table->addrow($line->{param}, $line->{value}, $line->{type}, $html->button($lang{CHANGE}, "index=$index&chg=$line->{param}", { class => 'change' }), $html->button($lang{DEL}, "index=$index&del=$line->{param}", { MESSAGE => "$lang{DEL} '$line->{param}' ?", class => 'del' }));
+    $table->addrow($line->{param},
+      $line->{value},
+      $line->{type},
+      $html->button($lang{CHANGE}, "index=$index&chg=$line->{param}", { class => 'change' }),
+      $html->button($lang{DEL}, "index=$index&del=$line->{param}", { MESSAGE => "$lang{DEL} '$line->{param}' ?", class => 'del' }));
   }
 
   print $table->show();
@@ -343,27 +330,22 @@ sub config_password_generator {
 
     my $new_config_string = join(':', $FORM{CASE}, $FORM{CHARS});
 
-    $Config->config_add(
-      {
-        PARAM   => 'CONFIG_PASSWORD',
-        VALUE   => $new_config_string,
-        REPLACE => 1
-      }
-    );
+    $Config->config_add({
+      PARAM   => 'CONFIG_PASSWORD',
+      VALUE   => $new_config_string,
+      REPLACE => 1
+    });
 
-    $Config->config_add(
-      {
-        PARAM   => 'PASSWD_LENGTH',
-        VALUE   => ($FORM{SYMBOLS_COUNT} || $conf{PASSWD_LENGTH}),
-        REPLACE => 1
-      }
-    );
+    $Config->config_add({
+      PARAM   => 'PASSWD_LENGTH',
+      VALUE   => ($FORM{SYMBOLS_COUNT} || $conf{PASSWD_LENGTH}),
+      REPLACE => 1
+    });
 
     if (!_error_show($Config)) {
       $conf{CONFIG_PASSWORD} = $new_config_string;
       $conf{PASSWD_LENGTH}   = $FORM{SYMBOLS_COUNT};
     }
-
   }
   elsif ($FORM{reset}){
     my $error = 0;
@@ -384,8 +366,8 @@ sub config_password_generator {
   my ($case, $chars) = split(':', $config_string);
   
   $case = 0 if ($case > 3);
-  $chars = 0 if ($chars > 3);
-  
+  $chars = 0 if ($chars !~ /^\d+$/ || $chars > 3);
+
   $html->tpl_show(
     _include('config_password', 'Config'),
     {
@@ -448,7 +430,6 @@ sub config_get_password_constraints {
   }
 
   return $html->br . $lang{LENGTH} . ' : >= ' . ($length || '') . $html->br . $lang{LETTERS} . ' : ' . $lang_case . $html->br . $lang{NON_ALPHABET_SYMBOLS} . ' ' . lc($lang{SYMBOLS}) . ' : ' . $lang_chars . $html->br;
-
 }
 
 1

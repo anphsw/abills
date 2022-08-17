@@ -2,16 +2,13 @@ package Abills::Backend::Plugin::Websocket;
 use strict;
 use warnings FATAL => 'all';
 
-our (%conf, $base_dir, $debug, $ARGS, @MODULES);
+our (%conf);
 
 use Abills::Backend::Plugin::BasePlugin;
 use parent 'Abills::Backend::Plugin::BasePlugin';
 
 use Abills::Backend::Log;
 our Abills::Backend::Log $Log;
-
-use Abills::Backend::PubSub;
-our Abills::Backend::PubSub $Pub;
 
 # Localizing global variables
 use Abills::Backend::Defs;
@@ -78,11 +75,11 @@ sub init {
   $userSessions = $self->{session_managers}->{user};
 
   AnyEvent::Socket::tcp_server('127.0.0.1', $conf{WEBSOCKET_PORT} || 19443, sub {
-    $self->new_admin_websocket_client(@_);
+    $self->new_websocket_client(@_, 'ADMIN');
   });
 
-  AnyEvent::Socket::tcp_server('127.0.0.1', $conf{WEBSOCKET_PORT} || 19445, sub {
-    $self->new_user_websocket_client(@_);
+  AnyEvent::Socket::tcp_server('127.0.0.1', $conf{USER_WEBSOCKET_PORT} || 19445, sub {
+    $self->new_websocket_client(@_, 'USER');
   });
 
   $api = Abills::Backend::Plugin::Websocket::API->new($self->{session_managers});
@@ -91,16 +88,31 @@ sub init {
 }
 
 #**********************************************************
-=head2 new_admin_websocket_client()
+=head2 new_websocket_client()
 
 =cut
 #**********************************************************
-sub new_admin_websocket_client {
+sub new_websocket_client {
   my $self = shift;
-  my ($socket_pipe_handle, $host, $port) = @_;
+  my ($socket_pipe_handle, $host, $port, $client) = @_;
+
+  my %client_params_list = (
+    ADMIN => {
+      sessions => $adminSessions,
+      id       => 'aid',
+      name     => 'Admin'
+    },
+    USER  => {
+      sessions => $userSessions,
+      id       => 'uid',
+      name     => 'User'
+    }
+  );
+
+  my $client_params = $client_params_list{$client};
 
   my $socket_id = "$host:$port";
-  $Log->debug("Admin connection : $socket_id");
+  $Log->debug("$client_params->{name} connection : $socket_id");
 
   my $handshake = Protocol::WebSocket::Handshake::Server->new;
 
@@ -121,15 +133,16 @@ sub new_admin_websocket_client {
       # If it is handshake, do all protocol related stuff
       if (!$handshake->is_done) {
         $self->_do_handshake($this_client_handle, $chunk, $handshake);
-        if (my $aid = Abills::Backend::Plugin::Websocket::Admin::authenticate($chunk)) {
-          if ($aid == -1) {
+        my $identifier = ($client eq 'ADMIN') ? Abills::Backend::Plugin::Websocket::Admin::authenticate($chunk) :
+          Abills::Backend::Plugin::Websocket::User::authenticate($chunk);
+
+          if ($identifier == -1) {
             $this_client_handle->push_shutdown;
           }
           else {
-            $Log->debug("Authorized admin $aid ");
-            $adminSessions->save_handle($handle, $socket_id, $aid);
+            $Log->debug("Authorized $client_params->{name} $identifier ");
+            $client_params->{sessions}->save_handle($handle, $socket_id, $identifier);
           }
-        }
 
         return;
       }
@@ -143,7 +156,7 @@ sub new_admin_websocket_client {
   $handle->on_eof(
     sub {
       # Try to do it "good way"
-      unless ($adminSessions->remove_session_by_socket_id($socket_id)) {
+      unless ($client_params->{sessions}->remove_session_by_socket_id($socket_id)) {
         # And otherwise kick it's face
         $handle->destroy;
         undef $handle;
@@ -157,84 +170,7 @@ sub new_admin_websocket_client {
 
       return unless (defined $read_handle);
 
-      $Log->debug("Error happened with admin $socket_id ");
-
-      $read_handle->push_shutdown;
-      $read_handle->destroy;
-
-      undef $handle;
-    }
-  )
-}
-
-#**********************************************************
-=head2 new_user_websocket_client()
-
-=cut
-#**********************************************************
-sub new_user_websocket_client {
-  my $self = shift;
-  my ($socket_pipe_handle, $host, $port) = @_;
-
-  my $socket_id = "$host:$port";
-  $Log->debug("User connection : $socket_id");
-
-  my $handshake = Protocol::WebSocket::Handshake::Server->new;
-
-  my $handle = AnyEvent::Handle->new(
-    fh       => $socket_pipe_handle,
-    no_delay => 1
-  );
-
-  # On message
-  $handle->on_read(
-    sub {
-      my AnyEvent::Handle $this_client_handle = shift;
-
-      # Read and clear read buffer
-      my $chunk = $this_client_handle->{rbuf};
-      $this_client_handle->{rbuf} = undef;
-
-      # If it is handshake, do all protocol related stuff
-      if (!$handshake->is_done) {
-        $self->_do_handshake($this_client_handle, $chunk, $handshake);
-        if (my $uid = Abills::Backend::Plugin::Websocket::User::authenticate($chunk)) {
-          if ($uid == -1) {
-            $this_client_handle->push_shutdown;
-          }
-          else {
-            $Log->debug("Authorized user $uid ");
-            $userSessions->save_handle($handle, $socket_id, $uid);
-          }
-        }
-
-        return;
-      }
-      else {
-        $self->on_websocket_message($this_client_handle, $socket_id, $chunk);
-      }
-    }
-  );
-
-  # On close
-  $handle->on_eof(
-    sub {
-      # Try to do it "good way"
-      unless ($userSessions->remove_session_by_socket_id($socket_id)) {
-        # And otherwise kick it's face
-        $handle->destroy;
-        undef $handle;
-      }
-    }
-  );
-
-  $handle->on_error(
-    sub {
-      my AnyEvent::Handle $read_handle = shift;
-
-      return unless (defined $read_handle);
-
-      $Log->debug("Error happened with user $socket_id ");
+      $Log->debug("Error happened with $client_params->{name} $socket_id ");
 
       $read_handle->push_shutdown;
       $read_handle->destroy;
@@ -262,8 +198,8 @@ sub on_websocket_message {
 
     # Client breaks connection
     if ($opcode == $OPCODE_CLOSE) {
-      $adminSessions->remove_session_by_socket_id($socket_id, "Client $socket_id breaks connection");
-      $userSessions->remove_session_by_socket_id($socket_id, "Client $socket_id breaks connection");
+      $adminSessions->remove_session_by_socket_id($socket_id, "Admin $socket_id breaks connection");
+      $userSessions->remove_session_by_socket_id($socket_id, "User $socket_id breaks connection");
       return;
     };
 
@@ -294,7 +230,7 @@ sub on_websocket_message {
       else {
         my %response;
 
-        # TODO: define message hadlers for types
+        # TODO: define message handlers for types
         if ($decoded_message->{TYPE} eq 'PING') {
           %response = (DATA => 'RESPONSE', TYPE => 'PONG');
         }
@@ -326,7 +262,6 @@ sub drop_client {
       last;
     }
   }
-
 }
 
 #**********************************************************

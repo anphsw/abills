@@ -62,6 +62,7 @@ sub list {
       ek.kkt_group,
       p.sum,
       p.uid,
+      p.date,
       p.method AS payment_method,
       ucc.value AS c_phone,
       IF(ucp.value is NULL, pi.phone, ucp.value) AS phone,
@@ -364,6 +365,10 @@ sub kkt_del {
 sub api_add {
   my $self = shift;
   my ($attr) = @_;
+
+  if ($attr->{PASSWORD}) {
+    $attr->{PASSWORD} = "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')",
+  }
 
   $self->query_add( 'extreceipts_api', $attr );
 

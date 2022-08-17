@@ -23,6 +23,7 @@ our ($db,
   %permissions,
   $ui,
   @MONTHES_LIT,
+  %msgs_permissions
 );
 
 our Admins $admin;
@@ -40,6 +41,11 @@ my $Address = Address->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub msgs_dispatches {
+
+  if (!$msgs_permissions{3}{0}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return;
+  }
 
   if ($FORM{print} || $FORM{chg} || $FORM{change_modal} || $FORM{add} || $FORM{add_form} || $FORM{del_dispatch}) {
     $FORM{add_modal} = 1 if $FORM{add};
@@ -61,12 +67,12 @@ sub msgs_dispatches {
   }
 
   if (defined $FORM{NEW_STATE}) {
-    $Msgs->message_change({
-      ID    => $FORM{MSGS_STATUS_ID},
-      STATE => $FORM{NEW_STATE} || 0,
-    });
-    if (!_error_show($Msgs)) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+    if (!$msgs_permissions{3}{2}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    }
+    else {
+      $Msgs->message_change({ ID => $FORM{MSGS_STATUS_ID}, STATE => $FORM{NEW_STATE} || 0, });
+      $html->message('info', $lang{INFO}, $lang{CHANGED}) if !_error_show($Msgs);
     }
   }
 
@@ -81,13 +87,13 @@ sub msgs_dispatches {
   });
 
   my $chg_function = get_function_index("msgs_dispatches");
-  my $add_dispatch_btn = $html->button("$lang{ADD}", undef, {
+  my $add_dispatch_btn = $msgs_permissions{3}{1} ? $html->button($lang{ADD}, undef, {
     class          => 'add',
     JAVASCRIPT     => '',
     SKIP_HREF      => 1,
     NO_LINK_FORMER => 1,
     ex_params      => qq/onclick=modal_view(0,$chg_function)/
-  });
+  }) : '';
 
   require Control::Reports;
   reports({
@@ -222,23 +228,23 @@ sub _msgs_dispatches_job_list {
   my ($dispatch) = @_;
 
   my $chg_function = get_function_index("msgs_dispatches");
-  my $dispatch_link = $html->button("$lang{DISPATCH} № $dispatch->{id}", undef, {
+  my $dispatch_link = $msgs_permissions{3}{2} ? $html->button("$lang{DISPATCH} № $dispatch->{id}", undef, {
     JAVASCRIPT     => '',
     SKIP_HREF      => 1,
     NO_LINK_FORMER => 1,
-    ex_params      => qq/onclick=modal_view($dispatch->{id},$chg_function) class='h5'/
-  });
+    ex_params      => qq/onclick=modal_view($dispatch->{id},$chg_function) class='h5 cursor-pointer'/
+  }) : $html->element('span', "$lang{DISPATCH} № $dispatch->{id}", { class => 'h5' });
 
   my $pdf_only = $conf{MSGS_DISPATCH_PDF} ? "&pdf=1" : "";
-  my $print_btn = $html->button($lang{PRINT}, "#", {
+  my $print_btn = $msgs_permissions{3}{4} ? $html->button($lang{PRINT}, "#", {
     NEW_WINDOW      => "$SELF_URL?qindex=" . get_function_index("msgs_dispatches") . "&print=$dispatch->{id}" . $pdf_only,
     NEW_WINDOW_SIZE => "640:750",
     class           => 'print'
-  });
+  }) : '';
 
-  my $del_btn = $html->button($lang{DEL}, "&index=$index&del_dispatch=$dispatch->{id}", {
+  my $del_btn = $msgs_permissions{3}{3} ? $html->button($lang{DEL}, "&index=$index&del_dispatch=$dispatch->{id}", {
     class => 'del', MESSAGE => "$lang{DEL} $lang{DISPATCH} № $dispatch->{id}?"
-  });
+  }) : '';
 
   my $dispatches_table = $html->table({
     caption     => "$print_btn $dispatch_link: <b>$dispatch->{admins}</b>",
@@ -371,6 +377,11 @@ sub msgs_dispatch {
   $Msgs->{LNG_ACTION} = $lang{ADD};
 
   if ($FORM{add} || $FORM{add_modal}) {
+    if (!$msgs_permissions{3}{1}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+      return;
+    }
+
     $Msgs->dispatch_add({ %FORM });
     msgs_dispatch_admins({ AIDS => $FORM{AIDS}, DISPATCH_ID => $Msgs->{DISPATCH_ID}, ADD => 1 });
     $html->message('info', $lang{INFO}, "$lang{ADDED}") if (!$Msgs->{errno});
@@ -379,6 +390,10 @@ sub msgs_dispatch {
   }
   elsif ($FORM{print}) {
     print $html->header();
+    if (!$msgs_permissions{3}{4}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+      return;
+    }
     my $dispatch_infos = $Msgs->dispatch_info($FORM{print});
 
     $dispatch_admins = $Msgs->dispatch_admins_list({ DISPATCH_ID => $FORM{print}, COLS_NAME => 1 });
@@ -514,9 +529,7 @@ sub msgs_dispatch {
         POSITION       => '_SHOW',
         COLS_NAME      => 1
       });
-      if ($Admins->{TOTAL}) {
-        $ORDERS{ 'RESPOSIBLE_POSITION' } = $resposible_info->[0]{position} || "";
-      }
+      $ORDERS{RESPOSIBLE_POSITION} = $resposible_info->[0]{position} || "" if $Admins->{TOTAL};
     }
 
     $html->tpl_show(_include($template, 'Msgs'), { %{$Msgs}, %ORDERS, BRIGADE => $brigade, pdf => $FORM{pdf}, });
@@ -524,6 +537,11 @@ sub msgs_dispatch {
     return 0;
   }
   elsif ($FORM{change} || $FORM{change_modal}) {
+    if (!$msgs_permissions{3}{2}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+      return;
+    }
+
     $FORM{change} = $FORM{change_modal} if $FORM{change_modal};
     if ($FORM{STATE} && $FORM{STATE} > 0) {
       $FORM{DONE_DATE} = "$DATE" if ($FORM{STATE} == 2);

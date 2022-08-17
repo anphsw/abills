@@ -7,7 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-our(
+our (
   $db,
   $admin,
   %conf,
@@ -26,10 +26,10 @@ sub msgs_team_set_ticket {
 
   if ($FORM{add}) {
     my $ticket_id = $FORM{TICKET};
-    my $team_id   = $FORM{TEAM};
+    my $team_id = $FORM{TEAM};
 
     my $ticket_state = $Msgs->message_info($ticket_id)->{STATE};
-    my $responsible  = $Msgs->responsible_team_info($team_id);
+    my $responsible = $Msgs->responsible_team_info($team_id);
 
     $Msgs->message_team_add({
       ID          => $ticket_id,
@@ -40,14 +40,14 @@ sub msgs_team_set_ticket {
 
     if (!_error_show($Msgs)) {
       my $msgs_result = $Msgs->message_change({
-          ID          => $ticket_id,
-          RESPONSIBLE => $responsible,
-        });
+        ID          => $ticket_id,
+        RESPONSIBLE => $responsible,
+      });
 
       $html->message('info', $lang{CHANGED}, "$lang{CHANGED}") if (!_error_show($msgs_result));
     }
   }
-  elsif ($FORM{chg}) {    
+  elsif ($FORM{chg}) {
     my $data = $Msgs->responsible_team_info($FORM{TEAM});
 
     if ($data) {
@@ -60,9 +60,9 @@ sub msgs_team_set_ticket {
 
       if (!_error_show($Msgs)) {
         my $msgs_result = $Msgs->message_change({
-            ID          => $FORM{TICKET},
-            RESPONSIBLE => $data->[0]->{resposible},
-          });
+          ID          => $FORM{TICKET},
+          RESPONSIBLE => $data->[0]->{resposible},
+        });
 
         $html->message('info', $lang{CHANGED}, "$lang{CHANGED}") if (!_error_show($msgs_result));
       }
@@ -79,10 +79,10 @@ sub msgs_team_set_ticket {
   show_form(\%FORM);
 
   my $table = $html->table({
-    width      => '100%',
-    caption    => $lang{BRIGADE},
-    title      => [ "#", $lang{BRIGADE}, $lang{RESPONSIBLE}, $lang{STATE} ],
-    ID         => 'BRIGADE_ID',
+    width   => '100%',
+    caption => $lang{BRIGADE},
+    title   => [ "#", $lang{BRIGADE}, $lang{RESPONSIBLE}, $lang{STATE} ],
+    ID      => 'BRIGADE_ID',
   });
 
   my $status = msgs_sel_status({ HASH_RESULT => 1 });
@@ -97,7 +97,7 @@ sub msgs_team_set_ticket {
   );
 
   foreach my $element (@$dispatch_all) {
-    my $replay_button = 
+    my $replay_button =
       $html->button('', "index=" . get_function_index('msgs_admin') . '&chg=' . $element->{id},
         { class => 'fa fa fa-list-alt' }) if ($element->{responsible} && $element->{responsible} == $admin->{AID});
 
@@ -137,10 +137,10 @@ sub msgs_team_set_ticket {
 sub show_form {
   my ($attr) = @_;
 
-  my $team          = $attr->{TEAM};
-  my $ticket        = $attr->{TICKET};
-  my $button_name   = $lang{ADD};
-  my $param_name    = "add";
+  my $team = $attr->{TEAM};
+  my $ticket = $attr->{TICKET};
+  my $button_name = $lang{ADD};
+  my $param_name = "add";
   my $chg_ticket_id = $attr->{chg_id};
 
   my $ticket_list = $Msgs->messages_list({
@@ -155,10 +155,10 @@ sub show_form {
   if ($chg_ticket_id) {
     my $date = $Msgs->respnosible_info_change($chg_ticket_id);
 
-    $team        = $date->{responsible};
-    $ticket      = $date->{id};
+    $team = $date->{responsible};
+    $ticket = $date->{id};
     $button_name = $lang{CHANGE};
-    $param_name  = "chg";
+    $param_name = "chg";
   }
 
   my $team_select = $html->form_select('TEAM', {
@@ -201,14 +201,13 @@ sub show_form {
 #**********************************************************
 sub filter_brigade {
   my $dispatch_all = $Msgs->ticket_team_list({
-      RESPONSIBLE => '_SHOW',
-      STATE       => '_SHOW',
-      ID_TEAM     => '_SHOW',
-      NAME        => '_SHOW',
-      LOGIN       => '_SHOW',
-      GROUP_BY    => 1
-    }
-  );
+    RESPONSIBLE => '_SHOW',
+    STATE       => '_SHOW',
+    ID_TEAM     => '_SHOW',
+    NAME        => '_SHOW',
+    LOGIN       => '_SHOW',
+    GROUP_BY    => 1
+  });
 
   my @list_team = _msgs_footer_row($dispatch_all, {
     NAME_SELECT => 'BRIGADE',
@@ -220,15 +219,13 @@ sub filter_brigade {
   });
 
   my $table_footer = $html->table({
-    width      => '100%',
-    rows       => [ [ @list_team ] ]
+    width => '100%',
+    rows  => [ [ @list_team ] ]
   });
 
   print $html->form_main({
     CONTENT => $table_footer->show({ OUTPUT2RETURN => 1 }),
-    HIDDEN  => {
-      index     => $index,
-    },
+    HIDDEN  => { index => $index },
     NAME    => 'MSGS_BRIGADE',
     ID      => 'MSGS_BRIGADE',
   });

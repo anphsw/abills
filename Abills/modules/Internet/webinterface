@@ -85,9 +85,10 @@ sub internet_users_search {
   $index=get_function_index('internet_users_list') if ( $functions{$index} && $functions{$index} ne 'internet_users_list' );
   $Internet->{GROUP_SEL}  = sel_groups();
   $Internet->{STATUS_SEL} = sel_status({
-    STATUS    => $FORM{INTERNET_STATUS} || '',
-    NAME      => 'INTERNET_STATUS',
-    EX_PARAMS => 'multiple="multiple"'
+    STATUS      => $FORM{INTERNET_STATUS} || '',
+    NAME        => 'INTERNET_STATUS',
+    EX_PARAMS   => 'multiple="multiple"',
+    SKIP_COLORS => 1
   });
 
   if ($conf{INTERNET_LOGIN}) {
@@ -1213,21 +1214,46 @@ sub internet_registration {
     else {
       my $password = mk_unique_value($conf{PASSWD_LENGTH} || 8);
 
-      $users->add(
-        {
-          LOGIN       => $referral_login ? $referral_login : $FORM{LOGIN},
-          CREATE_BILL => 1,
-          PASSWORD    => $password,
-          GID         => $conf{REGISTRATION_GID},
-          PREFIX      => $conf{REGISTRATION_PREFIX},
+      my $cid = q{};
+      if ($conf{INTERNET_REGISTRATION_IP}) {
+        if (!$FORM{USER_IP} || $FORM{USER_IP} eq '0.0.0.0') {
+          $html->message('err', $lang{ERROR}, $lang{ERR_IP_NOT_DEFINED});
+          goto REG_FORM;
+          return 1;
         }
-      );
 
-      #my $message = '';
+        require Internet::Sessions;
+        Internet::Sessions->import();
+        my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+        $Sessions->online({
+          CLIENT_IP => ($FORM{USER_IP}) ? $FORM{USER_IP} : $ENV{REMOTE_ADDR},
+          CID       => '_SHOW',
+          GUEST     => 1,
+          COLS_NAME => 1
+        });
+
+        if ($Sessions->{TOTAL}) {
+          $cid = $Sessions->{list}->[0]->{cid};
+        }
+
+        if (!$cid) {
+          $html->message('err', $lang{ERROR}, $lang{IP_MAC_NOT_FOUND});
+          goto REG_FORM;
+          return 1;
+        }
+      }
+
+      $users->add({
+        LOGIN       => $referral_login ? $referral_login : $FORM{LOGIN},
+        CREATE_BILL => 1,
+        PASSWORD    => $password,
+        GID         => $conf{REGISTRATION_GID},
+        PREFIX      => $conf{REGISTRATION_PREFIX},
+      });
+
       if (!$users->{errno}) {
         my $uid = $users->{UID};
         $users->info($uid);
-
         if($FORM{AUTO_ADDRESS}){
           my $Address = Address->new($db, $admin, \%conf);
           my $district_id;
@@ -1261,7 +1287,8 @@ sub internet_registration {
               DISTRICT_ID  => $district_id,
             });
             $street_id = $Address->{INSERT_ID};
-          } else {
+          }
+          else {
             $street_id = $streets->[0]->{id};
           }
 
@@ -1277,7 +1304,8 @@ sub internet_registration {
               STREET_ID  => $street_id,
             });
             $location_id = $Address->{INSERT_ID};
-          } else {
+          }
+          else {
             $location_id = $builds->[0]->{id};
           }
 
@@ -1301,26 +1329,24 @@ sub internet_registration {
         #4 Internet
         $conf{REGISTRATION_DEFAULT_TP} = 0 if (!$conf{REGISTRATION_DEFAULT_TP});
 
-        my $cid = q{};
-        require Internet::Sessions;
-        Internet::Sessions->import();
-        my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
-        $Sessions->online({
-          CLIENT_IP => $ENV{REMOTE_ADDR},
-          CID       => '_SHOW',
-          COLS_NAME => 1
-        });
-
-        if ( $Sessions->{TOTAL} ) {
-          $cid = $Sessions->{list}->[0]->{cid};
-        }
-
         $Internet->user_add({
           UID    => $uid,
           TP_ID  => $FORM{TP_ID} || $conf{REGISTRATION_DEFAULT_TP},
           STATUS => $FORM{STATUS},
           CID    => $cid
         });
+
+        if (defined($FORM{REGISTRATION_TAG} && $conf{AUTH_ROUTE_TAG} && in_array('Tags', \@MODULES))) {
+          require Tags;
+
+          my $Tags = Tags->new($db, $admin, \%conf);
+
+          $Tags->tags_user_change({
+            IDS => $conf{AUTH_ROUTE_TAG},
+            UID => $uid,
+            });
+            $html->message('err', $lang{INFO}, "$lang{TAGS} $lang{NOT} $lang{ADDED} UID:$uid") if ($Tags->{errno});
+        }
 
         if (!$Internet->{errno}) {
           if ($conf{REGISTRATION_SHOW_PASSWD}) {
@@ -1434,6 +1460,14 @@ sub internet_registration {
       SEL_KEY   => 'tp_id'
     }
   );
+
+  if ($conf{INTERNET_REGISTRATION_IP}){
+    $Internet->{USER_IP_FORM} = $html->tpl_show(templates('form_row'), {
+      ID    => "USER_IP",
+      NAME  => "User IP",
+      VALUE => $html->form_input( 'USER_IP', $FORM{USER_IP} || '0.0.0.0', { OUTPUT2RETURN => 1 } ),
+    }, { OUTPUT2RETURN => 1 });
+  }
 
   if($conf{INTERNET_AUTO_REGISTRATION_ADDRESS}) {
     $attr->{API_KEY} = $conf{INTERNET_AUTO_REGISTRATION_ADDRESS};

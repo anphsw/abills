@@ -6,7 +6,6 @@ package Abills::Sender::Core;
 
 =head1 DESCRIBE
 
-
   ERROR CODES:
 
 =head1 SYNOPSIS
@@ -33,11 +32,9 @@ use strict;
 use warnings FATAL => 'all';
 
 use Abills::Sender::Plugin;
+use Abills::Base qw(in_array);
 
-use Abills::Base qw(show_hash _bp in_array);
-#use Log qw(log_print);
-
-my $Contacts;
+my Contacts $Contacts;
 
 our ($base_dir);
 
@@ -57,7 +54,6 @@ our %PLUGIN_NAME_FOR_TYPE_ID = (
   12 => 'XMPP',
   13 => 'Iptv_message',
   14 => 'Viber',
-  20 => 'Mobile_push'
 );
 our %TYPE_ID_FOR_PLUGIN_NAME = reverse %{PLUGIN_NAME_FOR_TYPE_ID};
 
@@ -163,7 +159,6 @@ sub sender_load {
   return 1;
 }
 
-
 #**********************************************************
 =head2 send_message($attr)
 
@@ -204,7 +199,7 @@ sub send_message {
   }
 
   my @contacts;
-  if ( $attr->{TO_ADDRESS} && exists $TYPE_ID_FOR_PLUGIN_NAME{$send_type} && !in_array($send_type, \@special_contact_types)) {
+  if ($attr->{TO_ADDRESS} && exists $TYPE_ID_FOR_PLUGIN_NAME{$send_type} && !in_array($send_type, \@special_contact_types)) {
     @contacts = map {
       {
         value   => $_,
@@ -248,10 +243,9 @@ sub send_message {
   $plugin->{admin} = $self->{admin};
   $plugin->{conf} = $self->{conf};
 
-  if ( scalar @contacts > 1 && $plugin->support_batch() ) {
+  if (scalar @contacts > 1 && $plugin->support_batch()) {
     return $plugin->send_message({
       %{$attr},
-      # TO_ADDRESS => join(',', map {$_->{value}} @contacts),
       TO_ADDRESS => $contacts[0]{value},
       CONTACT    => \@contacts
     });
@@ -302,34 +296,43 @@ sub send_message_auto {
     return '';
   }
 
+  my $receiver_type = ($attr->{AID}) ? 'AID' : (($attr->{UID}) ? 'UID' : 0);
+  my @contacts = $self->get_push_contacts({
+    AID       => ($receiver_type eq 'AID') ? $attr->{AID} : '_SHOW',
+    UID       => ($receiver_type eq 'UID') ? $attr->{UID} : '_SHOW',
+    VALUE     => '_SHOW',
+    PAGE_ROWS => 2
+  });
+
+  push @{$contacts_list}, @contacts;
+
   my $send_messages_types = ();
-  if ($self->{conf}{MSGS_SEND_MESSAGES_TYPES}) {
-    @{$send_messages_types} = split(/,\s?/, $self->{conf}{MSGS_SEND_MESSAGES_TYPES});
+  if ($attr->{SEND_TYPES}) {
+    map push(@{$send_messages_types}, $PLUGIN_NAME_FOR_TYPE_ID{$_}), split(/,\s?/, $attr->{SEND_TYPES});
   }
   else {
-    @{$send_messages_types} = values %PLUGIN_NAME_FOR_TYPE_ID;
+    @{$send_messages_types} = $self->{conf}{MSGS_SEND_MESSAGES_TYPES} ?
+      split(/,\s?/, $self->{conf}{MSGS_SEND_MESSAGES_TYPES}) : values %PLUGIN_NAME_FOR_TYPE_ID;
   }
 
   my $at_least_one_was_successful = 0;
   foreach my $cont ( @{${contacts_list}} ) {
     next if !in_array($PLUGIN_NAME_FOR_TYPE_ID{$cont->{type_id}}, $send_messages_types);
 
-    $at_least_one_was_successful = 1 if ( $self->send_message({
+    $at_least_one_was_successful = 1 if ($self->send_message({
       %{$attr},
       TO_ADDRESS  => $cont->{value},
       SENDER_TYPE => $PLUGIN_NAME_FOR_TYPE_ID{$cont->{type_id}},
-    }) );
+    }));
 
-    if ( $at_least_one_was_successful && !$attr->{ALL} ) {
-      last
-    }
+    last if $at_least_one_was_successful && !$attr->{ALL};
   }
 
   #Send email if present. (no email in admins_contacts)
-  if($attr->{AID}){
+  if($attr->{AID} && (!$attr->{SEND_TYPES} || in_array(9, $send_messages_types))){
     my $info = $self->{admin}->info($attr->{AID});
 
-    if($info->{EMAIL}) {
+    if ($info->{EMAIL}) {
       $at_least_one_was_successful = 1 if ($self->send_message({
         %{$attr},
         TO_ADDRESS  => $info->{EMAIL},
@@ -340,7 +343,6 @@ sub send_message_auto {
 
   return $at_least_one_was_successful;
 }
-
 
 #**********************************************************
 =head2 get_contacts_for($attr) - returns best matched contact for given params
@@ -370,37 +372,29 @@ sub get_contacts_for {
   my ($self, $attr) = @_;
 
   my $send_type = $attr->{SENDER_TYPE};
+  my $receiver_type = ($attr->{AID}) ? 'AID' : (($attr->{UID}) ? 'UID' : 0);
 
-  my $receiver_type = ($attr->{AID})
-    ? 'AID'
-    : (($attr->{UID}) ? 'UID' : 0);
-
-  if ( !$receiver_type ) {
-    $self->{errstr}="Invalid receiver type. Should be AID or UID";
-    $self->{errno}=1;
+  if (!$receiver_type) {
+    $self->{errstr} = "Invalid receiver type. Should be AID or UID";
+    $self->{errno} = 1;
     print $self->{errstr};
     return 0;
   };
 
-  if ( $send_type eq 'Browser' ) {
+  if ($send_type eq 'Browser') {
     # This is just a dummy. Browser plugin will handle contact logic itself
     my $contact_for_browser = { value => '', type_id => 0 };
     return wantarray ? @{[ $contact_for_browser ]} : [ $contact_for_browser ];
   }
-  elsif ( $send_type eq 'Push' ) {
+  elsif ($send_type eq 'Push') {
     my @contacts = $self->get_push_contacts({
-      TYPE      => ($receiver_type eq 'UID') ? '0' : 1,
-      CLIENT_ID => ($receiver_type eq 'UID') ? $attr->{UID} : $attr->{'AID'},
-      ENDPOINT  => '_SHOW',
-      PAGE_ROWS => 1
+      AID       => ($receiver_type eq 'AID') ? $attr->{AID} : '_SHOW',
+      UID       => ($receiver_type eq 'UID') ? $attr->{UID} : '_SHOW',
+      VALUE     => '_SHOW',
+      PAGE_ROWS => 2
     });
 
     return wantarray ? @contacts : \@contacts;
-  }
-  elsif ( $send_type eq 'Mobile_push' ) {
-    # This is just a dummy. Mobile_push plugin will handle contact logic itself
-    my $contact_for_browser = { value => '', type_id => 0 };
-    return wantarray ? @{[ $contact_for_browser ]} : [ $contact_for_browser ];
   }
 
   my $plugin_contact_type = ($self->{$send_type} && $self->{$send_type}->contact_types($TYPE_ID_FOR_PLUGIN_NAME{$send_type}));
@@ -420,23 +414,17 @@ sub get_contacts_for {
   my $contacts_list;
   if ( $attr->{UID} ) {
     # Get contact address
-    $contacts_list = $Contacts->contacts_list({
-      UID => $attr->{UID},
-      %search_params
-    });
+    $contacts_list = $Contacts->contacts_list({ UID => $attr->{UID}, %search_params });
   }
-  elsif ( $attr->{AID} ) {
-    if ( !$self->{admin} ) {
+  elsif ($attr->{AID}) {
+    if (!$self->{admin}) {
       $self->{errstr} = " \$self->{admin} is not defined \n";
-      $self->{errno}=2;
+      $self->{errno} = 2;
       print $self->{errstr};
       return 0;
     }
 
-    $contacts_list = $self->{admin}->admins_contacts_list({
-      AID => $attr->{AID},
-      %search_params
-    });
+    $contacts_list = $self->{admin}->admins_contacts_list({ AID => $attr->{AID}, %search_params });
   }
 
   if ( $contacts_list && ref $contacts_list eq 'ARRAY' && scalar @{$contacts_list} ) {
@@ -460,36 +448,20 @@ sub get_contacts_for {
 =cut
 #**********************************************************
 sub get_push_contacts {
-  my ($self, $attr) = @_;
+  shift;
+  my ($attr) = @_;
 
   my $push_list = $Contacts->push_contacts_list($attr);
 
   my @push_contacts = map {
     {
       %{$_},
-      value   => $_->{endpoint},
-      type_id => 10
+        value   => $_->{value},
+        type_id => 10
     }
   } @{$push_list};
 
   return wantarray ? @push_contacts : \@push_contacts;
-}
-
-#**********************************************************
-=head2 existing_types($attr)
-
-=cut
-#**********************************************************
-sub existing_types {
-  my $self = shift;
-
-  # Make hash copy
-  my %all_types = %PLUGIN_NAME_FOR_TYPE_ID;
-
-  delete $all_types{0};
-  delete $all_types{1};
-
-  return \%all_types;
 }
 
 #**********************************************************
@@ -510,7 +482,7 @@ sub available_types {
   my @available_methods = ();
   foreach my $method ( sort keys %TYPE_ID_FOR_PLUGIN_NAME ) {
     # Browser is not supported yet
-    next if ($attr->{CLIENT} && $method eq 'Browser');# in_array($method, ['Browser', 'Push']) );
+    next if ($attr->{CLIENT} && $method eq 'Browser');
 
     if ( $self->sender_load($method, $attr) ) {
       push(@available_methods, $method);

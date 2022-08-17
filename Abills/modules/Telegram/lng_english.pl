@@ -121,5 +121,8 @@ $lang{AN_ERROR_OCCURRED_WHILE_APPLYING} = 'An error occurred while applying';
 $lang{REQUEST_BY_THIS_NUMBER_HAS_ALREADY_BEEN_SENT} = 'Request by this number has already been sent';
 $lang{APPLICATION_SENT} = 'Application sent';
 $lang{SUBMIT_YOUR_APPLICATION} = 'Submit your application';
+$lang{TELEGRAM_FOUND} = 'Found';
+$lang{TELEGRAM_VERIFY_PHONE} = 'Verify phone';
+$lang{TELEGRAM_SUBSCRIBE_INFO} = "To connect the telegram bot, click <b>Verify phone</b> or use the button <b>Subscribe</b> in the user account.";
 
 1;

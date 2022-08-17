@@ -64,6 +64,7 @@ $lang{NO_SUM} = 'Entrer somme';
 $lang{PAYMENTS} = 'Payages';
 $lang{NUM} = 'Numeros';
 $lang{DESCRIBE} = 'Description';
+$lang{DESCRIBE_FOR_SUBSCRIBER} = 'Description pour l\'abonné';
 $lang{OPERATOR} = 'Operateur';
 $lang{DATE} = 'Date';
 $lang{OPTIONS} = 'Options';

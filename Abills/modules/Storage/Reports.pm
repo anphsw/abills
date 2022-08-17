@@ -30,7 +30,34 @@ my $Storage = Storage->new($db, $admin, \%conf);
 sub storage_main_report {
   my ($attr) = @_;
 
-  my $FULL_AMOUNT = _count_full_amount();
+  reports({
+    PERIOD_FORM   => 1,
+    NO_PERIOD     => 1,
+    NO_GROUP      => 1,
+    NO_TAGS       => 1,
+    ADMINS_SELECT => 1,
+    EXT_SELECT    => {
+      STORAGE_ID => {
+        LABEL  => $lang{STORAGE},
+        SELECT => storage_storage_sel($Storage, {
+          ALL                  => 1,
+          DOMAIN_ID            => $admin->{DOMAIN_ID} || undef,
+          DISABLE_CHANGE_EVENT => 1
+        })
+      },
+      TYPE_ID => {
+        LABEL  => $lang{TYPE},
+        SELECT => $html->form_select('TYPE_ID', {
+          SELECTED    => $FORM{TYPE_ID} || 0,
+          SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => $admin->{DOMAIN_ID} || undef, COLS_NAME => 1 }),
+          NO_ID       => 1,
+          SEL_OPTIONS => { '' => '--' },
+        })
+      }
+    }
+  });
+
+  my $FULL_AMOUNT = _count_full_amount(\%FORM);
 
   my %STORAGE_STATUS_LINKS = ();
 
@@ -43,34 +70,18 @@ sub storage_main_report {
 
   my $chart_pie = $html->chart({
     TYPE              => 'pie',
-    X_LABELS          =>
-    [ $lang{IN_STORAGE}, $lang{INSTALLED}, $lang{INNER_USE}, $lang{DISCARDED}, $lang{RESERVED}, $lang{ACCOUNTABILITY} ],
+    X_LABELS          => [ $lang{IN_STORAGE}, $lang{INSTALLED}, $lang{INNER_USE}, $lang{DISCARDED},
+      $lang{RESERVED}, $lang{ACCOUNTABILITY} ],
     DATA              => {
-      'STORAGE' =>
-      [ $FULL_AMOUNT->{IN_STORAGE}, $FULL_AMOUNT->{INSTALATION}, $FULL_AMOUNT->{INNER_USE}, $FULL_AMOUNT->{DISCARDED},
-        $FULL_AMOUNT->{RESERVE}, $FULL_AMOUNT->{ACCOUNTABILITY} ],
+      STORAGE => [ $FULL_AMOUNT->{IN_STORAGE}, $FULL_AMOUNT->{INSTALATION}, $FULL_AMOUNT->{INNER_USE},
+        $FULL_AMOUNT->{DISCARDED}, $FULL_AMOUNT->{RESERVE}, $FULL_AMOUNT->{ACCOUNTABILITY} ],
     },
     BACKGROUND_COLORS => {
-      'STORAGE' => [ '#337ab7', '#dff0d8', '#ff851b', '#dd4b39', '#111', '#00c0ef' ],
+      STORAGE => [ '#337ab7', '#dff0d8', '#ff851b', '#dd4b39', '#111', '#00c0ef' ],
     },
-    TITLE => "$lang{STORAGE}",
+    TITLE             => $lang{STORAGE},
     OUTPUT2RETURN     => 1,
   });
-
-#  my $chart_bar = $html->chart({
-#    TYPE        => 'bar',
-#    X_LABELS    => [$lang{IN_STORAGE}, $lang{INSTALLED}, $lang{INNER_USE}, $lang{DISCARDED}, $lang{RESERVED}, $lang{ACCOUNTABILITY}],
-#    DATA        => {
-#      'STORAGE' => [$FULL_AMOUNT->{IN_STORAGE}, $FULL_AMOUNT->{INSTALATION}, $FULL_AMOUNT->{INNER_USE}, $FULL_AMOUNT->{DISCARDED},
-#        $FULL_AMOUNT->{RESERVE}, $FULL_AMOUNT->{ACCOUNTABILITY}],
-#    },
-#    BACKGROUND_COLORS => {
-#      'STORAGE' => ['#337ab7', '#dff0d8', '#ff851b', '#dd4b39', '#111', '#00c0ef'],
-#    },
-#    TITLE => "$lang{STORAGE}",
-#    HIDE_LEGEND => 1,
-#    OUTPUT2RETURN => 1,
-#  });
 
   my $storage_history = $Storage->storage_log_list({
     DATE         => '_SHOW',
@@ -79,14 +90,17 @@ sub storage_main_report {
     ACTION       => '_SHOW',
     COMMENTS     => '_SHOW',
     ADMIN_NAME   => '_SHOW',
-
+    TYPE_NAME    => '_SHOW',
+    TYPE_ID      => $FORM{TYPE_ID} || '_SHOW',
+    STORAGE_NAME => '_SHOW',
+    STORAGE_ID   => $FORM{STORAGE_ID} || '_SHOW',
     COLS_NAME    => 1,
     PAGE_ROWS    => 100,
     DESC         => 'desc',
   });
 
   my $history_table = $html->table({
-    title      => [ $lang{DATE}, $lang{ACTION}, $lang{ADMIN}, $lang{NAME}, $lang{COMMENTS} ],
+    title      => [ $lang{DATE}, $lang{ACTION}, $lang{ADMIN}, $lang{NAME}, $lang{TYPE}, $lang{COMMENTS}, $lang{STORAGE} ],
     width      => '100%',
     caption    => $lang{LOG},
     qs         => $pages_qs,
@@ -100,21 +114,20 @@ sub storage_main_report {
       $article_actions{$log->{action}} || '',
       $log->{admin_name} || '',
       $log->{article_name} || '',
+      $log->{type_name} || '',
       $log->{comments} || '',
+      $log->{storage_name} || '',
     );
   }
 
   my $HISTORY = $history_table->show({ OUTPUT2RETURN => 1 });
 
-  $html->tpl_show(
-    _include('storage_main_report', 'Storage'),
-    {
-      %$FULL_AMOUNT,
-      %STORAGE_STATUS_LINKS,
-      CHARTS  => $chart_pie,
-      HISTORY => $HISTORY
-    }
-  );
+  $html->tpl_show(_include('storage_main_report', 'Storage'), {
+    %$FULL_AMOUNT,
+    %STORAGE_STATUS_LINKS,
+    CHARTS  => $chart_pie,
+    HISTORY => $HISTORY
+  });
 
   return 1;
 }
@@ -130,9 +143,13 @@ sub storage_main_report {
 =cut
 #**********************************************************
 sub _count_full_amount {
+  my ($attr) = @_;
+
   my $incoming_articles_list = $Storage->storage_incoming_articles_list({
-    DOMAIN_ID => ($admin->{DOMAIN_ID} || undef),
-    COLS_NAME => 1,
+    DOMAIN_ID    => ($admin->{DOMAIN_ID} || undef),
+    STORAGE_ID   => $attr->{STORAGE_ID} || '_SHOW',
+    ARTICLE_TYPE => $attr->{TYPE_ID} || '_SHOW',
+    COLS_NAME    => 1,
   });
 
   my %FULL_AMOUNT = (
@@ -144,7 +161,7 @@ sub _count_full_amount {
     RESERVE        => 0,
   );
   foreach my $incoming_article (@$incoming_articles_list) {
-    if(defined $incoming_article->{measure} && $incoming_article->{measure} =~ /\d+/ && $incoming_article->{measure} == 0) {
+    if(defined $incoming_article->{measure} && $incoming_article->{measure} =~ /\d+/) {
       $FULL_AMOUNT{IN_STORAGE} += $incoming_article->{total} || 0;
       $FULL_AMOUNT{DISCARDED} += $incoming_article->{discard_count} || 0;
       $FULL_AMOUNT{INNER_USE} += $incoming_article->{inner_use_count} || 0;
@@ -171,7 +188,7 @@ sub storage_start_page {
   #my ($attr) = @_;
 
   my %START_PAGE_F = (
-    'storage_main_report_charts' => "$lang{STORAGE}",
+    'storage_main_report_charts' => $lang{STORAGE},
   );
 
   return \%START_PAGE_F;
@@ -188,33 +205,28 @@ sub storage_start_page {
 =cut
 #**********************************************************
 sub storage_main_report_charts {
+
   my $FULL_AMOUNT = _count_full_amount();
 
-  my $chart =  $html->chart({
-    TYPE        => 'bar',
-    X_LABELS    => [$lang{IN_STORAGE}, $lang{INSTALLED}, $lang{INNER_USE_SHORT}, $lang{DISCARDED}, $lang{RESERVED}, $lang{ACCOUNTABILITY}],
-    DATA        => {
-      'STORAGE' => [$FULL_AMOUNT->{IN_STORAGE}, $FULL_AMOUNT->{INSTALATION}, $FULL_AMOUNT->{INNER_USE}, $FULL_AMOUNT->{DISCARDED},
-        $FULL_AMOUNT->{RESERVE}, $FULL_AMOUNT->{ACCOUNTABILITY}],
+  my $chart = $html->chart({
+    TYPE              => 'bar',
+    X_LABELS          => [ $lang{IN_STORAGE}, $lang{INSTALLED}, $lang{INNER_USE_SHORT}, $lang{DISCARDED}, $lang{RESERVED}, $lang{ACCOUNTABILITY} ],
+    DATA              => {
+      $lang{STORAGE} => [ $FULL_AMOUNT->{IN_STORAGE}, $FULL_AMOUNT->{INSTALATION}, $FULL_AMOUNT->{INNER_USE},
+        $FULL_AMOUNT->{DISCARDED}, $FULL_AMOUNT->{RESERVE}, $FULL_AMOUNT->{ACCOUNTABILITY} ],
     },
     BACKGROUND_COLORS => {
-      'STORAGE' => ['#337ab7', '#dff0d8', '#ff851b', '#dd4b39', '#111', '#00c0ef'],
+      $lang{STORAGE} => [ '#337ab7', '#dff0d8', '#ff851b', '#dd4b39', '#111', '#00c0ef' ],
     },
-    TITLE => "$lang{STATS}",
-    HIDE_LEGEND => 1,
-    OUTPUT2RETURN => 1,
+    TITLE             => $lang{STATS},
+    HIDE_LEGEND       => 1,
+    OUTPUT2RETURN     => 1,
   });
 
-
-  return $html->tpl_show(
-    _include('storage_sp_report_chart', 'Storage'),
-    {
-      CHART  => $chart,
-    },
-    {OUTPUT2RETURN => 1,}
-  );
+  return $html->tpl_show(_include('storage_sp_report_chart', 'Storage'), {
+    CHART => $chart
+  }, { OUTPUT2RETURN => 1 });
 }
-
 
 #**********************************************************
 =head2 storage_remnants_report()
@@ -271,7 +283,7 @@ sub storage_remnants_report {
     my $total_count = ($item->{discard_count} || 0) +  ($item->{installation_count} || 0) +
       ($item->{inner_use_count} || 0) + ($item->{count} || 0);
     $report_table->addrow(
-      ($item->{name} || "$lang{NOT_EXIST}"),
+      ($item->{name} || $lang{NOT_EXIST}),
       $item->{type},
       _translate($item->{measure_name}),
       ($total_count),
@@ -808,6 +820,10 @@ sub storage_installation_report {
     PAGE_ROWS    => 99999
   });
 
+  $pages_qs .= "&TYPE_ID=$FORM{TYPE_ID}" if $FORM{TYPE_ID};
+  $pages_qs .= "&STORAGE_ID=$FORM{STORAGE_ID}" if $FORM{STORAGE_ID};
+  $pages_qs .= "&INSTALLED_AID=$FORM{INSTALLED_AID}" if $FORM{INSTALLED_AID};
+
   my $installed_table = $html->table({
     width      => '100%',
     caption    => $lang{INSTALLED_PERIOD} . " (" . ($FORM{FROM_DATE} || $DATE) . " - " . ($FORM{TO_DATE} || $DATE) . " )",
@@ -816,6 +832,7 @@ sub storage_installation_report {
     ID         => 'STORAGE_INSTALLED_TABLE',
     DATA_TABLE => { "order" => [ [ 1, "desc" ] ] },
     EXPORT     => 1,
+    qs         => $pages_qs,
   });
 
   foreach my $install (@{$installations}) {
@@ -826,6 +843,101 @@ sub storage_installation_report {
   print $installed_table->show();
 
   return 1;
+}
+
+#**********************************************************
+=head2 storage_nas_installations_report()
+
+=cut
+#**********************************************************
+sub storage_nas_installations_report {
+
+  use Equipment;
+  our $Equipment = Equipment->new($db, $admin, \%conf);
+
+  my $type_select = $html->form_select('TYPE_ID', {
+    SELECTED    => $FORM{TYPE_ID} || 0,
+    SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
+    NO_ID       => 1,
+    SEL_OPTIONS => { '' => '--' },
+  });
+
+  my $nas_select = $html->form_select('NAS_ID', {
+    SELECTED  => $FORM{NAS_ID},
+    SEL_LIST  => $Equipment->_list({
+      NAS_NAME  => '_SHOW',
+      COLS_NAME => 1,
+      PAGE_ROWS => 10000
+    }),
+    SEL_KEY   => 'nas_id',
+    SEL_VALUE => 'nas_id,nas_name',
+    NO_ID     => 1,
+    MULTIPLE  => 1
+  });
+
+  reports({
+    PERIOD_FORM => 1,
+    DATE_RANGE  => 1,
+    NO_GROUP    => 1,
+    NO_TAGS     => 1,
+    EXT_SELECT  => {
+      TYPE => { LABEL => $lang{TYPE}, SELECT => $type_select },
+      NAS  => { LABEL => $lang{NAS}, SELECT => $nas_select }
+    }
+  });
+
+  if ($FORM{NAS_ID}) {
+    $pages_qs .= "&NAS_ID=$FORM{NAS_ID}";
+    $FORM{NAS_ID} =~ s/,/;/g;
+  }
+  $pages_qs .= "&TYPE_ID=$FORM{TYPE_ID}" if $FORM{TYPE_ID};
+
+  my $installations = $Storage->storage_nas_installations({ %FORM,
+    SORT      => $FORM{sort},
+    DESC      => $FORM{desc},
+    COLS_NAME => 1
+  });
+
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $lang{STORAGE_NAS_INSTALLATIONS_REPORT},
+    title      => [ 'Id', $lang{NAME}, $lang{INSTALLED}, $lang{REMNANTS}, $lang{DISCARDED} ],
+    ID         => 'STORAGE_NAS_INSTALLATIONS',
+    qs         => $pages_qs,
+    EXPORT     => 1,
+  });
+
+  foreach my $nas (@{$installations}) {
+    $table->addrow($nas->{nas_id}, $nas->{name},
+      _storage_nas_installation_filter($nas->{total_installed}, { title_plain => [ $lang{TYPE}, $lang{NAME}, $lang{DATE} ] }),
+      _storage_nas_installation_filter($nas->{current_installed}, { title_plain => [ $lang{TYPE}, $lang{NAME}, $lang{DATE} ] }),
+      _storage_nas_installation_filter($nas->{remove_installed}, { title_plain => [ $lang{TYPE}, $lang{NAME} ] })
+    );
+  }
+
+  print $table->show();
+}
+
+#**********************************************************
+=head2 _storage_nas_installation_filter($installations, $attr)
+
+=cut
+#**********************************************************
+sub _storage_nas_installation_filter {
+  my $installations = shift;
+  my ($attr) = @_;
+  
+  return '' if !$installations;
+
+  if ($html->{TYPE} ne 'html') {
+    $installations =~ s/\|\|/\n/g;
+    return $installations;
+  }
+
+  my $installation_sub_table = $html->table({ width => '100%', title_plain => [ '' ], %{ ($attr) ? $attr : {} } });
+  map $installation_sub_table->addrow(split(/;/,$_)), split(/\|\|/, $installations);
+
+  return $installation_sub_table->show();
 }
 
 1;

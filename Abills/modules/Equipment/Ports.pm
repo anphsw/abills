@@ -354,22 +354,24 @@ sub equipment_ports_full {
         push @row, $value;
       }
       elsif ( $col_id eq 'MAC_DYNAMIC' ) {
-        my $value = join ($html->br(),
-          map {
-            $html->element('code',
-              ($_->{1} || q{-}), # 1 - mac
-              {
-                'data-tooltip-position' => 'top',
-                'data-tooltip' => $html->b('VLAN:') . $html->br() . ($_->{4} || q{-}) # 4 - vlan
-              }
-            ) .
-            $html->button($lang{VENDOR},
-              "index=$index&visual=2&NAS_ID=$FORM{NAS_ID}&mac_info=". ($_->{1} || q{-}), # 1 - mac
-              { class => 'info', ONLY_IN_HTML => 1 }
-            )
-          } sort {$a->{1} cmp $b->{1}} @{$macs_dynamic{$port}} # 1 - mac
-        );
-
+        my $value = q{};
+        if ($macs_dynamic{$port}) {
+          $value = join($html->br(),
+            map {
+              $html->element('code',
+                ($_->{1} || q{-}), # 1 - mac
+                {
+                  'data-tooltip-position' => 'top',
+                  'data-tooltip'          => $html->b('VLAN:') . $html->br() . ($_->{4} || q{-}) # 4 - vlan
+                }
+              ) .
+                $html->button($lang{VENDOR},
+                  "index=$index&visual=2&NAS_ID=$FORM{NAS_ID}&mac_info=" . ($_->{1} || q{-}), # 1 - mac
+                  { class => 'info', ONLY_IN_HTML => 1 }
+                )
+            } sort {$a->{1} cmp $b->{1}} @{$macs_dynamic{$port}} # 1 - mac
+          );
+        }
         push @row, $value;
       }
       elsif ($ports_info->{$port} && defined $ports_info->{$port}->{$col_id} ){

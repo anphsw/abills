@@ -427,9 +427,8 @@ sub _list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $SECRETKEY = $CONF->{secretkey} || '';
-  if ($admin->{DOMAIN_ID}) {
-    $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
-  }
+
+  $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID} if $admin->{DOMAIN_ID};
 
   my $WHERE = $self->search_former($attr, [
     [ 'TYPE',                          'STR',  't.id',                            1 ],
@@ -458,7 +457,7 @@ sub _list {
       ) AS ports_with_extra',
       1
     ],
-    [ 'MAC',                           'INT',  'nas.mac',                         1 ],
+    [ 'MAC',                           'STR',  'nas.mac',                         1 ],
     [ 'PORT_SHIFT',                    'INT',  'm.port_shift',                    1 ],
     [ 'AUTO_PORT_SHIFT',               'INT',  'm.auto_port_shift',               1 ],
     [ 'FDB_USES_PORT_NUMBER_INDEX',    'INT',  'm.fdb_uses_port_number_index',    1 ],
@@ -490,10 +489,7 @@ sub _list {
     [ 'TR_069_VLAN',                   'STR',  'i.tr_069_vlan',                   1 ],
     [ 'IPTV_VLAN',                     'STR',  'i.iptv_vlan',                     1 ],
     [ 'NAS_DESCR',                     'STR',  'nas.descr AS nas_descr',          1 ],
-  ],
-    { WHERE => 1,
-    }
-  );
+  ], { WHERE => 1 });
 
   my %EXT_TABLE_JOINS_HASH = ();
 
@@ -531,9 +527,7 @@ sub _list {
     EXTRA_PRE_ONLY                                    => 1,
   });
 
-  if($attr->{DOMAIN_NAME}) {
-    $EXT_TABLES .= "LEFT JOIN domains on (domains.id=nas.domain_id)"
-  }
+  $EXT_TABLES .= "LEFT JOIN domains on (domains.id=nas.domain_id)" if $attr->{DOMAIN_NAME};
 
   $self->query("SELECT
         $self->{SEARCH_FIELDS}
@@ -566,12 +560,12 @@ sub _list {
 
   if ($self->{TOTAL} > 0) {
     $self->query("SELECT COUNT(*) AS total
-    FROM equipment_infos i
+      FROM equipment_infos i
       INNER JOIN equipment_models m ON (m.id=i.model_id)
       INNER JOIN equipment_types t ON (t.id=m.type_id)
       INNER JOIN equipment_vendors v ON (v.id=m.vendor_id)
-    $EXT_TABLES
-    $WHERE;", undef, { INFO => 1 }
+      $EXT_TABLES
+      $WHERE;", undef, { INFO => 1 }
     );
   }
 
@@ -602,14 +596,13 @@ sub _change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'NAS_ID',
-      TABLE        => 'equipment_infos',
-      DATA         => $attr,
-      SKIP_LOG     => ($attr->{SKIP_LOG} ? 1 : 0),
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'NAS_ID',
+    TABLE        => 'equipment_infos',
+    DATA         => $attr,
+    SKIP_LOG     => ($attr->{SKIP_LOG} ? 1 : 0),
+  });
+
   return $self;
 }
 
@@ -2005,17 +1998,13 @@ sub onu_list {
   my ($attr) = @_;
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 5;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  #$PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  #$PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
 
-  my $GROUP_BY = '';
+  my $GROUP_BY = $attr->{GROUP_BY} ? 'GROUP BY ' . $attr->{GROUP_BY} : '';
   $self->{SEARCH_FIELDS} = '';
   $attr->{SKIP_DEL_CHECK}= 1;
   $attr->{SKIP_GID} = 1;
-
-  if ($attr->{GROUP_BY}) {
-    $GROUP_BY = 'GROUP BY ' . $attr->{GROUP_BY};
-  }
 
   my $WHERE = $self->search_former($attr, [
     [ 'BRANCH',           'STR', 'p.branch',                      1 ],
@@ -2042,12 +2031,12 @@ sub onu_list {
     [ 'DATETIME',         'DATE','onu.datetime',                  1 ],
     [ 'DELETED',          'INT', 'onu.deleted',                   1 ],
     [ 'SERVER_VLAN',      'STR', 'i.server_vlan',                 1 ],
-  ],
-    { WHERE        => 1,
-      USERS_FIELDS => 1,
-      USE_USER_PI  => 1,
-      SKIP_USERS_FIELDS => [ 'LOGIN', 'DOMAIN_ID' ]
-    });
+  ], {
+    WHERE             => 1,
+    USERS_FIELDS      => 1,
+    USE_USER_PI       => 1,
+    SKIP_USERS_FIELDS => [ 'LOGIN', 'DOMAIN_ID' ]
+  });
 
   if ($attr->{GID}) {
     $WHERE .= ' AND (' . (join ' OR ', @{$self->search_expr($attr->{GID}, 'INT', 'u.gid')}, 'u.gid IS NULL') . ')';
@@ -2115,7 +2104,8 @@ sub onu_list {
     $EXT_TABLES
     $WHERE
     $GROUP_BY
-    ORDER BY $SORT $DESC;",
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
@@ -2411,7 +2401,7 @@ sub onu_del {
   }
   elsif ($id) {
     my $onu_info = $self->onu_info($id);
-    $del_info = "NAS_ID: $onu_info->{NAS_ID} ONU: $onu_info->{ONU_MAC_SERIAL}";
+    $del_info = "NAS_ID: $onu_info->{NAS_ID} ONU: ". ($onu_info->{ONU_MAC_SERIAL} || q{});
   }
   elsif ($attr->{PORT_ID}) {
     if (ref $attr->{PORT_ID} eq 'ARRAY') {
@@ -2465,6 +2455,8 @@ sub pon_port_list {
 
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
 
   my $WHERE = $self->search_former($attr, [
     [ 'NAS_ID',    'STR', 'p.nas_id', 1 ],
@@ -2500,12 +2492,19 @@ sub pon_port_list {
     $EXT_TABLE
     $WHERE
     $GROUP_BY
-    ORDER BY $SORT $DESC;",
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
 
   my $list = $self->{list};
+
+  $self->query("SELECT COUNT(*) AS total
+    FROM equipment_pon_ports p
+    $EXT_TABLE
+    $WHERE;", undef, { INFO => 1 }
+  );
 
   return $list;
 }
@@ -2893,7 +2892,8 @@ sub onu_and_internet_cpe_list {
     i.id AS service_id,
     i.vlan AS user_vlan,
     i.server_vlan AS user_server_vlan,
-    i.uid
+    i.uid,
+    p.vlan_id AS pon_port_vlan
     FROM equipment_pon_onu onu
     LEFT JOIN equipment_pon_ports p ON (p.id=onu.port_id)
     LEFT JOIN equipment_infos ei ON (ei.nas_id=p.nas_id)

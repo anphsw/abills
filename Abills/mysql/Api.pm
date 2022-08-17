@@ -115,18 +115,18 @@ sub list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
-    [ 'ID',             'INT',    'al.id',            1],
-    [ 'IP',             'INT',    'al.ip',            1],
-    [ 'DATE',           'DATE',   'al.date',          1],
-    [ 'UID',            'INT',    'al.uid',           1],
-    [ 'AID',            'INT',    'al.aid',           1],
-    [ 'SID',            'STR',    'al.sid',           1],
-    [ 'REQUEST_URL',    'STR',    'al.request_url',   1],
-    [ 'REQUEST_BODY',   'STR',    'al.request_body',  1],
-    [ 'RESPONSE',       'STR',    'al.response',      1],
-    [ 'RESPONSE_TIME',  'DOUBLE', 'al.response_time', 1],
-    [ 'HTTP_STATUS',    'INT',    'al.http_status',   1],
-    [ 'HTTP_METHOD',    'STR',    'al.http_method',   1],
+    [ 'ID',             'INT',    'al.id',                            1],
+    [ 'IP',             'INT',    'al.ip', 'INET_NTOA(al.ip) AS ip',  1],
+    [ 'DATE',           'DATE',   'al.date',                          1],
+    [ 'UID',            'INT',    'al.uid',                           1],
+    [ 'AID',            'INT',    'al.aid',                           1],
+    [ 'SID',            'STR',    'al.sid',                           1],
+    [ 'REQUEST_URL',    'STR',    'al.request_url',                   1],
+    [ 'REQUEST_BODY',   'STR',    'al.request_body',                  1],
+    [ 'RESPONSE',       'STR',    'al.response',                      1],
+    [ 'RESPONSE_TIME',  'DOUBLE', 'al.response_time',                 1],
+    [ 'HTTP_STATUS',    'INT',    'al.http_status',                   1],
+    [ 'HTTP_METHOD',    'STR',    'al.http_method',                   1],
   ],
     { WHERE => 1 }
   );
@@ -147,7 +147,14 @@ sub list {
   );
   my $list = $self->{list};
 
-  return [] if ($self->{TOTAL} < 1);
+  return [] if ($self->{errno} || $self->{TOTAL} < 1);
+
+  $self->query("SELECT COUNT(al.id) AS total
+   FROM api_log al
+   $WHERE",
+    undef,
+    { INFO => 1 }
+  );
 
   return $list;
 }

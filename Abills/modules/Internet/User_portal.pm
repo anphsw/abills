@@ -156,6 +156,8 @@ sub internet_user_info_proceed {
   });
 
   if ($FORM{activate}) {
+    #TODO: Create normal fix if present activate param in FORM activating in any status
+    return 0 unless ($Internet->{STATUS} && ($Internet->{STATUS} == 2 || $Internet->{STATUS} == 5));
     $Internet->user_change({
       UID      => $uid,
       ID       => $FORM{ID},
@@ -420,7 +422,7 @@ sub internet_service_info {
 
   my Internet $Internet_ = $Service;
 
-  if ($conf{INTERNET_USER_SERVICE_HOLDUP}) {
+  if ($conf{INTERNET_USER_SERVICE_HOLDUP} && ! $Internet_->{STATUS}) {
     $Internet_->{HOLDUP_BTN} = internet_holdup_service($Internet);
   }
 
@@ -472,7 +474,7 @@ sub internet_service_info {
         VALUE => $Internet_->{$id} . ( $value_prefix ? (' ' . $value_prefix) : '' ),
       }, { OUTPUT2RETURN => 1, ID => $id });
   }
-# DEVASX
+
   $Internet_->{EXTRA_FIELDS} = join(($FORM{json} ? ',' : ''), @extra_fields);
 
   $Internet->{PREPAID_INFO} = internet_traffic_rest({
@@ -1035,7 +1037,6 @@ sub internet_dhcp_get_mac_add {
   $conf{INTERNET_IP_DISCOVERY}=~s/[\r\n ]//g;
   my @dhcp_nets         = split(/;/, $conf{INTERNET_IP_DISCOVERY});
   my $default_params    = "IP,MAC";
-
   foreach my $nets (@dhcp_nets) {
     my %PARAMS_HASH = ();
 
@@ -1082,6 +1083,8 @@ sub internet_dhcp_get_mac_add {
         COLS_NAME => 1,
         PAGE_ROWS => 1
       });
+
+      my $discovery = join("\n", map { $_.'->'.$PARAMS_HASH{$_} } keys %PARAMS_HASH);
 
       if ($Internet->{TOTAL} > 0) {
         $Internet->user_change({
@@ -1189,9 +1192,9 @@ sub internet_dhcp_get_mac {
       MAC    => $Internet->{CID},
       NAS_ID => $Internet->{NAS_ID},
       PORTS  => $Internet->{PORT},
-      VID    => $Internet->{VLAN},
+      VLAN   => $Internet->{VLAN},
       UID    => $Internet->{UID},
-      SERVER_VID => $Internet->{SERVER_VLAN}
+      SERVER_VLAN => $Internet->{SERVER_VLAN}
     );
 
     if ($attr->{CHECK_STATIC}) {
@@ -1203,82 +1206,37 @@ sub internet_dhcp_get_mac {
     }
   }
 
-  #Get mac from DB
-  if ($conf{DHCPHOSTS_LEASES} && $conf{DHCPHOSTS_LEASES} eq 'db') {
-    my $list = $Sessions->online({
-      FRAMED_IP_ADDRESS => $ip,
-      VLAN        => '_SHOW',
-      SERVER_VLAN => '_SHOW',
-      UID         => '_SHOW',
-      CID         => '_SHOW',
-      NAS_TYPE    => '!cisco_isg',
-      SWITCH_ID   => '_SHOW',
-      SWITCH_PORT => '_SHOW',
-      COLS_NAME   => 1,
-      COLS_UPPER  => 1
-    });
+  my $list = $Sessions->online({
+    FRAMED_IP_ADDRESS => $ip,
+    VLAN              => '_SHOW',
+    SERVER_VLAN       => '_SHOW',
+    UID               => '_SHOW',
+    CID               => '_SHOW',
+    NAS_TYPE          => '!cisco_isg',
+    SWITCH_ID         => '_SHOW',
+    SWITCH_PORT       => '_SHOW',
+    COLS_NAME         => 1,
+    COLS_UPPER        => 1
+  });
 
-    if ($Sessions->{TOTAL} > 0) {
-      %PARAMS        = %{ $list->[0] };
-      $PARAMS{NAS_ID}= $list->[0]->{switch_id} || $list->[0]->{nas_id};
-      $PARAMS{MAC}   = _mac_former($list->[0]->{cid});
-      $PARAMS{PORTS} = $list->[0]->{switch_port};
-      $PARAMS{PORT}  = $list->[0]->{switch_port};
-      $PARAMS{UID}   = $list->[0]->{uid};
-      $PARAMS{IP}    = int2ip($list->[0]->{framed_ip_address});
+  if ($Sessions->{TOTAL} > 0) {
+    %PARAMS = %{$list->[0]};
+    $PARAMS{NAS_ID} = $list->[0]->{switch_id} || $list->[0]->{nas_id};
+    $PARAMS{MAC} = _mac_former($list->[0]->{cid});
+    $PARAMS{PORTS} = $list->[0]->{switch_port};
+    $PARAMS{PORT} = $list->[0]->{switch_port};
+    $PARAMS{UID} = $list->[0]->{uid};
+    $PARAMS{IP} = int2ip($list->[0]->{framed_ip_address});
 
-      $PARAMS{VLAN}  = $list->[0]->{vlan};
-      $PARAMS{SERVER_VLAN} = $list->[0]->{server_vlan};
-
-      $PARAMS{VID}  = $list->[0]->{vlan};
-      $PARAMS{SERVER_VID} = $list->[0]->{server_vlan};
-    }
-
-    $PARAMS{CUR_IP}=$ip;
-    # if (defined($PARAMS{NAS_ID}) && $PARAMS{NAS_ID} == 0 && $PARAMS{CIRCUIT_ID} ) {
-    #   ($PARAMS{NAS_ID}, $PARAMS{PORTS}, $PARAMS{VLAN}, $PARAMS{NAS_MAC})=dhcphosts_o82_info({ %PARAMS });
-    # }
-
-    return \%PARAMS;
+    $PARAMS{VLAN} = $list->[0]->{vlan};
+    $PARAMS{SERVER_VLAN} = $list->[0]->{server_vlan};
   }
 
-  #Get mac from leases file
-#  else {
-#    my $logfile = $conf{DHCPHOSTS_LEASES} || '/var/db/dhcpd/dhcpd.leases';
-#    my %list    = ();
-#    my $l_ip    = '';
-#
-#    if(open(my $fh, '<', $logfile)) {
-#      while (<$fh>) {
-#        next if /^#|^$/;
-#
-#        if (/^lease (\d+\.\d+\.\d+\.\d+)/) {
-#          $l_ip = $1;
-#          $list{$ip}{ip} = sprintf("%-17s", $ip);
-#        }
-#        elsif (/^\s*hardware ethernet (.*);/) {
-#          my $mac = $1;
-#          if ($ip eq $l_ip) {
-#            $list{$ip}{hardware} = sprintf("%s", $mac);
-#            if ($list{$ip}{active}) {
-#              $PARAMS{MAC} = $list{$ip}{hardware};
-#              return \%PARAMS;
-#            }
-#          }
-#        }
-#        elsif (/^\s+binding state active/) {
-#          $list{$ip}{active} = 1;
-#        }
-#      }
-#      close($fh);
-#    }
-#    else {
-#      $html->message('err', $lang{ERROR}, "Can't read file '$logfile' $!")
-#    }
-#    $PARAMS{MAC} = ($list{$ip} && $list{$ip}{hardware}) ? $list{$ip}{hardware} : '';
-#  }
+  $PARAMS{CUR_IP} = $ip;
+  # if (defined($PARAMS{NAS_ID}) && $PARAMS{NAS_ID} == 0 && $PARAMS{CIRCUIT_ID} ) {
+  #   ($PARAMS{NAS_ID}, $PARAMS{PORTS}, $PARAMS{VLAN}, $PARAMS{NAS_MAC})=dhcphosts_o82_info({ %PARAMS });
+  # }
 
-  $PARAMS{CUR_IP}=$ip;
   return \%PARAMS;
 }
 

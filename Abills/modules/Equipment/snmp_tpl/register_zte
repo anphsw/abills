@@ -80,7 +80,6 @@ register_zte();
 =cut
 #**********************************************************
 sub register_zte {
-
   my $host      = $argv->{NAS_MNG_IP_PORT} || '';
   my $user_name = $argv->{NAS_MNG_USER} || 'zte';
   my $password  = $argv->{NAS_MNG_PASSWORD} || 'zte';
@@ -97,6 +96,7 @@ sub register_zte {
   my $onu_comments = $argv->{ONU_DESC} || q{};
   my $llid      = $argv->{LLID};
   my $template  = $argv->{TEMPLATE};
+  my $model     = $argv->{MODEL_NAME};
 
   my ($ip) = split(/:/, $host);
 
@@ -150,7 +150,8 @@ sub register_zte {
       TELNET     => $Telnet,
       PON_TYPE   => $pon_type,
       BRANCH     => $branch,
-      ONU_ID     => $onu_id
+      ONU_ID     => $onu_id,
+      MODEL      => $model
     });
 
     exit $errcode;
@@ -342,7 +343,6 @@ sub get_tpl {
 #**********************************************************
 sub unregister_onu {
   my ($attr) = @_;
-
   my $Telnet     = $attr->{TELNET};
   my $pon_type   = $attr->{PON_TYPE} || 'gpon';
   my $branch     = $attr->{BRANCH};
@@ -358,6 +358,13 @@ sub unregister_onu {
     "interface $pon_type-olt_$branch",
     "no onu $onu_id",
   );
+  if ($attr->{MODEL} =~ /^C6/i) {
+    @arr = (
+      "config t",
+      "interface " . $pon_type . "_olt-" . $branch,
+      "no onu $onu_id",
+    ); 
+  }
 
   foreach my $cmd (@arr) {
     print "$cmd\n" if ($debug);

@@ -3,6 +3,8 @@
 use strict;
 use warnings;
 
+no if $] >= 5.017011, warnings => 'experimental::smartmatch';
+
 BEGIN {
   our $libpath = '../';
   my $sql_type = 'mysql';
@@ -45,10 +47,15 @@ our (
   %functions,
 );
 
-my $VERSION = 0.11;
+my $VERSION = 0.28;
 do 'Abills/Misc.pm';
 do '../libexec/config.pl';
 do $libpath . '/language/english.pl';
+
+if ($conf{API_NGINX} && $ENV{REQUEST_URI}) {
+  $ENV{REQUEST_URI} =~ s/\/api.cgi//;
+  $ENV{PATH_INFO} = $ENV{REQUEST_URI};
+}
 
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
   { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
@@ -83,13 +90,14 @@ sub _start {
     $response = Abills::Base::json_former({ errstr => 'API didn\'t enable please enable API in config $conf{API_ENABLE}=1;', errno => 301 });
   }
   else {
-    if ($conf{API_NGINX} && $ENV{REQUEST_URI}) {
-      $ENV{REQUEST_URI} =~ s/\/api.cgi//;
-      $ENV{PATH_INFO} = $ENV{REQUEST_URI};
-    }
+    #define $admin->{permissions}
+    check_permissions('', '', '', { API_KEY => $ENV{HTTP_KEY} });
 
     #TODO : Fix %FORM add make possible to paste query params with request body
-    my $router = Abills::Api::Router->new(($ENV{PATH_INFO} || q{}), $db, $user, $admin, $Conf->{conf}, \%FORM, \%lang, \@MODULES);
+    my $router = Abills::Api::Router->new(($ENV{PATH_INFO} || q{}), $db, $user, $admin, $Conf->{conf}, \%FORM, \%lang, \@MODULES, 0,
+      {
+        permissions => $admin->{permissions}
+      });
 
     if ($router->{errno}) {
       $status = 400;
@@ -112,7 +120,8 @@ sub _start {
         defined $conf{API_FILDS_CAMELIZE} ? $conf{API_FILDS_CAMELIZE} : 1
       );
 
-      $response = Abills::Base::json_former($router->{result}, {USE_CAMELIZE => $use_camelize, CONTROL_CHARACTERS => 1});
+      $router->{status} = 400 if (ref $router->{result} eq 'HASH' && ($router->{result}->{errno} || $router->{result}->{error}));
+      $response = Abills::Base::json_former($router->{result}, { USE_CAMELIZE => $use_camelize, CONTROL_CHARACTERS => 1, BOOL_VALUES => 1 });
       $status = $router->{status};
     }
 
@@ -155,25 +164,101 @@ sub add_custom_paths {
     handler              => sub {
       my ($path_params, $query_params) = @_;
 
-      my ($uid, $sid, $login) = auth_user($query_params->{login}, $query_params->{password}, '');
+      if ($conf{AUTH_GOOGLE_ID} && $query_params->{google}) {
+        $FORM{token} = $query_params->{google};
+        $FORM{external_auth} = 'Google';
+        $FORM{API} = 1;
+      }
+
+      my ($uid, $sid, $login) = auth_user($query_params->{login}, $query_params->{password}, '', { API => 1 });
+
+      if (ref $uid eq 'HASH') {
+        return $uid;
+      }
+
+      if (!$uid) {
+        return {
+          errno  => 10001,
+          errstr => 'Wrong login or password or auth token'
+        }
+      }
 
       return {
-        UID   => $uid,
-        SID   => $sid,
-        LOGIN => $login
+        uid   => $uid,
+        sid   => $sid,
+        login => $login
       }
     },
     no_decamelize_params => 1
   });
 
-  $router->add_custom_handler('currency', {
-    method  => 'GET',
-    path    => '/currency/',
-    handler => sub {
+  $router->add_custom_handler('user', {
+    method               => 'POST',
+    path                 => '/user/:uid/social/networks/',
+    handler              => sub {
+      my ($path_params, $query_params) = @_;
+
+      if ($conf{AUTH_GOOGLE_ID} && $query_params->{google}) {
+        $FORM{token} = $query_params->{google};
+        $FORM{external_auth} = 'Google';
+        $FORM{API} = 1;
+      } else {
+        return {
+          errno  => 11002,
+          errstr => 'Unknown social network or no token'
+        }
+      }
+
+      my ($uid, $sid, $login) = auth_user('', '', $ENV{HTTP_USERSID}, { API => 1 });
+
+      if (ref $uid eq 'HASH') {
+        return $uid;
+      }
+
+      if (!$uid) {
+        return {
+          errno  => 11003,
+          errstr => 'Failed to set social network token. Unknown token'
+        }
+      }
+
       return {
-        system_currency => $conf{SYSTEM_CURRENCY}
-      };
+        result => 'success'
+      }
     },
+    no_decamelize_params => 1,
+    credentials => [
+      'USER'
+    ]
+  });
+
+  $router->add_custom_handler('user', {
+    method               => 'DELETE',
+    path                 => '/user/:uid/social/networks/',
+    handler              => sub {
+      my ($path_params, $query_params) = @_;
+
+      my $changed_field = '--';
+
+      if ($conf{AUTH_GOOGLE_ID} && $query_params->{google}) {
+        $changed_field = '_GOOGLE';
+      } else {
+        return {
+          errno  => 11004,
+          errstr => 'Unknown social network'
+        }
+      }
+
+      $user->pi_change({ UID => $path_params->{uid}, $changed_field => '' });
+
+      return {
+        result => 'success'
+      }
+    },
+    no_decamelize_params => 1,
+    credentials => [
+      'USER'
+    ]
   });
 
   $router->add_custom_handler('version', {
@@ -183,7 +268,7 @@ sub add_custom_paths {
       return {
         version     => get_version(),
         billing     => 'ABillS',
-        api_version => $VERSION
+        api_version => $VERSION,
       };
     },
   });
@@ -193,16 +278,17 @@ sub add_custom_paths {
     path                 => '/user/:uid/config/',
     handler              => sub {
       my ($path_params, $query_params) = @_;
+      require Control::Service_control;
+      Control::Service_control->import();
+      my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+
+      $user->pi({ UID => $path_params->{uid} });
 
       mk_menu([], { USER_FUNCTION_LIST => 1 });
 
       %functions = reverse %functions;
 
       if ($functions{internet_user_chg_tp}) {
-        require Control::Service_control;
-        Control::Service_control->import();
-        my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
-
         my $list = $Service_control->available_tariffs({
           UID    => $path_params->{uid},
           MODULE => 'Internet'
@@ -211,6 +297,36 @@ sub add_custom_paths {
         if (ref $list ne 'ARRAY') {
           delete $functions{internet_user_chg_tp};
         }
+        else {
+          $functions{internet}{now} = 0 if ($conf{INTERNET_USER_CHG_TP_NOW});
+          $functions{internet}{next_month} = 1 if ($conf{INTERNET_USER_CHG_TP_NEXT_MONTH});
+          $functions{internet}{schedule} = 2 if ($conf{INTERNET_USER_CHG_TP_SHEDULE});
+        }
+      }
+
+      if ($conf{INTERNET_USER_SERVICE_HOLDUP}) {
+        my ($min_period, $max_period, $holdup_period, $daily_fees, undef, $active_fees) = split(/:/, $conf{INTERNET_USER_SERVICE_HOLDUP});
+
+        $functions{internet_user_holdup} = {
+          min_period    => $min_period,
+          max_period    => $max_period,
+          holdup_period => $holdup_period,
+          daily_fees    => $daily_fees,
+          active_fees   => $active_fees
+        };
+      }
+
+      if ($conf{AUTH_GOOGLE_ID}) {
+        $functions{social_auth}{google} = $user->{_GOOGLE} ? 1 : 0;
+      }
+
+      my $credit_info = $Service_control->user_set_credit({ UID => $path_params->{uid} });
+      unless ($credit_info->{error} || $credit_info->{errno}) {
+        $functions{user_credit} = '1001';
+      }
+
+      if ($conf{SYSTEM_CURRENCY}) {
+        $functions{system}{currency} = $conf{SYSTEM_CURRENCY};
       }
 
       return \%functions;
@@ -218,6 +334,19 @@ sub add_custom_paths {
     credentials => [
       'USER'
     ]
+  });
+
+  $router->add_custom_handler('config', {
+    method               => 'GET',
+    path                 => '/config/',
+    handler              => sub {
+      my %config = ();
+      if ($conf{AUTH_GOOGLE_ID}) {
+        $config{social_auth}{google} = 1;
+      }
+
+      return \%config;
+    },
   });
 
   return 1;
@@ -233,7 +362,7 @@ sub add_credentials {
 
   $router->add_credential('ADMIN', sub {
     shift;
-    my $API_KEY = $ENV{HTTP_KEY};
+    my $API_KEY = $ENV{HTTP_KEY} || '-';
 
     return check_permissions('', '', '', { API_KEY => $API_KEY }) == 0;
   });

@@ -22,7 +22,7 @@ use Users;
 use Msgs;
 use Msgs::Reg_request;
 use Control::Address_mng;
-#use Abills::Base qw();
+use Abills::Base qw(date_inc);
 use Abills::Sender::Core;
 
 my $Referral = Referral->new($db, $admin, \%conf, { SKIP_CONF => 1 });
@@ -569,7 +569,7 @@ sub _transform_to_hash {
 #**********************************************************
 sub add_friend {
 
-  load_pmodule(')XML::Simple');
+  load_pmodule('XML::Simple');
 
   my $users_list = $Referral->request_list({
     REFERRER     => $user->{UID},
@@ -625,7 +625,7 @@ sub add_friend {
         METHOD         => 1,
         COLS_NAME      => 1,
         FROM_DATE_TIME => $log_list->[0]->{date} || $DATE,
-        TO_DATE_TIME   => Abills::Base::date_inc($DATE).' 00:00:00',
+        TO_DATE_TIME   => date_inc($DATE).' 00:00:00',
       });
 
       my $spend_percent = $tp_info->{SPEND_PERCENT};
@@ -642,7 +642,7 @@ sub add_friend {
         COLS_NAME      => 1,
         SUM            => '_SHOW',
         FROM_DATE_TIME => $log_list->[0]->{date} || $DATE,
-        TO_DATE_TIME   => Abills::Base::date_inc($DATE),
+        TO_DATE_TIME   => date_inc($DATE),
       });
 
       my $repl_percent = $tp_info->{REPL_PERCENT};
@@ -752,7 +752,8 @@ sub add_friend {
   }
   else {
     my $referral_link = $SELF_URL;
-    $referral_link =~ s/$ENV{SCRIPT_NAME}/\/registration.cgi?REFERRER=$user->{UID}/;
+    my $script_name = $ENV{SCRIPT_NAME} || q{};
+    $referral_link =~ s/$script_name/\/registration.cgi?REFERRER=$user->{UID}/;
 
     $Referral->get_default_tp();
 
@@ -1009,7 +1010,7 @@ sub add_bonus {
     DATETIME  => '_SHOW',
     SUM       => '_SHOW',
     FROM_DATE_TIME => $log_list->[0]->{date} || $DATE,
-    TO_DATE_TIME   => Abills::Base::date_inc($DATE). ' 00:00:00',
+    TO_DATE_TIME   => date_inc($DATE). ' 00:00:00',
     METHOD    => 1,
     COLS_NAME => 1,
     SORT      => 'datetime DESC',

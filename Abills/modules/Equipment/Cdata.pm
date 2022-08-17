@@ -14,7 +14,7 @@
       FD1608SN
 
   DATE: 20190704
-  UPDATE: 20210819
+  UPDATE: 20220607
 
 =head1 extra_info
 
@@ -28,7 +28,7 @@
 
 use strict;
 use warnings;
-use Abills::Filters qw(bin2mac bin2hex);
+use Abills::Filters qw(bin2mac bin2hex serial2mac);
 
 our (
   %lang,
@@ -794,7 +794,7 @@ sub _cdata_fd16 {
       'ONU_MAC_SERIAL' => {
         NAME   => 'Mac/Serial',
         OIDS   => '1.3.6.1.4.1.17409.2.8.4.1.1.3',
-        PARSER => 'bin2hex'
+        PARSER => 'serial2mac'
       },
       'ONU_STATUS'     => {
         NAME      => 'STATUS',

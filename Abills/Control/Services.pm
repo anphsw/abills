@@ -17,9 +17,9 @@ our(
   %lang,
   $DATE,
   %FORM,
-  $users
 );
 
+our $users;
 
 #**********************************************************
 =head sel_tp($tp_id)
@@ -46,38 +46,33 @@ sub sel_tp {
 
   my $Tariffs = Tariffs->new($db, \%conf, $admin);
   my %params = ( MODULE => 'Dv;Internet' );
-  if ($attr->{MODULE}) {
-    $params{MODULE} = $attr->{MODULE};
-  }
+  $params{MODULE} = $attr->{MODULE} if $attr->{MODULE};
 
   my $tp_gids = $attr->{CHECK_GROUP_GEOLOCATION} ?
     tp_gids_by_geolocation($attr->{CHECK_GROUP_GEOLOCATION}, $Tariffs, $attr->{USER_GID}) : '';
 
   if($attr->{TP_ID}) {
-    if($attr->{TP_ID} =~ /:(\d+)/) {
-      $attr->{TP_ID} = $1;
-    }
-
-    if(! $attr->{SHOW_ALL}) {
-      $params{INNER_TP_ID} = $attr->{TP_ID};
-    }
+    $attr->{TP_ID} = $1 if $attr->{TP_ID} =~ /:(\d+)/;
+    $params{INNER_TP_ID} = $attr->{TP_ID} if !$attr->{SHOW_ALL};
   }
 
-  if ($attr->{SERVICE_ID}) {
-    $params{SERVICE_ID} = $attr->{SERVICE_ID};
-  }
+  $params{SERVICE_ID} = $attr->{SERVICE_ID} if $attr->{SERVICE_ID};
 
   my $list = $Tariffs->list({
-    NEW_MODEL_TP => 1,
-    DOMAIN_ID    => $users->{DOMAIN_ID} || $admin->{DOMAIN_ID} || $attr->{DOMAIN_ID},
-    COLS_NAME    => 1,
-    STATUS       => '_SHOW',
-    TP_GID       => $tp_gids || '_SHOW',
+    NEW_MODEL_TP  => 1,
+    DOMAIN_ID     => $users->{DOMAIN_ID} || $admin->{DOMAIN_ID} || $attr->{DOMAIN_ID},
+    COLS_NAME     => 1,
+    STATUS        => '0',
+    TP_GID        => $tp_gids || '_SHOW',
+    MONTH_FEE     => '_SHOW',
+    DAY_FEE       => '_SHOW',
+    COMMENTS      => '_SHOW',
+    TP_GROUP_NAME => '_SHOW',
     %params
   });
 
   if($attr->{TP_ID} && ! $attr->{EX_PARAMS}) {
-    return "$list->[0]->{id} : $list->[0]->{name}" if($Tariffs->{TOTAL});
+    return "$list->[0]->{id} : $list->[0]->{name}" if $Tariffs->{TOTAL} && $Tariffs->{TOTAL} > 0;
 
     return $attr->{TP_ID};
   }
@@ -87,7 +82,16 @@ sub sel_tp {
   foreach my $line (@$list) {
     next if($attr->{SKIP_TP} && $attr->{SKIP_TP} == $line->{tp_id});
     next if (!$attr->{SHOW_ALL} && $line->{status});
-    $tp_list{$line->{tp_id}} = $line->{id} .' : '. $line->{name};
+
+    if ($attr->{GROUP_SORT}) {
+      my $small_deposit = (($users->{DEPOSIT} || 0) + $users->{CREDIT} < $line->{month_fee} + $line->{day_fee}) ?
+        ' (' . $lang{ERR_SMALL_DEPOSIT} . ')' : '';
+
+      $tp_list{($line->{tp_group_name} || '')}{ $line->{tp_id} } = "$line->{id} : $line->{name}" . $small_deposit;
+    }
+    else {
+      $tp_list{$line->{tp_id}} = $line->{id} .' : '. $line->{name};
+    }
   }
 
   if($attr->{SELECT}) {
@@ -95,24 +99,17 @@ sub sel_tp {
 
     my $element_name = $attr->{SELECT};
     my %extra_options = ('' => '--');
-    if($attr->{SEL_OPTIONS}) {
-      %extra_options = %{ $attr->{SEL_OPTIONS} };
-    }
+    %extra_options = %{ $attr->{SEL_OPTIONS} } if $attr->{SEL_OPTIONS};
 
     if ($attr->{EX_PARAMS}) {
-      if (ref $attr->{EX_PARAMS} eq 'HASH') {
-        %EX_PARAMS = %{ $attr->{EX_PARAMS} };
-      }
-      else {
-        %EX_PARAMS = (EX_PARAMS => $attr->{EX_PARAMS}) ;
-      }
+      %EX_PARAMS = ref $attr->{EX_PARAMS} eq 'HASH' ? %{$attr->{EX_PARAMS}} : (EX_PARAMS => $attr->{EX_PARAMS});
     }
 
     return $html->form_select($element_name, {
-      SELECTED    => $attr->{$element_name} // $FORM{$element_name},
-      SEL_HASH    => \%tp_list,
-      SEL_OPTIONS => \%extra_options,
-      NO_ID       => 1,
+      SELECTED       => $attr->{$element_name} // $FORM{$element_name},
+      SEL_HASH       => \%tp_list,
+      SEL_OPTIONS    => \%extra_options,
+      NO_ID          => 1,
       SORT_KEY    => 1,
       %EX_PARAMS
     });
@@ -143,15 +140,7 @@ sub sel_tp {
 sub get_services {
   my ($user_info, $attr) = @_;
 
-  my %result = ();;
-
-  # my $cross_modules_return = ::cross_modules_call('_docs', {
-  #   UID          => $user_info->{UID},
-  #   REDUCTION    => $user_info->{REDUCTION},
-  #   FULL_INFO    => 1,
-  #   SKIP_MODULES => $attr->{SKIP_MODULES}
-  #   #PAYMENT_TYPE => 0
-  # });
+  my %result = ();
 
   my $cross_modules_return = ::cross_modules('docs', {
     UID          => $user_info->{UID},
@@ -296,6 +285,65 @@ sub tp_gids_by_geolocation {
   push @tp_gids, 0;
 
   return join(';', @tp_gids);
+}
+
+
+#**********************************************************
+=head2 service_status_change($uid, $status)
+
+  Arguments:
+    $uid
+    $status
+    $attr
+      DATE
+      DEBUG
+
+  Results:
+
+=cut
+#**********************************************************
+sub service_status_change {
+  my ($user_info, $status, $attr)=@_;
+
+  my $debug = $attr->{DEBUG} || 0;
+  $status =~ /:?(\d+)/;
+  $status = $1;
+
+  my @modules = @MODULES;
+
+  if (in_array('Triplay', \@modules)) {
+    @modules = ('Triplay');
+  }
+
+  foreach my $module ( @modules ) {
+    require "$module/webinterface";
+    my $fn = lc($module) . (($status == 3) ? '_service_deactivate' : '_service_activate');
+    if (defined(&$fn)) {
+      if ($debug > 3) {
+        print "run: $fn\n";
+      }
+
+      &{\&$fn}({
+        USER_INFO   => {
+          UID     => $user_info->{UID},
+          BILL_ID => $user_info->{BILL_ID}
+          #ID  => $service_id,
+        },
+        # TP_INFO   => {
+        #   SMALL_DEPOSIT_ACTION => -1
+        # },
+        STATUS      => $status,
+        GET_ABON    => 1,
+        QUITE       => 1,
+        DATE        => $attr->{DATE},
+        RECALCULATE => 1
+      });
+    }
+  }
+
+  $users->change($user_info->{UID}, { DISABLE => $status });
+
+  return 1;
 }
 
 1;

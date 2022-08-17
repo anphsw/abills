@@ -3,6 +3,8 @@
   Purpose of this code for ABillS:
     1 Increasing and decreasing number of buttons in table header by resize and not
     2 Closing right sidebar if user clicked in overlay
+    3 Sidebar search
+    4 Clear sidebar search input by closing
 */
 
 var mybody = document.body;
@@ -92,3 +94,47 @@ jQuery(() => {
     jQuery('body').removeClass('control-sidebar-slide-open')
   })
 })
+
+/* 3 */
+function sidebarSearch() {
+  const menuItems = jQuery('nav > .nav-sidebar li');
+  const menuTrees = jQuery('nav > .nav-sidebar ul');
+
+  jQuery('#Search_menus').on('input', function () {
+    const searchValue = this.value.toLowerCase();
+    const searchElementTrees = [];
+
+    if(searchValue) {
+      menuTrees.css('display', 'block');
+      menuItems.css('display', 'none');
+
+      menuItems.filter(function () {
+        return this.textContent.toLowerCase().includes(searchValue)
+      }).css('display', 'block');
+
+    } else {
+      menuItems.removeAttr("style");
+      menuTrees.removeAttr("style");
+    }
+  });
+}
+
+/* 4 */
+function sidebarButton() {
+  const sidebarButton = document.getElementById('sidebar_button');
+  const inputSearch = document.getElementById('Search_menus');
+
+  sidebarButton.addEventListener('click', () => {
+    const inputFill = sidebarButton
+                        .parentElement
+                        .parentElement
+                        .parentElement.classList.contains("sidebar-search-open");
+    if (inputFill) {
+      inputSearch.value = '';
+      inputSearch.dispatchEvent(new Event('input'));
+    }
+  })
+}
+
+sidebarSearch();
+sidebarButton();

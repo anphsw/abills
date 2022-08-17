@@ -8,8 +8,8 @@
 
 <script src='/styles/default/js/modules/equipment.js'></script>
 
-<FORM action='$SELF_URL' METHOD='POST' class='form-horizontal' id='EQUIPMENT_MODEL_INFO_FORM'>
-  <input type='hidden' name='index' value='$index'>
+<FORM action='%SELF_URL%' METHOD='POST' class='form-horizontal' id='EQUIPMENT_MODEL_INFO_FORM'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='ID' value='$FORM{chg}'>
   <input type='hidden' name='chg' value='$FORM{chg}'>
   <input type='hidden' name='HAS_EXTRA_PORTS' id='HAS_EXTRA_PORTS'>
@@ -82,11 +82,11 @@
           </div>
         </div>
 
-        <div class='card box-default collapsed-card'>
+        <div class='card card-default collapsed-card'>
           <div class='card-header with-border'>
             <h3 class='card-title'>_{MANAGE}_</h3>
             <div class='card-tools float-right'>
-              <button type='button' class='btn btn-box-tool' data-card-widget='collapse'>
+              <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
             </div>
@@ -136,7 +136,7 @@
           <div class='card-header with-border'>
             <h3 class='card-title'>_{PORTS}_</h3>
             <div class='card-tools float-right'>
-              <button type='button' class='btn btn-box-tool' data-card-widget='collapse'>
+              <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
             </div>
@@ -214,15 +214,15 @@
               </div>
             </div>
 
-            <div class='form-group' id='extraPortControls' style='margin-right: 15px;'>
+            <div class='form-group' id='extraPortControls'>
               <div class='text-right'>
                 <div class='btn-group btn-group-xs'>
-                  <button class='btn btn-xs btn-danger' id='removePortBtn'
+                  <button class='btn btn-sm btn-danger' id='removePortBtn'
                       data-tooltip='_{DEL}_ _{PORT}_'
                       data-tooltip-position='bottom'>
                     <span class='fa fa-times'></span>
                   </button>
-                  <button class='btn btn-xs btn-success' id='addPortBtn'
+                  <button class='btn btn-sm btn-success' id='addPortBtn'
                       data-tooltip='_{ADD}_ _{PORT}_'>
                     <span class='fa fa-plus'></span>
                   </button>
@@ -238,7 +238,7 @@
           <div class='card-header with-border'>
             <h3 class='card-title'>PON</h3>
             <div class='card-tools float-right'>
-              <button type='button' class='btn btn-box-tool' data-card-widget='collapse'>
+              <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
             </div>
@@ -271,7 +271,7 @@
           <div class='card-header with-border'>
             <h3 class='card-title'>ZTE</h3>
             <div class='card-tools float-right'>
-              <button type='button' class='btn btn-box-tool' data-card-widget='collapse'>
+              <button type='button' class='btn btn-tool' data-card-widget='collapse'>
                 <i class='fa fa-plus'></i>
               </button>
             </div>

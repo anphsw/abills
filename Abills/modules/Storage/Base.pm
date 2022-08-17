@@ -4,7 +4,6 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db);
-my $json;
 my Abills::HTML $html;
 my $lang;
 my $Storage;
@@ -25,6 +24,8 @@ sub new {
   my $attr = shift;
 
   $html = $attr->{HTML} if $attr->{HTML};
+  #TODO: load Storage lang because it`s required param not optional now fixed putting
+  #TODO:  empty string except lang value
   $lang = $attr->{LANG} if $attr->{LANG};
 
   my $self = {};
@@ -33,7 +34,7 @@ sub new {
   Storage->import();
   $Storage = Storage->new($db, $admin, $CONF);
 
-  @item_status = ($lang->{INSTALLED}, $lang->{SOLD}, $lang->{RENT}, $lang->{BY_INSTALLMENTS}, $lang->{RETURNED_STORAGE});
+  @item_status = (($lang->{INSTALLED} || q{}), ($lang->{SOLD} || q{}), ($lang->{RENT} || q{}), ($lang->{BY_INSTALLMENTS} || q{}), ($lang->{RETURNED_STORAGE} || q{}));
 
   bless($self, $class);
 
@@ -41,7 +42,7 @@ sub new {
 }
 
 #**********************************************************
-=head2 storage_docs($attr) - get hardwares for invoice
+=head2 storage_docs($attr) - get hardware's for invoice
 
   Arguments:
     UID
@@ -50,7 +51,7 @@ sub new {
 =cut
 #**********************************************************
 sub storage_docs {
-  my $self = shift;
+  shift;
   my ($attr) = @_;
 
   return [] if !$attr->{UID};
@@ -95,8 +96,9 @@ sub storage_docs {
     }
 
     $hardware->{sta_name} ||= '';
-    $info{service_name} = qq{$lang->{HARDWARE}:$hardware->{describe} $hardware->{sta_name} $item_status[$hardware->{status}] ($hardware->{count} $lang->{UNIT})};
-    $info{service_name} .= qq{ ($lang->{STORAGE_MONTHS_LEFT}: $hardware->{monthes})};
+    $info{service_name} = ($lang->{HARDWARE} || q{}) . ':' . ($hardware->{describe} || q{}) . ' ' . ($hardware->{sta_name} || q{}) . ' ' .
+      ($item_status[$hardware->{status}] || q{}) . ' (' . ($hardware->{count} || 0) . ' ' . ($lang->{UNIT} || q{}) . ")";
+    $info{service_name} .= ($lang->{STORAGE_MONTHS_LEFT} || q{}) . ' : ' . ($hardware->{monthes} || 0) . ')';
     $info{month} = $hardware->{sum_total};
 
     if ($attr->{FULL_INFO}) {
@@ -104,7 +106,7 @@ sub storage_docs {
     }
     else {
       $hardware->{sum_total} //= 0;
-      push @hardwares, "Hardware: $item_status[$hardware->{status}] $hardware->{sta_name}: $hardware->{sum_total}";
+      push @hardwares, "Hardware: " . ($item_status[$hardware->{status}] || q{}) . " $hardware->{sta_name}: $hardware->{sum_total}";
     }
   }
 
@@ -125,7 +127,7 @@ sub storage_docs {
 =cut
 #**********************************************************
 sub storage_quick_info {
-  my $self = shift;
+  shift;
   my ($attr) = @_;
 
   my $form = $attr->{FORM} || {};
@@ -180,6 +182,5 @@ sub storage_quick_info {
 
   return ($Storage->{TOTAL} > 0) ? $Storage->{TOTAL} : '';
 }
-
 
 1;

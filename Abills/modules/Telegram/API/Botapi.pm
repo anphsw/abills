@@ -66,6 +66,38 @@ sub send_message {
 }
 
 #**********************************************************
+=head2 edit_message_text()
+
+=cut
+#**********************************************************
+sub edit_message_text {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{chat_id} ||= $self->{chat_id};
+
+  my $json_str = $self->perl2json($attr);
+  my $url      = $self->{api_url} . 'editMessageText';
+
+  my @header = ( 'Content-Type: application/json' );
+  $json_str =~ s/\"/\\\"/g;
+
+  my $result = web_request($url, {
+    POST         => $json_str,
+    HEADERS      => \@header,
+    CURL         => 1,
+    CURL_OPTIONS => '-XPOST',
+  });
+
+  if ($debug > 0) {
+    `echo 'COMMAND: curl $json_str -s -X POST "$url"' >> /tmp/telegram.log`;
+    `echo 'RESULT: $result' >> /tmp/telegram.log`;
+  }
+
+  return 1;
+}
+
+#**********************************************************
 =head2 send_contact()
   
 =cut

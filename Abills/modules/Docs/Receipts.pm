@@ -504,6 +504,7 @@ sub docs_receipt_list{
     return docs_receipt_print({
       UID             => $uid,
       PAYMENT_METHODS => $PAYMENT_METHODS,
+      PRINT_ID        => $FORM{print},
       %$attr
     });
   }
@@ -672,7 +673,12 @@ sub docs_receipt_list{
 =head2 docs_receipt($attr)
 
   Arguments:
-    DOCS_INFO   - Docs info
+    $attr
+      UID
+      PAYMENT_METHODS
+      PRINT_ID
+      GET_EMAIL_INFO
+      DOCS_INFO   - Docs info
 
 =cut
 #**********************************************************
@@ -680,13 +686,14 @@ sub docs_receipt_print {
   my ($attr) = @_;
 
   my $uid = $attr->{UID};
+  my $print_id = $attr->{PRINT_ID} || 0;
   my $PAYMENT_METHODS = $attr->{PAYMENT_METHODS};
 
   if($attr->{DOC_INFO}) {
     $Docs = $attr->{DOC_INFO};
   }
   else {
-    $Docs->docs_receipt_info( $FORM{print}, { UID => $uid } );
+    $Docs->docs_receipt_info($print_id, { UID => $uid } );
   }
 
   if(! $users && $user) {
@@ -694,6 +701,7 @@ sub docs_receipt_print {
   }
 
   if(! $Docs->{CUSTOMER} || $Docs->{CUSTOMER} eq '-') {
+    $users->info($uid);
     $users->pi( { UID => $uid } );
     $Docs->{CUSTOMER} = $users->{FIO} || '-'
   }

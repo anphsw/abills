@@ -535,7 +535,9 @@ sub report_fees {
     SEARCH_FORMER   => 1,
   });
 
-  _report_chart_info(\%DATA_HASH, \@charts_dataset);
+  _report_chart_info(\%DATA_HASH, \@charts_dataset, {
+    COUNT => $lang{NUMBER_OF_FEES}
+  });
 
   print $table_fees->show();
 
@@ -602,6 +604,13 @@ sub report_payments {
     PERIOD_FORM => 1,
     DATE_RANGE  => 1,
     FIELDS      => \%METHODS_HASH,
+    EX_INPUTS   => [
+      $html->element('label', "$lang{PAYMENT_METHOD}:", { class=> 'col-md-2 col-form-label text-md-right' }) .
+        $html->element('div', $html->form_input('PAYMENT_METHOD_FILTER', '', {
+          EX_PARAMS => "data-filter='static'",
+          OUTPUT2RETURN => 1
+        } ), { class=> 'col-md-10' })
+    ],
     EXT_TYPE    => {
       PAYMENT_METHOD => $lang{PAYMENT_METHOD},
       ADMINS         => $lang{ADMINS},
@@ -770,7 +779,9 @@ sub report_payments {
     SEARCH_FORMER   => 1,
   });
 
-  _report_chart_info(\%DATA_HASH, \@charts_dataset);
+  _report_chart_info(\%DATA_HASH, \@charts_dataset, {
+    COUNT => $lang{NUMBER_OF_PAYMENTS}
+  });
 
   print $table->show();
 
@@ -1558,7 +1569,7 @@ sub _format_sum_for_payments {
 =cut
 #**********************************************************
 sub _report_chart_info {
-  my ($chart_data, $charts_dataset) = @_;
+  my ($chart_data, $charts_dataset, $labels) = @_;
 
   my %columns_info = (
     sum         => {
@@ -1569,7 +1580,7 @@ sub _report_chart_info {
       index => 0
     },
     login_count => {
-      label       => $lang{COUNT} . $lang{USERS},
+      label       => $lang{NUMBER_OF_USERS},
       color       => 'rgba(34, 187, 51, 0.8)',
       borderColor => 'rgb(0, 66, 37)',
       borderWidth => 1,
@@ -1577,7 +1588,7 @@ sub _report_chart_info {
       index       => 1
     },
     count       => {
-      label       => $lang{COUNT} . $lang{PAYMENTS},
+      label       => $labels->{COUNT} || "$lang{COUNT} $lang{PAYMENTS}",
       color       => 'rgba(91, 192, 222, 0.8)',
       borderColor => 'rgb(0, 166, 147)',
       borderWidth => 1,

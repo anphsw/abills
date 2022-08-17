@@ -284,6 +284,7 @@ $lang{RESTS}='Likučiai';
 $lang{GUEST}='Svečias';
 $lang{COPY}='Kopijuoti';
 $lang{DESCRIBE}='Aprašymas';
+$lang{DESCRIBE_FOR_SUBSCRIBER} = 'Aprašymas abonentui';
 $lang{ACTIVATE_TARIF_PLAN}='Tarifo plano aktyvavimas';
 $lang{DEFAULT_GATEWAY}='Numatytasis šliuzas';
 $lang{SERVICE}='Servisas';

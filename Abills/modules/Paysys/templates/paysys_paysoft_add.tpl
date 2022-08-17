@@ -1,5 +1,5 @@
 <div class='card card-primary card-outline'>
-    <form id=pay name=pay method='POST' action='%ACTION_URL%'>
+    <form id='Paysoft' name='Paysoft' method='POST' action='%ACTION_URL%'>
         <input type='hidden' name='LMI_MERCHANT_ID' value='%LMI_MERCHANT_ID%'>
         <input type='hidden' name='LMI_RESULT_URL' value='%PAYSYS_LMI_RESULT_URL%'>
         <input type='hidden' name='LMI_SUCCESS_URL' value='%LMI_SUCCESS_URL%'>
@@ -8,7 +8,7 @@
         <input type='hidden' name='LMI_FAIL_METHOD' value='2'>
         <input type='hidden' name='LMI_PAYMENT_NO' value='%LMI_PAYMENT_NO%'>
         <input type='hidden' name='at' value='%AT%'>
-        <input type='hidden' name='LMI_PAYMENT_AMOUNT' value='%LMI_PAYMENT_AMOUNT%' size=20/>
+        <input type='hidden' name='LMI_PAYMENT_AMOUNT' value='%LMI_PAYMENT_AMOUNT%'>
         <input type='hidden' name='LMI_PAYMENT_SYSTEM' value='%LMI_PAYMENT_SYSTEM%'>
         <input type='hidden' name='UID' value='%UID%'>
         <input type='hidden' name='sid' value='%SID%'>

@@ -45,16 +45,8 @@ sub paysys_periodic_new {
   $debug_output .= "Paysys: Daily periodic payments\n" if ($debug > 1);
   my $users = Users->new($db, $admin, \%conf);
 
-  # if ($conf{PAYSYS_PORTMONE_PAYEE_ID_OLD}) {
-  #   $debug_output .= paysys_periodic_portmone($attr);
-  # }
-
-  # if ($conf{PAYSYS_ELECTRUM_URL}) {
-  #   $debug_output .= paysys_periodic_electrum($attr);
-  # }
-
-  if (! $attr->{DATE_FROM}) {
-    $attr->{DATE_FROM} = POSIX::strftime( '%Y-%m-%d', localtime( time - 86400 * 3 ) )
+  if (!$attr->{DATE_FROM}) {
+    $attr->{DATE_FROM} = POSIX::strftime('%Y-%m-%d', localtime(time - 86400 * 3));
   }
 
   my $connected_systems_list = $Paysys->paysys_connect_system_list({

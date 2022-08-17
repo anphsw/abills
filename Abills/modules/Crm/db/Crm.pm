@@ -182,6 +182,8 @@ sub crm_lead_list {
   push @WHERE_RULES, "cl.date <= '$attr->{TO_DATE}'" if ($attr->{TO_DATE});
   push @WHERE_RULES, "cl.phone LIKE '\%$attr->{PHONE_SEARCH}\%'" if ($attr->{PHONE_SEARCH});
   push @WHERE_RULES, "(cl.domain_id='$self->{admin}{DOMAIN_ID}')" if ($self->{admin}{DOMAIN_ID});
+  push @WHERE_RULES, "((SELECT COUNT(DISTINCT cl2.id) FROM crm_leads cl2 WHERE cl2.phone <> '' AND cl2.phone=cl.phone) > 1
+  OR (SELECT COUNT(DISTINCT cl2.id) FROM crm_leads cl2 WHERE cl2.email <> '' AND cl2.email=cl.email) > 1)" if ($attr->{DUBLICATE});
 
   push @WHERE_RULES, "cl.responsible='$admin->{AID}'" if (! $attr->{SKIP_RESPOSIBLE} && (!$admin->{permissions}{7} || !$admin->{permissions}{7}{4}));
 
@@ -230,7 +232,7 @@ sub crm_lead_list {
       "IF(cl.build_id, CONCAT(districts.name, '$build_delimiter', streets.name, '$build_delimiter', builds.number), '') AS lead_address",  1 ],
     [ 'ADDRESS_FULL',     'STR',
       "IF(cl.build_id, CONCAT(districts.name, '$build_delimiter', streets.name, '$build_delimiter', builds.number, '$build_delimiter', cl.address_flat), '') AS address_full",  1 ],
-
+    [ 'WATCHER',          'INT',   'clw.aid',                        0 ],
   ];
 
   map push(@{$search_columns}, $_), @{$attr->{SEARCH_COLUMNS}};
@@ -257,7 +259,11 @@ sub crm_lead_list {
     $EXT_TABLES .= 'LEFT JOIN companies company FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.company_id=company.id)';
   }
 
-  my $sql =  "SELECT
+  if($attr->{WATCHER}) {
+    $EXT_TABLES .= 'LEFT JOIN crm_leads_watchers clw ON (clw.lead_id = cl.id)';
+  }
+
+  my $sql =  "SELECT DISTINCT
     $self->{SEARCH_FIELDS}
     cl.uid, cl.id
     FROM crm_leads as cl
@@ -280,12 +286,13 @@ sub crm_lead_list {
 
   $self->query(
     "SELECT COUNT(*) AS total
-   FROM crm_leads as cl
-   LEFT JOIN crm_leads_sources cls ON (cls.id = cl.source)
+    FROM crm_leads as cl
+    LEFT JOIN crm_leads_sources cls ON (cls.id = cl.source)
     LEFT JOIN crm_progressbar_steps cps ON (cps.step_number = cl.current_step)
     LEFT JOIN admins a ON (a.aid = cl.responsible)
     LEFT JOIN users u ON (u.uid = cl.uid)
-   $WHERE",
+    $EXT_TABLES
+    $WHERE",
     undef,
     { INFO => 1 }
   );
@@ -702,6 +709,7 @@ sub progressbar_comment_list  {
       [ 'LEAD_FIO',      'STR',    'cl.fio as lead_fio',     1 ],
       [ 'PLANNED_DATE',  'DATE',   'cpsc.planned_date',      1 ],
       [ 'DOMAIN_ID',     'INT',    'cpsc.domain_id',         0 ],
+      [ 'PRIORITY',      'STR',    'cpsc.priority',          1 ],
     ],
     {
       WHERE => 1,
@@ -1355,7 +1363,7 @@ sub crm_competitor_geo_list {
 }
 
 #**********************************************************
-=head2 crm_competitor_geo_list() - get geo list
+=head2 crm_competitor_builds_list()
 
   Arguments:
     $attr
@@ -2070,6 +2078,89 @@ sub crm_users_by_lead_email {
   );
 
   return $self;
+}
+
+#**********************************************************
+=head2 crm_lead_watch_add ($lead_id, $attr)
+
+  Argumenst:
+    $attr
+      AID
+      LEAD_ID
+
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub crm_lead_watch_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('crm_leads_watchers', {
+      %$attr,
+      AID      => $attr->{AID} || $admin->{AID},
+      LEAD_ID => $attr->{LEAD_ID},
+      ADD_DATE => 'NOW()'
+  });
+
+  return $self->{list};
+
+}
+
+#**********************************************************
+=head2 crm_lead_watch_del ($attr)
+
+  Arguments:
+    $attr
+      LEAD_ID
+      AID
+=cut
+#**********************************************************
+sub crm_lead_watch_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $admin_id = q{};
+  if ($attr->{AID}) {
+    $admin_id = $admin->{AID};
+  }
+
+  $self->query_del('crm_leads_watchers', undef, { AID => $admin_id, LEAD_ID => $attr->{LEAD_ID} });
+
+  return $self->{list};
+
+}
+
+#**********************************************************
+=head2 crm_lead_watch_list ($attr)
+  Arguments:
+    $attr
+      LEAD_ID
+      AID
+=cut
+#**********************************************************
+sub crm_lead_watch_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr, [
+      [ 'LEAD_ID',  'INT', 'lead_id' ],
+      [ 'AID',      'INT', 'aid'     ],
+  ], { WHERE => 1 });
+
+  $self->query("SELECT lead_id, aid
+    FROM crm_leads_watchers
+    $WHERE
+    ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return $self->{list};
 }
 
 1

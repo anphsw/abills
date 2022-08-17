@@ -102,7 +102,7 @@ sub ubiquiti_online{
       CID                => '_SHOW',
       STARTED            => '_SHOW',
       CONNECT_INFO       => '_SHOW',
-      CALLS_TP_ID        => '_SHOW',
+      ONLINE_TP_ID        => '_SHOW',
       NAS_ID             => $nas_info->{NAS_ID},
       SKIP_DEL_CHECK     => 1,
       COLS_NAME          => 1,

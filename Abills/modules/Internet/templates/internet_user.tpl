@@ -71,7 +71,7 @@
                     <span class='hidden-xs'>%TP_NUM%</span>
                   </div>
                 </div>
-                <input type='text' name='GRP' value='%TP_NAME%' ID='TP' class='form-control hidden-xs' readonly>
+                <input type='text' name='GRP' value='%TP_NAME%' ID='TP' class='form-control hidden-xs' %TARIF_PLAN_TOOLTIP% readonly>
                 <div class='input-group-append'>
                   <div class='input-group-text'>
                     %CHANGE_TP_BUTTON%

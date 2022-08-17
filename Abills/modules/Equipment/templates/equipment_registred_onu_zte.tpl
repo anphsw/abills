@@ -1,5 +1,5 @@
-<form action='$SELF_URL' class='form form-horizontal' METHOD='GET'>
-  <input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' class='form' METHOD='GET'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'>
   <input type='hidden' name='TYPE' value='$FORM{TYPE}'>
   <input type='hidden' name='visual' value='$FORM{visual}'>

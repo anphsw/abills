@@ -36,7 +36,7 @@
     </div>
   </div>
 
-  <div class='form-group row' style='%EXT_SEL_STYLE%'>
+  <div class='form-group row' style='%HIDE_FLAT%'>
     <label class='col-sm-3 col-md-4 col-form-label text-md-right'>_{ADDRESS_FLAT}_:</label>
     <div class='col-sm-9 col-md-8'>
       <input type='text' name='ADDRESS_FLAT' value='%ADDRESS_FLAT%' class='form-control INPUT-FLAT'>

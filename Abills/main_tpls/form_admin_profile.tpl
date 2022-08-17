@@ -1,3 +1,21 @@
+<style>
+	.card-teal .card-body a {
+		margin-top: .25rem;
+	}
+</style>
+
+<div class='card card-form card-teal card-outline %HIDE_SUBSCRIBE_BLOCK%'>
+  <div class='card-header border-0'>
+    <h2 class='card-title'>
+      _{BOTS}_
+    </h2>
+  </div>
+  <div class='card-body pt-1' >
+    %SUBSCRIBE_BLOCK%
+  </div>
+</div>
+
+
 <form action='$SELF_URL' METHOD='POST' class='form form-horizontal'>
   <input type='hidden' name='index' value='$index'/>
   <input type='hidden' name='AWEB_OPTIONS' value='1'/>
@@ -17,7 +35,7 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-4 control-label'>_{REFRESH}_ (sec.):</label>
+        <label class='col-md-4 control-label'>_{REFRESH}_ (sec):</label>
         <div class='col-md-3'>
           <div class='input-group'>
             <input type='text' name='REFRESH' value='$admin->{SETTINGS}{REFRESH}' class='form-control'/>
@@ -37,7 +55,7 @@
         </div>
       </div>
 
-      <div class='form-group row'>%SUBSCRIBE_BLOCK%</div>
+<!--      <div class='form-group row'>%SUBSCRIBE_BLOCK%</div>-->
 
       <div class='form-group row'>
         <div class='col-md-6'>
@@ -75,7 +93,7 @@
       <div class='form-group'>
         <div class='row'>
           <div class='col-sm-12 col-md-12'>
-            <a href='$SELF_URL?index=$index&reset_schema=1' class='btn btn-danger'>_{RESET_SCHEMA}_</a>
+            <a href='$SELF_URL?index=$index&reset_schema=1' class='btn btn-danger w-100'>_{RESET_SCHEMA}_</a>
           </div>
         </div>
       </div>

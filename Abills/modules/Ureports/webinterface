@@ -17,7 +17,7 @@ use warnings FATAL => 'all';
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Ureports',
-  REQUIRE_VERSION => 7.68,
+  REQUIRE_VERSION => 7.75,
 })) {
 
   exit;
@@ -138,10 +138,11 @@ sub ureports_users_list {
   $Ureports->{LAST_MESSAGE} = 1;
 
   result_former({
-    DEFAULT_FIELDS  => 'LOGIN,FIO,TP_NAME,STATUS,TYPE,DESTINATION',
     INPUT_DATA      => $Ureports,
     FUNCTION        => 'user_list',
     BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'LOGIN,FIO,TP_NAME,STATUS,TYPE,DESTINATION',
+    HIDDEN_FIELDS   => 'DESTINATION_ID',
     FUNCTION_FIELDS => 'ureports_user:show:uid',
     EXT_TITLES      => {
       tp_name       => $lang{TARIF_PLAN},
@@ -386,7 +387,7 @@ sub ureports_user {
       { class => 'btn bnt-default btn-success' });
   }
 
-  my %destinations = $Ureports->{DESTINATIONS} ? split /[:,]/, $Ureports->{DESTINATIONS} : ();
+  my %destinations = $Ureports->{DESTINATIONS} ? split /[|,]/, $Ureports->{DESTINATIONS} : ();
   $Ureports->{DESTINATION} = JSON::to_json(\%destinations);
 
   $html->tpl_show(_include('ureports_user', 'Ureports'), { %{$attr}, %{$Ureports} }, { ID => 'ureports_user' });
@@ -947,7 +948,7 @@ sub ureports_user_info {
     ARRAY_NUM_ID => 1
   });
 
-  my %destinations = $Ureports->{DESTINATIONS} ? split /[:,]/, $Ureports->{DESTINATIONS} : ();
+  my %destinations = $Ureports->{DESTINATIONS} ? split /[|,]/, $Ureports->{DESTINATIONS} : ();
   $Ureports->{DESTINATION} = JSON::to_json(\%destinations);
 
   $html->tpl_show(_include('ureports_client_user', 'Ureports'), $Ureports);

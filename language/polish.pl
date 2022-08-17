@@ -509,6 +509,7 @@ $lang{MESSAGES}='Wiadomości';
 $lang{NEW}='Nowy';
 $lang{DEPOSIT}='Depozyt';
 $lang{DESCRIBE}='Opis';
+$lang{DESCRIBE_FOR_SUBSCRIBER} = 'Opis dla subskrybenta';
 $lang{RULES}='Zasady';
 $lang{APPLIED}='Zastosowano';
 $lang{USED}='Wykorzystano';

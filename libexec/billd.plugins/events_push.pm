@@ -4,6 +4,9 @@
 #
 #**********************************************************
 
+use strict;
+use warnings FATAL => 'all';
+
 BEGIN {
   use FindBin '$Bin';
   our $libpath = $Bin;
@@ -11,13 +14,13 @@ BEGIN {
   unshift @INC, $Bin . '/../Abills';
 }
 
-use Abills::Base qw/cmd in_array convert startup_files _bp int2ip/;
-use Abills::Misc qw/form_purchase_module cross_modules_call _function get_function_index/;
 use JSON;
-
 use utf8;
-use Log qw/log_print/;
 use POSIX qw/strftime/;
+
+
+use Abills::Base qw(in_array _bp);
+require Abills::Misc;
 
 our (
   $db,
@@ -65,12 +68,12 @@ my $DEBUG = ($argv && $argv->{DEBUG}) ? $argv->{DEBUG} : 0;
 $DATE //= POSIX::strftime("%Y-%m-%d", localtime());
 my (undef, $month, $day) = split('-', $DATE);
 
-_bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } });
-
 my $events = collect_events();
 foreach my $aid ( keys %{$events} ) {
   send_events($aid, $events->{$aid}) if ( scalar (@{$events->{$aid}}) );
 }
+
+#TODO: Migrate to FCM
 
 #**********************************************************
 =head2 collect_events()
@@ -219,7 +222,6 @@ sub _generate_birthday_reminder {
   
 }
 
-
 #**********************************************************
 =head2 get_administrator_language()
 
@@ -270,4 +272,4 @@ sub get_administrator_language {
   return $language;
 }
 
-1
+1;

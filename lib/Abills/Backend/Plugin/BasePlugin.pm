@@ -4,7 +4,7 @@ use warnings FATAL => 'all';
 
 =head1 NAME
 
-  Abills::Backend::BasePlugin - ierarchical parent for all Backend Plugins
+  Abills::Backend::BasePlugin - hierarchical parent for all Backend Plugins
 
 =head2 SYNOPSIS
 
@@ -48,7 +48,8 @@ sub new {
 =cut
 #**********************************************************
 sub init {
-  my ($self, $attr) = @_;
+  my $self = shift;
+  my ($attr) = @_;
   $self->{api} = Abills::Backend::Plugin::BaseAPI->new($self->{conf}, $attr);
   return $self->{api};
 };

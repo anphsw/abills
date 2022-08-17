@@ -18,7 +18,15 @@ our(
   %conf,
   %LIST_PARAMS,
   $IPV4,
-  %lang
+  %lang,
+  $user,
+  %FORM,
+  $users,
+  $pages_qs,
+  $DATE,
+  $index,
+  $sid,
+  %CHARTS,
 );
 
 our Abills::HTML $html;
@@ -609,29 +617,29 @@ sub ipoe_sessions {
 
   my @TT_COLORS = ('FFFFFF', '#80FF80', '#FFFF80', '#BFBFFF');
 
-  if ( !$user->{UID} ){
+  if (!$user->{UID}) {
     $LIST_PARAMS{UID} = $FORM{UID};
     ipoe_recalculate();
   }
-  else{
+  else {
     $LIST_PARAMS{UID} = $user->{UID};
   }
 
-  if ( $FORM{HOURS} ){
-    $LIST_PARAMS{HOURS} = 1;
-  }
+  $LIST_PARAMS{HOURS} = 1 if $FORM{HOURS};
 
   $pages_qs .= "&UID=" . ($LIST_PARAMS{UID} ? $LIST_PARAMS{UID} : q{});
   reports({
-    DATE        => $FORM{DATE},
-    REPORT      => '',
     PERIOD_FORM => 1,
-    #DATE_RANGE  => 1,
+    DATE_RANGE  => 1,
     NO_GROUP    => 1,
     HIDDEN      => { UID => $LIST_PARAMS{UID} },
     EX_INPUTS   => [
-      "$lang{HOURS}: " . $html->form_input( 'HOURS', 1,
-        { TYPE => 'checkbox', STATE => ($FORM{HOURS}) ? 'checked' : undef, OUTPUT2RETURN => 1 } )
+      $html->element('label', "$lang{HOURS}: ", { for => 'HOURS', class => 'col-md-2 control-label', OUTPUT2RETURN => 1 }) .
+        $html->form_input('HOURS', 1, {
+          TYPE          => 'checkbox',
+          STATE         => ($FORM{HOURS}) ? 'checked' : undef,
+          OUTPUT2RETURN => 1
+        })
     ]
   });
 
@@ -648,29 +656,24 @@ sub ipoe_sessions {
 
   my $graph_type = '';
   my $table_sessions;
-  #Day reposrt
+  #Day report
   if ( defined( $FORM{DATE} ) ){
     $LIST_PARAMS{INTERVAL_TYPE} = 2;
     $graph_type = 'day_stats';
   }
   else{
     if ( $Sessions->prepaid_rest( { UID => $LIST_PARAMS{UID}, INFO_ONLY => 1 } ) ){
-      my $list = $Internet_ipoe->prepaid_rest(
-        {
-          UID  => $LIST_PARAMS{UID},
-          INFO => $Sessions->{INFO_LIST}
-        }
-      );
+      my $list = $Internet_ipoe->prepaid_rest({
+        UID  => $LIST_PARAMS{UID},
+        INFO => $Sessions->{INFO_LIST}
+      });
 
-      my $table = $html->table(
-        {
-          caption     => $lang{PREPAID},
-          width       => '100%',
-          title_plain =>
-          [ "$lang{TRAFFIC} $lang{TYPE}", $lang{BEGIN}, $lang{END}, $lang{START}, "$lang{TOTAL} (MB)", "$lang{REST} (MB)", "$lang{OVERQUOTA} (MB)" ],
-          ID          => 'IPN_PREPAID',
-        }
-      );
+      my $table = $html->table({
+        caption     => $lang{PREPAID},
+        width       => '100%',
+        title_plain => [ "$lang{TRAFFIC} $lang{TYPE}", $lang{BEGIN}, $lang{END}, $lang{START}, "$lang{TOTAL} (MB)", "$lang{REST} (MB)", "$lang{OVERQUOTA} (MB)" ],
+        ID          => 'IPN_PREPAID',
+      });
 
       foreach my $line ( @{$list} ){
         $table->addrow(
@@ -679,8 +682,7 @@ sub ipoe_sessions {
           $line->{interval_end},
           $line->{activate},
           $line->{prepaid},
-            ($line->{prepaid} > 0 && $Internet_ipoe->{TRAFFIC}->{ $line->{traffic_class} } && $line->{prepaid} - $Internet_ipoe->{TRAFFIC}->{ $line->{traffic_class} } > 0) ? $line->{prepaid} - $Internet_ipoe->{TRAFFIC}->{ $line->{traffic_class} } : 0
-          ,
+            ($line->{prepaid} > 0 && $Internet_ipoe->{TRAFFIC}->{ $line->{traffic_class} } && $line->{prepaid} - $Internet_ipoe->{TRAFFIC}->{ $line->{traffic_class} } > 0) ? $line->{prepaid} - $Internet_ipoe->{TRAFFIC}->{ $line->{traffic_class} } : 0,
             ($line->{prepaid} > 0 && $Internet_ipoe->{TRAFFIC}->{ $line->{traffic_class} } && $line->{prepaid} - $Internet_ipoe->{TRAFFIC}->{ $line->{traffic_class} } < 0) ? abs( $line->{prepaid} - $Internet_ipoe->{TRAFFIC}->{ $line->{traffic_class} } ) : 0
         );
       }
@@ -691,7 +693,7 @@ sub ipoe_sessions {
   }
 
   $LIST_PARAMS{CUR_DATE} = $DATE;
-  if ( $html->{FROM_DATE} ){
+  if ($html->{FROM_DATE}) {
     $LIST_PARAMS{INTERVAL} = "$html->{FROM_DATE}/$html->{TO_DATE}";
   }
 
@@ -701,18 +703,16 @@ sub ipoe_sessions {
     SUM         => '_SHOW',
     %LIST_PARAMS,
     COLS_NAME   => 1
-  } );
+  });
 
-  #Used Fraffic
-  $table_sessions = $html->table(
-    {
-      width      => '100%',
-      caption    => $lang{SESSIONS},
-      title      => [ $lang{DATE}, $lang{TRAFFIC_CLASS}, $lang{NAME}, $lang{RECV}, $lang{SENT}, $lang{TOTAL}, $lang{SUM} ],
-      qs         => $pages_qs,
-      ID         => 'IPN_SESSIONS'
-    }
-  );
+  #Used Traffic
+  $table_sessions = $html->table({
+    width   => '100%',
+    caption => $lang{SESSIONS},
+    title   => [ $lang{DATE}, $lang{TRAFFIC_CLASS}, $lang{NAME}, $lang{RECV}, $lang{SENT}, $lang{TOTAL}, $lang{SUM} ],
+    qs      => $pages_qs,
+    ID      => 'IPN_SESSIONS'
+  });
 
   my %report = ();
   foreach my $line ( @{$list} ){
@@ -730,26 +730,21 @@ sub ipoe_sessions {
 
     my $period = $stats_array->[0]->{start} || $stats_array->[0]->{hours} || '-';
 
-    if ( !$FORM{DATE} ){
-      my($date)=split(/ /, $period);
-      $period = $html->button( $period,
-        "index=$index&HOURS=1&DATE=$date$pages_qs" );
+    if (!$FORM{DATE}) {
+      my ($date) = split(/ /, $period);
+      $period = $html->button($period, "index=$index&HOURS=1&DATE=$date$pages_qs");
     }
 
     my $traffic_class =   $stats_array->[0]->{traffic_class} || 0;
     $table_sessions->addtd(
-      $table_sessions->td( $period, { rowspan => ($#{ $stats_array } > 0) ? $#{ $stats_array } + 2 : 2 } ),
-      $table_sessions->td( $traffic_class,
-        { bgcolor => $TT_COLORS[ $traffic_class ] } ),
-      $table_sessions->td( $stats_array->[0]->{descr}, { bgcolor => $TT_COLORS[ $traffic_class ] } )
-      ,
-      $table_sessions->td( int2byte( $stats_array->[0]->{traffic_in} ),
-        { bgcolor => $TT_COLORS[ $traffic_class ] } ),
-      $table_sessions->td( int2byte( $stats_array->[0]->{traffic_out} ),
-        { bgcolor => $TT_COLORS[ $traffic_class ] } ),
-      $table_sessions->td( int2byte( $stats_array->[0]->{traffic_in} + $stats_array->[0]->{traffic_out} ),
-        { bgcolor => $TT_COLORS[ $traffic_class ] } ),
-      $table_sessions->td( $stats_array->[0]->{sum}, { bgcolor => $TT_COLORS[ $traffic_class ] } )
+      $table_sessions->td($period, { rowspan => ($#{$stats_array} > 0) ? $#{$stats_array} + 2 : 2 }),
+      $table_sessions->td($traffic_class, { bgcolor => $TT_COLORS[ $traffic_class ] }),
+      $table_sessions->td($stats_array->[0]->{descr}, { bgcolor => $TT_COLORS[ $traffic_class ] }),
+      $table_sessions->td(int2byte($stats_array->[0]->{traffic_in}), { bgcolor => $TT_COLORS[ $traffic_class ] }),
+      $table_sessions->td(int2byte($stats_array->[0]->{traffic_out}), { bgcolor => $TT_COLORS[ $traffic_class ] }),
+      $table_sessions->td(int2byte($stats_array->[0]->{traffic_in} + $stats_array->[0]->{traffic_out}),
+        { bgcolor => $TT_COLORS[ $traffic_class ] }),
+      $table_sessions->td($stats_array->[0]->{sum}, { bgcolor => $TT_COLORS[ $traffic_class ] })
     );
 
     $user_total_in += $stats_array->[0]->{traffic_in};
@@ -762,12 +757,12 @@ sub ipoe_sessions {
 
     for ( my $i = 1; $i < $#{ $stats_array } + 1; $i++ ){
       my $_traffic_class = $stats_array->[$i]->{traffic_class} || 0;
-      if ( $TT_COLORS[ $i ] ){
-        if($_traffic_class) {
+      if ($TT_COLORS[ $i ]) {
+        if ($_traffic_class) {
           $table_sessions->{rowcolor} = $TT_COLORS[ $_traffic_class ];
         }
       }
-      else{
+      else {
         $table_sessions->{rowcolor} = undef;
       }
 
@@ -825,20 +820,18 @@ sub ipoe_sessions {
     $AVG{MONEY} = $user_sum if ($AVG{MONEY} < $user_sum);
   }
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{TOTAL},
-      title   => [ "$lang{TRAFFIC_CLASS}", "$lang{RECV}", "$lang{SENT}", "$lang{TOTAL}", "$lang{SUM}" ],
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{TOTAL},
+    title   => [ $lang{TRAFFIC_CLASS}, $lang{RECV}, $lang{SENT}, $lang{TOTAL}, $lang{SUM} ],
+  });
 
-  foreach my $tt ( sort keys %{ $totals{IN} } ){
-    $table->addrow( $tt,
-      int2byte( $totals{IN}{$tt} ),
-      int2byte( $totals{OUT}{$tt} ),
-      int2byte( $totals{OUT}{$tt} + $totals{IN}{$tt} ),
-      sprintf( "%.6f", $totals{SUM}{$tt} || 0 ) );
+  foreach my $tt (sort keys %{$totals{IN}}) {
+    $table->addrow($tt,
+      int2byte($totals{IN}{$tt}),
+      int2byte($totals{OUT}{$tt}),
+      int2byte($totals{OUT}{$tt} + $totals{IN}{$tt}),
+      sprintf("%.6f", $totals{SUM}{$tt} || 0));
   }
 
   print $table_sessions->show() . $table->show();

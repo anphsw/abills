@@ -15,10 +15,19 @@ our(
   %lang,
   %permissions,
   @WEEKDAYS,
-  @PERIODS
+  @PERIODS,
+  %FORM,
+  %LIST_PARAMS,
+  %COOKIES,
+  $pages_qs,
+  $users,
+  $index,
+  $user,
+  $DATE
 );
 
 use Internet::Sessions;
+use Nas;
 our Abills::HTML $html;
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);

@@ -1,4 +1,4 @@
-<div class=d-print-none id=form_msg_add>
+<div class='d-print-none' id='form_msg_add'>
 
   <form action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='MsgSendForm' id='MsgSendForm'>
     <input type='hidden' name='index' value='$index'/>
@@ -14,7 +14,37 @@
         <div class='form-group row'>
           <label class='col-md-4 col-form-label text-md-right'>_{SUBJECT}_:</label>
           <div class='col-md-8'>
-            <input type='text' name='SUBJECT' value='%SUBJECT%' size='50' class='form-control' required/>
+            <div class='input-container d-none'>
+              <div class='d-flex bd-highlight'>
+                <div class='flex-fill bd-highlight'>
+                  <div class='select'>
+                    <div class='input-group-append select2-append'>
+                      %SUBJECT_SEL%
+                    </div>
+                  </div>
+                </div>
+                <div class='bd-highlight'>
+                  <div class='input-group-append h-100'>
+                    <div class='input-group-text p-0 rounded-left-0'>
+                      <a class='btn-sm cursor-pointer' data-change-input='SUBJECT_INPUT'>
+                        <span class='fa fa-pen p-1'></span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class='input-container input-group'>
+              <input type='text' id='SUBJECT_INPUT' name='SUBJECT' class='form-control' required/>
+              <div class='input-group-append'>
+                <div class='input-group-text p-0'>
+                  <a title='_{SELECT_FROM_LIST}_' class='cursor-pointer' style='padding: 0.375rem 0.75rem' data-change-input='SUBJECT'>
+                    <span class='fa fa-list'></span>
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class='form-group row'>
@@ -24,9 +54,9 @@
           </div>
         </div>
         <div class='form-group row'>
-          <label class='col-md-4 col-form-label text-md-right'>_{MESSAGE}_:</label>
+          <label class='col-md-4 col-form-label text-md-right' for='MESSAGE'>_{MESSAGE}_:</label>
           <div class='col-md-8'>
-            <textarea name='MESSAGE' data-action='drop-zone' cols='70' rows='9' class='form-control'
+            <textarea id='MESSAGE' name='MESSAGE' data-action='drop-zone' cols='70' rows='9' class='form-control'
                       required>%MESSAGE%</textarea>
           </div>
         </div>
@@ -53,7 +83,7 @@
         </div>
       </div>
       <div class='card-footer'>
-        <input type='submit' name='send' value='_{SEND}_' title='Ctrl+C' id='go' class='btn btn-primary'>
+        <input type='submit' name='send' value='_{SEND}_' id='go' class='btn btn-primary'>
       </div>
     </div>
   </form>

@@ -36,13 +36,14 @@ FOR EACH ROW
                                `name`,
                                `logins`,
                                `domain_id`,
-                               `total_time_limit`) VALUES
-      (1, '1 Hour', 1, `NEW`.`id`, 3600),
-      (12, '5 Hours', 1, `NEW`.`id`, 18000),
-      (13, '24 Hours', 1, `NEW`.`id`, 86400);
+                               `total_time_limit`,
+                               `comments`) VALUES
+      (1, '1 Hour', 1, `NEW`.`id`, 3600, ''),
+      (12, '5 Hours', 1, `NEW`.`id`, 18000, ''),
+      (13, '24 Hours', 1, `NEW`.`id`, 86400, '');
 
-    INSERT INTO `nas_groups` (`name`, `domain_id`, `default`)
-    VALUES ('Default', `NEW`.`id`, 1);
+    INSERT INTO `nas_groups` (`name`, `domain_id`, `default`, `comments`)
+    VALUES ('Default', `NEW`.`id`, 1, '');
 
 
   END;

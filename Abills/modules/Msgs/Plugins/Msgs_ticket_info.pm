@@ -3,7 +3,7 @@ package Msgs::Plugins::Msgs_ticket_info;
 use strict;
 use warnings FATAL => 'all';
 
-my ($admin, $CONF, $db);
+my ($admin, $CONF, $db, $msgs_permissions);
 my $json;
 my Abills::HTML $html;
 my $lang;
@@ -29,6 +29,7 @@ sub new {
 
   $html = $attr->{HTML} if $attr->{HTML};
   $lang = $attr->{LANG} if $attr->{LANG};
+  $msgs_permissions = $attr->{MSGS_PERMISSIONS};
 
   my $self = {
     MODULE      => 'Msgs',
@@ -86,6 +87,7 @@ sub plugin_show {
 
   $info .= $self->_get_responsible_select($attr);
   $info .= $self->_get_priority_select($attr);
+  $info .= $self->_get_watchers_select($attr);
   # $info .= $self->_get_plan_date_input($attr);
 
   return $info;
@@ -188,6 +190,8 @@ sub _get_responsible_select {
   my $self = shift;
   my ($attr) = @_;
 
+  return '' if !$msgs_permissions->{1}{16};
+
   my $responsible_sel = main::sel_admins({
     NAME       => 'RESPOSIBLE',
     RESPOSIBLE => $Msgs->{RESPOSIBLE},
@@ -196,6 +200,39 @@ sub _get_responsible_select {
 
   my $col_div = $html->element('div', $responsible_sel, { class => 'col-md-12' });
   my $label = $html->element('label', "$lang->{RESPOSIBLE}:", { class => 'col-md-12' });
+
+  return $html->element('div', $label . $col_div, { class => 'form-group' });
+}
+
+#**********************************************************
+=head2 _get_responsible_select($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _get_watchers_select {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return '' if !$msgs_permissions->{1}{17};
+
+  my $watchers = $Msgs->msg_watch_list({ MAIN_MSG => $Msgs->{ID}, AID => '_SHOW', COLS_NAME => 1 });
+  
+  my @watchers_aids = ();
+
+  map push(@watchers_aids, $_->{aid}), @{$watchers};
+
+  my $watchers_sel = main::sel_admins({
+    NAME      => 'WATCHERS',
+    WATCHERS  => join(',', @watchers_aids),
+    MULTIPLE  => 1
+  });
+
+  my $col_div = $html->element('div', $watchers_sel, { class => 'col-md-12' });
+  my $label = $html->element('label', "$lang->{WATCHERS}:", { class => 'col-md-12' });
 
   return $html->element('div', $label . $col_div, { class => 'form-group' });
 }
@@ -212,6 +249,8 @@ sub _get_responsible_select {
 sub _get_priority_select {
   my $self = shift;
   my ($attr) = @_;
+
+  return '' if !$msgs_permissions->{1}{13};
 
   my $priority_colors = $attr->{PRIORITY_COLORS} || ();
   my $priority = $attr->{PRIORITY_ARRAY} || ();

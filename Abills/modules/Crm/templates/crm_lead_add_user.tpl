@@ -25,7 +25,7 @@
       <input type='text' form='unexistent' class='form-control' name='LOGIN' value='%USER_LOGIN%' id='LOGIN'
              readonly='readonly'/>
       <div class='input-group-append'>
-        <button type="button" class='btn btn-primary fa fa-plus' id='add_uid' data-tooltip='_{MATCH_USER}_'></button>
+        <button type='button' class='btn btn-primary fa fa-plus' id='add_uid' data-tooltip='_{MATCH_USER}_'></button>
       </div>
     </div>
   </div>

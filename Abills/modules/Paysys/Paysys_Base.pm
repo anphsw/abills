@@ -39,6 +39,9 @@ my $payments = Finance->payments($db, $admin, \%conf);
 my $Paysys = Paysys->new($db, $admin, \%conf);
 our Users $users;
 
+my $insert_id = 0;
+my $paysys_id = 0;
+
 my @status = ("$lang{UNKNOWN}",    #0
   "$lang{TRANSACTION_PROCESSING}", #1
   "$lang{COMPLETE}",               #2
@@ -101,7 +104,7 @@ my @status = ("$lang{UNKNOWN}",    #0
       12  An unknown SQL error payment, happens when deadlock
       13  Error logging external payments (Paysys list exist transaction)
       14  User without bill account
-      15
+      15  Transaction created and unpaid and canceled
       17  SQL when conducting payment
       28  Wrong exchange
       35  Wrong signature
@@ -172,7 +175,7 @@ sub paysys_pay {
   my $status = 0;
   my $payments_id = 0;
   my $uid = 0;
-  my $paysys_id = 0;
+  $paysys_id = 0;
   my $ext_info = '';
 
   $user_account = _expr($user_account, $conf{PAYSYS_ACCOUNT_EXPR});
@@ -216,7 +219,7 @@ sub paysys_pay {
 
   #Get transaction info
   if ($order_id || $attr->{PAYSYS_ID}) {
-    print "Order: $order_id\n" if ($debug > 1);
+    print "Order: " . ($order_id || $attr->{PAYSYS_ID}) if ($debug > 1);
 
     my $list = $Paysys->list({
       TRANSACTION_ID => $order_id || '_SHOW',
@@ -278,7 +281,7 @@ sub paysys_pay {
     my $list = _paysys_extra_check_user({
       MAIN_CHECK_FIELD => $CHECK_FIELD,
       USER_ACCOUNT     => $user_account || '---',
-      EXTRA_USER_IDS   => $attr->{EXTRA_USER_IDS} || []
+      EXTRA_USER_IDS   => $attr->{EXTRA_USER_IDS} || [],
     });
 
     #TODO CHECK FOR 40 error status $users->{TOTAL} > 1
@@ -288,7 +291,8 @@ sub paysys_pay {
           USER_ACCOUNT => $user_account,
           SUM          => $amount,
           EXT_ID       => $ext_id,
-          PAYMENT_ID   => $attr->{PAYMENT_ID} || 0 });
+          PAYMENT_ID   => $attr->{PAYMENT_ID} || 0
+        });
       }
       else {
         return 1;
@@ -309,7 +313,8 @@ sub paysys_pay {
           USER_ACCOUNT => $user_account,
           SUM          => $amount,
           EXT_ID       => $ext_id,
-          PAYMENT_ID   => $attr->{PAYMENT_ID} || 0 });
+          PAYMENT_ID   => $attr->{PAYMENT_ID} || 0
+        });
       }
     }
 
@@ -354,7 +359,7 @@ sub paysys_pay {
         STATUS         => $error_code
       });
 
-      $paysys_id = $Paysys->{INSERT_ID};
+      $paysys_id = $Paysys->{errno} ? '' : $Paysys->{INSERT_ID};
     }
 
     if ($attr->{PAYMENT_ID}) {
@@ -394,7 +399,7 @@ sub paysys_pay {
 
   #Sucsess
   if (!$conf{PAYMENTS_POOL}) {
-    cross_modules('pre_payment', {
+    my @params = ('pre_payment', {
       USER_INFO    => $user,
       SKIP_MODULES => 'Sqlcmd, Cards',
       SILENT       => 1,
@@ -405,6 +410,12 @@ sub paysys_pay {
       timeout      => $attr->{CROSSMODULES_TIMEOUT} || $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
       FORM         => \%FORM
     });
+    if ($attr->{API}) {
+      ::cross_modules(\@params);
+    }
+    else {
+      cross_modules(\@params);
+    }
   }
 
   $payments->add(
@@ -444,7 +455,7 @@ sub paysys_pay {
       $paysys_id = $Paysys->{INSERT_ID};
 
       if (!$Paysys->{errno}) {
-        cross_modules('payments_maked', {
+        my @params = ('payments_maked', {
           USER_INFO    => $user,
           PAYMENT_ID   => $payments_id,
           SUM          => $PAYMENT_SUM || $amount,
@@ -455,6 +466,12 @@ sub paysys_pay {
           SKIP_MODULES => 'Cards',
           FORM         => \%FORM
         });
+        if ($attr->{API}) {
+          ::cross_modules(\@params);
+        }
+        else {
+          cross_modules(\@params);
+        }
       }
 
       $status = 3;
@@ -550,7 +567,6 @@ sub paysys_pay {
           SUM        => $amount,
           SILENT     => 1,
           QUITE      => 1,
-          #DEBUG     => 1,
           timeout    => $attr->{CROSSMODULES_TIMEOUT} || $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
         );
 
@@ -560,7 +576,12 @@ sub paysys_pay {
           $crossmodules_params{DEBUG} = 1;
         }
 
-        cross_modules('payments_maked', \%crossmodules_params);
+        if ($attr->{API}) {
+          ::cross_modules('payments_maked', \%crossmodules_params);
+        }
+        else {
+          cross_modules('payments_maked', \%crossmodules_params);
+        }
       }
     }
     #Transactions registration error
@@ -598,7 +619,8 @@ sub paysys_pay {
           USER_ACCOUNT => ($user_account || ($user->{$conf{SECOND_BILLING_SYNC_KEY}} || $user->{UID})),
           SUM          => $amount,
           EXT_ID       => $ext_id,
-          PAYMENT_ID   => $attr->{PAYMENT_ID} || 0 });
+          PAYMENT_ID   => $attr->{PAYMENT_ID} || 0
+        });
       }
     }
     else {
@@ -606,7 +628,8 @@ sub paysys_pay {
         USER_ACCOUNT => $user_account,
         SUM          => $amount,
         EXT_ID       => $ext_id,
-        PAYMENT_ID   => $attr->{PAYMENT_ID} || 0 });
+        PAYMENT_ID   => $attr->{PAYMENT_ID} || 0
+      });
     }
   }
 
@@ -852,6 +875,8 @@ sub paysys_pay_cancel {
     $result = 8;
   }
 
+  $paysys_id = $canceled_payment_id;
+
   if ($attr->{RETURN_CANCELED_ID}) {
     return $result, $canceled_payment_id;
   }
@@ -900,6 +925,7 @@ sub paysys_pay_check {
   });
 
   if ($Paysys->{TOTAL}) {
+    $paysys_id = $paysys_list->[0]->{id};
     return $paysys_list->[0]->{id}, $paysys_list->[0]->{status}, $paysys_list->[0];
   }
 
@@ -998,12 +1024,13 @@ sub paysys_payment_list { #TODO REMOVE THIS FUNCTION
 
   Arguments:
     $attr
-      GID         - group identifier;
-      PARAMS      - Array of parameters
-      SERVICE     - Service ID
-      SERVICE2GID - Service to gid
-                      delimiter :
-                      separator ;
+      GID           - group identifier;
+      NAME: string  - custom name of Payment system
+      PARAMS        - Array of parameters
+      SERVICE       - Service ID
+      SERVICE2GID   - Service to gid
+                        delimiter :
+                        separator ;
       GET_MAIN_GID-
 
   Returns:
@@ -1045,6 +1072,7 @@ sub conf_gid_split {
   if ($attr->{PARAMS}) {
     my $params = $attr->{PARAMS};
     foreach my $key (@$params) {
+      $key =~ s/_NAME_/_$attr->{NAME}\_/ if ($attr->{NAME} && $key =~ /_NAME_/);
       if ($conf{$key . '_' . $gid}) {
         $conf{$key} = $conf{$key . '_' . $gid};
         if ($attr->{GET_MAIN_GID}) {
@@ -1074,6 +1102,7 @@ sub conf_gid_split {
       DATA      - Make form log
       TYPE      - Request TYPE
       STATUS    - Request ABillS Status
+      ERROR     - Error during validation of request
 
   Returns:
 
@@ -1088,12 +1117,22 @@ sub conf_gid_split {
 sub mk_log {
   my ($message, $attr) = @_;
 
+  if (!$base_dir) {
+    our $Bin;
+    require FindBin;
+    FindBin->import('$Bin');
+
+    if ($Bin =~ m/\/abills(\/)/){
+      $base_dir = substr($Bin, 0, $-[1]);
+      $base_dir .= '/';
+    }
+  }
+
   my $paysys          = $attr->{PAYSYS_ID} || '';
-  my $paysys_log_file = $attr->{LOG_FILE} || $base_dir . 'var/log/paysys_check.log';
+  my $paysys_log_file = $attr->{LOG_FILE} || ($base_dir // '/usr/abills/') . 'var/log/paysys_check.log';
 
   if ($attr->{HEADER}) {
     print "Content-Type: text/plain\n\n";
-    #print "BAD_XML_REQUEST";
   }
 
   if ($attr->{REPLY}) {
@@ -1101,11 +1140,11 @@ sub mk_log {
   }
 
   if ($attr->{TYPE}) {
-    $paysys .= " REPLY: $attr->{REPLY}";
+    $paysys .= " TYPE: $attr->{TYPE}";
   }
 
   if ($attr->{STATUS}) {
-    $paysys .= " STATUS: $attr->{REPLY}";
+    $paysys .= " STATUS: $attr->{STATUS}";
   }
 
   if ($attr->{DATA} && ref $attr->{DATA} eq 'HASH') {
@@ -1115,28 +1154,74 @@ sub mk_log {
     }
   }
 
-  if (open(my $fh, '>>', $paysys_log_file)) {
-    if ($attr->{SHOW}) {
-      print "$message";
+  if ($conf{PAYSYS_LOG}) {
+    my $buffer = $FORM{__BUFFER} || q{};
+
+    if (!$insert_id) {
+      my $result = $Paysys->log_add({
+        REQUEST        => $buffer,
+        PAYSYS_IP      => $ENV{REMOTE_ADDR},
+        HTTP_METHOD    => $ENV{REQUEST_METHOD},
+        SYSTEM_ID      => $attr->{PAYSYS_ID},
+        ERROR          => $attr->{ERROR} || '',
+        STATUS         => 1,
+        TRANSACTION_ID => $paysys_id,
+      });
+
+      $insert_id = $result->{INSERT_ID} || 0;
+      delete $Paysys->{INSERT_ID};
     }
+    elsif ($insert_id && $attr->{REPLY}) {
+      my $uid = 0;
+      if ($users->{TOTAL} && $users->{TOTAL} > 0) {
+        $uid = $users->{list}->[0]->{uid} || $users->{UID} || 0;
+      }
 
-    $ENV{REMOTE_ADDR} //= '127.0.0.1';
-    print $fh "\n$DATE $TIME $ENV{REMOTE_ADDR} $paysys =========================\n";
-
-    if ($attr->{REQUEST}) {
-      print $fh "$attr->{REQUEST}\n=======\n";
+      $Paysys->log_change({
+        ID             => $insert_id || '--',
+        REQUEST        => $buffer,
+        RESPONSE       => $message,
+        IP             => $ENV{REMOTE_ADDR},
+        HTTP_METHOD    => $ENV{REQUEST_METHOD},
+        SYSTEM_ID      => $attr->{PAYSYS_ID},
+        UID            => $uid,
+        ERROR          => $attr->{ERROR} || '',
+        STATUS         => 0,
+        TRANSACTION_ID => $paysys_id,
+      });
     }
-
-    print $fh $message || q{};
-    close($fh);
   }
-  else {
-    print "Content-Type: text/plain\n\n";
-    print "Can't open log file '$paysys_log_file' $!\n";
-    print "Error:\n";
-    print "================\n$message================\n";
-    die "Can't open log file '$paysys_log_file' $!\n";
-    #return 0;
+
+  if ($conf{PAYSYS_LOG} && $conf{PAYSYS_LOG} != 2) {
+    if (open(my $fh, '>>', $paysys_log_file)) {
+      if ($attr->{SHOW}) {
+        print "$message";
+      }
+
+      if (!$DATE) {
+        require POSIX;
+        POSIX->import(qw( strftime ));
+        $DATE = strftime("%Y-%m-%d", localtime(time));
+        $TIME = strftime("%H:%M:%S", localtime(time));
+      }
+
+      $ENV{REMOTE_ADDR} //= '127.0.0.1';
+      print $fh "\n$DATE $TIME $ENV{REMOTE_ADDR} $paysys =========================\n";
+
+      if ($attr->{REQUEST}) {
+        print $fh "$attr->{REQUEST}\n=======\n";
+      }
+
+      print $fh $message || q{};
+      close($fh);
+    }
+    else {
+      print "Content-Type: text/plain\n\n";
+      print "Can't open log file '$paysys_log_file' $!\n";
+      print "Error:\n";
+      print "================\n$message================\n";
+      die "Can't open log file '$paysys_log_file' $!\n";
+    }
   }
 
   return 1;
@@ -1457,7 +1542,7 @@ sub paysys_check_user_second_bill {
   });
 
   $response_second_billing =~ /(?<=<result>)(\d+)(?=<\/result>)/g;
-  my $response_result = $1;
+  my $response_result = $1 || q{};
   $response_second_billing =~ /((?<=<comment>)(.*)(?=<\/comment>))/g;
   my $response_comment = $2 || q{};
 

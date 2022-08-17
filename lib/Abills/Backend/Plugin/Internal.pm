@@ -11,13 +11,10 @@ use AnyEvent::Socket;
 
 use Data::Dumper;
 
-our (%conf, $base_dir, $debug, $ARGS, @MODULES);
+our (%conf, $base_dir, $debug);
 
 # Localizing global variables
 use Abills::Backend::Defs;
-use Abills::Base qw/_bp/;
-
-#use Abills::Backend::PubSub;
 use Abills::Backend::Utils qw/json_decode_safe json_encode_safe/;
 
 use Abills::Backend::Plugin::Internal::Command;
@@ -28,10 +25,9 @@ my Abills::Backend::Plugin::Websocket::API $WEBSOCKET_API;
 
 use Abills::Backend::Log;
 my $local_debug = $conf{WEBSOCKET_INTERNAL_DEBUG} || $debug || 3;
-my Abills::Backend::Log $Log = Abills::Backend::Log->new('FILE', $local_debug,
-  'Internal', {
-    FILE => $conf{WEBSOCKET_INTERNAL_DEBUG_FILE} || ($base_dir || '/usr/abills/') . '/var/log/websocket_internal.log'
-  });
+my Abills::Backend::Log $Log = Abills::Backend::Log->new('FILE', $local_debug, 'Internal', {
+  FILE => $conf{WEBSOCKET_INTERNAL_DEBUG_FILE} || ($base_dir || '/usr/abills/') . '/var/log/websocket_internal.log'
+});
 
 #**********************************************************
 =head2 init($attr)
@@ -45,7 +41,8 @@ my Abills::Backend::Log $Log = Abills::Backend::Log->new('FILE', $local_debug,
 =cut
 #**********************************************************
 sub init {
-  my ($self, $attr) = @_;
+  my $self = shift;
+  my ($attr) = @_;
 
   my $server_port = $conf{WEBSOCKET_INTERNAL_PORT} || 19444;
 
@@ -68,14 +65,14 @@ sub init {
   return Abills::Backend::Plugin::Internal::API->new($self->{conf}, $self);
 }
 
-
 #**********************************************************
 =head2 accept_internal_admin_client()
 
 =cut
 #**********************************************************
 sub accept_internal_admin_client {
-  my ($self, $socket_pipe_handle, $host, $port) = @_;
+  my $self = shift;
+  my ($socket_pipe_handle, $host, $port) = @_;
 
   my $socket_id = "$host:$port";
   $Log->notice("Internal connection : $socket_id");
@@ -121,9 +118,7 @@ sub process_message {
   $Log->notice("Processing message " . $chunk);
 
   my $parsed_chunk = json_decode_safe($chunk);
-
   my %type_handle = %{$self->{type_handle}};
-
   my $response = '';
 
   if (!$parsed_chunk || !(ref $parsed_chunk eq 'HASH' && $parsed_chunk->{TYPE})) {
@@ -174,7 +169,8 @@ sub process_message {
 =cut
 #**********************************************************
 sub process_browser_message {
-  my ($self, $data) = @_;
+  my $self = shift;
+  my ($data) = @_;
 
   my $responce = '';
 
@@ -212,7 +208,8 @@ sub process_browser_message {
 =cut
 #**********************************************************
 sub process_list_request {
-  my ($self, $data) = @_;
+  my $self = shift;
+  my ($data) = @_;
 
   my $list_type = $data->{LIST_TYPE};
 
@@ -221,15 +218,18 @@ sub process_list_request {
   return q{{"TYPE":"ERROR", "ERROR":"UNDEFINED 'LIST_TYPE'"}} unless ($list_type);
 
   if ($list_type eq 'ADMINS') {
-    @result_list = $WEBSOCKET_API->admins_connected;
+    @result_list = $WEBSOCKET_API->clients_connected('admin');
+  }
+  elsif ($list_type eq 'USERS') {
+    @result_list = $WEBSOCKET_API->clients_connected('user');
   }
 
-  my %responce = (
+  my %response = (
     TYPE => "RESULT",
     LIST => \@result_list
   );
 
-  return json_encode_safe(\%responce);
+  return json_encode_safe(\%response);
 }
 
 #**********************************************************
@@ -252,7 +252,8 @@ sub process_list_request {
 =cut
 #**********************************************************
 sub process_command {
-  my ($self, $data) = @_;
+  my $self = shift;
+  my ($data) = @_;
 
   my $aid = $data->{AID};
   my $program = $data->{PROGRAM};
@@ -295,9 +296,7 @@ sub process_command {
 
     $Log->info("Command finished $program : " . ($result || 'Error'));
 
-    my $notification = $status ? $success_notification
-      : $error_notification;
-
+    my $notification = $status ? $success_notification : $error_notification;
 
     # If user left notifications empty, use command result as notification
     $notification ||= {
@@ -328,7 +327,8 @@ sub process_command {
 =cut
 #**********************************************************
 sub process_proxy_message {
-  my ($self, $data) = @_;
+  my $self = shift;
+  my ($data) = @_;
 
   my $plugin_name = $data->{PROXY_TO};
   return 0 unless ($plugin_name);

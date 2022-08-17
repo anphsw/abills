@@ -9,6 +9,7 @@
   "06:1:$lang{MEASURE}:storage_measure:"                                            => 5,
   "07:1:$lang{PROPERTY}:storage_properties:"                                        => 5,
   "08:1:$lang{ADMINS}:storage_admins:"                                              => 5,
+  "09:1:$lang{PAYERS}:storage_payers:"                                              => 5,
 
 
   "01:0:$lang{HARDWARE}:storage_hardware:UID"                                       => 20,
@@ -20,6 +21,7 @@
   "54:50:$lang{ANALYSIS_ITEMS_IN_RENT}:storage_rent_statistics:"                    => 4,
   "55:50:$lang{INCOMING_INVOICE_REPORT}:storage_incoming_report:"                   => 4,
   "56:50:$lang{INSTALLED_REPORT}:storage_installation_report:"                      => 4,
+  "57:50:$lang{STORAGE_NAS_INSTALLATIONS_REPORT}:storage_nas_installations_report:" => 4,
 
   # Maintain
   "80:0:$lang{STORAGE}:null"                                                        => 8,
@@ -31,7 +33,8 @@
 );
 
 %USER_FUNCTION_LIST = (
-  "01:0:$lang{HARDWARE}:storage_hardware_user_portal:" => 0
+  "01:0:$lang{HARDWARE}:storage_hardware_user_portal:" => 0,
+  "02:1:$lang{BUY}:storage_public_sale:"               => 0
 );
 
 %PERIODIC = (

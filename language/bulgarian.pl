@@ -170,6 +170,7 @@ $lang{REDUCTION} = "Намаление";
 $lang{AVG} = "Средно";
 $lang{ADD_USER} = "Добавяне нов потребител";
 $lang{DESCRIBE} = "Описание";
+$lang{DESCRIBE_FOR_SUBSCRIBER} = 'Описание за абонат';
 $lang{GEN_PASSWD} = "Генерирана парола";
 $lang{SHOW_ALL} = " Покажи всичко";
 

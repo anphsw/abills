@@ -65,14 +65,13 @@ sub accident_quick_info {
     my $list = $Accident->user_accident_list({ UID => $uid, COLS_NAME => 1 });
 
     my @result = ();
-    #my $admins_list = ::sel_admins({ HASH => 1 });
 
     foreach my $line (@{$list}) {
       push @result, {
         NAME   => $line->{name},
         DESC   => $line->{descr},
-        STATUS => $status{ $line->{status} },
-        AID    => $line->{aid}, #$admins_list->{ $line->{aid} },
+        STATUS => $status{$line->{status}},
+        AID    => $line->{aid}
       };
     }
 
@@ -94,7 +93,7 @@ sub accident_quick_info {
 
   $Accident->user_accident_list({ UID => $uid, COLS_NAME => 1 });
 
-  return ($Accident->{TOTAL} > 0) ? $Accident->{TOTAL} : '';
+  return ($Accident->{TOTAL} && $Accident->{TOTAL} > 0) ? $Accident->{TOTAL} : '';
 }
 
 1;

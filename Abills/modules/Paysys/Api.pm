@@ -18,6 +18,7 @@ use Paysys;
 use Paysys::Init;
 use Abills::Base qw(mk_unique_value);
 
+my Paysys $Paysys;
 our %lang;
 require 'Abills/modules/Paysys/lng_english.pl';
 
@@ -27,7 +28,7 @@ require 'Abills/modules/Paysys/lng_english.pl';
 =cut
 #**********************************************************
 sub new {
-  my ($class, $db, $conf, $admin, $lang, $debug) = @_;
+  my ($class, $db, $conf, $admin, $lang, $debug, $type) = @_;
 
   my $self = {
     db    => $db,
@@ -39,11 +40,20 @@ sub new {
 
   bless($self, $class);
 
+  $self->{routes_list} = ();
+
+  if ($type eq 'user') {
+    $self->{routes_list} = $self->user_routes();
+  }
+
+  $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
+  $Paysys->{debug} = $self->{debug};
+
   return $self;
 }
 
 #**********************************************************
-=head2 routes_list() - Returns available API paths
+=head2 user_routes() - Returns available API paths
 
   Returns:
     {
@@ -98,10 +108,8 @@ sub new {
 
 =cut
 #**********************************************************
-sub routes_list {
+sub user_routes {
   my $self = shift;
-  my $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
-  $Paysys->{debug} = $self->{debug};
 
   return [
     {
@@ -150,7 +158,15 @@ sub routes_list {
           foreach my $system (@{$systems}) {
             next if ($system->{paysys_id} != $allowed_system->{paysys_id});
             my $Module = _configure_load_payment_module($system->{module}, 1);
-            next if (ref $Module eq 'HASH' || !$Module->can('fast_pay_link'));
+            next if ($query_params->{GPAY} && (ref $Module eq 'HASH' || !$Module->can('google_pay')));
+            next if (!$query_params->{GPAY} && (ref $Module eq 'HASH' || !$Module->can('fast_pay_link')));
+            delete @{$system}{qw/status/};
+            if ($system->{module} && $system->{module} eq 'GooglePay.pm') {
+              my %LANG = (%{$self->{lang}}, %lang);
+              my $Paysys_plugin = $Module->new($self->{db}, $self->{admin}, $self->{conf}, { lang => \%LANG });
+              my $settings = $Paysys_plugin->get_config($users_info->[0]->{gid});
+              $system->{google_config} = $settings;
+            }
             push(@systems_list, $system);
           }
         }
@@ -223,12 +239,23 @@ sub routes_list {
           return [];
         }
         else {
-          return $self->paysys_link({
-            UID          => $path_params->{uid},
-            SUM          => $sum,
-            OPERATION_ID => $operation_id,
-            MODULE       => $paysys,
-          })
+          if ($query_params->{GPAY}) {
+            return $self->paysys_pay({
+              UID          => $path_params->{uid},
+              GPAY         => $query_params->{GPAY},
+              SUM          => $sum,
+              OPERATION_ID => $operation_id,
+              MODULE       => $paysys,
+            });
+          }
+          else {
+            return $self->paysys_pay({
+              UID          => $path_params->{uid},
+              SUM          => $sum,
+              OPERATION_ID => $operation_id,
+              MODULE       => $paysys,
+            });
+          }
         }
       },
       credentials => [
@@ -239,7 +266,7 @@ sub routes_list {
 }
 
 #**********************************************************
-=head2 paysys_link($attr) function for call fast_pay_link in Paysys modules
+=head2 paysys_pay($attr) function for call fast_pay_link in Paysys modules
 
   Arguments:
     $attr
@@ -253,7 +280,7 @@ sub routes_list {
 
 =cut
 #**********************************************************
-sub paysys_link {
+sub paysys_pay {
   my $self = shift;
   my ($attr) = @_;
   my %LANG = (%{$self->{lang}}, %lang);
@@ -263,9 +290,19 @@ sub paysys_link {
     return $Module;
   }
 
-  if ($Module->can('fast_pay_link')) {
+  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+
+  if ($Module->can('google_pay') && $attr->{GPAY}) {
     my $Paysys_plugin = $Module->new($self->{db}, $self->{admin}, $self->{conf}, { lang => \%LANG });
-    my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+    return $Paysys_plugin->google_pay({
+      SUM          => $attr->{SUM},
+      OPERATION_ID => $attr->{OPERATION_ID},
+      USER         => $Users->info($attr->{UID}),
+      GPAY         => $attr->{GPAY}
+    });
+  }
+  elsif ($Module->can('fast_pay_link')) {
+    my $Paysys_plugin = $Module->new($self->{db}, $self->{admin}, $self->{conf}, { lang => \%LANG });
     return $Paysys_plugin->fast_pay_link({
       SUM          => $attr->{SUM},
       OPERATION_ID => $attr->{OPERATION_ID},

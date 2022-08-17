@@ -76,11 +76,11 @@ sub status_list{
   my $DESC = (defined( $attr->{DESC} )) ? $attr->{DESC} : 'DESC';
 
   my $WHERE = $self->search_former( $attr, [
-      [ 'ID', 'INT', 'id', 1 ],
-      [ 'NAME', 'STR', 'name', 1 ],
-      [ 'COLOR', 'STR', 'color', 1 ],
-      [ 'TYPE', 'INT', 'type', 1 ],
-      [ 'GET_FEES', 'INT', 'get_fees', 1 ],
+      [ 'ID',       'INT', 'id',        1],
+      [ 'NAME',     'STR', 'name',      1],
+      [ 'COLOR',    'STR', 'color',     1],
+      [ 'TYPE',     'INT', 'type',      1],
+      [ 'GET_FEES', 'INT', 'get_fees',  1],
     ],
     { WHERE => 1, }
   );
@@ -135,4 +135,4 @@ sub status_info{
   return $self;
 }
 
-1
+1;

@@ -11,7 +11,6 @@
   <meta http-equiv='Pragma' CONTENT='no-cache'/>
   <meta http-equiv='Content-Type' CONTENT='text/html; charset=%CHARSET%'/>
   <meta http-equiv='Content-Language' content='%CONTENT_LANGUAGE%'/>
-  <link rel='manifest' href='/manifest.json'>
   <meta name='Author' content='~AsmodeuS~'/>
 
   <title>%TITLE% %BREADCRUMB%</title>

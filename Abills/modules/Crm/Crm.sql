@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS `crm_progressbar_step_comments` (
   `status` SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `planned_date` DATE NOT NULL DEFAULT '0000-00-00',
+  `priority` SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE (`lead_id`, `date`),
   KEY aid (`aid`)
@@ -174,3 +175,14 @@ CREATE TABLE IF NOT EXISTS `crm_tp_info_fields` (
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm Tariff plans info fields';
+
+CREATE TABLE IF NOT EXISTS `crm_leads_watchers` (
+  `id`          INT(11)       UNSIGNED  NOT NULL  AUTO_INCREMENT,
+  `aid`         SMALLINT(6)   UNSIGNED  NOT NULL  DEFAULT 0,
+  `lead_id`     INT(10)       UNSIGNED  NOT NULL  DEFAULT 0,
+  `add_time`    DATETIME                NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY (`aid`,`lead_id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'watchers for leads';

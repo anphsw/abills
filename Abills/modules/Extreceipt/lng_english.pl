@@ -26,5 +26,7 @@ $lang{ERROR_PRINT_RECEIPT}      = 'There is no receipt printing support for this
 $lang{ERROR_SEND_RECEIPT}       = 'There is no receipt send support for this module';
 $lang{ERROR_SEND_RECEIPT}       = 'An error occurred while sending the check';
 $lang{SUCCESS_SEND_RECEIPT}     = 'Receipt successfully sent';
+$lang{REVIEW}                   = 'Review';
+$lang{RETURN}                   = 'Return';
 
 1;
