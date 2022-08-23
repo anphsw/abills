@@ -22,6 +22,7 @@ BEGIN {
   do $Bin . "/../../language/$conf{TELEGRAM_LANG}.pl";
   do $Bin . "/../../Abills/modules/Telegram/lng_$conf{TELEGRAM_LANG}.pl";
   do $Bin . "/../../Abills/modules/Msgs/lng_$conf{TELEGRAM_LANG}.pl";
+  do $Bin . "/../../Abills/modules/Paysys/lng_$conf{TELEGRAM_LANG}.pl";
 
   unshift(@INC,
     $Bin . '/../../',

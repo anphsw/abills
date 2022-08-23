@@ -2779,6 +2779,7 @@ sub set_admin_params {
 
     $admin->{SEL_DOMAINS} = $html->element('div', $html->form_main(
       {
+        class => "form row justify-content-end",
         CONTENT       => $html->element('label', "$lang{DOMAINS}: ", { class => 'col-md-1 ' })
                         . $html->element('div', multidoms_domains_sel(), { class => 'col-md-4' }),
         HIDDEN        => {

@@ -36,7 +36,6 @@
     let mainBlock = jQuery(select).parent().parent().parent();
 
     if (status === '3') {
-      console.log("Add monthes input");
       var element = jQuery("<div></div>").addClass("form-group row appended_field");
       element.append(jQuery("<label for=''></label>").text("_{MONTHES}_:").addClass("col-md-4 control-label"));
       element.append(jQuery("<div></div>").addClass("col-md-8")
@@ -44,7 +43,6 @@
 
       mainBlock.append(element);
     } else {
-      console.log("Remove monthes input");
       mainBlock.find('.appended_field').remove();
     }
 
@@ -56,11 +54,12 @@
     let currentSelect = jQuery(this);
     let mainBlock = currentSelect.closest('.card');
 
-    let link = 'header=2&get_index=storage_hardware&quick_info=1';
-    link += '&ACCOUNTABILITY_AID=' + (currentSelect.val() || 0);
+    let accountabilityAid = mainBlock.find(`[name='ACCOUNTABILITY_AID']`).val() || 0;
+    let typeId = mainBlock.find(`[name='IN_ACCOUNTABILITY_ARTICLE_TYPE']`).val() || 0;
+
+    let link = `header=2&get_index=storage_hardware&quick_info=1&ACCOUNTABILITY_AID=${accountabilityAid}&TYPE_ID=${typeId}`;
     jQuery.post('/admin/index.cgi', link, function (result) {
-      mainBlock.find('div.ACCOUNTABILITY_SELECT').empty();
-      mainBlock.find('div.ACCOUNTABILITY_SELECT').html(result);
+      mainBlock.find('div.ACCOUNTABILITY_SELECT').empty().html(result);
       mainBlock.find('#ACCOUNTABILITY_ID').attr('id', 'ACCOUNTABILITY_ID' + currentSelect.prop('id'));
       initChosen();
     });
@@ -109,9 +108,7 @@
   <input type=hidden name=index value=$index>
   <input type=hidden name=CHG_ID value=%CHG_ID%>
   <input type=hidden name='type' value='prihod2'>
-  <input type=hidden name=ajax_index value=$index>
   <input type=hidden name=UID value=$FORM{UID}>
-  <input type=hidden name=OLD_MAC value=%OLD_MAC%>
   <input type=hidden name=COUNT1 value=%COUNT1%>
   <input type=hidden name=ARTICLE_ID1 value=%ARTICLE_ID1%>
   <input type=hidden name='step' value='$FORM{step}'>
@@ -212,6 +209,10 @@
                 <div class='form-group row'>
                   <label class='col-md-4 control-label'>_{RESPOSIBLE}_:</label>
                   <div class='col-md-8'>%ACCOUNTABILITY_AID_SEL%</div>
+                </div>
+                <div class='form-group row'>
+                  <label class='col-md-4 control-label'>_{TYPE}_:</label>
+                  <div class='col-md-8'>%IN_ACCOUNTABILITY_ARTICLE_TYPES_SEL%</div>
                 </div>
                 <div class='form-group row'>
                   <label class='col-md-4 control-label'>_{NAME}_:</label>
@@ -432,11 +433,7 @@
 
     function createRemoveBtn(blockId) {
       let row = document.createElement('div');
-      row.classList.add('form-group');
-      row.classList.add('mb-0');
-      row.classList.add('p-2');
-      row.classList.add('row');
-      row.classList.add('text-right');
+      row.classList.add('form-group', 'mb-0', 'p-2', 'row', 'text-right');
 
       let col = document.createElement('div');
       col.classList.add('col-md-12');
@@ -451,11 +448,7 @@
       };
 
       let icon = document.createElement('span');
-      icon.classList.add('fa');
-      icon.classList.add('fa-times');
-      icon.classList.add('text-danger');
-      icon.classList.add('p-1');
-
+      icon.classList.add('fa', 'fa-times', 'text-danger', 'p-1');
       button.appendChild(icon);
       btnGroup.appendChild(button);
       col.appendChild(btnGroup);
@@ -474,6 +467,7 @@
     });
 
     jQuery('#ACCOUNTABILITY_AID').on('change', selectAccountability);
+    jQuery('#IN_ACCOUNTABILITY_ARTICLE_TYPE').on('change', selectAccountability);
 
     jQuery('#addBlock').on('click', addWorkBlock);
 

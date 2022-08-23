@@ -304,10 +304,10 @@
 
   %QUICK_REPORTS%
 
-
-  <input type='submit' name='set' value='_{SET}_' class='btn btn-primary'/>
-  <input type='submit' name='default' value='_{DEFAULT}_' class='btn btn-secondary'/>
-  <span class='col-xs-12' style='margin-top: 10px'> </span>
+  <div class='abills-form-main-buttons pb-3'>
+    <input type='submit' name='default' value='_{DEFAULT}_' class='btn btn-secondary'/>
+    <input type='submit' name='set' value='_{SET}_' class='btn btn-primary'/>
+  </div>
 </form>
 
 <style>

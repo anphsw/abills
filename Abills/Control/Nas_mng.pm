@@ -1,4 +1,3 @@
-
 =head1 NAME
 
   NAS managment functions
@@ -17,7 +16,21 @@ my %auth_types = (
   1 => 'System'
 );
 
-our ($db, %lang, $base_dir, %permissions, @state_colors);
+our (
+  $db,
+  %conf,
+  %lang,
+  $base_dir,
+  %permissions,
+  @state_colors,
+  @MODULES,
+  $index,
+  %FORM,
+  $pages_qs,
+  %LIST_PARAMS,
+  $SELF_URL,
+  $DATE,
+);
 
 our Abills::HTML $html;
 our Admins $admin;
@@ -273,6 +286,8 @@ sub form_nas_mng {
       }
     }
   }
+
+  _error_show($Nas);
 
   $Nas->{LNG_ACTION} = $lang{CHANGE};
   $Nas->{ACTION}     = 'change';
@@ -1507,7 +1522,7 @@ sub form_nas_groups {
   elsif (defined($FORM{del}) && $FORM{COMMENTS}) {
     $Nas->nas_group_del($FORM{del});
     if (!$Nas->{errno}) {
-      $html->message('info', $lang{DELETED}, "$lang{DELETED} $users->{GID}");
+      $html->message('info', $lang{DELETED}, "$lang{DELETED} $FORM{del}");
     }
   }
 
@@ -2107,10 +2122,10 @@ sub sel_nas_groups {
 sub nas_types_list {
 
   my %nas_descr = (
-    '3com_ss'       => "3COM SuperStack Switch",
-    'nortel_bs'     => "Nortel Baystack Switch",
-    'asterisk'      => "Asterisk",
-    'usr'           => "USR Netserver 8/16",
+    '3com_ss'       => '3COM SuperStack Switch',
+    'nortel_bs'     => 'Nortel Baystack Switch',
+    'asterisk'      => 'Asterisk',
+    'usr'           => 'USR Netserver 8/16',
     'pm25'          => 'LIVINGSTON portmaster 25',
     'ppp'           => 'FreeBSD ppp demon',
     'exppp'         => 'FreeBSD ppp demon with extended futures',
@@ -2190,9 +2205,10 @@ sub form_nas_search {
   my $has_result_now = 0;
 
   if (defined $FORM{NAS_SEARCH} && $FORM{NAS_SEARCH} == 0) {
-
     if ($FORM{UID}) {
-
+      require Users;
+      Users->import();
+      my $users = Users->new($db, $admin, \%conf);
       # Check for location_id on this user
       my $list = $users->list(
         {

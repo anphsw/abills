@@ -152,7 +152,7 @@ sub list {
     );
   }
 
-  return $list;
+  return $list || [];
 }
 
 #***************************************************************
@@ -314,7 +314,10 @@ sub change {
     }
   );
 
-  $self->info({ NAS_ID => $self->{NAS_ID} });
+  if (! $self->{errno}) {
+    $self->info({ NAS_ID => $self->{NAS_ID} });
+  }
+
   return $self;
 }
 
@@ -503,7 +506,7 @@ sub nas_ip_pools_list {
 
   my $list = $self->{list};
 
-  return $self->{list} if ($self->{TOTAL} < 1);
+  return [] if ($self->{TOTAL} < 1);
 
   $self->query2(
     "SELECT COUNT(*) AS total
@@ -541,7 +544,7 @@ sub nas_ip_pools_set {
     $admin->system_action_add("NAS_ID:$self->{NAS_ID} POOLS:" . (join(',', split(/, /, $attr->{ids}))), { TYPE => 2 });
   }
 
-  return $self->{list};
+  return $self;
 }
 
 #**********************************************************
@@ -649,7 +652,7 @@ sub ip_pools_list {
       $attr
     );
 
-    return $self->{list};
+    return $self->{list} || [];
   }
 
   if (defined($self->{NAS_ID})) {
@@ -678,7 +681,7 @@ sub ip_pools_list {
     $attr
   );
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -809,7 +812,7 @@ sub nas_group_list {
     $attr
   );
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #***************************************************************
@@ -871,7 +874,7 @@ sub nas_group_add {
     { TYPE => 1 }
   );
 
-  return 0;
+  return $self;
 }
 
 #**********************************************************
@@ -890,7 +893,7 @@ sub nas_group_del {
     { TYPE => 10 }
   );
 
-  return 0;
+  return $self;
 }
 
 #**********************************************************
@@ -921,7 +924,7 @@ sub add_radtest_query {
 
   $self->query_add('radtest_history', { %$attr });
 
-  return 0;
+  return $self;
 }
 
 #**********************************************************
@@ -956,7 +959,7 @@ sub query_list {
 
   my $list = $self->{list};
 
-  return $self->{list} if ($self->{TOTAL} < 1);
+  return [] if ($self->{TOTAL} < 1);
 
   $self->query2(
     "SELECT COUNT(*) AS total
@@ -1010,16 +1013,13 @@ sub query_info {
   my ($attr) = @_;
 
   $self->query2("SELECT * FROM `radtest_history` WHERE id = ?;",
-  undef,
-  {
-    INFO => 1,
-    Bind => [ $attr->{ID} ]
-  }
-  );
+    undef, {
+      INFO => 1,
+      Bind => [ $attr->{ID} ]
+    });
 
   return $self;
 }
-
 
 #**********************************************************
 =head2 function add_radtest_query() - add query to datebase
@@ -1049,7 +1049,7 @@ sub nas_cmd_add {
 
   $self->query_add('nas_cmd', { %$attr });
 
-  return 0;
+  return $self;
 }
 
 #**********************************************************
@@ -1155,7 +1155,7 @@ sub nas_cmd_list {
 
   my $list = $self->{list};
 
-  return $self->{list} if ($self->{TOTAL} < 1);
+  return [] if ($self->{TOTAL} < 1);
 
   $self->query2(
     "SELECT COUNT(*) AS total FROM nas_cmd",
@@ -1175,13 +1175,11 @@ sub nas_cmd_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM    => 'ID',
-      TABLE           => 'nas_cmd',
-      DATA            => $attr,
-    }
-  );
+  $self->changes2({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'nas_cmd',
+    DATA         => $attr,
+  });
 
   return $self;
 }

@@ -261,7 +261,7 @@ sub internet_user {
       $Internet->{DEL_BUTTON} = $html->button($lang{DEL}, "index=$index&del=1&UID=$uid&ID=$Internet->{ID}",
         {
           MESSAGE => "$lang{DEL} $lang{SERVICE} Internet $lang{FOR} $lang{USER} $uid?",
-          class   => 'btn btn-danger float-right'
+          class   => 'btn btn-danger'
         });
     }
 
@@ -3326,7 +3326,7 @@ sub internet_users_pools {
   $template_args{LNG_DEL} = $lang{RESET};
   $template_args{DEL_BUTTON} = $html->button($lang{DEL}, "index=$index&del=1&ID=$FORM{ID}&UID=$FORM{UID}", {
     MESSAGE => "$lang{DEL}? ",
-    class   => 'btn btn-danger float-right'
+    class   => 'btn btn-danger'
   });
 
   if ($FORM{add}) {

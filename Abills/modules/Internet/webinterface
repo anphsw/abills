@@ -1714,9 +1714,13 @@ sub internet_service_activate {
       UID    => $attr->{USER_INFO}->{UID},
       STATUS => 0
     });
+
+    $Internet->user_info($attr->{USER_INFO}->{UID}, { ID => $user_info_->{id} || undef });
+
     $attr->{USER_INFO}->{INTERNET_STATUS} = 0;
 
     if ($attr->{GET_ABON}) {
+      $attr->{DO_NOT_USE_GLOBAL_USER_PLS}=1;
       service_get_month_fee($Internet, $attr);
     }
 

@@ -2261,7 +2261,7 @@ sub storage_hardware {
   if ($FORM{quick_info}) {
 
     if (defined($FORM{ACCOUNTABILITY_AID})) {
-      print storage_accountability_sel($Storage, { AID => $FORM{ACCOUNTABILITY_AID} });
+      print storage_accountability_sel($Storage, { AID => $FORM{ACCOUNTABILITY_AID}, TYPE_ID => $FORM{TYPE_ID} });
       return 1;
     }
 
@@ -2466,6 +2466,13 @@ sub storage_hardware {
     EX_PARAMS     => 'data-change="selectStatus"',
   });
 
+  $Storage->{IN_ACCOUNTABILITY_ARTICLE_TYPES_SEL} = $html->form_select("IN_ACCOUNTABILITY_ARTICLE_TYPE", {
+    SELECTED  => $FORM{IN_ACCOUNTABILITY_ARTICLE_TYPE} || 0,
+    SEL_LIST  => $Storage->storage_types_list({ COLS_NAME => 1, DOMAIN_ID => $admin->{DOMAIN_ID} || '_SHOW' }),
+    NO_ID     => 1,
+    EX_PARAMS => "data-change='selectAccountability'",
+    MAIN_MENU => get_function_index('storage_articles_types'),
+  });
   $Storage->{IN_ACCOUNTABILITY_SELECT} = storage_accountability_sel($Storage);
 
   $Storage->{ACCOUNTABILITY_AID_SEL} = sel_admins({
@@ -2546,19 +2553,16 @@ sub storage_inc_articles_sel {
   my ($attr2) = @_;
 
   my %options = (SEL_OPTIONS => { '' => '--' });
-  return $html->form_select(
-    'ARTICLE_ID',
-    {
-      SELECTED  => defined($FORM{ARTICLE_ID}) ? $FORM{ARTICLE_ID} : $Storage_->{ARTICLE_ID} || '',
-      SEL_LIST  => $Storage_->storage_incoming_articles_list({ %{$attr2}, UNINSTALL => 1, COLS_NAME => 1 }),
-      SEL_KEY   => ($attr2->{SIA_ID}) ? 'sia_id' : 'article_id',
-      SEL_VALUE => ($attr2->{SIA_ID}) ? 'article_name,total,serial,storage_name' : 'article_name,total,serial,storage_name',
-      NO_ID     => 1,
-      EX_PARAMS => $Storage_->{DISABLE},
-      MAIN_MENU => get_function_index('storage_articles'),
-      %options
-    }
-  );
+  return $html->form_select('ARTICLE_ID', {
+    SELECTED  => defined($FORM{ARTICLE_ID}) ? $FORM{ARTICLE_ID} : $Storage_->{ARTICLE_ID} || '',
+    SEL_LIST  => $Storage_->storage_incoming_articles_list({ %{$attr2}, UNINSTALL => 1, COLS_NAME => 1 }),
+    SEL_KEY   => ($attr2->{SIA_ID}) ? 'sia_id' : 'article_id',
+    SEL_VALUE => ($attr2->{SIA_ID}) ? 'article_name,total,serial,storage_name' : 'article_name,total,serial,storage_name',
+    NO_ID     => 1,
+    EX_PARAMS => $Storage_->{DISABLE},
+    MAIN_MENU => get_function_index('storage_articles'),
+    %options
+  });
 }
 
 #**********************************************************
@@ -2727,18 +2731,18 @@ sub storage_accountability_sel {
   my ($attr) = @_;
 
   my $accountability_list = $Storage->storage_accountability_list({
-    AID                          => $attr->{AID} || $admin->{AID},
-    COUNT                        => '_SHOW',
-    ARTICLE_NAME                 => '_SHOW',
-    TYPE_NAME                    => '_SHOW',
-    STORAGE_INCOMING_ARTICLES_ID => '_SHOW',
-    COLS_NAME                    => 1,
+    AID             => $attr->{AID} || $admin->{AID},
+    ARTICLE_TYPE_ID => $attr->{TYPE_ID} || '_SHOW',
+    COUNT           => '_SHOW',
+    ARTICLE_NAME    => '_SHOW',
+    TYPE_NAME       => '_SHOW',
+    COLS_NAME       => 1,
   });
 
   return $html->form_select('ACCOUNTABILITY_ID', {
     SEL_LIST  => $accountability_list,
     SEL_KEY   => 'id',
-    SEL_VALUE => 'type_name,article_name,count',
+    SEL_VALUE => 'article_name,count',
     NO_ID     => 1
   });
 }

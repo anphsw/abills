@@ -59,14 +59,12 @@ sub form_quick_reports {
     return 0;
   }
 
-  my $table = $html->table(
-    {
-      width   => '640',
-      caption => "$lang{QUICK} $lang{REPORTS}",
-      title   => [ ' ', "$lang{NAME}", '-', "$lang{SHOW}" ],
-      ID      => 'QR_LIST'
-    }
-  );
+  my $table = $html->table({
+    width   => '640',
+    caption => "$lang{QUICK} $lang{REPORTS}",
+    title   => [ ' ', "$lang{NAME}", '-', "$lang{SHOW}" ],
+    ID      => 'QR_LIST'
+  });
 
   my @qr_arr = ();
   if ($admin->{SETTINGS} && $admin->{SETTINGS}{QUICK_REPORTS}) {

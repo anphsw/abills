@@ -133,19 +133,17 @@ sub AUTOLOAD {
 #**********************************************************
 sub new {
   my $class = shift;
+  my ($db, $admin, $CONF) = @_;
 
-    my ($db, $admin, $CONF) = @_;
-  
-    my $self = {
-      db        => $db,
-      admin     => $admin,
-      conf      => $CONF,
-      domain_id => $admin->{DOMAIN_ID}
-    };
-  
-    bless($self, $class);
+  my $self = {
+    db        => $db,
+    admin     => $admin,
+    conf      => $CONF,
+    domain_id => $admin->{DOMAIN_ID}
+  };
 
-  
+  bless($self, $class);
+
   return $self;
 }
 

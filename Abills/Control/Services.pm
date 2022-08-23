@@ -292,7 +292,7 @@ sub tp_gids_by_geolocation {
 =head2 service_status_change($uid, $status)
 
   Arguments:
-    $uid
+    $user_info
     $status
     $attr
       DATE

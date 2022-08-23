@@ -751,13 +751,16 @@ sub form_main {
 
   if ($attr->{SUBMIT}) {
     my $H = $attr->{SUBMIT};
+    my $submit_container = "<div class='abills-form-main-buttons'>";
     foreach my $k (sort keys %$H) {
       my $v = $H->{$k};
       my $form = ($attr->{ID}) ? " form='$attr->{ID}'" : '';
       if ($k) {
-        $self->{FORM} .= "<input type='submit' name='$k' value='" . ($v || '') . "' class='btn btn-primary'$form>\n";
+        $submit_container .= "<input type='submit' name='$k' value='" . ($v || '') . "' class='btn btn-primary'$form>\n";
       }
     }
+    $submit_container .= '</div>';
+    $self->{FORM} .= $submit_container;
   }
 
   $self->{FORM} .= "</form>\n";
@@ -2342,7 +2345,7 @@ sub addrow {
   $self->{rows} .= '<tr' . $css_class . $row_extra . '>'; # id='row_$row_number'>";
 
   for (my $num = 0; $num <= $#row; $num++) {
-    my $val = $row[$num] || q{};
+    my $val = defined($row[$num]) ? $row[$num] : q{};
     if ($val =~ '<TD.+skip.+>.+<.+/TD>') {
       $self->{rows} .= $val ;
       next;

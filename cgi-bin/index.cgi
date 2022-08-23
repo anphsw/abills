@@ -143,6 +143,16 @@ sub _start {
   if (!$uid && exists $FORM{logined}) {
     $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD}, { OUTPUT2RETURN => 1 });
   }
+
+  # if uid defined set GLOBAL $ENV{DOMAIN_ID} and enabled Multidoms
+  if ($uid && in_array('Multidoms', \@MODULES) && $conf{MULTIDOMS_DOMAIN_ID}) {
+    my $user_info = $user->info($uid);
+    $ENV{DOMAIN_ID} = $user_info->{DOMAIN_ID} if ($user_info);
+
+    # Load DB %conf;
+    $Conf = Conf->new($db, $admin, \%conf);
+  }
+
   #Cookie section ============================================
   $html->set_cookies('OP_SID', $FORM{OP_SID}, '', $html->{web_path}, { SKIP_SAVE => 1 }) if ($FORM{OP_SID});
   if ($sid) {
@@ -1032,7 +1042,7 @@ sub form_login_clients {
     _login_send_pin();
     _login_confirm_pin();
   }
-  
+
   $first_page{LOGIN_ERROR_MESSAGE} = $OUTPUT{LOGIN_ERROR_MESSAGE} || '';
   $first_page{PASSWORD_RECOVERY} = $conf{PASSWORD_RECOVERY};
   $first_page{FORGOT_PASSWD_LINK} = '/registration.cgi&FORGOT_PASSWD=1';
@@ -2647,12 +2657,12 @@ sub change_pi_popup {
 =cut
 #**********************************************************
 sub check_credit_availability {
-  
+
   return 1 if (!$conf{user_credit_change});
   $user->group_info($user->{GID});
   return 1 if ($user->{TOTAL} > 0 && !$user->{ALLOW_CREDIT});
   my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $conf{user_credit_change});
-  
+
   if ($month_changes) {
     my ($y, $m) = split(/\-/, $DATE);
     $admin->action_list({
@@ -2834,7 +2844,7 @@ sub _login_confirm_pin {
     foreach my $contact (@{$contacts}) {
       $user->info($contact->{uid}, { SHOW_PASSWORD => 1 });
       my ($uid, $sid, undef) = auth_user($user->{LOGIN}, $user->{PASSWORD}, '');
-      
+
       push @{$params->{users}}, { url => "/index.cgi?sid=$sid", login => $user->{LOGIN} } if $sid;
     }
   }

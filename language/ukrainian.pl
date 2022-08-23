@@ -972,5 +972,6 @@ $lang{DELETE} = 'Видалити';
 $lang{ALLOW_ACCESS_DOCUMENTS} = 'Дозволено доступ до документів';
 $lang{FORBIDDEN_TO_CHANGE_TP_BY_USER} = 'Заборонено зміну тарифного плану користувачем';
 $lang{ERR_IP_NOT_DEFINED}='НЕ вказано IP';
+$lang{MODULE_NOT_TURNED_ON}='Модуль не підключено';
 
 1;

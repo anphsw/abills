@@ -163,6 +163,7 @@
   <!-- Needs WEBSOCKET_URL defined above -->
   <script src='/styles/default/js/websocket_client.js?v=0.76.28'></script>
 
+  $conf{HOTJAR_SCRIPT_ADMIN}
 </head>
 <body class='hold-transition
   $admin->{SETTINGS}{FIXED_LAYOUT}

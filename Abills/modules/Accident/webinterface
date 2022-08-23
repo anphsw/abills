@@ -33,7 +33,7 @@ if (
   form_purchase_module({
     HEADER          => 1,
     MODULE          => 'Accident',
-    REQUIRE_VERSION => 8.11,
+    REQUIRE_VERSION => 8.13,
   })
 ) {
   exit;
@@ -866,17 +866,18 @@ sub accident_auto_close {
   my ($attr) = @_;
   my $debug = $attr->{DEBUG} || 0;
 
-  return 0 if(!$DATE);
+  return 0 if (!$DATE);
 
   $Accident->{debug} = 1 if ($debug > 6);
 
   my $list = $Accident->list({
-    STATUS   => 0,
-    END_TIME => "<$DATE",
+    STATUS    => 0,
+    NAME      => '_SHOW',
+    END_TIME  => "<$DATE",
     COLS_NAME => 1,
   });
 
-  if($Accident->{TOTAL} > 0) {
+  if ($Accident->{TOTAL} > 0) {
     foreach (@$list) {
       print "Close $_->{name} ($_->{id})\n" if ($debug);
       $Accident->change({
@@ -886,7 +887,7 @@ sub accident_auto_close {
     }
   }
   else {
-    print "NO Accidents to close\n" if($debug);
+    print "NO Accidents to close\n" if ($debug);
   }
 
   return 1;

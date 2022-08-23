@@ -165,7 +165,7 @@ sub weather_today_actions {
       DESC           => "$weather->{list}->[0]->{weather}->[0]->{description} $lang{FEEL_LIKE} " . sprintf("%.0f", ($weather->{list}->[0]->{main}->{feels_like} || 1)),
       JSON_LIST      => $json_data,
       TODAY_WARNINGS => $today_warnings,
-      WEATHER_LINK   => ($conf{WEATHER_SITE}) ? $conf{WEATHER_SITE} : 'https://openweathermap.org',
+      WEATHER_LINK   => ($conf{WEATHER_SITE}) ? $conf{WEATHER_SITE} : "https://openweathermap.org/city/$weather->{city}->{id}",
       CITY_SELECT    => $city_weather_select,
     },
     { OUTPUT2RETURN => 1 });
@@ -229,6 +229,27 @@ sub weather_start_page {
   );
 
   return \%START_PAGE_F;
+}
+
+#**********************************************************
+=head2 lightning_map()
+
+=cut
+#**********************************************************
+sub weather_lightning_map {
+  my ($attr) = @_;
+  my $zoom = 8.5;
+
+  $attr->{COORDINATES} = web_request("https://ipapi.co/json/", {
+    METHOD      => 'GET',
+    JSON_RETURN => 1,
+  });
+
+  print $html->tpl_show(_include('weather_lightning', 'Weather'), {
+    LINK => "https://map.blitzortung.org/?y#$zoom/$attr->{COORDINATES}->{latitude}/$attr->{COORDINATES}->{longitude}",
+  }, { OUTPUT2RETURN => 1 });
+
+ return 1;
 }
 
 1;

@@ -91,14 +91,14 @@ sub paysys_configure_external_commands {
 
   if ($FORM{change}) {
     foreach my $conf_param (@conf_params) {
-      $Config->config_add({ PARAM => $conf_param, VALUE => $FORM{$conf_param}, REPLACE => 1 });
+      $Config->config_add({ PARAM => $conf_param, VALUE => $FORM{$conf_param}, REPLACE => 1, PAYSYS  => 1 });
     }
   }
 
   foreach my $conf_param (@conf_params) {
     my $param_information = $Config->config_info({
-      PARAM => $conf_param,
-      #DOMAIN_ID => 0
+      PARAM     => $conf_param,
+      DOMAIN_ID => $admin->{DOMAIN_ID},
     });
     $EXTERNAL_COMMANDS_SETTINGS{$conf_param} = $param_information->{VALUE};
   }
@@ -749,8 +749,9 @@ sub paysys_add_configure_groups {
     SYSTEM_ID      => '_SHOW',
     PAYSYSTEM_NAME => '_SHOW',
     MODULE         => '_SHOW',
+    PAYSYS_ID      => $PAYSYSTEM_ID,
     COLS_NAME      => 1
-  }, $PAYSYSTEM_ID);
+  });
 
   my $table = $html->table({
     ID         => 'MERCHANT_TABLE',
@@ -915,6 +916,7 @@ sub paysys_group_settings {
     DISABLE_PAYSYS => '_SHOW',
     DISABLE_CHG_TP => '_SHOW',
     USERS_COUNT    => '_SHOW',
+    DOMAIN_ID      => $admin->{DOMAIN_ID} || '_SHOW',
   });
 
   my @connected_payment_systems = ('#', $lang{GROUPS});
@@ -1025,7 +1027,7 @@ sub paysys_configure_groups {
       next if (!$key);
       if ($key =~ /SETTINGS_/) {
         my (undef, $gid, $system_id) = split('_', $key);
-        $Paysys->paysys_merchant_to_groups_delete({ PAYSYS_ID => $system_id, GID => (defined $gid && $gid == 0) ? '0' : $gid });
+        $Paysys->paysys_merchant_to_groups_delete({ PAYSYS_ID => $system_id, GID => (defined $gid && $gid == 0) ? '0' : $gid, DOMAIN_ID => $admin->{DOMAIN_ID} });
         if($delete) {
           _del_group_to_config({GID => $gid});
           $delete = 0;
@@ -1090,6 +1092,7 @@ sub paysys_configure_groups {
     DISABLE_PAYSYS => '_SHOW',
     DISABLE_CHG_TP => '_SHOW',
     USERS_COUNT    => '_SHOW',
+    DOMAIN_ID      => $admin->{DOMAIN_ID} || '_SHOW',
   });
 
   push(@$groups_list,
@@ -1193,6 +1196,7 @@ sub paysys_merchant_select {
       DISABLE_CHG_TP => '_SHOW',
       USERS_COUNT    => '_SHOW',
       GID            => $attr->{chg},
+      DOMAIN_ID      => $admin->{DOMAIN_ID} || '_SHOW',
       COLS_NAME      => 1,
     });
     $group = $group->[0];
@@ -1293,26 +1297,25 @@ sub add_settings_to_config {
         GID         => $gid
       });
     }
-    #skip add group params
-    #return 1;
   }
 
   my $list = $Paysys->merchant_params_info({ MERCHANT_ID => $attr->{MERCHANT_ID} });
 
   foreach my $key (keys %{$list}) {
     if (defined $attr->{GID} && $attr->{GID} != 0) {
-      #print $key . "_$attr->{GID}" .'<br>';
       $Config->config_add({
         PARAM   => $key . "_$attr->{GID}",
         VALUE   => $list->{$key},
-        REPLACE => 1
+        REPLACE => 1,
+        PAYSYS  => 1
       });
     }
     else {
       $Config->config_add({
         PARAM   => $key,
         VALUE   => $list->{$key},
-        REPLACE => 1
+        REPLACE => 1,
+        PAYSYS  => 1
       });
     }
   }
@@ -1341,25 +1344,25 @@ sub del_settings_to_config {
 
   if ($attr->{DEL_ALL}) {
     my $gr_list = $Paysys->merchant_for_group_list({
-      MERCH_ID => $attr->{MERCHANT_ID},
-      GID      => '_SHOW',
+      MERCH_ID  => $attr->{MERCHANT_ID},
+      GID       => '_SHOW',
       COLS_NAME => 1
     });
 
     foreach my $group (@{$gr_list}) {
       foreach my $key (keys %{$list}) {
         my $del_val = $key . (($group->{gid}) ? "_$group->{gid}" : '');
-        $Config->config_del($del_val);
+        $Config->config_del($del_val, { DEL_WITH_DOMAIN => 1 });
       }
     }
   }
   else {
     foreach my $key (keys %{$list}) {
       if (defined $attr->{GID} && $attr->{GID} != 0) {
-        $Config->config_del($key . "_$attr->{GID}");
+        $Config->config_del($key . "_$attr->{GID}", { DEL_WITH_DOMAIN => 1 });
       }
       else {
-        $Config->config_del($key);
+        $Config->config_del($key, { DEL_WITH_DOMAIN => 1 });
       }
     }
   }
@@ -1390,13 +1393,14 @@ sub _del_group_to_config {
   foreach my $systems (@{$list_systems}) {
     my $list_merchants = $Paysys->merchant_settings_list({
       ID             => '_SHOW',
+      PAYSYS_ID      => $systems->{paysys_id},
       COLS_NAME      => 1
-    }, $systems->{paysys_id});
+    });
 
     if ($list_merchants) {
       my $params_list = $Paysys->merchant_params_info({ MERCHANT_ID => $list_merchants->[0]->{id} });
       foreach my $param (keys %{$params_list}) {
-        $Config->config_del($param . "_$attr->{GID}");
+        $Config->config_del($param . "_$attr->{GID}", { DEL_WITH_DOMAIN => 1 });
       }
     }
   }

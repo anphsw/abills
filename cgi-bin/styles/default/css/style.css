@@ -1033,3 +1033,30 @@ body:not(.dark-mode) .user_header .btn.btn-default:hover {
 .card.container-md, .card.container {
   padding: 0;
 }
+
+/* Bootstrap-like */
+.vh-75 {
+  height: 75vh !important;
+}
+
+.card-footer > .btn-primary {
+  float: right !important;
+}
+
+.card-footer > a.btn-danger {
+  float: left;
+}
+
+form > .btn-primary {
+  float: right;
+}
+
+.btn-primary[type="submit"]:not(.btn-block) {
+  float: right;
+}
+
+.abills-form-main-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: .5rem;
+}

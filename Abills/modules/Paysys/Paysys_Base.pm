@@ -172,6 +172,11 @@ sub paysys_pay {
   my $order_id = $attr->{ORDER_ID};
   $users = $attr->{USER_INFO} if ($attr->{USER_INFO});
 
+  my $domain;
+  if (defined $ENV{DOMAIN_ID}) {
+    $domain = { DOMAIN_ID => $ENV{DOMAIN_ID} || 0 };
+  }
+
   my $status = 0;
   my $payments_id = 0;
   my $uid = 0;
@@ -327,7 +332,7 @@ sub paysys_pay {
   }
 
   # For skip license check if payment
-  my $user = $users->info($uid, { USERS_AUTH => 1 });
+  my $user = $users->info($uid, { USERS_AUTH => 1, %{$domain // {}} });
 
   # delete param for cross modules
   delete $user->{PAYMENTS_ADDED};
@@ -356,7 +361,8 @@ sub paysys_pay {
         INFO           => $ext_info,
         USER_INFO      => $attr->{USER_INFO},
         PAYSYS_IP      => $ENV{'REMOTE_ADDR'},
-        STATUS         => $error_code
+        STATUS         => $error_code,
+        %{$domain || {}}
       });
 
       $paysys_id = $Paysys->{errno} ? '' : $Paysys->{INSERT_ID};
@@ -449,7 +455,8 @@ sub paysys_pay {
         INFO           => $ext_info,
         PAYSYS_IP      => $ENV{'REMOTE_ADDR'},
         STATUS         => 2,
-        USER_INFO      => $attr->{USER_INFO}
+        USER_INFO      => $attr->{USER_INFO},
+        %{$domain || {}}
       });
 
       $paysys_id = $Paysys->{INSERT_ID};
@@ -550,7 +557,8 @@ sub paysys_pay {
         INFO           => $ext_info,
         PAYSYS_IP      => $ENV{'REMOTE_ADDR'},
         STATUS         => 2,
-        USER_INFO      => $attr->{USER_INFO}
+        USER_INFO      => $attr->{USER_INFO},
+        %{$domain || {}}
       });
 
       $paysys_id = $Paysys->{INSERT_ID};
@@ -1523,7 +1531,7 @@ sub date_convert {
 
   Returns:
     $result, $user_info
-  
+
 =cut
 #**********************************************************
 sub paysys_check_user_second_bill {
@@ -1666,7 +1674,7 @@ sub _paysys_extra_check_user {
         PHONE                  => '_SHOW',
         ADDRESS_FULL           => '_SHOW',
         GID                    => defined($attr->{MAIN_GID}) ? $attr->{MAIN_GID} : '_SHOW',
-        DOMAIN_ID              => '_SHOW',
+        DOMAIN_ID              => defined($ENV{DOMAIN_ID}) ? $ENV{DOMAIN_ID} : '_SHOW',
         DISABLE_PAYSYS         => '_SHOW',
         GROUP_NAME             => '_SHOW',
         DISABLE                => '_SHOW',

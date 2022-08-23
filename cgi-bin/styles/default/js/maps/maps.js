@@ -316,7 +316,7 @@ var Configuration = (function () {
     }
 
     function errGetObject(layer_id) {
-      displayJSONTooltip({MESSAGE: {caption: "Error. Layer not have objects.", message_type: 'err'}});
+      displayJSONTooltip({MESSAGE: {caption: "Error. Layer has not objects.", message_type: 'err'}});
       jQuery("#layer_" + layer_id).addClass('disabled');
       jQuery("#disabled_layer_" + layer_id).hide();
     }

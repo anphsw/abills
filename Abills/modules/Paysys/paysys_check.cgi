@@ -50,11 +50,27 @@ our $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => $ENV{REMOTE_ADDR} });
 $admin->{DATE} = $DATE;
 
-# if ($Paysys::VERSION < 9.13) {
-#   print "Content=-Type: text/html\n\n";
-#   print "Please update module 'Paysys' to version 9.13 or higher. http://abills.net.ua/";
-#   return 0;
-# }
+if (in_array('Multidoms', \@MODULES) && $conf{MULTIDOMS_DOMAIN_ID}) {
+  if ($ENV{PATH_INFO} && $ENV{PATH_INFO} =~ /(?<=\/)\d+/) {
+    my ($domain) = $ENV{PATH_INFO} =~ /(?<=\/)\d+/gm;
+    $ENV{PATH_INFO} =~ s/^\/\d+//;
+
+    eval {
+      require Multidoms;
+      Multidoms->import();
+    };
+
+    if ($domain && !$@) {
+      my $Domains = Multidoms->new($db, $admin, \%conf);
+      my $domains_list = $Domains->multidoms_domains_list({
+        COLS_NAME => 1,
+        ID        => $domain
+      });
+
+      $ENV{DOMAIN_ID} = $domain if ($domains_list);
+    }
+  }
+};
 
 # read conf for DB
 our $Conf = Conf->new($db, $admin, \%conf);
@@ -335,7 +351,7 @@ sub paysys_payment_gateway {
     $html->message("err", "Paysys" . $lang{DISABLE});
   }
 
-  $TEMPLATES_ARGS{IDENTIFIER_TEXT} = $lang{ENTER} . ' ' . ($lang{$conf{PAYSYS_GATEWAY_IDENTIFIER}} || 'UID');
+  $TEMPLATES_ARGS{IDENTIFIER_TEXT} = $lang{ENTER} . ' ' . ($lang{$conf{PAYSYS_GATEWAY_IDENTIFIER} || q{}} || 'UID');
 
   $html->tpl_show(_include('paysys_gateway', 'Paysys'), \%TEMPLATES_ARGS, { });
 

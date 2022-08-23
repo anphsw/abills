@@ -382,6 +382,7 @@ sub form_companies {
 
     if (!$FORM{search}) {
       print $html->form_main({
+        class  => 'row justify-content-end pr-2',
         CONTENT => "$lang{FILE}: ".$html->form_input( 'FILE_DATA', '', { TYPE => 'file' } ),
         ENCTYPE => 'multipart/form-data',
         HIDDEN  => { index => $index, },

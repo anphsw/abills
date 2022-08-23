@@ -342,13 +342,13 @@ sub inventory_log {
 
   form_search({
     SIMPLE       => {
-      "$lang{LOGIN}"          => 'LOGIN',
-      "$lang{HOSTS_HOSTNAME}" => 'HOSTNAME',
-      'IP'                    => 'IP',
-      "$lang{STATUS}"         => { '' => $lang{ALL}, %status_hash },
-      'SIGN'                  => 'SIGN',
-      'SYS_ID'                => 'SYS_ID',
-      'LOG_COMMENTS'          => 'LOG_COMMENTS',
+      $lang{LOGIN}          => 'LOGIN',
+      $lang{HOSTS_HOSTNAME} => 'HOSTNAME',
+      'IP'                  => 'IP',
+      $lang{STATUS}         => { '' => $lang{ALL}, %status_hash },
+      'SIGN'                => 'SIGN',
+      'SYS_ID'              => 'SYS_ID',
+      'LOG_COMMENTS'        => 'LOG_COMMENTS',
     },
     CONTROL_FORM => 1
   });

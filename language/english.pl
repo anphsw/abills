@@ -1003,5 +1003,6 @@ $lang{DELETE} = 'Delete';
 $lang{ALLOW_ACCESS_DOCUMENTS} = 'Allow access to documents';
 $lang{FORBIDDEN_TO_CHANGE_TP_BY_USER} = 'Forbidden to change the tariff plan by the user';
 $lang{ERR_IP_NOT_DEFINED}='Undefined IP';
+$lang{MODULE_NOT_TURNED_ON}='Module not turned on';
 
 1;

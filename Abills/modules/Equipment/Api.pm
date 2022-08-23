@@ -6,8 +6,8 @@ package Equipment::Api;
 =head VERSION
 
   DATE: 20220210
-  UPDATE: 20220711
-  VERSION: 0.02
+  UPDATE: 20220818
+  VERSION: 0.03
 
 =cut
 
@@ -15,6 +15,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Equipment;
+use Nas;
 require Equipment::Ports;
 
 our (
@@ -45,11 +46,11 @@ sub new {
 
   $self->{routes_list} = ();
 
+  bless($self, $class);
+
   if ($type eq 'admin') {
     $self->{routes_list} = $self->admin_routes();
   }
-
-  bless($self, $class);
 
   return $self;
 }
@@ -113,7 +114,9 @@ sub new {
 sub admin_routes {
   my $self = shift;
   my $Equipment = Equipment->new($self->{db}, $self->{admin}, $self->{conf});
+  my $Nas = Nas->new($self->{db}, $self->{conf}, $self->{admin});
   $Equipment->{debug} = $self->{debug} || 0;
+  $Nas->{debug} = $self->{debug} || 0;
 
   return [
     {
@@ -208,6 +211,146 @@ sub admin_routes {
         equipments_get_used_ports({
           %PARAMS
         });
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/equipment/nas/types/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+        require Control::Nas_mng;
+        my $types = nas_types_list() || {};
+        my @types_list = ();
+
+        foreach my $type (keys %{$types}) {
+          push @types_list, {
+            name => $types->{$type},
+            id   => $type || ''
+          };
+        }
+
+        return \@types_list;
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/equipment/nas/list/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        my @allowed_params = (
+          'NAS_ID',
+          'NAS_NAME',
+          'NAS_IDENTIFIER',
+          'NAS_IP',
+          'NAS_TYPE',
+          'DISABLE',
+          'DESCR',
+          'NAS_GROUP_NAME',
+          'ALIVE',
+          'DOMAIN_ID',
+          'MAC',
+          'GID',
+          'DISTRICT_ID',
+          'LOCATION_ID',
+          'MNG_HOST_PORT',
+          'MNG_USER',
+          'NAS_MNG_USER',
+          'NAS_MNG_PASSWORD',
+          'NAS_RAD_PAIRS',
+          'NAS_IDS',
+          'NAS_FLOOR',
+          'NAS_ENTRANCE',
+          'ADDRESS_FULL',
+          'ZABBIX_HOSTID',
+          'SHOW_MAPS_GOOGLE',
+          'SHORT',
+        );
+
+        my %PARAMS = (
+          COLS_NAME  => 1,
+          PAGE_ROWS  => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 100000),
+          SORT       => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1)
+        );
+
+        foreach my $param (@allowed_params) {
+          next if (!defined($query_params->{$param}));
+          $PARAMS{$param} = $query_params->{$param};
+        }
+
+        $Nas->list({
+          %PARAMS
+        });
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/equipment/nas/groups/list/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        my %PARAMS = (
+          COLS_NAME  => 1,
+          SORT       => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1)
+        );
+
+        $Nas->nas_group_list({
+          %PARAMS
+        });
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/equipment/nas/groups/add/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Nas->nas_group_add({
+          NAME     => $query_params->{NAME} || '',
+          COMMENTS => $query_params->{COMMENTS} || '',
+          DISABLE  => $query_params->{DISABLE} ? 1 : undef,
+        });
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/equipment/nas/groups/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Nas->nas_group_change({
+          ID       => $path_params->{id} || '--',
+          NAME     => $query_params->{NAME} || '',
+          COMMENTS => $query_params->{COMMENTS} || '',
+          DISABLE  => $query_params->{DISABLE} ? 1 : undef,
+        });
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/equipment/nas/groups/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Nas->nas_group_del($path_params->{id});
       },
       credentials => [
         'ADMIN'

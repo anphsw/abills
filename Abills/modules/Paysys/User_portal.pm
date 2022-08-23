@@ -125,7 +125,8 @@ sub paysys_payment {
   });
 
   my $list = $Paysys->paysys_merchant_to_groups_info({
-    COLS_NAME      => 1
+    COLS_NAME => 1,
+    DOMAIN_ID => $ENV{DOMAIN_ID} || $user->{DOMAIN_ID} || '_SHOW'
   });
 
   foreach my $system (@$connected_systems){
@@ -146,6 +147,7 @@ sub paysys_payment {
   my $groups_settings = $Paysys->groups_settings_list({
     PAYSYS_ID => '_SHOW',
     GID       => '_SHOW',
+    DOMAIN_ID => $ENV{DOMAIN_ID} || $user->{DOMAIN_ID} || '_SHOW',
     COLS_NAME => 1,
     PAGE_ROWS => 9999,
   });
@@ -159,8 +161,9 @@ sub paysys_payment {
   my @payment_systems = ();
   my $Users = Users->new($db, $admin, \%conf);
   my $gid_list = $Users->groups_list({
-    COLS_NAME      => 1,
-    GID            => '_SHOW'
+    COLS_NAME => 1,
+    DOMAIN_ID => $ENV{DOMAIN_ID} || $user->{DOMAIN_ID} || '_SHOW',
+    GID       => '_SHOW'
   });
 
   foreach my $payment_system (@$connected_systems) {

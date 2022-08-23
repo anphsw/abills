@@ -232,7 +232,7 @@ sub ureports_user {
   my @report_types = $FORM{TYPE} ? split(',\s?', $FORM{TYPE}) : (0);
 
   if ($FORM{add}) {
-    if (!$permissions{0}{1}) {
+    if (!$permissions{0}{4}) {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
       return 0;
     }

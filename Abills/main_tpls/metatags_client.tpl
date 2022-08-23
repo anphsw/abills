@@ -121,4 +121,6 @@
       customRangeLabel: '_{OTHER}_'
     };
   </script>
+
+  $conf{HOTJAR_SCRIPT_CLIENT}
 </head>

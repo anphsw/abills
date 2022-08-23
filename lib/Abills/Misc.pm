@@ -1043,7 +1043,7 @@ sub service_recalculate {
     else {
       $message .= "$lang{RECALCULATE}\n$lang{RETURNED}: ". sprintf("%.2f", abs($return_sum))."\n" if (!$attr->{QUITE});
     }
-    return $message;
+    return $message || 1;
   }
 
   return 1;
@@ -1161,6 +1161,7 @@ sub service_get_month_fee {
   if (($tp->{MONTH_FEE} && $tp->{MONTH_FEE} > 0) ||
       ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} > 0)
       ) {
+
     #Get back month fee
     if ( $FORM{RECALCULATE} || $attr->{RECALCULATE}) {
       my $result = service_recalculate($Service, $attr);

@@ -1304,7 +1304,7 @@ sub import_address_csv {
   my @address = ();
 
   foreach my $import (@$import_info) {
-    if ($import->{0} =~ /,/) {
+    if ($import->{0} && $import->{0} =~ /,/) {
       push @address, split(/,/, $import->{0}, 1);
     }
   }
@@ -1324,6 +1324,8 @@ sub import_address_csv {
   foreach my $address_tmp (@address_date) {
     add_address_import($address_tmp, %districts_hash, %street_hash);
   }
+
+  return 1;
 }
 
 #**********************************************************

@@ -459,8 +459,9 @@ REPLACE INTO `equipment_models` (
        (320, 4, 12, '', 'C610/8G-T', 'https://www.zte.com.cn/global/products/access/xpon/PON-OLT/ZXA10-C610', 8, '', '', 'zte_c3xx.snmp' , '', 2, 8, '', 0, 1,
         0, 0, 0, 0, 7, 0, 0, 20, NULL, NULL, NULL, 'https://lanmarket.ua/upload/resize_cache/iblock/f18/800_800_105328d7ed3192a3f62f2b54f8e94d8fb/f18bac2d545b383c404333bab4a7db69.jpg'),
        (321, 4, 12, '', 'C610/16G-T', 'https://www.zte.com.cn/global/products/access/xpon/PON-OLT/ZXA10-C610', 16, '', '', 'zte_c3xx.snmp', '', 2, 8, '', 0, 1,
-        0, 0, 0, 0, 7, 0, 0, 40, NULL, NULL, NULL, 'https://lanmarket.ua/upload/resize_cache/iblock/f18/800_800_105328d7ed3192a3f62f2b54f8e94d8fb/f18bac2d545b383c404333bab4a7db69.jpg');
-
+        0, 0, 0, 0, 7, 0, 0, 40, NULL, NULL, NULL, 'https://lanmarket.ua/upload/resize_cache/iblock/f18/800_800_105328d7ed3192a3f62f2b54f8e94d8fb/f18bac2d545b383c404333bab4a7db69.jpg'),
+       (322, 1, 1,  '', 'SF300-24P',  'https://stack-systems.com.ua/kommutator-cisco-sb-sf300-24p-srw224g4p-k9', 24, '', '', 'cisco.snmp', '',  2, 12, '', 0, 0,
+        0, 0, 0, 0, 1, 0, 0, 16, NULL, NULL, NULL, 'https://stack-systems.com.ua/media/amasty/webp/catalog/product/cache/bf20c5eaa46a796e5f825c4a168fc988/image/32593b30/kommutator-cisco-sb-sf300-24-srw224g4-k9-eu.webp');
 
 REPLACE INTO `equipment_extra_ports` (`model_id`, `port_number`, `port_type`, `port_combo_with`, `row`)
 VALUES (101, 1, 4, 0, 0),
@@ -1180,7 +1181,13 @@ VALUES (101, 1, 4, 0, 0),
        (321, 7,  4, 0, 1),
        (321, 8,  1, 0, 1),
        (321, 9,  1, 0, 1),
-       (321, 10, 1, 0, 1);
+       (321, 10, 1, 0, 1),
+       (322, 1,  1, 0, 0),
+       (322, 2,  1, 0, 0),
+       (322, 3,  1, 0, 1),
+       (322, 4,  1, 0, 1),
+       (322, 5,  4, 0, 0),
+       (322, 6,  4, 0, 1);
 
 
 REPLACE INTO `equipment_vendors` (`id`, `name`, `support`, `site`)

@@ -2403,6 +2403,10 @@ sub json_former {
 
     $request =~ s/[\x{00}-\x{1f}]+//ig;
 
+    if ($request =~/[\\]$/g) {
+      $request =~ s/[\\]$/\\\\/g;
+    }
+
     if ($request =~ '<str_>') {
       $request =~ s/<str_>//;
       return qq{\"$request\"};

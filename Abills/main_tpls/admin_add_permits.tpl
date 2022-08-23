@@ -12,5 +12,7 @@
   %TABLE1%
   %TABLE2%
 
-  <input type='submit' form='form_add_permits' class='btn btn-primary' name='set' value='_{SAVE}_'>
+  <div class='abills-form-main-buttons pb-3'>
+    <input type='submit' form='form_add_permits' class='btn btn-primary' name='set' value='_{SAVE}_'>
+  </div>
 </form>

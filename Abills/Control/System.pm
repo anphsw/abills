@@ -318,6 +318,13 @@ sub form_templates_pdf_edit {
 
   return 0 unless ($file);
 
+  my $json_docs_vars = "{}";
+  if(in_array("Docs", \@MODULES)) {
+    ::load_module("Docs", $html);
+    my $docs_vars = eval { docs_take_variables() } || {};
+    $json_docs_vars = json_former($docs_vars);
+  }
+
   my $pdf_content = '';
   my $dsc_parsed_data = {};
 
@@ -355,6 +362,7 @@ sub form_templates_pdf_edit {
   my $json = JSON->new()->utf8(0);
 
   $html->tpl_show(templates('form_templates_pdf_edit'), {
+    DOCS_VARS => $json_docs_vars,
     FILE_NAME => $file,
     PDF_BASE64 => $pdf_base64,
     DSC => $json->encode($dsc_parsed_data),

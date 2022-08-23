@@ -25,7 +25,7 @@
   </div>
 
 </div>
-<input name='MULTIUSER' value='_{APPLY}_' class='btn btn-primary' form='users_list' id='MULTIUSER' type='submit'>
+<input name='MULTIUSER' value='_{APPLY}_' class='btn btn-primary float-right' form='users_list' id='MULTIUSER' type='submit'>
 
 
 <script>

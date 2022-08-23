@@ -37,7 +37,6 @@ sub paysys_log {
     PAYSYS_ID => '_SHOW',
     NAME      => '_SHOW',
     MODULE    => '_SHOW',
-    #    STATUS    => 1,
     COLS_NAME => 1,
   });
 
@@ -115,7 +114,6 @@ sub paysys_log {
 
     $info{DATERANGE_PICKER} = $html->form_daterangepicker({
       NAME  => 'FROM_DATE/TO_DATE',
-      #      FORM_NAME => 'invoice_add',
       VALUE => $FORM{'FROM_DATE_TO_DATE'},
     });
 
@@ -148,6 +146,7 @@ sub paysys_log {
       month          => $lang{MONTH},
       datetime       => $lang{DATE},
     },
+    SKIP_USER_TITLE => 1,
     TABLE           => {
       width   => '100%',
       caption => "Paysys",
@@ -169,7 +168,7 @@ sub paysys_log {
       "$line->{status}:" . $html->color_mark($status[$line->{status}], $status_color[$line->{status}]),
     );
 
-    for (my $i = 0; $i < $Paysys->{SEARCH_FIELDS_COUNT}; $i++) {
+    for (my $i = 7; $i < 7 + $Paysys->{SEARCH_FIELDS_COUNT}; $i++) {
       push @fields_array, $line->{$Paysys->{COL_NAMES_ARR}->[$i]};
     }
 

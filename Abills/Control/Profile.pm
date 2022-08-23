@@ -167,16 +167,15 @@ sub form_profile_search {
     );
   }
 
-  print $html->form_main(
-      {
-        CONTENT=> $table->show(),
-        HIDDEN => {
-          index   => $index,
-        },
-        SUBMIT => { change_search => "$lang{CHANGE}" },
-        ID     => 'FORM_SEARCH_FIELDS'
-      }
-    );
+  print $html->form_main({
+    class  => 'form pb-3',
+    CONTENT=> $table->show(),
+    HIDDEN => {
+      index   => $index,
+    },
+    SUBMIT => { change_search => "$lang{CHANGE}" },
+    ID     => 'FORM_SEARCH_FIELDS'
+  });
 
   return 1;
 }

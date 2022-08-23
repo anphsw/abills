@@ -21,9 +21,10 @@
   </div>
 
   <iframe id='preview' style='width: 100%; height: 0'></iframe>
-
-  <button role='button' id='preview_template_btn' class='btn btn-secondary'>_{PREVIEW}_</button>
-  <input type='submit' value='_{SAVE}_' class='btn btn-primary'/>
+  <div class='abills-form-main-buttons pb-3'>
+    <button role='button' id='preview_template_btn' class='btn btn-secondary'>_{PREVIEW}_</button>
+    <input type='submit' value='_{SAVE}_' class='btn btn-primary'/>
+  </div>
 </form>
 
 <script>

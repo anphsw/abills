@@ -813,6 +813,7 @@ sub form_reports {
   }
 
   print $html->form_main({
+    class   => 'form pb-3',
     CONTENT => $reports,
     HIDDEN  => {
       AWEB_OPTIONS => 1,

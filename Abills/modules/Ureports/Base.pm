@@ -6,7 +6,7 @@ use warnings FATAL => 'all';
 use Abills::Base qw/in_array date_diff cmd convert/;
 
 my ($admin, $CONF, $db);
-my $json;
+#my $json;
 my Abills::HTML $html;
 my $lang;
 my $Ureports;
@@ -361,4 +361,59 @@ sub ureports_send_reports {
   return $debug > 6 ? 1 : $status;
 }
 
+#**********************************************************
+=head2 ureports_docs($attr)
+
+  Arguments:
+
+   Returns:
+     boolean
+
+=cut
+#**********************************************************
+sub ureports_docs {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $uid = $attr->{UID} || '';
+  my @services = ();
+  my %info = ();
+  our %FEES_METHODS;
+
+  my $service_list = $Ureports->user_list({
+    UID               => $uid,
+    MONTH_FEE         => '_SHOW',
+    TP_NAME           => '_SHOW',
+    GROUP_BY          => 'internet.id',
+    COLS_NAME         => 1
+  });
+
+  if ($attr->{FEES_INFO} || $attr->{FULL_INFO}) {
+    foreach my $service_info (@{$service_list}) {
+      my %FEES_DSC = (
+        MODULE          => 'Ureports',
+        TP_ID           => $service_info->{tp_id},
+        TP_NAME         => $service_info->{tp_name},
+        FEES_PERIOD_DAY => $lang->{MONTH_FEE_SHORT},
+        FEES_METHOD     => $service_info->{fees_method} ? $FEES_METHODS{$service_info->{fees_method}} : undef,
+      );
+
+      $info{service_name} = ::fees_dsc_former(\%FEES_DSC);
+      $info{service_desc} = q{};
+      $info{tp_name} = $service_info->{tp_name};
+      $info{module_name} = $lang->{UREPORTS};
+      $info{month} = $service_info->{month_fee} || 0;
+
+      return \%info if (!$attr->{FULL_INFO});
+
+      push @services, { %info };
+    }
+  }
+
+  if ($attr->{FULL_INFO} || $Ureports->{TOTAL} < 1) {
+    return \@services;
+  }
+
+  return \@services;
+}
 1;

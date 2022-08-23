@@ -41,7 +41,7 @@ sub new {
     $self->query("SELECT param, value FROM config WHERE domain_id = ?",
         undef,
         { Bind => [
-            $admin->{DOMAIN_ID} || 0
+          $ENV{DOMAIN_ID} || $admin->{DOMAIN_ID} || 0
         ] });
   }
   #my @non_changed_vars = ('TPL_DIR');
@@ -200,12 +200,20 @@ sub config_change {
 sub config_add {
   my $self = shift;
   my ($attr) = @_;
-  
+
   $self->query_add('config',
     { %$attr,
       DOMAIN_ID => $admin->{DOMAIN_ID}
     },
     { REPLACE => ($attr->{REPLACE}) ? 1 : undef });
+
+  if (!$CONF->{MULTIDOMS_DOMAIN_ID} && $attr->{PAYSYS} && $admin->{DOMAIN_ID} && $attr->{PARAM} && $attr->{PARAM} =~ /_\d+$/g) {
+    $self->query_add('config',
+      { %$attr,
+        DOMAIN_ID => 0
+      },
+      { REPLACE => ($attr->{REPLACE}) ? 1 : undef });
+  }
 
   return $self;
 }
@@ -217,9 +225,17 @@ sub config_add {
 #**********************************************************
 sub config_del {
   my $self = shift;
-  my ($id) = @_;
+  my ($id, $attr) = @_;
 
-  $self->query_del('config', undef,  { param => $id });
+  my %params = (
+    param => $id
+  );
+
+  if ($attr->{DEL_WITH_DOMAIN}) {
+    $params{domain_id} = $admin->{DOMAIN_ID};
+  }
+
+  $self->query_del('config', undef,  { %params });
 
   return $self;
 }

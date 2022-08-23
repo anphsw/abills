@@ -13,169 +13,38 @@
 <input type='hidden' id='pdf_base64' value='%PDF_BASE64%'>
 <input type='hidden' id='saveIndex' value='%SAVE_INDEX%'>
 
+<div id='pdf_header'></div>
+
 <div class='card'>
-  <div id='pdf_header'></div>
-  <div>
-    <div class='container-fluid'>
-      <div class='row'>
-        <div class='card col-6'>
+  <div class='container-fluid'>
+    <div class='row'>
+      <div class='pl-0 col-6'>
+        <div class='card card-primary card-outline mb-0'>
           <div class='card-header'>
-            <h6>_{AVAILABLE}_</h6>
+            <h6 class='card-title'>_{AVAILABLE}_</h6>
           </div>
 
-          <div class='card-body' id='available_fields'>
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>_{FIO}_</div>
-              <button data-variable='FIO' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>_{ADDRESS}_</div>
-              <button data-variable='ADDRESS_FULL' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>UID</div>
-              <button data-variable='UID' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>_{LOGIN}_</div>
-              <button data-variable='LOGIN' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>PASSWORD</div>
-              <button data-variable='PASSWORD' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>_{DEPOSIT}_</div>
-              <button data-variable='DEPOSIT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>_{CREDIT}_</div>
-              <button data-variable='CREDIT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>_{CREDIT}_ _{DATE}_</div>
-              <button data-variable='CREDIT_DATE' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>ID _{COMPANY}_</div>
-              <button data-variable='COMPANY_ID' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>_{NAME}_ _{COMPANY}_</div>
-              <button data-variable='COMPANY_NAME' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>_{GROUP}_ ID</div>
-              <button data-variable='CREDIT_DATE' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>_{PHONE}_</div>
-              <button data-variable='PHONE' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>EMAIL</div>
-              <button data-variable='EMAIL' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>PASPORT_NUM</div>
-              <button data-variable='PASPORT_NUM' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>PASPORT_DATE</div>
-              <button data-variable='PASPORT_DATE' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>PASPORT_DATE_LIT</div>
-              <button data-variable='PASPORT_DATE_LIT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>PASPORT_DATE_EURO</div>
-              <button data-variable='PASPORT_DATE_EURO' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>PASPORT_GRANT</div>
-              <button data-variable='PASPORT_GRANT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>CONTRACT_ID</div>
-              <button data-variable='CONTRACT_ID' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>CONTRACT_DATE</div>
-              <button data-variable='CONTRACT_DATE' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>PASPORT_GRANT</div>
-              <button data-variable='PASPORT_GRANT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>CONTRACT_PREFIX</div>
-              <button data-variable='CONTRACT_PREFIX' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>_{COUNTRY}_</div>
-              <button data-variable='ADDRESS_COUNTRY' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>_{CITY}_</div>
-              <button data-variable='CITY' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>_{STREET}_</div>
-              <button data-variable='ADDRESS_STREET' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>_{ADDRESS_FLAT}_</div>
-              <button data-variable='ADDRESS_FLAT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-
-            <div class='d-flex align-items-center justify-content-between'>
-              <div class='available_field_title'>CONTRACT_DATE_LIT</div>
-              <button data-variable='CONTRACT_DATE_LIT' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
-            </div>
-          </div>
+          <div id='available_fields' class='card-body overflow-auto vh-75'></div>
         </div>
+      </div>
 
-        <div class='card col-6'>
-          <div class='card-header'>
-            <h6>_{USED}_</h6>
+        <div class='pr-0 col-6'>
+          <div class='card card-success card-outline mb-0'>
+            <div class='card-header'>
+              <h6 class='card-title'>_{USED}_</h6>
+            </div>
+
+            <div id='used_fields' class='card-body overflow-auto vh-75'></div>
           </div>
-
-          <div class='card-body' id='used_fields'></div>
         </div>
       </div>
     </div>
 
     <div class='card-footer'>
-      <ul class='float-left pagination' id='pdf_editor_pages'></ul>
+      <ul class='float-left pagination mb-0' id='pdf_editor_pages'></ul>
       <button id='save_dsc' class='float-right float-right btn btn-success'>_{SAVE}_</button>
     </div>
-  </div>
+
 </div>
 
 <canvas id='pdf_editor'></canvas>
@@ -185,8 +54,8 @@
 
 <script id='used_field' type='x-tmpl-mustache'>
   <div class='card used_field mb-2'>
-    <div class='card-header d-flex align-items-center justify-content-between'>
-      <div class='used_field_select'>
+    <div class='used_field_select card-header p-0 pl-3 pr-3 d-flex align-items-center justify-content-between'>
+      <div>
         {{ title }}
         <span class='used_field_selected d-none'>
           <i class='fa fa-check'></i>
@@ -196,11 +65,52 @@
       <input type='number' min='1' placeholder='px' class='used_field_font_size m-2 ml-auto' value='{{ fontSize }}''>
       <input type='color' class='form-control col-1 used_field_color p-1' name='COLOR' value='{{ fontColor }}' type='color'>
 
-      <button class='ml-4 btn btn-danger btn-sm used_field_remove'>D</button>
+      <button class='ml-4 btn btn-danger btn-sm used_field_remove'>
+        <i class='fa fa-trash fa-lg'></i>
+      </button>
     </div>
   </div>
 </script>
 
+<script id='available_field' type='x-tmpl-mustache'>
+  <div class='d-flex align-items-center justify-content-between'>
+    <div class='available_field_title'>{{ title }}</div>
+    <button data-variable='{{ value }}' data-example-value='_{VALUE}_' class='btn available_field_add'>_{ADD}_</button>
+  </div>
+</script>
+
+<script id='docs_not_available'>
+  <div class='card card-danger card-outline'>
+    <div class='card-body'>
+      Docs $lang{MODULE_NOT_TURNED_ON}!
+    </div>
+  </div>
+</script>
+<script>
+  /* Rendering available Docs variables */
+  const availableFieldsNew = document.getElementById('available_fields');
+  const available_field_template = jQuery('#available_field').html();
+
+  const myData = %DOCS_VARS%;
+
+  Mustache.parse(available_field_template);
+
+  const dataKeys = Object.keys(myData);
+  if(dataKeys.length === 0) {
+    const notAvailableDocs = jQuery('#docs_not_available').html();
+    jQuery(availableFieldsNew).append(notAvailableDocs);
+  }
+  dataKeys.forEach(key => {
+    const ava_field = Mustache.render(available_field_template, {
+      title: myData[key],
+      value: key
+    });
+    const myfield = jQuery(ava_field);
+    jQuery(availableFieldsNew).append(myfield);
+  });
+
+  Object.keys(myData)
+</script>
 <script>
   pdfjsLib.disableWorker = true;
   let scale = 1.7;
@@ -347,7 +257,6 @@
         })
 
         jQuery(usedFieldNode).find('.used_field_color').on('input', async ({ target }) => {
-          console.log(target.value)
           pdfTemplateField.fontColor = target.value
 
           await renderPage(pdf, canvas, context, pageNumber, false)

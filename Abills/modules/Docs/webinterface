@@ -167,7 +167,51 @@ sub docs_preview{
 
   return 1;
 }
+#**********************************************************
+=head2 docs_take_variables($type, $attr)
 
+  Arguments:
+
+  Returns:
+    \@DOCS_VARIABLES
+
+=cut
+#**********************************************************
+sub docs_take_variables {
+  $Docs->{ORDER_TOTAL_SUM_VAT} = 1;
+  # Very strange conf, but its a one quick way to take some variables from user
+  # and configure correct working without code changing
+  $Docs->{UID} = $conf{DOCS_VARIABLES_UID} || 1;
+  $Docs->{CONTRACT_DATE} = $DATE;
+  my @result = docs_print("doc", {
+    TAKE_PARAMS           => 1,
+
+    DATE                  => $DATE,
+    TOTAL_ALT_SUM         => 1,
+    TOTAL_SUM             => 1,
+    PAYMENT_METHOD_ID     => 1,
+    TOTAL_SUM_WITHOUT_VAT => 1,
+  });
+
+  my @system_vars = (
+    "",
+    "admin",
+    "list",
+    "db",
+    "list",
+    "conf",
+    "TAKE_PARAMS"
+  );
+
+  my @sorted_keys = sort grep { my $id = $_; not grep $_ eq $id, @system_vars } @result;
+  my $langed_result = {};
+
+  for my $key (@sorted_keys) {
+    $langed_result->{$key} = $lang{$key} || "$key";
+  }
+
+  return $langed_result;
+}
 #**********************************************************
 =head2 docs_print($type, $attr)
 
@@ -351,7 +395,8 @@ sub docs_print{
   if ( $Docs->{UID} ){
     $users->info( $Docs->{UID} ) if (!$users->{BILL_ID});
     $users->pi( { UID => $Docs->{UID} } );
-    $users->{ADDRESS_FULL} = "$users->{ADDRESS_STREET}$conf{BUILD_DELIMITER}$users->{ADDRESS_BUILD}$conf{BUILD_DELIMITER}$users->{ADDRESS_FLAT}" if ($users->{ADDRESS_STREET});
+    $users->{ADDRESS_FULL} =
+      "$users->{ADDRESS_STREET}$conf{BUILD_DELIMITER}$users->{ADDRESS_BUILD}$conf{BUILD_DELIMITER}$users->{ADDRESS_FLAT}" if ($users->{ADDRESS_STREET});
 
     if ( $users->{GID} ){
       $users->group_info( $users->{GID} );
@@ -427,6 +472,11 @@ sub docs_print{
 
   my $save_file = $filestore_dir . $filename . (($FORM{pdf}) ? '.pdf' : '.htm');
   my $content = '';
+
+  if($attr->{TAKE_PARAMS}) {
+    my @variables = (keys %{$attr}, keys %{$users});
+    return @variables;
+  }
 
   if(! -f $save_file) {
     my $html_old;
@@ -650,7 +700,8 @@ sub docs_print{
 #         if ( !_error_show( $Docs, { MESSAGE => "$lang{INVOICE}", ID => 562 } )
 #               && !$conf{PAYMENTS_NOT_CHECK_INVOICE_SUM}
 #               && $Docs->{TOTAL_SUM} != $FORM{SUM} ){
-#           $html->message( 'warn', $lang{ERROR}, "$lang{PAYMENTS_NOT_EQUAL_DOC} \n  $lang{INVOICE} $lang{SUM}: $Docs->{TOTAL_SUM} \n$lang{PAYMENTS} $lang{SUM}: $FORM{SUM}" );
+#           $html->message( 'warn', $lang{ERROR},
+#             "$lang{PAYMENTS_NOT_EQUAL_DOC} \n  $lang{INVOICE} $lang{SUM}: $Docs->{TOTAL_SUM} \n$lang{PAYMENTS} $lang{SUM}: $FORM{SUM}" );
 #         }
 #
 #         if ( $total_payment_sum - $payment_sum == 0 ){
@@ -983,7 +1034,9 @@ sub docs_statement_of_account {
       my $fees = ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{sum} || 0) : '';
       my $payments = ($money_operation->{FEES}) ? '' : $html->b(sprintf("%.2f", $money_operation->{sum} || 0));
       my $describe = ($money_operation->{FEES}) ? $money_operation->{dsc} : $html->b($money_operation->{dsc} || q{});
-      my $deposit = ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{last_deposit} || 0) : $html->b(sprintf("%.2f", $money_operation->{last_deposit} || 0));
+      my $deposit = ($money_operation->{FEES})
+        ? sprintf("%.2f", $money_operation->{last_deposit} || 0)
+        : $html->b(sprintf("%.2f", $money_operation->{last_deposit} || 0));
 
       $Docs->{ROWS} .= $html->tpl_show(_include('docs_statement_of_account_row', 'Docs'), {
         date        => $date,
