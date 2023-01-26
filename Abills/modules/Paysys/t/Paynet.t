@@ -40,11 +40,11 @@ our @requests = (
 <?xml version = \"1.0\" encoding=\"UTF-8\"?>
 <soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\">
 <soapenv:Body><ns1:GetInformationArguments xmlns:ns1=\"http://uws.provider.com/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"ns1:GetInformationArguments\">
-<password>password</password>
-<username>username</username>
+<password>$password</password>
+<username>$username</username>
 <parameters>
 <paramKey>clientid</paramKey>
-<paramValue>1</paramValue>
+<paramValue>$user_id</paramValue>
 </parameters>
 <parameters>
 <paramKey>getInfoType</paramKey>

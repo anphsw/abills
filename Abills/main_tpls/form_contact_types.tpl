@@ -27,7 +27,7 @@
       </div>
 
     </div>
-    <div class='card-footer text-left'>
+    <div class='card-footer'>
       <input type='submit' form='form_contact_types' class='btn btn-primary' name='submit'
              value='%SUBMIT_BTN_NAME%'>
     </div>

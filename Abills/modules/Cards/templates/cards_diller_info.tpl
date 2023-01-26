@@ -1,4 +1,4 @@
-<div class='card box-info box-form form-horizontal'>
+<div class='card box-info box-form'>
 <div class='card-header with-border'><h4>_{INFO}_</h4></div>
 <div class='card-body'>
   <div class='form-group'>

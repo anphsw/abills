@@ -9,17 +9,17 @@ use warnings FATAL => 'all';
 
 our (
   %lang,
-  $html,
   %permissions,
   @bool_vals,
   @status,
-  $debug,
   $admin,
   $db
 );
 
+use Voip::Constants qw/TRUNK_PROTOCOLS/;
 our Voip $Voip;
-$debug //= 0;
+our Abills::HTML $html;
+my $debug //= 0;
 
 #**********************************************************
 =head2 voip_tp()  - Tarif plans
@@ -55,6 +55,7 @@ sub voip_tp{
   }
   elsif ( $FORM{TP_ID} ){
     $Voip_tp = $Voip->tp_info( $FORM{TP_ID} );
+    my $tp_id = $Voip->{TP_ID} || $FORM{TP_ID} || 0;
 
     if ( _error_show( $Voip_tp ) ){
       return 0;
@@ -65,10 +66,10 @@ sub voip_tp{
       return 0;
     }
 
-    $pages_qs .= "&TP_ID=$FORM{TP_ID}" if ($FORM{TP_ID});
+    $pages_qs .= "&TP_ID=$tp_id" if ($tp_id);
     $pages_qs .= "&subf=$FORM{subf}" if ($FORM{subf});
 
-    $LIST_PARAMS{TP} = $FORM{TP_ID};
+    $LIST_PARAMS{TP} = $tp_id;
     my %F_ARGS = (TP => $Voip_tp);
 
     $FORM{add_form} = 1;
@@ -78,7 +79,7 @@ sub voip_tp{
         CONTENT => $html->form_select(
           'TP_ID',
           {
-            SELECTED  => $FORM{TP_ID},
+            SELECTED  => $tp_id,
             SEL_LIST  => $Voip->tp_list( { %LIST_PARAMS, COLS_NAME => 1 } ),
             SEL_KEY   => 'tp_id',
             SEL_VALUE => 'id,name',
@@ -87,7 +88,7 @@ sub voip_tp{
         ),
         HIDDEN  => { index => $index },
         SUBMIT  => { show  => $lang{SHOW} },
-        class  => 'navbar-form navbar-right',
+        class  => 'form-inline ml-auto flex-nowrap',
       }
     );
 
@@ -101,9 +102,9 @@ sub voip_tp{
         $lang{NAME} => $Voip_tp->{NAME_SEL}
       },
       [
-        $lang{INFO}      . ":&add_form=1&TP_ID=$Voip_tp->{TP_ID}",
-        $lang{USERS}     .':'. get_function_index( 'voip_users_list' ) . ":TP_ID=$Voip_tp->{TP_ID}",
-        $lang{INTERVALS} .':'. get_function_index( 'voip_intervals' ) . ":TP_ID=$Voip_tp->{TP_ID}",
+        $lang{INFO}      . ":&add_form=1&TP_ID=$tp_id",
+        $lang{USERS}     .':'. get_function_index( 'voip_users_list' ) . ":TP_ID=$tp_id",
+        $lang{INTERVALS} .':'. get_function_index( 'voip_intervals' ) . ":TP_ID=$tp_id",
       ],
       { f_args => \%F_ARGS }
     );
@@ -119,7 +120,7 @@ sub voip_tp{
       }
       $Voip->tp_change( $FORM{TP_ID}, { %FORM } );
       if ( !$Voip->{errno} ){
-        $html->message( 'info', $lang{CHANGED}, "$lang{CHANGED} ". ($Voip->{TP_ID} || $FORM{TP_ID} || q{}) );
+        $html->message( 'info', $lang{CHANGED}, "$lang{CHANGED} ". $tp_id );
       }
     }
 
@@ -166,29 +167,32 @@ sub voip_tp{
     $html->tpl_show( _include( 'voip_tp', 'Voip' ), $Voip_tp );
   }
 
-  my $list = $Voip->tp_list( { %LIST_PARAMS, COLS_NAME => 1, MODULE => 'Voip' } );
+  my $list = $Voip->tp_list({
+    %LIST_PARAMS,
+    PAYMENT_TYPE => '_SHOW',
+    COLS_NAME    => 1,
+    MODULE       => 'Voip'
+  });
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "$lang{TARIF_PLANS}",
-      title      =>
-      [ '#', $lang{NAME}, $lang{HOUR_TARIF}, $lang{PAYMENT_TYPE}, $lang{DAY_FEE}, $lang{MONTH_FEE},
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $lang{TARIF_PLANS},
+    title      => [ '#', $lang{NAME}, $lang{HOUR_TARIF}, $lang{PAYMENT_TYPE}, $lang{DAY_FEE}, $lang{MONTH_FEE},
         $lang{SIMULTANEOUSLY}, $lang{AGE}, '-' ],
-      ID         => 'VOIP_TP',
-      MENU       => "$lang{ADD}:index=$index&add_form=1:add",
-    }
-  );
+    ID         => 'VOIP_TP',
+    MENU       => "$lang{ADD}:index=$index&add_form=1:add",
+  });
 
   my ($delete, $change);
   foreach my $line ( @{$list} ){
-    if ( $permissions{4}{1} ){
-      $delete = $html->button( $lang{DEL}, "index=$index&del=$line->{tp_id}",
+    my $tp_id = $line->{tp_id} || 0;
+    if ( $permissions{4} && $permissions{4}{1} ){
+      $delete = $html->button( $lang{DEL}, "index=$index&del=$tp_id",
         { MESSAGE => "$lang{DEL} ?", class => 'del' } );
-      $change = $html->button( $lang{INFO}, "index=$index&TP_ID=$line->{tp_id}", { class => 'change' } );
+      $change = $html->button( $lang{INFO}, "index=$index&TP_ID=$tp_id", { class => 'change' } );
     }
 
-    if ( $FORM{TP_ID} && $FORM{TP_ID} eq $line->{tp_id} ){
+    if ( $FORM{TP_ID} && $FORM{TP_ID} eq $tp_id ){
       $table->{rowcolor} = 'bg-success';
     }
     else{
@@ -197,20 +201,21 @@ sub voip_tp{
 
     $table->addrow(
       $html->b( $line->{id} ),
-      $html->button( $line->{name}, "index=$index&TP_ID=$line->{tp_id}" ),
-      $bool_vals[ $line->{time_tarifs} ],
-      $payment_types[ $line->{payment_type} ],
+      $html->button( $line->{name}, "index=$index&TP_ID=$tp_id" ),
+      $bool_vals[ $line->{time_tarifs} || 0 ],
+      $payment_types[ $line->{payment_type} || 0 ],
       $line->{day_fee},
       $line->{month_fee},
       $line->{logins},
       $line->{age},
-      $html->button( $lang{INTERVALS},
-        "index=" . get_function_index( 'voip_intervals' ) . "&TP_ID=$line->{tp_id}",
-        { class => 'interval' } )
+      $html->button('',
+        "index=" . get_function_index( 'voip_intervals' ) . "&TP_ID=$tp_id",
+        { class => 'interval', TITLE => $lang{INTERVALS}, ADD_ICON => ' fa fa-align-left'  } )
       . $change
       . $delete
     );
   }
+
   print $table->show();
 
   $table = $html->table({
@@ -278,14 +283,11 @@ sub voip_trunks{
     'PROTOCOL',
     {
       SELECTED  => $Voip->{PROTOCOL},
-      SEL_ARRAY => [ 'SIP', 'IAX2', 'ZAP', 'H323', 'local' ],
+      SEL_ARRAY => TRUNK_PROTOCOLS,
     }
   );
 
   $html->tpl_show( _include( 'voip_trunk', 'Voip' ), $Voip );
-
-  #my %new_hash = ();
-  #my %phone_prefix = ();
 
   my $list = $Voip->trunk_list( {
     ID        => '_SHOW',
@@ -557,7 +559,7 @@ sub voip_tp_routes{
     $Voip_tp = $attr->{TP};
 
     #Get time intervals
-    my @DAY_NAMES = ("$lang{ALL}", 'Sun', 'Mon', 'Tue', 'Wen', 'The', 'Fri', 'Sat', "$lang{HOLIDAYS}");
+    my @DAY_NAMES = ($lang{ALL}, 'Sun', 'Mon', 'Tue', 'Wen', 'The', 'Fri', 'Sat', $lang{HOLIDAYS});
     my $list = $Voip_tp->ti_list( { %LIST_PARAMS } );
     foreach my $line ( @{$list} ){
       push @caption, "$lang{SUM} (Min): " . $DAY_NAMES[ $line->[1] ] . "/ $line->[2]-$line->[3]";
@@ -579,6 +581,7 @@ sub voip_tp_routes{
       }
 
       my $content = $FORM{ROUTE_FILE}{Contents};
+      return $html->message('err', $lang{ERROR}, "$lang{EMPTY} $lang{FILE}") if (!$content);
       my @rows_arr = split( /\n/, $content );
       my %FORM2 = ();
 
@@ -1028,10 +1031,6 @@ sub voip_intervals{
 =cut
 #***********************************************************
 sub voip_extra_tarification{
-  # my (undef, $attr) = @_;
-  #
-  # %LIST_PARAMS = %{ $attr->{LIST_PARAMS} } if (defined( $attr->{LIST_PARAMS} ));
-
   $Voip->{ACTION} = 'add';
   $Voip->{LNG_ACTION} = $lang{ADD};
 
@@ -1092,6 +1091,5 @@ sub voip_extra_tarification{
 
   return 1;
 }
-
 
 1;

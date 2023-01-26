@@ -41,9 +41,12 @@ $lang{ACRONYM_NUMBER_OF_USERS} = 'К-во абон.';
 $lang{ACRONYM_USERS} = 'абон.';
 $lang{WITHOUT_DISTRICT} = 'Без района';
 $lang{AVERAGE_CHECK} = 'Средний чек';
-$lang{WITHOUT_CITY} = 'Без города';
+$lang{WITHOUT_CITY} = ' Без города';
 $lang{IP_MAC_NOT_FOUND} = 'IP адрес и MAC не найдено';
 $lang{TOTAL_CONNECTED} = 'Всего подключено';
 $lang{GROWTH} = 'Прирост';
+$lang{LAST_FEES} = 'Последнее списание';
+
+$lang{TP_ACTIVE_IN_USERS} = "Тарифный план уже активен у пользователей\n%USERS%И активен в расписаниях\n%SCHEDULES%";
 
 1;

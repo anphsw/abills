@@ -77,7 +77,7 @@ sub take {
   $attr->{DATE}    = ($attr->{DATE}) ? $attr->{DATE} : 'NOW()';
   $attr->{DSC}     = $attr->{DESCRIBE} || '';
   $attr->{IP}      = $admin->{SESSION_IP};
-  $attr->{AID}     = $admin->{AID};
+  $attr->{AID}     = $admin->{AID} || 1;
   $attr->{VAT}     = $user->{COMPANY_VAT};
 
   $sum = sprintf("%.4f", $sum);
@@ -302,7 +302,8 @@ sub list {
       ['TAX',            'INT',  'ft.tax',                         1 ],
       ['TAX_SUM',        'INT',  '', 'IF(ft.tax>0, SUM(f.sum) / 100 * ft.tax, 0) AS tax_sum'  ],
       ['ADMIN_DISABLE',  'INT', 'a.disable', 'a.disable AS admin_disable',               1 ],
-
+      ['INVOICE_NUM',    'INT', 'd.invoice_num',                                         1 ],
+      ['INVOICE_ID',     'INT', 'd.id',  'd.id AS invoice_id'                              ],
     ],
     { WHERE       => 1,
       USERS_FIELDS=> 1,
@@ -312,6 +313,12 @@ sub list {
     });
 
   my $EXT_TABLES  = $self->{EXT_TABLES};
+
+  if ($attr->{INVOICE_ID}) {
+    $EXT_TABLES  .= '  LEFT JOIN docs_invoice_orders invoice_orders ON (f.id=invoice_orders.fees_id)
+  LEFT JOIN docs_invoices d ON (d.id=invoice_orders.invoice_id)
+';
+  }
 
   if($attr->{TAX} || $attr->{TAX_SUM}) {
     $EXT_TABLES  .= " LEFT JOIN fees_types ft ON (ft.id=f.method)";
@@ -346,7 +353,7 @@ sub list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
-    $self->query("SELECT COUNT(*) AS total, sum(f.sum) AS sum, count(DISTINCT f.uid) AS total_users FROM fees f
+    $self->query("SELECT COUNT(*) AS total, SUM(f.sum) AS sum, COUNT(DISTINCT f.uid) AS total_users FROM fees f
   $EXT_TABLES
   $WHERE",
   undef,

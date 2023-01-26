@@ -73,15 +73,16 @@ sub list {
       ['GID',              'INT', 'nas.gid',                           1 ],
       ['DISTRICT_ID',      'INT', 'streets.district_id', 'districts.name'],
       ['LOCATION_ID',      'INT', 'nas.location_id',                   1 ],
-      ['MNG_HOST_PORT',    'STR', 'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port', ],
-      ['MNG_USER',         'STR', 'nas.mng_user', 'nas.mng_user AS nas_mng_user', ],
-      ['NAS_MNG_USER',     'STR', 'nas.mng_user', 'nas.mng_user AS nas_mng_user', ],
+      #['MNG_HOST_PORT',    'STR', 'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port', ],
+      #['MNG_USER',         'STR', 'nas.mng_user', 'nas.mng_user AS nas_mng_user', ],
+      ['NAS_MNG_HOST_PORT','STR', 'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port' ],
+      ['NAS_MNG_USER',     'STR', 'nas.mng_user', 'nas.mng_user AS nas_mng_user',       ],
       ['NAS_MNG_PASSWORD', 'STR', '',    "DECODE(nas.mng_password, '$SECRETKEY') AS nas_mng_password"],
-      ['NAS_RAD_PAIRS',    'STR', 'nas.rad_pairs', 'nas.rad_pairs AS nas_rad_pairs' ],
-      ['SHOW_MAPS_GOOGLE', 'SHOW_MAPS_GOOGLE', 'builds.coordx, builds.coordy'      ],
-      ['NAS_IDS',          'INT', 'nas.id'                               ],
-      ['NAS_FLOOR',            'STR', 'nas.floor',          'nas.floor AS nas_floor'        ],
-      ['NAS_ENTRANCE',         'STR', 'nas.entrance',      'nas.entrance AS nas_entrance'     ],
+      ['NAS_RAD_PAIRS',    'STR', 'nas.rad_pairs', 'nas.rad_pairs AS nas_rad_pairs'     ],
+      ['SHOW_MAPS_GOOGLE', 'SHOW_MAPS_GOOGLE', 'builds.coordx, builds.coordy'           ],
+      ['NAS_IDS',          'INT', 'nas.id'                                              ],
+      ['NAS_FLOOR',        'STR', 'nas.floor',          'nas.floor AS nas_floor'        ],
+      ['NAS_ENTRANCE',     'STR', 'nas.entrance',      'nas.entrance AS nas_entrance'   ],
       ['ADDRESS_FULL',     'STR', "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
         "streets.name, '$build_delimiter', builds.number, '$build_delimiter', nas.address_flat)",
         "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
@@ -195,7 +196,8 @@ sub info {
   if ( ! $attr->{SHORT}) {
     $fields = " ,name AS nas_name,
     descr AS nas_describe,
-    mng_host_port as nas_mng_ip_port,
+    mng_host_port AS nas_mng_ip_port,
+    mng_host_port AS nas_mng_host_port,
     mng_user AS nas_mng_user,
     nas.*,
     DECODE(mng_password, '$SECRETKEY') AS nas_mng_password
@@ -264,6 +266,7 @@ sub change {
     NAS_TYPE         => 'nas_type',
     NAS_AUTH_TYPE    => 'auth_type',
     NAS_MNG_IP_PORT  => 'mng_host_port',
+    NAS_MNG_HOST_PORT=> 'mng_host_port',
     NAS_MNG_USER     => 'mng_user',
     NAS_MNG_PASSWORD => 'mng_password',
     NAS_RAD_PAIRS    => 'rad_pairs',
@@ -349,7 +352,7 @@ sub add {
     NAME           => $attr->{NAS_NAME},
     DESCR          => $attr->{NAS_DESCRIBE},
     AUTH_TYPE      => $attr->{NAS_AUTH_TYPE},
-    MNG_HOST_PORT  => $attr->{NAS_MNG_IP_PORT},
+    MNG_HOST_PORT  => $attr->{NAS_MNG_HOST_PORT},
     MNG_USER       => $attr->{NAS_MNG_USER},
     MNG_PASSWORD   => ($attr->{NAS_MNG_PASSWORD}) ? "ENCODE('$attr->{NAS_MNG_PASSWORD}', '$SECRETKEY')" : undef,
     RAD_PAIRS      => $attr->{NAS_RAD_PAIRS} || '',
@@ -379,6 +382,7 @@ sub del {
   my ($id) = @_;
 
   $self->query_del('nas', undef,  { id => $id });
+  $self->{nas_deleted} = $self->{AFFECTED};
   $self->query_del('nas_ippools', undef, { nas_id => $id });
 
   $admin->system_action_add("NAS_ID:$id", { TYPE => 10 });
@@ -430,9 +434,8 @@ sub users_list {
 sub nas_ip_pools_list {
   my ($self, $attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-
+  my $SORT      = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC      = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my $PG        = ($attr->{PG}) ? $attr->{PG} : 0;
 
@@ -456,9 +459,10 @@ sub nas_ip_pools_list {
     [ 'IP',                 'INT', 'pool.ip',                                               1],
     [ 'LAST_IP_NUM',        'INT', '(pool.ip + if(pool.counts > 0, pool.counts - 1, 0)) AS last_ip_num',          1],
     [ 'IP_COUNT',           'INT', 'pool.counts AS ip_count',                               1],
-    #[ 'IP_FREE',           'INT', '(pool.counts - (SELECT COUNT(*) FROM dv_main dv WHERE dv.ip > pool.ip AND dv.ip <= pool.ip + pool.counts )) AS ip_free', 1],
     [ 'INTERNET_IP_FREE',   'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_main internet
       WHERE internet.ip >= pool.ip AND internet.ip < pool.ip + pool.counts )) AS internet_ip_free', 1],
+    [ 'INTERNET_DYNAMIC_IP_FREE',   'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_online online
+      WHERE online.framed_ip_address >= pool.ip AND online.framed_ip_address < pool.ip + pool.counts )) AS internet_dynamic_ip_free', 1],
     [ 'PRIORITY',           'INT', 'pool.priority',                                         1],
     [ 'SPEED',              'INT', 'pool.speed',                                            1],
     [ 'NAME',               'STR', 'pool.name AS name',                                     1],
@@ -487,7 +491,7 @@ sub nas_ip_pools_list {
   }
 
   if ($attr->{SHOW_ALL_COLUMNS}){
-    map { $attr->{$_->[0]} = '_SHOW' unless (exists $attr->{$_->[0]} || (! $attr->{INTERNET} && $_->[0] eq 'INTERNET_IP_FREE') ) } @$search_columns;
+    map { $attr->{$_->[0]} = '_SHOW' unless (exists $attr->{$_->[0]}) } @$search_columns;
   }
 
   my $WHERE = $self->search_former($attr, $search_columns,{WHERE => 1});
@@ -517,6 +521,44 @@ sub nas_ip_pools_list {
   );
 
   return $list;
+}
+
+#**********************************************************
+=head2 nas_ip_pools_add($attr) add NAS IP Pools
+
+=cut
+#**********************************************************
+sub nas_ip_pools_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('nas_ippools', $attr, { REPLACE => 1 });
+
+  $admin->system_action_add(
+    "NAS_IP_POOL_ADD:$self->{INSERT_ID}",
+    { TYPE => 1 }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 nas_ip_pools_del($attr) delete NAS IP Pools
+
+=cut
+#**********************************************************
+sub nas_ip_pools_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('nas_ippools', undef, $attr);
+
+  $admin->system_action_add(
+    "NAS_IP_POOL_DELETE:NAS_ID" . ($attr->{NAS_ID} || q{}) . ",POOL_ID" . ($attr->{POOL_ID} || q{}),
+    { TYPE => 10 }
+  );
+
+  return $self;
 }
 
 #**********************************************************
@@ -747,11 +789,8 @@ sub stats {
     $WHERE .= "AND id='$attr->{NAS_ID}'";
   }
 
-  my $internet_log_table = 'dv_log';
+  my $internet_log_table = 'internet_log';
 
-  if($attr->{INTERNET}) {
-    $internet_log_table = 'internet_log';
-  }
 
   $self->query2(
     "SELECT
@@ -1264,6 +1303,49 @@ sub remove_ippools_ips{
     );
   }
   return 1;
+}
+
+#*******************************************************************
+=head2 ippools_ips_list($attr) - list of ippools ips
+
+  Arguments:
+    $attr
+
+  Returns:
+
+=cut
+#*******************************************************************
+sub ippools_ips_list{
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
+
+  my $WHERE =  $self->search_former($attr, [
+    [ 'IP_POOL_ID',           'INT', 'ii.ippool_id',              1 ],
+    [ 'IP',                   'INT', 'ii.ip',                     1 ],
+    [ 'STATUS',               'INT', 'ii.status',                 1 ],
+  ],{
+    WHERE => 1
+    }
+  );
+
+  $self->query2(
+    "SELECT
+      ii.ippool_id,
+      ii.ip,
+      ii.status
+    FROM ippools_ips ii
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef, $attr
+  );
+
+  return $self->{list};
 }
 
 

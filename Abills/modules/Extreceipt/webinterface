@@ -437,6 +437,7 @@ sub _extreceipt_send {
         ex_params => "target='_blank'" })
         . ($conf{EXTRECEIPTS_SEND_USER} ? $html->button($lang{SEND}, "index=$index&send_user=$info->[0]->{payments_id}",
         {}) : ''));
+      _extreceipt_send_receipt($payment_id) if ($conf{EXTRECEIPTS_AUTO_SEND_USER});
     }
     else {
       $html->message('warning', $lang{ERROR_PRINT_RECEIPT}, 'ID 501');

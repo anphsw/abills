@@ -1770,7 +1770,6 @@ sub employees_add_cashbox {
 }
 
 #*******************************************************************
-
 =head2 employees_info_cashbox() - get information about cashbox
 
   Arguments:
@@ -1783,7 +1782,6 @@ sub employees_add_cashbox {
     $Employees->employees_info_cashbox({ ID => 1 });
 
 =cut
-
 #*******************************************************************
 sub employees_info_cashbox {
   my $self = shift;
@@ -1793,10 +1791,13 @@ sub employees_info_cashbox {
     "SELECT ec.comments,
      ec.name,
      ec.aid,
-     a.name as name_admin
+     a.name AS name_admin,
+     GROUP_CONCAT(eca.aid) AS admins
      FROM employees_cashboxes ec
      LEFT JOIN admins a ON (a.aid = ec.aid)
-     WHERE ec.id = ?;
+     LEFT JOIN employees_cashboxes_admins eca ON (ec.id = eca.cashbox_id)
+     WHERE ec.id = ?
+     GROUP BY ec.id;
      ", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
   );
 
@@ -1887,10 +1888,11 @@ sub employees_list_cashbox {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
 
   my $WHERE = $self->search_former($attr, [
-    [ 'ID',       'INT',  'emc.id',         1 ],
-    [ 'NAME',     'STR',  'emc.name',       1 ],
-    [ 'ADMIN',    'STR',  'a.name as admin',1 ] ,
-    [ 'COMMENTS', 'STR',  'emc.comments',   1 ],
+    [ 'ID',             'INT',  'emc.id',                          1 ],
+    [ 'NAME',           'STR',  'emc.name',                        1 ],
+    [ 'ADMIN_DEFAULT',  'STR',  'a.name as admin_default',         1 ] ,
+    [ 'COMMENTS',       'STR',  'emc.comments',                    1 ],
+    [ 'ADMINS',         'STR',  'admins',                          1 ]
   ],
     { WHERE => 1, }
   );
@@ -1898,11 +1900,15 @@ sub employees_list_cashbox {
   $self->query(
     "SELECT emc.id,
     emc.name,
-    a.name as admin,
+    a.name as admin_default,
+    GROUP_CONCAT(DISTINCT ac.name SEPARATOR ', ') as admins,
     emc.comments
     FROM employees_cashboxes emc
     LEFT JOIN admins a ON (a.aid = emc.aid)
+    LEFT JOIN employees_cashboxes_admins eca ON emc.id = eca.cashbox_id
+    LEFT JOIN admins ac ON (ac.aid = eca.aid)
     $WHERE
+    GROUP BY emc.id
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
@@ -1922,7 +1928,6 @@ sub employees_list_cashbox {
 }
 
 #*******************************************************************
-
 =head2 employees_payments_cashbox() - get list of all cashboxes
 
   Arguments:
@@ -1935,7 +1940,6 @@ sub employees_list_cashbox {
     my @list = $Employees->employees_payments_cashbox({ COLS_NAME => 1});
 
 =cut
-
 #*******************************************************************
 sub employees_payments_cashbox {
   my $self = shift;
@@ -1946,23 +1950,30 @@ sub employees_payments_cashbox {
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
 
+  my $EXT_TABLES = '';
+
+  if ($attr->{AID}){
+    $EXT_TABLES .= 'LEFT JOIN employees_cashboxes_admins eca ON emc.id = eca.cashbox_id';
+  }
+
   my $WHERE = $self->search_former($attr, [
     [ 'NAME',     'STR',  'emc.name',       1 ],
     [ 'ADMIN',    'STR',  'a.name as admin',1 ] ,
-    [ 'AID',      'STR',  'emc.aid',        1 ] ,
+    [ 'AID',      'STR',  'eca.aid',        1 ] ,
     [ 'COMMENTS', 'STR',  'emc.comments',   1 ],
   ],
-    { WHERE => 1, }
+    { WHERE       => 1,}
   );
 
   $self->query(
     "SELECT emc.id,
     emc.name,
-    emc.aid,
+    emc.aid AS aid_default,
     a.name as admin,
     emc.comments
     FROM employees_cashboxes emc
     LEFT JOIN admins a ON (a.aid = emc.aid)
+    $EXT_TABLES
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -3890,9 +3901,9 @@ sub employees_list_moving_type {
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
-    [ 'ID',            'INT', 'id',            1 ],
-    [ 'NAME',          'STR', 'name',          1 ],
-    [ 'COMMENTS',      'STR', 'comments',      1 ],
+    [ 'ID',            'INT', 'emt.id',            1 ],
+    [ 'NAME',          'STR', 'emt.name',          1 ],
+    [ 'COMMENTS',      'STR', 'emt.comments',      1 ],
   ],
     { WHERE => 1, });
 
@@ -3919,7 +3930,7 @@ sub employees_list_moving_type {
   return $self->{list} if ($self->{TOTAL} < 1);
 
   $self->query(
-    "SELECT count(*) AS total
+    "SELECT COUNT(*) AS total
    FROM employees_moving_types",
     undef,
     { INFO => 1 }
@@ -3996,7 +4007,7 @@ sub employees_list_moving {
   return $self->{list} if ($self->{TOTAL} < 1);
 
   $self->query(
-    "SELECT count(*) AS total
+    "SELECT COUNT(*) AS total
    FROM employees_cashboxes_moving",
     undef,
     { INFO => 1 }
@@ -4108,6 +4119,56 @@ sub employees_work_for_map {
 
   return $self->{list} || [];
 
+}
+
+#**********************************************************
+=head2 employees_cashbox_admins_add() - add admins to cashbox
+
+  Arguments:
+    IDS
+    CASHBOX_ID
+  Returns:
+    $self
+=cut
+#**********************************************************
+sub employees_cashbox_admins_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @ids = split(/, /, $attr->{IDS});
+  my @MULTI_QUERY = ();
+
+  foreach my $id (@ids) {
+    push @MULTI_QUERY, [ $attr->{CASHBOX_ID}, $id];
+  }
+
+  $self->query(
+    "INSERT INTO employees_cashboxes_admins
+     (cashbox_id, aid)
+        VALUES (?, ?);",
+    undef,
+    { MULTI_QUERY => \@MULTI_QUERY }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 employees_cashbox_admins_del() - delete admins from cashbox
+
+  Arguments:
+    cashbox_id
+  Returns:
+    $self
+=cut
+#**********************************************************
+sub employees_cashbox_admins_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('employees_cashboxes_admins', undef, $attr);
+
+  return $self;
 }
 
 1;

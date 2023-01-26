@@ -1,4 +1,15 @@
 <link rel='stylesheet' href='/styles/codemirror/lib/codemirror.css'>
+<link rel='stylesheet' href='/styles/codemirror/theme/darcula.css'>
+<link rel='stylesheet' href='/styles/codemirror/addon/hint/show-hint.css'>
+
+<script src='/styles/codemirror/lib/codemirror.js'></script>
+<script src='/styles/codemirror/mode/xml/xml.js'></script>
+<script src='/styles/codemirror/mode/css/css.js'></script>
+<script src='/styles/codemirror/mode/javascript/javascript.js'></script>
+<script src='/styles/codemirror/mode/htmlmixed/htmlmixed.js'></script>
+<script src='/styles/codemirror/addon/hint/show-hint.js'></script>
+<script src='/styles/codemirror/addon/hint/xml-hint.js'></script>
+<script src='/styles/codemirror/addon/hint/html-hint.js'></script>
 
 <form id='template_form' action='$SELF_URL' method='post'>
 
@@ -8,13 +19,6 @@
   <input type='hidden' name='new_editor' value='1'>
 
   <input type='hidden' id='template_result' name='template'/>
-
-  <!-- Extensions -->
-  <script src='/styles/codemirror/lib/codemirror.js'></script>
-  <script src='/styles/codemirror/mode/xml/xml.js'></script>
-  <script src='/styles/codemirror/mode/javascript/javascript.js'></script>
-  <script src='/styles/codemirror/mode/css/css.js'></script>
-  <script src='/styles/codemirror/mode/htmlmixed/htmlmixed.js'></script>
 
   <div style='border: 1px solid silver'>
     <textarea id='a_code_editor'>__TEMPLATE__</textarea>
@@ -31,14 +35,33 @@
 
   var ACodeEditor = document.getElementById('a_code_editor');
 
-  var myCodeMirror = CodeMirror(function (elt) {
-    ACodeEditor.parentNode.replaceChild(elt, ACodeEditor);
-  }, {
-    value      : ACodeEditor.value,
+  let myDarkMode;
+  // if variable exist
+
+  if (typeof IS_DARK_MODE !== 'undefined') {
+    myDarkMode = IS_DARK_MODE;
+  }
+
+  const CODEMIRROR_PARAMS = {
+    mode: 'htmlmixed',
+    value: ACodeEditor.value,
     smartIndent: true,
     lineNumbers: true,
-    autofocus  : true
-  });
+    autofocus: true,
+    extraKeys: {"Ctrl-Space": "autocomplete"},
+    hint: CodeMirror.hint.html,
+  };
+
+  if (myDarkMode) {
+    CODEMIRROR_PARAMS.theme = 'darcula';
+  }
+
+  var myCodeMirror = CodeMirror(
+    function (elt) {
+      ACodeEditor.parentNode.replaceChild(elt, ACodeEditor);
+    },
+    CODEMIRROR_PARAMS,
+  );
 
   jQuery('.CodeMirror').css('resize', 'vertical');
 

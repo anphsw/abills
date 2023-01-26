@@ -6,7 +6,7 @@
   "5:2::info_comments_renew:AJAX"        => 4,
 
   "6:1::info_images_show:"               => 4,
-  "7:6::info_image_add:"                 => 4,
+  "7:6::info_image_add:AJAX"                 => 4,
   "8:6::info_image_del:AJAX"             => 4,
   #  "9:6::info_images_renew:AJAX"       => 4,
   "10:6::info_image_download:"           => 4,
@@ -23,6 +23,8 @@
   "19:16::info_documents_renew:AJAX"     => 4,
   "20:16::info_document_download"        => 4,
   "21:0:$lang{COMMENTS}:info_edit:"      => 4,
+
+  "22:0::info_attachment:AJAX"      => 0,
 );
 
 1

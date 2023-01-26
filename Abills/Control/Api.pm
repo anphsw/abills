@@ -8,9 +8,8 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(in_array);
 
-our(
+our (
   $html,
-
 );
 
 #**********************************************************
@@ -32,7 +31,7 @@ sub form_system_info {
   my ($version, $updated) = split(/ /, get_version());
 
   my %functions_api = (
-    'system_information' => {
+    system_information => {
       date    => "$DATE $TIME",
       os      => uc($^O),
       billing => 'ABillS',
@@ -40,10 +39,8 @@ sub form_system_info {
       version => $version,
       updated => $updated
     },
-    'api_methods' => {
-
-    },
-    'api_version' => {
+    api_methods        => {},
+    api_version        => {
       version => '0.9',
       date    => '2022-04-01'
     }
@@ -55,15 +52,13 @@ sub form_system_info {
     @show_functions = ($get_info);
   }
 
-  foreach my $key ( @show_functions ) {
-    my $table = $html->table(
-      {
-        width      => '100%',
-        FIELDS_IDS => [ keys %{ $functions_api{$key} } ],
-        rows       => [ [ values %{ $functions_api{$key} } ] ],
-        ID         => $key
-      }
-    );
+  foreach my $key (@show_functions) {
+    my $table = $html->table({
+      width      => '100%',
+      FIELDS_IDS => [ keys %{$functions_api{$key}} ],
+      rows       => [ [ values %{$functions_api{$key}} ] ],
+      ID         => $key
+    });
 
     $table->show();
   }
@@ -72,6 +67,5 @@ sub form_system_info {
 
   return 1;
 }
-
 
 1;

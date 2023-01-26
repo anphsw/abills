@@ -160,28 +160,29 @@ sub _user_contracts_table {
   });
 
   foreach my $line (@$list) {
-    my $sign_button = '';
-    if ($line->{signature}) {
-      $sign_button = $lang{SIGNED};
-    }
-    else {
-      $sign_button = $html->button($lang{SIGN}, "qindex=" . $f_index . "&UID=$uid&sign=$line->{id}&header=2",
-            { class => 'btn btn-secondary' });
-    }
+    my $sign_button = $line->{signature} ? $lang{SIGNED} : $html->button($lang{SIGN}, "qindex=" . $f_index .
+      "&UID=$uid&sign=$line->{id}&header=2", { class => 'btn btn-secondary' });
 
     my $print_button  = '';
     my $edit_button   = '';
     my $delete_button = '';
 
-    if ($permissions{0} && $permissions{0}{4}) {
-      $print_button = $html->button('', "qindex=" . $f_index . "&UID=$uid&print_add_contract=$line->{id}&pdf=1",
-            { ICON => 'fas fa-print', target => '_new', ex_params => "data-tooltip='$lang{PRINT}' data-tooltip-position='top'" });
+    if (($permissions{0} && $permissions{0}{4}) || $attr->{UI}) {
+      $print_button = $html->button('', "qindex=" . $f_index . "&UID=$uid&print_add_contract=$line->{id}&pdf=1", {
+        ICON      => 'fas fa-print',
+        target    => '_new',
+        ex_params => "data-tooltip='$lang{PRINT}' data-tooltip-position='right'"
+      });
 
-      $edit_button = $html->button('', "index=" . $f_index . "&chg=$line->{id}&UID=$uid",
-            { ICON => 'fa fa-pencil-alt', ex_params => "data-tooltip='$lang{EDIT}' data-tooltip-position='top'" });
-      
-      $delete_button = $html->button('', "index=" . $f_index . "&del=$line->{id}&UID=$uid",
-            { ICON => 'fa fa-trash text-danger', ex_params => "data-tooltip='$lang{DEL}' data-tooltip-position='top'" });
+      $edit_button = $html->button('', "index=" . $f_index . "&chg=$line->{id}&UID=$uid", {
+        ICON      => 'fa fa-pencil-alt',
+        ex_params => "data-tooltip='$lang{EDIT}' data-tooltip-position='right'"
+      });
+
+      $delete_button = $html->button('', "index=" . $f_index . "&del=$line->{id}&UID=$uid", {
+        ICON      => 'fa fa-trash text-danger',
+        ex_params => "data-tooltip='$lang{DEL}' data-tooltip-position='right'"
+      });
     }
 
     $table->addrow($line->{name}, $line->{number}, $line->{date}, $sign_button, ($attr->{UI} ? $print_button : $print_button . $edit_button . $delete_button) );

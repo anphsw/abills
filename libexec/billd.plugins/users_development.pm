@@ -34,6 +34,9 @@ users_development();
 
 sub users_development {
 
+  $Internet->users_development_report($DATE, { GROUP_BY => 'districts.city' });
+  return if $Internet->{TOTAL} && $Internet->{TOTAL} > 0;
+
   my $internet_users_list = $Internet->user_list({
     DAY_FEE         => '_SHOW',
     MONTH_FEE       => '_SHOW',

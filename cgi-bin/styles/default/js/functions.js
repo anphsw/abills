@@ -597,15 +597,16 @@ function defineCheckPatternLogic(context) {
     var value = this.value;
 
     var pattern = new RegExp($this.attr('data-check-for-pattern'));
-    const formGroup = $this.parents('.form-group');
+    var formButton = $this.parents('form').find(':submit');
 
     if (pattern.test(value)) {
-      formGroup.removeClass('has-error');
+      $this.removeClass('is-invalid');
+      formButton.removeAttr('disabled');
     }
     else {
-      formGroup.addClass('has-error');
+      $this.addClass('is-invalid');
+      formButton.attr('disabled', true);
     }
-
   });
 }
 

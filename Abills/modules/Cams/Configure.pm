@@ -67,29 +67,23 @@ sub cams_tp {
     show_result($Cams, $lang{DELETED});
   }
 
-  my $service_select = $html->form_select(
-    'SERVICE_ID',
-    {
-      SELECTED  => $TEMPLATE_CAMS_TP{SERVICE_ID} || q{},
-      SEL_LIST  => $Cams->services_list({
-        NAME      => "_SHOW",
-        COLS_NAME => 1,
-      }),
-      SEL_NAME  => 'name',
-      SEL_KEY   => 'id',
-      NO_ID     => 1,
-      EX_PARAMS => 'required="required"',
-    }
-  );
+  my $service_select = $html->form_select('SERVICE_ID', {
+    SELECTED  => $TEMPLATE_CAMS_TP{SERVICE_ID} || q{},
+    SEL_LIST  => $Cams->services_list({
+      NAME      => "_SHOW",
+      COLS_NAME => 1
+    }),
+    SEL_NAME  => 'name',
+    SEL_KEY   => 'id',
+    NO_ID     => 1,
+    EX_PARAMS => 'required="required"',
+  });
 
   if ($show_add_form) {
-    $TEMPLATE_CAMS_TP{PAYMENT_TYPE_SEL} = $html->form_select(
-      'PAYMENT_TYPE',
-      {
-        SELECTED => $TEMPLATE_CAMS_TP{PAYMENT_TYPE},
-        SEL_HASH => \%payment_types,
-      }
-    );
+    $TEMPLATE_CAMS_TP{PAYMENT_TYPE_SEL} = $html->form_select('PAYMENT_TYPE', {
+      SELECTED => $TEMPLATE_CAMS_TP{PAYMENT_TYPE},
+      SEL_HASH => \%payment_types,
+    });
 
     $TEMPLATE_CAMS_TP{NEXT_TARIF_PLAN_SEL} = sel_tp({
       MODULE          => 'Cams',
@@ -162,9 +156,7 @@ sub _cams_get_tp_id {
   my ($id) = @_;
 
   my $tp_info = $Cams->tp_info($id);
-  if (!_error_show($Cams)) {
-    return $tp_info->{TP_ID};
-  }
+  return $tp_info->{TP_ID} if !_error_show($Cams);
 
   return 0;
 }
@@ -187,7 +179,7 @@ sub cams_folder {
   if ($FORM{add_folder}) {
     if (!$FORM{TITLE} && !$FORM{DISTRICT_ID} && !$FORM{STREET_ID} && !$FORM{BUILD_ID}) {
       $errors = 1;
-      $html->message("err", "$lang{ERROR}", $lang{ENTER_GROUP_NAME_OR_ADDRESS});
+      $html->message('err', $lang{ERROR}, $lang{ENTER_GROUP_NAME_OR_ADDRESS});
     }
     else {
       $FORM{TITLE} = $FORM{TITLE} ? $FORM{TITLE} : _cams_show_location('', \%FORM);
@@ -228,7 +220,7 @@ sub cams_folder {
   elsif ($FORM{change_folder}) {
     if (!$FORM{TITLE} && !$FORM{DISTRICT_ID} && !$FORM{STREET_ID} && !$FORM{BUILD_ID}) {
       $errors = 1;
-      $html->message("err", "$lang{ERROR}", $lang{ENTER_GROUP_NAME_OR_ADDRESS});
+      $html->message('err', $lang{ERROR}, $lang{ENTER_GROUP_NAME_OR_ADDRESS});
     }
     else {
       $FORM{TITLE} = $FORM{TITLE} ? $FORM{TITLE} : _cams_show_location('', \%FORM);
@@ -311,7 +303,7 @@ sub cams_folder {
     FUNCTION_FIELDS => 'cams_folder:$lang{CHILDREN}:id:&PARENT_ID=1,change,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
-      'id'           => "#",
+      'id'           => '#',
       'title'        => $lang{NAME},
       'group_name'   => $lang{GROUP},
       'service_name' => $lang{SERVICE},

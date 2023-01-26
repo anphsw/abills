@@ -23,7 +23,7 @@
       <label class='col-md-6'>%SUM%</label>
     </div>
   </div>
-  <div class='card-footer text-right'>
+  <div class='card-footer'>
     <a href='$SELF_URL' class='btn btn-success'><span class='fa fa-home'></span></a>
   </div>
 </div>

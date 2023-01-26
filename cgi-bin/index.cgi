@@ -172,7 +172,16 @@ sub _start {
     return 0;
   }
 
-  if (($conf{PORTAL_START_PAGE} && !$conf{tech_works} && !$uid) || $FORM{article} || $FORM{menu_category} ) {
+  # Obvious PORTAL login page handling, but it works
+  if (
+    ($conf{PORTAL_START_PAGE}
+      && !$conf{tech_works}
+      && !$uid
+      && !$FORM{login_page}
+      && $ENV{REQUEST_METHOD} eq "GET")
+      || $FORM{article}
+      || $FORM{menu_category}
+  ) {
     print $html->header();
     load_module('Portal', $html);
     my $wrong_auth = 0;
@@ -202,7 +211,7 @@ sub _start {
       my $time = gen_time($begin_time, { TIME_ONLY => 1 });
       $Log->log_print('LOG_INFO', '', "$sid : $functions{$index} : $time", { LOG_LEVEL => 6 });
     }
-    $html->test() if ($conf{debugmods} =~ /LOG_DEBUG/);
+    $html->test() if ($conf{debugmods} && $conf{debugmods} =~ /LOG_DEBUG/);
   }
 
   return 1;
@@ -439,17 +448,19 @@ sub quick_functions {
         $queries_list .= " ===================================\n      $k\n ";
       }
       $queries_list .= "</textarea>";
-      $admin->{VERSION} .= $html->tpl_show( templates('form_show_hide'),
+      $admin->{FOOTER_DEBUG} .= $html->tpl_show( templates('form_show_hide'),
         {
           CONTENT => $queries_list,
           NAME    => 'Queries: '.$i,
           ID      => 'QUERIES',
-          PARAMS  => 'collapsed-box',
+          PARAMS  => 'collapsed-box mx-n1',
           BUTTON_ICON => 'plus'
         },
         { OUTPUT2RETURN => 1 } );
     }
-    print $admin->{VERSION};
+
+    print $admin->{FOOTER_DEBUG};
+    print $admin->{VERSION} || 0;
   }
 
   return 1;
@@ -518,7 +529,7 @@ sub form_info {
     return 1;
   }
   elsif (defined $FORM{ATTACHMENT} && $FORM{UID} && $user->{UID} eq $FORM{UID}) {
-    return form_show_attach({ UID => $user->{UID} })
+    return form_show_attach({ UID => $user->{UID} });
   }
 
   #Activate dashboard
@@ -619,17 +630,28 @@ sub form_info {
 
   ## Show users info fields
   require Control::Portal_mng;
-  my $info_fields_view = get_info_fields_read_only_view({
+  Control::Portal_mng->import();
+
+  my $Portal_mng = Control::Portal_mng->new($db, $admin, \%conf, {
+    html  => $html,
+    lang  => \%lang,
+    index => $index,
+  });
+
+  my $info_fields_view = $Portal_mng->get_info_fields_read_only_view({
     VALUES                => $user,
     CALLED_FROM_CLIENT_UI => 1,
-    RETURN_AS_ARRAY       => 1
+    RETURN_AS_ARRAY       => 1,
+    USERS                 => $users || $user,
+    SELF_URL              => $SELF_URL,
+    %FORM,
   });
 
   foreach my $info_field_view (@$info_fields_view) {
     my $name = $info_field_view->{NAME};
     my $view = $info_field_view->{VIEW};
 
-    $user->{INFO_FIELDS} .= $html->element('tr', $html->element('td', ($name || q{}), { class => 'font-weight-bold text-right', OUTPUT2RETURN => 1 }) .
+    $user->{INFO_FIELDS_RAWS} .= $html->element('tr', $html->element('td', ($name || q{}), { class => 'font-weight-bold text-right', OUTPUT2RETURN => 1 }) .
         $html->element('td', ($view || q{}), { OUTPUT2RETURN => 1 }),{ OUTPUT2RETURN => 1 });
   }
 
@@ -719,8 +741,10 @@ sub form_info {
     cross_modules('promotional_tp', { USER => $user });
   }
   else {
-    require Control::Qrcode;
-    my $code = _encode_url_to_img($user->{_G2FA}, {
+      require Control::Qrcode;
+    Control::Qrcode->import();
+    my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html });
+    my $code = $QRCode->_encode_url_to_img($user->{_G2FA}, {
       AUTH_G2FA_NAME => $conf{AUTH_G2FA_TITLE} || 'ABillS',
       AUTH_G2FA_MAIL => $conf{ADMIN_MAIL},
     });
@@ -747,7 +771,8 @@ sub form_holdup {
   });
 
   if ($holdup_info->{error}) {
-    $html->message('err', $lang{ERROR}, $holdup_info->{errstr}, { ID => $holdup_info->{error} })
+    my $error_message = $lang{$holdup_info->{errstr}} // $holdup_info->{errstr};
+    $html->message('err', $lang{ERROR}, $error_message, { ID => $holdup_info->{error} })
   }
 
   if (!$holdup_info->{DEL}) {
@@ -761,6 +786,15 @@ sub form_holdup {
 
     $holdup_info->{FROM_DATE} = date_inc($DATE);
     $holdup_info->{TO_DATE} = $Service_control->{TO_DATE} || next_month({ DATE => $DATE });
+    if ($Service_control->{HOLDUP_INFOS}) {
+      foreach my $holdup ( @{ $Service_control->{HOLDUP_INFOS} } ) {
+        $holdup_info->{HOLDUP_INFO} .= "$lang{MAX} $lang{DAYS}: " .$holdup->{MAX_PERIOD} ." - $lang{PRICE}: "
+          . sprintf("%.2f", $holdup->{PRICE}) . $html->br();
+
+        $holdup_info->{HOLDUP_PRICE} = sprintf("%.2f", $holdup->{PRICE} || 0) if (! $holdup_info->{HOLDUP_PRICE});
+      }
+    }
+
 
     return $html->tpl_show(templates('form_holdup'), $holdup_info, { OUTPUT2RETURN => 1 });
   }
@@ -798,7 +832,7 @@ sub _user_pi {
       COUNTRY => $user->{COUNTRY_ID},
     });
 
-    $user->{ADDRESS_SEL} = $html->tpl_show(templates('form_address'), { %$user,  }, { OUTPUT2RETURN => 1 });
+    $user->{ADDRESS_SEL} = $html->tpl_show(templates('form_address'), { %$user  }, { OUTPUT2RETURN => 1 });
   }
 
   if ($FORM{chg}) {
@@ -827,18 +861,18 @@ sub _user_pi {
       $contacts{CELL_PHONE_HIDDEN} = 'hidden';
     }
 
-    if ($user_pi->{FIO2} && $user_pi->{FIO3}) {
-      $user_pi->{FIO_READONLY} = 'readonly';
-    }
+    $user_pi->{FIO_READONLY} = 'readonly' if $user_pi->{FIO2} && $user_pi->{FIO3};
 
-    if($conf{CHECK_CHANGE_PI}){
+    if ($conf{CHECK_CHANGE_PI}) {
       my @all_fields = ('FIO', 'PHONE', 'ADDRESS', 'EMAIL', 'CELL_PHONE');
       my @fields_allow_to_change = split(',\s?', $conf{CHECK_CHANGE_PI});
-      foreach my $key (@all_fields){
+      foreach my $key (@all_fields) {
         next if in_array($key, \@fields_allow_to_change);
 
         $contacts{$key . '_DISABLE'} = 'disabled';
       }
+
+      $user_pi->{ADDRESS_SEL} = '' if ($contacts{ADDRESS_DISABLE});
     }
 
     $html->tpl_show(templates('form_chg_client_info'), { %$user_pi, %contacts }, { SKIP_DEBUG_MARKERS => 1 });
@@ -1008,8 +1042,13 @@ sub user_pi_change {
   }
 
   $user->pi_change({ %FORM, UID => $user->{UID} });
-  if ($user->{errno} && $user->{errno} == 21) {
-    $html->message('err', $user->{errstr});
+  if ($user->{errno}) {
+    if ($user->{errno} == 21) {
+      $html->message('err', $lang{ERROR}, $user->{errstr});
+    }
+    else {
+      $html->message('err', $lang{ERROR}, $user->{errno});
+    }
     return 1;
   }
 
@@ -1047,8 +1086,18 @@ sub form_login_clients {
   $first_page{PASSWORD_RECOVERY} = $conf{PASSWORD_RECOVERY};
   $first_page{FORGOT_PASSWD_LINK} = '/registration.cgi&FORGOT_PASSWD=1';
 
+  if ($conf{APP_LINK_GOOGLE_PLAY}) {
+    my $google_play_link = "<a title='Google Play' class='btn rounded-pill bg-light' href='$conf{APP_LINK_GOOGLE_PLAY}' target='_blank'>
+      <div>
+        <img src='/img/google_play.png'>
+        <b> $lang{DOWNLOAD} $lang{FROM} Google Play</b>
+      </div>
+    </a>";
+    $first_page{APP_LINK_GOOGLE_PLAY} = $google_play_link;
+  }
+
   if (!$conf{REGISTRATION_PORTAL_SKIP}) {
-    $first_page{REGISTRATION_ENABLED} = scalar @REGISTRATION;
+    $first_page{REGISTRATION_ENABLED} = scalar @REGISTRATION || $conf{NEW_REGISTRATION_FORM};
   }
 
   if ($conf{tech_works}) {
@@ -1199,9 +1248,7 @@ sub form_passwd {
   $password_form{PW_LENGTH} = $conf{PASSWD_LENGTH} || 6;
   $password_form{ACTION} = 'change';
   $password_form{LNG_ACTION} = $lang{CHANGE};
-  $password_form{GEN_PASSWORD} = mk_unique_value(8);
   $password_form{CONFIG_PASSWORD} = $conf{CONFIG_PASSWORD} || '';
-
 
   $password_form{G2FA_HIDDEN} = 'hidden';
   if($conf{AUTH_G2FA} && !$user->{_G2FA}){
@@ -1211,7 +1258,10 @@ sub form_passwd {
     $password_form{G2FA_SECRET} = $secret;
 
     require Control::Qrcode;
-    my $img_qr = _encode_url_to_img(Abills::Auth::OATH::encode_base32($secret), {
+    Control::Qrcode->import();
+    my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html });
+
+    my $img_qr = $QRCode->_encode_url_to_img(Abills::Auth::OATH::encode_base32($secret), {
       AUTH_G2FA_NAME => $conf{WEB_TITLE} || 'Abills',
       AUTH_G2FA_MAIL => $user->{LOGIN},
       OUTPUT2RETURN  => 1,
@@ -1528,7 +1578,7 @@ sub form_fees {
     $LIST_PARAMS{METHOD}=$conf{user_fees_methods};
   }
 
-  $conf{user_payment_journal_show}=5;
+  $conf{user_payment_journal_show}//=6;
   if($conf{user_payment_journal_show}) {
     $LIST_PARAMS{FEES_MONTHES} = $conf{user_payment_journal_show};
   }
@@ -1812,7 +1862,7 @@ sub form_money_transfer {
 
           if (!_error_show($Fees)) {
             $html->message('info', $lang{FEES},
-              "$lang{TAKE} SUM: $FORM{SUM}" . (($transfer_price > 0) ? " $lang{COMMISSION} $lang{SUM}: $transfer_price" : ''));
+              "UID: $user->{UID}, $lang{SUM}: $FORM{SUM}" . (($transfer_price > 0) ? " $lang{COMMISSION} $lang{SUM}: $transfer_price" : ''));
             my $Payments = Finance->payments($db, $admin, \%conf);
             $Payments->add(
               $user2,
@@ -1825,7 +1875,7 @@ sub form_money_transfer {
             );
 
             if (!_error_show($Payments)) {
-              my $message = "# $Payments->{INSERT_ID} $lang{MONEY_TRANSFER} $lang{SUM}: $FORM{SUM}";
+              my $message = "$lang{MONEY_TRANSFER}\n #$Payments->{INSERT_ID}\n UID: $user2->{UID}, $lang{SUM}: $FORM{SUM}";
               if ($transfer_price > 0) {
                 $Fees->take(
                   $user,
@@ -1847,7 +1897,7 @@ sub form_money_transfer {
           $html->tpl_show(templates('form_money_transfer_s3'), { %FORM, %$user2 });
         }
         elsif ($FORM{s2}) {
-          $user2->{COMMISSION} = "$lang{COMMISSION}: $transfer_price";
+          $user2->{COMMISSION} = $transfer_price;
           $html->tpl_show(templates('form_money_transfer_s2'), { %$user2, %FORM });
         }
         return 0;
@@ -2103,7 +2153,7 @@ sub form_custom {
 
   $info{RECOMENDED_PAY} = recomended_pay($user);
 
-  my $json_info = user_full_info({ SHOW_ID => 1 });
+  my $json_info = user_full_info({ SHOW_ID => 1, USER_INFO => $user });
   if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 10) {
     $html->{OUTPUT} .= '<pre>';
     $html->{OUTPUT} .= $json_info;
@@ -2180,16 +2230,20 @@ sub make_social_auth_login_buttons {
 
   my %result = ();
 
-  foreach my $social_net_name ('Vk', 'Facebook', 'Google', 'Instagram', 'Twitter') {
+  foreach my $social_net_name ('Vk', 'Facebook', 'Google', 'Instagram', 'Twitter', 'Telegram', 'Apple') {
     my $conf_key_name = 'AUTH_' . uc($social_net_name) . '_ID';
 
     if (exists $conf{$conf_key_name} && $conf{$conf_key_name}) {
-      $result{ $conf_key_name } = 'display: block;';
+      $result{ $conf_key_name } = '';
       $result{ uc($social_net_name) } = "index.cgi?external_auth=$social_net_name";
     }
     else {
       $result{ $conf_key_name } = 'display: none;';
     }
+  }
+
+  if ($conf{AUTH_TELEGRAM_ID}) {
+    $result{TELEGRAM_SCRIPT} = "<div class='hidden'><script async src='https://telegram.org/js/telegram-widget.js?21' data-telegram-login='test_abills_bot' data-auth-url='?external_auth=Telegram' data-request-access='write'></script></div>";
   }
 
   return \%result;
@@ -2245,10 +2299,15 @@ sub make_social_auth_manage_buttons {
     $result .= $make_button->('Vk', "external_auth=Vk");
   }
 
+  if ($conf{AUTH_TELEGRAM_ID}) {
+    $result .= $make_button->('Telegram', "external_auth=Telegram");
+  }
+
   if ($conf{AUTH_FACEBOOK_ID}) {
     my $client_id = $conf{AUTH_FACEBOOK_ID} || q{};
     my $redirect_uri = $conf{AUTH_FACEBOOK_URL} || q{};
     $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
+    my $scope = $conf{FACEBOOK_AUTH_SCOPE} || 'public_profile,email,user_birthday,user_likes,user_friends';
 
     $result .= $make_button->('Facebook', 'external_auth=Facebook', {
       GLOBAL_URL => 'https://www.facebook.com/dialog/oauth?'
@@ -2256,7 +2315,7 @@ sub make_social_auth_manage_buttons {
         . '&response_type=code'
         . '&redirect_uri=' . $redirect_uri
         . '&state=facebook'
-        . '&scope=public_profile,email,user_birthday,user_likes,user_friends'
+        . '&scope=' . $scope
     });
   }
 
@@ -2333,12 +2392,38 @@ sub make_sender_subscribe_buttons_block {
 
     my $button = '';
     if ($attr->{HREF}) {
-      $button = $html->element('a', $icon_html.' ' . $text, {
+      my $btn_class = $attr->{BUTTON_CLASSES} || ' btn-info ';
+      my $same_button = $html->element('a', $icon_html . ' ' . $text, {
         href          => $attr->{HREF},
-        class         => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
+        class         => "btn form-control $btn_class",
         target        => '_blank',
         OUTPUT2RETURN => 1
       });
+
+      require Control::Qrcode;
+      Control::Qrcode->import();
+
+      my $QRCode = Control::Qrcode->new($db, $admin, {%conf}, { html => $html });
+
+      my $qr_code_image = $QRCode->qr_make_image_from_string($attr->{HREF}, { base64 => 1 });
+
+      my $qr_icon = $html->element('i', '', { class => 'fa fa-qrcode', OUTPUT2RETURN => 1 });
+      my $qr_button = $html->element('a', $qr_icon,
+        {
+          class => "btn $btn_class border-left-1",
+          onclick => "showImgInModal(`$qr_code_image`, '$name $lang{QR_CODE}');",
+          OUTPUT2RETURN => 1
+        }
+      );
+
+      $button = $html->element('div',
+        "$same_button $qr_button",
+        {
+          class => 'btn-group w-100',
+          OUTPUT2RETURN => 1
+        }
+      );
+
     }
     else {
       $button = $html->element('button', $icon_html.' ' . $text, {
@@ -2638,9 +2723,14 @@ sub change_pi_popup {
     }
 
     $user->{PHONE} = '' if $field eq 'PHONE' && $user->{PHONE} && $user->{PHONE} eq $user->{CELL_PHONE};
-      (!$user->{$field}) && in_array($field, \@check_fields)
-      ? ($user->{ $field . "_HAS_ERROR" } = 'has-error' && $user->{PINFO} = 1)
-      : ($user->{ $field . "_DISABLE" } = 'disabled' && $user->{ $field . "_HIDDEN" } = 'hidden');
+    if (!$user->{$field} && in_array($field, \@check_fields)) {
+      $user->{ $field . "_HAS_ERROR" } = 'has-error';
+      $user->{PINFO} = 1;
+    }
+    else {
+      $user->{ $field . "_DISABLE" } = 'disabled';
+      $user->{ $field . "_HIDDEN" } = 'hidden';
+    }
   }
 
   return $html->tpl_show(templates('form_chg_client_info'), $user, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });

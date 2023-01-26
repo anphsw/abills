@@ -21,21 +21,21 @@
           <label  class='col-md-3 col-form-label text-md-right required' for='SUM'>_{SUM}_:</label>
           <div class='col-md-9'>
             <input  id='SUM' name='SUM' value='$FORM{SUM}' required placeholder='$FORM{SUM}' class='form-control'
-                  type='number' step='0.01' min='0' autofocus>
+                  type='number' step='0.01' min='0' max='%MAX_PAYMENT%' autofocus>
           </div>
         </div>
 
         <div class='form-group row'>
           <label  class='col-md-3 col-form-label text-md-right' for='DESCRIBE'>_{DESCRIBE}_:</label>
           <div class='col-md-9'>
-            <input id='DESCRIBE' type='text' name='DESCRIBE' value='%DESCRIBE%' class='form-control'>
+            <input id='DESCRIBE' type='text' name='DESCRIBE' value='%DESCRIBE%' class='form-control' maxlength='%MAX_LENGTH_DSC%'>
           </div>
         </div>
 
         <div class='form-group row'>
           <label  class='col-md-3 col-form-label text-md-right' for='INNER_DESCRIBE'>_{INNER}_:</label>
           <div class='col-md-9'>
-            <input id='INNER_DESCRIBE' type='text' name='INNER_DESCRIBE' value='%INNER_DESCRIBE%' class='form-control'>
+            <input id='INNER_DESCRIBE' type='text' name='INNER_DESCRIBE' value='%INNER_DESCRIBE%' class='form-control' maxlength='%MAX_LENGTH_INNER_DESCRIBE%'>
           </div>
         </div>
 
@@ -70,7 +70,8 @@
         <div class='form-group row'>
           <label  class='col-md-3 col-form-label text-md-right' for='EXT_ID'>EXT ID:</label>
           <div class='col-md-9'>
-            <input id='EXT_ID' type='text' name='EXT_ID' value='%EXT_ID%' class='form-control'>
+            <input id='EXT_ID' type='text' name='EXT_ID' value='%EXT_ID%' class='form-control'
+                   maxlength='%MAX_LENGTH_EXT_ID%'>
           </div>
         </div>
 
@@ -86,3 +87,4 @@
       </div>
     </div>
 </form>
+

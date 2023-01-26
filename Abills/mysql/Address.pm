@@ -78,7 +78,8 @@ sub address_info {
         s.second_name,
         b.coordx,
         s.second_name AS address_street2,
-        d.country
+        d.country,
+        b.flors AS address_flors
       FROM builds b
       LEFT JOIN streets s  ON (s.id=b.street_id)
       LEFT JOIN districts d  ON (d.id=s.district_id)
@@ -219,6 +220,7 @@ sub district_list {
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $GROUP_BY = $attr->{GROUP_BY} || 'GROUP BY d.id';
 
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 0;
@@ -229,16 +231,15 @@ sub district_list {
   }
 
   my $WHERE = $self->search_former($attr, [
-      ['ID',          'INT',  'd.id'       ],
-      ['NAME',        'STR',  'd.name'     ],
-      ['COMMENTS',    'STR',  'd.comments' ],
-      ['DOMAIN_ID',   'INT',  'd.domain_id'],
-      ['COORDX',      'INT',  'd.coordx', 1],
-      ['COORDY',      'INT',  'd.coordy', 1],
-      ['ZOOM',        'INT',  'd.zoom',   1],
-    ],
-    { WHERE => 1 }
-  );
+    ['ID',          'INT',  'd.id'          ],
+    ['NAME',        'STR',  'd.name'        ],
+    ['COMMENTS',    'STR',  'd.comments'    ],
+    ['DOMAIN_ID',   'INT',  'd.domain_id'   ],
+    ['COORDX',      'INT',  'd.coordx',   1 ],
+    ['COORDY',      'INT',  'd.coordy',   1 ],
+    ['ZOOM',        'INT',  'd.zoom',     1 ],
+    ['CITY',        'STR',  'd.city',     1 ],
+  ], { WHERE => 1 });
 
   $self->query("SELECT d.id,
         d.name,
@@ -250,7 +251,7 @@ sub district_list {
       FROM districts d
       LEFT JOIN streets s ON (d.id=s.district_id)
     $WHERE
-    GROUP BY d.id
+    $GROUP_BY
     ORDER BY $SORT $DESC $LIMIT",
     undef,
     $attr

@@ -29,7 +29,15 @@
       </div>
     </div>
 
-    <input name='CRM_MULTISELECT' form='crm_lead_multiselect' value='_{ACCEPT}_' class='btn btn-primary'
-           type='submit'>
+    <div class='row float-right'>
+      <input name='CRM_MULTIMERGE' form='crm_lead_multiselect' value='_{MERGE}_' class='btn btn-success mr-1' type='submit'>
+      <input name='CRM_MULTISELECT' form='crm_lead_multiselect' value='_{ACCEPT}_' class='btn btn-primary' type='submit'>
+    </div>
   </div>
 </div>
+
+<script>
+  jQuery('[name="CRM_MULTIMERGE"]').on('click', function () {
+    jQuery('[name="CRM_MULTISELECT"]').attr('disabled', 'disabled');
+  });
+</script>

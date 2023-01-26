@@ -188,7 +188,7 @@ else{
     my $plugin = 'check_lines';
     $Billd->list({ PLUGIN_NAME => $plugin, COLS_NAME => 1 });
     my $id = 0;
-    if($Billd->{TOTAL}) {
+    if ($Billd->{TOTAL}) {
       $id = $Billd->{list}->[0]->{id};
       $Billd->change({
         ID           => $id,
@@ -347,7 +347,7 @@ sub check_lines{
       if(! $skip && (! $uid || ! $online->{tp_num})) {
         if (! $online->{guest}) {
           session_hangup( $nas, $online,
-            ($uid ? "UNKNOWN_TP" : "UNKNOWN_UID") . "ip: $online->{client_ip} DEPOSIT: $deposit CREDIT: $credit "
+            ($uid ? "UNKNOWN_TP " : "UNKNOWN_UID ") . "ip: $online->{client_ip} DEPOSIT: $deposit CREDIT: $credit "
            ." UID: ". ($uid || 'n/d') . " TP: ". ($online->{tp_num} || 'n/d')
            ." SESSION_SUM: $online->{session_sum}");
         }
@@ -447,7 +447,7 @@ sub check_lines{
           }
 
           $Log->log_print( 'LOG_WARNING', $online->{user_name},
-            "Last Alive: $online->{last_alive}, SESSION_ID: $online->{acct_session_id} DURATION: $online->{duration}\n$info",
+            "LAST_ALIVE: $online->{last_alive}, SESSION_ID: $online->{acct_session_id} DURATION: $online->{duration}\n$info",
             { ACTION => 'CALCULATION', NAS => $nas } );
           next;
         }
@@ -544,8 +544,9 @@ sub check_lines{
         && ($deposit + $credit <= $Billing->{SUM} + $online->{credit_tresshold})
         || $Billing->{HANGUP} )
       {
-        #Neg deposit filter
-        if ( $online->{guest} && $deposit + $credit <= $online->{credit_tresshold} ){
+        #Neg deposit filter for neg deposit and status
+        if ( $online->{guest}
+          && ($deposit + $credit <= $online->{credit_tresshold} || $state > 0 )){
           print "Skip with neg deposit filter '". ($Billing->{NEG_DEPOSIT_FILTER} || ''). "'\n" if ($debug > 1);
         }
         else{
@@ -1903,7 +1904,7 @@ sub check_speed{
 
               if ( $speed_in > 0 ){
                 if ( !$pipe_rules{$pipe_rule_in} || $pipe_rules{$pipe_rule_in} != $speed_in ){
-                  my $queue_in = (!$conf{DV_SKIP_QUEUE}) ? "queue " . (( $speed_in / 10 > 1000) ? 1000 : int( $speed_in / 10 ) ) . "Kbytes " : '';
+                  my $queue_in = (!$conf{INTERNET_SKIP_QUEUE}) ? "queue " . (( $speed_in / 10 > 1000) ? 1000 : int( $speed_in / 10 ) ) . "Kbytes " : '';
 
                   push @FW_ACTIONS,
                     "$IPFW -q pipe $pipe_rule_in config bw " . $speed_in . "Kbit/s " . $queue_in . "mask dst-ip 0xfffffffff";
@@ -1914,7 +1915,7 @@ sub check_speed{
 
               if ( $speed_out > 0 ){
                 if ( !$pipe_rules{$pipe_rule_out} || $pipe_rules{$pipe_rule_out} != $speed_out ){
-                  my $queue_out = (!$conf{DV_SKIP_QUEUE}) ? "queue " . (( $speed_out / 10 > 1000 ) ? 1000 : int( $speed_out / 10 )) . "Kbytes " : '';
+                  my $queue_out = (!$conf{INTERNET_SKIP_QUEUE}) ? "queue " . (( $speed_out / 10 > 1000 ) ? 1000 : int( $speed_out / 10 )) . "Kbytes " : '';
 
                   push @FW_ACTIONS,
                     "$IPFW -q pipe $pipe_rule_out config bw " . $speed_out . "Kbit/s " . $queue_out . " mask src-ip 0xffffffff";
@@ -2310,7 +2311,7 @@ sub check_speed{
       }
 
       if ( !$pipe_rules{$table_class} || $pipe_rules{$table_class} != $speed ){
-        my $queue_out = (!$conf{DV_SKIP_QUEUE}) ? "queue " . (( $speed / 10 > 1000 ) ? 1000 : int( $speed / 10 )) . "Kbytes " : '';
+        my $queue_out = (!$conf{INTERNET_SKIP_QUEUE}) ? "queue " . (( $speed / 10 > 1000 ) ? 1000 : int( $speed / 10 )) . "Kbytes " : '';
 
         my $mask_direction = 'src-ip';
 
@@ -2538,8 +2539,8 @@ sub check_ifaces{
   while (my ($ip_address, $info_arr) = each %{$ip_pid_hash}) {
     foreach my $info ( @{$info_arr} ){
       my ($pid, $iface, undef) = split( /\|/, $info, 3 );
-      if ( $conf{DV_PPP_UNCHECKED} ){
-        next if ($ip_address =~ /$conf{DV_PPP_UNCHECKED}/);
+      if ( $conf{INTERNET_PPP_UNCHECKED} ){
+        next if ($ip_address =~ /$conf{INTERNET_PPP_UNCHECKED}/);
       }
 
       my $res = '';

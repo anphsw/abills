@@ -119,8 +119,10 @@ $lang{NO_SUB_REPOSRT}       = 'No report';
 $lang{NO_SUB_REPOSRT_SUP}   = 'This payment module does not have an internal report';
 $lang{PAYMENT_MADE}         = 'Payment made';
 $lang{REQUEST}              = 'Request';
-$lang{REQUESTS}             = 'requests';
+$lang{LOG_REQUESTS}         = 'Log requests';
 $lang{RESPONSE}             = 'Response';
+$lang{PT_SCAN_QR}           = 'Scan the QR code using the Privat24 mobile application and make a payment';
+$lang{EXTERNAL_ID}          = 'External ID';
 
 $lang{STATUS_0}   = 'Operation was successfully completed';
 $lang{STATUS_1}   = 'User not present in the system';

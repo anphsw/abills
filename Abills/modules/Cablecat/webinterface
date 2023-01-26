@@ -7,14 +7,16 @@ use Abills::Base qw/_bp in_array load_pmodule/;
 use Abills::Experimental;
 use JSON qw/to_json from_json/;
 
-our ($html, %lang, %conf, $admin, $db, @CABLECAT_EXTRA_COLORS, %permissions, @MODULES);
+our (%lang, %conf, $admin, $db, @CABLECAT_EXTRA_COLORS, %permissions, @MODULES);
+
+our Abills::HTML $html;
 
 our $Maps;
 
 _bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } }) if ( $FORM{json} );
 
 # DB module is available
-exit if (form_purchase_module({ HEADER => $user->{UID}, MODULE => 'Cablecat', REQUIRE_VERSION => 7.91 }));
+exit if (form_purchase_module({ HEADER => $user->{UID}, MODULE => 'Cablecat', REQUIRE_VERSION => 7.92 }));
 
 if ( !defined $Maps ) {
   eval { require Maps; };
@@ -1116,7 +1118,7 @@ sub cablecat_user_trace_connection_form {
 
     my $message = $html->message('err', $lang{ERROR}, $text, { OUTPUT2RETURN => 1, ID => $id });
     print $message;
-    exit 0;
+    exit 0 if (! $ENV{DEBUG});
   };
 
   if ($FORM{action}) {
@@ -1207,7 +1209,10 @@ sub cablecat_user_trace_connection_form {
       $return_with_error->($lang{CANNOT_GET_USER_SERVICE_LIST});
     }
 
-    my @user_connections = @$user_services_search_list;
+    my @user_connections = ();
+    if (ref $user_services_search_list eq 'ARRAY') {
+      @user_connections = @$user_services_search_list;
+    }
 
     # Look which nas_id are on commutation scheme
     foreach my $service_port ( @user_connections ) {

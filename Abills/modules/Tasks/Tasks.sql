@@ -12,8 +12,13 @@ CREATE TABLE IF NOT EXISTS `tasks_main` (
   `control_date` DATE NOT NULL DEFAULT '0000-00-00',
   `additional_values` TEXT NOT NULL,
   `comments` TEXT NOT NULL,
-  PRIMARY KEY (`id`)
+  `msg_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `step_id` INT UNSIGNED NOT NULL DEFAULT 0,
+  `lead_id` INT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `aid` (`aid`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Tasks';
 
 CREATE TABLE IF NOT EXISTS `tasks_type` (
@@ -26,6 +31,7 @@ CREATE TABLE IF NOT EXISTS `tasks_type` (
   `hidden` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Tasks type';
 
 CREATE TABLE IF NOT EXISTS `tasks_admins` (
@@ -35,6 +41,7 @@ CREATE TABLE IF NOT EXISTS `tasks_admins` (
   `sysadmin` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`aid`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Tasks admins';
 
 CREATE TABLE IF NOT EXISTS `tasks_partcipiants` (
@@ -42,6 +49,7 @@ CREATE TABLE IF NOT EXISTS `tasks_partcipiants` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (id,aid)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Tasks partcipiants';
 
 CREATE TABLE IF NOT EXISTS `tasks_plugins` (
@@ -51,4 +59,5 @@ CREATE TABLE IF NOT EXISTS `tasks_plugins` (
   `descr` TEXT NOT NULL,
   PRIMARY KEY (`id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Tasks plugins';

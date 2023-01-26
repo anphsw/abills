@@ -422,7 +422,7 @@ sub msgs_user {
 
   $pages_qs .= "&SEARCH_MSG_TEXT=$FORM{SEARCH_MSG_TEXT}" if( $FORM{SEARCH_MSG_TEXT});
 
-  my $status_bar = msgs_status_bar({ MSGS_STATUS => \%statusbar_status, USER_UNREAD => 1, SHOW_ONLY => 3 });
+  my $status_bar = msgs_status_bar({ MSGS_STATUS => \%statusbar_status, USER_UNREAD => 1 });
   if (! $FORM{sort}){
     $LIST_PARAMS{SORT} = '4, 1';
     delete $LIST_PARAMS{DESC};
@@ -681,6 +681,8 @@ sub _notify_admins_by_chapter {
 
   foreach my $aid (keys %{$admins_permissions}) {
     my $admin_permission = $admins_permissions->{$aid};
+
+    next if $admin_permission->{1}{24};
     next if !$admin_permission->{5} || !$admin_permission->{6}{$chapter_id};
     next if $admin_permission->{4} && !$admin_permission->{4}{$chapter_id};
 

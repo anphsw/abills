@@ -147,7 +147,7 @@ sub msgs_list {
     my @available_chapters = keys %{$msgs_permissions{4}};
 
     $FORM{CHAPTER} = $FORM{CHAPTER} eq '_SHOW' ? join(';', @available_chapters)
-      : join(';', grep { in_array($_, \@available_chapters) } split(',\s?', $FORM{CHAPTER}));
+      : join(';', grep { in_array($_, \@available_chapters) } split('[,;]\s?', $FORM{CHAPTER}));
   }
   elsif ($FORM{CHAPTER}) {
     $FORM{CHAPTER} =~ s/,/;/g;
@@ -160,7 +160,7 @@ sub msgs_list {
   $LIST_PARAMS{MSGS_TAGS} =~ s/,/;/g if $LIST_PARAMS{MSGS_TAGS} && $LIST_PARAMS{TAGS_STATEMENT};
 
   my @function_fields = ('msgs_admin:show:chg_msgs;uid');
-  push @function_fields, "msgs_admin:del:del_msgs;state:&ALL_MSGS=1" if $msgs_permissions{1}{1};
+  push @function_fields, "msgs_admin:del:del_msgs;" . ($FORM{UID} ? "uid;" : "") . "state:&ALL_MSGS=1" if $msgs_permissions{1}{1};
 
   $LIST_PARAMS{RESPOSIBLE} = $admin->{AID} if $msgs_permissions{1}{21};
   ($table, $list) = result_former({
@@ -414,26 +414,23 @@ sub msgs_dispatch_sel {
   my ($attr) = @_;
 
   my @rows = (
-    $html->form_select(
-      'DISPATCH_ID',
-      {
-        SELECTED       => $Msgs->{DISPATCH_ID} || '',
-        SEL_LIST       => $Msgs->dispatch_list({
-          COMMENTS      => '_SHOW',
-          PLAN_DATE     => '_SHOW',
-          MESSAGE_COUNT => '_SHOW',
-          STATE         => 0,
-          COLS_NAME     => 1,
-          PAGE_ROWS     => 9999
-        }),
-        SEL_KEY        => 'id',
-        SEL_VALUE      => 'plan_date,comments,message_count',
-        MAIN_MENU      => get_function_index('msgs_dispatches'),
-        MAIN_MENU_ARGV => ($Msgs->{DISPATCH_ID}) ? "chg=$Msgs->{DISPATCH_ID}" : '',
-        FORM_ID        => 'MSGS_LIST',
-        %{$attr // {}}
-      }
-    ),
+    $html->form_select('DISPATCH_ID', {
+      SELECTED       => $Msgs->{DISPATCH_ID} || '',
+      SEL_LIST       => $Msgs->dispatch_list({
+        COMMENTS      => '_SHOW',
+        PLAN_DATE     => '_SHOW',
+        MESSAGE_COUNT => '_SHOW',
+        STATE         => 0,
+        COLS_NAME     => 1,
+        PAGE_ROWS     => 9999
+      }),
+      SEL_KEY        => 'id',
+      SEL_VALUE      => 'plan_date,comments,message_count',
+      MAIN_MENU      => get_function_index('msgs_dispatches'),
+      MAIN_MENU_ARGV => ($Msgs->{DISPATCH_ID}) ? "chg=$Msgs->{DISPATCH_ID}" : '',
+      FORM_ID        => 'MSGS_LIST',
+      %{$attr // {}}
+    }),
     $html->form_input('add_dispatch', "$lang{CHANGE} $lang{DISPATCH}",
       { TYPE => 'submit', OUTPUT2RETURN => 1, FORM_ID => 'MSGS_LIST' }
     )

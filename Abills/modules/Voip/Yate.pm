@@ -1,4 +1,3 @@
-
 =head1 NAME
 
   Yate
@@ -8,15 +7,24 @@
 use strict;
 use warnings;
 
-our(
+our (
   @service_status_colors,
   $html,
+  %conf,
   %lang,
   $db,
-  $admin
+  $admin,
+  %permissions,
 );
 
+use Voip::Users;
+
 our Voip $Voip;
+my $Voip_users = Voip::Users->new($db, $admin, \%conf, {
+  html        => $html,
+  lang        => \%lang,
+  permissions => \%permissions,
+});
 
 #**********************************************************
 =head2 voip_yate_online()
@@ -24,75 +32,61 @@ our Voip $Voip;
 =cut
 #**********************************************************
 sub voip_yate_online {
-#$Voip->{debug}=1;
-  result_former(
-    {
-      INPUT_DATA      => $Voip,
-      FUNCTION        => 'trunk_list',
-      DEFAULT_FIELDS  => 'NAME,STATUS,PROTOCOL',
-      #FUNCTION_FIELDS => 'voip_yate_user:change:number;uid,form_payments',
-      EXT_TITLES      => {
-        'name'        => $lang{NAME},
-        'state'       => $lang{STATUS},
-      },
-      TABLE => {
-        width  => '100%',
-        #qs     => $pages_qs,
-        #header => $status_bar,
-        caption => "Trunks $lang{STATUS}",
-        ID      => 'VOIP_TRUNKS',
-      },
-      MAKE_ROWS => 1,
-      MODULE    => 'Voip',
-      TOTAL     => 1
-    }
-  );
+
+  result_former({
+    INPUT_DATA     => $Voip,
+    FUNCTION       => 'trunk_list',
+    DEFAULT_FIELDS => 'NAME,STATUS,PROTOCOL',
+    EXT_TITLES     => {
+      'name'  => $lang{NAME},
+      'state' => $lang{STATUS},
+    },
+    TABLE          => {
+      width   => '100%',
+      caption => "Trunks $lang{STATUS}",
+      ID      => 'VOIP_TRUNKS',
+    },
+    MAKE_ROWS      => 1,
+    MODULE         => 'Voip',
+    TOTAL          => 1
+  });
   
   $LIST_PARAMS{ONLINE} = 1;
-  result_former(
-    {
-      INPUT_DATA      => $Voip,
-      FUNCTION        => 'user_list',
-      DEFAULT_FIELDS  => 'NUMBER,LOCATIONS,EXPIRES',
-      #FUNCTION_FIELDS => 'voip_yate_user:change:number;uid,form_payments',
-      EXT_TITLES      => {
-        'number'        => $lang{NUMBER},
-      },
-      TABLE => {
-        width  => '100%',
-        #qs     => $pages_qs,
-        #header => $status_bar,
-        caption => "Line $lang{STATUS}",
-        ID      => 'VOIP_USERS',
-      },
-      MAKE_ROWS => 1,
-      MODULE    => 'Voip',
-      TOTAL     => 1
-    }
-  );
+  result_former({
+    INPUT_DATA     => $Voip,
+    FUNCTION       => 'user_list',
+    DEFAULT_FIELDS => 'NUMBER,LOCATIONS,EXPIRES',
+    EXT_TITLES     => {
+      'number' => $lang{NUMBER},
+    },
+    TABLE          => {
+      width   => '100%',
+      caption => "Line $lang{STATUS}",
+      ID      => 'VOIP_USERS',
+    },
+    MAKE_ROWS      => 1,
+    MODULE         => 'Voip',
+    TOTAL          => 1
+  });
   
   $LIST_PARAMS{NOW} = 1;
-  result_former(
-    {
-      INPUT_DATA      => $Voip,
-      FUNCTION        => 'voip_yate_cdr',
-      DEFAULT_FIELDS  => 'DATETIME,CALLER,CALLED,BILLTIME,DURATION,STATUS,REASON',
-      #FUNCTION_FIELDS => 'voip_yate_user:change:number;uid,form_payments',
-      EXT_TITLES      => {
-        'caller'        => $lang{NUMBER},
-      },
-      TABLE => {
-        width  => '100%',
-        #qs     => $pages_qs,
-        #header => $status_bar,
-        caption => "Active CALLS",
-        ID      => 'VOIP_CDR',
-      },
-      MAKE_ROWS => 1,
-      MODULE    => 'Voip',
-      TOTAL     => 1
-    }
-  );
+  result_former({
+    INPUT_DATA     => $Voip,
+    FUNCTION       => 'voip_yate_cdr',
+    DEFAULT_FIELDS => 'DATETIME,CALLER,CALLED,BILLTIME,DURATION,STATUS,REASON',
+    #FUNCTION_FIELDS => 'voip_yate_user:change:number;uid,form_payments',
+    EXT_TITLES     => {
+      'caller' => $lang{NUMBER},
+    },
+    TABLE          => {
+      width   => '100%',
+      caption => "Active CALLS",
+      ID      => 'VOIP_CDR',
+    },
+    MAKE_ROWS      => 1,
+    MODULE         => 'Voip',
+    TOTAL          => 1
+  });
 
   return 1;
 }
@@ -148,8 +142,6 @@ sub voip_yate_users_list {
     form_search({ SEARCH_FORM => $html->tpl_show(_include('voip_users_search', 'Voip'), { %{$Voip}, %FORM }, { OUTPUT2RETURN => 1 }) });
   }
 
-  #print $html->letters_list( { pages_qs => $pages_qs } );
-
   if ($FORM{letter}) {
     $LIST_PARAMS{LOGIN} = "$FORM{letter}*";
     $pages_qs .= "&letter=$FORM{letter}";
@@ -174,37 +166,32 @@ sub voip_yate_users_list {
 
   my $menu_add = ($FORM{"UID"}) ? "$lang{ADD}:index=" . get_function_index('voip_yate_user') . "&UID=$FORM{UID}&new=1" . ':add' : '';
 
-  result_former(
-    {
-      INPUT_DATA      => $Voip,
-      FUNCTION        => 'user_list',
-      BASE_FIELDS     => 1,
-      DEFAULT_FIELDS  => 'LOGIN,FIO,DEPOSIT,CREDIT,NUMBER,TP_NAME,SERVICE_STATUS',
-      FUNCTION_FIELDS => 'voip_yate_user:change:number;uid,form_payments',
-      EXT_TITLES      => {
-        'port'        => $lang{PORT},
-        'cid'         => 'CID',
-        'filter_id'   => 'Filter ID',
-        'tp_name'     => "$lang{TARIF_PLAN}",
-        'voip_status' => "$lang{STATUS}",
-        'number'      => "$lang{NUM}",
-      },
-      TABLE => {
-        width  => '100%',
-        qs     => $pages_qs,
-        header => $status_bar,
-        ID     => 'VOIP_USERS_LIST',
-
-        #SHOW_COLS   => \%SEARCH_TITLES,
-        #ACTIVE_COLS => \%ACTIVE_TITLES,
-        EXPORT => 1,
-        MENU   => $menu_add . ";$lang{SEARCH}:index=$index&search_form=1:search",
-      },
-      MAKE_ROWS => 1,
-      MODULE    => 'Voip',
-      TOTAL     => 1
-    }
-  );
+  result_former({
+    INPUT_DATA      => $Voip,
+    FUNCTION        => 'user_list',
+    BASE_FIELDS     => 1,
+    DEFAULT_FIELDS  => 'LOGIN,FIO,DEPOSIT,CREDIT,NUMBER,TP_NAME,SERVICE_STATUS',
+    FUNCTION_FIELDS => 'voip_yate_user:change:number;uid,form_payments',
+    EXT_TITLES      => {
+      'port'        => $lang{PORT},
+      'cid'         => 'CID',
+      'filter_id'   => 'Filter ID',
+      'tp_name'     => "$lang{TARIF_PLAN}",
+      'voip_status' => "$lang{STATUS}",
+      'number'      => "$lang{NUM}",
+    },
+    TABLE           => {
+      width  => '100%',
+      qs     => $pages_qs,
+      header => $status_bar,
+      ID     => 'VOIP_USERS_LIST',
+      EXPORT => 1,
+      MENU   => $menu_add . ";$lang{SEARCH}:index=$index&search_form=1:search",
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Voip',
+    TOTAL           => 1
+  });
 
   if (_error_show($Voip)) {
     return 0;
@@ -223,72 +210,45 @@ sub voip_yate_users_list {
 sub voip_yate_user {
   my ($attr) = @_;
 
-  #  $Voip->{debug} = 6;
-  my $Nas      = Nas->new( $db, \%conf );
-  $Voip->{UID}    = $FORM{UID};
+  my $Nas = Nas->new($db, \%conf);
+  $FORM{STATUS} = $FORM{DISABLE};
+  $Voip->{UID} = $FORM{UID};
   $Voip->{NUMBER} = $FORM{NUMBER};
   my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{ALLOW_ANSWER}, $lang{DISABLE} . ':' . $lang{NON_PAYMENT});
 
-  voip_provision();
+  $Voip_users->voip_provision();
+
+  if ($FORM{add} || $FORM{set}) {
+    my $validate_result = $Voip_users->voip_user_preprocess(\%FORM);
+    if ($validate_result->{errno}) {
+      print $validate_result->{element};
+      return 0;
+    }
+  }
 
   if ($FORM{add}) {
-    if (defined($FORM{NUMBER}) && $FORM{NUMBER} < 1) {
-      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} $lang{NUM}");
-    }
-    else {
-      if ($FORM{PROVISION_PORT}) {
-        my $list = $Voip->user_list(
-          {
-            PROVISION_PORT   => $FORM{PROVISION_PORT},
-            PROVISION_NAS_ID => $FORM{PROVISION_NAS_ID},
-            COLS_NAME        => 1
-          }
-        );
+    $Voip->user_add({ %FORM });
+    if (!$Voip->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{ADDED}");
+      service_get_month_fee($Voip) if (!$FORM{STATUS});
 
-        if ($Voip->{TOTAL} > 0 && $list->[0]{uid} != $FORM{UID}) {
-          $html->message('err', $lang{ERROR}, "$lang{PORT}: $FORM{PROVISION_PORT}  $lang{EXIST}. $lang{LOGIN}: " . $html->button("$list->[0]{login}", "index=15&UID=" . $list->[0]{uid}));
-          return 0;
-        }
-      }
-
-      $Voip->user_add({%FORM});
-      if (!$Voip->{errno}) {
-        $html->message('info', $lang{INFO}, "$lang{ADDED}");
-        voip_get_month_fee($Voip) if (!$FORM{STATUS});
-
-        if ($conf{VOIP_ASTERISK_USERS}) {
-          voip_mk_users_conf();
-        }
+      if ($conf{VOIP_ASTERISK_USERS}) {
+        $Voip_users->voip_mk_users_conf(\%FORM);
       }
     }
   }
   elsif ($FORM{set}) {
-    if ($FORM{PROVISION_PORT}) {
-      my $list = $Voip->user_list(
-        {
-          PROVISION_PORT   => $FORM{PROVISION_PORT},
-          PROVISION_NAS_ID => $FORM{PROVISION_NAS_ID},
-          COLS_NAME        => 1
-        }
-      );
-
-      if ($Voip->{TOTAL} > 0 && $list->[0]{uid} != $FORM{UID}) {
-        $html->message('err', $lang{ERROR}, "$lang{PORT}: $FORM{PROVISION_PORT}  $lang{EXIST}. $lang{LOGIN}: " . $html->button("$list->[0]{login}", "index=15&UID=" . $list->[0]{uid}));
-        return 0;
-      }
-    }
-
     $Voip->user_change({%FORM});
     if (!$Voip->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{CHANGED}");
       $Voip->{ACCOUNT_ACTIVATE} = $attr->{USER_INFO}->{ACTIVATE};
 
       if (!$FORM{STATUS} && ($FORM{GET_ABON} || !$FORM{TP_ID})) {
-        voip_get_month_fee($Voip);
+        service_get_month_fee($Voip);
       }
 
       if ($conf{VOIP_ASTERISK_USERS}) {
-        voip_mk_users_conf();
+        $Voip_users->voip_mk_users_conf(\%FORM);
       }
     }
   }
@@ -370,9 +330,7 @@ sub voip_yate_user {
     }
   );
 
-  $user->{PROVISION} = $html->tpl_show(
-    templates('form_show_hide'),
-    {
+  $user->{PROVISION} = $html->tpl_show(templates('form_show_hide'), {
       CONTENT     => $html->tpl_show(_include('voip_provision_user', 'Voip'), $user, { OUTPUT2RETURN => 1 }),
       NAME        => 'Provision',
       ID          => 'PROVISION',
@@ -381,12 +339,7 @@ sub voip_yate_user {
     { OUTPUT2RETURN => 1 }
   );
 
-  my %params = ();
-  if ($attr) {
-    %params = %{$attr};
-  }
-
-  $html->tpl_show(_include('voip_user', 'Voip'), { %params, %{$user} });
+  $html->tpl_show(_include('voip_user', 'Voip'), { %{$attr || {}}, %{$user} });
 
   if ($user->{TOTAL} && $user->{TOTAL} > 0) {
     voip_yate_users_list();

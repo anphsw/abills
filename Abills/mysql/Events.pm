@@ -22,6 +22,9 @@ use warnings FATAL => 'all';
 =cut
 
 use Time::Local qw (timelocal);
+our(
+  %conf
+);
 
 our $VERSION = 1.00;
 
@@ -656,6 +659,38 @@ sub get_group_for_module {
   
   # Here 1 stays for BASE group
   return 1;
+}
+
+#**********************************************************
+=head2 log_rotate($attr) - Rotate events logs
+
+  Arguments:
+    $attr
+      MONTHLY
+
+=cut
+#**********************************************************
+sub log_rotate{
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @rq = ();
+
+  if($conf{USE_PARTITIONING}) {
+    return $self;
+  }
+
+  push @rq, 'CREATE TABLE IF NOT EXISTS events_new LIKE events;',
+      'RENAME TABLE events TO events_old, events_new TO events;',
+      "INSERT INTO events SELECT * FROM events_old WHERE created>=(NOW() - INTERVAL 31 DAY) ORDER BY 1;",
+      'DROP TABLE events_old;',
+  ;
+
+  foreach my $query (@rq) {
+    $self->query($query, 'do');
+  }
+
+  return $self;
 }
 
 

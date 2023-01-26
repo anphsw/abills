@@ -11,11 +11,7 @@ if (typeof info_script_loaded === 'undefined') {
 
   function renewContent(context, callback) {
     var $this = $(context);
-
-    //console.log($this);
-
     var $refreshIcon = $this.find('.fa');
-//        console.log($refreshIcon);
 
     var type = $this.attr('data-object_type');
     var id = $this.attr('data-object_id');
@@ -23,10 +19,8 @@ if (typeof info_script_loaded === 'undefined') {
     var source_func = $this.attr('data-source');
 
     if (!(type && id && areaToRefresh && source_func)) {
-      console.log(type + ' : ' + id + ' : ' + areaToRefresh + ' : ' + source_func);
       $refreshIcon.removeClass('btn-success');
       $refreshIcon.addClass('btn-danger');
-      console.log('nothing to refresh');
       return false;
     }
 
@@ -39,7 +33,7 @@ if (typeof info_script_loaded === 'undefined') {
       OBJ_ID: id,
       get_index: source_func,
       header: 2,
-      AJAX : 1
+      AJAX: 1
     };
 
     $.get('/admin/index.cgi', params, function (data) {
@@ -83,7 +77,6 @@ if (typeof info_script_loaded === 'undefined') {
     });
 
     $commentsRefreshBtn.on('click', function () {
-      console.log('click');
       Events.emit('info_something_changed', 'comments');
     });
 
@@ -97,9 +90,60 @@ if (typeof info_script_loaded === 'undefined') {
       $commentsTextarea.focus();
     });
 
+    jQuery('.del-attachment').on('click', function () {
+      let comment = jQuery(this).parent();
+      let id = comment.data('id');
+
+      aModal.clear()
+        .setId('ModalDelLocation')
+        .setBody(`<h4>${_DELETE}</h4>`)
+        .addButton(_NO, 'districtModalCancelButton', 'default')
+        .addButton(_YES, 'districtModalButton', 'primary')
+        .show(setUpDelModal);
+      function setUpDelModal() {
+        jQuery('#districtModalCancelButton').on('click', function () {
+          aModal.hide();
+        })
+
+        jQuery('#districtModalButton').on('click', function () {
+          fetch(`?header=2&get_index=info_document_del&DEL_ATTACHMENT_ID=${id}`)
+            .then(response => {
+              if (!response.ok) throw response;
+
+              return response;
+            })
+            .then(function (response) {
+              return response.json();
+            })
+            .then(result => {
+              if (result.ok) comment.parent().remove();
+              aModal.hide();
+            })
+            .catch(err => {
+              console.log(err);
+              aModal.hide();
+            });
+        })
+      }
+    });
+
     bindDelBtns();
+    bindAttachBtns();
     bindEditBtns();
     bindAddBtn();
+
+    function bindAttachBtns() {
+      jQuery('.commentAttachBtn').on('click', function () {
+        let id = jQuery(this).data('id');
+        jQuery('#INFO_COMMENT_ID').val(id);
+
+        jQuery('#UPLOAD_FILE').on('change', function (e) {
+          jQuery('form[name="info_attachment"]').submit();
+        });
+
+        jQuery('#UPLOAD_FILE').click();
+      });
+    }
 
     function renewDOM() {
       $commentModal = $('#info_comments_modal');
@@ -142,12 +186,12 @@ if (typeof info_script_loaded === 'undefined') {
 
     function bindEditBtns() {
       var $commentEditBtn = $('.commentEditBtn');
-      $(document).on('click', '.commentEditBtn' ,function (e) {
+      $(document).on('click', '.commentEditBtn', function (e) {
         e.preventDefault();
         var $commentDiv = $(this).parent().parent().parent();
         var $text = $commentDiv.find(".text").text().trim();
 
-        $commentDiv.find(".text").html("<textarea class='form-control'>"+$text+"</textarea>");
+        $commentDiv.find(".text").html("<textarea class='form-control'>" + $text + "</textarea>");
 
         var $icon = $(this).find('.fa');
         $icon.removeClass('fa-pencil-alt');
@@ -161,7 +205,7 @@ if (typeof info_script_loaded === 'undefined') {
           $icon.removeClass('fa-plus ');
           $icon.addClass('fa fa-spinner fa-pulse');
 
-          var text =  $(this).parent().parent().find("textarea").val();
+          var text = $(this).parent().parent().find("textarea").val();
           var type = $commentsType.val();
           var id = $(this).data('id');
 
@@ -178,13 +222,13 @@ if (typeof info_script_loaded === 'undefined') {
 
           $.post('/admin/index.cgi', params, function (data) {
             var data = JSON.parse(data);
-            if(data.status === 0) {
+            if (data.status === 0) {
               Events.emit('info_something_changed', 'comments');
               renewDOM();
             } else {
               //print error
             }
-          })
+          });
         });
 
       });
@@ -200,16 +244,16 @@ if (typeof info_script_loaded === 'undefined') {
 
         $commentsBlock.prepend("<div>" +
           "<div class=\"timeline-item\">" +
-          "  <span class=\"time\"><i class=\"far fa-clock\"></i>"+date+"</span>" +
-          "  <h3 class=\"timeline-header text-left\">"+lang_admin+"</h3>" +
+          "  <span class=\"time\"><i class=\"far fa-clock\"></i>" + date + "</span>" +
+          "  <h3 class=\"timeline-header text-left\">" + lang_admin + "</h3>" +
           "  <div class=\"timeline-body text-left text\"><textarea class='form-control'></textarea></div>" +
-          "  <div class=\"timeline-footer text-left\">" +
-          "<a class='commentAddSubmit m-1'>"+
-          "<span class='fa fa-plus text-success'></span>"+
-          "</a>"+
-          "<a class='commentRemove m-1'>"+
-          "<span class='fa fa-trash text-danger'></span>"+
-          "</a>"+
+          "  <div class=\"timeline-footer text-right\">" +
+          "<a class='commentAddSubmit m-1'>" +
+          "<span class='fa fa-plus text-success'></span>" +
+          "</a>" +
+          "<a class='commentRemove m-1'>" +
+          "<span class='fa fa-trash text-danger'></span>" +
+          "</a>" +
           "  </div>" +
           "</div>" +
           "</div>");
@@ -227,7 +271,7 @@ if (typeof info_script_loaded === 'undefined') {
           $icon.removeClass('fa-plus ');
           $icon.addClass('fa fa-spinner fa-pulse');
 
-          var text =  $(this).parent().parent().find("textarea").val();
+          var text = $(this).parent().parent().find("textarea").val();
           var type = $commentsType.val();
           var id = $commentsId.val();
 
@@ -240,8 +284,14 @@ if (typeof info_script_loaded === 'undefined') {
           });
 
           $.post('/admin/index.cgi', params, function (data) {
-            var data = JSON.parse(data);
-            if(data.status === 0) {
+            try {
+              data = JSON.parse(data);
+            } catch (e) {
+              Events.emit('info_something_changed', 'comments');
+              renewDOM();
+            }
+
+            if (data.status === 0) {
               Events.emit('info_something_changed', 'comments');
               renewDOM();
             } else {

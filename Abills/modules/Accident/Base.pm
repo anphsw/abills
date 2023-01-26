@@ -4,7 +4,6 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db);
-#my $json;
 my Abills::HTML $html;
 my $lang;
 my Accident $Accident;

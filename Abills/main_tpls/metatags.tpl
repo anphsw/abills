@@ -143,6 +143,7 @@
     };
 
     var CONTENT_LANGUAGE = '%CONTENT_LANGUAGE%';
+    var IS_DARK_MODE = '$admin->{SETTINGS}{BODY_SKIN}' === 'dark-mode';
 
     moment.locale('%CONTENT_LANGUAGE%');
 
@@ -176,7 +177,8 @@
 >
 
 <script>
-  if(document.body.clientWidth < 992) {
+  // Left sidebar closing in mobile devices
+  if (document.body.clientWidth < 992) {
     document.body.classList.add('sidebar-collapse');
   }
 </script>

@@ -21,7 +21,7 @@
   });
 </script>
 
-<form action=$SELF_URL METHOD=post name=FORM_NAS role='form'>
+<form action=%SELF_URL% METHOD=post name=FORM_NAS>
   <input type=hidden name='index' value='62'>
   <input type=hidden name='NAS_ID' value='%NAS_ID%'>
 
@@ -61,11 +61,9 @@
                 </div>
                 <div class='bd-highlight'>
                   <div class='input-group-append h-100'>
-                    <div class='input-group-text p-0 rounded-left-0'>
-                      <a id='wiki-link' class='btn btn-sm' data-tooltip='_{GUIDE_WIKI_LINK}_'
-                         href='http://abills.net.ua/wiki/doku.php/abills:docs:nas' target='_blank'>?</a>
-                      %WINBOX%
-                    </div>
+                    <a id='wiki-link' class='btn input-group-button rounded-left-0' data-tooltip='_{GUIDE_WIKI_LINK}_'
+                       href='http://abills.net.ua/wiki/doku.php/abills:docs:nas' target='_blank'>?</a>
+                    %WINBOX%
                   </div>
                 </div>
               </div>
@@ -124,14 +122,15 @@
                        placeholder='%NAS_MNG_USER%'
                        class='form-control' type='text'>
                 <div class='input-group-append'>
-                  <div class='input-group-text'>
-                    <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&create=1&ssh_key=1'
-                       class='fa fa-key' target='_new' title='_{CREATE}_ SSH public key'></a>
-                  </div>
-                  <div class='input-group-text'>
-                    <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&download=1&ssh_key=1'
-                       class='fa fa-download' target='_new' title='_{DOWNLOAD}_ SSH public key'></a>
-                  </div>
+                  <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&create=1&ssh_key=1'
+                     class='btn input-group-button' target='_new' title='_{CREATE}_ SSH public key'>
+                    <i class='fa fa-key'></i>
+                  </a>
+                  <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&download=1&ssh_key=1'
+                     class='btn input-group-button' target='_new' title='_{DOWNLOAD}_ SSH public key'>
+                    <i class='fa fa-download'></i>
+                  </a>
+
                 </div>
               </div>
             </div>

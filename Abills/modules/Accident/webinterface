@@ -14,9 +14,11 @@ use Control::Services;
 use Accident;
 use Address;
 use Users;
+use Accident::Reports;
 use Abills::Sender::Core;
 use Abills::Base qw \in_array date_inc\;
 require Abills::Misc;
+require Accident::User_portal;
 
 our (
   $db,
@@ -33,7 +35,7 @@ if (
   form_purchase_module({
     HEADER          => 1,
     MODULE          => 'Accident',
-    REQUIRE_VERSION => 8.13,
+    REQUIRE_VERSION => 8.17,
   })
 ) {
   exit;
@@ -231,6 +233,7 @@ sub accident_widget {
   my $accident_list_done = $Accident->list({
     STATUS     => '_SHOW',
     NAME       => '_SHOW',
+    DATE       => '_SHOW',
     END_TIME   => '_SHOW',
     REALY_TIME => '_SHOW',
     STATUS     => '_SHOW',
@@ -245,12 +248,14 @@ sub accident_widget {
     ID      => 'ACCIDENT',
   });
 
+  my $date_diff = '';
   foreach my $element (@{$accident_list_done}) {
+    $date_diff = date_diff($DATE, $element->{date});
     $table->addrow(
-      $element->{name},
-      $element->{admin_name},
-      $element->{end_time},
-      $element->{realy_time},
+      ($date_diff > 1) ? $html->color_mark($element->{name}, 'text-primary') : $element->{name},
+      ($date_diff > 1) ? $html->color_mark($element->{admin_name}, 'text-primary') : $element->{admin_name},
+      ($date_diff > 1) ? $html->color_mark($element->{end_time}, 'text-primary') : $element->{end_time},
+      ($date_diff > 1) ? $html->color_mark($element->{realy_time}, 'text-primary') : $element->{realy_time},
       $html->color_mark($status{ $element->{status} }, $STATUSES_COLORS[ $element->{status} ])
     );
   }
@@ -317,7 +322,7 @@ sub accident_start_page {
   );
 
   if (in_array('Equipment', \@MODULES) && $conf{EQUIPMENT_LOG}) {
-    $START_PAGE_F{accident_for_equipment} = $lang{ACCIDETN_FOR_EQUIPMENT};
+    $START_PAGE_F{accident_for_equipment} = $lang{ACCIDENT_FOR_EQUIPMENT};
   }
 
   return \%START_PAGE_F;
@@ -849,6 +854,7 @@ sub accident_warning {
       UID         => $attr->{UID},
       MESSAGE     => $message,
       SENDER_TYPE => $type,
+      SUBJECT     => $lang{ACCIDENT_NOTIFICATION},
     });
 
     last if $response;

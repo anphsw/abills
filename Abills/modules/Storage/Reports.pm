@@ -5,15 +5,14 @@ our (
   $db,
   $admin,
   %conf,
-  $html,
   %lang,
   %article_actions,
   $SELF_URL,
 );
 
 use Storage;
-use Abills::Base qw/_bp/;
 
+our Abills::HTML $html;
 my $Storage = Storage->new($db, $admin, \%conf);
 
 
@@ -153,22 +152,48 @@ sub _count_full_amount {
   });
 
   my %FULL_AMOUNT = (
-    IN_STORAGE     => 0,
-    DISCARDED      => 0,
-    INNER_USE      => 0,
-    INSTALATION    => 0,
-    ACCOUNTABILITY => 0,
-    RESERVE        => 0,
+    IN_STORAGE         => 0,
+    DISCARDED          => 0,
+    INNER_USE          => 0,
+    INSTALATION        => 0,
+    ACCOUNTABILITY     => 0,
+    RESERVE            => 0,
+
+    IN_STORAGE_SUM     => 0,
+    DISCARDED_SUM      => 0,
+    INNER_USE_SUM      => 0,
+    INSTALATION_SUM    => 0,
+    ACCOUNTABILITY_SUM => 0,
+    RESERVE_SUM        => 0,
   );
   foreach my $incoming_article (@$incoming_articles_list) {
-    if(defined $incoming_article->{measure} && $incoming_article->{measure} =~ /\d+/) {
+    if (defined $incoming_article->{measure} && $incoming_article->{measure} =~ /\d+/) {
+      my $amount_per_unit = $incoming_article->{total} ? ($incoming_article->{sia_sum} / $incoming_article->{total}) : 0;
+
       $FULL_AMOUNT{IN_STORAGE} += $incoming_article->{total} || 0;
+      $FULL_AMOUNT{IN_STORAGE_SUM} += $incoming_article->{total} ? ($incoming_article->{sia_sum} || 0) : 0;
+
       $FULL_AMOUNT{DISCARDED} += $incoming_article->{discard_count} || 0;
+      $FULL_AMOUNT{DISCARDED_SUM} += $incoming_article->{discard_sum} || 0;
+
       $FULL_AMOUNT{INNER_USE} += $incoming_article->{inner_use_count} || 0;
+      $FULL_AMOUNT{INNER_USE_SUM} += $incoming_article->{inner_use_sum} || 0;
+
       $FULL_AMOUNT{INSTALATION} += $incoming_article->{instalation_count} || 0;
+      $FULL_AMOUNT{INSTALATION_SUM} += $incoming_article->{instalation_sum} || 0;
+
       $FULL_AMOUNT{ACCOUNTABILITY} += $incoming_article->{accountability_count} || 0;
+      $FULL_AMOUNT{ACCOUNTABILITY_SUM} += ($incoming_article->{accountability_count} || 0) * $amount_per_unit;
+
       $FULL_AMOUNT{RESERVE} += $incoming_article->{reserve_count} || 0;
+      $FULL_AMOUNT{RESERVE_SUM} += ($incoming_article->{reserve_count} || 0) * $amount_per_unit;
     }
+  }
+
+  my $unit_name = $conf{MONEY_UNIT_NAMES} ? (split(/;/, $conf{MONEY_UNIT_NAMES}))[0] : '';
+  foreach (keys %FULL_AMOUNT) {
+    next if $_ !~ /_SUM/;
+    $FULL_AMOUNT{$_} = sprintf("%.2f", $FULL_AMOUNT{$_}) . $unit_name;
   }
 
   return \%FULL_AMOUNT;
@@ -530,6 +555,10 @@ sub storage_incoming_report {
     return 1;
   }
 
+  $pages_qs .= "&TYPE_ID=$FORM{TYPE_ID}" if $FORM{TYPE_ID};
+  $pages_qs .= "&STORAGE_ID=$FORM{STORAGE_ID}" if $FORM{STORAGE_ID};
+  $pages_qs .= "&INVOICE_ID=$FORM{INVOICE_ID}" if $FORM{INVOICE_ID};
+
   my $report_table = $html->table({
     width      => '100%',
     caption    => $lang{INCOMING_INVOICE_REPORT},
@@ -836,8 +865,13 @@ sub storage_installation_report {
   });
 
   foreach my $install (@{$installations}) {
-    $installed_table->addrow($install->{sta_name}, $install->{count} . ' ' . _translate($install->{measure_name}), $install->{sum},
-      $install->{serial}, $install->{admin_name}, $install->{date}, $install->{storage_name});
+    $installed_table->addrow($install->{sta_name},
+        ($install->{count} || 0). ' ' . _translate($install->{measure_name}),
+        $install->{sum},
+        $install->{serial},
+        $install->{admin_name},
+        $install->{date},
+        $install->{storage_name});
   }
 
   print $installed_table->show();

@@ -126,5 +126,7 @@ $lang{SUBMIT_YOUR_APPLICATION} = 'Оставить заявку';
 $lang{TELEGRAM_FOUND} = 'Найдено';
 $lang{TELEGRAM_VERIFY_PHONE} = 'Подтвердить телефон';
 $lang{TELEGRAM_SUBSCRIBE_INFO} = "Для подключения телеграм-бота нажмите <b>Подтвердить телефон</b> или используйте кнопку <b>Подписаться</b> в кабинете пользователя.";
+$lang{TELEGRAM_LINK_AND_INVITE} = 'Для того, чтобы пригласить своего друга — поделитесь ссылкой на бота ниже';
+$lang{GREETINGS_YOUR_QUESTION} = 'Приветствую! Пожалуйста, напишите свой вопрос.';
 
 1;

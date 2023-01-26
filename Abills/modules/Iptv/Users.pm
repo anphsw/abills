@@ -911,6 +911,11 @@ sub iptv_account_action {
     if ($attr->{chg} || $attr->{ID}) {
       $Iptv->user_info($attr->{chg} || $attr->{ID});
       $request{SUBSCRIBE_ID} = $Iptv->{SUBSCRIBE_ID} if $Iptv->{TOTAL} && $Iptv->{SUBSCRIBE_ID};
+      $request{LOGIN} = $users->{LOGIN};
+
+      $users->info($users->{UID}, { SHOW_PASSWORD => 1 });
+      $request{PASSWORD} = $users->{PASSWORD};
+      $request{DEPOSIT} = $users->{DEPOSIT};
     }
 
     if ($Tv_service && $Tv_service->can('user_screens')) {
@@ -928,6 +933,9 @@ sub iptv_account_action {
         }
 
         $result = 0;
+      }
+      else {
+        $result = 1;
       }
     }
     else {
@@ -1004,7 +1012,18 @@ sub iptv_account_action {
     $disable_catv_port = 1;
     if ($Tv_service && $Tv_service->can('user_del')) {
       $users->pi({ UID => $uid });
-      $Tv_service->user_del({ %{$users}, %$attr, %{$Iptv}, ID => $attr->{del} });
+
+      my $user_screens = $Iptv->users_screens_list({
+        NUM              => '_SHOW',
+        CID              => '_SHOW',
+        SERIAL           => '_SHOW',
+        USERS_SERVICE_ID => $attr->{del},
+        COLS_NAME        => 1,
+        COLS_UPPER       => 1,
+        SHOW_ASSIGN      => 1
+      });
+      
+      $Tv_service->user_del({ %{$users}, %$attr, %{$Iptv}, ID => $attr->{del}, USER_SCREENS => $user_screens });
       if ($Tv_service->{error} || $Tv_service->{errno}) {
         $Iptv->{errno} = $Tv_service->{errno};
         $Iptv->{errstr} = $Tv_service->{errstr};
@@ -1024,7 +1043,7 @@ sub iptv_account_action {
       }) if ($conf{IPTV_SUBSCRIBE_CMD});
     }
 
-    _external('', { EXTERNAL_CMD => 'Iptv', %{$users}, %{$Iptv}, ACTION => 'down', QUITE => 1 });
+    _external('', { EXTERNAL_CMD => 'Iptv', %{($users) ? $users : {} }, %{$Iptv}, ACTION => 'down', QUITE => 1 });
   }
   elsif ($attr->{hangup}) {
     if ($Tv_service && $Tv_service->can('hangup')) {

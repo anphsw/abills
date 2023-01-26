@@ -13,28 +13,28 @@
       <div class='card-body' id='task_form_body'>
 
         <div class='form-group row'>
-          <label class='col-md-4 col-form-label text-md-right' for='task_type'>_{TASK_TYPE}_:</label>
+          <label class='col-md-4 col-form-label text-md-right required' for='task_type'>_{TASK_TYPE}_:</label>
           <div class='col-md-8'>
             %SEL_TASK_TYPE%
           </div>
         </div>
 
         <div class='form-group row'>
-          <label class='col-md-4 col-form-label  text-md-right' for='NAME'>_{TASK_NAME}_:</label>
+          <label class='col-md-4 col-form-label  text-md-right required' for='NAME'>_{TASK_NAME}_:</label>
           <div class='col-md-8'>
-            <input class='form-control' name='NAME' id='NAME' value='%NAME%'>
+            <input class='form-control' name='NAME' id='NAME' value='%NAME%' required>
           </div>
         </div>
 
         <div class='form-group row'>
-          <label class='col-md-4 col-form-label text-md-right' for='DESCR'>_{TASK_DESCRIBE}_:</label>
+          <label class='col-md-4 col-form-label text-md-right required' for='DESCR'>_{TASK_DESCRIBE}_:</label>
           <div class='col-md-8'>
             <textarea class='form-control' rows='5' name='DESCR' id='DESCR'>%DESCR%</textarea>
           </div>
         </div>
 
         <div class='form-group row'>
-          <label class='col-md-4 col-form-label text-md-right' for='responsible'>_{RESPONSIBLE}_:</label>
+          <label class='col-md-4 col-form-label text-md-right required' for='responsible'>_{RESPONSIBLE}_:</label>
           <div class='col-md-8'>  
             %SEL_RESPONSIBLE%
           </div>
@@ -55,14 +55,14 @@
             <!-- Modal content-->
             <div class='modal-content'>
               <div class='modal-header'>
-                <button type='button' class='close' data-dismiss='modal'>&times;</button>
                 <h4 class='modal-title'>_{PARTCIPIANTS}_</h4>
+                <button type='button' class='close' data-dismiss='modal'>&times;</button>
               </div>
               <div class='modal-body'>
                %ADMINS_LIST%
               </div>
               <div class='modal-footer'>
-                <button type='button' class='btn  btn-secondary' data-dismiss='modal' onClick='return closeModal()'>Close</button>
+                <button type='button' class='btn btn-default' data-dismiss='modal' onClick='return closeModal()'>_{CLOSE}_</button>
               </div>
             </div>
             
@@ -131,7 +131,7 @@
       jQuery('#task_form_body')
         .append(
           jQuery('<div></div>')
-            .addClass('form-group appended_field')
+            .addClass('form-group appended_field row')
             .append(
               jQuery('<label></label>')
                 .attr('for', element['NAME'])
@@ -157,7 +157,7 @@
       jQuery('#task_form_body')
         .append(
           jQuery('<div></div>')
-            .addClass('form-group plugin_field')
+            .addClass('form-group plugin_field row   ')
             .append(
               jQuery('<label></label>')
                 .attr('for', element['NAME'])

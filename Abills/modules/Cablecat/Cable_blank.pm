@@ -15,7 +15,7 @@ use Encode;
 our (%FORM, $db, %conf, $admin, %lang, %CROSS_PORT_TYPE, %CROSS_POLISH_TYPE, %CROSS_FIBER_TYPE);
 our Cablecat $Cablecat;
 our Abills::HTML $html;
-our @port_types = ('', 'RJ45', 'GBIC', 'Gigabit', 'SFP', 'QSFP', 'EPON', 'GPON');
+our @port_types = ('', 'RJ45', 'GBIC', 'Gigabit', 'SFP', 'QSFP', 'EPON', 'GPON', 'SFP-RJ45');
 
 my %OBJECTS = ();
 
@@ -750,3 +750,4 @@ sub _print_name {
 }
 
 1;
+

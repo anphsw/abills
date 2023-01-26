@@ -118,7 +118,8 @@
         'canvas_height',
         '%BUILD_FLATS%',
         '%BUILD_SCHEMA%',
-        '%NUMBERING_DIRECTION%'
+        '%NUMBERING_DIRECTION%',
+        '%START_NUMBERING_FLAT%'
       );
     }
 

@@ -39,7 +39,7 @@ my $Payments = Payments->new($db, $admin, \%conf);
 my @service_status_colors = ($_COLORS[9], $_COLORS[6]);
 my @service_status = ($lang{ENABLE}, $lang{DISABLE});
 my $Fees = Fees->new($db, $admin, \%conf);
-my $Docs_base = Docs::Base->new($db, $admin, \%conf);
+my $Docs_base = Docs::Base->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 my $debug = $FORM{debug} || 0;
 
@@ -160,86 +160,7 @@ sub docs_invoices_list{
   }
 
   if ($FORM{UNINVOICED}) {
-    if ($FORM{apply}) {
-      my $payment_list = $Payments->list({
-        ID        => $FORM{PAYMENT_ID},
-        SUM       => '_SHOW',
-        COLS_NAME => 1
-      });
-
-      if ( $Payments->{TOTAL} > 0 ){
-        if ($FORM{SUM} && $FORM{SUM} =~ /[\.\,0-9]+/ && $FORM{SUM} > $payment_list->[0]{sum}) {
-          $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_SUM});
-          return 0;
-        }
-
-        $Docs_base->docs_payments_maked({ %FORM, FORM => \%FORM });
-        if (!_error_show($Docs, { ID => 570 })) {
-          $html->message('info', $lang{ADDED},
-            "$lang{PAYMENTS}: $payment_list->[0]{id} -> $lang{INVOICE}: $FORM{INVOICE_ID}\n$lang{SUM}: $FORM{SUM}");
-        }
-      }
-    }
-    else{
-      my $payments_list = $Docs->invoices_list({
-        %LIST_PARAMS,
-        %FORM,
-        UNINVOICED => 1,
-        COLS_NAME  => 1,
-      });
-
-      my $table = $html->table({
-        width => '100%',
-        title => [ '#', $lang{DATE}, $lang{DESCRIBE}, "$lang{PAYMENTS} $lang{SUM}", "$lang{INVOICES} $lang{SUM}", $lang{REST} ],
-        qs    => $pages_qs,
-        pages => $Docs->{TOTAL},
-        ID    => 'UNINVOICED_PAYMENTS'
-      });
-
-      $pages_qs .= "&subf=2" if (!$FORM{subf});
-      foreach my $payment ( @{$payments_list} ){
-        $table->{rowcolor} = ($FORM{PAYMENT_ID} && $FORM{PAYMENT_ID} == $payment->{id}) ? $_COLORS[0] : undef;
-        $table->addrow(
-          $html->form_input( 'PAYMENT_ID', $payment->{id}, { TYPE => 'radio',
-            STATE                                               =>
-              ($FORM{PAYMENT_ID} && $FORM{PAYMENT_ID} == $payment->{id}) ? 'checked' : undef
-          } ) .
-            $html->b( $payment->{id} ),
-          $payment->{date},
-          ($payment->{dsc} || q{}) . (($payment->{inner_describe}) ? $html->br() . $html->b( $payment->{inner_describe} ) : ''),
-          $payment->{payment_sum},
-          $payment->{invoiced_sum} || '0.00',
-          $payment->{remains}
-        );
-      }
-
-      $Docs->{PAYMENTS_LIST} = $table->show( { OUTPUT2RETURN => 1 } );
-
-      $Docs->{INVOICE_SEL} = $html->form_select(
-        "INVOICE_ID",
-        {
-          SELECTED         => $FORM{INVOICE_ID} || $FORM{UNINVOICED},
-          SEL_LIST         => $Docs->invoices_list( {
-            UID       => $FORM{UID},
-            UNPAIMENT => 1,
-            PAGE_ROWS => 200,
-            SORT      => 2,
-            DESC      => 'DESC',
-            COLS_NAME => 1 } ),
-          SEL_KEY          => 'id',
-          SEL_VALUE        => 'invoice_num,date,total_sum,payment_sum',
-          SEL_VALUE_PREFIX => "$lang{NUM}: ,$lang{DATE}: ,$lang{SUM}: ,$lang{PAYMENTS}: ",
-          SEL_OPTIONS      => { 0 => '', %{  (!$conf{PAYMENTS_NOT_CREATE_INVOICE}) ? {create => $lang{CREATE}} : {}} },
-          NO_ID            => 1,
-          MAIN_MENU        => get_function_index( 'docs_invoices_list' ),
-          MAIN_MENU_ARGV   => (($FORM{UID}) ? "UID=$FORM{UID}" :  q{} ) . "&INVOICE_ID=". ($FORM{INVOICE_ID} || q{})
-        }
-      );
-
-      $html->tpl_show( _include( 'docs_payment2invoice', 'Docs' ), { %{$Docs}, %FORM }, { ID => 'docs_payment2invoice'  } );
-
-      return 0;
-    }
+    docs_uninvoiced();
   }
   elsif ( $FORM{SHOW_PAYMENTS} ){
     my @payments_ids_arr = ();
@@ -350,180 +271,7 @@ sub docs_invoices_list{
   }
 
   if ( $FORM{print_list} ){
-    print "Content-Type: text/html\n\n" if ($debug > 2);
-    #Get payments
-    my $i2p_list = $Docs->invoices2payments_list( { %LIST_PARAMS,
-      COLS_NAME => 1,
-    } );
-
-    my %payments_list = ();
-    my $i = 1;
-    if($Docs->{TOTAL}) {
-      foreach my $i2p (@{ $i2p_list }) {
-        $payments_list{$i2p->{invoice_id}}{'PAYMENT_DATE_'.$i} = $i2p->{date};
-        $payments_list{$i2p->{invoice_id}}{'PAYMENT_COMMENTS_'.$i} = $i2p->{dsc};
-        $payments_list{$i2p->{invoice_id}}{'PAYMENT_SUM_'.$i} = $i2p->{payment_sum};
-        $payments_list{$i2p->{invoice_id}}{'PAYMENT_ID_'.$i} = $i2p->{payment_id};
-        $payments_list{$i2p->{invoice_id}}{'PAYMENT_ALT_SUM_'.$i} = sprintf( "%.2f", $i2p->{amount} );
-        $i++;
-      }
-    }
-
-    $LIST_PARAMS{COMPANY_ID} = $FORM{COMPANY_ID} if ($FORM{COMPANY_ID});
-
-    my $invoices_list = $Docs->invoices_list( {
-      ORDERS_LIST    => 1,
-      COLS_NAME      => 1,
-      REPRESENTATIVE => '_SHOW',
-      DOCS_DEPOSIT   => '_SHOW',
-      ADDRESS_FULL   => '_SHOW',
-      ADDRESS_STREET => '_SHOW',
-      ADDRESS_BUILD  => '_SHOW',
-      ADDRESS_FLAT   => '_SHOW',
-      PHONE          => '_SHOW',
-      CONTRACT_ID    => '_SHOW',
-      CONTRACT_DATE  => '_SHOW',
-      BILL_ID        => '_SHOW',
-      EMAIL          => '_SHOW',
-      FIO            => '_SHOW',
-      CREATED        => '_SHOW',
-      ALT_SUM        => '_SHOW',
-      EXCHANGE_RATE  => '_SHOW',
-      CURRENCY       => '_SHOW',
-      %LIST_PARAMS,
-      LOGIN          => (!$LIST_PARAMS{LOGIN}) ? '_SHOW' : $LIST_PARAMS{LOGIN},
-      %FORM,
-      COLS_UPPER     => 1
-    });
-    my @MULTI_ARR = ();
-    my $doc_num = 0;
-
-    my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
-    foreach my $d ( @{$invoices_list} ){
-      $d->{AMOUNT_FOR_PAY} = ($d->{DEPOSIT} < 0) ? abs( $d->{DEPOSIT} ) : 0 - $d->{DEPOSIT};
-      $d->{NUMBER} = $d->{INVOICE_NUM} || '-';
-      my ($year, $month, $day) = split( /-/, $d->{DATE}, 3 );
-      $d->{FROM_DATE_LIT} = "$day " . $MONTHES_LIT[ int( $month ) - 1 ] . " $year $lang{YEAR_SHORT}";
-      $d->{DATE_EURO_STANDART} = "$day.$month.$year";
-      $d->{FIO} = $d->{CUSTOMER} if ($d->{CUSTOMER});
-      $d->{ADDRESS_FULL} = "$d->{ADDRESS_STREET}$build_delimiter$d->{ADDRESS_BUILD}$build_delimiter$d->{ADDRESS_FLAT}";
-      $d->{TOTAL_SUM} = sprintf( "%.2f", $d->{TOTAL_SUM} );
-      $d->{A_FIO} = $d->{ADMIN_FIO};
-      $d->{DEPOSIT} = sprintf( "%.2f", $d->{DOCS_DEPOSIT} );
-      $d->{DOC_ID} = $d->{ID};
-      $d->{AMOUNT_FOR_PAY} = ($d->{DEPOSIT} < 0) ? abs( $d->{DEPOSIT} ) : 0 - $d->{DEPOSIT};
-      $FORM{COMPANY_ID} = $d->{COMPANY_ID};
-
-      if ( $conf{DOCS_VAT_INCLUDE} ){
-        $d->{ORDER_TOTAL_SUM_VAT} = sprintf( "%.2f",
-          $d->{TOTAL_SUM} / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE}) );
-        $d->{TOTAL_SUM_WITHOUT_VAT} = sprintf( "%.2f", $d->{TOTAL_SUM} - $d->{ORDER_TOTAL_SUM_VAT} );
-        $d->{TOTAL_SUM_VAT} = sprintf( "%.2f", $conf{DOCS_VAT_INCLUDE} );
-      }
-
-      $i = 0;
-
-      foreach my $order ( @{ $Docs->{ORDERS}->{$d->{DOC_ID}} } ){
-        $i++;
-        $d->{ORDER} .= sprintf(
-          "<tr><td align=right>%d</td><td>%s</td><td align=right>%d</td><td align=right>%d</td><td align=right>%.2f</td><td align=right>%.2f</td></tr>\n"
-          , $i, $order->{orders}, $order->{unit}, $order->{counts}, $order->{price},
-          ($order->{counts} * $order->{price}) ) if (!$conf{DOCS_PDF_PRINT});
-
-        my $count = $order->{counts} || 1;
-        my $sum = sprintf( "%.2f", $count * $order->{price} );
-
-        $d->{ 'LOGIN_' . $i } = $d->{LOGIN};
-        $d->{ 'ORDER_NUM_' . $i } = $i;
-        $d->{ 'ORDER_NAME_' . $i } = $order->{orders};
-        $d->{ 'ORDER_COUNT_' . $i } = $count;
-        $d->{ 'ORDER_PRICE_' . $i } = $order->{price};
-        $d->{ 'ORDER_SUM_' . $i } = $sum;
-
-        $d->{ 'ORDER_PRICE_WITHOUT_VAT_' . $i } = sprintf( "%.2f",
-          ($conf{DOCS_VAT_INCLUDE}) ? $order->{price} - $order->{price} / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE}) : $order->{price} );
-        $d->{ 'ORDER_SUM_WITHOUT_VAT_' . $i } = sprintf( "%.2f",
-          ($conf{DOCS_VAT_INCLUDE}) ? $sum - ($sum) / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE}) : $sum );
-
-        if ( $order->{fees_id} == 0 ){
-          $d->{AMOUNT_FOR_PAY} += $d->{ 'ORDER_COUNT_' . $i } * $d->{ 'ORDER_PRICE_' . $i }
-        }
-
-        if ( $d->{EXCHANGE_RATE} > 0 ){
-          $d->{ 'ORDER_ALT_SUM_' . $i } = sprintf( "%.2f", $d->{ 'ORDER_SUM_' . $i } * $d->{EXCHANGE_RATE} );
-          $d->{ 'ORDER_ALT_PRICE_' . $i } = sprintf( "%.2f", $d->{ 'ORDER_PRICE_' . $i } * $d->{EXCHANGE_RATE} );
-          $d->{ 'ORDER_ALT_VAT_' . $i } = sprintf( "%.2f", $d->{ 'ORDER_VAT_' . $i } * $d->{EXCHANGE_RATE} );
-          $d->{ 'ORDER_ALT_PRICE_WITHOUT_VAT_' . $i } = sprintf( "%.2f",
-            $d->{ 'ORDER_PRICE_WITHOUT_VAT_' . $i } * $d->{EXCHANGE_RATE} );
-          $d->{ 'ORDER_ALT_SUM_WITHOUT_VAT_' . $i } = sprintf( "%.2f",
-            $d->{ 'ORDER_SUM_WITHOUT_VAT_' . $i } * $d->{EXCHANGE_RATE} );
-        }
-      }
-
-      $d->{TOTAL_SUM} = sprintf( "%.2f", $d->{TOTAL_SUM} );
-      $d->{AMOUNT_FOR_PAY} = sprintf( "%.2f", $d->{AMOUNT_FOR_PAY} );
-      if ( $d->{EXCHANGE_RATE} > 0 ){
-        $d->{TOTAL_ALT_SUM} = sprintf( "%.2f", $d->{TOTAL_SUM} * $d->{EXCHANGE_RATE} );
-        $d->{AMOUNT_FOR_PAY_ALT} = sprintf( "%.2f", $d->{AMOUNT_FOR_PAY} * $d->{EXCHANGE_RATE} );
-        $d->{DEPOSIT_ALT} = sprintf( "%.2f", $d->{DEPOSIT} * $d->{EXCHANGE_RATE} );
-        $d->{CHARGED_ALT_SUM} = sprintf( "%.2f", $d->{CHARGED_SUM} * $d->{EXCHANGE_RATE} );
-      }
-
-      $d = { %{ $payments_list{$d->{ID}} }, %{$d} };
-      $d->{'TOTAL_SUM_WITHOUT_VAT'} = sprintf( "%.2f",
-        ($conf{DOCS_VAT_INCLUDE}) ? $d->{TOTAL_SUM} - ($d->{TOTAL_SUM}) / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE}) : $d->{TOTAL_SUM} );
-      $d->{'TOTAL_SUM_VAT'} = sprintf( "%.2f", $d->{TOTAL_SUM} - $d->{'TOTAL_SUM_WITHOUT_VAT'} );
-
-      $d->{SUM_LIT} = int2ml( "$d->{TOTAL_SUM}",
-        {
-          ONES             => \@ones,
-          TWOS             => \@twos,
-          FIFTH            => \@fifth,
-          ONE              => \@one,
-          ONEST            => \@onest,
-          TEN              => \@ten,
-          TENS             => \@tens,
-          HUNDRED          => \@hundred,
-          MONEY_UNIT_NAMES => $conf{MONEY_UNIT_NAMES} || \@money_unit_names,
-          LOCALE           => $conf{LOCALE}
-        }
-      );
-
-      if ( $d->{TOTAL_ALT_SUM} ){
-        $d->{SUM_ALT_LIT} = int2ml( "$d->{TOTAL_ALT_SUM}",
-          {
-            ONES             => \@ones,
-            TWOS             => \@twos,
-            FIFTH            => \@fifth,
-            ONE              => \@one,
-            ONEST            => \@onest,
-            TEN              => \@ten,
-            TENS             => \@tens,
-            HUNDRED          => \@hundred,
-            MONEY_UNIT_NAMES => $conf{MONEY_UNIT_NAMES} || \@money_unit_names,
-            LOCALE           => $conf{LOCALE}
-          }
-        );
-      }
-
-      push @MULTI_ARR, { %{$d}, DOC_NUMBER => sprintf( "%.6d", $doc_num ), };
-      $doc_num++;
-      print "UID: LOGIN: $d->{LOGIN} FIO: $d->{FIO} SUM: $d->{TOTAL_SUM}\n" if ($debug > 2);
-    }
-
-    print $html->header() if ($FORM{qindex});
-    my $tpl = ($FORM{COMPANY_ID}) ? 'docs_invoice_company' : 'docs_invoice';
-    $tpl .= '_alt' if ($FORM{alt_tpl});
-
-    $html->tpl_show(
-      _include( $tpl, 'Docs', { pdf => $FORM{pdf} } ),
-      undef,
-      {
-        MULTI_DOCS => \@MULTI_ARR,
-        debug      => $debug
-      }
-    );
-    return 0;
+    return docs_invoice_list_print();
   }
 
   if ( !$user->{UID} ){
@@ -560,7 +308,7 @@ sub docs_invoices_list{
   ($table, $invoice_list) = result_former( {
     INPUT_DATA      => $Docs,
     FUNCTION        => 'invoices_list',
-    BASE_FIELDS     => (!$user->{UID}) ? 5 : 3,
+    BASE_FIELDS     => (!$user->{UID}) ? 4 : 3,
     DEFAULT_FIELDS  =>
       ($FORM{UID}) ? 'INVOICE_NUM,DATE,CUSTOMER,PAYMENT_SUM' : 'INVOICE_NUM,DATE,PAYMENT_SUM',
     HIDDEN_FIELDS   => 'CURRENCY',
@@ -585,7 +333,8 @@ sub docs_invoices_list{
       payment_sum    => $lang{PAYMENT_SUM},
       docs_deposit   => $lang{OPERATION_DEPOSIT},
       deposit        => $lang{CURRENT_DEPOSIT},
-      sum_vat        => "$lang{SUM} $lang{VAT}"
+      sum_vat        => "$lang{SUM} $lang{VAT}",
+      orders         => $lang{ORDERS}
     },
     TABLE  => {
       width       => '100%',
@@ -632,7 +381,7 @@ sub docs_invoices_list{
       });
     }
 
-    for ( my $i = 0; $i < ((!$user->{UID}) ? 5 : 3) + $invoice_list_fields; $i++ ){
+    for ( my $i = 0; $i < ((!$user->{UID}) ? 4 : 3) + $invoice_list_fields; $i++ ){
       my $val = '';
       my $field_name = $Docs->{COL_NAMES_ARR}->[$i] || '';
 
@@ -647,6 +396,14 @@ sub docs_invoices_list{
         $val = ($invoice->{$field_name} && $invoice->{$field_name} > 0) ? $html->color_mark($service_status[ $invoice->{$field_name} ],
           $service_status_colors[ $invoice->{$field_name} ] ) : $service_status[$invoice->{$field_name}];
       }
+      elsif ( $field_name eq 'total_sum' ) {
+        $val = sprintf("%.2f", $invoice->{total_sum});
+      }
+      elsif ( $field_name eq 'orders' ) {
+        my $br = $html->br();
+        $val = $invoice->{$field_name};
+        $val =~ s/;;/$br/g;
+      }
       elsif ( $field_name eq 'payment_sum' ){
         my $invoice_sum = $invoice->{total_sum};
         $val = '';
@@ -655,6 +412,8 @@ sub docs_invoices_list{
         if ( $i2p_hash{$invoice->{id}} ){
           foreach my $p2i_val ( @{ $i2p_hash{$invoice->{id}} } ){
             my ($payment_id, $invoiced_sum) = split( /:/, $p2i_val );
+
+            $invoiced_sum = sprintf("%.2f", $invoiced_sum);
             if($user->{UID}) {
               $val .= $invoiced_sum;
             }
@@ -1034,7 +793,7 @@ sub docs_invoice {
           $html->message(
             'info',
             "$lang{INVOICE} $lang{CREATED}",
-            "$lang{INVOICE} $lang{NUM}: [$Docs->{INVOICE_NUM}]\n $lang{DATE}: $Docs->{DATE}\n $lang{TOTAL} $lang{SUM}: $Docs->{TOTAL_SUM}\n"
+            "$lang{INVOICE} $lang{NUM}: [$Docs->{INVOICE_NUM}]\n $lang{DATE}: $Docs->{DATE}\n $lang{TOTAL} $lang{SUM}: ". sprintf("%.2f\n", $Docs->{TOTAL_SUM})
               . (($invoice_create_info{DOCS_CURRENCY} && $invoice_create_info{EXCHANGE_RATE} && $invoice_create_info{EXCHANGE_RATE} > 0)  ? "$lang{ALT} $lang{SUM}: " . sprintf( "%.2f",
               ($invoice_create_info{EXCHANGE_RATE} * $Docs->{TOTAL_SUM}) ) . "\n" : '')
               . $html->button( "$lang{SEND} E-mail", "$qs&sendmail=$Docs->{DOC_ID}",
@@ -1362,8 +1121,12 @@ sub docs_invoice_period {
       my $period_from = $from_date;
       my $period_to   = $to_date;
 
-      delete $INC{"Control/Services.pm"};
-      eval {require Control::Services};
+      #delete $INC{"Control/Services.pm"};
+      #eval { do "Control/Services.pm" };
+
+      if (!exists($INC{"Control/Services.pm"})) {
+        require Control::Services;
+      }
 
       $users = $user if ($user && $user->{UID});
 
@@ -1468,7 +1231,7 @@ sub docs_invoice_period {
       }
     }
 
-    if ( $users->{DEPOSIT} && $users->{DEPOSIT} =~ /\d+/ && $users->{DEPOSIT} != 0 && !$conf{DOCS_INVOICE_NO_DEPOSIT} ){
+    if ( $users->{DEPOSIT} && $users->{DEPOSIT} =~ /^[0-9\.\,]+$/ && $users->{DEPOSIT} != 0 && !$conf{DOCS_INVOICE_NO_DEPOSIT} ){
       $amount_for_pay = ($total_sum < $users->{DEPOSIT}) ? 0 : $total_sum - $users->{DEPOSIT};
     }
     else{
@@ -1477,7 +1240,7 @@ sub docs_invoice_period {
 
     my $deposit_sum = '';
     if ( $users->{UID}
-      && ($users->{DEPOSIT} && $users->{DEPOSIT} =~ /\d+/ && $users->{DEPOSIT} < 0)
+      && ($users->{DEPOSIT} && $users->{DEPOSIT} =~ /^[0-9\.\,]+$/ && $users->{DEPOSIT} < 0)
       && !$conf{DOCS_INVOICE_NO_DEPOSIT} ){
       $deposit_sum = $html->form_input( 'SUM_' . ($num + 1), abs( $users->{DEPOSIT} ),{ TYPE => 'hidden', OUTPUT2RETURN => 1 } )
         . $html->form_input( 'ORDER_' . ($num + 1), "$lang{DEBT}", { TYPE => 'hidden', OUTPUT2RETURN => 1 } )
@@ -1523,7 +1286,7 @@ sub docs_invoice_period {
 
     $table->{extra} = " colspan='4' ";
     $table->addrow( $html->b( "$lang{DEPOSIT}:" ),
-      $html->b( sprintf( "%.2f", ($users->{DEPOSIT} && $users->{DEPOSIT} =~ /\d+/) ? $users->{DEPOSIT} : 0 ) ) . $deposit_sum || 0 );
+      $html->b( sprintf( "%.2f", ($users->{DEPOSIT} && $users->{DEPOSIT} =~ /^[0-9\.\,]+$/) ? $users->{DEPOSIT} : 0 ) ) . $deposit_sum || 0 );
     $table->addrow( $html->b( "$lang{AMOUNT_FOR_PAY}:" ), $html->b( sprintf( "%.2f", $amount_for_pay ) ) );
     $FORM{AMOUNT_FOR_PAY} = sprintf( "%.2f", $amount_for_pay );
 
@@ -1770,12 +1533,12 @@ sub docs_invoice_print {
     $Doc{"$line->{param}"}=$line->{value};
   }
 
-  if ( $conf{DOCS_VAT_INCLUDE} ){
+  if (defined($conf{DOCS_VAT_INCLUDE})) {
     $Doc{ORDER_TOTAL_SUM_VAT} = sprintf( "%.2f",
       ($conf{DOCS_VAT_INCLUDE} && $conf{DOCS_VAT_INCLUDE} > 0) ? $Doc{TOTAL_SUM} / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE}) : 0 );
 
     $Doc{TOTAL_SUM_WITHOUT_VAT} = sprintf( "%.2f", $Doc{TOTAL_SUM} - $Doc{ORDER_TOTAL_SUM_VAT} );
-    $Doc{VAT} = sprintf( "%.2f", $conf{DOCS_VAT_INCLUDE} );
+    $Doc{VAT} = sprintf( "%.2f", $conf{DOCS_VAT_INCLUDE} || 0);
   }
 
   $Doc{NUMBER}   = $Docs->{INVOICE_NUM};
@@ -2037,5 +1800,284 @@ sub docs_summary {
   return 1;
 }
 
+
+#**********************************************************
+=head2 docs_uninvoiced() - Uninvoices proccess
+
+=cut
+#**********************************************************
+sub docs_uninvoiced {
+  #my ($attr)=@_;
+
+  if ($FORM{apply}) {
+    my $payment_list = $Payments->list({
+      ID        => $FORM{PAYMENT_ID} || -1,
+      SUM       => '_SHOW',
+      COLS_NAME => 1
+    });
+
+    if ($Payments->{TOTAL} > 0) {
+      if ($FORM{SUM} && $FORM{SUM} =~ /[\.\,0-9]+/ && $FORM{SUM} > $payment_list->[0]{sum}) {
+        $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_SUM});
+        return 0;
+      }
+
+      $Docs_base->docs_payments_maked({ %FORM, FORM => \%FORM });
+      if (!_error_show($Docs, { ID => 570 })) {
+        $html->message('info', $lang{ADDED},
+          "$lang{PAYMENTS}: $payment_list->[0]{id} -> $lang{INVOICE}: $FORM{INVOICE_ID}\n$lang{SUM}: $FORM{SUM}");
+      }
+    }
+
+    return 1;
+  }
+
+  my $payments_list = $Docs->invoices_list({
+    %LIST_PARAMS,
+    %FORM,
+    UNINVOICED => 1,
+    COLS_NAME  => 1,
+  });
+
+  my $table = $html->table({
+    width => '100%',
+    title => [ '#', $lang{DATE}, $lang{DESCRIBE}, "$lang{PAYMENTS} $lang{SUM}", "$lang{INVOICES} $lang{SUM}", $lang{REST} ],
+    qs    => $pages_qs,
+    pages => $Docs->{TOTAL},
+    ID    => 'UNINVOICED_PAYMENTS'
+  });
+
+  $pages_qs .= "&subf=2" if (!$FORM{subf});
+  foreach my $payment (@{$payments_list}) {
+    $table->{rowcolor} = ($FORM{PAYMENT_ID} && $FORM{PAYMENT_ID} == $payment->{id}) ? $_COLORS[0] : undef;
+    $table->addrow(
+      $html->form_input('PAYMENT_ID', $payment->{id}, { TYPE => 'radio',
+        STATE                                                =>
+          ($FORM{PAYMENT_ID} && $FORM{PAYMENT_ID} == $payment->{id}) ? 'checked' : undef
+      }) .
+        $html->b($payment->{id}),
+      $payment->{date},
+      ($payment->{dsc} || q{}) . (($payment->{inner_describe}) ? $html->br() . $html->b($payment->{inner_describe}) : ''),
+      $payment->{payment_sum},
+      $payment->{invoiced_sum} || '0.00',
+      $payment->{remains}
+    );
+  }
+
+  $Docs->{PAYMENTS_LIST} = $table->show({ OUTPUT2RETURN => 1 });
+
+  $Docs->{INVOICE_SEL} = $html->form_select(
+    "INVOICE_ID",
+    {
+      SELECTED         => $FORM{INVOICE_ID} || $FORM{UNINVOICED},
+      SEL_LIST         => $Docs->invoices_list({
+        UID       => $FORM{UID},
+        UNPAIMENT => 1,
+        PAGE_ROWS => 200,
+        SORT      => 2,
+        DESC      => 'DESC',
+        COLS_NAME => 1 }),
+      SEL_KEY          => 'id',
+      SEL_VALUE        => 'invoice_num,date,total_sum,payment_sum',
+      SEL_VALUE_PREFIX => "$lang{NUM}: ,$lang{DATE}: ,$lang{SUM}: ,$lang{PAYMENTS}: ",
+      SEL_OPTIONS      => { 0 => '', %{(!$conf{PAYMENTS_NOT_CREATE_INVOICE}) ? { create => $lang{CREATE} } : {}} },
+      NO_ID            => 1,
+      MAIN_MENU        => get_function_index('docs_invoices_list'),
+      MAIN_MENU_ARGV   => (($FORM{UID}) ? "UID=$FORM{UID}" : q{}) . "&INVOICE_ID=" . ($FORM{INVOICE_ID} || q{})
+    }
+  );
+
+  $html->tpl_show(_include('docs_payment2invoice', 'Docs'), { %{$Docs}, %FORM }, { ID => 'docs_payment2invoice' });
+
+  return 0;
+}
+
+#**********************************************************
+=head2 docs_invoice_list_print() - Uninvoices proccess
+
+=cut
+#**********************************************************
+sub docs_invoice_list_print {
+
+  print "Content-Type: text/html\n\n" if ($debug > 2);
+
+  #Get payments
+  my $i2p_list = $Docs->invoices2payments_list( { %LIST_PARAMS,
+    COLS_NAME => 1,
+  } );
+
+  my %payments_list = ();
+  my $i = 1;
+  if($Docs->{TOTAL}) {
+    foreach my $i2p (@{ $i2p_list }) {
+      $payments_list{$i2p->{invoice_id}}{'PAYMENT_DATE_'.$i} = $i2p->{date};
+      $payments_list{$i2p->{invoice_id}}{'PAYMENT_COMMENTS_'.$i} = $i2p->{dsc};
+      $payments_list{$i2p->{invoice_id}}{'PAYMENT_SUM_'.$i} = $i2p->{payment_sum};
+      $payments_list{$i2p->{invoice_id}}{'PAYMENT_ID_'.$i} = $i2p->{payment_id};
+      $payments_list{$i2p->{invoice_id}}{'PAYMENT_ALT_SUM_'.$i} = sprintf( "%.2f", $i2p->{amount} );
+      $i++;
+    }
+  }
+
+  $LIST_PARAMS{COMPANY_ID} = $FORM{COMPANY_ID} if ($FORM{COMPANY_ID});
+  delete $FORM{DOMAIN_ID};
+  my $invoices_list = $Docs->invoices_list( {
+    ORDERS_LIST    => 1,
+    REPRESENTATIVE => '_SHOW',
+    DOCS_DEPOSIT   => '_SHOW',
+    ADDRESS_FULL   => '_SHOW',
+    ADDRESS_STREET => '_SHOW',
+    ADDRESS_BUILD  => '_SHOW',
+    ADDRESS_FLAT   => '_SHOW',
+    PHONE          => '_SHOW',
+    CONTRACT_ID    => '_SHOW',
+    CONTRACT_DATE  => '_SHOW',
+    BILL_ID        => '_SHOW',
+    EMAIL          => '_SHOW',
+    FIO            => '_SHOW',
+    CREATED        => '_SHOW',
+    ALT_SUM        => '_SHOW',
+    EXCHANGE_RATE  => '_SHOW',
+    CURRENCY       => '_SHOW',
+    DEPOSIT        => '_SHOW',
+    %LIST_PARAMS,
+    LOGIN          => (!$LIST_PARAMS{LOGIN}) ? '_SHOW' : $LIST_PARAMS{LOGIN},
+    %FORM,
+    COLS_UPPER     => 1,
+    COLS_NAME      => 1,
+  });
+  my @MULTI_ARR = ();
+  my $doc_num = 0;
+
+  my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
+  foreach my $d ( @{$invoices_list} ){
+    $d->{AMOUNT_FOR_PAY} = ($d->{DEPOSIT} < 0) ? abs( $d->{DEPOSIT} ) : 0 - $d->{DEPOSIT};
+    $d->{NUMBER} = $d->{INVOICE_NUM} || '-';
+    my ($year, $month, $day) = split( /-/, $d->{DATE}, 3 );
+    $d->{FROM_DATE_LIT} = "$day " . $MONTHES_LIT[ int( $month ) - 1 ] . " $year $lang{YEAR_SHORT}";
+    $d->{DATE_EURO_STANDART} = "$day.$month.$year";
+    $d->{FIO} = $d->{CUSTOMER} if ($d->{CUSTOMER});
+    $d->{TOTAL_SUM} = sprintf( "%.2f", $d->{TOTAL_SUM} );
+    $d->{A_FIO} = $d->{ADMIN_FIO};
+    $d->{DEPOSIT} = sprintf( "%.2f", $d->{DOCS_DEPOSIT} );
+    $d->{DOC_ID} = $d->{ID};
+    $d->{AMOUNT_FOR_PAY} = ($d->{DEPOSIT} < 0) ? abs( $d->{DEPOSIT} ) : 0 - $d->{DEPOSIT};
+    $FORM{COMPANY_ID} = $d->{COMPANY_ID};
+
+    if ( $conf{DOCS_VAT_INCLUDE} ){
+      $d->{ORDER_TOTAL_SUM_VAT} = sprintf( "%.2f",
+        $d->{TOTAL_SUM} / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE}) );
+      $d->{TOTAL_SUM_WITHOUT_VAT} = sprintf( "%.2f", $d->{TOTAL_SUM} - $d->{ORDER_TOTAL_SUM_VAT} );
+      $d->{TOTAL_SUM_VAT} = sprintf( "%.2f", $conf{DOCS_VAT_INCLUDE} );
+    }
+
+    $i = 0;
+
+    foreach my $order ( @{ $Docs->{ORDERS}->{$d->{DOC_ID}} } ){
+      $i++;
+      $d->{ORDER} .= sprintf(
+        "<tr><td align=right>%d</td><td>%s</td><td align=right>%d</td><td align=right>%d</td><td align=right>%.2f</td><td align=right>%.2f</td></tr>\n"
+        , $i, $order->{orders}, $order->{unit}, $order->{counts}, $order->{price},
+        ($order->{counts} * $order->{price}) ) if (!$conf{DOCS_PDF_PRINT});
+
+      my $count = $order->{counts} || 1;
+      my $sum = sprintf( "%.2f", $count * $order->{price} );
+
+      $d->{ 'LOGIN_' . $i } = $d->{LOGIN};
+      $d->{ 'ORDER_NUM_' . $i } = $i;
+      $d->{ 'ORDER_NAME_' . $i } = $order->{orders};
+      $d->{ 'ORDER_COUNT_' . $i } = $count;
+      $d->{ 'ORDER_PRICE_' . $i } = $order->{price};
+      $d->{ 'ORDER_SUM_' . $i } = $sum;
+
+      $d->{ 'ORDER_PRICE_WITHOUT_VAT_' . $i } = sprintf( "%.2f",
+        ($conf{DOCS_VAT_INCLUDE}) ? $order->{price} - $order->{price} / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE}) : $order->{price} );
+      $d->{ 'ORDER_SUM_WITHOUT_VAT_' . $i } = sprintf( "%.2f",
+        ($conf{DOCS_VAT_INCLUDE}) ? $sum - ($sum) / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE}) : $sum );
+
+      if ( $order->{fees_id} == 0 ){
+        $d->{AMOUNT_FOR_PAY} += $d->{ 'ORDER_COUNT_' . $i } * $d->{ 'ORDER_PRICE_' . $i }
+      }
+
+      if ( $d->{EXCHANGE_RATE} > 0 ){
+        $d->{ 'ORDER_ALT_SUM_' . $i } = sprintf( "%.2f", $d->{ 'ORDER_SUM_' . $i } * $d->{EXCHANGE_RATE} );
+        $d->{ 'ORDER_ALT_PRICE_' . $i } = sprintf( "%.2f", $d->{ 'ORDER_PRICE_' . $i } * $d->{EXCHANGE_RATE} );
+        $d->{ 'ORDER_ALT_VAT_' . $i } = sprintf( "%.2f", ($d->{ 'ORDER_VAT_' . $i } || 0) * $d->{EXCHANGE_RATE} );
+        $d->{ 'ORDER_ALT_PRICE_WITHOUT_VAT_' . $i } = sprintf( "%.2f",
+          $d->{ 'ORDER_PRICE_WITHOUT_VAT_' . $i } * $d->{EXCHANGE_RATE} );
+        $d->{ 'ORDER_ALT_SUM_WITHOUT_VAT_' . $i } = sprintf( "%.2f",
+          $d->{ 'ORDER_SUM_WITHOUT_VAT_' . $i } * $d->{EXCHANGE_RATE} );
+      }
+    }
+
+    $d->{TOTAL_SUM} = sprintf( "%.2f", $d->{TOTAL_SUM} );
+    $d->{AMOUNT_FOR_PAY} = sprintf( "%.2f", $d->{AMOUNT_FOR_PAY} );
+    if ( $d->{EXCHANGE_RATE} > 0 ){
+      $d->{TOTAL_ALT_SUM} = sprintf( "%.2f", $d->{TOTAL_SUM} * $d->{EXCHANGE_RATE} );
+      $d->{AMOUNT_FOR_PAY_ALT} = sprintf( "%.2f", $d->{AMOUNT_FOR_PAY} * $d->{EXCHANGE_RATE} );
+      $d->{DEPOSIT_ALT} = sprintf( "%.2f", $d->{DEPOSIT} * $d->{EXCHANGE_RATE} );
+      $d->{CHARGED_ALT_SUM} = sprintf( "%.2f", ($d->{CHARGED_SUM} || 0) * $d->{EXCHANGE_RATE} );
+    }
+
+    if ($payments_list{$d->{ID}}) {
+      $d = { %{$payments_list{$d->{ID}}}, %{$d} };
+    }
+
+    $d->{'TOTAL_SUM_WITHOUT_VAT'} = sprintf( "%.2f",
+      ($conf{DOCS_VAT_INCLUDE}) ? $d->{TOTAL_SUM} - ($d->{TOTAL_SUM}) / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE}) : $d->{TOTAL_SUM} );
+    $d->{'TOTAL_SUM_VAT'} = sprintf( "%.2f", $d->{TOTAL_SUM} - $d->{'TOTAL_SUM_WITHOUT_VAT'} );
+
+    $d->{SUM_LIT} = int2ml( "$d->{TOTAL_SUM}",
+      {
+        ONES             => \@ones,
+        TWOS             => \@twos,
+        FIFTH            => \@fifth,
+        ONE              => \@one,
+        ONEST            => \@onest,
+        TEN              => \@ten,
+        TENS             => \@tens,
+        HUNDRED          => \@hundred,
+        MONEY_UNIT_NAMES => $conf{MONEY_UNIT_NAMES} || \@money_unit_names,
+        LOCALE           => $conf{LOCALE}
+      }
+    );
+
+    if ( $d->{TOTAL_ALT_SUM} ){
+      $d->{SUM_ALT_LIT} = int2ml( "$d->{TOTAL_ALT_SUM}",
+        {
+          ONES             => \@ones,
+          TWOS             => \@twos,
+          FIFTH            => \@fifth,
+          ONE              => \@one,
+          ONEST            => \@onest,
+          TEN              => \@ten,
+          TENS             => \@tens,
+          HUNDRED          => \@hundred,
+          MONEY_UNIT_NAMES => $conf{MONEY_UNIT_NAMES} || \@money_unit_names,
+          LOCALE           => $conf{LOCALE}
+        }
+      );
+    }
+
+    push @MULTI_ARR, { %{$d}, DOC_NUMBER => sprintf( "%.6d", $doc_num ), };
+    $doc_num++;
+    print "UID: LOGIN: $d->{LOGIN} FIO: $d->{FIO} SUM: $d->{TOTAL_SUM}\n" if ($debug > 2);
+  }
+
+  print $html->header() if ($FORM{qindex});
+  my $tpl = ($FORM{COMPANY_ID}) ? 'docs_invoice_company' : 'docs_invoice';
+  $tpl .= '_alt' if ($FORM{alt_tpl});
+
+  $html->tpl_show(
+    _include( $tpl, 'Docs', { pdf => $FORM{pdf} } ),
+    undef,
+    {
+      MULTI_DOCS => \@MULTI_ARR,
+      debug      => $debug
+    }
+  );
+
+  return 0;
+}
 
 1;

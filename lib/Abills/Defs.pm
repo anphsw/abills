@@ -75,7 +75,7 @@ our %err_strs = (
   21  => 'ERROR_WRONG_PHONE',
   50  => 'TIMEOUT',
   91  => 'TP_NOT_EXIST',
-  700 => 'Free license expired. Upgrade license',
+  700 => 'PLEASE_UPDATE_LICENSE',
   113 => 'ERROR_WRONG_FIELD_VALUE'
 );
 

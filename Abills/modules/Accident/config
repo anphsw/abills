@@ -1,7 +1,7 @@
-
 our %FUNCTIONS_LIST = ();
+our %USER_FUNCTION_LIST = ();
 our Abills::HTML $html;
-
+our ($db, $admin, %conf);
 use Accident;
 my $Accident = Accident->new($db, $admin, \%conf);
 
@@ -30,11 +30,18 @@ if (in_array('Equipment', \@MODULES) && $conf{EQUIPMENT_LOG}) {
   }
 }
 
-$FUNCTIONS_LIST{"04:1:$lang{COMPENSATION}:accident_compensation:"} = 8;
-$FUNCTIONS_LIST{"05:0:$lang{ACCIDENT_LOG}:accident_user:"} = 20;
+$FUNCTIONS_LIST{"04:1:$lang{COMPENSATION}:accident_compensation:"}  = 8;
+$FUNCTIONS_LIST{"05:0:$lang{ACCIDENT_LOG}:accident_user:"}          = 20;
+$FUNCTIONS_LIST{"06:0:$lang{ACCIDENTS}:accident_report:"}           = 4;
 
 %PERIODIC = (
   daily   => [ 'accident_auto_close' ],
 );
+
+
+if ($conf{USER_ACCIDENT_LOG}){
+  $USER_FUNCTION_LIST{"01:0:$lang{PLANNED_EVENTS}:accident_user_planned_events:"} = 0;
+}
+
 
 1;

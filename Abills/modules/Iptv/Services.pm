@@ -107,7 +107,7 @@ sub tv_services {
       width   => '100%',
       caption => "$lang{TV} $lang{SERVICES}",
       qs      => $pages_qs,
-      ID      => 'TV SERVICES',
+      ID      => 'TV_SERVICES',
       MENU    => "$lang{ADD}:index=" . get_function_index('tv_services') . "&add_form=1:add"
     },
     MAKE_ROWS         => 1,
@@ -474,6 +474,7 @@ sub tv_services_sel {
     $attr
        SERVICE_ID
        SOFT_EXCEPTION
+       RETURN_ERROR
 
   Returns:
     Module object
@@ -508,8 +509,16 @@ sub tv_load_service {
       });
     }
     else {
-      $html->message('err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua");
-      return $api_object;
+      if ($attr->{RETURN_ERROR}) {
+        return $api_object, {
+          errno  => 9901,
+          errstr => "Can't load '$service_name'. Purchase this module http://abills.net.ua",
+        };
+      }
+      else {
+        $html->message('err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua");
+        return $api_object;
+      }
     }
 
     if ($api_object && $api_object->{SERVICE_NAME}) {
@@ -522,10 +531,18 @@ sub tv_load_service {
     }
   }
   else {
-    print $@ if ($FORM{DEBUG});
-    $html->message('err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua");
-    if (!$attr->{SOFT_EXCEPTION}) {
-      die "Can't load '$service_name'. Purchase this module http://abills.net.ua";
+    if ($attr->{RETURN_ERROR}) {
+      return $api_object, {
+        errno  => 9902,
+        errstr => "Can't load '$service_name'. Purchase this module http://abills.net.ua",
+      };
+    }
+    else {
+      print $@ if ($FORM{DEBUG});
+      $html->message('err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua");
+      if (!$attr->{SOFT_EXCEPTION}) {
+        die "Can't load '$service_name'. Purchase this module http://abills.net.ua";
+      }
     }
   }
 
@@ -544,7 +561,7 @@ sub _service_portal_filter {
     $attr = "http://$attr";
   }
 
-  return $html->button("$lang{GO}", '', { GLOBAL_URL => "$attr" });
+  return $html->button("$lang{GO}", '', { GLOBAL_URL => "$attr", class => 'btn input-group-button' });
 }
 
 #**********************************************************

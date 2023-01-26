@@ -27,8 +27,6 @@
 
 <!-- client_start End -->
 
-<!-- AdminLTE App -->
-<script src="/styles/default/js/old/app.js"></script>
 <script>
     if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
         jQuery('#language_mobile').on('change', selectLanguage);

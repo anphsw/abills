@@ -102,7 +102,7 @@
             %CAPTCHA%
         </div>
 
-        <div class='card-footer text-right'>
+        <div class='card-footer'>
             %FB_INFO%
             <input type=submit name=reg value='_{REGISTRATION}_' class='btn btn-primary'>
         </div>

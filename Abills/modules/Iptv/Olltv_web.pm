@@ -15,9 +15,16 @@ our(
   $db,
   $html,
   $admin,
+  %conf,
   %lang,
   %tp_list,
-  %channel_list
+  %channel_list,
+  %FORM,
+  $user,
+  $users,
+  $index,
+  @MODULES,
+  $DATE
 );
 
 our Iptv::Olltv $Tv_service;

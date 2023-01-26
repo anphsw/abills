@@ -80,10 +80,34 @@ $lang{CRM_USER_NOT_FOUND} = 'Пользователь не найден';
 $lang{CRM_USER_LINKED} = 'Пользователь уже привязан';
 $lang{CRM_SHOW_AT_REGISTRATION} = "Показать при регистрации";
 
-$lang{CRM_TECH} = "Технические данные";
+$lang{CRM_TECH} = 'Технические данные';
 
-$lang{WATCHING} = "Наблюдаю";
-$lang{WATCH} = "Следить";
-$lang{DUBLICATE_LEADS} = "Дубликаты";
+$lang{WATCHING} = 'Наблюдаю';
+$lang{WATCH} = 'Следить';
+$lang{DUBLICATE_LEADS} = 'Дубликаты';
+$lang{TEMPLATES_RESPONSE} = 'Шаблоны ответов';
+$lang{CLOSE_DIALOGUE} = 'Закрыть диалог';
+$lang{REDIRECT_DIALOGUE} = 'Перенаправить диалог';
+$lang{ACCEPT_DIALOGUE} = 'Принять диалог';
+$lang{CRM_STATUS_IS_UNKNOWN} = 'Статус неизвестен';
+$lang{DIALOGUES} = 'Диалоги';
+$lang{DIALOGUE} = 'Диалог';
+$lang{CRM_ENTER_YOUR_MESSAGE} = 'Введите ваше сообщение...';
+$lang{DIALOGUE_ALREADY_ACCEPTED} = 'Диалог уже принят';
+$lang{PENDING_APPEALS} = 'Нерассмотренные обращения';
+$lang{ACTIVE_APPEALS} = 'Активные обращения';
+$lang{WAITING} = 'В ожидании';
+$lang{DIALOGUE_CLOSED} = 'Диалог закрыт';
+$lang{THE_USER_JOINED_VIA_TELEGRAM} = 'Пользователь присоединился через Telegram';
+$lang{OPEN_LINES} = 'Открытые линии';
+$lang{OPEN_LINE} = 'Открытая линия';
+$lang{LEADS_ARE_UNITED} = 'Лиды объединены';
+$lang{MERGE} = 'Объеденить';
+$lang{SEPARATOR} = 'Разделитель';
+
+$lang{CRM_CHANGE} = 'изменить';
+$lang{CRM_CANCEL} = 'отменить';
+$lang{CRM_CHOOSE_FIELDS} = 'выбрать поля';
+$lang{CRM_NOT_SPECIFIED} = 'Не указано';
 
 1

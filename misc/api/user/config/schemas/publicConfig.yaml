@@ -1,0 +1,32 @@
+type: object
+properties:
+  login:
+    type: object
+    properties:
+      regx:
+        type: string
+        example: ^[a-z0-9_][a-z0-9_-]*$
+  password:
+    type: object
+    properties:
+      length:
+        type: number
+        example: 6
+  passwordRecovery:
+    type: number
+    example: 1
+  portalNews:
+    type: number
+    example: 1
+  registration:
+    type: object
+    properties:
+      internet:
+        type: number
+        example: 1
+  socialAuth:
+    type: object
+    properties:
+      google:
+        type: number
+        example: 1

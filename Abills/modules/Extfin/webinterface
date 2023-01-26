@@ -2052,6 +2052,13 @@ sub extfin_service_activate {
     my $days_in_month = days_in_month({ DATE => $date });
     my $sum = sprintf("%.2f", $user->{sum} / $days_in_month * ($days_in_month - $d + 1));
 
+    my $diff = date_diff($date, $user->{expire});
+    print "if ($date ne '0000-00-00' && date_diff($date, $user->{expire}) <= 0) DIF: $diff\n";
+    if ($user->{expire} ne '0000-00-00' && date_diff($date, $user->{expire}) <= 0) {
+      print "next\n";
+      next;
+    }
+
     if ($sum > 0) {
       require Payments;
       my $Payments = Payments->new($db, $admin, \%conf);

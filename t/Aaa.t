@@ -205,9 +205,6 @@ sub unifi {
   if (in_array('Internet', \@MODULES)) {
     ($r, $RAD_PAIRS) = $Auth->internet_auth(\%RAD, $Nas, { SECRETKEY => $conf{secretkey} });
   }
-  else {
-    ($r, $RAD_PAIRS) = $Auth->dv_auth(\%RAD, $Nas, { SECRETKEY => $conf{secretkey} });
-  }
 
   my $text = "Result: ($r) ". (($r) ? 'fail' : 'ok' ) ."\n";
   foreach my $key (keys %$RAD_PAIRS) {
@@ -276,7 +273,6 @@ sub _rad {
 
   $Bin = $Bin .'/../libexec/';
   do "rlm_perl.pl";
-
   #my $thread_mode = 1;
 
   if ($attr->{acct}) {

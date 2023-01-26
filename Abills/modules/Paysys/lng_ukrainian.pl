@@ -127,8 +127,10 @@ $lang{NO_SUB_REPOSRT}       = 'Немає звіту';
 $lang{NO_SUB_REPOSRT_SUP}   = 'Даний платіжний модуль немає внутрішнього звіту';
 $lang{PAYMENT_MADE}         = 'Оплату здійснено';
 $lang{REQUEST}              = 'Запит';
-$lang{REQUESTS}             = 'запитів';
+$lang{LOG_REQUESTS}         = 'Лог запитів';
 $lang{RESPONSE}             = 'Відповідь';
+$lang{PT_SCAN_QR}           = 'Відскануйте за допомогою мобільного додатку Приват24 QR-код і здійсніть оплату';
+$lang{EXTERNAL_ID}          = 'Зовнішній ID';
 
 $lang{STATUS_0}   = 'Операція була успішно завершена';
 $lang{STATUS_1}   = 'Користувача немає в системі';

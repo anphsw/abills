@@ -8,9 +8,13 @@
 
 use strict;
 use warnings FATAL => 'all';
+
+
 use Portal;
+use Portal::Misc::Attachments;
 use Abills::Base qw(in_array convert);
 use Tags;
+
 our (
   $db,
   $admin,
@@ -23,6 +27,7 @@ our (
 );
 
 my $Portal = Portal->new($db, $admin, \%conf);
+my $Attachments = Portal::Misc::Attachments->new($db, $admin, \%conf);
 
 #***********************************************************
 =head2 portal_manage_menu() -  Portal manage menu
@@ -226,7 +231,6 @@ sub portal_articles {
     $Portal->{DOMAIN_ID} = "Multidoms $lang{DISABLED}";
   }
 
-
   my $group_select = sel_groups();
 
   $Portal->{GROUPS} = $group_select;
@@ -264,9 +268,9 @@ sub portal_articles {
 
   if ($FORM{add}) {
     if ($FORM{TITLE} && $FORM{CONTENT} && $FORM{PORTAL_MENU_ID}) {
-      $Portal->portal_article_add({%FORM});
+      my $picture_name = $Attachments->save_picture($FORM{PICTURE});
+      $Portal->portal_article_add({ %FORM, PICTURE => $picture_name });
       if (!$Portal->{errno}) {
-
         $html->tpl_show(_include('portal_redirect', 'Portal'), {
           SECTION => '',
           MESSAGE => "$lang{ADDED}",
@@ -289,6 +293,7 @@ sub portal_articles {
     });
 
     if (!$Portal->{errno}) {
+      $Attachments->delete_attachment($FORM{del});
       $html->message('info', $lang{INFO}, "$lang{DELETED}");
     }
 
@@ -301,7 +306,12 @@ sub portal_articles {
         $FORM{STREET_ID} = 0;
       }
 
-      $Portal->portal_article_change({%FORM});
+      if ($FORM{PICTURE}) {
+        my $picture_name = $Attachments->save_picture($FORM{PICTURE}, $FORM{ID});
+        $FORM{PICTURE} = $picture_name;
+      }
+
+      $Portal->portal_article_change({ %FORM });
       if (!$Portal->{errno}) {
         $html->tpl_show(_include('portal_redirect', 'Portal'), {
           SECTION => '',
@@ -419,6 +429,7 @@ sub portal_articles {
       caption    => $lang{ARTICLES},
       title      => [
         $lang{MENU},
+        $lang{PICTURE},
         $lang{TITLE},
         $lang{DATE_PUBLICATE},
         $lang{DATE_END_PUBLICATE},
@@ -439,12 +450,14 @@ sub portal_articles {
     }
   );
 
-  my @STATUS     = ('<strong style=\'color:red\'>' . $lang{HIDDEN} . '</strong>',
-                '<strong style=\'color:#090\'>' . $lang{SHOWED} . '</strong>');
-  my @ARCHIVE    = ("<span class='label label-danger label-sm'>$lang{TO_ARCHIVE}</span>",
-                "<span class='label label-success label-sm'>$lang{SHOW}</span>");
-  my @IMPORTANCE = ("<span class='label label-success label-sm'>$lang{NORMAL}</span>",
-                "<span class='label label-danger label-sm'>$lang{CRITICAL}</span>");
+  my @STATUS     = ("<span>$lang{HIDDEN}</span>",
+                "<span class='text-success text-bold'>$lang{SHOWED}</span>");
+  my @PICTURE_STATUS  = ("<span>$lang{NO}</span>",
+                "<span class='text-success text-bold'>$lang{YES}</span>");
+  my @ARCHIVE    = ("<span class='text-success text-bold'>$lang{SHOW}</span>",
+                "<span>$lang{TO_ARCHIVE}</span>");
+  my @IMPORTANCE = ("<span>$lang{NORMAL}</span>",
+                "<span class='text-danger text-bold'>$lang{CRITICAL}</span>");
 
   my $list = $Portal->portal_articles_list({ COLS_NAME => 1 });
 
@@ -470,13 +483,14 @@ sub portal_articles {
 
     $table->addrow(
       $line->{name},
+      $line->{picture} ? $PICTURE_STATUS[1] : $PICTURE_STATUS[0],
       $line->{title},
       $line->{date},
       $line->{end_date},
       (defined($line->{status}) && $STATUS[ $line->{status} ]) ? $STATUS[ $line->{status} ] : $line->{status},
-      ($line->{on_main_page} && $line->{on_main_page} == 1) ? $lang{YES} : $lang{NO},
-      ($line->{archive} && $ARCHIVE[ $line->{archive} ]) ? $ARCHIVE[ $line->{archive} ] : $line->{archive},
-      ($line->{importance} && $IMPORTANCE[ $line->{importance} ]) ? $IMPORTANCE[ $line->{importance} ] : $line->{importance},
+      (defined($line->{on_main_page}) && $line->{on_main_page} == 1) ? $lang{YES} : $lang{NO},
+      (defined($line->{archive}) && $ARCHIVE[ $line->{archive} ]) ? $ARCHIVE[ $line->{archive} ] : $line->{archive},
+      (defined($line->{importance}) && $IMPORTANCE[ $line->{importance} ]) ? $IMPORTANCE[ $line->{importance} ] : $line->{importance},
       $line->{gp_name},
       $tag_name,
       $domain_name,
@@ -500,6 +514,9 @@ sub portal_articles {
 sub portal_user_cabinet {
   my $list = $Portal->portal_articles_list({ ARCHIVE => 0, COLS_NAME  => 1 });
 
+  my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  my $base_attach_link = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images/attach/portal" : '';
+
   my %USER_NEWS;
   my @NORMAL;
   my @IMPORTANT;
@@ -512,17 +529,8 @@ sub portal_user_cabinet {
     $Tags = Tags->new( $db, $admin, \%conf );
   }
 
-  my $array_elem_num = 0;
   foreach my $item (@$list) {
-    if ($item->{etimestamp} && ($item->{etimestamp} <= time && $item->{utimestamp} < time)) {
-      delete $list->[$array_elem_num];
-    }
-
-    $array_elem_num++;
-  }
-
-  foreach my $item (@$list) {
-    if ($item->{etimestamp} && ($item->{etimestamp} >= time && $item->{utimestamp} < time)) {
+    if (!defined $item->{etimestamp} || $item->{etimestamp} && ($item->{etimestamp} >= time && $item->{utimestamp} < time)) {
       if (!$item->{gid} || $item->{gid} == $user->{GID}) {
         if (!$item->{domain_id} || ($FORM{DOMAIN_ID} && $item->{domain_id} == $FORM{DOMAIN_ID}) || ($LIST_PARAMS{DOMAIN_ID} && $item->{domain_id} == $LIST_PARAMS{DOMAIN_ID}) || ( $user->{DOMAIN_ID} && $item->{domain_id} == $user->{DOMAIN_ID})) {
         if ((!$item->{dis_name} || $item->{dis_name} eq $user->{ADDRESS_DISTRICT})
@@ -534,18 +542,19 @@ sub portal_user_cabinet {
             $tag_check = $Tags->tags_user( { COLS_NAME => 1, UID => $user->{UID}, TAG_ID => $item->{tags} } );
           }
           if (defined($tag_check->[0]->{date}) || !$item->{tags}) {
-            if ($item->{importance} == 1) {
+            if ($item->{importance} && $item->{importance} == 1) {
               my $short_description = $item->{short_description} || '';
               if ((length $short_description) > 600) {
                 $short_description = substr($short_description, 0, 600);
               }
-
-              my $important = $html->tpl_show(_include('portal_user_content', 'Portal'), {
+              my $template = $item->{picture} ? 'portal_user_content_picture' : 'portal_user_content';
+              my $important = $html->tpl_show(_include($template, 'Portal'), {
                 TITLE             => $item->{title},
                 SHORT_DESCRIPTION => $short_description,
                 COLOR             => "#FFFFCC",
                 ACTIVE            => ($active == 0) ? 'active' : '',
                 HREF              => "$SELF_URL?article=".$item->{id},
+                PICTURE_SRC       => "$base_attach_link/$item->{picture}",
                 IMPORTANT => 'important',
               },
               {
@@ -562,13 +571,15 @@ sub portal_user_cabinet {
               if ((length $short_description) > 600) {
                 $short_description = substr($short_description, 0, 600);
               }
+              my $is_active = ((((scalar @$list) - 1 - $not_show) == $indicators) && $active == 0);
 
-              my $normal = $html->tpl_show( _include('portal_user_content', 'Portal'), {
+              my $template = $item->{picture} ? 'portal_user_content_picture' : 'portal_user_content';
+              my $normal = $html->tpl_show( _include($template, 'Portal'), {
                 TITLE             => $item->{title},
                 SHORT_DESCRIPTION => $short_description,
-                ACTIVE            =>
-                  ((((scalar @$list) - 1 - $not_show) == $indicators) && $active == 0) ? 'active' : '',
-                HREF              => "$SELF_URL?article=".$item->{id}
+                ACTIVE            => $is_active ? 'active' : '',
+                HREF              => "$SELF_URL?article=".$item->{id},
+                PICTURE_SRC       => "$base_attach_link/$item->{picture}"
               },
               {
                 OUTPUT2RETURN => 1,
@@ -589,10 +600,10 @@ sub portal_user_cabinet {
 
   for(my $i = 0; $i < $indicators; $i++){
     if($i==0){
-        $USER_NEWS{INDICATORS} .= "<li data-target='#myCarousel' data-slide-to='$i' class='active'></li>";
+        $USER_NEWS{INDICATORS} .= "<li data-target='#myPortalCarousel' data-slide-to='$i' class='active'></li>";
     }
     else{
-      $USER_NEWS{INDICATORS} .= "<li data-target='#myCarousel' data-slide-to='$i' ></li>";
+      $USER_NEWS{INDICATORS} .= "<li data-target='#myPortalCarousel' data-slide-to='$i' ></li>";
     }
   }
 
@@ -688,6 +699,9 @@ sub portal_s_page {
     $OUTPUT{MENU} = $lang{NO_MENU};
   }
 
+  my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  my $base_attach_link = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images/attach/portal" : '';
+
   my @CONTENTS = ();
   if ($FORM{menu_category}) {
     $list = $Portal->portal_articles_list({ ARTICLE_ID => $FORM{menu_category}, COLS_NAME => 1 });
@@ -696,11 +710,13 @@ sub portal_s_page {
       foreach my $line (@$list) {
         if ($line->{utimestamp} && $line->{utimestamp} <= time()) {
           if (!$line->{domain_id} || ($FORM{DOMAIN_ID} && $line->{domain_id}==$FORM{DOMAIN_ID})) {
-            push @CONTENTS, $html->tpl_show(_include('portal_content', 'Portal'), {
+            my $template = $line->{picture} ? 'portal_content_picture' : 'portal_content';
+            push @CONTENTS, $html->tpl_show(_include($template, 'Portal'), {
               HREF              => "$SELF_URL?article=" . $line->{id},
               TITLE             => $line->{title},
               DATE              => $line->{date},
-              SHORT_DESCRIPTION => $line->{short_description}
+              SHORT_DESCRIPTION => $line->{short_description},
+              PICTURE_SRC       => "$base_attach_link/$line->{picture}"
             }, { OUTPUT2RETURN => 1 });
             $total_articles++;
           }
@@ -766,13 +782,17 @@ sub portal_s_page {
         my ($site, $text) = $link =~ /(.+)\|(.+)/i;
         $reworked_links[$link_num] = $html->button("$text", undef, { GLOBAL_URL => $site, NO_LINK_FORMER => 1} );
 
-        $text_article =~ s/\[link\]$site\|$text\[\/link\]/ $reworked_links[$link_num]/;
+        $text_article =~ s/\[link\]\Q$site\E\|\Q$text\E\[\/link\]/ $reworked_links[$link_num]/;
         $link_num++;
       }
-
-      push @CONTENTS, $html->tpl_show(_include('portal_article', 'Portal'), {
+      my $picture = $list->[0]->{picture};
+      my $template = $picture ? 'portal_article_picture' : 'portal_article';
+      push @CONTENTS, $html->tpl_show(_include($template, 'Portal'), {
         TITLE   => $list->[0]->{title},
-        ARTICLE => $text_article
+        ARTICLE => $text_article,
+        DATE              => $list->[0]->{date},
+        SHORT_DESCRIPTION => $list->[0]->{short_description},
+        PICTURE_SRC       => "$base_attach_link/$picture"
       }, { OUTPUT2RETURN => 1 });
     }
   }
@@ -781,12 +801,14 @@ sub portal_s_page {
     if ($list->[0]->{id}) {
       foreach my $line (@$list) {
         if ($line->{utimestamp} && $line->{utimestamp} <= time()) {
-          if( !$line->{domain_id} || ($FORM{DOMAIN_ID} && $line->{domain_id}==$FORM{DOMAIN_ID}) ){
-            push @CONTENTS, $html->tpl_show(_include('portal_content', 'Portal'), {
+          if (!$line->{domain_id} || ($FORM{DOMAIN_ID} && $line->{domain_id}==$FORM{DOMAIN_ID})) {
+            my $template = $line->{picture} ? 'portal_content_picture' : 'portal_content';
+            push @CONTENTS, $html->tpl_show(_include($template, 'Portal'), {
               HREF              => "$SELF_URL?article=" . $line->{id},
               TITLE             => $line->{title},
               DATE              => $line->{date},
-              SHORT_DESCRIPTION => $line->{short_description}
+              SHORT_DESCRIPTION => $line->{short_description},
+              PICTURE_SRC       => "$base_attach_link/$line->{picture}"
             }, { OUTPUT2RETURN => 1 });
           }
         }
@@ -801,7 +823,13 @@ sub portal_s_page {
   }
 
   if (@REGISTRATION) {
-    $OUTPUT{REGISTRATION} = "<a class='' href='registration.cgi?module=$REGISTRATION[0]' title='$lang{REGISTRATION}' target='_blank'>$lang{REGISTRATION}</a>";
+    $OUTPUT{REGISTRATION} = $html->tpl_show(
+      _include('portal_menu_registration', 'Portal'),
+      {
+        HREF      => "registration.cgi?module=$REGISTRATION[0]",
+      },
+      { OUTPUT2RETURN => 1 }
+    );
   }
 
   if ($wrong_auth && $wrong_auth == 1) {

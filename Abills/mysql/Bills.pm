@@ -140,6 +140,12 @@ sub list {
       $WHERE .= " OR b.uid='$attr->{UID}'";
     }
   }
+  elsif ($attr->{UID}) {
+    $WHERE .= "WHERE b.uid='$attr->{UID}'";
+    if ($attr->{BILL_ID}) {
+      $WHERE .= " AND b.id='$attr->{BILL_ID}'";
+    }
+  }
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';

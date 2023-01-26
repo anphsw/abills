@@ -82,9 +82,11 @@ sub click {
     $message .= "$self->{bot}->{lang}->{LAST_PAYMENT_SUM}: <b>$last_sum $money_currency</b>\n$self->{bot}->{lang}->{DATE}: <b>$last_date</b>";
   }
 
+  my $url = (%ENV) ? "https://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}" : $self->{bot}->{SELF_URL};
+
   my $inline_button = {
     text     => "$self->{bot}->{lang}->{PAYMENT}",
-    url      => "$self->{bot}->{SELF_URL}/paysys_check.cgi"
+    url      => "$url/paysys_check.cgi"
   };
   push (@inline_keyboard, [$inline_button]);
 

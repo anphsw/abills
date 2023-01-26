@@ -65,6 +65,7 @@ our @EXPORT = qw(
   escape_for_sql
   camelize
   decamelize
+  vars2lang
 );
 
 our @EXPORT_OK = qw(
@@ -109,6 +110,7 @@ our @EXPORT_OK = qw(
   escape_for_sql
   camelize
   decamelize
+  vars2lang
 );
 
 # As said in perldoc, should be called once on a program
@@ -620,7 +622,12 @@ sub sendmail {
   $charset //= 'utf-8';
 
   if (!-f $SENDMAIL) {
-    print "Mail delivery agent not exists";
+    if ($attr->{QUITE}) {
+      return 3;
+    }
+    else {
+      print "Mail delivery agent doesn't exists ";
+    }
     return 0;
   }
 
@@ -666,17 +673,6 @@ sub sendmail {
 
   if ($attr->{ACTIONS}) {
     push @{ $attr->{ATTACHMENTS} }, {
-#       CONTENT =>  qq{
-#<div itemscope itemtype="http://schema.org/EmailMessage">
-#<div itemprop="potentialAction" itemscope itemtype="http://schema.org/SaveAction">
-#    <meta itemprop="name" content="Reply"/>
-#    <div itemprop="handler" itemscope itemtype="http://schema.org/HttpActionHandler">
-#      <link itemprop="url" href="$attr->{ACTIONS}"/>
-#    </div>
-#  </div>
-#  <meta itemprop="description" content="Reply"/>
-#</div>
-#},
       CONTENT      => qq{
         <div itemscope itemtype="http://schema.org/EmailMessage">
   <div itemprop="potentialAction" itemscope itemtype="http://schema.org/ViewAction">
@@ -736,7 +732,7 @@ $message};
       print "To: $to\n";
       print "From: $from\n";
       print $ext_header;
-      print "Content-Type: text/plain; charset=$charset\n";
+      print "Content-Type: ". ($attr->{CONTENT_TYPE} ? $attr->{CONTENT_TYPE} : 'text/plain') . "; charset=$charset\n";
       print "X-Priority: $priority\n" if ($priority);
       print $header;
       print "Subject: $subject\n\n";
@@ -747,7 +743,7 @@ $message};
         print $mail "To: $to\n";
         print $mail "From: $from\n";
         print $mail $ext_header;
-        print $mail "Content-Type: ". (($attr->{CONTENT_TYPE}) ? $attr->{CONTENT_TYPE} : 'text/plain') ."; charset=$charset\n" if (!$attr->{ATTACHMENTS});
+        print $mail "Content-Type: ". ($attr->{CONTENT_TYPE} ? $attr->{CONTENT_TYPE} : 'text/plain') . "; charset=$charset\n" if (!$attr->{ATTACHMENTS});
         print $mail "X-Priority: $priority\n" if ($priority);
         print $mail "X-Mailer: ABillS\n";
         print $mail "X-ABILLS_ID: $attr->{ID}\n" if ($attr->{ID});
@@ -2186,6 +2182,7 @@ sub next_month {
     $hash_ref
     $attr
       DELIMITER
+      SPACE_SHIFT
       OUTPUT2RETURN
 
   Results:
@@ -2200,16 +2197,34 @@ sub show_hash {
     return 0;
   }
 
+  my $space_shift += (($attr->{SPACE_SHIFT}) ? $attr->{SPACE_SHIFT} : 0);
+  my $spaces = '';
+
+  if ($space_shift) {
+    for(my $i=1; $i<=$space_shift; $i++) {
+      $spaces .= ' ';
+    }
+  }
+  else {
+    $spaces .= '';
+  }
+
   my $result = '';
   foreach my $key (sort keys %$hash) {
-    $result .= "$key - ";
+    $result .= "$spaces$key - ";
     if (ref $hash->{$key} eq 'HASH') {
-      $result .= show_hash($hash->{$key}, { %{ ($attr) ? $attr : {}}, OUTPUT2RETURN => 1 });
+      $result .= "\n" . show_hash($hash->{$key}, { %{ ($attr) ? $attr : {}},
+        OUTPUT2RETURN => 1,
+        SPACE_SHIFT => $space_shift+1
+      });
     }
     elsif(ref $hash->{$key} eq 'ARRAY') {
       foreach my $key_ (sort @{ $hash->{$key} }) {
         if(ref $key_ eq 'HASH') {
-          $result .= show_hash($key_, { %{ ($attr) ? $attr : {}}, OUTPUT2RETURN => 1 });
+          $result .= show_hash($key_, { %{ ($attr) ? $attr : {}},
+            OUTPUT2RETURN => 1,
+            SPACE_SHIFT   => $space_shift+1
+          });
         }
         else {
           $result .= $key_;
@@ -2227,6 +2242,10 @@ sub show_hash {
   }
 
   print $result;
+  if ($space_shift) {
+    $space_shift--;
+    $spaces =~ s/\s//;
+  }
 
   return 1;
 }
@@ -2360,6 +2379,7 @@ sub dirname {
       USE_CAMELIZE        - camelize keys of hash
       CONTROL_CHARACTERS  - escape \t and \n
       BOOL_VALUE          - return null, true and false as boolean value in json
+      RM_SPACES           - remove all spaces from response
 
   Result
     JSON_string
@@ -2376,10 +2396,15 @@ sub json_former {
     foreach my $key (@{$request}) {
       push @text_arr, json_former($key, $attr);
     }
-    return '[' . join(', ', @text_arr) . ']';
+
+    $attr->{RM_SPACES} ?
+      return '[' . join(',', @text_arr) . ']' :
+      return '[' . join(', ', @text_arr) . ']';
   }
   elsif (ref $request eq 'HASH') {
     foreach my $key (sort keys %{$request}) {
+      next if ($attr->{UNIQUE_KEYS} && !_is_number($key, 1) && $request->{lc $key} && $request->{uc $key} && $key eq uc $key);
+
       my $val = json_former($request->{$key}, $attr);
 
       if ($attr->{USE_CAMELIZE}) {
@@ -2391,7 +2416,10 @@ sub json_former {
       $attr->{ESCAPE_DQ} ? push @text_arr, qq{\\"$key\\":$val} :
         push @text_arr, qq{\"$key\":$val};
     }
-    return '{' . join(', ', @text_arr) . '}';
+
+    $attr->{RM_SPACES} ?
+      return '{' . join(',', @text_arr) . '}' :
+      return '{' . join(', ', @text_arr) . '}';
   }
   else {
     $request //= '';
@@ -2409,14 +2437,18 @@ sub json_former {
 
     if ($request =~ '<str_>') {
       $request =~ s/<str_>//;
-      return qq{\"$request\"};
-    }
-    elsif ($request =~ '^([0])' && $request =~'^\w{2,}$') {
-      $attr->{ESCAPE_DQ} ? return qq{\\"$request\\"} :
+      $attr->{ESCAPE_DQ} ?
+        return qq{\\"$request\\"} :
         return qq{\"$request\"};
     }
-    elsif (!$request && !($request =~ '[0]')){
-      $attr->{ESCAPE_DQ} ? return qq{\\"$request\\"} :
+    elsif ($request =~ '^([0])' && $request =~'^\w{2,}$') {
+      $attr->{ESCAPE_DQ} ?
+        return qq{\\"$request\\"} :
+        return qq{\"$request\"};
+    }
+    elsif (!$request && !($request =~ '[0]')) {
+      $attr->{ESCAPE_DQ} ?
+        return qq{\\"$request\\"} :
         return qq{\"$request\"};
     }
     elsif ($request =~ '^-?\d*\.?\d+$') {
@@ -2426,14 +2458,15 @@ sub json_former {
       return qq{$request};
     }
     else {
-      $attr->{ESCAPE_DQ} ? return qq{\\"$request\\"} :
+      $attr->{ESCAPE_DQ} ?
+        return qq{\\"$request\\"} :
         return qq{\"$request\"};
     }
   }
 }
 
 #**********************************************************
-=head2 _check_is_number($value) - check is argument is number
+=head2 _is_number($value) - check is argument is number
 
   Arguments
     $value: string | number - check value
@@ -2443,15 +2476,22 @@ sub json_former {
 
 =cut
 #**********************************************************
-sub _check_is_number {
-  my $value = shift;
-  no warnings 'numeric';
+sub _is_number {
+  my ($value, $regex) = @_;
 
-  return if utf8::is_utf8($value);
-  return unless length((my $dummy = "") & $value);
-  return unless 0 + $value eq $value;
-  return 1 if $value * 0 == 0;
-  return -1; # inf/nan
+  if ($regex) {
+    my $res = $value =~ /^[0-9]$/;
+    return $res;
+  }
+  else {
+    no warnings 'numeric';
+
+    return if utf8::is_utf8($value);
+    return unless length((my $dummy = "") & $value);
+    return unless 0 + $value eq $value;
+    return 1 if $value * 0 == 0;
+    return -1; # inf/nan
+  }
 }
 
 #**********************************************************
@@ -2651,6 +2691,35 @@ sub decamelize {
   }eg;
 
   return uc($string);
+}
+
+
+#**********************************************************
+=head2 vars2lang($text, $attr) — Parsing lang for input arguments
+
+  Arguments:
+    $text — string for parsing
+    $attr — parameters for string
+
+  Returns:
+    string
+
+  Examples:
+    $lang{EXAMPLE} = 'Your %EXAMPLE% is bad!';
+    vars2lang($lang{EXAMPLE}, { EXAMPLE => 'code' });
+
+=cut
+#**********************************************************
+sub vars2lang {
+  my ($text, $attr) = @_;
+
+  my $result = $text;
+  my %vars = %{$attr};
+  for my $key (keys %vars) {
+    $result = $result =~ s/%$key%/$vars{$key}/r;
+  }
+
+  return $result;
 }
 
 =head1 AUTHOR

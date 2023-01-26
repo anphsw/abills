@@ -138,13 +138,16 @@ sub list {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE =  $self->search_former($attr, [
-      ['ID',               'INT',         'tm.id',                    1 ],
-      ['TASK_TYPE',        'INT',         'tm.task_type',             1 ],
-      ['STATE',            'INT',         'tm.state',                 1 ],
-      ['AID',              'INT',         'tm.aid',                   1 ],
-      ['RESPONSIBLE',      'INT',         'tm.responsible',           1 ],
-      ['PLAN_DATE',        'DATE',        'tm.plan_date',             1 ],
-      ['CONTROL_DATE',     'DATE',        'tm.control_date',          1 ],
+      ['ID',           'INT',  'tm.id',                    1 ],
+      ['TASK_TYPE',    'INT',  'tm.task_type',             1 ],
+      ['STATE',        'INT',  'tm.state',                 1 ],
+      ['AID',          'INT',  'tm.aid',                   1 ],
+      ['RESPONSIBLE',  'INT',  'tm.responsible',           1 ],
+      ['PLAN_DATE',    'DATE', 'tm.plan_date',             1 ],
+      ['CONTROL_DATE', 'DATE', 'tm.control_date',          1 ],
+      ['MSG_ID',       'INT',  'tm.msg_id',                1 ],
+      ['STEP_ID',      'INT',  'tm.step_id',               1 ],
+      ['LEAD_ID',      'INT',  'tm.lead_id',               1 ],
     ],
     { WHERE => 1 }
   );

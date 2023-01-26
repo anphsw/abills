@@ -9,10 +9,10 @@
   </div>
 
   <div class='card-body'>
-    <form action='$SELF_URL' METHOD='GET' id='holdup_%ID%'>
-      <input type='hidden' name='index' value='$index'>
-      <input type='hidden' name='sid' value='$sid'>
-      <input type='hidden' name='UID' value='$FORM{UID}'>
+    <form action='%SELF_URL%' METHOD='GET' id='holdup_%ID%'>
+      <input type='hidden' name='index' value='%index%'>
+      <input type='hidden' name='sid' value='%sid%'>
+      <input type='hidden' name='UID' value='%UID%'>
       <input type='hidden' name='ID' value='%ID%'>
       <input type='hidden' name='holdup' value='1'>
 
@@ -31,6 +31,16 @@
                  id='TO_DATE' form='holdup_%ID%'>
         </div>
       </div>
+
+      <div class='form-group row'>
+        <label class='col-md-3 control-label' FOR='HOLDUP_PRICE'>_{PRICE}_:</label>
+
+        <div class='col-md-9'>
+          <input type='text' name='HOLDUP_PRICE' value='%HOLDUP_PRICE%' size='10' class='form-control'
+                 id='HOLDUP_PRICE' form='holdup_%ID%'>
+        </div>
+      </div>
+
       <div class='form-group row'>
         <p class='form-control-static'>%DAY_FEES%</p>
       </div>
@@ -42,7 +52,9 @@
       </div>
     </form>
   </div>
-  <div class='card-footer text-center'>
+
+  <div class='card-footer'>
     <input type='submit' value='_{HOLD_UP}_' name='add' form='holdup_%ID%' class='btn btn-primary'>
   </div>
+
 </div>

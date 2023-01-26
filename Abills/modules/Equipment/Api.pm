@@ -6,14 +6,16 @@ package Equipment::Api;
 =head VERSION
 
   DATE: 20220210
-  UPDATE: 20220818
-  VERSION: 0.03
+  UPDATE: 20220911
+  VERSION: 0.05
 
 =cut
 
 use strict;
 use warnings FATAL => 'all';
+no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
+use Abills::Base qw(cmd);
 use Equipment;
 use Nas;
 require Equipment::Ports;
@@ -24,13 +26,16 @@ our (
   %conf
 );
 
+my Equipment $Equipment;
+my Nas $Nas;
+
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
 
 =cut
 #**********************************************************
 sub new {
-  my ($class, $Db, $conf, $Admin, $lang, $debug, $type) = @_;
+  my ($class, $Db, $Admin, $conf, $lang, $debug, $type) = @_;
 
   my $self = {
     db    => $Db,
@@ -47,6 +52,12 @@ sub new {
   $self->{routes_list} = ();
 
   bless($self, $class);
+
+  $Equipment = Equipment->new($self->{db}, $self->{admin}, $self->{conf});
+  $Nas = Nas->new($self->{db}, $self->{conf}, $self->{admin});
+
+  $Equipment->{debug} = $self->{debug} || 0;
+  $Nas->{debug} = $self->{debug} || 0;
 
   if ($type eq 'admin') {
     $self->{routes_list} = $self->admin_routes();
@@ -113,10 +124,6 @@ sub new {
 #**********************************************************
 sub admin_routes {
   my $self = shift;
-  my $Equipment = Equipment->new($self->{db}, $self->{admin}, $self->{conf});
-  my $Nas = Nas->new($self->{db}, $self->{conf}, $self->{admin});
-  $Equipment->{debug} = $self->{debug} || 0;
-  $Nas->{debug} = $self->{debug} || 0;
 
   return [
     {
@@ -124,44 +131,18 @@ sub admin_routes {
       path        => '/equipment/onu/list/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
-
-        my @allowed_params = (
-          'BRANCH',
-          'BRANCH_DESC',
-          'VLAN_ID',
-          'ONU_ID',
-          'ONU_VLAN',
-          'ONU_DESC',
-          'ONU_BILLING_DESC',
-          'OLT_RX_POWER',
-          'ONU_DHCP_PORT',
-          'ONU_GRAPH',
-          'NAS_IP',
-          'ONU_SNMP_ID',
-          'DATETIME',
-          'DELETED',
-          'SERVER_VLAN',
-          'GID',
-          'TRAFFIC',
-          'LOGIN',
-          'USER_MAC',
-          'MAC_BEHIND_ONU',
-          'DISTANCE',
-          'EXTERNAL_SYSTEM_LINK'
-        );
-
-        my %PARAMS = (
-          SORT => (defined($query_params->{SORT}) ? $query_params->{SORT} : 5)
-        );
-        foreach my $param (@allowed_params) {
-          next if (!defined($query_params->{$param}));
-          $PARAMS{$param} = '_SHOW';
-        }
-
-        $Equipment->onu_list({
-          %PARAMS,
-          COLS_NAME => 1,
-        });
+        _get_onu_list($path_params, $query_params);
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/equipment/onu/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+        _get_onu_list($path_params, $query_params, { ONE => 1 });
       },
       credentials => [
         'ADMIN'
@@ -174,8 +155,9 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         my %PARAMS = (
-          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 100000),
-          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1)
+          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
+          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
+          PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
         );
 
         $Equipment->equipment_box_list({
@@ -225,14 +207,95 @@ sub admin_routes {
         my $types = nas_types_list() || {};
         my @types_list = ();
 
-        foreach my $type (keys %{$types}) {
+        foreach my $type (sort keys %{$types}) {
           push @types_list, {
-            name => $types->{$type},
+            name => $types->{$type} || '',
             id   => $type || ''
           };
         }
 
         return \@types_list;
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/equipment/nas/list/extra/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        my @allowed_params = (
+          'TYPE',
+          'NAS_NAME',
+          'SYSTEM_ID',
+          'TYPE_ID',
+          'VENDOR_ID',
+          'NAS_TYPE',
+          'MODEL_NAME',
+          'SNMP_TPL',
+          'MODEL_ID',
+          'VENDOR_NAME',
+          'STATUS',
+          'DISABLE',
+          'TYPE_NAME',
+          'PORTS',
+          'PORTS_WITH_EXTRA',
+          'MAC',
+          'PORT_SHIFT',
+          'AUTO_PORT_SHIFT',
+          'FDB_USES_PORT_NUMBER_INDEX',
+          'EPON_SUPPORTED_ONUS',
+          'GPON_SUPPORTED_ONUS',
+          'GEPON_SUPPORTED_ONUS',
+          'DEFAULT_ONU_REG_TEMPLATE_EPON',
+          'DEFAULT_ONU_REG_TEMPLATE_GPON',
+          'NAS_IP',
+          'NAS_MNG_HOST_PORT',
+          'NAS_MNG_USER',
+          'NAS_MNG_USER',
+          'NAS_MNG_PASSWORD',
+          'NAS_ID',
+          'NAS_GID',
+          'NAS_GROUP_NAME',
+          'DISTRICT_ID',
+          'STREET_ID',
+          'LOCATION_ID',
+          'DOMAIN_ID',
+          'DOMAIN_NAME',
+          'COORDX',
+          'COORDY',
+          'REVISION',
+          'SNMP_VERSION',
+          'SERVER_VLAN',
+          'LAST_ACTIVITY',
+          'INTERNET_VLAN',
+          'TR_069_VLAN',
+          'IPTV_VLAN',
+          'NAS_DESCR',
+          'NAS_IDENTIFIER',
+          'NAS_ALIVE',
+          'NAS_RAD_PAIRS',
+          'NAS_ENTRANCE',
+          'ZABBIX_HOSTID',
+        );
+
+        my %PARAMS = (
+          COLS_NAME => 1,
+          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
+          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
+          PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
+        );
+
+        foreach my $param (@allowed_params) {
+          next if (!defined($query_params->{$param}));
+          $PARAMS{$param} = $query_params->{$param} || '_SHOW';
+        }
+
+        $Equipment->_list({
+          %PARAMS
+        });
       },
       credentials => [
         'ADMIN'
@@ -259,8 +322,9 @@ sub admin_routes {
           'GID',
           'DISTRICT_ID',
           'LOCATION_ID',
-          'MNG_HOST_PORT',
-          'MNG_USER',
+          'NAS_MNG_HOST_PORT',
+          'NAS_MNG_IP_PORT',
+          'NAS_MNG_USER',
           'NAS_MNG_USER',
           'NAS_MNG_PASSWORD',
           'NAS_RAD_PAIRS',
@@ -269,24 +333,116 @@ sub admin_routes {
           'NAS_ENTRANCE',
           'ADDRESS_FULL',
           'ZABBIX_HOSTID',
-          'SHOW_MAPS_GOOGLE',
           'SHORT',
         );
 
         my %PARAMS = (
-          COLS_NAME  => 1,
-          PAGE_ROWS  => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 100000),
-          SORT       => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1)
+          COLS_NAME => 1,
+          SHORT     => 1,
+          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
+          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
+          PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
         );
 
         foreach my $param (@allowed_params) {
           next if (!defined($query_params->{$param}));
-          $PARAMS{$param} = $query_params->{$param};
+          $param = 'MNG_HOST_PORT' if ($param ~~ 'NAS_MNG_IP_PORT');
+          $PARAMS{$param} = $query_params->{$param} || '_SHOW';
         }
 
         $Nas->list({
           %PARAMS
         });
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/equipment/nas/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        return {
+          errno  => 201,
+          errstr => 'No field ip'
+        } if !$query_params->{IP};
+
+        return {
+          errno  => 202,
+          errstr => 'No field nasName'
+        } if !$query_params->{NAS_NAME};
+
+        return {
+          errno  => 203,
+          errstr => 'No field nas_type'
+        } if !defined $query_params->{NAS_TYPE};
+
+        my $result = $Nas->add($query_params);
+
+        if ($conf{RESTART_RADIUS} && $conf{RESTART_RADIUS_API}) {
+          cmd($conf{RESTART_RADIUS});
+        }
+
+        return $result;
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/equipment/nas/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        my $result = $Nas->del($path_params->{id});
+
+        if ($conf{RESTART_RADIUS} && $conf{RESTART_RADIUS_API}) {
+          cmd($conf{RESTART_RADIUS});
+        }
+
+        return ($result->{nas_deleted} ~~ 1) ? 1 : 0;
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/equipment/nas/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        return {
+          errno  => 204,
+          errstr => 'No field nasId'
+        } if !$path_params->{id};
+
+        return {
+          errno  => 205,
+          errstr => 'No field ip'
+        } if !$query_params->{IP};
+
+        return {
+          errno  => 206,
+          errstr => 'No field nasName'
+        } if !$query_params->{NAS_NAME};
+
+        return {
+          errno  => 207,
+          errstr => 'No field nasType'
+        } if !defined $query_params->{NAS_TYPE};
+
+
+        my $result = $Nas->change({ NAS_ID => $path_params->{id}, %$query_params });
+
+        if ($conf{RESTART_RADIUS} && $conf{RESTART_RADIUS_API}) {
+          cmd($conf{RESTART_RADIUS});
+        }
+
+        return $result;
       },
       credentials => [
         'ADMIN'
@@ -300,7 +456,9 @@ sub admin_routes {
 
         my %PARAMS = (
           COLS_NAME  => 1,
-          SORT       => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1)
+          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
+          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
+          PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
         );
 
         $Nas->nas_group_list({
@@ -356,7 +514,180 @@ sub admin_routes {
         'ADMIN'
       ]
     },
+    {
+      method      => 'GET',
+      path        => '/equipment/nas/ip/pools/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        my @allowed_params = (
+          'ID',
+          'NAS_NAME',
+          'POOL_NAME',
+          'FIRST_IP',
+          'LAST_IP',
+          'IP',
+          'LAST_IP_NUM',
+          'IP_COUNT',
+          'IP_FREE',
+          'INTERNET_IP_FREE',
+          'PRIORITY',
+          'SPEED',
+          'NAME',
+          'NAS',
+          'NETMASK',
+          'GATEWAY',
+          'STATIC',
+          'ACTIVE_NAS_ID',
+          'IP_SKIP',
+          'COMMENTS',
+          'DNS',
+          'VLAN',
+          'GUEST',
+          'NEXT_POOL',
+          'STATIC',
+          'NAS_ID',
+          'SHOW_ALL_COLUMNS'
+        );
+
+        if ($self->{conf}->{IPV6}) {
+          push @allowed_params,
+            'IPV6_PREFIX',
+            'IPV6_MASK',
+            'IPV6_TEMP',
+            'IPV6_PD',
+            'IPV6_PD_MASK',
+            'IPV6_PD_TEMP';
+        }
+
+        my %PARAMS = (
+          COLS_NAME  => 1,
+          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
+          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
+          PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
+        );
+
+        foreach my $param (@allowed_params) {
+          next if (!defined($query_params->{$param}));
+          $PARAMS{$param} = $query_params->{$param} || '_SHOW';
+        }
+
+        $Nas->nas_ip_pools_list({
+          %PARAMS
+        });
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/equipment/nas/ip/pools/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        return {
+          errno  => 208,
+          errstr => 'No field poolId'
+        } if !$query_params->{POOL_ID};
+
+        return {
+          errno  => 209,
+          errstr => 'No field nasId'
+        } if !$query_params->{NAS_ID};
+
+        $Nas->nas_ip_pools_add({
+          NAS_ID  => $query_params->{NAS_ID},
+          POOL_ID => $query_params->{POOL_ID},
+        });
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/equipment/nas/ip/pools/:nasId/:poolId/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Nas->nas_ip_pools_del({
+          NAS_ID  => $path_params->{nasId},
+          POOL_ID => $path_params->{poolId}
+        });
+        return 1;
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
   ]
+}
+
+#**********************************************************
+=head2 new($, $admin, $CONF)
+
+  Arguments:
+    $path_params: object  - hash of params from request path
+    $query_params: object - hash of query params from request
+    $attr: object         - params of function example
+      ONE: boolean - returns one onu with $path_params value {id}
+
+  Returns:
+    optional
+      array or object
+
+=cut
+#**********************************************************
+sub _get_onu_list {
+  my ($path_params, $query_params, $attr) = @_;
+
+  my @allowed_params = (
+    'BRANCH',
+    'BRANCH_DESC',
+    'VLAN_ID',
+    'ONU_ID',
+    'ONU_VLAN',
+    'ONU_DESC',
+    'ONU_BILLING_DESC',
+    'OLT_RX_POWER',
+    'ONU_DHCP_PORT',
+    'ONU_GRAPH',
+    'NAS_IP',
+    'ONU_SNMP_ID',
+    'DATETIME',
+    'DELETED',
+    'SERVER_VLAN',
+    'GID',
+    'TRAFFIC',
+    'LOGIN',
+    'USER_MAC',
+    'MAC_BEHIND_ONU',
+    'DISTANCE',
+    'EXTERNAL_SYSTEM_LINK',
+    'MAC_SERIAL',
+    'STATUS',
+  );
+
+  my %PARAMS = (
+    PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
+    SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
+    PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
+  );
+
+  foreach my $param (@allowed_params) {
+    next if (!defined($query_params->{$param}));
+    $PARAMS{$param} = $query_params->{$param} || '_SHOW';
+  }
+
+  $PARAMS{ID} = ($attr && $attr->{ONE}) ? ($path_params->{id} || 0) : ($path_params->{id} || 0);
+
+  my $list = $Equipment->onu_list({
+    %PARAMS,
+    COLS_NAME => 1,
+  });
+
+  return ($attr && $attr->{ONE}) ? $list->[0] : $list;
 }
 
 1;

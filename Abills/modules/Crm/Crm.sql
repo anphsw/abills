@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `crm_leads` (
   `build_id` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `address_flat` VARCHAR(10) NOT NULL DEFAULT '',
   `competitor_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
-  `tp_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
+  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `assessment` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
   `comments` TEXT,
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS `crm_progressbar_steps` (
   `name` CHAR(40) NOT NULL DEFAULT '',
   `color` VARCHAR(7) NOT NULL DEFAULT '',
   `description` TEXT NOT NULL,
+  `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8
@@ -51,6 +52,7 @@ CREATE TABLE IF NOT EXISTS `crm_leads_sources` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` CHAR(40) NOT NULL DEFAULT '',
   `comments` TEXT NOT NULL,
+  `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8
@@ -73,6 +75,7 @@ CREATE TABLE IF NOT EXISTS `crm_progressbar_step_comments` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `planned_date` DATE NOT NULL DEFAULT '0000-00-00',
   `priority` SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
+  `pin` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE (`lead_id`, `date`),
   KEY aid (`aid`)
@@ -96,6 +99,7 @@ CREATE TABLE IF NOT EXISTS `crm_competitors` (
   `site` VARCHAR(150) NOT NULL DEFAULT '',
   `color` VARCHAR(7) NOT NULL DEFAULT '',
   `descr` TEXT NOT NULL,
+  `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Crm Competitors';
@@ -121,7 +125,7 @@ CREATE TABLE IF NOT EXISTS `crm_competitor_geolocation` (
   DEFAULT CHARSET=utf8 COMMENT = 'Geolocation of competitor';
 
 CREATE TABLE IF NOT EXISTS `crm_competitor_tps_geolocation` (
-  `tp_id`       SMALLINT(5) UNSIGNED DEFAULT '0' NOT NULL,
+  `tp_id`       SMALLINT(6) UNSIGNED DEFAULT '0' NOT NULL,
   `district_id` SMALLINT(6) UNSIGNED DEFAULT '0' NOT NULL,
   `street_id`   SMALLINT(6) UNSIGNED DEFAULT '0' NOT NULL,
   `build_id`    SMALLINT(6) UNSIGNED DEFAULT '0' NOT NULL
@@ -153,6 +157,7 @@ CREATE TABLE IF NOT EXISTS `crm_info_fields` (
   `pattern`      VARCHAR(60)          NOT NULL DEFAULT '',
   `title`        VARCHAR(255)         NOT NULL DEFAULT '',
   `registration` TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
+  `domain_id`    SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY (`name`),
   UNIQUE KEY (`sql_field`)
@@ -169,6 +174,7 @@ CREATE TABLE IF NOT EXISTS `crm_tp_info_fields` (
   `comment`     VARCHAR(60)          NOT NULL DEFAULT '',
   `pattern`     VARCHAR(60)          NOT NULL DEFAULT '',
   `title`       VARCHAR(255)         NOT NULL DEFAULT '',
+  `domain_id`   SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY (`name`),
   UNIQUE KEY (`sql_field`)
@@ -186,3 +192,68 @@ CREATE TABLE IF NOT EXISTS `crm_leads_watchers` (
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'watchers for leads';
+
+CREATE TABLE IF NOT EXISTS `crm_response_templates` (
+  `id`                INT(11)       UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name`              VARCHAR(60)            NOT NULL DEFAULT '',
+  `text`              VARCHAR(255)           NOT NULL DEFAULT '',
+  `datetime_change`   DATETIME               NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+)
+  DEFAULT CHARSET=utf8
+  COMMENT = 'Crm list of response templates';
+
+CREATE TABLE IF NOT EXISTS `crm_dialogues` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `lead_id` INT UNSIGNED NOT NULL DEFAULT 0,
+  `date` DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `source` VARCHAR(60) NOT NULL DEFAULT '',
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `state` TINYINT(2) UNSIGNED DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE (`lead_id`, `date`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Crm dialogues';
+
+CREATE TABLE IF NOT EXISTS `crm_dialogue_messages` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `dialogue_id` INT UNSIGNED NOT NULL DEFAULT 0,
+  `date` DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `message` TEXT NOT NULL,
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `inner_msg` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Crm dialogue messages';
+
+CREATE TABLE IF NOT EXISTS `crm_open_lines` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(60) NOT NULL DEFAULT '',
+  `source` VARCHAR(60) NOT NULL DEFAULT '',
+  `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Crm open lines';
+
+CREATE TABLE IF NOT EXISTS `crm_open_line_admins` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `open_line_id` INT UNSIGNED NOT NULL DEFAULT 0,
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Crm open line admins';
+
+CREATE TABLE IF NOT EXISTS `crm_lead_fields` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `lead_id` INT UNSIGNED NOT NULL DEFAULT 0,
+  `fields` TEXT NOT NULL,
+  `panel` VARCHAR(60) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Leads fields to show';

@@ -219,7 +219,7 @@ sub form_user_info {
 
   if ($permissions{0} && $permissions{0}{15}) {
     $user_info->{BILL_CORRECTION} = $html->button('', "index=$index&UID=$uid&bill_correction=1",
-      { ADD_ICON => 'fa fa-wrench', TITLE => $lang{CHANGE} });
+      { ADD_ICON => 'fa fa-wrench', class => 'btn input-group-button', TITLE => $lang{CHANGE} });
   }
 
   if ($permissions{0}{3}) {
@@ -390,14 +390,22 @@ sub form_user_info {
     { OUTPUT2RETURN => 1 });
 
   if ($conf{HOLDUP_ALL}) {
+    my $user_status_list = $user_info->user_status_list({ NAME => '_SHOW', COLOR => '_SHOW', COLS_NAME => 1 });
+    my %user_status_hash  = ();
+    my @user_status_style = ();
+    foreach my $line (@$user_status_list) {
+      my $color = $line->{color} || '';
+      $user_status_hash{$line->{id}} = ((exists $line->{name}) ? _translate($line->{name}) : '');
+
+      if (!$attr->{SKIP_COLORS}) {
+        $user_status_hash{$line->{id}} .= ":$color" if $attr->{HASH_RESULT};
+        $user_status_style[$line->{id}] = '#'.$color;
+      }
+    }
     $user_info->{FORM_DISABLE} = $html->form_select('DISABLE', {
       SELECTED     => $user_info->{DISABLE},
-      SEL_HASH     => {
-        0 => $lang{ENABLE},
-        1 => $lang{DISABLED},
-        2 => $lang{NOT_ACTIVE},
-        3 => $lang{HOLD_UP}
-      },
+      SEL_HASH       => \%user_status_hash,
+      STYLE          => \@user_status_style,
       SORT_KEY_NUM => 1,
       NO_ID        => 1,
       EXT_BUTTON   => $html->button('', "UID=$uid&Shedule=status&index=$index", {
@@ -873,31 +881,8 @@ sub form_users_multiuser {
     bonus_multi_add(\%FORM);
   }
   elsif ($FORM{MU_DELIVERY} || $FORM{DELIVERY_CREATE}) {
-    #Fixme make one function
-    use Msgs;
-    my $Msgs = Msgs->new($db, $admin, \%conf);
-    my $delivery_info = $Msgs->msgs_delivery_info($FORM{DELIVERY});
-
-    if ($FORM{DELIVERY_CREATE}) {
-      $Msgs->msgs_delivery_add({ %FORM,
-        SEND_DATE => $FORM{DELIVERY_SEND_DATE},
-        SEND_TIME => $FORM{DELIVERY_SEND_TIME},
-        SUBJECT   => $FORM{DELIVERY_COMMENTS}
-      });
-
-      $FORM{DELIVERY} = $Msgs->{DELIVERY_ID};
-      $html->message('err', $lang{ERRORS}, "$lang{DELIVERY} $lang{ADDED}") if ($Msgs->{errno});
-      $html->message('info', $lang{INFO}, "$lang{DELIVERY} $lang{ADDED} ID:$FORM{DELIVERY}") if (!$Msgs->{errno});
-    }
-
-    $Msgs->delivery_user_list_add({
-      MDELIVERY_ID => $FORM{DELIVERY},
-      IDS          => $FORM{IDS},
-      SEND_METHOD  => $delivery_info->{SEND_METHOD},
-    });
-
-    $html->message('err', $lang{ERRORS}, "$lang{ADD_USER}") if ($Msgs->{errno});
-    $html->message('info', $lang{INFO}, "$Msgs->{TOTAL} $lang{USERS_ADDED_TO_DELIVERY} №:$FORM{DELIVERY}") if (!$Msgs->{errno});
+    load_module('Msgs', $html);
+    msgs_mu_delivery_add(\%FORM)
   }
   elsif (scalar keys %CHANGE_PARAMS < 1) {
     #$html->message('err', $lang{MULTIUSER_OP}, "$lang{SELECT_USER}");
@@ -998,11 +983,11 @@ sub form_users {
     require Control::Users_slides;
     if ($FORM{EXPORT}) {
       print "Content-Type: application/json; charset=utf8\n\n";
-      print user_full_info({ UID => $FORM{UID} });
+      print user_full_info({ UID => $FORM{UID}, USER_INFO => $users });
     }
     else {
       my $user_info;
-      $user_info->{METRO_PANELS} = user_full_info();
+      $user_info->{METRO_PANELS} = user_full_info({ USER_INFO => $users });
       $user_info->{METRO_PANELS} =~ s/\r\n|\n//gm;
       $user_info->{HTML_STYLE} = $html->{HTML_STYLE} || 'default';
       $html->tpl_show(templates('form_client_view_metro'), $user_info);
@@ -1158,7 +1143,7 @@ sub user_pi {
   }
   elsif ($FORM{PHOTO}) {
     form_image_mng($user);
-    return 0;
+    return '';
   }
   elsif ($FORM{ATTACHMENT}) {
     if ($FORM{del}) {
@@ -1177,11 +1162,11 @@ sub user_pi {
         $html->message('info', $lang{INFO}, "$lang{FILE}: '$FORM{ATTACHMENT}' $lang{DELETED}");
       }
 
-      return 1;
+      return '';
     }
 
     form_show_attach({ UID => $user->{UID} });
-    return 1;
+    return '';
   }
   elsif ($FORM{address}) {
     form_address_sel();
@@ -1189,7 +1174,7 @@ sub user_pi {
   elsif ($FORM{add}) {
     if (!$permissions{0}{1}) {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
-      return 0;
+      return '';
     }
     if ($FORM{FIO1} || $FORM{FIO2} || $FORM{FIO3}) {
       $FORM{FIO} = $FORM{FIO1};
@@ -1199,12 +1184,12 @@ sub user_pi {
     if (!$user->{errno}) {
       $html->message('info', $lang{ADDED}, $lang{ADDED}) if (!$attr->{REGISTRATION});
     }
-    return 0 if ($attr->{REGISTRATION});
+    return '' if ($attr->{REGISTRATION});
   }
   elsif ($FORM{change}) {
     if (!$permissions{0}{4}) {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
-      return 0;
+      return '';
     }
     if ($FORM{FIO1} || $FORM{FIO2} || $FORM{FIO3}) {
       $FORM{FIO} = $FORM{FIO1};
@@ -1220,7 +1205,7 @@ sub user_pi {
 
   _error_show($user);
 
-  my $user_pi = $users->pi();
+  my $user_pi = $users->pi({ SKIP_LOCATION => 1 });
 
   if ($user_pi->{TOTAL} < 1 && $permissions{0}{1}) {
     if ($attr->{ACTION}) {
@@ -1252,7 +1237,7 @@ sub user_pi {
     if ($user_pi->{UID}) {
       $user_pi->{PRINT_CONTRACT} = $html->button($lang{PRINT},
         "qindex=15&UID=$user_pi->{UID}&PRINT_CONTRACT=$user_pi->{UID}" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''),
-        { ex_params => ' target=new', class => 'print' });
+        { ex_params => ' target=new', class => 'btn input-group-button', ICON => "fa fa-print" });
     }
 
     if ($conf{DOCS_CONTRACT_TYPES}) {
@@ -1352,7 +1337,6 @@ sub user_pi {
         $users->{$field_name} = $value if (!$users->{errno});
         $html->message('info', "$lang{CONTACTS} Old -> New $field_name", $lang{SUCCESS});
       }
-
     };
 
     # Check for old model contacts and copy it to new
@@ -1378,6 +1362,7 @@ sub user_pi {
     #Hide contacts block
     $user_pi->{SHOW_PRETTY_USER_CONTACTS} = 'none';
   }
+
   my @header_arr = (
     "$lang{MAIN}:#_user_main:data-toggle='tab' aria-expanded='true'",
     "$lang{ADDRESS}:#_address:data-toggle='tab'",
@@ -1400,7 +1385,6 @@ sub user_pi {
   }
 
   if (!$attr->{QUICK_FORM} && ($permissions{0}{24} || ($FORM{index} && $FORM{index} != 15))) {
-
     my $ext_address = $html->tpl_show(templates('form_ext_address'), { %$user_pi }, { ID => 'ext_address', OUTPUT2RETURN => 1 });
     $attr->{DISTRICT_SELECT_ID} = 'USER_DISTRICT_ID';
     $attr->{STREET_SELECT_ID} = 'USER_STREET_ID';
@@ -1419,7 +1403,6 @@ sub user_pi {
       }
     }
 
-    $attr->{ADDRESS_HIDE} = 1;
     $user_pi->{ADDRESS_TPL} = form_address({
       # Can be received from MSGS reg_request
       %$attr,
@@ -1427,9 +1410,9 @@ sub user_pi {
       SHOW             => 0,
       SHOW_BUTTONS     => 1,
       SHOW_ADD_BUTTONS => 1,
+      ADDRESS_HIDE     => $conf{ADDRESS_FORM_OPEN} ? 0 : 1,
       EXT_ADDRESS      => $ext_address,
     });
-    delete $attr->{ADDRESS_HIDE};
 
     #if (in_array('Docs', \@MODULES)) {
     $user_pi->{DOCS_TEMPLATE} = $html->tpl_show(_include('docs_form_pi_lite', 'Docs'), { %{$user_pi}, %{$attr} }, { OUTPUT2RETURN => 1 });
@@ -1491,7 +1474,7 @@ sub user_pi {
       $user_pi->{ADDRESS_STR} = full_address_name($location_id) . $users->{conf}->{BUILD_DELIMITER} . $user_pi->{ADDRESS_FLAT};
     }
     else {
-      $user_pi->{ADDRESS_STR} = ($user_pi->{CITY} ? "$user_pi->{CITY}, " : "") . "$user_pi->{ADDRESS_STREET} $user_pi->{ADDRESS_BUILD}/$user_pi->{ADDRESS_FLAT}";
+      $user_pi->{ADDRESS_STR} = (($user_pi->{CITY}) ? "$user_pi->{CITY}, " : "") . ($user_pi->{ADDRESS_STREET} || q{}) .' ' . ($user_pi->{ADDRESS_BUILD} || q{}) .'/'. ($user_pi->{ADDRESS_FLAT} || q{});
     }
 
     if (!$permissions{0}{26}) {
@@ -1513,7 +1496,7 @@ sub user_pi {
     return $html->tpl_show(templates('form_pi_lite'), $user_pi, { OUTPUT2RETURN => 1, ID => 'user_pi' });
   }
 
-  return 1;
+  return '';
 }
 
 #**********************************************************
@@ -2567,7 +2550,7 @@ sub form_users_list {
         $line->{ext_bill_deposit} = ($line->{ext_bill_deposit} < 0) ? $html->color_mark($line->{ext_bill_deposit}, 'text-danger') : $line->{ext_bill_deposit};
       }
       elsif ($col_name eq 'deleted') {
-        $table->{rowcolor} = ($line->{deleted} == 1) ? 'danger' : '';
+        $table->{rowcolor} = ($line->{deleted} == 1) ? 'bg-danger' : '';
         $line->{_del} = $line->{deleted};
         $line->{deleted} = $html->color_mark($bool_vals[ $line->{deleted} ], ($line->{deleted} == 1) ? $state_colors[ $line->{deleted} ] : '');
       }
@@ -2680,71 +2663,33 @@ sub form_users_list {
     my $mu_comments_row = $html->element('div', $mu_comments_textarea_div . $mu_comments_radio_div, { class => 'row' });
 
     my @multi_operation = (
-      [ $html->form_input('MU_GID', 1, { TYPE => 'checkbox', }) . $lang{GROUP},
+      [ $html->form_input('MU_GID', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{GROUP},
         sel_groups({ SKIP_MULTISELECT => 1 }) ],
-      [ $html->form_input('MU_DISABLE', 1, { TYPE => 'checkbox', }) . $lang{DISABLE},
-        $html->form_input('DISABLE', "1", { TYPE => 'checkbox', }) . $lang{CONFIRM} ],
-      [ $html->form_input('MU_DEL', 1, { TYPE => 'checkbox', }) . $lang{DEL},
-        $html->form_input('DEL', "1", { TYPE => 'checkbox', }) . $lang{CONFIRM} ],
-      [ $html->form_input('MU_ACTIVATE', 1, { TYPE => 'checkbox', }) . $lang{ACTIVATE},
+      [ $html->form_input('MU_DISABLE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{DISABLE},
+        $html->form_input('DISABLE', "1", { TYPE => 'checkbox', class => 'mr-1' }) . $lang{CONFIRM} ],
+      [ $html->form_input('MU_DEL', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{DEL},
+        $html->form_input('DEL', "1", { TYPE => 'checkbox', class => 'mr-1' }) . $lang{CONFIRM} ],
+      [ $html->form_input('MU_ACTIVATE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{ACTIVATE},
         $html->date_fld2('ACTIVATE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1 }) ],
-      [ $html->form_input('MU_EXPIRE', 1, { TYPE => 'checkbox', }) . $lang{EXPIRE},
+      [ $html->form_input('MU_EXPIRE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{EXPIRE},
         $html->date_fld2('EXPIRE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1 }) ],
-      [ $html->form_input('MU_CREDIT', 1, { TYPE => 'checkbox', }) . $lang{CREDIT},
+      [ $html->form_input('MU_CREDIT', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{CREDIT},
         $html->form_input('CREDIT', $FORM{CREDIT}) ],
-      [ $html->form_input('MU_CREDIT_DATE', 1, { TYPE => 'checkbox', }) . "$lang{CREDIT} $lang{DATE}",
+      [ $html->form_input('MU_CREDIT_DATE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . "$lang{CREDIT} $lang{DATE}",
         $html->date_fld2('CREDIT_DATE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1, DATE => $FORM{CREDIT_DATE} }) ],
-      [ $html->form_input('MU_REDUCTION', 1, { TYPE => 'checkbox', }) . $lang{REDUCTION},
+      [ $html->form_input('MU_REDUCTION', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{REDUCTION},
         $html->form_input('REDUCTION', $FORM{REDUCTION}, { TYPE => 'number', EX_PARAMS => "class='form-control' step='0.1'" }) ],
-      [ $html->form_input('MU_REDUCTION_DATE', 1, { TYPE => 'checkbox', }) . "$lang{REDUCTION} $lang{DATE}",
+      [ $html->form_input('MU_REDUCTION_DATE', 1, { TYPE => 'checkbox', class => 'mr-1' }) . "$lang{REDUCTION} $lang{DATE}",
         $html->date_fld2('REDUCTION_DATE', { FORM_NAME => 'users_list', WEEK_DAYS => \@WEEKDAYS, MONTHES => \@MONTHES, NO_DEFAULT_DATE => 1, DATE => $FORM{CREDIT_DATE} }) ],
-      [ $html->form_input('MU_COMMENTS', 1, { TYPE => 'checkbox', }) . $lang{COMMENTS}, $mu_comments_row ],
+      [ $html->form_input('MU_COMMENTS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{COMMENTS}, $mu_comments_row ],
       [ '', $html->form_input('MULTIUSER', $lang{APPLY}, { TYPE => 'submit' }) ],
     );
 
     if (in_array('Msgs', \@MODULES)) {
-      #Fixme to require Msgs::Delivery;
       load_module('Msgs', $html);
-      my %info = ();
-      our %msgs_permissions;
-      my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
-
-      my %send_methods = (0 => $lang{MESSAGE}, 1 => 'E-MAIL');
-
-      my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
-      my $sender_send_types = $Sender->available_types({ HASH_RETURN => 1, CLIENT => 1 });
-
-      %send_methods = (
-        %send_methods,
-        %$sender_send_types
-      );
-
-      if ($conf{MSGS_REDIRECT_FILTER_ADD}) {
-        $send_methods{3} = 'Web redirect';
-      }
-
-      $info{DELIVERY_SPAN_ADDON_URL} = $SELF_URL . "?index=" . get_function_index('msgs_delivery_main');
-      $info{DELIVERY_SELECT_FORM} = sel_deliverys({ SKIP_MULTISELECT => 1 });
-      $info{DATE_PIKER} = $html->form_datepicker('DELIVERY_SEND_DATE');
-      $info{TIME_PIKER} = $html->form_timepicker('DELIVERY_SEND_TIME');
-      $info{STATUS_SELECT} = msgs_sel_status({ NAME => 'STATUS' });
-      $info{PRIORITY_SELECT} = $html->form_select('PRIORITY', {
-        SELECTED     => 2,
-        SEL_ARRAY    => \@priority,
-        STYLE        => \@priority_colors,
-        ARRAY_NUM_ID => 1
-      });
-      $info{SEND_METHOD_SELECT} = $html->form_select('SEND_METHOD', {
-        SELECTED => 2,
-        SEL_HASH => \%send_methods,
-        NO_ID    => 1
-      });
-      $info{DELIVERY_ADD_HIDE} = 'd-none' if !$msgs_permissions{2}{1};
-
-      if ($msgs_permissions{2}{0} && $msgs_permissions{2}{4}) {
-        my $delivery_tpl = $html->tpl_show(templates('form_user_delivery_add'), \%info, { OUTPUT2RETURN => 1 });
-
-        @multi_operation = ([ $html->form_input('MU_DELIVERY', 1, { TYPE => 'checkbox', }) . $lang{DELIVERY}, $delivery_tpl ],
+      my $delivery_form = msgs_mu_delivery_form();
+      if ($delivery_form) {
+        @multi_operation = ([ $html->form_input('MU_DELIVERY', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{DELIVERY}, $delivery_form ],
           @multi_operation);
       }
     }
@@ -2761,7 +2706,7 @@ sub form_users_list {
 
       @multi_operation = (
         [
-          $html->form_input('MU_UREPORTS_TP', 1, { TYPE => 'checkbox', }) . $lang{NOTIFICATIONS},
+          $html->form_input('MU_UREPORTS_TP', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{NOTIFICATIONS},
           $load_to_modal_btn
         ],
         @multi_operation,
@@ -2779,7 +2724,7 @@ sub form_users_list {
 
       @multi_operation = (
         [
-          $html->form_input('MU_TAGS', 1, { TYPE => 'checkbox', }) . $lang{TAGS},
+          $html->form_input('MU_TAGS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{TAGS},
           $load_to_modal_btn
         ],
         @multi_operation,
@@ -2792,7 +2737,7 @@ sub form_users_list {
 
       @multi_operation = (
         [
-          $html->form_input('MU_BONUS', 1, { TYPE => 'checkbox', }) . $lang{BONUS},
+          $html->form_input('MU_BONUS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{BONUS},
           $html->form_input('BONUS', '', { TYPE => 'number', EX_PARAMS => "class='form-control' step='0.1'" }),
         ],
         @multi_operation,
@@ -3008,7 +2953,7 @@ sub form_wizard {
   $users->check_params();
 
   if ($users->{errno}) {
-    $html->message('warn', "Please update license.");
+    $html->message('warn', $lang{PLEASE_UPDATE_LICENSE});
   }
 
   if ($conf{REG_WIZARD}) {
@@ -3440,7 +3385,7 @@ sub user_contacts_renew {
 
   if (my $error = load_pmodule("JSON", { RETURN => 1 })) {
     print $error;
-    return 0;
+    return '';
   }
 
   my $json = JSON->new()->utf8(1);
@@ -3510,7 +3455,7 @@ sub user_contacts_renew {
     }
   ];
 
-  return 1;
+  return '';
 }
 
 #**********************************************************
@@ -3771,7 +3716,7 @@ sub form_info_field_tpl {
 
       my $global_url = $k && $k eq 'telegram' ? "https://t.me/$val" : '';
       my $info_btn = $val ? $html->button('', "index=" . get_function_index('user_pi') .
-        "&UID=$uid&SOCIAL_INFO=$k, $val", { class => 'info', GLOBAL_URL => $global_url, target => '_blank' }) : '';
+        "&UID=$uid&SOCIAL_INFO=$k, $val", { class => 'btn input-group-button rounded-left-0 info', GLOBAL_URL => $global_url, target => '_blank' }) : '';
 
       $input = "<div class='form-group mb-0 row'>
         <div class='col-md-12'>
@@ -3784,13 +3729,11 @@ sub form_info_field_tpl {
               </div>
             </div>
             <div class='bd-highlight'>
-                $input_social
+              $input_social
             </div>
             <div class='bd-highlight'>
               <div class='input-group-append h-100'>
-                <div class='input-group-text p-0 rounded-left-0'>
-                  $info_btn
-                </div>
+                $info_btn
               </div>
             </div>
           </div>
@@ -4021,7 +3964,7 @@ sub form_fees_wizard {
 
     $table->{extra} = 'colspan=5 align=center';
     $table->{rowcolor} = 'even';
-    $table->addrow($action);
+    $table->addcardfooter($action);
     print $html->form_main(
       {
         CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
@@ -4117,7 +4060,7 @@ sub users_import {
 
     $html->message('info', $lang{INFO}, "$lang{ADDED}\n $lang{FILE}: $FORM{UPLOAD_FILE}{filename}\n Size: $FORM{UPLOAD_FILE}{Size}\n Count: $total");
 
-    return 1
+    return 1;
   }
 
   my $import_fields = $html->form_select('IMPORT_FIELDS',
@@ -4156,10 +4099,10 @@ sub users_import {
     { OUTPUT2RETURN => 1 });
 
   $html->tpl_show(templates('form_import'), {
-    IMPORT_FIELDS     => 'LOGIN,CONTRACT_ID,FIO,PHONE,ADDRESS_STREET,ADDRESS_BUILD,ADDRESS_FLAT,PASPORT_NUM,PASPORT_GRANT',
+    IMPORT_FIELDS     => $conf{USER_IMPORT_FIELDS} || 'LOGIN,CONTRACT_ID,FIO,PHONE,ADDRESS_STREET,ADDRESS_BUILD,ADDRESS_FLAT,PASPORT_NUM,PASPORT_GRANT',
     CALLBACK_FUNC     => 'form_users',
     IMPORT_FIELDS_SEL => $import_fields,
-    EXTRA_ROWS        => $extra_row
+    EXTRA_ROWS        => $extra_row,
   });
 
   return 1;
@@ -4481,7 +4424,8 @@ sub form_user_holdup {
   });
 
   if ($holdup_info->{error}) {
-    $html->message('err', $lang{ERROR}, $holdup_info->{errstr}, { ID => $holdup_info->{error} })
+    my $error_message = $lang{$holdup_info->{errstr}} // $holdup_info->{errstr};
+    $html->message('err', $lang{ERROR}, $error_message, { ID => $holdup_info->{error} })
   }
 
   if (!$holdup_info->{DEL}) {
@@ -4508,6 +4452,129 @@ sub form_user_holdup {
   return q{};
 }
 
+#**********************************************************
+=head2 form_money_transfer()
+
+=cut
+#**********************************************************
+sub form_money_transfer_admin {
+
+  my $deposit_limit = 0;
+  my $transfer_price = 0;
+  my $no_companies = q{};
+
+  my Users $user = Users->new($db, $admin, \%conf);
+  $user->info(int($FORM{UID}));
+
+  if ($conf{MONEY_TRANSFER} =~ /:/) {
+    ($deposit_limit, $transfer_price, $no_companies) = split(/:/, $conf{MONEY_TRANSFER});
+
+    if ($no_companies eq 'NO_COMPANIES' && $user->{COMPANY_ID}) {
+      $html->message('info', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
+      return 0;
+    }
+  }
+  $transfer_price = sprintf("%.2f", $transfer_price);
+
+  if ($FORM{s2} || $FORM{transfer}) {
+    $FORM{SUM} = sprintf("%.2f", $FORM{SUM});
+    
+    if ($user->{DEPOSIT} < $FORM{SUM} + $deposit_limit + $transfer_price) {
+      $html->message('err', $lang{ERROR}, "$lang{ERR_SMALL_DEPOSIT}");
+    }
+    elsif (!$FORM{SUM}) {
+      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_SUM}");
+    }
+    elsif (!$FORM{RECIPIENT}) {
+      $html->message('err', $lang{ERROR}, "$lang{SELECT_USER}");
+    }
+    elsif ($FORM{RECIPIENT} == $FORM{UID}) {
+      $html->message('err', $lang{ERROR}, "$lang{USER_NOT_EXIST}");
+    }
+    else {
+      my $user2 = Users->new($db, $admin, \%conf);
+
+      $user2->info(int($FORM{RECIPIENT}));
+
+      if ($user2->{TOTAL} < 1) {
+        $html->message('err', $lang{ERROR}, "$lang{USER_NOT_EXIST}");
+      }
+      else {
+        $user2->pi({ UID => $user2->{UID} });
+        if (!$FORM{ACCEPT} && $FORM{transfer}) {
+          $html->message('err', $lang{ERROR}, "$lang{ERR_ACCEPT_RULES}");
+          $html->tpl_show(templates('form_money_transfer_s2'), { %$user2, %FORM });
+        }
+        elsif ($FORM{transfer}) {
+          if ($conf{user_confirm_changes}) {
+            return 1 unless ($FORM{PASSWORD});
+            $user->info($user->{UID}, { SHOW_PASSWORD => 1 });
+            if ($FORM{PASSWORD} ne $user->{PASSWORD}) {
+              $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD});
+              return 1;
+            }
+          }
+
+          #Fees
+          my $Fees = Finance->fees($db, $admin, \%conf);
+          $Fees->take(
+            $user,
+            $FORM{SUM},
+            {
+              DESCRIBE => "$lang{USER}: $user2->{UID}",
+              METHOD   => 4
+            }
+          );
+
+          if (!_error_show($Fees)) {
+            $html->message('info', $lang{FEES},
+              "UID: $user->{UID}, $lang{SUM}: $FORM{SUM}" . (($transfer_price > 0) ? " $lang{COMMISSION} $lang{SUM}: $transfer_price" : ''));
+            my $Payments = Finance->payments($db, $admin, \%conf);
+
+            #Payments
+            $Payments->add(
+              $user2,
+              {
+                DESCRIBE       => "$lang{USER}: $user->{UID}",
+                INNER_DESCRIBE => "$Fees->{INSERT_ID}",
+                SUM            => $FORM{SUM},
+                METHOD         => 7
+              }
+            );
+
+            if (!_error_show($Payments)) {
+              my $message = "$lang{MONEY_TRANSFER}\n #$Payments->{INSERT_ID}\n UID: $user2->{UID}, $lang{SUM}: $FORM{SUM}";
+              if ($transfer_price > 0) {
+                $Fees->take(
+                  $user,
+                  $transfer_price,
+                  {
+                    DESCRIBE => "$lang{USER}: $user2->{UID} $lang{COMMISSION}",
+                    METHOD   => 4,
+                  }
+                );
+              }
+
+              $html->message('info', $lang{PAYMENTS}, $message);
+              $user2->{PAYMENT_ID} = $Payments->{INSERT_ID};
+              cross_modules('payments_maked', { USER_INFO => $user2, QUITE => 1 });
+            }
+          }
+
+        }
+        elsif ($FORM{s2}) {
+          $user2->{COMMISSION} = $transfer_price;
+          $html->tpl_show(templates('form_money_transfer_s2'), { %$user2, %FORM });
+        }
+        return 0;
+      }
+    }
+  }
+
+  $html->tpl_show(templates('form_money_transfer_s1'), \%FORM);
+
+  return 1;
+}
 
 
 1;

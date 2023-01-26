@@ -126,5 +126,7 @@ $lang{SUBMIT_YOUR_APPLICATION} = 'Submit your application';
 $lang{TELEGRAM_FOUND} = 'Found';
 $lang{TELEGRAM_VERIFY_PHONE} = 'Verify phone';
 $lang{TELEGRAM_SUBSCRIBE_INFO} = "To connect the telegram bot, click <b>Verify phone</b> or use the button <b>Subscribe</b> in the user account.";
+$lang{TELEGRAM_LINK_AND_INVITE} = 'To invite your friend — share the bot link below';
+$lang{GREETINGS_YOUR_QUESTION} = 'Greetings! Please write your question.';
 
 1;

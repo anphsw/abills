@@ -1,1 +1,0 @@
-<tr><td>_{JOIN_SERVICE}_:</td><td>%JOIN_SERVICES_SEL% %JOIN_SERVICES_USERS%</td></tr>

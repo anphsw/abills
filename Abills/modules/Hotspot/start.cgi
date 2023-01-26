@@ -241,7 +241,7 @@ print $html->header({ CONTENT_LANGUAGE => $CONTENT_LANGUAGE });
 $OUTPUT{BODY} = $html->{OUTPUT};
 print $html->tpl_show(templates('form_base'), \%OUTPUT, { OUTPUT2RETURN => 1 });
 
-$html->test() if ($conf{debugmods} =~ /LOG_DEBUG/);
+$html->test() if ($conf{debugmods} && $conf{debugmods} =~ /LOG_DEBUG/);
 
 #**********************************************************
 =head2 get_login_url($attr)

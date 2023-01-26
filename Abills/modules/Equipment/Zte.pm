@@ -1927,9 +1927,10 @@ sub _zte_get_fdb {
     if ($onu_info_->{shelf}) {
       $port_name = "$onu_info->{shelf}/$onu_info->{slot}/$onu_info->{olt}:$onu_info_->{shelf}";
     }
-    else {
-      $port_name = "$onu_info->{shelf}/$onu_info->{slot}/$onu_info->{olt}";
+    elsif($onu_info) {
+      $port_name = ($onu_info->{shelf} || 0) .'/' . ($onu_info->{slot} || 0) .'/' .($onu_info->{olt} || 0);
     }
+
     if ($onu_info->{type} == 4 || $onu_info->{type} == 10) {
       $port_name = "$onu_info->{shelf}/$onu_info->{slot}/$onu_info->{olt}:$onu_info->{onu}";
     }

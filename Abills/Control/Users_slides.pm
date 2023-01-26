@@ -15,48 +15,61 @@ our(
   $html,
   $db,
   $admin,
-  $user,
+#  $user,
   %permissions
 );
 
 #**********************************************************
 =head2 quick_info_user($attr) User information for slides
 
+  Arguments:
+    $attr
+      USER_INFO
+
 =cut
 #**********************************************************
 sub quick_info_user {
   my ($attr)  = @_;
 
-  if($user && ref $user eq 'Users') {
-    $users = $user;
+  my $users_;
+  if ($attr->{USER_INFO}) {
+    $users_ = $attr->{USER_INFO};
+  }
+  elsif($user && ref $user eq 'Users') {
+    $users_ = $user;
   }
 
-  $users->info($attr->{UID});
+  $users_->info($attr->{UID});
 
   if ($permissions{0} && !$permissions{0}{12}) {
-    $users->{DEPOSIT} = '--';
+    $users_->{DEPOSIT} = '--';
   }
 
-  if($users->{DISABLE}) {
-    $users->{DISABLE} = $lang{DISABLE};
+  if($users_->{DISABLE}) {
+    $users_->{STATUS} = $lang{DISABLE};
   }
   else {
-    $users->{DISABLE} = $lang{ENABLE};
+    $users_->{STATUS} = $lang{ENABLE};
   }
 
-  return $users;
+  return $users_;
 }
 
 #**********************************************************
-=head2 quick_info_portal_session() User portal sessions
+=head2 quick_info_portal_session($attr) User portal sessions
 
 =cut
 #**********************************************************
 sub quick_info_portal_session {
   my ($attr)  = @_;
 
-  $users->web_session_info({ UID => $attr->{UID} });
-  $users->{DATETIME}=sec2date($users->{DATETIME});
+  my $users_;
+  if ($attr->{USER_INFO}) {
+    $users_ = $attr->{USER_INFO};
+  }
+
+  $users_->web_session_info({ UID => $attr->{UID} });
+  $users_->{DATETIME}=sec2date($users->{DATETIME});
 
   return $users;
 }
@@ -69,12 +82,17 @@ sub quick_info_portal_session {
 sub quick_info_pi {
   my ($attr)  = @_;
 
-  $users->pi({ UID => $attr->{UID} });
+  my $users_;
+  if ($attr->{USER_INFO}) {
+    $users_ = $attr->{USER_INFO};
+  }
+
+  $users_->pi({ UID => $attr->{UID} });
   # $users->{COMMENTS} =~ s/[\r\n]+/ /g;
   # $users->{COMMENTS} =~ s/\\/\\\\/g;
   # $users->{COMMENTS} =~ s/\"/\\\\\\\"/g;
 
-  return $users;
+  return $users_;
 }
 
 #**********************************************************
@@ -149,7 +167,7 @@ sub form_slides_info {
 
   my @base_slides = (
     { ID     => 'MAIN_INFO',
-      HEADER => "$lang{USER}",
+      HEADER => $lang{USER},
       PROPORTION => 3,
       FIELDS => {
         LOGIN  => $lang{LOGIN},
@@ -266,6 +284,7 @@ sub form_slides_info {
     $attr
       SHOW_ID   -
       UID
+      USER_INFO - User obj
 
 =cut
 #**********************************************************
@@ -293,8 +312,11 @@ sub user_full_info {
     my $field_info;
     if ($base_slides->[$slide_num]->{FN}) {
       if (defined(&{$base_slides->[$slide_num]{FN}})) {
+
         my $fn = $base_slides->[$slide_num]->{FN};
-        $field_info = &{\&$fn}({ UID => $uid });
+
+        $field_info = &{\&$fn}({ UID => $uid, USER_INFO => $attr->{USER_INFO} });
+
         next if (!$field_info);
       }
       else {
@@ -302,7 +324,9 @@ sub user_full_info {
       }
     }
 
-    $field_info = $base_slides->[$slide_num]{INFO} || {};
+    if (! $field_info) {
+      $field_info = $base_slides->[$slide_num]{INFO} || {};
+    }
 
     if ($base_slides->[$slide_num]{SLIDES}) {
       my @slides = ();
@@ -367,6 +391,7 @@ sub user_full_info {
   }
 
   $info = "[". join(",\n", @info_arr) ."]";
+
 
   return $info;
 }

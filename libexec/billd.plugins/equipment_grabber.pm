@@ -24,6 +24,8 @@ require Equipment::Snmp_cmd;
 
 use SNMP_util;
 use SNMP_Session;
+use Events;
+use Events::API;
 use Abills::Misc qw(snmp_get host_diagnostic);
 
 our (
@@ -36,11 +38,13 @@ our (
 );
 
 our Admins $Admin;
+my $comments = '';
 
 $Admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 my $Equipment = Equipment->new($db, $Admin, \%conf);
 my $Nas = Nas->new($db, \%conf, $Admin);
 my $Log = Log->new($db, $Admin);
+my $Events = Events::API->new($db, $Admin, \%conf);
 
 if ($debug > 2) {
   $Log->{PRINT} = 1;
@@ -135,7 +139,10 @@ sub equipment_grab {
         next;
       }
       elsif ($info->{MODEL}) {
-        print "Can't find model '$info->{MODEL}'\n";
+        $comments = "Can't find model '$info->{MODEL}'\n";
+        print $comments;
+        _generate_new_event('Can\'t find model', $comments);
+
         next;
       }
     }
@@ -310,7 +317,7 @@ sub equipment_get_version {
 
   my $Equipment_List = $Equipment->_list({
     COLS_NAME        => 1,
-    MNG_HOST_PORT    => '_SHOW',
+    NAS_MNG_HOST_PORT=> '_SHOW',
     NAS_MNG_PASSWORD => '_SHOW',
     PAGE_ROWS        => 65000,
   });
@@ -348,7 +355,7 @@ sub equipment_scan_equipment {
   my $Equipment_List = $Equipment->_list({
     NAS_ID           => $argv->{NAS_ID} || '',
     COLS_NAME        => 1,
-    MNG_HOST_PORT    => '_SHOW',
+    NAS_MNG_HOST_PORT=> '_SHOW',
     NAS_MNG_PASSWORD => '_SHOW',
     PORTS            => '_SHOW',
     PAGE_ROWS        => 65000,
@@ -495,6 +502,30 @@ sub equipment_delete_ports {
       NAS_ID => $argv->{NAS_ID},
     })
   }
+}
+
+#**********************************************************
+=head2 _generate_new_event($title_event, $comments)
+
+  Arguments:
+    $title_event - title of message
+    $comments - text of message to show
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _generate_new_event {
+  my ($title_event, $comments) = @_;
+
+  $Events->add_event({
+    MODULE      => 'Equipment',
+    TITLE       => $title_event,
+    COMMENTS    => "equipment_grabber - $comments",
+    PRIORITY_ID => 3
+  });
+
+  return 1;
 }
 
 1;

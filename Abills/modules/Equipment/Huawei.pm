@@ -170,7 +170,7 @@ sub _huawei_onu_list {
 }
 
 #**********************************************************
-=head2 _huawei_unregister($attr);
+=head2 _huawei_unregister($attr); - Show unregister onu
 
   Arguments:
     $attr
@@ -316,7 +316,7 @@ sub _huawei_delete_onu {
 sub _huawei_unregister_form {
   my ($attr) = @_;
 
-  my $pon_type = $attr->{PON_TYPE} || $FORM{TYPE} || q{};
+  my $pon_type = $attr->{PON_TYPE} || q{};
   my $snmp = _huawei({ TYPE => $pon_type });
 
   $attr->{ACTION}     = 'onu_registration';
@@ -399,16 +399,10 @@ sub _huawei_unregister_form {
   });
 
   $attr->{TYPE} = $pon_type;
+  $attr->{SHOW_VLANS}=1;
+  $attr->{UC_TYPE} = uc($pon_type);
 
-  if ($pon_type eq 'gpon') {
-    $attr->{UC_TYPE} = uc($pon_type);
-    $attr->{SHOW_VLANS}=1;
-    $html->tpl_show(_include('equipment_registred_onu', 'Equipment'), { %$attr, %FORM });
-  }
-  elsif ($pon_type eq 'epon') {
-    $attr->{SHOW_VLANS}=1;
-    $html->tpl_show(_include('equipment_registred_onu', 'Equipment'), $attr);
-  }
+  $html->tpl_show(_include('equipment_registred_onu', 'Equipment'), $attr);
 
   return 1;
 }
@@ -1485,8 +1479,9 @@ sub _huawei_get_fdb {
     foreach my $line (@list) {
       #print "$line ||| <br>";
       #219     -  gpon 0495-e65f-c4b0 dynamic  0 /0 /7   8    1         174
-      if ($line =~ /([-0-9]+)\s+.+\s+([a-z]+)\s+([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\s+([a-z]+)\s+(\d+)\s+\/(\d+)\s+\/(\d+)\s+\w?\s+([-0-9]+)\s+([-0-9]+)\s+(\d+)/) {
-        #print "$1 | $2 | $3 | $4 | $5 | $6 | $7 | $8 | $9 | $10 | $11 | $12 | $13 | $14 | $15 | <br>";
+      #if ($line =~ /([-0-9]+)\s+.+\s+([a-z]+)\s+([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\s+([a-z]+)\s+(\d+)\s+\/(\d+)\s+\/(\d+)\s+\w?\s+([-0-9]+)\s+([-0-9]+)\s+(\d+)/) {
+      if ($line =~ /^.\s+(\d+|-).+(epon|gpon|eth)+\s+([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\s+(anti-spf|dynamic|static)\s+(\d+)+\s\/(\d+)\W+(\d+).* +(\S+) +(\S+) .* +(\d+)/) {
+          #print "$1 | $2 | $3 | $4 | $5 | $6 | $7 | $8 | $9 | $10 | $11 | $12 | $13 | $14 | $15 | <br>";
         my $mac = "$3:$4:$5:$6:$7:$8";
         my ($srv_port, $port_type, $frame, $slot, $port, $onu_id, $van_id) = ($1, $2, $10, $11, $12, $13, $15);
         my $key = $mac . '_' . $van_id;
@@ -1628,14 +1623,14 @@ sub _huawei_get_onu_config {
   my @cmds = @{equipment_get_telnet_tpl({
     TEMPLATE => "huawei_get_onu_config_$pon_type.tpl",
     BRANCH   => $branch,
-    ONU_ID   => $onu_id
+    ONU_ID   => $onu_id || 0
   })};
 
   if (!@cmds) {
     @cmds = @{equipment_get_telnet_tpl({
       TEMPLATE => "huawei_get_onu_config_$pon_type.tpl.example",
       BRANCH   => $branch,
-      ONU_ID   => $onu_id
+      ONU_ID   => $onu_id || 0
     })};
   }
 

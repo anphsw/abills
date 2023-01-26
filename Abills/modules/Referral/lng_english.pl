@@ -21,3 +21,7 @@ $lang{OR_SEND_URL} = 'Send invitation link:';
 $lang{ONE_DEFAULT} = 'There can be only one default tariff';
 $lang{REQUEST_STATUS} = 'Application status';
 $lang{WITHDRAW} = 'Withdraw';
+$lang{WARN_CREATE_TP} = 'Create a tariff plan of the referral system to work with the referral';
+$lang{ERR_ONLY_NUMBER} = 'Phone must contain only numbers';
+
+1;

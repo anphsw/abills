@@ -37,14 +37,14 @@ function loadToModal(url, callback, size) {
   url += "&IN_MODAL=1";
 
   let modal = aModal.clear()
-    .setSmall(false)
+    .setSize(size)
     .setId('CurrentOpenedModal')
     .setBody(spinner);
 
-  if (typeof size !== 'undefined') {
-    if (size === 'lg') modal.setLarge(true);
-    if (size === 'sm') modal.setSmall(true);
-  }
+  // if (typeof size !== 'undefined') {
+  //   if (size === 'lg') modal.setLarge(true);
+  //   if (size === 'sm') modal.setSmall(true);
+  // }
 
   modal.show(function () {
 
@@ -57,8 +57,13 @@ function loadToModal(url, callback, size) {
           var header_inside = modalBody.find('.card-header').first();
           var header_outside = $('#CurrentOpenedModal_header');
 
+          header_inside.remove();
+
+          let header_title = header_inside.children().first();
+          header_title.removeClass('card-title').addClass('modal-title');
+
           if (header_outside) {
-            header_outside.prepend(header_inside);
+            header_outside.prepend(header_title);
           }
         }
 
@@ -80,7 +85,7 @@ function postAndLoadToModal(url, params, callback, close_callback) {
   params['IN_MODAL'] = 1;
 
   aModal.clear()
-      .setSmall(false)
+      .setSize()
       .setId('CurrentOpenedModal')
       .setBody(spinner);
 
@@ -107,7 +112,7 @@ function loadToModalSmall(url, callback) {
   $.get(url, function (data) {
 
     aModal.clear()
-        .setSmall(true)
+        .setSize('sm')
         .setBody(data)
         .show(function(){
           pageInit(data);
@@ -127,9 +132,7 @@ function loadRawToModal(url, callback, size) {
       .setId('CurrentOpenedModal');
 
   if (typeof size !== 'undefined') {
-
-    if (size === 'lg') modal.setLarge(true);
-    if (size === 'sm') modal.setSmall(true);
+    modal.setSize(size);
   }
 
   modal.show(function () {
@@ -148,8 +151,15 @@ function loadRawToModal(url, callback, size) {
   });
 }
 
-function showImgInModal(url) {
-  loadDataToModal('<img src=' + url + ' class="center-block" alt="abills_image. You may need to install Imager module">', true, true);
+function showImgInModal(url, title) {
+  let processed_url = url.replace("\n", '');
+
+  loadDataToModal(
+  '<img src="' + processed_url + '" class="center-block" alt="Seems like image...">',
+  true,
+  true,
+  title
+  );
 }
 
 /**
@@ -158,25 +168,28 @@ function showImgInModal(url) {
  * @param decorated
  * @param withoutButton
  */
-function loadDataToModal(data, decorated, withoutButton) {
+function loadDataToModal(data, decorated, withoutButton, title) {
   if (decorated) {
-    getModalDecorated(data, null, withoutButton);
+    getModalDecorated(data, null, withoutButton, title);
   } else {
     modalContent.empty().append(data);
   }
   MainModal.modal('show');
 }
 
-function getModalDecorated(data, onclick, withoutButton) {
+function getModalDecorated(data, onclick, withoutButton, title) {
 
   var formAction = 'getData()';
   if (onclick) formAction = onclick;
 
   var str_func_close = '$("#PopupModal").modal("hide");';
-
+  if (title === undefined) {
+    title = ''
+  }
   var s = '';
   s += '<div class="modal-content">';
   s += '<div class="modal-header">';
+  s += '<h4 class="modal-title">' + title + '</h4>'
   s += '<button type="button" class="close" onclick=' + str_func_close + '><span aria-hidden="true">&times;</span></button>';
   s += '</div>';
   s += '<div class="modal-body form-horizontal">';
@@ -242,14 +255,11 @@ function AModal() {
     return this;
   };
 
-  this.setSmall = function (boolean) {
-    this.size = boolean ? 'sm' : false;
+  this.setSize = function (size) {
+    this.size = size;
     return this;
   };
-  this.setLarge = function (boolean) {
-    this.size = boolean ? 'lg' : false;
-    return this;
-  };
+
   this.setFooter = function (data) {
     this.footer = data;
     return this;

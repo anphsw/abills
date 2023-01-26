@@ -9,6 +9,8 @@ package Admins;
 use strict;
 use parent qw(dbcore);
 
+use Abills::Base qw(in_array);
+
 my $IP;
 
 #**********************************************************
@@ -384,20 +386,11 @@ sub list {
     push @WHERE_RULES, "a.position != 0";
   }
 
-  if ($attr->{POSITION} && $attr->{POSITION} ne '_SHOW') {
-    push @WHERE_RULES, "a.position = '$attr->{POSITION}'";
-  }
-
-  if ($attr->{DEPARTMENT} && $attr->{DEPARTMENT} ne '_SHOW') {
-    push @WHERE_RULES, "a.department IN ($attr->{DEPARTMENT})";
-  }
-
-  if ($attr->{GID}) {
+  if ($attr->{GID} && $attr->{GID} ne '_SHOW') {
     $EXT_TABLES .= 'LEFT JOIN `admins_groups` ag ON (a.aid=ag.aid) ';
     $GROUP_BY = 'GROUP BY a.aid';
     push @WHERE_RULES, "(a.gid IN ($attr->{GID}) OR ag.gid IN ($attr->{GID}))";
   }
-
 
   my $WHERE = $self->search_former($attr, [
       ['ADMIN_NAME',       'STR',  'a.name',  'a.name AS admin_name' ],
@@ -419,9 +412,11 @@ sub list {
       ['TELEGRAM_ID',      'STR',  'a.telegram_id',                1 ],
       ['EMAIL',            'STR',  'a.email',                      1 ],
       ['DEPARTMENT_NAME',  'STR',  'ed.name as department_name',   1 ],
+      ['POSITION_ID',      'INT',  'a.position AS position_id',    1 ],
       ['ID',               'INT',  'a.id',                         1 ],
       ['PHONE',            'STR',  'a.phone',                      1 ],
       ['ADMIN_EXPIRE',     'DATE', 'a.expire AS admin_expire',     1 ],
+      ['DEPARTMENT',       'STR',  'a.department',                 1 ],
       ['ADDRESS',          'STR',  'a.address',                    1 ],
       ['PASPORT_NUM',      'STR',  'a.pasport_num',                1 ],
       ['PASPORT_DATE',     'STR',  'a.pasport_date',               1 ],
@@ -433,7 +428,8 @@ sub list {
       ['CREDIT_DAYS',      'INT',  'a.credit_days',                1 ],
       ['COMMENTS',         'STR',  'a.comments',                   1 ],
       ['LOGIN',            'STR',  'a.id'                            ],
-      ['G2FA',             'STR',  'a.g2fa',                       1 ]
+      ['G2FA',             'STR',  'a.g2fa',                       1 ],
+      ['AVATAR_LINK',      'STR',  'a.avatar_link',                1 ]
     ],
     {
       WHERE_RULES => \@WHERE_RULES,
@@ -444,7 +440,7 @@ sub list {
   my $EMPLOYEE_JOIN = '';
   my $EMPLOYEE_COLS = '';
 
-  if (Abills::Base::in_array('Employees', \@::MODULES) && (!$self->{admin}{MODULES} || $self->{admin}{MODULES}{Employees})) {
+  if (in_array('Employees', \@::MODULES) && (!$self->{admin}{MODULES} || $self->{admin}{MODULES}{Employees})) {
     if (($self->{SHOW_EMPLOYEES} && $self->{SHOW_EMPLOYEES} == 1) || ($attr->{SHOW_EMPLOYEES})) {
       $EMPLOYEE_JOIN .= " LEFT JOIN employees_positions ep ON (ep.id=a.position) ";
       $EMPLOYEE_COLS .= ' ep.position as position, ';
@@ -511,14 +507,12 @@ sub change {
   $attr->{FULL_LOG}= 0 if (!$attr->{FULL_LOG} && $attr->{A_LOGIN});
   $attr->{NAME}    = $attr->{A_FIO};
 
-  $self->changes(
-    {
-      CHANGE_PARAM    => 'AID',
-      TABLE           => 'admins',
-      DATA            => $attr,
-      EXT_CHANGE_INFO => "AID:$self->{AID}"
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM    => 'AID',
+    TABLE           => 'admins',
+    DATA            => $attr,
+    EXT_CHANGE_INFO => "AID:$self->{AID}"
+  });
 
   $self->info($self->{AID});
   return $self;
@@ -721,9 +715,9 @@ sub action_list {
   }
 
   my $WHERE = $self->search_former($attr, [
-      ['DATETIME',     'DATE', 'aa.datetime',    1 ],
-      ['MODULE',       'STR',  'aa.module',      1 ],
-      ['TYPE',         'INT',  'aa.action_type', 1 ],
+      ['DATETIME',     'DATE', 'aa.datetime',                            1 ],
+      ['MODULE',       'STR',  'aa.module',                              1 ],
+      ['TYPE',         'INT',  'aa.action_type',                         1 ],
       ['ACTIONS',      'STR',  'aa.actions',     1 ],
       ['ADMIN_LOGIN',  'STR',  'a.id', 'a.id AS admin_login'               ],
       ['IP',           'IP',   'aa.ip',         "INET_NTOA(aa.ip) AS ip"   ],
@@ -841,7 +835,7 @@ sub system_action_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
-      ['ACTIONS',      'INT',  'aa.actions',      ],
+      ['ACTIONS',      'STR',  'aa.actions',      ],
       ['TYPE',         'INT',  'aa.action_type',  ],
       ['MODULE',       'STR',  'aa.module',       ],
       ['IP',           'IP',   'aa.ip'            ],

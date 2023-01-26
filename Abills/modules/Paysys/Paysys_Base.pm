@@ -67,20 +67,21 @@ my @status = ("$lang{UNKNOWN}",    #0
 
   Arguments:
     $attr
-      DEBUG             - Level of debugging;
-      EXT_ID            - External unique identifier of payment;
-      CHECK_FIELD       - Synchronization field for subscriber;
-      USER_ID           - Identifier for subscriber;
-      PAYMENT_SYSTEM    - Short name of payment system;
-      PAYMENT_SYSTEM_ID - ID of payment system;
-      CURRENCY          - The exchange rate for the payment of the system;
-      CURRENCY_ISO      -
-      SUM               - Payment amount;
-      DATA              - HASH_REF Transaction information field;
-      ORDER_ID          - Transaction identifier in ABillS;
-      MK_LOG            - Logging;
-      REGISTRATION_ONLY - Add payment info without real payment
-      PAYMENT_DESCRIBE  - Description of payment;
+      DEBUG                   - Level of debugging;
+      EXT_ID                  - External unique identifier of payment;
+      CHECK_FIELD             - Synchronization field for subscriber;
+      USER_ID                 - Identifier for subscriber;
+      PAYMENT_SYSTEM          - Short name of payment system;
+      PAYMENT_SYSTEM_ID       - ID of payment system;
+      CURRENCY                - The exchange rate for the payment of the system;
+      CURRENCY_ISO            -
+      SUM                     - Payment amount;
+      DATA                    - HASH_REF Transaction information field;
+      ORDER_ID                - Transaction identifier in ABillS;
+      MK_LOG                  - Logging;
+      REGISTRATION_ONLY       - Add payment info without real payment
+      PAYMENT_DESCRIBE        - Description of payment;
+      PAYMENT_INNER_DESCRIBE  - Inner description of payment;
       PAYMENT_ID        - if this attribute is on(1), function will return two values:
                                     $status_code - status code;
                                     $payments_id - transaction identifier in ABillS;
@@ -424,20 +425,18 @@ sub paysys_pay {
     }
   }
 
-  $payments->add(
-    $user,
-    {
-      SUM          => $amount,
-      DATE         => $attr->{DATE},
-      DESCRIBE     => $attr->{PAYMENT_DESCRIBE} || $payment_system,
-      METHOD       => $method || (($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2'),
-      EXT_ID       => "$payment_system:$ext_id",
-      CHECK_EXT_ID => "$payment_system:$ext_id",
-      ER           => $er,
-      CURRENCY     => $currency,
-      USER_INFO    => $attr->{USER_INFO}
-    }
-  );
+  $payments->add($user, {
+    SUM            => $amount,
+    DATE           => $attr->{DATE},
+    DESCRIBE       => $attr->{PAYMENT_DESCRIBE} || $payment_system,
+    INNER_DESCRIBE => $attr->{PAYMENT_INNER_DESCRIBE} || '',
+    METHOD         => $method || (($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2'),
+    EXT_ID         => "$payment_system:$ext_id",
+    CHECK_EXT_ID   => "$payment_system:$ext_id",
+    ER             => $er,
+    CURRENCY       => $currency,
+    USER_INFO      => $attr->{USER_INFO}
+  });
 
   #Exists payments Dublicate
   if ($payments->{errno} && $payments->{errno} == 7) {
@@ -861,6 +860,7 @@ sub paysys_pay_cancel {
           UID     => $list->[0]->{uid}
         );
 
+        $users->list({ UID => $list->[0]->{uid}, COLS_NAME => 1, COLS_UPPER => 1 }) if ($conf{PAYSYS_LOG});
         my $payment_id = $list->[0]->{id};
 
         $payments->del(\%user, $payment_id);
@@ -868,12 +868,10 @@ sub paysys_pay_cancel {
           $result = 2;
         }
         else {
-          $Paysys->change(
-            {
-              ID     => $paysys_list->[0]->{id},
-              STATUS => $cancel_status
-            }
-          );
+          $Paysys->change({
+            ID     => $paysys_list->[0]->{id},
+            STATUS => $cancel_status
+          });
           $canceled_payment_id = $paysys_list->[0]->{id};
         }
       }
@@ -929,8 +927,11 @@ sub paysys_pay_check {
     TRANSACTION_ID => $attr->{TRANSACTION_ID} || '_SHOW',
     SUM            => '_SHOW',
     GID            => '_SHOW',
+    UID            => '_SHOW',
     COLS_NAME      => 1
   });
+
+  $users->list({ UID => $paysys_list->[0]->{uid}, COLS_NAME => 1, COLS_UPPER => 1 }) if ($conf{PAYSYS_LOG});
 
   if ($Paysys->{TOTAL}) {
     $paysys_id = $paysys_list->[0]->{id};
@@ -1101,16 +1102,17 @@ sub conf_gid_split {
   Arguments:
     $message -
     $attr
-      PAYSYS_ID - payment system ID
-      REQUEST   - System Request
-      REPLY     - ABillS Reply
-      SHOW      - print message to output
-      LOG_FILE  - Log file. (Default: paysys_check.log)
-      HEADER    - Print header
-      DATA      - Make form log
-      TYPE      - Request TYPE
-      STATUS    - Request ABillS Status
-      ERROR     - Error during validation of request
+      PAYSYS_ID     - payment system ID
+      REQUEST       - System Request
+      REQUEST_TYPE  - System Request
+      REPLY         - ABillS Reply
+      SHOW          - print message to output
+      LOG_FILE      - Log file. (Default: paysys_check.log)
+      HEADER        - Print header
+      DATA          - Make form log
+      TYPE          - Request TYPE
+      STATUS        - Request ABillS Status
+      ERROR         - Error during validation of request
 
   Returns:
 
@@ -1174,6 +1176,8 @@ sub mk_log {
         ERROR          => $attr->{ERROR} || '',
         STATUS         => 1,
         TRANSACTION_ID => $paysys_id,
+        REQUEST_TYPE   => $attr->{REQUEST_TYPE} || 0,
+        SUM            => $attr->{SUM} || 0
       });
 
       $insert_id = $result->{INSERT_ID} || 0;
@@ -1192,15 +1196,17 @@ sub mk_log {
         IP             => $ENV{REMOTE_ADDR},
         HTTP_METHOD    => $ENV{REQUEST_METHOD},
         SYSTEM_ID      => $attr->{PAYSYS_ID},
-        UID            => $uid,
+        UID            => $uid || $attr->{UID},
         ERROR          => $attr->{ERROR} || '',
         STATUS         => 0,
         TRANSACTION_ID => $paysys_id,
+        REQUEST_TYPE   => $attr->{REQUEST_TYPE} || 0,
+        SUM            => $attr->{SUM} || 0
       });
     }
   }
 
-  if ($conf{PAYSYS_LOG} && $conf{PAYSYS_LOG} != 2) {
+  if (!defined($conf{PAYSYS_LOG}) || ($conf{PAYSYS_LOG} && $conf{PAYSYS_LOG} != 2)) {
     if (open(my $fh, '>>', $paysys_log_file)) {
       if ($attr->{SHOW}) {
         print "$message";

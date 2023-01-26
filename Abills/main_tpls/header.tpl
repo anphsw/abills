@@ -195,7 +195,7 @@
 
     <li class='nav-item d-none d-sm-inline-block'>
       <a href='#' class='nav-link' title='QRCode'
-          onclick='showImgInModal(\"$SELF_URL?$ENV{QUERY_STRING}&amp;qrcode=1&amp;qindex=100000&amp;name=qr_code\")'>
+          onclick='showImgInModal(\"$SELF_URL?$ENV{QUERY_STRING}&amp;qrcode=1&amp;qindex=100000&amp;name=qr_code\", \"_{QR_CODE}_\")'>
         <i class='fa fa-qrcode'></i>
       </a>
     </li>

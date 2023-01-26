@@ -270,8 +270,8 @@ REPLACE INTO `equipment_models` (
        (233, 6, 3, '', '3124-4F', '', 24, '', '', '', '', 2, 4, '', 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL),
        (234, 1, 28, '', 'GS-5220-16S8C', 'http://www.planet.com.tw/en/product/product.php?id=48563', 24, '', '', '', '',
         2, 12, '', 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, NULL, NULL, NULL, NULL),
-       (235, 4, 29, '', 'V1600D4', 'https://ru.ftthcpe.com/product/v1600d4/', 8, '', '', '', '', 1, 4, '', 0, 0, 0, 0,
-        0, 0, 3, 0, 0, 0, NULL, NULL, NULL, NULL),
+       (235, 4, 29, '', 'V1600D4', 'https://ru.ftthcpe.com/product/v1600d4/', 8, '', '', 'vsolution.snmp', '', 1, 4, '', 0, 0, 0, 0,
+        0, 0, 3, 0, 0, 0, NULL, NULL, NULL, 'https://lanmarket.ua/upload/resize_cache/iblock/a80/1000_1000_105328d7ed3192a3f62f2b54f8e94d8fb/a803e342ed7edda234a2b8dc7de62b94.jpg'),
        (239, 4, 30, '', 'FD1104SN', 'http://ru.cdatatec.com/product-item/', 4, '', '', 'cdata.snmp', '', 2, 1, '', 0, 0,
         0, 0, 0, 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL),
        (240, 4, 20, '', 'OS6250M',
@@ -449,7 +449,7 @@ REPLACE INTO `equipment_models` (
        (315, 4, 12, '', 'C320_V2', 'http://lanmarket.ua/zte/zte-zxa10-c320-2651/', 16, '', '', 'zte.snmp', 'ZTE C320 with firmware 2.*', 2, 4, '',
         0, 0, 0, 0, 0, 0, 4, 0, 0, 0, NULL, NULL, NULL, ''),
        (316, 4, 30, '', 'FD1608SN', 'https://cdatatec.com/product-item/8pon-ports-gpon-olt-fd1608sn/', 8, '', '', 'cdata_fd16.snmp', '', 1, 8, '', 0, 0,
-        0, 0, 0, 0, 7, 0, 0, 70, NULL, NULL, NULL, 'https://cdatatec.com/wp-content/uploads/2019/03/GPON-OLT-1608SN-.png'),
+        0, 0, 0, 0, 7, 0, 0, 70, NULL, NULL, NULL, 'http://www.cdataindia.com/wp-content/uploads/2019/03/GPON-OLT-1608SN-.png'),
        (317, 4, 34, '', 'G008',     'https://www.hsgq.com/gpon-olt/8-pon-port-gpon-olt.html', 8, '', '', 'default.snmp',             '', 1, 8, '', 0, 0,
         0, 0, 0, 0, 7, 0, 0, 110,NULL, NULL, NULL, 'https://www.hsgq.com/static/upload/image/20201120/1605852142461169.png'),
        (318, 4, 30, '', 'FD1616SN', 'https://cdatatec.com/product-item/16pon-gpon-olt-fd1616sn/', 16, '', '', 'cdata_fd16.snmp',     '', 1, 16,'', 0, 0,
@@ -461,7 +461,9 @@ REPLACE INTO `equipment_models` (
        (321, 4, 12, '', 'C610/16G-T', 'https://www.zte.com.cn/global/products/access/xpon/PON-OLT/ZXA10-C610', 16, '', '', 'zte_c3xx.snmp', '', 2, 8, '', 0, 1,
         0, 0, 0, 0, 7, 0, 0, 40, NULL, NULL, NULL, 'https://lanmarket.ua/upload/resize_cache/iblock/f18/800_800_105328d7ed3192a3f62f2b54f8e94d8fb/f18bac2d545b383c404333bab4a7db69.jpg'),
        (322, 1, 1,  '', 'SF300-24P',  'https://stack-systems.com.ua/kommutator-cisco-sb-sf300-24p-srw224g4p-k9', 24, '', '', 'cisco.snmp', '',  2, 12, '', 0, 0,
-        0, 0, 0, 0, 1, 0, 0, 16, NULL, NULL, NULL, 'https://stack-systems.com.ua/media/amasty/webp/catalog/product/cache/bf20c5eaa46a796e5f825c4a168fc988/image/32593b30/kommutator-cisco-sb-sf300-24-srw224g4-k9-eu.webp');
+        0, 0, 0, 0, 1, 0, 0, 16, NULL, NULL, NULL, 'https://stack-systems.com.ua/media/amasty/webp/catalog/product/cache/bf20c5eaa46a796e5f825c4a168fc988/image/32593b30/kommutator-cisco-sb-sf300-24-srw224g4-k9-eu.webp'),
+       (323, 1, 9,  '', 'TL-SG3452', 'https://www.tp-link.com/us/business-networking/managed-switch/tl-sg3452/', 48, '', '', '', '', 2, 24, '', 1, 0,
+        0, 0, 0, 0, 1, 0, 0, 34, NULL, NULL, NULL,'https://content2.rozetka.com.ua/goods/images/big/279356173.jpg');
 
 REPLACE INTO `equipment_extra_ports` (`model_id`, `port_number`, `port_type`, `port_combo_with`, `row`)
 VALUES (101, 1, 4, 0, 0),
@@ -957,8 +959,10 @@ VALUES (101, 1, 4, 0, 0),
        (279, 6, 3, 0, 1),
        (279, 7, 3, 0, 1),
        (279, 8, 3, 0, 1),
-       (279, 9, 4, 0, 0),
+       (279, 9, 4, 0, 1),
        (279, 10, 4, 0, 1),
+       (279, 11, 3, 0, 0),
+       (279, 12, 3, 0, 1),
        (283, 1, 4, 0, 1),
        (283, 2, 4, 0, 1),
        (283, 3, 4, 0, 1),
@@ -1187,8 +1191,11 @@ VALUES (101, 1, 4, 0, 0),
        (322, 3,  1, 0, 1),
        (322, 4,  1, 0, 1),
        (322, 5,  4, 0, 0),
-       (322, 6,  4, 0, 1);
-
+       (322, 6,  4, 0, 1),
+       (323, 1,  4, 0, 0),
+       (323, 2,  4, 0, 1),
+       (323, 3,  4, 0, 0),
+       (323, 4,  4, 0, 1);
 
 REPLACE INTO `equipment_vendors` (`id`, `name`, `support`, `site`)
 VALUES (1, 'Cisco', '', 'http://cisco.com'),

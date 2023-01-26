@@ -4,10 +4,9 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db);
-my $json;
 my Abills::HTML $html;
 my $lang;
-my $Iptv;
+my Iptv $Iptv;
 
 use Abills::Base qw/days_in_month in_array/;
 

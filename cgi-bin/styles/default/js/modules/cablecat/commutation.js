@@ -2872,7 +2872,7 @@ function CommutationControlsAbstract() {
     let self = this;
     aModal.clear()
       .setBody('<div id="confirmModalContent">' + _translate("CLEAR") + '?</div>')
-      .setSmall(true)
+      .setSize('sm')
       .addButton(_translate("NO"), "confirmModalCancelBtn", "default")
       .addButton(_translate("YES"), "confirmModalConfirmBtn", "success")
       .show(bindBtnEvents);

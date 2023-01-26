@@ -10,7 +10,7 @@
             <input type='hidden' name='index' value='$index'>
             <input type='hidden' name='UID' value='%UID%'>
 
-            <div class='form-group row'>
+            <div class='form-group row %SERIAL_HIDDEN%'>
                 <label class='col-sm-4 col-md-4' for='SERIAL'>_{NUMBER_AND_SERIA}_</label>
                 <div class='col-sm-8 col-md-8'>
                     <input class='form-control' type='text' name='SERIAL' value='%SERIAL%' id='SERIAL'>
@@ -31,4 +31,3 @@
         </form>
     </div>
 </div>
-

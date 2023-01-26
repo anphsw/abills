@@ -1,13 +1,12 @@
-#**********************************************************
 =head1 NAME
 
   Admin manage functions
 
 =cut
 
-
 use strict;
 use warnings FATAL => 'all';
+
 use Abills::Base qw(in_array load_pmodule);
 use Abills::Defs;
 use Abills::Misc;
@@ -15,14 +14,16 @@ use JSON;
 use Contacts;
 use Payments;
 
-our ($db,
+our (
+  $db,
   $admin,
   %lang,
   %permissions,
   @WEEKDAYS,
   @MONTHES,
   %FORM,
-  @status
+  @status,
+  $pages_qs
 );
 
 our Abills::HTML $html;
@@ -102,6 +103,7 @@ sub form_admins {
     push @admin_menu, $lang{ACCESS} . ":59:AID=$admin_form->{AID}:",
       'Paranoid' . ':' . get_function_index('form_admins_full_log_analyze') . ":AID=$admin_form->{AID}:",
       $lang{CONTACTS} . ":61:AID=$admin_form->{AID}:contacts";
+    push @admin_menu, $lang{AUTH_HISTORY} . ":115:AID=$admin_form->{AID}:auth_history";
     if (in_array('Multidoms', \@MODULES)) {
       push @admin_menu, $lang{DOMAINS} . ":113:AID=$admin_form->{AID}:domains";
     }
@@ -326,6 +328,7 @@ sub form_admins {
       email            => 'Email',
       sip_number       => 'SIP',
       address          => $lang{ADDRESS},
+      avatar_link      => $lang{AVATAR},
     },
     TABLE           => {
       width          => '100%',
@@ -344,6 +347,11 @@ sub form_admins {
     my @fields_array = ();
     for (my $i = 0; $i < 4 + $admin->{SEARCH_FIELDS_COUNT}; $i++) {
       my $field_name = $admin->{COL_NAMES_ARR}->[$i] || '';
+
+      if ($field_name eq 'avatar_link'){
+        my $avatar = ($line->{avatar_link}) ? "/images/$line->{avatar_link}" : '/styles/default/img/admin/avatar5.png';
+        $line->{avatar_link} = "<img src='$avatar' class='img-circle ' alt='User Image' style='width: 40px;'>";
+      }
 
       if ($field_name eq 'disable' && $line->{disable} =~ /\d+/) {
 #        $line->{disable} = $status[ $line->{disable} ];
@@ -421,13 +429,11 @@ sub form_admins_groups {
     }
   }
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{GROUP},
-      title   => [ 'ID', $lang{NAME} ],
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{GROUP},
+    title   => [ 'ID', $lang{NAME} ],
+  });
 
   my $list = $admin_->admins_groups_list({ 
     AID => $LIST_PARAMS{AID},
@@ -472,6 +478,41 @@ sub form_admins_groups {
   );
 
   return 1;
+}
+
+#**********************************************************
+=head2 auth_history($attr);
+
+=cut
+#**********************************************************
+sub auth_history {
+  my ($attr) = @_;
+
+  my Admins $admin_ = $attr->{ADMIN};
+  my $aid = $FORM{AID} || 0;
+  result_former({
+    INPUT_DATA      => $admin_,
+    FUNCTION        => 'full_log_list',
+    FUNCTION_PARAMS => {
+      FUNCTION_NAME => 'ADMIN_AUTH',
+    },
+    DEFAULT_FIELDS  => 'DATETIME,IP,SID',
+    EXT_TITLES => {
+      ip       => 'IP',
+      datetime => $lang{DATE},
+      sid      => 'SID'
+    },
+    SKIP_USER_TITLE   => 1,
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{AUTH_HISTORY},
+      ID      => 'ADMIN_ACCESS_LOG',
+      qs      => "&AID=$aid&subf=$FORM{subf}",
+      EXPORT  => 1,
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
 }
 
 #**********************************************************
@@ -605,22 +646,29 @@ sub form_admins_full_log_analyze {
     result_former({
       INPUT_DATA     => $admin_,
       FUNCTION       => 'full_log_list',
-      DEFAULT_FIELDS => 'DATETIME,FUNCTION_NAME,PARAMS',
-      # SKIP_PAGES      => 1,
+      DEFAULT_FIELDS => 'DATETIME,FUNCTION_NAME,PARAMS,IP',
+      EXT_TITLES => {
+        datetime       => $lang{DATE},
+        function_name  => 'function_name',
+        function_index => 'function_index',
+        ip             => 'IP',
+        sid            => 'SID'
+      },
       FILTER_COLS    => {
         function_name => '_paranoid_log_function_filter',
         params        => '_paranoid_log_params_filter'
       },
+      SKIP_USER_TITLE   => 1,
       TABLE          => {
         width   => '100%',
-        caption => "Paranoid log",
-        ID      => 'ADMIN_PARANOID_LOG',
+        caption => 'Paranoid log',
+        qs      => "$pages_qs&AID=$FORM{AID}&list=1",
+        ID      => 'ADMIN_PARANOID_LOG_LIST',
         MENU    => "$lang{STATS}:index=60&AID=$FORM{AID}:btn bg-olive margin;",
-        qs      => "&AID=$FORM{AID}&list=1",
       },
       MAKE_ROWS      => 1,
       SKIP_TOTAL     => 1,
-      TOTAL          => 1
+      TOTAL          => 1,
     });
     return 1;
   }
@@ -870,7 +918,9 @@ sub form_admin_permissions {
       $lang{CRM_SHOW_ALL_LEADS},
       "$lang{SHOW} $lang{EQUIPMENT}",
       "$lang{EDIT} $lang{EQUIPMENT}",
-      "$lang{DEL} $lang{EQUIPMENT}"
+      "$lang{DEL} $lang{EQUIPMENT}",
+      "$lang{SHOW} $lang{SALARY}",
+      "$lang{SHOW} $lang{AND} $lang{ALL_SALARY} $lang{SALARY}",
     ], # Modules managments
 
     [ $lang{PROFILE}, $lang{SHOW_ADMINS_ONLINE} ],
@@ -967,9 +1017,11 @@ sub form_admin_permissions {
     && $FORM{ADMIN_TYPE} ne "$lang{ALL} $lang{PERMISSION}") {
 
     foreach my $k (sort keys(%ADMIN_TYPES)) {
+      my $admin_type_url = $k;
+      $admin_type_url =~ s/\+/%2B/g;
 
       my $btn_css_style = ($FORM{ADMIN_TYPE} && $k && $FORM{ADMIN_TYPE} eq $k) ? 'btn btn-info btn-sm' : 'btn btn-default btn-sm';
-      my $url_btn = "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$k";
+      my $url_btn = "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$admin_type_url";
 
       my $button = $html->button($ADMIN_TYPES{$k}, $url_btn, { class => $btn_css_style }) . '  ';
 
@@ -984,9 +1036,11 @@ sub form_admin_permissions {
   }
   else {
     foreach my $k (sort keys(%ADMIN_TYPES)) {
+      my $admin_type_url = $k;
+      $admin_type_url =~ s/\+/%2B/g;
 
       my $btn_css_style = ($FORM{ADMIN_TYPE} && $k && $FORM{ADMIN_TYPE} eq $k) ? 'btn btn-info btn-sm' : 'btn btn-default btn-sm';
-      my $url_btn = "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$k";
+      my $url_btn = "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$admin_type_url";
       my $button = $html->button($ADMIN_TYPES{$k}, $url_btn, { class => $btn_css_style }) . '  ';
 
       $buttons .= $button;
@@ -1002,7 +1056,7 @@ sub form_admin_permissions {
 
   my %describe = ();
   my $content = file_op({
-    FILENAME => 'permissions.info',
+    FILENAME => (defined($FORM{language})) ? "permissions_$FORM{language}.info" : 'permissions_russian.info',
     PATH     => $conf{base_dir} . "/Abills/main_tpls/",
     ROWS     => 1
   });
@@ -1346,7 +1400,6 @@ sub _build_admin_contacts_form {
 
   return 1;
 }
-
 
 #**********************************************************
 =head2 form_admins_domains($attr);

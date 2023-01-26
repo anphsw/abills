@@ -161,8 +161,8 @@ sub internet_docs {
       $info{status} = $service_info->{internet_status};
       $info{tp_reduction_fee} = $service_info->{tp_reduction_fee};
       $info{module_name} = $lang->{INTERNET};
-      $info{extra}{cpe_mac} = $lang->{CPE_MAC};
-      $info{extra}{cid} = $lang->{CID};
+      $info{extra}{cpe_mac} = $service_info->{cpe_mac};
+      $info{extra}{cid} = $service_info->{cid};
 
       if ($service_info->{internet_status} && $service_info->{internet_status} != 5 && $attr->{SKIP_DISABLED}) {
         $info{day} = 0;

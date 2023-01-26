@@ -449,6 +449,7 @@ sub change {
     NAME                    => 'name',
     DAY_FEE                 => 'day_fee',
     ACTIVE_DAY_FEE          => 'active_day_fee',
+    ACTIVE_MONTH_FEE        => 'active_month_fee',
     MONTH_FEE               => 'month_fee',
     FIXED_FEES_DAY          => 'fixed_fees_day',
     REDUCTION_FEE           => 'reduction_fee',
@@ -660,11 +661,12 @@ sub list {
     [ 'LOGINS',              'INT', 'tp.logins',                   1 ],
     [ 'DAY_FEE',             'INT', 'tp.day_fee',                  1 ],
     [ 'ACTIVE_DAY_FEE',      'INT', 'tp.active_day_fee',           1 ],
+    [ 'ACTIVE_MONTH_FEE',    'INT', 'tp.active_month_fee',         1 ],
     [ 'POSTPAID_DAY_FEE',    'INT', 'tp.postpaid_daily_fee',       1 ],
-    [ 'POSTPAID_DAILY_FEE',    'INT', 'tp.postpaid_daily_fee',       1 ],
+    [ 'POSTPAID_DAILY_FEE',  'INT', 'tp.postpaid_daily_fee',       1 ],
     [ 'MONTH_FEE',           'INT', 'tp.month_fee',                1 ],
     [ 'POSTPAID_MONTH_FEE',  'INT', 'tp.postpaid_monthly_fee',     1 ],
-    [ 'POSTPAID_MONTHLY_FEE',  'INT', 'tp.postpaid_monthly_fee',     1 ],
+    [ 'POSTPAID_MONTHLY_FEE','INT', 'tp.postpaid_monthly_fee',     1 ],
     [ 'PERIOD_ALIGNMENT',    'INT', 'tp.period_alignment',         1 ],
     [ 'ABON_DISTRIBUTION',   'INT', 'tp.abon_distribution',        1 ],
     [ 'FIXED_FEES_DAY',      'INT', 'tp.fixed_fees_day',           1 ],
@@ -770,7 +772,7 @@ sub list {
     $attr
   );
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************

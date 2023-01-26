@@ -6,7 +6,7 @@
 	.social-auth-links > .btn-group {
 		width: 100%;
 		max-width: 150px;
-		margin-bottom: 10px;
+		margin: 0 5px 5px 5px;
 	}
 
 	.social-auth-links > .btn-group > a.btn.btn-social {
@@ -36,7 +36,7 @@
 
 <div class='modal fade' id='changeCreditModal' data-open='%OPEN_CREDIT_MODAL%'>
   <div class='modal-dialog modal-sm'>
-    <form action=$SELF_URL class='text-center pswd-confirm' id='changeCreditForm'>
+    <form action=%SELF_URL% class='text-center pswd-confirm' id='changeCreditForm'>
       <div class='modal-content'>
         <div class='modal-header'>
           <h4 class='modal-title text-center'>_{SET_CREDIT}_</h4>
@@ -120,7 +120,7 @@
             _{BOTS}_
           </h2>
         </div>
-        <div class='card-body pt-1' >
+        <div class='card-body pt-1'>
           %SENDER_SUBSCRIBE_BLOCK%
         </div>
       </div>
@@ -177,11 +177,11 @@
                   <div class='ml-auto bd-highlight'>
                     <div class='bd-example' data-visible='%DOCS_VISIBLE%'>
                       <a %NO_DISPLAY% title='_{PRINT}_' target='new' class='p-2'
-                         href='$SELF_URL?qindex=10&PRINT_CONTRACT=%CONTRACT_ID%&sid=$sid&pdf=$conf{DOCS_PDF_PRINT}'>
+                         href='%SELF_URL%?qindex=10&PRINT_CONTRACT=%CONTRACT_ID%&sid=$sid&pdf=$conf{DOCS_PDF_PRINT}'>
                         <span class='fas fa-print'></span>
                       </a>
 
-                      <a href='$SELF_URL?index=10&CONTRACT_LIST=1&sid=$sid' title='_{LIST}_' class='p-2'>
+                      <a href='%SELF_URL%?index=10&CONTRACT_LIST=1&sid=$sid' title='_{LIST}_' class='p-2'>
                         <span class='fa fa-list'></span>
                       </a>
                     </div>
@@ -199,7 +199,7 @@
             </tr>
 
             %EXT_DATA%
-            %INFO_FIELDS%
+            %INFO_FIELDS_RAWS%
 
           </table>
         </div>
@@ -310,7 +310,7 @@
     paymentSum.innerText = "_{PAYMENT_NOTEXIST}_";
   }
 
-  if ('$user->{conf}->{PUSH_ENABLED}') {
+  if ('$user->{conf}->{PUSH_ENABLED}' && '$user->{conf}->{PUSH_USER_PORTAL}') {
     let scriptElement = document.createElement('script');
     scriptElement.src = '/styles/default/js/push_subscribe.js';
     document.body.appendChild(scriptElement);

@@ -414,14 +414,11 @@ sub online {
       ['EXPIRE',            'DATE','u.expire',                                     1 ],
       ['INTERNET_EXPIRED',        'DATE',"IF(internet.expire>'0000-00-00' AND internet.expire <= CURDATE(), 1, 0) AS internet_expired", 1 ],
       ['INTERNET_EXPIRE',         'DATE','internet.expire AS internet_expire',      1 ],
-      # ['DV_EXPIRED',        'DATE',"IF(internet.expire>'0000-00-00' AND internet.expire <= CURDATE(), 1, 0) AS internet_expired", 1 ],
-      # ['DV_EXPIRE',         'DATE','internet.expire AS internet_expire',            1 ],
       ['IP',                'IP',  'internet.ip',       'INET_NTOA(internet.ip) AS ip' ],
       ['SIMULTANEONSLY',    'INT', 'internet.logins',                               1 ],
       ['PORT',              'INT', 'internet.port',                                 1 ],
       #['SERVICE_FILTER_ID', 'STR', 'internet.filter_id',                           1 ],
       ['INTERNET_STATUS',   'INT', 'internet.disable AS internet_status',           1 ],
-      #['DV_STATUS',         'INT', 'internet.disable AS internet_status',           1 ],
       ['FRAMED_IP_ADDRESS', 'IP',  'c.framed_ip_address',                          1 ],
       ['HOSTNAME',          'STR', 'c.hostname',                                   1 ],
       ['SWITCH_PORT',       'STR', 'c.switch_port',                                1 ],
@@ -640,7 +637,9 @@ sub online_info {
       ['NAS_PORT',         'INT', 'c.nas_port_id',      ],
       ['ACCT_SESSION_ID',  'STR', 'c.acct_session_id'   ],
       ['UID',              'INT', 'c.uid'               ],
-      ['FRAMED_IP_ADDRESS','IP',  'c.framed_ip_address' ]
+      ['FRAMED_IP_ADDRESS','IP',  'c.framed_ip_address' ],
+      ['CID',              'STR', 'c.cid'               ],
+      ['GUEST',            'INT', 'c.guest'             ]
     ],
     { WHERE => 1,
     }
@@ -1361,7 +1360,7 @@ sub reports {
   my $EXT_TABLES = '';
   my $ext_fields = ', u.company_id';
 
-  my @FIELDS_ARR = ('DATE', 'USERS', 'USERS_FIO', 'TP', 'SESSIONS', 'TRAFFIC_RECV', 'TRAFFIC_SENT', 'TRAFFIC_SUM', 'TRAFFIC_2_SUM', 'DURATION', 'SUM',);
+  my @FIELDS_ARR = ('DATE', 'USERS', 'USERS_FIO', 'TP', 'SESSIONS', 'TRAFFIC_SENT', 'TRAFFIC_RECV', 'TRAFFIC_SUM', 'TRAFFIC_2_SUM', 'DURATION', 'SUM',);
 
   $self->{REPORT_FIELDS} = {
     DATE            => '',
@@ -1373,12 +1372,12 @@ sub reports {
     TRAFFIC_2_SUM   => 'SUM(l.sent2 + l.recv2)',
     DURATION        => 'SEC_TO_TIME(SUM(l.duration))',
     SUM             => 'SUM(l.sum)',
-    TRAFFIC_RECV    => 'SUM(l.recv + 4294967296 * acct_input_gigawords)',
     TRAFFIC_SENT    => 'SUM(l.sent + 4294967296 * acct_output_gigawords)',
+    TRAFFIC_RECV    => 'SUM(l.recv + 4294967296 * acct_input_gigawords)',
     USERS_COUNT     => 'COUNT(DISTINCT l.uid)',
     TP              => 'l.tp_id',
-    COMPANIES       => 'c.name'
-  };
+    COMPANIES       => 'c.name',
+   };
 
   my $EXT_TABLE = 'users';
 
@@ -1442,7 +1441,7 @@ sub reports {
   }
 
   if ($admin->{DOMAIN_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr("$admin->{DOMAIN_ID}", 'INT', 'u.domain_id', { EXT_FIELD => 0 }) };
+    push @WHERE_RULES, @{ $self->search_expr($admin->{DOMAIN_ID}, 'INT', 'u.domain_id', { EXT_FIELD => 0 }) };
   }
 
   my $WHERE = $self->search_former($attr, [
@@ -1451,6 +1450,7 @@ sub reports {
       [ 'UID',          'INT',  'l.uid',  ],
       [ 'COMPANY_ID',   'INT',  'u.company_id' ],
       [ 'TP_ID',        'INT',  'l.tp_id' ],
+      [ 'GUEST',        'INT',  'l.guest' ]
     ],
     { WHERE             => 1,
       WHERE_RULES       => \@WHERE_RULES,
@@ -1926,6 +1926,51 @@ sub users_online_count_by_builds {
   );
   
   return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 session_sum ($attr) - Show session sum from previus mouth
+
+  Arguments:
+    $attr:
+    FROM_DATE
+    TO_DATE
+
+  Result:
+
+=cut
+#**********************************************************
+sub session_sum {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @WHERE_RULES = ("il.sum > 0");
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(il.start, \'%Y-%m-%d\')",  1 ],
+    ],
+    {
+      WHERE       => 1,
+      WHERE_RULES => \@WHERE_RULES,
+    }
+  );
+
+  $self->query("
+    SELECT
+      uid,
+      bill_id,
+      SUM(sum) AS sum,
+      SUM(sent) AS sent,
+      SUM(recv) AS received
+      FROM internet_log il
+      $WHERE
+      GROUP BY uid;",
+    undef, $attr
+  );
+
+  return $self->{list};
+
 }
 
 1

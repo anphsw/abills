@@ -3,6 +3,19 @@
     document.getElementById('REFERER').value = location.href;
   }
 
+  function selectLanguage(){
+    var sLanguage = '';
+    if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+      sLanguage = jQuery('#language_mobile').val() || '';
+    } else {
+      sLanguage = jQuery('#language').val() || '';
+    }
+
+    let url = '%SELF_URL%';
+    let sLocation = url + '?' + (document['DOMAIN_ID'] ? '?DOMAIN_ID=' + document['DOMAIN_ID'] : '') + '&language=' + sLanguage;
+    location.replace(sLocation);
+  }
+
   jQuery(function () {
     if ('%TECH_WORKS_BLOCK_VISIBLE%' === '1') {
       jQuery('#tech_works_block').css('display', 'block');
@@ -13,7 +26,7 @@
     } else {
       jQuery('#language').on('change', selectLanguage);
     }
-  }())
+  });
 </script>
 <style>
 	.wrapper {

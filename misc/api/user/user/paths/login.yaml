@@ -1,0 +1,17 @@
+post:
+  tags:
+    - user
+  summary: Авторизация пользователя
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/loginRequestBody.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/loginResponse.yaml"

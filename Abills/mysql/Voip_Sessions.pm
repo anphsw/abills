@@ -531,7 +531,7 @@ sub reports{
     );
   }
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   $self->{USERS} = 0;
   $self->{SESSIONS} = 0;
@@ -549,7 +549,7 @@ sub reports{
        $WHERE;"
   );
 
-  my $a_ref = $self->{list}->[0];
+  my $a_ref = $self->{list}->[0] || [];
 
   ($self->{USERS}, $self->{SESSIONS}, $self->{DURATION}, $self->{SUM}) = @{$a_ref};
 

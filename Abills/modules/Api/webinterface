@@ -7,14 +7,21 @@
 
 use strict;
 use warnings FATAL => 'all';
+use JSON qw(decode_json);
+
 use Api;
 
 our (
   $db,
   $admin,
   %conf,
-  %lang
+  %lang,
+  $html,
 );
+
+use constant {
+  MAX_INLINE_RESPONSE_LENGTH => 192
+};
 
 my $Api = Api->new($db, $admin, \%conf);
 
@@ -34,19 +41,25 @@ sub api_log_list {
     SELECT_VALUE    => {
       http_status => {}
     },
-    EXT_TITLES      => {
-      id            => 'id',
-      aid           => 'aid',
-      uid           => 'uid',
-      sid           => 'sid',
-      request_url   => 'request_url',
-      request_body  => 'request_body',
-      response_time => 'response_time',
-      response      => 'response',
-      http_status   => 'http_status',
-      http_method   => 'http_method',
-      date          => 'date',
-      ip            => 'ip',
+    FILTER_VALUES => {
+      response        => \&_api_filter_response,
+      request_headers => \&_api_filter_request_headers
+    },
+    EXT_TITLES => {
+      id              => 'id',
+      aid             => 'aid',
+      uid             => 'uid',
+      sid             => 'sid',
+      request_url     => 'request_url',
+      request_body    => 'request_body',
+      request_headers => 'request_headers',
+      response_time   => 'response_time',
+      response        => 'response',
+      http_status     => 'http_status',
+      http_method     => 'http_method',
+      date            => 'date',
+      ip              => 'ip',
+      error_msg       => 'error_msg',
     },
     SKIP_USER_TITLE => 1,
     TABLE           => {
@@ -63,6 +76,59 @@ sub api_log_list {
   });
 
   return print $table->show();
+}
+
+#**********************************************************
+=head2 _api_filter_response($res) - response filter for result former
+
+=cut
+#**********************************************************
+sub _api_filter_response {
+  my ($res) = @_;
+  my $res_length = length($res);
+  if ($res && $res_length > MAX_INLINE_RESPONSE_LENGTH) {
+    my $table = $html->table({
+      ID         => 'API_REQUEST_BODY_' . rand(1000000),
+      caption    => "Response: $res_length B",
+      width      => '100%',
+      HIDE_TABLE => 1,
+    });
+    $table->addrow($res);
+    return $table->show();
+  }
+  return $res;
+}
+
+#**********************************************************
+=head2 _api_filter_request_headers($headers) - headers filter for result former
+
+=cut
+#**********************************************************
+sub _api_filter_request_headers {
+  my ($headers) = @_;
+  my $headers_length = length($headers);
+
+  if ($headers_length) {
+    my $decoded_headers = eval { decode_json($headers) };
+    if ($@) {
+      return $lang{ERROR};
+    }
+    my $table = $html->table({
+      ID         => 'API_REQUEST_BODY_' . rand(1000000),
+      caption    => "Headers: $headers_length B",
+      width      => '100%',
+      HIDE_TABLE => 1,
+    });
+
+    foreach my $header (sort keys %$decoded_headers) {
+      $table->addrow(
+        $header,
+        $decoded_headers->{$header}
+      )
+    }
+    return $table->show();
+  }
+  return $headers;
 }
 
 1;

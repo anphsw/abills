@@ -368,7 +368,7 @@ sub header {
 
   $self->{header}  = "Content-Type: text/xml\n";
   $self->{header} .= "Access-Control-Allow-Origin: *"
-                     . "\n\n";
+    . "\n\n";
 
   my $CHARSET = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : $self->{CHARSET} || 'utf8';
   $CHARSET =~ s/ //g;

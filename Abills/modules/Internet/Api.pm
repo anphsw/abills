@@ -1,7 +1,7 @@
 package Internet::Api;
 =head1 NAME
 
-  Equipment::Api - Equipment api functions
+  Equipment::Api - Internet api functions
 
 =head VERSION
 
@@ -16,8 +16,6 @@ use warnings FATAL => 'all';
 use POSIX qw(strftime);
 do 'Abills/Misc.pm';
 our $DATE = strftime "%Y-%m-%d", localtime(time);
-
-require Abills::Misc;
 
 our (
   $db,
@@ -35,7 +33,7 @@ my Internet $Internet;
 =cut
 #**********************************************************
 sub new {
-  my ($class, $Db, $conf, $Admin, $lang, $debug, $type, $additional_params) = @_;
+  my ($class, $Db, $Admin, $conf, $lang, $debug, $type) = @_;
 
   my $self = {
     db    => $Db,
@@ -59,9 +57,8 @@ sub new {
 
   $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
   $Internet->{debug} = $self->{debug};
-  %permissions = %{$additional_params->{permissions} || {}};
+  %permissions = %{$Admin->{permissions} || {}};
 
-  require Abills::Misc;
   require Internet::Users;
 
   return $self;
@@ -134,6 +131,11 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         return {
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{18};
+
+        return {
           errno  => 100,
           errstr => 'No field tpId'
         } if !$query_params->{TP_ID};
@@ -192,6 +194,11 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         return {
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{18};
+
+        return {
           errno  => 102,
           errstr => 'No field id'
         } if !$query_params->{ID};
@@ -207,37 +214,37 @@ sub admin_routes {
         $Users->pi({ UID => $path_params->{uid} });
 
         #TODO: fix with option $conf{MSG_REGREQUEST_STATUS}=1;
-          internet_user_change({
-            API              => 1,
+        internet_user_change({
+          API              => 1,
 
-            UID              => $path_params->{uid},
-            ID               => $query_params->{ID},
-            STATUS           => $query_params->{STATUS} || 0,
-            USERS_INFO       => $Users,
+          UID              => $path_params->{uid},
+          ID               => $query_params->{ID},
+          STATUS           => $query_params->{STATUS} || 0,
+          USERS_INFO       => $Users,
 
-            CID              => $query_params->{CID},
-            IP               => $query_params->{IP} || '0.0.0.0',
-            PERSONAL_TP      => $query_params->{PERSONAL_TP} || '0',
-            SERVICE_EXPIRE   => $query_params->{SERVICE_EXPIRE} || '0000-00-00',
-            SERVICE_ACTIVATE => $query_params->{SERVICE_ACTIVATE} || '0000-00-00',
+          CID              => $query_params->{CID},
+          IP               => $query_params->{IP} || '0.0.0.0',
+          PERSONAL_TP      => $query_params->{PERSONAL_TP} || '0',
+          SERVICE_EXPIRE   => $query_params->{SERVICE_EXPIRE} || '0000-00-00',
+          SERVICE_ACTIVATE => $query_params->{SERVICE_ACTIVATE} || '0000-00-00',
 
-            PORT             => $query_params->{PORT} || '',
-            COMMENTS         => $query_params->{COMMENTS} || '',
-            STATIC_IP_POOL   => $query_params->{STATIC_IP_POOL} || '',
-            STATUS_DAYS      => $query_params->{STATUS_DAYS} || '',
-            NAS_ID           => $query_params->{NAS_ID} || '',
-            NAS_ID1          => $query_params->{NAS_ID1} || '',
-            CPE_MAC          => $query_params->{CPE_MAC} || '',
-            SERVER_VLAN      => $query_params->{SERVER_VLAN} || '',
-            VLAN             => $query_params->{VLAN} || '',
+          PORT             => $query_params->{PORT} || '',
+          COMMENTS         => $query_params->{COMMENTS} || '',
+          STATIC_IP_POOL   => $query_params->{STATIC_IP_POOL} || '',
+          STATUS_DAYS      => $query_params->{STATUS_DAYS} || '',
+          NAS_ID           => $query_params->{NAS_ID} || '',
+          NAS_ID1          => $query_params->{NAS_ID1} || '',
+          CPE_MAC          => $query_params->{CPE_MAC} || '',
+          SERVER_VLAN      => $query_params->{SERVER_VLAN} || '',
+          VLAN             => $query_params->{VLAN} || '',
 
-            #IPV6
-            IPV6_MASK        => $query_params->{IPV6_MASK} || 32,
-            IPV6             => $query_params->{IPV6} || '',
-            IPV6_PREFIX      => $query_params->{IPV6_PREFIX} || '',
-            IPV6_PREFIX_MASK => $query_params->{IPV6_PREFIX_MASK} || 32,
-            STATIC_IPV6_POOL => $query_params->{STATIC_IPV6_POOL} || '0',
-          });
+          #IPV6
+          IPV6_MASK        => $query_params->{IPV6_MASK} || 32,
+          IPV6             => $query_params->{IPV6} || '',
+          IPV6_PREFIX      => $query_params->{IPV6_PREFIX} || '',
+          IPV6_PREFIX_MASK => $query_params->{IPV6_PREFIX_MASK} || 32,
+          STATIC_IPV6_POOL => $query_params->{STATIC_IPV6_POOL} || '0',
+        });
       },
       credentials => [
         'ADMIN'

@@ -12,7 +12,7 @@ use Abills::Defs;
 use Abills::Fetcher;
 use Abills::Backend::Utils qw/json_encode_safe json_decode_safe/;
 use Abills::Base qw(convert dsc2hash clearquotes int2byte days_in_month
-  in_array startup_files load_pmodule urlencode encode_base64);
+  in_array startup_files load_pmodule urlencode encode_base64 json_former);
 use JSON;
 
 our ($db,
@@ -127,7 +127,7 @@ sub form_status {
     },
     TABLE           => {
       width      => '100%',
-      caption    => "$lang{SERVICE} $lang{STATUS}",
+      caption    => $lang{SERVICE_STATUS},
       qs         => $pages_qs,
       ID         => 'SERVICE_STATUS_LIST',
       EXPORT     => 1,
@@ -141,6 +141,97 @@ sub form_status {
   return 1;
 }
 
+#**********************************************************
+=head2 form_status() - service status listing
+
+
+=cut
+#**********************************************************
+sub form_user_status {
+
+  require Users;
+  Users->import();
+  
+  # Abills::Base::_bp('', 'dddd', {HEADER => 1});
+
+  my $User = Users->new($db, $admin, \%conf);
+
+  $User->{ACTION}     = 'add';
+  $User->{LNG_ACTION} = $lang{ADD};
+
+  if ($FORM{add}) {
+    $FORM{COLOR} =~ s/#// if($FORM{COLOR});
+    $User->user_status_add({%FORM});
+    if (!$User->{errno}) {
+      $html->message('info', $lang{ADDED}, "$lang{ADDED}");
+    }
+  }
+  elsif ($FORM{change}) {
+    $FORM{COLOR} =~ s/#// if($FORM{COLOR});
+    $FORM{GET_FEES} = 0   if(!$FORM{GET_FEES});
+    $User->user_status_change({%FORM});
+    if (!$User->{errno}) {
+      $html->message('info', $lang{CHANGED}, "$lang{CHANGED} ". ($FORM{ID} || q{}));
+    }
+  }
+  elsif ($FORM{chg}) {
+    $User->user_status_info({ ID => $FORM{chg} });
+    $FORM{add_form} = 1;
+
+    if (!$User->{errno}) {
+      $User->{ACTION}     = 'change';
+      $User->{LNG_ACTION} = $lang{CHANGE};
+      $FORM{add_form}=1;
+      $html->message('info', $lang{CHANGED}, "$lang{CHANGING} $User->{ID}");
+    }
+  }
+  elsif (defined($FORM{del}) && $FORM{COMMENTS}) {
+    $User->user_status_del({ ID => $FORM{del} });
+    if (!$User->{errno}) {
+      $html->message('info', $lang{DELETED}, "$lang{DELETED} $FORM{del}");
+    }
+  }
+
+  _error_show($User);
+
+  if ($FORM{add_form}) {
+    $User->{COLOR} = '#'.$User->{COLOR} if($User->{COLOR});
+    $html->tpl_show(templates('form_user_status'), $User);
+  }
+
+  result_former({
+    INPUT_DATA      => $User,
+    FUNCTION        => 'user_status_list',
+    DEFAULT_FIELDS  => 'ID,NAME,COLOR,DESCRIBE',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    FILTER_COLS => {
+      name  => '_translate',
+    },
+    FILTER_VALUES => {
+      color => sub { $html->color_mark($_[0], $_[0]) }
+    },
+    EXT_TITLES      => {
+      id         => '#',
+      name       => $lang{NAME},
+      color      => $lang{COLOR},
+      descr      => $lang{DESCRIBE}
+    },
+    TABLE           => {
+      width      => '100%',
+      caption    => $lang{USER_STATUS},
+      qs         => $pages_qs,
+      ID         => 'USER_STATUS_LIST',
+      EXPORT     => 1,
+      MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+    },
+    MAKE_ROWS    => 1,
+    SEARCH_FORMER=> 1,
+    TOTAL        => 1
+  });
+
+  return 1;
+}
 
 #**********************************************************
 =head2 form_build() - build plugin organizer
@@ -374,7 +465,7 @@ sub form_templates_pdf_edit {
 
 sub form_templates_pdf_save {
   if(!defined($FORM{FILE_NAME})) {
-    print Abills::Base::json_former({ 'status' => 400, 'text' => 'UNDEFINED_FILE_NAME'});
+    print json_former({ 'status' => 400, 'text' => 'UNDEFINED_FILE_NAME'});
     return 0;
   }
 
@@ -394,7 +485,7 @@ sub form_templates_pdf_save {
     return 0;
   }
 
-  print Abills::Base::json_former({ 'status' => 200, 'text' => 'SUCCESS'});
+  print json_former({ 'status' => 200, 'text' => 'SUCCESS'});
   return 0;
 }
 
@@ -1624,6 +1715,7 @@ sub holiday_files_list {
 
 =cut
 #**********************************************************
+#@deprecated
 sub form_info_fields {
 
   if($conf{info_fields_new}) {

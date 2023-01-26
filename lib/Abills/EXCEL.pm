@@ -22,7 +22,7 @@ our (
 
 use Encode qw(decode decode_utf8);
 
-our $VERSION = 2.01;
+our $VERSION = 2.02;
 my $CONF;
 my $workbook;
 my $IMG_PATH = '';
@@ -35,6 +35,29 @@ my %text_colors = (
   'text-red'    => 'red',
   'text-danger' => 'red',
   '#FF0000'     => 'red',
+);
+
+my %format_class = (
+  'text-center' => {
+    align  => 'center',
+    valign => 'vcenter'
+  },
+  'text-right'  => {
+    align => 'right'
+  },
+  'text-bold'   => {
+    bold   => 1,
+    border => 1
+  },
+  'vertical-rl' => {
+    rotation => 0
+  },
+  'font-italic' => {
+    italic => 1,
+  },
+  'table-info'  => {
+    bg_color => 'silver'
+  }
 );
 
 #**********************************************************
@@ -350,14 +373,19 @@ sub table {
     $self->{SELECT_ALL}=$attr->{SELECT_ALL};
   }
 
+  $self->{AUTOFIT_COLUMNS} = $attr->{AUTOFIT_COLUMNS} if $attr->{AUTOFIT_COLUMNS};
   $self->{row_number} = 1;
   $self->{col_num}    = 0;
+
+  $self->{closest_col_num} = 0;
+  $self->{most_merge_rows} = 1;
 
   # Create a new Excel workbook
   $workbook = Spreadsheet::WriteExcel->new(\*STDOUT);
 
   # Add a worksheet
-  $worksheet   = $workbook->add_worksheet();
+  $worksheet = $workbook->add_worksheet();
+  $worksheet->add_write_handler(qr/.+/, \&_store_string_widths);
 
   if ($attr->{title} || $attr->{title_plain}) {
     $self->{title} = $attr->{title};
@@ -382,7 +410,7 @@ sub addrow {
   my $self = shift;
   my (@row) = @_;
 
-  $self->{row_number}++;
+  # $self->{row_number}++;
 
   if (! $worksheet) {
     return $self;
@@ -390,18 +418,29 @@ sub addrow {
 
   $worksheet->set_column(0, 3, 25);
 
-  my $format = $workbook->add_format( text_wrap => 1 );
-
   my $col_shift = ($self->{SELECT_ALL}) ? 1 : 0;
 
-  for( my $col_num=0; $col_num <= $#row ; $col_num++) {
-    my $val = $row[$col_num+$col_shift];
-    if(! $self->{title}->[$col_num] || ($self->{title}->[$col_num] && $self->{title}->[$col_num] eq '-')) {
-      next;
+  for (my $col_num = 0; $col_num <= $#row; $col_num++) {
+    my $val = $row[$col_num + $col_shift];
+    my $format = $workbook->add_format( text_wrap => 1 );
+
+    if (ref $val eq 'HASH') {
+      if ($val->{merge_rows} || $val->{merge_cols}) {
+        $self->_merge_range($val, $format);
+        next;
+      }
+      else {
+        $format = $workbook->add_format(%{$val->{format}}) if $val->{format} && ref $val->{format} eq 'HASH';
+        $val = $val->{value};
+      }
+    }
+
+    if (!$self->{title}->[$self->{col_num}] || ($self->{title}->[$self->{col_num}] && $self->{title}->[$self->{col_num}] eq '-')) {
+      next if !$self->{skip_empty_col};
     }
 
     if($val =~ /\[(.+)\|(.{0,100})\]/) {
-      $worksheet->write_url( $self->{row_number}, $col_num, $SELF_URL .'?'. $1, decode_utf8($2));
+      $worksheet->write_url( $self->{row_number}, $self->{col_num}, $SELF_URL .'?'. $1, decode_utf8($2));
     }
     elsif($val =~ /_COLOR:(.+):(.+)/) {
       my $color  = $1;
@@ -415,26 +454,60 @@ sub addrow {
       );
 
       if ($text =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
-        $worksheet->write_string( $self->{row_number}, $col_num, decode_utf8( $text ), $color_format || undef );
+        $worksheet->write_string( $self->{row_number}, $self->{col_num}, decode_utf8( $text ), $color_format || undef );
       }
       else {
-        $worksheet->write( $self->{row_number}, $col_num, decode_utf8( $text ), $color_format || undef );
+        $worksheet->write( $self->{row_number}, $self->{col_num}, decode_utf8( $text ), $color_format || undef );
       }
     }
     else {
       if($val =~ /^0/  ||
          $val =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
-        $worksheet->write_string( $self->{row_number}, $col_num, decode_utf8( $val ), $format || undef );
+        $worksheet->write_string( $self->{row_number}, $self->{col_num}, decode_utf8( $val ), $format || undef );
       }
       else {
-        $worksheet->write( $self->{row_number}, $col_num, decode_utf8( $val ), $format || undef );
+        $worksheet->write( $self->{row_number}, $self->{col_num}, decode_utf8( $val ), $format || undef );
       }
     }
 
-    print "addrow: $self->{row_number} col: $col_num = $val\n" if ($FORM{DEBUG});
+    print "addrow: $self->{row_number} col: $self->{col_num} = $val\n" if ($FORM{DEBUG});
+    $self->{col_num}++;
+  }
+
+  $self->{row_number}++;
+  $self->{col_num} = $self->{closest_col_num} || 0;
+
+  if ($self->{row_number} >= $self->{most_merge_rows}) {
+    $self->{closest_col_num} = 0;
+    $self->{most_merge_rows} = 1;
   }
 
   return $self;
+}
+
+#**********************************************************
+=head2 td($value, $attr)
+
+=cut
+#**********************************************************
+sub td {
+  my $self = shift;
+  my ($value, $attr) = @_;
+
+  my $td = { value => $value, format => {} };
+
+  if ($attr->{class}) {
+    my @classes = split('\s', $attr->{class});
+    foreach my $class (@classes) {
+      $td->{format} = { %{$td->{format}}, %{$format_class{$class}} } if $format_class{$class};
+    }
+  }
+
+  $td->{merge_cols} = $attr->{colspan} - 1 if $attr->{colspan};
+  $td->{merge_rows} = $attr->{rowspan} - 1 if $attr->{rowspan};
+  $td->{col_num} = $attr->{col_num} if $attr->{col_num};
+
+  return $td;
 }
 
 #**********************************************************
@@ -448,43 +521,51 @@ sub addtd {
 
   my $select_present = ($self->{SELECT_ALL}) ? 1 : 0;
 
-  my $format = $workbook->add_format( text_wrap => 1 );
+  for (my $i = 0; $i <= $#row; $i++) {
+    my $format = $workbook->add_format( text_wrap => 1 );
+    my $val = $row[($i + $select_present)];
 
-  for (my $i=0; $i<=$#row; $i++) {
-    my $val = $row[($i+$select_present)];
+    if (ref $val eq 'HASH') {
+      if ($val->{merge_rows} || $val->{merge_cols}) {
+        $self->_merge_range($val, $format);
+        next;
+      }
+      else {
+        $format = $workbook->add_format(%{$val->{format}}) if $val->{format} && ref $val->{format} eq 'HASH';
+        $val = $val->{value};
+      }
+    }
 
     if(!$self->{title}->[$self->{col_num}] || ($self->{title}->[$self->{col_num}] && $self->{title}->[$self->{col_num}] eq '-')) {
-      next;
+      next if !$self->{skip_empty_col};
     }
 
-    if($val =~ /\[(.+)\|(.{0,100})\]/) {
-      $worksheet->write_url( $self->{row_number}, $self->{col_num}, $SELF_URL .'?'. $1, decode( 'utf8', $2));
+    if ($val =~ /\[(.+)\|(.{0,100})\]/) {
+      $worksheet->write_url($self->{row_number}, $self->{col_num}, $SELF_URL . '?' . $1, decode('utf8', $2));
     }
-    elsif($val =~ /_COLOR:(.+):(.+)/) {
-      my $color  = $1;
-      my $text   = $2;
+    elsif ($val =~ /_COLOR:(.+):(.+)/) {
+      my $color = $1;
+      my $text = $2;
 
       my $color_format = $workbook->add_format(
         color     => ($color =~ /^#(\d+)/) ? $1 :$text_colors{$color},
         size      => 10,
-        text_wrap => 1,
-        #bold    => 1,
-          #bg_color=> 'silver',
+        text_wrap => 1
       );
 
       if ($text =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
-        $worksheet->write_string( $self->{row_number}, $self->{col_num}, decode( 'utf8', $text ), $color_format || undef );
+        $worksheet->write_string($self->{row_number}, $self->{col_num}, decode('utf8', $text), $color_format || undef);
       }
       else {
-        $worksheet->write( $self->{row_number}, $self->{col_num}, decode( 'utf8', $text ), $color_format || undef );
+        $worksheet->write($self->{row_number}, $self->{col_num}, decode('utf8', $text), $color_format || undef);
       }
     }
     else {
       if ($val =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
-        $worksheet->write_string( $self->{row_number}, $self->{col_num}, decode( 'utf8', $val ), $format || undef );
+        $worksheet->write_string($self->{row_number}, $self->{col_num}, decode('utf8', $val), $format || undef);
       }
       else {
-        $worksheet->write( $self->{row_number}, $self->{col_num}, decode( 'utf8', $val ), $format || undef );
+        $worksheet->write($self->{row_number}, $self->{col_num}, decode('utf8', $val), $format || undef);
       }
     }
     print "addtd: $self->{row_number} col: $self->{col_num} = $val\n" if ($FORM{DEBUG});
@@ -492,9 +573,41 @@ sub addtd {
   }
 
   $self->{row_number}++;
-  $self->{col_num}=0;
+  $self->{col_num} = $self->{closest_col_num} || 0;
+
+  if ($self->{row_number} >= $self->{most_merge_rows}) {
+    $self->{closest_col_num} = 0;
+    $self->{most_merge_rows} = 1;
+  }
 
   return $self;
+}
+
+#**********************************************************
+=head2 _merge_range($td)
+
+=cut
+#**********************************************************
+sub _merge_range {
+  my $self = shift;
+  my ($td) = @_;
+
+  my $format = $workbook->add_format( color => 'black', %{ $td->{format} // {} });
+
+  $td->{value} = decode('utf8', $td->{value});
+  $self->{col_num} = $td->{col_num} if defined $td->{col_num};
+  # $td->{value} = join("\n", split('', $td->{value})) if $td->{format} && defined $td->{format}{rotation};
+
+
+  $worksheet->merge_range($self->{row_number}, $self->{col_num}, $self->{row_number} + ($td->{merge_rows} || 0),
+    $self->{col_num} + ($td->{merge_cols} || 0), $td->{value}, $format);
+
+  $self->{col_num} += ($td->{merge_cols} + 1) || 1;
+
+  if ($td->{merge_rows} && $self->{row_number} + $td->{merge_rows} >= $self->{most_merge_rows}) {
+    $self->{closest_col_num} = $self->{col_num};
+    $self->{most_merge_rows} = $self->{row_number} + $td->{merge_rows};
+  }
 }
 
 #**********************************************************
@@ -513,7 +626,7 @@ sub table_title {
     bg_color=> 'silver',
   );
 
-  my $i=0;
+  my $i = 0;
 
   foreach my $line (@$caption) {
     if ($line =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
@@ -552,6 +665,7 @@ sub show {
   my $self = shift;
   my ($attr) = @_;
 
+  _autofit_columns() if $self->{AUTOFIT_COLUMNS};
   $workbook->close() if ($workbook);
   $self->{show} = '';
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID}) {
@@ -564,6 +678,62 @@ sub show {
   }
 
   return $self->{show};
+}
+
+#**********************************************************
+=head2 _autofit_columns() - Adjust the column widths to fit the longest string in the column.
+
+=cut
+#**********************************************************
+sub _autofit_columns {
+  my $col = 0;
+
+  for my $width (@{$worksheet->{__col_widths}}) {
+    $worksheet->set_column($col, $col, $width) if $width;
+    $col++;
+  }
+}
+
+#**********************************************************
+=head2 _store_string_widths($col, $token)
+
+=cut
+#**********************************************************
+sub _store_string_widths {
+  my (undef, undef, $col, $token) = @_;
+
+  # Ignore some tokens that we aren't interested in.
+  return if !defined $token;          # Ignore undefs.
+  return if $token eq '';             # Ignore blank cells.
+  return if ref $token eq 'ARRAY';    # Ignore array refs.
+  return if $token =~ /^=/;           # Ignore formula
+
+  # Ignore numbers
+  return if $token =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/;
+
+  return if $token =~ m{^[fh]tt?ps?://};
+  return if $token =~ m{^mailto:};
+  return if $token =~ m{^(?:in|ex)ternal:};
+
+  my $old_width    = $worksheet->{__col_widths}->[$col];
+  my $string_width = _string_width($token);
+
+  if (!defined($old_width) || $string_width > $old_width) {
+    $worksheet->{__col_widths}->[$col] = $string_width;
+  }
+
+  return undef;
+}
+
+#**********************************************************
+=head2 _string_width($string) - Very simple conversion between string length and string width for Arial 10.
+
+=cut
+#**********************************************************
+sub _string_width {
+  my $str_length = length $_[0];
+
+  return $str_length > 5 ? 1.1 * $str_length : undef;
 }
 
 #**********************************************************

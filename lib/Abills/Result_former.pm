@@ -939,50 +939,55 @@ sub _get_search_titles {
   my ($attr, $data) = @_;
 
   my %SEARCH_TITLES = (
-    'login_status'    => "$lang{LOGIN} $lang{STATUS}",
-    'deposit'         => "$lang{DEPOSIT}",
-    'credit'          => "$lang{CREDIT}",
-    'login'           => "$lang{LOGIN}",
-    'fio'             => "$lang{FIO}",
-    'last_payment'    => "$lang{LAST_PAYMENT}",
-    'last_fees'       => "$lang{LAST_FEES}",
-    'email'           => 'E-Mail',
-    'pasport_date'    => "$lang{PASPORT} $lang{DATE}",
-    'pasport_num'     => "$lang{PASPORT} $lang{NUM}",
-    'pasport_grant'   => "$lang{PASPORT} $lang{GRANT}",
-    'contract_id'     => "$lang{CONTRACT_ID}",
-    'contract_date'   => "$lang{CONTRACT} $lang{DATE}",
-    'registration'    => "$lang{REGISTRATION}",
-    'comments'        => "$lang{COMMENTS}",
-    'company_id'      => "$lang{COMPANY} ID",
-    'company_name'    => "$lang{COMPANY}",
-    'bill_id'         => "$lang{BILLS}",
-    'activate'        => "$lang{ACTIVATE}",
-    'expire'          => "$lang{EXPIRE}",
-    'credit_date'     => "$lang{CREDIT} $lang{DATE}",
-    'reduction'       => "$lang{REDUCTION}",
-    'reduction_date'  => "$lang{REDUCTION} $lang{DATE}",
+    login_status   => "$lang{LOGIN} $lang{STATUS}",
+    deposit        => $lang{DEPOSIT},
+    credit         => $lang{CREDIT},
+    login          => $lang{LOGIN},
+    fio            => $lang{FIO},
+    last_payment   => $lang{LAST_PAYMENT},
+    last_fees      => $lang{LAST_FEES},
+    email          => 'E-Mail',
+    pasport_date   => "$lang{PASPORT} $lang{DATE}",
+    pasport_num    => "$lang{PASPORT} $lang{NUM}",
+    pasport_grant  => "$lang{PASPORT} $lang{GRANT}",
+    contract_id    => $lang{CONTRACT_ID},
+    contract_date  => "$lang{CONTRACT} $lang{DATE}",
+    registration   => $lang{REGISTRATION},
+    comments       => $lang{COMMENTS},
+    company_id     => "$lang{COMPANY} ID",
+    company_name   => $lang{COMPANY},
+    bill_id        => $lang{BILLS},
+    activate       => $lang{ACTIVATE},
+    expire         => $lang{EXPIRE},
+    credit_date    => "$lang{CREDIT} $lang{DATE}",
+    reduction      => $lang{REDUCTION},
+    reduction_date => "$lang{REDUCTION} $lang{DATE}",
 
-    'deleted'         => "$lang{DELETED}",
-    'uid'             => 'UID',
-    'birth_date'      => "$lang{BIRTH_DATE}",
+    deleted        => $lang{DELETED},
+    uid            => 'UID',
+    birth_date     => $lang{BIRTH_DATE},
+
+    telegram       => 'Telegram',
+    viber          => 'Viber',
   );
 
   if ($permissions{0} && $permissions{0}{26}) {
-    $SEARCH_TITLES{district_name}   = "$lang{DISTRICTS}";
-    $SEARCH_TITLES{address_full}    = "$lang{FULL} $lang{ADDRESS}";
-    $SEARCH_TITLES{address_street}  = "$lang{ADDRESS_STREET}";
-    $SEARCH_TITLES{address_build}   = "$lang{ADDRESS_BUILD}";
-    $SEARCH_TITLES{address_flat}    = "$lang{ADDRESS_FLAT}";
-    $SEARCH_TITLES{address_street2} = "$lang{SECOND_NAME}";
-    $SEARCH_TITLES{city}            = "$lang{CITY}";
-    $SEARCH_TITLES{zip}             = "$lang{ZIP}";
-    $SEARCH_TITLES{phone}           = "$lang{PHONE}";
+    $SEARCH_TITLES{district_name} = $lang{DISTRICTS};
+    $SEARCH_TITLES{address_full} = "$lang{FULL} $lang{ADDRESS}";
+    $SEARCH_TITLES{address_street} = $lang{ADDRESS_STREET};
+    $SEARCH_TITLES{address_build} = $lang{ADDRESS_BUILD};
+    $SEARCH_TITLES{address_flat} = $lang{ADDRESS_FLAT};
+    $SEARCH_TITLES{address_street2} = $lang{SECOND_NAME};
+    $SEARCH_TITLES{city} = $lang{CITY};
+    $SEARCH_TITLES{zip} = $lang{ZIP};
+    $SEARCH_TITLES{phone} = $lang{PHONE};
+    $SEARCH_TITLES{floor} = $lang{FLOOR};
+    $SEARCH_TITLES{entrance} = $lang{ENTRANCE};
   }
 
   if ($permissions{0} && $permissions{0}{28}) {
     $SEARCH_TITLES{group_name} = "$lang{GROUP} $lang{NAME}";
-    $SEARCH_TITLES{gid}        = "$lang{GROUP}";
+    $SEARCH_TITLES{gid} = $lang{GROUP};
   }
 
   if (in_array('Tags', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Tags})) {
@@ -1073,7 +1078,7 @@ sub _result_former_get_value {
 
   if ($attr->{FILTER_VALUES} && $attr->{FILTER_VALUES}->{$col_name}) {
     if (ref $attr->{FILTER_VALUES}->{$col_name} eq 'CODE') {
-      return $attr->{FILTER_VALUES}->{$col_name}->($line->{$col_name}, $line);
+      return $attr->{FILTER_VALUES}->{$col_name}->($line->{$col_name}, $line, $col_name);
     }
     else {
       warn "FILTER_VALUES expects coderef";

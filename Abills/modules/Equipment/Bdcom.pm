@@ -9,6 +9,7 @@ use warnings;
 use Abills::Base qw(in_array);
 use Abills::Filters qw(bin2mac _mac_former dec2hex);
 use Equipment::Misc qw(equipment_get_telnet_tpl);
+require Equipment::Snmp_cmd;
 
 our (
   %lang,
@@ -63,6 +64,7 @@ sub _bdcom_get_ports {
     $attr
       COLS       - ARRAY refs
       INFO_OIDS  - Hash refs
+      QUERY_OIDS
       NAS_ID
       TIMEOUT
 
@@ -177,7 +179,7 @@ sub _bdcom_onu_list {
     #and that is the problem, because BDCOMs often responds to onuIpAddr very slowly, and request often timeouts because of that, and we may not get last response with some MACs in it
     #if we will use snmpwalk without getbulk, we still request one line from onuIpAddr, and snmpwalk without bulk is slow
     #so, as we know all ONU IDs from other requests, we use snmp_get only for onuMacAddr with these OIDs, not touching slow onuIpAddr, with multiple OIDs per request for speed
-
+    my $profile;
     if ($pon_type eq 'epon') {
       my $oid_name = 'ONU_MAC_SERIAL';
       my $oid = $snmp->{$oid_name}->{OIDS};
@@ -191,20 +193,23 @@ sub _bdcom_onu_list {
 
         my $result = snmp_get({
           %{$attr},
-          OID              => \@oids,
-          VERSION          => 2,
+          OID     => \@oids,
+          VERSION => 2,
         });
 
         while (@$result) {
           my $interface_index = shift @part;
-          my $result = shift @$result;
+          my $result_ = shift @$result;
           if ($function && defined(&{$function})) {
-            ($result) = &{\&$function}($result);
+            ($result_) = &{\&$function}($result_);
           }
 
-          $onu_snmp_info{$interface_index}{$oid_name} = $result;
+          $onu_snmp_info{$interface_index}{$oid_name} = $result_;
         }
       }
+    }
+    elsif ($pon_type eq 'gpon') {
+      $profile = _bdcom_get_profiles($attr);
     }
 
     foreach my $line (@$ports_descr) {
@@ -225,51 +230,32 @@ sub _bdcom_onu_list {
         $onu_info{ONU_SNMP_ID} = $interface_index;
         $onu_info{PON_TYPE} = $pon_type;
 
-        my $port_id;
-
-        # option 82 - hn-type
-        # if ($conf{DHCP_O82_BDCOM_TYPE} && $conf{DHCP_O82_BDCOM_TYPE} eq 'hn-type') {
-        #   $type =~ /\/(\d+)/;
-        #   my $olt_num = $1 + $ether_ports;
-        #   $port_id = sprintf("%02x%02x", $olt_num, $device_index);
-        # }
-        # option 82 - cm-type
-        #else {
-          $type =~ /\/(\d+)/;
-          my $olt_num = $1 + $ether_ports;
-
-          #BDCOM(tm) P3608-2TE Software, Version 10.1.0E Build 46085
-          #if ($conf{EQUIPMENT_BDCOM_OLT_DECR} && $attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /P3608/) {
-          #  $olt_num--;
-          #}
-
-          $port_id = sprintf("%02x%02x", $olt_num, $device_index);
-          #print "// $olt_num, $device_index \n";
-          #$port_id = sprintf( "%02d%02x", $branch_index, $interface_index );
-        #}
-
-        #        #if($debug > 1) {
-        #          my $olt_num = $1 + 6;
-        #          my $hn_type = sprintf( "%02x%02x", $olt_num, $device_index );
-        #          print "$port_id '$conf{DHCP_O82_BDCOM_TYPE}' // cm-type: $port_id hn-type: $hn_type / Olt_num: $olt_num BRanch index: $branch_index Int_index: $interface_index Device: $device_index ($type) ----> $onu_info{ONU_MAC_SERIAL}\n";
-        #        #}
-        #        print "?? $attr->{SNMP_COMMUNITY}\n\n";
+        $type =~ /\/(\d+)/;
+        my $olt_num = $1 + $ether_ports;
+        my $port_id = sprintf("%02x%02x", $olt_num, $device_index);
         $onu_info{ONU_DHCP_PORT} = $port_id;
 
         foreach my $oid_name (keys %{$snmp}) {
           if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info') {
             next;
           }
-          elsif ($oid_name =~ /POWER|TEMPERATURE/ && $onu_snmp_info{$interface_index}{STATUS} && $onu_snmp_info{$interface_index}{STATUS} ne '3') {
-            $onu_info{$oid_name} = '';
-            next;
-          }
-          elsif ($oid_name eq 'STATUS') {
-            $onu_info{$oid_name} = $onu_snmp_info{$interface_index}{STATUS};
+          elsif ($oid_name =~ /POWER|TEMPERATURE/
+            && defined($onu_snmp_info{$interface_index}{ONU_STATUS})
+            && $onu_snmp_info{$interface_index}{ONU_STATUS} ne '3') {
+            $onu_info{$oid_name} = 0;
             next;
           }
           elsif ($oid_name eq 'VLAN') {
-            $onu_info{$oid_name} = $onu_snmp_info{$interface_index . ".1"}{VLAN};
+            my $onu_status = $onu_snmp_info{$interface_index}{ONU_STATUS} || 0;
+            if ($onu_status) {
+              if ($pon_type eq 'gpon') {
+                my $onu_profile = $onu_snmp_info{$interface_index. '.1'}{'PROFILE'};
+                $onu_info{$oid_name}=$profile->{$onu_profile}{VLAN} || 0;
+              }
+              elsif ($onu_status == 3 || $onu_status == 4 || $onu_status == 5) {
+                $onu_info{$oid_name} = $onu_snmp_info{$interface_index . ".1"}{VLAN} || 0;
+              }
+            }
             next;
           }
         }
@@ -297,14 +283,13 @@ sub _bdcom {
   my %snmp = (
     epon => {
       'ONU_MAC_SERIAL' => {
-        NAME   => 'Mac/Serial',
+        NAME   => 'MAC/Serial',
         OIDS   => '.1.3.6.1.4.1.3320.101.10.4.1.1',
         PARSER => 'bin2mac'
       },
       'ONU_STATUS'     => {
         NAME   => 'STATUS',
         OIDS   => '.1.3.6.1.4.1.3320.101.10.1.1.26',
-        PARSER => ''
       },
       'ONU_TX_POWER'   => {
         NAME   => 'ONU_TX_POWER',
@@ -325,17 +310,14 @@ sub _bdcom {
       'ONU_DESC'       => {
         NAME   => 'DESCRIBE',
         OIDS   => '.1.3.6.1.2.1.31.1.1.1.18',
-        PARSER => ''
       },
       'ONU_IN_BYTE'    => {
         NAME   => 'ONU_IN_BYTE',
         OIDS   => '.1.3.6.1.2.1.31.1.1.1.10', #ifHCOutOctets. reversed because we need traffic from ONU side
-        PARSER => ''
       },
       'ONU_OUT_BYTE'   => {
         NAME   => 'ONU_OUT_BYTE',
         OIDS   => '.1.3.6.1.2.1.31.1.1.1.6', #ifHCInOctets. reversed because we need traffic from ONU side
-        PARSER => ''
       },
       'TEMPERATURE'    => {
         NAME   => 'TEMPERATURE',
@@ -346,7 +328,6 @@ sub _bdcom {
         NAME        => '',
         OIDS        => '.1.3.6.1.4.1.3320.101.10.1.1.29',
         RESET_VALUE => 0,
-        PARSER      => ''
       },
       'VLAN'           => {
         NAME   => 'VLAN',
@@ -358,18 +339,15 @@ sub _bdcom {
         OIDS               => '1.3.6.1.4.1.3320.101.10.30.1.2',
         ENABLE_VALUE       => 1,
         DISABLE_VALUE      => 2,
-        PARSER             => ''
       },
       main_onu_info    => {
         'HARD_VERSION'     => {
           NAME   => 'VERSION',
           OIDS   => '.1.3.6.1.4.1.3320.101.10.1.1.4',
-          PARSER => ''
         },
         'FIRMWARE'         => {
           NAME   => 'FIRMWARE',
           OIDS   => '.1.3.6.1.4.1.3320.101.10.1.1.5',
-          PARSER => ''
         },
         'VOLTAGE'          => {
           NAME   => 'VOLTAGE',
@@ -388,7 +366,7 @@ sub _bdcom {
         },
         'CATV_PORTS_COUNT' => {
           NAME   => 'CATV_PORTS_COUNT',
-          OIDS   => '1.3.6.1.4.1.3320.101.10.3.1.15',
+          OIDS   => '1.3.6.1.4.1.3320.101.10.3.1.15', # cap2NumCATVRFPorts
         },
         #'VIDEO_RX_POWER' => { #XXX is very slow, at least when there's no CATV port on ONU
         #  NAME   => 'VIDEO_RX_POWER',
@@ -404,14 +382,13 @@ sub _bdcom {
         'ONU_PORTS_STATUS' => {
           NAME   => 'ONU_PORTS_STATUS',
           OIDS   => '1.3.6.1.4.1.3320.101.12.1.1.8',
-          PARSER => '',
           WALK   => 1
         }
       }
     },
     gpon => {
       'ONU_MAC_SERIAL'      => {
-        NAME   => 'Mac/Serial',
+        NAME   => 'MAC/Serial',
         OIDS   => '.1.3.6.1.4.1.3320.10.3.3.1.2',
         #PARSER => 'bin2hex'
       },
@@ -419,7 +396,6 @@ sub _bdcom {
         NAME   => 'STATUS',
         OIDS   => '.1.3.6.1.4.1.3320.10.3.3.1.4',
         #OIDS   => '1.3.6.1.4.1.3320.10.3.1.1.8',
-        PARSER => ''
       },
       'ONU_TX_POWER'        => {
         NAME   => 'ONU_TX_POWER',
@@ -441,24 +417,25 @@ sub _bdcom {
       'ONU_DESC'            => {
         NAME   => 'DESCRIBE',
         OIDS   => '.1.3.6.1.2.1.31.1.1.1.18',
-        PARSER => ''
       },
       'ONU_IN_BYTE'         => {
         NAME   => 'ONU_IN_BYTE',
         OIDS   => '.1.3.6.1.2.1.31.1.1.1.10', #ifHCOutOctets. reversed because we need traffic from ONU side
-        PARSER => ''
       },
       'ONU_OUT_BYTE'        => {
         NAME   => 'ONU_OUT_BYTE',
         OIDS   => '.1.3.6.1.2.1.31.1.1.1.6', #ifHCInOctets. reversed because we need traffic from ONU side
-        PARSER => ''
       },
-      # 'VLAN'           => {
-      #   NAME   => 'VLAN',
-      #   OIDS   => '1.3.6.1.4.1.3320.101.12.1.1.3',
-      #   PARSER => '',
+      'PROFILE' => {
+        NAME   => 'PROFILE',
+        OIDS   => '1.3.6.1.4.1.3320.10.4.1.1.6',
+      },
+      'VLAN'           => {
+         NAME   => 'VLAN',
+         OIDS   => '1.3.6.1.4.1.3320.101.12.1.1.3',
+         PARSER => '_bdcom_pon_vlan',
       #   WALK   => 1
-      # },
+      },
       # Port temperature
       # 'TEMPERATURE'    => {
       #   NAME   => 'TEMPERATURE',
@@ -467,9 +444,8 @@ sub _bdcom {
       # }, #temperature = temperature / 256;
       'reset'               => {
         NAME        => '',
-        OIDS        => '1.3.6.1.4.1.3320.10.3.2.1.1.4',
-        RESET_VALUE => 0,
-        PARSER      => ''
+        OIDS        => '1.3.6.1.4.1.3320.10.3.2.1.4',
+        RESET_VALUE => 1,
       },
       main_onu_info         => {
         'HARD_VERSION'        => {
@@ -485,19 +461,19 @@ sub _bdcom {
         #   OIDS   => '.1.3.6.1.4.1.3320.101.10.5.1.3',
         #   PARSER => '_bdcom_convert_voltage'
         # }, #voltage = voltage * 0.0001;
-        'DISTANCE'            => {
+        'DISTANCE'         => {
           NAME   => 'DISTANCE',
           OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.33',
           PARSER => '_bdcom_convert_distance_gpon'
         }, #distance = distance * 0.001;
         # 0-1 - Active
         # 2 - Not connected
-        'ONU_PORTS_STATUS'    => {
+        'ONU_PORTS_STATUS' => {
           NAME   => 'ONU_PORTS_STATUS',
-          OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.8',
+          OIDS   => '1.3.6.1.4.1.3320.10.4.9.1.3',
           WALK   => 1
         },
-        'UPTIME'              => {
+        'UPTIME'           => {
           NAME   => 'UPTIME',
           OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.19.22',
           PARSER => '_bdcom_sec2time',
@@ -649,6 +625,48 @@ sub _bdcom {
   return \%snmp;
 }
 
+
+#**********************************************************
+=head2 _bdcom_get_profiles($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+    \%profiles{$index}{PARAMETERS}=$value
+
+=cut
+#**********************************************************
+sub _bdcom_get_profiles {
+  my ($attr)=@_;
+
+  my %profiles = ();
+  my $profile_info = snmp_get({
+    %$attr,
+    WALK    => 1,
+    OID     => '.1.3.6.1.4.1.3320.10.6.1.1.1.4',
+    VERSION => 2,
+    TIMEOUT => $attr->{TIMEOUT} || 2
+  });
+
+  foreach my $profile ( @$profile_info ) {
+    my ($index, $value)=split(/:/, $profile);
+    $profiles{$index}{VLAN}=$value;
+  }
+
+  return \%profiles;
+}
+
+#**********************************************************
+=head2 _bdcom_pon_vlan() - Tempory VLAN function
+
+=cut
+#**********************************************************
+sub _bdcom_pon_vlan {
+
+  return q{};
+}
+
 #**********************************************************
 =head2 _bdcom_sec2time($sec)
 
@@ -665,15 +683,15 @@ sub _bdcom_sec2time {
 
 =cut
 #**********************************************************
-sub _bdcom_mac_behind_onu {
-  my ($value) = @_;
-
-  my ($vlan, $mac) = split(/:/, $value, 2);
-  ($vlan) = split(/\./, $vlan);
-  $mac = bin2mac($mac);
-
-  return $value, { mac => $mac, vlan => $vlan };
-}
+# sub _bdcom_mac_behind_onu {
+#   my ($value) = @_;
+#
+#   my ($vlan, $mac) = split(/:/, $value, 2);
+#   ($vlan) = split(/\./, $vlan);
+#   $mac = bin2mac($mac);
+#
+#   return $value, { mac => $mac, vlan => $vlan };
+# }
 
 #**********************************************************
 =head2 _bdcom_onu_status()

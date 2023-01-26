@@ -1,3 +1,4 @@
+package Paysys::Paysys_Base2;
 =head1 Paysys_Base2
 
   Paysys_Base - module for payments
@@ -8,10 +9,10 @@
 
 =cut
 
-package Paysys::Paysys_Base2;
-
 use strict;
 use warnings FATAL => 'all';
+
+no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 #**********************************************************
 =head2 new($db, $admin, $CONF)
@@ -100,7 +101,7 @@ sub conf_gid_split {
     my $params = $attr->{PARAMS};
     foreach my $key (@$params) {
       $key =~ s/_NAME_/_$attr->{NAME}\_/ if ($attr->{NAME} && $key =~ /_NAME_/);
-      if ($self->{conf}->{$key . '_' . $gid}) {
+      if ($self->{conf}->{$key . '_' . $gid} || $self->{conf}->{$key . '_' . $gid} ~~ 0) {
         $self->{conf}->{$key} = $self->{conf}->{$key . '_' . $gid};
         if ($attr->{GET_MAIN_GID}) {
           $attr->{MAIN_GID} = $gid;

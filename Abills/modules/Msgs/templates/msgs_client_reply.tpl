@@ -95,7 +95,7 @@
     </div>
     <div class='card-footer'>
       <input type='hidden' name='sid' value='$sid'/>
-      <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%' id='go'
+      <input type='submit' class='btn btn-primary double_click_check' name='%ACTION%' value='%LNG_ACTION%' id='go'
              title='_{SEND}_ (Ctrl+Enter)'/>
     </div>
   </div>

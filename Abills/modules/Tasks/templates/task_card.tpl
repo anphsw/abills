@@ -1,4 +1,4 @@
-<a class="card %CLASS%" href='%SHOW_LINK%'>
+<a class='task %CLASS% ' href='%SHOW_LINK%'>
   <div><b>%TYPE_NAME%</b></div>
   <span>%TITLE%</span>
   <hr>

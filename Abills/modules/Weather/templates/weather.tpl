@@ -32,10 +32,33 @@
 </div>
 
 <script>
+
+  jQuery(document).ready(function () {
+    //find Select
+    var typeSelect = jQuery('#COORDINATES_SEL');
+
+    typeSelect.on('change', function () {
+    var selected = typeSelect.val();
+
+     let arr = selected.split(':');
+     let latitude = arr[0];
+     let longitude = arr[1];
+
+     document.cookie = "latitude=" + latitude;
+     document.cookie = "longitude=" + longitude;
+     location.reload();
+
+    });
+  });
+
+</script>
+
+<script>
   try {
     var arr = JSON.parse('%JSON_LIST%');
   } catch (err) {
-    console.log('JSON parse error.');
+    console.log('JSON parse error');
+    console.log(err);
   }
 
   arr.map((item) => {

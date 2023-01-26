@@ -56,6 +56,8 @@ sub init_sms_service {
     SMS_WEBSMS_URL         => 'WebSms',
     SMS_FENIX_URL          => 'Fenix',
     SMS_AMD_URL            => 'AMD',
+    SMS_SMSCLUB_URL        => 'SmsClub',
+    SMS_ALPHASMS_URL        => 'AlphaSms',
   );
   my $Sms_service = $sms_systems{$attr->{SMS_SERVICE} || ''} || '';
 

@@ -1,4 +1,4 @@
-<div form='users_list'>
+<div>
   <div class='form-group row'>
     <label class='control-label col-md-4 col-sm-3' for='UREPORTS_TP'>_{TARIF_PLAN}_:</label>
     <div class='col-md-8 col-sm-9'>
@@ -21,7 +21,7 @@
   </div>
 
   <div class='form-group row'>
-    <div form='users_list' class='w-100' id='reportsTable'></div>
+    <div class='w-100' id='reportsTable'></div>
   </div>
 
 </div>

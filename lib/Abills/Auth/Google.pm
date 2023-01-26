@@ -9,8 +9,8 @@ package Abills::Auth::Google;
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw(urlencode mk_unique_value show_hash);
-use Abills::Fetcher;
+use Abills::Base qw(urlencode mk_unique_value show_hash json_former);
+use Abills::Fetcher qw(web_request);
 
 my $auth_endpoint_url   = 'https://accounts.google.com/o/oauth2/v2/auth';
 my $access_token_url    = 'https://www.googleapis.com/oauth2/v4/token';
@@ -40,13 +40,18 @@ sub check_access {
     $self->validate_token({ TOKEN => $attr->{token} });
   }
   elsif (!exists $attr->{code}) {
-    my $session_state = mk_unique_value(10);
+    my %session_state = (
+      session_state => mk_unique_value(10),
+    );
+
+    $session_state{referrer} = $attr->{REFERRER} if ($attr->{REFERRER});
+    my $session_state = urlencode(json_former(\%session_state));
 
     $self->{auth_url} = join('', "$auth_endpoint_url?",
       "&response_type=code",
       "&client_id=$client_id",
       "&redirect_uri=$redirect_encoded",
-      "&scope=profile",
+      "&scope=profile%20email",
       "&access_type=offline",
       "&state=$session_state",
     );
@@ -63,6 +68,7 @@ sub check_access {
         $self->{USER_ID}     = 'google, ' . $user_info->{id};
         $self->{USER_NAME}   = $user_info->{name};
         $self->{CHECK_FIELD} = '_GOOGLE';
+        $self->{USER_EMAIL}  = $user_info->{email} || '';
       }
     }
     else {
@@ -137,7 +143,6 @@ sub get_info {
 
   my $token     = $attr->{TOKEN};
   my $client_id = $attr->{CLIENT_ID};
-
   my $api_key    = $self->{conf}->{GOOGLE_API_KEY};
 
   $self->{debug} = $self->{conf}->{AUTH_GOOGLE_DEBUG} || 0;
@@ -155,7 +160,7 @@ sub get_info {
   );
 
   if (!defined($token)) {
-    $url = $get_public_info_url . $client_id . "?personFields=photos,names&key=$api_key";
+    $url = $get_public_info_url . $client_id . "?personFields=photos,names,emailAddresses&key=$api_key";
     $hash_params{GET} = 1;
   }
   else {
@@ -180,10 +185,6 @@ sub get_info {
   }
 
   $self->{result} = $result;
-
-  if ($result->{etag}) {
-    delete($result->{etag});
-  }
 
   return $result;
 }
@@ -218,14 +219,21 @@ sub validate_token {
   return 0 unless $result;
 
   # check is present error
-  if ($result->{error}) {
-    $self->{errno}  = $result->{error}->{code};
-    $self->{errstr} = $result->{error}->{message};
-  } elsif ($result->{name}) {
+  if ($result->{error} || $result->{errno}) {
+    if ($result->{error}) {
+      $self->{errno}  = $result->{error}->{code};
+      $self->{errstr} = $result->{error}->{message};
+    }
+    else {
+      $self->{errno}  = $self->{errno};
+      $self->{errstr} = 'Unknown error';
+    }
+  }
+  elsif ($result->{name}) {
 
     # no error we can check is really user present in our system
     my $api_key    = $self->{conf}->{GOOGLE_API_KEY};
-    my $check_url = $get_public_info_url . $result->{id} . "?personFields=photos,names&key=$api_key";
+    my $check_url = $get_public_info_url . $result->{id} . "?personFields=photos,names,emailAddresses&key=$api_key";
 
     my $check_result = web_request($check_url, {
       GET         => 1,
@@ -236,17 +244,22 @@ sub validate_token {
     return 0 unless $check_result;
 
     # check is present error
-    if ($result->{error}) {
-      $self->{errno}  = $result->{error}->{code};
-      $self->{errstr} = $result->{error}->{message};
-    } else {
-      if ($result->{etag}) {
-        delete($result->{etag});
+    if ($check_result->{error} || $check_result->{errno}) {
+      if ($result->{error}) {
+        $self->{errno}  = $result->{error}->{code};
+        $self->{errstr} = $result->{error}->{message};
       }
+      else {
+        $self->{errno}  = $self->{errno};
+        $self->{errstr} = 'Unknown error';
+      }
+    }
+    else {
       # no error return user google id for look for
       $self->{USER_ID}     = 'google, ' . $result->{id};
       $self->{USER_NAME}   = $result->{name};
       $self->{CHECK_FIELD} = '_GOOGLE';
+      $self->{USER_EMAIL}  = $result->{email} || '';
     }
   }
 

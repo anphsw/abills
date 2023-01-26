@@ -74,7 +74,7 @@ sub _equipment_graph_parse {
           VENDOR_NAME      => '_SHOW',
           STATUS           => '_SHOW',
           NAS_IP           => '_SHOW',
-          MNG_HOST_PORT    => '_SHOW',
+          NAS_MNG_HOST_PORT=> '_SHOW',
           NAS_MNG_USER     => '_SHOW',
           NAS_MNG_PASSWORD => '_SHOW',
           SNMP_TPL         => '_SHOW',

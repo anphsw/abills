@@ -46,15 +46,13 @@
                   <input type=text name='GRP1' value='%TP_ID%:%TP_NAME%' ID='GRP1' class='form-control visible-xs'
                          readonly>
                   <div class='input-group-append'>
-                    <div class='input-group-text cursor-pointer'>
                       %CHANGE_TP_BUTTON%
-                    </div>
                   </div>
                   <div class='input-group-append'>
-                    <div class='input-group-text cursor-pointer'>
-                      <a href='$SELF_URL?index=$index&UID=$FORM{UID}&pay_to=1' class='$conf{CURRENCY_ICON}'
-                         title='_{PAY_TO}_'></a>
-                    </div>
+                    <a class='btn input-group-button' href='$SELF_URL?index=$index&UID=$FORM{UID}&pay_to=1'
+                       title='_{PAY_TO}_'>
+                      <i class='$conf{CURRENCY_ICON}'></i>
+                    </a>
                   </div>
                 </div>
               </div>

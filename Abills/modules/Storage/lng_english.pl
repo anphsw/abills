@@ -175,5 +175,13 @@ $lang{AVAILABLE_FOR_PUBLIC_SALE} = 'Available for public sale';
 $lang{REDEMPTION_OF_GOODS} = 'Redemption of goods';
 $lang{REDEMPTION_SUM} = 'Redemption sum';
 $lang{PRODUCT_PURCHASED} = 'Product purchased';
+$lang{REMOVE_LEFTOVERS} = 'Remove leftovers';
+$lang{LEFTOVERS_DELETED} = 'Leftovers was deleted';
+$lang{DELIVERY_TYPES} = 'Types of delivery';
+$lang{DELIVERY_TYPE} = 'Type of delivery';
+$lang{DELIVERY_ADDED} = 'Delivery added';
+$lang{TRACKING_NUMBER} = 'Tracking number';
+$lang{SEND_DATE} = 'Send date';
+$lang{STORAGE_DELIVERY} = 'Delivery';
 
 1;

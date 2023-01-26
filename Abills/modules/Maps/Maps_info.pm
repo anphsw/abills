@@ -750,6 +750,22 @@ sub maps_get_build_objects {
 #**********************************************************
 =head2 maps_layers_list() - aggregates layers from DB and external modules
 
+    LAYERS => [ {
+      id              => ''
+      name            => '',
+      lang_name       => '$lang->{}',
+      module          => '',
+      structure       => 'MARKER',
+      clustering      => 0,
+      export_function => '',
+      filter          => '', # click on layer and show checklist by default
+      button_prev_next=> 1, # click on layer and show prev-next button instead of checklist
+      sublayers       => [],
+      custom_params   => {
+        SAVE_AS_GEOMETRY => 1,
+      },
+    } ]
+
 =cut
 #**********************************************************
 sub maps_layers_list {

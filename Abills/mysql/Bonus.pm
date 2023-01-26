@@ -607,6 +607,7 @@ sub bonus_operation_del {
 
   $self->query_del('bonus_log', { ID => $id });
 
+  $admin->{MODULE} = $MODULE;
   $admin->action_add($user->{UID}, "BONUS $bill_action:$id SUM:$sum", { TYPE => 10 });
 
   return $self;
@@ -1094,7 +1095,6 @@ sub accomulation_scores_change {
   }
 
   $admin->{MODULE} = $MODULE;
-
   if ($self->{AFFECTED} && $self->{AFFECTED} > 0) {
     $admin->action_add($attr->{UID}, "SCORE: ". $attr->{SCORE}, { TYPE => 2 });
   }

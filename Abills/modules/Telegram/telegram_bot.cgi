@@ -50,10 +50,13 @@ use Abills::Sender::Core;
 
 our $db = Abills::SQL->connect( @conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
   { CHARSET => $conf{dbcharset} });
-our $admin    = Admins->new($db, \%conf);
-our $Bot_db   = Telegram->new($db, $admin, \%conf);
-our $Users    = Users->new($db, $admin, \%conf);
+our $admin = Admins->new($db, \%conf);
+our $Bot_db = Telegram->new($db, $admin, \%conf);
+our $Users = Users->new($db, $admin, \%conf);
 our $Contacts = Contacts->new($db, $admin, \%conf);
+
+use Crm::Dialogue;
+my $Dialogue = Crm::Dialogue->new($db, $admin, \%conf, { SOURCE => 'telegram' });
 
 use Abills::Misc;
 use Abills::Templates;
@@ -132,12 +135,19 @@ sub message_process {
   if (!$uid) {
     my $message_text = encode_utf8($message->{text}) || '';
 
+    my $lead_id = $Dialogue->crm_get_lead_id_by_chat_id($message->{chat}{id});
+    if ($lead_id) {
+      $Dialogue->crm_send_message($message->{text}, { LEAD_ID => $lead_id });
+      exit 1;
+    }
+
     if ($message->{text} && $message->{text} =~ m/^\/start/) {
       subscribe($message);
       main_menu();
       exit 1;
     }
-    if ($message_text eq $lang{THE_SUBSCRIBER_WITH_THIS_PHONE_IS_NOT_REGISTERED}) {
+
+    if ($message_text eq $lang{INVITE_A_FRIEND}) {
       if ($commands_list{$message_text} && $fn_data) {
         my @fn_argv = split('&', $fn_data);
         telegram_button_fn({
@@ -247,7 +257,7 @@ sub main_menu {
     text         => $text,
     reply_markup => {
       keyboard        => $keyboard,
-      resize_keyboard => "true",
+      resize_keyboard => 'true',
     },
   });
 
@@ -367,7 +377,7 @@ sub admin_fast_replace {
 
     load_module('Msgs', { language => $conf{TELEGRAM_LANG} });
 
-    my $Notify = Msgs::Notify->new($db, $admin, \%conf, {LANG => \%lang, HTML => $html});
+    my $Notify = Msgs::Notify->new($db, $admin, \%conf, { LANG => \%lang, HTML => $html });
     $Notify->notify_user({
       REPLY_ID  => $Msgs->{INSERT_ID},
       MSG_ID    => $msgs_text[0],

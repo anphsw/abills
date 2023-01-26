@@ -182,16 +182,18 @@ sub crm_lead_list {
   push @WHERE_RULES, "cl.date <= '$attr->{TO_DATE}'" if ($attr->{TO_DATE});
   push @WHERE_RULES, "cl.phone LIKE '\%$attr->{PHONE_SEARCH}\%'" if ($attr->{PHONE_SEARCH});
   push @WHERE_RULES, "(cl.domain_id='$self->{admin}{DOMAIN_ID}')" if ($self->{admin}{DOMAIN_ID});
-  push @WHERE_RULES, "((SELECT COUNT(DISTINCT cl2.id) FROM crm_leads cl2 WHERE cl2.phone <> '' AND cl2.phone=cl.phone) > 1
-  OR (SELECT COUNT(DISTINCT cl2.id) FROM crm_leads cl2 WHERE cl2.email <> '' AND cl2.email=cl.email) > 1)" if ($attr->{DUBLICATE});
+  if ($attr->{DUBLICATE}) {
+    push @WHERE_RULES, "((SELECT COUNT(DISTINCT cl2.id) FROM crm_leads cl2 WHERE cl2.phone <> '' AND cl2.phone=cl.phone) > 1
+      OR (SELECT COUNT(DISTINCT cl2.id) FROM crm_leads cl2 WHERE cl2.email <> '' AND cl2.email=cl.email) > 1)";
+    $SORT = 'cl.phone,cl.email' if !$attr->{SORT} || $attr->{SORT} eq '1';
+  }
 
   push @WHERE_RULES, "cl.responsible='$admin->{AID}'" if (! $attr->{SKIP_RESPOSIBLE} && (!$admin->{permissions}{7} || !$admin->{permissions}{7}{4}));
 
-
-  if ($attr->{LEAD_ID}) {
-    $SORT = 'lead_id';
-    $DESC = 'DESC';
-  }
+  # if ($attr->{LEAD_ID}) {
+  #   $SORT = 'lead_id';
+  #   $DESC = 'DESC';
+  # }
 
   $attr->{SKIP_DEL_CHECK} = 1;
   $attr->{SEARCH_COLUMNS} = $attr->{SEARCH_COLUMNS} && ref $attr->{SEARCH_COLUMNS} eq 'ARRAY' ? $attr->{SEARCH_COLUMNS} : ();
@@ -214,7 +216,7 @@ sub crm_lead_list {
     [ 'STEP_COLOR',       'STR',   'cps.color as step_color',        1 ],
     [ 'ADDRESS',          'STR',   'cl.address',                     1 ],
     [ 'BUILD_ID',         'INT',   'cl.build_id',                    1 ],
-    [ 'ADDRESS_FLAT',     'STR',   'cl.address_flat',                1 ],
+    # [ 'ADDRESS_FLAT',     'STR',   'cl.address_flat',                1 ],
     [ 'LAST_ACTION',      'STR',   'cl.id as last_action',           1 ],
     [ 'PRIORITY' ,        'STR',   'cl.priority',                    1 ],
     [ 'PERIOD',           'DATE',  'cl.date as period',              1 ],
@@ -236,19 +238,16 @@ sub crm_lead_list {
   ];
 
   map push(@{$search_columns}, $_), @{$attr->{SEARCH_COLUMNS}};
+  map { $attr->{$_->[0]} = '_SHOW' if (!exists $attr->{$_->[0]}) } @{$search_columns} if $attr->{SHOW_ALL_COLUMNS};
 
   my $WHERE = $self->search_former($attr, $search_columns, {
     WHERE             => 1,
-    USERS_FIELDS_PRE  => 1,
-    SKIP_USERS_FIELDS => [ 'FIO', 'PHONE', 'EMAIL', 'COMMENTS', 'DOMAIN_ID', 'ADDRESS_FULL' ],
+    USERS_FIELDS_PRE  => $attr->{SKIP_USERS_FIELDS_PRE} ? 0 : 1,
+    SKIP_USERS_FIELDS => [ 'FIO', 'PHONE', 'EMAIL', 'COMMENTS', 'DOMAIN_ID', 'ADDRESS_FULL', 'ADDRESS_FLAT' ],
     WHERE_RULES       => \@WHERE_RULES,
   });
 
   my $EXT_TABLES = $self->{EXT_TABLES};
-
-  # if ($attr->{LEAD_ADDRESS}) {
-  #   $EXT_TABLES .= " LEFT JOIN districts ON (districts.id=streets.district_id) ";
-  # }
 
   if ($attr->{LEAD_ADDRESS} || $attr->{ADDRESS_FULL}) {
     $EXT_TABLES .= "LEFT JOIN builds ON (builds.id=cl.build_id)";
@@ -263,9 +262,9 @@ sub crm_lead_list {
     $EXT_TABLES .= 'LEFT JOIN crm_leads_watchers clw ON (clw.lead_id = cl.id)';
   }
 
-  my $sql =  "SELECT DISTINCT
+  my $sql =  "SELECT
     $self->{SEARCH_FIELDS}
-    cl.uid, cl.id
+    cl.uid, cl.id, cl.id as lead_id
     FROM crm_leads as cl
     LEFT JOIN crm_leads_sources cls ON (cls.id = cl.source)
     LEFT JOIN crm_competitors cc ON (cc.id = cl.competitor_id)
@@ -275,6 +274,7 @@ sub crm_lead_list {
     LEFT JOIN users u ON (u.uid = cl.uid)
     $EXT_TABLES
     $WHERE
+    GROUP BY cl.id
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;";
 
@@ -316,7 +316,7 @@ sub crm_progressbar_step_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add('crm_progressbar_steps', {%$attr});
+  $self->query_add('crm_progressbar_steps', { %$attr });
 
   return $self;
 }
@@ -428,10 +428,7 @@ sub crm_progressbar_step_list {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  if($self->{admin}{DOMAIN_ID}){
-    push @WHERE_RULES,
-      "(domain_id='$self->{admin}{DOMAIN_ID}')";
-  }
+  push @WHERE_RULES, "(domain_id='$self->{admin}{DOMAIN_ID}')" if $self->{admin}{DOMAIN_ID};
 
   my $WHERE = $self->search_former(
     $attr,
@@ -490,7 +487,7 @@ sub leads_source_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add('crm_leads_sources', {%$attr});
+  $self->query_add('crm_leads_sources', { %$attr });
 
   return $self;
 }
@@ -510,13 +507,11 @@ sub leads_source_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'crm_leads_sources',
-      DATA         => $attr
-    }
-  );
+   $self->changes({
+     CHANGE_PARAM => 'ID',
+     TABLE        => 'crm_leads_sources',
+     DATA         => $attr
+   });
 
   return $self;
  }
@@ -557,11 +552,10 @@ sub leads_source_info {
   my ($attr) = @_;
 
   $self->query(
-    "SELECT * FROM crm_leads_sources
-      WHERE id = ?;", undef, { COLS_NAME=>1, COLS_UPPER=> 1, Bind => [ $attr->{ID} ] }
+    "SELECT * FROM crm_leads_sources WHERE id = ?;", undef, { COLS_NAME => 1, COLS_UPPER => 1, Bind => [ $attr->{ID} ] }
   );
 
-  return $self->{list}->[0] || {};
+  return $self->{list}[0] || {};
 }
 
 #**********************************************************
@@ -585,18 +579,15 @@ sub leads_source_list {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  if($self->{admin}{DOMAIN_ID}){
-    push @WHERE_RULES,
-      "(cls.domain_id='$self->{admin}{DOMAIN_ID}')";
-  }
+  push @WHERE_RULES, "(cls.domain_id='$self->{admin}{DOMAIN_ID}')" if $self->{admin}{DOMAIN_ID};
 
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'ID',         'INT',    'cls.id',       1 ],
-      [ 'NAME',       'STR',    'cls.name',     1 ],
-      [ 'COMMENTS',   'STR',    'cls.comments', 1 ],
-      [ 'DOMAIN_ID',  'INT',    'cls.domain_id',0 ],
+      [ 'ID',        'INT', 'cls.id',        1 ],
+      [ 'NAME',      'STR', 'cls.name',      1 ],
+      [ 'COMMENTS',  'STR', 'cls.comments',  1 ],
+      [ 'DOMAIN_ID', 'INT', 'cls.domain_id', 0 ],
     ],
     {
       WHERE => 1,
@@ -670,6 +661,28 @@ sub progressbar_comment_delete {
 }
 
 #**********************************************************
+=head2 progressbar_comment_change($attr)
+
+  Arguments:
+     $attr
+
+  Returns:
+=cut
+#**********************************************************
+sub progressbar_comment_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'crm_progressbar_step_comments',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
 =head2 progressbar_comment_list() -
 
   Arguments:
@@ -690,10 +703,7 @@ sub progressbar_comment_list  {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 99999;
 
-  if($self->{admin}{DOMAIN_ID}){
-    push @WHERE_RULES,
-      "(cpsc.domain_id='$self->{admin}{DOMAIN_ID}')";
-  }
+  push @WHERE_RULES, "(cpsc.domain_id='$self->{admin}{DOMAIN_ID}')" if $self->{admin}{DOMAIN_ID};
 
   my $WHERE = $self->search_former(
     $attr,
@@ -710,6 +720,7 @@ sub progressbar_comment_list  {
       [ 'PLANNED_DATE',  'DATE',   'cpsc.planned_date',      1 ],
       [ 'DOMAIN_ID',     'INT',    'cpsc.domain_id',         0 ],
       [ 'PRIORITY',      'STR',    'cpsc.priority',          1 ],
+      [ 'PIN',           'INT',    'cpsc.pin',               1 ],
     ],
     {
       WHERE => 1,
@@ -793,13 +804,11 @@ sub crm_actions_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'crm_actions',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'crm_actions',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -850,18 +859,15 @@ sub crm_actions_list {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  if($self->{admin}{DOMAIN_ID}){
-    push @WHERE_RULES,
-      "(ca.domain_id='$self->{admin}{DOMAIN_ID}')";
-  }
+  push @WHERE_RULES, "(ca.domain_id='$self->{admin}{DOMAIN_ID}')" if $self->{admin}{DOMAIN_ID};
 
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'ID',         'INT',    'ca.id',       1 ],
-      [ 'NAME',       'STR',    'ca.name',     1 ],
-      [ 'ACTION',     'STR',    'ca.action',   1 ],
-      [ 'DOMAIN_ID',  'INT',    'ca.domain_id',0 ],
+      [ 'ID',         'INT',    'ca.id',        1 ],
+      [ 'NAME',       'STR',    'ca.name',      1 ],
+      [ 'ACTION',     'STR',    'ca.action',    1 ],
+      [ 'DOMAIN_ID',  'INT',    'ca.domain_id', 0 ],
     ],
     {
       WHERE => 1,
@@ -933,13 +939,9 @@ sub crm_update_lead_tags {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("UPDATE `crm_leads` SET tag_ids='$attr->{TAG_IDS}' WHERE id=?;",
-    "do",
-    {
-      Bind => [
-        $attr->{LEAD_ID}
-      ]
-    });
+  $self->query("UPDATE `crm_leads` SET tag_ids='$attr->{TAG_IDS}' WHERE id=?;", 'do', {
+    Bind => [ $attr->{LEAD_ID} ]
+  });
 
   return $self;
 }
@@ -981,6 +983,7 @@ sub crm_competitor_add {
   my $self = shift;
   my ($attr) = @_;
 
+  $attr->{DOMAIN_ID} = $self->{admin}{DOMAIN_ID} || 0;
   $self->query_add('crm_competitors', $attr);
 
   return $self;
@@ -1043,18 +1046,17 @@ sub crm_competitor_list {
     $EXT_TABLE .= 'LEFT JOIN streets s ON (s.id=b.street_id OR s.id=ccg.street_id)';
   }
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
-      [ 'ID',               'INT', 'cc.id',              1 ],
-      [ 'NAME',             'STR', 'cc.name',            1 ],
-      [ 'DESCR',            'STR', 'cc.descr',           1 ],
-      [ 'SITE',             'STR', 'cc.site',            1 ],
-      [ 'COLOR',            'STR', 'color',              1 ],
-      [ 'CONNECTION_TYPE',  'STR', 'cc.connection_type', 1 ],
-    ],
-    { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
-  );
+  push @WHERE_RULES, "(cc.domain_id='$self->{admin}{DOMAIN_ID}')" if $self->{admin}{DOMAIN_ID};
+
+  my $WHERE = $self->search_former($attr,[
+    [ 'ID',              'INT', 'cc.id',              1 ],
+    [ 'NAME',            'STR', 'cc.name',            1 ],
+    [ 'DESCR',           'STR', 'cc.descr',           1 ],
+    [ 'SITE',            'STR', 'cc.site',            1 ],
+    [ 'COLOR',           'STR', 'color',              1 ],
+    [ 'CONNECTION_TYPE', 'STR', 'cc.connection_type', 1 ],
+    [ 'DOMAIN_ID',       'INT', 'cc.domain_id',       0 ]
+  ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
   $self->query(
     "SELECT $self->{SEARCH_FIELDS} cc.id FROM crm_competitors cc
@@ -1200,19 +1202,17 @@ sub crm_competitors_tps_list {
     $EXT_TABLE .= 'LEFT JOIN streets s ON (s.id=b.street_id OR s.id=cctg.street_id)';
   }
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
-      [ 'ID',              'INT', 'cct.id',                     1 ],
-      [ 'NAME',            'STR', 'cct.name',                   1 ],
-      [ 'SPEED',           'INT', 'cct.speed',                  1 ],
-      [ 'MONTH_FEE',       'INT', 'cct.month_fee',              1 ],
-      [ 'DAY_FEE',         'INT', 'cct.day_fee',                1 ],
-      [ 'COMPETITOR_ID',   'INT', 'cct.competitor_id',          1 ],
-      [ 'COMPETITOR_NAME', 'STR', 'cc.name AS competitor_name', 1 ],
-    ],
-    { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
-  );
+  push @WHERE_RULES, "(cc.domain_id='$self->{admin}{DOMAIN_ID}')" if $self->{admin}{DOMAIN_ID};
+
+  my $WHERE = $self->search_former($attr,[
+    [ 'ID',              'INT', 'cct.id',                     1 ],
+    [ 'NAME',            'STR', 'cct.name',                   1 ],
+    [ 'SPEED',           'INT', 'cct.speed',                  1 ],
+    [ 'MONTH_FEE',       'INT', 'cct.month_fee',              1 ],
+    [ 'DAY_FEE',         'INT', 'cct.day_fee',                1 ],
+    [ 'COMPETITOR_ID',   'INT', 'cct.competitor_id',          1 ],
+    [ 'COMPETITOR_NAME', 'STR', 'cc.name AS competitor_name', 1 ],
+  ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
   $self->query(
     "SELECT $self->{SEARCH_FIELDS} cct.id
@@ -1685,6 +1685,7 @@ sub fields_add {
   $attr->{SQL_FIELD} = "_" . $attr->{SQL_FIELD};
   my $table_name = $attr->{TP_INFO_FIELDS} ? 'crm_tp_info_fields' : 'crm_info_fields';
 
+  $attr->{DOMAIN_ID} = $self->{admin}{DOMAIN_ID} || 0;
   $self->query_add($table_name, $attr);
 
   return $self;
@@ -1720,6 +1721,9 @@ sub fields_list {
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my @WHERE_RULES = ();
+
+  push @WHERE_RULES, "(domain_id='$self->{admin}{DOMAIN_ID}')" if $self->{admin}{DOMAIN_ID};
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',           'INT', 'id',           1 ],
@@ -1728,8 +1732,9 @@ sub fields_list {
     [ 'TYPE',         'INT', 'type',         1 ],
     [ 'PRIORITY',     'INT', 'priority',     1 ],
     [ 'COMMENT',      'STR', 'comment',      1 ],
-    [ 'REGISTRATION', 'INT', 'registration', 1 ]
-  ], { WHERE => 1 });
+    [ 'REGISTRATION', 'INT', 'registration', 1 ],
+    [ 'DOMAIN_ID',    'INT', 'domain_id',    1 ]
+  ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
   my $table_name = $attr->{TP_INFO_FIELDS} ? 'crm_tp_info_fields' : 'crm_info_fields';
 
@@ -2069,11 +2074,13 @@ sub crm_users_by_lead_email {
   my $self = shift;
   my $id = shift;
 
+  my $domain_condition = $self->{admin}{DOMAIN_ID} ? " AND (col.domain_id='$self->{admin}{DOMAIN_ID}')" : '';
+
   $self->query(
     "SELECT cl.id, cl.email, uc.uid, cl.uid AS lead_uid, u.id AS login FROM crm_leads cl
      LEFT JOIN users_contacts uc on (uc.value <> '' AND cl.email=uc.value)
      LEFT JOIN users u ON (u.uid=uc.uid)
-     WHERE cl.email <> '' AND cl.id = ?;",
+     WHERE cl.email <> '' AND cl.id = ? $domain_condition;",
     undef, { INFO => 1, Bind => [ $id ] }
   );
 
@@ -2098,10 +2105,10 @@ sub crm_lead_watch_add {
   my ($attr) = @_;
 
   $self->query_add('crm_leads_watchers', {
-      %$attr,
-      AID      => $attr->{AID} || $admin->{AID},
-      LEAD_ID => $attr->{LEAD_ID},
-      ADD_DATE => 'NOW()'
+    %$attr,
+    AID      => $attr->{AID} || $admin->{AID},
+    LEAD_ID  => $attr->{LEAD_ID},
+    ADD_DATE => 'NOW()'
   });
 
   return $self->{list};
@@ -2148,8 +2155,8 @@ sub crm_lead_watch_list {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former($attr, [
-      [ 'LEAD_ID',  'INT', 'lead_id' ],
-      [ 'AID',      'INT', 'aid'     ],
+    [ 'LEAD_ID',  'INT', 'lead_id' ],
+    [ 'AID',      'INT', 'aid'     ],
   ], { WHERE => 1 });
 
   $self->query("SELECT lead_id, aid
@@ -2161,6 +2168,595 @@ sub crm_lead_watch_list {
   );
 
   return $self->{list};
+}
+
+#**********************************************************
+=head2 crm_response_templates_add () - add new response template
+
+  Arguments:
+     NAME   - name of the templates
+     TEXT   - text the templates
+
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub crm_response_templates_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('crm_response_templates', {%$attr});
+
+  return $self;
+}
+#**********************************************************
+=head2 crm_response_templates_info (ID) - Show info of template
+
+  Arguments:
+    ID
+
+  Returns:
+    NAME
+    TEXT
+
+=cut
+#**********************************************************
+sub crm_response_templates_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT *
+   FROM crm_response_templates
+   WHERE id = ?;",
+    undef,
+    { INFO => 1,
+      Bind => [ $attr->{ID} ]
+    }
+  );
+
+  return $self;
+}
+#*******************************************************************
+=head2 crm_response_templates_change(ID, NAME, TEXT) - change template
+
+  Arguments:
+     ID     - id of the templates
+     NAME   - name of the templates
+     TEXT   - text the templates
+
+  Returns:
+    $self
+
+  Examples:
+    $Crm->crm_response_templates_change({
+      ID     => 1,
+      NAME   => 'No answer'
+      TEXT   => 'TEST'
+    });
+
+=cut
+#*******************************************************************
+sub crm_response_templates_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'crm_response_templates',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2  crm_response_templates_del(ID) - delete template
+
+  Arguments:
+    ID
+
+  Returns:
+   $self
+
+=cut
+#*******************************************************************
+sub crm_response_templates_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('crm_response_templates', $attr);
+
+  return $self;
+}
+
+#*******************************************************************
+
+=head2  crm_response_templates_list() - list of templates
+
+  Arguments:
+    $attr
+
+  Returns:
+    $list
+
+=cut
+
+#*******************************************************************
+sub crm_response_templates_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
+
+  my $search_columns = [
+    [ 'ID',               'INT', 'crt.id',              1 ],
+    [ 'NAME',             'STR', 'crt.name',            1 ],
+    [ 'TEXT',             'STR', 'crt.text',            1 ],
+  ];
+
+  my $WHERE = $self->search_former($attr, $search_columns, {
+    WHERE => 1,
+  });
+
+  $self->query("
+    SELECT *
+    FROM crm_response_templates crt
+    $WHERE
+    GROUP BY crt.id
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef, $attr
+  );
+
+  my $list = $self->{list};
+
+  $self->query("
+    SELECT COUNT(*) AS total
+    FROM crm_response_templates
+    $WHERE;",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#*******************************************************************
+=head2  crm_dialogues_list() - list of dialogues
+
+=cut
+#*******************************************************************
+sub crm_dialogues_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = $attr->{SORT} ? $attr->{SORT} : 'cd.id';
+  my $DESC = $attr->{DESC} ? $attr->{DESC} : '';
+  my $PG = $attr->{PG} ? $attr->{PG} : 0;
+  my $PAGE_ROWS = $attr->{PAGE_ROWS} ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',           'INT',  'cd.id',                         1 ],
+    [ 'LEAD_FIO',     'STR',  'cl.fio', 'cl.fio AS lead_fio',  1 ],
+    [ 'STATE',        'INT',  'cd.state',                      1 ],
+    [ 'ADMIN',        'STR',  'a.id', 'a.id AS admin',         1 ],
+    [ 'DATE',         'DATE', 'cd.date',                       1 ],
+    [ 'SOURCE',       'STR',  'cd.source',                     1 ],
+    [ 'LEAD_ID',      'INT',  'cd.lead_id',                    1 ],
+    [ 'AID',          'INT',  'cd.aid',                        1 ],
+    [ 'LAST_MESSAGE',  'STR',
+      '(SELECT message FROM crm_dialogue_messages WHERE dialogue_id=cd.id ORDER BY id DESC LIMIT 1) AS last_message',   1],
+    [ 'LAST_MESSAGE_DATE',  'DATE',
+      '(SELECT date FROM crm_dialogue_messages WHERE dialogue_id=cd.id ORDER BY id DESC LIMIT 1) AS last_message_date', 1],
+  ], { WHERE => 1 });
+
+  $self->query(
+    "SELECT $self->{SEARCH_FIELDS} cd.id
+     FROM crm_dialogues cd
+      LEFT JOIN admins a ON (cd.aid = a.aid)
+      LEFT JOIN crm_leads cl ON (cd.lead_id = cl.id)
+      $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list} || [];
+
+  $self->query("SELECT COUNT(*) AS total FROM crm_dialogues cd
+    LEFT JOIN admins a ON (cd.aid = a.aid)
+    $WHERE;",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#*******************************************************************
+=head2 crm_dialogue_info() - get dialogue information
+
+=cut
+#*******************************************************************
+sub crm_dialogue_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query(
+    "SELECT * FROM crm_dialogues
+      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_dialogues_add() - add dialog
+
+=cut
+#**********************************************************
+sub crm_dialogues_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('crm_dialogues', { %$attr });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 crm_dialogues_change() - change dialogue
+
+=cut
+
+#*******************************************************************
+sub crm_dialogues_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'crm_dialogues',
+    DATA         => $attr
+  });
+
+  $self->crm_dialogue_messages_add({
+    DIALOGUE_ID => $attr->{ID},
+    INNER_MSG   => 1,
+    MESSAGE     => '$lang{DIALOGUE_CLOSED}',
+    SKIP_CHANGE => 1
+  }) if !$self->{errno} && $attr->{STATE} && $attr->{STATE} eq '1';
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_dialogues_del()
+
+=cut
+#**********************************************************
+sub crm_dialogues_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('crm_dialogues', $attr);
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 crm_dialogue_messages_list() - dialogue's messages
+
+=cut
+
+#*******************************************************************
+sub crm_dialogue_messages_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = $attr->{SORT} ? $attr->{SORT} : 'cdm.id';
+  my $DESC = $attr->{DESC} ? $attr->{DESC} : '';
+  my $PG = $attr->{PG} ? $attr->{PG} : 0;
+  my $PAGE_ROWS = $attr->{PAGE_ROWS} ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',            'INT',   'cdm.id',                                         1 ],
+    [ 'DIALOGUE_ID',   'INT',   'cdm.dialogue_id',                                1 ],
+    [ 'DATE',          'DATE',  'cdm.date',                                       1 ],
+    [ 'FROM_DATE|TO_DATE', 'DATE',  "DATE_FORMAT(cdm.date, '%Y-%m-%d %H:%i:%S')",        1 ],
+    [ 'DAY',           'DATE',  'DATE_FORMAT(cdm.date,  "%Y-%m-%d") AS day',      1 ],
+    [ 'TIME',          'TIME',  'DATE_FORMAT(cdm.date, "%H:%i") AS time',         1 ],
+    [ 'MESSAGE',       'STR',   'cdm.message',                                    1 ],
+    [ 'AID',           'INT',   'cdm.aid',                                        1 ],
+    [ 'INNER_MSG',     'INT',   'cdm.inner_msg',                                  1 ],
+    [ 'AVATAR_LINK',   'STR',   'a.avatar_link',                                  1 ]
+  ], { WHERE => 1 });
+
+  $self->query(
+    "SELECT $self->{SEARCH_FIELDS} cdm.id
+      FROM crm_dialogue_messages cdm
+      LEFT JOIN admins a ON (cdm.aid = a.aid)
+      $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list} || [];
+
+  $self->query("SELECT COUNT(*) AS total FROM aid cdm
+    LEFT JOIN admins a ON (cdm.aid = a.aid)
+    $WHERE;",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#*******************************************************************
+=head2 crm_dialogue_messages_change() - change dialogue's messages
+
+=cut
+
+#*******************************************************************
+sub crm_dialogue_messages_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'crm_dialogue_messages',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 crm_dialogue_messages_change_dialogue_id() - change dialogue messages id
+
+=cut
+
+#*******************************************************************
+sub crm_dialogue_messages_change_dialogue_id {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self if !$attr->{NEW_DIALOGUE_ID} || !$attr->{OLD_DIALOGUE_ID};
+
+  $self->query("UPDATE crm_dialogue_messages SET dialogue_id=? WHERE dialogue_id=? ;", 'do',
+    { Bind => [ $attr->{NEW_DIALOGUE_ID}, $attr->{OLD_DIALOGUE_ID} ] });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_dialogue_messages_add() - add message to dialog
+
+=cut
+#**********************************************************
+sub crm_dialogue_messages_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('crm_dialogue_messages', { %$attr });
+  $self->crm_dialogues_change({ ID => $attr->{DIALOGUE_ID}, STATE => $attr->{AID} ? 2 : 0 }) if (!$self->{errno} && !$attr->{SKIP_CHANGE});
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_open_line_info() - open line info
+
+=cut
+#**********************************************************
+sub crm_open_line_info {
+  my $self = shift;
+  my $id = shift;
+
+  my $domain_condition = $self->{admin}{DOMAIN_ID} ? " AND (col.domain_id='$self->{admin}{DOMAIN_ID}')" : '';
+
+  $self->query("SELECT col.*, GROUP_CONCAT(DISTINCT cola.aid) AS aid
+   FROM crm_open_lines col
+   LEFT JOIN crm_open_line_admins cola ON (col.id = cola.open_line_id)
+   WHERE col.id = ? $domain_condition;", undef, { INFO => 1, Bind => [ $id ] });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2  crm_open_lines_list() - list of open lines
+
+=cut
+#*******************************************************************
+sub crm_open_lines_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = $attr->{SORT} ? $attr->{SORT} : 'col.id';
+  my $DESC = $attr->{DESC} ? $attr->{DESC} : '';
+  my $PG = $attr->{PG} ? $attr->{PG} : 0;
+  my $PAGE_ROWS = $attr->{PAGE_ROWS} ? $attr->{PAGE_ROWS} : 25;
+  my @WHERE_RULES = ();
+
+  push @WHERE_RULES, "(col.domain_id='$self->{admin}{DOMAIN_ID}')" if $self->{admin}{DOMAIN_ID};
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',           'INT',  'col.id',                                      1 ],
+    [ 'LINE_ID',      'INT',  'col.id AS line_id',                           1 ],
+    [ 'NAME',         'STR',  'col.name',                                    1 ],
+    [ 'SOURCE',       'STR',  'col.source',                                  1 ],
+    [ 'AID',          'INT',  'cola.aid',                                    1 ],
+    [ 'AIDS',         'STR',  'GROUP_CONCAT(DISTINCT cola.aid) AS aids',     1 ],
+    [ 'ADMINS_NAME',  'STR',  'GROUP_CONCAT(DISTINCT a.id) AS admins_name',  1 ],
+    [ 'DOMAIN_ID',    'INT',  'col.domain_id',                               0 ]
+  ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
+
+  $self->query(
+    "SELECT $self->{SEARCH_FIELDS} col.id
+     FROM crm_open_lines col
+      LEFT JOIN crm_open_line_admins cola ON (col.id = cola.open_line_id)
+      LEFT JOIN admins a ON (cola.aid = a.aid)
+      $WHERE GROUP BY col.id ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list} || [];
+
+  $self->query("SELECT COUNT(*) AS total FROM crm_open_lines col
+    LEFT JOIN crm_open_line_admins cola ON (col.id = cola.open_line_id)
+    LEFT JOIN admins a ON (cola.aid = a.aid)
+    $WHERE;",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#**********************************************************
+=head2 crm_open_line_add() - add open line
+
+=cut
+#**********************************************************
+sub crm_open_line_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{DOMAIN_ID} = $self->{admin}{DOMAIN_ID} || 0;
+  $self->query_add('crm_open_lines', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_open_line_change()
+
+=cut
+#**********************************************************
+sub crm_open_line_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'crm_open_lines',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_open_line_del() - del open line
+
+=cut
+#**********************************************************
+sub crm_open_line_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('crm_open_lines', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_open_line_admins($attr) - Open line admins
+
+  Arguments:
+    $attr
+      AID
+      ID
+
+  Results:
+    Objects
+
+=cut
+#**********************************************************
+sub crm_open_line_admins {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('crm_open_line_admins', undef, { OPEN_LINE_ID => $attr->{ID} });
+
+  return $self if !$attr->{AID};
+
+  my @aids = split(/,\s?/, $attr->{AID});
+
+  my @MULTI_QUERY = ();
+
+  foreach my $id (@aids) {
+    push @MULTI_QUERY, [ $attr->{ID}, $id ];
+  }
+
+  $self->query("INSERT INTO crm_open_line_admins (open_line_id, aid) VALUES (?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 crm_lead_fields($attr)
+
+=cut
+#*******************************************************************
+sub crm_lead_fields {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self if !$attr->{LEAD_ID} && !$attr->{PANEL};
+
+  $self->query_del('crm_lead_fields', undef, { LEAD_ID => $attr->{LEAD_ID}, AID => $admin->{AID}, PANEL => $attr->{PANEL} });
+
+  $attr->{AID} ||= $admin->{AID};
+  $self->query_add('crm_lead_fields', $attr);
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 crm_lead_fields_list($attr)
+
+=cut
+#*******************************************************************
+sub crm_lead_fields_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',      'INT', 'id',       1 ],
+    [ 'LEAD_ID', 'INT', 'lead_id',  1 ],
+    [ 'AID',     'INT', 'aid',      1 ],
+    [ 'FIELDS',  'STR', 'fields',   1 ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
+    FROM crm_lead_fields $WHERE;",
+    undef, $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#*******************************************************************
+=head2 function crm_lead_fields_info($attr)
+
+=cut
+#*******************************************************************
+sub crm_lead_fields_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT * FROM crm_lead_fields
+    WHERE lead_id = ? AND aid = ? AND panel = ?;", undef, { INFO => 1, Bind => [ $attr->{LEAD_ID}, $attr->{AID}, $attr->{PANEL} ] }
+  );
+
+  return $self;
 }
 
 1

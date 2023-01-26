@@ -1,111 +1,99 @@
 <style>
-  ol.progtrckr, ol.progtrckrText {
-    margin: 0;
-    padding: 0;
-    list-style-type: none;
-  }
 
-  ol.progtrckr li {
-    display: inline-block;
-    text-align: center;
-  }
+	.steps-container {
+		overflow: hidden;
+		margin: 0;
+		padding: 0;
+		white-space: nowrap;
+		border-left: 2px solid;
+		border-right: 2px solid;
+		width: 100%;
+		counter-reset: steps;
+	}
+	.steps {
+		position: relative;
+		display: inline-block;
+		left: -28px; /* -2px default + 26px offset to hide skewed area on the left side of first element*/
+		height: 50px;
+		line-height: 50px;
+		margin-left: 0;
+		margin-right: 0;
+		counter-increment: steps;
+		cursor: pointer;
+		transition: background 1s;
+		min-height: 30px;
+	}
 
-  ol.progtrckrText li {
-    display: inline-block;
-    text-align: center;
-    line-height: 1em;
-  }
+	.steps:after,
+	.steps:before {
+		position: absolute;
+		content: '';
+		left: 0;
+		height: 50%;
+		width: 100%;
+		border-top: 2px solid;
+		border-bottom: 2px solid;
+		border-left: 3px solid; /* thicker border as skew makes them look thin */
+		border-right: 3px solid;
+		background: rgba(255, 255, 255, 0.15);
+	}
 
-  ol.progtrckr-width[data-progtrckr-steps='2'] li {
-    width: 49%;
-  }
+	.steps:before {
+		transform: skew(45deg);
+		top: 0;
+		border-bottom: none;
+		transform-origin: top left;
+	}
 
-  ol.progtrckr-width[data-progtrckr-steps='3'] li {
-    width: 33%;
-  }
+	.steps:after {
+		transform: skew(-45deg);
+		bottom: 0;
+		border-top: none;
+		transform-origin: bottom left;
+	}
 
-  ol.progtrckr-width[data-progtrckr-steps='4'] li {
-    width: 24%;
-  }
+	.steps span{
+		display: block;
+		padding-left: 40px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		width: 100%;
+		height: 75%;
+		vertical-align: middle;
+	}
 
-  ol.progtrckr-width[data-progtrckr-steps='5'] li {
-    width: 19%;
-  }
+	.steps.active span{
+		font-weight: bold;
+	}
+	.steps.active:nth-child(1n):before,
+	.steps.active:nth-child(1n):after {
+		background: rgba(0, 123, 255, 0.5);
+	}
 
-  ol.progtrckr-width[data-progtrckr-steps='6'] li {
-    width: 16%;
-  }
+	.steps.active:nth-child(2n):before,
+	.steps.active:nth-child(2n):after {
+		background: rgba(23, 162, 184, 0.5);
+	}
 
-  ol.progtrckr-width[data-progtrckr-steps='7'] li {
-    width: 14%;
-  }
+	.steps.active:nth-child(3n):before,
+	.steps.active:nth-child(3n):after {
+		background: rgba(40, 167, 69, 0.5);
+	}
 
-  ol.progtrckr-width[data-progtrckr-steps='8'] li {
-    width: 12%;
-  }
+	.steps.active:nth-child(4n):before,
+	.steps.active:nth-child(4n):after {
+		background: rgba(220, 53, 69, 0.5);
+	}
 
-  ol.progtrckr-width[data-progtrckr-steps='9'] li {
-    width: 11%;
-  }
+	.steps.active:nth-child(5n):before,
+	.steps.active:nth-child(5n):after {
+		background: rgba(255, 193, 7, 0.5);
+	}
 
-  ol.progtrckr li.progtrckr-done {
-    color: black;
-    border-bottom: 12px solid yellowgreen;
-  }
-
-  ol.progtrckr li.progtrckr-todo {
-    color: silver;
-    border-bottom: 12px solid silver;
-  }
-
-  ol.progtrckr li:after {
-    content: '\00a0\00a0';
-  }
-
-  ol.progtrckr li:before {
-    position: relative;
-    bottom: -1em;
-    float: left;
-    left: 46%;
-    line-height: 1em;
-  }
-
-  ol.progtrckr li.progtrckr-done:before {
-    content: '\2713';
-    color: white;
-    background-color: yellowgreen;
-    height: 1.2em;
-    width: 1.2em;
-    line-height: 1.2em;
-    border: none;
-    border-radius: 1.2em;
-  }
-
-  ol.progtrckr li.progtrckr-todo:before {
-    content: '\039F';
-    color: silver;
-    background-color: white;
-    font-size: 1.5em;
-    bottom: -0.5em;
-    border-radius: 1.2em;
-  }
-
-  #step_icon {
-    margin-bottom: 1em;
-  }
-
-  @media (max-width: 768px) {
-    #step_name {
-      line-height: 4em;
-      text-align: center;
-      horiz-align: center;
-    }
-
-    #step_name li:nth-child(even) {
-      position: relative;
-      bottom: -1em;
-    }
-  }
+	.steps.active:nth-child(6n):before,
+	.steps.active:nth-child(6n):after {
+		background: rgba(52, 58, 64, 0.5);
+	}
 
   %CSS%
 </style>
@@ -117,70 +105,64 @@
     <div class='row' id='progressTracker'>
       <input type='hidden' name='STEP_NUM' id='progressStatus' value='%CUR_STEP%'/>
       <input type='hidden' name='END_STEP' id='end_step' value='%END_STEP%'/>
+      <input type='hidden' name='CUR_STEP' id='cur_step' value='%CUR_STEP%'/>
       <hr/>
-      <div class='alert alert-info' id='tips'>%TIPS%</div>
-      <div class='col-md-12'><ol class='progtrckrText progtrckr-width' id='step_name'></ol></div>
-      <div class='col-md-12'><ol class='progtrckr progtrckr-width' id='step_icon'></ol></div>
-      <div class='col-md-12'><ol class='progtrckrText progtrckr-width' id='step_date'></ol></div>
+      <div class='col-md-12 mb-2'>
+        <div class='steps-container' id='step_icon'>
+          %STEPS%
+        </div>
+      </div>
       <hr/>
     </div>
-    <!-- COMMENTS TO EACH STEP -->
     %STEPS_COMMENTS%
   </div>
 </div>
 
 <script>
-  var namesArr = [ %PROGRESS_NAMES% ]
-</script>
 
-<script>
-
-  function fillNames(namesArr) {
-    var olElement = jQuery('#step_icon');
-    var olElementName = jQuery('#step_name');
-    var olElementDate = jQuery('#step_date');
-    jQuery('.progtrckr-width').attr('data-progtrckr-steps', namesArr.length);
-    // console.log(namesArr);
-    for (var i = 0; i < namesArr.length; i++) {
-      // console.log('appending' + namesArr[i][0] + ':"' + namesArr[i][1] + '"');
-      appendProgressElement(namesArr[i][0], namesArr[i][1], namesArr[i][2]);
-    }
-
-    function appendProgressElement(name, date, stepId) {
-      olElementName.append(createLiElement(name));
-      olElement.append(createLiElement().attr('id', stepId));
-      olElementDate.append(createLiElement(date));
-
-      function createLiElement(text) {
-        var li = jQuery('<li></li>');
-        if (text) li.html(text);
-        return li;
-      }
-    }
+  function adjustBar() {
+    let items = jQuery('.steps').length;
+    let elHeight = jQuery('.steps').height() / 2;
+    let skewOffset = Math.tan(45 * (Math.PI / 180)) * elHeight;
+    let reduction = skewOffset + ((items - 1) * 4);
+    let leftOffset = jQuery('.steps').css('left').replace('px', '');
+    let factor = leftOffset * (-1) - 2;
+    jQuery('.steps').css({
+      'width': '-webkit-calc((100% + 4px - ' + reduction + 'px)/' + items + ')',
+      'width': 'calc((100% + 4px - ' + reduction + 'px)/' + items + ')'
+    });
+    jQuery('.steps:first-child, .steps:last-child').css({
+      'width': '-webkit-calc((100% + 4px - ' + reduction + 'px)/' + items + ' + ' + factor + 'px)',
+      'width': 'calc((100% + 4px - ' + reduction + 'px)/' + items + ' + ' + factor + 'px)'
+    });
+    jQuery('.steps span').css('padding-left', (skewOffset + 15) + "px");
+    jQuery('.steps:first-child span, .steps:last-child span').css({
+      'width': '-webkit-calc(100% - ' + factor + 'px)',
+      'width': 'calc(100% - ' + factor + 'px)',
+    });
   }
-
 
   function refreshProgress(element) {
     clearProgress();
     jQuery('#step_icon').children().each(function () {
       if (parseInt(this.id) <= parseInt(element)) {
-        jQuery('#' + this.id).attr('class', 'progtrckr-done step' + this.id);
+        jQuery('#' + this.id).addClass('active');
       }
     });
   }
 
   function clearProgress() {
-    jQuery('#step_icon').children().attr('class', 'progtrckr-todo');
+    jQuery('#step_icon').children().removeClass('active');
   }
 
   function checkStep(step) {
     let endStep = jQuery('#end_step').val();
     let convertLeadBtn = jQuery('#lead_to_client');
 
-    if (endStep == step) {
+    if (endStep === step) {
       convertLeadBtn.attr('disabled', false).attr('style', 'pointer-events: ;');
 
-      confirmModal = new AModal();
+      let confirmModal = new AModal();
       confirmModal
         .setBody('<h4 class="modal-title"><div id="confirmModalContent">_{ADD_USER}_?</div></h4>')
         .addButton('_{NO}_', 'confirmModalCancelBtn', 'default')
@@ -201,24 +183,19 @@
     }
   }
 
+  adjustBar();
   jQuery(document).ready(function () {
-    fillNames(namesArr);
-    currentStep = %CUR_STEP%;
+    let currentStep = jQuery('#cur_step').val();
     refreshProgress(currentStep);
-
     checkStep(currentStep)
 
-    jQuery('.progtrckr>li').on('click', function () {
+    jQuery('.steps-container>.steps').on('click', function () {
       jQuery('#progressStatus').val(this.id);
       refreshProgress(this.id);
       jQuery.get('?qindex=$index&header=2&LEAD_ID=$FORM{LEAD_ID}&CUR_STEP=' + this.id);
 
       checkStep(this.id);
     });
-
-    //remove tips alert-info if no text
-    var tipsDiv = jQuery('#tips');
-    if (tipsDiv.text() == '') tipsDiv.remove();
   });
 </script>
 

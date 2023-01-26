@@ -18,7 +18,7 @@ BEGIN {
   use FindBin '$Bin';
   require $Bin . '/../../libexec/config.pl';
 
-  $conf{VIBER_LANG} = 'russian' unless($conf{VIBER_LANG});
+  $conf{VIBER_LANG} = 'russian' unless ($conf{VIBER_LANG});
 
   do $Bin . "/../../language/$conf{VIBER_LANG}.pl";
   do $Bin . "/../../Abills/modules/Viber/lng_$conf{VIBER_LANG}.pl";
@@ -43,12 +43,15 @@ use API::Botapi;
 use db::Viber;
 require Abills::Misc;
 
-our $db = Abills::SQL->connect( @conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
+our $db = Abills::SQL->connect(@conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
   { CHARSET => $conf{dbcharset} });
-our $admin    = Admins->new($db, \%conf);
-our $Users    = Users->new($db, $admin, \%conf);
+our $admin = Admins->new($db, \%conf);
+our $Users = Users->new($db, $admin, \%conf);
 our $Contacts = Contacts->new($db, $admin, \%conf);
-our $Bot_db   = Viber->new($db, $admin, \%conf);
+our $Bot_db = Viber->new($db, $admin, \%conf);
+
+use Crm::Dialogue;
+my $Dialogue = Crm::Dialogue->new($db, $admin, \%conf, { SOURCE => 'viber_bot' });
 
 my $hash = ();
 our $Bot = ();
@@ -71,7 +74,7 @@ if ($ENV{REQUEST_METHOD} && $ENV{REQUEST_METHOD} eq 'POST') {
 }
 
 $Bot->{lang} = \%lang;
-my %buttons_list = %{buttons_list({bot => $Bot})};
+my %buttons_list = %{buttons_list({ bot => $Bot })};
 my %commands_list = reverse %buttons_list;
 
 message_process();
@@ -85,14 +88,27 @@ sub message_process {
   my $uid = get_uid($hash->{user}{id} || $hash->{sender}{id});
   my $aid = get_aid($hash->{user}{id} || $hash->{sender}{id});
   if (!$uid && !$aid) {
+
+
     if ($hash->{event} && $hash->{event} =~ m/^conversation_started/) {
       subscribe($hash);
+    }
+    elsif ($hash->{event} && $hash->{event} =~ m/^message/) {
+      my $lead_id = $Dialogue->crm_lead_by_source({
+        USER_ID => $hash->{sender}{id},
+        FIO     => 'Viber ' . $hash->{sender}{id},
+        AVATAR  => $hash->{sender}{avatar} || '',
+      });
+      if ($lead_id) {
+        $Dialogue->crm_send_message($hash->{message}{text}, { LEAD_ID => $lead_id });
+        exit 1;
+      }
     }
     return 1;
   }
 
   $Bot->{uid} = $uid;
-  my $text    = $hash->{message}{text} ? encode_utf8($hash->{message}{text}) : '';
+  my $text = $hash->{message}{text} ? encode_utf8($hash->{message}{text}) : '';
 
   my $info = $Bot_db->info($uid);
 
@@ -103,7 +119,8 @@ sub message_process {
       bot    => $Bot,
     });
     main_menu({ NO_MSG => 1 }) if ($ret ne 'NO_MENU');
-  } else {
+  }
+  else {
     if ($hash->{event} && $hash->{event} =~ m/^message/) {
       if ($text =~ /fn:([A-z 0-9 _-]*)&(.*)/) {
         my @args = split /&/, $2;
@@ -167,13 +184,13 @@ sub main_menu {
   my $text = $lang{USE_BUTTON};
 
   foreach my $button (sort keys %commands_list) {
-    push (@{$line[$i%4]}, $button);
+    push(@{$line[$i % 4]}, $button);
     $i++;
   }
 
   my @keyboard = ();
 
-  for my $buttons (@line){
+  for my $buttons (@line) {
     for my $button (@$buttons) {
       push @keyboard, { ActionType => 'reply', ActionBody => $button, 'Text' => $button, TextSize => 'regular', };
     }
@@ -187,8 +204,8 @@ sub main_menu {
     },
   };
 
-  $message->{text} = $text if(!$attr->{NO_MSG});
-  $message->{type} = 'text' if(!$attr->{NO_MSG});
+  $message->{text} = $text if (!$attr->{NO_MSG});
+  $message->{type} = 'text' if (!$attr->{NO_MSG});
 
   $Bot->send_message($message);
 

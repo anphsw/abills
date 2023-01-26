@@ -253,8 +253,20 @@ sub ureports_periodic_reports {
           $user->{EXPIRE_DAYS} = int($user->{DEPOSIT} / $reduction_division / $total_daily_fee);
         }
         else {
+          require Control::Service_control;
+          Control::Service_control->import();
+
+          my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+
+          my $warnings = $Service_control->service_warning({
+            UID    => $user->{UID},
+            ID     => $user->{SERVICE_ID},
+            MODULE => 'Internet'
+          });
+
           #Internet expire
-          $user->{EXPIRE_DAYS} = $user->{TP_EXPIRE} || 0;
+          $user->{EXPIRE_DAYS} = $warnings->{DAYS_TO_FEE} || 0;
+          $user->{TP_EXPIRE} = $user->{EXPIRE_DAYS};
         }
 
         $user->{EXPIRE_DATE} = POSIX::strftime("%Y-%m-%d", localtime(time + $user->{EXPIRE_DAYS} * 86400));
@@ -382,7 +394,7 @@ sub ureports_periodic_reports {
           if ($user->{EXPIRE_DAYS} == $user->{VALUE}) {
             %PARAMS = (
               DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-              MESSAGE  => "$lang{DAYS_TO_EXPIRE}: " . ($user->{TP_EXPIRE} || q{}),
+              MESSAGE  => "$lang{DAYS_TO_EXPIRE}: " . ($user->{EXPIRE_DAYS} || q{}),
               SUBJECT  => "$lang{TARIF_PLAN} $lang{EXPIRE}"
             );
           }

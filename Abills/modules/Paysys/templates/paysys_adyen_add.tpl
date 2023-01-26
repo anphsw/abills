@@ -1,5 +1,5 @@
-<div class='card card-primary card-outline'>
-  <form id='adyen_form' method='post' action='%PAY_LINK%' accept-charset='utf-8'>
+<form id='adyen_form' method='post' action='%PAY_LINK%' accept-charset='utf-8'>
+  <div class='card card-primary card-outline'>
     <div class='card-header with-border text-center pb-0'>
       <h4>_{BALANCE_RECHARCHE}_</h4>
     </div>
@@ -25,5 +25,6 @@
         </li>
       </ul>
       <input type='submit' class='btn btn-primary float-right' value='_{PAY}_'>
-  </form>
-</div>
+    </div>
+  </div>
+</form>

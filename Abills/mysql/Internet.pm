@@ -328,7 +328,7 @@ sub user_change {
     {
       if ($user->{DEPOSIT} + $user->{CREDIT} < $Tariffs->{CHANGE_PRICE}) {
         $self->{errno} = 15;
-        $self->{errstr} = "Change price too high";
+        $self->{errstr} = "ERR_SMALL_DEPOSIT";
         return $self;
       }
 
@@ -587,6 +587,7 @@ sub user_list {
     ['WEEK_TRAF_LIMIT',   'INT', 'tp.week_traf_limit',                     1 ],
     ['MONTH_TRAF_LIMIT',  'INT', 'tp.month_traf_limit',                    1 ],
     ['TOTAL_TRAF_LIMIT',  'INT', 'tp.total_traf_limit',                    1 ],
+    ['DESCRIBE_AID',      'STR', 'tp.describe_aid',                        1 ],
     ['SERVICE_COUNT',     'INT', '', 'COUNT(internet.id) AS service_count '  ] ,
     ['SHEDULE',           'INT', '', "CONCAT(s.y,'-', s.m, '-', s.d, ' ', s.action) AS shedule" ],
     ['FEES_METHOD',       'INT', 'tp.fees_method',                         1 ],
@@ -742,10 +743,7 @@ sub user_list {
   );
 
   return [] if ($self->{errno});
-  if (!$self->{list}){
-    $self->{list} = [];
-  }
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
     $self->query("SELECT COUNT( DISTINCT u.id) AS total, COUNT(u.id) AS total_services FROM users u
@@ -1397,11 +1395,24 @@ sub users_development_report {
   my $GROUP_BY = !$attr->{TOTAL} ? "GROUP BY $attr->{GROUP_BY}" : '';
   my $WHERE = "WHERE ud.date = DATE_FORMAT(NOW(), '%Y-%m-%d')";
   if ($date && $date =~ '^<(.+)') {
-    $WHERE = "WHERE ud.date = (SELECT date FROM users_development WHERE date < '$1' GROUP BY date ORDER BY date DESC LIMIT 1)";
+    $WHERE = "WHERE ud.date = (SELECT date FROM users_development WHERE date $date GROUP BY date ORDER BY date DESC LIMIT 1)";
   }
   elsif ($date) {
     $WHERE = "WHERE ud.date = '$date'";
   }
+
+  my @address_filter = ();
+  if ($attr->{DISTRICT_ID}) {
+    $attr->{DISTRICT_ID} =~ s/;/,/g;
+    push (@address_filter, "districts.id IN ($attr->{DISTRICT_ID})") ;
+  }
+
+  if ($attr->{CITY}) {
+    my $city_exp = join(",", map { "'$_'" } split(';', $attr->{CITY}));
+    push (@address_filter, "districts.city IN ($city_exp)") ;
+  }
+
+  $WHERE .= " AND (" . join(' OR ', @address_filter) . ")" if (scalar(@address_filter));
 
   $self->query("SELECT id, name, users_count, city,
       allowed, sum_allowed, (sum_allowed / allowed) AS allowed_arpu,
@@ -1428,7 +1439,8 @@ sub users_development_report {
       (sum_outflow_holdup / sum_outflow * 100) AS sum_outflow_holdup_percent
 
     FROM (
-      SELECT districts.id AS id, $attr->{GROUP_BY} AS name, districts.city, COUNT(u.uid) as users_count, SUM(ud.sum) as total_sum,
+      SELECT districts.id AS id, $attr->{GROUP_BY} AS name, districts.city AS city,
+        COUNT(ud.uid) AS users_count, SUM(ud.sum) AS total_sum,
           COUNT(IF(ud.disable = 0 AND b.deposit > -5, ud.id, null)) AS allowed,
           COUNT(IF(ud.disable = 0 AND b.deposit <= -5, ud.id, null)) AS denied,
           COUNT(IF(ud.disable = 1 OR ud.disable = 3 OR ud.disable = 5, ud.id, null)) AS outflow,
@@ -1443,7 +1455,6 @@ sub users_development_report {
           SUM(IF(ud.disable = 1, ud.sum, 0)) AS sum_outflow_disable,
           SUM(IF(ud.disable = 5, ud.sum, 0)) AS sum_outflow_neg_deposit,
           SUM(IF(ud.disable = 3, ud.sum, 0)) AS sum_outflow_holdup
-
 
       FROM users_development ud
       LEFT JOIN users u ON (u.uid = ud.uid)
@@ -1465,6 +1476,44 @@ sub users_development_report {
   return $attr->{TOTAL} ? $self->{list}[0] : $self->{list} || [];
 }
 
+#**********************************************************
+=head1 users_development_growth($attr)
+
+=cut
+#**********************************************************
+sub users_development_growth {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = '';
+
+  if ($attr->{FROM_DATE} && $attr->{TO_DATE}) {
+    if ($attr->{FROM_DATE} eq $attr->{TO_DATE}) {
+      $WHERE .= "u.registration = '$attr->{FROM_DATE}'"
+    }
+    else {
+      $WHERE .= "u.registration >= '$attr->{FROM_DATE}' AND u.registration < '$attr->{TO_DATE}'"
+    }
+  }
+
+  $self->query("SELECT COUNT(u.uid) AS users, districts.name, districts.city
+    FROM users u
+    LEFT JOIN bills b ON (u.bill_id = b.id)
+    LEFT JOIN users_pi pi ON (u.uid=pi.uid)
+    LEFT JOIN builds ON (builds.id=pi.location_id)
+    LEFT JOIN streets ON (streets.id=builds.street_id)
+    LEFT JOIN districts ON (districts.id=streets.district_id)
+
+    WHERE $WHERE
+
+    GROUP BY districts.id",
+    undef,
+    { COLS_NAME => 1 }
+  );
+
+  return $self->{list} || [];
+
+}
 
 1
 

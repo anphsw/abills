@@ -1,5 +1,5 @@
-<form action=$SELF_URL>
-    <input type=hidden name=index value=$index>
+<form action=%SELF_URL%>
+    <input type=hidden name=index value=%index%>
     <input type=hidden name=sid value=$sid>
     <input type=hidden name=CID value='%DHCP_LEASES_MAC%'>
 
@@ -10,8 +10,8 @@
 
         <div class='card-body'>
 
-            <div class='form-group'>
-                <label class='col-md-3'>MAC</label>
+            <div class='form-group row'>
+                <label class='col-md-3'>MAC:</label>
                 <div class='col-md-9'>
                     %MAC% (%IP%)
                 </div>

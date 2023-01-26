@@ -1,7 +1,11 @@
 <link rel='stylesheet' href='/styles/codemirror/lib/codemirror.css'>
+<link rel='stylesheet' href='/styles/codemirror/theme/darcula.css'>
+<link rel='stylesheet' href='/styles/codemirror/addon/hint/show-hint.css'>
 
 <script src='/styles/codemirror/lib/codemirror.js'></script>
 <script src='/styles/codemirror/mode/sql/sql.js'></script>
+<script src='/styles/codemirror/addon/hint/show-hint.js'></script>
+<script src='/styles/codemirror/addon/hint/sql-hint.js'></script>
 
 <form action='$SELF_URL' METHOD='POST' ENCTYPE='multipart/form-data' id='CARDS_ADD'>
   <input type='hidden' name='index' value=$index>
@@ -73,6 +77,28 @@
 
 
 <script>
+  let myDarkMode;
+  // if variable exist
+
+  if (typeof IS_DARK_MODE !== 'undefined') {
+    myDarkMode = IS_DARK_MODE;
+  }
+
+
+  const RWIZARD_VARS = JSON.parse('%SPECIAL_VARIABLES%') || [];
+  const PARSED_VARS = Object.fromEntries(
+    RWIZARD_VARS.map(e => {
+      if (e.includes('&')) {
+        const key = e.replace(/&/gm, '%');
+        return [key, ""];
+      }
+      const key = "%" + e + "%";
+      return [key, '']
+    })
+  );
+  const ORIGINAL_TABLES = JSON.parse('%TABLES_COLUMNS_JSON%') || {};
+  const TABLES = Object.assign(PARSED_VARS, ORIGINAL_TABLES);
+
   window.onload = function() {
     addCodeMirror('QUERY');
     addCodeMirror('QUERY_TOTAL');
@@ -81,17 +107,41 @@
   };
 
   function addCodeMirror(id) {
-    let codeMirror = CodeMirror.fromTextArea(document.getElementById(id), {
+    const CODEMIRROR_OPTIONS = {
       mode: 'text/x-mariadb',
       indentWithTabs: true,
       smartIndent: true,
       lineNumbers: true,
       matchBrackets : true,
       autofocus: true,
-      extraKeys: {"Ctrl-Space": "autocomplete"},
+      extraKeys: {
+        "Ctrl-Space": "autocomplete",
+      },
       tabSize: 2,
-      showCursorWhenSelecting: true
+      showCursorWhenSelecting: true,
+      hint: CodeMirror.hint.sql,
+      hintOptions: {
+        alignWithWord: false,
+        completeSingle: false,
+        tables: TABLES
+      }
+    };
+
+    if (myDarkMode) {
+      CODEMIRROR_OPTIONS.theme = 'darcula';
+    }
+
+    let codeMirror = CodeMirror.fromTextArea(
+      document.getElementById(id), CODEMIRROR_OPTIONS
+    );
+
+    codeMirror.on("keyup", function (cm, event) {
+      // keyCode 13 = Enter button
+      if (!cm.state.completionActive && event.keyCode != 13) {
+        CodeMirror.commands.autocomplete(cm, null, { completeSingle: false });
+      }
     });
+
     codeMirror.display.wrapper.className += ' border rounded';
   }
 </script>

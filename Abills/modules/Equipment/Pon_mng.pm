@@ -217,6 +217,7 @@ sub equipment_pon_get_ports {
 
   if (!$Equipment->{STATUS}) { #XXX check certain equipment statuses, not only Active
     if (defined(&{$get_ports_fn})) {
+      print "--- $get_ports_fn ---\n";
       my $olt_ports = &{\&$get_ports_fn}({
         %{($attr) ? $attr : {}},
         SNMP_COMMUNITY => $attr->{SNMP_COMMUNITY},
@@ -470,7 +471,7 @@ sub equipment_pon {
       SNMP_COMMUNITY => $SNMP_COMMUNITY,
       VERSION        => $attr->{VERSION},
       OID            => [ $snmp->{eth_port_manage}->{OIDS} .
-                            '.' . $FORM{ONU} . $port_id .
+                            '.' . $FORM{ONU} .'.'. $port_id .
                             ($snmp->{eth_port_manage}->{ADD_2_OID} || ''),
                           $snmp->{eth_port_manage}->{VALUE_TYPE} || "integer",
                           $set_value ]
@@ -640,6 +641,7 @@ sub equipment_pon {
     user_mac             => "$lang{USER} MAC",
     mac_behind_onu       => $lang{MAC_BEHIND_ONU},
     vlan_id              => 'Native VLAN Statics',
+    onu_vlan             => 'VLAN',
     datetime             => $lang{UPDATED},
     external_system_link => $lang{EXTERNAL_SYSTEM_LINK}
   );
@@ -1009,7 +1011,7 @@ sub equipment_register_onu {
 
   my $list = $Equipment->_list({
     NAS_ID           => $nas_id,
-    MNG_HOST_PORT    => '_SHOW',
+    NAS_MNG_HOST_PORT=> '_SHOW',
     NAS_MNG_USER     => '_SHOW',
     NAS_MNG_PASSWORD => '_SHOW',
     INTERNET_VLAN    => '_SHOW',
@@ -1021,7 +1023,7 @@ sub equipment_register_onu {
 
   if ($Equipment->{TOTAL}) {
     $attr->{NAS_INFO}{NAS_MNG_IP_PORT} = $list->[0]->{nas_mng_ip_port};
-    $attr->{NAS_INFO}{MNG_USER} = $list->[0]->{mng_user};
+    $attr->{NAS_INFO}{NAS_MNG_USER} = $list->[0]->{mng_user};
     $attr->{NAS_INFO}{NAS_MNG_USER} = $list->[0]->{nas_mng_user};
     $attr->{NAS_INFO}{NAS_MNG_PASSWORD} = $conf{EQUIPMENT_OLT_PASSWORD} || $list->[0]->{nas_mng_password};
     $attr->{NAS_INFO}{PROFILE} = $conf{EQUIPMENT_ONU_PROFILE} if ($conf{EQUIPMENT_ONU_PROFILE});
@@ -1105,6 +1107,7 @@ sub equipment_register_onu_cmd {
     $attr->{VLAN_ID} = $FORM{VLAN_ID_HIDE} || '';
 
     delete $attr->{NAS_INFO}->{ACTION_LNG};
+    delete $attr->{NAS_INFO}->{NAS_ID_INFO};
     $result = cmd($cmd, {
       DEBUG   => $FORM{DEBUG} || 0,
       PARAMS  => { %$attr, %FORM, %{$attr->{NAS_INFO}} },
@@ -1357,6 +1360,7 @@ sub equipment_delete_onu {
   if (-e $cmd && !$onu_info->{DELETED} && $FORM{COMMENTS} ne 'database') {
     if (-x $cmd) {
       delete $attr->{NAS_INFO}->{ACTION_LNG};
+      delete $attr->{NAS_INFO}->{NAS_ID_INFO};
       $result = cmd($cmd, {
         DEBUG   => $FORM{DEBUG} || 0,
         PARAMS  => { %$attr, %FORM, %$onu_info, %{$attr->{NAS_INFO}} },
@@ -1693,6 +1697,7 @@ sub pon_onu_state {
       MAC_SERIAL       => '_SHOW',
       BRANCH           => '_SHOW',
       ONU_BILLING_DESC => '_SHOW',
+      ONU_VLAN         => '_SHOW',
       #ONU_SNMP_ID     => '_SHOW',
       COLS_NAME        => 1,
       PAGE_ROWS        => 10000
@@ -1705,6 +1710,7 @@ sub pon_onu_state {
     $attr->{NAS_NAME} = $onu_list->[0]{nas_name} || q{};
     $attr->{PORT} = $onu_list->[0]{dhcp_port} || q{};
     $attr->{ONU_BILLING_DESC} = $onu_list->[0]{onu_billing_desc} || q{};
+    $attr->{VLAN} = $onu_list->[0]{vlan} || q{};
   }
 
   my $snmp_info;
@@ -1727,13 +1733,44 @@ sub pon_onu_state {
 
   my $get_onu_config_function = $nas_type . '_get_onu_config';
 
+  require Internet;
+  Internet->import();
+  my $Internet = Internet->new($db, $admin, \%conf);
+
+  # Show NAS_INFO tooltip
+  my $select_input_tooltip = '';
+  if ($nas_id) {
+    my $Nas_info = Nas->new($db, \%conf, $admin);
+    $Nas_info->info({ NAS_ID => $nas_id });
+    _error_show($Nas_info, { ID => 976, MESSAGE => $lang{NAS} });
+
+    $Internet->{NAS_NAME} = $Nas_info->{NAS_NAME} || '';
+    $Internet->{NAS_IP} = $Nas_info->{NAS_IP} || '';
+    $Internet->{NAS_MAC} = $Nas_info->{MAC} || '';
+    $Internet->{NAS_TYPE} = $Nas_info->{NAS_TYPE} || '';
+
+    $select_input_tooltip =
+       $html->b($lang{NAME}) . ': ' . $Internet->{NAS_NAME} . $html->br()
+      .$html->b('IP')        . ': ' . $Internet->{NAS_IP}   . $html->br()
+      .$html->b('MAC')       . ': ' . $Internet->{NAS_MAC}  . $html->br()
+      .$html->b('INFO')      . ': click to telnet'         . $html->br();
+  }
+
+# require Internet;
+
+# use Data::Dumper;
+# print Dumper($select_input_tooltip);
   my @info = ([
     $html->element( 'i', "", { class => 'fa fa-modal-window' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp; ONU" ),
-    $html->element('span', "$pon_type " . ($attr->{BRANCH} || q{}) . ((defined $attr->{ONU_ID}) ? ":$attr->{ONU_ID}" : q{}),
-      { class => 'btn btn-sm btn-secondary', TITLE => 'ONU' })
-      . $html->button('',
-      "NAS_ID=$nas_id&index=" . get_function_index('equipment_info')
-        . "&visual=4&ONU=$id&info_pon_onu=" . ($attr->{ONU_SNMP_ID} || q{}) . "&ONU_TYPE=$pon_type",
+    # $html->element('span', "$pon_type " . ($attr->{BRANCH} || q{}) . ((defined $attr->{ONU_ID}) ? ":$attr->{ONU_ID}" : q{}),
+    #   {class => 'btn btn-sm btn-secondary', TITLE => 'OLT INFO', 'data-tooltip-position' => 'left', 'data-tooltip'  => $select_input_tooltip,})
+    $html->button("$pon_type " . ($attr->{BRANCH} || q{}) . ((defined $attr->{ONU_ID}) ? ":$attr->{ONU_ID}" : q{}), 'test',
+      {class => 'btn btn-sm btn-secondary',
+      TITLE => 'OLT ' . $Internet->{NAS_TYPE} . ' ↓ ↓ ↓ ↓',
+      ex_params => "data-tooltip='$select_input_tooltip' data-tooltip-position='left'",
+      GLOBAL_URL => 'telnet://' . $Internet->{NAS_IP}})
+
+      . $html->button('', "NAS_ID=$nas_id&index=" . get_function_index('equipment_info') . "&visual=4&ONU=$id&info_pon_onu=" . ($attr->{ONU_SNMP_ID} || q{}) . "&ONU_TYPE=$pon_type",
       { class => 'btn btn-sm btn-success', ICON => 'fa fa-info-circle', TITLE => $lang{INFO} })
       . $tr_069_button
       . $html->button('',
@@ -1752,10 +1789,6 @@ sub pon_onu_state {
         : "")
       . "($id)"
   ]);
-
-  require Internet;
-  Internet->import();
-  my $Internet = Internet->new($db, $admin, \%conf);
 
   my $onu_abon = $Internet->user_list({
     LOGIN           => '_SHOW',
@@ -1794,13 +1827,13 @@ sub pon_onu_state {
   }
 
   if ($FORM{get_onu_config}) {
-    my $function = $nas_type . '_get_onu_config';
+    #my $function = $nas_type . '_get_onu_config';
     if ($get_onu_config_function && defined(&{$get_onu_config_function})) {
       my @onu_config_arr = &{\&$get_onu_config_function}({%$attr, PON_TYPE => $pon_type});
       foreach my $line (@onu_config_arr) {
         $line->[1] =~ s/>/&gt;/g;
         $line->[1] =~ s/</&lt;/g;
-        push @info, [ $line->[0], $html->element('pre', $line->[1]) ];
+        push @info, [ $line->[0], $html->element('pre', $line->[1], { class => "table" }) ];
       }
     }
   }
@@ -1814,12 +1847,17 @@ sub pon_onu_state {
   if ($attr->{SHOW_FIELDS} && $conf{EQUIPMENT_USER_LINK} && $conf{EQUIPMENT_USER_LINK} =~ m/%USER_MAC%/) {
     $attr->{SHOW_FIELDS} .= ',MAC_BEHIND_ONU';
   }
+
   %onu_info = &{\&$func_get_onu_info}($id, {
     %$attr,
     NAS_TYPE  => $nas_type,
     PON_TYPE  => $pon_type,
     SNMP_INFO => $snmp_info
   });
+
+  if(! $onu_info{$id}{VLAN} && $attr->{VLAN}) {
+    $onu_info{$id}{VLAN} = $attr->{VLAN};
+  }
 
   my $color_status = q{};
   if (defined $onu_info{$id}{STATUS}) {
@@ -1892,11 +1930,21 @@ sub pon_onu_state {
   ];
 
   $color_status //= 'text-black';
+
+  # foreach my $i ( keys %onu_info) {
+  #   print $i;
+  #   foreach my $k (keys %{ $onu_info{$i} }) {
+  #     print "$k -> " . ($onu_info{$i}->{$k} || '');
+  #     print '<br>';
+  #   }
+  # }
+
   push @info, @{port_result_former(\%onu_info, {
     PORT         => $id,
     COLOR_STATUS => $color_status,
     #INFO_FIELDS => $info_fields
   })};
+
   if ($attr->{OUTPUT2RETURN}) {
     return \@info;
   }
@@ -1906,6 +1954,29 @@ sub pon_onu_state {
     my @sp_arr = &{\&$function}({ %{$attr}, ONU_SNMP_ID => $id });
     foreach my $line (@sp_arr) {
       push @info, [ $line->[0], $line->[1] ];
+    }
+  }
+
+  # check onu by user group permission
+  my $admin_ = Admins->new($db, \%conf);
+  my $admins_groups_list = $admin_->admins_groups_list({ AID => $admin->{AID} });
+
+  if ($admins_groups_list) {
+    my $gid = '';
+    foreach my $line (@$admins_groups_list) {
+      $gid .= "$line->[0],";
+    }
+
+    my $onu_list_gid = $Equipment->onu_list({
+      NAS_ID      => $nas_id,
+      ONU_SNMP_ID => $id,
+      GID         => $gid,
+      COLS_NAME   => 1,
+    });
+
+    if (!$onu_list_gid->[0]->{id}) {
+      $html->message('err', $lang{ERROR}, "$lang{PERMISIION_DENIED}: $lang{GROUP}");
+      return;
     }
   }
 
@@ -2763,7 +2834,7 @@ sub equipment_tv_port {
     }
 
     my $nas_list = $Equipment->_list({
-      MNG_HOST_PORT    => '_SHOW',
+      NAS_MNG_HOST_PORT=> '_SHOW',
       NAS_MNG_PASSWORD => '_SHOW',
       VENDOR_NAME      => '_SHOW',
       MODEL_NAME       => '_SHOW',

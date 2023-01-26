@@ -56,6 +56,7 @@ $lang{SEND_SMS_TO_ANYONE}='Send an SMS message to a staff member who is not regi
 $lang{CASHBOX_WORK}='Work with cashbox';
 $lang{CASHBOXS}='Cashboxs';
 $lang{ADD_CASHBOX}='Add cashbox';
+$lang{CHANGE_CASHBOX}='Change cashbox';
 $lang{CASHBOX_ADDED}='Cashbox added';
 $lang{IN_CASHBOX}='in cashbox';
 $lang{CASHBOX_NOT_ADDED}='Cashbox not added';
@@ -106,5 +107,7 @@ $lang{ALL_SALARY} = 'Pay out';
 
 $lang{TICKET_WORKS} = 'Ticket works';
 $lang{CHECKING_WORKS_BEFORE_CLOSING} = 'Checking works before closing the ticket';
+
+$lang{ADMIN_DEFAULT} = 'Default admin';
 
 1

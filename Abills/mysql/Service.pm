@@ -8,12 +8,12 @@ package Service;
 
 use strict;
 our $VERSION = 2.00;
-use parent 'main';
+use parent qw(dbcore);
 
 #**********************************************************
 # Init
 #**********************************************************
-sub new{
+sub new {
   my $class = shift;
 
   my ($db, $admin, $CONF) = @_;
@@ -24,7 +24,7 @@ sub new{
     conf  => $CONF,
   };
 
-  bless( $self, $class );
+  bless($self, $class);
 
   return $self;
 }
@@ -34,11 +34,11 @@ sub new{
 
 =cut
 #**********************************************************
-sub status_add{
+sub status_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add( 'service_status', $attr );
+  $self->query_add('service_status', $attr);
 
   return $self;
 }
@@ -48,17 +48,15 @@ sub status_add{
 
 =cut
 #**********************************************************
-sub status_change{
+sub status_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'service_status',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'service_status',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -68,24 +66,24 @@ sub status_change{
 
 =cut
 #**********************************************************
-sub status_list{
+sub status_list {
   my $self = shift;
   my ($attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = (defined( $attr->{DESC} )) ? $attr->{DESC} : 'DESC';
+  my $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : 'DESC';
 
   my $WHERE = $self->search_former( $attr, [
-      [ 'ID',       'INT', 'id',        1],
-      [ 'NAME',     'STR', 'name',      1],
-      [ 'COLOR',    'STR', 'color',     1],
-      [ 'TYPE',     'INT', 'type',      1],
-      [ 'GET_FEES', 'INT', 'get_fees',  1],
-    ],
+    [ 'ID',       'INT', 'id',        1],
+    [ 'NAME',     'STR', 'name',      1],
+    [ 'COLOR',    'STR', 'color',     1],
+    [ 'TYPE',     'INT', 'type',      1],
+    [ 'GET_FEES', 'INT', 'get_fees',  1],
+  ],
     { WHERE => 1, }
   );
 
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
      FROM service_status
      $WHERE
      GROUP BY 1
@@ -94,7 +92,9 @@ sub status_list{
     $attr
   );
 
-  return $self->{list};
+  return $self->{list_hash} || {} if ($attr->{LIST2HASH});
+
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -102,11 +102,12 @@ sub status_list{
 
 =cut
 #**********************************************************
-sub status_del{
+sub status_del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_del( 'service_status', $attr );
+  $self->query_del('service_status', $attr);
+
   return $self;
 }
 
@@ -122,14 +123,16 @@ sub status_del{
 
 =cut
 #**********************************************************
-sub status_info{
+sub status_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2( "SELECT * FROM service_status WHERE id= ? ;",
+  $self->query("SELECT * FROM service_status WHERE id= ? ;",
     undef,
-    { INFO => 1,
-      Bind => [ $attr->{ID} ] }
+    {
+      INFO => 1,
+      Bind => [ $attr->{ID} ]
+    }
   );
 
   return $self;

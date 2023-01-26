@@ -1,7 +1,7 @@
 <script src='/styles/default/js/copy-paste.js' defer=''></script>
-<form action='$SELF_URL' METHOD='POST'>
+<form action='%SELF_URL%' METHOD='POST'>
 
-  <input type=hidden name='index' value='$index'>
+  <input type=hidden name='index' value='%index%'>
   <input type=hidden name='TP_ID' value='%TP_ID%'>
 
   <div class='row'>
@@ -60,7 +60,7 @@
           </div>
 
           <div class='form-group row'>
-            <label class='col-sm-4 col-md-4 control-label' for='DESCRIBE_AID'>_{DESCRIBE}_ (_{ADMIN}_):</label>
+            <label class='col-sm-4 col-md-4 control-label' for='DESCRIBE_AID'>_{DESCRIBE_FOR_ADMIN}_:</label>
             <div class='col-sm-8 col-md-8'>
               <textarea cols='40' rows='2' name='DESCRIBE_AID' class='form-control'
                         id='DESCRIBE_AID'>%DESCRIBE_AID%</textarea>
@@ -322,6 +322,16 @@
               <div class='form-check text-left'>
                 <input type='checkbox' class='form-check-input' id='POSTPAID_MONTH_FEE' name='POSTPAID_MONTH_FEE'
                        %POSTPAID_MONTH_FEE% value='1'>
+              </div>
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='col-sm-4 col-md-4 text-right' for='ACTIVE_MONTH_FEE'>_{ACTIVE_MONTH_FEE}_:</label>
+            <div class='col-sm-8'>
+              <div class='form-check text-left'>
+                <input type='checkbox' class='form-check-input' id='ACTIVE_MONTH_FEE' name='ACTIVE_MONTH_FEE'
+                       %ACTIVE_MONTH_FEE% value='1'>
               </div>
             </div>
           </div>

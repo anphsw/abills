@@ -6,7 +6,7 @@
         <span class='info-box-icon bg-success'>
           <i class='far fa-money-bill-alt'></i>
         </span>
-        <div class='info-box-content'>
+        <div class='info-box-content pr-0'>
           <div class='row'>
             <h3 class='col-md-12'>
               <span class='info-box-number %DEPOSIT_MARK%' title='%DEPOSIT%'>%SHOW_DEPOSIT% %BUTTON_SHOW_LAST%</span>
@@ -53,11 +53,9 @@
     <div class='input-group'>
       <input type='text' name='GRP' value='%GID%:%G_NAME%' ID='GRP' %GRP_ERR% class='form-control' readonly='readonly'/>
       <div class='input-group-append'>
-        <div class='input-group-text'>
-          <a href='$SELF_URL?index=12&UID=$FORM{UID}'>
-            <i class='fa fa-pencil-alt'></i>
-          </a>
-        </div>
+        <a class='btn input-group-button' href='$SELF_URL?index=12&UID=$FORM{UID}'>
+          <i class='fa fa-pencil-alt'></i>
+        </a>
       </div>
     </div>
   </div>

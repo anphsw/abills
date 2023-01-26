@@ -1,7 +1,11 @@
 <link rel='stylesheet' href='/styles/codemirror/lib/codemirror.css'>
+<link rel='stylesheet' href='/styles/codemirror/theme/darcula.css'>
+<link rel='stylesheet' href='/styles/codemirror/addon/hint/show-hint.css'>
 
 <script src='/styles/codemirror/lib/codemirror.js'></script>
 <script src='/styles/codemirror/mode/sql/sql.js'></script>
+<script src='/styles/codemirror/addon/hint/show-hint.js'></script>
+<script src='/styles/codemirror/addon/hint/sql-hint.js'></script>
 
 <form action='$SELF_URL' METHOD=POST class='form-horizontal'>
   <input type=hidden name=index value=$index>
@@ -66,7 +70,16 @@
 
 <script>
   window.onload = function() {
-    let codeMirror = CodeMirror.fromTextArea(document.getElementById('QUERY'), {
+    let myDarkMode;
+    // if variable exist
+
+    if (typeof IS_DARK_MODE !== 'undefined') {
+      myDarkMode = IS_DARK_MODE;
+    }
+
+    const TABLES = JSON.parse('%TABLES_COLUMNS_JSON%') || {};
+
+    const CODEMIRROR_OPTIONS = {
       mode: 'text/x-mariadb',
       indentWithTabs: true,
       smartIndent: true,
@@ -75,8 +88,31 @@
       autofocus: true,
       extraKeys: {"Ctrl-Space": "autocomplete"},
       tabSize: 2,
-      showCursorWhenSelecting: true
+      showCursorWhenSelecting: true,
+      hint: CodeMirror.hint.sql,
+      hintOptions: {
+        alignWithWord: false,
+        completeSingle: false,
+        tables: TABLES
+      }
+    };
+
+    if (myDarkMode) {
+      CODEMIRROR_OPTIONS.theme = 'darcula';
+    }
+
+    let codeMirror = CodeMirror.fromTextArea(
+      document.getElementById('QUERY'),
+      CODEMIRROR_OPTIONS,
+    );
+
+    codeMirror.on("keyup", function (cm, event) {
+      // keyCode 13 = Enter button
+      if (!cm.state.completionActive && event.keyCode != 13) {
+        CodeMirror.commands.autocomplete(cm, null, { completeSingle: false });
+      }
     });
+
     codeMirror.display.wrapper.className += ' border rounded';
     jQuery('.CodeMirror').css('resize', 'vertical');
   };

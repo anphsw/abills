@@ -57,7 +57,7 @@
             <span class='info-box-icon bg-success'>
               <i class='far fa-money-bill-alt'></i>
             </span>
-            <div class='info-box-content'>
+            <div class='info-box-content pr-0'>
               <div class='row'>
                 <h3 class='col-md-12'>
                   <span class='info-box-number %DEPOSIT_MARK% ' title='%DEPOSIT%'>%SHOW_DEPOSIT%<a><span class='fa'></span></a></span>
@@ -158,16 +158,15 @@
             <div class='input-group'>
               <input type=text name='COMP' value='%COMPANY_NAME%' ID='COMP' class='form-control' readonly>
               <div class='input-group-append'>
-                <div class='input-group-text'>
-                  <a href='$SELF_URL?index=13&amp;COMPANY_ID=%COMPANY_ID%'
-                    class='fa fa-arrow-circle-left'></a>
-                </div>
+                <a href='$SELF_URL?index=13&amp;COMPANY_ID=%COMPANY_ID%'
+                  class='btn input-group-button'>
+                  <i class='fa fa-arrow-circle-left'></i>
+                </a>
               </div>
               <div class='input-group-append'>
-                <div class='input-group-text'>
-                  <a href='$SELF_URL?index=21&UID=$FORM{UID}'
-                    class='fa fa-pencil-alt'></a>
-                </div>
+                <a href='$SELF_URL?index=21&UID=$FORM{UID}' class='btn input-group-button'>
+                  <i class='fa fa-pencil-alt'></i>
+                </a>
               </div>
             </div>
           </div>
@@ -179,10 +178,9 @@
             <div class='input-group'>
               <input type=text name='GRP' value='%GID%:%G_NAME%' ID='GRP' %GRP_ERR% class='form-control' readonly>
               <div class='input-group-append'>
-                <div class='input-group-text'>
-                  <a href='$SELF_URL?index=12&UID=$FORM{UID}'
-                    class='fa fa-pencil-alt'></a>
-                </div>
+                <a href='$SELF_URL?index=12&UID=$FORM{UID}' class='btn input-group-button'>
+                  <span class='fa fa-pencil-alt'></span>
+                </a>
               </div>
             </div>
           </div>
@@ -206,9 +204,7 @@
                   <div class='input-group'>
                     <input type=text name='BILL' value='%BILL_ID%' ID='BILL' class='form-control' readonly>
                     <div class='input-group-append'>
-                      <div class='input-group-text'>
-                        %BILL_CORRECTION%
-                      </div>
+                      %BILL_CORRECTION%
                     </div>
                   </div>
                 </div>

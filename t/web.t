@@ -186,9 +186,6 @@ foreach my $fn_id (sort keys %functions) {
   if($detail == 5 && ! $ret ) {
     print "Error: $function_name\n";
     exit;
-    if ($detail > 0) {
-      print "End: $function_name\n";
-    }
   }
 }
 

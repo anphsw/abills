@@ -14,13 +14,19 @@
                 </div>
 
                 <div class='modal-body'>
-                    <form action='$SELF_URL' METHOD='GET' id='holdup_%ID%'>
+                    <form action='%SELF_URL%' METHOD='GET' id='holdup_%ID%'>
                         <fieldset>
-                            <input type='hidden' name='index' value='$index'>
+                            <input type='hidden' name='index' value='%index%'>
                             <input type='hidden' name='sid' value='$sid'>
-                            <input type='hidden' name='UID' value='$FORM{UID}'>
+                            <input type='hidden' name='UID' value='%UID%'>
                             <input type='hidden' name='ID' value='%ID%'>
                             <input type='hidden' name='holdup' value='1'>
+
+                            <div class='form-group row'>
+                                <div class='col-md-12'>
+                                    %HOLDUP_INFO%
+                                </div>
+                            </div>
 
                             <div class='form-group row'>
                                 <label class='col-md-3 control-label' FOR='FROM_DATE'>_{FROM}_:</label>
@@ -37,6 +43,17 @@
                                            id='TO_DATE' form='holdup_%ID%'>
                                 </div>
                             </div>
+
+                            <div class='form-group row'>
+                                <label class='col-md-3 control-label' FOR='HOLDUP_PRICE'>_{PRICE}_:</label>
+
+                                <div class='col-md-9'>
+                                    <input type='text' name='HOLDUP_PRICE' value='%HOLDUP_PRICE%' size='10' class='form-control'
+                                           id='HOLDUP_PRICE' form='holdup_%ID%' disabled>
+                                </div>
+                            </div>
+
+
                             <div class='form-group row'>
                                 <p class='form-control-static'>%DAY_FEES%</p>
                             </div>

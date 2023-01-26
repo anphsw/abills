@@ -333,6 +333,7 @@ sub user_list{
       [ 'TP_ID',             'INT', 'service.tp_id',                                                             1 ],
       [ 'TV_SERVICE_ID',     'INT', 'tp.service_id', 'tp.service_id AS tv_service_id'                              ],
       [ 'TV_SERVICE_NAME',   'INT', 'tv_service.name', 'tv_service.name AS tv_service_name'                        ],
+      [ 'TV_USER_PORTAL',    'INT', 'tv_service.user_portal', 'tv_service.user_portal AS tv_user_portal'           ],
       [ 'TP_CREDIT',         'INT', 'tp.credit', 'tp.credit AS tp_credit'                                          ],
       [ 'TP_FILTER',         'INT', 'tp.filter_id',                                                              1 ],
       [ 'TP_REDUCTION_FEE',  'INT', 'tp.reduction_fee', 'tp.reduction_fee AS tp_reduction_fee'                     ],
@@ -1635,10 +1636,10 @@ sub users_screens_list{
 
   my $EXT_TABLE = '';
   if ($attr->{SHOW_ASSIGN}) {
-    $EXT_TABLE .= 'FROM iptv_main service ';
-    $EXT_TABLE .= 'LEFT JOIN iptv_users_screens us ON (service.id=us.service_id) ';
+    $EXT_TABLE .= 'FROM iptv_users_screens us ';
     $EXT_TABLE .= 'LEFT JOIN iptv_screens s ON (s.num=us.screen_id) ';
-    $GROUP_BY = 'GROUP BY us.service_id, s.num';
+    $EXT_TABLE .= 'LEFT JOIN iptv_main service ON (service.id=us.service_id) ';
+    $GROUP_BY = 'GROUP BY us.service_id, us.screen_id';
   }
   else {
     my $service_join = $attr->{SERVICE_ID} ? "AND service.id='$attr->{SERVICE_ID}'" : '';
@@ -2282,7 +2283,7 @@ sub iptv_get_channels_by_service {
 sub iptv_promotion_tps {
   my $self = shift;
 
-  $self->query("SELECT t.tp_id, t.name, s.module, s.id AS service_id, t.name AS tp_name, t.month_fee, t.day_fee
+  $self->query("SELECT t.tp_id, t.id, t.name, t.comments, s.module, s.id AS service_id, t.name AS tp_name, t.month_fee, t.day_fee
     FROM  tarif_plans t
     LEFT JOIN iptv_services s ON (s.id = t.service_id)
       WHERE t.promotional <> 0 AND t.module = 'Iptv'

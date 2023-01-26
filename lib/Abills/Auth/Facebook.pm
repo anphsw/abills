@@ -8,17 +8,13 @@ package Abills::Auth::Facebook;
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(_bp urlencode mk_unique_value load_pmodule show_hash);
-use Abills::Fetcher;
+use Abills::Base qw(mk_unique_value load_pmodule show_hash urlencode json_former);
+use Abills::Fetcher qw(web_request);
 use Encode;
 
 my $access_token_url = 'https://graph.facebook.com/oauth/access_token';
-#my $get_me_url       = 'https://graph.facebook.com/me';
-my $get_me_url       = 'https://graph.facebook.com/';
-# https://developers.facebook.com/docs/facebook-login/permissions#reference-user_likes
-# read_stream
-# user_hometown
-my $facebook_scope   = 'public_profile,email';
+my $get_me_url = 'https://graph.facebook.com/';
+my $validate_token = 'https://graph.facebook.com/debug_token/';
 
 #**********************************************************
 =head2  get_token() - Get token
@@ -29,20 +25,20 @@ sub get_token {
   my $self = shift;
   my $token = '';
 
-  my $client_id    = $self->{conf}->{AUTH_FACEBOOK_ID} || q{};
-  my $client_secret= $self->{conf}->{AUTH_FACEBOOK_SECRET} || q{};
-  my $request      = qq($access_token_url?client_id=$client_id&client_secret=$client_secret&grant_type=client_credentials);
+  my $client_id = $self->{conf}->{AUTH_FACEBOOK_ID} || q{};
+  my $client_secret = $self->{conf}->{AUTH_FACEBOOK_SECRET} || q{};
+  my $request = qq($access_token_url?client_id=$client_id&client_secret=$client_secret&grant_type=client_credentials);
 
   my $result = web_request($request, {
     DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0,
     JSON_RETURN => 1,
   });
 
-  if($self->{debug}) {
+  if ($self->{debug}) {
     print $result;
   }
 
-  if($result->{access_token}) {
+  if ($result->{access_token}) {
     $token = $result->{access_token};
   }
   else {
@@ -50,9 +46,9 @@ sub get_token {
     my $json = JSON->new->allow_nonref;
 
     my $result_pair;
-    eval { $result_pair = $json->decode( $result );  };
+    eval {$result_pair = $json->decode($result);};
 
-    if($self->{debug}) {
+    if ($self->{debug}) {
       print "failed";
       show_hash($result_pair);
     }
@@ -70,104 +66,108 @@ sub get_token {
 #**********************************************************
 sub check_access {
   my $self = shift;
-  my ($attr)=@_;
+  my ($attr) = @_;
 
-  my $client_id    = $self->{conf}->{AUTH_FACEBOOK_ID} || q{};
-  my $redirect_uri = $self->{conf}->{AUTH_FACEBOOK_URL} || q{};
-  my $client_secret= $self->{conf}->{AUTH_FACEBOOK_SECRET} || q{};
-  $self->{debug}   = $self->{conf}->{AUTH_FACEBOOK_DEBUG} || 0;
-  $redirect_uri    =~ s/\%SELF_URL\%/$self->{self_url}/g;
-
-  if($self->{domain_id}) {
-    $redirect_uri .= "%26DOMAIN_ID%3D$self->{domain_id}";
+  if ($attr->{API} && $attr->{token}) {
+    $self->validate_token({ TOKEN => $attr->{token} });
   }
-  if($attr->{user_registration}) {
-    $redirect_uri .= "%26user_registration%3D$attr->{user_registration}";
-  }
-  if($attr->{module}) {
-    $redirect_uri .= "%26module%3D$attr->{module}";
-  }
+  else {
+    my $client_id     = $self->{conf}->{AUTH_FACEBOOK_ID} || q{};
+    my $redirect_uri  = $self->{conf}->{AUTH_FACEBOOK_URL} || q{};
+    my $client_secret = $self->{conf}->{AUTH_FACEBOOK_SECRET} || q{};
+    $self->{debug}    = $self->{conf}->{AUTH_FACEBOOK_DEBUG} || 0;
+    $redirect_uri     =~ s/\%SELF_URL\%/$self->{self_url}/g;
 
-  if($self->{debug}) {
-    print "Content-Type: text/html\n\n";
-  }
-
-  if ($attr->{code}) {
-    my $request = qq($access_token_url?client_id=$client_id&client_secret=$client_secret&code=$attr->{code}&redirect_uri=$redirect_uri);
-    my $result = web_request($request, {
-      JSON_RETURN => 1,
-      DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
-    });
-
-    if($self->{debug}) {
-      print show_hash($result);
+    if ($self->{domain_id}) {
+      $redirect_uri .= "%26DOMAIN_ID%3D$self->{domain_id}";
     }
-    if($result->{access_token}) {
-      my $token = $result->{access_token};
-      if($self->{debug}) {
-        print "Ok<br>";
-      }
+    if ($attr->{user_registration}) {
+      $redirect_uri .= "%26user_registration%3D$attr->{user_registration}";
+    }
+    if ($attr->{module}) {
+      $redirect_uri .= "%26module%3D$attr->{module}";
+    }
 
-      $request = qq($get_me_url/me/?fields=id,name,email,hometown&access_token=$token);
-      $result = web_request($request, {
+    if ($self->{debug}) {
+      print "Content-Type: text/html\n\n";
+    }
+
+    if ($attr->{code}) {
+      my $request = qq($access_token_url?client_id=$client_id&client_secret=$client_secret&code=$attr->{code}&redirect_uri=$redirect_uri);
+      my $result = web_request($request, {
         JSON_RETURN => 1,
         DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
       });
 
-      if($self->{debug}) {
-        print $request;
+      if ($self->{debug}) {
+        print show_hash($result);
       }
-      if ($result->{error}) {
-        $self->{errno}=$result->{error}->{code};
-        $self->{errstr}=$result->{error}->{message};
+      if ($result->{access_token}) {
+        my $token = $result->{access_token};
+        if ($self->{debug}) {
+          print "Ok<br>";
+        }
+
+        $request = qq($get_me_url/me/?fields=id,name,email,hometown&access_token=$token);
+        $result = web_request($request, {
+          JSON_RETURN => 1,
+          DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
+        });
+
+        if ($self->{debug}) {
+          print $request;
+        }
+        if ($result->{error}) {
+          $self->{errno} = $result->{error}->{code};
+          $self->{errstr} = $result->{error}->{message};
+        }
+        elsif ($result->{name}) {
+          $self->{USER_ID}      = 'facebook, ' . $result->{id};
+          $self->{USER_NAME}    = $result->{name} || '';
+          $self->{USER_EMAIL}   = $result->{email} || '';
+          $self->{CHECK_FIELD}  = '_FACEBOOK';
+        }
       }
-      elsif ($result->{name}) {
-        $self->{USER_ID}     = 'facebook, '.$result->{id};
-        $self->{USER_NAME}   = $result->{name};
-        $self->{EMAIL}       = $result->{email};
-        $self->{CHECK_FIELD} = '_FACEBOOK';
+      else {
+        load_pmodule('JSON');
+        my $json = JSON->new->allow_nonref;
+
+        my $result_pair;
+        eval {$result_pair = $json->decode($result);};
+        if ($result_pair->{error}) {
+          $self->{errstr} = $result_pair->{error}->{message};
+          $self->{errno} = $result_pair->{error}->{code};
+        }
+
+        if ($self->{debug}) {
+          print "failed";
+          show_hash($result_pair);
+        }
       }
+
+    }
+    elsif ($attr->{error_code}) {
+      print "Content-Type: text/html\n\n";
+
+      print ' ' . ($attr->{error_code} || q{})
+        . '<br>' . ($attr->{error_message} || q{})
+        . '<br>' . ($attr->{state} || q{});
     }
     else {
-      load_pmodule('JSON');
-      my $json = JSON->new->allow_nonref;
+      my $facebook_scope = $self->{conf}->{FACEBOOK_AUTH_SCOPE} || 'public_profile,email';
+      my %session_state = (
+        session_state => mk_unique_value(10),
+      );
 
-      my $result_pair;
-      eval { $result_pair = $json->decode( $result );  };
-      if($result_pair->{error}) {
-        $self->{errstr} = $result_pair->{error}->{message};
-        $self->{errno}  = $result_pair->{error}->{code};
-      }
+      $session_state{referrer} = $attr->{REFERRER} if ($attr->{REFERRER});
+      my $session_state = urlencode(json_former(\%session_state));
 
-      if($self->{debug}) {
-        print "failed";
-        show_hash($result_pair);
-      }
+      $self->{auth_url} = 'https://www.facebook.com/dialog/oauth'
+        . '?client_id=' . $client_id
+        . '&state=' . $session_state
+        . '&scope=' . $facebook_scope
+        . '&redirect_uri=' . $redirect_uri;
     }
-
-    #Return
-    # {"access_token":"0cbc06819f523fdbbd7e593afbb63509e2b6df75504da82f6a0a6d98e5e69fcff9dc551f481d598df9edd","expires_in":86376,"user_id":22089814}
-  }
-  elsif($attr->{error_code}) {
-    print "Content-Type: text/html\n\n";
-
-#    [error] => access_denied
-#    [error_code] => 200
-#    [error_description] => Permissions error
-#    [error_reason] => user_denied
-#    [state] => 7262836fbd03301ee4d3291b15044ca6
-
-    print ' '. ($attr->{error_code} || q{})
-     . '<br>' . ($attr->{error_message} || q{})
-     . '<br>' . ($attr->{state} || q{});
-  }
-  else {
-    my $session_state = mk_unique_value(10);
-    $self->{auth_url} = 'https://www.facebook.com/dialog/oauth'
-      . '?client_id=' . $client_id
-      . '&state=' . $session_state
-      . '&scope=' . $facebook_scope
-      . '&redirect_uri=' . $redirect_uri;
   }
 
   return $self;
@@ -186,35 +186,35 @@ sub check_access {
 #**********************************************************
 sub get_info {
   my $self = shift;
-  my ($attr)=@_;
+  my ($attr) = @_;
   my %info_fiealds = (
-    ID       => 'id',
-    NAME     => 'name',
-    ABOUT    => 'about',
-    BIRTHDAY => 'birthday',
-    FIRT_NAME=> 'first_name',
-    LAST_NAME=> 'last_name',
-    GENDER   => 'gender',
-    COVER    => 'cover',
-    LOCATION => 'location',
-    LOCALE   => 'locale',
-    EMAIL    => 'email',
-    HOMETOWN => 'hometown',
-    EDUCATION=> 'education',
-    FRIENDS  => 'friends',
-    LIKES    => 'likes',
-    FEED     => 'feed',
-    EGA_RANGE=> 'age_range',
-    PICTURE  => 'picture',
+    ID        => 'id',
+    NAME      => 'name',
+    ABOUT     => 'about',
+    BIRTHDAY  => 'birthday',
+    FIRT_NAME => 'first_name',
+    LAST_NAME => 'last_name',
+    GENDER    => 'gender',
+    COVER     => 'cover',
+    LOCATION  => 'location',
+    LOCALE    => 'locale',
+    EMAIL     => 'email',
+    HOMETOWN  => 'hometown',
+    EDUCATION => 'education',
+    FRIENDS   => 'friends',
+    LIKES     => 'likes',
+    FEED      => 'feed',
+    EGA_RANGE => 'age_range',
+    PICTURE   => 'picture',
     #EMPLOYEE_NUMBER => 'employee_number',
-    WORK     => 'work'
+    WORK      => 'work'
   );
 
   my $client_id = $attr->{CLIENT_ID};
-  my $token=$self->get_token();
-  my $request = $get_me_url .'/v2.8/'
+  my $token = $self->get_token();
+  my $request = $get_me_url . '/v2.8/'
     . $client_id
-    . '?fields='. join(',', values %info_fiealds)
+    . '?fields=' . join(',', values %info_fiealds)
     . "&access_token=$token";
 
   my $result = web_request($request, {
@@ -223,16 +223,17 @@ sub get_info {
     DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
   });
 
-  if($result->{error}) {
+  if ($result->{error}) {
     show_hash($result->{error});
-    $self->{errno}=$result->{error}{code};
-    $self->{errstr}=$result->{error}{type} .' '.$result->{error}{message};
+    $self->{errno} = $result->{error}{code};
+    $self->{errstr} = $result->{error}{type} . ' ' . $result->{error}{message};
   }
 
   $self->{result} = $result;
 
   return $self;
 }
+
 #**********************************************************
 =head2 get_fb_photo($attr)
 
@@ -247,14 +248,14 @@ sub get_info {
 sub get_fb_photo {
   my $self = shift;
   my ($request) = @_;
-  
+
   my $token = $self->get_token();
   my $request_url = $get_me_url
     . 'v2.8/'
     . ($request->{USER_ID} || q{}) . '/picture?'
     . ($request->{SIZE} ? "height=$request->{SIZE}" : q{})
     . "&redirect=0&access_token=$token";
-   
+
   my $result = web_request($request_url, {
     JSON_RETURN => 1,
     JSON_UTF8   => 1,
@@ -279,19 +280,19 @@ sub get_fb_photo {
 sub get_fbrequest {
   my $self = shift;
   my ($request) = @_;
-  
+
   my $token = $self->get_token();
   my $request_url = $get_me_url
     . 'v2.8/'
     . ($request->{NODE_ID} || q{}) . '?'
     . ($request->{FIELDS} ? "fields=$request->{FIELDS}" : q{})
     . "&access_token=$token";
-    
+
   my $result = web_request($request_url, {
     JSON_RETURN => 1,
     JSON_UTF8   => 1,
   });
-  
+
   return $result;
 }
 
@@ -309,29 +310,97 @@ sub get_fbrequest {
 sub who_liked_it {
   my $self = shift;
   my ($nodeid) = @_;
-  
+
   my $response = $self->get_fbrequest({
     NODE_ID => $nodeid,
     FIELDS  => 'reactions',
   });
 
   unless ($response && ref $response eq 'HASH') {
-    $self->{errno}=440;
-    $self->{errstr}='Facebook is not answer';
+    $self->{errno} = 440;
+    $self->{errstr} = 'Facebook is not answer';
     return 0;
   }
   if ($response->{error}) {
-    $self->{errno}=$response->{error}->{code};
-    $self->{errstr}=$response->{error}->{message};
+    $self->{errno} = $response->{error}->{code};
+    $self->{errstr} = $response->{error}->{message};
     return 0;
   }
-  
+
   my %likes_hash = ();
-  if ( $response->{reactions}->{data} ) {
+  if ($response->{reactions}->{data}) {
     foreach (@{$response->{reactions}->{data}}) {
-      $likes_hash{$_->{id}} = (encode('UTF-8',$_->{name}));
+      $likes_hash{$_->{id}} = (encode('UTF-8', $_->{name}));
     };
   }
   return \%likes_hash;
 }
+
+#**********************************************************
+=head2 validate_token($attr)
+
+  Check is OAUTH token is valid
+
+  Arguments:
+  TOKEN - Google services ID or OAuth 2.0 Token
+
+  Returns:
+    result_from_google
+
+=cut
+#**********************************************************
+sub validate_token {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $token         = $attr->{TOKEN};
+  my $client_id     = $self->{conf}->{AUTH_FACEBOOK_ID} || q{};
+  my $client_secret = $self->{conf}->{AUTH_FACEBOOK_SECRET} || q{};
+  my $url           = "$validate_token?input_token=" . ($token || q{}) . "&access_token=$client_id|$client_secret";
+
+  # check is valid token
+  my $result = web_request($url, {
+    GET         => 1,
+    JSON_RETURN => 1,
+    JSON_UTF8   => 1,
+  });
+
+  return 0 unless $result;
+
+  # check is present error
+  if ($result->{error}) {
+    $self->{errno}  = $result->{error}->{code};
+    $self->{errstr} = $result->{error}->{message};
+  }
+  elsif ($result->{data}) {
+
+    my $get_info = $get_me_url . '/me/?fields=id,name,email,hometown&access_token=' . ($token || q{});
+
+    # no error we can check is really user present in our system
+    my $check_result = web_request($get_info, {
+      GET         => 1,
+      JSON_RETURN => 1,
+      JSON_UTF8   => 1,
+    });
+
+    return 0 unless $check_result;
+
+    # check is present error
+    if ($check_result->{error}) {
+      $self->{errno}  = $check_result->{error}->{code};
+      $self->{errstr} = $check_result->{error}->{message};
+    } else {
+      # no error return user google id for look for
+      $self->{USER_ID}      = 'facebook, ' . $check_result->{id};
+      $self->{USER_NAME}    = $check_result->{name} || '';
+      $self->{USER_EMAIL}   = $check_result->{email} || '';
+      $self->{CHECK_FIELD}  = '_FACEBOOK';
+    }
+  }
+
+  $self->{result} = $result;
+
+  return $result;
+}
+
 1;

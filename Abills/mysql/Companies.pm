@@ -487,4 +487,72 @@ sub admins_change {
   return $self;
 }
 
+#**********************************************************
+=head2 with_info_tables($attr) - info from companies WITH info fields
+
+  Experimental
+
+=cut
+#**********************************************************
+sub with_info_fields {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my @WHERE_RULES = ();
+
+  if ($attr->{UID}) {
+    push @WHERE_RULES, "u.uid='$attr->{UID}'";
+  }
+
+  if ($attr->{COMPANY_ID}) {
+    push @WHERE_RULES, "c.id='$attr->{COMPANY_ID}'";
+  }
+
+  my @search_fields = ();
+  my $ext_tables = '';
+
+  my $Conf = Conf->new($self->{db}, $admin, $CONF);
+  my $info_fields_list = $Conf->config_list({ PARAM => 'ifc*', SORT => 2 });
+
+  if ($info_fields_list && ref $info_fields_list eq 'ARRAY' && scalar(@$info_fields_list)) {
+    foreach my $line (@{$info_fields_list}) {
+      if ($line->[0] =~ /ifc(\S+)/) {
+        my $field_name = $1;
+        my (undef, $type, undef) = split(/:/, $line->[1]);
+
+        next if $type ne '2';
+        push (@search_fields,
+          "$field_name\_list.name AS $field_name",
+          "$field_name AS $field_name\_id"
+        );
+        $ext_tables .= "LEFT JOIN $field_name" . "_list ON (c.$field_name = $field_name" . "_list.id)";
+      }
+    }
+  }
+
+
+  my $search_fields = join(',', @search_fields);
+  $search_fields = ', ' . $search_fields if ($search_fields);
+
+  my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE '. join(' AND ', @WHERE_RULES) : q{};
+
+  $self->query(
+    "SELECT c.*
+      $search_fields
+    FROM companies c
+      $ext_tables
+      $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+      { INFO => 1 }
+  );
+
+  return $self;
+}
+
 1

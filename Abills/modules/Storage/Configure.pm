@@ -822,4 +822,71 @@ sub storage_payers {
   return 1;
 }
 
+#***********************************************************
+=head2 storage_delivery_types() - Storage delivery types
+
+=cut
+#***********************************************************
+sub storage_delivery_types {
+
+  $html->message('info', $lang{INFO}, $FORM{message}) if $FORM{message};
+
+  $Storage->{ACTION} = 'add';
+  $Storage->{ACTION_LNG} = $lang{ADD};
+
+  if ($FORM{add}) {
+    $Storage->storage_delivery_types_add(\%FORM);
+    $html->tpl_show(_include('storage_redirect', 'Storage'), {
+      SECTION => '',
+      MESSAGE => $lang{ADDED}
+    }) if !_error_show($Storage);
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Storage->storage_delivery_types_del({ ID => $FORM{del} });
+    $html->message('info', $lang{INFO}, $lang{DELETED}) if !_error_show($Storage);
+  }
+  elsif ($FORM{change}) {
+    $Storage->storage_delivery_types_change({ %FORM });
+    $html->tpl_show(_include('storage_redirect', 'Storage'), {
+      SECTION => '',
+      MESSAGE => $lang{CHANGED}
+    }) if !_error_show($Storage);
+  }
+  elsif ($FORM{chg}) {
+    $Storage->{ACTION} = 'change';
+    $Storage->{ACTION_LNG} = $lang{CHANGE};
+    $Storage->storage_delivery_type_info({ ID => $FORM{chg} });
+  }
+
+  $html->tpl_show(_include('storage_delivery_types', 'Storage'), { %{$Storage}, %FORM });
+
+  $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID} || undef;
+
+  result_former({
+    INPUT_DATA      => $Storage,
+    FUNCTION        => 'storage_delivery_types_list',
+    BASE_FIELDS     => 3,
+    DEFAULT_FIELDS  => 'ID,NAME,COMMENTS',
+    FUNCTION_FIELDS => 'change' . ((defined($permissions{4}->{3})) ? ',del' : ''),
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      id       => 'ID',
+      name     => $lang{NAME},
+      comments => $lang{COMMENTS}
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{DELIVERY_TYPES},
+      qs      => $pages_qs,
+      ID      => 'STORAGE_DELIVERY_TYPES',
+      EXPORT  => 1,
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
+
+  return 1;
+}
+
 1;

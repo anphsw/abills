@@ -176,5 +176,13 @@ $lang{AVAILABLE_FOR_PUBLIC_SALE} = 'Доступно для публічного
 $lang{REDEMPTION_OF_GOODS} = 'Викуп товару';
 $lang{REDEMPTION_SUM} = 'Викупна сума';
 $lang{PRODUCT_PURCHASED} = 'Товар викуплено';
+$lang{REMOVE_LEFTOVERS} = 'Видаліти залишки';
+$lang{LEFTOVERS_DELETED} = 'Залишки видалені';
+$lang{DELIVERY_TYPES} = 'Види доставки';
+$lang{DELIVERY_TYPE} = 'Вид доставки';
+$lang{DELIVERY_ADDED} = 'Доставка додана';
+$lang{TRACKING_NUMBER} = 'Номер відстеження';
+$lang{SEND_DATE} = 'Дата відправки';
+$lang{STORAGE_DELIVERY} = 'Відправка';
 
 1;

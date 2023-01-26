@@ -207,7 +207,7 @@ sub config_add {
     },
     { REPLACE => ($attr->{REPLACE}) ? 1 : undef });
 
-  if (!$CONF->{MULTIDOMS_DOMAIN_ID} && $attr->{PAYSYS} && $admin->{DOMAIN_ID} && $attr->{PARAM} && $attr->{PARAM} =~ /_\d+$/g) {
+  if (!$CONF->{MULTIDOMS_DOMAIN_ID} && $attr->{PAYSYS} && ($admin->{DOMAIN_ID} || $attr->{DOMAIN_ID}) && $attr->{PARAM} && $attr->{PARAM} =~ /_\d+$/g) {
     $self->query_add('config',
       { %$attr,
         DOMAIN_ID => 0
@@ -232,6 +232,10 @@ sub config_del {
   );
 
   if ($attr->{DEL_WITH_DOMAIN}) {
+    if (!$CONF->{MULTIDOMS_DOMAIN_ID} && $attr->{PAYSYS} && ($admin->{DOMAIN_ID} || $attr->{DOMAIN_ID}) && $attr->{PARAM} && $attr->{PARAM} =~ /_\d+$/g) {
+      $self->query_del('config', undef,  { %params, domain_id => 0 });
+    }
+
     $params{domain_id} = $admin->{DOMAIN_ID};
   }
 

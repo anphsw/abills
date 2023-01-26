@@ -309,6 +309,7 @@ sub employees_main {
       telegram_id    => 'Telegram ID',
       rfid_number     => "RFID $lang{NUMBER}",
       department_name => $lang{DEPARTMENT},
+      avatar_link      => $lang{AVATAR},
     },
     TABLE => {
       width      => '100%',
@@ -324,6 +325,11 @@ sub employees_main {
     my @fields_array = ();
     for (my $i = 0; $i < 4+$admin_form->{SEARCH_FIELDS_COUNT}; $i++) {
       my $field_name = $admin_form->{COL_NAMES_ARR}->[$i] || '';
+
+      if ($field_name eq 'avatar_link'){
+        my $avatar = ($line->{avatar_link}) ? "/images/$line->{avatar_link}" : '/styles/default/img/admin/avatar5.png';
+        $line->{avatar_link} = "<img src='$avatar' class='img-circle ' alt='User Image' style='width: 40px;'>";
+      }
 
       if ( $field_name eq 'disable' && $line->{disable} =~ /\d+/ ){
 #        $line->{disable} = $status[ $line->{disable} ];
@@ -721,28 +727,90 @@ sub employees_positions {
 =cut
 #**********************************************************
 sub employees_positions_tree {
+
+  my $Admins = Admins->new($db, \%conf);
+
   my $positions_major_list =translate_list($Employees->position_list({ COLS_NAME => 1 }), 'position');
-  foreach my $position (@$positions_major_list){
-    if($position->{subordination} == 0){
-      $position->{subordinated} = 0;
-    }
+
+  my $positions_translated = {};
+  foreach my $translated (@$positions_major_list) {
+    $positions_translated->{$translated->{id}} = $translated->{position};
   }
-  my $positions_tree = $html->tree_menu($positions_major_list, "$lang{SUBORDINATION_TREE}",
-   {
-    ID_KEY      => 'id',
-    PARENT_KEY  => 'subordination',
-    LABEL_KEY   => 'position',
+
+  my $positions_tree = $html->tree_menu($positions_major_list, "$lang{SUBORDINATION_TREE}", {
+  ID_KEY           => 'id',
+    PARENT_KEY       => 'subordination',
+    LABEL_KEY        => 'position',
     # ROOT_VALUE => '0',
     # CHECKBOX    => 1,
     # NAME        => 'position_id',
-    COL_SIZE    => 6,
-    SHOW_OPEN_TREE  => 1,
+    COL_SIZE         => 6,
+    SHOW_OPEN_TREE   => 1,
+    RETURN_HASH_TREE => 1
   });
 
+  my $employees_list = $Admins->list({
+    NAME        => '_SHOW',
+    DEPARTMENT  => '_SHOW',
+    POSITION    => '!',
+    AVATAR_LINK => '_SHOW',
+    COLS_NAME   => 1
+  });
+
+  my %employees_data = ();
+  foreach my $employee (@$employees_list) {
+    push @{$employees_data{$employee->{position}}},{
+      AID          => $employee->{aid},
+      NAME         => $employee->{name},
+      POSITION     => $employee->{position},
+      AVATAR_LINK  => $employee->{avatar_link}
+    };
+  }
+
+  my $structure = _collect_position_to_tree($positions_tree, {%employees_data}, $positions_translated );
+
   $html->tpl_show(_include('employees_position_tree', 'Employees'),{
-                  POSITION_TREE => $positions_tree,
-                  });
+    STRUCTURE         => $structure
+  });
   return 1;
+}
+
+
+#**********************************************************
+=head2  _collect_position_to_tree($tree, $employees_data, $positions_translated)
+
+=cut
+#**********************************************************
+sub _collect_position_to_tree {
+  my ($tree, $employees_data, $positions_translated) = @_;
+
+  return if (!$tree || !%{$tree});
+
+  my $user_index = get_function_index('employees_main');
+  my $position_blocks = '<ul>';
+
+  foreach my $position (sort keys %{$tree}) {
+    my $users_per_position = '';
+    foreach my $employee (@{$employees_data->{$position}}){
+      my $avatar = ($employee->{AVATAR_LINK}) ? "/images/$employee->{AVATAR_LINK}" : '/styles/default/img/admin/avatar5.png';
+      my $avatar_link = "<img src='$avatar' class='img-circle ' alt='User Image' style='width: 40px;'>";
+      my $user_link = $html->button($employee->{NAME}, "index=$user_index&AID=$employee->{AID}", {BUTTON => 1, class => 'btn btn-secondary', target => '_blank' });
+      my $user_block = "<div>$avatar_link $user_link</div>";
+      $users_per_position .= $user_block;
+    }
+    my $position_block = '<li>';
+
+    $position_block .= $html->tpl_show(_include('employees_position_item', 'Employees'),{
+      EMPLOYEES       => $users_per_position,
+      POSITION        => $positions_translated->{$position},
+    },{ OUTPUT2RETURN => 1 });
+
+    $position_blocks .= $position_block;
+    $position_blocks .= _collect_position_to_tree($tree->{$position}, $employees_data, $positions_translated);
+  }
+  $position_blocks .= '</li></ul>';
+
+  return $position_blocks;
 }
 
 
@@ -2860,4 +2928,5 @@ sub _employees_convert_positions {
 
   return $position_name;
 }
+
 1

@@ -51,8 +51,8 @@
 
       %CAPTCHA%
     </div>
-    <div class='card-footer text-right'>
-      <input type='submit' class='btn btn-primary' name='SEND' value='_{SEND}_'/>
+    <div class='card-footer'>
+      <input type='submit' class='btn btn-primary' name='SEND_SMS' value='_{SEND}_'/>
     </div>
   </div>
 </form>

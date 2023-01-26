@@ -73,7 +73,7 @@ sub click {
   my $message = "$self->{bot}->{lang}->{CONNECTED_SERVICE}:\n\n";
 
   foreach my $line (@$list) {
-    $message .= "$self->{bot}->{lang}->{TARIF_PLAN}: <b>$line->{tp_name}</b>\n";
+    $message .= "$self->{bot}->{lang}->{TARIF_PLAN}: <b>" . ($line->{tp_name} || q{}) . "</b>\n";
     if ($line->{internet_status} == 3) {
       require Shedule;
       my $Shedule  = Shedule->new($self->{db}, $self->{admin}, $self->{conf});

@@ -198,8 +198,21 @@ sub msgs_delivery {
 
       $Log->log_print('LOG_DEBUG', $u->{uid}, "Delivery: $mdelivery->{id} Send method: $send_methods->{$send_method_id} ($send_method_id) UID: $u->{uid}");
 
+      $users->info($u->{uid});
       my $user_pi = $users->pi({ UID => $u->{uid} });
       my $internet_info = in_array('Internet', \@MODULES) ? $Internet->user_info($u->{uid}) : {};
+      $internet_info->{MONTH_FEE} = $internet_info->{MONTH_ABON};
+      $internet_info->{DAY_FEE} = $internet_info->{DAY_ABON};
+
+      if ($internet_info->{MONTH_FEE} && $internet_info->{PERSONAL_TP}) {
+        $internet_info->{MONTH_FEE} = $internet_info->{PERSONAL_TP};
+        $internet_info->{DAY_FEE} = 0;
+      }
+
+      if ($internet_info->{REDUCTION_FEE} && $users->{REDUCTION}) {
+        $internet_info->{MONTH_FEE} = $internet_info->{MONTH_FEE} - (($internet_info->{MONTH_FEE} / 100) * $users->{REDUCTION}) if $internet_info->{MONTH_FEE};
+        $internet_info->{DAY_FEE} = $internet_info->{DAY_FEE} - (($internet_info->{DAY_FEE} / 100) * $users->{REDUCTION}) if $internet_info->{DAY_FEE};
+      }
 
       my $message = $html->tpl_show($Msgs_delivery->{TEXT}, {
         %$user_pi,

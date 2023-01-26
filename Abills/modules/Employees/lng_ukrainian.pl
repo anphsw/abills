@@ -59,6 +59,7 @@ $lang{SEND_SMS_TO_ANYONE}='Відправка смс повідомлення с
 $lang{CASHBOX_WORK}='Робота з касами';
 $lang{CASHBOXS}='Каси';
 $lang{ADD_CASHBOX}='Додати касу';
+$lang{CHANGE_CASHBOX}='Змінити касу';
 $lang{CASHBOX_ADDED}='Каса додана';
 $lang{IN_CASHBOX}='в касі';
 $lang{CASHBOX_NOT_ADDED}='Каса не додана';
@@ -73,7 +74,7 @@ $lang{COMING}='Прихід';
 $lang{SPENDING_REPORT}='Звіт по розходу';
 $lang{COMING_REPORT}='Звіт по приходу';
 $lang{SALARY}='Зарплати';
-$lang{CHANGE_DATA}='Внесите изменения';
+$lang{CHANGE_DATA}='Внесіть зміни';
 $lang{PLANNED}='Запланована';
 $lang{NO_TYPE}='Без типу';
 $lang{TAKE_FEE}='Зняти оплату з абонента';
@@ -109,5 +110,7 @@ $lang{ALL_SALARY} = 'Виплатити';
 
 $lang{TICKET_WORKS} = 'Роботи по заявці';
 $lang{CHECKING_WORKS_BEFORE_CLOSING} = 'Перевірка робіт перед закриттям заявки';
+
+$lang{ADMIN_DEFAULT} = 'Адміністратор за замовчуванням';
 
 1

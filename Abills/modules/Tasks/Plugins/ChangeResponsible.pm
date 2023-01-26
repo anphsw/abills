@@ -2,7 +2,6 @@ package ChangeResponsible;
 
 use strict;
 use warnings FATAL => 'all';
-# use parent 'Tasks::db::Tasks';
 
 my $html;
 my $lang;
@@ -18,9 +17,7 @@ sub new {
   $html = shift;
   $lang = shift;
   
-  my $self = {
-    Tasks => $Tasks
-  };
+  my $self = { Tasks => $Tasks };
   
   bless($self, $class);
   
@@ -44,11 +41,10 @@ sub plugin_info {
 sub html_for_task_show {
   my $self = shift;
   my ($attr) = @_;
-  my $button = $html->button(
-    $lang->{CHANGE_RESPONSIBLE},
-    "index=$main::index&plugin=ChangeResponsible&fn=change_responsible&ID=$attr->{ID}&" . ($attr->{qs} || "" ),
-    { class => 'btn btn-secondary btn-block' });
-  return $button;
+
+  return $html->button($lang->{CHANGE_RESPONSIBLE},
+    "index=$main::index&plugin=ChangeResponsible&fn=change_responsible&ID=$attr->{ID}&" . ($attr->{qs} || ""),
+    { class => 'btn btn-default btn-block' });
 }
 
 
@@ -60,6 +56,7 @@ sub html_for_task_show {
 sub change_responsible {
   my $self = shift;
   my ($attr) = @_;
+
   if ($attr->{chg}) {
     $self->{Tasks}->chg($attr);
     $html->redirect("?index=$attr->{index}");
@@ -68,53 +65,24 @@ sub change_responsible {
 
   my $task_info = $self->{Tasks}->info({ ID => $attr->{ID} });
 
-  my $submit_button = $html->form_input('chg', $lang->{CHANGE}, { TYPE => 'submit', OUTPUT2RETURN => 1} );
-  my $responsible_select = $html->element(
-    'div',
-    $html->element('div', main::_responsible_select({SELECTED => $task_info->{RESPONSIBLE}}), {class => 'col-md-12'}),
-    {class => 'form-group'}
+  my $submit_button = $html->form_input('chg', $lang->{CHANGE}, { TYPE => 'submit', OUTPUT2RETURN => 1 });
+  my $responsible_select = $html->element('div',
+    $html->element('div', main::_responsible_select({ SELECTED => $task_info->{RESPONSIBLE} }), { class => 'col-md-12' }),
+    { class => 'form-group' }
   );
-  # my $allow_change_responsible = $html->form_input('allow_change_responsible', 1,  { TYPE => 'checkbox', STATE => 1, OUTPUT2RETURN => 1} );
-  my $hidden_inputs = $html->form_input('index',  $attr->{index},  { TYPE => 'hidden', OUTPUT2RETURN => 1} );
-  $hidden_inputs   .= $html->form_input('plugin', $attr->{plugin}, { TYPE => 'hidden', OUTPUT2RETURN => 1} );
-  $hidden_inputs   .= $html->form_input('fn',     $attr->{fn},     { TYPE => 'hidden', OUTPUT2RETURN => 1} );
-  $hidden_inputs   .= $html->form_input('ID',     $attr->{ID},     { TYPE => 'hidden', OUTPUT2RETURN => 1} );
 
-  my $output = $html->tpl_show('', { 
-      BOX_TITLE     => $lang->{CHANGE_RESPONSIBLE},
-      HIDDEN_INPUTS => $hidden_inputs,
-      BOX_BODY      => "$responsible_select",
-      BOX_FOOTER    => $submit_button,
-    },
-    { TPL => 'card', MODULE => 'Tasks' });
+  my $hidden_inputs = $html->form_input('index', $attr->{index}, { TYPE => 'hidden', OUTPUT2RETURN => 1 });
+  $hidden_inputs .= $html->form_input('plugin', $attr->{plugin}, { TYPE => 'hidden', OUTPUT2RETURN => 1 });
+  $hidden_inputs .= $html->form_input('fn', $attr->{fn}, { TYPE => 'hidden', OUTPUT2RETURN => 1 });
+  $hidden_inputs .= $html->form_input('ID', $attr->{ID}, { TYPE => 'hidden', OUTPUT2RETURN => 1 });
+
+  my $output = $html->tpl_show('', {
+    BOX_TITLE     => $lang->{CHANGE_RESPONSIBLE},
+    HIDDEN_INPUTS => $hidden_inputs,
+    BOX_BODY      => $responsible_select,
+    BOX_FOOTER    => $submit_button,
+  }, { TPL => 'box', MODULE => 'Tasks' });
 
   return $output;
 }
 1;
-
-__DATA__
-<form class='form-horizontal' id='task_box_form'>
-<input type="hidden" name="index" value="%index%" id="index">
-<input type="hidden" name="plugin" value="%plugin%" id="plugin">
-<input type="hidden" name="fn" value="%fn%" id="fn">
-<input type="hidden" name="ID" value="%ID%" id="ID">
-  <div class='card card-primary card-outline box-form'>
-    <div class='card-header with-border'>
-      <h3 class='card-title'>_{CHANGE_RESPONSIBLE}_</h3>
-      <div class='card-tools float-right'>
-        <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
-        <i class='fa fa-minus'></i>
-        </button>
-      </div>
-    </div>
-    <div class='card-body' id='task_box_body'>
-      <div class="form-group">
-        <div class="col-md-12">
-        </div>
-      </div>
-    </div>
-    <div class='card-footer'>
-      <input type="submit" name="chg" value="_{CHANGE}_" class="btn btn-primary" id="chg">
-    </div>
-  </div>
-</form>

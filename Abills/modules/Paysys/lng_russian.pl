@@ -135,8 +135,10 @@ $lang{NO_SUB_REPOSRT}       = 'Нет отчета';
 $lang{NO_SUB_REPOSRT_SUP}   = 'Данный платежный модуль не имеет внутреннего отчета';
 $lang{PAYMENT_MADE}         = 'Оплата осуществлена';
 $lang{REQUEST}              = 'Запрос';
-$lang{REQUESTS}             = 'запросов';
+$lang{LOG_REQUESTS}         = 'Лог запросов';
 $lang{RESPONSE}             = 'Ответ';
+$lang{PT_SCAN_QR}           = 'Отсканируйте с помощью мобильного приложения Приват24 QR-код и произведите оплату';
+$lang{EXTERNAL_ID}          = 'Внешний ID';
 
 $lang{STATUS_0}   = 'Операция прошла успешно';
 $lang{STATUS_1}   = 'Пользователь не присутствует в системе';

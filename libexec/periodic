@@ -424,6 +424,7 @@ sub sheduler{
     my $type       = $s->{type};
     my $action     = $s->{action};
     my $shedule_id = $s->{id};
+    my $comments   = $s->{comments} || q{};
 
     if ( $debug > 0 ){
       print "SHEDULE [$shedule_id] $login MODULE: $s->{module} $type: ". ($action || q{}) ."\n";
@@ -512,8 +513,46 @@ sub sheduler{
       $ret = service_status_change({ UID => $s->{uid}, BILL_ID => $s->{bill_id} },
         $action,
         { DEBUG => $debug,
-          DATE  => $ADMIN_REPORT{DATE}
+          DATE  => $ADMIN_REPORT{DATE},
+          SHEDULER => 1
         });
+
+      if ($comments && $comments =~ /DAYS:(\d+)/) {
+        my $holdup_days = $1;
+
+        my @holdup_rules = split(/;/, $conf{HOLDUP_ALL});
+        my ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $hold_up_day_fee,
+          undef, $active_fees, $holdup_skip_gids, $user_del_shedule, $expr_);
+
+        foreach my $holdup_rule (@holdup_rules) {
+          my ($_hold_up_min_period, $_hold_up_max_period, $_hold_up_period, $_hold_up_day_fee,
+            undef, $_active_fees, $_holdup_skip_gids, $_user_del_shedule, $_expr_) = split(/:/, $holdup_rule);
+
+          if ($holdup_days && $holdup_days < $_hold_up_max_period) {
+            ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $hold_up_day_fee,
+              undef, $active_fees, $holdup_skip_gids, $user_del_shedule, $expr_) =
+              ($_hold_up_min_period, $_hold_up_max_period, $_hold_up_period, $_hold_up_day_fee,
+                undef, $_active_fees, $_holdup_skip_gids, $_user_del_shedule, $_expr_);
+
+            last;
+          }
+        }
+
+        if ($active_fees && $active_fees > 0) {
+          $user = $users->info($s->{uid});
+          $Fees->take(
+            $user,
+            $active_fees,
+            {
+              DESCRIBE => $lang{HOLD_UP},
+              DATE     => "$ADMIN_REPORT{DATE} $TIME",
+            }
+          );
+          if ($Fees->{errno}) {
+            print "Error: Holdup fees: $Fees->{errno} $Fees->{errstr}\n";
+          }
+        }
+      }
     }
     #Required modules
     elsif ( $type ne '' ){

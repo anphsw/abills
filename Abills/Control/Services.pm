@@ -6,10 +6,13 @@
 
 use strict;
 use warnings FATAL => 'all';
+use experimental qw(switch);
+
 use Tariffs;
 use Abills::Base qw(days_in_month);
+use Abills::Api::FieldsGrouper;
 
-our(
+our (
   $db,
   $admin,
   %conf,
@@ -17,6 +20,7 @@ our(
   %lang,
   $DATE,
   %FORM,
+  @MODULES
 );
 
 our $users;
@@ -45,13 +49,13 @@ sub sel_tp {
   my ($attr) = @_;
 
   my $Tariffs = Tariffs->new($db, \%conf, $admin);
-  my %params = ( MODULE => 'Dv;Internet' );
+  my %params = (MODULE => 'Dv;Internet');
   $params{MODULE} = $attr->{MODULE} if $attr->{MODULE};
 
   my $tp_gids = $attr->{CHECK_GROUP_GEOLOCATION} ?
     tp_gids_by_geolocation($attr->{CHECK_GROUP_GEOLOCATION}, $Tariffs, $attr->{USER_GID}) : '';
 
-  if($attr->{TP_ID}) {
+  if ($attr->{TP_ID}) {
     $attr->{TP_ID} = $1 if $attr->{TP_ID} =~ /:(\d+)/;
     $params{INNER_TP_ID} = $attr->{TP_ID} if !$attr->{SHOW_ALL};
   }
@@ -68,10 +72,11 @@ sub sel_tp {
     DAY_FEE       => '_SHOW',
     COMMENTS      => '_SHOW',
     TP_GROUP_NAME => '_SHOW',
+    DESCRIBE_AID  => '_SHOW',
     %params
   });
 
-  if($attr->{TP_ID} && ! $attr->{EX_PARAMS}) {
+  if ($attr->{TP_ID} && !$attr->{EX_PARAMS}) {
     return "$list->[0]->{id} : $list->[0]->{name}" if $Tariffs->{TOTAL} && $Tariffs->{TOTAL} > 0;
 
     return $attr->{TP_ID};
@@ -80,36 +85,36 @@ sub sel_tp {
   my %tp_list = ();
 
   foreach my $line (@$list) {
-    next if($attr->{SKIP_TP} && $attr->{SKIP_TP} == $line->{tp_id});
+    next if ($attr->{SKIP_TP} && $attr->{SKIP_TP} == $line->{tp_id});
     next if (!$attr->{SHOW_ALL} && $line->{status});
 
     if ($attr->{GROUP_SORT}) {
-      my $small_deposit = (($users->{DEPOSIT} || 0) + $users->{CREDIT} < $line->{month_fee} + $line->{day_fee}) ?
+      my $small_deposit = (($users->{DEPOSIT} || 0) + ($users->{CREDIT} || 0) < ($line->{month_fee} || 0) + ($line->{day_fee} || 0)) ?
         ' (' . $lang{ERR_SMALL_DEPOSIT} . ')' : '';
 
-      $tp_list{($line->{tp_group_name} || '')}{ $line->{tp_id} } = "$line->{id} : $line->{name}" . $small_deposit;
+      $tp_list{($line->{tp_group_name} || '')}{ $line->{tp_id} } = "$line->{id} : $line->{name} $line->{describe_aid} " . $small_deposit;
     }
     else {
-      $tp_list{$line->{tp_id}} = $line->{id} .' : '. $line->{name};
+      $tp_list{$line->{tp_id}} = $line->{id} . ' : ' . $line->{name} . ' ' . $line->{describe_aid};
     }
   }
 
-  if($attr->{SELECT}) {
+  if ($attr->{SELECT}) {
     my %EX_PARAMS = ();
 
     my $element_name = $attr->{SELECT};
     my %extra_options = ('' => '--');
-    %extra_options = %{ $attr->{SEL_OPTIONS} } if $attr->{SEL_OPTIONS};
+    %extra_options = %{$attr->{SEL_OPTIONS}} if $attr->{SEL_OPTIONS};
 
     if ($attr->{EX_PARAMS}) {
       %EX_PARAMS = ref $attr->{EX_PARAMS} eq 'HASH' ? %{$attr->{EX_PARAMS}} : (EX_PARAMS => $attr->{EX_PARAMS});
     }
 
     return $html->form_select($element_name, {
-      SELECTED       => $attr->{$element_name} // $FORM{$element_name},
-      SEL_HASH       => \%tp_list,
-      SEL_OPTIONS    => \%extra_options,
-      NO_ID          => 1,
+      SELECTED    => $attr->{$element_name} // $FORM{$element_name},
+      SEL_HASH    => \%tp_list,
+      SEL_OPTIONS => \%extra_options,
+      NO_ID       => 1,
       SORT_KEY    => 1,
       %EX_PARAMS
     });
@@ -167,8 +172,8 @@ sub get_services {
           my $day_fee = ($service_info->{day} && $service_info->{day} > 0) ? $service_info->{day} * $days_in_month : 0;
           my $sum = $day_fee + ($service_info->{month} || 0);
 
-          if($service_info->{tp_reduction_fee} && $user_info->{REDUCTION}) {
-            if($user_info->{REDUCTION} < 100 ) {
+          if ($service_info->{tp_reduction_fee} && $user_info->{REDUCTION}) {
+            if ($user_info->{REDUCTION} < 100) {
               $sum = $sum * ((100 - $user_info->{REDUCTION}) / 100);
               $service_info->{month} = $service_info->{month} * ((100 - $user_info->{REDUCTION}) / 100);
               $service_info->{day} = $service_info->{day} * ((100 - $user_info->{REDUCTION}) / 100);
@@ -192,7 +197,7 @@ sub get_services {
           $result{total_sum} += $sum;
 
           my $day_division = $days_in_month;
-          if($service_info->{service_activate} && $service_info->{service_activate} ne '0000-00-00') {
+          if ($service_info->{service_activate} && $service_info->{service_activate} ne '0000-00-00') {
             $day_division = 30;
           }
 
@@ -243,7 +248,7 @@ sub tp_gids_by_geolocation {
   my $Address = Address->new($db, $admin, \%conf);
   my $address = $Address->address_info($location_id);
 
-  return 0 if ($Address->{TOTAL} < 1 && ! $user_gid);
+  return 0 if ($Address->{TOTAL} < 1 && !$user_gid);
 
   my @tp_gids = ();
 
@@ -270,7 +275,7 @@ sub tp_gids_by_geolocation {
 
     if ($Tariffs->{TOTAL} > 0) {
       @tp_gids = ();
-      map(push(@tp_gids, $_->{tp_gid}), @{$group_by_users_groups}) ;
+      map(push(@tp_gids, $_->{tp_gid}), @{$group_by_users_groups});
     }
   }
 
@@ -287,7 +292,6 @@ sub tp_gids_by_geolocation {
   return join(';', @tp_gids);
 }
 
-
 #**********************************************************
 =head2 service_status_change($uid, $status)
 
@@ -303,7 +307,7 @@ sub tp_gids_by_geolocation {
 =cut
 #**********************************************************
 sub service_status_change {
-  my ($user_info, $status, $attr)=@_;
+  my ($user_info, $status, $attr) = @_;
 
   my $debug = $attr->{DEBUG} || 0;
   $status =~ /:?(\d+)/;
@@ -315,7 +319,7 @@ sub service_status_change {
     @modules = ('Triplay');
   }
 
-  foreach my $module ( @modules ) {
+  foreach my $module (@modules) {
     require "$module/webinterface";
     my $fn = lc($module) . (($status == 3) ? '_service_deactivate' : '_service_activate');
     if (defined(&$fn)) {
@@ -332,11 +336,12 @@ sub service_status_change {
         # TP_INFO   => {
         #   SMALL_DEPOSIT_ACTION => -1
         # },
+        %$attr,
         STATUS      => $status,
         GET_ABON    => 1,
         QUITE       => 1,
         DATE        => $attr->{DATE},
-        RECALCULATE => 1
+        RECALCULATE => 1,
       });
     }
   }
@@ -344,6 +349,177 @@ sub service_status_change {
   $users->change($user_info->{UID}, { DISABLE => $status });
 
   return 1;
+}
+
+#**********************************************************
+=head2 service_status_change($uid, $status)
+
+  Arguments:
+    service: string - Abon/Internet/Voip
+    uid: number     - 123456
+
+  Results:
+    user services list
+
+=cut
+#**********************************************************
+sub get_user_services {
+  my ($attr) = @_;
+
+  my $service_name = $attr->{service};
+  my $uid = $attr->{uid} || '--';
+
+  given ($service_name) {
+    when ('Internet') {
+      require Control::Service_control;
+      Control::Service_control->import();
+      my $Service_control = Control::Service_control->new($db, $admin, \%conf);
+
+      my $tariffs = $Service_control->all_info({
+        UID             => $uid,
+        MODULE          => 'Internet',
+        FUNCTION_PARAMS => {
+          GROUP_BY        => 'internet.id',
+          INTERNET_STATUS => '_SHOW',
+        },
+      });
+
+      return $tariffs || [];
+    }
+    when ('Iptv') {
+      require Control::Service_control;
+      Control::Service_control->import();
+      my $Service_control = Control::Service_control->new($db, $admin, \%conf);
+
+      my $tariffs = $Service_control->all_info({
+        UID             => $uid,
+        MODULE          => 'Iptv',
+        FUNCTION_PARAMS => {
+          SERVICE_STATUS  => '_SHOW',
+          IPTV_EXPIRE     => '_SHOW',
+          SERVICE_ID      => '_SHOW',
+          TV_SERVICE_NAME => '_SHOW',
+          TV_USER_PORTAL  => '_SHOW',
+          SERVICE_STATUS  => '_SHOW',
+        },
+      });
+
+      return $tariffs || [];
+    }
+    when ('Voip') {
+      require Voip;
+      Voip->import();
+      my $Voip = Voip->new($db, $admin, \%conf);
+
+      $Voip->user_info($uid);
+
+      return {
+        errno  => 30012,
+        errstr => 'Not active voip service'
+      } if (!($Voip->{TOTAL} && $Voip->{TOTAL} > 0));
+
+      require Shedule;
+      Shedule->import();
+      my $Schedule = Shedule->new($db, $admin, \%conf);
+
+      $Schedule->info({
+        UID    => $uid,
+        TYPE   => 'tp',
+        MODULE => 'Voip'
+      });
+
+      if ($Schedule->{TOTAL} && $Schedule->{TOTAL} > 0) {
+        $Voip->{SCHEDULE_TP_CHANGE} = {
+          DATE     => "$Schedule->{Y}-$Schedule->{M}-$Schedule->{D}",
+          ADDED    => $Schedule->{DATE},
+          ADDED_BY => $Schedule->{ADMIN_NAME},
+          TP_ID    => $Schedule->{ACTION},
+          ID       => $Schedule->{SHEDULE_ID},
+        };
+      }
+
+      my $phones = $Voip->phone_aliases_list({
+        UID       => $uid,
+        NUMBER    => '_SHOW',
+        DISABLE   => '_SHOW',
+        COLS_NAME => 1,
+      });
+
+      $Voip->{PHONE_ALIASES} = $phones;
+
+      my @filter_array = (
+        'AFFECTED',
+        'FILTER_ID',
+        'NAT',
+        'PROVISION_NAS_ID',
+        'PROVISION_PORT',
+        'SIMULTANEONSLY',
+        'SIMULTANEOUSLY',
+        'TOTAL',
+        'TP_CREDIT',
+        'REGISTRATION',
+        'SEARCH_VALUES',
+        'SEARCH_FIELDS_COUNT',
+        'SEARCH_FIELDS_ARR',
+        'SEARCH_FIELDS',
+        'EXT_TABLES'
+      );
+
+      delete @{$Voip}{@filter_array};
+      $Voip = { %$Voip };
+      return [ $Voip = Abills::Api::FieldsGrouper::group_fields($Voip) ];
+    }
+    when ('Abon') {
+      require Abon;
+      Abon->import();
+      my $Abon = Abon->new($db, $admin, \%conf);
+
+      my $services = $Abon->user_tariff_list($uid, {
+        USER_PORTAL  => '>0',
+        SERVICE_LINK => '_SHOW',
+        COLS_NAME    => 1
+      });
+
+      my @service_list = ();
+
+      foreach my $service (@{$services}) {
+        next if (!$service->{manual_activate} && !$service->{date});
+        require POSIX;
+        POSIX->import(qw(strftime));
+        $DATE = strftime("%Y-%m-%d", localtime(time));
+        my $date_if = $service->{next_abon} ? date_diff($DATE, $service->{next_abon}) : 0;
+
+        my @periods = ('day', 'month', 'quarter', 'six months', 'year');
+
+        my %tariff = (
+          price       => $service->{price},
+          tp_name     => $service->{tp_name},
+          id          => $service->{id},
+          active      => (!$service->{next_abon} || ($date_if && $date_if <= 0)) ? 'false' : 'true',
+          start_date  => $service->{date},
+          end_date    => $service->{next_abon},
+          description => $service->{description},
+          period      => $periods[$service->{period}],
+          activate    => ($service->{user_portal} > 1 && $service->{manual_activate}) ? 'true' : 'false',
+        );
+
+        if ($date_if && $date_if > 0) {
+          $tariff{next_abon} = {
+            abon_date   => $service->{next_abon},
+            days_to_fee => $date_if,
+            sum         => $service->{price}
+          }
+        }
+
+        push @service_list, \%tariff;
+      }
+
+      return \@service_list;
+    }
+    default {
+      return [];
+    }
+  }
 }
 
 1;

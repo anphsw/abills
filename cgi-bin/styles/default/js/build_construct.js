@@ -1,4 +1,4 @@
-function build_construct(Param_flors, Param_entrances, Param_rooms, elem_id, user_info, lang_pack, min_height, flats_sum, build_schema, numbering_direction) {
+function build_construct(Param_flors, Param_entrances, Param_rooms, elem_id, user_info, lang_pack, min_height, flats_sum, build_schema, numbering_direction, start_numbering_flat) {
 
   var status_colors = ['#00a65a', "#747372", '#f39c12', '#dd4b39', '#FF8000', '#9b9b9b'];
   var status_colors_window = ["#0000FF", '#0000FF', '#824227', '#009D00', '#FF8000'];
@@ -26,7 +26,8 @@ function build_construct(Param_flors, Param_entrances, Param_rooms, elem_id, use
   var line_width = 6;
   var entrances_width = Param_rooms * room_width / 2 - room_width;
   var dor_num = 0;
-  var flat_score = 0;
+  var flat_score = start_numbering_flat;
+  console.log(flat_score);
   var d = 0;
   var timeeqel;
   var canvas_width = jQuery('#canvas_container').prop("clientWidth");

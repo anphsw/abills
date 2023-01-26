@@ -22,7 +22,7 @@
         .isForm(true)
         // .setHeader('_{DISPATCH}_ #' + id)
         .setBody(data)
-        .setLarge(true)
+        .setSize('lg')
         .show(function (modal) {
 
         });

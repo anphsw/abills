@@ -7,7 +7,7 @@
             %FORM_GROUP%
             %DATEPICKER%
         </div>
-        <div class='card-footer text-center'>
+        <div class='card-footer'>
             <input type='submit' form='form_RANGE_PICKER' class='btn btn-primary' name='%ACTION%' value='%BTN%'>
         </div>
     </div>

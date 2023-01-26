@@ -105,13 +105,20 @@ jQuery(function () {
         else {
           message = data['_INFO']['MESSAGE'];
         }
-        message = message.replaceAll('\\n', '</br>');
+
+        if (!message && data?._INFO[1] && data?._INFO[1]?.MESSAGE) {
+          message = data?._INFO[1]?.MESSAGE;
+        }
+
+        if (message) {
+          message = message.replaceAll('\\n', '</br>');
+        }
         callback(message);
       }
     }).fail(function (status, error) {
       if (error === "parsererror") {
         callback("Error processing data on server");
       }
-    })
+    });
   }
 } ());

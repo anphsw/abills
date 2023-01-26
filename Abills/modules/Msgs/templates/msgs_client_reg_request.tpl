@@ -77,7 +77,7 @@
 
         </div>
 
-        <div class='card-footer text-right'>
+        <div class='card-footer'>
           <input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'/>
         </div>
 

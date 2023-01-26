@@ -7,7 +7,7 @@
 use warnings;
 use strict;
 use Abills::Base qw(sec2time in_array convert int2byte ip2int int2ip date_diff show_hash date_inc next_month );
-use Abills::Filters qw(_mac_former);
+use Abills::Filters qw(_mac_former $MAC);
 
 require Internet::Stats;
 require Control::Service_control;
@@ -39,6 +39,7 @@ my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML 
 #**********************************************************
 sub internet_user_info {
   my $uid = $LIST_PARAMS{UID};
+
   if (!$FORM{ID}) {
     my $list = $Internet->user_list({
       GROUP_BY  => 'internet.id',
@@ -54,23 +55,34 @@ sub internet_user_info {
         $Internet->{NEXT_FEES_WARNING} = '';
         $Internet->{TP_CHANGE_WARNING} = '';
         $Internet->{SERVICE_EXPIRE_DATE} = '';
-        internet_user_info_proceed();
+        internet_user_info_proceed({ ID => $line->{id}, UID => $uid });
       }
       return 1;
     }
   }
-  internet_user_info_proceed();
+
+  internet_user_info_proceed({ UID => $uid,  ID => $FORM{ID} });
+
   return 1;
 }
 
 #**********************************************************
-=head2 internet_user_info_proceed()
+=head2 internet_user_info_proceed($attr)
+
+  Arguments:
+    $attr
+      UID
+      ID
+
+  Return:
 
 =cut
 #**********************************************************
 sub internet_user_info_proceed {
+  my ($attr) = @_;
 
-  my $uid = $LIST_PARAMS{UID};
+  my $service_id = $attr->{ID} || 0;
+  my $uid = $attr->{UID} || $LIST_PARAMS{UID} || 0;
 
   my $service_status = sel_status({ HASH_RESULT => 1 });
   our $Isg;
@@ -85,18 +97,16 @@ sub internet_user_info_proceed {
 
     my $nas_list = $Nas->{list_hash};
     #Check deposit and disable STATUS
-    my $list = $Internet->user_list(
-      {
-        LOGIN          => $user->{LOGIN},
-        CREDIT         => '_SHOW',
-        DEPOSIT        => '_SHOW',
-        INTERNET_STATUS=> '_SHOW',
-        TP_NAME        => '_SHOW',
-        ONLINE_NAS_ID  => join(';', keys %$nas_list),
-        PAYMENTS_TYPE  => 0,
-        COLS_NAME      => 1
-      }
-    );
+    my $list = $Internet->user_list({
+      LOGIN          => $user->{LOGIN},
+      CREDIT         => '_SHOW',
+      DEPOSIT        => '_SHOW',
+      INTERNET_STATUS=> '_SHOW',
+      TP_NAME        => '_SHOW',
+      ONLINE_NAS_ID  => join(';', keys %$nas_list),
+      PAYMENTS_TYPE  => 0,
+      COLS_NAME      => 1
+    });
 
     if ($Internet->{TOTAL} < 1) {
 
@@ -144,14 +154,14 @@ sub internet_user_info_proceed {
     }
   }
   # Users autoregistrations
-  elsif ($conf{INTERNET_IP_DISCOVERY}) {
-    if(! internet_discovery($user->{REMOTE_ADDR})) {
+  elsif ($conf{INTERNET_IP_DISCOVERY} || $FORM{DISCOVERY_MAC}) {
+    if(! internet_discovery($user->{REMOTE_ADDR}, { %FORM, UID => $uid, ID => $service_id })) {
       return 0;
     }
   }
 
   $Internet->user_info($uid, {
-    ID        => $FORM{ID},
+    ID        => $service_id,
     DOMAIN_ID => $user->{DOMAIN_ID}
   });
 
@@ -160,7 +170,7 @@ sub internet_user_info_proceed {
     return 0 unless ($Internet->{STATUS} && ($Internet->{STATUS} == 2 || $Internet->{STATUS} == 5));
     $Internet->user_change({
       UID      => $uid,
-      ID       => $FORM{ID},
+      ID       => $service_id,
       STATUS   => 0,
       CID      => ($Isg->{ISG_CID_CUR}) ? $Isg->{ISG_CID_CUR} : undef,
       ACTIVATE => ($conf{INTERNET_USER_ACTIVATE_DATE}) ? $DATE : undef
@@ -169,7 +179,7 @@ sub internet_user_info_proceed {
     if (!$Internet->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{ACTIVATE} CID: $Isg->{ISG_CID_CUR}") if ($Isg->{ISG_CID_CUR});
       if (!$Internet->{STATUS}) {
-        service_get_month_fee($Internet);
+        service_get_month_fee($Internet, { USER_INFO => $user });
       }
     }
     else {
@@ -243,7 +253,7 @@ sub internet_user_info_proceed {
 
   # Check for sheduled tp change
   my $sheduled_tp_actions_list = $Shedule->list({
-    SERVICE_ID => $FORM{ID},
+    SERVICE_ID => $service_id,
     UID        => $user->{UID},
     TYPE       => 'tp',
     MODULE     => 'Internet',
@@ -255,7 +265,7 @@ sub internet_user_info_proceed {
     my $next_tp_date   = "$next_tp_action->{y}-$next_tp_action->{m}-$next_tp_action->{d}";
 
     my $next_tp_id = $next_tp_action->{action};
-    my $service_id = 0;
+    $service_id = 0;
     if ($next_tp_id =~ /:/) {
       ($service_id, $next_tp_id) = split(/:/, $next_tp_id);
     }
@@ -279,7 +289,6 @@ sub internet_user_info_proceed {
   if ($Internet->{STATUS} == 2) {
     $Internet->{STATUS_VALUE} = $status;
     $Internet->{STATUS_FIELD} = 'text-warning';
-
     $Internet->{STATUS_BTN} = ($user->{DISABLE} > 0) ? $html->b("($lang{ACCOUNT} $lang{DISABLE})")
                                                   : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ID=>'ACTIVATE', class=> 'btn btn-sm btn-success float-right' });
   }
@@ -457,13 +466,15 @@ sub internet_service_info {
     "IP:0.0.0.0:\$_STATIC IP",
     "IPV6::\$_STATIC IPv6",
     "IPV6_PREFIX::IPv6 Prefix",
-    "CID::MAC",
+    "CID::MAC:"
+      . (($conf{INTERNET_MAC_DICOVERY}) ? $html->button($lang{CHANGE}, "index=". get_function_index('internet_user_info')
+      ."&DISCOVERY_MAC=1", { BUTTON => 1 }) :  ''),
     'ACTIVATE:0000-00-00:$_ACTIVATE',
   );
 
   my @extra_fields = ();
   foreach my $param ( @check_fields ) {
-    my($id, $default_value, $lang_, $value_prefix )=split(/:/, $param);
+    my($id, $default_value, $lang_, $value_prefix )=split(/:/, $param, 4);
     if(! defined($Internet_->{$id}) || $Internet_->{$id} eq $default_value) {
       next;
     }
@@ -501,7 +512,7 @@ sub internet_service_info {
 =cut
 #**********************************************************
 sub internet_discovery {
-  my ($user_ip)=@_;
+  my ($user_ip, $attr)=@_;
 
   if($conf{INTERNET_IP_DISCOVERY_IP}) {
     my ($user_name, $discovery_user_ip) = split(/:/, $conf{INTERNET_IP_DISCOVERY_IP});
@@ -510,20 +521,52 @@ sub internet_discovery {
     }
   }
 
-  $conf{INTERNET_IP_DISCOVERY}=~s/[\r\n ]//g;
-  my @dhcp_nets         = split(/;/, $conf{INTERNET_IP_DISCOVERY});
+  if ($FORM{DISCOVERY_MAC}) {
+    if ($FORM{discovery} && $attr->{CID} && $attr->{CID} =~ /^$MAC$/) {
+      $Internet->user_list({ CID => $FORM{CID} });
+      if (defined($Internet->{TOTAL}) && $Internet->{TOTAL} < 1) {
+        $Internet->user_change({
+          ID  => $attr->{ID},
+          UID => $attr->{UID},
+          CID => $FORM{CID}
+        });
 
-  my $discovery_ip = 0;
-  foreach my $nets (@dhcp_nets) {
-    my (undef, $net_ips, undef) = split(/:/, $nets);
-    if(check_ip($user_ip, $net_ips) ) {
-      $discovery_ip = 1;
-      last;
+        internet_hangup({
+          #UID => $attr->{UID}
+          #FRAMED_IP_ADDRESS=>$user->{REMOTE_ADDR}
+          CID   => $FORM{CID},
+          GUEST => 1
+        });
+
+      }
     }
-  }
 
-  if(! $discovery_ip) {
+    my $DHCP_INFO = internet_dhcp_get_mac($user_ip, { CHECK_STATIC => 1 });
+    $html->tpl_show(_include('internet_discovery_manual', 'Internet'), {
+      %$Internet,
+      IP  => $user_ip,
+      ID  => 'internet_discovery_manual',
+      CID => $DHCP_INFO->{CID}
+    });
+
     return 1;
+  }
+  else {
+    $conf{INTERNET_IP_DISCOVERY} =~ s/[\r\n ]//g;
+    my @dhcp_nets = split(/;/, $conf{INTERNET_IP_DISCOVERY});
+
+    my $discovery_ip = 0;
+    foreach my $nets (@dhcp_nets) {
+      my (undef, $net_ips, undef) = split(/:/, $nets);
+      if (check_ip($user_ip, $net_ips)) {
+        $discovery_ip = 1;
+        last;
+      }
+    }
+
+    if (!$discovery_ip) {
+      return 1;
+    }
   }
 
   my $session_list = $Sessions->online({
@@ -582,11 +625,11 @@ sub internet_discovery {
 
       if (! $Internet->{NEW_IP}) {
         $html->tpl_show(_include('internet_guest_mode', 'Internet'), {
-            %$Internet,
-            %$DHCP_INFO,
-            IP => $user_ip,
-            ID => 'internet_guest_mode'
-          });
+          %$Internet,
+          %$DHCP_INFO,
+          IP => $user_ip,
+          ID => 'internet_guest_mode'
+        });
       }
     }
   }
@@ -1030,10 +1073,6 @@ sub internet_user_stats {
 sub internet_dhcp_get_mac_add {
   my ($ip, $DHCP_INFO, $attr) = @_;
 
-  #require Dhcphosts;
-  #Dhcphosts->import();
-  #my $Dhcphosts         = Dhcphosts->new($db, $admin, \%conf);
-
   $conf{INTERNET_IP_DISCOVERY}=~s/[\r\n ]//g;
   my @dhcp_nets         = split(/;/, $conf{INTERNET_IP_DISCOVERY});
   my $default_params    = "IP,MAC";
@@ -1084,7 +1123,7 @@ sub internet_dhcp_get_mac_add {
         PAGE_ROWS => 1
       });
 
-      my $discovery = join("\n", map { $_.'->'.$PARAMS_HASH{$_} } keys %PARAMS_HASH);
+      #my $discovery = join("\n", map { $_.'->'.$PARAMS_HASH{$_} } keys %PARAMS_HASH);
 
       if ($Internet->{TOTAL} > 0) {
         $Internet->user_change({
@@ -1354,7 +1393,7 @@ sub internet_hangup {
   my $Nas_cmd = Abills::Nas::Control->new($db, \%conf);
   sleep 1;
   $Nas_cmd->hangup($Nas, 0, '', $Sessions);
-  `echo "hangup" >> /tmp/hagup`;
+  `echo "$DATE $TIME hangup NAS_ID: $Sessions->{NAS_ID}  $attr->{UID} TYPE: $Nas->{NAS_TYPE} $Sessions->{ACCT_SESSION_ID}  " >> /tmp/hagup`;
 
   return 1;
 }

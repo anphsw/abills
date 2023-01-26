@@ -15,4 +15,10 @@ $admin->{EVENTS_ENABLED} = 1;
   "10:6:notice:events_notice:AJAX"                           => 9,
 );
 
+our %PERIODIC = (
+  monthly => [
+    'events_rotate',
+  ]
+);
+
 1;

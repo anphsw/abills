@@ -594,6 +594,8 @@ sub sel_sms_systems {
     SMS_WEBSMS_URL         => 'WebSms',
     SMS_FENIX_URL          => 'Fenix',
     SMS_AMD_URL            => 'AMD',
+    SMS_SMSCLUB_URL        => 'SmsClub',
+    SMS_ALPHASMS_URL        => 'AlphaSms',
   );
 
   foreach my $config_key (sort keys %sms_systems) {

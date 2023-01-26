@@ -88,7 +88,7 @@
       </div>
 
     </div>
-    <div class='card-footer text-center'>
+    <div class='card-footer'>
       <input type='submit' form='form_crm_info_fields' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
     </div>
   </div>

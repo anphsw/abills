@@ -18,13 +18,11 @@
           <input id='CONTRACT_ID' name='CONTRACT_ID' value='%CONTRACT_ID%'
               placeholder='%CONTRACT_ID%' class='form-control' type='text'>
           <div class='input-group-append'>
-            <div class='input-group-text'>
-              %PRINT_CONTRACT%
-            </div>
-            <div class='input-group-text'>
-              <a href='$SELF_URL?qindex=15&UID=$FORM{UID}&PRINT_CONTRACT=%CONTRACT_ID%&SEND_EMAIL=1&pdf=1'
-                class='fa fa-envelope' target=_new></a>
-            </div>
+            %PRINT_CONTRACT%
+            <a href='$SELF_URL?qindex=15&UID=$FORM{UID}&PRINT_CONTRACT=%CONTRACT_ID%&SEND_EMAIL=1&pdf=1'
+              class='btn input-group-button' target=_new>
+              <i class='fa fa-envelope'></i>
+            </a>
           </div>
         </div>
       </div>

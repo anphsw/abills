@@ -36,9 +36,9 @@
           </div>
           <div class='bd-highlight' %HIDE_ADD_BUILD_BUTTON%>
             <div class='input-group-append h-100'>
-              <div class='input-group-text rounded-left-0'>
-                <a title='_{ADD}_ _{BUILDS}_' class='BUTTON-ENABLE-ADD'><span class='fa fa-plus'></span></a>
-              </div>
+              <a title='_{ADD}_ _{BUILDS}_' class='btn input-group-button rounded-left-0 BUTTON-ENABLE-ADD'>
+                <span class='fa fa-plus'></span>
+              </a>
             </div>
           </div>
         </div>
@@ -47,20 +47,14 @@
       <div class='changeBuildMenu' style='display : none'>
         <div class='input-group'>
           <input type='text' name='ADD_ADDRESS_BUILD' class='form-control INPUT-ADD-BUILD'/>
-
           <span class='input-group-append'>
-            <div class='input-group-text rounded-left-0'>
-              <a class='BUTTON-ENABLE-SEL'>
-                <span class='fa fa-list'></span>
-              </a>
-            </div>
+            <a class='btn input-group-button rounded-left-0 BUTTON-ENABLE-SEL'>
+              <span class='fa fa-list'></span>
+            </a>
            </span>
-
         </div>
       </div>
-
     </div>
-
   </div>
 </div>
 

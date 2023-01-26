@@ -1,5 +1,5 @@
-<form action='$SELF_URL' class='form form-horizontal' METHOD='POST'>
-  <input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' METHOD='POST'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='VENDOR' value='%VENDOR%'>
   <input type='hidden' name='NAS_ID' value='%NAS_ID%'>
   <input type='hidden' name='TYPE' value='%TYPE%'>
@@ -65,9 +65,24 @@
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' for='ONU_DESC'>_{DESCRIBE}_:</label>
         <div class='col-md-8'>
-          <input id='ONU_DESC' name='ONU_DESC' value='' class='form-control' type='text'>
+          <input id='ONU_DESC' name='ONU_DESC' value='%ONU_DESC%' class='form-control' type='text'>
         </div>
       </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='DEBUG'>_{DEBUG}_:</label>
+        <div class='col-md-8'>
+          <select name='DEBUG'>
+            <option value=0 selected>--</option>
+            <option value=1>1</option>
+            <option value=2>2</option>
+            <option value=3>3</option>
+            <option value=4>4</option>
+            <option value=5>5</option>
+          </select>
+        </div>
+      </div>
+
     </div>
     <div class='card-footer'>
       <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary float-left'>
@@ -100,7 +115,7 @@
         iptv_vlan_select.attr('name', 'IPTV_VLAN_ID');
       }
       else {
-        if ("%SHOW_VLANS%" == 1) {
+        if ('%SHOW_VLANS%' == 1) {
           inet_vlan_sel_div.show();
         }
         else {
@@ -132,7 +147,7 @@
           iptv_vlan_select.attr('name', 'IPTV_VLAN_ID');
         }
         else {
-          if ("%SHOW_VLANS%" == 1) {
+          if ('%SHOW_VLANS%' == 1) {
             inet_vlan_sel_div.show();
           }
           else {

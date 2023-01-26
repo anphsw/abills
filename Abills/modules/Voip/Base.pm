@@ -3,11 +3,14 @@ package Voip::Base;
 use strict;
 use warnings FATAL => 'all';
 
+use Voip;
+use Voip::Users;
+
 my ($admin, $CONF, $db);
-my $json;
 my Abills::HTML $html;
 my $lang;
-my $Voip;
+my Voip $Voip;
+my Voip::Users $Voip_users;
 
 use Abills::Base qw/days_in_month in_array next_month dirname/;
 
@@ -28,9 +31,12 @@ sub new {
 
   my $self = {};
 
-  require Voip;
-  Voip->import();
   $Voip = Voip->new($db, $admin, $CONF);
+
+  $Voip_users = Voip::Users->new($db, $admin, $CONF, {
+    html => $html || {},
+    lang => $lang || {}
+  });
 
   bless($self, $class);
 
@@ -221,7 +227,7 @@ sub voip_payments_maked {
       $abon_fees = $abon_fees * (100 - $user->{REDUCTION}) / 100;
     }
 
-    if ( $Voip->{DISABLE} > 1 && $deposit > $abon_fees ){
+    if ($Voip->{DISABLE} > 1 && $deposit > $abon_fees) {
       $Voip->user_change({
         UID     => $attr->{USER_INFO}->{UID},
         TP_ID   => $Voip->{TP_ID},
@@ -229,11 +235,14 @@ sub voip_payments_maked {
       });
 
       $Voip->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE} || '0000-00-00';
-      ::voip_get_month_fee( $Voip, $attr );
+      ::service_get_month_fee($Voip, $attr);
     }
   }
 
-  ::voip_mk_users_conf();
+  if ($CONF->{VOIP_ASTERISK_USERS}) {
+    $Voip_users->voip_mk_users_conf($form);
+  }
+
 
   return 1;
 }

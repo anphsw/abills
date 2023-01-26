@@ -2,7 +2,7 @@
   <input type=hidden name='index' value='%INDEX%'>
   <input type=hidden name='AID' value='%AID%'>
 
-  <div class="row">
+  <div class='row'>
   <div class='col-md-6'>
       <div class='card card-primary card-outline'>
         <div class='card-header with-border'><h4 class='card-title table-caption'>_{EMPLOYEES}_</h4></div>
@@ -81,9 +81,9 @@
 
           <div class='card card-outline collapsed-card'>
             <div class='card-header with-border center'>
-              <h3 class="card-title">_{PASPORT}_</h3>
-              <div class="card-tools float-right">
-                <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fa fa-plus"></i>
+              <h3 class='card-title'>_{PASPORT}_</h3>
+              <div class='card-tools'>
+                <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-plus'></i>
                 </button>
               </div>
             </div>
@@ -143,10 +143,10 @@
 
   <div class='col-md-6'>
       <div class='card card-primary card-outline'>
-        <div class='card-header with-border' class='center'>
-          <h3 class="card-title">_{OTHER}_</h3>
-          <div class="card-tools float-right">
-            <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fa fa-minus"></i>
+        <div class='card-header with-border'>
+          <h3 class='card-title'>_{OTHER}_</h3>
+          <div class='card-tools'>
+            <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-minus'></i>
             </button>
           </div>
         </div>
@@ -224,7 +224,7 @@
   </div>
   </div>
 
-    <div class='col-xs-12'>
+    <div class='abills-form-main-buttons mb-3'>
       <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
     </div>
 

@@ -65,46 +65,50 @@
   });
 
   function GetStreets(data) {
-    var distrId = jQuery("#" + data.id).val();
-    distrId = distrId ? distrId : '_SHOW';
-    jQuery.post('$SELF_URL', '%QINDEX%header=2&get_index=form_address_select2&DISTRICT_ID=' + distrId
-      + '&STREET=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%', function (result) {
-      jQuery('#%STREET_ID%').html(result);
+    let street = jQuery("#%STREET_ID%");
+    street.attr('disabled', 'disabled');
+    let district_id = jQuery(data).val();
+    district_id = district_id ? district_id : '_SHOW';
+
+    let url = `%QINDEX%header=2&get_index=form_address_select2&DISTRICT_ID=${district_id}`
+      + '&STREET=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%';
+    jQuery.post('$SELF_URL', url, function (result) {
+      street.html(result);
       initChosen();
-      if (!jQuery("#" + data.id).prop('multiple')) {
-        jQuery("#%STREET_ID%").focus();
-        jQuery("#%STREET_ID%").select2('open');
-      }
+
+      if (!jQuery(data).prop('multiple')) street.focus().select2('open');
+      street.removeAttr('disabled');
     });
   }
 
   function GetBuilds(data) {
-    var strId = jQuery("#" + data.id).val();
-    if (Array.isArray(strId) && strId.length > 1) strId = strId.join(';');
+    let build = jQuery('#%BUILD_ID%');
+    build.attr('disabled', 'disabled');
+    let street_id = jQuery(data).val();
+    if (Array.isArray(street_id) && street_id.length > 1) street_id = street_id.join(';');
 
-    if (!strId || strId == 0) {
-      strId = 0;
+    if (!street_id || street_id == 0) {
+      street_id = 0;
       jQuery('#ADD_LOCATION_ID').attr('value', '');
     }
 
-    jQuery.post('$SELF_URL',
-      `%QINDEX%header=2&get_index=form_address_select2&STREET_ID=${strId}&BUILD=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%`,
-      function (result) {
-        jQuery('#%BUILD_ID%').html(result);
-        initChosen();
+    let url = `%QINDEX%header=2&get_index=form_address_select2&STREET_ID=${street_id}&BUILD=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&` +
+      `STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%`;
+    jQuery.post('$SELF_URL', url, function (result) {
+      build.html(result);
+      initChosen();
 
-        if (!jQuery("#" + data.id).prop('multiple')) {
-          jQuery("#%BUILD_ID%").focus();
-          jQuery("#%BUILD_ID%").select2('open');
-        }
+      if (!jQuery(data).prop('multiple')) build.focus().select2('open');
+      build.removeAttr('disabled');
 
-        activateBuildButtons();
-      });
+      activateBuildButtons();
+    });
   }
+
   //Get location_id after change build
   var item = '';
   function GetLoc(data) {
-    item = jQuery("#" + data.id).val();
+    item = jQuery(data).val();
 
     if (item == '--') item = '';
 

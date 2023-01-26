@@ -66,6 +66,8 @@
   var _SCALE = '_{MAPS_SCALE}_' || 'Scale';
   var _DELETE      = '_{DELETE}_' || 'Delete';
   var _COMMUTATION      = '_{COMMUTATION}_' || 'Commutation';
+  var _PREVIOUS = '_{PREVIOUS}_' || 'Prev';
+  var _NEXT = '_{NEXT_NEXT}_' || 'Next';
 
   //ENABLING FEATURES
   var SHOW_MARKERS              = '%SHOW_MARKERS%' || true;

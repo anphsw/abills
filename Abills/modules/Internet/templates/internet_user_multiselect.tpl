@@ -133,6 +133,18 @@
       </div>
     </div>
 
+    <div class='form-group %MU_DELIVERY_VISIBLE%'>
+      <div class='row'>
+        <div class='col-md-4'>
+          <input type='checkbox' name='MU_DELIVERY' value='1' form='internet_users_list' id='MU_DELIVERY'>
+          <label class='col-form-label text-md-left form-check-label' for='MU_DELIVERY'>_{DELIVERY}_</label>
+        </div>
+        <div class='col-md-8'>
+          %MU_DELIVERY%
+        </div>
+      </div>
+    </div>
+
     <div class='form-group'>
       <div class='row'>
         <div class='col-md-4'>

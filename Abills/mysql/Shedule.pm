@@ -179,7 +179,6 @@ sub list{
     else {
       $WHERE .= " WHERE s.action LIKE '$attr->{SERVICE_ID}:%'";
     }
-    
   }
   
   $self->query( "SELECT s.h, s.d, s.m, s.y, s.counts,
@@ -207,7 +206,7 @@ sub list{
     $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   $self->query( "SELECT COUNT(*) AS total FROM shedule s
       LEFT JOIN users u ON (u.uid=s.uid)

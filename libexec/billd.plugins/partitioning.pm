@@ -4,8 +4,13 @@
 
 Arguments:
 
-  TABLES = List of part tables
-  DEBUG
+  TABLES="fees,payments" - List of part tables
+  SKIP_TABLES="payments,fees" - SKip tables
+  DEBUG=0..7
+
+Options:
+
+  $conf{PARTITIONING_FIN}=1;
 
 =cut
 
@@ -15,7 +20,7 @@ use warnings FATAL => 'all';
 use DBI;
 use Sys::Syslog qw(:standard :macros);
 use POSIX qw(strftime);
-use Abills::Base qw(load_pmodule);
+use Abills::Base qw(load_pmodule in_array);
 
 our (
   $Admin,
@@ -33,8 +38,13 @@ my %tables = (
   's_detail'        => { 'period' => 'day', 'keep_history' => '30', main_field => 'start' },
   'errors_log'      => { 'period' => 'day', 'keep_history' => '7', main_field  => 'date' },
   'internet_log'    => { 'period' => 'month', 'keep_history' => '30', main_field => 'start' },
-  'dv_log'          => { 'period' => 'month', 'keep_history' => '100', main_field => 'start' },
 );
+
+if ($conf{PARTITIONING_FIN}) {
+  $tables{'fees'}    = { 'period' => 'month', 'keep_history' => '60', main_field => 'date' };
+  $tables{'payments'}= { 'period' => 'month', 'keep_history' => '60', main_field => 'date' };
+}
+
 
 load_pmodule('DateTime');
 
@@ -83,6 +93,15 @@ sub partitioning {
     exit 1;
   }
 
+  if ($debug > 6) {
+    $Admin->{debug}=1;
+  }
+
+  my @skip_tables = ();
+  if ($argv->{SKIP_TABLES}) {
+    @skip_tables = split(/,\s?/, $argv->{SKIP_TABLES});
+  }
+
   $Admin->$query_cmd(qq{SELECT table_name,
      partition_name,
      lower(partition_method) AS partition_method,
@@ -95,7 +114,7 @@ sub partitioning {
   foreach my $line (@{ $Admin->{list} }) {
     $part_tables->{$line->{'table_name'}}->{$line->{'partition_name'}} = $line;
 
-    print "$line->{'table_name'}: $line->{'partition_name'} = $line->{'table_rows'}\n" if ($debug);
+    print "$line->{'table_name'}: $line->{'partition_name'} = $line->{'table_rows'}\n" if ($debug > 1);
   }
 
   my @tables_ = keys %tables;
@@ -104,17 +123,21 @@ sub partitioning {
     @tables_ = split(/,\s?/, $argv->{TABLES});
   }
 
-  foreach my $key (sort @tables_) {
-    print "Table: $key\n" if ($debug > 0);
-    if (!defined($part_tables->{$key})) {
-      syslog(LOG_ERR, 'Partitioning for "' . $key . '" is not found! The table might be not partitioned.');
-      if (!init_partition($key, $tables{$key}->{'period'}, $tables{$key}->{'main_field'})) {
+  foreach my $table (sort @tables_) {
+    print "Table: $table\n" if ($debug > 0);
+    if (in_array($table, \@skip_tables)) {
+      print "Skip\n" if ($debug > 0);
+      next;
+    }
+    if (!defined($part_tables->{$table})) {
+      syslog(LOG_ERR, 'Partitioning for "' . $table . '" is not found! The table might be not partitioned.');
+      if (!init_partition($table, $tables{$table}->{'period'}, $tables{$table}->{'main_field'})) {
         next;
       }
     }
 
-    create_next_partition($key, $part_tables->{$key}, $tables{$key}->{'period'});
-    remove_old_partitions($key, $part_tables->{$key}, $tables{$key}->{'period'}, $tables{$key}->{'keep_history'})
+    create_next_partition($table, $part_tables->{$table}, $tables{$table}->{'period'});
+    remove_old_partitions($table, $part_tables->{$table}, $tables{$table}->{'period'}, $tables{$table}->{'keep_history'})
   }
 
   return 1;
@@ -333,7 +356,12 @@ sub init_partition {
   my($table, $period, $main_field)=@_;
 
   if($debug) {
-    print "Init: $table Period: $period\n";
+    print "Init: $table Period: ". ($period || q{}). "\n";
+  }
+
+  if (! $period) {
+    print "ERROR: period not selected";
+    return 0;
   }
 
   my @queries = (

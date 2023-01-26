@@ -301,8 +301,10 @@ sub tags_sel {
     COLS_NAME         => 1
   });
 
-  my $input_checkbox = $html->element('input', '', { type => 'checkbox', name => 'TAGS', 'data-input-disables' => 'TAGS', value => '!' });
-  my $ext_button = $html->element('div', $html->element('i', '', { class => 'fa fa-exclamation' }) . $input_checkbox, { class => 'btn btn-sm' });
+  my $checkbox_params = { type => 'checkbox', name => 'TAGS', 'data-input-disables' => 'TAGS', value => '!' };
+  $checkbox_params->{checked} = 'checked' if $FORM{TAGS} && $FORM{TAGS} eq '!';
+  my $input_checkbox = $html->element('input', '', $checkbox_params);
+  my $ext_button = $html->element('div', $html->element('i', '', { class => 'fa fa-exclamation' }) . $input_checkbox, { class => 'p-1' });
 
   my $form = $html->form_select('TAGS', {
     SELECTED   => $FORM{TAGS} || '',

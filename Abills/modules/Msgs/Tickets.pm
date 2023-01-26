@@ -26,7 +26,7 @@ our (
 );
 
 our Abills::HTML $html;
-my $Address = Address->new($db, $admin, \%conf);
+#my $Address = Address->new($db, $admin, \%conf);
 my $Msgs = Msgs->new($db, $admin, \%conf);
 my $Notify = Msgs::Notify->new($db, $admin, \%conf, { LANG => \%lang, HTML=>$html });
 my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
@@ -103,7 +103,7 @@ sub msgs_admin {
       return 1;
     }
 
-    if ($msgs_permissions{4} && !$msgs_permissions{4}{$Msgs->{CHAPTER}}) {
+    if ($msgs_permissions{4} && (!$Msgs->{CHAPTER} || !$msgs_permissions{4}{$Msgs->{CHAPTER}})) {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
       return 1;
     }
@@ -347,7 +347,8 @@ sub msgs_ticket_change {
 sub msgs_admin_add {
   my ($attr) = @_;
 
-  return 1 if !$msgs_permissions{1}{0};
+  return 1 if !$msgs_permissions{1}{0} && !$attr->{REGISTRATION};
+  return 1 if (!$FORM{SUBJECT} || !$FORM{MESSAGE}) && defined $FORM{SUBJECT} && $attr->{REGISTRATION};
 
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
   $FORM{send_message} = 1 if ($FORM{add} && $FORM{next});
@@ -402,8 +403,8 @@ sub _msgs_admin_send_message {
   $FORM{UID} =~ s/,/;/g if ($FORM{UID});
 
   my %query_data = ();
-  map $query_data{$_} = $FORM{$_} ? $FORM{$_} : '_SHOW', keys %FORM;
-
+  my @skip_keys = ('LOCATION_ID', 'STREET_ID');
+  map $query_data{$_} = $FORM{$_} ? $FORM{$_} : in_array($_, \@skip_keys) ? undef : '_SHOW', keys %FORM;
   my $users_list = $users->list({
     LOGIN     => '_SHOW',
     FIO       => '_SHOW',
@@ -522,6 +523,8 @@ sub _msgs_admin_send_message {
 #**********************************************************
 sub _msgs_make_delivery {
   my ($uids, $NUMBERS, $msgs_ids, $msg_for_uid, $users_list, $attr) = @_;
+
+  return 1 if !$users_list || ref $users_list ne 'ARRAY';
 
   foreach my $user_info (@{$users_list}) {
     $FORM{UID} = $user_info->{uid};
@@ -1434,7 +1437,7 @@ sub _msgs_show_change_subject_template {
 #**********************************************************
 sub _msgs_edit_reply {
 
-  return 1 unless ($permissions{7} && $permissions{7}->{1} && $FORM{edit_reply});
+  return 1 unless ($msgs_permissions{1} && $msgs_permissions{1}{2} && $FORM{edit_reply});
 
   my $edit_reply = $FORM{edit_reply};
   if ($edit_reply =~ s/^[m]\d+//) {

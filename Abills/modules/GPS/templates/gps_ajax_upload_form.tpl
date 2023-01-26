@@ -42,7 +42,7 @@
                         </div>
                     </div>
 
-                    <div class='card-footer text-right'>
+                    <div class='card-footer'>
                         <input class='btn btn-primary' type='submit' id='select_thumbnail_btn' value='_{CHANGE_}_'/>
                     </div>
 

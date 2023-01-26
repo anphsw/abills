@@ -218,7 +218,7 @@ sub auth {
 
       $self->query2("INSERT INTO admin_actions SET
         AID         = 2,
-        IP          = INET_ATON('127.0.0.3'),
+        IP          = INET_ATON('127.0.0.5'),
         DATETIME    = NOW(),
         ACTIONS     = '2->0',
         UID         = '$self->{UID}',
@@ -342,7 +342,7 @@ sub auth {
     }
 
     if ($active_logins >= $self->{LOGINS}) {
-      $RAD_PAIRS->{'Reply-Message'} = "More then allow login ($self->{LOGINS}/$self->{TOTAL})";
+      $RAD_PAIRS->{'Reply-Message'} = "MORE_THEN_ALLOW_LOGIN ($self->{LOGINS}/$self->{TOTAL})";
       return 1, $RAD_PAIRS;
     }
   }
@@ -376,7 +376,7 @@ sub auth {
     $self->{DEPOSIT} = 0;
   }
 
-  if ($self->{INTERVALS} > 0) { # && ($self->{DEPOSIT} > 0 || $self->{PAYMENT_TYPE} > 0)) {
+  if ($self->{INTERVALS} > 0) {
     ($self->{TIME_INTERVALS}, $self->{INTERVAL_TIME_TARIF}, $self->{INTERVAL_TRAF_TARIF}) = $Billing->time_intervals($self->{TP_ID});
 
     ($remaining_time, $ATTR) = $Billing->remaining_time(
@@ -411,10 +411,10 @@ sub auth {
   }
   elsif ($remaining_time == -2) {
 #    if ($self->{NEG_DEPOSIT_FILTER_ID}) {
-      return $self->neg_deposit_filter_former($RAD, $NAS, $self->{NEG_DEPOSIT_FILTER_ID},
+    return $self->neg_deposit_filter_former($RAD, $NAS, $self->{NEG_DEPOSIT_FILTER_ID},
         {
           RAD_PAIRS   => $RAD_PAIRS,
-          MESSGAE     => "Not Allow time" . (($ATTR->{TT}) ? " Interval: $ATTR->{TT}" : q{}),
+          MESSAGE     => "Not Allow time" . (($ATTR->{TT}) ? " Interval: $ATTR->{TT}" : q{}),
           FILTER_TYPE => 'NOT_ALLOW_TIME'
         });
 #    }
@@ -498,7 +498,7 @@ sub auth {
       }
 
       if (defined($self->{TRAF_LIMIT}) && $self->{TRAF_LIMIT} <= 0) {
-        $RAD_PAIRS->{'Reply-Message'} = "Rejected! $period Traffic limit utilized '$self->{TRAF_LIMIT} Mb'";
+        $RAD_PAIRS->{'Reply-Message'} = "TRAFFIC_LIMIT_UTILIZED '$self->{TRAF_LIMIT} Mb' $period";
         #if ($self->{NEG_DEPOSIT_FILTER_ID}) {
         #  return $self->neg_deposit_filter_former($RAD, $NAS, $self->{NEG_DEPOSIT_FILTER_ID}, { MESSAGE => $RAD_PAIRS->{'Reply-Message'} });
         #}
@@ -533,7 +533,7 @@ sub auth {
        {
          MESSGE     => $RAD_PAIRS->{'Reply-Message'},
          RAD_PAIRS  => $RAD_PAIRS,
-         MESSAGE    => "Rejected! Time limit utilized '$time_limit'",
+         MESSAGE    => "TIME_LIMIT_UTILIZED '$time_limit'",
          FILTER_TYPE=> 'TIME_EXPIRED'
        });
   }
@@ -651,6 +651,9 @@ sub auth {
 
   Arguments:
     $attr
+      RAD_PAIRS
+      NAS
+      RAD
 
   Results:
     $self
@@ -661,14 +664,12 @@ sub nas_pair_former {
   my $self = shift;
   my ($attr) = @_;
 
-  my $RAD_PAIRS = $attr->{RAD_PAIRS};
+  my $RAD_REPLY = $attr->{RAD_PAIRS};
   my $NAS       = $attr->{NAS};
   my $RAD       = $attr->{RAD};
   my $traf_limit= $self->{TRAF_LIMIT} || 0;
 
   my $nas_type = $NAS->{NAS_TYPE} || q{};
-  ####################################################################
-  # Vendor specific return
   #MPD5
   if ($nas_type eq 'mpd5') {
     if (!$CONF->{mpd_filters}) {
@@ -681,8 +682,8 @@ sub nas_pair_former {
           my $cir    = $self->{USER_SPEED} * 1024;
           my $nburst = int($cir * 1.5 / 8);
           my $eburst = 2 * $nburst;
-          push @{ $RAD_PAIRS->{'mpd-limit'} }, "out#1=all $shapper_type $cir $nburst $eburst";
-          push @{ $RAD_PAIRS->{'mpd-limit'} }, "in#1=all $shapper_type $cir $nburst $eburst";
+          push @{ $RAD_REPLY->{'mpd-limit'} }, "out#1=all $shapper_type $cir $nburst $eburst";
+          push @{ $RAD_REPLY->{'mpd-limit'} }, "in#1=all $shapper_type $cir $nburst $eburst";
         }
       }
       else {
@@ -700,23 +701,23 @@ sub nas_pair_former {
             my $shapper_type = ($line->[2] > 4048) ? 'rate-limit' : 'shape';
 
             if ($line->[2] == 0 || $CONF->{ng_car}) {
-              push @{ $RAD_PAIRS->{'mpd-limit'} }, "out#$self->{TOTAL}#0=all pass";
+              push @{ $RAD_REPLY->{'mpd-limit'} }, "out#$self->{TOTAL}#0=all pass";
             }
             elsif (!$CONF->{ng_car}) {
               my $cir    = $line->[2] * 1024;
               my $nburst = int($cir * 1.5 / 8);
               my $eburst = 2 * $nburst;
-              push @{ $RAD_PAIRS->{'mpd-limit'} }, "out#$self->{TOTAL}#0=all $shapper_type $cir $nburst $eburst";
+              push @{ $RAD_REPLY->{'mpd-limit'} }, "out#$self->{TOTAL}#0=all $shapper_type $cir $nburst $eburst";
             }
 
             if ($line->[3] == 0 || $CONF->{ng_car}) {
-              push @{ $RAD_PAIRS->{'mpd-limit'} }, "in#$self->{TOTAL}#0=all pass";
+              push @{ $RAD_REPLY->{'mpd-limit'} }, "in#$self->{TOTAL}#0=all pass";
             }
             elsif (!$CONF->{ng_car}) {
               my $cir    = $line->[3] * 1024;
               my $nburst = int($cir * 1.5 / 8);
               my $eburst = 2 * $nburst;
-              push @{ $RAD_PAIRS->{'mpd-limit'} }, "in#$self->{TOTAL}#0=all $shapper_type $cir $nburst $eburst";
+              push @{ $RAD_REPLY->{'mpd-limit'} }, "in#$self->{TOTAL}#0=all $shapper_type $cir $nburst $eburst";
             }
             next;
           }
@@ -728,13 +729,13 @@ sub nas_pair_former {
             $class_id = $class_id * 2 + 1 - 2 if ($class_id != 0);
 
             foreach my $net (@net_list) {
-              push @{ $RAD_PAIRS->{'mpd-filter'} }, ($class_id) . "#$i=match dst net $net";
-              push @{ $RAD_PAIRS->{'mpd-filter'} }, ($class_id + 1) . "#$i=match src net $net";
+              push @{ $RAD_REPLY->{'mpd-filter'} }, ($class_id) . "#$i=match dst net $net";
+              push @{ $RAD_REPLY->{'mpd-filter'} }, ($class_id + 1) . "#$i=match src net $net";
               $i++;
             }
 
-            push @{ $RAD_PAIRS->{'mpd-limit'} }, "in#" .  ($self->{TOTAL} - $line->[0]) . "#$line->[0]=flt" . ($class_id) . " pass";
-            push @{ $RAD_PAIRS->{'mpd-limit'} }, "out#" . ($self->{TOTAL} - $line->[0]) . "#$line->[0]=flt" . ($class_id + 1) . " pass";
+            push @{ $RAD_REPLY->{'mpd-limit'} }, "in#" .  ($self->{TOTAL} - $line->[0]) . "#$line->[0]=flt" . ($class_id) . " pass";
+            push @{ $RAD_REPLY->{'mpd-limit'} }, "out#" . ($self->{TOTAL} - $line->[0]) . "#$line->[0]=flt" . ($class_id + 1) . " pass";
           }
         }
       }
@@ -745,24 +746,22 @@ sub nas_pair_former {
   elsif ($nas_type eq 'cisco') {
     #$traf_tarif
     if ($self->{USER_SPEED} > 0) {
-      push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit output " . ($self->{USER_SPEED} * 1024) . " 320000 320000 conform-action transmit exceed-action drop";
-      push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit input " .  ($self->{USER_SPEED} * 1024) . " 32000 32000 conform-action transmit exceed-action drop";
+      push @{ $RAD_REPLY->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit output " . ($self->{USER_SPEED} * 1024) . " 320000 320000 conform-action transmit exceed-action drop";
+      push @{ $RAD_REPLY->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit input " .  ($self->{USER_SPEED} * 1024) . " 32000 32000 conform-action transmit exceed-action drop";
     }
     else {
-      my $EX_PARAMS = $self->ex_traffic_params(
-        {
-          traf_limit          => $traf_limit,
-          deposit             => $self->{DEPOSIT},
-        }
-      );
+      my $EX_PARAMS = $self->ex_traffic_params({
+        traf_limit          => $traf_limit,
+        deposit             => $self->{DEPOSIT},
+      });
 
       if ($EX_PARAMS->{speed}->{1}->{OUT}) {
-        push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit output access-group 101 " . ($EX_PARAMS->{speed}->{1}->{IN} * 1024) . " 1000000  1000000 conform-action transmit exceed-action drop";
-        push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit input access-group 102 " .  ($EX_PARAMS->{speed}->{1}->{OUT} * 1024) . " 1000000 1000000 conform-action transmit exceed-action drop";
+        push @{ $RAD_REPLY->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit output access-group 101 " . ($EX_PARAMS->{speed}->{1}->{IN} * 1024) . " 1000000  1000000 conform-action transmit exceed-action drop";
+        push @{ $RAD_REPLY->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit input access-group 102 " .  ($EX_PARAMS->{speed}->{1}->{OUT} * 1024) . " 1000000 1000000 conform-action transmit exceed-action drop";
       }
       my $burst_normal = ($EX_PARAMS->{speed}->{0}->{IN} > 50000) ? 512000 : 320000;
       my $burst_max    = ($EX_PARAMS->{speed}->{0}->{IN} > 50000) ? 512000 : 320000;
-      push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit output "
+      push @{ $RAD_REPLY->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit output "
           . ($EX_PARAMS->{speed}->{0}->{IN} * 1024)
           . ' '. $burst_normal
           . ' '. $burst_max
@@ -770,7 +769,7 @@ sub nas_pair_former {
 
       $burst_normal = ($EX_PARAMS->{speed}->{0}->{OUT} > 50000) ? 512000 : 320000;
       $burst_max    = ($EX_PARAMS->{speed}->{0}->{OUT} > 50000) ? 512000 : 320000;
-      push @{ $RAD_PAIRS->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit input "
+      push @{ $RAD_REPLY->{'Cisco-AVpair'} }, "lcp:interface-config#1=rate-limit input "
           .  ($EX_PARAMS->{speed}->{0}->{OUT} * 1024)
           . ' '. $burst_normal
           . ' '. $burst_max
@@ -779,44 +778,41 @@ sub nas_pair_former {
   }
   # Mikrotik
   elsif ($nas_type eq 'mikrotik') {
-    #$traf_tarif
-    my $EX_PARAMS = $self->ex_traffic_params(
-      {
-        traf_limit          => $traf_limit,
-        deposit             => $self->{DEPOSIT},
-      }
-    );
+    my $EX_PARAMS = $self->ex_traffic_params({
+      traf_limit          => $traf_limit,
+      deposit             => $self->{DEPOSIT},
+    });
 
     if ($EX_PARAMS->{traf_limit} > 0) {
       #Gigaword limit
-      $RAD_PAIRS->{'Mikrotik-Total-Limit-Gigawords'} = 0;
+      $RAD_REPLY->{'Mikrotik-Total-Limit-Gigawords'} = 0;
       if ($EX_PARAMS->{traf_limit} > 4096) {
         my $giga_limit = int($EX_PARAMS->{traf_limit} / 4096);
         #$RAD_PAIRS->{'Mikrotik-Recv-Limit-Gigawords'}=int($giga_limit);
         #$RAD_PAIRS->{'Mikrotik-Xmit-Limit-Gigawords'}=int($giga_limit);
-        $RAD_PAIRS->{'Mikrotik-Total-Limit-Gigawords'} = $giga_limit;
+        $RAD_REPLY->{'Mikrotik-Total-Limit-Gigawords'} = $giga_limit;
         $EX_PARAMS->{traf_limit} = $EX_PARAMS->{traf_limit} - int($giga_limit) * 4096;
         #$RAD_PAIRS->{'Mikrotik-Recv-Limit-Gigawords'}=$giga_limit;
         #$RAD_PAIRS->{'Mikrotik-Xmit-Limit-Gigawords'}=$giga_limit;
       }
-      $RAD_PAIRS->{'Mikrotik-Total-Limit'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE});
+      $RAD_REPLY->{'Mikrotik-Total-Limit'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE});
       #$RAD_PAIRS->{'Mikrotik-Recv-Limit'}  = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE}); # / 2);
       #$RAD_PAIRS->{'Mikrotik-Xmit-Limit'}  = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE}); #/ 2);
     }
 
     if ($self->{IPV6_PREFIX}) {
-      $RAD_PAIRS->{'Mikrotik-Delegated-IPv6-Pool'} = $self->{IPV6_PREFIX} . '/' . $self->{IPV6_PREFIX_MASK};
+      $RAD_REPLY->{'Mikrotik-Delegated-IPv6-Pool'} = $self->{IPV6_PREFIX} . '/' . $self->{IPV6_PREFIX_MASK};
     }
 
     #Shaper
     #global Traffic
     if ($self->{USER_SPEED} > 0) {
-      $RAD_PAIRS->{'Mikrotik-Rate-Limit'} = "$self->{USER_SPEED}k";
-      $RAD_PAIRS->{'Mikrotik-Address-List'} = "CUSTOM_SPEED";
+      $RAD_REPLY->{'Mikrotik-Rate-Limit'} = "$self->{USER_SPEED}k";
+      $RAD_REPLY->{'Mikrotik-Address-List'} = "CUSTOM_SPEED";
     }
     elsif ($EX_PARAMS->{ex_speed}) {
-      $RAD_PAIRS->{'Mikrotik-Rate-Limit'} = "$EX_PARAMS->{ex_speed}k";
-      $RAD_PAIRS->{'Mikrotik-Address-List'} = "CUSTOM_SPEED";
+      $RAD_REPLY->{'Mikrotik-Rate-Limit'} = "$EX_PARAMS->{ex_speed}k";
+      $RAD_REPLY->{'Mikrotik-Address-List'} = "CUSTOM_SPEED";
     }
     elsif ($EX_PARAMS->{speed} && defined($EX_PARAMS->{speed}->{0})) {
       # Use mikrotik SIMPLE QUEUES
@@ -824,138 +820,129 @@ sub nas_pair_former {
         #        $RAD_PAIRS->{'Ascend-Xmit-Rate'} = int($EX_PARAMS->{speed}->{0}->{IN}) * $CONF->{KBYTE_SIZE};
         #        $RAD_PAIRS->{'Ascend-Data-Rate'} = int($EX_PARAMS->{speed}->{0}->{OUT})* $CONF->{KBYTE_SIZE};
         # Mikrotik-Rate-Limit = 512K/1024K 1M/2M 256K/512K 32/32 5
-        $RAD_PAIRS->{'Mikrotik-Rate-Limit'} =
+        $RAD_REPLY->{'Mikrotik-Rate-Limit'} =
           $EX_PARAMS->{speed}->{0}->{OUT}.'K/'.$EX_PARAMS->{speed}->{0}->{IN}.'K '.
             $EX_PARAMS->{speed}->{0}->{OUT_BURST}.'K/'.$EX_PARAMS->{speed}->{0}->{IN_BURST}.'K '.
             $EX_PARAMS->{speed}->{0}->{OUT_BURST_THRESHOLD}.'K/'.$EX_PARAMS->{speed}->{0}->{IN_BURST_THRESHOLD}.'K '.
             $EX_PARAMS->{speed}->{0}->{OUT_BURST_TIME}.'/'.$EX_PARAMS->{speed}->{0}->{IN_BURST_TIME}.' 5';
       }
 
-      $RAD_PAIRS->{'Mikrotik-Address-List'} = "CLIENTS_$self->{TP_ID}";
+      $RAD_REPLY->{'Mikrotik-Address-List'} = "CLIENTS_$self->{TP_ID}";
     }
   }
   elsif ($nas_type eq 'accel_ipoe') {
     #$RAD_PAIRS->{'Framed-IP-Address'} = $self->{IP}; # if ($self->{IPOE_IP} && $self->{IPOE_IP} ne '0.0.0.0');
     if ($self->{IPOE_NETMASK}) {
-      $RAD_PAIRS->{'Framed-Netmask'} = $self->{IPOE_NETMASK};
-      delete($RAD_PAIRS->{'Framed-IP-Netmask'});
+      $RAD_REPLY->{'Framed-Netmask'} = $self->{IPOE_NETMASK};
+      delete($RAD_REPLY->{'Framed-IP-Netmask'});
     }
     elsif($self->{NETMASK}) {
-      $RAD_PAIRS->{'Framed-Netmask'} = $self->{NETMASK};
+      $RAD_REPLY->{'Framed-Netmask'} = $self->{NETMASK};
     }
 
     if($self->{GATEWAY} && $self->{GATEWAY} ne '0.0.0.0') {
-      $RAD_PAIRS->{'DHCP-Router-IP-Address'} = $self->{GATEWAY};
+      $RAD_REPLY->{'DHCP-Router-IP-Address'} = $self->{GATEWAY};
     }
 
     if($self->{DNS}) {
       my @dns_arr = split(/,\s?/, $self->{DNS});
       foreach my $ip ( @dns_arr ) {
-        push @{ $RAD_PAIRS->{'DHCP-Domain-Name-Server'} }, '0x'.unpack("H*", pack("C4", split(/\./, $ip)));
+        push @{ $RAD_REPLY->{'DHCP-Domain-Name-Server'} }, '0x'.unpack("H*", pack("C4", split(/\./, $ip)));
       }
     }
 
     #$RAD_PAIRS->{'Session-Timeout'}   = 604800;
 
     if(! $attr->{GUEST}) {
-      my $EX_PARAMS = $self->ex_traffic_params(
-        {
-          traf_limit => $traf_limit,
-          deposit    => $self->{DEPOSIT},
-        }
-      );
+      my $EX_PARAMS = $self->ex_traffic_params({
+        traf_limit => $traf_limit,
+        deposit    => $self->{DEPOSIT},
+      });
 
       #Speed limit attributes
       if ($self->{USER_SPEED} > 0) {
-        $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'} = int($self->{USER_SPEED});
-        $RAD_PAIRS->{'PPPD-Downstream-Speed-Limit'} = int($self->{USER_SPEED});
+        $RAD_REPLY->{'PPPD-Upstream-Speed-Limit'} = int($self->{USER_SPEED});
+        $RAD_REPLY->{'PPPD-Downstream-Speed-Limit'} = int($self->{USER_SPEED});
       }
       elsif (defined($EX_PARAMS->{speed}->{0})) {
-        $RAD_PAIRS->{'PPPD-Downstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{IN});
-        $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{OUT});
+        $RAD_REPLY->{'PPPD-Downstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{IN});
+        $RAD_REPLY->{'PPPD-Upstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{OUT});
       }
     }
-    # elsif($attr->{GUEST} && ! $self->{UID}) {
-    #   $RAD_PAIRS->{'Session-Timeout'} = 600;
-    # }
   }
-  ###########################################################
   # pppd + RADIUS plugin (Linux) http://samba.org/ppp/
   elsif ($nas_type eq 'accel_ppp'
     || $nas_type eq 'pppd')
   {
-    my $EX_PARAMS = $self->ex_traffic_params(
-      {
-        traf_limit          => $traf_limit,
-        deposit             => $self->{DEPOSIT},
-      }
-    );
+    my $EX_PARAMS = $self->ex_traffic_params({
+      traf_limit          => $traf_limit,
+      deposit             => $self->{DEPOSIT},
+    });
 
     #global Traffic
     if ($EX_PARAMS->{traf_limit} > 0) {
-      $RAD_PAIRS->{'Session-Octets-Limit'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE});
+      $RAD_REPLY->{'Session-Octets-Limit'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE});
 
       if ($CONF->{octets_direction} && $CONF->{octets_direction} eq 'user') {
         if ($self->{OCTETS_DIRECTION} == 1) {
-          $RAD_PAIRS->{'Octets-Direction'} = 2;
+          $RAD_REPLY->{'Octets-Direction'} = 2;
         }
         elsif ($self->{OCTETS_DIRECTION} == 2) {
-          $RAD_PAIRS->{'Octets-Direction'} = 1;
+          $RAD_REPLY->{'Octets-Direction'} = 1;
         }
         else {
-          $RAD_PAIRS->{'Octets-Direction'} = 0;
+          $RAD_REPLY->{'Octets-Direction'} = 0;
         }
       }
       else {
-        $RAD_PAIRS->{'Octets-Direction'} = $self->{OCTETS_DIRECTION};
+        $RAD_REPLY->{'Octets-Direction'} = $self->{OCTETS_DIRECTION};
       }
     }
 
     #Speed limit attributes
     if ($self->{USER_SPEED} > 0) {
-      $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'}   = int($self->{USER_SPEED});
-      $RAD_PAIRS->{'PPPD-Downstream-Speed-Limit'} = int($self->{USER_SPEED});
+      $RAD_REPLY->{'PPPD-Upstream-Speed-Limit'}   = int($self->{USER_SPEED});
+      $RAD_REPLY->{'PPPD-Downstream-Speed-Limit'} = int($self->{USER_SPEED});
     }
     elsif (defined($EX_PARAMS->{speed}->{0})) {
-      $RAD_PAIRS->{'PPPD-Downstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{IN});
-      $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'}   = int($EX_PARAMS->{speed}->{0}->{OUT});
+      $RAD_REPLY->{'PPPD-Downstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{IN});
+      $RAD_REPLY->{'PPPD-Upstream-Speed-Limit'}   = int($EX_PARAMS->{speed}->{0}->{OUT});
     }
 
     if($self->{DNS}) {
       my @dns_arr = split(/,\s?/, $self->{DNS});
       if ($#dns_arr > -1) {
-        $RAD_PAIRS->{'MS-Primary-DNS-Server'} = $dns_arr[0];
+        $RAD_REPLY->{'MS-Primary-DNS-Server'} = $dns_arr[0];
         if ($#dns_arr > 0) {
-          $RAD_PAIRS->{'MS-Secondary-DNS-Server'} = $dns_arr[1];
+          $RAD_REPLY->{'MS-Secondary-DNS-Server'} = $dns_arr[1];
         }
       }
     }
 
-    $RAD_PAIRS->{'Acct-Interim-Interval'} = $NAS->{NAS_ALIVE} if ($NAS->{NAS_ALIVE});
+    if ($CONF->{ACCELPPP_IFNAME}) {
+      $RAD_REPLY->{'NAS-Port-Id'}=$self->{LOGIN} || $RAD->{'User-Name'};
+    }
   }
-
   #Chillispot
   elsif ($nas_type eq 'chillispot' || $nas_type eq 'unifi') {
-    my $EX_PARAMS = $self->ex_traffic_params(
-      {
-        traf_limit          => $traf_limit,
-        deposit             => $self->{DEPOSIT},
-      }
-    );
+    my $EX_PARAMS = $self->ex_traffic_params({
+      traf_limit          => $traf_limit,
+      deposit             => $self->{DEPOSIT},
+    });
 
     #global Traffic
     if ($EX_PARAMS->{traf_limit} > 0) {
-      $RAD_PAIRS->{'ChilliSpot-Max-Total-Octets'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE});
+      $RAD_REPLY->{'ChilliSpot-Max-Total-Octets'} = int($EX_PARAMS->{traf_limit} * $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE});
     }
 
     #Shaper for chillispot
     if ($self->{USER_SPEED} > 0) {
-      $RAD_PAIRS->{'WISPr-Bandwidth-Max-Down'} = int($self->{USER_SPEED}) * $CONF->{KBYTE_SIZE};
-      $RAD_PAIRS->{'WISPr-Bandwidth-Max-Up'}   = int($self->{USER_SPEED}) * $CONF->{KBYTE_SIZE};
+      $RAD_REPLY->{'WISPr-Bandwidth-Max-Down'} = int($self->{USER_SPEED}) * $CONF->{KBYTE_SIZE};
+      $RAD_REPLY->{'WISPr-Bandwidth-Max-Up'}   = int($self->{USER_SPEED}) * $CONF->{KBYTE_SIZE};
     }
-    elsif (defined($EX_PARAMS->{speed}->{0})) {
-      $RAD_PAIRS->{'WISPr-Bandwidth-Max-Down'} = int($EX_PARAMS->{speed}->{0}->{IN}) * $CONF->{KBYTE_SIZE};
-      $RAD_PAIRS->{'WISPr-Bandwidth-Max-Up'}   = int($EX_PARAMS->{speed}->{0}->{OUT}) * $CONF->{KBYTE_SIZE};
+    elsif ($EX_PARAMS->{speed} && $EX_PARAMS->{speed}->{0}) {
+      $RAD_REPLY->{'WISPr-Bandwidth-Max-Down'} = int($EX_PARAMS->{speed}->{0}->{IN}) * $CONF->{KBYTE_SIZE};
+      $RAD_REPLY->{'WISPr-Bandwidth-Max-Up'}   = int($EX_PARAMS->{speed}->{0}->{OUT}) * $CONF->{KBYTE_SIZE};
     }
 
     if(! $self->{IP} && $nas_type eq 'unifi') {
@@ -970,31 +957,29 @@ sub nas_pair_former {
     }
   }
   elsif ($nas_type eq 'zte_m6000') {
-    my $EX_PARAMS = $self->ex_traffic_params(
-      {
-        traf_limit => $traf_limit,
-        deposit    => $self->{DEPOSIT},
-      }
-    );
+    my $EX_PARAMS = $self->ex_traffic_params({
+      traf_limit => $traf_limit,
+      deposit    => $self->{DEPOSIT},
+    });
 
     if ($traf_limit && $traf_limit > 0) {
-      $RAD_PAIRS->{'ZTE-Session-Timeout-Type'}=4;
-      $RAD_PAIRS->{'Session-Timeout'}=int($traf_limit*1024);
+      $RAD_REPLY->{'ZTE-Session-Timeout-Type'}=4;
+      $RAD_REPLY->{'Session-Timeout'}=int($traf_limit*1024);
       #$RAD_PAIRS->{'ZTE-QoS-Profile-Down'}='100M&1M';
     }
 
     #Speed limit attributes
     if ($self->{USER_SPEED} > 0) {
-      $RAD_PAIRS->{'ZTE-Rate-Ctrl-SCR-Down'} = int($self->{USER_SPEED});
-      $RAD_PAIRS->{'ZTE-Rate-Ctrl-SCR-Up'}   = int($self->{USER_SPEED});
+      $RAD_REPLY->{'ZTE-Rate-Ctrl-SCR-Down'} = int($self->{USER_SPEED});
+      $RAD_REPLY->{'ZTE-Rate-Ctrl-SCR-Up'}   = int($self->{USER_SPEED});
     }
     elsif(defined($EX_PARAMS->{speed}->{1})) {
-      $RAD_PAIRS->{'ZTE-QoS-Profile-Down'}=int($EX_PARAMS->{speed}->{0}->{IN} / 1024). 'M&'.
+      $RAD_REPLY->{'ZTE-QoS-Profile-Down'}=int($EX_PARAMS->{speed}->{0}->{IN} / 1024). 'M&'.
         int($EX_PARAMS->{speed}->{1}->{IN} / 1024). 'M';
     }
     elsif (defined($EX_PARAMS->{speed}->{0})) {
-      $RAD_PAIRS->{'ZTE-Rate-Ctrl-SCR-Down'} = int($EX_PARAMS->{speed}->{0}->{IN});
-      $RAD_PAIRS->{'ZTE-Rate-Ctrl-SCR-Up'}   = int($EX_PARAMS->{speed}->{0}->{OUT});
+      $RAD_REPLY->{'ZTE-Rate-Ctrl-SCR-Down'} = int($EX_PARAMS->{speed}->{0}->{IN});
+      $RAD_REPLY->{'ZTE-Rate-Ctrl-SCR-Up'}   = int($EX_PARAMS->{speed}->{0}->{OUT});
     }
   }
 
@@ -1254,6 +1239,9 @@ sub internet_auth {
     $user_auth_params->{USER_MAC} = $RAD->{'Calling-Station-Id'} if (! $user_auth_params->{USER_MAC});
     $user_auth_params->{IP}       = $RAD->{'Framed-IP-Address'} if($RAD->{'Framed-IP-Address'});
     $user_auth_params->{USER_NAME}= $RAD->{'User-Name'};
+    if ($CONF->{NAS_PORT_AUTH}) {
+      $user_auth_params->{NAS_PORT_AUTH}=$CONF->{NAS_PORT_AUTH};
+    }
     $self->dhcp_info($user_auth_params, $NAS);
     if($user_auth_params->{SERVER_VLAN}) {
       $self->{SERVER_VLAN}=$user_auth_params->{SERVER_VLAN};
@@ -2109,7 +2097,9 @@ sub get_ip2 {
       return $self->get_ip2($nas_num, $nas_ip, $attr);
     }
     else {
-      return -1;
+      $self->{TOTAL}=-1;
+      return 0;
+      #return -1;
     }
   }
 }
@@ -2638,6 +2628,7 @@ sub opt82_parse {
       MAC_AUTH
       IP
       USER_NAME
+      NAS_PORT_AUTH
 
     $NAS
 
@@ -2675,7 +2666,7 @@ sub dhcp_info {
     push @WHERE_RULES, "internet.ip=INET_ATON('$attr->{IP}')";
     $self->{INFO} = "AUTH IP '$attr->{IP}'";
   }
-  elsif (($CONF->{NAS_PORT_AUTH} || $attr->{NAS_PORT_AUTH}) && ! $attr->{MAC_AUTH}) {
+  elsif ($attr->{NAS_PORT_AUTH} && ! $attr->{MAC_AUTH}) {
     my $auth_options = "n.mac='$attr->{NAS_MAC}' AND internet.port='$attr->{PORT}'";
 
     if($CONF->{NAS_SECOND_MAC_AUTH}) {
@@ -2688,6 +2679,10 @@ sub dhcp_info {
   elsif($attr->{SERVER_VLAN}) {
     push @WHERE_RULES, "internet.vlan='$attr->{VLAN}' AND internet.server_vlan='$attr->{SERVER_VLAN}'";
     $self->{INFO} = "q2q: $attr->{SERVER_VLAN}-$attr->{VLAN} MAC: $attr->{USER_MAC}";
+    if ($attr->{NAS_NAME}) {
+      push @WHERE_RULES, "n.descr='$attr->{NAS_NAME}'";
+      $self->{INFO} .= " NAS_NAME: $attr->{NAS_NAME}";
+    }
   }
   elsif ($CONF->{AUTH_PARAMS}) {
     if ($CONF->{AUTH_PARAMS} ne '1') {

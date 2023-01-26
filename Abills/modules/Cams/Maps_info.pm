@@ -132,15 +132,14 @@ sub cams_maps {
     }
 
     my $index = ::get_function_index("cams_main");
-    my $link = "$lang->{CAM}:<a href='index.cgi?index=$index&chg_cam=$point_id_to_id{$point->{id}}{id}' target='_blank'> $point->{name}</a>";
+    my $link = "<a href='index.cgi?index=$index&chg_cam=$point_id_to_id{$point->{id}}{id}' target='_blank'> $point->{name}</a>";
     my $tb = "<div class='panel panel-info'>" .
-      "<div class='panel-heading'><h3 class='panel-title'>$link</h3></div>" .
       "<ul class='list-group'>" .
-      "<li class='list-group-item'>$lang->{NAME}: $point_id_to_id{$point->{id}}{name}</li>" .
-      "<li class='list-group-item'>$lang->{CAM_TITLE}: $point_id_to_id{$point->{id}}{title}</li>" .
-      "<li class='list-group-item'>$lang->{SERVICE}: $point_id_to_id{$point->{id}}{service_name}</li>" .
-      "<li class='list-group-item'>$group_lng: $group_value</li>" .
-      "<li class='list-group-item'>Host: $point_id_to_id{$point->{id}}{host}</li>" .
+      _cams_info_item ('fa fa-camera', $lang->{CAM}, $link) .
+      _cams_info_item ('fa fa-camera', $lang->{CAM_TITLE}, $point_id_to_id{$point->{id}}{title}) .
+      _cams_info_item ('fa fa-window-maximize', $lang->{SERVICE}, $point_id_to_id{$point->{id}}{service_name}) .
+      _cams_info_item ('fa fa-object-group', $group_lng, $group_value) .
+      _cams_info_item ('fa fa-server', 'Host', $point_id_to_id{$point->{id}}{host}) .
       "</ul>" .
       "</div>";
     my $info = "<div class='panel-group'>$tb</div>";
@@ -242,6 +241,27 @@ sub cams_maps_review {
   }
 
   return $export_string;
+}
+
+#**********************************************************
+=head2 _cams_info_item()
+
+  Attr:
+    $icon
+    $key
+    $value
+
+=cut
+#**********************************************************
+sub _cams_info_item {
+  my ($icon, $key, $value) = @_;
+
+  return qq{
+    <li class='list-group-item p-1 d-flex'>
+      <i class='$icon p-2' style='font-size: 16px;min-width: 36px;'></i>
+      <div><div><p class='m-0'><strong>$value</strong></p></div><div><p class='m-0 small text-muted'>$key</p></div></div>
+    </li>
+  }
 }
 
 1;

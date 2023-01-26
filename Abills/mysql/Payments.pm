@@ -128,14 +128,11 @@ sub add {
            || date_diff($user->{ACTIVATE}, $admin->{DATE}) > 30) {
           #Skip if no user object
           if (ref $user eq 'Users') {
-            $user->change(
-              $user->{UID},
-              {
-                UID      => $user->{UID},
-                ACTIVATE => $admin->{DATE},
-                EXPIRE   => '0000-00-00'
-              }
-            );
+            $user->change($user->{UID}, {
+              UID      => $user->{UID},
+              ACTIVATE => $admin->{DATE},
+              EXPIRE   => '0000-00-00'
+            });
           }
           else {
             print "Error: not user object\n";

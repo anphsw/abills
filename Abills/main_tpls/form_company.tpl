@@ -1,148 +1,141 @@
-<form action='$SELF_URL' METHOD='POST' name='company' class='form-horizontal' enctype='multipart/form-data'>
-  <input type=hidden name='index' value='13'>
-  <input type=hidden name='ID' value='%ID%'>
+<script TYPE='text/javascript'>
+  'use strict';
 
-  <div class='card card-primary card-outline container-md'>
-    <div class='card-header with-border'><h3 class='card-title'>_{COMPANY}_</h3></div>
+  function add_comments() {
+    console.log(document.company_profile);
+
+    const status_label = document.getElementById('DISABLE_LABEL');
+    if (document.company_profile.DISABLE.checked) {
+      document.company_profile.DISABLE.checked = false;
+      document.company_profile.DISABLE.checked = true;
+      status_label.innerHTML = '_{DISABLE}_';
+    } else {
+      status_label.innerHTML = '_{ACTIV}_';
+    }
+  }
+
+  jQuery(function () {
+    if (jQuery('#CUSTOM_DISABLE_FORM').length) {
+      jQuery('#DISABLE_FORM').remove();
+    }
+
+    jQuery('input#DISABLE').on('click', add_comments);
+  });
+
+</script>
+
+<!-- <form action='$SELF_URL' method='post' id='company_main' name='company_main' role='form'> -->
+<div>
+  <div id='form_1' class='card card-primary card-outline container-md for_sort pr-0 pl-0'> <!-- XXX card-big-form? -->
+    <div class='card-header with-border'>
+      <h4 class='card-title'>_{USER_ACCOUNT}_: _{COMPANY}_</h4>
+      <div class='card-tools float-right'>
+        <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+          <i class='fa fa-minus'></i>
+        </button>
+      </div>
+    </div>
     <div class='card-body'>
-
-      <div class='form-group row'>
-        <label for='COMPANY_NAME' class='control-label col-md-3'>_{NAME}_:</label>
-        <div class='input-group col-md-9'>
-          <input class='form-control' id='NAME' placeholder='%NAME%' name='NAME' value='%NAME%'>
-        </div>
-      </div>
-
-      <div class='form-group row'>
-        <label for='CREDIT' class='control-label col-md-3'>_{CREDIT}_:</label>
-        <div class='input-group col-md-4'>
-          <input class='form-control' id='CREDIT' placeholder='%CREDIT%' name='CREDIT' value='%CREDIT%'>
-        </div>
-        <label for='CREDIT_DATE' class='control-label col-md-1'>_{DATE}_:</label>
-        <div class='input-group col-md-4'>
-          <input class='datepicker form-control' id='CREDIT_DATE' placeholder='%CREDIT_DATE%' name='CREDIT_DATE'
-                        value='%CREDIT_DATE%'>
-        </div>
-      </div>
-
-      <div class='form-group row'>
-        <label class='control-label col-md-3' for='BILL_ID'>_{BILL}_:</label>
-        <div class='form-check col-md-4'>
-          %BILL_ID%
-        </div>
-        <label class='control-label col-md-1' for='DEPOSIT'>_{DEPOSIT}_:</label>
-        <div class='form-check col-md-4'>
-          %DEPOSIT%
-        </div>
-      </div>
-
-      <div class='form-group row'>
-        <label for='TAX_NUMBER' class='control-label col-md-3'>_{TAX_NUMBER}_:</label>
-        <div class='input-group col-md-9'>
-          <input class='form-control' id='TAX_NUMBER' placeholder='%TAX_NUMBER%' name='TAX_NUMBER' value='%TAX_NUMBER%'>
-        </div>
-      </div>
-
-      <div class='form-group row'>
-        <label for='BANK_ACCOUNT' class='control-label col-md-3'>_{ACCOUNT}_:</label>
-        <div class='input-group col-md-9'>
-          <input class='form-control' id='BANK_ACCOUNT' placeholder='%BANK_ACCOUNT%' name='BANK_ACCOUNT'
-                 value='%BANK_ACCOUNT%'>
-        </div>
-      </div>
-
-      <div class='form-group row'>
-        <label for='BANK_NAME' class='control-label col-md-3'>_{BANK}_:</label>
-        <div class='input-group col-md-9'>
-          <input class='form-control' id='BANK_NAME' placeholder='%BANK_NAME%' name='BANK_NAME' value='%BANK_NAME%'>
-        </div>
-      </div>
-
-      <div class='form-group row'>
-        <label for='COR_BANK_ACCOUNT' class='control-label col-md-3'>_{COR_BANK_ACCOUNT}_:</label>
-        <div class='input-group col-md-9'>
-          <input class='form-control' id='COR_BANK_ACCOUNT' placeholder='%COR_BANK_ACCOUNT%' name='COR_BANK_ACCOUNT'
-                 value='%COR_BANK_ACCOUNT%'>
-        </div>
-      </div>
-
-      <div class='form-group row'>
-        <label for='BANK_BIC' class='control-label col-md-3'>_{BANK_BIC}_:</label>
-        <div class='input-group col-md-9'>
-          <input class='form-control' id='BANK_BIC' placeholder='%BANK_BIC%' name='BANK_BIC' value='%BANK_BIC%'>
-        </div>
-      </div>
-
-      <div class='form-group row'>
-        <label for='VAT' class='control-label col-md-3'>_{VAT}_ (%):</label>
-        <div class='input-group col-md-9'>
-          <input class='form-control' id='VAT' placeholder='%VAT%' name='VAT' value='%VAT%'>
-        </div>
-      </div>
-
-      %CONTRACT_TYPE%
-
-      %ADDRESS_SELECT%
-
       %EXDATA%
 
-      %INFO_FIELDS%
-
       <div class='form-group row'>
-        <label for='REPRESENTATIVE' class='control-label col-md-3'>_{REPRESENTATIVE}_:</label>
-        <div class='input-group col-md-9'>
-          <input class='form-control' id='REPRESENTATIVE' placeholder='%REPRESENTATIVE%' name='REPRESENTATIVE'
-                       value='%REPRESENTATIVE%'>
+        <label class='col-4 col-md-2 col-form-label text-right mb-3 mb-md-0' for='CREDIT'>_{CREDIT}_:</label>
+        <div class='col-8 col-md-4 mb-3 mb-md-0'>
+          <input id='CREDIT' name='CREDIT' value='%CREDIT%' placeholder='%CREDIT%' class='form-control r-0-9'
+                 type='number' step='0.01' min='0'
+                 data-tooltip='<h6>_{SUM}_:  %CREDIT%</h6><h6>_{DATE}_: %DATE_CREDIT%</h6>'
+                 data-tooltip-position='top'>
+        </div>
+
+        <label class='col-4 col-md-2 col-form-label text-right' for='CREDIT_DATE'>_{TO}_:</label>
+        <div class='col-8 col-md-4'>
+          <input id='CREDIT_DATE' type='text' name='CREDIT_DATE' value='%CREDIT_DATE%'
+                 class='datepicker form-control d-0-9'>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label for='PHONE' class='control-label col-md-3'>_{PHONE}_:</label>
-        <div class='input-group col-md-9'>
-          <input class='form-control' id='PHONE' placeholder='%PHONE%' name='PHONE' value='%PHONE%'>
+        <label for='BANK_ACCOUNT' class='col-sm-3 col-md-2 text-right control-label'>_{ACCOUNT}_:</label>
+        <div class='col-sm-9 col-md-10'>
+          <div class='input-group'>
+            <input class='form-control' id='BANK_ACCOUNT' placeholder='%BANK_ACCOUNT%' name='BANK_ACCOUNT'
+                 value='%BANK_ACCOUNT%'>
+          </div>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label for='REGISTRATION' class='control-label col-md-3'>_{REGISTRATION}_:</label>
-        <div class='input-group col-md-9'>
-          <input class='form-control' id='REGISTRATION' placeholder='%REGISTRATION%' name='REGISTRATION'
-                 value='%REGISTRATION%'>
+        <label for='BANK_NAME' class='col-sm-3 col-md-2 text-right control-label'>_{BANK}_:</label>
+        <div class='col-sm-9 col-md-10'>
+          <div class='input-group'>
+            <input class='form-control' id='BANK_NAME' placeholder='%BANK_NAME%' name='BANK_NAME' value='%BANK_NAME%'>
+          </div>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='CONTRACT_ID'>_{CONTRACT_ID}_:</label>
-        <div class='input-group col-md-4'>
-          <input id='CONTRACT_ID' name='CONTRACT_ID' value='%CONTRACT_ID%' placeholder='%CONTRACT_ID%'
-                 class='form-control' type='text'>
-          <div class='input-group-append'>
-            <div class='input-group-text'>
-              %PRINT_CONTRACT%
-              %CONTRACT_SUFIX%
+        <label for='COR_BANK_ACCOUNT' class='col-sm-3 col-md-2 text-right control-label'>_{COR_BANK_ACCOUNT}_:</label>
+        <div class='col-sm-9 col-md-10'>
+          <div class='input-group'>
+            <input class='form-control' id='COR_BANK_ACCOUNT' placeholder='%COR_BANK_ACCOUNT%' name='COR_BANK_ACCOUNT'
+                 value='%COR_BANK_ACCOUNT%'>
+          </div>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label for='BANK_BIC' class='col-sm-3 col-md-2 text-right control-label'>_{BANK_BIC}_:</label>
+        <div class='col-sm-9 col-md-10'>
+          <div class='input-group'>
+            <input class='form-control' id='BANK_BIC' placeholder='%BANK_BIC%' name='BANK_BIC' value='%BANK_BIC%'>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class='card card-outline card-big-form collapsed-card mb-0 border-top'>
+      <div class='card-header with-border'>
+        <h3 class='card-title'>_{EXTRA}_</h3>
+        <div class='card-tools float-right'>
+          <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+            <i class='fa fa-plus'></i>
+          </button>
+        </div>
+      </div>
+
+      <div class='card-body'>
+        <div class='form-group row'>
+          <label class='col-md-2 col-sm-2 col-form-label' for='BILL'>_{BILL}_</label>
+          <div class='col-md-4 col-sm-10'>
+            <div class='input-group'>
+              <input type=text name='BILL' value='%BILL_ID%' ID='BILL' class='form-control' readonly>
+              <div class='input-group-append'>
+                %BILL_CORRECTION%
+              </div>
+            </div>
+          </div>
+
+          <label class='col-md-2 col-sm-2 col-form-label' for='REG'>_{REGISTRATION}_</label>
+          <div class='col-md-4 col-sm-10'>
+            <input type='text' name='REG' value='%REGISTRATION%' ID='REG' class='form-control' readonly>
+          </div>
+        </div>
+
+        <div class='form-group row'>
+          <label for='VAT' class='col-sm-3 col-md-2 text-right control-label'>_{VAT}_ (%):</label>
+          <div class='col-sm-9 col-md-10'>
+            <div class='input-group'>
+              <input class='form-control' id='VAT' placeholder='%VAT%' name='VAT' value='%VAT%'>
             </div>
           </div>
         </div>
 
-        <label class='control-label col-md-1' for='CONTRACT_DATE'>_{DATE}_:</label>
-        <div class='input-group col-md-4'>
-          <input id='CONTRACT_DATE' type='text' name='CONTRACT_DATE' value='%CONTRACT_DATE%'
-                 class='datepicker form-control'>
-        </div>
-      </div>
-
-      <div class='form-group row'>
-        <label class='col-form-label text-right col-4 col-md-3' for='DISABLE'>_{DISABLE}_</label>
-        <div class = 'col-md-1'>
-          <input id='DISABLE' name='DISABLE' value='1' %DISABLE% type='checkbox'>
-        </div>
       </div>
     </div>
 
     <div class='card-footer'>
-      <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
+      <input type='submit' class='btn btn-primary double_click_check' name='%ACTION%' value='%LNG_ACTION%'>
     </div>
-
   </div>
-</form>
-
+</div>
+<!-- </form> -->

@@ -337,3 +337,13 @@ CREATE TABLE IF NOT EXISTS `employees_moving_types`
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Moving types';
+
+CREATE TABLE IF NOT EXISTS `employees_cashboxes_admins`
+(
+  `cashbox_id`  SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `aid`         SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `add_date`    DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY cashbox_id (aid,cashbox_id)
+)
+DEFAULT CHARSET=utf8
+COMMENT='List of admins for cashboxes';

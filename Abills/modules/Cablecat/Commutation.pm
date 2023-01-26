@@ -351,8 +351,7 @@ sub cablecat_commutation_splitters {
       SUBMIT_BTN_NAME   => $lang{ADD},
       SUBMIT_BTN_ACTION => 'change',
       %FORM
-    }
-    );
+    });
   }
   elsif ($FORM{operation} eq 'ADD') {
     # Do splitter adding logic
@@ -392,6 +391,7 @@ sub cablecat_commutation_splitters {
 =cut
 #**********************************************************
 sub cablecat_commutation_equipment {
+
   if (!in_array('Equipment', \@MODULES)) {
     $html->message('warn', $lang{WARNING}, "$lang{MODULE} $lang{DISABLED} : 'Equipment'");
     return 0;
@@ -982,12 +982,12 @@ sub _cablecat_form_commutation_name {
   my $check_span = $html->element('span', '', { class => 'fa fa-check' });
   my $pencil_span = $html->element('span', '', { class => 'fa fa-pencil-alt' });
 
-  my $change_input_group = $html->element('div', $pencil_span, {
-    class => 'input-group-text cursor-pointer',
+  my $change_input_group = $html->element('a', $pencil_span, {
+    class => 'btn input-group-button',
     id    => 'CHANGE_NAME_BTN'
   });
-  my $save_input_group = $html->element('div', $check_span, {
-    class => 'input-group-text cursor-pointer d-none',
+  my $save_input_group = $html->element('a', $check_span, {
+    class => 'btn input-group-button d-none',
     id    => 'SAVE_NAME'
   });
 

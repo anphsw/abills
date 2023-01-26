@@ -7,7 +7,7 @@ package Billing;
 =cut
 
 use strict;
-our $VERSION = 9.01;
+our $VERSION = 9.02;
 use parent 'main';
 use Tariffs;
 my $CONF;
@@ -177,9 +177,6 @@ sub traffic_calculations {
     if ($CONF->{rt_billing}) {
       if($CONF->{INTERNET_INTERVAL_PREPAID}) {
 
-      }
-      elsif ($CONF->{DV_INTERVAL_PREPAID}) {
-        #($sent, $recv) = (0,0);
       }
       else {
         $used_traffic->{TRAFFIC_IN}    += int($recv / $CONF->{MB_SIZE});
@@ -1140,6 +1137,7 @@ sub get_timeinfo {
       REDUCTION
       PRICE_UNIT
       POSTPAID
+      FULL_COUNT - Count full period. Default skip timeout for traffic 0 and full day periods intervals
       DEBUG
 
   Returns:
@@ -1156,7 +1154,7 @@ sub remaining_time {
   my %ATTR = ();
   my ($session_start, $day_begin, $day_of_week, $day_of_year);
 
-  if (!defined($attr->{SESSION_START})) {
+  if (! $attr->{SESSION_START}) {
     $self->get_timeinfo();
     $session_start = $self->{SESSION_START};
     $day_begin     = $self->{DAY_BEGIN};
@@ -1211,6 +1209,7 @@ sub remaining_time {
 
   #If use post paid service
   while (($deposit > 0 || $attr->{POSTPAID}) && $count < 50) {
+
     if ($time_limit != 0 && $time_limit < $remaining_time) {
       $remaining_time = $time_limit;
       last;
@@ -1235,10 +1234,9 @@ sub remaining_time {
       return -1, \%ATTR;
     }
 
-    print "Count:  $count Remain Time: $remaining_time\n" if ($debug == 1);
+    print "Count:  $count Remain Time: $remaining_time\n" if ($debug > 0);
 
     # Time check
-    # $session_start
     $count++;
     my $cur_int = $time_intervals->{$tarif_day};
     my $i;
@@ -1256,6 +1254,11 @@ sub remaining_time {
       my $int_prepaid   = 0;
       my $int_duration  = 0;
       my $extended_time = 0;
+
+      if ($int_begin == 0 && $int_end == 86400 && $tarif_day == 0 && $#intervals == 0 && ! $attr->{FULL_COUNT}) {
+        $ATTR{TT} = $int_id;
+        return 0, \%ATTR;
+      }
 
       #begin > end / Begin: 22:00 => End: 3:00
       if ($int_begin > $int_end) {

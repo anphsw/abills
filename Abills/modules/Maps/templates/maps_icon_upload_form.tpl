@@ -16,7 +16,7 @@
     </div>
   </form>
 </div>
-<div class='card-footer text-right'>
+<div class='card-footer'>
   <button type='submit' class='btn btn-primary' id='ajax_upload_submit' form='ajax_upload_form'>
     _{ADD}_
   </button>

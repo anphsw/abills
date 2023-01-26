@@ -73,7 +73,6 @@ sub iptv_subcribe_add {
     ID          => 'IPTV_TP'
   });
 
-  my $tp_list_show = '';
   foreach my $tp (@$tp_list) {
     next if (in_array($tp->{tp_id}, \@skip_tp_changes));
     next if ($Iptv->{TP_ID} && $tp->{tp_id} == $Iptv->{TP_ID} && $user->{EXPIRE} eq '0000-00-00');
@@ -182,7 +181,9 @@ sub iptv_user_info {
       }
 
       $Tariffs->info($FORM{TP_ID});
-      $Iptv->user_add({ %FORM,
+
+      $Iptv->user_add({
+        %FORM,
         UID           => $user->{UID},
         IPTV_ACTIVATE => !$Tariffs->{PERIOD_ALIGNMENT} && $DATE ? $DATE : '0000-00-00'
       });
@@ -674,12 +675,10 @@ sub iptv_m3u {
 
     if (!$Iptv->{STATUS} && (!$Tv_service || !$Tv_service->can('get_playlist_m3u'))) {
 
-      my $list = $Tariffs->ti_list(
-        {
-          TP_ID     => $tp_id,
-          COLS_NAME => 1
-        }
-      );
+      my $list = $Tariffs->ti_list({
+        TP_ID     => $tp_id,
+        COLS_NAME => 1
+      });
 
       if ($Tariffs->{TOTAL} > 0) {
         my $interval_id = $list->[0]->{id};
@@ -703,6 +702,7 @@ sub iptv_m3u {
             access    => 'all',
             fio       => $fio,
             user_info =>
+              #TODO: fix text
               "������������ $fio. <br> ��� ������ " . $deposit . "���<br> ������ " . $credit . "��� <br>",
             m3u       => $m3u,
           );
@@ -783,7 +783,6 @@ sub iptv_portal_additional_info {
 
   return [];
 }
-
 
 #**********************************************************
 =head2 _iptv_portal_show_exist_shedule($attr)

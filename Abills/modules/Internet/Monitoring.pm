@@ -244,6 +244,10 @@ sub internet_online {
   my $service_status = sel_status({ HASH_RESULT => 1 });
 
   # online count
+  if ($conf{SHOW_UNREG_USERS}) {
+    $LIST_PARAMS{SHOW_UNREG_USERS}=1;
+  }
+
   my $list = $Sessions->online_count({ %LIST_PARAMS, COLS_NAME => 1 });
 
   my $nas_list = $Nas->list({
@@ -310,11 +314,21 @@ sub internet_online {
       });
 
       foreach my $line (@$list) {
-        $table->{rowcolor} = ($FORM{NAS_ID} && $line->{nas_id} eq $FORM{NAS_ID}) ? 'row_active' : undef;
-        $table->addrow($line->{nas_id}, $line->{nas_name}, $line->{nas_ip}, $line->{nas_type}, $line->{nas_total_sessions}, $line->{nas_total_users}, ($line->{nas_zaped} > 0) ? $html->button($line->{nas_zaped}, "index=$index&NAS_ID=$line->{nas_id}&ZAPED=1") : 0,
-          $html->button($line->{nas_error_sessions}, "index=$index&NAS_ID=$line->{nas_id}&NAS_ERROR_SESSIONS=1"),
-          $html->button($line->{guest}, "index=$index&NAS_ID=$line->{nas_id}&FILTER=1&FILTER_FIELD=GUEST"),
-          $html->button($lang{SHOW}, "index=$index&NAS_ID=$line->{nas_id}", { class => 'show' }));
+        my $nas_id = $line->{nas_id};
+
+        $table->{rowcolor} = ($FORM{NAS_ID} && $nas_id eq $FORM{NAS_ID}) ? 'row_active' : undef;
+        $table->addrow(
+          $nas_id,
+          $line->{nas_name},
+          $line->{nas_ip},
+          $line->{nas_type},
+          $line->{nas_total_sessions},
+          $line->{nas_total_users},
+          ($line->{nas_zaped} > 0) ? $html->button($line->{nas_zaped}, "index=$index&NAS_ID=$nas_id&ZAPED=1") : 0,
+          $html->button($line->{nas_error_sessions}, "index=$index&NAS_ID=$nas_id&NAS_ERROR_SESSIONS=1"),
+          $html->button($line->{guest}, "index=$index&NAS_ID=$nas_id&FILTER=1&FILTER_FIELD=GUEST"),
+          $html->button($lang{SHOW}, "index=$index&NAS_ID=$nas_id", { class => 'show' })
+        );
       }
 
       if (in_array('Maps', \@MODULES)) {
@@ -410,7 +424,8 @@ sub internet_online {
     delegated_ipv6_prefix => 'DELEGATED_IPV6_PREFIX',
     'cpe_mac'             => 'CPE MAC',
     service_cid           => 'Internet CID',
-    nas_ip                => 'NAS IP'
+    nas_ip                => 'NAS IP',
+    gids                  => $lang{GROUPS}
   );
 
   my $output_filters = internet_online_search();
@@ -736,15 +751,15 @@ sub internet_online_search {
   }
 
   my $FIELDS_SEL = $html->form_select('FILTER_FIELD', {
-    SELECTED    => $FORM{FILTER_FIELD} || q{},
-    SEL_HASH    => \%FILTER_FIELDS,
-    NO_ID       => 1,
-    ID          => 'FILTER_FIELD',
-    SEL_OPTIONS => { '' => '--' }
+    SELECTED     => $FORM{FILTER_FIELD} || q{},
+    SEL_HASH     => \%FILTER_FIELDS,
+    NO_ID        => 1,
+    ID           => 'FILTER_FIELD',
+    SEL_OPTIONS  => { '' => '--' },
   });
 
   return $html->tpl_show(_include('internet_report_form', 'Internet'),
-    { FIELDS_SEL => $FIELDS_SEL, REFRESH => $FORM{REFRESH} || 0, %FORM }, { OUTPUT2RETURN => 1 });
+    { FIELDS_SEL => $FIELDS_SEL, REFRESH => $FORM{REFRESH} || "", %FORM }, { OUTPUT2RETURN => 1 });
 }
 
 #**********************************************************

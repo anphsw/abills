@@ -1,16 +1,25 @@
-<div class='card card-primary card-outline form-horizontal'>
-  <div class='card-body  alert alert-info '>
-    <div class='form-group text-center'>
-      <h3>Ви будете перенаправлені на сервіс NovaPay</h3>
-      <div class='form-group text-center'>
-        <img src='/img/logo_novapay.png' width=300 height=150 border=0>
-        <div class='text-center'><a href='%URL%' class='btn btn-lg btn-primary'>_{PAY}_</a></div>
-      </div>
+<div class='card card-primary card-outline'>
+  <div class='card-header with-border text-center pb-0'>
+    <h4>_{BALANCE_RECHARCHE}_</h4>
+  </div>
+  <div class='card-body pt-0'>
+
+    <div class='text-center m-2'>
+      <img src='/styles/default/img/paysys_logo/logo_novapay.png'
+           style='max-width: 320px; max-height: 200px;'
+           alt='NovaPay'>
     </div>
+
+    <ul class='list-group list-group-unbordered mb-3'>
+      <li class='list-group-item'>
+        <b>_{ORDER}_</b>
+        <div class='float-right'>$FORM{OPERATION_ID}</div>
+      </li>
+      <li class='list-group-item'>
+        <b>_{BALANCE_RECHARCHE_SUM}_</b>
+        <div class='float-right'>$FORM{SUM}</div>
+      </li>
+    </ul>
+    <a href='%URL%' class='btn btn-primary float-right' role='button' id='FASTPAY'>_{PAY}_</a>
   </div>
 </div>
-
-
-
-
-

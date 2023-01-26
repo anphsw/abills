@@ -1,4 +1,4 @@
-<TABLE width='600' class=form>
+<TABLE width='600' border=1>
   <TR>
     <TD class=cel_border>
       <TABLE width='100%' cellspacing='1' cellpadding='0' border='0'>
@@ -59,7 +59,7 @@
         <TR class='odd'>
           <td colspan='2'>%COMMENTS%</td>
         </TR>
-        <!-- <tR class='odd'><TH colspan='2'>Dilup / VPN</TH></TR>
+        <!-- <tR class='odd'><TH colspan='2'>Internet</TH></TR>
         <TR class='odd'><TD>_{TARIF_PLAN}_:</TD><TD>%TP_ID%:%TP_NAME%</TD></TR>
         <TR class='odd'><TD>_{SIMULTANEOUSLY}_:</TD><TD>%SIMULTANEONSLY%</TD></TR>
         <TR class='odd'><TD>IP:</TD><TD>%IP%</TD></TR>
@@ -74,13 +74,23 @@
 </TABLE>
 
 
-<div id=dv_user_info>
+<div id=internet_user_info>
 
   <h3>%NEXT_FEES_WARNING%</h3>
-  <TABLE width='600' class='form'>
+  <TABLE width='600' border=1 cellspacing='1' cellpadding='2'>
     <tr>
       <th class=form_title colspan=2>_{SERVICE}_: Internet</th>
     </tr>
+    <tr>
+      <td>_{LOGIN}_:</td>
+      <td>%LOGIN%</td>
+    </tr>
+
+    <tr>
+      <td>_{PASSWD}_:</td>
+      <td>%PASSWORD% / %INTERNET_PASSWORD%</td>
+    </tr>
+
     <tr>
       <td>_{TARIF_PLAN}_:</td>
       <td>[%TP_ID%] <b>%TP_NAME%</b> %TP_CHANGE%</td>

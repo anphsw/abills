@@ -27,6 +27,8 @@ use SNMP_util;
 use Equipment;
 use Internet;
 use Users;
+use Events;
+use Events::API;
 use Abills::Base qw(load_pmodule in_array check_time gen_time);
 use FindBin '$Bin';
 
@@ -55,6 +57,7 @@ else {
 our $Equipment = Equipment->new($db, $Admin, \%conf);
 my $Internet = Internet->new($db, $Admin, \%conf);
 my $Users = Users->new($db, $Admin, \%conf);
+my $Events = Events::API->new($db, $Admin, \%conf);
 do 'Abills/Misc.pm';
 
 require Equipment::Pon_mng;
@@ -73,7 +76,10 @@ foreach my $branch_pattern (@branches) {
 }
 
 if ($argv->{BRANCHES} && @nas_ids != 1) {
-  print "Error: there should be one NAS ID when using BRANCHES. Use billd equipment_auto_reg NAS_IDS=\"ID\" BRANCHES=\"BRANCH1;BRANCH2;...\"\n";
+  my $comments = "Error: there should be one NAS ID when using BRANCHES. Use billd equipment_auto_reg NAS_IDS=\"ID\" BRANCHES=\"BRANCH1;BRANCH2;...\"\n";
+  print $comments;
+  _generate_new_event("Error: should be one NAS ID", $comments);
+
   exit 1;
 }
 #tr_069_setting();
@@ -94,7 +100,7 @@ else {
 =cut
 #**********************************************************
 sub _auto_reg {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   my $Equipment_list = $Equipment->_list({
     NAS_ID                        => $argv->{NAS_IDS} || '_SHOW',
@@ -108,7 +114,7 @@ sub _auto_reg {
     VENDOR_NAME                   => '_SHOW',
     STATUS                        => '0',
     NAS_IP                        => '_SHOW',
-    MNG_HOST_PORT                 => '_SHOW',
+    NAS_MNG_HOST_PORT             => '_SHOW',
     NAS_MNG_USER                  => '_SHOW',
     NAS_MNG_PASSWORD              => '_SHOW',
     SNMP_TPL                      => '_SHOW',
@@ -140,6 +146,11 @@ sub _auto_reg {
     my $nas_type = equipment_pon_init($nas);
     my $unregister_fn = $nas_type . '_unregister';
 
+    if ($debug > 6) {
+      $Internet->{debug}=1;
+      $Users->{debug}=1;
+    }
+
     if (defined(&$unregister_fn)) {
       my $unregister_list = &{\&$unregister_fn}({ %$nas, NAS_INFO => $nas});
 
@@ -159,7 +170,7 @@ sub _auto_reg {
           }
         }
 
-        my $internet_list = ();
+        my $internet_list = {};
         my $internet_list1 = $Internet->user_list({
           INTERNET_ACTIVATE=> '_SHOW',
           INTERNET_STATUS  => '0',
@@ -174,6 +185,7 @@ sub _auto_reg {
         foreach my $ui (@$internet_list1) {
           push( @{$internet_list}, $ui );
         }
+
         if ((lc $ont_info->{pon_type}) eq 'gpon' && $ont_info->{vendor} && $ont_info->{mac_serial}) {
           $ont_info->{vendor_mac_serial} = $ont_info->{vendor} . $ont_info->{mac_serial};
           $ont_info->{vendor_mac_serial} =~ s/^([A-Z]{4})[A-F0-9]{8}/$1/g;
@@ -310,7 +322,10 @@ sub _register_onu {
 
   $attr->{VLAN_ID} = $port_list->[0]->{VLAN_ID} || $attr->{NAS_INFO}->{internet_vlan};
   if ($attr->{VENDOR_NAME} ne 'BDCOM' && !$attr->{VLAN_ID}) {
-    print "Not exist Vlan ID\n" if ($debug);
+    my $comments = "Not exist Vlan ID\n";
+    print $comments if ($debug);
+    _generate_new_event('Not exist Vlan ID', $comments);
+
     return 0;
   }
   my $result = q{};
@@ -341,7 +356,7 @@ sub _register_onu {
         }
       }
       elsif ($attr->{PON_TYPE} eq 'gpon') {
-        my $result = snmp_get({
+        $result = snmp_get({
           %{$attr},
           OID  => '.1.3.6.1.4.1.3902.1012.3.28.1.1.5' . '.' . $attr->{BRANCH_NUM},
           WALK => 1,
@@ -376,7 +391,7 @@ sub _register_onu {
       if (-x $cmd) {
         my $params_for_cmd = { %$attr, %{$attr->{NAS_INFO}}, %extra_reg_params };
         $params_for_cmd = {map {(defined $params_for_cmd->{$_}) ? ($_ => $params_for_cmd->{$_}) : ()} keys %$params_for_cmd}; #cmd gives warning when there's undef in PARAMS
-        foreach my $param_value (%$params_for_cmd) {
+        foreach my $param_value (keys %$params_for_cmd) {
           next if (!$param_value);
           $param_value =~ s/\0//g;
         }
@@ -427,7 +442,7 @@ sub _register_onu {
 
         my $params_for_cmd = { %$attr, %{$attr->{NAS_INFO}}, %extra_reg_params };
         $params_for_cmd = {map {(defined $params_for_cmd->{$_}) ? ($_ => $params_for_cmd->{$_}) : ()} keys %$params_for_cmd}; #cmd gives warning when there's undef in PARAMS
-        foreach my $param_value (%$params_for_cmd) {
+        foreach my $param_value (keys %$params_for_cmd) {
           next if (!$param_value);
           $param_value =~ s/\0//g;
         }
@@ -446,7 +461,7 @@ sub _register_onu {
     if (-x $cmd) {
       my $params_for_cmd = { %$attr, %{$attr->{NAS_INFO}}, %extra_reg_params };
       $params_for_cmd = {map {(defined $params_for_cmd->{$_}) ? ($_ => $params_for_cmd->{$_}) : ()} keys %$params_for_cmd}; #cmd gives warning when there's undef in PARAMS
-      foreach my $param_value (%$params_for_cmd) {
+      foreach my $param_value (keys %$params_for_cmd) {
         next if (!$param_value);
         $param_value =~ s/\0//g;
       }
@@ -500,11 +515,9 @@ sub _register_onu {
     elsif ($result =~ /ONU BDCOM: (\d+)\/(\d+)\:(\d+) .* SNMP ID (\d+) DHCP PORT ([0-9a-f]{4}) ADDED/) {
       return equipment_register_onu_add_bdcom($result, $nas_id, $port_list, $attr);
     }
-    return 0;
   }
   else {
     print $result . "\n";
-    return 0;
   }
   return 0;
 }
@@ -519,11 +532,17 @@ sub _register_onu {
 #**********************************************************
 sub _auto_deregister {
   if (!$argv->{NAS_IDS}) {
-    print "Not selected NAS ID. Use billd equipment_auto_reg NAS_IDS=\"ID\" BRANCHES=\"BRANCH1;BRANCH2;...\"\n";
+    my $comments = "Not selected NAS ID. Use billd equipment_auto_reg NAS_IDS=\"ID\" BRANCHES=\"BRANCH1;BRANCH2;...\"\n";
+    print $comments;
+    _generate_new_event('Not selected NAS ID', $comments);
+
     return 0;
   }
   if (!$argv->{BRANCHES}) {
-    print "Not selected branches. Use billd equipment_auto_reg NAS_IDS=\"ID\" BRANCHES=\"BRANCH1;BRANCH2;...\"\n";
+    my $comments = "Not selected branches. Use billd equipment_auto_reg NAS_IDS=\"ID\" BRANCHES=\"BRANCH1;BRANCH2;...\"\n";
+    print $comments;
+    _generate_new_event('Not selected branches', $comments);
+
     return 0;
   }
 
@@ -532,7 +551,7 @@ sub _auto_deregister {
     NAS_ID           => $nas_id,
     VENDOR_NAME      => '_SHOW',
     NAS_IP           => '_SHOW',
-    MNG_HOST_PORT    => '_SHOW',
+    NAS_MNG_HOST_PORT=> '_SHOW',
     NAS_MNG_USER     => '_SHOW',
     NAS_MNG_PASSWORD => '_SHOW',
     COLS_NAME        => 1,
@@ -547,10 +566,9 @@ sub _auto_deregister {
     NAS_ID    => $nas_id,
     COLS_NAME => 1
   });
-  my @port_ids;
+  my @port_ids = ();
 
   foreach my $port (@$all_port_list) {
-    my $found_branch;
     my $current_branch = lc($port->{pon_type} . ':' . $port->{branch});
 
     foreach my $branch_pattern (@branches) {
@@ -562,7 +580,10 @@ sub _auto_deregister {
 
   my $port_ids_string = join (',', @port_ids);
   if (!$port_ids_string) {
-    print "No branches found, exiting";
+    my $comments = "No branches found, exiting";
+    print $comments;
+    _generate_new_event('Not selected branches', $comments);
+
     exit 1;
   }
 
@@ -578,7 +599,10 @@ sub _auto_deregister {
   my $cmd = $SNMP_TPL_DIR . '/register' . $nas_type . '_custom';
   $cmd = $SNMP_TPL_DIR . '/register' . $nas_type if (!-x $cmd);
   if (!-x $cmd) {
-    print "Error: can't run registration script $cmd. Exiting.\n";
+    my $comments = "Error: can't run registration script $cmd. Exiting.\n";
+    print $comments;
+    _generate_new_event('Error: registration script', $comments);
+
     return 0;
   }
 
@@ -628,8 +652,10 @@ sub _auto_deregister {
       }
     }
     else {
-      print "Failed to delete ONU $onu->{branch}:$onu->{onu_id}\n";
-      print "$cmd exit code: $result_code, output: $result\n";
+      my $comments = "Failed to delete ONU $onu->{branch}:$onu->{onu_id}\n $cmd exit code: $result_code, output: $result\n";
+      print $comments;
+      _generate_new_event('Failed to delete ONU', $comments);
+
     }
   }
 
@@ -643,10 +669,36 @@ sub _auto_deregister {
 #**********************************************************
 sub tr_069_setting {
   my ($id, $attr) = @_;
-  my $json = JSON->new->allow_nonref;
+
+  JSON->new->allow_nonref;
   my $onu_setting->{ wan }->[ 0 ] = { ssid => $attr->{_wifi_ssid},  wlan_pass => $attr->{_wifi_pass}};
   my $settings = JSON::to_json($onu_setting, { utf8 => 0 });
   $Equipment->tr_069_settings_change($id, { SETTINGS => $settings });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _generate_new_event($title_event, $comments)
+
+  Arguments:
+    $title_event - title of message
+    $comments - text of message to show
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _generate_new_event {
+  my ($title_event, $comments) = @_;
+
+  $Events->add_event({
+    MODULE      => 'Equipment',
+    TITLE       => $title_event,
+    COMMENTS    => "equipment_auto_reg - $comments",
+    PRIORITY_ID => 3
+  });
+
   return 1;
 }
 

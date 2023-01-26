@@ -29,10 +29,6 @@ if ($MODULES[0] eq 'Internet' ) {
   require Internet;
   $Internet = Internet->new($db, $admin, \%conf);
 }
-else {
-  require Dv;
-  $Internet = Dv->new($db, $admin, \%conf);
-}
 
 use Users;
 use Tariffs;

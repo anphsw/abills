@@ -494,6 +494,10 @@ a:not([href]):not([class]) {
 	height: calc(2.25rem + 2px);
 }
 
+.text-sm .select2-container--default .select2-selection--multiple, select.form-control-sm ~ .select2-container--default .select2-selection--multiple {
+  min-height: calc(2.25rem + 2px);
+}
+
 .input-group-custom-select > .select2-container > .selection > .select2-selection--single {
 	height: 1.94rem;
 	padding: .28rem .5rem;
@@ -592,6 +596,11 @@ a:not([href]):not([class]) {
 	border-color: rgba(0, 0, 0, 0.2);
 }
 
+.btn-telegram {
+	color: #fff;
+	background-color: #54A9EB;
+	border-color: rgba(0, 0, 0, 0.2);
+}
 
 .dark-mode .todo-list > li {
 	background-color: #3f474e;
@@ -985,6 +994,7 @@ body:not(.dark-mode) .user_header .btn.btn-default:hover {
 
 .equipment-row {
   justify-content: center;
+  margin-bottom: 0.25rem;
 }
 
 #reply_wrapper > .card > .card-header .fa {
@@ -1017,6 +1027,9 @@ body:not(.dark-mode) .user_header .btn.btn-default:hover {
 	color: #3c8dbc;
 }
 
+.dark-mode .timeline>div>.timeline-item-black, .dark-mode .timeline>div>.timeline-item-black>.time-black  {
+	color: black !important;
+}
 .dark-mode .callout a {
 	color: #3c8dbc;
 }
@@ -1040,7 +1053,11 @@ body:not(.dark-mode) .user_header .btn.btn-default:hover {
 }
 
 .card-footer > .btn-primary {
-  float: right !important;
+  float: none !important;
+}
+
+.card-footer {
+  text-align: right;
 }
 
 .card-footer > a.btn-danger {
@@ -1059,4 +1076,71 @@ form > .btn-primary {
   display: flex;
   justify-content: flex-end;
   gap: .5rem;
+}
+
+.btn.input-group-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #e9ecef;
+  border: 1px solid #ced4da;
+  box-shadow: inset 0 0 0 transparent;
+  color: #3c8dbc;
+}
+
+.btn.input-group-button:hover {
+  background-color: #e9ecef;
+  color: #0056b3;
+}
+
+.dark-mode .input-group-button {
+  border-color: #6c757d;
+  background-color: #3a4047;
+}
+
+.dark-mode .input-group-button:hover {
+  background-color: #3f474e;
+  color: #3395ff;
+}
+
+.abills-checkbox-parent {
+  cursor: pointer;
+  margin-bottom: 3px;
+  padding: 3px 6px;
+  border-radius: .25rem;
+}
+
+.abills-checkbox-parent > label {
+  font-weight: normal !important;
+  margin: 0;
+  pointer-events: none;
+}
+
+.abills-checkbox-parent > input {
+  pointer-events: none;
+}
+
+.abills-checkbox-parent:hover {
+  background: #e9ecef;
+  color: #333;
+}
+
+.abills-checkbox-parent.active {
+  color: #333;
+  background-color: #e6e6e6;
+  cursor: pointer;
+}
+
+.abills-result-former-bar {
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.CodeMirror-hints.darcula > .CodeMirror-hint {
+  color: #9c9e9e;
+}
+
+.CodeMirror-hints.darcula > .CodeMirror-hint.CodeMirror-hint-active {
+  color: #FFF !important;
 }

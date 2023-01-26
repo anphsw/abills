@@ -111,6 +111,7 @@ sub tree_menu {
     $parentness_hash = $self->build_parentness_tree($list, $attr);
   }
   
+  return $parentness_hash if $attr->{RETURN_HASH_TREE};
   # Get number of levels
   $levels = $attr->{LEVELS} || count_levels( $parentness_hash );
 

@@ -102,11 +102,9 @@
               </div>
               <div class='bd-highlight'>
                 <div class='input-group-append h-100'>
-                  <div class='input-group-text p-0 rounded-left-0'>
-                    <a class='btn-sm cursor-pointer' data-change-input='SUBJECT_INPUT'>
-                      <span class='fa fa-pen p-1'></span>
-                    </a>
-                  </div>
+                  <a class='btn input-group-button rounded-left-0' data-change-input='SUBJECT_INPUT'>
+                    <span class='fa fa-pen p-1'></span>
+                  </a>
                 </div>
               </div>
             </div>
@@ -115,12 +113,11 @@
           <div class='input-container input-group'>
             <input type='text' id='SUBJECT_INPUT' name='SUBJECT' class='form-control'/>
             <div class='input-group-append'>
-              <div class='input-group-text p-0'>
-                <a data-tooltip='_{SELECT_FROM_LIST}_' class='cursor-pointer' style='padding: 0.375rem 0.75rem'
-                   data-change-input='SUBJECT'>
-                  <span class='fa fa-list'></span>
-                </a>
-              </div>
+              <a data-tooltip='_{SELECT_FROM_LIST}_' class='btn input-group-button'
+                 style='padding: 0.375rem 0.75rem'
+                 data-change-input='SUBJECT'>
+                <span class='fa fa-list'></span>
+              </a>
             </div>
           </div>
         </div>

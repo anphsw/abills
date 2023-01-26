@@ -72,7 +72,6 @@
   <script src='/styles/%HTML_STYLE%/plugins/moment/moment.min.js'></script>
   <script src='/styles/%HTML_STYLE%/plugins/datepicker/bootstrap-datepicker.js'></script>
   <script src='/styles/%HTML_STYLE%/plugins/pace/pace.js'></script>
-  <script src='/styles/%HTML_STYLE%/js/old/app.js'></script>
 
   <script src='/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>
   <script src='/styles/default/js/select2.min.js'></script>

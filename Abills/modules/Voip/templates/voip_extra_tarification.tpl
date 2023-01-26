@@ -24,7 +24,7 @@
                 </div>
             </div>
         </div>
-        <div class='card-footer text-center'>
+        <div class='card-footer'>
             <input class='btn btn-primary' type=submit name=%ACTION% value='%LNG_ACTION%'>
         </div>
     </div>

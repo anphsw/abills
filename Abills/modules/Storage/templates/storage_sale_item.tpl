@@ -26,7 +26,7 @@
       </div>
 
     </div>
-    <div class='card-footer text-center'>
+    <div class='card-footer'>
       %BUY_BTN%
     </div>
   </div>

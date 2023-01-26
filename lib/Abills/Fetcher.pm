@@ -55,6 +55,8 @@ our %conf;
       METHOD         - PATCH, PUT, GET, POST
       INSECURE       - auto curl option -k
       MORE_INFO      - return second json object with curl write out variables
+      GET_HEADERS    - return headers
+      SKIP_REDIRECT  - disable -L option
 
   Returns:
       result string
@@ -89,31 +91,45 @@ sub web_request {
   my ($request_url, $attr) = @_;
 
   my $result = '';
+  my $info = '{}';
 
   if ($request_url =~ /^https/ || $attr->{CURL} || $attr->{POST} || $attr->{METHOD}) {
-    $result = _curl_request($request_url, $attr);
+    my $response = _curl_request($request_url, $attr);
+
+    if ($attr->{MORE_INFO}) {
+      ($result) = $response =~ /.+?(?=<MORE_INFO>)/gsm;
+      ($info) = $response =~ /(?<=<MORE_INFO>).*$/gm;
+    }
+    else {
+      $result = $response;
+    }
   }
   else {
     $result = _socket_request($request_url, $attr);
   }
 
-  if ($attr->{MORE_INFO}) {
-    my ($res) = $result =~ /.+?(?=<MORE_INFO>)/gsm;
-    my ($info) = $result =~ /(?<=<MORE_INFO>).*$/gm;
+  $info = json_return($info, { JSON_RETURN => 1 });
 
-    if ($attr->{JSON_RETURN}) {
-      return (json_return($res, $attr), json_return($info, $attr));
-    }
-    else {
-      return ($res, $info);
-    }
+  if ($attr->{GET_HEADERS}) {
+    my ($headers, $res) = _parse_headers($result);
+    $info = { headers => $headers, %{$info} };
+    $result = $res;
   }
 
   if ($attr->{JSON_RETURN} && $result) {
-    return json_return($result, $attr);
+    if ($result =~ /500 Internal Server/) {
+      return { error => 9, errstr => '500 Internal Server Error' };
+    }
+    else {
+      ($attr->{MORE_INFO} || $attr->{GET_HEADERS}) ?
+      return json_return($result, $attr), $info :
+      return json_return($result, $attr);
+    }
   }
 
-  return $result;
+  ($attr->{MORE_INFO} || $attr->{GET_HEADERS}) ?
+    return $result, $info :
+    return $result;
 }
 
 #**********************************************************
@@ -133,7 +149,7 @@ sub web_request {
 sub json_return {
   my ($result, $attr) = @_;
 
-  my $json = $attr->{JSON_RETURN};
+  my $json = $attr->{JSON_RETURN} || 0;
   if ($json == 1) {
     load_pmodule('JSON');
     $json = JSON->new->allow_nonref;
@@ -190,7 +206,9 @@ sub _curl_request {
   my $curl_options = $attr->{CURL_OPTIONS} || '';
 
   # Tell curl it should follow redirects
-  $curl_options .= q{ -L };
+  if (!$attr->{SKIP_REDIRECT}) {
+    $curl_options .= q{ -L };
+  }
 
   if ($attr->{AGENT}) {
     $curl_options .= qq{ -A "$attr->{AGENT}" };
@@ -201,9 +219,22 @@ sub _curl_request {
     $curl_options .= q{ -k };
   }
 
+  # Get headers of response
+  if ($attr->{GET_HEADERS}) {
+    $curl_options .= qq{ -i };
+  }
+
+  # Get extra info of request
   if ($attr->{MORE_INFO}) {
-    $curl_options .= q{ -w "<MORE_INFO>{\"status\": \"%{http_code}\", \"time\": \"%{time_total}\"}" };
+    my $version_curl = cmd("$CURL --version | head -n 1 | awk '{ print \$2 }' | cut -d '.' -f 1,2");
+
     # support to generate JSON output with '%{json}' only in curl 7.70.0+ release
+    if ($version_curl && $version_curl =~ /^\s?-?\d*\.?\d+\s?$/ && $version_curl > 7.69) {
+      $curl_options .= q{ -w "<MORE_INFO>%{json}" };
+    }
+    else {
+      $curl_options .= q{ -w "<MORE_INFO>{\"status\": \"%{http_code}\", \"time\": \"%{time_total}\"}" };
+    }
   }
 
   if ($attr->{HEADERS}) {
@@ -212,7 +243,12 @@ sub _curl_request {
     }
   }
 
-  if ($attr->{COOKIE}) {
+  if ($attr->{COOKIES}) {
+    foreach my $key (keys %{$attr->{COOKIES}}) {
+      $curl_options .= qq{ --cookie "$key=} . ($attr->{COOKIES}->{$key} || q{}) . qq{"};;
+    }
+  }
+  elsif ($attr->{COOKIE}) {
     my $cookie_file = '/tmp/cookie.';
     $curl_options .= qq{ --cookie $cookie_file --cookie-jar $cookie_file };
   }
@@ -224,13 +260,6 @@ sub _curl_request {
     elsif (!$conf{TPL_DIR}) {
       $conf{TPL_DIR} = '/tmp/';
     }
-
-    #my $ret = file_op({
-    #  FILENAME => "$conf{TPL_DIR}/tmp_.bin",
-    #  PATH     => "$conf{TPL_DIR}",
-    #  WRITE    => 1,
-    #  CONTENT  => $attr->{BIN_DATA}
-    #});
 
     if (open(my $fh, '>', "$conf{TPL_DIR}/tmp_.bin")) {
       print $fh $attr->{BIN_DATA};
@@ -531,6 +560,55 @@ sub _find_curl {
   }
 
   return $curl_file;
+}
+
+#**********************************************************
+=head2 _parse_headers($headers, $res)
+
+=cut
+#**********************************************************
+sub _parse_headers {
+  my ($result) = @_;
+
+  my %headers = ();
+
+  return \%headers, $result if (!$result);
+
+  my ($headers_string) = $result =~ /.+?(?=\r\n\r\n)/gsm;
+  my ($res) = $result =~ /(?<=\r\n\r\n).*$/gsm;
+
+  if (!defined $headers_string || !defined $res) {
+    ($headers_string) = $result =~ /.+?(?=\n\n)/gsm;
+    ($res) = $result =~ /(?<=\n\n).*$/gsm;
+  }
+
+  my @headers_names = $headers_string =~ /^.+?(?=:)/mg;
+  my @headers_values = $headers_string =~ /(?<=: ).*$/mg;
+
+  for (my $i = 0; $i <= $#headers_names; $i++) {
+    $headers_values[$i] =~ s/[\n\r]//;
+    if ($headers_names[$i] eq 'Set-Cookie') {
+      my @cookies_params = split(/;/, $headers_values[$i]);
+      my $cookie_name = q{};
+      for (my $j = 0; $j <= $#cookies_params; $j++) {
+        $cookies_params[$j] =~ s/^\s*(.*?)\s*$/$1/;
+        my ($name, $value) = split(/=/, $cookies_params[$j]);
+        if ($j == 0) {
+          $cookie_name = $name;
+          $headers{$headers_names[$i]}{$cookie_name}{name} = $cookie_name;
+          $headers{$headers_names[$i]}{$cookie_name}{value} = $value;
+        }
+        else {
+          $headers{$headers_names[$i]}{$cookie_name}{$name} = $value;
+        }
+      }
+    }
+    else {
+      $headers{$headers_names[$i]} = $headers_values[$i];
+    }
+  }
+
+  return \%headers, $res;
 }
 
 1;

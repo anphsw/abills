@@ -633,9 +633,11 @@ sub short_form {
   $self->{FORM} .= " target='$attr->{TARGET}' " if ($attr->{TARGET});
   $self->{FORM} .= " action='$SELF_URL' METHOD='$METHOD'>\n";
 
+  my $field_class = $attr->{ROW} ? "form-group row" : "form-group";
+
   if($attr->{LABELED_FIELDS}){
     foreach my $label (sort keys %{$attr->{LABELED_FIELDS}}){
-      $self->{FORM} .= " <div class='form-group'>";
+      $self->{FORM} .= " <div class='$field_class'>";
       $self->{FORM} .= "<label>$label</label>";
       $self->{FORM} .= $attr->{LABELED_FIELDS}->{$label};
       $self->{FORM} .= "</div>";
@@ -1083,37 +1085,36 @@ sub form_select {
       my $checkbox_name = $attr->{CHECKBOX};
       my $checkbox_title = $attr->{CHECKBOX_TITLE} || q{};
       my $state = $FORM{$checkbox_name} || $attr->{CHECKBOX_STATE};
-      $input = $self->form_input($checkbox_name, '1', {
+      my $checkbox = $self->form_input($checkbox_name, '1', {
         TYPE      => 'checkbox',
-        EX_PARAMS => "NAME='$checkbox_name' data-tooltip='$checkbox_title' class='ml-1'",
+        EX_PARAMS => "NAME='$checkbox_name' data-tooltip='$checkbox_title' class='m-2'",
         ID        => 'DATE',
         STATE     => $state
       },
         { OUTPUT2RETURN => 1 });
+      $input = $self->element('div', $checkbox, { class => 'input-group-text p-0 px-1 rounded-left-0' });
     }
 
     my $main_menu = $self->button('info', "index=$attr->{MAIN_MENU}" .
       (($attr->{MAIN_MENU_ARGV}) ? "&$attr->{MAIN_MENU_ARGV}" : ''), {
       class     => 'show',
-      ex_params => "class='btn-sm'"
+      ex_params => "class='btn input-group-button rounded-left-0'"
     });
 
     $self->{SELECT} = "
     <div class='d-flex bd-highlight'>
       <div class='flex-fill bd-highlight overflow-hidden select2-border'>
-         <div class='select'>
+        <div class='select'>
           <div class='input-group-append select2-append'>
             $self->{SELECT}
           </div>
-         </div>
+        </div>
       </div>
       <div class='bd-highlight'>
         <div class='input-group-append h-100'>
-          <div class='input-group-text p-0 rounded-left-0'>
             $input $main_menu
-          </div>
           " . _form_select_ext_buttons($ext_button) . "
-      </div>
+        </div>
       </div>
     </div>";
   }
@@ -1123,13 +1124,37 @@ sub form_select {
       <div class='flex-fill bd-highlight overflow-hidden select2-border'>
          <div class='input-group-append select2-append'>
             $self->{SELECT}
-          </div>
+         </div>
       </div>";
 
     $self->{SELECT} .= _form_select_ext_buttons($ext_button) . "</div>";
   }
 
   return  $self->{SELECT};
+}
+
+#**********************************************************
+=head2 _form_select_ext_buttons($ext_button) - Single button for select
+
+  Arguments:
+    $single_button
+
+  Returns:
+    append button for input as select, form-control
+=cut
+#**********************************************************
+sub _form_select_single_ext_button {
+  my $button = shift;
+
+  if ($button !~ 'input-group-button') {
+    $button = "<div class='input-group-text p-0 px-1 rounded-left-0'>$button</div>"
+  }
+
+  return "<div class='bd-highlight'>
+      <div class='input-group-append h-100'>
+        $button
+      </div>
+    </div>"
 }
 
 #**********************************************************
@@ -1148,26 +1173,12 @@ sub _form_select_ext_buttons {
   return '' if !$ext_button;
 
   if (ref $ext_button ne 'ARRAY') {
-    return "
-      <div class='bd-highlight'>
-        <div class='input-group-append h-100'>
-          <div class='input-group-text p-0 rounded-left-0'>
-            $ext_button
-          </div>
-        </div>
-      </div>";
+    return _form_select_single_ext_button($ext_button)
   }
 
   my $ext_buttons = '';
   foreach my $button (@{$ext_button}) {
-    $ext_buttons .= "
-      <div class='bd-highlight'>
-        <div class='input-group-append h-100'>
-          <div class='input-group-text p-0 rounded-left-0'>
-            $button
-          </div>
-        </div>
-      </div>";
+    $ext_buttons .= _form_select_single_ext_button($button);
   }
 
   return $ext_buttons;
@@ -1219,27 +1230,23 @@ sub form_window {
 
   $self->{WINDOW} .= "<div class='input-group-append'> ";
 
+  #
   if ($attr->{MAIN_MENU}) {
     # FIXME : NAS_ID?
     $self->{WINDOW} .= "
-    <div class='input-group-text' style='cursor:pointer;'>
-      <a onclick='replace(hrefValue( \"" . $SELF_URL . "\", \"" . $main_menu . "\", \"NAS_ID\"))'>
+      <a class='btn input-group-button' onclick='replace(hrefValue( \"" . $SELF_URL . "\", \"" . $main_menu . "\", \"NAS_ID\"))'>
         <i class='fa fa-list-alt'></i>
-      </a>
-    </div>\n";
+      </a>\n";
   }
 
   my $modal_size = $attr->{POPUP_SIZE} || '';
   $self->{WINDOW} .= "
-        <div class='input-group-text'>
-          <a id='btnPopupOpen' type='button' onclick=\'openModal($buttonNum, \"TemplateBased\", \"$modal_size\");\'>
-            <i class='fa fa-search'></i>
-          </a>
-        </div>
-
-    <div class='input-group-text clear_results' style='cursor:pointer;'>
+    <a class='btn input-group-button' id='btnPopupOpen' type='button' onclick=\'openModal($buttonNum, \"TemplateBased\", \"$modal_size\");\'>
+      <i class='fa fa-search'></i>
+    </a>
+    <a class='btn input-group-button clear_results'>
       <i class='fa fa-times'></i>
-    </div>\n";
+    </a>\n";
 
   $self->{WINDOW} .= "
     </div>
@@ -1958,9 +1965,10 @@ sub table {
 
   if ($attr->{caption} || $attr->{caption1}) {
     if ($attr->{SHOW_COLS} && scalar %{$attr->{SHOW_COLS}}) {
-
-      my $col_divider_count = int((scalar keys(%{$attr->{SHOW_COLS}})) / 2);
-      my $modal_size = ($col_divider_count >= 3) ? 'lg' : 'sm';
+      my $col_count = scalar keys(%{$attr->{SHOW_COLS}});
+      my $col_size = $col_count >= 16 ? 3 : 6;
+      my $col_divider_count = int($col_count / (12 / $col_size) + 0.5);
+      my $modal_size = ($col_divider_count >= 3) ? 'xl' : 'sm';
 
       $show_cols .= "<div class='modal fade' id='" . ($attr->{ID} || q{}) . "_cols_modal' tabindex='-1' role='dialog' aria-hidden='true'>
   <div class='modal-dialog modal-$modal_size'>
@@ -1969,11 +1977,24 @@ sub table {
       <h4 class='modal-title'>$lang->{EXTRA_FIELDS}</h4>
         <button type='button' class='close' data-dismiss='modal' aria-hidden='true'>&times;</button>
       </div>
-      <div class='modal-body text-left' id='nestedform'>";
-
+      <div class='modal-body text-left' id='abillsResultFormerBody'>\n";
+      $show_cols .= "<div class='abills-result-former-bar'>";
+      $show_cols .= "<div class='input-group col-12 col-md-6'>";
+      $show_cols .= "<input class='form-control' placeholder='$lang->{SEARCH}...' id='resultFormSearch'>";
+      $show_cols .= "<div class='input-group-append'>";
+      $show_cols .= "<a class='btn input-group-button'><i class='fa fa-search fa-fw'></i></a>";
+      $show_cols .= "</div>";
+      $show_cols .= "</div>";
+      $show_cols .= "</div>";
       $show_cols .= "<FORM action='$SELF_URL' METHOD='post' name='form_show_cols' id='form_show_cols'>\n" if (!$attr->{SKIP_FORM});
 
-      foreach my $param_name ('index', 'sort', 'desc', 'pg', 'PAGE_ROWS', 'search', 'USERS_STATUS', 'STATUS', 'STATE') {
+      my @global_params = ('get_index', 'index', 'sort', 'desc', 'pg', 'PAGE_ROWS', 'search', 'USERS_STATUS', 'STATUS', 'STATE');
+      if (!$FORM{index} && $FORM{get_index}) {
+        push @global_params, 'full';
+        $FORM{full} = 1;
+      }
+
+      foreach my $param_name (@global_params) {
         if ($FORM{$param_name}) {
           $show_cols .= "<input type=hidden form='form_show_cols' name=$param_name value='$FORM{$param_name}'>\n";
         }
@@ -1985,35 +2006,58 @@ sub table {
         }
       }
 
-      my $col_counter = 0;
-      $show_cols .= "<div class='row'><div class='col-md-6'>";
+      my @checkboxes = ();
       foreach my $k (sort keys %{$attr->{SHOW_COLS}}) {
-
         if ($k eq 'uid' && ($FORM{UID} && $FORM{UID} ne '_SHOW')) {
           $show_cols .= "<input type=hidden name=UID value=$FORM{UID}>";
           next;
         }
 
-        if ($col_divider_count - $col_counter++ == 0) {
-          #Close prev cols and open new;
-          $show_cols .= "</div><div class='col-md-6'>";
-        }
+        my $upper_key = uc($k);
+        my $label = $self->element('label', $attr->{SHOW_COLS}{$k} || '', { FOR => uc($k) });
+        my $checkbox = $self->element('input', '', {
+          type  => 'checkbox',
+          name  => 'show_columns',
+          value => $upper_key,
+          id    => $upper_key,
+          class => 'mr-1',
+          $attr->{ACTIVE_COLS}->{$k} ? (checked => 'checked') : ()
+        });
+        my $checkbox_parent = $self->element('div', $checkbox . $label, { class => 'abills-checkbox-parent' });
 
-        my $v = $attr->{SHOW_COLS}->{$k};
-        $show_cols .= "<input type='checkbox' name='show_columns' value='" . uc($k) . "'";
-        $show_cols .= ($attr->{ACTIVE_COLS}->{$k}) ? " checked='checked'" : '';
-        $show_cols .= "> " . ($v || '') . "<br>\n";
+        push @checkboxes, $checkbox_parent;
       }
-      $show_cols .= "</div></div>";
+
+      my $cols = '';
+      my $count_checkboxes = @checkboxes;
+      my $fields_in_col = POSIX::ceil($count_checkboxes / int(12 / $col_size));
+      my $rows = (POSIX::ceil($count_checkboxes / $fields_in_col) - 1);
+
+      foreach my $row (0..$rows) {
+        my $start_index = $row * $fields_in_col;
+        my $end_index = $start_index + ($fields_in_col - 1);
+        $end_index = $count_checkboxes - 1 if ($count_checkboxes - 1) < $end_index;
+
+        $cols .= $self->element('div', join('', @checkboxes[$start_index .. $end_index]), { class => "col-md-$col_size" });
+      }
+      $show_cols .= $self->element('div', $cols, { class => 'row' });
 
       if (!$attr->{SKIP_FORM}) {
 
         my $footer_btns = "<hr/>
-      <div class='text-center'>
-        <input type='submit' id='del_cols' name=del_cols class='btn btn-default' value="."\"$lang->{DEFAULT}\"". ">
-        <input type='submit' id='show_cols' name=show_cols class='btn btn-primary' value="."\"$lang->{SAVE}\"". ">
-      </div>
-      ";
+          <div class='abills-form-main-buttons justify-content-between'>
+            <input type='submit' id='del_cols' name=del_cols class='btn btn-default' value="."\"$lang->{DEFAULT}\"". ">
+            <input type='submit' id='show_cols' name=show_cols class='btn btn-primary' value="."\"$lang->{SAVE}\"". ">
+          </div>
+          <script>
+            let modal = jQuery('#$attr->{ID}_cols_modal');
+            if (modal.parent().hasClass('modal-content')) {
+              modal.detach().appendTo(jQuery('body'));
+              resultFormerFillCheckboxes();
+              resultFormerCheckboxSearch();
+            }
+          </script>
+        ";
 
         $show_cols .= "$footer_btns";
         $show_cols .= "</FORM>\n";
@@ -2407,6 +2451,28 @@ sub addfooter{
 }
 
 #**********************************************************
+=head2 addcardfooter($content) - Add card footer to card table
+
+  Arguments:
+    $content  - content of the footer
+
+  Results:
+    $self->{card_footer} - Formed card footer
+
+  Example:
+    $table->addcardfooter("Where is my mind?");
+
+=cut
+#**********************************************************
+sub addcardfooter{
+  my ($self, $content) = @_;
+
+  $self->{card_footer} = "<div class='card-footer'>$content</div>";
+
+  return $self->{card_footer};
+}
+
+#**********************************************************
 =head2 addtd(@row) - Add rows to table form td objects
 
   Arguments:
@@ -2438,6 +2504,7 @@ sub addtd {
   $row_number++;
   $self->{rows} .= '<tr class=\'' . $css_class . '\' ' . $row_extra . '>';
   foreach my $val (@row) {
+    $val = $self->td($val) if $val !~ /^\<TD/;
     $self->{rows} .= $val;
   }
 
@@ -2600,6 +2667,8 @@ sub table_header {
     }
     elsif ($i == $elements_before_dropdown && $#{$header_arr} > $elements_before_dropdown) {
       $header .= $self->button($name, $url, { class => "btn btn-default btn-xs $active" });
+      # 1. Opening dropdown tag
+      $header .= "<div class='btn-group'>";
       $header .= "<button class='btn btn-default btn-xs dropdown-toggle' aria-expanded='false' data-toggle='dropdown'><span class='caret'></span></button>";
     }
     elsif ($i > $elements_before_dropdown) {
@@ -2614,6 +2683,10 @@ sub table_header {
 
   if ($drop_down) {
     $header .= "<div class='dropdown-menu dropdown-menu-right'>$drop_down</div>";
+    if(!($attr->{TABS} || $attr->{NAV})) {
+      $header .= "</div>";
+      # 2. Closing dropdown tag
+    }
   }
 
   if ($attr->{TABS}) {
@@ -2914,6 +2987,9 @@ sub show {
 
   if ($self->{summary} || $self->{pagination}) {
     $self->{show} .= $self->{summary};
+  }
+  if ($self->{card_footer}) {
+    $self->{show} .= $self->{card_footer};
   }
   $self->{show} .= '</div>';
 
@@ -3626,6 +3702,7 @@ sub tpl_show {
 
 
   if (!$attr->{SOURCE} && $tpl) {
+    $variables_ref = {} if !$variables_ref;
     $variables_ref->{SELF_URL} //= $SELF_URL;
     $variables_ref->{index} //= $index;
 
@@ -4719,7 +4796,7 @@ sub short_info_panels_row {
   #system colors
   my $system_colors = 'PRIMARY, INFO, SUCCESS, WARNING, DEFAULT, DANGER';
 
-  my $result = q(<div class='row justify-content-md-center'>);
+  my $result = q(<div class='row justify-content-center'>);
 
   if (defined($attr->{MENU_BUTTONS})) {
     $result = q(<div class='row justify-content-md-center'><div>);

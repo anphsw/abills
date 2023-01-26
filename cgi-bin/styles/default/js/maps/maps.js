@@ -343,9 +343,18 @@ var Configuration = (function () {
 
       container.attr('data-tooltip', 1);
 
+      let sublayers = [];
+      let prev;
+      let last_sublayer;
       let content = '';
+      let date = '';
       layer.sublayers.forEach(sublayer => {
         if (!layer[sublayer]) return;
+
+        sublayers[sublayer] = [];
+        if (prev) sublayers[sublayer]['prev'] = prev;
+        if (sublayers[prev]) sublayers[prev]['next'] = sublayer;
+        prev = sublayer;
 
         let sublayer_info = layer[sublayer];
         let label = layer['tooltip_content'] ? layer['tooltip_content'] :
@@ -359,9 +368,21 @@ var Configuration = (function () {
           label = label.replace(/\\\"/g, '\"');
         }
 
-        content += '<div class="form-group form-check mb-0">\n' +
+        last_sublayer = sublayer;
+        content += '<div class="form-group form-check mb-0 ' + (layer.button_prev_next ? 'd-none' : '' )+ '">\n' +
           '<input type="checkbox" checked class="form-check-input" id="' + sublayer + '">\n' + label + '  </div>';
       });
+
+      let prev_btn_id = 'prev' + Date.now().toString();
+      let next_btn_id = 'next' + Date.now().toString();
+
+    if (layer.button_prev_next) {
+      content += '<p class="text-md-center mb-0" id="date_filter"></p>';
+      content += '<div class="btn-group" role="group" aria-label="Basic example">' +
+        `  <button type="button" class="btn btn-default" id="${prev_btn_id}">${_PREVIOUS}</button>\n` +
+        `  <button type="button" class="btn btn-default" id="${next_btn_id}">${_NEXT}</button>\n` +
+        '</div>';
+    }
 
       content += '<a class="close-button cursor-pointer" id="close_' + layer.id + '">×</a>'
 
@@ -396,6 +417,35 @@ var Configuration = (function () {
               AllLayers[sublayer_id].remove();
             }
           })
+        });
+
+        jQuery(`#${prev_btn_id}`).on('click', function() {
+          if (!sublayers[last_sublayer]['prev']) return;
+
+          date = sublayers[last_sublayer]['prev'];
+          date = date.substring(date.length - 10);
+
+          jQuery('#date_filter').text(date);
+          Object.keys(sublayers).forEach(layer => {
+            jQuery('#' + layer).prop('checked', false).change();
+          });
+          jQuery('#' + sublayers[last_sublayer]['prev']).prop('checked', true).change();
+          last_sublayer = sublayers[last_sublayer]['prev'];
+        });
+
+        jQuery(`#${next_btn_id}`).on('click', function() {
+          if (!sublayers[last_sublayer]['next']) return;
+
+          date = sublayers[last_sublayer]['next'];
+          date = date.substring(date.length - 10);
+
+          jQuery('#date_filter').text(date);
+
+          Object.keys(sublayers).forEach(layer => {
+            jQuery('#' + layer).prop('checked', false).change();
+          });
+          jQuery('#' + sublayers[last_sublayer]['next']).prop('checked', true).change();
+          last_sublayer = sublayers[last_sublayer]['next'];
         });
 
         jQuery('#close_' + layer.id).on('click', function() {
@@ -2107,8 +2157,12 @@ var Controls = (function () {
       containerHref.classList.add('polyline-measure-unicode-icon');
 
       L.DomEvent.on(containerHref, 'click', () => {
-        if (!MAPS_DEFAULT_LATLNG)
+        if (!MAPS_DEFAULT_LATLNG) {
+          map.locate().on('locationfound', function (e) {
+            map.flyTo(e.latlng, map.getZoom());
+          });
           return 0;
+        }
 
         let coordsArray = MAPS_DEFAULT_LATLNG.split(';');
         if (coordsArray.length < 2)
@@ -2338,8 +2392,8 @@ function editField(element) {
   $jelement.data('input', true);
   $jelement.html('<div class="input-group input-group-sm" style="min-width: 150px;">' +
     '<input name="NAME" class="form-control" value="' + oldValue + '" id="' + fieldName + '_FIELD">' +
-    '<div class="input-group-append"><div class="input-group-text cursor-pointer" id="CHANGE_' + fieldName + '_BTN">' +
-    '<span class="fa fa-save"></span></div></div></div>'
+    '<div class="input-group-append"><a class="btn input-group-button" id="CHANGE_' + fieldName + '_BTN">' +
+    '<span class="fa fa-save"></span></a></div></div>'
   );
 
   jQuery('#CHANGE_' + fieldName + '_BTN').on('click', function() {

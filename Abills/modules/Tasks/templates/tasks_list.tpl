@@ -1,8 +1,16 @@
 <ul class='nav nav-tabs'  id='tasks_tab'>
-  <li class='%LI_ACTIVE_1%'><a data-toggle='tab' href='#t1'>_{UNFULFILLED_TASKS}_ <span class="label label-danger">%U_COUNT%</span></a></li>
-  <li class='%LI_ACTIVE_2%'><a data-toggle='tab' href='#t2'>_{COMPLETED_TASKS}_ <span class="label label-success">%C_COUNT%</span></a></li>
-  <li class='%LI_ACTIVE_3%'><a data-toggle='tab' href='#t3'>_{TASK_IN_WORK}_ <span class="label label-default">%W_COUNT%</span></a></li>
-  <li class='%LI_ACTIVE_4%'><a data-toggle='tab' href='#t4'>_{TASK_IN_QUEUE}_ <span class="label label-default">%Q_COUNT%</span></a></li>
+  <li class='nav-item'>
+    <a data-toggle='tab' href='#t1' class='nav-link %LI_ACTIVE_1%'>_{UNFULFILLED_TASKS}_ <span class='badge badge-danger'>%U_COUNT%</span></a>
+  </li>
+  <li class='nav-item'>
+    <a data-toggle='tab' href='#t2' class='nav-link %LI_ACTIVE_2%'>_{COMPLETED_TASKS}_ <span class='badge badge-success'>%C_COUNT%</span></a>
+  </li>
+  <li class='nav-item'>
+    <a data-toggle='tab' href='#t3' class='nav-link %LI_ACTIVE_3%'>_{TASK_IN_WORK}_ <span class='badge badge-info'>%W_COUNT%</span></a>
+  </li>
+  <li class='nav-item'>
+    <a data-toggle='tab' href='#t4' class='nav-link %LI_ACTIVE_4%'>_{TASK_IN_QUEUE}_ <span class='badge badge-light'>%Q_COUNT%</span></a>
+  </li>
 </ul>
 
 <div class='tab-content'>

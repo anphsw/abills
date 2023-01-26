@@ -41,7 +41,7 @@
   });
 </script>
 
-<div class='form-group'>
+<div class='form-group row'>
   <label class='control-label col-md-4' for='FIRST_PASSWORD_INPT'>_{PASSWD}_</label>
 
   <div class='col-md-8'>
@@ -49,7 +49,7 @@
   </div>
 </div>
 
-<div class='form-group'>
+<div class='form-group row'>
   <label class='control-label col-md-4' for='SECOND_PASSWORD_INPT'>_{CONFIRM_PASSWD}_</label>
 
   <div class='col-md-8'>
@@ -58,7 +58,7 @@
 </div>
 
 
-<div class='form-group'>
+<div class='form-group row'>
   <label class='control-label col-md-6' for='GENERATED_PSW'>
     <input type='button' id='GENERATE_BUTTON' class='btn btn-info btn-xs' value='_{GENERED_PARRWORD}_'>
     <input type='button' id='COPY_BUTTON' class='btn btn-info btn-xs' value='Copy'>

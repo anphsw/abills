@@ -63,3 +63,5 @@ $lang{ZAPED}              = 'Zaped';
 $lang{IP_ADDRESS}         = 'IP-адрес клиента';
 $lang{CALLED_STATION_ID}  = 'Получатель вызова';
 $lang{CALLING_STATION_ID} = 'Адресат вызова';
+$lang{EXTRA_NUMBERS}      = 'Дополнительные номера';
+$lang{ROUTE}              = 'Маршрут';

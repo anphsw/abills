@@ -132,10 +132,10 @@
                 </div>
               </div>
               <div class='input-group-append'>
-                  <span class='input-group-text'>
-                    <a href='$SELF_URL?UID=$FORM{UID}&index=$index&PHOTO=$FORM{chg}&webcam=1'
-                       class='fa fa-camera'></a>
-                  </span>
+                <a href='$SELF_URL?UID=$FORM{UID}&index=$index&PHOTO=$FORM{chg}&webcam=1'
+                   class='btn input-group-button'>
+                  <i class='fa fa-camera'></i>
+                </a>
               </div>
             </div>
           </div>
@@ -151,23 +151,24 @@
         <div class='form-group row'>
           <label class='col-md-3 control-label'>_{RUN_TIME}_:</label>
           <div class='input-group col-md-9'>
-            <input class='form-control' id='RUN_TIME' type='text' name='RUN_TIME' %RUN_TIME_STATUS%>
-            <div class='input-group-append'>
+            <div class='input-group-prepend'>
               <div class='input-group-text'>
-                <a class='far fa-clock'></a>
+                <i class='far fa-clock'></i>
               </div>
             </div>
 
+            <input class='form-control' id='RUN_TIME' type='text' name='RUN_TIME' %RUN_TIME_STATUS%>
+
             <div id='func_btn' run_status='1' class='input-group-append'>
-              <div class='input-group-text'>
-                <a id='func_icon' class='fa fa-play'></a>
-              </div>
+              <a class='btn input-group-button'>
+                <i id='func_icon' class='fa fa-play'></i>
+              </a>
             </div>
 
             <div id='func_rst' run_status='1' class='input-group-append'>
-              <div class='input-group-text'>
-                <a class='fas fa-sync'></a>
-              </div>
+              <a class='btn input-group-button'>
+                <i class='fas fa-sync'></i>
+              </a>
             </div>
           </div>
         </div>

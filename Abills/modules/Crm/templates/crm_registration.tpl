@@ -1,5 +1,5 @@
-<FORM action='$SELF_URL' METHOD='POST' ID='REGISTRATION'>
-  <input type='hidden' name='index' value='$index'>
+<FORM action='%SELF_URL%' METHOD='POST' ID='REGISTRATION'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='DOMAIN_ID' value='$FORM{DOMAIN_ID}'>
   <input type='hidden' name='module' value='Crm'>
 
@@ -50,7 +50,7 @@
         </div>
       </div>
 
-      <div class='form-group row text-center'>
+      <div class='form-group text-center'>
         <div class='custom-control custom-checkbox'>
           <input class='custom-control-input' type='checkbox' id='ACCEPT_RULES' required name='ACCEPT_RULES' value='1'>
           <label for='ACCEPT_RULES' class='custom-control-label'>_{ACCEPT}_</label>

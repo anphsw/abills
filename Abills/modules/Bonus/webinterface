@@ -1089,7 +1089,11 @@ sub bonus_service_discount {
   );
 
   if (in_array('Internet', \@MODULES)) {
-    require Control::Services;
+    if (! exists($INC{"Control/Services.pm"})) {
+      require Control::Services;
+    }
+
+
     $Bonus->{SEL_TP} = sel_tp({
       SELECT    => 'TP_ID',
       EX_PARAMS => 'multiple="multiple"',

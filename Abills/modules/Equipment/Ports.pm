@@ -97,9 +97,8 @@ sub equipment_ports_full {
   $tpl_fields{NATIVE_VLAN}  = "Native VLAN dynamic";
   $tpl_fields{CABLE_TESTER} = $lang{CABLE_TESTER};
 
-  #New
   my $default_fields = 'PORT_NAME,PORT_STATUS,ADMIN_PORT_STATUS,UPLINK,LOGIN,MAC,VLAN,PORT_ALIAS,TRAFFIC,PORT_IN_ERR';
-  my ($table, $list) = result_former({
+  my ($table) = result_former({
     DEFAULT_FIELDS => $default_fields,
     BASE_PREFIX  => 'ID',
     TABLE        => {
@@ -126,9 +125,11 @@ sub equipment_ports_full {
         PORT_ALIAS        => $lang{COMMENTS},
         TRAFFIC           => $lang{TRAFFIC},
         PORT_SPEED        => $lang{SPEED},
+        PORT_COMMENTS     => $lang{COMMENTS},
         PORT_IN_ERR       => "$lang{PACKETS_WITH_ERRORS} (in/out)",
         PORT_IN_DISCARDS  => "Discarded $lang{PACKETS_} (in/out)",
-        PORT_UPTIME       => $lang{PORT_UPTIME}
+        PORT_UPTIME       => $lang{PORT_UPTIME},
+        DATETIME          => $lang{CHANGED}
       },
       SHOW_COLS_HIDDEN => {
         visual => $FORM{visual},
@@ -136,6 +137,7 @@ sub equipment_ports_full {
       },
       ID       => 'EQUIPMENT_PORTS',
       EXPORT   => 1,
+      MENU    => "$lang{ADD} $lang{PORTS}:index=$index&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&MK_PORTS=1" . ':add'
     },
   });
 
@@ -200,7 +202,6 @@ sub equipment_ports_full {
     FULL_LIST  => 1
   });
 
-  #get info
   my $ports_db_info = $Equipment->port_list({
     NAS_ID     => $nas_id,
     TP_NAME    => '_SHOW',
@@ -215,7 +216,9 @@ sub equipment_ports_full {
 
   my $ports_info = {%$ports_snmp_info};
   foreach my $line ( @{$ports_db_info} ){
-    $ports_info->{ $line->{port} } = { %{ ($ports_snmp_info->{ $line->{port} }) ? $ports_snmp_info->{ $line->{port} } : {} }, %{$line} };
+    my $port = $line->{port} || 0;
+    $ports_info->{ $port } = { %{ ($ports_snmp_info->{ $port }) ? $ports_snmp_info->{ $port } : {} }, %{$line} };
+    push @ports_arr, $port if (! in_array($port, \@ports_arr));
   }
 
   my @all_rows = ();
@@ -246,8 +249,7 @@ sub equipment_ports_full {
         $port = $port_num_to_index{ $port } || next;
       }
       else {
-        my $port_shift = $Equipment_->{PORT_SHIFT} || 0;
-        $port += $port_shift;
+        $port += $Equipment_->{PORT_SHIFT} || 0;
       }
     }
     push @{$users_mac{$port}}, $line;
@@ -265,8 +267,7 @@ sub equipment_ports_full {
           $port = $port_num_to_index{ $port } || next;
         }
         else {
-          my $port_shift = $Equipment_->{PORT_SHIFT} || 0;
-          $port += $port_shift;
+          $port += $Equipment_->{PORT_SHIFT} || 0;
         }
       }
 
@@ -499,7 +500,7 @@ sub equipment_ports {
       $Equipment->{ACTION_LNG} = $lang{CHANGE};
     }
   }
-  elsif ( defined( $FORM{del} ) && defined( $FORM{COMMENTS} ) ){
+  elsif ( defined( $FORM{del} ) && $FORM{COMMENTS}){
     $Equipment->port_info({ NAS_ID => $FORM{NAS_ID}, PORT => $FORM{del} } );
     if ( !$Equipment->{errno} ){
       $Equipment->port_del( $Equipment->{ID} );
@@ -516,6 +517,29 @@ sub equipment_ports {
       $Equipment->{ACTION} = 'change';
       $Equipment->{ACTION_LNG} = $lang{CHANGE};
     }
+  }
+  elsif ($FORM{MK_PORTS}) {
+    my $message = q{};
+    if ($attr->{NAS_INFO}{PORTS}) {
+      my $nas_ports = $attr->{NAS_INFO}{PORTS};
+      my $main_vlan = $attr->{NAS_INFO}{INTERNET_VLAN} || 0;
+      for (my $i=1; $i<=$nas_ports; $i++) {
+        my $port_vlan = 0;
+        if($main_vlan > 0) {
+          $port_vlan = $main_vlan + $i;
+        }
+        $Equipment->port_add({
+          NAS_ID   => $FORM{NAS_ID},
+          PORT     => $i,
+          COMMENTS => 'Offline Add',
+          VLAN     => $port_vlan
+        });
+
+        my $error = $Equipment->{errstr} || q{};
+        $message .= "$lang{PORT}: $i VLAN: $port_vlan $error\n";
+      }
+    }
+    $html->message('info', $lang{INFO}, "PORTS_CREATED\n $message");
   }
 
   if ($FORM{SNMP} && $FORM{PORT} && $FORM{STATUS}) {
@@ -536,7 +560,7 @@ sub equipment_ports {
 
   $FORM{visual} = 2 if (!defined( $FORM{visual} ) && !$FORM{PORT});
 
-  my $visual = $FORM{visual} || 0;
+  my $visual = $attr->{VISUAL} || $FORM{visual} || 0;
   if ( $visual == 0 && !$FORM{PORT} ){ #select port on abonent's page
     if ( $attr->{NAS_INFO}->{TYPE_ID} && $attr->{NAS_INFO}->{TYPE_ID} eq '4' ) { # 4 - PON
       equipment_pon_onu({
@@ -575,9 +599,7 @@ sub equipment_ports {
     equipment_fdb($attr);
   }
   elsif ( $visual == 8 ){
-    equipment_snmp_info({
-      %$attr,
-    });
+    equipment_snmp_info($attr);
   }
   # Backup management
   elsif ( $visual == 9 ){
@@ -668,8 +690,6 @@ sub equipment_ports_select {
   $Equipment->_info($nas_id);
   $Equipment->model_info( $Equipment->{MODEL_ID} );
 
-  #my $ports = $Equipment->{PORTS} || 0;
-
   print $html->element('div', equipment_port_panel( $Equipment ), { class => 'modal-body' });
   return 1;
 }
@@ -710,8 +730,8 @@ sub equipments_get_used_ports{
 
     if ($attr->{DEBUG} && $attr->{DEBUG} > 6) {
       $Internet->{debug} = 1;
-#      $Sessions->{debug} = 1;
     }
+
     $LIST_PARAMS{GROUP_BY}=' internet.id';
 
     $list = $Internet->user_list({
@@ -753,34 +773,6 @@ sub equipments_get_used_ports{
         push @{ $used_ports{ $line->{port} } }, $line;
       }
     }
-
-#    if ($attr->{PORTS_ONLY}) {
-#      return \%used_ports;
-#    }
-
-    #Online
-#    $list = $Sessions->online({
-#      %LIST_PARAMS,
-#      CLIENT_IP    => '_SHOW',
-#      LOGIN        => '_SHOW',
-#      CID          => '_SHOW',
-#      UID          => '_SHOW',
-#      ADDRESS_FULL => '_SHOW',
-#      DURATION     => '_SHOW',
-#      SWITCH_PORT  => '_SHOW',
-#      COLS_UPPER   => $attr->{COLS_UPPER},
-#    });
-
-#    if($list && ref $list eq 'ARRAY') {
-#      foreach my $line (@{$list}) {
-#        if ($attr->{NAS_ID}) {
-#          push @{ $used_ports{ $line->{switch_port} } }, $line;
-#        }
-#        elsif ($line->{cid} && !$used_ports{ lc($line->{cid}) }) {
-#          push @{ $used_ports{ lc($line->{cid}) } }, $line;
-#        }
-#      }
-#    }
   }
 
   if ($attr->{PORTS_ONLY} && !$attr->{FULL_LIST}) {
@@ -878,13 +870,15 @@ sub equipments_get_used_ports{
 sub equipment_port_panel {
   my ($attr) = @_;
 
-  my $port_count            = $attr->{PORTS} || 4;
+  my $port_count            = $attr->{PORTS} || 0;
   my $block_size            = $attr->{BLOCK_SIZE} || 1;
   my $rows_count            = $attr->{ROWS_COUNT} || 1;
   my $port_type             = $attr->{PORTS_TYPE} || 1;
   my $port_type_name        = $port_types[$port_type];
   my $port_numbered_by_rows = $attr->{PORT_NUMBERING};
   my $first_port_position   = $attr->{FIRST_POSITION};
+  my $width                 = (defined($attr->{WIDTH}) && $attr->{WIDTH} !=0) ? ($attr->{WIDTH}*100).'px' : '100%';
+  my $height                = (defined($attr->{HEIGHT}) && $attr->{HEIGHT} !=0) ? ($attr->{HEIGHT}*100).'px' : '100%';
 
   my $search_result = {}; #used for modal search (will be passed to js:fillSearchResults() )
   if ($attr->{NAS_ID}) {
@@ -910,8 +904,7 @@ sub equipment_port_panel {
     }
   }
 
-
-  my $extra_ports = $Equipment->extra_ports_list( $attr->{ID} );
+  my $extra_ports = $Equipment->extra_ports_list( (defined($attr->{MODEL_ID})) ? $attr->{MODEL_ID} : $attr->{ID});
   _error_show( $Equipment );
 
   #sort by row
@@ -935,91 +928,191 @@ sub equipment_port_panel {
   my $blocks_in_row = $ports_in_row / $block_size;
 
   my $number = 0;
+  my $unit_border = '';
 
   my $panel = "<div class='equipment-panel'>\n";
+
+  if ($width ne '100%' || $height ne '100%'){
+    $unit_border = "<div class='border border-danger p-2' style='width:$width; height:$height; margin: auto'>\n";
+    $panel .= $unit_border;
+  }
   $panel .= "<link rel='stylesheet' type='text/css' href='/styles/default/css/modules/equipment.css'>";
 
   my @reversed_rows = ();
+  my $no_port = 0;
 
-  for ( my $row_num = 0; $row_num < $rows_count; $row_num++ ) {
-    my $row = "<div class='row equipment-row'>";
-    for ( my $block_num = 0; $block_num < $blocks_in_row; $block_num++ ) {
-      my $block = "<div class='equipment-block'>";
-      if ( !$port_numbered_by_rows ) {
+  #############################
+  #  NEW SCHEME FOR PORT ROWS
+  if ($port_numbered_by_rows) {
+    $panel .= "<div class='row equipment-row'>";
+    for (my $block_num = 0; $block_num < $blocks_in_row; $block_num++) {
+      my @new_rows = ();
+      my $col = "<div class='col-auto equipment-col'>";
+      for ( my $row_in_num = 0; $row_in_num < $rows_count; $row_in_num++) {
+        my $row_some = "<div class='row equipment-row flex-nowrap'>";
         for ( my $port_num = 0; $port_num < $block_size; $port_num++ ) {
-          $number++;
-          if ( $number <= $port_count ) {
-            my $class = (!$used_ports->{$number})
+          my $real_number = $row_in_num + ($rows_count * $port_num) + ($block_num * $block_size * $rows_count) + 1;
+
+          if ( $real_number <= $port_count ) {
+            my $class = (!$used_ports->{$real_number})
               ? "clickSearchResult port port-$port_type_name-free"
               : "clickSearchResult port port-$port_type_name-used port-used";
 
-            my $title = (($combo_for_non_extra_ports->{$number}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $number ($port_type_name)";
-            $block .= _get_html_for_port( $number, $class, $title, $search_result->{$number});
+            my $title = (($combo_for_non_extra_ports->{$real_number}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $real_number ($port_type_name)";
+            $row_some .= _get_html_for_port( $real_number, $class, $title, $search_result->{$real_number});
           }
         }
+        $row_some .= "</div>";
+        push @new_rows, $row_some;
       }
-      else {
-        for ( my $port_num = 0; $port_num < $block_size; $port_num++ ) {
-          $number = $row_num + ($rows_count * $port_num) + ($block_num * $block_size * $rows_count) + 1;
-          if ( $number <= $port_count ) {
-            my $class = (!$used_ports->{$number})
-              ? "clickSearchResult port port-$port_type_name-free"
-              : "clickSearchResult port port-$port_type_name-used port-used";
-
-            my $title = (($combo_for_non_extra_ports->{$number}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $number ($port_type_name)";
-            $block .= _get_html_for_port( $number, $class, $title, $search_result->{$number});
-          }
-        }
+      if ($first_port_position) {
+        $col .= join("", reverse @new_rows);
+      } else {
+        $col .= join("", @new_rows);
       }
-      $block .= "</div>";
-      $row .= $block;
+      $col .= "</div>";
+      $panel .= $col;
     }
 
-    #check for extra ports
-    if ( $ports_by_row->{$row_num} ) {
-      $row .= "<div class='equipment-block'>";
-      foreach my $port ( @{ $ports_by_row->{$row_num} } ) {
-        my $extra_port_type_name = $port_types[$port->{port_type}];
-        my $class = "port port-$extra_port_type_name-free"; #TODO: add possibility to have busy extra port
+    if (%{$ports_by_row}) {
+      my $extra_col .= "<div class='col-auto equipment-col'>";
+      my @extra_port_rows = sort keys %{$ports_by_row};
 
-        my $port_number = "e$port->{port_number}";
+      @extra_port_rows = 0..$extra_port_rows[-1];
 
-        if ($port->{port_combo_with}) {
-          if ($port->{port_combo_with} < 0) {
-            $port_number = -$port->{port_combo_with};
-            if ($used_ports->{$port_number}) {
-              $class = "port port-$extra_port_type_name-used port-used";
+
+      if ($first_port_position) {
+        my $minimal = $extra_port_rows[0] > 0 ? 0 : $extra_port_rows[0];
+        my $maximum = $extra_port_rows[-1] || $rows_count - 1;
+
+        @extra_port_rows = $minimal..$maximum;
+        @extra_port_rows = reverse @extra_port_rows;
+      }
+
+      for my $extra_row_number (@extra_port_rows) {
+        my $extra_row = "<div class='row equipment-row flex-nowrap'>";
+        if (!defined($ports_by_row->{$extra_row_number})) {
+          $extra_row = "<div class='row equipment-row port'>";
+        } else {
+          foreach my $port (@{$ports_by_row->{$extra_row_number}}) {
+            my $extra_port_type_name = $port_types[$port->{port_type}];
+            my $class = "port port-$extra_port_type_name-free"; #TODO: add possibility to have busy extra port
+
+            my $port_number = $port->{port_number} - $no_port ;
+            $port_number = "e$port_number";
+
+            if ($port->{port_combo_with}) {
+              if ($port->{port_combo_with} < 0) {
+                $port_number = -$port->{port_combo_with};
+                if ($used_ports->{$port_number}) {
+                  $class = "port port-$extra_port_type_name-used port-used";
+                }
+              }
+              elsif ($port->{port_number} > $port->{port_combo_with}) {
+                $port_number = "e$port->{port_combo_with}";
+              }
+            }
+
+            # if empty port
+            if ($port->{port_type} == 9){
+              $no_port += 1;
+              $port_number = '';
+            }
+
+            my $title = (($port->{port_combo_with}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $port_number ($extra_port_type_name)";
+            $extra_row .= _get_html_for_port($port_number, $class, $title, $port_number); #TODO: if extra ports will have correct number, it will be possible to fill $data_value
+          }
+        }
+        $extra_row .= "</div>";
+        $extra_col .= $extra_row;
+      }
+      $extra_col .= "</div>";
+      $panel .= $extra_col;
+    }
+    if ($width ne '100%' || $height ne '100%'){
+      $unit_border = "</div>";
+      $panel .= $unit_border;
+    }
+    $panel .= "</div>";
+  }
+  else {
+    #############################
+    # OLD SCHEME FOR PORT ROWS start
+    for (my $row_num = 0; $row_num < $rows_count; $row_num++) {
+      my $row = "<div class='row equipment-row'>";
+      for (my $block_num = 0; $block_num < $blocks_in_row; $block_num++) {
+        my $block = "<div class='equipment-block'>";
+        # for row building
+        for (my $port_num = 0; $port_num < $block_size; $port_num++) {
+          $number++;
+          if ($number <= $port_count) {
+            my $class = (!$used_ports->{$number})
+              ? "clickSearchResult port port-$port_type_name-free"
+              : "clickSearchResult port port-$port_type_name-used port-used";
+
+            my $title = (($combo_for_non_extra_ports->{$number}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $number ($port_type_name)";
+            $block .= _get_html_for_port($number, $class, $title, $search_result->{$number});
+          }
+        }
+        $block .= "</div>";
+        $row .= $block;
+      }
+
+      #check for extra ports
+      if ($ports_by_row->{$row_num}) {
+        $row .= "<div class='equipment-block'>";
+        foreach my $port (@{$ports_by_row->{$row_num}}) {
+          my $extra_port_type_name = $port_types[$port->{port_type}];
+          my $class = "port port-$extra_port_type_name-free"; #TODO: add possibility to have busy extra port
+
+          my $port_number = $port->{port_number} - $no_port ;
+          $port_number = "e$port_number";
+
+          if ($port->{port_combo_with}) {
+            if ($port->{port_combo_with} < 0) {
+              $port_number = -$port->{port_combo_with};
+              if ($used_ports->{$port_number}) {
+                $class = "port port-$extra_port_type_name-used port-used";
+              }
+            }
+            elsif ($port->{port_number} > $port->{port_combo_with}) {
+              $port_number = "e$port->{port_combo_with}";
             }
           }
-          elsif ($port->{port_number} > $port->{port_combo_with}) {
-            $port_number = "e$port->{port_combo_with}";
+
+          # if empty port
+          if ($port->{port_type} == 9){
+            $no_port += 1;
+            $port_number = '';
           }
+
+          my $title = (($port->{port_combo_with}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $port_number ($extra_port_type_name)";
+          $row .= _get_html_for_port($port_number, $class, $title, $port_number); #TODO: if extra ports will have correct number, it will be possible to fill $data_value
         }
-
-        my $title = (($port->{port_combo_with}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $port_number ($extra_port_type_name)";
-        $row .= _get_html_for_port($port_number, $class, $title, $port_number); #TODO: if extra ports will have correct number, it will be possible to fill $data_value
+        $row .= "</div>";
       }
+
       $row .= "</div>";
+
+      if ($first_port_position) {
+        push(@reversed_rows, $row);
+      }
+      else {
+        $panel .= $row;
+      }
     }
 
-    $row .= "</div>";
-
-    if ( $first_port_position ) {
-      push( @reversed_rows, $row );
+    if ($first_port_position) {
+      #down
+      my @rows = reverse @reversed_rows;
+      $panel .= join('', @rows);
     }
-    else {
-      $panel .= $row;
+    if ($width ne '100%' || $height ne '100%'){
+      $unit_border = "</div>";
+      $panel .= $unit_border;
     }
+    $panel .= "</div>";
   }
-
-  if ( $first_port_position ){
-    #down
-    my @rows = reverse @reversed_rows;
-    $panel .= join( '', @rows );
-  }
-
-  $panel .= "</div>";
-
   #form extra_ports_json string
   my $extra_ports_json = "<input type='hidden' id='extraPortsJson' value='[ ";
   my @rows_json = ();
@@ -1142,8 +1235,8 @@ sub port_result_former {
   my @info_fields = ();
   my @skip_params = ('PORT_OUT', 'PORT_OUT_ERR', 'PORT_OUT_DISCARDS', 'ONU_OUT_BYTE', 'ONU_TX_POWER',
     'OLT_RX_POWER', 'VIDEO_RX_POWER', 'CATV_PORTS_COUNT', 'ETH_ADMIN_STATE', 'ETH_DUPLEX', 'ETH_SPEED',
-    'VLAN',
     'ADMIN_PORT_STATUS');
+
   my $port_id     = $attr->{PORT};
 
   if($attr->{INFO_FIELDS}) {
@@ -1151,6 +1244,10 @@ sub port_result_former {
   }
   else {
     @info_fields = sort keys %{ $port_info->{$port_id} };
+  }
+
+  if (in_array('ONU_PORTS_STATUS', \@info_fields)) {
+    push @skip_params, 'VLAN';
   }
 
   foreach my $key (@info_fields) {
@@ -1244,12 +1341,13 @@ sub port_result_former {
       $value = q{};
       foreach my $line (@ports_status) {
         my ($port, $status)=split(/ /, $line);
+        $status //= 0;
         my $color       = ($status == 1) ? 'text-green' : '';
         my $description = (($status == 1) ? "State: Up " : "State: Down ") . $html->br();
         my $speed       = $port_info->{$port_id}->{ETH_SPEED}->{$port} || '';
         my $duplex      = $port_info->{$port_id}->{ETH_DUPLEX}->{$port} || '';
         my $admin_state = $port_info->{$port_id}->{ETH_ADMIN_STATE}->{$port} || '';
-        my $vlan        = ($port_info->{$port_id}->{VLAN} && ref $port_info->{$port_id}->{VLAN} eq 'HASH' ) ? $port_info->{$port_id}->{VLAN}->{$port} : '';
+        my $vlan        = ($port_info->{$port_id}->{VLAN} && ref $port_info->{$port_id}->{VLAN} eq 'HASH' ) ? $port_info->{$port_id}->{VLAN}->{$port} : ($port_info->{$port_id}->{VLAN} || '');
 
 #$admin_state = "Disble" if ($port  eq '5');
 #$speed = '1Gb/s' if ($port eq '2');
@@ -1313,10 +1411,12 @@ sub port_result_former {
 
     }
     elsif($key eq 'CATV_PORTS_STATUS' || $key eq 'CATV_PORTS_ADMIN_STATUS') {
-      next if (defined $port_info->{$port_id}->{CATV_PORTS_COUNT} && $port_info->{$port_id}->{CATV_PORTS_COUNT} == 0);
+      next if (defined($port_info->{$port_id}->{CATV_PORTS_COUNT}) && $port_info->{$port_id}->{CATV_PORTS_COUNT} == 0);
       next if ($key eq 'CATV_PORTS_ADMIN_STATUS' && defined $port_info->{$port_id}->{CATV_PORTS_STATUS});
+
       my @ports_status = split(/\n/, $value);
       $value = q{};
+
       foreach my $line (@ports_status) {
         my ($port, $status);
         my $admin_state;
@@ -1351,7 +1451,7 @@ sub port_result_former {
               "NAS_ID=$FORM{NAS_ID}" .
               "&index=" . get_function_index('equipment_info') .
               "&visual=4&$disable_or_enable_url_param=$port" .
-              "&ONU=$FORM{ONU}&info_pon_onu=$FORM{info_pon_onu}&ONU_TYPE=$FORM{ONU_TYPE}",
+              "&ONU=". ($FORM{ONU} || q{}) ."&info_pon_onu=". ($FORM{info_pon_onu} || q{}) ."&ONU_TYPE=". ($FORM{ONU_TYPE} || q{}),
               { ADD_ICON => 'fa fa-power-off', MESSAGE => "$describe_state $port?"}),
             { 'data-tooltip' => $describe_state, 'data-tooltip-position' => 'top' }
           );
@@ -1513,6 +1613,143 @@ sub cable_tester_result_former {
   }
 
   return $result;
+}
+
+#********************************************************
+=head2 equipment_vlans($attr) - Show VLANs
+
+  Arguments:
+    $attr
+      IP
+
+=cut
+#********************************************************
+sub equipment_vlans {
+  my ($attr) = @_;
+
+  if (!defined($FORM{sub}) || $FORM{sub} eq '') {
+    $FORM{sub} = 1;
+  }
+  #=== NAV TABS ===
+  if ((!$attr->{NAS_INFO}->{TYPE_ID} || ($attr->{NAS_INFO}->{TYPE_ID} && $attr->{NAS_INFO}->{TYPE_ID} != 4)) && !$conf{SKIP_UNNUMBERED_TAB}) {
+    my $active_button->{$FORM{sub}} = 'active';
+    my %nav_tabs = (
+      1 => "Vlans",
+      2 => "Unnumbered vlans",
+    );
+
+    my $buttons = '';
+    foreach (sort {$a <=> $b} keys(%nav_tabs)) {
+      $buttons .= $html->li(
+        $html->button($nav_tabs{$_},
+          "index=$index&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&sub=$_",
+          { class => "nav-link " . ($active_button->{$_} // '') }
+        ),
+        { class => 'nav-item' }
+      )
+    }
+
+    my $ul_nav_bar = $html->element('ul', $buttons, { class => 'nav-tabs navbar-nav' });
+    print $html->element('nav', $ul_nav_bar, { class => 'abills-navbar navbar navbar-expand-lg navbar-light' });
+  }
+  #=== NAV TABS END ===
+
+  if ($FORM{sub} == 2) {
+    $Equipment->_info($FORM{NAS_ID});
+    $html->tpl_show(_include('equipment_unnum_vlan', 'Equipment'), { %FORM, PORTS => $Equipment->{PORTS} });
+
+    if ($FORM{vlans_add}) {
+      if ($FORM{ports_from} & !$FORM{ports_to}) {
+        $FORM{ports_to} = $FORM{ports_from};
+      }
+
+      if (! $FORM{ports_to} || ($Equipment->{PORTS} && $FORM{ports_to} > $Equipment->{PORTS})) {
+        $FORM{ports_to} = $Equipment->{PORTS};
+      }
+
+      if ($FORM{ports_from} && $FORM{ports_to} && $FORM{ports_from} <= $FORM{ports_to}) {
+
+        my $port_num = $FORM{ports_from};
+        my $vlan_num = $FORM{VLAN};
+
+        $Equipment->port_list({
+          NAS_ID    => $FORM{NAS_ID},
+          LIST2HASH => 'port,id',
+        });
+
+        _error_show($Equipment);
+        my $list_hash = $Equipment->{list_hash};
+        while ($port_num <= $FORM{ports_to}) {
+          if (!exists $list_hash->{$port_num}) {
+            $Equipment->port_add({
+              NAS_ID   => $FORM{NAS_ID},
+              PORT     => $port_num++,
+              VLAN     => $vlan_num++,
+              COMMENTS => 'auto created vlan',
+            });
+          }
+          else {
+            $Equipment->port_change({
+              ID   => $list_hash->{$port_num},
+              PORT => $port_num++,
+              VLAN => $vlan_num++,
+            });
+          }
+        }
+      }
+    }
+
+    my $port_list = $Equipment->port_list({
+      NAS_ID     => $FORM{NAS_ID},
+      VLAN       => '!0',
+      SORT       => 1,
+      PAGE_ROWS  => 100,
+      COLS_UPPER => 1,
+      COLS_NAME  => 1,
+    });
+
+    my $table = $html->table({
+      width   => '100%',
+      caption => "Unnumbered VLANS",
+      title   => [ $lang{PORTS}, "Vlan" ],
+      qs      => "&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}&sub=2",
+      ID      => 'UNNUMBERED VLANS',
+    });
+
+    foreach my $port (@$port_list) {
+      $table->addrow($port->{PORT}, $port->{VLAN});
+    }
+    print $table->show();
+  }
+  else {
+    my $vlan_hash;
+
+    if (!$Equipment->{STATUS}) {
+      $vlan_hash = get_vlans({ %$attr, DEBUG => $FORM{DEBUG} });
+    }
+    else {
+      $html->message('warn', $lang{INFO}, "$lang{STATUS} $service_status[$Equipment->{STATUS}]");
+    }
+
+    my $table = $html->table({
+      width   => '100%',
+      caption => "VLANS:" . ($attr->{IP} || '') . (($attr->{EXT_INFO}) ? ' ' . $html->button($attr->{EXT_INFO},
+        "index=" . get_function_index('form_nas') . "&NAS_ID=" . $attr->{NAS_ID}) : ''),
+      title   => [ 'VLAN', $lang{NAME}, $lang{PORTS} ],
+      qs      => "&visual=$FORM{visual}&NAS_ID=$FORM{NAS_ID}",
+      ID      => 'EQUIPMENT_SNMP_INFO',
+    });
+
+    foreach my $key (sort {$a <=> $b} keys %{$vlan_hash}) {
+      $table->addrow($key,
+        $vlan_hash->{$key}{NAME},
+        $vlan_hash->{$key}{PORTS});
+    }
+
+    print $table->show();
+  }
+
+  return 1;
 }
 
 1;

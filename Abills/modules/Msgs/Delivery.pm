@@ -447,4 +447,79 @@ sub _msgs_get_attachments {
   return \@attachments_buttons;
 }
 
+#**********************************************************
+=head2 msgs_mu_delivery_add($attr)
+
+=cut
+#**********************************************************
+sub msgs_mu_delivery_add {
+  my ($attr) = @_;
+
+  if ($attr->{DELIVERY_CREATE}) {
+    $Msgs->msgs_delivery_add({ %{$attr},
+      SEND_DATE => $attr->{DELIVERY_SEND_DATE},
+      SEND_TIME => $attr->{DELIVERY_SEND_TIME},
+      SUBJECT   => $attr->{DELIVERY_COMMENTS}
+    });
+
+    $attr->{DELIVERY} = $Msgs->{DELIVERY_ID};
+    $html->message('err', $lang{ERRORS}, "$lang{DELIVERY} $lang{ADDED}") if ($Msgs->{errno});
+    $html->message('info', $lang{INFO}, "$lang{DELIVERY} $lang{ADDED} ID:$attr->{DELIVERY}") if (!$Msgs->{errno});
+  }
+
+  my $delivery_info = $Msgs->msgs_delivery_info($attr->{DELIVERY});
+  $Msgs->delivery_user_list_add({
+    MDELIVERY_ID => $attr->{DELIVERY},
+    IDS          => $attr->{IDS},
+    SEND_METHOD  => $delivery_info->{SEND_METHOD},
+  });
+
+  $html->message('err', $lang{ERRORS}, $lang{ADD_USER}) if ($Msgs->{errno});
+  $html->message('info', $lang{INFO}, "$Msgs->{TOTAL} $lang{USERS_ADDED_TO_DELIVERY} №:$attr->{DELIVERY}") if (!$Msgs->{errno});
+}
+
+#**********************************************************
+=head2 msgs_mu_delivery_form()
+
+=cut
+#**********************************************************
+sub msgs_mu_delivery_form {
+  my %info = ();
+
+  return '' if !$msgs_permissions{2}{0} || !$msgs_permissions{2}{4};
+
+  my %send_methods = (0 => $lang{MESSAGE}, 1 => 'E-MAIL');
+
+  my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+  my $sender_send_types = $Sender->available_types({ HASH_RETURN => 1, CLIENT => 1 });
+
+  %send_methods = (
+    %send_methods,
+    %$sender_send_types
+  );
+
+  $send_methods{3} = 'Web redirect' if ($conf{MSGS_REDIRECT_FILTER_ADD});
+
+  $info{DELIVERY_SPAN_ADDON_URL} = $SELF_URL . "?index=" . get_function_index('msgs_delivery_main');
+  $info{DELIVERY_SELECT_FORM} = sel_deliverys({ SKIP_MULTISELECT => 1 });
+  $info{DATE_PIKER} = $html->form_datepicker('DELIVERY_SEND_DATE');
+  $info{TIME_PIKER} = $html->form_timepicker('DELIVERY_SEND_TIME');
+  $info{STATUS_SELECT} = msgs_sel_status({ NAME => 'STATUS' });
+  $info{FORM_ID} = $html->{FORM_ID};;
+  $info{PRIORITY_SELECT} = $html->form_select('PRIORITY', {
+    SELECTED     => 2,
+    SEL_ARRAY    => \@priority,
+    STYLE        => \@priority_colors,
+    ARRAY_NUM_ID => 1
+  });
+  $info{SEND_METHOD_SELECT} = $html->form_select('SEND_METHOD', {
+    SELECTED => 2,
+    SEL_HASH => \%send_methods,
+    NO_ID    => 1
+  });
+  $info{DELIVERY_ADD_HIDE} = 'd-none' if !$msgs_permissions{2}{1};
+
+  return $html->tpl_show(templates('form_user_delivery_add'), \%info, { OUTPUT2RETURN => 1 });
+}
+
 1

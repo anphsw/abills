@@ -156,7 +156,7 @@ sub locations_list {
     [ 'ALTITUDE',          'INT',  'gtl.altitude',                                      1 ],
     [ 'BEARING',           'INT',  'gtl.bearing',                                       1 ],
     [ 'BATTERY',           'INT',  'gtl.batt AS battery',                               1 ],
-    [ 'FROM_DATE|TO_DATE', 'DATE', 'gtl.gps_time'                                         ],
+    [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(gtl.gps_time, '%Y-%m-%d')"                ],
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}) {

@@ -61,6 +61,7 @@ sub dom_info {
   $info{BUILD_ENTRANCES} = $build_info->{ENTRANCES};
   $info{FLORS_SUM} = $build_info->{FLORS} * $build_info->{ENTRANCES};
   $info{NUMBERING_DIRECTION} = $build_info->{NUMBERING_DIRECTION};
+  $info{START_NUMBERING_FLAT} = (defined($build_info->{START_NUMBERING_FLAT})) ? ($build_info->{START_NUMBERING_FLAT} - 1) : 0;
   if (!$build_info->{BUILD_SCHEMA}) {
     $build_info->{BUILD_SCHEMA} = '::' . int($build_info->{FLATS} / ($build_info->{FLORS} * $build_info->{ENTRANCES}));
   }
@@ -255,7 +256,7 @@ sub _dom_pon_color {
   return '#28a745' if $rx_power < -8 && $rx_power > -27;
   return '#dc3545' if $rx_power < -8 && $rx_power > -30;
 
-  return return '#f8f9fa';
+  return '#f8f9fa';
 }
 
 1

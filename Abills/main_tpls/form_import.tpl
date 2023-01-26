@@ -1,10 +1,10 @@
-<div class='card card-primary card-outline box-primary'>
+<div class='card card-primary card-outline'>
   <div class='card-header with-border'>
-    <h4 class='card-title'>_{IMPORT}_</h4>
+    <h5 class='card-title'>_{IMPORT}_</h5>
   </div>
   <div class='card-body' id='ajax_upload_modal_body'>
 
-    <form class='form form-horizontal' name='ajax_upload_form' id='ajax_upload_form' method='post'>
+    <form class='form' name='ajax_upload_form' id='ajax_upload_form' method='post'>
 
       <input type='hidden' name='get_index' value='%CALLBACK_FUNC%'/>
       <input type='hidden' name='header' value='2'/>

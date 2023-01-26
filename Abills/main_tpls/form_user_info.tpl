@@ -1,58 +1,67 @@
-<div class='card card-primary card-outline container-md'>
-    <div class="card-header">
-        <h4 class="card-title">_{INFO}_</h4>
-    </div>
-<div class='card-body table-responsive p-0'>
+<div class='card card-primary card-outline container-md' id='form_user_info_tpl'>
+  <div class='card-header'>
+    <h4 class='card-title'>_{INFO}_</h4>
+  </div>
+  <div class='card-body table-responsive p-0'>
 
-<table class='table table-striped table-hover p-0'>
-    <TR>
-        <TD>_{LOGIN}_:</TD>
-        <TD><a href='$SELF_URL?index=15&UID=%UID%'>%LOGIN%</a></TD>
-    </TR>
-<TR><TD>UID:</TD><TD>%UID%</TD></TR>
-    <TR>
-        <TD>_{DEPOSIT}_:</TD>
-        <TD>%DEPOSIT%</TD>
-    </TR>
-    <TR>
-        <TD>_{FIO}_:</TD>
-        <TD>%FIO%</TD>
-    </TR>
-    <TR>
-        <TD>_{PHONE}_:</TD>
-        <TD>%PHONE%</TD>
-    </TR>
-    <TR>
-        <TD>_{ADDRESS}_:</TD>
-        <TD>%ADDRESS_FULL%</TD>
-    </TR>
-<TR><TD>E-mail:</TD><TD>%EMAIL%</TD></TR>
-    <TR>
-        <TD>_{CONTRACT}_:</TD>
-        <TD>%CONTRACT_ID%%CONTRACT_SUFIX%</TD>
-    </TR>
-    <TR>
-        <TD>_{CREDIT}_:</TD>
-        <TD>%CREDIT%</TD>
-    </TR>
-    <TR>
-        <TD>_{REDUCTION}_</TD>
-        <TD>%REDUCTION% %</TD>
-    </TR>
-    <TR>
-        <TD>_{ACTIVATE}_:</TD>
-        <TD>%ACTIVATE%</TD>
-    </TR>
-    <TR>
-        <TD>_{EXPIRE}_:</TD>
-        <TD>%EXPIRE%</TD>
-    </TR>
-    <TR>
+    <table class='table table-striped table-hover p-0'>
+      <tr>
+        <td>_{LOGIN}_:</td>
+        <td>
+          <a href='$SELF_URL?index=15&UID=%UID%'>%LOGIN%</a>
+        </td>
+      </tr>
+      <tr>
+        <td>UID:</td>
+        <td>%UID%</td>
+      </tr>
+      <tr>
+        <td>_{DEPOSIT}_:</td>
+        <td>%DEPOSIT%</td>
+      </tr>
+      <tr>
+        <td>_{FIO}_:</td>
+        <td>%FIO%</td>
+      </tr>
+      <tr>
+        <td>_{PHONE}_:</td>
+        <td>%PHONE%</td>
+      </tr>
+      <tr>
+        <td>_{ADDRESS}_:</td>
+        <td>%ADDRESS_FULL%</td>
+      </tr>
+      <tr>
+        <td>E-mail:</td>
+        <td>%EMAIL%</td>
+      </tr>
+      <tr>
+        <td>_{CONtrACT}_:</td>
+        <td>%CONtrACT_ID%%CONtrACT_SUFIX%</td>
+      </tr>
+      <tr>
+        <td>_{CREDIT}_:</td>
+        <td>%CREDIT%</td>
+      </tr>
+      <tr>
+        <td>_{REDUCTION}_</td>
+        <td>%REDUCTION% %</td>
+      </tr>
+      <tr>
+        <td>_{ACTIVATE}_:</td>
+        <td>%ACTIVATE%</td>
+      </tr>
+      <tr>
+        <td>_{EXPIRE}_:</td>
+        <td>%EXPIRE%</td>
+      </tr>
+      <tr>
         <th colspan='2'>:_{COMMENTS}_:</th>
-    </TR>
-<TR><td colspan='2'>%COMMENTS%</td></TR>
+      </tr>
+      <tr>
+        <td colspan='2'>%COMMENTS%</td>
+      </tr>
+    </table>
 
-</table>
-
-</div>
+  </div>
 </div>

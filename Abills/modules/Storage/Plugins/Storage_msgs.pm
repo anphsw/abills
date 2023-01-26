@@ -103,7 +103,8 @@ sub plugin_show {
     DATE              => '_SHOW',
     ADMIN_NAME        => '_SHOW',
     MSGS_ID           => $attr->{chg},
-    COLS_NAME         => 1
+    COLS_NAME         => 1,
+    PAGE_ROWS         => 99999
   });
 
   foreach my $item (@{$msgs_storages}) {

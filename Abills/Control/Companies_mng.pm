@@ -29,14 +29,14 @@ sub add_company {
   $Company->{ACTION}         = 'add';
   $Company->{LNG_ACTION}     = $lang{ADD};
   $Company->{BILL_ID}        = $html->form_input( 'CREATE_BILL', 1, { TYPE => 'checkbox', STATE => 1 } ) . ' ' . $lang{CREATE};
-  $Company->{ADDRESS_SELECT} = form_address_select2(\%FORM);
+  $Company->{ADDRESS_TPL} = form_address({ %FORM, ADDRESS_HIDE => 1 });
 
   $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1, COLS_LEFT => 'col-md-3', COLS_RIGHT => 'col-md-9' });
 
   if (in_array('Docs', \@MODULES)) {
     $Company->{PRINT_CONTRACT} = $html->button( '',
       "qindex=15&UID=". ($Company->{UID} || '') ."&PRINT_CONTRACT=". ($Company->{UID} || '')  . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''),
-      { ex_params => ' target=new', ADD_ICON => 'fas fa-print' } );
+      { ex_params => ' target=new', class => 'btn input-group-button', ICON => 'fas fa-print' } );
 
     if ($conf{DOCS_CONTRACT_TYPES}) {
       $conf{DOCS_CONTRACT_TYPES} =~ s/\n//g;
@@ -62,7 +62,9 @@ sub add_company {
     }
   }
 
-  $html->tpl_show(templates('form_company'), $Company);
+  $Company->{DOCS_TEMPLATE} = $html->tpl_show(_include('docs_form_pi_lite', 'Docs'), { %{$Company} }, { OUTPUT2RETURN => 1 });
+
+  $html->tpl_show(templates('form_company_add'), $Company);
 
   return 1;
 }
@@ -209,9 +211,10 @@ sub form_companies {
     if ($FORM{PRINT_CONTRACT}) {
       load_module('Docs', $html);
       docs_contract({
-          COMPANY_CONTRACT => 1,
-            %$Company,
-            SEND_EMAIL       => $FORM{SEND_EMAIL} });
+        COMPANY_CONTRACT => 1,
+        %$Company,
+        SEND_EMAIL       => $FORM{SEND_EMAIL}
+      });
       return 0;
     }
 
@@ -224,7 +227,7 @@ sub form_companies {
     if (in_array('Docs', \@MODULES)) {
       $Company->{PRINT_CONTRACT} = $html->button( '',
         "qindex=$index$pages_qs&PRINT_CONTRACT=$Company->{ID}" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '')
-        , { ex_params => ' target=new', ADD_ICON => 'fas fa-print' } );
+        , { ex_params => ' target=new', class => 'btn input-group-button', ICON => 'fas fa-print' } );
     }
 
     my @menu_functions = (
@@ -280,14 +283,18 @@ sub form_companies {
         $Company->{LNG_ACTION} = "$lang{LIST} $lang{COMPANIES}";
         $html->message( 'secondary', $lang{INFO}, $lang{NO_CHANGES} );
       }
-      $Company->{DISABLE} = ($Company->{DISABLE} > 0) ? 'checked' : '';
 
-      if ($conf{EXT_BILL_ACCOUNT} && $Company->{EXT_BILL_ID}) {
-        $Company->{EXDATA} = $html->tpl_show(templates('form_ext_bill'), $Company, { OUTPUT2RETURN => 1 });
+      if ($Company->{DISABLE} > 0) {
+        $Company->{DISABLE} = ' checked';
+        $Company->{DISABLE_LABEL} = $lang{DISABLE};
+      } else {
+        $Company->{DISABLE} = '';
+        $Company->{DISABLE_LABEL} = $lang{ACTIV};
       }
 
       $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1, VALUES  => $Company, COLS_LEFT => 'col-md-3', COLS_RIGHT => 'col-md-9' });
-      $Company->{ADDRESS_SELECT}= form_address_select2({ %FORM, %$Company });
+      $Company->{ADDRESS_FULL} = $Company->{ADDRESS};
+      $Company->{ADDRESS_TPL} = form_address({ %FORM, %$Company, ADDRESS_HIDE => 1 });
 
       if (in_array('Docs', \@MODULES)) {
         if ($conf{DOCS_CONTRACT_TYPES}) {
@@ -316,7 +323,73 @@ sub form_companies {
         }
       }
 
-      $html->tpl_show(templates('form_company'), $Company);
+      my $company_deposit = $Company->{DEPOSIT} // $lang{NOT_EXIST};
+      if ($company_deposit =~ /\d+/ && $company_deposit > 0) {
+        $Company->{DEPOSIT_MARK} = 'badge badge-success';
+      }
+      elsif ($company_deposit =~ /\d+/ && $company_deposit < 0) {
+        $Company->{DEPOSIT_MARK} = 'badge badge-danger';
+      }
+      else {
+        $Company->{DEPOSIT_MARK} = 'badge badge-warning';
+      }
+
+      if ($company_deposit =~ /\d+/) {
+        if ($conf{DEPOSIT_FORMAT}) {
+          $Company->{SHOW_DEPOSIT} = sprintf($conf{DEPOSIT_FORMAT}, $company_deposit);
+        }
+        else {
+          $Company->{SHOW_DEPOSIT} = sprintf("%.2f", $company_deposit);
+        }
+
+      } else {
+        $Company->{SHOW_DEPOSIT} = $company_deposit;
+      }
+
+      $Company->{FORM_DISABLE} = "<input class='custom-control-input' type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%' style='display: none;'>
+  <label class='custom-control-label' for='DISABLE' id='DISABLE_LABEL'>%DISABLE_LABEL%</label>";
+
+      my $company_index = get_function_index('form_companies');
+
+      my $company_id = $Company->{ID};
+      if ($permissions{1}) {
+        $Company->{PAYMENTS_BUTTON} = $html->button('', "index=$company_index&COMPANY_ID=$company_id&subf=2",
+          { class     => 'btn btn-sm btn-secondary',
+            ICON      => 'fa fa-plus',
+            ex_params => "data-tooltip='$lang{PAYMENTS}' data-tooltip-position='top'"
+          });
+      }
+
+      if ($permissions{2}) {
+        $Company->{FEES_BUTTON} = $html->button('', "index=$company_index&COMPANY_ID=$company_id&subf=3",
+          { class     => 'btn btn-sm btn-secondary',
+            ICON      => 'fa fa-minus',
+            ex_params => "data-tooltip='$lang{FEES}' data-tooltip-position='top'" });
+      }
+      $Company->{EXDATA} .= $html->tpl_show(templates('form_company_exdata'), $Company, { OUTPUT2RETURN => 1});
+
+      if ($conf{EXT_BILL_ACCOUNT} && $Company->{EXT_BILL_ID}) {
+        $Company->{EXDATA} .= $html->tpl_show(templates('form_ext_bill'), $Company, { OUTPUT2RETURN => 1 });
+      }
+
+      $Company->{DOCS_TEMPLATE} = $html->tpl_show(_include('docs_form_pi_lite', 'Docs'), { %{$Company} }, { OUTPUT2RETURN => 1 });
+
+      #$html->tpl_show(templates('form_company'), $Company);
+      my $company_main = $html->tpl_show(templates('form_company'), $Company, { OUTPUT2RETURN => 1 });
+      my $company_pi = $html->tpl_show(templates('form_company_pi'), $Company, { OUTPUT2RETURN => 1 });
+      my $company_profile = $html->tpl_show(
+        templates('form_company_profile'),
+        {
+          LEFT_PANEL  => $company_main,
+          RIGHT_PANEL => $company_pi,
+          ACTION      => $Company->{ACTION},
+          LNG_ACTION  => $Company->{LNG_ACTION},
+        },
+        {
+          OUTPUT2RETURN => 1
+        }
+      );
+      print $company_profile;
     }
   }
   else {
@@ -363,7 +436,6 @@ sub form_companies {
       SKIP_USER_TITLE => 1,
       FILTER_COLS   => {
         users_count => ($FORM{json}) ? '' : "_company_user_link::FUNCTION=form_users,ID",
-        users_count => ($admin->{MAX_ROWS}) ? '' : "_company_user_link::FUNCTION=form_users,ID",
       },
       TABLE           => {
         width   => '100%',

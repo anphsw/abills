@@ -91,16 +91,14 @@
                        placeholder='%NAS_MNG_USER%'
                        class='form-control' type='text'>
                 <div class='input-group-append'>
-                  <div class='input-group-text'>
-                    <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&create=1&ssh_key=1'
-                       class='fa fa-key' target='_new' title='_{CREATE}_ SSH public key'>
-                    </a>
-                  </div>
-                  <div class='input-group-text'>
-                    <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&download=1&ssh_key=1'
-                       class='fa fa-download' target='_new' title='_{DOWNLOAD}_ SSH public key'>
-                    </a>
-                  </div>
+                  <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&create=1&ssh_key=1'
+                     class='btn input-group-button' target='_new' title='_{CREATE}_ SSH public key'>
+                    <i class='fa fa-key'></i>
+                  </a>
+                  <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&download=1&ssh_key=1'
+                     class='btn input-group-button' target='_new' title='_{DOWNLOAD}_ SSH public key'>
+                    <i class='fa fa-download'></i>
+                  </a>
                 </div>
               </div>
             </div>

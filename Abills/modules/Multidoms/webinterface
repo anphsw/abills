@@ -9,7 +9,7 @@
 
 use warnings FATAL => 'all';
 use strict;
-use Abills::Base qw(convert ip2int in_array cmd);
+use Abills::Base qw(convert ip2int in_array cmd mk_unique_value);
 use POSIX qw(strftime);
 
 our (
@@ -1425,7 +1425,7 @@ sub multidoms_domains {
   my $list = $Multidoms->multidoms_domains_list({%LIST_PARAMS});
   my $table = $html->table({
     width   => '100%',
-    caption => "$lang{DOMAINS}",
+    caption => $lang{DOMAINS},
     title   => [ 'ID', $lang{NAME}, $lang{STATE}, $lang{REGISTRATION}, '-' ],
     qs      => $pages_qs,
     pages   => $Multidoms->{TOTAL},
@@ -1460,14 +1460,14 @@ sub multidoms_report {
 
   my $Users = Users->new($db, $admin, \%conf);
 
-  $Users->list({DOMAIN_ID => 0});
-  $Nas->list({DOMAIN_ID => 0});
-  $Tariffs->list({DOMAIN_ID => 0, MODULE => 'Dv'});
+  $Users->list({ DOMAIN_ID => 0 });
+  $Nas->list({ DOMAIN_ID => 0 });
+  $Tariffs->list({ DOMAIN_ID => 0, MODULE => 'Internet' });
 
   my $table = $html->table({
-    width      => '100%',
-    title      => ['', $lang{USERS}, $lang{TARIF_PLANS}, $lang{NAS}],
-    rows       => [ [ $lang{PRIMARY}, $Users->{TOTAL},$Tariffs->{TOTAL},$Nas->{TOTAL} ] ]
+    width => '100%',
+    title => [ '', $lang{USERS}, $lang{TARIF_PLANS}, $lang{NAS} ],
+    rows  => [ [ $lang{PRIMARY}, $Users->{TOTAL}, $Tariffs->{TOTAL}, $Nas->{TOTAL} ] ]
   });
 
   print $table->show();
@@ -1522,48 +1522,112 @@ sub multidoms_domains_modules {
     }
     $Multidoms->domain_modules_change($FORM{chg}, @new_modules);
 
-    if (!$Multidoms->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
-    }
+    $html->message('info', $lang{INFO}, $lang{CHANGED}) if !$Multidoms->{errno};
   }
 
   _error_show($Multidoms);
 
   my $modules_list = $Multidoms->domain_modules_info({ ID => $FORM{chg} });
 
-  my $table = $html->table(
-    {
-      width       => '500',
-      caption     => "$lang{MODULES}",
-      title_plain => [ $lang{NAME}, '' ],
-      ID          => 'DOMAIN_MODULES'
-    }
-  );
+  my $table = $html->table({
+    width       => '500',
+    caption     => $lang{MODULES},
+    title_plain => [ $lang{NAME}, '' ],
+    ID          => 'DOMAIN_MODULES'
+  });
 
   my $i = 0;
   foreach my $name (sort @MODULES) {
     $table->addrow(
-      $html->button("$name", '',
+      $html->button($name, '',
          { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php?id=abills:docs:modules:'. $name .':ru',
            ex_params  => 'target='.$name } ),
-      $html->form_input($name, '1',
-        {
-          TYPE          => 'checkbox',
-          OUTPUT2RETURN => 1,
-          STATE         => (in_array($name, $modules_list)) ? '1' : undef
-        }
-      )
+      $html->form_input($name, '1', {
+        TYPE          => 'checkbox',
+        OUTPUT2RETURN => 1,
+        STATE         => (in_array($name, $modules_list)) ? '1' : undef
+      })
     );
     $i++;
   }
 
   print $html->form_main({
-      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-      HIDDEN => {index => $FORM{index}, chg => $FORM{chg}},
-      SUBMIT => { set => "$lang{SET}" },
-    });
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => { index => $FORM{index}, chg => $FORM{chg} },
+    SUBMIT  => { set => $lang{SET} },
+  });
 
   return 1;
+}
+
+#**********************************************************
+=head2 multidoms_registration()
+
+=cut
+#**********************************************************
+sub multidoms_registration {
+
+  _multidoms_reg_admin() if $FORM{reg};
+
+  $html->tpl_show(_include('multidoms_registration', 'Multidoms'), { %FORM }, { ID => 'CRM_REGISTRATION' });
+  return 1;
+}
+
+#**********************************************************
+=head2 _multidoms_reg_admin()
+
+=cut
+#**********************************************************
+sub _multidoms_reg_admin {
+  if ($FORM{EMAIL} && $FORM{EMAIL} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_EMAIL});
+    return;
+  }
+  if ($conf{REGISTRATION_CHECK_PHONE} && (!$FORM{PHONE} || ($conf{PHONE_FORMAT} && $FORM{PHONE} !~ /$conf{PHONE_FORMAT}/))) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PHONE} . (($conf{PHONE_FORMAT}) ? ' ' . human_exp($conf{PHONE_FORMAT}) : q{}));
+    return;
+  }
+  if (!$FORM{ACCEPT_RULES}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCEPT_RULES});
+    return;
+  }
+  $Multidoms->multidoms_domain_add({ NAME => $FORM{PHONE} });
+  if ($Multidoms->{errno}) {
+    $html->message('err', $lang{ERROR}, "$FORM{PHONE} $lang{EXIST}");
+    return;
+  }
+
+  $admin->add({ %FORM,
+    ID          => $FORM{PHONE},
+    NAME        => $FORM{FIO},
+    A_LOGIN     => $FORM{PHONE},
+    DOMAIN_ID   => $Multidoms->{INSERT_ID},
+    WEB_OPTIONS => "language=$html->{language};"
+  });
+  return 0 if _error_show($admin);
+
+  my $password = mk_unique_value($conf{PASSWD_LENGTH} || 8, { EXTRA_RULES => '0:0' });
+  $admin->password($password, \%conf);
+  return 0 if _error_show($admin);
+
+  $Multidoms->admin_change({ AID => $admin->{AID}, DOMAIN_ID => $Multidoms->{INSERT_ID} });
+
+  $admin->set_permissions({
+    0 => { 0 => 1, 1 => 1, 2 => 1, 3 => 1, 4 => 1, 5 => 1, 6 => 1 },
+    1 => { 0 => 1, 1 => 1, 2 => 1, 3 => 1, 4 => 1 },
+    2 => { 0 => 1, 1 => 1, 2 => 1, 3 => 1 },
+    3 => { 0 => 1, 1 => 1, 2 => 1, 3 => 1 },
+    4 => { 0 => 1, 1 => 1, 2 => 1, 3 => 1 },
+    6 => { 0 => 1 },
+    7 => { 0 => 1, 2 => 1 },
+    8 => { 0 => 1 },
+  }, {});
+
+  my $message = $html->tpl_show(_include('multidoms_reg_complete_mail', 'Multidoms'),
+    { LOGIN => $FORM{PHONE}, %{$Multidoms}, %FORM, PASSWORD => $password }, { OUTPUT2RETURN => 1 });
+
+  sendmail($conf{ADMIN_MAIL}, $FORM{EMAIL}, $lang{REGISTRATION}, $message, $conf{MAIL_CHARSET}, '');
+  $html->message('info', $lang{SUCCESS}, $lang{MULTIDOMS_SUCCESS_SENT_MAIL});
 }
 
 1;

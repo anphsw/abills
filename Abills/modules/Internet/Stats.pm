@@ -696,7 +696,8 @@ sub internet_sessions {
     delete $LIST_PARAMS{LOGIN};
   }
 
-  map $LIST_PARAMS{$_} = $FORM{$_}, keys %FORM;
+  map { $FORM{$_} ? $LIST_PARAMS{$_} = $FORM{$_} : () } keys %FORM;
+
   $LIST_PARAMS{SKIP_DEL_CHECK} = 1;
 
   my $default_fields = q{DATE,DURATION_SEC,SENT,RECV,TP_NAME,IP,CID,SUM,NAS_ID};

@@ -37,12 +37,12 @@
 
                 <div class='form-group row'>
                     <label class='control-label col-md-5' for='GET_ABON'>_{GET}_ _{ABON}_:</label>
-                    <div class='col-md-2'>
+                    <div class='col-md-2 mt-2'>
                         <input type=checkbox name=GET_ABON ID='GET_ABON' value=1 checked>
                     </div>
 
                     <label class='control-label col-md-3' for='RECALCULATE'>_{RECALCULATE}_:</label>
-                    <div class='col-md-2'>
+                    <div class='col-md-2 mt-2'>
                         <input type=checkbox name=RECALCULATE value=1 checked>
                     </div>
                 </div>

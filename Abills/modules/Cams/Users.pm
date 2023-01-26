@@ -45,10 +45,7 @@ sub cams_user {
   my $user_groups = '';
 
   if ($FORM{add}) {
-    $Cams->users_list({
-      UID   => $FORM{UID} || "",
-      TP_ID => $FORM{TP_ID} || 0,
-    });
+    $Cams->users_list({ UID => $uid, TP_ID => $FORM{TP_ID} || 0 });
 
     if ($Cams->{TOTAL}) {
       $html->message('err', $lang{ERROR}, "This tariff already used");
@@ -93,7 +90,6 @@ sub cams_user {
       }
     }
     $FORM{chg} = $FORM{ID};
-    #    delete $FORM{change};
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     my $result = $Cams->_list({
@@ -119,9 +115,7 @@ sub cams_user {
   }
   elsif (!$FORM{add_form}) {
     my $list = $Cams->users_list({ UID => $FORM{UID}, ID => '_SHOW', COLS_NAME => 1 });
-    if ($Cams->{TOTAL} == 1) {
-      $FORM{chg} = $list->[0]->{id};
-    }
+    $FORM{chg} = $list->[0]->{id} if $Cams->{TOTAL} == 1;
   }
 
   if ($FORM{chg} || ($FORM{ID} && !$FORM{del})) {
@@ -261,7 +255,7 @@ sub cams_cameras {
       }
     }
     else {
-      $html->message("err", "$lang{ERROR}", "$lang{ONLY_LATIN_LETTER}") if $FORM{HOST};
+      $html->message('err', $lang{ERROR}, $lang{ONLY_LATIN_LETTER}) if $FORM{HOST};
       $correct_name = 0;
     }
 
@@ -278,7 +272,7 @@ sub cams_cameras {
       }
     }
     else {
-      $html->message("err", "$lang{ERROR}", "$lang{ONLY_LATIN_LETTER}") if $FORM{HOST};
+      $html->message('err', $lang{ERROR}, $lang{ONLY_LATIN_LETTER}) if $FORM{HOST};
       $correct_name = 0;
     }
 
@@ -401,7 +395,7 @@ sub cams_cameras {
     });
   }
 
-  my @titles = ('#', $lang{NAME}, $lang{CAM_TITLE}, 'Host', $lang{LOGIN}, $lang{DISABLED}, '-', '-');
+  my @titles = ('#', $lang{NAME}, $lang{CAM_TITLE}, 'Host', $lang{LOGIN}, $lang{DISABLED}, '', '');
   $FORM{SERVICE_ID} ||= "";
   $FORM{CAMS_TP_ID} ||= "";
   my $table = $html->table({
@@ -434,7 +428,7 @@ sub cams_cameras {
   }
 
   my %submit_h = ();
-  $submit_h{change_camera_now} = "$lang{CHANGE}";
+  $submit_h{change_camera_now} = $lang{CHANGE};
 
   print $html->form_main({
     CONTENT => $table->show({ OUTPUT2RETURN => 1 }),

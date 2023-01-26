@@ -43,9 +43,12 @@ $lang{ACRONYM_NUMBER_OF_USERS} = 'Users';
 $lang{ACRONYM_USERS} = 'users';
 $lang{WITHOUT_DISTRICT} = 'Without district';
 $lang{AVERAGE_CHECK} = 'Average check';
-$lang{WITHOUT_CITY} = 'Without a city';
+$lang{WITHOUT_CITY} = ' Without a city';
 $lang{IP_MAC_NOT_FOUND} = 'IP address and MAC was not found';
 $lang{TOTAL_CONNECTED} = 'Total connected';
 $lang{GROWTH} = 'Growth';
+$lang{LAST_FEES} = 'Last fees';
+
+$lang{TP_ACTIVE_IN_USERS} = "Tariff plan already active in users\n%USERS%And active in schedules\n%SCHEDULES%";
 
 1;

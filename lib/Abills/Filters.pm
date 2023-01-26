@@ -1,8 +1,8 @@
-package Abills::Filters v2.0.2;
+package Abills::Filters v2.0.3;
 
 =head1 NAME
 
-Abills::Filters - AbillS Filters function
+  Abills::Filters - AbillS Filters function
 
 =head1 SYNOPSIS
 
@@ -22,6 +22,7 @@ our (
   $MAC,
   $DEFAULT_DATE_FORMAT,
   $EMAIL_EXPR,
+  $URL_EXPR
 );
 
 use base 'Exporter';
@@ -29,46 +30,50 @@ use Encode;
 use POSIX qw(locale_h);
 
 our @EXPORT = qw(
-_expr
-_utf8_encode
-_mac_former
-human_exp
-bin2mac
-mac2dec
-dec2hex
-bin2hex
-serial2mac
-$IPV4
-$IPV4CIDR
-$HD
-$V6P1
-$V6P2
-$IPV6
-$HOCT
-$MAC
-$DEFAULT_DATE_FORMAT
-$EMAIL_EXPR
+  _expr
+  _utf8_encode
+  _mac_former
+  human_exp
+  bin2mac
+  mac2dec
+  dec2hex
+  bin2hex
+  serial2mac
+  url2parts
+  $IPV4
+  $IPV4CIDR
+  $HD
+  $V6P1
+  $V6P2
+  $IPV6
+  $HOCT
+  $MAC
+  $DEFAULT_DATE_FORMAT
+  $EMAIL_EXPR
+  $URL_EXPR
 );
 
 our @EXPORT_OK = qw(
-_expr
-_utf8_encode
-_mac_former
-bin2mac
-mac2dec
-dec2hex
-bin2hex
-serial2mac
-$IPV4
-$IPV4CIDR
-$HD
-$V6P1
-$V6P2
-$IPV6
-$HOCT
-$MAC
-$DEFAULT_DATE_FORMAT
-$EMAIL_EXPR
+  _expr
+  _utf8_encode
+  _mac_former
+  bin2mac
+  mac2dec
+  dec2hex
+  bin2hex
+  serial2mac
+  url2parts
+  $IPV4
+  $IPV4CIDR
+  $HD
+  $V6P1
+  $V6P2
+  $IPV6
+  $HOCT
+  $MAC
+  $DEFAULT_DATE_FORMAT
+  $EMAIL_EXPR
+  $URL_EXPR
 );
 
 #Check IP
@@ -84,6 +89,7 @@ $HOCT = '[0-9A-Fa-f]{2}';
 $MAC  = "$HOCT\[.:-\]?$HOCT\[.:-\]?$HOCT\[.:-\]?$HOCT\[.:-\]?$HOCT\[.:-\]?$HOCT";
 $DEFAULT_DATE_FORMAT='\d{4}-\d{2}-\d{2}';
 $EMAIL_EXPR = '(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))';
+$URL_EXPR = '^(.*:)\/\/([A-Za-z0-9\-\.]+)(:[0-9]+)?(.*)$';
 
 #**********************************************************
 =head2 _expr($value, $expr_tpl) - Expration
@@ -149,7 +155,6 @@ sub _utf8_encode {
 
   return $value;
 }
-
 
 #**********************************************************
 =head2 _mac_former($mac, $attr) - Convert any mac format to xx:xx:xx;xx:xx:xx
@@ -279,7 +284,6 @@ sub dec2hex{
 
   return join(':', @hex_arr);
 }
-
 
 #**********************************************************
 =head2 bin2hex($bin); - Convert bit value to hex
@@ -423,5 +427,31 @@ sub serial2mac {
   return uc(join('', unpack("AAAAH*", $bin || q{})));
 }
 
+#**********************************************************
+=head2 url2parts($url); - parse url to parts
+
+  Arguments:
+    $URL
+
+  Return:
+    proto: string - http, https, ws etc
+    host: string  - example.com
+    port: number  - 443
+    rest: string  - /admin/index.cgi
+
+=cut
+#**********************************************************
+sub url2parts {
+  my ($url) = @_;
+
+  my @params = $url =~ /$URL_EXPR/gm;
+
+  return (
+    $params[0] || '',
+    $params[1] || '',
+    $params[2] || '',
+    $params[3] || ''
+  );
+}
 
 1;

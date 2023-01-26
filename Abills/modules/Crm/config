@@ -5,6 +5,7 @@
   "16:15:$lang{LEADS}:crm_leads:"                                 => 1,
   "17:15:$lang{SEARCH}:crm_lead_search:"                          => 1,
   "19:15:$lang{LOG}:crm_log:"                                     => 1,
+  "27:15:$lang{IMPORT}:crm_leads_import:"                         => 1,
   "18:16:$lang{INFO}:crm_lead_info:LEAD_ID"                       => 1,
   "23:16:Short Lead Info:crm_short_info:PHONE"                    => 1,
   "25:16:Lead Convert:crm_lead_convert:FROM_LEAD_ID"              => 1,
@@ -23,16 +24,22 @@
   "29:28:$lang{COMPETITORS}:crm_competitors"                      => 5,
   "30:28:$lang{COMPETITORS_TP}:crm_competitors_tp"                => 5,
   "31:15:$lang{CRM_MASS_ADDING}:crm_mass_adding"                  => 5,
+  "29:1:$lang{TEMPLATES_RESPONSE}:crm_response_templates"         => 5,
 
   "40:1:$lang{INFO_FIELDS}:null"                                  => 5,
   "41:40:$lang{LEADS}:crm_info_fields"                            => 5,
   "42:40:$lang{TARIF_PLANS}:crm_tp_info_fields"                   => 5,
+
+  "43:1:$lang{OPEN_LINES}:crm_open_lines"                         => 5,
 
   "50:0:CRM:crm_user_service:UID"                                 => 0,
   "51:0:CRM:crm_competitor_tps_select:AJAX"                       => 0,
   "52:0::crm_tp_geolocation_tree:AJAX"                            => 0,
   "53:0::crm_users_by_lead_email:AJAX"                            => 0,
   "54:0::crm_lead_map_multiple_update:AJAX"                       => 0,
+
+  "70:0:$lang{DIALOGUES}:crm_dialogues"                           => 8,
+  "71:70:$lang{DIALOGUE}:crm_dialogue:ID"                           => 8,
 
   "33:-1:$lang{LEAD}:crm_leads:UID"                               => 15,
 );

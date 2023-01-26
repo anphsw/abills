@@ -105,7 +105,7 @@ sub equipment_check {
     NAS_IP                     => '_SHOW',
     NAS_NAME                   => '_SHOW',
     NAS_MNG_USER               => '_SHOW',
-    MNG_HOST_PORT              => '_SHOW',
+    NAS_MNG_HOST_PORT          => '_SHOW',
     NAS_MNG_PASSWORD           => '_SHOW',
     STATUS                     => '0',
     PORT_SHIFT                 => '_SHOW',

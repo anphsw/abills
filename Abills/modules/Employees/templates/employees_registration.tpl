@@ -50,8 +50,9 @@
                 </div>
             </div>
         </div>
-        <div class='card-footer text-right'>
+        <div class='card-footer'>
             <input type='submit' class='btn btn-primary' name='NEXT_BUTTON'
                 value='_{NEXT}_'>
         </div>
+    </div>
 </form>

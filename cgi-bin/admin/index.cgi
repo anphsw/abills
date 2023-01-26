@@ -94,6 +94,9 @@ our @default_search  = ( 'UID', 'LOGIN', 'FIO', 'CONTRACT_ID',
 
 if($admin->{SID}) {
   $html->set_cookies('admin_sid', $admin->{SID}, '', '');
+  if ($conf{API_ENABLE}) {
+    $html->set_cookies('admin_sid', $admin->{SID}, 900, '/api.cgi');
+  }
 }
 #Operation system ID
 if ($FORM{OP_SID}) {
@@ -393,19 +396,19 @@ sub form_start {
     my @sort_qr_arr = split(/, /, $sort_quick_reports);
 
     foreach  my $sort_panel (@sort_qr_arr){
-      if($start_panels{"$sort_panel"}){
-          $start_page{'INFO'} .=  $start_panels{"$sort_panel"};
+      if($start_panels{$sort_panel}){
+          $start_page{INFO} .=  $start_panels{"$sort_panel"};
           delete $start_panels{"$sort_panel"};
       }
     }
 
   foreach my $sort_panel (sort keys %start_panels) {
-      $start_page{'INFO'} .= $start_panels{"$sort_panel"};
+      $start_page{INFO} .= $start_panels{"$sort_panel"};
     }
   }
   else{
     foreach my $panel_name (sort keys %start_panels) {
-      $start_page{'INFO'} .=  $start_panels{$panel_name};
+      $start_page{INFO} .=  $start_panels{$panel_name};
       delete $start_panels{"$panel_name"};
     }
   }
@@ -442,47 +445,44 @@ sub func_menu {
   my $elements     = '';
   my $buttons_list = '';
 
-  if (! $FORM{pdf} && ! $FORM{json}) {
-    foreach my $k (sort keys %$header) {
+  if (!$FORM{pdf} && !$FORM{json}) {
+    foreach my $k (sort keys %{$header}) {
       my $v = $header->{$k};
       $buttons_list .= "$v\n";
     }
 
-    if(ref $items eq 'ARRAY') {
+    if (ref $items eq 'ARRAY') {
       foreach my $line (@$items) {
         my ($name, $subf, $ext_url, undef, $main_fn_index) = split(/:/, $line, 5);
         my $active = ($FORM{subf} && $FORM{subf} eq $subf) ? 'active' : '';
-        $elements .= $html->li( $html->button($name, "index=". (($f_args->{MAIN_INDEX}) ? $f_args->{MAIN_INDEX} : (($main_fn_index) ? $main_fn_index : $index))
-            . (($ext_url) ? '&'.$ext_url : q{})
-            . (($subf) ? "&subf=$subf" : q{}), {class => "nav-link $active"}),
-        { class =>  'nav-item' });
+        $elements .= $html->li($html->button($name, "index=" . ($f_args->{MAIN_INDEX} ? $f_args->{MAIN_INDEX} :
+          ($main_fn_index ? $main_fn_index : $index))
+          . ($ext_url ? '&' . $ext_url : q{})
+          . ($subf ? "&subf=$subf" : q{}), { class => "nav-link $active" }),
+          { class => 'nav-item' });
       }
     }
   }
 
-  $buttons_list = $html->element( 'ul', $elements, { class => 'nav-tabs navbar-nav' } ). $buttons_list;
-  $buttons_list = $html->element( 'div', $buttons_list, { class => 'collapse navbar-collapse', id => 'AbillsNavbar'});
+  $buttons_list = $html->element('ul', $elements, { class => 'nav-tabs navbar-nav' }) . $buttons_list;
+  $buttons_list = $html->element('div', $buttons_list, { class => 'collapse navbar-collapse', id => 'AbillsNavbar' });
 
-  my $expand_button = $html->element('button',
-    $html->element('span', '', { class => 'navbar-toggler-icon'} ),
-    {
-      class           => 'navbar-toggler',
-      type            => 'button',
-      'aria-controls' => 'AbillsNavbar',
-      'aria-label'    => 'Toggle',
-      'data-target'   => '#AbillsNavbar',
-      'aria-expanded' => 'false',
-      'data-toggle'   => 'collapse'
-    }
-  );
+  my $expand_button = $html->element('button', $html->element('span', '', { class => 'navbar-toggler-icon' }), {
+    class           => 'navbar-toggler',
+    type            => 'button',
+    'aria-controls' => 'AbillsNavbar',
+    'aria-label'    => 'Toggle',
+    'data-target'   => '#AbillsNavbar',
+    'aria-expanded' => 'false',
+    'data-toggle'   => 'collapse'
+  });
 
-  $buttons_list = $html->element( 'span', $lang{MENU}, { class => 'navbar-brand d-lg-none pl-3' }) . $expand_button . $buttons_list;;
+  $buttons_list = $html->element('span', $lang{MENU}, { class => 'navbar-brand d-lg-none pl-3' }) .
+    $expand_button . $buttons_list;
 
-  my $menu = $html->element( 'div',
-    $buttons_list,
-    { class => 'abills-navbar navbar navbar-expand-lg navbar-light mb-2' } );
+  my $menu = $html->element('div', $buttons_list, { class => 'abills-navbar navbar navbar-expand-lg navbar-light mb-2' });
 
-  print $menu if (! $f_args->{SILENT});
+  print $menu if (!$f_args->{SILENT} && !$FORM{EXPORT_CONTENT});
 
   if ($FORM{subf}) {
     if($index eq $FORM{subf}) {
@@ -996,7 +996,9 @@ sub form_changes {
   }
 
   my $service_status = sel_status({ HASH_RESULT => 1 });
-  require Control::Services;
+  if (! exists($INC{"Control/Services.pm"})) {
+    require Control::Services;
+  }
   my $tps_hash = sel_tp({ MODULE => 'Internet;Iptv;Cams;Ureports;Voip;Dv' });
 
   $pages_qs .= $pages_qs2;
@@ -1060,18 +1062,20 @@ sub form_changes {
         { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' } ) : '';
 
     my ($value, $color);
-    if (in_array($line->{action_type}, [ 10, 28, 13, 16, 17 ])) {
-      $color = 'alert-danger';
-    }
-    elsif (in_array($line->{action_type}, [ 1, 7 ])) {
-      $table->{rowcolor} = 'alert-warning';
-    }
-    elsif($line->{action_type} == 3){
-      # change tp
-      if($line->{actions} =~ /(\d+)\-\>(\d+)/) {
-        my ($tp_before, $tp_after, $comments) = $line->{actions} =~ /(\d+)\-\>(\d+)(.{0,100})/;
-        $line->{actions} = ("($tp_before)" . ($tps_hash->{$tp_before} || '')) . " -> " . ("($tp_after)" . ($tps_hash->{$tp_after} || ''))
-        . ($comments || '');
+    if ($line->{action_type}) {
+      if (in_array($line->{action_type}, [ 10, 28, 13, 16, 17 ])) {
+        $color = 'alert-danger';
+      }
+      elsif (in_array($line->{action_type}, [ 1, 7 ])) {
+        $table->{rowcolor} = 'alert-warning';
+      }
+      elsif ($line->{action_type} == 3) {
+        # change tp
+        if ($line->{actions} =~ /(\d+)\-\>(\d+)/) {
+          my ($tp_before, $tp_after, $comments) = $line->{actions} =~ /(\d+)\-\>(\d+)(.{0,100})/;
+          $line->{actions} = ("($tp_before)" . ($tps_hash->{$tp_before} || '')) . " -> " . ("($tp_after)" . ($tps_hash->{$tp_after} || ''))
+            . ($comments || '');
+        }
       }
     }
     else {
@@ -1106,9 +1110,9 @@ sub form_changes {
       }
       $message =~ s/;/$br/g;
     }
-
+    $line->{action_type} //= 0;
     $table->addrow($html->b($line->{id}),
-      $html->button($line->{login}, "index=15&UID=$line->{uid}"),
+      $html->button($line->{login}, "index=15&UID=". ($line->{uid} || q{})),
       ($color) ? $html->color_mark($line->{datetime}, $color) : $line->{datetime},
       $line->{module},
       $html->color_mark($action_types{ $line->{action_type} }, $color),
@@ -1385,6 +1389,7 @@ sub fl {
       push @m, "30:15:$lang{USER_INFO}:user_pi:UID::";
       push @m, "18:15:$lang{NAS}:form_nas_allow:UID::";
       push @m, "19:15:$lang{BILL}:form_bills:UID::";
+      push @m, "23:15:$lang{MONEY_TRANSFER}:form_money_transfer_admin:UID::";
     }
 
     if ($permissions{0}{28}) {
@@ -1432,7 +1437,8 @@ sub fl {
     require Control::Address_mng;
     if ($permissions{4}) {
       push @m, "70:5:$lang{LOCATIONS}:form_districts:::",
-               "71:70:$lang{STREETS}:form_streets::";
+               "71:70:$lang{STREETS}:form_streets::",
+               "72:70:$lang{TREE_LIKE_STRUCTURE}:form_address_tree::";
     }
     push @m, "135:70:Address update:form_address_select2:AJAX::";
   }
@@ -1493,11 +1499,9 @@ sub fl {
       "63:62:$lang{IP_POOLS}:form_ip_pools:::",
       "64:62:$lang{NAS_STATISTIC}:form_nas_stats:::",
       "65:62:$lang{GROUPS}:form_nas_groups:::",
-      "66:5:$lang{EXCHANGE_RATE}:form_exchange_rate:::",
       "145:50:$lang{LOG}:form_changes:::",
       "148:5::nas_radius_pairs_save:AJAX::",
 
-      "75:5:$lang{HOLIDAYS}:form_holidays:::",
       "85:5:$lang{SHEDULE}:form_shedule:::",
       "89:90:$lang{CONTACTS} $lang{TYPES}:form_contact_types:::",
       "90:5:$lang{MISC}:null:::",
@@ -1512,12 +1516,15 @@ sub fl {
       "99:90:$lang{BILLD}:form_billd_plugins:::",
       "118:90:$lang{EDIT}:form_templates_pdf_save:AJAX::",
       "119:90:$lang{EDIT}:form_templates_pdf_edit:::",
-      "120:90:$lang{STATUS}:form_status:::",
-      "121:90:$lang{ORGANIZATION_INFO}:organization_info:::",
+      "120:90:$lang{SERVICE_STATUS}:form_status:::",
+      "121:90:$lang{USER_STATUS}:form_user_status:::",
+      "122:90:$lang{ORGANIZATION_INFO}:organization_info:::",
       "124:90:$lang{PAYMENT_METHOD}:form_payment_types:::",
       "129:90:$lang{FILE_MANAGER}:file_tree:::",
       "130:90:$lang{TAX_MAGAZINE}:taxes:::",
       "126:90:$lang{TYPES} $lang{CONTRACTS}:contracts_type:::",
+      "127:90:$lang{HOLIDAYS}:form_holidays:::",
+      "128:90:$lang{EXCHANGE_RATE}:form_exchange_rate:::",
       );
 
     #Allow Admin managment function
@@ -1533,6 +1540,7 @@ sub fl {
         "57:50:$lang{CHANGE}:form_admins:AID::",
         "59:50:$lang{ACCESS}:form_admins_access:AID::",
         "60:50:Paranoid:form_admins_full_log_analyze:AID::",
+        "115:50:$lang{AUTH_HISTORY}:auth_history:AID::",
         "61:50:$lang{CONTACTS}:form_admins_contacts:AID::",
         "69:50::form_admins_contacts_save:AID,AJAX:";
 
@@ -1910,6 +1918,11 @@ sub form_search {
           MULTIPLE              => 1,
           SHOW_BUTTONS          => 1
         });
+
+        $address_form .= $html->tpl_show(templates('form_ext_address'), {
+          ENTRANCE => $FORM{ENTRANCE},
+          FLOOR    => $FORM{FLOOR}
+        }, { OUTPUT2RETURN => 1 });
       }
       else {
         my $countries_hash;
@@ -1917,14 +1930,12 @@ sub form_search {
         $address_form = $html->tpl_show(templates('form_address'), { %FORM, %$users }, { OUTPUT2RETURN => 1, ID => 'form_address' });
       }
 
-      $SEARCH_DATA{ADDRESS_FORM} = $html->tpl_show(templates('form_show_not_hide'),
-        {
+      $SEARCH_DATA{ADDRESS_FORM} = $html->tpl_show(templates('form_show_not_hide'),{
           CONTENT     => $address_form,
           NAME        => $lang{ADDRESS},
           ID          => 'ADDRESS_FORM',
           BUTTON_ICON => 'minus'
-        },
-        { OUTPUT2RETURN => 1 });
+      }, { OUTPUT2RETURN => 1 });
     }
 
     $SEARCH_DATA{FROM_DATE} = $html->form_datepicker('FROM_DATE', $FORM{FROM_DATE});
@@ -2189,7 +2200,9 @@ sub form_shedule {
     'sql'    => 'SQL'
   );
 
-  require Control::Services;
+  if (! exists($INC{"Control/Services.pm"})) {
+    require Control::Services;
+  }
   my $tp_list = sel_tp({ MODULE => 'Internet;Iptv;Cams;Ureports;Voip;Dv' });
 
   if ($FORM{SHEDULE_DATE}) {
@@ -2317,7 +2330,7 @@ sub form_period {
   $form_period .= "</div>\n";
 
   for (my $i = 1 ; $i <= $#periods ; $i++) {
-    my $period_name = $periods[$i];
+    my $period_name = $periods[$i] || q{};
 
     $period = $html->form_input(
       'period', $i,
@@ -2779,9 +2792,9 @@ sub set_admin_params {
 
     $admin->{SEL_DOMAINS} = $html->element('div', $html->form_main(
       {
-        class => "form row justify-content-end",
-        CONTENT       => $html->element('label', "$lang{DOMAINS}: ", { class => 'col-md-1 ' })
-                        . $html->element('div', multidoms_domains_sel(), { class => 'col-md-4' }),
+        class => 'form row justify-content-center align-items-center',
+        CONTENT       => $html->element('label', "$lang{DOMAINS}: ", { class => 'mb-0' })
+                        . $html->element('div', multidoms_domains_sel(), { class => 'col-md-4 col-8' }),
         HIDDEN        => {
           index      => $index,
           COMPANY_ID => $FORM{COMPANY_ID}
@@ -2792,7 +2805,6 @@ sub set_admin_params {
       }
     ), { class => 'form-group' });
   }
-
 
   if ($admin->{GID}) {
     $LIST_PARAMS{GID} = $admin->{GID};
@@ -2973,10 +2985,10 @@ sub pre_page {
 sub post_page {
 
   if ($conf{dbdebug} && $admin->{db}->{queries_count}) {
-    $admin->{VERSION} .= " q: $admin->{db}->{queries_count}";
+    $admin->{VERSION} .= " q: $admin->{db}->{queries_count} | ";
 
     if ($admin->{db}->{queries_list} && $permissions{4}{5}) {
-      my $queries_list = "Queries:<br><textarea cols=160 rows=10>";
+      my $queries_list = '<textarea cols=160 rows=10>';
 
       my $i = 0;
       my @q_arr = (ref $Conf->{db}->{queries_list} eq 'HASH') ? keys %{ $Conf->{db}->{queries_list} } : @{ $Conf->{db}->{queries_list} };
@@ -2987,13 +2999,13 @@ sub post_page {
         $queries_list .= "$i $count";
         $queries_list .= " ===================================\n      $k\n ";
       }
-      $queries_list .= "</textarea>";
-      $admin->{VERSION} .= $html->tpl_show( templates('form_show_hide'),
+      $queries_list .= '</textarea>';
+      $admin->{FOOTER_DEBUG} .= $html->tpl_show( templates('form_show_hide'),
         {
           CONTENT => $queries_list,
           NAME    => 'Queries: '.$i,
           ID      => 'QUERIES',
-          PARAMS  => 'collapsed-box',
+          PARAMS  => 'collapsed-box mx-n1',
           BUTTON_ICON => 'plus'
         },
         { OUTPUT2RETURN => 1 } );
@@ -3043,7 +3055,8 @@ sub post_page {
 
     my $debug_mode = ($^D) ? "Debug: $^D" : '';
     $admin->{GT}= gen_time($begin_time);
-    $admin->{VERSION} .= $conf{VERSION} . ' ('. $admin->{GT} .") $debug_mode ". ($admin->{SEL_DOMAINS} || q{});
+    $admin->{VERSION} .= $conf{VERSION} . " ($admin->{GT}) $debug_mode";
+    $admin->{FOOTER_CONTENT} .= $admin->{SEL_DOMAINS} || q{};
 
     if (defined($permissions{4})) {
       my $output = '';
@@ -3058,8 +3071,8 @@ sub post_page {
 
       if(! $output && (-w "$conf{TPL_DIR}/NEW_VERSION" || -w $conf{TPL_DIR})) {
         #Get new version
-        $output = web_request('http://abills.net.ua/misc/checksum/VERSION', { BODY_ONLY => 1, TIMEOUT => 1 });
-        if(! $output) {
+        $output = web_request('http://abills.net.ua/misc/checksum/VERSION', { BODY_ONLY => 1, TIMEOUT => 1, METHOD => 'GET' });
+        if (!$output) {
           $output = $conf{VERSION};
         }
 
@@ -3106,10 +3119,11 @@ sub post_page {
     }
 
     $html->tpl_show(templates('footer'), {
-      RIGHT_MENU  => $html->{_RIGHT_MENU},
-      VERSION     => $admin->{VERSION},
-      DEBUG_FORM  => $admin->{DEBUG_FORM},
-      PUSH_SCRIPT => ($conf{PUSH_ENABLED}
+      RIGHT_MENU     => $html->{_RIGHT_MENU},
+      VERSION        => $admin->{VERSION},
+      FOOTER_DEBUG   => $admin->{FOOTER_DEBUG},
+      FOOTER_CONTENT => $admin->{FOOTER_CONTENT},
+      PUSH_SCRIPT    => ($conf{PUSH_ENABLED}
         ? "<script src='/styles/default/js/push_subscribe.js'></script>"
         . "<script src='https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js'></script>"
         . "<script src='https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js'></script>"

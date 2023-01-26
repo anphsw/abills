@@ -30,6 +30,7 @@ our %FUNCTIONS_LIST = (
   "72:8:Msgs:shedule_hour_work:AJAX"                                 => 4,
 
   "73:4:$lang{PERMISSION}:msgs_admin_permissions:"                   => 5,
+  "74:2:$lang{WORKFLOWS}:msgs_workflow:"                             => 5,
 );
 
 if ($conf{MSGS_SCRUB_BOX}) {

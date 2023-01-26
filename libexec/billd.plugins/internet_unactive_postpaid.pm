@@ -85,6 +85,11 @@ sub internet_unactive_postpaid {
     foreach my $internet (@$internet_list) {
       my $uid = $internet->{uid};
       my $deposit = $internet->{deposit} || 0;
+
+      if ($internet->{reduction} && $internet->{reduction} == 100) {
+        next;
+      }
+
       if ($deposit <= -$month_fee * ( 100 - $internet->{reduction} ) / 100) {
         if ($debug > 1) {
           print "UID: $uid ";

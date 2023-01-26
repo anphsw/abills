@@ -1,13 +1,13 @@
 package Abills::Api::Router;
 
 use strict;
-use warnings;
+use warnings FATAL => 'all';
 
 no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 use JSON;
 
-use Abills::Base qw(escape_for_sql);
+use Abills::Base qw(escape_for_sql in_array);
 use Abills::Api::Paths;
 
 #**********************************************************
@@ -16,17 +16,17 @@ use Abills::Api::Paths;
 =cut
 #**********************************************************
 sub new {
-  my ($class, $url, $db, $user, $admin, $conf, $query_params, $lang, $modules, $debug, $additional_params) = @_;
+  my ($class, $url, $db, $admin, $conf, $query_params, $lang, $modules, $debug, $html, $request_method) = @_;
 
   my $self = {
-    db                => $db,
-    admin             => $admin,
-    conf              => $conf,
-    lang              => $lang,
-    user              => $user,
-    modules           => $modules,
-    debug             => ($debug || 0),
-    additional_params => $additional_params
+    db             => $db,
+    admin          => $admin,
+    conf           => $conf,
+    lang           => $lang,
+    modules        => $modules,
+    html           => $html,
+    debug          => ($debug || 0),
+    request_method => $request_method
   };
 
   bless($self, $class);
@@ -54,24 +54,32 @@ sub preprocess {
   my $self = shift;
   my ($url, $query_params) = @_;
 
-  $url  =~ s/\?.+//g;
+  $url =~ s/\?.+//g;
   my @params = split('/', $url);
   my $resource_name = $params[1] || q{};
-  my $resource_name_user_api = $params[3] || q{};
-  my $Paths = Abills::Api::Paths->new($self->{db}, $self->{conf}, $self->{admin}, $self->{lang});
 
-  if ($ENV{REQUEST_METHOD} ~~ [ 'GET', 'DELETE' ]) {
+  my $resource_name_user_api = q{};
+  if ($params[2] && $params[2] =~ /\d+/) {
+    $resource_name_user_api = $params[3] || q{};
+  }
+  else {
+    $resource_name_user_api = $params[2] || q{};
+  }
+
+  my $Paths = Abills::Api::Paths->new($self->{db}, $self->{admin}, $self->{conf}, $self->{lang}, $self->{html});
+
+  if ($self->{request_method} ~~ [ 'GET', 'DELETE' ]) {
     $self->{query_params} = $query_params;
   }
   elsif ($query_params->{__BUFFER}) {
-    my $q_params = eval {decode_json($query_params->{__BUFFER}) };
+    my $q_params = eval {decode_json($query_params->{__BUFFER})};
 
     if ($@) {
       $self->{result} = {
         errno  => 1,
         errstr => 'There was an error parsing the body'
       };
-      $self->{status} = '400';
+      $self->{status} = 400;
 
       return $self;
     }
@@ -83,7 +91,7 @@ sub preprocess {
     $self->{query_params} = undef;
   }
 
-  if (defined $self->{query_params}->{__BUFFER}) {
+  if ($self->{query_params}->{__BUFFER}) {
     delete $self->{query_params}->{__BUFFER};
   }
 
@@ -91,25 +99,28 @@ sub preprocess {
   if ($resource_name eq 'user' && $resource_name_user_api) {
     $self->{resource_own} = $Paths->load_own_resource_info({
       package           => $resource_name_user_api,
-      modules           => $self->{modules},
       debug             => $self->{debug},
       type              => 'user',
-      additional_params => $self->{additional_params}
     });
   }
   elsif ($resource_name ne 'user') {
     $self->{resource_own} = $Paths->load_own_resource_info({
       package           => $resource_name,
-      modules           => $self->{modules},
       debug             => $self->{debug},
       type              => 'admin',
-      additional_params => $self->{additional_params}
     });
   }
 
   if (!$self->{resource_own}) {
     $self->{paths} = $Paths->list();
     $self->{resource} = $self->load_resource_info($resource_name);
+  }
+  elsif (ref \$self->{resource_own} eq 'SCALAR' && $self->{resource_own} == 2) {
+    $self->{errno} = 10;
+    $self->{errstr} = 'Access denied';
+    $self->{status} = 403;
+
+    return $self;
   }
 
   $self->{request_path} = join('/', @params) . '/';
@@ -137,7 +148,8 @@ sub transform {
 =cut
 #***********************************************************
 sub add_credential {
-  my ($self, $credential_name, $credential_handler) = @_;
+  my $self = shift;
+  my ($credential_name, $credential_handler) = @_;
 
   $self->{credentials}->{$credential_name} = $credential_handler;
 }
@@ -152,7 +164,7 @@ sub handle {
 
   if ($self->{status}) {
     $self->{allowed} = 1;
-    return;
+    return 0;
   }
 
   my $handler = $self->parse_request();
@@ -166,8 +178,10 @@ sub handle {
     $self->{status} = '404';
     $self->{allowed} = 1;
 
-    return;
+    return 0;
   }
+
+  my $cred = q{};
 
   if (defined $route->{credentials}) {
     foreach my $credential_name (@{$route->{credentials}}) {
@@ -175,6 +189,7 @@ sub handle {
 
       if (defined $credential) {
         if ($credential->($handler)) {
+          $cred = $credential_name;
           $self->{allowed} = 1;
         }
       }
@@ -186,6 +201,26 @@ sub handle {
     $self->{allowed} = 1;
   }
 
+  if ($cred && $cred ~~ [ 'ADMIN', 'ADMIN_SID' ] && $handler->{path_params} && $handler->{path_params}->{uid}) {
+    require Users;
+    Users->import();
+    my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+    $Users->info($handler->{path_params}->{uid});
+
+    if (!$Users->{TOTAL}) {
+      $self->{result} = {
+        errno  => 15,
+        errstr => "User not found with uid $handler->{path_params}->{uid}",
+      };
+      return 0;
+    }
+    else {
+      $handler->{path_params}->{user_object} = $Users;
+    }
+  }
+
+  $self->{handler} = $handler;
+
   my $module_obj;
   if ($route->{module} && $self->{resource}) {
     if ($route->{module} !~ /^[a-zA-Z0-9_:]+$/) {
@@ -193,7 +228,7 @@ sub handle {
         errno  => 3,
         errstr => 'Module is not found'
       };
-      return;
+      return 0;
     }
 
     eval "use $route->{module}";
@@ -203,25 +238,41 @@ sub handle {
         errno  => 4,
         errstr => 'Module is not found'
       };
-      return;
+      return 0;
     }
 
     $module_obj = $route->{module}->new($self->{db}, $self->{admin}, $self->{conf});
     $module_obj->{debug} = $self->{debug};
   }
 
-  my $result = $handler->{handler_fn}->(
-    $handler->{path_params},
-    $handler->{query_params},
-    $module_obj
-  );
+  my $result = '';
+
+  eval {
+    $result = $handler->{handler_fn}->(
+      $handler->{path_params},
+      $handler->{query_params},
+      $module_obj
+    );
+  };
+
+  if ($@) {
+    $self->{result} = {
+      errno  => 20,
+      errstr => 'Unknown error, please try later'
+    };
+    $self->{status} = 502;
+
+    $self->{error_msg} = $@;
+
+    return 0;
+  }
 
   if ($module_obj->{errno}) {
     $self->{result} = {
       errno  => $module_obj->{errno},
       errstr => $module_obj->{errstr}
     };
-    $self->{status} = '400';
+    $self->{status} = 400;
   }
   else {
     if (ref $result ne 'HASH' && ref $result ne 'ARRAY' && ref $result ne '') {
@@ -232,15 +283,16 @@ sub handle {
     }
     else {
       $self->{result} = $result;
+      $self->{content_type} = $route->{content_type} || q{};
 
       unless (defined($self->{result})) {
         $self->{result} = {};
       }
 
-      unless (ref $self->{result}) {
+      if (!ref $self->{result} && !$route->{content_type}) {
         $self->{result} = {
           result => $self->{result} ? 'OK' : 'BAD'
-        }
+        };
       }
     }
   }
@@ -303,7 +355,7 @@ sub parse_request {
   my $resource = ($self->{resource_own} || $self->{resource});
 
   foreach my $route (@{$resource}) {
-    next if ($route->{method} ne $ENV{REQUEST_METHOD});
+    next if (!$self->{request_method} || $route->{method} ne $self->{request_method});
 
     my $route_handler = $route->{handler};
     next if (ref $route_handler ne 'CODE');
@@ -312,12 +364,28 @@ sub parse_request {
 
     my @path_keys = $route_path_template =~ m/:([a-zA-Z0-9_]+)(?=\/)/g;
 
+    $route_path_template =~ s/:(string_[a-zA-Z0-9_]+)(?=\/)/(\\w+)/g;
     $route_path_template =~ s/:([a-zA-Z0-9_]+)(?=\/)/(\\d+)/g;
     $route_path_template =~ s/(\/)/\\\//g;
     $route_path_template = '^' . $route_path_template . '$';
 
-    #TODO: make possible ti put not only numbers but also letters into path variables
-    next unless ($request_path =~ $route_path_template);
+    my $path_uid = 0;
+    #TODO: delete when will be finally deprecated user api with :uid paths
+    if ($route->{credentials} && in_array('USER', $route->{credentials}) && $ENV{HTTP_USERSID} && $route->{path} =~ /:uid/) {
+      if ($request_path !~ $route_path_template) {
+        $route_path_template = $route->{path};
+        $route_path_template =~ s/:uid\///;
+        $route_path_template =~ s/:(string_[a-zA-Z0-9_]+)(?=\/)/(\\w+)/g;
+        $route_path_template =~ s/:([a-zA-Z0-9_]+)(?=\/)/(\\d+)/g;
+        $route_path_template =~ s/(\/)/\\\//g;
+        $route_path_template = '^' . $route_path_template . '$';
+        next unless ($request_path =~ $route_path_template);
+        $path_uid = 1;
+      }
+    }
+    else {
+      next unless ($request_path =~ $route_path_template);
+    }
 
     my @request_values = $request_path =~ $route_path_template;
 
@@ -325,6 +393,8 @@ sub parse_request {
 
     while (@path_keys) {
       my $key = shift(@path_keys);
+      next if ($path_uid && $key && $key eq 'uid');
+      $key =~ s/string_//;
       my $value = shift(@request_values);
 
       $path_params{$key} = $value;
@@ -342,10 +412,12 @@ sub parse_request {
       $query_params{$key} = $query_params->{$query_key};
     }
 
+    my $path_params = escape_for_sql(\%path_params);
+
     return {
       route        => $route,
       handler_fn   => $route_handler,
-      path_params  => \%path_params,
+      path_params  => $path_params,
       query_params => \%query_params,
     };
   }

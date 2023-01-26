@@ -302,4 +302,34 @@ sub change_group {
   return $self;
 }
 
+#**********************************************************
+=head2 columns()
+
+  Returns:
+    $array - [[$table, $column], ...]
+=cut
+#**********************************************************
+sub columns {
+  my $self = shift;
+
+  $self->query(
+    "SELECT
+      table_name,
+      column_name
+     FROM
+      information_schema.columns
+     WHERE
+      table_schema=?
+     ORDER BY table_name, ordinal_position;",
+    undef,
+    {
+      Bind => [
+        $self->{conf}->{dbname}
+      ]
+    }
+  );
+
+  return $self->{list} || {};
+}
+
 1

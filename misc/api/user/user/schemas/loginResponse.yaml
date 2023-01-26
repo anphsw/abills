@@ -1,0 +1,11 @@
+type: object
+properties:
+  login:
+    type: string
+    example: testuser
+  sid:
+    type: string
+    example: sW44EJZLyWDMeXAV
+  uid:
+    type: integer
+    example: 1

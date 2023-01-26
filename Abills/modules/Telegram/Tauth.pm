@@ -12,12 +12,13 @@ our (
   $admin,
   $Bot,
   %conf,
-  %lang
+  %lang,
+  $db
 );
 
 #**********************************************************
 =head2 get_uid($chat_id)
-  
+
 =cut
 #**********************************************************
 sub get_uid {
@@ -54,7 +55,7 @@ sub get_aid {
 
 #**********************************************************
 =head2 subscribe($message)
-  
+
 =cut
 #**********************************************************
 sub subscribe {
@@ -116,7 +117,7 @@ sub subscribe {
 
 #**********************************************************
 =head2 subscribe_phone($message)
-  
+
 =cut
 #**********************************************************
 sub subscribe_phone {
@@ -173,9 +174,27 @@ sub subscribe_phone {
     };
     push(@inline_keyboard, [ $inline_button ]);
 
+    use Crm::Dialogue;
+    my $Dialogue = Crm::Dialogue->new($db, $admin, \%conf, { SOURCE => 'telegram' });
+
+    my $sender = $message->{contact};
+    my $lead_id = $Dialogue->crm_lead_by_source({
+      USER_ID => $sender->{user_id},
+      FIO     => join(' ', ($sender->{first_name}, $sender->{last_name})),
+      PHONE   => $sender->{phone_number}
+    });
+    exit 0 if !$lead_id;
+
+    my $dialogue_id = $Dialogue->crm_get_dialogue_id($lead_id);
+    exit 0 if !$dialogue_id;
+
+    $Dialogue->crm_send_message('$lang{THE_USER_JOINED_VIA_TELEGRAM}', {
+      INNER_MSG => 1, SKIP_CHANGE => 1, DIALOGUE_ID => $dialogue_id
+    });
+
     $Bot->send_message({
-      text  => $lang{THE_SUBSCRIBER_WITH_THIS_PHONE_IS_NOT_REGISTERED},
-      phone => $phone
+      text         => $lang{GREETINGS_YOUR_QUESTION},
+      reply_markup => { remove_keyboard => 'true' },
     });
     exit 0;
   }
@@ -185,7 +204,7 @@ sub subscribe_phone {
 #**********************************************************
 =head2 subscribe_info()
   print HOWTO subscribe text
-  
+
 =cut
 #**********************************************************
 sub subscribe_info {

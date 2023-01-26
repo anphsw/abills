@@ -254,4 +254,32 @@ $lang{ADDING_DISPATCHES} = 'Додавання нарядів робіт';
 $lang{DELETING_DISPATCHES} = 'Видалення нарядів робіт';
 $lang{EDITING_DISPATCHES} = 'Редагування нарядів робіт';
 
+$lang{SPECIFY_CONDITIONS} = 'Вкажіть умови';
+$lang{SPECIFY_ACTIONS} = 'Вкажіть дії';
+$lang{WORKFLOW} = 'Робочий процес';
+$lang{WORKFLOWS} = 'Робочі процеси';
+$lang{ADD_CONDITION} = 'Додати умову';
+$lang{ADD_ACTION} = 'Додати дію';
+$lang{NEW_MESSAGE} = 'Нове повідомлення';
+$lang{MESSAGE_CHANGED} = 'Повідомлення змінено';
+$lang{NEW_REPLY} = 'Нова відповідь';
+$lang{SENDER} = 'Відправник';
+$lang{RESPONSIBLE_CHANGED} = 'Змінився відповідальний';
+$lang{RESPONSIBLE_CHANGED_FROM} = 'Відповідальний змінився з...';
+$lang{RESPONSIBLE_CHANGED_TO} = 'Відповідальний змінився на...';
+$lang{STATUS_CHANGED} = 'Змінився статус';
+$lang{STATUS_CHANGED_FROM} = 'Статус змінився з...';
+$lang{STATUS_CHANGED_TO} = 'Статус змінився на...';
+$lang{SUBJECT_CONTAINS} = 'Тема містить...';
+$lang{SEND_MESSAGE} = 'Відправити повідомлення';
+$lang{ENTER_MESSAGE} = 'Введіть повідомлення...';
+$lang{SET_STATUS} = 'Встановити статус';
+$lang{SELECT_STATUS} = 'Виберіть статус...';
+$lang{MSGS_SAVED_SUCCESSFULLY} = 'Успішно збережено';
+$lang{SET_RESPONSIBLE} = 'Встановити відповідального';
+$lang{SELECT_RESPONSIBLE} = 'Виберіть відповідального...';
+$lang{SET_TAGS} = 'Встановити мітки';
+$lang{SELECT_TAGS} = 'Виберіть мітки...';
+$lang{NOTIFICATIONS_ASSIGNED_MESSAGES_ONLY} = 'Сповіщення лише для призначених повідомлень';
+
 1

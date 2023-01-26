@@ -1,5 +1,4 @@
 package Voip_aaa;
-
 =head2
 
  VoIP AAA functions
@@ -7,9 +6,8 @@ package Voip_aaa;
 =cut
 
 use strict;
-our $VERSION     = 7.03;
+our $VERSION     = 7.04;
 
-# User name expration
 use base qw(main Auth);
 use Billing;
 
@@ -52,6 +50,7 @@ sub pre_auth {
   my ($self) = @_;
 
   $self->{'RAD_CHECK'}{'Auth-Type'} = "Accept";
+
   return 0;
 }
 
@@ -80,6 +79,8 @@ sub preproces {
   (undef, $RAD->{'h323-disconnect-cause'}) = split(/=/, $RAD->{'h323-disconnect-cause'}, 2) if (defined($RAD->{'h323-disconnect-cause'}));
 
   $RAD->{'Client-IP-Address'} = $RAD->{'Framed-IP-Address'} if ($RAD->{'Framed-IP-Address'});
+
+  return 1;
 }
 
 #**********************************************************
@@ -93,11 +94,11 @@ sub user_info {
 
   my $WHERE = '';
   if (defined($RAD->{'h323-call-origin'}) && $RAD->{'h323-call-origin'} == 0) {
-    $WHERE = "number='". $RAD->{'Called-Station-Id'} ."'";
+    $WHERE = "(voip.number='". $RAD->{'Called-Station-Id'} ."' OR alias.number='". $RAD->{'Called-Station-Id'} ."' ) ";
     $RAD->{'User-Name'} = $RAD->{'Called-Station-Id'};
   }
   else {
-    $WHERE = "number='". $RAD->{'User-Name'} ."'";
+    $WHERE = "(voip.number='". $RAD->{'User-Name'} ."' OR alias.number='". $RAD->{'User-Name'} ."' )";
   }
 
   $self->query2("SELECT 
@@ -128,6 +129,7 @@ sub user_info {
    FROM voip_main voip 
    INNER JOIN users u ON (u.uid=voip.uid)
    LEFT JOIN tarif_plans tp ON (tp.tp_id=voip.tp_id)
+   LEFT JOIN voip_phone_aliases alias ON (alias.uid=voip.uid)
    WHERE
    $WHERE
    AND (voip.expire='0000-00-00' OR voip.expire > CURDATE());",
@@ -201,26 +203,29 @@ sub auth {
   $self->user_info($RAD, $NAS);
 
   if ($self->{errno}) {
-    $RAD_PAIRS{'Reply-Message'} = $self->{errstr}. $RAD->{'User-Name'};
+    $RAD_PAIRS{'Reply-Message'} = $self->{errstr} .' '. $RAD->{'User-Name'};
+    $RAD_PAIRS{'h323-return-code'}=1;
     return 1, \%RAD_PAIRS;
   }
   elsif ($self->{TOTAL} < 1) {
     $self->{errno}  = 2;
     $self->{errstr} = 'ERROR_NOT_EXIST ' . $RAD->{'User-Name'};
     if (!$RAD->{'h323-call-origin'}) {
-      $RAD_PAIRS{'Reply-Message'} = "Answer Number Not Exist '$RAD->{'User-Name'}'";
+      $RAD_PAIRS{'Reply-Message'} = "ANSWER_NUMBER_NOT_EXIST '$RAD->{'User-Name'}'";
       $RAD_PAIRS{'Filter-Id'}='answer_not_exist';
     }
     else {
-      $RAD_PAIRS{'Reply-Message'} = "Caller Number Not Exist '$RAD->{'User-Name'}'";
+      $RAD_PAIRS{'Reply-Message'} = "CALLER_NUMBER_NOT_EXIST '$RAD->{'User-Name'}'";
       $RAD_PAIRS{'Filter-Id'}='call_not_exist';
     }
+    $RAD_PAIRS{'h323-return-code'}=8;
     return 1, \%RAD_PAIRS;
   }
 
   if (defined($RAD->{'CHAP-Password'}) && defined($RAD->{'CHAP-Challenge'})) {
     if (Auth::check_chap($RAD->{'CHAP-Password'}, "$self->{PASSWORD}", $RAD->{'CHAP-Challenge'}, 0) == 0) {
-      $RAD_PAIRS{'Reply-Message'} = "Wrong CHAP password";
+      $RAD_PAIRS{'Reply-Message'} = "WRONG_CHAP_PASSWORD";
+      $RAD_PAIRS{'h323-return-code'}=2;
       return 1, \%RAD_PAIRS;
     }
   }
@@ -228,6 +233,7 @@ sub auth {
     if ($self->{IP} ne '0.0.0.0' && $self->{IP} ne $RAD->{'Framed-IP-Address'}) {
       $RAD_PAIRS{'Reply-Message'} = "NOT_ALLOW_IP '$RAD->{'Framed-IP-Address'}' / $self->{IP} ";
       $RAD_PAIRS{'Filter-Id'}='not_allow_ip';
+      $RAD_PAIRS{'h323-return-code'}=4;
       return 1, \%RAD_PAIRS;
     }
   }
@@ -237,17 +243,20 @@ sub auth {
     if ($self->{VOIP_DISABLE} == 2 && $RAD->{'h323-call-origin'} == 1) {
       $RAD_PAIRS{'Reply-Message'} = "Incoming only";
       $RAD_PAIRS{'Filter-Id'} = 'incoming_only';
+      $RAD_PAIRS{'h323-return-code'}=8;
       return 1, \%RAD_PAIRS;
     }
     else {
       $RAD_PAIRS{'Reply-Message'} = "Service Disable";
       $RAD_PAIRS{'Filter-Id'} = 'service_disabled';
+      $RAD_PAIRS{'h323-return-code'}=7;
       return 1, \%RAD_PAIRS;
     }
   }
   elsif ($self->{USER_DISABLE}) {
     $RAD_PAIRS{'Reply-Message'} = "Account Disable";
     $RAD_PAIRS{'Filter-Id'} = 'user_disable';
+    $RAD_PAIRS{'h323-return-code'}=4;
     return 1, \%RAD_PAIRS;
   }
 
@@ -259,6 +268,8 @@ sub auth {
 
     if ($self->{TOTAL} && $self->{list}->[0]->[0] >= $self->{LOGINS}) {
       $RAD_PAIRS{'Reply-Message'} = "More then allow calls ($self->{LOGINS}/$self->{list}->[0]->[0])";
+      $RAD_PAIRS{'Filter-Id'} = 'more_then_allow_calls';
+      $RAD_PAIRS{'h323-return-code'}=115;
       return 1, \%RAD_PAIRS;
     }
   }
@@ -278,8 +289,9 @@ sub auth {
     }
     #Check deposit
     elsif ($self->{DEPOSIT} <= 0 && ! $conf->{VOIP_ALLOW_ZERO_ROUTE}) {
-      $RAD_PAIRS{'Reply-Message'} = "Negativ deposit '$self->{DEPOSIT}'. Rejected!";
+      $RAD_PAIRS{'Reply-Message'} = "NEGATIV_DEPOSIT '$self->{DEPOSIT}'. Rejected!";
       $RAD_PAIRS{'Filter-Id'}='neg_deposit';
+      $RAD_PAIRS{'h323-return-code'}=4;
       return 1, \%RAD_PAIRS;
     }
 
@@ -297,13 +309,15 @@ sub auth {
   if (defined($RAD->{'h323-conf-id'})) {
     if(defined($RAD->{'h323-call-origin'})) {
       if ($self->{ALLOW_ANSWER} < 1 && $RAD->{'h323-call-origin'} == 0) {
-        $RAD_PAIRS{'Reply-Message'} = "Not allow answer";
+        $RAD_PAIRS{'Reply-Message'} = "NOT_ALLOW_ANSWER";
         $RAD_PAIRS{'Filter-Id'} = 'not_allow_answer';
+        $RAD_PAIRS{'h323-return-code'}=9;
         return 1, \%RAD_PAIRS;
       }
       elsif ($self->{ALLOW_CALLS} < 1 && $RAD->{'h323-call-origin'} == 1) {
-        $RAD_PAIRS{'Reply-Message'} = "Not allow calls";
+        $RAD_PAIRS{'Reply-Message'} = "NOT_ALLOW_CALLS";
         $RAD_PAIRS{'Filter-Id'} = 'not_allow_call';
+        $RAD_PAIRS{'h323-return-code'}=9;
         return 1, \%RAD_PAIRS;
       }
     }
@@ -312,27 +326,31 @@ sub auth {
     if ($self->{TOTAL} < 1) {
       $RAD_PAIRS{'Reply-Message'} = "NO_ROUTE '" . $RAD->{'Called-Station-Id'} . "'";
       $RAD_PAIRS{'Filter-Id'}='no_route';
+      $RAD_PAIRS{'h323-return-code'}=8;
       return 1, \%RAD_PAIRS;
     }
     elsif ($self->{ROUTE_DISABLE} == 1) {
       $RAD_PAIRS{'Reply-Message'} = "ROUTE_DISABLED '" . $RAD->{'Called-Station-Id'} . "'";
       $RAD_PAIRS{'Filter-Id'}='route_disable';
+      $RAD_PAIRS{'h323-return-code'}=8;
       return 1, \%RAD_PAIRS;
     }
 
     #Get intervals and prices
     #originate
+    my $session_timeout = 0;
     if ($RAD->{'h323-call-origin'} == 1) {
       $self->{INFO} = $RAD->{'Called-Station-Id'};
       $self->get_intervals();
 
       if ($self->{TOTAL} < 1) {
-        $RAD_PAIRS{'Reply-Message'} = "No price for route prefix '$self->{PREFIX}' number '" . $RAD->{'Called-Station-Id'} . "'";
+        $RAD_PAIRS{'Reply-Message'} = "NO_PRICE_FOR_ROUTE PREFIX '$self->{PREFIX}' NUMBER '" . $RAD->{'Called-Station-Id'} . "'";
         $RAD_PAIRS{'Filter-Id'}='no_price_for_route';
+        $RAD_PAIRS{'h323-return-code'}=8;
         return 1, \%RAD_PAIRS;
       }
 
-      my ($session_timeout) = $Billing->remaining_time(
+      ($session_timeout) = $Billing->remaining_time(
         $self->{DEPOSIT},
         {
           TIME_INTERVALS      => $self->{TIME_PERIODS},
@@ -343,20 +361,18 @@ sub auth {
           DAY_OF_YEAR         => $self->{DAY_OF_YEAR},
           REDUCTION           => $self->{REDUCTION},
           POSTPAID            => $self->{PAYMENT_TYPE},
-          PRICE_UNIT          => 'Min'
+          PRICE_UNIT          => 'Min',
+          FULL_COUNT          => 1
         }
       );
 
       if ($session_timeout > 0) {
-        if($self->{MAX_SESSION_DURATION} && $session_timeout > $self->{MAX_SESSION_DURATION}) {
-          $session_timeout = $self->{MAX_SESSION_DURATION};
-        }
-        $RAD_PAIRS{'Session-Timeout'} = $session_timeout;
         #$RAD_PAIRS{'h323-credit-time'}=$session_timeout;
       }
       elsif ($self->{PAYMENT_TYPE} == 0 && $session_timeout == 0) {
         $RAD_PAIRS{'Reply-Message'} = "TOO_SMALL_DEPOSIT_FOR_CALL: $self->{DEPOSIT}";
         $RAD_PAIRS{'Filter-Id'}='too_small_deposit';
+        $RAD_PAIRS{'h323-return-code'}=4;
         return 1, \%RAD_PAIRS;
       }
 
@@ -405,6 +421,15 @@ sub auth {
       $RAD->{'User-Name'} = $RAD->{'Called-Station-Id'};
     }
 
+    if($self->{MAX_SESSION_DURATION} && (! $session_timeout || $session_timeout > $self->{MAX_SESSION_DURATION})) {
+      $session_timeout = $self->{MAX_SESSION_DURATION};
+    }
+
+    if ($session_timeout > 0) {
+      $RAD_PAIRS{'Session-Timeout'} = $session_timeout;
+      $RAD_PAIRS{'h323-credit-time'} = $session_timeout;
+    }
+
     #Make start record in voip_calls
     $self->query2("INSERT INTO voip_calls 
      (  status, user_name, started, lupdated,
@@ -422,7 +447,7 @@ sub auth {
           $NAS->{NAS_ID} || 0,
           $RAD->{'Client-IP-Address'} || '0.0.0.0',
           $RAD->{'h323-conf-id'},
-          $RAD->{'h323-call-origin'},
+          $RAD->{'h323-call-origin'} || 0,
           $self->{UID} || 0,
           $self->{BILL_ID} || 0,
           $self->{TP_ID} || 0,
@@ -432,11 +457,12 @@ sub auth {
      });
   }
 
-  if ($self->{ACCOUNT_AGE} > 0 && $self->{VOIP_EXPIRE} eq '0000-00-00') {
+  if ($self->{ACCOUNT_AGE} && $self->{ACCOUNT_AGE} > 0 && $self->{VOIP_EXPIRE} eq '0000-00-00') {
     $self->query2("UPDATE voip_main SET expire=curdate() + INTERVAL $self->{ACCOUNT_AGE} day 
      WHERE uid='$self->{UID}';", 'do');
   }
 
+  $RAD_PAIRS{'h323-return-code'}=0;
   return 0, \%RAD_PAIRS;
 }
 
@@ -599,8 +625,8 @@ sub accounting {
         $RAD->{'h323-call-origin'},
         $self->{UID},
         $self->{BILL_ID},
-        $self->{TP_ID},
-        $self->{REDUCTION},
+        $self->{TP_ID} || 0,
+        $self->{REDUCTION} || 0,
         $RAD->{'Acct-Session-Id'},
      ]});
     }
@@ -642,10 +668,10 @@ sub accounting {
       UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP()), '%Y-%m-%d')) AS day_begin,
       DAYOFWEEK(FROM_UNIXTIME(UNIX_TIMESTAMP())) AS day_of_week,
       DAYOFYEAR(FROM_UNIXTIME(UNIX_TIMESTAMP())) AS day_of_year
-    FROM voip_calls c, voip_tps tp
-      WHERE  c.tp_id=tp.id
-      and conf_id= ?
-      and call_origin= ? ;",
+    FROM voip_calls c
+    INNER JOIN voip_tps tp ON (c.tp_id=tp.id)
+      WHERE conf_id= ?
+      AND call_origin= ? ;",
       undef,
       { INFO => 1,
         Bind => [
@@ -678,7 +704,7 @@ sub accounting {
         $self->get_intervals();
         if ($self->{TOTAL} < 1) {
           $self->{errno}  = 111;
-          $self->{errstr} = "No price for route prefix '$self->{PREFIX}' number '" . $RAD->{'Called-Station-Id'} . "'";
+          $self->{errstr} = "NO_PRICE_FOR_ROUTE_PREFIX '$self->{PREFIX}' NUMBER '" . $RAD->{'Called-Station-Id'} . "'";
           return $self;
         }
 

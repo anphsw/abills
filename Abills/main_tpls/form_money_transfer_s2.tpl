@@ -2,7 +2,7 @@
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='RECIPIENT' value='%RECIPIENT%'>
   <input type='hidden' name='SUM' value='%SUM%'>
-  <input type='hidden' name='sid' value='$sid'>
+  <input type='hidden' name='UID' value='%UID%'>
 
   <div class='card box-primary center-block'>
     <div class='card-header with-border'>
@@ -28,13 +28,15 @@
         </label>
       </div>
       <div class='form-group row'>
-        <label class='col-md-12 text-center text-danger'>%COMMISSION%</label>
+        <label class='col-md-6 text-danger text-right'>_{COMMISSION}_:</label>
+        <label class='col-md-6 text-danger'>%COMMISSION%</label>
       </div>
       <div class='form-group row'>
         <label class='col-md-6 text-right' for='ACCEPT'>_{ACCEPT}_:</label>
-
         <div class='col-md-6'>
-          <input class='form-control-sm' type='checkbox' id='ACCEPT' name=ACCEPT value=1>
+          <div class='form-check'>
+          <input class='form-check-input' type='checkbox' id='ACCEPT' name=ACCEPT value=1>
+          </div>
         </div>
       </div>
     </div>

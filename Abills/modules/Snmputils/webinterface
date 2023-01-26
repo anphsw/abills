@@ -454,7 +454,7 @@ sub snmputils_periodic {
       PAGE_ROWS        => 100000,
       DISABLE          => 0,
       NAS_IDS          => ($attr->{NAS_IDS}) ? $attr->{NAS_IDS} : undef,
-      MNG_HOST_PORT    => '_SHOW',
+      NAS_MNG_HOST_PORT=> '_SHOW',
       NAS_MNG_USER     => '_SHOW',
       NAS_MNG_PASSWORD => '_SHOW',
       NAS_RAD_PAIRS    => '_SHOW',
@@ -2120,7 +2120,7 @@ sub snmputils_dlink_pb_monitor {
     $list->[0]->{nas_id}  ='';
     $list->[0]->{nas_name}='';
     $list->[0]->{nas_mng_password}=$FORM{SNMP_COMMUNITY};
-    $list->[0]->{mng_host_port}=$FORM{SNMP_HOST};
+    $list->[0]->{nas_mng_host_port}=$FORM{SNMP_HOST};
   }
   else {
     $list = $Nas->list(
@@ -2148,7 +2148,7 @@ sub snmputils_dlink_pb_monitor {
     undef($table->{rowcolor});
     undef($table->{extra});
 
-    my $SNMP_COMMUNITY = "$line->{nas_mng_password}\@$line->{mng_host_port}";
+    my $SNMP_COMMUNITY = "$line->{nas_mng_password}\@$line->{nas_mng_host_port}";
     my $SWITCH_INFO = snmputils_dlink_pb_version({ SNMP_COMMUNITY => $SNMP_COMMUNITY });
 
     # $ACTIVE_MAC, $BLOCK_MAC

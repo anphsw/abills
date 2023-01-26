@@ -10,29 +10,35 @@
 use strict;
 use warnings FATAL => 'all';
 
-our ($db,
+our (
+  $db,
   $admin,
   %conf,
   %LANG,
-  %lang);
+  %lang
+);
 
 use Referral;
 use Payments;
 use Users;
 use Msgs;
-use Msgs::Reg_request;
-use Control::Address_mng;
 use Abills::Base qw(date_inc);
-use Abills::Sender::Core;
+use Referral::Helpers qw(transform_to_hash);
+use Referral::Users;
+
+require Control::Address_mng;
+
+our Abills::HTML $html;
 
 my $Referral = Referral->new($db, $admin, \%conf, { SKIP_CONF => 1 });
 my $Payments = Payments->new($db, $admin, \%conf);
 my $Fees = Fees->new($db, $admin, \%conf);
 my $Bills = Bills->new($db, $admin, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
-my $Sender = Abills::Sender::Core::->new($db, $admin, \%conf);
-
-our Abills::HTML $html;
+my $Referral_users = Referral::Users->new($db, $admin, \%conf, {
+  html        => $html,
+  lang        => \%lang,
+});
 
 #**********************************************************
 =head2 referral_settings()
@@ -83,7 +89,7 @@ sub referral_user {
 
   require Control::Users_mng;
 
-  # user_modal_search() can return numeric value when modlas is loaded
+  # user_modal_search() can return numeric value when modules is loaded
   my $search_referrer_button = user_modal_search();
   if ($search_referrer_button && $search_referrer_button eq 2) {
     return 1;
@@ -98,7 +104,7 @@ sub referral_user {
   my $show_referrals_button = '';
   my $show_referrer_content = '';
 
-  # Check if have refferer
+  # Check if have referer
   my $referrer = 0;
 
   my $referrer_info = $Referral->info($uid);
@@ -111,22 +117,19 @@ sub referral_user {
 
   # Check if have referrals
   my ($users_list) = _get_users_list();
-  my $inverse_hash = _transform_to_hash($users_list, { NAME_KEY => 'referrer', VALUE_KEY => 'uid' });
+  my $inverse_hash = transform_to_hash($users_list, { NAME_KEY => 'referrer', VALUE_KEY => 'uid' });
 
   if (defined $inverse_hash->{$uid}) {
     $show_referrals_button = referral_get_show_referrals_button($uid);
   }
 
-  my $result = $html->tpl_show(_include('referral_user', 'Referral'),
-    {
-      SEARCH_BUTTON       => $search_referrer_button,
-      REFFERER_ROW_HIDDEN => ($show_referrer_content) ? '' : 'hidden',
-      REFERRER            => $show_referrer_content,
-      SHOW_BUTTON_HIDDEN  => ($show_referrals_button) ? '' : 'hidden',
-      SHOW_BUTTON         => $show_referrals_button
-    },
-    { ID => 'referral_user', OUTPUT2RETURN => 1 }
-  );
+  my $result = $html->tpl_show(_include('referral_user', 'Referral'), {
+    SEARCH_BUTTON       => $search_referrer_button,
+    REFFERER_ROW_HIDDEN => ($show_referrer_content) ? '' : 'hidden',
+    REFERRER            => $show_referrer_content,
+    SHOW_BUTTON_HIDDEN  => ($show_referrals_button) ? '' : 'hidden',
+    SHOW_BUTTON         => $show_referrals_button
+  }, { ID => 'referral_user', OUTPUT2RETURN => 1 });
 
   if ($attr->{PROFILE_MODE}) {
     return $result;
@@ -229,7 +232,7 @@ sub referral_show {
     $caption .= " $lang{FOR} $user_name";
 
     # Check if has referals
-    my $inverse_hash = _transform_to_hash($users_list, { NAME_KEY => 'referrer', VALUE_KEY => 'uid' });
+    my $inverse_hash = transform_to_hash($users_list, { NAME_KEY => 'referrer', VALUE_KEY => 'uid' });
 
     if (!defined $inverse_hash->{$uid}) {
       $html->message('err', $lang{NO_RECORD});
@@ -237,17 +240,14 @@ sub referral_show {
     }
   }
 
-  my $tree = $html->tree_menu($users_list, $caption,
-    {
-      PARENT_KEY     => 'referrer',
-      ID_KEY         => 'uid',
-
-      LABEL_KEY      => 'id',
-      ROOT_VALUE     => $uid,
-
-      COL_SIZE       => 12,
-      SHOW_OPEN_TREE => 1,
-    });
+  my $tree = $html->tree_menu($users_list, $caption, {
+    PARENT_KEY     => 'referrer',
+    ID_KEY         => 'uid',
+    LABEL_KEY      => 'id',
+    ROOT_VALUE     => $uid,
+    COL_SIZE       => 12,
+    SHOW_OPEN_TREE => 1,
+  });
 
   if ($attr->{OUTPUT2RETURN}) {
     return $tree;
@@ -288,35 +288,29 @@ sub referral_form_search {
   }
   else {
     my $script = "<script>defineSearchResultLogic()</script>";
-    my $users_list = $main::users->list(
-      {
-        %FORM,
-        FIO       => "*$FORM{FIO}*",
-        PHONE     => '*',
-        COLS_NAME => 1
-      }
-    );
+    my $users_list = $users->list({
+      %FORM,
+      FIO       => "*$FORM{FIO}*",
+      PHONE     => '*',
+      COLS_NAME => 1
+    });
 
-    if (_error_show($users)) {
-      return 0;
-    }
+    return 0 if (_error_show($users));
 
     if (scalar @{$users_list} > 40) {
       $html->message("warn", $lang{ERROR}, $lang{ERR_SEARCH_VAL_TOSMALL});
       return 1;
     }
 
-    my $table = $html->table(
-      {
-        width   => '100%',
-        caption => $lang{USERS},
-        title   => [ $lang{LOGIN}, $lang{FIO}, $lang{PHONE} ],
-        qs      => $pages_qs,
-        ID      => 'SEARCH_TABLE_ID'
-      }
-    );
-    foreach my $user (@{$users_list}) {
+    my $table = $html->table({
+      width   => '100%',
+      caption => $lang{USERS},
+      title   => [ $lang{LOGIN}, $lang{FIO}, $lang{PHONE} ],
+      qs      => $pages_qs,
+      ID      => 'SEARCH_TABLE_ID'
+    });
 
+    foreach my $user (@{$users_list}) {
       my $link = "?get_index=referral_set&header=2&REFERRER_UID=$user->{uid}&REFERRAL_UID=$uid";
       my $login_str = "<button class='btn btn-secondary search-result' data-link='$link'>$user->{login}</button>";
 
@@ -387,6 +381,7 @@ sub referral_set {
       REFERRAL_REQUEST => $referral_request,
       COLS_NAME        => 1,
     });
+
     if ($Referral->{TOTAL} <= 0) {
       $Referral->add_log({
         LOG_TYPE         => 1,
@@ -396,7 +391,6 @@ sub referral_set {
         REFERRAL_REQUEST => $attr->{REFERRAL_REQUEST},
       });
     }
-
   }
   else {
     return 0;
@@ -451,15 +445,14 @@ sub referral_get_search_button {
 
   return 0 unless $referral_id;
 
-  return $html->button('', undef,
-    {
-      class          => 'btn btn-sm btn-secondary',
-      JAVASCRIPT     => '',
-      SKIP_HREF      => 1,
-      NO_LINK_FORMER => 1,
-      ex_params      => qq/onclick=loadRawToModal('?get_index=referral_form_search&header=2&USER_ID=$referral_id')/,
-      ICON           => 'fa fa-search'
-    });
+  return $html->button('', undef, {
+    class          => 'btn btn-sm btn-secondary',
+    JAVASCRIPT     => '',
+    SKIP_HREF      => 1,
+    NO_LINK_FORMER => 1,
+    ex_params      => qq/onclick=loadRawToModal('?get_index=referral_form_search&header=2&USER_ID=$referral_id')/,
+    ICON           => 'fa fa-search'
+  });
 }
 
 #**********************************************************
@@ -507,53 +500,17 @@ sub _get_users_list {
     REFERRER  => '_SHOW',
     UID       => '_SHOW',
     COLS_NAME => 1
-  })->{list};
+  });
 
   _error_show($Referral);
   foreach (@$list){
     $_->{id} = "<a href='$SELF_URL?index=15&UID=$_->{uid}'>$_->{id}</url>"
   }
-  my $hash = _transform_to_hash($list, { NAME_KEY => 'uid', VALUE_KEY => 'referrer' });
+  my $hash = transform_to_hash($list, { NAME_KEY => 'uid', VALUE_KEY => 'referrer' });
 
   return($list, $hash);
 }
 
-#**********************************************************
-=head2 transform_to_hash($list, $attr)
-
-  Transforms arr_ref of hash_ref to one hash_ref
-
-  Arguments:
-    $list - DB list, arr_ref of hash_ref
-    $attr
-      NAME_KEY
-      VALUE_KEY
-
-  Returns:
-    hash_ref
-
-
-=cut
-#**********************************************************
-sub _transform_to_hash {
-  my ($list, $attr) = @_;
-
-  my $name_key = $attr->{NAME_KEY};
-  my $val_key = $attr->{VALUE_KEY};
-
-  if (!defined $list || scalar @{$list} == 0) {
-    return {};
-  }
-
-  my $result = {};
-
-  foreach my $element (@{$list}) {
-    next unless $element->{$name_key};
-    $result->{$element->{$name_key}} = $element->{$val_key};
-  }
-
-  return $result;
-}
 #**********************************************************
 =head2 add_friend()
 
@@ -564,212 +521,116 @@ sub _transform_to_hash {
   Returns:
     1
 
-
 =cut
 #**********************************************************
 sub add_friend {
 
-  load_pmodule('XML::Simple');
+  my $info = {};
+  my $action_res = {};
 
-  my $users_list = $Referral->request_list({
-    REFERRER     => $user->{UID},
-    phone        => '_SHOW',
-    ADDRESS      => '_SHOW',
-    FIO          => '_SHOW',
-    STATUS       => '_SHOW',
-    TP_ID        => '_SHOW',
-    REFERRAL_UID => '_SHOW',
-    USER_STATUS  => '_SHOW',
-    COLS_NAME    => 1,
-  });
+  if ($FORM{add}) {
+    $action_res = $Referral_users->user_referral_manage({
+      %FORM,
+      UID => $user->{UID},
+    });
+  }
+  elsif ($FORM{chg}) {
+    $info = $Referral->request_list({
+      ID         => $FORM{chg},
+      REFERRER   => $user->{UID},
+      phone      => '_SHOW',
+      FIO        => '_SHOW',
+      ADDRESS    => '_SHOW',
+      COLS_NAME  => 1,
+      COLS_UPPER => 1,
+    })->[0] || {};
+  }
+  elsif ($FORM{change}) {
+    $action_res = $Referral_users->user_referral_manage({
+      %FORM,
+      UID => $user->{UID},
+    });
+
+    if ($action_res->{errno} && $FORM{ID}) {
+      $info = $Referral->request_list({
+        ID         => $FORM{ID},
+        REFERRER   => $user->{UID},
+        phone      => '_SHOW',
+        FIO        => '_SHOW',
+        ADDRESS    => '_SHOW',
+        COLS_NAME  => 1,
+        COLS_UPPER => 1
+      })->[0] || {};
+    }
+  }
+  elsif ($FORM{get_bonus}) {
+    $action_res = $Referral_users->user_get_bonus({ UID => $user->{UID} });
+    $html->message('info', $lang{INFO}, "$lang{BONUS} $lang{ADDED}");
+  }
+
+  if ($action_res->{element}) {
+    $html->message(@{$action_res->{element}});
+  }
+
+  my $result = $Referral_users->user_referrals({ UID => $user->{UID} });
+  my $total_bonus = $result->{total_bonus};
 
   my $table = $html->table({
     width   => '100%',
     caption => $lang{USERS},
-    title   => [ $lang{FIO}, $lang{PHONE}, $lang{REQUEST_STATUS}, $lang{SPEND_PERCENT}, $lang{REPL_PERCENT}, $lang{STATUS} ],
+    title   => [ $lang{FIO}, $lang{PHONE}, $lang{REQUEST_STATUS},
+      $lang{SPEND_PERCENT}, $lang{REPL_PERCENT}, $lang{STATUS} ],
     qs      => $pages_qs,
     ID      => 'SEARCH_TABLE_ID'
   });
 
-  my $status = {
+  my %status = (
     0 => $lang{OPEN},
     1 => $lang{IN_WORK},
     2 => $lang{EXECUTED},
     3 => $lang{CANCELED}
-  };
+  );
 
   my $user_status = {
     0 => $html->badge($lang{ENABLE}, {TYPE => 'badge-success'}),
     1 => $html->badge($lang{DISABLE}, {TYPE => 'badge-danger'}),
   };
 
-  my $total_bonus = 0;
-
-  foreach my $u (@{$users_list}) {
-
-    if($u->{referral_uid}) {
-      my $tp_info = $Referral->tp_info($u->{referral_tp});
-
-      my $log_list = $Referral->log_list({
-        REFERRER  => $user->{UID}."' or rl.referrer = '0",
-        LOG_TYPE  => 1,
-        SORT      => 'date',
-        DESC      => 'DESC',
-        DATE      => '_SHOW',
-        COLS_NAME => 1,
-      });
-
-      my $referral_fees = $Fees->list({
-        UID            => $u->{referral_uid},
-        SUM            => '_SHOW',
-        METHOD         => 1,
-        COLS_NAME      => 1,
-        FROM_DATE_TIME => $log_list->[0]->{date} || $DATE,
-        TO_DATE_TIME   => date_inc($DATE).' 00:00:00',
-      });
-
-      my $spend_percent = $tp_info->{SPEND_PERCENT};
-      my $fees_bonus = 0;
-      if ($spend_percent) {
-        for my $fees (@$referral_fees) {
-          $fees_bonus += $fees->{sum} * ($spend_percent / 100);
-          $total_bonus += $fees_bonus;
-        }
-      }
-
-      my $payment = $Payments->list({
-        UID            => $u->{referral_uid},
-        COLS_NAME      => 1,
-        SUM            => '_SHOW',
-        FROM_DATE_TIME => $log_list->[0]->{date} || $DATE,
-        TO_DATE_TIME   => date_inc($DATE),
-      });
-
-      my $repl_percent = $tp_info->{REPL_PERCENT};
-      my $repl_bonus = 0;
-      if ($repl_percent) {
-        for my $pay (@$payment) {
-          $repl_bonus += $pay->{sum} * ($repl_percent / 100);
-          $total_bonus += $repl_bonus;
-        }
-      }
-
-      $table->addrow(
-        $u->{fio} || '--',
-        $u->{phone} || '--',
-        $status->{$u->{status}} || '--',
-        $fees_bonus || '--',
-        $repl_bonus || '--',
-        $user_status->{$u->{disable}} || '--',
-      );
-    }
-    else {
-      $table->addrow(
-        $u->{fio} || '--',
-        $u->{phone} || '--',
-        $status->{$u->{status}} || '--',
-        '--',
-        '--',
-        $user_status->{1},
-      );
-    }
+  foreach my $referral (@{$result->{referrals}}) {
+    $table->addrow(
+      $referral->{FIO} || '--',
+      $referral->{PHONE} || '--',
+      $status{$referral->{STATUS_NAME}} || '--',
+      $referral->{SPENDING_BONUS} || '--',
+      $referral->{PAYMENT_BONUS} || '--',
+      $user_status->{$referral->{DISABLE}} || '--',
+      $referral->{IS_USER} eq 'true' ? '' : $html->button($lang{CHANGE}, "index=$index&chg=$referral->{ID}", { class => 'change' }),
+    );
   }
-  my $refferals_talbe =$table->show({OUTPUT2RETURN => 1});
 
-  if ($FORM{add}) {
-    $FORM{REFERRER} = $user->{UID};
-    $Referral->add_request(\%FORM);
-  }
-  if ($FORM{change}) {
-    $Referral->change_request(\%FORM);
-  }
-  if ($FORM{get_bonus}){
-          if (!$user->{EXT_BILL_ID}) {
-            my $bill = $Bills->create({
-              DEPOSIT => $total_bonus,
-              UID     => $user->{UID}
-            });
-            $Users->change($user->{UID}, {
-              UID         => $user->{UID},
-              EXT_BILL_ID => $bill->{BILL_ID}
-            });
+  my $referrals_table = $table->show({ OUTPUT2RETURN => 1 });
 
-          }
-          else {
-            $Bills->action('add', $user->{EXT_BILL_ID}, $total_bonus);
-          }
+  my $referral_link = $SELF_URL;
+  my $script_name = $ENV{SCRIPT_NAME} || q{};
+  $referral_link =~ s/$script_name/\/registration.cgi?REFERRER=$user->{UID}/;
 
-          $Referral->add_log({
-            UID              => 0,
-            REFERRER         => $user->{UID},
-            TP_ID            => 0,
-            REFERRAL_REQUEST => 0,
-            LOG_TYPE         => 1,
-          });
+  $Referral->get_default_tp();
 
-
-    my $referrals = $Referral->list({
-      REFERRAL => $user->{UID},
-      COLS_NAME => 1,
-    });
-
-    my @referrals_list = $referrals->{list}->[0] ? @{$referrals->{list}} : [];
-
-    my $report = {
-      refferal_system => {
-        withdraw  => {
-          uid      => $user->{UID},
-          date     => $DATE,
-          withdraw => $total_bonus
-        },
-        referral => \@referrals_list
-      }
-    };
-
-    my $xml = XMLout($report, KeepRoot => 1);
-    my $mail = $conf{ADMIN_MAIL};
-
-    $Sender->send_message({
-      SENDER_TYPE => 'Mail',
-      TO_ADDRESS  => $mail,
-      MESSAGE     => $xml,
-      SUBJECT     => $lang{REFERRAL_SYSTEM}
-    });
-
-    $html->redirect("$SELF_URL?index=$index");
-  }
-  if ($FORM{chg}) {
-    my $info = $Referral->request_list({
-      ID        => $FORM{chg},
-      phone     => '_SHOW',
-      COLS_NAME => 1,
-    });
-    $html->tpl_show(_include('referral_change_form', 'Referral'), {
-      PHONE  => $info->[0]->{phone},
-      ID     => $FORM{chg},
-      ACTION => $html->form_input('change', $lang{CHANGE}, { TYPE => 'submit', OUTPUT2RETURN => 1 })
-    });
-  }
-  else {
-    my $referral_link = $SELF_URL;
-    my $script_name = $ENV{SCRIPT_NAME} || q{};
-    $referral_link =~ s/$script_name/\/registration.cgi?REFERRER=$user->{UID}/;
-
-    $Referral->get_default_tp();
-
-    $html->tpl_show(_include('referral_add_form', 'Referral'), {
-      ACTION        => $html->form_input('add', $lang{ADD}, { TYPE => 'submit', OUTPUT2RETURN => 1 }),
-      REFERRAL_LINK => $referral_link,
-      LINK_SHOW     => $Referral->{IS_DEFAULT} ? '' : 'hidden',
-      TABLE         => $refferals_talbe,
-      GET_BONUS     => $total_bonus > ($conf{REFERRAL_MIN_WITHDRAW} || 0)
-        ? $html->button($lang{WITHDRAW}.' '.$total_bonus, 'index='.$index.'&get_bonus=1', { class => 'btn btn-success' }) : ''
-    });
-  }
+  $html->tpl_show(_include('referral_add_form', 'Referral'), {
+    %{$info},
+    ACTION        => $FORM{chg} ?
+      $html->form_input('change', $lang{CHANGE}, { TYPE => 'submit', OUTPUT2RETURN => 1 }) :
+      $html->form_input('add', $lang{ADD}, { TYPE => 'submit', OUTPUT2RETURN => 1 }),
+    REFERRAL_LINK => $referral_link,
+    LINK_SHOW     => $Referral->{IS_DEFAULT} ? '' : 'hidden',
+    TABLE         => $referrals_table,
+    TITLE         => $FORM{chg} ? "$lang{CHANGE} $lang{ADD_FRIEND}" : $lang{ADD_FRIEND},
+    GET_BONUS     => $total_bonus > ($conf{REFERRAL_MIN_WITHDRAW} || 0)
+      ? $html->button($lang{WITHDRAW} . ' ' . $total_bonus, 'index=' . $index . '&get_bonus=1', { class => 'btn btn-success' }) : ''
+  });
 
   return 1;
 }
-
 
 #**********************************************************
 =head2 referral_requests()
@@ -781,18 +642,28 @@ sub add_friend {
   Returns:
     1
 
-
 =cut
 #**********************************************************
 sub referral_requests {
+  my $info = '';
+  my $referral_uid = '';
+
   if ($FORM{del}) {
+    $info = $Referral->request_list({
+      ID           => $FORM{del},
+      REFERRAL_UID => '_SHOW',
+      COLS_NAME    => 1,
+    });
+    $referral_uid = ($Referral->{TOTAL} && $Referral->{TOTAL} > 0 && ref $info->[0] eq 'HASH') ? $info->[0]->{referral_uid} : q{};
+
+    $Referral->del($referral_uid);
     $Referral->del_request($FORM{del});
   }
 
   if ($FORM{chg}) {
-    my $info = $Referral->request_list({
+    $info = $Referral->request_list({
       ID           => $FORM{chg},
-      phone => '_SHOW',
+      phone        => '_SHOW',
       ADDRESS      => '_SHOW',
       FIO          => '_SHOW',
       STATUS       => '_SHOW',
@@ -828,7 +699,10 @@ sub referral_requests {
       COLS_NAME => 1,
     });
 
-    unshift(@$tarifs, []);
+    if (!@$tarifs) {
+      $html->message('warn', $lang{WARNING}, $lang{WARN_CREATE_TP}) unless ($Referral->{TOTAL} && $Referral->{TOTAL} > 0);
+      return 0;
+    }
 
     my $tarif_select = $html->form_select('TP_ID', {
       SEL_LIST  => $tarifs,
@@ -838,7 +712,7 @@ sub referral_requests {
       SELECTED  => ($Referral->{TOTAL} && $Referral->{TOTAL} > 0) ? $info->[0]->{referral_tp} : '',
     });
 
-    my $referral_uid = ($Referral->{TOTAL} && $Referral->{TOTAL} > 0 && ref $info->[0] eq 'HASH') ? $info->[0]->{referral_uid} : q{};
+    $referral_uid = ($Referral->{TOTAL} && $Referral->{TOTAL} > 0 && ref $info->[0] eq 'HASH') ? $info->[0]->{referral_uid} : q{};
 
     $html->tpl_show(_include('referral_change_admin_form', 'Referral'), {
       %{ ($Referral->{TOTAL} && $Referral->{TOTAL} > 0) ? $info->[0] : {} },
@@ -863,29 +737,32 @@ sub referral_requests {
   my $referrers = $Referral->request_list({
     LOGIN     => '_SHOW',
     GROUP_BY  => 'GROUP BY u.uid',
-    REFERRER => '_SHOW',
+    REFERRER  => '_SHOW',
     COLS_NAME => 1,
   });
 
-  unshift(@$referrers, {'referrer' => $lang{ALL}, 'login' => $lang{ALL}});
+  unshift(@$referrers, {
+    referrer => $lang{ALL},
+    login    => $lang{ALL}
+  });
 
   my $referrer_select = $html->form_select('REFERRER', {
     SEL_LIST  => $referrers,
     SEL_KEY   => 'referrer',
     SEL_VALUE => 'login',
-    NO_ID => 1,
-    SELECTED => $FORM{REFERRER} || $lang{ALL},
+    NO_ID     => 1,
+    SELECTED  => $FORM{REFERRER} || $lang{ALL},
   });
 
   my $status_select = $html->form_select('STATUS', {
     SEL_HASH => {
       -1 => $lang{ALL},
-      0 => $lang{OPEN},
-      1 => $lang{IN_WORK},
-      2 => $lang{EXECUTED},
-      3 => $lang{CANCELED}
+      0  => $lang{OPEN},
+      1  => $lang{IN_WORK},
+      2  => $lang{EXECUTED},
+      3  => $lang{CANCELED}
     },
-    NO_ID => 1,
+    NO_ID    => 1,
     SELECTED => $FORM{STATUS} || -1,
   });
 
@@ -899,60 +776,58 @@ sub referral_requests {
     $html->short_form({
       METHOD         => 'GET',
       LABELED_FIELDS => {
-        "$lang{REFERRER}: " => ' ' . $referrer_select,
-        "$lang{STATUS}: "   => ' ' . $status_select,
-        "$lang{PERIOD}: "   => ' ' . $date_picker,
+        "$lang{REFERRER}: " => ' ' . $html->element("div", $referrer_select, { class => "row mx-2" }),
+        "$lang{STATUS}: "   => ' ' . $html->element("div", $status_select, { class => "row mx-2" }),
+        "$lang{PERIOD}: "   => ' ' . $html->element("div", $date_picker, { class => "row mx-2" })
       },
       FIELDS         => [
         $html->form_input($lang{SHOW}, $lang{SHOW}, { TYPE => 'submit' }),
-        $html->form_input('index', $index, { TYPE => 'hidden' }) ],
-      'class'        => 'form-inline',
-      IN_BOX         => 1,
-      NO_BOX_HEADER  => 1,
+        $html->form_input('index', $index, { TYPE => 'hidden' })
+      ],
+      'class'        => 'form-inline align-items-center justify-content-center my-3',
     });
   }
 
   delete $FORM{UID};
   delete $FORM{STATUS} if($FORM{STATUS} && $FORM{STATUS} == -1);
   delete $FORM{REFERRER} if($FORM{REFERRER} && $FORM{REFERRER} eq $lang{ALL});
-  result_former(
-    {
-      INPUT_DATA      => $Referral,
-      FUNCTION        => 'request_list',
-      DEFAULT_FIELDS  => 'phone,FIO,DATE,STATUS,LOGIN,TP_NAME',
-      HIDDEN_FIELDS   => 'TP_ID,REFERRAL_TP,UID,ID,REFERRAL_UID',
-      FUNCTION_INDEX  => $index,
-      FUNCTION_FIELDS => 'referral_redirect:add:fio;phone;referral_request,change,del',
-      SKIP_USER_TITLE => 1,
-      TOTAL           => 1,
-      EXT_TITLES      => {
-        fio              => $lang{FIO},
-        phone            => $lang{PHONE},
-        status           => $lang{STATUS},
-        date             => $lang{DATE},
-        login            => $lang{REFERRER},
-        tp_name          => $lang{TARIF_PLAN},
-        referral_request => 'ID',
-      },
-      SELECT_VALUE    => {
-        status => {
-          0 => $lang{OPEN},
-          1 => $lang{IN_WORK},
-          2 => $lang{EXECUTED},
-          3 => $lang{CANCELED}
-        }
-      },
-      TABLE           => {
-        width   => '100%',
-        ID      => 'REFERRAL_REQUEST',
-        qs      => $pages_qs,
-        caption => $lang{REFERRAL_REQUEST},
-        EXPORT => 1,
-      },
-      MAKE_ROWS       => 1,
-      MODULE          => 'Referral',
-    }
-  );
+
+  result_former({
+    INPUT_DATA      => $Referral,
+    FUNCTION        => 'request_list',
+    DEFAULT_FIELDS  => 'phone,FIO,DATE,STATUS,LOGIN,TP_NAME',
+    HIDDEN_FIELDS   => 'TP_ID,REFERRAL_TP,UID,ID,REFERRAL_UID',
+    FUNCTION_INDEX  => $index,
+    FUNCTION_FIELDS => 'referral_redirect:add:fio;phone;referral_request,change,del',
+    SKIP_USER_TITLE => 1,
+    TOTAL           => 1,
+    EXT_TITLES      => {
+      fio              => $lang{FIO},
+      phone            => $lang{PHONE},
+      status           => $lang{STATUS},
+      date             => $lang{DATE},
+      login            => $lang{REFERRER},
+      tp_name          => $lang{TARIF_PLAN},
+      referral_request => 'ID',
+    },
+    SELECT_VALUE    => {
+      status => {
+        0 => $lang{OPEN},
+        1 => $lang{IN_WORK},
+        2 => $lang{EXECUTED},
+        3 => $lang{CANCELED}
+      }
+    },
+    TABLE           => {
+      width   => '100%',
+      ID      => 'REFERRAL_REQUEST',
+      qs      => $pages_qs,
+      caption => $lang{REFERRAL_REQUEST},
+      EXPORT  => 1,
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Referral',
+  });
 
   return 1;
 }
@@ -968,7 +843,6 @@ sub referral_requests {
       $tp_id   - Tarrif plan id
     Returns:
       1
-
 
 =cut
 #**********************************************************
@@ -1004,54 +878,45 @@ sub add_bonus {
     COLS_NAME => 1,
   });
 
-
   my $referral_fees = $Fees->list({
-    UID       => $referal,
-    DATETIME  => '_SHOW',
-    SUM       => '_SHOW',
+    UID            => $referal,
+    DATETIME       => '_SHOW',
+    SUM            => '_SHOW',
     FROM_DATE_TIME => $log_list->[0]->{date} || $DATE,
-    TO_DATE_TIME   => date_inc($DATE). ' 00:00:00',
-    METHOD    => 1,
-    COLS_NAME => 1,
-    SORT      => 'datetime DESC',
-    BILL_ID   => '_SHOW'
+    TO_DATE_TIME   => date_inc($DATE) . ' 00:00:00',
+    METHOD         => 1,
+    COLS_NAME      => 1,
+    SORT           => 'datetime DESC',
+    BILL_ID        => '_SHOW'
   });
-
 
   my $fees_sum  = 0;
   foreach my $fees (@$referral_fees){
     $fees_sum += $fees->{sum};
   }
 
-
-  my $add_amount   = $settings->{BONUS_AMOUNT};
-
+  my $add_amount = '';
+  if($attr->{SUM_ONLY} || $settings->{BONUS_AMOUNT}) {
+    $add_amount =$settings->{BONUS_AMOUNT};}
   my $repl_percent = $settings->{REPL_PERCENT};
   my $spend_percent = $settings->{SPEND_PERCENT};
   my $sum          = $payment->[0]->{sum};
 
-  $add_amount = 0 if ($attr->{ONLY_PERCENT} || $settings->{ID} == $default_tp);
-
   if ($sum && $repl_percent) {
-    $add_amount += $sum * ($repl_percent / 100);
+    $add_amount = $sum * ($repl_percent / 100);
   }
 
   if($fees_sum && $spend_percent){
-    $add_amount += $fees_sum * ($spend_percent / 100);
+    $add_amount = $fees_sum * ($spend_percent / 100);
   }
-
-  if($attr->{SUM_ONLY}) {
-    $add_amount = $settings->{BONUS_AMOUNT};
-  }
-
 
   my $fees_list = $Fees->list({
     UID       => $uid,
     DATETIME  => '_SHOW',
-    SUM  => '_SHOW',
-    COLS_NAME => 1,
-    SORT      => 'datetime DESC',
+    SUM       => '_SHOW',
     BILL_ID   => '_SHOW',
+    SORT      => 'datetime DESC',
+    COLS_NAME => 1,
   });
 
   my $deposit = $Bills->info({
@@ -1081,19 +946,21 @@ sub add_bonus {
           DEPOSIT => $add_amount,
           UID     => $uid
         });
+
         $Users->change($uid, {
           UID         => $uid,
           EXT_BILL_ID => $bill->{BILL_ID}
         });
-
       }
       else {
         $Bills->action('add', $user->{EXT_BILL_ID}, $add_amount);
       }
     }
   }
+
   return 1;
 }
+
 #**********************************************************
 =head2 referral_monthly_pay()
 
@@ -1101,7 +968,6 @@ sub add_bonus {
 
     Returns:
       1
-
 
 =cut
 #**********************************************************
@@ -1114,12 +980,12 @@ sub referral_monthly_pay {
   });
 
   my $default_tp = $Referral->get_default_tp();
-  $default_tp = $default_tp->{ID};
+  $default_tp = $default_tp->{ID} || '';
 
   foreach my $log (@$log_list) {
     my $settings = $Referral->tp_info($log->{tp_id});
     my $period = $settings->{PERIOD};
-    $period = -2 if($log->{tp_id} == $default_tp);
+    $period = -2 if($log->{tp_id} eq $default_tp);
 
     if (!$period || $period == 1) {
       $period = 2
@@ -1136,17 +1002,17 @@ sub referral_monthly_pay {
         REFERRAL_REQUEST => $log->{referral_request}
       });
 
-
       add_bonus($log->{referrer}, $log->{uid}, $log->{tp_id});
-
     }
   }
 
   $Referral->add_log({
     LOG_TYPE => 1
   });
+
   return 1;
 }
+
 #**********************************************************
 =head2 referral_tp()
 
@@ -1154,7 +1020,6 @@ sub referral_monthly_pay {
 
     Returns:
       1
-
 
 =cut
 #**********************************************************
@@ -1170,8 +1035,7 @@ sub referral_tp {
 
     $html->tpl_show(_include('referral_settings', "Referral"), { BILL_SELECT => $select, ACTION => $html->form_input('add', $lang{ADD}, { TYPE => 'submit' }) });
   }
-
-  if ($FORM{add}) {
+  elsif ($FORM{add}) {
     $Referral->tp_add(\%FORM);
     if (!$Referral->{errno}) {
       $html->message('info', $lang{SUCCESS});
@@ -1180,8 +1044,7 @@ sub referral_tp {
       $html->message('err', $lang{ERROR}, $Referral->{errno} . " : " . $Referral->{errstr});
     }
   }
-
-  if ($FORM{chg}) {
+  elsif ($FORM{chg}) {
     my $tp = $Referral->tp_info($FORM{chg});
 
     my $select = $html->form_select('BONUS_BILL', {
@@ -1200,8 +1063,7 @@ sub referral_tp {
       DEFAULT     => $tp->{IS_DEFAULT} ? 'checked' : ''
     });
   }
-
-  if ($FORM{change}) {
+  elsif ($FORM{change}) {
     $FORM{IS_DEFAULT} = 0 if(!$FORM{IS_DEFAULT});
     $Referral->get_default_tp();
     if($Referral->{IS_DEFAULT} && $FORM{IS_DEFAULT}){
@@ -1216,65 +1078,67 @@ sub referral_tp {
       }
     }
   }
-
-  if ($FORM{del}) {
+  elsif ($FORM{del}) {
     $Referral->tp_del($FORM{del});
   }
 
-  my ($table) = result_former(
-    {
-      INPUT_DATA      => $Referral,
-      FUNCTION        => 'tp_list',
-      BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => 'ID,NAME,BONUS_AMOUNT,PAYMENT_ARREARS,PERIOD,REPL_PERCENT,SPEND_PERCENT,BONUS_BILL,IS_DEFAULT',
-      FUNCTION_FIELDS => 'change,del',
-      SKIP_USER_TITLE => 1,
-      TOTAL           => 1,
-      EXT_TITLES      => {
-        name            => $lang{NAME},
-        bonus_amount    => $lang{BONUS_AMOUNT},
-        payment_arrears => $lang{PAYMENT_ARREARS},
-        period          => $lang{PERIOD}.' '.$lang{ACCRUALS},
-        repl_percent    => $lang{REPL_PERCENT},
-        spend_percent   => $lang{SPEND_PERCENT},
-        bonus_bill      => $lang{BILL},
-        is_default      => $lang{DEFAULT},
+  result_former({
+    INPUT_DATA      => $Referral,
+    FUNCTION        => 'tp_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,NAME,BONUS_AMOUNT,PAYMENT_ARREARS,PERIOD,REPL_PERCENT,SPEND_PERCENT,BONUS_BILL,IS_DEFAULT',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    TOTAL           => 1,
+    EXT_TITLES      => {
+      name            => $lang{NAME},
+      bonus_amount    => $lang{BONUS_AMOUNT},
+      payment_arrears => $lang{PAYMENT_ARREARS},
+      period          => $lang{PERIOD} . ' ' . $lang{ACCRUALS},
+      repl_percent    => $lang{REPL_PERCENT},
+      spend_percent   => $lang{SPEND_PERCENT},
+      bonus_bill      => $lang{BILL},
+      is_default      => $lang{DEFAULT},
+    },
+    SELECT_VALUE    => {
+      bonus_bill      => {
+        0 => $lang{MAIN},
+        1 => $lang{EXTRA_BILL}
       },
-      SELECT_VALUE    => {
-        bonus_bill      => {
-          0 => $lang{MAIN},
-          1 => $lang{EXTRA_BILL}
-        },
-        payment_arrears => {
-          0 => '0'
-        },
-        'repl_percent'  => {
-          0 => '0'
-        },
-        'is_default'    => {
-          0 => '<i class="fa fa-times"></i>',
-          1 => '<i class="fa fa-check"></i>'
-        }
+      payment_arrears => {
+        0 => '0'
       },
-      TABLE           => {
-        width   => '100%',
-        caption => $lang{TARIF_PLANS},
-        ID      => 'REFERRAL_TP',
-        EXPORT  => 1,
-        MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+      'repl_percent'  => {
+        0 => '0'
       },
-      MAKE_ROWS       => 1,
-      MODULE          => 'Referral',
-    }
-  );
+      'is_default'    => {
+        0 => '<i class="fa fa-times"></i>',
+        1 => '<i class="fa fa-check"></i>'
+      }
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{TARIF_PLANS},
+      ID      => 'REFERRAL_TP',
+      EXPORT  => 1,
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Referral',
+  });
 
   return 1;
 }
 
+#**********************************************************
+=head2 referral_redirect()
+
+=cut
+#**********************************************************
 sub referral_redirect {
 
-  if(!$FORM{REFERRAL_REQUEST}){
-    $html->message("warn", $lang{ERROR}, $lang{EMPTY_FIELD});
+  if (!$FORM{REFERRAL_REQUEST}) {
+    $html->message('warn', $lang{ERROR}, $lang{EMPTY_FIELD});
     return 1;
   }
 
@@ -1289,22 +1153,19 @@ sub referral_redirect {
     TP_ID     => '_SHOW',
   });
 
-  if($Referral->{list}[0]->{referral_tp}||$FORM{TP_ID}) {
+  if ($Referral->{list}[0]->{referral_tp} || $FORM{TP_ID}) {
 
-    if($FORM{TP_ID}){
+    if ($FORM{TP_ID}) {
       $Referral->change_request({
-        ID     => $FORM{REFERRAL_REQUEST},
+        ID    => $FORM{REFERRAL_REQUEST},
         TP_ID => $FORM{TP_ID}
       });
-
     }
 
-    $html->redirect("?index=".get_function_index("form_wizard").
+    $html->redirect("?index=" . get_function_index("form_wizard") .
       "&FIO=$FORM{FIO}&phone=$FORM{PHONE}&REFERRAL_REQUEST=$FORM{REFERRAL_REQUEST}");
-
-  } else {
-
-
+  }
+  else {
     my $tarifs = $Referral->tp_list({
       ID        => '_SHOW',
       NAME      => '_SHOW',
@@ -1324,20 +1185,20 @@ sub referral_redirect {
       ACTION       => $html->form_input('apply', $lang{APPLY}, { TYPE => 'submit', OUTPUT2RETURN => 1 }),
       TARIF_SELECT => $tarif_select,
       ID           => $FORM{REFERRAL_REQUEST},
-      FIO           => $FORM{FIO},
-      PHONE           => $FORM{PHONE},
+      FIO          => $FORM{FIO},
+      PHONE        => $FORM{PHONE},
     });
   }
+
   return 1;
 }
 
 #**********************************************************
 =head2 referral_link_registred()
 
-
 =cut
 #**********************************************************
-sub referral_link_registred{
+sub referral_link_registred {
   my ($attr) = @_;
 
   $Users->info($attr->{UID});
@@ -1364,10 +1225,9 @@ sub referral_link_registred{
     REFERRAL_REQUEST => $request_id,
   });
 
-
-  add_bonus($attr->{REFERRED}, $attr->{UID}, $default_tp, {SUM_ONLY => 1});
+  add_bonus($attr->{REFERRED}, $attr->{UID}, $default_tp, { SUM_ONLY => 1 });
 
   return 1;
-
 }
+
 1;

@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS `ureports_log` (
   `body` TEXT NOT NULL,
   `destination` VARCHAR(60) NOT NULL DEFAULT '',
   `report_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
-  `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `status` TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `uid` (`uid`)
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS `ureports_spool` (
 
 CREATE TABLE IF NOT EXISTS `ureports_tp` (
   `msg_price` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
-  `tp_id` SMALLINT(5) UNSIGNED DEFAULT '0',
+  `tp_id` SMALLINT(6) UNSIGNED DEFAULT '0',
   `last_active` DATE DEFAULT '0000-00-00',
   KEY `tp_id` (`tp_id`)
 )

@@ -289,150 +289,6 @@ sub internet_ipoe_activate{
       }
     }
   }
-#  elsif ( $FORM{LOGOUT} ){
-#    my $user = $users->info( $LIST_PARAMS{UID} );
-#    my $online_list = $Sessions->online(
-#      {
-#        USER_NAME       => $user->{LOGIN},
-#        ACCT_SESSION_ID => $FORM{SESSION_ID},
-#        CLIENT_IP       => '_SHOW',
-#        NAS_PORT_ID     => '_SHOW'
-#      }
-#    );
-#
-#    if ( $Sessions->{TOTAL} < 1 ){
-#      $html->message( 'err', $lang{ERROR}, "$lang{NOT_EXIST} $lang{SESSIONS}", {  ID => 325 } );
-#      return 0;
-#    }
-#
-#    $ip = $online_list->[0]->{client_ip};
-#    my $nas_port_id = $online_list->[0]->{nas_port_id};
-#    my $user_name = $online_list->[0]->{user_name};
-#    $Nas->info( { NAS_ID => $online_list->[0]->{nas_id} } );
-#
-#    if (_error_show($Nas)){
-#      return 0;
-#    }
-#
-#    if ( $Nas->{NAS_TYPE} eq 'ipcad' || $Nas->{NAS_TYPE} eq 'other' || $Nas->{NAS_TYPE} eq 'dhcp' ){
-#      internet_ipoe_change_status(
-#        {
-#          STATUS                 => 'HANGUP',
-#          USER_NAME            => $user->{LOGIN},
-#          FRAMED_IP_ADDRESS    => $ip,
-#          NETMASK              => $Internet->{NETMASK},
-#          ACCT_TERMINATE_CAUSE => 1,
-#          UID                  => $LIST_PARAMS{UID},
-#          FILTER_ID            => $Internet->{FILTER_ID} || $Internet->{TP_FILTER_ID},
-#          NAS_ID               => $Nas->{NAS_ID},
-#          NAS_IP_ADDRESS       => $Nas->{NAS_IP},
-#          NAS_MNG_USER         => $Nas->{NAS_MNG_USER},
-#          NAS_MNG_IP_PORT      => $Nas->{NAS_MNG_IP_PORT},
-#        }
-#      );
-#    }
-#    else{
-#      require Abills::Nas::Control;
-#      Abills::Nas::Control->import();
-#      my $Nas_cmd = Abills::Nas::Control->new( $db, \%conf );
-#      $Nas_cmd->hangup(
-#        $Nas,
-#        $nas_port_id,
-#        $user_name,
-#        {
-#          ACCT_SESSION_ID   => "$FORM{SESSION_ID}",
-#          FRAMED_IP_ADDRESS => $ip || '0.0.0.0',
-#          UID               => $user->{LOGIN}
-#        }
-#      );
-#    }
-#    $html->message( 'info', $lang{INFO}, "$lang{DISABLE} IP: $ip" );
-#  }
-
-#  my @ACTION = ('ACTIVE', "$lang{LOGON}");
-#  my %HIDDEN = ();
-#  my $table;
-#  my $online_session = '';
-#
-#  my $list = $Sessions->online( {
-#    USER_NAME          => '_SHOW',
-#    CLIENT_IP          => '_SHOW',
-#    DURATION           => '_SHOW',
-#    ACCT_INPUT_OCTETS  => '_SHOW',
-#    ACCT_OUTPUT_OCTETS => '_SHOW',
-#    ACCT_SESSION_ID    => '_SHOW',
-#    ALL                => 1,
-#    UID                => $LIST_PARAMS{UID}
-#  } );
-#
-#  if ( $Sessions->{TOTAL} > 0 ){
-#    $table = $html->table(
-#      {
-#        width       => '100%',
-#        caption     => "Online",
-#        title_plain => [ "$lang{USER}", "IP", "$lang{DURATION}", "$lang{RECV}", "$lang{SENT}", '-' ],
-#        qs          => $pages_qs,
-#        ID          => 'IPN_ONLINE'
-#      }
-#    );
-#
-#    my %online_ips = ();
-#    foreach my $online ( @{$list} ){
-#      $online_ips{$ip} = 1;
-#
-#      if ( $online->{client_ip} eq $ip && $user->{UID} ){
-#        if ( $online->{uid} == $LIST_PARAMS{UID} ){
-#          @ACTION = ('LOGOUT', "$lang{HANGUP}");
-#          $HIDDEN{SESSION_ID} = $online->{acct_session_id};
-#          if ( $online->{status} && $online->{status} == 11 ){
-#            $html->message( 'err', $lang{ERROR}, $lang{DISABLE}, {  ID => 326 } );
-#            return 0;
-#          }
-#        }
-#        else{
-#          $html->message( 'err', $lang{ERROR}, "$lang{IP_IN_USE}", { ID => 327 } );
-#          return 0;
-#        }
-#      }
-#
-#      $table->addrow( $online->{user_name},
-#        $online->{client_ip},
-#        $online->{duration},
-#        int2byte( $online->{acct_input_octets} ),
-#        int2byte( $online->{acct_output_octets} ),
-#        $html->button( "$lang{HANGUP}",
-#          "index=$index&UID=$LIST_PARAMS{UID}&LOGOUT=1&SESSION_ID=$online->{acct_session_id}&REMOTE_ADDR=$online->{client_ip}"
-#            . (($html->{SID}) ? "&sid=$html->{SID}" : '')
-#          , { class => 'off' } ) )
-#        if ($online->{uid} && $LIST_PARAMS{UID} && $online->{uid} == $LIST_PARAMS{UID});
-#    }
-#
-#    $online_session = $table->show( { OUTPUT2RETURN => 1 } );
-#  }
-#  else{
-#    @ACTION = ('ACTIVE', "$lang{LOGON}");
-#  }
-#
-#  $HIDDEN{sid} = $html->{SID} if ($html->{SID});
-#
-#  $html->tpl_show(
-#    _include( 'ipn_form_active', 'Ipn' ),
-#    {
-#      %{$attr},
-#      IP                     => (!$IP_INPUT) ? $ip : '',
-#      IP_INPUT_FORM          => $IP_INPUT,
-#      NAS_ID                 => ($nas_id) ? $nas_id : undef,
-#      UID                    => $LIST_PARAMS{UID},
-#      ACCT_INTERIUM_INTERVAL => $conf{AMON_INTERIUM_UPDATE} || 120,
-#      ACTION                 => $ACTION[0],
-#      ACTION_LNG             => $ACTION[1],
-#      ONLINE                 => $online_session,
-#      INDEX                  => get_function_index( 'ipn_user_activate' ),
-#      NAS_SEL                => $Internet_ipoe->{NAS_SEL},
-#      %HIDDEN
-#    },
-#    { ID => 'ipn_form_active' }
-#  );
 
   return 1;
 }
@@ -478,10 +334,16 @@ sub internet_ipoe_change_status{
   my $speed_in = 0;
   my $speed_out = 0;
 
-  my $list = $Internet->get_speed( { UID => $uid } );
+  my $list = $Internet->get_speed({ UID => $uid, COLS_NAME => 1 });
   if ( $Internet->{TOTAL} > 0 ){
-    $speed_in = $list->[0]->[3] || 0;
-    $speed_out = $list->[0]->[4] || 0;
+    if($list->[0]->{speed}) {
+      $speed_in = $list->[0]->{speed} || 0;
+      $speed_out = $list->[0]->{speed} || 0;
+    }
+    else {
+      $speed_in = $list->[0]->{in_speed} || 0;
+      $speed_out = $list->[0]->{out_speed} || 0;
+    }
   }
 
   #netmask to bitmask
@@ -507,36 +369,30 @@ sub internet_ipoe_change_status{
   if ( $STATUS eq 'ONLINE_ENABLE' ){
     $cmd = $conf{INTERNET_IPOE_START};
     $html->message( 'info', $lang{INFO}, "$lang{ENABLE} IP: $ip" ) if (!$attr->{QUICK});
-    $Sessions->online_update(
-      {
-        USER_NAME       => $USER_NAME,
-        ACCT_SESSION_ID => $ACCT_SESSION_ID,
-        STATUS          => 10
-      }
-    );
+    $Sessions->online_update({
+      USER_NAME       => $USER_NAME,
+      ACCT_SESSION_ID => $ACCT_SESSION_ID,
+      STATUS          => 10
+    });
 
-    $Log->log_add(
-      {
-        LOG_TYPE  => $Log::log_levels{'LOG_INFO'},
-        ACTION    => 'AUTH',
-        USER_NAME => $USER_NAME || '-',
-        MESSAGE   => "IPN IP: $ip",
-        NAS_ID    => $attr->{NAS_ID}
-      }
-    );
+    $Log->log_add({
+      LOG_TYPE  => $Log::log_levels{'LOG_INFO'},
+      ACTION    => 'AUTH',
+      USER_NAME => $USER_NAME || '-',
+      MESSAGE   => "IPN IP: $ip",
+      NAS_ID    => $attr->{NAS_ID}
+    });
 
   }
   elsif ( $STATUS eq 'ONLINE_DISABLE' ){
     $cmd = $conf{INTERNET_IPOE_STOP};
 
     $html->message( 'info', $lang{INFO}, "$lang{DISABLE} IP: $ip" );
-    $Sessions->online_update(
-      {
-        USER_NAME       => $USER_NAME,
-        ACCT_SESSION_ID => $ACCT_SESSION_ID,
-        STATUS          => 11
-      }
-    );
+    $Sessions->online_update({
+      USER_NAME       => $USER_NAME,
+      ACCT_SESSION_ID => $ACCT_SESSION_ID,
+      STATUS          => 11
+    });
   }
   elsif ( $STATUS eq 'HANGUP' ){
     $Ipoe_collector->acct_stop( { %{$attr}, %FORM, ACCT_TERMINATE_CAUSE => $attr->{ACCT_TERMINATE_CAUSE} || 6 } );
@@ -866,9 +722,8 @@ sub ipoe_recalculate{
       my $user = $users->info( $LIST_PARAMS{UID} );
 
       if ( !$FORM{TP_ID} ){
-        my $Dv = Dv->new( $db, $admin, \%conf );
-        $Dv->info( $LIST_PARAMS{UID} );
-        $TP_ID = $Dv->{TP_ID};
+        print "NOT_FOUND_TP_ID";
+        return 0;
       }
       else{
         $TP_ID = $FORM{TP_ID};

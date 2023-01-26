@@ -183,7 +183,6 @@
       <div %HIDE_PASSWORD% class='text-center'>%PASSWORD%</div>
     </div>
 
-
     <div class='card card-outline card-big-form collapsed-card mb-0 border-top'>
       <div class='card-header with-border'>
         <h3 class='card-title'>_{EXTRA}_</h3>
@@ -201,16 +200,12 @@
             <div class='input-group'>
               <input type='text' name='COMP' value='%COMPANY_NAME%' ID='COMP' class='form-control' readonly>
               <div class='input-group-append'>
-                <div class='input-group-text'>
-                  <a href='$SELF_URL?index=13&amp;COMPANY_ID=%COMPANY_ID%'>
-                    <i class='fa fa-arrow-left'></i>
-                  </a>
-                </div>
-                <div class='input-group-text'>
-                  <a href='$SELF_URL?index=21&amp;UID=$FORM{UID}'>
-                    <i class='fa fa-pencil-alt'></i>
-                  </a>
-                </div>
+                <a class='btn input-group-button' href='$SELF_URL?index=13&amp;COMPANY_ID=%COMPANY_ID%'>
+                  <i class='fa fa-arrow-left'></i>
+                </a>
+                <a class='btn input-group-button' href='$SELF_URL?index=21&amp;UID=$FORM{UID}'>
+                  <i class='fa fa-pencil-alt'></i>
+                </a>
               </div>
             </div>
           </div>
@@ -235,9 +230,7 @@
             <div class='input-group'>
               <input type=text name='BILL' value='%BILL_ID%' ID='BILL' class='form-control' readonly>
               <div class='input-group-append'>
-                <div class='input-group-text'>
-                  %BILL_CORRECTION%
-                </div>
+                %BILL_CORRECTION%
               </div>
             </div>
           </div>
@@ -255,5 +248,4 @@
       <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary double_click_check'>
     </div>
   </div>
-
 </form>

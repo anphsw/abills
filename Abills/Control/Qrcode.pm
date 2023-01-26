@@ -1,3 +1,4 @@
+package Control::Qrcode;
 =head1 NAME
 
    QR code generator
@@ -5,8 +6,42 @@
 =cut
 
 use strict;
-use Abills::Base qw(urlencode urldecode load_pmodule);
-our $html;
+use warnings FATAL => 'all';
+
+use Abills::Base qw(urlencode urldecode load_pmodule encode_base64);
+
+#**********************************************************
+=head2 new($db, $admin, $CONF)
+
+  Arguments:
+    $db    - ref to DB
+    $admin - current Web session admin
+    $CONF  - ref to %conf
+    $attr
+      HTML: html object
+      functions: hash of available functions
+
+  Returns:
+    object
+
+=cut
+#**********************************************************
+sub new {
+  my $class = shift;
+  my ($db, $admin, $conf, $attr) = @_;
+
+  my $self = {
+    db        => $db,
+    admin     => $admin,
+    conf      => $conf,
+    html      => $attr->{html},
+    functions => $attr->{functions},
+  };
+
+  bless($self, $class);
+
+  return $self;
+}
 
 #**********************************************************
 =head2 qr_make($url, $attr)
@@ -15,33 +50,33 @@ our $html;
     $url - base url for QRCode
     $attr - hash_ref
       PARAMS      - hash to be stringified and appended to base url
-      OUTPUT2RETURN  - REturn img OBJ with html
+      OUTPUT2RETURN  - RReturn img OBJ with html
       WRITE_TO_DISK
 
 =cut
 #**********************************************************
 sub qr_make {
+  my $self = shift;
   my ($url, $attr) = @_;
-  
+
   load_pmodule('Imager::QRCode');
-  
-  if ( $attr->{WRITE_TO_DISK} ) {
-    return _encode_url_to_img($url, $attr);
+
+  if ($attr->{WRITE_TO_DISK}) {
+    return $self->_encode_url_to_img($url, $attr);
   }
-  
-  if ( !$FORM{qindex} || $attr->{OUTPUT2RETURN} ) {
-    my $img_html_tag = _generate_img_tag($SELF_URL, _stringify_params($attr->{PARAMS}), $attr);
-    
-    return $img_html_tag if ( $attr->{OUTPUT2RETURN} );
-    
-    # Else
+
+  if (!$attr->{qindex} || $attr->{OUTPUT2RETURN}) {
+    my $img_html_tag = $self->_generate_img_tag($url, $self->_stringify_params($attr), $attr);
+
+    return $img_html_tag if ($attr->{OUTPUT2RETURN});
+
     print $img_html_tag;
     return 1;
   }
-  
+
   # FIXME: weird logic. Will print only if !$FORM{header}, otherwise value is lost
-  _encode_url_to_img($url, $attr);
-  
+  $self->_encode_url_to_img($url, $attr);
+
   return 1;
 }
 
@@ -50,7 +85,8 @@ sub qr_make {
 
   Arguments:
     $string - data to encode
-    $attr   - hash_ref (Reserved for future)
+    $attr   - hash_ref
+      img - return encoded into base64 html element img
     
   Returns
     string - JPEG image content
@@ -58,9 +94,20 @@ sub qr_make {
 =cut
 #**********************************************************
 sub qr_make_image_from_string {
-  my ($string) = @_;
-  
-  return _generate_image($string);
+  my $self = shift;
+  my ($string, $attr) = @_;
+
+  my $img = $self->_generate_image($string);
+
+  if ($attr->{base64}) {
+    return q{data:image/jpg;base64,} . encode_base64($img) . q{};
+  }
+  if ($attr->{img}) {
+    return "<img src='data:image/jpg;base64," . encode_base64($img) . "' alt='" . ($attr->{alt} || '') . "' style='" . ($attr->{style} || '')."'>";
+  }
+  else {
+    return $img;
+  }
 }
 
 #**********************************************************
@@ -76,12 +123,12 @@ sub qr_make_image_from_string {
 =cut
 #**********************************************************
 sub _generate_img_tag {
-  my ($url, $params, $attr ) = @_;
-  
-  #  my $global_url_options = ($attr->{GLOBAL_URL}) ? "&GLOBAL_URL=" . Abills::Base::urlencode( $attr->{GLOBAL_URL} ) : "";
+  my $self = shift;
+  my ($url, $params, $attr) = @_;
+
   my $global_url_options = ($attr->{GLOBAL_URL}) ? "&GLOBAL_URL=" . $attr->{GLOBAL_URL} : "";
-  
-  return $html->img("$url$params&qrcode=1&qindex=100000$global_url_options", "qrcode",
+
+  return $self->{html}->img("$url$params&qrcode=1&qindex=100000$global_url_options", "qrcode",
     { OUTPUT2RETURN => 1, class => 'img-fluid center-block' }
   );
 }
@@ -99,34 +146,35 @@ sub _generate_img_tag {
 =cut
 #**********************************************************
 sub _encode_url_to_img {
+  my $self = shift;
   my ($url, $attr) = @_;
-  
+
   my $url_to_encode = '';
-  if ( $attr->{PARAMS} && $attr->{PARAMS}->{GLOBAL_URL} && !$attr->{PARAMS}->{CONVERT_URL} ) {
+  if ($attr->{PARAMS} && $attr->{PARAMS}->{GLOBAL_URL} && !$attr->{PARAMS}->{CONVERT_URL}) {
     $url_to_encode = urldecode($attr->{PARAMS}->{GLOBAL_URL});
   }
-  elsif( $attr->{AUTH_G2FA_NAME} && $attr->{AUTH_G2FA_MAIL} ) {
+  elsif ($attr->{AUTH_G2FA_NAME} && $attr->{AUTH_G2FA_MAIL}) {
     $url_to_encode = "otpauth://totp/$attr->{AUTH_G2FA_MAIL}?secret=$url&issuer=$attr->{AUTH_G2FA_NAME}"
   }
   else {
-    $url_to_encode = $url . _stringify_params($attr->{PARAMS}) . "&full=1";
+    $url_to_encode = $url . $self->_stringify_params($attr->{PARAMS}) . "&full=1";
   }
-  
-  my $img = _generate_image($url_to_encode);
 
-  if($attr->{OUTPUT2RETURN}){
+  my $img = $self->_generate_image($url_to_encode);
+
+  if ($attr->{OUTPUT2RETURN}) {
     return $img;
   }
 
-  if ( $attr->{WRITE_TO_DISK} ) {
-    open (my $QRCODE, '>', $conf{TPL_DIR} . "/qrcode.jpg");
+  if ($attr->{WRITE_TO_DISK}) {
+    open(my $QRCODE, '>', $self->{conf}{TPL_DIR} . "/qrcode.jpg");
     print $QRCODE $img;
   }
-  elsif ( !$FORM{header} ) {
+  elsif (!$attr->{header}) {
     print "Content-Type: image/jpeg\n\n";
     print $img;
   }
-  
+
   return 1;
 }
 
@@ -136,11 +184,10 @@ sub _encode_url_to_img {
 =cut
 #**********************************************************
 sub _generate_image {
+  my $self = shift;
   my ($data) = @_;
-  
+
   load_pmodule('Imager::QRCode');
-  
-  # Create Imager::QRCode instance
   my $qr = Imager::QRCode->new(
     size          => 8,
     margin        => 1,
@@ -150,20 +197,22 @@ sub _generate_image {
     lightcolor    => Imager::Color->new(255, 255, 255),
     darkcolor     => Imager::Color->new(0, 0, 0),
   );
-  
-  # Create image from data
+
   my $img = $qr->plot($data);
-  
-  # Save image to scalar
   my $result = '';
-  # MAYBE:: write errstr to $result?
-  $img->write( data => \$result, type => 'jpeg' ) or print $img->errstr;
-  
+
+  $img->write(data => \$result, type => 'jpeg');
+
+  if ($img->errstr && !$self->{conf}->{QRCODE_HIDE_ERROR}) {
+    print "Content-Type: text/html\n\n";
+    print $img->errstr;
+  }
+
   return $result;
 }
 
 #**********************************************************
-=head2 _parse_params($attr) - stringify params ( %FORM ) hash
+=head2 _stringify_params($attr) - stringify params ( %FORM ) hash
 
   Arguments:
     $attr - hash_ref
@@ -174,25 +223,25 @@ sub _generate_image {
 =cut
 #**********************************************************
 sub _stringify_params {
-  my ($parameters) = @_;
+  my $self = shift;
+  my ($attr) = @_;
   my $params = '';
-  
-  if ( ref $parameters eq 'HASH' ) {
-    while ( my ($key, $val) = each %{ $parameters } ) {
-      
-      next if ( (!$key) || ($key eq 'qrcode' || $key eq '__BUFFER' || $key eq 'qindex') );
-      
-      if ( $key eq 'index' ) {
+
+  if (ref $attr eq 'HASH') {
+    while (my ($key, $val) = each %{$attr}) {
+
+      next if ((!$key) || ($key eq 'qrcode' || $key eq '__BUFFER' || $key eq 'qindex'));
+
+      if ($key eq 'index') {
         $key = 'get_index';
-        $val = $functions{ $parameters->{index} };
+        $val = $self->{functions}{ $attr->{index} };
       }
-      
+
       $params .= "$key=" . urlencode($val) . '&';
     }
   }
-  
+
   return "?" . $params;
 }
 
-
-1
+1;

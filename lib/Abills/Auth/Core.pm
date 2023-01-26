@@ -45,7 +45,7 @@ sub new {
   }
   else {
     print "Content-Type: text/html\n\n";
-    print "Cn't load '$name'";
+    print "Can't load '$name'";
     print $@;
   }
 

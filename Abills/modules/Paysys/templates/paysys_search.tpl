@@ -3,16 +3,16 @@
     <div class='card-body'>
 
       <div class='form-group row'>
-        <label class='col-md-3 col-form-label' for='%ID%'>ID</label>
+        <label class='col-md-3 col-form-label' for='ID'>ID</label>
         <div class='col-md-9'>
-          <input type=text name='ID' value='%ID%' class='form-control'>
+          <input type=text id='ID' name='ID' value='%ID%' class='form-control'>
         </div>
       </div>
 
       <div class='form-group row'>
         <label class='col-md-3 col-form-label' for='SUM'>_{SUM}_</label>
         <div class='col-md-9'>
-          <input type=text name='SUM' value='%SUM%' class='form-control'>
+          <input type=text id='SUM' name='SUM' value='%SUM%' class='form-control'>
         </div>
       </div>
 
@@ -30,25 +30,24 @@
         </div>
       </div>
 
-
       <div class='form-group row'>
         <label class='col-md-3 col-form-label' for='TRANSACTION_ID'>_{TRANSACTION}_</label>
         <div class='col-md-9'>
-          <input type=text name='TRANSACTION_ID' value='%TRANSACTION_ID%' class='form-control'>
+          <input type=text id='TRANSACTION_ID' name='TRANSACTION_ID' value='%TRANSACTION_ID%' class='form-control'>
         </div>
       </div>
 
       <div class='form-group row'>
         <label class='col-md-3 col-form-label' for='INFO'>_{INFO}_</label>
         <div class='col-md-9'>
-          <input type=text name='INFO' value='%INFO%' class='form-control'>
+          <input type=text id='INFO' name='INFO' value='%INFO%' class='form-control'>
         </div>
       </div>
 
       <div class='form-group row'>
         <label class='col-md-3 ccol-form-label' for='IP'>IP</label>
         <div class='col-md-9'>
-          <input type=text name='IP' value='%IP%' class='form-control'>
+          <input type=text id='IP' name='IP' value='%IP%' class='form-control'>
         </div>
       </div>
 
@@ -58,7 +57,6 @@
           %DATERANGE_PICKER%
         </div>
       </div>
-
     </div>
   </div>
 </div>

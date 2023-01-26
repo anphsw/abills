@@ -29,7 +29,8 @@ COMMENT = 'Quick replys';
 
 CREATE TABLE IF NOT EXISTS `msgs_quick_replys_tags` (
  `quick_reply_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
- `msg_id` INT(11) UNSIGNED NOT NULL DEFAULT '0'
+ `msg_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+    KEY `msg_id` (`msg_id`)
 )
 COMMENT = 'Quick replys msgs tags';
 

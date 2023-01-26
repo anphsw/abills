@@ -3,7 +3,7 @@
 <form action='$SELF_URL' METHOD='POST'>
   <input type='hidden' name='index' value='$index'>
   %HIDDDEN_INPUT%
-  <div class='card container-md'>
+  <div class='card card-outline card-primary'>
     <div class='card-header with-border'><h4 class='card-title'>_{PASSWD}_: %ID%</h4></div>
     <div class='card-body'>
 
@@ -41,7 +41,7 @@
         </div>
       </div>
     </div>
-    <div class='card-footer'>
+    <div class='card-footer %BTN_HIDDEN%'>
       <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
     </div>
   </div>

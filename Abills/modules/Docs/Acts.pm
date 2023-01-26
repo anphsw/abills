@@ -300,7 +300,7 @@ sub docs_acts{
 }
 
 #**********************************************************
-=head2 docs_acts_print($attr) - docs_acts
+=head2 docs_acts_create ($attr) - docs_acts
 
    Arguments:
      COMPANY

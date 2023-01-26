@@ -43,9 +43,9 @@
             </div>
             <div class='bd-highlight'>
               <div class='input-group-append h-100'>
-                <div class='input-group-text p-0 rounded-left-0'>
-                  <a title='_{ADD}_ _{BUILDS}_' class='btn btn-sm BUTTON-ENABLE-ADD'><span class='fa fa-plus'></span></a>
-                </div>
+                <a title='_{ADD}_ _{BUILDS}_' class='btn input-group-button rounded-left-0 BUTTON-ENABLE-ADD'>
+                  <span class='fa fa-plus'></span>
+                </a>
               </div>
             </div>
           </div>
@@ -71,11 +71,9 @@
       <div class='input-group'>
         <input type='text' name='ADD_ADDRESS_BUILD' class='form-control INPUT-ADD-BUILD'/>
         <div class='input-group-append'>
-          <div class='input-group-text'>
-            <a class='BUTTON-ENABLE-SEL'>
-              <span class='fa fa-list'></span>
-            </a>
-          </div>
+          <a class='btn input-group-button BUTTON-ENABLE-SEL'>
+            <span class='fa fa-list'></span>
+          </a>
         </div>
       </div>
     </div>

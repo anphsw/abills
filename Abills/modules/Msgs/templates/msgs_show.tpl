@@ -23,7 +23,7 @@
           %MESSAGE%
           %PROGRESSBAR%
         </div>
-        <div class='card-footer'>
+        <div class='card-footer text-left'>
           %ATTACHMENT%
           <div class='row'>
             <div class='col-md-3'>_{AUTHOR}_: %LOGIN%</div>

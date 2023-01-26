@@ -14,9 +14,12 @@
       FD1608SN
 
   DATE: 20190704
-  UPDATE: 20220607
+  UPDATE: 20230113
 
 =head1 extra_info
+
+  MIbs
+  https://github.com/librenms/librenms/blob/master/mibs/cdata/FD-SYSTEM-MIB
 
   .1.3.6.1.4.1.17409.2.3.1.2.1.1.2.1 = STRING: "TAsvan_CDATA1608"
   .1.3.6.1.4.1.17409.2.3.1.2.1.1.3.1 = STRING: "FD1608SN-R1"
@@ -55,7 +58,7 @@ sub _cdata_get_ports {
 
   my $ports_info = equipment_test({
     %{$attr},
-    TIMEOUT   => 5,
+    TIMEOUT   => $attr->{TIMEOUT} || 5,
     VERSION   => 2,
     PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,TRAFFIC,PORT_IN_ERR,PORT_OUT_ERR'
   });
@@ -712,6 +715,7 @@ sub _cdata_fd12_onu_list { #TODO: merge with _cdata_onu_list
   }
 
   foreach my $pon_type (keys %pon_types) {
+
     my $snmp = _cdata_fd12({ TYPE => $pon_type });
 
     if (!$snmp->{ONU_STATUS}->{OIDS}) {
@@ -993,6 +997,52 @@ sub _cdata_fd16_onu_list { #TODO: merge with _cdata_onu_list
   }
 
   return \@onu_list;
+}
+
+
+#**********************************************************
+=head2 _cdata_use_memory($attr) - Get OLT slots and connect ONU
+
+  Arguments:
+    $attr$data, $info_list
+
+  Results:
+    $value
+
+=cut
+#**********************************************************
+sub _cdata_use_memory {
+  my($data, $info_list)=@_;
+
+  if ($info_list->{RAM_TOTAL}) {
+    $data = 100 - (100 / $info_list->{RAM_TOTAL} * $data);
+
+    $data .= ' %';
+  }
+
+  return $data;
+}
+
+#**********************************************************
+=head2 _cdata_temperature($data, $attr) - Get OLT slots and connect ONU
+
+  Arguments:
+    $data,
+    $attr
+
+  Results:
+    $value
+
+=cut
+#**********************************************************
+sub _cdata_temperature {
+  my ($data)=@_;
+
+  $data //= 0;
+
+  $data = int($data / 10);
+
+  return $data;
 }
 
 1

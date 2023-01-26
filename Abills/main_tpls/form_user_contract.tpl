@@ -26,7 +26,11 @@
         <div class='col-md-9'>
           <div class='input-group'>
             <input type='text' class='form-control datepicker' value='%DATE%'  name='DATE'  id='DATE'  />
-            <div class='btn-sm input-group-text rounded-left-0 text-blue'><i class="fa fa-calendar"></i></div>
+            <div class='input-group-append'>
+              <div class='btn input-group-button rounded-left-0 text-blue'>
+                <i class="fa fa-calendar"></i>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -37,7 +41,7 @@
       </div>
 
     </div>
-    <div class='card-footer text-center'>
+    <div class='card-footer'>
       <input type='submit' class='btn btn-primary' name='%BTN_NAME%' value='%BTN_VALUE%'>
     </div>
   </div>

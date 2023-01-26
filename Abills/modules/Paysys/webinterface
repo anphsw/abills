@@ -724,12 +724,22 @@ sub paysys_request_log {
       }
     );
 
+    $info{REQUEST_TYPE_SEL} = $html->form_select(
+      'REQUEST_TYPE',
+      {
+        SELECTED     => $FORM{REQUEST_TYPE} || '',
+        SEL_ARRAY    => [ 'Unknown', 'Presearch', 'Search', 'Check', 'Pay', 'Confirm', 'Cancel', 'Status' ],
+        ARRAY_NUM_ID => 1,
+        SEL_OPTIONS  => { '' => $lang{ALL} }
+      }
+    );
+
     $info{DATERANGE_PICKER} = $html->form_daterangepicker({
       NAME  => 'FROM_DATE/TO_DATE',
       VALUE => $FORM{'FROM_DATE_TO_DATE'},
     });
 
-    form_search({ SEARCH_FORM => $html->tpl_show(_include('paysys_search', 'Paysys'),
+    form_search({ SEARCH_FORM => $html->tpl_show(_include('paysys_search_log', 'Paysys'),
       { %info, %FORM },
       { OUTPUT2RETURN => 1 })
     });
@@ -751,13 +761,14 @@ sub paysys_request_log {
     FUNCTION          => 'log_list',
     BASE_FIELDS       => 0,
     FUNCTION_FIELDS   => 'del',
-    DEFAULT_FIELDS    => 'ID,SYSTEM_ID,LOGIN,TRANSACTION_ID,HTTP_METHOD,DATETIME',
+    DEFAULT_FIELDS    => 'ID,SYSTEM_ID,LOGIN,EXT_ID,TRANSACTION_ID,SUM,DATETIME',
     FILTER_COLS       => {
       transaction_id => '_paysys_log_filter::transaction_id,id',
       request        => '_paysys_log_filter::',
       response       => '_paysys_log_filter::',
       system_id      => '_paysys_log_filter::system_id,paysys_name',
       status         => '_paysys_log_filter::id,status',
+      request_type   => '_paysys_log_filter::id,request_type',
     },
     EXT_TITLES        => {
       id             => 'ID',
@@ -770,13 +781,16 @@ sub paysys_request_log {
       error          => $lang{ERROR},
       status         => $lang{STATUS},
       system_id      => $lang{PAY_SYSTEM},
+      ext_id         => $lang{EXTERNAL_ID},
       transaction_id => "$lang{TRANSACTION} ID",
+      sum            => $lang{SUM},
+      request_type   => "$lang{REQUEST} $lang{TYPE}",
     },
     SKIP_USER_TITLE   => 1,
     SKIP_STATUS_CHECK => 1,
     TABLE             => {
       width   => '100%',
-      caption => "$lang{LOG} $lang{REQUESTS}",
+      caption => $lang{LOG_REQUESTS},
       qs      => $pages_qs,
       ID      => 'PAYSYS_REQUEST_LOG',
       pages   => $Paysys->{TOTAL},
@@ -803,7 +817,21 @@ sub _paysys_log_filter {
   if (defined $values->{VALUES}->{status}) {
     $values->{VALUES}->{status} ? return $lang{ERROR} : return $lang{SUCCESS};
   }
-  elsif ($values->{VALUES}->{transaction_id}) {
+  elsif (defined $values->{VALUES}->{request_type}) {
+    my %statuses = (
+      0 => 'Unknown',
+      1 => 'Presearch',
+      2 => 'Search',
+      3 => 'Check',
+      4 => 'Pay',
+      5 => 'Confirm',
+      6 => 'Cancel',
+      7 => 'Status',
+    );
+
+    return $statuses{$values->{VALUES}->{request_type} || 0};
+  }
+  elsif (defined $values->{VALUES}->{transaction_id}) {
     return $html->button($string, 'index=' . get_function_index('paysys_log') . "&search_form=1&search=1&ID=$values->{VALUES}->{transaction_id}");
   }
   elsif (defined $values->{VALUES}->{system_id}) {

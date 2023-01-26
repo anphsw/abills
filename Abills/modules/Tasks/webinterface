@@ -55,11 +55,11 @@ sub tasks_list {
   $params->{Q_COUNT} = $Tasks->{TOTAL} || 0;
 
   if($FORM{tab}) {
-    $params->{"DIV_ACTIVE_$FORM{tab}"} = 'in active';
+    $params->{"DIV_ACTIVE_$FORM{tab}"} = 'in active show';
     $params->{"LI_ACTIVE_$FORM{tab}"} = 'active';
   }
   else {
-    $params->{DIV_ACTIVE_1} = 'in active';
+    $params->{DIV_ACTIVE_1} = 'in active show';
     $params->{LI_ACTIVE_1} = 'active';
   }
 
@@ -76,13 +76,10 @@ sub tasks_table {
   my ($attr) = @_;
 
   my $tasks_list = $Tasks->list({
-    COLS_NAME     => 1,
-    COLS_UPPER    => 1,
-    # PG            => $FORM{pg},
-    # SORT          => $FORM{sort} || 'control_date',
-    # DESC          => $FORM{desc} || '',
-    PAGE_ROWS     => 999999,
-    %{$attr ? $attr : { } },
+    COLS_NAME  => 1,
+    COLS_UPPER => 1,
+    PAGE_ROWS  => 999999,
+    %{$attr ? $attr : {}},
   });
 
   my $f_index = get_function_index('task_web_add');
@@ -98,37 +95,33 @@ sub tasks_table {
   }
   push (@columns, '');
 
-  # my $pages_qs = '';
   my $table = $html->table({
-    width               => '100%',
-    caption             => $attr->{TABLE_NAME} || $lang{TASKS},
-    title_plain         => \@columns,
-    ID                  => $attr->{TABLE_ID},
-    pages               => ($Tasks->{TOTAL} - 1),
-    # qs                  => $pages_qs,
-    # HAS_FUNCTION_FIELDS => 1,
-    DATA_TABLE          => 1,
-    # MENU                => "$lang{ADD}:index=$f_index&adding=1:btn bg-olive margin;",
+    width       => '100%',
+    caption     => $attr->{TABLE_NAME} || $lang{TASKS},
+    title_plain => \@columns,
+    ID          => $attr->{TABLE_ID},
+    pages       => ($Tasks->{TOTAL} - 1),
+    DATA_TABLE  => 1,
   });
 
   foreach my $task (@$tasks_list) {
-    my $del_button = $html->button("", "index=$index&del=$task->{id}&tab=$attr->{TAB}", { class => "text-danger", ADD_ICON => "fa fa-trash", CONFIRM => $lang{CONFIRM} });
-    my $edit_button = $html->button("", "index=$f_index&chg_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "fa fa-pencil-alt" });
-    my $show_button = $html->button("", "index=$index&show_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "fa fa-eye" });
+    my $del_button = $html->button("", "index=$index&del=$task->{id}&tab=$attr->{TAB}", { class => "text-danger mr-2", ADD_ICON => "fa fa-trash", CONFIRM => $lang{CONFIRM} });
+    my $edit_button = $html->button("", "index=$f_index&chg_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "fa fa-pencil-alt mr-2" });
+    my $show_button = $html->button("", "index=$index&show_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "fa fa-eye mr-2" });
     my @fields = ($task->{type_name}, $task->{name}, $task->{responsible_name}, $task->{control_date});
     if ($attr->{TAB}) {
       if ($attr->{TAB} == 1 || $attr->{TAB} == 2) {
-        push (@fields, $task->{comments});
+        push(@fields, $task->{comments});
       }
       elsif ($attr->{TAB} == 4) {
-        push (@fields, $task->{plan_date});
-      } 
+        push(@fields, $task->{plan_date});
+      }
     }
-    push (@fields, "$show_button$edit_button$del_button");
-    $table->addrow( @fields );
+    push(@fields, "$show_button$edit_button$del_button");
+    $table->addrow(@fields);
   }
 
-  return $table->show({OUTPUT_TO_RETURN => 1});
+  return $table->show({ OUTPUT_TO_RETURN => 1 });
 }
 
 #**********************************************************
@@ -176,11 +169,11 @@ sub my_tasks_list {
   $params{TASKS} = _show_task_cards($tasks_list, 2);
 
   if($FORM{tab}) {
-    $params{"DIV_ACTIVE_$FORM{tab}"} = 'in active';
+    $params{"DIV_ACTIVE_$FORM{tab}"} = 'in active show';
     $params{"LI_ACTIVE_$FORM{tab}"} = 'active';
   }
   else {
-    $params{DIV_ACTIVE_1} = 'in active';
+    $params{DIV_ACTIVE_1} = 'in active show';
     $params{LI_ACTIVE_1} = 'active';
   }
 
@@ -195,39 +188,29 @@ sub my_tasks_list {
 sub _show_task_cards {
   my ($list, $tab) = @_;
   my $result = '';
+
   foreach my $line (@$list) {
     my $d = Time::Piece->strptime($line->{CONTROL_DATE}, "%Y-%m-%d");
     my $c = Time::Piece->strptime($DATE, "%Y-%m-%d");
 
     my $days = ($d - $c) / 86400;
 
-    my $class = 'card-grey';
-
-    if ($days < 1) {
-      $class = 'card-danger';
-    }
-    elsif ($days < 6) {
-      $class = 'card-warning';
-    }
-    else {
-      $class = 'card-success';
-    }
+    my $class = 'task-grey';
+    $class = $days < 1 ? 'task-danger' : $days < 6 ? 'task-warning' : 'task-success';
 
     if ($FORM{show} && $FORM{show} == $line->{ID}) {
-      $class .= ' card-selected';
+      $class .= ' task-selected';
     }
 
-    $result .= $html->tpl_show('', { 
-        ID        => "task_$line->{ID}",
-        TITLE     => $line->{NAME},
-        BODY      => $line->{DESCR},
-        TYPE_NAME => $line->{TYPE_NAME},
-        C_DATE    => $d->mday . " " . $d->monname,
-        CLASS     => $class,
-        SHOW_LINK => "$SELF_URL?index=$index&show=$line->{ID}&tab=$tab",
-      },
-      { TPL => 'task_card', MODULE => 'Tasks', OUTPUT2RETURN => 1}
-    );
+    $result .= $html->tpl_show('', {
+      ID        => "task_$line->{ID}",
+      TITLE     => $line->{NAME},
+      BODY      => $line->{DESCR},
+      TYPE_NAME => $line->{TYPE_NAME},
+      C_DATE    => $d->mday . " " . $d->monname,
+      CLASS     => $class,
+      SHOW_LINK => "$SELF_URL?index=$index&show=$line->{ID}&tab=$tab",
+    }, { TPL => 'task_card', MODULE => 'Tasks', OUTPUT2RETURN => 1 });
   }
 
   return $result;
@@ -321,7 +304,7 @@ sub task_web_add {
   if ($FORM{add}) {
     _task_add(\%FORM);
     _error_show($Tasks);
-    $html->redirect('?index=' . get_function_index('tasks_list'));
+    $html->redirect('?index=' . get_function_index('tasks_list')) if !$FORM{MSG_ID};
     return 1;
   }
   elsif ($FORM{chg}) {
@@ -354,8 +337,12 @@ sub task_web_add {
     $task_info->{CONTROL_DATE} = $date->ymd;
   }
 
-  $html->tpl_show('', { %$params, %$task_info }, { TPL => 'task_add', MODULE => 'Tasks' });
+  if ($FORM{SHORT_FORM}) {
+    $html->tpl_show('', { %{$params}, %{$task_info}, %FORM }, { TPL => 'task_add_short_form', MODULE => 'Tasks' });
+    return 1;
+  }
 
+  $html->tpl_show('', { %{$params}, %{$task_info} }, { TPL => 'task_add', MODULE => 'Tasks' });
   return 1;
 }
 
@@ -413,23 +400,21 @@ sub _task_change_state {
 }
 
 
-
 #**********************************************************
 =head2 tasks_type_config()
 
 =cut
 #**********************************************************
 sub tasks_type_config {
+
   if ($FORM{add} || $FORM{chg}) {
     if ($FORM{ID}) {
       $Tasks->type_hide($FORM{ID});
       delete $FORM{ID};
     }
-    $FORM{ADDITIONAL_FIELDS} ||= '{}'; 
+    $FORM{ADDITIONAL_FIELDS} ||= '{}';
     $Tasks->type_add({ %FORM, ADMINS => $FORM{RESPONSIBLE_LIST}, PARTCIPIANTS => $FORM{PARTCIPIANTS_LIST} });
-    if ($Tasks->{errno}) {
-      $html->message('err', $lang{ERROR}, "$lang{TASK_TYPE_ERROR}\n $Tasks->{errstr}");
-    }
+    $html->message('err', $lang{ERROR}, "$lang{TASK_TYPE_ERROR}\n $Tasks->{errstr}") if $Tasks->{errno};
   }
   if ($FORM{del}) {
     $Tasks->type_hide($FORM{del});
@@ -484,21 +469,21 @@ sub tasks_type_table {
   my $table = $html->table({
     width               => '100%',
     caption             => $lang{TASKS_TYPE},
-    title_plain         => [ $lang{NAME}, ''],
+    title_plain         => [ $lang{NAME}, '', ''],
     ID                  => 'Tasks_type',
     pages               => ($Tasks->{TOTAL} - 1),
     qs                  => $pages_qs,
     HAS_FUNCTION_FIELDS => 1,
-    MENU                => "$lang{ADD}:index=$f_index&add_type=1:btn bg-olive margin;",
+    MENU                => "$lang{ADD}:index=$f_index&add_type=1:add;",
   });
 
   foreach my $type (@$types_list) {
-    my $del_button  = $html->button("", "index=$f_index&del=$type->{id}", { class => "text-danger", ADD_ICON => "fa fa-trash", CONFIRM => $lang{CONFIRM} });
-    my $edit_button = $html->button("", "index=$f_index&chg_type=$type->{id}", { ADD_ICON => "fa fa-pencil-alt" });
-    $table->addrow(
-      $type->{name},
-      "$edit_button$del_button"
-    );
+    my $del_button  = $html->button('', "index=$f_index&del=$type->{id}", {
+      class   => 'del',
+      MESSAGE => $lang{CONFIRM}
+    });
+    my $edit_button = $html->button('', "index=$f_index&chg_type=$type->{id}", { ADD_ICON => "fa fa-pencil-alt" });
+    $table->addrow($type->{name}, $edit_button, $del_button);
   }
 
   return $table->show({OUTPUT_TO_RETURN => 1});
@@ -568,6 +553,7 @@ sub _responsible_select {
       SEL_LIST    => $admins_list,
       SEL_KEY     => 'aid',
       SEL_VALUE   => 'a_name,a_login',
+      REQUIRED    => 1,
       NO_ID       => 1,
     });
 
@@ -585,6 +571,7 @@ sub _task_type_select {
   my $result = $html->form_select('TASK_TYPE', {
     SELECTED => $selected || '',
     SEL_LIST => $types_list,
+    REQUIRED => 1,
     NO_ID    => 1,
   });
 
@@ -600,11 +587,10 @@ sub _admins_list {
   my ($attr) = @_;
 
   my $admins_list = $Tasks->admins_list($attr);
-  my $result = '';
 
   my $table = $html->table({
-    width               => '100%',
-    title_plain         => [ '#', $lang{ADMIN}, $lang{FIO}],
+    width       => '100%',
+    title_plain => [ '#', $lang{ADMIN}, $lang{FIO} ],
   });
 
   foreach my $line (@$admins_list) {
@@ -615,24 +601,21 @@ sub _admins_list {
     else {
       $checkbox = $html->form_input('', '', { TYPE => 'checkbox', class => 'admin_checkbox', EX_PARAMS => "aid=$line->{aid}" });
     }
-    $table->addrow(
-      $checkbox,
-      $line->{A_LOGIN},
-      $line->{A_NAME}
-    );
+    $table->addrow($checkbox, $line->{A_LOGIN}, $line->{A_NAME});
   }
 
-  return $table->show({OUTPUT_TO_RETURN => 1});
+  return $table->show({ OUTPUT_TO_RETURN => 1 });
 }
 
 #**********************************************************
-=head2 _admins_list()
+=head2 _admin_role()
 
 =cut
 #**********************************************************
 sub _admin_role {
   my ($aid) = @_;
   my $admin_info = $Tasks->admins_list({ AID => $aid });
+
   return $admin_info->[0];
 }
 

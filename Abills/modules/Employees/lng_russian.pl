@@ -61,6 +61,7 @@ $lang{SEND_SMS_TO_ANYONE}='Отправка смс сообщения сотру
 $lang{CASHBOX_WORK}='Работа с кассами';
 $lang{CASHBOXS}='Кассы';
 $lang{ADD_CASHBOX}='Добавить кассу';
+$lang{CHANGE_CASHBOX}='Изменить кассу';
 $lang{CASHBOX_ADDED}='Касса добавлена';
 $lang{IN_CASHBOX}='в кассе';
 $lang{CASHBOX_NOT_ADDED}='Касса не добавлена';
@@ -111,5 +112,7 @@ $lang{ALL_SALARY} = 'Выплатить';
 
 $lang{TICKET_WORKS} = 'Работы по заявке';
 $lang{CHECKING_WORKS_BEFORE_CLOSING} = 'Проверка работ перед закрытием заявки';
+
+$lang{ADMIN_DEFAULT} = 'Администратор по умолчанию';
 
 1

@@ -1,29 +1,3 @@
-<style>
-  .paysys-chooser {
-    background-color: white;
-  }
-
-  input:checked + .paysys-chooser-box {
-    transform: scale(1.01, 1.01);
-    box-shadow: 6px 6px 3px #AAAAAA;
-    z-index: 100;
-  }
-
-  input:checked + .paysys-chooser-box > .box-footer {
-    background-color: lightblue;
-  }
-
-  .paysys-chooser:hover {
-    transform: scale(1.05, 1.05);
-    box-shadow: 7px 7px 5px #AAAAAA;
-    z-index: 101;
-  }
-
-  .paysys-card {
-    padding: 50px 0;
-  }
-</style>
-
 <form method='POST' class='form form-horizontal'>
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='sid' value='$sid'>
@@ -67,7 +41,7 @@
         %IPAY_HTML%
       </div>
 
-      <div class='form-group text-center'>
+      <div class='form-group row d-flex justify-content-center'>
         %PAY_SYSTEM_SEL%
       </div>
     </div>

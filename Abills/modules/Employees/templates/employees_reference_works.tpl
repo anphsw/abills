@@ -25,7 +25,7 @@
         <div class='col-md-9'>
           <div class='input-group'>
             <input type='text' class='form-control' name='TIME' value='%TIME%'>
-            <div class="input-group-append"><span class="input-group-text">_{HOURS}_</span></div>
+            <div class='input-group-append'><span class='input-group-text'>_{HOURS}_</span></div>
           </div>
         </div>
       </div>
@@ -36,10 +36,10 @@
         </div>
       </div>
 
-      <div class="form-group custom-control custom-checkbox" style="text-align: center;">
-        <input class="custom-control-input" type="checkbox" id="DISABLED_ID" name="DISABLED"
+      <div class='form-group custom-control custom-checkbox' style='text-align: center;'>
+        <input class='custom-control-input' type='checkbox' id='DISABLED_ID' name='DISABLED'
                data-return='1' data-checked='%DISABLED%' value='1'>
-        <label for="DISABLED_ID" class="custom-control-label">_{DISABLED}_</label>
+        <label for='DISABLED_ID' class='custom-control-label'>_{DISABLED}_</label>
       </div>
 
       <div class='form-group row'>

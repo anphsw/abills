@@ -121,17 +121,19 @@ sub authorize {
   $GT = '';
   my ($db, $nas) = sql_connect();
 
+  my $auth_type = $RAD_CHECK{'Auth-Type'} || q{};
+
   if ($debug) {
-    &radiusd::radlog(2, "authorize Auth-Type: $RAD_CHECK{'Auth-Type'} User-Name: $RAD_REQUEST{'User-Name'}");
+    &radiusd::radlog(2, "authorize Auth-Type: $auth_type User-Name: $RAD_REQUEST{'User-Name'}");
   }
 
   if ($db) {
     my $r   = 1;
-    if ($RAD_CHECK{'Auth-Type'} eq 'MSCHAP' || $RAD_CHECK{'Auth-Type'} eq 'MS-CHAP') {
+    if ($auth_type eq 'MSCHAP' || $auth_type eq 'MS-CHAP' || $auth_type eq 'eap') {
       $Log->{ACTION} = 'AUTH';
 
       if ($debug ) {
-        &radiusd::radlog(2, "pre auth Auth-Type: $RAD_CHECK{'Auth-Type'} User-Name: $RAD_REQUEST{'User-Name'}");
+        &radiusd::radlog(2, "pre auth Auth-Type: $auth_type User-Name: $RAD_REQUEST{'User-Name'}");
       }
 
       my $nas_type = ($AUTH{ $nas->{NAS_TYPE} }) ? $nas->{NAS_TYPE} : 'default';
@@ -425,7 +427,7 @@ sub post_auth {
       #Check pass ok
       if ($RAD_CHECK{'Post-Auth-Type'} !~ /Reject/i) {
         #Second step auth - MS chap authentification
-        if ($RAD_CHECK{'Auth-Type'} eq 'MSCHAP' || $RAD_CHECK{'Auth-Type'} eq 'MS-CHAP') {
+        if ($RAD_CHECK{'Auth-Type'} eq 'MSCHAP' || $RAD_CHECK{'Auth-Type'} eq 'MS-CHAP' || $RAD_CHECK{'Auth-Type'} eq 'eap') {
           if (auth_($db, \%RAD_REQUEST, $nas) == 0) {
             if ($debug) {
               &radiusd::radlog(2, "MS CHAP OK Auth-Type: $RAD_CHECK{'Auth-Type'} Post: $RAD_CHECK{'Post-Auth-Type'} User-Name: $RAD_REQUEST{'User-Name'}");
@@ -447,7 +449,7 @@ sub post_auth {
             $RAD_REPLY{'ERX-Service-Statistics:3'} = $RAD_PAIRS->{'ERX-Service-Statistics:3'} if ($RAD_PAIRS->{'ERX-Service-Statistics:3'});
           }
     	    return RLM_MODULE_OK;
-    	  }
+    	}
       }
 
       #Reject non auth

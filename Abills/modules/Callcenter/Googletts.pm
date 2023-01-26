@@ -1,8 +1,21 @@
-#package Callcenter::Googletts;
+package Callcenter::Googletts;
 
 use strict;
 use warnings FATAL => 'all';
 
+our (%EXPORT_TAGS);
+
+use parent 'Exporter';
+
+our $VERSION = 2.00;
+
+our @EXPORT = qw(
+  play_static
+);
+
+our @EXPORT_OK = qw(
+  play_static
+);
 
 use LWP::UserAgent;
 use File::Temp qw(tempfile);
@@ -12,10 +25,13 @@ our (
   $var_dir,
   $AGI
 );
-#our $AGI;
 
 # Output audio sample rate
 my $samplerate = 8000;
+
+if (! $var_dir) {
+  $var_dir = '/usr/abills/var/';
+}
 
 # Output speed factor
 my $speed = 1.2;
@@ -33,6 +49,7 @@ my $debug = 0;
     lang_short_
     $attr
       BREAK_KEYS
+      AGI
 
   Results:
     TRUE or FALSE
@@ -41,6 +58,10 @@ my $debug = 0;
 #**********************************************************
 sub play_static {
   my ($filename, $lang_short_, $attr) = @_;
+
+  if ($attr->{AGI}) {
+    $AGI = $attr->{AGI};
+  }
 
   my $cachedir = $var_dir . "/ivr/$lang_short_/";
   my $fexten = '';
@@ -58,7 +79,6 @@ sub play_static {
     $samplerate = 8000;
   }
 
-
   my $return_code = -1;
   if (-f "$cachedir/" . $filename . '.' . $fexten) {
     $AGI->verbose("$cachedir/" . $filename . '.' . $fexten);
@@ -75,6 +95,12 @@ sub play_static {
 
 #**********************************************************
 =head2 convert_file($filename, $attr)
+
+  Arguments:
+    $filename
+    $attr
+
+  Return:
 
 =cut
 #**********************************************************

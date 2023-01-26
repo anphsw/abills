@@ -28,6 +28,8 @@ use warnings;
 
 use Equipment;
 use Internet;
+use Events;
+use Events::API;
 use Abills::Base qw(in_array);
 
 our (
@@ -38,8 +40,10 @@ our (
   $db,
 );
 
+my $comments = '';
 our $Equipment = Equipment->new($db, $Admin, \%conf);
 my $Internet = Internet->new($db, $Admin, \%conf);
+my $Events = Events::API->new($db, $Admin, \%conf);
 
 require Equipment::Pon_mng;
 
@@ -89,7 +93,10 @@ sub update_onus_disabled_statuses {
     });
 
     if (!$users) {
-      print "Can't find any users with given UIDS\n";
+      $comments = "Can't find any users with given UIDS\n";
+      print $comments;
+      _generate_new_event("Can't find any users", $comments);
+
       return 0;
     }
 
@@ -104,7 +111,7 @@ sub update_onus_disabled_statuses {
     MODEL_NAME       => '_SHOW',
     STATUS           => '0',
     NAS_IP           => '_SHOW',
-    MNG_HOST_PORT    => '_SHOW',
+    NAS_MNG_HOST_PORT=> '_SHOW',
     NAS_MNG_PASSWORD => '_SHOW',
     VENDOR_NAME      => '_SHOW',
     SNMP_VERSION     => '_SHOW',
@@ -236,7 +243,10 @@ sub update_onus_disabled_statuses {
         });
 
         if (!$snmp_disable_statuses || !@$snmp_disable_statuses || $#$snmp_disable_statuses ne $#users_oids) {
-          print "OLT $equipment->{nas_id}, $equipment->{nas_name}: " . uc($pon_type) . ": failed to get current statuses of ONUs\n";
+          $comments = "OLT $equipment->{nas_id}, $equipment->{nas_name}: " . uc($pon_type) . ": failed to get current statuses of ONUs\n";
+          print $comments;
+          _generate_new_event("Failed to get current statuses of ONUs", $comments);
+
           $return_value = 0;
           next;
         }
@@ -249,7 +259,10 @@ sub update_onus_disabled_statuses {
             my $onu = $onu_by_dhcp_port{$users_dhcp_ports[$i]};
             my @users = @{$users_by_dhcp_port{$users_dhcp_ports[$i]}};
             my $users_string = ((scalar @users > 1) ? 'users' : 'user') . ' ' . join(', ', map { $_->{login} } @users);
-            print "OLT $equipment->{nas_id}, $equipment->{nas_name}: " . uc($pon_type) . ": failed to get current status of ONU $onu->{branch}:$onu->{onu_id} ($users_string)\n";
+            $comments = "OLT $equipment->{nas_id}, $equipment->{nas_name}: " . uc($pon_type) . ": failed to get current status of ONU $onu->{branch}:$onu->{onu_id} ($users_string)\n";
+            print $comments;
+            _generate_new_event('Failed to get current statuses of ONUs', $comments);
+
             $return_value = 0;
           }
         }
@@ -265,7 +278,10 @@ sub update_onus_disabled_statuses {
         });
 
         if (!$snmp_disable_statuses || !@$snmp_disable_statuses || !defined $snmp_disable_statuses->[0]) {
-          print "OLT $equipment->{nas_id}, $equipment->{nas_name}: " . uc($pon_type) . ": failed to get current statuses of ONUs\n";
+          $comments = "OLT $equipment->{nas_id}, $equipment->{nas_name}: " . uc($pon_type) . ": failed to get current statuses of ONUs\n";
+          print $comments;
+          _generate_new_event('Failed to get current statuses of ONUs', $comments);
+
           $return_value = 0;
           next;
         }
@@ -308,7 +324,10 @@ sub update_onus_disabled_statuses {
           print "OLT $equipment->{nas_id}, $equipment->{nas_name}: successfully $disabled_statuses{$dhcp_port}->{USER} ONU $onu->{branch}:$onu->{onu_id} ($users_string)\n" if ($attr->{DEBUG});
         }
         else {
-          print "OLT $equipment->{nas_id}, $equipment->{nas_name}: failed to " . ($disabled_statuses{$dhcp_port}->{USER} eq 'enabled' ? 'enable' : 'disable') . " ONU $onu->{branch}:$onu->{onu_id} ($users_string)\n";
+          $comments = "OLT $equipment->{nas_id}, $equipment->{nas_name}: failed to " . ($disabled_statuses{$dhcp_port}->{USER} eq 'enabled' ? 'enable' : 'disable') . " ONU $onu->{branch}:$onu->{onu_id} ($users_string)\n";
+          print $comments;
+          _generate_new_event('Failed status', $comments);
+
           $return_value = 0;
         }
       }
@@ -316,6 +335,30 @@ sub update_onus_disabled_statuses {
   }
 
   return $return_value;
+}
+
+#**********************************************************
+=head2 _generate_new_event($title_event, $comments)
+
+  Arguments:
+    $title_event - title of message
+    $comments - text of message to show
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _generate_new_event {
+  my ($title_event, $comments) = @_;
+
+  $Events->add_event({
+    MODULE      => 'Equipment',
+    TITLE       => $title_event,
+    COMMENTS    => "equipment_onu_disable_status - $comments",
+    PRIORITY_ID => 3
+  });
+
+  return 1;
 }
 
 1

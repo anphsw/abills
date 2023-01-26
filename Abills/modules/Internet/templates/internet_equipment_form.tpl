@@ -71,6 +71,7 @@
           equipment_get_info(equipment_get_info_url + '&RUN_CABLE_TEST=1');
         });
 
+        defineTooltipLogic();
         jQuery('#change_status_button').on('click', function (e) {
           hide_equipment_info();
 

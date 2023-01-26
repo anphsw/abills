@@ -26,4 +26,4 @@ $lang{AUTO_LEARN}='Автообучение';
 $lang{NETWORK_CHECK}='Сетевая проверка';
 
 $lang{BLACK_LIST} ='Чёрный список';
-$lang{WHITE_LIST} ='Берый список';
+$lang{WHITE_LIST} ='Белый список';

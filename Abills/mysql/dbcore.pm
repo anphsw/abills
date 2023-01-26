@@ -501,7 +501,7 @@ sub query_add{
 
   if ($#inserts_arr < 0) {
     $self->{errno}=201;
-    $self->{errstr}="query_add: No input date";
+    $self->{errstr}="query_add: No input data";
     return $self
   }
 
@@ -886,6 +886,10 @@ sub search_expr{
     }
 
     if ( $type eq 'IP' ){
+      if ($value !~ /^[\,\;\=\<\>0-9\.\*]+$|INET_ATON/) {
+        return [];
+      }
+
       if ( $value =~ m/\*/g ){
         $value =~ s/[<>]+//;
         my ($i, $first_ip, $last_ip);
@@ -1121,7 +1125,9 @@ sub search_expr_users{
   }
 
   if ($self->{errno}) {
-    return [];
+    if ( ! $attr->{_MULTI_HIT}) {
+      return [];
+    }
   }
 
   #Info fields
@@ -1269,14 +1275,22 @@ sub search_expr_users{
     if ( $admin->{GID} ){
       my @result_gids = ();
       my @admin_gids = split( /,\s?|;\s?/, $admin->{GID} );
-      my @attr_gids = split( /,\s?|;\s?/, $attr->{GIDS} );
 
-      foreach my $attr_gid ( @attr_gids ){
-        foreach my $admin_gid ( @admin_gids ){
-          if ( $admin_gid == $attr_gid ){
-            push @result_gids, $attr_gid;
-            last;
+      if ( $attr->{GIDS} && $attr->{GIDS} ne '_SHOW') {
+        my @attr_gids = split( /,\s?|;\s?/, $attr->{GIDS} );
+        foreach my $attr_gid (@attr_gids) {
+          foreach my $admin_gid (@admin_gids) {
+            if ($admin_gid == $attr_gid) {
+              push @result_gids, $attr_gid;
+              last;
+            }
           }
+        }
+      }
+      else {
+        @result_gids = @admin_gids;
+        if ($attr->{GIDS} eq '_SHOW') {
+          push @{$self->{SEARCH_FIELDS_ARR}}, 'u.gid';
         }
       }
 
@@ -1285,17 +1299,29 @@ sub search_expr_users{
 
     if ($attr->{GIDS} ne '_SHOW'){
       $attr->{GIDS} =~ s/;/,/g;
-      push @fields, "u.gid IN ($attr->{GIDS})";
+      my $search_field = "u.gid IN ($attr->{GIDS})";
+      if ($attr->{SHOW_UNREG_USERS} && $admin->{GID}) {
+        $search_field = "(u.gid IS NULL OR $search_field)";
+      }
+
+      push @fields, $search_field;
     }
   }
   elsif ( defined( $attr->{GID} ) && $attr->{GID} ne '' ){
     $attr->{GID} =~ s/,/;/g;
+
     push @fields, @{ $self->search_expr( $attr->{GID}, 'INT', 'u.gid',
         { EXT_FIELD => in_array( 'GID', $attr->{EXT_FIELDS} ) || ($attr->{GID} eq '_SHOW') ? 1 : undef } ) };
   }
   elsif ( $admin->{GID} ){
     $admin->{GID} =~ s/;/,/g;
-    push @fields, "u.gid IN ($admin->{GID})";
+
+    my $search_field = "u.gid IN ($admin->{GID})";
+    if ($attr->{SHOW_UNREG_USERS}) {
+      $search_field = "(u.gid IS NULL OR $search_field)";
+    }
+
+    push @fields, $search_field;
   }
 
   if ( $attr->{GROUP_NAME} ){
@@ -1676,6 +1702,48 @@ sub mk_ext_tables{
 }
 
 #**********************************************************
+=head2 table_info($table) - Getting table info and columns limit
+
+  Arguments:
+    $table_name
+
+  Returns:
+    \%columns - HASH reference
+
+  Examples:
+
+    $self->table_info('payments');
+
+=cut
+#**********************************************************
+sub table_info {
+  my $self = shift;
+  my $table = shift;
+  my ($attr) = @_;
+
+  return {} if !$table;
+
+  my $EXT_WHERE_RULES = !$attr->{FULL_INFO} ? "AND `character_maximum_length` > 0" : '';
+
+  my $cols_info = $self->query("SELECT `column_name`, `data_type`, `character_maximum_length`
+    FROM information_schema.columns
+    WHERE `table_name` = '$table' $EXT_WHERE_RULES", undef, { COLS_NAME  => 1 }
+  );
+  
+  return {} if $self->{errno} || !$self->{list};
+  return $cols_info->{list} if $attr->{FULL_INFO};
+
+  my %columns = ();
+  foreach my $column (@{$cols_info->{list}}) {
+    next if (!$column->{column_name});
+    $self->{'MAX_LENGTH_' . uc $column->{column_name}} = $column->{character_maximum_length};
+    $columns{'MAX_LENGTH_' . uc $column->{column_name}} = $column->{character_maximum_length};
+  }
+
+  return \%columns;
+}
+
+#**********************************************************
 =head2 changes($attr) - Change values in table and make change log
 
   Arguments:
@@ -1758,9 +1826,11 @@ sub changes {
   my $change_params_list = join(' AND ', @change_params);
   my $OLD_DATA = $attr->{OLD_INFO};
   if ( $OLD_DATA->{errno} ){
-    print  "Old date errors: $OLD_DATA->{errno} '$TABLE' $change_params_list\n";
-    print %{$DATA} if($DATA && ref $DATA eq 'HASH');
-    print "\nError: $OLD_DATA->{errstr}\n";
+    if (!$self->{db}->{api}) {
+      print  "Old date errors: $OLD_DATA->{errno} '$TABLE' $change_params_list\n";
+      print %{$DATA} if($DATA && ref $DATA eq 'HASH');
+      print "\nError: $OLD_DATA->{errstr}\n";
+    }
     $self->{errno} = $OLD_DATA->{errno};
     $self->{errstr} = $OLD_DATA->{errstr};
     return $self;

@@ -18,7 +18,7 @@
             </div>
         </form>
     </div>
-    <div class='card-footer text-center'>
+    <div class='card-footer'>
         <input type='submit' form='form_ADD_ITEM' class='btn btn-primary' name='%SUBMIT_BTN_NAME%' value='%SUBMIT_BTN_VALUE%'>
     </div>
 </div>

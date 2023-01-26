@@ -16,11 +16,11 @@ Supports
 
 =head1 VERSION
 
-  VERSION = 1.3
+  VERSION = 1.4
 
 =cut
 
-our $VERSION = 1.3;
+our $VERSION = 1.4;
 #**********************************************************
 =head1 SYNOPSIS
   By simply calling info_show_comments('table_name', object_id),
@@ -35,6 +35,9 @@ our $VERSION = 1.3;
 
 use parent 'main';
 my ($SORT, $DESC, $PG, $PAGE_ROWS) = (1, 'DESC', '1', 10000);
+
+use Attach;
+my Attach $Attach;
 
 # Singleton reference;
 my main $instance;
@@ -68,6 +71,7 @@ use constant {
       'a.name AS admin', 'i.date' ]
   }
 };
+
 #**********************************************************
 =head2 new
 
@@ -76,7 +80,6 @@ Instantiation of singleton db object
 =cut
 #**********************************************************
 sub new {
-
   unless (defined $instance) {
     my $class = shift;
     my ($db, $admin, $CONF) = @_;
@@ -92,8 +95,9 @@ sub new {
     $instance = $self;
   }
 
-  return $instance;
+  $Attach //= Attach->new(@{$instance}{qw/db admin conf/}, { ATTACH_PATH => 'info' });
 
+  return $instance;
 }
 
 #**********************************************************
@@ -710,6 +714,229 @@ sub log_comments {
   }
 
   return $self->{list};
+}
+
+#**********************************************************
+=head2 info_document_add($attr)
+
+=cut
+#**********************************************************
+sub info_document_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  # If have one attachment linked to a lot messages, will save it as one file
+  my $comment_id = $attr->{COMMENT_ID};
+  return $self if !$comment_id;
+
+  $attr->{CONTENT} //= $attr->{FILE};
+  my $file_path = $self->_save_to_disk($comment_id, $attr->{FILENAME}, $attr);
+  return 0 if (!$file_path || $self->{errno});
+
+  $attr->{FILE} = "FILE: $file_path";
+
+  $self->query_add('info_documents', $attr);
+  
+  return $self;
+}
+
+#**********************************************************
+=head2 info_documents_list($attr) - documents list
+
+=cut
+#**********************************************************
+sub info_documents_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = $attr->{SORT} || 'id';
+  $DESC = ($attr->{DESC}) ? '' : 'DESC';
+  $PG = $attr->{PG} || '0';
+  $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
+
+  # Both values are stored in single column
+  if ($attr->{REPLY_ID}) {
+    $attr->{MESSAGE_ID} = $attr->{REPLY_ID};
+    $attr->{MESSAGE_TYPE} = 1;
+  }
+
+  my $search_columns = [
+    [ 'ID',           'INT',  'ind.id',           1 ],
+    [ 'COMMENT_ID',   'INT',  'ind.comment_id',   1 ],
+    [ 'FILENAME',     'STR',  'ind.filename',     1 ],
+    [ 'CONTENT_SIZE', 'STR',  'ind.content_size', 1 ],
+    [ 'CONTENT_TYPE', 'STR',  'ind.content_type', 1 ],
+    [ 'FILE',         'STR',  'ind.file',         1 ]
+  ];
+
+  if ($attr->{SHOW_ALL_COLUMNS}) {
+    map {$attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]}} @$search_columns;
+  }
+
+  my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
+
+  $self->query2("SELECT $self->{SEARCH_FIELDS} ind.id
+   FROM info_documents ind
+   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
+    COLS_NAME => 1, COLS_UPPER => 1,
+    %{$attr // {}} }
+  );
+
+  return [] if $self->{errno};
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 info_document_info($attr) - document info
+
+=cut
+#**********************************************************
+sub info_document_info {
+  my $self = shift;
+  my ($id, $attr) = @_;
+
+  $self->query2("SELECT * FROM info_documents WHERE id = ?;", undef, { INFO => 1, Bind => [ $id ] });
+
+  return 0 if $self->{errno};
+
+  if (!$attr->{WITHOUT_CONTENT}) {
+    my ($directory, $filename) = $self->_read_file_params($self->{FILE});
+
+    if ($directory && $filename && -f "$directory/$filename") {
+      $self->{FILE} = $self->_read_file_from_disk($directory, $filename);
+      return 0 if $self->{errno};
+    }
+  }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 info_document_del($attr) - Del document
+
+=cut
+#**********************************************************
+sub info_document_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  if (!$attr->{ID}) {
+    $self->{errno} = 115;
+    return $self;
+  }
+
+  $self->info_document_info($attr->{ID}, { WITHOUT_CONTENT => 1 });
+  $self->query_del('info_documents', undef, { ID => $attr->{ID} });
+
+  if ($self->{FILENAME}) {
+    if ($self->{FILE} =~ /FILE(?:NAME)?: .+\/\/?([a-zA-Z0-9_\-.]+)/) {
+      $attr->{FILENAME} = $1;
+      delete $attr->{UID};
+      $Attach->attachment_file_del($attr);
+    }
+  }
+
+  return $self;
+}
+
+
+#**********************************************************
+=head2 _save_to_disk($msg_id, $reply_id, $filename, $attr) - writes file to disk
+
+  Arguments:
+    $msg_id,
+    $reply_id,
+    $filename,
+    $attr
+
+  Returns:
+    full file path
+
+=cut
+#**********************************************************
+sub _save_to_disk {
+  my $self = shift;
+  my ($comment_id, $filename, $attr) = @_;
+
+  # filename should contain only alphanumeric_symbols
+  $filename //= '';
+  $filename =~ s/[^a-zA-Z0-9._-]/_/g;
+
+  # Should change filename. map will replace undefined values with 0
+  my $disk_filename = join('_', map {$_ // '0'} ($comment_id, $filename));
+
+  my $final_path = $Attach->save_file_to_disk({
+    %{$attr},
+    FILENAME          => $filename,
+    DISK_FILENAME     => $disk_filename,
+  });
+
+  if ($Attach->{errno}) {
+    $self->{errno} = $Attach->{errno};
+    $self->{errstr} = $Attach->{errstr};
+    return 0;
+  }
+
+  return $final_path;
+}
+
+#**********************************************************
+=head2 _read_file_from_disk($filename) -
+
+  Arguments:
+     -
+
+  Returns:
+
+
+=cut
+#**********************************************************
+sub _read_file_from_disk {
+  my $self = shift;
+  my ($directory, $filename) = @_;
+
+  return 0 if ($directory =~ /\.\.\//);
+
+  if ( open(my $fh, '<', $directory . $filename) ) {
+    my $content = '';
+    while ( my $line = <$fh> ) {
+      $content .= $line;
+    }
+    return $content;
+  }
+  else {
+    $self->{errno} = 111;
+    $self->{errstr} = "Can't read file : $@";
+  }
+
+  return 0;
+}
+
+
+#**********************************************************
+=head2 _read_file_params($content_field_value) -
+
+  Arguments:
+    $content_field -
+
+  Returns:
+
+
+=cut
+#**********************************************************
+sub _read_file_params {
+  my $self = shift;
+  my ($content_field_value) = @_;
+
+  if ($content_field_value && $content_field_value =~ /FILE: (.+\/)+\/?([a-zA-Z0-9_\-.]+)/) {
+    my $directory = $1;
+    my $filename = $2;
+
+    return wantarray ? ($directory, $filename) : "$directory/$filename";
+  };
+
+  return 0;
 }
 
 1;

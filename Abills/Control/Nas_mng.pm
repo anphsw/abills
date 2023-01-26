@@ -69,8 +69,7 @@ sub form_nas {
     }
     else {
       $FORM{NAS_NAME} = "NAS_". $FORM{IP} if(! $FORM{NAS_NAME});
-      $FORM{NAS_MNG_IP_PORT} = ($FORM{NAS_MNG_IP} || '') . ":" . ($FORM{COA_PORT} || '') . ":" . ($FORM{SSH_PORT} || '') . ":" . ($FORM{SNMP_PORT} || '');
-
+      $FORM{NAS_MNG_HOST_PORT} = ($FORM{NAS_MNG_IP} || '') . ":" . ($FORM{COA_PORT} || '') . ":" . ($FORM{SSH_PORT} || '') . ":" . ($FORM{SNMP_PORT} || '');
       $Nas->add({ %FORM, DOMAIN_ID => $admin->{DOMAIN_ID} });
 
       if (!$Nas->{errno}) {
@@ -87,14 +86,42 @@ sub form_nas {
       }
     }
   }
-  elsif ($permissions{4} && $permissions{4}{3} && $FORM{del} && $FORM{COMMENTS}) {
-    $Nas->del($FORM{del});
+  elsif ($permissions{4} && $permissions{4}{3} && $FORM{del} && $FORM{COMMENTS}){
+    my ($Internet, $Sessions);
+    # check online users before deleting
+    if (in_array('Internet', \@MODULES)) {
+      require Internet;
+      Internet->import();
+      $Internet = Internet->new($db, $admin, \%conf);
+      require Internet::Sessions;
+      Internet::Sessions->import();
+      $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+    }
 
-    if (!$Nas->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{DELETED} [$FORM{del}]");
-      if (in_array('Equipment', \@MODULES)) {
-        my $Equipment = Equipment->new($db, $admin, \%conf);
-        $Equipment->_del($FORM{del});
+    my $service = $Internet->user_list({ UID => '_SHOW', NAS_ID => $FORM{del}, COLS_NAME => 1 });
+    my $session_list = $Sessions->online({ UID => '_SHOW', NAS_ID => $FORM{del},  ALL => 1, COLS_NAME => 1 });
+
+    if ($Internet->{TOTAL} > 0){
+      my $internet_users_index = get_function_index('internet_users_list');
+      my $internet_quantity_users = $html->button($Internet->{TOTAL}, "index=$internet_users_index&NAS_ID=$FORM{del}",{BUTTON => 2, target => '_blank'});
+      $html->message('danger', "$lang{ERROR_DELETE} ID=$FORM{del}", "$lang{NUMBER_OF_USERS}: $internet_quantity_users");
+    }
+
+    if ($Sessions->{TOTAL} > 0){
+      my $online_users_index = get_function_index('internet_online');
+      my $online_quantity_users = $html->button($Sessions->{TOTAL}, "index=$online_users_index&NAS_ID=$FORM{del}",{BUTTON => 2, target => '_blank'});
+      $html->message('danger', "$lang{ERROR_DELETE} ID=$FORM{del}", "$lang{NUMBER_OF_USERS} $lang{ONLINE}: $online_quantity_users");
+    }
+
+    if (!$Internet->{TOTAL} && !$Sessions->{TOTAL}) {
+      $Nas->del($FORM{del});
+
+      if (!$Nas->{errno}) {
+        $html->message('info', $lang{INFO}, "$lang{DELETED} [$FORM{del}]");
+        if (in_array('Equipment', \@MODULES)) {
+          my $Equipment = Equipment->new($db, $admin, \%conf);
+          $Equipment->_del($FORM{del});
+        }
       }
     }
   }
@@ -337,8 +364,8 @@ sub form_nas_list {
     domain_id        => 'DOMAIN_ID',
     alive            => 'Alive',
     mac              => 'MAC',
-    mng_host_port    => 'MNG_HOST_PORT',
-    mng_user         => 'MNG_USER',
+    nas_mng_host_port=> 'NAS_MNG_HOST_PORT',
+    nas_mng_user     => 'NAS_MNG_USER',
     #nas_mng_password => 'MNG_PASSWORD',
     number           => "$lang{NUM}",
     flors            => "$lang{ADDRESS} $lang{FLORS}",
@@ -349,7 +376,7 @@ sub form_nas_list {
 
     #users_count      => "$lang{CONNECTED} $lang{USERS}",
     #users_connections=> "$lang{DENSITY_OF_CONNECTIONS}",
-    added       => "$lang{ADDED}",
+    added       => $lang{ADDED},
     location_id => "LOCATION ID"
   );
 
@@ -466,7 +493,6 @@ sub form_nas_add {
   }
 
   if ($Nas->{NAS_MNG_IP_PORT}) {
-
     ($Nas->{NAS_MNG_IP}, $Nas->{COA_PORT}, $Nas->{SSH_PORT}, $Nas->{SNMP_PORT}) = split(':', $Nas->{NAS_MNG_IP_PORT});
   }
 
@@ -475,7 +501,7 @@ sub form_nas_add {
       GLOBAL_URL     => "winbox://",
       NO_LINK_FORMER => 1,
       target         => '_blank',
-      class          => 'btn btn-sm border-left',
+      class          => 'btn input-group-button rounded-left-0',
       TITLE          => "Winbox",
 #      ex_params      => "data-tooltip='Winbox'",
       });
@@ -558,7 +584,9 @@ sub form_nas_console {
       '/queue simple print',
       '/ip firewall address-list print',
       '/ip dhcp-server lease print',
-      '/log print');
+      '/log print',
+      '/interface pppoe-server print'
+    );
   }
   elsif ($Nas_->{NAS_TYPE} =~ /cisco/) {
     @quick_cmd = ('rsh:show run', 'rsh:sh sss session', 'rsh:show log', 'rsh:show interf', 'rsh:show arp', 'rsh:show radius statistics', 'show radius server-group all', 'rsh:sh ver');
@@ -1733,13 +1761,30 @@ sub form_ip_pools {
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $Nas->remove_ippools_ips({
-      DEL => $FORM{del}
+    my $nas_ip_pool = $Nas->nas_ip_pools_list({
+      ID                => $FORM{del},
+      IP_COUNT          => '_SHOW',
+      INTERNET_IP_FREE  => '_SHOW',
+      COLS_NAME         => 1
     });
-    $Nas->ip_pools_del($FORM{del});
+    $nas_ip_pool = $nas_ip_pool->[0];
 
-    if (!$Nas->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{DELETED}");
+    my $ip_count = ($nas_ip_pool->{ip_count}) ? $nas_ip_pool->{ip_count} : 0;
+    my $ip_free = ($nas_ip_pool->{internet_ip_free}) ? $nas_ip_pool->{internet_ip_free} : 0;
+
+    if ($ip_count == $ip_free){
+      $Nas->remove_ippools_ips({
+        DEL => $FORM{del}
+      });
+      $Nas->ip_pools_del($FORM{del});
+      if (!$Nas->{errno}) {
+        $html->message('info', $lang{INFO}, "$lang{DELETED} ID=$FORM{del}");
+      }
+    } else {
+      my $ip_busy = $ip_count - $ip_free;
+      my $internet_users_index = get_function_index('internet_users_list');
+      my $internet_quantity_users = $html->button($ip_busy, "index=$internet_users_index&IP_POOL_ID=$FORM{del}",{BUTTON => 2, target => '_blank'});
+      $html->message('danger', "$lang{ERROR_DELETE} ID=$FORM{del}", "$lang{NUMBER_OF_USERS}: $internet_quantity_users");
     }
   }
 
@@ -1804,7 +1849,7 @@ sub form_ip_pools {
   ($pools_table, undef) = result_former({
     INPUT_DATA      => $Nas,
     FUNCTION        => 'nas_ip_pools_list',
-    DEFAULT_FIELDS  => 'ID,NAS_NAME,POOL_NAME,FIRST_IP,LAST_IP,IP_COUNT,' . (in_array('Internet', \@MODULES) ? 'INTERNET_IP_FREE' : 'IP_FREE'),
+    DEFAULT_FIELDS  => 'ID,NAS_NAME,POOL_NAME,FIRST_IP,LAST_IP,IP_COUNT,' . (in_array('Internet', \@MODULES) ? 'INTERNET_IP_FREE,INTERNET_DYNAMIC_IP_FREE,' : 'IP_FREE'),
     HIDDEN_FIELDS   => 'STATIC,ACTIVE_NAS_ID,NAS',
     FUNCTION_FIELDS => 'change, del',
     SKIP_USER_TITLE => 1,
@@ -1816,6 +1861,7 @@ sub form_ip_pools {
       last_ip          => $lang{END},
       ip_count         => $lang{COUNT},
       internet_ip_free => $lang{FREE},
+      internet_dynamic_ip_free => "DYNAMIC $lang{FREE}",
       priority         => $lang{PRIORITY},
       speed            => "$lang{SPEED} (Kbits)",
       ip_skip          => $lang{IP_SKIP},
@@ -2122,61 +2168,62 @@ sub sel_nas_groups {
 sub nas_types_list {
 
   my %nas_descr = (
-    '3com_ss'       => '3COM SuperStack Switch',
-    'nortel_bs'     => 'Nortel Baystack Switch',
-    'asterisk'      => 'Asterisk',
-    'usr'           => 'USR Netserver 8/16',
-    'pm25'          => 'LIVINGSTON portmaster 25',
-    'ppp'           => 'FreeBSD ppp demon',
-    'exppp'         => 'FreeBSD ppp demon with extended futures',
-    'dslmax'        => 'ASCEND DSLMax',
-    'celan'         => 'CeLAN Switch',
-    'expppd'        => 'pppd deamon with extended futures',
-    'edge_core'     => 'EdgeCore Switch',
-    'eltex_smg'     => 'Eltex SMG',
-    'radpppd'       => 'pppd version 2.3 patch level 5.radius.cbcp',
-    'lucent_max'    => 'Lucent MAX',
-    'hp'            => 'HP Switch',
-    'mac_auth'      => 'MAC auth',
-    'mpd5'          => 'MPD 5.xx',
-    'ipcad'         => 'IP accounting daemon with Cisco-like ip accounting export',
-    'lepppd'        => 'Linux PPPD IPv4 zone counters',
-    'pppd'          => 'pppd + RADIUS plugin (Linux)',
-    'pppd_coa'      => 'pppd + RADIUS plugin + radcoad (Linux)',
-    'accel_ppp'     => 'Linux accel-ppp',
-    'accel_ipoe'    => 'Linux accel-ipoe',
-    'gnugk'         => 'GNU GateKeeper',
-    'cid_auth'      => 'Auth clients by CID',
-    'cisco'         => 'Cisco',
-    'cisco_voip'    => 'Cisco Voip',
-    'cisco_isg'     => 'Cisco ISG',
-    'cisco_air'     => 'Cisco Aironets',
-    'gpon'          => 'Huawei MA56**',
-    'epon'          => 'BDCOM p3100',
-    'dell'          => 'Dell Switch',
-    'patton'        => 'Patton RAS 29xx',
-    'bsr1000'       => 'CMTS Motorola BSR 1000',
-    'mikrotik'      => 'Mikrotik (http://www.mikrotik.com)',
-    'mikrotik_dhcp' => 'Mikrotik DHCP service',
-    'dlink_pb'      => 'Dlink IP-MAC-Port Binding',
-    'other'         => 'Other nas server',
-    'chillispot'    => 'Chillispot (www.chillispot.org)',
-    'openvpn'       => 'OpenVPN with RadiusPlugin',
-    'vlan'          => 'Vlan managment',
-    'qbridge'       => 'Q-BRIDGE',
-    'dhcp'          => 'DHCP FreeRadius in DHCP mode',
-    'ls_pap2t'      => 'Linksys pap2t',
-    'ls_spa8000'    => 'Linksys spa8000',
-    'redback'       => 'Ericsson Smart Edge SE100 (Redback)',
-    'mx80'          => 'Juniper MX80',
-    'ipv6'          => 'ipv6',
-    'unifi'         => 'Ubiquiti Unifi controler',
-    'eltex'         => 'Eltex',
-    'kamailio'      => 'kamailio SIP server',
-    'ipn'           => 'IPoE static nas',
-    'zte_m6000'     => 'ZTE M6000',
-    'huawei_me60'   => 'Huawei ME60 router',
-    'wifipoint'     => 'Wifi Access point'
+      '3com_ss'       => '3COM SuperStack Switch',
+      'nortel_bs'     => 'Nortel Baystack Switch',
+      'asterisk'      => 'Asterisk',
+      'usr'           => 'USR Netserver 8/16',
+      'pm25'          => 'LIVINGSTON portmaster 25',
+      'ppp'           => 'FreeBSD ppp demon',
+      'exppp'         => 'FreeBSD ppp demon with extended futures',
+      'dslmax'        => 'ASCEND DSLMax',
+      'celan'         => 'CeLAN Switch',
+      'expppd'        => 'pppd deamon with extended futures',
+      'edge_core'     => 'EdgeCore Switch',
+      'eltex_smg'     => 'Eltex SMG',
+      'radpppd'       => 'pppd version 2.3 patch level 5.radius.cbcp',
+      'lucent_max'    => 'Lucent MAX',
+      'hp'            => 'HP Switch',
+      'mac_auth'      => 'MAC auth',
+      'mpd5'          => 'MPD 5.xx',
+      'ipcad'         => 'IP accounting daemon with Cisco-like ip accounting export',
+      'lepppd'        => 'Linux PPPD IPv4 zone counters',
+      'pppd'          => 'pppd + RADIUS plugin (Linux)',
+      'pppd_coa'      => 'pppd + RADIUS plugin + radcoad (Linux)',
+      'accel_ppp'     => 'Linux accel-ppp',
+      'accel_ipoe'    => 'Linux accel-ipoe',
+      'gnugk'         => 'GNU GateKeeper',
+      'cid_auth'      => 'Auth clients by CID',
+      'cisco'         => 'Cisco',
+      'cisco_voip'    => 'Cisco Voip',
+      'cisco_isg'     => 'Cisco ISG',
+      'cisco_air'     => 'Cisco Aironets',
+      'gpon'          => 'Huawei MA56**',
+      'epon'          => 'BDCOM p3100',
+      'dell'          => 'Dell Switch',
+      'patton'        => 'Patton RAS 29xx',
+      'bsr1000'       => 'CMTS Motorola BSR 1000',
+      'mikrotik'      => 'Mikrotik (http://www.mikrotik.com)',
+      'mikrotik_dhcp' => 'Mikrotik DHCP service',
+      'dlink_pb'      => 'Dlink IP-MAC-Port Binding',
+      'other'         => 'Other nas server',
+      'chillispot'    => 'Chillispot (www.chillispot.org)',
+      'openvpn'       => 'OpenVPN with RadiusPlugin',
+      'vlan'          => 'Vlan managment',
+      'qbridge'       => 'Q-BRIDGE',
+      'dhcp'          => 'DHCP FreeRadius in DHCP mode',
+      'ls_pap2t'      => 'Linksys pap2t',
+      'ls_spa8000'    => 'Linksys spa8000',
+      'redback'       => 'Ericsson Smart Edge SE100 (Redback)',
+      'mx80'          => 'Juniper MX80',
+      'ipv6'          => 'ipv6',
+      'unifi'         => 'Ubiquiti Unifi controler',
+      'eltex'         => 'Eltex',
+      'kamailio'      => 'kamailio SIP server',
+      'ipn'           => 'IPoE static nas',
+      'zte_m6000'     => 'ZTE M6000',
+      'huawei_me60'   => 'Huawei ME60 router',
+      'wifipoint'     => 'Wifi Access point',
+      'strongswan'    => 'strongSwan'
   );
 
   if ($conf{nas_servers}) {

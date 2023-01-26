@@ -274,8 +274,16 @@ sub cablecat_cables {
           });
         }
       }
+      if ($FORM{ARTICLE_ID}) {
+        load_module('Storage', $html);
+        storage_hardware({ ADD_ONLY => 1, WITHOUT_USER => 1 });
+        $Cablecat->cablecat_storage_add({
+          CABLE_ID        => $new_cable_id,
+          INSTALLATION_ID => $FORM{INSTALLATION_ID},
+        }) if $FORM{INSTALLATION_ID};
+      }
 
-      my $preview_btn = $html->button("$lang{OPEN}", "index=$index&chg=$new_cable_id", { BUTTON => 1 });
+      my $preview_btn = $html->button($lang{OPEN}, "index=$index&chg=$new_cable_id", { BUTTON => 1 });
       my $add_more_button = $html->button($lang{VIEW}, "index=$index&add_form=1", { BUTTON => 1 });
       $html->message('info', "$lang{ADDED} $lang{CABLE}", $preview_btn . $add_more_button, {
         RESPONCE_PARAMS => {
@@ -301,9 +309,10 @@ sub cablecat_cables {
       $show_add_form = 1;
     }
 
-    if (!$TEMPLATE_ARGS{LENGTH_CALCULATED}) {
-      $TEMPLATE_ARGS{LENGTH_CALCULATED} = sprintf("%.2f", _cablecat_cable_length($FORM{chg}));
-    }
+    $TEMPLATE_ARGS{LENGTH_CALCULATED} = sprintf("%.2f", _cablecat_cable_length($FORM{chg})) if !$TEMPLATE_ARGS{LENGTH_CALCULATED};
+
+    $TEMPLATE_ARGS{INSTALLATIONS_TABLE} = _cablecat_storage_installations($FORM{chg});
+    $TEMPLATE_ARGS{HIDE_STORAGE_FORM} = 'd-none';
   }
   elsif ($FORM{del}) {
     $Cablecat->delete_links_for_element('CABLE', $FORM{del});
@@ -385,10 +394,25 @@ sub cablecat_cables {
     $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID}, $MAP_LAYER_ID{CABLE});
     $TEMPLATE_ARGS{LENGTH_CALCULATED} = $FORM{LENGTH_CALCULATED} || '0.00';
 
+
+    if (in_array('Storage', \@MODULES) && !$FORM{chg}) {
+      load_module('Storage', $html);
+      my $Storage = Storage->new($db, $admin, \%conf);
+
+      $TEMPLATE_ARGS{STORAGE_STORAGES} = storage_storage_sel($Storage, { DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) });
+      $TEMPLATE_ARGS{ARTICLE_ID} = storage_articles_sel($Storage, { ARTICLE_ID => $FORM{ARTICLE_ID}, EMPTY_SEL => 1 });
+      $TEMPLATE_ARGS{ARTICLE_TYPES} = $html->form_select("ARTICLE_TYPE_ID", {
+        SELECTED    => $FORM{ARTICLE_TYPE_ID} || $Storage->{ARTICLE_TYPE_ID},
+        SEL_LIST    => $Storage->storage_types_list({ COLS_NAME => 1, DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) }),
+        SEL_OPTIONS => { '' => '--' },
+        EX_PARAMS   => "onchange='selectArticles(this, false, false);'",
+        MAIN_MENU   => get_function_index('storage_articles_types')
+      });
+    }
+
     $html->tpl_show(_include('cablecat_cable', 'Cablecat'), {
       %TEMPLATE_ARGS,
-      CABLE_TYPE_SELECT =>
-        _cablecat_cable_type_select({ SELECTED => $TEMPLATE_ARGS{TYPE_ID}, NAME => 'TYPE_ID', REQUIRED => 1 }),
+      CABLE_TYPE_SELECT => _cablecat_cable_type_select({ SELECTED => $TEMPLATE_ARGS{TYPE_ID}, NAME => 'TYPE_ID', REQUIRED => 1 }),
       SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
       SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
     });
@@ -400,58 +424,52 @@ sub cablecat_cables {
     print _cablecat_cable_links_table($TEMPLATE_ARGS{ID});
   }
 
-  my Abills::HTML $table;
-  ($table) = result_former(
-    {
-      INPUT_DATA      => $Cablecat,
-      FUNCTION        => 'cables_list',
-      BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => 'ID,NAME,CABLE_TYPE,COMMENTS,CREATED,POINT_ID',
-      HIDDEN_FIELDS   => 'WELL_1_ID,WELL_2_ID,POLYLINE_ID',
-      FUNCTION_FIELDS => 'change,del',
-      SKIP_USER_TITLE => 1,
-      EXT_FIELDS      => 0,
-      EXT_TITLES      => {
-        id                => '#',
-        name              => $lang{NAME},
-        cable_type        => $lang{CABLE_TYPE},
-        comments          => $lang{COMMENTS},
-        created           => $lang{CREATED},
-        well_1            => "$lang{WELL} 1",
-        well_2            => "$lang{WELL} 2",
-        fibers_count      => $lang{FIBERS},
-        modules_count     => $lang{MODULES},
-        point_id          => $lang{MAP},
-        length            => $lang{LENGTH},
-        reserve           => $lang{RESERVE},
-        length_calculated => "$lang{LENGTH} $lang{CALCULATED} ",
-      },
-      FILTER_VALUES   => {
-        name => sub {
-          $html->button(shift, 'get_index=cablecat_cables&full=1&chg=' . shift->{id});
-        },
-      },
-      FILTER_COLS     => {
-        well_1   =>
-          '_cablecat_result_former_named_chg_link_filter::PARAM_NAME=well_1_id,FUNCTION=cablecat_wells,WELL_1_ID',
-        well_2   =>
-          '_cablecat_result_former_named_chg_link_filter::PARAM_NAME=well_2_id,FUNCTION=cablecat_wells,WELL_2_ID',
-        point_id => '_cablecat_result_former_cable_point_id_filter::POLYLINE_ID,POINT_ID'
-      },
-      TABLE           => {
-        width   => '100%',
-        caption => $lang{CABLES},
-        ID      => 'CABLES_TABLE',
-        EXPORT  => 1,
-        MENU    => "$lang{ADD}:index=$index&add_form=1:add;$lang{SEARCH}:index=$index&search_form=1:search"
-      },
-      MAKE_ROWS       => 1,
-      SEARCH_FORMER   => 1,
-      MODULE          => 'Cablecat',
-    }
-  );
-
-  print $table->show();
+  result_former({
+    INPUT_DATA      => $Cablecat,
+    FUNCTION        => 'cables_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,NAME,CABLE_TYPE,COMMENTS,CREATED,POINT_ID',
+    HIDDEN_FIELDS   => 'WELL_1_ID,WELL_2_ID,POLYLINE_ID',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    EXT_FIELDS      => 0,
+    EXT_TITLES      => {
+      id                => '#',
+      name              => $lang{NAME},
+      cable_type        => $lang{CABLE_TYPE},
+      comments          => $lang{COMMENTS},
+      created           => $lang{CREATED},
+      well_1            => "$lang{WELL} 1",
+      well_2            => "$lang{WELL} 2",
+      fibers_count      => $lang{FIBERS},
+      modules_count     => $lang{MODULES},
+      point_id          => $lang{MAP},
+      length            => $lang{LENGTH},
+      reserve           => $lang{RESERVE},
+      length_calculated => "$lang{LENGTH} $lang{CALCULATED} ",
+    },
+    FILTER_VALUES   => {
+      name => sub { $html->button(shift, 'get_index=cablecat_cables&full=1&chg=' . shift->{id}); },
+    },
+    FILTER_COLS     => {
+      well_1   =>
+        '_cablecat_result_former_named_chg_link_filter::PARAM_NAME=well_1_id,FUNCTION=cablecat_wells,WELL_1_ID',
+      well_2   =>
+        '_cablecat_result_former_named_chg_link_filter::PARAM_NAME=well_2_id,FUNCTION=cablecat_wells,WELL_2_ID',
+      point_id => '_cablecat_result_former_cable_point_id_filter::POLYLINE_ID,POINT_ID'
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{CABLES},
+      ID      => 'CABLES_TABLE',
+      EXPORT  => 1,
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add;$lang{SEARCH}:index=$index&search_form=1:search"
+    },
+    MODULE          => 'Cablecat',
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    TOTAL           => 1
+  });
 
   return 1;
 }
@@ -2367,5 +2385,44 @@ sub _cablecat_get_closest_well {
   return $wells->[0];
 }
 
+#**********************************************************
+=head2 _cablecat_storage_installations($cable_id)
+
+=cut
+#**********************************************************
+sub _cablecat_storage_installations {
+  my $cable_id = shift;
+
+  return '' if !$cable_id;
+  return '' if !in_array('Storage', \@MODULES) || ($admin->{MODULES} && !$admin->{MODULES}{Storage});
+
+  my $installation_function_index = get_function_index('storage_main');
+  return '' if !$installation_function_index;
+
+  my $installations = $Cablecat->cablecat_storage_list({
+    ARTICLE_TYPE_NAME => '_SHOW',
+    CABLE_ID          => $cable_id,
+    ARTICLE_NAME      => '_SHOW',
+    COUNT             => '_SHOW',
+    DATE              => '_SHOW',
+    INSTALLATION_ID   => '_SHOW',
+    COLS_NAME         => 1
+  });
+
+  my $storage_table = $html->table({
+    width   => '100%',
+    caption => $lang{INSTALLATIONS},
+    title   => [ $lang{TYPE}, $lang{NAME}, $lang{COUNT}, $lang{DATE}, '-' ],
+    ID      => 'STORAGE_ID'
+  });
+
+  foreach my $installation (@{$installations}) {
+    my $installation_btn = $html->button($installation->{article_name}, "index=$installation_function_index" .
+      "&show_installation=1&chg_installation=1&ID=$installation->{installation_id}", { class => 'change' });
+    $storage_table->addrow($installation->{article_type_name}, $installation->{article_name}, $installation->{count},
+      $installation->{date}, $installation_btn);
+  }
+  return $storage_table->show({ OUTPUT2RETURN => 1 });
+}
 
 1;

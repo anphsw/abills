@@ -1227,7 +1227,7 @@ sub list_perl_modules {
     ),
     &expand_usr64($Config{'installprivlib'})
   ) {
-    next if (!$d);
+    next if (!$d || ! -d $d);
 
     next if ($donedir{$d});
     my $f;
@@ -1268,7 +1268,8 @@ sub list_perl_modules {
         }
         elsif ($l =~ /^([^\/]+)\.pm$/) {
           # Module name only, with no path! Damn redhat..
-          my @rpath;
+          my @rpath = ();
+          next if (!$d || ! -d $d);
           open(my $FIND2, '-|', "find '$d' -name '$l' -print");
           while (<$FIND2>) {
             chop;

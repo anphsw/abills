@@ -7,10 +7,9 @@ package Expert;
 =cut
 
 use strict;
-use parent 'main';
-my $MODULE = 'Expert';
+use parent qw(dbcore);
 
-use Abills::Base qw/_bp/;
+my $MODULE = 'Expert';
 
 #**********************************************************
 =head2 new($db, $admin, \%conf)
@@ -20,17 +19,17 @@ use Abills::Base qw/_bp/;
 sub new {
   my $class = shift;
   my ($db, $admin, $CONF) = @_;
-  
+
   $admin->{MODULE} = $MODULE;
-  
+
   my $self = {
     db    => $db,
     admin => $admin,
     conf  => $CONF
   };
-  
+
   bless($self, $class);
-  
+
   return $self;
 }
 
@@ -43,7 +42,7 @@ sub question_info {
   my $self = shift;
   my ($question_id) = @_;
 
-  $self->query2("SELECT *
+  $self->query("SELECT *
     FROM expert_question
     WHERE id = ?",
     undef,
@@ -60,15 +59,14 @@ sub question_info {
 #**********************************************************
 sub question_list {
   my $self = shift;
-  my ($question_id) = @_;
 
-  $self->query2("SELECT *
+  $self->query("SELECT *
     FROM expert_question;",
     undef,
-    { COLS_NAME => 1}
+    { COLS_NAME => 1 }
   );
 
-  return $self->{list} || [ ];
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -92,19 +90,14 @@ sub question_add {
 #**********************************************************
 sub question_change {
   my $self = shift;
-  my ($id, $question, $description) = @_;
+  my ($attr) = @_;
 
-  $question //= "";
-  $description //= "";
-  
-  $self->query2( "UPDATE expert_question
-    SET question = '$question',
-    description = '$description'
-    WHERE id = $id",
-    'do', 
-    { } 
-  );
-  
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'expert_question',
+    DATA         => $attr,
+  });
+
   return $self;
 }
 
@@ -117,7 +110,7 @@ sub answers_info {
   my $self = shift;
   my ($answer_id) = @_;
 
-  $self->query2("SELECT *
+  $self->query("SELECT *
     FROM expert_answer
     WHERE id = ?",
     undef,
@@ -137,7 +130,7 @@ sub answers_list {
   my $self = shift;
   my ($question_id) = @_;
 
-  $self->query2("SELECT *
+  $self->query("SELECT *
     FROM expert_answer
     WHERE question_id = ?",
     undef,
@@ -168,17 +161,121 @@ sub answer_add {
 #**********************************************************
 sub answer_change {
   my $self = shift;
-  my ($id, $answer, $question_id) = @_;
+  my ($attr) = @_;
 
-  $self->query2( "UPDATE expert_answer
-    SET answer = '$answer',
-    question_id = '$question_id'
-    WHERE id = $id",
-    'do', 
-    { } 
-  );
-  
+  $attr->{ID} = $attr->{ANSWER_ID};
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'expert_answer',
+    DATA         => $attr,
+  });
+
   return $self;
 }
 
-1
+#**********************************************************
+=head2 faq_add() - add info
+
+=cut
+#**********************************************************
+sub faq_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('expert_faq', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 faq_del() - delete faq
+
+=cut
+#**********************************************************
+sub faq_del {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query_del('expert_faq', { ID => $id });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 faq_change() - change info of faq
+
+=cut
+#**********************************************************
+sub faq_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'expert_faq',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 faq_list() - list of faq
+
+=cut
+#**********************************************************
+sub faq_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my @search_columns = (
+    [ 'ID',        'INT',    'ef.id',     1],
+    [ 'TITLE',     'STR',    'ef.title',  1],
+    [ 'BODY',      'STR',    'ef.body',   1],
+    [ 'TYPE',      'INT',    'ef.type',   1],
+    [ 'ICON',      'STR',    'ef.icon',   1],
+  );
+
+  if ($attr->{SHOW_ALL_COLUMNS}){
+    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @search_columns;
+  }
+
+  my $WHERE = $self->search_former($attr, \@search_columns,
+    { WHERE => 1 }
+  );
+
+  $self->query("
+    SELECT
+      $self->{SEARCH_FIELDS}
+      ef.id
+    FROM expert_faq ef
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    { %$attr,
+      COLS_NAME  => 1,
+    }
+  );
+
+  my $list = $self->{list};
+
+  return [] if ($self->{errno} || $self->{TOTAL} < 1);
+
+  $self->query("SELECT COUNT(ef.id) AS total
+   FROM expert_faq ef
+   $WHERE",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+1;

@@ -130,7 +130,7 @@ sub register_gpon_huawei {
   my $iptv_user_vlan = $argv->{IPTV_USER_VLAN} || 103;
   my $mac_serial = $argv->{MAC_SERIAL};
   my $line_profile_vlans = $argv->{LINE_PROFILE_DATA};
-  my $onu_desc = ($argv->{ONU_DESC}) ? "desc $argv->{ONU_DESC}" : "; enter;";
+  my $onu_desc = ($argv->{ONU_DESC}) ? "desc \"$argv->{ONU_DESC}\"; enter;" : "; enter;";
   my $onu_id = '';
   my $err = 0;
   my $vlan_count = 0;
@@ -268,7 +268,7 @@ sub register_gpon_huawei_vlan_per_user {
   my $line_profile = $argv->{LINE_PROFILE};
   my $srv_profile = $argv->{SRV_PROFILE};
   my $mac_serial = $argv->{MAC_SERIAL};
-  my $onu_desc = ($argv->{ONU_DESC}) ? "desc $argv->{ONU_DESC}" : "; enter;";
+  my $onu_desc = ($argv->{ONU_DESC}) ? "desc \"$argv->{ONU_DESC}\"; enter;" : "; enter;";
   my $onu_id = '';
   my $internet_user_vlan = $argv->{INTERNET_USER_VLAN} || 101;
   my $vlan = $argv->{VLAN_ID} || '';
@@ -626,7 +626,7 @@ sub register_epon_huawei {
   #my $iptv_user_vlan     = $attr->{IPTV_USER_VLAN} || 103;
   my $mac_serial = $attr->{MAC_SERIAL};
   my $line_profile_vlans = $attr->{LINE_PROFILE_DATA};
-  #my $onu_desc           = ($attr->{ONU_DESC}) ? "desc $attr->{ONU_DESC}" : "; enter;";
+  my $onu_desc           = ($attr->{ONU_DESC}) ? "desc \"$attr->{ONU_DESC}\"; enter;" : "; enter;";
   my $onu_id = 0;
   my $err = 0;
   my $vlan_count = 0;
@@ -677,7 +677,7 @@ sub register_epon_huawei {
       $mac_serial = uc("$1$2-$3$4-$5$6");
     }
 
-    $data = telnet_cmd("ont add $port mac-auth $mac_serial oam ont-lineprofile-name $line_profile ont-srvprofile-name $srv_profile\n");
+    $data = telnet_cmd("ont add $port mac-auth $mac_serial oam ont-lineprofile-name $line_profile ont-srvprofile-name $srv_profile $onu_desc\n");
 
     if ($data =~ /.*(Failure:[a-fA-Z\s]+)\|/) {
       print $1 . "\n";

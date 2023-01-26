@@ -200,11 +200,18 @@ var AMessageChecker = (function () {
     });
   }
 
-  Events.on('MessageChecker.seenMessage', function(qb_id){
-    if (qb_id) {
-      hideQBinfo(qb_id);
+  try {
+    Events.on('MessageChecker.seenMessage', function(qb_id) {
+      if (qb_id) {
+        hideQBinfo(qb_id);
+      }
+    });
+  } catch(e) {
+    const ignoredException = 'Events is not defined';
+    if (!e.message.includes(ignoredException)) {
+      console.log(e);
     }
-  });
+  }
 
   return {
     start      : start,
@@ -242,7 +249,7 @@ function JSONLoaderCached(options) {
     var timeleft         = (parseInt(lastUpdate) + parseInt(self.refresh)) - parseInt(currentTimestamp);
 
     if (timeleft <= 0 || force) {
-      $.getJSON(self.url, function (data) {
+      $.getJSON(self.url, data => {
         var formatted = data;
 
         if (self.format_callback) {
@@ -467,6 +474,12 @@ var MessagesMenu = function (id, options) {
                 if (self.filter(message))
                   result.push(self.parseMessage(message));
               });
+            } else if (rawData && rawData.constructor === Array) {
+              rawData.map(message => {
+                if (self.filter(message)) {
+                  result.push(self.parseMessage(message));
+                }
+              });
             }
             return result.reverse();
           }
@@ -474,7 +487,7 @@ var MessagesMenu = function (id, options) {
         $('#' + id).removeClass('hidden');
       }
       else {
-        // No need to show element if has no update link
+        // No need to show element if it has no update link
         return false;
       }
 
@@ -787,34 +800,20 @@ var EventsMenu = function (id, options) {
     let subject        = event['SUBJECT']
     let created_data   = moment(event['CREATED'], 'YYYY-MM-DD hh:mm:ss').fromNow()
 
-    var event_tpl =`
-      <div class="media">
+    return `
+      <div class='media'>
         <i class="far fa-2x fa-bell ${priority_class}"></i>
-          <div class="media-body">
+          <div class='media-body'>
             <h3 class="dropdown-item-title ${priority_class_this}">
               ${sender_text}
             </h3>
-            <p class="text-sm">${subject}</p>
+            <p class='text-sm'>${subject}</p>
             <p class="text-sm text-muted">
               <i class="far fa-clock mr-1"></i>
               ${created_data}
             </p>
           </div>
       </div>`
-
-    return event_tpl
-
-    // var time    = '<small><i class="far fa-clock"></i>&nbsp'
-    //     + moment(event['CREATED'], 'YYYY-MM-DD hh:mm:ss').fromNow()
-    //     + '</small>';
-    // var header  = '<h4>' + title + time + '</h4>';
-    // var subject = '<p class="' + priority_class + '">' + event['TEXT'] + '</p>';
-
-    // var icon_class = 'fa fa-2x fa-bell-o ' + self.getPriorityClass(event['PRIORITY']);
-    // var icon       = '<div class="float-left"><i class="' + icon_class + '"></i></div>';
-
-    // return icon + header + subject;
-
   };
 
   this.addEvent = function (event) {

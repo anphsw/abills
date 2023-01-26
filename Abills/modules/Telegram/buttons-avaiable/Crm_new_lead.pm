@@ -37,7 +37,28 @@ sub new {
 sub btn_name {
   my $self = shift;
 
-  return $self->{bot}{lang}{THE_SUBSCRIBER_WITH_THIS_PHONE_IS_NOT_REGISTERED};
+  return $self->{bot}{lang}{INVITE_A_FRIEND};
+}
+
+#**********************************************************
+=head2 click($attr)
+
+=cut
+#**********************************************************
+sub click {
+  my $self = shift;
+  my $label = $self->{bot}{lang}{TELEGRAM_LINK_AND_INVITE};
+  my $bot_name = $self->{conf}{TELEGRAM_BOT_NAME};
+  my $bot_link = "https://t.me/$bot_name";
+
+  my $text = "$label\n\n$bot_link";
+
+  $self->{bot}->send_message({
+    text => $text,
+    parse_mode => 'HTML'
+  });
+
+  return 1;
 }
 
 #**********************************************************

@@ -377,8 +377,8 @@ sub header {
   }
 
   $self->{header}  = "Content-Type: application/json; charset=$CHARSET\n";
-  $self->{header} .= "Access-Control-Allow-Headers: *\n";
   $self->{header} .= "Access-Control-Allow-Origin: *" . "\n";
+  $self->{header} .= "Access-Control-Allow-Headers: *\n";
   $self->{header} .= "Status: $attr->{STATUS}\n" if $attr->{STATUS};
   $self->{header} .= "\n";
 
@@ -1044,13 +1044,24 @@ sub fetch  {
   my ($attr) = @_;
 
   my @output_arr = ();
-  foreach my $obj ( @{ $self->{JSON_OUTPUT} } ) {
-    if(ref $obj eq 'HASH') {
+  my %dup_keys;
+
+  foreach my $obj (@{$self->{JSON_OUTPUT}}) {
+    if (ref $obj eq 'HASH') {
       my ($key, $val) = each %$obj;
-      push @output_arr, "\"$key\" : $val";
+      push(@{$dup_keys{$key}}, $val);
     }
     else {
       push @output_arr, $obj;
+    }
+  }
+
+  foreach my $key (keys %dup_keys) {
+    if (scalar(@{$dup_keys{$key}}) == 1) {
+      push @output_arr, qq{"$key": $dup_keys{$key}->[0]};
+    }
+    else {
+      push @output_arr, qq{"$key": [} . join(',', @{$dup_keys{$key}}) . ']';
     }
   }
 

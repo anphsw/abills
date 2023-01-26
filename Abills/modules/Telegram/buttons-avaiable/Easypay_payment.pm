@@ -64,8 +64,31 @@ sub click {
     $account_key = $users_info->{LOGIN};
   }
 
+  my $list = $Users->list({
+    UID            => $self->{bot}->{uid},
+    LOGIN          => '_SHOW',
+    FIO            => '_SHOW',
+    DEPOSIT        => '_SHOW',
+    CREDIT         => '_SHOW',
+    PHONE          => '_SHOW',
+    ADDRESS_FULL   => '_SHOW',
+    GID            => '_SHOW',
+    DOMAIN_ID      => '_SHOW',
+    DISABLE_PAYSYS => '_SHOW',
+    GROUP_NAME     => '_SHOW',
+    DISABLE        => '_SHOW',
+    CONTRACT_ID    => '_SHOW',
+    ACTIVATE       => '_SHOW',
+    REDUCTION      => '_SHOW',
+    BILL_ID        => '_SHOW',
+    COLS_NAME      => 1,
+    COLS_UPPER     => 1,
+    PAGE_ROWS      => 1,
+  });
+
+  $users_info->{DEPOSIT} = $users_info->{DEPOSIT} || 0;
   my $deposit = sprintf("%.2f", $users_info->{DEPOSIT});
-  my $amount = abs($deposit);
+  my $amount = ::recomended_pay($list->[0]) || 1;
   my $fast_pay = main::get_gid_conf("PAYSYS_EASYPAY_FASTPAY", $gid);
   my $url_pay = "$fast_pay"  . "?account=" .  "$account_key" . "&amount=" . "$amount";
 

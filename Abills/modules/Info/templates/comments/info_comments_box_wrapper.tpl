@@ -5,7 +5,7 @@
     <h4 class='card-title'>_{COMMENTS}_</h4>
     <div class='card-tools float-right'>
       %COMMENTS_CONTROLS%
-      <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
+      <button type='button' class='btn btn-tool' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>
       </button>
     </div>
@@ -13,7 +13,7 @@
   <div class='card-body'>
     <div id='commentsWrapper' class='row'>
       <div class='col-md-12'>
-        <div class='col-md-12 timeline' id='commentsBlock'>
+        <div class='col-md-12 timeline mb-0' id='commentsBlock'>
           %COMMENTS%
         </div>
       </div>

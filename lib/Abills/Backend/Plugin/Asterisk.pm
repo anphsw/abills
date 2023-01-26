@@ -259,10 +259,10 @@ sub process_asterisk_newchannel {
           });
 
           if (!$Callcenter->{errno}) {
-            $Log->info("NEW_CALL ID: $call_id");
+            $Log->info("NEW_CALL ID: ". ( $call_id || 'UNKNOWN'));
           }
           else {
-            $Log->info("ERR_CANT_ADD_CALL ID: ". $call_id);
+            $Log->info("ERR_CANT_ADD_CALL ID: ". ($call_id || 'UNKNOWN'));
           }
         };
 
@@ -316,21 +316,23 @@ sub process_asterisk_newstate {
   my ($asterisk, $event) = @_;
 
   if ($event->{ConnectedLineNum} && $event->{ChannelStateDesc} eq 'Up') {
-    my ($call_id, undef) = split('\.', $event->{Uniqueid});
+    my ($call_id, undef) = split('\.', $event->{Uniqueid} || q{UNKNOWN});
 
-    $Callcenter->callcenter_change_calls({
-      STATUS => 2,
-      ID     => $call_id
-    });
+    if ($call_id) {
+      $Callcenter->callcenter_change_calls({
+          STATUS => 2,
+          ID     => $call_id
+      });
 
-    if (!$Callcenter->{errno}) {
-      $Log->info("CALL_IN_PROCESS. ID: $call_id");
+      if (!$Callcenter->{errno}) {
+        $Log->info("CALL_IN_PROCESS. ID: $call_id");
+      }
+      else {
+        $Log->info("CAN_T_CHANGE_STATUS_CALL ($Callcenter->{errno}/$Callcenter->{errstr})");
+      }
+
+      $calls_statuses{$call_id} = 2;
     }
-    else {
-      $Log->info("CAN_T_CHANGE_STATUS_CALL ($Callcenter->{errno}/$Callcenter->{errstr})");
-    }
-
-    $calls_statuses{$call_id} = 2;
   }
 
   return 1;
@@ -353,35 +355,33 @@ sub process_asterisk_newstate {
 sub process_asterisk_softhangup {
   my ($asterisk, $event) = @_;
 
-  #if ($event->{ConnectedLineNum} && $event->{ConnectedLineNum} =~ /\d+/) {
-    my $called_number = $event->{Exten} || q{};
-    my ($call_id, undef) = split('\.', $event->{Uniqueid});
+  my $called_number = $event->{Exten} || q{};
+  my ($call_id, undef) = split('\.', $event->{Uniqueid} || q{UNKNOWN});
 
-    if (defined $calls_statuses{$call_id} && $calls_statuses{$call_id} == 2) {
+  if (defined($calls_statuses{$call_id}) && $calls_statuses{$call_id} == 2) {
+    $Callcenter->callcenter_change_calls({
+      STATUS => 3,
+      ID     => $call_id,
+      STOP   => 'NOW()'
+    });
+
+    delete $calls_statuses{$call_id};
+    $Log->info("CALL_PROCESSED ID: $call_id NUMBER: $called_number");
+  }
+  else {
+    $Callcenter->callcenter_info_calls({
+      ID => $call_id
+    });
+
+    if ($Callcenter->{STATUS} && $Callcenter->{STATUS} < 3) {
       $Callcenter->callcenter_change_calls({
-        STATUS => 3,
+        STATUS => 4,
         ID     => $call_id,
         STOP   => 'NOW()'
       });
-
-      delete $calls_statuses{$call_id};
-      $Log->info("CALL_PROCESSED ID: $call_id NUMBER: $called_number");
+      $Log->warning("CALL_NOT_PROCEESSED ID: $call_id NUMBER: $called_number");
     }
-    else {
-      $Callcenter->callcenter_info_calls({
-        ID     => $call_id
-      });
-
-      if ($Callcenter->{STATUS} && $Callcenter->{STATUS} < 3) {
-        $Callcenter->callcenter_change_calls({
-          STATUS => 4,
-          ID     => $call_id,
-          STOP   => 'NOW()'
-        });
-        $Log->warning("CALL_NOT_PROCEESSED ID: $call_id NUMBER: $called_number");
-      }
-    }
-  #}
+  }
 
   return 1
 }
@@ -437,6 +437,8 @@ sub get_admin_by_sip_number {
 sub notify_admin_about_new_call {
   my ($called_number, $caller_number, $event) = @_;
 
+  $called_number //= q{};
+  $caller_number //= q{};
   my $admin_aids = get_admin_by_sip_number($called_number);
   my @online_aids = ();
 
@@ -445,7 +447,7 @@ sub notify_admin_about_new_call {
       push @online_aids, $aid;
     }
     else {
-      $Log->notice("CANT_NOTIFY AID: '$aid', no connection");
+      $Log->notice("CANT_NOTIFY AID: '". ($aid || q{-}) ."', no connection");
     }
   }
 
@@ -545,27 +547,31 @@ sub _create_user_notification {
       SORT            => 2,
       DESC            => 'DESC',
       COLS_NAME       => 1,
-      COLS_UPPER      => 1,
+      #COLS_UPPER      => 1,
       PAGE_ROWS       => 1
     });
 
-    $tp_name = $user_internet_main->[0]->{tp_name} || '';
-    $internet_status = $user_internet_main->[0]->{internet_status} || '0';
+    if ($Internet->{TOTAL} && $Internet->{TOTAL} > 0) {
+      $tp_name = $user_internet_main->[0]->{tp_name} || '';
+      $internet_status = $user_internet_main->[0]->{internet_status} || '0';
+    }
   }
 
   my $title = ($user_info->{FIO} || '')
     . ' ( '
-    . (($user_info->{COMPANY_NAME}) ? $user_info->{COMPANY_NAME} . ' : ' . $user_info->{LOGIN}
-    : $user_info->{LOGIN})
+    . (($user_info->{COMPANY_NAME}) ? $user_info->{COMPANY_NAME} . ' : ' . ($user_info->{LOGIN} || q{})
+    : ($user_info->{LOGIN} || q{}) )
     . ' )';
 
   our %lang;
   do "$base_dir/language/" . ($conf{default_language} || 'english') . ".pl";
+
   my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HOLD_UP},
     "$lang{DISABLE}: $lang{NON_PAYMENT}", $lang{ERR_SMALL_DEPOSIT},
     $lang{VIRUS_ALERT});
+
   my $money_name = '';
-  if (exists $conf{MONEY_UNIT_NAMES} && defined $conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY') {
+  if ($conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY') {
     $money_name = $conf{MONEY_UNIT_NAMES}->[0] || '';
   }
 
@@ -595,7 +601,7 @@ sub _create_user_notification {
   my $result = {
     TITLE  => Encode::decode('utf8', $title),
     TEXT   => Encode::decode('utf8', $text),
-    EXTRA  => '?index=15&UID=' . $user_info->{UID},
+    EXTRA  => '?index=15&UID=' . ($user_info->{UID} || 0),
     ICON   => 'fa fa-user text-success',
     CLIENT => {
       UID   => $user_info->{UID},
@@ -643,7 +649,7 @@ sub _create_lead_notification {
       $lead_info{ID} = $lead->{id};
       $lead_info{ADDRESS_FULL} = $lead->{address_full} || $lead->{address};
       $lead_info{DATE} = $lead->{date};
-      $Log->info("LEAD_FOUND: '$lead->{id}'");
+      $Log->info("LEAD_FOUND: '". ($lead->{id} || 0) ."'");
     }
   }
 
@@ -658,7 +664,7 @@ sub _create_lead_notification {
       .'<br/>'. "$lang{ADDRESS} : ". ($lead_info{ADDRESS_FULL} || q{})
       .'<br/>'. "$lang{DATE} : ". ($lead_info{DATE} || q{});
     $icon = 'fa fa-user text-warning';
-    $link = '?get_index=crm_lead_info&full=1&LEAD_ID=' . $lead_info{'ID'} .'&PHONE=' . $number;
+    $link = '?get_index=crm_lead_info&full=1&LEAD_ID=' . ($lead_info{'ID'} || q{}) .'&PHONE=' . $number;
   }
 
   my %result = (

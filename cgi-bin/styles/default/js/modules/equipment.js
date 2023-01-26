@@ -29,7 +29,7 @@ $(function () {
   $templateSelectWrapper.remove();
 
   //Misc variables
-  var portTypes = ['', 'RJ45', 'GBIC', 'Gigabit', 'SFP', 'QSFP', 'EPON', 'GPON'];
+  var portTypes = ['', 'RJ45', 'GBIC', 'Gigabit', 'SFP', 'QSFP', 'EPON', 'GPON', 'SFP-RJ45', 'no port'];
 
   var portCounter = 0;
 

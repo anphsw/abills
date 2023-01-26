@@ -44,7 +44,7 @@
       %MENU%
     </div>
   </aside>
-  <div class='content-wrapper'>
+  <div id='content-wrapper' class='content-wrapper'>
     <section class='content p-2' id='main-content'>
       <br/>
       %BODY%
@@ -53,9 +53,6 @@
 </div>
 
 <!-- client_start End -->
-
-<!-- AdminLTE App -->
-<script src='/styles/default/js/old/app.js'></script>
 
 <script>
   if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
@@ -90,6 +87,7 @@
   });
 </script>
 %PUSH_SCRIPT%
+<script src='/styles/default/js/abills/control-web-client.js' defer></script>
 </body>
 
 %CHECK_ADDRESS_MODAL%

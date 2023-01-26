@@ -36,8 +36,13 @@ sub check_access {
   my $server     = $self->{conf}->{LDAP_IP} || "192.168.0.40";
 
   my $ldap = Net::LDAP->new( $server, timeout => 10 );
-
-  my $user_name = ($ldap_base =~ /\@/) ? "$login$ldap_base" : "cn=$login,ou=users,$ldap_base";
+  my $user_name = "cn=$login,ou=users,$ldap_base";
+  if ($ldap_base =~ /\@/) {
+    $user_name = "$login$ldap_base";
+  }
+  elsif($self->{conf}->{LDAP_AUTH_UID}) {
+    $user_name = "uid=$login,ou=users,$ldap_base";
+  }
 
   if (! $ldap) {
     $self->{errno}=$@;

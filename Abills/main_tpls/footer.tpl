@@ -5,18 +5,20 @@
 
 <!-- Main Footer -->
 <footer class='main-footer'>
-  <!-- To the right -->
-  <div class='float-right hidden-xs'>
-
+  %FOOTER_CONTENT%
+  %FOOTER_DEBUG%
+  <div class='px-1 my-n1 row justify-content-between align-items-center'>
+    <div>
+      <b><span style='color: red'>A</span>BillS</b>
+      %VERSION%
+    </div>
+    <div class='d-inline-block'>
+      <button id='feedback_modal_btn' type='button' class='btn btn-primary btn-xs'
+              onclick="loadToModal('?POPUP=1&FEEDBACK=1')">
+        <span class='fa fa-comment'></span>
+      </button>
+    </div>
   </div>
-  <b><span style='color: red'>A</span>BillS</b> %VERSION%
-  <div class='float-right'>
-    <button id='feedback_modal_btn' type='button' class='btn btn-primary btn-xs'
-            onclick="loadToModal('?POPUP=1&FEEDBACK=1')">
-      <span class='fa fa-comment'></span>
-    </button>
-  </div>
-  %DEBUG_FORM%
 </footer>
 <!-- Control Sidebar -->
 %RIGHT_MENU%

@@ -138,8 +138,6 @@ sub info {
       $like =  "LIKE '$attr->{TABLES}'";
     }
 
-    print "SHOW TABLE STATUS FROM $CONF->{dbname} $like";
-
     my $sth = $db->prepare("SHOW TABLE STATUS FROM $CONF->{dbname} $like");
     $sth->execute();
     my $pri_keys = $sth->{mysql_is_pri_key};
@@ -473,6 +471,36 @@ sub history_query {
   );
 
   return $self;
+}
+
+#**********************************************************
+=head2 columns()
+
+  Returns:
+    $array - [[$table, $column], ...]
+=cut
+#**********************************************************
+sub columns {
+  my $self = shift;
+
+  $self->query(
+    "SELECT
+      table_name,
+      column_name
+     FROM
+      information_schema.columns
+     WHERE
+      table_schema=?
+     ORDER BY table_name, ordinal_position;",
+    undef,
+      {
+        Bind => [
+          $CONF->{dbname}
+        ]
+      }
+  );
+
+  return $self->{list} || {};
 }
 
 1

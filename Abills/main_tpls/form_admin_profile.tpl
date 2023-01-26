@@ -55,8 +55,6 @@
         </div>
       </div>
 
-<!--      <div class='form-group row'>%SUBSCRIBE_BLOCK%</div>-->
-
       <div class='form-group row'>
         <div class='col-md-6'>
           <div class='form-group custom-control custom-checkbox'>
@@ -301,6 +299,7 @@
     </div>
   </div>
 
+  %AUTH_HISTORY%
 
   %QUICK_REPORTS%
 

@@ -4,7 +4,6 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db);
-my $json;
 my Abills::HTML $html;
 my $lang;
 my $Docs;
@@ -76,7 +75,7 @@ sub docs_payments_maked {
     });
 
     my $total_payment_sum = $form->{SUM};
-    my $payment_sum = $form->{SUM};
+    my $payment_sum = $form->{SUM} || 0;
 
     if ($Docs->{TOTAL} > 0) {
       foreach my $doc (@{$list}) {
@@ -100,22 +99,22 @@ sub docs_payments_maked {
           SUM        => $payment_sum
         });
 
-        if (!::_error_show($Docs, { MESSAGE => "$lang->{INVOICE}", ID => 562 })
+        if (!::_error_show($Docs, { MESSAGE => $lang->{INVOICE}, ID => 562 })
           && !$CONF->{PAYMENTS_NOT_CHECK_INVOICE_SUM} && $Docs->{TOTAL_SUM} != $form->{SUM}) {
-          $html->message('warn', $lang->{ERROR}, "$lang->{PAYMENTS_NOT_EQUAL_DOC} \n  $lang->{INVOICE} $lang->{SUM}: " .
-            "$Docs->{TOTAL_SUM} \n$lang->{PAYMENTS} $lang->{SUM}: $form->{SUM}");
+          $html->message('warn', $lang->{ERROR}, "$lang->{PAYMENTS_NOT_EQUAL_DOC} \n"
+            . "$lang->{INVOICE} $lang->{SUM}: $Docs->{TOTAL_SUM} \n"
+            . "$lang->{PAYMENTS} $lang->{SUM}: $payment_sum", { ID => 563 });
         }
 
         last if $total_payment_sum - $payment_sum == 0;
       }
     }
     else {
-      print "Invoice not found ($Docs->{TOTAL})";
+      print "$lang->{INVOICE} $lang->{NOT_EXIST} (TOTAL: $Docs->{TOTAL})";
     }
   }
 
   if ($form->{CREATE_RECEIPT}) {
-    # TODO: move docs_receipt_add function here
     ::load_module('Docs');
     ::docs_receipt_add({
       DATE       => $form->{DATE} || $main::DATE,

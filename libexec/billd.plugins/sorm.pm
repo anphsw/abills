@@ -29,7 +29,7 @@
   WIFI
   SHOW_ERRORS - Get errors
   REPORT - Add only one report
-  TYPE=[Fenix|Yahon(default)]
+  TYPE=[Fenix|Yahon(default)|Uzb]
 
 
 =cut

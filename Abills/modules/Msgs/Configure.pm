@@ -143,7 +143,7 @@ sub msgs_admins {
 
   _error_show($Msgs);
 
-  my $list = $Msgs->admins_list({ %LIST_PARAMS, COLS_NAME => 1 });
+  my $list = $Msgs->admins_list({ %LIST_PARAMS, DISABLE => 0, COLS_NAME => 1 });
   my $table = $html->table({
     width   => '100%',
     caption => $lang{ADMINS},
@@ -991,6 +991,7 @@ sub _msgs_permissions_list {
         21 => $lang{SHOW_ONLY_ASSIGNED_TICKETS},
         22 => $lang{VIEW_EQUIPMENT},
         23 => $lang{ADDING_EQUIPMENT},
+        24 => $lang{NOTIFICATIONS_ASSIGNED_MESSAGES_ONLY},
       }
     },
     2 => {

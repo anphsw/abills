@@ -238,7 +238,7 @@ sub _msgs_get_plugins {
 
     my $plugin_files = _get_files_in($plugin_dir, { FILTER => '\.pm' });
 
-    foreach my $plugin (@{$plugin_files}) {
+    foreach my $plugin (sort @{$plugin_files}) {
       $plugin =~ s/\.pm//g;
       my $plugin_name = $module . '::Plugins::' . $plugin;
 

@@ -215,7 +215,7 @@ sub auth {
   if ($self->{errno}) {
     my $message = '';
     if ($self->{errno} == 2) {
-      $message = "User not exist '$RAD->{'User-Name'}'";
+      $message = "USER_NOT_EXIST '$RAD->{'User-Name'}'";
     }
     else {
       $message = "[$self->{errno}] $self->{errstr}";
@@ -667,7 +667,7 @@ sub accounting {
           $RAD->{'Called-Station-Id'},
           $NAS->{NAS_ID},
           $RAD->{'h323-conf-id'},
-          $RAD->{'h323-call-origin'},
+          $RAD->{'h323-call-origin'} || 0,
           $self->{UID},
           $self->{BILL_ID},
           $self->{TP_ID},

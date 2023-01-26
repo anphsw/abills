@@ -104,8 +104,7 @@ sub hangup {
 
   my $nas_type = $Nas->{NAS_TYPE} || '';
   my %params = ();
-  if ($attr && ref $attr eq 'HASH') {
-    %params = %$attr;
+  if ($attr && (ref $attr eq 'HASH' || ref $attr eq 'Internet::Sessions')) {%params = %$attr;
     $params{SESSION_ID} = $attr->{ACCT_SESSION_ID} if ($attr->{ACCT_SESSION_ID});
   }
 
@@ -157,6 +156,10 @@ sub hangup {
     }
   }
   elsif ($nas_type eq 'huawei_me60') {
+    $params{RAD_PAIRS} = {
+      'Acct-Session-Id'  => $attr->{SESSION_ID} || $attr->{ACCT_SESSION_ID}
+    };
+
     $self->radius_request($Nas, \%params);
   }
   elsif ($nas_type eq 'radpppd') {
@@ -189,7 +192,7 @@ sub hangup {
     $self->hangup_mpd5($Nas, \%params);
   }
   elsif ($nas_type eq 'openvpn') {
-    hangup_openvpn($Nas, \%params);
+    $self->hangup_openvpn($Nas, \%params);
   }
   elsif ($nas_type eq 'ipcad'
     || $nas_type eq 'mikrotik_dhcp'
@@ -648,7 +651,7 @@ sub radius_request {
   my $self = shift;
   my ($NAS, $attr) = @_;
 
-  my $USER = $attr->{USER};
+  my $USER = $attr->{USER} || q{};
   if (!$NAS->{NAS_MNG_IP_PORT}) {
     print "Radius Hangup failed. Can't find NAS IP and port. NAS: $NAS->{NAS_ID} USER: $USER\n";
     return 'ERR:';
@@ -896,16 +899,49 @@ sub hangup_ipoe {
 #***********************************************************
 =head2 hangup_openvpn($NAS, $attr)
 
+  Arguments:
+    $NAS
+    $attr
+
+  Results:
+    $result
+
 =cut
 #***********************************************************
 sub hangup_openvpn {
-  my ($NAS, $attr) = @_;
+  my ($self, $NAS, $attr) = @_;
 
   my $USER = $attr->{USER};
-  my @commands = (">INFO:OpenVPN Management Interface Version 1 -- type 'help' for more info\tkill $USER",
-    "SUCCESS: common name '$USER' found, 1 client(s) killed\texit");
+  my $ip = $attr->{FRAMED_IP_ADDRESS};
+  my @commands = (
+    "WORD:\t$NAS->{NAS_MNG_PASSWORD}",
+    "more info\tstatus",
+    "\texit",
+#    "more info\tkill $USER",
+#    "SUCCESS: common name '$USER' found, 1 client(s) killed\texit"
+  );
 
-  my $result = telnet_cmd("$NAS->{NAS_MNG_IP_PORT}", \@commands);
+  my $result = telnet_cmd($NAS->{NAS_MNG_IP_PORT}, \@commands);
+  my @rows = split(/\n/, $result);
+  my $session = q{};
+  foreach my $line (@rows) {
+    print "$ip / $line <br>\n" if ($debug);
+    if($line =~ /$ip,client,(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+),/) {
+      $session = $1;
+      print ">> $session <<" if ($debug);
+    }
+  }
+
+  if ($session) {
+    @commands = (
+      "WORD:\t$NAS->{NAS_MNG_PASSWORD}",
+      "more info\tkill $session",
+      "\texit",
+    );
+
+    $result = telnet_cmd($NAS->{NAS_MNG_IP_PORT}, \@commands);
+  }
+
   $Log->log_print('LOG_DEBUG', $USER, "$result", { ACTION => 'CMD' });
 
   return 0;

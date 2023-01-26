@@ -467,7 +467,8 @@ sub _list {
     [ 'DEFAULT_ONU_REG_TEMPLATE_EPON', 'INT',  'm.default_onu_reg_template_epon', 1 ],
     [ 'DEFAULT_ONU_REG_TEMPLATE_GPON', 'INT',  'm.default_onu_reg_template_gpon', 1 ],
     [ 'NAS_IP',                        'IP',   'nas.ip', 'nas.ip AS nas_ip' ],
-    [ 'MNG_HOST_PORT',                 'STR',  'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port', ],
+    [ 'NAS_MNG_HOST_PORT',             'STR',  'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port', ],
+    [ 'NAS_MNG_HOST_PORT',             'STR',  'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_host_port', ],
     #['MNG_USER',                      'STR',  'nas.mng_user', 'nas.mng_user as nas_mng_user', ],
     [ 'NAS_MNG_USER',                  'STR',  'nas.mng_user', 'nas.mng_user as nas_mng_user', ],
     [ 'NAS_MNG_PASSWORD',              'STR',  '', "DECODE(nas.mng_password, '$SECRETKEY') AS nas_mng_password" ],
@@ -489,6 +490,13 @@ sub _list {
     [ 'TR_069_VLAN',                   'STR',  'i.tr_069_vlan',                   1 ],
     [ 'IPTV_VLAN',                     'STR',  'i.iptv_vlan',                     1 ],
     [ 'NAS_DESCR',                     'STR',  'nas.descr AS nas_descr',          1 ],
+    [ 'NAS_IDENTIFIER',                'STR',  'nas.nas_identifier',              1 ],
+    [ 'NAS_ALIVE',                     'INT',  'nas.alive AS nas_alive',          1 ],
+    [ 'NAS_RAD_PAIRS',                 'STR',  'nas.rad_pairs', 'nas.rad_pairs AS nas_rad_pairs', 1 ],
+    [ 'NAS_ENTRANCE',                  'STR',  'nas.entrance', 'nas.entrance AS nas_entrance',    1 ],
+    [ 'ZABBIX_HOSTID',                 'INT',  'nas.zabbix_hostid',               1 ],
+    [ 'WIDTH',                         'INT',  'm.width',                         1 ],
+    [ 'HEIGHT',                        'INT',  'm.height',                        1 ]
   ], { WHERE => 1 });
 
   my %EXT_TABLE_JOINS_HASH = ();
@@ -551,7 +559,7 @@ sub _list {
       if (ref $eq eq 'HASH' && $eq->{nas_ip}) {
         my $nas_ip = Abills::Base::int2ip($eq->{nas_ip});
         $eq->{nas_ip} = $nas_ip;
-        $eq->{NAS_IP} = $nas_ip;
+        $eq->{NAS_IP} = $nas_ip if ($attr->{COLS_UPPER});
       }
     }
   }
@@ -720,9 +728,10 @@ sub port_list {
     #  ['TP_NAME',        'STR', 'tp.name',       'tp.name AS tp_name' ],
     #  ['UID',            'INT', 'u.uid',                            1 ],
     #  ['GID',            'INT', 'u.gid',                            1 ],
-    [ 'PORT', 'INT', 'p.port', 1 ],
-    [ 'VLAN', 'INT', 'p.vlan', 1 ],
-    [ 'NAS_ID', 'INT', 'p.nas_id', ],
+    [ 'PORT',     'INT', 'p.port', 1 ],
+    [ 'VLAN',     'INT', 'p.vlan', 1 ],
+    [ 'DATETIME', 'DATE','p.datetime',  1 ],
+    [ 'NAS_ID',   'INT', 'p.nas_id', ],
   ],
     { WHERE => 1,
       #    USERS_FIELDS=> 1,
@@ -1492,7 +1501,7 @@ sub cvlan_list {
     [ 'MAC', 'INT', 'nas.mac', 1 ],
     [ 'PORT_SHIFT', 'INT', 'm.port_shift', 1 ],
     [ 'NAS_IP', 'IP', 'nas.ip', 'INET_NTOA(nas.ip) AS nas_ip' ],
-    [ 'MNG_HOST_PORT', 'STR', 'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port', ],
+    [ 'NAS_MNG_HOST_PORT', 'STR', 'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port', ],
     #['MNG_USER',         'STR', 'nas.mng_user', 'nas.mng_user as nas_mng_user', ],
     [ 'NAS_MNG_USER', 'STR', 'nas.mng_user', 'nas.mng_user as nas_mng_user', ],
     [ 'NAS_MNG_PASSWORD', 'STR', '', "DECODE(nas.mng_password, '$SECRETKEY') AS nas_mng_password" ],
@@ -2081,7 +2090,7 @@ sub onu_list {
 
   if($self->{EXT_TABLES} || $self->{SEARCH_FIELDS} =~ /\bu\./ || $WHERE =~ /\bu\./) {
     $EXT_TABLES = '
-      LEFT JOIN internet_main internet ON (onu.onu_dhcp_port=internet.port AND p.nas_id=internet.nas_id)
+      LEFT JOIN internet_main internet FORCE INDEX FOR JOIN (`port`) ON (onu.onu_dhcp_port=internet.port AND p.nas_id=internet.nas_id)
       LEFT JOIN users u ON (u.uid=internet.uid) ';
     $EXT_TABLES .= $self->{EXT_TABLES};
   }
@@ -2097,8 +2106,8 @@ sub onu_list {
       onu.onu_snmp_id,
       onu.vlan AS vlan,
       onu.onu_dhcp_port AS dhcp_port
-    FROM equipment_pon_onu onu
-    INNER JOIN equipment_pon_ports p ON (p.id=onu.port_id)
+    FROM equipment_pon_ports p
+    INNER JOIN equipment_pon_onu onu FORCE INDEX FOR JOIN (`port_id`) ON (onu.port_id=p.id)
     INNER JOIN nas n ON (n.id=p.nas_id)
     INNER JOIN equipment_infos i ON (i.nas_id = n.id)
     $EXT_TABLES
@@ -2114,8 +2123,8 @@ sub onu_list {
 
   if ($self->{TOTAL} > 0) {
     $self->query("SELECT COUNT(*) AS total
-    FROM equipment_pon_onu onu
-      INNER JOIN equipment_pon_ports p ON (p.id=onu.port_id)
+    FROM equipment_pon_ports p
+    INNER JOIN equipment_pon_onu onu FORCE INDEX FOR JOIN (`port_id`) ON (onu.port_id=p.id)
     $EXT_TABLES
     $WHERE;", undef, { INFO => 1 }
     );
@@ -2154,96 +2163,96 @@ sub onu_date_status {
 =cut
 #**********************************************************
 #@deprecated
-sub onu_list_vlan {
-  my $self = shift;
-  my ($attr) = @_;
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 5;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  #$PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  #$PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-
-  $self->{SEARCH_FIELDS} = '';
-
-  my $WHERE = $self->search_former($attr, [
-    [ 'BRANCH', 'STR', 'p.branch', 1 ],
-    [ 'BRANCH_DESC', 'STR', 'p.branch_desc', 1 ],
-    #    [ 'VLAN_ID', 'STR', 'p.vlan_id', 1 ],
-    [ 'VLAN_ID', 'STR', 'onu.vlan', 'onu.vlan as vlan_id' ],
-    [ 'ONU_ID', 'STR', 'onu.onu_id', 1 ],
-    [ 'ONU_VLAN', 'STR', 'onu.vlan', 1 ],
-    [ 'MAC_SERIAL', 'STR', 'onu.onu_mac_serial', 'onu.onu_mac_serial AS mac_serial' ],
-    [ 'COMMENTS', 'STR', 'onu.onu_desc', 'onu.onu_desc AS comments' ],
-    [ 'OLT_RX_POWER', 'STR', 'onu.olt_rx_power', 1 ],
-    [ 'RX_POWER', 'STR', 'onu.onu_rx_power', 'onu.onu_rx_power AS rx_power' ],
-    [ 'TX_POWER', 'STR', 'onu.onu_tx_power', 'onu.onu_tx_power AS tx_power' ],
-    [ 'STATUS', 'STR', 'onu.onu_status', 'onu.onu_status AS status' ],
-    [ 'ONU_DHCP_PORT', 'STR', 'onu.onu_dhcp_port', 1 ],
-    [ 'ONU_GRAPH', 'STR', 'onu.onu_graph', 1 ],
-    [ 'NAS_ID', 'STR', 'p.nas_id', 0 ],
-    [ 'NAS_NAME', 'STR', 'n.name', 'n.name AS nas_name' ],
-    [ 'PON_TYPE', 'STR', 'p.pon_type', 0 ],
-    [ 'OLT_PORT', 'STR', 'p.id', 0 ],
-    [ 'ONU_SNMP_ID', 'INT', 'onu.onu_snmp_id', 1 ],
-    [ 'DATETIME', 'DATE', 'onu.datetime', 1 ],
-    [ 'DELETED', 'STR', 'onu.deleted', 1 ]
-  ],
-    { WHERE => 1 }
-  );
-
-  if ($attr->{TRAFFIC}) {
-    my @fields = @{$self->search_expr("$attr->{TRAFFIC}", "STR", "CONCAT(onu.onu_in_byte, ',', onu.onu_out_byte) AS traffic", { EXT_FIELD => 1 })};
-    $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  }
-  if ($attr->{LOGIN}) {
-    my @fields = @{$self->search_expr("$attr->{LOGIN}", "STR", "CONCAT('--') AS login", { EXT_FIELD => 1 })};
-    $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  }
-  if ($attr->{USER_MAC}) {
-    my @fields = @{$self->search_expr("$attr->{USER_MAC}", "STR", "CONCAT('--') AS user_mac", { EXT_FIELD => 1 })};
-    $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  }
-  if ($attr->{FIO}) {
-    my @fields = @{$self->search_expr("$attr->{FIO}", "STR", "CONCAT('--') AS fio", { EXT_FIELD => 1 })};
-    $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  }
-  if ($attr->{ADDRESS_FULL}) {
-    my @fields = @{$self->search_expr("$attr->{ADDRESS_FULL}", "STR", "CONCAT('--') AS address_full", { EXT_FIELD => 1 })};
-    $self->{SEARCH_FIELDS} .= join(', ', @fields);
-  }
-
-  $self->query("SELECT
-      onu.id AS ID,
-      $self->{SEARCH_FIELDS}
-      onu.id,
-      p.nas_id,
-      p.pon_type,
-      p.snmp_id,
-      p.branch,
-      onu.onu_id,
-      onu.onu_snmp_id,
-      onu.vlan AS vlan,
-      onu.onu_dhcp_port AS dhcp_port
-    FROM equipment_pon_onu onu
-    INNER JOIN equipment_pon_ports p ON (p.id=onu.port_id)
-    INNER JOIN nas n ON (n.id=p.nas_id)
-    $WHERE
-    ORDER BY $SORT $DESC;",
-    undef,
-    $attr
-  );
-
-  my $list = $self->{list};
-
-  if ($self->{TOTAL} > 0) {
-    $self->query("SELECT COUNT(*) AS total
-    FROM equipment_pon_onu onu
-      INNER JOIN equipment_pon_ports p ON (p.id=onu.port_id)
-    $WHERE;", undef, { INFO => 1 }
-    );
-  }
-
-  return $list;
-}
+# sub onu_list_vlan {
+#   my $self = shift;
+#   my ($attr) = @_;
+#   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 5;
+#   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+#   #$PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+#   #$PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+#
+#   $self->{SEARCH_FIELDS} = '';
+#
+#   my $WHERE = $self->search_former($attr, [
+#     [ 'BRANCH', 'STR', 'p.branch', 1 ],
+#     [ 'BRANCH_DESC', 'STR', 'p.branch_desc', 1 ],
+#     #    [ 'VLAN_ID', 'STR', 'p.vlan_id', 1 ],
+#     [ 'VLAN_ID', 'STR', 'onu.vlan', 'onu.vlan as vlan_id' ],
+#     [ 'ONU_ID', 'STR', 'onu.onu_id', 1 ],
+#     [ 'ONU_VLAN', 'STR', 'onu.vlan', 1 ],
+#     [ 'MAC_SERIAL', 'STR', 'onu.onu_mac_serial', 'onu.onu_mac_serial AS mac_serial' ],
+#     [ 'COMMENTS', 'STR', 'onu.onu_desc', 'onu.onu_desc AS comments' ],
+#     [ 'OLT_RX_POWER', 'STR', 'onu.olt_rx_power', 1 ],
+#     [ 'RX_POWER', 'STR', 'onu.onu_rx_power', 'onu.onu_rx_power AS rx_power' ],
+#     [ 'TX_POWER', 'STR', 'onu.onu_tx_power', 'onu.onu_tx_power AS tx_power' ],
+#     [ 'STATUS', 'STR', 'onu.onu_status', 'onu.onu_status AS status' ],
+#     [ 'ONU_DHCP_PORT', 'STR', 'onu.onu_dhcp_port', 1 ],
+#     [ 'ONU_GRAPH', 'STR', 'onu.onu_graph', 1 ],
+#     [ 'NAS_ID', 'STR', 'p.nas_id', 0 ],
+#     [ 'NAS_NAME', 'STR', 'n.name', 'n.name AS nas_name' ],
+#     [ 'PON_TYPE', 'STR', 'p.pon_type', 0 ],
+#     [ 'OLT_PORT', 'STR', 'p.id', 0 ],
+#     [ 'ONU_SNMP_ID', 'INT', 'onu.onu_snmp_id', 1 ],
+#     [ 'DATETIME', 'DATE', 'onu.datetime', 1 ],
+#     [ 'DELETED', 'STR', 'onu.deleted', 1 ]
+#   ],
+#     { WHERE => 1 }
+#   );
+#
+#   if ($attr->{TRAFFIC}) {
+#     my @fields = @{$self->search_expr("$attr->{TRAFFIC}", "STR", "CONCAT(onu.onu_in_byte, ',', onu.onu_out_byte) AS traffic", { EXT_FIELD => 1 })};
+#     $self->{SEARCH_FIELDS} .= join(', ', @fields);
+#   }
+#   if ($attr->{LOGIN}) {
+#     my @fields = @{$self->search_expr("$attr->{LOGIN}", "STR", "CONCAT('--') AS login", { EXT_FIELD => 1 })};
+#     $self->{SEARCH_FIELDS} .= join(', ', @fields);
+#   }
+#   if ($attr->{USER_MAC}) {
+#     my @fields = @{$self->search_expr("$attr->{USER_MAC}", "STR", "CONCAT('--') AS user_mac", { EXT_FIELD => 1 })};
+#     $self->{SEARCH_FIELDS} .= join(', ', @fields);
+#   }
+#   if ($attr->{FIO}) {
+#     my @fields = @{$self->search_expr("$attr->{FIO}", "STR", "CONCAT('--') AS fio", { EXT_FIELD => 1 })};
+#     $self->{SEARCH_FIELDS} .= join(', ', @fields);
+#   }
+#   if ($attr->{ADDRESS_FULL}) {
+#     my @fields = @{$self->search_expr("$attr->{ADDRESS_FULL}", "STR", "CONCAT('--') AS address_full", { EXT_FIELD => 1 })};
+#     $self->{SEARCH_FIELDS} .= join(', ', @fields);
+#   }
+#
+#   $self->query("SELECT
+#       onu.id AS ID,
+#       $self->{SEARCH_FIELDS}
+#       onu.id,
+#       p.nas_id,
+#       p.pon_type,
+#       p.snmp_id,
+#       p.branch,
+#       onu.onu_id,
+#       onu.onu_snmp_id,
+#       onu.vlan AS vlan,
+#       onu.onu_dhcp_port AS dhcp_port
+#     FROM equipment_pon_ports p
+#     INNER JOIN equipment_pon_onu onu FORCE INDEX FOR JOIN (`port_id`) ON (onu.port_id=p.id)
+#     INNER JOIN nas n ON (n.id=p.nas_id)
+#     $WHERE
+#     ORDER BY $SORT $DESC;",
+#     undef,
+#     $attr
+#   );
+#
+#   my $list = $self->{list};
+#
+#   if ($self->{TOTAL} > 0) {
+#     $self->query("SELECT COUNT(*) AS total
+#     FROM equipment_pon_ports p
+#       INNER JOIN equipment_pon_onu onu FORCE INDEX FOR JOIN (`port_id`) ON (onu.port_id=p.id)
+#     $WHERE;", undef, { INFO => 1 }
+#     );
+#   }
+#
+#   return $list;
+# }
 
 #**********************************************************
 =head2 pon_onus_report($attr) - returns total ONUs count, active ONUs count, count of ONUs with bad signal
@@ -2371,7 +2380,8 @@ sub onu_change {
       {
         CHANGE_PARAM => 'ID',
         TABLE        => 'equipment_pon_onu',
-        DATA         => $attr
+        DATA         => $attr,
+        SKIP_LOG     => $self->{conf}{EQUIPMENT_PON_ONU_SKIP_LOG}
       }
     );
   }

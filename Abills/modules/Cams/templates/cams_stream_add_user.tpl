@@ -21,7 +21,7 @@
           </div>
           <div class='card-body'>
             <div class='form-group row'>
-              <label class='control-label col-md-3 required'>_{CAMS_GROUP}_:</label>
+              <label class='control-label col-md-3'>_{CAMS_GROUP}_:</label>
               <div class='col-md-8'>
                 %GROUPS_SELECT%
               </div>
@@ -34,14 +34,6 @@
                 %FOLDERS_SELECT%
               </div>
               <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
-            </div>
-
-            <div class='form-group row'>
-              <label class='control-label col-md-3' for='OWNER_id'>_{OWNER}_:</label>
-              <div class='col-md-8'>
-                <input type='text' class='form-control' name='OWNER' value='%OWNER%' id='OWNER_id'/>
-              </div>
-              <a href='#' data-toggle='tooltip' title=' '><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
@@ -241,14 +233,16 @@
 
     function autoReload() {
       var folder = 0;
-      if ('%FOLDERS%' && '%FOLDERS%' > 0)
-        folder = '%FOLDERS%';
+      if ('%FOLDERS%' && '%FOLDERS%' > 0) folder = '%FOLDERS%';
 
-      var functionName= '%FUNCTION_NAME%';
+      let function_name = '%FUNCTION_NAME%';
+      let function_index = '%FUNCTION_INDEX%';
+      let function_url = function_name ? `get_index=${function_name}` : `qindex=${function_index}`;
+
       var groups = document.getElementById('GROUP_ID');
       var result = groups.value;
-      jQuery.get('$SELF_URL', 'header=2&get_index=' + functionName + '&GROUP_ID=' + result +
-        '&GET_FOLDER_SELECT=1&FOLDER_ID=' + folder, function (data) {
+      jQuery.get('%SELF_URL%', `header=2&${function_url}&GROUP_ID=${result}` +
+        `&GET_FOLDER_SELECT=1&FOLDER_ID=${folder}`, function (data) {
         folder_select.textContent = '';
         folder_select.value = '';
         folder_select.innerHTML = data;

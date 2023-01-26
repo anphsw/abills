@@ -138,6 +138,8 @@ sub cams_user_info {
     }
   }
 
+  $Cams_service = cams_user_services(\%FORM, $user, $Cams);
+
   if (!$Cams->{ID}) {
     $Cams->{TP_ADD} = $html->form_select('TP_ID', {
       SELECTED  => $FORM{TP_ID} || $Cams->{TP_ID} || '',
@@ -153,8 +155,6 @@ sub cams_user_info {
 
     $Cams->{TP_DISPLAY_NONE} = "style='display:none'";
   }
-
-  $Cams_service = cams_user_services(\%FORM, $user, $Cams);
 
   $FORM{SUBSCRIBE_FORM} = cams_services_sel({ %FORM, %$Cams, FORM_ROW => 1, UNKNOWN => 1, USER_PORTAL => '2' });
 
@@ -489,7 +489,7 @@ sub cams_clients_streams {
     });
   }
 
-  my @titles = ('#', $lang{NAME}, $lang{CAM_TITLE}, 'Host', $lang{LOGIN}, $lang{DISABLED}, '-', '-');
+  my @titles = ('#', $lang{NAME}, $lang{CAM_TITLE}, 'Host', $lang{LOGIN}, $lang{DISABLED}, '', '');
   my $table = $html->table({
     width   => '100%',
     caption => $lang{CAMERAS},
@@ -506,7 +506,7 @@ sub cams_clients_streams {
       OUTPUT2RETURN => 1
     });
     $table->addrow($select, $stream->{name}, $stream->{title}, $stream->{host}, $stream->{login},
-      ($stream->{disabled} eq '1') ? $lang{YES} : $lang{NO});
+      ($stream->{disabled} eq '1') ? $lang{YES} : $lang{NO}, '', '');
   }
 
   foreach my $stream (@private_cameras) {
@@ -628,9 +628,8 @@ sub cams_show_camera_archive {
 
   return 0 if (!$result || !$result->{CAMERA});
 
-  if (ref $result->{CAMERA} ne 'ARRAY') {
-    $result->{CAMERA} = ($result->{CAMERA});
-  }
+  $result->{CAMERA} = ($result->{CAMERA}) if (ref $result->{CAMERA} ne 'ARRAY');
+
   for my $cam (@{$result->{CAMERA}}) {
     $streams_html .= $html->tpl_show(_include('cams_stream_div', 'Cams'), {
       CAMERA      => $cam || '',
@@ -658,7 +657,7 @@ sub cams_user_get_group_folders {
     SEL_LIST  => $Cams->folder_list({
       ID          => '_SHOW',
       PARENT_NAME => '_SHOW',
-      GROUP_ID    => $FORM{GROUP_ID},
+      GROUP_ID    => $FORM{GROUP_ID} || '0',
       COLS_NAME   => 1,
     }),
     SEL_VALUE => 'parent_name,title',

@@ -131,6 +131,7 @@ sub internet_daily_fees {
         my $report_list = $Sessions->reports({
           INTERVAL => "$attr->{YESTERDAY}/$attr->{YESTERDAY}",
           TP_ID    => $TP_INFO->{TP_ID},
+          GUEST    => 0,
           COLS_NAME=> 1
         });
 
@@ -683,6 +684,7 @@ sub internet_monthly_fees {
   $USERS_LIST_PARAMS{EXT_BILL} = 1 if ($conf{BONUS_EXT_FUNCTIONS});
   $USERS_LIST_PARAMS{REGISTRATION} = "<$ADMIN_REPORT{DATE}";
   $USERS_LIST_PARAMS{GID}   = $attr->{GID} if ($attr->{GID});
+  $USERS_LIST_PARAMS{INTERNET_STATUS} = $attr->{INTERNET_STATUS} if ($attr->{INTERNET_STATUS});
 
   my $START_PERIOD_DAY = ($conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} : 1;
 
@@ -701,6 +703,7 @@ sub internet_monthly_fees {
     EXT_BILL_FEES_METHOD=> '_SHOW',
     DOMAIN_ID       => '_SHOW',
     FIXED_FEES_DAY  => '_SHOW',
+    ACTIVE_MONTH_FEE=> '_SHOW',
     COLS_NAME       => 1,
     COLS_UPPER      => 1
   });
@@ -810,6 +813,26 @@ sub internet_monthly_fees {
           EXT_DEPOSIT  => ($u->{ext_deposit}) ? $u->{ext_deposit} : 0,
           EXT_BILL_ID  => $u->{ext_bill_id}
         );
+
+        #Active month fee
+        if ($TP_INFO->{ACTIVE_MONTH_FEE}) {
+          $Sessions->{debug} = 1 if ($debug > 6);
+          $Sessions->reports({
+            INTERVAL    => "$pre_month_begin/$pre_month_end",
+            TRAFFIC_SUM => '_SHOW',
+            UID         => $u->{uid},
+            COLS_NAME   => 1
+          });
+
+          if (!$Sessions->{TOTAL}) {
+            next;
+          }
+          elsif ($conf{INTERNET_ACTIVE_MONTH_TRAFFIC}) {
+            if ($conf{INTERNET_ACTIVE_MONTH_TRAFFIC} > $Sessions->{list}->[0]->{TRAFFIC_SUM}) {
+              next;
+            }
+          }
+        }
 
         my %FEES_DSC = (
           MODULE            => 'Internet',
@@ -1042,7 +1065,7 @@ sub internet_monthly_fees {
           if ($postpaid || $user{DEPOSIT} + $user{CREDIT} > 0) {
             #*******************************************
             #Unblock Small deposit status
-            if ($TP_INFO->{SMALL_DEPOSIT_ACTION} && $sum < $user{DEPOSIT}) {
+            if ($TP_INFO->{SMALL_DEPOSIT_ACTION} && $sum < $user{DEPOSIT} + $user{CREDIT}) {
               if ($user{INTERNET_STATUS}
                 && $TP_INFO->{ABON_DISTRIBUTION}
                 && $conf{INTERNET_FULL_MONTH}
@@ -1271,26 +1294,6 @@ sub internet_monthly_fees {
           );
 
           $debug_output .= " Login: $u->{login} ($u->{uid}) TP_ID: $u->{tp_id} Fees: - REDUCTION: $u->{reduction} $u->{deposit} $u->{credit} - $user{ACTIVATE}\n" if ($debug > 3);
-
-          #Summary for company users
-          #         my @UIDS  = ();
-          #         if ($$processed_users{$user{COMPANY_ID}}) {
-          #            next;
-          #          }
-          #
-          #         if ($user{COMPANY_ID}) {
-          #           my $company_users = $ulist = $Dv->list({ TP_ID      => $tp_line->[0],
-          #                                                    COMPANY_ID => $user{COMPANY_ID}
-          #                                                   });
-          #           $$processed_users{$user{COMPANY_ID}}=1;
-          #
-          #           foreach my $c_user ( @$company_users ) {
-          #               push @UIDS, $c_user->[7];
-          #            }
-          #
-          #           print "$user{LOGIN} hello $user{COMPANY_ID} // ";
-          #           print @UIDS ,"\n";
-          #          }
 
           $Billing->{PERIOD_TRAFFIC} = undef;
           my $RESULT = $Billing->expression(
@@ -1576,7 +1579,8 @@ sub internet_sheduler {
         QUITE       => 1,
         SHEDULER    => 1,
         DATE        => $attr->{DATE},
-        RECALCULATE => 1
+        RECALCULATE => 1,
+        USER_INFO   => $users
       });
     }
   }
@@ -1642,7 +1646,8 @@ sub internet_sheduler {
       service_get_month_fee($Internet, {
         QUITE    => 1,
         SHEDULER => 1, #($attr->{SHEDULEE_ONLY}) ? undef,
-        DATE     => $attr->{DATE}
+        DATE     => $attr->{DATE},
+        USER_INFO=> $users
       });
     }
 

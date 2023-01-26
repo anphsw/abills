@@ -6,7 +6,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(cmd in_array);
+use Abills::Base qw(cmd in_array vars2lang);
 #use Address;
 
 use Abills::Radius_Pairs;
@@ -162,10 +162,46 @@ sub internet_tp {
     $FORM{add_form}=1;
   }
   elsif (defined($FORM{del}) && $FORM{COMMENTS}) {
-    $Tariffs->del($FORM{del});
+    require Shedule;
+    Shedule->import();
 
-    if (!$Tariffs->{errno}) {
-      $html->message('info', $lang{DELETED}, "$lang{DELETED} $FORM{del}");
+    my $Schedule = Shedule->new($db, $admin, \%conf);
+    my $users_list = $Internet->user_list({
+      TP_ID     => $FORM{del},
+      UID       => '_SHOW',
+      COLS_NAME => 1
+    });
+
+    my $schedules = $Schedule->list({
+      ACTION    => "*:$FORM{del}",
+      TYPE      => 'tp',
+      MODULE    => 'Internet',
+      COLS_NAME => 1,
+    });
+
+    if (($Internet->{TOTAL} && $Internet->{TOTAL} > 0) || ($Schedule->{TOTAL} && $Schedule->{TOTAL} > 0)) {
+      my $users_msg = q{};
+      foreach my $user_tp (@{$users_list}) {
+        $users_msg .= "UID: $user_tp->{uid}\n";
+      }
+
+      my $schedules_msg = q{};
+      foreach my $schedule (@{$schedules}) {
+        $schedules_msg .= "UID: $schedule->{uid}\n";
+      }
+
+      $html->message('err', $lang{ERROR}, vars2lang($lang{TP_ACTIVE_IN_USERS}, {
+        USERS     => $users_msg,
+        SCHEDULES => $schedules_msg
+      }));
+    }
+    else {
+      delete $Tariffs->{errno};
+      $Tariffs->del($FORM{del});
+
+      if (!$Tariffs->{errno}) {
+        $html->message('info', $lang{DELETED}, "$lang{DELETED} $FORM{del}");
+      }
     }
   }
 
@@ -433,6 +469,7 @@ sub internet_tp_form {
   $tarif_info->{PERIOD_ALIGNMENT}   = ($tarif_info->{PERIOD_ALIGNMENT})   ? 'checked' : '';
   $tarif_info->{ABON_DISTRIBUTION}  = ($tarif_info->{ABON_DISTRIBUTION})  ? 'checked' : '';
   $tarif_info->{ACTIVE_DAY_FEE}     = ($tarif_info->{ACTIVE_DAY_FEE})     ? 'checked' : '';
+  $tarif_info->{ACTIVE_MONTH_FEE}   = ($tarif_info->{ACTIVE_MONTH_FEE})   ? 'checked' : '';
   $tarif_info->{FIXED_FEES_DAY}     = ($tarif_info->{FIXED_FEES_DAY})     ? 'checked' : '';
   $tarif_info->{STATUS}             = ($tarif_info->{STATUS})             ? 'checked' : '';
 

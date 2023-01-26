@@ -150,6 +150,8 @@ sub storage_quick_info {
     });
 
     foreach my $storage_element (@{$list}) {
+      next if !defined $storage_element->{status} || !defined $storage_element->{sta_name};
+
       $storage_element->{status} = $item_status[$storage_element->{status}];
       $storage_element->{sta_name} =~ s/\"/\\"/g;
       $storage_element->{sta_name} =~ s/\t//g;

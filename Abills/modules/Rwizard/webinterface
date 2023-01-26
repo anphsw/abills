@@ -10,6 +10,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Reports;
+use Abills::Base qw(json_former);
 
 our (
   $db,
@@ -24,6 +25,24 @@ our (
 
 our Abills::HTML $html;
 my $Reports = Reports->new($db, $admin, \%conf);
+
+use constant {
+  RWIZARD_SPECIAL_VARS => [
+    'ADDRESS',
+    'ADMIN_ID',
+    'BUILDS_LIST',
+    'DATE_FROM',
+    'DATE_TO',
+    'DEPOSIT',
+    'DOMAIN_ID',
+    'GID',
+    'PAGES',
+    'PARAMETER',
+    'PAYMENT_METHODS',
+    'ORDER BY &SORT& &DESC&',
+    'LIMIT &PG&, &PAGE_ROWS&'
+  ]
+};
 
 #**********************************************************
 =head2 rwizard_config($attr) - Create reports
@@ -123,7 +142,9 @@ $Reports->{FIELDS}
       MAIN_MENU         => get_function_index('rwizard_groups'),
       MAIN_MENU_ARGV    => ($Reports->{GID}) ? "chg=$Reports->{GID}" : '',
     });
-
+    my $tables_columns = _rwizard_process_columns($Reports->columns());
+    $Reports->{SPECIAL_VARIABLES}  = json_former(RWIZARD_SPECIAL_VARS);
+    $Reports->{TABLES_COLUMNS_JSON} = json_former($tables_columns);
     _error_show($Reports) and return 0;
 
     $html->tpl_show(_include('rwizard_config', 'Rwizard'), { %FORM, %{$Reports} },
@@ -752,7 +773,7 @@ sub rwizard_sp {
     push @rows, [
       $html->button($login, "index=15&UID=$uid"),
       $sum,
-      $deposit
+      sprintf("%.2f", ($deposit || 0)),
     ];
   }
 
@@ -1700,6 +1721,37 @@ sub _rw_admins_list {
   }
 
   return $table->show({ OUTPUT_TO_RETURN => 1 });
+}
+
+#**********************************************************
+=head2 _rwizard_process_columns($table_columns) - returns Client object for given id
+
+  Arguments:
+    $table_column - ref array of [$table, $column] pair
+
+  Returns:
+    $result - $table => [$column, $column...]
+=cut
+#**********************************************************
+sub _rwizard_process_columns {
+  my ($attr) = @_;
+
+  my $result = ();
+
+  foreach my $pair (@{$attr}) {
+    my ($table, $column) = @{$pair};
+    if (!defined($result->{$table})) {
+      $result->{$table} = ();
+    }
+    push @{$result->{$table}}, $column;
+  }
+
+  foreach my $key (keys %{$result}) {
+    my @keys = @{$result->{$key}};
+    @{$result->{$key}} = sort @keys;
+  };
+
+  return $result;
 }
 
 1;

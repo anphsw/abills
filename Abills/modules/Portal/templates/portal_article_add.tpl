@@ -1,6 +1,6 @@
 <script src='/styles/default/js/modules/portal.js'></script>
 
-<form action=$SELF_URL name='portal_form' method=POST class='form-horizontal'>
+<form action=$SELF_URL name='portal_form' method=POST class='form-horizontal' enctype='multipart/form-data'>
   <input type=hidden name=index value=$index>
   <input type=hidden name=ID value=%ID%>
 
@@ -31,6 +31,17 @@
           <div class='form-row'><label class='col-md-12 bg-primary'>_{CONTENT}_</label></div>
 
           <div class='form-group row'>
+            <label class='col-md-3 control-label'>_{PICTURE}_:</label>
+            <div class='col'>
+              <div id='file_upload_holder' class='form-file-input'>
+                <div class='form-group m-1'>
+                  <input name='PICTURE' type='file' data-number='0' class='fixed'>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class='form-group row'>
             <label class='col-md-3 control-label'>_{TITLE}_:</label>
             <div class='col-md-9'>
               <input class='form-control' name='TITLE' type='text' value='%TITLE%' size=90 align=%ALIGN%/>
@@ -48,7 +59,7 @@
             <label class='col-md-3 control-label'>_{TEXT}_:</label>
             <div class='col-md-9'>
               <textarea class='form-control' name='CONTENT' cols=90 rows=15 id='news-text'>%CONTENT%</textarea>
-              <div class='form-group row' style="margin-top: 5px;">
+              <div class='form-group row' style='margin-top: 5px;'>
                 <div class='col-md-12' id='editor-controls'>
                   <button type='button' class='btn btn-xs btn-primary' title='Жирный' data-tag='b'>_{BOLD}_</button>
                   <button type='button' class='btn btn-xs btn-primary' title='Курсив' data-tag='i'>_{ITALICS}_</button>
@@ -66,22 +77,22 @@
             <div class='col-md-9'>
               <div class='row'>
                 <div class='col-md-4'>
-                  <div class="custom-control custom-radio">
-                    <input class="custom-control-input" type="radio" id="STATUS" name="STATUS" value="1" %SHOWED%>
-                    <label for="STATUS" class="custom-control-label">_{SHOW}_</label>
+                  <div class='custom-control custom-radio'>
+                    <input class='custom-control-input' type='radio' id='STATUS' name='STATUS' value='1' %SHOWED%>
+                    <label for='STATUS' class='custom-control-label'>_{SHOW}_</label>
                   </div>
                 </div>
                 <div class='col-md-4'>
-                  <div class="custom-control custom-checkbox">
-                    <input class="custom-control-input" type="checkbox" id="ON_MAIN_PAGE" name="ON_MAIN_PAGE"
+                  <div class='custom-control custom-checkbox'>
+                    <input class='custom-control-input' type='checkbox' id='ON_MAIN_PAGE' name='ON_MAIN_PAGE'
                            value='1' %ON_MAIN_PAGE_CHECKED%>
-                    <label for="ON_MAIN_PAGE" class="custom-control-label">_{ON_MAIN_PAGE}_</label>
+                    <label for='ON_MAIN_PAGE' class='custom-control-label'>_{ON_MAIN_PAGE}_</label>
                   </div>
                 </div>
                 <div class='col-md-4'>
-                  <div class="custom-control custom-radio">
-                    <input class="custom-control-input" type="radio" id="STATUS_OFF" name="STATUS" value="0" %HIDDEN%>
-                    <label for="STATUS_OFF" class="custom-control-label">_{HIDE}_</label>
+                  <div class='custom-control custom-radio'>
+                    <input class='custom-control-input' type='radio' id='STATUS_OFF' name='STATUS' value='0' %HIDDEN%>
+                    <label for='STATUS_OFF' class='custom-control-label'>_{HIDE}_</label>
                   </div>
                 </div>
               </div>
@@ -103,15 +114,15 @@
             <div class='col-md-9'>
               <div class='row'>
                 <div class='col-md-6'>
-                  <div class="custom-control custom-radio">
-                    <input class="custom-control-input" type="radio" id="ARCHIVE" name="ARCHIVE" %SHOWED_ARCHIVE%>
-                    <label for="ARCHIVE" class="custom-control-label">_{SHOW}_</label>
+                  <div class='custom-control custom-radio'>
+                    <input class='custom-control-input' type='radio' id='ARCHIVE' name='ARCHIVE' value='0' %HIDDEN_ARCHIVE%>
+                    <label for='ARCHIVE' class='custom-control-label'>_{SHOW}_</label>
                   </div>
                 </div>
                 <div class='col-md-6'>
-                  <div class="custom-control custom-radio">
-                    <input class="custom-control-input" type="radio" id="HIDE_ARCHIVE" name="ARCHIVE" %HIDDEN_ARCHIVE%>
-                    <label for="HIDE_ARCHIVE" class="custom-control-label">_{TO_ARCHIVE}_</label>
+                  <div class='custom-control custom-radio'>
+                    <input class='custom-control-input' type='radio' id='HIDE_ARCHIVE' name='ARCHIVE' value='1' %SHOWED_ARCHIVE%>
+                    <label for='HIDE_ARCHIVE' class='custom-control-label'>_{TO_ARCHIVE}_</label>
                   </div>
                 </div>
               </div>
@@ -148,14 +159,13 @@
 
           %ADRESS_FORM%
 
-          <div class="form-group custom-control custom-checkbox">
-            <input class="custom-control-input" type="checkbox" id="RESET" name="RESET"
+          <div class='form-group custom-control custom-checkbox'>
+            <input class='custom-control-input' type='checkbox' id='RESET' name='RESET'
                    value='1' %RESET%>
-            <label for="RESET" class="custom-control-label">_{RESET_ADDRESS}_</label>
+            <label for='RESET' class='custom-control-label'>_{RESET_ADDRESS}_</label>
           </div>
 
         </div>
-
 
         <div class='card-footer'>
           <input class='btn btn-primary' type=submit name=%ACTION% value=%ACTION_LNG%>

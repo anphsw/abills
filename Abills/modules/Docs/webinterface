@@ -167,6 +167,7 @@ sub docs_preview{
 
   return 1;
 }
+
 #**********************************************************
 =head2 docs_take_variables($type, $attr)
 
@@ -181,8 +182,35 @@ sub docs_take_variables {
   $Docs->{ORDER_TOTAL_SUM_VAT} = 1;
   # Very strange conf, but its a one quick way to take some variables from user
   # and configure correct working without code changing
-  $Docs->{UID} = $conf{DOCS_VARIABLES_UID} || 1;
+
+  require Info_fields;
+
+  my Users $user = Users->new($db, $admin, \%conf);
+  my Companies $company = Companies->new($db, $admin, \%conf);
+  my $Info_fields = Info_fields->new($db, $admin, \%conf);
+
+  my $extra_fields = $Info_fields->fields_list();
+
+  my $user_info = $user->list({
+    LAST_ACTIVE_USER => 1,
+    SORT             => 'u.uid',
+    DESC             => 'DESC',
+    PAGE_ROWS        => 1,
+    COLS_NAME        => 1
+  });
+
+  my $company_info = $company->list({
+    DISABLE             => 0,
+    SORT                => 'c.id',
+    DESC                => 'DESC',
+    PAGE_ROWS           => 1,
+    COLS_NAME           => 1
+  });
+
+  $Docs->{UID} = $user_info->[0]->{uid} || 1;
+  $Docs->{COMPANY_ID} = $company_info->[0]->{id} || 1;
   $Docs->{CONTRACT_DATE} = $DATE;
+
   my @result = docs_print("doc", {
     TAKE_PARAMS           => 1,
 
@@ -200,18 +228,93 @@ sub docs_take_variables {
     "db",
     "list",
     "conf",
-    "TAKE_PARAMS"
+    "TAKE_PARAMS",
+    'errno',
+    'errstr'
   );
 
-  my @sorted_keys = sort grep { my $id = $_; not grep $_ eq $id, @system_vars } @result;
-  my $langed_result = {};
+  my @sorted_shared_vars = sort grep { my $id = $_; not grep $_ eq $id, @system_vars } @result;
 
-  for my $key (@sorted_keys) {
-    $langed_result->{$key} = $lang{$key} || "$key";
+  # additional variables for Invoice
+  my @additional_var_invoice = (
+    'AVANCE',
+    'INVOICE_NUM',
+    'ADDRESS_FULL',
+    'CUSTOMER',
+    'AMOUNT_FOR_PAY',
+    'DEBT',
+    'PAYMENT_ID',
+    'CHARGED_SUM',
+    'EXPIRE_DATE',
+    'LAST_PAYMENT_SUM',
+    'LAST_PAYMENT_DATE',
+    'INVOICE_PERIOD',
+    'PAYMENT_DATE_1',
+    'PAYMENT_COMMENTS_1',
+    'PAYMENT_SUM_1',
+    'PAYMENT_ALT_SUM_1',
+    'PAYMENT_ID_1',
+    'PAYMENT_TOTAL_SUM',
+    'UNPAYMENT_INVOICE_NUM_1',
+    'UNPAYMENT_INVOICE_DATE_1',
+    'UNPAYMENT_INVOICE_SUM_1',
+    'UNPAYMENT_INVOICE_ALT_SUM_1',
+    'UNPAYMENT_TOTAL_SUM',
+    'UNPAYMENT_TOTAL_ALT_SUM',
+    'TOTAL_REST_SUM',
+    'TOTAL_REST_ALT_SUM',
+    'ORDER_NUM_1',
+    'ORDER_NAME_1',
+    'ORDER_COUNT_1',
+    'ORDER_PRICE_1',
+    'ORDER_SUM_1',
+    'ORDER_PRICE_WITHOUT_VAT_1',
+    'TOTAL_TAX_SUM_1',
+    'ORDER_VAT_1',
+    'ORDER_SUM_WITHOUT_VAT_1',
+    'TIME',
+    'ORDERS'
+  );
+
+  # additional variables for company
+  my @additional_var_company = (
+    'REPRESENTATIVE',
+    'COMPANY_PHONE',
+    'ADDRESS',
+    'VAT',
+    'BANK_NAME',
+    'BANK_ACCOUNT',
+    'COR_BANK_ACCOUNT',
+    'BANK_BIC'
+  );
+
+  # Special variables where cant defined in standard scenario
+  my @additional_special_vars = (
+    'PASSWORD'
+  );
+
+  my @add_info_fields = ();
+  for my $field (@$extra_fields) {
+    push(@add_info_fields, $field->{SQL_FIELD});
+  };
+
+  my @docs_all_vars = (
+    @sorted_shared_vars,
+    @add_info_fields,
+    @additional_var_invoice,
+    @additional_var_company,
+    @additional_special_vars,
+  );
+
+  my $result = {};
+
+  for my $key (@docs_all_vars) {
+    $result->{$key} = $key;
   }
 
-  return $langed_result;
+  return $result;
 }
+
 #**********************************************************
 =head2 docs_print($type, $attr)
 
@@ -385,19 +488,25 @@ sub docs_print{
     print $html->header();
   }
 
-  if ( $LIST_PARAMS{COMPANY_ID} ){
-
+  my $companies = {};
+  my $company_id = $LIST_PARAMS{COMPANY_ID} // $Docs->{COMPANY_ID} // $FORM{COMPANY_ID};
+  if ($company_id) {
+    $companies = Companies->new($db, $admin, \%conf);
+    $companies->with_info_fields({
+      COMPANY_ID => $company_id,
+    });
   }
-  else{
+  else {
     $users = $user if ($user && $user->{UID});
   }
 
-  if ( $Docs->{UID} ){
+  if ($Docs->{UID}) {
     $users->info( $Docs->{UID} ) if (!$users->{BILL_ID});
     $users->pi( { UID => $Docs->{UID} } );
-    $users->{ADDRESS_FULL} =
-      "$users->{ADDRESS_STREET}$conf{BUILD_DELIMITER}$users->{ADDRESS_BUILD}$conf{BUILD_DELIMITER}$users->{ADDRESS_FLAT}" if ($users->{ADDRESS_STREET});
-
+    if ($users->{ADDRESS_STREET}) {
+      $users->{ADDRESS_FULL} =
+        "$users->{ADDRESS_STREET}$conf{BUILD_DELIMITER}$users->{ADDRESS_BUILD}$conf{BUILD_DELIMITER}$users->{ADDRESS_FLAT}"
+    }
     if ( $users->{GID} ){
       $users->group_info( $users->{GID} );
       if ( $users->{SEPARATE_DOCS} ){
@@ -474,7 +583,7 @@ sub docs_print{
   my $content = '';
 
   if($attr->{TAKE_PARAMS}) {
-    my @variables = (keys %{$attr}, keys %{$users});
+    my @variables = (keys %{$attr}, keys %{$users}, keys %{$companies});
     return @variables;
   }
 
@@ -507,6 +616,7 @@ sub docs_print{
         {
           %{$attr},
           %{$users},
+          %{$companies},
           QR_CODE_DOCS => $qr_code_pay,
         },
         { TITLE         => $template,
@@ -1156,10 +1266,11 @@ sub docs_registration_create{
     $base_url =~ s/\/admin\/index\.cgi//g;
     my $registration_url = "$base_url/registration.cgi";
 
-    eval { require Control::Qrcode };
-    print $@ if $@;
+    require Control::Qrcode;
+    Control::Qrcode->import();
+    my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html });
 
-    $Docs->{QR_CODE} = qr_make($SELF_URL, {
+    $Docs->{QR_CODE} = $QRCode->qr_make($SELF_URL, {
       SHOW_IMG      => 1,
       GLOBAL_URL    => $registration_url,
       OUTPUT2RETURN => 1,
@@ -1204,13 +1315,11 @@ sub docs_registration_preview{
   $base_url =~ s/\/admin\/index\.cgi//g;
   my $registration_url = "$base_url/registration.cgi";
 
-  eval { require Control::Qrcode };
+  require Control::Qrcode;
+  Control::Qrcode->import();
+  my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html });
 
-  if($@){
-    print $@;
-  }
-
-  $attr->{QR_CODE} = qr_make( $SELF_URL, {
+  $attr->{QR_CODE} = $QRCode->qr_make( $SELF_URL, {
       SHOW_IMG   => 1,
       GLOBAL_URL => $registration_url,
       OUTPUT2RETURN => 1,
@@ -1284,7 +1393,7 @@ sub _alt_sum_filter {
 
   $currency = ($currency) ? "($currency)" : q{};
 
-  return "$alt_sum $currency";
+  return sprintf("%.2f %s", $alt_sum, $currency);
 }
 
 #**********************************************************
@@ -1376,11 +1485,15 @@ sub _docs_make_qrcode {
   if ( !-f $full_filename ) {
     # It's not exists so should create image
     require Control::Qrcode;
+    Control::Qrcode->import();
+    my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html });
+
     open(my $qrcode_file, '>', $full_filename) or do {
       print "Content-Type: text/html\n\n";
       die "Can't open $full_filename for write : $!\n";
     };
-    my $qrcode_image = qr_make_image_from_string(join("|", @data));
+
+    my $qrcode_image = $QRCode->qr_make_image_from_string(join("|", @data));
     print $qrcode_file $qrcode_image;
   };
 
@@ -1456,11 +1569,12 @@ sub docs_module_info {
   my($attr)=@_;
 
   my %doc = ();
-
+  my $days_in_month = days_in_month({ DATE => next_month({ DATE => $main::DATE }) });
   #Modules info
   my $cross_modules_return = cross_modules('docs', {
     UID      => $attr->{UID},
-    SHOW_ALL => 1
+    SHOW_ALL => 1,
+    FULL_INFO=> 1
   });
 
   $doc{"DOCS_ABON_SUM_SERVICE"} = 0;
@@ -1471,8 +1585,8 @@ sub docs_module_info {
       next if ($#{$cross_modules_return->{$module}} == -1);
       my $module_num = 1;
       foreach my $line (@{$cross_modules_return->{$module}}) {
-        #$name, $describe, sum, $tp_id, tp_name
-        my (undef, undef, $sum, undef, $tp_name) = split(/\|/, $line);
+        my $sum = (($line->{day} // 0) * $days_in_month) + ($line->{month} // 0);
+        my $tp_name = $line->{tp_name};
         my $module_info = uc($module) . (($module_num) ? "_$module_num" : '');
         $doc{"DOCS_ABON_" . $module_info }   = sprintf("%.2f", $sum || 0);
         $doc{"DOCS_TPNAME_" . $module_info } = $tp_name || q{};
@@ -1483,6 +1597,13 @@ sub docs_module_info {
 
         $doc{"DOCS_ABON_SUM_SERVICE"} += $doc{"DOCS_ABON_" . $module_info } || 0;
         $doc{"DOCS_ABON_SUM_SERVICE"} += $doc{"DOCS_SERVICE_SUM_" . $service_num } || 0;
+
+        if ($line->{extra}) {
+          foreach my $param ( keys %{ $line->{extra} }) {
+            $doc{"DOCS_". uc($module) .'_'. uc($param)} = $line->{extra}->{$param} || q{};
+          }
+        }
+
       }
     }
   }
@@ -1505,14 +1626,6 @@ sub docs_module_info {
 sub docs_qr_code {
   my ($attr) = @_;
 
-  eval { 
-    require Control::Qrcode 
-  };
-
-  if($@) {
-    print $@;
-  }
-
   my $index     = get_function_index('form_payments');
   my $user_info = $users->pi({ UID => $attr->{UID} });
   my $op_sid    = mk_unique_value(16);
@@ -1520,7 +1633,13 @@ sub docs_qr_code {
   my $url_pay   = $conf{DOCS_QR_CODE} . '&index=' . $index . '&UID=' . $attr->{UID}
          . '&OP_SID=' . $op_sid
          . '&SUM=' . $attr->{TOTAL_SUM};
-  my $qr_code = qr_make( $SELF_URL, {
+
+  require Control::Qrcode;
+  Control::Qrcode->import();
+  my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html });
+
+
+  my $qr_code = $QRCode->qr_make( $SELF_URL, {
     SHOW_IMG          => 1,
     OUTPUT2RETURN     => 1,
     GLOBAL_URL        => $url_pay,

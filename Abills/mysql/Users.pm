@@ -292,7 +292,6 @@ sub pi {
     }
   }
 
-
   my $search_fields = join(',', @search_fields);
   $search_fields = ', ' . $search_fields if ($search_fields);
 
@@ -319,7 +318,7 @@ sub pi {
     $self->{FIO} = join (' ', ($self->{FIO1} || q{}), ($self->{FIO2} || q{}), ($self->{FIO3} || q{}));
   }
 
-  if (!$self->{errno} && $self->{LOCATION_ID}) {
+  if (!$self->{errno} && $self->{LOCATION_ID} && ! $attr->{SKIP_LOCATION1}) {
     require Address;
     Address->import();
     my $Address = Address->new($self->{db}, $admin, $self->{conf});
@@ -337,6 +336,8 @@ sub pi {
     $self->{ADDRESS_STREET} = $Address->{ADDRESS_STREET};
     $self->{ADDRESS_STREET2} = $Address->{ADDRESS_STREET2};
     $self->{ADDRESS_BUILD} = $Address->{ADDRESS_BUILD};
+    $self->{ADDRESS_FLORS} = $Address->{ADDRESS_FLORS};
+
     if ($self->{conf}->{STREET_TYPE}) {
       $self->{ADDRESS_STREET_TYPE_NAME} = (split (';', $self->{conf}->{STREET_TYPE}))[$Address->{STREET_TYPE}];
     }
@@ -346,7 +347,19 @@ sub pi {
     $self->{ADDRESS_STREET} //= q{};
     $self->{ADDRESS_BUILD} //= q{};
     $self->{ADDRESS_FLAT} //= q{};
-    $self->{ADDRESS_FULL} = "$self->{ADDRESS_STREET_TYPE_NAME} $self->{ADDRESS_STREET}$self->{conf}->{BUILD_DELIMITER}$self->{ADDRESS_BUILD}$self->{conf}->{BUILD_DELIMITER}$self->{ADDRESS_FLAT}";
+
+    if ($CONF->{ADDRESS_FORMAT}) {
+      my $address = $CONF->{ADDRESS_FORMAT};
+      while($address =~ /\%([A-Z\_0-9]+)\%/g) {
+        my $patern = $1;
+        $address =~ s/\%$patern\%/$self->{$patern}/g;
+      }
+
+      $self->{ADDRESS_FULL} = $address;
+    }
+    else {
+      $self->{ADDRESS_FULL} = "$self->{ADDRESS_STREET_TYPE_NAME} $self->{ADDRESS_STREET}$self->{conf}->{BUILD_DELIMITER}$self->{ADDRESS_BUILD}$self->{conf}->{BUILD_DELIMITER}$self->{ADDRESS_FLAT}";
+    }
   }
 
   if (!$self->{errno} && $self->{conf}{CONTACTS_NEW}) {
@@ -688,6 +701,10 @@ sub list {
     $attr->{SKIP_DEL_CHECK} = 1;
     $attr->{_MULTI_HIT}     = 1;
     $SORT = 1;
+  }
+
+  if ($attr->{LAST_ACTIVE_USER}) {
+    push @WHERE_RULES, "disable = 0";
   }
 
   if ($attr->{TAGS} && $attr->{TAGS} eq '!') {
@@ -1314,7 +1331,8 @@ sub del {
       'shedule',
       'msgs_messages',
       'msgs_reply',
-      'web_users_sessions'
+      'web_users_sessions',
+      'users_contacts'
     );
 
     $self->{info} = '';
@@ -2790,4 +2808,110 @@ sub switch_list {
 
   return $list;
 }
+
+#**********************************************************
+=head2 user_status_add($attr) - Create user status
+
+=cut
+#**********************************************************
+sub user_status_add{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add( 'users_status', $attr );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 user_status_change($attr) -  Change user status
+
+=cut
+#**********************************************************
+sub user_status_change{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'users_status',
+      DATA         => $attr
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 user_status_list($attr) - list user status
+
+=cut
+#**********************************************************
+sub user_status_list{
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = (defined( $attr->{DESC} )) ? $attr->{DESC} : 'DESC';
+
+  my $WHERE = $self->search_former( $attr, [
+    [ 'ID',            'INT', 'id',        1],
+    [ 'NAME',          'STR', 'name',      1],
+    [ 'DESCR',         'STR', 'descr',     1],
+    [ 'COLOR',         'STR', 'color',     1],
+  ],
+    { WHERE => 1, }
+  );
+
+  $self->query( "SELECT $self->{SEARCH_FIELDS} id
+     FROM users_status
+     $WHERE
+     GROUP BY 1
+     ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 user_status_del($attr) - Del user status
+
+=cut
+#**********************************************************
+sub user_status_del{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del( 'users_status', $attr );
+  return $self;
+}
+
+#**********************************************************
+=head2 user_status_info($attr) - service user info
+
+  Arguments:
+    $attr
+      ID
+
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub user_status_info{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query( "SELECT * FROM users_status WHERE id= ? ;",
+    undef,
+    { INFO => 1,
+      Bind => [ $attr->{ID} ] }
+  );
+
+  return $self;
+}
+
 1;

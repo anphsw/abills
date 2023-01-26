@@ -25,6 +25,7 @@ if ($debug > 3) {
   $Payment_plugin->{DEBUG}=7;
 }
 
+$payment_id = int(rand(10000));
 $payment_sum = int($payment_sum * 100);
 
 our @requests = (
@@ -58,7 +59,7 @@ our @requests = (
 <status>11</status>
 <code>00</code>
 <desc>Оплата услуг</desc>
-<info>{"UID":$user_id}</info>
+<info>{\"UID\":$user_id, \"amount\": $payment_sum, \"OPERATION_ID\": \"09408753\"}</info>
 </transaction>
 <transaction id="432">
 <mch_id>7</mch_id>
@@ -69,7 +70,7 @@ our @requests = (
 <status>11</status>
 <code>00</code>
 <desc>Оплата услуг</desc>
-<info>{"UID":$user_id}</info>
+<info>{\"UID\":$user_id, \"amount\": $payment_sum, \"OPERATION_ID\": \"09408753\"}</info>
 </transaction>
 </transactions>
 <salt>4bd31cc81bf4a882ec19b3f4a2df9a8b1dd4694b</salt>

@@ -1203,16 +1203,11 @@ sub mail_wizard {
     $payments->{SEL_ER} .= ">$line->[1] : $line->[2]\n";
   }
   $payments->{SEL_ER} .= "</select>\n";
-
-  my $password_form;
-  $password_form->{GEN_PASSWORD} = mk_unique_value(8);
-
-  #Info fields
   my %pi_form = ( INFO_FIELDS => form_info_field_tpl() );
 
   my %tpls = (
     "01:".$lang{LOGIN}."::"  => $html->tpl_show(templates('form_user'),     { %$users_defaults, %FORM }, { OUTPUT2RETURN => 1, ID => 'FORM_USER' }),
-    "02:".$lang{PASSWD}."::" => $html->tpl_show(templates('form_password'), { %$password_form,  %FORM }, { OUTPUT2RETURN => 1, ID => 'FORM_PASSWORD' }),
+    "02:".$lang{PASSWD}."::" => $html->tpl_show(templates('form_password'), { %FORM }, { OUTPUT2RETURN => 1, ID => 'FORM_PASSWORD' }),
     "03:".$lang{INFO}."::"   => $html->tpl_show(templates('form_pi'),       { %pi_form,         %FORM }, { OUTPUT2RETURN => 1, ID => 'FORM_PI' }),
     "5:$lang{PAYMENTS}::" => $html->tpl_show(templates('form_payments'), $payments,       { notprint => 1 }),
   );

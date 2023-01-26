@@ -56,7 +56,11 @@
         <div class='col-sm-8'>
           <div class='input-group'>
             <input type='text' class='form-control' name='docs' id='docs' value='%DOCS%'>
-            <span class='input-group-text'><a id='link' href='%DOCS%' target='_blank'><i class='fa fa-book'></i></a></span>
+            <div class='input-group-append'>
+              <a id='link' class='btn input-group-button' href='%DOCS%' target='_blank'>
+                <i class='fa fa-book'></i>
+              </a>
+            </div>
           </div>
         </div>
       </div>

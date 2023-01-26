@@ -57,7 +57,6 @@
   <script src='/styles/default/js/bootstrap.bundle.min.js'></script>
   <script src='/styles/default/js/js.cookies.js'></script>
   <script src='/styles/default/js/modals.js'></script>
-  <script src='/styles/default/js/old/app.js'></script>
   <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
   <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
   <!--[if lt IE 9]>

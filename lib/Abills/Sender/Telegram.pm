@@ -11,6 +11,7 @@ use Abills::Backend::Plugin::Telegram::BotAPI;
 use Abills::Fetcher;
 
 my %conf = ();
+our %lang = ();
 
 my $api_url = 'api.telegram.org';
 
@@ -47,7 +48,10 @@ sub new {
   });
   
   die 'No Telegram token ($conf{TELEGRAM_TOKEN})' if ( !$self->{token} );
-  
+
+  $conf{TELEGRAM_LANG} = 'russian' unless($conf{TELEGRAM_LANG});
+  require "Abills/modules/Msgs/lng_$conf{TELEGRAM_LANG}.pl";
+
   bless $self, $class;
   
   return $self;
@@ -159,7 +163,7 @@ sub get_updates {
 =cut
 #**********************************************************
 sub get_bot_name {
-  my ( $self, $conf, $db ) = @_;
+  my ($self, $conf, $db) = @_;
   
   $self->{name} //= $conf->{TELEGRAM_BOT_NAME} // $conf->{TELEGRAM_BOT_NAME_AUTO};
   
@@ -205,11 +209,10 @@ sub get_bot_name {
 
 =cut
 #**********************************************************
-sub make_reply(){
+sub make_reply {
   my ($message_id, $sender_attr) = @_;
 
   my @keyboard = ();
-
 
   my $referer = (
     # Allow users to use their own portal URL
@@ -230,9 +233,9 @@ sub make_reply(){
   }
 
   if($reply_button && !$sender_attr->{AID}){
-      push(@keyboard, { text => $sender_attr->{LANG}->{MSGS_REPLY}, 'callback_data' => 'Msgs_reply&reply&' . $message_id });
+      push(@keyboard, { text => $lang{MSGS_REPLY}, 'callback_data' => 'Msgs_reply&reply&' . $message_id });
   } elsif($sender_attr->{AID}){
-    push(@keyboard, { text => $sender_attr->{LANG}->{MSGS_REPLY},  switch_inline_query_current_chat => "MSGS_ID=$message_id\n" });
+    push(@keyboard, { text => $lang{MSGS_REPLY},  switch_inline_query_current_chat => "MSGS_ID=$message_id\n" });
   }
 
   if ($referer =~ /(https?:\/\/[a-zA-Z0-9:\.\-]+)\/?/g) {
@@ -249,7 +252,7 @@ sub make_reply(){
         $link .= "/admin/index.cgi?get_index=msgs_admin&full=1$receiver_uid&chg=$message_id#last_msg";
       }
 
-      push(@keyboard, { text => $sender_attr->{LANG}->{MSGS_OPEN}, 'url' => $link });
+      push(@keyboard, { text => $lang{MSGS_OPEN}, 'url' => $link });
     }
   }
 

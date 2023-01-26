@@ -1,5 +1,5 @@
-<div class='card card-primary card-outline'>
-  <form action='https://wl.walletone.com/checkout/checkout/Index' method='post'>
+<form action='https://wl.walletone.com/checkout/checkout/Index' method='post'>
+  <div class='card card-primary card-outline'>
     <input type='hidden' name='WMI_MERCHANT_ID' value=%WMI_MERCHANT_ID%>
     <input type='hidden' name='WMI_PAYMENT_AMOUNT' value=%WMI_PAYMENT_AMOUNT%>
     <input type='hidden' name='WMI_CURRENCY_ID' value=%WMI_CURRENCY_ID%>
@@ -36,5 +36,5 @@
       </ul>
       <input type='submit' class='btn btn-primary float-right' value='_{PAY}_'>
     </div>
-  </form>
-</div>
+  </div>
+</form>

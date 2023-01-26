@@ -193,5 +193,28 @@ sub events_notice {
   return 1;
 }
 
+#**********************************************************
+=head2 events_rotate ()
+
+  Returns:
+
+=cut
+#**********************************************************
+sub events_rotate {
+  my ($attr) = @_;
+
+  my $debug = $attr->{DEBUG} || 0;
+  my $debug_output = '';
+
+  $Events->{debug} = 1 if ($debug > 6);
+
+  $Events->log_rotate();
+
+  $debug_output .= "Make events rotate\n" if ($debug > 0);
+
+  $DEBUG .= $debug_output;
+  return $debug_output;
+}
+
 
 1

@@ -30,7 +30,7 @@
   jQuery(function() {
     var id = jQuery('#pg_index').val();
 
-    jQuery('.active').removeClass("active");
-    jQuery('#btn_page_' + id).addClass("active");
+    jQuery('.active').removeClass('active');
+    jQuery('#btn_page_' + id).addClass('active');
   });
 </script>

@@ -1,7 +1,7 @@
 SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
 
 CREATE TABLE IF NOT EXISTS `cams_tp` (
-  `tp_id` SMALLINT(5) UNSIGNED DEFAULT '0',
+  `tp_id` SMALLINT(6) UNSIGNED DEFAULT '0',
   `streams_count` smallint(6) unsigned DEFAULT 0,
   `dvr` smallint(6) unsigned DEFAULT 0,
   `ptz` smallint(6) unsigned DEFAULT 0,
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS `cams_groups` (
 
 CREATE TABLE IF NOT EXISTS `cams_users_groups` (
   `id` INTEGER(10) UNSIGNED NOT NULL DEFAULT '0',
-  `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `group_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `changed` DATETIME NOT NULL,
   UNIQUE KEY `id` (`id`, `group_id`, `tp_id`)
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS `cams_users_groups` (
 
 CREATE TABLE IF NOT EXISTS `cams_users_cameras` (
   `id` INTEGER(10) UNSIGNED NOT NULL DEFAULT '0',
-  `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `camera_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `changed` DATETIME NOT NULL,
   UNIQUE KEY `id` (`id`, `tp_id`, `camera_id`)
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS `cams_users_cameras` (
 
 CREATE TABLE IF NOT EXISTS `cams_users_folders` (
   `id` INTEGER(10) UNSIGNED NOT NULL DEFAULT '0',
-  `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `folder_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `changed` DATETIME NOT NULL,
   UNIQUE KEY `id` (`id`, `folder_id`, `tp_id`)

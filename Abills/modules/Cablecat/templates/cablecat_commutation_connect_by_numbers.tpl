@@ -52,7 +52,7 @@
 
 
   </div>
-  <div class='card-footer text-right'>
+  <div class='card-footer'>
     <button type='button' class='btn btn-secondary' data-dismiss='modal'>_{CANCEL}_</button>
     <button type='button' class='btn btn-primary' id='connect_by_numbers_btn'>_{CONNECT}_</button>
   </div>

@@ -8,7 +8,7 @@
 use strict;
 use warnings FATAL => 'all';
 use POSIX qw(strftime);
-use Dv;
+use Internet;
 require Abills::Misc;
 
 load_pmodule('SNMP');
@@ -31,7 +31,7 @@ our ($html,
 );
 
 our Equipment $Equipment;
-my $Dv = Dv->new( $db, $admin, \%conf );
+my $Internet = Internet->new( $db, $admin, \%conf );
 
 
 #**********************************************************
@@ -695,7 +695,7 @@ sub equipment_panel_new {
 #**********************************************************
 sub equipment_snmp_user_data {
 
-  my $mac = $Dv->list({ COLS_NAME => 1, UID => $FORM{UID}, CID => '_SHOW' });
+  my $mac = $Internet->user_list({ COLS_NAME => 1, UID => $FORM{UID}, CID => '_SHOW' });
 
   if ($mac->[0]->{cid}) {
     my $ports = $Equipment->mac_log_list(
@@ -891,7 +891,7 @@ sub equipment_fdb_data {
     }
   );
   foreach my $key (@$fdb) {
-    my $login = $Dv->list({ COLS_NAME => 1, LOGIN => '_SHOW', CID => $key->{mac} });
+    my $login = $Internet->list({ COLS_NAME => 1, LOGIN => '_SHOW', CID => $key->{mac} });
     $table->addrow(
       $key->{port},
       $key->{mac},

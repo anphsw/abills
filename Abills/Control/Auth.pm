@@ -408,8 +408,13 @@ sub check_permissions {
     else {
       $admin->{SID} = mk_unique_value(14);
     }
+
+    if($attr->{API_KEY}
+      || ($conf{US_API} && $attr->{key})) {
+      $PARAMS{API_KEY}   = $attr->{API_KEY} || $attr->{key} || q{123};
+    }
     #LDAP auth
-    if($conf{LDAP_IP}) {
+    elsif($conf{LDAP_IP}) {
       require Abills::Auth::Core;
       Abills::Auth::Core->import();
       my $Auth = Abills::Auth::Core->new({
@@ -428,13 +433,14 @@ sub check_permissions {
       }
       else {
         $admin->{errno} = 5;
-        $admin->{errstr}=$Auth->{errstr};
-        return 2;
+        $admin->{errstr}= $Auth->{errstr};
+
+        if (! $conf{AUTH_CASCADE}) {
+          return 2;
+        }
+        $PARAMS{LOGIN}   = $login;
+        $PARAMS{PASSWORD}= $password;
       }
-    }
-    elsif($attr->{API_KEY}
-        || ($conf{US_API} && $attr->{key})) {
-      $PARAMS{API_KEY}   = $attr->{API_KEY} || $attr->{key} || q{123};
     }
     else {
       $PARAMS{LOGIN}   = $login;
@@ -458,11 +464,12 @@ sub check_permissions {
       Abills::Auth::Core->import();
       my $Auth = Abills::Auth::Core->new({
         CONF      => \%conf,
-        AUTH_TYPE => 'OATH'
+        AUTH_TYPE => 'OATH',
+        FORM      => \%FORM
       });
 
       if (!$Auth->check_access({SECRET => $admin->{G2FA}, PIN => $FORM{g2fa}})) {
-        $admin->{errno} = 5;
+        $admin->{errno}  = 5;
         $admin->{errstr} = 'ERROR_WRONG_PIN';
         $FORM{G2FA} = 1;
         return 2;
@@ -541,7 +548,11 @@ sub check_permissions {
 
       if ((! $line->{day} || $wday+1 == $line->{day})
         && $time > $line->{begin} && $time < $line->{end}) {
-        if (check_ip($ENV{REMOTE_ADDR}, "$line->{ip}/$line->{bit_mask}")) {
+        if ($line->{bit_mask} && check_ip($ENV{REMOTE_ADDR}, "$line->{ip}/$line->{bit_mask}")) {
+          $deny = 0;
+          last;
+        }
+        elsif ($line->{ip} eq '0.0.0.0' || !$line->{bit_mask} && check_ip($ENV{REMOTE_ADDR}, $line->{ip})) {
           $deny = 0;
           last;
         }
@@ -565,8 +576,20 @@ sub check_permissions {
   }
 
   #if (! $admin->{SID} && ! $attr->{API_KEY}) {
-  if (! $admin->{SID}) {
+  if (!$admin->{SID}) {
     $admin->{SID} = mk_unique_value(14);
+
+    if ($password && $login) {
+      $admin->full_log_add( {
+        FUNCTION_INDEX => 0,
+        AID            => $admin->{AID},
+        FUNCTION_NAME  => 'ADMIN_AUTH',
+        DATETIME       => 'NOW()',
+        IP             => $ENV{REMOTE_ADDR},
+        SID            => $admin->{SID},
+        PARAMS         => '',
+      });
+    }
   }
 
   return 0;
@@ -606,7 +629,8 @@ sub auth_user {
       CONF      => \%conf,
       AUTH_TYPE => $FORM{external_auth},
       USERNAME  => $login,
-      SELF_URL  => $SELF_URL
+      SELF_URL  => $SELF_URL,
+      FORM      => \%FORM
     });
 
     $Auth->check_access(\%FORM);
@@ -616,7 +640,6 @@ sub auth_user {
       exit;
     }
     elsif($Auth->{USER_ID}) {
-      $sid = $session_id if ($attr->{API});
       $user->list({
         $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
         LOGIN                => '_SHOW',
@@ -629,10 +652,10 @@ sub auth_user {
         $user->{LOGIN} = $user->{list}->[0]->{login};
         $user->{UID} = $uid;
         $res = $uid;
-        $OUTPUT{PUSH_STATE} = "<script>history.pushState(null, null, 'index.cgi?index=10&sid=$sid');</script>";
+        $OUTPUT{PUSH_STATE} = "<script>history.pushState(null, null, 'index.cgi?index=10&sid=$sid');</script>" if (!$attr->{API});
       }
       else {
-        if(! $sid) {
+        if(!$sid && !($attr->{API} && $session_id)) {
           $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', $lang{ERROR}, $lang{ERR_UNKNOWN_SN_ACCOUNT}, {OUTPUT2RETURN => 1});
           return 0;
         }
@@ -695,10 +718,10 @@ sub auth_user {
       $user->web_session_update({ SID => $session_id, REMOTE_ADD => $REMOTE_ADDR  });
       #Add social id
       if ($Auth->{USER_ID}) {
-        $user->pi_change( {
+        $user->pi_change({
           $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
           UID                  => $user->{UID}
-        } );
+        });
       }
 
       return ($user->{UID}, $session_id, $user->{LOGIN});
@@ -707,13 +730,11 @@ sub auth_user {
 
   if ($login && $password) {
     if ($conf{wi_bruteforce}) {
-      $user->bruteforce_list(
-        {
-          LOGIN    => $login,
-          PASSWORD => $password,
-          CHECK    => 1
-        }
-      );
+      $user->bruteforce_list({
+        LOGIN    => $login,
+        PASSWORD => $password,
+        CHECK    => 1
+      });
 
       if ($user->{TOTAL} > $conf{wi_bruteforce}) {
         if ($attr->{API}) {
@@ -731,7 +752,9 @@ sub auth_user {
     if ($conf{check_access}) {
       $Auth = Abills::Auth::Core->new({
         CONF      => \%conf,
-        AUTH_TYPE => 'Radius'});
+        AUTH_TYPE => 'Radius',
+        FORM      => \%FORM
+      });
 
       $res = $Auth->check_access({
         LOGIN    => $login,
@@ -749,21 +772,22 @@ sub auth_user {
   #Get user ip
   if (defined($res) && $res > 0) {
     $user->info($user->{UID} || 0, {
-        LOGIN     => ($user->{UID}) ? undef : $login,
-        DOMAIN_ID => $FORM{DOMAIN_ID}
-      });
+      LOGIN     => ($user->{UID}) ? undef : $login,
+      DOMAIN_ID => $FORM{DOMAIN_ID}
+    });
 
     if($conf{AUTH_G2FA}) {
       $user->pi();
       if(!$FORM{g2fa}){
-      if ($user->{_G2FA}) {
-        $FORM{user} = $login;
-        $FORM{password} = $password;
-        $FORM{G2FA} = 1;
-        delete $FORM{logined};
-        return (0, $session_id, $login);
+        if ($user->{_G2FA}) {
+          $FORM{user} = $login;
+          $FORM{password} = $password;
+          $FORM{G2FA} = 1;
+          delete $FORM{logined};
+          return (0, $session_id, $login);
+        }
       }
-      } else {
+      else {
         my $OATH = Abills::Auth::Core->new({
           CONF      => \%conf,
           AUTH_TYPE => 'OATH'
@@ -801,41 +825,18 @@ sub auth_user {
   }
   else {
     if ($login || $password) {
-      $user->bruteforce_add(
-        {
-          LOGIN       => $login,
-          PASSWORD    => $password,
-          REMOTE_ADDR => $REMOTE_ADDR,
-          AUTH_STATE  => $ret
-        }
-      );
+      $user->bruteforce_add({
+        LOGIN       => $login,
+        PASSWORD    => $password,
+        REMOTE_ADDR => $REMOTE_ADDR,
+        AUTH_STATE  => $ret
+      });
 
       $OUTPUT{MESSAGE} = $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD},
         { OUTPUT2RETURN => 1, ID => 900 } );
     }
     $ret = 0;
   }
-
-  #Vacations only part
-  #@deprecated
-  # if (in_array('Vacations', \@MODULES) ) {
-  #   load_module('Vacations');
-  #   my $Vacations = Vacations->new($db, $admin, \%conf);
-  #   if ($ret) {
-  #     $Vacations->vacation_log_add({
-  #       IP       => $REMOTE_ADDR,
-  #       EMAIL    => $login,
-  #       COMMENTS => "Success login",
-  #     });
-  #   }
-  #   else {
-  #     $Vacations->vacation_log_add({
-  #       IP       => $REMOTE_ADDR,
-  #       EMAIL    => $login,
-  #       COMMENTS => "Wrong password",
-  #     });
-  #   }
-  # }
 
   return ($ret, $session_id, $login);
 }
@@ -980,7 +981,6 @@ sub auth_sql {
 
   return $ret;
 }
-
 
 
 1;

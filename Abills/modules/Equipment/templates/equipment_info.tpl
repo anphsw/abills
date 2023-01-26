@@ -53,8 +53,8 @@
 </script>
 
 
-<form action='$SELF_URL' METHOD='post' name='equipment_info' class='form-horizontal'>
-  <input type='hidden' name='index' value='$index'>
+<form action='%SELF_URL%' METHOD='post' name='equipment_info'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'>
   <input type='hidden' name='chg' value='$FORM{chg}'>
 
@@ -67,11 +67,11 @@
       %EQUIPMENT_IMAGE%
 
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right'>ID: %NAS_ID%</label>
+        <label class='col-md-4 col-form-label text-md-right' for='NAME'>ID: %NAS_ID%</label>
         <div class='col-md-8'>
           <div class='input-group'>
             <input type='text' class='form-control' placeholder='_{NAME}_: %NAS_NAME% (%NAS_IP%)' name='NAME'
-                   readonly value='_{NAME}_: %NAS_NAME% (%NAS_IP%)'>
+                   readonly value='_{NAME}_: %NAS_NAME% (%NAS_IP%)' ID='NAME'>
             <div class='input-group-append'>
               <div class='input-group-text'>
                 %NAS_ID_INFO%
@@ -105,12 +105,12 @@
         </div>
       </div>
 
-      <div class='form-group row'>
-        <label for='PORTS' class='col-md-4 col-form-label text-md-right'>_{PORTS}_:</label>
-        <div class='col-md-8'>
-          <input type='text' class='form-control' id='PORTS' placeholder='%PORTS%' name='PORTS' value='%PORTS%'>
-        </div>
-      </div>
+<!--      <div class='form-group row'>-->
+<!--        <label for='PORTS' class='col-md-4 col-form-label text-md-right'>_{PORTS}_:</label>-->
+<!--        <div class='col-md-8'>-->
+<!--          <input type='text' class='form-control' id='PORTS' placeholder='%PORTS%' name='PORTS' value='%PORTS%'>-->
+<!--        </div>-->
+<!--      </div>-->
 
       <div class='form-group row'>
         <label for='STATUS' class='col-md-4 col-form-label text-md-right'>_{STATUS}_:</label>

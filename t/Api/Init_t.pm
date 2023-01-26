@@ -90,8 +90,8 @@ sub test_runner {
   print color($colors{INFO});
 
   if (!$uid) {
-    print "No user with login: " . ($conf{API_TEST_USER_LOGIN} || 'test') .
-        " with password: " . ($conf{API_TEST_USER_PASSWORD} || '123456') . "\n";
+    print "No user with login: " . $login .
+        " with password: " . $password . "\n";
   }
   else {
     print $attr->{message} if ($attr->{message});
@@ -262,9 +262,8 @@ sub _test_run_directly {
         }
       }
     }
-    $ENV{REQUEST_METHOD} = $test->{method};
 
-    my $router = Abills::Api::Router->new($test->{path}, $db, $user, $admin, $Conf->{conf}, \%FORM, \%lang, \@MODULES, 1);
+    my $router = Abills::Api::Router->new($test->{path}, $db, $admin, $Conf->{conf}, \%FORM, \%lang, \@MODULES, 1, $test->{method});
     $router->add_credential('ADMIN', sub {return 1});
     $router->add_credential('USER', sub {return 1});
 
@@ -305,6 +304,10 @@ sub _user_login {
     METHOD      => 'POST',
   });
 
+  if ($result->{error}) {
+    print "[$result->{error}] $result->{errstr}\n";
+    exit;
+  }
   return ($result->{uid}, $result->{sid});
 }
 
@@ -327,20 +330,20 @@ sub folder_list {
   my @test_list = ();
 
   if ($attr->{ADMIN}) {
-    push @folders, _read_dir('admin', $main_dir);
+    push @folders, _read_dir('admin', $main_dir, ($attr->{PATH} || q{}));
     if (!@folders) {
       print color($colors{BAD}), "NO ADMIN TESTS \n";
     }
   }
   elsif ($attr->{USER}) {
-    push @folders, _read_dir('user', $main_dir);
+    push @folders, _read_dir('user', $main_dir, ($attr->{PATH} || q{}));
     if (!@folders) {
       print color($colors{BAD}), "NO USER TESTS \n";
     }
   }
   else {
-    push @folders, _read_dir('admin', $main_dir);
-    push @folders, _read_dir('user', $main_dir);
+    push @folders, _read_dir('admin', $main_dir, ($attr->{PATH} || q{}));
+    push @folders, _read_dir('user', $main_dir, ($attr->{PATH} || q{}));
   }
 
   @folders = sort @folders;
@@ -383,14 +386,15 @@ sub folder_list {
 =cut
 #**********************************************************
 sub _read_dir {
-  my ($dir, $main_dir) = @_;
+  my ($dir, $main_dir, $path) = @_;
 
   opendir(DIR, "schemas/$dir");
   my @folder_list = eval {readdir(DIR)};
   my @folders = ();
-  foreach my $admin_folder (@folder_list) {
-    next if ($admin_folder =~ /\./);
-    push @folders, "$main_dir/schemas/$dir/$admin_folder";
+  foreach my $folder (@folder_list) {
+    next if ($folder =~ /\./);
+    next if ($path && $folder ne $path);
+    push @folders, "$main_dir/schemas/$dir/$folder";
   }
 
   return @folders;
@@ -412,7 +416,10 @@ sub help {
     ADMIN=1 - run only admin tests
     USER=1  - run only admin tests
 
-  debug=[0..5]
+  run selected path:
+    PATH={NAME_OF_FOLDER_WITH_TEST}
+
+  DEBUG=[0..5]
     debug > 1 - run all tests with curl debug printing requests and responses
     debug > 5 - run all tests directly with mysql printing requests
 

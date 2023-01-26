@@ -6,7 +6,7 @@
     <div class='timeline-body'>
       %MESSAGE%
     </div>
-    <div class='timeline-footer' style='background-color: rgba(0, 0, 0, .03);'>
+    <div class='timeline-footer' style='background-color: rgba(0, 0, 0, .03); min-height: 47px;'>
       %ATTACHMENT%
       <div class='float-left'>%RUN_TIME%</div>
       <div class='text-right'>%QUOTING% %EDIT% %DELETE% %NEW_TOPIC%</div>

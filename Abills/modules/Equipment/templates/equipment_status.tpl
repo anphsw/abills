@@ -1,4 +1,4 @@
-<div class='card box-solid'>
+<div class='card card-info card-outline'>
   <div class='card-header with-border hidden-print text-center'>
     <i class='fas fa-chart-bar' style='font-size:18px; margin-right: 5px; float:left;'></i>
     <h4 class='card-title table-caption'>%TITLE%</h4>

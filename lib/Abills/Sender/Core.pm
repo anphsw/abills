@@ -54,6 +54,8 @@ our %PLUGIN_NAME_FOR_TYPE_ID = (
   12 => 'XMPP',
   13 => 'Iptv_message',
   14 => 'Viber',
+  15 => 'Facebook',
+  16 => 'Instagram',
 );
 our %TYPE_ID_FOR_PLUGIN_NAME = reverse %{PLUGIN_NAME_FOR_TYPE_ID};
 

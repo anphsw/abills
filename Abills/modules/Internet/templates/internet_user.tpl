@@ -73,13 +73,11 @@
                 </div>
                 <input type='text' name='GRP' value='%TP_NAME%' ID='TP' class='form-control hidden-xs' %TARIF_PLAN_TOOLTIP% readonly>
                 <div class='input-group-append'>
-                  <div class='input-group-text'>
-                    %CHANGE_TP_BUTTON%
-                  </div>
-                  <div class='input-group-text'>
-                    <a href='$SELF_URL?index=$index&UID=$FORM{UID}&ID=%ID%&pay_to=1'
-                       class='btn btn-sm hidden-print $conf{CURRENCY_ICON}' title='_{PAY_TO}_'></a>
-                  </div>
+                  %CHANGE_TP_BUTTON%
+                  <a class='btn input-group-button hidden-print px-3' title='_{PAY_TO}_'
+                     href='$SELF_URL?index=$index&UID=$FORM{UID}&ID=%ID%&pay_to=1'>
+                    <i class='$conf{CURRENCY_ICON}'></i>
+                  </a>
                 </div>
               </div>
             </div>
@@ -318,7 +316,7 @@
             </div>
           </div>
         </div>
-    <div class='card-footer text-left'>
+    <div class='card-footer'>
       %BACK_BUTTON%
       <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary double_click_check'/>
       %DEL_BUTTON%

@@ -14,7 +14,7 @@ use v5.16;
 use Abills::Defs;
 use Abills::Base qw(ip2int date_diff mk_unique_value convert in_array
   days_in_month startup_files cfg2hash urlencode cmd check_time gen_time
-  next_month load_pmodule);
+  next_month load_pmodule vars2lang);
 use Abills::Filters;
 use Abills::Fetcher;
 use POSIX qw(strftime mktime);
@@ -54,26 +54,35 @@ our ($db,
 sub load_module {
   my ($module, $attr) = @_;
 
-  my $lang_file = '';
-  $attr->{language} = 'english' if (! $attr->{language});
-
-  foreach my $prefix ('../',@INC) {
-    my $realfile_path = "$prefix/Abills/modules/$module/lng_";
-
-    if (-f $realfile_path . $attr->{language}.'.pl') {
-      if($attr->{language} ne 'english' && -f $realfile_path .'english.pl') {
-         do $realfile_path .'english.pl';
-      }
-      $lang_file = $realfile_path . $attr->{language}.'.pl';
-      last;
-    }
-    elsif (-f $realfile_path .'english.pl') {
-      $lang_file = $realfile_path .'english.pl';
-    }
+  if ($attr->{LOAD_PACKAGE}) {
+    eval "require $module;";
+    $@ ? return 0 : return 1;
   }
 
-  if ($lang_file) {
-    do $lang_file;
+  if (!$attr || ($attr && !$attr->{SKIP_LANG})) {
+    my $lang_file = '';
+    $attr->{language} = 'english' if (! $attr->{language});
+
+    foreach my $prefix ('../',@INC) {
+      my $realfile_path = "$prefix/Abills/modules/$module/lng_";
+
+      if (-f $realfile_path . $attr->{language}.'.pl') {
+        if($attr->{language} ne 'english' && -f $realfile_path .'english.pl') {
+          do $realfile_path .'english.pl';
+        }
+        $lang_file = $realfile_path . $attr->{language}.'.pl';
+        last;
+      }
+      elsif (-f $realfile_path .'english.pl') {
+        $lang_file = $realfile_path .'english.pl';
+      }
+    }
+
+    if ($lang_file) {
+      do $lang_file;
+    }
+
+    return 1 if ($attr->{LANG_ONLY});
   }
 
   if ($attr->{CONFIG_ONLY}) {
@@ -135,18 +144,33 @@ sub form_purchase_module {
 
     if ($attr->{DEBUG}) {
       if ($attr->{HEADER}) {
-         print "Content-Type: text/html\n\n";
+        print "Content-Type: text/html\n\n";
       }
       print "Version: $module_version";
     }
 
     if ($attr->{REQUIRE_VERSION}) {
-      if ($module_version < $attr->{REQUIRE_VERSION}) {
-         if ($attr->{HEADER}) {
-           print "Content-Type: text/html\n\n";
+      if (!$module_version && $html->{NO_PRINT}) {
+        if ($attr->{HEADER}) {
+          print "Content-Type: text/html\n\n";
+        }
+      }
+      elsif (!$module_version || $module_version < $attr->{REQUIRE_VERSION}) {
+        if ($attr->{HEADER}) {
+          print "Content-Type: text/html\n\n";
         }
 
-        $html->message('err', "UPDATE", "Please update module '". $attr->{MODULE} . "' to version $attr->{REQUIRE_VERSION} or higher. http://abills.net.ua/ ($module_version)");
+        $html->message('err',
+          $lang{SYSTEM_REQUIRES_UPDATE} || "UPDATE",
+          vars2lang(
+            $lang{PLEASE_UPDATE_MODULE} || "Please update module $attr->{MODULE}",
+            {
+              MODULE          => $attr->{MODULE},
+              REQUIRE_VERSION => $attr->{REQUIRE_VERSION},
+              MODULE_VERSION  => $module_version
+            }
+          )
+        );
         return 1;
       }
     }
@@ -233,7 +257,16 @@ sub _error_show {
       return 1;
     }
     elsif ($errno == 699) {
-      $html->message('err', "License $lang{ERROR}", "Update license ($module->{errstr})", { ID => '699' });
+      $html->message('err',
+        $lang{LICENSE_EXPIRED},
+        vars2lang(
+          $lang{PLEASE_UPDATE_LICENSE_MODULE},
+          { NUMBER => $module->{errstr} || ""}
+        ),
+        # Errno in this scenario is confusing
+        # Because the client thinks "hmm, 699 is my license?"
+        #     { ID => '699' }
+      );
       return 1;
     }
     elsif ($errno == 14) {
@@ -252,18 +285,18 @@ sub _error_show {
       my $extra_info = join(', ', caller());
       $html->message('err', "$module_name:$lang{ERROR}", $message . "SQL Error: [$errno]\n",
         {
-         EXTRA => ($attr->{SILENT_MODE}) ? " [$module->{sql_errno}] " . $module->{sql_errstr} : $html->tpl_show(templates('form_show_hide'),
-         {
-           CONTENT => "[" . ($module->{sql_errno} || $errno || '') .' / '. $extra_info . "] "
-             . ($module->{sql_errstr} || $module->{errstr} || '')
-             . $html->br() . $html->br()
-             . (($module->{sql_query}) ? $html->pre($module->{sql_query}, { OUTPUT2RETURN => 1 }) : ''),
-           NAME    => $lang{EXTRA},
-           ID      => 'QUERIES',
-           PARAMS  => 'collapsed-box',
-           BUTTON_ICON => 'plus'
-          },
-         { OUTPUT2RETURN => 1 })
+          EXTRA => ($attr->{SILENT_MODE}) ? " [$module->{sql_errno}] " . $module->{sql_errstr} : $html->tpl_show(templates('form_show_hide'),
+            {
+              CONTENT => "[" . ($module->{sql_errno} || $errno || '') .' / '. $extra_info . "] "
+                . ($module->{sql_errstr} || $module->{errstr} || '')
+                . $html->br() . $html->br()
+                . (($module->{sql_query}) ? $html->pre($module->{sql_query}, { OUTPUT2RETURN => 1 }) : ''),
+              NAME    => $lang{EXTRA},
+              ID      => 'QUERIES',
+              PARAMS  => 'collapsed-box',
+              BUTTON_ICON => 'plus'
+            },
+            { OUTPUT2RETURN => 1 })
         }
       );
       return 1;
@@ -271,8 +304,8 @@ sub _error_show {
     else {
       if($module->{message}) {
         $html->message('err', "$module_name:$lang{ERROR}",
-            ($lang{$module->{message}}) ? $lang{$module->{message}} : $module->{message},
-            { ID => $attr->{ID} || $module->{errno} });
+          ($lang{$module->{message}}) ? $lang{$module->{message}} : $module->{message},
+          { ID => $attr->{ID} || $module->{errno} });
       }
       else {
         my $error = ($err_strs{$errno}) ? $err_strs{$errno} : ($module->{errstr} || q{});
@@ -341,11 +374,13 @@ sub _function {
   }
 
   if ($FORM{qrcode}) {
-    #eval { do "main/Qrcode.pm" };
-    do "../../Abills/Control/Qrcode.pm";
-    qr_make( $SELF_URL, { PARAMS => \%FORM } );
+    require Control::Qrcode;
+    Control::Qrcode->import();
+    my $QRCode = Control::Qrcode->new($db, $admin, \%conf, {html => $html, functions => \%functions});
+
+    $QRCode->qr_make( $SELF_URL, { %FORM } );
     if (! $@){
-      qr_make( $SELF_URL, { PARAMS => \%FORM } );
+      $QRCode->qr_make( $SELF_URL, { %FORM } );
     }
     else {
       print $@;
@@ -563,7 +598,7 @@ sub cross_modules {
     $attr->{USER_INFO}{UID} = $uid;
 
     if ($attr->{DEBUG}) {
-      print "Function:  $function_sufix Timout: $timeout Silent: " . ($silent || 'no') . "<br>\n";
+      print "Function:  $function_index Timout: $timeout Silent: " . ($silent || 'no') . "<br>\n";
       $check_time = check_time();
     }
 
@@ -591,7 +626,7 @@ sub cross_modules {
       }
 
       foreach my $module (@MODULES) {
-        next if (in_array($mod, \@skip_modules));
+        next if (in_array($module, \@skip_modules));
 
         my $module_path = $modules_dir . $module . '/Base.pm';
         next if !(-f $module_path);
@@ -608,6 +643,7 @@ sub cross_modules {
         next unless ($module_name->can('new'));
         next unless ($module_name->can($function));
 
+        load_module($module, { %{$html || {}}, LANG_ONLY => 1 });
         eval {
           my $module_api = $module_name->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
           $full_return{$module} = $module_api->$function($attr);
@@ -858,26 +894,25 @@ sub get_period_dates {
   }
 
   my ($start_y, $start_m, $start_d)=split(/-/, $START_PERIOD);
+  my $type = $attr->{TYPE} || 0;
 
-  if ($attr->{TYPE}) {
-    if ($attr->{TYPE}==1) {
-      my $days_in_month = ($start_m != 2 ? (($start_m % 2) ^ ($start_m > 7)) + 30 : (!($start_y % 400) || !($start_y % 4) && ($start_y % 25) ? 29 : 28));
+  if ($type == 1) {
+    my $days_in_month = ($start_m != 2 ? (($start_m % 2) ^ ($start_m > 7)) + 30 : (!($start_y % 400) || !($start_y % 4) && ($start_y % 25) ? 29 : 28));
 
-      #start date
-       $end_date   = "$start_y-$start_m-$days_in_month";
-      if ($attr->{PERIOD_ALIGNMENT}) {
-        $start_date = $START_PERIOD;
-      }
-      else {
-        $start_date = "$start_y-$start_m-01";
-        if ($attr->{ACCOUNT_ACTIVATE}) {
-          $end_date = POSIX::strftime('%Y-%m-%d', localtime((POSIX::mktime(0, 0, 0, $start_d, ($start_m - 1), ($start_y - 1900), 0, 0, 0) + 30 * 86400)));
-        }
-      }
-
-      return " ($start_date-$end_date)";
+    $end_date = "$start_y-$start_m-$days_in_month";
+    if ($attr->{PERIOD_ALIGNMENT}) {
+      $start_date = $START_PERIOD;
     }
+    else {
+      $start_date = "$start_y-$start_m-01";
+      if ($attr->{ACCOUNT_ACTIVATE} && $attr->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
+        $end_date = POSIX::strftime('%Y-%m-%d', localtime((POSIX::mktime(0, 0, 0, $start_d, ($start_m - 1), ($start_y - 1900), 0, 0, 0) + 30 * 86400)));
+      }
+    }
+
+    return " ($start_date-$end_date)";
   }
+
 
   return '';
 }
@@ -888,7 +923,7 @@ sub get_period_dates {
   Arguments:
     $attr
       SERVICE_NAME       - Service name
-      TEMPLATE_KEY_NAME  - name for %conf key (DV_FEES_DSC)
+      TEMPLATE_KEY_NAME  - name for %conf key (INTERNET_FEES_DSC)
 
 =cut
 #**********************************************************
@@ -939,7 +974,7 @@ sub fees_dsc_former {
 
     Extra config option:
 
-     $conf{DV_CURDATE_ACTIVATE}=1; - Activate non payment service by cur date
+     $conf{INTERNET_CURDATE_ACTIVATE}=1; - Activate non payment service by cur date
      $conf{INTERNET_PAY_ACTIVATE}=1; - Activate non payment service by cur date
 
   Returns:
@@ -1062,11 +1097,12 @@ sub service_recalculate {
       EXT_DESCRIBE - Extra decribe
       QUITE        - Quite mode
       MODULE       - Caller module
+      USER_INFO    - User object
       DEBUG
 
     Extra config option:
 
-     $conf{DV_CURDATE_ACTIVATE}=1; - Activate non payment service by cur date
+     $conf{INTERNET_CURDATE_ACTIVATE}=1; - Activate non payment service by cur date
      $conf{INTERNET_PAY_ACTIVATE}=1; - Activate non payment service by cur date
 
   Returns:
@@ -1102,14 +1138,21 @@ sub service_get_month_fee {
   my $module       = $attr->{MODULE} || 'Internet';
   my $tp           = $Service->{TP_INFO};
   my $uid          = $Service->{UID} || 0;
-
-  $Users = $user if ($user && $user->{UID} && !$attr->{DO_NOT_USE_GLOBAL_USER_PLS});
-  if (! $Users->{BILL_ID}) {
-    $user  = $Users->info($uid);
+  if ($attr->{USER_INFO} && ref($attr->{USER_INFO}) eq 'Users') {
+    $Users = $attr->{USER_INFO};
   }
+  else {
+    $Users = $user if ($user && $user->{UID} && !$attr->{DO_NOT_USE_GLOBAL_USER_PLS});
+    if (!$Users->{BILL_ID}) {
+      $user = $Users->info($uid);
+    }
 
-  $attr->{USER_INFO}=$Users;
-
+    $attr->{USER_INFO} = $Users;
+    if ($conf{CROSS_DEBUG}) {
+      my $caller = join(', ', caller());
+      `echo "$caller" >> /tmp/cross_debug`;
+    }
+  }
   my $service_activate = $Service->{ACTIVATE} || $Users->{ACTIVATE};
 
   #Get active price
@@ -1159,8 +1202,8 @@ sub service_get_month_fee {
   }
 
   if (($tp->{MONTH_FEE} && $tp->{MONTH_FEE} > 0) ||
-      ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} > 0)
-      ) {
+    ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} > 0)
+  ) {
 
     #Get back month fee
     if ( $FORM{RECALCULATE} || $attr->{RECALCULATE}) {
@@ -1174,10 +1217,10 @@ sub service_get_month_fee {
     my $sum   = $tp->{MONTH_FEE} || 0;
 
     if ($tp->{EXT_BILL_ACCOUNT}) {
-      if ($user->{EXT_BILL_ID}) {
-        if (!$conf{BONUS_EXT_FUNCTIONS} || ($conf{BONUS_EXT_FUNCTIONS} && $user->{EXT_BILL_DEPOSIT} > 0)) {
-          $user->{MAIN_BILL_ID} = $user->{BILL_ID};
-          $user->{BILL_ID}      = $user->{EXT_BILL_ID};
+      if ($Users->{EXT_BILL_ID}) {
+        if (!$conf{BONUS_EXT_FUNCTIONS} || ($conf{BONUS_EXT_FUNCTIONS} && $Users->{EXT_BILL_DEPOSIT} > 0)) {
+          $Users->{MAIN_BILL_ID} = $Users->{BILL_ID};
+          $Users->{BILL_ID}      = $Users->{EXT_BILL_ID};
         }
       }
     }
@@ -1343,7 +1386,7 @@ sub service_get_month_fee {
         }
         else {
           $account_activate = ($tp->{PERIOD_ALIGNMENT}) ? undef : POSIX::strftime('%Y-%m-%d',
-              localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 31 * 86400)));
+            localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 31 * 86400)));
         }
 
         if ($tp->{PERIOD_ALIGNMENT}) {
@@ -1449,11 +1492,11 @@ sub service_get_month_fee {
 
       if ($debug < 6) {
         if ($conf{EXT_BILL_ACCOUNT} && ! $conf{FEES_PRIORITY}) {
-          if ($user->{EXT_BILL_DEPOSIT} && $user->{EXT_BILL_DEPOSIT} < $sum && $user->{MAIN_BILL_ID}) {
-            $sum = $sum - $user->{EXT_BILL_DEPOSIT};
-            $Fees->take($Users, $user->{EXT_BILL_DEPOSIT}, \%FEES_PARAMS);
-            $user->{BILL_ID} = $user->{MAIN_BILL_ID};
-            $user->{MAIN_BILL_ID} = undef;
+          if ($Users->{EXT_BILL_DEPOSIT} && $Users->{EXT_BILL_DEPOSIT} < $sum && $Users->{MAIN_BILL_ID}) {
+            $sum = $sum - $Users->{EXT_BILL_DEPOSIT};
+            $Fees->take($Users, $Users->{EXT_BILL_DEPOSIT}, \%FEES_PARAMS);
+            $Users->{BILL_ID} = $Users->{MAIN_BILL_ID};
+            $Users->{MAIN_BILL_ID} = undef;
 
             if($Fees->{FEES_ID}) {
               push @{$Service->{FEES_ID}}, $Fees->{FEES_ID};
@@ -1482,7 +1525,7 @@ sub service_get_month_fee {
     }
   }
 
-  # if($conf{DV_CUSTOM_PERIOD}) {
+  # if($conf{INTERNET_CUSTOM_PERIOD}) {
   #   #print $tp->{ACTIV_PRICE};
   #   #$tp->{CHANGE_PRICE}=1;
   # }
@@ -1712,13 +1755,13 @@ sub _translate {
   }
 
   #my $sub_text = $1;
-#  if ($text =~ s/\$\_(\S+)/$lang{$1}/){
-#    #$text = $lang{$sub_text};
-#    #print $text;
-#  }
-#  else {
-#    $text = eval "\"$text\"";
-#  }
+  #  if ($text =~ s/\$\_(\S+)/$lang{$1}/){
+  #    #$text = $lang{$sub_text};
+  #    #print $text;
+  #  }
+  #  else {
+  #    $text = eval "\"$text\"";
+  #  }
 
   return $text || q{};
 }
@@ -1770,9 +1813,9 @@ sub get_oui_info {
 
   my $content = '';
   open(my $fh, '<', "$base_dir/misc/oui.txt") or die "Can't open file 'oui.txt' $!";
-    while(<$fh>) {
-      $content .= $_;
-    }
+  while(<$fh>) {
+    $content .= $_;
+  }
   close($fh);
 
   my @content_arr = split(/\n\r?\n\r?/, $content);
@@ -2016,6 +2059,10 @@ sub upload_file {
   if (!$attr->{REWRITE} && -f "$dir/$file_name") {
     $html->message('err', $lang{ERROR}, "$lang{EXIST} '$file_name'");
   }
+  elsif(! $file->{Contents}) {
+    $html->message('err', $lang{ERROR}, "NO_CONTENT'");
+    return 0;
+  }
   elsif (open( my $fh, '>', "$dir/$file_name")) {
     binmode $fh;
     print $fh $file->{Contents};
@@ -2106,7 +2153,7 @@ sub sel_groups {
     }
     else {
       $PARAMS{SEL_OPTIONS} = ($admin->{GID}) ? undef : { '' => "$lang{ALL}" };
-      $PARAMS{MAIN_MENU}      = get_function_index('form_groups'),
+      $PARAMS{MAIN_MENU}      = get_function_index('form_groups');
       $PARAMS{MAIN_MENU_ARGV} = $gid ? "GID=$gid" : '';
     }
     $GROUPS_SEL = $html->form_select('GID', \%PARAMS);
@@ -2266,7 +2313,7 @@ sub import_show {
   my @import_data = @{ $attr->{DATA} };
 
   if( $#import_data < 0 ) {
-    print "No import date";
+    print "NO_IMPORT_DATE";
   }
 
   if($attr->{COLS_NAMES}) {
@@ -2285,9 +2332,17 @@ sub import_show {
 
   foreach my $line (@import_data) {
     my @table_cols = ();
-    for(my $i=0; $i<=$#cols_names; $i++) {
-      my $col = $cols_names[$i];
-      push @table_cols, $line->{$col} || '-';
+    if (ref $line eq 'HASH') {
+      my @titles = sort keys %$line;
+      foreach my $col ( @titles ) {
+        push @table_cols, ($line->{$col} || '-');
+      }
+    }
+    else {
+      for (my $i = 0; $i <= $#cols_names; $i++) {
+        my $col = $cols_names[$i];
+        push @table_cols, $line->{$col} || '-';
+      }
     }
     $table->addrow(@table_cols);
   }
@@ -2298,7 +2353,7 @@ sub import_show {
 }
 
 #**********************************************************
-=head2 import_former() - Multi address form
+=head2 import_former($attr) - Multi address form
 
   Arguments:
     UPLOAD_FILE
@@ -2459,7 +2514,7 @@ sub mk_menu {
   #Add modules
   foreach my $mod (@MODULES) {
     next if ($admin->{MODULES} && !$admin->{MODULES}{$mod});
-    load_module($mod, { %$html, CONFIG_ONLY => 1 });
+    load_module($mod, { %$html, CONFIG_ONLY => 1, SKIP_LANG => $attr->{SKIP_LANG} || 0 });
 
     if ($attr->{USER_FUNCTION_LIST}){
       $maxnumber = mk_menu_extra(\%USER_FUNCTION_LIST, $maxnumber, $mod);
@@ -2546,10 +2601,10 @@ sub custom_menu {
 
   if ( $html && $html->{TYPE} && !$html->{TYPE} eq 'html' ) {
     $menu_content = $html->tpl_show($menu_content, {}, {
-        ID            => $tpl_name,
-        SKIP_ERRORS   => 1,
-        OUTPUT2RETURN => 1
-      });
+      ID            => $tpl_name,
+      SKIP_ERRORS   => 1,
+      OUTPUT2RETURN => 1
+    });
   }
 
   if ( !$menu_content ) {

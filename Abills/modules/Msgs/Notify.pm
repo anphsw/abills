@@ -7,9 +7,12 @@ package Msgs::Notify;
 
 use strict;
 use warnings FATAL => 'all';
+
 use Abills::Base qw(sendmail _bp);
-use Abills::Misc;
+use Abills::Sender::Core;
 use Users;
+
+require Abills::Misc;
 
 our (
   %lang,
@@ -23,7 +26,7 @@ our (
 our Abills::HTML $html;
 
 my ($db, $admin, $CONF);
-my $Msgs;
+my Msgs $Msgs;
 my $Sender;
 my $users;
 

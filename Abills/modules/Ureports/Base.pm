@@ -6,10 +6,9 @@ use warnings FATAL => 'all';
 use Abills::Base qw/in_array date_diff cmd convert/;
 
 my ($admin, $CONF, $db);
-#my $json;
 my Abills::HTML $html;
 my $lang;
-my $Ureports;
+my Ureports $Ureports;
 my $Sender;
 
 #**********************************************************
@@ -115,6 +114,7 @@ sub ureports_payments_maked {
   my $self = shift;
   my ($attr) = @_;
 
+  return 0 if ($attr->{CREDIT_NOTIFICATION} && $CONF->{UREPORTS_CREDIT_NOTIFICATION});
   return 0 unless (exists $attr->{USER_INFO} && defined $attr->{USER_INFO} && $attr->{USER_INFO}{UID});
 
   if ($CONF->{UREPORTS_PAYMENT_METHOD} && $attr->{METHOD}) {
@@ -151,6 +151,7 @@ sub ureports_payments_maked {
 
   return 0 if $Ureports->{TOTAL} < 1 || !$Ureports->{list}[0]{UID};
 
+  my $user_info = $Ureports->{list}->[0];
   my $total_daily_fee = 0;
   my %info = ();
   $info{AMOUNT} = $attr->{AMOUNT} if $attr->{AMOUNT};
@@ -169,11 +170,19 @@ sub ureports_payments_maked {
   $total_daily_fee = $service_info->{distribution_fee} if $service_info->{distribution_fee};
   $user->{TOTAL_FEES_SUM} = $user->{RECOMMENDED_PAYMENT};
 
-  my $user_info = $Ureports->{list}->[0];
   $user->{DEPOSIT} -= $user_info->{msg_price} if $user_info->{msg_price};
 
   if ($total_daily_fee) {
-    $info{EXPIRE_DAYS} = int($user->{DEPOSIT} / $total_daily_fee);
+    my $deposit = $user->{DEPOSIT} + $user->{CREDIT};
+    my $expire_days = int($deposit / $total_daily_fee);
+
+    if ($attr->{CREDIT_NOTIFICATION}) {
+      my (undef, $days) = split(/:/, $CONF->{user_credit_change});
+      $days = $days || 0;
+      $expire_days = $days if ($days && $days < $expire_days);
+    }
+
+    $info{EXPIRE_DAYS} = $expire_days;
     $info{EXPIRE_DATE} = POSIX::strftime("%Y-%m-%d", localtime(time + $info{EXPIRE_DAYS} * 86400));
   }
   else {
@@ -416,4 +425,5 @@ sub ureports_docs {
 
   return \@services;
 }
+
 1;

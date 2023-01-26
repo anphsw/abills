@@ -1,5 +1,5 @@
 <!--CLIENT START-->
-<body class='sidebar-mini container-lg %SIDEBAR_HIDDEN% text-sm client-body p-0' style='height: auto;'>
+<body class='sidebar-mini container-lg %SIDEBAR_HIDDEN% text-sm client-body p-0'>
 %PUSH_STATE%
 <script>
   try {
@@ -67,13 +67,6 @@
       });
     }
   });
-  jQuery(window).ready(function() {
-    jQuery('.content-wrapper').css('height', jQuery('body').height() - 48);
-  });
-  jQuery(window).resize(function () {
-    jQuery('.content-wrapper').css('height', jQuery('body').height() - 48);
-  });
-  jQuery(window).trigger('resize');
 </script>
 <!--Color-->
 <div id='primary' class='bg-primary hidden'></div>
@@ -121,4 +114,11 @@
 
 
 <div class='wrapper'>
+  <!-- Modal search -->
+  <div class='modal fade' tabindex='-1' id='PopupModal' role='dialog' aria-hidden='true'>
+    <div class='modal-dialog'>
+      <div id='modalContent' class='modal-content'></div>
+    </div>
+  </div>
+
   %BODY%

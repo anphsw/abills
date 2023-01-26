@@ -25,7 +25,7 @@ my Extreceipt $Receipt;
 =cut
 #**********************************************************
 sub new {
-  my ($class, $db, $conf, $admin, $lang, $debug, $type) = @_;
+  my ($class, $db, $admin, $conf, $lang, $debug, $type) = @_;
 
   my $self = {
     db    => $db,

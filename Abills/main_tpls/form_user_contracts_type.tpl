@@ -22,7 +22,7 @@
 
     </div>
 
-    <div class='card-footer text-center'>
+    <div class='card-footer'>
       <input type='submit' class='btn btn-primary' name='%BTN_NAME%' value='%BTN_VALUE%'>
     </div>
   </div>

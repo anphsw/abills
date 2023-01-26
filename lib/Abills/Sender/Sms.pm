@@ -40,6 +40,9 @@ sub send_message {
     return 0;
   };
 
+  $attr->{TO_ADDRESS} =  $self->{conf}->{SMS_NUMBER_EXPR} ?
+    _expr($attr->{TO_ADDRESS}, $self->{conf}->{SMS_NUMBER_EXPR}) : $attr->{TO_ADDRESS};
+
   my $sms_pattern = $self->{conf}->{SMS_NUMBER} || "[0-9]{12}";
   if ($attr->{TO_ADDRESS} !~ /$sms_pattern/) {
     return 0;
@@ -48,10 +51,7 @@ sub send_message {
   my $Sms = Sms->new($self->{db}, $self->{admin}, $self->{conf});
   my $Sms_service = init_sms_service($self->{db}, $self->{admin}, $self->{conf}, { UID => $attr->{UID} || $self->{UID} || 0 });
 
-  $attr->{TO_ADDRESS} =  $self->{conf}->{SMS_NUMBER_EXPR} ?
-    _expr($attr->{TO_ADDRESS}, $self->{conf}->{SMS_NUMBER_EXPR}) : $attr->{TO_ADDRESS};
-
-  if (! $Sms_service->can('send_sms')) {
+  if ($Sms_service && (ref $Sms_service eq 'HASH' && $Sms_service->{errno} || !$Sms_service->can('send_sms'))) {
     $self->{errno}=10;
     $self->{errstr}='SMS_SERVICE_NOT_REGISTER';
     return 0;

@@ -11,6 +11,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Defs;
+use Abills::Filters qw(url2parts);
 use Abills::Base qw(tpl_parse cmd in_array
   int2byte convert sendmail mk_unique_value
   sec2time time2sec urlencode load_pmodule decode_base64);
@@ -21,14 +22,16 @@ use Abills::Sender::Core;
 use Msgs::Misc::Attachments;
 use Time::Piece;
 
-our ($db,
+our (
+  $db,
   %lang,
   @bool_vals,
   @MONTHES,
   @WEEKDAYS,
   @_COLORS,
   %permissions,
-  $ui
+  $ui,
+  $SELF_URL
 );
 
 our Admins $admin;
@@ -224,10 +227,6 @@ sub msgs_redirect_filter {
     require Internet;
     $Internet_service = Internet->new($db, $admin, \%conf);
   }
-  else {
-    require Dv;
-    $Internet_service = Dv->new($db, $admin, \%conf);
-  }
 
   my $cmd = '';
   my $action = '';
@@ -410,22 +409,36 @@ sub msgs_new {
     my $refresh_time = $conf{MSGS_REFRESH_HEADER_MENU} || 30;
 
     if (!$FORM{xml} && !$FORM{json}) {
+      my $url = '';
+      if ($conf{API_ENABLE}) {
+        my ($proto, $host, $port) = url2parts($SELF_URL);
+        $url = "$proto//$host$port/api.cgi/msgs/list?snakeCase=1&pageRows=20&clientId&" .
+          "chapterName&datetime&state=0&resposibleAdminLogin&priorityId&domainId&message&" .
+          "adminRead&repliesCounts&chgMsgs&delMsgs&userName&adminDisable&msgsTagsIds&" .
+          "closedAdmin&watchers&planTime&total&inWork&open&unmaked&closed";
+      }
+      else {
+        $url = "$SELF_URL?get_index=msgs_admin&STATE=0&sort=1&desc=DESC&EXPORT_CONTENT=MSGS_LIST&header=1&json=1&PAGE_ROWS=20";
+      }
+
       # Forming JSON
       $admin->{ADMIN_MSGS} = '';
       $admin->{ADMIN_MSGS} .= qq{"HEADER":"$lang{OPEN} : $Msgs->{OPENED}",} if ($Msgs->{OPENED});
       $admin->{ADMIN_MSGS} .= qq{"BADGE":$Msgs->{OPENED},} if ($Msgs->{OPENED});
-      $admin->{ADMIN_MSGS} .= qq{"UPDATE":"$SELF_URL?get_index=msgs_admin&STATE=0&sort=1&desc=DESC&EXPORT_CONTENT=MSGS_LIST&header=1&json=1&PAGE_ROWS=20",};
+      $admin->{ADMIN_MSGS} .= $conf{MSGS_HEADER_MENU_DYNAMIC} ? qq{"UPDATE":"$url",} : qq{};
       $admin->{ADMIN_MSGS} .= qq{"REFRESH":$refresh_time,};
       $admin->{ADMIN_MSGS} .= qq{"AFTER":3};
       $admin->{ADMIN_MSGS} =~ s/\r\n|\n//gm;
       $admin->{ADMIN_MSGS} =~ s/\"/\"/gm;
+
+      $url .= "&aid=$admin->{AID}" if ($conf{API_ENABLE} && $admin->{AID});
 
       # Forming JSON
       $admin->{ADMIN_RESPONSIBLE} = '';
       $admin->{ADMIN_RESPONSIBLE} .= qq{"HEADER":"$lang{RESPOSIBLE} : $Msgs->{RESPOSIBLE}",} if ($Msgs->{RESPOSIBLE});
       $admin->{ADMIN_RESPONSIBLE} .= qq{"BADGE":$Msgs->{RESPOSIBLE},} if ($Msgs->{RESPOSIBLE});
       $admin->{ADMIN_RESPONSIBLE} .= qq{"AID":$admin->{AID},} if ($admin->{AID});
-      $admin->{ADMIN_RESPONSIBLE} .= qq{"UPDATE":"$SELF_URL?get_index=msgs_admin&STATE=8&sort=1&desc=DESC&EXPORT_CONTENT=MSGS_LIST&header=1&json=1&PAGE_ROWS=20",};
+      $admin->{ADMIN_RESPONSIBLE} .= $conf{MSGS_HEADER_MENU_DYNAMIC} ? qq{"UPDATE":"$url",} : qq{};
       $admin->{ADMIN_RESPONSIBLE} .= qq{"REFRESH":$refresh_time,};
       $admin->{ADMIN_RESPONSIBLE} .= qq{"AFTER":6};
       $admin->{ADMIN_RESPONSIBLE} =~ s/\r\n|\n//gm;
@@ -550,7 +563,7 @@ sub msgs_registration {
       $html->message('err', $lang{ERROR}, "$lang{ERR_ACCEPT_RULES}");
     }
     else {
-      my $password = mk_unique_value(8);
+      my $password = mk_unique_value($conf{PASSWD_LENGTH} || 8, { SYMBOLS => $conf{PASSWD_SYMBOLS} || undef });
 
       $users->add({
         LOGIN       => $FORM{LOGIN},
@@ -943,7 +956,7 @@ sub msgs_event_to_json {
 
   $message_json =~ s/\"/\\"/g;
 
-  return $message_json; 
+  return $message_json;
 }
 
 
@@ -964,6 +977,7 @@ sub msgs_text_quoting {
   $input_text //= '';
 
   $input_text = convert($input_text, { text2html => 1, json => $FORM{json}, SHOW_URL => 1 });
+  $input_text =~ s/\\/\\\\/g;
   $input_text =~ s/\&#37/\\%/g;
   my $text = '';
   my $quote = '';
@@ -1253,7 +1267,7 @@ sub msgs_sel_tags {
 
     my $color = $line->{color} || '';
     $hash{$line->{id}} = $line->{reply} ? $line->{reply} : '';
-    if ($attr->{HASH_RESULT}) {
+    if ($attr->{HASH_RESULT} && !$attr->{SKIP_COLOR}) {
       $hash{$line->{id}} .= ":$color";
     }
     $style[$line->{id}] = '#' . $color;
@@ -1352,7 +1366,7 @@ sub msgs_quick_replys_tags {
   my ($attr) = @_;
 
   if (!$permissions{4} && !$conf{MSGS_TAGS_NON_PRIVILEGED}) {
-    $html->message('err', $lang{ERR_ACCESS_DENY});
+    $html->message('err', $lang{ERR_ACCESS_DENY}) if !$attr->{RETURN_LIST};
     return 0;
   }
 
@@ -1365,7 +1379,7 @@ sub msgs_quick_replys_tags {
   });
 
   if ($Msgs->{TOTAL} < 1) {
-    $html->message('info', "$lang{TAGS}", "$lang{NO_DATA}");
+    $html->message('info', $lang{TAGS}, $lang{NO_DATA}) if !$attr->{RETURN_LIST};
     return 1;
   }
 
@@ -1987,12 +2001,16 @@ sub msgs_support_stats {
   });
 
   $Msgs->messages_list({ MONTH_CLOSED => $report_date, RESPOSIBLE => $FORM{AID} || '_SHOW', COLS_NAME => 1, PAGE_ROWS => 99999 });
+  my $closed_tickets = ($Msgs->{CLOSED} || 0) + ($Msgs->{UNMAKED} || 0);
+  my $rating = msgs_assessment_stars($Msgs->{AVG_RATING} || 0);
+  $Msgs->messages_list({ MONTH => $report_date, RESPOSIBLE => $FORM{AID} || '_SHOW', COLS_NAME => 1, PAGE_ROWS => 99999 });
+
   my $report = $html->tpl_show(_include('msgs_support_stats', 'Msgs'), {
     CHART          => $replies_chart,
     TOTAL_REPLIES  => $total_replies || 0,
     TOTAL_TICKETS  => $Msgs->{TOTAL} > 0 ? $Msgs->{TOTAL} : 0,
-    CLOSED_TICKETS => ($Msgs->{CLOSED} || 0) + ($Msgs->{UNMAKED} || 0),
-    RATING         => msgs_assessment_stars($Msgs->{AVG_RATING} || 0),
+    CLOSED_TICKETS => $closed_tickets,
+    RATING         => $rating,
     ADMIN          => $admin_hash->{$FORM{AID} || ''} || $lang{ALL},
     ref($attr) eq 'HASH' ? %{$attr} : ()
   }, { OUTPUT2RETURN => 1 });
@@ -2027,5 +2045,297 @@ sub msgs_assessment_stars {
 
   return $stars;
 }
+
+#**********************************************************
+=head2 msgs_workflow()
+
+=cut
+#**********************************************************
+sub msgs_workflow {
+
+  $html->message('info', $lang{INFO}, $FORM{MESSAGE}) if $FORM{MESSAGE};
+
+  if ($FORM{chg}) {
+    $Msgs->msgs_workflow_info($FORM{chg});
+    $FORM{NAME} = $Msgs->{NAME};
+    $FORM{DESCRIBE} = $Msgs->{DESCR};
+    $FORM{DISABLE} = 'checked' if $Msgs->{DISABLE};
+
+    my $workflow_triggers = $Msgs->msgs_workflow_triggers_list({
+      WORKFLOW_ID => $FORM{chg},
+      TYPE        => '_SHOW',
+      OLD_VALUE   => '_SHOW',
+      NEW_VALUE   => '_SHOW',
+      CONTAINS    => '_SHOW',
+      COLS_NAME   => 1
+    });
+
+    my $workflow_actions = $Msgs->msgs_workflow_actions_list({
+      WORKFLOW_ID => $FORM{chg},
+      TYPE        => '_SHOW',
+      VALUE       => '_SHOW',
+      COLS_NAME   => 1
+    });
+
+    $FORM{ACTIVE_TRIGGERS} = json_former($workflow_triggers);
+    $FORM{ACTIVE_ACTIONS} = json_former($workflow_actions);
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Msgs->msgs_workflow_del({ ID => $FORM{del} });
+    $html->message('info', $lang{DELETED}, "$lang{DELETED}: #$FORM{del}") if !_error_show($Msgs);
+  }
+
+  if ($FORM{add_form} || $FORM{chg}) {
+    my $triggers = _msgs_triggers();
+    my $actions = _msgs_actions();
+
+    $html->tpl_show(_include('msgs_workflow', 'Msgs'), {
+      %FORM,
+      TRIGGERS => json_former($triggers),
+      ACTIONS  => json_former($actions),
+    });
+  }
+
+  result_former({
+    INPUT_DATA      => $Msgs,
+    FUNCTION        => 'msgs_workflow_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,NAME,DESCR,DISABLE,USED_TIMES',
+    FUNCTION_FIELDS => 'change, del',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      id         => "#",
+      name       => $lang{NAME},
+      descr      => $lang{DESCRIBE},
+      disable    => $lang{STATUS},
+      used_times => $lang{USED}
+    },
+    FILTER_VALUES     => {
+      disable => sub {
+        my $status = shift;
+
+        return !$status ? $html->color_mark($lang{ACTIVATED}, '#009D00') : $html->color_mark($lang{DISABLED}, '#FF0000');
+      },
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{WORKFLOWS},
+      qs      => $pages_qs,
+      ID      => 'MSGS_WORKFLOWS',
+      EXPORT  => 1,
+      MENU    => "$lang{ADD}:index=$index&add_form=1" . ':add',
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
+}
+
+#**********************************************************
+=head2 _msgs_triggers()
+
+=cut
+#**********************************************************
+sub _msgs_triggers {
+
+  my $admin_hash = sel_admins({ HASH => 1 });
+  my $tags_hash = msgs_sel_tags({ HASH_RESULT => 1, SKIP_COLOR => 1 });
+
+  my $status_list = $Msgs->status_list({ COLS_NAME => 1, NAME => '!' });
+  my $status_hash = {};
+  map $status_hash->{$_->{id}} = _translate($_->{name}), @{$status_list};
+
+  my $chapters = $Msgs->chapters_list({ COLS_NAME => 1 });
+  my $chapters_hash = {};
+  map $chapters_hash->{$_->{id}} = _translate($_->{name}), @{$chapters};
+
+  return [
+    {
+      type => 'isNew',
+      lang => $lang{NEW_MESSAGE},
+    },
+    {
+      type => 'isChanged',
+      lang => $lang{MESSAGE_CHANGED},
+    },
+    {
+      type   => 'replyAdded',
+      lang   => $lang{NEW_REPLY},
+    },
+    {
+      type   => 'sender',
+      lang   => $lang{SENDER},
+      fields => [
+        {
+          type        => 'select',
+          placeholder => $lang{SENDER},
+          options     => { uid => $lang{USER}, aid => $lang{ADMIN} },
+          name        => 'new_value',
+        }
+      ],
+    },
+    {
+      type   => 'responsible',
+      lang   => $lang{RESPOSIBLE},
+      fields => [
+        {
+          type        => 'select',
+          placeholder => $lang{RESPOSIBLE},
+          options     => $admin_hash,
+          name        => 'new_value',
+          multiple    => 1
+        }
+      ],
+    },
+    {
+      type   => 'chapter',
+      lang   => $lang{CHAPTER},
+      fields => [
+        {
+          type        => 'select',
+          placeholder => $lang{CHAPTER},
+          options     => $chapters_hash,
+          name        => 'new_value',
+          multiple    => 1
+        }
+      ],
+    },
+    {
+      type   => 'responsibleChanged',
+      lang   => $lang{RESPONSIBLE_CHANGED},
+      fields => [
+        {
+          type        => 'select',
+          placeholder => $lang{RESPONSIBLE_CHANGED_FROM},
+          options     => $admin_hash,
+          name        => 'old_value',
+          empty       => 1
+        },
+        {
+          type        => 'select',
+          placeholder => $lang{RESPONSIBLE_CHANGED_TO},
+          options     => $admin_hash,
+          name        => 'new_value',
+          empty       => 1
+        }
+      ],
+    },
+    {
+      type   => 'status',
+      lang   => $lang{STATUS},
+      fields => [
+        {
+          type        => 'select',
+          placeholder => $lang{STATUS},
+          options     => $status_hash,
+          name        => 'new_value',
+          empty       => 1,
+          multiple    => 1
+        }
+      ],
+    },
+    {
+      type   => 'statusChanged',
+      lang   => $lang{STATUS_CHANGED},
+      fields => [
+        {
+          type        => 'select',
+          placeholder => $lang{STATUS_CHANGED_FROM},
+          options     => $status_hash,
+          name        => 'old_value',
+          empty       => 1,
+          multiple    => 1
+        },
+        {
+          type        => 'select',
+          placeholder => $lang{STATUS_CHANGED_TO},
+          options     => $status_hash,
+          name        => 'new_value',
+          empty       => 1,
+        }
+      ],
+    },
+    {
+      type   => 'subjectContains',
+      lang   => $lang{SUBJECT_CONTAINS},
+      fields => [
+        {
+          type        => 'textarea',
+          placeholder => $lang{SUBJECT_CONTAINS},
+          name        => 'contains'
+        }
+      ],
+    }
+  ];
+}
+
+#**********************************************************
+=head2 _msgs_actions()
+
+=cut
+#**********************************************************
+sub _msgs_actions {
+
+  my $tags_hash = msgs_sel_tags({ HASH_RESULT => 1, SKIP_COLOR => 1 });
+  my $admin_hash = sel_admins({ HASH => 1 });
+  my $status_list = $Msgs->status_list({ COLS_NAME => 1, NAME => '!' });
+  my $status_hash = {};
+
+  map $status_hash->{$_->{id}} = ::_translate($_->{name}), @{$status_list};
+
+  return [
+    {
+      type   => 'sendMessage',
+      lang   => $lang{SEND_MESSAGE},
+      fields => [
+        {
+          type        => 'textarea',
+          placeholder => $lang{ENTER_MESSAGE},
+          name        => 'value'
+        }
+      ]
+    },
+    {
+      type   => 'setStatus',
+      lang   => $lang{SET_STATUS},
+      fields => [
+        {
+          type        => 'select',
+          options     => $status_hash,
+          placeholder => $lang{SELECT_STATUS},
+          name        => 'value',
+          empty       => 1
+        }
+      ]
+    },
+    {
+      type   => 'setResponsible',
+      lang   => $lang{SET_RESPONSIBLE},
+      fields => [
+        {
+          type        => 'select',
+          options     => $admin_hash,
+          placeholder => $lang{SELECT_RESPONSIBLE},
+          name        => 'value',
+          empty       => 1
+        }
+      ]
+    },
+    {
+      type   => 'setTags',
+      lang   => $lang{SET_TAGS},
+      fields => [
+        {
+          type        => 'select',
+          options     => $tags_hash,
+          placeholder => $lang{SELECT_TASG},
+          name        => 'value',
+          empty       => 1,
+          multiple    => 1
+        }
+      ]
+    }
+  ];
+}
+
 
 1;

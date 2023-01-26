@@ -108,7 +108,7 @@
     </form>
 
   </div>
-  <div class='card-footer text-center'>
+  <div class='card-footer'>
     <input type='submit' form='form_%FORM_NAME%' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
   </div>
 </div>

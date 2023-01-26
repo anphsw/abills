@@ -206,6 +206,6 @@ our @requests = (
   }
 );
 
-test_runner($Payment_plugin, \@requests, { VALIDATE => 'xml_compare' });
+test_runner($Payment_plugin, \@requests);
 
 1;

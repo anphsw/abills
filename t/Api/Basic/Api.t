@@ -45,7 +45,7 @@ my $debug = $ARGS->{DEBUG} || 0;
 my $login = $conf{API_TEST_USER_LOGIN} || 'test';
 my $password = $conf{API_TEST_USER_PASSWORD} || '123456';
 
-if (lc($ARGV[0]) eq 'help' || defined($ARGS->{help}) || defined($ARGS->{HELP})) {
+if (($ARGV[0] && lc($ARGV[0]) eq 'help') || defined($ARGS->{help}) || defined($ARGS->{HELP})) {
   help();
   exit 0;
 }

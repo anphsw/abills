@@ -7,7 +7,9 @@ package Referral;
 =cut
 
 use strict;
-use parent qw( dbcore );
+use parent qw(dbcore);
+
+use Referral::Helpers qw(transform_to_hash);
 
 my $conf;
 
@@ -23,7 +25,7 @@ my $default_values = {
   PAYMENT_ARREARS    => '0',
   BONUS_BILL         => '0',
   PERIOD             => '0',
-  REPL_PERCENT     => '0',
+  REPL_PERCENT       => '0',
 };
 
 #**********************************************************
@@ -67,28 +69,28 @@ sub new{
 
 =cut
 #**********************************************************
-sub settings_get{
-  my $self = shift;
-  my $attr = shift;
+sub settings_get {
+  shift;
+  my ($attr) = @_;
 
   my $param = $attr->{PARAM} || conf_prefix . '*';
-  my $list = $conf->config_list( {
-      PARAM     => $param,
-      CONF_ONLY => 1,
-      COLS_NAME => 1
-    } );
+  my $list = $conf->config_list({
+    PARAM     => $param,
+    CONF_ONLY => 1,
+    COLS_NAME => 1
+  });
 
-  unless ( $attr->{PARAM} ){
+  unless ($attr->{PARAM}) {
     #check for existence of all params
-    if ( ref $list ne 'ARRAY' ){
-      $list = [ ];
+    if (ref $list ne 'ARRAY') {
+      $list = [];
     }
-    if ( scalar @{$list} < scalar keys %{ $default_values } ){
-      _settings_define( { ALREADY_DEFINED => $list} );
+    if (scalar @{$list} < scalar keys %{$default_values}) {
+      _settings_define({ ALREADY_DEFINED => $list });
     }
   }
 
-  return _transform_to_hash( $list, { NAME_KEY => 'param', VAL_KEY => 'value' } );
+  return transform_to_hash($list, { NAME_KEY => 'param', VAL_KEY => 'value' });
 }
 
 #**********************************************************
@@ -179,7 +181,7 @@ sub _settings_define{
 
 =cut
 #**********************************************************
-sub list{
+sub list {
   my $self = shift;
   my ($attr) = @_;
 
@@ -210,7 +212,7 @@ sub list{
     $attr
   );
 
-  return $self;
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -301,7 +303,6 @@ sub request_list{
     }
   );
 
-
   $self->query(
     "SELECT
      $self->{SEARCH_FIELDS} r.id
@@ -318,7 +319,6 @@ sub request_list{
   return $self->{list} || [];
 }
 
-
 #**********************************************************
 =head2 tp_info($id)
 
@@ -329,7 +329,6 @@ sub request_list{
 
 =cut
 #**********************************************************
-
 sub tp_info{
   my $self = shift;
   my ($id) = @_;
@@ -405,7 +404,7 @@ sub log_list{
     $self->query("SELECT rr.referrer, COUNT(rl.id) as count, rl.uid, rl.id, rr.tp_id, rl.referral_request
     FROM referral_log rl
     LEFT JOIN referral_requests rr ON (rl.referral_request = rr.id)
-    WHERE rl.tp_id != 0
+    WHERE rr.tp_id != 0
     GROUP BY uid;", undef, $attr);
     return $self->{list};
   }
@@ -435,13 +434,13 @@ sub log_list{
 
 =cut
 #**********************************************************
-sub info{
+sub info {
   my $self = shift;
   my ($uid) = @_;
 
-  my $list = $self->list( { UID => $uid, COLS_NAME => 1 } )->{list};
+  my $list = $self->list({ UID => $uid, COLS_NAME => 1 });
 
-  return $list->[0];
+  return $list->[0] || {};
 }
 
 #**********************************************************
@@ -454,11 +453,11 @@ sub info{
 
 =cut
 #**********************************************************
-sub add{
+sub add {
   my $self = shift;
   my ($attr) = @_;
 
-  return $self->query_add( 'referral_main', $attr, { REPLACE => 1 } );
+  return $self->query_add('referral_main', $attr, { REPLACE => 1 });
 }
 
 #**********************************************************
@@ -475,9 +474,8 @@ sub add_request{
   my $self = shift;
   my ($attr) = @_;
 
-  return $self->query_add( 'referral_requests', $attr, { REPLACE => 1 } );
+  return $self->query_add('referral_requests', $attr, { REPLACE => 1 });
 }
-
 
 #**********************************************************
 =head2 tp_add($attr)
@@ -514,7 +512,7 @@ sub add_log{
 }
 
 #**********************************************************
-=head2 del($id)
+=head2 del($uid)
 
   Arguments:
 
@@ -525,9 +523,9 @@ sub add_log{
 #**********************************************************
 sub del{
   my $self = shift;
-  my ($id) = @_;
+  my ($uid) = @_;
 
-  return $self->query_del( 'referrals_main', { UID => $id } );
+  return $self->query_del('referral_main', undef, { UID => $uid });
 }
 
 #**********************************************************
@@ -546,7 +544,6 @@ sub del_request{
 
   return $self->query_del( 'referral_requests', { ID => $id } );
 }
-
 
 #**********************************************************
 =head2 tp_del($id)
@@ -575,13 +572,14 @@ sub tp_del{
 
 =cut
 #**********************************************************
-sub change{
+sub change {
   my $self = shift;
   my ($attr) = @_;
 
-  return $self->changes( $attr );
-}
+  $self->changes($attr);
 
+  return $self;
+}
 
 #**********************************************************
 =head2 change_request($attr)
@@ -597,11 +595,13 @@ sub change_request{
   my $self = shift;
   my ($attr) = @_;
 
-  return $self->changes( {
+  $self->changes({
     CHANGE_PARAM => 'ID',
     TABLE        => 'referral_requests',
     DATA         => $attr
-  } );
+  });
+
+  return $self;
 }
 
 #**********************************************************
@@ -618,13 +618,13 @@ sub tp_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'referral_tp',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'referral_tp',
+    DATA         => $attr
+  });
+
+  return $self;
 }
 
 #**********************************************************
@@ -639,7 +639,7 @@ sub tp_change{
 
 =cut
 #**********************************************************
-sub get_user_info{
+sub get_user_info {
   my $self = shift;
   my ($uid) = @_;
 
@@ -677,7 +677,7 @@ sub get_user_info{
 
 =cut
 #**********************************************************
-sub get_referrers_list{
+sub get_referrers_list {
   my $self = shift;
 
   delete $self->{COL_NAMES_ARR};
@@ -693,41 +693,6 @@ sub get_referrers_list{
   ", undef, { COLS_NAME => 1 } );
 
   return $self->{list} || [];
-}
-
-#**********************************************************
-=head2 transform_to_hash($list, $attr)
-
-  Transforms arr_ref of hash_ref to one hash_ref
-
-  Arguments:
-    $list - DB list, arr_ref of hash_ref
-    $attr
-      NAME_KEY
-      VAL_KEY
-
-  Returns:
-    hash_ref
-
-=cut
-#**********************************************************
-sub _transform_to_hash{
-  my ($list, $attr) = @_;
-
-  my $name_key = $attr->{NAME_KEY};
-  my $val_key = $attr->{VAL_KEY};
-
-  if ( !$list || scalar @{$list} == 0 ){
-    return { };
-  }
-
-  my $result = { };
-
-  foreach my $element ( @{$list} ){
-    $result->{$element->{$name_key}} = $element->{$val_key};
-  }
-
-  return $result
 }
 
 1;

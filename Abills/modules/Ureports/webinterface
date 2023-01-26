@@ -17,7 +17,7 @@ use warnings FATAL => 'all';
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Ureports',
-  REQUIRE_VERSION => 7.75,
+  REQUIRE_VERSION => 7.76,
 })) {
 
   exit;
@@ -1565,9 +1565,9 @@ sub ureports_multiuser_sel {
     SEL_OPTIONS  => { '' => '--' }
   });
 
-  $html->tpl_show(_include('ureports_multiuser_modal_window', 'Ureports'), \%info),
+  $html->tpl_show(_include('ureports_multiuser_modal_window', 'Ureports'), \%info);
 
-    return 1;
+  return 1;
 }
 
 #**********************************************************

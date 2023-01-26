@@ -1,11 +1,11 @@
 #!perl
 
 =head1 NAME
-  Dom Economizer - module for hous payments Economizer
 
-=cut
+  Dom Economizer - module for house payments Economizer
 
 =head1 Synopsis
+
   The module counts the costs for utilities
 
   Capabilities:
@@ -17,11 +17,18 @@
 use warnings;
 use strict;
 use Economizer::db::Economizer;
-our ($db, $admin, %conf, %lang, $html);
+our (
+  $db,
+  $admin,
+  %conf,
+  %lang
+);
+
+our Abills::HTML $html;
+
 our Economizer $Economizer = Economizer->new($db, $admin, \%conf);
 
 #**********************************************************
-
 =head2 o_main($attr)
 
   Arguments:
@@ -30,10 +37,8 @@ our Economizer $Economizer = Economizer->new($db, $admin, \%conf);
   Returns:
 
 =cut
-
 #**********************************************************
 sub e_user {
-
   #my ($attr) = @_;
   my %INFORMATION;
   $INFORMATION{BTN_NAME} = "$lang{ADD}";
@@ -186,7 +191,6 @@ sub e_user {
 }
 
 #**********************************************************
-
 =head2 o_charts() -
 
   Arguments:
@@ -196,7 +200,6 @@ sub e_user {
   Examples:
 
 =cut
-
 #**********************************************************
 sub e_statistics {
   my ($attr) = @_;
@@ -391,7 +394,6 @@ sub e_statistics {
 }
 
 #**********************************************************
-
 =head2 o_add_type($attr)
 
   Arguments:
@@ -400,7 +402,6 @@ sub e_statistics {
   Returns:
 
 =cut
-
 #**********************************************************
 sub e_tariffs {
   my ($attr) = @_;
@@ -430,7 +431,6 @@ sub e_tariffs {
 }
 
 #**********************************************************
-
 =head2 site104($attr)
 
   Arguments:
@@ -439,7 +439,6 @@ sub e_tariffs {
   Returns:
 
 =cut
-
 #**********************************************************
 sub site104 {
 
@@ -513,28 +512,25 @@ sub site104 {
       my $value_date_reg = $5;
       my @value_date;
       @value_date = split(/(.*?)\.(.*?)\.(.*)/, $value_date_reg);
-      my $date_sql = @value_date[3] . '-' . @value_date[2] . '-' . @value_date[1];
+      my $date_sql = $value_date[3] . '-' . $value_date[2] . '-' . $value_date[1];
 
       #Write data to db
-      $Economizer->add_user_metric104(
-        {
-          NUMBER_OF_COUNTER => $2,
-          DATE              => $date_sql,
-          QUANTITY          => $8,
-          USER_ID           => $user_id
-        }
-      );
-
+      $Economizer->add_user_metric104({
+        NUMBER_OF_COUNTER => $2,
+        DATE              => $date_sql,
+        QUANTITY          => $8,
+        USER_ID           => $user_id,
+      });
     }
 
     $page_calc++;
   }
 
   # Take data from db
-  my $list = $Economizer->take_indicators104();
+  my $list_ = $Economizer->take_indicators104();
 
   # Add data to the table
-  foreach my $line (@$list) {
+  foreach my $line (@$list_) {
 
     my @fields_array = ();
     push @fields_array, $line->["0"];
@@ -546,21 +542,18 @@ sub site104 {
   print $table->show();
 
   #Add header of table
-  my $table_pay = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{PAYMENT_HISTORY},
-      border  => 2,
-      title   => [ 'id', $lang{DATE_PAY}, $lang{VALUE_GRN}, '-', '-' ],
-      cols_align => [ 'center', 'center', 'center', ],
-      ID         => 'COMPANY_ID',
-
-    }
-  );
+  my $table_pay = $html->table({
+    width      => '100%',
+    caption    => $lang{PAYMENT_HISTORY},
+    border     => 2,
+    title      => [ 'id', $lang{DATE_PAY}, $lang{VALUE_GRN}, '-', '-' ],
+    cols_align => [ 'center', 'center', 'center', ],
+    ID         => 'COMPANY_ID',
+  });
 
   # Parse data of payment
-  my $url_api   = "https://104.ua/ua/cabinet/consumers-bookmethod/getPaymentsData";
-  my $page_calc = 1;
+  $url_api   = "https://104.ua/ua/cabinet/consumers-bookmethod/getPaymentsData";
+  $page_calc = 1;
 
   # Content analysis of the page with payment history
   while ($ua->request(HTTP::Request->new('POST', $url_api, $header, "ppage=" . $page_calc . "&per_page=5&type=summaryData&page_name=subscription_fee"))->{'_content'} =~ m/(<td class=\\\"third\\\">)(.+?)( \\u0433\\u0440\\u043d<\\\/td>)/g) {
@@ -588,26 +581,23 @@ sub site104 {
       my $value_date_reg = $array[$value];
       my @value_date;
       @value_date = split(/(.*?)\.(.*?)\.(.*)/, $value_date_reg);
-      my $date_sql = @value_date[3] . '-' . @value_date[2] . '-' . @value_date[1];
+      my $date_sql = $value_date[3] . '-' . $value_date[2] . '-' . $value_date[1];
 
-      $Economizer->add_user_payment104(
-        {
-
-          DATE    => $date_sql,
-          PAYMENT => $array2[$value],
-          USER_ID => $user_id,
-        }
-      );
+      $Economizer->add_user_payment104({
+        DATE    => $date_sql,
+        PAYMENT => $array2[$value],
+        USER_ID => $user_id,
+      });
 
     }
     $page_calc++;
   }
 
   # Take data from db
-  my $list = $Economizer->take_payment104();
+  my $payments_104 = $Economizer->take_payment104();
 
   # Add data to the table
-  foreach my $line (@$list) {
+  foreach my $line (@$payments_104) {
 
     my @fields_array = ();
     push @fields_array, $line->["0"];
@@ -621,19 +611,18 @@ sub site104 {
 }
 
 #**********************************************************
-
 =head2 sit_electric($attr)
-
   Arguments:
 
 
   Returns:
 
 =cut
-
 #**********************************************************
-
 sub site_electric {
+
+  #TODO: fix this
+
   use LWP::UserAgent;
   use CGI::Cookie;
   use HTTP::Request::Common;
@@ -870,11 +859,9 @@ m/<tr >\s+<td class="text-center">\s+ <strong>\s+(.*?)\.(.*?)\s+<\/strong>\s+<\/
     }
     print $table_counter->show();
   }
-
 }
 
 #**********************************************************
-
 =head2 add_main() -
 
   Arguments:
@@ -885,7 +872,6 @@ m/<tr >\s+<td class="text-center">\s+ <strong>\s+(.*?)\.(.*?)\s+<\/strong>\s+<\/
   Examples:
 
 =cut
-
 #**********************************************************
 sub add_main {
   use Encode qw(decode encode);
@@ -936,4 +922,3 @@ sub add_main {
 }
 
 1;
-

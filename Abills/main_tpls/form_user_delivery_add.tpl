@@ -34,14 +34,14 @@
 <div id='delivery_list'>
   <div class='d-flex'>
     <span class='input-group-prepend input-group-text rounded-right-0 %DELIVERY_ADD_HIDE%'>_{ADD}_
-      <input form='users_list' id='DELIVERY_CREATE' name='DELIVERY_CREATE' value='1' onClick='add_delivery();'
+      <input form='%FORM_ID%' id='DELIVERY_CREATE' name='DELIVERY_CREATE' value='1' onClick='add_delivery();'
              title='_{CREATE}_ _{DELIVERY}_' type='checkbox' aria-label='Checkbox'>
     </span>
     %DELIVERY_SELECT_FORM%
     <span class='input-group-append select2-append rounded-left-0'>
-      <div class='input-group-text rounded-left-0'>
-        <a title='info' href='%DELIVERY_SPAN_ADDON_URL%'><span class='fa fa-list-alt'></span></a>
-      </div>
+      <a class='btn input-group-button rounded-left-0' title='info' href='%DELIVERY_SPAN_ADDON_URL%'>
+        <span class='fa fa-list-alt'></span>
+      </a>
     </span>
   </div>
 </div>
@@ -53,7 +53,7 @@
       <div class='form-group row'>
         <label class='control-label col-md-2 ' for='DELIVERY_COMMENTS'>_{SUBJECT}_:</label>
         <div class='col-md-10'>
-          <input form='users_list' type=text id='DELIVERY_COMMENTS' name='DELIVERY_COMMENTS'
+          <input form='%FORM_ID%' type=text id='DELIVERY_COMMENTS' name='DELIVERY_COMMENTS'
                  value='%DELIVERY_COMMENTS%' class='form-control'>
         </div>
       </div>
@@ -61,7 +61,7 @@
       <div class='form-group row'>
         <label class='control-label col-md-2 ' for='TEXT'>_{MESSAGES}_:</label>
         <div class='col-md-10'>
-            <textarea form='users_list' class='form-control' rows='5' %DISABLE% id='TEXT' name='TEXT'
+            <textarea form='%FORM_ID%' class='form-control' rows='5' %DISABLE% id='TEXT' name='TEXT'
                       placeholder='_{TEXT}_'>%TEXT%</textarea>
         </div>
       </div>

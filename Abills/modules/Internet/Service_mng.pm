@@ -82,6 +82,7 @@ sub service_chg_tp {
   my $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $self->{admin});
 
   $self->{USER_INFO} = $user;
+  $attr->{USER_INFO} = $user;
 
   $DATE = $attr->{DATE} if ($attr->{DATE});
 
@@ -400,7 +401,7 @@ sub change_tp {
   if (!$Service->{errno}) {
     #Take fees
     if (!$Service->{STATUS}) {
-      service_get_month_fee($Service) if (!$attr->{INTERNET_NO_ABON});
+      service_get_month_fee($Service, $attr) if (!$attr->{INTERNET_NO_ABON});
     }
   }
 

@@ -160,7 +160,7 @@ sub _cams_service_test {
   return 1 if (!$Cams_service || !$Cams_service->can('test'));
 
   $Cams->{SERVICE_TEST} = $html->button($lang{TEST}, "index=$index&test=1&chg=$Cams->{ID}",
-    { class => 'btn btn-secondary btn-info' });
+    { class => 'btn btn-default btn-info' });
 
   return 0 if !$FORM{test};
 
@@ -193,10 +193,10 @@ sub _cams_service_import_models {
     my $result = $Cams_service->import_models();
     if (!$Cams_service->{errno}) {
       if (!_cams_import_vendors($result)) {
-        $html->message('info', $lang{INFO}, "$lang{CAMS_IMPORT_SUCCESSFULLY}");
+        $html->message('info', $lang{INFO}, $lang{CAMS_IMPORT_SUCCESSFULLY});
       }
       else {
-        $html->message('err', $lang{ERROR}, "$lang{CAMS_IMPORT_ERROR}");
+        $html->message('err', $lang{ERROR}, $lang{CAMS_IMPORT_ERROR});
       }
     }
     else {
@@ -544,11 +544,6 @@ sub cams_services_sel {
     return \%service_name;
   }
 
-  if ($Cams->{TOTAL} && $Cams->{TOTAL} == 1) {
-    delete $params{SEL_OPTIONS};
-    $Cams->{SERVICE_ID} = $service_list->[0]->{id};
-  }
-
   my $result = $html->form_select('SERVICE_ID', {
     SELECTED       => $active_service,
     SEL_LIST       => $service_list,
@@ -566,7 +561,7 @@ sub cams_services_sel {
     ID    => 'SERVICE_ID',
     NAME  => $lang{SERVICE},
     VALUE => $result
-  }, { OUTPUT2RETURN => 1 }) if ($attr->{FORM_ROW});
+  }, { OUTPUT2RETURN => 1 }) if $attr->{FORM_ROW};
 
   return $result;
 }

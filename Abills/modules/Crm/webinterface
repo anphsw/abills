@@ -27,6 +27,11 @@ our Abills::HTML $html;
 our Crm $Crm = Crm->new($db, $admin, \%conf);
 
 our @PRIORITY = ($lang{LOW}, $lang{NORMAL}, $lang{HIGH});
+my %STATES = (
+  0 => $html->color_mark($lang{OPEN}, '#007bff'),
+  1 => $html->color_mark($lang{CLOSED},'#28a745'),
+  2 => $html->color_mark('Очікування', '#ffc107')
+);
 
 #**********************************************************
 =head2 crm_today_actions()
@@ -272,11 +277,7 @@ sub crm_competitors_tp {
     $competitor_info{GEO_MESSAGE} = $html->message('info', $lang{INFO}, $lang{LOCALITIES_CREATED_TP}, { OUTPUT2RETURN => 1});
   }
 
-   my $info_fields = crm_lead_info_field_tpl({
-    TP_INFO_FIELDS => 1,
-    %competitor_info
-   });
-
+  my $info_fields = crm_lead_info_field_tpl({ TP_INFO_FIELDS => 1, %competitor_info });
   my $competitors_select = _crm_competitors_select({ %competitor_info, %FORM });
 
    $html->tpl_show(_include('crm_competitors_tp', 'Crm'), {
@@ -600,7 +601,7 @@ sub crm_client_to_lead {
   require Users;
   Users->import();
   my $Users = Users->new($db, $admin, \%conf);
-  
+
   my $user_info = $Users->pi({ UID => $FORM{UID} });
 
   return {} if $Users->{TOTAL} < 1;
@@ -626,6 +627,355 @@ sub crm_registration {
   $Crm->{INFO_FIELDS} .= $html->element('hr', '', { OUTPUT2RETURN => 1 }) if $Crm->{INFO_FIELDS};
 
   $html->tpl_show(_include('crm_registration', 'Crm'), { %{$Crm}, %FORM, %{$attr} }, { ID => 'CRM_REGISTRATION' });
+  return 1;
+}
+
+#**********************************************************
+=head2 crm_dialogue()
+
+=cut
+#**********************************************************
+sub crm_dialogue {
+
+  my $dialogue = $Crm->crm_dialogue_info({ ID => $FORM{ID} });
+  return if !$dialogue->{SOURCE};
+
+  $Crm->crm_open_lines_list({ SOURCE => $dialogue->{SOURCE}, AID => $admin->{AID} });
+  return if $Crm->{TOTAL} < 1;
+
+  my $lead = $Crm->crm_lead_info({ ID => $dialogue->{LEAD_ID} });
+  my $admins_avatar = {};
+  my $messages = '';
+  my $last_message_aid = undef;
+  my $day = '';
+  my $admin_id = $admin->{AID};
+  my $dialog_messages = $Crm->crm_dialogue_messages_list({
+    DIALOGUE_ID => $FORM{ID},
+    MESSAGE     => '_SHOW',
+    AID         => '_SHOW',
+    DATE        => '_SHOW',
+    DAY         => '_SHOW',
+    TIME        => '_SHOW',
+    AVATAR_LINK => '_SHOW',
+    INNER_MSG   => '_SHOW',
+    SORT        => 'cdm.date',
+    COLS_NAME   => 1
+  });
+
+  foreach my $message (@{$dialog_messages}) {
+    if ($day ne $message->{day}) {
+      $day = $message->{day};
+      $messages .= $html->element('h6', $day, { class => 'hr-lines text-muted' });
+      $last_message_aid = undef;
+    }
+
+    my $message_class = 'message';
+    my $message_type = $message->{aid} ? 'justify-content-end' :  'justify-content-start';
+    my $avatar = $message->{avatar_link} ? "/images/$message->{avatar_link}" : ($lead->{_AVATAR_URL} || '/styles/default/img/admin/avatar0.png');
+    my $time = $html->element('span', $message->{time}, { class => 'text-muted float-right ml-1' });
+    my $image = defined $last_message_aid && $last_message_aid == $message->{aid} ? $html->element('div', '', { class => 'img_cont_msg' }) :
+      $html->element('div', $html->element('img', '', { src => $avatar, class => 'rounded-circle user_img_msg' }), { class => 'img_cont_msg' });
+
+    if ($message->{inner_msg}) {
+      $time = '';
+      $image = '';
+      $message_type = 'justify-content-center';
+      $message_class .= ' inner-message ml-0';
+      $message->{message} = _translate($message->{message});
+      $last_message_aid = undef;
+    }
+    else {
+      $last_message_aid = $message->{aid};
+    }
+
+    my $message_text = $html->element('div', $message->{message} . $time, { class => $message_class });
+    $messages .= $html->element('div', !$message->{aid} ? $image . $message_text : $message_text . $image, { class => "d-flex mb-3 $message_type" });
+  }
+
+  if (!$dialogue->{AID} && defined $dialogue->{STATE} && $dialogue->{STATE} != 1) {
+    $Crm->{ACCEPT_DIALOGUE_BTN} = $html->button($lang{ACCEPT_DIALOGUE}, '', {
+      JAVASCRIPT     => '',
+      SKIP_HREF      => 1,
+      NO_LINK_FORMER => 1,
+      class          => 'btn btn-success btn-lg w-100',
+      ID             => 'accept-dialogue'
+    });
+    $Crm->{HIDE_CONTROL_BTN} = 'd-none';
+    $Crm->{DISABLE_TEXTAREA} = 'disabled';
+  }
+  elsif ($dialogue->{AID} && $dialogue->{AID} ne $admin_id) {
+    $Crm->{HIDE_CONTROL_BTN} = 'd-none';
+    $Crm->{DISABLE_TEXTAREA} = 'disabled';
+  }
+  if ($dialogue->{STATE} && $dialogue->{STATE} == 1) {
+    $Crm->{HIDE_CONTROL_BTN} = 'd-none';
+    $Crm->{DISABLE_TEXTAREA} = 'disabled';
+  }
+
+  my $right_menu = _crm_dialogue_right_menu($dialogue->{ID});
+
+  $html->tpl_show(_include('crm_dialogue', 'Crm'), { %{$Crm}, %FORM,
+    MESSAGES              => $messages,
+    ADMIN_AVATAR_LINK     => "/images/$admin->{AVATAR_LINK}",
+    USER_AVATAR_LINK      => $lead->{_AVATAR_URL} || '/styles/default/img/admin/avatar0.png',
+    DIALOGUE_ID           => $FORM{ID},
+    AID                   => $dialogue->{AID} || $admin->{AID},
+    LEAD_FIO              => $lead->{LEAD_ID} ? $html->button($lead->{FIO}, 'index=' .
+      get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{LEAD_ID}") : $lead->{FIO},
+    LAST_MESSAGE_FROM_AID => $last_message_aid,
+    %{$right_menu}
+  }, { ID => 'CRM_REGISTRATION' });
+}
+
+#**********************************************************
+=head2 _crm_dialogue_right_menu($current_dialogue_id)
+
+=cut
+#**********************************************************
+sub _crm_dialogue_right_menu {
+  my $current_dialogue_id = shift;
+
+  my $enabled_open_lines = $Crm->crm_open_lines_list({
+    AID       => $admin->{AID},
+    SOURCE    => '_SHOW',
+    COLS_NAME => 1
+  });
+
+  return {} if $Crm->{TOTAL} < 1;
+
+  my $dialogues = $Crm->crm_dialogues_list({
+    STATE        => '0;2',
+    AID          => "0;$admin->{AID}",
+    SOURCE       => join(';', map {$_->{source}} @{$enabled_open_lines}),
+    LAST_MESSAGE => '_SHOW',
+    LEAD_FIO     => '_SHOW',
+    DATE         => '_SHOW',
+    COLS_NAME    => 1
+  });
+
+  my @active_dialogues = ();
+  my @new_dialogues = ();
+  my @waiting_dialogues = ();
+
+  foreach my $dialogue (@{$dialogues}) {
+    if (!$dialogue->{aid}) {
+      push(@new_dialogues, _crm_dialogue_item($dialogue));
+      next;
+    }
+
+    if (!$dialogue->{state}) {
+      push(@active_dialogues, _crm_dialogue_item($dialogue));
+      next;
+    }
+    push(@waiting_dialogues, _crm_dialogue_item($dialogue));
+  }
+
+  my $separator = $html->element('hr', '', { class => 'm-0' });
+  return {
+    NEW     => join($separator, @new_dialogues),
+    ACTIVE  => join($separator, @active_dialogues),
+    WAITING => join($separator, @waiting_dialogues),
+  };
+}
+
+#**********************************************************
+=head2 _crm_dialogue_right_menu($dialogue)
+
+=cut
+#**********************************************************
+sub _crm_dialogue_item {
+  my ($dialogue) = @_;
+
+  my $time = $html->element('p', $html->element('i', ' ', { class => 'far fa-clock mr-1' }) . $dialogue->{date}, { class => 'text-sm text-muted m-0' });
+  my $dropdown_item = $html->element('h3', $dialogue->{lead_fio}, { class => 'dropdown-item-title' });
+  my $last_message = $dialogue->{last_message} ? $html->element('p', $dialogue->{last_message}, { class => 'text-sm text-muted m-0' }) : '';
+
+  my $media_body = $html->element('div', $dropdown_item . $last_message . $time, { class => 'media-body' });
+  my $avatar = $html->element('img', '', { src => '/styles/default/img/admin/avatar0.png', class => 'img-size-50 mr-3 img-circle' });
+  my $media = $html->element('div', $avatar . $media_body, { class => 'media overflow-hidden' });
+
+  return $html->button($media, "index=$index&ID=$dialogue->{id}", {
+    class => 'dropdown-item pt-1 pb-1 cursor-pointer'
+  });
+}
+
+#**********************************************************
+=head2 crm_dialogues()
+
+=cut
+#**********************************************************
+sub crm_dialogues {
+
+  return if crm_dialogues_list();
+
+  $LIST_PARAMS{AID} = $admin->{AID};
+  result_former({
+    INPUT_DATA      => $Crm,
+    FUNCTION        => 'crm_open_lines_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'LINE_ID,NAME,SOURCE',
+    HIDDEN_FIELDS   => 'AID',
+    FUNCTION_FIELDS => 'crm_dialogues:show:line_id:',
+    FUNCTION_INDEX  => $index,
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      line_id     => '#',
+      name        => $lang{NAME},
+      source      => $lang{SOURCE},
+      admins_name => $lang{ADMINS}
+    },
+    SKIP_PAGES      => 1,
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{DIALOGUES},
+      qs      => $pages_qs,
+      ID      => 'CRM_OPEN_LINES',
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Crm',
+    TOTAL           => 1,
+    SEARCH_FORMER   => 1,
+  });
+
+  return;
+}
+
+#**********************************************************
+=head2 crm_dialogues_list()
+
+=cut
+#**********************************************************
+sub crm_dialogues_list {
+
+  return 0 if !$FORM{LINE_ID};
+
+  $Crm->crm_open_line_info($FORM{LINE_ID});
+  return if !$Crm->{AID};
+
+  my @aids = split(',\s?', $Crm->{AID});
+
+  return 0 if !in_array($admin->{AID}, \@aids);
+  $LIST_PARAMS{SOURCE} = $Crm->{SOURCE};
+
+  if ($FORM{del} && $FORM{COMMENTS}) {
+    $Crm->crm_dialogues_del({ ID => $FORM{ID} });
+    $html->message('info', $lang{INFO}, $lang{DELETED}) if !_error_show($Crm);
+  }
+
+  result_former({
+    INPUT_DATA     => $Crm,
+    FUNCTION       => 'crm_dialogues_list',
+    BASE_FIELDS    => 0,
+    DEFAULT_FIELDS => 'ID,LEAD_FIO,SOURCE,ADMIN,STATE,DATE',
+    FUNCTION_FIELDS => 'crm_dialogue:change:id,:del:id:&del=1&LINE_ID=' . $FORM{LINE_ID},
+    FUNCTION_INDEX => $index,
+    FILTER_VALUES => {
+      state => sub {
+        my $state = shift;
+        $STATES{$state} || $lang{CRM_STATUS_IS_UNKNOWN}
+      }
+    },
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES => {
+      id       => '#',
+      lead_fio => $lang{FIO},
+      source   => $lang{SOURCE},
+      admin    => $lang{ADMIN},
+      state    => $lang{STATE},
+      date     => $lang{DATE},
+    },
+    SKIP_PAGES     => 1,
+    TABLE          => {
+      width       => '100%',
+      caption     => $lang{DIALOGUES},
+      qs          => $pages_qs,
+      ID          => 'CRM_LEAD_DIALOGUES'
+    },
+    MAKE_ROWS      => 1,
+    MODULE         => 'Crm',
+    TOTAL          => 1,
+    SEARCH_FORMER=> 1,
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 crm_open_lines()
+
+=cut
+#**********************************************************
+sub crm_open_lines {
+
+  $Crm->{ACTION} = 'add';
+  $Crm->{LNG_ACTION} = $lang{ADD};
+
+  if ($FORM{add}) {
+    $Crm->crm_open_line_add(\%FORM);
+    if (!_error_show($Crm)) {
+      $Crm->crm_open_line_admins({ %FORM, ID => $Crm->{INSERT_ID} });
+      $html->message('success', $lang{ADDED});
+    }
+  }
+  elsif ($FORM{chg}) {
+    $Crm->crm_open_line_info($FORM{chg});
+    $Crm->{ACTION} = 'change';
+    $Crm->{LNG_ACTION} = $lang{CHANGE};
+  }
+  elsif ($FORM{change}) {
+    $Crm->crm_open_line_change(\%FORM);
+    if (!_error_show($Crm)) {
+      $Crm->crm_open_line_admins(\%FORM);
+      $html->message('info', $lang{CHANGED});
+    }
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Crm->crm_open_line_del({ ID => $FORM{del} });
+    $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Crm);
+  }
+
+  $html->tpl_show(_include('crm_open_line', 'Crm'), { %{$Crm},
+    ADMIN_SEL  => sel_admins({ MULTIPLE => 1, SELECTED => $Crm->{AID} }),
+    SOURCE_SEL => $html->form_select('SOURCE', {
+      SELECTED => $Crm->{SOURCE},
+      SEL_HASH => {
+        facebook  => 'Facebook',
+        telegram  => 'Telegram',
+        instagram => 'Instagram',
+        viber_bot => 'Viber Bot'
+      },
+      NO_ID    => 1
+    })
+  });
+
+  result_former({
+    INPUT_DATA      => $Crm,
+    FUNCTION        => 'crm_open_lines_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,NAME,SOURCE,ADMINS_NAME',
+    FUNCTION_FIELDS => 'change,del',
+    FUNCTION_INDEX  => $index,
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      id          => '#',
+      name        => $lang{NAME},
+      source      => $lang{SOURCE},
+      admins_name => $lang{ADMINS}
+    },
+    SKIP_PAGES      => 1,
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{OPEN_LINES},
+      qs      => $pages_qs,
+      ID      => 'CRM_OPEN_LINES',
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Crm',
+    TOTAL           => 1,
+    SEARCH_FORMER   => 1,
+  });
 }
 
 1

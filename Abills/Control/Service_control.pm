@@ -7,7 +7,8 @@ package Control::Service_control;
 =cut
 
 use strict;
-use parent 'dbcore';
+use warnings FATAL => 'all';
+no warnings 'numeric';
 
 my (
   $admin,
@@ -29,7 +30,7 @@ my Users $Users;
 my Tariffs $Tariffs;
 my Shedule $Shedule;
 
-use Abills::Base qw(in_array date_diff cmd);
+use Abills::Base qw(in_array date_diff cmd days_in_month next_month camelize);
 
 #**********************************************************
 # Init
@@ -145,7 +146,7 @@ sub user_set_credit {
     }
 
 
-    ::cross_modules('payments_maked', { USER_INFO => $user_info, SUM => $sum, SILENT => 1 });
+    ::cross_modules('payments_maked', { USER_INFO => $user_info, SUM => $sum, SILENT => 1, CREDIT_NOTIFICATION => 1 });
     if ($CONF->{external_userchange}) {
       return () if (!::_external($CONF->{external_userchange}, $user_info));
     }
@@ -167,7 +168,6 @@ sub user_set_credit {
     $attr
        UID
        FROM_DATE
-       TO_DATE
        TO_DATE
        HOLD_UP
        DESCRIBE
@@ -211,14 +211,14 @@ sub internet_add_compensation {
   else {
     if ("$FROM_Y-$FROM_M" eq "$TO_Y-$TO_M") {
       $days = $TO_D - $FROM_D + 1;
-      $days_in_month = ::days_in_month({ DATE => "$FROM_Y-$FROM_M-01" });
+      $days_in_month = days_in_month({ DATE => "$FROM_Y-$FROM_M-01" });
       $sum = sprintf("%.2f", $days * ($Internet->{DAY_ABON}) + $days * (($month_abon || 0) / $days_in_month));
       push(@table_rows, [ "$FROM_Y-$FROM_M", $days, $sum ]);
     }
     else {
       $FROM_D--;
       do {
-        $days_in_month = ::days_in_month({ DATE => "$FROM_Y-$FROM_M-01" });
+        $days_in_month = days_in_month({ DATE => "$FROM_Y-$FROM_M-01" });
         my $month_days = ($FROM_M == $TO_M) ? $TO_D : $days_in_month - $FROM_D;
         $FROM_D = 0;
         my $month_sum = sprintf("%.2f",
@@ -299,6 +299,8 @@ sub user_holdup {
 
   return { error => 4401, errstr => 'ERR_UID_NOT_DEFINED' } if (!$attr->{UID});
 
+  return $self->_iptv_holdup_functions($attr) if ($attr->{MODULE} && uc($attr->{MODULE}) eq 'IPTV');
+
   my $user_info = $attr->{USER_INFO} || $Users->info($attr->{UID});
   my $internet_info;
   my $status = 0;
@@ -312,13 +314,63 @@ sub user_holdup {
     $internet_info = $Internet->user_info($attr->{UID}, { ID => $attr->{ID} });
     $status = $internet_info->{DISABLE};
     if (!$Internet->{TOTAL} || $Internet->{TOTAL} < 1) {
-      return { error => 4406, errstr => 'ERR_NO_SERVICE_ID' }
+      return { error => 4406, errstr => 'ERR_NO_SERVICE_ID' };
+    }
+    elsif ($attr->{add} && $Internet->{STATUS}) {
+      return { error => 4409, errstr => 'ERR_NOT_ALLOWED' };
     }
     return q{} if ($CONF->{HOLDUP_ALL});
   }
 
+  my $block_days = 0;
+  if ($attr->{FROM_DATE} && $attr->{TO_DATE}) {
+    my $err_msg = '';
+    my $errstr = '';
+    my $err_status = 0;
+    my ($from_year, $from_month, $from_day) = split(/-/, $attr->{FROM_DATE}, 3);
+    my ($to_year, $to_month, $to_day) = split(/-/, $attr->{TO_DATE}, 3);
+
+    if (!$from_day || !$from_month || !$from_year) {
+      $err_msg = '$lang{ERR_WRONG_DATA}\n $lang{FROM}: ' . $attr->{FROM_DATE};
+      $errstr = "Wrong param fromDate $attr->{FROM_DATE}";
+      $err_status = 4426;
+    }
+    elsif (!$to_year || !$to_month || !$to_day) {
+      $err_msg = '$lang{ERR_WRONG_DATA}\n $lang{TO}: ' . $attr->{TO_DATE};
+      $errstr = "Wrong param toDate $attr->{TO_DATE}";
+      $err_status = 4427;
+    }
+
+    if ($err_msg) {
+      $self->_show_message('err', '$lang{ERR_WRONG_DATA}', $err_msg);
+      return { error => $err_status, errstr => $errstr };
+    }
+
+    $block_days = date_diff($attr->{FROM_DATE}, $attr->{TO_DATE});
+  }
+
+  my @holdup_rules = split(/;/, $CONF->{INTERNET_USER_SERVICE_HOLDUP});
   my ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $hold_up_day_fee,
-    undef, $active_fees, $holdup_skip_gids, $user_del_shedule, $expr_) = split(/:/, $CONF->{INTERNET_USER_SERVICE_HOLDUP});
+    undef, $active_fees, $holdup_skip_gids, $user_del_shedule, $expr_);
+
+  foreach my $holdup_rule (@holdup_rules) {
+    my ($_hold_up_min_period, $_hold_up_max_period, $_hold_up_period, $_hold_up_day_fee,
+      undef, $_active_fees, $_holdup_skip_gids, $_user_del_shedule, $_expr_) = split(/:/, $holdup_rule);
+
+    if (!$attr->{add} || ($block_days && $block_days < $_hold_up_max_period)) {
+      ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $hold_up_day_fee,
+        undef, $active_fees, $holdup_skip_gids, $user_del_shedule, $expr_) =
+        ($_hold_up_min_period, $_hold_up_max_period, $_hold_up_period, $_hold_up_day_fee,
+          undef, $_active_fees, $_holdup_skip_gids, $_user_del_shedule, $_expr_);
+
+      last;
+    }
+
+    push @{$self->{HOLDUP_INFOS}}, {
+      MAX_PERIOD => $_hold_up_max_period,
+      PRICE      => $_active_fees
+    };
+  }
 
   if ($holdup_skip_gids) {
     my @holdup_skip_gids_arr = split(/,\s?/, $holdup_skip_gids);
@@ -330,7 +382,7 @@ sub user_holdup {
   my $check_exp_result = $self->_check_holdup_exp($expr_, $user_info);
   return $check_exp_result if ($check_exp_result->{error});
 
- if ($attr->{add} && $active_fees && $active_fees > 0 && $user_info->{DEPOSIT} < $active_fees) {
+  if ($attr->{add} && $active_fees && $active_fees > 0 && $user_info->{DEPOSIT} < $active_fees) {
     $self->_show_message('err', '$lang{HOLD_UP}', '$lang{ERR_SMALL_DEPOSIT}');
     return { error => 4407, errstr => 'ERR_SMALL_DEPOSIT' };
   }
@@ -365,6 +417,7 @@ sub user_holdup {
       FROM_DATE => ($CONF->{INTERNET_USER_SERVICE_HOLDUP_MP}) ? "$y-$m-01" : POSIX::strftime("%Y-%m-%d", localtime(time - 86400 * $hold_up_period)),
       DATE      => '_SHOW',
       TO_DATE   => $main::DATE,
+      ACTIONS   => '*->3',
       COLS_NAME => 1
     });
 
@@ -416,6 +469,7 @@ sub user_holdup {
        UID
        MODULE
        SKIP_NOT_AVAILABLE_TARIFFS
+       ADD_FIRST_SERVICE
 
   Returns:
     \@tariffs
@@ -426,115 +480,46 @@ sub available_tariffs {
   my $self = shift;
   my ($attr) = @_;
 
+  if ($attr->{ADD_FIRST_SERVICE}) {
+    return $self->_get_tariffs($attr, { TP_ID => 0, SERVICE_ID => $attr->{SERVICE_ID} || '--' }, $Users->info($attr->{UID}));
+  }
+
   return {
     message       => '$lang{NOT_ALLOWED_TO_CHANGE_TP}',
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => 4504
+    error         => 4504,
+    errstr        => 'Not allowed to change tariff plan',
   } if (!$CONF->{uc $attr->{MODULE} . '_USER_CHG_TP'});
 
   my $service_info = $self->_service_info($attr);
   return $service_info if $service_info->{errno};
 
-  my @tariffs = ();
   my $user_info = $Users->info($attr->{UID});
 
   if ($user_info->{GID}) {
     $Users->group_info($user_info->{GID});
     if ($user_info->{DISABLE_CHG_TP}) {
-      return { error => 4505, message => '$lang{NOT_ALLOWED_TO_CHANGE_TP}', MODULE => $attr->{MODULE} }; #XXX lang
+      return {
+        error   => 4505,
+        errstr  => 'Not allowed to change tariff plan',
+        message => '$lang{NOT_ALLOWED_TO_CHANGE_TP}',
+        MODULE  => $attr->{MODULE}
+      };
     }
   }
 
   $Tariffs->tp_group_info($service_info->{TP_GID});
   if (!$Tariffs->{USER_CHG_TP}) {
-    return { error => 4506, message => '$lang{NOT_ALLOWED_TO_CHANGE_TP}', MODULE => $attr->{MODULE} }; #XXX lang
+    return {
+      error   => 4506,
+      errstr  => 'Not allowed to change tariff plan',
+      message => '$lang{NOT_ALLOWED_TO_CHANGE_TP}',
+      MODULE  => $attr->{MODULE}
+    };
   }
 
-  my $tp_list = $Tariffs->list({
-    TP_GID            => $service_info->{TP_GID} || '_SHOW',
-    CHANGE_PRICE      => ($attr->{skip_check_deposit} || $CONF->{uc $attr->{MODULE} . '_USER_CHG_TP_SMALL_DEPOSIT'}) ?
-      undef : '<=' . ($user_info->{DEPOSIT} + $user_info->{CREDIT}),
-    MODULE            => $attr->{MODULE},
-    STATUS            => '<1',
-    MONTH_FEE         => '_SHOW',
-    DAY_FEE           => '_SHOW',
-    CREDIT            => '_SHOW',
-    COMMENTS          => '_SHOW',
-    TP_CHG_PRIORITY   => $service_info->{TP_PRIORITY},
-    REDUCTION_FEE     => '_SHOW',
-    NEW_MODEL_TP      => 1,
-    DOMAIN_ID         => $user_info->{DOMAIN_ID},
-    PAYMENT_TYPE      => '_SHOW',
-    ABON_DISTRIBUTION => '_SHOW',
-    SERVICE_ID        => $service_info->{SERVICE_ID} || '_SHOW',
-    IN_SPEED          => '_SHOW',
-    OUT_SPEED         => '_SHOW',
-    COLS_NAME         => 1
-  });
-
-  my @skip_tp_changes = $CONF->{uc $attr->{MODULE} . '_SKIP_CHG_TPS'} ?
-    split(/,\s?/, $CONF->{uc $attr->{MODULE} . '_SKIP_CHG_TPS'}) : ();
-
-  foreach my $tp (@$tp_list) {
-    next if (in_array($tp->{id}, \@skip_tp_changes));
-    next if ($tp->{tp_id} == $service_info->{TP_ID} && $user_info->{EXPIRE} eq '0000-00-00');
-
-    my $tp_fee = $tp->{day_fee} + $tp->{month_fee} + $tp->{change_price};
-
-    if ($tp->{reduction_fee} && $user_info->{REDUCTION} && $user_info->{REDUCTION} > 0) {
-      $tp_fee = $tp_fee - (($tp_fee / 100) * $user_info->{REDUCTION});
-    }
-
-    $user_info->{CREDIT} = ($user_info->{CREDIT} > 0) ? $user_info->{CREDIT} : (($tp->{credit} > 0) ? $tp->{credit} : 0);
-
-    if ($tp_fee < $user_info->{DEPOSIT} + $user_info->{CREDIT} || $tp->{payment_type} || $tp->{abon_distribution}) {
-      push(@tariffs, {
-        id         => $tp->{id},
-        tp_id      => $tp->{tp_id},
-        name       => $tp->{name},
-        comments   => $tp->{comments},
-        service_id => $tp->{service_id},
-        day_fee    => $tp->{day_fee},
-        month_fee  => $tp->{month_fee},
-        out_speed  => $tp->{out_speed},
-        in_speed   => $tp->{in_speed}
-      });
-      next;
-    }
-
-    if ($CONF->{uc $attr->{MODULE} . '_USER_CHG_TP_SMALL_DEPOSIT'}) {
-      push(@tariffs, {
-        id         => $tp->{id},
-        tp_id      => $tp->{tp_id},
-        name       => $tp->{name},
-        comments   => $tp->{comments},
-        service_id => $tp->{service_id},
-        day_fee    => $tp->{day_fee},
-        month_fee  => $tp->{month_fee},
-        out_speed  => $tp->{out_speed},
-        in_speed   => $tp->{in_speed}
-      });
-      next;
-    }
-
-    next if ($attr->{SKIP_NOT_AVAILABLE_TARIFFS});
-
-    push(@tariffs, {
-      id         => $tp->{id},
-      tp_id      => $tp->{tp_id},
-      name       => $tp->{name},
-      comments   => $tp->{comments},
-      service_id => $tp->{service_id},
-      day_fee    => $tp->{day_fee},
-      month_fee  => $tp->{month_fee},
-      out_speed  => $tp->{out_speed},
-      in_speed   => $tp->{in_speed},
-      ERROR      => ::_translate('$lang{ERR_SMALL_DEPOSIT}')
-    });
-  }
-
-  return \@tariffs;
+  return $self->_get_tariffs($attr, $service_info, $user_info);
 }
 
 #***************************************************************
@@ -652,12 +637,13 @@ sub service_warning {
 
         if ($service_info->{ACTIVATE} eq '0000-00-00') {
           my ($y, $m, $d) = split(/-/, $main::DATE);
+          $return_info{ACTIVATE_DATE} = "$y-$m-01";
           my $rest_days = 0;
           my $rest_day_sum = 0;
           my $deposit = $user_info->{DEPOSIT} + $user_info->{CREDIT};
 
           while ($rest_day_sum < $deposit) {
-            $days_in_month = ::days_in_month({ DATE => "$y-$m" });
+            $days_in_month = days_in_month({ DATE => "$y-$m" });
             my $month_day_fee = ($service_info->{MONTH_ABON} * $reduction_division) / $days_in_month;
             $rest_days = $days_in_month - $d;
             $rest_day_sum = $rest_days * $month_day_fee;
@@ -681,11 +667,13 @@ sub service_warning {
         else {
           $days_to_fee = int(($user_info->{DEPOSIT} + $user_info->{CREDIT}) /
             (($service_info->{MONTH_ABON} * $reduction_division) / $days_in_month));
+          $return_info{ACTIVATE_DATE} = $service_info->{ACTIVATE};
         }
         $warning = ::_translate('$lang{SERVICE_ENDED}') || q{};
       }
       else {
         if ($service_info->{ACTIVATE} && $service_info->{ACTIVATE} ne '0000-00-00') {
+          $return_info{ACTIVATE_DATE} = $service_info->{ACTIVATE};
           my ($Y, $M, $D) = split(/-/, $service_info->{ACTIVATE}, 3);
           if ($service_info->{FIXED_FEES_DAY}) {
             if ($M == 12) {
@@ -702,6 +690,7 @@ sub service_warning {
         }
         else {
           my ($Y, $M, $D) = split(/-/, $main::DATE, 3);
+          $return_info{ACTIVATE_DATE} = "$Y-$M-01";
           if ($self->{conf}{START_PERIOD_DAY} && $self->{conf}{START_PERIOD_DAY} > $D) {
           }
           else {
@@ -728,6 +717,7 @@ sub service_warning {
       }
     }
     elsif ($service_info->{DAY_ABON} && $service_info->{DAY_ABON} > 0) {
+      $return_info{ACTIVATE_DATE} = '0000-00-00';
       $days_to_fee = int(($user_info->{DEPOSIT} + $user_info->{CREDIT} > 0) ?
         ($user_info->{DEPOSIT} + $user_info->{CREDIT}) / ($service_info->{DAY_ABON} * $reduction_division) : 0);
       $warning = ::_translate('$lang{SERVICE_ENDED}');
@@ -814,6 +804,14 @@ sub user_chg_tp {
   my $service_info = $attr->{SERVICE_INFO} || $self->_service_info($attr);
   return $service_info if $service_info->{error};
 
+  return {
+    message       => '$lang{NOT_ALLOWED_TO_CHANGE_TP}',
+    message_type  => 'err',
+    message_title => '$lang{ERROR}',
+    error         => 139,
+    errstr        => 'Unknown service to change',
+  } if ($service_info->{errno});
+
   $attr->{period} ||= $attr->{PERIOD};
 
   $attr->{UID} ||= $service_info->{UID};
@@ -821,18 +819,17 @@ sub user_chg_tp {
   $Users->group_info($user_info->{GID}) if ($user_info->{GID});
   $Tariffs->tp_group_info($service_info->{TP_GID});
 
-  my $period = $attr->{period} || 0;
-
   if (!$CONF->{uc($attr->{MODULE}) . '_USER_CHG_TP'} || $Users->{DISABLE_CHG_TP} || !$Tariffs->{USER_CHG_TP}) {
     return {
       message       => '$lang{NOT_ALLOWED_TO_CHANGE_TP}',
       message_type  => 'err',
       message_title => '$lang{ERROR}',
-      error         => 140
+      error         => 140,
+      errstr        => 'Not allowed to change tariff plan',
     };
   }
 
-  my $next_abon = $self->get_next_abon_date({ SERVICE_INFO => $service_info });
+  my $next_abon = $self->get_next_abon_date({ SERVICE_INFO => $service_info, MODULE => $attr->{MODULE} });
   return $next_abon if !$next_abon->{ABON_DATE};
 
   $service_info->{ABON_DATE} = $next_abon->{ABON_DATE};
@@ -843,7 +840,8 @@ sub user_chg_tp {
       message       => '$lang{ERR_WRONG_PASSWD}',
       message_type  => 'err',
       message_title => '$lang{ERROR}',
-      error         => 4508
+      error         => 4508,
+      errstr        => 'Wrong password',
     } if !$attr->{PASSWORD} || $attr->{PASSWORD} ne $Users->{PASSWORD};
   }
 
@@ -851,7 +849,8 @@ sub user_chg_tp {
     message       => '$lang{ERR_WRONG_DATA}: $lang{TARIF_PLAN}',
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => 141
+    error         => 141,
+    errstr        => 'Unknown tpId',
   } if (!$attr->{TP_ID} || $attr->{TP_ID} < 1);
 
   return {
@@ -860,6 +859,47 @@ sub user_chg_tp {
     message_title => '$lang{ERROR}',
     error         => 4509
   } if !$attr->{ID};
+
+  if (uc($attr->{MODULE}) eq 'IPTV') {
+    require Iptv;
+    Iptv->import();
+
+    my $Iptv = Iptv->new($self->{db}, $self->{admin}, $self->{conf});
+    $Iptv->services_list({ USER_PORTAL => 2, ID => $service_info->{SERVICE_ID} });
+
+    my $tariffs = $self->available_tariffs({
+      SKIP_NOT_AVAILABLE_TARIFFS => 1,
+      UID                        => $attr->{UID},
+      MODULE                     => 'Iptv',
+      ID                         => $attr->{ID},
+    });
+
+    if ($tariffs) {
+      my $allowed = 0;
+      foreach my $tariff (@{$tariffs}) {
+        next if (!$tariff->{tp_id} || "$tariff->{tp_id}" ne "$attr->{TP_ID}");
+        $allowed = 1;
+        last;
+      }
+
+      return {
+        message       => '$lang{ERR_WRONG_DATA}: $lang{TARIF_PLAN}',
+        message_type  => 'err',
+        message_title => '$lang{ERROR}',
+        errno         => 4513,
+        errstr        => 'Unknown tpId',
+      } if (!$allowed);
+    }
+    else {
+      return {
+        message       => '$lang{ERR_WRONG_DATA}: $lang{TARIF_PLAN}',
+        message_type  => 'err',
+        message_title => '$lang{ERROR}',
+        errno         => 4515,
+        errstr        => 'Unknown tpId',
+      };
+    }
+  }
 
   my $chg_tp_result = $self->_chg_tp_nperiod({ %{$attr}, SERVICE => $service_info });
   return $chg_tp_result if $chg_tp_result && ref($chg_tp_result) eq 'HASH';
@@ -872,7 +912,8 @@ sub user_chg_tp {
       message       => '$lang{ERR_SMALL_DEPOSIT}- $lang{DEPOSIT}: ' . $user_info->{DEPOSIT} . ' $lang{CREDIT}: ' . $user_info->{CREDIT},
       message_type  => 'err',
       message_title => '$lang{ERROR}',
-      error         => 15
+      error         => 15,
+      errstr        => "Small deposit - deposit $user_info->{DEPOSIT} and credit $user_info->{CREDIT}",
     };
   }
   delete $service_info->{ABON_DATE};
@@ -905,7 +946,9 @@ sub user_chg_tp {
     return {
       message       => '$lang{ERR_WRONG_DATA}: ' . "($year, $month, $day)/$seltime-" . time(),
       message_type  => 'info',
-      message_title => '$lang{INFO}'
+      message_title => '$lang{INFO}',
+      error         => 40041,
+      errstr        => "Wrong date ($year, $month, $day)/$seltime-" . time(),
     } if ($seltime <= time());
 
     if ($attr->{date_D} && $attr->{date_D} > ($month != 2 ? (($month % 2) ^ ($month > 7)) + 30 :
@@ -913,7 +956,9 @@ sub user_chg_tp {
       return {
         message       => '$lang{ERR_WRONG_DATA}: ' . "($year-$month-$day)",
         message_type  => 'info',
-        message_title => '$lang{INFO}'
+        message_title => '$lang{INFO}',
+        error         => 40042,
+        errstr        => "Wrong date ($year-$month-$day)",
       };
     }
 
@@ -932,7 +977,8 @@ sub user_chg_tp {
       message       => $Shedule->{errstr},
       message_type  => 'err',
       message_title => '$lang{ERROR}',
-      error         => $Shedule->{errno}
+      error         => $Shedule->{errno},
+      errstr        => 'Error occurred during operation'
     } : { success => 1, UID => $attr->{UID}, ID => $attr->{ID} };
   }
 
@@ -971,7 +1017,8 @@ sub del_user_chg_shedule {
     message       => '$lang{ERR_NO_DATA}',
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => 4501
+    error         => 4501,
+    errstr        => 'No data'
   } if (!$attr->{UID} || !$attr->{SHEDULE_ID});
 
   if ($CONF->{user_confirm_changes}) {
@@ -981,7 +1028,8 @@ sub del_user_chg_shedule {
       message       => '$lang{ERR_WRONG_PASSWD}',
       message_type  => 'err',
       message_title => '$lang{ERROR}',
-      error         => 4306
+      error         => 4306,
+      errstr        => 'Wrong password'
     } if !$attr->{PASSWORD} || $attr->{PASSWORD} ne $Users->{PASSWORD};
   }
 
@@ -991,7 +1039,8 @@ sub del_user_chg_shedule {
     message       => $Shedule->{errstr},
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => $Shedule->{errno}
+    error         => $Shedule->{errno},
+    errstr        => 'Error occurred during operation'
   } : { success => 1, UID => $attr->{UID} };
 }
 
@@ -1059,7 +1108,7 @@ sub get_next_abon_date {
     }
   }
   #Get next abon day
-  elsif (!$self->{conf}{uc($attr->{MODULE}) . '_USER_CHG_TP_NEXT_MONTH'} && ($month_abon == 0 || $abon_distribution)) {
+  elsif ($attr->{MODULE} && !$self->{conf}{uc($attr->{MODULE}) . '_USER_CHG_TP_NEXT_MONTH'} && ($month_abon == 0 || $abon_distribution)) {
     ($Y, $M, $D) = split(/-/, POSIX::strftime("%Y-%m-%d",
       localtime((POSIX::mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) + 86400))));
 
@@ -1145,7 +1194,8 @@ sub _chg_tp_nperiod {
     message       => '$lang{ERR_NO_DATA}',
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => 4510
+    error         => 4510,
+    errstr        => 'No data'
   } if !$attr->{MODULE} || !$Service;
 
   return '' if !$CONF->{uc($attr->{MODULE}) . '_USER_CHG_TP_NPERIOD'};
@@ -1172,7 +1222,8 @@ sub _chg_tp_nperiod {
       message       => $Shedule->{errstr},
       message_type  => 'err',
       message_title => '$lang{ERROR}',
-      error         => $Shedule->{errno}
+      error         => $Shedule->{errno},
+      errstr        => 'Error occurred during operation'
     } if $Shedule->{errno};
     return { success => 1, UID => $attr->{UID}, TP_ID => $attr->{TP_ID}, ID => $attr->{ID} };
   }
@@ -1219,7 +1270,8 @@ sub _chg_tp_immediately {
     message       => '$lang{ERR_NO_DATA}',
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => 4512
+    error         => 4512,
+    errstr        => 'No data'
   } if !$attr->{MODULE} || !$Service;
 
   my $change_params = {
@@ -1236,7 +1288,7 @@ sub _chg_tp_immediately {
 
   if (!$Service->{errno}) {
     $self->_show_message('info', '$lang{CHANGED}', '$lang{CHANGED}');
-    ::service_get_month_fee($Service) if !$attr->{uc($attr->{MODULE}) . '_NO_ABON'};
+    ::service_get_month_fee($Service, { USER_INFO => $Users }) if (!$attr->{uc($attr->{MODULE}) . '_NO_ABON'});
     return { success => 1, RESULT => $Service, UID => $attr->{UID}, ID => $attr->{ID} };
   }
 
@@ -1244,7 +1296,8 @@ sub _chg_tp_immediately {
     message       => $Service->{errstr},
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => $Service->{errno}
+    error         => $Service->{errno},
+    errstr        => 'Error occurred during operation'
   };
 }
 
@@ -1299,7 +1352,8 @@ sub _chg_tp_shedule {
     message       => '$lang{ERR_WRONG_DATA}: $lang{DATE}',
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => 145
+    error         => 145,
+    errstr        => 'Wrong data - date'
   } if ($seltime <= time());
 
   $Shedule->add({
@@ -1317,7 +1371,8 @@ sub _chg_tp_shedule {
     message       => $Service->{errstr},
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => $Service->{errno}
+    error         => $Service->{errno},
+    errstr        => 'Error occurred during operation'
   } if $Shedule->{errno};
   return { success => 1, UID => $attr->{UID} };
 }
@@ -1352,7 +1407,8 @@ sub _service_info {
     message       => '$lang{ERR_NO_DATA}',
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => 4601
+    error         => 4601,
+    errstr        => 'No data'
   } if (!$attr->{UID} || !$attr->{MODULE});
 
   my %info_function = ('Iptv' => $attr->{ID});
@@ -1363,7 +1419,8 @@ sub _service_info {
     message       => $@,
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => 4602
+    error         => 4602,
+    errstr        => 'Error occurred during operation'
   } if ($@);
 
   my $module = $attr->{MODULE}->new($db, $admin, $CONF);
@@ -1372,7 +1429,8 @@ sub _service_info {
     message       => 'CANNOT_GET_SERVICE_INFO',
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => 4603
+    error         => 4603,
+    errstr        => 'Unknown operation for this user'
   } if !$module->can('user_info') ;
 
   return $module->user_info($info_function{$attr->{MODULE}} ?
@@ -1580,42 +1638,49 @@ sub _add_holdup {
   my ($to_year, $to_month, $to_day) = split(/-/, $attr->{TO_DATE}, 3);
   my $block_days = date_diff($attr->{FROM_DATE}, $attr->{TO_DATE});
   my $err_msg = '';
+  my $errstr = '';
   my $err_status = 0;
 
   if ($attr->{HOLD_UP_MIN_PERIOD} && $block_days < $attr->{HOLD_UP_MIN_PERIOD}) {
     $err_msg = '$lang{MIN} $lang{HOLD_UP} ' . $attr->{HOLD_UP_MIN_PERIOD} . ' $lang{DAYS} ' . $block_days;
+    $errstr = 'Min holdup ' . $attr->{HOLD_UP_MIN_PERIOD} . ' days ' . $block_days;
     $err_status = 4421;
   }
   elsif ($attr->{HOLD_UP_MAX_PERIOD} && $block_days > $attr->{HOLD_UP_MAX_PERIOD}) {
     $err_msg = '$lang{MAX} $lang{HOLD_UP} (' . $attr->{HOLD_UP_MAX_PERIOD} . ') $lang{DAYS} ' . $block_days;
+    $errstr = 'Max holdup ' . $attr->{HOLD_UP_MAX_PERIOD} . ' days ' . $block_days;
     $err_status = 4422;
   }
   elsif (date_diff($main::DATE, $attr->{FROM_DATE}) < 1) {
     $err_msg = '$lang{ERR_WRONG_DATA}\n $lang{FROM}: ' . $attr->{FROM_DATE};
+    $errstr = "Wrong param fromDate $attr->{FROM_DATE}";
     $err_status = 4423;
   }
   elsif ($block_days < 1) {
     $err_msg = '$lang{ERR_WRONG_DATA}\n $lang{TO}: ' . $attr->{TO_DATE};
+    $errstr = "Wrong param toDate $attr->{TO_DATE}";
     $err_status = 4424;
   }
   elsif (!$attr->{ID} && ! $CONF->{HOLDUP_ALL}) {
+    $errstr = "Wrong param id";
     $err_msg = '$lang{ERR_NO_DATA}: ID';
     $err_status = 4425;
   }
 
   if ($err_msg) {
     $self->_show_message('err', '$lang{ERR_WRONG_DATA}', $err_msg);
-    return { error => $err_status, errstr => $err_msg };
+    return { error => $err_status, errstr => $errstr };
   }
 
   $Shedule->add({
-    UID    => $attr->{UID},
-    TYPE   => 'status',
-    ACTION => ($attr->{ID} || q{}) . ':3',
-    D      => $from_day,
-    M      => $from_month,
-    Y      => $from_year,
-    MODULE => $attr->{MODULE} || 'Internet'
+    UID      => $attr->{UID},
+    TYPE     => 'status',
+    ACTION   => ($attr->{ID} || q{}) . ':3',
+    D        => $from_day,
+    M        => $from_month,
+    Y        => $from_year,
+    MODULE   => $attr->{MODULE} || 'Internet',
+    COMMENTS => "DAYS:" . $block_days
   });
 
   $Shedule->add({
@@ -1629,7 +1694,7 @@ sub _add_holdup {
   });
 
   return { errno => $Shedule->{errno}, errstr => $Shedule->{errstr}, MODULE => 'Shedule' } if ($Shedule->{errno});
-  $self->internet_add_compensation({ HOLD_UP => 1, UP => 1, %{$attr} }) if ($CONF->{INTERNET_HOLDUP_COMPENSATE});
+  # $self->internet_add_compensation({ HOLD_UP => 1, UP => 1, %{$attr} }) if ($CONF->{INTERNET_HOLDUP_COMPENSATE});
 
   $self->_show_message('info', '$lang{INFO}', '$lang{HOLD_UP}' . "\n" . '$lang{DATE}: ' . "$attr->{FROM_DATE} -> $attr->{TO_DATE}\n  " .
     '$lang{DAYS}: ' . sprintf("%d", $block_days));
@@ -1652,29 +1717,53 @@ sub _del_holdup {
   my $self = shift;
   my ($attr) = @_;
 
-  return { error => 4408, errstr => 'ERR_DEL_HOLDUP' } if (!$attr->{UID} || !$attr->{ID});
+  return { error => 4408, errstr => 'ERR_DEL_HOLDUP' } if (!$attr->{UID} || (!$attr->{ID} && !$CONF->{HOLDUP_ALL}));
 
-  ($attr->{IDS}, undef) = $self->_get_holdup_ids($attr->{UID}, $attr->{ID}) if !$attr->{IDS};
+  my ($ids, undef) = $self->_get_holdup_ids($attr->{UID}, $attr->{ID});
+  # $attr->{IDS} = $ids if (!$attr->{IDS});
+  $attr->{IDS} = $ids;
 
-  $Shedule->del({ UID => $attr->{UID}, IDS => $attr->{IDS} });
+  $Shedule->del({ UID => $attr->{UID}, IDS => $ids });
   $Internet->{STATUS_DAYS} = 1;
 
-  if ($attr->{INTERNET_STATUS} == 3) {
+  if ($attr->{INTERNET_STATUS} && $attr->{INTERNET_STATUS} == 3) {
     $Internet->user_change({
       UID    => $attr->{UID},
       ID     => $attr->{ID},
       STATUS => 0,
     });
 
-    ::service_get_month_fee($Internet, { QUITE => 1 });
+    ::service_get_month_fee($Internet, { QUITE => 1, USER_INFO => $Users });
     $self->_show_message('info', '$lang{SERVICE}', '$lang{ACTIVATE}');
     return { success => 1, msg => 'Service activate' };
   }
 
-  if ($CONF->{INTERNET_HOLDUP_COMPENSATE}) {
-    $Internet->{TP_INFO} = $Tariffs->info(0, { TP_ID => $Internet->{TP_ID} });
-    ::service_get_month_fee($Internet, { QUITE => 1 });
-  }
+  # if ($CONF->{INTERNET_HOLDUP_COMPENSATE}) {
+  #   $Internet->{TP_INFO} = $Tariffs->info(0, { TP_ID => $Internet->{TP_ID} });
+  #   ::service_get_month_fee($Internet, { QUITE => 1, USER_INFO => $Users });
+  #
+  #   # Delete payment created by compensation if it exists
+  #   require Payments;
+  #   my $Payments = Payments->new($db, $admin, $CONF);
+  #   my $payments = $Payments->list({
+  #     METHOD    => 6,
+  #     UID       => $attr->{UID},
+  #     DSC       => ($schedule_date->{3} && $schedule_date->{0}) ? "*$schedule_date->{3}/$schedule_date->{0}*" : '--',
+  #     COLS_NAME => 1
+  #   });
+  #
+  #   if (scalar @{$payments}) {
+  #     $Payments->del({ UID => $attr->{UID} }, $payments->[0]->{id});
+  #
+  #     $self->internet_add_compensation({
+  #       HOLD_UP   => 1,
+  #       UP        => 1,
+  #       UID       => $attr->{UID},
+  #       FROM_DATE => $attr->{SCHEDULE_DATE}->{3},
+  #       TO_DATE   => $main::DATE
+  #     });
+  #   }
+  # }
 
   $self->_show_message('info', '$lang{HOLD_UP}', '$lang{DELETED}');
   return { success => 1, msg => 'Holdup deleted' };
@@ -1693,17 +1782,20 @@ sub _del_holdup {
 =cut
 #**********************************************************
 sub _get_holdup_ids {
-  my $self = shift;
+  shift;
   my $uid = shift;
   my $id = shift;
 
-  my $list = $Shedule->list({
+  my %params = (
     UID        => $uid,
-    SERVICE_ID => $id,
-    #MODULE     => 'Internet',
     TYPE       => 'status',
     COLS_NAME  => 1
-  });
+  );
+
+  $params{SERVICE_ID} = $id if (!$CONF->{HOLDUP_ALL});
+  $params{MODULE} = 'ALL' if ($CONF->{HOLDUP_ALL});
+
+  my $list = $Shedule->list(\%params);
 
   my %shedule_date = ();
   my @del_arr = ();
@@ -1728,7 +1820,7 @@ sub _get_holdup_ids {
 =cut
 #**********************************************************
 sub _show_message {
-  my $self = shift;
+  shift;
   my ($type, $title, $msg) = @_;
 
   return '' if !$html || !$lang;
@@ -1759,15 +1851,30 @@ sub all_info {
 
   my $tariffs_list = $service_info->user_list({
     %{$attr->{FUNCTION_PARAMS} || {}},
-    UID         => $attr->{UID},
-    CID         => '_SHOW',
-    TP_NAME     => '_SHOW',
-    TP_COMMENTS => '_SHOW',
-    MONTH_FEE   => '_SHOW',
-    DAY_FEE     => '_SHOW',
-    TP_ID       => '_SHOW',
-    COLS_NAME   => 1,
+    UID              => $attr->{UID},
+    CID              => '_SHOW',
+    TP_NAME          => '_SHOW',
+    TP_COMMENTS      => '_SHOW',
+    MONTH_FEE        => '_SHOW',
+    DAY_FEE          => '_SHOW',
+    TP_ID            => '_SHOW',
+    TP_REDUCTION_FEE => '_SHOW',
+    COLS_NAME        => 1,
   });
+
+  require Service;
+  Service->import();
+  my $Service = Service->new($self->{db}, $self->{admin}, $self->{conf});
+
+  my $statuses = $Service->status_list({
+    NAME      => '_SHOW',
+    LIST2HASH => 'id,name'
+  });
+
+  if ($attr->{MODULE} eq 'Iptv') {
+    %main::FORM = ();
+    ::load_module('Iptv::Services', { LOAD_PACKAGE => 1 });
+  }
 
   foreach my $tariff (@{$tariffs_list}) {
     $Shedule->info({ UID => $attr->{UID}, TYPE => 'tp', MODULE => $attr->{MODULE} });
@@ -1778,12 +1885,36 @@ sub all_info {
       if ($action =~ /:/) {
         ($service_id, $action) = split(/:/, $action);
       }
+
+      my $tariff_change = $Tariffs->list({
+        INNER_TP_ID   => $action,
+        STATUS        => '<1',
+        MONTH_FEE     => '_SHOW',
+        DAY_FEE       => '_SHOW',
+        COMMENTS      => '_SHOW',
+        REDUCTION_FEE => '_SHOW',
+        NEW_MODEL_TP  => 1,
+        DOMAIN_ID     => $admin->{DOMAIN_ID} || 0,
+        IN_SPEED      => '_SHOW',
+        OUT_SPEED     => '_SHOW',
+        COLS_NAME     => 1
+      })->[0] || {};
+
       $tariff->{schedule} = {
-        SHEDULE_ID => $Shedule->{SHEDULE_ID},
-        DATE       => $Shedule->{DATE},
-        DATE_FROM  => "$Shedule->{Y}-$Shedule->{M}-$Shedule->{D}",
-        TP_ID      => $action
+        SHEDULE_ID  => $Shedule->{SHEDULE_ID},
+        DATE        => $Shedule->{DATE},
+        DATE_FROM   => "$Shedule->{Y}-$Shedule->{M}-$Shedule->{D}",
+        TP_ID       => $action,
+        TP_NAME     => $tariff_change->{name},
+        TP_COMMENTS => $tariff_change->{comments},
+        MONTH_FEE   => $tariff_change->{month_fee},
+        DAY_FEE     => $tariff_change->{day_fee}
       };
+
+      if ($attr->{MODULE} eq 'Internet') {
+        $tariff->{schedule}->{IN_SPEED} = $tariff_change->{in_speed};
+        $tariff->{schedule}->{OUT_SPEED} = $tariff_change->{out_speed};
+      }
     }
 
     my $next_abon = $self->service_warning({
@@ -1797,7 +1928,28 @@ sub all_info {
       $tariff->{next_abon} = $next_abon;
     }
 
+    if ($attr->{MODULE} eq 'Internet' || $attr->{MODULE} eq 'Iptv') {
+      my $status = defined $tariff->{service_status} ? $tariff->{service_status} : $tariff->{internet_status};
+      my ($status_name) = $statuses->{$status} =~ /(?<=\$lang\{)(.*)(?=\})/g;
+      $status_name //= q{};
+      $tariff->{status_name} = $lang->{$status_name} || camelize($status_name);
+
+      #TODO: Add normal info return for IPTV API if enabled HOLDUP_ALL
+      my $holdup = $self->user_holdup({
+        UID          => $attr->{UID},
+        ID           => $tariff->{id},
+        MODULE       => $attr->{MODULE},
+        ACCEPT_RULES => 1
+      });
+
+      if ($holdup && !$holdup->{result}) {
+        $tariff->{holdup} = $holdup;
+      }
+    }
+
     if ($attr->{MODULE} eq 'Internet') {
+      $tariff->{service_holdup} = (($CONF->{INTERNET_USER_SERVICE_HOLDUP} || $CONF->{HOLDUP_ALL}) && $tariff->{internet_status}) ? 'false' : 'true';
+
       my $speed = $service_info->get_speed({
         UID       => $attr->{UID},
         TP_ID     => $tariff->{tp_id},
@@ -1807,20 +1959,261 @@ sub all_info {
 
       $tariff->{in_speed} = $speed->[0]->{in_speed};
       $tariff->{out_speed} = $speed->[0]->{out_speed};
+    }
 
-      my $res = $self->user_holdup({
-        UID          => $attr->{UID},
-        ID           => $tariff->{id},
-        ACCEPT_RULES => 1
-      });
+    if ($attr->{MODULE} eq 'Iptv') {
+      $main::Tv_service = undef;
 
-      if ($res) {
-        $tariff->{holdup}  = $res;
+      if ($tariff->{service_id}) {
+        $main::Iptv = $service_info;
+        $main::Tv_service = ::tv_load_service($service_info->{SERVICE_MODULE}, { SERVICE_ID => $service_info->{SERVICE_ID} });
+
+        if ($main::Tv_service) {
+          $tariff->{get_url} = 'true' if ($main::Tv_service->can('get_url'));
+          $tariff->{get_code} = 'true' if ($main::Tv_service->can('get_code'));
+          $tariff->{get_playlist} = 'true' if ($main::Tv_service->can('get_playlist_m3u') && $CONF->{IPTV_CLIENT_M3U});
+        }
       }
+
+      delete $tariff->{tv_user_portal};
+      $tariff->{service_holdup} = ($tariff->{tv_user_portal} && $tariff->{tv_user_portal} > 1 && !$tariff->{service_status}) ? 'false' : 'true';
     }
   }
 
   return $tariffs_list;
+}
+
+#**********************************************************
+=head2 _get_tariffs($attr) - Return array with tariff list
+
+  Arguments:
+    $attr: hash
+       UID: int                             - user id
+       MODULE: string                       - module of tariffs
+       SKIP_NOT_AVAILABLE_TARIFFS: boolean  - don't return tariffs for which not enough money
+
+  Results:
+    \@tariffs: array - list of tariff plans
+
+=cut
+#**********************************************************
+sub _get_tariffs {
+  my $self = shift;
+  my ($attr, $service_info, $user_info) = @_;
+
+  if (uc($attr->{MODULE}) eq 'IPTV' && !$attr->{SERVICE_ID}) {
+    require Iptv;
+    Iptv->import();
+
+    my $Iptv = Iptv->new($self->{db}, $self->{admin}, $self->{conf});
+
+    $Iptv->user_list({
+      ID              => $attr->{ID},
+      UID             => $attr->{UID},
+      TV_SERVICE_NAME => '_SHOW',
+      TV_USER_PORTAL  => '>1',
+      SERVICE_STATUS  => 0,
+      COLS_NAME       => 1
+    });
+
+    return {
+      message       => '$lang{NOT_ALLOWED}',
+      message_type  => 'err',
+      message_title => '$lang{ERROR}',
+      error         => 4514
+    } if (!($Iptv->{TOTAL} && $Iptv->{TOTAL} > 0));
+  }
+
+  my @tariffs = ();
+
+  my $tp_list = $Tariffs->list({
+    TP_GID            => $service_info->{TP_GID} || '_SHOW',
+    CHANGE_PRICE      => ($attr->{skip_check_deposit} || $CONF->{uc $attr->{MODULE} . '_USER_CHG_TP_SMALL_DEPOSIT'}) ?
+      undef : '<=' . ($user_info->{DEPOSIT} + $user_info->{CREDIT}),
+    MODULE            => $attr->{MODULE},
+    STATUS            => '<1',
+    MONTH_FEE         => '_SHOW',
+    DAY_FEE           => '_SHOW',
+    CREDIT            => '_SHOW',
+    COMMENTS          => '_SHOW',
+    TP_CHG_PRIORITY   => $service_info->{TP_PRIORITY},
+    REDUCTION_FEE     => '_SHOW',
+    NEW_MODEL_TP      => 1,
+    DOMAIN_ID         => $user_info->{DOMAIN_ID},
+    PAYMENT_TYPE      => '_SHOW',
+    ABON_DISTRIBUTION => '_SHOW',
+    SERVICE_ID        => $service_info->{SERVICE_ID} || '_SHOW',
+    IN_SPEED          => '_SHOW',
+    OUT_SPEED         => '_SHOW',
+    COLS_NAME         => 1
+  });
+
+  my @skip_tp_changes = $CONF->{uc $attr->{MODULE} . '_SKIP_CHG_TPS'} ?
+    split(/,\s?/, $CONF->{uc $attr->{MODULE} . '_SKIP_CHG_TPS'}) : ();
+
+  foreach my $tp (@$tp_list) {
+    next if (in_array($tp->{id}, \@skip_tp_changes));
+    next if ($tp->{tp_id} == $service_info->{TP_ID} && $user_info->{EXPIRE} eq '0000-00-00');
+
+    my $tp_fee = $tp->{day_fee} + $tp->{month_fee} + $tp->{change_price};
+
+    if ($tp->{reduction_fee} && $user_info->{REDUCTION} && $user_info->{REDUCTION} > 0) {
+      $tp_fee = $tp_fee - (($tp_fee / 100) * $user_info->{REDUCTION});
+    }
+
+    $user_info->{CREDIT} = ($user_info->{CREDIT} > 0) ? $user_info->{CREDIT} : (($tp->{credit} > 0) ? $tp->{credit} : 0);
+
+    my $tariff = {
+      id            => $tp->{id},
+      tp_id         => $tp->{tp_id},
+      name          => $tp->{name},
+      comments      => $tp->{comments},
+      service_id    => $tp->{service_id},
+      day_fee       => $tp->{day_fee},
+      month_fee     => $tp->{month_fee},
+      reduction_fee => $tp->{reduction_fee}
+    };
+
+    if (uc $attr->{MODULE} eq 'INTERNET') {
+      $tariff->{out_speed} = $tp->{out_speed};
+      $tariff->{in_speed} = $tp->{in_speed};
+    }
+
+    if ($tp_fee < $user_info->{DEPOSIT} + $user_info->{CREDIT} || $tp->{payment_type} || $tp->{abon_distribution}) {
+      push @tariffs, $tariff;
+      next;
+    }
+
+    if ($CONF->{uc $attr->{MODULE} . '_USER_CHG_TP_SMALL_DEPOSIT'}) {
+      push @tariffs, $tariff;
+      next;
+    }
+
+    next if ($attr->{SKIP_NOT_AVAILABLE_TARIFFS});
+
+    $tariff->{ERROR} = ::_translate('$lang{ERR_SMALL_DEPOSIT}');
+
+    push @tariffs, $tariff;
+  }
+
+  return \@tariffs;
+}
+
+#**********************************************************
+=head2 _iptv_holdup_functions($attr) - IPTV holdup functions
+
+  Arguments:
+    $attr: hash
+       UID: int     - user id
+       ID: int      - service id
+       ADD: boolean - add holdup
+       DEL: boolean - delete holdup
+
+  Results:
+    hash or returns
+
+=cut
+#**********************************************************
+sub _iptv_holdup_functions {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return {} if (!$attr->{UID} || !$attr->{ID});
+
+  require Iptv;
+  Iptv->import();
+  my $Iptv = Iptv->new($self->{db}, $self->{admin}, $self->{conf});
+
+  my $tariffs = $Iptv->user_list({
+    ID              => $attr->{ID},
+    UID             => $attr->{UID},
+    TV_SERVICE_NAME => '_SHOW',
+    TV_USER_PORTAL  => '_SHOW',
+    SERVICE_STATUS  => '_SHOW',
+    COLS_NAME       => 1
+  });
+
+  return {
+    errno  => 4516,
+    errstr => "Unknown iptv id - $attr->{ID}",
+  } if (!($Iptv->{TOTAL} && $Iptv->{TOTAL} > 0));
+
+  my $tariff = $tariffs->[0];
+
+  my $schedules = $Shedule->list({
+    UID       => $attr->{UID},
+    ACTION    => "$attr->{ID}:1",
+    TYPE      => 'status',
+    MODULE    => 'Iptv',
+    COLS_NAME => 1
+  });
+
+  if ($attr->{add}) {
+    return {
+      errno  => 4517,
+      errstr => "Not allowed operation for this service" . ($tariff->{tv_service_name} ? " $tariff->{tv_service_name}" : ''),
+    } if (!($tariff->{tv_user_portal} && $tariff->{tv_user_portal} > 1 && !$tariff->{service_status}));
+
+    my $disable_date = next_month();
+    my ($year, $month, $day) = split(/-/, $disable_date, 3);
+
+    $Shedule->add({
+      UID          => $attr->{UID},
+      TYPE         => 'status',
+      ACTION       => "$attr->{ID}:1",
+      D            => $day,
+      M            => $month,
+      Y            => $year,
+      COMMENTS     => "FROM: $tariff->{service_status}->1",
+      ADMIN_ACTION => 1,
+      MODULE       => 'Iptv'
+    });
+
+    if ($Shedule->{errno}) {
+      if ($Shedule->{errno} == 7) {
+        return {
+          result => 'Holdup already exists'
+        };
+      }
+      else {
+        return {
+          errno  => 4518,
+          errstr => "Error during set holdup - $Shedule->{errno}",
+        };
+      }
+    }
+    else {
+      return {
+        result => 'Holdup enabled'
+      };
+    }
+  }
+  elsif ($attr->{del}) {
+    return {
+      errno  => 4519,
+      errstr => "Not allowed operation for this service" . ($tariff->{tv_service_name} ? " $tariff->{tv_service_name}" : ''),
+    } if (!($tariff->{tv_user_portal} && $tariff->{tv_user_portal} > 1 && !$tariff->{service_status}));
+
+    return {
+      result => 'No active holdups',
+    } if (!($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0));
+
+    $Shedule->del({ UID => $attr->{UID}, ID => $schedules->[0]->{id} });
+
+    return {
+      result => 'Successfully deleted',
+    };
+  }
+  else {
+    return {
+      result => 'No active holdups',
+    } if (!($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0));
+
+    return {
+      date_from  => "$schedules->[0]->{y}-$schedules->[0]->{m}-$schedules->[0]->{d}",
+      can_cancel => 'true',
+    };
+  }
 }
 
 1;

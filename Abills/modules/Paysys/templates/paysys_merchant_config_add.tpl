@@ -25,6 +25,13 @@
         </div>
       </div>
 
+      <div class='form-group %HIDE_DOMAIN_SEL%'>
+        <label class=' col-md-12 col-sm-12'>_{DOMAIN}_</label>
+        <div class='col-md-12 col-sm-12'>
+          %DOMAIN_SELECT%
+        </div>
+      </div>
+
       <div class='form-group'>
         <label class=' col-sm-12 col-md-12' for='MERCHANT_NAME'>_{MERCHANT_NAME2}_:</label>
         <div class='col-sm-12 col-md-12'>

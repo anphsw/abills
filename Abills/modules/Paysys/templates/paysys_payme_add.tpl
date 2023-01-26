@@ -1,5 +1,5 @@
-<div class='card card-primary card-outline'>
-  <form action='%URL%' method='post'>
+<form action='%URL%' method='post'>
+  <div class='card card-primary card-outline'>
     <input type='hidden' name='merchant' value='%MERCHANT_ID%'/>
     <input type='hidden' name='amount' value='%AMOUNT%'/>
     <input type='hidden' name='description' value='%DESCRIBE%'/>
@@ -10,11 +10,11 @@
     </div>
 
     <div class='card-body pt-0'>
-        <div class='form-group text-center'>
-            <img src='/styles/default/img/paysys_logo/payme-logo.png'
-                 style='width: auto; max-height: 200px;'
-                 alt='payme'>
-        </div>
+      <div class='form-group text-center'>
+        <img src='/styles/default/img/paysys_logo/payme-logo.png'
+             style='width: auto; max-height: 200px;'
+             alt='payme'>
+      </div>
 
       <ul class='list-group list-group-unbordered mb-3'>
         <li class='list-group-item'>
@@ -31,5 +31,5 @@
         </li>
       </ul>
       <input type='submit' class='btn btn-primary float-right' value='_{PAY}_'>
-  </form>
-</div>
+    </div>
+</form>

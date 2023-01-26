@@ -5,8 +5,8 @@
     <div class='card'>
         <div class='card-header'>_{CHANGE}_</div>
         <div class='card-body'>
-            <b>Вопрос: </b><input class='form-control' type='text' name='QUESTION' value='%QUESTION%'>
-            <b>Описание: </b><input class='form-control' type='text' name='DESCRIPTION' value='%DESCRIPTION%'>
+            <b>_{QUESTION}_: </b><input class='form-control' type='text' name='QUESTION' value='%QUESTION%'>
+            <b>_{DESCRIBE}_: </b><input class='form-control' type='text' name='DESCRIPTION' value='%DESCRIPTION%'>
         </div>
         <div class='card-footer'>
             <input class='btn btn-primary' type='submit' name='%BUTTON_NAME%' value='%BUTTON_VALUE%'>

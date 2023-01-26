@@ -20,13 +20,16 @@ use Msgs::Notify;
 my Msgs $Msgs;
 my Msgs::Notify $Notify;
 
+our %lang;
+require 'Abills/modules/Msgs/lng_english.pl';
+
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
 
 =cut
 #**********************************************************
 sub new {
-  my ($class, $db, $conf, $admin, $lang, $debug, $type) = @_;
+  my ($class, $db, $admin, $conf, $lang, $debug, $type, $html) = @_;
 
   my $self = {
     db    => $db,
@@ -38,7 +41,10 @@ sub new {
 
   bless($self, $class);
 
-  $Msgs = Msgs->new($self->{db}, $self->{admin}, $self->{conf});
+  my %LANG = (%{$lang}, %lang);
+
+  $Msgs = Msgs->new($db, $admin, $conf);
+  $Notify = Msgs::Notify->new($db, $admin, $conf, { LANG => \%LANG, HTML => $html });
   $self->{permissions} = $Msgs->permissions_list($admin->{AID});
 
   $Msgs->{debug} = $self->{debug};
@@ -138,7 +144,7 @@ sub user_routes {
         return $chapters;
       },
       credentials => [
-        'USER'
+        'USER', 'USERBOT'
       ]
     },
     {
@@ -160,7 +166,7 @@ sub user_routes {
         });
       },
       credentials => [
-        'USER'
+        'USER', 'USERBOT'
       ]
     },
     {
@@ -168,14 +174,29 @@ sub user_routes {
       path        => '/user/:uid/msgs/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
+        my %extra_params = ();
+
+        if ($query_params->{CHAPTER}) {
+          my $chapter = $Msgs->chapter_info($query_params->{CHAPTER});
+          $extra_params{chapter} = $chapter->{RESPONSIBLE};
+        }
 
         $Msgs->message_add({
-          %$query_params,
-          UID => $path_params->{uid}
+          SUBJECT   => $query_params->{SUBJECT} || q{},
+          MESSAGE   => $query_params->{MESSAGE} || q{},
+          PRIORITY  => $query_params->{PRIORITY} || 2,
+          CHAPTER   => $query_params->{CHAPTER} || 0,
+          UID       => $path_params->{uid},
+          USER_READ => "$main::DATE $main::TIME",
+          IP        => $ENV{REMOTE_ADDR} || '0.0.0.0',
+          USER_SEND => 1,
+          %extra_params
         });
+
+        return $Msgs;
       },
       credentials => [
-        'USER'
+        'USER', 'USERBOT'
       ]
     },
     {
@@ -187,7 +208,7 @@ sub user_routes {
         $Msgs->message_info($path_params->{id}, { UID => $path_params->{uid} });
       },
       credentials => [
-        'USER'
+        'USER', 'USERBOT'
       ]
     },
     {
@@ -208,21 +229,18 @@ sub user_routes {
         my $first_msg = $Msgs->message_info($path_params->{id}, { UID => $path_params->{uid} });
 
         unshift @$reply_list, {
-          'creator_id'    => ($first_msg->{AID} || q{}),
-          'admin'         => '',
-          'datetime'      => ($first_msg->{DATE} || q{}),
-          'survey_id'     => ($first_msg->{SURVEY_ID} || 0),
-          'status'        => 0,
-          'uid'           => ($first_msg->{UID} || q{}),
-          'caption'       => '',
-          'run_time'      => '',
-          'creator_fio'   => '',
-          'inner_msg'     => ($first_msg->{INNER_MSG} || q{}),
-          'main_msg'      => 0,
-          'ip'            => ($first_msg->{IP} || q{}),
-          'text'          => ($first_msg->{MESSAGE} || q{}),
-          'id'            => $path_params->{id},
-          'aid'           => ($first_msg->{AID} || q{})
+          'creator_id'  => ($first_msg->{AID} || q{}),
+          'admin'       => '',
+          'datetime'    => ($first_msg->{DATE} || q{}),
+          'survey_id'   => ($first_msg->{SURVEY_ID} || 0),
+          'status'      => 0,
+          'uid'         => ($first_msg->{UID} || q{}),
+          'caption'     => '',
+          'creator_fio' => '',
+          'main_msg'    => 0,
+          'text'        => ($first_msg->{MESSAGE} || q{}),
+          'id'          => $path_params->{id},
+          'aid'         => ($first_msg->{AID} || q{})
         };
 
         foreach my $reply (@{$reply_list}) {
@@ -257,10 +275,10 @@ sub user_routes {
           }
         }
 
-        return $reply_list;
+        return $reply_list || [];
       },
       credentials => [
-        'USER'
+        'USER', 'USERBOT'
       ]
     },
     {
@@ -276,6 +294,8 @@ sub user_routes {
           STATE      => $query_params->{STATUS} || 0,
         });
 
+        ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 });
+
         $Msgs->message_change({
           ID         => $path_params->{id},
           STATE      => 0,
@@ -286,7 +306,7 @@ sub user_routes {
         ($Msgs->{errno}) ? return 0 : return 1;
       },
       credentials => [
-        'USER'
+        'USER', 'USERBOT'
       ]
     },
   ]
@@ -403,6 +423,7 @@ sub admin_routes {
         'ADMIN'
       ]
     },
+    #@deprecated
     {
       method      => 'POST',
       path        => '/msgs/list/',
@@ -413,7 +434,7 @@ sub admin_routes {
           my @available_chapters = keys %{$self->{permissions}{4}};
 
           $query_params->{CHAPTER} = $query_params->{CHAPTER} eq '_SHOW' ? join(';', @available_chapters)
-            : join(';', grep { Abills::Base::in_array($_, \@available_chapters) } split('[,;]\s?', $query_params->{CHAPTER}));
+            : join(';', grep {Abills::Base::in_array($_, \@available_chapters)} split('[,;]\s?', $query_params->{CHAPTER}));
         }
         elsif ($self->{permissions}{4}) {
           $query_params->{CHAPTER} = join(';', keys %{$self->{permissions}{4}});
@@ -421,14 +442,86 @@ sub admin_routes {
 
         $Msgs->messages_list({
           %$query_params,
-          COLS_NAME    => 1,
-          SUBJECT      => '_SHOW',
-          STATE_ID     => '_SHOW',
-          DATE         => '_SHOW'
+          COLS_NAME => 1,
+          SUBJECT   => '_SHOW',
+          STATE_ID  => '_SHOW',
+          DATE      => '_SHOW'
         });
       },
       credentials => [
         'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/msgs/list/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        if ($query_params->{CHAPTER} && $self->{permissions}{4}) {
+          my @available_chapters = keys %{$self->{permissions}{4}};
+
+          $query_params->{CHAPTER} = $query_params->{CHAPTER} eq '_SHOW' ? join(';', @available_chapters)
+            : join(';', grep {Abills::Base::in_array($_, \@available_chapters)} split('[,;]\s?', $query_params->{CHAPTER}));
+        }
+        elsif ($self->{permissions}{4}) {
+          $query_params->{CHAPTER} = join(';', keys %{$self->{permissions}{4}});
+        }
+
+        foreach my $param (keys %{$query_params}) {
+          $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+        }
+
+        my $msgs_list = $Msgs->messages_list({
+          %$query_params,
+          COLS_NAME => 1,
+          SUBJECT   => '_SHOW',
+          STATE_ID  => '_SHOW',
+          DATE      => '_SHOW'
+        });
+
+        my @extra_params = (
+          'OPEN',
+          'CLOSED',
+          'TOTAL',
+          'IN_WORK',
+          'UNMAKED',
+        );
+
+        foreach my $msg (@{$msgs_list}) {
+          foreach my $param (@extra_params) {
+            $msg->{lc($param)} = $Msgs->{$param} if (defined($query_params->{$param}));
+          }
+        }
+
+        return $msgs_list;
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/msgs/workflow/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Msgs->msgs_workflow_add($query_params);
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/msgs/workflow/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Msgs->msgs_workflow_change({ %{$query_params}, ID => $path_params->{id} });
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
       ]
     },
     {
@@ -437,10 +530,7 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        $Msgs->message_reply_add({
-          %$query_params,
-          ID => $path_params->{id}
-        });
+        $Msgs->message_reply_add({ %{$query_params}, ID => $path_params->{id} });
       },
       credentials => [
         'ADMIN'
@@ -467,9 +557,9 @@ sub admin_routes {
     },
     {
       #TODO: we can save attachment with wrong filesize. fix it?
-      method       => 'POST',
-      path         => '/msgs/reply/:reply_id/attachment/',
-      handler      => sub {
+      method      => 'POST',
+      path        => '/msgs/reply/:reply_id/attachment/',
+      handler     => sub {
         my ($path_params, $query_params) = @_;
 
         $Msgs->attachment_add({
@@ -478,8 +568,8 @@ sub admin_routes {
           COLS_NAME => 1
         });
       },
-      module       => 'Msgs',
-      credentials  => [
+      module      => 'Msgs',
+      credentials => [
         'ADMIN'
       ]
     },
@@ -493,7 +583,7 @@ sub admin_routes {
           my @available_chapters = keys %{$self->{permissions}{4}};
 
           $query_params->{CHAPTER} = $query_params->{CHAPTER} eq '_SHOW' ? join(';', @available_chapters)
-            : join(';', grep { Abills::Base::in_array($_, \@available_chapters) } split('[,;]\s?', $query_params->{CHAPTER}));
+            : join(';', grep {Abills::Base::in_array($_, \@available_chapters)} split('[,;]\s?', $query_params->{CHAPTER}));
         }
         elsif ($self->{permissions}{4}) {
           $query_params->{CHAPTER} = join(';', keys %{$self->{permissions}{4}});

@@ -4,7 +4,46 @@
   "FDB_OID": "1.3.6.1.4.1.34592.1.3.100.12.2.1.1.3",
   "FDB_EXPR": "(%%d+%%.%%d+%%.%%d+%%.%%d+%%.%%d+%%.%%d+)%%.(%%d+):(.+)|MAC,VLAN,PORT",
 //  "PORT_INDEX": "",
-  "info" : {
+"info" : {
+  "SYSTEM_NAME" : {
+    "NAME" : "System name",
+    "OIDS" : ".1.3.6.1.2.1.1.5.0",
+    "PARSER" : ""
+  },
 
+  "SYSTEM_DESCR" : {
+    "NAME" : "System describe",
+    "OIDS" : ".1.3.6.1.2.1.1.1.0",
+    "PARSER" : ""
+  },
+
+  "UPTIME" : {
+    "NAME" : "Uptime",
+    "OIDS" : ".1.3.6.1.2.1.1.3.0",
+    "PARSER" : "sp_parse_raw"
+  },
+
+  "FIRMWARE" : {
+    "NAME" : "FIRMWARE",
+    "OIDS" : ".1.3.6.1.4.1.17409.2.3.1.2.1.1.3.1",
+    "PARSER" : ""
   }
+},
+
+"status" : {
+  "CPU_LOAD" : {
+    "OIDS" : "1.3.6.1.4.1.34592.1.3.100.1.8.1.0"
+  },
+  "RAM_TOTAL" : {
+    "OIDS" : "1.3.6.1.4.1.34592.1.3.100.1.8.2.0"
+  },
+  "RAM_USAGE" : {
+    "OIDS" : "1.3.6.1.4.1.34592.1.3.100.1.8.3.0",
+    "PARSER" : "_cdata_use_memory"
+  },
+  "TEMPERATURE" : {
+    "OIDS" : "1.3.6.1.4.1.34592.1.3.100.1.8.6.0",
+    "PARSER" : "_cdata_temperature"
+  }
+}
 }

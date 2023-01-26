@@ -8,11 +8,15 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(in_array);
 
-our ($db,
+our (
+  $db,
   %lang,
-  $admin);
+  $admin,
+  %permissions
+);
 
 our Abills::HTML $html;
+
 #**********************************************************
 =head2 form_quick_reports($attr)
 
@@ -21,17 +25,19 @@ our Abills::HTML $html;
 sub form_quick_reports {
   my %START_PAGE_F = ();
 
-  my %quick_reports = (
-    'last_payments'  => $lang{PAYMENTS},
-    'add_users'      => $lang{REGISTRATION},
-    'fin_summary'    => $lang{DEBETORS},
-    'users_summary'  => $lang{USERS},
-    'payments_types' => "$lang{PAYMENTS} $lang{TODAY}, $lang{YESTERDAY}",
-    'payments_self'  => "$lang{PAYMENTS} $lang{ADDED} ",
-  );
+  my %quick_reports = ();
+
+  $quick_reports{last_payments} = $lang{PAYMENTS} if ($permissions{1}{0} || $permissions{1}{3});
+  $quick_reports{add_users} = $lang{REGISTRATION} if ($permissions{0}{2});
+  $quick_reports{fin_summary} = $lang{DEBETORS} if ($permissions{1}{0} || $permissions{1}{3});
+  $quick_reports{users_summary} = $lang{DEBETORS} if (($permissions{1}{0} || $permissions{1}{3}) && $permissions{0}{2});
+  $quick_reports{payments_types} = $lang{USERS} if (($permissions{1}{0} || $permissions{1}{3}) && $permissions{0}{2});
+  $quick_reports{payments_self} = "$lang{PAYMENTS} $lang{TODAY}, $lang{YESTERDAY}" if (($permissions{1}{0} || $permissions{1}{3}) && $permissions{0}{2});
 
   foreach my $mod_name (@MODULES) {
     load_module($mod_name, $html);
+
+    next if ($admin->{MODULES} && !$admin->{MODULES}{$mod_name});
     my $check_function = lc($mod_name) . '_start_page';
 
     if (defined(&{$check_function})) {
@@ -90,6 +96,7 @@ sub form_quick_reports {
 =cut
 #**********************************************************
 sub start_page_add_users {
+  return '' if (!$permissions{0}{2});
 
   my @priority_colors = ('btn-secondary', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
   my $table = $html->table({
@@ -149,6 +156,7 @@ sub start_page_add_users {
 =cut
 #**********************************************************
 sub start_page_last_payments {
+  return '' if (!$permissions{1}{0} && !$permissions{1}{3});
 
   my $table = $html->table({
     width       => '100%',
@@ -189,6 +197,8 @@ sub start_page_last_payments {
 =cut
 #**********************************************************
 sub start_page_fin_summary {
+  return '' if (!$permissions{1}{0} && !$permissions{1}{3});
+
   my $Payments = Finance->payments($db, $admin, \%conf);
   $Payments->reports_period_summary();
 
@@ -215,6 +225,7 @@ sub start_page_fin_summary {
 =cut
 #**********************************************************
 sub start_page_payments_types {
+  return '' if (!$permissions{1}{0} && !$permissions{1}{3});
 
   my $PAYMENT_METHODS = get_payment_methods();
 
@@ -262,6 +273,7 @@ sub start_page_payments_types {
 =cut
 #**********************************************************
 sub start_page_users_summary {
+  return '' if (!($permissions{1}{0} || $permissions{1}{3}) || !$permissions{0}{2});
   $users->report_users_summary({});
 
   my $table = $html->table({
@@ -293,6 +305,7 @@ sub start_page_users_summary {
 =cut
 #**********************************************************
 sub start_page_payments_self {
+  return '' if (!$permissions{1}{0} && !$permissions{1}{3});
   my $PAYMENT_METHODS = get_payment_methods();
   my $count = 0;
   my $all_sum = 0;

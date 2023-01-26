@@ -1,4 +1,5 @@
 <script>
+
   jQuery(function () {
     let dataTable = jQuery('#CRM_LEAD_LIST_');
     jQuery('#CHECK_LEADS_BTN').on('click', checkLeads);
@@ -41,13 +42,13 @@
             Spinner.off(`column_${id}`, '_{ERROR}_', 'btn-danger');
           }
           else if (result['EXIST']) {
-            Spinner.off(`column_${id}`, '_{CRM_USER_LINKED}_', 'btn-success');
+            Spinner.off(`column_${id}`, "_{CRM_USER_LINKED}_", 'btn-success');
           }
           else {
             let btn = '<div class="input-group input-group-sm" style="min-width: 100px;">' +
               '<input name="NAME" disabled class="form-control" value="' + result.LOGIN + '" id="' + id + '_FIELD">' +
-              '<div class="input-group-append"><div class="input-group-text cursor-pointer" id="SAVE_LEAD_' + id + '">' +
-              '<span class="fa fa-save"></span></div></div></div>';
+              '<div class="input-group-append"><a class="btn input-group-button" id="SAVE_LEAD_' + id + '">' +
+              '<span class="fa fa-save"></span></a></div></div>';
             Spinner.off(`column_${id}`, btn, '');
 
             jQuery('#SAVE_LEAD_' + id).on('click', function () { saveUser(id, result.UID, result.LOGIN) });

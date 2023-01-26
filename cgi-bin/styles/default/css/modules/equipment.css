@@ -6,14 +6,9 @@
     /*This sizes depends on an background image dimensions*/
     height: 36px;
     width: 36px;
-
-    float: left;
     text-align: center;
     line-height: 36px;
-}
-
-div > .equipment-panel {
-    min-width: 800px;
+    color: black;
 }
 
 .port.port-RJ45-free {
@@ -73,18 +68,24 @@ div > .equipment-panel {
     background: url("/styles/default/img/equipment/sfp-used.png") no-repeat center;
 }
 
+.port.port-SFP-RJ45-free {
+    background: url("/styles/default/img/equipment/sfp-rj45-free.png") no-repeat center;
+}
+
+.port.port-SFP-RJ45-used {
+    background: url("/styles/default/img/equipment/sfp-rj45-used.png") no-repeat center;
+}
+
 
 .port.port-used {
     cursor: not-allowed;
 }
 
 .equipment-block {
-    float: left;
+    display: flex;
     margin: 0 3px;
 }
 
-@media (min-width: 992px) {
-    .modal-lg {
-        width: 920px;
-    }
+.equipment-col {
+  margin: 0 3px;
 }

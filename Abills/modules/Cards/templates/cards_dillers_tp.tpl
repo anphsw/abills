@@ -1,4 +1,4 @@
-<form action='$SELF_URL' METHOD='POST' class='form-horizontal'>
+<form action='%SELF_URL%' METHOD='POST'>
 <input type=hidden name='index' value='$index'>
 <input type=hidden name='ID' value='%ID%'>
 

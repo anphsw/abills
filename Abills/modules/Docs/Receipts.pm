@@ -255,7 +255,7 @@ sub docs_receipt{
     }
 
     my $num = 0;
-    my $total_sum = ($users->{DEPOSIT} !~ /\d+/) ? 0  : (($users->{DEPOSIT} && $users->{DEPOSIT} < 0) ? abs( $users->{DEPOSIT} ) : 0 - $users->{DEPOSIT});
+    my $total_sum = ($users->{DEPOSIT} !~ /^[0-9\.\,]+$/) ? 0  : (($users->{DEPOSIT} && $users->{DEPOSIT} < 0) ? abs( $users->{DEPOSIT} ) : 0 - $users->{DEPOSIT});
     my $amount_for_pay = 0;
     my $TO_D;
     foreach my $line ( @$list ){
@@ -443,7 +443,7 @@ sub docs_receipt{
       }
     }
 
-    my $deposit = ($users->{DEPOSIT} && $users->{DEPOSIT} =~ /\d+/) ? $users->{DEPOSIT} : 0;
+    my $deposit = ($users->{DEPOSIT} && $users->{DEPOSIT} =~ /^[0-9\.\,]+$/) ? $users->{DEPOSIT} : 0;
 
     if ( $deposit > 0 ){
       $amount_for_pay = ($total_sum < $deposit) ? 0 : $total_sum - $deposit;

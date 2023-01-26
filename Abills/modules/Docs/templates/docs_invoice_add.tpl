@@ -1,6 +1,6 @@
 %MENU%
 
-<form action='$SELF_URL' method='post' name='invoice_add' id='invoice_add' class='form-horizontal'>
+<form action='%SELF_URL%' method='post' name='invoice_add' id='invoice_add'>
   <input type=hidden name=index value=$index>
   <input type=hidden name='UID' value='$FORM{UID}'>
   <input type=hidden name='DOC_ID' value='%DOC_ID%'>
@@ -14,7 +14,7 @@
     <div class='card-header with-border'>
       <h4 class='card-title'>%CAPTION%</h4>
       <span class='float-right'>
-        <a href='$SELF_URL?full=1&get_index=docs_invoice_company&UID=%UID%' class='btn btn-xs btn-success'>_{NEXT_PERIOD_INVOICE}_</a>
+        <a href='%SELF_URL%?full=1&get_index=docs_invoice_company&UID=%UID%' class='btn btn-xs btn-success'>_{NEXT_PERIOD_INVOICE}_</a>
       </span>
     </div>
     <div class='card-body'>
@@ -78,17 +78,18 @@
               1
             </td>
             <td>
-              <input type='text' name='ORDER_1' id='ORDER_1' value='%ORDER_1%' placeholder='_{ORDER}_'
+              <input type='text' id='ORDER_1' name='ORDER_1' value='%ORDER_1%' placeholder='_{ORDER}_'
                      class='form-control'/>
             </td>
             <td>
               %TYPES_FEES%
             </td>
             <td>
-              <input type='text' name='COUNTS_1' value='%COUNTS_1%' placeholder='1' class='form-control'/>
+              <input type='text' id='COUNTS_1' name='COUNTS_1' value='%COUNTS_1%' placeholder='1' class='form-control'/>
             </td>
             <td>
               <input type='text' name='SUM_1' id='SUM_1' value='%SUM_1%' placeholder='0.00' class='form-control'/>
+              <input type='hidden' name='FEES_ID_1' id='FEES_ID_1' value='%FEES_ID_1%'/>
             </td>
           </tr>
           <tr id='addr2'></tr>

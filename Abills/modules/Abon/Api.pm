@@ -27,7 +27,7 @@ require 'Abills/modules/Abon/lng_english.pl';
 =cut
 #**********************************************************
 sub new {
-  my ($class, $db, $conf, $admin, $lang, $debug, $type) = @_;
+  my ($class, $db, $admin, $conf, $lang, $debug, $type) = @_;
 
   my $self = {
     db    => $db,
@@ -43,7 +43,7 @@ sub new {
   $Abon->{debug} = $self->{debug};
 
   $self->{routes_list} = ();
-  $self->{periods} = [$self->{lang}->{DAY}, $self->{lang}->{MONTH}, $self->{lang}->{QUARTER}, $self->{lang}->{SIX_MONTH}, $self->{lang}->{YEAR}];
+  $self->{periods} = ['day', 'month', 'quarter', 'six months', 'year'];
 
   if ($type eq 'user') {
     $self->{routes_list} = $self->user_routes();
@@ -125,50 +125,14 @@ sub user_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        my $services = $Abon->user_tariff_list($path_params->{uid}, {
-          USER_PORTAL  => '>0',
-          SERVICE_LINK => '_SHOW',
-          COLS_NAME    => 1
+        ::load_module('Control::Services', { LOAD_PACKAGE => 1 });
+        return ::get_user_services({
+          uid     => $path_params->{uid},
+          service => 'Abon',
         });
-
-        my @service_list = ();
-
-        foreach my $service (@{$services}) {
-          next if (!$service->{manual_activate} && !$service->{date});
-          require POSIX;
-          POSIX->import(qw(strftime));
-          my $DATE = strftime("%Y-%m-%d", localtime(time));
-          my $date_if = $service->{next_abon} ? date_diff($DATE, $service->{next_abon}) : 0;
-
-          my %tariff = (
-            price       => $service->{price},
-            tp_name     => $service->{tp_name},
-            id          => $service->{id},
-            active      => (!$service->{next_abon} || ($date_if && $date_if <= 0)) ? 'false' : 'true',
-            start_date  => $service->{date},
-            end_date    => $service->{next_abon},
-            description => $service->{description},
-            period      => $self->{periods}->[$service->{period}],
-            activate    => ($service->{user_portal} > 1 && $service->{manual_activate}) ? 'true' : 'false',
-          );
-
-          next if ($tariff{activate} eq 'false' && $tariff{active} eq 'false');
-
-          if ($date_if && $date_if > 0) {
-            $tariff{next_abon} = {
-              abon_date   => $service->{next_abon},
-              days_to_fee => $date_if,
-              sum         => $service->{price}
-            }
-          }
-
-          push @service_list, \%tariff;
-        }
-
-        return \@service_list;
       },
       credentials => [
-        'USER'
+        'USER', 'USERBOT'
       ]
     },
     {
@@ -203,7 +167,7 @@ sub user_routes {
         }
       },
       credentials => [
-        'USER'
+        'USER', 'USERBOT'
       ]
     },
   ]

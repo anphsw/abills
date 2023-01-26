@@ -1,5 +1,5 @@
 <div class='card card-primary card-outline form-horizontal'>
-  <div class='card-header with-border text-center'>GLOBAL MONEY</div>
+  <div class='card-header with-border text-center'>2Click</div>
   <div class='card-body'>
     <div class='form-group text-center'>
       <div class='alert alert-info' role='alert'>

@@ -92,18 +92,17 @@ sub plugin_show {
   $info .= $export_result . $history_result;
   $info .= $self->_get_delegate_buttons($attr);
   $info .= $self->_get_tags_button($attr);
+  $info .= $self->_payments_btn($attr);
 
   my $button_group = $html->element('div', $info, {
     class        => 'btn-group',
     role         => 'group',
     'aria-label' => 'Basic example'
   });
-  my $div = $html->element('div', $info,
-    {
-      class => 'col-md-12 d-flex flex-wrap justify-content-center',
-      id    => 'btn-group'
-    }
-  );
+  my $div = $html->element('div', $info, {
+    class => 'col-md-12 d-flex flex-wrap justify-content-center',
+    id    => 'btn-group'
+  });
 
   return $html->element('div', $div, { class => 'form-group' });
 }
@@ -319,6 +318,36 @@ sub _get_tags_button {
     class         => 'btn btn-primary group-btn',
     ICON          => 'fa fa-tags',
     TITLE         => $lang->{MSGS_TAGS},
+  });
+}
+
+#**********************************************************
+=head2 _payments_btn($attr)
+
+=cut
+#**********************************************************
+sub _payments_btn {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return '' if !$CONF->{MSGS_TICKET_PRICE};
+
+  my ($sum, $method) = split ':', $CONF->{MSGS_TICKET_PRICE};
+  return if !defined($sum) || !defined($method);
+
+  return '' if $attr->{PLUGIN} && !$attr->{change};
+
+  require Fees;
+  Fees->import();
+  my $Fees = Fees->new($db, $admin, $CONF);
+  $Fees->list({ DESCRIBE  => "$Msgs->{SUBJECT} # $Msgs->{ID}", COLS_NAME => 1, PAGE_ROWS => 1 });
+
+  return $html->button('', "get_index=form_fees&header=2&full=1&SUM=$sum&METHOD=$method&UID=$attr->{UID}" .
+    "&DESCRIBE=$Msgs->{SUBJECT} %23 $Msgs->{ID}", {
+    class  => 'btn group-btn ' . ($Fees->{TOTAL} > 0 ? 'btn-success' : 'btn-primary'),
+    ICON   => 'fas fa-credit-card',
+    target => '_blank',
+    TITLE  => $lang->{FEES},
   });
 }
 

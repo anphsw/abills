@@ -105,7 +105,7 @@ sub click {
   my $total_sum_day   = 0;
   
   foreach my $line (@$list) {
-    $message .= "$self->{bot}->{lang}->{INTERNET}: <b>$line->{tp_name}</b>\n";
+    $message .= "$self->{bot}->{lang}->{INTERNET}: <b>" . ($line->{tp_name} || q{}) . "</b>\n";
     if ($line->{internet_status} == 3) {
       require Shedule;
       my $Shedule  = Shedule->new($self->{db}, $self->{admin}, $self->{conf});
@@ -151,8 +151,8 @@ sub click {
       $message .= " <b>$money_currency</b>\n";
       $message .= "$self->{bot}->{lang}->{PRICE_DAY}: <b>$line->{day_fee} $money_currency</b>\n" if ($line->{day_fee} && $line->{day_fee} > 0);
 
-      $total_sum_month += $line->{month_fee};
-      $total_sum_day   += $line->{day_fee};
+      $total_sum_month += $line->{month_fee} || 0;
+      $total_sum_day   += $line->{day_fee} || 0;
     }
 
     $message .= "\n";

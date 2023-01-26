@@ -45,7 +45,11 @@ function fillPreview(e) {
 }
 
 function wrap_text(tag, text) {
-  return '[' + tag + ']' + text + '[/' + tag + ']';
+  if (tag === "link") {
+    text = text || "TEXT";
+    return `[${tag}]URL|${text}[/${tag}]`;
+  }
+  return `[${tag}]${text}[/${tag}]`;
 }
 
 function replace_between(string, offset, length, new_text) {

@@ -8,6 +8,7 @@
   START       - Start payments ID
   CHECK
   FROM_DATE
+  TO_DATE
   RESEND
   CANCEL
   PAGE_ROWS   - List size of send documents
@@ -58,8 +59,9 @@ my %params = ( PAGE_ROWS => 10999 );
 if($argv->{PAYMENT_ID}) {
   $params{PAYMENT_ID}=$argv->{PAYMENT_ID};
 }
-elsif($argv->{FROM_DATE}) {
-  $params{FROM_DATE}=$argv->{FROM_DATE}
+elsif($argv->{FROM_DATE} || $argv->{TO_DATE}) {
+  $params{FROM_DATE} = $argv->{FROM_DATE} if ($argv->{FROM_DATE});
+  $params{TO_DATE} = $argv->{TO_DATE} if ($argv->{TO_DATE});
 }
 
 if ($argv->{LOGIN}) {
@@ -99,12 +101,12 @@ else {
   resend_errors();
 }
 
-#exit 1;
-
 #**********************************************************
 =head2 check_payments()
+
   Checks whether new payments appear in the payments table.
-??If there are new payments, they are entered into the Receipts_main table with the status 0.
+  If there are new payments, they are entered into the Receipts_main table with the status 0.
+
 =cut
 #**********************************************************
 sub check_payments {

@@ -62,6 +62,7 @@ sub _paysys_select_payment_method {
     TYPE      => 'checkbox',
     EX_PARAMS => "data-tooltip='$lang{CREATE}'  checked",
     ID        => 'create_payment_method',
+    class     => "mx-2"
   }, { OUTPUT2RETURN => 1 });
 
   return $html->form_select('PAYMENT_METHOD',
@@ -91,7 +92,7 @@ sub paysys_configure_external_commands {
 
   if ($FORM{change}) {
     foreach my $conf_param (@conf_params) {
-      $Config->config_add({ PARAM => $conf_param, VALUE => $FORM{$conf_param}, REPLACE => 1, PAYSYS  => 1 });
+      $Config->config_add({ PARAM => $conf_param, VALUE => $FORM{$conf_param}, REPLACE => 1, PAYSYS => 1, DOMAIN_ID => $FORM{PAYSYS_DOMAIN_ID} || 0 });
     }
   }
 
@@ -491,9 +492,9 @@ sub paysys_configure_main {
     }
     else {
       %params = (
-        ACTIVE      => $connect_system_info->{status},
-        IP          => $connect_system_info->{paysys_ip},
-        PRIORITY    => $connect_system_info->{priority},
+        ACTIVE      => ($connect_system_info) ?  $connect_system_info->{status} : undef,
+        IP          => ($connect_system_info) ? $connect_system_info->{paysys_ip} : undef,
+        PRIORITY    => ($connect_system_info) ? $connect_system_info->{priority} : undef,
         HIDE_SELECT => 'hidden',
         ID          => $FORM{chg},
         DOCS        => $FORM{DOCS}
@@ -608,6 +609,7 @@ sub paysys_add_configure_groups {
       $Paysys->merchant_settings_add({
         MERCHANT_NAME => $FORM{MERCHANT_NAME},
         SYSTEM_ID     => $FORM{SYSTEM_ID},
+        DOMAIN_ID     => $FORM{PAYSYS_DOMAIN_ID} || 0,
       });
 
       if (!$Paysys->{errno}) {
@@ -620,7 +622,8 @@ sub paysys_add_configure_groups {
             $Paysys->merchant_params_add({
               PARAM       => $key,
               VALUE       => $FORM{$key},
-              MERCHANT_ID => $merchant_id
+              MERCHANT_ID => $merchant_id,
+              DOMAIN_ID   => $FORM{PAYSYS_DOMAIN_ID} || 0,
             });
 
             if ($Paysys->{errno}) {
@@ -639,6 +642,7 @@ sub paysys_add_configure_groups {
         ID            => $FORM{MERCHANT_ID},
         MERCHANT_NAME => $FORM{MERCHANT_NAME},
         SYSTEM_ID     => $FORM{SYSTEM_ID},
+        DOMAIN_ID     => $FORM{PAYSYS_DOMAIN_ID} || 0,
       });
 
       my $merchant_id = $FORM{MERCHANT_ID};
@@ -652,12 +656,11 @@ sub paysys_add_configure_groups {
               $FORM{$key} =~ s/[\n\r]//g;
               $FORM{$key} =~ s/"/\\"/g;
 
-              #print "$key => $FORM{$key}".$html->br();
-
               $Paysys->merchant_params_add({
                 PARAM       => $key,
                 VALUE       => $FORM{$key},
-                MERCHANT_ID => $merchant_id
+                MERCHANT_ID => $merchant_id,
+                DOMAIN_ID   => $FORM{PAYSYS_DOMAIN_ID} || 0,
               });
 
               if ($Paysys->{errno}) {
@@ -698,13 +701,15 @@ sub paysys_add_configure_groups {
 
   if ($FORM{add_form}) {
     my ($paysys_select, $json_list) = _paysys_select_merchant_config($FORM{system_name}, $FORM{chgm}, { change => $FORM{chgm} });
-    my %params = ();
+    my %params = (HIDE_DOMAIN_SEL => 'hidden', DOMAIN_SEL => '');
 
     if ($FORM{chgm}) {
       %params = (
-        MERCHANT_NAME => $FORM{merchant_name} || '',
-        HIDE_SELECT   => 'hidden',
-        MERCHANT_ID   => $FORM{chgm} || ''
+        MERCHANT_NAME   => $FORM{merchant_name} || '',
+        HIDE_SELECT     => 'hidden',
+        MERCHANT_ID     => $FORM{chgm} || '',
+        HIDE_DOMAIN_SEL => 'hidden',
+        DOMAIN_SEL      => ''
       );
     }
 
@@ -713,6 +718,36 @@ sub paysys_add_configure_groups {
       NO_ID       => 1,
       SEL_OPTIONS => { '' => '--' },
     });
+
+    if ($conf{MULTIDOMS_DOMAIN_ID} && !$admin->{DOMAIN_ID}) {
+      require Multidoms;
+      Multidoms->import();
+
+      my $domain = 0;
+      if ($FORM{chgm}) {
+        my $list = $Paysys->merchant_settings_list({
+          ID        => $FORM{chgm},
+          COLS_NAME => 1,
+          DOMAIN_ID => '_SHOW'
+        });
+
+        $domain = $list->[0]->{domain_id} || 0;
+      }
+
+      my $Domains = Multidoms->new($db, $admin, \%conf);
+      $params{HIDE_DOMAIN_SEL} = '';
+      $params{DOMAIN_SELECT} = $html->form_select('PAYSYS_DOMAIN_ID',
+        {
+          SELECTED    => $domain,
+          SEL_LIST    => $Domains->multidoms_domains_list({
+            ID        => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
+            PAGE_ROWS => 100000,
+            COLS_NAME => 1 }),
+          SEL_OPTIONS => { 0 => $lang{ALL} },
+          NO_ID       => 0
+        }
+      );
+    }
 
     $html->tpl_show(_include('paysys_merchant_config_add', 'Paysys'),
       {
@@ -990,7 +1025,7 @@ sub paysys_group_settings {
     }
     $table_UsPor->addrow($group->{gid}, $group->{name}, @rows);
   }
-  $table_UsPor->addfooter($html->form_input('add_settings', $lang{SAVE}, { TYPE => 'submit' }));
+  $table_UsPor->addcardfooter($html->form_input('add_settings', $lang{SAVE}, { TYPE => 'submit' }));
 
   $html->tpl_show(_include('paysys_group_settings', 'Paysys'));
 
@@ -1297,6 +1332,8 @@ sub add_settings_to_config {
         GID         => $gid
       });
     }
+
+    return 1;
   }
 
   my $list = $Paysys->merchant_params_info({ MERCHANT_ID => $attr->{MERCHANT_ID} });
@@ -1304,18 +1341,18 @@ sub add_settings_to_config {
   foreach my $key (keys %{$list}) {
     if (defined $attr->{GID} && $attr->{GID} != 0) {
       $Config->config_add({
-        PARAM   => $key . "_$attr->{GID}",
-        VALUE   => $list->{$key},
-        REPLACE => 1,
-        PAYSYS  => 1
+        PARAM     => $key . "_$attr->{GID}",
+        VALUE     => $list->{$key},
+        REPLACE   => 1,
+        PAYSYS    => 1
       });
     }
     else {
       $Config->config_add({
-        PARAM   => $key,
-        VALUE   => $list->{$key},
-        REPLACE => 1,
-        PAYSYS  => 1
+        PARAM     => $key,
+        VALUE     => $list->{$key},
+        REPLACE   => 1,
+        PAYSYS    => 1
       });
     }
   }
@@ -1352,17 +1389,17 @@ sub del_settings_to_config {
     foreach my $group (@{$gr_list}) {
       foreach my $key (keys %{$list}) {
         my $del_val = $key . (($group->{gid}) ? "_$group->{gid}" : '');
-        $Config->config_del($del_val, { DEL_WITH_DOMAIN => 1 });
+        $Config->config_del($del_val, { DEL_WITH_DOMAIN => 1, DOMAIN_ID => $FORM{PAYSYS_DOMAIN_ID} || 0 });
       }
     }
   }
   else {
     foreach my $key (keys %{$list}) {
       if (defined $attr->{GID} && $attr->{GID} != 0) {
-        $Config->config_del($key . "_$attr->{GID}", { DEL_WITH_DOMAIN => 1 });
+        $Config->config_del($key . "_$attr->{GID}", { DEL_WITH_DOMAIN => 1, DOMAIN_ID => $FORM{PAYSYS_DOMAIN_ID} || 0 });
       }
       else {
-        $Config->config_del($key, { DEL_WITH_DOMAIN => 1 });
+        $Config->config_del($key, { DEL_WITH_DOMAIN => 1, DOMAIN_ID => $FORM{PAYSYS_DOMAIN_ID} || 0 });
       }
     }
   }
@@ -1400,7 +1437,7 @@ sub _del_group_to_config {
     if ($list_merchants) {
       my $params_list = $Paysys->merchant_params_info({ MERCHANT_ID => $list_merchants->[0]->{id} });
       foreach my $param (keys %{$params_list}) {
-        $Config->config_del($param . "_$attr->{GID}", { DEL_WITH_DOMAIN => 1 });
+        $Config->config_del($param . "_$attr->{GID}", { DEL_WITH_DOMAIN => 1, DOMAIN_ID => $FORM{PAYSYS_DOMAIN_ID} || 0 });
       }
     }
   }

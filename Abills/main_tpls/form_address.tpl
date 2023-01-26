@@ -10,11 +10,11 @@
   <div class='col-xs-10 col-md-4'>
     <input type=text name=CITY value='%CITY%' ID='CITY' class='form-control'>
   </div>
-  <span class="visible-xs visible-sm col-xs-12" style="padding-top: 10px"> </span>
+  <span class='visible-xs visible-sm col-xs-12' style='padding-top: 10px'> </span>
 
   <label class='control-label col-md-2 col-xs-2' for='ZIP'>_{ZIP}_</label>
   <div class='col-xs-10 col-md-2'>
-   <input type=text name=ZIP value='%ZIP%' class='form-control'>
+   <input type=text name=ZIP id='ZIP' value='%ZIP%' class='form-control'>
   </div>
 </div>
 

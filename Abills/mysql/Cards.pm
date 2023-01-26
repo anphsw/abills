@@ -180,6 +180,27 @@ sub defaults {
 }
 
 #**********************************************************
+=head2 _generate_pin($attr)
+
+=cut
+#**********************************************************
+sub _generate_pin {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $pin_length = $attr->{PASSWD_LENGTH} || $CONF->{CARDS_PAYMENT_PIN_LENGTH};
+  my $pin_symbols = $attr->{PASSWD_SYMBOLS} || $CONF->{CARDS_PIN_SYMBOLS};
+  my $symbols_length = length($attr->{PASSWD_SYMBOLS}) - 1;
+  my @substrings = ('substring("' . $pin_symbols . '", rand(@seed:=round(rand(id)*4294967296))*' . $symbols_length . '+1, 1)');
+
+  push @substrings, (' substring("' . $pin_symbols . '", rand(@seed:=round(rand(@seed)*4294967296))*' . 
+    $symbols_length . '+1, 1)') x ($pin_length - 2);
+  push @substrings, 'substring("' . $pin_symbols . '", rand(@seed)*' . $symbols_length . '+1, 1)';
+
+  return 'ENCODE(concat(' . join(',', @substrings) . '), ?)';
+}
+
+#**********************************************************
 =head2 cards_add($attr)
 
 =cut
@@ -188,15 +209,25 @@ sub cards_add {
   my $self = shift;
   my ($attr) = @_;
 
+  my $total = 0;
   if ($attr->{MULTI_ADD}) {
     $self->query("INSERT INTO cards_users (
        serial, number, login, pin, status, expire,aid,
        diller_id, diller_date, sum, uid, domain_id, created, commission, gid)
-     VALUES (?,?,?,ENCODE(?, '$CONF->{secretkey}'),?,?,?,?,if (? > 0, NOW(), '0000-00-00'),
-       ?,?,?,NOW(),?,?);",
-     undef,
-     { MULTI_QUERY =>  $attr->{MULTI_ADD} }
+     VALUES (?,?,?,ENCODE(?, '$CONF->{secretkey}'),?,?,?,?,if (? > 0, NOW(), '0000-00-00'),?,?,?,NOW(),?,?);",
+     undef, { MULTI_QUERY =>  $attr->{MULTI_ADD} }
     );
+    return $self if $self->{errno};
+    $total = $self->{TOTAL};
+
+    $self->query("SELECT MAX(id) AS LAST_ID FROM cards_users;", undef, { INFO => 1 });
+    my $last_id = $self->{LAST_ID};
+    my $first_id = $last_id - scalar(@{$attr->{MULTI_ADD}}) + 1;
+
+    $self->query('UPDATE cards_users  SET pin = ' . $self->_generate_pin($attr) . '
+      WHERE id >= ' . $first_id . ' AND id <= ' . $last_id . ';', 'do', {
+      Bind => [ $CONF->{secretkey} ]
+    });
   }
   else {
     $self->query("INSERT INTO cards_users (
@@ -205,7 +236,8 @@ sub cards_add {
      VALUES (?,?,?,ENCODE(?, ?),?,?,?,?,if (? > 0, NOW(), '0000-00-00'),
        ?,?,?,NOW(),?, ?);",
      'do',
-     { Bind => [
+     {
+       Bind => [
         $attr->{SERIAL} || '',
         $attr->{NUMBER} || 0,
         $attr->{LOGIN} || '',
@@ -225,12 +257,11 @@ sub cards_add {
      });
   }
 
-  #$admin->action_add($uid, "DELETE $self->{SERIAL}");
+  $admin->action_add($attr->{UID}, "ADDED $self->{TOTAL} cards, $self->{SERIAL}", { TYPE => 1 });
 
-  $admin->action_add($attr->{UID}, "ADDED $self->{TOTAL} cards, $self->{SERIAL}",{ TYPE=>1 });
-
-  $self->{CARD_ID}     = $self->{INSERT_ID};
+  $self->{CARD_ID} = $self->{INSERT_ID};
   $self->{CARD_NUMBER} = $self->{NUMBER};
+  $self->{TOTAL} ||= $total;
 
   return $self;
 }

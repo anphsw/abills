@@ -95,7 +95,7 @@ sub accounting {
 
   if ($NAS->{NAS_TYPE} eq 'cid_auth') {
     $self->query2("SELECT u.uid, u.id
-     FROM users u, internet_main internet WHERE internet.uid=u.uid AND internet.CID= ? ;",
+     FROM users u, internet_main internet WHERE internet.uid=u.uid AND internet.CID= ? AND u.deleted = 0;",
       undef, { Bind => [ $RAD->{'Calling-Station-Id'} ]}
     );
 
@@ -106,9 +106,9 @@ sub accounting {
       $RAD->{'User-Name'} = $self->{list}->[0]->[1];
     }
   }
-  elsif($NAS->{NAS_TYPE} eq 'accel_ipoe') {
-
-  }
+  # elsif($NAS->{NAS_TYPE} eq 'accel_ipoe') {
+  #
+  # }
 
   #Get cisco session id
   if ($RAD->{'Cisco-Service-Info'}) {
@@ -284,7 +284,7 @@ sub accounting {
             { Bind => [
               $self->{UID} || 0,
               $RAD->{'Acct-Session-Time'},
-              $self->{TP_ID},
+              $self->{TP_ID} // 0,
               $RAD->{'Acct-Session-Time'},
               $RAD->{$output_octets} || 0,
               $RAD->{$input_octets} || 0,
@@ -502,7 +502,7 @@ sub accounting {
       acct_output_gigawords='". $RAD->{$output_gigawords} ."',";
       }
 
-      $self->query2('UPDATE internet_online SET'
+      $self->query2('UPDATE internet_online SET '
         . $ipn_fields
         . "status= ? ,
         acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),

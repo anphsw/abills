@@ -26,7 +26,6 @@ use Abills::Defs;
 our ($db,
   %conf,
   %lang,
-  $html,
   %permissions,
   $ui,
   @MONTHES_LIT,
@@ -35,6 +34,7 @@ our ($db,
   %FEES_METHODS
 );
 
+our Abills::HTML $html;
 our Admins $admin;
 our Users $users;
 
@@ -189,7 +189,7 @@ sub iptv_users_list {
   my $function_fields = 'change';
   $function_fields = 'change,del' if ($permissions{0} && $permissions{0}{14});
 
-  $LIST_PARAMS{GROUP_BY} = $FORM{MAC_CID} || $FORM{SERIAL} ? 'GROUP BY u.uid' : '';
+  $LIST_PARAMS{GROUP_BY} = $FORM{MAC_CID} || $FORM{SERIAL} ? 'GROUP BY u.uid' : 'GROUP BY service.id';
 
   ($table, $list) = result_former({
     INPUT_DATA      => $Iptv,
@@ -200,7 +200,7 @@ sub iptv_users_list {
     MAP_FILTERS     => { id => 'search_link:form_users:UID' },
     DEFAULT_FIELDS  =>
       ($FORM{UID}) ? 'TP_NAME,CID,SERVICE_STATUS,IPTV_EXPIRE' : 'LOGIN,FIO,DEPOSIT,CREDIT,TP_NAME,SERVICE_STATUS,IPTV_EXPIRE',
-    HIDDEN_FIELDS   => 'MONTH_FEE,DAY_FEE',
+    HIDDEN_FIELDS   => 'MONTH_FEE,DAY_FEE,TAGS_COLORS,PRIORITY',
     FUNCTION_FIELDS => ($FORM{UID}) ? $function_fields : 'form_payments',
     EXT_TITLES      => {
       'id'              => 'ID',
@@ -1775,7 +1775,7 @@ sub iptv_users_screen_add {
     ID           => $Iptv_info->{ID}
   });
 
-  return if !$result;
+  return if $result;
 
   $Iptv->users_screens_add({
     SERVICE_ID => $attr->{SERVICE_ID} || $attr->{chg},
@@ -2132,7 +2132,7 @@ sub iptv_registration {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCEPT_RULES});
     }
     else {
-      my $password = mk_unique_value($conf{PASSWD_LENGTH} || 8);
+      my $password = mk_unique_value($conf{PASSWD_LENGTH} || 8, { SYMBOLS => $conf{PASSWD_SYMBOLS} || undef });
 
       $users->add({
         PASSWORD    => $password,

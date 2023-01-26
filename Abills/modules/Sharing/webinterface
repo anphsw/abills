@@ -1752,28 +1752,24 @@ sub sharing_registration {
       return 0;
     }
 
-    my $password = mk_unique_value(8);
+    my $password = mk_unique_value($conf{PASSWD_LENGTH} || 8, { SYMBOLS => $conf{PASSWD_SYMBOLS} || undef });
 
-    my $user = $users->add(
-      {
-        LOGIN       => $FORM{LOGIN},
-        CREATE_BILL => 1,
-        PASSWORD    => $password
-      }
-    );
-    #    my $message = '';
+    my $user = $users->add({
+      LOGIN       => $FORM{LOGIN},
+      CREATE_BILL => 1,
+      PASSWORD    => $password
+    });
+
     if (!$user->{errno}) {
       my $uid = $user->{UID};
       $user = $user->info($uid);
 
       #3 personal info
-      $user->pi_add(
-        {
-          UID   => $uid,
-          FIO   => $FORM{FIO},
-          EMAIL => $FORM{EMAIL}
-        }
-      );
+      $user->pi_add({
+        UID   => $uid,
+        FIO   => $FORM{FIO},
+        EMAIL => $FORM{EMAIL}
+      });
 
       if ($user->{errno}) {
         $Sharing->{MESSAGE} = $html->message('err', $lang{ERROR}, "[$user->{errno}] $err_strs{$user->{errno}}");
@@ -1782,12 +1778,10 @@ sub sharing_registration {
       }
 
       $conf{SHARING_DEFAULT_TP} = 0 if (!$conf{SHARING_DEFAULT_TP});
-      $Sharing->add(
-        {
-          UID   => $uid,
-          TP_ID => $FORM{TP_ID} || $conf{SHARING_DEFAULT_TP}
-        }
-      );
+      $Sharing->add({
+        UID   => $uid,
+        TP_ID => $FORM{TP_ID} || $conf{SHARING_DEFAULT_TP}
+      });
 
       if (!$Sharing->{errno}) {
         $html->tpl_show(_include('sharing_reg_complete', 'Sharing'), { %{$Sharing}, %FORM });
@@ -1812,9 +1806,6 @@ sub sharing_registration {
       }
     }
   }
-  else {
-    #$html->message('err', $lang{ERROR}, "$lang{REGISTRATION}");
-  }
 
   $Sharing->{TP_SEL} = $html->form_select(
     'TP_ID',
@@ -1827,6 +1818,7 @@ sub sharing_registration {
   );
 
   $html->tpl_show(_include('sharing_registration', 'Sharing'), undef);
+
   return 0;
 }
 

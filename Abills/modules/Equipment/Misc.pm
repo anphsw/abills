@@ -56,7 +56,7 @@ sub equipment_get_telnet_tpl {
       if ($line && $line !~ /#/) {
         while($line =~ /\%([A-Z0-9\_]+)\%/ig) {
           my $param = $1;
-          if($attr->{$param}) {
+          if(defined($attr->{$param})) {
             print "$param -> $attr->{$param}\n" if($debug > 4);
             $line =~ s/\%$param\%/$attr->{$param}/g;
           }
@@ -67,6 +67,7 @@ sub equipment_get_telnet_tpl {
             print "NO input params '$param'\n";
           }
         }
+
         $content .= $line;
       }
     }

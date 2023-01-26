@@ -22,7 +22,7 @@
     -->
 </script>
 
-<form action='$SELF_URL' METHOD='POST' TARGET=New>
+<form action='%SELF_URL%' METHOD='POST' TARGET=New>
     <input type='hidden' name='qindex' value='$index'>
     <input type='hidden' name='UID' value='$FORM{UID}'>
     <input type='hidden' name='OP_SID' value='%OP_SID%' ID=OP_SID>
@@ -35,14 +35,14 @@
             </h4>
         </div>
         <div class='card-body'>
-            <div class='form-group'>
-                <label class='col-md-4 col-sm-3 control-label'>_{COUNT}_:</label>
+            <div class='form-group row'>
+                <label class='col-md-4 col-sm-3 control-label' for='COUNT'>_{COUNT}_:</label>
                 <div class='col-md-8 col-sm-9'>
-                    <input class='form-control' type='text' name='COUNT' value='%COUNT%'>
+                    <input class='form-control' type='text' id='COUNT' name='COUNT' value='%COUNT%'>
                 </div>
             </div>
-            <div class='form-group'>
-                <label class='col-md-4 col-sm-3 control-label'>_{SUM}_:</label>
+            <div class='form-group row'>
+                <label class='col-md-4 col-sm-3 control-label' for='SUM_NEW'>_{SUM}_:</label>
                 <div class='col-md-8 col-sm-9'>
                     <input class='form-control' type='text' name='SUM_NEW' value='0.00' ID=SUM_NEW>
                 </div>
@@ -52,15 +52,5 @@
             <input class='btn btn-primary center-block' type='submit' name='add' value='_{ADD}_' onclick=\"make_unique(this.form)\">
         </div>
     </div>
-
-    <!-- <table width=600 class=form>
-    <tr><th colspan=2 class=form_title>_{ICARDS}_</th></tr>
-    <tr><td>_{COUNT}_:</td><td><input type='text' name='COUNT' value='%COUNT%'></td></tr>
-    <tr><td>_{SUM}_:</td><td><input type='text' name='SUM_NEW' value='0.00' ID=SUM_NEW></td></tr>
-
-    <tr><th colspan=2 class=even><input type='submit' name='add' value='_{ADD}_' onclick=\"make_unique(this.form)\"></th></tr>
-    </table> -->
-
-
 </form>
 

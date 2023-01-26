@@ -1,5 +1,5 @@
 <form action='%SELF_URL%' class='form-horizontal' METHOD='POST'>
-  <input type=hidden name='index' value='%index%'>
+  <input type='hidden' name='index' value='%index%'>
 
   <div class='card card-primary card-outline container-md'>
     <div class='card-header with-border'>
@@ -44,9 +44,9 @@
             </div>
             <div class='bd-highlight'>
               <div class='input-group-append h-100'>
-                <div class='input-group-text p-0 rounded-left-0'>
-                  <a class='btn btn-sm'><span class='fa fa-list'></span></a>
-                </div>
+                <a class='btn input-group-button rounded-left-0'>
+                  <span class='fa fa-list'></span>
+                </a>
               </div>
             </div>
           </div>
@@ -60,9 +60,9 @@
             <input type='text' id='MIN_SESSION_COST' name='MIN_SESSION_COST' value='%MIN_SESSION_COST%'
                    class='form-control'>
             <div class='input-group-append'>
-              <div class='input-group-text clear_results cursor-pointer'>
+              <a class='btn input-group-button clear_results'>
                 <span class='fa fa-times'></span>
-              </div>
+              </a>
             </div>
           </div>
         </div>

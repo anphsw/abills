@@ -10,6 +10,8 @@
 use strict;
 use warnings;
 
+no if $] >= 5.017011, warnings => 'experimental::smartmatch';
+
 BEGIN {
   our $libpath = '../';
   our $sql_type = 'mysql';
@@ -142,6 +144,7 @@ sub paysys_new_scheme {
   require Paysys::User_portal;
 
   my $connected_systems_list = $Paysys->paysys_connect_system_list({
+    SORT             => 'pc.paysys_id',
     SHOW_ALL_COLUMNS => 1,
     STATUS           => 1,
     COLS_NAME        => 1,
@@ -169,6 +172,19 @@ sub paysys_new_scheme {
       $paysys_ip = $ENV{REMOTE_ADDR};
     }
 
+    next if ($conf{PAYSYS_PAYSYS_ID_CHECK} && $ENV{HTTP_PAYSYSID} && !($ENV{HTTP_PAYSYSID} ~~ $id));
+
+    my $allowed = 0;
+
+    # Revenucat only header AUTH
+    if ($conf{PAYSYS_BEARER_TOKEN_AUTH} && $ENV{HTTP_CGI_AUTHORIZATION} && $paysys_ip =~ /BEARER_TOKEN/) {
+      $ENV{HTTP_CGI_AUTHORIZATION} =~ s/Bearer\s+//i;
+
+      my $bearer = $conf{$paysys_ip} || '--';
+
+      $allowed = 1 if ($ENV{HTTP_CGI_AUTHORIZATION} eq $bearer);
+    }
+
     if ($conf{PAYSYS_ALLOW_DOMAIN} && $paysys_ip =~ /domain/) {
       my ($domain) = $paysys_ip =~ /(?<=domain: ).*/g;
 
@@ -181,7 +197,7 @@ sub paysys_new_scheme {
       $paysys_ip = join(', ', @addresses);
     }
 
-    if (check_ip($remote_ip, $paysys_ip)){
+    if (check_ip($remote_ip, $paysys_ip) || $allowed){
       if ($debug > 0) {
         mk_log('', { PAYSYS_ID => $id, DATA => \%FORM });
       }

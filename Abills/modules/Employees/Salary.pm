@@ -25,6 +25,7 @@ our (
   $html,
   @PRIORITY,
   @MONTHES,
+  %permissions,
 );
 
 my $Employees = Employees->new($db, $admin, \%conf);
@@ -43,24 +44,28 @@ my $Admins = Admins->new($db, $admin, \%conf);
 #**********************************************************
 sub employees_cashbox_main {
   my $action = 'add';
-  my $action_lang = "$lang{ADD}";
+  my $action_lang = $lang{ADD};
+  my $action_title = $lang{ADD_CASHBOX};
   my %CASHBOX;
+  my $cashbox = '';
 
   if ($FORM{add}) {
-    $Employees->employees_add_cashbox({ AID=>$FORM{ADMINS}, %FORM });
-
+    $cashbox = $Employees->employees_add_cashbox({ AID => $FORM{ADMIN_DEFAULT}, %FORM });
     if (!$Employees->{errno}) {
       $html->message("success", "$lang{SUCCESS}", "$lang{CASHBOX_ADDED}");
+      $Employees->employees_cashbox_admins_add({ IDS => $FORM{ADMINS}, CASHBOX_ID => $cashbox->{INSERT_ID} });
     }
     else {
       $html->message("err", "$lang{ERROR}", "$lang{CASHBOX_NOT_ADDED}");
     }
   }
   elsif ($FORM{change}) {
-    $Employees->employees_change_cashbox({ AID=>$FORM{ADMINS}, %FORM });
+    $Employees->employees_change_cashbox({ AID => $FORM{ADMIN_DEFAULT}, %FORM });
 
     if (!$Employees->{errno}) {
       $html->message("success", "$lang{SUCCESS}", "$lang{CHANGED}");
+      $Employees->employees_cashbox_admins_del({ CASHBOX_ID => $FORM{ID} });
+      $Employees->employees_cashbox_admins_add({ IDS => $FORM{ADMINS}, CASHBOX_ID => $FORM{ID} });
     }
     else {
       $html->message("err", "$lang{ERROR}", "$lang{NOT_CHANGED}");
@@ -68,38 +73,42 @@ sub employees_cashbox_main {
   }
   elsif ($FORM{chg}) {
     $action = 'change';
-    $action_lang = "$lang{CHANGE}";
-
-    $html->message("info", "$lang{CHANGE}");
+    $action_lang = $lang{CHANGE};
+    $action_title = $lang{CHANGE_CASHBOX};
 
     my $cashbox_info = $Employees->employees_info_cashbox({ ID => $FORM{chg} });
 
     $CASHBOX{ID} = $FORM{chg};
     $CASHBOX{NAME} = $cashbox_info->{NAME};
-    $CASHBOX{ADMINS} = $cashbox_info->{AID};
+    $CASHBOX{ADMIN_DEFAULT} = $cashbox_info->{AID};
+    $CASHBOX{ADMINS} = $cashbox_info->{ADMINS};
     $CASHBOX{COMMENTS} = $cashbox_info->{COMMENTS};
   }
   elsif ($FORM{del}) {
     $Employees->employees_delete_cashbox({ ID => $FORM{del} });
-
     if (!$Employees->{errno}) {
       $html->message("success", "$lang{SUCCESS}", "$lang{CASHBOX_DELETED}");
+      $Employees->employees_cashbox_admins_del({ CASHBOX_ID => $FORM{del} });
     }
     else {
       $html->message("err", "$lang{ERROR}", "$lang{CASHBOX_NOT_DELETED}");
     }
   }
 
-  $CASHBOX{ADMINS_SELECT} = sel_admins({ NAME => 'ADMINS', SELECTED => $CASHBOX{ADMINS}});
+  $CASHBOX{ADMINS_SELECT} = sel_admins({ NAME => 'ADMINS', SELECTED => $CASHBOX{ADMINS}, MULTIPLE => 1 });
+  $CASHBOX{ADMIN_DEFAULT_SELECT} = sel_admins({ NAME => 'ADMIN_DEFAULT', SELECTED => $CASHBOX{ADMIN_DEFAULT}});
 
-  $html->tpl_show(
-    _include('employees_cashbox_add', 'Employees'),
-    {
-      %CASHBOX,
-      ACTION      => $action,
-      ACTION_LANG => $action_lang,
-    }
-  );
+  if ($FORM{add_form} || $FORM{chg}) {
+    $html->tpl_show(
+      _include('employees_cashbox_add', 'Employees'),
+      {
+        %CASHBOX,
+        ACTION       => $action,
+        ACTION_LANG  => $action_lang,
+        ACTION_TITLE => $action_title
+      }
+    );
+  }
 
   my $types = translate_list($Employees->employees_list_cashbox({ COLS_NAME => 1 }));
 
@@ -109,13 +118,14 @@ sub employees_cashbox_main {
       LIST            => $types,
       FUNCTION        => 'employees_list_cashbox',
       BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => "ID, NAME, ADMIN, COMMENTS",
+      DEFAULT_FIELDS  => "ID, NAME, ADMINS, ADMIN, COMMENTS",
       FUNCTION_FIELDS => 'employees_cashbox_balance:$lang{BALANCE}:id, change, del',
       EXT_TITLES      => {
-        'name'     => "$lang{NAME}",
-        'id'       => "ID",
-        'admin'    => "$lang{ADMIN}",
-        'comments' => "$lang{COMMENTS}"
+        'name'          => "$lang{NAME}",
+        'id'            => "ID",
+        'admin_default' => "$lang{ADMIN_DEFAULT}",
+        'admins'        => "$lang{ADMINS}",
+        'comments'      => "$lang{COMMENTS}"
       },
       TABLE           => {
         width   => '100%',
@@ -124,6 +134,7 @@ sub employees_cashbox_main {
         ID      => 'EMPLOYEES',
         header  => '',
         EXPORT  => 1,
+        MENU    => "$lang{ADD}:index=$index&add_form=1:add;",
       },
       MAKE_ROWS       => 1,
       SEARCH_FORMER   => 1,
@@ -178,8 +189,8 @@ sub employees_cashbox_balance {
     FROM_DATE      => $from_date,
     TO_DATE        => $to_date,
     SORT           => 5,
-    PAGE_ROWS => 9999,
-    DESC      => 'desc',
+    PAGE_ROWS      => 9999,
+    DESC           => 'desc',
   });
 
   my $spending_cashbox_list = $Employees->employees_list_spending({
@@ -491,7 +502,7 @@ sub employees_cashbox_coming_type {
   my %CASHBOX;
 
   if ($FORM{add}) {
-    if ($FORM{DEFAULT_COMING} ) {
+    if ($FORM{DEFAULT_COMING}) {
       $Employees->coming_default_type();
     }
 
@@ -1117,7 +1128,7 @@ sub employees_cashbox_select {
   my $employees_cashbox_select = $html->form_select(
     $attr->{NAME} || 'CASHBOX_ID',
     {
-      SELECTED    => $conf{EMPLOYEES_DEFAULT_CASHBOX} || $FORM{CASHBOX_ID} || $attr->{ID},
+      SELECTED    => $conf{EMPLOYEES_DEFAULT_CASHBOX} || $FORM{CASHBOX_ID} || $attr->{ID}, # add defalt value
       SEL_LIST    => $Employees->employees_list_cashbox({ COLS_NAME => 1 }),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
@@ -1491,6 +1502,12 @@ sub employees_report_list {
 sub employees_salary {
   #  $Employees = Employees->new($db, $admin, \%conf);
 
+  # checking permissions
+  if (!$permissions{7}{8}) {
+    $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY});
+    return 1;
+  }
+
   my %sum_all = ();
 
   if ($FORM{confirm}) {
@@ -1529,7 +1546,7 @@ sub employees_salary {
   }
 
   if ($FORM{all_salary}) {
-        employees_pay_salary_all(\%FORM, \%sum_all);
+    employees_pay_salary_all(\%FORM, \%sum_all);
   }
 
   my ($year, $month, undef) = split('-', $DATE);
@@ -1562,7 +1579,7 @@ sub employees_salary {
   );
 
   my ($current_year, undef, undef) = split('-', $DATE);
-  my @YEARS = reverse sort ($current_year - 4 ... $current_year);
+  my @YEARS = reverse ($current_year - 4 ... $current_year);
 
   my $year_select = $html->form_select(
     'YEAR',
@@ -1791,7 +1808,11 @@ sub employees_salary {
         }),
       $checked_all_salary
     );
-    $salary_table->addfooter($html->form_input('all_salary', $lang{ALL_SALARY}, { TYPE => 'submit' }));
+
+    if ($permissions{7}{9}){
+      $salary_table->addfooter($html->form_input('all_salary', $lang{ALL_SALARY}, { TYPE => 'submit' }));
+    }
+
     $html->form_main(
       {
         CONTENT =>$salary_table->show({ OUTPUT2RETURN => 1 }),
@@ -1813,7 +1834,7 @@ sub employees_salary {
       CONTENT =>$salary_table->show({ OUTPUT2RETURN => 1 }),
       HIDDEN  => {
         ALL_SALARY => 1,
-       # UID        => $aid,
+        # UID        => $aid,
         index      => get_function_index('employees_salary'),
       },
       NAME    => 'all_salary',
@@ -1862,6 +1883,12 @@ sub employees_salary {
 
 #**********************************************************
 sub employees_admins_bet {
+
+  if (!$permissions{7}{8}) {
+    $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY});
+    return 1;
+  }
+
   my $action = 'chg';
   my $action_lang = "$lang{CHANGE}";
   my @SCHEDULE_TYPES = ("", "$lang{MONTHLY}", "$lang{HOURLY}", "$lang{OTHER}");
@@ -1891,13 +1918,13 @@ sub employees_admins_bet {
   );
 
   foreach my $admin_info (@$admins_list) {
-#    my $position_info = $Employees->position_info({ ID => $admin_info->{position}, COLS_NAME => 1 });
+    #    my $position_info = $Employees->position_info({ ID => $admin_info->{position}, COLS_NAME => 1 });
     my $aid_schedule = $Employees->employees_info_bet({ COLS_NAME => 1, AID => $admin_info->{aid} });
 
     $admins_table->addrow(
       $admin_info->{aid},
       $admin_info->{name},
-      $admin_info->{position} || '',
+      _translate($admin_info->{position}) || '',
       $aid_schedule->{type} ? $SCHEDULE_TYPES[ $aid_schedule->{type} ] : '-',
       $aid_schedule->{bet} ? $aid_schedule->{bet} : '-',
       $aid_schedule->{bet_per_hour} ? $aid_schedule->{bet_per_hour} : '-',
@@ -2028,6 +2055,12 @@ sub employees_pay_salary {
 =cut
 #**********************************************************
 sub employees_working_time_norms {
+
+  if (!$permissions{7}{8}) {
+    $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY});
+    return 1;
+  }
+
   my ($year, undef, undef) = split('-', ($FORM{DATE} || $DATE));
   my $prev_year = $year - 1 . "-01-01";
   my $next_year = $year + 1 . "-01-01";
@@ -2118,6 +2151,12 @@ sub employees_print_payment_statement {
 =cut
 #**********************************************************
 sub employees_bonus_types {
+
+  if (!$permissions{7}{8}) {
+    $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY});
+    return 1;
+  }
+
   my %TEMPLATE_ARGS = (
     ACTION      => "add",
     ACTION_LANG => $lang{ADD}
@@ -2571,7 +2610,7 @@ sub employees_moving_between_cashboxes {
     $Employees->employees_change_moving ({ %FORM, AID => $admin->{AID} });
 
     if (!$Employees->{errno}) {
-     $html->message("success", "$lang{SUCCESS}", "$lang{CHANGED}");
+      $html->message("success", "$lang{SUCCESS}", "$lang{CHANGED}");
     }
     else {
       $html->message("err", "$lang{ERROR}", "$lang{NOT_CHANGED}");
@@ -2591,7 +2630,7 @@ sub employees_moving_between_cashboxes {
       $html->message("success", "$lang{SUCCESS}", "$lang{DELETED}");
     }
     else {
-     $html->message("err", "$lang{ERROR}", "$lang{NOT_DELETED}");
+      $html->message("err", "$lang{ERROR}", "$lang{NOT_DELETED}");
     }
   }
 
@@ -2722,11 +2761,11 @@ sub employees_pay_salary_all {
     if($key =~ /SALARY_(\d+)/){
       $FORM{aid_salary} = $1;
       $admin_info = $Admins->info($FORM{aid_salary}, { COLS_NAME => 1 });
-      $FORM{FIO} =  $admin_info->{A_FIO};
+      $FORM{FIO} = $admin_info->{A_FIO};
       $all_admins .= $html->tpl_show(
         _include('employees_salary_fio', 'Employees'),
         {
-          FIO           => $FORM{FIO},
+          FIO => $FORM{FIO},
         },
         {
           OUTPUT2RETURN => 1

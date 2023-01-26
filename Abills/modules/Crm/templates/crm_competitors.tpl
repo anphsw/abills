@@ -23,9 +23,9 @@
                 <input type='text' class='form-control' placeholder='_{COMPETITOR_SITE}_' name='SITE' id='SITE'
                        value='%SITE%'/>
                 <div class='input-group-append %HIDE_SITE%'>
-                  <div class='input-group-text'>
-                    <a href='%SITE%' target='_blank'><span class='fa fa-globe'></span></a>
-                  </div>
+                  <a class='btn input-group-button' href='%SITE%' target='_blank'>
+                    <span class='fa fa-globe'></span>
+                  </a>
                 </div>
               </div>
             </div>

@@ -74,9 +74,33 @@ $lang{CRM_USER_NOT_FOUND} = 'User not found';
 $lang{CRM_USER_LINKED} = 'User is already linked';
 $lang{CRM_SHOW_AT_REGISTRATION} = "Show at registration";
 
-$lang{CRM_TECH} = "Tech data";
+$lang{CRM_TECH} = 'Tech data';
 
-$lang{WATCHING} = "Watching";
-$lang{DUBLICATE_LEADS} = "Dublicate";
+$lang{WATCHING} = 'Watching';
+$lang{DUBLICATE_LEADS} = 'Duplicate';
+$lang{TEMPLATES_RESPONSE} = 'Response templates';
+$lang{CLOSE_DIALOGUE} = 'Close dialogue';
+$lang{REDIRECT_DIALOGUE} = 'Redirect the dialogue';
+$lang{ACCEPT_DIALOGUE} = 'Accept the dialogue';
+$lang{CRM_STATUS_IS_UNKNOWN} = 'Status is unknown';
+$lang{DIALOGUES} = 'Dialogues';
+$lang{DIALOGUE} = 'Dialogue';
+$lang{CRM_ENTER_YOUR_MESSAGE} = 'Enter your message...';
+$lang{DIALOGUE_ALREADY_ACCEPTED} = 'The dialogue has already been accepted';
+$lang{PENDING_APPEALS} = 'Pending appeals';
+$lang{ACTIVE_APPEALS} = 'Active appeals';
+$lang{WAITING} = 'Waiting';
+$lang{DIALOGUE_CLOSED} = 'Dialogue closed';
+$lang{THE_USER_JOINED_VIA_TELEGRAM} = 'The user joined via Telegram';
+$lang{OPEN_LINES} = 'Open lines';
+$lang{OPEN_LINE} = 'Open line';
+$lang{LEADS_ARE_UNITED} = 'Leads are united';
+$lang{MERGE} = 'Merge';
+$lang{SEPARATOR} = 'Separator';
+
+$lang{CRM_CHANGE} = 'change';
+$lang{CRM_CANCEL} = 'cancel';
+$lang{CRM_CHOOSE_FIELDS} = 'choose fields';
+$lang{CRM_NOT_SPECIFIED} = 'Not specified';
 
 1

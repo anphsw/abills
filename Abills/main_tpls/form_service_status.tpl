@@ -6,19 +6,19 @@
     <div class='card-body'>
 
       <div class="form-group row">
-        <label class='col-md-3 control-label' for='ID'>_{NUM}_:</label>
+        <label class='col-md-3 control-label required' for='ID'>_{NUM}_:</label>
         <div class="col-md-9">
           <div class="input-group">
-            <input id='ID' name='ID' value='%ID%' placeholder='%ID%' class='form-control' type='text'>
+            <input id='ID' name='ID' value='%ID%' placeholder='%ID%' class='form-control' type='text' required>
           </div>
         </div>
       </div>
 
       <div class="form-group row">
-        <label class='col-md-3 control-label' for='NAME'>_{NAME}_:</label>
+        <label class='col-md-3 control-label required' for='NAME'>_{NAME}_:</label>
         <div class="col-md-9">
           <div class="input-group">
-            <input id='NAME' name='NAME' value='%NAME%' placeholder='%NAME%' class='form-control' type='text'>
+            <input id='NAME' name='NAME' value='%NAME%' placeholder='%NAME%' class='form-control' type='text' required>
           </div>
         </div>
       </div>

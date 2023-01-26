@@ -13,7 +13,7 @@ use warnings FATAL => 'all';
 our ($db, $admin, %lang, %err_strs, $PAGE_ROWS);
 
 use Sqlcmd;
-use Abills::Base qw(int2byte in_array sec2time urlencode urldecode);
+use Abills::Base qw(int2byte in_array sec2time urlencode urldecode json_former);
 my $Sqlcmd      = Sqlcmd->new($db, $admin, \%conf);
 my $Sqlcmd_main = Sqlcmd->new($db, $admin, \%conf);
 our Abills::HTML $html;
@@ -102,6 +102,9 @@ sub sqlcmd {
 
   #History
   my $list = $Sqlcmd_main->history_list({%LIST_PARAMS});
+  my $all_tables = $Sqlcmd_main->columns();
+  my $table_columns = _sqlcmd_process_columns($all_tables);
+  $Sqlcmd->{TABLES_COLUMNS_JSON} = json_former($table_columns);
 
   my $table = $html->table({
     width       => '100%',
@@ -113,7 +116,12 @@ sub sqlcmd {
   });
 
   foreach my $line (@$list) {
-    $table->addrow($line->{datetime}, $line->{comments}, $html->button('QUERY', "index=$index&QUERY_ID=$line->{id}", { class => 'sql' }), $html->button("$lang{DEL}", "index=$index&del=$line->{id}", { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' }));
+    $table->addrow(
+      $line->{datetime},
+      $line->{comments},
+      $html->button('QUERY', "index=$index&QUERY_ID=$line->{id}", { class => 'sql' }),
+      $html->button("$lang{DEL}", "index=$index&del=$line->{id}", { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' })
+    );
   }
 
   $Sqlcmd->{SQL_HISTORY} = $table->show({ OUTPUT2RETURN => 1 });
@@ -122,7 +130,7 @@ sub sqlcmd {
     $FORM{QUERY} = '' if (! $FORM{QUERY});
     $FORM{QUERY} =~ s/\\\'/\'/g;
     $FORM{QUERY} =~ s/\\\"/\"/g;
-    $html->tpl_show(_include('sqlcmd', 'Sqlcmd'), { %$Sqlcmd, %FORM, %FORM2 });
+    $html->tpl_show(_include('sqlcmd', 'Sqlcmd'), { %$Sqlcmd, %FORM, %FORM2 }, { SKIP_VARS => '[YyMmDdHhIiSs]{1}[-:]{1}' });
 
     if (defined($FORM2{QUERY}) && length($FORM2{QUERY}) > 10) {
       $list = $Sqlcmd->list({ %FORM2 });
@@ -131,11 +139,9 @@ sub sqlcmd {
     if ($FORM{QUERY} && !$FORM{xml}) {
       $FORM{SQL_QUERY} = $FORM{QUERY};
 
-      $table = $html->table(
-        {
-          width      => '100%',
-        }
-      );
+      $table = $html->table({
+        width => '100%',
+      });
 
       #Syntax hightligth
       my @func = ('CURDATE', 'NOW', 'DECODE', 'ENCODE', 'CONCAT', 'INET_NTOA', 'INET_ATON');
@@ -206,15 +212,13 @@ sub sqlcmd {
 
     @CAPTION = @{ $Sqlcmd->{MYSQL_FIELDS_NAMES} } if ($Sqlcmd->{MYSQL_FIELDS_NAMES});
 
-    $table = $html->table(
-      {
-        width   => '100%',
-        caption => $lang{RESULT},
-        title   => ($#CAPTION > -1) ? [@CAPTION] : [],
-        qs      => $pages_qs,
-        pages   => $Sqlcmd->{TOTAL}
-      }
-    );
+    $table = $html->table({
+      width   => '100%',
+      caption => $lang{RESULT},
+      title   => ($#CAPTION > -1) ? [ @CAPTION ] : [],
+      qs      => $pages_qs,
+      pages   => $Sqlcmd->{TOTAL}
+    });
 
     my %caption2id = ();
     for (my $i=0; $i<=$#CAPTION; $i++) {
@@ -244,14 +248,14 @@ sub sqlcmd {
       return 1;
     }
 
-    $table = $html->table(
-      {
-        width      => '100%',
-        rows       => [ [ "$lang{TOTAL}: " .  $html->b($Sqlcmd->{TOTAL}),
-                          "AFFECTED: " . $html->b($Sqlcmd->{AFFECTED}),
-                          "STATE: ".     $Sqlcmd->{db}->{db}->state() ] ]
-      }
-    );
+    $table = $html->table({
+      width => '100%',
+      rows  => [ [
+        "$lang{TOTAL}: " . $html->b($Sqlcmd->{TOTAL}),
+        "AFFECTED: " . $html->b($Sqlcmd->{AFFECTED}),
+        "STATE: " . $Sqlcmd->{db}->{db}->state()
+      ] ]
+    });
 
     print $table->show();
   }
@@ -320,25 +324,19 @@ sub sqlcmd {
         'SPATIAL' => [ 'GEOMETRY', 'POINT', 'LINESTRING', 'POLYGON', 'MULTIPOINT', 'MULTILINESTRING', 'MULTIPOLYGON', 'GEOMETRYCOLLECTION', ]
       );
 
-      $Sqlcmd->{COLUMN_TYPE_SEL} = $html->form_select(
-        'COLUMN_TYPE',
-        {
-          SELECTED => $FORM{COLUMN_TYPE},
-          SEL_HASH => \%COLUMN_TYPES,
-          NO_ID    => 1
-        }
-      );
+      $Sqlcmd->{COLUMN_TYPE_SEL} = $html->form_select('COLUMN_TYPE', {
+        SELECTED => $FORM{COLUMN_TYPE},
+        SEL_HASH => \%COLUMN_TYPES,
+        NO_ID    => 1
+      });
 
       my @ATTRIBUTE_TYPES = ('', 'BINARY', 'UNSIGNED', 'UNSIGNED ZEROFILL', 'on update CURRENT_TIMESTAMP');
 
-      $Sqlcmd->{ATTRIBUTE_TYPE_SEL} = $html->form_select(
-        'ATTRIBUTE_TYPE',
-        {
-          SELECTED  => $FORM{ATTRIBUTE_TYPE},
-          SEL_ARRAY => \@ATTRIBUTE_TYPES,
-          NO_ID     => 1
-        }
-      );
+      $Sqlcmd->{ATTRIBUTE_TYPE_SEL} = $html->form_select('ATTRIBUTE_TYPE', {
+        SELECTED  => $FORM{ATTRIBUTE_TYPE},
+        SEL_ARRAY => \@ATTRIBUTE_TYPES,
+        NO_ID     => 1
+      });
 
       $Sqlcmd->{COLLATION_SEL} = sqlcmd_collation();
 
@@ -1040,19 +1038,21 @@ sub sqlcmd_procs {
   my $list = $Sqlcmd->list({ QUERY => 'SHOW FULL PROCESSLIST;' });
 
   my @CAPTION = ();
-  @CAPTION = @{ $Sqlcmd->{MYSQL_FIELDS_NAMES} } if ($Sqlcmd->{MYSQL_FIELDS_NAMES});
+  @CAPTION = @{$Sqlcmd->{MYSQL_FIELDS_NAMES}} if $Sqlcmd->{MYSQL_FIELDS_NAMES};
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{PROCESSES},
-      title   => [ @CAPTION, '-' ],
-      qs      => $pages_qs,
-      pages   => $Sqlcmd->{TOTAL}
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{PROCESSES},
+    title   => [ @CAPTION, '-' ],
+    qs      => $pages_qs,
+    pages   => $Sqlcmd->{TOTAL}
+  });
 
   foreach my $line (@$list) {
+    my $index_input = $html->element('input', '', { type => 'hidden', name => 'index', value => get_function_index('sqlcmd') });
+    my $explain_btn = $html->element('button', 'explain', { type => 'submit', name => 'QUERY', value => "EXPLAIN ". ($line->[7] || q{}),
+      class => 'btn btn-default btn-xs' });
+
     $table->addrow($line->[0],
       $line->[1],
       $line->[2],
@@ -1061,18 +1061,17 @@ sub sqlcmd_procs {
       sec2time($line->[5], { str => 1 }),
       $line->[6],
       $line->[7],
-      $html->button($lang{DEL}, "index=$index&del=$line->[0]", { MESSAGE => "$lang{DEL} $line->[0] ?", class => 'del' }));
+      $html->element('form', $index_input . $explain_btn, { method => 'post' }),
+      $html->button($lang{DEL}, "index=$index&del=$line->[0]", { MESSAGE => "$lang{DEL} $line->[0] ?", class => 'del' })
+    );
   }
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      rows       =>
-      [ [ "$lang{TOTAL}:", $html->b( $Sqlcmd->{TOTAL} ) ] ],
-    }
-  );
+  $table = $html->table({
+    width => '100%',
+    rows  => [ [ "$lang{TOTAL}:", $html->b($Sqlcmd->{TOTAL}) ] ]
+  });
 
   print $table->show();
 
@@ -1087,7 +1086,7 @@ sub sqlcmd_procs {
 sub sqlcmd_cluster_info {
   #my ($attr) = @_;
 
-  my (@cluster_hosts) = split( /,/, $conf{SQLCMD_CLUSTER_HOSTS} || '' );
+  my (@cluster_hosts) = split(/,/, $conf{SQLCMD_CLUSTER_HOSTS} || '');
 
   if($conf{IPN_DBHOST}) {
     $conf{ 'SQLCMD_HOST' . ($#cluster_hosts + 2) . '_HOSTNAME' } = $conf{IPN_DBHOST};
@@ -1369,6 +1368,35 @@ sub sqlcmd_collation_change {
   return 1;
 }
 
+#**********************************************************
+=head2 _sqlcmd_process_columns($table_columns) - returns Client object for given id
 
+  Arguments:
+    $table_column - ref array of [$table, $column] pair
+
+  Returns:
+    $result - $table => [$column, $column...]
+=cut
+#**********************************************************
+sub _sqlcmd_process_columns {
+  my ($attr) = @_;
+
+  my $result = ();
+
+  foreach my $pair (@{$attr}) {
+    my ($table, $column) = @{$pair};
+    if (!defined($result->{$table})) {
+      $result->{$table} = ();
+    }
+    push @{$result->{$table}}, $column;
+  }
+
+  foreach my $key (keys %{$result}) {
+    my @keys = @{$result->{$key}};
+    @{$result->{$key}} = sort @keys;
+  };
+
+  return $result;
+}
 
 1

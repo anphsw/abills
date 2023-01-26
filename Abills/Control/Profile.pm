@@ -9,13 +9,16 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(in_array mk_unique_value encode_base64);
 
-our ($html,
+our (
   $admin,
   $db,
   %lang,
   %LANG,
   %permissions,
-  %module);
+  %module
+);
+
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 admin_profile() - Admin profile configuration
@@ -80,6 +83,8 @@ sub admin_profile {
 
   my $subscribe_mng_block = profile_get_admin_sender_subscribe_block($admin->{AID});
 
+  my $auth_history = auth_history_table();
+
   $html->tpl_show(templates('form_admin_profile'), {
     QUICK_REPORTS        => $quick_reports,
     SEL_LANGUAGE         => $SEL_LANGUAGE,
@@ -90,11 +95,48 @@ sub admin_profile {
     HIDE_SUBSCRIBE_BLOCK => !$subscribe_mng_block ? 'd-none' : '',
     EVENT_GROUPS_SELECT  => $events_groups_select,
     EVENTS_GROUPS_HIDDEN => $events_groups_show,
+    AUTH_HISTORY         => $auth_history,
   });
 
   form_profile_search();
 
   return 1;
+}
+
+#**********************************************************
+=head2 auth_history_table() -
+
+=cut
+#**********************************************************
+sub auth_history_table {
+
+  return '' if (!$conf{PROFILE_AUTH_HISTORY});
+
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{AUTH_HISTORY},
+    title_plain => [ $lang{DATE}, 'IP' ],
+    ID          => 'AUTH_HISTORY'
+  });
+
+  my $logs = $admin->full_log_list({
+    AID           => $admin->{AID},
+    PAGE_ROWS     => 5,
+    IP            => '_SHOW',
+    DATETIME      => '_SHOW',
+    FUNCTION_NAME => 'ADMIN_AUTH',
+    COLS_NAME     => 1,
+    DESC          => 'DESC'
+  });
+
+  foreach my $log (@{$logs}) {
+    $table->addrow(
+      $log->{datetime} || '--',
+      $log->{ip} || '--'
+    );
+  }
+
+  return $table->show();
 }
 
 #**********************************************************
@@ -123,18 +165,20 @@ sub form_profile_search {
   }
 
   my %search_fields = (
-    UID         => 'UID',
-    BILL_ID     => $lang{BILL},
-    LOGIN       => $lang{LOGIN},
-    FIO         => $lang{FIO},
-    CONTRACT_ID => $lang{CONTRACT},
-    EMAIL       => 'E-mail',
-    PHONE       => $lang{PHONE},
-    COMMENTS    => $lang{COMMENTS},
-    ADDRESS_FULL=> $lang{ADDRESS},
+    UID             => 'UID',
+    BILL_ID         => $lang{BILL},
+    LOGIN           => $lang{LOGIN},
+    FIO             => $lang{FIO},
+    CONTRACT_ID     => $lang{CONTRACT},
+    EMAIL           => 'E-mail',
+    PHONE           => $lang{PHONE},
+    COMMENTS        => $lang{COMMENTS},
+    ADDRESS_FULL    => $lang{ADDRESS},
     ADDRESS_STREET2 => $lang{SECOND_NAME},
-    TELEGRAM    => 'Telegram',
-    VIBER       => 'Viber',
+    ENTRANCE        => $lang{ENTRANCE},
+    ADDRESS_FLAT    => $lang{ADDRESS_FLAT},
+    TELEGRAM        => 'Telegram',
+    VIBER           => 'Viber',
   );
 
   #Get info fields
@@ -152,14 +196,12 @@ sub form_profile_search {
     $search_fields{$field_name}=_translate($name);
   }
 
-  my $table = $html->table(
-    {
-      width      => '400',
-      caption    => "$lang{SEARCH} $lang{FIELDS}",
-      cols_align => [ 'left', 'right', ],
-      ID         => 'SEARCH_FIELDS'
-    }
-  );
+  my $table = $html->table({
+    width      => '400',
+    caption    => "$lang{SEARCH} $lang{FIELDS}",
+    cols_align => [ 'left', 'right', ],
+    ID         => 'SEARCH_FIELDS'
+  });
 
   foreach my $key (sort keys %search_fields) {
     $table->addrow( $html->form_input('SEARCH_FIELDS', $key, { TYPE => 'checkbox', STATE => (in_array($key, \@default_search)) ? 'ckecked' : undef }),
@@ -168,13 +210,11 @@ sub form_profile_search {
   }
 
   print $html->form_main({
-    class  => 'form pb-3',
-    CONTENT=> $table->show(),
-    HIDDEN => {
-      index   => $index,
-    },
-    SUBMIT => { change_search => "$lang{CHANGE}" },
-    ID     => 'FORM_SEARCH_FIELDS'
+    class   => 'form pb-3',
+    CONTENT => $table->show(),
+    HIDDEN  => { index => $index },
+    SUBMIT  => { change_search => "$lang{CHANGE}" },
+    ID      => 'FORM_SEARCH_FIELDS'
   });
 
   return 1;
@@ -207,18 +247,13 @@ sub flist {
     }
   }
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'left', 'right', 'right', 'left', 'left', 'right' ],
-      ID         => 'PROFILE_FUNCTION_LIST'
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    cols_align => [ 'right', 'left', 'right', 'right', 'left', 'left', 'right' ],
+    ID         => 'PROFILE_FUNCTION_LIST'
+  });
 
-  my $mi;
-
-  my $tag_count;
-  my $form_tags_sel;
+  my ($mi, $tag_count, $form_tags_sel);
 
   if (in_array('Tags', \@MODULES)) {
     load_module('Tags');
@@ -295,19 +330,21 @@ sub flist {
     );
     $i++;
   }
+
   $table->addrow(
     '',
     $html->form_input("ql_url_$i", '', { EX_PARAMS => "placeholder='External link'", OUTPUT2RETURN => 1 }),
     $html->form_input("ql_name_$i", '', { EX_PARAMS => "placeholder='Link name'", OUTPUT2RETURN => 1 })
   );
+
   print $html->form_main({
     CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
     HIDDEN  => {
       index        => $index,
       AWEB_OPTIONS => 1,
     },
-    SUBMIT => {
-          quick_set => $lang{SET}
+    SUBMIT  => {
+      quick_set => $lang{SET}
     }
   });
 
@@ -372,16 +409,14 @@ sub form_slides_create {
     $content .= $table->show({ OUTPUT2RETURN => 1 });
   }
 
-  print $html->form_main(
-      {
-        CONTENT => $content,
-        HIDDEN  => {
-          SLIDES     => join(',', @$base_slides),
-          index      => $index,
-        },
-        SUBMIT => { action => "$lang{CHANGE}" }
-      }
-    );
+  print $html->form_main({
+    CONTENT => $content,
+    HIDDEN  => {
+      SLIDES => join(',', @$base_slides),
+      index  => $index,
+    },
+    SUBMIT  => { action => "$lang{CHANGE}" }
+  });
 
   return 1;
 }
@@ -528,7 +563,7 @@ sub admin_info_change {
 
   my $G2FA = "";
 
-  if(!$admin->{G2FA}) {
+  if (!$admin->{G2FA}) {
     if ($FORM{add_G2FA}) {
 
       require Abills::Auth::Core;
@@ -538,33 +573,36 @@ sub admin_info_change {
         AUTH_TYPE => 'OATH'
       });
 
-      if($FORM{PIN}) {
+      if ($FORM{PIN}) {
 
-        if($Auth->check_access({PIN => $FORM{PIN}, SECRET => $FORM{add_G2FA}})) {
+        if ($Auth->check_access({ PIN => $FORM{PIN}, SECRET => $FORM{add_G2FA} })) {
 
           $admin->change({
             AID  => $admin->{AID},
             G2FA => $FORM{add_G2FA},
           });
-          $html->redirect("?index=$index", {WAIT => 1});
+          $html->redirect("?index=$index", { WAIT => 1 });
         }
         else {
           $html->message('err', $lang{ERROR}, "$lang{WRONG} PIN!");
-          $html->redirect("?index=$index&add_G2FA=$FORM{add_G2FA}", {WAIT => 1});
+          $html->redirect("?index=$index&add_G2FA=$FORM{add_G2FA}", { WAIT => 1 });
         }
 
       }
       else {
-
         require Control::Qrcode;
+        Control::Qrcode->import();
+        my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html, functions => \%functions });
+
         my $secret = Abills::Auth::OATH::encode_base32($FORM{add_G2FA});
-        my $img_qr = _encode_url_to_img($secret, {
+        my $img_qr = $QRCode->_encode_url_to_img($secret, {
           AUTH_G2FA_NAME => $conf{WEB_TITLE} || 'Abills',
           AUTH_G2FA_MAIL => $admin->{ADMIN},
           OUTPUT2RETURN  => 1,
+          %FORM
         });
 
-        my $qr = "<img src='data:image/jpg;base64,".encode_base64($img_qr)."'>";
+        my $qr = "<img src='data:image/jpg;base64," . encode_base64($img_qr) . "'>";
 
         $G2FA .= $html->element('div', "$qr", { class => 'col-md-12 text-center mb-3' });
         $G2FA .= $html->element('label', "$lang{CONFIRM} PIN: ", { class => 'control-label col-md-3', for => 'PIN' });
@@ -582,13 +620,13 @@ sub admin_info_change {
   }
   else {
     if ($FORM{remove_G2FA}) {
-
       $admin->change({
         AID  => $admin->{AID},
         G2FA => '',
       });
       $html->redirect("?index=$index");
-    } else {
+    }
+    else {
       $G2FA = $html->button($lang{G2FA_REMOVE}, "index=$index&remove_G2FA=1", {
         class   => 'btn btn-sm col-md-12 btn-danger',
         CONFIRM => "$lang{G2FA_REMOVE}?",
@@ -600,7 +638,7 @@ sub admin_info_change {
     %$admin,
     CHG_PSW        => $passwd_btn,
     CLEAR_SETTINGS => $clear_settings_btn,
-    G2FA       => $G2FA
+    G2FA           => $G2FA
   });
 
   return 1;
@@ -621,12 +659,35 @@ sub _make_subscribe_btn {
 
   my $button = '';
   if ($attr->{HREF}) {
-    $button = $html->element('a', $icon_html . ' ' . $text, {
+    my $btn_class = $attr->{BUTTON_CLASSES} || ' btn-info ';
+    my $same_button = $html->element('a', $icon_html . ' ' . $text, {
       href          => $attr->{HREF},
-      class         => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
+      class         => "btn form-control $btn_class",
       target        => '_blank',
       OUTPUT2RETURN => 1
     });
+    require Control::Qrcode;
+    Control::Qrcode->import();
+
+    my $QRCode = Control::Qrcode->new($db, $admin, {%conf}, { html => $html });
+
+    my $qr_code_image = $QRCode->qr_make_image_from_string($attr->{HREF}, { base64 => 1 });
+
+    my $qr_icon = $html->element('i', '', { class => 'fa fa-qrcode', OUTPUT2RETURN => 1 });
+    my $qr_button = $html->element('a', $qr_icon,
+      {
+        class => "btn $btn_class border-left-1",
+        onclick => "showImgInModal(`$qr_code_image`, '$name $lang{QR_CODE}');",
+        OUTPUT2RETURN => 1
+      }
+    );
+    $button = $html->element('div',
+      $same_button.$qr_button,
+      {
+        class => 'btn-group w-100',
+        OUTPUT2RETURN => 1
+      }
+    );
   }
   else {
     $button = $html->element('button', $icon_html . ' ' . $text, {

@@ -29,10 +29,10 @@
                   </div>
                 </div>
                 <div class='input-group-append'>
-                  <div class='input-group-text'>
-                    <a href='$SELF_URL?UID=$FORM{UID}&get_index=msgs_admin&add_form=1&SEND_TYPE=1&header=1&full=1'
-                       class='fa fa-envelope'></a>
-                  </div>
+                  <a href='$SELF_URL?UID=$FORM{UID}&get_index=msgs_admin&add_form=1&SEND_TYPE=1&header=1&full=1'
+                     class='btn input-group-button'>
+                    <i class='fa fa-envelope'></i>
+                  </a>
                 </div>
               </div>
             </div>
@@ -48,9 +48,8 @@
               <div class='input-group'>
                 <input class='form-control' type='text' readonly value='%ADDRESS_STR%' placeholder='_{ADDRESS}_'>
                 <div class='input-group-append'>
-                  <div class='input-group-text'>
-                    %MAP_BTN%
-                  </div>
+                  <!-- TODO: RECHECK PLEASE -->
+                  %MAP_BTN%
                 </div>
               </div>
             </div>
@@ -71,9 +70,9 @@
                   </div>
                 </div>
                 <div class='input-group-append'>
-                  <div class='input-group-text'>
-                    <a href='%CALLTO_HREF%' class='fa fa-list'></a>
-                  </div>
+                  <a href='%CALLTO_HREF%' class='btn input-group-button'>
+                    <i class='fa fa-list'></i>
+                  </a>
                 </div>
               </div>
             </div>

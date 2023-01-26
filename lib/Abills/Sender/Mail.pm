@@ -12,8 +12,7 @@ use warnings FATAL => 'all';
 use Abills::Sender::Plugin;
 use parent 'Abills::Sender::Plugin';
 
-use Abills::Base qw(sendmail _bp);
-
+use Abills::Base qw(sendmail);
 
 #**********************************************************
 =head2 send_message($attr)
@@ -77,7 +76,9 @@ sub send_message {
       TRUSTED_FROM  => $self->{conf}->{SENDMAIL_TRUSTED_FROM},
       SENDMAIL_PATH => $self->{conf}->{FILE_SENDMAIL} || undef,
       TEST          => $self->{conf}->{MAIL_TEST} || undef,
-      ATTACHMENTS   => $attr->{ATTACHMENTS} || undef
+      ATTACHMENTS   => $attr->{ATTACHMENTS} || undef,
+      CONTENT_TYPE  => $attr->{CONTENT_TYPE} || '',
+      QUITE         => $attr->{QUITE} || 0
     }
   );
 

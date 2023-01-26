@@ -82,6 +82,8 @@
 
             %PAYMENTS%
 
+            %USER_PASSWORD_FIELD%
+
             <div class='form-group text-center'>
                 <label class='control-element col-md-12 ' for='TP_ID'>_{RULES}_</label>
                 <div class='col-md-12'>
@@ -100,7 +102,7 @@
             %CAPTCHA%
         </div>
 
-        <div class='card-footer text-center'>
+        <div class='card-footer'>
             %FB_INFO%
             <input type='submit' name='reg' value='_{REGISTRATION}_' class='btn btn-primary'>
         </div>

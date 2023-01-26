@@ -11,10 +11,12 @@ use strict;
 our $VERSION = 7.00;
 use parent qw(dbcore);
 use POSIX qw(strftime);
+use Abills::Base qw(in_array);
 use Admins;
 
 my $MODULE = 'Msgs';
 our Admins $admin;
+our ($triggers, $actions);
 my $SORT = 1;
 my $DESC = '';
 my $PG = 0;
@@ -39,6 +41,8 @@ sub new {
   $self->{conf} = $CONF;
 
   $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
+  $triggers = $self->_msgs_trigger_handlers() if !$triggers;
+  $actions = $self->_msgs_action_handlers() if !$actions;
 
   return $self;
 }
@@ -163,7 +167,7 @@ sub messages_list {
   
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : 'DESC';
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
 
   delete $self->{COL_NAMES_ARR};
@@ -229,10 +233,6 @@ sub messages_list {
   }
   else {
     push @WHERE_RULES, @{$self->search_expr($attr->{STATE}, 'INT', 'm.state')};
-  }
-
-  if ($attr->{GET_NEW}) {
-    push @WHERE_RULES, " ((m.date > NOW() - INTERVAL $attr->{GET_NEW} second) OR (r.datetime > NOW() - INTERVAL $attr->{GET_NEW} SECOND)) ";
   }
 
   if ($admin->{GID}) {
@@ -322,6 +322,10 @@ sub messages_list {
 
   push(@search_params, [ 'PERFORMERS', 'INT', 'GROUP_CONCAT(DISTINCT ea.name) AS performers', 1 ]) if (Abills::Base::in_array('Employees', \@main::MODULES));
 
+  if ($attr->{GET_NEW}) {
+    push @WHERE_RULES, " m.date > NOW() - INTERVAL $attr->{GET_NEW} SECOND";
+  }
+
   $admin->{permissions}{0}{8} = 1;
   my $WHERE = $self->search_former($attr, \@search_params, {
     WHERE             => 1,
@@ -337,8 +341,12 @@ sub messages_list {
     $EXT_TABLES = "LEFT JOIN users u ON (m.uid=u.uid)\n" . $EXT_TABLES;
   }
 
-  if ($self->{SEARCH_FIELDS} =~ /r\./ || $WHERE =~ /r\./) {
-    $EXT_TABLES .= "\nLEFT JOIN msgs_reply r FORCE INDEX FOR JOIN (`main_msg`) ON (m.id=r.main_msg)";
+  if ($self->{SEARCH_FIELDS} =~ /r\./ || $WHERE =~ /r\./ || $attr->{GET_NEW}) {
+    my $reply_new = q{};
+    if ($attr->{GET_NEW}) {
+      $reply_new = qq{AND r.datetime > NOW() - INTERVAL $attr->{GET_NEW} SECOND};
+    }
+    $EXT_TABLES .= "\nLEFT JOIN msgs_reply r FORCE INDEX FOR JOIN (`main_msg`) ON (m.id=r.main_msg $reply_new)";
   }
 
   if ($self->{SEARCH_FIELDS} =~ /qrt\./ || $WHERE =~ /qrt\./) {
@@ -445,6 +453,8 @@ sub message_add {
   });
 
   $self->{MSG_ID} = $self->{INSERT_ID};
+
+  $self->_msgs_workflow('isNew', $self->{MSG_ID}, $attr);
 
   return $self;
 }
@@ -564,12 +574,15 @@ sub message_change {
   $attr->{CLOSED_AID} = $admin->{AID} if $attr->{CLOSED_DATE};
 
   $admin->{MODULE} = $MODULE;
+  my $old_info = $self->message_info($attr->{ID});
   $self->changes({
     CHANGE_PARAM    => 'ID',
     TABLE           => 'msgs_messages',
     DATA            => $attr,
     EXT_CHANGE_INFO => "MSG_ID:$attr->{ID}"
   });
+
+  $self->_msgs_workflow('isChanged', $self->{ID}, { OLD_INFO => $old_info, %{$attr}, CHANGED => 1 }) if !$self->{errno};
 
   return $self->{result};
 }
@@ -959,6 +972,7 @@ sub message_reply_add {
   my $self = shift;
   my ($attr) = @_;
 
+  my $old_info = $self->message_info($attr->{ID});
   $self->query_add('msgs_reply', {
     %$attr,
     MAIN_MSG  => $attr->{ID},
@@ -971,6 +985,8 @@ sub message_reply_add {
   });
 
   $self->{REPLY_ID} = $self->{INSERT_ID};
+
+  $self->_msgs_workflow('replyAdded', $attr->{ID}, { OLD_INFO => $old_info, %{$attr} });
 
   return $self;
 }
@@ -2928,7 +2944,7 @@ sub delivery_user_list_add {
   my $self = shift;
   my ($attr) = @_;
 
-  my @ids = split(/, /, $attr->{IDS});
+  my @ids = split(/,\s?/, $attr->{IDS});
   my @MULTI_QUERY = ();
 
   foreach my $id (@ids) {
@@ -4479,6 +4495,455 @@ sub msgs_del_type_permits {
   $self->query("DELETE FROM msgs_type_permits WHERE type = ? ;", 'do', { Bind => [ $type ] });
 
   return $self;
+}
+
+#**********************************************************
+=head2 msgs_workflow_add()
+
+=cut
+#**********************************************************
+sub msgs_workflow_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('msgs_workflows', $attr);
+  return $self if $self->{errno} || !$self->{INSERT_ID};
+
+  my $workflow_id = $self->{INSERT_ID};
+  $self->msgs_workflow_triggers_add({ TRIGGERS => $attr->{TRIGGERS}, WORKFLOW_ID => $workflow_id });
+  $self->msgs_workflow_actions_add({ ACTIONS => $attr->{ACTIONS}, WORKFLOW_ID => $workflow_id });
+
+  return $workflow_id;
+}
+
+#**********************************************************
+=head2 msgs_workflow_change()
+
+=cut
+#**********************************************************
+sub msgs_workflow_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{DISABLE} = 0 if !$attr->{DISABLE};
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    FIELDS       => {
+      DISABLE => 'disable',
+      NAME    => 'name',
+      DESCR   => 'DESCR',
+    },
+    TABLE        => 'msgs_workflows',
+    OLD_INFO     => $self->msgs_workflow_info($attr->{ID}),
+    DATA         => $attr
+  });
+  return $self if $self->{errno};
+
+  $self->msgs_workflow_triggers_add({ TRIGGERS => $attr->{TRIGGERS}, WORKFLOW_ID => $attr->{ID} });
+  $self->msgs_workflow_actions_add({ ACTIONS => $attr->{ACTIONS}, WORKFLOW_ID => $attr->{ID} });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 msgs_workflow_triggers_add()
+
+=cut
+#**********************************************************
+sub msgs_workflow_triggers_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $workflow_id = $attr->{WORKFLOW_ID};
+  return $self if !$workflow_id;
+
+  my @MULTI_QUERY = ();
+  foreach my $trigger (@{$attr->{TRIGGERS}}) {
+    push @MULTI_QUERY, [ $workflow_id, $trigger->{type}, $trigger->{old_value} || '',
+      $trigger->{new_value} || '', $trigger->{contains} || '' ];
+  }
+
+  $self->query("DELETE FROM `msgs_workflow_triggers` WHERE `workflow_id` = ? ;", 'do', { Bind => [ $workflow_id ] });
+  $self->query("INSERT INTO `msgs_workflow_triggers` (`workflow_id`, `type`, `old_value`, `new_value`, `contains`) VALUES (?, ?, ?, ?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 msgs_workflow_actions_add()
+
+=cut
+#**********************************************************
+sub msgs_workflow_actions_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $workflow_id = $attr->{WORKFLOW_ID};
+  return $self if !$workflow_id;
+
+  my @MULTI_QUERY = ();
+  foreach my $trigger (@{$attr->{ACTIONS}}) {
+    push @MULTI_QUERY, [ $workflow_id, $trigger->{type}, $trigger->{value} || '' ];
+  }
+
+  $self->query("DELETE FROM `msgs_workflow_actions` WHERE `workflow_id` = ? ;", 'do', { Bind => [ $workflow_id ] });
+  $self->query("INSERT INTO `msgs_workflow_actions` (`workflow_id`, `type`, `value`) VALUES (?, ?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 msgs_workflow_list()
+
+=cut
+#**********************************************************
+sub msgs_workflow_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = $attr->{SORT} || 1;
+  my $DESC = $attr->{DESC} || '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',         'INT', 'mw.id',         1 ],
+    [ 'NAME',       'STR', 'mw.name',       1 ],
+    [ 'DESCR',      'STR', 'mw.descr',      1 ],
+    [ 'DISABLE',    'INT', 'mw.disable',    1 ],
+    [ 'USED_TIMES', 'INT', 'mw.used_times', 1 ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} mw.id
+    FROM msgs_workflows mw
+    $WHERE
+    ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 msgs_workflow_del()
+
+=cut
+#**********************************************************
+sub msgs_workflow_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('msgs_workflows', $attr);
+
+  if (!$self->{errno}) {
+    $self->query_del('msgs_workflow_triggers', undef, { WORKFLOW_ID => $attr->{ID} });
+    $self->query_del('msgs_workflow_actions', undef, { WORKFLOW_ID => $attr->{ID} });
+  }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 msgs_workflow_info()
+
+=cut
+#**********************************************************
+sub msgs_workflow_info {
+  my $self = shift;
+  my $id = shift;
+
+  $self->query("SELECT * FROM msgs_workflows WHERE id = ? ", undef, { INFO => 1, Bind => [ $id ] });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 msgs_workflow_triggers_list()
+
+=cut
+#**********************************************************
+sub msgs_workflow_triggers_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = $attr->{SORT} || 1;
+  my $DESC = $attr->{DESC} || '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',          'INT', 'mwt.id',          1 ],
+    [ 'TYPE',        'STR', 'mwt.type',        1 ],
+    [ 'OLD_VALUE',   'STR', 'mwt.old_value',   1 ],
+    [ 'NEW_VALUE',   'STR', 'mwt.new_value',   1 ],
+    [ 'CONTAINS',    'STR', 'mwt.contains',    1 ],
+    [ 'WORKFLOW_ID', 'INT', 'mwt.workflow_id', 1 ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} mwt.id
+    FROM msgs_workflow_triggers mwt
+    $WHERE
+    ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 msgs_workflow_actions_list()
+
+=cut
+#**********************************************************
+sub msgs_workflow_actions_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = $attr->{SORT} || 1;
+  my $DESC = $attr->{DESC} || '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',          'INT', 'mwa.id',          1 ],
+    [ 'TYPE',        'STR', 'mwa.type',        1 ],
+    [ 'VALUE',       'STR', 'mwa.value',       1 ],
+    [ 'WORKFLOW_ID', 'INT', 'mwa.workflow_id', 1 ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} mwa.id
+    FROM msgs_workflow_actions mwa
+    $WHERE
+    ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
+
+
+#**********************************************************
+=head2 _msgs_workflow($type, $msg_id, $attr)
+
+=cut
+#**********************************************************
+sub _msgs_workflow {
+  my $self = shift;
+  my $type = shift;
+  my $msg_id = shift;
+  my ($attr) = @_;
+
+  return if !$type || !$msg_id;
+
+  $self->query("SELECT * FROM msgs_workflow_triggers WHERE workflow_id IN (
+    SELECT workflow_id FROM msgs_workflow_triggers mwt
+    LEFT JOIN msgs_workflows mw ON (mw.id = mwt.workflow_id)
+    WHERE mwt.type='$type' AND mw.disable = 0);",
+    undef,
+    { COLS_NAME => 1 }
+  );
+
+  return if !$self->{list};
+
+  my $check_workflow = sub {
+    my ($workflow) = @_;
+
+    foreach my $trigger (@{$workflow}) {
+      my $function = $triggers->{$trigger->{type}};
+      return 0 if !$function || ref $function ne 'CODE';
+
+      return 0 if !$function->($self, $trigger, $attr);
+    }
+
+    return 1;
+  };
+
+  my @checked_workflows = ();
+  my $workflows = {};
+  foreach my $trigger (@{$self->{list}}) {
+    push @{$workflows->{$trigger->{workflow_id}}}, $trigger;
+  }
+
+  foreach my $workflow_id (keys %{$workflows}) {
+    push(@checked_workflows, $workflow_id) if $check_workflow->($workflows->{$workflow_id});
+  }
+
+  my $workflow_ids = join(',', @checked_workflows);
+  return if !$workflow_ids;
+
+  $self->query("SELECT * FROM msgs_workflow_actions WHERE workflow_id IN ($workflow_ids) ORDER BY workflow_id;",
+    undef, { COLS_NAME => 1 }
+  );
+  return if !$self->{list};
+
+  foreach my $action (@{$self->{list}}) {
+    my $function = $actions->{$action->{type}};
+    next if !$function || ref $function ne 'CODE';
+
+    $function->($self, $action, $msg_id);
+  }
+
+  return $self
+}
+
+#**********************************************************
+=head2 _msgs_trigger_handlers()
+
+=cut
+#**********************************************************
+sub _msgs_trigger_handlers {
+  my $self = shift;
+
+  return {
+    isNew              => sub {
+      my $self = shift;
+
+      return 1 if $self->{MSG_ID};
+    },
+    isChanged          => sub {
+      my $self = shift;
+      my (undef, $attr) = @_;
+
+      return 1 if $attr->{CHANGED};
+    },
+    replyAdded         => sub {
+      my $self = shift;
+
+      return 1 if $self->{REPLY_ID};
+    },
+    responsible        => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 1 if !$trigger->{new_value};
+
+      $attr->{RESPOSIBLE} //= $attr->{OLD_INFO}{RESPOSIBLE};
+      return 0 if !$attr->{RESPOSIBLE};
+
+      return in_array($attr->{RESPOSIBLE}, [ split(',\s?', $trigger->{new_value}) ]) ? 1 : 0;
+    },
+    chapter            => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 1 if !$trigger->{new_value};
+
+      $attr->{CHAPTER} //= $attr->{OLD_INFO}{CHAPTER};
+      return 0 if !$attr->{CHAPTER};
+
+      return in_array($attr->{CHAPTER}, [ split(',\s?', $trigger->{new_value}) ]) ? 1 : 0;
+    },
+    status             => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 1 if !defined $trigger->{new_value};
+
+      $attr->{STATE} //= $attr->{OLD_INFO}{STATE};
+      return 0 if !defined $attr->{STATE};
+
+      return in_array($attr->{STATE}, [ split(',\s?', $trigger->{new_value}) ]) ? 1 : 0;
+    },
+    sender             => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 1 if !$trigger->{new_value};
+
+      return $trigger->{new_value} eq 'aid' && !$attr->{USER_SEND} ? 1 : $trigger->{new_value} eq 'uid' && $attr->{USER_SEND} ? 1 : 0;
+    },
+    responsibleChanged => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 1 if !$trigger->{new_value} && !defined $trigger->{old_value};
+
+      $attr->{OLD_INFO}{RESPOSIBLE} //= '';
+      return 0 if !$attr->{RESPOSIBLE};
+
+      return $trigger->{new_value} eq $attr->{RESPOSIBLE} && $trigger->{old_value} eq $attr->{OLD_INFO}{RESPOSIBLE} ? 1 : 0;
+    },
+    statusChanged      => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 1 if !defined $trigger->{new_value} && !defined $trigger->{old_value};
+      return 0 if !defined $attr->{STATE} || !defined $attr->{OLD_INFO}{STATE};
+
+      return $trigger->{new_value} == $attr->{STATE} && in_array($attr->{OLD_INFO}{STATE}, [ split(',\s?', $trigger->{old_value}) ]) ? 1 : 0;
+    },
+    subjectContains    => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      $attr->{SUBJECT} ||= $attr->{OLD_INFO}{SUBJECT};
+
+      return 0 if !$attr->{SUBJECT} || !$trigger->{contains};
+
+      return 1 if $attr->{SUBJECT} =~ m/$trigger->{contains}/;
+    }
+  }
+}
+
+#**********************************************************
+=head2 _msgs_action_handlers()
+
+=cut
+#**********************************************************
+sub _msgs_action_handlers {
+
+  return {
+    sendMessage    => sub {
+      my $self = shift;
+      my ($action, $msg_id) = @_;
+
+      $self->query_add('msgs_reply', {
+        MAIN_MSG => $msg_id,
+        TEXT     => $action->{value},
+        DATETIME => 'NOW()',
+        AID      => $admin->{AID},
+        ID       => undef
+      });
+    },
+    setStatus      => sub {
+      my $self = shift;
+      my ($action, $msg_id) = @_;
+
+      return if !$msg_id || !defined $action->{value};
+
+      $self->changes({
+        CHANGE_PARAM => 'ID',
+        TABLE        => 'msgs_messages',
+        DATA         => {
+          STATE => $action->{value},
+          ID    => $msg_id
+        }
+      });
+    },
+    setResponsible => sub {
+      my $self = shift;
+      my ($action, $msg_id) = @_;
+
+      return if !$msg_id || !defined $action->{value};
+
+      $self->changes({
+        CHANGE_PARAM => 'ID',
+        TABLE        => 'msgs_messages',
+        DATA         => {
+          RESPOSIBLE => $action->{value},
+          ID         => $msg_id
+        }
+      });
+    },
+    setTags        => sub {
+      my $self = shift;
+      my ($action, $msg_id) = @_;
+
+      return if !$msg_id || !$action->{value};
+
+      $self->quick_replys_tags_add({ IDS => $action->{value}, MSG_ID => $msg_id });
+    }
+  }
 }
 
 1;

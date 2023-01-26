@@ -1137,9 +1137,6 @@ sub netlist_network_info {
     if (in_array('Internet', \@MODULES)){
       $ips_from_module = _get_ips_info_for_internet($first_ip_num, $last_ip_num);
     }
-    else {
-      $ips_from_module = _get_ips_info_for_dv($first_ip_num, $last_ip_num);
-    }
 
     %lookup_ip_info_table = %{ $ips_from_module->{IP_INFO} };
     %lookup_ip_uid_table = %{ $ips_from_module->{IP_UID} };
@@ -1406,90 +1403,12 @@ sub _get_ips_info_for_internet {
     else {
       $ip_info_table{$ip}->{unknown} = 1;
     }
-
   }
 
   return {
     IP_UID  => \%ip_uid_table,
     IP_INFO => \%ip_info_table
   };
-}
-
-#**********************************************************
-=head2 _get_ips_info_for_dv($first_ip, $last_ip)
-
-=cut
-#**********************************************************
-sub _get_ips_info_for_dv {
-  my ($first_ip_num, $last_ip_num) = @_;
-
-  my %ip_info_table = ();
-  my %ip_uid_table = ();
-
-  require Dv;
-  Dv->import();
-  my  $Dv = Dv->new( $db, $admin, \%conf );
-
-  # Get info from dv_main
-  my $users_list = $Dv->list( {
-    UID       => '_SHOW',
-    ONLINE    => '_SHOW',
-    DV_LOGIN  => $conf{DV_LOGIN} || undef,
-    PAGE_ROWS => 10000000,
-    IP        => '>' . int2ip($first_ip_num) . ';<' . int2ip($last_ip_num),
-    COLS_NAME => 1
-  } );
-  _error_show($Dv);
-
-  foreach my $user ( @{$users_list} ) {
-    my $ip = $user->{ip} || int2ip($user->{ip_num});
-
-    $ip_uid_table{$ip} = $user->{uid};
-    $ip_info_table{$ip} = $user;
-
-    # Allow to have dv_login instead of login
-    if ($user->{dv_login}){
-      $ip_info_table{$ip}{login} = $user->{dv_login};
-      delete $user->{dv_login};
-    }
-  }
-
-  # Get online info from dv_calls
-
-  require Dv_Sessions;
-  Dv_Sessions->import();
-  my $Sessions = Dv_Sessions->new($db, $admin, \%conf);
-
-  my $online_list = $Sessions->online({
-    LOGIN     => '_SHOW',
-    CLIENT_IP_NUM => ">=$first_ip_num;<=$last_ip_num",
-    #      IP        => '>' . int2ip($first_ip_num) . ';<' . int2ip($last_ip_num),
-    DURATION  => '_SHOW',
-    COLS_NAME => 1,
-    GROUP_BY => 'service_id',
-    PAGE_ROWS => 1000000,
-  });
-  _error_show($Sessions);
-
-  foreach my $online_row ( @{$online_list} ) {
-    my $ip = $online_row->{framed_ip_address};
-
-    # TODO: check if uids are equal
-    $ip_uid_table{$ip} = $online_row->{uid} unless (exists $ip_uid_table{$ip});
-
-    if (exists $ip_info_table{$ip}) {
-      $ip_info_table{$ip}->{online} = 1;
-    }
-    else {
-      $ip_info_table{$ip}->{unknown} = 1;
-    }
-  }
-
-  return {
-    IP_UID  => \%ip_uid_table,
-    IP_INFO => \%ip_info_table
-  };
-
 }
 
 1

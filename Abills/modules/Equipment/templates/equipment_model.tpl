@@ -208,6 +208,23 @@
               </div>
             </div>
 
+            <div class='form-group row'>
+              <label  class='col-md-4 col-form-label text-md-right' for='HEIGHT'>_{HIEGHT}_, U:</label>
+              <div class='col-md-8'>
+                <input type='number' class='form-control' name='HEIGHT' value='%HEIGHT%'
+                       id='HEIGHT_id'/>
+              </div>
+            </div>
+
+            <div class='form-group row'>
+              <label  class='col-md-4 col-form-label text-md-right' for='WIDTH'>_{WIDTH}_, U:</label>
+              <div class='col-md-8'>
+                <input type='number' class='form-control' name='WIDTH' value='%WIDTH%'
+                       id='WIDTH_id'/>
+              </div>
+            </div>
+
+
             <div id='extraPortWrapper'>
               <div id='templateWrapper'>
                 %EXTRA_PORT1_SELECT%

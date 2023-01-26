@@ -1,3 +1,4 @@
+package Control::Portal_mng;
 =head NAME
 
  Portal_mng functions
@@ -7,13 +8,47 @@
 use strict;
 use warnings FATAL => 'all';
 
-our Abills::HTML $html;
-our (
-  %lang,
-  $Conf,
-  $db,
-  $admin
-);
+use Conf;
+my Conf $Conf;
+
+my Abills::HTML $html;
+
+#**********************************************************
+=head2 new($db, $admin, $CONF)
+
+  Arguments:
+    $db    - ref to DB
+    $admin - current Web session admin
+    $CONF  - ref to %conf
+    $attr
+      HTML: html object
+      functions: hash of available functions
+
+  Returns:
+    object
+
+=cut
+#**********************************************************
+sub new {
+  my $class = shift;
+  my ($db, $admin, $conf, $attr) = @_;
+
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $conf,
+    lang  => $attr->{lang},
+    index => $attr->{index}
+  };
+
+  $html = $attr->{html};
+
+  bless($self, $class);
+
+  $Conf = Conf->new($db, $admin, $conf);
+
+  return $self;
+}
 
 #**********************************************************
 =head2 get_info_fields_read_only_view($attr)
@@ -30,36 +65,34 @@ our (
 =cut
 #**********************************************************
 sub get_info_fields_read_only_view {
+  my $self = shift;
   my ($attr) = @_;
 
-  if (!$users && $user) {
-    $users = $user;
-  }
+  my Users $users = $attr->{USERS};
 
   my @field_result = ();
   my @name_view_arr = ();
 
   my $prefix = $attr->{COMPANY} ? 'ifc*' : 'ifu*';
-  my $list;
+  my $list = [];
 
-  if (!$conf{info_fields_new}) {
-    $list = $Conf->config_list(
-      {
-        PARAM => $prefix,
-        SORT  => 2
-      }
-    );
+  if (!$self->{conf}->{info_fields_new}) {
+    $list = $Conf->config_list({
+      PARAM => $prefix,
+      SORT  => 2
+    });
   }
   else {
-    $list = new_info_fields($list, { 
-      POPUP   => $attr->{POPUP}, 
-      COMPANY => $attr->{COMPANY}
-    }); 
+    $list = $self->new_info_fields($list, {
+      POPUP   => $attr->{POPUP},
+      COMPANY => $attr->{COMPANY},
+      USERS   => $users
+    });
   }
 
-  my $uid = $FORM{UID} || q{};
+  my $uid = $attr->{UID} || q{};
 
-  if ($FORM{json}) {
+  if ($attr->{json}) {
     return [];
   }
 
@@ -85,7 +118,7 @@ sub get_info_fields_read_only_view {
   );
 
   if ($list) {
-    foreach my $line (@{ $list }) {
+    foreach my $line (@{$list}) {
       my $field_id = '';
       if ($line->[0] =~ /$prefix(\S+)/) {
         $field_id = $1;
@@ -117,7 +150,7 @@ sub get_info_fields_read_only_view {
         ) {
           $value_view = $html->element(
             'span',
-            $lang{ERR_NO_DATA},
+            $self->{lang}->{ERR_NO_DATA},
             { OUTPUT2RETURN => 1 }
           );
         }
@@ -133,8 +166,8 @@ sub get_info_fields_read_only_view {
         $value_view = $html->element(
           'span',
           ($value)
-            ? $lang{YES}
-            : $lang{NO},
+            ? $self->{lang}->{YES}
+            : $self->{lang}->{NO},
           { OUTPUT2RETURN => 1 }
         );
       }
@@ -142,7 +175,7 @@ sub get_info_fields_read_only_view {
 
         if ($attr->{VALUES}->{$field_name}) {
           $value_view = $html->button(
-            $lang{GO},
+            $self->{lang}->{GO},
             '',
             {
               GLOBAL_URL => $attr->{VALUES}->{$field_name},
@@ -151,30 +184,30 @@ sub get_info_fields_read_only_view {
           );
         }
         else {
-          $value_view = $html->element('span', $lang{ERR_NO_DATA}, { OUTPUT2RETURN => 1 });
+          $value_view = $html->element('span', $self->{lang}->{ERR_NO_DATA}, { OUTPUT2RETURN => 1 });
         }
       }
       elsif ($type == $FIELD_TYPE_ID{TEXT}) {
         $value_view = $html->element('p', $attr->{VALUES}->{$field_name}, { OUTPUT2RETURN => 1 }),
       }
       elsif ($type == $FIELD_TYPE_ID{FILE}) {
-        my $Attach = Attach->new($db, $admin, \%conf);
+        my $Attach = Attach->new($self->{db}, $self->{admin}, $self->{conf});
         my $file_id = $value || q{};
 
         $Attach->attachment_info({ ID => $file_id, TABLE => $field_id . '_file' });
 
         my $file_name = q{};
         if (!$Attach->{TOTAL}) {
-          $value_view = $html->element('span', $lang{NO}, { OUTPUT2RETURN => 1 });
+          $value_view = $html->element('span', $self->{lang}->{NO}, { OUTPUT2RETURN => 1 });
         }
         else {
           $file_name = $Attach->{FILENAME};
 
-          my $file_download_url = "?qindex=" . (get_function_index('user_pi') || $index)
+          my $file_download_url = "?qindex=" . (::get_function_index('user_pi') || $self->{index})
             . "&ATTACHMENT=$field_id:$file_id"
             . (($uid) ? "&UID=$uid" : '');
 
-          $value_view = $html->button($lang{DOWNLOAD}, '', {
+          $value_view = $html->button($self->{lang}->{DOWNLOAD}, '', {
             GLOBAL_URL => $file_download_url,
             ADD_ICON   => 'fa fa-download'
           });
@@ -195,27 +228,27 @@ sub get_info_fields_read_only_view {
                     <h4 class="modal-title">$name</h4>
                   </div>
                   <div class="modal-body">
-                    <img class='img img-fluid' src="$SELF_URL?qindex=$index&PHOTO=$uid&UID=$uid" alt="$field_name">
+                    <img class='img img-fluid' src="$attr->{SELF_URL}?qindex=$self->{index}&PHOTO=$uid&UID=$uid" alt="$field_name">
                   </div>
                   <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">$lang{CLOSE}</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">$self->{lang}->{CLOSE}</button>
                   </div>
                 </div>
               </div>
             </div>
             <button type="button" class="btn btn-xs btn-secondary" data-toggle="modal" data-target="#$name\_preview">
-              <span class="fa fa-picture-o"></span>$lang{PREVIEW}
+              <span class="fa fa-picture-o"></span>$self->{lang}->{PREVIEW}
             </button>
           };
         }
         else {
-          $value_view = $html->button('', "index=$index&PHOTO=$uid&UID=$uid", { ICON => 'fa fa-camera' });
+          $value_view = $html->button('', "index=$self->{index}&PHOTO=$uid&UID=$uid", { ICON => 'fa fa-camera' });
         }
       }
       else {
         $value_view = $html->element(
           'span',
-          (($attr->{VALUES} && $attr->{VALUES}->{$field_name}) || $FORM{$field_name})
+          (($attr->{VALUES} && $attr->{VALUES}->{$field_name}) || $attr->{$field_name})
             ? $attr->{VALUES}->{$field_name}
             : '',
           { OUTPUT2RETURN => 1 }
@@ -226,7 +259,7 @@ sub get_info_fields_read_only_view {
         push(@name_view_arr, {
           ID   => $field_id,
           TYPE => $type,
-          NAME => _translate($name),
+          NAME => ::_translate($name),
           VIEW => $value_view
         });
         next;
@@ -236,10 +269,10 @@ sub get_info_fields_read_only_view {
 
       push @field_result,
         $html->tpl_show(
-          templates('form_row_dynamic_size'),
+          ::templates('form_row_dynamic_size'),
           {
             ID         => "$field_id",
-            NAME       => (_translate($name)),
+            NAME       => (::_translate($name)),
             VALUE      => $value_view,
             COLS_LEFT  => $attr->{COLS_LEFT} || 'col-xs-4',
             COLS_RIGHT => $attr->{COLS_RIGHT} || 'col-xs-8',
@@ -253,7 +286,7 @@ sub get_info_fields_read_only_view {
     return \@name_view_arr;
   }
 
-  my $info = join((($FORM{json}) ? ',' : ''), @field_result);
+  my $info = join((($attr->{json}) ? ',' : ''), @field_result);
 
   return $info;
 }
@@ -273,42 +306,42 @@ sub get_info_fields_read_only_view {
 =cut
 #**********************************************************
 sub new_info_fields {
-    my ($list, $attr) = @_;
+  my $self = shift;
+  my ($list, $attr) = @_;
 
-    require Info_fields;
-    Info_fields->import();
+  my Users $users = $attr->{USERS};
 
-    my $Info_fields = Info_fields->new($db, $admin, \%conf);
+  require Info_fields;
+  Info_fields->import();
 
-    my $fields_list = $Info_fields->fields_list({
-      COMPANY   => ($attr->{COMPANY} || 0),
-      DOMAIN_ID => $users->{DOMAIN_ID} || 0,
-      SORT      => 5,
-    });
-    my $iter = 0;
+  my $Info_fields = Info_fields->new($self->{db}, $self->{admin}, $self->{conf});
 
-    foreach my $line (@$fields_list) {
-      next if ( 
-        $attr->{POPUP} && 
-        !$attr->{POPUP}->{ $line->{SQL_FIELD} }
-      );
+  my $fields_list = $Info_fields->fields_list({
+    COMPANY   => ($attr->{COMPANY} || 0),
+    DOMAIN_ID => $users->{DOMAIN_ID} || 0,
+    SORT      => 5,
+  });
+  my $iter = 0;
 
-      $list->[$iter]->[0] = ($attr->{COMPANY} ? 'ifc' : 'ifu') . $line->{SQL_FIELD};
-      $list->[$iter]->[1] = join(':',
-        ($line->{PRIORITY} || 0),
-         $line->{TYPE},
-         $line->{NAME},
-         $line->{ABON_PORTAL},
-         $line->{USER_CHG},
-        ($line->{PATTERN} || ''),
-        ($line->{TITLE} || ''),
-        ($line->{PLACEHOLDER} || ''),
-      );
-      
-      $iter++;
-    }
-  
-  return $list || '';
+  foreach my $line (@$fields_list) {
+    next if ($attr->{POPUP} && !$attr->{POPUP}->{$line->{SQL_FIELD}});
+
+    $list->[$iter]->[0] = ($attr->{COMPANY} ? 'ifc' : 'ifu') . $line->{SQL_FIELD};
+    $list->[$iter]->[1] = join(':',
+      ($line->{PRIORITY} || 0),
+      $line->{TYPE},
+      $line->{NAME},
+      $line->{ABON_PORTAL},
+      $line->{USER_CHG},
+      ($line->{PATTERN} || ''),
+      ($line->{TITLE} || ''),
+      ($line->{PLACEHOLDER} || ''),
+    );
+
+    $iter++;
+  }
+
+  return $list || [];
 }
 
 1;

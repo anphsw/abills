@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS `equipment_models` (
   `image_url` VARCHAR(500) DEFAULT '',
   `default_onu_reg_template_epon` VARCHAR(150),
   `default_onu_reg_template_gpon` VARCHAR(150),
+  `width`   TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
+  `height`  TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY type_id (`type_id`),
   UNIQUE KEY `model` (`vendor_id`, `type_id`, `model_name`)
@@ -129,6 +131,7 @@ CREATE TABLE IF NOT EXISTS `equipment_ports` (
   `uplink` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'NAS ID',
   `comments` VARCHAR(250) NOT NULL DEFAULT '',
   `vlan` smallint(2) unsigned NOT NULL DEFAULT 0 COMMENT 'PORT VLAN',
+  `datetime` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `nas_port` (`nas_id`, `port`)
 )
@@ -201,7 +204,7 @@ CREATE TABLE IF NOT EXISTS `equipment_backup` (
 
   `id` INT(11) UNSIGNED PRIMARY KEY,
   `name` VARCHAR(50) NOT NULL DEFAULT '',
-  `nas_id` SMALLINT(11) UNSIGNED REFERENCES `equipment_infos` (`nas_id`),
+  `nas_id` SMALLINT(6) UNSIGNED REFERENCES `equipment_infos` (`nas_id`),
   `md5` VARCHAR(32) NOT NULL DEFAULT '',
   `created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (`name`)
@@ -210,7 +213,7 @@ CREATE TABLE IF NOT EXISTS `equipment_backup` (
 
 CREATE TABLE IF NOT EXISTS `equipment_graphs` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `nas_id` SMALLINT(11) UNSIGNED REFERENCES `equipment_infos` (`nas_id`),
+  `nas_id` SMALLINT(6) UNSIGNED REFERENCES `equipment_infos` (`nas_id`),
   `port` VARCHAR(10) NOT NULL DEFAULT '',
   `param` VARCHAR(32) NOT NULL DEFAULT '',
   `comments` VARCHAR(80) NOT NULL DEFAULT '',

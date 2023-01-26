@@ -18,6 +18,7 @@
    FORCE_FILL
    VLANS - used with CPE_CHECK/CPE_FILL/FORCE_FILL. check or fill abonent's VLAN/SERVER_VLAN
    FILL_CPE_FROM_NAS_AND_PORT
+   FILL_SWITCH_PORT_FROM_CID
    SERIAL_SCAN
    SNMP_SERIAL_SCAN_ALL
    QUERY_OIDS - query only this OIDs
@@ -73,6 +74,9 @@ elsif ($argv->{CPE_FILL} || $argv->{FORCE_FILL} || $argv->{CPE_CHECK}) {
 elsif ($argv->{FILL_CPE_FROM_NAS_AND_PORT}) {
   _fill_cpe_from_nas_and_port();
 }
+elsif ($argv->{FILL_SWITCH_PORT_FROM_CID}) {
+  _fill_switch_port_from_cid();
+}
 else {
   _equipment_pon();
 }
@@ -105,7 +109,7 @@ sub _equipment_pon {
     VENDOR_NAME      => '_SHOW',
     STATUS           => '_SHOW',
     NAS_IP           => '_SHOW',
-    MNG_HOST_PORT    => '_SHOW',
+    NAS_MNG_HOST_PORT=> '_SHOW',
     NAS_MNG_USER     => '_SHOW',
     NAS_MNG_PASSWORD => '_SHOW',
     SNMP_TPL         => '_SHOW',
@@ -241,6 +245,7 @@ sub _equipment_pon_load {
           NAS_TYPE       => $nas_type,
           MODEL_NAME     => $nas_info->{model_name},
           SNMP_TPL       => $nas_info->{snmp_tpl},
+          TIMEOUT        => $argv->{TIMEOUT}
         });
 
         $port_list = $Equipment->pon_port_list({
@@ -403,7 +408,7 @@ sub _equipment_pon_load {
         #        pon_alert($onu->{ONU_RX_POWER});
       }
 
-      my $time;
+      my $time=0;
 
       foreach my $snmp_id (keys %{$created_onu}) {
         if (!$created_onu->{ $snmp_id }->{DELETED}) {
@@ -636,7 +641,7 @@ sub _scan_mac_serial_on_all_nas {
     VENDOR_NAME      => '_SHOW',
     STATUS           => '_SHOW',
     NAS_IP           => '_SHOW',
-    MNG_HOST_PORT    => '_SHOW',
+    NAS_MNG_HOST_PORT=> '_SHOW',
     NAS_MNG_USER     => '_SHOW',
     NAS_MNG_PASSWORD => '_SHOW',
     SNMP_TPL         => '_SHOW',
@@ -706,7 +711,7 @@ sub _scan_mac_serial_on_all_nas {
 }
 
 #**********************************************************
-=head2 _save_port_and_nas_to_internet_main()
+=head2 _save_port_and_nas_to_internet_main() - Fill NAS and PORT BY CPE MAC
 
 =cut
 #**********************************************************
@@ -788,7 +793,8 @@ sub _save_port_and_nas_to_internet_main {
         next;
       }
       my $pon_port_vlan = $attached_onu->{pon_port_vlan} || 0;
-      $attached_onu->{user_server_vlan} ||= $pon_port_vlan || 0;
+      #$attached_onu->{user_server_vlan} ||= $pon_port_vlan || 0;
+      $attached_onu->{onu_server_vlan} ||= $pon_port_vlan || 0;
 
       if ($check_mode) {
         if ($attached_onu->{onu_vlan} != $attached_onu->{user_vlan}) {
@@ -812,9 +818,11 @@ sub _save_port_and_nas_to_internet_main {
           $vlan_to_set = $attached_onu->{onu_vlan};
           print "User:$uid add vlan ($attached_onu->{onu_vlan})\n"
         }
-        if ($attached_onu->{onu_server_vlan} != $attached_onu->{user_server_vlan} && (!$attached_onu->{user_server_vlan} || $argv->{FORCE_FILL})) {
+
+        if ($attached_onu->{onu_server_vlan} != $attached_onu->{user_server_vlan}
+            && (!$attached_onu->{user_server_vlan} || $argv->{FORCE_FILL})) {
           $server_vlan_to_set = $attached_onu->{onu_server_vlan};
-          print "User:$uid add server_vlan ($attached_onu->{onu_server_vlan})\n"
+          print "User:$uid MAC/SERIAL: $attached_onu->{cpe} add server_vlan ($attached_onu->{onu_server_vlan})\n"
         }
 
         $Internet->user_change({
@@ -865,11 +873,54 @@ sub _fill_cpe_from_nas_and_port {
 
     if ($macs_by_nas_port{$line->{nas_id}} && $macs_by_nas_port{$line->{nas_id}}{$line->{port}}) {
       $Internet->user_change({
-        UID => $line->{uid},
-        ID  => $line->{id},
+        UID     => $line->{uid},
+        ID      => $line->{id},
         CPE_MAC => $macs_by_nas_port{$line->{nas_id}}{$line->{port}}
       });
       print "UID $line->{uid}: filled CPE MAC $macs_by_nas_port{$line->{nas_id}}{$line->{port}}\n";
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _fill_switch_port_from_cid () - Find CID and fill out port by uid
+
+=cut
+#**********************************************************
+sub _fill_switch_port_from_cid {
+  require Internet;
+  Internet->import();
+  require Internet::Sessions;
+  Internet::Sessions->import();
+
+  my $Internet = Internet->new($db, $Admin, \%conf);
+  my $Sessions = Internet::Sessions->new($db, $Admin, \%conf);
+
+  my $session_list = $Sessions->online({
+    NAS_ID             => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
+    ALL                => 1,
+    UID                => '_SHOW',
+    CID                => '_SHOW',
+    SERVICE_ID         => '_SHOW',
+    PORT               => '_SHOW', # internet_main.port
+    PAGE_ROWS          => 1000000000,
+    COLS_NAME          => 1
+  });
+
+
+  foreach my $line (@$session_list) {
+    next if (!$line->{cid});
+    if ($line->{cid} && !$line->{port}) {
+
+      $Internet->user_change({
+        UID     => $line->{uid},
+        ID      => $line->{service_id},
+        PORT    => $line->{cid}
+      });
+
+      print "SERVICE_ID: $line->{service_id}, UID: $line->{uid}, Port: $line->{cid}\n";
     }
   }
 

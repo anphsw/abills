@@ -115,6 +115,9 @@
       .loadPaymentData(paymentDataRequest)
       .then(async (paymentData) => {
         const res = await processPayment(paymentData);
+        if (res?.redirectUrl) {
+          document.location.href = res?.redirectUrl;
+        }
         const sum = document.getElementById('sum')?.value;
         if (res) {
           jQuery('#sum-info').text(sum == 0 ? 1 : sum);
@@ -128,16 +131,13 @@
   }
 
   async function processPayment(paymentData) {
-    try {
-      paymentData.paymentMethodData.tokenizationData.tokenParsed = JSON.parse(paymentData.paymentMethodData.tokenizationData.token);
-    } catch (e) {
-      console.log(e)
-    }
+    paymentData.paymentMethodData.tokenizationData.token = btoa(unescape(encodeURIComponent(paymentData.paymentMethodData.tokenizationData.token)));
 
     const request = {
       sum: document.getElementById('sum').value || 1,
       gpay: paymentData,
       systemId: googlePayConfig.paysysId,
+      returnUrl: 1
     };
 
     try {

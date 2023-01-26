@@ -593,19 +593,19 @@ sub callcenter_ivr_menu {
   elsif ($FORM{add}) {
     $Callcenter->ivr_menu_add({ %FORM });
     if (!$Callcenter->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{ADDED}");
+      $html->message('info', $lang{INFO}, $lang{ADDED});
     }
   }
   elsif ($FORM{change}) {
     $Callcenter->ivr_menu_change({ %FORM });
     if (!$Callcenter->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+      $html->message('info', $lang{INFO}, $lang{CHANGED});
     }
   }
   elsif ($FORM{chg}) {
     $Callcenter->ivr_menu_info({ %FORM, ID => $FORM{chg} });
     if (!$Callcenter->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGING}");
+      $html->message('info', $lang{INFO}, $lang{CHANGING});
     }
     $Callcenter->{ACTION} = 'change';
     $Callcenter->{LNG_ACTION} = $lang{CHANGE};
@@ -613,23 +613,24 @@ sub callcenter_ivr_menu {
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Callcenter->ivr_menu_del({ ID => $FORM{del} });
     if (!$Callcenter->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{DELETED}");
+      $html->message('info', $lang{INFO}, $lang{DELETED});
     }
   }
 
   _error_show($Callcenter);
 
-  my $list = $Callcenter->ivr_menu_list({
+  my $list_menu = $Callcenter->ivr_menu_list({
     MAIN_ID => 0,
     NUMBER  => '_SHOW',
     NAME    => '_SHOW',
+    CHAPTER_ID => $FORM{CHAPTER_ID} || undef,
     COLS_NAME => 1
   });
 
   my %menu_hash = ();
-  foreach my $line (@{$list}) {
+  foreach my $line (@{$list_menu}) {
     if ($line->{number}) {
-      $menu_hash{$line->{number}} = $line->{name};
+      $menu_hash{$line->{number}} = $line->{name} . " ($line->{number})";
     }
   }
 
@@ -637,7 +638,7 @@ sub callcenter_ivr_menu {
     'MAIN_ID',
     {
       SELECTED    => $Callcenter->{MAIN_ID},
-      SEL_LIST    => $list,
+      SEL_LIST    => $list_menu,
       SEL_KEY     => 'number',
       SEL_VALUE   => 'id,number,name',
       NO_ID       => 1,

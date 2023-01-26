@@ -1,0 +1,8 @@
+type: object
+properties:
+  login:
+    type: string
+    example: testuser
+  password:
+    type: string
+    example: testuser

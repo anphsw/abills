@@ -31,7 +31,7 @@ use Abills::Defs;
 use Init_t qw(test_runner folder_list help);
 use Abills::Base qw(parse_arguments);
 use Admins;
-use Paysys;
+use Equipment;
 
 our (
   %conf
@@ -42,9 +42,22 @@ my $apiKey = $ARGS->{KEY} || $ARGV[$#ARGV] || q{};
 my @test_list = folder_list($ARGS, $RealBin);
 my $debug = $ARGS->{DEBUG} || 0;
 
+my $Equipment = Equipment->new($db, $admin, \%conf);
+
+my $onu_list = $Equipment->onu_list({
+  COLS_NAME => 1,
+});
+
 if (lc($ARGV[0]) eq 'help') {
   help();
   exit 0;
+}
+
+foreach my $test (@test_list) {
+  if ($test->{path} =~ /equipment\/onu\/:id\//g) {
+    my $id = (scalar(@{$onu_list})) ? $onu_list->[0]->{id} : '';
+    $test->{path} =~ s/:id/$id/g;
+  }
 }
 
 test_runner({

@@ -31,7 +31,7 @@
         </div>
       </div>
     </div>
-    <div class='card-footer text-center'>
+    <div class='card-footer'>
       <input type='submit' class='btn btn-primary' value='%BTN_NAME%'>
     </div>
   </div>

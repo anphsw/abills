@@ -1,67 +1,67 @@
 <style>
-	.st_icon {
-		color: #3c8dbc;
-		font-size: 1.2em;
-	}
+  .st_icon {
+    color: #3c8dbc;
+    font-size: 1.2em;
+  }
 
-	.input-group {
-		margin-bottom: 15px;
-	}
+  .input-group {
+    margin-bottom: 15px;
+  }
 
-	select.normal-width {
-		max-width: 100% !important;
-	}
+  select.normal-width {
+    max-width: 100% !important;
+  }
 
-	div.fixed {
-		position: fixed;
-		width: 50%;
-		bottom: 10px;
-		font-size: 1.5em;
-		margin-left: 50px;
-	}
+  div.fixed {
+    position: fixed;
+    width: 50%;
+    bottom: 10px;
+    font-size: 1.5em;
+    margin-left: 50px;
+  }
 
-	div.wrapper {
-		box-shadow: none !important;
-		background-color: transparent !important;
-	}
+  div.wrapper {
+    box-shadow: none !important;
+    background-color: transparent !important;
+  }
 
-	@media screen and (max-width: 768px) {
-		div.fixed {
-			margin-left: 20px;
-		}
-	}
+  @media screen and (max-width: 768px) {
+    div.fixed {
+      margin-left: 20px;
+    }
+  }
 
-	.cookieAcceptBar {
-		right: 0;
-		text-align: center;
-		background-color: #333;
-		color: #fff;
-		padding: 20px 0;
-		z-index: 99999;
-		position: fixed;
-		width: 100%;
-		height: 100px;
-		bottom: 0;
-		left: 0;
-	}
+  .cookieAcceptBar {
+    right: 0;
+    text-align: center;
+    background-color: #333;
+    color: #fff;
+    padding: 20px 0;
+    z-index: 99999;
+    position: fixed;
+    width: 100%;
+    height: 100px;
+    bottom: 0;
+    left: 0;
+  }
 
-	.cookieAcceptBar a {
-		color: #fff;
-		text-decoration: none;
-		font-weight: bold;
-	}
+  .cookieAcceptBar a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: bold;
+  }
 
-	button .cookieAcceptBarConfirm {
-		cursor: pointer;
-		border: none;
-		background-color: #2387c0;
-		color: #fff;
-		text-transform: uppercase;
-		margin-top: 10px;
-		height: 40px;
-		line-height: 40px;
-		padding: 0 20px;
-	}
+  button .cookieAcceptBarConfirm {
+    cursor: pointer;
+    border: none;
+    background-color: #2387c0;
+    color: #fff;
+    text-transform: uppercase;
+    margin-top: 10px;
+    height: 40px;
+    line-height: 40px;
+    padding: 0 20px;
+  }
 
 </style>
 
@@ -137,7 +137,7 @@
         </div>
 
         <div class='row p-0 m-0'>
-          <button style='font-size: 1rem !important;' type='submit' name='logined'
+          <button style='font-size: 1.1rem !important;' type='submit' name='logined'
                   class='btn rounded btn-primary btn-block' onclick='set_referrer()'>
             _{ENTER}_
           </button>
@@ -146,33 +146,48 @@
 
       <a data-visible='%PASSWORD_RECOVERY%' style='display: none; float: right' href='/registration.cgi?FORGOT_PASSWD=1'>_{FORGOT_PASSWORD}_</a>
       <a data-visible='%REGISTRATION_ENABLED%' style='display: none;' href='/registration.cgi'>_{REGISTRATION}_</a>
+      <br/>
 
       <div class='row row p-0 m-0'>
         <div class='col-md-12'>
-          <a class='btn-default btn d-none %AUTH_BY_PHONE%' id='LOGIN_BY_PHONE'>
-            <i class='fa fa-phone'></i> _{LOGIN_BY_PHONE_NUMBER}_
-          </a>
-          <a href='%FACEBOOK%' class='fb btn' style='%AUTH_FACEBOOK_ID%;'>
-            <i class='fab fa-facebook fa-fw'></i> Login with Facebook
-          </a>
-          <a href='%TWITTER%' class='twitter btn' style='%AUTH_TWITTER_ID%;'>
-            <i class='fab fa-twitter fa-fw'></i> Login with Twitter
-          </a>
-          <a href='%VK%' class='btn' style='background-color: #2787f5; color: white; %AUTH_VK_ID%'>
-            <i class='fab fa-vk fa-fw'></i> Login with VK
-          </a>
-          <a href='%INSTAGRAM%' class='instagram btn' style='color: white; background-color: #C1205C; %AUTH_INSTAGRAM_ID%'>
-            <i class='fab fa-instagram fa-fw'></i> Login with Instagram
+          <a class='btn %AUTH_BY_PHONE% phone' id='LOGIN_BY_PHONE'>
+            <i class='fa fa-phone fa-fw'></i> _{LOGIN_BY_PHONE_NUMBER}_
           </a>
           <a href='%GOOGLE%' class='google btn' style='%AUTH_GOOGLE_ID%;'>
-            <i class='fab fa-google fa-fw'></i> Login with Google+
+            <img src='/styles/default/img/social/google.png' alt='google'> _{SIGN_IN_WITH}_ Google
           </a>
+          <a href='%FACEBOOK%' class='fb btn' style='%AUTH_FACEBOOK_ID%;'>
+            <i class='fab fa-facebook fa-fw'></i> _{SIGN_IN_WITH}_ Facebook
+          </a>
+          <a href='%APPLE%' class='apple btn' style='%AUTH_APPLE_ID%;'>
+            <i class='fab fa-apple fa-fw'></i> _{SIGN_IN_WITH}_ Apple
+          </a>
+          <a href='%TWITTER%' class='twitter btn' style='%AUTH_TWITTER_ID%;'>
+            <i class='fab fa-twitter fa-fw'></i> _{SIGN_IN_WITH}_ Twitter
+          </a>
+          <a href='%VK%' class='vk btn' style='%AUTH_VK_ID%'>
+            <i class='fab fa-vk fa-fw'></i> _{SIGN_IN_WITH}_ VK
+          </a>
+          <a href='%INSTAGRAM%' class='instagram btn' style='%AUTH_INSTAGRAM_ID%'>
+            <i class='fab fa-instagram fa-fw'></i> _{SIGN_IN_WITH}_ Instagram
+          </a>
+
+          <a href='%TELEGRAM%' class='telegram btn' style='%AUTH_TELEGRAM_ID%'>
+            <i class='fab fa-telegram fa-fw'></i> _{SIGN_IN_WITH}_ Telegram
+          </a>
+
+          %TELEGRAM_SCRIPT%
+
         </div>
       </div>
     </div>
 
     %LOGIN_BY_PHONE%
   </div>
+</div>
+
+<div class='login-box' style='margin: 1% auto;'>
+  %APP_LINK_GOOGLE_PLAY%
 </div>
 
 <!-- Accept cookie -->
