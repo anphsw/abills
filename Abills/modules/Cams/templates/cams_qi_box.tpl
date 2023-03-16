@@ -5,7 +5,7 @@
     <p>%CAMS_TP_NAME% %CAMS_MONTH_FEE% грн./мес</p>
   </div>
   <div class='icon'>
-    <i class='ion ion-stats-bars'></i>
+    <i class='fas fa-chart-bar'></i>
   </div>
   <a href='$SELF_URL?get_index=iptv_user_info' class='small-box-footer'>_{INFO}_ <i class='fa fa-arrow-circle-right'></i></a>
 </div>

@@ -34,6 +34,9 @@ use Abills::Fetcher qw(web_request);
 use Users;
 use Admins;
 
+require Abills::Templates;
+require Abills::Misc;
+
 our (
   %OUTPUT,
   @REGISTRATION,
@@ -42,14 +45,12 @@ our (
   $base_dir,
   $CONTENT_LANGUAGE
 );
-do 'Abills/Misc.pm';
+
 do "../libexec/config.pl";
 
 our $sid = '';
 our Abills::HTML $html = Abills::HTML->new({ CONF => \%conf, NO_PRINT => 1, });
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
-
-require Abills::Templates;
 
 if ($conf{LANGS}) {
   $conf{LANGS} =~ s/\n//g;

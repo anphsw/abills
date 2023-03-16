@@ -22,11 +22,11 @@
       </div>
     </div>
 
-    <div class='form-group row offset-4'>
-      <div class='radio col-md-4'>
+    <div class='form-group offset-4'>
+      <div class='radio col-md-6'>
         <label><input type='radio' name='STATUS' value='1' %SHOWED%>_{SHOW}_ _{MENU}_</label>
       </div>
-      <div class='radio col-md-4'>
+      <div class='radio col-md-6'>
         <label><input type='radio' name='STATUS' value='0' %HIDDEN%>_{HIDE}_ _{MENU}_</label>
       </div>
     </div>

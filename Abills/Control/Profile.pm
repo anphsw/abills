@@ -47,11 +47,11 @@ sub admin_profile {
   if (in_array('Events', \@MODULES)){
     require Events;
     Events->import();
-    
+
     my $Events = Events->new($db, $admin, \%conf);
     my $this_admin_groups = $Events->groups_for_admin($admin->{AID}) || '';
     _error_show($Events);
-    
+
     my $group_link = '';
     if (my $group_index = get_function_index('events_group')){
       $group_link = "?index=$group_index";
@@ -576,7 +576,6 @@ sub admin_info_change {
       if ($FORM{PIN}) {
 
         if ($Auth->check_access({ PIN => $FORM{PIN}, SECRET => $FORM{add_G2FA} })) {
-
           $admin->change({
             AID  => $admin->{AID},
             G2FA => $FORM{add_G2FA},
@@ -612,7 +611,7 @@ sub admin_info_change {
     }
     else {
 
-      $G2FA = $html->button($lang{G2FA}, "index=$index&add_G2FA=" . uc(mk_unique_value(5)), {
+      $G2FA = $html->button($lang{G2FA}, "index=$index&add_G2FA=" . uc(mk_unique_value(32)), {
         class   => 'btn btn-sm col-md-12 btn-secondary',
         CONFIRM => "$lang{G2FA_ADD}?",
       });
@@ -666,18 +665,12 @@ sub _make_subscribe_btn {
       target        => '_blank',
       OUTPUT2RETURN => 1
     });
-    require Control::Qrcode;
-    Control::Qrcode->import();
-
-    my $QRCode = Control::Qrcode->new($db, $admin, {%conf}, { html => $html });
-
-    my $qr_code_image = $QRCode->qr_make_image_from_string($attr->{HREF}, { base64 => 1 });
 
     my $qr_icon = $html->element('i', '', { class => 'fa fa-qrcode', OUTPUT2RETURN => 1 });
     my $qr_button = $html->element('a', $qr_icon,
       {
         class => "btn $btn_class border-left-1",
-        onclick => "showImgInModal(`$qr_code_image`, '$name $lang{QR_CODE}');",
+        onclick => "showImgInModal('$SELF_URL?qrcode=1&qindex=10010&QRCODE_URL=$attr->{HREF}', '$name $lang{QR_CODE}');",
         OUTPUT2RETURN => 1
       }
     );
@@ -737,7 +730,7 @@ sub _telegram_button {
 
   return '' if !$conf{TELEGRAM_BOT_NAME};
 
-  my $link_url = 'https://telegram.me/' . $conf{TELEGRAM_BOT_NAME} . '/?start=a_' . ($admin->{SID} || $sid || $admin->{sid});
+  my $link_url = 'https://t.me/' . $conf{TELEGRAM_BOT_NAME} . '/?start=a_' . ($admin->{SID} || $sid || $admin->{sid});
   return _make_subscribe_btn('Telegram', 'fab fa-telegram', undef, { HREF => $link_url });
 }
 
@@ -762,7 +755,7 @@ sub _telegram_admin_button {
   }
   return '' if !$conf{TELEGRAM_ADMIN_BOT_NAME};
 
-  my $link_url = 'https://telegram.me/' . $conf{TELEGRAM_ADMIN_BOT_NAME} . '/?start=e_' . ($admin->{SID} || $sid || $admin->{sid});
+  my $link_url = 'https://t.me/' . $conf{TELEGRAM_ADMIN_BOT_NAME} . '/?start=e_' . ($admin->{SID} || $sid || $admin->{sid});
   return _make_subscribe_btn($lang{TELEGRAM_FOR_ADMINS}, 'fab fa-telegram', undef, { HREF => $link_url });
 }
 

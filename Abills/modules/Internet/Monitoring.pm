@@ -6,7 +6,10 @@
 
 use strict;
 use warnings FATAL => 'all';
+
 use Abills::Base qw(mk_unique_value int2ip int2byte cmd in_array);
+use Internet::Sessions;
+use Nas;
 
 my $chart_height = 350;
 my $chart_new_window_width = 450;
@@ -52,42 +55,19 @@ sub internet_online {
   elsif ($FORM{hangup}) {
     my ($nas_id, $nas_port_id, $acct_session_id, $user_name) = split(/ |\+/, $FORM{hangup}, 4);
 
-    $Nas->info({ NAS_ID => $nas_id });
+    my $result = _internet_hangup({
+      NAS_ID          => $nas_id,
+      NAS_PORT_ID     => $nas_port_id,
+      ACCT_SESSION_ID => $acct_session_id,
+      USER_NAME       => $user_name,
+      UID             => $FORM{UID},
+      DEBUG           => $FORM{DEBUG},
+    });
 
-    if (_error_show($Nas)) {
-      return 0;
-    }
+    _error_show($result) if ($result->{errno});
 
-    $Sessions->online_info({ ACCT_SESSION_ID => $acct_session_id, NAS_ID => $nas_id });
-
-    _error_show($Sessions);
-
-    require Abills::Nas::Control;
-    Abills::Nas::Control->import();
-
-    my $Nas_cmd = Abills::Nas::Control->new($db, \%conf);
-    my $ret = $Nas_cmd->hangup(
-      $Nas,
-      $nas_port_id || 0,
-      $user_name || '',
-      {
-        DEBUG                => $FORM{DEBUG} || undef,
-        ACCT_TERMINATE_CAUSE => 6,
-        SESSION_ID           => $acct_session_id,
-        %$Sessions,
-        INTERNET             => 1
-      }
-    );
-
-    if ($ret == 0) {
-      $message = "$lang{NAS} ID: $nas_id\n $lang{NAS} IP: $Nas->{NAS_IP}\n $lang{PORT}: $nas_port_id\n SESSION_ID: $acct_session_id\n\n Return: $ret";
-      sleep 3;
-      $admin->{MODULE} = 'Internet';
-      $admin->action_add($FORM{UID}, $user_name, { MODULE => 'Internet', TYPE => 15 });
-    }
-    elsif ($ret == 1) {
-      $message = "$Nas->{NAS_TYPE} NAS NOT supported yet";
-    }
+    my $ret = $result->{ret} || '';
+    $message = $result->{message} || '';
 
     $html->message('info', $lang{INFO}, "$message $ret");
   }
@@ -127,13 +107,11 @@ sub internet_online {
     }
     else {
       $message .= $lang{EXIST};
-      $Sessions->online_del(
-        {
-          NAS_ID          => $nas_id,
-          NAS_PORT        => $nas_port_id,
-          ACCT_SESSION_ID => $acct_session_id
-        }
-      );
+      $Sessions->online_del({
+        NAS_ID          => $nas_id,
+        NAS_PORT        => $nas_port_id,
+        ACCT_SESSION_ID => $acct_session_id
+      });
     }
 
     $html->message('info', $lang{INFO}, $message);
@@ -215,13 +193,11 @@ sub internet_online {
       $FORM{del} = $FORM{IDS};
     }
     else {
-      $Sessions->online_del(
-        {
-          NAS_ID          => $FORM{nas_id},
-          NAS_PORT        => $FORM{nas_port_id},
-          ACCT_SESSION_ID => $FORM{del}
-        }
-      );
+      $Sessions->online_del({
+        NAS_ID          => $FORM{nas_id},
+        NAS_PORT        => $FORM{nas_port_id},
+        ACCT_SESSION_ID => $FORM{del}
+      });
     }
 
     if (!_error_show($Sessions)) {
@@ -662,23 +638,21 @@ sub internet_online {
   my $output_zaped = "";
 
   if ($FORM{ZAPED}) {
-    $output = $html->form_main(
-      {
-        CONTENT => $output,
-        HIDDEN  => {
-          index  => "$index",
-          ZAPED  => 1,
-          NAS_ID => $FORM{NAS_ID}
-        },
-        SUBMIT  => {
-          del   => "$lang{DEL}",
-          tolog => "$lang{ADD} to LOG"
-        },
-        METHOD  => 'POST',
-        NAME    => 'users_list',
-        ID      => 'users_list',
-      }
-    );
+    $output = $html->form_main({
+      CONTENT => $output,
+      HIDDEN  => {
+        index  => "$index",
+        ZAPED  => 1,
+        NAS_ID => $FORM{NAS_ID}
+      },
+      SUBMIT  => {
+        del   => "$lang{DEL}",
+        tolog => "$lang{ADD} to LOG"
+      },
+      METHOD  => 'POST',
+      NAME    => 'users_list',
+      ID      => 'users_list',
+    });
   }
   else {
     $output = $output_filters . $output;
@@ -1029,7 +1003,8 @@ sub _internet_map_menu {
   my @build_ids = ();
   map push(@build_ids, $_->{build_id}), @{$builds_for_users} if $Maps->{TOTAL};
 
-  use Maps::Maps_view;
+  require Maps::Maps_view;
+  Maps::Maps_view->import();
   my $Maps_view = Maps::Maps_view->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
   $html->tpl_show(_include('internet_online_map', 'Internet'), {
@@ -1039,6 +1014,73 @@ sub _internet_map_menu {
   });
 
   return 1;
+}
+
+#**********************************************************
+=head2 _internet_hangup($attr)
+
+  attr:
+    nas_id
+    nas_port_id
+    acct_session_id
+    user_name
+    uid
+    debug
+
+=cut
+#**********************************************************
+sub _internet_hangup {
+  #TODO: move to package
+  my ($attr) = @_;
+
+  my $message;
+
+  $Nas->{module} = 'Nas';
+  $Nas->info({ NAS_ID => $attr->{NAS_ID} });
+  return $Nas if ($Nas->{errno});
+
+  $Sessions->{module} = 'Nas';
+  $Sessions->online_info({ ACCT_SESSION_ID => $attr->{ACCT_SESSION_ID}, NAS_ID => $attr->{NAS_ID} });
+  return $Sessions if ($Sessions->{errno});
+
+  require Abills::Nas::Control;
+  Abills::Nas::Control->import();
+
+  my $Nas_cmd = Abills::Nas::Control->new($db, \%conf);
+  my $ret = $Nas_cmd->hangup(
+    $Nas,
+    $attr->{NAS_PORT_ID} || 0,
+    $attr->{USER_NAME} || '',
+    {
+      DEBUG                => $attr->{DEBUG} || undef,
+      ACCT_TERMINATE_CAUSE => 6,
+      SESSION_ID           => $attr->{ACCT_SESSION_ID},
+      %$Sessions,
+      INTERNET             => 1
+    }
+  );
+
+  my %params = ();
+
+  if ($ret == 0) {
+    $message = "$lang{NAS} ID: $attr->{NAS_ID}\n $lang{NAS} IP: $Nas->{NAS_IP}\n $lang{PORT}: $attr->{NAS_PORT_ID}\n SESSION_ID: $attr->{ACCT_SESSION_ID}\n\n Return: $ret";
+    $params{NAS_ID} = $attr->{NAS_ID};
+    $params{NAS_IP} = $Nas->{NAS_IP};
+    $params{PORT} = $Nas->{NAS_PORT_ID};
+    sleep 3;
+    $admin->{MODULE} = 'Internet';
+    $admin->action_add($attr->{UID}, $attr->{USER_NAME}, { MODULE => 'Internet', TYPE => 15 });
+  }
+  elsif ($ret == 1) {
+    $message = "$Nas->{NAS_TYPE} NAS NOT supported yet";
+  }
+
+  return {
+    %params,
+    result  => 'OK',
+    return  => $ret,
+    message => $message,
+  };
 }
 
 1;

@@ -51,6 +51,16 @@
           </div>
         </div>
       </div>
+
+      <div class='form-group row'>
+        <label for='EDRPOU' class='col-sm-3 col-md-2 text-right control-label'>_{EDRPOU}_:</label>
+        <div class='col-sm-9 col-md-10'>
+          <div class='input-group'>
+            <input class='form-control' id='EDRPOU' placeholder='%EDRPOU%' name='EDRPOU' value='%EDRPOU%'>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     %ADDRESS_TPL%

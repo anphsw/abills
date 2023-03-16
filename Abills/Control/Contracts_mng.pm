@@ -142,6 +142,7 @@ sub _user_contracts_table {
 
   if ($attr->{UI}) {
     $f_index = 10;
+    $users = $attr->{USER_INFO} if ($attr->{USER_INFO});
   }
   else {
     $f_index = get_function_index('user_contract');
@@ -151,7 +152,7 @@ sub _user_contracts_table {
 
   my $table = $html->table({
     width               => '100%',
-    caption             => $lang{ADDITION},
+    caption             => "$lang{CONTRACTS} / $lang{ADDITION}",
     border              => 1,
     title_plain         => [ $lang{NAME}, "#", $lang{DATE}, $lang{SIGNATURE} ],
     ID                  => 'USER_CONTRACTS',

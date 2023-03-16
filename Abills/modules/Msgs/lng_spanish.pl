@@ -34,4 +34,4 @@ $lang{INNER_M} = 'Interno';
 $lang{WATCH} = 'Vigilar';
 $lang{OVERDUE} = 'Atrasado';
 $lang{PRIVATE_MSGS_CHAR} = 'P';
-$lang{SHEDULE_BOARD} = 'La junta de tareas';
+$lang{SCHEDULE_BOARD} = 'La junta de tareas';

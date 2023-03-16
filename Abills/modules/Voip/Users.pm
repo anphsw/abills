@@ -65,6 +65,9 @@ sub voip_alias_add {
   my $self = shift;
   my ($attr) = @_;
 
+  my $validate_res = $self->voip_user_preprocess($attr, { SET => 1 });
+  return $validate_res if ($validate_res->{errno});
+
   return {
     errstr  => 'Wrong data, field number not valid',
     errno   => 31028,
@@ -131,6 +134,10 @@ sub voip_user_preprocess {
   $params = $params || {};
 
   return {
+    result => 'OK'
+  } if ($params->{SKIP_ADMIN_RIGHTS_CHECK});
+
+  return {
     fatal   => 1,
     errno   => 31008,
     errstr  => 'Access denied',
@@ -139,9 +146,9 @@ sub voip_user_preprocess {
 
   return {
     fatal   => 1,
-    errno   => 31030,
+    errno   => 31032,
     errstr  => 'Access denied',
-    element => $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { OUTPUT2RETURN => 1, ID => 31030 })
+    element => $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { OUTPUT2RETURN => 1, ID => 31032 })
   } if (!$permissions{0}{10});
 
   return {
@@ -355,6 +362,9 @@ sub voip_user_chg {
 sub voip_user_del {
   my $self = shift;
   my ($attr) = @_;
+
+  my $validate_res = $self->voip_user_preprocess($attr, { SET => 1 });
+  return $validate_res if ($validate_res->{errno});
 
   $self->voip_provision();
   $attr->{UID} = $attr->{UID} || $attr->{USER_INFO}->{UID};
@@ -864,6 +874,48 @@ sub voip_recalculate_sum {
       };
     }
   }
+}
+
+#**********************************************************
+=head2 voip_user_number_add ($attr) - add voip number to user from pool $conf{VOIP_NUM_POOL} after registration
+
+     $attr:
+       uid - user id
+
+=cut
+#**********************************************************
+sub voip_user_number_add {
+  my $self = shift;
+  my ($uid) = @_;
+
+  my $pool_numbers = $self->{conf}->{VOIP_NUM_POOL};
+  $pool_numbers =~ s/ //g;
+  my @pool_numbers = split(/;\s?/, $pool_numbers);
+
+  my $voip_user_list = $Voip->user_list({
+    NUMBER    => $pool_numbers,
+    COLS_NAME => 1
+  });
+
+  foreach my $voip_user (@$voip_user_list){
+    @pool_numbers = grep {$_ ne $voip_user->{number}} @pool_numbers;
+  }
+
+  my $available_number = $pool_numbers[0] || '';
+
+  if ($available_number){
+    $Voip->user_add({
+        UID     => $uid,
+        DISABLE => 0,
+        NUMBER  => $available_number
+    });
+    $html->message('info', "VoIP: $lang{SUCCESS}", "$lang{ADDED} $lang{NUMBER} $available_number");
+  }
+  else {
+    $html->message('danger', "VoIP: $lang{ERROR}", $lang{NOT_AVAILABLE_NUMBER_FROM_POOL});
+  }
+
+  return 1;
 }
 
 1;

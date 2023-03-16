@@ -682,12 +682,12 @@ sub accounting {
 
       if ($self->{TOTAL} < 1) {
         $self->{errno}  = 1;
-        $self->{errstr} = "Call not exists";
+        $self->{errstr} = "CALL_NOT_EXISTS CONF_ID: $RAD->{'h323-conf-id'} ORIGIN:  $RAD->{'h323-call-origin'} ";
         return $self;
       }
       elsif ($self->{errno}) {
         $self->{errno}  = 1;
-        $self->{errstr} = "SQL error";
+        $self->{errstr} = "SQL_ERROR";
         return $self;
       }
 

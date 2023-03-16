@@ -212,7 +212,7 @@ sub user_add {
         $user->{DEPOSIT} += $user->{EXT_BILL_DEPOSIT};
       }
 
-      if ($user->{DEPOSIT} + $user->{CREDIT} < $Tariffs->{ACTIV_PRICE} && $Tariffs->{PAYMENT_TYPE} == 0) {
+      if (! $CONF->{INTERNET_MANDATORY_FEE} && $user->{DEPOSIT} + $user->{CREDIT} < $Tariffs->{ACTIV_PRICE} && $Tariffs->{PAYMENT_TYPE} == 0) {
         $self->{errno}  = 15;
         $self->{errstr} = "ERR_ACTIVE_PRICE_TOO_HIGHT";
         return $self;
@@ -346,7 +346,6 @@ sub user_change {
   elsif (($old_info->{STATUS} && $old_info->{STATUS} == 3)
     && (defined($attr->{STATUS}) && $attr->{STATUS} == 0)
     && $attr->{STATUS_DAYS}) {
-
     my $user = Users->new($self->{db}, $admin, $self->{conf});
     $user->info($attr->{UID});
     my $fees = Fees->new($self->{db}, $admin, $self->{conf});
@@ -379,6 +378,14 @@ sub user_change {
       DOMAIN_ID => $admin->{DOMAIN_ID}
     });
   }
+  # # For HOLDUP_ALL
+  # else {
+  #   my $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $admin);
+  #   $self->{TP_INFO} = $Tariffs->info(0, {
+  #     TP_ID     => $old_info->{TP_ID},
+  #     DOMAIN_ID => $admin->{DOMAIN_ID}
+  #   });
+  # }
 
   #$attr->{JOIN_SERVICE} = ($attr->{JOIN_SERVICE}) ? $attr->{JOIN_SERVICE} : 0;
 
@@ -581,7 +588,7 @@ sub user_list {
     ['MONTH_IPN_TRAFFIC_OUT', 'INT', '', "SUM(ipn_l.traffic_out) AS month_ipn_traffic_out" ],
     ['UID',               'INT', 'internet.uid',                           1 ],
     ['ID',                'INT', 'internet.id',                            1 ],
-    ['DISABLE',           'INT', 'u.disable AS login_status',              1 ],
+    ['LOGIN_STATUS',      'INT', 'u.disable',    'u.disable AS login_status' ],
     ['IPN_ACTIVATE',      'INT', 'internet.ipn_activate',                  1 ],
     ['DAY_TRAF_LIMIT',    'INT', 'tp.day_traf_limit',                      1 ],
     ['WEEK_TRAF_LIMIT',   'INT', 'tp.week_traf_limit',                     1 ],

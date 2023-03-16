@@ -65,7 +65,7 @@ sub user_referral_manage {
       element => [ 'err', $lang{ERROR}, "$lang{FIO} $lang{OR} $lang{PHONE} $lang{EMPTY}", { ID => 41003 } ]
     };
   }
-  elsif ($attr->{PHONE} && ($phone_format && $attr->{PHONE} !~ /^\d+$/g)) {
+  elsif ($attr->{PHONE} && (($phone_format && $attr->{PHONE} !~ /$phone_format/) || $attr->{PHONE} !~ /^\d+$/g)) {
     return {
       errno   => 41001,
       errstr  => 'Invalid phone',
@@ -98,7 +98,10 @@ sub user_referral_manage {
   if ($attr->{add}) {
     my $result = $Referral->add_request({
       %params,
-      REFERRER => $attr->{UID},
+      REFERRER      => $attr->{UID},
+      LOCATION_ID   => $attr->{LOCATION_ID},
+      ADDRESS_FLAT  => $attr->{ADDRESS_FLAT},
+      COMMENTS      => $attr->{COMMENTS},
     });
 
     return {

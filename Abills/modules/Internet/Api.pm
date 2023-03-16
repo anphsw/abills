@@ -1,7 +1,7 @@
 package Internet::Api;
 =head1 NAME
 
-  Equipment::Api - Internet api functions
+  Internet::Api - Internet api functions
 
 =head VERSION
 
@@ -13,9 +13,13 @@ package Internet::Api;
 
 use strict;
 use warnings FATAL => 'all';
+
+use Abills::Api::Validations qw(POST_INTERNET_HANGUP);
+#TODO: remove next 3 lines after changing of load Internet::Users
 use POSIX qw(strftime);
 do 'Abills/Misc.pm';
 our $DATE = strftime "%Y-%m-%d", localtime(time);
+require 'Abills/modules/Internet/lng_english.pl';
 
 our (
   $db,
@@ -58,8 +62,6 @@ sub new {
   $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
   $Internet->{debug} = $self->{debug};
   %permissions = %{$Admin->{permissions} || {}};
-
-  require Internet::Users;
 
   return $self;
 }
@@ -145,6 +147,8 @@ sub admin_routes {
           errstr => 'No field status'
         } if !defined $query_params->{STATUS};
 
+        #TODO: load as ::load_module('Internet::Users', { LOAD_PACKAGE => 1 });
+        require Internet::Users;
         require Users;
         Users->import();
         my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
@@ -208,6 +212,8 @@ sub admin_routes {
           errstr => 'No field status'
         } if !defined $query_params->{STATUS};
 
+        #TODO: load as ::load_module('Internet::Users', { LOAD_PACKAGE => 1 });
+        require Internet::Users;
         require Users;
         Users->import();
         my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
@@ -270,7 +276,26 @@ sub admin_routes {
         'ADMIN'
       ]
     },
-  ]
+    {
+      method      => 'POST',
+      path        => '/internet/:uid/session/hangup/',
+      params      => POST_INTERNET_HANGUP,
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        return {
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{5};
+
+        ::load_module('Internet::Monitoring', { LOAD_PACKAGE => 1 });
+        ::_internet_hangup({ %$query_params, UID => $path_params->{uid} });
+      },
+      credentials => [
+        'ADMIN'
+      ],
+    }
+  ];
 }
 
 1;

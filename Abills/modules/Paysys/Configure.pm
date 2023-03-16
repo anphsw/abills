@@ -4,16 +4,14 @@ use strict;
 use warnings FATAL => 'all';
 use Paysys::Init;
 use Users;
+use Abills::Base qw(in_array vars2lang);
 
-our ($db,
+our (
+  $db,
   %conf,
   $admin,
-  $op_sid,
   %lang,
-  %ADMIN_REPORT,
   @WEEKDAYS,
-  @MONTHES,
-  %FEES_METHODS,
   $base_dir,
   $index
 );
@@ -357,31 +355,29 @@ sub paysys_configure_terminals_type {
 
   $html->tpl_show(_include('paysys_terminals_type_add', 'Paysys'), \%TERMINALS);
 
-  result_former(
-    {
-      INPUT_DATA      => $Paysys,
-      FUNCTION        => 'terminal_type_list',
-      DEFAULT_FIELDS  => 'ID, NAME, COMMENT',
-      FUNCTION_FIELDS => 'change,del',
-      SKIP_USER_TITLE => 1,
-      EXT_TITLES      => {
-        id      => '#',
-        name    => $lang{NAME},
-        comment => $lang{COMMENTS},
+  result_former({
+    INPUT_DATA      => $Paysys,
+    FUNCTION        => 'terminal_type_list',
+    DEFAULT_FIELDS  => 'ID, NAME, COMMENT',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      id      => '#',
+      name    => $lang{NAME},
+      comment => $lang{COMMENTS},
 
-      },
-      TABLE           => {
-        width   => '100%',
-        caption => "$lang{TERMINALS} $lang{TYPE}",
-        qs      => $pages_qs,
-        pages   => $Paysys->{TOTAL},
-        ID      => 'PAYSYS_TERMINLS_TYPES',
-        EXPORT  => 1
-      },
-      MAKE_ROWS       => 1,
-      TOTAL           => 1
-    }
-  );
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{TERMINALS} $lang{TYPE}",
+      qs      => $pages_qs,
+      pages   => $Paysys->{TOTAL},
+      ID      => 'PAYSYS_TERMINLS_TYPES',
+      EXPORT  => 1
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
 
   return 1;
 }
@@ -647,6 +643,10 @@ sub paysys_add_configure_groups {
 
       my $merchant_id = $FORM{MERCHANT_ID};
       if (!$Paysys->{errno}) {
+        _event_notify({
+          TITLE    => $lang{EVENT_MERCHANT_ADDED_TITLE},
+          COMMENTS => vars2lang($lang{EVENT_MERCHANT_ADDED_MESSAGE}, { MERCHANT_ID => $merchant_id, MERCHANT_NAME => $FORM{MERCHANT_NAME} || '' }),
+        });
         del_settings_to_config({ MERCHANT_ID => $merchant_id, DEL_ALL => 1 });
         $Paysys->merchant_params_delete({ MERCHANT_ID => $merchant_id });
         if (!$Paysys->{errno}) {
@@ -690,6 +690,10 @@ sub paysys_add_configure_groups {
     $FORM{merchant_name} =~ s/\\(['"]+)/$1/g;
   }
   elsif ($FORM{del_merch} && $FORM{COMMENTS}) {
+    _event_notify({
+      TITLE    => $lang{EVENT_MERCHANT_DELETED_TITLE},
+      COMMENTS => vars2lang($lang{EVENT_MERCHANT_DELETED_MESSAGE}, { MERCHANT_ID => $FORM{del_merch}, COMMENTS => $FORM{COMMENTS} }),
+    });
     del_settings_to_config({ MERCHANT_ID => $FORM{del_merch}, DEL_ALL => 1 });
     $Paysys->merchant_settings_delete({ ID => $FORM{del_merch} });
     $Paysys->merchant_params_delete({ MERCHANT_ID => $FORM{del_merch} });
@@ -856,7 +860,7 @@ sub paysys_add_configure_groups {
 
 =cut
 #**********************************************************
-sub _paysys_select_merchant_config{
+sub _paysys_select_merchant_config {
   my ($name, $id, $attr) = @_;
 
   my @array = ();
@@ -1057,15 +1061,20 @@ sub paysys_configure_groups {
   }
 
   if ($FORM{save_merch_gr}) {
-    my $delete = 1;
+    my $is_first = 1;
     foreach my $key (keys %FORM) {
       next if (!$key);
       if ($key =~ /SETTINGS_/) {
         my (undef, $gid, $system_id) = split('_', $key);
         $Paysys->paysys_merchant_to_groups_delete({ PAYSYS_ID => $system_id, GID => (defined $gid && $gid == 0) ? '0' : $gid, DOMAIN_ID => $admin->{DOMAIN_ID} });
-        if($delete) {
-          _del_group_to_config({GID => $gid});
-          $delete = 0;
+
+        if ($is_first) {
+          _del_group_to_config({ GID => $gid });
+          _event_notify({
+            TITLE    => $lang{EVENT_PAYSYS_GROUP_CHANGED_TITLE},
+            COMMENTS => vars2lang($lang{EVENT_PAYSYS_GROUP_CHANGED_MESSAGE}, { GID => $gid }),
+          });
+          $is_first = 0;
         }
 
         next if ($FORM{"SETTINGS_$gid" . "_$system_id"} eq '');
@@ -1088,6 +1097,10 @@ sub paysys_configure_groups {
   }
 
   if (defined $FORM{clear_set}) {
+    _event_notify({
+      TITLE    => $lang{EVENT_PAYSYS_GROUP_DELETED_TITLE},
+      COMMENTS => vars2lang($lang{EVENT_PAYSYS_GROUP_DELETED_MESSAGE}, { GID => $FORM{clear_set} }),
+    });
     my $_list = $Paysys->merchant_for_group_list({
       PAYSYS_ID => '_SHOW',
       MERCH_ID  => '_SHOW',
@@ -1196,15 +1209,13 @@ sub paysys_configure_groups {
       $html->button($lang{DEL}, "index=$index&clear_set=$group->{gid}", { MESSAGE => "$lang{DEL} $lang{FOR} $group->{name}?", class => 'del' }));
   }
 
-  return $html->form_main(
-    {
-      CONTENT => $table->show(),
-      HIDDEN  => {
-        index => "$index",
-      },
-      NAME    => 'PAYSYS_GROUP_SETTINGS'
-    }
-  );
+  return $html->form_main({
+    CONTENT => $table->show(),
+    HIDDEN  => {
+      index => "$index",
+    },
+    NAME    => 'PAYSYS_GROUP_SETTINGS'
+  });
 }
 
 #**********************************************************
@@ -1584,6 +1595,31 @@ sub _create_paysys_tables {
   } else {
     return 0;
   }
+}
+
+#**********************************************************
+=head2 _event_notify() notify about change merchant config change
+
+=cut
+#**********************************************************
+sub _event_notify {
+  my ($attr) = @_;
+
+  if (in_array('Events', \@MODULES)) {
+    require Events::API;
+    Events::API->import();
+
+    my $API = Events::API->new($db, $admin, \%conf);
+
+    $API->add_event({
+      MODULE      => 'Paysys',
+      TITLE       => $attr->{TITLE},
+      COMMENTS    => $attr->{COMMENTS},
+      PRIORITY_ID => 4
+    });
+  }
+
+  return 1;
 }
 
 1;

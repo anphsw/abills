@@ -1076,6 +1076,8 @@ sub search_expr_users{
       q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 6) AS telegram/;
     $users_fields_hash{VIBER} =
       q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 5) AS viber/;
+    $users_fields_hash{VIBER_BOT} =
+      q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 5) AS viber_bot/;
 
   }
 
@@ -1425,7 +1427,7 @@ sub search_expr_users{
 
       if ( $attr->{ZIP} ) {
         push @fields, @{ $self->search_expr( $attr->{ZIP}, 'INT', 'districts.zip',
-            { EXT_FIELD => 1 } ) };
+            { EXT_FIELD => 'IF(builds.zip>0,builds.zip,districts.zip) AS zip' } ) };
         $EXT_TABLE_JOINS_HASH{users_pi} = 1;
         $EXT_TABLE_JOINS_HASH{builds} = 1;
         $EXT_TABLE_JOINS_HASH{streets} = 1;

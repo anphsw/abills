@@ -501,6 +501,9 @@ sub tags_responsible_widget {
 sub send_mail_tags {
   my ($responsible_list, $attr) = @_;
 
+  require Abills::Sender::Core;
+  Abills::Sender::Core->import();
+
   my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 
   my $no_email = '';

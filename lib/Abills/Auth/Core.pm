@@ -28,14 +28,22 @@ sub new {
 
   my $auth_type = $attr->{AUTH_TYPE} || '';
   my $conf      = $attr->{CONF};
-  my $self      = {
-    conf     => $conf,
-    self_url => $attr->{SELF_URL} || q{},
-    username => $attr->{USERNAME} || q{},
-    domain_id=> $attr->{DOMAIN_ID}
+  my $self = {
+    conf      => $conf,
+    self_url  => $attr->{SELF_URL} || q{},
+    username  => $attr->{USERNAME} || q{},
+    domain_id => $attr->{DOMAIN_ID}
   };
 
   bless($self, $class);
+
+  if ($auth_type !~ /^\w+$/) {
+    print "Content-Type: text/html\n\n";
+    print "Can't load auth module";
+
+    return $self
+  };
+
   my $name = "Abills::Auth::$auth_type";
   eval " require $name ";
 

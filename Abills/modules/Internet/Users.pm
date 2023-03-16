@@ -1732,7 +1732,9 @@ sub internet_registration_info {
   my $company_info = {};
 
   if ($user->{COMPANY_ID}) {
-    use Companies;
+    require Companies;
+    Companies->import();
+
     my $Company = Companies->new($db, $admin, \%conf);
     $company_info = $Company->info($user->{COMPANY_ID});
   }
@@ -2785,14 +2787,81 @@ sub internet_wizard_add {
     }
   }
 
+  if ($add_values{1}{COMPANY_NAME}) {
+    require Companies;
+    Companies->import();
+    my $Company = Companies->new($db, $admin, \%conf);
+
+    my $companies_list = $Company->list({
+      COMPANY_NAME  => $add_values{1}{COMPANY_NAME},
+      PAGE_ROWS     => 1,
+      COLS_NAME     => 1
+    });
+
+    if ($Company->{TOTAL} > 0) {
+      $add_values{1}{COMPANY_ID} = $companies_list->[0]->{id};
+      delete $add_values{5};
+    }
+    else {
+      if ($add_values{1}{COMPANY_ADDRESS_BUILD}) {
+        require Control::Address_mng;
+        $add_values{1}{LOCATION_ID} = address_create({
+          DISTRICT => $add_values{1}{COMPANY_CITY},
+          STREET   => $add_values{1}{COMPANY_ADDRESS_STREET},
+          BUILD    => $add_values{1}{COMPANY_ADDRESS_BUILD},
+          ZIP      => $add_values{1}{COMPANY_ZIP},
+          CITY     => $add_values{1}{COMPANY_CITY},
+        });
+      }
+
+      $Company->add({
+        NAME          => $add_values{1}{COMPANY_NAME},
+        ADDRESS_FLAT  => $add_values{1}{COMPANY_ADDRESS_FLAT},
+        LOCATION_ID   => $add_values{1}{LOCATION_ID},
+        COMMENTS      => $add_values{1}{COMPANY_COMMENTS},
+        CREATE_BILL   => 1
+      });
+
+      if (! $Company->{errno}) {
+        $add_values{1}{COMPANY_ID} = $Company->{COMPANY_ID};
+      }
+    }
+  }
+
   my Users $user = $users->add({
     %{$add_values{1}},
     CREATE_EXT_BILL => ((defined($attr->{'5.EXT_BILL_DEPOSIT'}) || $attr->{'1.CREATE_EXT_BILL'}) ? 1 : 0)
   });
 
   my $message = '';
-  if (!$user->{errno}) {
+  my $error_id = $user->{errno};
+
+  if ($error_id && $conf{CARDS_MULTISERVICE} && ! $add_values{1}{COMPANY_NAME}) {
+    delete $user->{errno};
+    my %params = (LOGIN => $add_values{1}{LOGIN});
+
+    if ($add_values{1}{UID}) {
+      %params = ( UID => $add_values{1}{UID} );
+      $uid = $add_values{1}{UID};
+    }
+    else {
+      my $user_list = $user->list({ %params, COLS_NAME => 1 });
+      $uid = $user_list->[0]->{uid};
+      delete $add_values{5};
+    }
+
+    if ($uid) {
+      $error_id=0;
+    }
+    else {
+      return 0;
+    }
+  }
+  else {
     $uid = $user->{UID};
+  }
+
+  if (!$error_id) {
     $user = $user->info($uid);
 
     #2
@@ -2822,13 +2891,24 @@ sub internet_wizard_add {
       $add_values{3}{ADDRESS_STREET} = $add_values{3}{ADDRESS_FULL};
     }
 
+    if ($add_values{3}{ADDRESS_BUILD}) {
+      require Control::Address_mng;
+      $add_values{3}{LOCATION_ID} = address_create({
+        DISTRICT => $add_values{3}{CITY},
+        STREET   => $add_values{3}{ADDRESS_STREET},
+        BUILD    => $add_values{3}{ADDRESS_BUILD},
+        ZIP      => $add_values{3}{ZIP},
+        CITY     => $add_values{3}{CITY},
+      });
+    }
+
     #3 personal info
     $user->pi_add({
       %{(defined($add_values{3})) ? $add_values{3} : {}},
       UID => $uid
     });
 
-    _error_show($user, { MESSAGE => "LOGIN: " . ($add_values{2}{LOGIN} || q{}), ID => 922 });
+    _error_show($user, { MESSAGE => "LOGIN: " . ($add_values{1}{LOGIN} || q{}), ID => 922 });
 
     #5 Payments section
     if($add_values{5}) {
@@ -2872,7 +2952,7 @@ sub internet_wizard_add {
             return 0;
           }
           else {
-            $message = "$lang{SUM}: $FORM{'5.SUM'} "
+            $message = "$lang{SUM}: $add_values{5}{SUM} "
               . (($er->{ER_SHORT_NAME}) ? $er->{ER_SHORT_NAME} : q{}) . "\n";
           }
         }
@@ -3197,7 +3277,7 @@ sub internet_service_add {
   #Get NAS ID by IP
   if ($params->{NAS_IP} || $params->{NAS_NAME}) {
     delete $Nas->{NAS_ID};
-    $Nas->list({
+    my $nas_list = $Nas->list({
       NAS_IP   => $params->{NAS_IP},
       #NAS_NAME => ($params->{NAS_IP}) ? undef : $params->{NAS_NAME},
       COLS_NAME=> 1
@@ -3205,11 +3285,12 @@ sub internet_service_add {
 
     if ($Nas->{TOTAL} < 1) {
       $Nas->add({
-        IP           => $params->{NAS_IP},
-        NAS_NAME     => $params->{NAS_NAME},
-        NAS_DESCRIBE => $params->{NAS_DESCRIBE},
-        MAC          => $params->{NAS_MAC},
-        NAS_IDENTIFIER => $params->{NAS_IDENTIFIER}
+        IP              => $params->{NAS_IP},
+        NAS_NAME        => $params->{NAS_NAME},
+        NAS_DESCRIBE    => $params->{NAS_DESCRIBE},
+        MAC             => $params->{NAS_MAC},
+        NAS_IDENTIFIER  => $params->{NAS_IDENTIFIER},
+        NAS_MNG_PASSWORD=> $params->{NAS_MNG_PASSWORD}
       });
 
       if ($Nas->{errno}) {
@@ -3218,10 +3299,8 @@ sub internet_service_add {
       $params->{NAS_ID} = $Nas->{NAS_ID};
     }
     else {
-      print "aaaaa";
-      $params->{NAS_ID} = $Nas->{list}->[0]->{nas_id};
+      $params->{NAS_ID} = $nas_list->[0]->{nas_id};
     }
-    #print "// $params->{NAS_ID} //<br>";
   }
 
   $params->{TP_ID} = _check_tp({ %{$params}, MODULE => 'Internet' });

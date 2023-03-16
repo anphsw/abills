@@ -135,6 +135,23 @@ sub user_routes {
         'USER', 'PUBLIC'
       ]
     },
+    {
+      method      => 'GET',
+      path        => '/user/portal/news/:string_id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        return $self->_portal_menu({
+          UID        => $path_params->{uid} || '',
+          ARTICLE_ID => $path_params->{id},
+          DOMAIN_ID  => $query_params->{DOMAIN_ID},
+          LIST       => 1
+        });
+      },
+      credentials => [
+        'USER', 'PUBLIC'
+      ]
+    },
   ];
 }
 
@@ -157,12 +174,32 @@ sub _portal_menu {
   my ($attr) = @_;
 
   my %menu = ();
+  my %article_params = ();
+  my %menu_params = ();
   my @topics = ();
   my @news = ();
   my $uid = $attr->{UID} || '';
   my $domain_id = $attr->{DOMAIN_ID} || '';
+  my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  my $base_attach_link = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images/attach/portal" : '';
+
+  $article_params{ID} = $attr->{ARTICLE_ID} if ($attr->{ARTICLE_ID});
+
+  my $news_list = $Portal->portal_articles_list({
+    %article_params,
+    ARCHIVE   => 0,
+    COLS_NAME => 1
+  });
+
+  return {
+    errno  => 10901,
+    errstr => "News not found with id $attr->{ARTICLE_ID}",
+  } if (!($Portal->{TOTAL} && $Portal->{TOTAL} > 0) && $attr->{ARTICLE_ID});
+
+  $menu_params{ID} = $news_list->[0]->{portal_menu_id} if ($attr->{ARTICLE_ID});
 
   my $menu_portal = $Portal->portal_menu_list({
+    %menu_params,
     MENU_SHOW => 1,
     COLS_NAME => 1,
   });
@@ -191,6 +228,7 @@ sub _portal_menu {
     ADDRESS_STREET   => '',
     UID              => '--'
   };
+
   if ($uid) {
     require Users;
     Users->import();
@@ -205,14 +243,6 @@ sub _portal_menu {
     Tags->import();
     $Tags = Tags->new($self->{db}, $self->{admin}, $self->{conf});
   }
-
-  my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
-  my $base_attach_link = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images/attach/portal" : '';
-
-  my $news_list = $Portal->portal_articles_list({
-    ARCHIVE   => 0,
-    COLS_NAME => 1
-  });
 
   foreach my $news (@{$news_list}) {
     my $time_check = !$news->{etimestamp} || ($news->{utimestamp} && $news->{etimestamp} >= time && $news->{utimestamp} < time);
@@ -242,6 +272,7 @@ sub _portal_menu {
         on_main_page      => $news->{on_main_page},
         date              => $news->{date},
         topic_id          => $news->{portal_menu_id},
+        permalink         => $news->{permalink},
       );
 
       if ($attr->{MENU}) {

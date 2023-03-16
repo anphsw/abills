@@ -145,6 +145,8 @@ sub iptv_users_search {
 sub iptv_users_list {
   my ($attr) = @_;
 
+  iptv_multiuser($FORM{IDS}) if $FORM{IPTV_MULTIUSER} && $FORM{IDS};
+
   if ($FORM{TP_ID}) {
     $LIST_PARAMS{TP_ID} = $FORM{TP_ID};
     $pages_qs .= "&TP_ID=$FORM{TP_ID}";
@@ -202,19 +204,20 @@ sub iptv_users_list {
       ($FORM{UID}) ? 'TP_NAME,CID,SERVICE_STATUS,IPTV_EXPIRE' : 'LOGIN,FIO,DEPOSIT,CREDIT,TP_NAME,SERVICE_STATUS,IPTV_EXPIRE',
     HIDDEN_FIELDS   => 'MONTH_FEE,DAY_FEE,TAGS_COLORS,PRIORITY',
     FUNCTION_FIELDS => ($FORM{UID}) ? $function_fields : 'form_payments',
+    MULTISELECT     => ($permissions{0}{7}) ? 'IDS:id:iptv_users_list' : '',
     EXT_TITLES      => {
-      'id'              => 'ID',
-      'port'            => $lang{PORT},
-      'cid'             => 'CID',
-      'filter_id'       => 'Filter ID',
-      'tp_name'         => $lang{TARIF_PLAN},
-      'service_status'  => "IPTV $lang{STATUS}",
-      'dvcrypt_id'      => 'DvCrypt',
-      'iptv_expire'     => "$lang{TV} $lang{EXPIRE}",
-      'subscribe_id'    => $lang{SUBSRIBES},
-      'tv_service_name' => $lang{SERVICE},
-      'month_fee'       => $lang{MONTH_FEE},
-      'day_fee'         => $lang{DAY_FEE}
+      id              => 'ID',
+      port            => $lang{PORT},
+      cid             => 'CID',
+      filter_id       => 'Filter ID',
+      tp_name         => $lang{TARIF_PLAN},
+      service_status  => "IPTV $lang{STATUS}",
+      dvcrypt_id      => 'DvCrypt',
+      iptv_expire     => "$lang{TV} $lang{EXPIRE}",
+      subscribe_id    => $lang{SUBSRIBES},
+      tv_service_name => $lang{SERVICE},
+      month_fee       => $lang{MONTH_FEE},
+      day_fee         => $lang{DAY_FEE}
     },
     STATUS_VALS     => sel_status({ HASH_RESULT => 1 }),
     TABLE           => {
@@ -231,8 +234,8 @@ sub iptv_users_list {
     },
     MAKE_ROWS       => 1,
     MODULE          => 'Iptv',
-    TOTAL           => ($attr->{USER_ACCOUNT} && $attr->{USER_ACCOUNT} < 5) ? 0 : 1,
-    SHOW_MORE_THEN  => ($FORM{search}) ? 1 : 0
+    # TOTAL           => ($attr->{USER_ACCOUNT} && $attr->{USER_ACCOUNT} < 5) ? 0 : 1,
+    SHOW_MORE_THEN  => ($FORM{search}) ? 1 : 0,
   });
 
   return 0 if (_error_show($Iptv));
@@ -250,7 +253,164 @@ sub iptv_users_list {
     return $table->show();
   }
 
+  if($FORM{EXPORT_CONTENT}) {
+    print $table->show();
+  }
+  elsif ($Iptv->{TOTAL} > 1 && $permissions{0}{7}) {
+    $html->{FORM_ID} = 'iptv_users_list';
+    $Iptv->{MU_TP_SELECT} = $html->tpl_show(_include('iptv_tp_shedule', 'Iptv'), {
+      TP_SEL   => sel_tp({ MODULE => 'Iptv', SELECT => 'IPTV_MU_TP' }),
+      DATE_SEL => $html->form_datepicker('TP_SHEDULE', '0000-00-00')
+    }, { OUTPUT2RETURN => 1 });
+    $Iptv->{MU_CREDIT_DATEPICKER} = $html->form_datepicker('MU_CREDIT_DATE', '0000-00-00');
+    $Iptv->{MU_TP_CHECKBOX} = $html->form_input('MU_TP', 1, { TYPE => 'checkbox', });
+    $Iptv->{MU_STATUS_CHECKBOX} = $html->form_input('MU_STATUS', 1, { TYPE => 'checkbox', });
+    $Iptv->{MU_STATUS_SELECT} = sel_status({ NAME => 'IPTV_MU_STATUS' });
+    $Iptv->{MU_DATE} = $html->form_datepicker('INTERNET_MU_DATEPICKER', '0000-00-00');
+    $Iptv->{MU_DATE_CHECKBOX} = $html->form_input('MU_DATE', 1, { TYPE => 'checkbox', });
+
+    if (in_array('Tags', \@MODULES)) {
+      load_module('Tags', $html);
+      $Iptv->{MU_USER_TAGS} = tags_sel({ ID => 'MU_USER_TAGS' });
+      $Iptv->{MU_USER_TAGS_VISIBLE} = 'd-block';
+    }
+
+    print $html->form_main({
+      CONTENT => $table->show() . $html->tpl_show(_include('iptv_user_multiselect', 'Iptv'), $Iptv, { OUTPUT2RETURN => 1 }),
+      HIDDEN  => {
+        index          => get_function_index('iptv_users_list'),
+        IPTV_MULTIUSER => 1
+      },
+      NAME    => $html->{FORM_ID},
+      class   => 'hidden-print',
+      ID      => $html->{FORM_ID},
+    });
+  }
+  else {
+    print $html->form_main({
+      CONTENT => $table->show(),
+      HIDDEN  => { index => get_function_index('iptv_users_list') },
+      NAME    => 'iptv_users_list',
+      class   => 'hidden-print',
+      ID      => 'iptv_users_list',
+    });
+  }
+
   return 1;
+}
+
+#**********************************************************
+=head2 iptv_multiuser()
+
+=cut
+#**********************************************************
+sub iptv_multiuser {
+
+  my @multiuser_arr = split(/,\s?/, $FORM{IDS} || q{});
+  my @multiuser_no_error = ();
+  my %params = ();
+
+  my $test = $Iptv->user_list({
+    ID         => join(';', @multiuser_arr),
+    UID        => '_SHOW',
+    SERVICE_ID => '_SHOW',
+    LIST2HASH  => 'id,uid',
+    PAGE_ROWS  => 99999
+  });
+  my $uid_hash = $Iptv->{list_hash};
+
+  if ($FORM{MU_TP} && $FORM{TP_SHEDULE} eq '0000-00-00') {
+    $params{TP_ID} = $FORM{IPTV_MU_TP};
+  }
+  if ($FORM{MU_STATUS}) {
+    $params{STATUS} = $FORM{IPTV_MU_STATUS};
+  }
+  if ($FORM{MU_REDUCTION}) {
+    $params{REDUCTION} = $FORM{MU_REDUCTION_SUM} || 0;
+    $params{REDUCTION_DATE} = $FORM{MU_REDUCTION_DATE} || '0000-00-00';
+  }
+  if ($FORM{MU_CREDIT}) {
+    $params{CREDIT} = $FORM{MU_CREDIT_SUM} || 0;
+    $params{CREDIT_DATE} = $FORM{MU_CREDIT_DATE} || '0000-00-00';
+  }
+  if ($FORM{MU_SERVICE_ACTIVATE}) {
+    $params{SERVICE_ACTIVATE} = $FORM{MU_SERVICE_ACTIVATE_DATE};
+  }
+  if ($FORM{MU_SERVICE_EXPIRE}) {
+    $params{SERVICE_EXPIRE} = $FORM{MU_SERVICE_EXPIRE_DATE};
+  }
+
+  if ($#multiuser_arr < 0) {
+    $html->message('err', $lang{MULTIUSER_OP}, $lang{SELECT_USER});
+    return 1;
+  }
+
+  if (!%params) {
+    $html->message('warn', $lang{MULTIUSER_OP}, $lang{THERE_ARE_NO_SETTINGS_TO_CHANGE});
+    return 1;
+  }
+
+  if ($FORM{MU_TP} && $FORM{TP_SHEDULE} ne '0000-00-00') {
+    my ($year, $month, $day) = split(/-/, $FORM{TP_SHEDULE}, 3);
+    my $Shedule = Shedule->new($db, $admin, \%conf);
+
+    foreach my $id (@multiuser_arr) {
+      $Iptv->user_info($id);
+      $Shedule->add({
+        UID          => $uid_hash->{$id},
+        TYPE         => 'tp',
+        ACTION       => "$id:$FORM{IPTV_MU_TP}",
+        D            => $day,
+        M            => $month,
+        Y            => $year,
+        MODULE       => 'Iptv',
+        COMMENTS     => "$lang{FROM}: $Iptv->{TP_ID}:" . ($Iptv->{TP_NAME} || ""),
+        ADMIN_ACTION => 1
+      });
+
+      last if _error_show($Shedule);
+
+      push @multiuser_no_error, $id;
+    }
+    $html->message('info', $lang{MULTIUSER_OP}, "$lang{TO_PLAN}\n$lang{SERVICE}: " . join(', ', @multiuser_no_error) );
+  }
+
+  if ($FORM{MU_CREDIT} || $FORM{MU_REDUCTION}) {
+    my %uids_hash = reverse %$uid_hash;
+    foreach my $uid (keys %uids_hash) {
+      $users->change($uid, { UID => $uid, %params });
+    }
+  }
+
+  if (defined($FORM{MU_TAGS_USER} && in_array('Tags', \@MODULES))) {
+    require Tags;
+    my $Tags = Tags->new($db, $admin, \%conf);
+
+    foreach my $id (@multiuser_arr) {
+      $Tags->tags_user_change({
+        IDS => $FORM{TAGS},
+        UID => $uid_hash->{$id},
+      });
+      $html->message('err', $lang{INFO}, "$lang{TAGS} $lang{NOT} $lang{ADDED} UID:$id") if $Tags->{errno};
+    }
+  }
+
+  if ($params{TP_ID} || $params{STATUS} || $params{SERVICE_ACTIVATE} || $params{SERVICE_EXPIRE}) {
+    $FORM{change} = 1;
+    foreach my $id (@multiuser_arr) {
+      $Iptv->{db}{db}->{AutoCommit} = 0;
+      $Iptv->{db}->{TRANSACTION} = 1;
+
+      iptv_user_change({ %params, UID => $uid_hash->{$id}, ID => $id });
+
+      last if _error_show($Iptv, { MODULE_NAME => $lang{Iptv} });
+      push @multiuser_no_error, $id;
+
+      iptv_user_services(\%FORM);
+    }
+
+    $html->message('info', $lang{MULTIUSER_OP}, "$lang{CHANGED}\n$lang{SERVICE}: " . join(', ', @multiuser_no_error) );
+  }
 }
 
 #**********************************************************

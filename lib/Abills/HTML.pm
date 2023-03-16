@@ -444,6 +444,7 @@ sub form_parse {
       }
       for my $currentColumn (@columns) {
         my ($currentHeader, $currentValue) = $currentColumn =~ /^([^=]+)="([^\"]+)"$/;
+        next if (! defined $currentHeader);
         if ($currentHeader eq 'filename') {
           if ($currentValue =~ /(\S+)\\(\S+)$/) {
             $currentValue = $2;
@@ -5362,7 +5363,7 @@ sub redirect {
     $wait ||= 3;
   }
 
-  if (!$self->{HEADERS_SENT}) {
+  if (!$self->{HEADERS_SENT} && !$attr->{NO_PRINT}) {
 
     # Instant redirect via Location
     if (!$wait && !$message) {
@@ -5376,7 +5377,7 @@ sub redirect {
     print "Content-Type: text/html\n\n";
 
     # Load bootstrap
-    print "<link rel='stylesheet' type='text/css' href='/styles/default/css/bootstrap.min.css'>\n";
+    print "<link rel='stylesheet' type='text/css' href='/styles/default/css/adminlte.min.css'>\n";
 
     # Show message
     print "<body>
@@ -5390,7 +5391,7 @@ sub redirect {
     return 1;
   }
 
-  print "
+  my $redirect = "
     $message
 
     <!-- Emulate header -->
@@ -5399,6 +5400,13 @@ sub redirect {
     <!-- JavaScript fallback -->
     <script>setTimeout($wait, function(){ location.replace('$url') })</script>
   ";
+
+  if ($attr->{NO_PRINT}) {
+    $self->{OUTPUT} .= $redirect;
+  }
+  else {
+    print $redirect;
+  }
 
   return 1;
 }

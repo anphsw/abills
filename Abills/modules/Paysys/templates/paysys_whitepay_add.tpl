@@ -5,7 +5,7 @@
     </div>
     <div class='card-body pt-0'>
       <div class='text-center'>
-        <img src='/styles/default/img/paysys_logo/whitepay.png'
+        <img src='/styles/default/img/paysys_logo/whitepay-logo.png'
              style='max-width: 300px; max-height: 200px;'
              alt='whitepay'>
       </div>

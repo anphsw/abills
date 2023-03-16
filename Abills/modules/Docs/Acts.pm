@@ -9,7 +9,6 @@ use warnings FATAL => 'all';
 use Abills::Base qw(days_in_month mk_unique_value);
 
 our(
-  $html,
   %conf,
   $db,
   %lang,
@@ -23,6 +22,7 @@ our(
 my $Docs = Docs->new( $db, $admin, \%conf );
 my $Fees = Fees->new( $db, $admin, \%conf );
 my $Payments = Payments->new( $db, $admin, \%conf );
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 docs_acts_list($attr)
@@ -80,6 +80,23 @@ sub docs_acts_list{
 
   delete $LIST_PARAMS{LOGIN} if($user && $user->{UID});
 
+  my $docs_acts = get_function_index( 'docs_acts_list' );
+
+  # user portal
+  if ($FORM{sid} ){
+    require Companies;
+    Companies->import();
+    my $Company = Companies->new($db, $admin, \%conf);
+    my $company_index = get_function_index('form_companies');
+
+    my $company_admin = $Company->admins_list({UID => $user->{UID}, GET_ADMINS => 1, COLS_NAME => 1});
+
+    $FORM{COMPANY_ID} = $company_admin->[0]->{company_id};
+    $index = $company_index;
+    $FORM{subf} = $docs_acts;
+    $LIST_PARAMS{UID} = '';
+  }
+
   my $list = $Docs->acts_list( {
     ACT_ID       => '_SHOW',
     DATE         => '_SHOW',
@@ -97,18 +114,16 @@ sub docs_acts_list{
 
   _error_show($Docs);
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => $lang{ACTS},
-      title      => [ '#', $lang{DATE}, $lang{CUSTOMER}, $lang{SUM}, $lang{ADMIN}, $lang{PERIOD}, $lang{DATE}, '-' ],
-      qs         => $pages_qs,
-      pages      => $Docs->{TOTAL},
-      MENU       => "$lang{SEARCH}:index=" . ($index || 0)
-          ."&search_form=1&COMPANY_ID=" . ($LIST_PARAMS{COMPANY_ID} || '') . ":search",
-      ID         => 'DOCS_TAX_INVOICE'
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $lang{ACTS},
+    title      => [ '#', $lang{DATE}, $lang{CUSTOMER}, $lang{SUM}, $lang{ADMIN}, $lang{PERIOD}, $lang{DATE}, '-' ],
+    qs         => $pages_qs,
+    pages      => $Docs->{TOTAL},
+    MENU       => "$lang{SEARCH}:index=" . ($index || 0)
+         ."&search_form=1&COMPANY_ID=" . ($LIST_PARAMS{COMPANY_ID} || '') . ":search",
+    ID         => 'DOCS_TAX_INVOICE'
+  });
 
   if ( $FORM{subf} ){
     $pages_qs = '&subf=' . $FORM{subf};
@@ -118,9 +133,9 @@ sub docs_acts_list{
     $table->addrow(
       $line->{act_id},
       $line->{date},
-      $html->button( $line->{company_name} || $line->{fio}, "index=13&COMPANY_ID=$line->{company_id}" ),
+      (defined($FORM{sid})) ? $line->{company_name} : $html->button( $line->{company_name} || $line->{fio}, "index=13&COMPANY_ID=$line->{company_id}" ),
       $line->{sum},
-      $html->button( $line->{admin_name}, "index=11&UID=$line->{uid}" ),
+      (defined($FORM{sid})) ? $line->{admin_name} : $html->button( $line->{admin_name}, "index=11&UID=$line->{uid}" ),
       "$line->{start_period}/$line->{end_period}",
       $line->{created},
       (($conf{DOCS_CERT_CMD}) ? $html->button( $lang{SAVE_CONTROL_SUM},
@@ -137,14 +152,12 @@ sub docs_acts_list{
   }
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      rows       => [ [
-        #$html->button("$lang{PRINT} $lang{LIST}", "qindex=$index&print_list=1$pages_qs" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''), { BUTTON => 1, ex_params => 'target=new' }),
-        "$lang{TOTAL}:", $html->b( $Docs->{TOTAL} ), "$lang{SUM}:", $html->b( $Docs->{SUM} ), ] ]
-    }
-  );
+  $table = $html->table({
+    width      => '100%',
+    rows       => [ [
+      #$html->button("$lang{PRINT} $lang{LIST}", "qindex=$index&print_list=1$pages_qs" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''), { BUTTON => 1, ex_params => 'target=new' }),
+      "$lang{TOTAL}:", $html->b( $Docs->{TOTAL} ), "$lang{SUM}:", $html->b( $Docs->{SUM} ), ] ]
+  });
 
   print $table->show();
 
@@ -340,7 +353,7 @@ sub docs_acts_create {
   my @arr = ();
   my %act_information = (
     UID => $User_info->{UID},
-    COMPANY_ID => $Company->{COMPANY_ID}
+    COMPANY_ID => $Company->{COMPANY_ID} || $attr->{USER_INFO}->{COMPANY_ID}
   );
 
   foreach my $line ( @{$list} ){
@@ -453,8 +466,9 @@ sub docs_acts_print {
 
   my $Company = $attr->{COMPANY};
   my $doc_id = $attr->{DOC_ID};
+  my $uid = (defined($FORM{sid})) ? '' : $LIST_PARAMS{UID};
 
-  $Docs->act_info($doc_id, { UID => $LIST_PARAMS{UID} } );
+  $Docs->act_info($doc_id, { UID => $uid } );
 
   if ( $Docs->{TOTAL} > 0 ){
     $Docs->{TOTAL_SUM} //= 0;
@@ -518,8 +532,6 @@ sub docs_acts_print {
   }
   else{
     print "Content-Type: text/html\n\n";
-    #print $html->message('err', $lang{ERROR}, "[$Docs->{errno}] $err_strs{$Docs->{errno}}");
-    #print "ID: $FORM{print} [$Docs->{errno}] $err_strs{$Docs->{errno}}";
     _error_show($Docs, { MESSAGE => "ID: $doc_id"  });
   }
 

@@ -16,7 +16,7 @@
     </div>
   </div>
 
-  <div class='form-group row' style='%EXT_SEL_STYLE%'>
+  <div class='form-group row' style='%EXT_SEL_STYLE% %HIDE_BUILD%'>
     <label class='col-sm-3 col-md-4 col-form-label text-md-right LABEL-BUILD'>_{ADDRESS_BUILD}_:</label>
     <div class='col-sm-9 col-md-8'>
       <div class='addBuildMenu'>

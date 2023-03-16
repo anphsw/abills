@@ -123,22 +123,6 @@ sub add {
     });
 
     if (!$self->{errno}) {
-      if ($CONF->{payment_chg_activate} && $user->{ACTIVATE} ne '0000-00-00') {
-        if ($CONF->{payment_chg_activate} ne 2
-           || date_diff($user->{ACTIVATE}, $admin->{DATE}) > 30) {
-          #Skip if no user object
-          if (ref $user eq 'Users') {
-            $user->change($user->{UID}, {
-              UID      => $user->{UID},
-              ACTIVATE => $admin->{DATE},
-              EXPIRE   => '0000-00-00'
-            });
-          }
-          else {
-            print "Error: not user object\n";
-          }
-        }
-      }
       $self->{SUM} = $attr->{SUM};
 
       if (! $self->{db}->{TRANSACTION} && !$attr->{TRANSACTION}) {

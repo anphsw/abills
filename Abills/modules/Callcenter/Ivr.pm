@@ -120,7 +120,7 @@ sub get_menu {
     }
 
     #Load custom rules
-    eval { require Callcenter::Ivr_extra; };
+    #eval { require Callcenter::Ivr_extra; };
   }
   #Make default menu
   else {
@@ -323,13 +323,23 @@ sub message {
   my $self = shift;
   my ($text, $attr) = @_;
 
-  if ($attr->{AGI}) {
-    $self->{AGI} = $attr->{AGI};
-    $self->{AGI}->verbose("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-  }
 
+  # if ($attr->{AGI}) {
+  #   $self->{AGI} = $attr->{AGI};
+  #   $self->{AGI}->verbose("MESSAGE_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+  # }
+
+  # $self->{AGI}->verbose(">> TEXT: $text");
+  # $self->{AGI}->verbose(">> TEXT: $text");
+  # $self->{AGI}->verbose(">> TEXT: $text");
   $self->{AGI}->verbose(">> TEXT: $text");
-  $self->_verbose();
+
+  my $EXTENSION = $self->{AGI}->get_variable('EXTENSION') || q{};
+  my $EXTEN = $self->{AGI}->get_variable('EXTEN') || q{};
+
+  $self->{AGI}->verbose("!!! $text !!! EXTENSION: $EXTENSION EXTEN: $EXTEN");
+
+  #$self->_verbose($text, { AGI => $self->{AGI} });
   return 0;
   my $BASE_EXT = $self->{AGI}->get_variable('EXTEN') || q{};
   my $break_keys = $attr->{BREAK_KEYS} || $self->{BREAK_KEYS};
@@ -454,11 +464,14 @@ sub log {
 
 sub _verbose {
   my $self = shift;
+  my ($text, $attr) = @_;
+
+  $text //= q{};
 
   my Asterisk::AGI $agi = $self->{AGI};
 
   my %params = $agi->ReadParse();
-  $agi->verbose("AGI Environment Dump:");
+  $agi->verbose("/$text/  AGI Environment Dump:");
   foreach my $i (sort keys %params) {
     $agi->verbose("  $i = $params{$i}");
   }

@@ -9,12 +9,14 @@ CREATE TABLE IF NOT EXISTS `tasks_main` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `responsible` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `plan_date` DATE NOT NULL DEFAULT '0000-00-00',
+  `closed_date` DATE NOT NULL DEFAULT '0000-00-00',
   `control_date` DATE NOT NULL DEFAULT '0000-00-00',
   `additional_values` TEXT NOT NULL,
   `comments` TEXT NOT NULL,
   `msg_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `step_id` INT UNSIGNED NOT NULL DEFAULT 0,
   `lead_id` INT UNSIGNED NOT NULL DEFAULT 0,
+  `deal_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `aid` (`aid`)
 )

@@ -285,7 +285,7 @@ sub crm_lead_list {
   return $self->{list} if ($self->{TOTAL} < 1);
 
   $self->query(
-    "SELECT COUNT(*) AS total
+    "SELECT COUNT(DISTINCT cl.id) AS total
     FROM crm_leads as cl
     LEFT JOIN crm_leads_sources cls ON (cls.id = cl.source)
     LEFT JOIN crm_progressbar_steps cps ON (cps.step_number = cl.current_step)
@@ -428,7 +428,7 @@ sub crm_progressbar_step_list {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  push @WHERE_RULES, "(domain_id='$self->{admin}{DOMAIN_ID}')" if $self->{admin}{DOMAIN_ID};
+  push @WHERE_RULES, "(domain_id='$self->{admin}{DOMAIN_ID}')";
 
   my $WHERE = $self->search_former(
     $attr,
@@ -437,6 +437,7 @@ sub crm_progressbar_step_list {
       [ 'STEP_NUMBER', 'INT', 'step_number',  1 ],
       [ 'NAME',        'STR', 'name',         1 ],
       [ 'COLOR',       'STR', 'color',        1 ],
+      [ 'DEAL_STEP',   'INT', 'deal_step',    1 ],
       [ 'DESCRIPTION', 'STR', 'description',  1 ],
       [ 'DOMAIN_ID',   'INT', 'domain_id',    0 ],
     ],
@@ -711,6 +712,8 @@ sub progressbar_comment_list  {
       [ 'ID',            'INT',    'cpsc.id',                1 ],
       [ 'STEP_ID',       'INT',    'cpsc.step_id',           1 ],
       [ 'LEAD_ID',       'INT',    'cpsc.lead_id',           1 ],
+      [ 'DEAL_ID',       'INT',    'cpsc.deal_id',           1 ],
+      [ 'ACTION_ID',     'INT',    'cpsc.action_id',         1 ],
       [ 'MESSAGE',       'STR',    'cpsc.message',           1 ],
       [ 'DATE',          'DATE',   'cpsc.date',              1 ],
       [ 'ADMIN',         'STR',    'a.id as admin',          1 ],
@@ -718,6 +721,8 @@ sub progressbar_comment_list  {
       [ 'AID',           'INT',    'cpsc.aid',               1 ],
       [ 'LEAD_FIO',      'STR',    'cl.fio as lead_fio',     1 ],
       [ 'PLANNED_DATE',  'DATE',   'cpsc.planned_date',      1 ],
+      [ 'PLAN_TIME',     'STR',    'cpsc.plan_time',         1 ],
+      [ 'PLAN_INTERVAL', 'INT',    'cpsc.plan_interval',     1 ],
       [ 'DOMAIN_ID',     'INT',    'cpsc.domain_id',         0 ],
       [ 'PRIORITY',      'STR',    'cpsc.priority',          1 ],
       [ 'PIN',           'INT',    'cpsc.pin',               1 ],
@@ -1505,7 +1510,7 @@ sub crm_lead_points_list {
   $self->query("SELECT cl.*, cps.color,cps.name AS step, builds.coordx, builds.coordy, cc.name AS competitor,
       SUM(plpoints.coordx)/COUNT(plpoints.coordx) AS coordy_2,
       SUM(plpoints.coordy)/COUNT(plpoints.coordy) AS coordx_2,
-      cc.color AS competitor_color,
+      cc.color AS competitor_color, mp.created,
       CONCAT(districts.name, ',', streets.name, ',', builds.number) AS address_full
     FROM crm_leads as cl
     LEFT JOIN crm_competitors cc ON (cc.id = cl.competitor_id)
@@ -2701,42 +2706,41 @@ sub crm_open_line_admins {
 }
 
 #*******************************************************************
-=head2 crm_lead_fields($attr)
+=head2 crm_section_fields($attr)
 
 =cut
 #*******************************************************************
-sub crm_lead_fields {
+sub crm_section_fields {
   my $self = shift;
   my ($attr) = @_;
 
-  return $self if !$attr->{LEAD_ID} && !$attr->{PANEL};
+  return $self if !$attr->{SECTION_ID};
 
-  $self->query_del('crm_lead_fields', undef, { LEAD_ID => $attr->{LEAD_ID}, AID => $admin->{AID}, PANEL => $attr->{PANEL} });
+  $self->query_del('crm_section_fields', undef, { AID => $admin->{AID}, SECTION_ID => $attr->{SECTION_ID} });
 
   $attr->{AID} ||= $admin->{AID};
-  $self->query_add('crm_lead_fields', $attr);
+  $self->query_add('crm_section_fields', $attr);
 
   return $self;
 }
 
 #*******************************************************************
-=head2 crm_lead_fields_list($attr)
+=head2 crm_section_fields_list($attr)
 
 =cut
 #*******************************************************************
-sub crm_lead_fields_list {
+sub crm_section_fields_list {
   my $self = shift;
   my ($attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',      'INT', 'id',       1 ],
-    [ 'LEAD_ID', 'INT', 'lead_id',  1 ],
     [ 'AID',     'INT', 'aid',      1 ],
     [ 'FIELDS',  'STR', 'fields',   1 ]
   ], { WHERE => 1 });
 
   $self->query("SELECT $self->{SEARCH_FIELDS} id
-    FROM crm_lead_fields $WHERE;",
+    FROM crm_section_fields $WHERE;",
     undef, $attr
   );
 
@@ -2744,19 +2748,273 @@ sub crm_lead_fields_list {
 }
 
 #*******************************************************************
-=head2 function crm_lead_fields_info($attr)
+=head2 function crm_section_fields_info($attr)
 
 =cut
 #*******************************************************************
-sub crm_lead_fields_info {
+sub crm_section_fields_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("SELECT * FROM crm_lead_fields
-    WHERE lead_id = ? AND aid = ? AND panel = ?;", undef, { INFO => 1, Bind => [ $attr->{LEAD_ID}, $attr->{AID}, $attr->{PANEL} ] }
+  $self->query("SELECT * FROM crm_section_fields
+    WHERE aid = ? AND section_id = ?;", undef, { INFO => 1, Bind => [ $attr->{AID}, $attr->{SECTION_ID} ] }
   );
 
   return $self;
+}
+
+#**********************************************************
+=head2 crm_sections_add() - add lead sections
+
+=cut
+#**********************************************************
+sub crm_sections_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('crm_sections', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_sections_change()
+
+=cut
+#**********************************************************
+sub crm_sections_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'crm_sections',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_sections_del() - del lead sections
+
+=cut
+#**********************************************************
+sub crm_sections_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('crm_sections', $attr);
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 crm_sections_list($attr)
+
+=cut
+#*******************************************************************
+sub crm_sections_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{AID} ||= $self->{admin}{AID};
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',           'INT', 'id',           1 ],
+    [ 'AID',          'INT', 'aid',          1 ],
+    [ 'DEAL_SECTION', 'INT', 'deal_section', 1 ],
+    [ 'TITLE',        'STR', 'title',        1 ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
+    FROM crm_sections $WHERE;",
+    undef, $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 crm_deals_add() - add deal
+
+=cut
+#**********************************************************
+sub crm_deals_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('crm_deals', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_deals_change()
+
+=cut
+#**********************************************************
+sub crm_deals_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{ID} ||= $attr->{DEAL_ID};
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'crm_deals',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_deals_del()
+
+=cut
+#**********************************************************
+sub crm_deals_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('crm_deals', $attr);
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 crm_deals_list($attr)
+
+=cut
+#*******************************************************************
+sub crm_deals_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $GROUP_BY = 'cd.id';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',           'INT',  'cd.id',           1 ],
+    [ 'NAME',         'STR',  'cd.name',         1 ],
+    [ 'CURRENT_STEP', 'INT',  'cd.current_step', 1 ],
+    [ 'AID',          'INT',  'cd.aid',          1 ],
+    [ 'UID',          'INT',  'cd.uid',          1 ],
+    [ 'BEGIN_DATE',   'DATE', 'cd.begin_date',   1 ],
+    [ 'CLOSE_DATE',   'DATE', 'cd.close_date',   1 ],
+    [ 'DATE',         'DATE', 'cd.date',         1 ],
+    [ 'COMMENTS',     'STR',  'cd.comments',     1 ],
+  ], {
+    WHERE            => 1,
+    USERS_FIELDS_PRE => 1,
+    USE_USER_PI      => 1,
+  });
+
+  my $EXT_TABLE = $self->{EXT_TABLES} || '';
+  $self->query("SELECT cd.id, $self->{SEARCH_FIELDS} u.uid, cd.id AS deal_id
+    FROM users u
+    INNER JOIN crm_deals cd ON (u.uid=cd.uid)
+    $EXT_TABLE
+    $WHERE
+    GROUP BY $GROUP_BY
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#*******************************************************************
+=head2 function crm_deal_products_add($attr)
+
+=cut
+#*******************************************************************
+sub crm_deal_products_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('crm_deal_products', $attr);
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 function crm_deal_info($attr)
+
+=cut
+#*******************************************************************
+sub crm_deal_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT cd.*, GROUP_CONCAT(DISTINCT cdp.id SEPARATOR ';') AS products FROM crm_deals cd
+    LEFT JOIN crm_deal_products cdp ON (cd.id = cdp.deal_id)
+    WHERE cd.id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 function crm_deal_products_multi_add($attr)
+
+=cut
+#*******************************************************************
+sub crm_deal_products_multi_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self if !$attr->{DEAL_ID};
+
+  $self->query_del('crm_deal_products', undef, { DEAL_ID => $attr->{ID} }) if $attr->{REWRITE};
+
+  my @ids = split(/,\s?/, $attr->{IDS});
+
+  my @MULTI_QUERY = ();
+
+  foreach my $id (@ids) {
+    push @MULTI_QUERY, [ $attr->{DEAL_ID}, $attr->{'ORDER_' . $id} || '', $attr->{'COUNT_' . $id} || '',
+      $attr->{'SUM_' . $id} || '', $attr->{'FEES_TYPE_' . $id} || '' ];
+  }
+
+  $self->query("INSERT INTO crm_deal_products (`deal_id`, `name`, `count`, `sum`, `fees_type`) VALUES (?, ?, ?, ?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 crm_deal_products_list($attr)
+
+=cut
+#*******************************************************************
+sub crm_deal_products_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',        'INT',  'cdp.id',                1 ],
+    [ 'NAME',      'STR',  'cdp.name',              1 ],
+    [ 'DEAL_ID',   'INT',  'cdp.deal_id',           1 ],
+    [ 'SUM',       'INT',  'cdp.sum',               1 ],
+    [ 'COUNT',     'INT',  'cdp.count',             1 ],
+    [ 'FEES_TYPE', 'INT',  'cdp.fees_type',         1 ],
+    [ 'FEES_NAME', 'STR',  'ft.name AS fees_name',  1 ],
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} cdp.id
+    FROM crm_deal_products cdp
+    LEFT JOIN fees_types ft ON (ft.id = cdp.fees_type)
+    $WHERE;",
+    undef, $attr
+  );
+
+  return $self->{list} || [];
 }
 
 1

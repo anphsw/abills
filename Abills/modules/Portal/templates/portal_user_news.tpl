@@ -1,51 +1,37 @@
 <style type='text/css'>
+  .portal .carousel-caption p {
+    height: 52px;
+  }
 
-  .item {
-    text-align: center;
-    height: 300px !important;
+  .portal .carousel-caption h4 {
+    // Place your style here
+  }
+
+  .portal .carousel-item {
+    height: 256px !important;
   }
 
   .portal.carousel {
     width: 100%;
   }
 
-  .portal.slide {
-    background: rgb(168, 168, 167);
-    margin-bottom: 8px;
-    border-radius: 4px;
-  }
-
-  .portal .carousel-control.left, .portal .carousel-control.right {
-    background-image: none;
-    filter: none;
-  }
-
   .important {
     background: #f78345;
   }
 
-  .article-header {
-    color:black;
-    font-size: 16pt;
-    text-align: center;
-    margin-top: 50px;
+  .portal.slide {
+    background: rgb(168, 168, 167);
+    margin-bottom: 1rem;
+    border-radius: .25rem;
   }
 
-  .article-text {
-    height: 60px;
-    overflow: hidden;
-    overflow-y: hidden;
-    text-overflow: ellipsis;
-    text-align: center;
-  }
-  .carousel-item.with-picture {
-    background-size: cover;
-    filter: brightness(80%);
+  .portal .carousel-item img {
+    filter: brightness(40%);
+    border-radius: .25rem;
+    height: 256px !important;
+    object-fit: cover;
   }
 
-  .carousel-item.with-picture:hover {
-    filter: none;
-  }
 </style>
 
 

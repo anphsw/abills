@@ -8,7 +8,7 @@
         <p>_{IN_STORAGE}_</p>
       </div>
       <div class='icon'>
-        <i class='ion ion-bag'></i>
+        <i class='fas fa-shopping-bag'></i>
       </div>
       <a href='%SHOW_IN_STORAGE%' class='small-box-footer'>_{SHOW}_<i class='fa fa-arrow-circle-right'></i></a>
     </div>
@@ -23,7 +23,7 @@
         <p>_{INSTALLED}_</p>
       </div>
       <div class='icon'>
-        <i class='ion ion-bag'></i>
+        <i class='fas fa-shopping-bag'></i>
       </div>
       <a href='%SHOW_INSTALLED%' class='small-box-footer'>_{SHOW}_<i class='fa fa-arrow-circle-right'></i></a>
     </div>
@@ -38,7 +38,7 @@
         <p>_{INNER_USE}_</p>
       </div>
       <div class='icon'>
-        <i class='ion ion-bag'></i>
+        <i class='fas fa-shopping-bag'></i>
       </div>
       <a href='%SHOW_INNER_USE%' class='small-box-footer'>_{SHOW}_<i class='fa fa-arrow-circle-right'></i></a>
     </div>
@@ -55,7 +55,7 @@
         <p>_{DISCARDED}_</p>
       </div>
       <div class='icon'>
-        <i class='ion ion-bag'></i>
+        <i class='fas fa-shopping-bag'></i>
       </div>
       <a href='%SHOW_DISCARDED%' class='small-box-footer'>_{SHOW}_ <i class='fa fa-arrow-circle-right'></i></a>
     </div>
@@ -70,7 +70,7 @@
         <p>_{RESERVED}_</p>
       </div>
       <div class='icon'>
-        <i class='ion ion-bag'></i>
+        <i class='fas fa-shopping-bag'></i>
       </div>
       <a href='%SHOW_RESERVED%' class='small-box-footer'>_{SHOW}_<i class='fa fa-arrow-circle-right'></i></a>
     </div>
@@ -88,7 +88,7 @@
         <p>_{ACCOUNTABILITY}_</p>
       </div>
       <div class='icon'>
-        <i class='ion ion-bag'></i>
+        <i class='fas fa-shopping-bag'></i>
       </div>
       <a href='%SHOW_ACCOUNTABILITY%' class='small-box-footer'>_{SHOW}_<i class='fa fa-arrow-circle-right'></i></a>
     </div>

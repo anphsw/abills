@@ -170,7 +170,7 @@ sub _auto_reg {
           }
         }
 
-        my $internet_list = {};
+        my $internet_list = [];
         my $internet_list1 = $Internet->user_list({
           INTERNET_ACTIVATE=> '_SHOW',
           INTERNET_STATUS  => '0',

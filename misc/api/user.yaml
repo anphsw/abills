@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Abills user API
-  version: 0.0.58
-  description: "Last modified 2023-01-24"
+  version: 0.0.61
+  description: "Last modified 2023-02-21"
   contact:
     name: Have a question? Support
     url: https://support.abills.net.ua/
@@ -129,6 +129,10 @@ paths:
     $ref: "./user/paysys/paths/pay.yaml"
   /user/paysys/transaction/status:
     $ref: "./user/paysys/paths/transactionInfo.yaml"
+  /user/paysys/transaction/status/{id}:
+    $ref: "./user/paysys/paths/transactionInfoNew.yaml"
+  /user/paysys/applePay/session:
+    $ref: "./user/paysys/paths/appleSession.yaml"
 
   # contacts paths
 
@@ -215,6 +219,8 @@ paths:
     $ref: "./user/portal/paths/portal.yaml"
   /user/portal/news:
     $ref: "./user/portal/paths/news.yaml"
+  /user/portal/news/{id}:
+    $ref: "./user/portal/paths/newsId.yaml"
 
   # referral paths
 

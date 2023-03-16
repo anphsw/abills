@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS `cablecat_well_types` (
   `icon`     VARCHAR(120) NOT NULL DEFAULT 'well_green',
   `comments` TEXT
 )
-  CHARSET = 'utf8';
+  CHARSET = 'utf8'
+  COMMENT = 'Types of wells';
 
 REPLACE INTO `cablecat_well_types` (`id`, `name`) VALUES
   (1, '$lang{WELL}'),
@@ -73,6 +74,7 @@ CREATE TABLE IF NOT EXISTS `cablecat_wells` (
   `point_id`          INT(11) UNSIGNED REFERENCES `maps_points` (`id`) ON DELETE SET NULL,
   `type_id`           SMALLINT(6) UNSIGNED DEFAULT 1 REFERENCES `cablecat_well_types` (`id`) ON DELETE RESTRICT,
   `connecter_type_id` SMALLINT(6) UNSIGNED REFERENCES `cablecat_connecter_types` (`id`) ON DELETE RESTRICT,
+  `picture`           VARCHAR(250) NOT NULL  DEFAULT '',
   UNIQUE `_cablecat_well_name`(`name`)
   )
   CHARSET = 'utf8'

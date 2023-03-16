@@ -109,5 +109,18 @@ $lang{CRM_CHANGE} = 'изменить';
 $lang{CRM_CANCEL} = 'отменить';
 $lang{CRM_CHOOSE_FIELDS} = 'выбрать поля';
 $lang{CRM_NOT_SPECIFIED} = 'Не указано';
+$lang{CRM_DELETE_SECTION} = 'удалить';
+$lang{CRM_CREATE_NEW_SECTION} = 'создать раздел';
+$lang{CRM_NEW_SECTION} = 'Новый раздел';
+$lang{CRM_DELETE_SECTION} = 'Удалить раздел';
+$lang{CONFIRM_DELETE_SECTION} = 'Вы действительно хотите удалить этот раздел?';
+$lang{ALL_DATA} = 'все данные';
+$lang{DEALS} = 'Сделки';
+$lang{DEAL} = 'Сделка';
+$lang{STEPS_FOR_DEALS} = 'Шаги для сделок';
+$lang{CRM_BEGIN_DATE} = 'Дата начала';
+$lang{CRM_CLOSE_DATE} = 'Дата окончания';
+$lang{CRM_PRODUCTS} = 'Товар';
+$lang{CRM_REGISTRATION_DATE} = 'Дата регистрации';
 
 1

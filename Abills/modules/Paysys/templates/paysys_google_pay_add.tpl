@@ -71,7 +71,7 @@
         }
       })
       .catch(err => {
-        console.error(err);
+        // console.error(err);
       });
   }
 
@@ -126,7 +126,7 @@
         }
       })
       .catch(err => {
-        console.error(err);
+        // console.error(err);
       });
   }
 
@@ -143,7 +143,7 @@
     try {
       return await (
         await fetch(
-          `${window['BASE_URL']}/api.cgi/user/${UID}/paysys/pay/`,
+          `${window['BASE_URL']}/api.cgi/user/paysys/pay/`,
           {
             method: 'POST',
             headers: {
@@ -156,7 +156,7 @@
         )
       ).json();
     } catch (e) {
-      console.log(e);
+      // console.log(e);
     }
   }
 </script>

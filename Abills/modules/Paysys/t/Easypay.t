@@ -26,7 +26,7 @@ if ($debug > 3) {
 
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || q{};
 my $sign = q{};
-my $service_id = q{2431};
+my $service_id = $conf{PAYSYS_EASYPAY_SERVICE_ID} || q{2431};
 my $order_id = int(rand(1000000000));
 my $date = $main::DATE . 'T' . $main::TIME;
 

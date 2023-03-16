@@ -16,17 +16,16 @@
   <title>%TITLE%</title>
   <!-- CSS -->
 
-  <link rel='stylesheet' type='text/css' href='/styles/default/css/select2.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/select2.css'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/adminlte.min.css'>
 
   <!-- Theme style -->
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/pace/pace.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datepicker/datepicker3.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default/css/QBInfo.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/QBInfo.css'>
 
-  <!-- Ionicons -->
-  <link rel='stylesheet' type='text/css' href='/styles/default/css/font-awesome.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default/css/ionicons.min.css'>
+  <!-- Font Awesome -->
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/font-awesome.min.css'>
   <!-- Pace style -->
 
   <!-- DataTables -->
@@ -34,37 +33,37 @@
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/timepicker/bootstrap-timepicker.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/daterangepicker/daterangepicker.css'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default/css/style.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/style.css'>
 
   <!-- Bootstrap -->
-  <script src='/styles/default/js/jquery.min.js'></script>
-  <script src='/styles/default/js/bootstrap.bundle.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/jquery.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/bootstrap.bundle.min.js'></script>
   <script src='/styles/%HTML_STYLE%/js/adminlte.min.js'></script>
 
   <!-- ECMA6 functions -->
-  <script src='/styles/default/js/polyfill.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/polyfill.js'></script>
 
   <!-- Cookies and LocalStorage from JavaScript -->
-  <script src='/styles/default/js/js.cookies.js'></script>
-  <script src='/styles/default/js/permanent_data.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/js.cookies.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/permanent_data.js'></script>
 
   <!-- Navigation bar saving show/hide state -->
-  <script  src='/styles/default/js/navBarCollapse.js'></script>
+  <script  src='/styles/%HTML_STYLE%/js/navBarCollapse.js'></script>
 
   <!--Javascript template engine-->
-  <script src='/styles/default/js/mustache.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/mustache.min.js'></script>
 
-  <script  src='/styles/default/js/QBinfo.js'></script>
+  <script  src='/styles/%HTML_STYLE%/js/QBinfo.js'></script>
 
   <!-- Modal popup windows management -->
-  <script src='/styles/default/js/modals.js?v=76.1.9'></script>
+  <script src='/styles/%HTML_STYLE%/js/modals.js'></script>
 
   <!-- AJAX Search scripts -->
-  <script src='/styles/default/js/search.js?v=0.76.34'></script>
+  <script src='/styles/%HTML_STYLE%/js/search.js'></script>
 
-  <script src='/styles/default/js/messageChecker.js?v=0.77.26'></script>
+  <script src='/styles/%HTML_STYLE%/js/messageChecker.js'></script>
 
-  <script src='/styles/default/js/msgs/jquery-ui.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/jquery-ui.min.js'></script>
 
   <!-- date-range-picker -->
   <script src='/styles/%HTML_STYLE%/plugins/moment/moment.min.js'></script>
@@ -77,11 +76,11 @@
   <script src='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.js'></script>
 
   <script src='/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>
-  <script src='/styles/default/js/select2.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/select2.min.js'></script>
 
   <!-- functions.js -->
-  <script src='/styles/default/js/functions.js'></script>
-  <script src='/styles/default/js/functions-client.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/functions.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/functions-client.js'></script>
 
   <script>
     window['IS_ADMIN_INTERFACE'] = false;

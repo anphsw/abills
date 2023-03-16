@@ -80,6 +80,11 @@
 
     function createAddressElement(type, value = '') {
       type = type || 2;
+
+      if (type==2){
+        value = "%PHONE_VALUE%";
+      }
+
       var oldI = i;
       jQuery('#blank_element').clone(true).attr('id', 'field' + i)
         .removeClass('d-none').appendTo('#additional_fields_container');

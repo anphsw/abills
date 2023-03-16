@@ -129,8 +129,8 @@ sub admin_routes {
         );
 
         my %PARAMS = (
-          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 100000),
-          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 5)
+          PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 50,
+          SORT      => $query_params->{SORT} ? $query_params->{SORT} : 5,
         );
         foreach my $param (@allowed_params) {
           next if (!defined($query_params->{$param}));

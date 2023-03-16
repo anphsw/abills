@@ -11,7 +11,7 @@
     </div>
 
     <div class='text-center m-2'>
-      <img src='/styles/default/img/paysys_logo/privat24.png'
+      <img src='/styles/default/img/paysys_logo/privat_terminal-logo.png'
            style='max-width: 320px; max-height: 200px;'
            alt='P24'>
     </div>

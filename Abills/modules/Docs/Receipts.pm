@@ -231,24 +231,20 @@ sub docs_receipt{
       $FORM{FROM_DATE} = "$Y-01-01";
     }
 
-    my $list = $Docs->docs_receipt_new(
-      {
-        FROM_DATE => $FORM{FROM_DATE} || $html->{FROM_DATE},
-        TO_DATE   => $FORM{TO_DATE} || $html->{TO_DATE} || $DATE,
-        PAGE_ROWS => 500,
-        UID       => $users->{UID}
-      }
-    );
+    my $list = $Docs->docs_receipt_new({
+      FROM_DATE => $FORM{FROM_DATE} || $html->{FROM_DATE},
+      TO_DATE   => $FORM{TO_DATE} || $html->{TO_DATE} || $DATE,
+      PAGE_ROWS => 500,
+      UID       => $users->{UID}
+    });
 
-    my $table = $html->table(
-      {
-        width       => '100%',
-        caption     => $lang{ORDERS},
-        title_plain => [ '#', "$lang{LOGIN}", "$lang{DATE}", "$lang{DESCRIBE}", $lang{SUM} ],
-        pages       => $Docs->{TOTAL},
-        ID          => 'DOCS_INVOCE_ORDERS',
-      }
-    );
+    my $table = $html->table({
+      width       => '100%',
+      caption     => $lang{ORDERS},
+      title_plain => [ '#', "$lang{LOGIN}", "$lang{DATE}", "$lang{DESCRIBE}", $lang{SUM} ],
+      pages       => $Docs->{TOTAL},
+      ID          => 'DOCS_INVOCE_ORDERS',
+    });
 
     if ( !$users->{DEPOSIT} ){
       $users->{DEPOSIT} = 0;
@@ -700,12 +696,6 @@ sub docs_receipt_print {
     $users = $user;
   }
 
-  if(! $Docs->{CUSTOMER} || $Docs->{CUSTOMER} eq '-') {
-    $users->info($uid);
-    $users->pi( { UID => $uid } );
-    $Docs->{CUSTOMER} = $users->{FIO} || '-'
-  }
-
   $Docs->{TOTAL_SUM} = 0.00;
   $Docs->{PAYMENT_METHOD_ID} = $Docs->{PAYMENT_METHOD};
   $Docs->{PAYMENT_METHOD} = $PAYMENT_METHODS->{ $Docs->{PAYMENT_METHOD_ID} };
@@ -766,20 +756,21 @@ sub docs_receipt_print {
   }
 
   if ( $Docs->{PAYMENT_ID} ){
-    my $list = $Docs->invoices_list( { PAYMENT_ID => $Docs->{PAYMENT_ID}, COLS_NAME => 1 } );
-    if ( $Docs->{TOTAL} > 0 ){
-      $Docs->invoice_info( $list->[0]->{id} );
-    }
-    $Docs->{INVOICE_ID} = $Docs->{INVOICE_ID};
+    my $invoice_list = $Docs->invoices_list( {
+      PAYMENT_ID => $Docs->{PAYMENT_ID} || '-1',
+      COLS_NAME => 1
+    } );
 
-    $list = $Payments->list({
+    $Docs->{INVOICE_ID} = $invoice_list->[0]->{id};
+
+    my $payment_list = $Payments->list({
       ID        => $Docs->{PAYMENT_ID},
       METHOD    => '_SHOW',
       COLS_NAME => 1
     });
 
     if ( $Payments->{TOTAL} > 0 ){
-      $Docs->{PAYMENT_METHOD_ID} = $list->[0]->{method};
+      $Docs->{PAYMENT_METHOD_ID} = $payment_list->[0]->{method};
 
       if ( $conf{DOCS_PAYMENT_METHODS} ){
         my %methods_hash = %{ cfg2hash( $conf{DOCS_PAYMENT_METHODS} ) };
@@ -795,6 +786,12 @@ sub docs_receipt_print {
         $Docs->{PAYMENT_METHOD} = $PAYMENT_METHODS->{ $Docs->{PAYMENT_METHOD_ID} };
       }
     }
+  }
+
+  if(! $Docs->{CUSTOMER} || $Docs->{CUSTOMER} eq '-') {
+    $users->info($uid);
+    $users->pi( { UID => $uid } );
+    $Docs->{CUSTOMER} = $users->{FIO} || '-';
   }
 
   if ( $conf{DOCS_VAT_INCLUDE} ){
@@ -820,6 +817,7 @@ sub docs_receipt_print {
     $FORM{pdf} = $conf{DOCS_PDF_PRINT};
     $attr->{SEND_EMAIL} = 1;
   }
+
   return docs_print( $FORM{termo_printer_tpl} ? 'invoice_termo_printer' : 'receipt', { %{$Docs}, %{$attr} } );
 }
 

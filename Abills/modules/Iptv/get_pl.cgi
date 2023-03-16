@@ -23,7 +23,7 @@ our (
 use Abills::Init qw/$db $admin %conf/;
 use Abills::Defs;
 use Abills::HTML;
-use Abills::Base qw(_bp json_former);
+use Abills::Base qw(_bp json_former check_ip);
 use POSIX qw(strftime);
 use Log qw(log_add log_print);
 use Iptv;

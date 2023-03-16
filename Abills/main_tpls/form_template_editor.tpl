@@ -85,7 +85,7 @@
       var preview      = previewFrame.contentDocument || previewFrame.contentWindow.document;
 
       var bootstrapStyles =
-              '<link href=/styles/default/css/bootstrap.min.css rel=stylesheet>'
+              '<link href=/styles/default/css/adminlte.min.css rel=stylesheet>'
               + '<link href=/styles/default/css/style.css rel=stylesheet>';
 
       preview.open();

@@ -9,13 +9,14 @@ package Abills::Auth::Google;
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw(urlencode mk_unique_value show_hash json_former);
+use Abills::Base qw(urlencode mk_unique_value show_hash json_former in_array);
 use Abills::Fetcher qw(web_request);
 
 my $auth_endpoint_url   = 'https://accounts.google.com/o/oauth2/v2/auth';
 my $access_token_url    = 'https://www.googleapis.com/oauth2/v4/token';
 my $get_me_url          = 'https://www.googleapis.com/userinfo/v2/me';
 my $get_public_info_url = 'https://people.googleapis.com/v1/people/';
+my $validate_token_url  = 'https://oauth2.googleapis.com/tokeninfo';
 
 #**********************************************************
 =head2 check_access($attr)
@@ -61,15 +62,8 @@ sub check_access {
   else {
     my $token = $self->get_token($attr->{code});
 
-    if (defined($token)) {
-      my $user_info = $self->get_info({ TOKEN => $token });
-
-      if ($user_info->{name}) {
-        $self->{USER_ID}     = 'google, ' . $user_info->{id};
-        $self->{USER_NAME}   = $user_info->{name};
-        $self->{CHECK_FIELD} = '_GOOGLE';
-        $self->{USER_EMAIL}  = $user_info->{email} || '';
-      }
+    if ($token && $token->{access_token}) {
+      $self->validate_token({ TOKEN => $token->{access_token} });
     }
     else {
       print "Content-Type: text/html\n\n";
@@ -206,64 +200,64 @@ sub validate_token {
   my $self = shift;
   my ($attr) = @_;
 
+  # validate user access token is belongs to us
   my $token = $attr->{TOKEN};
-  my $url   = "$get_me_url?access_token=" . ($token || q{});
-
-  # get user info with user token
-  my $result = web_request($url, {
+  my $url   = "$validate_token_url?access_token=" . ($token || q{});
+  my $validation_result = web_request($url, {
     GET         => 1,
     JSON_RETURN => 1,
     JSON_UTF8   => 1,
   });
 
-  return 0 unless $result;
+  return 0 unless $validation_result;
 
-  # check is present error
-  if ($result->{error} || $result->{errno}) {
-    if ($result->{error}) {
-      $self->{errno}  = $result->{error}->{code};
-      $self->{errstr} = $result->{error}->{message};
+  # Accept tokens from few services
+  my $ids = $self->{conf}->{AUTH_GOOGLE_IDS} || $self->{conf}->{AUTH_GOOGLE_ID} || '';
+  my @ids = split(',\s?', $ids);
+
+  if ($validation_result->{error} || $validation_result->{errno}) {
+    if ($validation_result->{error}) {
+      $self->{errno}  = $validation_result->{error}->{code};
+      $self->{errstr} = $validation_result->{error}->{message};
     }
     else {
       $self->{errno}  = $self->{errno};
       $self->{errstr} = 'Unknown error';
     }
   }
-  elsif ($result->{name}) {
-
-    # no error we can check is really user present in our system
-    my $api_key    = $self->{conf}->{GOOGLE_API_KEY};
-    my $check_url = $get_public_info_url . $result->{id} . "?personFields=photos,names,emailAddresses&key=$api_key";
-
-    my $check_result = web_request($check_url, {
-      GET         => 1,
-      JSON_RETURN => 1,
-      JSON_UTF8   => 1,
-    });
-
-    return 0 unless $check_result;
-
-    # check is present error
-    if ($check_result->{error} || $check_result->{errno}) {
-      if ($result->{error}) {
-        $self->{errno}  = $result->{error}->{code};
-        $self->{errstr} = $result->{error}->{message};
-      }
-      else {
-        $self->{errno}  = $self->{errno};
-        $self->{errstr} = 'Unknown error';
-      }
-    }
-    else {
-      # no error return user google id for look for
-      $self->{USER_ID}     = 'google, ' . $result->{id};
-      $self->{USER_NAME}   = $result->{name};
-      $self->{CHECK_FIELD} = '_GOOGLE';
-      $self->{USER_EMAIL}  = $result->{email} || '';
-    }
+  elsif (!$validation_result->{aud} || !in_array($validation_result->{aud}, \@ids)) {
+    $self->{errno}  = 903;
+    $self->{errstr} = 'Unknown token';
   }
 
-  $self->{result} = $result;
+  return if ($self->{errno});
+
+  my $me_url   = "$get_me_url?access_token=" . ($token || q{});
+
+  # get user info with user token
+  my $result = web_request($me_url, {
+    GET         => 1,
+    JSON_RETURN => 1,
+    JSON_UTF8   => 1,
+  });
+
+  if ($result->{error} || $result->{errno}) {
+    if ($result->{error}) {
+      $self->{errno}  = $result->{error};
+      $self->{errstr} = $result->{error_description};
+    }
+    else {
+      $self->{errno}  = $self->{errno};
+      $self->{errstr} = 'Unknown error';
+    }
+  }
+  else {
+    # no error return user google id for look for
+    $self->{USER_ID}     = 'google, ' . $result->{id};
+    $self->{USER_NAME}   = $result->{name} || '';
+    $self->{CHECK_FIELD} = '_GOOGLE';
+    $self->{USER_EMAIL}  = $result->{email} || '';
+  }
 
   return $result;
 }

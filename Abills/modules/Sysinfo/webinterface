@@ -11,9 +11,11 @@ use warnings FATAL => 'all';
 
 our (%conf, $db, $admin, %permissions);
 
-require Sysinfo::Reports;
+if ($permissions{3}) {
+  require Sysinfo::Reports;
+}
 
-if ($permissions{5}){
+if ($permissions{4}){
   require Sysinfo::Configure;
 }
 

@@ -292,11 +292,11 @@ sub report_balance_by_status {
 }
 
 #*******************************************************************
-=head1 switch_report ($attr) - show list of switches with quantity of all users, active and inactive users
+=head1 report_switch () - show list of switches with quantity of all users, active and inactive users
 
 =cut
 #*******************************************************************
-sub switch_report {
+sub report_switch {
 
   my $switch_list = $Users->switch_list({
     ALL       => 1,
@@ -360,4 +360,58 @@ sub switch_report {
 
   return 1;
 }
+
+#*******************************************************************
+=head1 report_users_disabled () - show list with reasons of disabled users
+
+=cut
+#*******************************************************************
+sub report_users_disabled {
+
+  my $disabled_users_list = $Users->report_users_disabled({
+    COLS_NAME    => 1,
+    DISABLE      => '_SHOW',
+    DISABLE_DATE => '_SHOW',
+    SORT         => $FORM{sort},
+    DESC         => $FORM{desc}
+  });
+
+
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{REPORT_REASON_USERS_DISABLED},
+    border  => 1,
+    title   => [ $lang{MONTH}, $lang{DISABLED}, $lang{NOT_ACTIVE}, $lang{HOLD_UP}, "$lang{DISABLE} $lang{NON_PAYMENT}", $lang{ERR_SMALL_DEPOSIT}],
+    ID      => 'USER_DISABLED_REPORT',
+    EXPORT  => 1,
+  });
+
+  foreach my $reason (@$disabled_users_list) {
+    my $disable = $reason->{disable} || 0;
+    my $not_active = $reason->{not_active} || 0;
+    my $hold_up = $reason->{hold_up} || 0;
+    my $non_payment = $reason->{non_payment} || 0;
+    my $err_small_deposit = $reason->{err_small_deposit} || 0;
+
+    my $quantity_per_month = $disable + $not_active + $hold_up + $non_payment + $err_small_deposit;
+    if ($quantity_per_month == 0){
+      $html->message('danger', $lang{ERR_NO_DATA});
+      return;
+    }
+
+    $table->addrow(
+        $reason->{disable_date},
+        sprintf("%.0f",$disable/$quantity_per_month * 100).'% ('.$disable.')',
+        sprintf("%.0f",$not_active/$quantity_per_month * 100).'% ('.$not_active.')',
+        sprintf("%.0f",$hold_up/$quantity_per_month * 100).'% ('.$hold_up.')',
+        sprintf("%.0f",$non_payment/$quantity_per_month * 100).'% ('.$non_payment.')',
+        sprintf("%.0f",$err_small_deposit/$quantity_per_month * 100).'% ('.$err_small_deposit.')',
+    );
+  }
+
+  print $table->show();
+
+  return 1;
+}
+
 1;

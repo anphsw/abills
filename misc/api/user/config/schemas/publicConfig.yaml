@@ -3,15 +3,21 @@ properties:
   login:
     type: object
     properties:
+      maxLength:
+        type: number
+        example: 20
       regx:
         type: string
-        example: ^[a-z0-9_][a-z0-9_-]*$
+        example: ^[a-z0-9:_][a-z0-9:_-]*$
   password:
     type: object
     properties:
       length:
         type: number
-        example: 6
+        example: 7
+      symbols:
+        type: number
+        example: 1234567890
   passwordRecovery:
     type: number
     example: 1
@@ -21,12 +27,18 @@ properties:
   registration:
     type: object
     properties:
-      internet:
+      facebook:
+        type: number
+        example: 1
+      google:
         type: number
         example: 1
   socialAuth:
     type: object
     properties:
+      facebook:
+        type: number
+        example: 1
       google:
         type: number
         example: 1

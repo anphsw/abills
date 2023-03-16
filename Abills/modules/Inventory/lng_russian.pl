@@ -1,4 +1,4 @@
-$lang{FIELDS_FOR_NAME_ARE_REQUIRED} = 'Поле ' . $lang{NAME} . ' обязательно для заполнения ';
+$lang{FIELDS_FOR_NAME_ARE_REQUIRED} = 'Поле название - обязательно для заполнения';
 $lang{FIELDS_FOR_HOSTNAME_ARE_REQUIRED} = 'Поле \'Имя Сервера\' обязательно для заполнения';
 $lang{HOSTNAME} = 'Имя Сервера';
 $lang{INTEGRATION_DATE} = 'Дата Интеграции';
@@ -10,3 +10,5 @@ $lang{ACCESS_INFO} = 'Данные доступа';
 $lang{WEB_ACCESS} = 'Веб-доступ';
 $lang{CUR_VERSION} = 'Версия';
 $lang{FIX_VERSION} = 'Исправлено в';
+
+1;

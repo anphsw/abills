@@ -65,7 +65,15 @@ sub youtv_sync {
     my @users_id = ();
     map push(@users_id, $_->{subscribe_id}), @{$users};
 
-    $Service_api->renew_subscription(\@users_id);
+    my @subarrays = ();
+    while (my @subarray = splice @users_id, 0, 200) {
+      push(@subarrays, \@subarray);
+    }
+
+    foreach my $subarray_users (@subarrays) {
+      $Service_api->renew_subscription($subarray_users);
+      sleep 1;
+    }
   }
 }
 

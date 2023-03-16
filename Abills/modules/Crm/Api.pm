@@ -118,7 +118,7 @@ sub admin_routes {
   return [
     {
       method      => 'POST',
-      path        => '/crm/lead/',
+      path        => '/crm/leads/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
@@ -134,6 +134,16 @@ sub admin_routes {
         }
 
         $Crm->crm_lead_add($query_params);
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/crm/leads/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_lead_change({ ID => $path_params->{id}, %{$query_params} });
       },
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
@@ -207,17 +217,77 @@ sub admin_routes {
           return { affected => $Crm->{AID} eq $query_params->{AID} ? 1 : undef } if $Crm->{AID};
         }
 
-        $Crm->crm_dialogues_change({ ID => $path_params->{id}, %{$query_params} });
+        $Crm->crm_dialogues_change({ %{$query_params}, ID => $path_params->{id} });
       },
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
     {
       method      => 'PUT',
-      path        => '/crm/lead/:id/comment/:comment_id/',
+      path        => '/crm/progressbar/messages/:id/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        return $Crm->progressbar_comment_change({ ID => $path_params->{comment_id}, %{$query_params} });
+        return $Crm->progressbar_comment_change({ %{$query_params}, ID => $path_params->{id} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'POST',
+      path        => '/crm/sections/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_sections_add({ %{$query_params}, AID => $self->{admin}{AID} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/crm/sections/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_sections_change({ %{$query_params}, ID => $path_params->{id}, AID => $self->{admin}{AID} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/crm/sections/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_sections_del({ ID => $path_params->{id} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/crm/deals/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_deals_change({ %{$query_params}, ID => $path_params->{id} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'POST',
+      path        => '/crm/progressbar/messages/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->progressbar_comment_add({ %{$query_params}, DOMAIN_ID => $self->{admin}{DOMAIN_ID} || 0 });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/crm/progressbar/messages/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->progressbar_comment_delete({ ID => $path_params->{id} });
       },
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },

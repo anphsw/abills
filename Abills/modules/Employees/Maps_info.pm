@@ -150,6 +150,8 @@ sub maps_works {
         SVG          => $type,
         INFOWINDOW   => $marker_info,
         NAME         => $work->{work_id},
+        WORK_NAME    => $work->{name},
+        CREATED      => $work->{date},
         DISABLE_EDIT => 1
       },
       LAYER_ID  => 38,
@@ -170,6 +172,36 @@ sub maps_works {
   }
 
   return $export_string;
+}
+
+#**********************************************************
+=head2 maps_report_info()
+
+=cut
+#**********************************************************
+sub maps_report_info {
+  my $self = shift;
+  my $layer_id = shift;
+
+  return '' if !$layer_id;
+
+  my $works = $self->maps_works({ RETURN_OBJECTS => 1 });
+
+  my $report_table = $html->table({
+    width       => '100%',
+    caption     => $lang->{WORK},
+    title_plain => [ '#', $lang->{NAME}, $lang->{CREATED}, $lang->{LOCATION} ],
+    DATA_TABLE  => 1
+  });
+
+  foreach my $work (@{$works}) {
+    my $work_info = $work->{MARKER};
+    my $location_btn = $Auxiliary->maps_show_object_button(39, $work_info->{OBJECT_ID});
+
+    $report_table->addrow($work_info->{ID}, $work_info->{NAME}, $work_info->{CREATED}, $location_btn);
+  }
+
+  return $report_table->show();
 }
 
 #**********************************************************

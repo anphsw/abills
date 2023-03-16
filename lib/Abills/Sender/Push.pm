@@ -8,6 +8,8 @@ package Abills::Sender::Push;
 use strict;
 use warnings;
 
+#TODO: migrate to HTTP1 when will be algorithm of OAUTH2 google algorithm for admin console
+
 use parent 'Abills::Sender::Plugin';
 
 use Contacts;
@@ -61,14 +63,50 @@ sub send_message {
   my $self = shift;
   my ($attr) = @_;
 
+  my $receiver_type = ($attr->{AID})
+    ? 'AID'
+    : (($attr->{UID}) ? 'UID' : 0);
+
+  my $contacts = $self->{Contacts}->push_contacts_list({
+    AID       => ($receiver_type eq 'AID') ? $attr->{AID} : '_SHOW',
+    UID       => ($receiver_type eq 'UID') ? $attr->{UID} : '_SHOW',
+    VALUE     => $attr->{CONTACT}->{value},
+    TYPE_ID   => '_SHOW',
+    BADGES    => '_SHOW',
+    PAGE_ROWS => 1
+  });
+
+  my $title = $attr->{TITLE} || $attr->{SUBJECT} || '';
+  my $action = $title =~ /(?<=#)\d+/g;
+
   my %req_params = (
     to       => $attr->{CONTACT}->{value},
     data     => {
-      body  => $attr->{MESSAGE},
-      title => $attr->{TITLE} || $attr->{SUBJECT} || '',
+      body   => $attr->{MESSAGE},
+      title  => $title,
+      action => $action ? 'message' : 'default',
     },
-    priority => 'high'
+    priority => 'high',
   );
+
+  # ios block
+  if (scalar @$contacts && $contacts->[0]->{type_id} == 3) {
+    my $badges = $contacts->[0]->{badges} + 1;
+
+    $self->{Contacts}->push_contacts_change({
+      ID     => $contacts->[0]->{id} || '--',
+      BADGES => $badges
+    });
+
+    $req_params{notification} = {
+      body         => $attr->{MESSAGE},
+      title        => $title,
+      badge        => $badges,
+      click_action => $action ? 'message' : 'default'
+    };
+
+    $req_params{content_available} = 'true';
+  }
 
   my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
   my $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images" : '';
@@ -95,29 +133,20 @@ sub send_message {
     JSON_RETURN => 1,
     METHOD      => 'POST',
     JSON_FORMER => {
-      CONTROL_CHARACTERS => 1
+      CONTROL_CHARACTERS => 1,
+      BOOL_VALUES        => 1,
     }
   });
 
-  my $receiver_type = ($attr->{AID})
-    ? 'AID'
-    : (($attr->{UID}) ? 'UID' : 0);
-  my $contacts = $self->{Contacts}->push_contacts_list({
-    AID       => ($receiver_type eq 'AID') ? $attr->{AID} : '_SHOW',
-    UID       => ($receiver_type eq 'UID') ? $attr->{UID} : '_SHOW',
-    TYPE_ID   => '_SHOW',
-    PAGE_ROWS => 1
-  });
-
   $self->{Contacts}->push_messages_add({
-    AID        => ($receiver_type eq 'AID') ? $attr->{AID} : 0,
-    UID        => ($receiver_type eq 'UID') ? $attr->{UID} : 0,
-    TYPE_ID    => $contacts->[0]->{type_id},
-    TITLE      => $attr->{TITLE} || $attr->{SUBJECT} || '',
-    MESSAGE    => $attr->{MESSAGE},
-    RESPONSE   => json_former($result),
-    REQUEST    => json_former(\%req_params),
-    STATUS     => $result->{success} ? 0 : 1
+    AID      => ($receiver_type eq 'AID') ? $attr->{AID} : 0,
+    UID      => ($receiver_type eq 'UID') ? $attr->{UID} : 0,
+    TYPE_ID  => scalar @$contacts ? $contacts->[0]->{type_id} : 0,
+    TITLE    => $title || '',
+    MESSAGE  => $attr->{MESSAGE},
+    RESPONSE => json_former($result),
+    REQUEST  => json_former(\%req_params),
+    STATUS   => $result->{success} ? 0 : 1
   });
 
   ($result->{success}) ? return 0 : return 1;

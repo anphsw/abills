@@ -277,7 +277,7 @@ sub list {
       ['ID',             'INT', 'f.id',                              ],
       ['DATETIME',       'DATE','f.date',        'f.date AS datetime'],
       ['LOGIN',          'STR', 'u.id AS login',                   1 ],
-      ['FIO',            'STR', 'pi.fio',                          1 ],
+      ['FIO',            'STR', 'pi.fio',                            ],
       ['DESCRIBE',       'STR', 'f.dsc',                           1 ],
       ['DSC',            'STR', 'f.dsc',                           1 ],
       ['SUM',            'INT', 'f.sum',                           1 ],

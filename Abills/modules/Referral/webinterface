@@ -363,7 +363,7 @@ sub referral_set {
     $tp_id = $request->[0]->{tp_id};
   }
 
-  if ($who_is_referred eq $who_referred_him) {
+  if ($who_is_referred eq $who_referred_him && !$attr->{QUITE}) {
     $html->message('err', $lang{ERROR},
       " $lang{REFERRER} ($who_referred_him) == $lang{REFERRAL} ($who_is_referred) ");
     return 0;
@@ -375,7 +375,7 @@ sub referral_set {
   });
 
   if (!_error_show($Referral)) {
-    $html->message('info', $lang{ADDED});
+    $html->message('info', $lang{ADDED}) if (!$attr->{QUITE});
 
     $Referral->log_list({
       REFERRAL_REQUEST => $referral_request,
@@ -477,7 +477,7 @@ sub referral_get_show_referrals_button {
     SKIP_HREF      => 1,
     NO_LINK_FORMER => 1,
     ex_params      => qq/onclick=loadToModal('?get_index=referral_show&header=2&USER_ID=$referrer_id')/,
-    ICON           => 'fa fa-tree-deciduous'
+    ICON           => 'fa fa-users'
   });
 }
 
@@ -616,6 +616,11 @@ sub add_friend {
 
   $Referral->get_default_tp();
 
+  my $address_sel = form_address({
+      SHOW             => 0,
+      SHOW_BUTTONS     => 1,
+  });
+
   $html->tpl_show(_include('referral_add_form', 'Referral'), {
     %{$info},
     ACTION        => $FORM{chg} ?
@@ -625,6 +630,7 @@ sub add_friend {
     LINK_SHOW     => $Referral->{IS_DEFAULT} ? '' : 'hidden',
     TABLE         => $referrals_table,
     TITLE         => $FORM{chg} ? "$lang{CHANGE} $lang{ADD_FRIEND}" : $lang{ADD_FRIEND},
+    ADDRESS_SEL   => $address_sel,
     GET_BONUS     => $total_bonus > ($conf{REFERRAL_MIN_WITHDRAW} || 0)
       ? $html->button($lang{WITHDRAW} . ' ' . $total_bonus, 'index=' . $index . '&get_bonus=1', { class => 'btn btn-success' }) : ''
   });
@@ -670,6 +676,9 @@ sub referral_requests {
       TP_ID        => '_SHOW',
       REFERRAL_UID => '_SHOW',
       REFERRER     => '_SHOW',
+      LOCATION_ID  => '_SHOW',
+      ADDRESS_FLAT => '_SHOW',
+      COMMENTS     => '_SHOW',
       COLS_NAME    => 1,
     });
 
@@ -712,6 +721,15 @@ sub referral_requests {
       SELECTED  => ($Referral->{TOTAL} && $Referral->{TOTAL} > 0) ? $info->[0]->{referral_tp} : '',
     });
 
+    my $address_select = form_address({
+        LOCATION_ID      => $info->[0]->{location_id},
+        ADDRESS_FLAT     => $info->[0]->{address_flat},
+        SHOW             => 0,
+        SHOW_BUTTONS     => 1,
+    });
+
+    $FORM{LOCATION_ID} = $info->[0]->{location_id};
+
     $referral_uid = ($Referral->{TOTAL} && $Referral->{TOTAL} > 0 && ref $info->[0] eq 'HASH') ? $info->[0]->{referral_uid} : q{};
 
     $html->tpl_show(_include('referral_change_admin_form', 'Referral'), {
@@ -720,6 +738,8 @@ sub referral_requests {
       REFERRAL_UID  => $referral_uid,
       STATUS_SELECT => $status_select,
       TARIF_SELECT  => $tarif_select,
+      ADDRESS_SELECT=> $address_select,
+      COMMENTS      => $info->[0]->{comments},
       ACTION        => $html->form_input('change', $lang{CHANGE}, { TYPE => 'submit', OUTPUT2RETURN => 1 })
     });
   }
@@ -1148,10 +1168,17 @@ sub referral_redirect {
   });
 
   $Referral->request_list({
-    COLS_NAME => 1,
-    ID        => $FORM{REFERRAL_REQUEST},
-    TP_ID     => '_SHOW',
+    COLS_NAME     => 1,
+    ID            => $FORM{REFERRAL_REQUEST},
+    TP_ID         => '_SHOW',
+    LOCATION_ID   => '_SHOW',
+    ADDRESS_FLAT  => '_SHOW',
+    COMMENTS      => '_SHOW',
   });
+
+  my $location_id = $Referral->{list}[0]->{location_id} || '';
+  my $address_flat = $Referral->{list}[0]->{address_flat} || '';
+  my $comments = $Referral->{list}[0]->{comments} || '';
 
   if ($Referral->{list}[0]->{referral_tp} || $FORM{TP_ID}) {
 
@@ -1163,7 +1190,7 @@ sub referral_redirect {
     }
 
     $html->redirect("?index=" . get_function_index("form_wizard") .
-      "&FIO=$FORM{FIO}&phone=$FORM{PHONE}&REFERRAL_REQUEST=$FORM{REFERRAL_REQUEST}");
+      "&FIO=$FORM{FIO}&phone=$FORM{PHONE}&REFERRAL_REQUEST=$FORM{REFERRAL_REQUEST}&LOCATION_ID=$location_id&ADDRESS_FLAT=$address_flat&COMMENTS=$comments");
   }
   else {
     my $tarifs = $Referral->tp_list({
@@ -1214,7 +1241,10 @@ sub referral_link_registred {
     STATUS       => 2,
     REFERRER     => $attr->{REFERRED},
     TP_ID        => $default_tp,
-    REFERRAL_UID => $attr->{UID}
+    REFERRAL_UID => $attr->{UID},
+    LOCATION_ID  => $attr->{LOCATION_ID} || 0,
+    ADDRESS_FLAT => $attr->{ADDRESS_FLAT} || '',
+    COMMENTS     => $attr->{ADDRESS_FLAT} || '',
   });
 
   my $request_id = $Referral->{INSERT_ID};
@@ -1223,6 +1253,7 @@ sub referral_link_registred {
     REFERRAL_UID     => $attr->{UID},
     REFERRER_UID     => $attr->{REFERRED},
     REFERRAL_REQUEST => $request_id,
+    QUITE            => $attr->{QUITE} || 0
   });
 
   add_bonus($attr->{REFERRED}, $attr->{UID}, $default_tp, { SUM_ONLY => 1 });

@@ -301,7 +301,21 @@ sub _do_handshake {
 }
 
 DESTROY {
-  $Log->info("Websocket server stopped") if ($Log);
+  if ($Log) {
+
+    my $caller = q{}; #join(', ', caller());
+    my ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash);
+    my $i = 1;
+    my @r = ();
+    while (@r = caller($i)) {
+      ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash) = @r;
+      $caller .= "$filename:$line $subroutine\n";
+      $i++;
+    }
+
+    $Log->info("\n\nWebsocket server stopped/ $caller");
+    $Log->info($@);
+  }
 }
 
 1;

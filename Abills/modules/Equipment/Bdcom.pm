@@ -1010,6 +1010,7 @@ sub _bdcom_get_fdb {
         NAS_MNG_PASSWORD
         NAS_MNG_IP_PORT
         MODEL_NAME
+      DEBUG
 
   Returns:
     \@unregister - arrayref of unregistered ONUs:
@@ -1030,6 +1031,8 @@ sub _bdcom_unregister {
   if (!$conf{EQUIPMENT_BDCOM_ENABLE_ONU_REGISTRATION}) {
     return [];
   }
+
+  my $debug = $attr->{DEBUG} || 0;
 
   my $load_data = load_pmodule('Net::Telnet', { SHOW_RETURN => 1 });
   if ($load_data) {
@@ -1096,10 +1099,15 @@ sub _bdcom_unregister {
 
     my $current_branch = '';
     foreach my $line (@rejected_onus) {
+      if ($debug > 6) {
+        print $line."\n";
+      }
+
       if ($line =~ /ONU rejected to register on interface EPON(\d+\/\d+):/) {
         $current_branch = $1;
       }
-      if ($line =~ /^\s*([0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4})\s*$/) {
+
+      if ($line =~ /\s*([0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4})\s*/) {
         my $mac_serial = $1;
         $mac_serial =~ s/([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})/$1:$2:$3:$4:$5:$6/;
         push @unregister,

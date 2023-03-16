@@ -9,10 +9,10 @@ CREATE TABLE IF NOT EXISTS `crm_leads` (
   `country` VARCHAR(80) NOT NULL DEFAULT '',
   `city` VARCHAR(80) NOT NULL DEFAULT '',
   `address` VARCHAR(100) NOT NULL DEFAULT '',
-  `source` int(1) NOT NULL DEFAULT 0,
+  `source` INT(1) NOT NULL DEFAULT 0,
   `responsible` SMALLINT(4) NOT NULL DEFAULT 0,
-  `date` date NOT NULL DEFAULT '0000-00-00',
-  `current_step` int NOT NULL DEFAULT 1,
+  `date` DATE NOT NULL DEFAULT '0000-00-00',
+  `current_step` INT NOT NULL DEFAULT 1,
   `priority` SMALLINT(1) NOT NULL DEFAULT 0,
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `tag_ids` VARCHAR(20) NOT NULL DEFAULT '',
@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS `crm_progressbar_steps` (
   `color` VARCHAR(7) NOT NULL DEFAULT '',
   `description` TEXT NOT NULL,
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `deal_step` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8
@@ -68,16 +69,19 @@ CREATE TABLE IF NOT EXISTS `crm_progressbar_step_comments` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `step_id` INT UNSIGNED NOT NULL DEFAULT 0,
   `lead_id` INT UNSIGNED NOT NULL DEFAULT 0,
+  `deal_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
   `message` TEXT NOT NULL,
   `date` DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `action_id` INT UNSIGNED NOT NULL DEFAULT 0,
   `status` SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `planned_date` DATE NOT NULL DEFAULT '0000-00-00',
+  `plan_time` TIME NOT NULL DEFAULT '00:00:00',
+  `plan_interval` SMALLINT(6) UNSIGNED NOT NULL  DEFAULT '0',
   `priority` SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
   `pin` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  UNIQUE (`lead_id`, `date`),
+  UNIQUE (`lead_id`, `deal_id`, `date`),
   KEY aid (`aid`)
 )
   DEFAULT CHARSET = utf8
@@ -247,13 +251,63 @@ CREATE TABLE IF NOT EXISTS `crm_open_line_admins` (
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm open line admins';
 
-CREATE TABLE IF NOT EXISTS `crm_lead_fields` (
+CREATE TABLE IF NOT EXISTS `crm_section_fields` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `lead_id` INT UNSIGNED NOT NULL DEFAULT 0,
   `fields` TEXT NOT NULL,
-  `panel` VARCHAR(60) NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`)
+  `section_id` INT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `admin_panel` (`aid`, `section_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Leads fields to show';
+
+CREATE TABLE IF NOT EXISTS `crm_sections` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `title` VARCHAR(60) NOT NULL DEFAULT '',
+  `deal_section` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Info sections';
+
+CREATE TABLE IF NOT EXISTS `crm_deals` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `uid` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `name` VARCHAR(60) NOT NULL DEFAULT '',
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `current_step` INT NOT NULL DEFAULT 1,
+  `date` DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `close_date` DATE NOT NULL DEFAULT '0000-00-00',
+  `begin_date` DATE NOT NULL DEFAULT '0000-00-00',
+  `comments` TEXT,
+  PRIMARY KEY (`id`),
+  KEY `aid` (`aid`),
+  KEY `uid` (`uid`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Crm deals';
+
+REPLACE INTO `crm_sections` (`aid`, `title`) VALUES (1, '$lang{INFO}');
+REPLACE INTO `crm_sections` (`aid`, `title`) VALUES (1, '$lang{EXTRA}');
+REPLACE INTO `crm_sections` (`aid`, `title`, `deal_section`) VALUES (1, '$lang{INFO}', 1);
+REPLACE INTO `crm_sections` (`aid`, `title`, `deal_section`) VALUES (1, '$lang{CRM_PRODUCTS}', 1);
+
+REPLACE INTO `crm_section_fields` (`aid`, `fields`, `section_id`) VALUES (1, 'FIO,PHONE,EMAIL,ADDRESS', 1);
+REPLACE INTO `crm_section_fields` (`aid`, `fields`, `section_id`) VALUES (1, 'COMMENTS,RESPONSIBLE,PRIORITY', 2);
+REPLACE INTO `crm_section_fields` (`aid`, `fields`, `section_id`) VALUES (1, 'NAME,BEGIN_DATE,CLOSE_DATE', 3);
+REPLACE INTO `crm_section_fields` (`aid`, `fields`, `section_id`) VALUES (1, 'PRODUCTS', 4);
+
+CREATE TABLE IF NOT EXISTS `crm_deal_products` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `deal_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `name` VARCHAR(60) NOT NULL DEFAULT '',
+  `count` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `fees_type` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `deal_id` (`deal_id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Crm deal products';

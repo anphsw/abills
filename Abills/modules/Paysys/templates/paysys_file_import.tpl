@@ -49,7 +49,7 @@
       <label for='DEBUG' class='custom-control-label'>_{DEBUG}_</label>
     </div>
 
-  <input type=submit name=IMPORT value='IMPORT' class='btn btn-secondary btn-primary'>
+  <input type='submit' name='IMPORT' value='IMPORT' class='btn btn-primary btn-primary'>
 
   </div>
 </div>

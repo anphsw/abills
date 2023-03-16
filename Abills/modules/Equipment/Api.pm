@@ -155,9 +155,9 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         my %PARAMS = (
-          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
-          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
-          PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
+          PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
+          SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
+          PG        => $query_params->{PG} ? $query_params->{PG} : 0,
         );
 
         $Equipment->equipment_box_list({
@@ -283,9 +283,9 @@ sub admin_routes {
 
         my %PARAMS = (
           COLS_NAME => 1,
-          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
-          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
-          PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
+          PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
+          SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
+          PG        => $query_params->{PG} ? $query_params->{PG} : 0,
         );
 
         foreach my $param (@allowed_params) {
@@ -339,9 +339,9 @@ sub admin_routes {
         my %PARAMS = (
           COLS_NAME => 1,
           SHORT     => 1,
-          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
-          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
-          PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
+          PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
+          SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
+          PG        => $query_params->{PG} ? $query_params->{PG} : 0,
         );
 
         foreach my $param (@allowed_params) {
@@ -456,9 +456,9 @@ sub admin_routes {
 
         my %PARAMS = (
           COLS_NAME  => 1,
-          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
-          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
-          PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
+          PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
+          SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
+          PG        => $query_params->{PG} ? $query_params->{PG} : 0,
         );
 
         $Nas->nas_group_list({
@@ -562,9 +562,9 @@ sub admin_routes {
 
         my %PARAMS = (
           COLS_NAME  => 1,
-          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
-          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
-          PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
+          PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
+          SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
+          PG        => $query_params->{PG} ? $query_params->{PG} : 0,
         );
 
         foreach my $param (@allowed_params) {
@@ -670,9 +670,9 @@ sub _get_onu_list {
   );
 
   my %PARAMS = (
-    PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
-    SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
-    PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
+    PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
+    SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
+    PG        => $query_params->{PG} ? $query_params->{PG} : 0,
   );
 
   foreach my $param (@allowed_params) {

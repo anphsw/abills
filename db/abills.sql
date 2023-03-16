@@ -245,6 +245,7 @@ CREATE TABLE IF NOT EXISTS `companies` (
   `bank_name`        VARCHAR(150)                   DEFAULT NULL,
   `cor_bank_account` VARCHAR(150)                   DEFAULT NULL,
   `bank_bic`         VARCHAR(100)                   DEFAULT NULL,
+  `edrpou`           VARCHAR(100)          NOT NULL DEFAULT '',
   `registration`     DATE                  NOT NULL DEFAULT '0000-00-00',
   `disable`          TINYINT(1) UNSIGNED   NOT NULL DEFAULT '0',
   `credit`           DOUBLE(8, 2)          NOT NULL DEFAULT '0.00',
@@ -1288,6 +1289,7 @@ CREATE TABLE IF NOT EXISTS `push_contacts`
     `aid`     SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
     `type_id` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
     `value`   VARCHAR(210)        NOT NULL DEFAULT '',
+    `badges`  TINYINT(2) UNSIGNED  NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
     KEY `uid` (`uid`),
     KEY `aid` (`aid`),
@@ -1645,7 +1647,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   `password`       BLOB                 NOT NULL,
   `uid`            INT(11) UNSIGNED     NOT NULL AUTO_INCREMENT,
   `gid`            SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `disable`        TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0',
+  `disable`        TINYINT(2) UNSIGNED  NOT NULL DEFAULT '0',
+  `disable_date`   DATE                 NOT NULL DEFAULT '0000-00-00',
   `company_id`     INT(11) UNSIGNED     NOT NULL DEFAULT '0',
   `bill_id`        INT(11) UNSIGNED     NOT NULL DEFAULT '0',
   `ext_bill_id`    INT(10) UNSIGNED     NOT NULL DEFAULT '0',
@@ -1776,6 +1779,7 @@ CREATE TABLE IF NOT EXISTS `sqlcmd_history` (
   `sql_query` TEXT                 NOT NULL,
   `db_id`     TINYINT(4) UNSIGNED  NOT NULL DEFAULT '0',
   `comments`  TEXT                 NOT NULL,
+  `status`    TINYINT(2)           NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `aid` (`aid`)
 )
@@ -1881,7 +1885,7 @@ CREATE TABLE IF NOT EXISTS `service_status` (
   COMMENT = 'System service status list';
 
 CREATE TABLE `users_status` (
- `id`    tinyint(2) unsigned NOT NULL AUTO_INCREMENT,
+ `id`    TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
  `name`  varchar(40)         NOT NULL DEFAULT '',
  `color` varchar(6)          NOT NULL DEFAULT '',
  `descr` varchar(120)        NOT NULL DEFAULT '',

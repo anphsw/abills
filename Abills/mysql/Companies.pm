@@ -61,8 +61,8 @@ sub add {
   $attr = $users->info_field_attach_add({ %$attr, COMPANY_PREFIX => 1 });
 
   $self->query_add('companies', { %$attr,
-           REGISTRATION   => 'NOW()',
-         });
+    REGISTRATION   => 'NOW()',
+  });
 
   if ($self->{errno}) {
     return $self;
@@ -71,14 +71,12 @@ sub add {
   $self->{COMPANY_ID} = $self->{INSERT_ID};
 
   if ($attr->{CREATE_BILL}) {
-    $self->change(
-      {
-        DISABLE         => int($attr->{DISABLE} || 0),
-        ID              => $self->{COMPANY_ID},
-        CREATE_BILL     => 1,
-        CREATE_EXT_BILL => $attr->{CREATE_EXT_BILL}
-      }
-    );
+    $self->change({
+      DISABLE         => int($attr->{DISABLE} || 0),
+      ID              => $self->{COMPANY_ID},
+      CREATE_BILL     => 1,
+      CREATE_EXT_BILL => $attr->{CREATE_EXT_BILL}
+    });
   }
 
   $admin->{MODULE} = $MODULE;
@@ -358,6 +356,7 @@ sub list {
     ['ADDRESS_FLAT',   'STR',  'c.address_flat',  1 ],
     ['COMPANY_ADMIN',  'INT',  'u.uid',           1 ],
     ['COMPANY_ID',     'INT',  'c.id',              ],
+    ['EDRPOU',         'STR',  'c.edrpou',        1 ],
     #['DOMAIN_ID',      'INT',  'c.domain_id',     1 ],
   ],
     {
@@ -448,7 +447,8 @@ sub admins_list {
       u.id AS login,
       pi.fio,
       (SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=9) AS email,
-      u.uid
+      u.uid,
+      ca.company_id
     FROM companies  c
     INNER JOIN users u ON (u.company_id=c.id)
     LEFT JOIN companie_admins ca ON (ca.uid=u.uid)

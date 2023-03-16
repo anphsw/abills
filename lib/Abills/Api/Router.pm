@@ -8,6 +8,7 @@ no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 use JSON;
 
 use Abills::Base qw(escape_for_sql in_array);
+use Abills::Api::Validator;
 use Abills::Api::Paths;
 
 #**********************************************************
@@ -71,6 +72,9 @@ sub preprocess {
   if ($self->{request_method} ~~ [ 'GET', 'DELETE' ]) {
     $self->{query_params} = $query_params;
   }
+  elsif ($ENV{CONTENT_TYPE} && $ENV{CONTENT_TYPE} =~ 'multipart/form-data') {
+    $self->{query_params} = $query_params;
+  }
   elsif ($query_params->{__BUFFER}) {
     my $q_params = eval {decode_json($query_params->{__BUFFER})};
 
@@ -113,7 +117,7 @@ sub preprocess {
 
   if (!$self->{resource_own}) {
     $self->{paths} = $Paths->list();
-    $self->{resource} = $self->load_resource_info($resource_name);
+    $self->{resource} = $self->{paths}->{$resource_name};
   }
   elsif (ref \$self->{resource_own} eq 'SCALAR' && $self->{resource_own} == 2) {
     $self->{errno} = 10;
@@ -175,7 +179,7 @@ sub handle {
       errno  => 2,
       errstr => 'No such route'
     };
-    $self->{status} = '404';
+    $self->{status} = 404;
     $self->{allowed} = 1;
 
     return 0;
@@ -201,6 +205,21 @@ sub handle {
     $self->{allowed} = 1;
   }
 
+  if (defined $route->{params}) {
+    my $Validator = Abills::Api::Validator->new($self->{db}, $self->{admin}, $self->{conf});
+    my $validation_result = $Validator->validate_params({
+      query_params => $handler->{query_params} || {},
+      params       => $route->{params} || {},
+    });
+
+    if ($validation_result->{errno}) {
+      $self->{result} = $validation_result;
+      return 0;
+    }
+
+    $route->{query_params} = $validation_result;
+  }
+
   if ($cred && $cred ~~ [ 'ADMIN', 'ADMIN_SID' ] && $handler->{path_params} && $handler->{path_params}->{uid}) {
     require Users;
     Users->import();
@@ -211,6 +230,7 @@ sub handle {
       $self->{result} = {
         errno  => 15,
         errstr => "User not found with uid $handler->{path_params}->{uid}",
+        uid    => $handler->{path_params}->{uid},
       };
       return 0;
     }
@@ -301,31 +321,6 @@ sub handle {
 }
 
 #***********************************************************
-=head2 load_resource_info($resource_name)
-
-   Return:
-     @router - list of available methods for this resource
-=cut
-#***********************************************************
-sub load_resource_info {
-  my $self = shift;
-  my ($resource_name) = @_;
-
-  return $self->{paths}->{$resource_name};
-}
-
-#***********************************************************
-=head2 add_custom_handler()
-
-=cut
-#***********************************************************
-sub add_custom_handler {
-  my ($self, $resource_name, $info) = @_;
-
-  push(@{$self->{paths}->{$resource_name}}, $info);
-}
-
-#***********************************************************
 =head2 parse_request() - parses request and returns data, required to process it
 
    Returns:
@@ -364,18 +359,18 @@ sub parse_request {
 
     my @path_keys = $route_path_template =~ m/:([a-zA-Z0-9_]+)(?=\/)/g;
 
-    $route_path_template =~ s/:(string_[a-zA-Z0-9_]+)(?=\/)/(\\w+)/g;
+    $route_path_template =~ s/:(string_[a-zA-Z0-9_]+)(?=\/)/([a-zA-Z0-9:_-]+)/gm;
     $route_path_template =~ s/:([a-zA-Z0-9_]+)(?=\/)/(\\d+)/g;
     $route_path_template =~ s/(\/)/\\\//g;
     $route_path_template = '^' . $route_path_template . '$';
 
+    #TODO: delete next 15 rows when will be finally deprecated user api with :uid paths
     my $path_uid = 0;
-    #TODO: delete when will be finally deprecated user api with :uid paths
     if ($route->{credentials} && in_array('USER', $route->{credentials}) && $ENV{HTTP_USERSID} && $route->{path} =~ /:uid/) {
       if ($request_path !~ $route_path_template) {
         $route_path_template = $route->{path};
         $route_path_template =~ s/:uid\///;
-        $route_path_template =~ s/:(string_[a-zA-Z0-9_]+)(?=\/)/(\\w+)/g;
+        $route_path_template =~ s/:(string_[a-zA-Z0-9_]+)(?=\/)/([a-zA-Z0-9:_-]+)/gm;
         $route_path_template =~ s/:([a-zA-Z0-9_]+)(?=\/)/(\\d+)/g;
         $route_path_template =~ s/(\/)/\\\//g;
         $route_path_template = '^' . $route_path_template . '$';
@@ -387,13 +382,17 @@ sub parse_request {
       next unless ($request_path =~ $route_path_template);
     }
 
+    #TODO: paste here row -> next unless ($request_path =~ $route_path_template);
     my @request_values = $request_path =~ $route_path_template;
 
     my %path_params = ();
 
     while (@path_keys) {
       my $key = shift(@path_keys);
+
+      #TODO: delete next row when will be finally deprecated user api with :uid paths
       next if ($path_uid && $key && $key eq 'uid');
+
       $key =~ s/string_//;
       my $value = shift(@request_values);
 

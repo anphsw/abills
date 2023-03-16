@@ -5,7 +5,7 @@
   <div class='card-body pt-0'>
 
     <div class='text-center m-2'>
-      <img src='/styles/default/img/paysys_logo/logo_novapay.png'
+      <img src='/styles/default/img/paysys_logo/novapay-logo.png'
            style='max-width: 320px; max-height: 200px;'
            alt='NovaPay'>
     </div>

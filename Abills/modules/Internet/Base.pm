@@ -7,7 +7,7 @@ my ($admin, $CONF, $db);
 #my $json;
 my Abills::HTML $html;
 my $lang;
-my $Internet;
+my Internet $Internet;
 our $DATE;
 
 use Abills::Base qw(in_array days_in_month next_month date_diff time2sec);
@@ -236,6 +236,9 @@ sub internet_docs {
       USER_INFO
       SUM
 
+  Returns:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub internet_payments_maked {
@@ -272,18 +275,6 @@ sub internet_payments_maked {
     elsif ($Internet->{ABON_DISTRIBUTION}) {
       my $days_in_month = days_in_month({ DATE => $DATE });
       $abon_fees = ($Internet->{MONTH_ABON} / $days_in_month) + $Internet->{DAY_ABON};
-    }
-
-    #OLd method. Always change activate period with payments
-    #@deprecated
-    if ($CONF->{payment_chg_activate} && $Internet->{SERVICE_ACTIVATE} ne '0000-00-00') {
-      if ($CONF->{payment_chg_activate} ne 2 || date_diff($Internet->{SERVICE_ACTIVATE}, $main::DATE) > 30) {
-        $Internet->user_change({
-          ACTIVATE => $main::DATE,
-          UID      => $user->{UID},
-          ID       => $Internet->{ID},
-        });
-      }
     }
 
     if ($user->{REDUCTION} && $user->{REDUCTION} > 0) {
@@ -328,17 +319,17 @@ sub internet_payments_maked {
       if ($CONF->{MONTH_FEE_TIME}) {
         my $start_day = $CONF->{START_PERIOD_DAY} || 1;
         my (undef, undef, $d) = split(/\-/, $main::DATE, 3);
-        if ($start_day == $d && time2sec($main::TIME) < time2sec($CONF->{MONTH_FEE_TIME})) {
+        if (($start_day == $d || $Internet->{ABON_DISTRIBUTION}) && time2sec($main::TIME) < time2sec($CONF->{MONTH_FEE_TIME})) {
           $attr->{SHEDULER} = 1;
         }
       }
+
       ::service_get_month_fee($Internet, $attr);
     }
     elsif ($CONF->{INTERNET_PAY_ACTIVATE}) {
       my $sum = $attr->{SUM} || 0;
       if ($Internet->{SERVICE_ACTIVATE} ne '0000-00-00' && date_diff($Internet->{SERVICE_ACTIVATE}, $main::DATE) > 30
         && $deposit - $sum <= 0 && $deposit > $abon_fees) {
-        #&& $deposit - $sum <= 0 && $deposit > 0) {
 
         my %service_params = (
           UID              => $user->{UID},

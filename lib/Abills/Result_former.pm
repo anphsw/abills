@@ -551,6 +551,10 @@ sub table_function_fields {
     $index = $attr->{FUNCTION_INDEX} || 15;
   }
 
+  if (in_array('company_id', $function_fields)){
+    $index = $attr->{FUNCTION_INDEX} || 13;
+  }
+
   for (my $i = 0; $i <= $#{$function_fields}; $i++) {
     if ($function_fields->[$i] eq 'form_payments') {
       next if (!$line->{uid});

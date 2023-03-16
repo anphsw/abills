@@ -421,6 +421,11 @@ sub internet_holdup_fees {
   my $debug = $attr->{DEBUG} || 0;
   my $debug_output = '';
   $debug_output .= "Internet: Holdup abon\n" if ($debug > 1);
+  #@deprecated
+  if (! $conf{INTERNET_USER_SERVICE_HOLDUP} && $conf{HOLDUP_ALL}) {
+    $conf{INTERNET_USER_SERVICE_HOLDUP} = $conf{HOLDUP_ALL};
+  }
+
   return $debug_output if (!$conf{INTERNET_USER_SERVICE_HOLDUP});
   my $holdup_fees = (split(/:/, $conf{INTERNET_USER_SERVICE_HOLDUP}))[3];
   return $debug_output if (!$holdup_fees || $holdup_fees == 0);
@@ -437,8 +442,8 @@ sub internet_holdup_fees {
   my $internet_list = $Internet->user_list({
     INTERNET_ACTIVATE => "<=$ADMIN_REPORT{DATE}",
     INTERNET_EXPIRE   => "0000-00-00,>$ADMIN_REPORT{DATE}",
-    INTERNET_STATUS   => "3",
-    LOGIN_STATUS      => 0,
+    INTERNET_STATUS   => "0;3",
+    LOGIN_STATUS      => "0;3",
     SORT              => 1,
     PAGE_ROWS         => 1000000,
     TP_CREDIT         => '_SHOW',
@@ -458,18 +463,23 @@ sub internet_holdup_fees {
 
   foreach my $u (@$internet_list) {
     my %user = (
-      LOGIN        => $u->{login},
-      UID          => $u->{uid},
-      BILL_ID      => ($ext_deposit_op > 0) ? $u->{ext_bill_id} : $u->{bill_id},
-      MAIN_BILL_ID => ($ext_deposit_op > 0) ? $u->{bill_id} : 0,
-      REDUCTION    => $u->{reduction},
-      ACTIVATE     => $u->{internet_activate},
-      DEPOSIT      => $u->{deposit},
-      CREDIT       => ($u->{credit} > 0) ? $u->{credit} : 0,
-      COMPANY_ID   => $u->{company_id},
-      INTERNET_STATUS => $u->{internet_status},
-      EXT_DEPOSIT  => ($u->{ext_deposit}) ? $u->{ext_deposit} : 0,
+      LOGIN           => $u->{login},
+      UID             => $u->{uid},
+      BILL_ID         => ($ext_deposit_op > 0) ? $u->{ext_bill_id} : $u->{bill_id},
+      MAIN_BILL_ID    => ($ext_deposit_op > 0) ? $u->{bill_id} : 0,
+      REDUCTION       => $u->{reduction},
+      ACTIVATE        => $u->{internet_activate},
+      DEPOSIT         => $u->{deposit},
+      CREDIT          => ($u->{credit} > 0) ? $u->{credit} : 0,
+      COMPANY_ID      => $u->{company_id},
+      INTERNET_STATUS => $u->{internet_status} || 0,
+      EXT_DEPOSIT     => ($u->{ext_deposit}) ? $u->{ext_deposit} : 0,
+      LOGIN_STATUS    => $u->{login_status} || 0
     );
+
+    if(! $user{INTERNET_STATUS} && ! $user{LOGIN_STATUS}) {
+      next;
+    }
 
     $debug_output .= " Login: $user{LOGIN} ($user{UID}) TP_ID: ($u->{tp_id} Fees: $holdup_fees"
       . " REDUCTION: $user{REDUCTION} DEPOSIT: ". ($u->{deposit} || 'n/d') ." CREDIT $user{CREDIT}"
@@ -1458,7 +1468,11 @@ sub internet_users_warning_messages {
       load_module('Sms', $html);
 
       my $message   = $html->tpl_show(_include('internet_users_warning_messages_sms', 'Internet'),
-        { %$u, DATE => $DATE, TIME => $TIME },
+        { %$u,
+          DATE       => $DATE,
+          TIME       => $TIME,
+          MONEY_UNIT => ($conf{MONEY_UNIT_NAMES}) ? (split(/;/, $conf{MONEY_UNIT_NAMES}))[0] : q{}
+        },
         { OUTPUT2RETURN => 1 });
 
       my $sms_id    = sms_send(
@@ -1493,7 +1507,11 @@ sub internet_users_warning_messages {
     if ($debug < 5) {
 
       my $message = $html->tpl_show(_include('internet_users_warning_messages', 'Internet'),
-        { %$u, DATE => $DATE, TIME => $TIME },
+        { %$u,
+          DATE => $DATE,
+          TIME => $TIME,
+          MONEY_UNIT => ($conf{MONEY_UNIT_NAMES}) ? (split(/;/, $conf{MONEY_UNIT_NAMES}))[0] : q{}
+        },
         { OUTPUT2RETURN => 1 });
 
       sendmail($conf{ADMIN_MAIL}, $email, $lang{BILL_INFO}, $message,
@@ -1549,9 +1567,10 @@ sub internet_sheduler {
     my $user = $Internet->user_info($uid, { ID => $service_id });
 
     #Change activation date after change TP
-    if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00' && !$Internet->{STATUS}) {
-      $params{ACTIVATE} = $ADMIN_REPORT{DATE};
-    }
+    #Date must change after tp fees
+    #if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00' && !$Internet->{STATUS}) {
+    #  $params{ACTIVATE} = $ADMIN_REPORT{DATE};
+    #}
 
     $Internet->user_change({
       UID         => $uid,
@@ -1600,6 +1619,12 @@ sub internet_sheduler {
     #Get fee for holdup service
     if ($action == 3) {
       my $active_fees = 0;
+
+      #@deprecated
+      if (! $conf{INTERNET_USER_SERVICE_HOLDUP} && $conf{HOLDUP_ALL}) {
+        $conf{INTERNET_USER_SERVICE_HOLDUP} = $conf{HOLDUP_ALL};
+      }
+
       if ($conf{INTERNET_USER_SERVICE_HOLDUP}) {
         $active_fees =  (split(/:/, $conf{INTERNET_USER_SERVICE_HOLDUP}))[5];
       }

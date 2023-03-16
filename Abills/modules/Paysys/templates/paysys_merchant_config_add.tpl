@@ -65,6 +65,7 @@
     .append(new Option('LOGIN', 'LOGIN'))
     .append(new Option('EMAIL', 'EMAIL'))
     .append(new Option('PHONE', 'PHONE'))
+    .append(new Option('CELL_PHONE', 'CELL_PHONE'))
     .append(new Option('BILL_ID', 'BILL_ID'))
     .append(new Option('_PIN_ABS', '_PIN_ABS'));
 

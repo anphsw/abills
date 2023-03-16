@@ -62,4 +62,4 @@
 <!--<script src='/styles/default/js/modules/cablecat/jquery.ui.position.min.js'></script>-->
 <script src='/styles/default/js/modules/cablecat/jquery.contextMenu.min.js'></script>
 
-<script src='/styles/default/js/modules/cablecat/big.commutation.js?v=7.61'></script>
+<script src='/styles/default/js/modules/cablecat/big.commutation.js'></script>

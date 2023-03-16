@@ -56,7 +56,7 @@ sub docs_payments_maked {
 
   if (!$form->{SUM} || $form->{SUM} == 0) {
     if ($form->{APPLY_TO_INVOICE} || $form->{INVOICE_ID}) {
-      $html->message('err', "$lang->{DOCS}:$lang->{ERROR}", "$lang->{ERR_WRONG_SUM}", { ID => 561 });
+      $html->message('err', "$lang->{DOCS}:$lang->{ERROR}", $lang->{ERR_WRONG_SUM}, { ID => 561 });
     }
     return 0;
   }

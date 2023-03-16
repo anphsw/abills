@@ -1,4 +1,4 @@
-<form action='$SELF_URL' METHOD='POST' class='form-horizontal' id='admin_form'   name=admin_form>
+<form action='$SELF_URL' METHOD='POST' class='form-horizontal' id='admin_form' name=admin_form>
   <input type=hidden name='index' value='%INDEX%'>
   <input type=hidden name='search_form' value='1'>
   <div class='row'>
@@ -110,7 +110,8 @@
               <div class='form-group row'>
                 <label class='control-label col-md-3' for='PASPORT_GRANT'>_{GRANT}_</label>
                 <div class='col-md-9'>
-                  <textarea class='form-control' id='PASPORT_GRANT' name='PASPORT_GRANT' rows='1'>%PASPORT_GRANT%</textarea>
+                  <textarea class='form-control' id='PASPORT_GRANT' name='PASPORT_GRANT'
+                            rows='1'>%PASPORT_GRANT%</textarea>
                 </div>
               </div>
             </div>
@@ -248,10 +249,10 @@
         </div>
       </div>
     </div>
+    <button class='btn btn-primary btn-block m-2' type='submit' name='search' id='submitbutton' value=1>
+      <i class='fa fa-search'></i> _{SEARCH}_
+    </button>
 
   </div>
-    <div class='abills-form-main-buttons mb-3'>
-      <input type=submit name='search' value='$lang{SEARCH}' ID='submitbutton' class='btn btn-primary'>
-    </div>
 </form>
 

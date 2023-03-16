@@ -602,6 +602,12 @@ a:not([href]):not([class]) {
 	border-color: rgba(0, 0, 0, 0.2);
 }
 
+.btn-apple {
+	color: #000;
+	background-color: #fff;
+	border-color: #000;
+}
+
 .dark-mode .todo-list > li {
 	background-color: #3f474e;
 	border: 2px solid #6c757d !important;
@@ -1143,4 +1149,15 @@ form > .btn-primary {
 
 .CodeMirror-hints.darcula > .CodeMirror-hint.CodeMirror-hint-active {
   color: #FFF !important;
+}
+
+.bg-danger span.text-danger {
+  color: black !important;
+}
+
+.dark-mode input:-webkit-autofill,
+.dark-mode input:-webkit-autofill:hover,
+.dark-mode input:-webkit-autofill:focus,
+.dark-mode input:-webkit-autofill:active {
+    transition: background-color 5000s ease-in-out 0s;
 }

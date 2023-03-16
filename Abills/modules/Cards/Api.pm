@@ -332,6 +332,7 @@ sub user_routes {
             }
 
             $db->{AutoCommit} = 1;
+            ::load_module("Abills::Templates", { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
             ::cross_modules('payments_maked', {
               USER_INFO    => $user_info,
               SUM          => $Cards->{SUM},
@@ -339,12 +340,13 @@ sub user_routes {
               QUITE        => 1,
               SILENT       => 1,
               METHOD       => 2,
-              timeout      => 8,
               FORM         => {}
             });
 
             return {
-              result => "Success payment, ID $Payments->{INSERT_ID}"
+              result     => "Success payment, ID $Payments->{INSERT_ID}",
+              amount     => $Cards->{SUM},
+              payment_id => $Payments->{INSERT_ID}
             };
           }
           elsif ($Payments->{errno}) {

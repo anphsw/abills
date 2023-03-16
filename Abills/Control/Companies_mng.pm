@@ -79,6 +79,7 @@ sub form_companies {
 
   my $Customer = Customers->new($db, $admin, \%conf);
   my $Company  = $Customer->company();
+  my $company_index = get_function_index('form_companies');
 
   if ($FORM{add_form} ) {
     if( $permissions{0}{37} ) {
@@ -244,24 +245,24 @@ sub form_companies {
       push @menu_functions, "$lang{DOCS}:" . get_function_index( 'docs_acts' ) . ":COMPANY_ID=$Company->{ID}";
     }
 
-    my $company_sel = $html->form_main(
-      {
-        CONTENT => $html->form_select(
-          'COMPANY_ID',
-          {
-            SELECTED  => $FORM{COMPANY_ID},
-            SEL_LIST  => $Company->list({ COLS_NAME => 1, PAGE_ROWS => 100000 }),
-            SEL_KEY   => 'id',
-            SEL_VALUE => 'name',
-          }
-        ),
-        HIDDEN => {
-          index => $index,
+    my $company_sel = '';
+    $html->form_main({
+      CONTENT       => $html->form_select(
+        'COMPANY_ID',
+        {
+          SELECTED  => $FORM{COMPANY_ID},
+          SEL_LIST  => $Company->list({ COLS_NAME => 1, PAGE_ROWS => 100000 }),
+          SEL_KEY   => 'id',
+          SEL_VALUE => 'name',
         },
-        SUBMIT => { show => $lang{SHOW} },
-        class  => 'form-inline ml-auto flex-nowrap'
-      }
-    );
+      ),
+      HIDDEN        => {
+        index => $index,
+      },
+      SUBMIT        => { show => $lang{SHOW} },
+      class         => 'form-inline ml-auto flex-nowrap',
+      OUTPUT2RETURN => 1
+    });
 
     func_menu(
       {
@@ -274,7 +275,6 @@ sub form_companies {
       }
     );
 
-    #Sub functions
     if (!$FORM{subf}) {
       if ($permissions{0}{38}) {
         $Company->{ACTION}     = 'change';
@@ -349,8 +349,6 @@ sub form_companies {
       $Company->{FORM_DISABLE} = "<input class='custom-control-input' type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%' style='display: none;'>
   <label class='custom-control-label' for='DISABLE' id='DISABLE_LABEL'>%DISABLE_LABEL%</label>";
 
-      my $company_index = get_function_index('form_companies');
-
       my $company_id = $Company->{ID};
       if ($permissions{1}) {
         $Company->{PAYMENTS_BUTTON} = $html->button('', "index=$company_index&COMPANY_ID=$company_id&subf=2",
@@ -400,18 +398,14 @@ sub form_companies {
 
     $LIST_PARAMS{SKIP_GID} = 1;
 
-    my $add_form_button = '';
-    if ($permissions{0}{37}){
-      $add_form_button = "$lang{ADD}:index=$index&add_form=1".':add';
-    } else {
-      $add_form_button = '';
-    }
+    my $add_form_button = ($permissions{0}{37}) ? ("$lang{ADD}:index=$company_index&add_form=1".':add') : '';
 
     result_former({
       INPUT_DATA      => $Company,
       FUNCTION        => 'list',
       DEFAULT_FIELDS  => 'NAME,DEPOSIT,CREDIT,USERS_COUNT,DISABLE',
       BASE_FIELDS     => 1,
+      FUNCTION_INDEX  => $company_index,
       FUNCTION_FIELDS => defined( $permissions{0}{39} ) ? 'company_id,del' : 'company_id',
       EXT_TITLES      => {
         'name'          => $lang{NAME},
@@ -428,10 +422,11 @@ sub form_companies {
         'address_street'=> $lang{ADDRESS_STREET},
         'address_build' => $lang{ADDRESS_BUILD},
         'address_flat'  => $lang{ADDRESS_FLAT},
-        'ddress_street2'=> $lang{SECOND_NAME},
+        'address_street2'=> $lang{SECOND_NAME},
         'city'          => $lang{CITY},
         'zip'           => $lang{ZIP},
-        'phone'         => $lang{PHONE}
+        'phone'         => $lang{PHONE},
+        'edrpou'        => $lang{EDRPOU}
       },
       SKIP_USER_TITLE => 1,
       FILTER_COLS   => {

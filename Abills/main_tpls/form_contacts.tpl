@@ -138,7 +138,7 @@
   </li>
 </script>
 
-<script src='/styles/default/js/contacts_form.js?v=0.77.78'></script>
+<script src='/styles/default/js/contacts_form.js'></script>
 
 <style>
   .contact {

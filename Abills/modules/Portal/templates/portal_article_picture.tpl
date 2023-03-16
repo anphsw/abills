@@ -11,7 +11,7 @@
     </div>
     <div class='card-body'>
       <div class='d-flex justify-content-center'>
-        <img class='picture' src='%PICTURE_SRC%'>
+        <img class='picture mb-4' src='%PICTURE_SRC%'>
       </div>
       <p>%ARTICLE%</p>
     </div>

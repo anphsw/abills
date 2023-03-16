@@ -303,7 +303,7 @@ sub send_message_auto {
     AID       => ($receiver_type eq 'AID') ? $attr->{AID} : '_SHOW',
     UID       => ($receiver_type eq 'UID') ? $attr->{UID} : '_SHOW',
     VALUE     => '_SHOW',
-    PAGE_ROWS => 2
+    PAGE_ROWS => 1,
   });
 
   push @{$contacts_list}, @contacts;

@@ -113,12 +113,11 @@ sub chg {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'tasks_main',
-      DATA         => $attr,
-    } );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'tasks_main',
+    DATA         => $attr,
+  });
 
   return 1;
 }
@@ -144,10 +143,12 @@ sub list {
       ['AID',          'INT',  'tm.aid',                   1 ],
       ['RESPONSIBLE',  'INT',  'tm.responsible',           1 ],
       ['PLAN_DATE',    'DATE', 'tm.plan_date',             1 ],
+      ['CLOSED_DATE',  'DATE', 'tm.closed_date',           1 ],
       ['CONTROL_DATE', 'DATE', 'tm.control_date',          1 ],
       ['MSG_ID',       'INT',  'tm.msg_id',                1 ],
       ['STEP_ID',      'INT',  'tm.step_id',               1 ],
       ['LEAD_ID',      'INT',  'tm.lead_id',               1 ],
+      ['DEAL_ID',      'INT',  'tm.deal_id',               1 ],
     ],
     { WHERE => 1 }
   );

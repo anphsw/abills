@@ -50,6 +50,9 @@ CREATE TABLE IF NOT EXISTS `referral_requests` (
     `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
     `date` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `referral_uid` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+    `location_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+    `address_flat` VARCHAR(10) NOT NULL DEFAULT '',
+    `comments` VARCHAR(100) NOT NULL DEFAULT '',
     KEY referral_uid (`referral_uid`)
 )
   DEFAULT CHARSET = utf8

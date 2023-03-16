@@ -331,3 +331,17 @@ function nextColor(opacity) {
   currColor = ++currColor % colorArray.length;
   return colorArray[currColor] + ',' + opacity + ')';
 }
+
+async function sendRequest(url = '', data = {}, method = 'POST') {
+  const response = await fetch(url, {
+    method: method,
+    mode: 'cors',
+    cache: 'no-cache',
+    credentials: 'same-origin',
+    headers: {'Content-Type': 'application/json'},
+    redirect: 'follow',
+    referrerPolicy: 'no-referrer',
+    body: method === 'GET' || method === 'DELETE' ? undefined : JSON.stringify(data)
+  });
+  return response.json();
+}

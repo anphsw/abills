@@ -7,7 +7,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(in_array mk_unique_value);
+use Abills::Base qw(in_array mk_unique_value convert);
 use Abills::Defs;
 
 our(
@@ -673,12 +673,15 @@ sub form_payments_list {
               ($line->{deleted} && $line->{deleted} == 1) ? $state_colors[ $line->{deleted} ] : '' );
         }
       }
+      elsif ($field_name eq 'ext_id' && $line->{ext_id}) {
+        $line->{ext_id} = convert($line->{ext_id}, { text2html => 1 });
+      }
       elsif($field_name eq 'login' && $line->{uid}) {
         $line->{login} = $html->button($line->{login}, "index=15&UID=$line->{uid}");
       }
       elsif($field_name eq 'dsc') {
         if ($line->{dsc}) {
-          $line->{$field_name} = Abills::Base::convert($line->{$field_name}, { text2html => 1 });
+          $line->{$field_name} = convert($line->{$field_name}, { text2html => 1 });
         }
 
         $line->{dsc} = ($line->{dsc} || q{}) . $html->b("($line->{inner_describe})") if ($line->{inner_describe});

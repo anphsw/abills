@@ -931,7 +931,7 @@ sub form_changes {
 
     return 0;
   }
-  elsif($FORM{subf}) {
+  elsif($FORM{subf} && (!$pages_qs || $pages_qs !~ /subf/)) {
     $index = $FORM{subf};
     $pages_qs2 = "&subf=$FORM{subf}";
   }
@@ -1272,6 +1272,7 @@ sub form_passwd {
 
   my $password_form;
   my $ret  = 0;
+  my $is_g2fa = 0;
 
   if (defined($FORM{AID})) {
     $password_form->{HIDDDEN_INPUT} = $html->form_input(
@@ -1283,6 +1284,8 @@ sub form_passwd {
       }
     );
     $index = 50;
+
+    $is_g2fa = 1 if ($conf{AUTH_G2FA} && $attr->{ADMIN} && $attr->{ADMIN}->{G2FA});
   }
   elsif (defined($attr->{USER_INFO})) {
     $password_form->{HIDDDEN_INPUT} = $html->form_input(
@@ -1294,6 +1297,10 @@ sub form_passwd {
       }
     );
     $index = 15 if (!$attr->{REGISTRATION});
+    if ($conf{AUTH_G2FA}) {
+      $attr->{USER_INFO}->pi({ UID => $attr->{USER_INFO}->{UID} });
+      $is_g2fa = 1 if ($attr->{USER_INFO}->{_G2FA});
+    }
   }
 
   $conf{PASSWD_LENGTH} = 8 if (!$conf{PASSWD_LENGTH});
@@ -1330,6 +1337,18 @@ sub form_passwd {
   $password_form->{ACTION}     = 'change';
   $password_form->{LNG_ACTION} = $lang{CHANGE};
   $password_form->{CONFIG_PASSWORD} = $conf{CONFIG_PASSWORD} || q{};
+
+  if ($conf{AUTH_G2FA} && $is_g2fa) {
+    $password_form->{G2FA_HIDDEN} = '';
+    $password_form->{G2FA_REMOVE} = 1;
+    $password_form->{G2FA_INPUT_HIDDEN} = 'hidden';
+    $password_form->{G2FA_STYLE} = 'justify-content-center';
+    $password_form->{G2FA_BUTTON} = $lang{DELETE};
+    $password_form->{G2FA_ACTION} = 'change';
+  }
+  else {
+    $password_form->{G2FA_HIDDEN} = 'hidden';
+  }
 
   if(! $FORM{generated_pw} || ! $FORM{newpassword} || ! $FORM{confirm}) {
     $password_form->{newpassword}=mk_unique_value($password_form->{PW_LENGTH},
@@ -1458,7 +1477,8 @@ sub fl {
       push @m, "132:131:$lang{REPORT_NEW_ALL_USERS}:report_new_all_customers:::";
       push @m, "133:131:$lang{REPORT_NEW_ARPU_USERS}:report_new_arpu:::";
       push @m, "134:131:$lang{REPORT_BALANCE_BY_STATUS}:report_balance_by_status:::";
-      push @m, "136:131:$lang{REPORT_SWITCH_WITH_USERS}:switch_report:::";
+      push @m, "136:131:$lang{REPORT_SWITCH_WITH_USERS}:report_switch:::";
+      push @m, "137:131:$lang{REPORT_REASON_USERS_DISABLED}:report_users_disabled:::";
     }
 
     if($conf{AUTH_FACEBOOK_ID}){

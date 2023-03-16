@@ -117,12 +117,43 @@ properties:
       google:
         type: number
         example: 0
+  socialNetworks:
+    type: object
+    description: соответствует параметру config.pl SOCIAL_NETWORKS
+    properties:
+      facebook:
+        type: string
+        example: https://www.facebook.com/abills.net/
+      instagram:
+        type: string
+        example: https://instagram.com
+      telegram:
+        type: string
+        example: https://t.me/abills
+      viber:
+        type: string
+        example: https://viber.com
+      youtube:
+        type: string
+        example: https://www.youtube.com/c/abillsnetua
   system:
     type: object
     properties:
       currency:
         type: number
         example: 980
+      password:
+        type: object
+        properties:
+          length:
+            type: number
+            example: 7
+          symbols:
+            type: number
+            example: 1234567890
+  userChgPasswd:
+    type: number
+    example: 1
   userCredit:
     type: number
     example: 1001

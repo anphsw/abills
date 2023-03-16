@@ -528,12 +528,6 @@ sub build_list {
     $SORT = "b.number*1";
   }
 
-  # my $maps_google_fields = '';
-  # if ($attr->{SHOW_MAPS_GOOGLE}) {
-  #   push @WHERE_RULES, "(b.coordx<>0 and b.coordy)";
-  #   $maps_google_fields = "b.coordx, b.coordy, ";
-  # }
-
   my $WHERE = $self->search_former($attr, [
       ['NUMBER',            'STR', 'b.number',         ],
       ['BLOCK',             'STR', 'b.block',        1 ],
@@ -542,26 +536,22 @@ sub build_list {
       ['FLATS',             'INT', 'b.flats',        1 ],
       ['SCHEMA',            'INT', 'b.schema',       1 ],
       ['DISTRICT_ID',       'INT', 's.district_id',  1 ],
-      ['DISTRICT_NAME',     'INT', 'd.name AS district_name',       1 ],
-      ['STREET_NAME',       'INT', 's.name', 's.name AS street_name'  ],
+      ['DISTRICT_NAME',     'STR', 'd.name', 'd.name AS district_name'],
+      ['STREET_NAME',       'STR', 's.name', 's.name AS street_name'  ],
       ['USERS_COUNT',       'INT', '', 'COUNT(pi.uid) AS users_count' ],
       ['USERS_CONNECTIONS', 'INT', '', 'ROUND((COUNT(pi.uid) / b.flats * 100), 0) AS users_connections' ],
       ['ADDED',             'DATE','b.added',        1 ],
-      # ['YANDEX_0',          'INT', 'yandex_0',       1 ],
-      # ['YANDEX_1',          'INT', 'yandex_1',       1 ],
-      # ['GOOGLE_X',          'INT', 'coordx',         1 ],
-      # ['GOOGLE_Y',          'INT', 'coordy',         1 ],
       ['LOCATION_ID',       'INT', 'b.id',   'b.id AS location_id' ],
       ['COORDX',            'INT', 'b.coordx',       1 ],
       ['COORDY',            'INT', 'b.coordy',       1 ],
       ['ZOOM',              'INT', 'd.zoom',         1 ],
       ['STREET_ID',         'INT', 'b.street_id',      ],
       ['ZIP',               'INT', 'b.zip',    'b.zip' ],
-      ['PUBLIC_COMMENTS',   'STR', 'b.public_comments',    1 ],
-      ['PLANNED_TO_CONNECT','STR', 'b.planned_to_connect', 1 ],
-      ['NUMBERING_DIRECTION','STR', 'b.numbering_direction', 1 ],
-      ['DOMAIN_ID',         'INT', 'd.domain_id',          1 ],
-      ['CITY',              'INT', 'd.city',         1 ],
+      ['PUBLIC_COMMENTS',   'STR', 'b.public_comments',     1 ],
+      ['PLANNED_TO_CONNECT','STR', 'b.planned_to_connect',  1 ],
+      ['NUMBERING_DIRECTION','STR','b.numbering_direction', 1 ],
+      ['DOMAIN_ID',         'INT', 'd.domain_id',           1 ],
+      ['CITY',              'STR', 'd.city',                1 ],
       ['USERS',             'INT', 'GROUP_CONCAT(DISTINCT pi.uid) AS users', 1 ],
     ],
     { WHERE       => 1,
@@ -569,7 +559,6 @@ sub build_list {
     }
   );
 
-  #$self->{SEARCH_FIELDS} .= $maps_google_fields;
   my $EXT_TABLES = '';
 
   if ($self->{SEARCH_FIELDS} =~ /s\.|d\./) {

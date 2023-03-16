@@ -296,9 +296,8 @@ sub auth {
     if ($NAS->{NAS_TYPE} eq 'cisco' && !$cid || $CONF->{INTERNET_CID_SKIP}) {
     }
     elsif (! $ignore_cid) {
-      my $ERR_RAD_PAIRS;
-      ($ret, $ERR_RAD_PAIRS) = $self->auth_cid($RAD);
-      return $ret, $ERR_RAD_PAIRS if ($ret == 1);
+      my ($ret_, $ERR_RAD_PAIRS_) = $self->auth_cid($RAD);
+      return $ret_, $ERR_RAD_PAIRS_ if ($ret == 1);
     }
   }
 
@@ -998,7 +997,6 @@ sub auth_cid {
   my ($RAD) = @_;
 
   my $RAD_PAIRS;
-
   if($CONF->{AUTH_IP}) {
     return 0, $RAD_PAIRS;
   }
@@ -1013,33 +1011,22 @@ sub auth_cid {
   my $cid = $RAD->{'Calling-Station-Id'};
 
   foreach my $TEMP_CID (@CID_POOL) {
-    if ($TEMP_CID ne '') {
-      if (($TEMP_CID =~ /:/ || $TEMP_CID =~ /\-/)
-        && $TEMP_CID !~ /\./)
-      {
-        @MAC_DIGITS_GET = split(/:|-/, $TEMP_CID);
-        #NAS MPD 3.18 with patch
-        if ($cid =~ /\//) {
-          $cid =~ s/ //g;
-          my ($cid_ip, $trash);
-          ($cid_ip, $cid, $trash) = split(/\//, $cid, 3);
-        }
-
-        my @MAC_DIGITS_NEED = split(/:|\-|\./, $cid);
-        my $counter = 0;
-
+    if ($TEMP_CID) {
+      if ($TEMP_CID =~ /:|\-/ && $TEMP_CID !~ /\./) {
+        @MAC_DIGITS_GET = split(/:|\-/, $TEMP_CID);
+        my @MAC_DIGITS_NEED = split(/:|\-/, $cid);
+        my $error = 0;
         for (my $i = 0 ; $i <= 5 ; $i++) {
-          if (defined($MAC_DIGITS_NEED[$i]) && hex($MAC_DIGITS_NEED[$i]) == hex($MAC_DIGITS_GET[$i])) {
-            $counter++;
+          if (defined($MAC_DIGITS_NEED[$i]) && hex($MAC_DIGITS_NEED[$i]) != hex($MAC_DIGITS_GET[$i])) {
+            $error = 1;
+            next;
           }
         }
 
-        if ($counter eq '6') {
-          #$RAD->{'Calling-Station-Id'}=join(/:/, @MAC_DIGITS_NEED);
-          return 0
+        if (! $error) {
+          return 0;
         }
       }
-
       # If like MPD CID
       # 192.168.101.2 / 00:0e:0c:4a:63:56
       elsif ($TEMP_CID =~ /\//) {

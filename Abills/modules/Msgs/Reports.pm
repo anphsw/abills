@@ -844,47 +844,37 @@ sub msgs_report_tags {
 =cut
 #**********************************************************
 sub msgs_admin_time_spend_report {
-  #my ($attr) = @_;
 
-  #my $Admins = Admins->new($db, \%conf);
+  my ($to_date, $from_date);
 
-  my $to_date;
-  my $from_date;
-  if(!$FORM{TO_DATE} && !$FORM{FROM_DATE}){
+  if (!$FORM{TO_DATE} && !$FORM{FROM_DATE}) {
     my ($y, $m) = split('-', $DATE);
-    
 
     $from_date = "$y-$m-01";
     $to_date   = "$y-$m-" . days_in_month();
 
     $FORM{FROM_DATE_TO_DATE} = "$from_date/$to_date";
   }
-  
-  msgs_report_menu(
-    {
-      TO_DATE      => $FORM{TO_DATE} || $to_date,
-      FROM_DATE    => $FORM{FROM_DATE} || $from_date,
-      ADMINS_LOGIN => $FORM{ADMINS_LOGIN},
-    }
-  );
+
+  msgs_report_menu({
+    TO_DATE      => $FORM{TO_DATE} || $to_date,
+    FROM_DATE    => $FORM{FROM_DATE} || $from_date,
+    ADMINS_LOGIN => $FORM{ADMINS_LOGIN},
+  });
 
   if ($FORM{ADMINS_LOGIN}) {
     $FORM{ADMINS_LOGIN} =~ s/,/;/g;
 
-    $Msgs->{debug}=1;
-    my $reply_list = $Msgs->messages_reply_list(
-      {
-        LOGIN     => '_SHOW',
-        ADMIN     => '_SHOW',
-        MSG_ID    => '_SHOW',
-        FROM_DATE => $FORM{FROM_DATE} || $from_date,
-        TO_DATE   => $FORM{TO_DATE} || $to_date,
-        AID       => $FORM{ADMINS_LOGIN} || '_SHOW',
-        COLS_NAME => 1,
-        PAGE_ROWS => 10000,
-        # 'FROM_DATE|TO_DATE' => $FORM{FROM_DATE_TO_DATE},
-      }
-    );
+    my $reply_list = $Msgs->messages_reply_list({
+      LOGIN     => '_SHOW',
+      ADMIN     => '_SHOW',
+      MSG_ID    => '_SHOW',
+      FROM_DATE => $FORM{FROM_DATE} || $from_date,
+      TO_DATE   => $FORM{TO_DATE} || $to_date,
+      AID       => $FORM{ADMINS_LOGIN} || '_SHOW',
+      COLS_NAME => 1,
+      PAGE_ROWS => 10000,
+    });
 
     my %admins_time_per_msg;
     foreach my $reply (@$reply_list){
@@ -900,15 +890,14 @@ sub msgs_admin_time_spend_report {
       $admins_time_per_msg{$reply->{aid}}{admin_login} = $reply->{admin};
     }
 
-    my $spend_time_table = $html->table(
-      {
-        caption    => "$lang{TIME_IN_WORK}",
-        width      => '100%',
-        title      => [ "$lang{ADMIN}", "$lang{SUBJECT}", "$lang{REPLY} $lang{COUNT}", "$lang{TIME}" ],
-        cols_align => [ 'right', 'left', 'center' ],
-        ID         => 'ADMIN_SPEND_TIME'
-      }
-    );
+    my $spend_time_table = $html->table({
+      caption    => "$lang{TIME_IN_WORK}",
+      width      => '100%',
+      title      => [ "$lang{ADMIN}", "$lang{SUBJECT}", "$lang{REPLY} $lang{COUNT}", "$lang{TIME}" ],
+      cols_align => [ 'right', 'left', 'center' ],
+      ID         => 'ADMIN_SPEND_TIME'
+    });
+
     my $total_time = 0;
     foreach my $aid (sort keys %admins_time_per_msg){
       foreach my $msg (keys %{$admins_time_per_msg{$aid}{msgs}}){
@@ -926,7 +915,8 @@ sub msgs_admin_time_spend_report {
           # $msg, 
           $subject_button,
           $admins_time_per_msg{$aid}{msgs}{$msg}{answers}, 
-          $spend_time);
+          $spend_time
+        );
       }
     }
 
@@ -947,19 +937,16 @@ sub msgs_admin_time_spend_report {
   else{
     $FORM{ADMINS_LOGIN} = '!0';
 
-    my $reply_list = $Msgs->messages_reply_list(
-      {
-        LOGIN     => '_SHOW',
-        ADMIN     => '_SHOW',
-        MSG_ID    => '_SHOW',
-        FROM_DATE => $FORM{FROM_DATE} || $from_date,
-        TO_DATE   => $FORM{TO_DATE} || $to_date,
-        AID       => $FORM{ADMINS_LOGIN} || '_SHOW',
-        COLS_NAME => 1,
-        PAGE_ROWS => 10000,
-        # 'FROM_DATE|TO_DATE' => $FORM{FROM_DATE_TO_DATE},
-      }
-    );
+    my $reply_list = $Msgs->messages_reply_list({
+      LOGIN     => '_SHOW',
+      ADMIN     => '_SHOW',
+      MSG_ID    => '_SHOW',
+      FROM_DATE => $FORM{FROM_DATE} || $from_date,
+      TO_DATE   => $FORM{TO_DATE} || $to_date,
+      AID       => $FORM{ADMINS_LOGIN} || '_SHOW',
+      COLS_NAME => 1,
+      PAGE_ROWS => 10000,
+    });
     
     my %admins_time_per_msg;
     foreach my $reply (@$reply_list) {
@@ -978,15 +965,13 @@ sub msgs_admin_time_spend_report {
       $admins_time_per_msg{$reply->{aid}}{admin_login} = $reply->{admin};
     }
 
-    my $spend_time_table = $html->table(
-      {
-        caption    => "$lang{TIME_IN_WORK}",
-        width      => '100%',
-        title      => [ "$lang{ADMIN}", "$lang{REPLYS} $lang{COUNT}", "$lang{TIME}", "" ],
-        cols_align => [ 'right', 'left', 'center' ],
-        ID         => 'ADMIN_SPEND_TIME'
-      }
-    );
+    my $spend_time_table = $html->table({
+      caption    => "$lang{TIME_IN_WORK}",
+      width      => '100%',
+      title      => [ "$lang{ADMIN}", "$lang{REPLYS} $lang{COUNT}", "$lang{TIME}", "" ],
+      cols_align => [ 'right', 'left', 'center' ],
+      ID         => 'ADMIN_SPEND_TIME'
+    });
 
     foreach my $aid ( sort keys %admins_time_per_msg){
       my $show_subjects_button = $html->button(undef, "index=$index&ADMINS_LOGIN=$aid&", {class=> 'info'});

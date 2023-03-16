@@ -167,10 +167,11 @@ sub messages_list {
   
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : 'DESC';
+  $DESC = (defined $attr->{DESC}) ? $attr->{DESC} : 'DESC';
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
 
   delete $self->{COL_NAMES_ARR};
+  delete $self->{SEARCH_FIELDS};
   $self->{EXT_TABLES} = '';
   my @WHERE_RULES = ();
   if ($attr->{PLAN_FROM_DATE}) {

@@ -45,7 +45,15 @@
             </div>
           </div>
 
-          %ADDRESS_FORM%
+          <div class='form-group row'>
+            <label class='col-form-label text-md-right col-md-4' for='COMMENTS_ID'>_{COMMENTS}_:</label>
+            <div class='col-md-8'>
+              <div class='input-group'>
+                  <textarea class='form-control col-md-12' rows='5' name='COMMENTS'
+                            id='COMMENTS_ID'>%COMMENTS%</textarea>
+              </div>
+            </div>
+          </div>
 
         </div>
         <div class='card-footer '>
@@ -56,6 +64,22 @@
     </div>
     <div class='col-md-6'>
       <div class='row'>
+
+        <div class='col-md-12'>
+          <div class='card card-primary card-outline collapsed-card'>
+            <div class='card-header with-border'>
+              <h3 class='card-title'>_{ADDRESS}_</h3>
+              <div class='card-tools float-right'>
+                <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+                  <i class='fa fa-plus'></i>
+                </button>
+              </div>
+            </div>
+            <div class='card-body'>
+              %ADDRESS_FORM%
+            </div>
+          </div>
+        </div>
 
         <div class='col-md-12'>
           <div class='card card-primary card-outline collapsed-card'>
@@ -110,16 +134,6 @@
                 <label class='col-form-label text-md-right col-md-4'>_{SOURCE}_:</label>
                 <div class='col-md-8'>
                   %LEAD_SOURCE%
-                </div>
-              </div>
-
-              <div class='form-group row'>
-                <label class='col-form-label text-md-right col-md-4' for='COMMENTS_ID'>_{COMMENTS}_:</label>
-                <div class='col-md-8'>
-                  <div class='input-group'>
-                  <textarea class='form-control col-md-12' rows='5' name='COMMENTS'
-                            id='COMMENTS_ID'>%COMMENTS%</textarea>
-                  </div>
                 </div>
               </div>
 

@@ -102,5 +102,18 @@ $lang{CRM_CHANGE} = 'change';
 $lang{CRM_CANCEL} = 'cancel';
 $lang{CRM_CHOOSE_FIELDS} = 'choose fields';
 $lang{CRM_NOT_SPECIFIED} = 'Not specified';
+$lang{CRM_DELETE_SECTION} = 'delete';
+$lang{CRM_CREATE_NEW_SECTION} = 'add section';
+$lang{CRM_NEW_SECTION} = 'New section';
+$lang{CRM_DELETE_SECTION} = 'Delete section';
+$lang{CONFIRM_DELETE_SECTION} = 'Do you really want to delete this section?';
+$lang{ALL_DATA} = 'all data';
+$lang{DEALS} = 'Deals';
+$lang{DEAL} = 'Deal';
+$lang{STEPS_FOR_DEALS} = 'Steps for deals';
+$lang{CRM_BEGIN_DATE} = 'Begin date';
+$lang{CRM_CLOSE_DATE} = 'Close date';
+$lang{CRM_PRODUCTS} = 'Products';
+$lang{CRM_REGISTRATION_DATE} = 'Registration date';
 
 1

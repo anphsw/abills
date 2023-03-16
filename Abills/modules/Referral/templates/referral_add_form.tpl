@@ -21,12 +21,15 @@
         </div>
       </div>
 
+      %ADDRESS_SEL%
+
       <div class='form-group row'>
-        <label class='control-label col-md-3 col-sm-3' for='ADDRESS'>_{ADDRESS}_</label>
+        <label class='control-label col-md-3 col-sm-3' for='COMMENTS'>_{COMMENTS}_</label>
         <div class='col-sm-9 col-md-9'>
-          <textarea class='form-control' name='ADDRESS' id='ADDRESS'>%ADDRESS%</textarea>
+          <textarea cols="10" style="resize: vertical" class='form-control' name='COMMENTS' id='COMMENTS'>%COMMENTS%</textarea>
         </div>
       </div>
+
     </div>
     <div class='card-footer'>
       %ACTION%

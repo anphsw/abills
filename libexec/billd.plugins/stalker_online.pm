@@ -191,7 +191,7 @@ sub stalker_online_check {
 
   #Get stalker info
   $Stalker_api->_send_request({
-    ACTION => "STB",
+    ACTION => "stb",
     DEBUG  => ($debug > 6) ? $debug : undef
   });
 

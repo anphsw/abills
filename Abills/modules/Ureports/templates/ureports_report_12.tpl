@@ -4,7 +4,7 @@ _{PAYMENTS_INFO}_
 _{PAYMENT_MAKED}_
 
 ---------------------------------------------
-_{SUM}_: %SUM%
+_{SUM}_: %SUM% (%PAYMENT_METHOD%)
 _{DATE}_: %DATE%
 #: %PAYMENT_ID%
 

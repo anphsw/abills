@@ -365,10 +365,10 @@ sub admin_routes {
         }
 
         $query_params->{COLS_NAME} = 1;
-        $query_params->{PAGE_ROWS} = defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25;
-        $query_params->{PG} = defined($query_params->{PG}) ? $query_params->{PG} : 0;
-        $query_params->{DESC} = defined($query_params->{DESC}) ? $query_params->{DESC} : '';
-        $query_params->{SORT} = defined($query_params->{SORT}) ? $query_params->{SORT} : 1;
+        $query_params->{PAGE_ROWS} = $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25;
+        $query_params->{PG} = $query_params->{PG} ? $query_params->{PG} : 0;
+        $query_params->{DESC} = $query_params->{DESC} ? $query_params->{DESC} : '';
+        $query_params->{SORT} = $query_params->{SORT} ? $query_params->{SORT} : 1;
 
         $Voip->user_list($query_params);
       },
@@ -517,10 +517,10 @@ sub admin_routes {
           CHANGED   => $query_params->{CHANGED} || '_SHOW',
           UID       => $query_params->{UID} || '_SHOW',
           COLS_NAME => 1,
-          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
-          DESC      => (defined($query_params->{DESC}) ? $query_params->{DESC} : ''),
-          PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
-          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
+          SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
+          DESC      => $query_params->{DESC} ? $query_params->{DESC} : '',
+          PG        => $query_params->{PG} ? $query_params->{PG} : 0,
+          PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
         });
       },
       credentials => [
@@ -539,10 +539,10 @@ sub admin_routes {
           CHANGED   => $query_params->{CHANGED} || '_SHOW',
           UID       => $path_params->{uid},
           COLS_NAME => 1,
-          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
-          DESC      => (defined($query_params->{DESC}) ? $query_params->{DESC} : ''),
-          PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
-          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
+          SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
+          DESC      => $query_params->{DESC} ? $query_params->{DESC} : '',
+          PG        => $query_params->{PG} ? $query_params->{PG} : 0,
+          PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
         });
       },
       credentials => [
@@ -606,10 +606,10 @@ sub admin_routes {
         }
 
         $query_params->{COLS_NAME} = 1;
-        $query_params->{PAGE_ROWS} = defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25;
-        $query_params->{PG} = defined($query_params->{PG}) ? $query_params->{PG} : 0;
-        $query_params->{DESC} = defined($query_params->{DESC}) ? $query_params->{DESC} : '';
-        $query_params->{SORT} = defined($query_params->{SORT}) ? $query_params->{SORT} : 1;
+        $query_params->{PAGE_ROWS} = $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25;
+        $query_params->{PG} = $query_params->{PG} ? $query_params->{PG} : 0;
+        $query_params->{DESC} = $query_params->{DESC} ? $query_params->{DESC} : '';
+        $query_params->{SORT} = $query_params->{SORT} ? $query_params->{SORT} : 1;
 
         return $Voip->tp_list($query_params);
       },
@@ -715,10 +715,10 @@ sub admin_routes {
           ROUTE_NAME   => $query_params->{NAME} || '_SHOW',
           DESCRIBE     => $query_params->{DESCRIBE} || '_SHOW',
           ROUTE_PREFIX => $query_params->{PREFIX} || '_SHOW',
-          SORT         => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
-          DESC         => (defined($query_params->{DESC}) ? $query_params->{DESC} : ''),
-          PG           => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
-          PAGE_ROWS    => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
+          SORT         => $query_params->{SORT} ? $query_params->{SORT} : 1,
+          DESC         => $query_params->{DESC} ? $query_params->{DESC} : '',
+          PG           => $query_params->{PG} ? $query_params->{PG} : 0,
+          PAGE_ROWS    => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
           COLS_NAME    => 1
         });
       },
@@ -816,10 +816,10 @@ sub admin_routes {
         $Voip->extra_tarification_list({
           ID        => $query_params->{ID} || '_SHOW',
           NAME      => $query_params->{NAME} || '_SHOW',
-          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
-          DESC      => (defined($query_params->{DESC}) ? $query_params->{DESC} : ''),
-          PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
-          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
+          SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
+          DESC      => $query_params->{DESC} ? $query_params->{DESC} : '',
+          PG        => $query_params->{PG} ? $query_params->{PG} : 0,
+          PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
           COLS_NAME => 1
         });
       },
@@ -952,8 +952,8 @@ sub admin_routes {
         $Voip->trunk_list({
           %$query_params,
           COLS_NAME => 1,
-          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
-          SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1),
+          PAGE_ROWS => ($query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25),
+          SORT      => ($query_params->{SORT} ? $query_params->{SORT} : 1),
           PG        => (defined($query_params->{PG}) ? $query_params->{PG} : 0),
         });
       },

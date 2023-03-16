@@ -369,7 +369,7 @@ sub check_lines{
       elsif ( $state && ! $online->{guest}){
         session_hangup( $nas, $online, "CHANGE_STATE DEPOSIT: $deposit CREDIT: $credit DISABLE: $state",
           { COA_ACTION => 'DISABLE' });
-        #next;
+        next;
       }
       elsif ( $online->{status} == 9 && $online->{last_alive} > $nas->{NAS_ALIVE} * $error_alive_count * 2 ){
         session_hangup( $nas, $online,

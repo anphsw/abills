@@ -6,12 +6,12 @@ package Sorm::Uzb;
 
 =head1 DOCS
 
-  version: v1.3
+  version: v1.4
 
 =head1 VERSION
 
-  VERSION: 1.3
-  UPDATE: 20221218
+  VERSION: 1.4
+  UPDATE: 20230222
 
 =cut
 
@@ -19,11 +19,11 @@ use strict;
 use warnings FATAL => 'all';
 
 use Companies;
+use Internet::Collector;
 use Time::Piece;
-use Abills::Misc qw(translate_list);
-use Abills::Base qw(in_array ip2int);
+use Abills::Base qw(in_array ip2int int2ip);
 
-my ($User, $Company, $Internet, $Sessions, $Nas, $debug);
+my ($User, $Company, $Internet, $Sessions, $Nas, $Traffic, $debug);
 my Payments $Payments;
 my %online_mac = ();
 
@@ -80,6 +80,7 @@ sub init {
   $Sessions = Internet::Sessions->new($self->{db}, $self->{admin}, $self->{conf});
   $Payments = Finance->payments($self->{db}, $self->{admin}, $self->{conf});
   $Nas = Nas->new($self->{db}, $self->{admin}, $self->{conf});
+  $Traffic = Internet::Collector->new($self->{db}, $self->{conf});
 
   my $argv = $self->{argv};
   $sorm_id = $self->{conf}->{SORM_ISP_ID};
@@ -130,16 +131,14 @@ sub init {
       $self->PAYMENT_report($p->{id});
     }
 
-    # CONNECTION
     _add_header('CONNECTION');
     $self->CONNECTION_report();
 
-    # BASE_STATION
     _add_header('BASE_STATION');
     $self->BASE_STATION_report();
 
-    # _add_header('NAT');
-    # $self->NAT_report();
+    _add_header('NAT');
+    $self->NAT_report();
 
     $self->send();
   }
@@ -374,6 +373,47 @@ sub BASE_STATION_report {
 }
 
 #**********************************************************
+=head2 NAT_report()
+
+=cut
+#**********************************************************
+sub NAT_report {
+  my $self = shift;
+
+  my $traffic_list = $Traffic->traffic_user_list({
+    COLS_NAME    => 1,
+    S_TIME       => '_SHOW',
+    SRC_IP       => '_SHOW',
+    SRC_PORT     => '_SHOW',
+    DST_IP       => '_SHOW',
+    DST_PORT     => '_SHOW',
+    NAS_ID       => '_SHOW',
+    DESC         => 'DESC',
+    PAGE_ROWS    => 100000,
+  });
+
+  foreach my $traffic (@$traffic_list) {
+
+    my @arr = ();
+    $arr[0] = $traffic->{s_time};   #TRANSLATION_TIME
+    $arr[1] = $sorm_id;             #REGION_ID
+    $arr[2] = 1;                    #RECORD_TYPE
+    $arr[3] = int2ip($traffic->{src_addr}); #PRIVATE_IPV4
+    $arr[4] = $traffic->{src_port}; #PRIVATE_IP_PORT
+    $arr[5] = '';                   #PUBLIC_IPV4
+    $arr[6] = '';                   #PUBLIC_IP_PORT_END
+    $arr[7] = int2ip($traffic->{dst_addr}); #DEST_IPV4
+    $arr[8] = $traffic->{dst_port}; #DEST_IP_PORT
+    $arr[9] = '';                   #TRANSLATION_TYPE ???
+    $arr[10] = '';                  #PUBLIC_IP_PORT ???
+
+    _add_report("NAT", @arr);
+  }
+
+  return 1;
+}
+
+#**********************************************************
 =head2 _add_report($type, @params)
 
   Arguments:
@@ -433,7 +473,7 @@ sub _save_report {
     PAYMENT               => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_PAYMENT_" . $sufix,
     CONNECTION            => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_CONNECTION_AAA_" . $sufix,
     BASE_STATION          => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_BASE-STATION_" . $sufix,
-    # NAT                   => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_NAT_" . $sufix,
+    NAT                   => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_NAT_" . $sufix,
   );
 
   my $filename = $reports{$type};
@@ -536,19 +576,19 @@ sub _add_header {
       'IPV4',
       'IP_PORT'
     ],
-    # NAT                   => [
-    #   'TRANSLATION_TIME',
-    #   'REGION_ID',
-    #   'RECORD_TYPE',
-    #   'PRIVATE_IPV4',
-    #   'PRIVATE_IP_PORT',
-    #   'PUBLIC_IPV4',
-    #   'PUBLIC_IP_PORT_END',
-    #   'DEST_IPV4',
-    #   'DEST_IP_PORT',
-    #   'TRANSLATION_TYPE',
-    #   'PUBLIC_IP_PORT',
-    # ],
+    NAT                   => [
+      'TRANSLATION_TIME',
+      'REGION_ID',
+      'RECORD_TYPE',
+      'PRIVATE_IPV4',
+      'PRIVATE_IP_PORT',
+      'PUBLIC_IPV4',
+      'PUBLIC_IP_PORT_END',
+      'DEST_IPV4',
+      'DEST_IP_PORT',
+      'TRANSLATION_TYPE',
+      'PUBLIC_IP_PORT',
+    ],
   );
 
   my $string = "";
@@ -574,7 +614,7 @@ sub send {
     PAYMENT               => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_PAYMENT_" . $sufix,
     CONNECTION            => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_CONNECTION_AAA_" . $sufix,
     BASE_STATION          => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_BASE-STATION_" . $sufix,
-    # NAT                   => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_NAT_" . $sufix,
+    NAT                   => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_NAT_" . $sufix,
   );
 
   for my $report (values %reports) {

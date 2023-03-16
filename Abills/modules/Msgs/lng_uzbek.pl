@@ -23,5 +23,5 @@ $lang{CONNECTION_TIME} = "Ulanish uchun qulay vaqt";
 $lang{NO_SUBJECT} = "Mavzusiz";
 $lang{USER_READ} = "Abonent o'qib chiqqan";
 $lang{ADMIN_READ} = "Ma'mur o'qib chiqqan";
-$lang{SHEDULE_BOARD} = 'Ish kengashi';
+$lang{SCHEDULE_BOARD} = 'Ish kengashi';
 

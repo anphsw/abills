@@ -16,7 +16,7 @@
                 <a href='$SELF_URL?get_index=paysys_payment&SUM=%RECOMENDED_PAY%' class='btn btn-primary text-white'>_{MAKE_PAYMENT}_!</a>
             </div>
             <div class='icon'>
-                <i class='ion ion-pie-graph'></i>
+                <i class='fas fa-chart-pie'></i>
             </div>
             <a href='/index.cgi?index=10' class='small-box-footer'>_{INFO}_ <i class='fa fa-arrow-circle-right'></i></a>
         </div>

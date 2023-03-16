@@ -68,7 +68,7 @@
 <link rel='stylesheet' type='text/css' href='/styles/default/css/social_button.css'>
 
 <!-- Login Form -->
-<div class='login-box card card-outline card-primary' style='margin: 7% auto;'>
+<div class='login-box card card-outline card-primary' style='margin: 7% auto 4%;'>
   <div class='mb-0 login-logo card-header text-center'>
     <b><a href='/' class='h1'><img src=''><span style='color: red;'>A</span>BillS</a></b>
   </div>
@@ -186,7 +186,7 @@
   </div>
 </div>
 
-<div class='login-box' style='margin: 1% auto;'>
+<div class='login-box' style='margin: 0 auto 4%;'>
   %APP_LINK_GOOGLE_PLAY%
 </div>
 

@@ -32,64 +32,7 @@ sub form_districts{
   $Address->{ACTION} = 'add';
   $Address->{LNG_ACTION} = "$lang{ADD}";
 
-  if ( $FORM{IMPORT} ){
-    my @rows = split( /[\r\n]+/, $FORM{IMPORT}{Contents} );
-    my %steets_ids = ();
-    my $counts = 0;
-    foreach my $line ( @rows ){
-      my %info = ();
-      ($info{STREET_NAME},
-        $info{NUMBER},
-        $info{FLORS},
-        $info{ENTRANCES},
-        $info{FLATS},
-        $info{CONTRACT_ID},
-        $info{CONTRACT_DATE},
-        $info{CONTRACT_PRICE},
-        $info{COMMENTS}
-      ) = split( /\t/, $line );
-
-      while(my (undef, $v) = each %info) {
-        $v =~ s/^\"|\"$//g if($v);
-      }
-
-      #Get street id
-      if ( !$steets_ids{$info{STREET_NAME}} ){
-        my $list = $Address->street_list( {
-          STREET_NAME => $info{STREET_NAME},
-          COLS_NAME   => 1
-        } );
-
-        if ( $Address->{TOTAL} > 0 ){
-          $info{STREET_ID} = $list->[0]->{id};
-        }
-        else{
-          $Address->street_add( {
-            NAME        => $info{STREET_NAME},
-            DISTRICT_ID => $FORM{ID}
-          } );
-
-          if ( _error_show( $Address ) ){
-            last;
-          }
-
-          $info{STREET_ID} = $Address->{INSERT_ID};
-        }
-
-        $steets_ids{$info{STREET_NAME}} = $info{STREET_ID};
-      }
-      else{
-        $info{STREET_ID} = $steets_ids{$info{STREET_NAME}};
-      }
-
-      $Address->build_add( \%info );
-      _error_show( $Address );
-
-      $counts++;
-    }
-    $html->message( 'info', $lang{IMPORT}, "$lang{ADDED}: $counts" );
-  }
-  elsif ( $FORM{IMPORT_ADDRESS} ) {
+  if ( $FORM{IMPORT_ADDRESS} ) {
     address_import();
     return 0;
   }
@@ -1150,6 +1093,7 @@ sub _street_type_select {
     $attr -
     SHOW_BUTTONS => 1 - Show Maps, Dom buttons
     SHOW_ADD_BUTTONS => 1 - Show Add District and Add Street buttons
+    HIDE_BUILDS => 1 - Hide builds (wow!)
   Returns:
 
 =cut
@@ -1203,13 +1147,15 @@ sub form_address_select2 {
     SELECT_ID   => $street_id,
     SEL_OPTIONS => { '' => '--' },
   });
-  my $build_select = sel_builds({ %FORM, %{$attr},
-    SELECT_NAME     => $build_select_name,
-    SELECT_ID       => $build_id,
-    EX_PARAMS       => 'onChange="GetLoc(this)"',
-    CHECK_STREET_ID => 1,
-    SEL_OPTIONS     => { '' => '--' },
-  });
+  my $build_select = $attr->{HIDE_BUILD}
+    ? ''
+    : sel_builds({ %FORM, %{$attr},
+        SELECT_NAME     => $build_select_name,
+        SELECT_ID       => $build_id,
+        EX_PARAMS       => 'onChange="GetLoc(this)"',
+        CHECK_STREET_ID => 1,
+        SEL_OPTIONS     => { '' => '--' },
+      });
 
   #Streets
   if ($FORM{STREET}) {
@@ -1261,6 +1207,7 @@ sub form_address_select2 {
       ADDRESS_FLAT        => $attr->{ADDRESS_FLAT} || '',
       LOCATION_ID         => $attr->{LOCATION_ID} || '',
       HIDE_FLAT           => $attr->{HIDE_FLAT} ? 'display: none' : '',
+      HIDE_BUILD          => $attr->{HIDE_BUILD} ? 'display: none' : '',
       EXT_ADDRESS         => $attr->{EXT_ADDRESS} ? $attr->{EXT_ADDRESS} : q{},
       MAP_BTN             => $attr->{MAP_BTN} && $attr->{SHOW_BUTTONS} ? $attr->{MAP_BTN} : q{},
       DOM_BTN             => $attr->{DOM_BTN} && $attr->{SHOW_BUTTONS} ? $attr->{DOM_BTN} : q{},
@@ -1279,7 +1226,7 @@ sub form_address_select2 {
 =head2 address_import()
 
     This function is intended for
-    importing addresses into the address log from
+    importing addresses into the address register table from
     .json/.csv extension files
 
     Arguments:
@@ -1301,19 +1248,22 @@ sub address_import {
     my $import_info = import_former( \%FORM );
     my $total = $#{ $import_info } + 1;
 
-    my $address_list = $Address->street_list({
+    my $streets_list = $Address->street_list({
       STREET_NAME   => '_SHOW',
       COLS_NAME     => 1,
       PAGE_ROWS     => 100000
     });
 
     use utf8;
-    my $address_district = $Address->district_list({ COLS_NAME => 1, PAGE_ROWS => 1000 });
-    my %district_list = map { $_->{name} => $_->{id} } @{$address_district};
-    my %street_list = map { $_->{street_name} => $_->{id} } @{$address_list};
+    my $districts_list = $Address->district_list({ COLS_NAME => 1, PAGE_ROWS => 1000 });
+    my %district_list  = map { $_->{name} => $_->{id} } @{$districts_list};
+    my %street_list    = map { $_->{street_name} => $_->{id} } @{$streets_list};
 
     foreach my $address_ (@$import_info) {
-      add_address_import($address_, \%district_list, \%street_list);
+      address_create($address_, {
+        DISTRICTS => \%district_list,
+        STREETS   => \%street_list
+      });
     }
 
     $html->message('info', $lang{INFO},
@@ -1331,36 +1281,80 @@ sub address_import {
 }
 
 #**********************************************************
-=head2 add_address_import($address_, $district, $street)
+=head2 address_create($address_, $district, $street) - Create address and return location_id for address
 
   Arguments:
     $address_        - Address date add
-    $districts_hash  - District, key-name, value-id district
-    $street_hash     - Street, key-name, value-id street
+      DISTRICT
+        ZIP
+        CITY
+      STREET
+      BUILD
+        ADDRESS_COORDX
+        ADDRESS_COORDY
+    $attr
+       DISTRICTS $districts_hash  - District, key-name, value-id district
+       STREETS   $street_hash     - Street, key-name, value-id street
 
   Return:
-    TRUE or FALSE
+    LOCATION_ID
 
 =cut
 #**********************************************************
-sub add_address_import {
-  my ($address_, $district, $street) = @_;
+sub address_create {
+  my ($address_, $attr) = @_;
 
-  if ($address_->{DISTRICT} && !$district->{ $address_->{DISTRICT} }) {
-    my $districts_id = add_import_districts($address_->{DISTRICT});
+  my $district = $attr->{DISTRICTS};
+  my $street = $attr->{STREETS};
+
+  $address_->{DISTRICT} //= 'DEFAULT';
+
+  if ($address_->{DISTRICT} && $address_->{STREET} && $address_->{BUILD}) {
+    my $location_id = 0;
+
+    my $builds_list = $Address->build_list({
+      DISTRICT_NAME  => $address_->{DISTRICT},
+      STREET_NAME    => $address_->{STREET},
+      NUMBER         => $address_->{BUILD},
+      COORDX         => '_SHOW',
+      COORDY         => '_SHOW',
+      COLS_NAME      => '_SHOW'
+    });
+
+    if ($Address->{TOTAL} || $Address->{TOTAL} == 1) {
+      $location_id = $builds_list->[0]->{id} || 0;
+      if ($address_->{ADDRESS_COORDX} && $address_->{ADDRESS_COORDY}
+        && (
+        ($address_->{ADDRESS_COORDX} ne $builds_list->[0]->{coordx})
+          || ($address_->{ADDRESS_COORDY} ne $builds_list->[0]->{coordy})
+      )
+      ) {
+        $Address->build_change({
+          ID     => $location_id,
+          COORDX => $address_->{ADDRESS_COORDX},
+          COORDY => $address_->{ADDRESS_COORDY},
+        });
+      }
+
+      return $location_id;
+    }
+  }
+
+  if ($address_->{DISTRICT} && (! $district || !$district->{ $address_->{DISTRICT} })) {
+    my $districts_id = address_district_add($address_->{DISTRICT}, $attr);
     $district->{$address_->{DISTRICT}}=$districts_id;
-    my $street_id = add_import_street($address_->{STREET}, $districts_id);
-    if ($address_->{STREET}) {
-      add_import_build($address_->{BUILD}, $street_id || $street->{ $address_->{STREET} });
+    my $street_id = address_street_add($address_->{STREET}, $districts_id, $attr);
+    if ($street_id && $address_->{BUILD}) {
+      return address_build_add($address_->{BUILD}, $street_id || $street->{ $address_->{STREET} });
     }
   }
   elsif ($address_->{STREET} && !$street->{ $address_->{STREET} }) {
-    my $street_id = add_import_street($address_->{STREET}, $district->{ $address_->{DISTRICT} });
-    add_import_build($address_->{BUILD}, $street_id || $street->{ $address_->{STREET} });
+    my $street_id = address_street_add($address_->{STREET}, $district->{ $address_->{DISTRICT} });
+    address_build_add($address_->{BUILD}, $street_id || $street->{ $address_->{STREET} });
   }
   else {
     if ($address_->{STREET} && $address_->{BUILD}) {
-      add_import_build($address_->{BUILD}, $street->{ $address_->{STREET} });
+      address_build_add($address_->{BUILD}, $street->{ $address_->{STREET} });
     }
   }
 
@@ -1368,72 +1362,126 @@ sub add_address_import {
 }
 
 #**********************************************************
-=head2 add_import_street()
+=head2 address_street_add($street_name, $district_id, $attr)
 
   Arguments:
     street_name     -
     district_id     -
+    $attr - Extra attributes
 
   Return:
-    -
+    $street_id
 
 =cut
 #**********************************************************
-sub add_import_street {
-  my ($street_name, $district_id) = @_;
+sub address_street_add {
+  my ($street_name, $district_id, $attr) = @_;
 
-  $Address->street_add({
-    NAME        => Encode::decode('UTF-8', $street_name),
-    DISTRICT_ID => $district_id
+  my $streets_list = $Address->street_list({
+    %{ ($attr) ? $attr  : {} },
+    STREET_NAME => $street_name,
+    DISTRICT_ID => $district_id,
+    COLS_NAME   => 1
   });
 
-  _error_show($Address);
+  my $street_id = 0;
+  if($Address->{TOTAL}) {
+    $street_id=$streets_list->[0]->{id};
+  }
+  else {
+    $Address->street_add({
+      NAME        => Encode::decode('UTF-8', $street_name),
+      DISTRICT_ID => $district_id
+    });
 
-  print "-------- $street_name $Address->{INSERT_ID} <br>";
+    if ($Address->{errno}) {
+      print "ERROR: NAME => $street_name, DISTRICT_ID => $district_id\n";
+    }
+    else {
+      $street_id = $Address->{STREET_ID};
+    }
+  }
 
-  return $Address->{INSERT_ID};
+  return $street_id;
 }
 
 #**********************************************************
-=head2 add_import_street()
+=head2 address_build_add()
 
   Arguments:
-    street_id       -
-    district_id     -
+    $number
+    $street_id
+    $attr
 
   Return:
-    -
+    $location_id
 
 =cut
 #**********************************************************
-sub add_import_build {
-  my ($number, $street_id) = @_;
+sub address_build_add {
+  my ($number, $street_id, $attr) = @_;
 
+  my $location_id = 0;
   $Address->build_add({
-    STREET_ID         => $street_id,
-    ADD_ADDRESS_BUILD => $number
+    STREET_ID => $street_id,
+    ADD_ADDRESS_BUILD => $number || $attr->{ADDRESS_BUILD},
+    COORDX    => $attr->{ADDRESS_COORDX},
+    COORDY    => $attr->{ADDRESS_COORDY},
+    ZIP       => $attr->{ZIP},
+    FLORS     => $attr->{ADDRESS_BUILD_FLORS},
+    ENTRANCES => $attr->{ADDRESS_BUILD_ENTRANCES},
   });
+
+  if ($Address->{errno}) {
+    Encode::_utf8_off($attr->{ADDRESS_STREET});
+    Encode::_utf8_off($attr->{ADDRESS_BUILD});
+    print "ERROR: $street_id ($attr->{ADDRESS_STREET}) $attr->{ADDRESS_BUILD}\n";
+  }
+  else {
+    $location_id = $Address->{LOCATION_ID};
+  }
+
+  return $location_id;
 }
 
 #**********************************************************
-=head2 add_import_street()
+=head2 address_district_add($district_name, $attr)
 
   Arguments:
-    name_district  -
+    $district_name  -
+    $attr
 
   Return:
-    INSERT_ID      - id district
+    $district_id      - id district
 
 =cut
 #**********************************************************
-sub add_import_districts {
-  my ($district_name) = @_;
+sub address_district_add {
+  my ($district_name, $attr) = @_;
 
-  $Address->district_add({ NAME => Encode::decode('UTF-8', $district_name) });
+  my $district_id = 1;
 
-  _error_show($Address);
+  my %district_params = ();
+  $district_params{NAME} = $district_name || 'DEFAULT';
 
-  return $Address->{INSERT_ID};
+  my $districts_list = $Address->district_list({
+    %district_params,
+    COLS_NAME => 1
+  });
+
+  if ($Address->{TOTAL}) {
+    $district_id = $districts_list->[0]->{id};
+  }
+  else {
+    $Address->district_add({
+      %{ ($attr) ? $attr : {} },
+      NAME => Encode::decode('UTF-8', $district_name || 'DEFAULT')
+    });
+
+    $district_id = $Address->{DISTRICT_ID};
+  }
+
+  return $district_id;
 }
 
 #**********************************************************

@@ -1,4 +1,4 @@
-<div class='m-2' style='max-width: 12rem;'>
+<div class='m-2 logo-container'>
   <input type='radio' id='%PAY_SYSTEM%' value='%PAY_SYSTEM%' name='PAYMENT_SYSTEM' required hidden %CHECKED%>
   <label role='button' for='%PAY_SYSTEM%' class='d-flex justify-content-center card card-primary h-100'>
     <div class='form-group row d-flex justify-content-center'>
@@ -27,5 +27,9 @@
 
   label {
     border-radius: 5px;
+  }
+
+  .logo-container {
+    max-width: 12rem;
   }
 </style>

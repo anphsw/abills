@@ -40,7 +40,6 @@ sub new {
     DEBUG => $conf->{PAYSYS_DEBUG} || 0,
   };
 
-
   bless($self, $class);
 
   return $self;
@@ -80,6 +79,8 @@ sub conf_gid_split {
   my $self = shift;
   my ($attr) = @_;
 
+  my %conf = %{$self->{conf}};
+
   my $gid = $attr->{GID};
 
   if (!$gid) {
@@ -101,8 +102,8 @@ sub conf_gid_split {
     my $params = $attr->{PARAMS};
     foreach my $key (@$params) {
       $key =~ s/_NAME_/_$attr->{NAME}\_/ if ($attr->{NAME} && $key =~ /_NAME_/);
-      if ($self->{conf}->{$key . '_' . $gid} || $self->{conf}->{$key . '_' . $gid} ~~ 0) {
-        $self->{conf}->{$key} = $self->{conf}->{$key . '_' . $gid};
+      if ($conf{$key . '_' . $gid} || $conf{$key . '_' . $gid} ~~ '0') {
+        $conf{$key} = $conf{$key . '_' . $gid};
         if ($attr->{GET_MAIN_GID}) {
           $attr->{MAIN_GID} = $gid;
         }
@@ -110,7 +111,7 @@ sub conf_gid_split {
     }
   }
 
-  return $self->{conf};
+  return \%conf;
 }
 
 1;

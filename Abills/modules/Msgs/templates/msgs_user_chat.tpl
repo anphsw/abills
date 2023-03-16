@@ -154,7 +154,7 @@
     </div>
   </div>
 </section>
-<script src="/styles/default/js/msgs/jquery-ui.min.js"></script>
+<script src="/styles/default/js/jquery-ui.min.js"></script>
 <script>
   var stop_scroll = 0;
   var mytimeout;

@@ -1,3 +1,36 @@
+<style>
+	.progress {
+		width: 100px;
+		height: 20px;
+		position: relative;
+		background: #e6e6e6;
+		border: 1px solid #bcbcbc;
+    padding: 2px;
+	}
+
+	.progress .progress-inner {
+		width: 0;
+		height: 100%;
+		background-color: #6787e3;
+		display: inline-block;
+		position: relative;
+		-webkit-animation-duration: 1.25s;
+		animation-duration: 1.25s;
+		-webkit-animation-fill-mode: forwards;
+		animation-fill-mode: forwards;
+		-webkit-transition: width .6s ease;
+		transition: width .6s ease;
+	}
+
+	#progress-container {
+		background-color: #f5f5f5;
+  }
+
+  .dark-mode #progress-container {
+		background: rgba(0,0,0,.1);
+  }
+</style>
+
 <div class='row'>
   <div class='%MAIN_FORM_SIZE%'>
     <div class='card card-primary card-outline'>
@@ -7,10 +40,11 @@
           <input type='hidden' name='index' value='$index'/>
           <input type='hidden' name='ID' value='%ID%'/>
           <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
+          <input type='hidden' name='PICTURE' id='PICTURE' value='%PICTURE%'/>
           %EXTRA_INPUTS%
 
           <div class='form-group row'>
-            <label class='col-md-4 col-form-label text-md-right required' for='NAME_ID'>_{NAME}_</label>
+            <label class='col-md-4 col-form-label text-md-right required' for='NAME_ID'>_{NAME}_:</label>
 
             <div class='col-md-8'>
               <input type='text' class='form-control' value='%NAME%' required name='NAME' id='NAME_ID'/>
@@ -18,14 +52,14 @@
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-4 col-form-label text-md-right required' for='TYPE_ID_SELECT'>_{TYPE}_</label>
+            <label class='col-md-4 col-form-label text-md-right required' for='TYPE_ID_SELECT'>_{TYPE}_:</label>
             <div class='col-md-8'>
               %TYPE_ID_SELECT%
             </div>
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-4 col-form-label text-md-right' for='INSTALLED_ID'>_{INSTALLED}_</label>
+            <label class='col-md-4 col-form-label text-md-right' for='INSTALLED_ID'>_{INSTALLED}_:</label>
             <div class='col-md-8'>
               <input type='text' class='form-control datepicker' value='%INSTALLED%' name='INSTALLED'
                      id='INSTALLED_ID'/>
@@ -33,7 +67,7 @@
           </div>
 
           <div class='form-group row should-be-hidden'>
-            <label class='col-md-4 col-form-label text-md-right' for='POINT_ID'>_{OBJECT}_</label>
+            <label class='col-md-4 col-form-label text-md-right' for='POINT_ID'>_{OBJECT}_:</label>
             <div class='col-md-8'>
               %POINT_ID_SELECT%
             </div>
@@ -53,19 +87,38 @@
           <hr/>
 
           <div class='form-group row'>
-            <label class='col-md-4 col-form-label text-md-right' for='PARENT_ID'>_{INSIDE}_</label>
+            <label class='col-md-4 col-form-label text-md-right' for='PARENT_ID'>_{INSIDE}_:</label>
             <div class='col-md-8'>
               %PARENT_ID_SELECT%
             </div>
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-4 col-form-label text-md-right' for='COMMENTS'>_{COMMENTS}_</label>
+            <label class='col-md-4 col-form-label text-md-right' for='COMMENTS'>_{COMMENTS}_:</label>
             <div class='col-md-8'>
               <textarea class='form-control' rows='5' id='COMMENTS' name='COMMENTS'>%COMMENTS%</textarea>
             </div>
           </div>
         </form>
+
+        <div class='form-group row'>
+          <label class='col-md-4 col-form-label text-md-right' for='PICTURE'>_{PICTURE}_:</label>
+          <div class='col-md-8' id='upload-container'>
+            <form id='upload_form' enctype='multipart/form-data' method='post'>
+              <input type='file' name='picture_upload' id='picture_upload' onchange='uploadFile()' accept='image/*'>
+            </form>
+          </div>
+          <div class='col-md-8 d-none' id='progress-container'>
+            <label class='progress-label mt-2'>Test</label>
+            <div class='float-right d-flex'>
+              <div class='progress mt-2'>
+                <div id='progress-bar' class='progress-inner'></div>
+              </div>
+              <button type='button' class='close remove-file mt-2 ml-2'>×</button>
+            </div>
+            <br>
+          </div>
+        </div>
 
       </div>
       <div class='card-footer'>
@@ -93,6 +146,80 @@
     </div>
   </div>
 </div>
+
+<script>
+  let progress_container = jQuery('#progress-container');
+  let progress_label = progress_container.find('.progress-label');
+  let progress_bar = progress_container.find('.progress');
+  let file_name;
+
+  if (jQuery('#PICTURE').val()) {
+    jQuery('#upload-container').addClass('d-none');
+    progress_container.removeClass('d-none');
+    progress_label.text(jQuery('#PICTURE').val());
+    progress_bar.addClass('d-none');
+    progress_container.append(jQuery('<img class="mb-2 mr-2 well-picture"\>').css('max-width', '100%')
+      .attr('src', `/images/cablecat/${jQuery('#PICTURE').val()}`))
+  }
+  
+  jQuery('.remove-file').on('click', function() {
+    jQuery('#progress-bar').css('width', 0);
+    jQuery('#upload-container').removeClass('d-none');
+    jQuery('#picture_upload').val('');
+    progress_bar.removeClass('d-none');
+    progress_container.addClass('d-none');
+    progress_label.text('');
+    jQuery('#PICTURE').val('');
+    jQuery('.well-picture').remove();
+  });
+
+  function uploadFile() {
+    let file = document.getElementById('picture_upload').files[0];
+    let form_data = new FormData();
+    file_name = file.name;
+    form_data.append('picture_upload', file);
+    let ajax = new XMLHttpRequest();
+    ajax.upload.addEventListener('progress', progressHandler, false);
+    ajax.addEventListener('load', completeHandler, false);
+    ajax.addEventListener('error', errorHandler, false);
+
+    jQuery('#upload-container').addClass('d-none');
+    progress_container.removeClass('d-none');
+    progress_label.text(file_name);
+
+    ajax.onreadystatechange = () => {
+      if (ajax.readyState !== 4) return;
+
+      let data = [];
+      try {
+        data = JSON.parse(ajax.response);
+      }
+      catch (e) {
+        console.log(e);
+        return;
+      }
+
+      jQuery('#PICTURE').val(data.files.pop() || '');
+    }
+
+    ajax.open('POST', '/api.cgi/cablecat/attachment/');
+    ajax.send(form_data);
+  }
+
+  function progressHandler(event) {
+    let percent = (event.loaded / event.total) * 100;
+    jQuery('#progress-bar').css('width', Math.round(percent) + "%");
+    progress_label.html(file_name + ` <span class='text-muted text-small'>(` + formatBytes(event.loaded) + `)</span>`);
+  }
+
+  function completeHandler(event) {
+    setTimeout(function (){
+      progress_bar.addClass('d-none');
+    }, 1000);
+  }
+
+  function errorHandler(event) {}
+</script>
 
 <script>
   jQuery(function () {

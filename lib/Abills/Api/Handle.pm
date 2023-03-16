@@ -5,7 +5,7 @@ use warnings FATAL => 'all';
 
 use Abills::Api::Router;
 use Abills::Api::FieldsGrouper;
-use Abills::Base qw(json_former xml_former gen_time in_array);
+use Abills::Base qw(json_former xml_former gen_time in_array check_ip);
 
 #**********************************************************
 =head2 new($db, $admin, $conf)
@@ -55,7 +55,7 @@ sub _start {
 
   if (!$self->{conf}->{API_ENABLE} && !$self->{direct}) {
     $status = 400;
-    $response = { errstr => 'API didn\'t enable please enable API in config $self->{conf}->{API_ENABLE}=1;', errno => 301 };
+    $response = { errstr => 'It seems that the API is currently disabled in the configuration. To enable it,  add the following line of code: $conf{API_ENABLE}=1;', errno => 301 };
   }
   else {
     #define $admin->{permissions}
@@ -88,13 +88,13 @@ sub _start {
 
       if (!$router->{status} && ref $router->{result} eq 'HASH' && ($router->{result}->{errno} || $router->{result}->{error})) {
         $router->{status} = 400;
-        $router->{status} = 401 if ($router->{result}->{errno} && $router->{result}->{errno} == 10 || ($router->{result}->{errstr} && $router->{result}->{errstr} eq 'Access denied'));
+        $router->{status} = 401 if ($router->{result}->{errno} && $router->{result}->{errno} eq 10 || ($router->{result}->{errstr} && $router->{result}->{errstr} eq 'Access denied'));
       }
 
       $response = $router->{result};
       $status = $router->{status};
       $content_type = $router->{content_type};
-      $response = {} if (!defined $response);
+      $response = {} if (!defined $response || !$response);
     }
 
     if ($router->{error_msg} && !$self->{db}->{db}->{AutoCommit}) {
@@ -168,7 +168,7 @@ sub add_credentials {
   $router->add_credential('ADMIN', sub {
     shift;
 
-    return 0 if ($self->{conf}->{API_IPS} && $ENV{REMOTE_ADDR} && !::check_ip($ENV{REMOTE_ADDR}, $self->{conf}->{API_IPS}));
+    return 0 if ($self->{conf}->{API_IPS} && $ENV{REMOTE_ADDR} && !check_ip($ENV{REMOTE_ADDR}, $self->{conf}->{API_IPS}));
 
     my $API_KEY = $ENV{HTTP_KEY} || '-';
 
@@ -179,7 +179,7 @@ sub add_credentials {
     shift;
     my $admin_sid = $self->{cookies}->{admin_sid} || '';
 
-    return 0 if ($self->{conf}->{API_IPS} && $ENV{REMOTE_ADDR} && !::check_ip($ENV{REMOTE_ADDR}, $self->{conf}->{API_IPS}));
+    return 0 if ($self->{conf}->{API_IPS} && $ENV{REMOTE_ADDR} && !check_ip($ENV{REMOTE_ADDR}, $self->{conf}->{API_IPS}));
 
     return ::check_permissions('', '', $admin_sid, {}) == 0;
   });
@@ -207,7 +207,7 @@ sub add_credentials {
     return 1;
   });
 
-  if ($ENV{REMOTE_ADDR} && $self->{conf}->{BOT_APIS} && ::check_ip($ENV{REMOTE_ADDR}, $self->{conf}->{BOT_APIS})) {
+  if ($ENV{REMOTE_ADDR} && $self->{conf}->{BOT_APIS} && check_ip($ENV{REMOTE_ADDR}, $self->{conf}->{BOT_APIS})) {
     return 0 if (!$ENV{HTTP_USERBOT} || !$ENV{HTTP_USERID});
 
     if ($self->{conf}->{BOT_SECRET}) {

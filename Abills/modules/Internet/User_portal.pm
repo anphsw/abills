@@ -6,7 +6,7 @@
 
 use warnings;
 use strict;
-use Abills::Base qw(sec2time in_array convert int2byte ip2int int2ip date_diff show_hash date_inc next_month );
+use Abills::Base qw(sec2time in_array convert int2byte ip2int int2ip date_diff show_hash date_inc next_month check_ip);
 use Abills::Filters qw(_mac_former $MAC);
 
 require Internet::Stats;

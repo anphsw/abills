@@ -81,7 +81,7 @@
 
       <div class='card  card-primary card-outline box-big-form collapsed-card'>
         <div class='card-header with-border text-center'>
-          <h3 class='card-title'>_{OTHER}_</h3>
+          <h3 class='card-title'>_{EXTRA}_</h3>
           <div class='card-tools float-right'>
             <button type='button' class='btn btn-tool' data-card-widget='collapse'>
               <i class='fa fa-plus'></i>
@@ -189,14 +189,14 @@
             </div>
           </div>
 
-          <div class='form-group row bg-light'>
+          <div class='form-group row bg-secondary'>
             <label for='AGE' class='control-label col-md-4'>_{AGE}_ (_{DAYS}_):</label>
             <div class='col-md-8'>
               <input class='form-control' id='AGE' placeholder='%AGE%' name='AGE' value='%AGE%'>
             </div>
           </div>
 
-          <div class='form-group row bg-light'>
+          <div class='form-group row bg-secondary'>
             <label for='NEXT_TARIF_PLAN_SEL' class='control-label col-md-4'>_{TARIF_PLAN}_ _{NEXT_PERIOD}_:</label>
             <div class='col-md-8'>
               %NEXT_TARIF_PLAN_SEL%

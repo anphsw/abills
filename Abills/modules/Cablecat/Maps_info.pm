@@ -330,6 +330,82 @@ sub maps_cables {
 }
 
 #**********************************************************
+=head2 maps_report_info()
+
+=cut
+#**********************************************************
+sub maps_report_info {
+  my $self = shift;
+  my $layer_id = shift;
+
+  return '' if !$layer_id;
+
+  return _maps_cables_report_info() if ($layer_id eq '10');
+  return _maps_wells_report_info() if ($layer_id eq '11');
+}
+
+#**********************************************************
+=head2 _maps_cables_report_info()
+
+=cut
+#**********************************************************
+sub _maps_cables_report_info {
+  my $self = shift;
+
+  my $cables = $Cablecat->cable_list_with_points();
+
+  my $report_table = $html->table({
+    width       => '100%',
+    caption     => $lang->{CABLES},
+    title_plain => [ '#', $lang->{NAME}, $lang->{TYPE}, $lang->{LENGTH}, $lang->{CREATED}, $lang->{LOCATION} ],
+    DATA_TABLE  => 1
+  });
+
+  my $cables_index = ::get_function_index('cablecat_cables');
+  foreach my $cable (@{$cables}) {
+    my $location_btn = $Auxiliary->maps_show_object_button(10, $cable->{point_id});
+    my $cable_btn = $html->button($cable->{id}, "index=$cables_index&chg=$cable->{id}");
+    $report_table->addrow($cable_btn, $cable->{name}, $cable->{cable_type},
+      $cable->{length_calculated}, $cable->{created}, $location_btn);
+  }
+
+  return $report_table->show();
+}
+
+#**********************************************************
+=head2 _maps_wells_report_info()
+
+=cut
+#**********************************************************
+sub _maps_wells_report_info {
+  my $wells = $Cablecat->wells_with_coords({
+    POINT_ID  => '!',
+    NAME      => '_SHOW',
+    TYPE_ID   => '_SHOW',
+    ICON      => '_SHOW',
+    COMMENTS  => '_SHOW',
+    GROUP_BY  => 'GROUP BY cw.id',
+    PAGE_ROWS => 99999
+  });
+
+  my $report_table = $html->table({
+    width       => '100%',
+    caption     => $lang->{WELLS},
+    title_plain => [ '#', $lang->{NAME}, $lang->{TYPE}, $lang->{CREATED}, $lang->{LOCATION} ],
+    DATA_TABLE  => 1
+  });
+
+  my $wells_index = ::get_function_index('cablecat_wells');
+  foreach my $well (@{$wells}) {
+    my $location_btn = $Auxiliary->maps_show_object_button(11, $well->{point_id});
+    my $well_btn = $html->button($well->{ids}, "index=$wells_index&chg=$well->{ids}");
+    $report_table->addrow($well_btn, $well->{names}, ::_translate($well->{type_name}), $well->{created}, $location_btn);
+  }
+
+  return $report_table->show();
+}
+
+#**********************************************************
 =head2 _cablecat_get_equipment_points()
 
 =cut
@@ -475,17 +551,20 @@ sub _cablecat_get_cable_info {
   my $edit_buttons = '';
   my @names;
   my @ids;
+  my @pictures;
   my @commutations = ();
 
   return '' if !$attr->{total} || $attr->{total} < 0;
 
   if ($attr->{total} && $attr->{total} < 2) {
     push @names, $attr->{names};
-    push @ids, $attr->{ids}
+    push @ids, $attr->{ids};
+    push @pictures, $attr->{pictures};
   }
   else {
     @names = split('\|\|', $attr->{names});
     @ids = split('\|\|', $attr->{ids});
+    @pictures = split('\|\|', $attr->{pictures});
   }
 
   if ($attr->{commutations}) {
@@ -502,14 +581,16 @@ sub _cablecat_get_cable_info {
       installed    => $attr->{planned} ? $lang->{NO} : $lang->{YES},
       comments     => $attr->{comments},
       id           => $ids[$i],
-      commutations => join(', ', @commutations)
+      commutations => join(', ', @commutations),
+      picture      => !$pictures[$i] ? '' : $html->button($html->element('img', '', { src => '/images/cablecat/' . $pictures[$i], class => 'w-100' }),
+        '', { target => '_blank', GLOBAL_URL => '/images/cablecat/' . $pictures[$i] })
     }
   }
 
   $marker_info = $Auxiliary->maps_point_info_table({
     OBJECTS           => \@objects,
-    TABLE_TITLES      => [ 'WELL', 'INSTALLED', 'COMMUTATIONS', 'COMMENTS' ],
-    TABLE_LANG_TITLES => [ $lang->{WELL}, $lang->{INSTALLED}, $lang->{COMMUTATIONS}, $lang->{COMMENTS} ],
+    TABLE_TITLES      => [ 'WELL', 'INSTALLED', 'COMMUTATIONS', 'PICTURE', 'COMMENTS' ],
+    TABLE_LANG_TITLES => [ $lang->{WELL}, $lang->{INSTALLED}, $lang->{COMMUTATIONS}, $lang->{PICTURE}, $lang->{COMMENTS} ],
     LINK_ITEMS        => {
       'well' => {
         'index'        => $attr->{well_index},

@@ -10,3 +10,5 @@ $lang{ACCESS_INFO} = 'Access info';
 $lang{WEB_ACCESS} = 'Web-access';
 $lang{CUR_VERSION} = 'Version';
 $lang{FIX_VERSION} = 'Fixed in';
+
+1;

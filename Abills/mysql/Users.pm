@@ -893,7 +893,7 @@ sub list {
 
     return [ ] if ($self->{errno});
 
-    my $list = $self->{list};
+    my $list = $self->{list} || [];
 
     # Total Records
     if ($self->{TOTAL} > 0) {
@@ -989,7 +989,7 @@ sub list {
     );
     return [ ] if ($self->{errno});
 
-    my $list = $self->{list};
+    my $list = $self->{list} || [];
 
     if ($self->{TOTAL} > 0) {
       if ($attr->{FEES}) {
@@ -1295,7 +1295,7 @@ sub change {
     ACTION_COMMENTS => $attr->{ACTION_COMMENTS}
   });
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -1380,11 +1380,11 @@ sub del {
     }
 
     $self->change($self->{UID}, {
-      DELETED   => 1,
-      ACTION_ID => 12,
+      DELETED         => 1,
+      ACTION_ID       => 12,
       ACTION_COMMENTS => $comments,
-      UID       => $self->{UID},
-      ID        => $new_login,
+      UID             => $self->{UID},
+      ID              => $new_login,
     });
 
     $self->query_del('web_users_sessions', undef, { uid => $self->{UID} });
@@ -1392,7 +1392,7 @@ sub del {
     $self->{suffix_added} = $enought_size_for_suffix;
   }
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -2912,6 +2912,55 @@ sub user_status_info{
   );
 
   return $self;
+}
+
+#**********************************************************
+=head2 report_users_disabled($attr) - report for users disabled
+
+  Arguments:
+    $attr
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub report_users_disabled {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
+
+  my @WHERE_RULES = ("u.disable <> 0");
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',           'INT',  'u.id',           1 ],
+    [ 'DISABLE',      'INT',  'u.disable',      1 ],
+    [ 'DISABLE_DATE', 'DATE', 'u.disable_date', 1 ],
+  ],
+    { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
+  );
+
+  $self->query("
+    SELECT
+      DATE_FORMAT(u.disable_date, '%Y-%m') AS disable_date,
+      SUM(IF(u.disable=1, 1, 0)) as disable,
+      SUM(IF(u.disable=2, 1, 0)) as not_active,
+      SUM(IF(u.disable=3, 1, 0)) as hold_up,
+      SUM(IF(u.disable=4, 1, 0)) as non_payment,
+      SUM(IF(u.disable=5, 1, 0)) as err_small_deposit
+    FROM users u
+    $WHERE
+    GROUP BY disable_date
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
 }
 
 1;

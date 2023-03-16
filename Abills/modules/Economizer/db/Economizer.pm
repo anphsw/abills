@@ -2,25 +2,25 @@ package Economizer;
 
 =head1 Economizer
 
-Economizer - module counts the costs for utilities
+  Economizer - module counts the costs for utilities
 
 =head1 Synopsis
 
-use Economizer;
+  use Economizer;
 
-my $Economizer = Economizer->new($db, $admin, \%conf);
+  my $Economizer = Economizer->new($db, $admin, \%conf);
 
 =cut
 
 use strict;
-use parent 'main';
-use warnings;
-our $VERSION = 0.02;
+use parent qw(dbcore);
+
+our $VERSION = 0.03;
+
 my ($admin, $CONF);
 my ($SORT, $DESC, $PG, $PAGE_ROWS);
 
 #*******************************************************************
-
 =head2 function new() - initialize Economizer object
 
   Arguments:
@@ -34,7 +34,6 @@ my ($SORT, $DESC, $PG, $PAGE_ROWS);
     $Economizer = Economizer->new($db, $admin, \%conf);
 
 =cut
-
 #*******************************************************************
 sub new {
   my $class = shift;
@@ -51,15 +50,15 @@ sub new {
   return $self;
 }
 
-# #**********************************************************
-# =head2 add_tariff($attr)
+#**********************************************************
+=head2 add_tariff($attr)
 
-#   Arguments:
+  Arguments:
 
-#   Returns:
+  Returns:
 
-# =cut
-# #**********************************************************
+=cut
+#**********************************************************
 sub add_tariff {
   my $self = shift;
   my ($attr) = @_;
@@ -69,48 +68,46 @@ sub add_tariff {
   return $self;
 }
 
-# #**********************************************************
-# =head2 change_tariff($attr) - change poll
+#**********************************************************
+=head2 change_tariff($attr) - change poll
 
-#   Arguments:
+  Arguments:
 
-#   Returns:
-#     $self object;
+  Returns:
+    $self object;
 
-#   Examples:
-#     $Economizer->change_tariff({ ID => $FORM{id}, %FORM });
+  Examples:
+    $Economizer->change_tariff({ ID => $FORM{id}, %FORM });
 
-# =cut
-# #**********************************************************
+=cut
+#**********************************************************
 sub change_tariff {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'economizer_tariffs',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'economizer_tariffs',
+    DATA         => $attr
+  });
 
   return $self;
 }
 
-# #**********************************************************
-# =head2 delete_tariff($attr) - delete poll
+#**********************************************************
+=head2 delete_tariff($attr) - delete poll
 
-#   Arguments:
-#     ID   - poll's ID;
+  Arguments:
+    ID   - poll's ID;
 
-#   Returns:
-#     $self object;
+  Returns:
+    $self object;
 
-#   Examples:
-#     $Economizer->delete_tariff({ID => $FORM{del}});
+  Examples:
+    $Economizer->delete_tariff({ID => $FORM{del}});
 
-# =cut
-# #**********************************************************
+=cut
+#**********************************************************
 sub delete_tariff {
   my $self = shift;
   my ($attr) = @_;
@@ -121,7 +118,6 @@ sub delete_tariff {
 }
 
 #**********************************************************
-
 =head2 add_user_info() - adding counters data for date
 
   Arguments:
@@ -132,7 +128,6 @@ sub delete_tariff {
     $Economizer->add_user_info({%FORM});
 
 =cut
-
 #**********************************************************
 sub add_user_info {
   my $self = shift;
@@ -144,7 +139,6 @@ sub add_user_info {
 }
 
 #**********************************************************
-
 =head2 change_user_info($attr) - change counter information
 
   Arguments:
@@ -156,25 +150,21 @@ sub add_user_info {
     $Economizer->change_user_info({ ID => $FORM{id}, %FORM });
 
 =cut
-
 #**********************************************************
 sub change_user_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'economizer_user_info',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'economizer_user_info',
+    DATA         => $attr
+  });
 
   return $self;
 }
 
 #**********************************************************
-
 =head2 del_user_info($attr) - delete counter information
 
   Arguments:
@@ -187,7 +177,6 @@ sub change_user_info {
     $Economizer->del_user_info({ID => $FORM{del}});
 
 =cut
-
 #**********************************************************
 sub del_user_info {
   my $self = shift;
@@ -199,7 +188,6 @@ sub del_user_info {
 }
 
 #**********************************************************
-
 =head2 list_user_info($attr) - get list of counters information
 
   Arguments:
@@ -217,7 +205,6 @@ sub del_user_info {
                                                  WATER     => '_SHOW',});
 
 =cut
-
 #**********************************************************
 sub list_user_info {
   my $self = shift;
@@ -256,7 +243,7 @@ sub list_user_info {
 
   $WHERE .= ($#WHERE_RULES > -1) ? "and " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT
       $self->{SEARCH_FIELDS}
       eui.id
@@ -271,7 +258,7 @@ sub list_user_info {
 
   return $self->{list} if ($attr->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT count(*) AS total
      FROM economizer_user_info",
     undef,
@@ -282,7 +269,6 @@ sub list_user_info {
 }
 
 #**********************************************************
-
 =head2 info_user_info($attr) - get information for one day
 
   Arguments:
@@ -293,14 +279,13 @@ sub list_user_info {
     $Economizer->info_user_info({ID => $FORM{chg}});
 
 =cut
-
 #**********************************************************
 sub info_user_info {
   my $self = shift;
   my ($attr) = @_;
 
   if ($attr->{PREV_DATE}) {
-    $self->query2(
+    $self->query(
       "SELECT eui.id,
         eui.uid,
         eui.date,
@@ -310,13 +295,19 @@ sub info_user_info {
         eui.communal,
         eui.comments
       FROM economizer_user_info as eui
-        WHERE eui.date < \"$attr->{PREV_DATE}\" && eui.uid = $attr->{UID}
-      ORDER BY date desc;", undef, { COLS_NAME => 1 }
+        WHERE eui.date < ? && eui.uid = ?
+      ORDER BY date desc;", undef, {
+        COLS_NAME => 1,
+        Bind      => [
+          $attr->{PREV_DATE},
+          $attr->{UID},
+        ]
+      }
     );
   }
 
   if ($attr->{NEXT_DATE}) {
-    $self->query2(
+    $self->query(
       "SELECT eui.id,
         eui.uid,
         eui.date,
@@ -326,13 +317,19 @@ sub info_user_info {
         eui.communal,
         eui.comments
       FROM economizer_user_info as eui
-        WHERE eui.date > \"$attr->{NEXT_DATE}\" && eui.uid = $attr->{UID}
-      ORDER BY date;", undef, { COLS_NAME => 1 }
+        WHERE eui.date > ? && eui.uid = ?
+      ORDER BY date;", undef, {
+        COLS_NAME => 1,
+        Bind      => [
+          $attr->{NEXT_DATE},
+          $attr->{UID},
+        ]
+      }
     );
   }
 
   if ($attr->{ID}) {
-    $self->query2(
+    $self->query(
       "SELECT eui.id,
         eui.uid,
         eui.date,
@@ -346,11 +343,10 @@ sub info_user_info {
     );
   }
 
-  return $self->{list}->[0];
+  return $self->{list}->[0] || {};
 }
 
 #**********************************************************
-
 =head2 add_user_metric104() - adding counters data for date
 
   Arguments:
@@ -361,12 +357,13 @@ sub info_user_info {
     $Economizer->add_user_info({%FORM});
 
 =cut
-
 #**********************************************************
 sub add_user_metric104 {
   my $self = shift;
   my ($attr) = @_;
-  $self->query_add('economizer_metric104', {%$attr});
+
+  $self->query_add('economizer_metric104', $attr);
+
   return $self;
 }
 
@@ -387,14 +384,14 @@ sub add_user_metric104 {
 sub add_user_payment104 {
   my $self = shift;
   my ($attr) = @_;
-  $self->query_add('economizer_payment104', {%$attr});
+
+  $self->query_add('economizer_payment104', $attr);
+
   return $self;
 }
 
 #**********************************************************
-
 =head2 clear_metric104
-
 
   Arguments:
 
@@ -402,99 +399,100 @@ sub add_user_payment104 {
 
   Examples:
 
-
 =cut
-
 #**********************************************************
 sub clear_metric104 {
   my $self = shift;
   my ($attr) = @_;
 
+  #TODO: check this logic
+
   $self->query_del('economizer_metric104', {}, { USER_ID => $attr->{USER_ID} });
-  $self->query2("ALTER TABLE economizer_metric104 MODIFY `id` INT(11);",                                     undef, {});
-  $self->query2("ALTER TABLE economizer_metric104 DROP PRIMARY KEY;",                                        undef, {});
-  $self->query2("UPDATE economizer_metric104 SET `id`='0';",                                                 undef, {});
-  $self->query2("ALTER TABLE economizer_metric104 AUTO_INCREMENT=0;",                                        undef, {});
-  $self->query2("ALTER TABLE economizer_metric104 MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;", undef, {});
+  $self->query("ALTER TABLE economizer_metric104 MODIFY `id` INT(11);",                                     undef, {});
+  $self->query("ALTER TABLE economizer_metric104 DROP PRIMARY KEY;",                                        undef, {});
+  $self->query("UPDATE economizer_metric104 SET `id`='0';",                                                 undef, {});
+  $self->query("ALTER TABLE economizer_metric104 AUTO_INCREMENT=0;",                                        undef, {});
+  $self->query("ALTER TABLE economizer_metric104 MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;", undef, {});
 
   $self->query_del('economizer_payment104', {}, { USER_ID => $attr->{USER_ID} });
-  $self->query2("ALTER TABLE economizer_payment104 MODIFY `id` INT(11);",                                     undef, {});
-  $self->query2("ALTER TABLE economizer_payment104 DROP PRIMARY KEY;",                                        undef, {});
-  $self->query2("UPDATE economizer_payment104 SET `id`='0';",                                                 undef, {});
-  $self->query2("ALTER TABLE economizer_payment104 AUTO_INCREMENT=0;",                                        undef, {});
-  $self->query2("ALTER TABLE economizer_payment104 MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;", undef, {});
+  $self->query("ALTER TABLE economizer_payment104 MODIFY `id` INT(11);",                                     undef, {});
+  $self->query("ALTER TABLE economizer_payment104 DROP PRIMARY KEY;",                                        undef, {});
+  $self->query("UPDATE economizer_payment104 SET `id`='0';",                                                 undef, {});
+  $self->query("ALTER TABLE economizer_payment104 AUTO_INCREMENT=0;",                                        undef, {});
+  $self->query("ALTER TABLE economizer_payment104 MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;", undef, {});
 
   return $self;
 }
 
 #**********************************************************
-
 =head2 take_indicators 104($attr)
+
   Arguments:
     $attr - hash_ref
   Returns:
+
 =cut
-
 #**********************************************************
-
 sub clear_electric {
   my $self = shift;
-
   my ($attr) = @_;
 
+  #TODO: check this logic
+
   $self->query_del('economizer_electro_money', {}, { USER_ID => $attr->{USER_ID} });
-  $self->query2("ALTER TABLE economizer_electro_money MODIFY `id` INT(11);",                                     undef, {});
-  $self->query2("ALTER TABLE economizer_electro_money DROP PRIMARY KEY;",                                        undef, {});
-  $self->query2("UPDATE economizer_electro_money SET `id`='0';",                                                 undef, {});
-  $self->query2("ALTER TABLE economizer_electro_money AUTO_INCREMENT=0;",                                        undef, {});
-  $self->query2("ALTER TABLE economizer_electro_money MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;", undef, {});
+  $self->query("ALTER TABLE economizer_electro_money MODIFY `id` INT(11);",                                     undef, {});
+  $self->query("ALTER TABLE economizer_electro_money DROP PRIMARY KEY;",                                        undef, {});
+  $self->query("UPDATE economizer_electro_money SET `id`='0';",                                                 undef, {});
+  $self->query("ALTER TABLE economizer_electro_money AUTO_INCREMENT=0;",                                        undef, {});
+  $self->query("ALTER TABLE economizer_electro_money MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;", undef, {});
 
   $self->query_del('economizer_electro_counter', {}, { USER_ID => $attr->{USER_ID} });
-  $self->query2("ALTER TABLE economizer_electro_counter MODIFY `id` INT(11);",                                     undef, {});
-  $self->query2("ALTER TABLE economizer_electro_counter DROP PRIMARY KEY;",                                        undef, {});
-  $self->query2("UPDATE economizer_electro_counter SET `id`='0';",                                                 undef, {});
-  $self->query2("ALTER TABLE economizer_electro_counter AUTO_INCREMENT=0;",                                        undef, {});
-  $self->query2("ALTER TABLE economizer_electro_counter MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;", undef, {});
+  $self->query("ALTER TABLE economizer_electro_counter MODIFY `id` INT(11);",                                     undef, {});
+  $self->query("ALTER TABLE economizer_electro_counter DROP PRIMARY KEY;",                                        undef, {});
+  $self->query("UPDATE economizer_electro_counter SET `id`='0';",                                                 undef, {});
+  $self->query("ALTER TABLE economizer_electro_counter AUTO_INCREMENT=0;",                                        undef, {});
+  $self->query("ALTER TABLE economizer_electro_counter MODIFY `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY;", undef, {});
 
   return $self;
 }
 
 #**********************************************************
-
 =head2 take_indicators 104($attr)
+
   Arguments:
     $attr - hash_ref
   Returns:
+
 =cut
-
 #**********************************************************
-
 sub take_indicators104 {
   my $self = shift;
   my ($attr) = @_;
-  $self->query2("SELECT * FROM economizer_metric104; ", undef, $attr);
-  return $self->{list};
 
+  $self->query("SELECT * FROM economizer_metric104; ", undef, $attr);
+
+  return $self->{list} || [];
 }
 
 #**********************************************************
-
 =head2 take_payment($attr)
+
   Arguments:
     $attr - hash_ref
   Returns:
-=cut
 
+=cut
 #**********************************************************
 sub take_payment104 {
   my $self = shift;
   my ($attr) = @_;
-  $self->query2("SELECT * FROM economizer_payment104; ", undef, $attr);
-  return $self->{list};
+
+  $self->query("SELECT * FROM economizer_payment104; ", undef, $attr);
+
+  return $self->{list} || [];
 }
 
 #**********************************************************
-
 =head2 add_user_money_electric() - adding counters data for date
 
   Arguments:
@@ -505,36 +503,35 @@ sub take_payment104 {
     $Economizer->add_user_info({%FORM});
 
 =cut
-
 #**********************************************************
 sub add_user_money_electric {
   my $self = shift;
   my ($attr) = @_;
+
   $self->query_add('economizer_electro_money', {%$attr});
+
   return $self;
 }
 
 #**********************************************************
-
 =head2 take_money_electric($attr)
+
   Arguments:
     $attr - hash_ref
   Returns:
-=cut
 
+=cut
 #**********************************************************
-sub take_money_electric() {
+sub take_money_electric {
   my $self = shift;
   my ($attr) = @_;
-  $self->query2("SELECT * FROM economizer_electro_money; ", undef, $attr);
-  return $self->{list};
 
-  #**********************************************************
+  $self->query("SELECT * FROM economizer_electro_money; ", undef, $attr);
 
+  return $self->{list} || [];
 }
 
 #**********************************************************
-
 =head2 add_user_money_electric() - adding counters data for date
 
   Arguments:
@@ -545,35 +542,35 @@ sub take_money_electric() {
     $Economizer->add_user_info({%FORM});
 
 =cut
-
 #**********************************************************
 sub add_user_electro_counter {
   my $self = shift;
   my ($attr) = @_;
-  $self->query_add('economizer_electro_counter', {%$attr});
+
+  $self->query_add('economizer_electro_counter', $attr);
+
   return $self;
 }
 
 #**********************************************************
-
 =head2 take_money_electric($attr)
+
   Arguments:
     $attr - hash_ref
   Returns:
-=cut
 
+=cut
 #**********************************************************
-sub take_electro_counter() {
+sub take_electro_counter {
   my $self = shift;
   my ($attr) = @_;
-  $self->query2("SELECT * FROM economizer_electro_counter; ", undef, $attr);
-  return $self->{list};
+
+  $self->query("SELECT * FROM economizer_electro_counter; ", undef, $attr);
+
+  return $self->{list} || [];
 }
 
 #**********************************************************
-
-#**********************************************************
-
 =head2 add_main () - adding counters data for date
 
   Arguments:
@@ -584,19 +581,15 @@ sub take_electro_counter() {
     $Economizer->add_user_info({%FORM});
 
 =cut
-
 #**********************************************************
 sub add_main {
-  my $self             = shift;
-  my ($attr)           = @_;
-  my $value_user_id    = $attr->{USER_ID};
-  my $existing_user    = $attr->{EXISTING};
-  my $login104         = '\'' . $attr->{LOGIN104} . '\'';
-  my $login_electro    = '\'' . $attr->{LOGIN_ELECTRO} . '\'';
-  my $password104      = '\'' . $attr->{PASSWORD104} . '\'';
-  my $password_electro = '\'' . $attr->{PASSWORD_ELECTRO} . '\'';
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $existing_user = $attr->{EXISTING} || '';
+
   if ($existing_user eq 'yes') {
-    $self->query2(
+    $self->query(
       "UPDATE economizer_main
         SET login104 = ?,
             password104 = ENCODE( ?,'$self->{conf}->{secretkey}' ),
@@ -604,19 +597,22 @@ sub add_main {
             password_electro= ENCODE( ?,'$self->{conf}->{secretkey}' ),
             user_id = ?
         WHERE
-            user_id = $value_user_id;",
+            user_id = ?;",
       undef,
       {
-        Bind => [ $attr->{LOGIN104},
-                  $attr->{PASSWORD104},
-                  $attr->{LOGIN_ELECTRO},
-                  $attr->{PASSWORD_ELECTRO},
-                  $attr->{USER_ID} ]
+        Bind => [
+          $attr->{LOGIN104},
+          $attr->{PASSWORD104},
+          $attr->{LOGIN_ELECTRO},
+          $attr->{PASSWORD_ELECTRO},
+          $attr->{USER_ID},
+          $attr->{USER_ID},
+        ]
       }
     );
   }
   else {
-    $self->query2(
+    $self->query(
       "INSERT INTO economizer_main
         (login104,password104,
          login_electro,
@@ -629,31 +625,34 @@ sub add_main {
          ? );",
       undef,
       {
-        Bind => [ $attr->{LOGIN104},
-                  $attr->{PASSWORD104},
-                  $attr->{LOGIN_ELECTRO},
-                  $attr->{PASSWORD_ELECTRO},
-                  $attr->{USER_ID} ]
+        Bind => [
+          $attr->{LOGIN104},
+          $attr->{PASSWORD104},
+          $attr->{LOGIN_ELECTRO},
+          $attr->{PASSWORD_ELECTRO},
+          $attr->{USER_ID}
+        ]
       }
     );
   }
+
   return $self;
 }
 
 #*********************************************************
-
 =head2 take_main_data($attr)
+
   Arguments:
     $attr - hash_ref
   Returns:
 
 =cut
-
 #**********************************************************
-sub take_main_data() {
+sub take_main_data {
   my $self = shift;
   my ($attr) = @_;
-  $self->query2(
+
+  $self->query(
     "SELECT
       id,
       login104,
@@ -665,11 +664,11 @@ sub take_main_data() {
     undef,
     $attr
   );
-  return $self->{list};
+
+  return $self->{list} || [];
 }
 
 #**********************************************************
-
 =head2 take_main($attr)
 
   Arguments:
@@ -678,16 +677,14 @@ sub take_main_data() {
   Returns:
 
 =cut
-
 #**********************************************************
-sub take_main() {
+sub take_main {
   my $self = shift;
   my ($attr) = @_;
-  $self->query2("SELECT * FROM economizer_main; ", undef, $attr);
-  return $self->{list};
+
+  $self->query("SELECT * FROM economizer_main; ", undef, $attr);
+
+  return $self->{list} || [];
 }
 
-#**********************************************************
-
 1;
-

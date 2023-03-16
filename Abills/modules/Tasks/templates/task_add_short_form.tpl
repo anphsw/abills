@@ -3,6 +3,7 @@
   <input type='hidden' name='ID' value='%ID%'>
   <input type='hidden' name='MSG_ID' value='%MSG_ID%'>
   <input type='hidden' name='LEAD_ID' value='%LEAD_ID%'>
+  <input type='hidden' name='DEAL_ID' value='%DEAL_ID%'>
   <input type='hidden' name='STEP_ID' value='%STEP_ID%'>
 
   <div class='card card-form  card-primary card-outline box-form'>

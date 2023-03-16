@@ -53,15 +53,31 @@
       <div class='card card-primary card-outline'>
         <div class='card-header'>
           <h3 class='card-title'>_{QUERIES}_</h3>
-          <div class='card-tools'>
+          <div class='card-tools float-right'>
             <button type='button' title='Show/Hide' class='btn btn-tool' data-card-widget='collapse'><i
-                class='fa fa-minus'></i></button>
+                    class='fa fa-minus'></i>
+            </button>
           </div>
         </div>
-
-        %SQL_HISTORY%
-
+        <div class='card-body p-0'>
+        %SQL_SAVED_QUERIES%
+        </div>
       </div>
+
+      <div class='card card-primary card-outline collapsed-card'>
+        <div class='card-header'>
+          <h3 class='card-title'>_{LOG}_</h3>
+          <div class='card-tools float-right'>
+            <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+              <i class='fa fa-plus'></i>
+            </button>
+          </div>
+        </div>
+        <div class='card-body p-0'>
+          %SQL_HISTORY_LAST%
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -106,10 +122,14 @@
       CODEMIRROR_OPTIONS,
     );
 
-    codeMirror.on("keyup", function (cm, event) {
-      // keyCode 13 = Enter button
-      if (!cm.state.completionActive && event.keyCode != 13) {
-        CodeMirror.commands.autocomplete(cm, null, { completeSingle: false });
+    const ignoredKeycodes = [
+      9, 13, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40, 44, 45, 46, 59
+    ];
+
+    codeMirror.on('keyup', function (cm, event) {
+      if (!cm.state.completionActive
+          && !ignoredKeycodes.includes(event.keyCode)) {
+        cm.showHint({ completeSingle: false });
       }
     });
 

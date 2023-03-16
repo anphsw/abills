@@ -4,11 +4,11 @@ use strict;
 use warnings FATAL => 'all';
 
 use Abills::Base qw(in_array mk_unique_value camelize);
-use Abills::Api::Helpers qw(static_string_generate);
+use Abills::Api::Helpers qw(static_string_generate caesar_cipher);
 
 no warnings qw(experimental::smartmatch);
 
-my $VERSION = 0.58;
+my $VERSION = 0.64;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -181,6 +181,12 @@ sub list {
             $main::FORM{API} = 1;
             $session_id = 'plug' if ($self->{conf}->{PASSWORDLESS_ACCESS});
           }
+          elsif ($self->{conf}->{AUTH_APPLE_ID} && $query_params->{apple}) {
+            $main::FORM{token} = $query_params->{apple};
+            $main::FORM{external_auth} = 'Apple';
+            $main::FORM{API} = 1;
+            $session_id = 'plug' if ($self->{conf}->{PASSWORDLESS_ACCESS});
+          }
 
           my ($uid, $sid, $login) = ::auth_user($query_params->{login} || '', $query_params->{password} || '', $session_id, { API => 1 });
 
@@ -195,11 +201,22 @@ sub list {
             };
           }
 
-          return {
+          my %result = (
             uid   => $uid,
             sid   => $sid,
             login => $login
-          };
+          );
+
+          if (defined $self->{conf}->{API_LOGIN_SHOW_PASSWORD} && $main::FORM{external_auth}) {
+            require Users;
+            Users->import();
+            my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+            my $user_info = $Users->info($uid, { SHOW_PASSWORD => 1 });
+
+            $result{password} = caesar_cipher($user_info->{PASSWORD}, $self->{conf}->{API_LOGIN_SHOW_PASSWORD});
+          }
+
+          return \%result;
         },
         no_decamelize_params => 1,
       },
@@ -261,8 +278,10 @@ sub list {
             $PARAMS{$param} = $query_params->{$param} || '_SHOW';
           }
 
-          $PARAMS{PAGE_ROWS} = defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25;
-          $PARAMS{SORT} = defined($query_params->{SORT}) ? $query_params->{SORT} : 1;
+          $PARAMS{PAGE_ROWS} = $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25;
+          $PARAMS{SORT} = $query_params->{SORT} ? $query_params->{SORT} : 1;
+          $PARAMS{DESC} = $query_params->{DESC} ? $query_params->{DESC} : '';
+          $PARAMS{PG} = $query_params->{PG} ? $query_params->{PG} : 0;
 
           $module_obj->list({
             %PARAMS,
@@ -325,17 +344,37 @@ sub list {
         method      => 'DELETE',
         path        => '/users/:uid/',
         handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
+          my ($path_params, $query_params, $Users) = @_;
 
           return {
             errno  => 10,
             errstr => 'Access denied'
           } if !$self->{admin}->{permissions}{0}{5};
 
-          $module_obj->del({
-            %$query_params,
+          my @allowed_params = (
+            'COMMENTS',
+            'DATE',
+          );
+          my %PARAMS = ();
+          foreach my $param (@allowed_params) {
+            next if (!defined($query_params->{$param}));
+            $PARAMS{$param} = '_SHOW';
+          }
+
+          $Users->del({
+            %PARAMS,
             UID => $path_params->{uid}
           });
+
+          if (!$Users->{errno}) {
+            return {
+              result => "Successfully deleted user with uid $path_params->{uid}",
+              uid    => $path_params->{uid},
+            };
+          }
+          else {
+            return $Users;
+          }
         },
         module      => 'Users',
         credentials => [
@@ -378,7 +417,8 @@ sub list {
           });
 
           if (!$Users->{errno}) {
-            $Users->pi({
+            $Users->pi_add({
+              UID => $Users->{UID},
               %$query_params
             });
           }
@@ -555,8 +595,10 @@ sub list {
             'TAX_NUMBER'
           );
           my %PARAMS = (
-            PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25),
-            SORT      => (defined($query_params->{SORT}) ? $query_params->{SORT} : 1)
+            PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
+            PG        => $query_params->{PG} ? $query_params->{PG} : 0,
+            SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
+            DESC      => $query_params->{DESC} ? $query_params->{DESC} : ''
           );
 
           foreach my $param (@allowed_params) {
@@ -1052,9 +1094,16 @@ sub list {
           $config{social_auth}{facebook} = 1 if ($self->{conf}->{AUTH_FACEBOOK_ID});
           $config{social_auth}{google} = 1 if ($self->{conf}->{AUTH_GOOGLE_ID});
           $config{password_recovery} = 1 if ($self->{conf}->{PASSWORD_RECOVERY});
-          $config{registration}{internet} = 1 if (in_array('Internet', \@main::MODULES) && in_array('Internet', \@main::REGISTRATION));
+          if ($self->{conf}->{NEW_REGISTRATION_FORM}) {
+            $config{registration}{facebook} = 1 if ($self->{conf}->{FACEBOOK_REGISTRATION});
+            $config{registration}{google} = 1 if ($self->{conf}->{GOOGLE_REGISTRATION});
+          }
+          else {
+            $config{registration}{internet} = 1 if (in_array('Internet', \@main::MODULES) && in_array('Internet', \@main::REGISTRATION));
+          }
           $config{login}{regx} = $self->{conf}->{USERNAMEREGEXP} if ($self->{conf}->{USERNAMEREGEXP});
-          $config{password}{regex} = $self->{conf}->{PASSWD_SYMBOLS} if ($self->{conf}->{PASSWD_SYMBOLS});
+          $config{login}{max_length} = $self->{conf}->{MAX_USERNAME_LENGTH} if ($self->{conf}->{MAX_USERNAME_LENGTH});
+          $config{password}{symbols} = $self->{conf}->{PASSWD_SYMBOLS} if ($self->{conf}->{PASSWD_SYMBOLS});
           $config{password}{length} = $self->{conf}->{PASSWD_LENGTH} if ($self->{conf}->{PASSWD_LENGTH});
           $config{portal_news} = 1 if ($self->{conf}->{PORTAL_START_PAGE});
 
@@ -1475,7 +1524,7 @@ sub list {
             }
           }
           else {
-            if (@allowed_payments_ids && !in_array($query_params->{PAYMENT_TYPE}, \@allowed_payments_ids)) {
+            if (@allowed_payments_ids && !in_array($payment_method, \@allowed_payments_ids)) {
               return {
                 errno  => 10070,
                 errstr => 'Payment method is not allowed',
@@ -2483,7 +2532,7 @@ sub list {
             SENT         => '_SHOW',
             RECV         => '_SHOW',
             DURATION_SEC => '_SHOW',
-            PAGE_ROWS    => defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 25,
+            PAGE_ROWS    => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
             COLS_NAME    => 1
           });
 
@@ -3026,9 +3075,15 @@ sub list {
           }
 
           $functions{system}{currency} = $self->{conf}->{SYSTEM_CURRENCY} if ($self->{conf}->{SYSTEM_CURRENCY});
+          $functions{system}{password}{regex} = $self->{conf}->{PASSWD_SYMBOLS} if ($self->{conf}->{PASSWD_SYMBOLS});
+          $functions{system}{password}{symbols} = $self->{conf}->{PASSWD_LENGTH} if ($self->{conf}->{PASSWD_LENGTH});
 
-          $functions{bots}{viber} = 1 if ($self->{conf}->{VIBER_TOKEN});
-          $functions{bots}{telegram} = 1 if ($self->{conf}->{TELEGRAM_TOKEN});
+          $functions{bots}{viber} = "viber://pa?chatURI=$self->{conf}->{VIBER_BOT_NAME}&text=/start&context=u_" if ($self->{conf}->{VIBER_TOKEN});
+          $functions{bots}{telegram} = "https://t.me/$self->{conf}->{TELEGRAM_BOT_NAME}/?start=u_" if ($self->{conf}->{TELEGRAM_TOKEN} && $self->{conf}->{TELEGRAM_BOT_NAME});
+
+          $functions{social_networks} = $self->{conf}->{SOCIAL_NETWORKS} if ($self->{conf}->{SOCIAL_NETWORKS});
+
+          $functions{user_chg_passwd} = 1 if ($self->{conf}->{user_chg_passwd});
 
           return \%functions;
         },
@@ -3050,6 +3105,9 @@ sub list {
           }
           elsif ($self->{conf}->{AUTH_GOOGLE_ID} && $query_params->{facebook}) {
             $changed_field = '_FACEBOOK';
+          }
+          elsif ($self->{conf}->{AUTH_APPLE_ID} && $query_params->{apple}) {
+            $changed_field = '_APPLE';
           }
           else {
             return {
@@ -3086,6 +3144,12 @@ sub list {
             $main::FORM{token} = $query_params->{facebook};
             $main::FORM{external_auth} = 'Facebook';
             $main::FORM{API} = 1;
+          }
+          elsif ($self->{conf}->{AUTH_APPLE_ID} && $query_params->{apple}) {
+            $main::FORM{token} = $query_params->{apple};
+            $main::FORM{external_auth} = 'Apple';
+            $main::FORM{API} = 1;
+            $main::FORM{NONCE} = $query_params->{nonce} if ($query_params->{nonce});
           }
           else {
             return {

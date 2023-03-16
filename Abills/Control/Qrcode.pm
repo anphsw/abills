@@ -59,7 +59,7 @@ sub qr_make {
   my $self = shift;
   my ($url, $attr) = @_;
 
-  load_pmodule('Imager::QRCode');
+  $url //= q{};
 
   if ($attr->{WRITE_TO_DISK}) {
     return $self->_encode_url_to_img($url, $attr);
@@ -74,7 +74,6 @@ sub qr_make {
     return 1;
   }
 
-  # FIXME: weird logic. Will print only if !$FORM{header}, otherwise value is lost
   $self->_encode_url_to_img($url, $attr);
 
   return 1;
@@ -149,12 +148,17 @@ sub _encode_url_to_img {
   my $self = shift;
   my ($url, $attr) = @_;
 
+  $url //= q{};
+
   my $url_to_encode = '';
   if ($attr->{PARAMS} && $attr->{PARAMS}->{GLOBAL_URL} && !$attr->{PARAMS}->{CONVERT_URL}) {
     $url_to_encode = urldecode($attr->{PARAMS}->{GLOBAL_URL});
   }
   elsif ($attr->{AUTH_G2FA_NAME} && $attr->{AUTH_G2FA_MAIL}) {
     $url_to_encode = "otpauth://totp/$attr->{AUTH_G2FA_MAIL}?secret=$url&issuer=$attr->{AUTH_G2FA_NAME}"
+  }
+  elsif ($attr->{QRCODE_URL}) {
+    $url_to_encode = $attr->{QRCODE_URL};
   }
   else {
     $url_to_encode = $url . $self->_stringify_params($attr->{PARAMS}) . "&full=1";

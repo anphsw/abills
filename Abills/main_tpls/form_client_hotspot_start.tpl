@@ -11,9 +11,8 @@
 
   <meta name='viewport' content='width=device-width, initial-scale=1'>
 
-  <link rel='stylesheet' type='text/css' href='/styles/default/css/bootstrap.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/default/css/adminlte.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/default/css/font-awesome.min.css'>
-  <link rel='stylesheet' href='/styles/default/css/ionicons.min.css'>
   <link rel='stylesheet' href='/styles/default/css/adminlte.min.css'>
 
   <style>

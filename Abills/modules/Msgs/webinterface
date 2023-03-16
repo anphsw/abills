@@ -59,7 +59,7 @@ if ($user && $user->{UID}) {
 else {
   require Msgs::Tickets_list;
   require Msgs::Tickets;
-  require Msgs::Shedule;
+  require Msgs::Schedule;
   require Msgs::Dispatches;
   require Msgs::Msgs_team_ticket;
   require Msgs::Msgs_team_location;

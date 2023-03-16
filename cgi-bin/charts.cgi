@@ -19,7 +19,7 @@ use strict;
 use warnings 'FATAL' => 'all';
 use v5.16;
 
-our $VERSION = 0.91;
+our $VERSION = 0.95;
 
 our $begin_time;
 BEGIN {
@@ -1187,7 +1187,7 @@ sub print_head {
   <link href='favicon.ico' rel='shortcut icon' />
 
   <!-- CSS -->
-  <link rel='stylesheet' type='text/css' href='/styles/$html->{HTML_STYLE}/css/bootstrap.min.css' >
+  <link rel='stylesheet' type='text/css' href='/styles/$html->{HTML_STYLE}/css/adminlte.min.css' >
 
   <!-- Bootstrap -->
   <script src='/styles/$html->{HTML_STYLE}/js/jquery.min.js'></script>

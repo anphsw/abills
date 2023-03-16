@@ -112,16 +112,16 @@ sub events_events {
 #**********************************************************
 sub events_event_to_json {
   my ($event, $seen_index) = @_;
-  
-  $event->{subject} ||= $lang{ERR_NO_TITLE};
-  $event->{message} ||= $lang{ERR_NO_MESSAGE};
-  
+
+  my $subject = $event->{subject} || $event->{title} || $lang{ERR_NO_TITLE};
+  my $message = $event->{message} || $event->{comments} || $lang{ERR_NO_MESSAGE};
+
   return JSON::to_json({
     "TYPE"        => "EVENT",
-    "TITLE"       => $event->{subject},
+    "TITLE"       => $subject,
     "CREATED"     => $event->{created},
     "STATE"       => $event->{state_id},
-    "TEXT"        => $event->{message},
+    "TEXT"        => $message,
     "EXTRA"       => $event->{extra},
     "MODULE"      => $event->{module},
     "GROUP_ID"    => $event->{group_id},

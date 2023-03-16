@@ -205,7 +205,34 @@ sub user_routes {
         }
       },
       credentials => [
-        'USER', 'USERBOT'
+        'USER'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/user/contacts/push/badges/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        my $list = $Contacts->push_contacts_list({
+          UID     => $path_params->{uid},
+          TYPE_ID => $path_params->{id},
+          VALUE   => '_SHOW'
+        });
+
+        if (scalar @$list) {
+          $Contacts->push_contacts_change({
+            ID     => $list->[0]->{id},
+            BADGES => 0,
+          });
+        }
+
+        return {
+          result => 'OK',
+        };
+      },
+      credentials => [
+        'USER'
       ]
     },
     {
@@ -238,7 +265,7 @@ sub user_routes {
       },
       module      => 'Contacts',
       credentials => [
-        'USER', 'USERBOT'
+        'USER'
       ]
     },
     {

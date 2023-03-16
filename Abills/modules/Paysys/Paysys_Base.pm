@@ -729,7 +729,6 @@ sub paysys_check_user {
     COLS_UPPER       => 1
   });
 
-  #TODO CHECK FOR 40 error status $users->{TOTAL} > 1
   if ($users->{errno}) {
     return 2;
   }
@@ -761,21 +760,29 @@ sub paysys_check_user {
     our $Conf = Conf->new($db, $admin, \%conf);
   }
 
-  if ($attr->{RECOMENDED_PAY}) {
-    $list->[0]->{RECOMENDED_PAY} = recomended_pay($list->[0]);
+  foreach my $user (@{$list}) {
+    if ($attr->{RECOMENDED_PAY}) {
+      $user->{RECOMENDED_PAY} = recomended_pay($list->[0]);
+    }
+
+    if ($user->{FIO}) {
+      $user->{FIO} =~ s/\'/_/g;
+      $user->{FIO} =~ s/\s+$//g;
+    }
+
+    $user->{DEPOSIT} = sprintf("%.2f", $user->{DEPOSIT} || 0);
+
+    if (!$attr->{SKIP_FIO_HIDE}) {
+      $user->{FIO} = _hide_text($user->{FIO} || q{});
+      $user->{PHONE} = _hide_text($user->{PHONE} || q{});
+      $user->{ADDRESS_FULL} = _hide_text($user->{ADDRESS_FULL} || q{});
+    }
+
+    last if (!$attr->{MULTI_USER});
   }
 
-  if ($list->[0]->{FIO}) {
-    $list->[0]->{FIO} =~ s/\'/_/g;
-    $list->[0]->{FIO} =~ s/\s+$//g;
-  }
-
-  $list->[0]->{DEPOSIT} = sprintf("%.2f", $list->[0]->{DEPOSIT} || 0);
-
-  if (!$attr->{SKIP_FIO_HIDE}) {
-    $list->[0]->{FIO} = _hide_text($list->[0]->{FIO} || q{});
-    $list->[0]->{PHONE} = _hide_text($list->[0]->{PHONE} || q{});
-    $list->[0]->{ADDRESS_FULL} = _hide_text($list->[0]->{ADDRESS_FULL} || q{});
+  if ($attr->{MULTI_USER}) {
+    return $result, $list;
   }
 
   return $result, $list->[0];
@@ -1638,12 +1645,10 @@ sub _paysys_extra_check_user {
   my ($attr) = @_;
 
   my $list = [];
-  my @params_array = (
-    {
-      USER_ACCOUNT => $attr->{USER_ACCOUNT},
-      CHECK_FIELD  => $attr->{MAIN_CHECK_FIELD}
-    }
-  );
+  my @params_array = ({
+    USER_ACCOUNT => $attr->{USER_ACCOUNT},
+    CHECK_FIELD  => $attr->{MAIN_CHECK_FIELD}
+  });
   my %EXTRA_FIELDS = ();
 
   if (scalar @{$attr->{EXTRA_USER_IDS}}) {
@@ -1671,6 +1676,16 @@ sub _paysys_extra_check_user {
     unshift @check_fields, $params->{CHECK_FIELD};
 
     foreach my $CHECK_FIELD (@check_fields) {
+
+      if ($CHECK_FIELD eq 'PHONE') {
+        if ($params->{USER_ACCOUNT} && $params->{USER_ACCOUNT} !~ /\d{10,}$/g) {
+          $params->{USER_ACCOUNT} = '-------';
+        }
+        else {
+          $params->{USER_ACCOUNT} = "*$params->{USER_ACCOUNT}*";
+        }
+      }
+
       $list = $users->list({
         $params->{CHECK_FIELD} => '_SHOW',
         LOGIN                  => '_SHOW',
@@ -1692,7 +1707,7 @@ sub _paysys_extra_check_user {
         $CHECK_FIELD           => $params->{USER_ACCOUNT} || '---',
         COLS_NAME              => 1,
         COLS_UPPER             => $attr->{COLS_UPPER} ? 1 : '',
-        PAGE_ROWS              => 2,
+        PAGE_ROWS              => 4,
       });
 
       delete $users->{errno} if ($users->{errno} && $CHECK_FIELD ne $check_fields[-1]);

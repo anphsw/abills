@@ -15,7 +15,6 @@ use JSON qw(decode_json);
 use Abills::Base qw(in_array mk_unique_value vars2lang escape_for_sql);
 use Abills::Filters qw($EMAIL_EXPR _utf8_encode);
 use Abills::Fetcher qw(web_request);
-use Abills::Helpers::Email_domains qw(DOMAINS);
 use Users;
 
 my Users $Users;
@@ -394,13 +393,19 @@ sub user_registration {
       errno      => 10208,
       errstr     => 'Invalid login of user',
       errstr_lng => "$lang{ERR_WRONG_DATA} $lang{LOGIN}",
-    } if ($Users->{errno} ~~ 10);
+    } if ($Users->{errno} == 10);
 
     return {
       errno      => 10209,
       errstr     => 'User already exist',
       errstr_lng => "$lang{USER_EXIST}"
-    } if ($Users->{errno} ~~ 7);
+    } if ($Users->{errno} == 7);
+
+    return {
+      errno      => 10215,
+      errstr     => "Invalid login too long. Allowed $conf{MAX_USERNAME_LENGTH}",
+      errstr_lng => "$lang{ERR_NAME_TOOLONG} $conf{MAX_USERNAME_LENGTH}",
+    } if ($Users->{errno} == 9);
 
     return {
       errno  => 10210,
@@ -532,7 +537,7 @@ sub reCaptchaV3 {
     result => 'OK'
   } unless ($conf{GOOGLE_CAPTCHA_SECRET} && $conf{GOOGLE_CAPTCHA_KEY});
 
-  my $response = $attr->{'g-recaptcha-response'} || $attr->{recaptcha} || q{};
+  my $response = $attr->{'g-recaptcha-response'} || $attr->{CAPTCHA} || q{};
   my $url = "https://www.google.com/recaptcha/api/siteverify?secret=$conf{GOOGLE_CAPTCHA_SECRET}&response=$response";
   my $result = web_request($url, {
     JSON_RETURN => 1,
@@ -590,13 +595,30 @@ sub _registration_validation {
     errstr_lng => "$lang{ERR_WRONG_DATA} Email",
   } if ($attr->{EMAIL} !~ /$EMAIL_EXPR/);
 
-  my ($domain) = $attr->{EMAIL} =~ /(?<=@).+/g;
+  $conf{EMAIL_DOMAIN_VALIDATION} //= 1;
 
-  return {
-    errno      => 10232,
-    errstr     => 'Unknown email domain, please use valid email',
-    errstr_lng => $lang{ERR_EMAIL_DOMAIN},
-  } if (!DOMAINS->{$domain});
+  if ($conf{EMAIL_DOMAIN_VALIDATION}) {
+    my $domain_temp = ($conf{EMAIL_DOMAIN_VALIDATION} == 1) ? 'mail_whitelist' : 'mail_blacklist';
+    my $domains = $html->tpl_show(::templates($domain_temp), {}, { OUTPUT2RETURN => 1 });
+
+    my @domains = split('\r?\n', $domains);
+    my ($domain) = $attr->{EMAIL} =~ /(?<=@).+/g;
+
+    if (in_array($domain, \@domains)) {
+      return {
+        errno      => 10232,
+        errstr     => 'Unknown email domain, please use valid email',
+        errstr_lng => $lang{ERR_EMAIL_DOMAIN},
+      } if ($conf{EMAIL_DOMAIN_VALIDATION} != 1);
+    }
+    else {
+      return {
+        errno      => 10238,
+        errstr     => 'Unknown email domain, please use valid email',
+        errstr_lng => $lang{ERR_EMAIL_DOMAIN},
+      } if ($conf{EMAIL_DOMAIN_VALIDATION} == 1);
+    }
+  }
 
   $Users->list({
     EMAIL     => $attr->{EMAIL},
@@ -685,14 +707,19 @@ sub _social_registration {
   my $conf_reg = uc($social_net_name) . '_REGISTRATION';
 
   return {
-    errno  => 10229,
-    errstr => 'Unknown social network',
+    errno      => 10229,
+    errstr     => 'Unknown social network',
+    errstr_lng => $lang{ERR_UNKNOWN},
   } unless ($conf{$conf_key_name} && $conf{$conf_reg});
 
   require Abills::Auth::Core;
   Abills::Auth::Core->import();
 
-  $attr->{API} = 1 if ($attr->{SOCIAL_NETWORK});
+  if ($attr->{SOCIAL_NETWORK}) {
+    $attr->{API} = 1;
+    $attr->{token} = $attr->{TOKEN} || q{};
+  }
+
   my $Auth = Abills::Auth::Core->new({
     CONF      => \%conf,
     AUTH_TYPE => ucfirst(lc($social_net_name)),
@@ -729,22 +756,41 @@ sub _social_registration {
     }
     else {
       my $password = mk_unique_value($conf{PASSWD_LENGTH} || 6, { SYMBOLS => $conf{PASSWD_SYMBOLS} || undef });
+      my $login = q{};
 
-      my ($y, $m, $d) = split '-', $main::DATE, 3;
-      my $patern = "10$y$m$d";
+      $conf{USERNAMEREGEXP} //= "^[a-z0-9_][a-z0-9_-]*\$";
+      if ($Auth->{USER_EMAIL} =~ /$conf{USERNAMEREGEXP}/) {
+        $login = $Auth->{USER_EMAIL};
+      }
+      else {
+        my $min_len = int($conf{MAX_USERNAME_LENGTH} / 2);
+        my $max_len = $conf{MAX_USERNAME_LENGTH} - 1;
+        my @symbols = map chr, 0x20..0x7E;
+        my $pattern = qr/$conf{USERNAMEREGEXP}/;
+        my $_login = q{};
 
-      my $num = 1;
-      my $list = $Users->list({
-        UID       => '_SHOW',
-        LOGIN     => "$patern*",
-        SORT      => 'UID',
-        DESC      => 'DESC',
-        COLS_NAME => 1,
-        PAGE_ROWS => 1000000
-      });
+        while (1) {
+          $_login = join '', map {$symbols[rand(@symbols)]} 1 .. $min_len + rand($max_len - $min_len + 1);
+          last if $_login =~ $pattern;
+        }
 
-      $num = (scalar @$list) + 1 if ($list->[0]);
-      my $login = "$patern$num";
+        my $list = $Users->list({
+          LOGIN     => "$_login",
+          PAGE_ROWS => 2
+        });
+
+        if (scalar @$list) {
+          if ($_login . 'a' =~ /$conf{USERNAMEREGEXP}/) {
+            $login = $_login . 'a';
+          }
+          else {
+            $login = $_login . '1';
+          }
+        }
+        else {
+          $login = $_login;
+        }
+      }
 
       return {
         id       => $Auth->{USER_ID},
@@ -759,7 +805,7 @@ sub _social_registration {
   else {
     return {
       errno      => 10230,
-      errstr     => 'Social network error',
+      errstr     => 'Social network error unknown token',
       errstr_lng => $lang{ERR_UNKNOWN},
     };
   }

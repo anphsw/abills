@@ -29,5 +29,19 @@
       "OIDS" : ".1.3.6.1.2.1.1.3.0",
       "PARSER" : "sp_parse_raw"
     }
+  },
+  "status" : {
+    "CPU_LOAD" : {
+      "NAME" : "CPU_LOAD",
+      "OIDS" : ".1.3.6.1.4.1.3902.1015.2.1.1.3.1.9",
+      "WALK" : 1,
+      "PARSER": "%"
+    },
+    "RAM" : {
+      "NAME" : "MEMORY",
+      "OIDS" : ".1.3.6.1.4.1.3902.1015.2.1.1.3.1.11",
+      "WALK" : 1,
+      "PARSER": "%"
+    }
   }
 }

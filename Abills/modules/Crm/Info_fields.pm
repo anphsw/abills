@@ -638,12 +638,12 @@ sub crm_info_field_list_label {
 }
 
 #**********************************************************
-=head2 crm_lead_fields ($panel, $lead)
+=head2 crm_lead_fields ($lead, $ex_params, $ex_buttons)
 
 =cut
 #**********************************************************
 sub crm_lead_fields {
-  my ($panel, $lead, $default_fields) = @_;
+  my ($lead, $ex_params, $ex_buttons) = @_;
 
   my $fields = [
     { key => 'FIO', lang => $lang{FIO} },
@@ -705,9 +705,9 @@ sub crm_lead_fields {
       lang  => $lang{RESPONSIBLE},
       label => sub {
         my $aid = shift;
-
-        my $admin_info = $admin->info($aid, { SHORT => 1 });
-        return _crm_base_label($admin_info->{A_FIO} || $admin_info->{A_LOGIN}, $lang{RESPONSIBLE});
+        
+        my $admin_info = $admin->list({ AID => $aid, ADMIN_NAME => '_SHOW', ID => '_SHOW', COLS_NAME => 1 })->[0];
+        return _crm_base_label($admin_info->{admin_name} || $admin_info->{id}, $lang{RESPONSIBLE});
       },
       input => sub {
         my $aid = shift;
@@ -723,6 +723,7 @@ sub crm_lead_fields {
       lang  => $lang{PRIORITY},
       label => sub {
         my $priority_id = shift;
+        return '' if !defined($priority_id);
 
         return _crm_base_label(_translate($PRIORITY[$priority_id]), $lang{PRIORITY});
       },
@@ -809,11 +810,11 @@ sub crm_lead_fields {
     },
     {
       key   => 'DATE',
-      lang  => "$lang{DATE} $lang{REGISTRATION}",
+      lang  => $lang{CRM_REGISTRATION_DATE},
       input => sub {
         my $reg_date = shift;
 
-        my $span = $html->element('span', 'Дата регистрации', { class => 'text-muted' });
+        my $span = $html->element('span', $lang{CRM_REGISTRATION_DATE}, { class => 'text-muted' });
         my $datepicker = $html->form_datepicker('DATE', $reg_date, { RETURN_INPUT => 1 });
 
         return $html->element('div', $span . $html->element('div', $datepicker, { class => 'input-group' }),
@@ -824,34 +825,148 @@ sub crm_lead_fields {
 
   @{$fields} = (@{$fields}, @{crm_lead_info_fields()});
 
-  $Crm->{FIELDS} = '';
-  $Crm->crm_lead_fields_info({ AID => $admin->{AID}, LEAD_ID => $FORM{LEAD_ID}, PANEL => lc $panel });
-  my @checked_fields = $Crm->{FIELDS} ? split(',\s?', $Crm->{FIELDS}) : $default_fields ? split(',\s?', $default_fields) : ();
+  _crm_form_section_fields($fields, $lead, $ex_params, $ex_buttons);
+}
 
-  my $result = { $panel . '_LABEL' => '', $panel . '_INPUT' => '' };
-  foreach my $field (@{$fields}) {
-    my $key = $field->{key};
-    next if !$key || !in_array($key, \@checked_fields);
+#**********************************************************
+=head2 crm_deal_fields ($deal, $ex_params, $ex_buttons)
 
-    my $value = $lead->{$key};
-    my $key_lang = $field->{lang};
-    next if !defined $value;
+=cut
+#**********************************************************
+sub crm_deal_fields {
+  my ($deal, $ex_params, $ex_buttons) = @_;
 
-    $result->{$panel . '_LABEL'} .= $field->{label} ? $field->{label}->($value, $key_lang) :
-      _crm_base_label($value, $key_lang);
-    $result->{$panel . '_INPUT'} .= $field->{input} ? $field->{input}->($value, $key_lang) :
-      _crm_base_input($value, $key, $key_lang);
+  my $fields = [
+    { key => 'NAME', lang => $lang{NAME} },
+    { key => 'UID', lang => $lang{LOGIN} },
+    {
+      key => 'PRODUCTS',
+      lang => $lang{CRM_PRODUCTS},
+      label => sub {
+        my $products = shift;
+
+        my $total_count = 0;
+        my $total_sum = 0;
+        my $products_info = $Crm->crm_deal_products_list({
+          ID        => $products,
+          NAME      => '_SHOW',
+          COUNT     => '_SHOW',
+          SUM       => '_SHOW',
+          FEES_NAME => '_SHOW',
+          COLS_NAME => 1
+        });
+
+        my $money_main_unit = $conf{MONEY_UNIT_NAMES} ? (split(/;/, $conf{MONEY_UNIT_NAMES}))[0] : '';
+        my $products_block = '';
+        foreach my $product (@{$products_info}) {
+          $total_sum += $product->{sum};
+          $total_count += $product->{count};
+
+          my $product_name = $html->element('div', $product->{name}, { class => 'text-bold' });
+          $product->{fees_name} = _translate($product->{fees_name});
+          $product_name .= $html->element('span', "$product->{fees_name} $product->{sum}$money_main_unit - $product->{count}",
+            { class => 'text-muted small' });
+
+          $products_block .= $html->element('div', $product_name, { class => 'm-3 d-grid' });
+        }
+        my $label = $html->element('div', "$lang{COUNT}: $total_count") .
+          $html->element('div', "$lang{SUM}: $total_sum");
+        $label .= $html->button($lang{CRM_CHANGE}, "get_index=crm_users&full=1&chg=$deal->{ID}", { class => 'btn-tool' }) if $deal->{ID};
+        $products_block = $html->element('div', $products_block, { class => 'crm-product-container' });
+
+        return _crm_base_label($label . $products_block, $lang{CRM_PRODUCTS});
+      },
+      input => sub {
+        return '';
+      }
+    },
+    {
+      key   => 'BEGIN_DATE',
+      lang  => $lang{CRM_BEGIN_DATE},
+      input => sub {
+        my $reg_date = shift;
+
+        my $span = $html->element('span', $lang{CRM_BEGIN_DATE}, { class => 'text-muted' });
+        my $datepicker = $html->form_datepicker('BEGIN_DATE', $reg_date, { RETURN_INPUT => 1 });
+
+        return $html->element('div', $span . $html->element('div', $datepicker, { class => 'input-group' }),
+          { class => 'form-group mb-2' });
+      }
+    },
+    {
+      key   => 'CLOSE_DATE',
+      lang  => $lang{CRM_CLOSE_DATE},
+      input => sub {
+        my $reg_date = shift;
+
+        my $span = $html->element('span', $lang{CRM_CLOSE_DATE}, { class => 'text-muted' });
+        my $datepicker = $html->form_datepicker('CLOSE_DATE', $reg_date, { RETURN_INPUT => 1 });
+
+        return $html->element('div', $span . $html->element('div', $datepicker, { class => 'input-group' }),
+          { class => 'form-group mb-2' });
+      }
+    },
+    {
+      key   => 'COMMENTS',
+      lang  => $lang{COMMENTS},
+      input => sub {
+        my $value = shift;
+
+        my $span = $html->element('span', $lang{COMMENTS}, { class => 'text-muted' });
+        my $input = $html->element('textarea', $value, { rows => 5, class => 'form-control', name => 'COMMENTS' });
+
+        return $html->element('div', $span . $input, { class => 'form-group mb-2' });
+      }
+    },
+  ];
+
+  _crm_form_section_fields($fields, $deal, $ex_params, $ex_buttons);
+}
+
+#*******************************************************************
+=head2 _crm_form_section_fields($fields, $info, $ex_params, $ex_buttons)
+
+=cut
+#*******************************************************************
+sub _crm_form_section_fields {
+  my ($fields, $info, $ex_params, $ex_buttons) = @_;
+
+  my $result = { FIELDS => json_former($fields), SECTIONS => '' };
+  my $section_checked_fields = {};
+  my $aid = $admin->{AID};
+
+  my $sections = $Crm->crm_sections_list({ %{$ex_params}, TITLE => '_SHOW', COLS_NAME => 1 });
+  foreach my $section (@{$sections}) {
+    $Crm->{FIELDS} = '';
+    $Crm->crm_section_fields_info({ AID => $aid, SECTION_ID => $section->{id} });
+    @{$section_checked_fields->{$section->{id}}} = $Crm->{FIELDS} ? split(',\s?', $Crm->{FIELDS}) : ();
+
+    my $template_info = { LABEL => '', INPUT => '', TITLE => _translate($section->{title}), SECTION_ID => $section->{id} };
+    %{$template_info} = (%{$template_info}, %{$ex_params});
+
+    if ($ex_buttons) {
+      %{$template_info} = (%{$template_info}, %{$ex_buttons});
+      $ex_buttons = undef;
+    }
+
+    foreach my $field (@{$fields}) {
+      my $key = $field->{key};
+      next if !$key || !in_array($key, $section_checked_fields->{$section->{id}});
+
+      my $value = $info->{$key};
+      my $key_lang = $field->{lang};
+      # next if !defined $value;
+
+      $template_info->{'LABEL'} .= $field->{label} ? $field->{label}->($value, $key_lang) :
+        _crm_base_label($value, $key_lang);
+      $template_info->{'INPUT'} .= $field->{input} ? $field->{input}->($value, $key_lang) :
+        _crm_base_input($value, $key, $key_lang);
+    }
+    $result->{SECTIONS} .= $html->tpl_show(_include('crm_section', 'Crm'), $template_info, { OUTPUT2RETURN => 1 });
   }
 
-  $result->{'CRM_' . $panel . '_EXTRA_FIELDS'} = $html->form_main({
-    CONTENT => _crm_checked_fields($fields, \@checked_fields),
-    HIDDEN  => { index => $index, LEAD_ID => $FORM{LEAD_ID}, PANEL => lc $panel },
-    SUBMIT  => { save_fields => $lang{SAVE} },
-    class   => 'form-inline ml-auto flex-nowrap',
-    METHOD  => 'POST'
-  });
-
-  return $result
+  $result->{CHECKED_FIELDS} = json_former($section_checked_fields);
+  return $result;
 }
 
 #**********************************************************
@@ -938,48 +1053,6 @@ sub _crm_base_input {
   my $input = $html->element('input', '', { class => 'form-control', type => 'text', name => $key, value => $value });
 
   return $html->element('div', $span . $input, { class => 'form-group mb-2' });
-}
-
-#**********************************************************
-=head2 _crm_checked_fields($fields, $checked_fields)
-
-=cut
-#**********************************************************
-sub _crm_checked_fields {
-  my ($fields, $checked_fields) = @_;
-
-  my @checkboxes = ();
-  foreach my $field (@{$fields}) {
-    my $label = $html->element('label', $field->{lang} || '', { FOR => $field->{key} });
-    my $checkbox = $html->element('input', '', {
-      type  => 'checkbox',
-      name  => 'FIELDS',
-      value => $field->{key},
-      id    => $field->{key},
-      class => 'mr-1',
-      in_array($field->{key}, $checked_fields) ? (checked => 'checked') : ()
-    });
-    my $checkbox_parent = $html->element('div', $checkbox . $label, { class => 'abills-checkbox-parent' });
-
-    push @checkboxes, $checkbox_parent;
-  }
-
-  my $col_count = scalar @{$fields};
-  my $col_size = $col_count >= 16 ? 3 : 6;
-  my $cols = '';
-  my $count_checkboxes = @checkboxes;
-  my $fields_in_col = POSIX::ceil($count_checkboxes / int(12 / $col_size));
-  my $rows = (POSIX::ceil($count_checkboxes / $fields_in_col) - 1);
-
-  foreach my $col (0..$rows) {
-    my $start_index = $col * $fields_in_col;
-    my $end_index = $start_index + ($fields_in_col - 1);
-    $end_index = $count_checkboxes - 1 if ($count_checkboxes - 1) < $end_index;
-
-    $cols .= $html->element('div', join('', @checkboxes[$start_index .. $end_index]), { class => "col-md-$col_size" });
-  }
-
-  return $html->element('div', $cols, { class => 'row' });
 }
 
 #**********************************************************

@@ -90,6 +90,10 @@ $conf{TPL_DIR} //= $base_dir . '/Abills/templates/';
 do 'Abills/Misc.pm';
 require Abills::Templates;
 require Abills::Result_former;
+require Control::Users_mng;
+require Control::Companies_mng;
+require Control::Groups_mng;
+require Control::Contracts_mng;
 $html->{METATAGS} = templates('metatags_client');
 
 my $uid = 0;
@@ -639,12 +643,12 @@ sub form_info {
   });
 
   my $info_fields_view = $Portal_mng->get_info_fields_read_only_view({
+    %FORM,
     VALUES                => $user,
     CALLED_FROM_CLIENT_UI => 1,
     RETURN_AS_ARRAY       => 1,
-    USERS                 => $users || $user,
+    USERS                 => (!$users && $user) ? $user : $users,
     SELF_URL              => $SELF_URL,
-    %FORM,
   });
 
   foreach my $info_field_view (@$info_fields_view) {
@@ -719,36 +723,25 @@ sub form_info {
     accident_dashboard_mess();
   }
 
-  if (! $FORM{g2fa}) {
-    if ($conf{MONEY_UNIT_NAMES}) {
-      $user->{MONEY_UNIT_NAME}=(split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
-    }
-
-    $html->tpl_show(templates('form_client_info'), { %$user, %contacts }, { ID => 'form_client_info' });
-
-    if ($FORM{CONTRACT_LIST}) {
-      require Control::Contracts_mng;
-      $html->{OUTPUT} .= _user_contracts_table($user->{UID}, { UI => 1 });
-    }
-
-    if (in_array('Internet', \@MODULES)) {
-      load_module('Internet', $html);
-      $LIST_PARAMS{UID} = $user->{UID};
-      internet_user_info();
-    }
-
-    # cross_modules_call('_promotional_tp', { USER => $user });
-    cross_modules('promotional_tp', { USER => $user });
+  if ($conf{MONEY_UNIT_NAMES}) {
+    $user->{MONEY_UNIT_NAME} = (split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
   }
-  else {
-      require Control::Qrcode;
-    Control::Qrcode->import();
-    my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html });
-    my $code = $QRCode->_encode_url_to_img($user->{_G2FA}, {
-      AUTH_G2FA_NAME => $conf{AUTH_G2FA_TITLE} || 'ABillS',
-      AUTH_G2FA_MAIL => $conf{ADMIN_MAIL},
-    });
+
+  $html->tpl_show(templates('form_client_info'), { %$user, %contacts }, { ID => 'form_client_info' });
+
+  if ($FORM{CONTRACT_LIST}) {
+    require Control::Contracts_mng;
+    $html->{OUTPUT} .= _user_contracts_table($user->{UID}, { UI => 1, USER_INFO => $user });
   }
+
+  if (in_array('Internet', \@MODULES)) {
+    load_module('Internet', $html);
+    $LIST_PARAMS{UID} = $user->{UID};
+    internet_user_info();
+  }
+
+  # cross_modules_call('_promotional_tp', { USER => $user });
+  cross_modules('promotional_tp', { USER => $user });
 
   return 1;
 }
@@ -1070,6 +1063,39 @@ sub string_encoding {
 }
 
 #**********************************************************
+=head2 _get_mobile_app_links()
+
+=cut
+#**********************************************************
+sub _get_mobile_app_links {
+  my @supported_langs = (
+    'ukrainian',
+    'russian',
+    'english',
+  );
+
+  # TODO: to 1.0, create normal config for app links like this
+  # $conf{MOBILE_APP_LINKS} = (
+  #  GOOGLE => '...',
+  #  APPLE  => '...',
+  # );
+
+  my $supported = in_array($html->{language}, \@supported_langs)
+    ? $html->{language}
+    : 'english';
+
+  # manual offset, re-review in future
+  my $google_play_link =
+    "<div style='margin: 0 27px;'>
+      <a title='Google Play' href='$conf{APP_LINK_GOOGLE_PLAY}' target='_blank'>
+       <img class='mw-100' src='/img/google/play/$supported.png'>
+      </a>
+     </div>";
+
+  return $google_play_link;
+}
+
+#**********************************************************
 =head2 form_login_clients()
 
 =cut
@@ -1086,14 +1112,9 @@ sub form_login_clients {
   $first_page{PASSWORD_RECOVERY} = $conf{PASSWORD_RECOVERY};
   $first_page{FORGOT_PASSWD_LINK} = '/registration.cgi&FORGOT_PASSWD=1';
 
+  # TODO: to 1.0 create normal config
   if ($conf{APP_LINK_GOOGLE_PLAY}) {
-    my $google_play_link = "<a title='Google Play' class='btn rounded-pill bg-light' href='$conf{APP_LINK_GOOGLE_PLAY}' target='_blank'>
-      <div>
-        <img src='/img/google_play.png'>
-        <b> $lang{DOWNLOAD} $lang{FROM} Google Play</b>
-      </div>
-    </a>";
-    $first_page{APP_LINK_GOOGLE_PLAY} = $google_play_link;
+    $first_page{APP_LINK_GOOGLE_PLAY} = _get_mobile_app_links();
   }
 
   if (!$conf{REGISTRATION_PORTAL_SKIP}) {
@@ -1149,6 +1170,9 @@ sub form_login_clients {
       PHONE_NUMBER_PATTERN => $conf{PHONE_NUMBER_PATTERN} || ''
     }, { OUTPUT2RETURN => 1 });
   }
+  else {
+    $first_page{AUTH_BY_PHONE} = 'd-none' ;
+  }
 
   $OUTPUT{BODY} = $html->tpl_show(templates('form_client_login'), \%first_page, {
     MAIN => 1,
@@ -1169,9 +1193,11 @@ sub form_passwd {
   $user->pi({ UID => $user->{UID} });
   my $g2fa_message = "";
 
-  if($conf{AUTH_G2FA}){
-    use Abills::Auth::OATH;
-    if($FORM{g2fa}){
+  if ($conf{AUTH_G2FA}) {
+    require Abills::Auth::OATH;
+    Abills::Auth::OATH->import();
+
+    if ($FORM{g2fa}) {
       require Abills::Auth::Core;
       Abills::Auth::Core->import();
       my $Auth = Abills::Auth::Core->new({
@@ -1179,21 +1205,23 @@ sub form_passwd {
         AUTH_TYPE => 'OATH'
       });
 
-      if($Auth->check_access({PIN => $FORM{g2fa}, SECRET => $FORM{g2fa_secret}})) {
-        if($FORM{g2fa_remove}){
+      if ($Auth->check_access({ PIN => $FORM{g2fa}, SECRET => $FORM{g2fa_secret} })) {
+        if ($FORM{g2fa_remove}) {
           $user->pi_change({
             UID   => $user->{UID},
             _G2FA => ''
           });
-        } else {
+        }
+        else {
           $user->pi_change({
             UID   => $user->{UID},
             _G2FA => $FORM{g2fa_secret}
           });
         }
-        $g2fa_message = $html->message('info', $lang{SUCCESS}, '', {OUTPUT2RETURN => 1});
-      } else {
-        $g2fa_message = $html->message('err', $lang{ERROR}, $lang{G2FA_WRONG_CODE}, {OUTPUT2RETURN => 1});
+        $g2fa_message = $html->message('info', $lang{SUCCESS}, '', { OUTPUT2RETURN => 1 });
+      }
+      else {
+        $g2fa_message = $html->message('err', $lang{ERROR}, $lang{G2FA_WRONG_CODE}, { OUTPUT2RETURN => 1 });
       }
       $user->pi({ UID => $user->{UID} });
     }
@@ -1251,10 +1279,11 @@ sub form_passwd {
   $password_form{CONFIG_PASSWORD} = $conf{CONFIG_PASSWORD} || '';
 
   $password_form{G2FA_HIDDEN} = 'hidden';
-  if($conf{AUTH_G2FA} && !$user->{_G2FA}){
+
+  if ($conf{AUTH_G2FA} && !$user->{_G2FA}) {
     $password_form{G2FA_HIDDEN} = '';
 
-    my $secret = $FORM{g2fa_secret} || uc(mk_unique_value(5));
+    my $secret = $FORM{g2fa_secret} || uc(mk_unique_value(32));
     $password_form{G2FA_SECRET} = $secret;
 
     require Control::Qrcode;
@@ -1267,16 +1296,17 @@ sub form_passwd {
       OUTPUT2RETURN  => 1,
     });
 
-    $password_form{G2FA_QR} = "<img src='data:image/jpg;base64,".encode_base64($img_qr)."'>";
+    $password_form{G2FA_QR} = "<img src='data:image/jpg;base64," . encode_base64($img_qr) . "'>";
     $password_form{G2FA_BUTTON} = $lang{ADD};
-
-  } elsif($conf{AUTH_G2FA} && $user->{_G2FA}) {
+  }
+  elsif ($conf{AUTH_G2FA} && $user->{_G2FA}) {
     $password_form{G2FA_BUTTON} = $lang{REMOVE};
     $password_form{G2FA_SECRET} = $user->{_G2FA};
     $password_form{G2FA_HIDDEN} = '';
     $password_form{G2FA_REMOVE} = 1;
   }
-  if($g2fa_message){
+
+  if ($g2fa_message) {
     $password_form{G2FA_MESSAGE} = $g2fa_message;
   }
 
@@ -2112,6 +2142,7 @@ sub fl {
       if ($Company->{TOTAL} > 0 && $company_list->[0]->{is_company_admin} eq '1'
       ) {
         push @m, "44:40:$user->{COMPANY_NAME}:form_company_list::";
+        push @m, "45:40:$lang{COMPANY}:form_companies:::";
       }
     }
   }
@@ -2299,8 +2330,22 @@ sub make_social_auth_manage_buttons {
     $result .= $make_button->('Vk', "external_auth=Vk");
   }
 
-  if ($conf{AUTH_TELEGRAM_ID}) {
-    $result .= $make_button->('Telegram', "external_auth=Telegram");
+  if ($conf{AUTH_APPLE_ID}) {
+    my $client_id = $conf{AUTH_APPLE_ID} || q{};
+    my $redirect_uri = $conf{AUTH_APPLE_URL} || q{};
+    $redirect_uri =~ s/\%SELF_URL\%/$SELF_URL/g;
+    my $session_state = mk_unique_value(36);
+
+    $result .= $make_button->('Apple', '', {
+      GLOBAL_URL => "https://appleid.apple.com/auth/authorize?"
+        . "&response_type=id_token%20code"
+        . "&client_id=$client_id"
+        . "&redirect_uri=$redirect_uri"
+        . "&scope=name%20email"
+        . "&response_mode=form_post"
+        . "&state=$session_state"
+        . "&nonce=n$session_state"
+    });
   }
 
   if ($conf{AUTH_FACEBOOK_ID}) {
@@ -2400,18 +2445,13 @@ sub make_sender_subscribe_buttons_block {
         OUTPUT2RETURN => 1
       });
 
-      require Control::Qrcode;
-      Control::Qrcode->import();
-
-      my $QRCode = Control::Qrcode->new($db, $admin, {%conf}, { html => $html });
-
-      my $qr_code_image = $QRCode->qr_make_image_from_string($attr->{HREF}, { base64 => 1 });
 
       my $qr_icon = $html->element('i', '', { class => 'fa fa-qrcode', OUTPUT2RETURN => 1 });
       my $qr_button = $html->element('a', $qr_icon,
         {
           class => "btn $btn_class border-left-1",
-          onclick => "showImgInModal(`$qr_code_image`, '$name $lang{QR_CODE}');",
+          # QR-Code by link
+          onclick => "showImgInModal('$SELF_URL?qrcode=1&qindex=10010&QRCODE_URL=$attr->{HREF}', '$name $lang{QR_CODE}');",
           OUTPUT2RETURN => 1
         }
       );
@@ -2486,7 +2526,7 @@ sub make_sender_subscribe_buttons_block {
       }
 
       if ($conf{TELEGRAM_BOT_NAME}) {
-        my $link_url = 'https://telegram.me/' . $conf{TELEGRAM_BOT_NAME} . '/?start=u_' . ($user->{SID} || $sid);
+        my $link_url = 'https://t.me/' . $conf{TELEGRAM_BOT_NAME} . '/?start=u_' . ($user->{SID} || $sid);
         $buttons_block .= $make_subscribe_btn->(
           'Telegram',
           'fab fa-telegram',
@@ -2953,6 +2993,32 @@ sub pin_code_generate {
   my @alphanumeric = (0 .. 9);
 
   return join '', map $alphanumeric[rand @alphanumeric], 0 .. 4;
+}
+
+
+#**********************************************************
+=head2 func_menu($f_args) - Functions menu
+
+  Arguments:
+    $f_args  -
+    SILENT   -
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub func_menu {
+  my ($f_args) = @_;
+print $functions{$FORM{subf}};
+  if ($FORM{subf}) {
+    if($index eq $FORM{subf}) {
+      return 0;
+    }
+    _function($FORM{subf}, $f_args->{f_args});
+  }
+
+  return 1;
 }
 
 1

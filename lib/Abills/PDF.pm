@@ -160,7 +160,10 @@ sub form_main{
 
   $self->{FORM} .= "</form>\n";
 
-  if ( defined( $self->{NO_PRINT} ) ){
+  if ($attr->{OUTPUT2RETURN}) {
+    return $self->{FORM};
+  }
+  elsif ( defined( $self->{NO_PRINT} ) ){
     $self->{OUTPUT} .= $self->{FORM};
     $self->{FORM} = '';
   }

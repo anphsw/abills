@@ -65,6 +65,9 @@ sub new {
     SCOPE   => 2
   });
 
+  require Service;
+  Service->import();
+
   $Admins = Admins->new($db, $CONF);
   $Users = Users->new($db, $Admins, $CONF);
   $Callcenter = Callcenter->new($db, $Admins, $CONF);
@@ -409,7 +412,8 @@ sub get_admin_by_sip_number {
 
   my $admins_for_number_list = $Admins->list({
     %params,
-    COLS_NAME => 1
+    COLS_NAME => 1,
+    PAGE_ROWS => 50,
   });
 
   my @admins = ();
@@ -469,6 +473,7 @@ sub notify_admin_about_new_call {
     CITY         => '_SHOW',
     COMPANY_NAME => '_SHOW',
     COLS_UPPER   => 1,
+    PAGE_ROWS    => 5,
     COLS_NAME    => 1
   });
 
@@ -483,10 +488,13 @@ sub notify_admin_about_new_call {
   }
 
   foreach my $user_info (@$search_list) {
+    $Log->info("USER_INFO: $user_info->{UID} NUMBER: $caller_number ");
     my $notification = _create_user_notification({ %{$user_info}, });
+    $Log->info("END Notification");
     # Notify admin by messageChecker.ParseMessage
     foreach my $aid (@online_aids) {
       $websocket_api->notify_admin($aid, $notification);
+      #$Log->info("STOP AID: '$aid' <<< NUM: $i/$count  " . join(', ', @online_aids));
     }
   }
 
@@ -534,10 +542,11 @@ sub _create_user_notification {
   my ($user_info) = @_;
 
   my $tp_name = '';
-  my $internet_status = '';
+  my $internet_status = 0;
 
   if (in_array('Internet', \@MODULES)) {
     require Internet;
+    Internet->import();
     my $Internet = Internet->new($db, $Admins, \%conf);
 
     my $user_internet_main = $Internet->user_list({
@@ -553,7 +562,7 @@ sub _create_user_notification {
 
     if ($Internet->{TOTAL} && $Internet->{TOTAL} > 0) {
       $tp_name = $user_internet_main->[0]->{tp_name} || '';
-      $internet_status = $user_internet_main->[0]->{internet_status} || '0';
+      $internet_status = $user_internet_main->[0]->{internet_status} || 0;
     }
   }
 
@@ -566,23 +575,30 @@ sub _create_user_notification {
   our %lang;
   do "$base_dir/language/" . ($conf{default_language} || 'english') . ".pl";
 
-  my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HOLD_UP},
-    "$lang{DISABLE}: $lang{NON_PAYMENT}", $lang{ERR_SMALL_DEPOSIT},
-    $lang{VIRUS_ALERT});
+  my $Service = Service->new($db, $admin, \%conf);
+  my $status_list = $Service->status_list({ NAME => '_SHOW', COLOR => '_SHOW', COLS_NAME => 1 });
+  my %service_status = ();
+  foreach my $line (@$status_list) {
+    my $name = $line->{name} || q{};
+    if ($name =~ /\$lang\{(.+)\}/) {
+      $name = $lang{$1} || $1 || q{};
+    }
+    $service_status{$line->{id} || 0} = $name || q{};
+  }
 
   my $money_name = '';
-  if ($conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY') {
-    $money_name = $conf{MONEY_UNIT_NAMES}->[0] || '';
+  if ($conf{MONEY_UNIT_NAMES}) {
+    $money_name = $conf{MONEY_UNIT_NAMES} ? (split(/;/, $conf{MONEY_UNIT_NAMES}))[0] : '';
   }
 
   my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
-  my $deposit = sprintf('%.2f', ($user_info->{DEPOSIT} || 0));
+  my $deposit = sprintf('%.2f', $user_info->{DEPOSIT} || 0);
 
   if ($deposit < 0) {
     $deposit = "<span class='badge badge-danger'>$deposit</span>";
   }
 
-  my $status = $service_status[$internet_status];
+  my $status = $service_status{$internet_status} || q{};
   if ($internet_status == 0) {
     $status = "<b class='text-success'>$status</b>";
   }
@@ -704,7 +720,7 @@ sub process_default {
     $debug_event .= ($key || '') . ": " . ($event->{$key} || '') . "\n";
   }
   $debug_event .= "================EVENT END=================\n";
-  $Event_log->info("$debug_event");
+  $Event_log->info($debug_event);
   # End debuging events
 
   return 1;

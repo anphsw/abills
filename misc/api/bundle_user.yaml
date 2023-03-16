@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Abills user API
-  version: 0.0.58
-  description: "Last modified 2023-01-24"
+  version: 0.0.61
+  description: "Last modified 2023-02-21"
   contact:
     name: Have a question? Support
     url: https://support.abills.net.ua/
@@ -64,6 +64,28 @@ paths:
                 password:
                   type: string
                   example: testuser
+                google:
+                  type: string
+                  example: google_token
+                facebook:
+                  type: string
+                  example: facebook_token
+                apple:
+                  type: string
+                  example: apple_token
+    
+            examples:
+              ClassicLogin:
+                summary:
+                  Авторизация по полю логину и паролю
+                value:
+                  login: testuser
+                  password: testuser
+              LoginSocialNetwork:
+                summary:
+                  Авторизация пользователя через социальную сеть
+                value:
+                  google: google_token
         required: true
       responses:
         200:
@@ -82,7 +104,10 @@ paths:
                   uid:
                     type: integer
                     example: 1
-
+                  password:
+                    type: string
+                    example: "`ab012WXY"
+                    description: Параметр который возвращает биллинг если авторизация через социальную сеть и если включена опция $conf{API_LOGIN_SHOW_PASSWORD}. Если значение 0 сдвиг не происходит, если значение не 0, происходит смещение или влево или вправо, по алгоритму цезаря таблиця ASCII c значения 33 до 126
   /user/password/recovery:
     post:
       tags:
@@ -1739,12 +1764,42 @@ paths:
                       google:
                         type: number
                         example: 0
+                  socialNetworks:
+                    type: object
+                    properties:
+                      facebook:
+                        type: string
+                        example: https://www.facebook.com/abills.net/
+                      instagram:
+                        type: string
+                        example: https://instagram.com
+                      telegram:
+                        type: string
+                        example: https://t.me/abills
+                      viber:
+                        type: string
+                        example: https://viber.com
+                      youtube:
+                        type: string
+                        example: https://www.youtube.com/c/abillsnetua
                   system:
                     type: object
                     properties:
                       currency:
                         type: number
                         example: 980
+                      password:
+                        type: object
+                        properties:
+                          length:
+                            type: number
+                            example: 7
+                          symbols:
+                            type: number
+                            example: 1234567890
+                  userChgPasswd:
+                    type: number
+                    example: 1
                   userCredit:
                     type: number
                     example: 1001
@@ -1819,15 +1874,21 @@ paths:
                   login:
                     type: object
                     properties:
+                      maxLength:
+                        type: number
+                        example: 20
                       regx:
                         type: string
-                        example: ^[a-z0-9_][a-z0-9_-]*$
+                        example: ^[a-z0-9:_][a-z0-9:_-]*$
                   password:
                     type: object
                     properties:
                       length:
                         type: number
-                        example: 6
+                        example: 7
+                      symbols:
+                        type: number
+                        example: 1234567890
                   passwordRecovery:
                     type: number
                     example: 1
@@ -1837,12 +1898,18 @@ paths:
                   registration:
                     type: object
                     properties:
-                      internet:
+                      facebook:
+                        type: number
+                        example: 1
+                      google:
                         type: number
                         example: 1
                   socialAuth:
                     type: object
                     properties:
+                      facebook:
+                        type: number
+                        example: 1
                       google:
                         type: number
                         example: 1
@@ -1983,6 +2050,101 @@ paths:
       security:
         - USERSID: [ ]
 
+  /user/paysys/transaction/status/{id}:
+    get:
+      tags:
+        - paysys
+      summary: Проверка статуса платежа
+      parameters:
+        - name: id
+          in: path
+          description: ID транзакции
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  datetime:
+                    type: string
+                    example: "2022-01-01 01:01:01"
+                  login:
+                    type: string
+                    example: test
+                  status:
+                    type: integer
+                    example: 1
+                  systemId:
+                    type: integer
+                    example: 1
+                  sum:
+                    type: integer
+                    example: 100
+                  uid:
+                    type: integer
+                    example: 1
+                  transactionId:
+                    type: string
+                    example: Liqpay:123456789
+      security:
+        - USERSID: [ ]
+
+  /user/paysys/applePay/session:
+    post:
+      tags:
+        - paysys
+      summary: Получение apple pay сессии
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  displayName:
+                    type: string
+                    example: ABillS Lite
+                  domainName:
+                    type: string
+                    example: demo.abills.net.ua
+                  epochTimestamp:
+                    type: number
+                    example: 1675887175073
+                  expiresAt:
+                    type: number
+                    example: 1675890775073
+                  merchantIdentifier:
+                    type: string
+                    example: BC3E7F7A5139613761C820AAEF5D248710B447168841225
+                  merchantSessionIdentifier:
+                    type: string
+                    example: SSH70B5F2E07D9D4DB3AF0A90B8E57333C0_5169
+                  nonce:
+                    type: string
+                    example: 668ca377
+                  operationalAnalyticsIdentifier:
+                    type: string
+                    example: ABillS Lite:BC3E7F7A5139613761C820AAEF5D248710B4471688412251192CAF5862400E65
+                  pspId:
+                    type: string
+                    example: BC3E7F7A5139613761C820AAEF5D248710B4471688412251192CAF5862400E65
+                  retries:
+                    type: number
+                    example: 0
+                  signature:
+                    type: string
+                    example: 308006092a864886f70d010702a0803080020101310d300b060960864801650304020
+      security:
+        - USERSID: [ ]
 
   # contacts paths
 
@@ -2735,6 +2897,12 @@ paths:
                   result:
                     type: string
                     example: Success payment, ID 18342
+                  amount:
+                    type: number
+                    example: 1.99
+                  paymentId:
+                    type: number
+                    example: 18342
         400:
           description: Нет параметра pin в теле запроса
           content:
@@ -3858,7 +4026,7 @@ paths:
                         onMainPage:
                           type: number
                           example: 1
-                        portalTopicId:
+                        topicId:
                           type: number
                           example: 1
                   url:
@@ -3900,6 +4068,9 @@ paths:
                         onMainPage:
                           type: number
                           example: 1
+                        permalink:
+                            type: string
+                            example: special-promotion-50-2023
                         picture:
                           type: string
                           example: "http://192.168.99.2:9443/images/attach/portal/9700077.png"
@@ -3909,7 +4080,82 @@ paths:
                         title:
                           type: string
                           example: Акціний тариф візьми поки можеш
-                        portalTopicId:
+                        topicId:
+                          type: number
+                          example: 1
+                  topics:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: number
+                          example: 1
+                        name:
+                          type: string
+                          example: Акції від нас
+                        url:
+                          type: string
+                          example: "https://demo.abills.net.ua:9443/"
+      security:
+        - USERSID: [ ]
+  /user/portal/news/{id}:
+    get:
+      tags:
+        - portal
+      summary: Новость
+      parameters:
+          - name: id
+            in: path
+            description: ID новости или permalink
+            required: true
+            schema:
+              example: test-permalink
+              oneOf:
+                - type: integer
+                - type: string
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  news:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        content:
+                          type: string
+                          example: При замовленні пакету «ABillS+» платіть X грн/міс замість X грн/міс. Підключайте ТВ-пакет «База+» і отримаєте в подарунок півроку користування послугою! Кожен місяць сплачуйте лише 50% вартості пакету. Абонплата складе всього X грн.
+                        date:
+                          type: string
+                          format: date
+                          example: 2023-01-23
+                        id:
+                          type: number
+                          example: 4
+                        importance:
+                          type: number
+                          example: 1
+                        onMainPage:
+                          type: number
+                          example: 1
+                        permalink:
+                            type: string
+                            example: special-promotion-50-2023
+                        picture:
+                          type: string
+                          example: "http://192.168.99.2:9443/images/attach/portal/9700077.png"
+                        shortDescription:
+                          type: string
+                          example: Тарифний план для всіх у сімї
+                        title:
+                          type: string
+                          example: Акціний тариф візьми поки можеш
+                        topicId:
                           type: number
                           example: 1
                   topics:
@@ -3997,7 +4243,7 @@ paths:
     post:
       tags:
         - referral
-      summary: Список рефералов и дополнительная информация
+      summary: Получить бонус
       responses:
         200:
           description: Успешное выполнение

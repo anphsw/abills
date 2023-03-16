@@ -9,17 +9,6 @@ CREATE TABLE `users_status` (
   DEFAULT CHARSET=utf8
   COMMENT='User status list';
 
-CREATE TABLE IF NOT EXISTS `crm_lead_fields` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `lead_id` INT UNSIGNED NOT NULL DEFAULT 0,
-  `fields` TEXT NOT NULL,
-  `panel` VARCHAR(60) NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`)
-)
-  DEFAULT CHARSET = utf8
-  COMMENT = 'Leads fields to show';
-
 REPLACE INTO `users_status` (`id`, `name`, `color`, `descr`) VALUES (0, '$lang{ENABLE}', '4CAF50', '');
 REPLACE INTO `users_status` (`id`, `name`, `color`, `descr`) VALUES (1, '$lang{DISABLED}', 'F44336', '');
 REPLACE INTO `users_status` (`id`, `name`, `color`, `descr`) VALUES (2, '$lang{NOT_ACTIVE}', 'FF9800', '');

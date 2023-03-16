@@ -30,9 +30,8 @@
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datepicker/datepicker3.css'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/QBInfo.css'>
 
-  <!-- Ionicons -->
+  <!-- Font Awesome -->
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/font-awesome.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/css/ionicons.min.css'>
   <!-- Pace style -->
 
   <!-- DataTables -->
@@ -59,11 +58,11 @@
   <script src='/styles/%HTML_STYLE%/js/permanent_data.js'></script>
 
   <!-- temp -->
-  <script src='/styles/%HTML_STYLE%/js/functions.js?v=76.1.9'></script>
-  <script src='/styles/%HTML_STYLE%/js/functions-admin.js?v=0.77.26'></script>
+  <script src='/styles/%HTML_STYLE%/js/functions.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/functions-admin.js'></script>
 
   <!--Keyboard-->
-  <script src='/styles/%HTML_STYLE%/js/keys.js?v=77.70'></script>
+  <script src='/styles/%HTML_STYLE%/js/keys.js'></script>
 
   <!-- Navigation bar saving show/hide state -->
   <script  src='/styles/%HTML_STYLE%/js/navBarCollapse.js'></script>
@@ -77,14 +76,14 @@
   <script src='/styles/%HTML_STYLE%/js/events.js'></script>
 
   <!-- Modal popup windows management -->
-  <script src='/styles/%HTML_STYLE%/js/modals.js?v=76.1.9'></script>
+  <script src='/styles/%HTML_STYLE%/js/modals.js'></script>
 
   <!-- AJAX Search scripts -->
-  <script src='/styles/%HTML_STYLE%/js/search.js?v=0.76.34'></script>
+  <script src='/styles/%HTML_STYLE%/js/search.js'></script>
 
-  <script src='/styles/%HTML_STYLE%/js/messageChecker.js?v=0.77.26'></script>
+  <script src='/styles/%HTML_STYLE%/js/messageChecker.js'></script>
 
-  <script src='/styles/%HTML_STYLE%/js/msgs/jquery-ui.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/js/jquery-ui.min.js'></script>
 
   <!-- Textarea autosize -->
   %AUTOSIZE_INCLUDE%
@@ -162,7 +161,7 @@
 
 
   <!-- Needs WEBSOCKET_URL defined above -->
-  <script src='/styles/default/js/websocket_client.js?v=0.76.28'></script>
+  <script src='/styles/default/js/websocket_client.js'></script>
 
   $conf{HOTJAR_SCRIPT_ADMIN}
 </head>

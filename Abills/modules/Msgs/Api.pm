@@ -423,6 +423,28 @@ sub admin_routes {
         'ADMIN'
       ]
     },
+    {
+      method      => 'PUT',
+      path        => '/msgs/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        my $message = $Msgs->message_info($path_params->{id});
+
+        return {
+          errno  => 102,
+          errstr => 'The message cannot be accessed'
+        } if $self->{permissions}{1}{21} && (!$message->{RESPOSIBLE} || $message->{RESPOSIBLE} ne $self->{admin}{AID});
+
+        return {
+          errno  => 103,
+          errstr => 'The message cannot be accessed'
+        } if $self->{permissions}{4} && (!$message->{CHAPTER} || !$self->{permissions}{4}{$message->{CHAPTER}});
+
+        $Msgs->message_change({ %{$query_params}, ID => $path_params->{id}})
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
     #@deprecated
     {
       method      => 'POST',

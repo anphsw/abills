@@ -6,7 +6,7 @@
   <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
 
   <title>Hotspot Advertisement</title>
-  <link rel='stylesheet' href='/styles/default/css/bootstrap.min.css'>
+  <link rel='stylesheet' href='/styles/default/css/adminlte.min.css'>
   <script src='/styles/default/js/jquery.min.js'></script>
 
   <style>

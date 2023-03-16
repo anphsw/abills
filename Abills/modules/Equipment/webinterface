@@ -1810,6 +1810,9 @@ sub equipments_snmp_result {
       $result{$key} = $value || q{};
     }
     else {
+      if (! $info_list->{$type}->{$key}->{OIDS}) {
+        next;
+      }
       my @oids_arr = split(/,/, $info_list->{$type}->{$key}->{OIDS});
       foreach my $oid (@oids_arr) {
         my $value = snmp_get({ %{$attr}, OID => $oid });

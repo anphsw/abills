@@ -366,7 +366,7 @@ sub maps_show_object_button {
 
   return '' if !$Maps;
 
-  $layer_id = LAYER_ID_BY_NAME->{$layer_id} || $layer_id;
+  $layer_id = $layer_id ? (LAYER_ID_BY_NAME->{$layer_id} || $layer_id) : 0;
   my $params = '';
 
   my %button_params = (

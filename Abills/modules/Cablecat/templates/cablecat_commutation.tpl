@@ -149,7 +149,7 @@
 <script src='/styles/default/js/modules/cablecat/commutation.drag.js'></script>
 
 <!-- Context Menu -->
-<script src='/styles/default/js/modules/cablecat/jquery.ui.position.min.js'></script>
+<script src='/styles/default/js/jquery-ui.min.js'></script>
 <script src='/styles/default/js/modules/cablecat/jquery.contextMenu.min.js'></script>
 
 <!-- Touch responsive -->
@@ -159,6 +159,6 @@
 <script src='/styles/default/js/modules/cablecat/raphael.pan-zoom.js'></script>
 
 <script src='/styles/default/js/dynamicForms.js'></script>
-<script src='/styles/default/js/modules/cablecat/commutation.js?v=7.61'></script>
+<script src='/styles/default/js/modules/cablecat/commutation.js'></script>
 <script id='maps_print' src='/styles/default/js/maps/html2canvas.min.js' async></script>
 

@@ -62,7 +62,6 @@
   }
 
   arr.map((item) => {
-    console.log(item);
     let element = `<div class='weakly-weather-item'>
             <h5 class='mb-0'>
               ` + item.TIME + `

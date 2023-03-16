@@ -244,6 +244,48 @@ sub cams_maps_review {
 }
 
 #**********************************************************
+=head2 maps_report_info()
+
+=cut
+#**********************************************************
+sub maps_report_info {
+  my $self = shift;
+  my $layer_id = shift;
+
+  return '' if !$layer_id;
+
+  require Maps::Auxiliary;
+  Maps::Auxiliary->import();
+  my $Auxiliary = Maps::Auxiliary->new($self->{db}, $self->{admin}, $self->{conf}, { HTML => $html, LANG => $lang });
+
+  my $cameras = $Cams->streams_list({
+    POINT_ID      => '!',
+    NAME          => '_SHOW',
+    TITLE         => '_SHOW',
+    SERVICE_NAME  => '_SHOW',
+    POINT_CREATED => '_SHOW',
+    PAGE_ROWS     => 10000
+  });
+
+  my $report_table = $html->table({
+    width       => '100%',
+    caption     => $lang->{CAMERAS},
+    title_plain => [ '#', $lang->{NAME}, $lang->{CAM_TITLE}, $lang->{SERVICE}, $lang->{CREATED}, $lang->{LOCATION} ],
+    DATA_TABLE  => 1
+  });
+
+  my $cams_index = ::get_function_index('cams_main');
+  foreach my $camera (@{$cameras}) {
+    my $location_btn = $Auxiliary->maps_show_object_button(33, $camera->{point_id});
+    my $camera_btn = $html->button($camera->{id}, "index=$cams_index&chg_cam=$camera->{id}");
+    $report_table->addrow($camera_btn, $camera->{name}, $camera->{title}, $camera->{service_name},
+      $camera->{point_created}, $location_btn);
+  }
+
+  return $report_table->show();
+}
+
+#**********************************************************
 =head2 _cams_info_item()
 
   Attr:

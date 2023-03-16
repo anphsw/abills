@@ -254,6 +254,7 @@ sub maps_builds2_show {
     OBJECT_ID     => $attr->{OBJECT_ID} || '_SHOW',
     COORDX_CENTER => '_SHOW',
     COORDY_CENTER => '_SHOW',
+    CREATED       => '_SHOW',
     COLS_NAME     => 1,
     PAGE_ROWS     => $attr->{NEW_OBJECT} ? 1 : ''
   });
@@ -287,6 +288,7 @@ sub maps_builds2_show {
         ID        => $build->{object_id},
         OBJECT_ID => $build->{object_id},
         NAME      => $build->{address_full},
+        CREATED   => $build->{created},
         LAYER_ID  => LAYER_ID_BY_NAME->{BUILD2},
         INFO      => $info_table,
         COUNT     => $point_count,
@@ -396,6 +398,7 @@ sub maps_districts_show {
       $attr->{ID} : $attr->{OBJECT_ID} ? $attr->{OBJECT_ID} : '_SHOW',
     DISTRICT_ID => $attr->{DISTRICT_ID} || '_SHOW',
     DISTRICT    => '_SHOW',
+    CREATED     => '_SHOW',
     LIST2HASH   => 'object_id,district_id'
   });
 
@@ -416,7 +419,9 @@ sub maps_districts_show {
   }
 
   foreach my $object (@{$layer_objects}) {
-    $object->{POLYGON}{name} = $district_for_object_id->{$object->{OBJECT_ID}}{district};
+    $object->{POLYGON}{name} = $district_for_object_id->{$object->{OBJECT_ID}}{district} || '';
+    $object->{POLYGON}{created} = $district_for_object_id->{$object->{OBJECT_ID}}{created} || '';
+    $object->{POLYGON}{NAME} = $district_for_object_id->{$object->{OBJECT_ID}}{district} || '';
   }
 
   return $layer_objects if ($attr->{RETURN_HASH});
@@ -426,6 +431,128 @@ sub maps_districts_show {
   print $export_string;
 
   return $export_string;
+}
+
+#**********************************************************
+=head2 maps_report_info()
+
+=cut
+#**********************************************************
+sub maps_report_info {
+  my $self = shift;
+  my $layer_id = shift;
+
+  return '' if !$layer_id;
+
+  return $self->_maps_wifis_report_info() if ($layer_id eq '2');
+  return $self->_maps_builds_report_info() if ($layer_id eq '1');
+  return $self->_maps_builds2_report_info() if ($layer_id eq '12');
+  return $self->_maps_districts_report_info() if ($layer_id eq '4');
+}
+
+#**********************************************************
+=head2 _maps_wifis_report_info()
+
+=cut
+#**********************************************************
+sub _maps_wifis_report_info {
+  my $self = shift;
+
+  my $wifi_objects = $self->_maps_get_layer_objects(LAYER_ID_BY_NAME->{WIFI}, { ID => '_SHOW', COLS_NAME => 1 });
+
+  my $report_table = $html->table({
+    width       => '100%',
+    caption     => 'Wi-Fi',
+    title_plain => [ '#', $lang->{NAME}, $lang->{COLOR}, $lang->{CREATED}, $lang->{LOCATION} ],
+    DATA_TABLE  => 1
+  });
+
+  foreach my $wifi (@{$wifi_objects}) {
+    my $wifi_info = $wifi->{POLYGON};
+    my $location_btn = $Auxiliary->maps_show_object_button(LAYER_ID_BY_NAME->{WIFI}, $wifi_info->{OBJECT_ID});
+    $report_table->addrow($wifi_info->{ID}, $wifi_info->{NAME},
+      $html->color_mark($wifi_info->{COLOR}, $wifi_info->{COLOR}), $wifi_info->{CREATED}, $location_btn);
+  }
+
+  return $report_table->show();
+}
+
+#**********************************************************
+=head2 _maps_builds_report_info()
+
+=cut
+#**********************************************************
+sub _maps_builds_report_info {
+  my $self = shift;
+
+  my $builds = $self->maps_builds_show({ RETURN_HASH => 1 });
+
+  my $report_table = $html->table({
+    width       => '100%',
+    caption     => $lang->{BUILD},
+    title_plain => [ '#', $lang->{ADDRESS}, $lang->{CREATED}, $lang->{LOCATION} ],
+    DATA_TABLE  => 1
+  });
+
+  foreach my $build (@{$builds}) {
+    my $build_info = $build->{MARKER};
+    my $location_btn = $Auxiliary->maps_show_object_button(LAYER_ID_BY_NAME->{BUILD}, $build_info->{OBJECT_ID});
+    $report_table->addrow($build_info->{ID}, $build_info->{NAME}, $build_info->{ADDED}, $location_btn);
+  }
+
+  return $report_table->show();
+}
+
+#**********************************************************
+=head2 _maps_builds_report_info()
+
+=cut
+#**********************************************************
+sub _maps_builds2_report_info {
+  my $self = shift;
+
+  my $builds = $self->maps_builds2_show({ RETURN_HASH => 1 });
+
+  my $report_table = $html->table({
+    width       => '100%',
+    caption     => $lang->{PLOT},
+    title_plain => [ '#', $lang->{ADDRESS}, $lang->{CREATED}, $lang->{LOCATION} ],
+    DATA_TABLE  => 1
+  });
+
+  foreach my $build (@{$builds}) {
+    my $build_info = $build->{POLYGON};
+    my $location_btn = $Auxiliary->maps_show_object_button(LAYER_ID_BY_NAME->{BUILD2}, $build_info->{OBJECT_ID});
+    $report_table->addrow($build_info->{ID}, $build_info->{NAME}, $build_info->{CREATED}, $location_btn);
+  }
+
+  return $report_table->show();
+}
+
+#**********************************************************
+=head2 _maps_districts_report_info()
+
+=cut
+#**********************************************************
+sub _maps_districts_report_info {
+  my $self = shift;
+
+  my $districts = $self->maps_districts_show({ RETURN_HASH => 1 });
+
+  my $report_table = $html->table({
+    width       => '100%',
+    caption     => $lang->{DISTRICTS},
+    title_plain => [ '#', $lang->{NAME}, $lang->{CREATED}, $lang->{LOCATION} ],
+    DATA_TABLE  => 1
+  });
+
+  foreach my $district (@{$districts}) {
+    my $district_info = $district->{POLYGON};
+    my $location_btn = $Auxiliary->maps_show_object_button(LAYER_ID_BY_NAME->{DISTRICT}, $district_info->{object_id});
+    $report_table->addrow($district_info->{id}, $district_info->{name}, $district_info->{created}, $location_btn);
+  }
+
+  return $report_table->show();
 }
 
 #**********************************************************
@@ -454,6 +581,7 @@ sub _maps_get_old_builds {
     PUBLIC_COMMENTS    => '_SHOW',
     PLANNED_TO_CONNECT => '_SHOW',
     STREET_NAME        => '_SHOW',
+    ADDED              => '_SHOW',
     COORDX             => '!',
     COORDY             => '!',
     ZOOM               => '_SHOW',
@@ -496,6 +624,7 @@ sub _maps_get_old_builds {
         NAME      => $address_full,
         COORDX    => $build->{coordy},
         COORDY    => $build->{coordx},
+        ADDED     => $build->{added},
         TYPE      => "build_$color",
         INFO      => $info_table,
         COUNT     => $point_count,
@@ -526,6 +655,7 @@ sub _maps_get_new_builds {
   my $coords_list = $Maps->points_list({
     COORDX       => '!',
     COORDY       => '!',
+    CREATED      => '_SHOW',
     TYPE_ID      => 3,
     LOCATION_ID  => $attr->{LAST_OBJECT_ID} ? "> $attr->{LAST_OBJECT_ID}" : '_SHOW',
     ADDRESS_FULL => '_SHOW',
@@ -565,6 +695,7 @@ sub _maps_get_new_builds {
         NAME      => $address_full,
         COORDX    => $build->{coordx},
         COORDY    => $build->{coordy},
+        ADDED     => $build->{created},
         TYPE      => "build_$color",
         INFO      => $info_table,
         LAYER_ID  => LAYER_ID_BY_NAME->{BUILD},
@@ -675,6 +806,7 @@ sub _maps_get_layer_objects {
 
     my $this_type_objects_list = $Maps->$func_name({
       LAYER_ID         => $layer_id,
+      NAME             => '_SHOW',
       SHOW_ALL_COLUMNS => 1,
       COLS_UPPER       => 1,
       OBJECT_ID        => $attr->{ID} || '_SHOW',
@@ -692,14 +824,16 @@ sub _maps_get_layer_objects {
           $parent_id_name => $map_object_row->{id},
           COORDX          => '_SHOW',
           COORDY          => '_SHOW',
+          CREATED         => '_SHOW',
           COLS_UPPER      => 0,
           PAGE_ROWS       => 10000
         });
 
         $map_object_row->{POINTS} = [ map {[ +$_->{coordx}, +$_->{coordy} ]} @{$points_list} ];
+        $map_object_row->{CREATED} = $points_list->[0]{created} if $points_list->[0] && $points_list->[0]{created};
       }
     }
-    
+
     push(@OBJECTS, map {{
       uc($object_type) => $_,
       LAYER_ID         => $layer_id,

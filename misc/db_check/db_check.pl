@@ -217,8 +217,10 @@ sub db_check {
 sub compare_tables {
   my ($table_name, $dump_table, $sql_table) = @_;
 
-  my $dump_cols_ref = $dump_table->{columns};
-  my $sql_cols_ref = $sql_table->{columns};
+  return 0 if (!$sql_table);
+
+  my $dump_cols_ref = $dump_table->{columns} || {};
+  my $sql_cols_ref = $sql_table->{columns} || {};
 
   # If found global differences, than should check it more
   print "Checking table $table_name\n" if ($debug);

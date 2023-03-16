@@ -156,29 +156,29 @@ sub notify {
 
   my @sessions = values %{$self->{sessions}};
   
-  my $id = $self->{id};
+  my $id = $self->{id} || 0;
   
   if ( $#sessions < 0 ) {
-    $Log->error('No opened sockets for ' . $id);
+    $Log->error('No opened sockets for ID: ' . $id);
     return undef;
   }
   
-  $Log->info("Notifying client $id . Opened sockets:" . ($#sessions + 1));
+  $Log->info("Notifying client: $id . Opened sockets:" . ($#sessions + 1));
   
   my @responses = ();
   foreach my $session ( @sessions ) {
     push @responses, $session->request($attr->{MESSAGE});
   }
-  
+
   if ( scalar @responses > 0 ) {
     my %client_answer = (
       TYPE   => 'RESULT',
       RESULT => \@responses
     );
-    
+
     return \%client_answer;
   }
-  
+
   return;
 }
 

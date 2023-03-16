@@ -2,6 +2,7 @@
   <form action='$SELF_URL' method='POST' id='FORM%ID%' class='comment-form'>
     <input type='hidden' name='index' value='%INDEX%'>
     <input type='hidden' name='LEAD_ID' value='%LEAD_ID%'>
+    <input type='hidden' name='DEAL_ID' value='%DEAL_ID%'>
     <input type='hidden' name='STEP_ID' value='%ID%'>
 
     <div class='form-group row'>

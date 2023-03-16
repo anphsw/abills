@@ -38,7 +38,7 @@
               class='stripe-button'
               data-key='$conf{PAYSYS_STRIPE_PUBLISH_KEY}'
               data-description=_{SUM}_$FORM{SUM}
-              data-image='https://stripe.com/img/v3/newsroom/social.png'
+              data-image='/styles/default/img/paysys_logo/stripe-logo.png'
               data-name='$conf{WEB_TITLE}'
               data-locale='auto'
               data-amount='%AMOUNT%'

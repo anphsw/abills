@@ -367,6 +367,7 @@ sub pon_maps {
 
   $count = @export_arr;
   return $count if $attr->{ONLY_TOTAL};
+  return \@export_arr if $attr->{RETURN_HASH};
 
   my $export_string = JSON::to_json(\@export_arr, { utf8 => 0 });
 
@@ -380,6 +381,50 @@ sub pon_maps {
   }
 
   return $export_string;
+}
+
+#**********************************************************
+=head2 maps_report_info()
+
+=cut
+#**********************************************************
+sub maps_report_info {
+  my $self = shift;
+  my $layer_id = shift;
+
+  return '' if !$layer_id;
+
+  return $self->_maps_equipments_report_info() if ($layer_id eq EQUIPMENT_MAPS_LAYER_ID);
+}
+
+#**********************************************************
+=head2 _maps_equipments_report_info()
+
+=cut
+#**********************************************************
+sub _maps_equipments_report_info {
+  my $self = shift;
+
+  my $equipments = $Equipment->_list_with_coords({
+    STATUS    => '_SHOW',
+    NAS_NAME  => '_SHOW',
+    COLS_NAME => 1,
+    PAGE_ROWS => 10000,
+  });
+
+  my $report_table = $html->table({
+    width       => '100%',
+    caption     => $lang->{EQUIPMENT},
+    title_plain => [ '#', $lang->{NAME}, $lang->{CREATED}, $lang->{LOCATION} ],
+    DATA_TABLE  => 1
+  });
+
+  foreach my $equipment (@{$equipments}) {
+    my $location_btn = $Auxiliary->maps_show_object_button(EQUIPMENT_MAPS_LAYER_ID, $equipment->{location_id});
+    $report_table->addrow($equipment->{id}, $equipment->{nas_name}, $equipment->{created}, $location_btn);
+  }
+
+  return $report_table->show();
 }
 
 #**********************************************************

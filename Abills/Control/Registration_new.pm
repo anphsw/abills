@@ -60,6 +60,7 @@ sub _start {
   my $self = shift;
   my ($attr) = @_;
 
+  $attr->{external_auth} = 'Apple' if ($conf{AUTH_APPLE_ID} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ /external_auth=Apple/);
   $attr->{USER_IP} //= $ENV{REMOTE_ADDR} if ($conf{REGISTRATION_IP} && $conf{REGISTRATION_DEFAULT_TP});
 
   if ($conf{GOOGLE_CAPTCHA_KEY}) {

@@ -179,6 +179,8 @@ sub get_services {
               $service_info->{day} = $service_info->{day} * ((100 - $user_info->{REDUCTION}) / 100);
             }
             else {
+              $service_info->{month}=0;
+              $service_info->{day}=0;
               $sum = 0;
             }
           }
@@ -201,7 +203,7 @@ sub get_services {
             $day_division = 30;
           }
 
-          if ($service_info->{abon_distribution}) {
+          if ($service_info->{abon_distribution} && $service_info->{month}) {
             $result{distribution_fee} += $service_info->{month} / $day_division;
           }
 

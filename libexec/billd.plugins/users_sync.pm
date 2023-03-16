@@ -1766,7 +1766,6 @@ sub get_location_id {
         COORDX => $user_info->{ADDRESS_COORDX},
         COORDY => $user_info->{ADDRESS_COORDY},
       });
-
     }
   }
 

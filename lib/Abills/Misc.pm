@@ -376,15 +376,12 @@ sub _function {
   if ($FORM{qrcode}) {
     require Control::Qrcode;
     Control::Qrcode->import();
-    my $QRCode = Control::Qrcode->new($db, $admin, \%conf, {html => $html, functions => \%functions});
 
-    $QRCode->qr_make( $SELF_URL, { %FORM } );
-    if (! $@){
-      $QRCode->qr_make( $SELF_URL, { %FORM } );
-    }
-    else {
-      print $@;
-    }
+    my $qrcode_url = $FORM{QRCODE_URL} || $SELF_URL;
+    my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html, functions => \%functions });
+    $QRCode->qr_make($qrcode_url, \%FORM);
+
+    print $@ if ($@);
     return 1;
   }
 
@@ -698,6 +695,7 @@ sub cross_modules {
 
 =cut
 #**********************************************************
+#@deprecated
 sub cross_modules_call {
   my ($function_sufix, $attr) = @_;
   my $timeout = $attr->{timeout} || 4;
@@ -1672,53 +1670,6 @@ sub get_payment_methods {
   return \%PAYMENTS_METHODS;
 }
 
-
-#**********************************************************
-=head2 check_ip($require_ip, $ips) - Check ip
-
-  Arguments:
-    $require_ip - Required IP
-    $ips        - IP list commas separated
-
-  Results:
-    TRUE or FALSE
-
-  Examples:
-    10.10.1.2,10.20.0.0/20
-
-=cut
-#**********************************************************
-sub check_ip {
-  my ($require_ip, $ips) = @_;
-
-  if(! $require_ip) {
-    return 0;
-  }
-
-  my @ip_arr         = split(/,\s?/, $ips);
-  my $require_ip_num = ip2int($require_ip);
-
-  foreach my $ip (@ip_arr) {
-    if ($ip =~ /^(!?)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/?(\d{0,2})/) {
-      my $neg = $1 || 0;
-      $ip = ip2int($2);
-      my $bit_mask = $3;
-      if ($bit_mask eq '') {
-        $bit_mask=32;
-      }
-      my $mask = unpack("N", pack( "B*", ("1" x $bit_mask . "0" x (32 - $bit_mask)) ));
-      if($neg && ($require_ip_num & $mask) == ($ip & $mask)) {
-        return 0;
-      }
-      elsif (($require_ip_num & $mask) == ($ip & $mask)) {
-        return 1;
-      }
-    }
-  }
-
-  return 0;
-}
-
 #**********************************************************
 =head2 _translate($text) - translate string
 
@@ -2323,18 +2274,12 @@ sub import_show {
     @cols_names = keys %{ $import_data[0] };
   }
 
-  my $table = $html->table({
-    width      => '100%',
-    caption    => $lang{IMPORT},
-    title      => \@cols_names,
-    ID         => 'STORAGE_ID'
-  });
-
+  my @result_rows = ();
   foreach my $line (@import_data) {
     my @table_cols = ();
     if (ref $line eq 'HASH') {
-      my @titles = sort keys %$line;
-      foreach my $col ( @titles ) {
+      @cols_names = sort keys %$line;
+      foreach my $col ( @cols_names ) {
         push @table_cols, ($line->{$col} || '-');
       }
     }
@@ -2344,8 +2289,16 @@ sub import_show {
         push @table_cols, $line->{$col} || '-';
       }
     }
-    $table->addrow(@table_cols);
+    push @result_rows, \@table_cols;
   }
+
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{IMPORT},
+    title   => \@cols_names,
+    ID      => 'STORAGE_ID',
+    rows    => \@result_rows
+  });
 
   print $table->show();
 
@@ -2385,6 +2338,7 @@ sub import_former {
 
   my $import_type = $attr->{IMPORT_TYPE} || q{};
   my $filename = $attr->{UPLOAD_FILE}{filename} || q{};
+  my @cols_names  = split(/,\s?/, $attr->{IMPORT_FIELDS});
 
   if ($file_ext{$import_type} && $filename !~ /$file_ext{$import_type}$/i) {
     $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_FILE_NAME}: $attr->{UPLOAD_FILE}{filename}");
@@ -2398,10 +2352,10 @@ sub import_former {
     my $perl_scalar;
     eval { $perl_scalar = $json->decode( $attr->{UPLOAD_FILE}{Contents} );  };
 
-    #Syntax oerror
     if ( $@ ) {
       $html->message('err', $lang{ERROR}, "Json Error". $html->pre($@));
     }
+
     if($perl_scalar->{DATA_1}) {
       if (ref($perl_scalar->{DATA_1}) eq 'ARRAY') {
         foreach my $info_line (@{ $perl_scalar->{DATA_1} }) {
@@ -2418,47 +2372,34 @@ sub import_former {
         }
       }
     }
-
-    my @cols_names  = split(/,\s?/, $attr->{IMPORT_FIELDS});
-
-    if ($attr->{UPLOAD_PRE}) {
-      import_show({
-        DATA       => \@import_data,
-        COLS_NAMES => \@cols_names
-      });
-      @import_data = ();
+  }
+  else {
+    if ($import_type eq 'csv') {
+      $attr->{IMPORT_DELIMITER} = ',';
     }
 
-    return \@import_data;
-  }
+    my $delimiter = $attr->{IMPORT_DELIMITER} || "\t+";
+    my @rows = split(/[\r\n]+/, $attr->{UPLOAD_FILE}{Contents});
 
-  if ($import_type eq 'csv') {
-    $attr->{IMPORT_DELIMITER}=',';
-  }
+    my %user_info = ();
+    foreach my $line (@rows) {
+      next if (!$line || $line =~ /^\s+$/);
+      if ($attr->{ENCODE}) {
+        $line = convert($line, { $attr->{ENCODE} => 1 });
+      }
 
-  my $delimiter   = $attr->{IMPORT_DELIMITER} || "\t+";
-  my @cols_names  = split(/,\s?/, $attr->{IMPORT_FIELDS});
-  my @rows        = split(/[\r\n]+/, $attr->{UPLOAD_FILE}{Contents});
+      my @cols = split(/$delimiter/, $line);
+      %user_info = ();
 
-  my %user_info = ();
-  foreach my $line (@rows) {
-    next if (! $line || $line =~ /^\s+$/);
-    if ($attr->{ENCODE}) {
-      $line = convert($line, { $attr->{ENCODE} => 1 });
+      for (my $i = 0; $i <= $#cols; $i++) {
+        my $key = ($cols_names[$i]) ? $cols_names[$i] : $i;
+        $user_info{ $key } = $cols[$i];
+      }
+
+      $user_info{ 'MAIN_ID' } = $cols_names[0];
+      push @import_data, { %user_info };
     }
-
-    my @cols = split(/$delimiter/, $line);
-    %user_info = ();
-
-    for(my $i=0; $i<=$#cols; $i++) {
-      my $key = ($cols_names[$i]) ? $cols_names[$i] : $i;
-      $user_info{ $key }=$cols[$i];
-    }
-
-    $user_info{ 'MAIN_ID' } = $cols_names[0];
-    push @import_data, { %user_info };
   }
-
 
   if ($attr->{UPLOAD_PRE}) {
     import_show({
@@ -2691,7 +2632,7 @@ sub system_info {
       v    => $version,
       info => join('_', @info_data)
     },
-    TIMEOUT => 1
+    TIMEOUT        => 1,
   });
 
   return $version;

@@ -14,10 +14,3 @@
 
   </div>
 </div>
-
-
-<style>
-    .timeline-item-footer {
-        background-color: rgba(0, 0, 0, .03);
-    }
-</style>

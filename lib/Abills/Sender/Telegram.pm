@@ -50,7 +50,8 @@ sub new {
   die 'No Telegram token ($conf{TELEGRAM_TOKEN})' if ( !$self->{token} );
 
   $conf{TELEGRAM_LANG} = 'russian' unless($conf{TELEGRAM_LANG});
-  require "Abills/modules/Msgs/lng_$conf{TELEGRAM_LANG}.pl";
+  my $base_dir = $main::base_dir || '/usr/abills/';
+  require "$base_dir/Abills/modules/Msgs/lng_$conf{TELEGRAM_LANG}.pl";
 
   bless $self, $class;
   

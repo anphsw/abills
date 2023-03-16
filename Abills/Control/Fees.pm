@@ -41,15 +41,13 @@ sub form_fees {
   if (($FORM{search_form} || $FORM{search}) && $index != 7) {
     $FORM{type} = $FORM{subf} if ($FORM{subf});
     if ($FORM{search_form} || $FORM{search}) {
-      form_search(
-        {
-          HIDDEN_FIELDS => {
-            ($FORM{DATE} ? (DATE => $FORM{DATE}) : ()),
-            subf       => ($FORM{subf}) ? $FORM{subf} : undef,
-            COMPANY_ID => $FORM{COMPANY_ID},
-          }
+      form_search({
+        HIDDEN_FIELDS => {
+          ($FORM{DATE} ? (DATE => $FORM{DATE}) : ()),
+          subf       => ($FORM{subf}) ? $FORM{subf} : undef,
+          COMPANY_ID => $FORM{COMPANY_ID},
         }
-      );
+      });
     }
   }
 
@@ -89,17 +87,15 @@ sub form_fees {
         else {
           my ($Y, $M, $D) = split(/-/, $FEES_DATE);
           $FORM{METHOD} //= 0;
-          $Shedule->add(
-            {
-              DESCRIBE => $FORM{DESCR},
-              D        => $D,
-              M        => $M,
-              Y        => $Y,
-              UID      => $user->{UID},
-              TYPE     => 'fees',
-              ACTION   => ($conf{EXT_BILL_ACCOUNT}) ? "$FORM{SUM}:$FORM{DESCRIBE}:BILL_ID=$FORM{BILL_ID}:$FORM{METHOD}" : "$FORM{SUM}:$FORM{DESCRIBE}::$FORM{METHOD}"
-            }
-          );
+          $Shedule->add({
+            DESCRIBE => $FORM{DESCR},
+            D        => $D,
+            M        => $M,
+            Y        => $Y,
+            UID      => $user->{UID},
+            TYPE     => 'fees',
+            ACTION   => ($conf{EXT_BILL_ACCOUNT}) ? "$FORM{SUM}:$FORM{DESCRIBE}:BILL_ID=$FORM{BILL_ID}:$FORM{METHOD}" : "$FORM{SUM}:$FORM{DESCRIBE}::$FORM{METHOD}"
+          });
 
           if(! _error_show($Shedule)) {
             $html->message( 'info', $lang{SHEDULE}, $lang{ADDED});
@@ -298,14 +294,14 @@ sub form_fees_list {
       'invoice_id'   => $lang{INVOICE},
     },
     TABLE => {
-      width   => '100%',
-      caption => $lang{FEES},
-      SHOW_FULL_LIST => ($FORM{UID}) ? 1 : undef,
-      qs      => $pages_qs,
-      pages   => $Fees->{TOTAL},
-      ID      => 'FEES',
-      EXPORT  => 1,
-      MENU    => "$lang{SEARCH}:search_form=1&index=3:search",
+      width            => '100%',
+      caption          => $lang{FEES},
+      SHOW_FULL_LIST   => ($FORM{UID}) ? 1 : undef,
+      qs               => $pages_qs,
+      pages            => $Fees->{TOTAL},
+      ID               => 'FEES',
+      EXPORT           => 1,
+      MENU             => "$lang{SEARCH}:search_form=1&index=3:search",
       SHOW_COLS_HIDDEN => {
         TYPE_PAGE => $FORM{type}
       }
@@ -335,7 +331,8 @@ sub form_fees_list {
 
     foreach my $i2p (@$i2p_list) {
       push @{ $i2p_hash{$i2p->{id}} },
-        { payment_id  => $i2p->{payment_id} || '',
+        {
+          payment_id  => $i2p->{payment_id} || '',
           payment_sum => $i2p->{payment_sum} || '',
           invoice_sum => $i2p->{invoice_sum} || '',
           invoice_num => $i2p->{invoice_num} || ''

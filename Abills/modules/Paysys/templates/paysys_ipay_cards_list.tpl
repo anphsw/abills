@@ -1,75 +1,63 @@
 <style>
-  div.horizontal-centered-del {
-    margin-top: 10px;
-    margin-bottom: 15px;
+  table tr:hover {
+    background-color: #ddd;
+    cursor: pointer;
   }
 
-  div.horizontal-centered {
-    margin-top: 20px;
-    margin-bottom: 15px;
+  #add-card:hover > span {
+    color: #ffffff !important;
   }
 
-  label.paysys_card {
-    width: 100%;
+  #add-card > #add-card-icon {
+    font-size: 18px;
+    margin-top: 2px;
   }
 
-  div.card-row {
-    min-height: 60px;
-  }
-
-  div.card-row div.card-text-container {
-    padding: 10px;
-  }
-
-  div.card-row div.card-text-container h4 {
-    margin-top: 0;
-  }
-
-  div.card-row.card-selected {
-    /*background-color: lightblue;*/
-  }
-
-  div.card-row.card-selected div.card-selected-highlight {
-    background-color: lightblue;
-  }
-
-  .fa-trash {
-    color: #707070;
+  #add-card > #add-card-text {
+    color: #43464d;
   }
 </style>
 
-<div class='col-md-12 text-left'><strong>_{CHOOSE_CARD_FOR_ONECLICK_PAY}_</strong></div>
-<div class='col-md-12'>
-  <div class='col-md-6'>
-    <div class='form-group'>
-      %CARDS%
-      %ADD_BTN%
-    </div>
+<h5 class='text-center m-2'>Список платіжних карток</h5>
+
+<table class='table'>
+  <thead>
+  <tr style='color: #64676a'>
+    <th scope='col'>Вибрана картка</th>
+    <th scope='col'>Назва</th>
+    <th scope='col'>Номер картки</th>
+    <th scope='col'>Картка активна</th>
+    <th scope='col'></th>
+  </tr>
+  </thead>
+  <tbody>
+    %CARDS%
+  </tbody>
+</table>
+<form name='ipay_pay_form' id='ipay_pay_form' method='post'>
+  <input type='hidden' id='CARD_ALIAS' name='CARD_ALIAS' value='%CARD_ALIAS%'/>
+  <div class='d-flex justify-content-between m-3'>
+    <a href='%ADD_CARD%' id='add-card' class='btn btn-outline-success d-flex'>
+      <span class='fas text-success fa-plus' id='add-card-icon'></span>
+      <span class='ml-2' id='add-card-text'>_{ADD_CARD}_<span>
+    </a>
+    <input type='submit' class='btn btn-primary double_click_check' id='%SUBMIT_NAME%'
+           name='%SUBMIT_NAME%' value='_{PAY}_'/>
   </div>
-  <div class='col-md-6'>
-    <p>
-      <strong>_{PAYMENT_BY_ANY_CARD}_</strong>
-    </p>
-    <p>
-      <input type='submit' class='btn btn-primary double_click_check' id='%SUBMIT_NAME%' name='%SUBMIT_NAME%' value='_{PAY}_'/>
-    </p>
-  </div>
-</div>
-<p>
-  <img class='img-fluid center-block' src='styles/default/img/paysys_logo/masterpass-des.png'>
-</p>
+</form>
+
 <script>
-  jQuery(function () {
-    jQuery('input.card-radio').on('change', function () {
-      var radio = jQuery(this);
-      console.log('change');
-      jQuery('div.card-row').removeClass('card-selected');
-
-
-      var label = radio.parents('div.card-row').first();
-      if (radio.prop('checked') === true) {
-        label.addClass('card-selected');
+  function changeActiveCard(name) {
+    Array.from(document.getElementsByClassName('ipay-btn')).map(e => {
+      e.classList.remove('table-info');
+      if (e.firstElementChild.firstElementChild) {
+        e.firstElementChild.firstElementChild.remove();
       }
     });
-  });
+    document.getElementById(name).classList.add('table-info');
+    var elem = document.createElement('span');
+    elem.classList.add('fa', 'fa-check', 'text-success');
+    document.getElementById(name).getElementsByTagName('td')[0].append(elem);
+    document.getElementById('CARD_ALIAS').value = name;
+  }
 </script>

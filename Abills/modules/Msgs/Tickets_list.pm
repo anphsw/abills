@@ -511,7 +511,7 @@ sub _msgs_list_plan_date_time_form {
       "index=" . get_function_index('msgs_task_board') . "&ID=$attr->{VALUES}->{ID}&DATE=$date", { TITLE => $time });
   }
   else {
-    $val = $html->button($lang{SHEDULE_BOARD},
+    $val = $html->button($lang{SCHEDULE_BOARD},
       "index=" . get_function_index('msgs_task_board') . "&ID=$attr->{VALUES}->{ID}&DATE=$DATE", { BUTTON => 1 });
   }
 

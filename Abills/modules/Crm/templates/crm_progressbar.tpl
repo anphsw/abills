@@ -1,4 +1,30 @@
 <style>
+	.timeline-item-footer {
+		background-color: rgba(0, 0, 0, .03);
+	}
+
+	.step-info-btn {
+		position: relative;
+		top: 13px;
+		left: -4px;
+  }
+
+	.steps-info:before,
+	.steps-info:after {
+		border-left: 0 !important;
+  }
+
+	.steps-info-hide {
+		width: 0 !important;
+		height: 0 !important;
+	}
+
+	.steps-info-hide:after,
+	.steps-info-hide:before {
+		width: 0 !important;
+		border: none !important;
+	}
+
 
 	.steps-container {
 		overflow: hidden;
@@ -16,7 +42,7 @@
 		left: -28px; /* -2px default + 26px offset to hide skewed area on the left side of first element*/
 		height: 50px;
 		line-height: 50px;
-		margin-left: 0;
+		margin-left: -1px !important;
 		margin-right: 0;
 		counter-increment: steps;
 		cursor: pointer;
@@ -99,13 +125,12 @@
 </style>
 
 <!-- PROGRESSBAR -->
-<div class='card box-primary'>
+<div class='card'>
 
   <div class='card-body'>
-    <div class='row' id='progressTracker'>
-      <input type='hidden' name='STEP_NUM' id='progressStatus' value='%CUR_STEP%'/>
-      <input type='hidden' name='END_STEP' id='end_step' value='%END_STEP%'/>
-      <input type='hidden' name='CUR_STEP' id='cur_step' value='%CUR_STEP%'/>
+    <div class='row mb-2' id='progressTracker'>
+      <input type='hidden' name='OBJECT_TYPE' id='OBJECT_TYPE' value='%OBJECT_TYPE%'/>
+      <input type='hidden' name='OBJECT_VALUE' id='OBJECT_VALUE' value='%OBJECT_VALUE%'/>
       <hr/>
       <div class='col-md-12 mb-2'>
         <div class='steps-container' id='step_icon'>
@@ -119,47 +144,54 @@
 </div>
 
 <script>
+  let object_type = jQuery('#OBJECT_TYPE').val();
+  let object_value = jQuery('#OBJECT_VALUE').val();
 
   function adjustBar() {
-    let items = jQuery('.steps').length;
-    let elHeight = jQuery('.steps').height() / 2;
+    console.log(jQuery('.step-container').length);
+    let items = jQuery('.steps:not(.steps-info)').length;
+    let elHeight = jQuery('.steps:not(.steps-info)').height() / 2;
     let skewOffset = Math.tan(45 * (Math.PI / 180)) * elHeight;
     let reduction = skewOffset + ((items - 1) * 4);
-    let leftOffset = jQuery('.steps').css('left').replace('px', '');
+    let leftOffset = jQuery('.steps:not(.steps-info)').css('left').replace('px', '');
     let factor = leftOffset * (-1) - 2;
-    jQuery('.steps').css({
+
+    jQuery('.step-container').find('.steps:not(.steps-info)').css({
       'width': '-webkit-calc((100% + 4px - ' + reduction + 'px)/' + items + ')',
       'width': 'calc((100% + 4px - ' + reduction + 'px)/' + items + ')'
     });
-    jQuery('.steps:first-child, .steps:last-child').css({
+    jQuery('.step-container:first-child, .step-container:last-child').find('.steps:not(.steps-info)').css({
       'width': '-webkit-calc((100% + 4px - ' + reduction + 'px)/' + items + ' + ' + factor + 'px)',
       'width': 'calc((100% + 4px - ' + reduction + 'px)/' + items + ' + ' + factor + 'px)'
     });
-    jQuery('.steps span').css('padding-left', (skewOffset + 15) + "px");
-    jQuery('.steps:first-child span, .steps:last-child span').css({
+    jQuery('.step-container:last-child').addClass('last-step');
+
+    jQuery('.steps:not(.steps-info) span').css('padding-left', (skewOffset + 15) + "px");
+    jQuery('.steps:not(.steps-info):first-child span, .steps:not(.steps-info):last-child span').css({
       'width': '-webkit-calc(100% - ' + factor + 'px)',
       'width': 'calc(100% - ' + factor + 'px)',
     });
   }
 
-  function refreshProgress(element) {
-    clearProgress();
-    jQuery('#step_icon').children().each(function () {
-      if (parseInt(this.id) <= parseInt(element)) {
-        jQuery('#' + this.id).addClass('active');
-      }
-    });
-  }
+  jQuery('.step-container').hover(function () {
+    jQuery(this).find('.steps-info').first().removeClass('steps-info-hide');
+    if (jQuery(this).hasClass('last-step')) {
+      let width = jQuery(this).find('.steps:not(.steps-info)').css('width').replace('px', '');
+      jQuery(this).find('.steps:not(.steps-info)').css('width', width - 64 + 'px')
+    }
+  }, function () {
+    jQuery(this).find('.steps-info').first().addClass('steps-info-hide');
+    if (jQuery(this).hasClass('last-step')) {
+      let width = jQuery(this).find('.steps:not(.steps-info)').css('width').replace('px', '');
+      console.log(width)
+      jQuery(this).find('.steps:not(.steps-info)').css('width', (parseFloat(width) + 64) + 'px')
+    }
+  });
 
-  function clearProgress() {
-    jQuery('#step_icon').children().removeClass('active');
-  }
-
-  function checkStep(step) {
-    let endStep = jQuery('#end_step').val();
+  function checkStep(step_number) {
     let convertLeadBtn = jQuery('#lead_to_client');
 
-    if (endStep === step) {
+    if (step_number.toString() === jQuery('.steps:not(.steps-info)').length.toString()) {
       convertLeadBtn.attr('disabled', false).attr('style', 'pointer-events: ;');
 
       let confirmModal = new AModal();
@@ -184,18 +216,30 @@
   }
 
   adjustBar();
-  jQuery(document).ready(function () {
-    let currentStep = jQuery('#cur_step').val();
-    refreshProgress(currentStep);
-    checkStep(currentStep)
 
-    jQuery('.steps-container>.steps').on('click', function () {
-      jQuery('#progressStatus').val(this.id);
-      refreshProgress(this.id);
-      jQuery.get('?qindex=$index&header=2&LEAD_ID=$FORM{LEAD_ID}&CUR_STEP=' + this.id);
+  jQuery('.steps:not(.steps-info)').on('click', function() {
+    let step_number = jQuery(this).attr('id');
+    if (!step_number) return;
 
-      checkStep(this.id);
+    jQuery('.steps:not(.steps-info)').removeClass('active')
+      .filter(function (index) { return index < step_number }).addClass('active');
+    sendRequest(`/api.cgi/crm/${object_type}/${object_value}`, {current_step: step_number}, 'PUT');
+
+    if (object_type === 'leads') checkStep(step_number);
+  });
+
+
+  jQuery(`[name='CLOSE_TASK']`).on('change', function() {
+    let task_id = jQuery(this).data('task');
+    if (!task_id) return;
+
+    sendRequest(`/api.cgi/tasks/${task_id}`, {state: 1}, 'PUT');
+
+    jQuery(`[data-task='${task_id}']`).each(function() {
+      jQuery(this).parent().parent().parent().find('.fa-tasks').first().removeClass('bg-blue').addClass('bg-green');
+      jQuery(this).remove();
     });
+    jQuery('.popover.show').removeClass('show');
   });
 </script>
 

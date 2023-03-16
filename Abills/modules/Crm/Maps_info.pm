@@ -166,6 +166,7 @@ sub maps_leads {
         SVG          => $type,
         INFOWINDOW   => $marker_info,
         NAME         => $lead->{ADDRESS_FULL},
+        FIO          => $lead->{FIO},
         DISABLE_EDIT => 1
       },
       LAYER_ID  => 36,
@@ -277,6 +278,7 @@ sub maps_leads_by_tags {
         SVG          => $type,
         INFOWINDOW   => $marker_info,
         NAME         => "<b>$build_info{$lead->{BUILD_ID}}[0]{name}</b>" . ': ' . $lead->{fio},
+        FIO          => $lead->{fio},
         DISABLE_EDIT => 1
       },
       LAYER_ID  => 37,
@@ -381,6 +383,79 @@ sub maps_leads_by_competitors {
   }
 
   return $export_string;
+}
+
+#**********************************************************
+=head2 maps_report_info()
+
+=cut
+#**********************************************************
+sub maps_report_info {
+  my $self = shift;
+  my $layer_id = shift;
+
+  return '' if !$layer_id;
+
+  return $self->_maps_leads_report_info() if ($layer_id eq '36');
+  return $self->_maps_leads_by_tags_report_info() if ($layer_id eq '37');
+}
+
+#**********************************************************
+=head2 _maps_leads_report_info()
+
+=cut
+#**********************************************************
+sub _maps_leads_report_info {
+  my $self = shift;
+
+  my $leads = $self->maps_leads({ RETURN_OBJECTS => 1 });
+
+  my $report_table = $html->table({
+    width       => '100%',
+    caption     => $lang->{LEADS},
+    title_plain => [ '#', $lang->{FIO}, $lang->{ADDRESS}, $lang->{LOCATION} ],
+    DATA_TABLE  => 1
+  });
+
+  my $lead_index = ::get_function_index('crm_lead_info');
+  foreach my $lead (@{$leads}) {
+    my $lead_info = $lead->{MARKER};
+    my $location_btn = $Auxiliary->maps_show_object_button(36, $lead_info->{OBJECT_ID});
+    my $lead_btn = $html->button($lead_info->{ID}, "index=$lead_index&LEAD_ID=$lead_info->{ID}");
+
+    $report_table->addrow($lead_btn, $lead_info->{FIO}, $lead_info->{NAME}, $location_btn);
+  }
+
+  return $report_table->show();
+}
+
+#**********************************************************
+=head2 _maps_leads_by_tags_report_info()
+
+=cut
+#**********************************************************
+sub _maps_leads_by_tags_report_info {
+  my $self = shift;
+
+  my $leads = $self->maps_leads_by_tags({ RETURN_OBJECTS => 1 });
+
+  my $report_table = $html->table({
+    width       => '100%',
+    caption     => $lang->{LEADS},
+    title_plain => [ '#', $lang->{FIO}, $lang->{LOCATION} ],
+    DATA_TABLE  => 1
+  });
+
+  my $lead_index = ::get_function_index('crm_lead_info');
+  foreach my $lead (@{$leads}) {
+    my $lead_info = $lead->{MARKER};
+    my $location_btn = $Auxiliary->maps_show_object_button(37, $lead_info->{OBJECT_ID});
+    my $lead_btn = $html->button($lead_info->{ID}, "index=$lead_index&LEAD_ID=$lead_info->{ID}");
+
+    $report_table->addrow($lead_btn, $lead_info->{FIO}, $location_btn);
+  }
+
+  return $report_table->show();
 }
 
 #**********************************************************

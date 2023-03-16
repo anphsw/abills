@@ -92,7 +92,7 @@ sub notify_admin {
     return 0;
   }
 
-  $Log->info("AID: $aid MESSAGE : " . $message);
+  $Log->debug("AID: $aid MESSAGE : " . $message);
 
   my $recipient;
   if ($attr->{TO})  {

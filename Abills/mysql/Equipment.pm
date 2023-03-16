@@ -1801,18 +1801,17 @@ sub mac_log_list {
 
   my $WHERE = $self->search_former($attr, [
     #      ['ID',        'STR', 'ml.id',    1 ],
-    [ 'PORT', 'STR', 'port', 1 ],
-    [ 'PORT_NAME', 'STR', 'port_name', 1 ],
-    [ 'MAC', 'STR', 'ml.mac', 1 ],
-    [ 'IP', 'IP', 'ml.ip', 'INET_NTOA(ml.ip) AS ip' ],
-    [ 'VLAN', 'INT', 'vlan', 1 ],
-    [ 'DATETIME', 'STR', 'datetime', 1 ],
-    [ 'REM_TIME', 'STR', 'rem_time', 1 ],
-    [ 'UNIX_DATETIME', 'STR', 'datetime', 'unix_timestamp(datetime) AS unix_datetime' ],
-    [ 'UNIX_REM_TIME', 'STR', 'rem_time', 'unix_timestamp(rem_time) AS unix_rem_time' ],
-    [ 'NAME', 'INT', 'name', 1 ],
-    [ 'NAS_ID', 'INT', 'nas_id', 1 ],
-    [ 'MAC_UNIQ_COUNT', 'STR', '', 'COUNT(DISTINCT ml.mac) AS mac_uniq_count' ],
+    [ 'PORT',         'STR', 'port',      1 ],
+    [ 'PORT_NAME',    'STR', 'port_name', 1 ],
+    [ 'MAC',          'STR', 'ml.mac',    1 ],
+    [ 'IP',           'IP', 'ml.ip', 'INET_NTOA(ml.ip) AS ip' ],
+    [ 'VLAN',         'INT', 'vlan',      1 ],
+    [ 'DATETIME',     'STR', 'datetime',  1 ],
+    [ 'REM_TIME',     'STR', 'rem_time',  1 ],
+    [ 'UNIX_DATETIME','STR', 'datetime', 'unix_timestamp(datetime) AS unix_datetime' ],
+    [ 'UNIX_REM_TIME','STR', 'rem_time', 'unix_timestamp(rem_time) AS unix_rem_time' ],
+    [ 'NAS_ID',       'INT', 'nas_id',    1 ],
+    [ 'MAC_UNIQ_COUNT','STR', '', 'COUNT(DISTINCT ml.mac) AS mac_uniq_count' ],
   ],
     { WHERE => 1,
     }
@@ -1830,7 +1829,6 @@ sub mac_log_list {
   $self->query("SELECT
     $self->{SEARCH_FIELDS} ml.id AS id
     FROM equipment_mac_log ml
-    LEFT JOIN nas n ON (n.id=nas_id)
     $WHERE
     $GROUP_BY
     ORDER BY $SORT $DESC
@@ -3007,6 +3005,7 @@ sub _list_with_coords {
   $self->query("SELECT
         $self->{SEARCH_FIELDS}
         i.nas_id, nas.location_id, builds.coordx, builds.coordy,
+        mp.created,
         m.id,
         i.nas_id,
         SUM(plpoints.coordx)/COUNT(plpoints.coordx) AS coordx_2,

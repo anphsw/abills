@@ -21,24 +21,31 @@
                  id='PHONE'/>
         </div>
       </div>
+
       <div class='form-group row'>
-        <label class='control-label col-md-4' for='ADDRESS'>_{ADDRESS}_</label>
+        <label class='control-label col-md-4'> </label>
         <div class='col-md-8'>
-          <textarea cols="10" style="resize: vertical" class='form-control' name='ADDRESS'
-                 id='ADDRESS'>%address%</textarea>
+          %ADDRESS_SELECT%
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-4' for='ADDRESS'>_{STATUS}_</label>
+        <label class='control-label col-md-4'>_{STATUS}_</label>
         <div class='col-md-8'>
           %STATUS_SELECT%
         </div>
       </div>
       <div class='form-group row'>
-        <label class='control-label col-md-4' for='ADDRESS'>_{TARIF_PLAN}_</label>
+        <label class='control-label col-md-4'>_{TARIF_PLAN}_</label>
         <div class='col-md-8'>
           %TARIF_SELECT%
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='control-label col-md-4' for='COMMENTS'>_{COMMENTS}_</label>
+        <div class='col-md-8'>
+           <textarea cols="10" style="resize: vertical" class='form-control' name='COMMENTS'
+                              id='COMMENTS'>%COMMENTS%</textarea>
         </div>
       </div>
     </div>

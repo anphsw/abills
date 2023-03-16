@@ -37,6 +37,10 @@
         <div id='GooglePay'></div>
       </div>
 
+      <div class='form-group'>
+        <apple-pay-button buttonstyle='black' onclick='onApplePayButtonClicked()'  type='pay'></apple-pay-button>
+      </div>
+
       <div class='form-group text-center'>
         %IPAY_HTML%
       </div>
@@ -79,5 +83,14 @@
     </div>
   </div>
 </form>
+
+<script>
+  let height_element = 0;
+  jQuery('.logo-container').each(function (elem, val) {
+    if (val.scrollHeight > height_element) {
+      height_element = val.scrollHeight;
+    }
+  }).css('height', height_element);
+</script>
 
 %MAP%

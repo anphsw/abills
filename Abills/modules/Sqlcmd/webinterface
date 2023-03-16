@@ -3,23 +3,37 @@
 
 =head2
 
-  SQL managemt and information module
+  SQL management and information module
 
 =cut
 
 use strict;
 use warnings FATAL => 'all';
 
-our ($db, $admin, %lang, %err_strs, $PAGE_ROWS);
-
 use Sqlcmd;
 use Abills::Base qw(int2byte in_array sec2time urlencode urldecode json_former);
+
+our (
+  $db,
+  $admin,
+  %lang,
+  %err_strs,
+  $PAGE_ROWS,
+  %permissions,
+);
+
+my (
+  %Com_vals,
+  $stat_name,
+  $stat_val,
+  $stat_label,
+  %stats,   # SHOW STATUS
+  %vars,    # SHOW VARIABLES
+);
+
 my $Sqlcmd      = Sqlcmd->new($db, $admin, \%conf);
 my $Sqlcmd_main = Sqlcmd->new($db, $admin, \%conf);
 our Abills::HTML $html;
-my (%Com_vals);
-my ($stat_name, $stat_val, $stat_label);
-my (%stats,     %vars);                    # SHOW STATUS, SHOW VARIABLES
 
 #**********************************************************
 =head2 sqlcmd()
@@ -28,24 +42,25 @@ my (%stats,     %vars);                    # SHOW STATUS, SHOW VARIABLES
 #**********************************************************
 sub sqlcmd {
 
+  if (!$permissions{4}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return 0;
+  }
+
   if ($FORM{qindex}) {
     print $html->header();
     $Sqlcmd->query("SHOW CREATE TABLE $FORM{TABLE_INFO}");
-    my $table = $html->table(
-      {
-        width   => '100%',
-        caption => 'SQL Dump',
-        rows    => [ [ $html->pre($Sqlcmd->{list}->[0]->[1], { OUTPUT2RETURN => 1 }) ] ]
-      }
-    );
+    my $table = $html->table({
+      width   => '100%',
+      caption => 'SQL Dump',
+      rows    => [ [ $html->pre($Sqlcmd->{list}->[0]->[1], { OUTPUT2RETURN => 1 }) ] ]
+    });
 
     print $table->show();
-    print $html->button("$lang{INFO}", "index=$index&TABLE_INFO=$FORM{TABLE_INFO}", { class => 'show' }), exit;
+    return 1;
   }
 
-  if (!sqlcmd_cluster_info()) {
-    return 0;
-  }
+  return 0 if (!sqlcmd_cluster_info());
 
   my %FORM2 = ();
   my @pairs = ();
@@ -96,11 +111,11 @@ sub sqlcmd {
     if (!$Sqlcmd_main->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{DELETED}");
     }
-
-    # return 0;
   }
 
-  #History
+  # Saved queries
+  $LIST_PARAMS{AID} = $admin->{AID};
+  $LIST_PARAMS{STATUS} = 0;
   my $list = $Sqlcmd_main->history_list({%LIST_PARAMS});
   my $all_tables = $Sqlcmd_main->columns();
   my $table_columns = _sqlcmd_process_columns($all_tables);
@@ -111,7 +126,7 @@ sub sqlcmd {
     caption     => $FORM{TABLE_INFO},
     title_plain => [ $lang{DATE}, $lang{COMMENTS}, '-', '-' ],
     qs          => $pages_qs,
-    pages       => $Sqlcmd->{TOTAL},
+    pages       => $Sqlcmd_main->{TOTAL},
     ID          => 'SQLCMD_SAVED_QUERIES'
   });
 
@@ -124,7 +139,30 @@ sub sqlcmd {
     );
   }
 
-  $Sqlcmd->{SQL_HISTORY} = $table->show({ OUTPUT2RETURN => 1 });
+  $Sqlcmd->{SQL_SAVED_QUERIES} = $table->show({ OUTPUT2RETURN => 1 });
+
+  # Last queries
+  $LIST_PARAMS{PAGE_ROWS} = 10;
+  $LIST_PARAMS{STATUS} = 1;
+  my $list_history = $Sqlcmd_main->history_list({ %LIST_PARAMS });
+
+  $table = $html->table({
+    width       => '100%',
+    caption     => $FORM{TABLE_INFO},
+    title_plain => [ $lang{DATE}, $lang{QUERY} ],
+    qs          => $pages_qs,
+    pages       => $Sqlcmd_main->{TOTAL},
+    ID          => 'SQLCMD_LAST_QUERIES'
+  });
+
+  foreach my $line (@$list_history) {
+    $table->addrow(
+      $line->{datetime},
+       $html->button($line->{sql_query}, "index=$index&QUERY_ID=". ($line->{id} || q{}), { class => 'sql' })
+    );
+  }
+
+  $Sqlcmd->{SQL_HISTORY_LAST} = $table->show({ OUTPUT2RETURN => 1 });
 
   if (!$FORM{FIELD}) {
     $FORM{QUERY} = '' if (! $FORM{QUERY});
@@ -143,7 +181,7 @@ sub sqlcmd {
         width => '100%',
       });
 
-      #Syntax hightligth
+      #Syntax highlight
       my @func = ('CURDATE', 'NOW', 'DECODE', 'ENCODE', 'CONCAT', 'INET_NTOA', 'INET_ATON');
       my @syntax = (
         'SELECT', 'FROM', 'WHERE',   'MIN',   'MAX',   'AVG', 'SUM',    'IF',       'INSERT', 'UPDATE', 'INTO',    'VALUES',   'GROUP BY', 'ORDER BY', 'LIMIT', 'DATE_FORMAT', 'LEFT JOIN', 'INNER JOIN',
@@ -197,6 +235,8 @@ sub sqlcmd {
           $html->message('err', "$lang{HISTORY} $lang{ERROR}", "[$Sqlcmd_main->{errno}] $err_strs{$Sqlcmd_main->{errno}}\n $Sqlcmd_main->{errstr}");
         }
       }
+      $FORM2{STATUS} = 1;
+      $Sqlcmd_main->history_add(\%FORM2);
     }
 
     if ($Sqlcmd->{errno}) {
@@ -350,13 +390,11 @@ sub sqlcmd {
       @CAPTION = @{ $Sqlcmd->{MYSQL_FIELDS_NAMES} };
     }
 
-    $table = $html->table(
-      {
-        width   => '100%',
-        caption => $FORM{TABLE_INFO},
-        title_plain => [ @CAPTION, '-' ]
-      }
-    );
+    $table = $html->table({
+      width       => '100%',
+      caption     => $FORM{TABLE_INFO},
+      title_plain => [ @CAPTION, '-' ]
+    });
 
     foreach my $line (@$list) {
       $table->{rowcolor} = ($FORM{FIELD} && $line->[0] eq $FORM{FIELD}) ? 'info' : undef;
@@ -373,32 +411,26 @@ sub sqlcmd {
         $html->button($lang{CHANGE}, "index=$index&TABLE_INFO=$FORM{TABLE_INFO}&FIELD=$line->[0]", { class => 'change' }));
     }
 
-    my $table2 = $html->table(
-      {
-        width       => '100%',
-        title_plain => [ $html->form_input('WIZARD', $lang{SHOW}, { TYPE => 'SUBMIT' }) ]
-      }
-    );
+    my $table2 = $html->table({
+      width       => '100%',
+      title_plain => [ $html->form_input('WIZARD', $lang{SHOW}, { TYPE => 'SUBMIT' }) ]
+    });
 
-    print $html->form_main(
-      {
-        CONTENT => $table->show() . $table2->show(),
-        HIDDEN  => {
-          index      => $index,
-          TABLE_INFO => $FORM{TABLE_INFO}
-        },
-        METHOD => 'GET'
-      }
-    );
+    print $html->form_main({
+      CONTENT => $table->show() . $table2->show(),
+      HIDDEN  => {
+        index      => $index,
+        TABLE_INFO => $FORM{TABLE_INFO}
+      },
+      METHOD  => 'GET'
+    });
 
     $Sqlcmd->query("SHOW CREATE TABLE $FORM{TABLE_INFO}");
-    $table = $html->table(
-      {
-        width   => '100%',
-        caption => 'SQL Dump',
-        rows    => [ [ $html->pre($Sqlcmd->{list}->[0]->[1], { OUTPUT2RETURN => 1 }) ] ]
-      }
-    );
+    $table = $html->table({
+      width   => '100%',
+      caption => 'SQL Dump',
+      rows    => [ [ $html->pre($Sqlcmd->{list}->[0]->[1], { OUTPUT2RETURN => 1 }) ] ]
+    });
 
     print $table->show();
   }
@@ -412,17 +444,21 @@ sub sqlcmd {
 =cut
 #**********************************************************
 sub sqlcmd_triggers {
+
+  if (!$permissions{4}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return 0;
+  }
+
   sqlcmd_cluster_info();
 
   my @caption = ('Trigger', 'Event', 'Table', 'Statement', 'Timing', 'Created', 'sql_mode', 'Definer', 'character_set_client', 'collation_connection', 'Database Collation');
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      title      => \@caption,
-      qs         => ($FORM{fields}) ? "&fields=$FORM{fields}" : ''
-    }
-  );
+  my $table = $html->table({
+    width => '100%',
+    title => \@caption,
+    qs    => ($FORM{fields}) ? "&fields=$FORM{fields}" : ''
+  });
 
   #my @syntax = ('BEGIN', 'END\s+IF\s{0,10};', 'END$', 'IF', 'THEN', 'DECLARE', 'SET', 'INTEGER', 'new\.');
 
@@ -451,6 +487,11 @@ sub sqlcmd_triggers {
 =cut
 #**********************************************************
 sub sqlcmd_tables {
+
+  if (!$permissions{4}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return 0;
+  }
 
   sqlcmd_cluster_info();
 
@@ -647,6 +688,12 @@ sub sqlcmd_tables {
 =cut
 #**********************************************************
 sub sqlcmd_info {
+
+  if (!$permissions{4}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return 0;
+  }
+
   my ($stats, $vars, $memory_stats) = $Sqlcmd->sqlcmd_info();
 
   my %op = ();
@@ -1028,6 +1075,11 @@ sub t {
 #**********************************************************
 sub sqlcmd_procs {
 
+  if (!$permissions{4}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return 0;
+  }
+
   sqlcmd_cluster_info();
 
   if ($FORM{del}) {
@@ -1399,4 +1451,4 @@ sub _sqlcmd_process_columns {
   return $result;
 }
 
-1
+1;

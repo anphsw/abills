@@ -16,7 +16,7 @@ our $Maps;
 _bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } }) if ( $FORM{json} );
 
 # DB module is available
-exit if (form_purchase_module({ HEADER => $user->{UID}, MODULE => 'Cablecat', REQUIRE_VERSION => 7.92 }));
+exit if (form_purchase_module({ HEADER => $user->{UID}, MODULE => 'Cablecat', REQUIRE_VERSION => 7.94 }));
 
 if ( !defined $Maps ) {
   eval { require Maps; };

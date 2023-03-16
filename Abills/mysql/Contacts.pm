@@ -581,6 +581,7 @@ sub push_contacts_list {
     [ 'UID',      'INT', 'uid',     1],
     [ 'TYPE_ID',  'INT', 'type_id', 1],
     [ 'VALUE',    'STR', 'value',   1],
+    [ 'BADGES',   'INT', 'badges',  1],
   ];
   if ($attr->{SHOW_ALL_COLUMNS}){
     map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
@@ -658,7 +659,7 @@ sub push_contacts_del {
 
   $self->query_del('push_contacts', undef, $attr);
 
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -676,14 +677,13 @@ sub push_contacts_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'push_contacts',
-      DATA         => $attr,
-    });
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'push_contacts',
+    DATA         => $attr,
+  });
 
-  return 1;
+  return $self;
 }
 
 #**********************************************************

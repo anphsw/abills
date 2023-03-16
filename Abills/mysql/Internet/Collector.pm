@@ -1240,4 +1240,50 @@ sub unknown_add{
   return $self;
 }
 
+#**********************************************************
+=head1 traffic_user_list ($attr) - traffic user list
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+     list
+
+=cut
+#**********************************************************
+sub traffic_user_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100000;
+
+
+  $self->query("
+    SELECT
+    s_time,
+    src_addr,
+    src_port,
+    dst_addr,
+    dst_port
+    FROM ipn_traf_detail
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef, $attr
+  );
+
+  my $list = $self->{list};
+
+  $self->query("
+    SELECT COUNT(*) AS total
+    FROM ipn_traf_detail;",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
 1

@@ -135,8 +135,8 @@ sub notify {
     $Language->load($language_for_translation, $event->{MODULE})
   }
 
-  my $translated_title = $Language->translate($event->{TITLE});
-  my $translated_comments = $Language->translate($event->{COMMENTS});
+  my $translated_title = $Language->translate($event->{TITLE}) || $event->{TITLE};
+  my $translated_comments = $Language->translate($event->{COMMENTS}) || $event->{COMMENTS};
 
   my $event_priority = $event->{PRIORITY_ID} || 3; # 3 = Normal
   foreach my $aid ( @aids ) {

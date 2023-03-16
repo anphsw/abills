@@ -13,6 +13,7 @@
     <input type='hidden' name='amount' value='%amount%'>
     <input type='hidden' name='desc' value='%desc%'>
     <input type='hidden' name='info' value='%info%'>
+    <input type='hidden' name='lang' value='%lang%'>
 
     <div class='card-header with-border text-center pb-0'>
       <h4>_{BALANCE_RECHARCHE}_</h4>
@@ -38,6 +39,12 @@
         <li class='list-group-item'>
           <b>_{SUM}_</b>
           <div class='float-right'>%SUM% %amount_with_point%</div>
+        </li>
+        <li class='list-group-item'>
+          <b>_{HELP}_</b>
+          <div class='float-right'>
+            <a class='btn btn-default' href='https://www.ipay.ua/ua/faq'>_{READ_HERE}_</a>
+          </div>
         </li>
       </ul>
 

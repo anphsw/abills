@@ -7,7 +7,7 @@
   <meta name='viewport' content='width=device-width, initial-scale=1'>
 
   <!-- Bootstrap core CSS -->
-  <link href='/styles/default/css/bootstrap.min.css' rel='stylesheet'>
+  <link href='/styles/default/css/adminlte.min.css' rel='stylesheet'>
   <link href='/styles/default/css/chosen.min.css' rel='stylesheet'>
   <link href='/styles/default/css/font-awesome.min.css' rel='stylesheet'>
   <link href='login.css' rel='stylesheet'>

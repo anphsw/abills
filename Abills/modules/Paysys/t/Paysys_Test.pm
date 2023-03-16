@@ -91,15 +91,12 @@ sub paysys_main_test {
       $inputs .= $input;
     }
 
-    $debug_select = $html->form_select(
-      'DEBUG',
-      {
-        SELECTED => '',
-        SEL_HASH => \%debug_list,
-        NO_ID    => 1,
-        ID       => $action
-      }
-    );
+    $debug_select = $html->form_select('DEBUG', {
+      SELECTED => '',
+      SEL_HASH => \%debug_list,
+      NO_ID    => 1,
+      ID       => $action
+    });
 
     $templates .= $html->tpl_show(_include('paysys_test_action', 'Paysys'), {
       INPUTS       => $inputs,

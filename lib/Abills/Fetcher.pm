@@ -57,6 +57,7 @@ our %conf;
       MORE_INFO      - return second json object with curl write out variables
       GET_HEADERS    - return headers
       SKIP_REDIRECT  - disable -L option
+      CERT           - path to cert file and request with curl flag --cert
 
   Returns:
       result string
@@ -118,7 +119,7 @@ sub web_request {
 
   if ($attr->{JSON_RETURN} && $result) {
     if ($result =~ /500 Internal Server/) {
-      return { error => 9, errstr => '500 Internal Server Error' };
+      return { errno => 9, errstr => '500 Internal Server Error' };
     }
     else {
       ($attr->{MORE_INFO} || $attr->{GET_HEADERS}) ?
@@ -241,6 +242,10 @@ sub _curl_request {
     foreach my $key (@{$attr->{HEADERS}}) {
       $curl_options .= qq{ -H "$key" };
     }
+  }
+
+  if ($attr->{CERT}) {
+    $curl_options .= qq{ --cert "$attr->{CERT}" };
   }
 
   if ($attr->{COOKIES}) {

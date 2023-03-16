@@ -25,7 +25,7 @@ else {
   $FUNCTIONS_LIST{"02:1:$lang{SETTINGS}:paysys_configure_main:"} = 5;
 }
 
-unless ($conf{PAYMENT_HIDE_USER_MENU}) {
+if (!$conf{PAYMENT_HIDE_USER_MENU}) {
   if (defined $user->{GID}) {
     my $group_info = $user->group_info($user->{GID});
     if ((exists $group_info->{DISABLE_PAYSYS} && $group_info->{DISABLE_PAYSYS} == 0) || !$user->{TOTAL}) {

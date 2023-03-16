@@ -22,6 +22,8 @@ my Paysys $Paysys;
 our %lang;
 require 'Abills/modules/Paysys/lng_english.pl';
 
+my %LANG = ();
+
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
 
@@ -45,6 +47,8 @@ sub new {
   if ($type eq 'user') {
     $self->{routes_list} = $self->user_routes();
   }
+
+  %LANG = (%{$self->{lang}}, %lang);
 
   $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
   $Paysys->{debug} = $self->{debug};
@@ -155,14 +159,13 @@ sub user_routes {
         }
 
         my @systems_list;
-        my %LANG = (%{$self->{lang}}, %lang);
         foreach my $system (@{$systems}) {
+          delete @{$system}{qw/status/};
+
           foreach my $allowed_system (@{$allowed_systems}) {
             next if ($system->{paysys_id} != $allowed_system->{paysys_id});
             my $Module = _configure_load_payment_module($system->{module}, 1);
-            next if ($query_params->{GPAY} && (ref $Module eq 'HASH' || !$Module->can('google_pay')));
-            next if (!$query_params->{GPAY} && (ref $Module eq 'HASH' || !$Module->can('fast_pay_link')));
-            delete @{$system}{qw/status/};
+            next if (ref $Module eq 'HASH' || (!$Module->can('fast_pay_link') && !$Module->can('google_pay') && !$Module->can('apple_pay')));
 
             my $Paysys_plugin = $Module->new($self->{db}, $self->{admin}, $self->{conf}, { lang => \%LANG });
             my %settings = $Module->get_settings();
@@ -172,10 +175,12 @@ sub user_routes {
               next if ("$query_params->{REQUEST_METHOD}" ne $system->{request}->{METHOD});
             }
 
-            if ($system->{module} && $system->{module} eq 'GooglePay.pm') {
+            if ($system->{module} && ($system->{module} eq 'GooglePay.pm' || $system->{module} eq 'ApplePay.pm')) {
               next if ($query_params->{REQUEST_METHOD});
               my $config = $Paysys_plugin->get_config($users_info->[0]->{gid});
-              $system->{google_config} = $config;
+
+              my $config_name = $system->{module} eq 'GooglePay.pm' ? 'google_config' : 'apple_config';
+              $system->{$config_name} = $config;
             }
             push(@systems_list, $system);
           }
@@ -187,6 +192,7 @@ sub user_routes {
         'USER', 'USERBOT'
       ]
     },
+    #@deprecated
     {
       method      => 'POST',                                  #TODO: GET
       path        => '/user/:uid/paysys/transaction/status/', #TODO :id/
@@ -195,6 +201,24 @@ sub user_routes {
 
         $Paysys->list({
           TRANSACTION_ID => $query_params->{TRANSACTION_ID} || '--',
+          UID            => $path_params->{uid},
+          STATUS         => '_SHOW',
+          COLS_NAME      => 1,
+          SORT           => 1
+        })->[0] || {};
+      },
+      credentials => [
+        'USER'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/user/paysys/transaction/status/:string_id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Paysys->list({
+          TRANSACTION_ID => $path_params->{id},
           UID            => $path_params->{uid},
           STATUS         => '_SHOW',
           COLS_NAME      => 1,
@@ -215,59 +239,68 @@ sub user_routes {
 
         if (!defined $query_params->{SYSTEM_ID}) {
           return {
-            errno  => '601',
+            errno  => 601,
             errstr => 'No value: systemId'
           }
         }
+
         if (!$sum) {
           require Users;
           Users->import();
           my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
 
-          my $users_info = $Users->list({
-            DEPOSIT   => '_SHOW',
-            UID       => $path_params->{uid},
-            COLS_NAME => 1,
-          });
-
-          my $deposit = abs(sprintf("%.2f", $users_info->[0]->{deposit}));
-          $sum = ($users_info->[0]->{deposit} > 0) ? 1 : $deposit;
+          my $user = $Users->info($path_params->{uid});
+          $sum = ::recomended_pay($user) || 1;
         }
+
         if (!$operation_id) {
           $operation_id = mk_unique_value(9, { SYMBOLS => '0123456789' }),
+        }
+        else {
+          $operation_id =~ s/[<>]//gm;
         }
 
         my $paysys = $Paysys->paysys_connect_system_list({
           SHOW_ALL_COLUMNS => 1,
           STATUS           => 1,
           COLS_NAME        => 1,
-          ID               => $query_params->{SYSTEM_ID} || '--'
+          ID               => $query_params->{SYSTEM_ID} || '--',
         });
 
-        if ($paysys == []) {
-          return [];
-        }
-        else {
-          my %pay_params = (
-            UID          => $path_params->{uid},
-            SUM          => $sum,
-            OPERATION_ID => $operation_id,
-            MODULE       => $paysys,
-            RETURN_URL   => defined $query_params->{RETURN_URL},
-          );
-          if ($query_params->{GPAY}) {
-            return $self->paysys_pay({
-              GPAY         => $query_params->{GPAY},
-              %pay_params
-            });
-          }
-          else {
-            return $self->paysys_pay(\%pay_params);
-          }
-        }
+        return [] if (!scalar @{$paysys});
+
+        my %pay_params = (
+          UID          => $path_params->{uid},
+          SUM          => $sum,
+          OPERATION_ID => $operation_id,
+          MODULE       => $paysys,
+        );
+
+        $pay_params{APAY} = $query_params->{APAY} if ($query_params->{APAY});
+        $pay_params{GPAY} = $query_params->{GPAY} if ($query_params->{GPAY});
+
+        return $self->paysys_pay(\%pay_params);
       },
       credentials => [
         'USER', 'USERBOT'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/user/paysys/applePay/session/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+        my $Module = _configure_load_payment_module('ApplePay.pm', 1);
+        return $Module if (ref $Module eq 'HASH');
+
+        my $Paysys_plugin = $Module->new($self->{db}, $self->{admin}, $self->{conf}, { lang => \%LANG });
+
+        return $Paysys_plugin->create_session({
+          UID => $path_params->{uid},
+        });
+      },
+      credentials => [
+        'USER'
       ]
     },
   ]
@@ -291,32 +324,30 @@ sub user_routes {
 sub paysys_pay {
   my $self = shift;
   my ($attr) = @_;
-  my %LANG = (%{$self->{lang}}, %lang);
   my $Module = _configure_load_payment_module($attr->{MODULE}->[0]->{module}, 1);
 
-  if (ref $Module eq 'HASH') {
-    return $Module;
-  }
+  return $Module if (ref $Module eq 'HASH');
 
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+  my %params = (
+    %$attr,
+    USER => $Users->info($attr->{UID}),
+  );
 
-  if ($Module->can('google_pay') && $attr->{GPAY}) {
-    my $Paysys_plugin = $Module->new($self->{db}, $self->{admin}, $self->{conf}, { lang => \%LANG });
-    return $Paysys_plugin->google_pay({
-      USER         => $Users->info($attr->{UID}),
-      %$attr
-    });
+  my $Paysys_plugin = $Module->new($self->{db}, $self->{admin}, $self->{conf}, { lang => \%LANG });
+
+  if ($attr->{GPAY} && $Module->can('google_pay')) {
+    return $Paysys_plugin->google_pay(\%params);
+  }
+  elsif ($attr->{APAY} && $Module->can('apple_pay')) {
+    return $Paysys_plugin->apple_pay(\%params);
   }
   elsif ($Module->can('fast_pay_link')) {
-    my $Paysys_plugin = $Module->new($self->{db}, $self->{admin}, $self->{conf}, { lang => \%LANG });
-    return $Paysys_plugin->fast_pay_link({
-      USER         => $Users->info($attr->{UID}),
-      %$attr
-    });
+    return $Paysys_plugin->fast_pay_link(\%params);
   }
   else {
     return {
-      errno  => '610',
+      errno  => 610,
       errstr => 'No fast pay link for this module'
     };
   }

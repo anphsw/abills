@@ -27,7 +27,6 @@ our %FUNCTIONS_LIST = (
 
   "70:2:$lang{PLUGINS}:msgs_plugins_list:"                           => 5,
   "71:70:Msgs:msgs_plugin_priority:AJAX"                             => 5,
-  "72:8:Msgs:shedule_hour_work:AJAX"                                 => 4,
 
   "73:4:$lang{PERMISSION}:msgs_admin_permissions:"                   => 5,
   "74:2:$lang{WORKFLOWS}:msgs_workflow:"                             => 5,
@@ -55,8 +54,8 @@ if ( defined($user->{UID}) ) {
 elsif ( defined($admin->{AID}) ) {
   my ($count, $unreg_count) = msgs_new({ AID => $admin->{AID} });
   $FUNCTIONS_LIST{"10:0:$lang{MESSAGES} $count:msgs_admin:"}                      = 8;
-  $FUNCTIONS_LIST{"37:10:$lang{SHEDULE_BOARD}:msgs_task_board:"}                  = 8;
-  $FUNCTIONS_LIST{"36:10:$lang{SHEDULE_BOARD}:msgs_task_info:MSGS_ID"}            = 8;
+  $FUNCTIONS_LIST{"37:10:$lang{SCHEDULE_BOARD}:msgs_task_board:"}                  = 8;
+  $FUNCTIONS_LIST{"36:10:$lang{SCHEDULE_BOARD}:msgs_task_info:MSGS_ID"}            = 8;
   $FUNCTIONS_LIST{"49:10:$lang{DISPATCH}:msgs_dispatches:"}                       = 8;
   $FUNCTIONS_LIST{"34:0:$lang{REQUESTS} $unreg_count:msgs_unreg_requests_list:"}  = 8;
   $FUNCTIONS_LIST{"35:34:$lang{ADD}:msgs_unreg_requests:"}                        = 8;

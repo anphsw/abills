@@ -1,7 +1,7 @@
 post:
   tags:
     - referral
-  summary: Список рефералов и дополнительная информация
+  summary: Получить бонус
   responses:
     200:
       description: Успешное выполнение

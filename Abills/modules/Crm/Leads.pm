@@ -253,7 +253,7 @@ sub crm_leads {
   $client_info = {} if !$client_info || ref $client_info ne 'Users';
 
   if ($FORM{add_form}) {
-    my $submit_button_name = "$lang{ADD}";
+    my $submit_button_name = $lang{ADD};
     my $submit_button_action = 'add';
     my $id_disabled = 'disabled';
     my $id_hidden = 'hidden';
@@ -370,15 +370,17 @@ sub crm_leads {
       }),
       TP_ID             => $lead_info->{TP_ID},
       COMPETITOR_ID     => $lead_info->{COMPETITOR_ID},
-      INFO_FIELDS       => crm_lead_info_field_tpl({ %$lead_info, REGISTRATION => undef }),
-      AJAX_SUBMIT_FORM  => 'ajax-submit-form'
+      INFO_FIELDS       => crm_lead_info_field_tpl({ %$lead_info, REGISTRATION => undef })
     });
 
     return 1 if ($FORM{TEMPLATE_ONLY});
   }
   elsif ($FORM{add}) {
     $Crm->crm_lead_add({ %FORM, DOMAIN_ID => ($admin->{DOMAIN_ID} || 0), CURRENT_STEP => 1 });
-    $html->message('info', $lang{ADDED}) if (!_error_show($Crm));
+    if (!_error_show($Crm)) {
+      $html->message('info', $lang{ADDED});
+      $html->redirect("?get_index=crm_lead_info&full=1&LEAD_ID=$Crm->{INSERT_ID}", { WAIT => 1 });
+    }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Crm->crm_lead_delete({ ID => $FORM{ID} });
@@ -392,7 +394,7 @@ sub crm_leads {
       return 1;
     }
 
-    $html->message('info', $lang{CHANGED}) if (!_error_show($Crm));
+    $html->redirect("?get_index=crm_lead_info&full=1&LEAD_ID=$FORM{ID}");
   }
   elsif ($FORM{CRM_MULTISELECT} && $FORM{ID}) {
     my @leads = split(/,\s?/, $FORM{ID});
@@ -497,7 +499,7 @@ sub crm_leads {
     DEFAULT_FIELDS  => "LEAD_ID,FIO,PHONE,EMAIL,COMPANY,ADMIN_NAME,DATE,CURRENT_STEP_NAME,LAST_ACTION,PRIORITY,UID,USER_LOGIN,TAG_IDS",
     HIDDEN_FIELDS   => 'STEP_COLOR,CURRENT_STEP,COMPETITOR_NAME,TP_NAME,ASSESSMENT,LEAD_ADDRESS,SOURCE',
     MULTISELECT     => 'ID:lead_id:' . ($FORM{delivery} ? 'CRM_LEADS' : 'crm_lead_multiselect'),
-    FUNCTION_FIELDS => 'crm_lead_info:change:lead_id,:del:id:&del=1',
+    FUNCTION_FIELDS => ':del:id:&del=1',
     FUNCTION_INDEX  => $index,
     FILTER_COLS     => {
       current_step_name => '_crm_current_step_color::STEP_COLOR,',
@@ -505,6 +507,17 @@ sub crm_leads {
       tag_ids           => '_crm_tags_name::TAG_IDS',
       assessment        => 'crm_assessment_stars::ASSESSMENT',
       source            => '_crm_translate_source::SOURCE',
+    },
+    FILTER_VALUES => {
+      lead_id => sub {
+        my $lead_id = shift;
+        return $html->button($lead_id, "get_index=crm_lead_info&full=1&LEAD_ID=$lead_id");
+      },
+      fio => sub {
+        my ($fio, $line) = @_;
+        return '' if !$fio;
+        return $html->button($fio, "get_index=crm_lead_info&full=1&LEAD_ID=$line->{lead_id}");
+      }
     },
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => \%ext_titles,
@@ -656,7 +669,7 @@ sub crm_lead_info {
     $html->message('info', $lang{SUCCESS}, $lang{DELETED}) if !_error_show($Crm);
   }
 
-  $Crm->crm_lead_fields(\%FORM) if $FORM{save_fields};
+  $Crm->crm_section_fields(\%FORM) if $FORM{save_fields};
 
   if ($FORM{SAVE}) {
     $Crm->crm_lead_change({
@@ -718,15 +731,6 @@ sub crm_lead_info {
     INDEX       => get_function_index('crm_lead_info'),
   }, { OUTPUT2RETURN => 1 });
 
-  if (defined $FORM{STEP_ID} && defined $FORM{add_message}) {
-    $Crm->progressbar_comment_add({ %FORM, DOMAIN_ID => ($admin->{DOMAIN_ID} || 0) , DATE => "$DATE $TIME" });
-    _error_show($Crm);
-  }
-  elsif ($FORM{delete_message}) {
-    $Crm->progressbar_comment_delete({ ID => $FORM{delete_message} });
-    _error_show($Crm);
-  }
-
   $Crm->crm_action_add('', { ID => $lead_id, TYPE => 3 });
   my $lead_info = $Crm->crm_lead_info({ ID => $lead_id });
 
@@ -781,26 +785,36 @@ sub crm_lead_info {
   #   $tags_button = q{inline};
   # }
 
-
-  my $fields = crm_lead_fields('MAIN', $lead_info, 'FIO, RESPONSIBLE, BUILD_ID');
-  my $additional_fields = crm_lead_fields('ADDITIONAL', $lead_info, 'PRIORITY, COMMENTS, SOURCE');
-  my $lead_profile_panel = $html->tpl_show(_include('crm_lead_profile_panel', 'Crm'), { %$lead_info,
-    CONVERT_DATA_BUTTON => $convert_data_button,
-    ADD_USER_BUTTON     => $add_user_button,
-    USER_BUTTON         => $user_button,
-    DELETE_USER_BUTTON  => $delete_user_button,
-    WATCHING_BUTTON     => $watching_button,
+  my $fields = crm_lead_fields($lead_info,
+    {
+      LEAD_ID      => $lead_info->{LEAD_ID},
+      DEAL_SECTION => '0',
+      CHANGE_EXTRA_INFO => $html->button($lang{ALL_DATA}, 'get_index=crm_leads&full=1&chg=' . ($FORM{LEAD_ID} || ''),
+        { class => 'btn btn-tool mr-1' }),
+    },
+    {
+      WATCHING_BUTTON     => $watching_button,
+      CONVERT_LEAD_BUTTON => $convert_lead_to_client,
+      CONVERT_DATA_BUTTON => $convert_data_button,
+    });
+  my $lead_profile_panel = $html->tpl_show(_include('crm_section_panel', 'Crm'), { %$lead_info,
+    # DELETE_USER_BUTTON  => $delete_user_button,
     # TAGS                => $lead_tags,
     # TAGS_BUTTON         => $tags_button,
     CONVERT_LEAD_BUTTON => $convert_lead_to_client,
     LOG                 => crm_lead_recent_activity($lead_id),
     %{$fields},
-    %{$additional_fields},
   }, { OUTPUT2RETURN => 1 });
 
   $html->tpl_show(_include('crm_lead_info', 'Crm'), {
     LEAD_PROFILE_PANEL => $lead_profile_panel,
-    PROGRESSBAR        => crm_progressbar_show($lead_id),
+    PROGRESSBAR        => crm_progressbar_show($lead_info->{CURRENT_STEP}, {
+      DEAL_STEP    => '0',
+      LEAD_ID      => $FORM{LEAD_ID},
+      OBJECT_VALUE => $FORM{LEAD_ID},
+      OBJECT_TYPE  => 'leads',
+      TASK_URL     => "LEAD_ID=" . ($FORM{LEAD_ID} || '')
+    }),
     LEAD               => $lead_id
   });
 
@@ -828,7 +842,7 @@ sub crm_lead_panels {
       "index=" . get_function_index('crm_lead_info') . "&LEAD_ID=$each_lead->{ID}",
       { class => 'btn btn-primary btn-block' });
 
-    $lead_profile_panels .= $html->tpl_show(_include('crm_lead_profile_panel', 'Crm'),
+    $lead_profile_panels .= $html->tpl_show(_include('crm_section_panel', 'Crm'),
       { %$each_lead, BUTTON_TO_LEAD_INFO => $button_to_lead_info }, { OUTPUT2RETURN => 1, });
   }
 
@@ -874,25 +888,25 @@ sub crm_progressbar_steps {
   $html->tpl_show(_include('crm_progressbar_step_add', 'Crm'), {
     BTN_NAME  => $btn_name,
     BTN_VALUE => $btn_value,
-    %$step_info
+    %{$step_info}
   });
 
+  $LIST_PARAMS{DEAL_STEP} = '0';
   result_former({
     INPUT_DATA      => $Crm,
     FUNCTION        => 'crm_progressbar_step_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => "ID, STEP_NUMBER, NAME, COLOR, DESCRIPTION",
+    DEFAULT_FIELDS  => 'ID,STEP_NUMBER,NAME,COLOR,DESCRIPTION',
+    HIDDEN_FIELDS   => 'DEAL_STEP',
     FUNCTION_FIELDS => 'change,del',
-    FILTER_COLS     => {
-      name => '_translate'
-    },
+    FILTER_COLS     => { name => '_translate' },
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
-      'id'          => "ID",
-      'step_number' => "$lang{STEP}",
-      'name'        => $lang{NAME},
-      'color'       => $lang{COLOR},
-      'description' => $lang{DESCRIBE},
+      id          => 'ID',
+      step_number => $lang{STEP},
+      name        => $lang{NAME},
+      color       => $lang{COLOR},
+      description => $lang{DESCRIBE},
     },
     TABLE           => {
       width   => '100%',
@@ -903,287 +917,76 @@ sub crm_progressbar_steps {
     MAKE_ROWS       => 1,
     SEARCH_FORMER   => 1,
     MODULE          => 'Crm',
-    TOTAL           => "TOTAL:$lang{TOTAL};TOTAL_SUM:$lang{SUM}",
+    TOTAL           => 1,
   });
 
   return 1;
 }
 
 #**********************************************************
-=head2 crm_progressbar_show($lead_id)
+=head2 crm_deals_progressbar_steps()
 
 =cut
 #**********************************************************
-sub crm_progressbar_show {
-  my ($lead_id) = @_;
+sub crm_deals_progressbar_steps {
 
-  my $lead_info = $Crm->crm_lead_info({ ID => $lead_id });
-  return '' if _error_show($Crm) || $Crm->{TOTAL} < 1;
+  my $btn_name = 'add';
+  my $btn_value = $lang{ADD};
+  my $step_info = {};
 
-  my $Tasks;
-  if (in_array('Tasks', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Tasks})) {
-    use Tasks::db::Tasks;
-    $Tasks = Tasks->new($db, $admin, \%conf);
+  if ($FORM{add}) {
+    $Crm->crm_progressbar_step_add({ %FORM, DOMAIN_ID => ($admin->{DOMAIN_ID} || 0), DEAL_STEP => 1 });
+  }
+  elsif ($FORM{chg}) {
+    $step_info = $Crm->crm_progressbar_step_info({ ID => $FORM{chg} });
+    $btn_name = 'change';
+    $btn_value = $lang{CHANGE};
+  }
+  elsif ($FORM{del}) {
+    $Crm->crm_progressbar_step_delete({ ID => $FORM{del} });
+  }
+  elsif ($FORM{change}) {
+    $Crm->crm_progressbar_step_change({ %FORM });
   }
 
-  my $pb_list = translate_list($Crm->crm_progressbar_step_list({
-    STEP_NUMBER => '_SHOW',
-    NAME        => '_SHOW',
-    COLOR       => '_SHOW',
-    DESCRIPTION => '_SHOW',
-    COLS_NAME   => 1
-  }));
+  _error_show($Crm);
 
-  my $steps = '';
-  my $cur_step = $lead_info->{CURRENT_STEP};
-  my $steps_comments = '';
-  my $timeline = '';
-  my $timeline_items_all = '';
-
-  $steps_comments .= "<li class='nav-item btn btn-default p-0'><a id='b0' data-toggle='pill' role='tab'"
-  . "aria-controls='s0' aria-selected='true' href='#s0' class='d-block p-2 font-weight-bold'>$lang{ALL}</a></li>";
-
-  my $css = '';
-  my $last_number = 1;
-  foreach my $line (@{$pb_list}) {
-
-    if ($line->{color}) {
-      $line->{color} =~ s/#//;
-      my $rgb = join(', ', map $_, unpack 'C*', pack 'H*', $line->{color});
-      $css .= ".step-$line->{step_number}.active:before,.step-$line->{step_number}.active:after { background: rgba($rgb, 0.5) !important; }"
-    }
-
-    my $step_map = $line->{description} || '';
-    $steps .= $html->element('div', $html->element('span', $line->{name} || $line->{step_number}),
-      { class => "steps step-$line->{step_number}", id => $line->{step_number} }) . "\n";
-
-    $steps_comments .= "<li class='nav-item btn btn-default p-0'><a id='b$line->{id}' data-toggle='pill' role='tab'"
-      . "aria-controls='s$line->{id}' aria-selected='true' href='#s$line->{id}' class='d-block p-2'>$line->{name}</a></li>";
-
-    my $messages_list = $Crm->progressbar_comment_list({
-      STEP_ID      => $line->{id},
-      LEAD_ID      => $lead_id,
-      MESSAGE      => '_SHOW',
-      DATE         => '_SHOW',
-      ADMIN        => '_SHOW',
-      ACTION       => '_SHOW',
-      PLANNED_DATE => '_SHOW',
-      PRIORITY     => '_SHOW',
-      SORT         => 'cpsc.date',
-      DAY          => '_SHOW',
-      PIN          => '_SHOW',
-      COLS_NAME    => 1,
-      COLS_UPPER   => 1,
-    });
-
-    if ($FORM{SAVE} && $FORM{TO_LEAD_ID}) {
-      foreach my $message (@$messages_list) {
-        $Crm->progressbar_comment_add({
-          LEAD_ID   => $FORM{TO_LEAD_ID},
-          MESSAGE   => $message->{MESSAGE},
-          DATE      => $message->{DATE},
-          STEP_ID   => $message->{STEP_ID},
-          DOMAIN_ID => ($admin->{DOMAIN_ID} || 0),
-          PRIORITY  => $message->{PRIORITY},
-        });
-      }
-    }
-
-    my $step_tasks_by_day = _crm_step_tasks($Tasks, $lead_id, $line->{step_number});
-    my $timeline_items = _crm_step_timeline($lead_id, $step_tasks_by_day, $messages_list);
-    my $admin_sel = sel_admins({ ID => 'AID_' . $line->{id} });
-    my $action_sel = _actions_sel({ ID => 'ACTION_' . $line->{id} });
-
-    my $priority_comment_select = $html->form_select('PRIORITY', {
-      ID           => 'PRIORITY_SEL_' . $line->{id},
-      SELECTED     => $FORM{PRIORITY} || q{},
-      SEL_ARRAY    => \@PRIORITY,
-      NO_ID        => 1,
-      SEL_OPTIONS  => { '' => '' },
-      ARRAY_NUM_ID => 1
-    });
-
-    my $task_btn = '';
-    if (in_array('Tasks', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Tasks})) {
-      my $add_form_index = get_function_index('task_web_add');
-      my $add_url = "?qindex=$add_form_index&header=2&SHORT_FORM=1&LEAD_ID=$lead_id&STEP_ID=$line->{step_number}";
-      $task_btn = !$add_form_index ? '' : $html->button($lang{ADD_TASK}, undef, {
-        class          => 'btn btn-success mr-2',
-        ex_params      => qq/onclick=loadToModal('$add_url'\,''\,'') class='ml-3 cursor-pointer'/,
-        NO_LINK_FORMER => 1,
-        SKIP_HREF      => 1
-      });
-
-    }
-
-    $timeline .= $html->tpl_show(_include('crm_pb_timeline', 'Crm'), {
-      ID                   => $line->{id},
-      # ACTIVE               => ($line->{step_number} == $lead_info->{CURRENT_STEP}) ? 'in active show' : '',
-      TIMELINE_ITEMS       => $timeline_items,
-      ADMIN_SEL            => $admin_sel,
-      ACTION_SEL           => $action_sel,
-      INDEX                => get_function_index('crm_lead_info'),
-      LEAD_ID              => $FORM{LEAD_ID},
-      TASK_BTN             => $task_btn,
-      PRIORITY_COMMENT_SEL => $priority_comment_select
-    }, { OUTPUT2RETURN => 1 });
-    $last_number = $line->{step_number} if $line->{step_number} > $last_number;
-
-    $timeline_items  =~s/timeline-item/timeline-item timeline-item-all/g;
-    $timeline_items_all .= $timeline_items;
-  }
-
-  # list of all timeline actions. Active by default
-  $timeline .= $html->tpl_show(_include('crm_pb_timeline_all', 'Crm'), {
-    ID                        => 0,
-    ACTIVE                    => 'in active show',
-    TIMELINE_ITEMS_ALL        => $timeline_items_all,
-    INDEX                     => get_function_index('crm_lead_info'),
-    LEAD_ID                   => $FORM{LEAD_ID},
-  }, { OUTPUT2RETURN => 1 });
-
-  $steps_comments = $html->tpl_show(_include('crm_pb_steps_comments', 'Crm'), {
-    PILLS    => $steps_comments,
-    TIMELINE => $timeline,
-  }, { OUTPUT2RETURN => 1 });
-
-  return $html->tpl_show(_include('crm_progressbar', 'Crm'), {
-    STEPS          => $steps,
-    CUR_STEP       => $cur_step || 1,
-    STEPS_COMMENTS => $steps_comments,
-    CSS            => $css,
-    END_STEP       => $last_number
-  }, { OUTPUT2RETURN => 1 });
-}
-
-#**********************************************************
-=head2 _crm_step_timeline()
-
-  Arguments:
-    $lead_id
-    $task_items
-    $messages
-
-=cut
-#**********************************************************
-sub _crm_step_timeline {
-  my $lead_id = shift;
-  my $timeline_items_by_day = shift;
-  my ($messages) = @_;
-
-  return '' if (!$messages && !$timeline_items_by_day) || !$lead_id;
-
-  my @priority_lit = ($lang{LOW}, $lang{NORMAL}, $lang{HIGH});
-  my @priority = (
-    $html->element('span', '', { class => 'fa fa-thermometer-empty', OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-half', OUTPUT2RETURN => 1 }),
-    $html->element('span', '', { class => 'fa fa-thermometer-full', OUTPUT2RETURN => 1 })
-  );
-  my @priority_colors = ('#8A8A8A', '#000000', '#DC3545');
-
-  my $pin_button = $html->button('', '', {
-    NO_LINK_FORMER => 1,
-    JAVASCRIPT     => 1,
-    SKIP_HREF      => 1,
-    ICON           => 'fa fa-map-pin',
-    ex_params      => "data-tooltip-position='top' data-tooltip='$lang{HOLD}' class='pin-button'"
+  $html->tpl_show(_include('crm_progressbar_step_add', 'Crm'), {
+    BTN_NAME  => $btn_name,
+    BTN_VALUE => $btn_value,
+    %{$step_info}
   });
 
-  foreach my $message (@{$messages}) {
-    my ($day, $time) = split('\s', $message->{DATE});
-    $timeline_items_by_day->{$day} //= '';
-
-    my $del_button =  $html->button('', "index=$index&delete_message=$message->{id}&LEAD_ID=$lead_id", {
-      ICON      => 'fa fa-trash text-red',
-      ex_params => "data-tooltip-position='top' data-tooltip='$lang{DELETE}'",
-    });
-
-      my %TIMELINE_ITEM_TEMPLATE = (
-      ICON   => 'fas fa-comments bg-yellow',
-      HEADER => $lang{NOTES},
-      FOOTER => $pin_button.$del_button,
-    );
-
-    if ($message->{admin} && $message->{action}) {
-      my %ACTION_STATUSES = ('0' => 'bg-red', '1' => 'bg-green');
-
-      $TIMELINE_ITEM_TEMPLATE{ICON} = 'fa fa-wrench ' . $ACTION_STATUSES{$message->{status} || 0};
-      $TIMELINE_ITEM_TEMPLATE{HEADER} = $message->{action};
-      if ($message->{planned_date}) {
-        my $footer = $html->element('div', "$lang{PLANNED} $lang{DATE}: $message->{planned_date}", { class => 'float-left' });
-        $TIMELINE_ITEM_TEMPLATE{FOOTER} = $footer . $TIMELINE_ITEM_TEMPLATE{FOOTER};
-      }
-      if ($message->{priority}) {
-        my $priority_id = $message->{priority};
-        my $priority_icon = $html->element('span', $html->color_mark($priority[$priority_id], $priority_colors[$priority_id]),
-          { "data-tooltip" => $priority_lit[$priority_id], "data-tooltip-position" => 'top' });
-        $TIMELINE_ITEM_TEMPLATE{HEADER} = $priority_icon . ' ' . $TIMELINE_ITEM_TEMPLATE{HEADER};
-      }
-    };
-
-    $timeline_items_by_day->{$day} .= $html->tpl_show(_include('crm_timeline_item', 'Crm'), {
-      MESSAGE     => $message->{message},
-      DATE        => $time,
-      DATA_ID     => $message->{id},
-      DATA_PIN    => $message->{pin},
-      %TIMELINE_ITEM_TEMPLATE
-    }, { OUTPUT2RETURN => 1 })
-  }
-
-  my $result = '';
-  foreach my $day (reverse sort keys(%{$timeline_items_by_day})) {
-    my $time_label = $html->element('div', $html->element('span', $day, { class => 'bg-info' }), { class => 'time-label' });
-    $result .= $time_label;
-    $result .= $timeline_items_by_day->{$day};
-  }
-
-  return $result;
-}
-
-#**********************************************************
-=head2 _crm_step_tasks()
-
-=cut
-#**********************************************************
-sub _crm_step_tasks {
-  my $Tasks = shift;
-  my $lead_id = shift;
-  my $step = shift;
-
-  return {} if !$Tasks || !$lead_id || !$step;
-
-  my $tasks_index = get_function_index('tasks_list');
-  my $timeline_items_by_day = {};
-  my $tasks = $Tasks->list({
-    LEAD_ID   => $lead_id,
-    STEP_ID   => $step,
-    COLS_NAME => 1
+  $LIST_PARAMS{DEAL_STEP} = '!';
+  result_former({
+    INPUT_DATA      => $Crm,
+    FUNCTION        => 'crm_progressbar_step_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,STEP_NUMBER,NAME,COLOR,DESCRIPTION',
+    HIDDEN_FIELDS   => 'DEAL_STEP',
+    FUNCTION_FIELDS => 'change,del',
+    FILTER_COLS     => { name => '_translate' },
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      id          => 'ID',
+      step_number => $lang{STEP},
+      name        => $lang{NAME},
+      color       => $lang{COLOR},
+      description => $lang{DESCRIBE},
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{STEPS_FOR_DEALS},
+      qs      => $pages_qs,
+      ID      => 'CRM_PROGRESSBAR_STEPS',
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    MODULE          => 'Crm',
+    TOTAL           => 1,
   });
 
-  foreach my $task (@{$tasks}) {
-    my ($day, $time) = split('\s', $task->{CONTROL_DATE});
-
-    my $task_responsible = $html->element('div', "$lang{RESPONSIBLE}: $task->{RESPONSIBLE_NAME}", { class => 'text-left float-left' });
-
-    my $del_button = '';
-    if (in_array('Tasks', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Tasks})) {
-      $del_button =  $html->button('', "index=$tasks_index&del=$task->{id}&tab=3", {
-        ICON      => 'fa fa-trash text-red',
-        ex_params => "data-tooltip-position='top' data-tooltip='$lang{DELETE}' class='del-task-button'",
-        target    => '_blank'
-      });
-    }
-
-    $timeline_items_by_day->{$day} .= $html->tpl_show(_include('crm_timeline_item', 'Crm'), {
-      MESSAGE => $task->{NAME} . ($task->{DESCR} ? "<br>(<i>$task->{DESCR}</i>)" : ''),
-      DATE    => $task->{CONTROL_DATE},
-      ICON    => 'fas fa-tasks bg-blue',
-      HEADER  => $html->button($task->{TYPE_NAME}, "index=$tasks_index&show_task=$task->{ID}", { target => '_blank' }),
-      FOOTER  => $task_responsible.$del_button
-    }, { OUTPUT2RETURN => 1 });
-  }
-
-  return $timeline_items_by_day;
+  return 1;
 }
 
 #**********************************************************

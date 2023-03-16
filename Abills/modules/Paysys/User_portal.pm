@@ -39,7 +39,10 @@ sub paysys_payment {
   my $index = get_function_index('paysys_payment');
 
   my %TEMPLATES_ARGS = ();
-  $user->pi({UID => $user->{UID}});
+  $user->pi({ UID => $user->{UID} });
+
+  $FORM{OPERATION_ID} =~ s/[<>]//gm if ($FORM{OPERATION_ID});
+  $FORM{DESCRIBE} =~ s/[<>]//gm if ($FORM{DESCRIBE});
 
   if ($FORM{SUM}) {
     $FORM{SUM} = 0 if ($FORM{SUM} !~ /^[\.\,0-9]+$/);
@@ -49,19 +52,17 @@ sub paysys_payment {
     $FORM{SUM} = 0;
   }
 
-  if ($FORM{SUM} == 0 && $user) {
-    if (defined(&recomended_pay)) {
-      $FORM{SUM} = recomended_pay($user);
-    }
+  if ($FORM{SUM} == 0 && $user && defined &recomended_pay) {
+    $FORM{SUM} = recomended_pay($user) || 1;
   }
 
   my $paysys_id = $FORM{PAYMENT_SYSTEM};
-  if ($conf{PAYSYS_MIN_SUM} && $FORM{SUM}>0 && $conf{PAYSYS_MIN_SUM} > $FORM{SUM}  ) {
-    $html->message( 'err', $lang{ERROR}, "$lang{PAYSYS_MIN_SUM_MESSAGE} $conf{PAYSYS_MIN_SUM}" );
+  if ($conf{PAYSYS_MIN_SUM} && $FORM{SUM} > 0 && $conf{PAYSYS_MIN_SUM} > $FORM{SUM}) {
+    $html->message('err', $lang{ERROR}, "$lang{PAYSYS_MIN_SUM_MESSAGE} $conf{PAYSYS_MIN_SUM}");
     delete $FORM{PAYMENT_SYSTEM};
   }
-  elsif ($conf{PAYSYS_MAX_SUM} && $FORM{SUM}>0 && $conf{PAYSYS_MAX_SUM} < $FORM{SUM}  ) {
-    $html->message( 'err', $lang{ERROR}, "ERR_BIG_SUM: $conf{PAYSYS_MAX_SUM}" );
+  elsif ($conf{PAYSYS_MAX_SUM} && $FORM{SUM} > 0 && $conf{PAYSYS_MAX_SUM} < $FORM{SUM}) {
+    $html->message('err', $lang{ERROR}, "ERR_BIG_SUM: $conf{PAYSYS_MAX_SUM}");
     delete $FORM{PAYMENT_SYSTEM};
   }
 
@@ -73,23 +74,23 @@ sub paysys_payment {
     }
   }
 
-  if($conf{PAYSYS_IPAY_FAST_PAY}){
-    if(($FORM{ipay_pay} || $FORM{ipay_register_purchase} || $FORM{ipay_purchase})){
-      if(($FORM{ipay_pay} || $FORM{ipay_register_purchase}) && $FORM{SUM} <= 0){
-        $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_SUM});
+  if ($conf{PAYSYS_IPAY_FAST_PAY}) {
+    if ($FORM{ipay_pay}) {
+      if ($FORM{ipay_pay} && $FORM{SUM} <= 0) {
+        $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_SUM});
         return 1;
       }
 
-      if ($conf{PAYSYS_MIN_SUM} && $FORM{SUM}>0 && $conf{PAYSYS_MIN_SUM} > $FORM{SUM}  ) {
-        return $html->message( 'err', $lang{ERROR}, "$lang{PAYSYS_MIN_SUM_MESSAGE} $conf{PAYSYS_MIN_SUM}" );
+      if ($conf{PAYSYS_MIN_SUM} && $FORM{SUM} > 0 && $conf{PAYSYS_MIN_SUM} > $FORM{SUM}) {
+        return $html->message('err', $lang{ERROR}, "$lang{PAYSYS_MIN_SUM_MESSAGE} $conf{PAYSYS_MIN_SUM}");
       }
-      elsif ($conf{PAYSYS_MAX_SUM} && $FORM{SUM}>0 && $conf{PAYSYS_MAX_SUM} < $FORM{SUM} ) {
-        return $html->message( 'err', $lang{ERROR}, "ERR_BIG_SUM: $conf{PAYSYS_MAX_SUM}" );
+      elsif ($conf{PAYSYS_MAX_SUM} && $FORM{SUM} > 0 && $conf{PAYSYS_MAX_SUM} < $FORM{SUM}) {
+        return $html->message('err', $lang{ERROR}, "ERR_BIG_SUM: $conf{PAYSYS_MAX_SUM}");
       }
 
       my $paysys_plugin = _configure_load_payment_module('Ipay_mp.pm');
       my $Paysys_plugin = $paysys_plugin->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, INDEX => $index, SELF_URL => $SELF_URL });
-      $TEMPLATES_ARGS{IPAY_HTML} .= $Paysys_plugin->user_portal_special($user, { %FORM, %{ ($attr) ? $attr : { }  } });
+      $TEMPLATES_ARGS{IPAY_HTML} .= $Paysys_plugin->user_portal_special($user, { %FORM, %{($attr) ? $attr : {}} });
       return 1;
     }
   }
@@ -105,13 +106,13 @@ sub paysys_payment {
       COLS_NAME => '_SHOW'
     });
 
-    if($Paysys->{errno}){
+    if ($Paysys->{errno}) {
       print $html->message('err', $lang{ERROR}, 'Payment system not exist');
     }
-    else{
+    else {
       my $Module = _configure_load_payment_module($payment_system_info->{module});
       my $Paysys_plugin = $Module->new($db, $admin, \%conf, { HTML => $html, lang => \%lang });
-      return  $Paysys_plugin->user_portal($user, { %FORM, %{ ($attr) ? $attr : { } } });
+      return $Paysys_plugin->user_portal($user, { %FORM, %{($attr) ? $attr : {}} });
     }
   }
 
@@ -129,11 +130,11 @@ sub paysys_payment {
     DOMAIN_ID => $ENV{DOMAIN_ID} || $user->{DOMAIN_ID} || '_SHOW'
   });
 
-  foreach my $system (@$connected_systems){
-    foreach my $merchant (@$list){
+  foreach my $system (@$connected_systems) {
+    foreach my $merchant (@$list) {
       next unless ($merchant->{gid} && $merchant->{system_id} && $system->{id} && $user->{GID});
-      if($merchant->{system_id}==$system->{id} && $merchant->{gid}==$user->{GID}){
-        $system->{merchant_name}=$merchant->{merchant_name};
+      if ($merchant->{system_id} == $system->{id} && $merchant->{gid} == $user->{GID}) {
+        $system->{merchant_name} = $merchant->{merchant_name};
       }
     }
   }
@@ -153,8 +154,8 @@ sub paysys_payment {
   });
 
   my %group_to_paysys_id = ();
-  foreach my $group_settings (@$groups_settings){
-    push( @{$group_to_paysys_id{$group_settings->{gid}}}, $group_settings->{paysys_id} );
+  foreach my $group_settings (@$groups_settings) {
+    push(@{$group_to_paysys_id{$group_settings->{gid}}}, $group_settings->{paysys_id});
   }
 
   my $count = 1;
@@ -205,21 +206,21 @@ sub paysys_payment {
     }
   }
 
-  if($#payment_systems > -1) {
+  if ($#payment_systems > -1) {
     my $delimiter = q{};
-    if($FORM{json}) {
+    if ($FORM{json}) {
       $delimiter = ',';
     }
-    $TEMPLATES_ARGS{PAY_SYSTEM_SEL}=join($delimiter, @payment_systems);
+    $TEMPLATES_ARGS{PAY_SYSTEM_SEL} = join($delimiter, @payment_systems);
   }
 
-  if($attr->{HOTSPOT}) {
+  if ($attr->{HOTSPOT}) {
     return $TEMPLATES_ARGS{PAY_SYSTEM_SEL};
   }
 
   return $html->tpl_show(_include('paysys_main', 'Paysys'), {
     %TEMPLATES_ARGS,
-    SUM               => $FORM{SUM}
+    SUM => $FORM{SUM}
   }, {
     OUTPUT2RETURN => $attr->{OUTPUT2RETURN},
     ID            => 'PAYSYS_FORM'
@@ -242,8 +243,8 @@ sub paysys_external_cmd {
 
   if ($conf{PAYSYS_EXTERNAL_START_COMMAND}) {
     my $start_command = $conf{PAYSYS_EXTERNAL_START_COMMAND} || q{};
-    my $attempts      = $conf{PAYSYS_EXTERNAL_ATTEMPTS} || 0;
-    my $user_info     = $Paysys->user_info({ UID => $uid });
+    my $attempts = $conf{PAYSYS_EXTERNAL_ATTEMPTS} || 0;
+    my $user_info = $Paysys->user_info({ UID => $uid });
 
     if (!$user_info->{TOTAL}) {
       $Paysys->user_add({
@@ -285,7 +286,6 @@ sub paysys_external_cmd {
 
     my $result = cmd($start_command, {
       PARAMS => { %$user, IP => $ENV{REMOTE_ADDR} },
-      #DEBUG  => 5
     });
 
     if ($result && $result =~ /(\d+):(.+)/) {
@@ -333,11 +333,8 @@ sub _paysys_system_radio {
   $paysys_module =~ s/ /_/g;
   $paysys_module = lc($paysys_module);
 
-  if (-e "$paysys_logo_path" . lc($paysys_module) . "-logo.png") {
-    $file_path = "/styles/default/img/paysys_logo/" . lc($paysys_module) . "-logo.png";
-  }
-  else {
-    $file_path = "http://abills.net.ua/wiki/lib/exe/fetch.php/abills:docs:modules:paysys:" . lc("$paysys_module") . "-logo.png";
+  if (-e "$paysys_logo_path" . lc($paysys_module) . '-logo.png') {
+    $file_path = '/styles/default/img/paysys_logo/' . lc($paysys_module) . '-logo.png';
   }
 
   $radio_paysys .= $html->tpl_show(
@@ -349,7 +346,8 @@ sub _paysys_system_radio {
       CHECKED         => $attr->{CHECKED},
       HIDDEN          => $conf{PAYSYS_USER_PORTAL_BTN_TEXT} ? '' : 'hidden hidden-btn-text'
     },
-    { OUTPUT2RETURN => 1,
+    {
+      OUTPUT2RETURN => 1,
       ID            => 'PAYSYS_' . $attr->{ID}
     }
   );
@@ -392,21 +390,19 @@ sub paysys_user_log {
 
     $Paysys->{INFO} = $table->show({ OUTPUT2RETURN => 1 });
 
-    $table = $html->table(
-      {
-        width => '500',
-        rows  =>
-          [ [ "ID", $Paysys->{ID} ],
-            [ "$lang{LOGIN}", $Paysys->{LOGIN} ],
-            [ "$lang{DATE}", $Paysys->{DATETIME} ],
-            [ "$lang{SUM}", $Paysys->{SUM} ],
-            [ "$lang{PAY_SYSTEM}", $PAY_SYSTEMS{ $Paysys->{SYSTEM_ID} } ],
-            [ "$lang{TRANSACTION}", $Paysys->{TRANSACTION_ID} ],
-            [ "$lang{USER} IP", $Paysys->{CLIENT_IP} ],
-            [ "$lang{ADD_INFO}", $Paysys->{USER_INFO} ],
-            [ "$lang{INFO}", $Paysys->{INFO} ] ],
-      }
-    );
+    $table = $html->table({
+      width => '500',
+      rows  =>
+        [ [ "ID", $Paysys->{ID} ],
+          [ "$lang{LOGIN}", $Paysys->{LOGIN} ],
+          [ "$lang{DATE}", $Paysys->{DATETIME} ],
+          [ "$lang{SUM}", $Paysys->{SUM} ],
+          [ "$lang{PAY_SYSTEM}", $PAY_SYSTEMS{ $Paysys->{SYSTEM_ID} } ],
+          [ "$lang{TRANSACTION}", $Paysys->{TRANSACTION_ID} ],
+          [ "$lang{USER} IP", $Paysys->{CLIENT_IP} ],
+          [ "$lang{ADD_INFO}", $Paysys->{USER_INFO} ],
+          [ "$lang{INFO}", $Paysys->{INFO} ] ],
+    });
 
     print $table->show();
   }
@@ -417,11 +413,11 @@ sub paysys_user_log {
   }
 
   my $date_show = '';
-  if($conf{user_payment_journal_show}) {
+  if ($conf{user_payment_journal_show}) {
     $LIST_PARAMS{SHOW_PAYMENT} = 1;
     use POSIX qw(strftime);
 
-    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+    my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime();
 
     $mday = 1;
     $mon = $mon - $conf{user_payment_journal_show} + 1;
@@ -429,17 +425,17 @@ sub paysys_user_log {
       $mon = 1;
       $year++;
     }
-    $date_show = POSIX::strftime('%Y-%m-%d', ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst));
-    $LIST_PARAMS{DATE}= ">$date_show";
+    $date_show = POSIX::strftime('%Y-%m-%d', ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst));
+    $LIST_PARAMS{DATE} = ">$date_show";
   }
 
-  my $list = $Paysys->list({ %LIST_PARAMS,  COLS_NAME => 1 });
+  my $list = $Paysys->list({ %LIST_PARAMS, COLS_NAME => 1 });
 
   my $table = $html->table(
     {
-      width       => '100%',
-      caption     => "$lang{PAY_JOURNAL}",
-      title       => [
+      width   => '100%',
+      caption => "$lang{PAY_JOURNAL}",
+      title   => [
         'ID',
         "$lang{DATE}",
         "$lang{SUM}",
@@ -448,9 +444,9 @@ sub paysys_user_log {
         "$lang{STATUS}",
         '-'
       ],
-      qs          => $pages_qs,
-      pages       => $Paysys->{TOTAL},
-      ID          => 'PAYSYS',
+      qs      => $pages_qs,
+      pages   => $Paysys->{TOTAL},
+      ID      => 'PAYSYS',
     }
   );
 
@@ -467,9 +463,9 @@ sub paysys_user_log {
 
   $table = $html->table(
     {
-      caption     => $lang{ALL},
-      width       => '100%',
-      rows        => [
+      caption => $lang{ALL},
+      width   => '100%',
+      rows    => [
         [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL_COMPLETE}), "$lang{SUM}:", $html->b($Paysys->{SUM_COMPLETE}) ]
       ]
     }
@@ -556,7 +552,7 @@ sub paysys_subscribe {
 =cut
 #**********************************************************
 sub paysys_system_sel {
-  return paysys_payment({HOTSPOT => 1});
+  return paysys_payment({ HOTSPOT => 1 });
 }
 
 #**********************************************************

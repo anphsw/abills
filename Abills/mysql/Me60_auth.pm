@@ -91,7 +91,7 @@ sub auth {
   if ( $NAS->{NAS_TYPE} eq 'huawei_me60' ) {
     #&& ( $RAD->{'ADSL-Agent-Circuit-Id'} || $RAD->{'ADSL-Agent-Remote-Id'} || $RAD->{'User-Password'} eq 'vlan')) {
 
-    $self->{debug}=1;
+    # $self->{debug}=1;
     ($ret, $RAD_PAIRS) = $self->internet_auth($RAD, $NAS, $attr);
 #    my ($user_name, undef) = split(/\@/, $RAD->{'User-Name'}, 2);
 #    $RAD->{'User-Name'} = $user_name; 

@@ -8,7 +8,7 @@
   <div class='col-md-12'>
     <a data-link='$SELF_URL?%SHEDULE_TABLE_OPEN%' id='sheduleTableBtn' class='btn btn-secondary btn-sm form-control'>
       <span class='fa fa-tasks'></span>
-      _{SHEDULE_BOARD}_
+      _{SCHEDULE_BOARD}_
     </a>
   </div>
 </div>

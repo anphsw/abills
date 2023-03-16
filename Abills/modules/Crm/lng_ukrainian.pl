@@ -109,5 +109,18 @@ $lang{CRM_CHANGE} = 'змінити';
 $lang{CRM_CANCEL} = 'скасувати';
 $lang{CRM_CHOOSE_FIELDS} = 'вибрати поля';
 $lang{CRM_NOT_SPECIFIED} = 'Не вказано';
+$lang{CRM_DELETE_SECTION} = 'видалити';
+$lang{CRM_CREATE_NEW_SECTION} = 'створити розділ';
+$lang{CRM_NEW_SECTION} = 'Новий розділ';
+$lang{CRM_DELETE_SECTION} = 'Видалити розділ';
+$lang{CONFIRM_DELETE_SECTION} = 'Ви дійсно бажаєте видалити цей розділ?';
+$lang{ALL_DATA} = 'всі дані';
+$lang{DEALS} = 'Угоди';
+$lang{DEAL} = 'Угода';
+$lang{STEPS_FOR_DEALS} = 'Кроки для угод';
+$lang{CRM_BEGIN_DATE} = 'Дата початку';
+$lang{CRM_CLOSE_DATE} = 'Дата закінчення';
+$lang{CRM_PRODUCTS} = 'Товар';
+$lang{CRM_REGISTRATION_DATE} = 'Дата реєстрації';
 
 1

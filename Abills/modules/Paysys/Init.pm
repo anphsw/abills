@@ -36,6 +36,19 @@ sub _configure_load_payment_module {
 
   my ($paysys_name) = $payment_system =~ /(.+)\.pm/;
 
+  if (!$paysys_name || $paysys_name !~ /^\w+$/) {
+    if ($return_error) {
+      return {
+        errno  => 601,
+        errstr => 'Can\'t load module'
+      }
+    }
+    else {
+      print "Content-Type: text/html\n\n";
+      print "Error loading\n";
+    }
+  }
+
   my $require_module = "Paysys::systems::$paysys_name";
 
   eval {require "Paysys/systems/$payment_system";};
@@ -46,7 +59,7 @@ sub _configure_load_payment_module {
   else {
     if ($return_error) {
       return {
-        errno  => '600',
+        errno  => 600,
         errstr => 'Can\'t load module'
       }
     }

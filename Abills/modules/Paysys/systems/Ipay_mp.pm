@@ -1,42 +1,36 @@
 package Paysys::systems::Ipay_mp;
+#*********************** ABillS ***********************************
+# Copyright (с) 2003-2023 Andy Gulay (ABillS DevTeam) Ukraine
+#
+# See COPYRIGHT section in pod text below for usage and distribution rights.
+#
+#******************************************************************
 =head1 NAME
 
   Ipay Masterpass
   New module for Ipay payment system
 
-
 =head1 DOCUMENTATION
 
   https://walletmc.ipay.ua/doc.php
 
-=head1 IPs
-
-  89.111.46.143
-  89.111.46.144
-  62.80.166.62
-  109.237.93.180
-  81.94.235.66
-  86.111.90.144/28
-  81.94.235.64/28
-
 =head2 VERSION
 
   Date: 07.06.2018
-  UPDATED: 20230106
-  VERSION: 8.34
+  UPDATED: 20230306
+  VERSION: 8.37
 
 =cut
 
 use strict;
 use warnings FATAL => 'all';
-use parent 'dbcore';
-use utf8;
 
+use JSON qw(decode_json);
 use Paysys;
 use Abills::Base qw(load_pmodule json_former);
 use Abills::Fetcher qw(web_request);
 
-our $PAYSYSTEM_VERSION   = '8.34';
+our $PAYSYSTEM_VERSION   = '8.37';
 my $PAYSYSTEM_NAME       = 'Ipay_mp';
 my $PAYSYSTEM_SHORT_NAME = 'IPAY';
 my $PAYSYSTEM_ID         = 72;
@@ -52,12 +46,13 @@ my %PAYSYSTEM_CONF = (
   PAYSYS_IPAY_DESC_KEY          => '',
   PAYSYS_IPAY_DEFAULT_ACC       => '',
   PAYSYS_IPAY_INNER_DESCRIPTION => '',
-  PAYSYS_IPAY_HIDE_UP           => '',
   PAYSYS_IPAY_MERCHANT_ID       => ''
 );
 
 our (%conf, %lang);
-my ($json, $html, $SELF_URL);
+my ($SELF_URL);
+my Abills::HTML $html;
+
 #**********************************************************
 =head2 new()
 
@@ -93,12 +88,9 @@ sub new {
     $self->{index} = $attr->{INDEX};
   }
 
-  if($attr->{SELF_URL}){
+  if ($attr->{SELF_URL}){
     $SELF_URL = $attr->{SELF_URL};
   }
-
-  load_pmodule('JSON');
-  $json = JSON->new->allow_nonref;
 
   require Paysys::Paysys_Base;
 
@@ -116,8 +108,6 @@ sub new {
       USER
 
   Returns:
-
-  Examples:
 
 =cut
 #**********************************************************
@@ -138,6 +128,7 @@ sub create_request_params {
   my $merchant_key = $self->{conf}->{PAYSYS_IPAY_MERCHANT_KEY} || q{};
   my $sign_key     = $self->{conf}->{PAYSYS_IPAY_SIGN_KEY} || q{};
 
+  # needs for correct timezone in Kiev
   use Time::Piece;
   my $t = localtime;
   my $time = $t->epoch + (($t->isdst) ? 3 : 2) * 60 * 60;
@@ -153,14 +144,14 @@ sub create_request_params {
   $request{request}{auth}{time}    = $date;
   $request{request}{auth}{login}   = $merchant_key;
   $request{request}{auth}{sign}    = $md5_sign;
-  $request{request}{body}{user_id} = $account_key;
+  $request{request}{body}{user_id} = $user->{UID};
   $request{request}{body}{msisdn}  = $user->{PHONE};
 
   if ($action eq 'Check' || $action eq 'List') {
 
   }
   elsif ($action eq 'RegisterByURL') {
-    $request{request}{body}{lang}        = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ru';
+    $request{request}{body}{lang}        = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ua';
     $request{request}{body}{success_url} = "$SELF_URL?index=$self->{index}";                 # url after success registration
     $request{request}{body}{error_url}   = "$SELF_URL?index=$self->{index}";                 # url after fail registration
   }
@@ -170,45 +161,22 @@ sub create_request_params {
   elsif ($action eq 'PaymentCreate') {
     $request{request}{body}{card_alias} = $attr->{CARD_ALIAS};
     $request{request}{body}{invoice}    = $attr->{INVOICE} * 100;
-
-    # $REQUEST_HASH{request}{body}{guid}=$attr->{GUID};
-    if($self->{conf}{PAYSYS_IPAY_DESC}){
-      $self->{conf}{PAYSYS_IPAY_DESC}   =~ s/\%([^\%]+)\%/($user->{$1} || '')/g;
-      $request{request}{body}{pmt_desc} = $self->{conf}{PAYSYS_IPAY_DESC};
-    }
-    else{
-      $request{request}{body}{pmt_desc} = utf8::decode("Оплата услуг согласно счету " . ($user->{_PIN_ABS} || $user->{BILL_ID} || ''));
-    }
+    $request{request}{body}{pmt_desc}   = 'Оплата послуг згідно рахунку ' . ($user->{_PIN_ABS} || $user->{BILL_ID} || '');
 
     $request{request}{body}{pmt_info}{invoice} = $attr->{INVOICE} * 100;
     $request{request}{body}{pmt_info}{acc}     = $account_key;
 
-    $request{request}{body}{threeds_info}{notification_url} = "http://$ENV{SERVER_NAME}" . (($ENV{SERVER_PORT} != 80) ? ":$ENV{SERVER_PORT}" : '') . "/paysys_check.cgi"
+
+    $request{request}{body}{threeds_info}{notification_url} = ($ENV{PROT} || 'http') . "://$ENV{SERVER_NAME}" . (($ENV{SERVER_PORT} != 80) ? ":$ENV{SERVER_PORT}" : '') . "/paysys_check.cgi"
       ."?ipay_purchase=1&invoice=" . ($attr->{INVOICE} * 100) . "&pmt_id=$attr->{ACC}&UID=$user->{UID}";
   }
   elsif ($action eq 'AddcardByURL') {
-    $request{request}{body}{lang}        = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ru';
-    $request{request}{body}{success_url} = "$SELF_URL?index=$self->{index}";     # url after success registration
-    $request{request}{body}{error_url}   = "$SELF_URL?index=$self->{index}";     # url after fail registration
-  }
-  elsif ($action eq 'RegisterPurchaseByURL') {
-    $request{request}{body}{lang}        = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ru';
-    $request{request}{body}{success_url} = "$SELF_URL?index=$self->{index}&ipay_purchase=1&invoice=" . ($attr->{INVOICE} * 100) . "&pmt_id=$attr->{ACC}&UID=$user->{UID}";    # url after success registration
-    $request{request}{body}{error_url}   = "$SELF_URL?index=$self->{index}&ipay_purchase=2&&invoice=" . ($attr->{INVOICE} * 100) . "&pmt_id=$attr->{ACC}&UID=$user->{UID}";;   # url after fail registration
-    $request{request}{body}{invoice}     = $attr->{INVOICE} * 100;
-
-    if($self->{conf}{PAYSYS_IPAY_DESC}){
-      $self->{conf}{PAYSYS_IPAY_DESC} =~ s/\%([^\%]+)\%/($user->{$1} || '')/eg;
-      $request{request}{body}{pmt_desc}          = $self->{conf}{PAYSYS_IPAY_DESC};
-    }
-    else{
-      $request{request}{body}{pmt_desc}  = utf8::decode("Оплата услуг согласно счету " . ($user->{_PIN_ABS} || $user->{BILL_ID} || ''));
-    }
-    $request{request}{body}{pmt_info}{invoice} = $attr->{INVOICE} * 100;
-    $request{request}{body}{pmt_info}{acc}     = $account_key;
+    $request{request}{body}{lang}        = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ua';
+    $request{request}{body}{success_url} = "$SELF_URL?index=$self->{index}&card_added=1";  # url after success registration
+    $request{request}{body}{error_url}   = "$SELF_URL?index=$self->{index}&card_added=0";  # url after fail registration
   }
   elsif ($action eq 'InviteByURL') {
-    $request{request}{body}{lang}        = 'ua';
+    $request{request}{body}{lang}        = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ua';
     $request{request}{body}{success_url} = "$SELF_URL?index=$self->{index}"; # url after success registration
     $request{request}{body}{error_url}   = "$SELF_URL?index=$self->{index}"; # url after fail registration
   }
@@ -241,7 +209,7 @@ sub get_settings {
     CONF            => \%PAYSYSTEM_CONF,
     DOCS            => 'http://abills.net.ua:8090/pages/viewpage.action?pageId=29196294',
     IP              => '89.111.46.143,89.111.46.144,89.21.77.5,81.94.235.66',
-    CHECKBOX_FIELDS => ('PAYSYS_IPAY_DEFAULT_ACC'),
+    CHECKBOX_FIELDS => [ 'PAYSYS_IPAY_DEFAULT_ACC', 'PAYSYS_IPAY_FAST_PAY' ],
     REQUEST => {
       METHOD => 'GET'
     },
@@ -271,7 +239,7 @@ sub _request {
   my ($request, $attr) = @_;
 
   if (!$self->{conf}->{PAYSYS_IPAY_REQUEST_URL}) {
-    $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{NO} URL");
+    $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{NO} URL", { ID => 1790 });
     return {};
   }
 
@@ -290,7 +258,7 @@ sub _request {
     return {};
   }
 
-  my $result = $json->decode($check_result);
+  my $result = decode_json($check_result);
 
   if ($result->{response} && $result->{response}->{error} && $result->{response}->{error}) {
     if ($result->{response}->{error} eq 'user validation failed') { #user validation failed
@@ -325,7 +293,7 @@ sub user_portal_special {
   my $self = shift;
   my ($user_, $attr) = @_;
 
-  return '' if $user_->{PAYSYS_IPAY_HIDE_UP};
+  return '' if !$self->{conf}->{PAYSYS_IPAY_FAST_PAY};
 
   my $OUTPUT2RETURN = q{};
 
@@ -352,7 +320,7 @@ sub user_portal_special {
     my $result = $self->_request($json_request_string, { TREE => 'response' });
 
     if ($result->{status} && $result->{status} eq 'OK') {
-      $html->message('info', $self->{lang}->{SUCCESS}, $self->{lang}->{DELETED}, { ID => '1111' });
+      $html->message('info', $self->{lang}->{SUCCESS}, $self->{lang}->{DELETED}, { ID => 1111 });
     }
     else {
       $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{NOT} $self->{lang}->{DELETED}", { ID => 1112 });
@@ -360,21 +328,18 @@ sub user_portal_special {
   }
   # make payment if registered
   elsif ($attr->{ipay_pay}) {
-    my $json_create_payment_string = $self->create_request_params(
-      'PaymentCreate',
-      {
-        CARD_ALIAS => $attr->{CARD_ALIAS},
-        INVOICE    => $attr->{SUM},
-        ACC        => $attr->{OPERATION_ID},
-        USER       => $user_,
-      }
-    );
+    my $json_create_payment_string = $self->create_request_params('PaymentCreate', {
+      CARD_ALIAS => $attr->{CARD_ALIAS},
+      INVOICE    => $attr->{SUM},
+      ACC        => $attr->{OPERATION_ID},
+      USER       => $user_,
+    });
 
     my $result = $self->_request($json_create_payment_string, { TREE => 'response' });
 
     my $desc = 'IPAY MasterPass';
-    if ($user_->{PAYSYS_IPAY_DESC_KEY}) {
-      $desc = $self->{lang}->{IPAY_DESCRIBE} . $user_->{PAYSYS_IPAY_DESC_KEY};
+    if ($self->{conf}{PAYSYS_IPAY_DESC_KEY}) {
+      $desc = $self->{lang}->{IPAY_DESCRIBE} . $self->{conf}{PAYSYS_IPAY_DESC_KEY};
     }
 
     if ($result->{pmt_status} && $result->{pmt_status} == 5) {
@@ -386,10 +351,7 @@ sub user_portal_special {
         SUM                    => ($result->{invoice} / 100),
         EXT_ID                 => $result->{pmt_id},
         DATA                   => $attr,
-        #DATE              => $DATETIME,
         MK_LOG                 => 1,
-        #DEBUG             => 1,
-        #ERROR             => 1,
         PAYMENT_DESCRIBE       => $desc,
         PAYMENT_INNER_DESCRIBE => $self->{conf}{PAYSYS_IPAY_INNER_DESCRIPTION} || '',
         USER_INFO              => $user_,
@@ -407,54 +369,13 @@ sub user_portal_special {
         { ID => 2224 });
     }
   }
-  elsif ($attr->{ipay_purchase}) {
-    if($attr->{ipay_purchase} == 1){
-
-      my $sum = ($attr->{invoice}) ? $attr->{invoice} / 100 : 0;
-      my $desc = 'IPAY MasterPass';
-      if ($user_->{PAYSYS_IPAY_DESC_KEY}) {
-        $desc = $self->{lang}->{IPAY_DESCRIBE} . $user_->{PAYSYS_IPAY_DESC_KEY};
-      }
-
-      my ($paysys_status) = main::paysys_pay({
-        PAYMENT_SYSTEM         => $PAYSYSTEM_SHORT_NAME,
-        PAYMENT_SYSTEM_ID      => $PAYSYSTEM_ID,
-        SUM                    => $sum,
-        CHECK_FIELD            => 'UID',
-        USER_ID                => $user_->{UID},
-        EXT_ID                 => "$attr->{pmt_id}",
-        DATA                   => $attr,
-        DATE                   => "$main::DATE $main::TIME",
-        MK_LOG                 => 1,
-        PAYMENT_DESCRIBE       => $desc,
-        PAYMENT_INNER_DESCRIBE => $self->{conf}{PAYSYS_IPAY_INNER_DESCRIPTION} || '',
-        USER_INFO              => $user_,
-      });
-
-      $html->message('info', $self->{lang}->{SUCCESS}, "$self->{lang}->{SUCCESS} $self->{lang}->{TRANSACTION}: $attr->{pmt_id} ($paysys_status)", { ID => 3333  });
+  elsif (defined $attr->{card_added}) {
+    if ($attr->{card_added}) {
+      $html->message('info', $self->{lang}->{SUCCESS}, $self->{lang}->{SUCCESS_ADD_CARD});
     }
-    elsif($attr->{ipay_purchase} == 2){
-      $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{ERROR} $self->{lang}->{TRANSACTION}: $attr->{pmt_id}");
+    else {
+      $html->message('err', $self->{lang}->{ERROR}, $self->{lang}->{FAILED_ADD_CARD});
     }
-  }
-  elsif ($attr->{ipay_register_purchase}) {
-    my $register_purchse_by_url_string = $self->create_request_params(
-      'RegisterPurchaseByURL',
-      {
-        INVOICE => $attr->{SUM},
-        ACC     => $attr->{OPERATION_ID},
-        USER    => $user_,
-      }
-    );
-
-    my $result = $self->_request($register_purchse_by_url_string, { TREE => 'response' });
-
-    $html->tpl_show(
-      main::_include('paysys_ipay_register_purchase', 'Paysys'),
-      {
-        URL => $result->{url}
-      }
-    );
   }
   elsif ($attr->{ipay_unlink_user}) {
     my $unlink_string = $self->create_request_params('UnlinkUser', { USER => $user_ });
@@ -471,181 +392,80 @@ sub user_portal_special {
   my $result = $self->_request($json_request_string_check);
 
   my $user_status = $result->{response}->{user_status} || q{};
+
   # EXIST PROCESSING
   if ($user_status eq 'exists') {
     my $cards_list   = '';
-    my $card_checked = 0;
+    my $card_alias = '';
     my $json_list_string = $self->create_request_params('List', { USER => $user_ });
     $result = $self->_request($json_list_string, { TREE => 'response' });
 
-    foreach my $card (keys %{$result}) {
+    foreach my $card (sort keys %{$result}) {
+      $result->{$card}->{card_alias} = Encode::encode_utf8($result->{$card}->{card_alias});
       my $button_delete_card = $html->button($self->{lang}->{DEL},
-        "index=$self->{index}&DeleteCard=$result->{$card}->{card_alias}", { ICON => 'fa fa-trash fa-2x' });
+        "index=$self->{index}&DeleteCard=$result->{$card}->{card_alias}", { ICON => 'fa fa-trash text-danger' });
 
-      $cards_list .= $html->tpl_show(
-        main::_include('paysys_ipay_one_card', 'Paysys'),
-        {
-          NAME          => $result->{$card}->{card_alias},
-          MASK          => $result->{$card}->{mask},
-          DELETE_BUTTON => $button_delete_card,
-          CHECKED       => $card_checked == 0 ? 'checked' : '',
-          CARD_SELECTED => $card_checked == 0 ? 'card-selected' : '',
-        },
-        { OUTPUT2RETURN => 1 }
-      );
-      $card_checked = 1;
+      $cards_list .= $html->tpl_show(main::_include('paysys_ipay_one_card', 'Paysys'), {
+        NAME          => $result->{$card}->{card_alias},
+        MASK          => $result->{$card}->{mask},
+        DELETE_BUTTON => $button_delete_card,
+        CHECKED       => !$card_alias ? 'fa fa-check text-success' : '',
+        CARD_SELECTED => !$card_alias ? 'table-info' : '',
+        EXPIRED       => $result->{$card}->{is_expired} ? 'fa fa-times text-danger' : 'fa fa-check text-success'
+      }, { OUTPUT2RETURN => 1 });
+
+      $card_alias = $result->{$card}->{card_alias} if (!$card_alias);
     }
 
     my $json_add_card_by_url = $self->create_request_params('AddcardByURL', { USER => $user_ });
     $result = $self->_request($json_add_card_by_url, { TREE => 'response' });
 
-    my $add_card_by_url = $result->{url};
-    $add_card_by_url =~ s/\\\//\//g;
+    my $add_card_by_url = $result->{url} || '';
 
-    # button register by url
-    my $button_add_card_by_url = $html->button($self->{lang}->{ADD_CARD}, '',
-      { GLOBAL_URL => $add_card_by_url, class => 'btn btn-success btn-xs', ADD_ICON=> 'glyphicon glyphicon-plus'});
-
-    $OUTPUT2RETURN = $html->tpl_show(
-      main::_include('paysys_ipay_cards_list', 'Paysys'),
-      {
-        CARDS       => $cards_list,
-        ADD_BTN     => $button_add_card_by_url,
-        SUBMIT_NAME => 'ipay_pay'
-      },
-      { OUTPUT2RETURN => 1 }
-    );
+    $OUTPUT2RETURN = $html->tpl_show(main::_include('paysys_ipay_cards_list', 'Paysys'), {
+      CARDS       => $cards_list,
+      SUBMIT_NAME => 'ipay_pay',
+      ADD_CARD    => $add_card_by_url,
+      CARD_ALIAS  => $card_alias,
+    }, { OUTPUT2RETURN => 1 });
   }
   # INVITE PROCESSING
   elsif ($user_status eq 'invite') {
     # call invite by url action
     my $json_invite_by_url_string = $self->create_request_params('InviteByURL', { USER => $user_ });
     $result = $self->_request($json_invite_by_url_string, { TREE => 'response' });
-    my $confirm_invite_url = $result->{url};
-    $confirm_invite_url =~ s/\\\//\//g;
+    my $confirm_invite_url = $result->{url} || '';
 
-    $OUTPUT2RETURN = $html->tpl_show(
-      main::_include('paysys_ipay_start_invite_by_url', 'Paysys'),
+    $OUTPUT2RETURN = $html->tpl_show(main::_include('paysys_ipay_start_register_purchase', 'Paysys'),
       {
-        INVITE_BY_URL_BTN => $html->button($self->{lang}->{PLUG_IN}, '', { GLOBAL_URL => $confirm_invite_url, class => 'btn btn-success' })
+        BTN_URL  => $confirm_invite_url,
+        BTN_TEXT => $self->{lang}->{PLUG_IN},
+        MESSAGE  => $self->{lang}->{ALREADY_REGISTERED_MASTERPASS_IPAY},
       },
       { OUTPUT2RETURN => 1 }
     );
   }
   # NOT EXIST PROCESSING
   elsif ($user_status eq 'notexists') {
-    $OUTPUT2RETURN = $html->tpl_show(
-      main::_include('paysys_ipay_start_register_purchase', 'Paysys'),
+
+    my $register_purchase_by_url_string = $self->create_request_params('RegisterByURL', { USER => $user_ });
+
+    $result = $self->_request($register_purchase_by_url_string, { TREE => 'response' });
+
+    $OUTPUT2RETURN = $html->tpl_show(main::_include('paysys_ipay_start_register_purchase', 'Paysys'),
       {
-        SUBMIT_NAME => 'ipay_register_purchase'
+        BTN_URL  => $result->{url},
+        BTN_TEXT => $self->{lang}->{ADD_CARD},
+        MESSAGE  => $self->{lang}->{PAYMENT_BY_ANY_CARD_AND_ADD_TO_PURSE},
       },
       { OUTPUT2RETURN => 1 }
     );
   }
-
-  my $one_click_line = $html->tpl_show(
-    main::_include('paysys_ipay_oneclick', 'Paysys'),
-    {},
-    { OUTPUT2RETURN => 1 }
-  );
-
-  $OUTPUT2RETURN = $one_click_line . ($OUTPUT2RETURN || '');
-
-  return $OUTPUT2RETURN;
-}
-
-#**********************************************************
-=head2 report($attr)
-
-  Arguments:
-    $attr
-      HTML
-      LANG
-
-
-  Results:
-    $self
-
-=cut
-#**********************************************************
-sub report {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $html = $attr->{HTML};
-  my $lang = $attr->{LANG};
-  my $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
-  my $list = $Paysys->paysys_report_list({
-    TABLE     => 'paysys_ipay_report',
-    COLS_NAME => 1,
-    PAGE_ROWS => 9999999
-  });
-
-  my $table = $html->table({
-    width      => '100%',
-    caption    => "Ipay Master Pass",
-    title      => [ "#", $lang->{USER}, $lang->{SUM}, $lang->{DATE}, $lang->{TRANSACTION}  ],
-    DATA_TABLE => { 'order' => [ [ 0, 'id' ] ] },
-  });
-
-  foreach my $payment (@$list) {
-    $table->addrow($payment->{id},
-      $html->button($payment->{user_key}, "index=15&UID=$payment->{user_key}",{ class => 'btn btn-primary btn-xs' }),
-      $payment->{sum},
-      $payment->{date},
-      $payment->{transaction_id});
+  elsif ($user_status eq 'blocked') {
+    $html->message('err', $self->{lang}->{ERROR}, "iPay $self->{lang}->{IPAY_BLOCKED}", { ID => 1795 });
   }
 
-  print $table->show();
-
-  return 1;
-}
-
-#**********************************************************
-=head2 has_test($attr)
-
-  Arguments:
-    $attr
-
-  Returns:
-
-=cut
-#**********************************************************
-sub has_test {
-  my $self = shift;
-
-  our @requests;
-  eval { require "Paysys/t/Ipay_mp.t" };
-
-  my %params_hash = (
-    # '3PAY'  => {
-    #   _POST_    => {
-    #     name    => '_POST_',
-    #     val     => $requests[1]->{request},
-    #     tooltip => $requests[1]->{name}
-    #   },
-    #   signature    => {
-    #     name    => 'signature',
-    #     val     => $sign, #'!mk_signature:_POST_',
-    #     tooltip => 'Signature'
-    #   },
-    #   data    => {
-    #     name    => 'data',
-    #     val     => $data, #'!cnf_form:_POST_',
-    #     tooltip => 'data'
-    #   },
-    #   MODULE    => {
-    #     name    => 'MODULE',
-    #     val     => 'Liqpay.pm',
-    #     tooltip => 'data'
-    #   },
-    #   result      => [
-    #   ],
-    #   result_type => 'xml',
-    # }
-  );
-
-  return \%params_hash;
+  return $OUTPUT2RETURN;
 }
 
 #**********************************************************
@@ -735,9 +555,10 @@ sub proccess {
     my $json_transaction_info = $transaction->[0]->{info};
     my $desc = $transaction->[0]->{desc};
     my $transaction_extra_info;
+
     if ($json_transaction_info) {
       $json_transaction_info =~ s/^"|"$//g;
-      $transaction_extra_info = $json->decode($json_transaction_info);
+      $transaction_extra_info = decode_json($json_transaction_info);
     }
 
     return 9 if (defined($transaction_extra_info->{acc}) && $transaction_extra_info->{acc} eq 'UID');
@@ -774,7 +595,6 @@ sub proccess {
         DATA                   => \%DATA,
         DATE                   => "$main::DATE $main::TIME",
         MK_LOG                 => 1,
-        #    PAYMENT_ID        => 1,
         DEBUG                  => $debug,
         PAYMENT_DESCRIBE       => $desc || 'Ipay payment',
         PAYMENT_INNER_DESCRIBE => $self->{conf}{PAYSYS_IPAY_INNER_DESCRIPTION} || '',
@@ -792,7 +612,6 @@ sub proccess {
         DATA                   => \%DATA,
         DATE                   => "$main::DATE $main::TIME",
         MK_LOG                 => 1,
-        #    PAYMENT_ID        => 1,
         DEBUG                  => $debug,
         PAYMENT_DESCRIBE       => $desc || 'Ipay',
         ERROR                  => 3,
@@ -903,6 +722,74 @@ sub mk_sign {
 }
 
 #**********************************************************
+=head2 report($attr)
+
+  Arguments:
+    $attr
+      HTML
+      LANG
+
+
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub report {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $html = $attr->{HTML};
+  my $lang = $attr->{LANG};
+  my $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
+  my $list = $Paysys->paysys_report_list({
+    TABLE     => 'paysys_ipay_report',
+    COLS_NAME => 1,
+    PAGE_ROWS => 9999999
+  });
+
+  my $table = $html->table({
+    width      => '100%',
+    caption    => "Ipay Master Pass",
+    title      => [ "#", $lang->{USER}, $lang->{SUM}, $lang->{DATE}, $lang->{TRANSACTION}  ],
+    DATA_TABLE => { 'order' => [ [ 0, 'id' ] ] },
+  });
+
+  foreach my $payment (@$list) {
+    $table->addrow($payment->{id},
+      $html->button($payment->{user_key}, "index=15&UID=$payment->{user_key}",{ class => 'btn btn-primary btn-xs' }),
+      $payment->{sum},
+      $payment->{date},
+      $payment->{transaction_id});
+  }
+
+  print $table->show();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 has_test($attr)
+
+  Arguments:
+    $attr
+
+  Returns:
+=cut
+#**********************************************************
+sub has_test {
+  my $self = shift;
+
+  #TODO: create test
+  our @requests;
+  eval { require "Paysys/t/Ipay_mp.t" };
+
+  my %params_hash = ();
+
+  return \%params_hash;
+}
+
+#**********************************************************
 =head2 fast_pay_link($attr)
 
   Arguments:
@@ -958,5 +845,13 @@ sub fast_pay_link {
     OPERATION_ID   => 'Unknown',
   };
 }
+
+=head1 COPYRIGHT
+
+  Copyright (с) 2003-2023 Andy Gulay (ABillS DevTeam) Ukraine
+  All rights reserved.
+  https://abills.net.ua/
+
+=cut
 
 1;

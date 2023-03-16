@@ -57,9 +57,16 @@ sub init_sms_service {
     SMS_FENIX_URL          => 'Fenix',
     SMS_AMD_URL            => 'AMD',
     SMS_SMSCLUB_URL        => 'SmsClub',
-    SMS_ALPHASMS_URL        => 'AlphaSms',
+    SMS_ALPHASMS_URL       => 'AlphaSms',
   );
+
   my $Sms_service = $sms_systems{$attr->{SMS_SERVICE} || ''} || '';
+
+  if ($Sms_service !~ /^\w+$/) {
+    $Sms_service = {};
+    $Sms_service->{errno} = 2;
+    $Sms_service->{errstr} = 'UNKNOWN_SMS_SERVICE';
+  }
 
   if ($Sms_service) {
     eval {require "Sms/$Sms_service.pm";};

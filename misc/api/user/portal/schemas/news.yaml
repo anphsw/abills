@@ -21,6 +21,9 @@ properties:
         onMainPage:
           type: number
           example: 1
+        permalink:
+            type: string
+            example: special-promotion-50-2023
         picture:
           type: string
           example: "http://192.168.99.2:9443/images/attach/portal/9700077.png"

@@ -690,6 +690,7 @@ sub streams_list {
     [ 'CONSTANTLY_WORKING', 'INT', 'cs.constantly_working',                                                                1 ],
     [ 'ONLY_VIDEO',         'INT', 'cs.only_video',                                                                        1 ],
     [ 'POINT_ID',           'INT', 'cs.point_id',                                                                          1 ],
+    [ 'POINT_CREATED',      'STR', 'mp.created AS point_created',                                                          1 ],
     [ 'LENGTH',             'INT', 'cs.length',                                                                            1 ],
     [ 'ANGEL',              'INT', 'cs.angel',                                                                             1 ],
     [ 'LOCATION_ANGEL',     'INT', 'cs.location_angel',                                                                    1 ],
@@ -706,6 +707,7 @@ sub streams_list {
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
 
   my $EXTRA_JOIN = "LEFT JOIN cams_services s ON (f.service_id=s.id OR g.service_id=s.id)";
+  $EXTRA_JOIN .= "\n LEFT JOIN maps_points mp ON (cs.point_id=mp.id)" if $self->{SEARCH_FIELDS} =~ /mp\./;
 
   $self->query2(
     "SELECT $self->{SEARCH_FIELDS} cs.id, cs.coordx, cs.coordy

@@ -32,7 +32,8 @@ REPLACE INTO `equipment_vendors` (`id`, `name`, `support`, `site`) VALUES
   (19, 'Foundry Networks', '', 'http://www.brocade.com/en.html'),
   (20, 'Alcatel', '', 'https://www.alcatel-lucent.com/'),
   (21, 'Hewlett-Packard', '', 'http://www8.hp.com/ru/ru/home.html'),
-  (22, 'CDATA', '', 'http://ru.cdatatec.com/product-item/');
+  (22, 'CDATA', '', 'http://ru.cdatatec.com/product-item/'),
+  (23, 'Foxgate', '', 'https://www.foxgate.com');
 
 
 CREATE TABLE IF NOT EXISTS `equipment_types` (

@@ -7,3 +7,5 @@
   "03:2:Hosts:inventory_hosts"         => 4,
   "05:0:Bugs:inventory_bugs:"          => 8
 );
+
+1;

@@ -1277,30 +1277,44 @@ sub internet_registration {
 
       my $cid = q{};
       if ($conf{INTERNET_REGISTRATION_IP}) {
-        if (!$FORM{USER_IP} || $FORM{USER_IP} eq '0.0.0.0') {
-          $html->message('err', $lang{ERROR}, $lang{ERR_IP_NOT_DEFINED});
-          _internet_registration_form($attr);
-          return 1;
-        }
+        if ($FORM{USER_IP} && $FORM{USER_IP} ne '0.0.0.0') {
+          # $html->message('err', $lang{ERROR}, $lang{ERR_IP_NOT_DEFINED});
+          # _internet_registration_form($attr);
+          # return 1;
 
-        require Internet::Sessions;
-        Internet::Sessions->import();
-        my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
-        $Sessions->online({
-          CLIENT_IP => ($FORM{USER_IP}) ? $FORM{USER_IP} : $ENV{REMOTE_ADDR},
-          CID       => '_SHOW',
-          GUEST     => 1,
-          COLS_NAME => 1
-        });
+          require Internet::Sessions;
+          Internet::Sessions->import();
+          my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+          $Sessions->online({
+            CLIENT_IP => ($FORM{USER_IP}) ? $FORM{USER_IP} : $ENV{REMOTE_ADDR},
+            CID       => '_SHOW',
+            GUEST     => 1,
+            COLS_NAME => 1
+          });
 
-        if ($Sessions->{TOTAL}) {
-          $cid = $Sessions->{list}->[0]->{cid};
-        }
+          if ($Sessions->{TOTAL}) {
+            $cid = $Sessions->{list}->[0]->{cid};
+          }
 
-        if (!$cid) {
-          $html->message('err', $lang{ERROR}, $lang{IP_MAC_NOT_FOUND});
-          _internet_registration_form($attr);
-          return 1;
+          if (!$cid) {
+            $html->message('err', $lang{ERROR}, $lang{IP_MAC_NOT_FOUND});
+            _internet_registration_form($attr);
+            return 1;
+          }
+          else {
+            my $list = $Internet->user_list({
+              LOGIN     => '_SHOW',
+              CID       => $cid,
+              COLS_NAME => 1
+            });
+
+            if ($Internet->{TOTAL} > 0) {
+              $html->message('err', $lang{ERROR},
+                "CID/MAC: $cid $lang{EXIST}. $list->[0]->{login}", { ID => 1934 });
+              return 1;
+            }
+
+          }
         }
       }
 
@@ -1487,7 +1501,7 @@ sub internet_registration {
           return $uid;
         }
         else {
-          _error_show($Internet);
+          _error_show($Internet, { ID => 999 });
         }
       }
       else {
@@ -1532,7 +1546,8 @@ sub _internet_registration_form {
       MODULE       => 'Dv;Internet',
       STATUS       => '<1',
       NEW_MODEL_TP => 1,
-      COLS_NAME    => 1 }),
+      COLS_NAME    => 1,
+    }),
     SEL_KEY  => 'tp_id'
   });
 
@@ -1560,7 +1575,7 @@ sub _internet_registration_form {
     $attr->{LANG} = $conf{INTERNET_AUTO_REGISTRATION_ADDRESS_LANG};
 
     $Internet->{ADDRESS_TPL} = $html->tpl_show(_include('form_internet_auto_address', 'Internet'),
-      { %$Internet, %$attr, %FORM }, {ID => 'INTERNET_AUTO_ADDRESS', OUTPUT2RETURN => 1});
+      { %$Internet, %$attr, %FORM }, { ID => 'INTERNET_AUTO_ADDRESS', OUTPUT2RETURN => 1 });
   }
   elsif ($conf{INTERNET_REGISTRATION_ADDRESS}) {
     require Control::Address_mng;
@@ -1574,7 +1589,6 @@ sub _internet_registration_form {
   return 0;
 }
 
-
 #**********************************************************
 =head2 _sec2time_str($sec);
 
@@ -1585,7 +1599,6 @@ sub _sec2time_str {
 
   return sec2time($value, { str => 1 });
 }
-
 
 #**********************************************************
 =head2 internet_search($attr) - Global search submodule

@@ -1487,13 +1487,11 @@ sub admin_contacts_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'AID,TYPE_ID',
-      TABLE        => 'admins_contacts',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'AID,TYPE_ID',
+    TABLE        => 'admins_contacts',
+    DATA         => $attr
+  });
 
   return $self;
 }

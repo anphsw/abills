@@ -2,12 +2,12 @@
 
   ZTE snmp monitoring and managment
 
-  VERSION: 0.02
+  VERSION: 0.04
 
 =head1 MODELS
 
+  C220
   C300
-  C320
   C320
 
 =cut
@@ -627,7 +627,9 @@ sub _zte {
       },
       'reset'          => { #there are different OID on firmware V2
         NAME        => '',
-        OIDS        => '.1.3.6.1.4.1.3902.1012.3.50.11.3.1.1',
+        OIDS        => '1.3.6.1.4.1.3902.1012.3.27.1.1.3',
+        #'1.3.6.1.4.1.3902.1012.3.27.1.2.1.1'
+        #'.1.3.6.1.4.1.3902.1012.3.50.11.3.1.1',
         RESET_VALUE => 1,
         PARSER      => ''
       },
@@ -718,7 +720,30 @@ sub _zte {
           NAME                        => 'MAC_BEHIND_ONU',
           USE_MAC_LOG                 => 1,
           MAC_LOG_SEARCH_BY_PORT_NAME => 'no_pon_type'
-        }
+        },
+        'ONU_LAST_DOWN_CAUSE' => {
+          NAME   => 'ONU_LAST_DOWN_CAUSE',
+          OIDS   => '1.3.6.1.4.1.3902.1012.3.28.2.1.7',
+          PARSER => '_zte_last_down_cause'
+        },
+        'ETH_ADMIN_STATE'         => {
+          NAME   => 'ETH_ADMIN_STATE',
+          OIDS   => '1.3.6.1.4.1.3902.1012.3.50.14.1.1.5',
+          PARSER => '_zte_convert_admin_state',
+          WALK   => '1'
+        },
+        'ONU_PORTS_STATUS'        => {
+          NAME   => 'ONU_PORTS_STATUS',
+          OIDS   => '1.3.6.1.4.1.3902.1012.3.50.14.1.1.6',
+          PARSER => '_zte_convert_state',
+          WALK   => '1'
+        },
+        'ETH_SPEED'               => {
+          NAME   => 'ETH_SPEED',
+          OIDS   => '1.3.6.1.4.1.3902.1012.3.50.14.1.1.7',
+          PARSER => '_zte_convert_speed',
+          WALK   => '1'
+        },
       },
     },
     #  1015 -  EPON unreg 220 epon
@@ -814,6 +839,7 @@ sub _zte {
   if ($attr->{MODEL} && $attr->{MODEL} !~ /C320/i) {
     delete $snmp{gpon}->{OLT_RX_POWER};
   }
+
   if ($attr->{MODEL} && $attr->{MODEL} =~ /^C6/i) {
     $snmp{unregister_gpon} = {
       UNREGISTER       => {
@@ -850,6 +876,7 @@ sub _zte {
         WALK => '1'
       }
     };
+
     $snmp{gpon} = {
       'ONU_MAC_SERIAL' => {
         NAME   => 'Mac/Serial',
@@ -958,12 +985,6 @@ sub _zte {
           PARSER => '_zte_convert_duplex',
           WALK   => '1'
         },
-        'ETH_SPEED'               => {
-          NAME   => 'ETH_SPEED',
-          OIDS   => '1.3.6.1.4.1.3902.1082.500.20.2.3.2.1.7',
-          PARSER => '_zte_convert_speed',
-          WALK   => '1'
-        },
         'ETH_ADMIN_STATE'         => {
           NAME   => 'ETH_ADMIN_STATE',
           OIDS   => '1.3.6.1.4.1.3902.1082.500.20.2.3.2.1.5',
@@ -974,6 +995,12 @@ sub _zte {
           NAME   => 'ONU_PORTS_STATUS',
           OIDS   => '1.3.6.1.4.1.3902.1082.500.20.2.3.2.1.6',
           PARSER => '_zte_convert_state',
+          WALK   => '1'
+        },
+        'ETH_SPEED'               => {
+          NAME   => 'ETH_SPEED',
+          OIDS   => '1.3.6.1.4.1.3902.1082.500.20.2.3.2.1.7',
+          PARSER => '_zte_convert_speed',
           WALK   => '1'
         },
         'CATV_PORTS_STATUS' => {
@@ -1006,6 +1033,7 @@ sub _zte {
 #reboot - 1.3.6.1.4.1.3902.1082.500.20.2.1.10.1.1
 #LLID - 1.3.6.1.4.1.3902.1082.500.10.2.2.3.1.14
   }
+
   if ($attr->{MODEL} && $attr->{MODEL} =~ /_V2$|C300/i) {
     $snmp{gpon}->{reset} = {
       NAME        => '',
@@ -1246,7 +1274,7 @@ sub _zte_set_desc {
 sub _zte_decode_onu {
   my ($dec, $attr) = @_;
 
-  $dec =~ s/\.\d+//;
+  $dec =~ s/\.\d+// if ($dec);
 
   my %result = ();
   my $bin = sprintf("%032b", $dec);
@@ -1896,7 +1924,15 @@ sub _zte_get_fdb {
   my %hash = ();
 
   my $_oid = '.1.3.6.1.4.1.3902.1015.6.1.3.1.5.1';
-  $_oid = '.1.3.6.1.4.1.3902.1082.40.10.2.1.5.1.1' if ($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C6/i);
+  if ($attr->{NAS_INFO}) {
+    if ($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C6/i) {
+      $_oid = '.1.3.6.1.4.1.3902.1082.40.10.2.1.5.1.1';
+    }
+    elsif($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C320/i) {
+      $_oid = '.1.3.6.1.4.1.3902.1082.40.10.2.1.2.1.50.1';
+    }
+  }
+
   my $onu_status_list = snmp_get({
     %$attr,
     WALK => 1,
@@ -1908,10 +1944,15 @@ sub _zte_get_fdb {
   foreach my $line (@$onu_status_list) {
     next if (!$line);
 
-    my ($port, $port_onu, $vlan, $mac, $id) = ('', '', '', '', '');
+    my ($port, $port_onu, $vlan, $mac, $id, $onu_ether) = ('', '', '', '', '', '');
     if ($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C6/i) {
       $line =~ /(\d+)\.(\d+)\.(\d+)\.1\.(\d+\.\d+\.\d+\.\d+\.\d+\.\d+):/;
       ($vlan, $port, $port_onu, $mac) = ($1, $2, $3, $4);
+      $mac = _mac_former($mac);
+    }
+    elsif ($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C320/i) {
+      $line =~ /(\d+\.\d+)\.(\d+)\.(\d+\.\d+\.\d+\.\d+\.\d+\.\d+):/;
+      ($onu_ether, $vlan, $mac) = ($1, $2, $3);
       $mac = _mac_former($mac);
     }
     else {
@@ -1920,22 +1961,34 @@ sub _zte_get_fdb {
       $mac = _mac_former($mac);
     }
     
-    my $port_name = '';
-    my $onu_info = _zte_decode_onu($port, {HASH_RESULT => 1, MODEL_NAME => $attr->{NAS_INFO}->{MODEL_NAME}});
-    my $onu_info_ = _zte_decode_onu($port_onu, {HASH_RESULT => 1, MODEL_NAME => $attr->{NAS_INFO}->{MODEL_NAME}}) if ($port_onu);
+    my $port_name = $port || $onu_ether || q{-};
+    my $onu_info;
+    my $onu_info_;
 
-    if ($onu_info_->{shelf}) {
-      $port_name = "$onu_info->{shelf}/$onu_info->{slot}/$onu_info->{olt}:$onu_info_->{shelf}";
+    if ($onu_ether) {
+      $port = $onu_ether;
+      $onu_info = _index2port($onu_ether);
+    }
+    elsif ($port_onu) {
+      $onu_info_ = _zte_decode_onu($port_onu, {HASH_RESULT => 1, MODEL_NAME => $attr->{NAS_INFO}->{MODEL_NAME}})
+    }
+    else {
+      $onu_info = _zte_decode_onu($port, { HASH_RESULT => 1, MODEL_NAME => $attr->{NAS_INFO}->{MODEL_NAME} });
+    }
+
+    if ($onu_info_ && $onu_info_->{shelf}) {
+      $port_name = "$onu_info_->{shelf}/$onu_info_->{slot}/$onu_info_->{olt}:$onu_info_->{shelf}";
     }
     elsif($onu_info) {
-      $port_name = ($onu_info->{shelf} || 0) .'/' . ($onu_info->{slot} || 0) .'/' .($onu_info->{olt} || 0);
+      if ($onu_info->{type} == 4 || $onu_info->{type} == 10 || $onu_info->{type} == 1) {
+        $port_name = "$onu_info->{shelf}/$onu_info->{slot}/$onu_info->{olt}:$onu_info->{onu}";
+      }
+      else {
+        $port_name = "--$onu_info->{type}--" . ($onu_info->{shelf} || 0) . '/' . ($onu_info->{slot} || 0) . '/' . ($onu_info->{olt} || 0);
+      }
     }
 
-    if ($onu_info->{type} == 4 || $onu_info->{type} == 10) {
-      $port_name = "$onu_info->{shelf}/$onu_info->{slot}/$onu_info->{olt}:$onu_info->{onu}";
-    }
-
-    print "$port -> $onu_info->{result_string}, $vlan, $mac, $id\n" if ($debug > 1);
+    print "$port -> $onu_info->{result_string}, $vlan, $mac, $id<br>\n" if ($debug > 1);
 
     $hash{$mac}{1} = $mac;
     #$hash{$key}{2} = port_type;
@@ -2281,7 +2334,7 @@ sub _zte_convert_cpu_usage {
 }
 
 #**********************************************************
-=head2 _zte_convert_info_temperature($data)();
+=head2 _zte_convert_info_temperature($data);
 
 =cut
 #**********************************************************
@@ -2298,6 +2351,77 @@ sub _zte_convert_info_temperature {
     $value = '<span style="background-color:' . $color . '" class="badge">' . $value . ' °C</span>';
   }
   return($slot, $value);
+}
+
+#**********************************************************
+=head2 _zte_last_down_cause($data);
+
+=cut
+#**********************************************************
+sub _zte_last_down_cause {
+  my ($down_cause)=@_;
+
+  my %down_couses = (
+    1 => 'Unknown',
+    2 => 'LOS',
+    3 => 'LOSi',
+    7 => 'LOAMi',
+    9 => 'DyingGasp'
+  );
+
+  if ($down_couses{$down_cause}) {
+    $down_cause = $down_couses{$down_cause};
+  }
+
+  return $down_cause;
+}
+
+#**********************************************************
+=head2 _index2port($index);
+
+  Arguments:
+    $index
+
+  Results:
+    \%onu_info { shelf, slot, olt, onu }
+
+=cut
+#**********************************************************
+sub _index2port {
+  my ($index) = shift;
+  my $onu_number;
+
+  my ($olt_port_index, $onu_index) = split /\./, $index;
+  my $bin_olt_port_index = unpack("B32", pack("N", $olt_port_index));
+  my $bin_onu_index = unpack("B32", pack("N", $onu_index));
+
+  my $index_type = substr($bin_olt_port_index, 0, 4);
+  my $rack = substr($bin_olt_port_index, 4, 4);
+  my $shelf = substr($bin_olt_port_index, 8, 8);
+  my $slot = substr($bin_olt_port_index, 16, 8);
+  my $olt = substr($bin_olt_port_index, 24, 8);
+
+  $shelf = oct("0b$shelf");
+  $slot = oct("0b$slot");
+  $olt = oct("0b$olt");
+
+  if ($bin_onu_index eq '0') {
+    $onu_number = undef;
+  }
+  else {
+    my $index_type = substr($bin_onu_index, 0, 5);
+    $onu_number = oct("0b" . substr($bin_onu_index, 5, 11));
+    my $bridgeportID = oct("0b" . substr($bin_onu_index, 16, 8));
+  }
+
+  my %onu_info = ();
+  $onu_info{shelf}=$shelf;
+  $onu_info{slot}=$slot;
+  $onu_info{olt}=$olt;
+  $onu_info{onu}=$onu_number;
+  $onu_info{type}=$index_type;
+
+  return \%onu_info;
 }
 
 1

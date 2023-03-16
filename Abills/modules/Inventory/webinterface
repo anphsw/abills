@@ -29,7 +29,6 @@ our Abills::HTML $html;
 sub inventory_main {
   my ($attr) = @_;
 
-  #$list = $Inventory->inventory_main_info({});
   if ($FORM{message}) {
     $html->message('info', $lang{INFO}, "$FORM{message}");
   }
@@ -48,11 +47,15 @@ sub inventory_main {
   }
 
   if ($FORM{add_main}) {
-    if ($FORM{HOSTNAME} ne '') {
+    if ($FORM{HOSTNAME}) {
       $Inventory->inventory_main_add({ %FORM });
       if (!$Inventory->{errno}) {
         $html->message('info', $lang{ADD}, "$lang{ADDED}");
       }
+    }
+    else {
+      $html->message('err', $lang{ERROR}, $lang{FIELDS_FOR_HOSTNAME_ARE_REQUIRED});
+      $FORM{add_form} = 1;
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
@@ -228,7 +231,7 @@ sub inventory_type_add {
       }
     }
     else {
-      $html->message('info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}");
+      $html->message('err', $lang{ERROR}, $lang{FIELDS_FOR_NAME_ARE_REQUIRED});
       $html->tpl_show(_include('inventory_types_form', 'Inventory'), { %{$Inventory}, %FORM }, { ID => 'inventory_types_form' });
     }
   }
@@ -264,15 +267,13 @@ sub inventory_type_add {
     }
   }
 
-  $html->tpl_show(
-    _include('inventory_manage_inputs_main', 'Inventory'),
+  $html->tpl_show(_include('inventory_manage_inputs_main', 'Inventory'),
     {
       %{$Inventory},
       ALIGN    => 'right',
       HARDWARE => $hardware,
       SOFTWARE => $software
-    }
-  );
+    });
 
   if ($FORM{del_input}) {
     my $list2 = $Inventory->inventory_units_list({ TYPE => $FORM{del_input} });
@@ -438,8 +439,6 @@ sub inventory_bugs {
   if (!$FORM{sort}) {
     $LIST_PARAMS{SORT} = '1';
     $LIST_PARAMS{DESC} = 'DESC';
-    #$LIST_PARAMS{STATUS} = 0;
-    #$LIST_PARAMS{FIX_VERSION} = '';
   }
 
   if (defined($FORM{STATE})) {
@@ -455,9 +454,6 @@ sub inventory_bugs {
     if (defined($FORM{STATE}) && $FORM{STATE} =~ /^\d+$/ && $FORM{STATE} == $id) {
       $LIST_PARAMS{STATE} = $FORM{STATE};
       $pages_qs .= "&STATE=$FORM{STATE}";
-      #if (defined($FORM{STATE}) && $FORM{STATE} == 0) {
-      #  $LIST_PARAMS{FIX_VERSION} = '';
-      #}
     }
     my $name = $status{$id};
     push @header_arr, "$name:index=$index&STATE=$id$pages_qs";

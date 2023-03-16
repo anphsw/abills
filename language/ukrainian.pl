@@ -394,6 +394,8 @@ $lang{IN_WORK} = 'В обробці';
 $lang{MAIL_BOX} = 'Поштова скринька';
 $lang{ACCT_TERMINATE_CAUSE} = 'Причина розриву з&#39;єднання';
 $lang{HOURS} = 'Години';
+$lang{SHORT_HOURS} = 'год';
+$lang{SHORT_MINUTES} = 'хв';
 $lang{ERR_UNKNOWN_IP} = 'Не зареєстрована IP адреса. Зверніться до адміністратора.';
 $lang{MULTIUSER_OP} = 'Мультиюзер операції';
 $lang{PAYMENT_METHOD} = 'Тип оплати';
@@ -565,6 +567,7 @@ $lang{FIELDS} = 'Поля';
 $lang{NO_RECORD} = 'Записи відсутні';
 $lang{CLOSED_UNSUCCESSFUL} = 'Не виконано та закрито';
 $lang{TAX_NUMBER} = 'Ідентифікатор (МФО)';
+$lang{EDRPOU} = 'ЄДРПОУ';
 $lang{NOT_ACTIVE} = 'Не активовано';
 $lang{MIN_SESSION_COST} = 'Мінімальна ціна сесії';
 $lang{BACK_MONEY} = 'Повернути кошти на рахунок ';
@@ -1037,5 +1040,9 @@ $lang{ENTER_PIN} = 'Введіть PIN-код для підтвердження,
 $lang{SIGN_IN_WITH} = 'Увійти з';
 $lang{SIGN_UP_WITH} = 'Продовжити з';
 $lang{AUTH_HISTORY} = 'Історія останніх авторизацій';
+$lang{REPORT_REASON_USERS_DISABLED} = 'Причини відключення користувачів';
+$lang{SCHEDULE_BOARD} = 'Дошка завдань';
+$lang{LINK} = 'Посилання';
+$lang{TO_PLUG} = 'Підключитись';
 
 1;

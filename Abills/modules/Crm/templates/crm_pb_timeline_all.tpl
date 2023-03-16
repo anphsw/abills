@@ -28,7 +28,7 @@
     pinedActivity.find('.unpin-button').first().removeAttr('data-tooltip');
 
     pinedActivity.find('.unpin-button').first().on('click', function() {
-      sendRequest(`/api.cgi/crm/lead/${jQuery('#LEAD_ID').val()}/comment/${comment_id}`, {pin: 0}, 'PUT')
+      sendRequest(`/api.cgi/crm/progressbar/messages/${comment_id}`, {pin: 0}, 'PUT')
       pinedActivity.remove();
       pinButton.show();
     })
@@ -41,7 +41,7 @@
     let parent = jQuery(this).parent().parent().parent();
     var comment_id = jQuery(this).parent().parent().data('id');
 
-    sendRequest(`/api.cgi/crm/lead/${jQuery('#LEAD_ID').val()}/comment/`+comment_id, {pin: 1}, 'PUT')
+    sendRequest(`/api.cgi/crm/progressbar/messages/${comment_id}`, {pin: 1}, 'PUT')
       .then((data) => {
       console.log(data);
     });
@@ -52,7 +52,7 @@
     addStyle(pinedActivity);
 
     pinedActivity.find('.unpin-button').first().on('click', function() {
-      sendRequest(`/api.cgi/crm/lead/${jQuery('#LEAD_ID').val()}/comment/`+comment_id, {pin: 0}, 'PUT')
+      sendRequest(`/api.cgi/crm/progressbar/messages/${comment_id}`, {pin: 0}, 'PUT')
       pinedActivity.remove();
       pinButton.show();
     })

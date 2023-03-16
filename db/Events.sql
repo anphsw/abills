@@ -104,6 +104,6 @@ REPLACE INTO `events_privacy` VALUES
   (4, '_{ADMIN}_ _{GEOZONE}_', 3);
 
 
-REPLACE INTO `events_group` (`id`, `name`, `modules`) VALUES (1, 'BASE', 'Events,Msgs,SYSTEM');
+REPLACE INTO `events_group` (`id`, `name`, `modules`) VALUES (1, 'BASE', 'Events,Msgs,Paysys,SYSTEM');
 REPLACE INTO `events_group` (`id`, `name`, `modules`) VALUES (2, 'CLIENTS', 'Events,Msgs,SYSTEM');
 REPLACE INTO `events_group` (`id`, `name`, `modules`) VALUES (3, 'EQUIPMENT', 'Equipment, Cablecat');

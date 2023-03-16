@@ -114,7 +114,7 @@ sub info {
           }
 
           if ($#search_params > -1) {
-            my $sql = "SELECT count(*) FROM $table WHERE ". join(' or ', @search_params);
+            my $sql = "SELECT COUNT(*) FROM $table WHERE ". join(' or ', @search_params);
 
             if($self->{debug}) {
               print $sql.'<br>';
@@ -383,14 +383,15 @@ sub history_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("INSERT INTO sqlcmd_history (datetime, aid, sql_query, db_id, comments)
-                VALUES (NOW(), ?, ?, ?, ?);",
+  $self->query("INSERT INTO sqlcmd_history (datetime, aid, sql_query, db_id, comments, status)
+                VALUES (NOW(), ?, ?, ?, ?, ?);",
   'do',
   { Bind => [
       $admin->{AID},
       $attr->{QUERY},
       $attr->{DB_ID} || 0,
-      $attr->{COMMENTS}
+      $attr->{COMMENTS},
+      $attr->{STATUS} || 0
     ]
   }
   );
@@ -422,19 +423,30 @@ sub history_list {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->query("SELECT datetime, comments, id FROM sqlcmd_history WHERE aid= ?
+  my $WHERE = $self->search_former( $attr, [
+    [ 'AID',     'INT',  'sh.aid'    ],
+    [ 'STATUS',  'INT',  'sh.status' ],
+  ],
+    {
+      WHERE => 1
+    }
+  );
+
+  $self->query("SELECT datetime, comments, id, sql_query, status
+    FROM sqlcmd_history sh
+    $WHERE
     ORDER BY 1 DESC
     LIMIT $PG, $PAGE_ROWS;",
   undef, 
-  { COLS_NAME => 1,
-    Bind      => [ $admin->{AID}  ]
+  {
+    COLS_NAME => 1,
   }
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0) {
-    $self->query("SELECT count(*) AS total
+    $self->query("SELECT COUNT(*) AS total
     FROM sqlcmd_history
     WHERE aid= ?;",
     undef,

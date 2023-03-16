@@ -1,6 +1,5 @@
 <div class='row'>
   %LEAD_PROFILE_PANEL%
-
   <div class='col-md-9'>
     %PROGRESSBAR%
   </div>
@@ -14,7 +13,7 @@
         <button type='button' class='close' data-dismiss='modal' aria-hidden='true'>&times;</button>
       </div>
       <form id='lead_tags' method='post' action=''>
-        <input type='hidden' name='index' value=$index>
+        <input type='hidden' name='index' value=%index%>
         <input type='hidden' name='LEAD_ID' value='%LEAD%'>
         <div class='modal-body'>
           %MODAL_TAGS%

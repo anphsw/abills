@@ -3,7 +3,7 @@
 <head>
   <meta charset='utf-8'>
   <title>Выписка по счету</title>
-  <link href='/styles/default/css/bootstrap.min.css' rel='stylesheet'>
+  <link href='/styles/default/css/adminlte.min.css' rel='stylesheet'>
 </head>
 <script language='JavaScript'>
   function autoReload() {

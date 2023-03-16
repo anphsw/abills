@@ -16,7 +16,7 @@ $lang{ERR_SMALL_SUM} = 'El importe del pago no podrá ser inferior a ';
 $lang{CANCEL_PAYMENTS} = 'Cancelar Pago';
 $lang{BALANCE_RECHARCHE_SUM} = 'El importe del depósito';
 $lang{CONFIRM_PAYMENT} = 'Confirmar Pago';
-$lang{CHOOSE_SYSTEM} = 'Selección de la sistema del pago';
+$lang{CHOOSE_SYSTEM} = 'Elija un método de pago';
 
 $lang{UNKNOWN} = 'Desconocido';
 $lang{COMPLETE} = 'Completado';

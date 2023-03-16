@@ -30,11 +30,13 @@ my $Auxiliary = Maps::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG 
 #**********************************************************
 sub maps_objects_reports {
 
-  #my $layers = ();
+  return if _maps_full_report_info();
+
   my $objects = ();
 
-  foreach (@main::MODULES) {
-    my $module = $Auxiliary->maps_load_module($_);
+  foreach my $module_name (@main::MODULES) {
+    my $module = $Auxiliary->maps_load_module($module_name);
+
     next if !$module;
     next if !$module->can('new') || !$module->can('maps_layers');
 
@@ -54,6 +56,8 @@ sub maps_objects_reports {
 
       $objects->{$_->{lang_name} ? _translate($_->{lang_name}) : _translate($_->{name})} = {
         COUNT    => $result,
+        LAYER_ID => $_->{id},
+        MODULE   => $module_name,
         LAYER_ID => $_->{id}
       };
     }
@@ -69,10 +73,35 @@ sub maps_objects_reports {
 
   foreach my $key (sort keys %{$objects}) {
     my $maps_btn = $Auxiliary->maps_show_object_button($objects->{$key}{LAYER_ID});
-    $objects_info->addrow($key, $objects->{$key}{COUNT}, $maps_btn);
+    my $full_info_btn = $html->button($key, "index=$index&MODULE=$objects->{$key}{MODULE}&LAYER_ID=$objects->{$key}{LAYER_ID}");
+    $objects_info->addrow($full_info_btn, $objects->{$key}{COUNT}, $maps_btn);
   }
 
   print $objects_info->show();
+}
+
+#**********************************************************
+=head2 _maps_full_report_info()
+
+=cut
+#**********************************************************
+sub _maps_full_report_info {
+
+  return 0 if !$FORM{MODULE} || !$FORM{LAYER_ID};
+
+  my $module = $Auxiliary->maps_load_module($FORM{MODULE});
+  return 0 if !$module;
+
+  my $module_object = $module->new($db, $admin, \%conf, { LANG => \%lang, HTML => $html });
+
+  my $function_ref = $module_object->can('maps_report_info');
+  return 0 if !$function_ref;
+
+  my $result = $module_object->maps_report_info($FORM{LAYER_ID});
+  return 0 if !$result;
+
+  print $result;
+  return 1;
 }
 
 1;

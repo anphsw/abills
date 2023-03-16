@@ -1,5 +1,5 @@
-<form action='$SELF_URL' class='form-horizontal' METHOD='post' enctype='multipart/form-data' name=add_district>
-  <input type='hidden' name='index' value='$index'/>
+<form action='%SELF_URL%' METHOD='post' enctype='multipart/form-data' name=add_district>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='ID' value='%ID%'/>
 
   <div class='card card-primary card-outline card-form'>
@@ -38,13 +38,6 @@
         <label class='col-md-4 col-form-label text-md-right' for='FILE_UPLOAD'>_{MAP}_ (*.jpg, *.gif, *.png):</label>
         <div class='col-md-8'>
           <input id='FILE_UPLOAD' name='FILE_UPLOAD' type='file' value='%FILE_UPLOAD%' placeholder='%FILE_UPLOAD%'>
-        </div>
-      </div>
-
-      <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right' for='IMPORT'>_{IMPORT}_:</label>
-        <div class='col-md-8'>
-          <input id='IMPORT' name='IMPORT' type='file' value='%IMPORT%' placeholder='%IMPORT%'>
         </div>
       </div>
 

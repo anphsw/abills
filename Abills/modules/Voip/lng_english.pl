@@ -65,3 +65,4 @@ $lang{CALLED_STATION_ID} = 'Called station';
 $lang{CALLING_STATION_ID} = 'Calling station';
 $lang{EXTRA_NUMBERS} = 'Extra numbers';
 $lang{ROUTE} = 'Route';
+$lang{NOT_AVAILABLE_NUMBER_FROM_POOL} = 'A number haven\'t been added. There is no free number in the pool $conf{VOIP_NUM_POOL}';

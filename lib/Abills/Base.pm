@@ -66,6 +66,9 @@ our @EXPORT = qw(
   camelize
   decamelize
   vars2lang
+  is_html
+  check_ip
+  is_number
 );
 
 our @EXPORT_OK = qw(
@@ -111,6 +114,9 @@ our @EXPORT_OK = qw(
   camelize
   decamelize
   vars2lang
+  is_html
+  check_ip
+  is_number
 );
 
 # As said in perldoc, should be called once on a program
@@ -423,6 +429,8 @@ sub txt2translit {
     'Я' => 'Ja',
     'і' => 'i',
     'І' => 'I',
+    'Ї' => 'Ji',
+    'ї' => 'ji',
   );
 
   for my $c (keys %mchars) {
@@ -614,6 +622,7 @@ sub parse_arguments {
 #***********************************************************
 sub sendmail {
   my ($from, $to_addresses, $subject, $message, $charset, $priority, $attr) = @_;
+
   if ($to_addresses eq '') {
     return 2;
   }
@@ -626,7 +635,11 @@ sub sendmail {
       return 3;
     }
     else {
-      print "Mail delivery agent doesn't exists ";
+      if ($ENV{SERVER_NAME}) {
+        print "Content-Type: text/html\n\n";
+      }
+
+      print "Mail delivery agent doesn't exists '$SENDMAIL'\n";
     }
     return 0;
   }
@@ -2403,7 +2416,7 @@ sub json_former {
   }
   elsif (ref $request eq 'HASH') {
     foreach my $key (sort keys %{$request}) {
-      next if ($attr->{UNIQUE_KEYS} && !_is_number($key, 1) && $request->{lc $key} && $request->{uc $key} && $key eq uc $key);
+      next if ($attr->{UNIQUE_KEYS} && !is_number($key) && $request->{lc $key} && $request->{uc $key} && $key eq uc $key);
 
       my $val = json_former($request->{$key}, $attr);
 
@@ -2435,23 +2448,13 @@ sub json_former {
       $request =~ s/[\\]$/\\\\/g;
     }
 
-    if ($request =~ '<str_>') {
+    if ($request =~ '<str_>' || (!$request && $request !~ '[0]')) {
       $request =~ s/<str_>//;
       $attr->{ESCAPE_DQ} ?
         return qq{\\"$request\\"} :
         return qq{\"$request\"};
     }
-    elsif ($request =~ '^([0])' && $request =~'^\w{2,}$') {
-      $attr->{ESCAPE_DQ} ?
-        return qq{\\"$request\\"} :
-        return qq{\"$request\"};
-    }
-    elsif (!$request && !($request =~ '[0]')) {
-      $attr->{ESCAPE_DQ} ?
-        return qq{\\"$request\\"} :
-        return qq{\"$request\"};
-    }
-    elsif ($request =~ '^-?\d*\.?\d+$') {
+    elsif (is_number($request)) {
       return qq{$request};
     }
     elsif ($attr->{BOOL_VALUES} && $request =~ /^(true|false|null)$/) {
@@ -2466,7 +2469,7 @@ sub json_former {
 }
 
 #**********************************************************
-=head2 _is_number($value) - check is argument is number
+=head2 is_number($value) - check is argument is number
 
   Arguments
     $value: string | number - check value
@@ -2476,21 +2479,19 @@ sub json_former {
 
 =cut
 #**********************************************************
-sub _is_number {
-  my ($value, $regex) = @_;
+sub is_number {
+  my ($value, $type) = @_;
 
-  if ($regex) {
-    my $res = $value =~ /^[0-9]$/;
-    return $res;
-  }
-  else {
-    no warnings 'numeric';
-
+  if ($type) {
     return if utf8::is_utf8($value);
     return unless length((my $dummy = "") & $value);
     return unless 0 + $value eq $value;
     return 1 if $value * 0 == 0;
     return -1; # inf/nan
+  }
+  else {
+    my $res = $value =~ /^-?(0|[1-9]\d*)(\.\d+)?$/;
+    return $res;
   }
 }
 
@@ -2561,6 +2562,7 @@ sub xml_former {
 sub xml_former_body {
   my ($response, $params) = @_;
   my @result = ();
+
   if (ref $response eq 'HASH') {
     foreach my $key (sort keys %{$response}) {
       if (ref $response->{$key} eq 'HASH') {
@@ -2569,7 +2571,14 @@ sub xml_former_body {
           xml_former_body($response->{$key}, { indent => "$params->{indent}  ", nl => $params->{nl} }),
           $params->{indent}, '</', $key =~ /^\S+/g, '>', $params->{nl};
       }
+      if (ref $response->{$key} eq 'ARRAY') {
+        push @result,
+          $params->{indent}, '<', $key, '>', $params->{nl},
+          xml_former_body($response->{$key}, { indent => "$params->{indent}  ", nl => $params->{nl} }),
+          $params->{indent}, '</', $key =~ /^\S+/g, '>', $params->{nl};
+      }
       else {
+        next if (ref $response->{$key} ne '');
         push @result,
           $params->{indent}, '<', $key, '>',
           $response->{$key},
@@ -2720,6 +2729,71 @@ sub vars2lang {
   }
 
   return $result;
+}
+
+#**********************************************************
+=head2 is_html($string)
+
+  Arguments:
+     $string - string with html or not
+
+   Return:
+     $result: boolean - is html or not
+=cut
+#**********************************************************
+sub is_html {
+  my ($string) = @_;
+
+  if ($string =~ /<\/?[a-z][\s\S]*>/gm) {
+    return 1;
+  }
+  return 0;
+}
+
+#**********************************************************
+=head2 check_ip($require_ip, $ips) - Check ip
+
+  Arguments:
+    $require_ip - Required IP
+    $ips        - IP list commas separated
+
+  Results:
+    TRUE or FALSE
+
+  Examples:
+    10.10.1.2,10.20.0.0/20
+
+=cut
+#**********************************************************
+sub check_ip {
+  my ($require_ip, $ips) = @_;
+
+  if(! $require_ip) {
+    return 0;
+  }
+
+  my @ip_arr         = split(/,\s?/, $ips);
+  my $require_ip_num = ip2int($require_ip);
+
+  foreach my $ip (@ip_arr) {
+    if ($ip =~ /^(!?)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/?(\d{0,2})/) {
+      my $neg = $1 || 0;
+      $ip = ip2int($2);
+      my $bit_mask = $3;
+      if ($bit_mask eq '') {
+        $bit_mask=32;
+      }
+      my $mask = unpack("N", pack( "B*", ("1" x $bit_mask . "0" x (32 - $bit_mask)) ));
+      if($neg && ($require_ip_num & $mask) == ($ip & $mask)) {
+        return 0;
+      }
+      elsif (($require_ip_num & $mask) == ($ip & $mask)) {
+        return 1;
+      }
+    }
+  }
+
+  return 0;
 }
 
 =head1 AUTHOR

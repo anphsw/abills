@@ -25,6 +25,7 @@ our (
   $db
 );
 my $Paysys;
+my $Auxiliary;
 
 #**********************************************************
 =head2 new()
@@ -52,6 +53,10 @@ sub new {
   require Paysys;
   Paysys->import();
   $Paysys = Paysys->new($db, $admin, $CONF);
+
+  require Maps::Auxiliary;
+  Maps::Auxiliary->import();
+  $Auxiliary = Maps::Auxiliary->new($db, $admin, $CONF, { HTML => $html, LANG => $lang });
 
   return $self;
 }
@@ -147,8 +152,10 @@ sub paysys_terminals_show {
         COORDY        => $terminal->{coordx} || $terminal->{coordy_center},
         FULL_TYPE_URL => 1,
         TYPE          => "/images/terminals/terminal_$terminal->{type_id}.png",
-        INFOWINDOW    => $line_info,
+        # INFOWINDOW    => $line_info,
         NAME          => ($terminal->{name} || q{}) .' : '. ($terminal->{address_full} || q{}),
+        TERMINAL_NAME => $terminal->{name},
+        ADDRESS       => $terminal->{address_full},
         DISABLE_EDIT  => 1
       },
       LAYER_ID  => 35,
@@ -168,6 +175,36 @@ sub paysys_terminals_show {
   }
 
   return $export_string;
+}
+
+#**********************************************************
+=head2 maps_report_info()
+
+=cut
+#**********************************************************
+sub maps_report_info {
+  my $self = shift;
+  my $layer_id = shift;
+
+  return '' if !$layer_id;
+
+  my $terminals = $self->paysys_terminals_show({ RETURN_OBJECTS => 1 });
+
+  my $report_table = $html->table({
+    width       => '100%',
+    caption     => $lang->{TERMINALS},
+    title_plain => [ '#', $lang->{NAME}, $lang->{CREATED}, $lang->{LOCATION} ],
+    DATA_TABLE  => 1
+  });
+
+  foreach my $terminals (@{$terminals}) {
+    my $terminal_info = $terminals->{MARKER};
+    my $location_btn = $Auxiliary->maps_show_object_button(35, $terminal_info->{OBJECT_ID});
+
+    $report_table->addrow($terminal_info->{ID}, $terminal_info->{TERMINAL_NAME}, $terminal_info->{ADDRESS}, $location_btn);
+  }
+
+  return $report_table->show();
 }
 
 1;

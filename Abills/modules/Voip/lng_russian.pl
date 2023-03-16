@@ -65,3 +65,4 @@ $lang{CALLED_STATION_ID}  = 'Получатель вызова';
 $lang{CALLING_STATION_ID} = 'Адресат вызова';
 $lang{EXTRA_NUMBERS}      = 'Дополнительные номера';
 $lang{ROUTE}              = 'Маршрут';
+$lang{NOT_AVAILABLE_NUMBER_FROM_POOL} = 'Номер не добавлено. Нет свободного номера в пуле $conf{VOIP_NUM_POOL}';

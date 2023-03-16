@@ -89,6 +89,13 @@
         </div>
 
         <div class='form-group row'>
+          <label for='EDRPOU' class='control-label col-md-3'>_{EDRPOU}_:</label>
+          <div class='input-group col-md-9'>
+            <input class='form-control' id='EDRPOU' placeholder='%EDRPOU%' name='EDRPOU' value='%EDRPOU%'>
+          </div>
+        </div>
+
+        <div class='form-group row'>
           <label for='VAT' class='control-label col-md-3'>_{VAT}_ (%):</label>
           <div class='input-group col-md-9'>
             <input class='form-control' id='VAT' placeholder='%VAT%' name='VAT' value='%VAT%'>

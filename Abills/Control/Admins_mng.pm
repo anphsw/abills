@@ -139,7 +139,7 @@ sub form_admins {
         $conf{DEFAULT_PASSWORD_CHANGED} = 1;
       }
 
-      $FORM{G2FA} = '' if(!$FORM{G2FA});
+      $FORM{G2FA} = '' if ($FORM{g2fa_remove});
 
       $admin_form->change({ %FORM });
       if (!$admin_form->{errno}) {
@@ -246,7 +246,7 @@ sub form_admins {
   $admin_form->{HEADER_NAME} = $lang{ADMINS};
 
   $admin_form->{G2FA_CHECKED} = $admin_form->{G2FA} ? "checked" : '';
-  $admin_form->{G2FA} = ($admin_form->{G2FA}||$FORM{G2FA})|| Abills::Base::mk_unique_value(5);
+  $admin_form->{G2FA} = $admin_form->{G2FA} || $FORM{G2FA} || uc(Abills::Base::mk_unique_value(32));
 
   if($FORM{show_add_form} || $FORM{AID}){
     $html->tpl_show(templates('form_admin'), $admin_form);
@@ -264,6 +264,7 @@ sub form_admins {
     %LIST_PARAMS = %FORM;
     $LIST_PARAMS{API_KEY} = $FORM{API_KEY_NEW};
     $LIST_PARAMS{ADMIN_NAME} = $FORM{A_FIO};
+    $LIST_PARAMS{LOGIN} = $FORM{ID};
   }
 
   my $list = $admin_form->admins_groups_list({ ALL => 1, COLS_NAME => 1 , SORT=>$FORM{sort}});
@@ -299,26 +300,26 @@ sub form_admins {
     FUNCTION_FIELDS => 'permission,log,passwd,info,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
-      login           => $lang{LOGIN},
-      name            => $lang{FIO},
-      position        => $lang{POSITION},
-      regdate         => $lang{REGISTRATION},
-      disable         => $lang{STATUS},
-      aid             => '#',
-      g_name          => $lang{GROUPS},
-      domain_name     => 'Domain',
-      start_work      => $lang{BEGIN},
-      gps_imei        => 'GPS IMEI',
-      birthday        => $lang{BIRTHDAY},
-      api_key         => 'API_KEY',
-      telegram_id     => 'Telegram ID',
-      rfid_number     => "RFID $lang{NUMBER}",
-      department_name => "$lang{DEPARTMENT}",
-      pasport_num     => "$lang{PASPORT} $lang{NUM}",
-      pasport_date    => "$lang{PASPORT} $lang{DATE}",
-      pasport_grant   => "$lang{PASPORT} $lang{GRANT}",
-      inn             => $lang{INN},
-      max_rows        => $lang{MAX_ROWS},
+      login            => $lang{LOGIN},
+      name             => $lang{FIO},
+      position         => $lang{POSITION},
+      regdate          => $lang{REGISTRATION},
+      disable          => $lang{STATUS},
+      aid              => '#',
+      g_name           => $lang{GROUPS},
+      domain_name      => 'Domain',
+      start_work       => $lang{BEGIN},
+      gps_imei         => 'GPS IMEI',
+      birthday         => $lang{BIRTHDAY},
+      api_key          => 'API_KEY',
+      telegram_id      => 'Telegram ID',
+      rfid_number      => "RFID $lang{NUMBER}",
+      department_name  => "$lang{DEPARTMENT}",
+      pasport_num      => "$lang{PASPORT} $lang{NUM}",
+      pasport_date     => "$lang{PASPORT} $lang{DATE}",
+      pasport_grant    => "$lang{PASPORT} $lang{GRANT}",
+      inn              => $lang{INN},
+      max_rows         => $lang{MAX_ROWS},
       min_search_chars => $lang{MIN_SEARCH_CHARS},
       max_credit       => "$lang{MAX} $lang{CREDIT}",
       credit_days      => "$lang{MAX} $lang{CREDIT} $lang{DAYS}",
@@ -330,7 +331,7 @@ sub form_admins {
       address          => $lang{ADDRESS},
       avatar_link      => $lang{AVATAR},
     },
-    TABLE           => {
+    TABLE => {
       width          => '100%',
       caption        => $lang{ADMINS},
       qs             => $pages_qs,
@@ -341,7 +342,7 @@ sub form_admins {
     },
   });
 
-  my $count = 0;
+  my $count = $admin->{TOTAL};
 
   foreach my $line (@$admins_list) {
     my @fields_array = ();
@@ -386,18 +387,15 @@ sub form_admins {
         . $html->button($lang{INFO}, "index=$index&AID=$line->{aid}", { class => 'change' })
         . $html->button($lang{DEL}, "index=$index&del=$line->{aid}", { MESSAGE => "$lang{DEL} $line->{aid}?", class => 'del' })
     );
-
-    ++$count;
   }
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width => '100%',
-      rows  => [ [ "$lang{TOTAL}:", $html->b($count) ] ]
-    }
-  );
+  $table = $html->table({
+    width => '100%',
+    rows  => [ [ "$lang{TOTAL}:", $html->b($count) ] ]
+  });
+
   print $table->show();
 
   system_info();
@@ -753,7 +751,6 @@ sub form_admins_access {
   elsif ($FORM{chg}) {
     $admin_->access_info($FORM{chg}, { %FORM });
     if (!$admin_->{errno}) {
-      $html->message('info', $lang{ADDED}, "$lang{INFO}");
       $admin_->{ACTION} = 'change';
       $admin_->{LNG_ACTION} = $lang{CHANGE};
     }
@@ -783,22 +780,16 @@ sub form_admins_access {
     7 => "$WEEKDAYS[6]",
     8 => "$lang{HOLIDAYS}");
 
-  $admin_->{SEL_DAYS} = $html->form_select(
-    'DAY',
-    {
-      SELECTED     => $admin_->{DAY} || $FORM{DAY} || 0,
-      SEL_HASH     => \%DAY_NAMES,
-      ARRAY_NUM_ID => 1
-    }
-  );
+  $admin_->{SEL_DAYS} = $html->form_select('DAY', {
+    SELECTED     => $admin_->{DAY} || $FORM{DAY} || 0,
+    SEL_HASH     => \%DAY_NAMES,
+    ARRAY_NUM_ID => 1
+  });
 
-  $admin_->{BIT_MASK_SEL} = $html->form_select(
-    'BIT_MASK',
-    {
-      SELECTED  => $admin_->{BIT_MASK} || $FORM{BIT_MASK} || 0,
-      SEL_ARRAY => [ 0 .. 32 ],
-    }
-  );
+  $admin_->{BIT_MASK_SEL} = $html->form_select('BIT_MASK', {
+    SELECTED  => $admin_->{BIT_MASK} || $FORM{BIT_MASK} || 0,
+    SEL_ARRAY => [ 0 .. 32 ],
+  });
 
   $admin_->{DISABLE} = ($admin_->{DISABLE}) ? 'checked' : '';
 
@@ -952,6 +943,8 @@ sub form_admin_permissions {
       }
     }
 
+    $admin_->del_type_permits($FORM{TYPE});
+    delete $admin_->{errno};
     $admin_->{MAIN_AID} = $admin->{AID};
     $admin_->{MAIN_SESSION_IP} = $admin->{SESSION_IP};
     $admin_->set_type_permits(\%permits, $FORM{TYPE});

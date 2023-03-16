@@ -5,7 +5,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(sendmail decode_base64 mk_unique_value in_array);
+use Abills::Base qw(sendmail decode_base64 mk_unique_value in_array check_ip);
 
 require Abills::Misc;
 
@@ -210,7 +210,7 @@ sub auth_admin {
 sub form_login {
   my ($attr) = @_;
 
-  if ($FORM{forgot_passwd}) {
+  if ($FORM{forgot_passwd} && $conf{ADMIN_PASSWORD_RECOVERY}) {
     if ($FORM{email}) {
       require Digest::SHA;
       Digest::SHA->import('sha256_hex');
@@ -468,7 +468,7 @@ sub check_permissions {
         FORM      => \%FORM
       });
 
-      if (!$Auth->check_access({SECRET => $admin->{G2FA}, PIN => $FORM{g2fa}})) {
+      if (!$Auth->check_access({ SECRET => $admin->{G2FA}, PIN => $FORM{g2fa} })) {
         $admin->{errno}  = 5;
         $admin->{errstr} = 'ERROR_WRONG_PIN';
         $FORM{G2FA} = 1;
@@ -624,7 +624,11 @@ sub auth_user {
   Abills::Auth::Core->import();
 
   my $Auth;
-  if($FORM{external_auth}) {
+
+  # request from apple only POST without custom own prop, we dont handle query params in POST request
+  $FORM{external_auth} = 'Apple' if ($conf{AUTH_APPLE_ID} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ /external_auth=Apple/);
+
+  if ($FORM{external_auth}) {
     $Auth = Abills::Auth::Core->new({
       CONF      => \%conf,
       AUTH_TYPE => $FORM{external_auth},
@@ -655,8 +659,8 @@ sub auth_user {
         $OUTPUT{PUSH_STATE} = "<script>history.pushState(null, null, 'index.cgi?index=10&sid=$sid');</script>" if (!$attr->{API});
       }
       else {
-        if(!$sid && !($attr->{API} && $session_id)) {
-          $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', $lang{ERROR}, $lang{ERR_UNKNOWN_SN_ACCOUNT}, {OUTPUT2RETURN => 1});
+        if (!$sid && !($attr->{API} && $session_id)) {
+          $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_UNKNOWN_SN_ACCOUNT}, { OUTPUT2RETURN => 1 });
           return 0;
         }
       }

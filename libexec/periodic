@@ -555,28 +555,28 @@ sub sheduler{
       }
     }
     #Required modules
-    elsif ( $type ne '' ){
+    elsif ($type ne '') {
       my %ext_params = ();
-      if ( $s->{comments} ){
-        my @rows = split( /\n/, $s->{comments} );
-        foreach my $line ( @rows ){
-          my ($k, $v) = split( /=/, $line );
+      if ($s->{comments}) {
+        my @rows = split(/\n/, $s->{comments});
+        foreach my $line (@rows) {
+          my ($k, $v) = split(/=/, $line);
           $ext_params{$k} = $v;
         }
       }
 
       my $function = lc $s->{module} . "_sheduler";
 
-      if ( defined( &{$function} ) ){
-        $ret = &{ \&{$function} }( $s->{type}, "$action", $s->{uid},
+      if (defined(&{$function})) {
+        $ret = &{\&{$function}}($s->{type}, "$action", $s->{uid},
           {
             %ext_params,
-            DATE  => $ADMIN_REPORT{DATE},
+            DATE          => $ADMIN_REPORT{DATE},
             SHEDULEE_ONLY => $argv->{SHEDULE},
-            DEBUG => $debug
-          } );
+            DEBUG         => $debug
+          });
       }
-      else{
+      else {
         print "ID: $shedule_id Function not defined '$function'\n";
       }
     }
@@ -1047,13 +1047,15 @@ sub backup{
     $mysql_opts = '--set-gtid-purged=OFF';
   }
 
+  $mysql_opts .= ' --skip-triggers ' if (!$conf{DB_BACKUP_OPT});
+
   if ($conf{dbpasswd}) {
     $conf{dbpasswd} =~ s/\"/\\\"/g;
   }
 
   my $cmd =
     qq{ ( $MYSQLDUMP $mysql_opts --default-character-set=$conf{dbcharset} -d --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} ; }
-    . qq{   $MYSQLDUMP $mysql_opts --skip-triggers --single-transaction --no-create-info --default-character-set=$conf{dbcharset} -v $ignore_tables --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname}) | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz };
+    . qq{   $MYSQLDUMP $mysql_opts --single-transaction --no-create-info --default-character-set=$conf{dbcharset} -v $ignore_tables --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname}) > $conf{BACKUP_DIR}/stats-$DATE.sql };
 
   my $res = cmd( $cmd, { DEBUG => $debug, timeout => 0, SHOW_RESULT => 1 } );
   $DEBUG .= "Backup created: $conf{BACKUP_DIR}/stats-$DATE.sql.gz ($res)\n" if ($debug > 1);
@@ -1664,6 +1666,13 @@ sub restore_by_table {
 sub rotate_logs {
   my $rotate_level = 5;
   #my $debug = $argv->{DEBUG} || 0;
+
+  my $files = startup_files({ TPL_DIR => $conf{TPL_DIR} });
+
+  if($files->{GZIP}) {
+    $GZIP=$files->{GZIP};
+  }
+
   my @logs_list = glob '/usr/abills/var/log/*.log';
   foreach my $logfile (@logs_list) {
     print "Rotate $logfile\n" if ($debug);

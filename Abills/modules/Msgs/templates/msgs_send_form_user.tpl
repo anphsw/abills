@@ -81,7 +81,7 @@
         </div>
       </div>
       <div class='card-footer'>
-        <input type='submit' name='send' value='_{SEND}_' id='go' class='btn btn-primary'>
+        <input type='submit' name='send' value='_{SEND}_' id='go' class='btn btn-primary double_click_check'>
       </div>
     </div>
   </form>

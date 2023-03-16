@@ -1,7 +1,8 @@
 #package Paysys::Reports;
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(date_inc);
+
+use Abills::Base qw(date_inc convert);
 
 our (
   %lang,
@@ -26,7 +27,7 @@ sub paysys_log {
   if (form_purchase_module({
     HEADER          => $user->{UID},
     MODULE          => 'Paysys',
-    REQUIRE_VERSION => 4.21
+    REQUIRE_VERSION => 9.19
   })) {
     return 0;
   }
@@ -50,31 +51,30 @@ sub paysys_log {
     my $table = $html->table({ width => '100%' });
     foreach my $line (@info_arr) {
       my ($k, $v) = split(/,/, $line, 2);
-      $table->addrow($k, $v);
+      my $value = convert($v, { text2html => 1 });
+      $table->addrow($k, $value);
     }
 
     $Paysys->{INFO} = $table->show();
-    $table = $html->table(
-      {
-        width   => '500',
-        caption => $lang{INFO},
-        rows    => [
-          [ "ID", $Paysys->{ID} ],
-          [ "$lang{LOGIN}", $Paysys->{LOGIN} ],
-          [ "$lang{DATE}", $Paysys->{DATETIME} ],
-          [ "$lang{SUM}", $Paysys->{SUM} ],
-          [ "$lang{COMMISSION}", $Paysys->{COMMISSION} ],
-          [ "$lang{PAY_SYSTEM}", $PAY_SYSTEMS{ $Paysys->{SYSTEM_ID} } ],
-          [ "$lang{TRANSACTION}", $Paysys->{TRANSACTION_ID} ],
-          [ "$lang{USER} IP", $Paysys->{CLIENT_IP} ],
-          [ "PAYSYS IP", $Paysys->{PAYSYS_IP} ],
-          [ "$lang{INFO}", $Paysys->{INFO} ],
-          [ "$lang{ADD_INFO}", $Paysys->{USER_INFO} ],
-          [ "$lang{STATUS}", $status[ $Paysys->{STATUS} ] ],
-        ],
-        ID      => 'PAYSYS_INFO'
-      }
-    );
+    $table = $html->table({
+      width   => '500',
+      caption => $lang{INFO},
+      rows    => [
+        [ "ID", $Paysys->{ID} ],
+        [ "$lang{LOGIN}", $Paysys->{LOGIN} ],
+        [ "$lang{DATE}", $Paysys->{DATETIME} ],
+        [ "$lang{SUM}", $Paysys->{SUM} ],
+        [ "$lang{COMMISSION}", $Paysys->{COMMISSION} ],
+        [ "$lang{PAY_SYSTEM}", $PAY_SYSTEMS{ $Paysys->{SYSTEM_ID} } ],
+        [ "$lang{TRANSACTION}", $Paysys->{TRANSACTION_ID} ],
+        [ "$lang{USER} IP", $Paysys->{CLIENT_IP} ],
+        [ "PAYSYS IP", $Paysys->{PAYSYS_IP} ],
+        [ "$lang{INFO}", $Paysys->{INFO} ],
+        [ "$lang{ADD_INFO}", $Paysys->{USER_INFO} ],
+        [ "$lang{STATUS}", $status[ $Paysys->{STATUS} ] ],
+      ],
+      ID      => 'PAYSYS_INFO'
+    });
 
     print $table->show();
   }
@@ -117,10 +117,12 @@ sub paysys_log {
       VALUE => $FORM{'FROM_DATE_TO_DATE'},
     });
 
-    form_search({ SEARCH_FORM => $html->tpl_show(_include('paysys_search', 'Paysys'),
-      { %info, %FORM },
-      { OUTPUT2RETURN => 1 }),
-      ADDRESS_FORM            => 1 });
+    form_search({
+      SEARCH_FORM  => $html->tpl_show(_include('paysys_search', 'Paysys'),
+        { %info, %FORM },
+        { OUTPUT2RETURN => 1 }),
+      ADDRESS_FORM => 1
+    });
   }
 
   if (!defined($FORM{sort})) {
@@ -159,6 +161,7 @@ sub paysys_log {
   });
 
   foreach my $line (@$list) {
+    $line->{transaction_id} = convert($line->{transaction_id}, { text2html => 1 });
     my @fields_array = ($line->{id},
       $html->button($line->{login}, "index=15&UID=$line->{uid}"),
       $line->{datetime},
@@ -179,20 +182,18 @@ sub paysys_log {
         { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' }))
     );
   }
+
   print $table->show();
 
-  $table = $html->table(
-    {
-      width => '100%',
-      rows  => [ [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL}), "$lang{SUM}", $html->b($Paysys->{SUM}) ],
-        [ "$lang{TOTAL} $lang{COMPLETE}:", $html->b($Paysys->{TOTAL_COMPLETE}), "$lang{SUM} $lang{COMPLETE}:",
-          $html->b($Paysys->{SUM_COMPLETE}) ]
-      ]
-    }
-  );
-  if (!$admin->{MAX_ROWS}) {
-    print $table->show();
-  }
+  $table = $html->table({
+    width => '100%',
+    rows  => [ [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL}), "$lang{SUM}", $html->b($Paysys->{SUM}) ],
+      [ "$lang{TOTAL} $lang{COMPLETE}:", $html->b($Paysys->{TOTAL_COMPLETE}), "$lang{SUM} $lang{COMPLETE}:",
+        $html->b($Paysys->{SUM_COMPLETE}) ]
+    ]
+  });
+
+  print $table->show() if (!$admin->{MAX_ROWS});
 
   return 1;
 }
@@ -538,6 +539,212 @@ sub _paysys_select_connected_systems {
       NO_ID       => 1,
       SEL_OPTIONS => { '' => '--' },
     });
+}
+
+#**********************************************************
+=head2 paysys_users() - Import fees from_file
+
+=cut
+#**********************************************************
+sub paysys_users {
+
+  result_former({
+    INPUT_DATA      => $Paysys,
+    FUNCTION        => 'user_list',
+    FUNCTION_PARAMS => {
+      ONLY_SUBSCRIBES => 1
+    },
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'LOGIN,FIO,DEPOSIT,CREDIT,PAYSYS_ID,DATE,SUBSCRIBE_DATE_START,SUM',
+    EXT_TITLES      => {
+      paysys_id            => 'PAYSYS ID',
+      date                 => $lang{DATE},
+      sum                  => $lang{SUM},
+      subscribe_date_start => $lang{START},
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{USERS} - $lang{SUBSCRIBES}",
+      qs      => $pages_qs,
+      ID      => 'PAYSYS_USERS_LIST',
+      header  => '',
+      EXPORT  => 1,
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Paysys',
+    TOTAL           => 1,
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 paysys_request_log() - Show paysys requests on script paysys_check.cgi
+
+=cut
+#**********************************************************
+sub paysys_request_log {
+  if ($FORM{search_form} && !$user->{UID}) {
+    if($FORM{FROM_DATE_TO_DATE}){
+      ($FORM{FROM_DATE}, $FORM{TO_DATE}) = $FORM{"FROM_DATE_TO_DATE"} =~/(.+)\/(.+)/;
+    }
+    $FORM{SYSTEM_ID} = $FORM{PAYMENT_SYSTEM};
+    my %PAY_SYSTEMS = ();
+
+    my $connected_systems = $Paysys->paysys_connect_system_list({
+      PAYSYS_ID => '_SHOW',
+      NAME      => '_SHOW',
+      MODULE    => '_SHOW',
+      COLS_NAME => 1,
+    });
+
+    foreach my $payment_system (@$connected_systems) {
+      $PAY_SYSTEMS{$payment_system->{paysys_id}} = $payment_system->{name};
+    }
+
+    my %ACTIVE_SYSTEMS = %PAY_SYSTEMS;
+    $ACTIVE_SYSTEMS{'0'} = $lang{UNKNOWN};
+    my %info = ();
+
+    $info{PAY_SYSTEMS_SEL} = $html->form_select(
+      'PAYMENT_SYSTEM',
+      {
+        SELECTED => $FORM{PAYMENT_SYSTEM} || '',
+        SEL_HASH => { '' => $lang{ALL}, %ACTIVE_SYSTEMS },
+        NO_ID    => 1
+      }
+    );
+
+    $info{STATUS_SEL} = $html->form_select(
+      'STATUS',
+      {
+        SELECTED     => $FORM{STATUS} || '',
+        SEL_ARRAY    => [$lang{SUCCESS}, $lang{ERROR}],
+        ARRAY_NUM_ID => 1,
+        SEL_OPTIONS  => { '' => $lang{ALL} }
+      }
+    );
+
+    $info{REQUEST_TYPE_SEL} = $html->form_select(
+      'REQUEST_TYPE',
+      {
+        SELECTED     => $FORM{REQUEST_TYPE} || '',
+        SEL_ARRAY    => [ 'Unknown', 'Presearch', 'Search', 'Check', 'Pay', 'Confirm', 'Cancel', 'Status' ],
+        ARRAY_NUM_ID => 1,
+        SEL_OPTIONS  => { '' => $lang{ALL} }
+      }
+    );
+
+    $info{DATERANGE_PICKER} = $html->form_daterangepicker({
+      NAME  => 'FROM_DATE/TO_DATE',
+      VALUE => $FORM{'FROM_DATE_TO_DATE'},
+    });
+
+    form_search({ SEARCH_FORM => $html->tpl_show(_include('paysys_search_log', 'Paysys'),
+      { %info, %FORM },
+      { OUTPUT2RETURN => 1 })
+    });
+  }
+
+  if ($FORM{del}) {
+    $Paysys->log_del($FORM{del});
+
+    if ($Paysys->{errno}) {
+      $html->message('err', $lang{ERROR}, "$Paysys->{errno} $Paysys->{errstr}");
+    }
+    else {
+      $html->message('info', $lang{INFO}, "$lang{DELETED} # $FORM{del}");
+    }
+  }
+
+  my ($table) = result_former({
+    INPUT_DATA        => $Paysys,
+    FUNCTION          => 'log_list',
+    BASE_FIELDS       => 0,
+    FUNCTION_FIELDS   => 'del',
+    DEFAULT_FIELDS    => 'ID,SYSTEM_ID,LOGIN,EXT_ID,TRANSACTION_ID,SUM,DATETIME',
+    FILTER_COLS       => {
+      transaction_id => '_paysys_log_filter::transaction_id,id',
+      request        => '_paysys_log_filter::',
+      response       => '_paysys_log_filter::',
+      system_id      => '_paysys_log_filter::system_id,paysys_name',
+      status         => '_paysys_log_filter::id,status',
+      request_type   => '_paysys_log_filter::id,request_type',
+    },
+    EXT_TITLES        => {
+      id             => 'ID',
+      login          => $lang{LOGIN},
+      request        => $lang{REQUEST},
+      response       => $lang{RESPONSE},
+      http_method    => "HTTP $lang{METHOD}",
+      datetime       => $lang{DATE},
+      ip             => 'IP',
+      error          => $lang{ERROR},
+      status         => $lang{STATUS},
+      system_id      => $lang{PAY_SYSTEM},
+      ext_id         => $lang{EXTERNAL_ID},
+      transaction_id => "$lang{TRANSACTION} ID",
+      sum            => $lang{SUM},
+      request_type   => "$lang{REQUEST} $lang{TYPE}",
+    },
+    SKIP_USER_TITLE   => 1,
+    SKIP_STATUS_CHECK => 1,
+    TABLE             => {
+      width   => '100%',
+      caption => $lang{LOG_REQUESTS},
+      qs      => $pages_qs,
+      ID      => 'PAYSYS_REQUEST_LOG',
+      pages   => $Paysys->{TOTAL},
+      MENU    => "$lang{SEARCH}:index=$index&search_form=1:search;",
+      EXPORT  => 1,
+    },
+    MODULE            => 'Paysys',
+    MAKE_ROWS         => 1,
+  });
+
+  print $table->show();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _extreceipt_payment_filter()
+
+=cut
+#**********************************************************
+sub _paysys_log_filter {
+  my ($string, $values) = @_;
+
+  if (defined $values->{VALUES}->{status}) {
+    $values->{VALUES}->{status} ? return $lang{ERROR} : return $lang{SUCCESS};
+  }
+  elsif (defined $values->{VALUES}->{request_type}) {
+    my %statuses = (
+      0 => 'Unknown',
+      1 => 'Presearch',
+      2 => 'Search',
+      3 => 'Check',
+      4 => 'Pay',
+      5 => 'Confirm',
+      6 => 'Cancel',
+      7 => 'Status',
+    );
+
+    return $statuses{$values->{VALUES}->{request_type} || 0};
+  }
+  elsif (defined $values->{VALUES}->{transaction_id}) {
+    return $html->button($string, 'index=' . get_function_index('paysys_log') . "&search_form=1&search=1&ID=$values->{VALUES}->{transaction_id}");
+  }
+  elsif (defined $values->{VALUES}->{system_id}) {
+    return $values->{VALUES}->{paysys_name} || $lang{UNKNOWN};
+  }
+  elsif ($string) {
+    $string =~ s/</&lt;/gm;
+    $string =~ s/>/&gt;/gm;
+    $string = '<pre>' . $string . '</pre>';
+  }
+
+  return $string;
 }
 
 1;

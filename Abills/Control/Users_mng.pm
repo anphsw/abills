@@ -566,6 +566,11 @@ sub form_user_change {
     $html->message('err', $lang{ERROR}, "$lang{CHANGE} $lang{PASSWD} : $lang{ERR_ACCESS_DENY}");
     return 0;
   }
+  elsif ($form->{g2fa_remove}) {
+    $users->pi_change({ UID => $user_info->{UID}, _G2FA => '' });
+    $html->message('info', $lang{CHANGED}, $lang{CHANGED} . ' ' . ($users->{info} || ''));
+    return 0;
+  }
 
   if (!$permissions{0}{9} && defined($user_info->{CREDIT}) && defined($form->{CREDIT}) && $user_info->{CREDIT} != $form->{CREDIT}) {
     $html->message('err', $lang{ERROR}, "! $lang{CHANGE} $lang{CREDIT} $lang{ERR_ACCESS_DENY}");
@@ -613,6 +618,8 @@ sub form_user_change {
       $form->{ACTIVATE} = '0000-00-00';
     }
   }
+
+  $FORM{DISABLE_DATE} = ($user_info->{DISABLE} == 0) ? $DATE : '0000-00-00';
 
   $user_info->change($user_info->{UID}, { %FORM });
 
@@ -748,8 +755,8 @@ sub form_user_add {
     }
   }
 
-  if ($conf{AUTH_G2FA}) {
-    $FORM{_G2FA} = unique_token_generate(15);
+  if ($conf{AUTH_G2FA} && $conf{G2FA_USER_AUTH}) {
+    $FORM{_G2FA} = unique_token_generate(32);
   }
 
   my Users $user_info = $users->add({ %FORM });
@@ -2352,7 +2359,7 @@ sub form_users_list {
   $col_hidden{TYPE_PAGE} = $FORM{type} if ($FORM{type});
 
   if ($FORM{COMPANY_ID} && !$FORM{change}) {
-    print $html->br($html->b("$lang{COMPANY}:") . $FORM{COMPANY_ID});
+    # print $html->br($html->b("$lang{COMPANY}:") . $FORM{COMPANY_ID});
     $pages_qs .= "&COMPANY_ID=$FORM{COMPANY_ID}" if ($pages_qs !~ /COMPANY_ID/);
     $LIST_PARAMS{COMPANY_ID} = $FORM{COMPANY_ID};
     $col_hidden{COMPANY_ID} = $FORM{COMPANY_ID};
@@ -2972,6 +2979,13 @@ sub form_wizard {
     $conf{REG_WIZARD} .= ";msgs_admin_add:Msgs:$lang{MESSAGES}" if (in_array('Msgs', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Msgs}));
   }
 
+  if ($FORM{FIO}){
+    my ($last_name, $name, $second_name) = split(/ /, $FORM{FIO});
+    $FORM{FIO1} = $last_name;
+    $FORM{FIO2} = $name || '';
+    $FORM{FIO3} = $second_name || '';
+  }
+
   if (in_array('Sms', \@MODULES) && $conf{SMS_REG_GREETING}) {
     load_module('Sms', $html);
     send_user_memo({ %FORM, NEW_USER => 1 });
@@ -2987,6 +3001,7 @@ sub form_wizard {
       _crm_lead_to_client($FORM{LEAD_ID});
     }
   }
+
 
   if ($FORM{step} && $FORM{step} > 0) {
     my @require_fields = ();
@@ -3035,6 +3050,19 @@ sub form_wizard {
     $LIST_PARAMS{UID} = $FORM{UID};
     $users->info($FORM{UID});
     $users->pi({ UID => $FORM{UID} });
+
+    if (in_array('Voip', \@MODULES) && $conf{VOIP_NUM_POOL}) {
+      if ($FORM{finish}) {
+        require Voip::Users;
+        Voip::Users->import();
+        my $Voip_users = Voip::Users->new($db, $admin, \%conf, {
+            html        => $html,
+            lang        => \%lang,
+            permissions => \%permissions
+        });
+        $Voip_users->voip_user_number_add($FORM{UID});
+      }
+    }
   }
 
   #Make functions
@@ -3349,6 +3377,7 @@ sub _build_user_contacts_form {
       ALL_CONTACT_TYPES     => join(',', @all_contact_types),
       EMAIL_FORMAT          => $Abills::Filters::EMAIL_EXPR,
       PHONE_FORMAT          => $conf{PHONE_FORMAT} ? $conf{PHONE_FORMAT} : '.+',
+      PHONE_VALUE           => $FORM{phone} || '',
       CELL_PHONE_FORMAT     => $conf{CELL_PHONE_FORMAT} ? $conf{CELL_PHONE_FORMAT} : '.+',
       DEFAULT_CONTACT_TYPES => join(',', @default_contact_types),
       CONTACTS_ENTERED      => $FORM{CONTACTS_ENTERED} || $json->encode(\%contacts_entered)
@@ -3704,7 +3733,7 @@ sub form_info_field_tpl {
 
       my $select_social = $html->form_select($field_name, {
         SELECTED    => $k,
-        SEL_ARRAY   => [ 'facebook', 'vk', 'twitter', 'ok', 'instagram', 'google', 'telegram' ],
+        SEL_ARRAY   => [ 'facebook', 'vk', 'twitter', 'ok', 'instagram', 'google', 'telegram', 'apple' ],
         SEL_OPTIONS => { '' => '--' },
       });
 
@@ -4464,7 +4493,7 @@ sub form_money_transfer_admin {
   my $no_companies = q{};
 
   my Users $user = Users->new($db, $admin, \%conf);
-  $user->info(int($FORM{UID}));
+  $user->info(int($FORM{UID} || 0));
 
   if ($conf{MONEY_TRANSFER} =~ /:/) {
     ($deposit_limit, $transfer_price, $no_companies) = split(/:/, $conf{MONEY_TRANSFER});
@@ -4575,6 +4604,5 @@ sub form_money_transfer_admin {
 
   return 1;
 }
-
 
 1;

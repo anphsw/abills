@@ -1,7 +1,7 @@
 #!perl
 =head1 NAME
 
- Extreceipts web functions
+  Extreceipts web functions
 
 =cut
 
@@ -20,7 +20,8 @@ our (
   $admin,
   $db,
   %conf,
-  $pages_qs
+  $pages_qs,
+  %permissions
 );
 
 our Abills::HTML $html;
@@ -40,6 +41,11 @@ if ($user && $user->{UID}) {
 #**********************************************************
 sub extreceipt_api {
   my $admin_list = '';
+
+  if (!$permissions{4}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return 0;
+  }
 
   $Receipt->{ACTION} = 'add';
   $Receipt->{LNG_ACTION} = $lang{ADD};
@@ -140,6 +146,12 @@ sub extreceipt_api {
 =cut
 #**********************************************************
 sub extreceipt_kkt {
+
+  if (!$permissions{4}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return 0;
+  }
+
   my %params = (
     ACTION     => 'add',
     LNG_ACTION => $lang{ADD},
@@ -293,22 +305,24 @@ sub extreceipt_check_list {
     SORT_KEY => 1
   });
 
-  reports({
-    # PERIODS     => 1,
-    NO_TAGS     => 1,
-    NO_GROUP    => 1,
-    PERIOD_FORM => 1,
-    EXT_SELECT  => {
-      PAYMENT_METHOD => { LABEL => $lang{PAYMENT_METHOD}, SELECT => $payment_method_select },
-      RECEIPT_STATUS => { LABEL => $lang{STATUS}, SELECT => $receipt_status_select },
-    },
-    EX_INPUTS   => [
-      "$lang{ROWS}: " . $html->form_input('PAGE_ROWS', $html->{PAGE_ROWS},
-        { OUTPUT2RETURN => 1 }),
-      "$lang{DEBUG}: " . $html->form_input('DEBUG', 1,
-        { OUTPUT2RETURN => 1, TYPE => 'checkbox', STATE => $FORM{DEBUG} }),
-    ]
-  });
+  if (exists($INC{"Abills/Reports.pm"})) {
+    reports({
+      # PERIODS     => 1,
+      NO_TAGS     => 1,
+      NO_GROUP    => 1,
+      PERIOD_FORM => 1,
+      EXT_SELECT  => {
+        PAYMENT_METHOD => { LABEL => $lang{PAYMENT_METHOD}, SELECT => $payment_method_select },
+        RECEIPT_STATUS => { LABEL => $lang{STATUS}, SELECT => $receipt_status_select },
+      },
+      EX_INPUTS   => [
+        "$lang{ROWS}: " . $html->form_input('PAGE_ROWS', $html->{PAGE_ROWS},
+          { OUTPUT2RETURN => 1 }),
+        "$lang{DEBUG}: " . $html->form_input('DEBUG', 1,
+          { OUTPUT2RETURN => 1, TYPE => 'checkbox', STATE => $FORM{DEBUG} }),
+      ]
+    });
+  }
 
   if ($FORM{DEBUG}) {
     $Receipt->{debug} = 1;
