@@ -481,14 +481,13 @@ sub check_lines{
 
       # periodic check deposit, stats and status
       my %RAD = (
-        USER_NAME             => $online->{user_name},
-        'User-Name'           =>$online->{user_name},
-        SESSION_START         => time - $online->{duration_sec},
-        ACCT_SESSION_TIME     => $online->{duration_sec},
-        'Acct-Output-Octets'  => $online->{acct_input_octets},
-        'Acct-Input-Octets'   => $online->{acct_output_octets},
-        INBYTE2               => $online->{ex_input_octets},
-        OUTBYTE2              => $online->{ex_output_octets},
+        'User-Name'            => $online->{user_name},
+        SESSION_START          => time - $online->{duration_sec},
+        'Acct-Session-Time'    => $online->{duration_sec},
+        'Acct-Output-Octets'   => $online->{acct_input_octets},
+        'Acct-Input-Octets'    => $online->{acct_output_octets},
+        INBYTE2                => $online->{ex_input_octets},
+        OUTBYTE2               => $online->{ex_output_octets},
         'Acct-Output-Gigawords'=> $online->{acct_input_gigawords},
         'Acct-Input-Gigawords' => $online->{acct_output_gigawords},
       );
@@ -514,9 +513,9 @@ sub check_lines{
        $Billing->{TARIF_PLAN},
        $Billing->{TIME_TARIF},
        $Billing->{TRAF_TARIF}) = $Billing->session_sum(
-       $RAD{USER_NAME},
+       $RAD{'User-Name'},
        $RAD{SESSION_START},
-       $RAD{ACCT_SESSION_TIME} || 1,
+       $RAD{'Acct-Session-Time'} || 1,
        \%RAD,
         {
           UID    => $uid,

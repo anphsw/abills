@@ -12,12 +12,12 @@
           %DISPATCH_ACTION%
         </div>
         <div class='col-sm-12 col-md-4'>
-          <label class='col-sm-12 col-10'>_{CATEGORY}_</label>
+          <label class='col-sm-12 col-10'>_{CHAPTER}_</label>
           <div class='input-group'>
-            %MSGS_CATEGORY%
+            %CHAPTER_SEL%
           </div>
           <br/>
-          %CATEGORY_BTN%
+          %CHAPTER_ACTION%
         </div>
         <div class='col-sm-12 col-md-4'>
           <label class='col-sm-12 col-10'>_{STATUS}_</label>

@@ -29,6 +29,7 @@ sub all_report_time {
   Redmine->import();
   my $Redmine = Redmine->new($db, $admin, \%conf);
 
+  require Control::Reports;
   reports({
       NO_GROUP    => 1,
       NO_TAGS     => 1,

@@ -23,7 +23,6 @@ package Abills::HTML;
 
 use strict;
 use warnings;
-use JSON;
 
 no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
@@ -1379,7 +1378,6 @@ sub menu {
   }
 
   my @s = sort {$b <=> $a} keys %$menu_items;
-
   foreach my $ID (@s) {
     my $VALUE_HASH = $menu_items->{$ID};
     foreach my $parent (keys %$VALUE_HASH) {
@@ -1405,6 +1403,7 @@ sub menu {
       }
     }
   }
+
   my @last_array = ();
   my $menu_text = "
   <nav class='mt-2'>
@@ -1454,10 +1453,13 @@ sub menu {
     }
 
     my $ex_params = ($parent == 0) ? (($fl->{$ID} ne 'null') ? ' id=' . $fl->{$ID} : '') : '';
-    $ex_params .= ($menu{$ID} && $fl->{$ID} eq 'null' || $fl->{ "sub" . $ID }) ? " onclick='return false' class='nav-link $active'" : " class='nav-link $active'";
+    $ex_params .= ($menu{$ID} && $fl->{$ID} eq 'null' || $fl->{ "sub" . $ID })
+                    ? " onclick='return false' class='nav-link $active'"
+                    : " class='nav-link $active'";
+
     $name_menu .= "<p>\n<i class='right fa fa-angle-left'></i>\n</p>" if ($menu{$ID});
 
-    $name_menu = "<p>$name_menu</p>" if $name_menu && $name_menu !~ /<p class='d-inline'>/;
+    $name_menu = "<p>$name_menu</p>" if $name_menu && $name_menu !~ /<p/;
 
     my $name = '';
     my $menu_circle_icon = '';
@@ -1472,15 +1474,18 @@ sub menu {
         $menu_circle_icon = q(<i class='nav-icon fas fa-circle'></i>);
       }
       else {
-        $menu_circle_icon = q(<i class='nav-icon far fa-circle'></i>)
+        $menu_circle_icon = q(<i class='nav-icon far fa-circle'></i>);
       }
     }
 
     $name = "$menu_circle_icon$name_menu";
 
-    my $link = $self->button($name, ($menu{$ID} && $fl->{$ID} eq 'null' || $fl->{ "sub" . $ID })
-      ? "index=$index"
-      : "index=" . (($ID =~ /^sub([0-9]+)/) ? $1 : $ID) . "$ext_args", { ex_params => $ex_params });
+    my $link = $self->button(
+      $name,
+      ($menu{$ID} && $fl->{$ID} eq 'null' || $fl->{ "sub" . $ID })
+        ? "index=$index"
+        : "index=$id$ext_args", { ex_params => $ex_params }
+    );
 
     $menu_text .= "<li class='nav-item $opened'>$link\n";
 
@@ -2153,7 +2158,7 @@ sub table {
   push @header_obj, $self->{EXPORT_OBJ} if ($self->{EXPORT_OBJ});
 
   if ($attr->{IMPORT}) {
-    $self->{table_caption} = qq{<a role='button' title='Import' class='btn btn-tool' onclick='loadToModal("$attr->{IMPORT}")'>
+    $self->{table_caption} = qq{<a role='button' title='Import' class='btn btn-tool' onclick='loadToModal("$attr->{IMPORT}", "", "xl")'>
       <span class='fa fa-reply'></span>
     </a>
     } . $self->{table_caption};
@@ -2184,7 +2189,11 @@ sub table {
       <'col-sm-12 col-md-7'p>>";
 
     $attr->{DATA_TABLE}->{language} = { url => "/styles/$self->{HTML}{HTML_STYLE}/plugins/datatables/lang/" . $self->{prototype}{content_language} . ".json" };
-    my $ATTR = ($attr) ? JSON->new->indent->encode($attr->{DATA_TABLE}) : '';
+    my $ATTR = '';
+    if ($attr) {
+      require JSON;
+      $ATTR = JSON->new->indent->encode($attr->{DATA_TABLE});
+    };
     if ($attr->{DT_CLICK}) {
       $show_cols = qq(
       <script>
@@ -4542,6 +4551,9 @@ sub element {
     $text     - Text
     $attr     - $attr
       TYPE    - bootstrap badge class
+        badge-info
+        badge-warning
+        badge-danger
 
   Examples:
 
@@ -4674,8 +4686,8 @@ sub progress_bar {
     $ret = qq{
       <div class="row">
         <div class="col-md-8">
-          <div class="progress progress-xs progress-striped $active">
-            <div class="progress-bar progress-bar-$bar_color" style="width: $complete%"></div>
+          <div class="progress progress-sm $active">
+            <div class="progress-bar progress-bar-striped progress-bar-$bar_color" style="width: $complete%">$attr->{TEXT}</div>
           </div>
         </div>
       <div class="col-md-3">
@@ -5172,7 +5184,6 @@ sub form_daterangepicker {
 }
 
 #TODO: need to check form_timepicker, cause it uses in strange places
-
 #**********************************************************
 =head2 form_timepicker($name, $value, $attr)
 
@@ -5267,7 +5278,8 @@ sub form_timepicker {
 =cut
 #**********************************************************
 sub form_datetimepicker {
-  my ($self, $name, $value, $attr) = @_;
+  my $self = shift;
+  my ($name, $value, $attr) = @_;
 
   my $result = '';
 
@@ -5279,7 +5291,7 @@ sub form_datetimepicker {
   );
 
   $datetimepicker_options{locale} = $self->{content_language} || 'en';
-  $datetimepicker_options{format} = 'YYYY-MM-DD HH:mm' if !$attr->{FORMAT};
+  $datetimepicker_options{format} = $attr->{FORMAT} ? $attr->{FORMAT} : 'YYYY-MM-DD HH:mm';
 
   if ($attr->{PAST_ONLY}) {
     $datetimepicker_options{maxDate} = localtime(time);
@@ -5320,6 +5332,7 @@ sub form_datetimepicker {
     };
   };
 
+  require JSON;
   my $options_json = JSON->new->encode(\%datetimepicker_options);
   $result .= qq(
     $input
@@ -5597,6 +5610,7 @@ sub chart {
   $canvas_id .= $self->{CHART_LOADED};
 
   if ($attr->{DATA_CHART} && $attr->{OPTIONS}) {
+    require JSON;
     my $chart_data1 = JSON->new->encode($attr->{DATA_CHART});
     my $chart_options1 = JSON->new->encode($attr->{OPTIONS});
     $result .= qq{
@@ -5631,6 +5645,7 @@ sub chart {
     push @{$data{datasets}}, \%info;
   }
 
+  require JSON;
   my $json_data = JSON->new->encode(\%data);
   my $hide_legend_option = ($attr->{HIDE_LEGEND}) ? 'legend : { display : false },' : '';
   my $scales = $attr->{SCALES} || '';
@@ -5697,6 +5712,7 @@ sub html_tree {
   my $self = shift;
   my ($list, $keys) = @_;
 
+  require JSON;
   my $DATA = JSON->new->encode($list);
 
   my $result .= qq(

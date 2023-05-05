@@ -25,7 +25,7 @@ our @EXPORT = qw(
 my $MODULE = 'Maps_view';
 use Maps::Shared qw/LAYER_ID_BY_NAME MAPS_ICONS_DIR_WEB_PATH/;
 use Maps::Maps_info;
-use Abills::Base qw/in_array/;
+use Abills::Base qw/in_array load_pmodule/;
 
 our (
   $admin,
@@ -134,6 +134,7 @@ sub maps_get_objects_to_show {
     $form->{OBJECT_TO_SHOW} = $self->maps_get_build_objects($attr);
 
     if ($form->{RETURN_HASH_OBJECT}) {
+      load_pmodule('JSON');
       print JSON::to_json($form->{OBJECT_TO_SHOW}, { utf8 => 0 });
       return 1;
     }
@@ -153,6 +154,7 @@ sub maps_get_js_variables {
 
   my $layers_list = $Maps_info->maps_layers_list({%{$form}, %{$attr}});
 
+  load_pmodule('JSON');
   my $default_layer_ids = JSON::to_json(LAYER_ID_BY_NAME, { utf8 => 0 });
   my $layers = JSON::to_json($layers_list->{LAYERS}, { utf8 => 0 });
 

@@ -315,7 +315,12 @@ function showCommentsModal(title, link_to_confirm, confirmation, attr) {
       // Append comments, and send
       var url = link_to_confirm + '&COMMENTS=' + encodeURIComponent(comments);
 
-      submitForm(url);
+      if (attr.post) {
+        $.redirectPost(url);
+      }
+      else {
+        submitForm(url);
+      }
 
       // Finish
       $modal.modal('hide');
@@ -912,27 +917,42 @@ function renderTooltip($object, info, position) {
   let objectDataContainer = $object.attr('data-container');
   let dataContainer = objectDataContainer !== undefined ? objectDataContainer : 'body';
   if (typeof position === 'undefined') position = 'right';
-
+  let onlyOnClick = Boolean($object.attr('data-tooltip-onclick'));
   $object.attr('data-content', info);
   $object.attr('data-html', true);
   $object.attr('data-toggle', 'popover');
   $object.attr('data-trigger', 'manual');
   $object.attr('data-placement', position);
   $object.attr('data-container', dataContainer);
-  $object.popover().on("mouseenter", function() {
-                       var _this = this;
-                       $(this).popover("show");
-                       $(".popover").on("mouseleave", function() {
-                         $(_this).popover('hide');
-                       });
-                     }).on("mouseleave", function() {
-                       var _this = this;
-                       setTimeout(function() {
-                         if (!$(".popover:hover").length) {
-                           $(_this).popover("hide");
-                         }
-                       }, 300);
-                     });
+  $object.popover().on("mouseenter",
+    function() {
+      if (onlyOnClick) return;
+      var _this = this;
+      $(this).popover("show");
+      $(".popover").on("mouseleave", function() {
+        $(_this).popover('hide');
+      });
+     }
+   ).on("mouseleave",
+     function() {
+       var _this = this;
+       setTimeout(function() {
+         if (!$(".popover:hover").length) {
+           $(_this).popover("hide");
+         }
+       }, 300);
+     }
+   ).on("mousedown",
+     function(e) {
+       if (!onlyOnClick) return;
+       if (!e.which > 2) return;
+       var _this = this;
+       $(this).popover("show");
+       setTimeout(function() {
+         $(_this).popover('hide');
+       }, 1000);
+     }
+   );
 
 }
 
@@ -1295,7 +1315,7 @@ function initSelect2(context) {
       width: '100%',
       placeholder: '',
       dropdownAutoWidth: true,
-      allowClear: true
+      allowClear: !(typeof CLIENT_INTERFACE !== 'undefined' && CLIENT_INTERFACE)
     };
   }
 
@@ -1345,7 +1365,6 @@ function defineAjaxSubmitForms(context) {
         formData.set('index', '');
       }
     }
-    console.log(formData);
 
     jQuery.ajax({
       url: $form.attr('action') || '/admin/index.cgi',
@@ -1423,7 +1442,7 @@ function initTableMultiselectActions(context){
       var link = action + '&' + param_name + '=' + ids.join(',');
 
       if (comments) {
-        showCommentsModal(comments, link);
+        showCommentsModal(comments, link, undefined, { post: true });
         return true;
       }
       else {

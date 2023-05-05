@@ -9,13 +9,10 @@ package Referral;
 use strict;
 use parent qw(dbcore);
 
-use Referral::Helpers qw(transform_to_hash);
 
 my $conf;
 
-use constant {
-  conf_prefix => 'REFERRAL_',
-};
+my $conf_prefix = 'REFERRAL_';
 
 my $default_values = {
   MAX_LEVEL          => '0',
@@ -73,7 +70,7 @@ sub settings_get {
   shift;
   my ($attr) = @_;
 
-  my $param = $attr->{PARAM} || conf_prefix . '*';
+  my $param = $attr->{PARAM} || $conf_prefix . '*';
   my $list = $conf->config_list({
     PARAM     => $param,
     CONF_ONLY => 1,
@@ -89,6 +86,9 @@ sub settings_get {
       _settings_define({ ALREADY_DEFINED => $list });
     }
   }
+  # FIXME: maybe, this function to base?
+  require Referral::Helpers;
+  Referral::Helpers->import('transform_to_hash');
 
   return transform_to_hash($list, { NAME_KEY => 'param', VAL_KEY => 'value' });
 }
@@ -115,7 +115,7 @@ sub settings_set{
   #filtering non existent params
   foreach my $param_name ( keys %{$all_params} ){
     if ( defined $default_values->{$param_name} ){
-      $new_params{conf_prefix . $param_name} = $all_params->{$param_name};
+      $new_params{$conf_prefix . $param_name} = $all_params->{$param_name};
     }
   }
 
@@ -155,14 +155,14 @@ sub _settings_define{
   }
 
   foreach my $param ( keys %{$default_values} ){
-    unless ( defined $defined_params->{conf_prefix . $param} ){
+    unless ( defined $defined_params->{$conf_prefix . $param} ){
       $conf->add( {
-          PARAM => conf_prefix . $param,
+          PARAM => $conf_prefix . $param,
           VALUE => "$default_values->{$param}"
         } );
 
       $conf->config_add( {
-          PARAM => conf_prefix . $param,
+          PARAM => $conf_prefix . $param,
           VALUE => "$default_values->{$param}"
         } );
     }
@@ -296,6 +296,7 @@ sub request_list{
     [ 'TP_NAME',      'INT',   'rt.name as tp_name',       1 ],
     [ 'REFERRAL_UID', 'INT',   'r.referral_uid',           1 ],
     [ 'USER_STATUS',  'INT',   'ur.disable',               1 ],
+    [ 'USER_DELETED', 'INT',   'ur.deleted',               1 ],
     [ 'LOCATION_ID',  'INT',   'r.location_id',            1 ],
     [ 'ADDRESS_FLAT', 'STR',   'r.address_flat',           1 ],
     [ 'COMMENTS',     'STR',   'r.comments',               1 ],

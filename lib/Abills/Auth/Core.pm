@@ -45,7 +45,9 @@ sub new {
   };
 
   my $name = "Abills::Auth::$auth_type";
-  eval " require $name ";
+  my $plugin_path = $name . '.pm';
+  $plugin_path =~ s{::}{/}g;
+  eval { require $plugin_path };
 
   if(! $@) {
    $name->import();

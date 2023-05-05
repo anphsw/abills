@@ -4,10 +4,9 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db);
-my $json;
 my Abills::HTML $html;
 my $lang;
-my $Bonus;
+my Bonus $Bonus;
 
 use Abills::Base qw/days_in_month in_array/;
 
@@ -46,15 +45,14 @@ sub bonus_payments_maked {
   my $self = shift;
   my ($attr) = @_;
 
-  return '' if !$CONF->{BONUS_PAYMENTS} || !$attr->{SUM};
-
+  return '' if (!$CONF->{BONUS_PAYMENTS} || !$attr->{SUM});
   my $form = $attr->{FORM} || {};
   my $score = 0;
   my %RESULT = ();
   my $user;
   $user = $attr->{USER_INFO} if $attr->{USER_INFO};
 
-  $form->{METHOD} = 2 if !defined($form->{METHOD});
+  $form->{METHOD} = 2 if (!defined($form->{METHOD}));
 
   my $payment_method = $attr->{METHOD} || $form->{METHOD};
 
@@ -64,7 +62,7 @@ sub bonus_payments_maked {
 
   $Bonus->user_info($user->{UID});
 
-  return '' if !$Bonus->{STATE} || !$Bonus->{ACCEPT_RULES};
+  return '' if (!$Bonus->{STATE} || !$Bonus->{ACCEPT_RULES});
 
   my $list = $Bonus->service_discount_list({
     REGISTRATION_DAYS => "<=$registration_days,>=0",

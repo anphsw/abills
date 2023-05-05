@@ -3715,6 +3715,7 @@ sub storage_inventory {
     EX_PARAMS   => "onchange='selectArticles(this, true);'",
   });
 
+  require Control::Reports;
   reports({
     PERIOD_FORM   => 1,
     NO_PERIOD     => 1,
@@ -3931,6 +3932,7 @@ sub storage_invoices {
     MAIN_MENU   => get_function_index('suppliers_main')
   });
 
+  require Control::Reports;
   reports({
     PERIOD_FORM   => 1,
     NO_PERIOD     => 0,
@@ -4322,6 +4324,7 @@ sub storage_public_sale {
   foreach my $item (@{$articles}) {
     next if $item->{SELL_PRICE} > $user->{DEPOSIT};
 
+    $item->{MEASURE_NAME} = _translate($item->{MEASURE_NAME});
     my $max_count = int($user->{DEPOSIT} / $item->{SELL_PRICE});
     my $buy_btn = $html->button($lang{BUY}, '', {
       class          => 'btn btn-primary sell-btn',

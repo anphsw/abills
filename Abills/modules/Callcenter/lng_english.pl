@@ -181,5 +181,7 @@ $lang{VOIP} = 'VoIP';
 $lang{REC_WARNING} = 'Warning. Call will recording';
 $lang{CALL_TYPE} = 'Call type';
 $lang{BROWSER_DOES_NOT_SUPPORT_ELEMENT} = 'Your browser does not support the element';
+$lang{TOTAL_CALL_STATISTICS} = 'Total call statistics';
+$lang{PERSONAL_CALL_STATISTICS} = 'Personal call statistics';
 
 1;

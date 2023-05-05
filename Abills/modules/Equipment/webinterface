@@ -119,7 +119,7 @@ if ($permissions{4}) {
 }
 
 my $EQUIPMENT_MAPS_LAYER_ID = 7;
-my $PON_MAPS_LAYER_ID = 20;
+#my $PON_MAPS_LAYER_ID = 20;
 
 # TODO: rewrite equipment_panel to normal table_header
 #********************************************************
@@ -135,7 +135,6 @@ sub equipment_panel {
   my %ports_visualisation = (
     1  => "VLAN",
     2  => $lang{PORTS},
-    3  => "ARP",
     6  => "MAC",
     8  => $lang{SNMP_SURVEY},
     9  => "Backup",
@@ -357,7 +356,6 @@ sub equipment_info {
       $FORM{COMMENTS} = $snmp_result->{$key} if ($key eq 'SYSTEM_DESCR');
     }
 
-    #$Equipment->_info( $nas_id );
     if (!$Equipment->{errno} || $Equipment->{errno} != '2') {
       $Equipment->{ACTION} = 'change';
       $Equipment->{ACTION_LNG} = $lang{CHANGE};
@@ -519,7 +517,18 @@ sub equipment_info {
     if ($Equipment->{LAST_ACTIVITY} && $Equipment->{LAST_ACTIVITY} eq '0000-00-00 00:00:00') {
       $Equipment->{LAST_ACTIVITY} = $lang{POLL_NOT_DONE};
     }
-      $html->tpl_show(_include('equipment_info', 'Equipment'), { %{$Nas}, %{$Equipment}, %FORM });
+
+    my $onu_status = '';
+    if ($Equipment->{TYPE_ID} && $Equipment->{TYPE_ID} == 4){
+      $onu_status = $html->element('div', _equipment_panel_onu_status( $Equipment ), { class => 'modal-body' });
+    }
+
+    $html->tpl_show(_include('equipment_info', 'Equipment'), {
+      %{$Nas},
+      %{$Equipment},
+      %FORM,
+      ONU_STATUS => $onu_status || '',
+    });
   }
 
   if (defined($FORM{visual} && !$FORM{qindex})) {
@@ -1350,6 +1359,7 @@ sub equipment_fdb {
     my @header_arr = (
       "$lang{LOG}:index=$index&visual=6&NAS_ID=$nas_id",
       "FDB:index=$index&visual=6&NAS_ID=$nas_id&fdb=1",
+      "ARP:index=$index&visual=6&NAS_ID=$nas_id&arp=1",
       "$lang{DUPLICATE_MAC}:index=$index&visual=6&NAS_ID=$nas_id&tab_mac=1",
     );
 
@@ -1448,6 +1458,10 @@ sub equipment_fdb {
   }
   elsif ($FORM{tab_mac}) {
     equipment_mac_duplicate();
+  }
+  # ARP SNMP
+  elsif ($FORM{arp}) {
+    equipment_arp($attr);
   }
   else {
     equipment_mac_log({ NAS_ID => $FORM{NAS_ID} });
@@ -2276,53 +2290,6 @@ sub equipment_show_log {
 }
 
 #**********************************************************
-=head2 equipment_search($attr) - Global search submodule
-
-  Arguments:
-    $attr
-      SEARCH_TEXT
-      DEBUG
-
-  Returs:
-     TRUE/FALSE
-
-=cut
-#**********************************************************
-sub equipment_search {
-  my ($attr) = @_;
-
-  my @default_search = ('MAC', '_MULTI_HIT');
-
-  my @qs = ();
-  foreach my $field (@default_search) {
-    $LIST_PARAMS{$field} = "*$attr->{SEARCH_TEXT}*";
-    push @qs, "$field=*$attr->{SEARCH_TEXT}*";
-  }
-
-  if ($attr->{DEBUG}) {
-    $Equipment->{debug} = 1;
-  }
-
-  $Equipment->mac_log_list({
-    %LIST_PARAMS,
-  });
-
-  my @info = ();
-
-  if ($Equipment->{TOTAL}) {
-    push @info, {
-      'TOTAL'        => $Equipment->{TOTAL},
-      'MODULE'       => 'Equipment',
-      'MODULE_NAME'  => $lang{EQUIPMENT},
-      'SEARCH_INDEX' => get_function_index('equipment_mac_log')
-        . '&' . join('&', @qs) . "&search=1"
-    };
-  }
-
-  return \@info;
-}
-
-#**********************************************************
 =head2 equipment_add_color()
 
 =cut
@@ -2682,6 +2649,124 @@ sub equipment_run_cmd_on_equipment_button {
       },
       \@dropdown_items
     );
+  }
+
+  return $result;
+}
+
+
+#********************************************************
+=head2 _equipment_panel_onu_status ($attr) - return progress bar with onu status - online/offline
+
+  Arguments:
+    $attr - $Equipment
+
+=cut
+#********************************************************
+sub _equipment_panel_onu_status {
+  my ($attr) = @_;
+  my $result = '';
+
+  my $onu_status = $Equipment->onu_date_status({COLS_NAME => 1, NAS_ID => $attr->{NAS_ID}});
+  my $total = $Equipment->{TOTAL} || 0;
+  my $total_online = 0;
+  my $total_offline = 0;
+
+  for my $line (@$onu_status) {
+    if ($line->{onu_status} == 1 || $line->{onu_status} == 2 || $line->{onu_status} == 3 || $line->{onu_status} == 5 || $line->{onu_status} == 18) {
+      $total_online += 1;
+    }
+    else {
+      $total_offline += 1;
+    }
+  }
+
+  $result .= "<div class='col-md-3'>";
+  $result = $html->progress_bar({
+    TEXT         => ($total_online >0) ? "$total_online/$total" : 0,
+    TOTAL        => $total,
+    COMPLETE     => $total_online,
+    PERCENT_TYPE => 1,
+    BAGE_TEXT    => 'ONU online',
+    COLOR        => ' bg-success'
+});
+  $result .= '</div>';
+
+  $result .= $html->progress_bar({
+    TEXT         => ($total_offline > 0) ? "$total_offline/$total" : 0,
+    TOTAL        => $total,
+    COMPLETE     => $total_offline,
+    PERCENT_TYPE => 1,
+    BAGE_TEXT    => 'ONU offline',
+    COLOR        => ' bg-danger'
+  });
+
+  $result .= $html->element('span', _equipment_panel_branch_onu_status( $Equipment ), { class => 'col-md-8' });
+
+  return $result;
+}
+
+
+#********************************************************
+=head2 _equipment_panel_branch_onu_status ($attr) - return branch list with badges of onu status - online/offline
+
+  Arguments:
+    $attr - $Equipment
+
+=cut
+#********************************************************
+sub _equipment_panel_branch_onu_status {
+  my ($attr) = @_;
+  my $result = '';
+
+  my $onu_branch_list = $Equipment->onu_list({
+    NAS_ID      => $attr->{NAS_ID},
+    BRANCH_DESC => '_SHOW',
+    PON_TYPE    => '_SHOW',
+    BRANCH      => '_SHOW',
+    GROUP_BY    => 'branch',
+    SORT        => 'snmp_id',
+    COLS_NAME   => 1
+  });
+
+  foreach my $branch (@$onu_branch_list) {
+    my $onu_status = $Equipment->onu_list({
+      NAS_ID    => $attr->{NAS_ID},
+      OLT_PORT  => $branch->{PORT_ID},
+      STATUS    => '_SHOW',
+      COLS_NAME => 1
+    });
+
+    my $onu_online = 0;
+    my $onu_offline = 0;
+    my $onu_badge = '';
+    my $ports_total = ($branch->{pon_type} eq 'epon') ? 64 : 128;
+
+    for my $line (@$onu_status) {
+      if ($line->{status} == 1 || $line->{status} == 2 || $line->{status} == 3 || $line->{status} == 5 || $line->{status} == 18) {
+        $onu_online += 1;
+      }
+      else {
+        $onu_offline += 1;
+      }
+    }
+
+      my $progress_bar = $html->progress_bar({
+        TEXT     => ($onu_online > 0) ? "$onu_online/$ports_total" : 0,
+        TOTAL    => $ports_total,
+        COMPLETE => $onu_online,
+        COLOR    => ' bg-success'
+      });
+
+      $onu_badge .= $html->badge($onu_online, { TYPE => 'badge badge-success', STYLE => "TITLE='$lang{ONLINE}'" });
+      $onu_badge .= $html->badge($onu_offline, { TYPE => 'badge badge-danger', STYLE => "TITLE='$lang{OFFLINE}'" });
+
+    $result .= $html->message(
+      'light',
+      $html->button("$branch->{pon_type} $branch->{branch}", "index=$index&visual=4&NAS_ID=$attr->{NAS_ID}&OLT_PORT=$branch->{PORT_ID}", { class =>'btn btn-secondary btn-xs'} ),
+      "$progress_bar $onu_badge",
+      { OUTPUT2RETURN => 1, class => 'col-md-8' }
+    ),
   }
 
   return $result;

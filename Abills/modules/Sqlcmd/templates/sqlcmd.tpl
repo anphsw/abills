@@ -7,7 +7,7 @@
 <script src='/styles/codemirror/addon/hint/show-hint.js'></script>
 <script src='/styles/codemirror/addon/hint/sql-hint.js'></script>
 
-<form action='$SELF_URL' METHOD=POST class='form-horizontal'>
+<form METHOD=POST class='form-horizontal'>
   <input type=hidden name=index value=$index>
   <input type=hidden name=HOST_ID value='$FORM{HOST_ID}'>
 
@@ -44,7 +44,7 @@
         </div>
 
         <div class='card-footer'>
-          <input type=submit name=show value='_{QUERY}_' id='go' title='Ctrl+C' class='btn btn-primary'>
+          <input type=submit name=show value='_{QUERY}_' id='go' class='btn btn-primary'>
         </div>
       </div>
     </div>
@@ -102,7 +102,9 @@
       lineNumbers: true,
       matchBrackets : true,
       autofocus: true,
-      extraKeys: {"Ctrl-Space": "autocomplete"},
+      extraKeys: {
+        'Ctrl-Space': 'autocomplete'
+      },
       tabSize: 2,
       showCursorWhenSelecting: true,
       hint: CodeMirror.hint.sql,

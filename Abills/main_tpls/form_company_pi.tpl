@@ -1,6 +1,6 @@
 <div>
+  <input type='hidden' name='COMPANY_ID' value='%COMPANY_ID%'>
   <input type='hidden' name='index' value='$index'>
-  <input type=hidden name=UID value='%UID%'>
   <input type='hidden' name='FIO_REQUIRE' id='FIO_REQUIRE' value='$FORM{FIO_REQUIRE}'>
 
   <div class='%FORM_ATTR%'>
@@ -77,12 +77,6 @@
       </div>
       <div class='card-body'>
         %INFO_FIELDS%
-      </div>
-    </div>
-
-    <div class='form-group row mt-3 mr-3 ml-3'>
-      <div class='input-group'>
-        <textarea class='form-control' id='COMMENTS' placeholder='_{COMMENTS}_' name='COMMENTS' rows='3'>%COMMENTS%</textarea>
       </div>
     </div>
 

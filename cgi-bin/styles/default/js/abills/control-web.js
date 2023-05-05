@@ -47,11 +47,17 @@ function calculateBtnGroup() {
   const calculatedButtonWidth = 142;
 
   const parentWidth = abillsBtnGroup.parentElement.clientWidth;
+  const scrollWidth = abillsBtnGroup.parentElement.parentElement.scrollWidth;
   const maybeWidth = (abillsBtnGroup.children.length - 1) * calculatedButtonWidth;
 
   /* inserting items to dropdown list from btn-group */
   if (parentWidth < maybeWidth) {
     let needToAdd = parseInt((maybeWidth - parentWidth) / calculatedButtonWidth);
+
+    // watching if buttons header bigger than parent at real
+    if (scrollWidth > parentWidth) {
+      needToAdd += 1;
+    }
 
     if (needToAdd != 0) {
       [...abillsBtnGroup.children].reverse().forEach(element => {

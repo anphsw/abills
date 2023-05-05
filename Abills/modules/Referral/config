@@ -1,4 +1,4 @@
-load_module('Referral', $html);
+use Referral;
 
 my $Referral = Referral->new($db, $admin, \%conf);
 

@@ -14,12 +14,13 @@ use strict;
 use warnings FATAL => 'all';
 our (
   $db,
-  $admin,
   %conf,
-  $html,
   %lang,
   @bool_vals
 );
+
+our Admins $admin;
+our Abills::HTML $html;
 
 use Abills::Base qw/urldecode in_array _bp/;
 use Abills::Experimental;
@@ -27,7 +28,7 @@ use Hotspot;
 use Nas;
 use Abills::Nas::Mikrotik;
 
-my $Nas = Nas->new( $db, \%conf );
+my $Nas = Nas->new( $db, \%conf, $admin);
 my $Hotspot = Hotspot->new( $db, $admin, \%conf );
 
 my $debug = $FORM{DEBUG} || 0;

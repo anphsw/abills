@@ -132,6 +132,8 @@ sub msgs_list {
   my Abills::HTML $table;
   my $list;
 
+  $LIST_PARAMS{MSG_ID} =~ s/#// if ($LIST_PARAMS{MSG_ID});
+
   # state for watching messages
   if ($FORM{STATE} && $FORM{STATE} =~ /^\d+$/ && $FORM{STATE} == 12) {
     my $watched_links = $Msgs->msg_watch_list({
@@ -140,24 +142,36 @@ sub msgs_list {
     });
     _error_show($Msgs);
 
-    $LIST_PARAMS{MSG_ID} = join(';', map {$_->{main_msg}} @$watched_links) || '';
+    if ($Msgs->{TOTAL} > 0) {
+      $LIST_PARAMS{MSG_ID} = join(';', map {$_->{main_msg}} @$watched_links) || '';
+      delete $FORM{STATE};
+    }
   }
 
   if ($FORM{CHAPTER} && $msgs_permissions{4}) {
     my @available_chapters = keys %{$msgs_permissions{4}};
-
-    $FORM{CHAPTER} = $FORM{CHAPTER} eq '_SHOW' ? join(';', @available_chapters)
-      : join(';', grep { in_array($_, \@available_chapters) } split('[,;]\s?', $FORM{CHAPTER}));
+    
+    my @chapters = grep { in_array($_, \@available_chapters) } split('[,;]\s?', $FORM{CHAPTER});
+    $FORM{CHAPTER} = ($FORM{CHAPTER} eq '_SHOW' || !scalar(@chapters)) ? join(';', @available_chapters) : join(';', @chapters);
   }
   elsif ($FORM{CHAPTER}) {
     $FORM{CHAPTER} =~ s/,/;/g;
-    $LIST_PARAMS{CHAPTER} = $FORM{CHAPTER};
   }
   elsif ($msgs_permissions{4}) {
     $FORM{CHAPTER} = join(';', keys %{$msgs_permissions{4}});
   }
 
   $LIST_PARAMS{MSGS_TAGS} =~ s/,/;/g if $LIST_PARAMS{MSGS_TAGS} && $LIST_PARAMS{TAGS_STATEMENT};
+
+  my @MULTISELECT_ACTIONS = ();
+  push @MULTISELECT_ACTIONS, {
+    TITLE    => $lang{DEL},
+    ICON     => 'fa fa-trash',
+    ACTION   => "$SELF_URL?index=$index",
+    PARAM    => 'del',
+    CLASS    => 'text-danger',
+    COMMENTS => "$lang{DEL}?"
+  } if $msgs_permissions{1} && $msgs_permissions{1}{1};
 
   my @function_fields = ('msgs_admin:show:chg_msgs;uid');
   push @function_fields, "msgs_admin:del:del_msgs;" . ($FORM{UID} ? "uid;" : "") . "state:&ALL_MSGS=1" if $msgs_permissions{1}{1};
@@ -292,14 +306,7 @@ sub msgs_list {
       'watchers'               => $lang{WATCHERS},
     },
     TABLE             => {
-      MULTISELECT_ACTIONS => [ {
-        TITLE    => $lang{DEL},
-        ICON     => 'fa fa-trash',
-        ACTION   => "$SELF_URL?index=$index",
-        PARAM    => 'del',
-        CLASS    => 'text-danger',
-        COMMENTS => "$lang{DEL}?"
-      } ],
+      MULTISELECT_ACTIONS => \@MULTISELECT_ACTIONS,
       width               => '100%',
       caption             => $lang{MESSAGES},
       qs                  => $pages_qs
@@ -327,11 +334,24 @@ sub msgs_list {
 
   return 1 if $table eq "-1";
 
-  if ($FORM{subf}) {
-    $index = $FORM{subf};
-  }
+  $index = $FORM{subf} if $FORM{subf};
 
   my $total_msgs = $Msgs->{TOTAL};
+  my $table2 = $html->table({
+    width => '100%',
+    rows  => [ [ "  $lang{TOTAL}: ", $html->b($total_msgs) ] ]
+  });
+
+  print $html->form_main({
+    CONTENT => (($table) ? $table->show({ OUTPUT2RETURN => 1 }) : q{})
+      . (($table2) ? $table2->show({ OUTPUT2RETURN => 1 }) : q{}),
+    HIDDEN  => {
+      index     => $index,
+      STATE     => $FORM{STATE},
+    },
+    NAME    => 'MSGS_LIST',
+    ID      => 'MSGS_LIST',
+  });
 
   my %actions_msgs = ();
   if (!$FORM{EXPORT_CONTENT}) {
@@ -344,24 +364,23 @@ sub msgs_list {
     $actions_msgs{DISPATCH_ACTION} = @{ $dispatch_arr }[1];
   }
 
-  my $table2 = $html->table({
-    width => '100%',
-    rows  => [ [ "  $lang{TOTAL}: ", $html->b($total_msgs) ] ]
+  $actions_msgs{CHAPTER_SEL} = $html->form_select('CHAPTER', {
+    SELECTED => $FORM{CHAPTER},
+    SEL_LIST => $Msgs->chapters_list({
+      DOMAIN_ID => $admin->{DOMAIN_ID},
+      CHAPTER   => $msgs_permissions{4} ? join(',', keys %{$msgs_permissions{4}}) : '_SHOW',
+      COLS_NAME => 1
+    }),
+    SEL_OPTIONS => { '_SHOW' => $lang{ALL} },
+    SEL_KEY     => 'id',
+    SEL_VALUE   => 'name',
+    NO_ID       => 1,
+    FORM_ID     => 'MSGS_LIST'
   });
-
-  my $category_arr = _msgs_category();
-  $actions_msgs{MSGS_CATEGORY} = @{ $category_arr }[0];
-  $actions_msgs{CATEGORY_BTN} = @{ $category_arr }[1];
-
-  print $html->form_main({
-    CONTENT => (($table) ? $table->show({ OUTPUT2RETURN => 1 }) : q{})
-      . (($table2) ? $table2->show({ OUTPUT2RETURN => 1 }) : q{}),
-    HIDDEN  => {
-      index     => $index,
-      STATE     => $FORM{STATE},
-    },
-    NAME    => 'MSGS_LIST',
-    ID      => 'MSGS_LIST',
+  $actions_msgs{CHAPTER_ACTION} = $html->form_input('SEARCH_CHAPTER', $lang{SEARCH}, {
+    TYPE    => 'submit',
+    class   => 'btn btn-primary',
+    FORM_ID => 'MSGS_LIST'
   });
 
   my ($status_field, $status_btn) = _msgs_status_update();
@@ -413,6 +432,7 @@ sub _msgs_list_status_form {
 sub msgs_dispatch_sel {
   my ($attr) = @_;
 
+  return () if !$msgs_permissions{1} || !$msgs_permissions{1}{26};
   my @rows = (
     $html->form_select('DISPATCH_ID', {
       SELECTED       => $Msgs->{DISPATCH_ID} || '',
@@ -560,38 +580,6 @@ sub _msgs_list_state_form {
   }
 
   return $state;
-}
-
-#**********************************************************
-=head2 _msgs_category() - Draw a html block with
-                          select to search by section
-
-  Arguments:
-    -
-  Results:
-    -
-
-=cut
-#**********************************************************
-sub _msgs_category {
-
-    my $chapter = $Msgs->chapters_list({ COLS_NAME => 1 });
-
-    my $info = '';
-    if ($FORM{search_form}) {
-      return [];
-    }
-
-    my @rows_element = _msgs_footer_row($chapter, {
-      NAME_SELECT   => 'CHAPTER',
-      ID_KEY        => 'id',
-      ID_VALUE      => 'name',
-      FOR_FORM      => 'MSGS_LIST',
-      NAME_BUTTON   => 'SERACH_CATEGORY',
-      LABEL         => $lang{CHAPTER}
-    });
-
-    return \@rows_element;
 }
 
 #**********************************************************

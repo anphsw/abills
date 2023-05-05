@@ -2,6 +2,9 @@ post:
   tags:
     - iptv
   summary: Добавление услуги IPTV
+  description: >
+    Также обязательное поле в запросе можно найти пути `GET /user/config`
+    параметр `id` в объекте `subscribe` в объекте `iptvConfig`
   requestBody:
     content:
       application/json:

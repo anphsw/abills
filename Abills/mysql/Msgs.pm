@@ -123,6 +123,8 @@ sub messages_new {
     return $self->{list};
   }
 
+  $EXT_TABLE .= "\nLEFT JOIN msgs_chapters c ON (m.chapter=c.id)" if $attr->{CHAPTER};
+
   if ($attr->{GID}) {
     $self->query('SELECT '. $fields
       .' FROM (msgs_messages m, users u) '
@@ -167,7 +169,7 @@ sub messages_list {
   
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = (defined $attr->{DESC}) ? $attr->{DESC} : 'DESC';
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
 
   delete $self->{COL_NAMES_ARR};
@@ -576,6 +578,12 @@ sub message_change {
 
   $admin->{MODULE} = $MODULE;
   my $old_info = $self->message_info($attr->{ID});
+
+  if (defined $attr->{STATE} && $attr->{STATE} ne $old_info->{STATE} && !$attr->{CLOSED_DATE}) {
+    $attr->{CLOSED_AID} = '';
+    $attr->{CLOSED_DATE} = '0000-00-00';
+  }
+
   $self->changes({
     CHANGE_PARAM    => 'ID',
     TABLE           => 'msgs_messages',
@@ -1904,7 +1912,8 @@ sub unreg_requests_add {
   my ($attr) = @_;
 
   if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD} && !$attr->{LOCATION_ID}) {
-    use Address;
+    require Address;
+    Address->import();
     my $Address = Address->new($self->{db}, $self->{admin}, $self->{conf});
     $Address->build_add({
       STREET_ID         => $attr->{STREET_ID},
@@ -2025,7 +2034,8 @@ sub unreg_requests_change {
   my ($attr) = @_;
 
   if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD}) {
-    use Address;
+    require Address;
+    Address->import();
     my $Address = Address->new($self->{db}, $self->{admin}, $self->{conf});
     $Address->build_add({
       STREET_ID         => $attr->{STREET_ID},
@@ -4214,29 +4224,27 @@ sub messages_and_replies_for_two_weeks {
   }
 
   $self->query("SELECT
+      0 AS replies,
       SUM(IF(uid <> 0, 1, 0)) AS messages,
       DATE_FORMAT(date, '%Y-%m-%d') AS day
     FROM msgs_messages
     WHERE DATEDIFF(DATE_FORMAT(NOW(), '%Y-%m-%d' ), DATE_FORMAT(date, '%Y-%m-%d' )) <= 14
-    GROUP BY day",
-    undef,
-    { COLS_NAME => 1 }
-  );
-  
-  my $new_msgs_list = $self->{list} || [];
+    GROUP BY day
 
-  $self->query("SELECT
+    UNION
+
+    SELECT
       SUM(IF(aid <> 0, 1, 0)) AS replies,
       SUM(IF(uid <> 0 AND aid = 0, 1, 0)) AS messages,
       DATE_FORMAT(datetime, '%Y-%m-%d') AS day
     FROM msgs_reply
-    WHERE DATEDIFF(DATE_FORMAT(NOW(), '%Y-%m-%d' ), DATE_FORMAT(datetime, '%Y-%m-%d' )) <= 14
+    WHERE DATEDIFF(DATE_FORMAT(NOW(), '%Y-%m-%d' ), DATE_FORMAT(datetime, '%Y-%m-%d' )) <= 14 AND inner_msg = 0
     GROUP BY day",
     undef,
     { COLS_NAME => 1 }
   );
 
-  return [ @{$new_msgs_list}, @{$self->{list} || []} ];
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -4393,7 +4401,7 @@ sub permissions_list {
       AID        => $aid,
       COLS_NAME  => 1
     });
-    
+
     map $msgs_permissions->{deligation_level}{$_->{chapter_id}} = $_->{deligation_level}, @{$admin_info};
   }
 

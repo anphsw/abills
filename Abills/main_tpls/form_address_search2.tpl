@@ -37,9 +37,10 @@
   </div>
 
   <div class='form-group row' style='%HIDE_FLAT%'>
-    <label class='col-sm-3 col-md-4 col-form-label text-md-right'>_{ADDRESS_FLAT}_:</label>
+    <label class='col-sm-3 col-md-4 col-form-label text-md-right' for='ADDRESS_FLAT'>_{ADDRESS_FLAT}_:</label>
     <div class='col-sm-9 col-md-8'>
-      <input type='text' name='ADDRESS_FLAT' value='%ADDRESS_FLAT%' class='form-control INPUT-FLAT'>
+      <input type='text' id='ADDRESS_FLAT' name='ADDRESS_FLAT' value='%ADDRESS_FLAT%' class='form-control INPUT-FLAT'>
+      <div class='invalid-feedback'></div>
     </div>
   </div>
 
@@ -124,6 +125,7 @@
     setTimeout(function () {
       jQuery('.INPUT-FLAT').focus();
     }, 100);
+    jQuery('#ADDRESS_FLAT').trigger('input');
   }
 
   let selected_builds = jQuery('#ADD_LOCATION_ID').attr('value');
@@ -172,5 +174,37 @@
   }
 
   activateBuildButtons();
+
+  jQuery('#ADDRESS_FLAT').on('input', function () {
+    let check_flat = '%CHECK_ADDRESS_FLAT%';
+    if (check_flat.length === 0) return;
+
+    let flat_input = jQuery(this);
+    flat_input.removeClass('is-invalid').removeClass('is-valid');
+
+    let flat = flat_input.val();
+    let build_id = jQuery('#%BUILD_ID%').val();
+
+    if (!flat || !build_id) return;
+
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(function () {
+      sendRequest(`/api.cgi/users/all?PAGE_ROWS=1&ADDRESS_FLAT=${flat}&LOCATION_ID=${build_id}`, {}, 'GET')
+        .then(data => {
+          if (data.length > 0) {
+            flat_input.addClass('is-invalid').removeClass('is-valid');
+            let user_btn = jQuery('<a></a>').attr('href', `?get_index=form_users&full=1&UID=${data[0].uid}`)
+              .text(data[0].login).attr('target', '_blank');
+            let warning_text = `_{USER_ADDRESS_EXIST}_. _{LOGIN}_: `;
+            flat_input.parent().find('.invalid-feedback').first().text(warning_text).append(user_btn);
+          }
+          else {
+            flat_input.addClass('is-valid').removeClass('is-invalid');
+          }
+        });
+    }, 500);
+  });
 
 </script>

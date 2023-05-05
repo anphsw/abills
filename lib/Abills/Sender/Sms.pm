@@ -5,12 +5,12 @@ package Abills::Sender::Sms;
 
 =cut
 
-
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Sender::Plugin;
 use parent 'Abills::Sender::Plugin';
+
+use Abills::Sender::Plugin;
 use Sms::Init;
 use Sms;
 use Abills::Filters;

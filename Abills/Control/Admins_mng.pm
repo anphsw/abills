@@ -10,9 +10,6 @@ use warnings FATAL => 'all';
 use Abills::Base qw(in_array load_pmodule);
 use Abills::Defs;
 use Abills::Misc;
-use JSON;
-use Contacts;
-use Payments;
 
 our (
   $db,
@@ -38,7 +35,8 @@ sub form_admins {
   my $Employees;
 
   if (in_array('Employees', \@MODULES)) {
-    use Employees;
+    require Employees;
+    Employees->import();
     $Employees = Employees->new($db, $admin, \%conf);
   }
 
@@ -69,9 +67,7 @@ sub form_admins {
 
   if ($FORM{AID}) {
     $admin_form->info($FORM{AID});
-    if(_error_show($admin_form)) {
-      return 0;
-    }
+    return 0 if _error_show($admin_form);
 
     if (!defined($FORM{DOMAIN_ID})) {
       $FORM{DOMAIN_ID} = $admin_form->{DOMAIN_ID} if ($admin_form->{DOMAIN_ID});
@@ -103,7 +99,7 @@ sub form_admins {
     push @admin_menu, $lang{ACCESS} . ":59:AID=$admin_form->{AID}:",
       'Paranoid' . ':' . get_function_index('form_admins_full_log_analyze') . ":AID=$admin_form->{AID}:",
       $lang{CONTACTS} . ":61:AID=$admin_form->{AID}:contacts";
-    push @admin_menu, $lang{AUTH_HISTORY} . ":115:AID=$admin_form->{AID}:auth_history";
+    push @admin_menu, $lang{AUTH_HISTORY} . ":115:AID=$admin_form->{AID}:form_admin_auth_history";
     if (in_array('Multidoms', \@MODULES)) {
       push @admin_menu, $lang{DOMAINS} . ":113:AID=$admin_form->{AID}:domains";
     }
@@ -120,11 +116,7 @@ sub form_admins {
       { f_args => { ADMIN => $admin_form } }
     );
 
-    if (defined $FORM{newpassword}) {
-      if (!form_passwd({ ADMIN => $admin_form })) {
-        delete $FORM{change};
-      }
-    }
+    delete $FORM{change} if (defined $FORM{newpassword} && !form_passwd({ ADMIN => $admin_form }));
 
     if ($FORM{subf}) {
       return 0;
@@ -163,48 +155,39 @@ sub form_admins {
   }
   elsif ($FORM{REGISTER_TELEGRAM}) {
     $admin_form->change({ AID => $admin->{AID}, TELEGRAM_ID => $FORM{telegram_id} });
-    $html->message("info", $lang{SUCCESS}, "Telegram ID $lang{ADDED}");
+    $html->message('info', $lang{SUCCESS}, "Telegram ID $lang{ADDED}");
     return 1;
   }
 
   _error_show($admin_form);
 
-  $admin_form->{PASPORT_DATE} = $html->date_fld2(
-    'PASPORT_DATE',
-    {
-      FORM_NAME => 'admin_form',
-      WEEK_DAYS => \@WEEKDAYS,
-      MONTHES   => \@MONTHES,
-      DATE      => $admin_form->{PASPORT_DATE},
-      NO_DEFAULT_DATE => 1,
-    }
-  );
+  $admin_form->{PASPORT_DATE} = $html->date_fld2('PASPORT_DATE', {
+    FORM_NAME       => 'admin_form',
+    WEEK_DAYS       => \@WEEKDAYS,
+    MONTHES         => \@MONTHES,
+    DATE            => $admin_form->{PASPORT_DATE},
+    NO_DEFAULT_DATE => 1
+  });
 
   if (in_array('Employees', \@MODULES)) {
-    $admin_form->{POSITIONS} = $html->form_select(
-      'POSITION',
-      {
-        SELECTED    => $FORM{POSITION} || $admin_form->{POSITION},
-        SEL_LIST    => translate_list($Employees->position_list({ COLS_NAME => 1 }), "position"),
-        SEL_KEY     => 'id',
-        SEL_VALUE   => 'position',
-        NO_ID       => 1,
-        SEL_OPTIONS => { '0' => '--' },
-        MAIN_MENU   => get_function_index('employees_positions'),
-      }
-    );
+    $admin_form->{POSITIONS} = $html->form_select('POSITION', {
+      SELECTED    => $FORM{POSITION} || $admin_form->{POSITION},
+      SEL_LIST    => translate_list($Employees->position_list({ COLS_NAME => 1 }), 'position'),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'position',
+      NO_ID       => 1,
+      SEL_OPTIONS => { '0' => '--' },
+      MAIN_MENU   => get_function_index('employees_positions')
+    });
 
-    $admin_form->{DEPARTMENTS} = $html->form_select(
-      'DEPARTMENT',
-      {
-        SELECTED    => $FORM{DEPARTMENT} || $admin_form->{DEPARTMENT},
-        SEL_LIST    => $Employees->employees_department_list({ NAME => '_SHOW', COLS_NAME => 1 }),
-        SEL_KEY     => 'id',
-        SEL_VALUE   => 'name',
-        NO_ID       => 1,
-        SEL_OPTIONS => { '0' => '--' },
-      }
-    );
+    $admin_form->{DEPARTMENTS} = $html->form_select('DEPARTMENT', {
+      SELECTED    => $FORM{DEPARTMENT} || $admin_form->{DEPARTMENT},
+      SEL_LIST    => $Employees->employees_department_list({ NAME => '_SHOW', COLS_NAME => 1 }),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { '0' => '--' }
+    });
 
     $admin_form->{POSITION_ADD_LINK} = $html->button('', 'index=' . get_function_index('employees_positions'), {
       ICON           => 'fa fa-plus',
@@ -213,19 +196,24 @@ sub form_admins {
     });
   }
 
-  $admin_form->{FULL_LOG} = ($admin_form->{FULL_LOG}) ? 'checked' : '';
-#  $admin_form->{DISABLE} = (defined($admin_form->{DISABLE}) && $admin_form->{DISABLE} > 0) ? 'checked' : '';
-  my %admin_statuses_select = (0 => "$lang{ACTIV}", 1 => "$lang{DISABLE}", 2 => "$lang{FIRED}");
-  if($FORM{search_form}){
-    $admin_statuses_select{'>=0'} = $lang{ALL};
+  if ($conf{ADMIN_NEW_ADDRESS_FORM}) {
+    $admin_form->{ADDRESS_FORM} = form_address_select2({ %FORM, %{$admin_form} });
+    $admin_form->{OLD_ADDRESS_CLASS} = 'd-none';
+  }
+  else {
+    $admin_form->{ADDRESS_CARD_CLASS} = 'd-none';
   }
 
-  $admin_form->{DISABLE_SELECT} = $html->form_select("DISABLE", {
-      SELECTED  => $admin_form->{DISABLE},
-      SEL_HASH => \%admin_statuses_select,
-      #      ARRAY_NUM_ID => 1,
-      NO_ID => 1,
-    });
+  $admin_form->{FULL_LOG} = ($admin_form->{FULL_LOG}) ? 'checked' : '';
+#  $admin_form->{DISABLE} = (defined($admin_form->{DISABLE}) && $admin_form->{DISABLE} > 0) ? 'checked' : '';
+  my %admin_statuses_select = (0 => $lang{ACTIV}, 1 => $lang{DISABLE}, 2 => $lang{FIRED});
+  $admin_statuses_select{'>=0'} = $lang{ALL} if $FORM{search_form} ;
+
+  $admin_form->{DISABLE_SELECT} = $html->form_select('DISABLE', {
+    SELECTED => $admin_form->{DISABLE},
+    SEL_HASH => \%admin_statuses_select,
+    NO_ID    => 1,
+  });
   $admin_form->{GROUP_SEL} = sel_groups({ GID => $admin_form->{GID}, SKIP_MULTISELECT => 1 });
 
   if ($admin_form->{DOMAIN_ID} && $admin->{DOMNAIN_ID}) {
@@ -247,6 +235,7 @@ sub form_admins {
 
   $admin_form->{G2FA_CHECKED} = $admin_form->{G2FA} ? "checked" : '';
   $admin_form->{G2FA} = $admin_form->{G2FA} || $FORM{G2FA} || uc(Abills::Base::mk_unique_value(32));
+  $admin_form->{PATTERN} = ($conf{ADMINNAMEREGEXP}) ? ($conf{ADMINNAMEREGEXP}) : '^\S{1,}$';
 
   if($FORM{show_add_form} || $FORM{AID}){
     $html->tpl_show(templates('form_admin'), $admin_form);
@@ -256,12 +245,13 @@ sub form_admins {
     $admin_form->{DOMAIN_SEL} = '';          # remove domain select from search template
 
     form_search({
-      TPL => $html->tpl_show(templates('form_admin_search'), {%FORM, %$admin_form,}, {OUTPUT2RETURN => 1}),
+      TPL => $html->tpl_show(templates('form_admin_search'), { %FORM, %$admin_form, }, { OUTPUT2RETURN => 1 }),
     })
   }
 
   if($FORM{search}){
     %LIST_PARAMS = %FORM;
+    $LIST_PARAMS{PHONE} = "*$LIST_PARAMS{PHONE}*" if $LIST_PARAMS{PHONE};
     $LIST_PARAMS{API_KEY} = $FORM{API_KEY_NEW};
     $LIST_PARAMS{ADMIN_NAME} = $FORM{A_FIO};
     $LIST_PARAMS{LOGIN} = $FORM{ID};
@@ -291,6 +281,46 @@ sub form_admins {
     }
   }
 
+  my %EXT_TITLES = (
+    login            => $lang{LOGIN},
+    name             => $lang{FIO},
+    position         => $lang{POSITION},
+    regdate          => $lang{REGISTRATION},
+    disable          => $lang{STATUS},
+    aid              => '#',
+    g_name           => $lang{GROUPS},
+    domain_name      => 'Domain',
+    start_work       => $lang{BEGIN},
+    gps_imei         => 'GPS IMEI',
+    birthday         => $lang{BIRTHDAY},
+    api_key          => 'API_KEY',
+    telegram_id      => 'Telegram ID',
+    rfid_number      => "RFID $lang{NUMBER}",
+    department_name  => $lang{DEPARTMENT},
+    pasport_num      => "$lang{PASPORT} $lang{NUM}",
+    pasport_date     => "$lang{PASPORT} $lang{DATE}",
+    pasport_grant    => "$lang{PASPORT} $lang{GRANT}",
+    inn              => $lang{INN},
+    max_rows         => $lang{MAX_ROWS},
+    min_search_chars => $lang{MIN_SEARCH_CHARS},
+    max_credit       => "$lang{MAX} $lang{CREDIT}",
+    credit_days      => "$lang{MAX} $lang{CREDIT} $lang{DAYS}",
+    comments         => $lang{COMMENTS},
+    phone            => $lang{PHONE},
+    # cell_phone       => $lang{CELL_PHONE},
+    email            => 'Email',
+    sip_number       => 'SIP',
+    avatar_link      => $lang{AVATAR},
+  );
+
+  if ($conf{ADMIN_NEW_ADDRESS_FORM}) {
+    $EXT_TITLES{address_full} = $lang{ADDRESS};
+    $EXT_TITLES{address_flat} = $lang{ADDRESS_FLAT};
+  }
+  else {
+    $EXT_TITLES{address} = $lang{ADDRESS};
+  }
+
   my Abills::HTML $table;
   my $admins_list;
   ($table, $admins_list) = result_former({
@@ -299,38 +329,7 @@ sub form_admins {
     BASE_FIELDS     => 4,
     FUNCTION_FIELDS => 'permission,log,passwd,info,del',
     SKIP_USER_TITLE => 1,
-    EXT_TITLES      => {
-      login            => $lang{LOGIN},
-      name             => $lang{FIO},
-      position         => $lang{POSITION},
-      regdate          => $lang{REGISTRATION},
-      disable          => $lang{STATUS},
-      aid              => '#',
-      g_name           => $lang{GROUPS},
-      domain_name      => 'Domain',
-      start_work       => $lang{BEGIN},
-      gps_imei         => 'GPS IMEI',
-      birthday         => $lang{BIRTHDAY},
-      api_key          => 'API_KEY',
-      telegram_id      => 'Telegram ID',
-      rfid_number      => "RFID $lang{NUMBER}",
-      department_name  => "$lang{DEPARTMENT}",
-      pasport_num      => "$lang{PASPORT} $lang{NUM}",
-      pasport_date     => "$lang{PASPORT} $lang{DATE}",
-      pasport_grant    => "$lang{PASPORT} $lang{GRANT}",
-      inn              => $lang{INN},
-      max_rows         => $lang{MAX_ROWS},
-      min_search_chars => $lang{MIN_SEARCH_CHARS},
-      max_credit       => "$lang{MAX} $lang{CREDIT}",
-      credit_days      => "$lang{MAX} $lang{CREDIT} $lang{DAYS}",
-      comments         => $lang{COMMENTS},
-      phone            => $lang{PHONE},
-      cell_phone       => $lang{CELL_PHONE},
-      email            => 'Email',
-      sip_number       => 'SIP',
-      address          => $lang{ADDRESS},
-      avatar_link      => $lang{AVATAR},
-    },
+    EXT_TITLES      => \%EXT_TITLES,
     TABLE => {
       width          => '100%',
       caption        => $lang{ADMINS},
@@ -341,7 +340,6 @@ sub form_admins {
       MENU           => "$lang{ADD}:index=$index&show_add_form=1:add;$lang{SEARCH}:search_form=1&index=$index:search"
     },
   });
-
   my $count = $admin->{TOTAL};
 
   foreach my $line (@$admins_list) {
@@ -479,11 +477,11 @@ sub form_admins_groups {
 }
 
 #**********************************************************
-=head2 auth_history($attr);
+=head2 form_admin_auth_history($attr);
 
 =cut
 #**********************************************************
-sub auth_history {
+sub form_admin_auth_history {
   my ($attr) = @_;
 
   my Admins $admin_ = $attr->{ADMIN};
@@ -505,7 +503,7 @@ sub auth_history {
       width   => '100%',
       caption => $lang{AUTH_HISTORY},
       ID      => 'ADMIN_ACCESS_LOG',
-      qs      => "&AID=$aid&subf=$FORM{subf}",
+      qs      => "&AID=$aid&subf=". ($FORM{subf} || q{}),
       EXPORT  => 1,
     },
     MAKE_ROWS       => 1,
@@ -1069,8 +1067,10 @@ sub form_admin_permissions {
     if (defined($menu_items{$k}{0}) && $k > 0) {
       next if ($k >= 10);
 
-      $table->{rowcolor} = 'table-active';
-      $table->addrow("$k:", $html->b($menu_items{$k}{0}), '', '');
+      $table->{rowcolor} = 'bg-primary';
+      $table->addrow(
+        $html->b("$k:"), $html->b($menu_items{$k}{0}), '', ''
+      );
       $k--;
 
       my $actions_list = $actions[$k];
@@ -1100,8 +1100,10 @@ sub form_admin_permissions {
 
   if (in_array('Multidoms', \@MODULES)) {
     my $k = 10;
-    $table->{rowcolor} = 'active';
-    $table->addrow("10:", $html->b($lang{DOMAINS}), '', '');
+    $table->{rowcolor} = 'bg-primary';
+    $table->addrow(
+      $html->b("10:"), $html->b($lang{DOMAINS}), '', ''
+    );
     my $actions_list = $actions[9];
     my $action_index = 0;
     $table->{rowcolor} = undef;
@@ -1171,6 +1173,8 @@ sub form_admin_permissions {
 #**********************************************************
 sub form_admin_payment_types {
   my ($attr) = @_;
+  require Payments;
+  Payments->import();
   my $Payments = Payments->new($db, $admin, \%conf);
 
   if (!defined($attr->{ADMIN})) {
@@ -1245,7 +1249,8 @@ sub form_admin_payment_types {
 =cut
 #**********************************************************
 sub form_admins_contacts {
-
+  require Contacts;
+  Contacts->import();
   my $contacts = Contacts->new($db, $admin, \%conf);
 
   #my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
@@ -1377,6 +1382,7 @@ sub form_admins_contacts_save {
 #**********************************************************
 sub _build_admin_contacts_form {
   my ($admin_contacts_list, $admin_contacts_types_list) = @_;
+  load_pmodule('JSON');
   my $json = JSON->new()->utf8(0);
 
   $html->tpl_show(templates('form_contacts_admin'), {

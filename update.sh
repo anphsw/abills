@@ -4,11 +4,11 @@
 # License fetcher
 # Amon update
 #
-# UPDATED: 20200410
+# UPDATED: 20210217
 #**********************************************************
 
 
-VERSION=2.52;
+VERSION=2.57;
 
 #ABillS Rel Version
 REL_VERSION="rel-0-5";
@@ -21,6 +21,7 @@ FULL_DATE=`date`;
 TMP_DIR=/tmp
 MYSQL=mysql
 start_dir=`pwd`
+PATH=${PATH}:/sbin:/usr/sbin
 
 
 UPDATE_LOGIN=
@@ -174,7 +175,7 @@ _install () {
       BUILD_OPTIONS="zypper install"
     else
       test_program="dpkg -s"
-      BUILD_OPTIONS="apt-get -y --force-yes install";
+      BUILD_OPTIONS="apt-get -y install";
     fi;
 
     ${test_program} ${pkg} > /dev/null 2>&1
@@ -250,6 +251,7 @@ sql_get_conf () {
 #**********************************************************
 get_sys_id() {
   sql_get_conf;
+
   SYS_ID=`${MYSQL} -s -N -u ${DB_USER} -p"${DB_PASSWD}" -h ${DB_HOST} -D ${DB_NAME} -e "SELECT value FROM config WHERE param='SYS_ID' LIMIT 1;" 2> /dev/null`
 }
 
@@ -504,9 +506,9 @@ if [ -f "${TMP_DIR}/update.sh" ]; then
     REGISTRATION=1;
     sys_info;
   else
-    NEW=`cat ${TMP_DIR}/update.sh |grep "^VERSION=" | sed  "s/VERSION=\([0-9\.]*\);\?/\1/"`;
+    NEW=`cat ${TMP_DIR}/update.sh |grep "^VERSION=" | sed  "s/VERSION=\([0-9\.]*\);*/\1/"`;
     VERSION_NEW=0
-    if [ x${NEW} != x ]; then
+    if [ "${NEW}" != "" ]; then
       VERSION_NEW=`echo "${NEW} * 100" |bc |cut -f1 -d "."`;
     fi;
 
@@ -907,15 +909,11 @@ else
   abills_size=0
 fi;
 
-ext_free_space=`expr ${abills_size} + 100000`
+required_free_space=`expr ${abills_size} + 100000`
 
-if [ x${OS} = xLinux ]; then
-  free_size=`df /usr | awk '{print $3}' |tail -1`
-else
-  free_size=`df /usr | awk '{print $4}' |tail -1`
-fi;
+free_space=`df /usr | awk '{print $4}' |tail -1`
 
-if [ "${free_size}" -le "${ext_free_space}" ]; then
+if [ "${free_space}" -le "${required_free_space}" ]; then
   echo " "
   echo !!! YOU HAVE NOT ENOUGH FREE SPACE ON /usr \( you have `df -h /usr | awk '{print $4}' |tail -1`, abills is `du -hs ${BILLING_DIR}` \)
   echo " "
@@ -1341,6 +1339,48 @@ get_license () {
 }
 
 #**********************************************
+# get_custom_tpl
+#**********************************************
+get_custom_tpl() {
+  
+  echo "<-------------------------------------------------------->";
+  echo "<- The system has custom templates. List of templates:  ->";
+  echo "<-------------------------------------------------------->";
+
+  PARAMS="-c %Y"
+
+  if [ "${OS}" = "FreeBSD" ]; then
+    PARAMS="-f %m"
+  fi;
+
+  list="$(find /usr/abills/Abills/templates/ -name _*.tpl)";
+  CHECK_CUSTOM_TPL=0;
+
+  for file in $list
+    do if [ "${file}" ]; then 
+      file_path="$(find /usr/abills/Abills/ -name `echo ${file} | sed 's/.*\/_//'`)";
+      file_name=`echo ${file} | sed 's/.*\/_//'`;
+        
+      ORIGINAL_TPL="$(stat ${PARAMS} ${file_path})";
+      CUSTOM_TPL="$(stat ${PARAMS} ${file})";
+      
+      if [ ${ORIGINAL_TPL} ] && [ ${CUSTOM_TPL} ]; then
+        if [ ${ORIGINAL_TPL} -gt ${CUSTOM_TPL} ]; then
+          echo "Template: ${file_name}\nPath: ${file_path}\n";
+          CHECK_CUSTOM_TPL=1;
+        fi;
+      fi;
+    fi; 
+  done
+
+  if [ ${CHECK_CUSTOM_TPL} = 0 ]; then
+    echo "Templates have not changed";
+  fi; 
+
+  echo "<-------------------------------------------------------->";
+}
+
+#**********************************************
 # Start actions
 #
 
@@ -1678,6 +1718,7 @@ else
   check_modules;
   check_files;
   mk_db_check;
+  get_custom_tpl;
   echo "Done.";
 fi;
 

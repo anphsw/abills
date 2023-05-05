@@ -46,8 +46,20 @@ sub group {
     'ADMIN',
     'LANG',
     'MODULES',
-    'list'
+    'SEARCH_FIELDS',
+    'EXTRA_FIELDS',
+    'EXT_TABLES',
+    'SEARCH_FIELDS_COUNT',
+    'SEARCH_VALUES',
+    'SEARCH_FIELDS_ARR',
+    'sql_errstr',
+    'sql_errno',
+    'sql_query',
   );
+
+  if ($result->{sql_errstr} || $result->{sql_errno}) {
+    push @del_fields_array, 'list';
+  }
 
   if (ref $result eq 'HASH') {
     foreach my $field_name (keys %$result) {

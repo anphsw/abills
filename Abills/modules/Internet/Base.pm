@@ -4,7 +4,6 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db);
-#my $json;
 my Abills::HTML $html;
 my $lang;
 my Internet $Internet;
@@ -13,7 +12,15 @@ our $DATE;
 use Abills::Base qw(in_array days_in_month next_month date_diff time2sec);
 
 #**********************************************************
-=head2 new($html, $lang)
+=head2 new($db, $admin, $CONF, $attr)
+
+  Arguments:
+    $db
+    $admin
+    $CONF
+    $attr
+      HTML
+      LANG
 
 =cut
 #**********************************************************
@@ -350,6 +357,133 @@ sub internet_payments_maked {
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 internet_search($attr) - Global search submodule
+
+  Arguments:
+    $attr
+      SEARCH_TEXT
+      DEBUG
+
+  Returs:
+     TRUE/FALSE
+
+=cut
+#**********************************************************
+sub internet_search {
+  my $self = shift;
+  my($attr) = @_;
+
+  my @default_search = ('LOGIN', 'CID', 'CPE_MAC', 'INTERNET_LOGIN', '_MULTI_HIT');
+
+  if($attr->{SEARCH_TEXT} =~ /^[0-9\.]+$/) {
+    push @default_search, 'IP';
+  }
+
+  my %LIST_PARAMS = ();
+
+  my @qs = ();
+  foreach my $field ( @default_search ) {
+    $LIST_PARAMS{$field} = "*$attr->{SEARCH_TEXT}*";
+    push @qs, "$field=*$attr->{SEARCH_TEXT}*";
+  }
+
+  if($attr->{DEBUG}) {
+    $Internet->{debug} = 1;
+  }
+
+  my $intertnet_list = $Internet->user_list({
+    %LIST_PARAMS,
+    UNIVERSAL_SEARCH => 1,
+    COLS_NAME        => 1
+  });
+
+  my $admin_permissions_gid = 0;
+  if ($admin->{GID}) {
+    my @admin_gids = split(/,/, $admin->{GID});
+
+    my $user_gid = $intertnet_list->[0]->{uid};
+    if ($#admin_gids > 0) {
+      foreach my $admin_gid (@admin_gids) {
+        if ($user_gid->{GID} && $admin_gid == $user_gid->{GID}) {
+          $admin_permissions_gid = 1
+        }
+        elsif (!$user_gid->{GID}) {
+          $admin_permissions_gid = 1
+        }
+      }
+    }
+    elsif ($#admin_gids < 1 && $admin->{GID}) {
+      $admin_permissions_gid = 1;
+    }
+  }
+  else {
+    $admin_permissions_gid = 1;
+  }
+
+  my @info = ();
+
+  if ($admin_permissions_gid) {
+    if($Internet->{TOTAL}) {
+      push @info, {
+        'TOTAL'        => $Internet->{TOTAL},
+        'MODULE'       => 'Internet',
+        'MODULE_NAME'  => $lang->{INTERNET},
+        'SEARCH_INDEX' => '&full=1&get_index=internet_users_list'
+          . '&' . join('&', @qs) . "&search=1&GLOBAL=1"
+      };
+    }
+  }
+
+  #Online
+  require Internet::Sessions;
+  Internet::Sessions->import();
+  my $Sessions = Internet::Sessions->new($db, $admin, $CONF);
+
+  #if ($permissions{5} && $permissions{5}{0}) {
+    @default_search = ('CID', '_MULTI_HIT');
+
+    if($attr->{SEARCH_TEXT} =~ /^[0-9\.]+$/) {
+      push @default_search, 'IP';
+    }
+
+    @qs = ();
+    foreach my $field ( @default_search ) {
+      $LIST_PARAMS{$field} = "*$attr->{SEARCH_TEXT}*";
+      push @qs, "$field=*$attr->{SEARCH_TEXT}*";
+    }
+
+    $Sessions->online({ %LIST_PARAMS, ALL => 1 });
+
+    if($Sessions->{TOTAL}) {
+      push @info, {
+        'TOTAL'        => $Sessions->{TOTAL},
+        'MODULE'       => 'Internet',
+        'MODULE_NAME'  => "$lang->{INTERNET} ONLINE",
+        'SEARCH_INDEX' => '&full=1&get_index=internet_online'
+          . '&' . join('&', @qs) . "&search=1"
+      };
+    }
+  #}
+
+  #Stats
+  #if ($permissions{3} && $permissions{3}{6}) {
+    $Sessions->list({ %LIST_PARAMS });
+
+    if($Sessions->{TOTAL}) {
+      push @info, {
+        'TOTAL'        => $Sessions->{TOTAL},
+        'MODULE'       => 'Internet',
+        'MODULE_NAME'  => "$lang->{INTERNET} $lang->{STATS}",
+        'SEARCH_INDEX' => '&full=1&get_index=internet_sessions'
+          . '&' . join('&', @qs) . "&search=1"
+      };
+    }
+  #}
+
+  return \@info;
 }
 
 1;

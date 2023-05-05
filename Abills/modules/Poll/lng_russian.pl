@@ -7,6 +7,7 @@ $lang{NEW} = 'Новые';
 $lang{ARCHIVE} = 'Архив';
 $lang{PROCESSED} = 'Обработанные';
 $lang{REJECTED} = 'Не закончено и закрыто';
+$lang{CLOSE_DONE} = 'Закончено и закрыто';
 $lang{VOTE} = 'Проголосовать';
 $lang{RESULTS} = 'Результаты';
 $lang{VOTE_ADDED} = 'Голос добавлен';

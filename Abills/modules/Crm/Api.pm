@@ -148,6 +148,47 @@ sub admin_routes {
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
     {
+      method      => 'DELETE',
+      path        => '/crm/leads/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_lead_delete({ ID => $path_params->{id} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'GET',
+      path        => '/crm/leads/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_lead_info({ ID => $path_params->{id} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'GET',
+      path        => '/crm/leads/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        foreach my $param (keys %{$query_params}) {
+          $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ?
+            $query_params->{$param} : '_SHOW';
+        }
+
+        $query_params->{COLS_NAME} = 1;
+        $query_params->{PAGE_ROWS} = $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25;
+        $query_params->{PG} = $query_params->{PG} ? $query_params->{PG} : 0;
+        $query_params->{DESC} = $query_params->{DESC} ? $query_params->{DESC} : '';
+        $query_params->{SORT} = $query_params->{SORT} ? $query_params->{SORT} : 1;
+
+        $Crm->crm_lead_list($query_params);
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
       method      => 'POST',
       path        => '/crm/dialogue/:id/message/',
       handler     => sub {
@@ -156,9 +197,15 @@ sub admin_routes {
         use Abills::Sender::Core;
         my $Sender = Abills::Sender::Core->new($self->{db}, $self->{admin}, $self->{conf});
 
+        my $ex_params = {};
         my $dialog = $Crm->crm_dialogue_info({ ID => $path_params->{id} });
         my $lead = $Crm->crm_lead_info({ ID => $dialog->{LEAD_ID} });
         my $lead_address = $lead->{"_crm_$dialog->{SOURCE}"};
+
+        if ($dialog->{SOURCE} eq 'mail') {
+          $ex_params->{MAIL_HEADER} = [ "References: <$lead_address>", "In-Reply-To: <$lead_address>" ];
+          $lead_address = $lead->{EMAIL};
+        }
 
         return {
           errno  => 101,
@@ -169,6 +216,7 @@ sub admin_routes {
           TO_ADDRESS  => $lead_address,
           MESSAGE     => Encode::encode_utf8($query_params->{MESSAGE}),
           SENDER_TYPE => ucfirst $dialog->{SOURCE},
+          %{$ex_params}
         });
         return {
           errno  => 102,
@@ -218,16 +266,6 @@ sub admin_routes {
         }
 
         $Crm->crm_dialogues_change({ %{$query_params}, ID => $path_params->{id} });
-      },
-      credentials => [ 'ADMIN', 'ADMINSID' ]
-    },
-    {
-      method      => 'PUT',
-      path        => '/crm/progressbar/messages/:id/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        return $Crm->progressbar_comment_change({ %{$query_params}, ID => $path_params->{id} });
       },
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
@@ -282,6 +320,16 @@ sub admin_routes {
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
     {
+      method      => 'PUT',
+      path        => '/crm/progressbar/messages/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        return $Crm->progressbar_comment_change({ %{$query_params}, ID => $path_params->{id} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
       method      => 'DELETE',
       path        => '/crm/progressbar/messages/:id/',
       handler     => sub {
@@ -290,6 +338,152 @@ sub admin_routes {
         $Crm->progressbar_comment_delete({ ID => $path_params->{id} });
       },
       credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'POST',
+      path        => '/crm/action/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_actions_add($query_params);
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/crm/action/:action_id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_actions_change({ ID => $path_params->{action_id}, %{$query_params} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/crm/action/:action_id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_actions_delete({ ID => $path_params->{action_id} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'GET',
+      path        => '/crm/action/:action_id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_actions_info({ ID => $path_params->{action_id} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'GET',
+      path        => '/crm/actions/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        foreach my $param (keys %{$query_params}) {
+          $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ?
+            $query_params->{$param} : '_SHOW';
+        }
+
+        $query_params->{COLS_NAME} = 1;
+        $query_params->{PAGE_ROWS} = $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25;
+        $query_params->{PG} = $query_params->{PG} ? $query_params->{PG} : 0;
+        $query_params->{DESC} = $query_params->{DESC} ? $query_params->{DESC} : '';
+        $query_params->{SORT} = $query_params->{SORT} ? $query_params->{SORT} : 1;
+
+        $Crm->crm_actions_list($query_params);
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'POST',
+      path        => '/crm/step/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_progressbar_step_add($query_params);
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/crm/step/:step_id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_progressbar_step_change({ ID => $path_params->{step_id}, %{$query_params} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/crm/step/:step_id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_progressbar_step_delete({ ID => $path_params->{step_id} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'GET',
+      path        => '/crm/step/:step_id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_progressbar_step_info({ ID => $path_params->{step_id} });
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'GET',
+      path        => '/crm/steps/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        foreach my $param (keys %{$query_params}) {
+          $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ?
+            $query_params->{$param} : '_SHOW';
+        }
+
+        $query_params->{COLS_NAME} = 1;
+        $query_params->{PAGE_ROWS} = $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25;
+        $query_params->{PG} = $query_params->{PG} ? $query_params->{PG} : 0;
+        $query_params->{DESC} = $query_params->{DESC} ? $query_params->{DESC} : '';
+        $query_params->{SORT} = $query_params->{SORT} ? $query_params->{SORT} : 1;
+
+        $Crm->crm_progressbar_step_list($query_params);
+      },
+      credentials => [ 'ADMIN', 'ADMINSID' ]
+    },
+    {
+      method      => 'POST',
+      path        => '/crm/workflow/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_workflow_add($query_params);
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/crm/workflow/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Crm->crm_workflow_change({ %{$query_params}, ID => $path_params->{id} });
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
     },
   ];
 }

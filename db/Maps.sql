@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS `maps_wells` (
   `comment` TEXT,
   PRIMARY KEY (`id`)
 )
-  COMMENT = 'Wells coord';
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Wells coords';
 
 CREATE TABLE IF NOT EXISTS `maps_wifi_zones` (
   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS `maps_wifi_zones` (
   `coordy` DOUBLE(20, 14) DEFAULT '0.00000000000000',
   PRIMARY KEY (`id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Wifi zones';
 
 CREATE TABLE IF NOT EXISTS `maps_point_types` (
@@ -45,6 +47,7 @@ CREATE TABLE IF NOT EXISTS `maps_point_types` (
   `layer_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `comments` TEXT
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Types of custom points';
 
 REPLACE INTO `maps_point_types` (`id`, `name`, `icon`, `layer_id`) VALUES (1, '$lang{WELL}', 'well_green', 11);
@@ -64,6 +67,7 @@ CREATE TABLE IF NOT EXISTS `maps_coords` (
   `coordx` DOUBLE NOT NULL,
   `coordy` DOUBLE NOT NULL
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Coordinates for custom points';
 
 CREATE TABLE IF NOT EXISTS `maps_points` (
@@ -84,8 +88,8 @@ CREATE TABLE IF NOT EXISTS `maps_points` (
   `external` TINYINT(1) NOT NULL DEFAULT 0,
   KEY `location_id` (`location_id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Custom points';
-
 
 CREATE TABLE IF NOT EXISTS `maps_layers` (
   `id` SMALLINT(6) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
@@ -97,6 +101,7 @@ CREATE TABLE IF NOT EXISTS `maps_layers` (
   `comments` TEXT
 )
   AUTO_INCREMENT = 100
+  DEFAULT CHARSET = utf8
   COMMENT = 'Map layers';
 
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (1, '$lang{BUILD}', 'MARKER', 'build');
@@ -119,7 +124,8 @@ CREATE TABLE IF NOT EXISTS `maps_circles` (
   `name` VARCHAR(32) NOT NULL,
   `comments` TEXT
 )
-  COMMENT = 'Custom drawed circles';
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Custom drew circles';
 
 CREATE TABLE IF NOT EXISTS `maps_polylines` (
   `id` INT(11) UNSIGNED PRIMARY KEY  AUTO_INCREMENT,
@@ -132,7 +138,8 @@ CREATE TABLE IF NOT EXISTS `maps_polylines` (
   `length` DOUBLE NOT NULL DEFAULT 0,
   KEY `object_id` (`object_id`)
 )
-  COMMENT = 'Custom drawed polylines';
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Custom drew polylines';
 
 CREATE TABLE IF NOT EXISTS `maps_polyline_points` (
   `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
@@ -142,7 +149,8 @@ CREATE TABLE IF NOT EXISTS `maps_polyline_points` (
   `coordy` DOUBLE NOT NULL,
   KEY `polyline_id` (`polyline_id`)
 )
-  COMMENT = 'Custom drawed polyline points';
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Custom drew polyline points';
 
 CREATE TABLE IF NOT EXISTS `maps_polygons` (
   `id` INT(11) UNSIGNED PRIMARY KEY  AUTO_INCREMENT,
@@ -155,7 +163,8 @@ CREATE TABLE IF NOT EXISTS `maps_polygons` (
   `comments` TEXT,
   KEY `object_id` (`object_id`)
 )
-  COMMENT = 'Custom drawed polygons';
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Custom drew polygons';
 
 CREATE TABLE IF NOT EXISTS `maps_polygon_points` (
   `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
@@ -165,7 +174,8 @@ CREATE TABLE IF NOT EXISTS `maps_polygon_points` (
   `coordy` DOUBLE NOT NULL,
   KEY `polygon_id` (`polygon_id`)
 )
-  COMMENT = 'Custom drawed polygons points';
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Custom drew polygons points';
 
 CREATE TABLE IF NOT EXISTS `maps_text` (
   `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
@@ -177,7 +187,8 @@ CREATE TABLE IF NOT EXISTS `maps_text` (
   `coordy` DOUBLE NOT NULL,
   `text` TEXT
 )
-  COMMENT = 'Custom drawed text';
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Custom drew text';
 
 CREATE TABLE IF NOT EXISTS `maps_icons` (
   `id` INT(11) UNSIGNED PRIMARY KEY  AUTO_INCREMENT,
@@ -185,6 +196,7 @@ CREATE TABLE IF NOT EXISTS `maps_icons` (
   `filename` VARCHAR(255) NOT NULL DEFAULT '',
   `comments` TEXT
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'User-defined icons';
 
 CREATE TABLE IF NOT EXISTS `maps_districts` (
@@ -193,58 +205,5 @@ CREATE TABLE IF NOT EXISTS `maps_districts` (
   `object_id` INT(11) UNSIGNED REFERENCES `maps_points` (`id`)
     ON DELETE CASCADE
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'District polygons';
-
-
-# CREATE TABLE IF NOT EXISTS `maps_routes` (
-#   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-#   `name` VARCHAR(45) DEFAULT NULL,
-#   `type` SMALLINT(6) UNSIGNED DEFAULT '0',
-#   `descr` TEXT,
-#   `nas1` SMALLINT(5) UNSIGNED DEFAULT '0',
-#   `nas2` SMALLINT(5) UNSIGNED DEFAULT '0',
-#   `nas1_port` TINYINT(3) UNSIGNED DEFAULT '0',
-#   `nas2_port` TINYINT(3) UNSIGNED DEFAULT '0',
-#   `length` SMALLINT(5) UNSIGNED DEFAULT '0',
-#   `parent_id` INT(10) UNSIGNED NOT NULL DEFAULT 0 REFERENCES `maps_routes` (`id`)
-#     ON DELETE RESTRICT,
-#   `group_id` SMALLINT(6) NOT NULL DEFAULT 0 REFERENCES `maps_route_groups` (`id`)
-#     ON DELETE RESTRICT,
-#   PRIMARY KEY (`id`),
-#   UNIQUE KEY (`name`)
-# )
-#   COMMENT = 'Routes information';
-#
-# CREATE TABLE IF NOT EXISTS `maps_routes_coords` (
-#   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-#   `routes_id` INT(10) UNSIGNED DEFAULT '0',
-#   `coordx` DOUBLE(20, 14) DEFAULT '0.00000000000000',
-#   `coordy` DOUBLE(20, 14) DEFAULT '0.00000000000000',
-#   PRIMARY KEY (`id`)
-# )
-#   COMMENT = 'Routes coords';
-#
-#
-# CREATE TABLE IF NOT EXISTS `maps_route_groups` (
-#   `id` SMALLINT(6) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-#   `name` VARCHAR(50) NOT NULL DEFAULT '',
-#   `comments` TEXT,
-#   `parent_id` SMALLINT(6) NOT NULL DEFAULT 0 REFERENCES `maps_route_groups` (`id`)
-#     ON DELETE RESTRICT
-# )
-#   COMMENT = 'Route groups';
-#
-# CREATE TABLE IF NOT EXISTS `maps_route_types` (
-#   `id` SMALLINT(6) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-#   `name` VARCHAR(50) NOT NULL DEFAULT '',
-#   `color` VARCHAR(7) NOT NULL DEFAULT '#FFFFFF',
-#   `fibers_count` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 1,
-#   `line_width` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 1,
-#   `comments` TEXT,
-#   UNIQUE KEY (`name`)
-# )
-#   COMMENT = 'Route types';
-#
-# REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (1, '$lang{COAXIAL}', '#FF0000');
-# REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (2, '$lang{FIBER_OPTIC}', '#000000');
-# REPLACE INTO `maps_route_types` (`id`, `name`, `color`) VALUES (3, '$lang{TWISTED_PAIR}', '#0000FF');

@@ -3,34 +3,32 @@
   <input type='hidden' name='chg' value='%MSGS_ID%'/>
   <input type='hidden' name='UID' value='%UID%'/>
 
-  <button type='button' id='accordion_open_all' class='btn btn-default btn-xs float-right' >_{OPEN_ALL}_</button>
+  <div class='card-header' style='display: none'>
+    <h5 class='card-title'>_{SET_TAGS}_</h5>
+  </div>
 
-  <ul id='accordion'>
-   %LIST%
- </ul>
- %SUMBIT_BTN%
+  <div class='col d-flex justify-content-end'>
+    <button type='button' id='accordion_open_all' class='btn btn-default btn-xs' >_{OPEN_ALL}_</button>
+  </div>
+
+  <div class='pt-1'>
+    <ul class='list-unstyled' id='accordion'>
+     %LIST%
+    </ul>
+  </div>
+  %SUMBIT_BTN%
 </form>
 
 
 <style type='text/css'>
-	#accordion li {
-    color : #3c8dbc;
-    cursor: pointer;
-  }
-  #accordion li:hover {
-    color : #437ea0;
-    cursor: pointer;
-  }
-  #accordion .box {
+  #accordion .card {
     border-top: none;
-  }
-  #accordion{
-    padding-top: 15px;
+    margin-bottom: 0;
   }
 </style>
 
 <script type='text/javascript'>
   jQuery('#accordion_open_all').on('click', function () {
     jQuery('#accordion .collapse').collapse('toggle');
-});
+  });
 </script>

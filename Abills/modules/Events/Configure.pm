@@ -66,9 +66,9 @@ sub events_main {
   
   $LIST_PARAMS{PAGE_ROWS} = 10000;
   events_uni_result_former({
-    LIST_FUNC       => "events_list",
-    DEFAULT_FIELDS  => "ID,TITLE,COMMENTS,PRIORITY_NAME,STATE_NAME,GROUP_NAME,AID",
-    HIDDEN_FIELDS   => "PRIORITY_ID,STATE_ID,GROUP_ID,COMMENTS,EXTRA,CREATED,MODULE",
+    LIST_FUNC       => 'events_list',
+    DEFAULT_FIELDS  => 'ID,TITLE,COMMENTS,PRIORITY_NAME,STATE_NAME,GROUP_NAME,AID',
+    HIDDEN_FIELDS   => 'PRIORITY_ID,STATE_ID,GROUP_ID,COMMENTS,EXTRA,CREATED,MODULE',
     MULTISELECT_ACTIONS => [
       {
         TITLE    => $lang{DEL},
@@ -86,7 +86,7 @@ sub events_main {
       }
     ],
     EXT_TITLES      => {
-      id            => "#",
+      id            => '#',
       comments      => $lang{COMMENTS},
       module        => $lang{MODULE},
       created       => $lang{CREATED},
@@ -122,7 +122,7 @@ sub events_main {
         return '';
       }
     },
-    READABLE_NAME   => "$lang{EVENTS}",
+    READABLE_NAME   => $lang{EVENTS},
     TABLE_NAME      => "EVENTS_TABLE",
     HAS_SEARCH      => 1
   });
@@ -138,19 +138,17 @@ sub events_main {
 sub events_state_main {
   
   events_uni_page_logic('state');
-  
-  events_uni_result_former(
-    {
-      LIST_FUNC      => "state_list",
-      DEFAULT_FIELDS => "ID,NAME",
-      EXT_TITLES     => {
-        id   => "ID",
-        name => "$lang{NAME}"
-      },
-      READABLE_NAME  => "$lang{STATE}",
-      TABLE_NAME     => "STATE_TABLE",
-    }
-  );
+
+  events_uni_result_former({
+    LIST_FUNC      => "state_list",
+    DEFAULT_FIELDS => "ID,NAME",
+    EXT_TITLES     => {
+      id   => "ID",
+      name => $lang{NAME}
+    },
+    READABLE_NAME  => $lang{STATE},
+    TABLE_NAME     => "STATE_TABLE",
+  });
   
   return 1;
 }

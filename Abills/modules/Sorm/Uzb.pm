@@ -6,12 +6,17 @@ package Sorm::Uzb;
 
 =head1 DOCS
 
-  version: v1.4
+  version: v1.5
+
+  Standart execute
+  /usr/abills/libexec/billd sorm TYPE=Uzb START=1
+
+  DESCRIBE: Plugin for SORM of Uzbekistan
 
 =head1 VERSION
 
-  VERSION: 1.4
-  UPDATE: 20230222
+  VERSION: 1.5
+  UPDATE: 20230505
 
 =cut
 
@@ -301,6 +306,7 @@ sub CONNECTION_report {
     UID             => '_SHOW',
     LOGIN           => '_SHOW',
     START           => '_SHOW',
+    END             => '_SHOW',
     SENT            => '_SHOW',
     RECV            => '_SHOW',
     ACCT_SESSION_ID => '_SHOW',
@@ -311,25 +317,45 @@ sub CONNECTION_report {
   });
 
   foreach my $session (@$session_list) {
-    my @arr = ();
-    $arr[0] = $session->{start}; #CONNECTION_TIME
-    $arr[1] = $sorm_id; #REGION_ID
-    $arr[2] = '0'; #LOGIN_TYPE
-    $arr[3] = $session->{acct_session_id}; #SESSION_ID
-    $arr[4] = $session->{ip}; #ALLOCATED_IPV4
-    $arr[5] = ''; #ALLOCATED_IPV4_MASK
-    $arr[6] = $session->{login}; #USER_NAME
-    $arr[7] = ''; #CONNECT_TYPE -
-    $arr[8] = ''; #CALLING_NUMBER -
-    $arr[9] = ''; #CALLED_NUMBER -
-    $arr[10] = ''; #NAS_IPV4 -
-    $arr[11] = $session->{port_id}; #NAS_IP_PORT
-    $arr[12] = $session->{recv}; #IN_BYTES_COUNT
-    $arr[13] = $session->{sent}; #OUT_BYTES_COUNT
-    $arr[14] = ''; #USER_EQ_MAC
-    $arr[15] = ''; #APN -
+    my @arr_start = ();
+    my @arr_end   = ();
 
-    _add_report("CONNECTION", @arr);
+    $arr_start[0] = $session->{start}; #CONNECTION_TIME
+    $arr_start[1] = $sorm_id; #REGION_ID
+    $arr_start[2] = '0';      #LOGIN_TYPE
+    $arr_start[3] = $session->{acct_session_id}; #SESSION_ID
+    $arr_start[4] = $session->{ip}; #ALLOCATED_IPV4
+    $arr_start[5] = ''; #ALLOCATED_IPV4_MASK
+    $arr_start[6] = $session->{login}; #USER_NAME
+    $arr_start[7] = ''; #CONNECT_TYPE -
+    $arr_start[8] = ''; #CALLING_NUMBER -
+    $arr_start[9] = ''; #CALLED_NUMBER -
+    $arr_start[10] = ''; #NAS_IPV4 -
+    $arr_start[11] = $session->{port_id}; #NAS_IP_PORT
+    $arr_start[12] = $session->{recv}; #IN_BYTES_COUNT
+    $arr_start[13] = $session->{sent}; #OUT_BYTES_COUNT
+    $arr_start[14] = ''; #USER_EQ_MAC
+    $arr_start[15] = ''; #APN -
+
+    $arr_end[0] = $session->{end}; #CONNECTION_TIME
+    $arr_end[1] = $sorm_id; #REGION_ID
+    $arr_end[2] = '1';      #LOGIN_TYPE
+    $arr_end[3] = $session->{acct_session_id}; #SESSION_ID
+    $arr_end[4] = $session->{ip}; #ALLOCATED_IPV4
+    $arr_end[5] = ''; #ALLOCATED_IPV4_MASK
+    $arr_end[6] = $session->{login}; #USER_NAME
+    $arr_end[7] = ''; #CONNECT_TYPE -
+    $arr_end[8] = ''; #CALLING_NUMBER -
+    $arr_end[9] = ''; #CALLED_NUMBER -
+    $arr_end[10] = ''; #NAS_IPV4 -
+    $arr_end[11] = $session->{port_id}; #NAS_IP_PORT
+    $arr_end[12] = $session->{recv}; #IN_BYTES_COUNT
+    $arr_end[13] = $session->{sent}; #OUT_BYTES_COUNT
+    $arr_end[14] = ''; #USER_EQ_MAC
+    $arr_end[15] = ''; #APN -
+
+    _add_report("CONNECTION", @arr_start);
+    _add_report("CONNECTION", @arr_end);
   }
 
 
@@ -364,7 +390,7 @@ sub BASE_STATION_report {
     $arr[7] = $sorm_id;             #REGION_ID
     $arr[8] = $nas->{mac};          #MAC
     $arr[9] = $nas->{nas_ip};       #IPV4
-    $arr[10] = $nas->{nas_mng_ip_port};      #IP_PORT
+    $arr[10] = 22;                  #IP_PORT
 
     _add_report("BASE_STATION", @arr);
   }
@@ -393,6 +419,28 @@ sub NAT_report {
   });
 
   foreach my $traffic (@$traffic_list) {
+    my $user_internal_ip_int = $traffic->{src_addr};
+    my $user_external_ip = '';
+
+    if ($self->{conf}->{SORM_INTERNAL_TO_EXTERNAL_IP}){
+      my $ip_pool = ($self->{conf}->{SORM_INTERNAL_TO_EXTERNAL_IP});
+
+      foreach my $item (keys (%{$ip_pool})){
+        my ($ip, $prefix) = split('/', $item);
+        if ($item ne 'default'){
+          my $pool_start = ip2int($ip);
+          my $pool_end = ip2int($ip) + 512;
+
+          if ($user_internal_ip_int >= $pool_start && $user_internal_ip_int <= $pool_end) {
+            $user_external_ip = $ip_pool->{$item};
+          }
+        }
+      }
+
+      if (!$user_external_ip){
+        $user_external_ip = $ip_pool->{default};
+      }
+    };
 
     my @arr = ();
     $arr[0] = $traffic->{s_time};   #TRANSLATION_TIME
@@ -400,8 +448,8 @@ sub NAT_report {
     $arr[2] = 1;                    #RECORD_TYPE
     $arr[3] = int2ip($traffic->{src_addr}); #PRIVATE_IPV4
     $arr[4] = $traffic->{src_port}; #PRIVATE_IP_PORT
-    $arr[5] = '';                   #PUBLIC_IPV4
-    $arr[6] = '';                   #PUBLIC_IP_PORT_END
+    $arr[5] = $user_external_ip;    #PUBLIC_IPV4
+    $arr[6] = 65000;                #PUBLIC_IP_PORT_END
     $arr[7] = int2ip($traffic->{dst_addr}); #DEST_IPV4
     $arr[8] = $traffic->{dst_port}; #DEST_IP_PORT
     $arr[9] = '';                   #TRANSLATION_TYPE ???

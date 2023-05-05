@@ -89,7 +89,7 @@ $lang{TOTAL_FREE_PORTS} = "Кількість вільних портів";
 $lang{ELECTRIC_POWER} = "Електрична потужність";
 
 $lang{EDIT_SUCCESS} = 'Шаблон змінено';
-$lang{INVALID_JSON} = 'Невірний формат файла';
+$lang{INVALID_JSON} = 'Неправильний формат файла';
 $lang{FILES_TITLE} = 'Шаблони';
 $lang{FILE_REMOVED} = 'Файл видалено';
 $lang{FILE_NOT_REMOVED} = "Файл не був видалений";

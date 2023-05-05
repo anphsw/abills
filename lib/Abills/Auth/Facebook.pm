@@ -374,7 +374,7 @@ sub validate_token {
   }
   elsif ($result->{data}) {
 
-    my $get_info = $get_me_url . '/me/?fields=id,name,email,hometown&access_token=' . ($token || q{});
+    my $get_info = $get_me_url . '/me/?fields=id,name,email&access_token=' . ($token || q{});
 
     # no error we can check is really user present in our system
     my $check_result = web_request($get_info, {
@@ -389,7 +389,8 @@ sub validate_token {
     if ($check_result->{error}) {
       $self->{errno}  = $check_result->{error}->{code};
       $self->{errstr} = $check_result->{error}->{message};
-    } else {
+    }
+    else {
       # no error return user google id for look for
       $self->{USER_ID}      = 'facebook, ' . $check_result->{id};
       $self->{USER_NAME}    = $check_result->{name} || '';

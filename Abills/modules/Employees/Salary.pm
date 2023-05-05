@@ -865,6 +865,7 @@ sub employees_cashbox_coming_add {
 =cut
 #**********************************************************
 sub employees_coming_reports {
+  require Control::Reports;
   reports(
     {
       DATE_RANGE       => 1,
@@ -992,6 +993,7 @@ sub employees_coming_reports {
 =cut
 #**********************************************************
 sub employees_spending_reports {
+  require Control::Reports;
   reports(
     {
       DATE_RANGE       => 1,

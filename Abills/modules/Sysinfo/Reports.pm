@@ -385,7 +385,7 @@ sub sysinfo_disk {
   if($os eq 'FreeBSD') {
     $table->{rowcolor} = 'bg-info';
     my $progress = $html->progress_bar({
-      TEXT     => ($total_used / $total_size) * 100,
+      TEXT     => ($total_used / ($total_size || 1)) * 100,
       TOTAL    => $total_size,
       COMPLETE => $total_used
     });

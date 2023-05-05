@@ -116,8 +116,16 @@ if ($conf{NEW_REGISTRATION_FORM}) {
       IP               => $ENV{REMOTE_ADDR},
     );
 
+    my %for_output = ();
+    if ($conf{user_background}) {
+      $for_output{BACKGROUND_COLOR} = $conf{user_background};
+    }
+    elsif ($conf{user_background_url}) {
+      $for_output{BACKGROUND_URL} = $conf{user_background_url};
+    }
+
     print $html->tpl_show(templates('registration'), \%params);
-    print $html->tpl_show(templates('form_client_start'), { BODY => $result->{output} });
+    print $html->tpl_show(templates('form_client_start'), { BODY => $result->{output}, %for_output });
   }
 }
 else {

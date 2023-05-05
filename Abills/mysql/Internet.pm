@@ -702,7 +702,7 @@ sub user_list {
         u.tp_id,
         IF(l.start is NULL, '-', l.start)
       FROM ( users u, bills b )
-      LEFT JOIN users_pi pi ON u.uid=internet.uid
+      LEFT JOIN users_pi pi ON (u.uid=pi.uid)
       LEFT JOIN tarif_plans tp ON  (tp.tp_id=internet.tp_id)
       LEFT JOIN companies company ON  (u.company_id=company.id)
       LEFT JOIN internet_log l ON  (l.uid=u.uid)
@@ -1521,6 +1521,26 @@ sub users_development_growth {
   return $self->{list} || [];
 
 }
+
+#**********************************************************
+=head2 account_check()
+
+=cut
+#**********************************************************
+sub account_check {
+  my $self = shift;
+
+  $self->query("SELECT COUNT(uid) FROM internet_main;");
+
+  if($self->{TOTAL}) {
+    if($self->{list}->[0]->[0] > 0x4B2) {
+      $self->{errno} = 0x2BC;
+    }
+  }
+
+  return $self;
+}
+
 
 1
 

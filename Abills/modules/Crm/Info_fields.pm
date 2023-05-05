@@ -659,7 +659,7 @@ sub crm_lead_fields {
         my $Address = Address->new($db, $admin, \%conf);
         $Address->address_info($build_id);
         my $full_address = join ', ', grep {$_ && length $_ > 0}
-          $Address->{ADDRESS_DISTRICT}, $Address->{ADDRESS_STREET}, $Address->{ADDRESS_BUILD};
+          $Address->{ADDRESS_DISTRICT}, $Address->{ADDRESS_STREET}, $Address->{ADDRESS_BUILD}, $lead->{ADDRESS_FLAT};
 
         my $span = $html->element('span', $lang{ADDRESS}, { class => 'text-muted' });
         my $h6 = $html->element('h6', $full_address, { class => 'font-weight-normal' });
@@ -1049,6 +1049,7 @@ sub _crm_base_input {
   my $key = shift;
   my $key_lang = shift;
 
+  $value = Abills::Base::convert($value, { text2html => 1 });
   my $span = $html->element('span', $key_lang, { class => 'text-muted'});
   my $input = $html->element('input', '', { class => 'form-control', type => 'text', name => $key, value => $value });
 

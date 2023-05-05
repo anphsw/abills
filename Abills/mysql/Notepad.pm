@@ -611,7 +611,8 @@ sub _date_is {
     if ( $is == 2 ){
       if ($attr->{DEBUG}){
         print "<hr>Exit because not matched anything <br/>";
-        use Data::Dumper;
+        require Data::Dumper;
+        Data::Dumper->import();
         print Dumper {
               $attr->{MINUTE}    => $min,
               $attr->{HOUR}      => $hour,
@@ -626,7 +627,8 @@ sub _date_is {
     elsif ( $is == 0 ){
       if ( $attr->{DEBUG} ){
         print "<hr>Exit on $date_type: $date_value <br/>";
-        use Data::Dumper;
+        require Data::Dumper;
+        Data::Dumper->import();
         print Dumper [ $min, $hour, $mday, $mon, $year, $wday ];
       }
       return 0;

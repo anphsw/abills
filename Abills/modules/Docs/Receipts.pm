@@ -614,7 +614,7 @@ sub docs_receipt_list{
       elsif ( $col_name eq 'total_sum' ){
         $val = sprintf('%.2f', $line->{total_sum} || 0);
       }
-      elsif ( $col_name eq 'login' && $line->{uid} ){
+      elsif ( $col_name eq 'login' && $line->{uid} && ! $user ){
         $val = user_ext_menu( $line->{uid}, $line->{login} );
       }
       else{

@@ -29,6 +29,7 @@ sub cablecat_cable_reports {
     NAME  => $lang{PLANNED}
   }, { OUTPUT2RETURN => 1 });
 
+  require Control::Reports;
   reports({
     EX_INPUTS       => [ $choose_address_form, $planned_input ],
     EXT_SELECT      => $cable_types_select,

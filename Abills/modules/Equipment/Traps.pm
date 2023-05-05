@@ -161,23 +161,30 @@ sub equipment_monitor {
     }
   }
 
+
+  my $function_index = get_function_index('equipment_list');
   my @deskpan = ({
-    ID     => mk_unique_value(11),
-    NUMBER => ($equipment) ? scalar @$equipment : 0,
-    ICON   => 'stats',
-    TEXT   => $html->button($lang{TOTAL}, "index=" . get_function_index('equipment_list')),
-    COLOR  => 'green',
-    SIZE   => 3
+    ID            => mk_unique_value(11),
+    NUMBER        => ($equipment) ? scalar @$equipment : 0,
+    ICON          => 'arrow-left',
+    TEXT          => $lang{TOTAL},
+    COLOR         => 'green',
+    SIZE          => 12,
+    LIKE_BUTTON   => 1,
+    BUTTON_PARAMS => "index=$function_index"
   });
 
   if (@handling) {
     push @deskpan, {
       ID     => mk_unique_value(11),
       NUMBER => scalar @handling,
-        ICON  => 'list',
-        TEXT  => $html->button("Maintenance", "index=" . get_function_index('equipment_list')),
-        COLOR => 'blue',
-        SIZE  => 3
+      ICON  => 'list',
+      TEXT  => "Maintenance",
+      COLOR => 'blue',
+      SIZE  => 12,
+      LIKE_BUTTON   => 1,
+      BUTTON_PARAMS => "index=$function_index"
+
     };
   }
 
@@ -185,10 +192,12 @@ sub equipment_monitor {
     push @deskpan, {
       ID     => mk_unique_value(11),
       NUMBER => scalar @not_avail,
-        ICON  => 'remove',
-        TEXT  => $html->button("Offline", "index=" . get_function_index('equipment_list')),
-        COLOR => 'red',
-        SIZE  => 3
+      ICON  => 'remove',
+      TEXT  => "Offline",
+      COLOR => 'red',
+      SIZE  => 12,
+      LIKE_BUTTON   => 1,
+      BUTTON_PARAMS => "index=$function_index"
     };
   }
 
@@ -196,19 +205,56 @@ sub equipment_monitor {
 
   print $table->show() if (@not_avail);
 
-  equipment_traps({ PAGE_ROWS => $traps_pg_rows, });
+
+  my $wrap_container = sub {
+    my ($element, $class) = @_;
+
+    return $html->element('div', $element, { class => $class });
+  };
+
+  my $only_events = $wrap_container->(
+    $wrap_container->(
+      $html->element('label', 'Only with events', { class => 'col-form-label mx-3', 'for' => 'EVENTS', OUTPUT2RETURN => 1 }) .
+      $html->form_input('EVENTS', 1, { TYPE => 'checkbox', STATE => $FORM{EVENTS} || undef, OUTPUT2RETURN => 1 }),
+      'form-group row'
+    ),
+      'col-sm-3 my-1'
+  );
+  my $traps_filter = $wrap_container->(
+    $html->element('label', $lang{TRAPS}, { class => 'sr-only', 'for' => 'FILTER', OUTPUT2RETURN => 1 }) .
+    $html->form_input('FILTER', $FORM{FILTER} ? int($FORM{FILTER}) : '', { EX_PARAMS => "placeholder='$lang{TRAPS}'", OUTPUT2RETURN => 1 }),
+    'col-sm-3 my-1'
+  );
+
+  my $refresh_traps = $wrap_container->(
+    $html->element('label', "$lang{REFRESH} (sec)", { class => 'sr-only', 'for' => 'REFRESH', OUTPUT2RETURN => 1 }) .
+    $html->form_input('REFRESH', $FORM{REFRESH} ? int($FORM{REFRESH}) : '', { EX_PARAMS => "placeholder='$lang{REFRESH} (sec)'", OUTPUT2RETURN => 1 }),
+    'col-sm-2 my-1',
+  );
+
+  my $trap_submit = $wrap_container->(
+    $html->form_input('SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' }),
+    'col-auto my-1',
+  );
+
+  my $trap_form = $only_events .
+    $traps_filter .
+    $refresh_traps .
+    $trap_submit;
+
+  my $wrapped_trap_form = $html->element('div',
+    $trap_form,
+    { class => 'form-row align-items-center justify-content-center my-3 w-100' }
+  );
 
   print $html->form_main(
     {
-      CONTENT =>
-        "Only with events " . $html->form_input('EVENTS', 1, { TYPE => 'checkbox', STATE => $FORM{EVENTS} || undef }) .
-          " $lang{TRAPS}: " . $html->form_input('FILTER', int($FORM{FILTER} || 10), { SIZE => 4 }) .
-          " $lang{REFRESH} (sec): " . $html->form_input('REFRESH', int($FORM{REFRESH} || 60), { SIZE => 4 }) .
-          $html->form_input('SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' }),
+      CONTENT => $wrapped_trap_form,
       METHOD  => 'GET',
       class   => 'form-inline',
       HIDDEN  => { index => "$index" },
     });
+  equipment_traps({ PAGE_ROWS => $traps_pg_rows, });
 
   return 1;
 }

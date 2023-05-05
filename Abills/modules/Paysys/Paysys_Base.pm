@@ -94,7 +94,7 @@ my @status = ("$lang{UNKNOWN}",    #0
       0   Operation was successfully completed
       1   User not present in the system
       2   The error in the database
-      3   Such payment already exists in the system (payments list)
+      3   Such a payment already exists in the system, it is not present in the list of payments or the list of transactions
       5   Improper payment amount. It arises in systems with a tandem payment if the user starts a transaction with one amount but in the process of changing the amount of the transaction
       6   Too small amount
       7   The amount of the payment more than permitted
@@ -415,13 +415,14 @@ sub paysys_pay {
       EXT_ID       => "$payment_system:$ext_id",
       METHOD       => $method || (($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2'),
       timeout      => $attr->{CROSSMODULES_TIMEOUT} || $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
-      FORM         => \%FORM
+      FORM         => \%FORM,
     });
+
     if ($attr->{API}) {
-      ::cross_modules(\@params);
+      ::cross_modules(@params);
     }
     else {
-      cross_modules(\@params);
+      cross_modules(@params);
     }
   }
 
@@ -473,11 +474,13 @@ sub paysys_pay {
           FORM         => \%FORM
         });
         if ($attr->{API}) {
-          ::cross_modules(\@params);
+          ::cross_modules(@params);
         }
         else {
-          cross_modules(\@params);
+          cross_modules(@params);
         }
+
+        _paysys_execute_external_command($user);
       }
 
       $status = 3;
@@ -589,6 +592,8 @@ sub paysys_pay {
         else {
           cross_modules('payments_maked', \%crossmodules_params);
         }
+
+        _paysys_execute_external_command($user);
       }
     }
     #Transactions registration error
@@ -1719,6 +1724,24 @@ sub _paysys_extra_check_user {
   }
 
   return $list;
+}
+
+#**********************************************************
+=head2 _paysys_execute_external_command() - execute external command
+
+  UID: int - uid of user
+
+=cut
+#**********************************************************
+sub _paysys_execute_external_command {
+  my ($attr) = @_;
+
+  require Paysys::Base;
+  my $Paysys_base = Paysys::Base->new($db, $admin, \%conf);
+
+  $Paysys_base->payments_maked({ UID => $attr->{UID} });
+
+  return 1;
 }
 
 1;

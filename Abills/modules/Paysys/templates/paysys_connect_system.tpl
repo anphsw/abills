@@ -5,7 +5,7 @@
 
   <div class='card card-primary card-outline box-form'>
     <div class='card-header with-border'>
-      <h4>_{PAY_SYSTEM}_</h4>
+      <h4 class='card-title'>_{PAY_SYSTEM}_</h4>
     </div>
     <div class='card-body'>
       <div class='form-group row %HIDE_SELECT%'>

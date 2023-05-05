@@ -206,12 +206,16 @@
                 <label for='NEWSLETTER_VIBER_BOT' class='custom-control-label'></label>
               </div>
             </div>
+            <div class='form-group row %PUSH_NOT_EXIST%'>
+              <label for='NEWSLETTER_PUSH' class='col-md-6 control-label'>Push</label>
+              <div class='custom-control custom-checkbox pt-1'>
+                <input class='custom-control-input' type='checkbox' id='NEWSLETTER_PUSH' name='NEWSLETTER_PUSH'
+                       value='1' %CURRENTLY_ADDED% %PUSH_SELECTED%>
+                <label for='NEWSLETTER_PUSH' class='custom-control-label'></label>
+              </div>
+            </div>
           </div>
         </div>
-        <div class='card-footer'>
-          <input class='btn btn-primary' type=submit name=%ACTION% value=%ACTION_LNG%>
-        </div>
-
       </div>
     </div>
 
@@ -251,6 +255,9 @@
               </div>
             </div>
           </div>
+        </div>
+        <div class='card-footer'>
+          <input class='btn btn-primary' type=submit name=%ACTION% value=%ACTION_LNG%>
         </div>
       </div>
     </div>

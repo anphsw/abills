@@ -52,7 +52,7 @@ sub send_message {
   if ($attr->{ATTACHMENTS} && ref $attr->{ATTACHMENTS} eq 'ARRAY') {
     foreach my $attachment (@{$attr->{ATTACHMENTS}}) {
       my $content = $attachment->{CONTENT} || '';
-      next if $content !~ /FILE/;
+      next if $content !~ /FILE:\s?(.*)/;
 
       my ($filename) = $content =~ /FILE: (.*)/;
       open(my $fh, '<', $filename) or next;
@@ -78,6 +78,7 @@ sub send_message {
       TEST          => $self->{conf}->{MAIL_TEST} || undef,
       ATTACHMENTS   => $attr->{ATTACHMENTS} || undef,
       CONTENT_TYPE  => $attr->{CONTENT_TYPE} || '',
+      MAIL_HEADER   => $attr->{MAIL_HEADER} || undef,
       QUITE         => $attr->{QUITE} || 0
     }
   );

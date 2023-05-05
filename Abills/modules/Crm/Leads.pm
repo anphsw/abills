@@ -673,12 +673,14 @@ sub crm_lead_info {
 
   if ($FORM{SAVE}) {
     $Crm->crm_lead_change({
-      PHONE   => $FORM{phone_2},
-      SOURCE  => $FORM{source_2},
-      EMAIL   => $FORM{email_2},
-      ADDRESS => $FORM{address_2},
-      COMPANY => $FORM{company_2},
-      ID      => $FORM{TO_LEAD_ID},
+      PHONE         => $FORM{phone_2},
+      SOURCE        => $FORM{source_2},
+      EMAIL         => $FORM{email_2},
+      BUILD_ID      => (defined($FORM{address_2})) ? $FORM{BUILD_ID} : '',
+      ADDRESS_FLAT  => (defined($FORM{address_2})) ? $FORM{ADDRESS_FLAT} : '',
+      DATE          => $FORM{date_registration_2},
+      COMPANY       => $FORM{company_2},
+      ID            => $FORM{TO_LEAD_ID},
     });
 
     $html->message('success', "$lang{SUCCESS} $lang{IMPORT}");
@@ -1476,6 +1478,11 @@ sub crm_lead_convert {
 
   if ($FORM{TO_LEAD_ID}) {
     my $from_lead_info = $Crm->crm_lead_info({ ID => $FORM{FROM_LEAD_ID} });
+
+    $Address->address_info($from_lead_info->{BUILD_ID});
+    $from_lead_info->{ADDRESS} = join ', ', grep {$_ && length $_ > 0}
+    $Address->{ADDRESS_DISTRICT}, $Address->{ADDRESS_STREET}, $Address->{ADDRESS_BUILD}, $from_lead_info->{ADDRESS_FLAT};
+    
     my $to_lead_info = $Crm->crm_lead_info({ ID => $FORM{TO_LEAD_ID} });
 
     my $from_lead_panel = $html->tpl_show(_include('crm_convert_panel', 'Crm'), {
@@ -1495,7 +1502,9 @@ sub crm_lead_convert {
       RIGHT_PANEL_POSTFIX => 2,
       INDEX               => get_function_index('crm_lead_info'),
       FROM_LEAD_ID        => $FORM{FROM_LEAD_ID},
-      TO_LEAD_ID          => $FORM{TO_LEAD_ID}
+      TO_LEAD_ID          => $FORM{TO_LEAD_ID},
+      BUILD_ID            => $from_lead_info->{BUILD_ID},
+      ADDRESS_FLAT        => $from_lead_info->{ADDRESS_FLAT},
     });
 
     return 1;
@@ -1523,75 +1532,6 @@ sub crm_lead_convert {
 
   return 1;
 }
-
-#**********************************************************
-=head2 internet_search($attr) - Global search submodule
-
-  Arguments:
-    $attr
-      SEARCH_TEXT
-      DEBUG
-
-  Returs:
-     TRUE/FALSE
-
-=cut
-#**********************************************************
-sub crm_search {
-  my ($attr) = @_;
-
-  my @default_search = ('FIO', 'PHONE', 'EMAIL', 'COMPANY', 'LEAD_CITY', 'ADDRESS', '_MULTI_HIT');
-
-  my @qs = ();
-  foreach my $field (@default_search) {
-    $LIST_PARAMS{$field} = "*$attr->{SEARCH_TEXT}*";
-    push @qs, "$field=*$attr->{SEARCH_TEXT}*";
-  }
-
-  $LIST_PARAMS{SKIP_RESPOSIBLE}=1;
-
-  if ($attr->{DEBUG}) {
-    $Crm->{debug} = 1;
-  }
-
-  unless ($attr->{SEARCH_TEXT} =~ m/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/) {
-    $Crm->crm_lead_list({
-      %LIST_PARAMS,
-    });
-  }
-
-  my @info = ();
-
-  if ($Crm->{TOTAL}) {
-    push @info, {
-      'TOTAL'        => $Crm->{TOTAL},
-      'MODULE'       => 'Crm',
-      'MODULE_NAME'  => $lang{LEADS},
-      'SEARCH_INDEX' => get_function_index('crm_leads')
-        . '&' . join('&', @qs) . "&search=1"
-    };
-  }
-  elsif ($attr->{SEARCH_TEXT} =~ /\@/ || $attr->{SEARCH_TEXT} =~ /^\d+$/) {
-    my $search_type = 'EMAIL';
-
-    if ($attr->{SEARCH_TEXT} =~ /^\d+$/) {
-      $search_type = 'PHONE';
-    }
-
-    push @info, {
-      'TOTAL'        => 0,
-      'MODULE'       => 'Crm',
-      'MODULE_NAME'  => $lang{LEADS},
-      'SEARCH_INDEX' => get_function_index('crm_leads')
-        . '&' . join('&', @qs) . "&search=1",
-      EXTRA_LINK     => "$lang{ADD}|index=" . get_function_index('crm_leads') . "&add_form=1&"
-        . "$search_type=$attr->{SEARCH_TEXT}"
-    };
-  }
-
-  return \@info;
-}
-
 
 #**********************************************************
 =head2 crm_user_calling_info() -
@@ -1836,6 +1776,7 @@ sub crm_lead_add_user {
 sub crm_sales_funnel {
   my ($attr) = @_;
 
+  require Control::Reports;
   reports({
     DATE_RANGE       => 1,
     DATE             => $FORM{DATE},
@@ -1860,6 +1801,7 @@ sub crm_sales_funnel {
   my $list = $Crm->crm_progressbar_step_list({
     STEP_NUMBER => '_SHOW',
     NAME        => '_SHOW',
+    DEAL_STEP   => '0',
     SORT        => 1,
     COLS_NAME   => 1
   });
@@ -1868,14 +1810,8 @@ sub crm_sales_funnel {
     width   => '100%',
     caption => (!$attr->{RETURN_TABLE}) ? $lang{SALES_FUNNEL} :
       $html->button($lang{SALES_FUNNEL}, 'index=' . get_function_index('crm_sales_funnel')),
-    title   => [
-      "$lang{STEP}",
-      "$lang{NAME}",
-      "$lang{NUMBER_LEADS}",
-      "$lang{LEADS_PERCENTAGE}",
-      "$lang{NUMBER_LEADS_ON_STEP}",
-      "$lang{LEADS_PERCENTAGE_ON_STEP}"
-    ],
+    title   => [ $lang{STEP}, $lang{NAME}, $lang{NUMBER_LEADS}, $lang{LEADS_PERCENTAGE},
+      $lang{NUMBER_LEADS_ON_STEP}, $lang{LEADS_PERCENTAGE_ON_STEP} ],
     ID      => 'SALES_FUNNEL_ID'
   });
 
@@ -1908,20 +1844,20 @@ sub crm_sales_funnel {
         "index=" . get_function_index('crm_leads') . "&PERIOD=$period&CURRENT_STEP=>=$item->{step_number}&search=1"),
       $html->progress_bar({
         TEXT         => $attr->{RETURN_TABLE} ? $html->color_mark(($count_step ? $count_step : 0),
-          (($count_step ? $count_step : 0) > 50 ? '#fff' : '#000')) : '123',
+          (($count_step ? $count_step : 0) > 50 ? '#fff' : '#000')) : '',
         TOTAL        => $full_count,
         COMPLETE     => $count_for_step,
-        COLOR        => 'light-blue',
+        COLOR        => ' bg-primary',
         PERCENT_TYPE => $attr->{RETURN_TABLE} ? 0 : 1,
       }),
       $html->button($step_count,
         "index=" . get_function_index('crm_leads') . "&PERIOD=$period&CURRENT_STEP=$item->{step_number}&search=1"),
       $html->progress_bar({
         TEXT         => $attr->{RETURN_TABLE} ? $html->color_mark(($complete_count_step ? $complete_count_step : 0),
-          (($complete_count_step ? $complete_count_step : 0) > 50 ? '#fff' : '#000')) : '123',
+          (($complete_count_step ? $complete_count_step : 0) > 50 ? '#fff' : '#000')) : '',
         TOTAL        => $full_count,
         COMPLETE     => $step_count,
-        COLOR        => 'yellow',
+        COLOR        => ' bg-warning',
         PERCENT_TYPE => $attr->{RETURN_TABLE} ? 0 : 1
       })
     );
@@ -1936,8 +1872,7 @@ sub crm_sales_funnel {
   return $table->show() if ($attr->{RETURN_TABLE});
 
   print $table->show();
-  my $json = JSON->new()->utf8(0);
-  my $data = $json->encode(\@leads_array);
+  my $data = Abills::Base::json_former(\@leads_array);
   $html->tpl_show(_include('sales_funnel_chart', 'Crm'), { DATA => $data });
 
   return 1;

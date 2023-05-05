@@ -8,6 +8,7 @@ $lang{ARCHIVE} = 'Архів';
 $lang{PROCESSED} = 'Оброблені';
 $lang{VOTE} = 'Проголосувати';
 $lang{REJECTED} = 'Не закінчено і закрито';
+$lang{CLOSE_DONE} = 'Закінчено і закрито';
 $lang{RESULTS} = 'Результати';
 $lang{VOTE_ADDED} = 'Голос доданий';
 $lang{DISCUSSION_ABSENT} = 'Обговорення відсутнє';

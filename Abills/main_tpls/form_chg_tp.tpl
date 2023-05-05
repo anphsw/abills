@@ -23,7 +23,7 @@
                 <div class='form-group row'>
                     <label class='control-label col-md-3' for='TARIF'>_{FROM}_:</label>
                     <div class='col-md-9 text-left'>
-                        <input type=text name=TARIF value='%TP_ID% %TP_NAME%' ID='TARIF' class='form-control' readonly
+                        <input type=text name=TARIF value='%TP_ID% %TP_NAME% %DESCRIBE_AID%' ID='TARIF' class='form-control' readonly
                                style='text-align: inherit;'>
                     </div>
                 </div>

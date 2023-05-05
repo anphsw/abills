@@ -130,6 +130,15 @@
                      value='%BANK_BIC%'>
             </div>
           </div>
+
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='EDRPOU'>_{EDRPOU}_:</label>
+            <div class='col-sm-8 col-md-8'>
+              <input class='form-control' id='EDRPOU' placeholder='%EDRPOU%' name='EDRPOU'
+                     value='%EDRPOU%'>
+            </div>
+          </div>
+
           <div class='form-group row'>
             <label class='col-md-4 col-form-label text-md-right' for='CONTRACT_ID'>_{CONTRACT_ID}_:</label>
             <div class='col-sm-8 col-md-8'>

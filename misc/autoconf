@@ -188,7 +188,7 @@ if (!-f $config_file) {
       my $add_mysql_user = "SET sql_mode=NO_ENGINE_SUBSTITUTION;"
         . "CREATE USER \'$mk_config{dbuser}\'\@$mk_config{dbhost}  IDENTIFIED BY '$mk_config{dbpasswd}' ;"
         . "CREATE DATABASE IF NOT EXISTS $mk_config{dbname} DEFAULT CHARACTER SET $mk_config{dbcharset} COLLATE $MYSQL_COLLATE;"
-        . "GRANT ALL ON $mk_config{dbname}.* TO \'$mk_config{dbuser}\'\@localhost IDENTIFIED BY '$mk_config{dbpasswd}';"
+        . "GRANT ALL ON $mk_config{dbname}.* TO \'$mk_config{dbuser}\'\@localhost;"
       ;
 
 

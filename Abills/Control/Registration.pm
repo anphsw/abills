@@ -214,6 +214,14 @@ sub _start {
     $OUTPUT{BODY} = $html->tpl_show(templates('form_client_main'), \%OUTPUT);
     $OUTPUT{DOMAIN_ID} = $FORM{DOMAIN_ID} || q{};
 
+
+    if ($conf{user_background}) {
+      $OUTPUT{BACKGROUND_COLOR} = $conf{user_background};
+    }
+    elsif ($conf{user_background_url}) {
+      $OUTPUT{BACKGROUND_URL} = $conf{user_background_url};
+    }
+
     print $html->tpl_show(templates('registration'), { %OUTPUT, TITLE_TEXT => $lang{REGISTRATION} });
     print $html->tpl_show(templates('form_client_start'), { %OUTPUT });
   }
@@ -287,7 +295,7 @@ sub _module_registration {
 #**********************************************************
 sub password_recovery {
 
-  if ($FORM{SEND_SMS} && (!$conf{REGISTRATION_CAPTCHA} || check_captcha(\%FORM))) {
+  if ($FORM{SEND} && (!$conf{REGISTRATION_CAPTCHA} || check_captcha(\%FORM))) {
     password_recovery_process();
   }
 

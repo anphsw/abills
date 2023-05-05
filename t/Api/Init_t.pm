@@ -97,10 +97,10 @@ sub test_runner {
     print $attr->{message} if ($attr->{message});
 
     my @params = ({
+      %$attr,
       url => $url,
       uid => $uid,
       sid => $sid,
-      %$attr
     }, $tests);
 
     if ($debug < 5) {
@@ -173,10 +173,8 @@ sub _test_run_web_request {
       MORE_INFO => 1
     });
 
-    $info = decode_json($info);
-
-    $http_status = $info->{status};
-    $execution_time = $info->{time};
+    $http_status = $info->{status} || $info->{response_code} || $info->{http_code};
+    $execution_time = $info->{time} || $info->{time_total};
 
     if ($http_status == 200) {
       print color($colors{OK});

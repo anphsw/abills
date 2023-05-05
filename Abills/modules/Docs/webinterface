@@ -9,7 +9,10 @@
 use warnings FATAL => 'all';
 use strict;
 use Docs;
+
+use Payments;
 use Fees;
+
 use Abills::Base qw(int2ml in_array sendmail date_format cmd mk_unique_value);
 use Abills::Defs;
 
@@ -184,7 +187,7 @@ sub docs_take_variables {
   # and configure correct working without code changing
 
   require Info_fields;
-
+  require Companies;
   my Users $user = Users->new($db, $admin, \%conf);
   my Companies $company = Companies->new($db, $admin, \%conf);
   my $Info_fields = Info_fields->new($db, $admin, \%conf);
@@ -290,6 +293,17 @@ sub docs_take_variables {
     'EDRPOU'
   );
 
+  # additional variables for internet
+  my @additional_var_internet = (
+    'DOCS_TPNAME_INTERNET_1',
+    'DOCS_ABON_INTERNET_1',
+    'DOCS_ABON_ABON_1',
+    'DOCS_TPNAME_ABON_1',
+    'DOCS_ABON_SUM_SERVICE',
+    'DOCS_INTERNET_CID',
+    'DOCS_INTERNET_CPE_MAC'
+  );
+
   # Special variables where cant defined in standard scenario
   my @additional_special_vars = (
     'PASSWORD'
@@ -305,6 +319,7 @@ sub docs_take_variables {
     @add_info_fields,
     @additional_var_invoice,
     @additional_var_company,
+    @additional_var_internet,
     @additional_special_vars,
   );
 

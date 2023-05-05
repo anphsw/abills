@@ -511,6 +511,23 @@ sub msgs_dispatch {
       $ORDERS{ 'PLAN_DATE_' . $i } = $line->{plan_date};
       $ORDERS{ 'PLAN_TIME_' . $i } = $line->{plan_time};
       $ORDERS{ 'MSGS_NUM_ID_' . $i } = $line->{id};
+
+      my $cross_modules_return = cross_modules('docs', { UID => $line->{uid} });
+      
+      foreach my $module (keys %{$cross_modules_return}) {
+        next if ref $cross_modules_return->{$module} ne 'ARRAY';
+        
+        my $uc_module = uc $module;
+        my $tp_number = 1;
+        foreach my $tp (@{$cross_modules_return->{$module}}) {
+          my (undef, undef, $sum, undef, $tp_name) = split(/\|/, $tp);
+
+          $ORDERS{ $uc_module . '_TP_NAME_' . $i . '_' . $tp_number } = $tp_name;
+          $ORDERS{ $uc_module . '_TP_SUM_' . $i . '_' . $tp_number } = $sum;
+          $tp_number++;
+        }
+      }
+      
       $i++;
     }
 
@@ -574,9 +591,13 @@ sub msgs_dispatch {
 
   if ($FORM{add_form}) {
     $Msgs->{STATE_SEL} = msgs_sel_status({ ALL => 0, SELECTED_ID => $Msgs->{STATE} || "" });
-    $Msgs->{RESPOSIBLE_SEL} = sel_admins({ NAME => 'RESPOSIBLE', RESPOSIBLE => $Msgs->{RESPOSIBLE} });
+    $Msgs->{RESPOSIBLE_SEL} = sel_admins({ NAME => 'RESPOSIBLE', RESPOSIBLE => $Msgs->{RESPOSIBLE}, DISABLE => 0 });
     $Msgs->{PLAN_DATE} = $html->form_datepicker('PLAN_DATE', $Msgs->{PLAN_DATE} || $DATE);
-    $Msgs->{CREATED_BY_SEL} = sel_admins({ NAME => 'CREATED_BY', SELECTED => ($Msgs->{CREATED_BY} && $Msgs->{CREATED_BY} > '0') ? $Msgs->{CREATED_BY} : $admin->{AID} });
+    $Msgs->{CREATED_BY_SEL} = sel_admins({
+      NAME     => 'CREATED_BY',
+      SELECTED => ($Msgs->{CREATED_BY} && $Msgs->{CREATED_BY} > '0') ? $Msgs->{CREATED_BY} : $admin->{AID},
+      DISABLE  => 0
+    });
     $Msgs->{START_DATE} = $html->form_datetimepicker('START_DATE', ($Msgs->{START_DATE} || ''));
     $Msgs->{END_DATE} = $html->form_datetimepicker('END_DATE', ($Msgs->{END_DATE} || ''));
     $Msgs->{ACTUAL_END_DATE} = $html->form_datetimepicker('ACTUAL_END_DATE', ($Msgs->{ACTUAL_END_DATE} || '0000-00-00 00:00:00'), { EX_PARAMS => $disabled_actual_time });

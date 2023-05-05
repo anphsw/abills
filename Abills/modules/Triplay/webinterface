@@ -111,6 +111,7 @@ sub triplay_tp {
     MODULE  => 'Iptv',
     IPTV_TP => $Triplay->{IPTV_TP},
     SELECT  => 'IPTV_TP',
+    USER_INFO => $users,
     EX_PARAMS   => {
       MAIN_MENU => get_function_index('iptv_tp'),
       MAIN_MENU_ARGV => ($Triplay->{IPTV_TP}) ? "TP_ID=$Triplay->{IPTV_TP}" : ''
@@ -119,6 +120,7 @@ sub triplay_tp {
 
   my $internet_select = sel_tp({
     MODULE      => 'Internet',
+    USER_INFO   => $users,
     INTERNET_TP => $Triplay->{INTERNET_TP},
     SELECT      => 'INTERNET_TP',
     EX_PARAMS   => {
@@ -128,10 +130,11 @@ sub triplay_tp {
   });
 
   my $voip_select = sel_tp({
-    MODULE => 'Voip',
+    MODULE    => 'Voip',
+    USER_INFO => $users,
     #TP_ID  => $Triplay->{VOIP_TP},
-    VOIP_TP=> $Triplay->{VOIP_TP},
-    SELECT => 'VOIP_TP',
+    VOIP_TP   => $Triplay->{VOIP_TP},
+    SELECT    => 'VOIP_TP',
     EX_PARAMS   => {
       MAIN_MENU => get_function_index('internet_tp'),
       MAIN_MENU_ARGV => ($Triplay->{INTERNET_TP}) ? "TP_ID=$Triplay->{INTERNET_TP}" : ''

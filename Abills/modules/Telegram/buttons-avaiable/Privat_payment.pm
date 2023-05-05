@@ -64,13 +64,51 @@ sub click {
     $account_key = $users_info->{LOGIN};
   }
 
+  my $list = $Users->list({
+    UID            => $self->{bot}->{uid},
+    LOGIN          => '_SHOW',
+    FIO            => '_SHOW',
+    DEPOSIT        => '_SHOW',
+    CREDIT         => '_SHOW',
+    PHONE          => '_SHOW',
+    ADDRESS_FULL   => '_SHOW',
+    GID            => '_SHOW',
+    DOMAIN_ID      => '_SHOW',
+    DISABLE_PAYSYS => '_SHOW',
+    GROUP_NAME     => '_SHOW',
+    DISABLE        => '_SHOW',
+    CONTRACT_ID    => '_SHOW',
+    ACTIVATE       => '_SHOW',
+    REDUCTION      => '_SHOW',
+    BILL_ID        => '_SHOW',
+    COLS_NAME      => 1,
+    COLS_UPPER     => 1,
+    PAGE_ROWS      => 1,
+  });
+
+  $users_info->{DEPOSIT} = $users_info->{DEPOSIT} || 0;
   my $deposit = sprintf("%.2f", $users_info->{DEPOSIT});
-  my $amount = abs($deposit);
-  my $fast_pay = main::get_gid_conf("PAYSYS_PT_FAST_PAY", $gid);
-  my $url_pay = "$fast_pay"  . "&acc=" .  "$account_key" . "&amount=" . "$amount";
+  my $amount = ::recomended_pay($list->[0]) || 1;
+  my $fast_pay = main::get_gid_conf("PAYSYS_PT_FAST_PAY", $gid) || '';
+  $attr->{USER_ID} = $account_key;
+  $attr->{SUM} = $amount;
 
-  if (main::get_gid_conf("PAYSYS_PT_ACCOUNT_KEY", $gid)) {
+  if ($fast_pay =~ /\%/) {
+    while ($fast_pay =~ /\%([A-Z0-9\_]+)\%/g) {
+      my $key = $1;
+      $fast_pay =~ s/\%$key\%/$attr->{$key}/g;
+    }
 
+    $fast_pay =~ s/{/%7B/gm;
+    $fast_pay =~ s/}/%7D/gm;
+    $fast_pay =~ s/\s/%20/gm;
+    $fast_pay =~ s/"/%22/gm;
+  }
+  else {
+    $fast_pay .= "&acc=$account_key&amount=$amount";
+  }
+
+  if (main::get_gid_conf("PAYSYS_EASYPAY_ACCOUNT_KEY", $gid)) {
     $message .= "$self->{bot}{lang}{UNIQUE_NUMBER}: <b>$account_key</b>\n";
     $message .= "$self->{bot}{lang}{PAYMENT_SUM}: <b>$deposit</b>\n";
     $message .= "$self->{bot}{lang}{PAY_SUM_CHANGE}\n";
@@ -80,8 +118,8 @@ sub click {
   }
 
   my $inline_button = {
-    text     => "$self->{bot}{lang}{PRIVAT_PAYMENT}",
-    url      => "$url_pay"
+    text     => $self->{bot}{lang}{PRIVAT_PAYMENT},
+    url      => $fast_pay
   };
   push (@inline_keyboard, [$inline_button]);
 

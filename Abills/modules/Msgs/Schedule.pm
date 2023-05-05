@@ -14,7 +14,8 @@ our (
   %conf,
   $db,
   @WEEKDAYS,
-  @MONTHES
+  @MONTHES,
+  %msgs_permissions
 );
 
 our Abills::HTML $html;
@@ -79,6 +80,7 @@ sub _msgs_schedule_month_get_tasks {
     SUBJECT                => '_SHOW',
     PRIORITY_ID            => '_SHOW',
     STATE                  => $FORM{TASK_STATUS_SELECT},
+    CHAPTER                => $msgs_permissions{4} ? join(';', keys %{$msgs_permissions{4}}) : '_SHOW',
     PAGE_ROWS              => 100,
     COLS_NAME              => 1
   });
@@ -92,6 +94,7 @@ sub _msgs_schedule_month_get_tasks {
     SUBJECT                => '_SHOW',
     PLAN_INTERVAL          => '_SHOW',
     PRIORITY_ID            => '_SHOW',
+    CHAPTER                => $msgs_permissions{4} ? join(';', keys %{$msgs_permissions{4}}) : '_SHOW',
     COLS_NAME              => 1,
     PAGE_ROWS              => 100
   });

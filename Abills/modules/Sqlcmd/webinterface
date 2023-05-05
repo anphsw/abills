@@ -11,7 +11,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Sqlcmd;
-use Abills::Base qw(int2byte in_array sec2time urlencode urldecode json_former);
+use Abills::Base qw(int2byte in_array sec2time urlencode urldecode json_former convert);
 
 our (
   $db,
@@ -133,7 +133,7 @@ sub sqlcmd {
   foreach my $line (@$list) {
     $table->addrow(
       $line->{datetime},
-      $line->{comments},
+      convert($line->{comments}, { text2html => 1 }),
       $html->button('QUERY', "index=$index&QUERY_ID=$line->{id}", { class => 'sql' }),
       $html->button("$lang{DEL}", "index=$index&del=$line->{id}", { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' })
     );
@@ -158,7 +158,7 @@ sub sqlcmd {
   foreach my $line (@$list_history) {
     $table->addrow(
       $line->{datetime},
-       $html->button($line->{sql_query}, "index=$index&QUERY_ID=". ($line->{id} || q{}), { class => 'sql' })
+       $html->button(convert($line->{sql_query}, { text2html => 1 }), "index=$index&QUERY_ID=". ($line->{id} || q{}), { class => 'sql' })
     );
   }
 
@@ -265,13 +265,15 @@ sub sqlcmd {
       $caption2id{$CAPTION[$i]}=$i;
     }
 
-    foreach my $line (@$list){
+    foreach my $line (@$list) {
       my @table_row = ();
-      if ( ref $line eq 'ARRAY' ){
-        my $i=0;
-        foreach my $l ( @{$line} ){
-          if($CAPTION[$i] && $CAPTION[$i] eq 'login' && $caption2id{uid}) {
-            $l = $html->button($l, "index=15&UID=". ($line->[$caption2id{uid}] || q{}));
+      if (ref $line eq 'ARRAY') {
+        my $i = 0;
+        foreach my $l (@{$line}) {
+          $l = convert($l, { text2html => 1 });
+
+          if ($CAPTION[$i] && $CAPTION[$i] eq 'login' && $caption2id{uid}) {
+            $l = $html->button($l, "index=15&UID=" . ($line->[$caption2id{uid}] || q{}));
           }
 
           push @table_row, $l;
@@ -502,6 +504,7 @@ sub sqlcmd_tables {
   if ($FORM{ACTION}) {
     if ($FORM{ACTION} eq 'BACKUP') {
       $FORM{mk_backup} = 1;
+      require Control::System;
       form_sql_backup({ TABLES => $FORM{TABLES} });
     }
     elsif($FORM{ACTION} eq 'COLLATION') {
@@ -773,7 +776,7 @@ sub sqlcmd_info {
 
   $DTQ{'Com_'}     = $stat_val;
   $DTQ{'DMS'}      = $dms;
-  $DTQ{'QC Hits'}  = $stats->{'Qcache_hits'} if $stats->{'Qcache_hits'} != 0;
+  $DTQ{'QC Hits'}  = $stats->{'Qcache_hits'} if ($stats->{'Qcache_hits'} && $stats->{'Qcache_hits'} != 0);
   $DTQ{'COM_QUIT'} = int(($stats->{'Connections'} - 2) - ($stats->{'Aborted_clients'} / 2));
   $stat_val        = 0;
   for (values %DTQ) { $stat_val += $_; }

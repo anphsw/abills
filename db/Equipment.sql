@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS `equipment_infos` (
   `internet_vlan` smallint(6) unsigned NOT NULL DEFAULT '0',
   `tr_069_vlan` smallint(6) unsigned NOT NULL DEFAULT '0',
   `iptv_vlan` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `snmp_timeout` int(11)  unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`nas_id`),
   KEY model_id (model_id)
 )

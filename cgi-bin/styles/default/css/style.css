@@ -1161,3 +1161,55 @@ form > .btn-primary {
 .dark-mode input:-webkit-autofill:active {
     transition: background-color 5000s ease-in-out 0s;
 }
+
+.badge-link {
+  background-color: #3c8dbc !important;
+  color: #fff;
+  margin: 5px 0 !important;
+  border-radius: 3px;
+  padding: .4rem .8rem;
+  position: relative;
+  cursor: pointer;
+}
+
+.dark-mode .badge-link {
+  background-color: #86bad8 !important;
+  color: #1f2d3d !important;
+}
+
+.badge-link p {
+  display: inline;
+  margin: 0;
+  white-space: normal;
+}
+
+.badge-link i {
+  position: absolute;
+  right: 1rem;
+  top: .65rem;
+}
+
+.badge-link:not(.collapsed) i.right {
+	-webkit-transform: rotate(-90deg);
+	transform: rotate(-90deg);
+}
+
+#p_ADMIN_PERMISSIONS i {
+  margin-right: 0.5rem;
+}
+
+.alert .card-title {
+  color: #212529;
+}
+
+.dark-mode .alert .card-title {
+  color: #fff;
+}
+
+.dark-mode .alert pre {
+  color: #fff;
+}
+
+body:not(.dark-mode) {
+  background-color: #f4f6f9;
+}

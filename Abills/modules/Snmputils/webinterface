@@ -432,21 +432,21 @@ sub snmputils_periodic {
   }
   my $debug_output = '';
 
-  if ($conf{SNMPUTILS_CHANGE_VLAN}) {
-    use Dhcphosts;
-    my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
-    my $list = $Dhcphosts->networks_list({
-      GUEST_VLAN=> '_SHOW',
-      PAGE_ROWS => 10000,
-      SORT      => 2,
-      SHOW_ALL_COLUMNS => 1,
-      COLS_NAME => 1
-    });
-
-    foreach my $line (@$list) {
-      $GUEST_VLAN{ $line->{id} } = $line->{guest_vlan};
-    }
-  }
+  # if ($conf{SNMPUTILS_CHANGE_VLAN}) {
+  #   use Dhcphosts;
+  #   my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
+  #   my $list = $Dhcphosts->networks_list({
+  #     GUEST_VLAN=> '_SHOW',
+  #     PAGE_ROWS => 10000,
+  #     SORT      => 2,
+  #     SHOW_ALL_COLUMNS => 1,
+  #     COLS_NAME => 1
+  #   });
+  #
+  #   foreach my $line (@$list) {
+  #     $GUEST_VLAN{ $line->{id} } = $line->{guest_vlan};
+  #   }
+  # }
 
   #Get nas servers TYPE: dlink_pb
   my $list = $Nas->list(

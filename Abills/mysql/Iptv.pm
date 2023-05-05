@@ -99,6 +99,7 @@ sub user_info {
    service.activate AS iptv_activate,
    tv_services.module AS service_module,
    tp.fees_method as fees_method,
+   tp.describe_aid as describe_aid,
    service.*
      FROM iptv_main service
      LEFT JOIN tarif_plans tp ON (service.tp_id=tp.tp_id)
@@ -352,6 +353,7 @@ sub user_list{
       [ 'IPTV_PASSWORD',     'STR', 'service.iptv_password',                                                     1 ],
       [ 'MAC_CID',           'STR', 'us.cid AS mac_cid',                                                         1 ],
       [ 'SERIAL',            'STR', 'us.serial',                                                                 1 ],
+      [ 'DESCRIBE_AID',      'STR', 'tp.describe_aid',                                                           1 ],
     ],
     {
       WHERE             => 1,

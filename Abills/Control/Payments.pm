@@ -139,6 +139,7 @@ sub form_payments {
   }
   elsif ($FORM{AID} && !defined($LIST_PARAMS{AID})) {
     $FORM{subf} = $index;
+    require Control::Admins_mng;
     form_admins();
     return 0;
   }
@@ -236,7 +237,7 @@ sub form_payment_add {
           SELECTED => $FORM{BILL_ID} || $attr->{USER_INFO}->{BILL_ID},
           SEL_HASH => \%BILL_ACCOUNTS,
           NO_ID    => 1
-        })
+        }),
       }, { OUTPUT2RETURN => 1 });
     }
 
@@ -251,6 +252,7 @@ sub form_payment_add {
 
       my $date_field = $html->form_datetimepicker('DATE', $FORM{DATE}, {
         FORM_ID => 'user_form',
+        FORMAT  => 'YYYY-MM-DD HH:mm:ss'
       });
 
       $Payments->{VALUE} = $date_field;
@@ -262,15 +264,14 @@ sub form_payment_add {
       }, { OUTPUT2RETURN => 1 });
 
       $Payments->{DATE_FORM} = $html->tpl_show(templates('form_row_dynamic_size_input_group'), {
-        ID          => 'DATE',
-        NAME        => $lang{DATE}.':',
-        #COLS_LEFT   => 'col-md-3',
-        #COLS_RIGHT  => 'col-md-9',
-        VALUE       => $date_field,
-        ADDON       => $html->form_input( 'hold_date', '1', { TYPE => 'checkbox',
-             EX_PARAMS => "NAME='hold_date' data-tooltip='$lang{HOLD}'",
-             ID        => 'DATE',
-             STATE     => (($COOKIES{hold_date}) ? 1 : undef) }, { OUTPUT2RETURN => 1 }) },
+        ID    => 'DATE',
+        NAME  => $lang{DATE} . ':',
+        VALUE => $date_field,
+        ADDON => $html->form_input('hold_date', '1', {
+          TYPE      => 'checkbox',
+          EX_PARAMS => "NAME='hold_date' data-tooltip='$lang{HOLD}'",
+          ID        => 'DATE',
+          STATE     => (($COOKIES{hold_date}) ? 1 : undef) }, { OUTPUT2RETURN => 1 }) },
         { OUTPUT2RETURN => 1 });
     }
 

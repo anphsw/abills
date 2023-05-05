@@ -76,6 +76,7 @@ sub internet_report_use {
     company_name    => $lang{COMPANY}
   );
 
+  require Control::Reports;
   reports({
     DATE        => $FORM{DATE},
     HIDDEN      => \%HIDDEN,
@@ -296,6 +297,7 @@ sub internet_report_debetors {
 =cut
 #**********************************************************
 sub internet_report_tp {
+  require Control::Reports;
   reports({
     PERIODS           => 1,
     NO_TAGS           => 1,
@@ -643,6 +645,7 @@ sub internet_user_outflow {
     SEL_OPTIONS => { 0 => '--' },
   });
 
+  require Control::Reports;
   reports({
     PERIOD_FORM => 1,
     DATE_RANGE  => 1,
@@ -698,6 +701,7 @@ sub internet_user_outflow {
 =cut
 #**********************************************************
 sub users_development_report {
+  require Control::Reports;
 
   reports({
     PERIOD_FORM => 1,

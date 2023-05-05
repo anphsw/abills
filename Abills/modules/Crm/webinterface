@@ -10,7 +10,7 @@ use strict;
 use warnings FATAL => 'all';
 use Crm::db::Crm;
 use Abills::Base qw(days_in_month mk_unique_value in_array);
-use Abills::Misc;
+
 use Admins;
 use Employees;
 use Abills::Sender::Core;
@@ -19,6 +19,9 @@ use Crm::Reports;
 use Crm::Info_fields;
 use Crm::Log;
 use Crm::Deals;
+use Crm::Workflow;
+
+require Abills::Misc;
 require Abills::Defs;
 require Control::Address_mng;
 
@@ -106,6 +109,7 @@ sub crm_start_page {
   my %START_PAGE_F = (
     'crm_today_actions'       => "$lang{TODAY} $lang{ACTION}",
     'crm_sales_funnel_widget' => $lang{SALES_FUNNEL},
+    'crm_top_admins'          => $lang{CRM_TOP_ADMINS},
   );
 
   return \%START_PAGE_F;
@@ -663,6 +667,7 @@ sub crm_dialogue {
     AVATAR_LINK => '_SHOW',
     INNER_MSG   => '_SHOW',
     SORT        => 'cdm.date',
+    PAGE_ROWS   => 99999,
     COLS_NAME   => 1
   });
 
@@ -692,6 +697,8 @@ sub crm_dialogue {
       $last_message_aid = $message->{aid};
     }
 
+    $message->{message} =~ s/\n$//;
+    $message->{message} = Abills::Base::convert($message->{message}, { text2html => 1, SHOW_URL => 1 });
     my $message_text = $html->element('div', $message->{message} . $time, { class => $message_class });
     $messages .= $html->element('div', !$message->{aid} ? $image . $message_text : $message_text . $image, { class => "d-flex mb-3 $message_type" });
   }
@@ -810,61 +817,17 @@ sub _crm_dialogue_item {
 #**********************************************************
 sub crm_dialogues {
 
-  return if crm_dialogues_list();
-
-  $LIST_PARAMS{AID} = $admin->{AID};
-  result_former({
-    INPUT_DATA      => $Crm,
-    FUNCTION        => 'crm_open_lines_list',
-    BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'LINE_ID,NAME,SOURCE',
-    HIDDEN_FIELDS   => 'AID',
-    FUNCTION_FIELDS => 'crm_dialogues:show:line_id:',
-    FUNCTION_INDEX  => $index,
-    SKIP_USER_TITLE => 1,
-    EXT_TITLES      => {
-      line_id     => '#',
-      name        => $lang{NAME},
-      source      => $lang{SOURCE},
-      admins_name => $lang{ADMINS}
-    },
-    SKIP_PAGES      => 1,
-    TABLE           => {
-      width   => '100%',
-      caption => $lang{DIALOGUES},
-      qs      => $pages_qs,
-      ID      => 'CRM_OPEN_LINES',
-      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
-    },
-    MAKE_ROWS       => 1,
-    MODULE          => 'Crm',
-    TOTAL           => 1,
-    SEARCH_FORMER   => 1,
-  });
-
-  return;
-}
-
-#**********************************************************
-=head2 crm_dialogues_list()
-
-=cut
-#**********************************************************
-sub crm_dialogues_list {
-
-  return 0 if !$FORM{LINE_ID};
-
-  $Crm->crm_open_line_info($FORM{LINE_ID});
-  return if !$Crm->{AID};
-
-  my @aids = split(',\s?', $Crm->{AID});
-
-  return 0 if !in_array($admin->{AID}, \@aids);
-  $LIST_PARAMS{SOURCE} = $Crm->{SOURCE};
+  my $admin_open_lines = $Crm->crm_open_lines_list({ AID => $admin->{AID}, SOURCE => '_SHOW', PAGE_ROWS => 99999, COLS_NAME => 1 });
+  my @sources = map {$_->{source} || q{}} @{$admin_open_lines};
+  $LIST_PARAMS{SOURCE} = join(';', @sources) || 'empty';
 
   if ($FORM{del} && $FORM{COMMENTS}) {
-    $Crm->crm_dialogues_del({ ID => $FORM{ID} });
-    $html->message('info', $lang{INFO}, $lang{DELETED}) if !_error_show($Crm);
+    $Crm->crm_dialogue_info({ ID => $FORM{ID} });
+
+    if ($Crm->{SOURCE} && in_array($Crm->{SOURCE}, \@sources)) {
+      $Crm->crm_dialogues_del({ ID => $FORM{ID} });
+      $html->message('info', $lang{INFO}, $lang{DELETED}) if !_error_show($Crm);
+    }
   }
 
   result_former({
@@ -872,7 +835,7 @@ sub crm_dialogues_list {
     FUNCTION        => 'crm_dialogues_list',
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'ID,LEAD_FIO,SOURCE,ADMIN,STATE,DATE',
-    FUNCTION_FIELDS => 'crm_dialogue:change:id,:del:id:&del=1&LINE_ID=' . $FORM{LINE_ID},
+    FUNCTION_FIELDS => 'crm_dialogue:change:id,:del:id:&del=1',
     FUNCTION_INDEX  => $index,
     FILTER_VALUES   => {
       state => sub {
@@ -947,7 +910,8 @@ sub crm_open_lines {
         facebook  => 'Facebook',
         telegram  => 'Telegram',
         instagram => 'Instagram',
-        viber_bot => 'Viber Bot'
+        viber_bot => 'Viber Bot',
+        mail      => 'Mail'
       },
       NO_ID    => 1
     })

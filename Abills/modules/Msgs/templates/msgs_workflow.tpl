@@ -87,6 +87,7 @@
     let CONDITIONS = type === 'action' ? ACTIONS : TRIGGERS;
     let CONDITIONS_HASH = type === 'action' ? ACTIONS_HASH : TRIGGERS_HASH;
 
+    let container_id = `${type}s`;
     let id = Date.now().toString();
     let row = document.createElement('div');
     row.classList.add('row', 'form-group', 'bg-light', 'p-2', 'rounded');
@@ -107,6 +108,7 @@
 
     jQuery(del_btn).on('click', function () {
       jQuery(row).remove();
+      checkSelectFields(undefined, container_id, CONDITIONS);
     });
 
     let types_select = document.createElement('select');
@@ -128,7 +130,14 @@
     row.appendChild(type_col);
     row.appendChild(value_col);
     row.appendChild(del_col);
-    document.getElementById(`${type}s`).appendChild(row);
+
+    document.getElementById(container_id).appendChild(row);
+
+    checkSelectFields(id, container_id, CONDITIONS);
+    if (jQuery(`#${id} option`).length < 1 ) {
+      document.getElementById(`${row.id}`).remove();
+      return;
+    }
 
     jQuery(types_select).select2({width: '100%'});
     jQuery(types_select).on('change', function (e) {
@@ -144,7 +153,40 @@
           addField(field, parent, action.type, attr)
         });
       }
+
+      checkSelectFields(undefined, container_id, CONDITIONS);
     }).change();
+  }
+
+  function checkSelectFields (id = undefined, container_id, CONDITIONS) {
+    let selectedConditions = [];
+    jQuery(`#${container_id}`).find(id ? `select[name="type"]:not(#${id})` : 'select[name="type"]').each(function() {
+      if (jQuery(this).val()) selectedConditions.push(jQuery(this).val());
+    });
+
+    if (id) {
+      selectedConditions.forEach(condition => {
+        jQuery(`#${id} option[value="${condition}"]`).remove();
+      });
+      if (jQuery(`#${id} option`).length < 1) return;
+
+      selectedConditions.push(jQuery(`#${id}`).val())
+    }
+
+    jQuery(`#${container_id}`).find(id ? `select[name="type"]:not(#${id})` : 'select[name="type"]').each(function() {
+      jQuery(`#${jQuery(this).attr('id')} option`).not(`[value="${jQuery(this).val()}"]`).remove();
+
+      let select = jQuery(this);
+      CONDITIONS.forEach(condition => {
+        if (selectedConditions.includes(condition.type)) return;
+
+        let option = document.createElement('option');
+        option.value = condition.type;
+        option.text = condition.lang;
+
+        select.append(option);
+      });
+    });
   }
 
   function addField(fields, parent, type, attr = {}) {
@@ -253,6 +295,3 @@
     return response.json();
   }
 </script>
-
-<style>
-</style>

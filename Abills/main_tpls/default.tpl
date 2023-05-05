@@ -1,4 +1,4 @@
-<form action='%SELF_URL%' class='form-horizontal' METHOD='POST'>
+<form action='%SELF_URL%' METHOD='POST'>
   <input type='hidden' name='index' value='%index%'>
 
   <div class='card card-primary card-outline container-md'>
@@ -112,8 +112,33 @@
           <input type='file' name='UPLOAD_FILE' id='UPLOAD_FILE' value='%UPLOAD_FILE%'>
         </div>
       </div>
-      
     </div>
+
+
+
+    <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
+      <div class='card-header with-border'>
+        <h3 class='card-title'>_{EXTRA}_</h3>
+        <div class='card-tools float-right'>
+          <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+            <i class='fa fa-plus'></i>
+          </button>
+        </div>
+      </div>
+      <div class='card-body'>
+
+        <div class='form-group row'>
+          <label class='col-md-3' for='PERSONAL_TP'>_{PERSONAL}_ _{TARIF_PLAN}_</label>
+          <div class='col-md-9'>
+            <div class='input-group'>
+              <input type='text' class='form-control' id='PERSONAL_TP' name='PERSONAL_TP' value='%PERSONAL_TP%'>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <div class='card-footer'>
       <!-- ACTION BTN -->
       <button type='submit' class='btn btn-primary float-left'>Left button</button>

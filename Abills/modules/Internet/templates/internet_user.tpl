@@ -14,7 +14,7 @@
   }*/
 </style>
 
-<form action='$SELF_URL' method='post'>
+<form action='%SELF_URL%' method='post'>
 
   <input type=hidden name='index' value='$index'>
   <input type=hidden name='UID' value='$FORM{UID}'>
@@ -31,7 +31,7 @@
     <div class='card-header with-border'>
       <h4 class='card-title'>_{INTERNET}_: %ID%</h4>
       <div class='card-tools float-right'>
-        <a href='$SELF_URL?get_index=internet_user&full=1&UID=%UID%&add_form=1'
+        <a href='%SELF_URL%?get_index=internet_user&full=1&UID=%UID%&add_form=1'
            title='_{ADD_SERVICE}_' class='btn btn-tool btn-success'>
           <i class='fa fa-plus'></i>
         </a>
@@ -71,7 +71,7 @@
                     <span class='hidden-xs'>%TP_NUM%</span>
                   </div>
                 </div>
-                <input type='text' name='GRP' value='%TP_NAME%' ID='TP' class='form-control hidden-xs' %TARIF_PLAN_TOOLTIP% readonly>
+                <input type='text' name='GRP' value='%TP_NAME% %DESCRIBE_AID%' ID='TP' class='form-control hidden-xs' %TARIF_PLAN_TOOLTIP% readonly>
                 <div class='input-group-append'>
                   %CHANGE_TP_BUTTON%
                   <a class='btn input-group-button hidden-print px-3' title='_{PAY_TO}_'
@@ -289,10 +289,10 @@
             </div>
 
             <div class='form-group row'>
-              <label class='col-xs-4 col-md-3 text-right'>_{PERSONAL}_ _{TARIF_PLAN}_</label>
+              <label class='col-xs-4 col-md-3 text-right' for='PERSONAL_TP'>_{PERSONAL}_ _{TARIF_PLAN}_</label>
               <div class='col-xs-8 col-md-9'>
                 <div class='input-group'>
-                  <input type='text' class='form-control r-0-25' name='PERSONAL_TP' value='%PERSONAL_TP%'>
+                  <input type='text' class='form-control r-0-25' id='PERSONAL_TP' name='PERSONAL_TP' value='%PERSONAL_TP%'>
                 </div>
               </div>
             </div>

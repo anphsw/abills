@@ -128,6 +128,7 @@ sub docs_invoices_list{
   my ($attr) = @_;
 
   if ($FORM{GET_FEES_INFO}) {
+    require Control::Fees;
     my $fees_info = $Fees->fees_type_info({ ID => $FORM{ID} });
     my $info = {
       SUM  => $fees_info->{SUM},
@@ -170,6 +171,7 @@ sub docs_invoices_list{
     }
     $FORM{ID} = join( ';', @payments_ids_arr );
     delete $FORM{UID};
+    require Control::Payments;
     form_payments();
     return 0;
   }
@@ -183,6 +185,7 @@ sub docs_invoices_list{
   elsif ( $FORM{COMPANY_ID} && !$attr->{COMPANY} && !$FORM{qindex} && !$attr->{USER_INFO} ){
     $FORM{subf} = $FORM{index};
     $index = get_function_index('form_companies');
+    require Control::Companies_mng;
     form_companies();
     return 0;
   }
@@ -1714,19 +1717,6 @@ sub docs_invoice_print {
 
     $FORM{pdf} = $conf{DOCS_PDF_PRINT};
 
-    #Modules info
-    #    my $cross_modules_return = cross_modules_call('_docs');
-    #
-    #    foreach my $module (sort keys %$cross_modules_return) {
-    #      if (ref $cross_modules_return->{$module} eq 'ARRAY') {
-    #        next if ($#{ $cross_modules_return->{$module} } == -1);
-    #        foreach my $line (@{ $cross_modules_return->{$module} }) {
-    #          my ($name, $describe, $sum, $tp_id, $tp_name) = split(/\|/, $line);
-    #          $Doc{"DOCS_ABON_".uc($module) . (($tp_id) ? "_$tp_id" : '')} = $sum;
-    #          $Doc{"DOCS_TPNAME_".uc($module) . (($tp_id) ? "_$tp_id" : '')} = $tp_name;
-    #        }
-    #      }
-    #    }
     if ( $Doc{COMPANY_ID} ){
       my $Customer = Customers->new( $db, $admin, \%conf );
       my $Company  = $Customer->company();

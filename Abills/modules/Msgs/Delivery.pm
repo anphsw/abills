@@ -52,7 +52,9 @@ sub msgs_delivery_main {
     2 => "$lang{DONE}:#009D00",
   };
 
-  my $sender_send_types = $Sender->available_types({ HASH_RETURN => 1, CLIENT => 1 });
+  my $sender_send_types = $Sender->available_types(
+    { HASH_RETURN => 1, CLIENT => 1, SOFT_CHECK => 1 }
+  );
 
   my %send_methods = (
     0 => $lang{MESSAGE},
@@ -491,7 +493,10 @@ sub msgs_mu_delivery_form {
   my %send_methods = (0 => $lang{MESSAGE}, 1 => 'E-MAIL');
 
   my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
-  my $sender_send_types = $Sender->available_types({ HASH_RETURN => 1, CLIENT => 1 });
+
+  my $sender_send_types = $Sender->available_types(
+    { HASH_RETURN => 1, CLIENT => 1, SOFT_CHECK => 1 }
+  );
 
   %send_methods = (
     %send_methods,

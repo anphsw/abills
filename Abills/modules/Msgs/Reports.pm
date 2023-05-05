@@ -26,6 +26,7 @@ our Abills::HTML $html;
 #**********************************************************
 sub msgs_reports {
 
+  require Control::Reports;
   reports({
     DATE_RANGE  => 1,
     DATE        => $FORM{DATE},
@@ -328,6 +329,7 @@ sub msgs_report_menu {
     }
   );
 
+  require Control::Reports;
   reports(
     {
       DATE_RANGE        => 1,
@@ -376,6 +378,7 @@ sub msgs_reports_requests {
     SELECTED    => $FORM{ADMINS_LOGIN} || '',
   });
 
+  require Control::Reports;
   reports({
     DATE_RANGE        => 1,
     REPORT            => '',
@@ -750,6 +753,7 @@ Returns : 1
 #**********************************************************
 sub msgs_report_tags {
 
+  require Control::Reports;
   reports(
     {
       DATE_RANGE  => 1,
@@ -1000,6 +1004,7 @@ sub msgs_admin_time_spend_report {
 #**********************************************************
 sub msgs_admin_statistics {
 
+  require Control::Reports;
   reports(
     {
       DATE_RANGE  => 1,
@@ -1288,6 +1293,7 @@ sub report_replys_and_time {
     }
   );
 
+  require Control::Reports;
   reports(
     {
       DATE_RANGE        => 1,
@@ -1396,6 +1402,7 @@ sub msgs_admin_report {
     COLS_NAME => 1
   });
 
+  require Control::Reports;
   reports({
     DATE_RANGE  => 1,
     DATE        => $FORM{DATE},
@@ -1552,6 +1559,7 @@ sub msgs_works_report {
   Employees->import();
   my $Employees = Employees->new($db, $admin, \%conf);
 
+  require Control::Reports;
   reports({
     DATE_RANGE  => 1,
     DATE        => $FORM{DATE},
@@ -1609,6 +1617,7 @@ sub msgs_works_report {
 #**********************************************************
 sub msgs_messages_coefficients {
 
+  require Control::Reports;
   reports({
     DATE_RANGE  => 1,
     DATE        => $FORM{DATE},

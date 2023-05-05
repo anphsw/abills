@@ -9,6 +9,7 @@ use strict;
 use warnings FATAL => 'all';
 use Paysys::Init;
 use Users;
+use Abills::Base qw(ip2int in_array mk_unique_value cmd);
 
 our (
   $base_dir,
@@ -57,11 +58,11 @@ sub paysys_payment {
   }
 
   my $paysys_id = $FORM{PAYMENT_SYSTEM};
-  if ($conf{PAYSYS_MIN_SUM} && $FORM{SUM} > 0 && $conf{PAYSYS_MIN_SUM} > $FORM{SUM}) {
+  if ($FORM{PAYMENT_SYSTEM} && $conf{PAYSYS_MIN_SUM} && $FORM{SUM} > 0 && $conf{PAYSYS_MIN_SUM} > $FORM{SUM}) {
     $html->message('err', $lang{ERROR}, "$lang{PAYSYS_MIN_SUM_MESSAGE} $conf{PAYSYS_MIN_SUM}");
     delete $FORM{PAYMENT_SYSTEM};
   }
-  elsif ($conf{PAYSYS_MAX_SUM} && $FORM{SUM} > 0 && $conf{PAYSYS_MAX_SUM} < $FORM{SUM}) {
+  elsif ($FORM{PAYMENT_SYSTEM} && $conf{PAYSYS_MAX_SUM} && $FORM{SUM} > 0 && $conf{PAYSYS_MAX_SUM} < $FORM{SUM}) {
     $html->message('err', $lang{ERROR}, "ERR_BIG_SUM: $conf{PAYSYS_MAX_SUM}");
     delete $FORM{PAYMENT_SYSTEM};
   }
@@ -486,16 +487,14 @@ sub paysys_subscribe {
     UID => $user->{UID},
   });
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{TOKEN_PAYMENTS},
-      title   => [ $lang{DATE}, $lang{SUM}, $lang{PAY_SYSTEM}, $lang{TRANSACTION}, $lang{STATUS}, '-' ],
-      qs      => $pages_qs,
-      pages   => $Paysys->{TOTAL},
-      ID      => 'PAYSYS_SUBSCRIBES',
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{TOKEN_PAYMENTS},
+    title   => [ $lang{DATE}, $lang{SUM}, $lang{PAY_SYSTEM}, $lang{TRANSACTION}, $lang{STATUS}, '-' ],
+    qs      => $pages_qs,
+    pages   => $Paysys->{TOTAL},
+    ID      => 'PAYSYS_SUBSCRIBES',
+  });
 
   if (defined($paysys_subscribe->{PAYSYS_ID}) && $paysys_subscribe->{PAYSYS_ID} == 0) {
     $Paysys->user_del({

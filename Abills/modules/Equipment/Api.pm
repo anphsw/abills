@@ -13,7 +13,6 @@ package Equipment::Api;
 
 use strict;
 use warnings FATAL => 'all';
-no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 use Abills::Base qw(cmd);
 use Equipment;
@@ -131,7 +130,7 @@ sub admin_routes {
       path        => '/equipment/onu/list/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
-        _get_onu_list($path_params, $query_params);
+        return _get_onu_list($path_params, $query_params);
       },
       credentials => [
         'ADMIN'
@@ -142,7 +141,7 @@ sub admin_routes {
       path        => '/equipment/onu/:id/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
-        _get_onu_list($path_params, $query_params, { ONE => 1 });
+        return _get_onu_list($path_params, $query_params, { ONE => 1 });
       },
       credentials => [
         'ADMIN'
@@ -346,7 +345,7 @@ sub admin_routes {
 
         foreach my $param (@allowed_params) {
           next if (!defined($query_params->{$param}));
-          $param = 'MNG_HOST_PORT' if ($param ~~ 'NAS_MNG_IP_PORT');
+          $param = 'MNG_HOST_PORT' if ($param eq 'NAS_MNG_IP_PORT');
           $PARAMS{$param} = $query_params->{$param} || '_SHOW';
         }
 
@@ -365,17 +364,17 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         return {
-          errno  => 201,
+          errno  => 200201,
           errstr => 'No field ip'
         } if !$query_params->{IP};
 
         return {
-          errno  => 202,
+          errno  => 200202,
           errstr => 'No field nasName'
         } if !$query_params->{NAS_NAME};
 
         return {
-          errno  => 203,
+          errno  => 200203,
           errstr => 'No field nas_type'
         } if !defined $query_params->{NAS_TYPE};
 
@@ -403,7 +402,7 @@ sub admin_routes {
           cmd($conf{RESTART_RADIUS});
         }
 
-        return ($result->{nas_deleted} ~~ 1) ? 1 : 0;
+        return ($result->{nas_deleted} eq 1) ? 1 : 0;
       },
       credentials => [
         'ADMIN'
@@ -416,25 +415,24 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         return {
-          errno  => 204,
+          errno  => 200204,
           errstr => 'No field nasId'
         } if !$path_params->{id};
 
         return {
-          errno  => 205,
+          errno  => 200205,
           errstr => 'No field ip'
         } if !$query_params->{IP};
 
         return {
-          errno  => 206,
+          errno  => 200206,
           errstr => 'No field nasName'
         } if !$query_params->{NAS_NAME};
 
         return {
-          errno  => 207,
+          errno  => 200207,
           errstr => 'No field nasType'
         } if !defined $query_params->{NAS_TYPE};
-
 
         my $result = $Nas->change({ NAS_ID => $path_params->{id}, %$query_params });
 
@@ -455,7 +453,7 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         my %PARAMS = (
-          COLS_NAME  => 1,
+          COLS_NAME => 1,
           PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
           SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
           PG        => $query_params->{PG} ? $query_params->{PG} : 0,
@@ -561,7 +559,7 @@ sub admin_routes {
         }
 
         my %PARAMS = (
-          COLS_NAME  => 1,
+          COLS_NAME => 1,
           PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
           SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
           PG        => $query_params->{PG} ? $query_params->{PG} : 0,
@@ -587,12 +585,12 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         return {
-          errno  => 208,
+          errno  => 200208,
           errstr => 'No field poolId'
         } if !$query_params->{POOL_ID};
 
         return {
-          errno  => 209,
+          errno  => 200209,
           errstr => 'No field nasId'
         } if !$query_params->{NAS_ID};
 
@@ -625,7 +623,7 @@ sub admin_routes {
 }
 
 #**********************************************************
-=head2 new($, $admin, $CONF)
+=head2 _get_onu_list($path_params, $query_params, $attr)
 
   Arguments:
     $path_params: object  - hash of params from request path
@@ -642,52 +640,35 @@ sub admin_routes {
 sub _get_onu_list {
   my ($path_params, $query_params, $attr) = @_;
 
-  my @allowed_params = (
-    'BRANCH',
-    'BRANCH_DESC',
-    'VLAN_ID',
-    'ONU_ID',
-    'ONU_VLAN',
-    'ONU_DESC',
-    'ONU_BILLING_DESC',
-    'OLT_RX_POWER',
-    'ONU_DHCP_PORT',
-    'ONU_GRAPH',
-    'NAS_IP',
-    'ONU_SNMP_ID',
-    'DATETIME',
-    'DELETED',
-    'SERVER_VLAN',
-    'GID',
-    'TRAFFIC',
-    'LOGIN',
-    'USER_MAC',
-    'MAC_BEHIND_ONU',
-    'DISTANCE',
-    'EXTERNAL_SYSTEM_LINK',
-    'MAC_SERIAL',
-    'STATUS',
-  );
+  $query_params->{ONU_VLAN} = $query_params->{VLAN} if ($query_params->{VLAN});
+  $query_params->{DATETIME} = $query_params->{DATE_TIME} if ($query_params->{DATE_TIME});
 
-  my %PARAMS = (
-    PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
-    SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
-    PG        => $query_params->{PG} ? $query_params->{PG} : 0,
-  );
+  $query_params->{PAGE_ROWS} = $query_params->{PAGE_ROWS} || 25;
+  $query_params->{SORT} = $query_params->{SORT} || 1;
+  $query_params->{PG} = $query_params->{PG} || 0;
 
-  foreach my $param (@allowed_params) {
-    next if (!defined($query_params->{$param}));
-    $PARAMS{$param} = $query_params->{$param} || '_SHOW';
+  foreach my $param (keys %{$query_params}) {
+    $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
   }
 
-  $PARAMS{ID} = ($attr && $attr->{ONE}) ? ($path_params->{id} || 0) : ($path_params->{id} || 0);
+  $query_params->{ID} = ($attr && $attr->{ONE}) ? ($path_params->{id} || 0) : ($query_params->{ID} || 0);
 
   my $list = $Equipment->onu_list({
-    %PARAMS,
+    %{$query_params},
     COLS_NAME => 1,
   });
 
-  return ($attr && $attr->{ONE}) ? $list->[0] : $list;
+  if ($attr && $attr->{ONE}) {
+    return $list->[0] if (scalar @{$list});
+
+    return {
+      errno  => 200210,
+      errstr => 'Unknown onu'
+    };
+  }
+  else {
+    return $list;
+  }
 }
 
 1;

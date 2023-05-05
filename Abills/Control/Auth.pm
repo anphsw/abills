@@ -31,27 +31,16 @@ our Abills::HTML $html;
 =cut
 #**********************************************************
 sub auth_admin {
+  my $lang_loaded = 0;
+
   #Cookie auth
   if ($conf{AUTH_METHOD}) {
     if ($index == 10) {
       $admin->online_del({ SID => $COOKIES{admin_sid} });
     }
-    if (! $html || ! $html->{language}) {
-      $html->{language}='english';
-    }
 
-    if($html->{language} ne 'english') {
-      do "language/english.pl"
-    }
-    eval { do "language/$html->{language}.pl" };
-
-    if($@) {
-      print "Content-Type: text/plain\n\n";
-      print "Can't load language\n";
-      print $@;
-      print ">> language/$html->{language}.pl << ";
-      exit;
-    }
+    load_lang();
+    $lang_loaded = 1;
 
     my $res = check_permissions($FORM{user}, $FORM{passwd}, $COOKIES{admin_sid}, \%FORM);
 
@@ -163,12 +152,14 @@ sub auth_admin {
     }
 
     if ($admin->{errno}) {
-      print "Content-Type: text/html\n\n";
+      load_lang();
+      $html->{METATAGS} = templates('metatags');
       print $html->header();
+
       my $message = $lang{ERR_ACCESS_DENY};
 
       if ($admin->{errno} == 2) {
-        $message = "ACCOUNT DISABLE or $admin->{errstr}";
+        $message = "$lang{ACCOUNT_DISABLE} $lang{OR} $admin->{errstr}";
       }
       elsif ($admin->{errno} == 3) {
         $message = $lang{ERR_UNALLOW_IP};
@@ -180,17 +171,16 @@ sub auth_admin {
         $message = $err_strs{ $admin->{errno} };
       }
 
-      $html->message( 'err', $lang{ERROR}, $message);
+      print $html->element('div',
+        $html->message('err', $lang{ERROR}, $message, { OUTPUT2RETURN => 1 }),
+        { class => 'p-5' }
+      );
       exit;
     }
   }
 
-  if($html->{language} ne 'english') {
-    do "language/english.pl"
-  }
-
-  if(-f "$libpath/language/$html->{language}.pl") {
-    do "$libpath/language/$html->{language}.pl";
+  if (!$lang_loaded) {
+    load_lang();
   }
 
   return 1;
@@ -450,7 +440,7 @@ sub check_permissions {
 
   $admin->info($admin->{AID}, \%PARAMS);
 
-  if($login && $password) {
+  if ($login && $password) {
     if (!$FORM{g2fa}) {
       if ($admin->{G2FA}) {
         $FORM{user} = $login;
@@ -508,7 +498,7 @@ sub check_permissions {
     $admin->{errno}  = 2;
     $admin->{errstr} = 'EXPIRED';
     return 2;
-  } 
+  }
 
   if ($admin->{WEB_OPTIONS}) {
     my @WO_ARR = split(/;/, $admin->{WEB_OPTIONS});
@@ -575,21 +565,20 @@ sub check_permissions {
     $html->{CHANGE_TPLS}=1;
   }
 
-  #if (! $admin->{SID} && ! $attr->{API_KEY}) {
+  if ($password && $login) {
+    $admin->full_log_add( {
+      FUNCTION_INDEX => 0,
+      AID            => $admin->{AID},
+      FUNCTION_NAME  => 'ADMIN_AUTH',
+      DATETIME       => 'NOW()',
+      IP             => $ENV{REMOTE_ADDR},
+      SID            => $admin->{SID},
+      PARAMS         => '',
+    });
+  }
+
   if (!$admin->{SID}) {
     $admin->{SID} = mk_unique_value(14);
-
-    if ($password && $login) {
-      $admin->full_log_add( {
-        FUNCTION_INDEX => 0,
-        AID            => $admin->{AID},
-        FUNCTION_NAME  => 'ADMIN_AUTH',
-        DATETIME       => 'NOW()',
-        IP             => $ENV{REMOTE_ADDR},
-        SID            => $admin->{SID},
-        PARAMS         => '',
-      });
-    }
   }
 
   return 0;
@@ -651,12 +640,30 @@ sub auth_user {
         COLS_NAME            => 1
       });
 
-      if($user->{TOTAL}) {
+      if ($conf{AUTH_EMAIL} && $Auth->{USER_EMAIL} && !$user->{TOTAL} && !$sid && !($attr->{API} && $session_id)) {
+        $user->list({
+          EMAIL     => $Auth->{USER_EMAIL} || '--',
+          LOGIN     => '_SHOW',
+          DELETED   => 0,
+          COLS_NAME => 1
+        });
+        $Auth->{EXTERNAL_AUTH_EMAIL} = 1;
+      }
+
+      if ($user->{TOTAL}) {
         $uid = $user->{list}->[0]->{uid};
         $user->{LOGIN} = $user->{list}->[0]->{login};
         $user->{UID} = $uid;
         $res = $uid;
+        $Auth->{USER_EXISTS} = 1;
         $OUTPUT{PUSH_STATE} = "<script>history.pushState(null, null, 'index.cgi?index=10&sid=$sid');</script>" if (!$attr->{API});
+
+        if ($conf{AUTH_EMAIL} && $Auth->{EXTERNAL_AUTH_EMAIL}) {
+          $user->pi_change({
+            $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
+            UID                  => $user->{UID}
+          });
+        }
       }
       else {
         if (!$sid && !($attr->{API} && $session_id)) {
@@ -718,14 +725,22 @@ sub auth_user {
     }
     else {
       $user->info($user->{UID}, { USERS_AUTH => 1 });
-      $admin->{DOMAIN_ID}=$user->{DOMAIN_ID};
+      $admin->{DOMAIN_ID} = $user->{DOMAIN_ID};
       $user->web_session_update({ SID => $session_id, REMOTE_ADD => $REMOTE_ADDR  });
       #Add social id
       if ($Auth->{USER_ID}) {
-        $user->pi_change({
-          $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
-          UID                  => $user->{UID}
-        });
+        if (!$Auth->{USER_EXISTS}) {
+          $user->pi_change({
+            $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
+            UID                  => $user->{UID}
+          });
+        }
+        else {
+          return {
+            errno  => 10002,
+            errstr => 'You already linked this social auth account to another account identifier.',
+          } if ($attr->{API});
+        }
       }
 
       return ($user->{UID}, $session_id, $user->{LOGIN});
@@ -743,9 +758,9 @@ sub auth_user {
       if ($user->{TOTAL} > $conf{wi_bruteforce}) {
         if ($attr->{API}) {
           return {
-            error  => 10000,
+            errno  => 10000,
             errstr => 'You try to brute password and system block your account. Please contact system administrator.'
-          }
+          };
         }
         $OUTPUT{BODY} = $html->tpl_show(templates('form_bruteforce_message'), undef);
         return 0;
@@ -985,6 +1000,28 @@ sub auth_sql {
 
   return $ret;
 }
+#**********************************************************
+=head2 load_lang() - Small lang loader
 
+=cut
+#**********************************************************
+sub load_lang {
+  if (!$html || !$html->{language}) {
+    $html->{language}='english';
+  }
+
+  if ($html->{language} ne 'english') {
+    do "language/english.pl"
+  }
+  eval { do "$libpath/language/$html->{language}.pl" };
+
+  if ($@) {
+    print "Content-Type: text/plain\n\n";
+    print "Can't load language\n";
+    print $@;
+    print ">> language/$html->{language}.pl << ";
+    exit;
+  }
+}
 
 1;

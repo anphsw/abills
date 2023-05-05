@@ -18,6 +18,12 @@
         </div>
       </div>
       <div class='form-group'>
+        <label class='col-sm-12 col-md-12' for='PAYSYS_EXTERNAL_PAYMENT_MADE_COMMAND'>_{PAYMENT_COMMAND}_</label>
+        <div class='col-md-12'>
+          <textarea class='form-control' id='PAYSYS_EXTERNAL_PAYMENT_MADE_COMMAND' name='PAYSYS_EXTERNAL_PAYMENT_MADE_COMMAND'>%PAYSYS_EXTERNAL_PAYMENT_MADE_COMMAND%</textarea>
+        </div>
+      </div>
+      <div class='form-group'>
         <label class='col-sm-12 col-md-12' for='PAYSYS_EXTERNAL_ATTEMPTS'>_{ATTEMPTS}_</label>
         <div class='col-md-12'>
           <input type='number' class='form-control' id='PAYSYS_EXTERNAL_ATTEMPTS' name='PAYSYS_EXTERNAL_ATTEMPTS' value='%PAYSYS_EXTERNAL_ATTEMPTS%'>

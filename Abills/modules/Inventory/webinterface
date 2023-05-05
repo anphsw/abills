@@ -688,7 +688,10 @@ sub inventory_former_passwd {
   $result = $html->button($value, '#', {
     GLOBAL_URL => '#',
     COPY       => $value,
-    ICON       => 'fa fa-lock ' . $color
+    ICON       => 'fa fa-lg fa-lock ' . $color,
+    'data-tooltip'          => "$lang{COPIED}!",
+    'data-tooltip-position' => 'top',
+    'data-tooltip-onclick'  => '1',
   });
 
   return $result;

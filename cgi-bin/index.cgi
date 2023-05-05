@@ -2,7 +2,8 @@
 
 =head1 NAME
 
- ABillS User Web interface
+  ABillS User Web interface
+  abills.net.ua
 
 =cut
 
@@ -11,16 +12,26 @@ use warnings;
 
 BEGIN {
   our $libpath = '../';
-  my $sql_type = 'mysql';
+  eval { do "$libpath/libexec/config.pl" };
+  our %conf;
+
+  if (!%conf) {
+    print "Content-Type: text/plain\n\n";
+    print "Error: Can't load config file 'config.pl'\n";
+    print "Create ABillS config file /usr/abills/libexec/config.pl\n";
+    exit;
+  }
+
+  my $sql_type = $conf{dbtype} || 'mysql';
   unshift(@INC,
     $libpath . "Abills/$sql_type/",
     $libpath . "Abills/modules/",
     $libpath . '/lib/',
-    $libpath . '/Abills/',
+    $libpath . 'Abills/',
     $libpath
   );
 
-  eval {require Time::HiRes;};
+  eval { require Time::HiRes; };
   our $begin_time = 0;
   if (!$@) {
     Time::HiRes->import(qw(gettimeofday));
@@ -44,8 +55,6 @@ our (%LANG,
   @REGISTRATION
 );
 
-do "../libexec/config.pl";
-
 $conf{web_session_timeout} = ($conf{web_session_timeout}) ? $conf{web_session_timeout} : '86400';
 
 our $html = Abills::HTML->new({
@@ -58,8 +67,9 @@ our $html = Abills::HTML->new({
 });
 
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
-    dbdebug => $conf{dbdebug}
+  { CHARSET   => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
+    dbdebug   => $conf{dbdebug},
+    db_engine => 'dbcore'
   });
 
 if ($html->{language} ne 'english') {
@@ -90,10 +100,10 @@ $conf{TPL_DIR} //= $base_dir . '/Abills/templates/';
 do 'Abills/Misc.pm';
 require Abills::Templates;
 require Abills::Result_former;
-require Control::Users_mng;
-require Control::Companies_mng;
-require Control::Groups_mng;
-require Control::Contracts_mng;
+
+if (!in_array('Events', \@MODULES)) {
+  $conf{USER_PORTAL_EVENTS_DISABLED} = 1;
+};
 $html->{METATAGS} = templates('metatags_client');
 
 my $uid = 0;
@@ -440,27 +450,38 @@ sub quick_functions {
     #$admin->{VERSION} .= " q: $admin->{db}->{queries_count}";
 
     if ($admin->{db}->{queries_list}) {
-      my $queries_list = "Queries:<br><textarea cols=160 rows=10>";
+      my $output_text = '<br><textarea class="form-control" rows=28 style="width: 100%">';
 
       my $i = 0;
-      my @q_arr = (ref $Conf->{db}->{queries_list} eq 'HASH') ? keys %{ $Conf->{db}->{queries_list} } : @{ $Conf->{db}->{queries_list} };
+      my $query_list = $Conf->{db}->{queries_list};
+      my $is_hash = (ref $query_list eq 'HASH');
+      my @q_arr = $is_hash ? keys %{$query_list} : @{$query_list};
 
       foreach my $k (@q_arr) {
         $i++;
-        my $count = (ref $Conf->{db}->{queries_list} eq 'HASH') ? " ($Conf->{db}->{queries_list}->{$k})" : '';
-        $queries_list .= "$i $count";
-        $queries_list .= " ===================================\n      $k\n ";
+        my $is_dbcore_query = ref $k eq 'ARRAY';
+
+        my $text = $is_dbcore_query ? $k->[0] : $k;
+        my $time = sprintf("%.5f",
+          $is_dbcore_query ? $k->[1] || 0 : 0
+        );
+
+        my $count = $is_hash ? " ($query_list->{$k})" : '';
+        $output_text .= "$i $count";
+        $output_text .= " =================================== $time s\n      $text\n";
       }
-      $queries_list .= "</textarea>";
-      $admin->{FOOTER_DEBUG} .= $html->tpl_show( templates('form_show_hide'),
+      $output_text .= '</textarea>';
+      $admin->{FOOTER_DEBUG} .= $html->tpl_show(
+        templates('form_show_hide'),
         {
-          CONTENT => $queries_list,
-          NAME    => 'Queries: '.$i,
+          CONTENT => $output_text,
+          NAME    => "$lang{QUERIES}: ".$i,
           ID      => 'QUERIES',
-          PARAMS  => 'collapsed-box mx-n1',
+          PARAMS  => 'mx-n1',
           BUTTON_ICON => 'plus'
         },
-        { OUTPUT2RETURN => 1 } );
+        { OUTPUT2RETURN => 1 }
+      );
     }
 
     print $admin->{FOOTER_DEBUG};
@@ -740,7 +761,6 @@ sub form_info {
     internet_user_info();
   }
 
-  # cross_modules_call('_promotional_tp', { USER => $user });
   cross_modules('promotional_tp', { USER => $user });
 
   return 1;
@@ -2074,7 +2094,7 @@ sub form_events {
   my $first_stage = gen_time($begin_time, { TIME_ONLY => 1 });
   print "Content-Type: text/html\n\n";
 
-  my $cross_modules_return = cross_modules_call('_events', {
+  my $cross_modules_return = cross_modules('_events', {
     UID              => $user->{UID},
     CLIENT_INTERFACE => 1
   });
@@ -2139,10 +2159,11 @@ sub fl {
         COLS_NAME => 1
       });
 
+      #TODO: do we really need it in finance operations?
       if ($Company->{TOTAL} > 0 && $company_list->[0]->{is_company_admin} eq '1'
       ) {
         push @m, "44:40:$user->{COMPANY_NAME}:form_company_list::";
-        push @m, "45:40:$lang{COMPANY}:form_companies:::";
+        push @m, "45:40:$lang{COMPANY}:form_companies::Control/Companies_mng:";
       }
     }
   }
@@ -2526,7 +2547,7 @@ sub make_sender_subscribe_buttons_block {
       }
 
       if ($conf{TELEGRAM_BOT_NAME}) {
-        my $link_url = 'https://t.me/' . $conf{TELEGRAM_BOT_NAME} . '/?start=u_' . ($user->{SID} || $sid);
+        my $link_url = 'https://t.me/' . $conf{TELEGRAM_BOT_NAME} . '?start=u_' . ($user->{SID} || $sid);
         $buttons_block .= $make_subscribe_btn->(
           'Telegram',
           'fab fa-telegram',
@@ -2652,26 +2673,29 @@ sub form_company_list {
   my $sum_total = 0;
   my $total     = 0;
 
+  delete $user->{errno};
+
   my $users_list = $user->list({
     COMPANY_ID => $user->{COMPANY_ID},
+    REDUCTION  => '_SHOW',
     COLS_NAME  => 1,
     COLS_UPPER => 1,
-    REDUCTION  => '_SHOW'
   });
 
   my $table = $html->table({
     width       => '100%',
     title_plain => [ $lang{USER}, $lang{SERVICE}, $lang{DESCRIBE}, $lang{SUM}, $lang{STATUS} ]
   });
-  my $statuses = sel_status({HASH_RESULT => 1});
+
+  my $statuses = sel_status({ HASH_RESULT => 1 });
   my $sum_for_pay = 0;
 
   foreach my $line (@$users_list) {
     my $service_info = get_services({
-       UID          => $line->{UID},
-       REDUCTION    => $line->{REDUCTION},
-       PAYMENT_TYPE => 0
-     });
+      UID          => $line->{UID},
+      REDUCTION    => $line->{REDUCTION},
+      PAYMENT_TYPE => 0
+    });
 
     foreach my $service ( @{ $service_info->{list} } ) {
       my ($status_name, $color_status) = split(/:/, $statuses->{$service->{STATUS}});
@@ -2693,11 +2717,13 @@ sub form_company_list {
     $sum_for_pay = $sum_for_pay - $user->{DEPOSIT};
   }
 
-  $table->table_summary($html->tpl_show(templates('form_table_summary'), {
-    TOTAL => $total,
-    SUM   => sprintf("%.2f", $sum_total),
-  },
-  { OUTPUT2RETURN => 1 }));
+  $table->table_summary(
+    $html->tpl_show(templates('form_table_summary'), {
+      TOTAL => $total,
+      SUM   => sprintf("%.2f", $sum_total),
+    },
+    { OUTPUT2RETURN => 1 })
+  );
 
   if ($sum_for_pay > 0) {
     $html->message('warn', $lang{WARNING}, "$lang{ACTIVATION_PAYMENT}" . sprintf("%.2f", $sum_for_pay) . ".");
@@ -2870,7 +2896,7 @@ sub _login_send_pin() {
 
   my $params = ();
 
-  use Contacts;
+  require Contacts;
   my $Contacts = Contacts->new($db, $admin, \%conf);
   my $contacts = $Contacts->contacts_list({ VALUE => "$FORM{PHONE},+$FORM{PHONE}", UID => '_SHOW' });
 
@@ -2910,7 +2936,8 @@ sub _login_send_pin() {
   }, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
 
   if ($conf{SMS_LIMIT}) {
-    use Sms;
+    require Sms;
+    Sms->import();
     my $Sms = Sms->new($db, $admin, \%conf);
     $Sms->list({
       UID      => $user->{UID},
@@ -2967,7 +2994,7 @@ sub _login_confirm_pin {
   }
   else {
     $user->phone_pin_del($FORM{UID});
-    use Contacts;
+    require Contacts;
     my $Contacts = Contacts->new($db, $admin, \%conf);
     my $contacts = $Contacts->contacts_list({ VALUE => "$FORM{PHONE},+$FORM{PHONE}", UID => '_SHOW' });
     $params->{buttons} = [];
@@ -3010,10 +3037,12 @@ sub pin_code_generate {
 #**********************************************************
 sub func_menu {
   my ($f_args) = @_;
-print $functions{$FORM{subf}};
   if ($FORM{subf}) {
     if($index eq $FORM{subf}) {
       return 0;
+    }
+    if (defined($module{$FORM{subf}})) {
+      load_module($module{$FORM{subf}}, $html);
     }
     _function($FORM{subf}, $f_args->{f_args});
   }

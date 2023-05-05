@@ -17,8 +17,8 @@ package Paysys::systems::Ipay_mp;
 =head2 VERSION
 
   Date: 07.06.2018
-  UPDATED: 20230306
-  VERSION: 8.37
+  UPDATED: 20230503
+  VERSION: 8.38
 
 =cut
 
@@ -30,10 +30,10 @@ use Paysys;
 use Abills::Base qw(load_pmodule json_former);
 use Abills::Fetcher qw(web_request);
 
-our $PAYSYSTEM_VERSION   = '8.37';
-my $PAYSYSTEM_NAME       = 'Ipay_mp';
+our $PAYSYSTEM_VERSION = '8.38';
+my $PAYSYSTEM_NAME = 'Ipay_mp';
 my $PAYSYSTEM_SHORT_NAME = 'IPAY';
-my $PAYSYSTEM_ID         = 72;
+my $PAYSYSTEM_ID = 72;
 
 my %PAYSYSTEM_CONF = (
   PAYSYS_IPAY_LANGUAGE          => 'ua',
@@ -134,6 +134,7 @@ sub create_request_params {
   my $time = $t->epoch + (($t->isdst) ? 3 : 2) * 60 * 60;
   my $date = POSIX::strftime("%F %X", gmtime($time));
   my $sign_string = $date . $sign_key;
+  load_pmodule('Digest::MD5');
   my $md5 = Digest::MD5->new();
   $md5->add($sign_string);
   my $md5_sign = $md5->hexdigest();

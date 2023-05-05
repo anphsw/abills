@@ -206,6 +206,7 @@ sub docs_tax_invoice{
   if($LIST_PARAMS{COMPANY_ID} || $FORM{COMPANY_ID}) {
     if (!$attr->{COMPANY} && !$FORM{qindex}) {
       $FORM{subf} = $FORM{index};
+      require Control::Companies_mng;
       form_companies();
       return 0;
     }

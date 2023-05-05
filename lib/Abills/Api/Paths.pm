@@ -6,9 +6,7 @@ use warnings FATAL => 'all';
 use Abills::Base qw(in_array mk_unique_value camelize);
 use Abills::Api::Helpers qw(static_string_generate caesar_cipher);
 
-no warnings qw(experimental::smartmatch);
-
-my $VERSION = 0.64;
+my $VERSION = 0.67;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -207,15 +205,31 @@ sub list {
             login => $login
           );
 
-          if (defined $self->{conf}->{API_LOGIN_SHOW_PASSWORD} && $main::FORM{external_auth}) {
+          if ((defined $self->{conf}->{API_LOGIN_SHOW_PASSWORD} && $main::FORM{external_auth}) ||
+            ($self->{conf}->{REGISTRATION_VERIFY_PHONE} || $self->{conf}->{REGISTRATION_VERIFY_EMAIL})) {
             require Users;
             Users->import();
             my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
-            my $user_info = $Users->info($uid, { SHOW_PASSWORD => 1 });
 
-            $result{password} = caesar_cipher($user_info->{PASSWORD}, $self->{conf}->{API_LOGIN_SHOW_PASSWORD});
+            if (defined $self->{conf}->{API_LOGIN_SHOW_PASSWORD} && $main::FORM{external_auth}) {
+              my $user_info = $Users->info($uid, { SHOW_PASSWORD => 1 });
+
+              $result{password} = caesar_cipher($user_info->{PASSWORD}, $self->{conf}->{API_LOGIN_SHOW_PASSWORD});
+              $result{password} = "<str_>$result{password}";
+            }
+
+            if ($self->{conf}->{REGISTRATION_VERIFY_PHONE} || $self->{conf}->{REGISTRATION_VERIFY_EMAIL}) {
+              $Users->registration_pin_info({ UID => $uid });
+              if ($Users->{errno}) {
+                $result{is_verified} = 'true';
+              }
+              else {
+                $result{is_verified} = $Users->{VERIFY_DATE} eq '0000-00-00 00:00:00' ? 'false' : 'true';
+              }
+            }
           }
 
+          $result{login} = "<str_>$result{login}";
           return \%result;
         },
         no_decamelize_params => 1,
@@ -231,66 +245,23 @@ sub list {
             errstr => 'Access denied'
           } if !$self->{admin}->{permissions}{0}{2};
 
-          my @allowed_params = (
-            'FIO',
-            'FIO2',
-            'FIO3',
-            'DEPOSIT',
-            'EXT_DEPOSIT',
-            'EXT_BILL_ID',
-            'CREDIT',
-            'CREDIT_DATE',
-            'LOGIN_STATUS',
-            'LOGIN',
-            'PHONE',
-            'EMAIL',
-            'FLOOR',
-            'ENTRANCE',
-            'ADDRESS_FLAT',
-            'PASPORT_DATE',
-            'PASPORT_NUM',
-            'PASPORT_GRANT',
-            'CITY',
-            'ZIP',
-            'GID',
-            'COMPANY_ID',
-            'COMPANY_NAME',
-            'CONTRACT_ID',
-            'CONTRACT_SUFIX',
-            'CONTRACT_DATE',
-            'EXPIRE',
-            'REDUCTION',
-            'LAST_PAYMENT',
-            'LAST_FEES',
-            'REGISTRATION',
-            'REDUCTION_DATE',
-            'COMMENTS',
-            'BILL_ID',
-            'ACTIVATE',
-            'ACCEPT_RULES',
-            'PASSWORD',
-            'BIRTH_DATE',
-            'TAX_NUMBER'
-          );
-          my %PARAMS = ();
-          foreach my $param (@allowed_params) {
-            next if (!defined($query_params->{$param}));
-            $PARAMS{$param} = $query_params->{$param} || '_SHOW';
+          foreach my $param (keys %{$query_params}) {
+            $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
           }
 
-          $PARAMS{PAGE_ROWS} = $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25;
-          $PARAMS{SORT} = $query_params->{SORT} ? $query_params->{SORT} : 1;
-          $PARAMS{DESC} = $query_params->{DESC} ? $query_params->{DESC} : '';
-          $PARAMS{PG} = $query_params->{PG} ? $query_params->{PG} : 0;
+          $query_params->{PAGE_ROWS} = $query_params->{PAGE_ROWS} || 25;
+          $query_params->{SORT} = $query_params->{SORT} || 1;
+          $query_params->{DESC} = $query_params->{DESC} || '';
+          $query_params->{PG} = $query_params->{PG} || 0;
 
           $module_obj->list({
-            %PARAMS,
+            %{$query_params},
             COLS_NAME => 1,
           });
         },
         module      => 'Users',
         credentials => [
-          'ADMIN'
+          'ADMIN', 'ADMINSID'
         ]
       },
       {
@@ -525,89 +496,19 @@ sub list {
             errstr => 'Access denied'
           } if $self->{admin}->{MODULES} && !$self->{admin}->{MODULES}->{Internet};
 
-          my @allowed_params = (
-            'CID',
-            'CPE_MAC',
-            'VLAN',
-            'SERVER_VLAN',
-            'JOIN_SERVICE',
-            'SIMULTANEONSLY',
-            'SPEED',
-            'NAS_ID',
-            'PORT',
-            'ALL_FILTER_ID',
-            'FILTER_ID',
-            'TP_ID',
-            'TP_NUM',
-            'TP_NAME',
-            'MONTH_FEE',
-            'ABON_DISTRIBUTION',
-            'DAY_FEE',
-            'PERSONAL_TP',
-            'PAYMENT_TYPE',
-            'UID',
-            'ID',
-            'DISABLE',
-            'IPN_ACTIVATE',
-            'DAY_TRAF_LIMIT',
-            'WEEK_TRAF_LIMIT',
-            'TOTAL_TRAF_LIMIT',
-            'FEES_METHOD',
-            'NAS_IP',
-            'FIO',
-            'FIO2',
-            'FIO3',
-            'DEPOSIT',
-            'EXT_DEPOSIT',
-            'EXT_BILL_ID',
-            'CREDIT',
-            'CREDIT_DATE',
-            'LOGIN_STATUS',
-            'PHONE',
-            'EMAIL',
-            'FLOOR',
-            'ENTRANCE',
-            'ADDRESS_FLAT',
-            'PASPORT_DATE',
-            'PASPORT_NUM',
-            'PASPORT_GRANT',
-            'CITY',
-            'ZIP',
-            'GID',
-            'COMPANY_ID',
-            'COMPANY_NAME',
-            'CONTRACT_ID',
-            'CONTRACT_SUFIX',
-            'CONTRACT_DATE',
-            'EXPIRE',
-            'REDUCTION',
-            'LAST_PAYMENT',
-            'LAST_FEES',
-            'REGISTRATION',
-            'REDUCTION_DATE',
-            'COMMENTS',
-            'BILL_ID',
-            'ACTIVATE',
-            'EXPIRE',
-            'ACCEPT_RULES',
-            'PASSWORD',
-            'BIRTH_DATE',
-            'TAX_NUMBER'
-          );
-          my %PARAMS = (
-            PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
-            PG        => $query_params->{PG} ? $query_params->{PG} : 0,
-            SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
-            DESC      => $query_params->{DESC} ? $query_params->{DESC} : ''
-          );
-
-          foreach my $param (@allowed_params) {
-            next if (!defined($query_params->{$param}));
-            $PARAMS{$param} = $query_params->{$param} || '_SHOW';
+          foreach my $param (keys %{$query_params}) {
+            $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
           }
 
+          $query_params->{PAGE_ROWS} = $query_params->{PAGE_ROWS} || 25;
+          $query_params->{SORT} = $query_params->{SORT} || 1;
+          $query_params->{DESC} = $query_params->{DESC} || '';
+          $query_params->{PG} = $query_params->{PG} || 0;
+
+          $query_params->{SIMULTANEONSLY} = $query_params->{LOGINS} if ($query_params->{LOGINS});
+
           $module_obj->user_list({
-            %PARAMS,
+            %{$query_params},
             COLS_NAME => 1,
           });
         },
@@ -905,6 +806,14 @@ sub list {
             errstr => 'No field aLogin'
           } if !$query_params->{A_LOGIN};
 
+          my $admin_regex = $self->{conf}->{ADMINNAMEREGEXP} || '^\S{1,}$';
+
+          return {
+            errno  => 701,
+            errstr => 'Not valid login admin',
+            regexp => "$admin_regex",
+          } if $query_params->{A_LOGIN} !~ /$admin_regex/;
+
           $module_obj->{MAIN_AID} = $self->{admin}->{AID};
           $module_obj->{MAIN_SESSION_IP} = $ENV{REMOTE_ADDR};
 
@@ -952,6 +861,16 @@ sub list {
             errno  => 10,
             errstr => 'Access denied'
           } if !$self->{admin}->{permissions}{4}{4};
+
+          if ($query_params->{A_LOGIN}) {
+            my $admin_regex = $self->{conf}->{ADMINNAMEREGEXP} || '^\S{1,}$';
+
+            return {
+              errno  => 701,
+              errstr => 'Not valid login admin',
+              regexp => "$admin_regex",
+            } if $query_params->{A_LOGIN} !~ /$admin_regex/;
+          }
 
           $module_obj->{AID} = $path_params->{aid};
           $module_obj->{MAIN_AID} = $self->{admin}->{AID};
@@ -1505,7 +1424,7 @@ sub list {
             AID       => $self->{admin}->{AID},
           });
 
-          my @allowed_payments_ids = map { $_->{payments_type_id} } @{ $allowed_payments };
+          my @allowed_payments_ids = map {$_->{payments_type_id}} @{$allowed_payments};
 
           if ($payment_method !~ /[0-9]+/) {
             my $payment_methods = $Payments->payment_type_list({
@@ -1532,7 +1451,7 @@ sub list {
             }
           }
 
-          $Payments->{db}->{TRANSACTION}=1;
+          $Payments->{db}->{TRANSACTION} = 1;
           my $db_ = $Payments->{db}->{db};
           $db_->{AutoCommit} = 0;
 
@@ -1611,11 +1530,11 @@ sub list {
               Employees->import();
               my $Employees = Employees->new($self->{db}, $self->{admin}, $self->{conf});
 
-              my $coming_type = $Employees->employees_list_coming_type({ COLS_NAME => 1});
+              my $coming_type = $Employees->employees_list_coming_type({ COLS_NAME => 1 });
 
               my $id_type;
               foreach my $key (@$coming_type) {
-                if ($key->{default_coming} == 1){
+                if ($key->{default_coming} == 1) {
                   $id_type = $key->{id};
                 }
               }
@@ -1809,6 +1728,17 @@ sub list {
           delete @{$module_obj}{qw{COMPANY_NAME AFFECTED DELETED DISABLE COMPANY_VAT COMPANY_ID COMPANY_CREDIT G_NAME GID TOTAL}};
           delete @{$module_obj}{qw{REDUCTION REDUCTION_DATE}} if ($self->{conf}->{user_hide_reduction});
 
+          if ($self->{conf}->{REGISTRATION_VERIFY_PHONE} || $self->{conf}->{REGISTRATION_VERIFY_EMAIL}) {
+            $module_obj->registration_pin_info({ UID => $path_params->{uid} });
+            if ($module_obj->{errno}) {
+              delete @{$module_obj}{qw{errno errstr}};
+              $module_obj->{is_verified} = 'true';
+            }
+            else {
+              $module_obj->{is_verified} = $module_obj->{VERIFY_DATE} eq '0000-00-00 00:00:00' ? 'false' : 'true';
+            }
+          }
+
           return $module_obj;
         },
         module      => 'Users',
@@ -1864,8 +1794,8 @@ sub list {
           my ($path_params, $query_params, $module_obj) = @_;
 
           return {
-            errno       => 10066,
-            errstr      => 'Unknown operation happened',
+            errno  => 10066,
+            errstr => 'Unknown operation happened',
           } if (!$self->{conf}->{user_chg_pi});
 
           my %result = ();
@@ -2557,9 +2487,9 @@ sub list {
         ]
       },
       {
-        method      => 'POST',
-        path        => '/user/password/recovery/',
-        handler     => sub {
+        method  => 'POST',
+        path    => '/user/password/recovery/',
+        handler => sub {
           my ($path_params, $query_params) = @_;
 
           require Control::Registration_mng;
@@ -2567,6 +2497,32 @@ sub list {
           my $Registration_mng = Control::Registration_mng->new($self->{db}, $self->{admin}, $self->{conf}, { HTML => $self->{html}, LANG => $self->{lang} });
 
           return $Registration_mng->password_recovery($query_params);
+        },
+      },
+      {
+        method  => 'POST',
+        path    => '/user/resend/verification/',
+        handler => sub {
+          my ($path_params, $query_params) = @_;
+
+          require Control::Registration_mng;
+          Control::Registration_mng->import();
+          my $Registration_mng = Control::Registration_mng->new($self->{db}, $self->{admin}, $self->{conf}, { HTML => $self->{html}, LANG => $self->{lang} });
+
+          return $Registration_mng->resend_pin($query_params);
+        },
+      },
+      {
+        method  => 'POST',
+        path    => '/user/verify/',
+        handler => sub {
+          my ($path_params, $query_params) = @_;
+
+          require Control::Registration_mng;
+          Control::Registration_mng->import();
+          my $Registration_mng = Control::Registration_mng->new($self->{db}, $self->{admin}, $self->{conf}, { HTML => $self->{html}, LANG => $self->{lang} });
+
+          return $Registration_mng->verify_pin($query_params);
         },
       },
       {
@@ -2685,9 +2641,9 @@ sub list {
         ]
       },
       {
-        method      => 'POST',
-        path        => '/user/registration/',
-        handler     => sub {
+        method  => 'POST',
+        path    => '/user/registration/',
+        handler => sub {
           my ($path_params, $query_params) = @_;
 
           require Control::Registration_mng;
@@ -2698,9 +2654,9 @@ sub list {
         },
       },
       {
-        method      => 'POST',
-        path        => '/user/password/reset/',
-        handler     => sub {
+        method  => 'POST',
+        path    => '/user/password/reset/',
+        handler => sub {
           my ($path_params, $query_params) = @_;
 
           require Control::Registration_mng;
@@ -2710,11 +2666,17 @@ sub list {
           return $Registration_mng->password_reset($query_params);
         },
       },
+      #@deprecated
       {
-        method      => 'POST',
-        path        => '/user/internet/registration/',
-        handler     => sub {
+        method  => 'POST',
+        path    => '/user/internet/registration/',
+        handler => sub {
           my ($path_params, $query_params) = @_;
+
+          return {
+            errno  => 10091,
+            errstr => 'Service not available',
+          } if ($self->{conf}->{NEW_REGISTRATION_FORM});
 
           return {
             errno  => 10011,
@@ -2775,7 +2737,7 @@ sub list {
             return {
               errno  => 10015,
               errstr => 'Invalid ip',
-            } if (!$query_params->{USER_IP} || $query_params->{USER_IP} ~~ '0.0.0.0');
+            } if (!$query_params->{USER_IP} || $query_params->{USER_IP} eq '0.0.0.0');
 
             require Internet::Sessions;
             Internet::Sessions->import();
@@ -2814,151 +2776,150 @@ sub list {
             return {
               errno  => 10023,
               errstr => 'Invalid login of user',
-            } if ($Users->{errno} ~~ 10);
+            } if ($Users->{errno} eq 10);
 
             return {
               errno  => 10024,
               errstr => 'User already exist',
-            } if ($Users->{errno} ~~ 7);
+            } if ($Users->{errno} eq 7);
 
             return {
               errno  => 10018,
               errstr => 'Error occurred during creation of user',
             };
           }
-          else {
-            my $uid = $Users->{UID};
-            $Users->info($uid);
 
-            $Users->pi_add({
-              UID   => $uid,
-              FIO   => $query_params->{FIO},
-              EMAIL => $query_params->{EMAIL},
-              PHONE => $query_params->{PHONE}
+          my $uid = $Users->{UID};
+          $Users->info($uid);
+
+          $Users->pi_add({
+            UID   => $uid,
+            FIO   => $query_params->{FIO},
+            EMAIL => $query_params->{EMAIL},
+            PHONE => $query_params->{PHONE}
+          });
+
+          if ($Users->{errno}) {
+            $Users->del({
+              UID => $uid,
             });
 
-            if ($Users->{errno}) {
-              $Users->del({
-                UID         => $uid,
-              });
-
-              return {
-                errno  => 10019,
-                errstr => 'Error occurred during add pi info of user',
-              };
-            }
-
-            require Internet;
-            Internet->import();
-            my $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
-
-            if ($query_params->{TP_ID}) {
-              require Tariffs;
-              Tariffs->import();
-              my $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $self->{admin});
-
-              my $tp_list = $Tariffs->list({
-                MODULE       => 'Internet',
-                TP_ID        => $query_params->{TP_ID},
-                TP_GID       => '_SHOW',
-                NEW_MODEL_TP => 1,
-                COLS_NAME    => 1,
-                STATUS       => '0',
-              });
-
-              if ($tp_list && scalar @{$tp_list} < 1) {
-                $Users->del({
-                  UID => $uid,
-                });
-
-                return {
-                  errno  => 10020,
-                  errstr => 'No tariff plan with this tpId',
-                };
-              }
-              elsif ($self->{conf}->{INTERNET_REGISTRATION_TP_GIDS} && !in_array($tp_list->{tp_gid}, $self->{conf}->{INTERNET_REGISTRATION_TP_GIDS})) {
-                $Users->del({
-                  UID => $uid,
-                });
-
-                return {
-                  errno  => 10021,
-                  errstr => 'Not available tariff plan',
-                };
-              }
-            }
-
-            $Internet->user_add({
-              UID    => $uid,
-              TP_ID  => $query_params->{TP_ID} || $self->{conf}->{REGISTRATION_DEFAULT_TP} || 0,
-              STATUS => 2,
-              CID    => $cid
-            });
-
-            if ($query_params->{REGISTRATION_TAG} && $self->{conf}->{AUTH_ROUTE_TAG} && in_array('Tags', \@main::MODULES)) {
-              require Tags;
-              Tags->import();
-
-              my $Tags = Tags->new($self->{db}, $self->{conf}, $self->{admin});
-              $Tags->tags_user_change({
-                IDS => $self->{conf}->{AUTH_ROUTE_TAG},
-                UID => $uid,
-              });
-            }
-
-            if ($Internet->{errno}) {
-              $Users->del({
-                UID => $uid,
-              });
-
-              return {
-                errno  => 10022,
-                errstr => 'Failed create Internet service',
-              };
-            }
-
-            my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
-            my $addr = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}/index.cgi" : '';
-
-            ::load_module("Abills::Templates", { LOAD_PACKAGE => 1 });
-            my $message = $self->{html}->tpl_show(::_include('internet_reg_complete_sms', 'Internet'), {
-              %$Internet, %$query_params,
-              PASSWORD => "$password",
-              BILL_URL => $addr
-            }, { OUTPUT2RETURN => 1 });
-
-            require Abills::Sender::Core;
-            Abills::Sender::Core->import();
-            my $Sender = Abills::Sender::Core->new($self->{db}, $self->{admin}, $self->{conf});
-
-            if (in_array('Sms', \@main::MODULES) && $self->{conf}->{INTERNET_REGISTRATION_SEND_SMS}) {
-              $Sender->send_message({
-                TO_ADDRESS  => $query_params->{PHONE},
-                MESSAGE     => $message,
-                SENDER_TYPE => 'Sms',
-                UID         => $uid
-              });
-            }
-            else {
-              $Sender->send_message({
-                TO_ADDRESS   => $query_params->{EMAIL},
-                MESSAGE      => $message,
-                SUBJECT      => $self->{lang}->{REGISTRATION},
-                SENDER_TYPE  => 'Mail',
-                QUITE        => 1,
-                CONTENT_TYPE => $self->{conf}->{REGISTRATION_MAIL_CONTENT_TYPE} ? $self->{conf}->{REGISTRATION_MAIL_CONTENT_TYPE} : '',
-              });
-            }
-
-            my %result = (
-              result => "Successfully created user with uid: $uid",
-            );
-
-            $result{redirect_url} = $self->{conf}->{REGISTRATION_REDIRECT} if ($self->{conf}->{REGISTRATION_REDIRECT});
-            $result{password} = $password if ($self->{conf}->{REGISTRATION_SHOW_PASSWD});
-
-            return \%result;
+            return {
+              errno  => 10019,
+              errstr => 'Error occurred during add pi info of user',
+            };
           }
+
+          require Internet;
+          Internet->import();
+          my $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
+
+          if ($query_params->{TP_ID}) {
+            require Tariffs;
+            Tariffs->import();
+            my $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $self->{admin});
+
+            my $tp_list = $Tariffs->list({
+              MODULE       => 'Internet',
+              TP_ID        => $query_params->{TP_ID},
+              TP_GID       => '_SHOW',
+              NEW_MODEL_TP => 1,
+              COLS_NAME    => 1,
+              STATUS       => '0',
+            });
+
+            if ($tp_list && scalar @{$tp_list} < 1) {
+              $Users->del({
+                UID => $uid,
+              });
+
+              return {
+                errno  => 10020,
+                errstr => 'No tariff plan with this tpId',
+              };
+            }
+            elsif ($self->{conf}->{INTERNET_REGISTRATION_TP_GIDS} && !in_array($tp_list->{tp_gid}, $self->{conf}->{INTERNET_REGISTRATION_TP_GIDS})) {
+              $Users->del({
+                UID => $uid,
+              });
+
+              return {
+                errno  => 10021,
+                errstr => 'Not available tariff plan',
+              };
+            }
+          }
+
+          $Internet->user_add({
+            UID    => $uid,
+            TP_ID  => $query_params->{TP_ID} || $self->{conf}->{REGISTRATION_DEFAULT_TP} || 0,
+            STATUS => 2,
+            CID    => $cid
+          });
+
+          if ($query_params->{REGISTRATION_TAG} && $self->{conf}->{AUTH_ROUTE_TAG} && in_array('Tags', \@main::MODULES)) {
+            require Tags;
+            Tags->import();
+
+            my $Tags = Tags->new($self->{db}, $self->{conf}, $self->{admin});
+            $Tags->tags_user_change({
+              IDS => $self->{conf}->{AUTH_ROUTE_TAG},
+              UID => $uid,
+            });
+          }
+
+          if ($Internet->{errno}) {
+            $Users->del({
+              UID => $uid,
+            });
+
+            return {
+              errno  => 10022,
+              errstr => 'Failed create Internet service',
+            };
+          }
+
+          my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+          my $addr = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}/index.cgi" : '';
+
+          ::load_module("Abills::Templates", { LOAD_PACKAGE => 1 });
+          my $message = $self->{html}->tpl_show(::_include('internet_reg_complete_sms', 'Internet'), {
+            %$Internet, %$query_params,
+            PASSWORD => "$password",
+            BILL_URL => $addr
+          }, { OUTPUT2RETURN => 1 });
+
+          require Abills::Sender::Core;
+          Abills::Sender::Core->import();
+          my $Sender = Abills::Sender::Core->new($self->{db}, $self->{admin}, $self->{conf});
+
+          if (in_array('Sms', \@main::MODULES) && $self->{conf}->{INTERNET_REGISTRATION_SEND_SMS}) {
+            $Sender->send_message({
+              TO_ADDRESS  => $query_params->{PHONE},
+              MESSAGE     => $message,
+              SENDER_TYPE => 'Sms',
+              UID         => $uid
+            });
+          }
+          else {
+            $Sender->send_message({
+              TO_ADDRESS   => $query_params->{EMAIL},
+              MESSAGE      => $message,
+              SUBJECT      => $self->{lang}->{REGISTRATION},
+              SENDER_TYPE  => 'Mail',
+              QUITE        => 1,
+              CONTENT_TYPE => $self->{conf}->{REGISTRATION_MAIL_CONTENT_TYPE} ? $self->{conf}->{REGISTRATION_MAIL_CONTENT_TYPE} : '',
+            });
+          }
+
+          my %result = (
+            result => "Successfully created user with uid: $uid",
+          );
+
+          $result{redirect_url} = $self->{conf}->{REGISTRATION_REDIRECT} if ($self->{conf}->{REGISTRATION_REDIRECT});
+          $result{password} = $password if ($self->{conf}->{REGISTRATION_SHOW_PASSWD});
+
+          return \%result;
         },
       },
       {
@@ -2982,6 +2943,7 @@ sub list {
             COMPANY_ID => '_SHOW',
             _GOOGLE    => '_SHOW',
             _FACEBOOK  => '_SHOW',
+            _APPLE     => '_SHOW',
             COLS_NAME  => 1,
             COLS_UPPER => 1
           })->[0];
@@ -3033,9 +2995,12 @@ sub list {
           if ($self->{conf}->{AUTH_FACEBOOK_ID}) {
             $functions{social_auth}{facebook} = (($user->{_FACEBOOK} || q{}) =~ /(?<=,\s).*/gm) ? 1 : 0;
           }
+          if ($self->{conf}->{AUTH_APPLE_ID}) {
+            $functions{social_auth}{apple} = (($user->{_APPLE} || q{}) =~ /(?<=,\s).*/gm) ? 1 : 0;
+          }
 
           my $credit_info = $Service_control->user_set_credit({ UID => $path_params->{uid} });
-          unless ($credit_info->{error} || $credit_info->{errno}) {
+          if (!$credit_info->{error} && !$credit_info->{errno}) {
             $functions{user_credit} = '1001';
           }
 
@@ -3078,10 +3043,11 @@ sub list {
           $functions{system}{password}{regex} = $self->{conf}->{PASSWD_SYMBOLS} if ($self->{conf}->{PASSWD_SYMBOLS});
           $functions{system}{password}{symbols} = $self->{conf}->{PASSWD_LENGTH} if ($self->{conf}->{PASSWD_LENGTH});
 
-          $functions{bots}{viber} = "viber://pa?chatURI=$self->{conf}->{VIBER_BOT_NAME}&text=/start&context=u_" if ($self->{conf}->{VIBER_TOKEN});
-          $functions{bots}{telegram} = "https://t.me/$self->{conf}->{TELEGRAM_BOT_NAME}/?start=u_" if ($self->{conf}->{TELEGRAM_TOKEN} && $self->{conf}->{TELEGRAM_BOT_NAME});
+          $functions{bots}{viber} = "viber://pa?chatURI=$self->{conf}->{VIBER_BOT_NAME}&text=/start&context=u_" if ($self->{conf}->{VIBER_TOKEN} && $self->{conf}->{VIBER_BOT_NAME});
+          $functions{bots}{telegram} = "https://t.me/$self->{conf}->{TELEGRAM_BOT_NAME}?start=u_" if ($self->{conf}->{TELEGRAM_TOKEN} && $self->{conf}->{TELEGRAM_BOT_NAME});
 
           $functions{social_networks} = $self->{conf}->{SOCIAL_NETWORKS} if ($self->{conf}->{SOCIAL_NETWORKS});
+          $functions{review_pages} = $self->{conf}->{REVIEW_PAGES} if ($self->{conf}->{REVIEW_PAGES});
 
           $functions{user_chg_passwd} = 1 if ($self->{conf}->{user_chg_passwd});
 

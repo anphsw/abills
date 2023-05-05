@@ -510,11 +510,14 @@ sub sheduler{
       }
     }
     elsif($s->{module} && $s->{module} eq 'ALL') {
+      $users->{UID}=$s->{uid};
+      $users->{BILL_ID}=$s->{bill_id};
       $ret = service_status_change({ UID => $s->{uid}, BILL_ID => $s->{bill_id} },
         $action,
-        { DEBUG => $debug,
-          DATE  => $ADMIN_REPORT{DATE},
-          SHEDULER => 1
+        { DEBUG     => $debug,
+          DATE      => $ADMIN_REPORT{DATE},
+          USER_INFO => $users,
+          SHEDULER  => 1
         });
 
       if ($comments && $comments =~ /DAYS:(\d+)/) {
@@ -1055,7 +1058,7 @@ sub backup{
 
   my $cmd =
     qq{ ( $MYSQLDUMP $mysql_opts --default-character-set=$conf{dbcharset} -d --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} ; }
-    . qq{   $MYSQLDUMP $mysql_opts --single-transaction --no-create-info --default-character-set=$conf{dbcharset} -v $ignore_tables --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname}) > $conf{BACKUP_DIR}/stats-$DATE.sql };
+    . qq{   $MYSQLDUMP $mysql_opts --single-transaction --no-create-info --default-character-set=$conf{dbcharset} -v $ignore_tables --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname}) | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz };
 
   my $res = cmd( $cmd, { DEBUG => $debug, timeout => 0, SHOW_RESULT => 1 } );
   $DEBUG .= "Backup created: $conf{BACKUP_DIR}/stats-$DATE.sql.gz ($res)\n" if ($debug > 1);

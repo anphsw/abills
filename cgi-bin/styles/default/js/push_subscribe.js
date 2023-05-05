@@ -109,6 +109,9 @@ const showNotification = async (payload) => {
           .then(function (registration) {
             registration.showNotification(payload.data.title, {
               body: payload.data.body,
+              icon: payload.data.icon,
+              data: { url: payload.data.url },
+              tag: Date.now()
             });
             registration.update();
           }).catch(e => {

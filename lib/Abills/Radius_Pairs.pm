@@ -83,6 +83,7 @@ sub parse_radius_params_string {
     }
   }
 
+  require JSON;
   my $json = JSON->new()->utf8(0);
 
   return $json->encode(\@pairs);

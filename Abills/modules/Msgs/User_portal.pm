@@ -7,17 +7,17 @@
 use strict;
 use warnings FATAL => 'all';
 use Time::Piece;
-use Abills::Base qw(urlencode convert int2byte);
+use Abills::Base qw(urlencode convert int2byte vars2lang);
 use Msgs::Misc::Attachments;
 
 our(
   $db,
   %conf,
-  $html,
   %lang,
   $admin,
 );
 
+our Abills::HTML $html;
 # Todo: generalize ( Now there are separate arrays in almost each Msgs .pm file)
 my @priority_colors = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[6]);
 my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
@@ -31,11 +31,17 @@ my $Notify = Msgs::Notify->new($db, $admin, \%conf, {LANG => \%lang, HTML => $ht
   Arguments:
     $attr
       MSGS_STATUS
+      ID
+      LAST_ID
 
 =cut
 #**********************************************************
 sub msgs_user_show {
   my ($attr) = @_;
+
+  my $msgs_id = $attr->{ID} || $attr->{LAST_ID} ;
+  $Msgs->message_info($msgs_id, { UID => $LIST_PARAMS{UID} });
+  return 1 if (_error_show($Msgs));
 
   my $msgs_status = $attr->{MSGS_STATUS};
 
@@ -47,7 +53,7 @@ sub msgs_user_show {
 
     $Msgs->message_change({
       UID            => $LIST_PARAMS{UID},
-      ID             => $FORM{ID},
+      ID             => $msgs_id,
       STATE          => $FORM{STATE},
       RATING         => $FORM{RATING}         ? $FORM{RATING}         : 0,
       RATING_COMMENT => $FORM{RATING_COMMENT} ? $FORM{RATING_COMMENT} : '',
@@ -55,23 +61,23 @@ sub msgs_user_show {
     });
 
     if ($FORM{REPLY_SUBJECT} || $FORM{REPLY_TEXT} || $FORM{FILE_UPLOAD} || $FORM{SURVEY_ID}) {
-      $Msgs->message_reply_add({ %FORM,
-        AID => 0,
-        IP  => $admin->{SESSION_IP},
-        UID => $LIST_PARAMS{UID}
+      $Msgs->message_reply_add({
+        AID        => 0,
+        IP         => $admin->{SESSION_IP},
+        UID        => $LIST_PARAMS{UID},
+        REPLY_TEXT => $FORM{REPLY_TEXT},
+        ID         => $FORM{ID}
       });
 
       if (!$Msgs->{errno}) {
         #Save signature
-        if ( $FORM{signature} && $FORM{ID} ) {
-          msgs_receive_signature($user->{UID}, $FORM{ID}, $FORM{signature});
-        }
+        msgs_receive_signature($LIST_PARAMS{UID}, $FORM{ID}, $FORM{signature}) if ($FORM{signature} && $FORM{ID});
 
         #Add attachment
         if ( $FORM{FILE_UPLOAD}->{filename} && $Msgs->{REPLY_ID} ) {
-          my $attachment_saved = msgs_receive_attachments($Msgs->{MSG_ID} || $FORM{ID}, {
+          my $attachment_saved = msgs_receive_attachments($msgs_id, {
             REPLY_ID => $Msgs->{REPLY_ID},
-            MSG_INFO => { UID => $user->{UID} }
+            MSG_INFO => { UID => $LIST_PARAMS{UID} }
           });
 
           if (!$attachment_saved) {
@@ -80,18 +86,18 @@ sub msgs_user_show {
           }
         }
       }
-      $html->message( 'info', $lang{INFO}, "$lang{REPLY}" );
+      $html->message( 'info', $lang{INFO}, $lang{REPLY});
 
       my $attachments_list = $Msgs->attachments_list({
-        REPLY_ID   => $Msgs->{INSERT_ID},
+        REPLY_ID     => $Msgs->{INSERT_ID},
         FILENAME     => '_SHOW',
         CONTENT      => '_SHOW',
         CONTENT_TYPE => '_SHOW',
       });
 
       $Notify->notify_admins({
-        MSG_ID        => $FORM{ID},
-        SENDER_UID    => $user->{UID},
+        MSG_ID        => $msgs_id,
+        SENDER_UID    => $LIST_PARAMS{UID},
         MESSAGE_STATE => $FORM{STATE},
         ATTACHMENTS   => $attachments_list
       });
@@ -107,7 +113,7 @@ sub msgs_user_show {
   elsif ($FORM{change}) {
     $Msgs->message_change({
       UID        => $LIST_PARAMS{UID},
-      ID         => $FORM{ID},
+      ID         => $msgs_id,
       ADMIN_READ => "0000-00-00 00:00:00",
       STATE      => $FORM{STATE} || 0
     });
@@ -117,12 +123,9 @@ sub msgs_user_show {
 
   $FORM{ID} = $Msgs->{LAST_ID} if $Msgs->{LAST_ID};
 
-  $Msgs->message_info($FORM{ID}, { UID => $LIST_PARAMS{UID} });
-  return 1 if _error_show($Msgs);
-
-  $Msgs->{ACTION}        = 'reply';
-  $Msgs->{LNG_ACTION}    = $lang{SEND};
-  $Msgs->{STATE_NAME}    = $html->color_mark($msgs_status->{$Msgs->{STATE}}) if(defined($Msgs->{STATE}) && $msgs_status->{$Msgs->{STATE}});
+  $Msgs->{ACTION} = 'reply';
+  $Msgs->{LNG_ACTION} = $lang{SEND};
+  $Msgs->{STATE_NAME} = $html->color_mark($msgs_status->{$Msgs->{STATE}}) if (defined($Msgs->{STATE}) && $msgs_status->{$Msgs->{STATE}});
   $Msgs->{PRIORITY_TEXT} = $html->color_mark($priority[ $Msgs->{PRIORITY} ], $priority_colors[ $Msgs->{PRIORITY} ]);
 
   if ($Msgs->{PRIORITY} == 4) {
@@ -176,6 +179,7 @@ sub msgs_user_show {
       });
       next;
     }
+
     $reply = $line->{text} if ($FORM{QUOTING} && $FORM{QUOTING} == $line->{id} && !$FORM{json});
 
     # Should check multiple attachments if got at least one
@@ -192,8 +196,6 @@ sub msgs_user_show {
 
       $attachment_html = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
     }
-
-    $FORM{ID} //= q{};
 
     my $quoting_button = $html->button($lang{QUOTING}, "", {
       class     => 'btn btn-default btn-xs quoting-reply-btn',
@@ -309,7 +311,7 @@ sub msgs_user {
 
   $Msgs->{STATE_SEL} = $html->form_select('STATE', {
     SELECTED   => $FORM{STATE} || 0,
-    SEL_HASH   => {
+    SEL_HASH   => !$FORM{ID} ? { 0 => $msgs_status->{0} } : {
       0 => $msgs_status->{0},
       1 => $msgs_status->{1},
       2 => $msgs_status->{2}
@@ -321,7 +323,6 @@ sub msgs_user {
   $Msgs->{PRIORITY_SEL} = msgs_sel_priority();
 
   if ($FORM{send}) {
-
     if ($conf{MSGS_USER_REPLY_SECONDS_LIMIT}){
       my $fresh_messages = $Msgs->messages_list({
         UID       => $user->{UID},
@@ -334,7 +335,10 @@ sub msgs_user {
         my $message_sent = $fresh_messages->[0] || {};
         my $message_sent_id = $message_sent->{id} || 0;
 
-        my $header_message = "$lang{MESSAGE} $message_sent_id. $lang{EXIST} ";
+        my $header_message = vars2lang($lang{MESSAGES_CAN_BE_SENT_UP_TO_ONCE}, {
+          SECONDS => $conf{MSGS_USER_REPLY_SECONDS_LIMIT}
+        });
+        $header_message .= "\n$lang{LAST_MESSAGE_ID}: $message_sent_id\n";
 
         $html->redirect("?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid}) . "&ID=$message_sent_id#last_msg", {
           WAIT    => 3,
@@ -346,15 +350,19 @@ sub msgs_user {
     }
 
     my $chapter = $Msgs->chapter_info($FORM{CHAPTER});
-    $FORM{RESPOSIBLE} = $chapter->{RESPONSIBLE} if $chapter->{RESPONSIBLE};
+    $FORM{RESPOSIBLE} = $chapter->{RESPONSIBLE} ? $chapter->{RESPONSIBLE} : 0;
 
     $Msgs->message_add({
-      UID       => $user->{UID},
-      STATE     => ($FORM{STATE}) ? $FORM{STATE} : 0,
-      USER_READ => "$DATE  $TIME",
-      IP        => $ENV{'REMOTE_ADDR'},
-      %FORM,
-      USER_SEND => 1,
+      UID        => $user->{UID},
+      STATE      => ($FORM{STATE}) ? $FORM{STATE} : 0,
+      USER_READ  => "$DATE  $TIME",
+      IP         => $ENV{'REMOTE_ADDR'},
+      RESPOSIBLE => $chapter->{RESPONSIBLE} || 0,
+      SUBJECT    => $FORM{SUBJECT} || '',
+      CHAPTER    => $FORM{CHAPTER} || 0,
+      MESSAGE    => $FORM{MESSAGE} || '',
+      PRIORITY   => $FORM{PRIORITY} || 0,
+      USER_SEND  => 1
     });
     return 1 if _error_show($Msgs);
 
@@ -392,7 +400,11 @@ sub msgs_user {
     return msgs_attachment_show(\%FORM);
   }
   elsif ($FORM{ID} || $Msgs->{LAST_ID}) {
-    msgs_user_show({ MSGS_STATUS => $msgs_status });
+    msgs_user_show({
+      MSGS_STATUS => $msgs_status,
+      ID          => $FORM{ID},
+      LAST_ID     => $Msgs->{LAST_ID}
+    });
   }
   elsif (!$FORM{SEARCH_MSG_TEXT}) {
     $Msgs->{CHAPTER_SEL} = $html->form_select('CHAPTER', {
@@ -408,7 +420,7 @@ sub msgs_user {
   }
 
   $html->message('info', '', $FORM{MESSAGE}) if ($FORM{MESSAGE});
-  _error_show($Msgs);
+  _error_show($Msgs, { ID => 799 });
 
   my %statusbar_status = (
     0 => $msgs_status->{0},

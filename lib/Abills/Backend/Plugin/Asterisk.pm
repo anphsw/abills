@@ -215,9 +215,9 @@ sub process_asterisk_newchannel {
   my ($asterisk, $event) = @_;
 
   if ($event->{Event} && $event->{Event} eq 'Newchannel') {
-
+    my $caller_number_param =  $conf{CALLCENTER_ASTERISK_CALLER} || 'CallerIDNum';
     my $called_number = $event->{Exten} || q{};
-    my $caller_number = $event->{CallerIDNum} || q{};
+    my $caller_number = $event->{$caller_number_param} || q{};
 
     return unless $caller_number && $called_number;
 
@@ -229,7 +229,7 @@ sub process_asterisk_newchannel {
 
     if ($conf{CALLCENTER_SKIP_LOG}) {
       if (in_array($caller_number, \@skip_nums)) {
-        `echo "$caller_number calling to $called_number (Skip)" >> /tmp/a`;
+        #`echo "$caller_number calling to $called_number (Skip)" >> /tmp/a`;
         $Log->info("Got Newchannel event. $caller_number calling to $called_number (Skip)");
         return 1;
       }

@@ -112,7 +112,7 @@ my %fn_status    = ();
 foreach my $fn_id (sort keys %functions) {
   my $function_name = $functions{$fn_id};
 
-  print "$fn_id : $function_name : User: $users Admin: $admin Q: $admin->{db}->{queries_count}\n";
+  print "$fn_id : $function_name : User: ". ($users || 'N/D')." Admin: $admin Q: $admin->{db}->{queries_count}\n";
   disable_output( 1 );
   enable_otput();
 

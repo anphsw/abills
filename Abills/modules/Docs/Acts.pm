@@ -185,6 +185,7 @@ sub docs_acts{
     if (!$attr->{COMPANY} && !$FORM{qindex}) {
       $FORM{subf} = $FORM{index};
       $index = 13;
+      require Control::Companies_mng;
       form_companies();
       return 0;
     }

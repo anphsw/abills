@@ -29,6 +29,7 @@ my $Storage = Storage->new($db, $admin, \%conf);
 sub storage_main_report {
   my ($attr) = @_;
 
+  require Control::Reports;
   reports({
     PERIOD_FORM   => 1,
     NO_PERIOD     => 1,
@@ -265,6 +266,7 @@ sub storage_main_report_charts {
 #**********************************************************
 sub storage_remnants_report {
 
+  require Control::Reports;
   reports({
     PERIOD_FORM => 1,
     NO_PERIOD  => 1,
@@ -350,6 +352,7 @@ sub storage_statistics {
     SEL_OPTIONS => { '' => '--' },
   });
 
+  require Control::Reports;
   reports({
     PERIOD_FORM   => 1,
     DATE_RANGE    => 1,
@@ -504,6 +507,7 @@ sub storage_statistics {
 #**********************************************************
 sub storage_incoming_report {
 
+  require Control::Reports;
   reports({
     PERIOD_FORM   => 1,
     DATE_RANGE    => 1,
@@ -608,6 +612,7 @@ sub storage_in_installments_statistics {
     SEL_OPTIONS => { '' => '--' },
   });
 
+  require Control::Reports;
   reports({
     PERIOD_FORM   => 1,
     DATE_RANGE    => 1,
@@ -708,6 +713,7 @@ sub storage_rent_statistics {
     SEL_OPTIONS => { '' => '--' },
   });
 
+  require Control::Reports;
   reports({
     PERIOD_FORM   => 1,
     DATE_RANGE    => 1,
@@ -810,6 +816,7 @@ sub storage_installation_report {
     SEL_OPTIONS => { '' => '--' },
   });
 
+  require Control::Reports;
   reports({
     PERIOD_FORM   => 1,
     DATE_RANGE    => 1,
@@ -909,6 +916,7 @@ sub storage_nas_installations_report {
     MULTIPLE  => 1
   });
 
+  require Control::Reports;
   reports({
     PERIOD_FORM => 1,
     DATE_RANGE  => 1,

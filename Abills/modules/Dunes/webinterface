@@ -5,9 +5,22 @@
 
 =cut
 
+#TODO: do we really need this module?
 
-require "Dunes.pm";
-Dunes->import();
+use warnings FATAL => 'all';
+use strict;
+use Dunes;
+
+our (
+  $db,
+  %conf,
+  %lang,
+  %err_strs,
+);
+
+our Abills::HTML $html;
+our Admins $admin;
+
 my $Dunes = Dunes->new($db, $admin, \%conf);
 
 #**********************************************************
@@ -17,67 +30,68 @@ my $Dunes = Dunes->new($db, $admin, \%conf);
 #**********************************************************
 sub dunes_list {
 
-print $html->form_main({ CONTENT => "ID: " . $html->form_input('ID', "$FORM{ID}"),
-                   HIDDEN  => { index => "$index"
-                                     },
-                   SUBMIT  => { show   => "$lang{SHOW}"
-	                      	           },
-	                 class   => 'form-inline'
-	                 });
+  print $html->form_main({
+    CONTENT => "ID: " . $html->form_input('ID', $FORM{ID}),
+    HIDDEN  => { index => "$index" },
+    SUBMIT  => { show => "$lang{SHOW}" },
+    class   => 'form-inline'
+  });
 
-$LIST_PARAMS{ID}=$FORM{ID} if ($FORM{ID});
+  $LIST_PARAMS{ID} = $FORM{ID} if ($FORM{ID});
 
-#err_id, win_err_handle, translate, error_text, solution
+  my $list = $Dunes->list({
+    %LIST_PARAMS,
+    COLS_NAME => 1
+  });
 
-my $list = $Dunes->list({ %LIST_PARAMS,
-	                        COLS_NAME => 1 });
+  if ($Dunes->{errno}) {
+    $html->message('err', $lang{ERROR}, "[$Dunes->{errno}] $err_strs{$Dunes->{errno}}");
+    return 0;
+  }
 
-if ($Dunes->{errno}) {
-  $html->message('err', $lang{ERROR}, "[$Internet->{errno}] $err_strs{$Internet->{errno}}");
-  return 0;
- }
+  if ($Dunes->{TOTAL} == 1) {
+    my $table = $html->table({
+      width       => '400',
+      caption     => "Error: $list->[0]->{err_id}",
+      title_plain => [ "($list->[0]->{err_id}) $list->[0]->{error_text} " ],
+      border      => 1,
+      rows        => [
+        [ $list->[0]->{translate} ],
+        [ $list->[0]->{solution} ],
+        [ $list->[0]->{translate} ]
+      ]
+    });
+    print $table->show();
+  }
 
-if ($Dunes->{TOTAL} == 1) {
-  my $table = $html->table({ width      => '400',
-                            caption     => "Error: $list->[0]->{err_id}",
-                            title_plain => [ "($list->[0]->{err_id}) $list->[0]->{error_text} " ],
-                            border      => 1,
-                            rows        => [
-                                     [ $list->[0]->{translate} ],
-                                     [ $list->[0]->{solution}  ],
-                                     [ $list->[0]->{translate} ]
-                                    ]
-                           });
+  my $table = $html->table({
+    width       => '100%',
+    caption     => "Dunes",
+    border      => 1,
+    title_plain => [ $lang{NUMBER}, 'win_err_handle', $lang{TEXT} ],
+    cols_align  => [ 'left', 'left' ],
+    qs          => $pages_qs,
+    pages       => $Dunes->{TOTAL},
+    ID          => 'DUNES_LIST'
+  });
+
+  foreach my $line (@$list) {
+    $table->addrow(
+      $html->button($line->{err_id}, "index=$index&ID=$line->{err_id}"),
+      $line->{error_text},
+      $line->{translate},
+    );
+
+  }
+  print $table->show();
+
+  $table = $html->table({
+    width      => '100%',
+    cols_align => [ 'right', 'right' ],
+    rows       => [ [ "$lang{TOTAL}:", $html->b($Dunes->{TOTAL}) ] ]
+  });
+
   print $table->show();
 }
 
-my $table = $html->table( { width        => '100%',
-                            caption      => "Dunes",
-                            border       => 1,
-                            title_plain  => ["$lang{NUMBER}", 'win_err_handle', "$lang{TEXT}"],
-                            cols_align   => ['left', 'left'],
-                            qs           => $pages_qs,
-                            pages        => $Dunes->{TOTAL},
-                            ID           => 'DUNES_LIST'
-                           });
-
-foreach my $line (@$list) {
-  $table->addrow(
-    $html->button($line->{err_id},  "index=$index&ID=$line->{err_id}"),
-    $line->{error_text},
-    $line->{translate},
-   );
-
-}
-print $table->show();
-
-$table = $html->table( { width      => '100%',
-                         cols_align => ['right', 'right'],
-                         rows       => [ [ "$lang{TOTAL}:", $html->b($Dunes->{TOTAL}) ] ]
-                        } );
-print $table->show();
-
-}
-
-1
-
+1;

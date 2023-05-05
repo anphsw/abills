@@ -86,13 +86,30 @@ sub new {
   my $class = shift;
   my ($db, $admin, $CONF, $attr) = @_;
 
+  # Sender soft check designed to fix load performance issues (around 60-200 ms)
+  # with all Senders when it's far from needed.
+  # When your rule for Sender is complex for load - skip that, and check by loading.
+  # (Example: Sms, Iptv)
+  # Recommended for information purposes.
+
+  my $soft_check = {
+    Viber_bot => sub { $CONF->{VIBER_BOT_NAME} },
+    Telegram  => sub { $CONF->{TELEGRAM_BOT_NAME} },
+    Push      => sub { $CONF->{FIREBASE_SERVER_KEY} },
+    Hyber     => sub { $CONF->{GMS_WORLDWIDE_CLIENT_ID} },
+    Viber     => sub { ($CONF->{SMS_OMNICELL_VIBER} || $CONF->{SMS_TURBOSMS_VIBER}) },
+    Facebook  => sub { $CONF->{FACEBOOK_ACCESS_TOKEN} },
+    Instagram => sub { $CONF->{FACEBOOK_ACCESS_TOKEN} },
+  };
+
   my $self = {
-    conf      => $CONF,
-    self_url  => $attr->{SELF_URL} || q{},
-    domain_id => $attr->{DOMAIN_ID} || $CONF->{DOMAIN_ID} || 0,
-    db        => $db,
-    admin     => $admin,
-    debug     => $attr->{DEBUG} || $CONF->{SENDER_DEBUG} || 0
+    conf        => $CONF,
+    self_url    => $attr->{SELF_URL} || q{},
+    domain_id   => $attr->{DOMAIN_ID} || $CONF->{DOMAIN_ID} || 0,
+    db          => $db,
+    admin       => $admin,
+    debug       => $attr->{DEBUG} || $CONF->{SENDER_DEBUG} || 0,
+    soft_check => $soft_check
   };
 
   bless($self, $class);
@@ -213,15 +230,15 @@ sub send_message {
     @contacts = $self->get_contacts_for({ %{$attr}, SENDER_TYPE => $send_type, ALL => 1 });
   }
 
-  if ( !@contacts || !$contacts[0] ) {
+  if (!@contacts || !$contacts[0]) {
     $self->{errstr} = "NO_CONTACT";
-    $self->{errno}  = 2;
-    print $self->{errstr} if ( $self->{debug} );
+    $self->{errno} = 2;
+    print $self->{errstr} if ($self->{debug});
     return 0;
   }
 
-  if ( $self->{debug} ) {
-    print "TO_ADDRESS => @{[ join(',', map { $_->{value} } @contacts ) ]}, TYPE => $contacts[0]->{type_id} MESSAGE => $attr->{MESSAGE}\n";
+  if ($self->{debug}) {
+    print "TO_ADDRESS => @{[ join(',', map {$_->{value}} @contacts) ]}, TYPE => $contacts[0]->{type_id} MESSAGE => $attr->{MESSAGE}\n";
   }
 
   if ($self->{debug} && $self->{debug} == 9){
@@ -379,7 +396,7 @@ sub get_contacts_for {
   if (!$receiver_type) {
     $self->{errstr} = "Invalid receiver type. Should be AID or UID";
     $self->{errno} = 1;
-    print $self->{errstr};
+    print $self->{errstr} if ($self->{debug});
     return 0;
   };
 
@@ -390,10 +407,13 @@ sub get_contacts_for {
   }
   elsif ($send_type eq 'Push') {
     my @contacts = $self->get_push_contacts({
-      AID       => ($receiver_type eq 'AID') ? $attr->{AID} : '_SHOW',
-      UID       => ($receiver_type eq 'UID') ? $attr->{UID} : '_SHOW',
-      VALUE     => '_SHOW',
-      PAGE_ROWS => 2
+      AID          => ($receiver_type eq 'AID') ? $attr->{AID} : '_SHOW',
+      UID          => ($receiver_type eq 'UID') ? $attr->{UID} : '_SHOW',
+      VALUE        => '_SHOW',
+      PUSH_TYPE_ID => '_SHOW',
+      BADGES       => '_SHOW',
+      COLS_NAME    => 1,
+      PAGE_ROWS    => 3,
     });
 
     return wantarray ? @contacts : \@contacts;
@@ -482,16 +502,27 @@ sub available_types {
 
   # Form all methods Sender can use
   my @available_methods = ();
-  foreach my $method ( sort keys %TYPE_ID_FOR_PLUGIN_NAME ) {
+  foreach my $method (sort keys %TYPE_ID_FOR_PLUGIN_NAME) {
     # Browser is not supported yet
     next if ($attr->{CLIENT} && $method eq 'Browser');
 
-    if ( $self->sender_load($method, $attr) ) {
-      push(@available_methods, $method);
+    if ($attr->{SOFT_CHECK}) {
+      my $soft_check = $self->{soft_check}->{$method};
+      if ($soft_check) {
+        my $loaded = $soft_check->();
+        if ($loaded) {
+          push (@available_methods, $method);
+        }
+        next;
+      }
+    };
+
+    if ($self->sender_load($method, $attr)) {
+      push (@available_methods, $method);
     }
   }
 
-  if ($attr->{HASH_RETURN}){
+  if ($attr->{HASH_RETURN}) {
     return { map { $TYPE_ID_FOR_PLUGIN_NAME{$_} => $_ } @available_methods };
   }
 

@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Abills user API
-  version: 0.0.61
-  description: "Last modified 2023-02-21"
+  version: 0.0.67
+  description: "Last modified 2023-04-24"
   contact:
     name: Have a question? Support
     url: https://support.abills.net.ua/
@@ -363,6 +363,21 @@ paths:
                   result:
                     type: string
                     example: "Successfully created user with uid: 49"
+                  sendPin:
+                    type: integer
+                    example: 1
+              examples:
+                Registration:
+                  summary:
+                    Регистрация пользователя
+                  value:
+                    result: "Successfully created user with uid: 49"
+                RegistrationConfirmResponse:
+                  summary:
+                    Регистрация пользователя с подтверждением
+                  value:
+                    result: "Successfully send pin to email admin@gmail.com"
+                    sendPin: 1
         400:
           description: Пользователь существует
           content:
@@ -376,6 +391,96 @@ paths:
                   errstr:
                     type: string
                     example: User already exist
+  /user/verify:
+    post:
+      tags:
+        - user
+      summary: Подтверждение пользователя
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: testgmail@gmail.com
+                verificationCode:
+                  type: string
+                  example: 12173
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully verified user
+                  uid:
+                    type: integer
+                    example: 1
+        400:
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 10082
+                  errstr:
+                    type: string
+                    example: Wrong pin
+
+  /user/resend/verification:
+    post:
+      tags:
+        - user
+      summary: Отправить повторно код
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: testgmail@gmail.com
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  destination:
+                    type: string
+                    example: testgmail@gmail.com
+                  result:
+                    type: string
+                    example: Successfully send pin to email testgmail@gmail.com
+                  sendPin:
+                    type: number
+                    example: 1
+        400:
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 10006
+                  errstr:
+                    type: string
+                    example: User not exists with this email
+
   /users/logout:
     delete:
       tags:
@@ -1766,6 +1871,7 @@ paths:
                         example: 0
                   socialNetworks:
                     type: object
+                    description: соответствует параметру config.pl SOCIAL_NETWORKS
                     properties:
                       facebook:
                         type: string
@@ -1782,6 +1888,19 @@ paths:
                       youtube:
                         type: string
                         example: https://www.youtube.com/c/abillsnetua
+                  reviewPages:
+                    type: object
+                    description: соответствует параметру config.pl REVIEW_PAGES
+                    properties:
+                      2ipUa:
+                        type: string
+                        example: https://2ip.ua/ua/services/providers-rating
+                      2ipIo:
+                        type: string
+                        example: https://2ip.io/ua/isp-rating/
+                      googleMaps:
+                        type: string
+                        example: https://goo.gl/maps/yn7nSx1RdCxGePXV7
                   system:
                     type: object
                     properties:
@@ -2004,6 +2123,7 @@ paths:
       tags:
         - paysys
       summary: Проверка статуса платежа
+      deprecated: true
       requestBody:
         content:
           application/json:
@@ -2061,7 +2181,8 @@ paths:
           description: ID транзакции
           required: true
           schema:
-            type: integer
+            type: string
+            example: Liqpay:123456789
       responses:
         200:
           description: Успешное выполнение
@@ -2863,6 +2984,29 @@ paths:
                     example: "Unknown telegram bot"
       security:
         - USERSID: [ ]
+  /user/bots/subscribe/qrcode/{bot}:
+    get:
+      tags:
+        - bots
+      summary: Получения QRCode на подписания на бота
+      parameters:
+        - name: bot
+          in: path
+          description: названия бота Viber или Telegram
+          required: true
+          schema:
+            type: string
+          example: Telegram
+      responses:
+        200:
+          description: |
+            #
+            ![Swagger logo](https://chart.apis.google.com/chart?cht=qr&chs=350x350&chld=L&choe=UTF-8&chl=https%3A%2F%2Ft.me%2Fabills_user_bot%3Fstart%3Du_fB4xWXze5HgdSCu4)
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
 
   # cards paths
 
@@ -3029,6 +3173,60 @@ paths:
       security:
         - USERSID: [ ]
 
+  /user/iptv/tariffs:
+    get:
+      tags:
+        - iptv
+      summary: Список доступных тарифных планов для изменения
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+                      example: 1
+                    name:
+                      type: string
+                      example: Тест тест
+                    tariffs:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          comments:
+                            type: string
+                            example: Дуже класний тариф
+                          dayFee:
+                            type: number
+                            example: 50
+                          id:
+                            type: number
+                            example: 101
+                          monthFee:
+                            type: number
+                            example: 50
+                          name:
+                            type: string
+                            example: Тест 1
+                          reductionFee:
+                            type: number
+                            example: 0
+                          serviceId:
+                            type: number
+                            example: 5
+                          tpId:
+                            type: number
+                            example: 15
+    
+      security:
+        - USERSID: [ ]
+
   /user/iptv/services:
     get:
       tags:
@@ -3059,10 +3257,13 @@ paths:
       tags:
         - iptv
       summary: Список доступных тарифных планов для изменения
+      description: Список доступных тарифных планов для изменения существующей услуги
       parameters:
         - name: ID
           in: path
-          description: ID услуги IPTV
+          description: >
+            Значение `id`, можно получить в ответе
+            в `GET /users/iptv` параметр `id`
           required: true
           schema:
             type: number
@@ -3109,10 +3310,13 @@ paths:
       tags:
         - iptv
       summary: Список доступных тарифных планов в сервисе
+      description: Список доступных тарифных планов в сервисе для добавления первой услуги
       parameters:
         - name: serviceId
           in: path
-          description: serviceId cервиса IPTV
+          description: >
+            Значение `serviceId`, можно получить в ответе
+            в `GET /user/iptv/services` параметр `id`
           required: true
           schema:
             type: number
@@ -3205,7 +3409,9 @@ paths:
       parameters:
         - name: ID
           in: path
-          description: ID услуги IPTV
+          description: >
+            Значение `id`, можно получить в ответе
+            в `GET /users/iptv` параметр `id`
           required: true
           schema:
             type: number
@@ -3242,7 +3448,9 @@ paths:
       parameters:
         - name: ID
           in: path
-          description: ID услуги IPTV
+          description: >
+            Значение `id`, можно получить в ответе
+            в `GET /users/iptv` параметр `id`
           required: true
           schema:
             type: number
@@ -3283,7 +3491,9 @@ paths:
       parameters:
         - name: ID
           in: path
-          description: ID услуги IPTV
+          description: >
+            Значение `id`, можно получить в ответе
+            в `GET /users/iptv` параметр `id`
           required: true
           schema:
             type: number
@@ -3330,7 +3540,9 @@ paths:
       parameters:
         - name: ID
           in: path
-          description: ID услуги IPTV
+          description: >
+            Значение `id`, можно получить в ответе
+            в `GET /users/iptv` параметр `id`
           required: true
           schema:
             type: number
@@ -3367,7 +3579,9 @@ paths:
       parameters:
         - name: ID
           in: path
-          description: ID услуги IPTV
+          description: >
+            Значение `id`, можно получить в ответе
+            в `GET /users/iptv` параметр `id`
           required: true
           schema:
             type: number
@@ -3404,7 +3618,9 @@ paths:
       parameters:
         - name: ID
           in: path
-          description: ID услуги IPTV
+          description: >
+            Значение `id`, можно получить в ответе
+            в `GET /users/iptv` параметр `id`
           required: true
           schema:
             type: number
@@ -3432,7 +3648,9 @@ paths:
       parameters:
         - name: ID
           in: path
-          description: ID услуги IPTV
+          description: >
+            Значение `id`, можно получить в ответе
+            в `GET /users/iptv` параметр `id`
           required: true
           schema:
             type: number
@@ -3467,6 +3685,9 @@ paths:
       tags:
         - iptv
       summary: Добавление услуги IPTV
+      description: >
+        Также обязательное поле в запросе можно найти пути `GET /user/config`
+        параметр `id` в объекте `subscribe` в объекте `iptvConfig`
       requestBody:
         content:
           application/json:
@@ -3518,7 +3739,9 @@ paths:
       parameters:
         - name: ID
           in: path
-          description: ID услуги IPTV
+          description: >
+            Значение `id`, можно получить в ответе
+            в `GET /users/iptv` параметр `id`
           required: true
           schema:
             type: number
@@ -3583,7 +3806,9 @@ paths:
       parameters:
         - name: ID
           in: path
-          description: ID расписания
+          description: >
+            Значение `id`, можно получить в ответе
+            в `GET /users/iptv` параметр `scheduleId` в объекте `schedule`
           required: true
           schema:
             type: integer
@@ -3812,10 +4037,10 @@ paths:
                             properties:
                               duration:
                                 type: string
-                                example: 00:04:17.4393
+                                example: '00:04:17.4393'
                               sum:
                                 type: number
-                                example: 5148.4848484848
+                                example: 5148.48
                           max:
                             type: object
                             properties:

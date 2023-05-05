@@ -366,6 +366,7 @@ sub gps_report {
     return 0;
   }
 
+  require Control::Reports;
   reports({
     NO_GROUP    => 1,
     NO_TAGS     => 1,

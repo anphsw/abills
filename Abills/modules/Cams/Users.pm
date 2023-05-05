@@ -232,34 +232,11 @@ sub cams_cameras {
 
   if ($FORM{add_cam}) {
     if (!$FORM{TP_ID}) {
-      $html->message('err', $lang{ERROR}, "$lang{NO_TARIFF_PLAN_SELECTED}");
+      $html->message('err', $lang{ERROR}, $lang{NO_TARIFF_PLAN_SELECTED});
       return 1;
     }
 
-    my $uid = $FORM{UID};
-
-    $FORM{HOST} = _cams_correct_host($FORM{HOST}) if !$conf{CAMS_SKIP_CHECK_HOST};
-    if ($FORM{NAME} =~ /^[aA-zZ\d_-]+$/mg && $FORM{HOST}) {
-      $correct_name = _cams_group_correct({
-        GROUP_ID     => $FORM{GROUP_ID} || $Cams->{GROUP_ID},
-        CHECK_GROUPS => 1,
-      }) if !$FORM{FOLDER_ID};
-      if ($correct_name) {
-        $Cams->stream_add(\%FORM);
-        $FORM{CAM_ID} = $Cams->{INSERT_ID} || "";
-        if (!_error_show($Cams)) {
-          $FORM{CAM_ID} = $Cams->{INSERT_ID};
-          show_result($Cams, $lang{ADDED});
-          $show_add_form = 1;
-        }
-      }
-    }
-    else {
-      $html->message('err', $lang{ERROR}, $lang{ONLY_LATIN_LETTER}) if $FORM{HOST};
-      $correct_name = 0;
-    }
-
-    $FORM{UID} = $uid;
+    $correct_name = _cams_add_user_stream(\%FORM);
   }
   elsif ($FORM{change_cam}) {
     my $uid = $FORM{UID};
@@ -282,6 +259,12 @@ sub cams_cameras {
     my $camera = $Cams->stream_info($FORM{chg_cam});
     if (!_error_show($Cams)) {
       %CAMS_STREAM = %{$camera};
+
+      if ($camera->{FOLDER_ID}) {
+        $Cams->folder_info($camera->{FOLDER_ID});
+        $CAMS_STREAM{PRIVATE_CAMERA} = 'checked' if $Cams->{UID};
+      }
+
       $show_add_form = 1;
     }
   }
@@ -651,7 +634,7 @@ sub cams_account_action {
         %{$Cams},
         %{$attr},
         ID          => $attr->{CAM_ID},
-        SUBGROUP_ID => $group_info->{SUBGROUP_ID} ? $group_info->{SUBGROUP_ID} : "",
+        SUBGROUP_ID => $group_info->{SUBGROUP_ID} ? $group_info->{SUBGROUP_ID} : ($attr->{SUBGROUP_ID} || ''),
       });
 
       if ($Cams_service->{errno}) {
@@ -883,10 +866,11 @@ sub _cams_get_access_user_cameras {
   my @access_cameras = ();
 
   my $groups = $Cams->user_folders_list({
-    TP_ID     => $attr->{TP_ID},
-    ID        => $attr->{ID},
-    PAGE_ROWS => 10000,
-    COLS_NAME => 1
+    TP_ID                => $attr->{TP_ID},
+    ID                   => $attr->{ID},
+    SKIP_PRIVATE_CAMERAS => 1,
+    PAGE_ROWS            => 10000,
+    COLS_NAME            => 1
   });
 
   $groups = $Cams->user_groups_list({
@@ -975,7 +959,7 @@ sub _cams_get_private_user_cameras {
 
   foreach my $group (@$groups) {
     my $cameras = $Cams->streams_list({
-      GROUP_ID         => $group->{group_id} || 0,
+      GROUP_ID         => $group->{group_id} || '_SHOW',
       FOLDER_ID        => $group->{folder_id} || 0,
       UID              => $attr->{UID},
       COLS_NAME        => 1,
@@ -1018,12 +1002,12 @@ sub _cams_autofill_groups {
 
   my $user_address = $Address->address_info($user->{LOCATION_ID});
   my $user_access_groups = $Cams->access_group_list({
-    NAME        => "_SHOW",
+    NAME        => '_SHOW',
     STREET_ID   => $user_address->{STREET_ID} || 0,
     DISTRICT_ID => $user_address->{DISTRICT_ID} || 0,
     LOCATION_ID => $user->{LOCATION_ID} || 0,
     SERVICE_ID  => $FORM{SERVICE_ID} || $Cams->{SERVICE_ID},
-    COMMENT     => "_SHOW",
+    COMMENT     => '_SHOW',
     COLS_NAME   => 1,
   });
 
@@ -1059,12 +1043,13 @@ sub _cams_autofill_folders {
 
   my $user_address = $Address->address_info($user->{LOCATION_ID});
   my $user_access_folders = $Cams->access_folder_list({
-    NAME        => "_SHOW",
+    NAME        => '_SHOW',
     STREET_ID   => $user_address->{STREET_ID} || 0,
     DISTRICT_ID => $user_address->{DISTRICT_ID} || 0,
     LOCATION_ID => $user->{LOCATION_ID} || 0,
     SERVICE_ID  => $FORM{SERVICE_ID} || $Cams->{SERVICE_ID},
-    COMMENT     => "_SHOW",
+    COMMENT     => '_SHOW',
+    UID         => $FORM{UID},
     COLS_NAME   => 1,
   });
 

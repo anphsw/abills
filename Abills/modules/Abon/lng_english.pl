@@ -19,3 +19,7 @@ $lang{USER_PORTAL_EDIT} = 'Service management';
 $lang{SERVICE_COUNT}='Service count';
 $lang{FEES_PERIOD}='Abon period';
 $lang{NO_ACTIVE_SERVICE}='No Active Service';
+$lang{SERVICE_RECOVERY}='Service recovery plan';
+$lang{NOT_RECOVERY}='Not Recovery';
+$lang{RECOVERY_NOW}='Recovery Now';
+$lang{RECOVERY_FROM_HOLDUP}='RECOVERY_FROM_HOLDUP';

@@ -267,6 +267,7 @@ sub list {
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $GROUP_BY  = $attr->{GROUP_BY} || 'f.id';
 
   my @WHERE_RULES = ();
   if($attr->{FEES_MONTHES}){
@@ -276,7 +277,8 @@ sub list {
   my $WHERE =  $self->search_former($attr, [
       ['ID',             'INT', 'f.id',                              ],
       ['DATETIME',       'DATE','f.date',        'f.date AS datetime'],
-      ['LOGIN',          'STR', 'u.id AS login',                   1 ],
+      ['LAST_DATE',      'DATE','MAX(f.date)',  'MAX(f.date) AS date'],
+      ['LOGIN',          'STR', 'u.id',              'u.id AS login' ],
       ['FIO',            'STR', 'pi.fio',                            ],
       ['DESCRIBE',       'STR', 'f.dsc',                           1 ],
       ['DSC',            'STR', 'f.dsc',                           1 ],
@@ -340,7 +342,7 @@ sub list {
     FROM fees f
     $EXT_TABLES
     $WHERE 
-    GROUP BY f.id
+    GROUP BY $GROUP_BY
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
@@ -632,6 +634,20 @@ sub fees_type_del {
   $self->query_del('fees_types', { ID => $id });
 
   $admin->system_action_add("FEES_TYPES:$id", { TYPE => 10 }) if (!$self->{errno});
+  return $self;
+}
+
+#**********************************************************
+=head2 fees_last_add ($attr)
+
+=cut
+#**********************************************************
+sub fees_last_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('fees_last', $attr, {REPLACE => 1});
+
   return $self;
 }
 

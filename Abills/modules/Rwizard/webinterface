@@ -1668,7 +1668,7 @@ sub _make_report_chart {
     #my @tr_arr = ();
     $num++;
     foreach my $c (@$col_names) {
-      my $val = $line->{$c};
+      my $val = $line->{$c} || '';
       if ($c eq 'payment_method') {
         $val = $payment_methods->{$line->{$c}};
       }

@@ -85,6 +85,20 @@ sub _include {
     }
   }
 
+  if ($attr->{EXTERNAL_CALL}) {
+    foreach my $prefix ('../', @INC) {
+      my $realfilename = "$prefix/$module/templates/$tpl$sufix";
+
+      if($attr->{DEBUG}) {
+        print $realfilename . "\n";
+      }
+
+      if (-f $realfilename) {
+        return ($FORM{pdf}) ? $realfilename : tpl_content($realfilename);
+      }
+    }
+  }
+
   if ($attr->{CHECK_ONLY}) {
     return 0;
   }

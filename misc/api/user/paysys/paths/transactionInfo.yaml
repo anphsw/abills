@@ -2,6 +2,7 @@ post:
   tags:
     - paysys
   summary: Проверка статуса платежа
+  deprecated: true
   requestBody:
     content:
       application/json:

@@ -4,15 +4,22 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db);
-my $json;
 my Abills::HTML $html;
 my $lang;
-my $Abon;
+my Abon $Abon;
 
-use Abills::Base qw/days_in_month in_array/;
+use Abills::Base qw/days_in_month in_array date_diff/;
 
 #**********************************************************
-=head2 new($html, $lang)
+=head2 new($db, $admin, $CONF, $attr)
+
+  Arguments:
+    $db
+    $admin
+    $CONF
+    $attr
+      HTML
+      LANG
 
 =cut
 #**********************************************************
@@ -27,6 +34,7 @@ sub new {
   $lang = $attr->{LANG} if $attr->{LANG};
 
   my $self = {};
+  $CONF->{ABON_FEES_DSC} //= '%SERVICE_NAME%: %PERIOD% %TP_NAME% (%TP_ID%) %EXTRA%';
 
   require Abon;
   Abon->import();
@@ -131,10 +139,49 @@ sub abon_quick_info {
     return \%result;
   }
 
-  $Abon->user_tariff_summary({ UID => $uid }) if $uid;
+  if ($uid) {
+    $Abon->user_tariff_summary({ UID => $uid });
+    if ($Abon->{LOST_FEE}) {
+      $Abon->{TOTAL_ACTIVE} = '!'.$Abon->{TOTAL_ACTIVE};
+    }
+  }
 
-  return ($Abon->{TOTAL_ACTIVE} && $Abon->{TOTAL_ACTIVE} > 0) ? $Abon->{TOTAL_ACTIVE} : '';
+  return ($Abon->{TOTAL_ACTIVE}) ? $Abon->{TOTAL_ACTIVE} : '';
 }
 
+#**********************************************************
+=head2 internet_payments_maked($attr) - Cross module payment maked
+
+  Arguments:
+    $attr
+      USER_INFO
+      SUM
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub abon_payments_maked {
+  my $self = shift;
+  my ($attr) = @_;
+
+  require Abon::Services;
+  Abon::Services->import();
+  my $Services = Abon::Services->new($db, $admin, $CONF, { LANG => $lang });
+
+  my $user = $attr->{USER_INFO};
+  $attr->{DATE}=POSIX::strftime("%Y-%m-%d", localtime(time));
+  $attr->{USER_INFO}=$user;
+  $attr->{SERVICE_RECOVERY}='>0';
+
+  if ($Services->abon_service_activate($attr)) {
+    if ($Services->{OPERATION_SUM} ) {
+      $html->message('info', $lang->{INFO}, ($Services->{OPERATION_DESCRIBE} || q{}) . " $lang->{SUM}: " . ($Services->{OPERATION_SUM} || 0));
+    }
+  }
+
+  return $self;
+}
 
 1;

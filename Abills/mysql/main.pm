@@ -12,7 +12,6 @@ use Abills::Base qw(int2ip in_array);
 
 our $VERSION = 7.10;
 
-#my $admin;
 my $CONF;
 my $SORT = 1;
 my $sql_errors = '/usr/abills/var/log/sql_errors';

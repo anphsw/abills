@@ -390,7 +390,7 @@ sub history_add {
       $admin->{AID},
       $attr->{QUERY},
       $attr->{DB_ID} || 0,
-      $attr->{COMMENTS},
+      $attr->{COMMENTS} || q{},
       $attr->{STATUS} || 0
     ]
   }

@@ -27,7 +27,7 @@ our Abills::HTML $html;
 #**********************************************************
 sub admin_profile {
 
-  admin_info_change();
+  _admin_info_change();
 
   require Control::Quick_reports;
   my $quick_reports = form_quick_reports();
@@ -68,22 +68,32 @@ sub admin_profile {
 
   # download avatar to DB
   if ($FORM{UPLOAD_FILE}){
-    my $file_name = "avatar_$admin->{AID}.png";
-     my $is_uploaded = upload_file($FORM{UPLOAD_FILE},
+    my $name_value = mk_unique_value(10);
+    my $file_name = 'avatar_'.$admin->{AID}.'_'.$name_value.'.png';
+
+    my $allowed_picture_size = 500000;
+
+    if ($FORM{UPLOAD_FILE} && $FORM{UPLOAD_FILE}{Size} && $FORM{UPLOAD_FILE}{Size} <= $allowed_picture_size){
+      my $is_uploaded = upload_file($FORM{UPLOAD_FILE},
       {
         FILE_NAME => $file_name,
         EXTENTIONS => 'gif, png, jpg, jpeg',
         REWRITE   => 1
       });
 
-    if($is_uploaded ){
-      $admin->change({ AID => $admin->{AID}, AVATAR_LINK => $file_name});
+      if($is_uploaded ){
+        $admin->change({ AID => $admin->{AID}, AVATAR_LINK => $file_name});
+      }
     }
+    else {
+      $html->message('err', $lang{ERROR}, "$lang{PICTURE_SIZE_NOT_ALLOWED} 500 Kb");
+    }
+
   }
 
-  my $subscribe_mng_block = profile_get_admin_sender_subscribe_block($admin->{AID});
+  my $subscribe_mng_block = _profile_get_admin_sender_subscribe_block($admin->{AID});
 
-  my $auth_history = auth_history_table();
+  my $auth_history = _admin_auth_history_table();
 
   $html->tpl_show(templates('form_admin_profile'), {
     QUICK_REPORTS        => $quick_reports,
@@ -98,17 +108,17 @@ sub admin_profile {
     AUTH_HISTORY         => $auth_history,
   });
 
-  form_profile_search();
+  _form_profile_search();
 
   return 1;
 }
 
 #**********************************************************
-=head2 auth_history_table() -
+=head2 admin_auth_history_table() -
 
 =cut
 #**********************************************************
-sub auth_history_table {
+sub _admin_auth_history_table {
 
   return '' if (!$conf{PROFILE_AUTH_HISTORY});
 
@@ -143,7 +153,7 @@ sub auth_history_table {
 =head2 form_profile_search($attr) -
 =cut
 #**********************************************************
-sub form_profile_search {
+sub _form_profile_search {
   my ($attr) = @_;
 
   if ($FORM{change_search}) {
@@ -422,11 +432,11 @@ sub form_slides_create {
 }
 
 #**********************************************************
-=head2 profile_get_admin_sender_subscribe_block()
+=head2 _profile_get_admin_sender_subscribe_block()
 
 =cut
 #**********************************************************
-sub profile_get_admin_sender_subscribe_block {
+sub _profile_get_admin_sender_subscribe_block {
   my ($aid) = @_;
   return '' unless ($aid);
 
@@ -451,9 +461,9 @@ sub profile_get_admin_sender_subscribe_block {
     VIBER      => $conf{VIBER_TOKEN},
     CELL_PHONE => in_array('Sms', \@MODULES)
   );
-  
+
   require Contacts;
-  
+
   my @types_to_search = grep {$allowed_subscribes{$_}} keys %allowed_subscribes;
   return join('', map { $col_size && $_ ? "<div class='col-md-$col_size'>$_</div>" : $_ } @buttons_html)
     unless ( @types_to_search );
@@ -509,9 +519,9 @@ sub profile_get_admin_sender_subscribe_block {
       });
     }
   }
-  
+
   my $subscribe_block = join('', map { $col_size && $_ ? "<div class='col-md-$col_size'>$_</div>" : $_ } @buttons_html);
-  
+
   return $subscribe_block;
 }
 
@@ -520,7 +530,7 @@ sub profile_get_admin_sender_subscribe_block {
 
 =cut
 #**********************************************************
-sub admin_info_change {
+sub _admin_info_change {
 
   $admin->info($admin->{AID});
   if ($FORM{chg_pswd} || $FORM{newpassword}) {
@@ -535,9 +545,11 @@ sub admin_info_change {
   if ($FORM{aedit}) {
     $admin->change({
       AID   => $admin->{AID},
-      EMAIL => $FORM{email},
+      # EMAIL => $FORM{email},
       A_FIO => $FORM{name},
     });
+
+    $admin->admin_contacts_change({ AID => $admin->{AID}, TYPE_ID => 9, VALUE => $FORM{email} }) if defined $FORM{email};
   }
 
   if ($FORM{clear_settings}){
@@ -547,7 +559,7 @@ sub admin_info_change {
       WEB_OPTIONS => '',
     });
 
-    $html->message("info", "$lang{SUCCESS}");
+    $html->message('info', $lang{SUCCESS});
   }
   if ($FORM{reset_schema}) {
     use Conf;
@@ -561,7 +573,7 @@ sub admin_info_change {
   my $passwd_btn = $html->button($lang{CHANGE_PASSWORD}, "index=$index&chg_pswd=1", { class => 'btn btn-xs btn-primary' });
   my $clear_settings_btn = $html->button($lang{CLEAR_SETTINGS}, "index=$index&clear_settings=1", { class => 'btn btn-xs btn-danger' });
 
-  my $G2FA = "";
+  my $G2FA = '';
 
   if (!$admin->{G2FA}) {
     if ($FORM{add_G2FA}) {
@@ -633,11 +645,20 @@ sub admin_info_change {
     }
   }
 
+  my $admin_emails = $admin->admins_contacts_list({
+    TYPE      => 9,
+    VALUE     => '!',
+    AID       => $admin->{AID},
+    COLS_NAME => 1
+  });
+  my $admin_email = $admin->{TOTAL} && $admin->{TOTAL} > 0 ? { EMAIL => $admin_emails->[0]{value} } : { EMAIL => '' };
+
   $html->tpl_show(templates('form_admin_info_change'), {
     %$admin,
-    CHG_PSW        => $passwd_btn,
-    CLEAR_SETTINGS => $clear_settings_btn,
-    G2FA           => $G2FA
+    CHG_PSW         => $passwd_btn,
+    CLEAR_SETTINGS  => $clear_settings_btn,
+    G2FA            => $G2FA,
+    %{$admin_email}
   });
 
   return 1;
@@ -730,7 +751,7 @@ sub _telegram_button {
 
   return '' if !$conf{TELEGRAM_BOT_NAME};
 
-  my $link_url = 'https://t.me/' . $conf{TELEGRAM_BOT_NAME} . '/?start=a_' . ($admin->{SID} || $sid || $admin->{sid});
+  my $link_url = 'https://t.me/' . $conf{TELEGRAM_BOT_NAME} . '?start=a_' . ($admin->{SID} || $sid || $admin->{sid});
   return _make_subscribe_btn('Telegram', 'fab fa-telegram', undef, { HREF => $link_url });
 }
 
@@ -755,7 +776,7 @@ sub _telegram_admin_button {
   }
   return '' if !$conf{TELEGRAM_ADMIN_BOT_NAME};
 
-  my $link_url = 'https://t.me/' . $conf{TELEGRAM_ADMIN_BOT_NAME} . '/?start=e_' . ($admin->{SID} || $sid || $admin->{sid});
+  my $link_url = 'https://t.me/' . $conf{TELEGRAM_ADMIN_BOT_NAME} . '?start=e_' . ($admin->{SID} || $sid || $admin->{sid});
   return _make_subscribe_btn($lang{TELEGRAM_FOR_ADMINS}, 'fab fa-telegram', undef, { HREF => $link_url });
 }
 

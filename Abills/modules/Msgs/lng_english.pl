@@ -269,5 +269,9 @@ $lang{SELECT_RESPONSIBLE} = 'Select responsible...';
 $lang{SET_TAGS} = 'Set tags';
 $lang{SELECT_TAGS} = 'Select tags...';
 $lang{NOTIFICATIONS_ASSIGNED_MESSAGES_ONLY} = 'Notifications for assigned messages only';
+$lang{PUTTING_MESSAGE_IN_SEPARATE_SUBJECT} = 'Putting a message in a separate subject';
+$lang{CHANGE_OF_DISPATCH} = 'Changing dispatch';
+$lang{MESSAGES_CAN_BE_SENT_UP_TO_ONCE} = 'Messages can be sent up to once every %SECONDS% seconds';
+$lang{LAST_MESSAGE_ID} = 'Last message id';
 
 1;

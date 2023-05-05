@@ -484,6 +484,8 @@ sub ipoe_sessions {
   $LIST_PARAMS{HOURS} = 1 if $FORM{HOURS};
 
   $pages_qs .= "&UID=" . ($LIST_PARAMS{UID} ? $LIST_PARAMS{UID} : q{});
+
+  require Control::Reports;
   reports({
     PERIOD_FORM => 1,
     DATE_RANGE  => 1,
@@ -949,6 +951,7 @@ sub ipoe_use{
   $HIDDEN{COMPANY_ID} = $FORM{COMPANY_ID} if ($FORM{COMPANY_ID});
   $HIDDEN{sid} = $sid if ($FORM{sid});
 
+  require Control::Reports;
   reports({
       DATE        => $FORM{DATE},
       REPORT      => '',

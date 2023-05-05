@@ -95,8 +95,9 @@ sub msgs_admin {
   $Msgs->{ACTION} = 'send';
   $Msgs->{LNG_ACTION} = $lang{SEND};
 
-  if ($FORM{chg}) {
-    $Msgs->message_info($FORM{chg});
+  if ($FORM{chg} || $FORM{ID}) {
+    $FORM{chg} =~ s/#// if ($FORM{chg});
+    $Msgs->message_info($FORM{chg} || $FORM{ID});
     
     if ($msgs_permissions{1}{21} && (!$Msgs->{RESPOSIBLE} || $Msgs->{RESPOSIBLE} ne $admin->{AID})) {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
@@ -147,7 +148,7 @@ sub msgs_admin {
     msgs_tasks();
     return 1;
   }
-  elsif ($FORM{CHANGE_SUBJECT} && $FORM{SUBJECT} ne '') {
+  elsif ($FORM{CHANGE_SUBJECT} && $FORM{SUBJECT} ne '' && $msgs_permissions{1} && $msgs_permissions{1}{4}) {
     $Msgs->message_change({
       ID      => $FORM{chg},
       SUBJECT => $FORM{SUBJECT},
@@ -268,7 +269,7 @@ sub msgs_admin {
 
     return 1;
   }
-  elsif ($FORM{del} && $FORM{COMMENTS}) {# && _msgs_check_admin_privileges($A_PRIVILEGES, { ID => $FORM{del} })) {
+  elsif ($FORM{del} && $FORM{COMMENTS} && $msgs_permissions{1} && $msgs_permissions{1}{1}) {
     msgs_redirect_filter({ DEL => 1, UID => $uid, MSG_ID => $FORM{del} });
 
     $Msgs->message_team_del($FORM{del});
@@ -314,10 +315,16 @@ sub msgs_admin {
 sub msgs_ticket_change {
 
   $Msgs->{TAB3_ACTIVE} = "active";
-  if ($FORM{STATE} && $FORM{STATE} > 0) {
-    $FORM{DONE_DATE} = $DATE if ($FORM{STATE} == 2);
-    $FORM{CLOSED_DATE} = "$DATE  $TIME" if ($FORM{STATE} == 1 || $FORM{STATE} == 2);
+
+  $Msgs->status_info($FORM{STATE});
+  if ($Msgs->{TOTAL} > 0 && $Msgs->{TASK_CLOSED}) {
+    $FORM{CLOSED_DATE} = "$DATE  $TIME";
+    $FORM{STATE} = 0 if $Msgs->{TASK_CLOSED} && (!$msgs_permissions{1} || !$msgs_permissions{1}{3});
   }
+  $FORM{DONE_DATE} = $DATE if ($FORM{STATE} > 1);
+  delete $FORM{PRIORITY} if !$msgs_permissions{1} || !$msgs_permissions{1}{13};
+  delete $FORM{RESPOSIBLE} if !$msgs_permissions{1} || !$msgs_permissions{1}{16};
+  delete $FORM{DISPATCH_ID} if !$msgs_permissions{1} || !$msgs_permissions{1}{26};
 
   if (!$FORM{PLUGIN} && !$FORM{SKIP_PLUGIN}) {
     # _msgs_change_resposible will need AID of current responsible admin,
@@ -329,7 +336,7 @@ sub msgs_ticket_change {
 
   $html->message('info', $lang{INFO}, $lang{CHANGED}) if !_error_show($Msgs);
 
-  if (defined $FORM{WATCHERS}) {
+  if (defined $FORM{WATCHERS} && $msgs_permissions{1} && $msgs_permissions{1}{17}) {
     $Msgs->msg_watch_del({ ID => $FORM{ID} });
     map $Msgs->msg_watch({ AID => $_, ID => $FORM{ID} }), split(',\s?', $FORM{WATCHERS}) if $FORM{WATCHERS};
   }
@@ -506,7 +513,7 @@ sub _msgs_admin_send_message {
   if ($#msgs_ids > -1) {
     $FORM{ID} = join(',', @msgs_ids);
     my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($FORM{ID} ? " : $FORM{ID}" : ''));
-    $html->redirect("?index=$index" . "&MESSAGE=$header_message#last_msg");
+    $html->redirect("?index=$index" . ($FORM{UID} ? "&UID=$FORM{UID}" : '') . "&MESSAGE=$header_message#last_msg");
   }
 
   return 0;
@@ -803,7 +810,9 @@ sub msgs_admin_add_form {
 
   #Message send  type
   my %send_types = (0 => $lang{MESSAGE});
-  my $sender_send_types = $Sender->available_types({ HASH_RETURN => 1, CLIENT => 1 });
+  my $sender_send_types = $Sender->available_types(
+    { HASH_RETURN => 1, CLIENT => 1, SOFT_CHECK => 1 }
+  );
 
   %send_types = (%send_types, %$sender_send_types);
   $send_types{3} = 'Msgs redirect' if $conf{MSGS_REDIRECT_FILTER_ADD};
@@ -906,7 +915,7 @@ sub msgs_ticket_show {
 
   $html->message('info', '', $FORM{MESSAGE}) if ($FORM{MESSAGE});
 
-  if ($FORM{make_new}) {
+  if ($FORM{make_new} && $msgs_permissions{1} && $msgs_permissions{1}{25}) {
     my $old_reply = $Msgs->messages_reply_list({ ID => $FORM{make_new}, COLS_NAME => 1, COLS_UPPER => 1 });
     my $reply_text = $old_reply->[0]->{TEXT};
     $old_reply->[0]->{TEXT} =~ s/^/>  /g;
@@ -929,7 +938,7 @@ sub msgs_ticket_show {
     $Msgs->message_reply_change($old_reply->[0]);
   }
 
-  if ($FORM{reply_del} && $FORM{COMMENTS}) {
+  if ($FORM{reply_del} && $FORM{COMMENTS} && $msgs_permissions{1} && $msgs_permissions{1}{11}) {
     if ($FORM{SURVEY_ID} && $FORM{CLEAN}) {
       $Msgs->survey_answer_del(\%FORM);
     }
@@ -1117,22 +1126,25 @@ sub msgs_ticket_show {
   # return 0 if(!_msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER} }));
 
   if ($msgs_permissions{1}{4}) {
+    my $change_subject_index = get_function_index('_msgs_show_change_subject_template');
     $subject_before_convert =~ s/\'/\\\'/g;
-    $params{CHANGE_SUBJECT_BUTTON} = $html->button("$lang{CHANGE} $lang{SUBJECT}", "qindex=" .
-      get_function_index('_msgs_show_change_subject_template') .
-      "&header=2&subject=$subject_before_convert&msg_id=$Msgs->{ID}", {
-      LOAD_TO_MODAL  => 1,
-      NO_LINK_FORMER => 1,
-      class          => 'change',
-      TITLE          => $lang{SUBJECT}
-    });
+    $params{CHANGE_SUBJECT_BUTTON} = $html->button(
+      "$lang{CHANGE} $lang{SUBJECT}", "qindex=$change_subject_index&header=2&subject=$subject_before_convert&msg_id=$Msgs->{ID}",
+      {
+        LOAD_TO_MODAL  => 1,
+        NO_LINK_FORMER => 1,
+        class          => 'btn btn-sm btn-info',
+        ICON           => 'fa fa-pencil-alt',
+        TITLE          => $lang{SUBJECT}
+      }
+    );
   }
 
   $params{PROGRESSBAR} = msgs_progress_bar_show($Msgs);
 
   $params{PARENT_MSG} = $html->button('PARENT: ' . $Msgs->{PAR}, 'index=' . $index . "&chg=$Msgs->{PAR}",
       { class => 'btn btn-xs btn-default text-right' }) if ($Msgs->{PAR});
-  $params{RATING_ICONS} = $rating_icons;
+  $params{RATING_ICONS} = $html->element('div', $rating_icons, { class => 'btn btn-sm' }) if ($rating_icons);
   $params{LOGIN} = ($Msgs->{AID}) ? $html->b($Msgs->{A_NAME}) . " ($lang{ADMIN})" : $html->button($Msgs->{LOGIN}, "index=15&UID=$uid");
   $params{ADMIN_LOGIN} = $admin->{A_LOGIN};
   $params{INNER_MSG_TAG} = $html->element('span', $lang{INNER}, {
@@ -1473,6 +1485,7 @@ sub _msgs_reply_admin {
   my $reply_id;
 
   if ($FORM{REPLY_SUBJECT} || $FORM{REPLY_TEXT} || $FORM{FILE_UPLOAD} || $FORM{SURVEY_ID}) {
+    delete $FORM{REPLY_INNER_MSG} if !$msgs_permissions{1} || !$msgs_permissions{1}{7};
 
     $Msgs->message_reply_add({ %FORM, AID => $admin->{AID}, IP => $admin->{SESSION_IP} });
     $reply_id = $Msgs->{INSERT_ID};
@@ -1515,7 +1528,10 @@ sub _msgs_reply_admin {
   $params{STATE} = ($msg_state == 0 && !$FORM{MAIN_INNER_MESSAGE} && !$FORM{REPLY_INNER_MSG}) ? 6 : $msg_state;
 
   $Msgs->status_info($msg_state);
-  $params{CLOSED_DATE} = "$DATE  $TIME" if ($Msgs->{TOTAL} > 0 && $Msgs->{TASK_CLOSED});
+  if ($Msgs->{TOTAL} > 0 && $Msgs->{TASK_CLOSED}) {
+    $params{CLOSED_DATE} = "$DATE  $TIME";
+    $params{STATE} = 0 if $Msgs->{TASK_CLOSED} && (!$msgs_permissions{1} || !$msgs_permissions{1}{3});
+  }
   $params{DONE_DATE} = $DATE if ($msg_state > 1);
 
   $Msgs->message_change({
@@ -1712,6 +1728,7 @@ sub msgs_repeat_ticket {
     $answer = $Msgs->{TOTAL} ? ":$lang{REPEAT_MSG_USER}</br>$lang{ADD_ANOTHER_ONE}" : "";
   }
 
+  $Msgs->{TOTAL} //= '';
   print $Msgs->{TOTAL} . $answer;
   return $Msgs->{TOTAL} . $answer;
 }
@@ -1791,7 +1808,7 @@ sub _msgs_action_callback {
 sub _msgs_new_topic_button {
   my ($uid, $message_id, $make_new, $chapter) = @_;
 
-  return '' if (!$permissions{7} || !$permissions{7}{1} || !$uid || !$message_id || !$make_new || !$chapter);
+  return '' if (!$msgs_permissions{1} || !$msgs_permissions{1}{25} || !$uid || !$message_id || !$make_new || !$chapter);
 
   return $html->button($lang{CREATE_NEW_TOPIC}, "&index=$index&chg=$message_id&UID=$uid&make_new=$make_new&chapter=$chapter", {
     MESSAGE => "$lang{NEW_TOPIC}?",

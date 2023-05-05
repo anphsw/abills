@@ -261,6 +261,7 @@ sub multidoms_reseller_nas_groups_templates {
 
     $info{TEMPLATE} =~ s/\\"/"/g;
     $info{TEMPLATE} =~ s/\%BODY\%/__BODY__/g;
+    require Control::System;
     show_tpl_info($filename);
   }
   elsif ($FORM{SHOW}) {
@@ -388,6 +389,7 @@ sub multidoms_reseller_nas_groups_templates {
     }
   }
   elsif ($FORM{tpl_name}) {
+    require Control::System;
     show_tpl_info("$conf{TPL_DIR}/$FORM{tpl_name}");
 
     if (-f "$conf{TPL_DIR}/$FORM{tpl_name}") {
@@ -782,6 +784,7 @@ sub multidoms_reseller_nas {
   $Nas->{NAS_DISABLE}    = ($Nas->{NAS_DISABLE} > 0) ? ' checked' : '';
   $Nas->{ADDRESS_TPL}    = form_address();
   #$Nas->{ADDRESS_TPL}    = $html->tpl_show(templates('form_address'), $Nas, { OUTPUT2RETURN => 1 });
+  require Control::Nas_mng;
   $Nas->{NAS_GROUPS_SEL} = sel_nas_groups({ GID => $Nas->{GID} });
 
   $html->tpl_show(_include('multidoms_reseller_nas', 'Multidoms'), { %FORM, %$Nas });
@@ -1605,6 +1608,9 @@ sub _multidoms_reg_admin {
     WEB_OPTIONS => "language=$html->{language};"
   });
   return 0 if _error_show($admin);
+
+  $admin->admin_contacts_add({ AID => $admin->{AID}, TYPE_ID => 9, VALUE => $FORM{EMAIL} }) if $FORM{EMAIL};
+  $admin->admin_contacts_add({ AID => $admin->{AID}, TYPE_ID => 2, VALUE => $FORM{PHONE} }) if $FORM{PHONE};
 
   my $password = mk_unique_value($conf{PASSWD_LENGTH} || 8, { EXTRA_RULES => '0:0' });
   $admin->password($password, \%conf);

@@ -992,6 +992,8 @@ sub _msgs_permissions_list {
         22 => $lang{VIEW_EQUIPMENT},
         23 => $lang{ADDING_EQUIPMENT},
         24 => $lang{NOTIFICATIONS_ASSIGNED_MESSAGES_ONLY},
+        25 => $lang{PUTTING_MESSAGE_IN_SEPARATE_SUBJECT},
+        26 => $lang{CHANGE_OF_DISPATCH}
       }
     },
     2 => {

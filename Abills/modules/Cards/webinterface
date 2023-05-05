@@ -1081,6 +1081,7 @@ sub cards_dillers_sel {
 =cut
 #**********************************************************
 sub cards_report {
+  require Control::Reports;
   reports(
     {
       DATE        => $FORM{DATE},
@@ -1231,6 +1232,7 @@ sub cards_report_dillers {
   }
 
   if (!$FORM{DATE}) {
+    require Control::Reports;
     reports(
       {
         DATE        => $FORM{DATE},

@@ -258,6 +258,7 @@ sub iptv_tp{
       module               => $lang{MODULE},
       inner_tp_id          => 'ID',
       ext_bill_fees_method => "EXT_BILL $lang{FEES} $lang{TYPE}",
+      describe_aid         => $lang{DESCRIBE_FOR_ADMIN}
     },
     SKIP_USER_TITLE => 1,
     TABLE           => {

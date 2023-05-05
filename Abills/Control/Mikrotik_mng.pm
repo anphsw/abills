@@ -51,13 +51,24 @@ sub form_mikrotik_check_access {
 =cut
 #**********************************************************
 sub form_mikrotik_configure {
-  my ($Nas_) = @_;
+  my ($Nas_, $attr) = @_;
+
+
+  if ($attr->{import_users}) {
+    $attr->{API_BACKEND} = 18728; #@Fixme port 8728
+  }
 
   ### Step 0 : check access ###
   my Abills::Nas::Mikrotik $mikrotik = _mikrotik_init_and_check_access($Nas_, {
-      DEBUG     => $conf{mikrotik_debug} || 0,
-      RETURN_TO => 'mikrotik_configure'
-    });
+    DEBUG     => $conf{mikrotik_debug} || 0,
+    RETURN_TO => 'mikrotik_configure',
+    %{ $attr // { } }
+  });
+
+  if ($attr->{import_users}) {
+    _import_users($mikrotik, $attr);
+    return 1;
+  }
 
   if ( !$mikrotik || ref $mikrotik ne 'Abills::Nas::Mikrotik' ) {
 #    $html->message('err', $lang{ERROR}, "No connection to : " . $Nas_->{NAS_NAME});
@@ -656,7 +667,7 @@ sub _mikrotik_init_and_check_access {
       FROM_WEB         => 1,
       MESSAGE_CALLBACK => sub { $html->message('info', @_[0 ... 1]) },
       ERROR_CALLBACK   => sub { $html->message('err', @_[0 ... 1]) },
-      DEBUG => 5,
+      DEBUG            => 5,
       %{ $attr // { } }
     });
 
@@ -899,5 +910,130 @@ sub _create_checkbox_form_group_row {
 
   return $html->element('div', $label_html, { class => 'checkbox', OUTPUT2RETURN => 1});
 }
+
+#**********************************************************
+=head2 _import_users($attr) -
+
+=cut
+#**********************************************************
+sub _import_users {
+  my ($Mikrotik, $attr) = @_;
+
+  my (undef, @rules ) = $Mikrotik->{executor}->mtik_query( '/ppp secret' . ' print',
+    {'.proplist' => '.id,name,service,password,caller-id,profile,remote-address,comment,list' },
+  );
+
+  my $nas_id = $attr->{NAS_ID} || 0;
+  require Internet::Users;
+
+  my @ppp_profiles = ();
+  my $add_to_db = $attr->{pppoe} || 0;
+  foreach my $rule ( @rules ) {
+    my $comments = Abills::Base::convert($rule->{'comment'}, { win2utf8 => 1 });
+
+    push @ppp_profiles, [ ($rule->{'.id'} || q{}),
+      ($rule->{'name'} | q{}),
+      ($rule->{'service'} || q{}),
+      ($rule->{'password'} || q{}),
+      ($rule->{'caller-id'} || q{}),
+      ($rule->{'profile'} || q{}),
+      ($rule->{'remote-address'} || q{}),
+      ($comments || q{}) ];
+
+
+    if($add_to_db) {
+      my %user_list = ();
+      $user_list{'1.LOGIN'}=($rule->{'name'} | q{});
+      $user_list{'1.PASSWORD'}=($rule->{'password'} || q{});
+      $user_list{'1.GID'}=101;
+      $user_list{'4.CID'}=($rule->{'caller-id'} || q{});
+      $user_list{'4.TP_NAME'}=($rule->{'profile'} || q{});
+      $user_list{'4.IP'}=($rule->{'remote-address'} || q{});
+      $user_list{'3.COMMENTS'}=$comments;
+      $user_list{'3.FIO'}=$comments;
+      $user_list{'1.CREATE_BILL'} = 1;
+
+      internet_wizard_add({
+         %user_list,
+         SHORT_REPORT => 1,
+      });
+    }
+  }
+
+  if ($add_to_db) {
+    $html->message('info', $lang{INFO}, $lang{ADDED});
+  }
+
+  my $table = $html->table({
+    caption => 'PPPoE (' . ($#rules + 1)  .') '. $html->button($lang{IMPORT},
+      "index=$index&NAS_ID=$nas_id&mikrotik_configure=1&import_users=1&pppoe=1",
+      { BUTTON => 2 }),
+    width   => '100%',
+    rows    => \@ppp_profiles
+  });
+
+  print $table->show();
+
+  my (undef, @rules2 ) = $Mikrotik->{executor}->mtik_query( '/queue simple ' . ' print',
+    {'.proplist' => '.id,name,target,max-limit,list' },
+  );
+
+  my @ipoe_profiles = ();
+  $add_to_db = $attr->{ipoe} || 0;
+  foreach my $rule ( @rules2 ) {
+    my $comments = Abills::Base::convert($rule->{'name'}, { win2utf8 => 1 });
+    $rule->{'.id'} =~ s/\*/0x/;
+
+    my $speed = ($rule->{'max-limit'} || q{});
+    $speed =~ /(\d+)\//;
+    $speed = $1 || 0;
+    $speed = int($speed / 1024);
+
+    $rule->{'target'} =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/;
+    my $ip = $1;
+    my $num = oct($rule->{'.id'} || 0);
+
+    push @ipoe_profiles, [
+      $num,
+      $ip,
+      $speed,
+      ($comments || q{}) .' '. ($rule->{'max-limit'} || q{})
+    ];
+
+    if ($add_to_db && $comments) {
+      my %user_list = ();
+      $user_list{'1.LOGIN'}='ipoe_' . $num;
+      $user_list{'1.GID'}=102;
+      $user_list{'4.TP_NAME'}='IPOE_IMPORT';
+      $user_list{'4.SPEED'}=$speed;
+      $user_list{'4.IP'}=$ip;
+      $user_list{'3.FIO'}=$comments;
+      $user_list{'3.COMMENTS'}=$comments .' '. ($rule->{'max-limit'} || q{});
+      $user_list{'1.CREATE_BILL'} = 1;
+
+      internet_wizard_add({
+        %user_list,
+        SHORT_REPORT => 1,
+      });
+    }
+  }
+
+  if ($add_to_db) {
+    $html->message('info', $lang{INFO}, $lang{ADDED});
+  }
+
+  $table = $html->table({
+    caption => 'IPoE (' . ($#rules2 + 1)  .') '. $html->button($lang{IMPORT},
+      "index=$index&NAS_ID=$nas_id&mikrotik_configure=1&import_users=1&ipoe=1",
+      { BUTTON => 2 }),
+    width   => '100%',
+    rows    => \@ipoe_profiles
+  });
+
+  print $table->show();
+
+  return 0;
+}
+
 
 1;

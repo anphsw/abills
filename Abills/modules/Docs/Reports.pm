@@ -41,6 +41,7 @@ sub docs_reports{
     }
   );
 
+  require Control::Reports;
   reports(
     {
       DATE_RANGE        => 1,
@@ -180,6 +181,7 @@ sub docs_unpaid_invoices {
     }
   );
 
+  require Control::Reports;
   reports({
     DATE_RANGE        => 1,
     REPORT            => '',

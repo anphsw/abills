@@ -12,11 +12,10 @@ use warnings FATAL => 'all';
 use v5.16;
 
 use Abills::Defs;
-use Abills::Base qw(ip2int date_diff mk_unique_value convert in_array
-  days_in_month startup_files cfg2hash urlencode cmd check_time gen_time
+use Abills::Base qw(date_diff mk_unique_value convert in_array
+  days_in_month startup_files cmd check_time gen_time
   next_month load_pmodule vars2lang);
 use Abills::Filters;
-use Abills::Fetcher;
 use POSIX qw(strftime mktime);
 our Abills::HTML $html;
 our ($db,
@@ -54,8 +53,10 @@ our ($db,
 sub load_module {
   my ($module, $attr) = @_;
 
-  if ($attr->{LOAD_PACKAGE}) {
-    eval "require $module;";
+  if ($attr->{LOAD_PACKAGE} || $module =~ /\//) {
+    my $module_path = $module . '.pm';
+    $module_path =~ s{::}{/}g;
+    eval { require $module_path };
     $@ ? return 0 : return 1;
   }
 
@@ -64,11 +65,11 @@ sub load_module {
     $attr->{language} = 'english' if (! $attr->{language});
 
     foreach my $prefix ('../',@INC) {
-      my $realfile_path = "$prefix/Abills/modules/$module/lng_";
+      my $realfile_path = "$prefix/$module/lng_";
 
       if (-f $realfile_path . $attr->{language}.'.pl') {
         if($attr->{language} ne 'english' && -f $realfile_path .'english.pl') {
-          do $realfile_path .'english.pl';
+          eval { require $realfile_path .'english.pl'; };
         }
         $lang_file = $realfile_path . $attr->{language}.'.pl';
         last;
@@ -79,7 +80,7 @@ sub load_module {
     }
 
     if ($lang_file) {
-      do $lang_file;
+      eval { require $lang_file; };
     }
 
     return 1 if ($attr->{LANG_ONLY});
@@ -111,7 +112,7 @@ sub load_module {
     if ($ENV{DEBUG}) {
       exit;
     }
-    #Abills::Base::show_hash(\%INC, { DELIMITER=> "\n"  });
+
     die;
   }
 
@@ -263,9 +264,6 @@ sub _error_show {
           $lang{PLEASE_UPDATE_LICENSE_MODULE},
           { NUMBER => $module->{errstr} || ""}
         ),
-        # Errno in this scenario is confusing
-        # Because the client thinks "hmm, 699 is my license?"
-        #     { ID => '699' }
       );
       return 1;
     }
@@ -283,22 +281,41 @@ sub _error_show {
     }
     elsif ($errno == 3) {
       my $extra_info = join(', ', caller());
-      $html->message('err', "$module_name:$lang{ERROR}", $message . "SQL Error: [$errno]\n",
-        {
-          EXTRA => ($attr->{SILENT_MODE}) ? " [$module->{sql_errno}] " . $module->{sql_errstr} : $html->tpl_show(templates('form_show_hide'),
+      my $local_module_name = $module_name || $lang{SYSTEM};
+      my $sql_errno = ($module->{sql_errno} || $errno || '');
+      my $errstr = $html->pre(($module->{sql_errstr} || $module->{errstr} || ''), { OUTPUT2RETURN => 1 });
+      my $sql_code = (($module->{sql_query})
+        ? $html->pre($module->{sql_query}, { OUTPUT2RETURN => 1 })
+        : '');
+      my $sql_title = $html->pre("[$sql_errno/$extra_info]", { OUTPUT2RETURN => 1 });
+
+      my $card_title = $message . "SQL Error: [$errno]\n";
+
+      my $extra_template = ($attr->{SILENT_MODE})
+        ? " [$module->{sql_errno}] " . $module->{sql_errstr}
+        : $html->tpl_show(
+            templates('form_show_hide'),
             {
-              CONTENT => "[" . ($module->{sql_errno} || $errno || '') .' / '. $extra_info . "] "
-                . ($module->{sql_errstr} || $module->{errstr} || '')
-                . $html->br() . $html->br()
-                . (($module->{sql_query}) ? $html->pre($module->{sql_query}, { OUTPUT2RETURN => 1 }) : ''),
-              NAME    => $lang{EXTRA},
               ID      => 'QUERIES',
-              PARAMS  => 'collapsed-box',
+              NAME    => $card_title,
+              CONTENT => $sql_title
+                . $errstr
+                . $sql_code,
               BUTTON_ICON => 'plus'
             },
-            { OUTPUT2RETURN => 1 })
-        }
+            { OUTPUT2RETURN => 1 }
       );
+
+      $html->message('err',
+        "$local_module_name: $lang{ERROR}",
+        " ",
+        { EXTRA => $extra_template }
+      );
+      return 1;
+    }
+    elsif ($errno == 0b1010111011) {
+      my $error = join('', pack( 'H*', '0050004c0045004100530045005f005500500044004100540045005f004c004900430045004e00530045'));
+      $html->message('warn', $lang{$error});
       return 1;
     }
     else {
@@ -439,9 +456,11 @@ sub _function {
     return 1;
   }
   elsif(! defined( &{ $function_name } )) {
-    print "Content-type: text/html\n\n";
+    print "Content-Type: text/html\n\n";
     print "function: '". $function_name ."' defined in config but not exists\n\n";
-    print "Module:". ( $module{$index} // '' );
+    if (defined($module{$index})) {
+      print "Module: $module{$index} ";
+    }
     print join(',', caller) . "\n";
     exit;
   }
@@ -486,8 +505,13 @@ sub _function {
 <input type=hidden name='SYS_ID' value='$sys_id'>
 <input type=hidden name='CUR_VERSION' value='$version'>
 
-Critical Error:<br>
-<textarea cols=120 rows=10 NAME=ERROR>
+<div class='card card-outline card-danger container'>
+  <div class='card-header'>
+    <h4 class='card-title'>$lang{ERROR}</h4>
+  </div>
+  <div class='card-body'>
+<div class='form-group'>
+<textarea class='form-control' cols=80 rows=10 NAME=ERROR>
 [END]
 
  if($@) {
@@ -497,10 +521,22 @@ Critical Error:<br>
 print << "[END]";
 $inputs
 </textarea>
-<br><input type=text name='COMMENTS' value='' placeholder='$lang{COMMENTS}' size=80>
-<br>Notify after fix:<input type=checkbox name='NOTIFY' value=1>
-<br><input type=text name='NOTIFY_EMAIL' value='' placeholder='E-mail' size=80>
-<br><input type=submit name='add' value='Send to bug tracker' class='btn btn-danger'>
+</div>
+<div class='form-group'>
+  <input class='form-control' type=text name='COMMENTS' value='' placeholder='$lang{HOW_TO_REPRODUCE}' size=80>
+</div>
+<div class='form-group form-check'>
+  <input id='NOTIFY' class='form-check-input' type=checkbox name='NOTIFY' value=1>
+  <label for='NOTIFY' class='form-check-label'>$lang{NOTIFY_AFTER_FIX}</label>
+</div>
+<div class='form-group'>
+  <input class='form-control' type=text name='NOTIFY_EMAIL' value='' placeholder='E-mail' size=80>
+</div>
+</div>
+<div class='card-footer'>
+  <input type=submit name='add' value='$lang{SEND_TO_DEVELOPERS}' class='btn btn-danger'>
+</div>
+  </div>
 </form>
 [END]
 
@@ -554,9 +590,12 @@ $inputs
 sub cross_modules {
   my ($function_index, $attr) = @_;
   my $timeout = $attr->{timeout} || 4;
+  my $debug = $attr->{DEBUG} || 0;
 
   $html = $attr->{HTML} if $attr->{HTML};
-  require Control::Services if $function_index && $function_index eq 'payments_maked';
+  # if ($function_index && $function_index eq 'payments_maked') {
+  #   require Control::Services;
+  # }
 
   if ($attr->{SUM} && ! $attr->{USER_INFO}{PAYMENTS_ADDED}) {
     $attr->{USER_INFO}->{DEPOSIT} += $attr->{SUM};
@@ -583,7 +622,6 @@ sub cross_modules {
   my @skip_modules = ();
   my $SAVEOUT;
   my $output_redirect = '/dev/null';
-
   if ($attr->{SKIP_MODULES}) {
     $attr->{SKIP_MODULES} =~ s/\s+//g;
     @skip_modules = split(/,/, $attr->{SKIP_MODULES});
@@ -594,8 +632,8 @@ sub cross_modules {
     $user_count++;
     $attr->{USER_INFO}{UID} = $uid;
 
-    if ($attr->{DEBUG}) {
-      print "Function:  $function_index Timout: $timeout Silent: " . ($silent || 'no') . "<br>\n";
+    if ($debug) {
+      print "Function:  ". ($function_index || q{}) ." Timout: $timeout Silent: " . ($silent || 'no') . "<br>\n";
       $check_time = check_time();
     }
 
@@ -632,7 +670,7 @@ sub cross_modules {
         eval "use $module_name;";
         next if $@;
         if ($attr->{DEBUG}) {
-          print " $module -> " . lc($module) . '_' . $function_index . "<br>\n";
+          print " $module -> " . lc($module) .'_' . $function_index . "<br>\n";
         }
 
         my $function = lc $module . '_' . $function_index;
@@ -641,10 +679,12 @@ sub cross_modules {
         next unless ($module_name->can($function));
 
         load_module($module, { %{$html || {}}, LANG_ONLY => 1 });
+
         eval {
           my $module_api = $module_name->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
           $full_return{$module} = $module_api->$function($attr);
         };
+
         next if $@;
 
         if ($attr->{DEBUG} && $check_time) {
@@ -667,153 +707,6 @@ sub cross_modules {
 
   return \%full_return;
 }
-
-#**********************************************************
-=head2 cross_modules_call($function_suffix, $attr) - Calls function for all registration modules if function exist
-
-  Arguments:
-    $function_suffix - Function suffix
-    $attr           - Extra attributes
-      SILENT       - silent mode without output (Default: enable)
-      SKIP_MODULES - Skip modules
-      timeout      - Max timeout for function execute (Default: 4 sec)
-      DEBUG        - Debug mode
-      USER_INFO    - User information hash
-      HTML         - $html object
-
-  Return:
-    return all modules return hash
-
-  Example:
-
-    cross_modules_call('_payments_maked', {
-        USER_INFO    => $user,
-        SUM          => $sum,
-        PAYMENT_ID   => $payments->{PAYMENT_ID},
-        SKIP_MODULES => 'Paysys,Sqlcmd'
-    });
-
-=cut
-#**********************************************************
-#@deprecated
-sub cross_modules_call {
-  my ($function_sufix, $attr) = @_;
-  my $timeout = $attr->{timeout} || 4;
-
-  if ($attr->{HTML}) {
-    $html = $attr->{HTML};
-  }
-  # $added changed to $attr->{USER_INFO}->{PAYMENTS_ADDED}
-  #if ($attr->{SUM} && ! $added)
-  if ($attr->{SUM} && ! $attr->{USER_INFO}->{PAYMENTS_ADDED}) {
-    $attr->{USER_INFO}->{DEPOSIT} += $attr->{SUM};
-    $attr->{USER_INFO}->{PAYMENTS_ADDED}=1;
-    # $added = 1; #Don't remove
-  }
-
-  my @users_uids = ();
-  if ($attr->{USER_INFO}->{COMPANY_ID}) {
-    if ($users && $users->can('list')) {
-      my $users_list = $users->list({ COMPANY_ID => $attr->{USER_INFO}->{COMPANY_ID}, COLS_NAME => 1 });
-      foreach my $user_info (@{$users_list}) {
-        push @users_uids, $user_info->{uid};
-      }
-    }
-  }
-  else {
-    push @users_uids, $attr->{USER_INFO}->{UID} || $attr->{UID};
-  }
-
-  #Default silent mode (off)
-  #our $silent=0;
-  my $silent=0;
-  my %full_return = ();
-  my $check_time = 0;
-
-  if (defined($attr->{SILENT})) {
-    $silent=$attr->{SILENT};
-  }
-
-  my $user_count = 0;               #FIXME: Problem 1 Part 1
-  foreach my $uid ( @users_uids ) {
-    $user_count++;                  #FIXME: Problem 1 Part 2
-    $attr->{USER_INFO}->{UID}=$uid;
-
-    if ($attr->{DEBUG}) {
-      print "Function:  $function_sufix Timout: $timeout Silent: " . ($silent || 'no') . "<br>\n";
-      $check_time = check_time();
-    }
-
-    my @skip_modules = ();
-    my $SAVEOUT;
-    my $output_redirect = '/dev/null';
-
-    eval {
-      if ($silent) {
-        if ($conf{CROSS_MODULES_DEBUG}) {
-          $output_redirect = $conf{CROSS_MODULES_DEBUG};
-        }
-
-        #disable stdout output
-        open($SAVEOUT, ">&", \*STDOUT) or die "Save STDOUT: $!";
-        #Reset out
-        open STDIN, '>', '/dev/null';
-        open STDOUT, '>>', $output_redirect;
-        open STDERR, '>>', $output_redirect;
-      }
-
-      if ($attr->{SKIP_MODULES}) {
-        $attr->{SKIP_MODULES} =~ s/\s+//g;
-        @skip_modules = split(/,/, $attr->{SKIP_MODULES});
-      }
-
-      if ($user_count > 1) {              #
-        push @skip_modules, 'Extreceipt'; #FIXME: Problem 1 Part 3
-      }                                   #
-
-      if ($silent) {
-        local $SIG{ALRM} = sub {die "alarm\n"}; # NB: \n required
-        alarm $timeout;
-      }
-
-      foreach my $mod (@MODULES) {
-        if (in_array($mod, \@skip_modules)) {
-          next;
-        }
-
-        if ($attr->{DEBUG}) {
-          print " $mod -> " . lc($mod) . $function_sufix . "<br>\n";
-        }
-
-        load_module($mod, $html);
-        my $function = lc($mod) . $function_sufix;
-        my $return;
-        if (defined(&$function)) {
-          $return = &{\&$function}($attr);
-        }
-
-        if ($attr->{DEBUG} && $check_time) {
-          print gen_time($check_time) . " <br>\n ";
-          $check_time = check_time();
-        }
-        $full_return{$mod} = $return;
-      }
-    };
-
-    if ($silent && $SAVEOUT) {
-      # off disable stdout output
-      open(STDOUT, ">&", $SAVEOUT);
-    }
-  }
-
-  if($@) {
-    print "Error: \n";
-    print $@;
-  }
-
-  return \%full_return;
-}
-
 
 #**********************************************************
 =head2 get_function_index($function_name, $attr) - Get function index
@@ -922,6 +815,10 @@ sub get_period_dates {
     $attr
       SERVICE_NAME       - Service name
       TEMPLATE_KEY_NAME  - name for %conf key (INTERNET_FEES_DSC)
+      TEMPLATE           - Template
+
+  Results:
+    $formed_string
 
 =cut
 #**********************************************************
@@ -934,9 +831,14 @@ sub fees_dsc_former {
     $attr->{SERVICE_NAME} = 'Internet';
   }
 
-  my $text = (exists $conf{$template_key_name} && $conf{$template_key_name})
-    ? $conf{$template_key_name}
-    : '%SERVICE_NAME%: %FEES_PERIOD_MONTH%%FEES_PERIOD_DAY% %TP_NAME% (%TP_ID%)%EXTRA%%PERIOD%';
+  my $text = '%SERVICE_NAME%: %FEES_PERIOD_MONTH%%FEES_PERIOD_DAY% %TP_NAME% (%TP_ID%)%ID%%EXTRA%%PERIOD%';
+
+  if($conf{$template_key_name}) {
+    $text = $conf{$template_key_name}
+  }
+  elsif($attr->{TEMPLATE}) {
+    $text = $attr->{TEMPLATE};
+  }
 
   while ($text =~ /\%(\w+)\%/g) {
     my $var = $1;
@@ -1008,7 +910,9 @@ sub service_recalculate {
   # );
 
   if ($debug) {
-    print "$Service->{TP_INFO_OLD}->{MONTH_FEE} ($Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) => $tp->{MONTH_FEE} SHEDULE: $attr->{SHEDULER}\n";
+    print join("\b", caller());
+    print "$Service->{TP_INFO_OLD}->{MONTH_FEE} (". ( $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} || q{} ) .") => $tp->{MONTH_FEE} SHEDULE: ".
+      ( $attr->{SHEDULER} || 0 ) ."\n";
   }
 
   if (($attr->{SHEDULER} && $start_day == $d)
@@ -1151,7 +1055,7 @@ sub service_get_month_fee {
       `echo "$caller" >> /tmp/cross_debug`;
     }
   }
-  my $service_activate = $Service->{ACTIVATE} || $Users->{ACTIVATE};
+  my $service_activate = $Service->{ACTIVATE} || $Users->{ACTIVATE} || '0000-00-00';
 
   #Get active price
   if ($tp->{ACTIV_PRICE} && $tp->{ACTIV_PRICE} > 0) {
@@ -1205,6 +1109,7 @@ sub service_get_month_fee {
 
     #Get back month fee
     if ( $FORM{RECALCULATE} || $attr->{RECALCULATE}) {
+      print "\n".join("\n", caller()). "\n";
       my $result = service_recalculate($Service, $attr);
       if (! $result) {
         return \%total_sum;
@@ -1225,11 +1130,12 @@ sub service_get_month_fee {
 
     my %FEES_DSC = (
       SERVICE_NAME    => $service_name,
-      MODULE          => $module.':',
+      MODULE          => $module . ':',
       TP_ID           => $tp->{TP_ID},
       TP_NAME         => $tp->{NAME} || '',
       FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
       FEES_METHOD     => ($tp->{FEES_METHOD} && $FEES_METHODS{$tp->{FEES_METHOD}}) ? $FEES_METHODS{$tp->{FEES_METHOD}} : 0,
+      ID              => ($Service->{ID}) ? ' '. $Service->{ID} : undef
     );
 
     my $account_activate = $Service->{ACCOUNT_ACTIVATE} || $service_activate || '0000-00-00';
@@ -1273,12 +1179,15 @@ sub service_get_month_fee {
       if (int($active_d) > int($d)) {
         $periods--;
       }
+
+      $periods += 12 * ($y - $active_y) - 12 if ($y - $active_y);
     }
     elsif (int($active_m) > 0 && (int($active_m) >= int($m) && int($active_y) < int($y))) {
       $periods = 12 - $active_m + $m;
       if (int($active_d) > int($d)) {
         $periods--;
       }
+      $periods += 12 * ($y - $active_y) - 12 if ($y - $active_y);
     }
     elsif ($tp->{FIXED_FEES_DAY} && int($active_d) <= int($d) && (int($active_m) != int($m) && int($active_y) == int($y))) {
       $periods=1;
@@ -1563,12 +1472,6 @@ sub service_get_month_fee {
 #**********************************************************
 sub _external {
   my ($file, $attr) = @_;
-
-  # $attr->{LOGIN}      = $users->{LOGIN} || $attr->{LOGIN};
-  # $attr->{DEPOSIT}    = $users->{DEPOSIT} if ($users->{DEPOSIT});
-  # $attr->{CREDIT}     = $users->{CREDIT} if ($users->{CREDIT});
-  # $attr->{GID}        = $users->{GID} if ($users->{GID});
-  # $attr->{COMPANY_ID} = $users->{COMPANY_ID} if ($users->{COMPANY_ID});
 
   if ($attr->{EXTERNAL_CMD}) {
     my $external_cmd = '_EXTERNAL_CMD';
@@ -2181,70 +2084,6 @@ sub sel_status {
 }
 
 #**********************************************************
-=head2 address_list_tree_menu($attr) - get collapsible tree menu to choose address
-
-  Arguments:
-    $attr
-      STREETS - if given will not display BUILD level
-      NAME    - Name for a first level. Default is $lang{ADDRESS}
-      COL_SIZE - width of menu. Default is 3
-      OUTPUT2RETURN
-
-  Returns:
-    if $attr->{OUTPUT2RETURN} returns HTML code for menu
-    else returns 1
-
-  Example:
-    address_list_tree_menu({ STREETS=> 1 });
-
-=cut
-#**********************************************************
-sub address_list_tree_menu{
-  my ($attr) = @_;
-
-  # We are avoiding save of $users object using chaining call
-  # You can read this as :
-  #   my $users = Users->new($db, \%conf);
-  #   my ($list, $parentness_hash) = $users->adress_parentness(\&in_array);
-  #
-
-  my ($list, $parentness_hash) = Address->new($db, $admin, \%conf)->address_parentness(\&in_array, $attr);
-
-  #Now build a tree menu for this structure
-  my $level_name_keys = ['DISTRICT_NAME','STREET_NAME', 'BUILD_NAME'];
-  my $level_id_keys = ['DISTRICT_ID','STREET_ID', 'BUILD_ID'];
-
-  my $checkbox_name = ($attr->{STREETS}) ? "STREET_ID" : "BUILD_ID";
-  my $first_level_name = ($attr->{NAME}) ? $attr->{NAME} : $lang{ADDRESS};
-  my $col_size = $attr->{COL_SIZE} ? $attr->{COL_SIZE} : '3';
-  my $menu = $html->tree_menu($list, $first_level_name,
-    {
-      PARENTNESS_HASH => $parentness_hash,
-
-      CHECKBOX => 1,
-      NAME => $checkbox_name,
-
-      LEVEL_LABEL_KEYS => $level_name_keys,
-      LEVEL_VALUE_KEYS  => $level_id_keys,
-      LEVEL_ID_KEYS  => $level_id_keys,
-      LEVEL_CHECKBOX_NAME => $level_id_keys,
-
-      COL_SIZE => $col_size,
-
-      CHECKBOX_STATE     => $attr->{CHECKED}
-    }
-  );
-
-  unless($attr->{OUTPUT2RETURN}){
-    print $menu;
-    return 1;
-  }
-
-  return $menu;
-}
-
-
-#**********************************************************
 =head2 import_show($attr) - Show import date
 
   Arguments:
@@ -2601,7 +2440,7 @@ sub system_info {
 
   if (! $conf{SYS_ID}) {
     $conf{SYS_ID} = mk_unique_value(32);
-    eval{ use Digest::MD5; };
+    load_pmodule('Digest::MD5');
     if(! $@) {
       my $md5 = Digest::MD5->new();
       $md5->add( $conf{SYS_ID} );
@@ -2626,6 +2465,8 @@ sub system_info {
     push @info_data, ($admin->{list}->[0]->[0] || 0);
   }
 
+  require Abills::Fetcher;
+  Abills::Fetcher->import('web_request');
   web_request($request_url, {
     REQUEST_PARAMS => {
       sign => $conf{SYS_ID},
@@ -2787,6 +2628,7 @@ sub recomended_pay {
   my $cross_modules_return = cross_modules('docs', {
     UID       => $user_->{UID},
     REDUCTION => $user_->{REDUCTION},
+    USER_INFO => $user_
     #PAYMENT_TYPE => 0
   });
 
@@ -2863,4 +2705,4 @@ sub format_sum {
   return $result;
 }
 
-1
+1;

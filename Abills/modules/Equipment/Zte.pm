@@ -1928,7 +1928,7 @@ sub _zte_get_fdb {
     if ($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C6/i) {
       $_oid = '.1.3.6.1.4.1.3902.1082.40.10.2.1.5.1.1';
     }
-    elsif($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C320/i) {
+    elsif($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C320|C300/i) {
       $_oid = '.1.3.6.1.4.1.3902.1082.40.10.2.1.2.1.50.1';
     }
   }
@@ -1950,7 +1950,7 @@ sub _zte_get_fdb {
       ($vlan, $port, $port_onu, $mac) = ($1, $2, $3, $4);
       $mac = _mac_former($mac);
     }
-    elsif ($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C320/i) {
+    elsif ($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C320|^C300/i) {
       $line =~ /(\d+\.\d+)\.(\d+)\.(\d+\.\d+\.\d+\.\d+\.\d+\.\d+):/;
       ($onu_ether, $vlan, $mac) = ($1, $2, $3);
       $mac = _mac_former($mac);

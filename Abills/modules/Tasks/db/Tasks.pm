@@ -95,6 +95,14 @@ sub add {
   $self->query_add('tasks_main', $attr);
   return [ ] if ($self->{errno});
 
+  if ($attr->{LEAD_ID} && Abills::Base::in_array('Crm', \@main::MODULES)) {
+    require Crm::db::Crm;
+    Crm->import();
+    my $Crm = Crm->new($self->{db}, $admin, $CONF);
+
+    $Crm->_crm_workflow('newTask', $attr->{LEAD_ID}, $attr) if !$self->{errno};
+  }
+
   return $self;
 }
 
@@ -113,11 +121,21 @@ sub chg {
   my $self = shift;
   my ($attr) = @_;
 
+  my $old_info = $self->info({ ID => $attr->{ID} });
+
   $self->changes({
     CHANGE_PARAM => 'ID',
     TABLE        => 'tasks_main',
     DATA         => $attr,
   });
+
+  if (!$self->{errno} && $attr->{STATE} && $attr->{STATE} eq '1' && $old_info->{STATE} ne '1' && $old_info->{LEAD_ID}) {
+    require Crm::db::Crm;
+    Crm->import();
+    my $Crm = Crm->new($self->{db}, $admin, $CONF);
+
+    $Crm->_crm_workflow('closedTask', $old_info->{LEAD_ID}, { %{$attr}, TASK_TYPE => $old_info->{TASK_TYPE} });
+  }
 
   return 1;
 }

@@ -191,6 +191,8 @@ sub get_info_fields_read_only_view {
         $value_view = $html->element('p', $attr->{VALUES}->{$field_name}, { OUTPUT2RETURN => 1 }),
       }
       elsif ($type == $FIELD_TYPE_ID{FILE}) {
+        require Attach;
+        Attach->import();
         my $Attach = Attach->new($self->{db}, $self->{admin}, $self->{conf});
         my $file_id = $value || q{};
 

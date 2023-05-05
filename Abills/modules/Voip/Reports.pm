@@ -288,6 +288,7 @@ sub voip_sessions {
 #**********************************************************
 sub voip_use {
 
+  require Control::Reports;
   reports({
     DATE        => $FORM{DATE},
     REPORT      => '',

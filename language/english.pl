@@ -1077,5 +1077,14 @@ $lang{REPORT_REASON_USERS_DISABLED} = 'Reasons for disabling users';
 $lang{SCHEDULE_BOARD} = 'Schedule board';
 $lang{LINK} = 'Link';
 $lang{TO_PLUG} = 'Connect';
+$lang{YOU_TRY_BRUTE_1} = 'You entered wrong password many times and system blocked your account.';
+$lang{YOU_TRY_BRUTE_2} = 'Please contact system administrator.';
+$lang{PICTURE_SIZE_NOT_ALLOWED} = 'Avatar has not been added. The size of picture is over';
+$lang{HOW_TO_REPRODUCE} = 'How to reproduce error';
+$lang{NOTIFY_AFTER_FIX} = 'Notify after fix';
+$lang{SEND_TO_DEVELOPERS} = 'Send to developers';
+$lang{COPIED} = 'Copied';
+$lang{USER_ADDRESS_EXIST} = 'A user with this address already exists';
+$lang{PLEASE_FILL_FIELDS} = 'Please, fill out the following fields — %FIELDS%';
 
 1;

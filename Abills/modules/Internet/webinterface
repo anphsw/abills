@@ -53,6 +53,9 @@ my $Log      = Log->new($db, \%conf);
 my $Language = Abills::Experimental::Language->new($base_dir || '/usr/abills/', $conf{default_language});
 
 require Control::Services;
+if ($functions{$index} && $functions{$index} eq 'form_intervals') {
+  require Control::System;
+}
 require Internet::User_portal;
 require Internet::Quick_reports;
 
@@ -77,6 +80,23 @@ if(%ADMIN_REPORT) {
   require Internet::Ipoe_periodic;
 }
 
+if ($conf{INTERNET_TURBO_MODE}) {
+  eval { require Internet::Turbo_mode };
+  if ($@) {
+    print "Content-Type: text/html\n\n";
+    print "Turbo.pm not loaded";
+    print $@;
+  }
+}
+
+if ($conf{INTERNET_DAY_QUOTA}) {
+  eval { require Internet::Quota };
+  if ($@) {
+    print "Content-Type: text/html\n\n";
+    print $@;
+  }
+}
+
 #**********************************************************
 =head2 internet_users_search($Internet_)
 
@@ -84,6 +104,13 @@ if(%ADMIN_REPORT) {
 #**********************************************************
 sub internet_users_search {
   my ($Internet_) = @_;
+
+
+  $Internet->account_check();
+  if ($Internet->{errno}) {
+    $html->message('err', 'ERROR', 'Please update license.');
+    return 1;
+  }
 
   $index=get_function_index('internet_users_list') if ( $functions{$index} && $functions{$index} ne 'internet_users_list' );
   $Internet->{GROUP_SEL}  = sel_groups();
@@ -770,6 +797,13 @@ sub internet_error_user {
 #**********************************************************
 sub internet_error {
   my ($attr)    = @_;
+
+ $Internet->account_check();
+  if ($Internet->{errno}) {
+    $html->message('err', 'ERROR', 'Please update license.');
+    return 1;
+  }
+
 
   if (!$attr->{USER_FORM} && !$permissions{3}{6}) {
     $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY});
@@ -1598,128 +1632,6 @@ sub _sec2time_str {
   my($value) = @_;
 
   return sec2time($value, { str => 1 });
-}
-
-#**********************************************************
-=head2 internet_search($attr) - Global search submodule
-
-  Arguments:
-    $attr
-      SEARCH_TEXT
-      DEBUG
-
-  Returs:
-     TRUE/FALSE
-
-=cut
-#**********************************************************
-sub internet_search {
-  my($attr) = @_;
-
-  my @default_search = ('LOGIN', 'CID', 'CPE_MAC', 'INTERNET_LOGIN', '_MULTI_HIT');
-
-  if($attr->{SEARCH_TEXT} =~ /^[0-9\.]+$/) {
-    push @default_search, 'IP';
-  }
-
-  my @qs = ();
-  foreach my $field ( @default_search ) {
-    $LIST_PARAMS{$field} = "*$attr->{SEARCH_TEXT}*";
-    push @qs, "$field=*$attr->{SEARCH_TEXT}*";
-  }
-
-  if($attr->{DEBUG}) {
-    $Internet->{debug} = 1;
-  }
-
-  my $intertnet_list = $Internet->user_list({
-    %LIST_PARAMS,
-    UNIVERSAL_SEARCH => 1,
-    COLS_NAME => 1
-  });
-
-  my $admin_permissions_gid = 0;
-  if ($admin->{GID}) {
-    my @admin_gids = split(/,/, $admin->{GID});
-
-    my $user_gid = $users->info($intertnet_list->[0]->{uid});
-    if ($#admin_gids > 0) {
-      foreach my $admin_gid (@admin_gids) {
-        if ($user_gid->{GID} && $admin_gid == $user_gid->{GID}) {
-          $admin_permissions_gid = 1
-        }
-        elsif (!$user_gid->{GID}) {
-          $admin_permissions_gid = 1
-        }
-      }
-    }
-    elsif ($#admin_gids < 1 && $admin->{GID}) {
-      $admin_permissions_gid = 1;
-    }
-  }
-  else {
-    $admin_permissions_gid = 1;
-  }
-
-  my @info = ();
-
-  if ($admin_permissions_gid) {
-    if($Internet->{TOTAL}) {
-      push @info, {
-        'TOTAL'        => $Internet->{TOTAL},
-        'MODULE'       => 'Internet',
-        'MODULE_NAME'  => $lang{INTERNET},
-        'SEARCH_INDEX' => get_function_index('internet_users_list')
-          . '&' . join('&', @qs) . "&search=1&GLOBAL=1"
-      };
-    }
-  }
-
-  #Online
-  my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
-
-  if ($permissions{5} && $permissions{5}{0}) {
-    @default_search = ('CID', '_MULTI_HIT');
-
-    if($attr->{SEARCH_TEXT} =~ /^[0-9\.]+$/) {
-      push @default_search, 'IP';
-    }
-
-    @qs = ();
-    foreach my $field ( @default_search ) {
-      $LIST_PARAMS{$field} = "*$attr->{SEARCH_TEXT}*";
-      push @qs, "$field=*$attr->{SEARCH_TEXT}*";
-    }
-
-    $Sessions->online({ %LIST_PARAMS, ALL => 1 });
-
-    if($Sessions->{TOTAL}) {
-      push @info, {
-        'TOTAL'        => $Sessions->{TOTAL},
-        'MODULE'       => 'Internet',
-        'MODULE_NAME'  => "$lang{INTERNET} ONLINE",
-        'SEARCH_INDEX' => get_function_index('internet_online')
-          . '&' . join('&', @qs) . "&search=1"
-      };
-    }
-  }
-
-  #Stats
-  if ($permissions{3} && $permissions{3}{6}) {
-    $Sessions->list({ %LIST_PARAMS });
-
-    if($Sessions->{TOTAL}) {
-      push @info, {
-        'TOTAL'        => $Sessions->{TOTAL},
-        'MODULE'       => 'Internet',
-        'MODULE_NAME'  => "$lang{INTERNET} $lang{STATS}",
-        'SEARCH_INDEX' => get_function_index('internet_sessions')
-          . '&' . join('&', @qs) . "&search=1"
-      };
-    }
-  }
-
-  return \@info;
 }
 
 #**********************************************************

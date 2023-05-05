@@ -162,6 +162,7 @@ sub user_routes {
           CHAPTER_NAME  => '_SHOW',
           CHAPTER_COLOR => '_SHOW',
           STATE         => '_SHOW',
+          DESC          => 'DESC',
           UID           => $path_params->{uid}
         });
       },
@@ -176,11 +177,26 @@ sub user_routes {
         my ($path_params, $query_params) = @_;
         my %extra_params = ();
 
+        if ($self->{conf}{MSGS_USER_REPLY_SECONDS_LIMIT}) {
+          my $new_messages = $Msgs->messages_list({
+            UID       => $path_params->{uid},
+            GET_NEW   => $self->{conf}{MSGS_USER_REPLY_SECONDS_LIMIT},
+            DESC      => 'DESC',
+            COLS_NAME => 1
+          });
+
+          return {
+            errno  => 100,
+            errstr => "Messages can be sent up to once every $self->{conf}{MSGS_USER_REPLY_SECONDS_LIMIT} seconds"
+          } if ($Msgs->{TOTAL} && $Msgs->{TOTAL} > 0);
+        }
+
         if ($query_params->{CHAPTER}) {
           my $chapter = $Msgs->chapter_info($query_params->{CHAPTER});
           $extra_params{chapter} = $chapter->{RESPONSIBLE};
         }
 
+        ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 });
         $Msgs->message_add({
           SUBJECT   => $query_params->{SUBJECT} || q{},
           MESSAGE   => $query_params->{MESSAGE} || q{},
@@ -192,6 +208,8 @@ sub user_routes {
           USER_SEND => 1,
           %extra_params
         });
+
+        $Notify->notify_admins({ MSG_ID => $Msgs->{INSERT_ID} });
 
         return $Msgs;
       },
@@ -391,9 +409,7 @@ sub admin_routes {
           errstr => 'No permission for this chapter'
         } if ($query_params->{CHAPTER} && $self->{permissions}{4} && !$self->{permissions}{4}{$query_params->{CHAPTER}});
 
-        $Msgs->message_add({
-          %$query_params
-        });
+        $Msgs->message_add({ %$query_params });
       },
       credentials => [
         'ADMIN'
@@ -441,7 +457,21 @@ sub admin_routes {
           errstr => 'The message cannot be accessed'
         } if $self->{permissions}{4} && (!$message->{CHAPTER} || !$self->{permissions}{4}{$message->{CHAPTER}});
 
-        $Msgs->message_change({ %{$query_params}, ID => $path_params->{id}})
+        if ($query_params->{STATE}) {
+          $Msgs->status_info($query_params->{STATE});
+          delete $query_params->{STATE} if $Msgs->{TASK_CLOSED} && (!$self->{permissions}{1} || !$self->{permissions}{1}{3});
+        }
+
+        delete $query_params->{PRIORITY} if !$self->{permissions}{1} || !$self->{permissions}{1}{13};
+        delete $query_params->{RESPOSIBLE} if !$self->{permissions}{1} || !$self->{permissions}{1}{16};
+        delete $query_params->{DISPATCH_ID} if !$self->{permissions}{1} || !$self->{permissions}{1}{26};
+
+        ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 });
+        $Msgs->message_change({ %{$query_params}, ID => $path_params->{id} });
+
+        $Notify->notify_admins({ MSG_ID => $path_params->{id}, NEW_RESPONSIBLE => 1 }) if $query_params->{RESPOSIBLE};
+
+        return $Msgs;
       },
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
@@ -465,6 +495,7 @@ sub admin_routes {
         $Msgs->messages_list({
           %$query_params,
           COLS_NAME => 1,
+          DESC      => 'DESC',
           SUBJECT   => '_SHOW',
           STATE_ID  => '_SHOW',
           DATE      => '_SHOW'
@@ -499,7 +530,8 @@ sub admin_routes {
           COLS_NAME => 1,
           SUBJECT   => '_SHOW',
           STATE_ID  => '_SHOW',
-          DATE      => '_SHOW'
+          DATE      => '_SHOW',
+          DESC      => 'DESC'
         });
 
         my @extra_params = (
@@ -552,6 +584,7 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        delete $query_params->{REPLY_INNER_MSG} if !$self->{permissions}{1} || !$self->{permissions}{1}{7};
         $Msgs->message_reply_add({ %{$query_params}, ID => $path_params->{id} });
       },
       credentials => [

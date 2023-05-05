@@ -10,7 +10,8 @@ use feature 'say';
 
 =head1 VERSION
 
-  VERSION: 0.04
+  VERSION: 0.09
+  UPDATED: 20230412
 
 =head1 SYNOPSIS
 
@@ -28,7 +29,9 @@ use feature 'say';
      --skip-backup    - skip copying current sources
      --login          - support login
      --password       - support password
-     --license, -dl   - ONLY renew license
+     license, -dl   - ONLY renew license
+     --modules, -m    - LIst availeble modules
+     --download=xxx   - Download module
 
 =head1 PURPOSES
 
@@ -44,7 +47,7 @@ use feature 'say';
 
 =cut
 
-our $VERSION = 0.03;
+our $VERSION = 0.08;
 
 # Core modules from at least Perl 5.6
 use Getopt::Long qw/GetOptions HelpMessage :config auto_help auto_version ignore_case/;
@@ -87,7 +90,10 @@ BEGIN {
     'password=s'                    => \$OPTIONS{PASSWORD},
     'dl|license'                    => \$OPTIONS{renew_license},
     'sql-update|sql_update'         => \$OPTIONS{update_sql},
-    'apache_check'                  => \$OPTIONS{apache_check}
+    'modules|m'                     => \$OPTIONS{modules_list},
+    'download=s'                    => \$OPTIONS{module},
+    'apache_check'                  => \$OPTIONS{apache_check},
+    'force'                         => \$OPTIONS{FORCE_UPDATE},
   ) or die pod2usage();
 
   if (!-d $OPTIONS{PREFIX} && !-d "$OPTIONS{PREFIX}/lib") {
@@ -139,7 +145,7 @@ my $backup_dir = $base_dir . "_$date";
 
 my $recommended_perl_version = '5.018000';
 my $minimal_perl_version = '5.018000';
-my $recommended_sql_version = '5.7.6';
+my $recommended_sql_version = '5.7.06';
 
 my @abills_var_directories = (
   '/var',
@@ -153,7 +159,6 @@ my $SYS_ID = get_sys_id();
 my $ABILLS_SIGN = authenticate();
 chomp $SYS_ID;
 chomp $ABILLS_SIGN;
-
 
 update();
 
@@ -171,6 +176,10 @@ sub update {
   elsif (!$ABILLS_SIGN) {
     say 'Authentication required';
     return 0;
+  }
+  elsif ($OPTIONS{modules_list}) {
+    modules_list();
+    return 1;
   }
   elsif ($OPTIONS{renew_license}) {
     if (renew_license()) {
@@ -228,6 +237,14 @@ sub full_update {
   update_modules();
   renew_license();
 
+  #add update date
+  if (-f "$OPTIONS{PREFIX}/VERSION") {
+    my $version = `cat $OPTIONS{PREFIX}/VERSION | awk '{ print \$1 }'`;
+    chomp($version);
+    print "!!!!!!!!!!!!!!!!! $version !!!!!!!!!!!!!!!!!!!!!";
+    `echo "$version $date" > "$OPTIONS{PREFIX}/VERSION"`;
+  }
+
   print "Success \n";
 
   return 1;
@@ -239,6 +256,11 @@ sub full_update {
 =cut
 #**********************************************************
 sub get_os_information {
+
+  # if ($<) {
+  #   print " Program need root privileges! \n\n";
+  #   exit 0;
+  # }
 
   return %SYSTEM_INFO if (%SYSTEM_INFO);
 
@@ -356,6 +378,8 @@ sub get_hardware_info {
   my $hdd_size = '';
   my $interfaces = '';
 
+  $ENV{PATH} = "$ENV{PATH}:/sbin/:usr/sbin";
+
   if ($SYSTEM_INFO{OS} eq 'FreeBSD') {
     $cpu = `grep -i CPU: /var/run/dmesg.boot | cut -d \: -f2 | tail -1`;
     $cpu ||= `sysctl hw.model | sed "s/hw.model: //g"`;
@@ -377,7 +401,7 @@ sub get_hardware_info {
   elsif ($SYSTEM_INFO{OS} eq 'Linux') {
     $cpu = `cat /proc/cpuinfo |egrep '(model name)' | tail -1 |sed 's/.*\: //'|paste -s`;
     $cpu_count = `cat /proc/cpuinfo | grep '^processor' | tail -1 | sed 's/.*\: //'`;
-    chomp ($cpu_count);
+    chomp($cpu_count);
     if ($cpu_count && $cpu_count =~ /^\d+$/) {
       $cpu_count += 1;
     }
@@ -391,7 +415,8 @@ sub get_hardware_info {
 
     $hdd_size = `fdisk -l |head -2 |tail -1|awk '{print \$3,\$4}'|sed 's/,//'`;
     my $hdd_disk_name = `fdisk -l | head -2 | tail -1 | awk '{ print \$2 }' | sed 's/://'`;
-    if ($hdd_disk_name) {
+    my $hdparam = `which hdparm`;
+    if ($hdd_disk_name && $hdparam) {
       chomp $hdd_disk_name;
       $hdd_serial = `hdparm -I ${hdd_disk_name} | grep Serial | awk -F ":" '{print \$2}' | tr -cs -`;
       $hdd = `hdparm -I ${hdd_disk_name} | grep Model | awk -F ":" '{print \$2}' | tr -cs -`;
@@ -453,29 +478,31 @@ sub authenticate {
 
   return $ABILLS_SIGN if ($ABILLS_SIGN);
 
-  if (-f '/usr/abills/libexec/.updater') {
-    $ABILLS_SIGN = _read_file('/usr/abills/libexec/.updater');
+  my $update_sign = $ENV{'HOME'} . '/.updater' || '/usr/abills/libexec/.updater';
+
+  if (-f $update_sign) {
+    $ABILLS_SIGN = _read_file($update_sign);
     chomp $ABILLS_SIGN;
   }
 
-  if (!${ABILLS_SIGN}) {
+  if (!$ABILLS_SIGN) {
     my ($username, $password) = _get_support_credentials();
 
     my $hostname = `hostname`;
     chomp($hostname);
 
     my $request_result = web_request($ABILLS_UPDATE_URL, {
-        CURL           => 1,
-        REQUEST_PARAMS => {
-          SIGN     => $HARDWARE_INFO{id},
-          L        => $username,
-          P        => $password,
-          H        => $hostname,
-          SYS_ID   => $SYS_ID,
-          sys_info => $HARDWARE_INFO{sys_info},
-        },
-        DEBUG          => $DEBUG > 4
-      }
+      CURL           => 1,
+      REQUEST_PARAMS => {
+        SIGN     => $HARDWARE_INFO{id},
+        L        => $username,
+        P        => $password,
+        H        => $hostname,
+        SYS_ID   => $SYS_ID,
+        sys_info => $HARDWARE_INFO{sys_info},
+      },
+      DEBUG          => $DEBUG > 4
+    }
     );
 
     if (!$request_result || $request_result !~ 'Registration complete') {
@@ -484,7 +511,7 @@ sub authenticate {
     }
 
     $ABILLS_SIGN = $HARDWARE_INFO{id};
-    `echo -n $ABILLS_SIGN > /usr/abills/libexec/.updater`;
+    `echo -n $ABILLS_SIGN > $update_sign`;
   }
 
   return $ABILLS_SIGN;
@@ -516,19 +543,19 @@ sub sources_update {
     my @command_options = ();
 
     my $temprorary_abills_git_sources_dir = "$TEMP_DIR/abills";
-    if (-d  $temprorary_abills_git_sources_dir) {
+    if (-d $temprorary_abills_git_sources_dir) {
       $git_cmd .= 'pull';
-      push (@git_options, "-C $temprorary_abills_git_sources_dir");
+      push(@git_options, "-C $temprorary_abills_git_sources_dir");
       if ($GIT_BRANCH) {
-        push (@command_options, "origin $GIT_BRANCH");
+        push(@command_options, "origin $GIT_BRANCH");
       }
     }
     else {
       $git_cmd .= "clone";
-      push (@git_options, "-C $TEMP_DIR");
+      push(@git_options, "-C $TEMP_DIR");
       if ($GIT_BRANCH) {
-        push (@command_options, "-b $GIT_BRANCH --single-branch");
-        push (@command_options, 'git@abills.net.ua:abills.git');
+        push(@command_options, "-b $GIT_BRANCH --single-branch");
+        push(@command_options, 'git@abills.net.ua:abills.git');
       }
     }
 
@@ -635,6 +662,10 @@ sub update_sql {
     return 0;
   }
 
+  print "Check SQL updates\n";
+  `$OPTIONS{PREFIX}/misc/db_check/db_check.pl -a`;
+
+  return 1;
   my $last_updated = '';
 
   # Read from `config` table las tupdate
@@ -656,17 +687,17 @@ sub update_sql {
     my $update_url = '';
     my $update_date = 0;
 
-    if ($conf{version}) {
-      (undef, $update_date) = split('\/', $conf{version});
-      $update_url = "http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.5x&do=export_raw";
-      say "Update date: $update_date";
-    }
+    # if ($conf{version}) {
+    #   (undef, $update_date) = split('\/', $conf{version});
+    #   $update_url = "http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.5x&do=export_raw";
+    #   say "Update date: $update_date";
+    # }
 
     if (-e "$base_dir/VERSION") {
       my $version_content = _read_file("$base_dir/VERSION");
       (undef, $update_date) = split(' ', $version_content);
       $update_date ||= 0;
-      $update_url = "http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.7x&do=export_raw";
+      #$update_url = "http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.7x&do=export_raw";
     }
 
     if ($update_date < 99999999) {
@@ -691,7 +722,7 @@ sub update_sql {
 
   my $dev_update = pop @sorted_updated_files;
 
-  my @to_execute = grep {$_ gt $last_updated}  @sorted_updated_files;
+  my @to_execute = grep {$_ gt $last_updated} @sorted_updated_files;
 
   # execute sql
   foreach my $file_to_execute (@to_execute) {
@@ -731,23 +762,24 @@ sub renew_license {
   #  fi;
 
   my $sign = authenticate();
-  return 0 unless $sign;
+
+  return 0 if (!$sign);
 
   my $request_result = web_request($ABILLS_UPDATE_URL, {
-      CURL           => 1,
-      REQUEST_PARAMS => {
-        sign       => $sign,
-        SYS_ID     => $SYS_ID,
-        VERSION    => $ABILLS_VERSION,
-        getupdate => 1,
-        get_key    => 1,
-      },
-      DEBUG          => $DEBUG > 4
-    }
+    CURL           => 1,
+    REQUEST_PARAMS => {
+      sign      => $sign,
+      SYS_ID    => $SYS_ID,
+      VERSION   => $ABILLS_VERSION,
+      getupdate => 1,
+      get_key   => 1,
+    },
+    DEBUG          => $DEBUG > 4
+  }
   );
 
-  if ($request_result !~ /^\d+$/) {
-    say "  !! Failed to receive new license";
+  if (!$request_result || $request_result !~ /^\d+$/) {
+    say "  !! Failed to receive new license\n";
     print $request_result;
     if (_read_input('PROCCEED_WITH_WRONG_LICENSE', "Do you want to proceed without license?", 'n') eq 'n') {
       say "Exit";
@@ -811,7 +843,7 @@ sub calculate_sys_id {
   }
 
   if (!$sys_id) {
-    $sys_id = join ('', values %SYSTEM_INFO, localtime);
+    $sys_id = join('', values %SYSTEM_INFO, localtime);
   }
 
   chomp($sys_id);
@@ -855,45 +887,9 @@ sub get_sys_id {
 =cut
 #**********************************************************
 sub update_modules {
-  my @modules_to_check = qw(Paysys Ashield Turbo Maps Storage Ureports Cablecat);
+  my @modules_to_check = qw(Paysys Turbo Maps Storage Ureports Cablecat);
 
   my $directory_to_look_for_new_sources = $TEMP_DIR . '/abills_rel';
-
-  my $find_file_version_in = sub {
-    my ($file_name) = shift;
-
-    # Read file until find line with version
-    open (my $fh, '<', $file_name) or die "Can't open $file_name : $!\n";
-
-    my $file_version = 0;
-    while (my $line = <$fh>) {
-      if ($line =~ /VERSION\s?=\s?([0-9.]+)/) {
-        $file_version = $1;
-        last;
-      }
-    }
-
-    $file_version;
-  };
-
-  my $find_required_version_in = sub {
-    my ($file_name) = shift;
-    #    REQUIRE_VERSION => 7.13,
-
-    # Read file until find line with version
-    open (my $fh, '<', $file_name) or die "Can't open $file_name : $!\n";
-
-    my $required_version = 0;
-
-    while (my $line = <$fh>) {
-      if ($line =~ /REQUIRE_VERSION\s?=>\s?([0-9.]+)/) {
-        $required_version = $1;
-        last;
-      }
-    }
-
-    $required_version;
-  };
 
   # Table view
   print sprintf("%-17s|%-10s|%-10s\n", 'Module', 'Current', 'Required');
@@ -909,10 +905,10 @@ sub update_modules {
     my $webinterface_full_path = "$directory_to_look_for_new_sources/Abills/modules/$module_name/webinterface";
 
     # Get version from current file
-    my $current_version = $find_file_version_in->($current_full_path);
+    my $current_version = _read_file($current_full_path, { GET_VERSION => 1 });
 
     # Get version from new file
-    my $required_version = $find_required_version_in->($webinterface_full_path);
+    my $required_version = _read_file($webinterface_full_path, { GET_VERSION => 1 }); #$find_required_version_in->($webinterface_full_path);
 
     print sprintf(" %-16s|%-10s|%-10s\n", $module, $current_version, $required_version);
 
@@ -921,14 +917,10 @@ sub update_modules {
 
     print "$module should be updated to new version\n";
 
-    # Make backup of old copy
-    File::Copy::cp("$base_dir/$relative_file_path", "$base_dir/$relative_file_path\_$current_version");
-    print "$module old file saved to $base_dir/$relative_file_path\_$current_version\n";
-
     # Download
     my $downloaded_module = download_module($module_name, "$base_dir/$relative_file_path");
     if ($downloaded_module) {
-      my $new_version = $find_file_version_in->("$base_dir/$relative_file_path");
+      my $new_version = _read_file("$base_dir/$relative_file_path", { GET_VERSION => 1 });
       print "Successfuly uppdated $module_name to $new_version\n";
     }
     else {
@@ -940,27 +932,31 @@ sub update_modules {
 }
 
 #**********************************************************
-=head2 download_module() - using Sharing
+=head2 download_module($module_name, $destination) - using Sharing
 
 =cut
 #**********************************************************
 sub download_module {
   my ($module_name, $destination) = @_;
 
+  my $current_version = _read_file("$destination", { GET_VERSION => 1 });
+  File::Copy::cp("$destination", "$destination\_$current_version");
+  print "$module_name old file saved to $destination\_$current_version\n";
+
   say "Downloading $module_name";
   my $sys_id = get_sys_id();
 
   my $module_info = web_request($ABILLS_UPDATE_URL, {
-      REQUEST_PARAMS => {
-        sign   => $ABILLS_SIGN,
-        SYS_ID => $sys_id,
-        module => $module_name,
-        json   => 1
-      },
-      CURL           => 1,
-      JSON_RETURN    => 1,
-      DEBUG          => $DEBUG > 4
-    });
+    REQUEST_PARAMS => {
+      sign   => $ABILLS_SIGN,
+      SYS_ID => $sys_id,
+      module => $module_name,
+      json   => 1
+    },
+    CURL           => 1,
+    JSON_RETURN    => 1,
+    DEBUG          => $DEBUG > 4
+  });
 
   if (!$module_info->{purchased}) {
     my $time = $module_info->{time};
@@ -986,12 +982,12 @@ sub download_module {
 
       # Check credentials
       my $buyed = web_request($SUPPORT_URL, {
-          POST        => "user=$username&passwd=$password&get_index=sharing_user_main&BUY=$file_id&json=1",
-          COOKIE      => 1,
-          INSECURE    => 1,
-          JSON_RETURN => 1,
-          DEBUG       => $DEBUG > 4
-        });
+        POST        => "user=$username&passwd=$password&get_index=sharing_user_main&BUY=$file_id&json=1",
+        COOKIE      => 1,
+        INSECURE    => 1,
+        JSON_RETURN => 1,
+        DEBUG       => $DEBUG > 4
+      });
 
       if ($buyed && $buyed->{MESSAGE}) {
         my $mes = $buyed->{MESSAGE};
@@ -1006,14 +1002,14 @@ sub download_module {
 
   # Download new file
   my $file_content = web_request($ABILLS_UPDATE_URL, {
-      REQUEST_PARAMS => {
-        sign   => $ABILLS_SIGN,
-        SYS_ID => $sys_id,
-        module => $module_name
-      },
-      CURL           => 1,
-      DEBUG          => $DEBUG > 4
-    });
+    REQUEST_PARAMS => {
+      sign   => $ABILLS_SIGN,
+      SYS_ID => $sys_id,
+      module => $module_name
+    },
+    CURL           => 1,
+    DEBUG          => $DEBUG > 4
+  });
 
   # Check file
   if (!$file_content || length($file_content) < 100) {
@@ -1182,21 +1178,14 @@ sub check_sql_version {
 
   my $split_and_compare = sub {
     my ($ver_1, $ver_2) = @_;
+    $ver_1 =~ s/\.//g;
+    $ver_2 =~ s/\.//g;
 
-    my @vers1 = split('\.', $ver_1);
-    my @vers2 = split('\.', $ver_2);
-
-    my $lower_length = ($#vers1 < $#vers2) ? $#vers1 : $#vers2;
-
-    my $res = 1;
-    for (my $i = 0; $i <= $lower_length; $i++) {
-      last if ($vers1[$i] >= $vers2[$i]);
-      if ($vers1[$i] < $vers2[$i]) {
-        $res = 0;
-      }
+    if ($ver_1 < $ver_2) {
+      return 0;
     }
 
-    $res;
+    return 1;
   };
 
   my $sql_version = 0;
@@ -1305,12 +1294,12 @@ sub _get_support_credentials {
   }
 
   my $access_check = web_request($SUPPORT_URL, {
-      POST        => "user=$username&passwd=$password&index=10&json=1",
-      COOKIE      => 1,
-      INSECURE    => 1,
-      JSON_RETURN => 1,
-      DEBUG       => $DEBUG > 4
-    });
+    POST        => "user=$username&passwd=$password&index=10&json=1",
+    COOKIE      => 1,
+    INSECURE    => 1,
+    JSON_RETURN => 1,
+    DEBUG       => $DEBUG > 4
+  });
 
   if (!$access_check || ($access_check->{errno} && $access_check->{errno} eq '2')) {
 
@@ -1370,7 +1359,7 @@ sub _read_input {
 
   my @complete_arguments = $prompt;
   if ($attr->{COMPLETE_LIST} && ref $attr->{COMPLETE_LIST} eq 'ARRAY') {
-    push @complete_arguments, @{ $attr->{COMPLETE_LIST} || [] };
+    push @complete_arguments, @{$attr->{COMPLETE_LIST} || []};
   }
 
   ASK_VALUE:
@@ -1400,13 +1389,34 @@ sub _read_input {
 =cut
 #**********************************************************
 sub _read_file {
-  my ($path) = @_;
+  my ($filename, $attr) = @_;
 
   my $content = '';
 
-  open(my $fh, '<', $path) or return 0;
-  while (<$fh>) {
-    $content .= $_;
+  if ( -f $filename ) {
+    open(my $fh, '<', $filename) or return 0;
+    while (my $line = <$fh>) {
+      if ($attr->{GET_VERSION}) {
+        if ($line =~ /REQUIRE_VERSION\s?=>\s?([0-9.]+)/) {
+          $content = $1;
+          return $content;
+        }
+        elsif ($line =~ /VERSION\s?=\s?([0-9.]+)/) {
+          $content = $1;
+          return $content;
+        }
+        elsif ($line =~ /VERSION\:\s+([0-9.]+)/) {
+          $content = $1;
+          return $content;
+        }
+      }
+      else {
+        $content .= $line;
+      }
+    }
+  }
+  else {
+    $content = '-1';
   }
 
   return $content;
@@ -1427,7 +1437,7 @@ sub _read_file {
 sub _write_to_file {
   my ($file_content, $destination) = @_;
 
-  open (my $fh, '>', $destination) or do {
+  open(my $fh, '>', $destination) or do {
     say " !!! Can't save file $destination : $!";
     return 0;
   };
@@ -1527,11 +1537,11 @@ sub _download_and_parse_sql_updates {
   say "Download sql updates";
 
   my $update_sql_result = web_request($update_url, {
-      CURL           => 1,
-      REQUEST_PARAMS => {
-      },
-      DEBUG          => $DEBUG > 4
-    }
+    CURL           => 1,
+    REQUEST_PARAMS => {
+    },
+    DEBUG          => $DEBUG > 4
+  }
   );
 
   # make array of all changelog dates
@@ -1568,18 +1578,87 @@ sub apache_check {
 
   use FindBin '$Bin';
   my $apache_log_dir = q{/var/log/httpd/};
-  my $filters      = q{};
+  my $filters = q{};
   my $filter_expr = $Bin . '/.apache_check_filter';
 
   if (-f $filter_expr) {
     $filters = `cat $filter_expr`;
     my @filter_rows = split(/\n/, $filters);
     if (-d $apache_log_dir) {
-      foreach my $filter ( @filter_rows ) {
+      foreach my $filter (@filter_rows) {
         my $cmd = qq{grep "$filter" $apache_log_dir/*};
         print $cmd if ($DEBUG);
         my $result = `$cmd`;
         print $result;
+      }
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 modules_list()
+
+=cut
+#**********************************************************
+sub modules_list {
+
+  my $sys_id = get_sys_id();
+  my $module_info = web_request($ABILLS_UPDATE_URL, {
+    REQUEST_PARAMS => {
+      sign   => $ABILLS_SIGN,
+      SYS_ID => $sys_id,
+      modules_list => 1,
+      json   => 1
+    },
+    CURL           => 1,
+    JSON_RETURN    => 1,
+    DEBUG          => $DEBUG > 4
+  });
+
+  printf(" %-36s|%8s|%10s|%-10s|%-20s|%5s|\n", 'Module', 'Remote', 'Local', 'Subsribe', 'Path', '-');
+  print("-----------------------------------------------------------------------------------------------\n");
+
+  #print %$module_info;
+  if (ref $module_info eq 'HASH') {
+    print "[ERROR] Try again\n";
+    exit;
+  }
+
+  foreach my $module (@$module_info) {
+    my $path = $module->{path} || q{};
+    my $module_name = $module->{name};
+    my $local_file = $OPTIONS{PREFIX} . '/'. $module->{path} .'/' . $module_name;
+
+    if ($module_name =~ /Paysys_old/ ) {
+      next;
+    }
+
+    my $cur_version = _read_file($local_file, { GET_VERSION => 1 });
+    my $local_version = $cur_version || 0;
+    print " ($module->{version} || 0) > $local_version) / $local_file\n\n";
+    print sprintf(" %-36s|%8s|%10s|%-10s|%-20s|%5s|\n",
+      $module_name,
+      ((($module->{version} || 0) > $local_version) ? '>>' : '') . $module->{version},
+      ($cur_version eq '-1') ? 'Not exist' : $cur_version,
+      $module->{expire},
+      $path,
+      ''
+    );
+
+    if ($cur_version eq '-1'
+       || ( $OPTIONS{FORCE_UPDATE} && ($module->{version} || 0) > $local_version )
+       || ($OPTIONS{module} && $OPTIONS{module} eq $module_name)) {
+      my $downloaded_module = $module_name;
+      $downloaded_module =~ s/\.pm//;
+      my $res = download_module($downloaded_module, $local_file);
+      if ($res) {
+        my $new_version = _read_file($local_file, { GET_VERSION => 1 });
+        print "Successfuly updated $module_name to $new_version ($local_file)\n";
+      }
+      else {
+        say " !!! There were problems while downloading $module_name";
       }
     }
   }

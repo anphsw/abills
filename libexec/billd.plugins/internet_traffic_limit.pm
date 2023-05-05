@@ -7,6 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(date_diff in_array);
+use Internet;
 
 our (
   $db,
@@ -14,18 +15,17 @@ our (
   $Admin,
   %conf,
   %lang,
-  $Internet,
   $Sessions,
   $debug,
   %LIST_PARAMS,
   $DATE,
   $TIME,
-  $Nas
+  $Nas,
+  $argv,
 );
 
 $admin = $Admin;
-
-my Internet $Internet = $Internet;
+my $Internet = Internet->new($db, $Admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 
 $conf{MB_SIZE} = $conf{KBYTE_SIZE} * $conf{KBYTE_SIZE};
@@ -161,7 +161,7 @@ sub internet_traffic_limit_block {
       DEPOSIT         => '_SHOW',
       CREDIT          => '_SHOW',
       TP_CREDIT       => '_SHOW',
-      MONTH_FEE       => '>0',
+      MONTH_FEE       => ($conf{AMOUNT_MONTH_FEE_BLOCK_FROM}) ? $conf{AMOUNT_MONTH_FEE_BLOCK_FROM} : '_SHOW',
       TP_ID           => $tp->{tp_id},
       INTERNET_STATUS => 0,
       #    DAY_TRAF_LIMIT   => '_SHOW',
@@ -260,7 +260,7 @@ sub internet_traffic_limit_block {
             if($debug < 6) {
               $Internet->user_change({
                 UID    => $uid,
-                STATUS => 10
+                STATUS => ($argv->{BLOCK_STATUS}) ? ($argv->{BLOCK_STATUS}) : 10,
               });
             }
           }
@@ -300,7 +300,7 @@ sub internet_traffic_limit_unblock {
   });
 
   foreach my $tp ( @$tp_list ) {
-    if($tp->{PREPAID}
+    if($tp->{PREPAID} || 0
       + $tp->{WEEK_TRAF_LIMIT}
       + $tp->{DAY_TRAF_LIMIT}
       + $tp->{MONTH_TRAF_LIMIT}

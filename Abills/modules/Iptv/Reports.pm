@@ -248,7 +248,7 @@ sub iptv_console {
 =cut
 #**********************************************************
 sub iptv_users_fees {
-
+  require Control::Reports;
   reports({
     EXT_SELECT      => tv_services_sel(),
     EXT_SELECT_NAME => $lang{SERVICES},

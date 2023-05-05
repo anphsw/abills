@@ -19,14 +19,8 @@
     <div id='MAIN_CONTAINER'>
       <form action='$SELF_URL' METHOD='post' name='form_registration' id='form_registration'>
         <input type='hidden' name='PIN_FORM' value='1'>
-        <input type='hidden' name='LOGIN' value='%LOGIN%'>
-        <input type='hidden' name='FIO' value='%FIO%'>
         <input type='hidden' name='EMAIL' value='%EMAIL%'>
         <input type='hidden' name='PHONE' value='%PHONE%'>
-        <input type='hidden' name='USER_IP' value='%USER_IP%'>
-        <input type='hidden' name='REFERRER' value='%REFERRER%'>
-        <input type='hidden' name='newpassword' value='%newpassword%'>
-        <input type='hidden' name='confirm' value='%confirm%'>
 
         <div class='row p-0 m-0'>
           <div class='input-group'>
@@ -52,7 +46,6 @@
 
       <a href='/'>_{AUTH}_</a>
 
-      </div>
     </div>
   </div>
 </div>

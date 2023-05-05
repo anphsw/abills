@@ -58,7 +58,7 @@ if (defined($argv->{DEL})) {
   $action = "DELETE";
 }
 
-if (defined($argv->{'-h'})) {
+if (defined($argv->{'-h'}) || defined($argv->{'help'})) {
   help();
   exit;
 }

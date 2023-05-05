@@ -7,8 +7,6 @@
 use strict;
 use warnings FATAL => 'all';
 use Users;
-use Internet;
-use Service;
 use List::Util qw/max min/;
 require Abills::Misc;
 
@@ -24,7 +22,6 @@ our (
 our Abills::HTML $html;
 
 my $Users = Users->new($db, $admin, \%conf);
-my $Internet = Internet->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 report_new_all_customers() - show chart for new and all customers
@@ -251,7 +248,8 @@ sub report_new_arpu {
 =cut
 #**********************************************************
 sub report_balance_by_status {
-
+  require Service;
+  Service->import();
   my $Service = Service->new($db, $admin, \%conf);
   my $status_list = $Service->status_list({
     NAME      => '_SHOW',
@@ -271,6 +269,10 @@ sub report_balance_by_status {
 
   my $list_index = get_function_index('internet_users_list');
 
+  require Internet;
+  Internet->import();
+
+  my $Internet = Internet->new($db, $admin, \%conf);
   if ($FORM{DEBUG}) {
     $Internet->{debug} = 1;
   }

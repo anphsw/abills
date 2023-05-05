@@ -17,7 +17,7 @@ use warnings FATAL => 'all';
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Ureports',
-  REQUIRE_VERSION => 7.76,
+  REQUIRE_VERSION => 8.02,
 })) {
 
   exit;
@@ -51,7 +51,9 @@ my $Fees = Fees->new($db, $admin, \%conf);
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 
-my %service_type = %{$Sender->available_types({ CLIENT => 1, HASH_RETURN => 1 })};
+my %service_type = %{$Sender->available_types(
+  { CLIENT => 1, HASH_RETURN => 1, SOFT_CHECK => 1 }
+)};
 if (in_array('Sms', \@MODULES)) {
   $service_type{1} = 'Sms';
 }

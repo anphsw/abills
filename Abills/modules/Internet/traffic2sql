@@ -146,6 +146,7 @@ $log_file = $argv->{log} if ($argv->{log});
 
 my $FLOW_CAT = $argv->{FLOW_CAT} || '/usr/local/bin/flow-cat';
 my $FLOW_PRINT = $argv->{FLOW_PRINT} || '/usr/local/bin/flow-print';
+my $FLOW_NFDUMP = $argv->{FLOW_NFDUMP} || '/usr/bin/nfdump';
 
 $Ipn->{debug} = 1 if ($debug > 3);
 $conf{MB_SIZE} = $conf{KBYTE_SIZE} * $conf{KBYTE_SIZE};
@@ -201,7 +202,7 @@ sub flow_capture{
   my ($hour,$min,$sec) = split(/\:/, $TIME);
   my $previous_hour = $hour - 1;
 
-  if ( $argv->{NFSEN} ){
+  if ($argv->{NFSEN}){
     $flow_dir .= "/$year/$month/$day";
   }
 
@@ -281,7 +282,7 @@ sub flow_capture{
     elsif ("$log" =~ /nfcapd\.(\d+)/){
       # take flow for last hour +
       if ( $1 >= "$year$month$day$previous_hour$min"){
-        get_collector_data( "$flow_dir/$log");
+        get_collector_data( "$FLOW_NFDUMP -R $flow_dir/$log");
       }
     }
     else{
@@ -625,14 +626,7 @@ sub get_collector_data{
   }
   my %virus_allert_ips = ();
 
-  my $fh;
-  if ($argv->{NFSEN}){
-    open($fh, '-|', "nfdump -R $log") || die "Can't open log file '$log' $!\n";
-  }
-  else {
-    open($fh, $log ) || die "Can't open log file '$log' $!\n";
-  }
-
+  open(my $fh, '-|', $log) || die "Can't open log file '$log' $!\n";
 
   while (<$fh>) {
     # flow-capture
@@ -756,8 +750,11 @@ sub help{
    -d         - Deamon mode
    -fg        - foreground mode
 
-   FLOW_CAT   - Flow tools flow-cat location
-   FLOW_PRINT - Flow tools flow-print location\n";
+   FLOW_CAT    - Flow tools flow-cat location
+   FLOW_PRINT  - Flow tools flow-print location
+   FLOW_NFDUMP - Flow tools nfdump location\n
+
+";
 
   return 1;
 }

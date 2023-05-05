@@ -551,8 +551,8 @@ sub voip_tp_routes{
   my $exchange_rate = 1;
 
   $Conf->config_info( { PARAM => 'VOIP_ER' } );
-  if ( $users->{TOTAL} ){
-    $exchange_rate = $users->{VALUE};
+  if ( $Conf->{TOTAL} ){
+    $exchange_rate = $Conf->{VALUE};
   }
 
   if ( defined( $attr->{TP} ) ){
@@ -806,15 +806,13 @@ sub voip_exchange_rate{
     $FORM{VOIP_ER_CHANGED} = "$DATE $TIME";
     while (my ($k, $v) = each %FORM) {
       next if ($k !~ /^VOIP_/);
-      $Conf->config_add(
-        {
-          PARAM => $k,
-          VALUE => $v || q{}
-        }
-      );
+      $Conf->config_add({
+        PARAM => $k,
+        VALUE => $v || q{}
+      });
     }
 
-    if ( !$users->{errno} ){
+    if ( !$Conf->{errno} ){
       $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" );
       $admin->{MODULE} = 'Voip';
       $admin->system_action_add( $FORM{VOIP_ER}, { TYPE => 41 } );
@@ -834,7 +832,7 @@ sub voip_exchange_rate{
       );
     }
 
-    if ( !$users->{errno} ){
+    if ( !$Conf->{errno} ){
       $html->message( 'info', $lang{INFO}, $lang{CHANGED} );
       $admin->{MODULE} = 'Voip';
       $admin->system_action_add( $FORM{VOIP_ER}, { TYPE => 41 } );

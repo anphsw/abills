@@ -27,6 +27,20 @@ my $Mail = Mail->new($db, $admin, \%conf);
 $Mail->{ACTION}     = 'add';
 $Mail->{LNG_ACTION} = $lang{ADD};
 
+#*******************************************************************
+=head2 mail_user_del($uid) - Delete user from module
+
+=cut
+#*******************************************************************
+sub mail_user_del {
+  my ($uid) = @_;
+
+  $Mail->{UID} = $uid;
+  $Mail->mbox_del(undef, { UID => $uid, FULL_DELETE => 1 });
+
+  return 0;
+}
+
 #**********************************************************
 #  Global spamassassin configuration
 #**********************************************************
@@ -759,16 +773,15 @@ sub mail_domains {
   }
 
   my $list = $Mail->domain_list({ %LIST_PARAMS, %FORM });
-  my $table = $html->table(
-    {
-      width      => '100%',
-      title      => [ $lang{DOMAIN}, $lang{DESC}, $lang{STATUS}, 'Backup_MX', $lang{TRANSPORT}, $lang{CREATE}, $lang{CHANGE}, '-', '-' ],
-      cols_align => [ 'left', 'left', 'center', 'right', 'right', 'center', 'center' ],
-      qs         => $pages_qs,
-      pages      => $Mail->{TOTAL},
-      ID         => 'MAIL_DOMAINS'
-    }
-  );
+  my $table = $html->table({
+    caption    => "E-mail $lang{DOMAINS}",
+    width      => '100%',
+    title      => [ $lang{DOMAIN}, $lang{DESC}, $lang{STATUS}, 'Backup_MX', $lang{TRANSPORT}, $lang{CREATE}, $lang{CHANGE}, '-', '-' ],
+    cols_align => [ 'left', 'left', 'center', 'right', 'right', 'center', 'center' ],
+    qs         => $pages_qs,
+    pages      => $Mail->{TOTAL},
+    ID         => 'MAIL_DOMAINS'
+  });
 
   foreach my $line (@$list) {
     my $delete = $html->button($lang{DEL}, "index=$index&del=$line->[8]", { MESSAGE => "$lang{DEL} '$line->[0]'?", class => 'del' });
@@ -778,17 +791,18 @@ sub mail_domains {
       "$bool_vals[$line->[3]]",
       "$line->[4]",
       "$line->[5]",
-      "$line->[6]", $html->button($lang{CHANGE}, "index=$index&MAIL_DOMAIN_ID=$line->[8]", { class => 'change' }), $delete);
+      "$line->[6]",
+      $html->button($lang{CHANGE}, "index=$index&MAIL_DOMAIN_ID=$line->[8]", { class => 'change' }),
+      $delete
+    );
   }
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$lang{TOTAL}:", $html->b($Mail->{TOTAL}) ] ]
-    }
-  );
+  $table = $html->table({
+    width      => '100%',
+    cols_align => [ 'right', 'right' ],
+    rows       => [ [ "$lang{TOTAL}:", $html->b($Mail->{TOTAL}) ] ]
+  });
 
   print $table->show();
 
@@ -817,7 +831,7 @@ sub mail_aliases {
   $Mail->{LNG_ACTION} = $lang{ADD};
 
   if ($FORM{add}) {
-    $Mail->alias_add({%FORM});
+    $Mail->alias_add({ %FORM, STATUS => !$FORM{DISABLE} ? 0 : 1 });
     if (!$Mail->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{ADDED}");
     }
@@ -846,30 +860,38 @@ sub mail_aliases {
     }
   }
 
-  my $list  = $Mail->alias_list({%FORM});
-  my $table = $html->table(
-    {
-      width      => '100%',
-      title      => [ $lang{ADDRESS}, "$lang{TO}", "$lang{COMMENTS}", $lang{STATUS}, $lang{CREATE}, $lang{CHANGE}, '-', '-' ],
-      cols_align => [ 'left', 'left', 'center', 'right', 'right', 'center', 'center' ],
-      qs         => $pages_qs,
-      pages      => $Mail->{TOTAL}
-    }
-  );
+  my $list  = $Mail->alias_list({ %FORM, %LIST_PARAMS });
+
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $lang{ALIASES},
+    title      => [ $lang{ADDRESS}, "$lang{TO}", "$lang{COMMENTS}", $lang{STATUS}, $lang{CREATE}, $lang{CHANGE}, '-', '-' ],
+    cols_align => [ 'left', 'left', 'center', 'right', 'right', 'center', 'center' ],
+    qs         => $pages_qs,
+    pages      => $Mail->{TOTAL}
+  });
 
   foreach my $line (@$list) {
     my $delete = $html->button($lang{DEL}, "index=$index&del=$line->[6]", { MESSAGE => "$lang{DEL} '$line->[0]'?", class => 'del' });
-    $table->addrow("$line->[0]", "$line->[1]", "$line->[2]", "$status[$line->[3]]", "$line->[4]", "$line->[5]", $html->button($lang{CHANGE}, "index=$index&MAIL_ALIAS_ID=$line->[6]", { class => 'change' }), $delete);
+    $table->addrow(
+      "$line->[0]",
+      "$line->[1]",
+      "$line->[2]",
+      "$status[$line->[3]]",
+      "$line->[4]",
+      "$line->[5]",
+      $html->button($lang{CHANGE}, "index=$index&MAIL_ALIAS_ID=$line->[6]", { class => 'change' }),
+      $delete
+    );
   }
+
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$lang{TOTAL}:", $html->b($Mail->{TOTAL}) ] ]
-    }
-  );
+  $table = $html->table({
+    width      => '100%',
+    cols_align => [ 'right', 'right' ],
+    rows       => [ [ "$lang{TOTAL}:", $html->b($Mail->{TOTAL}) ] ]
+  });
 
   print $table->show();
 
@@ -929,7 +951,14 @@ sub mail_transport {
 
   foreach my $line (@$list) {
     my $delete = $html->button($lang{DEL}, "index=$index&del=$line->[4]", { MESSAGE => "$lang{DEL} '$line->[0]'?", class => 'del' });
-    $table->addrow("$line->[0]", "$line->[1]", "$line->[2]", "$line->[3]", $html->button($lang{CHANGE}, "index=$index&MAIL_TRANSPORT_ID=$line->[4]", { class => 'change' }), $delete);
+    $table->addrow(
+      "$line->[0]",
+      "$line->[1]",
+      "$line->[2]",
+      "$line->[3]",
+      $html->button($lang{CHANGE}, "index=$index&MAIL_TRANSPORT_ID=$line->[4]", { class => 'change' }),
+      $delete
+    );
   }
   print $table->show();
 
@@ -989,30 +1018,34 @@ sub mail_access {
   }
 
   my $list  = $Mail->access_list({%FORM});
-  my $table = $html->table(
-    {
-      width      => '100%',
-      title      => [ $lang{VALUE}, "$lang{PARAMS}", "$lang{COMMENTS}", $lang{CHANGE}, '-', '-' ],
-      cols_align => [ 'left', 'left', 'left', 'center', 'center' ],
-      qs         => $pages_qs,
-      pages      => $Mail->{TOTAL},
-      ID         => 'MAIL_ACCESS'
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    caption    => "E-mail $lang{ACCESS}",
+    title      => [ $lang{VALUE}, "$lang{PARAMS}", "$lang{COMMENTS}", $lang{CHANGE}, '-', '-' ],
+    cols_align => [ 'left', 'left', 'left', 'center', 'center' ],
+    qs         => $pages_qs,
+    pages      => $Mail->{TOTAL},
+    ID         => 'MAIL_ACCESS'
+  });
 
   foreach my $line (@$list) {
     my $delete = $html->button($lang{DEL}, "index=$index&del=$line->[5]", { MESSAGE => "$lang{DEL} '$line->[0]'?", class => 'del' });
-    $table->addrow("$line->[0]", "$line->[1]", "$line->[2]", "$line->[3]", $html->button($lang{CHANGE}, "index=$index&MAIL_ACCESS_ID=$line->[5]", { class => 'change' }), $delete);
+    $table->addrow(
+      "$line->[0]",
+      "$line->[1]",
+      "$line->[2]",
+      "$line->[3]",
+      $html->button($lang{CHANGE}, "index=$index&MAIL_ACCESS_ID=$line->[5]", { class => 'change' }),
+      $delete
+    );
   }
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      cols_align => [ 'right', 'right' ],
-      rows       => [ [ "$lang{TOTAL}:", $html->b($Mail->{TOTAL}) ] ]
-    }
-  );
+  $table = $html->table({
+    width      => '100%',
+    cols_align => [ 'right', 'right' ],
+    rows       => [ [ "$lang{TOTAL}:", $html->b($Mail->{TOTAL}) ] ]
+  });
   print $table->show();
 
   my ($faction, $code, $message) = ('', '', '');

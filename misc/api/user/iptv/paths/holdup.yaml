@@ -5,7 +5,9 @@ post:
   parameters:
     - name: ID
       in: path
-      description: ID услуги IPTV
+      description: >
+        Значение `id`, можно получить в ответе
+        в `GET /users/iptv` параметр `id`
       required: true
       schema:
         type: number
@@ -42,7 +44,9 @@ delete:
   parameters:
     - name: ID
       in: path
-      description: ID услуги IPTV
+      description: >
+        Значение `id`, можно получить в ответе
+        в `GET /users/iptv` параметр `id`
       required: true
       schema:
         type: number
@@ -79,7 +83,9 @@ get:
   parameters:
     - name: ID
       in: path
-      description: ID услуги IPTV
+      description: >
+        Значение `id`, можно получить в ответе
+        в `GET /users/iptv` параметр `id`
       required: true
       schema:
         type: number

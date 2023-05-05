@@ -563,14 +563,10 @@ sub equipment_ports {
   my $visual = $attr->{VISUAL} || $FORM{visual} || 0;
   if ( $visual == 0 && !$FORM{PORT} ){ #select port on abonent's page
     if ( $attr->{NAS_INFO}->{TYPE_ID} && $attr->{NAS_INFO}->{TYPE_ID} eq '4' ) { # 4 - PON
-      equipment_pon_onu({
-        %$attr,
-      });
+      equipment_pon_onu($attr);
     }
     else {
-      equipment_ports_select(
-        %$attr,
-      );
+      equipment_ports_select($attr);
     }
   }
   #Show vlans
@@ -583,10 +579,6 @@ sub equipment_ports {
   #Show ports
   elsif ( $visual == 2 && !$FORM{PORT}){
     equipment_ports_full( $attr );
-  }
-  # ARP SNMP
-  elsif ( $visual == 3 ){
-    equipment_arp($attr);
   }
   # Pon information
   elsif ( $visual == 4 ){

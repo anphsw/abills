@@ -294,6 +294,8 @@ sub sms_reports {
   }
   else {
     my $phone_search = $html->form_input('SMS_PHONE', $FORM{SMS_PHONE});
+
+    require Control::Reports;
     reports({
       PERIOD_FORM     => 1,
       DATE_RANGE      => 1,

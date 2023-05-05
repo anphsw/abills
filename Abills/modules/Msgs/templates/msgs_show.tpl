@@ -11,11 +11,20 @@
       <div class='card card-outline %MAIN_PANEL_COLOR%'>
         <div class='card-header'>
           <h3 class='card-title'>
-            <span class='badge badge-primary'>%ID%</span>
-              %SUBJECT% %CHANGE_SUBJECT_BUTTON%
+            <span
+                class='badge badge-primary mr-1'
+                data-tooltip='_{COPIED}_!'
+                data-tooltip-onclick='1'
+                data-tooltip-position='top'
+                onclick='copyToBuffer("#%ID%")'
+                style='font-size: inherit; margin: -.03em 0; cursor: pointer;'
+            >
+              #%ID%
+            </span>
+            %SUBJECT%
           </h3>
           <div class='card-tools'>
-            %RATING_ICONS% %MSG_TAGS% %PARENT_MSG% %INNER_MSG_TAG%
+            %CHANGE_SUBJECT_BUTTON% %MSG_TAGS% %PARENT_MSG% %INNER_MSG_TAG% %RATING_ICONS%
           </div>
         </div>
 

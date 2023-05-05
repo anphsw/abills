@@ -10,13 +10,13 @@
     </div>
     <div class='card-body'>
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right' for='NAME'>_{NAME}_:</label>
+        <label class='col-md-4 col-form-label text-md-right required' for='NAME'>_{NAME}_:</label>
         <div class='col-md-8'>
           <input type='text' name='NAME' id='NAME' value='%NAME%' placeholder='_{NAME}_' class='form-control' required>
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right' for='DESCR'>_{DESCRIBE}_:</label>
+        <label class='col-md-4 col-form-label text-md-right required' for='DESCR'>_{DESCRIBE}_:</label>
         <div class='col-md-8'>
           <textarea name='DESCR' id='DESCR' placeholder='_{DESCRIBE}_' class='form-control' required>%DESCR%</textarea>
         </div>

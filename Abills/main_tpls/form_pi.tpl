@@ -2,7 +2,6 @@
 
   <input type='hidden' name='index' value='$index'>
   <input type=hidden name=UID value='%UID%'>
-  <input type='hidden' name='FIO_REQUIRE' id='FIO_REQUIRE' value='$FORM{FIO_REQUIRE}'>
 
   <div class='%FORM_ATTR%'>
     %MAIN_USER_TPL%
@@ -18,10 +17,10 @@
 
     <div class='card-body'>
       <div class='form-group row' id='simple_fio'>
-        <label class='col-sm-3 col-md-2 text-right control-label' for='FIO'>_{FIO}_:</label>
+        <label class='col-sm-3 col-md-2 text-right control-label %FIO_REQ%' for='FIO'>_{FIO}_:</label>
         <div class='col-sm-9 col-md-10'>
           <div class='input-group'>
-            <input name='FIO' class='form-control' %FIO_READONLY% id='FIO' value='%FIO%'>
+            <input name='FIO' class='form-control' %FIO_REQ% %FIO_READONLY% id='FIO' value='%FIO%'>
             <div class='input-group-append'>
               <button id='show_fio' type='button' class='btn btn-default' tabindex='-1'>
                 <i class='fa fa-bars'></i>
@@ -205,12 +204,5 @@
   jQuery('#hide_fio').click(function() {
     jQuery('#simple_fio').removeClass('d-none');
     jQuery('#full_fio').css('display', 'none');
-  });
-
-  jQuery(function () {
-    var require_fields = jQuery('#FIO_REQUIRE').val();
-    if (require_fields == 'FIO_REQUIRE') {
-      jQuery('#FIO').attr('required', true);
-    }
   });
 </script>

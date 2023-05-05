@@ -281,5 +281,10 @@ $lang{SELECT_RESPONSIBLE} = 'Виберіть відповідального...'
 $lang{SET_TAGS} = 'Встановити мітки';
 $lang{SELECT_TAGS} = 'Виберіть мітки...';
 $lang{NOTIFICATIONS_ASSIGNED_MESSAGES_ONLY} = 'Сповіщення лише для призначених повідомлень';
+$lang{PUTTING_MESSAGE_IN_SEPARATE_SUBJECT} = 'Розміщення повідомлення в окремій темі';
+$lang{CHANGE_OF_DISPATCH} = 'Зміна наряду робіт';
+$lang{MESSAGES_CAN_BE_SENT_UP_TO_ONCE} = 'Повідомлення можна надсилати до одного разу на %SECONDS% секунд';
+$lang{LAST_MESSAGE_ID} = 'Id останнього повідомлення';
+
 
 1

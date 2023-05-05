@@ -156,6 +156,39 @@ sub crm_competitors_report {
 }
 
 #**********************************************************
+=head2 crm_top_admins()
+
+=cut
+#**********************************************************
+sub crm_top_admins {
+
+  my $top_admins = $Crm->crm_lead_list({
+    LEADS_NUMBER => '_SHOW',
+    ADMIN_NAME   => '_SHOW',
+    RESPONSIBLE  => '_SHOW',
+    GROUP_BY     => 'cl.responsible',
+    SORT         => 'leads_number',
+    DESC         => 'DESC',
+    COLS_NAME    => 1,
+    PAGE_ROWS    => 999999
+  });
+
+  my $admins_table = $html->table({
+    width   => '100%',
+    caption => $lang{CRM_TOP_ADMINS},
+    title   => [ '#', $lang{ADMIN}, "$lang{LEADS} ($lang{COUNT})" ],
+    ID      => 'CRM_TOP_ADMINS'
+  });
+
+  foreach my $responsible (@{$top_admins}) {
+    $admins_table->addrow($responsible->{responsible} || '',
+      $responsible->{responsible} ? ($responsible->{admin_name} || '') : $lang{CRM_WITHOUT_RESPONSIBLE}, $responsible->{leads_number});
+  }
+
+  return $admins_table->show();
+}
+
+#**********************************************************
 =head2 _crm_popularity_tariff_plans($attr)
 
 =cut

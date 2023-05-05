@@ -345,17 +345,17 @@ sub voip_user {
 
   my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{ALLOW_ANSWER}, $lang{DISABLE} . ':' . $lang{NON_PAYMENT});
 
-  $user = $Voip->user_info($FORM{UID});
+  $Voip->user_info($FORM{UID});
 
-  if ($user->{TOTAL} < 1) {
+  if ($Voip->{TOTAL} < 1) {
     $html->message('info', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 30105 });
-    $user = $Voip->defaults();
-    $user->{ACTION} = 'add';
-    $user->{LNG_ACTION} = $lang{ACTIVATE};
-    $user->{TP_DISPLAY_NONE} = "style='display:none'";
+    #$Voip = $Voip->defaults();
+    $Voip->{ACTION} = 'add';
+    $Voip->{LNG_ACTION} = $lang{ACTIVATE};
+    $Voip->{TP_DISPLAY_NONE} = "style='display:none'";
 
-    $user->{TP_ADD} = $html->form_select('TP_ID', {
-      SELECTED  => $FORM{TP_ID} || $user->{TP_ID} || 0,
+    $Voip->{TP_ADD} = $html->form_select('TP_ID', {
+      SELECTED  => $FORM{TP_ID} || $Voip->{TP_ID} || 0,
       SEL_LIST  => $Voip->tp_list({ COLS_NAME => 1 }),
       SEL_KEY   => 'tp_id',
       SEL_VALUE => 'id,name',
@@ -364,30 +364,31 @@ sub voip_user {
     });
   }
   else {
-    $user->{CHANGE_TP_BUTTON} = $html->button(
+    $Voip->{CHANGE_TP_BUTTON} = $html->button(
       $lang{CHANGE},
-      'UID=' . $user->{UID} . "&index=" . get_function_index('voip_chg_tp'),
+      'UID=' . $Voip->{UID} . "&index=" . get_function_index('voip_chg_tp'),
       { class => 'btn input-group-button hidden-print', ICON => "fa fa-pencil-alt", OUTPUT2RETURN => 1 }
     );
 
-    $user->{DEL_TP_BUTTON} = $html->button($lang{DEL}, "index=$index&del=1&UID=$user->{UID}",
+    $Voip->{DEL_TP_BUTTON} = $html->button($lang{DEL}, "index=$index&del=1&UID=$Voip->{UID}",
       {
-        MESSAGE       => "$lang{DEL} $lang{SERVICE} Voip $lang{FOR} $lang{USER} $user->{UID}?",
+        MESSAGE       => "$lang{DEL} $lang{SERVICE} Voip $lang{FOR} $lang{USER} $Voip->{UID}?",
         class         => 'btn btn-danger',
         OUTPUT2RETURN => 1
       }
     );
 
-    $user->{ACTION} = 'set';
-    $user->{LNG_ACTION} = $lang{CHANGE};
+    $Voip->{ACTION} = 'set';
+    $Voip->{LNG_ACTION} = $lang{CHANGE};
   }
 
-  $user->{ALLOW_ANSWER} = ' checked' if ($user->{ALLOW_ANSWER} && $user->{ALLOW_ANSWER} == 1);
-  $user->{ALLOW_CALLS} = ' checked' if ($user->{ALLOW_CALLS} && $user->{ALLOW_CALLS} == 1);
-  $user->{STATUS_SEL} = $html->form_select(
+  $Voip->{ALLOW_ANSWER} = ' checked ' if ($Voip->{ALLOW_ANSWER}); # && $Voip->{ALLOW_ANSWER} == 1);
+  $Voip->{ALLOW_CALLS} = ' checked' if ($Voip->{ALLOW_CALLS}); # && $Voip->{ALLOW_CALLS} == 1);
+
+  $Voip->{STATUS_SEL} = $html->form_select(
     'DISABLE',
     {
-      SELECTED => $user->{DISABLE} || 0,
+      SELECTED => $Voip->{DISABLE} || 0,
       SEL_HASH => {
         0 => $service_status[0],
         1 => $service_status[1],
@@ -399,27 +400,27 @@ sub voip_user {
     }
   );
 
-  if ($user->{DISABLE} > 0) {
-    $user->{STATUS_COLOR} = $service_status_colors[ $user->{DISABLE} ];
+  if ($Voip->{DISABLE}) {
+    $Voip->{STATUS_COLOR} = $service_status_colors[ $Voip->{DISABLE} ];
   }
 
-  $user->{NAS_SEL} = $html->form_select(
+  $Voip->{NAS_SEL} = $html->form_select(
     'PROVISION_NAS_ID',
     {
-      SELECTED       => $user->{PROVISION_NAS_ID} || $FORM{PROVISION_NAS_ID} || '',
+      SELECTED       => $Voip->{PROVISION_NAS_ID} || $FORM{PROVISION_NAS_ID} || '',
       SEL_LIST       => $Nas->list({ TYPE => 'ls_pap2t;ls_spa8000', COLS_NAME => 1, SHORT => 1, NAS_NAME => '_SHOW', PAGE_ROWS => 10000 })
         ,
       SEL_KEY        => 'nas_id',
       SEL_VALUE      => 'nas_name',
       MAIN_MENU      => get_function_index('form_nas'),
-      MAIN_MENU_ARGV => ($user->{NAS_ID}) ? "chg=$user->{NAS_ID}" : ''
+      MAIN_MENU_ARGV => ($Voip->{NAS_ID}) ? "chg=$Voip->{NAS_ID}" : ''
     }
   );
 
-  $user->{PROVISION} = $html->tpl_show(
+  $Voip->{PROVISION} = $html->tpl_show(
     templates('form_show_hide'),
     {
-      CONTENT     => $html->tpl_show(_include('voip_provision_user', 'Voip'), $user, { OUTPUT2RETURN => 1 }),
+      CONTENT     => $html->tpl_show(_include('voip_provision_user', 'Voip'), $Voip, { OUTPUT2RETURN => 1 }),
       NAME        => 'Provision',
       ID          => 'PROVISION',
       BUTTON_ICON => 'plus'
@@ -427,11 +428,11 @@ sub voip_user {
     { OUTPUT2RETURN => 1 }
   );
 
-  my $service_info = $html->tpl_show(_include('voip_user', 'Voip'), { %{$attr || {}}, %{$user} },
+  my $service_info = $html->tpl_show(_include('voip_user', 'Voip'), { %{$attr || {}}, %{$Voip} },
     { ID => 'voip_user', OUTPUT2RETURN => 1 });
 
   if ($Voip->{ID}) {
-    $service_info .= voip_phone_aliases({ %{$attr || {}}, %{$user}, %FORM, USER_INFO => $Voip });
+    $service_info .= voip_phone_aliases({ %{$attr || {}}, %{$Voip}, %FORM });
   }
 
   return '', $service_info if ($attr->{PROFILE_MODE});
@@ -463,8 +464,8 @@ sub voip_nas {
 #*******************************************************************
 sub voip_online {
 
-  if (!$permissions{5}{0}) {
-    $html->message('err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
+  if (!$permissions{5} || ! $permissions{5}{0}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
     return 0;
   }
 
@@ -474,7 +475,6 @@ sub voip_online {
     host_diagnostic($FORM{ping});
   }
   elsif ($FORM{hangup}) {
-    # ($nas_id, $acct_session_id, $user_name)
     my ($nas_id, $acct_session_id) = split(/ /, $FORM{hangup});
     $Nas->info({ NAS_ID => $nas_id, SECRETKEY => $conf{secretkey} });
 
@@ -632,11 +632,10 @@ sub voip_online {
   }
 
   $Sessions->online({ %LIST_PARAMS });
-  #my $dub_ports = $sessions->{dub_ports};
   my $dub_logins = $Sessions->{dub_logins};
 
   my $table = $html->table({
-    caption => "$cure",
+    caption => $cure,
     width   => '100%',
     title   => [
       $lang{USER},
@@ -667,8 +666,6 @@ sub voip_online {
       delete($table->{rowcolor});
       delete($table->{extra});
       if (defined($dub_logins->{ $line->[0] })) {$bg = '#FFFF00';}
-
-      #    elsif (defined($dub_ports->{$nas_row->[4]}{$line->[2]})) { $bg='#00FF40';    }
       elsif ($line->[9] == 3) {$bg = '#FF0000';}
 
       my $zap = $html->button('Z', "index=$index&zap=$nas_row->[0]+$line->[10]", { TITLE => 'Zap', class => 'del' });
@@ -694,7 +691,7 @@ sub voip_online {
 
   my $table2 = $html->table({
     width => '100%',
-    rows  => [ [ $html->b("$lang{TOTAL}:"), $html->b($Sessions->{TOTAL}), "$form_link" ] ]
+    rows  => [ [ $html->b("$lang{TOTAL}:"), $html->b($Sessions->{TOTAL}), $form_link ] ]
   });
 
   my $output = $table->show() . $table2->show();
@@ -703,7 +700,7 @@ sub voip_online {
     $output = $html->form_main({
       CONTENT => $output,
       HIDDEN  => {
-        index => "$index",
+        index => $index,
         ZAPED => 1
       },
       SUBMIT  => { go => "$lang{DEL}" },
@@ -721,9 +718,9 @@ sub voip_online {
           . $html->button('ZAP All', "index=$index&zapall=1",
           { class => 'btn btn-danger', IMG => ':tech_work.png', MESSAGE => $lang{MSG_WANT_ZAP} }), { class => 'card-body' }),
       { class => 'card card-primary card-outline card-form' });
+
     $output .= $html->form_main({
       CONTENT => $justelement,
-      #CONTENT => $table->show(),
       HIDDEN  => { index => "$index" },
       METHOD  => 'GET'
     });
@@ -960,8 +957,11 @@ sub voip_gk_console {
       undef($table->{rowcolor});
     }
 
-    $table->addrow($html->button("$line->[0]", "index=$index&NAS_ID=$line->[0]"), $line->[1], $line->[2],
-      $line->[3]);
+    $table->addrow($html->button("$line->[0]", "index=$index&NAS_ID=$line->[0]"),
+      $line->[1],
+      $line->[2],
+      $line->[3]
+    );
   }
   print $table->show();
 
@@ -1132,7 +1132,6 @@ sub voip_report {
 =cut
 #**********************************************************
 sub voip_recalculate {
-
   if (!$FORM{recalc}) {
     my $params = ();
     $params->{UID} = $FORM{UID};

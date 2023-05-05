@@ -2654,7 +2654,7 @@ sub dhcp_info {
     $self->{INFO} = "AUTH IP '$attr->{IP}'";
   }
   elsif ($attr->{NAS_PORT_AUTH} && ! $attr->{MAC_AUTH}) {
-    my $auth_options = "n.mac='$attr->{NAS_MAC}' AND internet.port='$attr->{PORT}'";
+    my $auth_options = "n.mac='$attr->{NAS_MAC}' AND internet.port<>'' AND internet.port='$attr->{PORT}'";
 
     if($CONF->{NAS_SECOND_MAC_AUTH}) {
       $auth_options = '('. $auth_options .') OR (internet.cid<>\'\' AND internet.cid=\''. $attr->{USER_MAC} ."')";

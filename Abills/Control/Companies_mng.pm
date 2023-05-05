@@ -8,7 +8,6 @@ use warnings FATAL => 'all';
 use strict;
 use Abills::Base qw(in_array);
 use Abills::Defs;
-use Customers;
 
 our ($db,
   %lang,
@@ -23,7 +22,7 @@ our Abills::HTML $html;
 
 =cut
 #**********************************************************
-sub add_company {
+sub _add_company {
 
   my $Company;
   $Company->{ACTION}         = 'add';
@@ -76,14 +75,15 @@ sub add_company {
 =cut
 #**********************************************************
 sub form_companies {
-
+  require Customers;
+  Customers->import();
   my $Customer = Customers->new($db, $admin, \%conf);
   my $Company  = $Customer->company();
   my $company_index = get_function_index('form_companies');
 
   if ($FORM{add_form} ) {
     if( $permissions{0}{37} ) {
-      add_company();
+      _add_company();
       return 0;
     }
   }
@@ -493,6 +493,8 @@ sub _company_user_link{
 sub form_companie_admins {
   my ($attr) = @_;
 
+  require Customers;
+  Customers->import();
   my $Customer = Customers->new($db, $admin, \%conf);
   my $Company = $Customer->company();
 

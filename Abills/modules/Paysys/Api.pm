@@ -194,8 +194,8 @@ sub user_routes {
     },
     #@deprecated
     {
-      method      => 'POST',                                  #TODO: GET
-      path        => '/user/:uid/paysys/transaction/status/', #TODO :id/
+      method      => 'POST',
+      path        => '/user/:uid/paysys/transaction/status/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
@@ -217,13 +217,23 @@ sub user_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        $Paysys->list({
+        my $transaction_info = $Paysys->list({
           TRANSACTION_ID => $path_params->{id},
           UID            => $path_params->{uid},
           STATUS         => '_SHOW',
           COLS_NAME      => 1,
           SORT           => 1
         })->[0] || {};
+
+        if (scalar keys %{$transaction_info}) {
+          return $transaction_info;
+        }
+        else {
+          return {
+            errno  => 605,
+            errstr => 'Unknown transaction',
+          };
+        }
       },
       credentials => [
         'USER'

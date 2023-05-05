@@ -1,6 +1,6 @@
-<form class='form-horizontal' action='$SELF_URL' method='post' enctype='multipart/form-data' id='admin_info'>
-  <input type=hidden name=index value='$index'>
-  <input type=hidden name=aedit value=1>
+<form class='form-horizontal' action='%SELF_URL%' method='post' enctype='multipart/form-data' id='admin_info'>
+  <input type='hidden' name='index' value='%index%'>
+  <input type='hidden' name='aedit' value='1'>
 
   <div class='card card-primary card-outline card-form'>
     <div class='card-header with-border'>

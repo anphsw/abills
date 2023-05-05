@@ -14,7 +14,8 @@ package Internet::Api;
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Api::Validations qw(POST_INTERNET_HANGUP);
+use Abills::Api::Validations qw(POST_INTERNET_HANGUP POST_INTERNET_TARIFF PUT_INTERNET_TARIFF);
+use Abills::Base qw(json_former);
 #TODO: remove next 3 lines after changing of load Internet::Users
 use POSIX qw(strftime);
 do 'Abills/Misc.pm';
@@ -138,12 +139,12 @@ sub admin_routes {
         } if !$self->{admin}->{permissions}{0}{18};
 
         return {
-          errno  => 100,
+          errno  => 102001,
           errstr => 'No field tpId'
         } if !$query_params->{TP_ID};
 
         return {
-          errno  => 101,
+          errno  => 102002,
           errstr => 'No field status'
         } if !defined $query_params->{STATUS};
 
@@ -203,12 +204,12 @@ sub admin_routes {
         } if !$self->{admin}->{permissions}{0}{18};
 
         return {
-          errno  => 102,
+          errno  => 102003,
           errstr => 'No field id'
         } if !$query_params->{ID};
 
         return {
-          errno  => 103,
+          errno  => 102004,
           errstr => 'No field status'
         } if !defined $query_params->{STATUS};
 
@@ -294,8 +295,210 @@ sub admin_routes {
       credentials => [
         'ADMIN'
       ],
-    }
+    },
+    {
+      method      => 'GET',
+      path        => '/internet/tariffs/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        return {
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$permissions{4};
+
+        foreach my $param (keys %{$query_params}) {
+          $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+        }
+
+        $query_params->{ACTIV_PRICE} = $query_params->{ACTIVATE_PRICE} if ($query_params->{ACTIVATE_PRICE});
+
+        if ($query_params->{TP_ID}) {
+          $query_params->{INNER_TP_ID} = $query_params->{TP_ID};
+          delete $query_params->{TP_ID};
+        }
+        $query_params->{TP_ID} = $query_params->{ID} if ($query_params->{ID});
+
+        require Tariffs;
+        Tariffs->import();
+        my $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $self->{admin});
+
+        $Tariffs->list({
+          %$query_params,
+          MODULE       => 'Internet',
+          COLS_NAME    => 1,
+        });
+      },
+      credentials => [
+        'ADMIN'
+      ],
+    },
+    {
+      method      => 'POST',
+      path        => '/internet/tariff/',
+      params      => POST_INTERNET_TARIFF,
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $query_params = $self->tariff_add_preprocess($query_params);
+        return $query_params if ($query_params->{errno});
+
+        require Tariffs;
+        Tariffs->import();
+        my $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $self->{admin});
+
+        return $Tariffs->add({ %{$query_params}, MODULE => 'Internet' });
+      },
+      credentials => [
+        'ADMIN'
+      ],
+    },
+    {
+      method      => 'PUT',
+      path        => '/internet/tariff/:tpId/',
+      params      => PUT_INTERNET_TARIFF,
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $query_params = $self->tariff_add_preprocess($query_params);
+        return $query_params if ($query_params->{errno});
+
+        require Tariffs;
+        Tariffs->import();
+        my $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $self->{admin});
+
+        return $Tariffs->change(($path_params->{tpId} || '--'), {
+          %{$query_params},
+          MODULE => 'Internet',
+          TP_ID  => $path_params->{tpId}
+        });
+      },
+      credentials => [
+        'ADMIN'
+      ],
+    },
+    {
+      method      => 'DELETE',
+      path        => '/internet/tariff/:tpId/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        require Shedule;
+        Shedule->import();
+        my $Schedule = Shedule->new($self->{db}, $self->{conf}, $self->{admin});
+
+        my $users_list = $Internet->user_list({
+          TP_ID     => $path_params->{tpId},
+          UID       => '_SHOW',
+          COLS_NAME => 1
+        });
+
+        my $schedules = $Schedule->list({
+          ACTION    => "*:$path_params->{tpId}",
+          TYPE      => 'tp',
+          MODULE    => 'Internet',
+          COLS_NAME => 1,
+        });
+
+        if (($Internet->{TOTAL} && $Internet->{TOTAL} > 0) || ($Schedule->{TOTAL} && $Schedule->{TOTAL} > 0)) {
+          my %users_msg = ();
+          foreach my $user_tp (@{$users_list}) {
+            $users_msg{active}{message} = 'List of users who currently have an active tariff plan';
+            push @{$users_msg{active}{users}}, $user_tp->{uid};
+          }
+
+          foreach my $schedule (@{$schedules}) {
+            $users_msg{schedule}{message} = 'List of users who have scheduled a change in their tariff plan';
+            push @{$users_msg{schedule}{users}}, $schedule->{uid};
+          }
+
+          return {
+            errno  => 102005,
+            errstr => "Can not delete tariff plan with tpId $path_params->{tpId}",
+            users  => \%users_msg,
+          };
+        }
+        else {
+          require Tariffs;
+          Tariffs->import();
+          my $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $self->{admin});
+          $Tariffs->del($path_params->{tpId});
+
+          if (!$Tariffs->{errno}) {
+            if ($Tariffs->{AFFECTED} && $Tariffs->{AFFECTED} =~ /^[0-9]$/) {
+              return {
+                result => 'Successfully deleted',
+              };
+            }
+            else {
+              return {
+                errno  => 102006,
+                errstr => "No tariff plan with tpId $path_params->{tpId}",
+                tpId   => $path_params->{tpId},
+              };
+            }
+          }
+
+          return $Tariffs;
+        }
+      },
+      credentials => [
+        'ADMIN'
+      ],
+    },
   ];
+}
+
+#**********************************************************
+=head2 new($, $admin, $CONF)
+
+  Arguments:
+    $query_params: object - hash of query params from request
+
+  Returns:
+    updated $query_params
+
+=cut
+#**********************************************************
+sub tariff_add_preprocess {
+  my $self = shift;
+  my ($query_params) = @_;
+
+  return {
+    errno  => 10,
+    errstr => 'Access denied'
+  } if !$permissions{4};
+
+  $query_params->{SIMULTANEOUSLY} = $query_params->{SIMULTANEOUSLY} if ($query_params->{LOGINS});
+  $query_params->{ALERT} = $query_params->{UPLIMIT} if ($query_params->{UPLIMIT});
+  $query_params->{ACTIV_PRICE} = $query_params->{ACTIVATE_PRICE} if ($query_params->{ACTIVATE_PRICE});
+  $query_params->{NEXT_TARIF_PLAN} = $query_params->{NEXT_TP_ID} if ($query_params->{NEXT_TP_ID});
+
+  if ($query_params->{CREATE_FEES_TYPE}) {
+    require Fees;
+    Fees->import();
+    my $Fees = Fees->new($self->{db}, $self->{admin}, $self->{conf});
+    $Fees->fees_type_add({ NAME => $query_params->{NAME}});
+    $query_params->{FEES_METHOD} = $Fees->{INSERT_ID};
+  }
+
+  if ($query_params->{RAD_PAIRS}) {
+    require Abills::Radius_Pairs;
+    Abills::Radius_Pairs->import();
+    $query_params->{RAD_PAIRS} = Abills::Radius_Pairs::parse_radius_params_json(json_former($query_params->{RAD_PAIRS}));
+  }
+
+  if ($query_params->{PERIOD_ALIGNMENT} || $query_params->{ABON_DISTRIBUTION} || $query_params->{FIXED_FEES_DAY}) {
+    my $period = $query_params->{PERIOD_ALIGNMENT} ? $query_params->{PERIOD_ALIGNMENT} > 0 : 0;
+    my $distribution = $query_params->{ABON_DISTRIBUTION} ? $query_params->{ABON_DISTRIBUTION} > 0 : 0;
+    my $fixed = $query_params->{FIXED_FEES_DAY} ? $query_params->{FIXED_FEES_DAY} > 0 : 0;
+    return {
+      errno  => 102007,
+      errstr => "Can not use params periodAlignment, abonDistribution and fixedFeesDay",
+    } if (($period + $distribution + $fixed) > 1);
+  }
+
+  return $query_params;
 }
 
 1;

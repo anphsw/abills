@@ -31,7 +31,9 @@ sub new {
   my $class = shift;
   my ($conf, $attr) = @_;
 
-  return 1 unless ($conf->{PUSH_ENABLED} || $conf->{FIREBASE_SERVER_KEY});
+  return 0 unless ($conf->{PUSH_ENABLED});
+
+  die 'No Firebase server key ($conf{FIREBASE_SERVER_KEY})' if (!$conf->{FIREBASE_SERVER_KEY});
 
   my $self = {
     db    => $attr->{db},
@@ -67,15 +69,6 @@ sub send_message {
     ? 'AID'
     : (($attr->{UID}) ? 'UID' : 0);
 
-  my $contacts = $self->{Contacts}->push_contacts_list({
-    AID       => ($receiver_type eq 'AID') ? $attr->{AID} : '_SHOW',
-    UID       => ($receiver_type eq 'UID') ? $attr->{UID} : '_SHOW',
-    VALUE     => $attr->{CONTACT}->{value},
-    TYPE_ID   => '_SHOW',
-    BADGES    => '_SHOW',
-    PAGE_ROWS => 1
-  });
-
   my $title = $attr->{TITLE} || $attr->{SUBJECT} || '';
   my $action = $title =~ /(?<=#)\d+/g;
 
@@ -85,16 +78,17 @@ sub send_message {
       body   => $attr->{MESSAGE},
       title  => $title,
       action => $action ? 'message' : 'default',
+      %{$attr->{EX_PARAMS} || {}},
     },
     priority => 'high',
   );
 
   # ios block
-  if (scalar @$contacts && $contacts->[0]->{type_id} == 3) {
-    my $badges = $contacts->[0]->{badges} + 1;
+  if ($attr->{CONTACT} && $attr->{CONTACT}->{push_type_id} && $attr->{CONTACT}->{push_type_id} == 3) {
+    my $badges = $attr->{CONTACT}->{badges} + 1;
 
     $self->{Contacts}->push_contacts_change({
-      ID     => $contacts->[0]->{id} || '--',
+      ID     => $attr->{CONTACT}->{id} || '--',
       BADGES => $badges
     });
 
@@ -127,8 +121,10 @@ sub send_message {
 
   $req_params{attachments} = \@attachments;
 
+  my $firebase_key = $self->{conf}->{FIREBASE_SERVER_KEY} || '';
+
   my $result = web_request('https://fcm.googleapis.com/fcm/send', {
-    HEADERS     => [ "Content-Type: application/json", "Authorization: key=$self->{conf}->{FIREBASE_SERVER_KEY}" ],
+    HEADERS     => [ "Content-Type: application/json", "Authorization: key=$firebase_key" ],
     JSON_BODY   => \%req_params,
     JSON_RETURN => 1,
     METHOD      => 'POST',
@@ -141,7 +137,7 @@ sub send_message {
   $self->{Contacts}->push_messages_add({
     AID      => ($receiver_type eq 'AID') ? $attr->{AID} : 0,
     UID      => ($receiver_type eq 'UID') ? $attr->{UID} : 0,
-    TYPE_ID  => scalar @$contacts ? $contacts->[0]->{type_id} : 0,
+    TYPE_ID  => $attr->{CONTACT} && $attr->{CONTACT}->{push_type_id} ? $attr->{CONTACT}->{push_type_id} : 0,
     TITLE    => $title || '',
     MESSAGE  => $attr->{MESSAGE},
     RESPONSE => json_former($result),

@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS `accident_log` (
   `realy_time` DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `status`     TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
   `name`       VARCHAR(255)         NOT NULL DEFAULT '',
+  `sent_open`  INT(10)    UNSIGNED  NOT NULL DEFAULT 0,
+  `sent_close` INT(10)    UNSIGNED  NOT NULL DEFAULT 0,
   KEY `status` (`status`),
   CONSTRAINT `accident_log` FOREIGN KEY (`aid`) REFERENCES `admins` (`aid`) ON DELETE CASCADE
 )
@@ -34,7 +36,9 @@ CREATE TABLE IF NOT EXISTS `accident_equipments` (
   `date`         DATE                 NOT NULL DEFAULT '0000-00-00',
   `end_date`     DATE                 NOT NULL DEFAULT '0000-00-00',
   `aid`          SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
-  `status`       TINYINT(3)  UNSIGNED NOT NULL DEFAULT 0
+  `status`       TINYINT(3)  UNSIGNED NOT NULL DEFAULT 0,
+  `sent_open`    INT(10)     UNSIGNED NOT NULL DEFAULT 0,
+  `sent_close`   INT(10)     UNSIGNED NOT NULL DEFAULT 0
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Accident equipments';

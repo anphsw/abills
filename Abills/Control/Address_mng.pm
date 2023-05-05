@@ -504,7 +504,8 @@ sub form_add_map {
   return '' if (!in_array('Maps', \@MODULES) || ($admin->{MODULES} && !$admin->{MODULES}{Maps}));
 
   if (!$Auxiliary) {
-    use Maps::Auxiliary;
+    require Maps::Auxiliary;
+    Maps::Auxiliary->import();
     $Auxiliary = Maps::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
   }
 
@@ -1142,7 +1143,7 @@ sub form_address_select2 {
   });
   my $street_select = sel_streets({ %FORM, %{$attr},
     MAIN_MENU   => undef,
-    EX_PARAMS   => 'onChange="GetBuilds(this)"',
+    EX_PARAMS   => 'onChange="GetBuilds(this)" ' . ($attr->{STREET_REQ} || ''),
     SELECT_NAME => $street_select_name,
     SELECT_ID   => $street_id,
     SEL_OPTIONS => { '' => '--' },
@@ -1152,7 +1153,7 @@ sub form_address_select2 {
     : sel_builds({ %FORM, %{$attr},
         SELECT_NAME     => $build_select_name,
         SELECT_ID       => $build_id,
-        EX_PARAMS       => 'onChange="GetLoc(this)"',
+        EX_PARAMS       => 'onChange="GetLoc(this)" ' . ($attr->{BUILD_REQ} || ''),
         CHECK_STREET_ID => 1,
         SEL_OPTIONS     => { '' => '--' },
       });
@@ -1215,7 +1216,8 @@ sub form_address_select2 {
       ADDRESS_ADD_BUTTONS => $attr->{SHOW_ADD_BUTTONS} ? "$district_button $street_button" : q{},
       MAPS_BTN            => $maps_btn && $attr->{SHOW_BUTTONS} ? $maps_btn : q{},
       MAPS_SHOW_OBJECTS   => $maps_btn && $attr->{SHOW_BUTTONS} ? 1 : '',
-      BUILD_SELECTED      => $attr->{LOCATION_ID} || 0
+      BUILD_SELECTED      => $attr->{LOCATION_ID} || 0,
+      CHECK_ADDRESS_FLAT  => $attr->{CHECK_ADDRESS_FLAT} || ''
     }, { OUTPUT2RETURN => 1, ID => 'form_address_sel2' });
   }
 
@@ -1254,7 +1256,9 @@ sub address_import {
       PAGE_ROWS     => 100000
     });
 
+    # FIXME: re-review
     use utf8;
+
     my $districts_list = $Address->district_list({ COLS_NAME => 1, PAGE_ROWS => 1000 });
     my %district_list  = map { $_->{name} => $_->{id} } @{$districts_list};
     my %street_list    = map { $_->{street_name} => $_->{id} } @{$streets_list};

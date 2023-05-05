@@ -5,7 +5,9 @@ put:
   parameters:
     - name: ID
       in: path
-      description: ID услуги IPTV
+      description: >
+        Значение `id`, можно получить в ответе
+        в `GET /users/iptv` параметр `id`
       required: true
       schema:
         type: number
@@ -51,7 +53,9 @@ delete:
   parameters:
     - name: ID
       in: path
-      description: ID расписания
+      description: >
+        Значение `id`, можно получить в ответе
+        в `GET /users/iptv` параметр `scheduleId` в объекте `schedule`
       required: true
       schema:
         type: integer

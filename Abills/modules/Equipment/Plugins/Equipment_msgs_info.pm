@@ -3,7 +3,7 @@ package Equipment::Plugins::Equipment_msgs_info;
 use strict;
 use warnings FATAL => 'all';
 
-my ($admin, $CONF, $db);
+my ($admin, $CONF, $db, $msgs_permissions);
 my $json;
 my Abills::HTML $html;
 my $lang;
@@ -29,6 +29,7 @@ sub new {
 
   $html = $attr->{HTML} if $attr->{HTML};
   $lang = $attr->{LANG} if $attr->{LANG};
+  $msgs_permissions = $attr->{MSGS_PERMISSIONS};
 
   my $self = {
     MODULE      => 'Equipment',
@@ -77,6 +78,7 @@ sub plugin_show {
   my $self = shift;
   my ($attr) = @_;
 
+  return '' if !$msgs_permissions->{1}{22};
   return '' if !$attr->{UID};
   return '' if (!in_array('Internet', \@::MODULES));
   return '' if ($admin->{MODULES} && !$admin->{MODULES}{Equipment});

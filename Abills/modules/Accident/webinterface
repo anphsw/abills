@@ -16,7 +16,7 @@ use Address;
 use Users;
 use Accident::Reports;
 use Abills::Sender::Core;
-use Abills::Base qw \in_array date_inc\;
+use Abills::Base qw \in_array date_inc time2sec sec2time\;
 require Abills::Misc;
 require Accident::User_portal;
 
@@ -35,7 +35,7 @@ if (
   form_purchase_module({
     HEADER          => 1,
     MODULE          => 'Accident',
-    REQUIRE_VERSION => 8.17,
+    REQUIRE_VERSION => 8.20,
   })
 ) {
   exit;
@@ -92,9 +92,7 @@ sub accident_log {
     if (!_error_show($Accident)) {
       my $accident_id = $Accident->{INSERT_ID};
       $Accident->address_add({ %FORM, AC_ID => $accident_id });
-      $html->message('info', $lang{SUCCESS}, $lang{ADDED});
-
-      _accident_send_notify($accident_id);
+      $html->message('info', $lang{SUCCESS}, $lang{ADDED})
     }
   }
   elsif ($FORM{change}) {
@@ -123,7 +121,7 @@ sub accident_log {
 
   if ($FORM{add_form} || $FORM{chg}) {
     $Accident->{SELECT_PRIORITY} = $html->form_select('PRIORITY', {
-      SELECTED    => $Accident->{PRIORITY} || $FORM{PRIORITY},
+      SELECTED    => $Accident->{PRIORITY} || $FORM{PRIORITY} || 2,
       SEL_HASH    => \%priority,
       SORT_KEY    => 1,
       NO_ID       => 1,
@@ -131,15 +129,18 @@ sub accident_log {
     });
 
     $Accident->{SELECT_STATUS} = $html->form_select('STATUS', {
-      SELECTED    => $Accident->{STATUS} || $FORM{STATUS},
+      SELECTED    => $Accident->{STATUS} || $FORM{STATUS} || 0,
       SEL_HASH    => \%status,
       SORT_KEY    => 1,
       NO_ID       => 1,
       SEL_OPTIONS => { '' => '' }
     });
 
+    my $current_time_in_sec = time2sec($TIME) + 3600;
+    my $default_time = sec2time($current_time_in_sec, { format => 1 });
+
     $Accident->{ADMIN_SELECT} = sel_admins({ SELECTED => $Accident->{AID} || $FORM{AID} || $admin->{AID}, REQUIRED => 1 });
-    $Accident->{DATEPICKER_END} = $html->form_datetimepicker('END_TIME', $Accident->{END_TIME} || $FORM{END_TIME} || "$DATE $TIME");
+    $Accident->{DATEPICKER_END} = $html->form_datetimepicker('END_TIME', $Accident->{END_TIME} || $FORM{END_TIME} || "$DATE $default_time");
     $Accident->{DATEPICKER_REAL} = $html->form_datetimepicker('REALY_TIME', $Accident->{REALY_TIME} || $FORM{REALY_TIME});
     $Accident->{DATE} = $html->form_datetimepicker('DATE', $Accident->{DATE} || $FORM{DATE} || "$DATE $TIME");
 
@@ -338,14 +339,16 @@ sub accident_dashboard_mess {
   my $user_accident_list = $Accident->user_accident_list({ UID => $user->{UID}, COLS_NAME => 1 });
   for my $accident (@{$user_accident_list}){
     $html->tpl_show(_include('accident_user_warr', 'Accident'), {
-      MESSAGE  => $accident->{descr},
-      END_DATE => $accident->{end_time}
+      MESSAGE    => $accident->{descr},
+      START_DATE => ($accident->{date}) ? substr($accident->{date}, 0, -3) : '',
+      END_DATE   => ($accident->{end_time}) ? substr($accident->{end_time}, 0, -3) : ''
     });
   }
 
   if (in_array('Equipment', \@MODULES) && $conf{EQUIPMENT_LOG}) {
     my $warning_info = $Accident->accident_equipment_list({
       ID_EQUIPMENT => '_SHOW',
+      DATE         => '_SHOW',
       END_DATE     => '_SHOW',
       NAS_ID       => '_SHOW',
       STATUS       => '0',
@@ -358,8 +361,9 @@ sub accident_dashboard_mess {
 
     for my $accident (@$warning_info) {
       $html->tpl_show(_include('accident_user_warr', 'Accident'), {
-        MESSAGE  => $lang{EQUIPMENT_ERR},
-        END_DATE => $accident->{end_date},
+        MESSAGE    => $lang{EQUIPMENT_ERR},
+        START_DATE => $accident->{date} || '',
+        END_DATE   => $accident->{end_date} || ''
       });
     }
   }
@@ -482,22 +486,6 @@ sub _equipment_error {
 
     if (!_error_show($Accident)) {
       $html->message('success', $lang{ADDED});
-
-      if ($conf{ACCIDENT_WARNING}) {
-        my $Internet = Internet->new($db, $admin, \%conf);
-        my $list = $Internet->user_list({
-          NAS_ID    => $attr->{id_equipment},
-          COLS_NAME => 1,
-        });
-        if ($Internet->{TOTAL} > 0) {
-          for my $user_ (@$list) {
-            accident_warning({
-              UID  => $user_->{uid},
-              TEXT => $lang{EQUIPMENT_ERR},
-            })
-          }
-        }
-      }
     }
     else {
       $html->message('err', $lang{ERROR});
@@ -757,7 +745,7 @@ sub _accident_add_compensation {
 }
 
 #**********************************************************
-=head2 accident_compensation()
+=head2 _search_address()
 
 =cut
 #**********************************************************
@@ -831,37 +819,6 @@ sub accident_user {
   return 0;
 }
 
-#**********************************************************
-=head2 accident_warning($attr) - Send warning to telegram or viber
-
-  Arguments:
-    $attr
-      UID
-      TEXT
-
-=cut
-#**********************************************************
-sub accident_warning {
-  my ($attr) = @_;
-
-  my @types = split ',\s?', $conf{ACCIDENT_WARNING};
-
-  my $message = $lang{WARNING} . " \n";
-  $message .= $attr->{TEXT};
-
-  for my $type (@types) {
-    my $response = $Sender->send_message({
-      UID         => $attr->{UID},
-      MESSAGE     => $message,
-      SENDER_TYPE => $type,
-      SUBJECT     => $lang{ACCIDENT_NOTIFICATION},
-    });
-
-    last if $response;
-  }
-
-  return 1;
-}
 
 #**********************************************************
 =head2 accident_auto_close($attr) - auto close accident (periodic)
@@ -899,32 +856,5 @@ sub accident_auto_close {
   return 1;
 }
 
-#**********************************************************
-=head2 _accident_send_notify($accident_id)
-
-=cut
-#**********************************************************
-sub _accident_send_notify {
-  my $accident_id = shift;
-
-  return if !$accident_id || !$conf{ACCIDENT_WARNING};
-
-  my $accident_info = $Accident->info($accident_id);
-  my $accident_builds = $Accident->user_accident_list({ AL_ID => $accident_id, COLS_NAME => 1 });
-  return if $Accident->{TOTAL} < 1 || !$accident_builds->[0]{builds};
-
-  my $users = $Users->list({
-    LOCATION_ID => $accident_builds->[0]{builds},
-    COLS_NAME   => 1,
-    PAGE_ROWS   => 1000
-  });
-
-  for my $user_ (@{$users}) {
-    accident_warning({
-      UID  => $user_->{uid},
-      TEXT => $accident_info->{DESCR},
-    });
-  }
-}
 
 1;

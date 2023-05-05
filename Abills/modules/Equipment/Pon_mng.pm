@@ -899,16 +899,20 @@ sub equipment_pon {
     push @row, $html->element('span', join(' ', @control_row), { class => 'text-nowrap' });
     push @all_rows, \@row;
   }
-  $onu_list = $Equipment->onu_date_status({COLS_NAME => 1, NAS_ID => $Equipment->{NAS_ID}});
+  $onu_list = $Equipment->onu_date_status({
+    COLS_NAME => 1,
+    NAS_ID    => $Equipment->{NAS_ID},
+    OLT_PORT  => $FORM{OLT_PORT} || ''
+  });
   my $total_off = 0;
   my $total_on = 0;
   my $last_date = '';
   for my $line (@$onu_list) {
-    if ($line->{onu_status} == 0) {
-      $total_off += 1;
-    }
-    elsif ($line->{onu_status} == 1) {
+    if ($line->{onu_status} == 1 || $line->{onu_status} == 2 || $line->{onu_status} == 3 || $line->{onu_status} == 5 || $line->{onu_status} == 18) {
       $total_on += 1;
+    }
+    else {
+      $total_off += 1;
     }
     if ($last_date lt $line->{datetime}) {
       $last_date = $line->{datetime};
@@ -1405,6 +1409,7 @@ sub equipment_delete_onu {
 #********************************************************
 sub equipment_pon_onu {
   my ($attr) = @_;
+  Abills::Base::_bp('%FORM', \%FORM, {HEADER=>1});
 
   my $nas_id = $attr->{NAS_INFO}{NAS_ID} || $FORM{NAS_ID};
   $Equipment->vendor_info($Equipment->{VENDOR_ID});

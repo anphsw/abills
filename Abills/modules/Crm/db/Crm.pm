@@ -13,7 +13,10 @@ package Crm;
 use strict;
 use parent qw(dbcore);
 
+use Abills::Base qw/in_array/;
+
 my ($admin, $CONF);
+my ($triggers, $actions);
 
 #*******************************************************************
 =head2 new()
@@ -28,9 +31,12 @@ sub new {
   my $self = {};
   bless($self, $class);
 
-  $self->{db}    = $db;
+  $self->{db} = $db;
   $self->{admin} = $admin;
-  $self->{conf}  = $CONF;
+  $self->{conf} = $CONF;
+
+  $triggers = $self->_crm_trigger_handlers() if !$triggers;
+  $actions = $self->_crm_action_handlers() if !$actions;
 
   return $self;
 }
@@ -52,7 +58,8 @@ sub crm_lead_add {
   my ($attr) = @_;
 
   if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD}) {
-    use Address;
+    require Address;
+    Address->import();
     my $Address = Address->new($self->{db}, $self->{admin}, $self->{conf});
     $Address->build_add({
       STREET_ID         => $attr->{STREET_ID},
@@ -63,11 +70,14 @@ sub crm_lead_add {
 
   $self->query_add('crm_leads', { %$attr, DATE => $attr->{DATE} || 'NOW()' });
   my $insert_id = $self->{INSERT_ID} || 0;
+  $self->{NEW_LEAD_ID} = $insert_id;
 
   if ($insert_id) {
     $self->crm_action_add("INSERT_ID: $insert_id", { ID => $insert_id, TYPE => 1 });
     $self->{INSERT_ID} = $insert_id;
   }
+
+  $self->_crm_workflow('isNew', $insert_id, $attr);
 
   return $self;
 }
@@ -88,7 +98,8 @@ sub crm_lead_change {
   my ($attr) = @_;
 
   if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD}) {
-    use Address;
+    require Address;
+    Address->import();
     my $Address = Address->new($self->{db}, $self->{admin}, $self->{conf});
     $Address->build_add({
       STREET_ID         => $attr->{STREET_ID},
@@ -97,6 +108,8 @@ sub crm_lead_change {
     $attr->{BUILD_ID} = $Address->{LOCATION_ID};
   }
 
+  my $old_info = $self->crm_lead_info({ ID => $attr->{ID} });
+
   $self->changes({
     CHANGE_PARAM    => 'ID',
     TABLE           => 'crm_leads',
@@ -104,6 +117,8 @@ sub crm_lead_change {
     SKIP_LOG        => 1,
     GET_CHANGES_LOG => 1
   });
+
+  $self->_crm_workflow('isChanged', $self->{ID} || $attr->{ID}, { OLD_INFO => $old_info, %{$attr}, CHANGED => 1 }) if !$self->{errno};
 
   $self->crm_action_add($self->{CHANGES_LOG}, { %{$attr}, TYPE => 2 }) if ($self->{CHANGES_LOG} || $attr->{CHANGES_LOG});
 
@@ -175,6 +190,7 @@ sub crm_lead_list {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
+  my $GROUP_BY = ($attr->{GROUP_BY}) ? $attr->{GROUP_BY} : 'cl.id';
 
   my @WHERE_RULES = ();
 
@@ -230,6 +246,7 @@ sub crm_lead_list {
     [ 'TP_ID',            'INT',   'cl.tp_id',                       1 ],
     [ 'TP_NAME',          'STR',   'cct.name AS tp_name',            1 ],
     [ 'ASSESSMENT',       'INT',   'cl.assessment',                  1 ],
+    [ 'LEADS_NUMBER',     'INT',   'COUNT(cl.id) AS leads_number',   1 ],
     [ 'LEAD_ADDRESS',     'STR',
       "IF(cl.build_id, CONCAT(districts.name, '$build_delimiter', streets.name, '$build_delimiter', builds.number), '') AS lead_address",  1 ],
     [ 'ADDRESS_FULL',     'STR',
@@ -274,7 +291,7 @@ sub crm_lead_list {
     LEFT JOIN users u ON (u.uid = cl.uid)
     $EXT_TABLES
     $WHERE
-    GROUP BY cl.id
+    GROUP BY $GROUP_BY
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;";
 
@@ -393,13 +410,11 @@ sub crm_progressbar_step_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'crm_progressbar_steps',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'crm_progressbar_steps',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -428,7 +443,7 @@ sub crm_progressbar_step_list {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  push @WHERE_RULES, "(domain_id='$self->{admin}{DOMAIN_ID}')";
+  push @WHERE_RULES, "(domain_id='$self->{admin}{DOMAIN_ID}')" if defined $self->{admin}{DOMAIN_ID};
 
   my $WHERE = $self->search_former(
     $attr,
@@ -637,7 +652,9 @@ sub progressbar_comment_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add('crm_progressbar_step_comments', {%$attr});
+  $self->query_add('crm_progressbar_step_comments', { %$attr });
+
+  $self->_crm_workflow('newAction', $attr->{LEAD_ID}, $attr) if $attr->{ACTION_ID} && !$self->{errno} && $attr->{LEAD_ID};
 
   return $self;
 }
@@ -920,14 +937,8 @@ sub crm_actions_info {
   my $self = shift;
   my ($attr) = @_;
 
-  my $action_info = $self->crm_actions_list({%$attr});
-
-  if($action_info && ref $action_info eq 'ARRAY' && scalar @{$action_info} == 1){
-    return $action_info->[0];
-  }
-  else{
-    return ();
-  }
+  $self->query("SELECT * FROM crm_actions WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] });
+  return $self;
 }
 
 #**********************************************************
@@ -965,7 +976,7 @@ sub crm_step_number_leads {
   my $self = shift;
 
   $self->query("SELECT step_number,id
-    FROM crm_progressbar_steps;",
+    FROM crm_progressbar_steps WHERE deal_step = 0;",
     undef,
     { LIST2HASH => 'step_number,id' });
 
@@ -3016,5 +3027,568 @@ sub crm_deal_products_list {
 
   return $self->{list} || [];
 }
+
+#**********************************************************
+=head2 crm_workflow_list()
+
+=cut
+#**********************************************************
+sub crm_workflow_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = $attr->{SORT} || 1;
+  my $DESC = $attr->{DESC} || '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',         'INT', 'cw.id',         1 ],
+    [ 'NAME',       'STR', 'cw.name',       1 ],
+    [ 'DESCR',      'STR', 'cw.descr',      1 ],
+    [ 'DISABLE',    'INT', 'cw.disable',    1 ],
+    [ 'USED_TIMES', 'INT', 'cw.used_times', 1 ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} cw.id
+    FROM crm_workflows cw
+    $WHERE
+    ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 crm_workflow_info()
+
+=cut
+#**********************************************************
+sub crm_workflow_info {
+  my $self = shift;
+  my $id = shift;
+
+  $self->query("SELECT * FROM crm_workflows WHERE id = ? ", undef, { INFO => 1, Bind => [ $id ] });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_workflow_del()
+
+=cut
+#**********************************************************
+sub crm_workflow_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('crm_workflows', $attr);
+
+  if (!$self->{errno}) {
+    $self->query_del('crm_workflow_triggers', undef, { WORKFLOW_ID => $attr->{ID} });
+    $self->query_del('crm_workflow_actions', undef, { WORKFLOW_ID => $attr->{ID} });
+  }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_workflow_add()
+
+=cut
+#**********************************************************
+sub crm_workflow_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('crm_workflows', $attr);
+  return $self if $self->{errno} || !$self->{INSERT_ID};
+
+  my $workflow_id = $self->{INSERT_ID};
+  $self->crm_workflow_triggers_add({ TRIGGERS => $attr->{TRIGGERS}, WORKFLOW_ID => $workflow_id });
+  $self->crm_workflow_actions_add({ ACTIONS => $attr->{ACTIONS}, WORKFLOW_ID => $workflow_id });
+
+  return $workflow_id;
+}
+
+#**********************************************************
+=head2 crm_workflow_change()
+
+=cut
+#**********************************************************
+sub crm_workflow_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{DISABLE} = 0 if !$attr->{DISABLE};
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    FIELDS       => {
+      DISABLE => 'disable',
+      NAME    => 'name',
+      DESCR   => 'DESCR',
+    },
+    TABLE        => 'crm_workflows',
+    OLD_INFO     => $self->crm_workflow_info($attr->{ID}),
+    DATA         => $attr
+  });
+  return $self if $self->{errno};
+
+  $self->crm_workflow_triggers_add({ TRIGGERS => $attr->{TRIGGERS}, WORKFLOW_ID => $attr->{ID} });
+  $self->crm_workflow_actions_add({ ACTIONS => $attr->{ACTIONS}, WORKFLOW_ID => $attr->{ID} });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_workflow_triggers_add()
+
+=cut
+#**********************************************************
+sub crm_workflow_triggers_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $workflow_id = $attr->{WORKFLOW_ID};
+  return $self if !$workflow_id;
+
+  my @MULTI_QUERY = ();
+  foreach my $trigger (@{$attr->{TRIGGERS}}) {
+    push @MULTI_QUERY, [ $workflow_id, $trigger->{TYPE}, $trigger->{OLD_VALUE} || '',
+      $trigger->{NEW_VALUE} || '', $trigger->{CONTAINS} || '' ];
+  }
+
+  $self->query("DELETE FROM `crm_workflow_triggers` WHERE `workflow_id` = ? ;", 'do', { Bind => [ $workflow_id ] });
+  $self->query("INSERT INTO `crm_workflow_triggers` (`workflow_id`, `type`, `old_value`, `new_value`, `contains`) VALUES (?, ?, ?, ?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_workflow_actions_add()
+
+=cut
+#**********************************************************
+sub crm_workflow_actions_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $workflow_id = $attr->{WORKFLOW_ID};
+  return $self if !$workflow_id;
+
+  my @MULTI_QUERY = ();
+  foreach my $trigger (@{$attr->{ACTIONS}}) {
+    push @MULTI_QUERY, [ $workflow_id, $trigger->{TYPE}, $trigger->{VALUE} || '' ];
+  }
+
+  $self->query("DELETE FROM `crm_workflow_actions` WHERE `workflow_id` = ? ;", 'do', { Bind => [ $workflow_id ] });
+  $self->query("INSERT INTO `crm_workflow_actions` (`workflow_id`, `type`, `value`) VALUES (?, ?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_workflow_triggers_list()
+
+=cut
+#**********************************************************
+sub crm_workflow_triggers_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = $attr->{SORT} || 1;
+  my $DESC = $attr->{DESC} || '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',          'INT', 'cwt.id',          1 ],
+    [ 'TYPE',        'STR', 'cwt.type',        1 ],
+    [ 'OLD_VALUE',   'STR', 'cwt.old_value',   1 ],
+    [ 'NEW_VALUE',   'STR', 'cwt.new_value',   1 ],
+    [ 'CONTAINS',    'STR', 'cwt.contains',    1 ],
+    [ 'WORKFLOW_ID', 'INT', 'cwt.workflow_id', 1 ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} cwt.id
+    FROM crm_workflow_triggers cwt
+    $WHERE
+    ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 crm_workflow_actions_list()
+
+=cut
+#**********************************************************
+sub crm_workflow_actions_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = $attr->{SORT} || 1;
+  my $DESC = $attr->{DESC} || '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',          'INT', 'cwa.id',          1 ],
+    [ 'TYPE',        'STR', 'cwa.type',        1 ],
+    [ 'VALUE',       'STR', 'cwa.value',       1 ],
+    [ 'WORKFLOW_ID', 'INT', 'cwa.workflow_id', 1 ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} cwa.id
+    FROM crm_workflow_actions cwa
+    $WHERE
+    ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 _crm_workflow($type, $msg_id, $attr)
+
+=cut
+#**********************************************************
+sub _crm_workflow {
+  my $self = shift;
+  my $type = shift;
+  my $lead_id = shift;
+  my ($attr) = @_;
+
+  return if !$type || !$lead_id;
+
+  $self->query("SELECT * FROM crm_workflow_triggers WHERE workflow_id IN (
+    SELECT workflow_id FROM crm_workflow_triggers cwt
+    LEFT JOIN crm_workflows cw ON (cw.id = cwt.workflow_id)
+    WHERE cwt.type='$type' AND cw.disable = 0);",
+    undef,
+    { COLS_NAME => 1 }
+  );
+
+  return if !$self->{list};
+
+  $attr->{LEAD_ID} ||= $lead_id;
+  my $check_workflow = sub {
+    my ($workflow) = @_;
+
+    foreach my $trigger (@{$workflow}) {
+      my $function = $triggers->{$trigger->{type}};
+      return 0 if !$function || ref $function ne 'CODE';
+
+      return 0 if !$function->($self, $trigger, $attr);
+    }
+
+    return 1;
+  };
+
+  my @checked_workflows = ();
+  my $workflows = {};
+  foreach my $trigger (@{$self->{list}}) {
+    push @{$workflows->{$trigger->{workflow_id}}}, $trigger;
+  }
+
+  foreach my $workflow_id (keys %{$workflows}) {
+    push(@checked_workflows, $workflow_id) if $check_workflow->($workflows->{$workflow_id});
+  }
+
+  my $workflow_ids = join(',', @checked_workflows);
+  return if !$workflow_ids;
+
+  $self->query("SELECT * FROM crm_workflow_actions WHERE workflow_id IN ($workflow_ids) ORDER BY workflow_id;",
+    undef, { COLS_NAME => 1 }
+  );
+  return if !$self->{list};
+
+  foreach my $action (@{$self->{list}}) {
+    my $function = $actions->{$action->{type}};
+    next if !$function || ref $function ne 'CODE';
+
+    $function->($self, $action, $lead_id);
+  }
+
+  return $self
+}
+
+#**********************************************************
+=head2 _crm_trigger_handlers()
+
+=cut
+#**********************************************************
+sub _crm_trigger_handlers {
+  my $self = shift;
+
+  return {
+    isNew      => sub {
+      my $self = shift;
+
+      return 1 if $self->{NEW_LEAD_ID};
+    },
+    isChanged  => sub {
+      my $self = shift;
+      my (undef, $attr) = @_;
+
+      return 1 if $attr->{CHANGED};
+    },
+    newAction  => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 0 if !defined $trigger->{new_value} || !defined $trigger->{old_value};
+
+      my @action_ids = $trigger->{new_value} ? split(',\s?', $trigger->{new_value}) : ();
+      my @aids = $trigger->{old_value} ? split(',\s?', $trigger->{old_value}) : ();
+
+      return 0 if $trigger->{new_value} && !in_array($attr->{ACTION_ID}, \@action_ids);
+      return 0 if $trigger->{old_value} && !in_array($attr->{AID}, \@aids);
+
+      return 1;
+    },
+    newTask    => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 0 if !defined $trigger->{new_value};
+
+      my @task_type_ids = $trigger->{new_value} ? split(',\s?', $trigger->{new_value}) : ();
+      return 0 if $trigger->{new_value} && !in_array($attr->{TASK_TYPE}, \@task_type_ids);
+
+      return 1;
+    },
+    closedTask => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 0 if !defined $trigger->{new_value};
+
+      my @task_type_ids = $trigger->{new_value} ? split(',\s?', $trigger->{new_value}) : ();
+      return 0 if $trigger->{new_value} && !in_array($attr->{TASK_TYPE}, \@task_type_ids);
+
+      return 1 if $attr->{STATE} && $attr->{STATE} eq '1';
+    },
+    responsible        => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 1 if !$trigger->{new_value};
+
+      $attr->{RESPONSIBLE} //= $attr->{OLD_INFO}{RESPONSIBLE};
+      if (!defined $attr->{RESPONSIBLE} && $attr->{LEAD_ID}) {
+        my $lead_info = $self->crm_lead_info({ ID => $attr->{LEAD_ID} });
+        $attr->{RESPONSIBLE} = $lead_info->{RESPONSIBLE};
+        return 0 if !$attr->{RESPONSIBLE};
+      }
+
+      return in_array($attr->{RESPONSIBLE}, [ split(',\s?', $trigger->{new_value}) ]) ? 1 : 0;
+    },
+    responsibleChanged => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 0 if !defined $trigger->{new_value} || !defined $trigger->{old_value};
+      return 0 if $trigger->{new_value} eq $trigger->{old_value};
+
+      $attr->{OLD_INFO}{RESPONSIBLE} //= '';
+      return 0 if !defined $attr->{RESPONSIBLE};
+
+      return $trigger->{new_value} eq $attr->{RESPONSIBLE} && $trigger->{old_value} eq $attr->{OLD_INFO}{RESPONSIBLE} ? 1 : 0;
+    },
+    stepChanged      => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 0 if !$trigger->{new_value} && !$trigger->{old_value};
+      return 0 if !$attr->{CURRENT_STEP} || !$attr->{OLD_INFO}{CURRENT_STEP};
+
+      my $step_id_hash = $self->crm_step_number_leads();
+      $attr->{CURRENT_STEP} = $step_id_hash->{$attr->{CURRENT_STEP}};
+      $attr->{OLD_INFO}{CURRENT_STEP} = $step_id_hash->{$attr->{OLD_INFO}{CURRENT_STEP}};
+
+      return $trigger->{new_value} == $attr->{CURRENT_STEP}
+        && in_array($attr->{OLD_INFO}{CURRENT_STEP}, [ split(',\s?', $trigger->{old_value}) ]) ? 1 : 0;
+    },
+    step             => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 1 if !$trigger->{new_value};
+
+      if (!$attr->{CURRENT_STEP}) {
+        my $lead_info = $self->crm_lead_info({ ID => $attr->{LEAD_ID} });
+        $attr->{CURRENT_STEP} = $lead_info->{CURRENT_STEP};
+        return 0 if !$attr->{CURRENT_STEP};
+      }
+      my $step_id_hash = $self->crm_step_number_leads();
+      $attr->{CURRENT_STEP} = $step_id_hash->{$attr->{CURRENT_STEP}};
+
+      return in_array($attr->{CURRENT_STEP}, [ split(',\s?', $trigger->{new_value}) ]) ? 1 : 0;
+    },
+    priority             => sub {
+      my $self = shift;
+      my ($trigger, $attr) = @_;
+
+      return 1 if !defined $trigger->{new_value};
+
+      if (!defined $attr->{PRIORITY}) {
+        my $lead_info = $self->crm_lead_info({ ID => $attr->{LEAD_ID} });
+        $attr->{PRIORITY} = $lead_info->{PRIORITY};
+        return 0 if !defined $attr->{PRIORITY};
+      }
+
+      return in_array($attr->{PRIORITY}, [ split(',\s?', $trigger->{new_value}) ]) ? 1 : 0;
+    },
+  }
+}
+
+#**********************************************************
+=head2 _crm_action_handlers()
+
+=cut
+#**********************************************************
+sub _crm_action_handlers {
+
+  return {
+    addAction      => sub {
+      my $self = shift;
+      my ($action, $lead_id) = @_;
+
+      return if !$action->{value} || $action->{value} !~ /\;/;
+
+      my ($action_id, $aid, $priority, $plan_date, $message) = split(';', $action->{value});
+      return if !$action_id || !$aid;
+
+      my $lead_info = $self->crm_lead_info({ ID => $lead_id });
+      my $step_id_hash = $self->crm_step_number_leads();
+
+      $self->progressbar_comment_add({
+        LEAD_ID      => $lead_id,
+        STEP_ID      => $step_id_hash->{$lead_info->{CURRENT_STEP}} || 1,
+        PRIORITY     => $priority,
+        ACTION_ID    => $action_id,
+        AID          => $aid,
+        PLANNED_DATE => $plan_date,
+        MESSAGE      => $message
+      });
+    },
+    addTask        => sub {
+      my $self = shift;
+      my ($action, $lead_id) = @_;
+
+      return if !in_array('Tasks', \@main::MODULES);
+      return if !$action->{value} || $action->{value} !~ /\;/;
+
+      my ($task_type, $name, $aid, $plan_date) = split(';', $action->{value});
+      return if !$task_type || !$name;
+
+      my $lead_info = $self->crm_lead_info({ ID => $lead_id });
+      # my $step_id_hash = $self->crm_step_number_leads();
+
+      require Tasks::db::Tasks;
+      Tasks->import();
+      my $Tasks = Tasks->new($self->{db}, $admin, $CONF);
+
+      $Tasks->add({
+        AID          => $admin->{AID},
+        TASK_TYPE    => $task_type,
+        RESPONSIBLE  => $aid,
+        NAME         => $name,
+        LEAD_ID      => $lead_id,
+        STEP_ID      => $lead_info->{CURRENT_STEP},
+        PLAN_DATE    => $plan_date,
+        CONTROL_DATE => $plan_date
+      });
+    },
+    setStep        => sub {
+      my $self = shift;
+      my ($action, $lead_id) = @_;
+
+      my $step_id = $action->{value};
+      return if !$lead_id || !$step_id;
+
+      $self->crm_progressbar_step_info({ ID => $step_id });
+      return if !$self->{STEP_NUMBER};
+
+      $self->changes({
+        CHANGE_PARAM => 'ID',
+        TABLE        => 'crm_leads',
+        DATA         => {
+          CURRENT_STEP => $self->{STEP_NUMBER},
+          ID           => $lead_id
+        }
+      });
+
+      $self->crm_action_add($self->{CHANGES_LOG}, { {
+        CURRENT_STEP => $self->{STEP_NUMBER},
+        ID           => $lead_id
+      }, TYPE => 2 }) if $self->{CHANGES_LOG};
+    },
+    setResponsible => sub {
+      my $self = shift;
+      my ($action, $lead_id) = @_;
+
+      my $responsible = $action->{value};
+      return if !$lead_id || !defined $responsible;
+
+      $self->changes({
+        CHANGE_PARAM => 'ID',
+        TABLE        => 'crm_leads',
+        DATA         => {
+          RESPONSIBLE => $responsible,
+          ID          => $lead_id
+        },
+      });
+
+      $self->crm_action_add($self->{CHANGES_LOG}, { {
+        RESPONSIBLE => $responsible,
+        ID          => $lead_id
+      }, TYPE => 2 }) if $self->{CHANGES_LOG};
+    },
+    setPriority    => sub {
+      my $self = shift;
+      my ($action, $lead_id) = @_;
+
+      my $priority = $action->{value};
+      return if !$lead_id || !defined $priority;
+
+      $self->changes({
+        CHANGE_PARAM => 'ID',
+        TABLE        => 'crm_leads',
+        DATA         => {
+          PRIORITY => $priority,
+          ID       => $lead_id
+        },
+      });
+
+      $self->crm_action_add($self->{CHANGES_LOG}, { {
+        PRIORITY => $priority,
+        ID       => $lead_id
+      }, TYPE => 2 }) if $self->{CHANGES_LOG};
+    },
+    sendMessage    => sub {
+      my $self = shift;
+      my ($action, $lead_id) = @_;
+
+      return if !$action->{value};
+
+      my $lead_info = $self->crm_lead_info({ ID => $lead_id });
+      my $step_id_hash = $self->crm_step_number_leads();
+
+      $self->progressbar_comment_add({
+        LEAD_ID => $lead_id,
+        STEP_ID => $step_id_hash->{$lead_info->{CURRENT_STEP}} || 1,
+        MESSAGE => $action->{value},
+        DATE    => "$main::DATE $main::TIME"
+      });
+    },
+  }
+}
+
 
 1

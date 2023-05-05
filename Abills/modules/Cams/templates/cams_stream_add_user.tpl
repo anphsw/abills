@@ -20,60 +20,71 @@
             </div>
           </div>
           <div class='card-body'>
+
             <div class='form-group row'>
-              <label class='control-label col-md-3'>_{CAMS_GROUP}_:</label>
-              <div class='col-md-8'>
-                %GROUPS_SELECT%
+              <label class='col-md-4 col-form-label text-md-right' for='PRIVATE_CAMERA'>_{PRIVATE_CAM}_:</label>
+              <div class='col-md-7'>
+                <div class='form-check'>
+                  <input type='checkbox' class='form-check-input' id='PRIVATE_CAMERA'
+                         name='PRIVATE_CAMERA' %PRIVATE_CAMERA% value='1' data-input-disables='FOLDER_ID,GROUP_ID'>
+                </div>
               </div>
-              <a href='#' data-toggle='tooltip' title=' '><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3'>_{FOLDER}_:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4'>_{CAMS_GROUP}_:</label>
+              <div class='col-md-7'>
+                %GROUPS_SELECT%
+              </div>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
+            </div>
+
+            <div class='form-group row'>
+              <label class='control-label col-md-4'>_{FOLDER}_:</label>
+              <div class='col-md-7'>
                 %FOLDERS_SELECT%
               </div>
               <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3 required' for='TITLE_id'>_{CAM_TITLE}_:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4 required' for='TITLE_id'>_{CAM_TITLE}_:</label>
+              <div class='col-md-7'>
                 <input type='text' class='form-control' required='required' name='TITLE' value='%TITLE%'
                        id='TITLE_id'/>
               </div>
-              <a href='#' data-toggle='tooltip' title=' '><span class='fa fa-question-circle'></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3 required' for='NAME_id'>_{NAME}_:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4 required' for='NAME_id'>_{NAME}_:</label>
+              <div class='col-md-7'>
                 <input type='text' class='form-control' required='required' name='NAME' value='%NAME%'
                        id='NAME_id'/>
               </div>
-              <a href='#' data-toggle='tooltip' title=' '><span class='fa fa-question-circle'></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3 required' for='HOST_id'>RTSP Host:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4 required' for='HOST_id'>RTSP Host:</label>
+              <div class='col-md-7'>
                 <input type='text' class='form-control'
                        required='required' name='HOST' value='%HOST%' id='HOST_id'/>
               </div>
-              <a href='#' data-toggle='tooltip' title=' '><span class='fa fa-question-circle'></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3 required' for='RTSP_PORT_id'>RTSP _{PORT}_:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4 required' for='RTSP_PORT_id'>RTSP _{PORT}_:</label>
+              <div class='col-md-7'>
                 <input type='text' class='form-control'
                        required='required' name='RTSP_PORT' value='%RTSP_PORT%' id='RTSP_PORT_id'/>
               </div>
-              <a href='#' data-toggle='tooltip' title=' '><span class='fa fa-question-circle'></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
             <div class='form-group row'>
-              <label class='control-label col-md-3 required' for='RTSP_PATH_id'>RTSP _{PATH}_:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4 required' for='RTSP_PATH_id'>RTSP _{PATH}_:</label>
+              <div class='col-md-7'>
                 <input type='text' class='form-control'
                        required='required' name='RTSP_PATH' value='%RTSP_PATH%' id='RTSP_PATH_id'/>
               </div>
@@ -83,8 +94,8 @@
             <hr>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3 required' for='LOGIN_id'>_{LOGIN}_:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4 required' for='LOGIN_id'>_{LOGIN}_:</label>
+              <div class='col-md-7'>
                 <input type='text' class='form-control' required='required' name='LOGIN' value='%LOGIN%'
                        id='LOGIN_id'/>
               </div>
@@ -92,8 +103,8 @@
             </div>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3 required' for='PASSWORD_id'>_{PASSWD}_:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4 required' for='PASSWORD_id'>_{PASSWD}_:</label>
+              <div class='col-md-7'>
                 <input type='text' class='form-control' required='required' name='PASSWORD'
                        value='%PASSWORD%' id='PASSWORD_id'/>
               </div>
@@ -102,7 +113,7 @@
 
             <hr>
 
-            <div class='form-group custom-control custom-checkbox'>
+            <div class='form-group custom-control text-center custom-checkbox'>
               <input class='custom-control-input' type='checkbox' id='DISABLED' name='DISABLED'
                      %DISABLED_CHECKED% value='1'>
               <label for='DISABLED' class='custom-control-label'>_{DISABLED}_</label>
@@ -122,8 +133,8 @@
           </div>
           <div class='card-body'>
             <div class='form-group row'>
-              <label class='control-label col-md-3' for='EXTRA_URL'>_{EXTRA}_ URL:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4' for='EXTRA_URL'>_{EXTRA}_ URL:</label>
+              <div class='col-md-7'>
                 <input type='text' class='form-control' name='EXTRA_URL' value='%EXTRA_URL%'
                        id='EXTRA_URL'/>
               </div>
@@ -131,16 +142,16 @@
             </div>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3'>_{ORIENTATION}_:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4'>_{ORIENTATION}_:</label>
+              <div class='col-md-7'>
                 %ORIENTATION_SELECT%
               </div>
               <a href='#' data-toggle='tooltip' title=' '><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3'>_{CAMS_ARCHIVE}_:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4'>_{CAMS_ARCHIVE}_:</label>
+              <div class='col-md-7'>
                 %ARCHIVE_SELECT%
               </div>
               <a href='#' data-toggle='tooltip' title=' '><span class='fa fa-question-circle'></span></a>
@@ -182,8 +193,8 @@
             </div>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3'>_{PRE_IMAGE}_ URL:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4'>_{PRE_IMAGE}_ URL:</label>
+              <div class='col-md-7'>
                 <input type='text' class='form-control' name='PRE_IMAGE_URL' value='%PRE_IMAGE_URL%'
                        id='PRE_IMAGE_URL'/>
               </div>
@@ -191,16 +202,16 @@
             </div>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3'>_{SOUND}_:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4'>_{SOUND}_:</label>
+              <div class='col-md-7'>
                 %SOUND_SELECT%
               </div>
               <a href='#' data-toggle='tooltip' title=' '><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3'>_{TYPE_FOR_SERVICE}_:</label>
-              <div class='col-md-8'>
+              <label class='control-label col-md-4'>_{TYPE_FOR_SERVICE}_:</label>
+              <div class='col-md-7'>
                 %TYPE_SELECT%
               </div>
               <a href='#' data-toggle='tooltip' title=' '><span class='fa fa-question-circle'></span></a>

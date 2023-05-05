@@ -8,5 +8,5 @@ $lang{PAYMENT_TO_DATE}='Оплачено до дати';
 $lang{DEBTS_DAYS}='Заборгованість';
 $lang{FORUM_ACTIVITY}='Активність в форумі';
 $lang{PRE_TP}='Попередні Тарифний план';
-$lang{LAST_FEES_DATE}='Дата останьої абон. плати';
+$lang{LAST_FEES_DATE}='Дата останьої абонплати';
 

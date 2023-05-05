@@ -173,12 +173,9 @@ sub log_rotate {
   my ($attr) = @_;
 
   #yesterday date
-  #my $DATE = (strftime("%Y_%m_%d", localtime(time - 86400)));
-  #my ($Y, $M, $D) = split(/_/, $DATE);
-  my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
-  my ($Y, $M, undef) = split(/-/, $DATE, 3);
-
-  $DATE =~ s/\-/\_/g;
+  my $DATE = (strftime("%Y_%m_%d", localtime(time - 86400)));
+  #my $DATE = POSIX::strftime("%Y_%m_%d", localtime(time));
+  my ($Y, $M, undef) = split(/_/, $DATE);
 
   my @rq      = ();
   my $version = $self->db_version();

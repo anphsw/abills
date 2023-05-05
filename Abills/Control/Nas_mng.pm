@@ -217,6 +217,7 @@ sub form_nas_mng {
   elsif ($Nas->{NAS_TYPE} && $Nas->{NAS_TYPE} =~ /mikrotik/) {
     push @nas_menu, "Hotspot::NAS_ID=$Nas->{NAS_ID}&mikrotik_hotspot=1";
     push @nas_menu, "$lang{CONFIGURATION}::NAS_ID=$Nas->{NAS_ID}&mikrotik_configure=1";
+    push @nas_menu, "$lang{IMPORT} $lang{USERS}::NAS_ID=$Nas->{NAS_ID}&mikrotik_configure=1&import_users=1";
   }
 
   $Nas->{CHANGED}  = "($lang{CHANGED}: $Nas->{CHANGED})";
@@ -253,6 +254,7 @@ sub form_nas_mng {
   }
 
   if (in_array('Storage', \@MODULES)) {
+    # Maybe, we dont need fool load of Storage, because we just get an index - load at click.
     load_module('Storage', $html);
     my $storage_index = get_function_index('storage_main');
     push @nas_menu, "$lang{INVENTORY_ITEMS}:$storage_index:NAS_ID=$Nas->{NAS_ID}&show_installation=1&search=1::$storage_index";
@@ -281,7 +283,7 @@ sub form_nas_mng {
   }
   elsif ($FORM{mikrotik_configure}) {
     require Control::Mikrotik_mng;
-    return form_mikrotik_configure($Nas);
+    return form_mikrotik_configure($Nas, \%FORM);
   }
   elsif ($FORM{mikrotik_check_access}) {
     require Control::Mikrotik_mng;
@@ -723,8 +725,8 @@ sub form_nas_console_command {
       $nas_telnet_port = $nas_rad_port || 23;
     }
 
-    use Abills::Telnet;
-
+    require Abills::Telnet;
+    Abills::Telnet->import();
     my $t = Abills::Telnet->new($telnet_attr);
 
     $t->set_terminal_size(256, 1000);
@@ -2100,6 +2102,7 @@ sub form_nas_stats {
   return 1;
 }
 
+# Duplicates from Radius_pairs?
 sub build_radius_params_result_response {
   my ($module) = @_;
 
@@ -2114,7 +2117,7 @@ sub build_radius_params_result_response {
   ];
 }
 
-
+# Duplicates from Radius_pairs?
 sub parse_radius_params_json {
   my ($pairs_json) = @_;
 

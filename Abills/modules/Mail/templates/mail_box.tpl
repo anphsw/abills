@@ -6,7 +6,7 @@
 <input type=hidden name='UID' value='$FORM{UID}'>
 <input type=hidden name='MBOX_ID' value='%MBOX_ID%'>
 
-<div class='card card-primary card-outline box-form box-big-form'>
+<div class='card card-primary card-outline container-md'>
 	<div class='card-header with-border'>
 		<h4 class='card-title'>E-Mail</h4>
 		<div class='card-tools'>
@@ -48,13 +48,13 @@
 
     <div class='form-group row'>
     	<div class='col-md-3'>
-    		<label for='MAILS_LIMIT' class='control-label col-md-3'>_{COUNT}_:</label>
+    		<label for='MAILS_LIMIT' class='control-label'>_{COUNT}_:</label>
     	</div>
     	<div class='col-md-3'>
       	<input class='form-control' id='MAILS_LIMIT' placeholder='%MAILS_LIMIT%' name='MAILS_LIMIT' value='%MAILS_LIMIT%'>
      	</div>
       <div class='col-md-3'>
-      	<label for='card_SIZE' class='control-label col-sm-3'>_{SIZE}_(Mb):</label>
+      	<label for='card_SIZE' class='control-label'>_{SIZE}_(Mb):</label>
       </div>
       <div class='col-md-3'>
       	<input class='form-control' id='card_SIZE' placeholder='%BOX_SIZE%' name='card_SIZE' value='%BOX_SIZE%'>

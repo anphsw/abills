@@ -14,6 +14,8 @@
 
 <input type='hidden' name='TO_LEAD_ID' value='%TO_LEAD_ID%'>
 <input type='hidden' name='LEAD_ID' value='%FROM_LEAD_ID%'>
+<input type='hidden' name='BUILD_ID' value='%BUILD_ID%'>
+<input type='hidden' name='ADDRESS_FLAT' value='%ADDRESS_FLAT%'>
 
 <div class='row'>
   <div class='col-md-5'>

@@ -155,7 +155,7 @@ sub form_groups {
 
     return 0;
   }
-  elsif (defined($FORM{del}) && $FORM{COMMENTS} && $permissions{0}{5}) {
+  elsif (defined($FORM{del}) && $FORM{COMMENTS} && $permissions{0} && $permissions{0}{5}) {
     $FORM{del} = 0 if !$FORM{del};
     $users->list({ GID => $FORM{del} });
 
@@ -173,6 +173,7 @@ sub form_groups {
   my %ext_titles = (
     id               => '#',
     name             => $lang{NAME},
+    bonus            => $lang{BONUS},
     users_count      => $lang{USERS},
     descr            => $lang{DESCRIBE},
     allow_credit     => "$lang{ALLOW} $lang{CREDIT}",
@@ -197,6 +198,7 @@ sub form_groups {
       disable_payments => sub {return $bool_vals[ shift ]},
       disable_chg_tp   => sub {return $bool_vals[ shift ]},
       documents_access => sub {return $bool_vals[ shift ]},
+      bonus            => sub {return $bool_vals[ shift ]},
       users_count => sub {
         my ($users_count, $line) = @_;
 

@@ -8,7 +8,8 @@ get:
       description: ID транзакции
       required: true
       schema:
-        type: integer
+        type: string
+        example: Liqpay:123456789
   responses:
     200:
       description: Успешное выполнение

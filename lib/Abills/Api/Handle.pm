@@ -93,7 +93,10 @@ sub _start {
 
       $response = $router->{result};
       $status = $router->{status};
-      $content_type = $router->{content_type};
+      $content_type = q{};
+      if ($router->{content_type}) {
+        $content_type = ($router->{content_type} =~ /image/ && ref $response eq 'HASH') ? q{} : $router->{content_type};
+      }
       $response = {} if (!defined $response || !$response);
     }
 
@@ -104,7 +107,7 @@ sub _start {
   }
 
   if ($self->{return_type} && $self->{return_type} eq 'json' && !$content_type) {
-    $use_camelize = $router->{query_params}->{snakeCase} ? 0 : 1;
+    $use_camelize = ($router->{query_params}->{snakeCase} || (defined $self->{conf}{API_FILDS_CAMELIZE} && !$self->{conf}{API_FILDS_CAMELIZE})) ? 0 : 1;
 
     $response = json_former($response, {
       USE_CAMELIZE       => $use_camelize,
@@ -195,10 +198,13 @@ sub add_credentials {
     });
 
     my $SID = $ENV{HTTP_USERSID};
-    my ($uid) = ::auth_user('', '', $SID); #TODO check
+    $main::FORM{external_auth} = '';
+    my ($uid) = ::auth_user('', '', $SID);
 
     $request->{path_params}{uid} = $uid;
     $request->{query_params}{REQUEST_USERSID} = $SID;
+
+    return 0 if ref $uid ne '';
 
     return $uid != 0;
   });
@@ -212,10 +218,7 @@ sub add_credentials {
 
     if ($self->{conf}->{BOT_SECRET}) {
       return 0 if (!$ENV{HTTP_BOTSECRET});
-      require Digest::SHA;
-      Digest::SHA->import('sha256_hex');
-      my $signature = Digest::SHA::sha256_hex($self->{conf}->{BOT_SECRET});
-      return 0 if ($signature ne $ENV{HTTP_BOTSECRET});
+      return 0 if ($self->{conf}->{BOT_SECRET} ne $ENV{HTTP_BOTSECRET});
     }
 
     my %bot_types = ();

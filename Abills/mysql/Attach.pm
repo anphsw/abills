@@ -9,7 +9,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use strict;
-use parent 'main';
+use parent 'dbcore';
 use Conf;
 
 use Admins;
@@ -251,7 +251,7 @@ sub attachment_add{
     }
   }
 
-  $self->query2( "INSERT INTO $attr->{TABLE}
+  $self->query( "INSERT INTO `$attr->{TABLE}`
         (filename, content_type, content_size, content, create_time $extra_col_names)
         VALUES (?, ?, ?, ?, NOW() $extra_bind_placeholders)",
     'do', { Bind => [
@@ -319,7 +319,7 @@ sub attachment_info {
 
   my $table   = $attr->{TABLE};
 
-  $self->query2("SELECT id AS attachment_id,
+  $self->query("SELECT id AS attachment_id,
     filename,
     content_type,
     content_size AS filesize

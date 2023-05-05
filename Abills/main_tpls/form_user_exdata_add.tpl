@@ -10,7 +10,7 @@
 </div>
 
 <div class='form-group row'>
-  <label class='col-form-label text-right col-4 col-md-2' for='GID'>_{GROUPS}_:</label>
+  <label class='col-form-label text-right col-4 col-md-2 %GROUP_REQ%' for='GID'>_{GROUPS}_:</label>
   <div class='col-8 col-md-4'>
     %GID%
   </div>

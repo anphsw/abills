@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-Main ABillS Admin Web interface
+  ABillS Admin Web interface
+  abills.net.ua
 
 =cut
 
@@ -14,7 +15,7 @@ BEGIN {
   eval { do "$libpath/libexec/config.pl" };
   our %conf;
 
-  if(!%conf){
+  if (!%conf) {
     print "Content-Type: text/plain\n\n";
     print "Error: Can't load config file 'config.pl'\n";
     print "Create ABillS config file /usr/abills/libexec/config.pl\n";
@@ -22,16 +23,16 @@ BEGIN {
   }
 
   my $sql_type = $conf{dbtype} || 'mysql';
-  unshift(@INC, $libpath . "Abills/$sql_type/",
+  unshift(@INC,
+    $libpath . "Abills/$sql_type/",
+    $libpath . 'Abills/modules/',
     $libpath . '/lib/',
-    $libpath,
     $libpath . 'Abills/',
-    $libpath . 'Abills/mysql/',
-    $libpath . 'Abills/modules/'
+    $libpath
   );
 
   eval { require Time::HiRes; };
-  our $begin_time;
+  our $begin_time = 0;
   if (!$@) {
     Time::HiRes->import(qw(gettimeofday));
     $begin_time = Time::HiRes::gettimeofday();
@@ -57,10 +58,13 @@ use Abills::Base qw(in_array mk_unique_value decode_base64 convert gen_time);
 use Admins;
 use Users;
 use Finance;
-use Shedule;
-use Abills::Fetcher qw(web_request);
 
-our $db    = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { %conf, CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+our $db    = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
+  { %conf,
+    CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
+    db_engine => 'dbcore'
+  });
+
 our $admin = Admins->new($db, \%conf);
 our $Conf  = Conf->new($db, $admin, \%conf, { SKIP_PAYSYS => 1 });
 
@@ -138,7 +142,6 @@ our %module     = ();
 fl();
 
 our $users  = Users->new($db, $admin, \%conf);
-my $Shedule = Shedule->new($db, $admin, \%conf);
 # Quick index - Show only function results whithout main windows
 if ($FORM{qindex} || $FORM{get_index}) {
   quick_functions();
@@ -214,7 +217,6 @@ my %SEARCH_TYPES = (
 );
 
 my $function_name = $functions{$index} || q{};
-my $module_name   = ($module{$index}) ? "$module{$index}:" : '';
 pre_page();
 
 admin_quick_setting();
@@ -489,6 +491,10 @@ sub func_menu {
       return 0;
     }
 
+    if (defined($module{$FORM{subf}})) {
+      load_module($module{$FORM{subf}}, $html);
+    }
+
     _function($FORM{subf}, $f_args->{f_args});
   }
 
@@ -510,6 +516,8 @@ sub form_image_mng {
       $file_content = $FORM{IMAGE};
     }
     elsif($FORM{IMAGE} eq 'URL') {
+      require Abills::Fetcher;
+      Abills::Fetcher->import('web_request');
       $file_content->{Contents} = web_request($FORM{URL});
       $file_content->{Size} = length($file_content->{Contents});
       $file_content->{'Content-Type'} = 'image/jpeg';
@@ -926,7 +934,7 @@ sub form_changes {
     $FORM{subf} = 145;
 
     $pages_qs2 .= "&AID=$FORM{AID}";
-
+    require Control::Admins_mng;
     form_admins();
 
     return 0;
@@ -992,6 +1000,7 @@ sub form_changes {
     %LIST_PARAMS = %{ $attr->{SEARCH_PARAMS} };
   }
   elsif(!$FORM{UID} && !$FORM{search_form}) {
+    require Control::Reports;
     form_changes_summary();
   }
 
@@ -1102,9 +1111,9 @@ sub form_changes {
 
     if($message) {
       my $br = $html->br();
-      my $action_text = $message;
-      while($action_text =~ /([A-Z\_]+)[:|\s]{1}/g) {
-        my $marker = $1;
+      my $action_text = ' '.$message;
+      while($action_text =~ /\s+([A-Z\_]+)[:\s]/g) {
+        my $marker = $1 || q{};
         my $colorstring = $html->b($marker).':';
         $message =~ s/$marker:?/$colorstring/g
       }
@@ -1153,11 +1162,8 @@ sub form_events {
     return 1;
   }
 
-  #Fixme
-  #$conf{CROSS_MODULES_DEBUG}='/tmp/cross_modules';
-
   print "Content-Type: text/html\n\n" if ($FORM{DEBUG});
-  my $cross_modules_return = cross_modules_call('_events', {
+  my $cross_modules_return = cross_modules('_events', {
     SKIP_MODULES => 'Sqlcmd,Sysinfo',
     UID => $user->{UID},
   });
@@ -1310,7 +1316,7 @@ sub form_passwd {
   }
   elsif (length($FORM{newpassword}) < $conf{PASSWD_LENGTH}) {
     $lang{ERR_SHORT_PASSWD} =~ s/6/$conf{PASSWD_LENGTH}/;
-    $html->message( 'err', $lang{ERROR}, $lang{ERR_SHORT_PASSWD} );
+    $html->message( 'err', $lang{ERROR}, "$lang{ERR_SHORT_PASSWD} $conf{PASSWD_LENGTH}");
     $ret = 0;
   }
   elsif ($conf{CONFIG_PASSWORD}
@@ -1373,32 +1379,28 @@ sub fl {
 
     "1:0:<i class='nav-icon fa fa-user'></i><p class='d-inline'>$lang{CUSTOMERS}</p>:null:::",
     "11:1:$lang{LOGINS}:form_users_list:::",
-    "16:13:$lang{ADMIN}:form_companie_admins:COMPANY_ID::",
+    "16:13:$lang{ADMIN}:form_companie_admins:COMPANY_ID:Control/Companies_mng:",
 
     "15:11:$lang{INFO}:form_users:UID::",
     "20:15:$lang{SERVICES}:null:UID::",
-    "101:15:$lang{PAYMENTS}:form_payments:UID::",
-    "102:15:$lang{FEES}:form_fees:UID::",
+    "101:15:$lang{PAYMENTS}:form_payments:UID:Control/Payments:",
+    "102:15:$lang{FEES}:form_fees:UID:Control/Fees:",
     "103:15:$lang{SHEDULE}:form_shedule:UID::",
-    "125:15:$lang{ADDITION}:user_contract:UID::",
+    "125:15:$lang{ADDITION}:user_contract:UID:Control/Contracts_mng:",
 
     "31:15:$lang{SEARCH}:user_modal_search:user_search_form::",
     "32:15:$lang{LOGIN}:check_login_availability:AJAX::",
 
-    "2:0:<i class='nav-icon far fa-plus-square'></i><p class='d-inline'>$lang{PAYMENTS}</p>:form_payments:::",
-    "3:0:<i class='nav-icon far fa-minus-square'></i><p class='d-inline'>$lang{FEES}</p>:form_fees:::",
-#Config
-
+    "2:0:<i class='nav-icon far fa-plus-square'></i><p class='d-inline'>$lang{PAYMENTS}</p>:form_payments::Control/Payments:",
+    "3:0:<i class='nav-icon far fa-minus-square'></i><p class='d-inline'>$lang{FEES}</p>:form_fees::Control/Fees:",
+    "6:0:<i class='nav-icon far fa-eye'></i><p class='d-inline'>$lang{MONITORING}</p>:null:::",
     "7:0:<i class='nav-icon fa fa-search'></i><p class='d-inline'>$lang{SEARCH}</p>:form_search:::",
     "8:0:<i class='nav-icon fa fa-flag'></i><p class='d-inline'>$lang{MAINTAIN}</p>:null:::",
-    "9:0:<i class='nav-icon fa fa-wrench'></i><p class='d-inline'>$lang{PROFILE}</p>:admin_profile:::",
+    "9:0:<i class='nav-icon fa fa-wrench'></i><p class='d-inline'>$lang{PROFILE}</p>:admin_profile::Control/Profile:",
   );
 
   if ($permissions{0}) {
     require Control::Users_mng;
-    require Control::Companies_mng;
-    require Control::Groups_mng;
-    require Control::Contracts_mng;
 
     if ($permissions{0}{3}) {
       push @m, "17:15:$lang{PASSWD}:form_passwd:UID::";
@@ -1413,37 +1415,30 @@ sub fl {
 
     if ($permissions{0}{28}) {
       push @m, "12:15:$lang{GROUP}:user_group:UID::";
-      push @m, "27:1:$lang{GROUPS}:form_groups:::";
+      push @m, "27:1:$lang{GROUPS}:form_groups::Control/Groups_mng:";
     }
 
     if ($permissions{0}{36}) {
-      push @m, "13:1:$lang{COMPANY}:form_companies:::";
-      push @m, "21:15:$lang{COMPANY}:user_company:UID::";
+      push @m, "13:1:$lang{COMPANY}:form_companies::Control/Companies_mng:";
+      push @m, "21:15:$lang{COMPANY}:user_company:UID:Control/Companies_mng:";
     }
     if ($permissions{0}{30}) {
       push @m, "22:15:$lang{LOG}:form_changes:UID::";
     }
   }
   if ($permissions{1}) {
-    require Control::Payments;
+    # Control/Payments;
   }
 
   if ($permissions{2}) {
-    require Control::Fees;
+    # Control/Fees
   }
 
-  #Monitoring
-  if ($permissions{5} && $permissions{5}{0}){
-    push @m, "6:0:<i class='nav-icon far fa-eye'></i><p class='d-inline'>$lang{MONITORING}</p>:null:::";
-  }
-
-  #Profile
   if ($permissions{8}){
-    require Control::Profile;
     push @m,
-      "110:9:$lang{FUNCTIONS_LIST}:flist:::",
+      "110:9:$lang{FUNCTIONS_LIST}:flist::Control/Profile:",
       "111:9:$lang{EVENTS}:form_events:AJAX::",
-      "112:9:$lang{SLIDES}:form_slides_create:::";
+      "112:9:$lang{SLIDES}:form_slides_create::Control/Profile:";
   }
 
   if ($conf{NON_PRIVILEGES_LOCATION_OPERATION}) {
@@ -1462,110 +1457,104 @@ sub fl {
     push @m, "135:70:Address update:form_address_select2:AJAX::";
   }
 
-  #Reports
-  push @m, "4:0:<i class='nav-icon far fa-chart-bar'></i><p class='d-inline'>$lang{REPORTS}</p>:form_reports:::";
+  push @m, "4:0:<i class='nav-icon far fa-chart-bar'></i><p class='d-inline'>$lang{REPORTS}</p>:form_reports::Control/Reports:";
 
   #Reports
   if($permissions{3}){
-    require Control::Reports;
-    require Control::User_reports;
     if($permissions{3}{7}) {
-      push @m, "76:4:$lang{WEB_SERVER}:report_webserver:::", "122:4:$lang{LIST_OF_LOGS}:logs_list:::";
+      push @m, "76:4:$lang{WEB_SERVER}:report_webserver::Control/Reports:",
+        "122:4:$lang{LIST_OF_LOGS}:logs_list::Control/Reports:";
     }
+
     if($permissions{3}{8}) {
       push @m, "131:4:$lang{USERS}:null:::";
-      push @m, "132:131:$lang{REPORT_NEW_ALL_USERS}:report_new_all_customers:::";
-      push @m, "133:131:$lang{REPORT_NEW_ARPU_USERS}:report_new_arpu:::";
-      push @m, "134:131:$lang{REPORT_BALANCE_BY_STATUS}:report_balance_by_status:::";
-      push @m, "136:131:$lang{REPORT_SWITCH_WITH_USERS}:report_switch:::";
-      push @m, "137:131:$lang{REPORT_REASON_USERS_DISABLED}:report_users_disabled:::";
+      push @m, "132:131:$lang{REPORT_NEW_ALL_USERS}:report_new_all_customers::Control/User_reports:";
+      push @m, "133:131:$lang{REPORT_NEW_ARPU_USERS}:report_new_arpu::Control/User_reports:";
+      push @m, "134:131:$lang{REPORT_BALANCE_BY_STATUS}:report_balance_by_status::Control/User_reports:";
+      push @m, "136:131:$lang{REPORT_SWITCH_WITH_USERS}:report_switch::Control/User_reports:";
+      push @m, "137:131:$lang{REPORT_REASON_USERS_DISABLED}:report_users_disabled::Control/User_reports:";
     }
 
     if($conf{AUTH_FACEBOOK_ID}){
       push @m, "127:4:$lang{SOCIAL_NETWORKS}:null:::";
-      push @m, "128:127:Facebook:reports_facebook_users_info:::";
+      push @m, "128:127:Facebook:reports_facebook_users_info::Control/Reports:";
     }
 
     #Payments reports
-    if($permissions{3}{2}) {
-      push @m, "42:4:$lang{PAYMENTS}:report_payments:::",
-        "43:42:$lang{MONTH}:report_payments_month:::";
+    if ($permissions{3}{2}) {
+      push @m, "42:4:$lang{PAYMENTS}:report_payments::Control/Reports:",
+        "43:42:$lang{MONTH}:report_payments_month::Control/Reports:";
     }
     #Allow fees reports
     if ($permissions{3}{3}) {
-      push @m, "44:4:$lang{FEES}:report_fees:::",
-        "45:44:$lang{MONTH}:report_fees_month:::";
+      push @m, "44:4:$lang{FEES}:report_fees::Control/Reports:",
+        "45:44:$lang{MONTH}:report_fees_month::Control/Reports:";
     }
 
     if ($permissions{3}{4}) {
-      push @m, "67:4:$lang{EVENTS}:form_changes:::";
+      push @m, "67:4:$lang{EVENTS}:form_changes::Control/Reports:";
     }
 
     if ($permissions{3}{5}) {
-      push @m, "68:4:$lang{CONFIG}:form_system_changes:::",
-              "86:4:$lang{USER_PORTAL}:null:::",
-              "87:86:$lang{BRUTE_ATACK}:report_bruteforce:::",
-              "88:86:$lang{SESSIONS}:report_ui_last_sessions:::",
-              "123:86:$lang{USER_STATISTIC}:analiz_user_statistic:::";
+      push @m, "68:4:$lang{CONFIG}:form_system_changes::Control/Reports:",
+        "86:4:$lang{USER_PORTAL}:null:::",
+        "87:86:$lang{BRUTE_ATACK}:report_bruteforce::Control/Reports:",
+        "88:86:$lang{SESSIONS}:report_ui_last_sessions::Control/Reports:",
+        "123:86:$lang{USER_STATISTIC}:analiz_user_statistic::Control/Reports:";
     }
   }
 
   #config functions
   if ($permissions{4}) {
-    require Control::System;
-
     push (@m, "5:0:<i class='nav-icon fas fa-cog'></i><p class='d-inline'>$lang{CONFIG}</p>:null:::",
-      "62:5:$lang{NAS}:form_nas:::",
-      "63:62:$lang{IP_POOLS}:form_ip_pools:::",
-      "64:62:$lang{NAS_STATISTIC}:form_nas_stats:::",
-      "65:62:$lang{GROUPS}:form_nas_groups:::",
+      "62:5:$lang{NAS}:form_nas::Control/Nas_mng:",
+      "63:62:$lang{IP_POOLS}:form_ip_pools::Control/Nas_mng:",
+      "64:62:$lang{NAS_STATISTIC}:form_nas_stats::Control/Nas_mng:",
+      "65:62:$lang{GROUPS}:form_nas_groups::Control/Nas_mng:",
       "145:50:$lang{LOG}:form_changes:::",
-      "148:5::nas_radius_pairs_save:AJAX::",
-
+      "148:5::nas_radius_pairs_save:AJAX:Control/Nas_mng:",
       "85:5:$lang{SHEDULE}:form_shedule:::",
       "89:90:$lang{CONTACTS} $lang{TYPES}:form_contact_types:::",
       "90:5:$lang{MISC}:null:::",
-      "91:90:$lang{TEMPLATES}:form_templates:::",
-      "92:90:$lang{DICTIONARY}:form_dictionary:::",
-      "93:90:$lang{CHECKSUM}:form_config:::",
-      "94:90:$lang{PATHES}:form_prog_pathes:::",
-      "95:90:$lang{SQL_BACKUP}:form_sql_backup:::",
-      "96:90:$lang{INFO_FIELDS}:form_info_fields:::",
-      "97:96:$lang{LIST}:form_info_lists:::",
-      "98:90:$lang{TYPE} $lang{FEES}:form_fees_types:::",
-      "99:90:$lang{BILLD}:form_billd_plugins:::",
-      "118:90:$lang{EDIT}:form_templates_pdf_save:AJAX::",
-      "119:90:$lang{EDIT}:form_templates_pdf_edit:::",
-      "120:90:$lang{SERVICE_STATUS}:form_status:::",
-      "121:90:$lang{USER_STATUS}:form_user_status:::",
-      "122:90:$lang{ORGANIZATION_INFO}:organization_info:::",
-      "124:90:$lang{PAYMENT_METHOD}:form_payment_types:::",
-      "129:90:$lang{FILE_MANAGER}:file_tree:::",
-      "130:90:$lang{TAX_MAGAZINE}:taxes:::",
-      "126:90:$lang{TYPES} $lang{CONTRACTS}:contracts_type:::",
-      "127:90:$lang{HOLIDAYS}:form_holidays:::",
-      "128:90:$lang{EXCHANGE_RATE}:form_exchange_rate:::",
+      "91:90:$lang{TEMPLATES}:form_templates::Control/System:",
+      "92:90:$lang{DICTIONARY}:form_dictionary::Control/System:",
+      "93:90:$lang{CHECKSUM}:form_config::Control/System:",
+      "94:90:$lang{PATHES}:form_prog_pathes::Control/System:",
+      "95:90:$lang{SQL_BACKUP}:form_sql_backup::Control/System:",
+      "96:90:$lang{INFO_FIELDS}:form_info_fields::Control/System:",
+      "97:96:$lang{LIST}:form_info_lists::Control/System:",
+      "98:90:$lang{TYPE} $lang{FEES}:form_fees_types::Control/System:",
+      "99:90:$lang{BILLD}:form_billd_plugins::Control/System:",
+      "118:90:$lang{EDIT}:form_templates_pdf_save:AJAX:Control/System:",
+      "119:90:$lang{EDIT}:form_templates_pdf_edit::Control/System:",
+      "120:90:$lang{SERVICE_STATUS}:form_status::Control/System:",
+      "121:90:$lang{USER_STATUS}:form_user_status::Control/System:",
+      "122:90:$lang{ORGANIZATION_INFO}:organization_info::Control/System:",
+      "124:90:$lang{PAYMENT_METHOD}:form_payment_types::Control/System:",
+      "129:90:$lang{FILE_MANAGER}:file_tree::Control/Filemanager:",
+      "130:90:$lang{TAX_MAGAZINE}:taxes::Control/Taxes:",
+      "126:90:$lang{TYPES} $lang{CONTRACTS}:contracts_type::Control/Contracts_mng:",
+      "149:90:$lang{HOLIDAYS}:form_holidays::Control/System:",
+      "150:90:$lang{EXCHANGE_RATE}:form_exchange_rate::Control/System:",
       );
 
     #Allow Admin managment function
     if ($permissions{4}{4}) {
-      require Control::Admins_mng;
-      push @m, "50:5:$lang{ADMINS}:form_admins:::",
+      push @m, "50:5:$lang{ADMINS}:form_admins::Control/Admins_mng:",
         "51:50:$lang{LOG}:form_changes:AID::",
-        "52:50:$lang{PERMISSION}:form_admin_permissions:AID::",
+        "52:50:$lang{PERMISSION}:form_admin_permissions:AID:Control/Admins_mng:",
         "54:50:$lang{PASSWD}:form_passwd:AID::",
-        "146:50:$lang{PAYMENT_TYPE}:form_admin_payment_types:AID::",
-        "55:50:$lang{FEES}:form_fees:AID::",
-        "56:50:$lang{PAYMENTS}:form_payments:AID::",
-        "57:50:$lang{CHANGE}:form_admins:AID::",
-        "59:50:$lang{ACCESS}:form_admins_access:AID::",
-        "60:50:Paranoid:form_admins_full_log_analyze:AID::",
-        "115:50:$lang{AUTH_HISTORY}:auth_history:AID::",
-        "61:50:$lang{CONTACTS}:form_admins_contacts:AID::",
-        "69:50::form_admins_contacts_save:AID,AJAX:";
-
-        push @m, "58:50:$lang{GROUPS}:form_admins_groups:AID::" if (! $admin->{GID} || ( $permissions{0} && $permissions{0}{28} ) );
-        push @m, "113:50:Domains:form_admins_domains:AID::" if (in_array('Multidoms', \@MODULES));
+        "146:50:$lang{PAYMENT_TYPE}:form_admin_payment_types:AID:Control/Admins_mng:",
+        "55:50:$lang{FEES}:form_fees:AID:Control/Fees:",
+        "56:50:$lang{PAYMENTS}:form_payments:AID:Control/Payments:",
+        "57:50:$lang{CHANGE}:form_admins:AID:Control/Admins_mng:",
+        "59:50:$lang{ACCESS}:form_admins_access:AID:Control/Admins_mng:",
+        "60:50:Paranoid:form_admins_full_log_analyze:AID:Control/Admins_mng:",
+        "115:50:$lang{AUTH_HISTORY}:form_admin_auth_history:AID:Control/Admins_mng:",
+        "61:50:$lang{CONTACTS}:form_admins_contacts:AID:Control/Admins_mng:",
+        "69:50::form_admins_contacts_save:AID,AJAX:Control/Admins_mng:";
+        push @m, "58:50:$lang{GROUPS}:form_admins_groups:AID:Control/Admins_mng:" if (! $admin->{GID} || ( $permissions{0} && $permissions{0}{28} ) );
+        push @m, "113:50:Domains:form_admins_domains:AID:Control/Admins_mng:" if (in_array('Multidoms', \@MODULES));
     }
   }
 
@@ -1704,6 +1693,7 @@ sub form_search {
 
       my $return = 1;
       if ($search_type) {
+        load_module($module{$search_type}, $html) if ($module{$search_type});
         $return = _function($search_type);
       }
 
@@ -2062,16 +2052,15 @@ sub form_search_all {
     { class => "well well-sm" });
   my $debug = $FORM{DEBUG} || 0;
 
-  my $cross_modules_return = cross_modules_call('_search', {
+  my $cross_modules_return = cross_modules('search', {
     SEARCH_TEXT => $search_text,
-    DEBUG       => $FORM{DEBUG}
+    DEBUG       => $FORM{DEBUG},
   });
 
   #main user_search
   $cross_modules_return->{main}=form_users_search({
     SEARCH_TEXT => $search_text,
     DEBUG       => $FORM{DEBUG},
-
   });
 
   foreach my $module ( sort keys %{$cross_modules_return} ) {
@@ -2113,6 +2102,7 @@ sub form_shedule {
   require Shedule;
   Shedule->import();
 
+  my $Shedule = Shedule->new($db, $admin, \%conf);
   if ($FORM{add_form}) {
     $Shedule->{SEL_D} = $html->form_select(
     'D',
@@ -2983,6 +2973,7 @@ sub pre_page {
     $avatar_logo = '/styles/default/img/admin/avatar5.png';
   }
 
+  my $module_name   = ($module{$index}) ? "$module{$index}:" : '';
 
   print $html->tpl_show(templates('header'), {
     %$admin,
@@ -2991,7 +2982,9 @@ sub pre_page {
     BREADCRUMB         => $navigat_menu,
     GLOBAL_CHAT        => $global_chat || '',
     FUNCTION_NAME      => "$module_name$function_name",
-    AVATAR_LOGO        => $avatar_logo
+    AVATAR_LOGO        => $avatar_logo,
+    EVENTS_DISABLED    => !in_array('Events', \@MODULES),
+    CONTENT_OFFSET     => $conf{dbdebug} ? '155px' : '94px',
   },
     { OUTPUT2RETURN => 1 });
   return 1;
@@ -3008,27 +3001,38 @@ sub post_page {
     $admin->{VERSION} .= " q: $admin->{db}->{queries_count} | ";
 
     if ($admin->{db}->{queries_list} && $permissions{4}{5}) {
-      my $queries_list = '<textarea cols=160 rows=10>';
+      my $output_text = '<textarea class="form-control" rows=28 style="width: 100%">';
 
       my $i = 0;
-      my @q_arr = (ref $Conf->{db}->{queries_list} eq 'HASH') ? keys %{ $Conf->{db}->{queries_list} } : @{ $Conf->{db}->{queries_list} };
+      my $query_list = $Conf->{db}->{queries_list};
+      my $is_hash = (ref $query_list eq 'HASH');
+      my @q_arr = $is_hash ? keys %{$query_list} : @{$query_list};
 
       foreach my $k (@q_arr) {
         $i++;
-        my $count = (ref $Conf->{db}->{queries_list} eq 'HASH') ? " ($Conf->{db}->{queries_list}->{$k})" : '';
-        $queries_list .= "$i $count";
-        $queries_list .= " ===================================\n      $k\n ";
+        my $is_dbcore_query = ref $k eq 'ARRAY';
+
+        my $text = $is_dbcore_query ? $k->[0] : $k;
+        my $time = sprintf("%.5f",
+          $is_dbcore_query ? $k->[1] || 0 : 0
+        );
+
+        my $count = $is_hash ? " ($query_list->{$k})" : '';
+        $output_text .= "$i $count";
+        $output_text .= " =================================== $time s\n      $text\n";
       }
-      $queries_list .= '</textarea>';
-      $admin->{FOOTER_DEBUG} .= $html->tpl_show( templates('form_show_hide'),
+      $output_text .= '</textarea>';
+      $admin->{FOOTER_DEBUG} .= $html->tpl_show(
+        templates('form_show_hide'),
         {
-          CONTENT => $queries_list,
-          NAME    => 'Queries: '.$i,
+          CONTENT => $output_text,
+          NAME    => "$lang{QUERIES}: ".$i,
           ID      => 'QUERIES',
-          PARAMS  => 'collapsed-box mx-n1',
+          PARAMS  => 'mx-n1',
           BUTTON_ICON => 'plus'
         },
-        { OUTPUT2RETURN => 1 } );
+        { OUTPUT2RETURN => 1 }
+      );
     }
   }
 
@@ -3091,6 +3095,8 @@ sub post_page {
 
       if(! $output && (-w "$conf{TPL_DIR}/NEW_VERSION" || -w $conf{TPL_DIR})) {
         #Get new version
+        require Abills::Fetcher;
+        Abills::Fetcher->import('web_request');
         $output = web_request('http://abills.net.ua/misc/checksum/VERSION', { BODY_ONLY => 1, TIMEOUT => 1, METHOD => 'GET' });
         if (!$output) {
           $output = $conf{VERSION};

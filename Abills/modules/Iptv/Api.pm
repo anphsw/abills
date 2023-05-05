@@ -395,7 +395,7 @@ sub user_routes {
         return {
           errno  => 20206,
           errstr => 'Unknown tpId',
-        } if (!$Iptv->{TOTAL});
+        } if (!scalar @{$services_list});
 
         my $tariffs = $Service_control->available_tariffs({
           SKIP_NOT_AVAILABLE_TARIFFS => 1,

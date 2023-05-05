@@ -75,12 +75,43 @@
     }
 
     .picture {
-      max-height: 600px
+      max-height: 600px;
+      max-width: 100%;
     }
   </style>
 
 </head>
 <body class='skin-blue-light sidebar-collapse layout-boxed '>
+<script>
+  try {
+    var BACKGROUND_OPTIONS     = '%BACKGROUND_COLOR%' || false;
+    var BACKGROUND_URL         = '%BACKGROUND_URL%' || false;
+    var BACKGROUND_HOLIDAY_IMG = '%BACKGROUND_HOLIDAY_IMG%' || false;
+
+    if (BACKGROUND_HOLIDAY_IMG) {
+      var block = '<style>'
+          + 'body {'
+          + 'background-size : cover !important; \n'
+          + 'background : url(' + BACKGROUND_HOLIDAY_IMG + ') no-repeat fixed !important; \n'
+          + '}'
+          + '</style>';
+      jQuery('head').append(block);
+    }
+    else if (BACKGROUND_URL) {
+      jQuery('body').css({
+        'background': 'url(' + BACKGROUND_URL + ')'
+      });
+    }
+    else if (BACKGROUND_OPTIONS) {
+      jQuery('body').css({
+        'background': BACKGROUND_OPTIONS
+      });
+    }
+
+  } catch (Error) {
+    console.log('Somebody pasted wrong parameters for \$conf{user_background} or \$conf{user_background_url}');
+  }
+</script>
 
 <div class='top-header navbar-light bg-gradient-primary main-header'>
   <div class='top-nav container-xl px-3'>

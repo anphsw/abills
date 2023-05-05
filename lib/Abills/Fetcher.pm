@@ -12,7 +12,7 @@ use parent 'Exporter';
 use Abills::Base qw(cmd urlencode load_pmodule json_former);
 use POSIX qw(strftime);
 
-our $VERSION = 0.01;
+our $VERSION = 0.02;
 
 our @EXPORT = qw(
   web_request
@@ -64,25 +64,18 @@ our %conf;
       or
       hash on JSON_RETURN mode
 
+      and http request info if option MORE_INFO
+
   Examples:
 
-    JSON Send
-
-    $self->_send_request({
-       POST => qq/
-     {
-       \\\"messages\\\": [{
-       \\\"recipient\\\": \\\"$number\\\",
-       \\\"message-id\\\": \\\"$message_id\\\",
-       \\\"sms\\\": {
-         \\\"originator\\\": \\\"3700\\\",
-         \\\"content\\\": {
-            \\\"text\\\": \\\"$attr->{MESSAGE}\\\"
-          }
-        }
-       }]
-      }/,
-      ACTION => '/send'
+    my ($result, undef) = web_request($req_url, {
+      HEADERS     => \@req_headers,
+      JSON_BODY   => $req_body,
+      JSON_RETURN => 1,
+      DEBUG       => $self->{debug} ? $self->{debug} : 0,
+      DEBUG2FILE  => $self->{debug} ? '/usr/abills/var/log/extreceipt.log' : 0,
+      METHOD      => $req_header,
+      MORE_INFO   => 1
     });
 
 
@@ -172,7 +165,7 @@ sub json_return {
   #Else other error
   elsif (ref $perl_scalar eq 'HASH' && $perl_scalar->{status} && $perl_scalar->{status} eq 'error') {
     $perl_scalar->{errno} = 1;
-    $perl_scalar->{errstr} = $perl_scalar->{message} || "";
+    $perl_scalar->{errstr} = $perl_scalar->{message} || '';
   }
 
   return $perl_scalar;
@@ -347,10 +340,6 @@ sub _curl_request {
 
   if ($attr->{CLEAR_COOKIE}) {
     unlink "/tmp/cookie.";
-  }
-
-  if ($result eq 'Timeout') {
-    return $result;
   }
 
   return $result;

@@ -19,17 +19,21 @@ sub connect {
 
   my $self = { };
   bless($self, $class);
+  my $db_engine = 'main';
+  if ($attr->{db_engine}) {
+    $db_engine = 'dbcore';
+  }
 
-  eval { require "main.pm"; };
+  eval { require "$db_engine.pm"; };
 
   if (! $@) {
-    "main"->import();
+    $db_engine->import();
   }
   else {
     print "Module '$sql_type' not supported yet";
   }
 
-  my $sql = "main"->connect($dbhost, $dbname, $dbuser, $dbpasswd, $attr);
+  my $sql = $db_engine->connect($dbhost, $dbname, $dbuser, $dbpasswd, $attr);
 
   $self->{sql_type}  = $sql_type;
   $self->{db}        = $sql->{db};

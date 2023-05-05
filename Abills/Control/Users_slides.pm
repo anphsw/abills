@@ -8,14 +8,19 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(sec2date);
+
 our Users $users;
 
-our(
+our (
   %lang,
   $html,
   $db,
   $admin,
-#  $user,
+  %conf,
+  $user,
+  %FORM,
+  @MODULES,
+  %LIST_PARAMS,
   %permissions
 );
 
@@ -235,7 +240,10 @@ sub form_slides_info {
   foreach my $module (@MODULES) {
 
     my $plugin_name = $module . '::Base';
-    eval "require $plugin_name;";
+    my $plugin_path = $plugin_name . '.pm';
+    $plugin_path =~ s{::}{/}g;
+    eval { require $plugin_path };
+
     my $function_name = lc $module . '_quick_info';
 
     next if ($@ || !$plugin_name->can('new') || !$plugin_name->can($function_name));

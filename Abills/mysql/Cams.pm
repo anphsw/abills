@@ -6,7 +6,7 @@ package Cams;
 
 =VERSION
 
-  VERSION = 0.03
+  VERSION = 0.04
 
 =cut
 
@@ -1014,7 +1014,8 @@ sub group_list {
       [ 'SUBGROUP_ID',  'STR', 'g.subgroup_id',          1 ],
     ],
     {
-      WHERE => 1,
+      WHERE       => 1,
+      WHERE_RULES => $attr->{WHERE_RULES} && ref $attr->{WHERE_RULES} eq 'ARRAY' ? $attr->{WHERE_RULES} : []
     }
   );
 
@@ -1094,15 +1095,7 @@ sub group_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT *
-    FROM cams_groups
-    WHERE id= ? ;",
-    undef,
-    {
-      INFO => 1,
-      Bind => [ $id ]
-    }
-  );
+  $self->query("SELECT * FROM cams_groups WHERE id= ? ;", undef, { INFO => 1, Bind => [ $id ] });
 
   return $self;
 }
@@ -1119,68 +1112,24 @@ sub access_group_list {
   my $self = shift;
   my ($attr) = @_;
 
-  my $groups;
-  my @all_access_groups = ();
+  my @WHERE_RULES = ();
 
-  if ($attr->{LOCATION_ID}) {
-    $groups = $self->group_list({
-      NAME        => "_SHOW",
-      STREET_ID   => "_SHOW",
-      BUILD_ID    => "_SHOW",
-      DISTRICT_ID => "_SHOW",
-      LOCATION_ID => $attr->{LOCATION_ID},
-      SERVICE_ID  => $attr->{SERVICE_ID},
-      COMMENT     => "_SHOW",
-      COLS_NAME   => 1,
-    });
+  push @WHERE_RULES, "(g.location_id=$attr->{LOCATION_ID})" if $attr->{LOCATION_ID};
+  push @WHERE_RULES, "(g.location_id=0 AND g.street_id=$attr->{STREET_ID})" if $attr->{STREET_ID};
+  push @WHERE_RULES, "(g.location_id=0 AND g.street_id=0 AND g.district_id=$attr->{DISTRICT_ID})" if $attr->{DISTRICT_ID};
+  push @WHERE_RULES, "(g.location_id=0 AND g.street_id=0 AND g.district_id=0)";
 
-    @all_access_groups = (@all_access_groups, @$groups);
-  }
-
-  if ($attr->{STREET_ID}) {
-    $groups = $self->group_list({
-      NAME        => "_SHOW",
-      STREET_ID   => $attr->{STREET_ID},
-      LOCATION_ID => 0,
-      BUILD_ID    => "_SHOW",
-      DISTRICT_ID => "_SHOW",
-      SERVICE_ID  => $attr->{SERVICE_ID},
-      COMMENT     => "_SHOW",
-      COLS_NAME   => 1,
-    });
-
-    @all_access_groups = (@all_access_groups, @$groups);
-  }
-
-  if ($attr->{DISTRICT_ID}) {
-    $groups = $self->group_list({
-      NAME        => "_SHOW",
-      DISTRICT_ID => $attr->{DISTRICT_ID},
-      STREET_ID   => 0,
-      LOCATION_ID => 0,
-      BUILD_ID    => "_SHOW",
-      SERVICE_ID  => $attr->{SERVICE_ID},
-      COMMENT     => "_SHOW",
-      COLS_NAME   => 1,
-    });
-
-    @all_access_groups = (@all_access_groups, @$groups);
-  }
-
-  $groups = $self->group_list({
-    NAME        => "_SHOW",
-    DISTRICT_ID => 0,
-    STREET_ID   => 0,
-    LOCATION_ID => 0,
-    BUILD_ID    => "_SHOW",
+  return $self->group_list({
+    NAME        => $attr->{NAME} || '_SHOW',
+    BUILD_ID    => '_SHOW',
+    STREET_ID   => '_SHOW',
+    BUILD_ID    => '_SHOW',
+    DISTRICT_ID => '_SHOW',
     SERVICE_ID  => $attr->{SERVICE_ID},
-    COMMENT     => "_SHOW",
+    COMMENT     => '_SHOW',
+    WHERE_RULES => [ "(" . join(' OR ', @WHERE_RULES) . ")" ],
     COLS_NAME   => 1,
   });
-
-  @all_access_groups = (@all_access_groups, @$groups);
-
-  return \@all_access_groups;
 }
 
 #**********************************************************
@@ -1195,84 +1144,29 @@ sub access_folder_list {
   my $self = shift;
   my ($attr) = @_;
 
-  my $folders;
-  my @all_access_folders = ();
+  my @WHERE_RULES = ();
 
-  if ($attr->{LOCATION_ID}) {
-    $folders = $self->folder_list({
-      TITLE       => '_SHOW',
-      STREET_ID   => '_SHOW',
-      BUILD_ID    => '_SHOW',
-      DISTRICT_ID => '_SHOW',
-      LOCATION_ID => $attr->{LOCATION_ID},
-      SERVICE_ID  => $attr->{SERVICE_ID},
-      GROUP_ID    => $attr->{GROUP_ID} || '_SHOW',
-      PARENT_ID   => $attr->{PARENT_ID} || '_SHOW',
-      COMMENT     => '_SHOW',
-      PARENT_NAME => '_SHOW',
-      ID          => '_SHOW',
-      COLS_NAME   => 1,
-    });
+  push @WHERE_RULES, "(f.location_id=$attr->{LOCATION_ID})" if $attr->{LOCATION_ID};
+  push @WHERE_RULES, "(f.location_id=0 AND f.street_id=$attr->{STREET_ID})" if $attr->{STREET_ID};
+  push @WHERE_RULES, "(f.location_id=0 AND f.street_id=0 AND f.district_id=$attr->{DISTRICT_ID})" if $attr->{DISTRICT_ID};
+  push @WHERE_RULES, "(f.location_id=0 AND f.street_id=0 AND f.district_id=0)";
 
-    @all_access_folders = (@all_access_folders, @$folders);
-  }
-
-  if ($attr->{STREET_ID}) {
-    $folders = $self->folder_list({
-      TITLE       => '_SHOW',
-      STREET_ID   => $attr->{STREET_ID},
-      LOCATION_ID => 0,
-      BUILD_ID    => '_SHOW',
-      DISTRICT_ID => '_SHOW',
-      SERVICE_ID  => $attr->{SERVICE_ID},
-      GROUP_ID    => $attr->{GROUP_ID} || '_SHOW',
-      PARENT_ID   => $attr->{PARENT_ID} || '_SHOW',
-      COMMENT     => '_SHOW',
-      PARENT_NAME => '_SHOW',
-      ID          => '_SHOW',
-      COLS_NAME   => 1,
-    });
-
-    @all_access_folders = (@all_access_folders, @$folders);
-  }
-
-  if ($attr->{DISTRICT_ID}) {
-    $folders = $self->folder_list({
-      TITLE       => '_SHOW',
-      DISTRICT_ID => $attr->{DISTRICT_ID},
-      STREET_ID   => 0,
-      LOCATION_ID => 0,
-      BUILD_ID    => '_SHOW',
-      SERVICE_ID  => $attr->{SERVICE_ID},
-      GROUP_ID    => $attr->{GROUP_ID} || '_SHOW',
-      PARENT_ID   => $attr->{PARENT_ID} || '_SHOW',
-      COMMENT     => '_SHOW',
-      PARENT_NAME => '_SHOW',
-      ID          => '_SHOW',
-      COLS_NAME   => 1,
-    });
-
-    @all_access_folders = (@all_access_folders, @$folders);
-  }
-
-  $folders = $self->folder_list({
+  return $self->folder_list({
+    ID          => '_SHOW',
     TITLE       => '_SHOW',
-    DISTRICT_ID => 0,
-    STREET_ID   => 0,
-    LOCATION_ID => 0,
+    DISTRICT_ID => '_SHOW',
+    STREET_ID   => '_SHOW',
+    LOCATION_ID => '_SHOW',
     BUILD_ID    => '_SHOW',
     SERVICE_ID  => $attr->{SERVICE_ID},
     GROUP_ID    => $attr->{GROUP_ID} || '_SHOW',
     PARENT_ID   => $attr->{PARENT_ID} || '_SHOW',
     COMMENT     => '_SHOW',
     PARENT_NAME => '_SHOW',
-    ID          => '_SHOW',
+    WHERE_RULES => [ "(" . join(' OR ', @WHERE_RULES) . ")" ],
+    UID         => $attr->{UID} ? "0;$attr->{UID}" : '_SHOW',
     COLS_NAME   => 1,
   });
-
-  @all_access_folders = (@all_access_folders, @$folders);
-
-  return \@all_access_folders;
 }
 
 #**********************************************************
@@ -1297,7 +1191,7 @@ sub user_groups {
 
   return $self if !$attr->{IDS};
 
-  my @ids = split(/, /, $attr->{IDS});
+  my @ids = split(/,\s?/, $attr->{IDS});
 
   my @MULTI_QUERY = ();
 
@@ -1358,8 +1252,7 @@ sub users_group_count {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query(
-    "SELECT COUNT(*)
+  $self->query("SELECT COUNT(*)
      FROM cams_users_groups
      WHERE group_id = ?;",
     undef,
@@ -1391,7 +1284,7 @@ sub user_folders {
 
   return $self if !$attr->{IDS};
 
-  my @ids = split(/, /, $attr->{IDS});
+  my @ids = split(/,\s?/, $attr->{IDS});
 
   my @MULTI_QUERY = ();
 
@@ -1422,13 +1315,25 @@ sub user_folders_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query(
-    "SELECT tp_id, folder_id, changed
+  if ($attr->{SKIP_PRIVATE_CAMERAS}) {
+    $self->query(
+      "SELECT cuf.tp_id, cuf.folder_id, cuf.changed
+     FROM cams_users_folders cuf
+     LEFT JOIN cams_folder cf ON (cf.id = cuf.folder_id)
+     WHERE cuf.tp_id= ? AND cuf.id = ? AND cf.uid = '';",
+      undef,
+      { %{$attr}, Bind => [ $attr->{TP_ID}, $attr->{ID} ] }
+    );
+  }
+  else {
+    $self->query(
+      "SELECT tp_id, folder_id, changed
      FROM cams_users_folders
      WHERE tp_id= ? AND id = ?;",
-    undef,
-    { %{$attr}, Bind => [ $attr->{TP_ID}, $attr->{ID} ] }
-  );
+      undef,
+      { %{$attr}, Bind => [ $attr->{TP_ID}, $attr->{ID} ] }
+    );
+  }
 
   $self->{USER_FOLDERS} = $self->{TOTAL};
 
@@ -1480,7 +1385,7 @@ sub user_cameras {
 
   return $self if !$attr->{IDS};
 
-  my @ids = split(/, /, $attr->{IDS});
+  my @ids = split(/,\s?/, $attr->{IDS});
 
   my @MULTI_QUERY = ();
 
@@ -1586,8 +1491,12 @@ sub folder_list {
     [ 'DISTRICT_ID',  'INT', 'f.district_id',           1 ],
     [ 'STREET_ID',    'INT', 'f.street_id',             1 ],
     [ 'BUILD_ID',     'INT', 'f.build_id',              1 ],
+    [ 'UID',          'INT', 'f.uid',                   1 ],
     [ 'SUBFOLDER_ID', 'STR', 'f.subfolder_id',          1 ],
-  ], { WHERE => 1, });
+  ], {
+    WHERE       => 1,
+    WHERE_RULES => $attr->{WHERE_RULES} && ref $attr->{WHERE_RULES} eq 'ARRAY' ? $attr->{WHERE_RULES} : []
+  });
 
   $self->query("SELECT $self->{SEARCH_FIELDS} f.title
    FROM cams_folder f

@@ -41,7 +41,8 @@ sub user_contract {
     my $company_info = {};
 
     if($users->{COMPANY_ID}){
-      use Companies;
+      require Companies;
+      Companies->import();
       my $Company = Companies->new($db, $admin, \%conf);
       $company_info = $Company->info($users->{COMPANY_ID});
     }

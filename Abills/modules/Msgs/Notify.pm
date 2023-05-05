@@ -102,6 +102,7 @@ sub notify_admins {
 
   # Get status name
   my $state_msg = '';
+  my $status_name = $message_info->{STATE} || $attr->{STATE} || $FORM{STATE} || 0;
   if (defined $message_info->{STATE}) {
     $Msgs->status_list({
       ID          => '_SHOW',
@@ -112,14 +113,14 @@ sub notify_admins {
 
     if (!$Msgs->{errno}) {
       my $status_hash = $Msgs->{list_hash};
-      my $status_name = $status_hash->{$message_info->{STATE}} || '';
+      $status_name = $status_hash->{$message_info->{STATE}} || '';
       $status_name = ::_translate($status_name);
       $state_msg = "\n ($lang{STATE} : $status_name)";
     }
   }
 
   my $ATTACHMENTS = $attr->{ATTACHMENTS} || [];
-  my $RESPONSIBLE = ($FORM{RESPOSIBLE} && $FORM{RESPOSIBLE} eq $responsible_aid) ? $lang{YES} : $lang{NO};
+  my $RESPONSIBLE = (!defined $FORM{RESPOSIBLE} || $FORM{RESPOSIBLE} eq $responsible_aid) ? $lang{YES} : $lang{NO};
   my $preview_url = ($preview_url_without_message_id && $message_id ne '--')
     ? $preview_url_without_message_id . $message_id : undef;
   $preview_url .= "&UID=$message_info->{UID}" if $message_info->{UID} && $preview_url;
@@ -134,7 +135,7 @@ sub notify_admins {
     ID          => $message_id . (($reply_id && $reply_id ne '--') ? " / $reply_id" : ''),
     RESPONSIBLE => $RESPONSIBLE,
     SUBJECT     => $subject,
-    STATUS      => $message_info->{STATE} || $attr->{STATE} || $FORM{STATE} || 0,
+    STATUS      => $status_name,
     MESSAGE     => $message,
     ATTACHMENT  => ($FORM{FILE_UPLOAD} && $FORM{FILE_UPLOAD}->{filename}) ? $FORM{FILE_UPLOAD}->{filename} : q{},
     SUBJECT_URL => $preview_url,
@@ -145,8 +146,11 @@ sub notify_admins {
   my $aid = $attr->{NEW_RESPONSIBLE} ? $attr->{AID} : ($responsible_aid || $attr->{SEND_TO_AID});
 
   my $msgs_permissions = $Msgs->permissions_list($aid);
-  return 1 if !$msgs_permissions->{5} || !$msgs_permissions->{6}{$message_info->{CHAPTER}};
   return 1 if $msgs_permissions->{4} && !$msgs_permissions->{4}{$message_info->{CHAPTER}};
+  
+  if (!$attr->{NEW_RESPONSIBLE}) {
+    return 1 if !$msgs_permissions->{5} || !$msgs_permissions->{6}{$message_info->{CHAPTER}};
+  }
 
   $Sender->send_message_auto({
     AID         => $aid,

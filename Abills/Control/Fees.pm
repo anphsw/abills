@@ -53,6 +53,8 @@ sub form_fees {
 
   if ($attr->{USER_INFO}) {
     my $user = $attr->{USER_INFO};
+    require Shedule;
+    Shedule->import();
     my $Shedule = Shedule->new($db, $admin, \%conf);
 
     if ($conf{EXT_BILL_ACCOUNT}) {
@@ -217,6 +219,7 @@ sub form_fees {
   }
   elsif ($FORM{AID} && !defined($LIST_PARAMS{AID})) {
     $FORM{subf} = $index;
+    require Control::Admins_mng;
     form_admins();
     return 0;
   }

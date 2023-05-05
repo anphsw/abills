@@ -85,7 +85,7 @@ sub paysys_configure_external_commands {
   my %EXTERNAL_COMMANDS_SETTINGS = ();
   my $Config = Conf->new($db, $admin, \%conf);
 
-  my @conf_params = ('PAYSYS_EXTERNAL_START_COMMAND', 'PAYSYS_EXTERNAL_END_COMMAND',
+  my @conf_params = ('PAYSYS_EXTERNAL_START_COMMAND', 'PAYSYS_EXTERNAL_END_COMMAND', 'PAYSYS_EXTERNAL_PAYMENT_MADE_COMMAND',
     'PAYSYS_EXTERNAL_ATTEMPTS', 'PAYSYS_EXTERNAL_TIME');
 
   if ($FORM{change}) {

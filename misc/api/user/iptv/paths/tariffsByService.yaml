@@ -2,10 +2,13 @@ get:
   tags:
     - iptv
   summary: Список доступных тарифных планов в сервисе
+  description: Список доступных тарифных планов в сервисе для добавления первой услуги
   parameters:
     - name: serviceId
       in: path
-      description: serviceId cервиса IPTV
+      description: >
+        Значение `serviceId`, можно получить в ответе
+        в `GET /user/iptv/services` параметр `id`
       required: true
       schema:
         type: number

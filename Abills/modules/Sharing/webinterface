@@ -3049,6 +3049,8 @@ sub sharing_download_log {
   #      DATE_END   => $FORM{DATE_END} || $DATE,
   #    },);
 
+
+  require Control::Reports;
   reports({
     PERIOD_FORM => 1,
     DATE_RANGE  => 1,
@@ -3340,11 +3342,12 @@ sub sharing_report {
   my @popular_colors = ();
 
   foreach my $file (@$bought_files_count) {
-    push @popular_labels, $file->{name};
-    push @popular_data, $file->{count};
+    my $filename = $file->{name} || q{};
+    push @popular_labels, $filename;
+    push @popular_data, $file->{count} || 0;
     push @popular_colors, 'rgba(120, 99, 132, 0.6)';
-    $table_info{$file->{name}}{bought_info} = $file->{count};
-    $table_info{$file->{name}}{file_id}     = $file->{file_id};
+    $table_info{$filename}{bought_info} = $file->{count} || q{};
+    $table_info{$filename}{file_id}     = $file->{file_id};
   }
 
   my $popular_chart = $html->chart({
@@ -3419,9 +3422,9 @@ sub sharing_report {
 
   foreach my $file (keys %table_info) {
     $table->addrow(
-      $html->element('a', $file, { href => "index.cgi?index=$index&SH_FILE=$table_info{$file}->{file_id}" }),
-      ($table_info{$file}{bought_info} || 0),
-      ($table_info{$file}{download_info} || 0)
+      $html->element('a', $file, { href => "index.cgi?index=$index&SH_FILE=". ($table_info{$file}->{file_id} || q{}) }),
+      ($table_info{$file} && $table_info{$file}{bought_info} ? $table_info{$file}{bought_info} : 0),
+      ($table_info{$file} && $table_info{$file}{download_info} ? $table_info{$file}{download_info} : 0)
     );
   }
 

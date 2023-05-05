@@ -6,7 +6,6 @@
 
 use strict;
 use warnings FATAL => 'all';
-use experimental qw(switch);
 
 use Tariffs;
 use Abills::Base qw(days_in_month);
@@ -23,7 +22,7 @@ our (
   @MODULES
 );
 
-our $users;
+#our $users;
 
 #**********************************************************
 =head sel_tp($tp_id)
@@ -38,6 +37,7 @@ our $users;
     EX_PARAMS   - Extra sell options
     SERVICE_ID  - TP SErvice ID
     SMALL_DEPOSIT_ACTION
+    USER_INFO -
     DOMAIN_ID
 
   Returns:
@@ -51,6 +51,8 @@ sub sel_tp {
   my $Tariffs = Tariffs->new($db, \%conf, $admin);
   my %params = (MODULE => 'Dv;Internet');
   $params{MODULE} = $attr->{MODULE} if $attr->{MODULE};
+
+  my $users = $attr->{USER_INFO};
 
   my $tp_gids = $attr->{CHECK_GROUP_GEOLOCATION} ?
     tp_gids_by_geolocation($attr->{CHECK_GROUP_GEOLOCATION}, $Tariffs, $attr->{USER_GID}) : '';
@@ -88,14 +90,19 @@ sub sel_tp {
     next if ($attr->{SKIP_TP} && $attr->{SKIP_TP} == $line->{tp_id});
     next if (!$attr->{SHOW_ALL} && $line->{status});
 
-    if ($attr->{GROUP_SORT}) {
-      my $small_deposit = (($users->{DEPOSIT} || 0) + ($users->{CREDIT} || 0) < ($line->{month_fee} || 0) + ($line->{day_fee} || 0)) ?
-        ' (' . $lang{ERR_SMALL_DEPOSIT} . ')' : '';
+    my $describe_for_aid = ($line->{describe_aid}) ? ('[' . $line->{describe_aid} . ']') : '';
 
-      $tp_list{($line->{tp_group_name} || '')}{ $line->{tp_id} } = "$line->{id} : $line->{name} $line->{describe_aid} " . $small_deposit;
+    if ($attr->{GROUP_SORT}) {
+      my $small_deposit = q{};
+      if ($users) {
+        $small_deposit = (($users->{DEPOSIT} || 0) + ($users->{CREDIT} || 0) < ($line->{month_fee} || 0) + ($line->{day_fee} || 0)) ?
+          ' (' . $lang{ERR_SMALL_DEPOSIT} . ')' : '';
+      }
+
+      $tp_list{($line->{tp_group_name} || '')}{ $line->{tp_id} } = "$line->{id} : $line->{name} $describe_for_aid " . $small_deposit;
     }
     else {
-      $tp_list{$line->{tp_id}} = $line->{id} . ' : ' . $line->{name} . ' ' . $line->{describe_aid};
+      $tp_list{$line->{tp_id}} = $line->{id} . ' : ' . $line->{name} . ' ' . $describe_for_aid;
     }
   }
 
@@ -179,8 +186,8 @@ sub get_services {
               $service_info->{day} = $service_info->{day} * ((100 - $user_info->{REDUCTION}) / 100);
             }
             else {
-              $service_info->{month}=0;
-              $service_info->{day}=0;
+              $service_info->{month} = 0;
+              $service_info->{day} = 0;
               $sum = 0;
             }
           }
@@ -246,7 +253,8 @@ sub get_services {
 sub tp_gids_by_geolocation {
   my ($location_id, $Tariffs, $user_gid) = @_;
 
-  use Address;
+  require Address;
+  Address->import();
   my $Address = Address->new($db, $admin, \%conf);
   my $address = $Address->address_info($location_id);
 
@@ -348,6 +356,7 @@ sub service_status_change {
     }
   }
 
+  my $users = $attr->{USER_INFO};
   $users->change($user_info->{UID}, { DISABLE => $status });
 
   return 1;
@@ -371,156 +380,154 @@ sub get_user_services {
   my $service_name = $attr->{service};
   my $uid = $attr->{uid} || '--';
 
-  given ($service_name) {
-    when ('Internet') {
-      require Control::Service_control;
-      Control::Service_control->import();
-      my $Service_control = Control::Service_control->new($db, $admin, \%conf);
+  if ($service_name && $service_name eq 'Internet') {
+    require Control::Service_control;
+    Control::Service_control->import();
+    my $Service_control = Control::Service_control->new($db, $admin, \%conf);
 
-      my $tariffs = $Service_control->all_info({
-        UID             => $uid,
-        MODULE          => 'Internet',
-        FUNCTION_PARAMS => {
-          GROUP_BY        => 'internet.id',
-          INTERNET_STATUS => '_SHOW',
-        },
-      });
+    my $tariffs = $Service_control->all_info({
+      UID             => $uid,
+      MODULE          => 'Internet',
+      FUNCTION_PARAMS => {
+        GROUP_BY        => 'internet.id',
+        INTERNET_STATUS => '_SHOW',
+      },
+    });
 
-      return $tariffs || [];
+    return $tariffs || [];
+  }
+  elsif ($service_name && $service_name eq 'Iptv') {
+    require Control::Service_control;
+    Control::Service_control->import();
+    my $Service_control = Control::Service_control->new($db, $admin, \%conf);
+
+    my $tariffs = $Service_control->all_info({
+      UID             => $uid,
+      MODULE          => 'Iptv',
+      FUNCTION_PARAMS => {
+        SERVICE_STATUS  => '_SHOW',
+        IPTV_EXPIRE     => '_SHOW',
+        SERVICE_ID      => '_SHOW',
+        TV_SERVICE_NAME => '_SHOW',
+        TV_USER_PORTAL  => '_SHOW',
+        SERVICE_STATUS  => '_SHOW',
+      },
+    });
+
+    return $tariffs || [];
+  }
+  elsif ($service_name && $service_name eq 'Voip') {
+    require Voip;
+    Voip->import();
+    my $Voip = Voip->new($db, $admin, \%conf);
+
+    $Voip->user_info($uid);
+
+    return {
+      errno  => 30012,
+      errstr => 'Not active voip service'
+    } if (!($Voip->{TOTAL} && $Voip->{TOTAL} > 0));
+
+    require Shedule;
+    Shedule->import();
+    my $Schedule = Shedule->new($db, $admin, \%conf);
+
+    $Schedule->info({
+      UID    => $uid,
+      TYPE   => 'tp',
+      MODULE => 'Voip'
+    });
+
+    if ($Schedule->{TOTAL} && $Schedule->{TOTAL} > 0) {
+      $Voip->{SCHEDULE_TP_CHANGE} = {
+        DATE     => "$Schedule->{Y}-$Schedule->{M}-$Schedule->{D}",
+        ADDED    => $Schedule->{DATE},
+        ADDED_BY => $Schedule->{ADMIN_NAME},
+        TP_ID    => $Schedule->{ACTION},
+        ID       => $Schedule->{SHEDULE_ID},
+      };
     }
-    when ('Iptv') {
-      require Control::Service_control;
-      Control::Service_control->import();
-      my $Service_control = Control::Service_control->new($db, $admin, \%conf);
 
-      my $tariffs = $Service_control->all_info({
-        UID             => $uid,
-        MODULE          => 'Iptv',
-        FUNCTION_PARAMS => {
-          SERVICE_STATUS  => '_SHOW',
-          IPTV_EXPIRE     => '_SHOW',
-          SERVICE_ID      => '_SHOW',
-          TV_SERVICE_NAME => '_SHOW',
-          TV_USER_PORTAL  => '_SHOW',
-          SERVICE_STATUS  => '_SHOW',
-        },
-      });
+    my $phones = $Voip->phone_aliases_list({
+      UID       => $uid,
+      NUMBER    => '_SHOW',
+      DISABLE   => '_SHOW',
+      COLS_NAME => 1,
+    });
 
-      return $tariffs || [];
-    }
-    when ('Voip') {
-      require Voip;
-      Voip->import();
-      my $Voip = Voip->new($db, $admin, \%conf);
+    $Voip->{PHONE_ALIASES} = $phones;
 
-      $Voip->user_info($uid);
+    my @filter_array = (
+      'AFFECTED',
+      'FILTER_ID',
+      'NAT',
+      'PROVISION_NAS_ID',
+      'PROVISION_PORT',
+      'SIMULTANEONSLY',
+      'SIMULTANEOUSLY',
+      'TOTAL',
+      'TP_CREDIT',
+      'REGISTRATION',
+      'SEARCH_VALUES',
+      'SEARCH_FIELDS_COUNT',
+      'SEARCH_FIELDS_ARR',
+      'SEARCH_FIELDS',
+      'EXT_TABLES'
+    );
 
-      return {
-        errno  => 30012,
-        errstr => 'Not active voip service'
-      } if (!($Voip->{TOTAL} && $Voip->{TOTAL} > 0));
+    delete @{$Voip}{@filter_array};
+    $Voip = { %$Voip };
+    return [ $Voip = Abills::Api::FieldsGrouper::group_fields($Voip) ];
+  }
+  elsif ($service_name && $service_name eq 'Abon') {
+    require Abon;
+    Abon->import();
+    my $Abon = Abon->new($db, $admin, \%conf);
 
-      require Shedule;
-      Shedule->import();
-      my $Schedule = Shedule->new($db, $admin, \%conf);
+    my $services = $Abon->user_tariff_list($uid, {
+      USER_PORTAL  => '>0',
+      SERVICE_LINK => '_SHOW',
+      COLS_NAME    => 1
+    });
 
-      $Schedule->info({
-        UID    => $uid,
-        TYPE   => 'tp',
-        MODULE => 'Voip'
-      });
+    my @service_list = ();
 
-      if ($Schedule->{TOTAL} && $Schedule->{TOTAL} > 0) {
-        $Voip->{SCHEDULE_TP_CHANGE} = {
-          DATE     => "$Schedule->{Y}-$Schedule->{M}-$Schedule->{D}",
-          ADDED    => $Schedule->{DATE},
-          ADDED_BY => $Schedule->{ADMIN_NAME},
-          TP_ID    => $Schedule->{ACTION},
-          ID       => $Schedule->{SHEDULE_ID},
-        };
-      }
+    foreach my $service (@{$services}) {
+      next if (!$service->{manual_activate} && !$service->{date});
+      require POSIX;
+      POSIX->import(qw(strftime));
+      $DATE = strftime("%Y-%m-%d", localtime(time));
+      my $date_if = $service->{next_abon} ? date_diff($DATE, $service->{next_abon}) : 0;
 
-      my $phones = $Voip->phone_aliases_list({
-        UID       => $uid,
-        NUMBER    => '_SHOW',
-        DISABLE   => '_SHOW',
-        COLS_NAME => 1,
-      });
+      my @periods = ('day', 'month', 'quarter', 'six months', 'year');
 
-      $Voip->{PHONE_ALIASES} = $phones;
-
-      my @filter_array = (
-        'AFFECTED',
-        'FILTER_ID',
-        'NAT',
-        'PROVISION_NAS_ID',
-        'PROVISION_PORT',
-        'SIMULTANEONSLY',
-        'SIMULTANEOUSLY',
-        'TOTAL',
-        'TP_CREDIT',
-        'REGISTRATION',
-        'SEARCH_VALUES',
-        'SEARCH_FIELDS_COUNT',
-        'SEARCH_FIELDS_ARR',
-        'SEARCH_FIELDS',
-        'EXT_TABLES'
+      my %tariff = (
+        price       => $service->{price},
+        tp_name     => $service->{tp_name},
+        id          => $service->{id},
+        active      => (!$service->{next_abon} || ($date_if && $date_if <= 0)) ? 'false' : 'true',
+        start_date  => $service->{date},
+        end_date    => $service->{next_abon},
+        description => $service->{description},
+        period      => $periods[$service->{period}],
+        activate    => ($service->{user_portal} > 1 && $service->{manual_activate}) ? 'true' : 'false',
       );
 
-      delete @{$Voip}{@filter_array};
-      $Voip = { %$Voip };
-      return [ $Voip = Abills::Api::FieldsGrouper::group_fields($Voip) ];
-    }
-    when ('Abon') {
-      require Abon;
-      Abon->import();
-      my $Abon = Abon->new($db, $admin, \%conf);
-
-      my $services = $Abon->user_tariff_list($uid, {
-        USER_PORTAL  => '>0',
-        SERVICE_LINK => '_SHOW',
-        COLS_NAME    => 1
-      });
-
-      my @service_list = ();
-
-      foreach my $service (@{$services}) {
-        next if (!$service->{manual_activate} && !$service->{date});
-        require POSIX;
-        POSIX->import(qw(strftime));
-        $DATE = strftime("%Y-%m-%d", localtime(time));
-        my $date_if = $service->{next_abon} ? date_diff($DATE, $service->{next_abon}) : 0;
-
-        my @periods = ('day', 'month', 'quarter', 'six months', 'year');
-
-        my %tariff = (
-          price       => $service->{price},
-          tp_name     => $service->{tp_name},
-          id          => $service->{id},
-          active      => (!$service->{next_abon} || ($date_if && $date_if <= 0)) ? 'false' : 'true',
-          start_date  => $service->{date},
-          end_date    => $service->{next_abon},
-          description => $service->{description},
-          period      => $periods[$service->{period}],
-          activate    => ($service->{user_portal} > 1 && $service->{manual_activate}) ? 'true' : 'false',
-        );
-
-        if ($date_if && $date_if > 0) {
-          $tariff{next_abon} = {
-            abon_date   => $service->{next_abon},
-            days_to_fee => $date_if,
-            sum         => $service->{price}
-          }
+      if ($date_if && $date_if > 0) {
+        $tariff{next_abon} = {
+          abon_date   => $service->{next_abon},
+          days_to_fee => $date_if,
+          sum         => $service->{price}
         }
-
-        push @service_list, \%tariff;
       }
 
-      return \@service_list;
+      push @service_list, \%tariff;
     }
-    default {
-      return [];
-    }
+
+    return \@service_list;
+  }
+  else {
+    return [];
   }
 }
 

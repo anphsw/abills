@@ -54,7 +54,7 @@ sub events_profile_configure {
 
   my @all_sender_plugins = sort keys %Abills::Sender::Core::TYPE_ID_FOR_PLUGIN_NAME;
 
-  my @available_methods = $Sender->available_types();
+  my @available_methods = $Sender->available_types({ SOFT_CHECK => 1 });
 
   my $priorities = $Events->priority_list({
     NAME => '_SHOW'

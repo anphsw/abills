@@ -23,7 +23,7 @@
               <div class='input-group-prepend'>
                 <span class='input-group-text bg-light'>%TP_NUM%</span>
               </div>
-              <input type=text name='GRP' value='%TP_NAME%' ID='TP' class='form-control hidden-xs' readonly>
+              <input type=text name='GRP' value='%TP_NAME% %DESCRIBE_AID%' ID='TP' class='form-control hidden-xs' readonly>
               <div class='input-group-append'>
                 <div class='input-group-text'>
                   %CHANGE_TP_BUTTON%

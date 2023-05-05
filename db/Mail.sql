@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS `mail_access` (
   PRIMARY KEY (`pattern`),
   UNIQUE KEY `id` (`id`)
 )
-  COMMENT = 'Mail access list';
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Mail access';
 
 CREATE TABLE IF NOT EXISTS `mail_aliases` (
   `address` VARCHAR(255) NOT NULL DEFAULT '',
@@ -23,7 +24,9 @@ CREATE TABLE IF NOT EXISTS `mail_aliases` (
   `comments` VARCHAR(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`address`),
   UNIQUE KEY `id` (`id`)
-);
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Mail aliases';
 
 CREATE TABLE IF NOT EXISTS `mail_boxes` (
   `username` VARCHAR(255) NOT NULL DEFAULT '',
@@ -46,8 +49,9 @@ CREATE TABLE IF NOT EXISTS `mail_boxes` (
   UNIQUE KEY `id` (`id`),
   KEY `username_antivirus` (`username`, `antivirus`),
   KEY `username_antispam` (`username`, `antispam`)
-);
-
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Mail user boxes';
 
 CREATE TABLE IF NOT EXISTS `mail_domains` (
   `domain` VARCHAR(255) NOT NULL DEFAULT '',
@@ -60,7 +64,9 @@ CREATE TABLE IF NOT EXISTS `mail_domains` (
   `comments` VARCHAR(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`domain`),
   UNIQUE KEY `id` (`id`)
-);
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Mail Spamassassin Preferences';
 
 CREATE TABLE IF NOT EXISTS `mail_spamassassin` (
   `prefid` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -75,6 +81,7 @@ CREATE TABLE IF NOT EXISTS `mail_spamassassin` (
   KEY `username` (`username`),
   KEY `username_preference_value` (`username`, `preference`, `value`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Mail Spamassassin Preferences';
 
 INSERT INTO `mail_spamassassin` (`username`, `preference`, `value`, `create_date`)
@@ -105,4 +112,5 @@ CREATE TABLE IF NOT EXISTS `mail_awl` (
   `totscore` FLOAT DEFAULT '0',
   PRIMARY KEY (`username`, `email`, `ip`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Mail Auto whitelist';

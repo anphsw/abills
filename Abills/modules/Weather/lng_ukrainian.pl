@@ -4,6 +4,6 @@ $lang{FEEL_LIKE}        = 'Відчувається як';
 $lang{EXPECTED_ID}      = 'Очікується в';
 $lang{ERROR_NO_KEY}     = 'Немає ключа openweather API $conf{WEATHER_KEY}=\'Ваш ключ тут\'';
 $lang{LIGHTNING_MAP}    = 'Карта блискавок';
-$lang{WRONG_CONF_PARAM} = 'От халепа, невірний параметр $conf{WEATHER_COORDINATES}';
+$lang{WRONG_CONF_PARAM} = 'От халепа, неправильний параметр $conf{WEATHER_COORDINATES}';
 
 1;

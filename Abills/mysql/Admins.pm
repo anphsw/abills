@@ -307,7 +307,9 @@ sub info {
       a.aid,
       a.name AS a_fio,
       a.g2fa,
-      a.avatar_link
+      a.avatar_link,
+      a.location_id,
+      a.address_flat
      FROM
       `admins` a
      LEFT JOIN `admins_groups` ag ON (a.aid=ag.aid)
@@ -392,6 +394,7 @@ sub list {
     push @WHERE_RULES, "(a.gid IN ($attr->{GID}) OR ag.gid IN ($attr->{GID}))";
   }
 
+  my $build_delimiter = $self->{conf}{BUILD_DELIMITER} || ', ';
   my $WHERE = $self->search_former($attr, [
       ['ADMIN_NAME',       'STR',  'a.name',  'a.name AS admin_name' ],
       # ['POSITION',     'STR',  'ep.position',      1 ],
@@ -410,11 +413,13 @@ sub list {
       ['AID',              'INT',  'a.aid'                           ],
       ['SIP_NUMBER',       'INT',  'a.sip_number',                 1 ],
       ['TELEGRAM_ID',      'STR',  'a.telegram_id',                1 ],
-      ['EMAIL',            'STR',  'a.email',                      1 ],
+      ['EMAIL',            'STR',  "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id=9)",
+        "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id=9) AS email",                      1 ],
       ['DEPARTMENT_NAME',  'STR',  'ed.name as department_name',   1 ],
       ['POSITION_ID',      'INT',  'a.position AS position_id',    1 ],
       ['ID',               'INT',  'a.id',                         1 ],
-      ['PHONE',            'STR',  'a.phone',                      1 ],
+      ['PHONE',            'STR',  "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id IN (1,2))",
+        "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id IN (1,2)) AS phone", 1 ],
       ['ADMIN_EXPIRE',     'DATE', 'a.expire AS admin_expire',     1 ],
       ['DEPARTMENT',       'STR',  'a.department',                 1 ],
       ['ADDRESS',          'STR',  'a.address',                    1 ],
@@ -429,7 +434,10 @@ sub list {
       ['COMMENTS',         'STR',  'a.comments',                   1 ],
       ['LOGIN',            'STR',  'a.id'                            ],
       ['G2FA',             'STR',  'a.g2fa',                       1 ],
-      ['AVATAR_LINK',      'STR',  'a.avatar_link',                1 ]
+      ['AVATAR_LINK',      'STR',  'a.avatar_link',                1 ],
+      ['LOCATION_ID',      'INT',  'a.location_id',                1 ],
+      ['ADDRESS_FLAT',     'STR',  'a.address_flat',               1 ],
+      ['ADDRESS_FULL',     'STR',  "IF(a.location_id, CONCAT(districts.name, '$build_delimiter', streets.name, '$build_delimiter', builds.number, '$build_delimiter', a.address_flat), '') AS address_full",  1 ],
     ],
     {
       WHERE_RULES => \@WHERE_RULES,
@@ -447,6 +455,12 @@ sub list {
 
       $EMPLOYEE_JOIN .= " LEFT JOIN employees_department ed ON (ed.id=a.department) ";
     }
+  }
+
+  if ($attr->{ADDRESS_FULL}) {
+    $EXT_TABLES .= "\nLEFT JOIN builds ON (builds.id=a.location_id)";
+    $EXT_TABLES .= "\nLEFT JOIN streets ON (streets.id=builds.street_id)";
+    $EXT_TABLES .= "\nLEFT JOIN districts ON (districts.id=streets.district_id)";
   }
 
   $self->query("SELECT a.aid, a.id AS login,

@@ -1,7 +1,7 @@
 $lang{QUARTER}='Квартал';
 $lang{SIX_MONTH}='Пол года';
-$lang{LAST_ABON}='Последняя абон. плата';
-$lang{NEXT_ABON}='Следующая абон. плата';
+$lang{LAST_ABON}='Последняя абонплата';
+$lang{NEXT_ABON}='Следующая абонплата';
 $lang{NONFIX_PERIOD}='Не фиксированный период';
 $lang{NOTIFICATION}='Предупреждение про оплату';
 $lang{DAYS_TO_END}='Дней до завершения';
@@ -19,3 +19,7 @@ $lang{USER_PORTAL_NO} = 'Не отображать';
 $lang{SERVICE_COUNT}='Количество услуг';
 $lang{FEES_PERIOD}='Количество списаний';
 $lang{NO_ACTIVE_SERVICE}='В данный момент у Вас нет дополнительных услуг';
+$lang{SERVICE_RECOVERY}='План возобновление сервиса';
+$lang{NOT_RECOVERY}='Не воcстанавливать';
+$lang{RECOVERY_NOW}='Восcтановить с текущей даты';
+$lang{RECOVERY_FROM_HOLDUP}='Восcтановить с даты приостановки';

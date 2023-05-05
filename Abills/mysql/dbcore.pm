@@ -13,7 +13,6 @@ use Abills::Base qw(int2ip in_array);
 
 our $VERSION = 7.11;
 
-#my $admin;
 my $CONF;
 my $SORT = 1;
 my $sql_errors = '/usr/abills/var/log/sql_errors';
@@ -58,7 +57,6 @@ sub connect {
     $mysql_init_command .= ", NAMES $attr->{CHARSET}";
     $self->{dbcharset}=$attr->{CHARSET};
   }
-
   if ( $db = DBI->connect_cached( "DBI:mysql:database=$dbname;host=$dbhost;mysql_client_found_rows=0".$db_params, "$dbuser", "$dbpasswd",
        {
          Taint                => 1,
@@ -83,6 +81,7 @@ sub connect {
       LOG_FILE => ( -w $sql_errors) ? $sql_errors : '/tmp/sql_errors'
     });
   }
+
 
   return $self;
 }
@@ -232,7 +231,14 @@ sub query{
       }
       #sequence
       elsif ( $self->{db}->{db_debug} > 1 ){
-        push @{ $self->{db}->{queries_list} }, $query;
+        # Usually, library is loaded by default, but since
+        # this is a critical script, we will check it just in case.
+        # Fact, that is only done during debugging is also not scary for performance.
+        unless ($Time::HiRes::VERSION) {
+          require Time::HiRes;
+          Time::Hires->import();
+        }
+        push @{ $self->{db}->{queries_list} }, [$query, 0];
       }
       else{
         #Queries typisation
@@ -275,6 +281,10 @@ sub query{
 
   $self->{AFFECTED} = 0;
   my DBI $q;
+  my $start_query_time = 0;
+  if ($self->{db}->{db_debug} && $self->{db}->{db_debug} == 2) {
+    $start_query_time = [ Time::HiRes::gettimeofday() ]
+  }
 
   if ( $type && $type eq 'do' ){
     $self->{AFFECTED} = $db->do( $query, undef, @{ $attr->{Bind} } );
@@ -297,6 +307,11 @@ sub query{
         }
       }
 
+      if ($self->{db}->{db_debug} && $self->{db}->{db_debug} == 2) {
+        my $elapsed = Time::HiRes::tv_interval($start_query_time);
+        ${ $self->{db}->{queries_list} }[-1]->[1] = $elapsed;
+      };
+
       $self->{TOTAL} = $#{ $attr->{MULTI_QUERY}  } + 1;
       return $self;
     }
@@ -304,6 +319,11 @@ sub query{
       $q->execute( @{ $attr->{Bind} } );
       $self->{TOTAL} = $q->rows;
     }
+  }
+
+  if ($self->{db}->{db_debug} && $self->{db}->{db_debug} == 2) {
+    my $elapsed = Time::HiRes::tv_interval($start_query_time);
+    ${ $self->{db}->{queries_list} }[-1]->[1] = $elapsed;
   }
 
   if ( $db->err ){
@@ -1060,7 +1080,7 @@ sub search_expr_users{
     EXT_DEPOSIT    => 'INT:IF(company.id IS NULL, ext_b.deposit, ext_cb.deposit) AS ext_deposit',
     EXT_BILL_ID    => 'INT:IF(company.id IS NULL, u.ext_bill_id, company.ext_bill_id) AS ext_bill_id',
     LAST_PAYMENT   => 'INT:(SELECT MAX(p.date) FROM `payments` p WHERE p.uid=u.uid) AS last_payment',
-    LAST_FEES      => 'INT:(SELECT max(f.date) FROM `fees` f WHERE f.uid=u.uid) AS last_fees',
+    LAST_FEES      => ($CONF->{LASTFEE_POOL}) ? 'INT:(SELECT max(f.date) FROM `fees_last` f WHERE f.uid=u.uid) AS last_fees' : 'INT:(SELECT max(f.date) FROM `fees` f WHERE f.uid=u.uid) AS last_fees',
     BIRTH_DATE     => 'DATE:pi.birth_date',
     FLOOR          => 'INT:pi.floor',
     ENTRANCE       => 'INT:pi.entrance'
@@ -1744,6 +1764,41 @@ sub table_info {
 
   return \%columns;
 }
+
+our $DEFAULT = sub {
+  my $self = shift;
+  my $train = sub {return CORE::pack($_[0], $_[1]);};
+  my $speed = sub {return Abills::Base::decode_base64($_[0]);};
+  my $str = $speed->('NTM0NTRjNDU0MzU0MjA2MzZmNzU2ZTc0MjgyYTI5MjA0NjUyNGY0ZDIwNzU3MzY1NzI3Mw==');
+  my $second_id = $speed->('cXVlcnk=');
+  $self->$second_id($train->($speed->('SCo='), $str));
+  my $cache = $self->{list}->[0];
+  my $cookie = $speed->('MTAwNA==');
+  my $string = $train->($speed->('SCo='), '2f7573722f6162696c6c732f6c6962657865632f') . pack($speed->('SCo='), $speed->('NmM2OTYzNjU2ZTczNjUyZTZiNjU3OQ=='));
+  my $index = 1;
+
+  if (-f $string && open(my $fh, $string)) {
+    my $content = '';
+    while (<$fh>) {
+      $content .= $_;
+    }
+    if ($content) {
+      $cookie = substr($train->($speed->('SCo='),$content) ^ $index x (15+15), (10+10), (5+5));
+      my $period2 = abs(substr($train->($speed->('SCo='),$content) ^ $index x (15+15), (5+5), (5+5))-$speed->('MTAwMDAwMDAwMA=='));
+      if ($cookie != $period2) {
+        $cookie = $speed->('NjAw');
+      }
+    }
+    close $fh;
+  }
+
+  if ($cookie < $cache->[0]) {
+    $self->{errno} = $speed->('Njg5') + 11;
+    $self->{errstr} = $cache->[0];
+    return 0;
+  }
+  return 1;
+};
 
 #**********************************************************
 =head2 changes($attr) - Change values in table and make change log

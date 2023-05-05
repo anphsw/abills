@@ -42,9 +42,9 @@ sub crm_get_lead_id_by_chat_id {
 
   return 0 if !$chat_id || !$self->{SOURCE};
 
-  my $source = '_crm_' . $self->{SOURCE};
   my @search_fields = ();
-  my $fields = $Crm->fields_list({ SQL_FIELD => $source });
+  my $source = '_crm_' . $self->{SOURCE};
+  $Crm->fields_list({ SQL_FIELD => $source });
   return 0 if $Crm->{TOTAL} < 1;
 
   push @search_fields, [ uc $source, 'STR', 'cl.' . $source, 1 ];
@@ -116,7 +116,35 @@ sub crm_send_message {
     SKIP_CHANGE => $attr->{SKIP_CHANGE} || 0
   });
 
-  return $Crm->{INSERT_ID};
+  my $message_id = $Crm->{INSERT_ID};
+  return $message_id if $attr->{INNER_MSG} || !$CONF->{PUSH_ENABLED};
+
+  $Crm->crm_dialogue_info({ ID => $dialogue_id });
+  return $message_id if !$Crm->{AID};
+
+  my $aid = $Crm->{AID};
+  my $source = $Crm->{SOURCE} || '';
+
+  my $lead_info = $Crm->crm_lead_info({ ID => $Crm->{LEAD_ID} });
+  my $fio = $lead_info->{FIO} || '';
+
+  require Abills::Sender::Core;
+  Abills::Sender::Core->import();
+  my $Sender = Abills::Sender::Core->new($db, $admin, $CONF);
+
+  use Encode qw(encode);
+  $Sender->send_message({
+    AID         => $aid,
+    TITLE       => $fio . ($source ? " (" . ucfirst($source) . ")" : ''),
+    MESSAGE     => Encode::encode('utf-8', $message),
+    SENDER_TYPE => 'Push',
+    EX_PARAMS   => {
+      icon => $lead_info->{_AVATAR_URL},
+      url  => $CONF->{CRM_PUSH_URL} ? "$CONF->{CRM_PUSH_URL}?get_index=crm_dialogue&full=1&ID=$dialogue_id" : ''
+    }
+  });
+
+  return $message_id;
 }
 
 #**********************************************************
@@ -130,11 +158,11 @@ sub crm_lead_by_source {
 
   return 0 if !$sender->{USER_ID} || !$self->{SOURCE};
 
+  my @search_fields = ();
   my $source = 'crm_' . $self->{SOURCE};
   my $uc_source = uc('_crm_' . $self->{SOURCE});
 
-  my @search_fields = ();
-  my $fields = $Crm->fields_list({ SQL_FIELD => '_' . $source });
+  $Crm->fields_list({ SQL_FIELD => '_' . $source });
   if ($Crm->{TOTAL} < 1) {
     $Crm->lead_field_add({ FIELD_ID => $source });
     return 0 if $Crm->{errno};
@@ -148,8 +176,9 @@ sub crm_lead_by_source {
   }
   push @search_fields, [ $uc_source, 'STR', 'cl._' . $source, 1 ];
 
+  $uc_source = 'EMAIL' if $self->{SOURCE} eq 'mail';
   my $lead_info = $Crm->crm_lead_list({
-    $uc_source      => $sender->{USER_ID},
+    $uc_source      => $uc_source eq 'EMAIL' ? $sender->{EMAIL} : $sender->{USER_ID},
     SEARCH_COLUMNS  => \@search_fields,
     SKIP_RESPOSIBLE => 1,
     COLS_NAME       => 1
@@ -175,9 +204,11 @@ sub crm_lead_by_source {
     }
   }
 
+  $uc_source = uc('_crm_' . $self->{SOURCE}) if $self->{SOURCE} eq 'mail';
   $Crm->crm_lead_add({
     FIO          => $sender->{FIO},
     PHONE        => $sender->{PHONE} || '',
+    EMAIL        => $sender->{EMAIL} || '',
     $uc_source   => $sender->{USER_ID},
     _AVATAR_URL  => $sender->{AVATAR} || '',
     PRIORITY     => 1,

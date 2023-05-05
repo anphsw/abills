@@ -269,6 +269,7 @@ sub log_add {
        AND user= ?
        AND message = ?
        AND nas_id= ?
+      FOR UPDATE
       ;",
     undef,
     { Bind => [

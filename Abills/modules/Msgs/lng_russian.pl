@@ -279,5 +279,9 @@ $lang{SELECT_RESPONSIBLE} = 'Выберите ответственного...';
 $lang{SET_TAGS} = 'Установить метки';
 $lang{SELECT_TAGS} = 'Выберите метки...';
 $lang{NOTIFICATIONS_ASSIGNED_MESSAGES_ONLY} = 'Уведомления только для назначенных сообщений';
+$lang{PUTTING_MESSAGE_IN_SEPARATE_SUBJECT} = 'Помещение сообщения в отдельную тему';
+$lang{CHANGE_OF_DISPATCH} = 'Изменение наряда работ';
+$lang{MESSAGES_CAN_BE_SENT_UP_TO_ONCE} = 'Сообщения можно отправлять не чаще одного раза в %SECONDS% секунд';
+$lang{LAST_MESSAGE_ID} = 'Id последнего сообщения';
 
 1

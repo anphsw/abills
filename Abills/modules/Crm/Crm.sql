@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS `crm_actions` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` char(60) NOT NULL DEFAULT '',
   `action` TEXT NOT NULL,
+  `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8
@@ -311,3 +312,39 @@ CREATE TABLE IF NOT EXISTS `crm_deal_products` (
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm deal products';
+
+CREATE TABLE IF NOT EXISTS `crm_workflows`
+(
+  `id`      INT(11) UNSIGNED    NOT NULL AUTO_INCREMENT,
+  `name`    VARCHAR(50)         NOT NULL DEFAULT '',
+  `descr`   TEXT                NOT NULL,
+  `disable` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `used_times` INT(11)    UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Crm workflows';
+
+CREATE TABLE IF NOT EXISTS `crm_workflow_triggers`
+(
+  `id`    INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `workflow_id`   INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `type`  VARCHAR(50) NOT NULL DEFAULT '',
+  `old_value`  VARCHAR(50) NOT NULL DEFAULT '',
+  `new_value`  VARCHAR(50) NOT NULL DEFAULT '',
+  `contains`   VARCHAR(100) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Crm workflow triggers';
+
+CREATE TABLE IF NOT EXISTS `crm_workflow_actions`
+(
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `workflow_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `type` VARCHAR(50) NOT NULL DEFAULT '',
+  `value` TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Crm workflow actions';

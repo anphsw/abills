@@ -69,6 +69,7 @@ $lang{DISABLE_SERVICE_DATE} = 'Дата відключення';
 
 $lang{MAX_DEVICES} = 'Максимально девайсів';
 
+#TODO: fix $lang{EXCEEDED_THE_NUMBER_OF_SUBSCRIPTIONS} its sound bad
 $lang{EXCEEDED_THE_NUMBER_OF_SUBSCRIPTIONS} = 'Ви перевищили кількість підписок на цю службу';
 $lang{THIS_TARIFF_PLAN_IS_ALREADY_CONNECTED} = 'Цей тарифний план уже підлючений';
 

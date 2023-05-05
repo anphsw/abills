@@ -2929,4 +2929,68 @@ sub _employees_convert_positions {
   return $position_name;
 }
 
+#**********************************************************
+=head2 address_list_tree_menu($attr) - get collapsible tree menu to choose address
+
+  Arguments:
+    $attr
+      STREETS - if given will not display BUILD level
+      NAME    - Name for a first level. Default is $lang{ADDRESS}
+      COL_SIZE - width of menu. Default is 3
+      OUTPUT2RETURN
+
+  Returns:
+    if $attr->{OUTPUT2RETURN} returns HTML code for menu
+    else returns 1
+
+  Example:
+    address_list_tree_menu({ STREETS=> 1 });
+
+=cut
+#**********************************************************
+sub address_list_tree_menu{
+  my ($attr) = @_;
+
+  # We are avoiding save of $users object using chaining call
+  # You can read this as :
+  #   my $users = Users->new($db, \%conf);
+  #   my ($list, $parentness_hash) = $users->adress_parentness(\&in_array);
+  #
+
+  my ($list, $parentness_hash) = Address->new($db, $admin, \%conf)->address_parentness(\&in_array, $attr);
+
+  #Now build a tree menu for this structure
+  my $level_name_keys = ['DISTRICT_NAME','STREET_NAME', 'BUILD_NAME'];
+  my $level_id_keys = ['DISTRICT_ID','STREET_ID', 'BUILD_ID'];
+
+  my $checkbox_name = ($attr->{STREETS}) ? "STREET_ID" : "BUILD_ID";
+  my $first_level_name = ($attr->{NAME}) ? $attr->{NAME} : $lang{ADDRESS};
+  my $col_size = $attr->{COL_SIZE} ? $attr->{COL_SIZE} : '3';
+  my $menu = $html->tree_menu($list, $first_level_name,
+    {
+      PARENTNESS_HASH => $parentness_hash,
+
+      CHECKBOX => 1,
+      NAME => $checkbox_name,
+
+      LEVEL_LABEL_KEYS => $level_name_keys,
+      LEVEL_VALUE_KEYS  => $level_id_keys,
+      LEVEL_ID_KEYS  => $level_id_keys,
+      LEVEL_CHECKBOX_NAME => $level_id_keys,
+
+      COL_SIZE => $col_size,
+
+      CHECKBOX_STATE     => $attr->{CHECKED}
+    }
+  );
+
+  unless($attr->{OUTPUT2RETURN}){
+    print $menu;
+    return 1;
+  }
+
+  return $menu;
+}
+
+
 1

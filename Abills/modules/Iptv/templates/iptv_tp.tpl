@@ -53,6 +53,14 @@
             </div>
 
             <div class='form-group row'>
+              <label class='col-sm-4 col-md-4 control-label' for='DESCRIBE_AID'>_{DESCRIBE_FOR_ADMIN}_:</label>
+              <div class='col-sm-8 col-md-8'>
+              <textarea cols='40' rows='2' name='DESCRIBE_AID' class='form-control'
+                        id='DESCRIBE_AID'>%DESCRIBE_AID%</textarea>
+              </div>
+            </div>
+
+            <div class='form-group row'>
               <label class='col-sm-4 col-md-4 text-right' for='STATUS'>_{HIDE_TP}_:</label>
               <div class='col-sm-8'>
                 <div class='form-check text-left'>

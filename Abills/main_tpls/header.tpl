@@ -9,7 +9,7 @@
       </a>
     </li>
     <li class='nav-item'>
-      <a class='nav-link' href='$SELF_URL'>
+      <a class='nav-link' href='%SELF_URL%'>
         <i class='fa fa-home'></i>
       </a>
     </li>
@@ -29,7 +29,7 @@
           <h6 class='header_text float-left pt-1'></h6>
             <div class='text-right'>
               <div class='btn-group'>
-                <form action='$SELF_URL' class='form-horizontal'>
+                <form action='%SELF_URL%'>
                   <div class='btn btn-sm btn-primary' id='dropdown_search_button'>
                     <i class='fa fa-search' role='button'></i>
                   </div>
@@ -44,7 +44,7 @@
         </span>
         <div class='dropdown-divider'></div>
         <div class='dropdown-item' id='drop_search_form' style='display: none'>
-          <form action='$SELF_URL' class='form-horizontal' style='width: 100%'>
+          <form action='%SELF_URL%' style='width: 100%'>
             <input type='hidden' name='get_index' value='msgs_admin'>
             <input type='hidden' name='full' value='1'>
             <div class='input-group'>
@@ -65,7 +65,7 @@
         </div>
 
         <div class='dropdown-divider'></div>
-        <a id='footer_messages-menu' class='dropdown-item dropdown-footer' href='$SELF_URL?get_index=msgs_admin&full=1'>_{SHOW}_
+        <a id='footer_messages-menu' class='dropdown-item dropdown-footer' href='%SELF_URL%?get_index=msgs_admin&full=1'>_{SHOW}_
           _{ALL}_</a>
       </div>
     </li>
@@ -96,7 +96,7 @@
         </div>
 
         <div class='dropdown-divider'></div>
-        <a id='footer_responsible-menu' class='dropdown-item dropdown-footer' href='$SELF_URL?get_index=msgs_admin&STATE=0&RESPOSIBLE=%AID%&full=1'>$lang{SHOW} $lang{ALL}</a>
+        <a id='footer_responsible-menu' class='dropdown-item dropdown-footer' href='%SELF_URL%?get_index=msgs_admin&STATE=0&RESPOSIBLE=%AID%&full=1'>_{SHOW}_ _{ALL}_</a>
       </div>
     </li>
 
@@ -130,13 +130,13 @@
         </div>
 
         <div class='dropdown-divider'></div>
-        <a id='footer_events-menu' class='dropdown-item dropdown-footer' href='$SELF_URL?get_index=events_profile&full=1'>_{SHOW}_ _{ALL}_</a>
+        <a id='footer_events-menu' class='dropdown-item dropdown-footer' href='%SELF_URL%?get_index=events_profile&full=1'>_{SHOW}_ _{ALL}_</a>
       </div>
     </li>
 
     <!--Search Menu-->
     <li class='nav-item mr-2 d-md-none d-sm-inline-block dropdown search-menu'>
-      <form class='no-live-select UNIVERSAL_SEARCH_FORM' id='SMALL_SEARCH_FORM' action='$SELF_URL'>
+      <form class='no-live-select UNIVERSAL_SEARCH_FORM' id='SMALL_SEARCH_FORM' action='%SELF_URL%'>
         <input type='hidden' name='index' value='7'>
         <input type='hidden' name='search' value='1'>
       </form>
@@ -164,7 +164,7 @@
       </ul>
     </li>
 
-    <form class='no-live-select UNIVERSAL_SEARCH_FORM d-inline-flex' action='$SELF_URL'>
+    <form class='no-live-select UNIVERSAL_SEARCH_FORM d-inline-flex' action='%SELF_URL%'>
       <input type='hidden' name='index' value='7'>
       <input type='hidden' name='search' value='1'>
       <li class='header nav-item mr-2 d-none d-md-inline-block'>
@@ -195,7 +195,7 @@
 
     <li class='nav-item d-none d-sm-inline-block'>
       <a href='#' class='nav-link' title='QRCode'
-          onclick='showImgInModal(\"$SELF_URL?$ENV{QUERY_STRING}&amp;qrcode=1&amp;qindex=100000&amp;name=qr_code\", \"_{QR_CODE}_\")'>
+          onclick='showImgInModal(\"%SELF_URL%?$ENV{QUERY_STRING}&amp;qrcode=1&amp;qindex=100000&amp;name=qr_code\", \"_{QR_CODE}_\")'>
         <i class='fa fa-qrcode'></i>
       </a>
     </li>
@@ -221,7 +221,7 @@
       portal: 'admin',
       link: '/admin/index.cgi?get_index=form_events&even_show=1&AID=$admin->{AID}',
       soundsDisabled: ('$admin->{SETTINGS}{NO_EVENT_SOUND}' == '1'),
-      disabled: ('$admin->{SETTINGS}{NO_EVENT}' == '1'),
+      disabled: ('$admin->{SETTINGS}{NO_EVENT}' == '1') || ('%EVENTS_DISABLED%' == '1'),
       interval: parseInt('$conf{EVENTS_REFRESH_INTERVAL}') || 30000
     };
     AMessageChecker.start(EVENT_PARAMS);
@@ -244,7 +244,7 @@
   <div class='sidebar' style='overflow-y: auto'>
     <div class='user-panel mt-3 pb-3 mb-3 d-flex'>
       <div class='image'>
-        <a href='$SELF_URL?index=9'>
+        <a href='%SELF_URL%?index=9'>
           <img src='%AVATAR_LOGO%' class='img-circle elevation-2' alt='User Image'>
         </a>
       </div>
@@ -268,7 +268,7 @@
     %MENU%
   </div>
 </aside>
-<div class='content-wrapper' id='content-wrapper'>
+<div class='content-wrapper' id='content-wrapper' style='min-height: calc(100vh - %CONTENT_OFFSET%)'>
   %ISP_EXPRESSION%
 
   %BREADCRUMB%

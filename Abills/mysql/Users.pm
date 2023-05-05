@@ -9,7 +9,6 @@ package Users;
 use strict;
 use parent 'dbcore';
 use Conf;
-use Attach;
 
 my $admin;
 my $CONF;
@@ -561,12 +560,12 @@ sub groups_list {
   }
 
   my $WHERE = $self->search_former($attr, [
-      ['BONUS',            'INT', 'g.bonus',                     1 ],
       ['DOMAIN_ID',        'INT', 'g.domain_id',                 1 ],
       ['G_NAME',           'STR', 'g.name AS g_name',            1 ],
       ['DISABLE_PAYMENTS', 'INT', 'g.disable_payments',          1 ],
       ['GID',              'INT', 'g.gid',                       1 ],
       ['NAME',             'STR', 'g.name',                      1 ],
+      ['BONUS',            'INT', 'g.bonus',                     1 ],
       ['DESCR',            'STR', 'g.descr',                     1 ],
       ['ALLOW_CREDIT',     'INT', 'g.allow_credit',              1 ],
       ['DISABLE_PAYSYS',   'INT', 'g.disable_paysys',            1 ],
@@ -1234,7 +1233,8 @@ sub change {
   $self->_space_trim($attr);
 
   if ($attr->{CREATE_BILL}) {
-    use Bills;
+    require Bills;
+    Bills->import();
     my $Bill = Bills->new($self->{db}, $admin, $self->{conf});
     $Bill->create({ UID => $self->{UID} || $uid });
     if ($Bill->{errno}) {
@@ -1256,7 +1256,8 @@ sub change {
     }
   }
   elsif ($attr->{CREATE_EXT_BILL}) {
-    use Bills;
+    require Bills;
+    Bills->import();
     my $Bill = Bills->new($self->{db}, $admin, $self->{conf});
     $Bill->create({ UID => $self->{UID} });
 
@@ -1332,7 +1333,9 @@ sub del {
       'msgs_messages',
       'msgs_reply',
       'web_users_sessions',
-      'users_contacts'
+      'users_contacts',
+      'users_registration_pin',
+      'users_phone_pin'
     );
 
     $self->{info} = '';
@@ -1348,6 +1351,8 @@ sub del {
       $self->{info} .= "$table, ";
     }
 
+    require Attach;
+    Attach->import();
     my $Attach = Attach->new($self->{db}, $admin, $CONF);
     $Attach->attachment_del({ UID => $self->{UID}, FULL_DELETE => 1 });
     $admin->action_add($self->{UID}, "DELETE $self->{UID}:$self->{LOGIN}$comments", { TYPE => 12 });
@@ -1824,6 +1829,8 @@ sub info_field_attach_add {
 
   my $prefix = ($attr->{COMPANY_PREFIX}) ? 'ifc' : 'ifu';
 
+  require Attach;
+  Attach->import();
   my $Conf   = Conf->new($self->{db}, $admin, $self->{conf});
   my $Attach = Attach->new($self->{db}, $admin, $CONF);
   my $list   = $Conf->config_list({ PARAM => $prefix .'*' });
@@ -2961,6 +2968,63 @@ sub report_users_disabled {
   );
 
   return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 registration_pin_info($attr)
+
+=cut
+#**********************************************************
+sub registration_pin_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  if ($attr->{UID}) {
+    $self->query("SELECT *, DECODE(pin_code, ?) as verification_code FROM users_registration_pin WHERE uid = ?;",
+      undef, { INFO => 1, Bind => [ $self->{conf}->{secretkey}, $attr->{UID} ] });
+  }
+  else {
+    $self->query("SELECT *, DECODE(pin_code, ?) as verification_code FROM users_registration_pin WHERE destination = ?;",
+      undef, { INFO => 1, Bind => [ $self->{conf}->{secretkey}, $attr->{DESTINATION} || '--' ] });
+  }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 registration_pin_change($uid)
+
+=cut
+#**********************************************************
+sub registration_pin_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'UID',
+    TABLE        => 'users_registration_pin',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 registration_pin_add($attr)
+
+=cut
+#**********************************************************
+sub registration_pin_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  if ($attr->{PIN_CODE}) {
+    $attr->{PIN_CODE} = "ENCODE('$attr->{PIN_CODE}', '$self->{conf}->{secretkey}')",
+  }
+
+  $self->query_add('users_registration_pin', $attr);
+
+  return $self;
 }
 
 1;

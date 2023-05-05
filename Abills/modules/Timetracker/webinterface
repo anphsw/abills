@@ -33,6 +33,7 @@ my @external_systems = ($lang{NO}, 'Support', 'Redmine');
 #**********************************************************
 sub timetracker {
 
+  require Control::Reports;
   reports({
       DATE        => $FORM{FROM_DATE_TO_DATE},
       PERIOD_FORM => 1,
@@ -694,6 +695,8 @@ sub get_ticket_work {
   my $to_date_ = sprintf "%.4d-%.2d-%.2d", $year + 1900, $mon + 1, $mday = 1;
 
   if ($conf{TIMETRACKER_REDMINE_URL}) {
+
+    require Control::Reports;
     reports({
       NO_GROUP    => 1,
       NO_TAGS     => 1,

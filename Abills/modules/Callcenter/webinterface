@@ -23,7 +23,7 @@ our Abills::HTML $html;
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Callcenter',
-  REQUIRE_VERSION => 7.14
+  REQUIRE_VERSION => 7.15
 })) {
   exit;
 }
@@ -829,6 +829,7 @@ sub _callcenter_user_btn {
 #**********************************************************
 sub callcenter_report {
 
+  require Control::Reports;
   reports({
     PERIOD_FORM => 1,
     DATE_RANGE  => 1,
@@ -1052,6 +1053,62 @@ sub callcenter_sound {
   print $table->show();
 
   return 1;
+}
+
+#**********************************************************
+=head2 callcenter_start_page($attr)
+
+=cut
+#**********************************************************
+sub callcenter_start_page {
+
+  my %START_PAGE_F = (
+    callcenter_personal_call_statistics => $lang{PERSONAL_CALL_STATISTICS},
+    callcenter_total_call_statistics    => $lang{TOTAL_CALL_STATISTICS},
+  );
+
+  return \%START_PAGE_F;
+}
+
+#**********************************************************
+=head2 callcenter_personal_call_statistics()
+
+=cut
+#**********************************************************
+sub callcenter_personal_call_statistics {
+
+  my $avatar_logo = $admin->{AVATAR_LINK} ? "/images/$admin->{AVATAR_LINK}" : '/styles/default/img/admin/avatar5.png';
+
+  $Callcenter->log_list({ AID => $admin->{AID} });
+
+  return $html->tpl_show(_include('callcenter_call_statistics', 'Callcenter'), {
+    ADMIN_AVATAR => $avatar_logo,
+    ADMIN        => $admin->{ADMIN},
+    DATE         => $DATE,
+    TITLE        => $lang{PERSONAL_CALL_STATISTICS},
+    TOTAL        => $Callcenter->{TOTAL} || 0,
+    INCOMING     => $Callcenter->{INCOMING} || 0,
+    OUTGOING     => $Callcenter->{OUTGOING} || 0
+  }, { OUTPUT2RETURN => 1 });
+}
+
+#**********************************************************
+=head2 callcenter_total_call_statistics()
+
+=cut
+#**********************************************************
+sub callcenter_total_call_statistics {
+
+  $Callcenter->log_list();
+
+  return $html->tpl_show(_include('callcenter_call_statistics', 'Callcenter'), {
+    ADMIN_AVATAR => '/styles/default/img/modules/callcenter/support-team.png',
+    DATE         => $DATE,
+    TITLE        => $lang{TOTAL_CALL_STATISTICS},
+    TOTAL        => $Callcenter->{TOTAL} || 0,
+    INCOMING     => $Callcenter->{INCOMING} || 0,
+    OUTGOING     => $Callcenter->{OUTGOING} || 0
+  }, { OUTPUT2RETURN => 1 });
 }
 
 1

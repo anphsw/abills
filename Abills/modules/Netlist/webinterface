@@ -1017,21 +1017,6 @@ sub netlist_ip_scan_exec {
 #**********************************************************
 sub netlist_show_networks {
 
-  # require Dhcphosts;
-  # Dhcphosts->import();
-  # my $Dhcphosts = Dhcphosts->new( $db, $admin, \%conf );
-  #
-  # my $dhcp_networks = $Dhcphosts->networks_list( {
-  #   NAME             => '_SHOW',
-  #   NETWORK          => '_SHOW',
-  #   NETMASK          => '_SHOW',
-  #   SHOW_ALL_COLUMNS => 1,
-  #   COLS_NAME        => 1,
-  #   PAGE_ROWS        => 100000
-  # } );
-  #
-  # _error_show($Dhcphosts);
-
   my $ip_pools = $Nas->nas_ip_pools_list( {
     NAS_ID           => '*',
     SHOW_ALL_COLUMNS => 1,
@@ -1064,32 +1049,8 @@ sub netlist_show_networks {
       $info_button
     );
   }
-  print $ip_pools_table->show();
 
-  # if (in_array('Dhcphosts', \@MODULES)) {
-  #   # Show networks defined in pools
-  #   my $dhcphosts_networks_table = $html->table({
-  #     width   => '100%',
-  #     caption => 'Dhcphosts ' . $lang{NETWORKS},
-  #     title   => [ '#', $lang{NAME}, $lang{NETWORK}, $lang{INFO} ],
-  #     pages   => scalar @{$ip_pools},
-  #       qs => $pages_qs,
-  #       ID => '_ID'
-  #   });
-  #
-  #   foreach my $pool (@{$dhcp_networks}) {
-  #     my $info_button = $html->button('', "index=$info_index&TYPE=Dhcphosts&ID=$pool->{id}", { class => 'info' });
-  #
-  #     $dhcphosts_networks_table->addrow(
-  #       $pool->{id},
-  #       $pool->{name},
-  #       $pool->{network} . '/' . $pool->{netmask},
-  #       $info_button
-  #     );
-  #   }
-  #
-  #   print $dhcphosts_networks_table->show();
-  # }
+  print $ip_pools_table->show();
 
   return 1;
 }
@@ -1141,55 +1102,6 @@ sub netlist_network_info {
     %lookup_ip_info_table = %{ $ips_from_module->{IP_INFO} };
     %lookup_ip_uid_table = %{ $ips_from_module->{IP_UID} };
   }
-  elsif ( $FORM{TYPE} eq 'Dhcphosts' ) {
-    # Just need to know all ip addresses in range
-    require Dhcphosts;
-    Dhcphosts->import();
-    my $Dhcphosts = Dhcphosts->new( $db, $admin, \%conf );
-
-    my $networks_list = $Dhcphosts->networks_list( {
-      ID               => $FORM{ID},
-      NAME             => '_SHOW',
-      NETWORK_INT      => '_SHOW',
-      NETMASK_INT      => '_SHOW',
-      SHOW_ALL_COLUMNS => 1,
-      COLS_NAME        => 1,
-    } );
-
-    return 0 if (_error_show($Dhcphosts));
-
-    %network = %{$networks_list->[0]};
-
-    $network{network_int} //= 0;
-    $first_ip_num = $network{network_int} + 1;
-
-    my $netmask = $network{netmask_int};
-    my $netmask_binary = sprintf('%032b', $netmask);
-    my $bits_count = index ($netmask_binary, '0');
-
-    $bits_count = 0 if $bits_count <= 0;
-
-    my $hosts_count = 1 << (32 - $bits_count);
-
-    $last_ip_num = $first_ip_num + $hosts_count - 3;
-
-    my $users_list = $Dhcphosts->hosts_list( {
-      UID          => '_SHOW',
-      LOGIN        => '_SHOW',
-      IPN_ACTIVATE => '_SHOW',
-      ONLINE       => '_SHOW',
-      PAGE_ROWS    => 10000000,
-      IP_NUM       => ">$first_ip_num;<$last_ip_num",
-      IP           => '_SHOW',
-      COLS_NAME    => 1
-    } );
-    _error_show($Dhcphosts);
-
-    foreach my $user ( @{$users_list} ) {
-      $lookup_ip_info_table{$user->{ip}} = $user;
-      $lookup_ip_uid_table{$user->{ip}} = $user->{uid};
-    }
-  }
   else {
     $html->message( 'err', 'Error', 'Wrong parameter TYPE given' );
   }
@@ -1238,8 +1150,8 @@ sub netlist_network_info {
   print _netlist_make_ip_table(
     \@last_octets,
     sub {
-      my $index = shift;
-      my $ip = $ip_addresses[$index];
+      my $ip_index = shift;
+      my $ip = $ip_addresses[$ip_index];
 
       if ($lookup_ip_info_table{$ip}) {
         if ($lookup_ip_info_table{$ip}{uid} && $user_info_by_uid->{$lookup_ip_info_table{$ip}{uid}}) {
@@ -1251,11 +1163,12 @@ sub netlist_network_info {
           $lookup_ip_info_table{$ip}{fio} = $user_info->{fio};
         }
 
-        return _netlist_make_user_info_popover($lookup_ip_info_table{$ip}, $last_octets[$index])
+        return _netlist_make_user_info_popover($lookup_ip_info_table{$ip}, $last_octets[$ip_index])
       }
 
-      return $last_octets[$index];
-    }
+      return $last_octets[$ip_index];
+    },
+    \@ip_addresses
   );
 
 }
@@ -1269,7 +1182,7 @@ sub netlist_network_info {
 =cut
 #**********************************************************
 sub _netlist_make_ip_table {
-  my ($last_octets, $filter) = @_;
+  my ($last_octets, $filter, $ips) = @_;
 
   $filter ||= sub { shift };
   my $last_index = scalar @{$last_octets};
@@ -1281,17 +1194,29 @@ sub _netlist_make_ip_table {
     border => 1
   });
 
-
+  my $ip_index = 0;
   for ( my $row_num = 0; $row_num < $rows_count; $row_num++ ) {
     my @row = ();
 
     for ( my $col_num = 0; $col_num < $columns_count; $col_num++ ) {
-      my $index = ($row_num * $columns_count) + $col_num;
+      #my $index = ($row_num * $columns_count) + $col_num;
 
-      last if ($index >= $last_index);
+      if ($ip_index >= $last_index) {
+        last;
+      }
 
-      my $cell = $filter->( $index );
+      my $cell = $filter->( $ip_index );
       push(@row, $cell);
+      if ($cell eq '0') {
+        pop @row;
+        $table->addrow(@row);
+        @row = ();
+        push(@row, $html->b($ips->[$ip_index]));
+        $table->addrow(@row);
+        @row = ();
+      }
+
+      $ip_index++;
     }
 
     $table->addrow(@row);
@@ -1328,17 +1253,21 @@ sub _netlist_make_user_info_popover {
   $tooltip_table->addrow('FIO', $user_info_hash->{fio});
   $tooltip_table->addrow('UID', $user_info_hash->{uid});
 
-  my $tooltip_table_html = $html->link_former($tooltip_table->show(), { SKIP_SPACE => 1 });
+  my $info = qq{$lang{LOGIN}:  }. $html->button($user_info_hash->{login}, "index=11&UID=$user_info_hash->{uid}")
+    . $html->br(). qq{$lang{FIO}: $user_info_hash->{fio} }
+  ;
+
+  my $tooltip_table_html = $info; #$html->link_former($tooltip_table->show({ OUTPUT2RETURN => 1 }), { SKIP_SPACE => 1 });
 
   return $html->button(
       $last_octet,
       'index=15&UID='.$user_info_hash->{uid},
       {
-        ADD_ICON => 'glyphicon glyphicon-user',
-        TITLE => $last_octet,
-        ID => "netlist-info-td-$last_octet",
+        ADD_ICON  => 'fas fa-user-alt',
+        TITLE     => $user_info_hash->{ip},
+        ID        => "netlist-info-td-$last_octet",
         ex_params => "data-tooltip-position='top' data-tooltip='$tooltip_table_html'",
-        class => "text-$class"
+        class     => "text-$class"
       }
     );
 }
@@ -1363,15 +1292,20 @@ sub _get_ips_info_for_internet {
   my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
   # Get info from internet_main
+  if ($FORM{DEBUG}) {
+    $Internet->{debug}=1;
+  }
   my $users_list = $Internet->user_list({
     UID       => '_SHOW',
     ONLINE    => '_SHOW',
     PAGE_ROWS => 10000000,
-    IP        => '>' . int2ip($first_ip_num) . ';<' . int2ip($last_ip_num),
+    IP        => '>=' . int2ip($first_ip_num) . ';<=' . int2ip($last_ip_num),
     GROUP_BY => 'id',
     COLS_NAME => 1
   });
   _error_show($Internet);
+
+
 
   foreach my $user (@{$users_list}) {
     my $ip = $user->{ip} || int2ip($user->{ip_num});

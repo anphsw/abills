@@ -8,7 +8,6 @@ package Control::Registration_mng;
 
 use strict;
 use warnings FATAL => 'all';
-use experimental 'smartmatch';
 
 use JSON qw(decode_json);
 
@@ -81,14 +80,13 @@ sub password_recovery {
   } if (!$attr->{UID} && !$attr->{CONTRACT_ID} && !$attr->{LOGIN});
 
   my %fields = ();
-  $fields{$_} = 1 for split ',\s?', ($conf{PASSWORD_RECOVERY_PARAMS} || 'LOGIN,EMAIL');
-  my @required_fields = split ',\s?', ($conf{PASSWORD_RECOVERY_REQUIRED_PARAMS} || 'LOGIN,EMAIL');
+  $fields{$_} = 1 for split ',\s?', ($conf{PASSWORD_RECOVERY_REQUIRED_PARAMS} || 'LOGIN,EMAIL');
 
   foreach my $param ('UID', 'PHONE', 'EMAIL', 'CONTRACT_ID', 'LOGIN') {
     $attr->{$param} = '' if (!$fields{$param});
   }
 
-  foreach my $field (@required_fields) {
+  foreach my $field (keys %fields) {
     return {
       errno      => 10081,
       errstr     => 'No field ' . lc($field),
@@ -98,7 +96,7 @@ sub password_recovery {
 
   my $users_list = $Users->list({
     EMAIL       => $attr->{EMAIL} || '_SHOW',
-    PHONE       => $attr->{PHONE} || '_SHOW',
+    PHONE       => $attr->{PHONE} ? "*$attr->{PHONE}*" : '_SHOW',
     UID         => $attr->{UID} || '_SHOW',
     CONTRACT_ID => $attr->{CONTRACT_ID} || '_SHOW',
     LOGIN       => $attr->{LOGIN} || '_SHOW',
@@ -328,6 +326,8 @@ sub user_registration {
   my $password = q{};
   my %extra_params = ();
   my $is_social_auth = 0;
+  my $user_status = 0;
+  delete $attr->{UID};
 
   my $captcha_check = $self->reCaptchaV3($attr);
   return $captcha_check if ($captcha_check->{errno});
@@ -375,8 +375,8 @@ sub user_registration {
   }
   else {
     my $result = $self->_registration_validation($attr);
-    return $result if ($result->{errno} || $result->{warnings} || $result->{send_pin});
-
+    return $result if ($result->{errno} || $result->{warnings});
+    $user_status = 2 if ($conf{REGISTRATION_VERIFY_PHONE} || $conf{REGISTRATION_VERIFY_EMAIL});
     $password = $result->{password};
   }
 
@@ -386,12 +386,14 @@ sub user_registration {
     PASSWORD    => $password,
     GID         => $conf{REGISTRATION_GID},
     PREFIX      => $conf{REGISTRATION_PREFIX},
+    DISABLE     => $user_status,
   });
 
   if ($Users->{errno}) {
     return {
       errno      => 10208,
       errstr     => 'Invalid login of user',
+      login      => $attr->{LOGIN},
       errstr_lng => "$lang{ERR_WRONG_DATA} $lang{LOGIN}",
     } if ($Users->{errno} == 10);
 
@@ -436,53 +438,12 @@ sub user_registration {
   }
 
   if ($conf{REGISTRATION_DEFAULT_TP}) {
-    my $cid = q{};
-
-    if ($conf{REGISTRATION_IP}) {
-      if (!$attr->{USER_IP} || $attr->{USER_IP} ~~ '0.0.0.0') {
-        $Users->del({ UID => $uid, FULL_DELETE => 1 });
-        return {
-          errno      => 10015,
-          errstr     => 'Invalid ip',
-          errstr_lng => "$lang{ERR_WRONG_DATA} IP",
-        };
-      }
-
-      require Internet::Sessions;
-      Internet::Sessions->import();
-
-      my $Sessions = Internet::Sessions->new($self->{db}, $self->{admin}, $self->{conf});
-      $Sessions->online({
-        CLIENT_IP => $attr->{USER_IP},
-        CID       => '_SHOW',
-        GUEST     => 1,
-        COLS_NAME => 1
-      });
-
-      if ($Sessions->{TOTAL}) {
-        $cid = $Sessions->{list}->[0]->{cid};
-      }
-
-      if (!$cid) {
-        $Users->del({ UID => $uid, FULL_DELETE => 1 });
-        return {
-          errno      => 10016,
-          errstr     => 'IP address and MAC was not found',
-          errstr_lng => "$lang{ERR_WRONG_DATA} IP",
-        };
-      }
-    }
-
-    require Internet;
-    Internet->import();
-    my $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
-
-    $Internet->user_add({
-      UID    => $uid,
-      TP_ID  => $conf{REGISTRATION_DEFAULT_TP} || 0,
-      STATUS => 2,
-      CID    => $cid
+    my $internet_registration = $self->_registration_default_tp({
+      %$attr,
+      UID => $uid
     });
+
+    return $internet_registration if ($internet_registration->{errno});
   }
 
   if ($conf{AUTH_ROUTE_TAG} && in_array('Tags', \@main::MODULES)) {
@@ -497,7 +458,6 @@ sub user_registration {
   }
 
   $attr->{PASSWORD} = $password;
-  $self->_send_registration_message($attr);
 
   my %result = (
     result => "Successfully created user with uid: $uid",
@@ -519,6 +479,31 @@ sub user_registration {
   if ($attr->{REFERRER}) {
     ::load_module('Referral', $html);
     ::referral_link_registred({ REFERRED => $attr->{REFERRER}, UID => $uid, QUITE => 1 });
+  }
+
+  if (!($attr->{SOCIAL_NETWORK} && $attr->{TOKEN}) && ($conf{REGISTRATION_VERIFY_PHONE} || $conf{REGISTRATION_VERIFY_EMAIL})) {
+    my $pin_result = $self->_send_pin(undef, $attr);
+    if ($pin_result->{warning}) {
+      $result{warning} = $pin_result->{warning};
+      $result{send_status} = $pin_result->{send_status};
+    }
+    else {
+      $Users->registration_pin_add({
+        UID         => $uid,
+        PIN_CODE    => $pin_result->{pin} || '--',
+        DESTINATION => $pin_result->{destination},
+        SEND_COUNT  => 1
+      });
+      $result{verify_message} = $pin_result->{result};
+      $result{verify_need} = 'true';
+    }
+  }
+  else {
+    my $message_info = $self->_send_registration_message($attr);
+    if ($message_info->{code}) {
+      $result{warning} = $message_info->{warning} || '';
+      $result{code} = $message_info->{code} || '';
+    }
   }
 
   return \%result;
@@ -599,6 +584,7 @@ sub _registration_validation {
 
   if ($conf{EMAIL_DOMAIN_VALIDATION}) {
     my $domain_temp = ($conf{EMAIL_DOMAIN_VALIDATION} == 1) ? 'mail_whitelist' : 'mail_blacklist';
+    ::load_module("Abills::Templates", { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
     my $domains = $html->tpl_show(::templates($domain_temp), {}, { OUTPUT2RETURN => 1 });
 
     my @domains = split('\r?\n', $domains);
@@ -644,6 +630,22 @@ sub _registration_validation {
     errstr_lng => "$lang{LOGIN} $lang{EXIST}"
   } if ($Users->{TOTAL});
 
+  if ($conf{REGISTRATION_VERIFY_PHONE} || $attr->{PHONE}) {
+    return {
+      errno      => 10240,
+      errstr     => 'No param phone',
+      errstr_lng => "$lang{ERR_WRONG_DATA} $lang{PHONE}",
+    } if (!$attr->{PHONE});
+
+    my $phone_format = $self->{conf}->{PHONE_FORMAT} || $self->{conf}->{CELL_PHONE_FORMAT} || '';
+
+    return {
+      errno      => 10241,
+      errstr     => 'No param phone',
+      errstr_lng => "$lang{ERR_WRONG_DATA} $lang{PHONE}",
+    } if ($phone_format && $attr->{PHONE} !~ /$phone_format/);
+  }
+
   my $password = q{};
 
   if ($conf{REGISTRATION_PASSWORD}) {
@@ -677,13 +679,15 @@ sub _registration_validation {
   }
 
   if ($conf{REGISTRATION_VERIFY_PHONE} || $conf{REGISTRATION_VERIFY_EMAIL}) {
-    if ($attr->{PIN}) {
-      my $result = $self->_verify_pin($attr);
-      return $result if ($result->{errno});
-    }
-    else {
-      return $self->_send_pin($attr);
-    }
+    my $check_field = $conf{REGISTRATION_VERIFY_PHONE} ? 'phone' : 'email';
+    my $destination = $attr->{uc($check_field)} || '--';
+    delete $Users->{UID};
+    $Users->registration_pin_info({ DESTINATION => $destination });
+
+    return {
+      warnings => "Already send a code to $check_field $destination",
+      code     => 10099
+    } if $Users->{UID};
   }
 
   return {
@@ -712,13 +716,13 @@ sub _social_registration {
     errstr_lng => $lang{ERR_UNKNOWN},
   } unless ($conf{$conf_key_name} && $conf{$conf_reg});
 
-  require Abills::Auth::Core;
-  Abills::Auth::Core->import();
-
   if ($attr->{SOCIAL_NETWORK}) {
     $attr->{API} = 1;
     $attr->{token} = $attr->{TOKEN} || q{};
   }
+
+  require Abills::Auth::Core;
+  Abills::Auth::Core->import();
 
   my $Auth = Abills::Auth::Core->new({
     CONF      => \%conf,
@@ -759,23 +763,29 @@ sub _social_registration {
       my $login = q{};
 
       $conf{USERNAMEREGEXP} //= "^[a-z0-9_][a-z0-9_-]*\$";
-      if ($Auth->{USER_EMAIL} =~ /$conf{USERNAMEREGEXP}/) {
+      if ($Auth->{USER_EMAIL} && $Auth->{USER_EMAIL} =~ /$conf{USERNAMEREGEXP}/) {
         $login = $Auth->{USER_EMAIL};
       }
       else {
-        my $min_len = int($conf{MAX_USERNAME_LENGTH} / 2);
-        my $max_len = $conf{MAX_USERNAME_LENGTH} - 1;
-        my @symbols = map chr, 0x20..0x7E;
         my $pattern = qr/$conf{USERNAMEREGEXP}/;
         my $_login = q{};
 
-        while (1) {
-          $_login = join '', map {$symbols[rand(@symbols)]} 1 .. $min_len + rand($max_len - $min_len + 1);
-          last if $_login =~ $pattern;
+        if ('example@gmail.com' =~ /$conf{USERNAMEREGEXP}/) {
+          $_login = mk_unique_value(15, { SYMBOLS => 'qwertyupasdfghjikzxcvbnm123456789' }) . '@unknown.com';
+        }
+        else {
+          my $length = ($conf{MAX_USERNAME_LENGTH} || 10) - 1;
+          require Abills::Random;
+          Abills::Random->import();
+          my $string_gen = Abills::Random->new({ length => $length });
+          for (1 .. 10) {
+            $_login = $string_gen->randregex($conf{USERNAMEREGEXP});
+            last if $_login =~ $pattern;
+          }
         }
 
         my $list = $Users->list({
-          LOGIN     => "$_login",
+          LOGIN     => $_login,
           PAGE_ROWS => 2
         });
 
@@ -812,7 +822,7 @@ sub _social_registration {
 }
 
 #**********************************************************
-=head2 _registration_message()
+=head2 _send_registration_message()
 
 =cut
 #**********************************************************
@@ -845,6 +855,11 @@ sub _send_registration_message {
     });
   }
   else {
+    return {
+      warning => 'Email not send with registration information. Parameter email not found in social network info. Can login via linked social network.',
+      code    => 10083
+    } if !$attr->{EMAIL};
+
     $Sender->send_message({
       TO_ADDRESS   => $attr->{EMAIL},
       MESSAGE      => $message,
@@ -855,108 +870,146 @@ sub _send_registration_message {
       CONTENT_TYPE => $conf{REGISTRATION_MAIL_CONTENT_TYPE} ? $conf{REGISTRATION_MAIL_CONTENT_TYPE} : '',
     });
   }
+
+  return {
+    result => 'OK',
+  };
 }
 
 #**********************************************************
-=head2 send_pin()
+=head2 _send_pin()
 
 =cut
 #**********************************************************
 sub _send_pin {
   my $self = shift;
-  my ($attr) = @_;
-
-  my $check_field = $conf{REGISTRATION_VERIFY_PHONE} ? 'phone' : 'email';
-
-  $self->{admin}->action_list({
-    FROM_DATE      => $main::DATE,
-    TO_DATE        => $main::DATE,
-    TYPE           => 52,
-    ACTIONS        => "*$attr->{uc($check_field)}*",
-    SKIP_DEL_CHECK => 1,
-  });
-
-  if ($self->{admin}->{TOTAL} > 0) {
-    return {
-      warnings => "Already send a pin to $check_field $attr->{uc($check_field)}",
-      code     => 10099
-    };
-  }
+  my ($pin, $attr) = @_;
 
   require Abills::Sender::Core;
   Abills::Sender::Core->import();
   my $Sender = Abills::Sender::Core->new($self->{db}, $self->{admin}, \%conf);
 
-  my $pin = int(rand(9999)) + 10000;
+  $pin = $pin || int(rand(9999)) + 10000;
+
+  my $prot = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  my $addr = (defined($ENV{HTTP_HOST})) ? "$prot://$ENV{HTTP_HOST}/index.cgi" : '';
+
+  ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
+  my $message = $html->tpl_show(::templates('form_registration_pin'), {
+    %$Users, %$attr,
+    PIN      => $pin,
+    BILL_URL => $addr
+  }, { OUTPUT2RETURN => 1 });
 
   if ($conf{REGISTRATION_VERIFY_PHONE} && in_array('Sms', \@main::MODULES)) {
-    $Sender->send_message({
+    my $send_status = $Sender->send_message({
       TO_ADDRESS  => $attr->{PHONE},
-      MESSAGE     => $pin,
+      MESSAGE     => $message,
       SENDER_TYPE => 'Sms',
     });
 
-    $self->{admin}->action_add(0, "Send registration pin $pin to phone $attr->{PHONE}", { TYPE => 53 });
-
-    return {
-      result   => "Successfully send pin to phone $attr->{PHONE}",
-      send_pin => 1
-    };
+    if ($send_status) {
+      return {
+        result      => "Successfully send code to phone $attr->{PHONE}",
+        send_pin    => 1,
+        pin         => $pin,
+        destination => $attr->{PHONE}
+      };
+    }
+    else {
+      return {
+        warning     => "Failed send pin to code $attr->{PHONE}",
+        send_status => $send_status,
+      };
+    }
   }
   else {
-    $Sender->send_message({
-      TO_ADDRESS  => $attr->{EMAIL},
-      MESSAGE     => "Pin $pin",
-      SUBJECT     => "$main::PROGRAM $lang{REGISTRATION}",
-      SENDER_TYPE => 'Mail',
-      QUITE       => 1,
+    my $send_status = $Sender->send_message({
+      TO_ADDRESS   => $attr->{EMAIL},
+      MESSAGE      => $message,
+      SUBJECT      => "$main::PROGRAM $lang{REGISTRATION}",
+      SENDER_TYPE  => 'Mail',
+      QUITE        => 1,
+      CONTENT_TYPE => $conf{REGISTRATION_MAIL_CONTENT_TYPE} ? $conf{REGISTRATION_MAIL_CONTENT_TYPE} : '',
     });
 
-    $self->{admin}->action_add(0, "Send registration pin $pin to email $attr->{EMAIL}", { TYPE => 53 });
-
-    return {
-      result   => "Successfully send pin to email $attr->{EMAIL}",
-      send_pin => 1
-    };
+    if ($send_status && $send_status eq '1') {
+      return {
+        result      => "Successfully send pin to email $attr->{EMAIL}",
+        send_pin    => 1,
+        pin         => $pin,
+        destination => $attr->{EMAIL}
+      };
+    }
+    else {
+      return {
+        warning     => "Failed send pin to email $attr->{EMAIL}",
+        send_status => $send_status,
+      };
+    }
   }
 }
 
 #**********************************************************
-=head2 _verify_pin($attr)
+=head2 resend_pin()
 
 =cut
 #**********************************************************
-sub _verify_pin {
+sub resend_pin {
   my $self = shift;
   my ($attr) = @_;
 
-  my $list = [];
-  my $value = q{};
+  my $result = $self->_pin_process_validation($attr);
+  return $result if ($result->{errno} || $result->{uid});
 
-  if ($conf{REGISTRATION_VERIFY_PHONE} && in_array('Sms', \@main::MODULES)) {
-    $list = $self->{admin}->action_list({
-      FROM_DATE      => $main::DATE,
-      TO_DATE        => $main::DATE,
-      TYPE           => 53,
-      ACTIONS        => "Send registration pin $attr->{PIN} to phone $attr->{PHONE}",
-      SKIP_DEL_CHECK => 1,
-      COLS_NAME      => 1
-    });
-    $value = "phone $attr->{PHONE}";
+  my $sms_limit = $conf{USER_LIMIT_SMS} || 5;
+
+  if ($Users->{SEND_COUNT} && $Users->{SEND_COUNT} > $sms_limit) {
+    return {
+      errno      => 10246,
+      errstr     => 'Sorry you reached limit for resend verification code, please write to technical support',
+      errstr_lng => "$lang{LIMIT} $lang{MESSAGE}",
+    };
   }
   else {
-    $list = $self->{admin}->action_list({
-      FROM_DATE      => $main::DATE,
-      TO_DATE        => $main::DATE,
-      TYPE           => 53,
-      ACTIONS        => "Send registration pin $attr->{PIN} to email $attr->{EMAIL}",
-      SKIP_DEL_CHECK => 1,
-      COLS_NAME      => 1
-    });
-    $value = "email $attr->{EMAIL}";
-  }
+    my $send_result = $self->_send_pin(($result->{pin} || ''), $attr);
 
-  if ($self->{admin}->{TOTAL} < 1) {
+    $Users->registration_pin_change({
+      UID        => $Users->{UID} || '--',
+      SEND_COUNT => $Users->{SEND_COUNT} ? $Users->{SEND_COUNT} + 1 : 1,
+    });
+
+    delete $send_result->{pin};
+    return $send_result;
+  }
+}
+
+#**********************************************************
+=head2 verify_pin($attr)
+
+=cut
+#**********************************************************
+sub verify_pin {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $result = $self->_pin_process_validation($attr);
+  return $result if ($result->{errno} || $result->{uid});
+
+  my $code = $attr->{VERIFICATION_CODE} || $attr->{PIN} || '';
+  my $is_valid = $code eq ($result->{pin} || '');
+  my $uid = $Users->{UID} || '--';
+
+  return {
+    errno  => 10242,
+    errstr => 'No code',
+  } if !$code;
+
+  if (!$is_valid) {
+    $Users->registration_pin_change({
+      UID      => $uid,
+      ATTEMPTS => $Users->{ATTEMPTS} ? $Users->{ATTEMPTS} + 1 : 1,
+    });
     return {
       errno      => 10082,
       errstr     => 'Wrong pin',
@@ -964,12 +1017,149 @@ sub _verify_pin {
     };
   }
   else {
-    $self->{admin}->action_del($list->[0]->{id});
-    $self->{admin}->action_add(0, "Finished registration with $value", { TYPE => 54 });
+    $Users->change($uid, {
+      DISABLE => 0,
+    });
+
+    if (!$Users->{errno}) {
+      my %parameters = (
+        uid    => $uid,
+        result => 'Successfully verified user',
+      );
+      $Users->info($uid, { SHOW_PASSWORD => 1 });
+      my $message_info = $self->_send_registration_message({ %$attr, PASSWORD => $Users->{PASSWORD} });
+      if ($message_info->{code}) {
+        $parameters{warning} = $message_info->{warning} || '';
+        $parameters{code} = $message_info->{code} || '';
+      }
+
+      $Users->registration_pin_change({
+        UID      => $uid,
+        VERIFY_DATE => 'NOW()',
+      });
+
+      return {
+        uid    => $uid,
+        result => 'Successfully verified user',
+      };
+    }
+    else {
+      return {
+        errno      => 10239,
+        errstr     => 'Failed to activate of user',
+        user_error => $Users->{errno},
+        errstr_lng => $lang{ERR_UNKNOWN},
+      };
+    }
+  }
+}
+
+#**********************************************************
+=head2 _pin_process_validation($attr)
+
+=cut
+#**********************************************************
+sub _pin_process_validation {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return {
+    errno  => 10252,
+    errstr => 'Unknown operation'
+  } if (!($self->{conf}->{REGISTRATION_VERIFY_PHONE} || $self->{conf}->{REGISTRATION_VERIFY_EMAIL}));
+
+  my $check_field = $conf{REGISTRATION_VERIFY_PHONE} ? 'PHONE' : 'EMAIL';
+  my $destination = $attr->{$check_field} || '--';
+
+  $Users->registration_pin_info({ DESTINATION => $destination });
+
+  return {
+    errno      => 10243,
+    errstr     => "No field $check_field or uid",
+    errstr_lng => $lang{ERR_WRONG_DATA},
+  } if !$destination;
+
+  return {
+    errno      => 10249,
+    errstr     => 'User not found',
+    errstr_lng => "$lang{ERR_WRONG_DATA} PIN",
+  } if ($Users->{errno});
+
+  my $uid = $Users->{UID} || '--';
+  if ($Users->{VERIFY_DATE} ne '0000-00-00 00:00:00') {
     return {
-      result => 'OK',
+      result => 'User already activated',
+      uid    => $uid,
     };
   }
+
+  return {
+    result => 'OK',
+    pin    => $Users->{VERIFICATION_CODE},
+  };
+}
+
+#**********************************************************
+=head2 _registration_default_tp($attr)
+
+=cut
+#**********************************************************
+sub _registration_default_tp {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $cid = q{};
+  my $uid = $attr->{UID};
+
+  if ($conf{REGISTRATION_IP}) {
+    if (!$attr->{USER_IP} || $attr->{USER_IP} eq '0.0.0.0') {
+      $Users->del({ UID => $uid, FULL_DELETE => 1 });
+      return {
+        errno      => 10015,
+        errstr     => 'Invalid ip',
+        errstr_lng => "$lang{ERR_WRONG_DATA} IP",
+      };
+    }
+
+    require Internet::Sessions;
+    Internet::Sessions->import();
+
+    my $Sessions = Internet::Sessions->new($self->{db}, $self->{admin}, $self->{conf});
+    $Sessions->online({
+      CLIENT_IP => $attr->{USER_IP},
+      CID       => '_SHOW',
+      GUEST     => 1,
+      COLS_NAME => 1
+    });
+
+    if ($Sessions->{TOTAL}) {
+      $cid = $Sessions->{list}->[0]->{cid};
+    }
+
+    if (!$cid) {
+      $Users->del({ UID => $uid, FULL_DELETE => 1 });
+      return {
+        errno      => 10016,
+        errstr     => 'IP address and MAC was not found',
+        errstr_lng => "$lang{ERR_WRONG_DATA} IP",
+      };
+    }
+  }
+
+  require Internet;
+  Internet->import();
+  my $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
+
+  $Internet->user_add({
+    UID    => $uid,
+    TP_ID  => $conf{REGISTRATION_DEFAULT_TP} || 0,
+    STATUS => 2,
+    CID    => $cid
+  });
+
+  return {
+    result => 'OK',
+  };
 }
 
 1;

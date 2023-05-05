@@ -10,8 +10,6 @@ use strict;
 use parent 'dbcore';
 use v5.16;
 use Conf;
-use Attach;
-
 my $admin;
 my $CONF;
 # my $SORT = 1;
@@ -577,11 +575,12 @@ sub push_contacts_list {
   my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
 
   my $search_columns = [
-    [ 'AID',      'INT', 'aid',     1],
-    [ 'UID',      'INT', 'uid',     1],
-    [ 'TYPE_ID',  'INT', 'type_id', 1],
-    [ 'VALUE',    'STR', 'value',   1],
-    [ 'BADGES',   'INT', 'badges',  1],
+    [ 'AID',            'INT', 'aid',     1],
+    [ 'UID',            'INT', 'uid',     1],
+    [ 'TYPE_ID',        'INT', 'type_id', 1],
+    [ 'PUSH_TYPE_ID',   'INT', 'type_id', 1],
+    [ 'VALUE',          'STR', 'value',   1],
+    [ 'BADGES',         'INT', 'badges',  1],
   ];
   if ($attr->{SHOW_ALL_COLUMNS}){
     map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;

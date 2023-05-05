@@ -192,6 +192,12 @@ sub run_end_command {
   my $end_command = ($Config->config_info({ PARAM => 'PAYSYS_EXTERNAL_END_COMMAND' }))->{VALUE};
   my $time = ($Config->config_info({ PARAM => 'PAYSYS_EXTERNAL_TIME' }))->{VALUE};
 
+  if ($conf{PAYSYS_FROM_TARIFF_AFTER_PAYMENT} && $conf{PAYSYS_TO_TARIFF_AFTER_PAYMENT}) {
+    cmd($end_command);
+
+    return 1;
+  }
+
   if ($debug > 6) {
     $Paysys->{debug} = 1;
   }

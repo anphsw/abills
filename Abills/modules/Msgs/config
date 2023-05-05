@@ -37,25 +37,25 @@ if ($conf{MSGS_SCRUB_BOX}) {
 }
 
 %USER_FUNCTION_LIST = ();
-if($conf{MSGS_CHAT}) {
+if ($conf{MSGS_CHAT}) {
   $USER_FUNCTION_LIST{"01:1:Msgs:show_user_chat:AJAX"} = 0;
 }
 
-load_module("Msgs", $html);
-if ( defined($user->{UID}) ) {
+require Msgs::New;
+if (defined($user->{UID})) {
   my $count = msgs_new({ UID => $user->{UID} });
   if ( $count ne '' ) {
-    $USER_FUNCTION_LIST{"01:0:$lang{MESSAGES} $count:msgs_user:defaultindex"} = 0;
+    $USER_FUNCTION_LIST{"01:0:$lang{MESSAGES} $count:msgs_user:defaultindex"}     = 0;
   }
   else {
-    $USER_FUNCTION_LIST{"01:0:$lang{MESSAGES}:msgs_user:"} = 0;
+    $USER_FUNCTION_LIST{"01:0:$lang{MESSAGES}:msgs_user:"}                        = 0;
   }
 }
-elsif ( defined($admin->{AID}) ) {
+elsif (defined($admin->{AID})) {
   my ($count, $unreg_count) = msgs_new({ AID => $admin->{AID} });
   $FUNCTIONS_LIST{"10:0:$lang{MESSAGES} $count:msgs_admin:"}                      = 8;
-  $FUNCTIONS_LIST{"37:10:$lang{SCHEDULE_BOARD}:msgs_task_board:"}                  = 8;
-  $FUNCTIONS_LIST{"36:10:$lang{SCHEDULE_BOARD}:msgs_task_info:MSGS_ID"}            = 8;
+  $FUNCTIONS_LIST{"37:10:$lang{SCHEDULE_BOARD}:msgs_task_board:"}                 = 8;
+  $FUNCTIONS_LIST{"36:10:$lang{SCHEDULE_BOARD}:msgs_task_info:MSGS_ID"}           = 8;
   $FUNCTIONS_LIST{"49:10:$lang{DISPATCH}:msgs_dispatches:"}                       = 8;
   $FUNCTIONS_LIST{"34:0:$lang{REQUESTS} $unreg_count:msgs_unreg_requests_list:"}  = 8;
   $FUNCTIONS_LIST{"35:34:$lang{ADD}:msgs_unreg_requests:"}                        = 8;
@@ -65,7 +65,7 @@ elsif ( defined($admin->{AID}) ) {
   $FUNCTIONS_LIST{"46:10:$lang{TICKET_BRIGADE}:msgs_team_set_ticket:"}            = 8;
   $FUNCTIONS_LIST{"47:46:$lang{LOCATION_BRIGADE}:msgs_team_location:"}            = 8;
 
-  if($conf{MSGS_CHAT}) {
+  if ($conf{MSGS_CHAT}) {
     $FUNCTIONS_LIST{"21:1:Msgs:show_admin_chat:AJAX"} = 5;
     $FUNCTIONS_LIST{"44:01::header_online_chat:AJAX"} = 8;
   }

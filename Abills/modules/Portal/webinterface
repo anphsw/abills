@@ -9,12 +9,9 @@
 use strict;
 use warnings FATAL => 'all';
 
-
 use Portal;
 use Portal::Misc::Attachments;
 use Abills::Base qw(in_array convert is_html);
-use Abills::Sender::Core;
-use Tags;
 
 our (
   $db,
@@ -30,7 +27,7 @@ our (
 my $Portal = Portal->new($db, $admin, \%conf);
 my $Attachments = Portal::Misc::Attachments->new($db, $admin, \%conf);
 
-my @allowed_methods = ('Telegram', 'Viber_bot');
+my @allowed_methods = ('Telegram', 'Viber_bot', 'Push');
 
 #***********************************************************
 =head2 portal_manage_menu() -  Portal manage menu
@@ -60,17 +57,11 @@ sub portal_manage_menu {
       $Portal->portal_menu_add({%FORM});
 
       if (!$Portal->{errno}) {
-        $html->tpl_show(
-          _include('portal_redirect', 'Portal'),
-          {
-            SECTION => '',
-            MESSAGE => "$lang{ADDED}",
-          }
-        );
+        $html->message('info', $lang{ADDED});
       }
     }
     else {
-      $html->message('info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}");
+      $html->message('err', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}");
       $html->tpl_show(_include('portal_menu_add', 'Portal'), { %$Portal, %FORM });
     }
   }
@@ -92,20 +83,14 @@ sub portal_manage_menu {
     if ($FORM{NAME}) {
       $Portal->portal_menu_change({%FORM});
       if (!$Portal->{errno}) {
-        $html->tpl_show(
-          _include('portal_redirect', 'Portal'),
-          {
-            SECTION => '',
-            MESSAGE => $lang{CHANGED},
-          }
-        );
+        $html->message('info', $lang{CHANGED});
       }
     }
     else {
       $Portal->{ACTION}     = 'change';
       $Portal->{ACTION_LNG} = $lang{CHANGE};
       $Portal->{TITLE_NAME} = $lang{CHANGE_MENU};
-      $html->message('info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}");
+      $html->message('warn', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}");
       $html->tpl_show(_include('portal_menu_add', 'Portal'), { %$Portal, %FORM });
     }
   }
@@ -171,6 +156,7 @@ sub portal_manage_menu {
 #***********************************************************
 sub portal_articles {
   my $Address = Address->new($db, $admin, \%conf);
+  require Abills::Sender::Core;
   my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 
   if ($FORM{message}) {
@@ -183,19 +169,19 @@ sub portal_articles {
 
   my @IMPORTANCE_STATUS = ("$lang{NORMAL}","$lang{CRITICAL}");
 
-  my $importance_select = $html->form_select(
-  'IMPORTANCE', {
-    SELECTED       => $FORM{IMPORTANCE},
-    SEL_ARRAY      => \@IMPORTANCE_STATUS,
-    ARRAY_NUM_ID   => 1,
-    SEL_VALUE      => 'name',
-    NO_ID          => 1
+  my $importance_select = $html->form_select('IMPORTANCE', {
+    SELECTED     => $FORM{IMPORTANCE},
+    SEL_ARRAY    => \@IMPORTANCE_STATUS,
+    ARRAY_NUM_ID => 1,
+    SEL_VALUE    => 'name',
+    NO_ID        => 1
   });
 
   my $tags_list;
   my $Tags;
   if (in_array('Tags', \@MODULES)) {
-    use Tags;
+    require Tags;
+    Tags->import();
     $Tags = Tags->new($db, $admin, \%conf);
     $tags_list = $Tags->list({COLS_NAME => 1, NAME => '_SHOW'});
 
@@ -248,18 +234,20 @@ sub portal_articles {
     HIDE_ADD_BUILD_BUTTON => 1,
   });
 
-  my $PORTAL_MENU_ID = $Portal->{PORTAL_MENU_ID} = $html->form_select(
-    "PORTAL_MENU_ID", {
-      SELECTED   => $FORM{PORTAL_MENU_ID},
-      SEL_LIST   => $Portal->portal_menu_list({
-        NOT_URL => 1,
-        COLS_NAME => 1
-      }),
-      SEL_OPTIONS=> {
-        '' => $lang{CHOOSE_MENU}
-      },
-      NO_ID      => 1
-    });
+  my $PORTAL_MENU_ID = $html->form_select("PORTAL_MENU_ID", {
+    SELECTED    => $FORM{PORTAL_MENU_ID},
+    SEL_LIST    => $Portal->portal_menu_list({
+      NOT_URL   => 1,
+      COLS_NAME => 1
+    }),
+    SEL_OPTIONS => {
+      '' => $lang{CHOOSE_MENU}
+    },
+    NO_ID       => 1,
+    REQUIRED    => 1
+  });
+
+  $Portal->{PORTAL_MENU_ID} = $PORTAL_MENU_ID;
 
   if (!$FORM{STATUS} or $FORM{STATUS} == 0) {
     $Portal->{SHOWED} = '';
@@ -274,13 +262,16 @@ sub portal_articles {
     $Portal->{ON_MAIN_PAGE_CHECKED} = 'checked=\'checked\'';
   }
 
-  my $send_methods = $Sender->available_types({ HASH_RETURN => 1 });
+  my $send_methods = $Sender->available_types(
+    { HASH_RETURN => 1, SOFT_CHECK => 1 }
+  );
   foreach my $allowed_method (@allowed_methods) {
     my ($method_id) = grep { $send_methods->{$_} eq $allowed_method } keys %$send_methods;
     if (!defined($method_id)) {
       $Portal->{uc($allowed_method).'_NOT_EXIST'} = 'hidden';
     }
   }
+
   if ($FORM{add}) {
     if ($FORM{TITLE} && ($FORM{CONTENT} || $FORM{SHORT_DESCRIPTION}) && $FORM{PORTAL_MENU_ID}) {
       my $picture_name = $Attachments->save_picture($FORM{PICTURE});
@@ -298,31 +289,30 @@ sub portal_articles {
         }
 
         if (@add_letters) {
-          my $news = $Portal->portal_articles_list(
-            { SORT => 'id', DESC => 'desc', COLS_NAME => 1 }
-          );
+          my $news = $Portal->portal_articles_list({
+            SORT      => 'id',
+            DESC      => 'desc',
+            COLS_NAME => 1
+          });
 
           my $last_news_id = ${$news}[0]->{id};
           for my $method (@add_letters) {
             my ($method_id) = grep { uc($send_methods->{$_}) eq $method } keys %$send_methods;
             $Portal->portal_newsletter_add({
               PORTAL_ARTICLE_ID => $last_news_id,
-              SEND_METHOD => $method_id,
-              STATUS      => 0,
+              SEND_METHOD       => $method_id,
+              STATUS            => 0,
             });
           }
         }
       }
 
       if (!$Portal->{errno}) {
-        $html->tpl_show(_include('portal_redirect', 'Portal'), {
-          SECTION => '',
-          MESSAGE => "$lang{ADDED}",
-        });
+        $html->message('info', $lang{ADDED});
       }
     }
     else {
-      $html->message('info', $lang{INFO}, "$lang{FIELDS_FOR_TITLE_TEXT_MENU_ARE_REQUIRED}");
+      $html->message('err', $lang{INFO}, "$lang{FIELDS_FOR_TITLE_TEXT_MENU_ARE_REQUIRED}");
       $html->tpl_show(_include('portal_article_add', 'Portal'), {
         %$Portal,
         %FORM,
@@ -359,10 +349,7 @@ sub portal_articles {
 
       $Portal->portal_article_change({ %FORM, PERMALINK => $permalink });
       if (!$Portal->{errno}) {
-        $html->tpl_show(_include('portal_redirect', 'Portal'), {
-          SECTION => '',
-          MESSAGE => "$lang{CHANGED}",
-        });
+        $html->message('info', $lang{CHANGED});
       }
     }
     else {
@@ -385,9 +372,10 @@ sub portal_articles {
     $Portal->{TITLE_NAME} = $lang{CHANGE_MENU};
 
     $Portal->portal_article_info({ ID => $FORM{chg}, });
-    my $to_changed_newsletters = $Portal->portal_newsletter_list(
-      { PORTAL_ARTICLE_ID => $FORM{chg}, COLS_NAME => 1 }
-    );
+    my $to_changed_newsletters = $Portal->portal_newsletter_list({
+      PORTAL_ARTICLE_ID => $FORM{chg},
+      COLS_NAME         => 1
+    });
 
     for my $selected (@$to_changed_newsletters) {
       my $method_id = $selected->{send_method};
@@ -585,19 +573,20 @@ sub portal_user_cabinet {
 
   my $Tags;
   if (in_array('Tags', \@MODULES)) {
+    require Tags;
     $Tags = Tags->new( $db, $admin, \%conf );
   }
 
   my %templates = (
     portal_user_content_picture => _include('portal_user_content_picture', 'Portal'),
-    portal_user_content => _include('portal_user_content', 'Portal')
+    portal_user_content         => _include('portal_user_content', 'Portal')
   );
 
   foreach my $item (@$list) {
     if (!defined $item->{etimestamp} || $item->{etimestamp} && ($item->{etimestamp} >= time && $item->{utimestamp} < time)) {
       if (!$item->{gid} || $item->{gid} == $user->{GID}) {
         if (!$item->{domain_id} || ($FORM{DOMAIN_ID} && $item->{domain_id} == $FORM{DOMAIN_ID}) || ($LIST_PARAMS{DOMAIN_ID} && $item->{domain_id} == $LIST_PARAMS{DOMAIN_ID}) || ( $user->{DOMAIN_ID} && $item->{domain_id} == $user->{DOMAIN_ID})) {
-        if ((!$item->{dis_name} || $item->{dis_name} eq $user->{ADDRESS_DISTRICT})
+        if ((!$item->{dis_name} || ($user->{ADDRESS_DISTRICT} && $item->{dis_name} eq $user->{ADDRESS_DISTRICT}))
           && (!$item->{st_name} || $item->{st_name} eq $user->{ADDRESS_STREET})
           && (!$item->{dis_name} || $item->{dis_name} eq $user->{ADDRESS_DISTRICT})
         ) {
@@ -809,7 +798,7 @@ sub portal_s_page {
   }
   elsif ($FORM{article}) {
     $list = $Portal->portal_articles_list({
-      ID => $FORM{article},
+      ID        => $FORM{article},
       COLS_NAME => 1
     });
 
@@ -836,7 +825,7 @@ sub portal_s_page {
 
       my %templates = (
         portal_content_picture => _include('portal_content_picture', 'Portal'),
-        portal_content => _include('portal_content', 'Portal'),
+        portal_content         => _include('portal_content', 'Portal'),
       );
 
       foreach my $line (@$list) {
@@ -894,6 +883,13 @@ sub portal_s_page {
     $OUTPUT{COOKIE_POLICY_VISIBLE} = 'none';
   }
 
+  if ($conf{user_background}) {
+    $OUTPUT{BACKGROUND_COLOR} = $conf{user_background};
+  }
+  elsif ($conf{user_background_url}) {
+    $OUTPUT{BACKGROUND_URL} = $conf{user_background_url};
+  }
+
   print $html->tpl_show(_include('portal_body', 'Portal'), { %OUTPUT });
 
   return 1;
@@ -911,30 +907,30 @@ sub portal_s_page {
 =cut
 #**********************************************************
 sub _portal_social_links {
-  my $bots = {
-    telegram => $conf{TELEGRAM_BOT_NAME},
-    viber    => $conf{VIBER_BOT_NAME}
-  };
+  my %bots = ();
 
-  my $bot_links = {
+  $bots{telegram} = $conf{TELEGRAM_BOT_NAME} if ($conf{TELEGRAM_BOT_NAME});
+  $bots{viber} = $conf{VIBER_BOT_NAME} if ($conf{VIBER_BOT_NAME});
+
+  my %bot_links = (
     telegram => 'https://t.me/',
     viber    => 'viber://pa?chatURI='
-  };
+  );
 
   my $social_links = $conf{SOCIAL_NETWORKS};
 
-  if ($social_links || $bots) {
-    my $all_links = "";
+  if ($social_links || scalar %bots) {
+    my $all_links = '';
     my $template = _include('portal_social_link', 'Portal');
 
     if (!(defined($social_links) && $social_links)) {
-      for my $key_bot (sort keys %$bots) {
-        if (!$bots->{$key_bot}) {
+      for my $key_bot (sort keys %bots) {
+        if (!$bots{$key_bot}) {
           next;
         }
 
-        my $bot_name = $bots->{$key_bot};
-        my $full_link = $bot_links->{$key_bot} . $bot_name;
+        my $bot_name = $bots{$key_bot};
+        my $full_link = $bot_links{$key_bot} . $bot_name;
 
         my $button = $html->tpl_show($template, {
           HREF   => $full_link,
@@ -944,15 +940,15 @@ sub _portal_social_links {
         $all_links .= $button;
       }
     } else {
-      for my $key_bot (sort keys %$bots) {
-        if ($bots->{$key_bot}) {
-          $social_links->{$key_bot} = $bots->{$key_bot};
+      for my $key_bot (sort keys %bots) {
+        if ($bots{$key_bot}) {
+          $social_links->{$key_bot} = $bots{$key_bot};
         }
       }
       for my $social (sort keys %$social_links) {
-        if (defined($bots->{$social}) && $bots->{$social}) {
-          my $bot_name = $bots->{$social};
-          my $full_link = $bot_links->{$social} . $bot_name;
+        if (defined($bots{$social}) && $bots{$social}) {
+          my $bot_name = $bots{$social};
+          my $full_link = $bot_links{$social} . $bot_name;
 
           my $button = $html->tpl_show($template, {
             HREF   => $full_link,
@@ -1015,6 +1011,7 @@ sub portal_newsletters {
     DESC => $FORM{desc}
   });
 
+  require Abills::Sender::Core;
   my $send_methods = \%Abills::Sender::Core::PLUGIN_NAME_FOR_TYPE_ID;
 
   my $table = $html->table({

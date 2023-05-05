@@ -175,6 +175,7 @@ sub iptv_user {
 
     $Iptv->{TP_ADD} = sel_tp({
       SELECT      => 'TP_ID',
+      USER_INFO   => $users,
       MODULE      => 'Iptv',
       TP_ID       => $Iptv->{TP_ID},
       SERVICE_ID  => $Iptv->{SERVICE_ID},
@@ -238,6 +239,7 @@ sub iptv_user {
   }
 
   $Iptv->{STATUS_SEL} = sel_status({ STATUS => $Iptv->{STATUS} });
+  $Iptv->{DESCRIBE_AID} = ($Iptv->{DESCRIBE_AID}) ? ('['.$Iptv->{DESCRIBE_AID}.']') : '';
   my $service_info1 = q{};
   my $service_info2 = q{};
   my $service_info_subscribes = q{};
@@ -1200,9 +1202,10 @@ sub iptv_chg_tp {
 
   _iptv_show_exist_shedule($period);
 
+  $Tariffs->{DESCRIBE_AID} = ($Iptv->{DESCRIBE_AID}) ? ('['.$Iptv->{DESCRIBE_AID}.']') : '';
   $Tariffs->{UID}     = $attr->{USER_INFO}->{UID};
   $Tariffs->{TP_ID}   = $Iptv->{TP_ID};
-  $Tariffs->{TP_NAME} = ($Iptv->{TP_NUM}) ? "$Iptv->{TP_NUM}:$Iptv->{TP_NAME}" : $lang{NOT_EXIST};
+  $Tariffs->{TP_NAME} = ($Iptv->{TP_NUM}) ? "$Iptv->{TP_NUM}: $Iptv->{TP_NAME}" : $lang{NOT_EXIST};
   $Tariffs->{ID}      = $Iptv->{ID};
 
   $html->tpl_show(templates('form_chg_tp'), $Tariffs);
@@ -1408,9 +1411,10 @@ sub _iptv_add_shedule_form {
       STATUS       => '0',
       TP_GID       => $tp_gids || '_SHOW',
       DOMAIN_ID    => $admin->{DOMAIN_ID} || '_SHOW',
+      DESCRIBE_AID => '_SHOW',
     }),
     SEL_KEY        => 'tp_id',
-    SEL_VALUE      => 'id,name',
+    SEL_VALUE      => "id,name,describe_aid",
     NO_ID          => 1,
     MAIN_MENU      => ($permissions{0}{10}) ? get_function_index('iptv_tp') : undef,
     MAIN_MENU_ARGV => "TP_ID=$Iptv->{TP_ID}"

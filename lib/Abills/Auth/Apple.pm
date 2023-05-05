@@ -12,7 +12,7 @@ use warnings FATAL => 'all';
 use Crypt::JWT qw(encode_jwt decode_jwt);
 use Digest::SHA qw(sha256_hex);
 
-use Abills::Base qw(urlencode mk_unique_value json_former);
+use Abills::Base qw(urlencode mk_unique_value json_former in_array);
 use Abills::Fetcher qw(web_request);
 
 my $endpoint_auth = 'https://appleid.apple.com/auth/authorize';
@@ -65,6 +65,8 @@ sub check_access {
       NONCE => $attr->{nonce} || '',
     });
   }
+
+  return $self;
 }
 
 #**********************************************************
@@ -82,6 +84,10 @@ sub validate_token {
 
   my $token = $attr->{TOKEN} || q{};
 
+  my $ids = $self->{conf}->{AUTH_APPLE_IDS} ? "$self->{conf}->{AUTH_APPLE_IDS}" : '';
+  $ids .= $self->{conf}->{AUTH_APPLE_ID} ? ",$self->{conf}->{AUTH_APPLE_ID}" : '';
+  my @ids = split(',\s?', $ids);
+
   return {
     errno  => 901,
     errstr => 'Unknown token'
@@ -94,7 +100,7 @@ sub validate_token {
   return {
     errno  => 906,
     errstr => 'Unknown token'
-  } if ($keys->{errno} || $keys->{error} || $keys->{keys});
+  } if ($keys->{errno} || $keys->{error} || !exists $keys->{keys});
 
   $keys = $keys->{keys};
   my $token_info;
@@ -113,7 +119,7 @@ sub validate_token {
   return {
     errno  => 903,
     errstr => 'Unknown token'
-  } if ($self->{conf}->{AUTH_APPLE_ID} ne $token_info->{aud});
+  } if (!$token_info->{aud} || !in_array($token_info->{aud}, \@ids));
 
   return {
     errno  => 904,
@@ -132,6 +138,8 @@ sub validate_token {
     ($token_info->{user}->{lastName} || q{}) . ($token_info->{user}->{firstName} || q{}) : '';
   $self->{CHECK_FIELD} = '_APPLE';
   $self->{USER_EMAIL}  = $token_info->{email} || '';
+
+  return $self;
 }
 
 1;

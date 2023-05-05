@@ -173,6 +173,7 @@
   sidebar-mini
   layout-fixed
   text-sm'
+  style='height: auto'
 >
 
 <script>

@@ -54,10 +54,15 @@ else {
   $Log->{LOG_FILE} = $var_dir . '/log/portal_newsletter.log';
 }
 
-my @methods = ( 5, 6 );
+my @methods = (5, 6, 10);
 
 portal_newsletter();
 
+#**********************************************************
+=head2 portal_newsletter() — Start point of Portal newsletter
+
+=cut
+#**********************************************************
 sub portal_newsletter {
   my $debug_output = '';
   $debug_output .= "Portal newsletter\n" if ($debug > 1);
@@ -92,7 +97,6 @@ sub portal_newsletter {
       STATUS => 3
     });
 
-
     my $article_sublink = $letter->{permalink} || $letter->{article_id};
     my $news_link = "$SELF_URL/?article=$article_sublink";
     my @ATTACHMENTS = ();
@@ -110,9 +114,10 @@ sub portal_newsletter {
 
     my $message = _get_newsletter_message($letter, $news_link);
     my $sender_options = _get_newsletter_sender_options($letter, $news_link, $message, \@ATTACHMENTS);
+    my $contact_name = uc(_get_newsletter_sender_name($sender_name));
 
     my $allowed_users = $Users->list({
-      uc($sender_name) => '!=0',
+      $contact_name  => '!=0',
       TAG_SEARCH_VAL => 1,
       TAGS           => $letter->{tags},
       GID            => $letter->{gid} || undef,
@@ -124,7 +129,7 @@ sub portal_newsletter {
     });
 
     foreach my $contact (@$allowed_users) {
-      $contact->{value} = $contact->{lc($sender_name)};
+      $contact->{value} = $contact->{lc($contact_name)} || "";
 
       $Log->log_print('LOG_DEBUG',
         $contact->{uid},
@@ -133,6 +138,7 @@ sub portal_newsletter {
 
       if ($debug < 6) {
         $sender_options->{TO_ADDRESS} = $contact->{value};
+        $sender_options->{UID} = $contact->{uid};
         $Sender->send_message($sender_options);
 
         $count++;
@@ -181,7 +187,7 @@ sub _get_newsletter_message {
 
   my $message = "";
   if ($sender_name eq 'Telegram') {
-    my $message_template = _include('portal_newsletter_message_short', 'Portal');
+    my $message_template = _include('portal_newsletter_message_short', 'Portal', { EXTERNAL_CALL => 1 });
     $message =  $html->tpl_show($message_template, {
       MESSAGE   => $letter->{short_description},
     }, { OUTPUT2RETURN => 1 });
@@ -192,7 +198,7 @@ sub _get_newsletter_message {
     ? 'portal_newsletter_message'
     : 'portal_newsletter_message_short';
 
-  my $message_template = _include($template_name, 'Portal');
+  my $message_template = _include($template_name, 'Portal', { EXTERNAL_CALL => 1 });
   $message = $html->tpl_show($message_template, {
     MESSAGE   => $letter->{short_description},
     NEWS_LINK => $link
@@ -226,7 +232,7 @@ sub _get_newsletter_sender_options {
     my @keyboard = ();
     if ($letter->{content}) {
       my $read_button = $html->tpl_show(
-        _include('portal_newsletter_read_button', 'Portal'), {}, { OUTPUT2RETURN => 1 }
+        _include('portal_newsletter_read_button', 'Portal', { EXTERNAL_CALL => 1 }), {}, { OUTPUT2RETURN => 1 }
       );
       push @keyboard, { text => $read_button, url => $link };
     }
@@ -256,9 +262,33 @@ sub _get_newsletter_sender_options {
     SENDER_TYPE => $sender_name,
     ATTACHMENTS => ($#$ATTACHMENTS > -1) ? $ATTACHMENTS : undef,
     PARSE_MODE  => 'HTML',
+    EX_PARAMS   => {
+      newsUrl => $link,
+      action  => 'news'
+    },
   };
 
   return $sender_options;
+}
+
+#**********************************************************
+=head2 _get_newsletter_sender_name($name) — check sender name
+
+    Created for incompatibility Sender name method and contact name
+
+    Arguments:
+      $name — Sender name
+
+=cut
+#**********************************************************
+sub _get_newsletter_sender_name {
+  my ($name) = @_;
+
+  if ($name eq "Viber_bot") {
+    return "Viber";
+  }
+
+  return $name;
 }
 
 1;

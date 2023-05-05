@@ -191,6 +191,7 @@ sub employees_mobile_set {
 #**********************************************************
 sub employees_mobile_report {
 
+  require Control::Reports;
   reports(
     {
       DATE_RANGE       => 1,

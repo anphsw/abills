@@ -237,13 +237,19 @@ sub user_registration {
     delete @{$attr}{qw/PIN_CONFIRM_FORM/};
     $message_el = $html->message('err', $lang{ERROR}, $lang{WRONG_PASSWORD}, { OUTPUT2RETURN => 1, ID => 19999 });
   }
-  elsif ($attr->{external_auth} || $attr->{LOGIN}) {
-    $result = $Registration_mng->user_registration($attr);
+  elsif ($attr->{external_auth} || $attr->{LOGIN} || $attr->{PIN}) {
+    if ($attr->{PIN}) {
+      $result = $Registration_mng->verify_pin($attr);
+    }
+    else {
+      $result = $Registration_mng->user_registration($attr);
+    }
+
     $attr->{FIO} = _utf8_encode($attr->{FIO}) if ($attr->{FIO});
 
     return $result if ($result->{location});
 
-    if ($result->{result} && !$result->{send_pin}) {
+    if ($result->{result} && !$result->{verify_need}) {
       my $message = $lang{REGISTRATION_COMPLETE};
       $message .= $result->{password} ? "\n$lang{PASSWD} - $result->{password}" : "\n$lang{SEND_REG} E-mail";
       $message .= "\n$lang{SOCIAL_NETWORK_AUTH}" if ($result->{social_auth});

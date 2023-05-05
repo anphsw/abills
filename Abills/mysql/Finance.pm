@@ -37,7 +37,8 @@ sub fees{
   my $self = shift;
   my ($db, $admin, $CONF) = @_;
 
-  use Fees;
+  require Fees;
+  Fees->import();
   my $Fees = Fees->new( $db, $admin, $CONF );
 
   return $Fees;
@@ -52,7 +53,8 @@ sub payments {
   my $self = shift;
   my ($db, $admin, $CONF) = @_;
 
-  use Payments;
+  require Payments;
+  Payments->import();
   my $Payments = Payments->new( $db, $admin, $CONF);
 
   return $Payments;

@@ -306,7 +306,7 @@ sub _paysys_get_exchange_rates {
     return split(/,\s?/, $conf{PAYSYS_EXCHANGE_RATES});
   }
   else {
-    return ('USD', 'EUR', 'UAH', 'RUB', 'GBP', 'KZT');
+    return ('USD', 'EUR', 'UAH', 'GBP', 'KZT');
   };
 }
 
@@ -462,58 +462,12 @@ sub paysys_kgs_exchange_rates {
 #**********************************************************
 sub paysys_start_page {
   my %START_PAGE_F = (
-    'paysys_rub_exchange_rates' => "$lang{EXCHANGE_RATE} $lang{CBR}",
+    # 'paysys_rub_exchange_rates' => "$lang{EXCHANGE_RATE} $lang{CBR}",
     'paysys_uah_exchange_rates' => "$lang{EXCHANGE_RATE} $lang{NBU}",
     'paysys_kgs_exchange_rates' => "$lang{EXCHANGE_RATE} $lang{NBKR}"
   );
 
   return \%START_PAGE_F;
-}
-
-#**********************************************************
-=head2 get_reg_payments($attr) - Get register paymnets
-
-  Arguments:
-    $attr
-      DATE_FROM
-      DATE_TO
-      EXT_ID
-
-  Results:
-    \%reg_paymnets_list
-
-=cut
-#**********************************************************
-sub get_reg_payments {
-  # my $self = shift;
-  my ($attr) = @_;
-
-  require Payments;
-  Payments->import();
-  my $Payments = Payments->new($db, $admin, \%conf);
-  my %reg_payments_list = ();
-
-  my $payments_list = $Payments->list({
-    FROM_DATE => $attr->{DATE_FROM},
-    TO_DATE   => date_inc($DATE),
-    EXT_ID    => ($attr->{EXT_ID} || q{}) . ':*',
-    LOGIN     => '_SHOW',
-    SUM       => '_SHOW',
-    PAGE_ROWS => 100000,
-    COLS_NAME => 1
-  });
-
-  foreach my $payment (@$payments_list) {
-    $reg_payments_list{$payment->{ext_id}} = {
-      id       => $payment->{id},
-      uid      => $payment->{uid},
-      sum      => $payment->{sum},
-      login    => $payment->{login},
-      datetime => $payment->{datetime},
-    };
-  }
-
-  return \%reg_payments_list;
 }
 
 #**********************************************************

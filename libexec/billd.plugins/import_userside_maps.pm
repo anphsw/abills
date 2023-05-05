@@ -16,7 +16,7 @@
 use Abills::Base qw/cmd in_array convert startup_files _bp int2ip/;
 use Abills::Fetcher qw/web_request/;
 use Users;
-use Abills::Misc qw/form_purchase_module cross_modules_call _function get_function_index/;
+use Abills::Misc qw/form_purchase_module _function get_function_index/;
 use utf8;
 use Log qw/log_print/;
 use Maps;

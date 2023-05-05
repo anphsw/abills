@@ -60,8 +60,9 @@ if ($conf{API_NGINX} && $ENV{REQUEST_URI}) {
 }
 
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
-    dbdebug => $conf{dbdebug}
+  { CHARSET   => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
+    dbdebug   => $conf{dbdebug},
+    db_engine => 'dbcore'
   });
 
 our $admin      = Admins->new($db, \%conf);
@@ -117,9 +118,10 @@ sub _start {
 
     print $result->{response};
   }
-
-  print Abills::JSON::header(undef, { STATUS => $result->{status} || '' });
-  print $result->{response};
+  else {
+    print Abills::JSON::header(undef, { STATUS => $result->{status} || '' });
+    print $result->{response};
+  }
 
   return 1;
 }

@@ -53,7 +53,7 @@ sub new {
 =cut
 #**********************************************************
 sub validate_params {
-  shift;
+  my $self = shift;
   my ($attr) = @_;
 
   my %filtered_params = ();
@@ -64,8 +64,10 @@ sub validate_params {
       if ($attr->{params}->{$param}->{type}) {
         my $cam_param = camelize($param);
         if (($attr->{params}->{$param}->{type} eq 'date' && $attr->{query_params}->{$param} !~ /^\d{4}-\d{2}-\d{2}$/) ||
-            ($attr->{params}->{$param}->{type} eq 'integer' && $attr->{query_params}->{$param} !~ /^[1-9]\d*$/) ||
-            ($attr->{params}->{$param}->{type} eq 'number' && !is_number($attr->{query_params}->{$param}))
+            ($attr->{params}->{$param}->{type} eq 'unsigned_integer' && $attr->{query_params}->{$param} !~ /^[1-9]\d*$/) ||
+            ($attr->{params}->{$param}->{type} eq 'integer' && $attr->{query_params}->{$param} !~ /^-?[1-9]\d*$/) ||
+            ($attr->{params}->{$param}->{type} eq 'unsigned_number' && !is_number($attr->{query_params}->{$param})) ||
+            ($attr->{params}->{$param}->{type} eq 'number' && !is_number($attr->{query_params}->{$param}, 0, 1))
           ) {
           push @errors, {
             errno    => 21,
@@ -73,6 +75,17 @@ sub validate_params {
             param    => $cam_param,
             type     => $attr->{params}->{$param}->{type}
           };
+        }
+        elsif ($attr->{params}->{$param}->{type} eq 'custom') {
+          my $result = $attr->{params}->{$param}->{function}->($self, $attr->{query_params}->{$param});
+          if (ref $result eq 'HASH' && $result->{result} eq 0) {
+            delete $result->{result};
+            push @errors, {
+              errno    => 21,
+              param    => $cam_param,
+              %$result
+            };
+          }
         }
       }
       $filtered_params{$param} = $attr->{query_params}->{$param};
@@ -89,6 +102,9 @@ sub validate_params {
         param    => $cam_param,
         required => 'true'
       };
+    }
+    elsif (defined $attr->{params}->{$param}->{default}) {
+      $filtered_params{$param} = $attr->{params}->{$param}->{default};
     }
   }
 

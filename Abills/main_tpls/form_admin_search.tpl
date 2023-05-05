@@ -5,8 +5,8 @@
     <div class='col-md-6'>
       <div class='card card-primary card-outline'>
         <div class='card-header with-border'><h4 class='card-title'>%HEADER_NAME% _{SEARCH}_</h4></div>
-        <div class='card-body' style='padding: 0'>
-          <div style='padding: 10px'>
+        <div class='card-body'>
+          <div>
             <div class='form-group row'>
               <label class='control-label col-md-3' for='A_LOGIN'>_{LOGIN}_:</label>
               <div class='col-md-9'>
@@ -54,13 +54,13 @@
               </div>
             </div>
 
-            <div class='form-group row'>
-              <label class='control-label col-md-3' for='CELL_PHONE'>_{CELL_PHONE}_:</label>
-              <div class='col-md-9'>
-                <input id='CELL_PHONE' name='CELL_PHONE' value='%CELL_PHONE%' placeholder='%CELL_PHONE%'
-                       class='form-control' type='text'>
-              </div>
-            </div>
+<!--            <div class='form-group row'>-->
+<!--              <label class='control-label col-md-3' for='CELL_PHONE'>_{CELL_PHONE}_:</label>-->
+<!--              <div class='col-md-9'>-->
+<!--                <input id='CELL_PHONE' name='CELL_PHONE' value='%CELL_PHONE%' placeholder='%CELL_PHONE%'-->
+<!--                       class='form-control' type='text'>-->
+<!--              </div>-->
+<!--            </div>-->
 
             <div class='form-group row'>
               <label class='control-label col-md-3' for='EMAIL'>E-Mail:</label>
@@ -71,7 +71,7 @@
               </div>
             </div>
 
-            <div class='form-group row'>
+            <div class='form-group row %OLD_ADDRESS_CLASS%'>
               <label class='control-label col-md-3' for='ADDRESS'>_{ADDRESS}_:</label>
               <div class='col-md-9'>
                 <input id='ADDRESS' name='ADDRESS' value='%ADDRESS%' placeholder='%ADDRESS%'
@@ -80,7 +80,22 @@
             </div>
 
           </div>
-          <div class='card card-primary card-outline'>
+
+          <div class='card card-primary card-outline collapsed-card %ADDRESS_CARD_CLASS%'>
+            <div class='card-header with-border'>
+              <h3 class='card-title'>_{ADDRESS}_:</h3>
+              <div class='card-tools'>
+                <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+                  <i class='fa fa-plus'></i>
+                </button>
+              </div>
+            </div>
+            <div class='card-body'>
+              %ADDRESS_FORM%
+            </div>
+          </div>
+
+          <div class='card card-primary card-outline collapsed-card'>
             <div class='card-header with-border'>
               <h3 class='card-title'>_{PASPORT}_</h3>
               <div class='card-tools'>
@@ -116,8 +131,7 @@
               </div>
             </div>
           </div>
-        </div>
-        <div style='padding: 10px'>
+
           <div class='form-group row'>
             <label for='GROUP_SEL' class='control-label col-sm-3'>_{USERS}_ _{GROUPS}_:</label>
             <div class='col-md-9'>
@@ -133,8 +147,8 @@
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-12'>_{COMMENTS}_</label>
-            <div class='col-md-12'>
+            <label class='control-label col-md-3'>_{COMMENTS}_</label>
+            <div class='col-md-9'>
               <textarea cols='30' rows='4' name='COMMENTS' class='form-control'>%COMMENTS%</textarea>
             </div>
           </div>

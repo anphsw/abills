@@ -180,7 +180,7 @@ sub subscribe_phone {
     my $sender = $message->{contact};
     my $lead_id = $Dialogue->crm_lead_by_source({
       USER_ID => $sender->{user_id},
-      FIO     => join(' ', ($sender->{first_name}, $sender->{last_name})),
+      FIO     => join(' ', (($sender->{first_name} || ''), ($sender->{last_name} || ''))),
       PHONE   => $sender->{phone_number}
     });
     exit 0 if !$lead_id;

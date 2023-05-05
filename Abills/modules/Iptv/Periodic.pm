@@ -138,6 +138,7 @@ sub iptv_daily_fees {
 
       foreach my $u (@{$ulist}) {
         my %user = (
+          ID      => $u->{id},
           UID     => $u->{uid},
           BILL_ID => $u->{bill_id}
         );
@@ -150,6 +151,7 @@ sub iptv_daily_fees {
           TP_NAME         => $tp->{name},
           FEES_PERIOD_DAY => $lang{DAY_FEE_SHORT},
           FEES_METHOD     => $FEES_METHODS->{$tp->{fees_method}},
+          ID              => ($user{ID}) ? ' '. $user{ID} : undef,
         );
 
         my %PARAMS = (
@@ -615,6 +617,7 @@ sub iptv_monthly_fees {
         FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT},
         FEES_METHOD       => $FEES_METHODS->{ $tp->{fees_method} },
         EXT_BILL_METHOD   => ($tp->{EXT_BILL_FEES_METHOD}) ? $tp->{EXT_BILL_FEES_METHOD} : undef,
+        ID                => ($user{ID}) ? ' '. $user{ID} : undef,
       );
       
       my $total_sum = 0;
@@ -665,10 +668,13 @@ sub iptv_monthly_fees {
             }
           }
         }
-        elsif ($user{ACTIVATE} ne '0000-00-00' && !$tp->{abon_distribution}) {
-          my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
-          my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, ($activate_m - 1), $activate_y - 1900, 0, 0, 0);
-          next if 31 * 86400 > ($date_unixtime - $active_unixtime);
+        #TODO: Fixed. S21061. Always making fees if $user{ACTIVATE} ne '0000-00-00'
+        elsif ($postpaid == 1) {
+          if ($user{ACTIVATE} ne '0000-00-00' && !$tp->{abon_distribution}) {
+            my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
+            my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, ($activate_m - 1), $activate_y - 1900, 0, 0, 0);
+            next if 31 * 86400 > ($date_unixtime - $active_unixtime);
+          }
         }
         #Block negative users withot small_deposit_action
         elsif (!$tp->{small_deposit_action}) {

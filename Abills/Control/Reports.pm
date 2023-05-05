@@ -457,6 +457,7 @@ sub report_fees {
     delete($FORM{search_form});
     delete($FORM{type});
 
+    require Control::Fees;
     form_fees();
     return 0;
   }
@@ -635,7 +636,7 @@ sub report_payments {
     $FORM{index} = 2;
     delete($FORM{search_form});
     delete($FORM{type});
-
+    require Control::Payments;
     form_payments();
 
     return 0;
@@ -871,6 +872,7 @@ sub form_system_changes {
   }
   elsif ($FORM{AID} && !defined($LIST_PARAMS{AID})) {
     $FORM{subf} = $index;
+    require Control::Admins_mng;
     form_admins();
     return 0;
   }

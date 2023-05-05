@@ -189,5 +189,7 @@ $lang{CALL_TYPE} = 'Тип дзвінка';
 
 $lang{REC_WARNING} = 'Увага. Розмова може бути записана';
 $lang{BROWSER_DOES_NOT_SUPPORT_ELEMENT} = 'Ваш браузер не підтримує елемент';
+$lang{TOTAL_CALL_STATISTICS} = 'Загальна статистика дзвінків';
+$lang{PERSONAL_CALL_STATISTICS} = 'Особиста статистика дзвінків';
 
 1;

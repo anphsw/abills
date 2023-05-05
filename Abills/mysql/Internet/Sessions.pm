@@ -1386,7 +1386,6 @@ sub reports {
   }
   elsif ($attr->{INTERVAL}) {
     my ($from, $to) = split(/\//, $attr->{INTERVAL}, 2);
-    #push @WHERE_RULES, "DATE_FORMAT(l.start, '%Y-%m-%d')>='$from' and DATE_FORMAT(l.start, '%Y-%m-%d')<='$to'";
     push @WHERE_RULES, "DATE(l.start)<='$to' and DATE(l.start + INTERVAL l.duration SECOND)>='$from'";
     $attr->{TYPE} = '-' if (!$attr->{TYPE});
     if ($attr->{TYPE} eq 'HOURS') {

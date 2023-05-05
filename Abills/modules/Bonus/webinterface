@@ -15,6 +15,7 @@ use Bonus;
 use Finance;
 use Tariffs;
 use Users;
+use Payments;
 use Abills::Base qw(_bp in_array cfg2hash mk_unique_value);
 
 our ($db,
@@ -130,6 +131,7 @@ sub bonus_user_log {
   }
   elsif ($FORM{AID} && !defined($LIST_PARAMS{AID})) {
     $FORM{subf} = $index;
+    require Control::Admins_mng;
     form_admins();
     return 0;
   }
@@ -1104,6 +1106,7 @@ sub bonus_service_discount {
 
   $html->tpl_show(_include('bonus_service_discount', 'Bonus'), $Bonus);
 
+
   result_former({
     INPUT_DATA      => $Bonus,
     FUNCTION        => 'service_discount_list',
@@ -1122,7 +1125,8 @@ sub bonus_service_discount {
       bonus_percent      => $lang{BONUS_PERCENT},
       ext_account        => "$lang{EXTRA} $lang{ACCOUNT}",
       pay_method         => "$lang{PAYMENTS} $lang{TYPE}",
-      id                 => "#"
+      id                 => "#",
+      onetime_payment_sum=> $lang{ONETIME_PAYMENT_SUM}
     },
     TABLE           => {
       width   => '100%',

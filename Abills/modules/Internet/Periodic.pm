@@ -209,6 +209,7 @@ sub internet_daily_fees {
               TP_NAME         => $TP_INFO->{NAME},
               FEES_PERIOD_DAY => $lang{DAY_FEE_SHORT},
               FEES_METHOD     => $FEES_METHODS{$TP_INFO->{FEES_METHOD}},
+              ID              => ($user{ID}) ? ' '. $user{ID} : undef,
             );
 
             my %PARAMS = (
@@ -849,7 +850,8 @@ sub internet_monthly_fees {
           TP_ID             => $TP_INFO->{TP_ID},
           TP_NAME           => $TP_INFO->{NAME},
           FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT},
-          FEES_METHOD       => $FEES_METHODS{$TP_INFO->{FEES_METHOD}}
+          FEES_METHOD       => $FEES_METHODS{$TP_INFO->{FEES_METHOD}},
+          ID                => ($user{ID}) ? ' '. $user{ID} : undef,
         );
 
         if ($debug > 3) {
@@ -1552,6 +1554,8 @@ sub internet_sheduler {
   my $d  = (split(/-/, $ADMIN_REPORT{DATE}, 3))[2];
   my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
 
+  my $user = $users->info($uid);
+
   if ($type eq 'tp') {
     my $service_id;
     my $tp_id = 0;
@@ -1564,7 +1568,7 @@ sub internet_sheduler {
     }
 
     my %params = ();
-    my $user = $Internet->user_info($uid, { ID => $service_id });
+    $Internet->user_info($uid, { ID => $service_id });
 
     #Change activation date after change TP
     #Date must change after tp fees
@@ -1593,13 +1597,13 @@ sub internet_sheduler {
         $Internet->{TP_INFO}->{MONTH_FEE} = 0;
       }
 
-      $user = undef;
+      #$user = undef;
       service_get_month_fee($Internet, {
         QUITE       => 1,
         SHEDULER    => 1,
         DATE        => $attr->{DATE},
         RECALCULATE => 1,
-        USER_INFO   => $users
+        USER_INFO   => $user
       });
     }
   }
@@ -1630,7 +1634,7 @@ sub internet_sheduler {
       }
 
       if ($active_fees && $active_fees > 0) {
-        $user = $users->info($uid);
+        #$user = $users->info($uid);
         $Fees->take(
           $user,
           $active_fees,
@@ -1639,6 +1643,7 @@ sub internet_sheduler {
             DATE     => "$ADMIN_REPORT{DATE} $TIME",
           }
         );
+
         if ($Fees->{errno}) {
           print "Error: Holdup fees: $Fees->{errno} $Fees->{errstr}\n";
         }
@@ -1647,7 +1652,6 @@ sub internet_sheduler {
       if ($conf{INTERNET_HOLDUP_COMPENSATE}) {
         $Internet->{TP_INFO_OLD} = $Tariffs->info(0, { TP_ID => $Internet->{TP_ID} });
         if ($Internet->{TP_INFO_OLD}->{PERIOD_ALIGNMENT}) {
-          $user = $users->info($uid);
           #$Internet->{TP_INFO}->{MONTH_FEE} = 0;
           service_recalculate($Internet,
             { RECALCULATE => 1,
@@ -1672,7 +1676,7 @@ sub internet_sheduler {
         QUITE    => 1,
         SHEDULER => 1, #($attr->{SHEDULEE_ONLY}) ? undef,
         DATE     => $attr->{DATE},
-        USER_INFO=> $users
+        USER_INFO=> $user
       });
     }
 

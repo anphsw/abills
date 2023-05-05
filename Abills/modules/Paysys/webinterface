@@ -13,7 +13,7 @@ use warnings FATAL => 'all';
 use Encode;
 
 use Abills::Filters;
-use Abills::Base qw(in_array);
+use Abills::Base qw(ip2int in_array mk_unique_value cmd);
 use Finance;
 use Users;
 require Abills::Misc;
@@ -167,9 +167,17 @@ sub paysys_import_form_new {
     return 0 if (!defined($permissions{1}));
   }
 
-  my @import_types = ();
+  my %import_types = ();
   if ($attr->{IMPORT_RULES}) {
-    @import_types = split(/,/, $attr->{IMPORT_RULES});
+    my @import_types = split(/,/, $attr->{IMPORT_RULES});
+    for (my $i = 0; $i < scalar @import_types; $i++) {
+      $import_types{$i} = $import_types[$i];
+    }
+  }
+
+  if ($attr->{TYPE} eq 'PAYMENTS') {
+    my $module_rules = _paysys_import_types();
+    %import_types = (%{$module_rules}, %import_types);
   }
 
   my $debug = $attr->{DEBUG} || 0;
@@ -189,6 +197,31 @@ sub paysys_import_form_new {
   }
 
   if ($FORM->{IMPORT}) {
+    if ($attr->{TYPE} eq 'PAYMENTS' && $FORM{IMPORT_TYPE} && $FORM{IMPORT_TYPE} =~ /\S+.pm+/) {
+      my ($Module, $Module_name, $Module_id) = split(/,/, $FORM{IMPORT_TYPE});
+      require Paysys::Init;
+      Paysys::Init->import('_configure_load_payment_module');
+      my $Plugin = _configure_load_payment_module($Module);
+
+      if ($Plugin->can('import')) {
+        my $Paysys_plugin = $Plugin->new($db, $admin, \%conf, {
+          HTML        => $html,
+          LANG        => \%lang,
+          INDEX       => $index,
+          SELF_URL    => $SELF_URL,
+          CUSTOM_NAME => $Module_name,
+          NAME        => $Module_name,
+          CUSTOM_ID   => $Module_id,
+        });
+        $Paysys_plugin->import(\%FORM);
+      }
+      else {
+        $html->message('err', $lang{ERROR}, "Cant load module $FORM{IMPORT_TYPE}", { OUTPUT2RETURN => 1 });
+      }
+
+      return 1;
+    }
+
     #Default import extration
     my $import_expr = ($attr->{IMPORT_EXPR}) ? $attr->{IMPORT_EXPR} : '(\d+)\t(.+)\t(\d+)\t(\S+)\t([0-9.,]+)\t(\d{2}-\d{2}-\d{4})\t(.+)\t(.+):ID, FIO, PHONE, CONTRACT_ID, SUM, DATE, ADDRESS, DESCRIBE';
 
@@ -240,7 +273,7 @@ sub paysys_import_form_new {
     #Get data from file
     elsif ($FORM->{FILE_DATA}) {
       ($DATA_ARR, $BINDING_IDS) = paysys_import_parse($FORM->{FILE_DATA}{Contents}, $import_expr,
-        $BINDING_FIELD, { DEBUG => 6, ENCODE => $FORM->{ENCODE} });
+        $BINDING_FIELD, { DEBUG => $conf{PAYSYS_DEBUG} || 0, ENCODE => $FORM->{ENCODE} });
 
       if($FORM{METHOD} == 113){
         my $Address = Address->new($db, $admin, \%conf);
@@ -370,20 +403,17 @@ sub paysys_import_form_new {
           # ddelete param for cross modules
           delete $user_->{PAYMENTS_ADDED};
 
-          $Payments->add(
-            $user_,
-            {
-              SUM            => $DATA_ARR->[$i]->{SUM},
-              DESCRIBE       => $DATA_ARR->[$i]->{DESCRIBE} || '',
-              METHOD         => (defined($DATA_ARR->[$i]->{PAYMENT_METHOD}) && $DATA_ARR->[$i]->{PAYMENT_METHOD} ne '') ? $DATA_ARR->[$i]->{PAYMENT_METHOD} : 1,
-              DATE           => $DATA_ARR->[$i]->{DATE} || undef,
-              EXT_ID         => $ext_id,
-              CHECK_EXT_ID   => $ext_id,
-              INNER_DESCRIBE => $DATA_ARR->[$i]->{INNER_DESCRIBE} || '',
-              ER             => (defined($FORM->{ER})) ? $FORM->{ER} : $DATA_ARR->[$i]->{ER},
-              CURRENCY       => (defined($FORM->{CURRENCY})) ? $FORM->{CURRENCY} : undef
-            }
-          );
+          $Payments->add($user_, {
+            SUM            => $DATA_ARR->[$i]->{SUM},
+            DESCRIBE       => $DATA_ARR->[$i]->{DESCRIBE} || '',
+            METHOD         => (defined($DATA_ARR->[$i]->{PAYMENT_METHOD}) && $DATA_ARR->[$i]->{PAYMENT_METHOD} ne '') ? $DATA_ARR->[$i]->{PAYMENT_METHOD} : 1,
+            DATE           => $DATA_ARR->[$i]->{DATE} || undef,
+            EXT_ID         => $ext_id,
+            CHECK_EXT_ID   => $ext_id,
+            INNER_DESCRIBE => $DATA_ARR->[$i]->{INNER_DESCRIBE} || '',
+            ER             => (defined($FORM->{ER})) ? $FORM->{ER} : $DATA_ARR->[$i]->{ER},
+            CURRENCY       => (defined($FORM->{CURRENCY})) ? $FORM->{CURRENCY} : undef
+          });
 
           if ($Payments->{errno} && $Payments->{errno} == 7) {
             $html->message( 'err', $lang{ERROR},
@@ -486,7 +516,7 @@ sub paysys_import_form_new {
     else {
       $table = $html->table({
         width      => '100%',
-        caption    => "$lang{PRE} Import - $import_types[$attr->{IMPORT_TYPE}]",
+        caption    => "$lang{PRE} Import - $import_types{$attr->{IMPORT_TYPE}}",
         title      => [ $lang{FIO}, $lang{PHONE}, $lang{CONTRACT_ID}, $lang{SUM}, $lang{DATE},
             "$lang{BANK} $lang{ACCOUNT}", $lang{TYPE}, $lang{ADDRESS}, $lang{DESCRIBE},
             "$lang{INNER} $lang{DESCRIBE}", $lang{BINDING}, "EXT ID", '-' ],
@@ -586,8 +616,8 @@ sub paysys_import_form_new {
   my %info = ();
   $info{IMPORT_TYPE_SEL} = $html->form_select('IMPORT_TYPE', {
     SELECTED     => $FORM{IMPORT_TYPE},
-    SEL_ARRAY    => \@import_types || undef,
-    ARRAY_NUM_ID => 1
+    SEL_HASH     => \%import_types || undef,
+    NO_ID       => 1,
   });
 
   $info{ENCODE_SEL} = $html->form_select('ENCODE', {
@@ -597,20 +627,17 @@ sub paysys_import_form_new {
 
   my $PAYMENTS_METHODS  = get_payment_methods();
 
-  if (scalar  keys %ER_ISO2ID > 0) {
-    $info{SEL_ER} = $html->form_select(
-      'ER',
-      {
-        SELECTED      => $FORM{ER_ID} || $FORM{ER},
-        SEL_LIST      => $er_list,
-        SEL_KEY       => 'id',
-        SEL_VALUE     => 'money,short_name,',
-        NO_ID         => 1,
-        MAIN_MENU     => get_function_index('form_exchange_rate'),
-        MAIN_MENU_ARGV=> "chg=". ($FORM{ER} || ''),
-        SEL_OPTIONS   => { '' => '' }
-      }
-    );
+  if (scalar keys %ER_ISO2ID > 0) {
+    $info{SEL_ER} = $html->form_select('ER', {
+      SELECTED       => $FORM{ER_ID} || $FORM{ER},
+      SEL_LIST       => $er_list,
+      SEL_KEY        => 'id',
+      SEL_VALUE      => 'money,short_name,',
+      NO_ID          => 1,
+      MAIN_MENU      => get_function_index('form_exchange_rate'),
+      MAIN_MENU_ARGV => "chg=" . ($FORM{ER} || ''),
+      SEL_OPTIONS    => { '' => '' }
+    });
 
     $info{FORM_ER} = $html->tpl_show(templates('form_row'), {
       ID     => '',
@@ -628,6 +655,87 @@ sub paysys_import_form_new {
   $html->tpl_show(_include('paysys_file_import', 'Paysys'), \%info);
 
   return 1;
+}
+
+#**********************************************************
+=head2 _paysys_import_types($attr) - get modules which support import
+
+  Arguments:
+
+  Returns:
+    modules: array - modules which support import payments
+
+=cut
+#**********************************************************
+sub _paysys_import_types {
+  require Paysys::Init;
+  Paysys::Init->import('_configure_load_payment_module');
+
+  my $connected_systems = $Paysys->paysys_connect_system_list({
+    SHOW_ALL_COLUMNS => 1,
+    STATUS           => 1,
+    COLS_NAME        => 1,
+  });
+
+  return [] if ($Paysys->{errno} || !scalar @{$connected_systems});
+
+  my %modules = ();
+
+  foreach my $system (@{$connected_systems}) {
+    my $Plugin = _configure_load_payment_module($system->{module});
+    next if (ref $Plugin eq 'HASH');
+
+    if ($Plugin->can('import')) {
+      $modules{"$system->{module},$system->{name},$system->{paysys_id}"} = $system->{name};
+    }
+  }
+
+  return \%modules;
+}
+
+#**********************************************************
+=head2 get_reg_payments($attr) - Get register paymnets
+
+  Arguments:
+    $attr
+      DATE_FROM
+      DATE_TO
+      EXT_ID
+
+  Results:
+    \%reg_paymnets_list
+
+=cut
+#**********************************************************
+sub get_reg_payments {
+  my ($attr) = @_;
+
+  require Payments;
+  Payments->import();
+  my $Payments = Payments->new($db, $admin, \%conf);
+  my %reg_payments_list = ();
+
+  my $payments_list = $Payments->list({
+    FROM_DATE => $attr->{DATE_FROM},
+    TO_DATE   => date_inc($DATE),
+    EXT_ID    => ($attr->{EXT_ID} || q{}) . ':*',
+    LOGIN     => '_SHOW',
+    SUM       => '_SHOW',
+    PAGE_ROWS => 100000,
+    COLS_NAME => 1
+  });
+
+  foreach my $payment (@$payments_list) {
+    $reg_payments_list{$payment->{ext_id}} = {
+      id       => $payment->{id},
+      uid      => $payment->{uid},
+      sum      => $payment->{sum},
+      login    => $payment->{login},
+      datetime => $payment->{datetime},
+    };
+  }
+
+  return \%reg_payments_list;
 }
 
 1;

@@ -509,6 +509,15 @@ sub available_tariffs {
     }
   }
 
+  if ($service_info->{UID} && $attr->{UID} ne $service_info->{UID}) {
+    return {
+      error   => 4520,
+      errstr  => 'Unknown parameter id',
+      message => '$lang{NOT_ALLOWED_TO_CHANGE_TP}',
+      MODULE  => $attr->{MODULE}
+    };
+  }
+
   $Tariffs->tp_group_info($service_info->{TP_GID});
   if (!$Tariffs->{USER_CHG_TP}) {
     return {
@@ -857,8 +866,17 @@ sub user_chg_tp {
     message       => '$lang{ERR_WRONG_DATA}: $lang{ERR_NO_DATA}: ID',
     message_type  => 'err',
     message_title => '$lang{ERROR}',
-    error         => 4509
+    error         => 4509,
+    errstr        => 'Unknown id',
   } if !$attr->{ID};
+
+  return {
+    message       => '$lang{ERR_WRONG_DATA}: $lang{TARIF_PLAN}',
+    message_type  => 'err',
+    message_title => '$lang{ERROR}',
+    error         => 4521,
+    errstr        => 'This tpId already active in user',
+  } if ($service_info->{TP_ID} && $service_info->{TP_ID} eq $attr->{TP_ID});
 
   if (uc($attr->{MODULE}) eq 'IPTV') {
     require Iptv;
@@ -875,9 +893,11 @@ sub user_chg_tp {
     });
 
     if ($tariffs) {
+      return $tariffs if (ref $tariffs eq 'HASH');
+
       my $allowed = 0;
       foreach my $tariff (@{$tariffs}) {
-        next if (!$tariff->{tp_id} || "$tariff->{tp_id}" ne "$attr->{TP_ID}");
+        next if (!$tariff->{tp_id} || $tariff->{tp_id} ne $attr->{TP_ID});
         $allowed = 1;
         last;
       }
@@ -919,7 +939,7 @@ sub user_chg_tp {
   delete $service_info->{ABON_DATE};
 
   #Next period change
-  if ($service_info->{MONTH_ABON} > 0 && !$service_info->{STATUS} && !$user_info->{DISABLE} && !$service_info->{ABON_DISTRIBUTION}) {
+  if (($service_info->{MONTH_ABON} > 0 || $self->{conf}->{uc($attr->{MODULE}) .'_USER_CHG_TP_NEXT_MONTH'}) && !$service_info->{STATUS} && !$user_info->{DISABLE} && !$service_info->{ABON_DISTRIBUTION}) {
     if ($service_info->{ACTIVATE} ne '0000-00-00') {
       my ($Y, $M, $D) = split(/-/, $service_info->{ACTIVATE}, 3);
       $M--;
@@ -1497,7 +1517,7 @@ sub _get_credit_limit {
   my $credit_limit = 0;
 
   if ($self->{conf}{user_credit_all_services}) {
-    do 'Control/Services.pm';
+    require Control::Services;
     # if ($@) {
     #   print "Content-TYpe: text/html\n\n";
     #   print $@;
@@ -2055,7 +2075,7 @@ sub _get_tariffs {
     next if (in_array($tp->{id}, \@skip_tp_changes));
     next if ($tp->{tp_id} == $service_info->{TP_ID} && $user_info->{EXPIRE} eq '0000-00-00');
 
-    my $tp_fee = $tp->{day_fee} + $tp->{month_fee} + $tp->{change_price};
+    my $tp_fee = $tp->{day_fee} + $tp->{month_fee} + ($tp->{change_price} || 0);
 
     if ($tp->{reduction_fee} && $user_info->{REDUCTION} && $user_info->{REDUCTION} > 0) {
       $tp_fee = $tp_fee - (($tp_fee / 100) * $user_info->{REDUCTION});

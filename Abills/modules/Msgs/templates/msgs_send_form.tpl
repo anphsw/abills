@@ -345,8 +345,8 @@
     <div class='modal-dialog'>
       <div class='modal-content'>
         <div class='modal-header'>
-          <button type='button' class='close' data-dismiss='modal'>&times;</button>
           <h4 id='repeat_title' class='modal-title'></h4>
+          <button type='button' class='close' data-dismiss='modal'>&times;</button>
         </div>
         <div class='modal-footer'>
           <input type='submit' name='%ACTION%' class='btn btn-primary text-center' value='%LNG_ACTION%'

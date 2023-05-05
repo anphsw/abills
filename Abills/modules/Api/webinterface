@@ -8,6 +8,7 @@
 use strict;
 use warnings FATAL => 'all';
 use JSON qw(decode_json);
+use Abills::Base qw(convert);
 
 use Api;
 
@@ -43,6 +44,7 @@ sub api_log_list {
     },
     FILTER_VALUES => {
       response        => \&_api_filter_response,
+      request_body    => \&_api_filter_response,
       request_headers => \&_api_filter_request_headers
     },
     EXT_TITLES => {
@@ -86,6 +88,9 @@ sub api_log_list {
 sub _api_filter_response {
   my ($res) = @_;
   my $res_length = length($res);
+
+  $res = convert($res, { text2html => 1 }) if ($res_length);
+
   if ($res && $res_length > MAX_INLINE_RESPONSE_LENGTH) {
     my $table = $html->table({
       ID         => 'API_REQUEST_BODY_' . rand(1000000),
@@ -122,8 +127,8 @@ sub _api_filter_request_headers {
 
     foreach my $header (sort keys %$decoded_headers) {
       $table->addrow(
-        $header,
-        $decoded_headers->{$header}
+        convert($header, { text2html => 1 }),
+        convert($decoded_headers->{$header}, { text2html => 1 }),
       )
     }
     return $table->show();

@@ -666,16 +666,16 @@ sub access_deny {
   $Log->log_print('LOG_WARNING', $user_name, $message, { NAS => $nas });
 
   #External script for error connections
-  if ($conf{AUTH_ERROR_CMD}) {
-    my @cmds = split(/;/, $conf{AUTH_ERROR_CMD});
-    foreach my $expr_cmd (@cmds) {
-      $RAD_REQUEST{'Nas-Port'} = 0 if (!$RAD_REQUEST{'Nas-Port'});
-      my ($expr, $cmd) = split(/:/, $expr_cmd);
-      if ($message =~ /$expr/) {
-        system("$cmd USER_NAME=$user_name NAS_PORT=$RAD_REQUEST{'Nas-Port'} NAS_IP=$nas->{NAS_IP} ERROR=$message");
-      }
-    }
-  }
+  # if ($conf{AUTH_ERROR_CMD}) {
+  #   my @cmds = split(/;/, $conf{AUTH_ERROR_CMD});
+  #   foreach my $expr_cmd (@cmds) {
+  #     $RAD_REQUEST{'Nas-Port'} = 0 if (!$RAD_REQUEST{'Nas-Port'});
+  #     my ($expr, $cmd) = split(/:/, $expr_cmd);
+  #     if ($message =~ /$expr/) {
+  #       system("$cmd USER_NAME=$user_name NAS_PORT=$RAD_REQUEST{'Nas-Port'} NAS_IP=$nas->{NAS_IP} ERROR=$message");
+  #     }
+  #   }
+  # }
 
   return 1;
 }

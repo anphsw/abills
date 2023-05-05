@@ -291,7 +291,7 @@ sub _bot_link {
       errstr => 'Unknown telegram bot'
     } if (!$self->{conf}->{TELEGRAM_BOT_NAME});
 
-    $bot_link = "https://t.me/$self->{conf}->{TELEGRAM_BOT_NAME}/?start=u_$query_params->{REQUEST_USERSID}";
+    $bot_link = "https://t.me/$self->{conf}->{TELEGRAM_BOT_NAME}?start=u_$query_params->{REQUEST_USERSID}";
   }
   else {
     return {

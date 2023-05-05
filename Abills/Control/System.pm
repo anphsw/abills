@@ -9,11 +9,8 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Defs;
-use Abills::Fetcher;
-use Abills::Backend::Utils qw/json_encode_safe json_decode_safe/;
 use Abills::Base qw(convert dsc2hash clearquotes int2byte days_in_month
   in_array startup_files load_pmodule urlencode encode_base64 json_former);
-use JSON;
 
 our ($db,
   %lang,
@@ -31,9 +28,6 @@ our Admins $admin;
 our Conf $Conf;
 our Users $users;
 
-require Control::Nas_mng;
-require Control::Filemanager;
-require Control::Taxes;
 
 #**********************************************************
 =head2 form_status() - service status listing
@@ -142,7 +136,7 @@ sub form_status {
 }
 
 #**********************************************************
-=head2 form_status() - service status listing
+=head2 form_user_status() - service status listing
 
 
 =cut
@@ -240,7 +234,8 @@ sub form_user_status {
 #**********************************************************
 sub form_billd_plugins {
 
-  use Billd;
+  require Billd;
+  Billd->import();
   my $Billd = Billd->new($db, $admin, \%conf);
 
   my $billd_plugin_dir = $base_dir . '/libexec/billd.plugins/';
@@ -449,7 +444,7 @@ sub form_templates_pdf_edit {
   }
 
   my $pdf_base64 = encode_base64($pdf_content);
-
+  load_pmodule('JSON');
   my $json = JSON->new()->utf8(0);
 
   $html->tpl_show(templates('form_templates_pdf_edit'), {
@@ -2065,6 +2060,8 @@ sub form_config {
 
   my($version)=split(/ /, $conf{VERSION});
 
+  require Abills::Fetcher;
+  Abills::Fetcher->import('web_request');
   my $output = web_request('http://abills.net.ua/misc/checksum/'.$version, { BODY_ONLY => 1 });
   my @rows = split(/[\r\n]/, $output);
 
@@ -2833,7 +2830,8 @@ sub organization_info {
 =cut
 #**********************************************************
 sub form_payment_types {
-  use Payments;
+  require Payments;
+  Payments->import();
   my $Payments = Payments->new($db, $admin, \%conf);
   my %info;
 

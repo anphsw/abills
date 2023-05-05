@@ -23,7 +23,7 @@ my $Modinfo = Modinfo->new($db, undef, undef);
 #**********************************************************
 sub modinfo_start_page_show {
   #my ($attr) = @_;
-  
+
   my $output = web_request('http://abills.net.ua/info.txt', { BODY_ONLY => 1 });
   my @modules_list = ();
 

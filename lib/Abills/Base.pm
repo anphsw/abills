@@ -69,6 +69,7 @@ our @EXPORT = qw(
   is_html
   check_ip
   is_number
+  decode_quoted_printable
 );
 
 our @EXPORT_OK = qw(
@@ -117,6 +118,7 @@ our @EXPORT_OK = qw(
   is_html
   check_ip
   is_number
+  decode_quoted_printable
 );
 
 # As said in perldoc, should be called once on a program
@@ -1276,7 +1278,9 @@ sub int2ml {
     $ret .= "";
   }
 
+  # FIXME: re-review
   use locale;
+
   my $locale = $attr->{LOCALE} || 'ru_RU.CP1251';
   setlocale( LC_ALL, $locale );
   $ret = ucfirst $ret;
@@ -1858,7 +1862,7 @@ sub date_format {
 sub _bp {
   my ($explanation, $value, $attr) = @_;
 
-  $attr->{TO_CONSOLE} = 1 if( $attr ->{TO_FILE} );
+  $attr->{TO_CONSOLE} = 1 if( $attr->{TO_FILE} );
 
   # Allow to set args one time for all cals
   state $STATIC_ARGS;
@@ -1939,7 +1943,7 @@ sub _bp {
       $base_dir //= '/usr/abills/';
 
       my $file = $base_dir.'var/log/bp.log';
-      $file = $attr->{TO_FILE} if ($attr->{TO_FILE} != 1);
+      $file = $attr->{TO_FILE} if ($attr->{TO_FILE} ne 1);
 
 
       open(my $fh, '>>', $file) || print "[ $filename : $line ] \n Error opening '$file': $! \n";
@@ -2008,6 +2012,45 @@ sub urldecode {
   $text =~ s/\%([A-Fa-f0-9]{2})/pack('C', hex($1))/seg;
 
   return $text;
+}
+
+#**********************************************************
+=head2 decode_quoted_printable($text) - Decode quoted printable text
+
+   Attributes:
+     $text - Text to decode
+
+  Returns:
+    Decoded text
+
+  Examples:
+     convert('=D0=9F=D1=80=D0=B8=D0=B2=D1=96=D1=82')
+     # Returns 'Привіт'
+
+=cut
+#**********************************************************
+sub decode_quoted_printable {
+  my $text = shift;
+
+  $text =~ s/\r\n/\n/g;
+  $text =~ s/[ \t]+\n/\n/g;
+  $text =~ s/=\n//g;
+
+  if (ord('A') == 193) { # EBCDIC style machine
+    if (ord('[') == 173) {
+      $text =~ s/=([\da-fA-F]{2})/Encode::encode('cp1047',Encode::decode('iso-8859-1',pack("C", hex($1))))/ge;
+    }
+    elsif (ord('[') == 187) {
+      $text =~ s/=([\da-fA-F]{2})/Encode::encode('posix-bc',Encode::decode('iso-8859-1',pack("C", hex($1))))/ge;
+    }
+    elsif (ord('[') == 186) {
+      $text =~ s/=([\da-fA-F]{2})/Encode::encode('cp37',Encode::decode('iso-8859-1',pack("C", hex($1))))/ge;
+    }
+  }
+  else { # ASCII style machine
+    $text =~ s/=([\da-fA-F]{2})/pack("C", hex($1))/ge;
+  }
+  $text;
 }
 
 #**********************************************************
@@ -2290,7 +2333,9 @@ sub show_hash {
 sub load_pmodule {
   my ($name, $attr) = @_;
 
-  eval " require $name ";
+  my $module_path = $name . '.pm';
+  $module_path =~ s{::}{/}g;
+  eval { require $module_path };
 
   my $result = '';
 
@@ -2480,7 +2525,8 @@ sub json_former {
 =cut
 #**********************************************************
 sub is_number {
-  my ($value, $type) = @_;
+  my ($value, $type, $unsigned) = @_;
+  $unsigned = $unsigned || 0;
 
   if ($type) {
     return if utf8::is_utf8($value);
@@ -2490,7 +2536,14 @@ sub is_number {
     return -1; # inf/nan
   }
   else {
-    my $res = $value =~ /^-?(0|[1-9]\d*)(\.\d+)?$/;
+    my $res = 0;
+    if ($unsigned) {
+      $res = $value =~ /^(0|[1-9]\d*)(\.\d+)?$/;
+    }
+    else {
+      $res = $value =~ /^-?(0|[1-9]\d*)(\.\d+)?$/;
+    }
+
     return $res;
   }
 }

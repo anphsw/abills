@@ -189,11 +189,11 @@ sub _get_history_button {
   if ($attr->{PLUGIN} && $attr->{PLUGIN} eq $self->{PLUGIN_NAME} && $attr->{MSG_HISTORY}) {
     main::form_changes({
       SEARCH_PARAMS => {
-        MODULE => 'Msgs',
-        ACTION => 'MSG_ID:' . $attr->{ID} . "*",
-        SORT   => $attr->{sort} || 1,
-        DESC   => (!$attr->{sort}) ? 'desc' : $attr->{desc},
-        PG     => $attr->{pg} || 0
+        MODULE  => 'Msgs',
+        ACTIONS => 'MSG_ID:' . $attr->{ID} . "*",
+        SORT    => $attr->{sort} || 1,
+        DESC    => (!$attr->{sort}) ? 'desc' : $attr->{desc},
+        PG      => $attr->{pg} || 0
       },
       PAGES_QS      => "&PLUGIN=$self->{PLUGIN_NAME}&ID=$attr->{ID}&MSG_HISTORY=1"
     });
@@ -330,6 +330,7 @@ sub _payments_btn {
   my $self = shift;
   my ($attr) = @_;
 
+  return '' if !$admin->{permissions}{2} || !$admin->{permissions}{2}{1};
   return '' if !$CONF->{MSGS_TICKET_PRICE};
 
   my ($sum, $method) = split ':', $CONF->{MSGS_TICKET_PRICE};

@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: Abills admins API
-  version: 0.0.64
-  description: "Last modified 2023-03-08"
+  title: ABillS admins API
+  version: 0.0.66
+  description: "Last modified 2023-04-20"
   contact:
     name: Have a question? Support contacts
     url: https://support.abills.net.ua/
@@ -228,15 +228,34 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UreportsUserList"
+                $ref: "#/components/schemas/UreportsUserInfo"
       security:
         - KEY: []
   /ureports/user/{UID}:
+    get:
+      tags:
+        - ureports
+      summary: Получить пользователя
+      parameters:
+        - name: UID
+          in: path
+          description: UID пользователя
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UreportsUserInfo"
+      security:
+        - KEY: []
     post:
       tags:
         - ureports
       summary: Добавить оповещения пользователю
-      operationId: ureportsAddUser
       parameters:
         - name: UID
           in: path
@@ -248,7 +267,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UreportsUserRequest"
+              $ref: "#/components/schemas/UreportsUserAddRequest"
         required: true
       responses:
         200:
@@ -256,27 +275,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UreportsAddUserResponse"
+                $ref: "#/components/schemas/UreportsUserAddResponse200"
         400:
-          description: Нет поля tpId
+          description: Пользователь существует
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  errno:
-                    type: integer
-                    example: 10202
-                  errstr:
-                    type: string
-                    example: No field tpId
+                $ref: "#/components/schemas/UreportsUserAddResponse400"
       security:
         - KEY: []
     put:
       tags:
         - ureports
-      summary: изменить оповещения пользователю
-      operationId: ureportsChangeUser
+      summary: Изменить оповещения пользователю
       parameters:
         - name: UID
           in: path
@@ -288,7 +299,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UreportsUserRequest"
+              $ref: "#/components/schemas/UreportsUserAddRequest"
         required: true
       responses:
         200:
@@ -296,20 +307,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UreportsChangeUserResponse"
-        400:
-          description: Нет поля tpId
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  errno:
-                    type: integer
-                    example: 10205
-                  errstr:
-                    type: string
-                    example: No field tpId
+                $ref: "#/components/schemas/UreportsUserAddResponse200"
       security:
         - KEY: []
     delete:
@@ -326,7 +324,7 @@ paths:
             type: integer
       responses:
         200:
-          description: успешное выполнение
+          description: Успешное выполнение
           content:
             application/json:
               schema:
@@ -334,7 +332,131 @@ paths:
                 properties:
                   result:
                     type: string
-                    example: OK
+                    example: Successfully deleted
+      security:
+        - KEY: []
+  /ureports/user/{UID}/reports:
+    get:
+      tags:
+        - ureports
+      summary: Получить отчеты пользователя
+      parameters:
+        - name: UID
+          in: path
+          description: UID пользователя
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UreportsUserReports"
+      security:
+        - KEY: []
+    post:
+      tags:
+        - ureports
+      summary: Добавить отчеты пользователя
+      parameters:
+        - name: UID
+          in: path
+          description: UID пользователя
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UreportsUserReportAddReqeust"
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully added reports
+        400:
+          description: Поле отчеты должны быть массивом
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UreportsUserReportAddResponse400"
+      security:
+        - KEY: []
+    delete:
+      tags:
+        - ureports
+      summary: Удалить отчеты пользователя
+      parameters:
+        - name: UID
+          in: path
+          description: UID пользователя
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully deleted
+        400:
+          description: Нет пользователя
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UreportsUserReportDeleteResponse400"
+      security:
+        - KEY: []
+  /ureports/user/{UID}/reports/{ID}:
+    delete:
+      tags:
+        - ureports
+      summary: Удалить отчет пользователя
+      parameters:
+        - name: UID
+          in: path
+          description: UID пользователя
+          required: true
+          schema:
+            type: integer
+        - name: ID
+          in: path
+          description: ID отчета
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully deleted
+        400:
+          description: Нет пользователя
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UreportsUserReportDeleteResponse400"
       security:
         - KEY: []
   /equipment/onu/list/:
@@ -368,7 +490,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: onuVlan
+        - name: vlan
           in: query
           description: Параметр который возвращает биллинг
           schema:
@@ -410,25 +532,25 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: nasId
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
         - name: onuSnmpId
           in: query
           description: Параметр который возвращает биллинг
           schema:
             type: boolean
             default: false
-        - name: dateTime
+        - name: datetime
           in: query
           description: Параметр который возвращает биллинг
           schema:
             type: boolean
             default: false
         - name: serverVlan
-          in: query
-          description: Параметр который возвращает биллинг
-          schema:
-            type: boolean
-            default: false
-        - name: gid
           in: query
           description: Параметр который возвращает биллинг
           schema:
@@ -500,7 +622,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OnuList"
+                type: array
+                items:
+                  $ref: "#/components/schemas/OnuInfo"
       security:
         - KEY: []
   /equipment/onu/{ID}/:
@@ -540,7 +664,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: onuVlan
+        - name: vlan
           in: query
           description: Параметр который возвращает биллинг
           schema:
@@ -582,25 +706,25 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: nasId
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
         - name: onuSnmpId
           in: query
           description: Параметр который возвращает биллинг
           schema:
             type: boolean
             default: false
-        - name: dateTime
+        - name: datetime
           in: query
           description: Параметр который возвращает биллинг
           schema:
             type: boolean
             default: false
         - name: serverVlan
-          in: query
-          description: Параметр который возвращает биллинг
-          schema:
-            type: boolean
-            default: false
-        - name: gid
           in: query
           description: Параметр который возвращает биллинг
           schema:
@@ -654,25 +778,13 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: pageRows
-          in: query
-          description: Количество записей
-          schema:
-            type: integer
-            default: 25
-        - name: pg
-          in: query
-          description: Рабоатет вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
-          schema:
-            type: integer
-            default: 0
       responses:
         200:
           description: успешное выполнение
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OnuList"
+                $ref: "#/components/schemas/OnuInfo"
       security:
         - KEY: [ ]
   /equipment/box/list/:
@@ -1787,16 +1899,6 @@ paths:
           description: Параметр который возвращает биллинг, а также поиск по нему, если не поле не пустое
           schema:
             type: string
-        - name: fio2
-          in: query
-          description: Параметр который возвращает биллинг, а также поиск по нему, если не поле не пустое
-          schema:
-            type: string
-        - name: fio3
-          in: query
-          description: Параметр который возвращает биллинг, а также поиск по нему, если не поле не пустое
-          schema:
-            type: string
         - name: deposit
           in: query
           description: Параметр который возвращает биллинг, а также поиск по нему, если не поле не пустое
@@ -1837,6 +1939,21 @@ paths:
           description: Параметр который возвращает биллинг, а также поиск по нему, если не поле не пустое
           schema:
             type: string
+        - name: cellPhone
+          in: query
+          description: Параметр который возвращает биллинг, а также поиск по нему, если не поле не пустое
+          schema:
+            type: string
+        - name: telegram
+          in: query
+          description: Параметр который возвращает биллинг, а также поиск по нему, если не поле не пустое
+          schema:
+            type: number
+        - name: viber
+          in: query
+          description: Параметр который возвращает биллинг, а также поиск по нему, если не поле не пустое
+          schema:
+            type: number
         - name: email
           in: query
           description: Параметр который возвращает биллинг, а также поиск по нему, если не поле не пустое
@@ -1972,11 +2089,6 @@ paths:
           description: Параметр который возвращает биллинг, а также поиск по нему, если не поле не пустое
           schema:
             type: string
-        - name: taxNumber
-          in: query
-          description: Параметр который возвращает биллинг, а также поиск по нему, если не поле не пустое
-          schema:
-            type: string
         - name: pageRows
           in: query
           description: Количество записей
@@ -2025,7 +2137,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
@@ -2135,7 +2247,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserPi"
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
@@ -2163,7 +2275,7 @@ paths:
               $ref: "#/components/schemas/UserPi"
         required: true
       responses:
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
@@ -2191,7 +2303,7 @@ paths:
               $ref: "#/components/schemas/UserPi"
         required: true
       responses:
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
@@ -2221,7 +2333,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ContactsArray"
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
@@ -2249,7 +2361,7 @@ paths:
               $ref: "#/components/schemas/UserContactAdd"
         required: true
       responses:
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
@@ -2279,7 +2391,7 @@ paths:
             type: integer
             format: int64
       responses:
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
@@ -2308,7 +2420,7 @@ paths:
             type: integer
             format: int64
       responses:
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
@@ -2375,7 +2487,7 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: simultaneonsly
+        - name: logins
           in: query
           description: Параметр который возвращает биллинг
           schema:
@@ -2394,12 +2506,6 @@ paths:
             type: boolean
             default: false
         - name: port
-          in: query
-          description: Параметр который возвращает биллинг
-          schema:
-            type: boolean
-            default: false
-        - name: allFilterId
           in: query
           description: Параметр который возвращает биллинг
           schema:
@@ -2459,13 +2565,139 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: disable
+        - name: internetStatus
           in: query
           description: Параметр который возвращает биллинг
           schema:
             type: boolean
             default: false
-        - name: ipnActivate
+        - name: internetStatusDate
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: internetStatusId
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: internetLogin
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: feesMethod
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: ipNum
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: monthIpnTrafficIn
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: monthIpnTrafficOut
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: shedule
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: tpFixedFeesDay
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: tpReductionFee
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: online
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: onlineIp
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: onlineDuration
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: onlineCid
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: onlineTpId
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: onlineNasId
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: internetPassword
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: internetExpire
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: internetActivate
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: monthTrafficIn
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: monthTrafficOut
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: lastActivity
           in: query
           description: Параметр который возвращает биллинг
           schema:
@@ -2483,13 +2715,31 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: monthTrafLimit
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
         - name: totalTrafLimit
           in: query
           description: Параметр который возвращает биллинг
           schema:
             type: boolean
             default: false
-        - name: feesMethod
+        - name: describeAid
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: serviceCount
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: ipnActivate
           in: query
           description: Параметр который возвращает биллинг
           schema:
@@ -2502,18 +2752,6 @@ paths:
             type: boolean
             default: false
         - name: fio
-          in: query
-          description: Параметр который возвращает биллинг
-          schema:
-            type: boolean
-            default: false
-        - name: fio2
-          in: query
-          description: Параметр который возвращает биллинг
-          schema:
-            type: boolean
-            default: false
-        - name: fio3
           in: query
           description: Параметр который возвращает биллинг
           schema:
@@ -2723,12 +2961,6 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: taxNumber
-          in: query
-          description: Параметр который возвращает биллинг
-          schema:
-            type: boolean
-            default: false
         - name: pageRows
           in: query
           description: Количество записей
@@ -2749,7 +2981,7 @@ paths:
                 $ref: "#/components/schemas/UserInternetList"
       security:
         - KEY: []
-  /users/{UID}/session/hangup:
+  /internet/{UID}/session/hangup:
     post:
       tags:
         - internet
@@ -2775,6 +3007,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InternetHangupResponse"
+        400:
+          description: Валидация не успешна
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternetHangup400"
       security:
         - KEY: []
   /users/{UID}/internet:
@@ -2799,7 +3037,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserInternetList"
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
@@ -2828,7 +3066,7 @@ paths:
               $ref: "#/components/schemas/UserInternet"
         required: true
       responses:
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
@@ -2977,12 +3215,514 @@ paths:
             type: integer
             format: int64
       responses:
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponse"
+      security:
+        - KEY: []
+  /internet/tariffs/:
+    get:
+      tags:
+        - internet
+      summary: Список тарифных планов
+      parameters:
+        - name: showAllColumns
+          description: Вернуть все доступные поля
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: abonDistribution
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: activatePrice
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: activeDayFee
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: activeMonthFee
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: age
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: changePrice
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: comments
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: credit
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: creditTresshold
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: dayFee
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: dayTimeLimit
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: dayTrafLimit
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: describeAid
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: domainId
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: extBillAccount
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: extBillFeesMethod
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: feesMethod
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: filterId
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: fine
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: fixedFeesDay
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: id
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: inPrice
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: inSpeed
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: intervals
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: ippool
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: logins
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: maxSessionDuration
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: minSessionCost
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: minUse
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: module
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: monthFee
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: monthTimeLimit
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: monthTrafLimit
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: name
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: negDepositFilterId
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: negDepositIppool
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: nextTpId
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: octetsDirection
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: outPrice
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: outSpeed
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: paymentType
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: periodAlignment
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: postpaidDailyFee
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: postpaidMonthlyFee
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: prepaid
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: priority
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: promotional
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: radPairs
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: reductionFee
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: serviceId
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: serviceName
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: smallDepositAction
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: status
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: timeTarifs
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: totalTimeLimit
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: totalTrafLimit
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: tpGid
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: tpGroupName
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: tpId
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: trafTarifs
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: trafficTransferPeriod
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: uplimit
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: userCreditLimit
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: weekTimeLimit
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: weekTrafLimit
+          description: Параметр который возвращает биллинг
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: sort
+          in: query
+          description: Сортировка по одному параметру выше
+          schema:
+            type: string
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternetTariffs'
+      security:
+        - KEY: [ ]
+  /internet/tariff/:
+    post:
+      tags:
+        - internet
+      summary: Добавить тарифный план
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InternetTariffAddRequest'
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternetTariffAddResponse200'
+        400:
+          description: Нет поля ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternetTariffAddResponse400'
+      security:
+        - KEY: [ ]
+  /internet/tariff/{tpId}:
+    put:
+      tags:
+        - internet
+      summary: Изменить тарифный план
+      parameters:
+        - name: tpId
+          in: path
+          description: id тарифного плана
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InternetTariffAddRequest'
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternetTariffChange200'
+      security:
+        - KEY: [ ]
+    delete:
+      tags:
+        - internet
+      summary: Удалить тарифный план
+      parameters:
+        - name: tpId
+          in: path
+          description: id тарифного плана
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangeResponse200"
+        400:
+          description: Нет тарифного плана
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 102006
+                  errstr:
+                    type: string
+                    example: No tariff plan with tpId 15
       security:
         - KEY: []
   /users/{UID}/iptv:
@@ -3007,7 +3747,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserIptvList"
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
@@ -3037,7 +3777,7 @@ paths:
             type: integer
             format: int64
       responses:
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
@@ -3089,7 +3829,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Msgs"
-        404:
+        400:
           description: Сообщение не найден
           content:
             application/json:
@@ -3331,7 +4071,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Tp"
-        404:
+        400:
           description: Тарифный план не найден
           content:
             application/json:
@@ -3361,7 +4101,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TpIntervals"
-        404:
+        400:
           description: Тарифный план не найден
           content:
             application/json:
@@ -3973,6 +4713,29 @@ paths:
       security:
         - KEY: [ ]
   /crm/leads/{ID}:
+    get:
+      tags:
+        - crm
+      summary: Получить информацию о потенциальном клиенте
+      description: Возвращает информацию о лиде
+      operationId: getCrmLeadInfo
+      parameters:
+        - name: ID
+          in: path
+          description: ID потенциального клиента
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrmLead"
+      security:
+        - KEY: [ ]
     put:
       tags:
         - crm
@@ -3996,6 +4759,503 @@ paths:
         400:
           description: Invalid ID supplied
           content: { }
+      security:
+        - KEY: [ ]
+    delete:
+      tags:
+        - crm
+      summary: Удалить потенциального клиента
+      parameters:
+        - name: ID
+          in: path
+          description: ID потенциального клиента
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully deleted
+        400:
+          description: Нет потенциального клиента с таким id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 31037
+                  errstr:
+                    type: string
+                    example: "Lead not found"
+      security:
+        - KEY: []
+  /crm/leads/:
+    get:
+      tags:
+        - crm
+      summary: Список потенциальных клиентов
+      operationId: getLeadsList
+      parameters:
+        - name: leadId
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: userLogin
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: fio
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: phone
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: email
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: company
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: responsible
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: adminName
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: source
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: date
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: currentStep
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: address
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: priority
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: comments
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: competitorId
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: tagIds
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: addressFull
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: watcher
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: pageRows
+          in: query
+          description: Количество записей
+          schema:
+            type: integer
+            default: 25
+        - name: pg
+          in: query
+          description: Рабоатет вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+          schema:
+            type: integer
+            default: 0
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadsList"
+      security:
+        - KEY: [ ]
+  /crm/action:
+    post:
+      tags:
+        - crm
+      summary: Добавление действия
+      operationId: addCrmAction
+      requestBody:
+        description: Параметры, которые нужно указать
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrmAction"
+        required: true
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiSuccessAddResponse"
+      security:
+        - KEY: [ ]
+  /crm/action/{ACTION_ID}:
+    get:
+      tags:
+        - crm
+      summary: Получить информацию о действии
+      operationId: getCrmActionInfo
+      parameters:
+        - name: ACTION_ID
+          in: path
+          description: ID действия
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrmAction"
+      security:
+        - KEY: [ ]
+    put:
+      tags:
+        - crm
+      summary: Изменить действие
+      operationId: crmActionChange
+      parameters:
+        - name: ACTION_ID
+          in: path
+          required: true
+          description: ID действия
+          schema:
+            type: integer
+            default: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrmAction"
+        required: true
+      responses:
+        400:
+          description: Invalid ID supplied
+          content: { }
+      security:
+        - KEY: [ ]
+    delete:
+      tags:
+        - crm
+      summary: Удалить действие
+      parameters:
+        - name: ACTION_ID
+          in: path
+          description: ID действия
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully deleted
+        400:
+          description: Нет действия с таким id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 31037
+                  errstr:
+                    type: string
+                    example: "Action not found"
+      security:
+        - KEY: []
+  /crm/actions/:
+    get:
+      tags:
+        - crm
+      summary: Список действий
+      operationId: getCrmActionsList
+      parameters:
+        - name: id
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: name
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: action
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: pageRows
+          in: query
+          description: Количество записей
+          schema:
+            type: integer
+            default: 25
+        - name: pg
+          in: query
+          description: Рабоатет вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+          schema:
+            type: integer
+            default: 0
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrmActionsList"
+      security:
+        - KEY: [ ]
+  /crm/step:
+    post:
+      tags:
+        - crm
+      summary: Добавление шага прогресса
+      operationId: addCrmStep
+      requestBody:
+        description: Параметры, которые нужно указать
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrmStep"
+        required: true
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiSuccessAddResponse"
+      security:
+        - KEY: [ ]
+  /crm/step/{STEP_ID}:
+    get:
+      tags:
+        - crm
+      summary: Получить информацию о шаге прогресса
+      operationId: getCrmStepInfo
+      parameters:
+        - name: STEP_ID
+          in: path
+          description: ID шага
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrmStep"
+      security:
+        - KEY: [ ]
+    put:
+      tags:
+        - crm
+      summary: Изменить действие
+      operationId: crmStepChange
+      parameters:
+        - name: STEP_ID
+          in: path
+          required: true
+          description: ID шага
+          schema:
+            type: integer
+            default: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrmStep"
+        required: true
+      responses:
+        400:
+          description: Invalid ID supplied
+          content: { }
+      security:
+        - KEY: [ ]
+    delete:
+      tags:
+        - crm
+      summary: Удалить шаг
+      parameters:
+        - name: STEP_ID
+          in: path
+          description: ID шага
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully deleted
+        400:
+          description: Нет шага с таким id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 31037
+                  errstr:
+                    type: string
+                    example: "Step not found"
+      security:
+        - KEY: []
+  /crm/steps/:
+    get:
+      tags:
+        - crm
+      summary: Список шагов прогресса
+      operationId: getCrmStepsList
+      parameters:
+        - name: id
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: name
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: stepNumber
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: color
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: dealStep
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: description
+          in: query
+          description: Параметр который возвращает биллинг
+          schema:
+            type: boolean
+            default: false
+        - name: pageRows
+          in: query
+          description: Количество записей
+          schema:
+            type: integer
+            default: 25
+        - name: pg
+          in: query
+          description: Рабоатет вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+          schema:
+            type: integer
+            default: 0
+      responses:
+        200:
+          description: успешное выполнение
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrmStepsList"
       security:
         - KEY: [ ]
   /crm/dialogue/{ID}:
@@ -4300,7 +5560,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OnlineSessionsArray"
-        404:
+        400:
           description: Пользователь не найден
           content:
             application/json:
@@ -4323,6 +5583,116 @@ paths:
                 $ref: "#/components/schemas/Version"
       security:
         - KEY: []
+  /swagger:
+    get:
+      tags:
+        - version
+      summary: Get Swagger 3 specification for ABillS USER API
+      description: Returns the Swagger 3 specification for the ABillS USER API.
+      responses:
+        200:
+          description: Swagger 3 specification for ABillS USER API
+          content:
+            application/yaml:
+              schema:
+                type: object
+                properties:
+                  openapi:
+                    type: string
+                    example: 3.0.3
+                  info:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                        example: Abills user API
+                      version:
+                        type: string
+                        example: 0.0.0
+                      description:
+                        type: string
+                        example: "Last modified xxxx-xx-xx"
+                      contact:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            example: Have a question? Support
+                          url:
+                            type: string
+                            format: uri
+                            example: https://abills.net.ua/
+                          email:
+                            type: string
+                            format: email
+                            example: example@abills.net.ua
+                  servers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        url:
+                          type: string
+                          format: uri
+                          example: https://abills.net.ua:9443/api
+                        description:
+                          type: string
+                          example: Test Demo Server
+  /swagger/admin:
+    get:
+      tags:
+        - version
+      summary: Get Swagger 3 specification for ABillS ADMIN API
+      description: Returns the Swagger 3 specification for the ABillS ADMIN API.
+      responses:
+        200:
+          description: Swagger 3 specification for ABillS ADMIN API
+          content:
+            application/yaml:
+              schema:
+                type: object
+                properties:
+                  openapi:
+                    type: string
+                    example: 3.0.3
+                  info:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                        example: Abills user API
+                      version:
+                        type: string
+                        example: 0.0.0
+                      description:
+                        type: string
+                        example: "Last modified xxxx-xx-xx"
+                      contact:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            example: Have a question? Support
+                          url:
+                            type: string
+                            format: uri
+                            example: https://abills.net.ua/
+                          email:
+                            type: string
+                            format: email
+                            example: example@abills.net.ua
+                  servers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        url:
+                          type: string
+                          format: uri
+                          example: https://abills.net.ua:9443/api
+                        description:
+                          type: string
+                          example: Test Demo Server
   /voip/users:
     get:
       tags:
@@ -5888,12 +7258,39 @@ components:
         responsible:
           type: integer
           example: 5
-        current_step:
+        currentStep:
           type: integer
           example: 2
         comments:
           type: string
           example: some comment
+    CrmAction:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Some name
+        action:
+          type: string
+          example: action description
+    CrmStep:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Some name
+        stepNumber:
+          type: integer
+          example: 1
+        color:
+          type: string
+          example: some color
+        dealStep:
+          type: integer
+          example: 0
+        description:
+          type: string
+          example: some description
     CrmSection:
       type: object
       properties:
@@ -6575,7 +7972,34 @@ components:
         acctSessionId:
           type: string
           example: Akie6VpiYU
-    OnuList:
+    OnuInfo:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 3
+        dhcpPort:
+          type: string
+          example: 0/01/3/002
+        nasId:
+          type: number
+          example: 17
+        onuId:
+          type: number
+          example: 2
+        onuSnmpId:
+          type: number
+          example: 268501760
+        ponType:
+          type: string
+          example: gpon
+        snmpId:
+          type: number
+          example: 268501760
+        vlan:
+          type: number
+          example: 0
+    LeadsList:
       type: array
       items:
         type: object
@@ -6583,27 +8007,55 @@ components:
           id:
             type: number
             example: 3
-          dhcpPort:
+          fio:
             type: string
-            example: 0/01/3/002
-          nasId:
-            type: number
-            example: 17
-          onuId:
+            example: Some Fio
+          email:
+            type: string
+            example: somemail@gmail.com
+          currentStep:
             type: number
             example: 2
-          onuSnmpId:
-            type: number
-            example: 268501760
-          ponType:
+          comments:
             type: string
-            example: gpon
-          snmpId:
+            example: comment
+    CrmActionsList:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
             type: number
-            example: 268501760
-          vlan:
+            example: 3
+          name:
+            type: string
+            example: Some name
+          action:
+            type: string
+            example: some action description
+    CrmStepsList:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
             type: number
+            example: 3
+          name:
+            type: string
+            example: Some name
+          stepNumber:
+            type: integer
+            example: 1
+          color:
+            type: string
+            example: some color
+          dealStep:
+            type: integer
             example: 0
+          description:
+            type: string
+            example: somde description
     NasListExtra:
       type: array
       items:
@@ -6847,32 +8299,173 @@ components:
           vlan:
             type: number
             example: 0
-    UreportsUserList:
+    UreportsUserReports:
+      type: object
+      properties:
+        activeReports:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                example: '0000-00-00'
+              msgPrice:
+                type: number
+                example: 0
+              reportId:
+                type: number
+                example: 15
+              reportName:
+                type: string
+                example: Internet Service disabled
+              uid:
+                type: number
+                example: 102144
+              value:
+                type: number
+                example: 1
+        availableReports:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                example: ""
+              msgPrice:
+                type: number
+                example: 0
+              reportId:
+                type: number
+                example: 1
+              reportName:
+                type: string
+                example: Deposit below
+              uid:
+                type: string
+                example: ""
+              value:
+                type: string
+                example: ""
+    UreportsUserReportAddReqeust:
+      type: object
+      properties:
+        reports:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: number
+                example: 14
+              value:
+                type: number
+                example: 1
+    UreportsUserReportAddResponse400:
+      type: object
+      properties:
+        errno:
+          type: number
+          example: 103012
+        errstr:
+          type: string
+          example: Field reports not array
+    UreportsUserReportDeleteResponse400:
+      type: object
+      properties:
+        errno:
+          type: number
+          example: 103008
+        errstr:
+          type: string
+          example: User with uid 1 has no reports
+    UreportsUserAddResponse400:
+      type: object
+      properties:
+        errno:
+          type: number
+          example: 103003
+        errstr:
+          type: string
+          example: User info exists
+    UreportsUserAddRequest:
+      type: object
+      properties:
+        status:
+          type: number
+          example: 1
+        destinations:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: number
+                example: 2
+              value:
+                type: string
+                example: 0509999999
+        tpId:
+          type: number
+          example: 7
+    UreportsUserAddResponse200:
+      type: object
+      properties:
+        destinations:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: number
+                example: 2
+              value:
+                type: number
+                example: 0509999999
+        registration:
+          type: string
+          example: '2023-04-11'
+        status:
+          type: number
+          example: 1
+        tpId:
+          type: number
+          example: 7
+        tpName:
+          type: string
+          example: test
+        tpNum:
+          type: number
+          example: 124
+        uid:
+          type: number
+          example: 102144
+    UreportsUserInfo:
       type: array
       items:
         type: object
         properties:
-          destination:
-            type: string
-            example: ''
-          reportsCount:
-            type: number
-            example: 0
-          status:
-            type: number
-            example: 0
+          destinations:
+            type: array
+            items:
+              type: object
+              properties:
+                destination:
+                  type: string
+                  example: 1
+                name:
+                  type: string
+                  example: Push
+                type:
+                  type: number
+                  example: 10
           tpId:
             type: number
-            example: 31
-          tpName:
-            type: string
-            example: test
-          type:
-            type: number
-            example: 1
+            example: 7
           uid:
             type: number
-            example: 6922
+            example: 102148
     NasTypesList:
       type: array
       items:
@@ -7098,57 +8691,6 @@ components:
         zip:
           type: string
           example: ""
-    UreportsUserRequest:
-      type: object
-      properties:
-        tpId:
-          type: number
-          example: 1
-        type:
-          type: string
-          example: '10, 2'
-        status:
-          type: number
-          example: 0
-        destination1:
-          type: number
-          example: 1
-        destination2:
-          type: number
-          example: 1
-        destinationX:
-          type: number
-          example: 1
-        reports:
-          type: object
-          properties:
-            value1:
-              type: number
-              example: 1
-            value2:
-              type: number
-              example: 1
-            valueX:
-              type: number
-              example: 1
-    UreportsAddUserResponse:
-      type: object
-      properties:
-        userAddResult:
-          type: string
-          example: OK
-        reportsAddResult:
-          type: string
-          example: OK
-    UreportsChangeUserResponse:
-      type: object
-      properties:
-        userChangeResult:
-          type: string
-          example: OK
-        reportsAddResult:
-          type: string
-          example: OK
     NasGroupAddResponse200:
       type: object
       properties:
@@ -8600,6 +10142,637 @@ components:
           type: string
           example: OK
         return:
+          type: number
+          example: 0
+    InternetTariffs:
+      type: object
+      properties:
+        abonDistribution:
+          type: number
+          example: 1
+        activatePrice:
+          type: number
+          example: 10
+        activeDayFee:
+          type: number
+          example: 0
+        activeMonthFee:
+          type: number
+          example: 200
+        age:
+          type: number
+          example: 0
+        changePrice:
+          type: number
+          example: 0
+        comments:
+          type: string
+          example: "Test tp"
+        credit:
+          type: number
+          example: 0
+        creditTresshold:
+          type: number
+          example: 0
+        dayFee:
+          type: number
+          example: 0
+        dayTimeLimit:
+          type: number
+          example: 0
+        dayTrafLimit:
+          type: number
+          example: 0
+        describeAid:
+          type: string
+          example: ""
+        domainId:
+          type: number
+          example: 0
+        extBillAccount:
+          type: number
+          example: 1
+        extBillFeesMethod:
+          type: number
+          example: 1
+        feesMethod:
+          type: number
+          example: 1
+        filterId:
+          type: string
+          example: ""
+        fine:
+          type: number
+          example: 0
+        fixedFeesDay:
+          type: number
+          example: 0
+        id:
+          type: number
+          example: 3
+        inPrice:
+          type: number
+          example: 10
+        inSpeed:
+          type: number
+          example: 200
+        intervals:
+          type: number
+          example: 1
+        ippool:
+          type: number
+          example: 0
+        logins:
+          type: number
+          example: 0
+        maxSessionDuration:
+          type: number
+          example: 0
+        minSessionCost:
+          type: number
+          example: 0
+        minUse:
+          type: number
+          example: 0
+        module:
+          type: string
+          example: Internet
+        monthFee:
+          type: number
+          example: 230
+        monthTimeLimit:
+          type: number
+          example: 0
+        monthTrafLimit:
+          type: number
+          example: 0
+        name:
+          type: string
+          example: stopped
+        negDepositFilterId:
+          type: string
+          example: ""
+        negDepositIppool:
+          type: number
+          example: 0
+        nextTpId:
+          type: number
+          example: 0
+        octetsDirection:
+          type: number
+          example: 0
+        outPrice:
+          type: number
+          example: 1
+        outSpeed:
+          type: number
+          example: 100
+        paymentType:
+          type: number
+          example: 0
+        periodAlignment:
+          type: number
+          example: 0
+        postpaidDailyFee:
+          type: number
+          example: 0
+        postpaidMonthlyFee:
+          type: number
+          example: 0
+        prepaid:
+          type: number
+          example: 0
+        priority:
+          type: number
+          example: 0
+        promotional:
+          type: number
+          example: 0
+        radPairs:
+          type: string
+          example: "PPPD-Downstream-Speed-Limit-1=102400, \nPPPD-Ipstream-Speed-Limit-1=102400, \nPPPD-Downstream-Speed-Limit-2=102400, \nPPPD-Ipstream-Speed-Limit-2=102400, \nSession-Timeout=0, \n"
+        reductionFee:
+          type: number
+          example: 1
+        serviceId:
+          type: number
+          example: 0
+        serviceName:
+          type: number
+          example: 0
+        smallDepositAction:
+          type: number
+          example: -1
+        status:
+          type: number
+          example: 0
+        timeTarifs:
+          type: number
+          example: 0
+        totalTimeLimit:
+          type: number
+          example: 0
+        totalTrafLimit:
+          type: number
+          example: 0
+        tpGid:
+          type: number
+          example: 1
+        tpGroupName:
+          type: string
+          example: "Test group"
+        tpId:
+          type: number
+          example: 175
+        trafTarifs:
+          type: number
+          example: 0
+        trafficTransferPeriod:
+          type: number
+          example: 0
+        uplimit:
+          type: number
+          example: 1
+        userCreditLimit:
+          type: number
+          example: 0
+        weekTimeLimit:
+          type: number
+          example: 0
+        weekTrafLimit:
+          type: number
+          example: 0
+    InternetTariffAddRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Example tariff
+        id:
+          type: number
+          example: 15
+        periodAlignment:
+          type: number
+          example: 1
+        abonDistribution:
+          type: number
+          example: 1
+        fixedFeesDay:
+          type: number
+          example: 1
+        postpaidMonthFee:
+          type: number
+          example: 1
+        activeDayFee:
+          type: number
+          example: 1
+        postpaidDayFee:
+          type: number
+          example: 1
+        status:
+          type: number
+          example: 0
+        reductionFee:
+          type: number
+          example: 1
+        totalTimeLimit:
+          type: number
+          example: 1
+        negDepositFilterId:
+          type: string
+          example: ""
+        age:
+          type: number
+          example: 1
+        monthFee:
+          type: number
+          example: 1
+        creditTresshold:
+          type: number
+          example: 1
+        nextTpId:
+          type: number
+          example: 1
+        smallDepositAction:
+          type: number
+          example: 1
+        describeAid:
+          type: string
+          example: Test text
+        paymentType:
+          type: number
+          example: 1
+        trafficTransferPeriod:
+          type: number
+          example: 1
+        dayFee:
+          type: number
+          example: 1
+        uplimit:
+          type: number
+          example: 1
+        activatePrice:
+          type: number
+          example: 1
+        userCreditLimit:
+          type: number
+          example: 1
+        priority:
+          type: number
+          example: 1
+        tpGid:
+          type: number
+          example: 1
+        ippool:
+          type: number
+          example: 1
+        octetsDirection:
+          type: number
+          example: 1
+        minSessionCost:
+          type: number
+          example: 1
+        comments:
+          type: string
+          example:
+        dayTimeLimit:
+          type: number
+          example: 1
+        weekTrafLimit:
+          type: number
+          example: 1
+        changePrice:
+          type: number
+          example: 1
+        totalTrafLimit:
+          type: number
+          example: 1
+        maxSessionDuration:
+          type: number
+          example: 1
+        monthTrafLimit:
+          type: number
+          example: 1
+        credit:
+          type: number
+          example: 1
+        dayTrafLimit:
+          type: number
+          example: 1
+        radPairs:
+          type: array
+          items:
+            type: object
+            properties:
+              left:
+                type: string
+                example: PPPD-Downstream-Speed-Limit-1
+              condition:
+                type: string
+                example: =
+              right:
+                type: string
+                example: 102400
+              ignore:
+                type: boolean
+        logins:
+          type: number
+          example: 1
+        filterId:
+          type: string
+          example: ""
+        weekTimeLimit:
+          type: number
+          example: 1
+        fine:
+          type: number
+          example: 1
+        negDepositIppool:
+          type: number
+          example: 1
+        minUse:
+          type: number
+          example: 1
+        monthTimeLimit:
+          type: number
+          example: 1
+        createFeesType:
+          type: number
+          example: 1
+        domainId:
+          type: number
+          example: 0
+    InternetTariffAddResponse200:
+      type: object
+      properties:
+        affected:
+          type: number
+          example: 1
+        insertId:
+          type: number
+          example: 113
+        total:
+          type: number
+          example: 0
+        tpId:
+          type: number
+          example: 113
+        tpNum:
+          type: number
+          example: 1000
+    InternetHangup400:
+      type: object
+      properties:
+        errno:
+          type: number
+          example: 9
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              errno:
+                type: number
+                example: 21
+              errstr:
+                type: string
+                example: nasId is not valid
+              param:
+                type: string
+                example: nasId
+              type:
+                type: string
+                example: unsigned_integer
+        errstr:
+          type: string
+          example: Validation failed
+    InternetTariffAddResponse400:
+      type: object
+      properties:
+        errno:
+          type: number
+          example: 9
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              errno:
+                type: number
+                example: 20
+              errstr:
+                type: string
+                example: id is required
+              param:
+                type: string
+                example: id
+              required:
+                type: boolean
+        errstr:
+          type: string
+          example: Validation failed
+    InternetTariffChange200:
+      type: object
+      properties:
+        abonDistribution:
+          type: number
+          example: 0
+        activatePrice:
+          type: number
+          example: 0
+        activeDayFee:
+          type: number
+          example: 0
+        activeMonthFee:
+          type: number
+          example: 0
+        activPrice:
+          type: number
+          example: 0
+        affected:
+          type: number
+          example: 0
+        age:
+          type: number
+          example: 0
+        alert:
+          type: number
+          example: 0
+        billsPriority:
+          type: number
+          example: 0
+        changePrice:
+          type: number
+          example: 0
+        comments:
+          type: string
+          example: ""
+        credit:
+          type: number
+          example: 0
+        creditTresshold:
+          type: number
+          example: 0
+        dayFee:
+          type: number
+          example: 0
+        dayTimeLimit:
+          type: number
+          example: 0
+        dayTrafLimit:
+          type: number
+          example: 0
+        describeAid:
+          type: string
+          example: ""
+        disable:
+          type: string
+          example: ""
+        domainId:
+          type: number
+          example: 0
+        extBillAccount:
+          type: number
+          example: 0
+        extBillFeesMethod:
+          type: number
+          example: 0
+        feesMethod:
+          type: number
+          example: 1
+        filterId:
+          type: string
+          example: ""
+        fine:
+          type: number
+          example: 0
+        fixedFeesDay:
+          type: number
+          example: 1
+        gid:
+          type: number
+          example: 0
+        id:
+          type: number
+          example: 1000
+        ippool:
+          type: number
+          example: 0
+        logins:
+          type: number
+          example: 0
+        maxSessionDuration:
+          type: number
+          example: 0
+        minSessionCost:
+          type: number
+          example: 0
+        minUse:
+          type: number
+          example: 0
+        module:
+          type: string
+          example: Internet
+        monthFee:
+          type: number
+          example: 0
+        monthTimeLimit:
+          type: number
+          example: 0
+        monthTrafLimit:
+          type: number
+          example: 0
+        name:
+          type: string
+          example: Test tariff
+        negDepositFilterId:
+          type: string
+          example: ""
+        negDepositIppool:
+          type: number
+          example: 0
+        nextTarifPlan:
+          type: number
+          example: 0
+        nextTpId:
+          type: number
+          example: 0
+        octetsDirection:
+          type: number
+          example: 0
+        paymentType:
+          type: number
+          example: 0
+        periodAlignment:
+          type: number
+          example: 0
+        postpaidDailyFee:
+          type: number
+          example: 0
+        postpaidDayFee:
+          type: number
+          example: 0
+        postpaidMonthlyFee:
+          type: number
+          example: 0
+        postpaidMonthFee:
+          type: number
+          example: 0
+        prepaidTrafic:
+          type: number
+          example: 0
+        priority:
+          type: number
+          example: 0
+        promotional:
+          type: number
+          example: 0
+        radPairs:
+          type: string
+          example: few=12
+        reductionFee:
+          type: number
+          example: 0
+        serviceId:
+          type: number
+          example: 0
+        simultaneously:
+          type: number
+          example: 0
+        smallDepositAction:
+          type: number
+          example: 0
+        status:
+          type: number
+          example: 0
+        total:
+          type: number
+          example: 1
+        totalTimeLimit:
+          type: number
+          example: 0
+        totalTrafLimit:
+          type: number
+          example: 0
+        tpGid:
+          type: number
+          example: 0
+        tpId:
+          type: number
+          example: 113
+        trafficTransferPeriod:
+          type: number
+          example: 0
+        uplimit:
+          type: number
+          example: 0
+        userCreditLimit:
+          type: number
+          example: 0
+        weekTimeLimit:
+          type: number
+          example: 0
+        weekTrafLimit:
           type: number
           example: 0
   securitySchemes:

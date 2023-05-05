@@ -150,7 +150,7 @@ sub msgs_user_watch {
   });
   _error_show($Msgs);
 
-  my $badge = $html->element('small', scalar @{$watched_links}, { class => 'label badge badge-success' });
+  my $badge = $html->element('small', $Msgs->{TOTAL} || 0, { class => 'label badge badge-success' });
 
   return msgs_sp_table($watched_messages_list, {
     BADGE           => $badge,
@@ -469,7 +469,7 @@ sub msgs_dynamics_of_messages_and_replies {
   my $data_by_days = {};
   foreach my $data (@{$messages_and_replies}) {
     if ($data_by_days->{$data->{day}}) {
-      $data_by_days->{$data->{day}}{MESSAGE} += $data->{messages} || 0;
+      $data_by_days->{$data->{day}}{MESSAGES} += $data->{messages} || 0;
       $data_by_days->{$data->{day}}{REPLIES} += $data->{replies} || 0;
       next;
     }

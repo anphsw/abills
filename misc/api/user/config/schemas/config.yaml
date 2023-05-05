@@ -136,6 +136,19 @@ properties:
       youtube:
         type: string
         example: https://www.youtube.com/c/abillsnetua
+  reviewPages:
+    type: object
+    description: соответствует параметру config.pl REVIEW_PAGES
+    properties:
+      2ipUa:
+        type: string
+        example: https://2ip.ua/ua/services/providers-rating
+      2ipIo:
+        type: string
+        example: https://2ip.io/ua/isp-rating/
+      googleMaps:
+        type: string
+        example: https://goo.gl/maps/yn7nSx1RdCxGePXV7
   system:
     type: object
     properties:

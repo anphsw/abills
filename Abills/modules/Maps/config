@@ -21,3 +21,5 @@
 if (defined $user->{UID} && $conf{MAPS_PORTAL_UIDS} && in_array($user->{UID}, [ split(',', $conf{MAPS_PORTAL_UIDS}) ])) {
   %USER_FUNCTION_LIST = ("01:0:$lang{MAP}:maps_user" => 0);
 }
+
+1;

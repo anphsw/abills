@@ -88,6 +88,14 @@ sub preprocess {
       return $self;
     }
     else {
+      if (ref $q_params ne 'HASH') {
+        $self->{result} = {
+          errno  => 6,
+          errstr => 'Wrong request type. Please check of request type body.',
+        };
+        $self->{status} = 400;
+        return $self;
+      }
       $self->{query_params} = escape_for_sql($q_params);
     }
   }
@@ -144,6 +152,7 @@ sub transform {
   my ($transformer) = @_;
 
   $self->{result} = $transformer->($self->{result});
+  return 1;
 }
 
 #***********************************************************
@@ -156,6 +165,7 @@ sub add_credential {
   my ($credential_name, $credential_handler) = @_;
 
   $self->{credentials}->{$credential_name} = $credential_handler;
+  return 1;
 }
 
 #***********************************************************
@@ -403,11 +413,15 @@ sub parse_request {
 
     for my $query_key (keys %{$query_params}) {
       my $key = $route->{no_decamelize_params} ? $query_key : Abills::Base::decamelize($query_key);
+      if (ref $query_params->{$query_key} ne '') {
+        $query_params->{$query_key} = process_request_body($query_params->{$query_key}, { no_decamelize_params => $route->{no_decamelize_params} || '' });
 
-      if ($key eq 'SORT') {
-        $query_params->{$query_key} = Abills::Base::decamelize($query_params->{$query_key});
       }
-
+      else {
+        if ($key eq 'SORT') {
+          $query_params->{$query_key} = Abills::Base::decamelize($query_params->{$query_key});
+        }
+      }
       $query_params{$key} = $query_params->{$query_key};
     }
 
@@ -420,6 +434,36 @@ sub parse_request {
       query_params => \%query_params,
     };
   }
+}
+
+#***********************************************************
+=head2 process_request_body($query_params)
+
+=cut
+#***********************************************************
+sub process_request_body {
+  my ($query_params, $attr) = @_;
+
+  if (ref $query_params eq 'ARRAY') {
+    foreach my $val (@$query_params) {
+      next if (ref $val ne 'HASH');
+      $val = process_request_body($val, $attr);
+    }
+  }
+  elsif (ref $query_params eq 'HASH') {
+    foreach my $query_key (keys %$query_params) {
+      if (ref $query_key eq '') {
+        my $key = $attr->{no_decamelize_params} ? $query_key : Abills::Base::decamelize($query_key);
+        $query_params->{$key} = $query_params->{$query_key};
+        delete $query_params->{$query_key};
+      }
+      else {
+        $query_params->{$query_key} = process_request_body($query_params->{$query_key}, $attr);
+      }
+    }
+  }
+
+  return $query_params;
 }
 
 1;

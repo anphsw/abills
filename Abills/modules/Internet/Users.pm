@@ -122,6 +122,7 @@ sub internet_user {
     $Internet->{TP_ADD} = sel_tp({
       CHECK_GROUP_GEOLOCATION => $user_info->{LOCATION_ID} || 0,
       USER_GID                => $user_info->{GID} || 0,
+      USER_INFO               => $users,
       SELECT                  => 'TP_ID',
       GROUP_SORT              => 1,
       EX_PARAMS               => { SORT_KEY => 1 }
@@ -187,6 +188,8 @@ sub internet_user {
         $html->b($lang{DESCRIBE_FOR_SUBSCRIBER}) . ': ' . ($Internet->{COMMENTS} || '') . $html->br()
           .$html->b($lang{DESCRIBE_FOR_ADMIN})    . ': ' . ($Internet->{DESCRIBE_AID} || '') . $html->br();
     }
+
+    $Internet->{DESCRIBE_AID} = ($Internet->{DESCRIBE_AID}) ? ('['.$Internet->{DESCRIBE_AID}.']') : '';
 
     if ($permissions{0}{10}) {
       $Internet->{CHANGE_TP_BUTTON} = $html->button('',
@@ -2193,7 +2196,7 @@ sub internet_chg_tp {
       COLS_NAME => 1
     });
 
-    my $TP_HASH = sel_tp();
+    my $TP_HASH = sel_tp({ USER_INFO => $users });
 
     foreach my $line (@$list) {
       my $action = $line->{action};
@@ -2217,6 +2220,7 @@ sub internet_chg_tp {
   $Tariffs->{TARIF_PLAN_SEL} = sel_tp({
     CHECK_GROUP_GEOLOCATION => $user_info->{LOCATION_ID} || 0,
     USER_GID                => $user_info->{GID} || 0,
+    USER_INFO               => $users,
     SELECT                  => 'TP_ID',
     SHOW_ALL                => 1,
     TP_ID                   => $Internet->{TP_ID},
@@ -2532,7 +2536,7 @@ sub internet_user_wizard {
 
   my $internet_defaults = $Internet->defaults();
   $internet_defaults->{STATUS_SEL} = sel_status({ STATUS => $FORM{STATUS} });
-  $internet_defaults->{TP_ADD} = sel_tp({ SELECT => 'TP_ID' });
+  $internet_defaults->{TP_ADD} = sel_tp({ SELECT => 'TP_ID', USER_INFO => $users });
   $internet_defaults->{TP_DISPLAY_NONE} = "style='display:none'";
 
   my $password_form;

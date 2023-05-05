@@ -217,8 +217,8 @@ sub validate_token {
 
   if ($validation_result->{error} || $validation_result->{errno}) {
     if ($validation_result->{error}) {
-      $self->{errno}  = $validation_result->{error}->{code};
-      $self->{errstr} = $validation_result->{error}->{message};
+      $self->{errno}  = $validation_result->{error};
+      $self->{errstr} = $validation_result->{error_description};
     }
     else {
       $self->{errno}  = $self->{errno};

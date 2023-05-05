@@ -99,8 +99,8 @@ set -e
 PROG="shaper_start"
 DESCR="shaper_start"
 
-#DATE: 20200930
-VERSION=2.03
+#DATE: 20230420
+VERSION=2.04
 
 if [ -f /etc/rc.conf ]; then
 . /etc/rc.conf
@@ -216,7 +216,7 @@ EXTERNAL_INTERFACE=`/sbin/ip r | awk '/default/{print $5}'`
 all_rulles(){
   ACTION=$1
 
-if [ x${abills_ipn_if} != x ]; then
+if [ "${abills_ipn_if}" != "" ]; then
   IPN_INTERFACES="";
   ifaces=`echo ${abills_ipn_if} | sed 'N;s/\n/ /' |sed 's/,/ /g'`
 
@@ -271,7 +271,7 @@ irq2smp
 #**********************************************************
 abills_iptables() {
 
-if [ x${abills_firewall} = x ]; then
+if [ "${abills_firewall}" = "" ]; then
   return 0;
 fi;
 
@@ -341,13 +341,6 @@ if [ x"${ACTION}" = xstart ]; then
     ${IPSET} -N allowip iphash
   fi;
 
-  #For neg filter redirect
-  neg_deposit=`${IPSET} -L |grep neg_deposit|sed 's/ //'|awk -F: '{ print $2 }'`
-  if [ x"${neg_deposit}" = x ]; then
-    echo "ADD denyip"
-    ${IPSET} -N neg_deposit iphash
-  fi;
-
   ${IPT} -A FORWARD -m set --match-set allownet src -j ACCEPT
   ${IPT} -A FORWARD -m set --match-set allownet dst -j ACCEPT
   ${IPT} -t nat -A PREROUTING -m set --match-set allownet src -j ACCEPT
@@ -380,17 +373,16 @@ if [ x"${ACTION}" = xstart ]; then
       for IP in ${ABILLS_ALLOW_IP} ; do
         ${IPT} -I FORWARD  -d ${IP} -j ACCEPT;
         ${IPT} -I FORWARD  -s ${IP} -j ACCEPT;
-        if [ x"${abills_nat}" != x ]; then
+        if [ "${abills_nat}" != "" ]; then
           ${IPT} -t nat -I PREROUTING -s ${IP} -j ACCEPT;
           ${IPT} -t nat -I PREROUTING -d ${IP} -j ACCEPT;
           ${IPT} -t nat -I POSTROUTING -s ${IP} -j ACCEPT;
           ${IPT} -t nat -I POSTROUTING -d ${IP} -j ACCEPT;
         fi;
       done;
-else
- echo "UNKNOWN ABillS IPN ALLOW IP"
-fi;
-
+  else
+    echo "UNKNOWN ABillS IPN ALLOW IP"
+  fi;
 
 elif [ "${ACTION}" = stop ]; then
   # Разрешаем всё и всем
@@ -765,8 +757,15 @@ abills_nat() {
 #**********************************************************
 neg_deposit() {
   
-  if [ "${abills_neg_deposit}" = "" ]; then
+  if [ "${abills_neg_deposit}" = ""  -o "${abills_neg_deposit}" = "NO" ]; then
     return 0;
+  fi;
+
+  #For neg filter redirect
+  neg_deposit=`${IPSET} -L |grep neg_deposit|sed 's/ //'|awk -F: '{ print $2 }'`
+  if [ "${neg_deposit}" = "" ]; then
+    echo "ADD denyip"
+    ${IPSET} -N neg_deposit iphash
   fi;
 
   echo "NEG_DEPOSIT"
@@ -775,12 +774,13 @@ neg_deposit() {
     USER_NET="0.0.0.0/0"
   else
     # Portal IP
-    PORTAL_IP=`echo ${abills_neg_deposit} | awk -F: '{ print $1 }'`;
+    USER_PORTAL_IP=`echo ${abills_neg_deposit} | awk -F: '{ print $1 }'`;
     # Fake net
     USER_NET=`echo ${abills_neg_deposit} | awk -F: '{ print $2 }' | sed 's/,/ /g'`;
     # Users IF
     USER_IF=`echo ${abills_neg_deposit} | awk -F: '{ print $3 }'`;
-    echo  "$PORTAL_IP $USER_NET $USER_IF"
+
+    echo  "PORTAL: ${USER_PORTAL_IP} USER_NET: ${USER_NET} USER_IF: ${USER_IF}"
   fi;
 
   if [ "${USER_IF}" != "" ]; then
@@ -789,13 +789,13 @@ neg_deposit() {
 
   for IP in ${USER_NET}; do
     #iptables -t nat -D PREROUTING -s 10.100.0.0/16 -p tcp -m tcp --dport 80 -j DNAT --to-destination 10.100.1.1:80
-    #${IPT} -t nat -A PREROUTING -s ${IP} -p tcp --dport 80 -j REDIRECT --to-ports 80 ${USER_IF} --to-destination ${PORTAL_IP}:80
-    ${IPT} -t nat -A PREROUTING -s ${USER_NET} -p tcp --dport 80 -j DNAT ${USER_IF} --to-destination ${PORTAL_IP}:80
+    #${IPT} -t nat -A PREROUTING -s ${IP} -p tcp --dport 80 -j REDIRECT --to-ports 80 ${USER_IF} --to-destination ${USER_PORTAL_IP}:80
+    ${IPT} -t nat -A PREROUTING -s ${USER_NET} -p tcp --dport 80 -j DNAT ${USER_IF} --to-destination ${USER_PORTAL_IP}:80
   done;
 
   #Ipset redirect
-  ${IPT} -t nat -A PREROUTING -m set --match-set neg_deposit src -p tcp --dport 80 -j DNAT --to-destination ${PORTAL_IP}:80
-  ${IPT} -A FORWARD -m set --match-set neg_deposit src -d ${PORTAL_IP} -j ACCEPT
+  ${IPT} -t nat -A PREROUTING -m set --match-set neg_deposit src -p tcp --dport 80 -j DNAT --to-destination ${USER_PORTAL_IP}:80
+  echo "${IPT} -v -A FORWARD -m set --match-set neg_deposit src -d ${USER_PORTAL_IP} -j ACCEPT"
   ${IPT} -A FORWARD -m set --match-set neg_deposit src -j DROP
 
 }

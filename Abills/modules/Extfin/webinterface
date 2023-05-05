@@ -925,6 +925,7 @@ sub extfin_report_paids {
     $METHODS_HASH{"$id:$id"} = $PAYMENT_METHODS->{$id};
   }
 
+  require Control::Reports;
   reports(
     {
       DATE        => $FORM{DATE},
@@ -1179,6 +1180,7 @@ sub extfin_sum {
     $METHODS_HASH{"$id:$id"} = $PAYMENT_METHODS->{$id};
   }
 
+  require Control::Reports;
   reports(
     {
       DATE        => $FORM{DATE},
@@ -1506,6 +1508,7 @@ sub extfin_payments_fees {
     return 0;
   }
 
+  require Control::Reports;
   reports({
       DATE        => $FORM{DATE},
       REPORT      => '',

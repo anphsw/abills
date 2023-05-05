@@ -5,6 +5,8 @@ use warnings FATAL => 'all';
 use Ureports;
 
 my Ureports $Ureports;
+require Abills::Sender::Core;
+my %send_methods = %Abills::Sender::Core::PLUGIN_NAME_FOR_TYPE_ID;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -106,28 +108,82 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        my @allowed_params = (
-          'TP_ID',
-          'TP_NAME',
-          'DESTINATION',
-          'TYPE',
-          'STATUS',
-          'UID',
-          'REPORTS_COUNT',
-        );
-
-        my %PARAMS = (
-          PAGE_ROWS => (defined($query_params->{PAGE_ROWS}) ? $query_params->{PAGE_ROWS} : 100000),
-        );
-        foreach my $param (@allowed_params) {
-          next if (!defined($query_params->{$param}));
-          $PARAMS{$param} = $query_params->{$param} || '_SHOW';
+        foreach my $param (keys %{$query_params}) {
+          $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
         }
 
-        $Ureports->user_list({
-          %PARAMS,
-          COLS_NAME => 1,
+        my $users = $Ureports->user_list({
+          %$query_params,
+          DESTINATION => '_SHOW',
+          TYPE        => '_SHOW',
+          COLS_NAME   => 1,
         });
+
+        if ($users && scalar @{$users}) {
+          foreach my $user (@{$users}) {
+            my @types = split(',', ($user->{type} || ''));
+            my @destination = split(',', ($user->{destination} || ''));
+            delete $user->{type};
+            $user->{destinations} = [];
+            delete @{$user}{qw/destination type/};
+            if (scalar @types) {
+              for (my $i = 0; $i <= $#types; $i++) {
+                push @{$user->{destinations}}, {
+                  type        => $types[$i],
+                  name        => $send_methods{$types[$i]},
+                  destination => $destination[$i],
+                };
+              }
+            }
+          }
+        }
+
+        return $users;
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/ureports/user/:uid/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        foreach my $param (keys %{$query_params}) {
+          $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+        }
+
+        my $user = $Ureports->user_list({
+          UID            => $path_params->{uid},
+          TP_ID          => '_SHOW',
+          TP_NAME        => '_SHOW',
+          DESTINATION    => '_SHOW',
+          DESTINATION_ID => '_SHOW',
+          TYPE           => '_SHOW',
+          STATUS         => '_SHOW',
+          REPORTS_COUNT  => '_SHOW',
+          COLS_NAME      => 1,
+        });
+
+        if ($user && scalar @{$user}) {
+          $user = $user->[0];
+          my @types = split(',', ($user->{type} || ''));
+          my @destination = split(',', ($user->{destination} || ''));
+          $user->{destinations} = [];
+          delete @{$user}{qw/destination type/};
+          if (scalar @types) {
+            for (my $i = 0; $i <= $#types; $i++) {
+              push @{$user->{destinations}}, {
+                type        => $types[$i],
+                name        => $send_methods{$types[$i]},
+                destination => $destination[$i],
+              };
+            }
+          }
+        }
+
+        return $user;
       },
       credentials => [
         'ADMIN'
@@ -140,51 +196,74 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         return {
-          errno  => 10202,
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{4};
+
+        return {
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{10};
+
+        return {
+          errno  => 103001,
           errstr => 'No field tpId'
         } if !$query_params->{TP_ID};
 
         return {
-          errno  => 10203,
-          errstr => 'No field type'
-        } if !defined $query_params->{TYPE};
+          errno  => 103002,
+          errstr => 'No field destinations'
+        } if !defined $query_params->{DESTINATIONS};
+
+        return {
+          errno  => 103015,
+          errstr => 'Destinations must be array'
+        } if ref $query_params->{DESTINATIONS} ne 'ARRAY';
 
         my $list = $Ureports->user_list({
           UID       => $path_params->{uid},
           COLS_NAME => 1,
         });
 
-        if ($list && scalar(@{$list})) {
+        if ($list && scalar @{$list}) {
           return {
-            errno  => 10207,
+            errno  => 103003,
             errstr => 'User info exists'
           };
         }
 
-        my %params = (
-          UID    => $path_params->{uid},
-          TP_ID  => $query_params->{TP_ID},
-          TYPE   => $query_params->{TYPE},
-          STATUS => $query_params->{STATUS} ? $query_params->{STATUS} : 0,
+        my %destinations = (
+          TYPE => '',
         );
 
-        my $user_add = $Ureports->user_add({
-          UID => $path_params->{uid},
-          %{$query_params || {}}
-        });
-
-        my $reports = $query_params->{REPORTS};
-
-        foreach my $report (keys %{$reports}) {
-          $params{'VALUE_' . ($report || '')} = $reports->{$report};
+        foreach my $destination (@{$query_params->{DESTINATIONS}}) {
+          next if (ref $destination ne 'HASH');
+          next if (!$destination->{ID});
+          $destinations{TYPE} .= "$destination->{ID},";
+          $destinations{'DESTINATION_' . $destination->{ID}} = $destination->{VALUE} || 0;
         }
 
-        my $user_reports_add = $Ureports->tp_user_reports_change(\%params);
+        $Ureports->user_add({
+          %{$query_params || {}},
+          %destinations,
+          UID => $path_params->{uid},
+        });
 
-        return {
-          user_add_result    => $user_add->{result},
-          reports_add_result => $user_reports_add->{result}
-        };
+        $Ureports->user_info($path_params->{uid});
+
+        my %destinations_ = $Ureports->{DESTINATIONS} ? split /[|,]/, $Ureports->{DESTINATIONS} : ();
+        my $destinations;
+
+        foreach my $dest (keys %destinations_) {
+          push @{$destinations}, {
+            id    => $dest,
+            value => $destinations_{$dest},
+          };
+        }
+
+        $Ureports->{DESTINATIONS} = $destinations;
+        delete @{$Ureports}{qw/list AFFECTED TOTAL TP_INFO TYPES/};
+        return $Ureports;
       },
       credentials => [
         'ADMIN'
@@ -197,39 +276,57 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         return {
-          errno  => 10205,
-          errstr => 'No field tpId'
-        } if !$query_params->{TP_ID};
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{4};
 
         return {
-          errno  => 10206,
-          errstr => 'No field type'
-        } if !defined $query_params->{TYPE};
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{10};
 
-        my %params = (
-          UID    => $path_params->{uid},
-          TP_ID  => $query_params->{TP_ID},
-          TYPE   => $query_params->{TYPE},
-          STATUS => $query_params->{STATUS} ? $query_params->{STATUS} : 0,
-        );
+        return {
+          errno  => 103016,
+          errstr => 'Destinations must be array'
+        } if $query_params->{DESTINATIONS} && ref $query_params->{DESTINATIONS} ne 'ARRAY';
 
-        my $user_add = $Ureports->user_change({
-          UID => $path_params->{uid},
-          %{$query_params || {}}
-        });
+        my %destinations = ();
 
-        my $reports = $query_params->{REPORTS};
+        if ($query_params->{DESTINATIONS}) {
+          $destinations{TYPE} = '';
 
-        foreach my $report (keys %{$reports}) {
-          $params{'VALUE_' . ($report || '')} = $reports->{$report};
+          foreach my $destination (@{$query_params->{DESTINATIONS}}) {
+            next if (ref $destination ne 'HASH');
+            next if (!$destination->{ID});
+            $destinations{TYPE} .= "$destination->{ID},";
+            $destinations{'DESTINATION_' . $destination->{ID}} = $destination->{VALUE} || 0;
+          }
+        }
+        else {
+          $query_params->{SKIP_ADD_SEND_TYPES} = 1;
         }
 
-        my $user_reports_add = $Ureports->tp_user_reports_change(\%params);
+        $Ureports->user_change({
+          %{$query_params || {}},
+          %destinations,
+          UID => $path_params->{uid},
+        });
 
-        return {
-          user_change_result => $user_add->{result},
-          reports_add_result => $user_reports_add->{result}
-        };
+        $Ureports->user_info($path_params->{uid});
+
+        my %destinations_ = $Ureports->{DESTINATIONS} ? split /[|,]/, $Ureports->{DESTINATIONS} : ();
+        my $destinations;
+
+        foreach my $dest (keys %destinations_) {
+          push @{$destinations}, {
+            id    => $dest,
+            value => $destinations_{$dest},
+          };
+        }
+
+        $Ureports->{DESTINATIONS} = $destinations;
+        delete @{$Ureports}{qw/list AFFECTED TOTAL TYPES/};
+        return $Ureports;
       },
       credentials => [
         'ADMIN'
@@ -241,7 +338,251 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        return {
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{4};
+
+        return {
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{10};
+
+        $Ureports->{UID} = $path_params->{uid};
         $Ureports->user_del({ UID => $path_params->{uid} });
+
+        if (!$Ureports->{errno}) {
+          if ($Ureports->{AFFECTED} && $Ureports->{AFFECTED} =~ /^[0-9]$/) {
+            return {
+              result => 'Successfully deleted',
+            };
+          }
+          else {
+            return {
+              errno  => 103006,
+              errstr => "No user with uid $path_params->{uid}",
+            };
+          }
+        }
+
+        return $Ureports;
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/ureports/user/:uid/reports/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        my $active_reports = $Ureports->tp_user_reports_list({
+          UID       => $path_params->{uid},
+          REPORT_ID => '_SHOW',
+          COLS_NAME => 1
+        });
+
+        if ($active_reports && !scalar @{$active_reports}) {
+          return {
+            errno  => 103007,
+            errstr => 'No user with report service'
+          };
+        }
+
+        my %report_names = (
+          '1'  => 'Deposit below',
+          '2'  => 'Deposit + Credit Below',
+          '3'  => 'Prepaid Traffic Below',
+          '4'  => 'Day: Traffic more then',
+          '5'  => 'Month: Deposit + Credit + Traffic',
+          '6'  => 'Day: Deposit + Credit + Traffic',
+          '7'  => 'Credit Expired',
+          '8'  => 'Login Disable ',
+          '9'  => 'Internet: Days To Expire',
+          '10' => 'Too small deposit for next month',
+          '11' => 'Too small deposit for next month v2',
+          '12' => 'Payments information',
+          '13' => 'All Service expired through XX days',
+          '14' => 'Send deposit before user payment',
+          '15' => 'Internet Service disabled',
+          '16' => 'Next period tariff plan',
+          '17' => 'Happy Birthday',
+        );
+
+        my %user_reports = (
+          active_reports    => [],
+          available_reports => [],
+        );
+
+        foreach my $report (@{$active_reports}) {
+          $report->{report_name} = $report_names{$report->{report_id}} || '';
+
+          $report->{uid} ? push @{$user_reports{active_reports}}, $report
+            : push @{$user_reports{available_reports}}, $report;
+        }
+
+        return \%user_reports;
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/ureports/user/:uid/reports/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        return {
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{4};
+
+        return {
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{10};
+
+        return {
+          errno  => 103010,
+          errstr => 'No field reports'
+        } if !$query_params->{REPORTS};
+
+        return {
+          errno  => 103012,
+          errstr => 'Field reports not array'
+        } if ref $query_params->{REPORTS} ne 'ARRAY';
+
+        my $active_reports = $Ureports->tp_user_reports_list({
+          UID       => $path_params->{uid},
+          REPORT_ID => '_SHOW',
+          TP_ID     => '_SHOW',
+          COLS_NAME => 1
+        });
+
+        if ($active_reports && !scalar @{$active_reports}) {
+          return {
+            errno  => 103007,
+            errstr => 'No user with report service'
+          };
+        }
+
+        #TODO: maybe Do not delete existing reports and add logic to operate old reports?
+
+        my %report_params = (
+          IDS => '',
+        );
+
+        foreach my $report (@{$query_params->{REPORTS}}) {
+          next if (ref $report ne 'HASH');
+          next if (!$report->{ID});
+          $report_params{IDS} .= "$report->{ID},";
+          $report_params{'VALUE_' . $report->{ID}} = $report->{VALUE} || 0;
+        }
+
+        $Ureports->tp_user_reports_change({
+          %report_params,
+          UID   => $path_params->{uid},
+          TP_ID => $active_reports->[0]->{tp_id},
+        });
+
+        if (!$Ureports->{errno}) {
+          if ($Ureports->{TOTAL} && $Ureports->{TOTAL} =~ /^[0-9]$/) {
+            return {
+              result => 'Successfully added reports',
+            };
+          }
+          else {
+            return {
+              warn => 'No reports added',
+              code => 103013
+            };
+          }
+        }
+
+        return $Ureports;
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/ureports/user/:uid/reports/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        return {
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{4};
+
+        return {
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{10};
+
+        $Ureports->tp_user_reports_del({
+          UID => $path_params->{uid} || '--'
+        });
+
+        if (!$Ureports->{errno}) {
+          if ($Ureports->{AFFECTED} && $Ureports->{AFFECTED} =~ /^[0-9]$/) {
+            return {
+              result => 'Successfully deleted',
+            };
+          }
+          else {
+            return {
+              errno  => 103008,
+              errstr => "User with uid $path_params->{uid} has no reports",
+            };
+          }
+        }
+
+        return $Ureports;
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/ureports/user/:uid/reports/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        return {
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{4};
+
+        return {
+          errno  => 10,
+          errstr => 'Access denied'
+        } if !$self->{admin}->{permissions}{0}{10};
+
+        $Ureports->tp_user_reports_del({
+          UID       => $path_params->{uid} || '--',
+          REPORT_ID => $path_params->{id} || '--'
+        });
+
+        if (!$Ureports->{errno}) {
+          if ($Ureports->{AFFECTED} && $Ureports->{AFFECTED} =~ /^[0-9]$/) {
+            return {
+              result => 'Successfully deleted',
+            };
+          }
+          else {
+            return {
+              errno  => 103008,
+              errstr => "User with uid $path_params->{uid} has no report with id $path_params->{id}",
+            };
+          }
+        }
+
+        return $Ureports;
       },
       credentials => [
         'ADMIN'

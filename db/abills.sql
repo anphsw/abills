@@ -135,6 +135,8 @@ CREATE TABLE IF NOT EXISTS `admins` (
   `department`       SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
   `g2fa`             VARCHAR (255)        NOT NULL DEFAULT '',
   `avatar_link`      VARCHAR (100)        NOT NULL DEFAULT '',
+  `location_id`      INT(11) UNSIGNED     NOT NULL DEFAULT '0',
+  `address_flat`     VARCHAR(10)          NOT NULL DEFAULT '',
   PRIMARY KEY (`aid`),
   UNIQUE KEY `id` (`id`),
   KEY domain_id (`domain_id`)
@@ -259,8 +261,8 @@ CREATE TABLE IF NOT EXISTS `companies` (
   `domain_id`        SMALLINT(6) UNSIGNED  NOT NULL DEFAULT 0,
   `representative`   VARCHAR(120)          NOT NULL DEFAULT '',
   `contract_sufix`   VARCHAR(5)            NOT NULL DEFAULT '',
-  `location_id`      int(11) unsigned      NOT NULL DEFAULT '0',
-  `address_flat`     varchar(10)           NOT NULL DEFAULT '',
+  `location_id`      INT(11) UNSIGNED      NOT NULL DEFAULT '0',
+  `address_flat`     VARCHAR(10)           NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `bill_id` (`bill_id`),
   UNIQUE KEY `name` (`domain_id`, `name`)
@@ -1427,6 +1429,16 @@ CREATE TABLE IF NOT EXISTS `fees_types` (
   DEFAULT CHARSET = utf8
   COMMENT = 'Fees types';
 
+CREATE TABLE IF NOT EXISTS `fees_last` (
+  `uid` int(11) unsigned NOT NULL DEFAULT '0',
+  `fees_id`   int(11) unsigned NOT NULL,
+  `sum`  double(12,4) NOT NULL DEFAULT '0.0000',
+  `date` DATETIME   NOT NULL,
+   PRIMARY KEY (`uid`)
+  )
+  DEFAULT CHARSET = utf8
+    COMMENT = 'Last fees';
+
 
 CREATE TABLE IF NOT EXISTS `s_detail` (
   `acct_session_id` VARCHAR(32)          NOT NULL  DEFAULT '',
@@ -2051,7 +2063,11 @@ REPLACE INTO `admin_permits` (`aid`, `section`, `actions`, `module`) VALUES
   (1, 7, 8, ''),
   (1, 7, 9, ''),
   (1, 8, 0, ''),
-  (1, 8, 1, '');
+  (1, 8, 1, ''),
+  (1, 10, 0, ''),
+  (1, 10, 1, ''),
+  (1, 10, 2, ''),
+  (1, 10, 3, '');
 
 REPLACE INTO `admin_type_permits` (`type`, `section`, `actions`, `module`) VALUES
   ('$lang{ALL} $lang{PERMISSION}', 0, 0, ''),
@@ -2141,6 +2157,10 @@ REPLACE INTO `admin_type_permits` (`type`, `section`, `actions`, `module`) VALUE
   ('$lang{ALL} $lang{PERMISSION}', 7, 9, ''),
   ('$lang{ALL} $lang{PERMISSION}', 8, 0, ''),
   ('$lang{ALL} $lang{PERMISSION}', 8, 1, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 10, 0, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 10, 1, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 10, 2, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 10, 3, ''),
 
   ('$lang{MANAGER}', 0, 0, ''),
   ('$lang{MANAGER}', 0, 1, ''),
@@ -2392,33 +2412,35 @@ CREATE TABLE IF NOT EXISTS `msgs_admin_plugins` (
   DEFAULT CHARSET = utf8
   COMMENT = 'Set admin msgs plugin';
 
-CREATE TABLE IF NOT EXISTS `payments_pool` (
-  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `payment_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+CREATE TABLE IF NOT EXISTS `payments_pool`
+(
+  `id`         INT(11) UNSIGNED    NOT NULL AUTO_INCREMENT,
+  `payment_id` INT(11) UNSIGNED    NOT NULL DEFAULT 0,
   `status`     TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `payment_id` (`payment_id`)
 )
-	DEFAULT CHARSET = utf8
+  DEFAULT CHARSET = utf8
   COMMENT = 'Payments log pool';
 
-CREATE TABLE `users_phone_pin` (
-  `uid` int(11) unsigned NOT NULL,
-  `pin_code` varchar(10) NOT NULL DEFAULT '',
-  `time_code` datetime NOT NULL,
-  `attempts` int(11) unsigned NOT NULL DEFAULT '0',
+CREATE TABLE `users_phone_pin`
+(
+  `uid`       int(11) unsigned NOT NULL,
+  `pin_code`  varchar(10)      NOT NULL DEFAULT '',
+  `time_code` datetime         NOT NULL,
+  `attempts`  int(11) unsigned NOT NULL DEFAULT '0',
   UNIQUE KEY `uid` (`uid`)
 )
-	DEFAULT CHARSET = utf8
-	COMMENT = 'User phone pin';
+  DEFAULT CHARSET = utf8
+  COMMENT = 'User phone pin';
 
 CREATE TABLE IF NOT EXISTS `msgs_workflows`
 (
-  `id`      INT(11) UNSIGNED    NOT NULL AUTO_INCREMENT,
-  `name`    VARCHAR(50)         NOT NULL DEFAULT '',
-  `descr`   TEXT                NOT NULL,
-  `disable` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  `used_times` INT(11)    UNSIGNED NOT NULL DEFAULT 0,
+  `id`         INT(11) UNSIGNED    NOT NULL AUTO_INCREMENT,
+  `name`       VARCHAR(50)         NOT NULL DEFAULT '',
+  `descr`      TEXT                NOT NULL,
+  `disable`    TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `used_times` INT(11) UNSIGNED    NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8
@@ -2426,12 +2448,12 @@ CREATE TABLE IF NOT EXISTS `msgs_workflows`
 
 CREATE TABLE IF NOT EXISTS `msgs_workflow_triggers`
 (
-  `id`    INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `workflow_id`   INT(11) UNSIGNED NOT NULL DEFAULT 0,
-  `type`  VARCHAR(50)      NOT NULL DEFAULT '',
-  `old_value`  VARCHAR(50) NOT NULL DEFAULT '',
-  `new_value`  VARCHAR(50) NOT NULL DEFAULT '',
-  `contains`   VARCHAR(100) NOT NULL DEFAULT '',
+  `id`          INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `workflow_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `type`        VARCHAR(50)      NOT NULL DEFAULT '',
+  `old_value`   VARCHAR(50)      NOT NULL DEFAULT '',
+  `new_value`   VARCHAR(50)      NOT NULL DEFAULT '',
+  `contains`    VARCHAR(100)     NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8
@@ -2439,12 +2461,25 @@ CREATE TABLE IF NOT EXISTS `msgs_workflow_triggers`
 
 CREATE TABLE IF NOT EXISTS `msgs_workflow_actions`
 (
-  `id`    INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `workflow_id`   INT(11) UNSIGNED NOT NULL DEFAULT 0,
-  `type`  VARCHAR(50)      NOT NULL DEFAULT '',
-  `value`  VARCHAR(100) NOT NULL DEFAULT '',
+  `id`          INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `workflow_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `type`        VARCHAR(50)      NOT NULL DEFAULT '',
+  `value`       VARCHAR(100)     NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Msgs workflow actions';
 
+CREATE TABLE IF NOT EXISTS `users_registration_pin`
+(
+  `pin_code`    BLOB                 NOT NULL,
+  `uid`         INT(11) UNSIGNED     NOT NULL,
+  `create_date` DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `verify_date` DATETIME             NOT NULL,
+  `destination` VARCHAR(250)         NOT NULL DEFAULT '',
+  `attempts`    SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
+  `send_count`  SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
+  UNIQUE KEY `uid` (`uid`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Users registration pin';

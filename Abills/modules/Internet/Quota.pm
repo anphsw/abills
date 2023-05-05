@@ -8,7 +8,7 @@ use strict;
 use warnings FATAL => 'all';
 use Internet::Sessions;
 
-our(
+our (
   $html,
   $Conf,
   %lang,
@@ -134,6 +134,5 @@ sub internet_quota_reports {
 
   return 1;
 }
-
 
 1;

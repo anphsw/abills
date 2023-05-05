@@ -7,14 +7,14 @@
 
 class ScheduleTable {
   hours = 10;
-  startTime = 9;
+  startTime = 8;
   container = '#hour-grid';
   administrators = {}
   width = window.innerWidth;
   minute = 0;
   tasks = [];
 
-  constructor(hours = 15, startTime = 9) {
+  constructor(hours = 15, startTime = 8) {
     this.hours = hours;
     this.startTime = startTime;
     this.hoursArray = Array(this.hours).fill(0).map((_, i) => i + this.startTime);
@@ -214,6 +214,7 @@ class ScheduleTable {
       var add_contact_form = new AModal();
       add_contact_form
         .setId('change_duration_modal')
+        .setHeader(task.message || _DURATION)
         .setBody(self.changeDurationForm(task.duration))
         .addButton(_SAVE, 'saveDuration', 'primary')
         .show(function () {

@@ -56,10 +56,10 @@ properties:
             properties:
               duration:
                 type: string
-                example: 00:04:17.4393
+                example: '00:04:17.4393'
               sum:
                 type: number
-                example: 5148.4848484848
+                example: 5148.48
           max:
             type: object
             properties:
