@@ -61,7 +61,11 @@
     }, {});
 
     sendRequest(`/api.cgi/crm/progressbar/messages/`, data, 'POST')
-      .then(data => {
+      .then((data) => {
+        location.reload()
+      })
+      .catch((error) => {
+        console.log(error);
         location.reload()
       });
   });

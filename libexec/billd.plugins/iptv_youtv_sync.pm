@@ -62,18 +62,28 @@ sub youtv_sync {
       PAGE_ROWS      => 99999
     });
 
-    my @users_id = ();
-    map push(@users_id, $_->{subscribe_id}), @{$users};
+    foreach my $user (@{$users}) {
+      next if !$user->{subscribe_id};
 
-    my @subarrays = ();
-    while (my @subarray = splice @users_id, 0, 200) {
-      push(@subarrays, \@subarray);
+      $Service_api->user_add({
+        FILTER_ID    => $user->{filter_id},
+        SUBSCRIBE_ID => $user->{subscribe_id},
+        UID          => $user->{uid}
+      });
     }
 
-    foreach my $subarray_users (@subarrays) {
-      $Service_api->renew_subscription($subarray_users);
-      sleep 1;
-    }
+    # my @users_id = ();
+    # map push(@users_id, $_->{subscribe_id}), @{$users};
+
+    # my @subarrays = ();
+    # while (my @subarray = splice @users_id, 0, 200) {
+    #   push(@subarrays, \@subarray);
+    # }
+
+    # foreach my $subarray_users (@subarrays) {
+    #   $Service_api->renew_subscription($subarray_users);
+    #   sleep 1;
+    # }
   }
 }
 

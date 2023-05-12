@@ -1255,7 +1255,7 @@ sub _bdcom_convert_catv_port_admin_status {
     2 => 'Disable',
   );
 
-  if ($status_hash{ $status_code }) {
+  if ($status_code && $status_hash{ $status_code }) {
     $status = $status_hash{ $status_code };
   }
 

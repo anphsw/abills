@@ -1974,6 +1974,9 @@ sub add_user {
 
   Arguments:
     $attr -
+      UID
+      FILE_ID
+
   Returns:
 
   Examples:
@@ -1992,18 +1995,15 @@ sub info_user {
     su.demo
     FROM sharing_users AS su
     WHERE uid = ? AND file_id = ?;", undef,
-    { COLS_NAME => 1,
-      Bind => [ $attr->{UID},
+    { INFO => 1,
+      Bind => [
+        $attr->{UID},
         $attr->{FILE_ID}
       ]
     }
   );
 
-  if($self->{list} && ref $self->{list} eq 'ARRAY' && scalar @{$self->{list}} > 0){
-    return $self->{list}[0];
-  }
-
-  return ;
+  return $self;
 }
 
 #*******************************************************************

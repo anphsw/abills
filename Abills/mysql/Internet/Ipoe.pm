@@ -658,7 +658,7 @@ sub reports_users {
 
   my $debug = 0;
 
-  $self->query("SET SQL_BIG_SELECTS=1;");
+  $self->query("SET SQL_BIG_SELECTS=1;", 'do');
 
   my $GROUP = '1';
   my $date  = '';

@@ -11,7 +11,6 @@ $lang{EXT_CMD} = 'Зовнішня обробка';
 $lang{SERVICE_ACTIVATE_NOTIFICATION} = 'Повідомляти про продовження послуги';
 $lang{VAT_INCLUDE} = 'З урахуванням податку';
 $lang{SEND_NOTIFICATION} = 'Відправити повідомлення';
-
 $lang{MANUAL_ACTIVATE} = 'Ручне включення послуги';
 $lang{USER_PORTAL} = 'Портал Абонента';
 $lang{USER_PORTAL_NO} = 'Не відображати';
@@ -25,3 +24,4 @@ $lang{NOT_RECOVERY}='Не відновлювати';
 $lang{RECOVERY_NOW}='Відновити з поточної дати';
 $lang{RECOVERY_FROM_HOLDUP}='Відновити з дати призупинки';
 
+$lang{PERSONAL_DESCRIPTION} = 'Індивідуальний опис';

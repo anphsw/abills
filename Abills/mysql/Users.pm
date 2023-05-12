@@ -572,8 +572,9 @@ sub groups_list {
       ['DISABLE_CHG_TP',   'INT', 'g.disable_chg_tp',            1 ],
       ['USERS_COUNT',      'INT', 'COUNT(u.uid) AS users_count', 1 ],
       ['SMS_SERVICE',      'STR', 'g.sms_service',               1 ],
-      ['DOCUMENTS_ACCESS', 'INT', 'g.documents_access',          1 ]
-    ],
+      ['DOCUMENTS_ACCESS', 'INT', 'g.documents_access',          1 ],
+      ['DISABLE_ACCESS',   'INT', 'g.disable_access',            1 ],
+  ],
     { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
   );
 
@@ -631,6 +632,7 @@ sub group_change {
   $attr->{DISABLE_CHG_TP} = $attr->{DISABLE_CHG_TP} ? 1 : 0;
   $attr->{BONUS} = $attr->{BONUS} ? 1 : 0;
   $attr->{DOCUMENTS_ACCESS} = $attr->{DOCUMENTS_ACCESS} ? 1 : 0;
+  $attr->{DISABLE_ACCESS} = $attr->{DISABLE_ACCESS} ? 1 : 0;
 
   $attr->{GID} = $gid;
 

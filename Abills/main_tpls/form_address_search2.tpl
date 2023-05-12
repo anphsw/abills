@@ -21,10 +21,11 @@
     <div class='col-sm-9 col-md-8'>
       <div class='addBuildMenu'>
         %ADDRESS_BUILD%
+        <div class='invalid-feedback'></div>
       </div>
 
       <div class='input-group changeBuildMenu' style='display : none;'>
-        <input type='text' id='ADD_ADDRESS_BUILD_ID' name='ADD_ADDRESS_BUILD' class='form-control INPUT-ADD-BUILD'/>
+        <input type='text' disabled id='ADD_ADDRESS_BUILD_ID' %BUILD_REQ% name='ADD_ADDRESS_BUILD' class='ADD_ADDRESS_BUILD form-control INPUT-ADD-BUILD'/>
         <div class='input-group-append'>
           <div class='input-group-text'>
             <a class='BUTTON-ENABLE-SEL cursor-pointer'>
@@ -125,7 +126,7 @@
     setTimeout(function () {
       jQuery('.INPUT-FLAT').focus();
     }, 100);
-    jQuery('#ADDRESS_FLAT').trigger('input');
+    jQuery('#ADDRESS_FLAT.INPUT-FLAT').trigger('input');
   }
 
   let selected_builds = jQuery('#ADD_LOCATION_ID').attr('value');
@@ -158,6 +159,8 @@
       let buildDiv = jQuery('.addBuildMenu');
       buildDiv.removeClass('d-block');
       buildDiv.addClass('d-none');
+      buildDiv.find('select').attr('disabled', 'disabled');
+      jQuery('.ADD_ADDRESS_BUILD').removeAttr('disabled');
 
       jQuery('.changeBuildMenu').show();
       jQuery('#map_add_btn').fadeOut(300);
@@ -168,6 +171,8 @@
       let buildDiv = jQuery('.addBuildMenu');
       buildDiv.removeClass('d-none');
       buildDiv.addClass('d-block');
+      buildDiv.find('select').removeAttr('disabled');
+      jQuery('.ADD_ADDRESS_BUILD').attr('disabled', 'disabled');
 
       jQuery('.changeBuildMenu').hide();
     })
@@ -175,33 +180,47 @@
 
   activateBuildButtons();
 
-  jQuery('#ADDRESS_FLAT').on('input', function () {
+  jQuery('#ADDRESS_FLAT.INPUT-FLAT').on('input', function () {
     let check_flat = '%CHECK_ADDRESS_FLAT%';
     if (check_flat.length === 0) return;
 
+    let build_id = jQuery('#%BUILD_ID%').val();
+    if (!build_id) return;
+
+    let build_input = jQuery('#%BUILD_ID%').parent().parent().parent();
+    build_input.removeClass('is-invalid').removeClass('is-valid').removeClass('form-control h-100 p-0');
+
     let flat_input = jQuery(this);
     flat_input.removeClass('is-invalid').removeClass('is-valid');
+    let flat = flat_input.val() || '';
 
-    let flat = flat_input.val();
-    let build_id = jQuery('#%BUILD_ID%').val();
+    let uid = `!${jQuery(`[name='UID']`).first().val()}`;
+    console.log(uid);
 
-    if (!flat || !build_id) return;
-
-    if (timeout) {
+    if (typeof timeout !== 'undefined' && timeout) {
       clearTimeout(timeout);
     }
     timeout = setTimeout(function () {
-      sendRequest(`/api.cgi/users/all?PAGE_ROWS=1&ADDRESS_FLAT=${flat}&LOCATION_ID=${build_id}`, {}, 'GET')
+      sendRequest(`/api.cgi/users/all?PAGE_ROWS=1&ADDRESS_FLAT=${flat}&LOCATION_ID=${build_id}&UID=${uid}`, {}, 'GET')
         .then(data => {
+          let checked_input = flat_input;
+          let invalidClass = 'is-invalid';
+          let validClass = 'is-valid'
+          if (!flat) {
+            checked_input = build_input;
+            invalidClass = 'is-invalid form-control h-100 p-0';
+            validClass = 'is-valid form-control h-100 p-0'
+          }
+
           if (data.length > 0) {
-            flat_input.addClass('is-invalid').removeClass('is-valid');
+            checked_input.removeClass(validClass).addClass(invalidClass);
             let user_btn = jQuery('<a></a>').attr('href', `?get_index=form_users&full=1&UID=${data[0].uid}`)
               .text(data[0].login).attr('target', '_blank');
             let warning_text = `_{USER_ADDRESS_EXIST}_. _{LOGIN}_: `;
-            flat_input.parent().find('.invalid-feedback').first().text(warning_text).append(user_btn);
+            checked_input.parent().find('.invalid-feedback').first().text(warning_text).append(user_btn);
           }
           else {
-            flat_input.addClass('is-valid').removeClass('is-invalid');
+            checked_input.removeClass(invalidClass).addClass(validClass);
           }
         });
     }, 500);

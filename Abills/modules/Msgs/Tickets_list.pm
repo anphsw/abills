@@ -177,6 +177,10 @@ sub msgs_list {
   push @function_fields, "msgs_admin:del:del_msgs;" . ($FORM{UID} ? "uid;" : "") . "state:&ALL_MSGS=1" if $msgs_permissions{1}{1};
 
   $LIST_PARAMS{RESPOSIBLE} = $admin->{AID} if $msgs_permissions{1}{21};
+  if (!$FORM{sort}) {
+    $FORM{sort} = '1';
+    $FORM{desc} = 'DESC';
+  }
   ($table, $list) = result_former({
     INPUT_DATA        => $Msgs,
     BASE_FIELDS       => 0,

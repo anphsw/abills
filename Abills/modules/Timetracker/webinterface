@@ -12,7 +12,6 @@ use Time::Piece;
 use Abills::Base qw(time2sec);
 use Timetracker::db::Timetracker;
 use Admins;
-#use LWP::Simple;
 use JSON;
 use utf8;
 use Encode qw(encode_utf8);
@@ -584,12 +583,11 @@ sub get_redmine_time {
   my ($date) = @_;
 
   require XML::Simple;
-  #XML::Simple->(/qw(:strict)/);
 
-  #if (!$conf{TIMETRACKER_REDMINE_URL} || !$conf{TIMETRACKER_REDMINE_KEY}) {
-  #  $html->message("err", $lang{ERROR}, '$conf{TIMETRACKER_REDMINE} ' . $lang{NO_FIELD});
-  #  return 0;
-  #}
+  if (!$conf{TIMETRACKER_REDMINE_URL} || !$conf{TIMETRACKER_REDMINE_KEY}) {
+    $html->message("err", $lang{ERROR}, '$conf{TIMETRACKER_REDMINE} ' . $lang{NO_FIELD});
+    return 0;
+  }
 
   my $users_xml = web_request(
     $conf{TIMETRACKER_REDMINE_URL} . '/users.xml',

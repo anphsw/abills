@@ -1,5 +1,7 @@
 <div class='card card-primary card-outline box-form'>
-  <div class="card-header with-border"><h4 class="card-title">_{REFERRAL_SYSTEM}_</h4></div>
+  <div class='card-header with-border'>
+    <h4 class='card-title'>_{REFERRAL_SYSTEM}_</h4>
+  </div>
   <form name='SETTINGS' id='form_REFERRAL_SETTINGS' method='post' class='form form-horizontal'>
     <div class='card-body'>
 
@@ -23,6 +25,14 @@
       </div>
 
       <div class='form-group row'>
+        <label class='control-label col-md-3' for='MAX_BONUS_AMOUNT'>_{MAX_BONUS_AMOUNT}_</label>
+        <div class='col-md-9'>
+          <input type='number' class='form-control' name='MAX_BONUS_AMOUNT' value='%MAX_BONUS_AMOUNT%'
+                 id='MAX_BONUS_AMOUNT'/>
+        </div>
+      </div>
+
+      <div class='form-group row'>
         <label class='control-label col-md-3' for='PAYMENT_ARREARS'>_{PAYMENT_ARREARS}_</label>
         <div class='col-md-9'>
           <input type='number'
@@ -32,7 +42,7 @@
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='PAYMENT_ARREARS'>_{PERIOD}_ _{ACCRUALS}_</label>
+        <label class='control-label col-md-3' for='PERIOD'>_{PERIOD}_ _{ACCRUALS}_</label>
         <div class='col-md-9'>
           <input type='number'
                  data-tooltip='_{PAY_NOW}_<br>_{PAY_X_MONTH}_'
@@ -41,16 +51,16 @@
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='MAX_LEVEL_id'>_{REPL_PERCENT}_</label>
+        <label class='control-label col-md-3' for='REPL_PERCENT'>_{REPL_PERCENT}_</label>
         <div class='col-md-9'>
           <input type='number' min='0' max='100' class='form-control'
                  data-tooltip='<b>_{MIN}_</b>: 0 <br> <b>_{MAX}_</b>:100'
-                 name='REPL_PERCENT' value='%REPL_PERCENT%' id='MAX_LEVEL_id'/>
+                 name='REPL_PERCENT' value='%REPL_PERCENT%' id='REPL_PERCENT'/>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='MAX_LEVEL_id'>_{SPEND_PERCENT}_</label>
+        <label class='control-label col-md-3' for='SPEND_PERCENT'>_{SPEND_PERCENT}_</label>
         <div class='col-md-9'>
           <input type='number' min='0' max='100' class='form-control'
                  data-tooltip='<b>_{MIN}_</b>: 0 <br> <b>_{MAX}_</b>:100'
@@ -73,10 +83,21 @@
           </div>
         </div>
       </div>
+
+      <div class='form-group row'>
+        <label class='col-md-3 text-right' for='STATIC_ACCRUAL'>_{STATIC_ACCRUAL}_</label>
+        <div class='col-sm-9'>
+          <div class='form-check text-left'>
+            <input type='checkbox' class='form-check-input' id='STATIC_ACCRUAL' value='1' %STATIC_ACCRUAL%
+                   name='STATIC_ACCRUAL' data-input-disables='REPL_PERCENT,SPEND_PERCENT'>
+          </div>
+        </div>
+      </div>
     </div>
     <div class='card-footer'>
       %ACTION%
     </div>
   </form>
 </div>
+
 

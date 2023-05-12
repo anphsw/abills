@@ -12,6 +12,7 @@ use Contacts;
 use Abills::Base qw(in_array);
 
 my Contacts $Contacts;
+my $conf;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -19,16 +20,17 @@ my Contacts $Contacts;
 =cut
 #**********************************************************
 sub new {
-  my ($class, $db, $admin, $conf, $lang, $debug, $type) = @_;
+  my ($class, $db, $admin, $Conf, $lang, $debug, $type) = @_;
 
   my $self = {
     db    => $db,
     admin => $admin,
-    conf  => $conf,
+    conf  => $Conf,
     lang  => $lang,
     debug => $debug
   };
 
+  $conf = $Conf;
   bless($self, $class);
 
   $Contacts = Contacts->new($self->{db}, $self->{admin}, $self->{conf});
@@ -108,25 +110,31 @@ sub user_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        my @allowed_types = ();
+        my $validation = _validate_allowed_types_contacts($path_params->{id});
+        return $validation if ($validation->{errno});
 
-        push @allowed_types, 5 if ($self->{conf}->{VIBER_TOKEN});
-        push @allowed_types, 6 if ($self->{conf}->{TELEGRAM_TOKEN});
+        $Contacts->contacts_del({
+          UID     => $path_params->{uid},
+          TYPE_ID => $path_params->{id}
+        });
 
-        if (!in_array($path_params->{id}, \@allowed_types)) {
-          return {
-            errno  => 10048,
-            errstr => 'Unknown typeId'
-          };
+        if (!$Contacts->{errno}) {
+          if ($Contacts->{AFFECTED} && $Contacts->{AFFECTED} =~ /^[0-9]$/) {
+            return {
+              result =>  'Successfully deleted'
+            };
+          }
+          else {
+            return {
+              errno  => 10089,
+              errstr => "Push contact with typeId $path_params->{id} not found",
+            };
+          }
         }
         else {
-          $Contacts->contacts_del({
-            UID     => $path_params->{uid},
-            TYPE_ID => $path_params->{id}
-          });
-
           return {
-            result => 'Successfully deleted',
+            errno  => 10090,
+            errstr => "Failed delete contact with typeId $path_params->{id}, error happened try later",
           };
         }
       },
@@ -142,8 +150,11 @@ sub user_routes {
 
         return {
           errstr => 'No field token in body',
-          errno  => '5000'
+          errno  => 5000
         } if (!$query_params->{TOKEN});
+
+        my $validation = _validate_allowed_types_push($path_params->{id});
+        return $validation if ($validation->{errno});
 
         my $Ureports = '';
         if (in_array('Ureports', \@main::MODULES)) {
@@ -173,6 +184,8 @@ sub user_routes {
               UID         => $path_params->{uid}
             });
           }
+
+          return 1;
         }
         else {
           if ($query_params->{TOKEN} ne $list->[0]->{value}) {
@@ -199,7 +212,7 @@ sub user_routes {
           else {
             return {
               errstr => 'You are already subscribed',
-              errno  => '5001'
+              errno  => 5001
             }
           }
         }
@@ -213,6 +226,9 @@ sub user_routes {
       path        => '/user/contacts/push/badges/:id/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
+
+        my $validation = _validate_allowed_types_push($path_params->{id});
+        return $validation if ($validation->{errno});
 
         my $list = $Contacts->push_contacts_list({
           UID     => $path_params->{uid},
@@ -241,27 +257,49 @@ sub user_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        my $validation = _validate_allowed_types_push($path_params->{id});
+        return $validation if ($validation->{errno});
+
+        my $message = 'OK';
+
         $Contacts->push_contacts_del({
           TYPE_ID => $path_params->{id},
           UID     => $path_params->{uid},
         });
 
-        my $Ureports = '';
-        if (in_array('Ureports', \@main::MODULES)) {
-          eval {require Ureports; Ureports->import()};
-          if (!$@) {
-            $Ureports = Ureports->new($self->{db}, $self->{conf}, $self->{admin});
+        if (!$Contacts->{errno}) {
+          if ($Contacts->{AFFECTED} && $Contacts->{AFFECTED} =~ /^[0-9]$/) {
+            $message = 'Successfully deleted';
+          }
+          else {
+            return {
+              errno  => 10084,
+              errstr => "Push contact with typeId $path_params->{id} not found",
+            };
           }
         }
 
-        if ($Ureports) {
-          $Ureports->user_send_type_del({
-            TYPE => 10,
-            UID  => $path_params->{uid}
+        if (in_array('Ureports', \@main::MODULES)) {
+          $Contacts->push_contacts_list({
+            UID     => $path_params->{uid},
           });
+
+          if (!$Contacts->{TOTAL}) {
+            my $Ureports = '';
+            eval {require Ureports; Ureports->import()};
+            if (!$@) {
+              $Ureports = Ureports->new($self->{db}, $self->{conf}, $self->{admin});
+              $Ureports->user_send_type_del({
+                TYPE => 10,
+                UID  => $path_params->{uid}
+              });
+            }
+          }
         }
 
-        return 1;
+        return {
+          result => $message,
+        };
       },
       module      => 'Contacts',
       credentials => [
@@ -273,6 +311,9 @@ sub user_routes {
       path        => '/user/:uid/contacts/push/subscribe/:id/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
+
+        my $validation = _validate_allowed_types_push($path_params->{id});
+        return $validation if ($validation->{errno});
 
         my $list = $Contacts->push_contacts_list({
           UID     => $path_params->{uid},
@@ -286,7 +327,7 @@ sub user_routes {
       },
       module      => 'Contacts',
       credentials => [
-        'USER', 'USERBOT'
+        'USER'
       ]
     },
     {
@@ -294,6 +335,11 @@ sub user_routes {
       path        => '/user/:uid/contacts/push/messages/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
+
+        if ($query_params->{TYPE_ID}) {
+          my $validation = _validate_allowed_types_push($query_params->{TYPE_ID});
+          return $validation if ($validation->{errno});
+        }
 
         my $list = $Contacts->push_messages_list({
           UID     => $path_params->{uid},
@@ -308,10 +354,89 @@ sub user_routes {
       },
       module      => 'Contacts',
       credentials => [
-        'USER', 'USERBOT'
+        'USER'
       ]
     },
   ],
 }
+
+#**********************************************************
+=head2 validate_allowed_types_push()
+
+=cut
+#**********************************************************
+sub _validate_allowed_types_push {
+  my ($id) = @_;
+  my @allowed_types = (1, 2, 3);
+
+  if (in_array($id, \@allowed_types)) {
+    return {
+      result => 'OK',
+    };
+  }
+  else {
+    return {
+      errno  => 9,
+      errstr => 'Validation failed',
+      errors => [ {
+        errno          => 21,
+        errstr         => 'typeId is not valid',
+        param          => 'typeId',
+        type           => 'number',
+        allowed_params => [ 1, 2, 3 ],
+        desc_params    => {
+          1 => 'Web Push',
+          2 => 'Android Push',
+          3 => 'iOS/MacOS Silicon Push'
+        }
+      } ],
+    }
+  };
+}
+
+#**********************************************************
+=head2 _validate_allowed_types_contacts()
+
+=cut
+#**********************************************************
+sub _validate_allowed_types_contacts {
+  my ($id) = @_;
+  my @allowed_types = ();
+
+  push @allowed_types, 5 if ($conf->{VIBER_TOKEN});
+  push @allowed_types, 6 if ($conf->{TELEGRAM_TOKEN});
+
+  if (!scalar @allowed_types) {
+    return {
+      errno  => 10048,
+      errstr => 'No allowed contacts typeId to delete, try later'
+    };
+  }
+
+  if (in_array($id, \@allowed_types)) {
+    return {
+      result => 'OK',
+    };
+  }
+  else {
+    my %desc_params = ();
+    $desc_params{5} = 'Viber bot token' if ($conf->{VIBER_TOKEN});
+    $desc_params{6} = 'Telegram bot token' if ($conf->{TELEGRAM_TOKEN});
+
+    return {
+      errno  => 9,
+      errstr => 'Validation failed',
+      errors => [ {
+        errno          => 21,
+        errstr         => 'typeId is not valid',
+        param          => 'typeId',
+        type           => 'number',
+        allowed_params => \@allowed_types,
+        desc_params    => \%desc_params
+      } ],
+    }
+  };
+}
+
 
 1;

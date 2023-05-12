@@ -118,7 +118,10 @@ sub crm_triggers {
 
   my $actions = $Crm->crm_actions_list({ NAME => '_SHOW', ACTION => '_SHOW', COLS_NAME => 1 });
   my $actions_hash = {};
-  map $actions_hash->{$_->{id}} = _translate($_->{name}), @{$actions};
+  foreach my $action (@{$actions}) {
+    $action->{name} =~ s/\"/\\\"/g;
+    $actions_hash->{$action->{id}} = _translate($action->{name});
+  }
 
   my $tasks_hash = {};
 
@@ -291,7 +294,10 @@ sub crm_actions {
 
   my $actions = $Crm->crm_actions_list({ NAME => '_SHOW', ACTION => '_SHOW', COLS_NAME => 1 });
   my $actions_hash = {};
-  map $actions_hash->{$_->{id}} = _translate($_->{name}), @{$actions};
+  foreach my $action (@{$actions}) {
+    $action->{name} =~ s/\"/\\\"/g;
+    $actions_hash->{$action->{id}} = _translate($action->{name});
+  }
 
   my $tasks_hash = {};
   if (in_array('Tasks', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Tasks})) {

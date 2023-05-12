@@ -132,6 +132,7 @@ sub form_groups {
     $users->{BONUS} = ($users->{BONUS}) ? 'checked' : '';
     $users->{DOCUMENTS_ACCESS} = ($users->{DOCUMENTS_ACCESS}) ? 'checked' : '';
     $users->{GID_DISABLE} = 'disabled';
+    $users->{DISABLE_ACCESS} = ($users->{DISABLE_ACCESS}) ? 'checked' : '';
 
     if(in_array('Multidoms', \@MODULES)) {
       load_module('Multidoms', $html);
@@ -180,14 +181,15 @@ sub form_groups {
     disable_paysys   => "$lang{DISABLE} Paysys",
     disable_payments => "$lang{DISABLE} $lang{PAYMENTS} $lang{CASHBOX}",
     disable_chg_tp   => $lang{FORBIDDEN_TO_CHANGE_TP_BY_USER},
-    documents_access => $lang{ALLOW_ACCESS_DOCUMENTS}
+    documents_access => $lang{ALLOW_ACCESS_DOCUMENTS},
+    disable_access   => $lang{DISABLE_USER_PORTAL_ACCESS}
   );
 
   my ($table, $list) = result_former({
     INPUT_DATA      => $users,
     FUNCTION        => 'groups_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'DISABLE_PAYMENTS,DISABLE_PAYMENTS,USERS_COUNT,NAME,DESCR,ALLOW_CREDIT,DISABLE_PAYSYS,DISABLE_CHG_TP,DOCUMENTS_ACCESS',
+    DEFAULT_FIELDS  => 'DISABLE_PAYMENTS,DISABLE_PAYMENTS,USERS_COUNT,NAME,DESCR,ALLOW_CREDIT,DISABLE_PAYSYS,DISABLE_CHG_TP,DOCUMENTS_ACCESS,DISABLE_ACCESS',
     HIDDEN_FIELDS   => 'GID',
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => \%ext_titles,
@@ -198,6 +200,7 @@ sub form_groups {
       disable_payments => sub {return $bool_vals[ shift ]},
       disable_chg_tp   => sub {return $bool_vals[ shift ]},
       documents_access => sub {return $bool_vals[ shift ]},
+      disable_access   => sub {return $bool_vals[ shift ]},
       bonus            => sub {return $bool_vals[ shift ]},
       users_count => sub {
         my ($users_count, $line) = @_;

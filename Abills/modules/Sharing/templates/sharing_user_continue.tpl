@@ -4,7 +4,7 @@
 </button>
 
 <!-- Modal -->
-<form class='form-horizontal' id='SHARING_CONTINUE'>
+<form id='SHARING_CONTINUE'>
   <input type='hidden' name='index' value=$index>
   <input type='hidden' name='UID' value=$FORM{UID}>
   <div class='modal fade' id='myModal' tabindex='-1' role='dialog' aria-labelledby='myModalLabel'>
@@ -31,3 +31,5 @@
     </div>
   </div>
 </form>
+
+

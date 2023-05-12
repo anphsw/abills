@@ -48,4 +48,3 @@ CREATE TABLE IF NOT EXISTS `extreceipts_api` (
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Extreceipts apis';
-

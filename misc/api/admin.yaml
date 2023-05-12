@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: ABillS admins API
-  version: 0.0.66
-  description: "Last modified 2023-04-20"
+  version: 1.0.0
+  description: "Last modified 2023-05-05"
   contact:
     name: Have a question? Support contacts
     url: https://support.abills.net.ua/
@@ -3048,8 +3048,7 @@ paths:
     post:
       tags:
         - internet
-      summary: Добавление ТП Internet пользователю
-      operationId: addUserInternetDepracted
+      summary: Добавление ТП Internet пользователю УДАЛЕНО В ВЕРСИИ 1.0
       deprecated: true
       parameters:
         - name: UID

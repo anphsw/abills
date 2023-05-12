@@ -91,6 +91,19 @@
       height_element = val.scrollHeight;
     }
   }).css('height', height_element);
+
+  // from paysys_check
+  if ('%index%' === '0') {
+    const type = performance.getEntriesByType("navigation")[0]?.type;
+
+    window.addEventListener('pageshow', function (event) {
+      var historyTraversal = event.persisted ||
+              (type && type === 'back_forward');
+      if (historyTraversal) {
+        window.location.reload();
+      }
+    });
+  }
 </script>
 
 %MAP%

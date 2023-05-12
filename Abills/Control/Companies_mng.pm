@@ -264,12 +264,23 @@ sub form_companies {
       OUTPUT2RETURN => 1
     });
 
+
+    my $add_args = ();
+
+    if ($FORM{subf} && $FORM{subf} == 11) {
+      require Control::Companies_users;
+      my $res = company_users_total_info($FORM{COMPANY_ID});
+      $add_args->{TOTAL} = $res->{TOTAL};
+      $add_args->{SUM} = $res->{SUM};
+      $add_args->{COMPANY_DEPOSIT} = $Company->{DEPOSIT};
+    }
+
     func_menu(
       {
         $lang{NAME} => $company_sel
       },
       \@menu_functions,
-      { f_args     => { COMPANY => $Company },
+      { f_args     => { COMPANY => $Company, ADD_ARGS => $add_args },
         MAIN_INDEX => get_function_index('form_companies'),
         SILENT     => $FORM{print}
       }
@@ -372,7 +383,6 @@ sub form_companies {
 
       $Company->{DOCS_TEMPLATE} = $html->tpl_show(_include('docs_form_pi_lite', 'Docs'), { %{$Company} }, { OUTPUT2RETURN => 1 });
 
-      #$html->tpl_show(templates('form_company'), $Company);
       my $company_main = $html->tpl_show(templates('form_company'), $Company, { OUTPUT2RETURN => 1 });
       my $company_pi = $html->tpl_show(templates('form_company_pi'), $Company, { OUTPUT2RETURN => 1 });
       my $company_profile = $html->tpl_show(

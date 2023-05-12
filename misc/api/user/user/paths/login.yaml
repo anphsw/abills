@@ -2,6 +2,7 @@ post:
   tags:
     - user
   summary: Авторизация пользователя
+  deprecated: true
   requestBody:
     content:
       application/json:

@@ -29,7 +29,7 @@ my $Msgs = Msgs->new($db, $admin, \%conf);
 
 my $MESSAGE_ICON = q{};
 if($html && $html->{TYPE} && $html->{TYPE} eq 'html') {
-  $MESSAGE_ICON = $html->element('span', '', { class => 'far fa-envelope', OUTPUT2RETURN => 1 });
+  $MESSAGE_ICON = $html->element('span', '', { class => 'far fa-envelope pr-1', OUTPUT2RETURN => 1 });
 }
 
 #***************************************************************

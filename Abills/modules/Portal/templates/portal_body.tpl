@@ -134,11 +134,15 @@
       </span>
     </a>
 
-    <a href='%SELF_URL%?login_page=1' class='d-lg-none btn btn-primary my-2 my-sm-0 ml-auto mr-3' title='_{USER_PORTAL}_'>
-      <i class='fa fa-user'></i>
-      _{USER_PORTAL}_
-    </a>
+    <span>
+      %REGISTRATION_MOBILE%
 
+      <a href='%SELF_URL%?login_page=1' class='d-lg-none btn btn-primary my-2 my-sm-0 ml-auto mr-3' title='_{USER_PORTAL}_'>
+        <i class='fa fa-user'></i>
+        <span class='d-none d-xxsm-inline d-xsm-none'>_{USER_PORTAL_SHORTER}_</span>
+        <span class='d-none d-xsm-inline'>_{USER_PORTAL}_</span>
+      </a>
+    </span>
     <button
       class='navbar-toggler'
       type='button'
@@ -158,7 +162,7 @@
 
       <div class='form-inline my-2 my-lg-0'>
         %REGISTRATION%
-        <a href='%SELF_URL%?login_page=1' class='btn btn-primary my-2 my-sm-0' title='_{USER_PORTAL}_'>
+        <a href='%SELF_URL%?login_page=1' class='d-none d-lg-block btn btn-primary my-2 my-sm-0' title='_{USER_PORTAL}_'>
           <i class='fa fa-user'></i>
           _{USER_PORTAL}_
         </a>

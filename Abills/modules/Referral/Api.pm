@@ -20,6 +20,8 @@ use Referral::Users;
 my Referral $Referral;
 my Referral::Users $Referral_users;
 
+our %lang;
+
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
 
@@ -39,16 +41,27 @@ sub new {
 
   bless($self, $class);
 
+  if ($self->{conf}->{API_CONF_LANGUAGE}) {
+    my $lang_lng = $self->{conf}->{default_language} || 'english';
+    eval {require "Abills/modules/Referral/lng_$lang_lng.pl"};
+    require 'Abills/modules/Referral/lng_english.pl' if ($@);
+  }
+  else {
+    require 'Abills/modules/Referral/lng_english.pl';
+  }
+
   $self->{routes_list} = ();
 
   if ($type eq 'user') {
     $self->{routes_list} = $self->user_routes();
   }
 
+  my %LANG = (%{$lang}, %lang);
+
   $Referral = Referral->new($self->{db}, $self->{admin}, $self->{conf});
   $Referral_users = Referral::Users->new($db, $admin, $conf, {
     html        => $html,
-    lang        => $lang,
+    lang        => \%LANG,
   });
 
   return $self;
@@ -120,7 +133,14 @@ sub user_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        $Referral_users->user_referrals({ UID => $path_params->{uid} });
+        my $result = $Referral_users->referrals_user({ UID => $path_params->{uid} });
+        return $result if (!$result->{referrals_total});
+
+        foreach my $referral (@{$result->{referrals}}) {
+          delete @{$referral}{qw/REFERRER BONUS_BILL BONUSES UID/};
+        }
+
+        return $result;
       },
       credentials => [
         'USER', 'USERBOT'
@@ -132,9 +152,26 @@ sub user_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        my $result = $Referral_users->user_get_bonus({ UID => $path_params->{uid} });
-        delete @{$result}{qw/object fatal element/};
+        my $result = $Referral_users->referral_bonus_add({ UID => $path_params->{uid} });
         return $result;
+      },
+      credentials => [
+        'USER', 'USERBOT'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/user/referral/bonus/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        my $bonuses = $Referral->get_bonus_history($path_params->{uid} || '--');
+        return $bonuses if (!$Referral->{errno});
+
+        return {
+          errno  => 41023,
+          errstr => 'Failed get bonus history. Try later',
+        };
       },
       credentials => [
         'USER', 'USERBOT'
@@ -148,7 +185,7 @@ sub user_routes {
         $query_params->{UID} = $path_params->{uid};
         $query_params->{add} = 1;
 
-        my $result = $Referral_users->user_referral_manage($query_params);
+        my $result = $Referral_users->referral_user_manage($query_params);
         delete @{$result}{qw/object fatal element/};
         return $result;
       },
@@ -165,7 +202,7 @@ sub user_routes {
         $query_params->{ID} = $path_params->{id};
         $query_params->{change} = 1;
 
-        my $result = $Referral_users->user_referral_manage($query_params);
+        my $result = $Referral_users->referral_user_manage($query_params);
         delete @{$result}{qw/object fatal element/};
         return $result;
       },

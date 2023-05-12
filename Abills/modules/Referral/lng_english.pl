@@ -1,8 +1,8 @@
 $lang{REFERRER} = 'Referrer';
 $lang{REFERRAL} = 'Referral';
-$lang{REFERRAL_SYSTEM} = 'Refferal system';
-$lang{REFERRAL_TP} = 'Refferal tariff';
-$lang{REFERRALS_LIST} = 'Refferal list';
+$lang{REFERRAL_SYSTEM} = 'Referral system';
+$lang{REFERRAL_TP} = 'Referral tariff';
+$lang{REFERRALS_LIST} = 'Referral list';
 $lang{BONUS_AMOUNT} = 'Amount of bonuses';
 $lang{BONUS_DESC} = 'Referral bonus';
 $lang{PAYMENT_ARREARS} = 'Payment arrears';
@@ -23,5 +23,8 @@ $lang{REQUEST_STATUS} = 'Application status';
 $lang{WITHDRAW} = 'Withdraw';
 $lang{WARN_CREATE_TP} = 'Create a tariff plan of the referral system to work with the referral';
 $lang{ERR_ONLY_NUMBER} = 'Phone must contain only numbers';
+$lang{MAX_BONUS_AMOUNT} = 'Max bonus amount';
+$lang{STATIC_ACCRUAL} = 'Static accrual';
+$lang{REF_TP_ACTIVE_IN_USERS} = "Tariff plan already active in users\n%USERS%";
 
 1;

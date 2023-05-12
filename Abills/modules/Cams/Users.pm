@@ -246,6 +246,8 @@ sub cams_cameras {
       $Cams->stream_change(\%FORM);
       if (!_error_show($Cams)) {
         show_result($Cams, $lang{CHANGED});
+        my $camera_info = $Cams->stream_info($FORM{ID});
+        $FORM{FOLDER_ID} //= $camera_info->{FOLDER_ID};
       }
     }
     else {
@@ -452,8 +454,10 @@ sub cams_user_services {
   }
   else {
     delete($Cams->{db}->{TRANSACTION});
-    $db_->commit();
-    $db_->{AutoCommit} = 1;
+    if (! $db_->{AutoCommit}) {
+      $db_->commit();
+      $db_->{AutoCommit} = 1;
+    }
     return $Cams_service;
   }
 
@@ -478,13 +482,17 @@ sub cams_user_services {
       $html->message('info', $lang{INFO}, $Cams->{MESSAGE}) if ($Cams->{MESSAGE});
     }
     delete($Cams->{db}->{TRANSACTION});
-    $db_->commit();
-    $db_->{AutoCommit} = 1;
+    if (! $db_->{AutoCommit}) {
+      $db_->commit();
+      $db_->{AutoCommit} = 1;
+    }
   }
   else {
     delete($Cams->{db}->{TRANSACTION});
-    $db_->commit();
-    $db_->{AutoCommit} = 1;
+    if (! $db_->{AutoCommit}) {
+      $db_->commit();
+      $db_->{AutoCommit} = 1;
+    }
   }
 
   return $Cams_service;

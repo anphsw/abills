@@ -150,4 +150,7 @@ $lang{WORKFLOWS} = 'Workflows';
 $lang{ADD_CONDITION} = 'Add condition';
 $lang{ADD_ACTION} = 'Add action';
 
+$lang{CRM_SUBJECT_MESSAGE} = 'Message subject';
+$lang{CRM_MESSAGE} = 'Message';
+
 1

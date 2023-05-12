@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Abills user API
-  version: 0.0.67
-  description: "Last modified 2023-04-24"
+  version: 1.0.3
+  description: "Last modified 2023-05-11"
   contact:
     name: Have a question? Support
     url: https://support.abills.net.ua/
@@ -49,6 +49,8 @@ paths:
   # base user logic
   /users/login:
     $ref: "./user/user/paths/login.yaml"
+  /user/login:
+    $ref: "./user/user/paths/loginNew.yaml"
   /user/password/recovery:
     $ref: "./user/user/paths/passwordRecovery.yaml"
   /user/password/reset:
@@ -62,7 +64,7 @@ paths:
     $ref: "./user/user/paths/registrationVerify.yaml"
   /user/resend/verification:
     $ref: "./user/user/paths/registrationResend.yaml"
-  /users/logout:
+  /user/logout:
     $ref: "./user/user/paths/logout.yaml"
   /user/social/networks:
     $ref: "./user/user/paths/socialNetworks.yaml"
@@ -142,8 +144,12 @@ paths:
 
   /user/contacts/{typeId}:
     $ref: "./user/contacts/paths/contacts.yaml"
-  /user/contacts/push/subscribe:
+  /user/contacts/push/subscribe/{typeId}:
     $ref: "./user/contacts/paths/push.yaml"
+  /user/contacts/push/badges/{typeId}:
+    $ref: "./user/contacts/paths/badges.yaml"
+  /user/contacts/push/messages:
+    $ref: "./user/contacts/paths/messages.yaml"
 
   # holdup paths
 

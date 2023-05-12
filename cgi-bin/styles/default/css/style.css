@@ -1213,3 +1213,23 @@ form > .btn-primary {
 body:not(.dark-mode) {
   background-color: #f4f6f9;
 }
+
+@media (min-width: 334px) {
+  .d-xxsm-inline {
+    display: inline !important;
+  }
+
+  .d-xxsm-none {
+    display: none !important;
+  }
+}
+
+@media (min-width: 440px) {
+  .d-xsm-inline {
+    display: inline !important;
+  }
+
+  .d-xsm-none {
+    display: none !important;
+  }
+}

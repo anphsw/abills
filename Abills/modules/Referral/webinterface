@@ -19,10 +19,7 @@ our (
 );
 
 use Referral;
-use Payments;
-use Fees;
 use Users;
-use Msgs;
 use Abills::Base qw(date_inc);
 use Referral::Helpers qw(transform_to_hash);
 use Referral::Users;
@@ -32,9 +29,6 @@ require Control::Address_mng;
 our Abills::HTML $html;
 
 my $Referral = Referral->new($db, $admin, \%conf, { SKIP_CONF => 1 });
-my $Payments = Payments->new($db, $admin, \%conf);
-my $Fees = Fees->new($db, $admin, \%conf);
-my $Bills = Bills->new($db, $admin, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
 my $Referral_users = Referral::Users->new($db, $admin, \%conf, {
   html        => $html,
@@ -73,7 +67,7 @@ sub referral_settings {
 
   my $settings = $Referral->settings_get();
   $settings->{BILL_SELECT} = $select;
-  $html->tpl_show(_include('referral_settings', "Referral"), $settings);
+  $html->tpl_show(_include('referral_settings', 'Referral'), $settings);
 
   return 1;
 }
@@ -530,7 +524,7 @@ sub add_friend {
   my $action_res = {};
 
   if ($FORM{add}) {
-    $action_res = $Referral_users->user_referral_manage({
+    $action_res = $Referral_users->referral_user_manage({
       %FORM,
       UID => $user->{UID},
     });
@@ -547,7 +541,7 @@ sub add_friend {
     })->[0] || {};
   }
   elsif ($FORM{change}) {
-    $action_res = $Referral_users->user_referral_manage({
+    $action_res = $Referral_users->referral_user_manage({
       %FORM,
       UID => $user->{UID},
     });
@@ -565,7 +559,7 @@ sub add_friend {
     }
   }
   elsif ($FORM{get_bonus}) {
-    $action_res = $Referral_users->user_get_bonus({ UID => $user->{UID} });
+    $action_res = $Referral_users->referral_bonus_add({ UID => $user->{UID} });
     $html->message('info', $lang{INFO}, "$lang{BONUS} $lang{ADDED}");
   }
 
@@ -573,7 +567,7 @@ sub add_friend {
     $html->message(@{$action_res->{element}});
   }
 
-  my $result = $Referral_users->user_referrals({ UID => $user->{UID} });
+  my $result = $Referral_users->referrals_user({ UID => $user->{UID} });
   my $total_bonus = $result->{total_bonus};
 
   my $table = $html->table({
@@ -618,7 +612,7 @@ sub add_friend {
   $Referral->get_default_tp();
 
   my $address_sel = form_address({
-      SHOW             => 0,
+    SHOW => 0,
   });
 
   $html->tpl_show(_include('referral_add_form', 'Referral'), {
@@ -853,136 +847,7 @@ sub referral_requests {
 }
 
 #**********************************************************
-=head2 add_bonus($uid)
-
-    Add money to ext bill
-
-    Arguments:
-      $uid     - ID who_referred_him
-      $referal - ID of referral
-      $tp_id   - Tarrif plan id
-    Returns:
-      1
-
-=cut
-#**********************************************************
-sub add_bonus {
-  my $uid           = shift;
-  my $referal       = shift;
-  my $tp_id         = shift;
-  my ($attr)        = shift;
-  my $user          = $Users->info($uid);
-  my $referral_info = $Users->pi({UID => $referal});
-
-  my $default_tp = $Referral->get_default_tp();
-  $default_tp = $default_tp->{ID};
-  $tp_id = $default_tp if(!$tp_id);
-  my $settings = $Referral->tp_info($tp_id);
-
-  if (_error_show($Referral)) {
-    return 0;
-  }
-
-  my $payment = $Payments->list({
-    UID       => $referal,
-    COLS_NAME => 1,
-    SUM       => '_SHOW',
-    SORT      => 'date DESC'
-  });
-
-  my $log_list = $Referral->log_list({
-    LOG_TYPE  => 1,
-    SORT      => 'date',
-    DESC      => 'DESC',
-    DATE      => '_SHOW',
-    COLS_NAME => 1,
-  });
-
-  my $referral_fees = $Fees->list({
-    UID            => $referal,
-    DATETIME       => '_SHOW',
-    SUM            => '_SHOW',
-    FROM_DATE_TIME => $log_list->[0]->{date} || $DATE,
-    TO_DATE_TIME   => date_inc($DATE) . ' 00:00:00',
-    METHOD         => 1,
-    COLS_NAME      => 1,
-    SORT           => 'datetime DESC',
-    BILL_ID        => '_SHOW'
-  });
-
-  my $fees_sum  = 0;
-  foreach my $fees (@$referral_fees){
-    $fees_sum += $fees->{sum};
-  }
-
-  my $add_amount = '';
-  if($attr->{SUM_ONLY} || $settings->{BONUS_AMOUNT}) {
-    $add_amount =$settings->{BONUS_AMOUNT};}
-  my $repl_percent = $settings->{REPL_PERCENT};
-  my $spend_percent = $settings->{SPEND_PERCENT};
-  my $sum          = $payment->[0]->{sum};
-
-  if ($sum && $repl_percent) {
-    $add_amount = $sum * ($repl_percent / 100);
-  }
-
-  if($fees_sum && $spend_percent){
-    $add_amount = $fees_sum * ($spend_percent / 100);
-  }
-
-  my $fees_list = $Fees->list({
-    UID       => $uid,
-    DATETIME  => '_SHOW',
-    SUM       => '_SHOW',
-    BILL_ID   => '_SHOW',
-    SORT      => 'datetime DESC',
-    COLS_NAME => 1,
-  });
-
-  my $deposit = $Bills->info({
-    BILL_ID => $fees_list->[0]->{bill_id},
-  });
-
-  my $left_part  = date_diff($fees_list->[0]->{datetime}, $DATE);
-  my $right_part = 30 * ($settings->{PAYMENT_ARREARS} || 0);
-
-  if (($deposit->{DEPOSIT} || 1) <= 0 && $left_part >= $right_part) {
-    return 1;
-  }
-  else {
-    $user  = $Users->info($uid);
-    if ($settings->{BONUS_BILL} == 0) {
-      if ($user->{BILL_ID}) {
-        $Payments->add($user, {
-          SUM      => $add_amount,
-          METHOD   => 4,
-          DESCRIBE => $lang{BONUS_DESC}."($referal) ".$referral_info->{FIO},
-        })
-      }
-    }
-    elsif ($settings->{BONUS_BILL} == 1) {
-      if (!$user->{EXT_BILL_ID}) {
-        my $bill = $Bills->create({
-          DEPOSIT => $add_amount,
-          UID     => $uid
-        });
-
-        $Users->change($uid, {
-          UID         => $uid,
-          EXT_BILL_ID => $bill->{BILL_ID}
-        });
-      }
-      else {
-        $Bills->action('add', $user->{EXT_BILL_ID}, $add_amount);
-      }
-    }
-  }
-
-  return 1;
-}
-
-#**********************************************************
-=head2 referral_monthly_pay()
+=head2 referral_pay()
 
     Arguments:
 
@@ -991,43 +856,9 @@ sub add_bonus {
 
 =cut
 #**********************************************************
-sub referral_monthly_pay {
-  my ($attr) = @_;
-
-  my $log_list = $Referral->log_list({
-    COUNT     => 1,
-    COLS_NAME => 1,
-  });
-
-  my $default_tp = $Referral->get_default_tp();
-  $default_tp = $default_tp->{ID} || '';
-
-  foreach my $log (@$log_list) {
-    my $settings = $Referral->tp_info($log->{tp_id});
-    my $period = $settings->{PERIOD};
-    $period = -2 if($log->{tp_id} eq $default_tp);
-
-    if (!$period || $period == 1) {
-      $period = 2
-    }
-    else {
-      $period += 1;
-    }
-    if ($log->{count} < $period || $period == -1) {
-
-      $Referral->add_log({
-        UID              => $log->{uid},
-        REFERRER         => $log->{referrer},
-        TP_ID            => $log->{tp_id},
-        REFERRAL_REQUEST => $log->{referral_request}
-      });
-
-      add_bonus($log->{referrer}, $log->{uid}, $log->{tp_id});
-    }
-  }
-
-  $Referral->add_log({
-    LOG_TYPE => 1
+sub referral_pay {
+  $Referral_users->referral_bonus_add({
+    REFERRAL_UID => '>0',
   });
 
   return 1;
@@ -1053,15 +884,22 @@ sub referral_tp {
       SELECTED => 0,
     });
 
-    $html->tpl_show(_include('referral_settings', "Referral"), { BILL_SELECT => $select, ACTION => $html->form_input('add', $lang{ADD}, { TYPE => 'submit' }) });
+    $html->tpl_show(_include('referral_settings', 'Referral'), { BILL_SELECT => $select, ACTION => $html->form_input('add', $lang{ADD}, { TYPE => 'submit' }) });
   }
   elsif ($FORM{add}) {
-    $Referral->tp_add(\%FORM);
-    if (!$Referral->{errno}) {
-      $html->message('info', $lang{SUCCESS});
+    $Referral->get_default_tp();
+    $Referral->get_default_tp();
+    if ($Referral->{IS_DEFAULT} && $FORM{IS_DEFAULT}) {
+      $html->message('err', $lang{ERROR}, $lang{ONE_DEFAULT});
     }
     else {
-      $html->message('err', $lang{ERROR}, $Referral->{errno} . " : " . $Referral->{errstr});
+      $Referral->tp_add(\%FORM);
+      if (!$Referral->{errno}) {
+        $html->message('info', $lang{SUCCESS});
+      }
+      else {
+        $html->message('err', $lang{ERROR}, $Referral->{errno} . " : " . $Referral->{errstr});
+      }
     }
   }
   elsif ($FORM{chg}) {
@@ -1077,18 +915,21 @@ sub referral_tp {
 
     $html->tpl_show(_include('referral_settings', "Referral"), {
       %{$tp},
-      BILL_SELECT => $select,
-      CHANGE      => $html->form_input('ID', $FORM{chg}, { TYPE => 'hidden' }),
-      ACTION      => $html->form_input('change', $lang{CHANGE}, { TYPE => 'submit' }),
-      DEFAULT     => $tp->{IS_DEFAULT} ? 'checked' : ''
+      BILL_SELECT    => $select,
+      CHANGE         => $html->form_input('ID', $FORM{chg}, { TYPE => 'hidden' }),
+      ACTION         => $html->form_input('change', $lang{CHANGE}, { TYPE => 'submit' }),
+      DEFAULT        => $tp->{IS_DEFAULT} ? 'checked' : '',
+      STATIC_ACCRUAL => $tp->{STATIC_ACCRUAL} ? 'checked' : ''
     });
   }
   elsif ($FORM{change}) {
-    $FORM{IS_DEFAULT} = 0 if(!$FORM{IS_DEFAULT});
+    $FORM{IS_DEFAULT} = 0 if (!$FORM{IS_DEFAULT});
+    $FORM{STATIC_ACCRUAL} = 0 if (!$FORM{STATIC_ACCRUAL});
     $Referral->get_default_tp();
-    if($Referral->{IS_DEFAULT} && $FORM{IS_DEFAULT}){
+    if ($Referral->{IS_DEFAULT} && $FORM{IS_DEFAULT} && $FORM{ID} && $FORM{ID} ne $Referral->{ID}) {
       $html->message('err', $lang{ERROR}, $lang{ONE_DEFAULT});
-    } else {
+    }
+    else {
       $Referral->tp_change(\%FORM);
       if (!$Referral->{errno}) {
         $html->message('info', $lang{SUCCESS});
@@ -1099,7 +940,27 @@ sub referral_tp {
     }
   }
   elsif ($FORM{del}) {
-    $Referral->tp_del($FORM{del});
+    my $users_list = $Referral->request_list({
+      TP_ID        => $FORM{del},
+      REFERRAL_UID => '_SHOW',
+      COLS_NAME    => 1,
+      PAGE_ROWS    => 999
+    });
+
+    if (scalar @{$users_list}) {
+      my $users_msg = q{};
+
+      foreach my $user_tp (@{$users_list}) {
+        $users_msg .= "UID: $user_tp->{referral_uid}\n";
+      }
+
+      $html->message('err', $lang{ERROR}, vars2lang($lang{REF_TP_ACTIVE_IN_USERS}, {
+        USERS     => $users_msg,
+      }));
+    }
+    else {
+      $Referral->tp_del($FORM{del});
+    }
   }
 
   result_former({
@@ -1111,16 +972,18 @@ sub referral_tp {
     SKIP_USER_TITLE => 1,
     TOTAL           => 1,
     EXT_TITLES      => {
-      name            => $lang{NAME},
-      bonus_amount    => $lang{BONUS_AMOUNT},
-      payment_arrears => $lang{PAYMENT_ARREARS},
-      period          => $lang{PERIOD} . ' ' . $lang{ACCRUALS},
-      repl_percent    => $lang{REPL_PERCENT},
-      spend_percent   => $lang{SPEND_PERCENT},
-      bonus_bill      => $lang{BILL},
-      is_default      => $lang{DEFAULT},
+      name             => $lang{NAME},
+      bonus_amount     => $lang{BONUS_AMOUNT},
+      payment_arrears  => $lang{PAYMENT_ARREARS},
+      period           => $lang{PERIOD} . ' ' . $lang{ACCRUALS},
+      repl_percent     => $lang{REPL_PERCENT},
+      spend_percent    => $lang{SPEND_PERCENT},
+      bonus_bill       => $lang{BILL},
+      is_default       => $lang{DEFAULT},
+      max_bonus_amount => $lang{MAX_BONUS_AMOUNT},
+      static_accrual   => $lang{STATIC_ACCRUAL},
     },
-    SELECT_VALUE    => {
+    SELECT_VALUE => {
       bonus_bill      => {
         0 => $lang{MAIN},
         1 => $lang{EXTRA_BILL}
@@ -1128,10 +991,15 @@ sub referral_tp {
       payment_arrears => {
         0 => '0'
       },
-      'repl_percent'  => {
+      repl_percent    => {
         0 => '0'
       },
-      'is_default'    => {
+      is_default      => {
+        0 => '<i class="fa fa-times"></i>',
+        1 => '<i class="fa fa-check"></i>'
+      },
+      ,
+      static_accrual  => {
         0 => '<i class="fa fa-times"></i>',
         1 => '<i class="fa fa-check"></i>'
       }
@@ -1221,11 +1089,11 @@ sub referral_redirect {
 }
 
 #**********************************************************
-=head2 referral_link_registred()
+=head2 referral_link_registered()
 
 =cut
 #**********************************************************
-sub referral_link_registred {
+sub referral_link_registered {
   my ($attr) = @_;
 
   $Users->info($attr->{UID});
@@ -1256,7 +1124,11 @@ sub referral_link_registred {
     QUITE            => $attr->{QUITE} || 0
   });
 
-  add_bonus($attr->{REFERRED}, $attr->{UID}, $default_tp, { SUM_ONLY => 1 });
+  $Referral_users->referral_registered({
+    REFERRER => $attr->{REFERRED},
+    UID      => $attr->{UID},
+    TP_ID    => $default_tp,
+  });
 
   return 1;
 }

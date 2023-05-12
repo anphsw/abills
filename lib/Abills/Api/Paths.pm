@@ -6,7 +6,7 @@ use warnings FATAL => 'all';
 use Abills::Base qw(in_array mk_unique_value camelize);
 use Abills::Api::Helpers qw(static_string_generate caesar_cipher);
 
-my $VERSION = 0.67;
+my $VERSION = 1.03;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -163,74 +163,7 @@ sub list {
         path                 => '/users/login/',
         handler              => sub {
           my ($path_params, $query_params) = @_;
-
-          my $session_id = $ENV{HTTP_USERSID} || '';
-          %main::FORM = ();
-
-          if ($self->{conf}->{AUTH_GOOGLE_ID} && $query_params->{google}) {
-            $main::FORM{token} = $query_params->{google};
-            $main::FORM{external_auth} = 'Google';
-            $main::FORM{API} = 1;
-            $session_id = 'plug' if ($self->{conf}->{PASSWORDLESS_ACCESS});
-          }
-          elsif ($self->{conf}->{AUTH_FACEBOOK_ID} && $query_params->{facebook}) {
-            $main::FORM{token} = $query_params->{facebook};
-            $main::FORM{external_auth} = 'Facebook';
-            $main::FORM{API} = 1;
-            $session_id = 'plug' if ($self->{conf}->{PASSWORDLESS_ACCESS});
-          }
-          elsif ($self->{conf}->{AUTH_APPLE_ID} && $query_params->{apple}) {
-            $main::FORM{token} = $query_params->{apple};
-            $main::FORM{external_auth} = 'Apple';
-            $main::FORM{API} = 1;
-            $session_id = 'plug' if ($self->{conf}->{PASSWORDLESS_ACCESS});
-          }
-
-          my ($uid, $sid, $login) = ::auth_user($query_params->{login} || '', $query_params->{password} || '', $session_id, { API => 1 });
-
-          if (ref $uid eq 'HASH') {
-            return $uid;
-          }
-
-          if (!$uid) {
-            return {
-              errno  => 10001,
-              errstr => 'Wrong login or password or auth token'
-            };
-          }
-
-          my %result = (
-            uid   => $uid,
-            sid   => $sid,
-            login => $login
-          );
-
-          if ((defined $self->{conf}->{API_LOGIN_SHOW_PASSWORD} && $main::FORM{external_auth}) ||
-            ($self->{conf}->{REGISTRATION_VERIFY_PHONE} || $self->{conf}->{REGISTRATION_VERIFY_EMAIL})) {
-            require Users;
-            Users->import();
-            my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
-
-            if (defined $self->{conf}->{API_LOGIN_SHOW_PASSWORD} && $main::FORM{external_auth}) {
-              my $user_info = $Users->info($uid, { SHOW_PASSWORD => 1 });
-
-              $result{password} = caesar_cipher($user_info->{PASSWORD}, $self->{conf}->{API_LOGIN_SHOW_PASSWORD});
-              $result{password} = "<str_>$result{password}";
-            }
-
-            if ($self->{conf}->{REGISTRATION_VERIFY_PHONE} || $self->{conf}->{REGISTRATION_VERIFY_EMAIL}) {
-              $Users->registration_pin_info({ UID => $uid });
-              if ($Users->{errno}) {
-                $result{is_verified} = 'true';
-              }
-              else {
-                $result{is_verified} = $Users->{VERIFY_DATE} eq '0000-00-00 00:00:00' ? 'false' : 'true';
-              }
-            }
-          }
-
-          $result{login} = "<str_>$result{login}";
-          return \%result;
+          return $self->_users_login($path_params, $query_params);
         },
         no_decamelize_params => 1,
       },
@@ -3188,8 +3121,95 @@ sub list {
           'USER', 'USERBOT'
         ]
       },
+      {
+        method               => 'POST',
+        path                 => '/user/login/',
+        handler              => sub {
+          my ($path_params, $query_params) = @_;
+          return $self->_users_login($path_params, $query_params);
+        },
+        no_decamelize_params => 1,
+      },
     ]
   };
+}
+
+#**********************************************************
+=head2 _users_login($path_params, $query_params)
+
+=cut
+#**********************************************************
+sub _users_login {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  my $session_id = $ENV{HTTP_USERSID} || '';
+  %main::FORM = ();
+
+  if ($self->{conf}->{AUTH_GOOGLE_ID} && $query_params->{google}) {
+    $main::FORM{token} = $query_params->{google};
+    $main::FORM{external_auth} = 'Google';
+    $main::FORM{API} = 1;
+    $session_id = 'plug' if ($self->{conf}->{PASSWORDLESS_ACCESS});
+  }
+  elsif ($self->{conf}->{AUTH_FACEBOOK_ID} && $query_params->{facebook}) {
+    $main::FORM{token} = $query_params->{facebook};
+    $main::FORM{external_auth} = 'Facebook';
+    $main::FORM{API} = 1;
+    $session_id = 'plug' if ($self->{conf}->{PASSWORDLESS_ACCESS});
+  }
+  elsif ($self->{conf}->{AUTH_APPLE_ID} && $query_params->{apple}) {
+    $main::FORM{token} = $query_params->{apple};
+    $main::FORM{external_auth} = 'Apple';
+    $main::FORM{API} = 1;
+    $session_id = 'plug' if ($self->{conf}->{PASSWORDLESS_ACCESS});
+  }
+
+  my ($uid, $sid, $login) = ::auth_user($query_params->{login} || '', $query_params->{password} || '', $session_id, { API => 1 });
+
+  if (ref $uid eq 'HASH') {
+    return $uid;
+  }
+
+  if (!$uid) {
+    return {
+      errno  => 10001,
+      errstr => 'Wrong login or password or auth token'
+    };
+  }
+
+  my %result = (
+    uid   => $uid,
+    sid   => $sid,
+    login => $login
+  );
+
+  if ((defined $self->{conf}->{API_LOGIN_SHOW_PASSWORD} && $main::FORM{external_auth}) ||
+    ($self->{conf}->{REGISTRATION_VERIFY_PHONE} || $self->{conf}->{REGISTRATION_VERIFY_EMAIL})) {
+    require Users;
+    Users->import();
+    my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+
+    if (defined $self->{conf}->{API_LOGIN_SHOW_PASSWORD} && $main::FORM{external_auth}) {
+      my $user_info = $Users->info($uid, { SHOW_PASSWORD => 1 });
+
+      $result{password} = caesar_cipher($user_info->{PASSWORD}, $self->{conf}->{API_LOGIN_SHOW_PASSWORD});
+      $result{password} = "<str_>$result{password}";
+    }
+
+    if ($self->{conf}->{REGISTRATION_VERIFY_PHONE} || $self->{conf}->{REGISTRATION_VERIFY_EMAIL}) {
+      $Users->registration_pin_info({ UID => $uid });
+      if ($Users->{errno}) {
+        $result{is_verified} = 'true';
+      }
+      else {
+        $result{is_verified} = $Users->{VERIFY_DATE} eq '0000-00-00 00:00:00' ? 'false' : 'true';
+      }
+    }
+  }
+
+  $result{login} = "<str_>$result{login}";
+  return \%result;
 }
 
 1;

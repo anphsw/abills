@@ -157,4 +157,7 @@ $lang{WORKFLOWS} = 'Рабочие процессы';
 $lang{ADD_CONDITION} = 'Добавить условие';
 $lang{ADD_ACTION} = 'Добавить действие';
 
+$lang{CRM_SUBJECT_MESSAGE} = 'Тема сообщения';
+$lang{CRM_MESSAGE} = 'Текст сообщения';
+
 1

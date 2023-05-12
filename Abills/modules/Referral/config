@@ -26,5 +26,7 @@ $info = $html->badge($Referral->{TOTAL}, { TYPE => 'bg-red' }) if ($Referral->{T
 );
 
 %PERIODIC = (
-  monthly => [ 'referral_monthly_pay' ],
+  daily => [ 'referral_pay' ],
 );
+
+1;

@@ -791,8 +791,9 @@ sub auth_user {
   #Get user ip
   if (defined($res) && $res > 0) {
     $user->info($user->{UID} || 0, {
-      LOGIN     => ($user->{UID}) ? undef : $login,
-      DOMAIN_ID => $FORM{DOMAIN_ID}
+      LOGIN      => ($user->{UID}) ? undef : $login,
+      DOMAIN_ID  => $FORM{DOMAIN_ID},
+      USERS_AUTH => 1
     });
 
     if($conf{AUTH_G2FA}) {
@@ -827,6 +828,24 @@ sub auth_user {
       $user->{REMOTE_ADDR} = $REMOTE_ADDR;
       $admin->{DOMAIN_ID}  = $user->{DOMAIN_ID};
       $login               = $user->{LOGIN};
+
+      if (!$conf{SKIP_GROUP_ACCESS_CHECK}) {
+        $user->group_info($user->{GID});
+
+        if ($user->{DISABLE_ACCESS}) {
+          delete $FORM{logined};
+
+          if ($attr->{API}) {
+            return {
+              errno  => 10440,
+              errstr => 'Access denied.',
+            };
+          }
+
+          $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { OUTPUT2RETURN => 1 });
+          return 0;
+        }
+      }
 
       $user->web_session_add({
         UID         => $user->{UID},
@@ -904,9 +923,28 @@ sub passwordless_access {
     $login     = $list->[0]->{user_name} || $login;
     $ret       = $list->[0]->{uid};
     $session_id= mk_unique_value(14);
-    $user->info($ret);
+    $user->info($ret, { USERS_AUTH => 1 });
 
     $user->{REMOTE_ADDR} = $remote_addr;
+
+    if (!$conf{SKIP_GROUP_ACCESS_CHECK}) {
+      $user->group_info($user->{GID});
+
+      if ($user->{DISABLE_ACCESS}) {
+        delete $FORM{logined};
+
+        if ($attr->{API}) {
+          return {
+            errno  => 10500,
+            errstr => 'Access denied.',
+          };
+        }
+
+        $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { OUTPUT2RETURN => 1 });
+        return 0;
+      }
+    }
+    # FIXME: very bad hardcode inside function check
     $user->web_session_add({
       UID         => $ret,
       SID         => $session_id,

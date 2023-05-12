@@ -13,6 +13,7 @@ use Fees;
 use Abills::Defs;
 use Abills::Base qw(in_array sendmail days_in_month cmd date_diff);
 use Abon::Services;
+use Abon::Misc::Attachments;
 
 our ($db,
   $admin,
@@ -28,6 +29,8 @@ our ($db,
 our Abills::HTML $html;
 my $Abon = Abon->new($db, $admin, \%conf);
 my $Fees = Fees->new($db, $admin, \%conf);
+my $Attachments = Abon::Misc::Attachments->new($db, $admin, \%conf);
+
 my @PERIODS = ($lang{DAY}, $lang{MONTH}, $lang{QUARTER}, $lang{SIX_MONTH}, $lang{YEAR});
 
 my $Abon_services = Abon::Services->new($db, $admin, \%conf, { LANG=> \%lang  });
@@ -104,8 +107,7 @@ sub abon_user {
         $ids_hash{$k} = 1;
       }
 
-      my $list = $Abon->user_tariff_list($uid, { COLS_NAME => 1 });
-
+      my $list = $Abon->user_tariff_list($uid, { COLS_NAME => 1 });;
       foreach my $line (@{$list}) {
         if ($ids_hash{ $line->{id} } && $line->{date}) {
 
@@ -119,7 +121,8 @@ sub abon_user {
             'CREATE_DOCS_:create_docs',
             'SEND_DOCS_:send_docs',
             'MANUAL_FEE_:manual_fee',
-            'FEES_PERIOD_:fees_period'
+            'FEES_PERIOD_:fees_period',
+            'PERSONAL_DESCRIPTION_:personal_description'
           );
 
           foreach my $l (@compare) {
@@ -130,16 +133,17 @@ sub abon_user {
               next if (!$FORM{ $input_value . $line->{id} } && !$line->{$db_value});
 
               $Abon->user_tariff_change({
-                UID           => $uid,
-                TP_ID         => $line->{id},
-                FEES_PERIOD   => $FORM{ 'FEES_PERIOD_' . $line->{id} },
-                COMMENTS      => $FORM{ 'COMMENTS_' . $line->{id} },
-                DISCOUNT      => $FORM{ 'DISCOUNT_' . $line->{id} },
-                CREATE_DOCS   => $FORM{ 'CREATE_DOCS_' . $line->{id} },
-                SEND_DOCS     => $FORM{ 'SEND_DOCS_' . $line->{id} },
-                SERVICE_COUNT => $FORM{ 'SERVICE_COUNT_' . $line->{id} },
-                MANUAL_FEE    => $FORM{ 'MANUAL_FEE_' . $line->{id} },
-                CHANGE_INFO   => 1
+                UID                  => $uid,
+                TP_ID                => $line->{id},
+                FEES_PERIOD          => $FORM{ 'FEES_PERIOD_' . $line->{id} },
+                COMMENTS             => $FORM{ 'COMMENTS_' . $line->{id} },
+                DISCOUNT             => $FORM{ 'DISCOUNT_' . $line->{id} },
+                CREATE_DOCS          => $FORM{ 'CREATE_DOCS_' . $line->{id} },
+                SEND_DOCS            => $FORM{ 'SEND_DOCS_' . $line->{id} },
+                SERVICE_COUNT        => $FORM{ 'SERVICE_COUNT_' . $line->{id} },
+                MANUAL_FEE           => $FORM{ 'MANUAL_FEE_' . $line->{id} },
+                PERSONAL_DESCRIPTION => $FORM{ 'PERSONAL_DESCRIPTION_' . $line->{id} },
+                CHANGE_INFO          => 1,
               });
               last;
             }
@@ -390,9 +394,24 @@ sub abon_user {
   my $table = $html->table({
     width   => '100%',
     caption => $lang{ABON},
-    title   => [ '-', "$lang{TARIF_PLAN} (ID)", "$lang{SERVICE} $lang{NAME}",
-      $lang{COMMENTS}, $lang{SUM}, $lang{PERIOD}, $lang{SERVICE_COUNT}, $lang{FEES_PERIOD}, $lang{LAST_ABON}, $lang{NEXT_ABON}, "$lang{REDUCTION} (%)",
-      "$lang{CREATE} $lang{DOCS}", $lang{SEND_NOTIFICATION}, $lang{MANUAL_ACTIVATE}, '-' ],
+    title   => [
+      '-',
+      "$lang{TARIF_PLAN} (ID)",
+      "$lang{SERVICE} $lang{NAME}",
+      $lang{COMMENTS},
+      $lang{PERSONAL_DESCRIPTION},
+      $lang{SUM},
+      $lang{PERIOD},
+      $lang{SERVICE_COUNT},
+      $lang{FEES_PERIOD},
+      $lang{LAST_ABON},
+      $lang{NEXT_ABON},
+      "$lang{REDUCTION} (%)",
+      "$lang{CREATE} $lang{DOCS}",
+      $lang{SEND_NOTIFICATION},
+      $lang{MANUAL_ACTIVATE},
+      '-'
+    ],
     FIELDS_IDS => $Abon->{COL_NAMES_ARR},
     qs      => $pages_qs,
     ID      => 'USER_ABON',
@@ -429,6 +448,7 @@ sub abon_user {
       $line->{id},
       ($permissions{5}) ? $html->button($line->{tp_name}, "index=" . get_function_index('abon_tariffs') . '&ABON_ID=' . $line->{id}) : "$line->{tp_name}",
       $html->form_input('COMMENTS_' . $line->{id}, $describe || $FORM{ 'error_comments_' . $line->{id} } || q{}, { SIZE => 40 }),
+      $html->form_input('PERSONAL_DESCRIPTION_' . $line->{id}, $line->{personal_description} || $FORM{ 'error_personal_description_' . $line->{id} } || q{}, { SIZE => 40 }),
       $line->{price},
       $PERIODS[ $line->{period} ],
       $html->form_input('SERVICE_COUNT_' . $line->{id}, $line->{service_count} || 1, { SIZE => 5 }),
@@ -461,7 +481,12 @@ sub abon_user {
           EX_PARAMS => ' data-return="1" '
         }
       ),
-      ($state && $line->{manual_activate}) ? $html->button($lang{ACTIVATE}, "index=$index&change=1&&ACTIVATE=$line->{id}&ABON_DATE=$line->{next_abon}&UID=$uid&COMMENTS_" . $line->{id} . "=$describe", { BUTTON => 1 }) : ''
+      ($state && $line->{manual_activate})
+        ? $html->button($lang{ACTIVATE},
+            "index=$index&change=1&&ACTIVATE=$line->{id}&ABON_DATE=$line->{next_abon}&UID=$uid&COMMENTS_" . $line->{id} . "=$describe",
+            { BUTTON => 1 }
+          )
+        : ''
     );
   }
 
@@ -475,7 +500,7 @@ sub abon_user {
     $action = $html->form_input('change', $lang{CHANGE}, { TYPE => 'submit' });
   }
 
-  $table->{extra} = 'colspan=15';
+  $table->{extra} = 'colspan=16';
   $table->{rowcolor} = 'even';
   $table->addrow($action);
 
@@ -610,7 +635,8 @@ sub abon_tariffs {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_SUM}");
     }
     else {
-      $Abon->tariff_add({ %FORM });
+      my $picture_name = $Attachments->save_picture($FORM{SERVICE_IMG});
+      $Abon->tariff_add({ %FORM, SERVICE_IMG => $picture_name });
       $html->message('info', $lang{INFO}, "$lang{ADDED}") if (!$Abon->{errno});
     }
   }
@@ -658,6 +684,10 @@ sub abon_tariffs {
       return 0;
     }
     elsif ($FORM{change}) {
+      if ($FORM{SERVICE_IMG}) {
+        my $picture_name = $Attachments->save_picture($FORM{SERVICE_IMG}, $FORM{ABON_ID});
+        $FORM{SERVICE_IMG} = $picture_name;
+      }
       $Abon->tariff_change({ %FORM });
       $html->message('info', $lang{INFO}, $lang{CHANGED}) if !$Abon->{errno};
     }
@@ -961,7 +991,9 @@ sub abon_periodic {
             my $message = $html->tpl_show(_include('abon_notification3', 'Abon'), { %{$Abon}, %{$info} }, { OUTPUT2RETURN => 1 });
             sendmail("$conf{ADMIN_MAIL}", "$info->{EMAIL}", "$conf{WEB_TITLE} - $info->{TP_NAME} $info->{COMMENTS}", "$message", "$conf{MAIL_CHARSET}", '', {});
           }
-          $debug_output .= "$user{UID} TP_ID: $info->{TP_ID} SUM: $info->{PRICE} ACCOUNT: $info->{CREATE_ACCOUNT} " . (($info->{CREATE_ACCOUNT}) ? "ACCOUNT SEND_EMAIL: $info->{EMAIL}" : '') . (($info->{ACTIVATE_NOTIFICATION}) ? " NOTIFICATION: $info->{EMAIL}" : '') . "\n" if ($debug > 1);
+          $debug_output .= "$user{UID} TP_ID: $info->{TP_ID} SUM: $info->{PRICE} ACCOUNT: $info->{CREATE_ACCOUNT} "
+            . (($info->{CREATE_ACCOUNT}) ? "ACCOUNT SEND_EMAIL: $info->{EMAIL}" : '')
+            . (($info->{ACTIVATE_NOTIFICATION}) ? " NOTIFICATION: $info->{EMAIL}" : '') . "\n" if ($debug > 1);
         }
 
         #Send Alert
@@ -1138,21 +1170,34 @@ sub abon_client {
       USER_PORTAL       => '>0',
       #USER_PORTAL_EDIT  => '_SHOW',
       SERVICE_LINK      => '_SHOW',
+      SERVICE_IMG       => '_SHOW',
       #_MULTI_HIT        => 1
     }
   );
 
+  my $is_card_design = $FORM{CARD_FORM} ? 1 : 0;
+
   my @rows = ();
+  my @upper_lines = ();
+  my $money_main_unit = $conf{MONEY_UNIT_NAMES} ? (split(/;/, $conf{MONEY_UNIT_NAMES}))[0] : '';
+
   foreach my $line (@{$list}) {
     my $button = '';
+    my $link_button = '';
     if ($line->{user_portal} == 2) {
       if ($line->{manual_activate} && !$line->{date}) {
-        $button = $html->button($lang{ACTIVATE}, "index=$index&add=$line->{id}", { class => 'btn btn-primary' });
+        $button = $html->button($lang{ACTIVATE}, "index=$index&add=$line->{id}&CARD_FORM=$is_card_design", { class => 'btn btn-primary' });
       }
       elsif ($line->{date} && $line->{service_link}) {
         my ($caption, $url) = split(/\|/, $line->{service_link}, 2);
-        $button = $html->button(_translate($caption), "", { class => 'btn btn-primary',
-          GLOBAL_URL => (($url) ? $url : q{}). "&sid=$sid" });
+        $link_button = $html->button(
+          _translate($caption),
+          "",
+          {
+            class => 'btn btn-link',
+            GLOBAL_URL => (($url) ? $url : q{}). "&sid=$sid"
+          }
+        );
       }
     }
 
@@ -1160,7 +1205,31 @@ sub abon_client {
       next;
     }
 
-    push @rows, [ $line->{tp_name}, $line->{description}, $line->{price}, $PERIODS[ $line->{period} ], $line->{date}, $line->{next_abon}, $button ];
+    push @rows, [
+      $line->{tp_name},
+      $line->{user_description},
+      $line->{price},
+      $PERIODS[ $line->{period} ],
+      $line->{date},
+      $line->{next_abon},
+      $line->{personal_description},
+      $button || $link_button
+    ];
+
+    if ($is_card_design) {
+      push @upper_lines, {
+        TP_NAME              => $line->{tp_name},
+        DESCRIPTION          => $line->{user_description},
+        PRICE                => $line->{price},
+        PERIOD               => lc($PERIODS[$line->{period}]),
+        DATE                 => $line->{date},
+        NEXT_ABON            => $line->{next_abon},
+        PERSONAL_DESCRIPTION => $line->{personal_description},
+        BUTTON               => $button || $link_button,
+        SERVICE_IMG          => $line->{service_img},
+        UNIT                 => $money_main_unit
+      };
+    }
   }
 
   if($#rows == -1) {
@@ -1168,17 +1237,72 @@ sub abon_client {
     return 1;
   }
 
-  my $table = $html->table({
-    width   => '100%',
-    caption => $lang{EXT_SERVICES},
-    FIELDS_IDS => $Abon->{COL_NAMES_ARR},
-    title   => [ $lang{SERVICE}, $lang{DESCRIPTION}, $lang{SUM}, $lang{PERIOD}, $lang{START}, $lang{EXPIRE}, '-' ],
-    qs      => $pages_qs,
-    ID      => 'USER_ABON',
-    rows    => \@rows
+  my $result = "";
+
+  my @classes = ('btn-outline-primary', 'btn-primary');
+
+  my $base_abon_link = "$SELF_URL?index=$index";
+  $html->tpl_show(_include('abon_card_switch', 'Abon'), {
+    LINK_TO_TABLE     => "$base_abon_link&CARD_FORM=0",
+    LINK_TO_CARD      => "$base_abon_link&CARD_FORM=1",
+    TABLE_BUTTON_CLASS => $classes[!$is_card_design],
+    CARD_BUTTON_CLASS  => $classes[$is_card_design],
   });
 
-  print $table->show();
+  if ($is_card_design) {
+    my $tile_template = _include('abon_service_tile', 'Abon');
+    my $tile_container_template = _include('abon_service_tile_container', 'Abon');
+    my @not_activated_hide = ('DATE', 'NEXT_ABON');
+    my @lang_tags = ('START', 'EXPIRE');
+
+    for my $line (@upper_lines) {
+      my %upper_line = %$line;
+      $upper_line{ADDON} = '';
+      if ($upper_line{BUTTON}) {
+        for my $hide (@not_activated_hide) {
+          if ($upper_line{$hide}) {
+            $upper_line{$hide} = '';
+          }
+        }
+      }
+      else {
+        my $i = 0;
+        for my $hide (@not_activated_hide) {
+          my $langed = $html->b($lang{$lang_tags[$i]}, { OUTPUT2RETURN => 1 });
+          $upper_line{ADDON} .= $html->element('p', "$langed: $upper_line{$hide}", { class => 'm-0', OUTPUT2RETURN => 1 });
+          $i++;
+        }
+        $upper_line{ADDON} = $html->element('div', $upper_line{ADDON}, { class => 'text-center mb-3', OUTPUT2RETURN => 1 });
+      }
+      my $service_img_link = '';
+      if ($upper_line{SERVICE_IMG}) {
+        my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+        my $base_attach_link = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images/attach/abon" : '';
+
+        $service_img_link = "$base_attach_link/$upper_line{SERVICE_IMG}";
+      } else {
+        $service_img_link = '/styles/default/img/modules/abon/empty_image.svg';
+      }
+      $upper_line{SERVICE_IMG} = $service_img_link;
+
+      $result .= $html->tpl_show($tile_template, { %upper_line }, { OUTPUT2RETURN => 1 });
+    }
+
+    $html->tpl_show($tile_container_template, { SERVICES => $result });
+  }
+  else {
+    my $table = $html->table({
+      width      => '100%',
+      caption    => $lang{EXT_SERVICES},
+      FIELDS_IDS => $Abon->{COL_NAMES_ARR},
+      title      => [ $lang{SERVICE}, $lang{DESCRIPTION}, $lang{SUM}, $lang{PERIOD}, $lang{START}, $lang{EXPIRE}, $lang{ADDITIONAL_DATA}, '-' ],
+      qs         => $pages_qs,
+      ID         => 'USER_ABON',
+      rows       => \@rows
+    });
+
+    print $table->show();
+  }
 
   return 1;
 }

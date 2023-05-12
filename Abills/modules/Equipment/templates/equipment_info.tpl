@@ -273,7 +273,16 @@
 
     </div>
 
-    %ONU_STATUS%
+    <div class='col-md-6 text-right'>
+    <div class='card card-primary card-outline card-form'>
+      <div class='card-header with-border'>
+        <h4 class='card-title'>_{ONU_COUNT}_</h4>
+        </div>
+          <div class='card-body'>
+            %ONU_STATUS%
+        </div>
+      </div>
+    </div>
 
   </div>
 

@@ -478,7 +478,7 @@ sub user_registration {
 
   if ($attr->{REFERRER}) {
     ::load_module('Referral', $html);
-    ::referral_link_registred({ REFERRED => $attr->{REFERRER}, UID => $uid, QUITE => 1 });
+    ::referral_link_registered({ REFERRED => $attr->{REFERRER}, UID => $uid, QUITE => 1 });
   }
 
   if (!($attr->{SOCIAL_NETWORK} && $attr->{TOKEN}) && ($conf{REGISTRATION_VERIFY_PHONE} || $conf{REGISTRATION_VERIFY_EMAIL})) {

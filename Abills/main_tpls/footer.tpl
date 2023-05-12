@@ -8,8 +8,10 @@
   %FOOTER_CONTENT%
   %FOOTER_DEBUG%
   <div class='px-1 my-n1 row justify-content-between align-items-center'>
-    <div>
-      <b><span style='color: red'>A</span>BillS</b>
+    <div class='d-flex align-items-center' style='column-gap: 4px'>
+      <a href='http://abills.net.ua/?utm_source=abills' target='_blank'>
+        <b><span style='color: red'>A</span>BillS</b>
+      </a>
       %VERSION%
     </div>
     <div class='d-inline-block'>

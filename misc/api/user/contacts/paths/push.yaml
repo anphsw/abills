@@ -2,6 +2,14 @@ post:
   tags:
     - contacts
   summary: Подписка на Push уведомления
+  parameters:
+    - name: typeId
+      in: path
+      description: >
+        Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
+      required: true
+      schema:
+        type: number
   requestBody:
     content:
       application/json:
@@ -29,6 +37,14 @@ delete:
   tags:
     - contacts
   summary: Отписка от Push уведомлений
+  parameters:
+    - name: typeId
+      in: path
+      description: >
+        Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
+      required: true
+      schema:
+        type: number
   responses:
     200:
       description: Успешное выполнение
@@ -39,13 +55,21 @@ delete:
             properties:
               result:
                 type: string
-                example: OK
+                example: Successfully deleted
   security:
     - USERSID: [ ]
 get:
   tags:
     - contacts
   summary: Получить FCM токен
+  parameters:
+    - name: typeId
+      in: path
+      description: >
+        Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
+      required: true
+      schema:
+        type: number
   responses:
     200:
       description: Успешное выполнение

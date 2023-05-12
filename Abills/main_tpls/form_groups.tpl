@@ -92,6 +92,14 @@
         </div>
       </div>
 
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='DISABLE_ACCESS'>_{DISABLE_USER_PORTAL_ACCESS}_:</label>
+        <div class='col-md-8'>
+          <div class='form-check'>
+            <input type='checkbox' class='form-check-input' id='DISABLE_ACCESS' name='DISABLE_ACCESS' %DISABLE_ACCESS% value='1'>
+          </div>
+        </div>
+      </div>
 
       %DOMAIN_FORM%
       %SMS_FORM%

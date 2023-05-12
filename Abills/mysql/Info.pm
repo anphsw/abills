@@ -16,11 +16,11 @@ Supports
 
 =head1 VERSION
 
-  VERSION = 1.4
+  VERSION = 1.5
 
 =cut
 
-our $VERSION = 1.4;
+our $VERSION = 1.5;
 #**********************************************************
 =head1 SYNOPSIS
   By simply calling info_show_comments('table_name', object_id),
@@ -33,14 +33,12 @@ our $VERSION = 1.4;
 =cut
 #**********************************************************
 
-use parent 'main';
-my ($SORT, $DESC, $PG, $PAGE_ROWS) = (1, 'DESC', '1', 10000);
-
+use parent 'dbcore';
 use Attach;
 my Attach $Attach;
 
 # Singleton reference;
-my main $instance;
+my dbcore $instance;
 
 use constant {
   COMMENT_TABLE  => {
@@ -488,7 +486,7 @@ sub _get_info_info {
   my $table_name = $table->{NAME};
   my $table_al = $table->{ALIAS};
 
-  $instance->query2(
+  $instance->query(
     "SELECT
       $COLUMNS
       FROM
@@ -519,10 +517,8 @@ sub _get_info_info {
 sub _get_info_list {
   my ($obj_type, $id, $table, $attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   if (!(defined $obj_type && defined $id)) {
     return 0;
@@ -532,7 +528,7 @@ sub _get_info_list {
   my $ALIAS = $table->{ALIAS} || return get_error(1, "Uncorrect Table definition");
   my $type = $table->{TYPE} || return get_error(1, "Uncorrect Table definition");
   my $table_name = $table->{NAME} || return get_error(1, "Uncorrect Table definition");
-  $instance->query2(
+  $instance->query(
     "SELECT
       $COLUMNS
       FROM
@@ -551,7 +547,7 @@ sub _get_info_list {
   my $list = $instance->{list};
 
   if (wantarray) {
-    $instance->query2("SELECT count(*) AS total
+    $instance->query("SELECT COUNT(*) AS total
         FROM
         info_info i
         LEFT JOIN $table_name $ALIAS ON ($ALIAS.id = i.comment_id)
@@ -592,12 +588,15 @@ sub _add_info {
     $table_name,
     $attr
   );
+
   if ($instance->{debug}){
     print "<hr><h1>Last insert id $instance->{INSERT_ID}</h1>"
   }
+
   if ($instance->{errno}){
     return 0;
   }
+
   #add info
   $instance->query_add(
     'info_info',
@@ -642,7 +641,7 @@ sub search_comments {
   my $self = shift;
   my ($comments) = @_;
 
-  $self->query2("SELECT ic.id, ic.text, ii.date, ii.obj_id, ii.admin_id FROM info_comments AS ic
+  $self->query("SELECT ic.id, ic.text, ii.date, ii.obj_id, ii.admin_id FROM info_comments AS ic
    LEFT JOIN info_info AS ii ON ic.id = ii.id WHERE ic.text LIKE '\%$comments\%'", undef, {
     COLS_NAME => 1
   });
@@ -669,7 +668,7 @@ sub change_comments {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("UPDATE info_comments SET text = ? WHERE id = ?", undef, {
+  $self->query("UPDATE info_comments SET text = ? WHERE id = ?", undef, {
     Bind => [ $attr->{TEXT}, $attr->{ID} ]
   });
 
@@ -701,12 +700,12 @@ sub log_comments {
   my ($attr) = @_;
 
   if($attr->{COMMENT_ID}) {
-    $self->query2("SELECT * FROM info_change_comments WHERE id_comments = ?;", undef, {
+    $self->query("SELECT * FROM info_change_comments WHERE id_comments = ?;", undef, {
       COLS_NAME => 1,
       Bind => [ $attr->{COMMENT_ID} ]
     });
   } else {
-    $self->query2("SELECT icc.aid, icc.date_change, icc.id_comments,
+    $self->query("SELECT icc.aid, icc.date_change, icc.id_comments,
                 icc.old_comment, icc.text, icc.uid
                 FROM info_change_comments AS icc;", undef, {
       COLS_NAME => 1
@@ -727,7 +726,7 @@ sub info_document_add {
 
   # If have one attachment linked to a lot messages, will save it as one file
   my $comment_id = $attr->{COMMENT_ID};
-  return $self if !$comment_id;
+  return $self if (!$comment_id);
 
   $attr->{CONTENT} //= $attr->{FILE};
   my $file_path = $self->_save_to_disk($comment_id, $attr->{FILENAME}, $attr);
@@ -749,10 +748,10 @@ sub info_documents_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = $attr->{SORT} || 'id';
-  $DESC = ($attr->{DESC}) ? '' : 'DESC';
-  $PG = $attr->{PG} || '0';
-  $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
+  my $SORT = $attr->{SORT} || 'id';
+  my $DESC = ($attr->{DESC}) ? '' : 'DESC';
+  my $PG = $attr->{PG} || '0';
+  my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
 
   # Both values are stored in single column
   if ($attr->{REPLY_ID}) {
@@ -762,7 +761,7 @@ sub info_documents_list {
 
   my $search_columns = [
     [ 'ID',           'INT',  'ind.id',           1 ],
-    [ 'COMMENT_ID',   'INT',  'ind.comment_id',   1 ],
+    [ 'COMMENT_ID',   'INT',  'ind.id',           1 ],
     [ 'FILENAME',     'STR',  'ind.filename',     1 ],
     [ 'CONTENT_SIZE', 'STR',  'ind.content_size', 1 ],
     [ 'CONTENT_TYPE', 'STR',  'ind.content_type', 1 ],
@@ -775,10 +774,13 @@ sub info_documents_list {
 
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
 
-  $self->query2("SELECT $self->{SEARCH_FIELDS} ind.id
+  $self->query("SELECT $self->{SEARCH_FIELDS} ind.id
    FROM info_documents ind
-   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
-    COLS_NAME => 1, COLS_UPPER => 1,
+   $WHERE
+   ORDER BY $SORT $DESC
+   LIMIT $PG, $PAGE_ROWS;", undef, {
+    COLS_NAME => 1,
+    COLS_UPPER => 1,
     %{$attr // {}} }
   );
 
@@ -796,7 +798,7 @@ sub info_document_info {
   my $self = shift;
   my ($id, $attr) = @_;
 
-  $self->query2("SELECT * FROM info_documents WHERE id = ?;", undef, { INFO => 1, Bind => [ $id ] });
+  $self->query("SELECT * FROM info_documents WHERE id = ?;", undef, { INFO => 1, Bind => [ $id ] });
 
   return 0 if $self->{errno};
 

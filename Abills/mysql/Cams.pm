@@ -493,6 +493,7 @@ sub tp_list {
     [ 'PTZ',              'INT', 'ctp.ptz',                          1 ],
     [ 'NEXT_TARIF_PLAN',  'INT', 'tp.next_tp_id as next_tarif_plan', 1 ],
     [ 'AGE',              'INT', 'tp.age',                           1 ],
+    [ 'ARCHIVE',          'INT', 'ctp.archive',                      1 ]
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}) {
@@ -560,7 +561,7 @@ sub tp_add {
   my ($attr) = @_;
 
   if (!$attr->{TP_ID}) {
-    $attr->{MODULE} = "Cams";
+    $attr->{MODULE} = 'Cams';
     $Tariffs->add({ %$attr });
 
     if (defined($Tariffs->{errno})) {

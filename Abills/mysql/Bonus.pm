@@ -688,8 +688,8 @@ sub bonus_operation_list {
 
   $self->{SUM} = '0.00';
 
-  return $self->{list} if ($self->{TOTAL} < 1);
-  my $list = $self->{list};
+  return $self->{list} || [] if ($self->{TOTAL} < 1);
+  my $list = $self->{list} || [];
 
   $self->query("SELECT COUNT(p.id) AS total, SUM(p.sum) AS sum, COUNT(DISTINCT p.uid) AS total_users
     FROM bonus_log p

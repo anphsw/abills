@@ -240,8 +240,8 @@ sub start_page_payments_types {
     COLS_NAME => 1
   });
 
-  my $today_class = "btn btn-primary " . ($FORM{today} ? "active" : "") . " btn-xs";
-  my $yesterday_class = "btn btn-primary " . ($FORM{yesterday} ? "active" : "") . " btn-xs";
+  my $today_class = "btn btn-primary " . ($FORM{today} ? "active" : "") . " btn-xs ml-2 my-n1";
+  my $yesterday_class = "btn btn-primary " . ($FORM{yesterday} ? "active" : "") . " btn-xs my-n1";
 
   my $today_btn = $html->button($lang{TODAY}, "today=1", { class => "$today_class" });
   my $yesterday_btn = $html->button($lang{YESTERDAY}, "yesterday=1", { class => "$yesterday_class" });

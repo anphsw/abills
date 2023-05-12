@@ -8,6 +8,10 @@ delete:
       content:
         application/json:
           schema:
-            $ref: "../schemas/responseOk.yaml"
+            type: object
+            properties:
+              result:
+                type: string
+                example: Success logout
   security:
     - USERSID: [ ]

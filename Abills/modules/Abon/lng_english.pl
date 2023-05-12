@@ -23,3 +23,5 @@ $lang{SERVICE_RECOVERY}='Service recovery plan';
 $lang{NOT_RECOVERY}='Not Recovery';
 $lang{RECOVERY_NOW}='Recovery Now';
 $lang{RECOVERY_FROM_HOLDUP}='RECOVERY_FROM_HOLDUP';
+
+$lang{PERSONAL_DESCRIPTION} = 'Individual description';

@@ -1086,5 +1086,8 @@ $lang{SEND_TO_DEVELOPERS} = 'Send to developers';
 $lang{COPIED} = 'Copied';
 $lang{USER_ADDRESS_EXIST} = 'A user with this address already exists';
 $lang{PLEASE_FILL_FIELDS} = 'Please, fill out the following fields — %FIELDS%';
+$lang{NEW_VERSION} = 'New version';
+$lang{DISABLE_USER_PORTAL_ACCESS} = 'Disable access to personal account';
+$lang{USER_PORTAL_SHORTER} = 'Portal';
 
 1;

@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS `abon_user_list` (
   `service_count` SMALLINT(4) UNSIGNED NOT NULL DEFAULT 1,
   `manual_fee` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
   `fees_period` SMALLINT(4) UNSIGNED NOT NULL DEFAULT 0,
+  `personal_description` VARCHAR(240) NOT NULL DEFAULT '',
   KEY `uid` (`uid`, `tp_id`)
 )
   DEFAULT CHARSET = utf8

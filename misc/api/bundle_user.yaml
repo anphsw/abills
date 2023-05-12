@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Abills user API
-  version: 0.0.67
-  description: "Last modified 2023-04-24"
+  version: 1.0.3
+  description: "Last modified 2023-05-11"
   contact:
     name: Have a question? Support
     url: https://support.abills.net.ua/
@@ -48,6 +48,68 @@ tags:
 paths:
   # base user logic
   /users/login:
+    post:
+      tags:
+        - user
+      summary: Авторизация пользователя
+      deprecated: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                login:
+                  type: string
+                  example: testuser
+                password:
+                  type: string
+                  example: testuser
+                google:
+                  type: string
+                  example: google_token
+                facebook:
+                  type: string
+                  example: facebook_token
+                apple:
+                  type: string
+                  example: apple_token
+    
+            examples:
+              ClassicLogin:
+                summary:
+                  Авторизация по полю логину и паролю
+                value:
+                  login: testuser
+                  password: testuser
+              LoginSocialNetwork:
+                summary:
+                  Авторизация пользователя через социальную сеть
+                value:
+                  google: google_token
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  login:
+                    type: string
+                    example: testuser
+                  sid:
+                    type: string
+                    example: sW44EJZLyWDMeXAV
+                  uid:
+                    type: integer
+                    example: 1
+                  password:
+                    type: string
+                    example: "`ab012WXY"
+                    description: Параметр который возвращает биллинг если авторизация через социальную сеть и если включена опция $conf{API_LOGIN_SHOW_PASSWORD}. Если значение 0 сдвиг не происходит, если значение не 0, происходит смещение или влево или вправо, по алгоритму цезаря таблиця ASCII c значения 33 до 126
+  /user/login:
     post:
       tags:
         - user
@@ -481,7 +543,7 @@ paths:
                     type: string
                     example: User not exists with this email
 
-  /users/logout:
+  /user/logout:
     delete:
       tags:
         - user
@@ -496,7 +558,7 @@ paths:
                 properties:
                   result:
                     type: string
-                    example: OK
+                    example: Success logout
       security:
         - USERSID: [ ]
 
@@ -1193,7 +1255,7 @@ paths:
     post:
       tags:
         - internet
-      summary: Приостановление услуги Интернет
+      summary: Приостановление услуги Интернет УДАЛЕНО В ВЕРСИИ 1.0
       deprecated: true
       parameters:
         - name: ID
@@ -1234,7 +1296,7 @@ paths:
     delete:
       tags:
         - internet
-      summary: Удаление рассписания на приостановление услуги Интернет
+      summary: Удаление рассписания на приостановление услуги Интернет УДАЛЕНО В ВЕРСИИ 1.0
       deprecated: true
       parameters:
         - name: ID
@@ -1262,7 +1324,7 @@ paths:
     get:
       tags:
         - internet
-      summary: Инфомация о приостановлении услуги Интернет
+      summary: Инфомация о приостановлении услуги Интернет УДАЛЕНО В ВЕРСИИ 1.0
       deprecated: true
       parameters:
         - name: ID
@@ -1515,6 +1577,16 @@ paths:
                     description:
                       type: string
                       example: Test description
+                    personalDescription:
+                      type: string
+                      example: Your test code is
+                    serviceImg:
+                      type: string
+                      example: https://demo.abills.net.ua/9443/images/attach/abon
+                    serviceLink:
+                      type: string
+                      example: Скачати|https://sourceforge.net/projects/abills/
+    
       security:
         - USERSID: [ ]
 
@@ -2032,8 +2104,7 @@ paths:
                       google:
                         type: number
                         example: 1
-      security:
-        - USERSID: [ ]
+
 
   # paysys paths
 
@@ -2307,11 +2378,19 @@ paths:
                     example: No field token
       security:
         - USERSID: [ ]
-  /user/contacts/push/subscribe:
+  /user/contacts/push/subscribe/{typeId}:
     post:
       tags:
         - contacts
       summary: Подписка на Push уведомления
+      parameters:
+        - name: typeId
+          in: path
+          description: >
+            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
+          required: true
+          schema:
+            type: number
       requestBody:
         content:
           application/json:
@@ -2339,6 +2418,14 @@ paths:
       tags:
         - contacts
       summary: Отписка от Push уведомлений
+      parameters:
+        - name: typeId
+          in: path
+          description: >
+            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
+          required: true
+          schema:
+            type: number
       responses:
         200:
           description: Успешное выполнение
@@ -2349,13 +2436,21 @@ paths:
                 properties:
                   result:
                     type: string
-                    example: OK
+                    example: Successfully deleted
       security:
         - USERSID: [ ]
     get:
       tags:
         - contacts
       summary: Получить FCM токен
+      parameters:
+        - name: typeId
+          in: path
+          description: >
+            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
+          required: true
+          schema:
+            type: number
       responses:
         200:
           description: Успешное выполнение
@@ -2373,6 +2468,72 @@ paths:
       security:
         - USERSID: [ ]
 
+  /user/contacts/push/badges/{typeId}:
+    delete:
+      tags:
+        - contacts
+      summary: Удаление количества непрочитанных сообщений на устройстве
+      parameters:
+        - name: typeId
+          in: path
+          description: >
+            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*. В данный момент Firebase поддерживает только iOS/MacOS Silicon
+          required: true
+          schema:
+            type: number
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: OK
+      security:
+        - USERSID: [ ]
+
+  /user/contacts/push/messages:
+    get:
+      tags:
+        - contacts
+      summary: Получить историю оповещений
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    created:
+                      type: string
+                      example: '2023-04-13 23:15:02'
+                    id:
+                      type: number
+                      example: 1451
+                    message:
+                      type: string
+                      example: Тест текст
+                    status:
+                      type: number
+                      example: 0
+                      description: 0 успешно получено, 1 ошибка
+                    title:
+                      type: string
+                      example: "#201178 Нова відповідь в темі 'Тестове повідомлення'"
+                    typeId:
+                      type: number
+                      example: 2
+                    uid:
+                      type: number
+                      example: 6720
+      security:
+        - USERSID: [ ]
 
   # holdup paths
 
@@ -4465,6 +4626,41 @@ paths:
       security:
         - USERSID: [ ]
   /user/referral/bonus:
+    get:
+      tags:
+        - referral
+      summary: История бонусов
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    address:
+                      type: string
+                      example: 'Київ, вулиця Альбертовича, 7а'
+                    comments:
+                      type: string
+                      example: 'Хороший друг, хоче класний інтернет'
+                    date:
+                      type: string
+                      example: '2023-04-07 00:21:20'
+                    fio:
+                      type: string
+                      example: 'Іванович Іван Іванович'
+                    id:
+                      type: number
+                      example: 107
+                    sum:
+                      type: number
+                      example: 50
+    
+      security:
+        - USERSID: [ ]
     post:
       tags:
         - referral
@@ -4505,6 +4701,9 @@ paths:
                 address:
                   type: string
                   example: City Kyiv, Franka Str, 5 apt
+                comments:
+                  type: string
+                  example: My good friend
         required: true
       responses:
         200:
@@ -4559,6 +4758,9 @@ paths:
                 address:
                   type: string
                   example: City Kyiv, Franka Str, 5 apt
+                comments:
+                  type: string
+                  example: My good friend
         required: true
       responses:
         200:

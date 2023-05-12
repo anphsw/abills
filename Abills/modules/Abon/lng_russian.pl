@@ -23,3 +23,5 @@ $lang{SERVICE_RECOVERY}='План возобновление сервиса';
 $lang{NOT_RECOVERY}='Не воcстанавливать';
 $lang{RECOVERY_NOW}='Восcтановить с текущей даты';
 $lang{RECOVERY_FROM_HOLDUP}='Восcтановить с даты приостановки';
+
+$lang{PERSONAL_DESCRIPTION} = 'Индивидуальное описание';

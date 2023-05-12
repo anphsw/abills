@@ -1,5 +1,5 @@
 <div class='%ACTIVE% carousel-item %IMPORTANT%'>
-  <div class='carousel-caption d-none d-md-block'>
+  <div class='carousel-caption'>
     <h4>%TITLE%</h4>
     <p>%SHORT_DESCRIPTION%</p>
     <div class='text-center mb-2'>

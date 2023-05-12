@@ -990,7 +990,7 @@ sub equipment_list {
   }
   my $equipment_del_button = '';
   if ($permissions{7}{7}){
-    $equipment_del_button= "equipment_info:del:nas_id;&del=nas_id':'nas_id'";
+    $equipment_del_button= 'equipment_info:del:nas_id;&del=nas_id';
   }
 
   result_former({
@@ -998,7 +998,7 @@ sub equipment_list {
     FUNCTION        => '_list',
     DEFAULT_FIELDS  => 'NAS_NAME,STATUS,NAS_IP,MODEL_NAME,VENDOR_NAME,TYPE_NAME,PORTS_WITH_EXTRA,ADDRESS_FULL',
     HIDDEN_FIELDS   => 'MODEL_ID,STATUS',
-    FUNCTION_FIELDS => "FUNCTION_NAME=equipment_run_cmd_on_equipment_button,equipment_traps:show:nas_id,equipment_info:change:nas_id,".$equipment_del_button,
+    FUNCTION_FIELDS => 'FUNCTION_NAME=equipment_run_cmd_on_equipment_button,equipment_traps:show:nas_id,equipment_info:change:nas_id,'.$equipment_del_button,
     MAP             => 1,
     MAP_SHOW_ITEMS  => {
       'nas_name'      => $lang{NAS},
@@ -2681,8 +2681,7 @@ sub _equipment_panel_onu_status {
     }
   }
 
-  $result .= "<div class='col-md-3'>";
-  $result = $html->progress_bar({
+  $result .= $html->progress_bar({
     TEXT         => ($total_online >0) ? "$total_online/$total" : 0,
     TOTAL        => $total,
     COMPLETE     => $total_online,
@@ -2700,6 +2699,7 @@ sub _equipment_panel_onu_status {
     BAGE_TEXT    => 'ONU offline',
     COLOR        => ' bg-danger'
   });
+  $result .= '</div>';
 
   $result .= $html->element('span', _equipment_panel_branch_onu_status( $Equipment ), { class => 'col-md-8' });
 

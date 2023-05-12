@@ -266,12 +266,12 @@ INTO `equipment_models` (
        (364,4,39,'','E9004-D','https://eltex.com.ua/e9004-d-4-pon-10g-epon-olt',4,'','','','',2,2,'',1,0,0,0,0,0,3,0,0,0,30,NULL,NULL,NULL,'https://eltex.com.ua/image/cache/catalog/%20PON/4PON_OLT-900x900.png',NULL,NULL,0,0),
        (365,4,39,'','E9008-D','https://eltex.com.ua/e9008-d-8-pon-10g-epon-olt',4,'','','','',2,2,'',1,0,0,0,0,0,3,0,0,0,30,NULL,NULL,NULL,'https://eltex.com.ua/image/cache/catalog/%20PON/8PON_OLT-900x900.png',NULL,NULL,0,0),
        (367,4,39,'','G9008-D','https://eltex.com.ua/oborudovanie-pon/golovnie-stancii-pon',4,'','','','',2,2,'',1,0,0,0,0,0,1,0,0,0,75,NULL,NULL,NULL,'https://eltex.com.ua/image/cache/catalog/%20PON/GPONOLT/2-900x900.png',NULL,NULL,0,0),
-       (368,4,39,'','G90016-D','https://eltex.com.ua/oborudovanie-pon/golovnie-stancii-pon',8,'','','','',2,2,'',1,0,0,0,0,0,1,0,0,0,75,NULL,NULL,NULL,'https://eltex.com.ua/image/cache/catalog/%20PON/GPONOLT/3-900x900.png',NULL,NULL,0,0),
+       (368,4,39,'','G9016-D','https://eltex.com.ua/oborudovanie-pon/golovnie-stancii-pon',8,'','','','',2,2,'',1,0,0,0,0,0,1,0,0,0,75,NULL,NULL,NULL,'https://eltex.com.ua/image/cache/catalog/%20PON/GPONOLT/3-900x900.png',NULL,NULL,0,0),
        (369,1,39,'','SM8210G | L2','https://eltex.com.ua/sm8210g',8,'','','','',2,4,'',1,0,0,0,0,0,1,0,0,0,10,NULL,NULL,NULL,'https://eltex.com.ua/image/cache/catalog/Ethernet_kommutatorSF/lt-s8210g-2gx8gt-900x900.png',NULL,NULL,0,0),
        (370,1,39,'','SM8328G | L2+','https://eltex.com.ua/sm8328g',24,'','','','',2,4,'',1,0,0,0,0,0,1,0,0,0,40,NULL,NULL,NULL,'https://eltex.com.ua/image/cache/catalog/Ethernet_kommutatorSF/lt-s8328xg-4xs24gt-900x900.png',NULL,NULL,0,0),
        (371,1,39,'','SM8328X | L2+','https://eltex.com.ua/sm8328x',28,'','','','',2,4,'',1,0,0,0,0,0,4,0,0,0,40,NULL,NULL,NULL,'https://eltex.com.ua/image/cache/catalog/Ethernet_kommutatorSF/lt-s8328xg-4xs16gx8gc-1-900x900.png',NULL,NULL,0,0),
        (372,1,39,'','SM8352G | L2+','https://eltex.com.ua/sm8352g',48,'','','','',2,8,'',1,0,0,0,0,0,1,0,0,0,40,NULL,NULL,NULL,'https://eltex.com.ua/image/cache/catalog/Ethernet_kommutatorSF/sm8352g-sl-900x900.png',NULL,NULL,0,0),
-       (373,1,39,'','SM8352X | L2+','https://eltex.com.ua/sm8352x',48,'','','','',2,8,'',1,0,0,0,0,0,4,0,0,0,0,NULL,NULL,NULL,'https://eltex.com.ua/image/cache/catalog/kommutatori/smartfiber/1-900x900.png',NULL,NULL,0,0),
+       (373,1,39,'','SM8352X | L2+','https://eltex.com.ua/sm8352x',48,'','','','',2,8,'',1,0,0,0,0,0,4,0,0,0,60,NULL,NULL,NULL,'https://eltex.com.ua/image/cache/catalog/kommutatori/smartfiber/1-900x900.png',NULL,NULL,0,0),
        (374,1,39,'','SM8528X | L3','https://eltex.com.ua/sm8528x%20l3',24,'','','','',2,4,'',1,0,0,0,0,0,4,0,0,0,25,NULL,NULL,NULL,'https://eltex.com.ua/image/cache/catalog/Ethernet_kommutatorSF/photo_2023-04-10_09-42-57-removebg-preview-900x900.png',NULL,NULL,0,0);
 
 

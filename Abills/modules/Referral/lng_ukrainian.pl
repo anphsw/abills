@@ -23,5 +23,8 @@ $lang{REQUEST_STATUS} = 'Статус заявки';
 $lang{WITHDRAW} = 'Вивести';
 $lang{WARN_CREATE_TP} = 'Створіть тарифний план реферальної системи для роботи з рефералом';
 $lang{ERR_ONLY_NUMBER} = 'Телефон повинен містити тільки цифри';
+$lang{MAX_BONUS_AMOUNT} = 'Максимальний бонус нарахування';
+$lang{STATIC_ACCRUAL} = 'Статичне нарахування';
+$lang{REF_TP_ACTIVE_IN_USERS} = "Тарифний план уже активний у користувачів\n%USERS%";
 
 1;

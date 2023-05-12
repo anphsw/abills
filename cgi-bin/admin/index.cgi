@@ -2957,7 +2957,6 @@ sub pre_page {
 
     foreach my $isp_button (@element_button) {
       my ($key, $value) = split('\|', $isp_button);
-
       push @button_info, { $key => $value };
     }
 
@@ -2969,7 +2968,8 @@ sub pre_page {
   my $avatar_logo = '';
   if ($admin->{AVATAR_LINK}){
     $avatar_logo = "/images/$admin->{AVATAR_LINK}";
-  } else {
+  }
+  else {
     $avatar_logo = '/styles/default/img/admin/avatar5.png';
   }
 
@@ -3106,17 +3106,21 @@ sub post_page {
           print $fh $output;
           close($fh);
         }
-        # else {
-        #   print "$conf{TPL_DIR}/NEW_VERSION $!";
-        # }
       }
 
-      $conf{VERSION}=~/\d+\.(\d+\.\d+)/;
-      my $cur_version = $1 || 0;
-      $output =~ s/\d+\.(\d+\.\d+)//;
-      $output = $1 || 0;
-      if($output && $output > $cur_version) {
-        $admin->{VERSION} .= $html->button("NEW VERSION: 0.$output", "", { GLOBAL_URL => 'http://abills.net.ua:8090/display/AB/Changelog', class => 'btn btn-xs btn-success', ex_params => ' target=_blank' });
+      my ($cur_version, undef) = _extract_number_from_version($conf{VERSION});
+      my ($new_version, $new_version_stringed) = _extract_number_from_version($output);
+
+      if ($cur_version && $new_version > $cur_version) {
+        $admin->{VERSION} .= $html->button(
+          "$lang{NEW_VERSION}: $new_version_stringed",
+          "",
+          {
+            GLOBAL_URL => 'http://abills.net.ua:8090/display/AB/Changelog',
+            class => 'btn btn-xs btn-success ml-1',
+            ex_params => ' target=_blank'
+          }
+        );
       }
     }
   }
@@ -3184,6 +3188,27 @@ sub _status_color_state {
   $status_admin ||= 0;
 
   return $html->color_mark($login_admin, $STATUSES_COLORS[ $status_admin ]);
+}
+
+#**********************************************************
+=head2 _status_color_state($status)
+
+  Arguments:
+    $status - with x.xx.xx-like string
+
+  Returns:
+    ($number_from_version, $only_version)
+
+=cut
+#**********************************************************
+sub _extract_number_from_version {
+  my ($string) = @_;
+  $string =~ /(\d+\.\d+\.\d+)/;
+  my $only_version = $1 || 0;
+  my $number_from_version = $only_version;
+  $number_from_version =~ s/\.//;
+
+  return ($number_from_version, $only_version);
 }
 
 1;

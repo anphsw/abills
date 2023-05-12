@@ -10,7 +10,7 @@ use warnings FATAL => 'all';
 
 =cut
 
-use Abills::Base qw(date_inc load_pmodule);
+use Abills::Base qw(date_diff load_pmodule);
 use Referral;
 use Users;
 
@@ -51,7 +51,7 @@ sub new {
 
 =cut
 #**********************************************************
-sub user_referral_manage {
+sub referral_user_manage {
   my $self = shift;
   my ($attr) = @_;
 
@@ -136,24 +136,7 @@ sub user_referral_manage {
       REFERRER => $attr->{UID},
     });
 
-    my $referral_list = $Referral->request_list({
-      REFERRER     => $attr->{UID},
-      ID           => $attr->{ID},
-      phone        => '_SHOW',
-      ADDRESS      => '_SHOW',
-      FIO          => '_SHOW',
-      STATUS       => '_SHOW',
-      TP_ID        => '_SHOW',
-      REFERRAL_UID => '_SHOW',
-      USER_STATUS  => '_SHOW',
-      USER_DELETED => '_SHOW',
-      COMMENTS     => '_SHOW',
-      SORT         => 'r.id',
-      DESC         => 'DESC',
-      COLS_NAME    => 1,
-    });
-
-    my $referrals = $self->_referral_list($referral_list);
+    my $referrals = $self->referrals_list({ UID => $attr->{UID} || '--' });
 
     return {
       result      => 'Successfully changed',
@@ -173,30 +156,13 @@ sub user_referral_manage {
 
 =cut
 #**********************************************************
-sub user_referrals {
+sub referrals_user {
   my $self = shift;
   my ($attr) = @_;
 
   $Users->info($attr->{UID} || '--');
 
-  my $referral_list = $Referral->request_list({
-    REFERRER     => $Users->{UID},
-    phone        => '_SHOW',
-    ADDRESS      => '_SHOW',
-    FIO          => '_SHOW',
-    STATUS       => '_SHOW',
-    TP_ID        => '_SHOW',
-    REFERRAL_UID => '_SHOW',
-    USER_STATUS  => '_SHOW',
-    USER_DELETED => '_SHOW',
-    COMMENTS     => '_SHOW',
-    SORT         => 'r.id',
-    DESC         => 'DESC',
-    COLS_NAME    => 1,
-  });
-
-  my $referrals = $self->_referral_list($referral_list);
-
+  my $referrals = $self->referrals_list({ UID => $attr->{UID} || '--' });
 
   my %params = (
     result          => 'OK',
@@ -217,101 +183,20 @@ sub user_referrals {
 }
 
 #**********************************************************
-=head2 user_get_bonus() take bonus
+=head2 referrals_list()
+
+  ATTR:
+    UID: int          - referral user uid in system
+    REFERRAL_UID: int - referrer user uid in system
 
 =cut
 #**********************************************************
-sub user_get_bonus {
+sub referrals_list {
   my $self = shift;
   my ($attr) = @_;
 
-  my $result = $self->user_referrals({ UID => $attr->{UID} });
-  my $total_bonus = $result->{total_bonus};
-
-  require Bills;
-  Bills->import();
-  my $Bills = Bills->new($self->{db}, $self->{admin}, $self->{conf});
-
-  $Users->info($attr->{UID});
-
-  if (!$Users->{EXT_BILL_ID}) {
-    my $bill = $Bills->create({
-      DEPOSIT => $total_bonus,
-      UID     => $Users->{UID}
-    });
-
-    $Users->change($Users->{UID}, {
-      UID         => $Users->{UID},
-      EXT_BILL_ID => $bill->{BILL_ID}
-    });
-  }
-  else {
-    $Bills->action('add', $Users->{EXT_BILL_ID}, $total_bonus);
-  }
-
-  $Referral->add_log({
-    UID              => 0,
-    REFERRER         => $Users->{UID},
-    TP_ID            => 0,
-    REFERRAL_REQUEST => 0,
-    LOG_TYPE         => 1,
-  });
-
-  if ($self->{conf}->{REFERRAL_SEND_BONUS_REPORT}) {
-    my $referrals = $Referral->list({
-      REFERRAL  => $Users->{UID},
-      COLS_NAME => 1,
-    });
-
-    my @referrals_list = $referrals->[0] ? @{$referrals} : ();
-
-    my %report = (
-      refferal_system => {
-        withdraw  => {
-          uid      => $Users->{UID},
-          date     => $main::DATE,
-          withdraw => $total_bonus
-        },
-        referral => \@referrals_list
-      }
-    );
-
-    my $xml = XML::Simple::XMLout(\%report, KeepRoot => 1);
-    my $mail = $self->{conf}->{ADMIN_MAIL};
-
-    require Abills::Sender::Core;
-    Abills::Sender::Core->import();
-    my $Sender = Abills::Sender::Core->new($self->{db}, $self->{admin}, $self->{conf});
-
-    $Sender->send_message({
-      SENDER_TYPE => 'Mail',
-      TO_ADDRESS  => $mail,
-      MESSAGE     => $xml,
-      SUBJECT     => $lang{REFERRAL_SYSTEM},
-      QUITE       => 1
-    });
-  }
-
-  return {
-    result    => "Successfully get bonus - $total_bonus",
-    bonus_sum => $total_bonus
-  };
-}
-
-#**********************************************************
-=head2 _referral_list()
-
-=cut
-#**********************************************************
-sub _referral_list {
-  my $self = shift;
-  my ($referral_list) = @_;
-
-  require Finance;
-  Finance->import();
-  my $Payments = Finance->payments($self->{db}, $self->{admin}, $self->{conf});
-  my $Fees = Finance->fees($self->{db}, $self->{admin}, $self->{conf});
-
+  my @referrals = ();
+  my $total_bonus = 0;
   my %status = (
     0 => 'not considered',
     1 => 'in work',
@@ -319,55 +204,46 @@ sub _referral_list {
     3 => 'canceled'
   );
 
-  my @referrals = ();
-  my $total_bonus = 0;
+  my $referral_list = $Referral->request_list({
+    REFERRER     => $attr->{UID} || '_SHOW',
+    phone        => '_SHOW',
+    ADDRESS      => '_SHOW',
+    FIO          => '_SHOW',
+    STATUS       => '_SHOW',
+    TP_ID        => '_SHOW',
+    REFERRAL_UID => $attr->{REFERRAL_UID} || '_SHOW',
+    USER_STATUS  => '_SHOW',
+    USER_DELETED => '_SHOW',
+    COMMENTS     => '_SHOW',
+    DATE         => '_SHOW',
+    SORT         => 'r.id',
+    DESC         => 'DESC',
+    COLS_NAME    => 1,
+    PAGE_ROWS    => 99999
+  });
 
   foreach my $referral (@{$referral_list}) {
     if ($referral->{referral_uid}) {
-      my $tp_info = $Referral->tp_info($referral->{referral_tp});
-
-      my $log_list = $Referral->log_list({
-        REFERRER  => $Users->{UID} . "' or rl.referrer = '0",
-        LOG_TYPE  => 1,
-        SORT      => 'date',
-        DESC      => 'DESC',
-        DATE      => '_SHOW',
-        COLS_NAME => 1,
-      });
-
-      my $referral_fees = $Fees->list({
-        UID            => $referral->{referral_uid},
-        SUM            => '_SHOW',
-        METHOD         => 1,
-        COLS_NAME      => 1,
-        FROM_DATE_TIME => $log_list->[0]->{date} || $main::DATE,
-        TO_DATE_TIME   => date_inc($main::DATE) . ' 00:00:00',
-      });
-
-      my $spend_percent = $tp_info->{SPEND_PERCENT};
+      my $payments_bonus = 0;
       my $fees_bonus = 0;
-      if ($spend_percent) {
-        for my $fees (@$referral_fees) {
-          $fees_bonus += $fees->{sum} * ($spend_percent / 100);
-          $total_bonus += $fees_bonus;
-        }
-      }
+      my $bonus_bill = 1;
+      my $referral_bonus = 1;
+      my $bonuses = [];
 
-      my $payment = $Payments->list({
-        UID            => $referral->{referral_uid},
-        COLS_NAME      => 1,
-        SUM            => '_SHOW',
-        FROM_DATE_TIME => $log_list->[0]->{date} || $main::DATE,
-        TO_DATE_TIME   => date_inc($main::DATE),
+      my $result = $self->_referral_calculate_bonus(0, {
+        REFERRER => $referral->{referrer},
+        UID      => $referral->{referral_uid},
+        TP_ID    => $referral->{referral_tp} || '',
+        DATE     => $referral->{date} || ''
       });
 
-      my $repl_percent = $tp_info->{REPL_PERCENT};
-      my $repl_bonus = 0;
-      if ($repl_percent) {
-        for my $pay (@$payment) {
-          $repl_bonus += $pay->{sum} * ($repl_percent / 100);
-          $total_bonus += $repl_bonus;
-        }
+      if (!$result->{errno}) {
+        $total_bonus += $result->{total_bonus} || 0;
+        $payments_bonus += $result->{payments_bonus} || 0;
+        $fees_bonus += $result->{fees_bonus} || 0;
+        $referral_bonus = (($result->{payments_bonus} || 0) + ($result->{fees_bonus} || 0)) || $result->{total_bonus} || 0;
+        $bonuses = $result->{bonuses} || [];
+        $bonus_bill = defined $result->{bonus_bill} ? $result->{bonus_bill} : 1;
       }
 
       push @referrals, {
@@ -377,11 +253,16 @@ sub _referral_list {
         STATUS         => defined $referral->{status} ? $referral->{status} : 999,
         STATUS_NAME    => $status{$referral->{status}} || 'unknown',
         DISABLE        => $referral->{deleted} ? $referral->{deleted} : defined $referral->{disable} ? $referral->{disable} : 1,
-        PAYMENT_BONUS  => $repl_bonus || 0,
-        SPENDING_BONUS => $fees_bonus || 0,
+        PAYMENT_BONUS  => $payments_bonus,
+        SPENDING_BONUS => $fees_bonus,
+        TOTAL_BONUS    => $referral_bonus,
         ADDRESS        => $referral->{address},
         IS_USER        => 'true',
-        COMMENTS       => $referral->{comments}
+        COMMENTS       => $referral->{comments},
+        BONUSES        => $bonuses,
+        BONUS_BILL     => $bonus_bill,
+        REFERRER       => $referral->{referrer},
+        UID            => $referral->{referral_uid},
       }
     }
     else {
@@ -405,6 +286,379 @@ sub _referral_list {
     referrals       => \@referrals,
     referrals_total => scalar @referrals,
     total_bonus     => $total_bonus,
+  };
+}
+
+#**********************************************************
+=head2 _referral_calculate_bonus()
+
+=cut
+#**********************************************************
+sub _referral_calculate_bonus {
+  my $self = shift;
+  my ($register, $attr) = @_;
+
+  return {
+    errno  => 41021,
+    errstr => 'No params referrer and uid'
+  } if (!$attr->{REFERRER} || !$attr->{UID});
+
+  my $tariff_settings;
+  if ($attr->{TP_ID}) {
+    $tariff_settings = $Referral->get_default_tp($attr->{TP_ID} || '--');
+  }
+  else {
+    $tariff_settings = $Referral->get_default_tp();
+  }
+
+  return {
+    errno  => 4102,
+    errstr => 'Tariff not found'
+  } if ($Referral->{errno});
+
+  my $recharge_percent  = $tariff_settings->{REPL_PERCENT};
+  my $spend_percent = $tariff_settings->{SPEND_PERCENT};
+  my @bonuses = ();
+
+  my $bonus_amount = 0;
+  my $payments_bonus = 0;
+  my $fees_bonus = 0;
+  my $max_bonus = 0;
+
+  if ($tariff_settings->{MAX_BONUS_AMOUNT}) {
+    $Referral->get_total_bonus($attr->{UID});
+    my $max_amount = sprintf('%.2f', $tariff_settings->{MAX_BONUS_AMOUNT} || 0);
+    my $curr_total_sum = sprintf('%.2f', $Referral->{TOTAL_SUM} || 0);
+
+    return {
+      errno  => 41030,
+      errstr => 'Max bonus referral amount reached',
+    } if ($curr_total_sum >= $max_amount);
+
+    $max_bonus = $max_amount - $curr_total_sum;
+  }
+
+  if (!$register && ($recharge_percent || $spend_percent || $tariff_settings->{STATIC_ACCRUAL})) {
+    if ($tariff_settings->{PERIOD}) {
+      if ($attr->{DATE} && $attr->{DATE} =~ /(\d{4})-(\d{2})-(\d{2})/g) {
+        my $allowed_days = $tariff_settings->{PERIOD} * 30;
+        my $days = date_diff("$1-$2-$3", $main::DATE);
+
+        return {
+          errno  => 41029,
+          errstr => 'The bonus accrual period expired',
+        } if ($days > $allowed_days);
+      }
+      else {
+        return {
+          errno  => 41028,
+          errstr => 'The bonus accrual period expired'
+        };
+      }
+    }
+
+    if ($tariff_settings->{PAYMENT_ARREARS}) {
+      require Fees;
+      my $Fees = Fees->new($self->{db}, $self->{admin}, $self->{conf});
+
+      my $fees_list = $Fees->list({
+        UID       => $attr->{UID},
+        DATETIME  => '_SHOW',
+        SUM       => '_SHOW',
+        BILL_ID   => '_SHOW',
+        SORT      => 'datetime DESC',
+        COLS_NAME => 1,
+      });
+
+      if ($Fees->{TOTAL} && $Fees->{TOTAL} > 0) {
+        my $left_part  = date_diff($fees_list->[0]->{datetime}, $main::DATE);
+        my $right_part = 30 * ($tariff_settings->{PAYMENT_ARREARS} || 0);
+
+        if ($left_part >= $right_part) {
+          return {
+            errno  => 4114,
+            errstr => 'User not using services'
+          };
+        }
+      }
+    }
+
+    if ($tariff_settings->{STATIC_ACCRUAL}) {
+      return {
+        errno  => 4117,
+        errstr => 'Not first day of month'
+      } if ($main::DATE !~ /^\d{4}-\d{2}-01$/g);
+
+      my $default_bonus = sprintf('%.2f', $tariff_settings->{BONUS_AMOUNT} || 0);
+
+      $bonus_amount = $default_bonus;
+      push @bonuses, {
+        UID        => $attr->{UID},
+        REFERRER   => $attr->{REFERRER},
+        SUM        => $default_bonus,
+        PAYMENT_ID => 0,
+        FEE_ID     => 0,
+      };
+    }
+    else {
+      if ($recharge_percent) {
+        my $payments = $Referral->get_payments_bonus($attr->{UID});
+        if (!$Referral->{errno} && scalar @{$payments}) {
+          foreach my $payment (@{$payments}) {
+            next if (!$payment->{sum});
+            my $bonus = $payment->{sum} * ($recharge_percent / 100);
+            $bonus_amount += $bonus;
+            $payments_bonus += $bonus;
+            push @bonuses, {
+              UID        => $attr->{UID},
+              REFERRER   => $attr->{REFERRER},
+              SUM        => $bonus,
+              PAYMENT_ID => $payment->{id},
+              FEE_ID     => 0,
+            };
+          }
+        }
+      }
+
+      if ($spend_percent) {
+        my $fees = $Referral->get_fees_bonus($attr->{UID});
+        if (!$Referral->{errno} && scalar @{$fees}) {
+          foreach my $fee (@{$fees}) {
+            next if (!$fee->{sum});
+            my $bonus = $fee->{sum} * ($spend_percent / 100);
+            $bonus_amount += $bonus;
+            $fees_bonus += $bonus;
+            push @bonuses, {
+              UID        => $attr->{UID},
+              REFERRER   => $attr->{REFERRER},
+              SUM        => $bonus,
+              PAYMENT_ID => 0,
+              FEE_ID     => $fee->{id},
+            };
+          }
+        }
+      }
+    }
+  }
+  else {
+    my $result = $Referral->get_single_bonus($attr->{UID});
+
+    if ($result && scalar @{$result}) {
+      return {
+        errno  => 4115,
+        errstr => 'Bonus already added'
+      };
+    }
+    else {
+      my $default_bonus = sprintf('%.2f', $tariff_settings->{BONUS_AMOUNT} || 0);
+      $bonus_amount = $default_bonus;
+      push @bonuses, {
+        UID        => $attr->{UID},
+        REFERRER   => $attr->{REFERRER},
+        SUM        => $default_bonus,
+        PAYMENT_ID => 0,
+        FEE_ID     => 0,
+      };
+    }
+  }
+
+  if ($max_bonus && $max_bonus < $bonus_amount) {
+    $bonus_amount = $max_bonus;
+    $fees_bonus = 0;
+    $payments_bonus = 0;
+    my @updated_bonuses = ();
+
+    foreach my $bonus (@bonuses) {
+      last if ($max_bonus < 0);
+      if ($bonus->{SUM} < $max_bonus) {
+        $max_bonus -= $bonus->{SUM};
+      }
+      else {
+        $bonus->{SUM} = $max_bonus;
+        $max_bonus = -1;
+      }
+      $fees_bonus += $bonus->{SUM} if ($bonus->{FEE_ID});
+      $payments_bonus += $bonus->{SUM} if ($bonus->{PAYMENT_ID});
+      push @updated_bonuses, $bonus;
+    }
+
+    @bonuses = @updated_bonuses;
+  }
+
+  return {
+    total_bonus    => $bonus_amount,
+    fees_bonus     => $fees_bonus,
+    payments_bonus => $payments_bonus,
+    bonuses        => \@bonuses,
+    bonus_bill     => $tariff_settings->{BONUS_BILL} ? 1 : 0,
+  };
+}
+
+#**********************************************************
+=head2 _referral_add_bonus()
+
+=cut
+#**********************************************************
+sub _referral_add_bonus {
+  my $self = shift;
+  my ($referral) = @_;
+
+  return {
+    errno  => 4112,
+    errstr => 'Not valid referral',
+  } if (!$referral || ref $referral ne 'HASH');
+
+  return {
+    errno  => 4110,
+    errstr => 'Not valid parameter totalBonus',
+  } if (!$referral->{TOTAL_BONUS});
+
+  return {
+    errno  => 4112,
+    errstr => 'Not valid parameter bonuses',
+  } if (!$referral->{BONUSES} || ref $referral->{BONUSES} ne 'ARRAY');
+
+  my $referral_info = $Users->pi({ UID => $referral->{UID} });
+  $Users->info($referral->{REFERRER} || '--');
+
+  return {
+    errno  => 4111,
+    errstr => 'Not valid parameter referrer',
+  } if ($Users->{errno});
+
+  $Referral->referral_bonus_multi_add({ BONUSES => $referral->{BONUSES} });
+
+  require Bills;
+  require Payments;
+  my $Bills = Bills->new($self->{db}, $self->{admin}, $self->{conf});
+  my $Payments = Payments->payments($self->{db}, $self->{admin}, $self->{conf});
+
+  if (!$referral->{BONUS_BILL}) {
+    $Payments->add($Users, {
+      SUM      => $referral->{TOTAL_BONUS},
+      METHOD   => 4,
+      DESCRIBE => "$lang{BONUS_DESC} ($referral->{UID}) " . ($referral_info->{FIO} || ''),
+    });
+  }
+  else {
+    if (!$Users->{EXT_BILL_ID}) {
+      my $bill = $Bills->create({
+        DEPOSIT => $referral->{TOTAL_BONUS},
+        UID     => $referral->{REFERRER}
+      });
+
+      $Users->change($referral->{REFERRER}, {
+        UID         => $referral->{REFERRER},
+        EXT_BILL_ID => $bill->{BILL_ID}
+      });
+    }
+    else {
+      $Bills->action('add', $Users->{EXT_BILL_ID}, $referral->{TOTAL_BONUS});
+    }
+  }
+
+  $self->_referral_bonus_report_send($referral) if ($self->{conf}->{REFERRAL_SEND_BONUS_REPORT});
+
+  return {
+    result   => 'Successfully added bonus',
+    referrer => $referral->{REFERRER},
+    uid      => $referral->{UID}
+  };
+}
+
+#**********************************************************
+=head2 _referral_bonus_report_send() send bonus report
+
+=cut
+#**********************************************************
+sub _referral_bonus_report_send {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $referrals = $Referral->list({
+    REFERRAL  => $attr->{UID},
+    COLS_NAME => 1,
+  });
+
+  my @referrals_list = $referrals->[0] ? @{$referrals} : ();
+
+  my %report = (
+    referral_system => {
+      withdraw  => {
+        uid      => $Users->{UID},
+        date     => $main::DATE,
+        withdraw => $attr->{TOTAL_BONUS}
+      },
+      referral => \@referrals_list
+    }
+  );
+
+  load_pmodule('XML::Simple');
+  my $xml = XML::Simple::XMLout(\%report, KeepRoot => 1);
+  my $mail = $self->{conf}->{ADMIN_MAIL};
+
+  require Abills::Sender::Core;
+  my $Sender = Abills::Sender::Core->new($self->{db}, $self->{admin}, $self->{conf});
+
+  $Sender->send_message({
+    SENDER_TYPE => 'Mail',
+    TO_ADDRESS  => $mail,
+    MESSAGE     => $xml,
+    SUBJECT     => $lang{REFERRAL_SYSTEM},
+    QUITE       => 1
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 referral_registered() referral registered from user portal
+
+=cut
+#**********************************************************
+sub referral_registered {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $calculated_sum = $self->_referral_calculate_bonus(1, {
+    REFERRER => $attr->{REFERRER},
+    UID      => $attr->{UID},
+    TP_ID    => $attr->{TP_ID},
+  });
+
+  $self->_referral_add_bonus({
+    TOTAL_BONUS => $calculated_sum->{total_bonus},
+    BONUSES     => $calculated_sum->{bonuses},
+    REFERRER    => $attr->{REFERRER},
+    UID         => $attr->{UID},
+    BONUS_BILL  => $calculated_sum->{bonus_bill},
+  });
+
+}
+
+#**********************************************************
+=head2 referral_bonus_add()
+
+=cut
+#**********************************************************
+sub referral_bonus_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my %params = ();
+  $params{REFERRAL_UID} = $attr->{REFERRAL_UID} if ($attr->{REFERRAL_UID});
+  $params{UID} = $attr->{UID} if ($attr->{UID});
+
+  my $result = $self->referrals_list(\%params);
+
+  if ($result && $result->{referrals_total}) {
+    foreach my $referral (@{$result->{referrals}}) {
+      $self->_referral_add_bonus($referral);
+    }
+  }
+
+  return {
+    result => 'Bonus added',
   };
 }
 

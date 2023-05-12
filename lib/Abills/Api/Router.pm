@@ -7,7 +7,7 @@ no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 use JSON;
 
-use Abills::Base qw(escape_for_sql in_array);
+use Abills::Base qw(escape_for_sql in_array decamelize);
 use Abills::Api::Validator;
 use Abills::Api::Paths;
 
@@ -412,14 +412,14 @@ sub parse_request {
     my %query_params = ();
 
     for my $query_key (keys %{$query_params}) {
-      my $key = $route->{no_decamelize_params} ? $query_key : Abills::Base::decamelize($query_key);
+      my $key = $route->{no_decamelize_params} ? $query_key : decamelize($query_key);
       if (ref $query_params->{$query_key} ne '') {
         $query_params->{$query_key} = process_request_body($query_params->{$query_key}, { no_decamelize_params => $route->{no_decamelize_params} || '' });
 
       }
       else {
         if ($key eq 'SORT') {
-          $query_params->{$query_key} = Abills::Base::decamelize($query_params->{$query_key});
+          $query_params->{$query_key} = decamelize($query_params->{$query_key});
         }
       }
       $query_params{$key} = $query_params->{$query_key};
@@ -453,7 +453,7 @@ sub process_request_body {
   elsif (ref $query_params eq 'HASH') {
     foreach my $query_key (keys %$query_params) {
       if (ref $query_key eq '') {
-        my $key = $attr->{no_decamelize_params} ? $query_key : Abills::Base::decamelize($query_key);
+        my $key = $attr->{no_decamelize_params} ? $query_key : decamelize($query_key);
         $query_params->{$key} = $query_params->{$query_key};
         delete $query_params->{$query_key};
       }

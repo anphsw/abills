@@ -1053,5 +1053,8 @@ $lang{SEND_TO_DEVELOPERS} = 'Надіслати розробникам';
 $lang{COPIED} = 'Скопійовано';
 $lang{USER_ADDRESS_EXIST} = 'Користувач з таким адресом вже існує';
 $lang{PLEASE_FILL_FIELDS} = 'Будь ласка, заповніть наступні поля — %FIELDS%';
+$lang{NEW_VERSION} = 'Нова версія';
+$lang{DISABLE_USER_PORTAL_ACCESS} = 'Вимкнути доступ до особистого кабінету';
+$lang{USER_PORTAL_SHORTER} = 'Кабінет';
 
 1;

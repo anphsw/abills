@@ -1,7 +1,7 @@
 post:
   tags:
     - internet
-  summary: Приостановление услуги Интернет
+  summary: Приостановление услуги Интернет УДАЛЕНО В ВЕРСИИ 1.0
   deprecated: true
   parameters:
     - name: ID
@@ -28,7 +28,7 @@ post:
 delete:
   tags:
     - internet
-  summary: Удаление рассписания на приостановление услуги Интернет
+  summary: Удаление рассписания на приостановление услуги Интернет УДАЛЕНО В ВЕРСИИ 1.0
   deprecated: true
   parameters:
     - name: ID
@@ -49,7 +49,7 @@ delete:
 get:
   tags:
     - internet
-  summary: Инфомация о приостановлении услуги Интернет
+  summary: Инфомация о приостановлении услуги Интернет УДАЛЕНО В ВЕРСИИ 1.0
   deprecated: true
   parameters:
     - name: ID

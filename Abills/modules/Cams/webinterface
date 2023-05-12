@@ -15,6 +15,7 @@ use Abills::Base qw(sendmail days_in_month _bp in_array);
 use Cams;
 use Address;
 use Tariffs;
+use Fees;
 use Abills::Experimental;
 use Maps::Auxiliary;
 
@@ -26,6 +27,8 @@ require Cams::Users;
 require Cams::User_portal;
 require Cams::Reports;
 require Abills::Misc;
+require Fees;
+Fees->import();
 
 my $Cams = Cams->new($db, $admin, \%conf);
 my $Address = Address->new($db, $admin, \%conf);

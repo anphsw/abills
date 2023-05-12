@@ -477,6 +477,7 @@ CREATE TABLE IF NOT EXISTS `groups` (
   `disable_paysys`   TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
   `disable_payments` TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
   `disable_chg_tp`   TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
+  `disable_access`   TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
   `bonus`            TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
   `sms_service`      VARCHAR(60)          NOT NULL DEFAULT '',
   `documents_access` TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
@@ -1193,10 +1194,7 @@ CREATE TABLE IF NOT EXISTS `msgs_team_ticket` (
   `id_team`     INT(11)      UNSIGNED NOT NULL DEFAULT 0,
 
   PRIMARY KEY (`id`),
-  KEY `msgs_id_team_fk` (`id_team`),
-
-  CONSTRAINT `msgs_dispatch_fk` FOREIGN KEY (`id`) REFERENCES `msgs_messages` (`id`),
-  CONSTRAINT `msgs_id_team_fk` FOREIGN KEY (`id_team`) REFERENCES `msgs_dispatch` (`id`)
+  KEY `msgs_id_team_fk` (`id_team`)
 )
 DEFAULT CHARSET=utf8
 COMMENT='Table team ticket';

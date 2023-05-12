@@ -160,26 +160,29 @@ sub bonus_user_log {
   $LIST_PARAMS{ID} = $FORM{ID} if ($FORM{ID});
 
   my $list = $Bonus->bonus_operation_list({ %LIST_PARAMS, COLS_NAME => 1 });
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => "$lang{BONUS}",
-      title   =>
-        [ 'ID', $lang{LOGIN}, $lang{DATE}, $lang{DESCRIBE}, $lang{SUM}, $lang{DEPOSIT}, $lang{EXPIRE}, $lang{PAYMENT_METHOD}, 'EXT ID', "$lang{BILL}", $lang{ADMINS},
-          'IP', "$lang{ACTION}", '-' ],
-      qs      => $pages_qs,
-      pages   => $Bonus->{TOTAL},
-      ID      => 'BONUX_LOG'
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{BONUS},
+    title   =>
+      [ 'ID', $lang{LOGIN}, $lang{DATE}, $lang{DESCRIBE}, $lang{SUM}, $lang{DEPOSIT}, $lang{EXPIRE}, $lang{PAYMENT_METHOD}, 'EXT ID',
+        $lang{BILL}, $lang{ADMINS}, 'IP', $lang{ACTION}, '-' ],
+    qs      => $pages_qs,
+    pages   => $Bonus->{TOTAL},
+    ID      => 'BONUS_LOG'
+  });
+
+  if ($Bonus->{TOTAL} < 1) {
+    $html->message('err', $lang{ERROR}, $lang{NO_DATA});
+    return 1;
+  }
 
   my $delete = '';
   foreach my $line (@{$list}) {
     if ($line->[14]) {
-      $delete = "$lang{DELETED}";
+      $delete = $lang{DELETED};
     }
     else {
-      $delete = ($permissions{1}{2} && $line->[4] > 0) ? $html->button($lang{DEL},
+      $delete = ($permissions{1} && $permissions{1}{2} && $line->[4] > 0) ? $html->button($lang{DEL},
         "index=$index&SUM=$line->[4]&del=$line->[0]&UID=" . $line->[13],
         { MESSAGE => "$lang{DEL} [$line->[0]] ?", class => 'del' }) : '';
     }
@@ -205,15 +208,13 @@ sub bonus_user_log {
   print $table->show();
 
   if (!$admin->{MAX_ROWS}) {
-    $table = $html->table(
-      {
-        width    => '100%',
-        rows     =>
-          [ [ "$lang{TOTAL}:", $html->b($Bonus->{TOTAL}), "$lang{USERS}:", $html->b($Bonus->{TOTAL_USERS}), "$lang{SUM}",
-            $html->b($Bonus->{SUM}) ] ],
-        rowcolor => 'even'
-      }
-    );
+    $table = $html->table({
+      width    => '100%',
+      rows     =>
+        [ [ "$lang{TOTAL}:", $html->b($Bonus->{TOTAL}), "$lang{USERS}:", $html->b($Bonus->{TOTAL_USERS}), "$lang{SUM}",
+          $html->b($Bonus->{SUM}) ] ],
+    });
+
     print $table->show();
   }
 

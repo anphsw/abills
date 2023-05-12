@@ -1,5 +1,5 @@
 <!--CLIENT START-->
-<body class='sidebar-mini container-lg %SIDEBAR_HIDDEN% text-sm client-body p-0'>
+<body class='sidebar-mini container-xl %SIDEBAR_HIDDEN% text-sm client-body p-0'>
 %PUSH_STATE%
 <script>
   try {

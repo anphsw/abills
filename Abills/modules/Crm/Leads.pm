@@ -1616,7 +1616,7 @@ sub crm_user_service {
     $callcenter_box = $calls_table->show();
   }
   else {
-    $html->message("warning", "$lang{MODULE} Callcenter $lang{NOT_ADDED}");
+    $html->message('warning', "$lang{MODULE} Callcenter $lang{NOT_ADDED}");
   }
 
   return $msgs_box, $callcenter_box;
@@ -1634,10 +1634,7 @@ sub crm_user_service {
 #**********************************************************
 sub crm_actions_main {
 
-  my %CRM_ACTIONS_TEMPLATE = (
-    BTN_NAME  => "add",
-    BTN_VALUE => $lang{ADD}
-  );
+  my %CRM_ACTIONS_TEMPLATE = (BTN_NAME => 'add', BTN_VALUE => $lang{ADD});
 
   if ($FORM{add}) {
     $Crm->crm_actions_add({ %FORM, DOMAIN_ID => ($admin->{DOMAIN_ID} || 0) });
@@ -1653,7 +1650,7 @@ sub crm_actions_main {
   }
 
   if ($FORM{chg}) {
-    $CRM_ACTIONS_TEMPLATE{BTN_NAME} = "change";
+    $CRM_ACTIONS_TEMPLATE{BTN_NAME} = 'change';
     $CRM_ACTIONS_TEMPLATE{BTN_VALUE} = $lang{CHANGE};
 
     my $action_info = $Crm->crm_actions_info({
@@ -1667,21 +1664,26 @@ sub crm_actions_main {
 
     if ($action_info) {
       @CRM_ACTIONS_TEMPLATE{keys %$action_info} = values %$action_info;
+      $CRM_ACTIONS_TEMPLATE{SEND_MESSAGE} = 'checked' if $action_info->{SEND_MESSAGE};
+      $CRM_ACTIONS_TEMPLATE{ACTION_ID} = $action_info->{ID};
     }
   }
 
-  $html->tpl_show(_include('crm_actions_add', 'Crm'),{ %CRM_ACTIONS_TEMPLATE });
+  my $leads_table_info = $Crm->table_info('crm_leads', { FULL_INFO => 1 });
+  my $skip_vars = join(',', map { uc $_->{column_name} } @{$leads_table_info});
+
+  $html->tpl_show(_include('crm_actions_add', 'Crm'), { %CRM_ACTIONS_TEMPLATE }, { SKIP_VARS => $skip_vars });
 
   result_former({
     INPUT_DATA      => $Crm,
     FUNCTION        => 'crm_actions_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => "ID, NAME, ACTION",
+    DEFAULT_FIELDS  => 'ID,NAME,ACTION',
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
-      'id'     => "ID",
-      'name'   => $lang{NAME},
-      'action' => $lang{ACTION},
+      id     => 'ID',
+      name   => $lang{NAME},
+      action => $lang{ACTION},
     },
     TABLE           => {
       width   => '100%',

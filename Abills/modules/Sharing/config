@@ -41,7 +41,7 @@
 );
 
 %USER_FUNCTION_LIST = (
-  "01:0:$lang{FILES}:sharing_user_main:" => 0,
+  "01:0:$lang{FILES}:sharing_client_info:" => 0,
 );
 
 1

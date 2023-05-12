@@ -10,8 +10,6 @@
 use strict;
 use warnings;
 
-no if $] >= 5.017011, warnings => 'experimental::smartmatch';
-
 BEGIN {
   our $libpath = '../';
   our $sql_type = 'mysql';
@@ -172,7 +170,7 @@ sub paysys_new_scheme {
       $paysys_ip = $ENV{REMOTE_ADDR};
     }
 
-    next if ($conf{PAYSYS_PAYSYS_ID_CHECK} && $ENV{HTTP_PAYSYSID} && !($ENV{HTTP_PAYSYSID} ~~ $id));
+    next if ($conf{PAYSYS_PAYSYS_ID_CHECK} && $ENV{HTTP_PAYSYSID} && !($ENV{HTTP_PAYSYSID} eq $id));
 
     my $allowed = 0;
 
@@ -283,14 +281,18 @@ sub paysys_payment_gateway {
       COLS_NAME => '_SHOW'
     });
 
-    if($Paysys->{errno}){
+    if ($Paysys->{errno}) {
       print $html->message('err', $lang{ERROR}, 'Payment system not exist');
     }
-    else{
+    else {
       my $Module = _configure_load_payment_module($payment_system_info->{module});
-      my $Paysys_Object = $Module->new($db, $admin, \%conf, { HTML => $html });
+      my $Paysys_Object = $Module->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
-      print $Paysys_Object->user_portal($user_info, { %FORM });
+      my $user = Users->new($db, $admin, \%conf);
+      $user->info($user_info->{UID});
+      $user->pi({ UID => $user_info->{UID} });
+
+      print $Paysys_Object->user_portal($user, { %FORM });
     }
 
     return 1;

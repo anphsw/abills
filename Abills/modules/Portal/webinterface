@@ -852,9 +852,18 @@ sub portal_s_page {
   }
 
   if (@REGISTRATION) {
+    my $menu_registration_template = _include('portal_menu_registration', 'Portal');
     $OUTPUT{REGISTRATION} = $html->tpl_show(
-      _include('portal_menu_registration', 'Portal'),
+      $menu_registration_template,
       {
+        HREF      => "registration.cgi?module=$REGISTRATION[0]",
+      },
+      { OUTPUT2RETURN => 1 }
+    );
+    $OUTPUT{REGISTRATION_MOBILE} = $html->tpl_show(
+      $menu_registration_template,
+      {
+        CLASS     => 'd-lg-none',
         HREF      => "registration.cgi?module=$REGISTRATION[0]",
       },
       { OUTPUT2RETURN => 1 }

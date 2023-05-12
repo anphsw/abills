@@ -22,7 +22,7 @@
       <ul class='list-group list-group-unbordered mb-3'>
         <li class='list-group-item'>
           <b>_{DESCRIBE}_</b>
-          <div class='float-right'>$FORM{DESCRIBE}</div>
+          <div class='float-right'>%DESCRIBE%</div>
         </li>
         <li class='list-group-item'>
           <b>_{ORDER}_</b>

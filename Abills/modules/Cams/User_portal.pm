@@ -9,7 +9,6 @@ use warnings FATAL => 'all';
 use Abills::Base qw(in_array next_month convert _bp);
 
 our (
-  $html,
   %lang,
   $Cams_service,
   $db,
@@ -19,9 +18,11 @@ our (
   $users_
 );
 
+
+our Abills::HTML $html;
+
 $Cams = Cams->new($db, $admin, \%conf);
 $users_ = Users->new($db, $admin, \%conf);
-my $Address = Address->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 cams_user_info() - Cams user interface

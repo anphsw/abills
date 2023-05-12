@@ -654,7 +654,14 @@ sub progressbar_comment_add {
 
   $self->query_add('crm_progressbar_step_comments', { %$attr });
 
-  $self->_crm_workflow('newAction', $attr->{LEAD_ID}, $attr) if $attr->{ACTION_ID} && !$self->{errno} && $attr->{LEAD_ID};
+  if ($attr->{ACTION_ID} && !$self->{errno} && $attr->{LEAD_ID}) {
+    require Crm::Base;
+    Crm::Base->import();
+    my $Base = Crm::Base->new($self->{db}, $admin, $CONF);
+
+    $Base->crm_send_action_message($attr);
+    $self->_crm_workflow('newAction', $attr->{LEAD_ID}, $attr);
+  }
 
   return $self;
 }
@@ -2993,8 +3000,6 @@ sub crm_deal_products_multi_add {
 
   $self->query("INSERT INTO crm_deal_products (`deal_id`, `name`, `count`, `sum`, `fees_type`) VALUES (?, ?, ?, ?, ?);",
     undef, { MULTI_QUERY => \@MULTI_QUERY });
-
-  return $self;
 
   return $self;
 }

@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS `info_info`
 CREATE TABLE IF NOT EXISTS `info_media`
 (
   `id` SMALLINT(6) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `filename` VARCHAR(50) NOT NULL,
+  `filename` VARCHAR(250) NOT NULL,
   `real_name` TEXT,
   `content_type` VARCHAR(30) NOT NULL,
   `file` BLOB NULL,
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS `info_locations` (
 CREATE TABLE IF NOT EXISTS `info_documents`
 (
   `id` SMALLINT(6) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `filename` VARCHAR(50) NOT NULL DEFAULT '',
+  `filename` VARCHAR(250) NOT NULL DEFAULT '',
   `real_name` TEXT,
   `file` BLOB NULL,
   `content_type` VARCHAR(30) NOT NULL DEFAULT '',

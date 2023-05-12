@@ -1432,7 +1432,7 @@ sub menu {
 
     if (defined($tree->{$ID})) {
       $active = 'active';
-      $opened = 'menu-open menu-is-opening';
+      $opened = ' menu-open menu-is-opening';
     }
 
     my $ext_args = "$EX_ARGS";
@@ -1487,7 +1487,7 @@ sub menu {
         : "index=$id$ext_args", { ex_params => $ex_params }
     );
 
-    $menu_text .= "<li class='nav-item $opened'>$link\n";
+    $menu_text .= "<li class='nav-item$opened'>$link\n";
 
     if (!$menu{$ID}) {
       $menu_text .= qq{</li>\n};
@@ -1622,7 +1622,6 @@ sub menu_right {
   if (!$attr->{HTML}) {
     $right_menu_html .= "</div>";
     $right_menu_html .= "</aside>";
-    #$right_menu_html .= "<div class='p-3 control-sidebar-content'></div>"; CHECK: some strange element in footer
   }
 
   return $right_menu_html;
@@ -1684,54 +1683,6 @@ sub menu2 {
   #
   # return($menu_navigator, $menu_text);
 }
-
-##**********************************************************
-#=head2 mk_menu($menu, $menu_args, $attr) - Make user menu
-#
-#  Arguments:
-#    $menu         - Menu hash_ref
-#    $menu_args    - Menu arguments
-#    $attr
-#      PARENT        - Parent element
-#      EX_ARGS       - Extra arguments
-#      FUNCTION_LIST - Functions list
-#      SKIP_HREF     - Skip SKIP_HREF for dynamic reload
-#
-#  Returns:
-#
-#    formed menu
-#
-#=cut
-##**********************************************************
-#sub mk_menu {
-#  my $self = shift;
-#  my ($menu, $menu_args, $attr) = @_;
-#
-#  my $parent = $attr->{PARENT} || 0;
-#  my $formed_menu = '';
-#  my $ext_args = ($attr->{EX_ARGS}) ? $attr->{EX_ARGS} : '';;
-#  my $fl = $attr->{FUNCTION_LIST};
-#
-#  foreach my $parent_line (@{$menu->{$parent}}) {
-#    my ($parent_id, $parent_name) = split(/:/, $parent_line);
-#    $formed_menu .= "<li class='nav-item'>" .
-#      $self->button("$parent_name", "#", {
-#        class           => 'nav-link',
-#        ex_params       => "onclick=\"showContent('index.cgi?qindex=$parent_id&header=2$ext_args', this)\" ",
-#        NO_LINK_FORMER  => 1,
-#        SKIP_HREF       => $attr->{SKIP_HREF},
-#        ID              => ($fl->{$parent_id}) ? $fl->{$parent_id} : '' }) .
-#      "</li>\n";
-#
-#    if (ref $menu->{$parent_id} eq 'ARRAY') {
-#      $formed_menu .= '<ul class="nav nav-treeview">';
-#      $formed_menu .= $self->mk_menu($menu, $menu_args, { %$attr, PARENT => $parent_id });
-#      $formed_menu .= '</ul>';
-#    }
-#  }
-#
-#  return $formed_menu;
-#}
 
 #**********************************************************
 =head2 header() - header of main page
@@ -1962,10 +1913,6 @@ sub table {
       $op = "index=$index";
     }
 
-    # if ($FORM{subf}) {
-    #   $attr->{qs} .= "&subf=$FORM{subf}";
-    # }
-
     $pagination = $self->pages($attr->{pages}, "$op$attr->{qs}", { SKIP_NAVBAR => 1, %{$attr ? $attr : {}} });
   }
 
@@ -2190,10 +2137,12 @@ sub table {
 
     $attr->{DATA_TABLE}->{language} = { url => "/styles/$self->{HTML}{HTML_STYLE}/plugins/datatables/lang/" . $self->{prototype}{content_language} . ".json" };
     my $ATTR = '';
+
     if ($attr) {
       require JSON;
       $ATTR = JSON->new->indent->encode($attr->{DATA_TABLE});
     };
+
     if ($attr->{DT_CLICK}) {
       $show_cols = qq(
       <script>
@@ -2212,6 +2161,7 @@ sub table {
       </script>
       ) . $show_cols;
     }
+
     $show_cols = qq(
 		<script>
 		  jQuery(document).ready(function() {
@@ -2245,7 +2195,7 @@ sub table {
   else {
     $box_theme = 'card-default';
   }
-  #$self->{table} = $show_cols . '<div class="card ' . $box_theme . ' FK ' . $collapse . '"\>';
+
   $self->{table} = $show_cols . '<div class="card ' . $box_theme . ' ' . $collapse . '">';
 
   $self->{table_status_bar} ||= $attr->{caption1} || '';
@@ -2860,7 +2810,6 @@ sub table_title_plain {
 sub table_select_all_checkbox {
   my ($self, $options_string) = @_;
 
-  # my ($form_name, $element_name, $caption)
   my (undef, $element_name, undef) = split(/:/, $options_string);
   $element_name ||= 'IDS';
   return qq{
@@ -3201,7 +3150,6 @@ sub button {
 
     if ($button_class_icons{$css_class}) {
       $name = " <span class='fa $button_class_icons{$css_class} p-1'></span>";
-      #$css_class = " class='btn btn-sm hidden-print'";
     }
     elsif ($css_class eq 'payments') {
       $name = " <span class='" . ($CONF->{CURRENCY_ICON} || 'fas fa-euro-sign') . " p-1'></span>";
@@ -3265,10 +3213,10 @@ sub button {
   if ($attr->{LOAD_TO_MODAL}) {
     my $load_func = ($attr->{LOAD_TO_MODAL} eq 'raw') ? 'loadRawToModal' : 'loadToModal';
     my $modal_size = $attr->{MODAL_SIZE} ? $attr->{MODAL_SIZE} : '';
-    return qq{<a $css_class onclick="cancelEvent(event);$load_func('$params', null, '$modal_size')" $ex_attr $id_val $title>$name</a>};
+    return qq{<a$css_class onclick="cancelEvent(event);$load_func('$params', null, '$modal_size')" $ex_attr $id_val $title>$name</a>};
   }
 
-  return "<a $title $css_class $href $ex_attr $id_val>$name</a>";
+  return "<a $title$css_class $href $ex_attr $id_val>$name</a>";
 }
 
 #**********************************************************
@@ -3535,20 +3483,20 @@ sub pages {
     </ul>
   </div>
 
-<div class="modal fade" id="gotopage" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-sm">
-        <div class="modal-content">
-            <div class="modal-header text-center">
-              <h4 class="modal-title">$_GO2PAGE ( 1 .. $count ):</h4>
-              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+<div class='modal fade' id='gotopage' tabindex='-1' role='dialog' aria-labelledby='myModalLabel' aria-hidden='true'>
+    <div class='modal-dialog modal-sm'>
+        <div class='modal-content'>
+            <div class='modal-header text-center'>
+              <h4 class='modal-title'>$_GO2PAGE ( 1 .. $count ):</h4>
+              <button type='button' class='close' data-dismiss='modal' aria-hidden='true'>&times;</button>
             </div>
-            <div class="modal-body text-left">
+            <div class='modal-body text-left'>
               <div class='row'>
                 <div class='col-md-9'>
                   <input class='form-control' id='pagevalue' type='text'  size='9' maxlength=8/>
                 </div>
                 <div class='col-md-3'>
-                  <button type="button"  class="btn btn-primary float-right" data-dismiss="modal" onclick="checkval('index.cgi?$argument&pg=')">OK</button>
+                  <button type='button'  class='btn btn-primary float-right' data-dismiss='modal' onclick="checkval('index.cgi?$argument&pg=')">OK</button>
                 </div>
               </div>
             </div>
@@ -4587,6 +4535,7 @@ sub badge {
       COLOR          - Dinamic color:
                        1.ADAPTIVE- color is taken from precent of MAX ;
                        1.MAX_COLOR- color is taken from precent of TOTAL;
+      TEXT           - Text
 
   Examples:
 
@@ -4625,12 +4574,13 @@ sub progress_bar {
   }
 
   my $text_color = ($complete < 10) ? 'black' : '';
-  my $ret = '';
-  my $bar_color = '';
+  my $ret        = '';
+  my $bar_color  = '';
   my $bage_color = '';
+  my $bage_text  = '';
   my $color_val = $attr->{MAX} ? $attr->{MAX} / 100 : 0;
   my $active = $attr->{ACTIVE} ? 'active' : '';
-  my $bage_text;
+  my $text = $attr->{TEXT} || q{};
   my $relative_text = '';
 
   if ($attr->{PERCENT_TYPE}) {
@@ -4642,7 +4592,7 @@ sub progress_bar {
       $bage_text = $complete . '%';
     }
 
-    if ($attr->{COLOR} eq 'MAX_COLOR') {
+    if ($attr->{COLOR} && $attr->{COLOR} eq 'MAX_COLOR') {
       if ($complete < 25) {
         $bar_color = 'red';
         $bage_color = 'red';
@@ -4684,35 +4634,34 @@ sub progress_bar {
     }
 
     $ret = qq{
-      <div class="row">
-        <div class="col-md-8">
-          <div class="progress progress-sm $active">
-            <div class="progress-bar progress-bar-striped progress-bar-$bar_color" style="width: $complete%">$attr->{TEXT}</div>
+      <div class='row'>
+        <div class='col-md-8'>
+          <div class='progress progress-sm $active'>
+            <div class='progress-bar progress-bar-striped progress-bar-$bar_color' style='width: $complete%'>$text</div>
           </div>
         </div>
-      <div class="col-md-3">
-        <span class="badge bg-$bage_color">$bage_text</span>
+      <div class='col-md-3'>
+        <span class='badge bg-$bage_color'>$bage_text</span>
       </div>
     };
   }
   else {
     $bar_color = $attr->{COLOR} ? $attr->{COLOR} : 'green';
     $bage_color = $attr->{COLOR} ? $attr->{COLOR} : 'green';
-    $attr->{TEXT} //= q{};
     $ret = qq{
-    <div class="progress-bar bg-success" style="width: $first_step%">
-      <span style="color: $text_color"> $attr->{TEXT} </span> <span class="sr-only">$first_step% Complete (success)</span>
+    <div class='progress-bar bg-success' style='width: $first_step%'>
+      <span style='color: $text_color'> $text </span> <span class='sr-only'>$first_step% Complete (success)</span>
     </div> };
 
     if ($second_step) {
-      $ret .= qq{<div class="progress-bar bg-warning" style="width: $second_step%">
-      <span class="sr-only">$second_step% Complete (warning) </span>
+      $ret .= qq{<div class='progress-bar bg-warning' style='width: $second_step%'>
+      <span class='sr-only'>$second_step% Complete (warning) </span>
     </div>};
     }
 
     if ($third_step) {
-      $ret .= qq{ <div class="progress-bar bg-danger" style="width: $third_step%">
-      <span class="sr-only">$third_step% Complete (danger)</span>
+      $ret .= qq{ <div class='progress-bar bg-danger' style='width: $third_step%'>
+      <span class='sr-only'>$third_step% Complete (danger)</span>
     </div> };
     }
 
@@ -4723,11 +4672,11 @@ sub progress_bar {
            </div>}
     }
 
-    $ret = qq{<div class="progress"> $ret </div> $relative_text};
+    $ret = qq{<div class='progress'> $ret </div> $relative_text};
     return $ret;
   }
-  return $ret;
 
+  return $ret;
 }
 
 #***********************************************************
@@ -5839,7 +5788,7 @@ sub button_isp_express {
   } else {
     foreach my $title (@{ $attr->{INFO} }) {
       my ($key, $value) = each(%$title);
-      $block_button_info .= "<li class='nav-item '><a href='$value' class='nav-link'>$key</a></li>";
+      $block_button_info .= "<li class='nav-item'><a href='$value' class='nav-link'>$key</a></li>";
     }
   }
 

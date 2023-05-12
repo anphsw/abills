@@ -479,7 +479,7 @@ sub form_user_info {
   if (in_array('Sms', \@MODULES)) {
     # FIXME: check if admin should can send SMS without permission
     $user_info->{PASSWORD} .= $html->button("", "index=$index&header=1&UID=$uid&SHOW_PASSWORD=1&SEND_SMS_PASSWORD=1",
-      { class   => 'btn btn-sm btn-secondary',
+      { class   => 'btn btn-sm btn-secondary mx-2',
         MESSAGE => "$lang{SEND} $lang{PASSWD} SMS ?",
         ICON    => 'fa fa-envelope',
         TITLE   => "$lang{SEND} $lang{PASSWD} SMS"
@@ -1408,11 +1408,12 @@ sub user_pi {
       # Can be received from MSGS reg_request
       %$attr,
       %$user_pi,
-      SHOW             => 0,
-      SHOW_BUTTONS     => 1,
-      SHOW_ADD_BUTTONS => 1,
-      ADDRESS_HIDE     => $conf{ADDRESS_FORM_OPEN} ? 0 : 1,
-      EXT_ADDRESS      => $ext_address,
+      SHOW               => 0,
+      SHOW_BUTTONS       => 1,
+      SHOW_ADD_BUTTONS   => 1,
+      ADDRESS_HIDE       => $conf{ADDRESS_FORM_OPEN} ? 0 : 1,
+      EXT_ADDRESS        => $ext_address,
+      CHECK_ADDRESS_FLAT => $conf{REG_CHECK_ADDRESS_FLAT}
     });
 
     #if (in_array('Docs', \@MODULES)) {
@@ -2121,7 +2122,7 @@ sub user_ext_menu {
     my $uid_title = $html->element('a',
       $uid_text,
       {
-        class                   => 'btn btn-default btn-sm m-0 mr-1 align-middle',
+        class                   => 'btn btn-default btn-sm m-0 mx-1 align-middle',
         'onclick'               => "copyToBuffer('$uid', true)",
         'data-tooltip'          => "$lang{COPIED}!",
         'data-tooltip-position' => 'top',

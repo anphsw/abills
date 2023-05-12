@@ -986,31 +986,14 @@ sub report_webserver {
     return 0;
   }
 
-  my $table = $html->table(
-    {
-      caption     => 'WEB server info',
-      width       => '600',
-      title_plain => [ $lang{NAME}, $lang{VALUE}, "-" ],
-      ID          => 'WEBSERVER_INFO'
-    }
-  );
-
-  foreach my $k (sort keys %ENV) {
-    $table->addrow($k, $ENV{$k}, '');
-  }
-  print $table->show();
-
-  $table = $html->table(
-    {
+  if (-f $web_error_log) {
+    my $table = $html->table({
       caption     => $web_error_log,
       width       => '100%',
       title_plain => [ $lang{DATE}, $lang{ERROR} ],
       ID          => 'WEBSERVER_LOG'
-    }
-  );
+    });
 
-  #my $br = $html->br();
-  if (-f $web_error_log) {
     my $file_content = `tail -100 "$web_error_log"`;
 
     my @file_lines = reverse(split(/\r?\n/, $file_content));
@@ -1022,6 +1005,18 @@ sub report_webserver {
     }
     print $table->show();
   }
+
+  my $table = $html->table({
+    caption     => 'WEB server info',
+    width       => '600',
+    title_plain => [ $lang{NAME}, $lang{VALUE}, "-" ],
+    ID          => 'WEBSERVER_INFO'
+  });
+
+  foreach my $k (sort keys %ENV) {
+    $table->addrow($k, $ENV{$k}, '');
+  }
+  print $table->show();
 
   return 1;
 }

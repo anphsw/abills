@@ -1109,7 +1109,7 @@ sub service_get_month_fee {
 
     #Get back month fee
     if ( $FORM{RECALCULATE} || $attr->{RECALCULATE}) {
-      print "\n".join("\n", caller()). "\n";
+      #print "\n".join("\n", caller()). "\n";
       my $result = service_recalculate($Service, $attr);
       if (! $result) {
         return \%total_sum;

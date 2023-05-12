@@ -22,3 +22,12 @@ items:
     description:
       type: string
       example: Test description
+    personalDescription:
+      type: string
+      example: Your test code is
+    serviceImg:
+      type: string
+      example: https://demo.abills.net.ua/9443/images/attach/abon
+    serviceLink:
+      type: string
+      example: Скачати|https://sourceforge.net/projects/abills/

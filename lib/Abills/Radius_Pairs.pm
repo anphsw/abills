@@ -37,6 +37,7 @@ sub parse_radius_params_json {
   $pairs_json =~ s/\\//g;
   $pairs_json =~ s/’/'/g;
 
+  require JSON;
   my $json = JSON->new()->utf8(0);
 
   my $radius_pairs = $json->decode($pairs_json);

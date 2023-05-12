@@ -6,8 +6,6 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Filters qw(_utf8_encode);
-use Abills::Base qw(_bp);
 use Cams;
 
 our (
@@ -34,10 +32,7 @@ sub cams_tp {
 
   my %TEMPLATE_CAMS_TP = ();
   my $show_add_form = $FORM{add_form} || 0;
-  my %payment_types = (
-    0 => $lang{PREPAID},
-    1 => $lang{POSTPAID}
-  );
+  my %payment_types = (0 => $lang{PREPAID}, 1 => $lang{POSTPAID});
 
   if ($FORM{add}) {
     $Cams->tp_add({ %FORM });
@@ -57,9 +52,9 @@ sub cams_tp {
       %TEMPLATE_CAMS_TP = %{$tp_info ? $tp_info : {}};
       $show_add_form = 1;
     }
-    $TEMPLATE_CAMS_TP{PTZ} = "checked" if $TEMPLATE_CAMS_TP{PTZ};
-    $TEMPLATE_CAMS_TP{DVR} = "checked" if $TEMPLATE_CAMS_TP{DVR};
-    $TEMPLATE_CAMS_TP{PERIOD_ALIGNMENT} = "checked" if $TEMPLATE_CAMS_TP{PERIOD_ALIGNMENT};
+    $TEMPLATE_CAMS_TP{PTZ} = 'checked' if $TEMPLATE_CAMS_TP{PTZ};
+    $TEMPLATE_CAMS_TP{DVR} = 'checked' if $TEMPLATE_CAMS_TP{DVR};
+    $TEMPLATE_CAMS_TP{PERIOD_ALIGNMENT} = 'checked' if $TEMPLATE_CAMS_TP{PERIOD_ALIGNMENT};
   }
   elsif ($FORM{del}) {
     $FORM{TP_ID} = _cams_get_tp_id($FORM{del});
@@ -70,7 +65,7 @@ sub cams_tp {
   my $service_select = $html->form_select('SERVICE_ID', {
     SELECTED  => $TEMPLATE_CAMS_TP{SERVICE_ID} || q{},
     SEL_LIST  => $Cams->services_list({
-      NAME      => "_SHOW",
+      NAME      => '_SHOW',
       COLS_NAME => 1
     }),
     SEL_NAME  => 'name',
@@ -84,12 +79,12 @@ sub cams_tp {
       SELECTED => $TEMPLATE_CAMS_TP{PAYMENT_TYPE},
       SEL_HASH => \%payment_types,
     });
-
     $TEMPLATE_CAMS_TP{NEXT_TARIF_PLAN_SEL} = sel_tp({
       MODULE          => 'Cams',
       SELECT          => 'NEXT_TARIF_PLAN',
       NEXT_TARIF_PLAN => $TEMPLATE_CAMS_TP{NEXT_TARIF_PLAN},
     });
+    $TEMPLATE_CAMS_TP{ARCHIVE_SELECT} = _cams_archive_select({ SELECTED => $TEMPLATE_CAMS_TP{ARCHIVE} });
 
     $html->tpl_show(_include('cams_tp', 'Cams'), {
       %TEMPLATE_CAMS_TP,
@@ -103,34 +98,31 @@ sub cams_tp {
     INPUT_DATA      => $Cams,
     FUNCTION        => 'tp_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => "NAME,SERVICE_NAME,COMMENTS,STREAMS_COUNT,MONTH_FEE,PAYMENT_TYPE,ACTIV_PRICE,CHANGE_PRICE",
-    HIDDEN_FIELDS   => "ID,TP_ID,SERVICE_ID",
-    FUNCTION_FIELDS => 'change, del',
+    DEFAULT_FIELDS  => 'NAME,SERVICE_NAME,COMMENTS,STREAMS_COUNT,MONTH_FEE,PAYMENT_TYPE,ACTIV_PRICE,CHANGE_PRICE',
+    HIDDEN_FIELDS   => 'ID,TP_ID,SERVICE_ID',
+    FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
-      'name'           => $lang{TARIF_PLAN},
-      'service_name'   => $lang{SERVICE},
-      'comments'       => $lang{COMMENTS},
-      'streams_count'  => $lang{MAX} . " " . $lang{STREAMS_COUNT},
-      'payment_type'   => $lang{PAYMENT_TYPE},
-      'month_fee'      => $lang{MONTH_FEE},
-      'month_fee'      => $lang{MONTH_FEE},
-      'activate_price' => $lang{ACTIVATE},
-      'change_price'   => $lang{CHANGE},
+      name           => $lang{TARIF_PLAN},
+      service_name   => $lang{SERVICE},
+      comments       => $lang{COMMENTS},
+      streams_count  => $lang{MAX} . " " . $lang{STREAMS_COUNT},
+      payment_type   => $lang{PAYMENT_TYPE},
+      month_fee      => $lang{MONTH_FEE},
+      month_fee      => $lang{MONTH_FEE},
+      activate_price => $lang{ACTIVATE},
+      change_price   => $lang{CHANGE},
     },
-    FILTER_COLS     => {
-      payment_type => "_cams_show_payment_type",
-    },
+    FILTER_COLS     => { payment_type => '_cams_show_payment_type' },
     TABLE           => {
       width   => '100%',
       caption => "$lang{CAMERAS}: $lang{TARIF_PLANS}",
       qs      => $pages_qs,
       ID      => 'CAMS_TPS',
-      header  => '',
       MENU    => "$lang{ADD}:index=$index&add_form=1" . ':add',
     },
     MAKE_ROWS       => 1,
     TOTAL           => 1,
-    MODULE          => 'Cams',
+    MODULE          => 'Cams'
   });
 
   return 0;

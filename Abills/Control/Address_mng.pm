@@ -1217,6 +1217,7 @@ sub form_address_select2 {
       MAPS_BTN            => $maps_btn && $attr->{SHOW_BUTTONS} ? $maps_btn : q{},
       MAPS_SHOW_OBJECTS   => $maps_btn && $attr->{SHOW_BUTTONS} ? 1 : '',
       BUILD_SELECTED      => $attr->{LOCATION_ID} || 0,
+      BUILD_REQ           => $attr->{BUILD_REQ},
       CHECK_ADDRESS_FLAT  => $attr->{CHECK_ADDRESS_FLAT} || ''
     }, { OUTPUT2RETURN => 1, ID => 'form_address_sel2' });
   }

@@ -68,6 +68,10 @@ sub new {
     $attr
       FILENAME
       UID
+      DIRECTORY_TO_SAVE - Directory to save
+      ATTACH2FILE - Directory to save (for sql table store to disc migrate)
+      DISK_FILENAME - Disk filename
+      FIELD_NAME
 
   Returns:
     $self

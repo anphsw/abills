@@ -1054,5 +1054,8 @@ $lang{SEND_TO_DEVELOPERS} = 'Отправить разработчикам';
 $lang{COPIED} = 'Скопировано';
 $lang{USER_ADDRESS_EXIST} = 'Пользователь с таким адресом уже существует';
 $lang{PLEASE_FILL_FIELDS} = 'Пожалуйста, заполните следующие поля — %FIELDS%';
+$lang{NEW_VERSION} = 'Новая версия';
+$lang{DISABLE_USER_PORTAL_ACCESS} = 'Отключить доступ к личному кабинету';
+$lang{USER_PORTAL_SHORTER} = 'Кабинет';
 
 1;

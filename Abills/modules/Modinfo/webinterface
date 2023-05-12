@@ -23,6 +23,8 @@ my $Modinfo = Modinfo->new($db, undef, undef);
 #**********************************************************
 sub modinfo_start_page_show {
   #my ($attr) = @_;
+  require Abills::Fetcher;
+  Abills::Fetcher->import(qw(web_request));
 
   my $output = web_request('http://abills.net.ua/info.txt', { BODY_ONLY => 1 });
   my @modules_list = ();

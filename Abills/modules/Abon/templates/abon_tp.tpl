@@ -1,4 +1,4 @@
-<form action='%SELF_URL%' method='post'>
+<form action='%SELF_URL%' method='post' enctype='multipart/form-data'>
   <input class='form-control' type='hidden' name='index' value='%index%'/>
   <input class='form-control' type='hidden' name='ABON_ID' value='$FORM{ABON_ID}'/>
 
@@ -253,6 +253,17 @@
           <div class='col-md-9'>
             <input class='form-control' id='SERVICE_LINK' type='text' name='SERVICE_LINK' value='%SERVICE_LINK%'
                    maxlength='60'/>
+          </div>
+        </div>
+
+        <div class='form-group row'>
+          <label class='col-md-3 control-label'>_{PICTURE}_:</label>
+          <div class='col'>
+            <div id='file_upload_holder' class='form-file-input'>
+              <div class='form-group m-1'>
+                <input name='SERVICE_IMG' type='file' data-number='0' class='fixed'>
+              </div>
+            </div>
           </div>
         </div>
 

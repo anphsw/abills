@@ -9,3 +9,6 @@ properties:
   address:
     type: string
     example: City Kyiv, Franka Str, 5 apt
+  comments:
+    type: string
+    example: My good friend

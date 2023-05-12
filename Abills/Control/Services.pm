@@ -487,6 +487,7 @@ sub get_user_services {
     my $services = $Abon->user_tariff_list($uid, {
       USER_PORTAL  => '>0',
       SERVICE_LINK => '_SHOW',
+      SERVICE_IMG  => '_SHOW',
       COLS_NAME    => 1
     });
 
@@ -501,16 +502,22 @@ sub get_user_services {
 
       my @periods = ('day', 'month', 'quarter', 'six months', 'year');
 
+      my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+      my $base_attach_link = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images/attach/abon" : '';
+
       my %tariff = (
-        price       => $service->{price},
-        tp_name     => $service->{tp_name},
-        id          => $service->{id},
-        active      => (!$service->{next_abon} || ($date_if && $date_if <= 0)) ? 'false' : 'true',
-        start_date  => $service->{date},
-        end_date    => $service->{next_abon},
-        description => $service->{description},
-        period      => $periods[$service->{period}],
-        activate    => ($service->{user_portal} > 1 && $service->{manual_activate}) ? 'true' : 'false',
+        price                => $service->{price},
+        tp_name              => $service->{tp_name},
+        id                   => $service->{id},
+        active               => (!$service->{next_abon} || ($date_if && $date_if <= 0)) ? 'false' : 'true',
+        start_date           => $service->{date},
+        end_date             => $service->{next_abon},
+        description          => $service->{description},
+        period               => $periods[$service->{period}],
+        activate             => ($service->{user_portal} > 1 && $service->{manual_activate}) ? 'true' : 'false',
+        service_link         => $service->{service_link},
+        service_img          => "$base_attach_link/$service->{service_img}",
+        personal_description => $service->{personal_description}
       );
 
       if ($date_if && $date_if > 0) {
