@@ -7,7 +7,7 @@ package Netblock;
 =cut
 
 use strict;
-use parent 'main';
+use parent qw(dbcore);
 my $MODULE = 'Netblock';
 my ($admin, $CONF);
 
@@ -69,7 +69,7 @@ sub list {
   $JOIN .= ($attr->{NAME})? 'LEFT JOIN netblock_domain dn ON dn.id=m.id ':'';
   $JOIN .= ($attr->{MASK})? 'LEFT JOIN netblock_domain_mask dm ON url.id=m.id ':'';
   
-  $self->query2("SELECT 
+  $self->query("SELECT
     $self->{SEARCH_FIELDS} m.id
   FROM netblock_main m
   $JOIN
@@ -84,7 +84,7 @@ sub list {
 
   my $list = $self->{list};
   if ($self->{TOTAL} > 0) {
-    $self->query2("SELECT COUNT(id) AS total
+    $self->query("SELECT COUNT(id) AS total
     FROM netblock_main m
     $WHERE;", undef, { INFO => 1 }
     );
@@ -131,7 +131,7 @@ sub _list {
     }
   );
  
-  $self->query2("SELECT 
+  $self->query("SELECT
     $self->{SEARCH_FIELDS}
     id
     FROM $attr->{TABLE}
@@ -146,7 +146,7 @@ sub _list {
 
   my $list = $self->{list};
   if ($self->{TOTAL} > 0) {
-    $self->query2("SELECT COUNT(id) AS total
+    $self->query("SELECT COUNT(id) AS total
     FROM $attr->{TABLE}
     $WHERE;", undef, { INFO => 1 }
     );
@@ -265,13 +265,11 @@ sub change_blocklist {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'FUNCTION',
-      TABLE        => 'netblock_blocklist',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'FUNCTION',
+    TABLE        => 'netblock_blocklist',
+    DATA         => $attr
+  });
 
   return $self->{result};
 }
@@ -286,13 +284,11 @@ sub change {
   my ($attr) = @_;
   my $table = $attr->{TABLE} || 'netblock_main';
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => $table,
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => $table,
+    DATA         => $attr
+  });
 
   return $self->{result};
 }
@@ -306,7 +302,7 @@ sub info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT *
+  $self->query("SELECT *
      FROM netblock_main
      WHERE id= ? ;",
     undef,
@@ -340,7 +336,7 @@ sub del {
 sub init {
   my $self = shift;
  # $self->query_del('netblock_main');
-  $self->query2( "DELETE FROM `netblock_main`",'do');
+  $self->query( "DELETE FROM `netblock_main`",'do');
   
   return $self->{result};
 }

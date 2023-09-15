@@ -10,8 +10,8 @@ use feature 'say';
 
 =head1 VERSION
 
-  VERSION: 0.09
-  UPDATED: 20230412
+  VERSION: 0.11
+  UPDATED: 20230517
 
 =head1 SYNOPSIS
 
@@ -116,7 +116,7 @@ my $base_dir = $OPTIONS{PREFIX};
 my $TEMP_DIR = $OPTIONS{TEMP_DIR};
 my $GIT_BRANCH = $OPTIONS{GIT_BRANCH};
 my $SOURCE = $OPTIONS{SOURCE};
-my $DEBUG = $OPTIONS{DEBUG};
+my $DEBUG = $OPTIONS{DEBUG} || 0;
 my $GIT_REPO_HOST = $OPTIONS{GIT_REPO_HOST};
 
 my $ABILLS_UPDATE_URL = "http://abills.net.ua/misc/update.php";
@@ -145,7 +145,7 @@ my $backup_dir = $base_dir . "_$date";
 
 my $recommended_perl_version = '5.018000';
 my $minimal_perl_version = '5.018000';
-my $recommended_sql_version = '5.7.06';
+my $recommended_sql_version = '5.7';
 
 my @abills_var_directories = (
   '/var',
@@ -378,6 +378,9 @@ sub get_hardware_info {
   my $hdd_size = '';
   my $interfaces = '';
 
+  my $IFCONFIG = `which ifconfig`;
+  chomp($IFCONFIG);
+
   $ENV{PATH} = "$ENV{PATH}:/sbin/:usr/sbin";
 
   if ($SYSTEM_INFO{OS} eq 'FreeBSD') {
@@ -385,11 +388,14 @@ sub get_hardware_info {
     $cpu ||= `sysctl hw.model | sed "s/hw.model: //g"`;
     $cpu_count = `sysctl -a | egrep -i 'hw.ncpu' | awk '{ print \$2 }'`;
 
-    $vga_device = `pciconf -lv |grep -B 3 VGA |grep device |awk -F \' '{print \$2}' |paste -s -`;
-    $vga_vendor = `pciconf -lv |grep -B 3 VGA |grep vendor |awk -F \' '{print \$2}' |paste -s -`;
+    $vga_device = `pciconf -lv |grep -B 3 VGA |grep device |awk -F \\\' '{print \$2}' |paste -s -`;
+    $vga_vendor = `pciconf -lv |grep -B 3 VGA |grep vendor |awk -F \\\' '{print \$2}' |paste -s -`;
 
     $net_if = `grep -i Network /var/run/dmesg.boot |cut -d \: -f1`;
-    $interfaces = `ifconfig | grep "[a-z0-9]: f" | awk '{ print \$1 }' | grep -v -E "ng*|vlan*|lo*|ppp*|ipfw*"`;
+    if ($IFCONFIG) {
+      $interfaces = `$IFCONFIG | grep "[a-z0-9]: f" | awk '{ print \$1 }' | grep -v -E "ng*|vlan*|lo*|ppp*|ipfw*"`;
+    }
+
 
     $ram = `grep -i "real memory" /var/run/dmesg.boot | sed 's/.*(\([0-9]*\) MB)/\1/' | tail -1`;
     $ram ||= `sysctl hw.physmem | awk '{ print \$2 "/ 1048576" }' | bc`;
@@ -410,16 +416,26 @@ sub get_hardware_info {
 
     # TODO    _install pciutils hdparm bc
     $vga_device = `lspci |grep VGA |cut -f5- -d " "`;
-    $net_if = `ifconfig | grep '^[a-z0-9]' | awk '{ print \$1 }' | grep -v -E "ng*|vlan*|lo*|ppp*|ipfw*"`;
+    if ($IFCONFIG) {
+      $net_if = `ifconfig | grep '^[a-z0-9]' | awk '{ print \$1 }' | grep -v -E "ng*|vlan*|lo*|ppp*|ipfw*"`;
+    }
+
+
     $interfaces = `lspci -mm | grep Ethernet |cut -f4- -d " "`;
 
     $hdd_size = `fdisk -l |head -2 |tail -1|awk '{print \$3,\$4}'|sed 's/,//'`;
     my $hdd_disk_name = `fdisk -l | head -2 | tail -1 | awk '{ print \$2 }' | sed 's/://'`;
+
     my $hdparam = `which hdparm`;
-    if ($hdd_disk_name && $hdparam) {
+    if ($hdd_disk_name && $hdd_disk_name =~ /dev/ && $hdparam) {
       chomp $hdd_disk_name;
-      $hdd_serial = `hdparm -I ${hdd_disk_name} | grep Serial | awk -F ":" '{print \$2}' | tr -cs -`;
-      $hdd = `hdparm -I ${hdd_disk_name} | grep Model | awk -F ":" '{print \$2}' | tr -cs -`;
+      chomp $hdparam;
+
+      $hdd_serial = `$hdparam -I ${hdd_disk_name} | grep Serial | awk -F ":" '{print \$2}' | tr -cs -`;
+      $hdd = `$hdparam -I ${hdd_disk_name} | grep Model | awk -F ":" '{print \$2}' | tr -cs -`;
+    }
+    else {
+      $hdd_serial = `fdisk -l | grep 'Disk identifier' | awk '{ print \$3 }'`;
     }
   }
 
@@ -506,7 +522,7 @@ sub authenticate {
     );
 
     if (!$request_result || $request_result !~ 'Registration complete') {
-      say 'Authorization failed';
+      say 'Authorization failed SIGN: '. $HARDWARE_INFO{id};
       return 0;
     }
 
@@ -619,11 +635,17 @@ sub sources_backup {
   my $sources_size_kb = _get_directory_size($base_dir);
 
   # -P (POSIX) -l (local filesystems) -B k (size in Kilobytes)
-  my $df_reply_kb = `df -P -l -B k $base_dir | tail -1 | awk -F' ' '{ print \$4 }'`;
+  my $df_cmd = qq/df -P -l -B k $base_dir | tail -1 | awk -F' ' '{ print \$4 }'/;
+
+  if ($SYSTEM_INFO{OS} eq 'FreeBSD') {
+    $df_cmd = qq/df -P -l -k $base_dir | tail -1 | awk -F' ' '{ print \$4 }'/;
+  }
+
+  my $df_reply_kb = `$df_cmd`;
   chomp $df_reply_kb;
 
   if (!($sources_size_kb && $df_reply_kb) || ($sources_size_kb !~ /^\d+$/ && $df_reply_kb !~ /^\d+$/)) {
-    if (Term::Complete::Complete->("Can't check free space. Continue anyway? [y/N]") !~ /y/i) {
+    if (Term::Complete::Complete("Can't check free space. Continue anyway? [y/N]") !~ /y/i) {
       exit 0;
     }
   }
@@ -632,7 +654,7 @@ sub sources_backup {
     $df_reply_kb = $1 || 0;
   };
 
-  my $free_space_kb = $df_reply_kb - $sources_size_kb;
+  my $free_space_kb = ($df_reply_kb || 0) - ($sources_size_kb || 0);
 
   my $free_space_mb_formatted = sprintf("%.2f", $free_space_kb / 1024);
   my $abills_size_mb_formatted = sprintf("%.2f", $sources_size_kb / 1024);
@@ -958,7 +980,7 @@ sub download_module {
     DEBUG          => $DEBUG > 4
   });
 
-  if (!$module_info->{purchased}) {
+  if (! $module_info || !$module_info->{purchased}) {
     my $time = $module_info->{time};
     my $price = $module_info->{price};
     my $file_id = $module_info->{id};
@@ -1172,31 +1194,17 @@ sub check_perl_version {
 sub check_sql_version {
   print "Checking MySQL Server version \n" if ($DEBUG);
 
-  # Get version
-  my $version_str = `mysql --version | awk -F' ' '{ print \$5 }'`;
-  chomp $version_str;
-
-  my $split_and_compare = sub {
-    my ($ver_1, $ver_2) = @_;
-    $ver_1 =~ s/\.//g;
-    $ver_2 =~ s/\.//g;
-
-    if ($ver_1 < $ver_2) {
-      return 0;
-    }
-
-    return 1;
-  };
-
+  $admin->query("SELECT version();");
+  my $version_str = $admin->{list}->[0]->[0] || 0;
   my $sql_version = 0;
-  if ($version_str && $version_str =~ /([0-9.]+)-?/) {
+  if ($version_str && $version_str =~ /([0-9]+\.[0-9]+)/) {
     $sql_version = $1;
   }
 
   print "  Current MySQL Server version : $sql_version \n" if ($DEBUG > 2);
 
   # Compare with recommended and show warning if less
-  if ($split_and_compare->($recommended_sql_version, $sql_version)) {
+  if ($recommended_sql_version > $sql_version) {
     print "
   #################################################################
   #                    Outdated MySQL version                     #
@@ -1456,7 +1464,14 @@ sub _write_to_file {
 sub _get_directory_size {
   my ($dir) = @_;
 
-  my $size = `du -s -BK $dir | awk -F' ' '{print \$1}'`;
+  my $size_cmd = qq{du -s -BK $dir | awk -F' ' '{print \$1}'};
+
+  if ($SYSTEM_INFO{OS} eq 'FreeBSD') {
+    $size_cmd = qq{du -s -k $dir | awk -F' ' '{print \$1}'};
+  }
+
+  my $size = `$size_cmd`;
+
   chomp $size;
 
   if ($size && $size =~ /^(\d+)/) {
@@ -1605,23 +1620,27 @@ sub apache_check {
 sub modules_list {
 
   my $sys_id = get_sys_id();
+
   my $module_info = web_request($ABILLS_UPDATE_URL, {
     REQUEST_PARAMS => {
-      sign   => $ABILLS_SIGN,
-      SYS_ID => $sys_id,
+      sign         => $ABILLS_SIGN,
+      SYS_ID       => $sys_id,
       modules_list => 1,
-      json   => 1
+      json         => 1
     },
     CURL           => 1,
     JSON_RETURN    => 1,
-    DEBUG          => $DEBUG > 4
+    DEBUG          => ($DEBUG > 4) ? $DEBUG : 0
   });
 
   printf(" %-36s|%8s|%10s|%-10s|%-20s|%5s|\n", 'Module', 'Remote', 'Local', 'Subsribe', 'Path', '-');
   print("-----------------------------------------------------------------------------------------------\n");
 
-  #print %$module_info;
-  if (ref $module_info eq 'HASH') {
+  if (! $module_info) {
+    print "[ERROR] Can't access to module list.\nTry again later\n";
+    exit;
+  }
+  elsif (ref $module_info eq 'HASH') {
     print "[ERROR] Try again\n";
     exit;
   }
@@ -1637,8 +1656,19 @@ sub modules_list {
 
     my $cur_version = _read_file($local_file, { GET_VERSION => 1 });
     my $local_version = $cur_version || 0;
-    print " ($module->{version} || 0) > $local_version) / $local_file\n\n";
-    print sprintf(" %-36s|%8s|%10s|%-10s|%-20s|%5s|\n",
+    if ($DEBUG) {
+      print " ($module->{version} || 0) > $local_version) / $local_file\n\n";
+    }
+
+    if ($local_version =~ /(\d+)\.(\d+)\.\d+/) {
+      $local_version  = "$1.$2";
+    }
+
+    if ($module->{version} =~ /(\d+)\.(\d+)\.\d+/) {
+      $module->{version}  = "$1.$2";
+    }
+
+    printf(" %-36s|%8s|%10s|%-10s|%-20s|%5s|\n",
       $module_name,
       ((($module->{version} || 0) > $local_version) ? '>>' : '') . $module->{version},
       ($cur_version eq '-1') ? 'Not exist' : $cur_version,

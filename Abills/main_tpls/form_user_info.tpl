@@ -36,7 +36,7 @@
         <td>%EMAIL%</td>
       </tr>
       <tr>
-        <td>_{CONtrACT}_:</td>
+        <td>_{CONTRACT}_:</td>
         <td>%CONtrACT_ID%%CONtrACT_SUFIX%</td>
       </tr>
       <tr>

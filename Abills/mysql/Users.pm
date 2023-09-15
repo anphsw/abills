@@ -219,27 +219,13 @@ sub pi_add {
     $attr->{LOCATION_ID} = $Address->{LOCATION_ID};
   }
 
-  if ( $self->{conf}->{CONTACTS_NEW} && ($attr->{PHONE} || $attr->{EMAIL}) ) {
+  if ($attr->{PHONE} || $attr->{EMAIL}) {
     require Contacts;
     Contacts->import();
-
     my $Contacts = Contacts->new($self->{db}, $self->{admin}, $self->{conf});
 
-    if($attr->{PHONE}) {
-      $Contacts->contacts_add({
-        TYPE_ID => 2,
-        VALUE   => $attr->{PHONE},
-        UID     => $attr->{UID},
-      });
-    }
-
-    if($attr->{EMAIL}) {
-      $Contacts->contacts_add({
-        TYPE_ID => 9,
-        VALUE   => $attr->{EMAIL},
-        UID     => $attr->{UID},
-      });
-    }
+    $Contacts->contacts_add({ TYPE_ID => 2, VALUE => $attr->{PHONE}, UID => $attr->{UID} }) if ($attr->{PHONE});
+    $Contacts->contacts_add({ TYPE_ID => 9, VALUE => $attr->{EMAIL}, UID => $attr->{UID} }) if ($attr->{EMAIL});
   }
 
   $self->query_add('users_pi', { %$attr });
@@ -248,7 +234,12 @@ sub pi_add {
 
   $admin->{MODULE} = q{};
 
-  $admin->action_add($attr->{UID}, "PI", { TYPE => 1 });
+  $admin->action_add($attr->{UID}, '', {
+    TYPE    => 1,
+    INFO    => [ 'FIO', 'CONTRACT_ID', 'CONTRACT_DATE', 'BUILD_ID', 'ADDRESS_FLAT' ],
+    REQUEST => $attr
+  });
+
   return $self;
 }
 
@@ -307,17 +298,13 @@ sub pi {
     $self->{errstr} = 'ERROR_NOT_EXIST';
     return $self;
   }
-#TODO:If it works delete comment in a month (Created 25.10.2019)
-  # if ($self->{FIO} && $self->{FIO2} && $self->{FIO3}) {
-  #   $self->{FIO1} = $self->{FIO};
-  #   $self->{FIO} = join (' ', $self->{FIO1}, $self->{FIO2}, $self->{FIO3});
-  # }
+
   if ( ($self->{FIO} || $self->{FIO} eq '' ) && ($self->{FIO2} || $self->{FIO3} )) {
     $self->{FIO1} = $self->{FIO};
     $self->{FIO} = join (' ', ($self->{FIO1} || q{}), ($self->{FIO2} || q{}), ($self->{FIO3} || q{}));
   }
 
-  if (!$self->{errno} && $self->{LOCATION_ID} && ! $attr->{SKIP_LOCATION1}) {
+  if (!$self->{errno} && $self->{LOCATION_ID} && ! $attr->{SKIP_LOCATION}) {
     require Address;
     Address->import();
     my $Address = Address->new($self->{db}, $admin, $self->{conf});
@@ -350,8 +337,8 @@ sub pi {
     if ($CONF->{ADDRESS_FORMAT}) {
       my $address = $CONF->{ADDRESS_FORMAT};
       while($address =~ /\%([A-Z\_0-9]+)\%/g) {
-        my $patern = $1;
-        $address =~ s/\%$patern\%/$self->{$patern}/g;
+        my $pattern = $1;
+        $address =~ s/\%$pattern\%/$self->{$pattern}/g;
       }
 
       $self->{ADDRESS_FULL} = $address;
@@ -361,7 +348,7 @@ sub pi {
     }
   }
 
-  if (!$self->{errno} && $self->{conf}{CONTACTS_NEW}) {
+  if (!$self->{errno}) {
     require Contacts;
     Contacts->import();
     my $Contacts = Contacts->new($self->{db}, $admin, $self->{conf});
@@ -387,7 +374,7 @@ sub pi {
 
     if (!$Contacts->{errno} && $contacts && ref $contacts) {
       foreach my $cont_type (@$contact_types) {
-        my $uc_contact_type_name = uc ($cont_type->{name});
+        my $uc_contact_type_name = uc($cont_type->{name});
         my @contacts_for_type = grep {$_->{type_id} == $cont_type->{id}} @$contacts;
 
         $self->{$uc_contact_type_name . '_ALL'} = join(', ', map {$_->{value} || ''} @contacts_for_type);
@@ -396,14 +383,8 @@ sub pi {
             $self->{ $uc_contact_type_name . ($i > 0 ? '_' . $i : '')} = $contacts_for_type[$i]->{value};
           }
         }
-        # else {
-        #   $self->{ $uc_contact_type_name } = '';
-        #   print "// $uc_contact_type_name //<br>";
-        # }
       }
       $self->{PHONE} ||= $self->{CELL_PHONE};
-
-      $self->{CONTACTS_NEW_APPENDED} = 1;
     }
   }
 
@@ -411,7 +392,6 @@ sub pi {
 
   return $self;
 }
-
 
 #**********************************************************
 =head2 pi_change($attr) - Personal Info change
@@ -463,41 +443,39 @@ sub pi_change {
 
   $admin->{MODULE} = '';
 
-  if ( $self->{conf}->{CONTACTS_NEW} ) {
-    my $phone_changed = defined $self->{PHONE_ALL} && defined $attr->{PHONE} && ($self->{PHONE_ALL} ne $attr->{PHONE});
-    my $cell_phone_changed = defined $self->{CELL_PHONE_ALL} && defined $attr->{CELL_PHONE} && ($self->{CELL_PHONE_ALL} ne $attr->{CELL_PHONE} );
-    my $mail_changed = defined $self->{EMAIL} && defined $attr->{EMAIL} && ($self->{EMAIL} ne $attr->{EMAIL});
+  my $phone_changed = defined $self->{PHONE_ALL} && defined $attr->{PHONE} && ($self->{PHONE_ALL} ne $attr->{PHONE});
+  my $cell_phone_changed = defined $self->{CELL_PHONE_ALL} && defined $attr->{CELL_PHONE} && ($self->{CELL_PHONE_ALL} ne $attr->{CELL_PHONE});
+  my $mail_changed = defined $self->{EMAIL} && defined $attr->{EMAIL} && ($self->{EMAIL} ne $attr->{EMAIL});
 
-    if ( $phone_changed || $mail_changed || $cell_phone_changed) {
-      require Contacts;
-      Contacts->import();
-      my $Contacts = Contacts->new($self->{db}, $self->{admin}, $self->{conf});
+  if ($phone_changed || $mail_changed || $cell_phone_changed) {
+    require Contacts;
+    Contacts->import();
+    my $Contacts = Contacts->new($self->{db}, $self->{admin}, $self->{conf});
 
-      if ( $cell_phone_changed ) {
-        # MAYBE check it is really a cell phone via regexp
-        $Contacts->contacts_change_all_of_type($Contacts->contact_type_id_for_name('CELL_PHONE'), {
-          UID   => $self->{UID},
-          VALUE => $attr->{CELL_PHONE}
-        });
-        delete $attr->{CELL_PHONE};
-      }
-      if ( $phone_changed ) {
-        # MAYBE check it is really a cell phone via regexp
-        $Contacts->contacts_change_all_of_type($Contacts->contact_type_id_for_name('PHONE'), {
-            UID   => $self->{UID},
-            VALUE => $attr->{PHONE}
-          });
-        delete $attr->{PHONE};
-      }
-      if ( $mail_changed ) {
+    if ($cell_phone_changed) {
+      # MAYBE check it is really a cell phone via regexp
+      $Contacts->contacts_change_all_of_type($Contacts->contact_type_id_for_name('CELL_PHONE'), {
+        UID   => $self->{UID},
+        VALUE => $attr->{CELL_PHONE}
+      });
+      delete $attr->{CELL_PHONE};
+    }
+    if ($phone_changed) {
+      # MAYBE check it is really a cell phone via regexp
+      $Contacts->contacts_change_all_of_type($Contacts->contact_type_id_for_name('PHONE'), {
+        UID   => $self->{UID},
+        VALUE => $attr->{PHONE}
+      });
+      delete $attr->{PHONE};
+    }
+    if ($mail_changed) {
 
-        $Contacts->contacts_change_all_of_type($Contacts->contact_type_id_for_name('EMAIL'), {
-            UID   => $self->{UID},
-            VALUE => $attr->{EMAIL}
-          });
+      $Contacts->contacts_change_all_of_type($Contacts->contact_type_id_for_name('EMAIL'), {
+        UID   => $self->{UID},
+        VALUE => $attr->{EMAIL}
+      });
 
-        delete $attr->{EMAIL};
-      }
+      delete $attr->{EMAIL};
     }
   }
 
@@ -590,7 +568,7 @@ sub groups_list {
     $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0) {
     $self->query("SELECT COUNT(*) AS total FROM `groups` g $WHERE", undef, { INFO => 1 });
@@ -753,7 +731,10 @@ sub list {
     'UID',
     'PASSWORD',
     'BIRTH_DATE',
-    'TAX_NUMBER'
+    'TAX_NUMBER',
+    'CELL_PHONE',
+    'TELEGRAM',
+    'VIBER'
   );
 
   if ($admin->{DOMAIN_ID}) {
@@ -762,12 +743,6 @@ sub list {
   }
   else {
     push @ext_fields, 'DOMAIN_ID';
-  }
-
-  if ($self->{conf}{CONTACTS_NEW}){
-    push (@ext_fields, 'CELL_PHONE');
-    push (@ext_fields, 'TELEGRAM');
-    push (@ext_fields, 'VIBER');
   }
 
   push @WHERE_RULES, @{ $self->search_expr_users({ %$attr,
@@ -1238,12 +1213,50 @@ sub change {
     require Bills;
     Bills->import();
     my $Bill = Bills->new($self->{db}, $admin, $self->{conf});
-    $Bill->create({ UID => $self->{UID} || $uid });
-    if ($Bill->{errno}) {
-      $self->{errno}  = $Bill->{errno};
-      $self->{errstr} = $Bill->{errstr};
-      return $self;
+
+    if ($attr->{NEW_CREATE_BILL}) {
+      my $bill_info = $Bill->info({ BILL_ID => $attr->{NEW_CREATE_BILL} });
+
+      if (defined $bill_info->{TOTAL} && $bill_info->{TOTAL} < 1) {
+        $Bill->create({ ID => $attr->{NEW_CREATE_BILL}, UID => $self->{UID} || $uid });
+        if ($Bill->{errno}) {
+          $self->{errno}  = $Bill->{errno};
+          $self->{errstr} = $Bill->{errstr};
+          return $self;
+        }
+      }
+      elsif (!$bill_info->{UID} || $bill_info->{UID} eq ($self->{UID} || $uid)) {
+        $Bill->{BILL_ID} = $attr->{NEW_CREATE_BILL};
+        $attr->{DEPOSIT} = $bill_info->{DEPOSIT} || 0;
+        $Bill->change({ BILL_ID => $Bill->{BILL_ID}, UID => $self->{UID} || $uid });
+      }
+      else {
+        $uid ||= $self->{UID};
+        my $user_info = $self->info($bill_info->{UID});
+        if (defined $user_info->{TOTAL} && $user_info->{TOTAL} < 1) {
+          $Bill->{BILL_ID} = $attr->{NEW_CREATE_BILL};
+          $attr->{DEPOSIT} = $bill_info->{DEPOSIT} || 0;
+          $Bill->change({ BILL_ID => $Bill->{BILL_ID}, UID => $uid });
+          $self->info($uid);
+        }
+        else {
+          $self->info($uid);
+          $self->{errno} = 156;
+          $self->{errstr} = 'ERR_WRONG_BILL_ID';
+          return $self;
+        }
+      }
+
     }
+    else {
+      $Bill->create({ UID => $self->{UID} || $uid });
+      if ($Bill->{errno}) {
+        $self->{errno}  = $Bill->{errno};
+        $self->{errstr} = $Bill->{errstr};
+        return $self;
+      }
+    }
+
     $attr->{BILL_ID} = $Bill->{BILL_ID};
     $self->{BILL_ID} = $Bill->{BILL_ID};
 
@@ -1387,11 +1400,12 @@ sub del {
     }
 
     $self->change($self->{UID}, {
-      DELETED         => 1,
-      ACTION_ID       => 12,
-      ACTION_COMMENTS => $comments,
-      UID             => $self->{UID},
-      ID              => $new_login,
+      DELETED           => 1,
+      ACTION_ID         => 12,
+      SKIP_STATUS_CHANGE=> 1,
+      ACTION_COMMENTS   => $comments,
+      UID               => $self->{UID},
+      ID                => $new_login,
     });
 
     $self->query_del('web_users_sessions', undef, { uid => $self->{UID} });

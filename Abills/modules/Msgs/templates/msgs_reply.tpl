@@ -89,7 +89,7 @@
   </div>
   <div class='card-body form form-horizontal'>
 
-    <div class='form-group row w-100'>
+    <div class='form-group row w-100 m-0'>
         <textarea id='REPLY_TEXT' name='REPLY_TEXT' data-action='drop-zone' class='form-control' rows=10>%QUOTING%%REPLY_TEXT%</textarea>
     </div>
 

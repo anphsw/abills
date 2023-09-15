@@ -136,10 +136,10 @@ sub active {
     }
     else{
       if ($line->{id} eq $argv->{TP_ID}) {
-        $Abon->user_tariff_change({
-          UID                               => $argv->{UID},
-          IDS                               => $line->{id},
-          "COMMENTS_" . $argv->{TP_ID}      => $argv->{COMMENTS},
+        $Abon->user_tariff_add({
+          TP_ID    => $line->{id},
+          UID      => $argv->{UID},
+          COMMENTS => $argv->{COMMENTS}
         });
 
         my $description = "$line->{tp_name} ($line->{id})";

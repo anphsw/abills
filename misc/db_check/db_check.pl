@@ -20,6 +20,8 @@ use warnings FATAL => 'all';
   APPLY_ALL=1 -a         - no confirm ( apply all found ALTER and MODIFY statements )
   SKIP_DISABLED_MODULES  - skip comparing tables we know it's module specific and module is disabled
   CREATE_NOT_EXIST_TABLES
+  SKIP_DB_CHECK          - skip db_check (example: load only config variables)
+  SKIP_CONFIG_UPDATE     - skip config variables update
 
   Debug options are used for debug only:
     DEBUG            - debug_level (0..5)
@@ -103,7 +105,14 @@ if ($argv->{CREATE_NOT_EXIST_TABLES}) {
   create_not_exist_tables();
 }
 
-db_check();
+if (!$argv->{SKIP_DB_CHECK}) {
+  db_check();
+}
+
+if (!$argv->{SKIP_CONFIG_UPDATE}) {
+  update_config_variables()
+}
+
 exit 0;
 
 #**********************************************************
@@ -613,6 +622,48 @@ sub check_table_keys {
   #  }
 
   return 1;
+}
+
+#**********************************************************
+=head2 update_config_variables()
+
+  Update config variables from db/config_variables.sql
+
+=cut
+#**********************************************************
+sub update_config_variables {
+  my $ok = 'n';
+  if ($argv->{APPLY_ALL} || defined($argv->{'-a'})) {
+    $ok = 'y';
+  } else {
+    print "\nDo you want reload config variables?\n";
+    print "Apply? (y/N): ";
+    chomp($ok = <STDIN>);
+  }
+
+  if (lc($ok) eq 'y') {
+    my $content = '';
+    if (open(my $fh, '<', $libpath . 'db/config_variables.sql')) {
+      while (<$fh>) {
+        $content .= $_;
+      }
+      close($fh);
+    }
+
+    if ($content) {
+      eval { $Admin->query('TRUNCATE TABLE config_variables;', 'do', {}); };
+      eval { $Admin->query($content, 'do', {}) };
+      if ($@) {
+        print "\nABORTED! Error has occured with config variables loading.\n";
+      } else {
+        print "\nConfig variables reloaded successfully.\n";
+      }
+    } else {
+      print "Config variables not found!\n";
+    }
+  } else {
+    print "Skipped\n";
+  }
 }
 
 1;

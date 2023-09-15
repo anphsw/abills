@@ -64,7 +64,11 @@ sub abon_docs {
   my @services = ();
   my $uid = $attr->{UID} || $form->{UID};
 
-  my $list = $Abon->user_tariff_list($uid, { PAYMENT_TYPE => $attr->{PAYMENT_TYPE}, COLS_NAME => 1 });
+  my $list = $Abon->user_tariff_list($uid, {
+    PAYMENT_TYPE     => $attr->{PAYMENT_TYPE},
+    TP_REDUCTION_FEE => '_SHOW',
+    COLS_NAME        => 1
+  });
 
   my %info = ();
   foreach my $line (@{$list}) {
@@ -76,6 +80,7 @@ sub abon_docs {
 
     $info{service_name} = "$lang->{ABON}: ($line->{id}) " . "$line->{tp_name}";
     $info{module_name} = $lang->{ABON};
+    $info{tp_reduction_fee} = $line->{tp_reduction_fee};
 
     if ($line->{period} == 1) {
       $info{month} += $line->{price};
@@ -171,17 +176,148 @@ sub abon_payments_maked {
   my $Services = Abon::Services->new($db, $admin, $CONF, { LANG => $lang });
 
   my $user = $attr->{USER_INFO};
-  $attr->{DATE}=POSIX::strftime("%Y-%m-%d", localtime(time));
-  $attr->{USER_INFO}=$user;
-  $attr->{SERVICE_RECOVERY}='>0';
+  $attr->{DATE} = POSIX::strftime('%Y-%m-%d', localtime(time));
+  $attr->{USER_INFO} = $user;
+  $attr->{SERVICE_RECOVERY} = '>0';
 
   if ($Services->abon_service_activate($attr)) {
-    if ($Services->{OPERATION_SUM} ) {
+    if ($Services->{OPERATION_SUM}) {
       $html->message('info', $lang->{INFO}, ($Services->{OPERATION_DESCRIBE} || q{}) . " $lang->{SUM}: " . ($Services->{OPERATION_SUM} || 0));
     }
   }
 
   return $self;
+}
+
+#**********************************************************
+=head2 abon_load_plugin($plugin_name, $attr) - Load plugin module
+
+  Argumnets:
+    $plugin_name  - service modules name
+    $attr
+       SERVICE_ID
+       SOFT_EXCEPTION
+       RETURN_ERROR
+
+  Returns:
+    Module object
+
+=cut
+#**********************************************************
+sub abon_load_plugin {
+  my $self = shift;
+  my ($plugin_name, $attr) = @_;
+  
+  my $api;
+  my $Service = $attr->{SERVICE} || {};
+  my $main_module = $Service->{MODULE} || 'Abon';
+  $plugin_name //= $Service->{PLUGIN};
+
+  if ($attr->{SERVICE_INFO}) {
+    my $service_info = $attr->{SERVICE_INFO};
+    $Service = $service_info->($attr->{SERVICE_ID});
+  }
+
+  return $api if !$plugin_name;
+
+  $plugin_name = $main_module . '::Plugin::' . $plugin_name;
+
+  eval " require $plugin_name; ";
+  if (!$@) {
+    $plugin_name->import();
+
+    $Service->{DEBUG} = defined $attr->{DEBUG} ? $attr->{DEBUG} : $Service->{DEBUG};
+    if ($plugin_name->can('new')) {
+      $api = $plugin_name->new($Service->{db}, $Service->{admin}, $Service->{conf}, {
+        %{$Service},
+        HTML => $html,
+        LANG => $lang
+      });
+    }
+    else {
+      if ($attr->{RETURN_ERROR}) {
+        return {
+          errno  => 9901,
+          errstr => "Can't load '$plugin_name'. Purchase this module http://abills.net.ua",
+        };
+      }
+      else {
+        $html->message('err', $lang->{ERROR}, "Can't load '$plugin_name'. Purchase this module http://abills.net.ua");
+        return $api;
+      }
+    }
+  }
+  else {
+    if ($attr->{RETURN_ERROR}) {
+      return {
+        errno  => 9902,
+        errstr => "Can't load '$plugin_name'. Purchase this module http://abills.net.ua",
+      };
+    }
+    else {
+      print $@ if ($attr->{DEBUG});
+      $html->message('err', $lang->{ERROR}, "Can't load '$plugin_name'. Purchase this module http://abills.net.ua");
+      if (!$attr->{SOFT_EXCEPTION}) {
+        # die "Can't load '$plugin_name'. Purchase this module http://abills.net.ua";
+      }
+    }
+  }
+
+  return $api;
+}
+
+#**********************************************************
+=head2 abon_promotional_tp($attr)
+
+  Arguments:
+    $attr
+      USER
+
+=cut
+#**********************************************************
+sub abon_promotional_tp {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $user_info = $attr->{USER};
+  return if !$user_info || !$user_info->{UID} || $user_info->{DISABLE};
+
+  my @PERIODS = ($lang->{DAY}, $lang->{MONTH}, $lang->{QUARTER}, $lang->{SIX_MONTH}, $lang->{YEAR});
+
+  my $promotion_tps = $Abon->tariff_list_former({
+    PROMOTIONAL     => '!',
+    PRICE           => '_SHOW',
+    TP_NAME         => '_SHOW',
+    PERIOD          => '_SHOW',
+    USER_PORTAL     => 2,
+    MANUAL_ACTIVATE => 1,
+    COLS_NAME       => 1
+  });
+  my $items = '';
+  
+  my $user_activated_tps = $Abon->user_tariff_list($user_info->{UID}, { ACTIVE_ONLY => 1, COLS_NAME => 1 });
+  my @activated_tps = ();
+  map push(@activated_tps, $_->{id}), @{$user_activated_tps};
+
+  foreach my $tp (@{$promotion_tps}) {
+    next if in_array($tp->{id}, \@activated_tps);
+
+    my $price = $tp->{price} || 0;
+    next if ($user_info->{DEPOSIT} + $user_info->{CREDIT} < $price * (100 - $user_info->{REDUCTION}) / 100);
+
+    $items .= $html->tpl_show(::_include('abon_promotion_tp_carousel_item', 'Abon'), {
+      TP_NAME => $tp->{tp_name},
+      ACTIVE  => !$items ? 'active' : '',
+      PRICE   => $price,
+      PERIOD  => '/' . ($PERIODS[$tp->{period}] || $PERIODS[0]),
+      HREF    => '?index=' . main::get_function_index('abon_client') . "&add=$tp->{id}",
+    }, { OUTPUT2RETURN => 1 });
+  }
+
+  return if !$items;
+
+  $html->message('callout', $html->tpl_show(main::_include('abon_promotion_tp_carousel', 'Abon'),
+    { ITEMS => $items }, { OUTPUT2RETURN => 1 }), '', { class => 'info mb-0 p-0' });
 }
 
 1;

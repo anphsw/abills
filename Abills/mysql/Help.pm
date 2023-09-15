@@ -7,7 +7,7 @@ package Help;
 =cut
 
 use strict;
-use parent 'main';
+use parent qw(dbcore);
 my $MODULE = 'Help';
 my ($admin, $CONF);
 
@@ -35,7 +35,7 @@ sub info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT function, title, help
+  $self->query("SELECT function, title, help
      FROM help
      WHERE function= ? ;",
      undef, 
@@ -65,13 +65,11 @@ sub change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'FUNCTION',
-      TABLE        => 'help',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'FUNCTION',
+    TABLE        => 'help',
+    DATA         => $attr
+  });
 
   return $self->{result};
 }

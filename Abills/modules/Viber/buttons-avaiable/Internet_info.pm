@@ -3,6 +3,9 @@ package Internet_info;
 use strict;
 use warnings FATAL => 'all';
 
+require Control::Service_control;
+my $Service_control;
+
 #**********************************************************
 =head2 new($Botapi)
 
@@ -20,6 +23,8 @@ sub new {
   };
   
   bless($self, $class);
+
+  $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
   
   return $self;
 }
@@ -110,26 +115,35 @@ sub click {
     elsif ($line->{internet_status} == 5) {
       $message .= "$self->{bot}->{lang}->{SMALL_DEPOSIT}\\n\\n";
       if ($self->{conf}{user_credit_change}) {
-        my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $self->{conf}{user_credit_change});
-        my $days_lit = "$self->{bot}->{lang}->{DAY}";
-        if ($days > 1 && $days < 5) {
-          $days_lit = "$self->{bot}->{lang}->{DAY}";
-        }
-        elsif ($days > 4) {
-          $days_lit = "$self->{bot}->{lang}->{DAYS}";
-        }
-        $message .= "$self->{bot}->{lang}->{SET_CREDIT} $days $days_lit";
-        $message .= " $money_currency\\n";
-        $message .= "$self->{bot}->{lang}->{SERVICE_PRICE}: $price" if ($price);
-        $message .= " $money_currency\\n" if ($price);
+        my $credit_info = $Service_control->user_set_credit({ UID => $self->{bot}{uid}, REDUCTION => $Users->{REDUCTION} });
+        if (!$credit_info->{errstr}) {
+          my $currency = $self->{conf}{MONEY_UNIT_NAMES} || '';
+          my $sum = $credit_info->{CREDIT_SUM} || 0;
+          my $days = $credit_info->{CREDIT_DAYS} || 0;
+          my $price = $credit_info->{CREDIT_CHG_PRICE} || 0;
+          my $month_changes = $credit_info->{CREDIT_MONTH_CHANGES} || 0;
 
-        my $inline_button = {
-          Text          => "$self->{bot}->{lang}->{CREDIT_SET}",
-          ActionType => 'reply',
-          ActionBody => "fn:Internet_info&credit",
-          TextSize   => 'regular'
-        };
-        push (@inline_keyboard, $inline_button);
+          $message .= "$self->{bot}{lang}{SET_CREDIT}: $sum $currency\\n";
+          $message .= "$self->{bot}{lang}{CREDIT_OPEN}: $days $self->{bot}->{lang}->{DAYS}\\n";
+          $message .= "$self->{bot}{lang}{CREDIT_PRICE}: $price $currency\\n";
+          $message .= "$self->{bot}{lang}{SET_CREDIT_ALLOW}: $month_changes $self->{bot}->{lang}->{COUNT}\\n";
+
+          my $inline_button = {
+            Text       => "$self->{bot}->{lang}->{CREDIT_SET}",
+            ActionType => 'reply',
+            ActionBody => "fn:Internet_info&credit",
+            TextSize   => 'regular'
+          };
+          push(@inline_keyboard, $inline_button);
+
+          push (@inline_keyboard, {
+            ActionType => 'reply',
+            ActionBody => 'MENU',
+            Text       => $self->{bot}->{lang}->{BACK},
+            BgColor    => "#FF0000",
+            TextSize   => 'regular'
+          });
+        }
       }
     }
     else {
@@ -148,10 +162,10 @@ sub click {
   $msg->{type} = 'text' if (!$attr->{NO_MSG});
 
   $msg->{keyboard} = {
-      Type          => 'keyboard',
-      DefaultHeight => "true",
-      Buttons => \@inline_keyboard
-  } if(@inline_keyboard);
+    Type          => 'keyboard',
+    DefaultHeight => "true",
+    Buttons       => \@inline_keyboard
+  } if (@inline_keyboard);
 
   $self->{bot}->send_message($msg);
 

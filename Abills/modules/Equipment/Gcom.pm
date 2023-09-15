@@ -22,8 +22,10 @@ use strict;
 use warnings;
 use Abills::Base qw(in_array);
 use Abills::Filters qw(bin2mac);
+use JSON qw(decode_json);
 
 our (
+  $base_dir,
   %lang,
   %conf,
   %FORM,
@@ -211,136 +213,23 @@ sub _gcom_onu_list {
 =cut
 #**********************************************************
 sub _gcom {
-    my ($attr) = @_;
+  my ($attr) = @_;
+  my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
 
-    my %snmp = (
-      epon       => {
-        'ONU_MAC_SERIAL' => {
-          NAME   => 'Mac/Serial',
-          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.9',
-          PARSER => 'bin2mac',
-        },
-        'ONU_STATUS'     => {
-          NAME   => 'STATUS',
-          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.4',
-        },
-        'ONU_TX_POWER'   => {
-          NAME   => 'ONU_TX_POWER',
-          OIDS   => '1.3.6.1.4.1.13464.1.13.3.3.1.7',
-        },
-        'ONU_RX_POWER'   => {
-          NAME   => 'ONU_RX_POWER',
-          OIDS   => '1.3.6.1.4.1.13464.1.13.3.3.1.8',
-        },
-        'ONU_DESC'       => {
-          NAME   => 'ONU_DESC',
-          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.10', #XXX THIS IS SOFT VERSION
-        },
-        'TEMPERATURE'    => {
-          NAME   => 'TEMPERATURE',
-          OIDS   => '1.3.6.1.4.1.13464.1.13.3.3.1.4',
-        },
-        #XXX works not on every firmware. on some firmware may respond with many useless lines (100k+), because of it PON Grabber effectively stops working
-        #'ONU_IN_BYTE'    => {
-        #  NAME   => 'ONU_IN_BYTE',
-        #  OIDS   => '1.3.6.1.4.1.13464.1.13.3.17.1.11',
-        #},
-        #'ONU_OUT_BYTE'   => {
-        #  NAME   => 'ONU_OUT_BYTE',
-        #  OIDS   => '1.3.6.1.4.1.13464.1.13.3.17.1.4',
-        #},
-        'reset'          => {
-          NAME   => '',
-          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.17',
-          PARSER => ''
-        },
-        main_onu_info    => {
-          'DISTANCE'       => {
-            NAME   => 'DISTANCE',
-            OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.18',
-            PARSER => '_gcom_convert_distance',
-          },
-          'VOLTAGE'        => {
-            NAME   => 'VOLTAGE',
-            OIDS   => '1.3.6.1.4.1.13464.1.13.3.3.1.5',
-            PARSER => '_gcom_convert_voltage',
-          },
-          'SOFT_VERSION'   => {
-            NAME   => 'FIRMWARE',
-            OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.10',
-          },
-          'CVLAN'          => {
-            NAME   => 'VLAN (CVLAN)',
-            OIDS   => '1.3.6.1.4.1.13464.1.13.3.2.1.7',
-          },
-          'SVLAN'          => {
-            NAME   => 'VLAN (SVLAN)',
-            OIDS   => '1.3.6.1.4.1.13464.1.13.3.2.1.8',
-          }
-        }
-      },
-      gpon       => {
-        'ONU_MAC_SERIAL' => {
-          NAME   => 'Mac/Serial',
-          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.1.1.8',
-        },
-        'ONU_STATUS'     => {
-          NAME   => 'STATUS',
-          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.1.1.6',
-        },
-        'ONU_TX_POWER'   => {
-          NAME   => 'ONU_TX_POWER',
-          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.4.1.6',
-        },
-        'ONU_RX_POWER'   => {
-          NAME   => 'ONU_RX_POWER',
-          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.4.1.5',
-        },
-        'ONU_DESC'       => {
-          NAME   => 'ONU_DESC',
-          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.1.1.4',
-        },
-        'TEMPERATURE'    => {
-          NAME   => 'TEMPERATURE',
-          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.4.1.8',
-        },
-        'ONU_IN_BYTE'    => {
-          NAME   => 'ONU_IN_BYTE',
-          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.7.1.7',
-        },
-        'ONU_OUT_BYTE'   => {
-          NAME   => 'ONU_OUT_BYTE',
-          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.7.1.5',
-        },
-        #'reset'          => { #not tested
-        #  NAME   => '',
-        #  OIDS   => '1.3.6.1.4.1.13464.1.14.1.4.1.1.6',
-        #  PARSER => ''
-        #},
-        main_onu_info    => {
-          'DISTANCE'       => {
-            NAME   => 'DISTANCE',
-            OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.1.1.7',
-            PARSER => '_gcom_convert_distance',
-          },
-          'SOFT_VERSION'   => {
-            NAME   => 'FIRMWARE',
-            OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.2.1.7',
-          },
-          'VOLTAGE'        => {
-            NAME   => 'VOLTAGE',
-            OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.4.1.4',
-            PARSER => '_gcom_convert_voltage',
-          }
-        }
-      }
-    );
+  my $file_content = file_op({
+    FILENAME   => 'gcom.snmp',
+    PATH       => $TEMPLATE_DIR,
+  });
+
+  $file_content =~ s#//.*$##gm;
+
+  my $snmp = decode_json($file_content);
 
   if ($attr->{TYPE}) {
-    return $snmp{$attr->{TYPE}};
+    return $snmp->{$attr->{TYPE}};
   }
 
-  return \%snmp;
+  return $snmp;
 }
 
 #**********************************************************

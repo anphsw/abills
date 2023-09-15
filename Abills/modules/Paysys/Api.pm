@@ -135,28 +135,19 @@ sub user_routes {
           GID       => $users_info->[0]->{gid},
           PAYSYS_ID => '_SHOW',
           COLS_NAME => 1,
+          PAGE_ROWS => 50,
         });
 
         my $systems = $Paysys->paysys_connect_system_list({
-          NAME      => '_SHOW',
-          MODULE    => '_SHOW',
-          ID        => '_SHOW',
-          PAYSYS_ID => '_SHOW',
-          STATUS    => 1,
-          COLS_NAME => 1,
-          SORT      => 'priority',
+          NAME         => '_SHOW',
+          MODULE       => '_SHOW',
+          ID           => '_SHOW',
+          SUBSYSTEM_ID => '_SHOW',
+          PAYSYS_ID    => '_SHOW',
+          STATUS       => 1,
+          COLS_NAME    => 1,
+          SORT         => 'priority',
         });
-
-        if (!$users_info->[0]->{gid}) {
-          my $gid_list = $Users->groups_list({
-            COLS_NAME      => 1,
-            GID            => '0'
-          });
-
-          if (!$gid_list) {
-            $allowed_systems = $systems;
-          }
-        }
 
         my @systems_list;
         foreach my $system (@{$systems}) {
@@ -170,6 +161,10 @@ sub user_routes {
             my $Paysys_plugin = $Module->new($self->{db}, $self->{admin}, $self->{conf}, { lang => \%LANG });
             my %settings = $Module->get_settings();
             $system->{request} = $settings{REQUEST} if (%settings && $settings{REQUEST});
+
+            if ($settings{SUBSYSTEMS} && ref $settings{SUBSYSTEMS} eq 'HASH' &&  exists($settings{SUBSYSTEMS}{$system->{subsystem_id}})) {
+              $system->{module} = ucfirst(lc($settings{SUBSYSTEMS}{$system->{subsystem_id}})) . '.pm';
+            }
 
             if ($query_params->{REQUEST_METHOD} && $system->{request} && $system->{request}->{METHOD}) {
               next if ("$query_params->{REQUEST_METHOD}" ne $system->{request}->{METHOD});
@@ -339,12 +334,18 @@ sub paysys_pay {
   return $Module if (ref $Module eq 'HASH');
 
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+  $Users->info($attr->{UID});
+  $Users->pi({ UID => $attr->{UID} });
   my %params = (
     %$attr,
-    USER => $Users->info($attr->{UID}),
+    USER => $Users,
   );
 
-  my $Paysys_plugin = $Module->new($self->{db}, $self->{admin}, $self->{conf}, { lang => \%LANG });
+  my $Paysys_plugin = $Module->new($self->{db}, $self->{admin}, $self->{conf}, {
+    lang        => \%LANG,
+    CUSTOM_NAME => $attr->{MODULE}->[0]->{name},
+    CUSTOM_ID   => $attr->{MODULE}->[0]->{paysys_id}
+  });
 
   if ($attr->{GPAY} && $Module->can('google_pay')) {
     return $Paysys_plugin->google_pay(\%params);

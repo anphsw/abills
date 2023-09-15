@@ -117,6 +117,82 @@ our @ONU_ONLINE_STATUSES = (
   $ONU_STATUS_TEXT_CODES{SYNC}
 );
 
+our @ONU_FIELDS = (
+  'CATV_PORTS_ADMIN_STATUS',
+  'CATV_PORTS_COUNT',
+  'CATV_PORTS_STATUS',
+  'CVLAN',
+  'DISTANCE',
+  'EQUIPMENT_ID',
+  'ETH_ADMIN_STATE',
+  'ETH_DUPLEX',
+  'ETH_SPEED',
+  'FIRMWARE',
+  'HARD_VERSION',
+  'LINE_PROFILE',
+  'LLID',
+  'MAC_BEHIND_ONU',
+  'MODEL',
+  'OLT_RX_POWER',
+  'ONU_DESC',
+  'ONU_IN_BYTE',
+  'ONU_LAST_DOWN_CAUSE',
+  'ONU_MAC_SERIAL',
+  'ONU_NAME',
+  'ONU_OUT_BYTE',
+  'ONU_PORTS_STATUS',
+  'ONU_RX_POWER',
+  'ONU_STATUS',
+  'ONU_TX_POWER',
+  'ONU_TYPE',
+  'RF_PORT_ON',
+  'SOFT_VERSION',
+  'SRV_PROFILE',
+  'SVLAN',
+  'TEMPERATURE',
+  'UPTIME',
+  'VENDOR',
+  'VENDOR_ID',
+  'VERSION_ID',
+  'VIDEO_RX_POWER',
+  'VOLTAGE',
+);
+
+our @PORT_FIELDS = (
+  'PORT_STATUS',
+  'ADMIN_PORT_STATUS',
+  'PORT_IN',
+  'PORT_OUT',
+  'PORT_IN_ERR',
+  'PORT_OUT_ERR',
+  'PORT_IN_DISCARDS',
+  'PORT_OUT_DISCARDS',
+  'PORT_UPTIME',
+  'CABLE_TESTER'
+);
+
+our @SW_FIELDS = (
+  'DESCRIBE',
+  'SYSTEM_ID',
+  'UPTIME'
+);
+
+our @CHECKED_FIELDS = (
+  'CATV_PORTS_STATUS',
+  'DISTANCE',
+  'OLT_RX_POWER',
+  'ONU_DESC',
+  'ONU_IN_BYTE',
+  'ONU_LAST_DOWN_CAUSE',
+  'ONU_MAC_SERIAL',
+  'ONU_OUT_BYTE',
+  'ONU_PORTS_STATUS',
+  'ONU_RX_POWER',
+  'ONU_STATUS',
+  'TEMPERATURE',
+  'UPTIME',
+);
+
 #********************************************************
 =head2 equipment_pon_init($attr)
 
@@ -177,6 +253,10 @@ sub equipment_pon_init {
   elsif ($vendor_name =~ /RAISECOM/i) {
     require Equipment::Raisecom;
     $nas_type = '_raisecom';
+  }
+  elsif ($vendor_name =~ /SMARTFIBER/i) {
+    require Equipment::Smartfiber;
+    $nas_type = '_smartfiber';
   }
 
   return $nas_type;
@@ -299,6 +379,7 @@ sub _get_snmp_oid {
   if ($def_content) {
     load_pmodule("JSON");
     my $json = JSON->new->allow_nonref;
+    $def_content =~ s#//.*$##gm;
     $def_result = $json->decode($def_content);
   }
 
@@ -314,6 +395,7 @@ sub _get_snmp_oid {
   if ($content) {
     load_pmodule("JSON");
     my $json = JSON->new->allow_nonref;
+    $content =~ s#//.*$##gm;
     $result = $json->decode($content);
   }
   my @array_keys = ('info', 'status', 'ports');
@@ -452,46 +534,53 @@ sub equipment_pon {
     }
   }
   elsif (($FORM{disable_eth_port} || $FORM{enable_eth_port}) && $FORM{ONU}) {
-    my $port_id = $FORM{disable_eth_port} || $FORM{enable_eth_port};
-
-    my $set_value;
-    if ($FORM{disable_eth_port}) {
-      $set_value = $snmp->{eth_port_manage}->{DISABLE_VALUE};
-    }
-    elsif ($FORM{enable_eth_port}) {
-      $set_value = $snmp->{eth_port_manage}->{ENABLE_VALUE};
+    if (! $snmp->{eth_port_manage}) {
+      $html->message('info', $lang{INFO}, "ONU PORT MANAGE NOT DEFINED (eth_port_manage)", { ID => 461 });
     }
     else {
-      print "Disable or enable port? Exiting.\n" if ($attr->{DEBUG});
-      return 0;
-    }
+      my $port_id = $FORM{disable_eth_port} || $FORM{enable_eth_port};
 
-    my $result = snmp_set({
-      SNMP_COMMUNITY => $SNMP_COMMUNITY,
-      VERSION        => $attr->{VERSION},
-      OID            => [ $snmp->{eth_port_manage}->{OIDS} .
-                            '.' . $FORM{ONU} .'.'. $port_id .
-                            ($snmp->{eth_port_manage}->{ADD_2_OID} || ''),
-                          $snmp->{eth_port_manage}->{VALUE_TYPE} || "integer",
-                          $set_value ]
-    });
-
-    if ($result) {
+      my $set_value;
       if ($FORM{disable_eth_port}) {
-        $html->message('info', $lang{INFO}, $lang{PORT_DISABLED});
+        $set_value = $snmp->{eth_port_manage}->{DISABLE_VALUE};
       }
       elsif ($FORM{enable_eth_port}) {
-        $html->message('info', $lang{INFO}, $lang{PORT_ENABLED});
+        $set_value = $snmp->{eth_port_manage}->{ENABLE_VALUE};
       }
-    }
-    else {
-      $html->message('err', $lang{ERROR}, $lang{PORT_STATUS_CHANGING_ERROR});
+      else {
+        print "Disable or enable port? Exiting.\n" if ($attr->{DEBUG});
+        return 0;
+      }
+
+      my $result = snmp_set({
+        SNMP_COMMUNITY => $SNMP_COMMUNITY,
+        VERSION        => $attr->{VERSION},
+        OID            => [ $snmp->{eth_port_manage}->{OIDS}
+          . '.' . $FORM{ONU}
+          . '.' . $port_id
+          . ($snmp->{eth_port_manage}->{ADD_2_OID} || ''),
+          $snmp->{eth_port_manage}->{VALUE_TYPE} || "integer",
+          $set_value
+        ]
+      });
+
+      if ($result) {
+        if ($FORM{disable_eth_port}) {
+          $html->message('info', $lang{INFO}, $lang{PORT_DISABLED});
+        }
+        elsif ($FORM{enable_eth_port}) {
+          $html->message('info', $lang{INFO}, $lang{PORT_ENABLED});
+        }
+      }
+      else {
+        $html->message('err', $lang{ERROR}, $lang{PORT_STATUS_CHANGING_ERROR});
+      }
     }
   }
 
   if ($FORM{ONU}) {
     pon_onu_state($FORM{ONU}, {
-      %{$attr},
+      %{$attr // {}},
       snmp        => $snmp,
       ONU_TYPE    => $FORM{ONU_TYPE},
       ONU_SNMP_ID => $FORM{info_pon_onu},
@@ -616,6 +705,7 @@ sub equipment_pon {
   $LIST_PARAMS{OLT_PORT} = $FORM{OLT_PORT} || '';
   $LIST_PARAMS{BRANCH} = '_SHOW';
   $LIST_PARAMS{PAGE_ROWS} = 10000;
+  $LIST_PARAMS{RX_POWER_SIGNAL} = $FORM{RX_POWER_SIGNAL} || '';
 
   my %EXT_TITLES = (
     onu_snmp_id          => "SNMP ID",
@@ -900,9 +990,10 @@ sub equipment_pon {
     push @all_rows, \@row;
   }
   $onu_list = $Equipment->onu_date_status({
-    COLS_NAME => 1,
-    NAS_ID    => $Equipment->{NAS_ID},
-    OLT_PORT  => $FORM{OLT_PORT} || ''
+    COLS_NAME       => 1,
+    NAS_ID          => $Equipment->{NAS_ID},
+    OLT_PORT        => $FORM{OLT_PORT} || '',
+    RX_POWER_SIGNAL => $FORM{RX_POWER_SIGNAL} || ''
   });
   my $total_off = 0;
   my $total_on = 0;
@@ -1409,7 +1500,6 @@ sub equipment_delete_onu {
 #********************************************************
 sub equipment_pon_onu {
   my ($attr) = @_;
-  Abills::Base::_bp('%FORM', \%FORM, {HEADER=>1});
 
   my $nas_id = $attr->{NAS_INFO}{NAS_ID} || $FORM{NAS_ID};
   $Equipment->vendor_info($Equipment->{VENDOR_ID});
@@ -1694,7 +1784,6 @@ sub pon_onu_state {
 
   if (!$attr->{BRANCH} || !$attr->{PORT}) {
     my $onu_list = $Equipment->onu_list({
-      #ONU_DHCP_PORT   => $attr->{PORT},
       NAS_ID           => $nas_id,
       ONU_SNMP_ID      => $id,
       DELETED          => 0,
@@ -1704,7 +1793,6 @@ sub pon_onu_state {
       BRANCH           => '_SHOW',
       ONU_BILLING_DESC => '_SHOW',
       ONU_VLAN         => '_SHOW',
-      #ONU_SNMP_ID     => '_SHOW',
       COLS_NAME        => 1,
       PAGE_ROWS        => 10000
     });
@@ -1727,9 +1815,12 @@ sub pon_onu_state {
     $snmp_info = &{\&{$nas_type}}({ TYPE => $pon_type, MODEL => $model_name });
   }
 
-  my $tr_069_data = tr_069_get_data({ QUERY                                              => {
-    'InternetGatewayDevice.DeviceInfo.SerialNumber'   => $attr->{ONU_SERIAL},
-    'InternetGatewayDevice.ManagementServer.Username' => $attr->{NAS_NAME} }, PROJECTION => [ '_id' ], DEBUG => ($FORM{DEBUG} || 0)
+  my $tr_069_data = tr_069_get_data({
+    QUERY => {
+      'InternetGatewayDevice.DeviceInfo.SerialNumber'   => $attr->{ONU_SERIAL},
+      'InternetGatewayDevice.ManagementServer.Username' => $attr->{NAS_NAME}
+    },
+    PROJECTION => [ '_id' ], DEBUG => ($FORM{DEBUG} || 0)
   });
 
   my $tr_069_button = ($tr_069_data->[0]->{_id}) ? $html->button('',
@@ -2266,8 +2357,14 @@ sub pon_tx_alerts {
   my ($tx, $returns) = @_;
 
   my %signals = (
-    'BAD'   => { 'MIN' => -30, 'MAX' => -8 },
-    'WORTH' => { 'MIN' => -27, 'MAX' => -10 }
+    'BAD'   => {
+      'MIN' => ($conf{PON_LEVELS_ALERT}) ? $conf{PON_LEVELS_ALERT}{BAD}{MIN} : -30,
+      'MAX' => ($conf{PON_LEVELS_ALERT}) ? $conf{PON_LEVELS_ALERT}{BAD}{MAX} : -8
+    },
+    'WORTH' => {
+      'MIN' => ($conf{PON_LEVELS_ALERT}) ? $conf{PON_LEVELS_ALERT}{WORTH}{MIN} : -27,
+      'MAX' => ($conf{PON_LEVELS_ALERT}) ? $conf{PON_LEVELS_ALERT}{WORTH}{MAX} : -10
+    }
   );
 
   if (!$tx || $tx == 65535) {
@@ -2276,7 +2373,7 @@ sub pon_tx_alerts {
   }
   elsif ($tx > 0) {
     return 1 if ($returns);
-    $tx = $html->color_mark($tx, 'text-green');
+    $tx = $html->color_mark($tx, 'text-secondary');
   }
   elsif ($tx > $signals{BAD}{MAX} || $tx < $signals{BAD}{MIN}) {
     return 2 if ($returns);
@@ -2536,13 +2633,18 @@ sub equipment_pon_ports {
           push @row, $olt_ports->{$port}->{$col_id};
         }
       }
+      elsif($col_id eq 'PORT_ALIAS') {
+        if (!$olt_ports->{$port}{PORT_ALIAS}){
+          $olt_ports->{$port}{PORT_ALIAS} = $olt_ports->{$port}{BRANCH_DESC} || '';
+        }
+        push @row, $olt_ports->{$port}{PORT_ALIAS}
+      }
       else {
         push @row, '';
       }
     }
 
     $olt_ports->{$port}{ID} ||= '';
-    $olt_ports->{$port}{PORT_ALIAS} ||= '';
     $olt_ports->{$port}{VLAN_ID} ||= '';
 
     push @row, $html->button($lang{INFO},

@@ -134,7 +134,14 @@ jQuery(function () {
     
     j_btn.on('click', create_tag_wrap_handler(tag));
   });
-  
+
+  jQuery('#portal_reindent_button').on('click', function() {
+    const editorContent = portalEditor.getValue();
+    const editorContentFormatted = html_beautify(editorContent, { indent_size: 2 });
+    portalEditor.setValue(editorContentFormatted);
+    portalEditor.refresh();
+  });
+
   fillPreview();
   portalEditor.on('beforeChange', onPaste);
   portalEditor.on('change', fillPreview);

@@ -100,6 +100,7 @@ sub user_info {
    tv_services.module AS service_module,
    tp.fees_method as fees_method,
    tp.describe_aid as describe_aid,
+   tp.comments as comments,
    service.*
      FROM iptv_main service
      LEFT JOIN tarif_plans tp ON (service.tp_id=tp.tp_id)
@@ -328,6 +329,8 @@ sub user_list{
       [ 'ALL_FILTER_ID',     'STR', 'IF(service.filter_id<>\'\', service.filter_id, tp.filter_id) AS filter_id', 1 ],
       [ 'FILTER_ID',         'STR', 'service.filter_id',                                                         1 ],
       [ 'DVCRYPT_ID',        'INT', 'service.dvcrypt_id',                                                        1 ],
+      [ 'AGE',               'INT', 'tp.age as tp_age',                                                          1 ],
+      [ 'ACTIV_PRICE',       'INT', 'tp.activate_price',                                                         1 ],
       [ 'MONTH_FEE',         'INT', 'tp.month_fee',                                                              1 ],
       [ 'ABON_DISTRIBUTION', 'INT', 'tp.abon_distribution',                                                      1 ],
       [ 'DAY_FEE',           'INT', 'tp.day_fee',                                                                1 ],
@@ -1646,7 +1649,7 @@ sub users_screens_list{
   else {
     my $service_join = $attr->{SERVICE_ID} ? "AND service.id='$attr->{SERVICE_ID}'" : '';
     $WHERE .= $WHERE ? " AND us.service_id<>0" : "us.service_id<>0" unless $attr->{SERVICE_ID};
-    $GROUP_BY = 'GROUP BY s.id';
+    $GROUP_BY = 'GROUP BY us.service_id, us.screen_id';
 
     $EXT_TABLE .= 'FROM iptv_screens s ';
     $EXT_TABLE .= "LEFT JOIN iptv_main service  ON (s.tp_id=service.tp_id $service_join)";
@@ -2296,4 +2299,4 @@ sub iptv_promotion_tps {
   return $self->{list} || [];
 }
 
-1
+1;

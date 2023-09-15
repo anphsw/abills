@@ -104,6 +104,14 @@ sub subscribe {
           },
         });
       }
+      else {
+        $Bot->send_message({
+          text         => 'Sorry check your active subscriptions',
+          reply_markup => {
+            remove_keyboard => 'true'
+          },
+        });
+      }
     }
     exit 0 if $type ne 'e';
   }

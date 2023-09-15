@@ -190,9 +190,11 @@ sub iptv_console {
   my($attr) = @_;
 
   my $services = $html->form_main({
-    CONTENT => tv_services_sel(),
-    HIDDEN  => { index => $index },
-    SUBMIT  => { show => $lang{SHOW} },
+    CONTENT => tv_services_sel({ AUTOSUBMIT => 'form'}),
+    HIDDEN  => {
+      index => $index,
+      show  => 1
+    },
     class   => 'form-inline ml-auto flex-nowrap',
   });
 
@@ -233,6 +235,9 @@ sub iptv_console {
       SKIPP_UTF_OFF   => ($Tv_service && $Tv_service->{SERVICE_NAME} eq 'Smotreshka') ? undef : 1,
       TOTAL           => 1
     });
+
+    print $Tv_service->{REPORT_SCRIPT} if $Tv_service->{REPORT_SCRIPT};
+
   }
 
   return 1;

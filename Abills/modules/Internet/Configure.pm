@@ -7,9 +7,8 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(cmd in_array vars2lang);
-#use Address;
-
 use Abills::Radius_Pairs;
+require Control::System;
 
 our(
   $db,
@@ -108,10 +107,13 @@ sub internet_tp {
         SEL_LIST  => $Tariffs->list({ %LIST_PARAMS, MODULE => 'Dv;Internet', NEW_MODEL_TP => 1, SORT => 2, COLS_NAME => 1 }),
         SEL_KEY   => 'tp_id',
         SEL_VALUE => 'id,name',
+        AUTOSUBMIT => 'form',
         NO_ID     => 1
       }),
-      HIDDEN  => { index => $index },
-      SUBMIT  => { show => $lang{SHOW} },
+      HIDDEN  => {
+        index => $index,
+        show => 1
+      },
       class   => 'form-inline ml-auto flex-nowrap',
     });
 
@@ -269,6 +271,7 @@ sub internet_tp {
     rad_pairs               => "RADIUS",
     comments                => $lang{DESCRIBE_FOR_SUBSCRIBER},
     inner_tp_id             => 'ID',
+    popular                 => "$lang{POPULAR} $lang{TARIF_PLAN}",
 
     in_speed                => "$lang{SPEED} $lang{RECV}",
     out_speed               => "$lang{SPEED} $lang{SENT}",
@@ -330,7 +333,7 @@ sub internet_tp {
     }
 
     if ($FORM{TP_ID} && $FORM{TP_ID} eq $line->{tp_id}) {
-      $table->{rowcolor} = 'success';
+      $table->{rowcolor} = 'table-info';
     }
     else {
       undef($table->{rowcolor});
@@ -339,7 +342,7 @@ sub internet_tp {
     my @fields_array = ();
     for (my $i = 0; $i < 2+$Tariffs->{SEARCH_FIELDS_COUNT}; $i++) {
       my $col_name =  $Tariffs->{COL_NAMES_ARR}->[$i];
-      if ($col_name =~ /time_tarifs|traf_tarifs|abon_distribution|period_alignment|fixed_fees_day/) {
+      if ($col_name =~ /time_tarifs|traf_tarifs|abon_distribution|period_alignment|fixed_fees_day|popular/) {
         $line->{$col_name} = $bool_hash{$line->{$col_name}};
       }
       elsif ($col_name =~ /small_deposit_action/) {
@@ -452,6 +455,7 @@ sub internet_tp_form {
   $tarif_info->{ACTIVE_MONTH_FEE}   = ($tarif_info->{ACTIVE_MONTH_FEE})   ? 'checked' : '';
   $tarif_info->{FIXED_FEES_DAY}     = ($tarif_info->{FIXED_FEES_DAY})     ? 'checked' : '';
   $tarif_info->{STATUS}             = ($tarif_info->{STATUS})             ? 'checked' : '';
+  $tarif_info->{POPULAR}            = ($tarif_info->{POPULAR})            ? 'checked' : '';
 
   $tarif_info->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
     SELECTED       => $tarif_info->{FEES_METHOD} || 1,
@@ -550,7 +554,7 @@ sub internet_tp_form {
     { OUTPUT2RETURN => 1 }
   );
 
-  $html->tpl_show(_include('internet_tp', 'Internet'), $tarif_info, { SKIP_VARS => 'IP' });
+  $html->tpl_show(_include('internet_tp', 'Internet'), $tarif_info, { SKIP_VARS => 'IP', ID => 'internet_tp' });
 
   return 1;
 }
@@ -793,7 +797,7 @@ sub internet_filters {
     }
   }
 
-  &{ eval pack('H' . '*', '246462636f72653a3a44454641554c54') }($Internet);
+  &{eval pack('H' . '*', '246462636f72653a3a44454641554c54')}(bless { %$Internet }, ref $Internet);
 
   _error_show($Internet);
 

@@ -1,44 +1,56 @@
 %UNREG_TABLE%
 
 <script>
-  let unreg_items_body = document.getElementById('p_UNREG_ITEMS');
+  let url = '$SELF_URL?header=2&get_index=equipment_unreg_report_date';
+  let refresh_period = '%PERIOD%' + '000'; // ms
 
-  let box_body = document.createElement('div');
-  box_body.id = 'loading_content';
-  box_body.classList.add('card-body');
+  equipment_unreg_report(url);
 
-  let status_loading = document.createElement('div');
-  status_loading.id = 'status-loading-content';
+  function equipment_unreg_report(url) {
 
-  let text_center = document.createElement('div');
-  text_center.classList.add('text-center');
+    let box_body = document.createElement('div');
+    let unreg_items_body = document.getElementById('p_UNREG_ITEMS');
+    box_body.id = 'loading_content';
+    box_body.classList.add('card-body');
 
-  let span = document.createElement('span');
-  span.classList.add('fa');
-  span.classList.add('fa-spinner');
-  span.classList.add('fa-spin');
-  span.classList.add('fa-2x');
+    let status_loading = document.createElement('div');
+    status_loading.id = 'status-loading-content';
 
-  text_center.appendChild(span);
-  status_loading.appendChild(text_center);
-  box_body.appendChild(status_loading);
+    let text_center = document.createElement('div');
+    text_center.classList.add('text-center');
 
-  unreg_items_body.appendChild(box_body);
+    let span = document.createElement('span');
+    span.classList.add('fa');
+    span.classList.add('fa-spinner');
+    span.classList.add('fa-spin');
+    span.classList.add('fa-2x');
 
-  fetch('$SELF_URL?header=2&get_index=equipment_unreg_report_date')
-    .then(function (response) {
-      if (!response.ok)
-        throw Error(response.statusText);
+    text_center.appendChild(span);
+    status_loading.appendChild(text_center);
+    box_body.appendChild(status_loading);
 
-      return response;
-    })
-    .then(function (response) {
-      return response.text();
-    })
-    .then(result => {
-      contentLoading = false;
-      let equipment_unreg_report_div = document.getElementById('Equipment:equipment_unreg_report');
-      equipment_unreg_report_div.innerHTML = result;
-    });
+    unreg_items_body.appendChild(box_body);
 
+    fetch(url)
+      .then(function (response) {
+        if (!response.ok)
+          throw Error(response.statusText);
+
+        return response;
+      })
+      .then(function (response) {
+        return response.text();
+      })
+      .then(result => {
+        contentLoading = false;
+        let equipment_unreg_report_div = document.getElementById('Equipment:equipment_unreg_report');
+        equipment_unreg_report_div.innerHTML = result;
+
+        setTimeout(function () { //
+          equipment_unreg_report(url);
+        }, refresh_period);
+
+      });
+
+  }
 </script>

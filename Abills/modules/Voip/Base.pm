@@ -243,9 +243,7 @@ sub voip_payments_maked {
     $Voip_users->voip_mk_users_conf($form);
   }
 
-
   return 1;
 }
-
 
 1;

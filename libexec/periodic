@@ -966,7 +966,8 @@ sub logrotate{
   $DEBUG .= "Brute force log cleaned\n" if ($debug > 1);
 
   # Clean old backups
-  cmd( "find $conf{BACKUP_DIR} -type f -mtime +30 -delete" );
+  my $db_backup_days = $conf{PERIODIC_DBBACKUP_DAYS} || 30;
+  cmd( "find $conf{BACKUP_DIR} -type f -mtime +$db_backup_days -delete" );
 
   $DEBUG .= "Clean mysql old backups\n" if ($debug > 1);
 
@@ -1005,7 +1006,7 @@ sub backup{
 
   my @tables = ();
   foreach my $table ( @{ $admin->{list} } ){
-    if ( $table->[0] =~ /_\d{4}_\d{2}_\d{2}$/ ){
+    if ( $table->[0] =~ /_\d{4}_\d{2}_\d{2}$/ || $table->[0] =~ /internet_log_/){
       if ( $table->[1] eq 'MyISAM' ){
         push @tables, $table->[0];
       }
@@ -1050,7 +1051,7 @@ sub backup{
     $mysql_opts = '--set-gtid-purged=OFF';
   }
 
-  $mysql_opts .= ' --skip-triggers ' if (!$conf{DB_BACKUP_OPT});
+  my $skip_triggers = (!$conf{DB_BACKUP_OPT}) ? ' --skip-triggers ' : '';
 
   if ($conf{dbpasswd}) {
     $conf{dbpasswd} =~ s/\"/\\\"/g;
@@ -1058,7 +1059,7 @@ sub backup{
 
   my $cmd =
     qq{ ( $MYSQLDUMP $mysql_opts --default-character-set=$conf{dbcharset} -d --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} ; }
-    . qq{   $MYSQLDUMP $mysql_opts --single-transaction --no-create-info --default-character-set=$conf{dbcharset} -v $ignore_tables --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname}) | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz };
+    . qq{   $MYSQLDUMP $mysql_opts $skip_triggers --single-transaction --no-create-info --default-character-set=$conf{dbcharset} -v $ignore_tables --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname}) | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz };
 
   my $res = cmd( $cmd, { DEBUG => $debug, timeout => 0, SHOW_RESULT => 1 } );
   $DEBUG .= "Backup created: $conf{BACKUP_DIR}/stats-$DATE.sql.gz ($res)\n" if ($debug > 1);

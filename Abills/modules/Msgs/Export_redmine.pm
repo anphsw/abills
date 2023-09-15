@@ -18,7 +18,7 @@ use warnings FATAL => 'all';
 use Abills::Base qw(load_pmodule);
 use Abills::Fetcher;
 
-our $VERSION = 1.18;
+our $VERSION = 1.20;
 
 my $MODULE = 'Export_redmine';
 my ($json);
@@ -144,19 +144,21 @@ sub export_task {
     return $self;
   }
 
-  my $data = qq/{
-  "issue": {
-    "project_id": $self->{project_id},
-    "subject": "$self->{subject_prefix}$attr->{ID} $attr->{SUBJECT}",
-    "priority_id": $priority,
-    "notes": "ABillS",
-    "description": "$attr->{MESSAGE}"
-  }
-  }/;
+  $attr->{MESSAGE} =~ s/\\\"/\"/g;
+
+  my $data = {
+    "issue" => {
+      "project_id"  => $self->{project_id},
+      "subject"     => "$self->{subject_prefix}$attr->{ID} $attr->{SUBJECT}",
+      "priority_id" => $priority,
+      "notes"       => "ABillS",
+      "description" => $attr->{MESSAGE}
+    }
+  };
 
   $self->send_request({
     ACTION   => "issues.json",
-    BIN_DATA => $data,
+    JSON_BODY => $data,
     METHOD   => 'POST',
   });
 
@@ -196,7 +198,10 @@ sub send_request {
   }
 
   my $result = web_request($request_url, {
-    BIN_DATA      => $attr->{BIN_DATA},
+    JSON_BODY      => $attr->{JSON_BODY},
+    JSON_FORMER   => {
+      CONTROL_CHARACTERS => 1
+    },
     DEBUG         => (defined($attr->{DEBUG})) ? $attr->{DEBUG} : $self->{debug},
     CURL          => 1,
     HEADERS       => \@headers,

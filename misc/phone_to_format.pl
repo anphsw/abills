@@ -34,7 +34,7 @@ BEGIN {
   use FindBin '$Bin';
   if ($Bin =~ m/\/abills(\/)/) {
     my $libpath = substr($Bin, 0, $-[1]);
-    unshift (@INC, "$libpath/lib");
+    unshift(@INC, "$libpath/lib");
   }
   else {
     die " Should be inside /usr/abills dir \n";
@@ -45,7 +45,7 @@ use Abills::Init qw/$db $admin %conf/;
 use Pod::Usage qw/pod2usage/;
 use Abills::Base qw/_bp parse_arguments/;
 
-my %ARGS = %{ parse_arguments(\@ARGV) };
+my %ARGS = %{parse_arguments(\@ARGV)};
 
 die pod2usage() unless ($ARGS{FILTER} && $ARGS{EDIT});
 
@@ -78,16 +78,9 @@ while (my ($uid, $new_value) = each %{$changes}) {
     print "\n";
   }
   else {
-    if ($conf{CONTACTS_NEW}) {
-      require Contacts;
-      my $Contacts = Contacts->new($db, $admin, \%conf);
-      $Contacts->contacts_change_all_of_type($contacts_type, { UID => $uid, VALUE => $new_value });
-    }
-    else {
-      $Users->pi_change({ UID => $uid, PHONE => $new_value });
-      die $Users->{errstr} if $Users->{errno};
-    }
-
+    require Contacts;
+    my $Contacts = Contacts->new($db, $admin, \%conf);
+    $Contacts->contacts_change_all_of_type($contacts_type, { UID => $uid, VALUE => $new_value });
   }
 }
 
@@ -111,7 +104,7 @@ sub old_contacts_format {
 
     foreach my $phone (@phones) {
       my $value = _expr($phone, $ARGS{EDIT});
-      push (@new_values, $value);
+      push(@new_values, $value);
     }
 
     $changes{$user->{uid}} = join(',', @new_values);
@@ -148,7 +141,7 @@ sub new_contacts_format {
 
     foreach my $phone (@phones) {
       my $value = _expr($phone, $ARGS{EDIT});
-      push (@new_values, $value);
+      push(@new_values, $value);
     }
 
     $changes{$contact->{uid}} = \@new_values;

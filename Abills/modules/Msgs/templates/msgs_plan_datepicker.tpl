@@ -5,9 +5,9 @@
     <input type='hidden' value='%PLAN_DATE%' name='PLAN_DATE' id='PLAN_DATE'/>
     %PLAN_DATETIME_INPUT%
   </div>
-  <div class='col-md-12'>
-    <a data-link='$SELF_URL?%SHEDULE_TABLE_OPEN%' id='sheduleTableBtn' class='btn btn-secondary btn-sm form-control'>
-      <span class='fa fa-tasks'></span>
+  <div class='col-md-12 mt-3'>
+    <a data-link='$SELF_URL?%SHEDULE_TABLE_OPEN%' id='sheduleTableBtn' class='btn btn-secondary w-100'>
+      <span class='fa fa-tasks my-1'></span>
       _{SCHEDULE_BOARD}_
     </a>
   </div>

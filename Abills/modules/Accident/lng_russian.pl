@@ -24,7 +24,7 @@ $lang{ACCIDENT_FOR_EQUIPMENT} = 'Неисправное оборудование
 $lang{WARNING_TIME} = 'Работы будут завершены до: ';
 $lang{COMPENSATION} = 'Компенсация';
 $lang{PROCENT} = 'Процент';
-$lang{USER_ACCIDENT_EMPTY} = 'В пользователя нет аварий или поломок!';
+$lang{USER_ACCIDENT_EMPTY} = 'У пользователя нет аварий или поломок!';
 
 $lang{EQUIPMENT_ERR} = 'Авария! Мы знаем о ней и занимаемся ее устранением';
 

@@ -2478,7 +2478,7 @@ sub rad_pairs_former  {
     $attr
       AUTH_EXPR
         NAS_MAC, PORT (convert from hex), PORT_MULTI (not converted), PORT_DEC (dec port value), VLAN,
-        SERVER_VLAN, AGENT_REMOTE_ID, CIRCUIT_ID, LOGIN, USER_MAC
+        SERVER_VLAN, SERVER_VLAN_DEC, VLAN, VLAN_DEC, AGENT_REMOTE_ID, CIRCUIT_ID, LOGIN, USER_MAC
 
   Returns:
     RESULTS - hash_ref

@@ -34,6 +34,7 @@
                     <b>_{SUM}_</b>
                     <div class='float-right'>%SUM%</div>
                 </li>
+                %EXTRA_DESCRIPTIONS%
             </ul>
             <input type='submit' class='btn btn-primary float-right' value='_{PAY}_'>
 

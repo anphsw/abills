@@ -3,16 +3,18 @@
   Portal send
 
  Arguments:
-  Not. Just work.
+  DATE  - date of news
+  SLEEP - used to delay the execution of script logic of send
 
-=head1  EXAMPLES
+=head1 EXAMPLES
 
-    billd portal_newsletters
+  billd portal_newsletters
 
 =cut
 
 use strict;
 use warnings;
+
 use Abills::Base qw(sendmail in_array date_diff);
 use Abills::Sender::Core;
 use Time::HiRes qw(usleep);
@@ -185,8 +187,8 @@ sub _get_newsletter_message {
   my ($letter, $link) = @_;
   my $sender_name = $all_send_methods->{$letter->{send_method}} || '';
 
-  my $message = "";
-  if ($sender_name eq 'Telegram') {
+  my $message = '';
+  if ($sender_name eq 'Telegram' || !$conf{PORTAL_LINK_SEND}) {
     my $message_template = _include('portal_newsletter_message_short', 'Portal', { EXTERNAL_CALL => 1 });
     $message =  $html->tpl_show($message_template, {
       MESSAGE   => $letter->{short_description},
@@ -227,10 +229,10 @@ sub _get_newsletter_sender_options {
   my ($letter, $link, $message, $ATTACHMENTS) = @_;
   my $sender_name = $all_send_methods->{$letter->{send_method}} || '';
 
-  my $sender_options = ();
+  my $sender_options = {};
   if ($sender_name eq 'Telegram') {
     my @keyboard = ();
-    if ($letter->{content}) {
+    if ($letter->{content} && !$conf{PORTAL_LINK_SEND}) {
       my $read_button = $html->tpl_show(
         _include('portal_newsletter_read_button', 'Portal', { EXTERNAL_CALL => 1 }), {}, { OUTPUT2RETURN => 1 }
       );
@@ -262,11 +264,14 @@ sub _get_newsletter_sender_options {
     SENDER_TYPE => $sender_name,
     ATTACHMENTS => ($#$ATTACHMENTS > -1) ? $ATTACHMENTS : undef,
     PARSE_MODE  => 'HTML',
-    EX_PARAMS   => {
+  };
+
+  if (!$conf{PORTAL_LINK_SEND}) {
+    $sender_options->{EX_PARAMS} = {
       newsUrl => $link,
       action  => 'news'
-    },
-  };
+    };
+  }
 
   return $sender_options;
 }

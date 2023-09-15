@@ -1,4 +1,4 @@
-$lang{NOT_ADDED} = 'Not edded';
+$lang{NOT_ADDED} = 'Not added';
 $lang{SALES_FUNNEL} = 'Sales funnel';
 $lang{NUMBER_LEADS} = 'Number of leads';
 $lang{LEADS_PERCENTAGE} = 'Percentage of all leads';
@@ -152,5 +152,9 @@ $lang{ADD_ACTION} = 'Add action';
 
 $lang{CRM_SUBJECT_MESSAGE} = 'Message subject';
 $lang{CRM_MESSAGE} = 'Message';
+$lang{HOLDUP_TO} = 'HoldUp to';
+
+$lang{TRACKED_LEADS} = 'Tracked leads';
+$lang{DEFERRED_LEADS} = 'Deferred leads';
 
 1

@@ -3,7 +3,7 @@ $lang{WRONG_SUM} ='Мала сума';
 @MONTHES_LIT=('січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня');
 $lang{YEAR_SHORT}='p.';
 
-$lang{ERR_NO_ORDERS}='Не выбрані замовлення';
+$lang{ERR_NO_ORDERS}='Не вибрані замовлення';
 
 @units = ('шт.', 'посл.', 'м.');
 
@@ -40,11 +40,11 @@ $lang{NEXT_INVOICE_DATE}='Дата наступного рахунку';
 $lang{INVOICE_AUTO_GEN}='Автоматичне створення рахунку';
 $lang{INVOICING_PERIOD}='Період виписки рахунку';
 $lang{PERSONAL_DELIVERY}='Персональна доставка';
-$lang{ALT}='Альтернативная';
+$lang{ALT}='Альтернативна';
 $lang{CURRENCY}='Валюта';
 
 $lang{INCLUDE_DEPOSIT}='Врахувати депозит';
-$lang{APPLY_TO_INVOICE}='Автоматично розподілити по рахункам';
+$lang{APPLY_TO_INVOICE}='Автоматично розподілити по рахунках';
 $lang{PRINT_EXT}='Розширений друк';
 $lang{PRINT_EXT_LIST}='Друк розширеного шаблону';
 $lang{NEXT_PERIOD_INVOICE}='Рахунки за період';
@@ -55,7 +55,7 @@ $lang{SKIP_PAY_ADD}='Пропущено рахунків';
 
 $lang{CONNECT_TO} = 'Підключіться до';
 
-$lang{PAYMENTS_NOT_EQUAL_DOC}='Сума документа відрізняэться від суми платежу';
+$lang{PAYMENTS_NOT_EQUAL_DOC}='Сума документа відрізняється від суми платежу';
 $lang{PRINT_TERMO_PRINTER} = 'Чек для термопринтера';
 $lang{UNPAID_INVOICES} = 'Неоплачені рахунки';
 $lang{SAVE_CONTROL_SUM}='Завантажити контрольну суму документа';
@@ -64,5 +64,15 @@ $lang{DELETED_GROUP}="Видалити групою";
 $lang{NO_CHECK_DOCUMENT}="Виберіть документи, які потрібно видалити";
 $lang{OPERATION}="Операція успішно виконана";
 $lang{PAYMENT_SUM}='Оплачено';
+
+$lang{FOR_TIME} = "за період";
+$lang{MAIL_ADDRESS} = 'Поштова адреса';
+$lang{NUMBER_STATEMENT} = 'Номер виписки';
+$lang{CODE_CLIENT} = 'Код клієнта';
+$lang{TOTAL_END_MONTH} = 'Всього на кінець місяця';
+$lang{PAYER} = 'Платник';
+$lang{FEE} = 'Списання';
+$lang{PAYMENT} = 'Оплата';
+
 
 1;

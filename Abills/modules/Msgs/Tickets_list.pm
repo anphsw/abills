@@ -67,7 +67,8 @@ sub msgs_form_search {
       COLS_NAME => 1
     }),
     SEL_OPTIONS => { '_SHOW' => $lang{ALL} },
-    MULTIPLE    => 1
+    MULTIPLE    => 1,
+    ID          => 'CHAPTER_ID_SEARCH'
   });
 
   $Msgs->{PLAN_DATE} = "0000-00-00";

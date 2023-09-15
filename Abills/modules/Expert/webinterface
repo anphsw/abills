@@ -10,8 +10,8 @@ use strict;
 use warnings FATAL => 'all';
 
 use Expert::db::Expert;
-use Abills::Base qw/urlencode urldecode/;
-use JSON qw/decode_json/;
+use Abills::Base qw(urlencode urldecode);
+use JSON qw(decode_json);
 use Abills::Fetcher qw(web_request);
 
 our(
@@ -21,9 +21,7 @@ our(
   $user,
   $db,
   %conf,
-  @MODULES,
 );
-
 
 my $Expert   = Expert->new($db, $admin, \%conf);
 
@@ -339,8 +337,18 @@ sub expert_faq {
   );
 
   if ($FORM{add}) {
-    $Expert->faq_add(\%FORM);
-    $html->message('info', $lang{ADDED}) if (!_error_show($Expert));
+    my $icons = web_request('https://raw.githubusercontent.com/oblador/react-native-vector-icons/master/glyphmaps/MaterialCommunityIcons.json', {
+      METHOD      => 'GET',
+      JSON_RETURN => 1,
+    });
+
+    if ($FORM{ICON} && !$icons->{$FORM{ICON}}) {
+      $html->message('err', $lang{ERROR}, "$lang{NOT_EXIST} $lang{ICON} $FORM{ICON}", { ID => 9001 });
+    }
+    else {
+      $Expert->faq_add(\%FORM);
+      $html->message('info', $lang{ADDED}) if (!_error_show($Expert));
+    }
   }
   elsif ($FORM{chg}) {
     $extra_params{LNG_ACTION} = $lang{CHANGE};

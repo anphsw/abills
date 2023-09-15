@@ -99,6 +99,7 @@ sub paysys_terminals_show {
     END_WORK      => '_SHOW',
     WORK_DAYS     => '_SHOW',
     ADDRESS_FULL  => '_SHOW',
+    DESCRIPTION   => '_SHOW',
     LOCATION_ID   => '!',
     COLS_NAME     => 1,
     PAGE_ROWS     => 10000
@@ -134,7 +135,7 @@ sub paysys_terminals_show {
       [ $lang->{ADDRESS}, $terminal->{address_full} ],
       [ $lang->{WORK_DAYS}, $terminal->{work_days} ],
       [ $lang->{WORK_TIME}, "$terminal->{start_work} - $terminal->{end_work}" ],
-      [ $lang->{DESCRIBE}, $terminal->{description} ],
+      [ $lang->{DESCRIBE}, $terminal->{description} || '' ],
     ];
 
     my $line_info = '<table class="table table-hover">';
@@ -152,7 +153,7 @@ sub paysys_terminals_show {
         COORDY        => $terminal->{coordx} || $terminal->{coordy_center},
         FULL_TYPE_URL => 1,
         TYPE          => "/images/terminals/terminal_$terminal->{type_id}.png",
-        # INFOWINDOW    => $line_info,
+        INFOWINDOW    => $line_info,
         NAME          => ($terminal->{name} || q{}) .' : '. ($terminal->{address_full} || q{}),
         TERMINAL_NAME => $terminal->{name},
         ADDRESS       => $terminal->{address_full},

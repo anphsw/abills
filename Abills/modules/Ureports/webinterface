@@ -389,6 +389,7 @@ sub ureports_user {
       { class => 'btn bnt-default btn-success' });
   }
 
+  $Ureports->{DESTINATIONS} =~ s/(?<=,)\s+$//gm if ($Ureports->{DESTINATIONS});
   my %destinations = $Ureports->{DESTINATIONS} ? split /[|,]/, $Ureports->{DESTINATIONS} : ();
   $Ureports->{DESTINATION} = JSON::to_json(\%destinations);
 
@@ -452,28 +453,26 @@ sub ureports_tp {
 
     $FORM{add_form} = 1;
 
-    $Tariffs->{NAME_SEL} = $html->form_main(
-      {
-        CONTENT => $html->form_select(
-          'TP_ID',
-          {
-            SELECTED  => $FORM{TP_ID},
-            SEL_LIST  => $Tariffs->list({ %LIST_PARAMS, COLS_NAME => 1 }),
-            SEL_KEY   => 'tp_id',
-            SEL_VALUE => 'name',
-            NO_ID     => 1
-          }
-        ),
-        HIDDEN  => { index => $index },
-        SUBMIT  => { show => $lang{SHOW} },
-        class   => 'form-inline ml-auto flex-nowrap',
-      }
-    );
-
-    func_menu(
-      {
-        $lang{NAME} => $Tariffs->{NAME_SEL}
+    $Tariffs->{NAME_SEL} = $html->form_main({
+      CONTENT => $html->form_select(
+        'TP_ID',
+        {
+          SELECTED   => $FORM{TP_ID},
+          SEL_LIST   => $Tariffs->list({ %LIST_PARAMS, COLS_NAME => 1 }),
+          SEL_KEY    => 'tp_id',
+          SEL_VALUE  => 'name',
+          AUTOSUBMIT => 'form',
+          NO_ID      => 1
+        }
+      ),
+      HIDDEN  => {
+        index => $index,
+        show  => 1
       },
+      class   => 'form-inline ml-auto flex-nowrap',
+    });
+
+    func_menu({ $lang{NAME} => $Tariffs->{NAME_SEL} },
       [
         $lang{TARIF_PLANS} . ":TP_ID=$FORM{TP_ID}",
         $lang{REPORTS} . ':' . get_function_index('ureports_tp_reports') . ":TP_ID=$FORM{TP_ID}",
@@ -508,16 +507,13 @@ sub ureports_tp {
 
   _error_show($Ureports);
 
-  $tarif_info->{GROUPS_SEL} = $html->form_select(
-    'TP_GID',
-    {
-      SELECTED       => $tarif_info->{TP_GID},
-      SEL_LIST       => $Tariffs->tp_group_list({ COLS_NAME => 1 }),
-      MAIN_MENU      => get_function_index('form_tp_groups'),
-      MAIN_MENU_ARGV => "chg=" . ($tarif_info->{TP_GID} || q{}),
-      SEL_OPTIONS    => { '' => '' },
-    }
-  );
+  $tarif_info->{GROUPS_SEL} = $html->form_select('TP_GID', {
+    SELECTED       => $tarif_info->{TP_GID},
+    SEL_LIST       => $Tariffs->tp_group_list({ COLS_NAME => 1 }),
+    MAIN_MENU      => get_function_index('form_tp_groups'),
+    MAIN_MENU_ARGV => "chg=" . ($tarif_info->{TP_GID} || q{}),
+    SEL_OPTIONS    => { '' => '' },
+  });
 
   $tarif_info->{REDUCTION_FEE} = ($tarif_info->{REDUCTION_FEE}) ? 'checked' : '';
   $tarif_info->{POSTPAID_DAY_FEE} = ($tarif_info->{POSTPAID_DAY_FEE}) ? 'checked' : '';
@@ -558,7 +554,7 @@ sub ureports_tp {
     credit               => $lang{CREDIT},
     abon_distribution    => $lang{ABON_DISTRIBUTION},
     fees_method          => "$lang{FEES} $lang{TYPE}",
-    tp_id_               => "TP_ID"
+    tp_id_               => 'TP_ID'
   );
 
   my @table_title = [
@@ -618,7 +614,7 @@ sub ureports_tp {
     }
 
     if ($FORM{TP_ID} && $FORM{TP_ID} eq $line->{tp_id}) {
-      $table->{rowcolor} = 'bg-success';
+      $table->{rowcolor} = 'table-success';
     }
     else {
       $table->{rowcolor} = undef;
@@ -635,12 +631,10 @@ sub ureports_tp {
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width => '100%',
-      rows  => [ [ "$lang{TOTAL}:", $html->b($Tariffs->{TOTAL}) ] ]
-    }
-  );
+  $table = $html->table({
+    width => '100%',
+    rows  => [ [ "$lang{TOTAL}:", $html->b($Tariffs->{TOTAL}) ] ]
+  });
 
   print $table->show();
 
@@ -723,17 +717,15 @@ sub ureports_stats {
 
   _error_show($Ureports);
 
-  my $table = $html->table(
-    {
-      width        => '100%',
-      caption      => $lang{STATS},
-      title        => [ "#", $lang{USER}, $lang{DATE}, $lang{DESTINATION}, $lang{TARIF_PLAN}, $lang{REPORTS}, $lang{STATUS}, '-' ],
-      qs           => $pages_qs,
-      pages        => $Ureports->{TOTAL},
-      recs_on_page => $LIST_PARAMS{PAGE_ROWS},
-      ID           => 'REPORTS_LOG',
-    }
-  );
+  my $table = $html->table({
+    width        => '100%',
+    caption      => $lang{STATS},
+    title        => [ "#", $lang{USER}, $lang{DATE}, $lang{DESTINATION}, $lang{TARIF_PLAN}, $lang{REPORTS}, $lang{STATUS}, '-' ],
+    qs           => $pages_qs,
+    pages        => $Ureports->{TOTAL},
+    recs_on_page => $LIST_PARAMS{PAGE_ROWS},
+    ID           => 'REPORTS_LOG',
+  });
 
   my $delete = '';
 
@@ -950,6 +942,7 @@ sub ureports_user_info {
     ARRAY_NUM_ID => 1
   });
 
+  $Ureports->{DESTINATIONS} =~ s/(?<=,)\s+$//gm if ($Ureports->{DESTINATIONS});
   my %destinations = $Ureports->{DESTINATIONS} ? split /[|,]/, $Ureports->{DESTINATIONS} : ();
   $Ureports->{DESTINATION} = JSON::to_json(\%destinations);
 
@@ -1601,30 +1594,27 @@ sub _ureports_get_user_contacts {
     }
   }
 
-  if (!$conf{CONTACTS_NEW}) {
-    my $pi = Users->new($db, $admin, \%conf);
-    $pi->pi({ UID => $uid });
+  my $pi = Users->new($db, $admin, \%conf);
+  $pi->pi({ UID => $uid });
 
-    if ($pi->{EMAIL}) {
-      my $email_type_id = $Contacts->contact_type_id_for_name('EMAIL');
+  if ($pi->{EMAIL}) {
+    my $email_type_id = $Contacts->contact_type_id_for_name('EMAIL');
 
-      foreach my $email (split(';\s?', $pi->{EMAIL})) {
-        push @{$contacts_list}, {
-          type_id => $email_type_id,
-          value   => $email
-        };
-      }
-    }
-
-    my $phone = $user->{PHONE} || $pi->{PHONE};
-    if ($phone && in_array('Sms', \@MODULES)) {
-      my $cell_phone_type = $Contacts->contact_type_id_for_name('CELL_PHONE');
+    foreach my $email (split(';\s?', $pi->{EMAIL})) {
       push @{$contacts_list}, {
-        type_id => $cell_phone_type,
-        value   => $phone
+        type_id => $email_type_id,
+        value   => $email
       };
     }
+  }
 
+  my $phone = $user->{PHONE} || $pi->{PHONE};
+  if ($phone && in_array('Sms', \@MODULES)) {
+    my $cell_phone_type = $Contacts->contact_type_id_for_name('CELL_PHONE');
+    push @{$contacts_list}, {
+      type_id => $cell_phone_type,
+      value   => $phone
+    };
   }
 
   if ($conf{PUSH_ENABLED}) {

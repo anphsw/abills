@@ -67,7 +67,7 @@ sub _parse_swagger {
   my ($attr) = @_;
 
   my $swagger = $attr->{swagger};
-  my @matches = $swagger =~ /^\s+\$ref: "\.\.?.+/gm;
+  my @matches = $swagger =~ /^\s+\-?\s?\$ref: "\.\.?.+/gm;
 
   foreach my $match (@matches) {
     my ($_spaces) = $match =~ /^\s+/g;

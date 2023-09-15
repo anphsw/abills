@@ -16,7 +16,7 @@ our $VERSION = 7.11;
 my $CONF;
 my $SORT = 1;
 my $sql_errors = '/usr/abills/var/log/sql_errors';
-
+my $info_fields_list;
 
 #**********************************************************
 =head2 connect($dbhost, $dbname, $dbuser, $dbpasswd, $attr) - Connect to DB
@@ -238,7 +238,18 @@ sub query{
           require Time::HiRes;
           Time::Hires->import();
         }
-        push @{ $self->{db}->{queries_list} }, [$query, 0];
+
+        my $caller = qq{\n\n};
+        my ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash);
+        my $i = 1;
+        my @r = ();
+        while (@r = caller($i)) {
+          ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash) = @r;
+          $caller .= "  $filename:$line $subroutine\n";
+          $i++;
+        }
+
+        push @{ $self->{db}->{queries_list} }, [$query. $caller, 0, $caller];
       }
       else{
         #Queries typisation
@@ -1049,13 +1060,14 @@ sub search_expr_users{
     REGISTRATION   => 'DATE:u.registration',
     COMMENTS       => 'STR:pi.comments',
     FIO            => 'STR:CONCAT_WS(" ", pi.fio, pi.fio2, pi.fio3) AS fio',
-    PHONE          => ($self && $self->{conf} && $self->{conf}{CONTACTS_NEW})
-      ? q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id IN (1,2)) AS phone/
-      : 'STR:pi.phone',
-    EMAIL          => ($self && $self->{conf} && $self->{conf}{CONTACTS_NEW})
-      ? q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=9) AS email/
-      : 'STR:pi.email',
+    PHONE          => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id IN (1,2)) AS phone/,
+    EMAIL          => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=9) AS email/,
     ACCEPT_RULES   => 'INT:pi.accept_rules',
+
+    CELL_PHONE     => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=1) AS cell_phone/,
+    TELEGRAM       => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 6) AS telegram/,
+    VIBER          => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 5) AS viber/,
+    VIBER_BOT      => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 5) AS viber_bot/,
 
     PASPORT_DATE   => 'DATE:pi.pasport_date',
     PASPORT_NUM    => 'STR:pi.pasport_num',
@@ -1086,20 +1098,6 @@ sub search_expr_users{
     ENTRANCE       => 'INT:pi.entrance'
     #ADDRESS_FLAT  => 'STR:pi.address_flat',
   );
-
-  # Add cell_phone, viber, telegram
-  if ($self->{conf}{CONTACTS_NEW}){
-    $users_fields_hash{CELL_PHONE}=
-      q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=1) AS cell_phone/;
-
-    $users_fields_hash{TELEGRAM} =
-      q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 6) AS telegram/;
-    $users_fields_hash{VIBER} =
-      q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 5) AS viber/;
-    $users_fields_hash{VIBER_BOT} =
-      q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 5) AS viber_bot/;
-
-  }
 
   if ( $attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW' ){
     #$users_fields_hash{DEPOSIT} = 'INT:b.deposit'
@@ -1154,16 +1152,19 @@ sub search_expr_users{
 
   #Info fields
   if ($self->{conf}->{info_fields_new}) {
-    $self->query("SELECT
-      name,
-      sql_field,
-      type,
-      id
-    FROM `info_fields`;", undef, { COLS_NAME => 1 });
-    my $list = $self->{list};
+    if (! $info_fields_list) {
+      $self->query("SELECT
+        name,
+        sql_field,
+        type,
+        domain_id,
+        id
+      FROM `info_fields`;", undef, { COLS_NAME => 1 });
+      $info_fields_list = $self->{list};
+    }
 
-    if ( $self->{TOTAL} > 0 ){
-      foreach my $line ( @{$list} ){
+    if ( $info_fields_list ){
+      foreach my $line ( @{ $info_fields_list } ){
         my $field_name = $line->{sql_field};
         my $field_id   = uc($field_name);
         my $type       = $line->{type} || 0;
@@ -1220,7 +1221,7 @@ sub search_expr_users{
         }
 
       }
-      $self->{EXTRA_FIELDS} = $list;
+      $self->{EXTRA_FIELDS} = $info_fields_list;
       if($#fields > -1) {
         $EXT_TABLE_JOINS_HASH{users_pi} = 1;
       }
@@ -1448,6 +1449,24 @@ sub search_expr_users{
       if ( $attr->{ZIP} ) {
         push @fields, @{ $self->search_expr( $attr->{ZIP}, 'INT', 'districts.zip',
             { EXT_FIELD => 'IF(builds.zip>0,builds.zip,districts.zip) AS zip' } ) };
+        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+        $EXT_TABLE_JOINS_HASH{builds} = 1;
+        $EXT_TABLE_JOINS_HASH{streets} = 1;
+        $EXT_TABLE_JOINS_HASH{districts} = 1;
+      }
+
+      if ( $attr->{LATITUDE} ) {
+        push @fields, @{ $self->search_expr( $attr->{LATITUDE}, 'INT', 'builds.coordy',
+          { EXT_FIELD => 'IF(builds.coordy, builds.coordy, "") AS latitude' } ) };
+        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+        $EXT_TABLE_JOINS_HASH{builds} = 1;
+        $EXT_TABLE_JOINS_HASH{streets} = 1;
+        $EXT_TABLE_JOINS_HASH{districts} = 1;
+      }
+
+      if ( $attr->{LONGITUDE} ) {
+        push @fields, @{ $self->search_expr( $attr->{LONGITUDE}, 'INT', 'builds.coordx',
+          { EXT_FIELD => 'IF(builds.coordx, builds.coordx, "") AS longitude' } ) };
         $EXT_TABLE_JOINS_HASH{users_pi} = 1;
         $EXT_TABLE_JOINS_HASH{builds} = 1;
         $EXT_TABLE_JOINS_HASH{streets} = 1;
@@ -1710,17 +1729,17 @@ sub mk_ext_tables{
     }
   }
 
-  my $join_tablee = '';
+  my $join_tables = '';
   foreach my $table_ ( @EXT_TABLES_JOINS ){
     my ($table_name, $join_text) = split( /:/, $table_, 2 );
     if ( $attr->{JOIN_TABLES}->{$table_name} ){
-      if ($join_tablee !~ /$join_text/) {
-        $join_tablee .= "$join_text\n";
+      if ($join_tables !~ /$join_text/) {
+        $join_tables .= "$join_text\n";
       }
     }
   }
 
-  return $join_tablee . ($self->{EXT_TABLES} || '');
+  return $join_tables . ($self->{EXT_TABLES} || '');
 }
 
 #**********************************************************
@@ -1743,13 +1762,13 @@ sub table_info {
   my $table = shift;
   my ($attr) = @_;
 
-  return {} if !$table;
+  return {} if !$table || !$self->{conf}{dbname};
 
   my $EXT_WHERE_RULES = !$attr->{FULL_INFO} ? "AND `character_maximum_length` > 0" : '';
 
   my $cols_info = $self->query("SELECT `column_name`, `data_type`, `character_maximum_length`
     FROM information_schema.columns
-    WHERE `table_name` = '$table' $EXT_WHERE_RULES", undef, { COLS_NAME  => 1 }
+    WHERE `table_name` = '$table' AND `table_schema` = '$self->{conf}{dbname}' $EXT_WHERE_RULES", undef, { COLS_NAME  => 1 }
   );
   
   return {} if $self->{errno} || !$self->{list};
@@ -2012,13 +2031,18 @@ sub changes {
           $changes_info{CHG_GID} = $OLD_DATA->{$k} . '->' . $value;
         }
         elsif ( $k eq 'CREDIT' ){
-          $changes_info{CHG_CREDIT} = $OLD_DATA->{$k} . '->' . $value;
+          if ($DATA->{UID}) {
+            $changes_info{CHG_CREDIT} = $OLD_DATA->{$k} . '->' . $value;
+          }
+          else {
+            push @change_log, "$k: $OLD_DATA->{$k}->$value";
+          }
         }
         elsif ( $k eq 'REDUCTION' ){
           $changes_info{CHG_REDUCTION} = $OLD_DATA->{$k} . '->' . $value;
         }
         else{
-          push @change_log, "$k $OLD_DATA->{$k}->$value";
+          push @change_log, "$k: $OLD_DATA->{$k}->$value";
         }
 
         if ( $value eq 'NULL' ){

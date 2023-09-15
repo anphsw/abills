@@ -399,6 +399,7 @@ sub form_parse {
 
       next if $firstline =~ /filename=\"\"/;
       $firstline =~ s/^Content-Disposition: form-data; //;
+      $firstline =~ s/^content-disposition: form-data; //;
       my (@columns) = split(/;\s+/, $firstline);
 
       ($name = $columns[0]) =~ s/^name=\"([^\"]+)\"$/$1/g;
@@ -550,8 +551,10 @@ sub form_textarea {
 
   my $cols = $attr->{COLS} || 45;
   my $rows = $attr->{ROWS} || 4;
+  my $required = $attr->{REQUIRED} || '';
 
-  $self->{FORM_INPUT} = "<textarea id='$name' name='$name' cols=$cols rows=$rows class='form-control'>" . ($value || '') . "</textarea>";
+  $self->{FORM_INPUT} = "<textarea id='$name' name='$name' cols=$cols rows=$rows class='form-control' $required>" .
+    ($value || '') . "</textarea>";
 
   if ($attr->{HIDE}) {
     $self->{FORM_INPUT} = "<div class=\"card card-primary card-outline\">
@@ -1047,7 +1050,7 @@ sub form_select {
       else {
         $self->{SELECT} .= "<option value='$k'";
         my $value = $attr->{SEL_HASH}{$k} || '';
-        if ($k && $attr->{STYLE} && $attr->{STYLE}->[$k]) {
+        if (defined $k && $attr->{STYLE} && $attr->{STYLE}->[$k]) {
           $self->{SELECT} .= " data-style='color:$attr->{STYLE}->[$k];' ";
         }
         elsif ($attr->{USE_COLORS}) {
@@ -1098,7 +1101,7 @@ sub form_select {
     my $main_menu = $self->button('info', "index=$attr->{MAIN_MENU}" .
       (($attr->{MAIN_MENU_ARGV}) ? "&$attr->{MAIN_MENU_ARGV}" : ''), {
       class     => 'show',
-      ex_params => "class='btn input-group-button rounded-left-0'"
+      ex_params => "class='btn input-group-button rounded-left-0" . ($attr->{MULTIPLE} ? ' rounded-right-0' : '') . "'"
     });
 
     $self->{SELECT} = "
@@ -1423,7 +1426,16 @@ sub menu {
 
   while (my $sm_item = pop @$sub_menu_array) {
     my ($ID, $name_menu) = split(/:/, $sm_item, 2);
-    my $id = (($ID =~ /^sub([0-9]+)/) ? $1 : $ID);
+    my $subID = 'sub'. $ID;
+    my $tree_id = 0;
+    my $id = 0;
+
+    if ($ID =~ /^sub([0-9]+)/) {
+      $id = $1;
+      $tree_id = $id;
+    } else {
+      $id = $ID;
+    };
 
     next if ((!defined($attr->{ALL_PERMISSIONS})) && (!defined($permissions->{ $id - 1 })) && $parent == 0);
 
@@ -1433,6 +1445,12 @@ sub menu {
     if (defined($tree->{$ID})) {
       $active = 'active';
       $opened = ' menu-open menu-is-opening';
+    } elsif (defined($fl->{$ID})) {
+      if ($tree_id != 0) {
+        if ($index == $tree_id && defined($tree->{$tree_id})) {
+          $active = 'active';
+        }
+      }
     }
 
     my $ext_args = "$EX_ARGS";
@@ -1448,12 +1466,13 @@ sub menu {
       }
     }
     if ($menu{$ID} && $fl->{$ID} ne 'null') {
-      push @{$menu{$ID}}, "sub" . $ID . ":" . $name_menu;
-      $fl->{ "sub" . $ID } = $fl->{$ID};
+      push @{$menu{$ID}}, $subID . ":" . $name_menu;
+      $fl->{$subID} = $fl->{$ID};
     }
 
     my $ex_params = ($parent == 0) ? (($fl->{$ID} ne 'null') ? ' id=' . $fl->{$ID} : '') : '';
-    $ex_params .= ($menu{$ID} && $fl->{$ID} eq 'null' || $fl->{ "sub" . $ID })
+    my $is_tree = ($menu{$ID} && $fl->{$ID} eq 'null' || $fl->{$subID});
+    $ex_params .= $is_tree
                     ? " onclick='return false' class='nav-link $active'"
                     : " class='nav-link $active'";
 
@@ -1482,7 +1501,7 @@ sub menu {
 
     my $link = $self->button(
       $name,
-      ($menu{$ID} && $fl->{$ID} eq 'null' || $fl->{ "sub" . $ID })
+      $is_tree
         ? "index=$index"
         : "index=$id$ext_args", { ex_params => $ex_params }
     );
@@ -1941,7 +1960,7 @@ sub table {
       $show_cols .= "</div>";
       $show_cols .= "<FORM action='$SELF_URL' METHOD='post' name='form_show_cols' id='form_show_cols'>\n" if (!$attr->{SKIP_FORM});
 
-      my @global_params = ('get_index', 'index', 'sort', 'desc', 'pg', 'PAGE_ROWS', 'search', 'USERS_STATUS', 'STATUS', 'STATE');
+      my @global_params = ('get_index', 'index', 'subf', 'sort', 'desc', 'pg', 'PAGE_ROWS', 'search', 'USERS_STATUS', 'STATUS', 'STATE');
       if (!$FORM{index} && $FORM{get_index}) {
         push @global_params, 'full';
         $FORM{full} = 1;
@@ -2568,6 +2587,8 @@ sub table_header {
 
   my $elements_before_dropdown = $attr->{SHOW_ONLY} || 5;
 
+  my $forced_check_name = $attr->{FORCED_CHECK_NAME} || '';
+
   my $i = 0;
   foreach my $element (@{$header_arr}) {
     my ($name, $url, $extra) = split(/:/, $element, 3);
@@ -2576,6 +2597,9 @@ sub table_header {
       $active = 'active';
     }
     elsif ($url eq $qs) {
+      $active = 'active';
+    }
+    elsif ($forced_check_name eq $name) {
       $active = 'active';
     }
     else {
@@ -2658,7 +2682,10 @@ sub table_header {
       $navbar_expand = 'navbar-expand-sm';
       $brand_display = 'd-sm-none';
     }
-    $header = "<nav class='abills-navbar navbar $navbar_expand navbar-light'>  <a class='navbar-brand $brand_display pl-3'>$caption</a>
+
+    my $class = $attr->{class} // '';
+
+    $header = "<nav class='abills-navbar navbar $navbar_expand navbar-light $class'>  <a class='navbar-brand $brand_display pl-3'>$caption</a>
       <button class='navbar-toggler' type='button' data-toggle='collapse' data-target='#navbarContent' aria-controls='navbarContent' aria-expanded='false' aria-label='Toggle navigation'>
       <span class='navbar-toggler-icon'></span>
   </button>
@@ -3662,7 +3689,7 @@ sub tpl_show {
   if (!$attr->{SOURCE} && $tpl) {
     $variables_ref = {} if !$variables_ref;
     $variables_ref->{SELF_URL} //= $SELF_URL;
-    $variables_ref->{index} //= $index;
+    $variables_ref->{index} ||= $index;
 
     while ($tpl =~ /\%(\w{1,60})(\=?)([A-Za-z0-9\_\.\/\\\]\[:\-]{0,50})\%/g) {
       my $var = $1;
@@ -3757,7 +3784,9 @@ sub get_tpl {
   }
 
   our $Bin;
-  use FindBin '$Bin';
+  # FIXME: we really need FindBin, instead of using $libpath?
+  require FindBin;
+  FindBin->import('$Bin');
 
   start:
   my @search_paths = (
@@ -4533,9 +4562,10 @@ sub badge {
       MAX            - Max value
       ACTIVE         - Animation of progress bar
       COLOR          - Dinamic color:
-                       1.ADAPTIVE- color is taken from precent of MAX ;
-                       1.MAX_COLOR- color is taken from precent of TOTAL;
+                       1.ADAPTIVE- color is taken from percent of MAX ;
+                       1.MAX_COLOR- color is taken from percent of TOTAL;
       TEXT           - Text
+      PROGRESS_HEIGHT- Height of progress bar (progress-m, progress-sm)
 
   Examples:
 
@@ -4633,10 +4663,12 @@ sub progress_bar {
       $bage_color = $attr->{COLOR} ? $attr->{COLOR} : 'green';
     }
 
+    my $progress_height = $attr->{PROGRESS_HEIGHT} ? $attr->{PROGRESS_HEIGHT} : 'progress-sm';
+
     $ret = qq{
       <div class='row'>
         <div class='col-md-8'>
-          <div class='progress progress-sm $active'>
+          <div class='progress $progress_height $active'>
             <div class='progress-bar progress-bar-striped progress-bar-$bar_color' style='width: $complete%'>$text</div>
           </div>
         </div>
@@ -5661,8 +5693,7 @@ sub html_tree {
   my $self = shift;
   my ($list, $keys) = @_;
 
-  require JSON;
-  my $DATA = JSON->new->encode($list);
+  my $DATA = Abills::Base::json_former($list);
 
   my $result .= qq(
     <div id="show_tree" style="text-align: left;" class="form-group container"> </div>

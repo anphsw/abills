@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Abills user API
-  version: 1.0.3
-  description: "Last modified 2023-05-11"
+  version: 1.0.17
+  description: "Last modified 2023-07-26"
   contact:
     name: Have a question? Support
     url: https://support.abills.net.ua/
@@ -1031,9 +1031,21 @@ paths:
                     dayFee:
                       type: integer
                       example: 0
+                    tpAge:
+                      type: number
+                      example: 1
+                    activatePrice:
+                      type: number
+                      example: 60
                     tpReductionFee:
                       type: integer
                       example: 1
+                    originalMonthFee:
+                      type: number
+                      example: 300
+                    originalDayFee:
+                      type: number
+                      example: 0
                     nextAbon:
                       type: object
                       properties:
@@ -1141,7 +1153,7 @@ paths:
             schema:
               type: object
               properties:
-                tp_id:
+                tpId:
                   type: integer
                   example: 4
                 date:
@@ -1385,11 +1397,29 @@ paths:
                     dayFee:
                       type: integer
                       example: 0
+                    originalMonthFee:
+                      type: number
+                      example: 300
+                    originalDayFee:
+                      type: number
+                      example: 0
+                    tpFee:
+                      type: number
+                      example: 310
                     comments:
                       type: string
                       example: Wow cool tariff
                     tpReductionFee:
                       type: string
+                      example: 0
+                    tpAge:
+                      type: number
+                      example: 1
+                    activatePrice:
+                      type: number
+                      example: 60
+                    popular:
+                      type: number
                       example: 0
       security:
         - USERSID: [ ]
@@ -1423,11 +1453,29 @@ paths:
                     dayFee:
                       type: integer
                       example: 0
+                    originalMonthFee:
+                      type: number
+                      example: 300
+                    originalDayFee:
+                      type: number
+                      example: 0
+                    tpFee:
+                      type: number
+                      example: 310
                     comments:
                       type: string
                       example: Wow cool tariff
                     tpReductionFee:
                       type: string
+                      example: 0
+                    tpAge:
+                      type: number
+                      example: 1
+                    activatePrice:
+                      type: number
+                      example: 60
+                    popular:
+                      type: number
                       example: 0
       security:
         - USERSID: [ ]
@@ -1469,7 +1517,7 @@ paths:
       security:
         - USERSID: [ ]
 
-  /user/internet/sessions/:
+  /user/internet/sessions:
     get:
       tags:
         - internet
@@ -1512,7 +1560,7 @@ paths:
                       example: test_tariff
       security:
         - USERSID: [ ]
-  /user/internet/session/active/:
+  /user/internet/session/active:
     get:
       tags:
         - internet
@@ -1537,6 +1585,56 @@ paths:
                   output:
                     type: number
                     example: 73249353
+      security:
+        - USERSID: [ ]
+  /user/internet/mac/discovery:
+    post:
+      tags:
+        - internet
+      summary: Смена мак адреса пользователем
+      description: Для работы с данным путём необходимо включить опцию `$conf{INTERNET_MAC_DICOVERY}=1;`
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cid:
+                  type: string
+                  example: "10:fe:ed:43:8f:36"
+                  description: мак адрес, на который нужно изменить
+                id:
+                  type: number
+                  example: 10
+                  description: ID услуги интернет
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Hangup is done
+        400:
+          description: Мак адресов уже привязан к другому пользователю
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 10126
+                  errstr:
+                    type: string
+                    example: This mac address already set for another user
+                  cid:
+                    type: string
+                    example: "10:fe:ed:43:8f:36"
       security:
         - USERSID: [ ]
 
@@ -1586,6 +1684,12 @@ paths:
                     serviceLink:
                       type: string
                       example: Скачати|https://sourceforge.net/projects/abills/
+                    tpReductionFee:
+                      type: number
+                      example: 1
+                    originalPrice:
+                      type: number
+                      example: 90
     
       security:
         - USERSID: [ ]
@@ -1653,6 +1757,25 @@ paths:
                   type: integer
                   example: 2
     
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                insertId:
+                  type: integer
+                  example: 43
+                msgId:
+                  type: integer
+                  example: 43
+                affected:
+                  type: integer
+                  example: 1
+                file1:
+                  type: string
+                  format: binary
+                file2:
+                  type: string
+                  format: binary
         required: true
       responses:
         200:
@@ -1720,7 +1843,7 @@ paths:
     get:
       tags:
         - msgs
-      summary: Список заявок пользователя
+      summary: Ответ на существующую заявку
       parameters:
         - name: ID
           in: path
@@ -1758,7 +1881,7 @@ paths:
     post:
       tags:
         - msgs
-      summary: Создание заявки
+      summary: Все сообщения в заявке
       parameters:
         - name: ID
           in: path
@@ -1778,6 +1901,22 @@ paths:
                 reply_subject:
                   type: string
                   example: Subject
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                reply_text:
+                  type: string
+                  example: Some reply text
+                reply_subject:
+                  type: string
+                  example: Subject
+                file1:
+                  type: string
+                  format: binary
+                file2:
+                  type: string
+                  format: binary
         required: true
       responses:
         200:
@@ -2417,7 +2556,7 @@ paths:
     delete:
       tags:
         - contacts
-      summary: Отписка от Push уведомлений
+      summary: Отписка от Push уведомлений от всех устройств данного типа
       parameters:
         - name: typeId
           in: path
@@ -2468,6 +2607,38 @@ paths:
       security:
         - USERSID: [ ]
 
+  /user/contacts/push/subscribe/{typeId}/{value}:
+    delete:
+      tags:
+        - contacts
+      summary: Отписка от Push уведомлений избранным токеном
+      parameters:
+        - name: typeId
+          in: path
+          description: >
+            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
+          required: true
+          schema:
+            type: number
+        - name: value
+          in: path
+          description: FCM токен
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully deleted
+      security:
+        - USERSID: [ ]
   /user/contacts/push/badges/{typeId}:
     delete:
       tags:
@@ -3288,6 +3459,12 @@ paths:
                         monthFee:
                           type: number
                           example: 0
+                        tpAge:
+                          type: number
+                          example: 1
+                        activatePrice:
+                          type: number
+                          example: 60
                         sheduleId:
                           type: number
                           example: 248
@@ -3327,6 +3504,12 @@ paths:
                     tvServiceName:
                       type: string
                       example: Trinity-TV
+                    originalMonthFee:
+                      type: number
+                      example: 300
+                    originalDayFee:
+                      type: number
+                      example: 0
                     uid:
                       type: number
                       example: 49
@@ -3378,12 +3561,27 @@ paths:
                           reductionFee:
                             type: number
                             example: 0
+                          originalMonthFee:
+                            type: number
+                            example: 100
+                          originalDayFee:
+                            type: number
+                            example: 0
+                          tpFee:
+                            type: number
+                            example: 110
                           serviceId:
                             type: number
                             example: 5
                           tpId:
                             type: number
                             example: 15
+                          tpAge:
+                            type: number
+                            example: 1
+                          activatePrice:
+                            type: number
+                            example: 60
     
       security:
         - USERSID: [ ]
@@ -3456,12 +3654,27 @@ paths:
                     reductionFee:
                       type: number
                       example: 0
+                    originalMonthFee:
+                      type: number
+                      example: 100
+                    originalDayFee:
+                      type: number
+                      example: 0
+                    tpFee:
+                      type: number
+                      example: 110
                     serviceId:
                       type: number
                       example: 5
                     tpId:
                       type: number
                       example: 15
+                    tpAge:
+                      type: number
+                      example: 1
+                    activatePrice:
+                      type: number
+                      example: 60
     
       security:
         - USERSID: [ ]
@@ -3509,12 +3722,27 @@ paths:
                     reductionFee:
                       type: number
                       example: 0
+                    originalMonthFee:
+                      type: number
+                      example: 100
+                    originalDayFee:
+                      type: number
+                      example: 0
+                    tpFee:
+                      type: number
+                      example: 110
                     serviceId:
                       type: number
                       example: 5
                     tpId:
                       type: number
                       example: 15
+                    tpAge:
+                      type: number
+                      example: 1
+                    activatePrice:
+                      type: number
+                      example: 60
     
       security:
         - USERSID: [ ]
@@ -3552,12 +3780,27 @@ paths:
                     reductionFee:
                       type: number
                       example: 0
+                    originalMonthFee:
+                      type: number
+                      example: 100
+                    originalDayFee:
+                      type: number
+                      example: 0
+                    tpFee:
+                      type: number
+                      example: 110
                     serviceId:
                       type: number
                       example: 5
                     tpId:
                       type: number
                       example: 15
+                    tpAge:
+                      type: number
+                      example: 1
+                    activatePrice:
+                      type: number
+                      example: 60
     
       security:
         - USERSID: [ ]
@@ -4121,19 +4364,20 @@ paths:
           schema:
             type: number
             default: 25
-        - name: dateFrom
+        - name: fromDate
           in: query
           description: С даты
           schema:
+            type: string
             example: '2022-12-12'
             default: '0000-00-00'
-        - name: dateTo
+        - name: toDate
           in: query
           description: По какую дату
           schema:
             type: string
-            default: '0000-00-00'
             example: '2022-12-12'
+            default: '0000-00-00'
       responses:
         200:
           description: Успешное выполнение
@@ -4326,6 +4570,62 @@ paths:
                     example: Not active voip service
       security:
         - USERSID: []
+  /user/voip/tariffs:
+    get:
+      tags:
+        - voip
+      summary: Доступные для изменения ТП
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 2
+                    name:
+                      type: string
+                      example: Call everywhere
+                    tpId:
+                      type: integer
+                      example: 41
+                    monthFee:
+                      type: integer
+                      example: 250
+                    dayFee:
+                      type: integer
+                      example: 0
+                    originalMonthFee:
+                      type: number
+                      example: 300
+                    originalDayFee:
+                      type: number
+                      example: 0
+                    tpFee:
+                      type: number
+                      example: 310
+                    comments:
+                      type: string
+                      example: Wow cool tariff
+                    tpReductionFee:
+                      type: string
+                      example: 0
+                    tpAge:
+                      type: number
+                      example: 1
+                    activatePrice:
+                      type: number
+                      example: 60
+                    popular:
+                      type: number
+                      example: 0
+      security:
+        - USERSID: [ ]
 
   # expert paths
 

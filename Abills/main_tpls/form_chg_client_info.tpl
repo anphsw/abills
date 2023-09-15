@@ -1,4 +1,4 @@
-<form action='$SELF_URL' method='post' class='form pswd-confirm'>
+<form action='%SELF_URL%' method='post'>
   <input type=hidden name=index value=$index>
   <input type=hidden name=sid value='$sid'>
 
@@ -58,7 +58,6 @@
           </div>
         </div>
       </div>
-
 
       <div class='form-group row %PHONE_HAS_ERROR% %PHONE_HIDDEN%'>
         <label class='col-md-4 required control-label' for='PHONE'>_{PHONE}_:</label>

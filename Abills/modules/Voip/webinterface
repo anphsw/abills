@@ -417,16 +417,12 @@ sub voip_user {
     }
   );
 
-  $Voip->{PROVISION} = $html->tpl_show(
-    templates('form_show_hide'),
-    {
-      CONTENT     => $html->tpl_show(_include('voip_provision_user', 'Voip'), $Voip, { OUTPUT2RETURN => 1 }),
-      NAME        => 'Provision',
-      ID          => 'PROVISION',
-      BUTTON_ICON => 'plus'
-    },
-    { OUTPUT2RETURN => 1 }
-  );
+  $Voip->{PROVISION} = $html->tpl_show(templates('form_show_hide'), {
+    CONTENT     => $html->tpl_show(_include('voip_provision_user', 'Voip'), $Voip, { OUTPUT2RETURN => 1 }),
+    NAME        => 'Provision',
+    ID          => 'PROVISION',
+    BUTTON_ICON => 'plus'
+  }, { OUTPUT2RETURN => 1 });
 
   my $service_info = $html->tpl_show(_include('voip_user', 'Voip'), { %{$attr || {}}, %{$Voip} },
     { ID => 'voip_user', OUTPUT2RETURN => 1 });
@@ -1193,7 +1189,7 @@ sub voip_phone_aliases {
   });
 
   my $table = $html->table({
-    caption => $lang{EXTRA_NUMBERS} . ': ' . ($Voip->{TOTAL} || q{}),
+    caption => $lang{EXTRA_NUMBERS} . ': ' . ($Voip->{TOTAL} > 0 ? $Voip->{TOTAL} : 0),
     width   => '400',
     title   => [ $lang{PHONE}, $lang{STATUS}, $lang{CHANGED}, "-" ],
     qs      => $pages_qs,
@@ -1202,12 +1198,12 @@ sub voip_phone_aliases {
 
   foreach my $alias (@$alias_list) {
     $table->addrow($alias->{number}, $status[$alias->{disable}], $alias->{changed},
-      $html->button($lang{DEL}, "index=$index&alias_del=$alias->{id}&UID=$attr->{UID}",
-        {
-          MESSAGE       => "$lang{DEL}: $alias->{number} ?",
-          OUTPUT2RETURN => 1,
-          class         => 'del'
-        }));
+      $html->button($lang{DEL}, "index=$index&alias_del=$alias->{id}&UID=$attr->{UID}", {
+        MESSAGE       => "$lang{DEL}: $alias->{number} ?",
+        OUTPUT2RETURN => 1,
+        class         => 'del'
+      })
+    );
   }
 
   $table->addrow($html->form_input('NUMBER', ''),

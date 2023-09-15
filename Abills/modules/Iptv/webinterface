@@ -92,7 +92,8 @@ sub iptv_user_del {
     $Iptv->user_info($line->{id});
     iptv_account_action({
       %$Iptv,
-      del => $line->{id},
+      del       => $line->{id},
+      USER_INFO => $attr
     });
   }
 
@@ -1688,6 +1689,8 @@ sub iptv_user_activate {
   my $user = $attr->{USER};
   $user->{DEPOSIT} = $user_info->{DEPOSIT} || $user->{DEPOSIT};
   $user->{CREDIT} = $user_info->{CREDIT} || $user->{CREDIT};
+  $user->{CREDIT} = $user->{CREDIT} > 0 ? $user->{CREDIT} : ($Iptv_info->{TP_CREDIT} || 0);
+  
   $user->{REDUCTION} = $Iptv_info->{REDUCTION_FEE} ? ($user_info->{REDUCTION} || $user->{REDUCTION}) : 0;
 
   my %users_services = ();
@@ -2316,28 +2319,9 @@ sub iptv_registration {
       $users->pi_add({ %FORM, UID => $uid });
       ::_error_show($users);
 
-      if (defined($conf{CONTACTS_NEW})) {
-        my $Contacts = Contacts->new($db, $admin, \%conf);
-        if ($FORM{PHONE}) {
-          $Contacts->contacts_add(
-            {
-              TYPE_ID => 1,
-              VALUE   => $FORM{PHONE},
-              UID     => $uid,
-            }
-          );
-        }
-
-        if ($FORM{EMAIL}) {
-          $Contacts->contacts_add(
-            {
-              TYPE_ID => 9,
-              VALUE   => $FORM{EMAIL},
-              UID     => $uid,
-            }
-          );
-        }
-      }
+      my $Contacts = Contacts->new($db, $admin, \%conf);
+      $Contacts->contacts_add({ TYPE_ID => 1, VALUE => $FORM{PHONE}, UID => $uid }) if ($FORM{PHONE});
+      $Contacts->contacts_add({ TYPE_ID => 9, VALUE => $FORM{EMAIL}, UID => $uid }) if ($FORM{EMAIL});
 
       return 0 if ($users->{errno});
 

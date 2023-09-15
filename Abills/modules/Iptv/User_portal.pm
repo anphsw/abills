@@ -291,7 +291,7 @@ sub iptv_user_info {
     INPUT_DATA      => $Iptv,
     FUNCTION        => 'user_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'TP_NAME,CID,SERVICE_STATUS,MONTH_FEE,DAY_FEE,IPTV_EXPIRE',
+    DEFAULT_FIELDS  => 'TP_NAME,CID,SERVICE_STATUS,MONTH_FEE,DAY_FEE,IPTV_EXPIRE,TP_COMMENTS',
     HIDDEN_FIELDS   => 'UID',
     FUNCTION_FIELDS => 'change',
     TABLE           => {
@@ -312,6 +312,7 @@ sub iptv_user_info {
       'iptv_expire'    => $lang{EXPIRE},
       'month_fee'      => $lang{MONTH_FEE},
       'day_fee'        => $lang{DAY_FEE},
+      'tp_comments'    => $lang{DESCRIBE},
     },
     MAKE_ROWS       => 1,
     MODULE          => 'Iptv',
@@ -809,12 +810,12 @@ sub _iptv_portal_show_exist_shedule {
 
     my $table = $html->table({
       width   => '100%',
-      caption => "$lang{SHEDULE}",,
+      caption => $lang{SHEDULE},
       ID      => 'SHEDULE_INFO',
       rows    =>
         [
           [ "$lang{TARIF_PLAN}:", $Tariffs->{NAME} ],
-          [ "$lang{DATE}:", "$shedule->{D}-$shedule->{M}-$shedule->{Y}" ],
+          [ "$lang{DATE}:", "$shedule->{Y}-$shedule->{M}-$shedule->{D}" ],
           [ "ID:", "$shedule->{ID}" ]
         ]
     });
@@ -921,11 +922,11 @@ sub _iptv_portal_extra_fields {
 
   $Iptv->{IPTV_EXTRA_FIELDS} = '';
   my @check_fields = (
-    "MONTH_ABON:0.00:\$_MONTH_FEE",
-    "DAY_ABON:0.00:\$_DAY_FEE",
-    'ACTIVATE:0000-00-00:$_ACTIVATE',
-    'EXPIRE:0000-00-00:$_EXPIRE',
-    'ACTIVATE_PRICE:0.00:$_ACTIVATE',
+    "MONTH_ABON:0.00:MONTH_FEE",
+    "DAY_ABON:0.00:DAY_FEE",
+    'ACTIVATE:0000-00-00:ACTIVATE',
+    'EXPIRE:0000-00-00:EXPIRE',
+    'ACTIVATE_PRICE:0.00:ACTIVATE',
     "CID::MAC",
     "SUBSCRIBE_ID:0:Customer Id",
   );
@@ -937,7 +938,7 @@ sub _iptv_portal_extra_fields {
 
     push @extra_fields, $html->tpl_show(templates('form_row_client'), {
       ID        => $id,
-      NAME      => _translate($lang_),
+      NAME      => $lang{$lang_},
       VALUE     => $Iptv->{$id} . ($value_prefix ? " $value_prefix" : ''),
       EXT_CLASS => 'text-bold'
     }, { OUTPUT2RETURN => 1 });

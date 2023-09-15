@@ -25,6 +25,15 @@
         </div>
       </div>
 
+      <div id='paysys_connect_system_body'>
+        <div class='form-group' id='PAYMENT_METHOD_SELECT'>
+          <label class=' col-md-12 col-sm-12' id='PAYMENT_METHOD_LABEL'></label>
+          <div class='col-md-12 col-sm-12'>
+            %PAYMENT_METHOD_SELECT%
+          </div>
+        </div>
+      </div>
+
       <div class='form-group %HIDE_DOMAIN_SEL%'>
         <label class=' col-md-12 col-sm-12'>_{DOMAIN}_</label>
         <div class='col-md-12 col-sm-12'>
@@ -35,7 +44,8 @@
       <div class='form-group'>
         <label class=' col-sm-12 col-md-12' for='MERCHANT_NAME'>_{MERCHANT_NAME2}_:</label>
         <div class='col-sm-12 col-md-12'>
-          <input type='text' class='form-control' id='MERCHANT_NAME' name='MERCHANT_NAME' value='%MERCHANT_NAME%' required>
+          <input type='text' class='form-control' id='MERCHANT_NAME' name='MERCHANT_NAME' value='%MERCHANT_NAME%'
+                 required>
         </div>
       </div>
     </div>
@@ -58,6 +68,7 @@
 
   var defaultSelectedValue = jQuery('#MODULE').serialize();
   jQuery('#ACCOUNT_KEYS_SELECT').hide();
+  jQuery('#PAYMENT_METHOD_SELECT').hide();
 
   jQuery('#KEYS')
     .append(new Option('CONTRACT_ID', 'CONTRACT_ID'))
@@ -71,17 +82,14 @@
 
   function rebuild_form(type) {
     jQuery('.appended_field').remove();
-    let keys = Object.keys(arr[type]['CONF']);
+    let keys = Object.keys(arr[type]['CONF']) || {};
     let sorted = keys.sort();
-    let systemID = arr[type]['SYSTEM_ID'];
+    let systemID = arr[type]['SYSTEM_ID'] || 0;
     let checkBoxes = arr[type]['CHECKBOX_FIELDS'] || [];
     jQuery('#SYSTEM_ID').attr('value', systemID);
 
-    if (defaultSelectedValue !== jQuery('#MODULE').serialize()) {
-      jQuery('#ACCOUNT_KEYS_SELECT').show();
-    } else if (jQuery('#BTN_ADD').attr('name') === 'change') {
-      jQuery('#ACCOUNT_KEYS_SELECT').show();
-    }
+    jQuery('#ACCOUNT_KEYS_SELECT').show();
+    jQuery('#PAYMENT_METHOD_SELECT').show();
 
     for (let i = 0; i < sorted.length; i++) {
       let val = arr[type]['CONF'][sorted[i]];
@@ -94,7 +102,7 @@
           jQuery(this).tooltip()
         });
 
-      if (param.includes('ACCOUNT_KEY')){
+      if (param.includes('ACCOUNT_KEY')) {
         SHOW_SELECT = 1;
         KEY_NAME = param;
         jQuery('#KEY_NAME').text(param);
@@ -103,25 +111,35 @@
         } else {
           jQuery('#KEYS').val('UID').change();
         }
+      } else if (param.includes('PAYMENT_METHOD')) {
+        jQuery('#PAYMENT_METHOD_LABEL').empty();
+        jQuery('#PAYMENT_METHOD_LABEL').append(param);
+        jQuery('#PAYMENT_METHOD').attr('name', param);
+        if (val) {
+          jQuery('#PAYMENT_METHOD').val(val).change();
+        } else {
+          jQuery('#PAYMENT_METHOD').val(' ').change();
+        }
       } else if (checkBoxes.includes(param)) {
         const checked = (val === '1') ? 'checked' : '';
         let element = jQuery('<div></div>').addClass('form-group appended_field');
         element.append(jQuery("<label for=''></label>").text(param).addClass('col-md-12 col-sm-12'));
         element.append(jQuery("<div style='display: flex; justify-content: center;'></div>").addClass('col-md-12 col-sm-12').append(
-          jQuery(`<input ${checked} style='height: 20px; width:20px' type='checkbox' name='${param}' id='${param}' value='1' data-return='1' data-checked='1'>`)));
+          jQuery(`<input ${checked} style='height: 20px; width:20px' type='checkbox' name='${param || ""}' id='${param || ""}' value='1' data-return='1' data-checked='1'>`)));
 
         jQuery('#paysys_connect_system_body').append(element);
       } else {
         let element = jQuery('<div></div>').addClass('form-group appended_field');
-        element.append(jQuery("<label for='" + param + "'></label>").text(param).addClass('col-md-12 col-sm-12'));
+        element.append(jQuery("<label for='" + (param || '') + "'></label>").text(param).addClass('col-md-12 col-sm-12'));
         element.append(jQuery("<div></div>").addClass('col-md-12 col-sm-12').append(
-          jQuery("<input name='" + param + "' id='" + param + "' value='" + (val || '') + "'>").addClass('form-control')));
+          jQuery("<input name='" + (param || '') + "' id='" + (param || '') + "' value='" + (val || '') + "'>").addClass('form-control')));
 
         jQuery('#paysys_connect_system_body').append(element);
       }
 
       if (i + 1 === sorted.length && SHOW_SELECT === 0) {
         jQuery('#ACCOUNT_KEYS_SELECT').hide();
+        jQuery('#PAYMENT_METHOD_SELECT').hide();
       } else if (i + 1 === sorted.length && SHOW_SELECT === 1) {
         SHOW_SELECT = 0;
       }

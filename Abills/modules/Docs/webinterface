@@ -15,6 +15,7 @@ use Fees;
 
 use Abills::Base qw(int2ml in_array sendmail date_format cmd mk_unique_value);
 use Abills::Defs;
+use FindBin '$Bin';
 
 our ($db,
   $admin,
@@ -214,6 +215,12 @@ sub docs_take_variables {
   $Docs->{COMPANY_ID} = $company_info->[0]->{id} || 1;
   $Docs->{CONTRACT_DATE} = $DATE;
 
+  if ($Docs->{CONTRACT_DATE}) {
+    my ($contract_y, $contract_m, $contract_d) = split(/-/, $Docs->{CONTRACT_DATE} || $DATE, 3);
+    $Docs->{CONTRACT_DATE_LIT} = "$contract_d " . $MONTHES_LIT[ int($contract_m) - 1 ] . " $contract_y $lang{YEAR_SHORT}";
+    $Docs->{CONTRACT_DATE_EURO_STANDART} = "$contract_d.$contract_m.$contract_y";
+  }
+
   my @result = docs_print("doc", {
     TAKE_PARAMS           => 1,
 
@@ -395,9 +402,9 @@ sub docs_print{
     $attr->{YEAR_SHORT} = substr($y,2);
     $attr->{DATE_EURO_STANDART} = "$d.$m.$y";
   }
-
-  if ($Docs->{CONTRACT_DATE}) {
-    my ($contract_y, $contract_m, $contract_d) = split(/-/, $Docs->{CONTRACT_DATE} || $DATE, 3);
+  
+  if ($attr->{CONTRACT_DATE}) {
+    my ($contract_y, $contract_m, $contract_d) = split(/-/, $attr->{CONTRACT_DATE} || $DATE, 3);
     $attr->{CONTRACT_DATE_LIT} = "$contract_d " . $MONTHES_LIT[ int($contract_m) - 1 ] . " $contract_y $lang{YEAR_SHORT}";
     $attr->{CONTRACT_DATE_EURO_STANDART} = "$contract_d.$contract_m.$contract_y";
   }
@@ -1103,42 +1110,49 @@ sub docs_statement_of_account {
     $LIST_PARAMS{PAGE_ROWS} = 10000;
     delete $LIST_PARAMS{DATE};
   }
+  $LIST_PARAMS{GROUP_BY} = '';
 
   $Fees->{debug} = 1 if $FORM{DEBUG} && $FORM{DEBUG} > 5;
   my $fees_list = $Fees->list({
-    DATETIME   => '_SHOW',
-    DSC        => '_SHOW',
-    SUM        => '_SHOW',
-    LAST_DEPOSIT=>'_SHOW',
-    BILL_ID     =>'_SHOW',
+    DATETIME     => '_SHOW',
+    MONTH        => '_SHOW',
+    DSC          => '_SHOW',
+    SUM          => '_SHOW',
+    LAST_DEPOSIT => '_SHOW',
+    BILL_ID      => '_SHOW',
     %LIST_PARAMS,
-    COLS_NAME  => 1,
-    COLS_UPPER => 1
+    COLS_NAME    => 1,
+    COLS_UPPER   => 1
   });
 
   my %operations = ();
-  foreach my $line ( @$fees_list ) {
-    push @{ $operations{$line->{datetime}} },  { %$line, FEES => 1 };
+  my %operations_month = ();
+
+  foreach my $line (@$fees_list) {
+    push @{$operations{$line->{datetime}}}, { %$line, FEES => 1 };
+    $operations_month{$line->{month}}{$line->{datetime}} = $operations{$line->{datetime}};
   }
 
   $Payments->{debug} = 1 if $FORM{DEBUG} && $FORM{DEBUG} > 5;
   my $payments_list = $Payments->list({
-    DATETIME    => '_SHOW',
-    DSC         => '_SHOW',
-    DEPOSIT     => '_SHOW',
-    INVOICE_NUM => '_SHOW',
-    INVOICE_DATE=> '_SHOW',
-    LAST_DEPOSIT=> '_SHOW',
-    SUM         => '_SHOW',
-    BILL_ID     => '_SHOW',
-    AMOUNT      => '_SHOW',
+    DATETIME     => '_SHOW',
+    MONTH        => '_SHOW',
+    DSC          => '_SHOW',
+    DEPOSIT      => '_SHOW',
+    INVOICE_NUM  => '_SHOW',
+    INVOICE_DATE => '_SHOW',
+    LAST_DEPOSIT => '_SHOW',
+    SUM          => '_SHOW',
+    BILL_ID      => '_SHOW',
+    AMOUNT       => '_SHOW',
     %LIST_PARAMS,
-    COLS_NAME   => 1,
-    COLS_UPPER  => 1
+    COLS_NAME    => 1,
+    COLS_UPPER   => 1
   });
 
-  foreach my $line ( @$payments_list ) {
-    push @{ $operations{$line->{datetime}} }, $line;
+  foreach my $line (@$payments_list) {
+    push @{$operations{$line->{datetime}}}, $line;
+    $operations_month{$line->{month}}{$line->{datetime}} = $operations{$line->{datetime}};
   }
 
   $users->pi({ UID => $LIST_PARAMS{UID} });
@@ -1158,40 +1172,65 @@ sub docs_statement_of_account {
     $BILL_ACCOUNTS{ $users->{EXT_BILL_ID} } = "$lang{EXTRA} : $users->{EXT_BILL_ID}" if ($users->{EXT_BILL_ID});
   }
 
-  foreach my $date_ ( sort keys %operations ) {
 
+  foreach my $month (sort keys %operations_month) {
+    my $month_fees = 0.00;
+    my $month_payments = 0.00;
+    my $month_balance = 0.00;
     my @xls_data = ();
-    foreach my $money_operation ( @{ $operations{$date_} } ) {
-      my $date = ($money_operation->{FEES}) ? $money_operation->{datetime} : $html->b(($money_operation->{datetime}));
-      my $login = ($money_operation->{FEES}) ? $users->{LOGIN} : $html->b($users->{LOGIN});
-      my $bill_id = ($money_operation->{FEES}) ? $BILL_ACCOUNTS{$money_operation->{bill_id}} : $BILL_ACCOUNTS{$money_operation->{bill_id}};
-      my $invoice = ($money_operation->{invoice_num})  ? $html->b($money_operation->{invoice_num}) ."\n". $money_operation->{invoice_date} : q{};
-      my $fio = ($money_operation->{FEES}) ? $users->{FIO} : $html->b($users->{FIO});
-      my $fees = ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{sum} || 0) : '';
-      my $payments = ($money_operation->{FEES}) ? '' : $html->b(sprintf("%.2f", $money_operation->{sum} || 0));
-      my $describe = ($money_operation->{FEES}) ? $money_operation->{dsc} : $html->b($money_operation->{dsc} || q{});
-      my $deposit = ($money_operation->{FEES})
-        ? sprintf("%.2f", $money_operation->{last_deposit} || 0)
-        : $html->b(sprintf("%.2f", $money_operation->{last_deposit} || 0));
 
-      $Docs->{ROWS} .= $html->tpl_show(_include('docs_statement_of_account_row', 'Docs'), {
-        date        => $date,
-        login       => $login,
-        bill_id     => $bill_id,
-        invoice     => $invoice,
-        fio         => $fio,
-        fees_sum    => $fees,
-        payment_sum => $payments . (($payments && $conf{DOCS_CURRENCY}) ? $html->br().sprintf("(%.2f)", $money_operation->{amount}) : ''),
-        describe    => $describe,
-        deposit     => $deposit,
-      }, { OUTPUT2RETURN => 1 });
+    foreach my $date_ (sort keys %{$operations_month{$month}}) {
 
-      push @xls_data, ($date, $login, $bill_id, $invoice, $describe, $fees, $payments, $deposit,
+      foreach my $money_operation (@{$operations_month{$month}{$date_}}) {
+        my $date = ($money_operation->{FEES}) ? substr($money_operation->{datetime},0,16) : $html->b((substr($money_operation->{datetime},0,16)));
+        my $login = ($money_operation->{FEES}) ? $users->{LOGIN} : $html->b($users->{LOGIN});
+        my $bill_id = ($money_operation->{FEES}) ? $BILL_ACCOUNTS{$money_operation->{bill_id}} : $BILL_ACCOUNTS{$money_operation->{bill_id}};
+        my $invoice = ($money_operation->{invoice_num}) ? $html->b($money_operation->{invoice_num}) . "\n" . $money_operation->{invoice_date} : q{};
+        my $fio = ($money_operation->{FEES}) ? $users->{FIO} : $html->b($users->{FIO});
+        my $fees = ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{sum} || 0) : '';
+        my $payments = ($money_operation->{FEES}) ? '' : $html->b(sprintf("%.2f", $money_operation->{sum} || 0));
+        my $describe = ($money_operation->{FEES}) ? $money_operation->{dsc} : $html->b($money_operation->{dsc} || q{});
+        $describe =~ s/(\d{4}-\d{2}-\d{2})-(\d{4}-\d{2}-\d{2})/$lang{FROM} $1 $lang{TO} $2/g;
+        my $deposit = ($money_operation->{FEES})
+        ? (sprintf("%.2f", $money_operation->{last_deposit} || 0) - sprintf("%.2f", $money_operation->{sum} || 0))
+        : (sprintf("%.2f", $money_operation->{last_deposit} || 0) + sprintf("%.2f", $money_operation->{sum} || 0));
+        $deposit = sprintf("%.2f", $deposit || 0);
+
+
+        $month_payments += ($money_operation->{FEES}) ? 0 : sprintf("%.2f", $money_operation->{sum} || 0);
+        $month_fees += ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{sum} || 0) : 0;
+        $month_balance = ($money_operation->{FEES}) ? ($money_operation->{last_deposit} - $money_operation->{sum}) : ($money_operation->{last_deposit} + $money_operation->{sum});
+
+        $Docs->{ROWS} .= $html->tpl_show(_include('docs_statement_of_account_row', 'Docs'), {
+          date        => $date,
+          login       => $login,
+          bill_id     => $bill_id,
+          invoice     => $invoice,
+          fio         => $fio,
+          fees_sum    => $fees,
+          payment_sum => $payments . (($payments && $conf{DOCS_CURRENCY}) ? $html->br() . sprintf("(%.2f)", $money_operation->{amount}) : ''),
+          describe    => $describe,
+          deposit     => $deposit,
+        }, { OUTPUT2RETURN => 1 });
+
+        push @xls_data, ($date, $login, $bill_id, $invoice, $describe, $fees, $payments, $deposit,
           (($payments && $conf{DOCS_CURRENCY}) ? sprintf("%.2f", $money_operation->{amount}) : '')
-      );
+        );
+      }
+
+      push @statment_rows, [ @xls_data ];
+
     }
-    
-    push @statment_rows, [ @xls_data ];
+
+    $Docs->{ROWS} .= $html->tpl_show(_include('docs_statement_of_account_row', 'Docs'), {
+      describe    => $html->b("$lang{TOTAL_END_MONTH}: $month"),
+      fees_sum    => $html->b(sprintf("%.2f", $month_fees || 0)),
+      payment_sum => $html->b(sprintf("%.2f", $month_payments || 0)),
+      deposit     => $html->b(sprintf("%.2f", $month_balance || 0)),
+      underline   => 'docs-row-underline'
+    }, { OUTPUT2RETURN => 1 });
+
+    push @statment_rows, [('', '', '', $html->b("$lang{TOTAL_END_MONTH}: $month"), '', $month_fees || 0, $month_payments || 0, sprintf("%.2f", $month_balance || 0))];
   }
 
   my ($y)=split(/-/, $DATE);
@@ -1200,8 +1239,19 @@ sub docs_statement_of_account {
     $date_list{"$i-01-01"}="$i-01-01";
   }
 
+  my $period_from = ($FORM{DATE}) ? $FORM{DATE} : "$y-01-01";
+  my $period_to = '';
+
+  if ($FORM{DATE}){
+    my ($year_period) = split(/-/, $FORM{DATE});
+    $period_to = ($year_period == $y) ? $DATE : "$year_period-12-31";
+  }
+  else {
+    $period_to = $DATE;
+    }
+
   $Docs->{YEAR_SEL} = $html->form_select('DATE', {
-    SELECTED  => $FORM{DATE} || $DATE,
+    SELECTED  => $FORM{DATE} || "$y-01-01",
     SEL_HASH  => \%date_list,
     NO_ID     => 1,
     EX_PARAMS => "onchange='autoReload()'",
@@ -1215,9 +1265,9 @@ sub docs_statement_of_account {
 
   if ($FORM{xls}) {
     my $table = $html->table({
-      ID         => 'DOCS',
-      title      => \@statment_title,
-      rows       => \@statment_rows,
+      ID    => 'DOCS',
+      title => \@statment_title,
+      rows  => \@statment_rows,
     });
     $table->show();
   }
@@ -1225,8 +1275,10 @@ sub docs_statement_of_account {
     $html->tpl_show(_include('docs_statement_of_account', 'Docs'), {
       %{$users},
       %{$Docs},
-      DATE       => $DATE,
-      UPLOAD_XML => $upload_xml
+      PERIOD_FROM => $period_from,
+      PERIOD_TO   => $period_to,
+      DATE        => $DATE,
+      UPLOAD_XML  => $upload_xml
     });
   }
 

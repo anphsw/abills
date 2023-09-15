@@ -5,8 +5,9 @@ use warnings FATAL => 'all';
 
 use Abills::Base qw(in_array mk_unique_value camelize);
 use Abills::Api::Helpers qw(static_string_generate caesar_cipher);
+use Abills::Api::Validations qw(POST_INTERNET_MAC_DISCOVERY);
 
-my $VERSION = 1.03;
+my $VERSION = 1.21;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -187,10 +188,19 @@ sub list {
           $query_params->{DESC} = $query_params->{DESC} || '';
           $query_params->{PG} = $query_params->{PG} || 0;
 
-          $module_obj->list({
+          my $users = $module_obj->list({
             %{$query_params},
             COLS_NAME => 1,
           });
+
+          if (in_array('Tags', \@main::MODULES) && $query_params->{TAGS}) {
+            foreach my $user (@{$users}) {
+              my @tags = $user->{tags} ? split('\s?,\s?', $user->{tags}) : ();
+              $user->{tags} = \@tags;
+            }
+          }
+
+          return $users;
         },
         module      => 'Users',
         credentials => [
@@ -230,14 +240,29 @@ sub list {
         handler     => sub {
           my ($path_params, $query_params, $module_obj) = @_;
 
+          my $Users = $module_obj;
+
           return {
             errno  => 10,
             errstr => 'Access denied'
           } if !$self->{admin}->{permissions}{0}{4};
 
-          $module_obj->change($path_params->{uid}, {
+          $Users->change($path_params->{uid}, {
             %$query_params
           });
+
+          if (!$Users->{errno}) {
+            if ($query_params->{CREDIT} && $query_params->{CREDIT_DATE}) {
+              ::cross_modules('payments_maked', { USER_INFO => $Users, SUM => $query_params->{CREDIT}, SILENT => 1, CREDIT_NOTIFICATION => 1 });
+            }
+
+            $Users->pi_change({
+              UID => $path_params->{uid},
+              %$query_params
+            });
+          }
+
+          return $Users;
         },
         module      => 'Users',
         credentials => [
@@ -334,6 +359,7 @@ sub list {
           'ADMIN'
         ]
       },
+      #@deprecated
       {
         method      => 'POST',
         path        => '/users/:uid/pi/',
@@ -355,6 +381,7 @@ sub list {
           'ADMIN'
         ]
       },
+      #@deprecated
       {
         method      => 'PUT',
         path        => '/users/:uid/pi/',
@@ -440,10 +467,19 @@ sub list {
 
           $query_params->{SIMULTANEONSLY} = $query_params->{LOGINS} if ($query_params->{LOGINS});
 
-          $module_obj->user_list({
+          my $users = $module_obj->user_list({
             %{$query_params},
             COLS_NAME => 1,
           });
+
+          if (in_array('Tags', \@main::MODULES) && $query_params->{TAGS}) {
+            foreach my $user (@{$users}) {
+              my @tags = $user->{tags} ? split('\s?,\s?', $user->{tags}) : ();
+              $user->{tags} = \@tags;
+            }
+          }
+
+          return $users;
         },
         module      => 'Internet',
         credentials => [
@@ -461,6 +497,10 @@ sub list {
             errstr => 'Access denied'
           } if $self->{admin}->{MODULES} && !$self->{admin}->{MODULES}->{Internet};
 
+          foreach my $param (keys %{$query_params}) {
+            $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+          }
+
           $module_obj->user_list({
             %$query_params,
             UID             => $path_params->{uid},
@@ -470,6 +510,7 @@ sub list {
             MONTH_FEE       => '_SHOW',
             DAY_FEE         => '_SHOW',
             TP_ID           => '_SHOW',
+            GROUP_BY        => 'internet.id',
             COLS_NAME       => 1
           });
         },
@@ -916,7 +957,6 @@ sub list {
           });
         },
         module      => 'Users',
-        type        => 'ARRAY',
         credentials => [
           'ADMIN'
         ]
@@ -928,9 +968,9 @@ sub list {
         path    => '/version/',
         handler => sub {
           my $version = ::get_version();
-          $version =~ s/[\s.]//g;
+          ($version) = $version =~ /\d+.\d+.\d+/g;
           return {
-            version     => $version,
+            version     => "$version",
             billing     => 'ABillS',
             api_version => $VERSION,
           };
@@ -970,10 +1010,14 @@ sub list {
         handler     => sub {
           my ($path_params, $query_params, $module_obj) = @_;
 
-          return {
-            errno  => 10,
-            errstr => 'Access denied'
-          } if !$self->{admin}->{permissions}{0}{35};
+          # return {
+          #   errno  => 10,
+          #   errstr => 'Access denied'
+          # } if !$self->{admin}->{permissions}{0}{35};
+
+          foreach my $param (keys %{$query_params}) {
+            $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+          }
 
           $module_obj->build_list({
             %$query_params,
@@ -983,9 +1027,8 @@ sub list {
           });
         },
         module      => 'Address',
-        type        => 'ARRAY',
         credentials => [
-          'ADMIN'
+          'ADMIN', 'ADMINSID'
         ]
       },
       {
@@ -994,16 +1037,19 @@ sub list {
         handler     => sub {
           my ($path_params, $query_params, $module_obj) = @_;
 
-          return {
-            errno  => 10,
-            errstr => 'Access denied'
-          } if !$self->{admin}->{permissions}{0}{35};
+          # return {
+          #   errno  => 10,
+          #   errstr => 'Access denied'
+          # } if !$self->{admin}->{permissions}{0}{35};
 
           $module_obj->build_info({
             %$query_params,
             COLS_NAME => 1,
             ID        => $path_params->{id}
           });
+
+          delete @{$module_obj}{qw/list/};
+          return $module_obj;
         },
         module      => 'Address',
         credentials => [
@@ -1021,9 +1067,29 @@ sub list {
             errstr => 'Access denied'
           } if !$self->{admin}->{permissions}{0}{35};
 
+          return {
+            errno  => 10097,
+            errstr => 'No field streetId'
+          } if (!$query_params->{STREET_ID});
+
+          return {
+            errno  => 10098,
+            errstr => 'No field number'
+          } if (!$query_params->{NUMBER});
+
           $module_obj->build_add({
             %$query_params
           });
+
+          return $module_obj if ($module_obj->{errno});
+
+          $module_obj->build_info({
+            COLS_NAME => 1,
+            ID        => $module_obj->{INSERT_ID}
+          });
+
+          delete @{$module_obj}{qw/list/};
+          return $module_obj;
         },
         module      => 'Address',
         credentials => [
@@ -1045,6 +1111,16 @@ sub list {
             %$query_params,
             ID => $path_params->{id},
           });
+
+          return $module_obj if ($module_obj->{errno});
+
+          $module_obj->build_info({
+            COLS_NAME => 1,
+            ID        => $path_params->{id}
+          });
+
+          delete @{$module_obj}{qw/list/};
+          return $module_obj;
         },
         module      => 'Address',
         credentials => [
@@ -1059,23 +1135,26 @@ sub list {
         handler     => sub {
           my ($path_params, $query_params, $module_obj) = @_;
 
-          return {
-            errno  => 10,
-            errstr => 'Access denied'
-          } if !$self->{admin}->{permissions}{0}{34};
+          foreach my $param (keys %{$query_params}) {
+            $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+          }
+
+          # return {
+          #   errno  => 10,
+          #   errstr => 'Access denied'
+          # } if !$self->{admin}->{permissions}{0}{34};
 
           $module_obj->street_list({
+            DISTRICT_ID => '_SHOW',
             %$query_params,
             COLS_NAME   => 1,
             STREET_NAME => '_SHOW',
-            BUILD_COUNT => '_SHOW',
-            DISTRICT_ID => '_SHOW'
+            BUILD_COUNT => '_SHOW'
           });
         },
         module      => 'Address',
-        type        => 'ARRAY',
         credentials => [
-          'ADMIN'
+          'ADMIN', 'ADMINSID'
         ]
       },
       {
@@ -1084,16 +1163,19 @@ sub list {
         handler     => sub {
           my ($path_params, $query_params, $module_obj) = @_;
 
-          return {
-            errno  => 10,
-            errstr => 'Access denied'
-          } if !$self->{admin}->{permissions}{0}{34};
+          # return {
+          #   errno  => 10,
+          #   errstr => 'Access denied'
+          # } if !$self->{admin}->{permissions}{0}{34};
 
           $module_obj->street_info({
             %$query_params,
             COLS_NAME => 1,
             ID        => $path_params->{id}
           });
+
+          delete @{$module_obj}{qw/list/};
+          return $module_obj;
         },
         module      => 'Address',
         credentials => [
@@ -1107,6 +1189,16 @@ sub list {
           my ($path_params, $query_params, $module_obj) = @_;
 
           return {
+            errno  => 10095,
+            errstr => 'No field districtId'
+          } if (!$query_params->{DISTRICT_ID});
+
+          return {
+            errno  => 10096,
+            errstr => 'No field name'
+          } if (!$query_params->{NAME});
+
+          return {
             errno  => 10,
             errstr => 'Access denied'
           } if !$self->{admin}->{permissions}{0}{34};
@@ -1114,6 +1206,16 @@ sub list {
           $module_obj->street_add({
             %$query_params
           });
+
+          return $module_obj if ($module_obj->{errno});
+
+          $module_obj->street_info({
+            COLS_NAME => 1,
+            ID        => $module_obj->{INSERT_ID}
+          });
+
+          delete @{$module_obj}{qw/list/};
+          return $module_obj;
         },
         module      => 'Address',
         credentials => [
@@ -1135,6 +1237,16 @@ sub list {
             %$query_params,
             ID => $path_params->{id}
           });
+
+          return $module_obj if ($module_obj->{errno});
+
+          $module_obj->street_info({
+            COLS_NAME => 1,
+            ID        => $path_params->{id}
+          });
+
+          delete @{$module_obj}{qw/list/};
+          return $module_obj;
         },
         module      => 'Address',
         credentials => [
@@ -1149,10 +1261,14 @@ sub list {
         handler     => sub {
           my ($path_params, $query_params, $module_obj) = @_;
 
-          return {
-            errno  => 10,
-            errstr => 'Access denied'
-          } if !$self->{admin}->{permissions}{0}{35};
+          # return {
+          #   errno  => 10,
+          #   errstr => 'Access denied'
+          # } if !$self->{admin}->{permissions}{0}{35};
+
+          foreach my $param (keys %{$query_params}) {
+            $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+          }
 
           $module_obj->district_list({
             %$query_params,
@@ -1160,9 +1276,8 @@ sub list {
           });
         },
         module      => 'Address',
-        type        => 'ARRAY',
         credentials => [
-          'ADMIN'
+          'ADMIN', 'ADMINSID'
         ]
       },
       {
@@ -1175,6 +1290,11 @@ sub list {
             errno  => 10,
             errstr => 'Access denied'
           } if !$self->{admin}->{permissions}{0}{35};
+
+          return {
+            errno  => 10094,
+            errstr => 'No field name'
+          } if (!$query_params->{NAME});
 
           $module_obj->district_add({
             %$query_params
@@ -1196,11 +1316,10 @@ sub list {
             errstr => 'Access denied'
           } if !$self->{admin}->{permissions}{0}{35};
 
-          $module_obj->district_info({
-            %$query_params,
-            COLS_NAME => 1,
-            ID        => $path_params->{id}
-          });
+          $module_obj->district_info({ ID => $path_params->{id}, });
+
+          delete @{$module_obj}{qw/list AFFECTED TOTAL/};
+          return $module_obj;
         },
         module      => 'Address',
         credentials => [
@@ -1222,6 +1341,13 @@ sub list {
             %$query_params,
             ID => $path_params->{id}
           });
+
+          return $module_obj if ($module_obj->{errno});
+
+          $module_obj->district_info({ ID => $path_params->{id}, });
+
+          delete @{$module_obj}{qw/list/};
+          return $module_obj;
         },
         module      => 'Address',
         credentials => [
@@ -1243,6 +1369,7 @@ sub list {
 
           $module_obj->online({
             UID           => $path_params->{uid},
+            NAS_PORT_ID   => '_SHOW',
             CLIENT_IP_NUM => '_SHOW',
             NAS_ID        => '_SHOW',
             USER_NAME     => '_SHOW',
@@ -1252,7 +1379,6 @@ sub list {
           });
         },
         module      => 'Internet::Sessions',
-        type        => 'ARRAY',
         credentials => [
           'ADMIN'
         ]
@@ -1270,6 +1396,10 @@ sub list {
             errstr => 'Access denied'
           } if !$self->{admin}->{permissions}{1}{3};
 
+          foreach my $param (keys %{$query_params}) {
+            $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+          }
+
           $module_obj->payment_type_list({
             %$query_params,
             COLS_NAME => 1
@@ -1282,24 +1412,22 @@ sub list {
       },
       {
         method      => 'GET',
+        path        => '/payments/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+          return $self->_payments_user($path_params, $query_params, $module_obj);
+        },
+        module      => 'Payments',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'GET',
         path        => '/payments/users/:uid/',
         handler     => sub {
           my ($path_params, $query_params, $module_obj) = @_;
-
-          return {
-            errno  => 10,
-            errstr => 'Access denied'
-          } if (!$self->{admin}->{permissions}{1}{0} && !$self->{admin}->{permissions}{1}{3});
-
-          $module_obj->list({
-            %$query_params,
-            UID       => $path_params->{uid},
-            DESC      => 'DESC',
-            SUM       => '_SHOW',
-            REG_DATE  => '_SHOW',
-            METHOD    => '_SHOW',
-            COLS_NAME => 1
-          });
+          return $self->_payments_user($path_params, $query_params, $module_obj);
         },
         module      => 'Payments',
         credentials => [
@@ -1330,15 +1458,25 @@ sub list {
             errstr => "Payment sum is bigger than allowed - $query_params->{SUM} > $max_payment",
           } if ($query_params->{SUM} > $max_payment);
 
+          my $Users = $path_params->{user_object};
           require Bills;
           Bills->import();
           my $Bills = Bills->new($self->{db}, $self->{admin}, $self->{conf});
 
-          $Bills->list({
-            UID       => $path_params->{uid},
-            BILL_ID   => $query_params->{BILL_ID},
-            COLS_NAME => 1,
-          });
+          if ($Users->{COMPANY_ID}) {
+            $Bills->list({
+              COMPANY_ID => $Users->{COMPANY_ID},
+              BILL_ID    => $query_params->{BILL_ID},
+              COLS_NAME  => 1,
+            });
+          }
+          else {
+            $Bills->list({
+              UID       => $path_params->{uid},
+              BILL_ID   => $query_params->{BILL_ID},
+              COLS_NAME => 1,
+            });
+          }
 
           return {
             errno  => 10069,
@@ -1387,8 +1525,6 @@ sub list {
           $Payments->{db}->{TRANSACTION} = 1;
           my $db_ = $Payments->{db}->{db};
           $db_->{AutoCommit} = 0;
-
-          my $Users = $path_params->{user_object};
 
           if (in_array('Docs', \@main::MODULES) && $query_params->{CREATE_RECEIPT}) {
             $query_params->{INVOICE_ID} = 'create';
@@ -1519,8 +1655,82 @@ sub list {
           'ADMIN'
         ]
       },
+      {
+        method      => 'DELETE',
+        path        => '/payments/users/:uid/:id/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          return {
+            errno  => 10,
+            errstr => 'Access denied'
+          } if (!$self->{admin}->{permissions}{1}{2} && !$self->{admin}->{permissions}{1}{3});
+
+          $module_obj->list({
+            UID => $path_params->{uid},
+            ID  => $path_params->{id},
+          });
+
+          if (!$module_obj->{TOTAL}) {
+            return {
+              errno  => 10122,
+              errstr => "Payment with id $path_params->{id} and uid $path_params->{uid} does not exist"
+            };
+          }
+
+          my $comments = $query_params->{COMMENTS} || 'Deleted from API request';
+          my $payment_info = $module_obj->list({
+            ID         => $path_params->{id},
+            UID        => '_SHOW',
+            DATETIME   => '_SHOW',
+            SUM        => '_SHOW',
+            DESCRIBE   => '_SHOW',
+            EXT_ID     => '_SHOW',
+            COLS_NAME  => 1,
+            COLS_UPPER => 1,
+          });
+          $module_obj->del($path_params->{user_object}, $path_params->{id}, { COMMENTS => $comments });
+
+          if ($module_obj->{AFFECTED}) {
+            ::cross_modules('payment_del', {
+              FORM         => $query_params,
+              UID          => $path_params->{uid},
+              ID           => $path_params->{id},
+              PAYMENT_INFO => $payment_info->[0] || {}
+            });
+
+            return {
+              result     => "Successfully deleted payment for user $path_params->{uid} and payment id $path_params->{id}",
+              uid        => $path_params->{uid},
+              payment_id => $path_params->{id},
+            };
+          }
+          else {
+            return {
+              errno  => 10121,
+              errstr => "Payment with id $path_params->{id} and uid $path_params->{uid} does not exist"
+            };
+          }
+        },
+        module      => 'Payments',
+        credentials => [
+          'ADMIN'
+        ]
+      },
     ],
     fees      => [
+      {
+        method      => 'GET',
+        path        => '/fees/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+          return $self->_fees_user($path_params, $query_params, $module_obj);
+        },
+        module      => 'Fees',
+        credentials => [
+          'ADMIN'
+        ]
+      },
       {
         method      => 'GET',
         path        => '/fees/types/',
@@ -1531,6 +1741,10 @@ sub list {
             errno  => 10,
             errstr => 'Access denied'
           } if !$self->{admin}->{permissions}{2}{3};
+
+          foreach my $param (keys %{$query_params}) {
+            $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+          }
 
           $module_obj->fees_type_list({
             %$query_params,
@@ -1547,21 +1761,7 @@ sub list {
         path        => '/fees/users/:uid/',
         handler     => sub {
           my ($path_params, $query_params, $module_obj) = @_;
-
-          return {
-            errno  => 10,
-            errstr => 'Access denied'
-          } if (!$self->{admin}->{permissions}{2}{0} && !$self->{admin}->{permissions}{2}{3});
-
-          $module_obj->list({
-            %$query_params,
-            UID       => $path_params->{uid},
-            SUM       => '_SHOW',
-            DESCRIBE  => '_SHOW',
-            REG_DATE  => '_SHOW',
-            METHOD    => '_SHOW',
-            COLS_NAME => 1
-          });
+          return $self->_fees_user($path_params, $query_params, $module_obj);
         },
         module      => 'Fees',
         credentials => [
@@ -1589,7 +1789,52 @@ sub list {
         credentials => [
           'ADMIN'
         ]
-      }
+      },
+      {
+        method      => 'DELETE',
+        path        => '/fees/users/:uid/:id/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          return {
+            errno  => 10,
+            errstr => 'Access denied'
+          } if (!$self->{admin}->{permissions}{2}{2} && !$self->{admin}->{permissions}{2}{3});
+
+          $module_obj->list({
+            UID => $path_params->{uid},
+            ID  => $path_params->{id},
+          });
+
+          if (!$module_obj->{TOTAL}) {
+            return {
+              errno  => 10128,
+              errstr => "Fee with id $path_params->{id} and uid $path_params->{uid} does not exist"
+            };
+          }
+
+          my $comments = $query_params->{COMMENTS} || 'Deleted from API request';
+          $module_obj->del($path_params->{user_object}, $path_params->{id}, { COMMENTS => $comments });
+
+          if ($module_obj->{AFFECTED}) {
+            return {
+              result     => "Successfully deleted fee for user $path_params->{uid} and fee id $path_params->{id}",
+              uid        => $path_params->{uid},
+              payment_id => $path_params->{id},
+            };
+          }
+          else {
+            return {
+              errno  => 10129,
+              errstr => "Fee with id $path_params->{id} and uid $path_params->{uid} does not exist"
+            };
+          }
+        },
+        module      => 'Fees',
+        credentials => [
+          'ADMIN'
+        ]
+      },
     ],
     finance   => [
       {
@@ -1683,7 +1928,7 @@ sub list {
         method      => 'GET',
         path        => '/user/:uid/pi/',
         handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
+          my ($path_params, $query_params) = @_;
 
           require Info_fields;
           Info_fields->import();
@@ -1706,10 +1951,13 @@ sub list {
             push @delete_params, uc($info_field->{sql_field});
           }
 
-          my $users = $module_obj;
+          require Users;
+          Users->import();
+          my $users = Users->new($self->{db}, $self->{admin}, $self->{conf});
           $users->pi({ UID => $path_params->{uid} });
 
           $users->{ADDRESS_FULL} =~ s/,\s?$// if ($users->{ADDRESS_FULL});
+          $users->{CUSTOM_ADDRESS_FULL} = $users->{ADDRESS_FULL} if ($self->{conf}->{ADDRESS_FORMAT});
 
           delete @{$users}{@delete_params};
 
@@ -2295,6 +2543,57 @@ sub list {
         ]
       },
       {
+        method      => 'POST',
+        path        => '/user/internet/mac/discovery/',
+        params      => POST_INTERNET_MAC_DISCOVERY,
+        handler     => sub {
+          my ($path_params, $query_params) = @_;
+
+          return {
+            errno  => 10124,
+            errstr => 'Service not available',
+          } if (!$self->{conf}->{INTERNET_MAC_DICOVERY});
+
+          require Internet;
+          my $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
+          $Internet->user_list({ UID => $path_params->{uid}, ID => $query_params->{ID}, COLS_NAME => 1 });
+
+          return {
+            errno  => 10125,
+            errstr => "Not found service with id $query_params->{ID}",
+          } if (!$Internet->{TOTAL});
+
+          delete $Internet->{TOTAL};
+          $Internet->user_list({ CID => $query_params->{CID} });
+
+          return {
+            errno  => 10126,
+            errstr => 'This mac address already set for another user',
+            cid    => $query_params->{CID},
+          } if ($Internet->{TOTAL});
+
+          $Internet->user_change({
+            ID  => $query_params->{ID},
+            UID => $path_params->{uid},
+            CID => $query_params->{CID}
+          });
+
+          ::load_module('Internet::User_portal', { LOAD_PACKAGE => 1 });
+
+          ::internet_hangup({
+            CID   => $query_params->{CID},
+            GUEST => 1,
+          });
+
+          return {
+            result => 'Hangup is done',
+          };
+        },
+        credentials => [
+          'USER', 'USERBOT'
+        ]
+      },
+      {
         method      => 'GET',
         path        => '/user/:uid/payments/',
         handler     => sub {
@@ -2306,7 +2605,7 @@ sub list {
             SUM       => '_SHOW',
             DATETIME  => '_SHOW',
             EXT_ID    => '_SHOW',
-            PAGE_ROWS => ($query_params->{PAGE_ROWS} || 1000),
+            PAGE_ROWS => ($query_params->{PAGE_ROWS} || 10000),
             COLS_NAME => 1
           });
 
@@ -2332,7 +2631,7 @@ sub list {
             DSC       => '_SHOW',
             SUM       => '_SHOW',
             DATETIME  => '_SHOW',
-            PAGE_ROWS => ($query_params->{PAGE_ROWS} || 1000),
+            PAGE_ROWS => ($query_params->{PAGE_ROWS} || 10000),
             COLS_NAME => 1
           });
 
@@ -2933,7 +3232,7 @@ sub list {
           }
 
           my $credit_info = $Service_control->user_set_credit({ UID => $path_params->{uid} });
-          if (!$credit_info->{error} && !$credit_info->{errno}) {
+          if (!exists($credit_info->{error}) && !exists($credit_info->{errno})) {
             $functions{user_credit} = '1001';
           }
 
@@ -3143,7 +3442,7 @@ sub _users_login {
   my $self = shift;
   my ($path_params, $query_params) = @_;
 
-  my $session_id = $ENV{HTTP_USERSID} || '';
+  my $session_id = '';
   %main::FORM = ();
 
   if ($self->{conf}->{AUTH_GOOGLE_ID} && $query_params->{google}) {
@@ -3210,6 +3509,73 @@ sub _users_login {
 
   $result{login} = "<str_>$result{login}";
   return \%result;
+}
+
+#**********************************************************
+=head2 _payments_user ($path_params, $query_params, $module_obj)
+
+=cut
+#**********************************************************
+sub _payments_user {
+  my $self = shift;
+  my ($path_params, $query_params, $module_obj) = @_;
+
+  return {
+    errno  => 10,
+    errstr => 'Access denied'
+  } if (!$self->{admin}->{permissions}{1}{0} && !$self->{admin}->{permissions}{1}{3});
+
+  foreach my $param (keys %{$query_params}) {
+    $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+  }
+
+  $query_params->{DESC} = $query_params->{DESC} || 'DESC';
+  $query_params->{SUM} = $query_params->{SUM} || '_SHOW';
+  $query_params->{REG_DATE} = $query_params->{REG_DATE} || '_SHOW';
+  $query_params->{METHOD} = $query_params->{METHOD} || '_SHOW';
+  $query_params->{UID} = $path_params->{uid} || $query_params->{UID} || '_SHOW';
+  $query_params->{FROM_DATE} = ($query_params->{TO_DATE} && !$query_params->{FROM_DATE}) ? '0000-00-00' : $query_params->{FROM_DATE} ? $query_params->{FROM_DATE} : undef;
+  $query_params->{TO_DATE} = ($query_params->{FROM_DATE} && !$query_params->{TO_DATE}) ? '_SHOW' : $query_params->{TO_DATE} ? $query_params->{TO_DATE} : undef;
+  $query_params->{INVOICE_NUM} = '_SHOW' if ($query_params->{INVOICE_DATE} && !$query_params->{INVOICE_NUM});
+
+  return $module_obj->list({
+    %{$query_params},
+    COLS_NAME => 1
+  });
+}
+
+#**********************************************************
+=head2 _fees_user($path_params, $query_params, $module_obj)
+
+=cut
+#**********************************************************
+sub _fees_user {
+  my $self = shift;
+  my ($path_params, $query_params, $module_obj) = @_;
+
+  return {
+    errno  => 10,
+    errstr => 'Access denied'
+  } if (!$self->{admin}->{permissions}{2}{0} && !$self->{admin}->{permissions}{2}{3});
+
+  foreach my $param (keys %{$query_params}) {
+    $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+  }
+
+  $query_params->{INVOICE_ID} = $query_params->{INVOICE_ID} || '_SHOW' if ($query_params->{INVOICE_NUM});
+  $query_params->{DESC} = $query_params->{DESC} || 'DESC';
+  $query_params->{SUM} = $query_params->{SUM} || '_SHOW';
+  $query_params->{REG_DATE} = $query_params->{REG_DATE} || '_SHOW';
+  $query_params->{METHOD} = $query_params->{METHOD} || '_SHOW';
+  $query_params->{DSC} = $query_params->{DSC} || '_SHOW';
+  $query_params->{UID} = $path_params->{uid} || $query_params->{UID} || '_SHOW';
+  $query_params->{FROM_DATE} = ($query_params->{TO_DATE} && !$query_params->{FROM_DATE}) ? '0000-00-00' : $query_params->{FROM_DATE} ? $query_params->{FROM_DATE} : undef;
+  $query_params->{TO_DATE} = ($query_params->{FROM_DATE} && !$query_params->{TO_DATE}) ? '_SHOW' : $query_params->{TO_DATE} ? $query_params->{TO_DATE} : undef;
+
+  $module_obj->list({
+    %{$query_params},
+    COLS_NAME => 1
+  });
 }
 
 1;

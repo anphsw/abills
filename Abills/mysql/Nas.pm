@@ -306,16 +306,14 @@ sub change {
     $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
   }
 
-  $self->changes2(
-    {
-      CHANGE_PARAM    => 'NAS_ID',
-      TABLE           => 'nas',
-      FIELDS          => \%FIELDS,
-      OLD_INFO        => $self->info({ NAS_ID => $self->{NAS_ID} || $attr->{NAS_ID} }),
-      DATA            => $attr,
-      EXT_CHANGE_INFO => "NAS_ID:$self->{NAS_ID}"
-    }
-  );
+  $self->changes2({
+    CHANGE_PARAM    => 'NAS_ID',
+    TABLE           => 'nas',
+    FIELDS          => \%FIELDS,
+    OLD_INFO        => $self->info({ NAS_ID => $self->{NAS_ID} || $attr->{NAS_ID} }),
+    DATA            => $attr,
+    EXT_CHANGE_INFO => "NAS_ID:$self->{NAS_ID}"
+  });
 
   if (! $self->{errno}) {
     $self->info({ NAS_ID => $self->{NAS_ID} });
@@ -822,14 +820,11 @@ sub nas_group_list {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE =  $self->search_former($attr, [
-      ['DOMAIN_ID',      'INT', 'g.domain_id'             ],
-      ['COUNTS',         'INT', '', 'COUNT(*) AS counts'  ],
-    ],
-    {
-      WHERE => 1
-    }
-  );
+  my $WHERE = $self->search_former($attr, [
+    [ 'DOMAIN_ID',  'INT', 'g.domain_id'                ],
+    [ 'NAME',       'STR', 'g.name',                  1 ],
+    [ 'COUNTS',     'INT', '', 'COUNT(*) AS counts'     ],
+  ], { WHERE => 1 });
 
   my $EXT_TABLES = '';
   if ($attr->{COUNTS}) {
@@ -883,14 +878,12 @@ sub nas_group_change {
 
   $attr->{DISABLE} = (defined($attr->{DISABLE})) ? 1 : 0;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM    => 'ID',
-      TABLE           => 'nas_groups',
-      DATA            => $attr,
-      EXT_CHANGE_INFO => "NAS_GROUP_ID:$self->{ID}"
-    }
-  );
+  $self->changes2({
+    CHANGE_PARAM    => 'ID',
+    TABLE           => 'nas_groups',
+    DATA            => $attr,
+    EXT_CHANGE_INFO => "NAS_GROUP_ID:$self->{ID}"
+  });
 
   $self->nas_group_info({ ID => $attr->{ID} });
 

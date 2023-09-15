@@ -91,6 +91,7 @@ sub iptv_daily_fees {
   # $LIST_PARAMS{DOMAIN_ID} = $DOMAIN_ID;
   my %USERS_LIST_PARAMS = (REGISTRATION => "<$ADMIN_REPORT{DATE}");
   $USERS_LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
+  $USERS_LIST_PARAMS{COMPANY_ID} = $attr->{COMPANY_ID} if ($attr->{COMPANY_ID});
   $USERS_LIST_PARAMS{GID} = $attr->{GID} if ($attr->{GID});
 
   #$USERS_LIST_PARAMS{ACTIVE_DAY_FEE} = 1;
@@ -443,6 +444,7 @@ sub iptv_monthly_fees {
   );
 
   $USERS_LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
+  $USERS_LIST_PARAMS{COMPANY_ID} = $attr->{COMPANY_ID} if ($attr->{COMPANY_ID});
   $USERS_LIST_PARAMS{EXT_BILL} = 1 if ($conf{BONUS_EXT_FUNCTIONS});
 
   #close period Fees
@@ -638,6 +640,12 @@ sub iptv_monthly_fees {
           EXT_BILL_METHOD   => ($tp->{EXT_BILL_FEES_METHOD}) ? $tp->{EXT_BILL_FEES_METHOD} : undef,
         };
 
+        if ($user{ACTIVATE} ne '0000-00-00' && !$tp->{abon_distribution}) {
+          my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
+          my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, ($activate_m - 1), $activate_y - 1900, 0, 0, 0);
+          next if 31 * 86400 > ($date_unixtime - $active_unixtime);
+        }
+
         #If deposit is above-zero or TARIF PALIN is POST PAID or PERIODIC PAYMENTS is POSTPAID
         if ($postpaid == 1 || $user{DEPOSIT} + $user{CREDIT} > $user_month_fee) {
           if ($conf{IPTV_CLOSE_PERIOD}) {
@@ -666,14 +674,6 @@ sub iptv_monthly_fees {
                 SERVICE_ACTIVATE => POSIX::strftime("%Y-%m-%d", localtime($active_unixtime + 31 * 86400))
               });
             }
-          }
-        }
-        #TODO: Fixed. S21061. Always making fees if $user{ACTIVATE} ne '0000-00-00'
-        elsif ($postpaid == 1) {
-          if ($user{ACTIVATE} ne '0000-00-00' && !$tp->{abon_distribution}) {
-            my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
-            my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, ($activate_m - 1), $activate_y - 1900, 0, 0, 0);
-            next if 31 * 86400 > ($date_unixtime - $active_unixtime);
           }
         }
         #Block negative users withot small_deposit_action

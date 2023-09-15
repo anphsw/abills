@@ -70,6 +70,7 @@ our @EXPORT = qw(
   check_ip
   is_number
   decode_quoted_printable
+  get_period_dates
 );
 
 our @EXPORT_OK = qw(
@@ -119,6 +120,7 @@ our @EXPORT_OK = qw(
   check_ip
   is_number
   decode_quoted_printable
+  get_period_dates
 );
 
 # As said in perldoc, should be called once on a program
@@ -406,6 +408,9 @@ sub txt2translit {
   $text =~ y/����������������������������/abvgdeezijklmnoprstufh'y'eie/;
   $text =~ y/�����Ũ������������������ݲ��/ABVGDEEZIJKLMNOPRSTUFH'Y'EI/;
 
+  #TODO: add raw if nothing will be broken
+  # require Encode;
+
   my $is_utf = Encode::is_utf8($text);
 
   if($is_utf) {
@@ -417,22 +422,23 @@ sub txt2translit {
 
   my %mchars = (
     'ж' => 'zh',
+    'і' => 'i',
+    'ї' => 'ji',
     'ц' => 'ts',
     'ч' => 'ch',
     'ш' => 'sh',
-    'щ' => 'sch',
+    'щ' => 'shch',
     'ю' => 'ju',
     'я' => 'ja',
     'Ж' => 'Zh',
-    'Ц' => 'Ts',
-    'Ч' => 'Ch',
-    'Щ' => 'Sch',
-    'Ю' => 'Ju',
-    'Я' => 'Ja',
-    'і' => 'i',
     'І' => 'I',
     'Ї' => 'Ji',
-    'ї' => 'ji',
+    'Ц' => 'Ts',
+    'Ч' => 'Ch',
+    'Ш' => 'Sh',
+    'Щ' => 'Shch',
+    'Ю' => 'Ju',
+    'Я' => 'Ja'
   );
 
   for my $c (keys %mchars) {
@@ -2719,6 +2725,10 @@ sub camelize {
     $a;
   }eg;
 
+  if ($string =~ /_/) {
+    $string =~ s/_//eg;
+  }
+
   if ($attr->{RM_SPACES}) {
     $string =~ s/ //eg;
   }
@@ -2847,6 +2857,55 @@ sub check_ip {
   }
 
   return 0;
+}
+
+#**********************************************************
+=head2 get_period_dates($attr) - Get period  intervals
+
+  Arguments:
+    $attr
+      TYPE              0 - day, 1 - month
+      START_DATE
+      ACCOUNT_ACTIVATE
+      PERIOD_ALIGNMENT
+
+  Returns:
+    Return string of period
+
+=cut
+#**********************************************************
+sub get_period_dates {
+  my ($attr) = @_;
+
+  my $START_PERIOD = $attr->{START_DATE} || POSIX::strftime('%Y-%m-%d', localtime(time));
+
+  my ($start_date, $end_date);
+
+  if ($attr->{ACCOUNT_ACTIVATE} && $attr->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
+    $START_PERIOD = $attr->{ACCOUNT_ACTIVATE};
+  }
+
+  my ($start_y, $start_m, $start_d) = split(/-/, $START_PERIOD);
+  my $type = $attr->{TYPE} || 0;
+
+  if ($type == 1) {
+    my $days_in_month = ($start_m != 2 ? (($start_m % 2) ^ ($start_m > 7)) + 30 : (!($start_y % 400) || !($start_y % 4) && ($start_y % 25) ? 29 : 28));
+
+    $end_date = "$start_y-$start_m-$days_in_month";
+    if ($attr->{PERIOD_ALIGNMENT}) {
+      $start_date = $START_PERIOD;
+    }
+    else {
+      $start_date = "$start_y-$start_m-01";
+      if ($attr->{ACCOUNT_ACTIVATE} && $attr->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
+        $end_date = POSIX::strftime('%Y-%m-%d', localtime((POSIX::mktime(0, 0, 0, $start_d, ($start_m - 1), ($start_y - 1900), 0, 0, 0) + 30 * 86400)));
+      }
+    }
+
+    return " ($start_date-$end_date)";
+  }
+
+  return '';
 }
 
 =head1 AUTHOR

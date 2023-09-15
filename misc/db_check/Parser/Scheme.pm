@@ -84,7 +84,7 @@ sub table_info {
   my $self = shift;
   my ($table_name) = @_;
   
-  $self->{admin}->query("DESCRIBE $table_name", undef, { COLS_NAME => 1 });
+  $self->{admin}->query("DESCRIBE `$table_name`;", undef, { COLS_NAME => 1 });
   return 0 if ( $self->{admin}->{errno} );
   
   return _parse_columns($self->{admin}->{list});

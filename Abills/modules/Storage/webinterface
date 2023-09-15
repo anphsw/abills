@@ -50,7 +50,7 @@ my @item_status = ($lang{INSTALLED}, $lang{SOLD}, $lang{RENT}, $lang{BY_INSTALLM
 if (form_purchase_module({
   HEADER          => $users->{UID} || $user->{UID} || $FORM{UID},
   MODULE          => 'Storage',
-  REQUIRE_VERSION => 8.54
+  REQUIRE_VERSION => 8.60
 })) {
   exit;
 }
@@ -1941,7 +1941,8 @@ sub storage_log {
   form_search({
     PLAIN_SEARCH_FORM => 1,
     SEARCH_FORM       => $html->tpl_show(_include('storage_log_search_form', 'Storage'),
-      { %search_params, %FORM }, { OUTPUT2RETURN => 1 })
+      { %search_params, %FORM }, { OUTPUT2RETURN => 1 }),
+    HIDDEN_FIELDS => { log => 1 }
   });
 
   $LIST_PARAMS{DESC} = $FORM{desc} ? 0 : 'desc';
@@ -2891,12 +2892,13 @@ sub storage_installation_list_result_former {
   $LIST_PARAMS{STATUS} = $FORM{SHOW_STATUS} if ($FORM{SHOW_STATUS} && $FORM{SHOW_STATUS} != 5);
   my Abills::HTML $table;
 
+  $LIST_PARAMS{STORAGE_MSGS_ID} = $FORM{STORAGE_MSGS_ID};
   ($table) = result_former({
     INPUT_DATA      => $Storage,
     FUNCTION        => 'storage_installation_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'SAT_TYPE,STA_NAME,MAC,IP,SERIAL,STATUS,DATE,COMMENTS,INSTALLED_AID,COUNT, ACTUAL_SELL_PRICE',
-    HIDDEN_FIELDS   => 'MEASURE_NAME,MONTHES,DELIVERY_ID',
+    DEFAULT_FIELDS  => 'SAT_TYPE,STA_NAME,MAC,IP,SERIAL,STATUS,DATE,COMMENTS,INSTALLED_AID,COUNT,ACTUAL_SELL_PRICE',
+    HIDDEN_FIELDS   => 'MEASURE_NAME,MONTHES,DELIVERY_ID,STORAGE_MSGS_ID',
     FUNCTION_FIELDS => 'FUNCTION_NAME=storage_delivery_btn,change,del',
     SELECT_VALUE    => { installed_aid => $admins_list },
     STATUS_VALS     => \@item_status,
@@ -3187,7 +3189,7 @@ sub storage_user_install {
   return $html->tpl_show(_include('storage_form_install', 'Storage'), {
     STORAGE_ARTICLE_SEL => $storage_articles,
     STORAGE_ACTIONS     => $storage_action
-  }, { ID => 'internet_equipment_form', OUTPUT2RETURN => 1 });
+  }, { ID => 'storage_form_install', OUTPUT2RETURN => 1 });
 }
 
 #**********************************************************
@@ -4443,8 +4445,6 @@ sub _storage_redemption_goods {
 sub _storage_user_hardware_log {
   my ($attr) = @_;
 
-  my @status = ($lang{INSTALLED}, $lang{SOLD}, $lang{RENT}, $lang{BY_INSTALLMENTS});
-
   my $table = $html->table({
     width => '100%',
     title => [ $lang{LOGIN}, $lang{NAME}, 'MAC', 'IP', 'SN', $lang{ACTION}, $lang{STATUS}, $lang{DATE}, $lang{COMMENTS} ],
@@ -4460,16 +4460,15 @@ sub _storage_user_hardware_log {
   });
   _error_show($Storage);
 
-  my $dhcp_index = get_function_index('dhcphosts_user');
   foreach my $line (@{$list}) {
     $table->addrow(
-      $html->button($line->{login}, "index=$dhcp_index&UID=$line->{uid}", { BUTTON => 1 }),
+      $html->button($line->{login}, "get_index=form_users&full=1&UID=$line->{uid}", { BUTTON => 1 }),
       $line->{sta_name} || $line->{sta2_name},
-      ($line->{mac}) ? $html->button($line->{mac}, "index=$dhcp_index&UID=$line->{uid}", { BUTTON => 1 }) : '',
+      $line->{mac},
       $line->{ip},
       $line->{serial},
       $article_actions{ $line->{action} } . $html->br() . $lang{ADMIN} . ': ' . $line->{admin_name},
-      ($line->{install_type} && $line->{install_type} != 4) ? $status[ $line->{install_type} ] : $lang{RETURNED_STORAGE},
+      defined $line->{install_type} ? $item_status[ $line->{install_type} ] : $lang{RETURNED_STORAGE},
       $line->{date},
       $line->{comments}
     );

@@ -100,9 +100,10 @@
       </div>
     </li>
 
-    <li class='nav-item dropdown' id='events-menu' data-meta='{
-          "UPDATE" : "?get_index=events_notice&header=2&AJAX=1",
-          "AFTER" : 30,"REFRESH" : 30, "ENABLED" : "%EVENTS_ENABLED%"
+    <li data-hidden="%EVENTS_DISABLED%" class='nav-item dropdown' id='events-menu' style='display: none' data-meta='{
+          "HEADER": "_{EVENTS}_",
+          "UPDATE": "?get_index=events_notice&header=2&AJAX=1",
+          "AFTER": 30,"REFRESH": 30, "ENABLED": "%EVENTS_ENABLED%"
           }'>
 
       <a href='#' class='nav-link dropdown-toggle' data-toggle='dropdown' title='_{EVENTS}_'>

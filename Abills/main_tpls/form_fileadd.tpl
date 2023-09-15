@@ -5,12 +5,12 @@
 
     <div class='form-group'>
         <label class='sr-only' for='FILE_UPLOAD'>_{ADD}_ _{FILE}_</label>
-        <div class='form-group mb-2'>
+        <div class='form-group mb-3 p-1'>
             <input id='FILE_UPLOAD' name='FILE_UPLOAD' value='%FILE_UPLOAD%' placeholder='_{FILE}_'
-                   class='input-file form-control' type='file'>
+                   class='input-file form-control p-1' type='file'>
         </div>
     </div>
-    <input type='submit' name='UPLOAD' value='_{ADD}_' class='btn btn-secondary btn-success'>
+    <input type='submit' name='UPLOAD' value='_{ADD}_' class='btn btn-secondary btn-success mb-3'>
 </FORM>
 
 

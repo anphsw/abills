@@ -488,6 +488,7 @@ var MessagesMenu = function (id, options) {
       }
       else {
         // No need to show element if it has no update link
+        self.clear();
         return false;
       }
 

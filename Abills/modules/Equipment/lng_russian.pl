@@ -212,5 +212,6 @@ $lang{PORT_ENABLED} = 'Порт включен';
 $lang{PORT_STATUS_CHANGING_ERROR} = 'Ошибка при изменении статуса порта';
 
 $lang{RUN_CMD_ON_EQUIPMENT} = 'Запустить команду на оборудовании';
+$lang{CONTINUATION_NUMBERING_FOR_EXTRA_PORTS} = 'Продолжение нумерации для дополнитеных портов';
 
 1

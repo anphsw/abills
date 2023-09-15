@@ -12,7 +12,7 @@
 package Discounts;
 
 use strict;
-use parent qw(main);
+use parent qw(dbcore);
 
 my ($admin, $CONF);
 
@@ -23,15 +23,15 @@ my ($admin, $CONF);
 #*******************************************************************
 sub new {
   my $class = shift;
-  my $db    = shift;
+  my $db = shift;
   ($admin, $CONF) = @_;
 
   my $self = {};
   bless($self, $class);
 
-  $self->{db}    = $db;
+  $self->{db} = $db;
   $self->{admin} = $admin;
-  $self->{conf}  = $CONF;
+  $self->{conf} = $CONF;
 
   return $self;
 }
@@ -51,7 +51,7 @@ sub add_discount {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add('discounts_discounts', {%$attr});
+  $self->query_add('discounts_discounts', { %$attr });
 
   return $self;
 }
@@ -76,12 +76,12 @@ sub list_discount {
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM discounts_discounts
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -92,8 +92,7 @@ sub list_discount {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
-    "SELECT count(*) AS total
+  $self->query("SELECT COUNT(*) AS total
    FROM discounts_discounts",
     undef,
     { INFO => 1 }
@@ -122,8 +121,7 @@ sub info_discount {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
-      "SELECT * FROM discounts_discounts
+  $self->query("SELECT * FROM discounts_discounts
       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
   );
 
@@ -155,13 +153,11 @@ sub change_discount {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'discounts_discounts',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'discounts_discounts',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -211,7 +207,7 @@ sub user_discounts_list {
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->query2( "SELECT dd.name,
+  $self->query("SELECT dd.name,
        dud.date,
        dd.size,
        dd.comments,
@@ -235,29 +231,29 @@ sub user_discounts_list {
 
 =cut
 #**********************************************************
-sub discount_user_change{
+sub discount_user_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->discounts_user_del( $attr );
+  $self->discounts_user_del($attr);
 
-  if ( $attr->{IDS} ){
-    my @ids_arr = split( /, /, $attr->{IDS} || '' );
+  if ($attr->{IDS}) {
+    my @ids_arr = split(/, /, $attr->{IDS} || '');
     my @MULTI_QUERY = ();
 
-    for ( my $i; $i <= $#ids_arr; $i++ ){
+    for (my $i; $i <= $#ids_arr; $i++) {
       my $id = $ids_arr[$i];
 
       push @MULTI_QUERY, [
-          $attr->{ 'UID' },
-          $id
-        ];
+        $attr->{ 'UID' },
+        $id
+      ];
     }
 
-    $self->query2( "INSERT INTO discounts_user_discounts (uid, discount_id, date)
+    $self->query("INSERT INTO discounts_user_discounts (uid, discount_id, date)
         VALUES (?, ?, curdate());",
       undef,
-      { MULTI_QUERY => \@MULTI_QUERY } );
+      { MULTI_QUERY => \@MULTI_QUERY });
   }
 
   return $self;
@@ -266,12 +262,12 @@ sub discount_user_change{
 #**********************************************************
 # user_del()
 #**********************************************************
-sub discounts_user_del{
+sub discounts_user_del {
   my $self = shift;
   my ($attr) = @ _;
 
-  $self->query_del( 'discounts_user_discounts', undef, { uid => $attr->{UID},
-    } );
+  $self->query_del('discounts_user_discounts', undef, { uid => $attr->{UID},
+  });
 
   # $self->{admin}->action_add( $attr->{UID}, "", { TYPE => 10 } );
 
@@ -292,7 +288,7 @@ sub discounts_user_query {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT fio FROM users_pi WHERE uid = $attr->{UID}",
+  $self->query("SELECT fio FROM users_pi WHERE uid = $attr->{UID}",
     undef, { COLS_NAME => 1 });
 
   return $self;

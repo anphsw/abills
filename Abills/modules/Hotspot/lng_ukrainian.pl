@@ -1,4 +1,4 @@
-$lang{BROWSER} = 'Бравзер';
+$lang{BROWSER} = 'Браузер';
 $lang{FIRST_SEEN} = 'Перша поява';
 
 $lang{VISITS} = 'Відвідування';

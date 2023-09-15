@@ -1,4 +1,4 @@
-$lang{EXTRA_TRAFIC} = 'Extra Trafic';
+$lang{EXTRA_TRAFIC} = 'Extra Traffic';
 $lang{AMOUNT}         ='Amount';
 $lang{FILES}          = 'Files';
 $lang{TIME_FOR_LINK}  = 'Links time life';

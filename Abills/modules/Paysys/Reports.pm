@@ -239,6 +239,7 @@ sub paysys_reports {
   });
   $date_form = $html->element('div', $date_form, { class => 'input-group float-left' });
 
+  # TODO: #3944 needs rereview
   my $systems = $html->form_main({
     CONTENT => $date_form . $selection_group,
     HIDDEN  => { index => $index },

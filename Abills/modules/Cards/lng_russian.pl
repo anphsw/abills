@@ -14,7 +14,7 @@ $lang{TP_PLAN}='Tарифный план';
 
 $lang{TYPE_OPERATION}='Тип операции';
 $lang{PAYMENT_DATE}='Дата платежа';
-$lang{SUM_OPERATIONS}='Сума операций';
+$lang{SUM_OPERATIONS}='Сумма операций';
 
 $lang{COMING}='Приход';
 $lang{CARE}='Уход';

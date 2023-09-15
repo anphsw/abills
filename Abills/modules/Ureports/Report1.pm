@@ -7,7 +7,7 @@ my %SYS_CONF    = (
   'REPORT_NAME'     => 'Report1 name',
   'REPORT_FUNCTION' => 'report1',
   'COMMENTS'        => 'Happy birthday',
-  'TEMPLATE'        => 'ureports_report_0'
+  'TEMPLATE'        => 'ureports_report_51'
 );
 
 #**********************************************************
@@ -40,14 +40,36 @@ sub new {
 #**********************************************************
 sub report1 {
   my $self = shift;
-  my ($user) = @_;
-  # $user->{VALUE}
+  my ($user, $attr) = @_;
   my %PARAMS = ();
 
-  $PARAMS{MESSAGE} = 'Happy birthday';
-  $PARAMS{SUBJECT} = 'Happy birthday ' . ($user->{fio}  || '');
+  require Users;
+  Users->import();
+  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
 
-  $self->{PARAMS} = \%PARAMS;
+  $Users->pi({ UID => $user->{UID} });
+
+  if ($self->{debug}) {
+    print "BIRTH: $Users->{BIRTH_DATE}\n\n";
+  }
+
+  my $get_birth_date = q{};
+  if ($Users->{BIRTH_DATE} =~ /(\d{2}\-\d{2})$/) {
+    $get_birth_date = $1;
+  }
+
+  my $today = q{};
+  if ($attr->{DATE} =~ /(\d{2}\-\d{2})$/) {
+    $today = $1;
+  }
+
+  if ($get_birth_date ne $today) {
+    return 0;
+  }
+
+  $PARAMS{MESSAGE} = 'Happy birthday';
+  $PARAMS{SUBJECT} = 'Happy birthday ' . ($Users->{FIO}  || '');
+  $self->{PARAMS}  = \%PARAMS;
 
   return 1;
 }

@@ -1626,11 +1626,14 @@ sub msgs_messages_coefficients {
     NO_TAGS     => 1
   });
 
-  my $report_info = $Msgs->msgs_messages_and_users_by_months(\%FORM);
+  $Msgs->status_list({ TASK_CLOSED => 1, LIST2HASH => 'id,task_closed' });
+  my $closed_status = join(',', keys %{$Msgs->{list_hash} || {}});
+
+  my $report_info = $Msgs->msgs_messages_and_users_by_months({ %FORM, CLOSED_STATUS => $closed_status });
 
   my $coefficient_table = $html->table({
     caption => $lang{MESSAGES_COEFFICIENT},
-    title   => [ $lang{MONTH}, $lang{USERS}, $lang{MESSAGES}, $lang{COEFFICIENT} ],
+    title   => [ $lang{MONTH}, $lang{USERS}, $lang{MESSAGES}, $lang{COEFFICIENT}, $lang{CLOSED}, $lang{CLOSED_ORDER_RATIO} ],
     ID      => 'MSGS_MESSAGES_COEFFICIENTS',
   });
 
@@ -1643,8 +1646,10 @@ sub msgs_messages_coefficients {
     my $coefficient = $info->{messages} > 0 && $info->{users} > 0 ? $info->{messages} / $info->{users} * 100 : 0;
     $total_coefficient += $coefficient;
 
+    my $closed_coefficient = $info->{closed_messages} > 0 && $info->{messages} > 0 ? $info->{closed_messages} / $info->{messages} * 100 : 0;
+
     $coefficient_table->addrow($info->{month}, $info->{users}, $info->{messages},
-      sprintf("%.2f", $coefficient) . '%');
+      sprintf("%.2f", $coefficient) . '%',  $info->{closed_messages}, sprintf("%.2f", $closed_coefficient) . '%');
   }
 
   $total_coefficient = $Msgs->{TOTAL} > 0 && $total_coefficient != 0 ? $total_coefficient / $Msgs->{TOTAL} : 0;

@@ -887,6 +887,75 @@ sub storage_installation_report {
 }
 
 #**********************************************************
+=head2 storage_total_installation_report()
+
+=cut
+#**********************************************************
+sub storage_total_installation_report {
+
+  my $admins_select = sel_admins({ NAME => 'AID' });
+  my $storage_select = storage_storage_sel($Storage, {
+    ALL                  => 1,
+    DOMAIN_ID            => $admin->{DOMAIN_ID} || undef,
+    DISABLE_CHANGE_EVENT => 1
+  });
+  my $type_select = $html->form_select('TYPE_ID', {
+    SELECTED    => $FORM{TYPE_ID} || 0,
+    SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
+    NO_ID       => 1,
+    SEL_OPTIONS => { '' => '--' },
+  });
+
+  require Control::Reports;
+  reports({
+    PERIOD_FORM   => 1,
+    DATE_RANGE    => 1,
+    NO_GROUP      => 1,
+    NO_TAGS       => 1,
+    ADMINS_SELECT => 1,
+    EXT_SELECT    => {
+      STORAGE     => { LABEL => $lang{STORAGE}, SELECT => $storage_select },
+      RESPONSIBLE => { LABEL => $lang{RESPOSIBLE}, SELECT => $admins_select },
+      TYPE        => { LABEL => $lang{TYPE}, SELECT => $type_select }
+    }
+  });
+
+  $FORM{FROM_DATE} = $DATE if ($FORM{FROM_DATE} && $FORM{FROM_DATE} gt $DATE);
+  if (!$FORM{FROM_DATE}) {
+    my ($year, $month, undef) = split('-', $DATE);
+    $FORM{FROM_DATE} = "$year-$month-01";
+  }
+  $FORM{TO_DATE} = $DATE if (!$FORM{TO_DATE} || $FORM{TO_DATE} gt $DATE);
+
+  $pages_qs .= "&TYPE_ID=$FORM{TYPE_ID}" if $FORM{TYPE_ID};
+  $pages_qs .= "&STORAGE_ID=$FORM{STORAGE_ID}" if $FORM{STORAGE_ID};
+  $pages_qs .= "&AID=$FORM{AID}" if $FORM{AID};
+
+  my $report_list = $Storage->storage_installation_total_list({
+    %FORM,
+    DOMAIN_ID => $admin->{DOMAIN_ID} || '_SHOW',
+    COLS_NAME => 1
+  });
+
+  my $report_table = $html->table({
+    width      => '100%',
+    caption    => $lang{REPORT_ON_USED_MATERIALS_FROM_THE_STORAGE},
+    title      => [ $lang{NAME}, $lang{TYPE}, $lang{STORAGE_TOTAL_COUNT}, $lang{STORAGE_TOTAL_SUM} ],
+    ID         => 'STORAGE_INSTALLED_TOTAL_TABLE',
+    DATA_TABLE => 1,
+    EXPORT     => 1,
+    qs         => $pages_qs
+  });
+
+  foreach my $article (@{$report_list}) {
+    $report_table->addrow($article->{sta_name}, $article->{type},
+      $article->{installation_count_sum}, $article->{installation_sum});
+  }
+
+  print $report_table->show();
+}
+
+#**********************************************************
 =head2 storage_nas_installations_report()
 
 =cut

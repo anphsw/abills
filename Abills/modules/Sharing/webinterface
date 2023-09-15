@@ -2325,13 +2325,12 @@ function CheckAllINBOX() {
 =cut
 #**********************************************************
 sub sharing_add_file {
-  #my ($attr) = @_;
 
   my $btn_name = "add";
   my $btn_value = "$lang{ADD}";
 
   if ($FORM{add}) {
-    $Sharing->add_file({ %FORM });
+    $Sharing->file_add({ %FORM });
 
     if (!$Sharing->{errno}) {
       $html->message('success', "$lang{FILE} $lang{ADDED}", $lang{SUCCESS});
@@ -2418,20 +2417,14 @@ sub sharing_add_file {
     },
     TABLE           => {
       width   => '100%',
-      caption => "$lang{FILE}",
+      caption => $lang{FILE},
       qs      => $pages_qs,
       ID      => 'SHARING',
       header  => '',
       EXPORT  => 1,
-
+      SHOW_FULL_LIST => 1,
       #MENU    => "$lang{ADD}:index=" . get_function_index('ring_rule_add') . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search;",
     },
-
-    #SELECT_VALUE    => {
-    # every_month => { 0 => "$lang{NO}:text-danger",
-    #             1 => "$lang{YES}:text-primary"
-    #           },
-    #},
     MAKE_ROWS       => 1,
     SEARCH_FORMER   => 1,
     SKIP_USER_TITLE => 1,
@@ -2512,7 +2505,7 @@ sub sharing_client_info {
     }
   }
   elsif ($FORM{GET_LINK}) {
-    my $qindex = get_function_index('sharing_user_main');
+    my $qindex = get_function_index('sharing_client_info');
     my $time_stamp = time();
     load_pmodule('Digest::MD5');
     my $md5 = Digest::MD5->new();
@@ -2544,7 +2537,7 @@ sub sharing_client_info {
   my @expired_file_panels = ();
   my @not_bought_file_panels = ();
 
-  my $sharing_user_main_index = get_function_index('sharing_user_main');
+  my $sharing_user_main_index = get_function_index('sharing_client_info');
   my $purchased_button_name = $lang{GET_LINK};
   my $purchased_button_link = 'GET_LINK';
 

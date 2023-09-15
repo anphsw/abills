@@ -117,6 +117,17 @@ sub form_payments {
         return 0;
       }
 
+      my $payment_info = $Payments->list({
+        ID         => $FORM{del},
+        UID        => '_SHOW',
+        DATETIME   => '_SHOW',
+        SUM        => '_SHOW',
+        DESCRIBE   => '_SHOW',
+        EXT_ID     => '_SHOW',
+        COLS_NAME  => 1,
+        COLS_UPPER => 1,
+      });
+
       $Payments->del($user, $FORM{del}, { COMMENTS => $FORM{COMMENTS} });
       if ($Payments->{errno}) {
         if ($Payments->{errno} == 3) {
@@ -130,6 +141,7 @@ sub form_payments {
         }
       }
       else {
+        cross_modules('payment_del', { %$attr, FORM => \%FORM, ID => $FORM{del}, PAYMENT_INFO => $payment_info->[0] });
         $html->message( 'info', $lang{PAYMENTS}, "$lang{DELETED} ID: $FORM{del}" );
       }
     }
@@ -691,7 +703,7 @@ sub form_payments_list {
         $line->{$field_name} = ($line->{$field_name} < 0) ? $html->color_mark( format_sum($line->{$field_name}), $_COLORS[6] ) :  format_sum($line->{$field_name});
       }
       elsif($field_name eq 'method') {
-        $line->{method} = ($FORM{METHOD_NUM}) ? $line->{method} : ($PAYMENTS_METHODS->{ $line->{method} }) ? $PAYMENTS_METHODS->{ $line->{method} } : $line->{method};
+        $line->{method} = ($FORM{METHOD_NUM}) ? $line->{method} : (defined($line->{method}) && $PAYMENTS_METHODS->{ defined($line->{method}) }) ? $PAYMENTS_METHODS->{ $line->{method} } : $line->{method};
       }
       elsif($field_name eq 'login_status' && defined($line->{login_status})) {
         $line->{login_status} = ($line->{login_status} > 0) ? $html->color_mark($service_status[ $line->{login_status} ], $service_status_colors[ $line->{login_status} ]) : $service_status[$line->{login_status}];

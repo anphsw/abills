@@ -19,6 +19,13 @@
           </div>
 
           <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='TYPE_ID'>_{TYPE}_:</label>
+            <div class='col-md-8'>
+              %TYPE_SEL%
+            </div>
+          </div>
+
+          <div class='form-group row'>
             <label class='col-md-4 col-form-label text-md-right' for='BLOCK'>_{BLOCK}_:</label>
             <div class='col-md-8'>
               <input id='BLOCK' name='BLOCK' value='%BLOCK%' class='form-control' type='text'>

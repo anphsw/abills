@@ -448,84 +448,47 @@ sub start_external_command {
 sub check_user {
   my ($phone, $uid) = @_;
 
-  my $user = { };
+  my $user = {};
 
-  if ($conf{CONTACTS_NEW}) {
-    require Contacts;
+  require Contacts;
 
-    my $Contacts = Contacts->new($db, $admin, \%conf);
-    my $users_list = $Contacts->contacts_list({
-      TYPE_ID   => '2,3',
-      VALUE     => "*$FORM{sender}*",
-      UID       => $uid,
-      PAGE_ROWS => 1,
-    });
+  my $Contacts = Contacts->new($db, $admin, \%conf);
+  my $users_list = $Contacts->contacts_list({
+    TYPE_ID   => '2,3',
+    VALUE     => "*$FORM{sender}*",
+    UID       => $uid,
+    PAGE_ROWS => 1,
+  });
 
-    if ($Contacts->{errno} || ref $users_list ne 'ARRAY' || !$users_list->[0]) {
-      show_command_result(1, "User not found");
+  if ($Contacts->{errno} || ref $users_list ne 'ARRAY' || !$users_list->[0]) {
+    show_command_result(1, "User not found");
 
-      exit 0;
-    }
-    my $users_list_by_uid = $users->list({
-      LOGIN          => '_SHOW',
-      FIO            => '_SHOW',
-      DEPOSIT        => '_SHOW',
-      CREDIT         => '_SHOW',
-      PHONE          => '_SHOW',
-      ADDRESS_FULL   => '_SHOW',
-      GID            => '_SHOW',
-      DOMAIN_ID      => '_SHOW',
-      DISABLE_PAYSYS => '_SHOW',
-      GROUP_NAME     => '_SHOW',
-      COMPANY_ID     => '_SHOW',
-      DISABLE        => '_SHOW',
-      CONTRACT_ID    => '_SHOW',
-      ACTIVATE       => '_SHOW',
-      REDUCTION      => '_SHOW',
-      PASSWORD       => '_SHOW',
-      UID            => $uid,
-      COLS_NAME      => 1,
-      COLS_UPPER     => 1,
-      PAGE_ROWS      => 1,
-    });
-
-    $user = $users_list_by_uid->[0];
-
-    return $user;
+    exit 0;
   }
-  else {
-    my $users_list = $users->list({
-      LOGIN          => '_SHOW',
-      FIO            => '_SHOW',
-      DEPOSIT        => '_SHOW',
-      CREDIT         => '_SHOW',
-      PHONE          => '_SHOW',
-      ADDRESS_FULL   => '_SHOW',
-      GID            => '_SHOW',
-      DOMAIN_ID      => '_SHOW',
-      DISABLE_PAYSYS => '_SHOW',
-      GROUP_NAME     => '_SHOW',
-      COMPANY_ID     => '_SHOW',
-      DISABLE        => '_SHOW',
-      CONTRACT_ID    => '_SHOW',
-      ACTIVATE       => '_SHOW',
-      REDUCTION      => '_SHOW',
-      PASSWORD       => '_SHOW',
-      PHONE          => "*$phone*",
-      UID            => $uid,
-      COLS_NAME      => 1,
-      COLS_UPPER     => 1,
-      PAGE_ROWS      => 1,
-    });
+  my $users_list_by_uid = $users->list({
+    LOGIN          => '_SHOW',
+    FIO            => '_SHOW',
+    DEPOSIT        => '_SHOW',
+    CREDIT         => '_SHOW',
+    PHONE          => '_SHOW',
+    ADDRESS_FULL   => '_SHOW',
+    GID            => '_SHOW',
+    DOMAIN_ID      => '_SHOW',
+    DISABLE_PAYSYS => '_SHOW',
+    GROUP_NAME     => '_SHOW',
+    COMPANY_ID     => '_SHOW',
+    DISABLE        => '_SHOW',
+    CONTRACT_ID    => '_SHOW',
+    ACTIVATE       => '_SHOW',
+    REDUCTION      => '_SHOW',
+    PASSWORD       => '_SHOW',
+    UID            => $uid,
+    COLS_NAME      => 1,
+    COLS_UPPER     => 1,
+    PAGE_ROWS      => 1,
+  });
 
-    if ($users->{errno} || ref $users_list ne 'ARRAY' || !$users_list->[0]) {
-      show_command_result(1, $lang{USER_NOT_EXIST});
-
-      exit 0;
-    }
-
-    $user = $users_list->[0];
-  }
+  $user = $users_list_by_uid->[0];
 
   return $user;
 }

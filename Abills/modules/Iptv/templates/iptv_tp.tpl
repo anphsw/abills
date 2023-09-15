@@ -53,6 +53,14 @@
             </div>
 
             <div class='form-group row'>
+              <label class='col-sm-4 col-md-4 control-label' for='COMMENTS'>_{DESCRIBE_FOR_SUBSCRIBER}_:</label>
+              <div class='col-sm-8 col-md-8'>
+              <textarea cols='40' rows='2' name='COMMENTS' class='form-control'
+                        id='COMMENTS'>%COMMENTS%</textarea>
+              </div>
+            </div>
+
+            <div class='form-group row'>
               <label class='col-sm-4 col-md-4 control-label' for='DESCRIBE_AID'>_{DESCRIBE_FOR_ADMIN}_:</label>
               <div class='col-sm-8 col-md-8'>
               <textarea cols='40' rows='2' name='DESCRIBE_AID' class='form-control'

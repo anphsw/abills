@@ -25,6 +25,8 @@ $lang{WARN_CREATE_TP} = 'Create a tariff plan of the referral system to work wit
 $lang{ERR_ONLY_NUMBER} = 'Phone must contain only numbers';
 $lang{MAX_BONUS_AMOUNT} = 'Max bonus amount';
 $lang{STATIC_ACCRUAL} = 'Static accrual';
+$lang{MULTI_ACCRUAL} = 'Multi accrual';
 $lang{REF_TP_ACTIVE_IN_USERS} = "Tariff plan already active in users\n%USERS%";
+$lang{CHANGE_REFERRAL_REQUEST} = 'Change referral request';
 
 1;

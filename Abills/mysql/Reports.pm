@@ -72,11 +72,11 @@ sub list {
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my @WHERE_RULES = ();
-  my $list;
 
-  if (defined($attr->{GID})) {
+  if (defined($attr->{GID}) && $attr->{GID} ne '_SHOW') {
     push @WHERE_RULES, "rw.gid='$attr->{GID}'";
   }
+
   if (defined($attr->{QUICK_REPORT})) {
     push @WHERE_RULES, "rw.quick_report='1'";
     push @WHERE_RULES, "IF(rw.gid = 0, 1 , IF(rg.admins = '', 1, FIND_IN_SET($attr->{AID}, rg.admins)))";
@@ -97,7 +97,7 @@ sub list {
     $attr
   );
 
-  $list = $self->{list};
+  my $list = $self->{list};
   $self->query("SELECT COUNT(rw.id) AS total FROM reports_wizard rw
     LEFT JOIN reports_groups rg ON (rg.id=rw.gid) $WHERE",
     undef,

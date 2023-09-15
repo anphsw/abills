@@ -9,8 +9,10 @@ use warnings;
 use Abills::Base qw(in_array _bp int2byte load_pmodule check_time gen_time);
 use Abills::Filters qw(bin2hex bin2mac);
 use Equipment::Misc qw(equipment_get_telnet_tpl);
+use JSON qw(decode_json);
 
 our (
+  $base_dir,
   %lang,
   %html_color,
   %ONU_STATUS_TEXT_CODES
@@ -116,8 +118,9 @@ sub _huawei_onu_list {
         %{$attr},
         WALK    => 1,
         OID     => $oid . '.' . $snmp_id,
-        TIMEOUT => 25
+        TIMEOUT => $attr->{SNMP_TIMEOUT} || 25
       });
+
       print " " . gen_time($oid_begin_time) . "\n" if ($debug > 2);
       foreach my $line (@{$values}) {
         next if (!$line);
@@ -194,7 +197,7 @@ sub _huawei_unregister {
         %{$attr},
         WALK   => 1,
         OID    => $snmp->{unregister}->{UNREGISTER}->{OIDS},
-        #TIMEOUT => 8,
+        TIMEOUT=> $attr->{SNMP_TIMEOUT} || 8,
         SILENT => 1,
         DEBUG  => $attr->{DEBUG} || 1
       });
@@ -241,7 +244,7 @@ sub _huawei_unregister {
         %{$attr},
         WALK   => 1,
         OID    => $snmp->{unregister}->{'MAC/SERIAL'}->{OIDS},
-        #TIMEOUT => 8,
+        TIMEOUT=> $attr->{SNMP_TIMEOUT} || 8,
         SILENT => 1
       });
     }
@@ -258,7 +261,7 @@ sub _huawei_unregister {
         $equipment_id = snmp_get({
           %{$attr},
           OID    => "$snmp->{unregister}->{'EQUIPMENT_ID'}->{OIDS}.$id",
-          #TIMEOUT => 8,
+          TIMEOUT=> $attr->{SNMP_TIMEOUT} || 8,
           SILENT => 1
         });
       };
@@ -339,7 +342,7 @@ sub _huawei_unregister_form {
       %{$attr},
       WALK   => 1,
       OID    => $oid,
-      #TIMEOUT => 8,
+      TIMEOUT=> $attr->{SNMP_TIMEOUT} || 8,
       SILENT => 1
     });
 
@@ -433,7 +436,7 @@ sub _huawei_prase_line_profile {
     %{$attr},
     WALK   => 1,
     OID    => $oid,
-    #TIMEOUT => 8,
+    TIMEOUT=> $attr->{SNMP_TIMEOUT} || 8,
     SILENT => 1
   });
 
@@ -481,334 +484,22 @@ sub _huawei_prase_line_profile {
 #**********************************************************
 sub _huawei {
   my ($attr) = @_;
+  my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
 
-  my %snmp = (
-    epon => {
-      'ONU_MAC_SERIAL'      => {
-        NAME   => 'Mac/Serial',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.53.1.3',
-        PARSER => 'bin2mac'
-      },
-      'ONU_STATUS'          => {
-        NAME   => 'STATUS',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.57.1.15',
-        PARSER => ''
-      },
-      'ONU_TX_POWER'        => {
-        NAME   => 'ONU_TX_POWER',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.104.1.4',
-        PARSER => '_huawei_convert_power'
-      }, #tx_power = tx_power * 0.01;
-      'ONU_RX_POWER'        => {
-        NAME   => 'ONU_RX_POWER',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.104.1.5',
-        PARSER => '_huawei_convert_power'
-      }, #tx_power = tx_power * 0.01;
-      'OLT_RX_POWER'        => {
-        NAME   => 'OLT_RX_POWER',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.104.1.1',
-        PARSER => '_huawei_convert_olt_power'
-      }, #olt_rx_power = olt_rx_power * 0.01 - 100;
-      'ONU_DESC'            => {
-        NAME   => 'DESCRIBE',
-        OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.53.1.9',
-        PARSER => '_huawei_convert_desc'
-      },
-      'ONU_IN_BYTE'         => {
-        NAME   => 'ONU_IN_BYTE',
-        OIDS   => '',
-        PARSER => ''
-      },
-      'ONU_OUT_BYTE'        => {
-        NAME   => 'ONU_OUT_BYTE',
-        OIDS   => '',
-        PARSER => ''
-      },
-      'TEMPERATURE'         => {
-        NAME   => 'TEMPERATURE',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.104.1.2',
-        PARSER => '_huawei_convert_temperature'
-      },
-      'SRV_PROFILE'         => {
-        NAME   => 'ont-srvprofile',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.53.1.6',
-      },
-      'LINE_PROFILE'        => {
-        NAME   => 'ont-lineprofile',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.53.1.7',
-      },
-      'reset'               => {
-        NAME   => '',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.57.1.2',
-        PARSER => ''
-      },
-      main_onu_info         => {
-        'HARD_VERSION'        => {
-          NAME   => 'Hhard_Version',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.55.1.4',
-          PARSER => ''
-        },
-        'SOFT_VERSION'        => {
-          NAME   => 'Soft_Version',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.55.1.5',
-          PARSER => ''
-        },
-        'VOLTAGE'             => {
-          NAME   => 'VOLTAGE',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.104.1.6',
-          PARSER => '_huawei_convert_voltage'
-        },
-        'DISTANCE'            => {
-          NAME   => 'DISTANCE',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.57.1.19',
-          PARSER => '_huawei_convert_distance'
-        },
-        'ONU_LAST_DOWN_CAUSE' => {
-          NAME   => 'ONU last down cause',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.57.1.25',
-          PARSER => '_huawei_convert_onu_last_down_cause'
-        },
-      },
-      unregister            => {
-        'MAC/SERIAL' => {
-          NAME   => 'MAC/SERIAL',
-          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.58.1.2',
-          PARSER => 'bin2mac',
-          WALK   => '1'
-        },
-        UNREGISTER => {
-          NAME   => 'UNREGISTER',
-          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.58.1',
-          TYPE   => 'epon',
-          PARSER => '',
-          WALK   => '1'
-        }
-      },
-      profiles              => {
-        'LINE_PROFILES'      => {
-          NAME   => 'LINE_PROFILES',
-          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.3.41.1.2',
-          PARSER => '',
-          WALK   => '1'
-        },
-        'SRV_PROFILES'       => {
-          NAME   => 'SRV_PROFILES',
-          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.3.43.1.2',
-          PARSER => '',
-          WALK   => '1'
-        },
-        'LINE_PROFILE_VLANS' => {
-          NAME   => 'LINE_PROFILE_VLANS',
-          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.3.64.1.8',
-          PARSER => '',
-          WALK   => '1'
-        }
-      }
-    },
-    gpon => {
-      'ONU_MAC_SERIAL'      => {
-        NAME   => 'Mac/Serial',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3',
-        PARSER => 'bin2hex'
-      },
-      'ONU_STATUS'          => {
-        NAME   => 'STATUS',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.15',
-      },
-      #     'ONU_TX_POWER' => {
-      #       NAME   => 'ONU_TX_POWER',
-      #       OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3',
-      #       PARSER => '_huawei_convert_power'
-      #     }, # tx_power = tx_power * 0.01;
-      'ONU_RX_POWER'        => {
-        NAME   => 'ONU_RX_POWER',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.4',
-        PARSER => '_huawei_convert_power'
-      }, # rx_power = rx_power * 0.01;
-      'OLT_RX_POWER'        => {
-        NAME   => 'OLT_RX_POWER',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.6',
-        PARSER => '_huawei_convert_olt_power'
-      }, # olt_rx_power = olt_rx_power * 0.01 - 100;
-      'ONU_DESC'            => {
-        NAME   => 'DESCRIBE',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.9',
-        PARSER => '_huawei_convert_desc'
-      },
-      'ONU_IN_BYTE'         => {
-        NAME   => 'ONU_IN_BYTE',
-        OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.4.23.1.4',
-        PARSER => ''
-      },
-      'ONU_OUT_BYTE'        => {
-        NAME   => 'ONU_OUT_BYTE',
-        OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.4.23.1.3',
-      },
-      'LINE_PROFILE'        => {
-        NAME   => 'ont-lineprofile',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.7',
-      },
-      'SRV_PROFILE'         => {
-        NAME   => 'ont-srvprofile',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.8',
-      },
-      'reset'               => {
-        NAME   => '',
-        OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.2',
-      },
-      'catv_port_manage'    => {
-        NAME               => '',
-        OIDS               => '1.3.6.1.4.1.2011.6.128.1.1.2.63.1.2',
-        ENABLE_VALUE       => 1,
-        DISABLE_VALUE      => 2,
-        USING_CATV_PORT_ID => 1,
-        PARSER             => ''
-      },
-      'eth_port_manage'         => {
-        NAME               => '',
-        OIDS               => '1.3.6.1.4.1.2011.6.128.1.1.2.62.1.5',
-        ENABLE_VALUE       => 1,
-        DISABLE_VALUE      => 2,
-        PARSER             => ''
-      },
-      main_onu_info         => {
-        'VERSION_ID'              => {
-          NAME   => 'Version_ID',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.1',
-        },
-        'VENDOR_ID'               => {
-          NAME   => 'Vendor_ID',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.5',
-          PARSER => ''
-        },
-        'EQUIPMENT_ID'            => {
-          NAME   => 'Equipment_ID',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.4',
-          PARSER => ''
-        },
-        'VOLTAGE'                 => {
-          NAME   => 'VOLTAGE',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.5',
-          PARSER => '_huawei_convert_voltage'
-        },
-        'DISTANCE'                => {
-          NAME   => 'DISTANCE',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.20',
-          PARSER => '_huawei_convert_distance'
-        },
-        'ETH_DUPLEX'              => {
-          NAME   => 'ETH_DUPLEX',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.3',
-          PARSER => '_huawei_convert_duplex',
-          WALK   => '1'
-        },
-        'ETH_SPEED'               => {
-          NAME   => 'ETH_SPEED',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.4',
-          PARSER => '_huawei_convert_speed',
-          WALK   => '1'
-        },
-        'ETH_ADMIN_STATE'         => {
-          NAME   => 'ETH_ADMIN_STATE',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.5',
-          PARSER => '_huawei_convert_admin_state',
-          WALK   => '1'
-        },
-        'ONU_PORTS_STATUS'        => {
-          NAME   => 'ONU_PORTS_STATUS',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.22',
-          PARSER => '_huawei_convert_state',
-          WALK   => '1'
-        },
-        'CATV_PORTS_STATUS'       => {
-          NAME   => 'CATV_PORTS_STATUS',
-          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.63.1.3',
-          WALK   => '1',
-        },
-        'CATV_PORTS_ADMIN_STATUS' => {
-          NAME   => 'CATV_PORTS_ADMIN_STATUS',
-          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.63.1.2',
-          PARSER => '_huawei_convert_admin_state',
-          WALK   => '1'
-        },
-        'VIDEO_RX_POWER'          => {
-          NAME   => 'VIDEO_RX_POWER',
-          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.51.1.7',
-          PARSER => '_huawei_convert_power'
-        },
-        'VLAN'                    => { #VLAN of eth port on ONU
-          NAME   => 'VLAN',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.7',
-          PARSER => '_huawei_convert_eth_vlan',
-          WALK   => '1'
-        },
-        'TEMPERATURE'             => { #is in main_onu_info, because this OID is slow, so PON grabber will not query it
-          NAME   => 'TEMPERATURE',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.1',
-          PARSER => '_huawei_convert_temperature'
-        },
-        'ONU_TX_POWER'            => { #is in main_onu_info, because this OID is slow, so PON grabber will not query it
-          NAME   => 'ONU_TX_POWER',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3',
-          PARSER => '_huawei_convert_power'
-        }, # tx_power = tx_power * 0.01;
-        'ONU_LAST_DOWN_CAUSE'     => {
-          NAME   => 'ONU last down cause',
-          OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.24',
-          PARSER => '_huawei_convert_onu_last_down_cause'
-        },
-        'MAC_BEHIND_ONU' => {
-          NAME        => 'MAC_BEHIND_ONU',
-          USE_MAC_LOG => 1
-        }
-      },
-      unregister            => {
-        'MAC/SERIAL'   => {
-          NAME   => 'MAC/SERIAL',
-          # GPON
-          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.48.1.2',
-          #OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.52.1.2',
-          WALK   => '1'
-        },
-        'EQUIPMENT_ID' => {
-          NAME   => 'EQUIPMENT_ID',
-          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.48.1.7',
-          PARSER => '',
-          WALK   => '1'
-        }
-      },
-      profiles              => {
-        'LINE_PROFILES'      => {
-          NAME   => 'LINE_PROFILES',
-          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.3.61.1.2',
-          PARSER => '',
-          WALK   => '1'
-        },
-        'SRV_PROFILES'       => {
-          NAME   => 'SRV_PROFILES',
-          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.3.65.1.2',
-          PARSER => '',
-          WALK   => '1'
-        },
-        'LINE_PROFILE_VLANS' => {
-          NAME   => 'LINE_PROFILE_VLANS',
-          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.3.64.1.8',
-          PARSER => '',
-          WALK   => '1'
-        }
-      }
-    }
-  );
+  my $file_content = file_op({
+    FILENAME   => 'huawei_pon.snmp',
+    PATH       => $TEMPLATE_DIR,
+  });
 
-  # 1.3.6.1.4.1.2011.6.128.1.1.2.46.1.21 - ONU MAC COUNT
-  #
+  $file_content =~ s#//.*$##gm;
 
-  #  Получить все сервис-порты: 1.3.6.1.4.1.2011.5.14.3.1.1.1
+  my $snmp = decode_json($file_content);
+
   if ($attr->{TYPE}) {
-    return $snmp{$attr->{TYPE}};
+    return $snmp->{$attr->{TYPE}};
   }
 
-  return \%snmp;
+  return $snmp;
 }
 
 #**********************************************************
@@ -1068,7 +759,7 @@ sub _huawei_get_free_id {
     %{$attr},
     WALK    => 1,
     OID     => $attr->{OID},
-    TIMEOUT => 25
+    TIMEOUT=> $attr->{SNMP_TIMEOUT} || 25,
   });
 
   foreach my $line (@{$values}) {

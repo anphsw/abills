@@ -61,26 +61,19 @@ sub load_module {
   }
 
   if (!$attr || ($attr && !$attr->{SKIP_LANG})) {
-    my $lang_file = '';
-    $attr->{language} = 'english' if (! $attr->{language});
-
-    foreach my $prefix ('../',@INC) {
-      my $realfile_path = "$prefix/$module/lng_";
-
-      if (-f $realfile_path . $attr->{language}.'.pl') {
-        if($attr->{language} ne 'english' && -f $realfile_path .'english.pl') {
-          eval { require $realfile_path .'english.pl'; };
-        }
-        $lang_file = $realfile_path . $attr->{language}.'.pl';
-        last;
-      }
-      elsif (-f $realfile_path .'english.pl') {
-        $lang_file = $realfile_path .'english.pl';
-      }
+    my $fallback_locale = 'english';
+    my $is_fallback = 0;
+    if (!$attr->{language}) {
+      $attr->{language} = $fallback_locale;
+      $is_fallback = 1;
     }
 
-    if ($lang_file) {
-      eval { require $lang_file; };
+    my $language = $attr->{language};
+    $is_fallback = 1 if (!$is_fallback && $language eq $fallback_locale);
+
+    eval { require "$module/lng_$fallback_locale.pl" };
+    if (!$is_fallback) {
+      eval { require "$module/lng_$language.pl" };
     }
 
     return 1 if ($attr->{LANG_ONLY});
@@ -254,7 +247,7 @@ sub _error_show {
       return 1;
     }
     elsif ($errno == 12) {
-      $html->message('err', "$module_name:$lang{ERROR}", $message . "$lang{ERR_WRONG_SUM}", $attr);
+      $html->message('err', "$module_name:$lang{ERROR}", $message . " $lang{ERR_WRONG_SUM}", $attr);
       return 1;
     }
     elsif ($errno == 699) {
@@ -651,7 +644,7 @@ sub cross_modules {
         open STDERR, '>>', $output_redirect;
       }
 
-      if ($user_count > 1) {              #
+      if ($user_count > 1) {              # problem: multiple sending checks to server
         push @skip_modules, 'Extreceipt'; #FIXME: Problem 1 Part 3
       }
 
@@ -755,57 +748,6 @@ sub get_function_index {
   }
 
   return $function_index || 0;
-}
-
-
-#**********************************************************
-=head2 get_period_dates($attr) - Get period  intervals
-
-  Arguments:
-    $attr
-      TYPE              0 - day, 1 - month
-      START_DATE
-      ACCOUNT_ACTIVATE
-      PERIOD_ALIGNMENT
-
-  Returns:
-    Return string of period
-
-=cut
-#**********************************************************
-sub get_period_dates {
-  my ($attr)=@_;
-
-  my $START_PERIOD = $attr->{START_DATE} || $DATE;
-
-  my ($start_date, $end_date);
-
-  if ($attr->{ACCOUNT_ACTIVATE} && $attr->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
-    $START_PERIOD = $attr->{ACCOUNT_ACTIVATE};
-  }
-
-  my ($start_y, $start_m, $start_d)=split(/-/, $START_PERIOD);
-  my $type = $attr->{TYPE} || 0;
-
-  if ($type == 1) {
-    my $days_in_month = ($start_m != 2 ? (($start_m % 2) ^ ($start_m > 7)) + 30 : (!($start_y % 400) || !($start_y % 4) && ($start_y % 25) ? 29 : 28));
-
-    $end_date = "$start_y-$start_m-$days_in_month";
-    if ($attr->{PERIOD_ALIGNMENT}) {
-      $start_date = $START_PERIOD;
-    }
-    else {
-      $start_date = "$start_y-$start_m-01";
-      if ($attr->{ACCOUNT_ACTIVATE} && $attr->{ACCOUNT_ACTIVATE} ne '0000-00-00') {
-        $end_date = POSIX::strftime('%Y-%m-%d', localtime((POSIX::mktime(0, 0, 0, $start_d, ($start_m - 1), ($start_y - 1900), 0, 0, 0) + 30 * 86400)));
-      }
-    }
-
-    return " ($start_date-$end_date)";
-  }
-
-
-  return '';
 }
 
 #**********************************************************
@@ -971,7 +913,8 @@ sub service_recalculate {
     $Payments->add($Users, {
       SUM      => abs($return_sum),
       METHOD   => 8,
-      DESCRIBE => "$lang{TARIF_PLAN}: $Service->{TP_INFO_OLD}->{NAME} ($Service->{TP_INFO_OLD}->{ID}) ($lang{DAYS}: $rest_days)",
+      DESCRIBE => "$lang{TARIF_PLAN}: $Service->{TP_INFO_OLD}->{NAME} (".
+        ($Service->{TP_INFO_OLD}->{TP_ID} || $Service->{TP_INFO_OLD}->{ID} || q{-}) .") ($lang{DAYS}: $rest_days)",
     });
 
     if ($Payments->{errno}) {
@@ -1601,21 +1544,25 @@ sub _translate {
     }
   }
 
-  while( $text =~ m/\$\_?([A-Z0-9\_]+)/g ) {
-    my $text_marker = $1;
+  #OLD STYLE LANG variables
+  # while( $text =~ m/\$\_?([A-Z0-9\_]+)/g ) {
+  #   my $text_marker = $1;
+  #   if ($lang{$text_marker}) {
+  #     $text =~ s/\$\_?$text_marker/$lang{$text_marker}/g;
+  #   }
+  # }
+
+  my $text2 = $text;
+  while( $text2 =~ m/(\%?)([A-Z0-9\_]+)/g ) {
+    if ($1 eq '%') {
+      next;
+    }
+    my $text_marker = $2;
+
     if ($lang{$text_marker}) {
-      $text =~ s/\$\_?$text_marker/$lang{$text_marker}/g;
+      $text =~ s/$text_marker/$lang{$text_marker}/g;
     }
   }
-
-  #my $sub_text = $1;
-  #  if ($text =~ s/\$\_(\S+)/$lang{$1}/){
-  #    #$text = $lang{$sub_text};
-  #    #print $text;
-  #  }
-  #  else {
-  #    $text = eval "\"$text\"";
-  #  }
 
   return $text || q{};
 }
@@ -1983,30 +1930,31 @@ sub sel_groups {
   else {
     my $gid = $attr->{GID} || $FORM{GID};
     my %PARAMS = (
-      SELECTED    => $gid,
-      SEL_LIST    => $users->groups_list({
-        GID             => '_SHOW',
-        NAME            => '_SHOW',
-        DESCR           => '_SHOW',
-        ALLOW_CREDIT    => '_SHOW',
-        DISABLE_PAYSYS  => '_SHOW',
-        DISABLE_CHG_TP  => '_SHOW',
-        USERS_COUNT     => '_SHOW',
-        GIDS            => ($admin->{GID}) ? $admin->{GID} : undef,
-        DOMAIN_ID       => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
-        COLS_NAME       => 1
+      SELECTED  => $gid,
+      SEL_LIST  => $users->groups_list({
+        GID            => '_SHOW',
+        NAME           => '_SHOW',
+        DESCR          => '_SHOW',
+        ALLOW_CREDIT   => '_SHOW',
+        DISABLE_PAYSYS => '_SHOW',
+        DISABLE_CHG_TP => '_SHOW',
+        USERS_COUNT    => '_SHOW',
+        GIDS           => ($admin->{GID}) ? $admin->{GID} : undef,
+        DOMAIN_ID      => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
+        COLS_NAME      => 1
       }),
-      SEL_KEY     => 'gid',
-      SEL_VALUE   => 'name',
-      EX_PARAMS   => $attr->{MULTISELECT} ? 'multiple="multiple"' : $attr->{EX_PARAMS}
+      SEL_KEY   => 'gid',
+      SEL_VALUE => 'name',
+      EX_PARAMS => $attr->{MULTISELECT} ? 'multiple="multiple"' : $attr->{EX_PARAMS},
+      ID        => $attr->{ID}
     );
 
     if ($attr->{FILTER_SEL}) {
-      $PARAMS{SEL_OPTIONS} = ($admin->{GID}) ? undef : { '*' => "$lang{ALL}" };
+      $PARAMS{SEL_OPTIONS} = ($admin->{GID}) ? undef : { '*' => "$lang{ALL}", '0' => "$lang{WITHOUT_GROUP}" };
       $PARAMS{MULTIPLE}    = 1;
     }
     else {
-      $PARAMS{SEL_OPTIONS} = ($admin->{GID}) ? undef : { '' => "$lang{ALL}" };
+      $PARAMS{SEL_OPTIONS} = ($admin->{GID}) ? undef : { '' => "$lang{ALL}", '0' => "$lang{WITHOUT_GROUP}" };
       $PARAMS{MAIN_MENU}      = get_function_index('form_groups');
       $PARAMS{MAIN_MENU_ARGV} = $gid ? "GID=$gid" : '';
     }

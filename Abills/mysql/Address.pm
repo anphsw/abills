@@ -69,6 +69,7 @@ sub address_info {
   $self->query("SELECT d.id AS district_id,
         d.city,
         d.name AS address_district,
+        GROUP_CONCAT(DISTINCT dp.name ORDER BY dp.path SEPARATOR ' / ') AS address_district_full,
         s.name AS address_street,
         b.number AS address_build,
         b.block AS address_block,
@@ -83,6 +84,7 @@ sub address_info {
       FROM builds b
       LEFT JOIN streets s  ON (s.id=b.street_id)
       LEFT JOIN districts d  ON (d.id=s.district_id)
+      LEFT JOIN districts dp ON FIND_IN_SET(dp.id, REPLACE(d.path, '/', ',')) > 0
       WHERE b.id= ? ",
       undef,
       { INFO => 1,
@@ -225,33 +227,49 @@ sub district_list {
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 0;
   my $LIMIT = ($PAGE_ROWS) ? "LIMIT $PG, $PAGE_ROWS" : '';
+  my $HAVING = $attr->{HAVING} || '';
 
   if ($admin->{DOMAIN_ID}) {
     $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
   }
 
+  my @WHERE_RULES = ();
+  push @WHERE_RULES, "d.path NOT LIKE '%/%'" if $attr->{ROOT_NODES};
+
   my $WHERE = $self->search_former($attr, [
-    ['ID',          'INT',  'd.id'          ],
-    ['NAME',        'STR',  'd.name'        ],
-    ['COMMENTS',    'STR',  'd.comments'    ],
-    ['DOMAIN_ID',   'INT',  'd.domain_id'   ],
-    ['COORDX',      'INT',  'd.coordx',   1 ],
-    ['COORDY',      'INT',  'd.coordy',   1 ],
-    ['ZOOM',        'INT',  'd.zoom',     1 ],
-    ['CITY',        'STR',  'd.city',     1 ],
-  ], { WHERE => 1 });
+    [ 'ID',           'INT',  'd.id'                    ],
+    [ 'NAME',         'STR',  'd.name'                  ],
+    [ 'COMMENTS',     'STR',  'd.comments'              ],
+    [ 'DOMAIN_ID',    'INT',  'd.domain_id'             ],
+    [ 'COORDX',       'INT',  'd.coordx',             1 ],
+    [ 'COORDY',       'INT',  'd.coordy',             1 ],
+    [ 'ZOOM',         'INT',  'd.zoom',               1 ],
+    [ 'CITY',         'STR',  'd.city',               1 ],
+    [ 'PATH',         'STR',  'd.path',               1 ],
+    [ 'PARENT_ID',    'INT',  'd.parent_id',          1 ],
+    [ 'TYPE_ID',      'INT',  'd.type_id',            1 ],
+    [ 'TYPE_NAME',    'STR',  'at.name AS type_name', 1 ],
+    [ 'FULL_NAME',    'STR',  "GROUP_CONCAT(DISTINCT dfp.name ORDER BY dfp.path SEPARATOR ' / ') AS full_name",  1 ],
+    [ 'PARENT_NAME',  'STR', 'dp.name AS parent_name',  1 ],
+  ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
+
+  my $EXT_TABLES = 'LEFT JOIN streets s ON (d.id=s.district_id)';
+  $EXT_TABLES .= "\nLEFT JOIN districts AS dfp ON FIND_IN_SET(dfp.id, REPLACE(d.path, '/', ',')) > 0" if ($self->{SEARCH_FIELDS} =~ /dfp\./);
+  $EXT_TABLES .= "\nLEFT JOIN address_types AS at ON (d.type_id = at.id)" if ($self->{SEARCH_FIELDS} =~ /at\./);
+  $EXT_TABLES .= "\nLEFT JOIN districts AS dp ON (d.parent_id = dp.id)" if ($self->{SEARCH_FIELDS} =~ /dp\./);
 
   $self->query("SELECT d.id,
         d.name,
         d.country,
         d.city,
-        zip,
+        d.zip,
         $self->{SEARCH_FIELDS}
-        COUNT(s.id) AS street_count
+        COUNT(DISTINCT s.id) AS street_count
       FROM districts d
-      LEFT JOIN streets s ON (d.id=s.district_id)
+      $EXT_TABLES
     $WHERE
     $GROUP_BY
+    $HAVING
     ORDER BY $SORT $DESC $LIMIT",
     undef,
     $attr
@@ -279,7 +297,7 @@ sub district_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("SELECT id, name, country,
+  $self->query("SELECT id, name, country, path, parent_id, type_id,
   city, zip, comments, coordx, coordy, zoom
   FROM districts WHERE id= ? ;",
   undef,
@@ -299,13 +317,32 @@ sub district_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'districts',
-      DATA         => $attr
+  my $old_info = $self->district_info({ ID => $attr->{ID} });
+  my $old_path = $old_info->{PATH};
+
+  if ($attr->{PARENT_ID}) {
+    $self->district_info({ ID => $attr->{PARENT_ID} });
+    if (!$self->{errno} && !$self->{PATH}) {
+      $self->district_change({ ID => $attr->{PARENT_ID}, PATH => $attr->{PARENT_ID} });
+      $self->{PATH} = $attr->{PARENT_ID};
     }
-  );
+
+    my $current_path = join('/', ($self->{PATH}, $attr->{ID}));
+
+    if ($current_path ne $old_path) {
+      $attr->{PATH} = $current_path;
+      $self->query("UPDATE districts SET path = REPLACE(path, '$old_path', '$current_path') WHERE path LIKE '$old_path%';", 'do')
+    }
+  }
+  elsif (defined $attr->{PARENT_ID}) {
+    $attr->{PATH} = $attr->{ID};
+  }
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'districts',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -319,14 +356,28 @@ sub district_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add("districts", {
+  $self->query_add('districts', {
     %$attr,
     DOMAIN_ID => $attr->{DOMAIN_ID} || $admin->{DOMAIN_ID} || 0
   });
 
-  if(! $self->{errno}) {
-    $self->{DISTRICT_ID} = $self->{INSERT_ID};
-    $admin->system_action_add("DISTRICT:$self->{INSERT_ID}:$attr->{NAME}", { TYPE => 1 }) if (!$self->{errno});
+  return $self if $self->{errno};
+
+  $self->{DISTRICT_ID} = $self->{INSERT_ID};
+  $admin->system_action_add("DISTRICT:$self->{INSERT_ID}:$attr->{NAME}", { TYPE => 1 });
+
+  if (!$attr->{PATH} && $attr->{PARENT_ID}) {
+    $self->district_info({ ID => $attr->{PARENT_ID} });
+    if (!$self->{errno} && !$self->{PATH}) {
+      $self->district_change({ ID => $attr->{PARENT_ID}, PATH => $attr->{PARENT_ID} });
+      $self->{PATH} = $attr->{PARENT_ID};
+    }
+
+    my $path = join('/', ($self->{PATH}, $self->{DISTRICT_ID}));
+    $self->district_change({ ID => $self->{DISTRICT_ID}, PATH => $path });
+  }
+  else {
+    $self->district_change({ ID => $self->{DISTRICT_ID}, PATH => $self->{DISTRICT_ID} });
   }
 
   return $self;
@@ -340,6 +391,12 @@ sub district_add {
 sub district_del {
   my $self = shift;
   my ($id) = @_;
+
+  $self->district_info({ ID => $id });
+  my $path = $self->{PATH};
+  if ($path && !$self->{errno}) {
+    $self->query("DELETE FROM districts WHERE path LIKE '$path%';", 'do');
+  }
 
   $self->query_del('districts', { ID => $id });
 
@@ -529,30 +586,32 @@ sub build_list {
   }
 
   my $WHERE = $self->search_former($attr, [
-      ['NUMBER',            'STR', 'b.number',         ],
-      ['BLOCK',             'STR', 'b.block',        1 ],
-      ['FLORS',             'INT', 'b.flors',        1 ],
-      ['ENTRANCES',         'INT', 'b.entrances',    1 ],
-      ['FLATS',             'INT', 'b.flats',        1 ],
-      ['SCHEMA',            'INT', 'b.schema',       1 ],
-      ['DISTRICT_ID',       'INT', 's.district_id',  1 ],
-      ['DISTRICT_NAME',     'STR', 'd.name', 'd.name AS district_name'],
-      ['STREET_NAME',       'STR', 's.name', 's.name AS street_name'  ],
-      ['USERS_COUNT',       'INT', '', 'COUNT(pi.uid) AS users_count' ],
-      ['USERS_CONNECTIONS', 'INT', '', 'ROUND((COUNT(pi.uid) / b.flats * 100), 0) AS users_connections' ],
-      ['ADDED',             'DATE','b.added',        1 ],
-      ['LOCATION_ID',       'INT', 'b.id',   'b.id AS location_id' ],
-      ['COORDX',            'INT', 'b.coordx',       1 ],
-      ['COORDY',            'INT', 'b.coordy',       1 ],
-      ['ZOOM',              'INT', 'd.zoom',         1 ],
-      ['STREET_ID',         'INT', 'b.street_id',      ],
-      ['ZIP',               'INT', 'b.zip',    'b.zip' ],
-      ['PUBLIC_COMMENTS',   'STR', 'b.public_comments',     1 ],
-      ['PLANNED_TO_CONNECT','STR', 'b.planned_to_connect',  1 ],
-      ['NUMBERING_DIRECTION','STR','b.numbering_direction', 1 ],
-      ['DOMAIN_ID',         'INT', 'd.domain_id',           1 ],
-      ['CITY',              'STR', 'd.city',                1 ],
-      ['USERS',             'INT', 'GROUP_CONCAT(DISTINCT pi.uid) AS users', 1 ],
+      [ 'NUMBER',            'STR', 'b.number',                                                            ],
+      [ 'BLOCK',             'STR', 'b.block',                                                           1 ],
+      [ 'FLORS',             'INT', 'b.flors',                                                           1 ],
+      [ 'ENTRANCES',         'INT', 'b.entrances',                                                       1 ],
+      [ 'FLATS',             'INT', 'b.flats',                                                           1 ],
+      [ 'SCHEMA',            'INT', 'b.schema',                                                          1 ],
+      [ 'DISTRICT_ID',       'INT', 's.district_id',                                                     1 ],
+      [ 'DISTRICT_NAME',     'STR', 'd.name', 'd.name AS district_name'                                    ],
+      [ 'STREET_NAME',       'STR', 's.name', 's.name AS street_name'                                      ],
+      [ 'USERS_COUNT',       'INT', '', 'COUNT(pi.uid) AS users_count'                                     ],
+      [ 'USERS_CONNECTIONS', 'INT', '', 'ROUND((COUNT(pi.uid) / b.flats * 100), 0) AS users_connections'   ],
+      [ 'ADDED',             'DATE','b.added',                                                           1 ],
+      [ 'LOCATION_ID',       'INT', 'b.id',   'b.id AS location_id'                                        ],
+      [ 'COORDX',            'INT', 'b.coordx',                                                          1 ],
+      [ 'COORDY',            'INT', 'b.coordy',                                                          1 ],
+      [ 'ZOOM',              'INT', 'd.zoom',                                                            1 ],
+      [ 'STREET_ID',         'INT', 'b.street_id',                                                         ],
+      [ 'ZIP',               'INT', 'b.zip',    'b.zip'                                                    ],
+      [ 'PUBLIC_COMMENTS',   'STR', 'b.public_comments',                                                 1 ],
+      [ 'PLANNED_TO_CONNECT','STR', 'b.planned_to_connect',                                              1 ],
+      [ 'NUMBERING_DIRECTION','STR','b.numbering_direction',                                             1 ],
+      [ 'DOMAIN_ID',         'INT', 'd.domain_id',                                                       1 ],
+      [ 'CITY',              'STR', 'd.city',                                                            1 ],
+      [ 'USERS',             'INT', 'GROUP_CONCAT(DISTINCT pi.uid) AS users',                            1 ],
+      [ 'TYPE_ID',           'INT', 'b.type_id',                                                         1 ],
+      [ 'TYPE_NAME',         'STR', 'bt.name', 'bt.name AS type_name'                                      ],
     ],
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
@@ -574,9 +633,8 @@ sub build_list {
     }
   }
 
-  if ($self->{SEARCH_FIELDS} =~ /pi\./) {
-    $EXT_TABLES .= 'LEFT JOIN users_pi pi ON (b.id=pi.location_id)';
-  }
+  $EXT_TABLES .= "\nLEFT JOIN users_pi pi ON (b.id=pi.location_id)" if ($self->{SEARCH_FIELDS} =~ /pi\./);
+  $EXT_TABLES .= "\nLEFT JOIN building_types bt ON (b.type_id=bt.id)" if ($self->{SEARCH_FIELDS} =~ /bt\./);
 
   $self->query("SELECT b.number, $self->{SEARCH_FIELDS} b.id, b.street_id
       FROM builds b
@@ -788,6 +846,201 @@ sub location_media_del {
   $admin->system_action_add("MEDIA:$id", { TYPE => 10 }) if (!$self->{errno});
 
   return $self;
+}
+
+#**********************************************************
+=head2 address_type_add($attr)
+
+=cut
+#**********************************************************
+sub address_type_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('address_types', { %$attr });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 address_type_change($attr)
+
+=cut
+#**********************************************************
+sub address_type_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'address_types',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 address_type_del($id)
+
+=cut
+#**********************************************************
+sub address_type_del {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query_del('address_types', { ID => $id });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 address_type_info($id) - Address type info
+
+=cut
+#**********************************************************
+sub address_type_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT * FROM address_types WHERE id = ? ;", undef, {
+    INFO => 1,
+    Bind => [ $attr->{ID} ]
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 address_type_list($attr) - Address types list
+
+=cut
+#**********************************************************
+sub address_type_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 0;
+  my $LIMIT = ($PAGE_ROWS) ? "LIMIT $PG, $PAGE_ROWS" : '';
+
+  if ($admin->{DOMAIN_ID}) {
+    $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
+  }
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',       'INT',  'at.id',         1 ],
+    [ 'NAME',     'STR',  'at.name',       1 ],
+    [ 'POSITION', 'INT',  'at.position',   1 ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} at.id
+      FROM address_types at
+    $WHERE
+    ORDER BY $SORT $DESC $LIMIT",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 building_type_add($attr)
+
+=cut
+#**********************************************************
+sub building_type_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('building_types', { %$attr });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 building_type_change($attr)
+
+=cut
+#**********************************************************
+sub building_type_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'building_types',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 building_type_del($id)
+
+=cut
+#**********************************************************
+sub building_type_del {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query_del('building_types', { ID => $id });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 building_type_info($id) - Building type info
+
+=cut
+#**********************************************************
+sub building_type_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT * FROM building_types WHERE id = ? ;", undef, {
+    INFO => 1,
+    Bind => [ $attr->{ID} ]
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 building_type_list($attr) - Building types list
+
+=cut
+#**********************************************************
+sub building_type_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 0;
+  my $LIMIT = ($PAGE_ROWS) ? "LIMIT $PG, $PAGE_ROWS" : '';
+
+  if ($admin->{DOMAIN_ID}) {
+    $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
+  }
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',       'INT',  'bt.id',         1 ],
+    [ 'NAME',     'STR',  'bt.name',       1 ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} bt.id
+      FROM building_types bt
+    $WHERE
+    ORDER BY $SORT $DESC $LIMIT",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
 }
 
 1

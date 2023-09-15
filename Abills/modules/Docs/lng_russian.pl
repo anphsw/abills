@@ -26,12 +26,12 @@ $lang{AMOUNT_FOR_PAY}='Сумма для оплаты';
 $lang{CURENT_BILLING_PERIOD}='Текущий учётный период';
 $lang{NEXT_PERIODS}='Следующие учётные периоды';
 
-$lang{INCLUDE_CUR_BILLING_PERIOD}='Включать не инвойсированные  списания за текущий период (по умолчанию)';
+$lang{INCLUDE_CUR_BILLING_PERIOD}='Включать неинвойсированные списания за текущий период (по умолчанию)';
 $lang{NOT_INCLUDE_CUR_BILLING_PERIOD}='Не включать неинвойсированные списания за текущий период';
 $lang{ORDERS}='Заказы';
 
 $lang{INVOICE_AUTO_GEN}='Автоматическая генерерация счёта';
-$lang{INVOICING_PERIOD}='Период выписка счёта';
+$lang{INVOICING_PERIOD}='Период выписки счёта';
 $lang{PERSONAL_DELIVERY}='Персональная доставка';
 $lang{ALT}='Альтернативная';
 $lang{CURRENCY}='Валюта';
@@ -47,7 +47,7 @@ $lang{STATEMENT_OF_ACCOUNT}='Выписка по счету';
 $lang{SKIP_PAY_ADD}='Пропущено счетов';
 
 $lang{CONNECT_TO} = 'Подключайтесь к';
-$lang{PAYMENTS_NOT_EQUAL_DOC}='Сума документа отличается от сумы платежа';
+$lang{PAYMENTS_NOT_EQUAL_DOC}='Сумма документа отличается от суммы платежа';
 $lang{PRINT_TERMO_PRINTER} = 'Чек для термопринтера';
 $lang{UNPAID_INVOICES} = 'Неоплаченные счета';
 $lang{SAVE_CONTROL_SUM}='Скачать контрольную сумму документа';
@@ -56,5 +56,15 @@ $lang{DELETED_GROUP}="Удалить группой";
 $lang{NO_CHECK_DOCUMENT}="Выберите документы для удаления";
 $lang{OPERATION}="Операция успешно выполнена";
 $lang{PAYMENT_SUM}='Оплачено';
+
+$lang{FOR_TIME} = "за период";
+$lang{MAIL_ADDRESS} = 'Почтовый адрес';
+$lang{NUMBER_STATEMENT} = 'Номер выписки';
+$lang{CODE_CLIENT} = 'Код клиента';
+$lang{TOTAL_END_MONTH} = 'Всего на конец месяца';
+$lang{PAYER} = 'Плательщик';
+$lang{FEE} = 'Списание';
+$lang{PAYMENT} = 'Оплата';
+
 
 1;

@@ -47,7 +47,7 @@ sub sqlcmd {
     return 0;
   }
 
-  if ($FORM{qindex}) {
+  if ($FORM{qindex} && $FORM{TABLE_INFO}) {
     print $html->header();
     $Sqlcmd->query("SHOW CREATE TABLE $FORM{TABLE_INFO}");
     my $table = $html->table({
@@ -171,7 +171,15 @@ sub sqlcmd {
     $html->tpl_show(_include('sqlcmd', 'Sqlcmd'), { %$Sqlcmd, %FORM, %FORM2 }, { SKIP_VARS => '[YyMmDdHhIiSs]{1}[-:]{1}' });
 
     if (defined($FORM2{QUERY}) && length($FORM2{QUERY}) > 10) {
-      $list = $Sqlcmd->list({ %FORM2 });
+      if ($FORM2{qindex} && $FORM2{QUERY} =~ /CREATE |UPDATE |INSERT |ALTER /i) {
+        # Disable write queries for export
+        # Without this protection intruder can bruteforce GET query for indexes
+        # and pass write query from export - we cant let it happen.
+        # The probability of this event is small, but it cannot be allowed.
+        $list = [];
+      } else {
+        $list = $Sqlcmd->list({ %FORM2 });
+      }
     }
 
     if ($FORM{QUERY} && !$FORM{xml}) {
@@ -257,7 +265,9 @@ sub sqlcmd {
       caption => $lang{RESULT},
       title   => ($#CAPTION > -1) ? [ @CAPTION ] : [],
       qs      => $pages_qs,
-      pages   => $Sqlcmd->{TOTAL}
+      pages   => $Sqlcmd->{TOTAL},
+      ID      => 'SQLCMD_RESULT',
+      EXPORT  => 1,
     });
 
     my %caption2id = ();

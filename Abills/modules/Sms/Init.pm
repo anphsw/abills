@@ -93,16 +93,24 @@ sub init_sms_service {
       last;
     }
     else {
-      print $@;
+      if ($attr->{QUITE} || $attr->{SILENT}) {
+        $Sms_service = {};
+        $Sms_service->{errno} = 3;
+        $Sms_service->{errstr} = 'SMS_FAILED_LOAD_SERVICE';
+        return $Sms_service;
+      }
+      else {
+        print $@;
 
-      exit;
+        exit;
+      }
     }
   }
 
   if (!$Sms_service) {
     $Sms_service = {};
     $Sms_service->{errno} = 1;
-    $Sms_service->{errstr} = "SMS_SERVICE_NOT_CONNECTED";
+    $Sms_service->{errstr} = 'SMS_SERVICE_NOT_CONNECTED';
   }
 
   return $Sms_service;

@@ -21,7 +21,6 @@ our (
   %permissions,
   @MONTHES_LIT,
   $Tv_service,
-  $users,
   $user,
   @MODULES,
   $DATE,
@@ -32,6 +31,7 @@ our (
 
 our Abills::HTML $html;
 our Iptv $Iptv;
+our Users $users;
 
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Shedule = Shedule->new($db, $admin, \%conf);
@@ -379,12 +379,15 @@ sub iptv_watch_now {
 #**********************************************************
 sub iptv_additional_info {
 
-  $Iptv->user_info($FORM{chg});
-  $users->info($FORM{UID}, { SHOW_PASSWORD => 1 });
-  my $url = "index=$index&chg=$FORM{chg}&MODULE=Iptv&UID=$FORM{UID}";
-  my $result = $Tv_service->additional_info({ %{$users}, %FORM, %LIST_PARAMS, %{$Iptv}, URL => $url });
-  if (ref $result eq "HASH" && $result->{TABLES} && ref $result->{TABLES} eq 'ARRAY') {
-    return $result->{TABLES};
+  my $uid = $FORM{UID} || q{};
+  if ($uid && $FORM{chg}) {
+    $Iptv->user_info($FORM{chg});
+    $users->info($uid, { SHOW_PASSWORD => 1 });
+    my $url = "index=$index&chg=$FORM{chg}&MODULE=Iptv&UID=$uid";
+    my $result = $Tv_service->additional_info({ %{$users}, %FORM, %LIST_PARAMS, %{$Iptv}, URL => $url });
+    if (ref $result eq "HASH" && $result->{TABLES} && ref $result->{TABLES} eq 'ARRAY') {
+      return $result->{TABLES};
+    }
   }
 
   return [];
@@ -674,6 +677,7 @@ sub iptv_mandatory_channels {
       STATUS
       SUBSCRIBE_ID
       SILENT       = Silent actions,
+      USER_INFO
 
   Returns:
 
@@ -694,7 +698,7 @@ sub iptv_account_action {
 
   $Iptv->{TP_ID} = $attr->{TP_ID} if ($attr->{TP_ID} && !$Iptv->{TP_ID});
   my $uid = $attr->{UID} || $Iptv->{UID};
-  $users = $attr->{USER_INFO} if $attr->{USER_INFO};
+  $users = $attr->{USER_INFO} if ($attr->{USER_INFO});
 
   my $disable_catv_port = 0;
   my $enable_catv_port  = 0;
@@ -1330,7 +1334,7 @@ sub _iptv_show_exist_shedule {
     my $tp_info = $Tariffs->info($action);
     next if !$action || $Tariffs->{TOTAL} < 1;
 
-    $table->addrow($shedule->{ID}, $tp_info->{NAME}, "$shedule->{D}-$shedule->{M}-$shedule->{Y}", $shedule->{ADMIN_NAME}, $shedule->{DATE}, $del_btn);
+    $table->addrow($shedule->{ID}, $tp_info->{NAME}, "$shedule->{Y}-$shedule->{M}-$shedule->{D}", $shedule->{ADMIN_NAME}, $shedule->{DATE}, $del_btn);
   }
 
   $Tariffs->{SHEDULE_LIST} = $table->show();

@@ -6,6 +6,7 @@ our %FUNCTIONS_LIST = (
   "06:0:$lang{VOIP}:null:"                                  => 5,
   "07:6:$lang{TARIF_PLANS}:voip_tp:"                        => 5,
   "08:7:$lang{ADD}:voip_tp:"                                => 5,
+  "17:7:$lang{GROUPS}:form_tp_groups:"                      => 5,
   "09:7:$lang{INTERVALS}:voip_intervals:TP_ID"              => 5,
   "10:7:$lang{NASS}:voip_nas:TP_ID"                         => 5,
   "11:6:$lang{ROUTES}:voip_routes:"                         => 5,
@@ -30,6 +31,10 @@ our %USER_FUNCTION_LIST = (
   "02:1:$lang{STATS}:voip_user_stats:"   => 0,
   "03:1:$lang{ROUTES}:voip_user_routes:" => 0
 );
+
+if ($conf{VOIP_USER_CHG_TP}) {
+  $USER_FUNCTION_LIST{"04:1:$lang{TARIF_PLAN}:voip_user_portal_chg_tp:"} = 0;
+}
 
 our %PERIODIC = (
   daily   => [ 'voip_daily_fees' ],

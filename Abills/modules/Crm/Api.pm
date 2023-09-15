@@ -153,7 +153,23 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        $Crm->crm_lead_info({ ID => $path_params->{id} });
+        if ($Crm->{TOTAL} < 1) {
+          return {
+            errno  => 104003,
+            errstr => "No lead with id $path_params->{id}"
+          };
+        }
+
         $Crm->crm_lead_delete({ ID => $path_params->{id} });
+
+        if (!$Crm->{errno}) {
+          return { result => 'Successfully deleted' } if ($Crm->{AFFECTED} && $Crm->{AFFECTED} =~ /^[0-9]$/);
+          return {
+            errno  => 104002,
+            errstr => "No lead with id $path_params->{id}"
+          };
+        }
       },
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
@@ -295,7 +311,23 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        $Crm->crm_sections_info({ ID => $path_params->{id} });
+        if ($Crm->{TOTAL} < 1) {
+          return {
+            errno  => 104008,
+            errstr => 'Section not found'
+          };
+        }
+
         $Crm->crm_sections_del({ ID => $path_params->{id} });
+
+        if (!$Crm->{errno}) {
+          return { result => 'Successfully deleted' } if ($Crm->{AFFECTED} && $Crm->{AFFECTED} =~ /^[0-9]$/);
+          return {
+            errno  => 104009,
+            errstr => 'Section not found'
+          };
+        }
       },
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
@@ -336,6 +368,14 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         $Crm->progressbar_comment_delete({ ID => $path_params->{id} });
+
+        if (!$Crm->{errno}) {
+          return { result => 'Successfully deleted' } if ($Crm->{AFFECTED} && $Crm->{AFFECTED} =~ /^[0-9]$/);
+          return {
+            errno  => 104001,
+            errstr => "No message with id $path_params->{id}"
+          };
+        }
       },
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
@@ -365,7 +405,23 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        $Crm->crm_actions_info({ ID => $path_params->{action_id} });
+        if ($Crm->{TOTAL} < 1) {
+          return {
+            errno  => 104004,
+            errstr => 'Action not found'
+          };
+        }
+
         $Crm->crm_actions_delete({ ID => $path_params->{action_id} });
+
+        if (!$Crm->{errno}) {
+          return { result => 'Successfully deleted' } if ($Crm->{AFFECTED} && $Crm->{AFFECTED} =~ /^[0-9]$/);
+          return {
+            errno  => 104007,
+            errstr => 'Action not found'
+          };
+        }
       },
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },
@@ -408,7 +464,7 @@ sub admin_routes {
 
         $Crm->crm_progressbar_step_add($query_params);
       },
-      credentials => [ 'ADMIN', 'ADMINSID' ]
+      credentials => [ 'ADMIN' ]
     },
     {
       method      => 'PUT',
@@ -426,7 +482,23 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        $Crm->crm_progressbar_step_info({ ID => $path_params->{step_id} });
+        if ($Crm->{TOTAL} < 1) {
+          return {
+            errno  => 104005,
+            errstr => 'Step not found'
+          };
+        }
+
         $Crm->crm_progressbar_step_delete({ ID => $path_params->{step_id} });
+
+        if (!$Crm->{errno}) {
+          return { result => 'Successfully deleted' } if ($Crm->{AFFECTED} && $Crm->{AFFECTED} =~ /^[0-9]$/);
+          return {
+            errno  => 104006,
+            errstr => 'Step not found'
+          };
+        }
       },
       credentials => [ 'ADMIN', 'ADMINSID' ]
     },

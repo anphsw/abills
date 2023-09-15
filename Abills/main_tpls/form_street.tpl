@@ -1,6 +1,7 @@
-<form action='$SELF_URL' METHOD='post' class='form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+<form action='%SELF_URL%' METHOD='post' class='form-horizontal'>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='ID' value='%ID%'/>
+  <input type='hidden' name='DISTRICT_ID' value='%DISTRICT_ID%'/>
 
   <div class='card card-primary card-outline card-form'>
     <div class='card-header with-border'>_{ADDRESS_STREET}_</div>

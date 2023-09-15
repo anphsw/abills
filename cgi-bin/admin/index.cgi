@@ -24,8 +24,8 @@ BEGIN {
 
   my $sql_type = $conf{dbtype} || 'mysql';
   unshift(@INC,
-    $libpath . "Abills/$sql_type/",
     $libpath . 'Abills/modules/',
+    $libpath . "Abills/$sql_type/",
     $libpath . '/lib/',
     $libpath . 'Abills/',
     $libpath
@@ -98,9 +98,9 @@ our @default_search  = ( 'UID', 'LOGIN', 'FIO', 'CONTRACT_ID',
 
 if($admin->{SID}) {
   $html->set_cookies('admin_sid', $admin->{SID}, '', '');
-  if ($conf{API_ENABLE}) {
+  # if ($conf{API_ENABLE}) {
     $html->set_cookies('admin_sid', $admin->{SID}, 900, '/api.cgi');
-  }
+  # }
 }
 #Operation system ID
 if ($FORM{OP_SID}) {
@@ -1452,7 +1452,9 @@ sub fl {
     if ($permissions{4}) {
       push @m, "70:5:$lang{LOCATIONS}:form_districts:::",
                "71:70:$lang{STREETS}:form_streets::",
-               "72:70:$lang{TREE_LIKE_STRUCTURE}:form_address_tree::";
+               "72:70:$lang{ADDRESS_UNIT_TYPES}:form_address_types::",
+               "73:70:$lang{BUILDING_TYPES}:form_building_types::",
+               "74:70:$lang{TREE_LIKE_STRUCTURE}:form_address_tree::";
     }
     push @m, "135:70:Address update:form_address_select2:AJAX::";
   }
@@ -1821,7 +1823,7 @@ sub form_search {
         }
 
         $SEARCH_DATA{SEARCH_FORM} = $html->tpl_show(templates('form_search_personal_info'), { %FORM, %info }, { OUTPUT2RETURN => 1 });
-        $info{INFO_FIELDS} = form_info_field_tpl({ SKIP_DATA_RETURN => 1 });
+        $info{INFO_FIELDS} = form_info_field_tpl({ SKIP_DATA_RETURN => 1, SKIP_REQUIRED => 1 });
 
         if (in_array('Docs', \@MODULES)) {
           if ($conf{DOCS_CONTRACT_TYPES}) {
@@ -1898,7 +1900,7 @@ sub form_search {
 
       }
       elsif ($search_type == 13) {
-        $info{INFO_FIELDS}  = form_info_field_tpl({ COMPANY => 1 });
+        $info{INFO_FIELDS}  = form_info_field_tpl({ COMPANY => 1, SKIP_REQUIRED => 1 });
       }
 
       $SEARCH_DATA{SEARCH_FORM} .= $html->tpl_show(templates($search_form{ $search_type }), { %FORM, %info }, { OUTPUT2RETURN => 1 });
@@ -3116,7 +3118,7 @@ sub post_page {
           "$lang{NEW_VERSION}: $new_version_stringed",
           "",
           {
-            GLOBAL_URL => 'http://abills.net.ua:8090/display/AB/Changelog',
+            GLOBAL_URL => 'http://abills.net.ua/wiki/display/AB/Changelog',
             class => 'btn btn-xs btn-success ml-1',
             ex_params => ' target=_blank'
           }
@@ -3203,8 +3205,8 @@ sub _status_color_state {
 #**********************************************************
 sub _extract_number_from_version {
   my ($string) = @_;
-  $string =~ /(\d+\.\d+\.\d+)/;
-  my $only_version = $1 || 0;
+  my ($number_probably) = $string =~ /(\d+\.\d+\.\d+)/;
+  my $only_version = $number_probably || 0;
   my $number_from_version = $only_version;
   $number_from_version =~ s/\.//;
 

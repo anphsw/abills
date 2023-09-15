@@ -3,7 +3,7 @@ $lang{RULE}='Правило';
 $lang{RULES}='Правила';
 $lang{ADD_RULE}='Додати правило';
 $lang{FILE}='Файл';
-$lang{UPLOAD}='Загрузити файл';
+$lang{UPLOAD}='Завантажити файл';
 $lang{MESSAGE}='Повідомлення';
 $lang{FILTER}='Фільтри користувачів';
 $lang{SELECT}='Вибрати';
@@ -15,5 +15,5 @@ $lang{ANSWERPHONE}='Автовідповідач';
 $lang{NOT_AVAILABLE}='Не доступний';
 $lang{EVERY_MONTH}='Кожен місяць';
 $lang{UPDATE_DAY} = 'День оновлення';
-$lang{SQL_QUERY} = 'Sql запит';
+$lang{SQL_QUERY} = 'SQL запит';
 1

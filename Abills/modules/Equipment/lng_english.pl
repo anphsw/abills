@@ -90,7 +90,7 @@ $lang{TOTAL_FREE_PORTS} = "Number of free ports";
 $lang{ELECTRIC_POWER} = "Electric power";
 
 $lang{EDIT_SUCCESS} = 'Template changed';
-$lang{INVALID_JSON} = 'Invalid Json File';
+$lang{INVALID_JSON} = 'Invalid JSON File';
 $lang{FILES_TITLE} = 'Templates';
 $lang{FILE_REMOVED} = 'File removed';
 $lang{FILE_NOT_REMOVED} = "File isn't removed";
@@ -210,5 +210,9 @@ $lang{PORT_ENABLED} = 'Port enabled';
 $lang{PORT_STATUS_CHANGING_ERROR} = 'Error when changing port status';
 
 $lang{RUN_CMD_ON_EQUIPMENT} = 'Run command on equipment';
+
+$lang{CONTINUATION_NUMBERING_FOR_EXTRA_PORTS} = 'Continuation of numbering for extra port';
+
+
 
 1

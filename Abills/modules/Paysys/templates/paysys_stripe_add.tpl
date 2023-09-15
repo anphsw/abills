@@ -20,7 +20,7 @@
       <ul class='list-group list-group-unbordered mb-3'>
         <li class='list-group-item'>
           <b>_{DESCRIBE}_</b>
-          <div class='float-right'>%LOGIN% $FORM{DESCRIBE}</div>
+          <div class='float-right'>Опис платежу</div>
         </li>
         <li class='list-group-item'>
           <b>_{ORDER}_</b>
@@ -30,6 +30,7 @@
           <b>_{SUM}_</b>
           <div class='float-right'>$FORM{SUM}</div>
         </li>
+        %EXTRA_DESCRIPTIONS%
       </ul>
       <input type='submit' class='btn btn-primary float-right' value='_{PAY}_'>
 

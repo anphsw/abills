@@ -84,8 +84,30 @@
   </div>
 </form>
 
+<style>
+    input[type='radio']:checked + label {
+        transform: scale(1.01, 1.01);
+        box-shadow: 4px 4px 2px #AAAAAA;
+        z-index: 100;
+    }
+
+    input[type='radio']:hover + label {
+        transform: scale(1.05, 1.05);
+        box-shadow: 5px 5px 3px #AAAAAA;
+        z-index: 101;
+    }
+
+    label {
+        border-radius: 5px;
+    }
+
+    .logo-container {
+        max-width: 12rem;
+    }
+</style>
+
 <script>
-  let height_element = 0;
+  let height_element = 240;
   jQuery('.logo-container').each(function (elem, val) {
     if (val.scrollHeight > height_element) {
       height_element = val.scrollHeight;

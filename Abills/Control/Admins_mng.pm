@@ -7,7 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw(in_array load_pmodule);
+use Abills::Base qw(in_array load_pmodule days_in_month);
 use Abills::Defs;
 use Abills::Misc;
 
@@ -75,12 +75,12 @@ sub form_admins {
 
     $pages_qs = "&AID=$admin_form->{AID}" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
     my $A_LOGIN = $html->form_main({
-      CONTENT => sel_admins(),
+      CONTENT => sel_admins({ EX_PARAMS => { 'AUTOSUBMIT' => 'form' } }),
       HIDDEN  => {
         index => $index,
-        subf  => $FORM{subf}
+        subf  => $FORM{subf},
+        show  => 1,
       },
-      SUBMIT  => { show => $lang{SHOW} },
       class   => 'form-inline ml-auto flex-nowrap',
     });
 
@@ -255,6 +255,15 @@ sub form_admins {
     $LIST_PARAMS{API_KEY} = $FORM{API_KEY_NEW};
     $LIST_PARAMS{ADMIN_NAME} = $FORM{A_FIO};
     $LIST_PARAMS{LOGIN} = $FORM{ID};
+  }
+
+  if($FORM{DISABLE} && $FORM{DISABLE} != 0){
+    my $admins_online_list = $admin->online_list();
+    foreach my $line (@$admins_online_list) {
+      if ($line->{aid} && $line->{sid} && $line->{aid} == $FORM{AID}){
+        $admin_form->online_del({ SID => $line->{sid} });
+      }
+    }
   }
 
   my $list = $admin_form->admins_groups_list({ ALL => 1, COLS_NAME => 1 , SORT=>$FORM{sort}});
@@ -614,12 +623,15 @@ sub form_admins_full_log_analyze {
     NAME => 'FROM_DATE/TO_DATE'
   });
 
+  # TODO: #3944 rereview
   my $A_LOGIN = $html->form_main({
     CONTENT => $date_picker . sel_admins(),
     HIDDEN  => { index => $index },
     SUBMIT  => { show => $lang{SHOW} },
     class   => 'form-inline ml-auto flex-nowrap',
   });
+
+  my $saved_subf = $FORM{subf};
   delete $FORM{subf};
   func_menu({ $lang{NAME} => $A_LOGIN }, {}, {});
 
@@ -638,11 +650,44 @@ sub form_admins_full_log_analyze {
     $LIST_PARAMS{FUNCTION_NAME} = "!msgs_admin";
   }
 
-  if ($FORM{list}) {
+
+  my $index_for_search = $saved_subf || $index;
+
+  if ($FORM{search_form}) {
+    # Result former may not normal working with AID, and it creates duplicates of AID
+    my ($splitted_aid, undef) = split(/,\s?/, $FORM{AID} || '0', 2);
+
+    if ($FORM{FROM_DATE} && !$FORM{TO_DATE}) {
+      my ($y, $m) = split('-', $DATE);
+      $FORM{TO_DATE} = "$y-$m-" . days_in_month();
+    }
+
+    my %paranoid_form = ();
+    $paranoid_form{FROM_DATE} = $html->date_fld2('FROM_DATE', {
+      FORM_NAME       => 'admin_form_paranoid',
+      NO_DEFAULT_DATE => 1
+    });
+
+    $paranoid_form{TO_DATE} = $html->date_fld2('TO_DATE', {
+      FORM_NAME       => 'admin_form_paranoid',
+      NO_DEFAULT_DATE => 1
+    });
+
+    form_search({
+      TPL => $html->tpl_show(templates('form_admins_paranoid_search'), {
+        %FORM,
+        %paranoid_form,
+        AID   => $splitted_aid,
+        INDEX => $index_for_search,
+      }, { OUTPUT2RETURN => 1 }),
+    });
+  }
+
+  if ($FORM{list} || $FORM{search_form}) {
     result_former({
       INPUT_DATA     => $admin_,
       FUNCTION       => 'full_log_list',
-      DEFAULT_FIELDS => 'DATETIME,FUNCTION_NAME,PARAMS,IP',
+      DEFAULT_FIELDS => 'DATETIME,FUNCTION_NAME,PARAMS,IP,FUNCTION_INDEX,SID',
       EXT_TITLES => {
         datetime       => $lang{DATE},
         function_name  => 'function_name',
@@ -660,7 +705,7 @@ sub form_admins_full_log_analyze {
         caption => 'Paranoid log',
         qs      => "$pages_qs&AID=$FORM{AID}&list=1",
         ID      => 'ADMIN_PARANOID_LOG_LIST',
-        MENU    => "$lang{STATS}:index=60&AID=$FORM{AID}:btn bg-olive margin;",
+        MENU    => "$lang{STATS}:index=$index&AID=$FORM{AID}:btn bg-olive margin;$lang{SEARCH}:index=$index_for_search&search_form=1&AID=$FORM{AID}:search;",
       },
       MAKE_ROWS      => 1,
       SKIP_TOTAL     => 1,
@@ -682,7 +727,7 @@ sub form_admins_full_log_analyze {
       width   => '100%',
       caption => "Paranoid log",
       ID      => 'ADMIN_PARANOID_LOG',
-      MENU    => "$lang{LIST}:index=60&AID=$FORM{AID}&list=1&sort=1&desc=DESC:btn bg-olive margin;",
+      MENU    => "$lang{LIST}:index=$index_for_search&AID=$FORM{AID}&list=1&sort=1&desc=DESC:btn bg-olive margin;$lang{SEARCH}:index=$index_for_search&search_form=1&AID=$FORM{AID}:search;",
       qs      => "&AID=$FORM{AID}",
     },
     MAKE_ROWS      => 1,
@@ -695,6 +740,7 @@ sub form_admins_full_log_analyze {
   foreach (@$list) {
     push @{$chartdata{count}}, $_->{count};
     if ($FORM{details}) {
+      $_->{params} //= '';
       $_->{params} =~ s/\n/&/g;
       push @xtext, $_->{params};
     }
@@ -703,14 +749,12 @@ sub form_admins_full_log_analyze {
     }
   };
 
-  $html->make_charts_simple(
-    {
-      DATA         => \%chartdata,
-      X_TEXT       => \@xtext,
-      TYPES        => { count => 'bar' },
-      SKIP_COMPARE => 1,
-    }
-  );
+  $html->make_charts_simple({
+    DATA         => \%chartdata,
+    X_TEXT       => \@xtext,
+    TYPES        => { count => 'bar' },
+    SKIP_COMPARE => 1,
+  });
 
   return 1;
 }
@@ -1138,7 +1182,7 @@ sub form_admin_permissions {
   foreach my $name (sort @MODULES) {
     $table2->addrow(
       $html->button("$name", '',
-        { GLOBAL_URL => 'http://abills.net.ua:8090/display/AB/' . $name}),
+        { GLOBAL_URL => 'http://abills.net.ua/wiki/display/AB/' . $name}),
       $version,
       $html->form_input(
         "9_" . $i . "_" . $name,

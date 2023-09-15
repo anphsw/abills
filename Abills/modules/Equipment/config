@@ -31,9 +31,10 @@
   "26:6:$lang{RUN_CMD_ON_EQUIPMENT}:equipment_run_cmd_on_equipment:CMD_ID,NAS_ID" => 8,
 
   "27:0::equipment_user_info_ajax:AJAX"                                           => 5,
-  "28:0::equipment_unreg_report_date:AJAX"                                        => 5,
-  "29:0::equipment_change_port_status_ajax:AJAX"                                  => 5,
-  "30:0::equipment_change_onu_billing_desc_ajax:AJAX"                             => 5,
+  "28:0::equipment_user_info_fields:AJAX"                                         => 5,
+  "29:0::equipment_unreg_report_date:AJAX"                                        => 5,
+  "30:0::equipment_change_port_status_ajax:AJAX"                                  => 5,
+  "31:0::equipment_change_onu_billing_desc_ajax:AJAX"                             => 5,
 );
 
 #%PERIODIC = (daily   => [ 'equipment_traps_clean', 'equipment_graph_clean' ]);

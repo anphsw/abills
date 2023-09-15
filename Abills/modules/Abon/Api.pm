@@ -16,6 +16,8 @@ use warnings FATAL => 'all';
 
 use Abon;
 my Abon $Abon;
+my $Abon_services;
+
 use Abills::Base qw(date_diff);
 
 our %lang;
@@ -42,8 +44,11 @@ sub new {
   $Abon = Abon->new($self->{db}, $self->{admin}, $self->{conf});
   $Abon->{debug} = $self->{debug};
 
+  require Abon::Services;
+  $Abon_services = Abon::Services->new($self->{db}, $self->{admin}, $self->{conf}, { LANG => $self->{lang} });
+
   $self->{routes_list} = ();
-  $self->{periods} = ['day', 'month', 'quarter', 'six months', 'year'];
+  $self->{periods} = [ 'day', 'month', 'quarter', 'six months', 'year' ];
 
   if ($type eq 'user') {
     $self->{routes_list} = $self->user_routes();
@@ -150,21 +155,11 @@ sub user_routes {
           }
         }
 
-        my $result = $Abon->user_tariff_change({
-          "MANUAL_FEE_$path_params->{id}" => 1,
-          UID                             => $path_params->{uid},
-          IDS                             => $path_params->{id},
+        $Abon_services->abon_user_tariff_activate({
+          %{$query_params},
+          UID => $path_params->{uid},
+          ID  => $path_params->{id},
         });
-
-        if ($result->{AFFECTED}) {
-          return 1;
-        }
-        elsif (!$result->{errno}) {
-          return 0;
-        }
-        else {
-          return $result;
-        }
       },
       credentials => [
         'USER', 'USERBOT'
@@ -241,7 +236,6 @@ sub admin_routes {
       path        => '/abon/tariffs/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
-
         $Abon->tariff_list({
           %$query_params,
           COLS_NAME => 1
@@ -283,10 +277,11 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        $Abon->user_tariff_change({
-          %$query_params,
-          IDS => $path_params->{id},
-          UID => $path_params->{uid}
+        $Abon_services->abon_user_tariff_activate({
+          DEBUG => 0,
+          % { $query_params },
+          UID   => $path_params->{uid},
+          ID    => $path_params->{id},
         });
       },
       credentials => [
@@ -299,9 +294,10 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        $Abon->user_tariff_change({
-          DEL => $path_params->{id},
-          UID => $path_params->{uid}
+        $Abon_services->abon_user_tariff_deactivate({
+          %{$query_params},
+          UID => $path_params->{uid},
+          ID  => $path_params->{id},
         });
       },
       credentials => [
@@ -322,6 +318,43 @@ sub admin_routes {
       credentials => [
         'ADMIN'
       ]
+    },
+    {
+      method      => 'GET',
+      path        => '/abon/plugin/:plugin_id/info/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        require Abon::Base;
+        my $Abon_base = Abon::Base->new($self->{db}, $self->{admin}, $self->{conf}, { LANG => $self->{lang} });
+
+        my $Plugin_info = $Abon->tariff_info($path_params->{plugin_id});
+        my $api = $Abon_base->abon_load_plugin($Plugin_info->{PLUGIN}, { SERVICE => $Plugin_info, DEBUG => 0, RETURN_ERROR => 1 });
+        return $api->info($query_params) if ($api->can('info'));
+        return {};
+      },
+      credentials => [
+        'ADMINSID'
+      ]
+    },
+    {
+      method       => 'GET',
+      path         => '/abon/plugin/:plugin_id/print/',
+      handler      => sub {
+        my ($path_params, $query_params) = @_;
+
+        require Abon::Base;
+        my $Abon_base = Abon::Base->new($self->{db}, $self->{admin}, $self->{conf}, { LANG => $self->{lang} });
+
+        my $Plugin_info = $Abon->tariff_info($path_params->{plugin_id});
+        my $api = $Abon_base->abon_load_plugin($Plugin_info->{PLUGIN}, { SERVICE => $Plugin_info, DEBUG => 0, RETURN_ERROR => 1 });
+
+        return $api->print($query_params) if ($api->can('print'));
+      },
+      credentials  => [
+        'ADMINSID'
+      ],
+      content_type => 'Content-type: application/pdf'
     }
   ],
 }

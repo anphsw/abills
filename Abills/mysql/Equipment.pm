@@ -10,6 +10,8 @@ use strict;
 use parent 'dbcore';
 use warnings FATAL => 'all';
 
+use Abills::Base qw(int2ip);
+
 my $admin;
 my $CONF;
 my $SORT = 1;
@@ -350,6 +352,7 @@ sub model_change {
 
   $attr->{AUTO_PORT_SHIFT} = ($attr->{AUTO_PORT_SHIFT}) ? $attr->{AUTO_PORT_SHIFT} : 0;
   $attr->{FDB_USES_PORT_NUMBER_INDEX} = ($attr->{FDB_USES_PORT_NUMBER_INDEX}) ? $attr->{FDB_USES_PORT_NUMBER_INDEX} : 0;
+  $attr->{CONT_NUM_EXTRA_PORTS} = ($attr->{CONT_NUM_EXTRA_PORTS}) ? $attr->{CONT_NUM_EXTRA_PORTS} : 0;
 
   $self->changes(
     {
@@ -496,7 +499,8 @@ sub _list {
     [ 'NAS_ENTRANCE',                  'STR',  'nas.entrance', 'nas.entrance AS nas_entrance',    1 ],
     [ 'ZABBIX_HOSTID',                 'INT',  'nas.zabbix_hostid',               1 ],
     [ 'WIDTH',                         'INT',  'm.width',                         1 ],
-    [ 'HEIGHT',                        'INT',  'm.height',                        1 ]
+    [ 'HEIGHT',                        'INT',  'm.height',                        1 ],
+    [ 'CONT_NUM_EXTRA_PORTS',          'INT',  'm.cont_num_extra_ports',          1 ]
   ], { WHERE => 1 });
 
   my %EXT_TABLE_JOINS_HASH = ();
@@ -518,6 +522,7 @@ sub _list {
     $EXT_TABLE_JOINS_HASH{streets} = 1;
     $EXT_TABLE_JOINS_HASH{disctrict} = 1;
     $self->{SEARCH_FIELDS} .= join(', ', @fields);
+    $self->{SEARCH_FIELDS} .= $self->{SEARCH_FIELDS} =~ /\s?,\s?$/gm ? '' : ', ';
   }
 
   if ($attr->{NAS_GROUP_NAME}) {
@@ -557,7 +562,7 @@ sub _list {
   if ($self->{TOTAL} > 0) {
     foreach my $eq (@{$self->{list}}) {
       if (ref $eq eq 'HASH' && $eq->{nas_ip}) {
-        my $nas_ip = Abills::Base::int2ip($eq->{nas_ip});
+        my $nas_ip = int2ip($eq->{nas_ip});
         $eq->{nas_ip} = $nas_ip;
         $eq->{NAS_IP} = $nas_ip if ($attr->{COLS_UPPER});
       }
@@ -1782,21 +1787,28 @@ sub mac_log_list {
 
   my $WHERE = $self->search_former($attr, [
     #      ['ID',        'STR', 'ml.id',    1 ],
-    [ 'PORT',         'STR', 'port',      1 ],
-    [ 'PORT_NAME',    'STR', 'port_name', 1 ],
+    [ 'PORT',         'STR', 'ml.port',      1 ],
+    [ 'PORT_NAME',    'STR', 'ml.port_name', 1 ],
     [ 'MAC',          'STR', 'ml.mac',    1 ],
-    [ 'IP',           'IP', 'ml.ip', 'INET_NTOA(ml.ip) AS ip' ],
-    [ 'VLAN',         'INT', 'vlan',      1 ],
-    [ 'DATETIME',     'STR', 'datetime',  1 ],
-    [ 'REM_TIME',     'STR', 'rem_time',  1 ],
-    [ 'UNIX_DATETIME','STR', 'datetime', 'unix_timestamp(datetime) AS unix_datetime' ],
-    [ 'UNIX_REM_TIME','STR', 'rem_time', 'unix_timestamp(rem_time) AS unix_rem_time' ],
-    [ 'NAS_ID',       'INT', 'nas_id',    1 ],
+    [ 'IP',           'IP',  'ml.ip', 'INET_NTOA(ml.ip) AS ip' ],
+    [ 'VLAN',         'INT', 'ml.vlan',      1 ],
+    [ 'DATETIME',     'STR', 'ml.datetime',  1 ],
+    [ 'REM_TIME',     'STR', 'ml.rem_time',  1 ],
+    [ 'UNIX_DATETIME','STR', 'ml.datetime', 'unix_timestamp(ml.datetime) AS unix_datetime' ],
+    [ 'UNIX_REM_TIME','STR', 'ml.rem_time', 'unix_timestamp(ml.rem_time) AS unix_rem_time' ],
+    [ 'NAS_ID',       'INT', 'ml.nas_id',    1 ],
+    [ 'NAS_NAME',     'STR', 'nas.name',  'nas.name AS nas_name' ],
     [ 'MAC_UNIQ_COUNT','STR', '', 'COUNT(DISTINCT ml.mac) AS mac_uniq_count' ],
   ],
     { WHERE => 1,
     }
   );
+
+  my $EXT_TABLES = q{};
+
+  if($attr->{NAS_NAME}) {
+    $EXT_TABLES = "LEFT JOIN nas ON (nas.id=ml.nas_id)";
+  }
 
   if ($attr->{ONLY_CURRENT}) {
     $WHERE .= ' AND datetime > rem_time';
@@ -1810,6 +1822,7 @@ sub mac_log_list {
   $self->query("SELECT
     $self->{SEARCH_FIELDS} ml.id AS id
     FROM equipment_mac_log ml
+    $EXT_TABLES
     $WHERE
     $GROUP_BY
     ORDER BY $SORT $DESC
@@ -1906,6 +1919,7 @@ sub mac_log_add {
 
   return $self;
 }
+
 #**********************************************************
 =head2 mac_log_change($attr) - change mac_log's entry rem_time or port_name/datetime
 
@@ -1922,7 +1936,9 @@ sub mac_log_add {
 sub mac_log_change {
   my $self = shift;
   my ($attr) = @_;
+
   my $time = ($attr->{REM_TIME}) ? "rem_time" : "datetime";
+
   if ($attr->{MULTI_QUERY}) {
     $self->query("UPDATE equipment_mac_log SET
       $time = NOW() " .
@@ -1931,8 +1947,10 @@ sub mac_log_change {
       { MULTI_QUERY => $attr->{MULTI_QUERY} }
     );
   }
+
   return $self;
 }
+
 #**********************************************************
 =head2 mac_notif_add($attr)
 
@@ -1988,6 +2006,23 @@ sub onu_list {
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
+  my @WHERE_RULES = ();
+
+  if ($attr->{RX_POWER_SIGNAL}){
+    my $level_max_bad = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{BAD}{MAX} : -8;
+    my $level_min_bad = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{BAD}{MIN} : -30;
+    my $level_max_worth = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{WORTH}{MAX} : -10;
+    my $level_min_worth = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{WORTH}{MIN} : -27;
+
+    if ($attr->{RX_POWER_SIGNAL} eq 'BAD'){
+    push @WHERE_RULES, "(onu.onu_rx_power < 0 AND (onu.onu_rx_power > $level_max_bad OR onu.onu_rx_power < $level_min_bad))";
+    }
+    elsif ($attr->{RX_POWER_SIGNAL} eq 'WORTH') {
+      push @WHERE_RULES, "(onu.onu_rx_power < 0 AND (
+      onu.onu_rx_power > $level_max_worth AND onu.onu_rx_power < $level_max_bad
+      OR onu.onu_rx_power < $level_min_worth AND onu.onu_rx_power > $level_min_bad))";
+    }
+  }
 
   my $GROUP_BY = $attr->{GROUP_BY} ? 'GROUP BY ' . $attr->{GROUP_BY} : '';
   $self->{SEARCH_FIELDS} = '';
@@ -2024,7 +2059,8 @@ sub onu_list {
     WHERE             => 1,
     USERS_FIELDS      => 1,
     USE_USER_PI       => 1,
-    SKIP_USERS_FIELDS => [ 'LOGIN', 'DOMAIN_ID' ]
+    SKIP_USERS_FIELDS => [ 'LOGIN', 'DOMAIN_ID' ],
+    WHERE_RULES       => \@WHERE_RULES,
   });
 
   if ($attr->{GID}) {
@@ -2123,11 +2159,26 @@ sub onu_date_status {
   my $self = shift;
   my ($attr) = @_;
 
+  my @WHERE_RULES = ();
+
+  if ($attr->{RX_POWER_SIGNAL} && $attr->{RX_POWER_SIGNAL} eq 'BAD'){
+    my $level_max = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{BAD}{MAX} : -8;
+    my $level_min = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{BAD}{MIN} : -30;
+    push @WHERE_RULES, "(onu.onu_rx_power < 0 AND (onu.onu_rx_power > $level_max OR onu.onu_rx_power < $level_min))";
+  }
+  elsif ($attr->{RX_POWER_SIGNAL} && $attr->{RX_POWER_SIGNAL} eq 'WORTH'){
+    my $level_max = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{WORTH}{MAX} : -10;
+    my $level_min = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{WORTH}{MIN} : -27;
+    push @WHERE_RULES, "(onu.onu_rx_power < 0 AND (onu.onu_rx_power > $level_max OR onu.onu_rx_power < $level_min))";
+  }
+
   my $WHERE = $self->search_former($attr, [
     [ 'NAS_ID',   'INT', 'p.nas_id',    1 ],
     [ 'OLT_PORT', 'INT', 'p.id',        1 ],
   ],
-    { WHERE => 1 }
+    { WHERE       => 1,
+      WHERE_RULES => \@WHERE_RULES
+    }
   );
 
   $self->query("SELECT
@@ -2178,10 +2229,13 @@ sub pon_onus_report {
     { WHERE => 1 }
   );
 
+  my $level_max = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{BAD}{MAX} : -8;
+  my $level_min = ($self->{conf}{PON_LEVELS_ALERT}) ? $self->{conf}{PON_LEVELS_ALERT}{BAD}{MIN} : -30;
+
   $self->query("SELECT
     COUNT(*) onu_count,
     SUM($onu_status_where) active_onu_count,
-    SUM($onu_status_where AND onu.onu_rx_power < 0 AND (onu.onu_rx_power > -8 OR onu.onu_rx_power < -30)) bad_onu_count
+    SUM($onu_status_where AND onu.onu_rx_power < 0 AND (onu.onu_rx_power > $level_max OR onu.onu_rx_power < $level_min)) bad_onu_count
     FROM equipment_pon_onu onu
     LEFT JOIN equipment_pon_ports p ON (onu.port_id=p.id)
     LEFT JOIN equipment_infos i ON (p.nas_id = i.nas_id)
@@ -2747,8 +2801,7 @@ sub equipment_all_info {
   $self->query("
     SELECT COUNT(name) as total_count FROM nas;");
 
-  return $self->{list};
-  # _bp('', $self);
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -2841,7 +2894,7 @@ sub mac_duplicate_list {
 }
 
 #**********************************************************
-=head2 _list($attr) - Equipment list
+=head2 _list_with_coords($attr)
 
 =cut
 #**********************************************************

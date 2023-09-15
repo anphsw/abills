@@ -51,7 +51,6 @@ sub new {
   return $self;
 }
 
-
 #**********************************************************
 =head2 contacts_list($attr)
 
@@ -159,7 +158,7 @@ sub contacts_add{
     }
   }
 
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -222,7 +221,7 @@ sub contacts_change{
     DATA         => $attr,
   });
 
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -250,7 +249,6 @@ sub contacts_change_all_of_type {
     TYPE_ID => $type_id
   });
 
-
   if ( $attr->{VALUE} ) {
     # Check if have multiple values in a row
     foreach ( split(/,\s/, $attr->{VALUE}) ) {
@@ -260,7 +258,6 @@ sub contacts_change_all_of_type {
         VALUE   => $_
       });
     }
-
   }
   else {
     return 0;
@@ -314,7 +311,7 @@ sub contact_types_list{
 
   return [] if ($self->{errno});
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -328,11 +325,11 @@ sub contact_types_list{
 
 =cut
 #**********************************************************
-sub contact_types_info{
+sub contact_types_info {
   my $self = shift;
   my ($id) = @_;
 
-  my $list = $self->contact_types_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
+  my $list = $self->contact_types_list({ COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
 
   return $list->[0] || {};
 }
@@ -354,7 +351,7 @@ sub contact_types_add{
 
   $self->query_add('users_contact_types', $attr);
 
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -374,7 +371,7 @@ sub contact_types_del{
 
   $self->query_del('users_contact_types', $attr);
 
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -388,18 +385,17 @@ sub contact_types_del{
 
 =cut
 #**********************************************************
-sub contact_types_change{
+sub contact_types_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'users_contact_types',
-      DATA         => $attr,
-    });
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'users_contact_types',
+    DATA         => $attr,
+  });
 
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -439,6 +435,7 @@ sub social_list_info {
   my $self = shift;
   my ($attr) = @_;
 
+  #TODO: we using table users_social_info?
   delete $self->{COL_NAMES_ARR};
 
   my @WHERE_RULES = ();
@@ -485,7 +482,7 @@ sub social_list_info {
     $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   return $list if ($attr->{TOTAL} < 1);
 
@@ -575,20 +572,22 @@ sub push_contacts_list {
   my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
 
   my $search_columns = [
-    [ 'AID',            'INT', 'aid',     1],
-    [ 'UID',            'INT', 'uid',     1],
-    [ 'TYPE_ID',        'INT', 'type_id', 1],
-    [ 'PUSH_TYPE_ID',   'INT', 'type_id', 1],
-    [ 'VALUE',          'STR', 'value',   1],
-    [ 'BADGES',         'INT', 'badges',  1],
+    [ 'AID',            'INT',  'pc.aid',                     1],
+    [ 'UID',            'INT',  'pc.uid',                     1],
+    [ 'TYPE_ID',        'INT',  'pc.type_id',                 1],
+    [ 'PUSH_TYPE_ID',   'INT',  'pc.type_id as push_type_id', 1],
+    [ 'VALUE',          'STR',  'pc.value',                   1],
+    [ 'BADGES',         'INT',  'pc.badges',                  1],
+    [ 'DATE',           'DATE', 'pc.date',                    1],
   ];
+
   if ($attr->{SHOW_ALL_COLUMNS}){
     map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
   }
   my $WHERE =  $self->search_former($attr, $search_columns, { WHERE => 1 });
 
   $self->query( "SELECT $self->{SEARCH_FIELDS} id
-   FROM push_contacts
+   FROM push_contacts pc
    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
     COLS_NAME => 1,
     %{ $attr // {}}}
@@ -614,7 +613,7 @@ sub push_contacts_info {
   my $self = shift;
   my ($id) = @_;
 
-  my $list = $self->push_contacts_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
+  my $list = $self->push_contacts_list({ COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
 
   return $list->[0] || {};
 }
@@ -638,7 +637,7 @@ sub push_contacts_add {
 
   $self->query_add('push_contacts', $attr, { REPLACE => 1 });
 
-  return $self->{INSERT_ID} || 0;
+  return $self;
 }
 
 #**********************************************************
@@ -705,6 +704,8 @@ sub push_messages_list {
   my $PG = $attr->{PG} || '0';
   my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
 
+  my $GROUP_BY = ($attr->{GROUP_BY}) ? $attr->{GROUP_BY} : 'id';
+
   my $search_columns = [
     [ 'ID',         'INT', 'id',        1],
     [ 'TYPE_ID',    'INT', 'type_id',   1],
@@ -725,7 +726,7 @@ sub push_messages_list {
 
   $self->query("SELECT $self->{SEARCH_FIELDS} id
    FROM push_messages
-   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
+   $WHERE GROUP BY $GROUP_BY ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
     COLS_NAME => 1,
     %{$attr || {}} }
   );
@@ -741,7 +742,7 @@ sub push_messages_list {
     { INFO => 1 }
   );
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
@@ -781,7 +782,7 @@ sub push_messages_add {
 
   $self->query_add('push_messages', $attr, { REPLACE => 1 });
 
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -801,7 +802,7 @@ sub push_messages_del {
 
   $self->query_del('push_messages', undef, $attr);
 
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -816,7 +817,7 @@ sub push_messages_outdated_del {
     'DELETE FROM `push_messages` WHERE UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(created) > ttl;', 'do'
   );
 
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -834,14 +835,13 @@ sub push_messages_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'push_messages',
-      DATA         => $attr,
-    });
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'push_messages',
+    DATA         => $attr,
+  });
 
-  return 1;
+  return $self;
 }
 
 1;

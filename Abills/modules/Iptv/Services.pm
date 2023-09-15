@@ -404,6 +404,7 @@ sub tv_services_sel {
   $params{SEL_OPTIONS} = { '' => $lang{ALL} } if ($attr->{ALL} || $FORM{search_form});
   $params{SEL_OPTIONS}->{0} = $lang{UNKNOWN} if ($attr->{UNKNOWN});
   $params{NO_ID} = $attr->{NO_ID};
+  $params{AUTOSUBMIT} = $attr->{AUTOSUBMIT} if defined($attr->{AUTOSUBMIT});
 
   my $active_service = $attr->{SERVICE_ID} || $FORM{SERVICE_ID};
 

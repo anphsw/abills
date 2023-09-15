@@ -23,7 +23,8 @@ our (
   $lang,
   $html,
   $db,
-  $Equipment
+  $Equipment,
+  %FORM,
 );
 
 use constant {
@@ -158,6 +159,7 @@ sub equipment_maps {
   my ($attr) = @_;
 
   my $equipment_list = $Equipment->_list_with_coords({
+    NAS_ID    => $FORM{NAS_ID} || $attr->{NAS_ID} || '_SHOW',
     STATUS    => '_SHOW',
     COLS_NAME => 1,
     PAGE_ROWS => 10000,
@@ -201,7 +203,7 @@ sub equipment_maps {
         COORDX       => $point->{coordy},
         COORDY       => $point->{coordx},
         INFO         => $info,
-        TYPE         => "nas_$color",
+        TYPE         => $color ? "nas_$color" : "nas_green",
         COUNT        => $count,
         OBJECT_ID    => $point->{location_id},
         DISABLE_EDIT => 1,
@@ -230,6 +232,13 @@ sub equipment_maps {
 #**********************************************************
 =head2 pon_maps()
 
+   $attr
+     NAS_ID
+     ONLY_TOTAL
+     RETURN_HASH
+     EXPORT_LIST
+     RETURN_JSON
+
 =cut
 #**********************************************************
 sub pon_maps {
@@ -237,6 +246,7 @@ sub pon_maps {
   my ($attr) = @_;
 
   my $equipment_list = $Equipment->onu_list({ #XXX pay attention to DELETED status?
+    NAS_ID      => ($attr->{NAS_ID}) ? $attr->{NAS_ID} : '_SHOW',
     LOCATION_ID => '!',
     MAPS_COORDS => '!',
     LOGIN       => '_SHOW',
@@ -297,6 +307,7 @@ sub pon_maps {
 
   my %showed_equipment = ();
   $equipment_list = $Equipment->_list({
+    NAS_ID      => ($attr->{NAS_ID}) ? $attr->{NAS_ID} : '_SHOW',
     MODEL_NAME  => '_SHOW',
     NAS_NAME    => '_SHOW',
     NAS_IP      => '_SHOW',
@@ -345,6 +356,10 @@ sub pon_maps {
       "</ul>" .
       "</div>";
     my $info = "<div class='panel-group'>$tb</div>";
+
+    if ($attr->{TO_VISUAL}) {
+      $info =~ s/\'/\\"/g;
+    }
 
     $count++;
     $point->{location_id} ||= $point->{build_id};

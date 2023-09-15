@@ -2,19 +2,22 @@
 use strict;
 use warnings FATAL => 'all';
 
-my $libpath;
-our ($Bin, %conf, $base_dir, @MODULES, %lang, %FORM);
+
+our ($libpath, %conf, $base_dir, @MODULES, %lang, %FORM);
+
 BEGIN {
   use FindBin '$Bin';
 
   # Assuming we are in '/usr/abills/misc/'
   $libpath = $Bin . '/../';
-}
 
-use lib $libpath;
-use lib $libpath . 'lib';
-use lib $libpath . 'Abills/mysql';
-use lib $libpath . 'Abills';
+  unshift( @INC,
+    $libpath,
+    $libpath . "Abills/mysql/",
+    $libpath . 'Abills/',
+    $libpath . 'lib/'
+  );
+}
 
 do 'libexec/config.pl';
 $base_dir //= $libpath;
@@ -28,6 +31,7 @@ require Abills::Misc;
 
 my $db = Abills::SQL->connect(@conf{'dbtype', 'dbhost', 'dbname', 'dbuser', 'dbpasswd'},
   { CHARSET => $conf{dbcharset} });
+
 my $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 
@@ -42,7 +46,7 @@ if ($argv->{DEBUG}) {
 
 do 'language/english.pl';
 
-main();
+contact_migrate();
 exit 0;
 
 #**********************************************************
@@ -50,7 +54,7 @@ exit 0;
 
 =cut
 #**********************************************************
-sub main {
+sub contact_migrate {
   require Users;
   Users->import();
 

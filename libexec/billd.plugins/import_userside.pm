@@ -325,34 +325,19 @@ sub insert_user {
     }
 
     #3 personal info
-
-    # print $user_info->{USERS_PI}->{FIO} . "\n";
-
     $user->pi_add({ UID => $uid, %{ $user_info->{USERS_PI} }, });
 
-    if (defined($conf{CONTACTS_NEW})) {
+    $Contacts->contacts_add({
+      TYPE_ID => 1,
+      VALUE   => $user_info->{USERS_PI}->{PHONE},
+      UID     => $uid,
+    }) if ($user_info->{USERS_PI}->{PHONE});
 
-      if ($user_info->{USERS_PI}->{PHONE}) {
-        $Contacts->contacts_add(
-          {
-            TYPE_ID => 1,
-            VALUE   => $user_info->{USERS_PI}->{PHONE},
-            UID     => $uid,
-          }
-        );
-      }
-
-      if ($user_info->{USERS_PI}->{PHONE}) {
-        $Contacts->contacts_add(
-          {
-            TYPE_ID => 9,
-            VALUE   => $user_info->{USERS_PI}->{EMAIL},
-            UID     => $uid,
-          }
-        );
-      }
-
-    }
+    $Contacts->contacts_add({
+      TYPE_ID => 9,
+      VALUE   => $user_info->{USERS_PI}->{EMAIL},
+      UID     => $uid,
+    }) if ($user_info->{USERS_PI}->{PHONE});
 
     #5 Payments section
 
@@ -402,36 +387,22 @@ sub change_user {
   $change_log .= "\n    *User main info:\n $Users->{CHANGES_LOG}" if ($Users->{CHANGES_LOG});
   $Users->{CHANGES_LOG} = '';
 
-  my $user_pi_change_result = $Users->pi_change(
-    {
-      UID => $uid,
-      %{ $attr->{USERS_PI} }
-    }
-  );
+  my $user_pi_change_result = $Users->pi_change({
+    UID => $uid,
+    %{$attr->{USERS_PI}}
+  });
 
-  if (defined($conf{CONTACTS_NEW})) {
+  $Contacts->contacts_add({
+    TYPE_ID => 1,
+    VALUE   => $attr->{USERS_PI}->{PHONE},
+    UID     => $uid,
+  }) if ($attr->{USERS_PI}->{PHONE});
 
-    if ($attr->{USERS_PI}->{PHONE}) {
-      $Contacts->contacts_add(
-        {
-          TYPE_ID => 1,
-          VALUE   => $attr->{USERS_PI}->{PHONE},
-          UID     => $uid,
-        }
-      );
-    }
-
-    if ($attr->{USERS_PI}->{EMAIL}) {
-      $Contacts->contacts_add(
-        {
-          TYPE_ID => 9,
-          VALUE   => $attr->{USERS_PI}->{EMAIL},
-          UID     => $uid,
-        }
-      );
-    }
-
-  }
+  $Contacts->contacts_add({
+    TYPE_ID => 9,
+    VALUE   => $attr->{USERS_PI}->{EMAIL},
+    UID     => $uid,
+  }) if ($attr->{USERS_PI}->{EMAIL});
 
   $change_log .= "\n   *User personal info:\n$Users->{CHANGES_LOG}" if ($Users->{CHANGES_LOG});
   $Users->{CHANGES_LOG} = '';

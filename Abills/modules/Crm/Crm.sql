@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS `crm_leads` (
   `assessment` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
   `comments` TEXT,
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `holdup_date` DATE NOT NULL DEFAULT '0000-00-00',
   PRIMARY KEY (`id`),
   KEY uid (`uid`),
   KEY competitor_id (`competitor_id`)

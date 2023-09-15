@@ -138,6 +138,7 @@ CREATE TABLE IF NOT EXISTS `paysys_connect`
 (
     `id`             TINYINT(4) UNSIGNED  NOT NULL AUTO_INCREMENT,
     `paysys_id`      TINYINT UNSIGNED     NOT NULL DEFAULT 0,
+    `subsystem_id`   TINYINT UNSIGNED     NOT NULL DEFAULT 0,
     `name`           VARCHAR(40)          NOT NULL DEFAULT '',
     `module`         VARCHAR(40)          NOT NULL DEFAULT '',
     `status`         TINYINT UNSIGNED     NOT NULL DEFAULT 0,

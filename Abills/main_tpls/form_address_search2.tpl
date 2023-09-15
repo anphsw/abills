@@ -66,21 +66,41 @@
     });
   });
 
+  document.addEventListener('district-change', function(event) {
+    GetStreets(event.detail.district);
+  });
+
   function GetStreets(data) {
     let street = jQuery("#%STREET_ID%");
     street.attr('disabled', 'disabled');
+
     let district_id = jQuery(data).val();
     district_id = district_id ? district_id : '_SHOW';
 
-    let url = `%QINDEX%header=2&get_index=form_address_select2&DISTRICT_ID=${district_id}`
-      + '&STREET=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%';
-    jQuery.post('$SELF_URL', url, function (result) {
-      street.html(result);
-      initChosen();
+    fetch(`/api.cgi/streets?DISTRICT_ID=${district_id}&DISTRICT_NAME=_SHOW&PAGE_ROWS=1000000`, {
+      mode: 'cors',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json'},
+      redirect: 'follow',
+      referrerPolicy: 'no-referrer',
+    })
+      .then(response => {
+        if (!response.ok) throw response;
+        return response;
+      })
+      .then(response => response.json())
+      .then(data => {
+        street.html('');
 
-      if (!jQuery(data).prop('multiple')) street.focus().select2('open');
-      street.removeAttr('disabled');
-    });
+        if (data.length < 1) return 1;
+
+        feelOptionGroup(street, data, 'districtId', 'districtName', 'streetName');
+
+        let feel_options = street.find('option[value!=""]').length;
+        if (feel_options > 0) initChosen();
+        if (!jQuery(data).prop('multiple') && feel_options > 0) street.focus().select2('open');
+        street.removeAttr('disabled');
+      });
   }
 
   function GetBuilds(data) {
@@ -94,17 +114,32 @@
       jQuery('#ADD_LOCATION_ID').attr('value', '');
     }
 
-    let url = `%QINDEX%header=2&get_index=form_address_select2&STREET_ID=${street_id}&BUILD=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&` +
-      `STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%`;
-    jQuery.post('$SELF_URL', url, function (result) {
-      build.html(result);
-      initChosen();
+    fetch(`/api.cgi/builds?STREET_ID=${street_id}&STREET_NAME=_SHOW&PAGE_ROWS=1000000`, {
+      mode: 'cors',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json'},
+      redirect: 'follow',
+      referrerPolicy: 'no-referrer',
+    })
+      .then(response => {
+        if (!response.ok) throw response;
+        return response;
+      })
+      .then(response => response.json())
+      .then(data => {
+        build.html('');
+        if (data.length < 1) return 1;
 
-      if (!jQuery(data).prop('multiple')) build.focus().select2('open');
-      build.removeAttr('disabled');
+        feelOptionGroup(build, data, 'streetId', 'streetName', 'number');
 
-      activateBuildButtons();
-    });
+        let feel_options = build.find('option[value!=""]').length;
+        if (feel_options > 0) initChosen();
+
+        if (jQuery('#ADD_ADDRESS_BUILD_ID').is(':disabled')) {
+          if (!jQuery(data).prop('multiple') && feel_options > 0) build.focus().select2('open');
+          build.removeAttr('disabled');
+        }
+      });
   }
 
   //Get location_id after change build
@@ -153,6 +188,23 @@
       }(result));
   }
 
+  function feelOptionGroup (select, data, groupKey, groupLabel, optionName) {
+    let default_option = jQuery('<option></option>', {value: '', text: '--'});
+    select.append(default_option);
+
+    let optgroups = {};
+    data.forEach(address => {
+      if (!optgroups[address[groupKey]]) {
+        optgroups[address[groupKey]] = jQuery(`<optgroup label='== ${address[groupLabel]} =='></optgroup>`);
+      }
+
+      let option = jQuery('<option></option>', {value: address.id, text: address[optionName]});
+      optgroups[address[groupKey]].append(option);
+    });
+
+    jQuery.each(optgroups, function(key, value) { select.append(value);});
+  }
+
   function activateBuildButtons() {
     //Changing select to input
     jQuery('.BUTTON-ENABLE-ADD').on('click', function () {
@@ -195,7 +247,6 @@
     let flat = flat_input.val() || '';
 
     let uid = `!${jQuery(`[name='UID']`).first().val()}`;
-    console.log(uid);
 
     if (typeof timeout !== 'undefined' && timeout) {
       clearTimeout(timeout);

@@ -186,6 +186,8 @@ function defineMainSearchLiveLogic() {
     var $type_select = $form.find('.search-type-select');
     var $input = $form.parent().find('input.UNIVERSAL_SEARCH');
 
+    var MIN_CHARS = 3;
+
     try {
       $input.marcoPolo({
         url : $form.attr('action'),
@@ -214,8 +216,32 @@ function defineMainSearchLiveLogic() {
           result += Mustache.render(extra_row_template, data);
           return result;
         },
-
-        minChars: 3,
+        onRequestBefore: function () {
+          $('body').css({'cursor': 'progress'});
+        },
+        onRequestAfter: function () {
+          $('body').css({'cursor': 'default'});
+        },
+        formatNoResults: function() {
+          if (typeof _NO_RESULTS_FOUND !== 'undefined') {
+            return _NO_RESULTS_FOUND;
+          }
+          return 'No results found';
+        },
+        formatError: function() {
+          if (typeof _NO_RESULTS_FOUND !== 'undefined') {
+            return _NO_RESULTS_FOUND;
+          }
+          return 'No results found';
+        },
+        formatMinChars: function() {
+          if (typeof _SEARCH_AT_LEAST_MIN_CHARS !== 'undefined') {
+            return vars2lang(_SEARCH_AT_LEAST_MIN_CHARS, {
+              MIN_CHARS: MIN_CHARS
+            });
+          }
+        },
+        minChars: MIN_CHARS,
 
         onSelect: function (data) {
           location.replace('?index=15&UID=' + data.uid);

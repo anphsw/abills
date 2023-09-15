@@ -63,8 +63,8 @@ $lang{FOLLOWER_NOTICE} = 'Follower notice';
 $lang{EVERYTHING_EXCEPT_DONE} = 'Everything except done';
 $lang{DISPACTH_CATEGORY} = 'Dispatch category';
 $lang{CATEGORY} = 'Category';
-$lang{QUICK_REPLYS_TYPES} = 'Quick replys types';
-$lang{QUICK_REPLYS} = 'Quick replys';
+$lang{QUICK_REPLYS_TYPES} = 'Quick replies types';
+$lang{QUICK_REPLYS} = 'Quick replies';
 $lang{NO_CHAPTER} = 'No chapter';
 $lang{NOT_DEFINED} = 'Not defined';
 $lang{MAKE_NEW_TOPIC} = 'Create new topic?';
@@ -72,7 +72,7 @@ $lang{CREATE_NEW_TOPIC} = 'Create new topic';
 $lang{CREATE_TOPIC_MESSAGE} = 'New message created';
 $lang{NEW_TOPIC} = 'New topic';
 $lang{AUTO_CREATE_TEXT} = 'The message was created automatically from comments to';
-$lang{REPLYS} = 'Replys';
+$lang{REPLYS} = 'Replies';
 $lang{MSGS_TAGS} = 'Message tags';
 $lang{MSGS_TAGS_TYPES} = 'Message tags types';
 $lang{DOWNTIME} = 'Downtime';
@@ -109,9 +109,9 @@ $lang{PERIODICALLY} = 'Periodically';
 $lang{TASK} = 'Task';
 $lang{USER_CONNECTION} = 'User connection';
 $lang{CLOSED_RATIO} = 'Percentage of closed messages';
-$lang{REPLYS_AND_TIME} = 'Replys and time';
-$lang{REPLYS_COUNT} = 'Number of replys';
-$lang{REPLYS_AVERAGE} = 'Replys (average)';
+$lang{REPLYS_AND_TIME} = 'Replies and time';
+$lang{REPLYS_COUNT} = 'Number of replies';
+$lang{REPLYS_AVERAGE} = 'Replies (average)';
 $lang{TIME_AVERAGE} = 'Run time (average)';
 $lang{SITE} = 'Site';
 $lang{DISPATCH_NUMBER} = 'Number of dispatch';
@@ -123,7 +123,7 @@ $lang{BRIGADE} = 'Brigade';
 $lang{D_ACTIVE} = 'Active';
 
 $lang{MONDAY_FULL} = 'Monday';
-$lang{TUESDAY_FULL} = 'Thursday';
+$lang{TUESDAY_FULL} = 'Tuesday';
 $lang{WEDNESDAY_FULL} = 'Wednesday';
 $lang{THURSDAY_FULL} = 'Thursday';
 $lang{FRIDAY_FULL} = 'Friday';
@@ -141,7 +141,7 @@ $lang{REPEAT_MSG_LOCATION_2} = ' has already been accepted today!';
 $lang{ADD_ANOTHER_ONE} = 'Add another one?';
 
 $lang{ADMIN_UNREAD} = 'Admin Unread';
-$lang{TODAY_PLAN} = 'Today planing';
+$lang{TODAY_PLAN} = 'Today planning';
 $lang{UNREG_COUNT} = 'Unreg count';
 $lang{UNREPLY_MSGS} = 'Unreply message';
 
@@ -273,5 +273,12 @@ $lang{PUTTING_MESSAGE_IN_SEPARATE_SUBJECT} = 'Putting a message in a separate su
 $lang{CHANGE_OF_DISPATCH} = 'Changing dispatch';
 $lang{MESSAGES_CAN_BE_SENT_UP_TO_ONCE} = 'Messages can be sent up to once every %SECONDS% seconds';
 $lang{LAST_MESSAGE_ID} = 'Last message id';
+$lang{CLOSED_ORDER_RATIO} = 'Closed order ratio';
+
+$lang{MSGS_SUPPORT_REQUEST_HEADER} = 'Support request submitted';
+$lang{MSGS_SUPPORT_REQUEST_BODY} = 'We\'re sorry you\'re having difficulty. We will do our best to solve the problem and make you satisfied.';
+$lang{MSGS_SUPPORT_REQUEST_FOOTER} = 'Our manager will contact you soon.';
+$lang{MSGS_SUPPORT_REQUEST_NUMBER} = 'The number of your request is';
+$lang{DO_YOU_REALLY_WANT_TO_CHARGE_FOR_MESSAGE} = 'Do you really want to charge for message?';
 
 1;

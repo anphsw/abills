@@ -1,26 +1,23 @@
 package Dom;
 =name2
+
   Dom
 
 =VERSION
 
-  VERSION = 0.01
+  VERSION = 0.02
 =cut
 
 use strict;
 use warnings FATAL => 'all';
 
-use parent 'main';
+use parent qw( dbcore );
 my $MODULE = 'Dom';
 
 use Dom;
 
 my $admin;
 my $CONF;
-my $SORT = 1;
-my $DESC = '';
-my $PG = 1;
-my $PAGE_ROWS = 25;
 
 #**********************************************************
 =head2 new($db, $admin, $CONF)
@@ -67,10 +64,10 @@ sub list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ();
   my $WHERE = $self->search_former($attr, [
@@ -90,7 +87,7 @@ sub list {
       WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
     });
-  $self->query2("SELECT $self->{SEARCH_FIELDS} pi.email
+  $self->query("SELECT $self->{SEARCH_FIELDS} pi.email
      FROM users_pi pi
       LEFT JOIN users u ON (pi.uid=u.uid)
       LEFT JOIN bills b ON (u.bill_id = b.id)
@@ -104,7 +101,7 @@ sub list {
 
   my $list = $self->{list};
 
-  $self->query2("SELECT COUNT(*) AS total
+  $self->query("SELECT COUNT(*) AS total
      FROM users_pi pi
      $WHERE;",
     undef, { INFO => 1 }
@@ -120,7 +117,7 @@ sub list {
 sub users_online_by_builds {
   my $self = shift;
 
-  my $online_list = $self->query2("SELECT b.id AS id, u.uid, u.fio, i.status, b.number
+  my $online_list = $self->query("SELECT b.id AS id, u.uid, u.fio, i.status, b.number
     FROM internet_online AS i
     LEFT JOIN users_pi u ON (u.uid=i.uid)
     LEFT JOIN builds AS b ON (b.id=u.location_id)
@@ -139,7 +136,7 @@ sub users_online_by_builds {
 sub users_offline_by_builds {
   my $self = shift;
 
-  my $online_list = $self->query2("SELECT b.id AS id, up.uid, up.fio, b.number, i.status
+  my $online_list = $self->query("SELECT b.id AS id, up.uid, up.fio, b.number, i.status
     FROM users u
     LEFT JOIN internet_online i ON (i.uid = u.uid)
     LEFT JOIN users_pi up ON (up.uid=u.uid)
@@ -167,8 +164,8 @@ sub streets_list_with_builds {
 
   my $WHERE = $self->search_former($attr, [ [ 'DISTRICT_ID', 'INT', 'st.district_id', 1 ], ], { WHERE => 1 });
 
-  $self->query2("SET SESSION group_concat_max_len = 1000000;", 'do');
-  $self->query2("SELECT st.id AS street_id, st.name as street_name, st.second_name AS second_name,
+  $self->query("SET SESSION group_concat_max_len = 1000000;", 'do');
+  $self->query("SELECT st.id AS street_id, st.name as street_name, st.second_name AS second_name,
     GROUP_CONCAT(DISTINCT CONCAT(b.number, '|', b.id, '|', b.users_count) ORDER BY b.number + 0) as builds_number
     FROM streets st
     LEFT JOIN (

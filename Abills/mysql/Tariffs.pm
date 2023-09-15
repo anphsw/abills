@@ -380,7 +380,8 @@ sub defaults {
     NEG_DEPOSIT_IPPOOL      => 0,
     NEXT_TARIF_PLAN         => 0,
     FEES_METHOD             => 0,
-    USER_CREDIT_LIMIT       => 0
+    USER_CREDIT_LIMIT       => 0,
+    POPULAR                 => 0,
   );
 
   $self = \%DATA;
@@ -499,7 +500,8 @@ sub change {
     STATUS                  => 'status',
     DESCRIBE_AID            => 'describe_aid',
     PROMOTIONAL             => 'promotional',
-    EXT_BILL_FEES_METHOD    => 'ext_bill_fees_method'
+    EXT_BILL_FEES_METHOD    => 'ext_bill_fees_method',
+    POPULAR                 => 'popular',
   );
 
   $attr->{REDUCTION_FEE}        = 0 if (!$attr->{REDUCTION_FEE});
@@ -511,9 +513,11 @@ sub change {
   $attr->{SMALL_DEPOSIT_ACTION} = 0 if (!$attr->{SMALL_DEPOSIT_ACTION});
   $attr->{BILLS_PRIORITY}       = 0 if (!$attr->{BILLS_PRIORITY});
   $attr->{ACTIVE_DAY_FEE}       = 0 if (!$attr->{ACTIVE_DAY_FEE});
+  $attr->{ACTIVE_MONTH_FEE}     = 0 if (!$attr->{ACTIVE_MONTH_FEE});
   $attr->{FIXED_FEES_DAY}       = 0 if (!$attr->{FIXED_FEES_DAY});
   $attr->{STATUS}               = 0 if (!$attr->{STATUS});
   $attr->{PROMOTIONAL}          = 0 if (!$attr->{PROMOTIONAL});
+  $attr->{POPULAR}              = 0 if (!$attr->{POPULAR});
 
   $self->changes({
     CHANGE_PARAM    => 'TP_ID',
@@ -719,14 +723,15 @@ sub list {
     [ 'DESCRIBE_AID',        'STR', 'tp.describe_aid',             1 ],
     [ 'IPPOOL',              'STR', 'tp.ippool',                   1 ],
     [ 'PROMOTIONAL',         'INT', 'tp.promotional',              1 ],
-    );
+    [ 'POPULAR',             'INT', 'tp.popular',                  1 ],
+  );
 
   if ($attr->{SHOW_ALL_COLUMNS}){
     map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @search_columns;
   }
 
-  my $WHERE =  $self->search_former($attr, \@search_columns, {
-    WHERE => 1,
+  my $WHERE = $self->search_former($attr, \@search_columns, {
+    WHERE       => 1,
     WHERE_RULES => \@WHERE_RULES
   });
 

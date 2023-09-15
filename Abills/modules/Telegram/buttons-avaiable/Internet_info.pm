@@ -3,6 +3,9 @@ package Internet_info;
 use strict;
 use warnings FATAL => 'all';
 
+require Control::Service_control;
+my $Service_control;
+
 #**********************************************************
 =head2 new($Botapi)
 
@@ -20,6 +23,8 @@ sub new {
   };
   
   bless($self, $class);
+
+  $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
   
   return $self;
 }
@@ -54,9 +59,6 @@ sub click {
   $Users->info($uid);
   $Users->group_info($Users->{GID});
 
-  require Control::Service_control;
-  my $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
-
   my $list = $Internet->user_list({
     ID              => '_SHOW',
     TP_NAME         => '_SHOW',
@@ -73,7 +75,7 @@ sub click {
   my $message = "$self->{bot}->{lang}->{CONNECTED_SERVICE}:\n\n";
 
   foreach my $line (@$list) {
-    $message .= "$self->{bot}->{lang}->{TARIF_PLAN}: <b>" . ($line->{tp_name} || q{}) . "</b>\n";
+    $message .= "$self->{bot}{lang}{TARIF_PLAN}: <b>" . ($line->{tp_name} || q{}) . "</b>\n";
     if ($line->{internet_status} == 3) {
       require Shedule;
       my $Shedule  = Shedule->new($self->{db}, $self->{admin}, $self->{conf});
@@ -110,33 +112,33 @@ sub click {
       $inline_keyboard = [ [ $inline_button ] ] if !$can_stop_holdup->{error} && $inline_button;
     }
     elsif ($line->{internet_status} == 5) {
-      $message .= "<b>$self->{bot}->{lang}->{SMALL_DEPOSIT}</b>\n\n";
-      if ($self->{conf}{user_credit_change} && $Users->{ALLOW_CREDIT}) {
-        my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $self->{conf}{user_credit_change});
-        my $days_lit = "$self->{bot}->{lang}->{DAY}";
-        if ($days > 1 && $days < 5) {
-          $days_lit = "$self->{bot}->{lang}->{DAY}";
-        }
-        elsif ($days > 4) {
-          $days_lit = "$self->{bot}->{lang}->{DAYS}";
-        }
-        $message .= "$self->{bot}->{lang}->{SET_CREDIT} $days $days_lit";
-        $message .= " $money_currency\n";
-        $message .= "$self->{bot}->{lang}->{SERVICE_PRICE}: $price" if ($price);
-        $message .= " $money_currency\n";
+      $message .= "<b>$self->{bot}{lang}{SMALL_DEPOSIT}</b>\n\n";
+
+      my $credit_info = $Service_control->user_set_credit({ UID => $self->{bot}{uid}, REDUCTION => $Users->{REDUCTION} });
+      if (!$credit_info->{errstr}) {
+        my $currency = $self->{conf}{MONEY_UNIT_NAMES} || '';
+        my $sum = $credit_info->{CREDIT_SUM} || 0;
+        my $days = $credit_info->{CREDIT_DAYS} || 0;
+        my $price = $credit_info->{CREDIT_CHG_PRICE} || 0;
+        my $month_changes = $credit_info->{CREDIT_MONTH_CHANGES} || 0;
+
+        $message .= "$self->{bot}{lang}{SET_CREDIT}: <b>$sum $currency</b>\n";
+        $message .= "$self->{bot}{lang}{CREDIT_OPEN}: <b>$days</b> $self->{bot}->{lang}->{DAYS}\n";
+        $message .= "$self->{bot}{lang}{CREDIT_PRICE}: <b>$price $currency</b>\n";
+        $message .= "$self->{bot}{lang}{SET_CREDIT_ALLOW}: <b>$month_changes</b> $self->{bot}->{lang}->{COUNT}\n";
 
         my $inline_button = {
-          text          => "$self->{bot}->{lang}->{CREDIT_SET}",
+          text          => "$self->{bot}{lang}{CREDIT_SET}",
           callback_data => "Internet_info&credit"
         };
         $inline_keyboard = [ [$inline_button] ];
       }
     }
     else {
-      $message .= "$self->{bot}->{lang}->{SPEED}: <b>$line->{speed}</b>\n" if ($line->{speed});
-      $message .= "$self->{bot}->{lang}->{PRICE_MONTH}: <b>$line->{month_fee}</b>" if ($line->{month_fee} && $line->{month_fee} > 0);
+      $message .= "$self->{bot}{lang}{SPEED}: <b>$line->{speed}</b>\n" if ($line->{speed});
+      $message .= "$self->{bot}{lang}{PRICE_MONTH}: <b>$line->{month_fee}</b>" if ($line->{month_fee} && $line->{month_fee} > 0);
       $message .= " $money_currency\n";
-      $message .= "$self->{bot}->{lang}->{PRICE_DAY}: <b>$line->{day_fee}</b>\n" if ($line->{day_fee} && $line->{day_fee} > 0);
+      $message .= "$self->{bot}{lang}{PRICE_DAY}: <b>$line->{day_fee}</b>\n" if ($line->{day_fee} && $line->{day_fee} > 0);
     }
     $message .= "\n";
   }
@@ -160,9 +162,6 @@ sub click {
 sub stop_holdup {
   my $self = shift;
   my ($attr) = @_;
-
-  require Control::Service_control;
-  my $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
 
   my $stop_holdup_result = $Service_control->user_holdup({
     UID => $attr->{uid},
@@ -188,13 +187,14 @@ sub credit {
   my $self = shift;
   my ($attr) = @_;
 
-  require Control::Service_control;
-  my $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
+  use Users;
+  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+  $Users->info($attr->{uid});
 
-  my $credit_info = $Service_control->user_set_credit({ UID => $attr->{uid}, change_credit => 1 });
+  my $credit_info = $Service_control->user_set_credit({ UID => $attr->{uid}, REDUCTION => $Users->{REDUCTION}, change_credit => 1 });
 
   $self->{bot}->send_message({
-    text       => $credit_info->{error} ? "$self->{bot}{lang}{CREDIT_NOT_EXIST}" : $self->{bot}{lang}{CREDIT_SUCCESS},
+    text       => $credit_info->{errstr} ? ($self->{bot}{lang}{$credit_info->{errstr}} || $self->{bot}{lang}{CREDIT_NOT_EXIST}) : $self->{bot}{lang}{CREDIT_SUCCESS},
     parse_mode => 'HTML'
   });
 

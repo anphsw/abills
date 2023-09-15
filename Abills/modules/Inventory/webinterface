@@ -139,6 +139,34 @@ sub inventory_main {
         'LOG_COMMENTS'     => 'LOG_COMMENTS',
       }
     });
+  } elsif ($FORM{reports}) {
+    my ($table) = result_former({
+      INPUT_DATA      => $Inventory,
+      FUNCTION        => 'inventory_log_info',
+      DEFAULT_FIELDS  => 'IP,DATETIME,USERS,ADMINS,TPS,NAS,UID,SYS_ID',
+      SKIP_USER_TITLE => 1,
+      EXT_TITLES      => {
+        ip       => 'IP',
+        users    => $lang{USERS},
+        admins   => $lang{ADMINS},
+        nas      => $lang{NAS},
+        tps      => $lang{TARIF_PLANS},
+        datetime => $lang{REACTION_TIME},
+        uid      => 'UID',
+        sys_id   => 'SYS_ID'
+      },
+      TABLE           => {
+        width   => '100%',
+        caption => "$lang{HOSTS} - $lang{REPORTS}",
+        border  => 1,
+        qs      => $pages_qs,
+        ID      => 'INVENTORY_LOG_INFO',
+        EXPORT  => 1,
+      },
+      MAKE_ROWS       => 1,
+      MODULE          => 'Inventory',
+    });
+    print $table->show();
   }
 
   my $type_list = $Inventory->inventory_types_list({ COLS_NAME => 1 });
@@ -190,7 +218,9 @@ sub inventory_main {
       qs      => $pages_qs,
       ID      => 'INVENTORY_LIST',
       EXPORT  => 1,
-      MENU    => ($FORM{UID}) ? "$lang{ADD}:index=$index&UID=$FORM{UID}&add_form=1:add" : '',
+      MENU    => ($FORM{UID})
+        ? "$lang{ADD}:index=$index&UID=$FORM{UID}&add_form=1:add;$lang{REPORTS}:index=$index&UID=$FORM{UID}&reports=1:btn btn-success btn-xs ml-1 rounded"
+        : '',
     },
     MAKE_ROWS       => 1,
     MODULE          => 'Inventory',
@@ -763,6 +793,132 @@ sub inventory_search {
   # }
 
   return \@info;
+}
+
+#**********************************************************
+=head2 inventory_stats() - web reports about inventory data
+
+=cut
+#**********************************************************
+sub inventory_stats {
+  my @DELIMITERS = (1000, 2000, 5000, 10000, 20000, 50000);
+  my %PER_DELIMITER_DATA = map { $_ => [] } @DELIMITERS;
+
+  my $list = $Inventory->inventory_log_info({
+    ADMINS => '_SHOW',
+    USERS  => '>=1000',
+    NAS    => '_SHOW',
+    TPS    => '_SHOW',
+    COLS_NAME => 1,
+    PAGE_ROWS => 999999
+  });
+
+  my @clients = @$list;
+  @clients = sort { $a->{users} <=> $b->{users} } @clients;
+
+  my @reversed = reverse @DELIMITERS;
+
+  for my $client (@clients) {
+    for (my $i = 0; $i < scalar(@reversed); $i++) {
+      my $delimiter = $reversed[$i];
+      if ($client->{users} >= $delimiter) {
+        push @{$PER_DELIMITER_DATA{$delimiter}}, $client;
+        last;
+      }
+    }
+  }
+
+  my @ADMIN_LIST = ();
+  my @USERS_LIST = ();
+  my @NAS_LIST = ();
+  my @TPS_LIST = ();
+
+  my $definition = {
+    users  => \@USERS_LIST,
+    admins => \@ADMIN_LIST,
+    nas    => \@NAS_LIST,
+    tps    => \@TPS_LIST,
+  };
+
+  for my $delimited (sort {$a <=> $b } keys %PER_DELIMITER_DATA) {
+    for my $def_key (keys %$definition) {
+      my $average = 0;
+      my @delimited_array = @{$PER_DELIMITER_DATA{$delimited}};
+      for my $client (@delimited_array) {
+        $average += $client->{$def_key};
+      }
+      $average = $average != 0
+        ? $average / scalar(@delimited_array)
+        : 0;
+      push @{$definition->{$def_key}}, int($average);
+    }
+  }
+
+  my $chart = $html->chart({
+    TYPE       => 'line',
+    DATA_CHART => {
+      datasets => [
+        {
+          data            => \@ADMIN_LIST,
+          label           => $lang{ADMINS},
+          borderColor     => '#3af',
+          fill            => 'false',
+          backgroundColor => '#3af',
+          tension         => 0.3
+        },
+        {
+          data            => \@NAS_LIST,
+          label           => $lang{NASS},
+          borderColor     => '#0f8',
+          fill            => 'false',
+          backgroundColor => '#0f8',
+          tension         => 0.3
+        },
+        {
+          data            => \@TPS_LIST,
+          label           => $lang{TARIF_PLANS},
+          borderColor     => '#fa1',
+          fill            => 'false',
+          backgroundColor => '#fa1',
+          tension         => 0.3
+        },
+      ],
+      labels   => \@DELIMITERS
+    },
+    OPTIONS    => {}
+  });
+
+  my $users_chart = $html->chart({
+    type       => 'line',
+    DATA_CHART => {
+      datasets => [
+        {
+          data            => \@USERS_LIST,
+          label           => $lang{USERS},
+          borderColor     => '#f68',
+          fill            => 'false',
+          backgroundColor => '#f68',
+          tension         => 0.3
+        },
+      ],
+      labels   => \@DELIMITERS
+    },
+    OPTIONS    => {},
+  });
+
+  $html->tpl_show(templates('form_show_not_hide'), {
+    NAME        => "$lang{REPORTS} - $lang{EQUIPMENT}, $lang{NAS}, $lang{TARIF_PLANS}",
+    CONTENT     => $chart,
+    BUTTON_ICON => 'minus',
+    PARAMS      => 'card-primary card-outline'
+  });
+
+  $html->tpl_show(templates('form_show_not_hide'), {
+    NAME    => "$lang{REPORTS} - $lang{USERS}",
+    CONTENT => $users_chart,
+    BUTTON_ICON => 'minus',
+    PARAMS      => 'card-primary card-outline'
+  });
 }
 
 1;

@@ -9,10 +9,13 @@ use warnings;
 use Abills::Base qw(load_pmodule);
 
 our (
-  $html,
   %lang,
-  %html_color
+  %html_color,
+  %conf
 );
+
+our Abills::HTML $html;
+our Equipment $Equipment;
 
 my $json_load_error = load_pmodule("JSON", { RETURN => 1 });
 if ($json_load_error) {
@@ -23,11 +26,10 @@ else {
   require JSON;
   JSON->import(qw/to_json from_json/);
 }
-our Equipment $Equipment;
 
 my $CURL = $conf{FILE_CURL} || '/usr/bin/curl';
 my @cpe_sys_info = ();
-my $wifi_ssid = $conf{TR069_WLAN_SSID} || '';
+my $wifi_ssid = $conf{TR069_WLAN_SSID} || 'AbillS';
 
 my $default_wan_settings = $conf{TR069_WAN_SETTINGS} ||
   [ { connect_type => 'ipoe',
@@ -75,6 +77,7 @@ sub tr_069_presets {
     { class => ($FORM{'add'}) ? 'active' : '' });
   $html->tpl_show(_include('equipment_script_editor', 'Equipment'), { %FORM, %{$attr} });
 }
+
 #**********************************************************
 =head2 tr_069_provisions($attr) - TR-069 Provisions
 
@@ -82,6 +85,7 @@ sub tr_069_presets {
 #**********************************************************
 sub tr_069_provisions {
   my ($attr) = @_;
+
   return 0 if (!$conf{TR069_SERVER});
   $FORM{script} =~ s/\\//g if $FORM{script};
 
@@ -114,7 +118,7 @@ sub tr_069_provisions {
       { class => ($id eq $FORM{'_id'}) ? 'active' : '' });
   }
   my $provisions_data = '';
-  my $script_html = '';
+  #my $script_html = '';
   my $del_btn = $html->button($lang{DEL},
     "index=$index&_id=$FORM{_id}&del=1",
     { MESSAGE => "$lang{DEL} Provision: $FORM{_id}?", class => 'btn btn-danger' }) if $FORM{_id};
@@ -136,12 +140,15 @@ sub tr_069_provisions {
       { %{$provisions_data->[0]}, DEL_BTN => $del_btn }, { OUTPUT2RETURN => 1 });
     $script = $provisions_data->[0]->{script};
   }
+
   $attr->{COLLECTION_IDS} .= $html->li($html->button('<span class="text-green">Add NEW Provision</span>', "index=$index&add_form=1"),
     { class => ($FORM{'add'}) ? 'active' : '' });
   $attr->{HTML_CONTENT} =~ s/__SCRIPT__/$script/g;
   $html->tpl_show(_include('equipment_script_editor', 'Equipment'), { %FORM, %{$attr} });
 
+  return 1;
 }
+
 #**********************************************************
 =head2 tr_069_faults($attr) - TR-069 Faults
 
@@ -157,56 +164,56 @@ sub tr_069_faults {
 
   my @key_names = ('Device', 'Channel', 'Code', 'Message', 'Detail', 'Retries', 'Date', '');
   my @faults_rows = ();
-  foreach my $line (@{ $faults_list }) {
+  foreach my $line (@{$faults_list}) {
     my @row = ();
-    foreach my $key ( @key_names ) {
+    foreach my $key (@key_names) {
       if ($key eq 'Date') {
         my $date_ = $line->{timestamp} || q{};
         $date_ =~ s/^([0-9]{4}-[0-9]{2}-[0-9]{2})T([0-9]{2}:[0-9]{2}:[0-9]{2}).*$/$1 $2/;
         push @row, $date_;
       }
-      elsif (defined($line->{ lc( $key ) })) {
-        if ($key eq 'Detail') { 
+      elsif (defined($line->{ lc($key) })) {
+        if ($key eq 'Detail') {
           my $describe = '';
-          foreach my $key_ (sort keys %{ $line->{ lc( $key ) } }) {
+          foreach my $key_ (sort keys %{$line->{ lc($key) }}) {
             $describe .= uc($key_) . ": ";
-            my $val = $line->{ lc( $key ) }->{$key_};
+            my $val = $line->{ lc($key) }->{$key_};
             if (ref $val eq 'ARRAY') {
               $describe .= "[";
               foreach my $line_ (@{$val}) {
                 $describe .= "{";
-                foreach my $key__ (sort keys %{ $line_ }) {
+                foreach my $key__ (sort keys %{$line_}) {
                   $describe .= '\'' . $key__ . '\': \'' . $line_->{$key__} . '\',';
                 }
                 $describe .= "}";
               }
-              $describe .= "] </br>";
+              $describe .= "] " . $html->br();
             }
             else {
-              $describe .= $val . " </br>" ; 
+              $describe .= $val . $html->br();
             }
           }
           my $text = $describe;
-         $text =~ s/<\/br>//g;
-         $text =~ s/\n//g;
-         $text =~ s/^(.{20}).*/$1\.\.\./g; 
-         my $em = $html->element('span', $text, { 'data-tooltip' => $describe, 'data-tooltip-position' => 'left'});
+          $text =~ s/<\/br>//g;
+          $text =~ s/\n//g;
+          $text =~ s/^(.{20}).*/$1\.\.\./g;
+          my $em = $html->element('span', $text, { 'data-tooltip' => $describe, 'data-tooltip-position' => 'left' });
           push @row, $em;
         }
         else {
-          push @row, $line->{ lc( $key ) };
+          push @row, $line->{ lc($key) };
         }
       }
-    } 
+    }
 
-    my $del_btn = $html->button('', "index=$index&del=" . (($line->{_id}) ? $line->{_id} : q{} ),
+    my $del_btn = $html->button('', "index=$index&del=" . (($line->{_id}) ? $line->{_id} : q{}),
       { MESSAGE => "$lang{DEL} Fault?", ICON => 'fa fa-trash text-danger' });
 
     push @row, $del_btn;
     push @faults_rows, \@row;
   }
 
-  my $table =  $html->table({ title => \@key_names, rows => \@faults_rows });
+  my $table = $html->table({ title => \@key_names, rows => \@faults_rows });
 
   print $table->show();
 
@@ -316,7 +323,7 @@ sub tr_069_api {
   my $wifi_key = $FORM{serial};
   $wifi_key =~ s/^[A-F0-9]{8}//g;
   my $settings_list = $Equipment->tr_069_settings_list({
-    NAS_NAME        => $FORM{oltName},
+    #    NAS_NAME        => $FORM{oltName},
     SERIAL          => $FORM{serial},
     ONU_ID          => '_SHOW',
     UNIX_CHANGETIME => '_SHOW',
@@ -336,6 +343,7 @@ sub tr_069_api {
   foreach my $key (keys %{$default_settings}) {
     $onu_setting->{ $key } ||= $default_settings->{ $key };
   }
+
   if ($wifi_ssid) {
     $wifi_key = $FORM{serial};
     $wifi_key =~ s/^[A-F0-9]{8}//g;
@@ -359,9 +367,11 @@ sub tr_069_set_data {
   my $port = $conf{TR069_PORT} || '7557';
   my $http = ($conf{TR069_SSL}) ? 'https' : 'http';
   my $request_url = $attr->{REQUEST_URL} || $http . '://' . $conf{TR069_SERVER} . ':' . $port . '/' . $patch;
+
   if ($attr->{ACTION}) {
     $request_url .= '?' . $attr->{ACTION}
   }
+
   my $metod = '';
   if ($attr->{METOD}) {
     $metod .= ' -X ' . $attr->{METOD};
@@ -399,6 +409,7 @@ sub tr_069_set_data {
 #**********************************************************
 sub tr_069_get_data {
   my ($attr) = @_;
+
   return [ {} ] if (!$attr->{REQUEST_URL} && !$conf{TR069_SERVER});
 
   my $json = JSON->new->allow_nonref;
@@ -407,20 +418,21 @@ sub tr_069_get_data {
   my $http = ($conf{TR069_SSL}) ? 'https' : 'http';
   my $request_url = $attr->{REQUEST_URL} || $http . '://' . $conf{TR069_SERVER} . ':' . $port . '/' . $collection . '/';
   my $query = 'query={';
+
   foreach my $key (keys %{$attr->{QUERY}}) {
     $query .= '"' . $key . '"%3A"' . $attr->{QUERY}->{$key} . '"';
   }
+
   $query =~ s/""/","/g;
   $query .= '}';
   $request_url .= '?' . $query;
 
   if ($attr->{PROJECTION}) {
-    my $projektoin = 'projection=';
-    foreach my $line (@{$attr->{PROJECTION}}) {
-      $projektoin .= $line . ',';
+    my @projektoin = ();
+    foreach my $line (sort @{$attr->{PROJECTION}}) {
+      push @projektoin, $line;
     }
-    $projektoin =~ s/,$//g;
-    $request_url .= '&' . $projektoin;
+    $request_url .= '&projection=' . join(',', @projektoin);
   }
 
   $request_url =~ s/ /%20/g;
@@ -439,6 +451,15 @@ sub tr_069_get_data {
     print "<textarea cols=90 rows=15>$result</textarea>\n";
   }
   $result ||= '[]';
+
+  if ($result =~ /SyntaxError/) {
+    $html->message('error', $lang{ERROR}, $result
+      . "\n" .
+      $html->pre($request_url)
+    );
+    return [ {} ];
+  }
+
   my $perl_scalar = $json->decode($result);
 
   return $perl_scalar;
@@ -491,7 +512,7 @@ sub tr_069_status_wan {
 
   $attr->{QUERY} = ({ '_id' => $id });
   $attr->{PROJECTION} = ([
-    'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.',
+    'InternetGatewayDevice.WANDevice.1.WANConnectionDevice',
   ]);
 
   my $device_data = tr_069_get_data($attr);
@@ -514,7 +535,7 @@ sub tr_069_status_wlan {
 
   $attr->{QUERY} = ({ '_id' => $id });
   $attr->{PROJECTION} = ([
-    'InternetGatewayDevice.LANDevice.1.WLANConfiguration.',
+    'InternetGatewayDevice.LANDevice.1.WLANConfiguration',
   ]);
 
   my $device_data = tr_069_get_data($attr);
@@ -535,7 +556,7 @@ sub tr_069_status_voip {
   my ($id, $attr) = @_;
   $attr->{QUERY} = ({ '_id' => $id });
   $attr->{PROJECTION} = ([
-    'InternetGatewayDevice.Services.VoiceService.1.VoiceProfile.1.',
+    'InternetGatewayDevice.Services.VoiceService.1.VoiceProfile.1',
   ]);
   my $device_data = tr_069_get_data($attr);
   my @hash_names = (
@@ -602,7 +623,7 @@ sub tr_069_status_hosts {
 
   $attr->{QUERY} = ({ '_id' => $id });
   $attr->{PROJECTION} = ([
-    'InternetGatewayDevice.LANDevice.1.Hosts.Host.',
+    'InternetGatewayDevice.LANDevice.1.Hosts.Host',
   ]);
 
   my $device_data = tr_069_get_data($attr);
@@ -653,13 +674,13 @@ sub tr_069_status {
   }
 
   if (!$FORM{sub_menu}) {
-    my $sub_menu_items = $html->li($html->button('Device information', '#'), { class => 'active', id => 'device' })
-      . $html->li($html->button('WAN information', '#'), { id => 'wan' })
-      . $html->li($html->button('WLAN information', '#'), { id => 'wlan' })
-      . $html->li($html->button('VoIP information', '#'), { id => 'voip' })
-      . $html->li($html->button('Security information', '#'), { id => 'security' })
-      . $html->li($html->button('Hosts information', '#'), { id => 'hosts' });
-#      . $html->li($html->button('Neighbor AP information', '#'), { id => 'neighbor_ap' });
+    my $sub_menu_items = $html->button('Device information', '#', { class => 'nav-link active', ID => 'device' })
+      . $html->button('WAN information', '#', { class => 'nav-link', ID => 'wan' })
+      . $html->button('WLAN information', '#', { class => 'nav-link', ID => 'wlan' })
+      . $html->button('VoIP information', '#', { class => 'nav-link', ID => 'voip' })
+      . $html->button('Security information', '#', { class => 'nav-link', ID => 'security' })
+      . $html->button('Hosts information', '#', { class => 'nav-link', ID => 'hosts' });
+    #      . $html->button('Neighbor AP information', '#', { class => 'nav-link', ID => 'neighbor_ap' });
 
     return $html->tpl_show(_include('equipment_tr_069_cpe_menu', 'Equipment'), { HTML_CONTENT => $html_content, MENU => 'status', SUB_MENU_CONTENT => $sub_menu_items, %FORM }, $attr);
   }
@@ -707,7 +728,7 @@ sub tr_069_wan {
     my $sub_menu_items = '';
     my $i = 1;
     foreach my $wan (@{$wans_info}) {
-      $sub_menu_items .= $html->li($html->button(($i + 1) . '_' . $wan->{service_list} . '_R_VID_' . $wan->{vlan}, '#'), { class => ($i eq $sub_menu) ? 'active' : '', id => $sub_menu });
+      $sub_menu_items .= $html->button(($i + 1) . '_' . $wan->{service_list} . '_R_VID_' . $wan->{vlan}, '#', { class => ($i eq $sub_menu) ? 'nav-link active' : 'nav-link', ID => $sub_menu });
       $i++;
     }
     return $html->tpl_show(_include('equipment_tr_069_cpe_menu', 'Equipment'), { HTML_CONTENT => $html_content, MENU => 'wan', SUB_MENU_CONTENT => $sub_menu_items, %FORM }, $attr);
@@ -742,7 +763,7 @@ sub tr_069_wlan {
     my $i = 1;
     foreach my $wlan (@{$wlans_info}) {
       if ($wlan->{ssid}) {
-        $sub_menu_items .= $html->li($html->button(($i) . '_' . $wlan->{ssid}, '#'), { class => ($i eq $sub_menu) ? 'active' : '', id => $sub_menu });
+        $sub_menu_items .= $html->button(($i) . '_' . $wlan->{ssid}, '#', { class => ($i eq $sub_menu) ? 'nav-link active' : 'nav-link', id => $sub_menu });
       }
       $i++;
     }
@@ -769,14 +790,14 @@ sub tr_069_voip {
     SEL_HASH => { 1 => 'Enable', 0 => 'Disable' },
     NO_ID    => 1
   });
-  
-  $FORM{SERVER_FORM}= "<input type='text' name='server' value='$voip_info->{server}' class='form-control ip-input' ID='server'/>";
+
+  $FORM{SERVER_FORM} = "<input type='text' name='server' value='$voip_info->{server}' class='form-control ip-input' ID='server'/>";
 
   if ($conf{TR069_VOIP_SERVERS}) {
     $conf{TR069_VOIP_SERVERS} =~ s/[\n\s]//g;
     my @servers_arr = split(/;/, $conf{TR069_VOIP_SERVERS});
     my %servers_hash = ();
-    my $sel_data = {SEL_ARRAY => \@servers_arr};
+    my $sel_data = { SEL_ARRAY => \@servers_arr };
     foreach my $server (@servers_arr) {
       if ($server =~ /.+:.+/) {
         my ($s_name, $s_ip) = split(/:/, $server, 2);
@@ -784,7 +805,7 @@ sub tr_069_voip {
       }
     }
     if (%servers_hash) {
-      $sel_data = {SEL_HASH => \%servers_hash}; 
+      $sel_data = { SEL_HASH => \%servers_hash };
     }
     $FORM{SERVER_FORM} = $html->form_select('server', {
       SELECTED => $voip_info->{server} || '',

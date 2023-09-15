@@ -1,9 +1,7 @@
 package Sysinfo;
 use strict;
 use warnings FATAL => 'all';
-
-use main;
-use parent 'main';
+use parent qw( dbcore );
 
 =head1 NAME
 
@@ -77,7 +75,7 @@ sub AUTOLOAD {
     return $self->query_del($table, $data, $attr);
   }
   elsif ( $operation eq 'change' ) {
-    return $self->changes2({
+    return $self->changes({
       CHANGE_PARAM => $data->{_CHANGE_PARAM} || 'ID',
       TABLE        => $table,
       DATA         => $data,
@@ -113,7 +111,7 @@ sub AUTOLOAD {
           "$_ = ?"
         } keys %{$data->{WHERE}});
     }
-    $self->query2(qq{
+    $self->query(qq{
       SELECT * FROM sysinfo_$entity_name $WHERE
     }, undef, { COLS_NAME => 1, Bind => \@WHERE_BIND });
     
@@ -133,7 +131,7 @@ sub AUTOLOAD {
       ? 'COUNT(*)'
       : 'MAX(id) + 1';
     
-    $self->query2(qq{
+    $self->query(qq{
       SELECT $requested FROM sysinfo_$entity_name $WHERE
     });
     return - 1 if ( $self->{errno} );
@@ -214,7 +212,7 @@ sub remote_servers_list {
     LEFT JOIN sysinfo_server_services sss ON (srss.service_id = sss.id)";
   }
   
-  $self->query2("SELECT $self->{SEARCH_FIELDS} srs.id
+  $self->query("SELECT $self->{SEARCH_FIELDS} srs.id
    FROM sysinfo_remote_servers srs
    $EXT_TABLES
    $WHERE
@@ -258,7 +256,7 @@ sub sysinfo_nases_list {
   }
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
   
-  $self->query2("SELECT $self->{SEARCH_FIELDS} id
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
    FROM nas n
    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
       COLS_NAME => 1,
@@ -325,7 +323,7 @@ sub server_services_list {
     LEFT JOIN sysinfo_remote_servers srs ON (srss.server_id=srs.id)";
   }
   
-  $self->query2("SELECT $self->{SEARCH_FIELDS} sss.id
+  $self->query("SELECT $self->{SEARCH_FIELDS} sss.id
    FROM sysinfo_server_services sss
    $EXT_TABLES
    $WHERE
@@ -361,7 +359,7 @@ sub services_for_server {
   
   my $WHERE = $self->search_former({ SERVER_ID => $server_id }, $search_columns, { WHERE => 1 });
   
-  $self->query2("SELECT $self->{SEARCH_FIELDS} sss.id, sss.name, sss.check_command
+  $self->query("SELECT $self->{SEARCH_FIELDS} sss.id, sss.name, sss.check_command
     FROM sysinfo_remote_servers srs
     LEFT JOIN sysinfo_remote_server_services srss ON (srss.server_id = srs.id)
     LEFT JOIN sysinfo_server_services sss ON (srss.service_id = sss.id)

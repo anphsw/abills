@@ -186,7 +186,7 @@ sub hangup {
     hangup_unifi($Nas, \%params)
   }
   elsif ($nas_type eq 'cisco_isg') {
-    hangup_cisco_isg($Nas, \%params);
+    $self->hangup_cisco_isg($Nas, \%params);
   }
   elsif ($nas_type eq 'mpd5') {
     $self->hangup_mpd5($Nas, \%params);
@@ -364,6 +364,10 @@ sub telnet_cmd2 {
     ($host, $port) = split(/:/, $host, 2);
   }
 
+  if(! $Log) {
+    $Log = Log->new($db, $CONF);
+  }
+
   use IO::Socket;
   use IO::Select;
   my $res;
@@ -375,6 +379,11 @@ sub telnet_cmd2 {
     Proto    => 'tcp',
     TimeOut  => $timeout
   ) or $Log->log_print('LOG_DEBUG', "$USER_NAME", "ERR: Can't connect to '$host:$port' $!", { ACTION => 'CMD' });
+
+  if (! $socket) {
+    print "ERR: Can't connect to '$host:$port' $!";
+    return $res;
+  }
 
   $Log->log_print('LOG_DEBUG', '', "Connected to $host:$port");
 
@@ -965,6 +974,7 @@ sub hangup_openvpn {
 =cut
 #***********************************************************
 sub hangup_cisco_isg {
+  my $self = shift;
   my ($NAS, $attr) = @_;
 
   my $exec = '';
@@ -1031,7 +1041,10 @@ sub hangup_cisco_isg {
 
     if ($RAD_PAIRS{'Error-Cause'}) {
       #log_print('LOG_WARNING', "$RAD_PAIRS{'Error-Cause'} / $RAD_PAIRS{'Reply-Message'}");
-      print "$RAD_PAIRS{'Error-Cause'} / $RAD_PAIRS{'Reply-Message'}";
+      print "Error-Cause: $RAD_PAIRS{'Error-Cause'} Reply-Message: $RAD_PAIRS{'Reply-Message'}\n";
+
+      $self->{RESULT}=$result;
+
       print %RAD_PAIRS;
     }
 

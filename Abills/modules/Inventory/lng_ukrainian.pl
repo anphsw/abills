@@ -1,8 +1,8 @@
-$lang{FIELDS_FOR_NAME_ARE_REQUIRED} = 'Поле назва - обовязкове для заповнення';
-$lang{FIELDS_FOR_HOSTNAME_ARE_REQUIRED} = 'Поле \'Імя Сервера\' обовязкове для заповнення';
-$lang{HOSTNAME} = 'Імя сервера';
+$lang{FIELDS_FOR_NAME_ARE_REQUIRED} = 'Поле назва - обов\'язкове для заповнення';
+$lang{FIELDS_FOR_HOSTNAME_ARE_REQUIRED} = 'Поле \'Імя Сервера\' обов\'язкове для заповнення';
+$lang{HOSTNAME} = 'Ім\'я сервера';
 $lang{INTEGRATION_DATE} = 'Дата інтеграції';
-$lang{ADMIN_MAIL} = 'Email адміністратора';
+$lang{ADMIN_MAIL} = 'E-mail адміністратора';
 $lang{CANT_DELETE_THIS_INPUT} = 'Неможливо видалити це поле';
 $lang{RESPONSIBLE} = 'Відповідальний';
 $lang{INVENTORY_STATUS} = 'Статус обладнання';

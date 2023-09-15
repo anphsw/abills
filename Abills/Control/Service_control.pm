@@ -79,21 +79,21 @@ sub user_set_credit {
   my ($attr) = @_;
 
   return { error => 4301, errstr => 'ERR_UID_NOT_DEFINED' } if (!$attr->{UID});
-  return { error => 4302, errstr => 'ERR_NO_CREDIT_CHANGE_ACCESS' } if (!$self->{conf}{user_credit_change});
+  return { error => 0, errstr => 'ERR_NO_CREDIT_CHANGE_ACCESS' } if (!$self->{conf}{user_credit_change});
 
   my $credit_info = { REDUCTION => $attr->{REDUCTION}, UID => $attr->{UID} };
   my $credit_rule = $attr->{CREDIT_RULE};
   my @credit_rules = split(/;/, $self->{conf}{user_credit_change});
 
-  my $user_info = $Users->info($attr->{UID});
+  $Users->info($attr->{UID});
   $Users->group_info($Users->{GID});
 
   return { error => 4303, errstr => 'ERR_NO_CREDIT_CHANGE_ACCESS' } if ($Users->{TOTAL} > 0 && (!$Users->{ALLOW_CREDIT} || $Users->{DISABLE}));
 
-  return { errstr => 'SEVERAL_CREDIT_RULES' } if $self->_several_credit_rules({
-    CREDIT_RULES => \@credit_rules,
-    CREDIT_RULE  => $credit_rule
-  });
+  if ($#credit_rules > 0 && ! defined($credit_rule) ) {
+    $self->{CREDIT_RULES} = \@credit_rules;
+    return $self;
+  }
 
   my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $credit_rules[$credit_rule || 0]);
   $credit_info->{CREDIT_DAYS} = $days || q{};
@@ -114,6 +114,7 @@ sub user_set_credit {
       FROM_DATE => "$y-$m-01",
       TO_DATE   => "$y-$m-31"
     });
+
     if ($admin->{TOTAL} >= $month_changes) {
       return { error => 4304, errstr => 'ERR_CREDIT_CHANGE_LIMIT_REACH', MONTH_CHANGES => $month_changes };
     }
@@ -122,7 +123,7 @@ sub user_set_credit {
 
   $sum = $self->_check_payments_exp($attr->{UID}, $payments_expr) if ($payments_expr && $sum != 1);
 
-  return { error => 4305, errstr => 'ERR_NO_CREDIT_CHANGE_ACCESS' } if ($Users->{CREDIT} >= sprintf("%.2f", $sum));
+  return { error => 4305, errstr => 'ERR_CREDIT_UNAVAILABLE' } if ($Users->{CREDIT} >= sprintf("%.2f", $sum));
 
   if ($attr->{change_credit}) {
     if ($CONF->{user_confirm_changes}) {
@@ -142,9 +143,8 @@ sub user_set_credit {
     $self->_show_message('info', '$lang{CHANGED}', '$lang{CREDIT}: ' . $sum);
     if ($price && $price > 0) {
       my $Fees = Finance->fees($db, $admin, $CONF);
-      $Fees->take($Users, $price, { DESCRIBE => ::_translate('$lang{CREDIT} $lang{ENABLE}') });
+      $Fees->take($Users, $price, { DESCRIBE => ::_translate('$lang{CREDIT} $lang{ENABLE}'), METHOD => 5 });
     }
-
 
     ::cross_modules('payments_maked', { USER_INFO => $user_info, SUM => $sum, SILENT => 1, CREDIT_NOTIFICATION => 1 });
     if ($CONF->{external_userchange}) {
@@ -357,7 +357,7 @@ sub user_holdup {
     my ($_hold_up_min_period, $_hold_up_max_period, $_hold_up_period, $_hold_up_day_fee,
       undef, $_active_fees, $_holdup_skip_gids, $_user_del_shedule, $_expr_) = split(/:/, $holdup_rule);
 
-    if (!$attr->{add} || ($block_days && $block_days < $_hold_up_max_period)) {
+    if (!$attr->{add} || ($block_days && $_hold_up_max_period && $block_days < $_hold_up_max_period)) {
       ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $hold_up_day_fee,
         undef, $active_fees, $holdup_skip_gids, $user_del_shedule, $expr_) =
         ($_hold_up_min_period, $_hold_up_max_period, $_hold_up_period, $_hold_up_day_fee,
@@ -940,7 +940,7 @@ sub user_chg_tp {
 
   #Next period change
   if (($service_info->{MONTH_ABON} > 0 || $self->{conf}->{uc($attr->{MODULE}) .'_USER_CHG_TP_NEXT_MONTH'}) && !$service_info->{STATUS} && !$user_info->{DISABLE} && !$service_info->{ABON_DISTRIBUTION}) {
-    if ($service_info->{ACTIVATE} ne '0000-00-00') {
+    if ($service_info->{ACTIVATE} && $service_info->{ACTIVATE} ne '0000-00-00') {
       my ($Y, $M, $D) = split(/-/, $service_info->{ACTIVATE}, 3);
       $M--;
       $service_info->{ABON_DATE} = POSIX::strftime("%Y-%m-%d", localtime((POSIX::mktime(0, 0, 0, $D, $M, ($Y - 1900), 0, 0, 0) +
@@ -1458,47 +1458,6 @@ sub _service_info {
 }
 
 #**********************************************************
-=head2 _several_credit_rules()
-
-  Arguments:
-    $attr
-       CREDIT_RULES
-       CREDIT_RULE
-
-=cut
-#**********************************************************
-sub _several_credit_rules {
-  my $self = shift;
-  my ($attr) = @_;
-
-  return '' if !$html || !$lang;
-  return '' if !($#{$attr->{CREDIT_RULES}} > 0 && !defined($attr->{CREDIT_RULE}));
-
-  my $table = $html->table({
-    width       => '100%',
-    caption     => $lang->{SETTING_CREDIT},
-    title_plain => [ $lang->{DAYS}, $lang->{PRICE}, '-' ],
-    ID          => 'CREDIT_FORM',
-    HIDE_TABLE  => 1
-  });
-
-  for (my $i = 0; $i <= $#{$attr->{CREDIT_RULES}}; $i++) {
-    my (undef, $days, $price, undef, undef) = split(/:/, $attr->{CREDIT_RULES}[$i]);
-    $table->addrow($days, sprintf("%.2f", $price),
-      $html->button("$lang->{SET} $lang->{CREDIT}", '#', {
-        ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'
-              onClick=\"document.getElementById('change_credit').value='1'; document.getElementById('CREDIT_RULE').value='$i'; document.getElementById('CREDIT_CHG_PRICE').textContent='" . sprintf("%.2f", $price || 0) . "'\"",
-        class     => 'btn btn-xs btn-success',
-        SKIP_HREF => 1
-      })
-    );
-  }
-
-  $table->show();
-  return 1;
-}
-
-#**********************************************************
 =head2 _get_credit_limit();
 
   Arguments:
@@ -1517,7 +1476,8 @@ sub _get_credit_limit {
   my $credit_limit = 0;
 
   if ($self->{conf}{user_credit_all_services}) {
-    require Control::Services;
+    # require Control::Services;
+    do 'Control/Services.pm';
     # if ($@) {
     #   print "Content-TYpe: text/html\n\n";
     #   print $@;
@@ -1879,12 +1839,15 @@ sub all_info {
     DAY_FEE          => '_SHOW',
     TP_ID            => '_SHOW',
     TP_REDUCTION_FEE => '_SHOW',
+    AGE              => '_SHOW',
+    ACTIV_PRICE      => '_SHOW',
     COLS_NAME        => 1,
   });
 
   require Service;
   Service->import();
   my $Service = Service->new($self->{db}, $self->{admin}, $self->{conf});
+  my $user_info = $Users->info($attr->{UID});
 
   my $statuses = $Service->status_list({
     NAME      => '_SHOW',
@@ -1935,6 +1898,13 @@ sub all_info {
         $tariff->{schedule}->{IN_SPEED} = $tariff_change->{in_speed};
         $tariff->{schedule}->{OUT_SPEED} = $tariff_change->{out_speed};
       }
+    }
+
+    if ($tariff->{tp_reduction_fee} && $user_info->{REDUCTION} && $user_info->{REDUCTION} > 0) {
+      $tariff->{original_day_fee} = $tariff->{day_fee};
+      $tariff->{original_month_fee} = $tariff->{month_fee};
+      $tariff->{day_fee} = $tariff->{day_fee} ? sprintf('%.2f', $tariff->{day_fee} - (($tariff->{day_fee} / 100) * $user_info->{REDUCTION})) : $tariff->{day_fee};
+      $tariff->{month_fee} = $tariff->{month_fee} ? sprintf('%.2f', $tariff->{month_fee} - (($tariff->{month_fee} / 100) * $user_info->{REDUCTION})) : $tariff->{month_fee};
     }
 
     my $next_abon = $self->service_warning({
@@ -2021,28 +1991,9 @@ sub _get_tariffs {
   my $self = shift;
   my ($attr, $service_info, $user_info) = @_;
 
-  if (uc($attr->{MODULE}) eq 'IPTV' && !$attr->{SERVICE_ID}) {
-    require Iptv;
-    Iptv->import();
+  my $tariffs = $self->_get_module_tariffs($attr, $service_info, $user_info);
 
-    my $Iptv = Iptv->new($self->{db}, $self->{admin}, $self->{conf});
-
-    $Iptv->user_list({
-      ID              => $attr->{ID},
-      UID             => $attr->{UID},
-      TV_SERVICE_NAME => '_SHOW',
-      TV_USER_PORTAL  => '>1',
-      SERVICE_STATUS  => 0,
-      COLS_NAME       => 1
-    });
-
-    return {
-      message       => '$lang{NOT_ALLOWED}',
-      message_type  => 'err',
-      message_title => '$lang{ERROR}',
-      error         => 4514
-    } if (!($Iptv->{TOTAL} && $Iptv->{TOTAL} > 0));
-  }
+  return $tariffs if ($tariffs);
 
   my @tariffs = ();
 
@@ -2065,6 +2016,9 @@ sub _get_tariffs {
     SERVICE_ID        => $service_info->{SERVICE_ID} || '_SHOW',
     IN_SPEED          => '_SHOW',
     OUT_SPEED         => '_SHOW',
+    AGE               => '_SHOW',
+    ACTIV_PRICE       => '_SHOW',
+    POPULAR           => '_SHOW',
     COLS_NAME         => 1
   });
 
@@ -2075,45 +2029,54 @@ sub _get_tariffs {
     next if (in_array($tp->{id}, \@skip_tp_changes));
     next if ($tp->{tp_id} == $service_info->{TP_ID} && $user_info->{EXPIRE} eq '0000-00-00');
 
+    my %tariff = (
+      id             => $tp->{id},
+      tp_id          => $tp->{tp_id},
+      name           => $tp->{name},
+      comments       => $tp->{comments},
+      service_id     => $tp->{service_id},
+      day_fee        => $tp->{day_fee},
+      month_fee      => $tp->{month_fee},
+      reduction_fee  => $tp->{reduction_fee},
+      activate_price => $tp->{activate_price},
+      tp_age         => $tp->{age},
+      popular        => $tp->{popular},
+    );
+
     my $tp_fee = $tp->{day_fee} + $tp->{month_fee} + ($tp->{change_price} || 0);
 
     if ($tp->{reduction_fee} && $user_info->{REDUCTION} && $user_info->{REDUCTION} > 0) {
       $tp_fee = $tp_fee - (($tp_fee / 100) * $user_info->{REDUCTION});
+      $tariff{original_day_fee} = $tp->{day_fee};
+      $tariff{original_month_fee} = $tp->{month_fee};
+      $tariff{day_fee} = $tp->{day_fee} ? sprintf('%.2f', $tp->{day_fee} - (($tp->{day_fee} / 100) * $user_info->{REDUCTION})) : $tp->{day_fee};
+      $tariff{month_fee} = $tp->{month_fee} ? sprintf('%.2f', $tp->{month_fee} - (($tp->{month_fee} / 100) * $user_info->{REDUCTION})) : $tp->{month_fee};
     }
 
     $user_info->{CREDIT} = ($user_info->{CREDIT} > 0) ? $user_info->{CREDIT} : (($tp->{credit} > 0) ? $tp->{credit} : 0);
 
-    my $tariff = {
-      id            => $tp->{id},
-      tp_id         => $tp->{tp_id},
-      name          => $tp->{name},
-      comments      => $tp->{comments},
-      service_id    => $tp->{service_id},
-      day_fee       => $tp->{day_fee},
-      month_fee     => $tp->{month_fee},
-      reduction_fee => $tp->{reduction_fee}
-    };
-
     if (uc $attr->{MODULE} eq 'INTERNET') {
-      $tariff->{out_speed} = $tp->{out_speed};
-      $tariff->{in_speed} = $tp->{in_speed};
+      $tariff{out_speed} = $tp->{out_speed};
+      $tariff{in_speed} = $tp->{in_speed};
     }
 
+    $tariff{tp_fee} = $tp_fee;
+
     if ($tp_fee < $user_info->{DEPOSIT} + $user_info->{CREDIT} || $tp->{payment_type} || $tp->{abon_distribution}) {
-      push @tariffs, $tariff;
+      push @tariffs, \%tariff;
       next;
     }
 
     if ($CONF->{uc $attr->{MODULE} . '_USER_CHG_TP_SMALL_DEPOSIT'}) {
-      push @tariffs, $tariff;
+      push @tariffs, \%tariff;
       next;
     }
 
     next if ($attr->{SKIP_NOT_AVAILABLE_TARIFFS});
 
-    $tariff->{ERROR} = ::_translate('$lang{ERR_SMALL_DEPOSIT}');
+    $tariff{ERROR} = ::_translate('$lang{ERR_SMALL_DEPOSIT}');
 
-    push @tariffs, $tariff;
+    push @tariffs, \%tariff;
   }
 
   return \@tariffs;
@@ -2235,5 +2198,57 @@ sub _iptv_holdup_functions {
     };
   }
 }
+
+#**********************************************************
+=head2 _get_module_tariffs($attr) - Return array with tariff list
+
+  Arguments:
+    $attr: hash
+       UID: int                             - user id
+       MODULE: string                       - module of tariffs
+       SKIP_NOT_AVAILABLE_TARIFFS: boolean  - don't return tariffs for which not enough money
+
+  Results:
+    \@tariffs: array - list of tariff plans
+
+=cut
+#**********************************************************
+sub _get_module_tariffs {
+  my $self = shift;
+  my ($attr, $service_info, $user_info) = @_;
+
+  my $module = ucfirst(lc($attr->{MODULE} || ''));
+  my $dir = ($main::base_dir || '/usr/abills/') . 'Abills/modules/';
+  my $module_path = $dir . $module . '/Base.pm';
+
+  return 0 if !(-f $module_path);
+
+  my $module_name = $module . '::Base';
+  # TODO: review string eval
+  eval "use $module_name;";
+  return 0 if $@;
+
+  my $function = lc $module . '_get_available_tariffs';
+
+  return 0 if (!$module_name->can('new'));
+  return 0 if (!$module_name->can($function));
+
+  my $result = 0;
+
+  eval {
+    my $module_api = $module_name->new($self->{db}, $self->{admin}, $self->{conf}, { HTML => $html, LANG => $lang });
+    $result = $module_api->$function($attr, $service_info, $user_info);
+  };
+
+  return {
+    message       => '$lang{NOT_ALLOWED}',
+    message_type  => 'err',
+    message_title => '$lang{ERROR}',
+    error         => 4531,
+    errstr        => 'Try later'
+  } if ($@);
+
+  return $result;
+};
 
 1;

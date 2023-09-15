@@ -154,10 +154,10 @@ sub _auto_reg {
     if (defined(&$unregister_fn)) {
       my $unregister_list = &{\&$unregister_fn}({ %$nas, NAS_INFO => $nas});
 
-      foreach my $ont_info (@$unregister_list) {
+      foreach my $unreg_ont_info (@$unregister_list) {
         if ($argv->{BRANCHES}) {
           my $found_branch;
-          my $current_branch = lc($ont_info->{pon_type} . ':' . $ont_info->{branch});
+          my $current_branch = lc($unreg_ont_info->{pon_type} . ':' . $unreg_ont_info->{branch});
 
           foreach my $branch_pattern (@branches) {
             if ($current_branch =~ /^$branch_pattern$/) {
@@ -174,7 +174,7 @@ sub _auto_reg {
         my $internet_list1 = $Internet->user_list({
           INTERNET_ACTIVATE=> '_SHOW',
           INTERNET_STATUS  => '0',
-          CPE_MAC          => $ont_info->{mac_serial} || $ont_info->{sn},
+          CPE_MAC          => $unreg_ont_info->{mac_serial} || $unreg_ont_info->{sn},
           COLS_NAME        => 1,
           PAGE_ROWS        => 10000000,
           NAS_ID           => '_SHOW',
@@ -186,14 +186,14 @@ sub _auto_reg {
           push( @{$internet_list}, $ui );
         }
 
-        if ((lc $ont_info->{pon_type}) eq 'gpon' && $ont_info->{vendor} && $ont_info->{mac_serial}) {
-          $ont_info->{vendor_mac_serial} = $ont_info->{vendor} . $ont_info->{mac_serial};
-          $ont_info->{vendor_mac_serial} =~ s/^([A-Z]{4})[A-F0-9]{8}/$1/g;
+        if ((lc $unreg_ont_info->{pon_type}) eq 'gpon' && $unreg_ont_info->{vendor} && $unreg_ont_info->{mac_serial}) {
+          $unreg_ont_info->{vendor_mac_serial} = $unreg_ont_info->{vendor} . $unreg_ont_info->{mac_serial};
+          $unreg_ont_info->{vendor_mac_serial} =~ s/^([A-Z]{4})[A-F0-9]{8}/$1/g;
 
           my $internet_list2 = $Internet->user_list({
             INTERNET_ACTIVATE=> '_SHOW',
             INTERNET_STATUS  => '0',
-            CPE_MAC          => $ont_info->{vendor_mac_serial},
+            CPE_MAC          => $unreg_ont_info->{vendor_mac_serial},
             COLS_NAME        => 1,
             PAGE_ROWS        => 10000000,
             NAS_ID           => '_SHOW',
@@ -226,23 +226,29 @@ sub _auto_reg {
               %LIST_PARAMS
             });
 
-            foreach my $key (keys %$ont_info) {
-              $ont_info->{uc($key)} = $ont_info->{$key};
+            foreach my $key (keys %$unreg_ont_info) {
+              $unreg_ont_info->{uc($key)} = $unreg_ont_info->{$key};
             }
-            $ont_info->{ONU_DESC} = $user_info->[0]->{login};
-            my $ont = _register_onu({ NAS_INFO => $nas, SNMP_COMMUNITY => $SNMP_COMMUNITY, BRANCH => $ont_info->{branch},  %{$ont_info} });
+            $unreg_ont_info->{ONU_DESC} = $user_info->[0]->{login};
+            my $ont = _register_onu({
+              NAS_INFO       => $nas,
+              SNMP_COMMUNITY => $SNMP_COMMUNITY,
+              BRANCH         => $unreg_ont_info->{branch},
+              %{$unreg_ont_info}
+            });
 
             my $triple_play_profile = $conf{HUAWEI_TRIPLE_LINE_PROFILE_NAME} || 'TRIPLE-PLAY';
 
             if ($ont) {
-              if (($nas->{VENDOR_NAME} eq 'Huawei' || $nas->{VENDOR_NAME} eq 'ZTE') && $ont->{LINE_PROFILE} eq $triple_play_profile && $user_info->[0]->{_wifi_ssid} && $user_info->[0]->{_wifi_pass}) {
+              if (($nas->{VENDOR_NAME} eq 'Huawei' || $nas->{VENDOR_NAME} eq 'ZTE')
+                && $ont->{LINE_PROFILE} eq $triple_play_profile && $user_info->[0]->{_wifi_ssid} && $user_info->[0]->{_wifi_pass}) {
                 tr_069_setting($ont->{DATABASE_ID}, $user_info->[0]);
               }
 
               $Internet->user_change({
                 UID         => $user_infos->{uid},
                 ID          => $user_infos->{id},
-                CPE_MAC     => $ont_info->{mac_serial},
+                CPE_MAC     => $unreg_ont_info->{mac_serial},
                 NAS_ID      => $ont->{NAS_ID},
                 PORT        => $ont->{ONU_DHCP_PORT},
                 VLAN        => $ont->{VLAN},
@@ -254,11 +260,11 @@ sub _auto_reg {
         }
 
         if ($argv->{REGISTER_NOT_ATTACHED_TO_ABONENT} && !$ont_attached_to_abon) {
-          foreach my $key (keys %$ont_info) {
-            $ont_info->{uc($key)} = $ont_info->{$key};
+          foreach my $key (keys %$unreg_ont_info) {
+            $unreg_ont_info->{uc($key)} = $unreg_ont_info->{$key};
           }
 
-          my $ont = _register_onu({ NAS_INFO => $nas, SNMP_COMMUNITY => $SNMP_COMMUNITY, BRANCH => $ont_info->{branch},  %{$ont_info} });
+          my $ont = _register_onu({ NAS_INFO => $nas, SNMP_COMMUNITY => $SNMP_COMMUNITY, BRANCH => $unreg_ont_info->{branch},  %{$unreg_ont_info} });
         }
       }
     }
@@ -394,6 +400,17 @@ sub _register_onu {
         foreach my $param_value (keys %$params_for_cmd) {
           next if (!$param_value);
           $param_value =~ s/\0//g;
+          #Remove non anscii symbols params
+          if ($params_for_cmd->{$param_value} !~ /^[a-z0-9,\.\s\-:\_\;\/\@]+$/i) {
+            if ($debug > 2) {
+              print "remove params -    $param_value: $params_for_cmd->{$param_value}\n";
+            }
+            delete $params_for_cmd->{$param_value};
+          }
+        }
+
+        if ($debug > 3) {
+          $params_for_cmd->{DEBUG}=1;
         }
 
         $result = cmd($cmd, {
@@ -402,6 +419,7 @@ sub _register_onu {
           ARGV    => 1,
           timeout => 30
         });
+
         $result_code = $? >> 8;
       }
     }
@@ -442,9 +460,27 @@ sub _register_onu {
 
         my $params_for_cmd = { %$attr, %{$attr->{NAS_INFO}}, %extra_reg_params };
         $params_for_cmd = {map {(defined $params_for_cmd->{$_}) ? ($_ => $params_for_cmd->{$_}) : ()} keys %$params_for_cmd}; #cmd gives warning when there's undef in PARAMS
+
         foreach my $param_value (keys %$params_for_cmd) {
+          if (defined($params_for_cmd->{$param_value}) && $params_for_cmd->{$param_value} eq '') {
+            delete $params_for_cmd->{$param_value};
+            next;
+          }
+
           next if (!$param_value);
           $param_value =~ s/\0//g;
+
+          #Remove non anscii symbols params
+          if ($params_for_cmd->{$param_value} !~ /^[a-z0-9,\.\s\-:\_\;\/\@]+$/i) {
+            if ($debug > 2) {
+              print "remove params -    $param_value: $params_for_cmd->{$param_value}\n";
+            }
+            delete $params_for_cmd->{$param_value};
+          }
+        }
+
+        if ($debug > 3) {
+          $params_for_cmd->{DEBUG}=1;
         }
 
         $result = cmd($cmd, {

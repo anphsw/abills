@@ -492,7 +492,7 @@ sub voip_user_chg_tp {
     }
     else {
       return {
-        result    => 'OK',
+        result    => "OK, successfully changed tp info for user with uid $Voip->{UID}",
         holdup_id => $Schedule->{INSERT_ID},
         element   => $html->message('info', $lang{CHANGED}, $lang{CHANGED}, { OUTPUT2RETURN => 1 })
       };
@@ -508,7 +508,8 @@ sub voip_user_chg_tp {
       }
 
       return {
-        result => 'OK',
+        result  => "OK, successfully changed tp info for user with uid $Voip->{UID}",
+        element => $html->message('info', $lang{CHANGED}, $lang{CHANGED}, { OUTPUT2RETURN => 1 })
       };
     }
     else {

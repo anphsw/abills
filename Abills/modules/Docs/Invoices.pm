@@ -932,7 +932,7 @@ sub docs_invoice {
       'ORDER',
       {
         SELECTED  => $FORM{ORDER},
-        SEL_ARRAY => ($conf{DOCS_ORDERS}) ? $conf{DOCS_ORDERS} : [ $lang{DV} ],
+        SEL_ARRAY => ($conf{DOCS_ORDERS}) ? $conf{DOCS_ORDERS} : [ $lang{INTERNET} ],
         NO_ID     => 1
       }
     );
@@ -1052,16 +1052,14 @@ sub docs_invoice_period {
 
     #Test function
     if ( !$users->{UID} ){
-      my $invoice_new_list = $Docs->invoice_new(
-        {
-          FROM_DATE => '0000-00-00',
-          TO_DATE   => $FORM{TO_DATE} || $html->{TO_DATE} || $DATE,
-          PAGE_ROWS => 500,
-          UID       => $uid,
-          TAX       => '_SHOW',
-          COLS_NAME => 1
-        }
-      );
+      my $invoice_new_list = $Docs->invoice_new({
+        FROM_DATE => '0000-00-00',
+        TO_DATE   => $FORM{TO_DATE} || $html->{TO_DATE} || $DATE,
+        PAGE_ROWS => 500,
+        UID       => $uid,
+        TAX       => '_SHOW',
+        COLS_NAME => 1
+      });
 
       foreach my $line ( @$invoice_new_list ){
         next if ($line->{fees_id});
@@ -1716,6 +1714,7 @@ sub docs_invoice_print {
     }
 
     $FORM{pdf} = $conf{DOCS_PDF_PRINT};
+    my $docs_service_info = docs_module_info({ UID => $Docs->{UID} || $FORM{UID} });
 
     if ( $Doc{COMPANY_ID} ){
       my $Customer = Customers->new( $db, $admin, \%conf );
@@ -1729,6 +1728,7 @@ sub docs_invoice_print {
 
       return docs_print( "$invoice_blank$sufix", { %Doc,
         %{$Company},
+        %{$docs_service_info},
         %{$attr},
         SUFIX   => ($Doc{VAT} > 0) ? 'vat' : '',
         ALT_TPL => $invoice_blank,
@@ -1743,6 +1743,7 @@ sub docs_invoice_print {
       return docs_print( "$invoice_blank$sufix", {
         %Doc,
         %{$attr},
+        %{$docs_service_info},
         ALT_TPL => $invoice_blank,
         DOCS    => $Docs,
       } );

@@ -264,6 +264,7 @@ sub messages_list {
     [ 'DATETIME',               'DATE',   "m.date AS datetime",                                                        1 ],
     [ 'DATE',                   'DATE',   "DATE_FORMAT(m.date, '%Y-%m-%d')", "DATE_FORMAT(m.date, '%Y-%m-%d') AS date"   ],
     [ 'STATE',                  'INT',    '', 'm.state'                                                                  ],
+    [ 'REPLY_STATUS',           'INT',    'r.status', 'r.status AS reply_status'                                         ],
     [ 'RESPOSIBLE_ADMIN_LOGIN', 'STR',    'ra.id', 'ra.id AS resposible_admin_login'                                     ],
     [ 'LAST_REPLIE_DATE',       'DATE',   'MAX(r.datetime)  AS last_replie_date',                                      1 ],
     [ 'PLAN_DATE_TIME',         'DATE',   "CONCAT(m.plan_date, ' ', m.plan_time)",
@@ -537,12 +538,14 @@ sub message_info {
   a.id AS a_name,
   mc.name AS chapter_name,
   g.name AS fg_name,
+  ar.id AS responsible_name,
   SEC_TO_TIME(SUM(r.run_time)) AS ticket_run_time,
   MAX(r.datetime) AS last_replie_date
     FROM `msgs_messages` m
     LEFT JOIN `msgs_chapters` mc ON (m.chapter=mc.id)
     LEFT JOIN `users` u ON (m.uid=u.uid)
     LEFT JOIN `admins` a ON (m.aid=a.aid)
+    LEFT JOIN `admins` ar ON (m.resposible=ar.aid)
     LEFT JOIN `groups` g ON (m.gid=g.gid)
     LEFT JOIN `msgs_reply` r FORCE INDEX FOR JOIN (`main_msg`) ON (m.id=r.main_msg)
   WHERE m.id= ? $WHERE
@@ -994,10 +997,11 @@ sub message_reply_add {
   });
 
   $self->{REPLY_ID} = $self->{INSERT_ID};
+  my %insert_result = %{$self};
 
   $self->_msgs_workflow('replyAdded', $attr->{ID}, { OLD_INFO => $old_info, %{$attr} });
 
-  return $self;
+  return \%insert_result;
 }
 
 #**********************************************************
@@ -1481,6 +1485,12 @@ sub dispatch_del {
   my ($attr) = @_;
 
   $self->query_del('msgs_dispatch', $attr);
+
+  if (!$self->{errno}) {
+    $self->query("UPDATE `msgs_messages` SET dispatch_id='0' WHERE dispatch_id=?;", 'do', {
+      Bind => [ $attr->{ID} ]
+    });
+  }
 
   $admin->system_action_add("MGSG_DISPATCH:$attr->{ID}", { TYPE => 10 });
 
@@ -4258,11 +4268,14 @@ sub msgs_messages_and_users_by_months {
 
   my $from_date = $attr->{FROM_DATE} ? "'$attr->{FROM_DATE}'" : 'NOW() - INTERVAL 1 YEAR';
   my $to_date = $attr->{TO_DATE} ? "'$attr->{TO_DATE}'" : 'NOW()';
+  my $closed_status = $attr->{CLOSED_STATUS} || '1,2';
 
   $self->query("SELECT dates.*,
       (SELECT COUNT(u.uid) FROM users u WHERE DATE_FORMAT(u.registration, '%Y-%m') <= dates.month) as users,
       (SELECT COUNT(m.id) FROM msgs_messages m WHERE DATE_FORMAT(m.date, '%Y-%m') <= dates.month
-        AND m.uid <> '') as messages
+        AND m.uid <> '') as messages,
+      (SELECT COUNT(m.id) FROM msgs_messages m WHERE DATE_FORMAT(m.date, '%Y-%m') <= dates.month
+        AND m.uid <> '' AND m.state IN ($closed_status)) as closed_messages
     FROM (
       SELECT DATE_FORMAT(u.registration, '%Y-%m') AS month
       FROM users u

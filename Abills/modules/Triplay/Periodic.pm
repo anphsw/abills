@@ -16,13 +16,134 @@ our(
 );
 
 use Triplay;
+use Fees;
 my $Triplay = Triplay->new($db, $admin, \%conf);
 my $Fees     = Fees->new($db, $admin, \%conf);
 #my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 
+#**********************************************************
+=head2 triplay_daily_fees($attr) - Daily fees
+
+  Arguments:
+    $attr
+
+=cut
+#**********************************************************
+sub triplay_daily_fees {
+  my ($attr) = @_;
+
+  my $debug = $attr->{DEBUG} || 0;
+  my $debug_output = '';
+
+  return $debug_output if ($attr->{LOGON_ACTIVE_USERS} || $attr->{SRESTART});
+
+  my $fees_priority = $conf{FEES_PRIORITY} || q{};
+  $debug_output .= "Triplay: Daily periodic payments\n" if ($debug > 1);
+
+  $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
+  $LIST_PARAMS{TP_ID} = $attr->{TP_ID} if ($attr->{TP_ID});
+
+  my %USERS_LIST_PARAMS = ();
+  $USERS_LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
+  $USERS_LIST_PARAMS{UID} = $attr->{UID} if ($attr->{UID});
+  $USERS_LIST_PARAMS{REGISTRATION} = "<$ADMIN_REPORT{DATE}";
+  $USERS_LIST_PARAMS{GID} = $attr->{GID} if ($attr->{GID});
+
+  my $FEES_METHODS = get_fees_types({ SHORT => 1 });
+
+  $users = Users->new($db, $admin, \%conf);
+  $Triplay->{debug} = 1 if ($debug > 5);
+
+  my $tariff_plans = $Triplay->tp_list({
+    %LIST_PARAMS,
+    NAME         => '_SHOW',
+    MODULE       => 'Triplay',
+    DOMAIN_ID    => '_SHOW',
+    FEES_METHOD  => '_SHOW',
+    DAY_FEE      => '>0',
+    CREDIT       => '_SHOW',
+    MODULES      => 'Triplay',
+    PAYMENT_TYPE => '_SHOW',
+    COLS_NAME    => 1,
+    COLS_UPPER   => 1
+  });
+
+  foreach my $tariff (@{$tariff_plans}) {
+    next if !$tariff->{DAY_FEE};
+
+    if ($debug > 1) {
+      $debug_output .= "TP ID: $tariff->{ID} DF: $tariff->{DAY_FEE}\n";
+    }
+
+    $USERS_LIST_PARAMS{DOMAIN_ID} = $tariff->{DOMAIN_ID};
+
+    my $user_list = $Triplay->user_list({
+      SERVICE_STATUS => '0',
+      LOGIN_STATUS   => 0,
+      TP_ID          => $tariff->{TP_ID},
+      TP_CREDIT      => '_SHOW',
+      DELETED        => 0,
+      LOGIN          => '_SHOW',
+      BILL_ID        => '_SHOW',
+      REDUCTION      => '_SHOW',
+      DEPOSIT        => '_SHOW',
+      CREDIT         => '_SHOW',
+      COMPANY_ID     => '_SHOW',
+      PERSONAL_TP    => '_SHOW',
+      EXT_DEPOSIT    => '_SHOW',
+      PAGE_ROWS      => 1000000,
+      SORT           => 1,
+      COLS_NAME      => 1,
+      %USERS_LIST_PARAMS
+    });
+
+    foreach my $u (@$user_list) {
+      my %user = (
+        LOGIN          => $u->{login},
+        UID            => $u->{uid},
+        ID             => $u->{id},
+        BILL_ID        => $u->{bill_id},
+        REDUCTION      => $u->{reduction},
+        DEPOSIT        => $u->{deposit},
+        SERVICE_STATUS => $u->{service_status},
+        CREDIT         => ($u->{credit} > 0) ? $u->{credit} : ($tariff->{CREDIT} || 0),
+        COMPANY_ID     => $u->{company_id},
+        STATUS         => $u->{service_status},
+        TP_ID          => $tariff->{TP_ID}
+      );
+
+      my %FEES_DSC = (
+        MODULE          => 'Triplay',
+        TP_ID           => $tariff->{TP_ID},
+        TP_NAME         => $tariff->{NAME},
+        SERVICE_NAME    => 'Triplay',
+        FEES_PERIOD_DAY => $lang{DAY_FEE_SHORT},
+        FEES_METHOD     => $FEES_METHODS->{$tariff->{FEES_METHOD}},
+        DATE            => $ADMIN_REPORT{DATE},
+        METHOD          => $tariff->{FEES_METHOD} ? $tariff->{FEES_METHOD} : 1,
+      );
+
+
+      my %PARAMS = (
+        DESCRIBE => fees_dsc_former(\%FEES_DSC),
+        DATE     => "$ADMIN_REPORT{DATE} $TIME",
+        METHOD   => $tariff->{fees_method} ? $tariff->{fees_method} : 1
+      );
+
+      if ($tariff->{payment_type} || $user{DEPOSIT} + $user{CREDIT} > 0) {
+        $Fees->take(\%user, $tariff->{DAY_FEE}, \%PARAMS);
+        $debug_output .= "UID: $user{UID} SUM: $tariff->{DAY_FEE} REDUCTION: $user{REDUCTION}\n" if ($debug > 0);
+      }
+    }
+  }
+
+  $DEBUG .= $debug_output;
+  return $debug_output;
+}
+
 
 #**********************************************************
-=head2 internet_monthly_fees($attr) - Monthly fees
+=head2 triplay_monthly_fees($attr) - Monthly fees
 
   Arguments:
     $attr

@@ -1,22 +1,43 @@
 <form action=$SELF_URL METHOD=post>
-<input type=hidden name=chg value='$FORM{chg}'>
-<input type=hidden name=index value='$index'>
+<input type=hidden name=index value='%index%'>
 
-<table class=form>
-<tr>
-  <th>_{VARIABLE}_:</th>
-  <th>_{TYPE}_</th>
-  <th>_{DEFAULT_VALUE}_</th>
-  <th>_{DESCRIBE}_</th>
-</tr>
-<tr>
-  <td><input type=text name=PARAM value='%PARAM%' size=30 class='form-control'></td>
-  <td>%TYPE_SEL%</td>
-  <td><textarea name=VALUE cols=40 rows=6 class='form-control'>%VALUE%</textarea></td>
-  <td><textarea name=COMMENTS cols=40 rows=6 class='form-control'>%COMMENTS%</textarea></td>
-</tr>
-<tr><th colspan=4 class=even><input type=submit name=%ACTION% value='%LNG_ACTION%' class='btn btn-primary'></th></tr>
-</table>
+<div class='card card-primary card-outline container-md'>
+  <div class='card-header'>
+    <h3 class='card-title'>_{CONFIGURATION}_ %LNG_ACTION%</h3>
+  </div>
+  <div class='card-body'>
+
+    <div class='form-group row'>
+      <label class='col-form-label text-md-right col-md-4'>_{VARIABLE}_:</label>
+      <div class='col-md-8'>
+        <input type=text name=PARAM value='%PARAM%' size=30 class='form-control'>
+      </div>
+    </div>
+    <div class='form-group row'>
+      <label class='col-form-label text-md-right col-md-4'>_{TYPE}_</label>
+      <div class='col-md-8'>
+        %TYPE_SEL%
+      </div>
+    </div>
+
+    <div class='form-group row'>
+      <label class='col-form-label text-md-right col-md-4'>_{DEFAULT_VALUE}_</label>
+      <div class='col-md-8'>
+        %VALUE_INPUT%
+      </div>
+    </div>
+
+    <div class='form-group row'>
+      <label class='col-form-label text-md-right col-md-4'>REGEX</label>
+      <div class='col-md-8'>
+        <input type=text name=REGEX value='%REGEX%' size=30 class='form-control' %IS_DISABLED%>
+      </div>
+    </div>
+  </div>
+
+  <div class='card-footer'>
+    <button type=submit name=%ACTION% value='%LNG_ACTION%' class='btn btn-primary'>%LNG_ACTION%</button>
+  </div>
+</div>
 
 </form>
-

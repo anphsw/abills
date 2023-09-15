@@ -87,7 +87,7 @@ sub form_companies {
       return 0;
     }
   }
-  elsif ($FORM{add}) {
+  elsif ($FORM{add} && !$FORM{import}) {
     if (!$permissions{0}{37}) {
       $html->message( 'err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}" );
       return 0;
@@ -118,41 +118,8 @@ sub form_companies {
       return 0;
     }
 
-    #Create service cards from file
-    my $imported      = 0;
-    my $impoted_named = '';
-    if (defined($FORM{FILE_DATA})) {
-      my @rows = split(/[\r]{0,1}\n/, $FORM{'FILE_DATA'}{'Contents'});
-
-      foreach my $line (@rows) {
-        my @params = split(/\t/, $line);
-        my %USER_HASH = (
-          CREATE_BILL  => 1,
-          COMPANY_NAME => $params[0]
-        );
-
-        next if ($USER_HASH{COMPANY_NAME} eq '');
-
-        for (my $i = 0 ; $i <= $#params ; $i++) {
-          my ($k, $v) = split(/=/, $params[$i], 2);
-          $v =~ s/\"//g;
-          $USER_HASH{$k} = $v;
-        }
-        $impoted_named .= "$USER_HASH{COMPANY_NAME}\n";
-        $imported++;
-        $USER_HASH{COMPANY_NAME} =~ s/'/\\'/g;
-
-        $Company->add({%USER_HASH});
-        if ($Company->{errno}) {
-          _error_show($Company, { MESSAGE =>  "Line:$impoted_named\n F$lang{COMPANY}: '$USER_HASH{COMPANY_NAME}'" });
-          return 0;
-        }
-      }
-
-      my $message = "$lang{FILE} $lang{NAME}:  $FORM{FILE_DATA}{filename}\n" . "$lang{TOTAL}:  $imported\n" . "$lang{SIZE}: $FORM{FILE_DATA}{Size}\n" . "$impoted_named\n";
-
-      $html->message( 'info', $lang{INFO}, "$message" );
-    }
+    companies_import();
+    return 1;
   }
   elsif ($FORM{change}) {
     if (!$permissions{0}{38}) {
@@ -245,6 +212,7 @@ sub form_companies {
       push @menu_functions, "$lang{DOCS}:" . get_function_index( 'docs_acts' ) . ":COMPANY_ID=$Company->{ID}";
     }
 
+    # TODO: #3944 rereview
     my $company_sel = '';
     $html->form_main({
       CONTENT       => $html->form_select(
@@ -448,6 +416,7 @@ sub form_companies {
         qs      => $pages_qs,
         ID      => 'COMPANY_ID',
         EXPORT  => 1,
+        IMPORT  => "$SELF_URL?get_index=form_companies&import=1&header=2",
         MENU    => $add_form_button. ";$lang{SEARCH}:index=".get_function_index( 'form_search' )."&type=13:search",
         SHOW_COLS_HIDDEN => {
           TYPE_PAGE => $FORM{type}
@@ -457,16 +426,6 @@ sub form_companies {
       TOTAL           => 1
     });
 
-    if (!$FORM{search}) {
-      print $html->form_main({
-        class  => 'row justify-content-end pr-2',
-        CONTENT => "$lang{FILE}: ".$html->form_input( 'FILE_DATA', '', { TYPE => 'file' } ),
-        ENCTYPE => 'multipart/form-data',
-        HIDDEN  => { index => $index, },
-        SUBMIT  => { import => $lang{IMPORT} },
-        TARGET  => 'new'
-      });
-    }
   }
 
   _error_show($Company);
@@ -616,6 +575,91 @@ sub _form_company_address {
   );
 
   return $info{ADDRESS_FORM};
+}
+
+#**********************************************************
+=head2 companies_import($attr)
+
+=cut
+#**********************************************************
+sub companies_import {
+
+  require Customers;
+  Customers->import();
+  my $Customer = Customers->new($db, $admin, \%conf);
+  my $Company  = $Customer->company();
+
+  if (defined($FORM{UPLOAD_FILE})) {
+    my $import_info = import_former( \%FORM );
+    my $imported      = 0;
+    my $imported_name = '';
+
+    foreach my $_company (@$import_info) {
+      next if ($_company->{NAME} eq '');
+
+      $imported_name .= "$_company->{NAME}\n";
+      $_company->{NAME} =~ s/'/\\'/g;
+      $_company->{CREATE_BILL} = 1;
+
+      $Company->add({ %$_company });
+
+      if ($Company->{errno}) {
+        _error_show($Company, { MESSAGE =>  "Line:$imported_name\n F$lang{COMPANY}: '$_company->{NAME}'" });
+        return 0;
+      }
+      $imported++;
+    }
+
+    if($imported != 0){
+      my $message = "$lang{FILE}:  $FORM{UPLOAD_FILE}{filename}\n" . "$lang{TOTAL}:  $imported\n" . "$lang{SIZE}: $FORM{UPLOAD_FILE}{Size} b\n\n" . "$imported_name\n";
+      $html->message( 'info', $lang{INFO}, "$message" );
+      return 1;
+    }
+
+  }
+
+  my $import_fields = $html->form_select('IMPORT_FIELDS',
+    {
+      SELECTED  => $FORM{IMPORT_FIELDS},
+      SEL_ARRAY => [
+        'NAME',
+        'ADDRESS',
+        'PHONE',
+        'REPRESENTATIVE',
+        'VAT',
+        'REGISTRATION',
+        'TAX_NUMBER',
+        'BANK_ACCOUNT',
+        'BANK_NAME',
+        'CONTRACT_ID',
+        'CONTRACT_DATE',
+        'EDRPOU',
+      ],
+      EX_PARAMS => 'multiple="multiple"'
+    });
+
+  my $encode = $html->form_select(
+    'ENCODE',
+    {
+      SELECTED  => $FORM{ENCODE},
+      SEL_ARRAY => [ '', 'win2utf8', 'utf82win', 'win2koi', 'koi2win', 'win2iso', 'iso2win', 'win2dos', 'dos2win' ],
+    }
+  );
+
+  my $extra_row = $html->tpl_show(templates('form_row'), {
+    ID    => 'ENCODE',
+    NAME  => $lang{ENCODE},
+    VALUE => $encode },
+    { OUTPUT2RETURN => 1 });
+
+  $html->tpl_show(templates('form_import'), {
+    IMPORT_FIELDS     => $conf{COMPANY_IMPORT_FIELDS} || 'NAME,ADDRESS,PHONE,REPRESENTATIVE,VAT,REGISTRATION,TAX_NUMBER,BANK_ACCOUNT,BANK_NAME,CONTRACT_ID,CONTRACT_DATE,EDRPOU',
+    CALLBACK_FUNC     => 'form_companies',
+    IMPORT_FIELDS_SEL => $import_fields,
+    EXTRA_ROWS        => $extra_row,
+  });
+
+  return 1;
 }
 
 1;

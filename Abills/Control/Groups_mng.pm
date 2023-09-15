@@ -57,16 +57,21 @@ sub form_groups {
   }
   elsif ($FORM{add}) {
     if (!$permissions{0}{1}) {
-      $html->message( 'err', $lang{ERROR}, $lang{ERR_ACCESS_DENY} );
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
       return 0;
     }
 
     if ($permissions{0} && !$permissions{0}{28}) {
-      $html->message( 'err', $lang{ERROR}, $lang{ERR_ACCESS_DENY} );
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
     }
     else {
-      $users->group_add({ %FORM });
-      $html->message( 'info', $lang{ADDED}, "$lang{ADDED} [". ($FORM{GID} || q{}) ."]" ) if !$users->{errno};
+      if ($FORM{GID} && $FORM{GID} =~ /^(?!0\d{1,4}$)([1-9]\d{0,3}|[1-5]\d{4}|6[0-4]\d{3}|65[0-4]\d{2}|655[0-2]\d|6553[0-5])$/gm) {
+        $users->group_add({ %FORM });
+        $html->message('info', $lang{ADDED}, "$lang{ADDED} [" . ($FORM{GID} || q{}) . "]") if !$users->{errno};
+      }
+      else {
+        $html->message('err', $lang{ERROR}, $lang{ERR_GID});
+      }
     }
   }
   elsif ($FORM{change}) {
@@ -103,11 +108,14 @@ sub form_groups {
           USERS_COUNT    => '_SHOW',
           COLS_NAME      => 1
         }),
-        SEL_KEY  => 'gid',
-        NO_ID    => 1
+        SEL_KEY    => 'gid',
+        AUTOSUBMIT => 'form',
+        NO_ID      => 1
       }),
-      HIDDEN  => { index => $index },
-      SUBMIT  => { show => $lang{SHOW} },
+      HIDDEN  => {
+        index => $index,
+        show  => 1
+      },
       class   => 'form-inline ml-auto flex-nowrap',
     });
 

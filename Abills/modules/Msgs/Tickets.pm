@@ -95,6 +95,8 @@ sub msgs_admin {
   $Msgs->{ACTION} = 'send';
   $Msgs->{LNG_ACTION} = $lang{SEND};
 
+  $FORM{chg} ||= $FORM{STORAGE_MSGS_ID} if $FORM{STORAGE_MSGS_ID} && $FORM{add};
+
   if ($FORM{chg} || $FORM{ID}) {
     $FORM{chg} =~ s/#// if ($FORM{chg});
     $Msgs->message_info($FORM{chg} || $FORM{ID});
@@ -321,7 +323,7 @@ sub msgs_ticket_change {
     $FORM{CLOSED_DATE} = "$DATE  $TIME";
     $FORM{STATE} = 0 if $Msgs->{TASK_CLOSED} && (!$msgs_permissions{1} || !$msgs_permissions{1}{3});
   }
-  $FORM{DONE_DATE} = $DATE if ($FORM{STATE} > 1);
+  $FORM{DONE_DATE} = $DATE if (defined $FORM{STATE} && $FORM{STATE} > 1);
   delete $FORM{PRIORITY} if !$msgs_permissions{1} || !$msgs_permissions{1}{13};
   delete $FORM{RESPOSIBLE} if !$msgs_permissions{1} || !$msgs_permissions{1}{16};
   delete $FORM{DISPATCH_ID} if !$msgs_permissions{1} || !$msgs_permissions{1}{26};
@@ -1034,7 +1036,7 @@ sub msgs_ticket_show {
 
   if (!$Msgs->{ACTIVE_SURWEY}) {# && _msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER}, HIDE_ALERT => 1 })) {
 
-    if ($msgs_permissions{1}{8}) {
+    if ($msgs_permissions{1} && $msgs_permissions{1}{8}) {
       $Msgs->{CHAPTERS_SEL} = $html->form_select('CHAPTER_ID', {
         SELECTED       => '',
         SEL_LIST       => $Msgs->chapters_list({
@@ -1059,7 +1061,7 @@ sub msgs_ticket_show {
       MAIN_INNER_MSG  => $Msgs->{INNER_MSG},
       INNER_MSG       => ($FORM{INNER_MSG}) ? ' checked ' : '',
       SURVEY_SEL      => msgs_survey_sel(),
-      SURVEY_HIDE     => !$msgs_permissions{1}{20} ? 'd-none' : '',
+      SURVEY_HIDE     => !$msgs_permissions{1} || !$msgs_permissions{1}{20} ? 'd-none' : '',
       MAX_FILES       => $conf{MSGS_MAX_FILES} || 3
     }, { OUTPUT2RETURN => 1, ID => 'MSGS_REPLY', NO_SUBJECT => $lang{NO_SUBJECT} });
   }
@@ -1355,7 +1357,6 @@ sub _msgs_change_responsible {
     ATTACHMENTS     => $attachments_list,
     NEW_RESPONSIBLE => 1
   });
-
 
   return 1;
 }

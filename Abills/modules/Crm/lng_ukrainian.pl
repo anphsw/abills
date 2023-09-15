@@ -6,9 +6,9 @@ $lang{LEADS_PERCENTAGE_ON_STEP} = 'Процент лідів на кроці';
 $lang{ALL_LEADS} = 'Всі ліди';
 $lang{UNITS} = 'Одиниць';
 $lang{CHOOSE} = 'Виберіть';
-$lang{LEADS} = 'Потенційні кліенти';
-$lang{LEAD} = 'Потенційний кліент';
-$lang{OF_LEAD} = 'потенційного кліента';
+$lang{LEADS} = 'Потенційні клієнти';
+$lang{LEAD} = 'Потенційний клієнт';
+$lang{OF_LEAD} = 'потенційного клієнта';
 $lang{POTENTIAL_LEADS} = 'Потенційні';
 $lang{CONVERT_LEADS} = 'Конвертовані';
 $lang{MINUTES} = 'Хвилини';
@@ -20,13 +20,13 @@ $lang{INCOMING_CALL} = 'Вхідний дзвінок';
 $lang{FILTER_LEADS} = 'Фільтр користувачів';
 $lang{PROGRESS} = 'Прогрес';
 $lang{LEADS_COMES} = 'Потенційних клієнтів прийшло';
-$lang{LEADS_FINISHED} = 'Потенційних клієнтів сконвертовано';
+$lang{LEADS_FINISHED} = 'Потенційних клієнтів конвертовано';
 $lang{REFERRALS} = 'Реферальний клієнт';
 $lang{NEW_LEAD} = 'Новий потенційний клієнт';
 $lang{CONTRACT_SIGNED} = 'Контракт підписано';
 $lang{THE_WORKS} = 'Проводяться роботи';
 $lang{CONVERSION} = 'Конвертація';
-$lang{BIND_USER} = 'Привязати користувача';
+$lang{BIND_USER} = 'Прив\'язати користувача';
 $lang{PROGRESS_BAR} = 'Лінійка виконання';
 $lang{PLANNED} = 'Запланована';
 
@@ -55,7 +55,7 @@ $lang{LOCALITIES_OF_THE_TP} = 'Населені пункти тарифного 
 $lang{COMPETITORS_TP} = 'Тарифні плани конкурентів';
 $lang{NO_COMPETITOR_SELECTED} = 'Конкурент не обраний';
 $lang{LOCALITIES_CREATED_TP} = 'Населені пункти можна вказати тільки для вже створених тарифних планів';
-$lang{COMPETITOR_HAS_NOT_ADDRESS} = "Конкурент не прив'язаний до адреси";
+$lang{COMPETITOR_HAS_NOT_ADDRESS} = "Конкурент не прив\'язаний до адреси";
 
 $lang{CRM_MASS_ADDING} = 'Масове додавання';
 
@@ -77,7 +77,7 @@ $lang{CRM_RECENT_ACTIVITY} = 'Останні дії';
 
 $lang{CRM_SHORT_LEADS} = 'Потен. клієнти';
 $lang{CRM_USER_NOT_FOUND} = 'Користувача не знайдено';
-$lang{CRM_USER_LINKED} = "Користувач уже прив'язаний";
+$lang{CRM_USER_LINKED} = "Користувач уже прив\'язаний";
 $lang{CRM_SHOW_AT_REGISTRATION} = "Показати під час реєстрації";
 
 $lang{CRM_TECH} = 'Технічні дані';
@@ -126,7 +126,7 @@ $lang{CRM_WITHOUT_RESPONSIBLE} = 'Без відповідального';
 $lang{CRM_TOP_ADMINS} = 'TОП-адміністратори за кількістю потенційних клієнтів';
 
 $lang{CHANGE_STEP} = 'Змінити крок';
-$lang{SELECT_STEP} = 'Выберите крок...';
+$lang{SELECT_STEP} = 'Виберіть крок...';
 $lang{CRM_SELECT_RESPONSIBLE} = 'Виберіть відповідального...';
 $lang{CRM_SET_RESPONSIBLE} = 'Встановити відповідального';
 $lang{CRM_SEND_MESSAGE} = 'Відправити повідомлення';
@@ -159,5 +159,9 @@ $lang{ADD_ACTION} = 'Додати дію';
 
 $lang{CRM_SUBJECT_MESSAGE} = 'Тема повідомлення';
 $lang{CRM_MESSAGE} = 'Текст повідомлення';
+$lang{HOLDUP_TO} = 'Призупинено до';
+
+$lang{TRACKED_LEADS} = 'Обрані потенційні клієнти';
+$lang{DEFERRED_LEADS} = 'Відкладені потенційні клієнти';
 
 1

@@ -11,7 +11,8 @@
         <label class='control-label col-md-4 required' for='GID'>GID:</label>
         <div class='input-group col-md-8'>
           <input id='GID' name='GID' value='%GID%' required placeholder='%GID%' class='form-control'
-                 type='number' %GID_DISABLE% pattern='[0-9]{,9}'>
+                 type='text' %GID_DISABLE% data-check-for-pattern='^(?!0\\d{1,4}\$)([1-9]\\d{0,3}|[1-5]\\d{4}|6[0-4]\\d{3}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5])\$'
+                 data-check-for-pattern-text='_{ERR_GID}_'>
         </div>
       </div>
 

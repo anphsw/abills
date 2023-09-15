@@ -356,12 +356,14 @@ CREATE TABLE IF NOT EXISTS `cablecat_import_presets` (
   CHARSET = 'utf8'
   COMMENT = 'Presets for wells import';
 
-CREATE TABLE IF NOT EXISTS `cablecat_storage` (
+CREATE TABLE IF NOT EXISTS `cablecat_storage_installation` (
   `id`              INT UNSIGNED     NOT NULL AUTO_INCREMENT,
-  `cable_id`        INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `object_id`       INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `type`            SMALLINT(6) UNSIGNED NOT NULL NOT NULL DEFAULT 0,
   `installation_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
   `date`            DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `aid`             SMALLINT(6)      NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
-) DEFAULT CHARSET = utf8
-  COMMENT = 'Storage items to cablecat';
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Storage installation to Cablecat objects';

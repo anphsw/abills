@@ -16,9 +16,11 @@ use warnings FATAL => 'all';
 
 use Msgs;
 use Msgs::Notify;
+use Msgs::Misc::Attachments;
 
 my Msgs $Msgs;
 my Msgs::Notify $Notify;
+my Msgs::Misc::Attachments $Attachments;
 
 our %lang;
 require 'Abills/modules/Msgs/lng_english.pl';
@@ -45,6 +47,7 @@ sub new {
 
   $Msgs = Msgs->new($db, $admin, $conf);
   $Notify = Msgs::Notify->new($db, $admin, $conf, { LANG => \%LANG, HTML => $html });
+  $Attachments = Msgs::Misc::Attachments->new($db, $admin, $conf);
   $self->{permissions} = $Msgs->permissions_list($admin->{AID});
 
   $Msgs->{debug} = $self->{debug};
@@ -178,7 +181,7 @@ sub user_routes {
         my %extra_params = ();
 
         if ($self->{conf}{MSGS_USER_REPLY_SECONDS_LIMIT}) {
-          my $new_messages = $Msgs->messages_list({
+          $Msgs->messages_list({
             UID       => $path_params->{uid},
             GET_NEW   => $self->{conf}{MSGS_USER_REPLY_SECONDS_LIMIT},
             DESC      => 'DESC',
@@ -186,7 +189,7 @@ sub user_routes {
           });
 
           return {
-            errno  => 100,
+            errno  => 50001,
             errstr => "Messages can be sent up to once every $self->{conf}{MSGS_USER_REPLY_SECONDS_LIMIT} seconds"
           } if ($Msgs->{TOTAL} && $Msgs->{TOTAL} > 0);
         }
@@ -210,6 +213,9 @@ sub user_routes {
         });
 
         $Notify->notify_admins({ MSG_ID => $Msgs->{INSERT_ID} });
+
+        my $attachment_add_status = $self->msgs_attachment_add($path_params, $query_params, { REPLY_ID => 0, MSG_ID => $Msgs->{INSERT_ID} });
+        $self->{attachments} = $attachment_add_status if (!$attachment_add_status->{no_attachments});
 
         return $Msgs;
       },
@@ -321,6 +327,9 @@ sub user_routes {
         });
 
         $Notify->notify_admins({ MSG_ID => $path_params->{id} });
+
+        $self->msgs_attachment_add($path_params, $query_params, { REPLY_ID => $Msgs->{INSERT_ID}, MSG_ID => $path_params->{id} });
+
         ($Msgs->{errno}) ? return 0 : return 1;
       },
       credentials => [
@@ -584,6 +593,15 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        $Msgs->message_info($path_params->{id});
+
+        if ($Msgs->{CHAPTER} && $self->{permissions}{4} && !$self->{permissions}{4}{$Msgs->{CHAPTER}}) {
+          return {
+            errno  => 105,
+            errstr => 'Access denied'
+          };
+        }
+
         delete $query_params->{REPLY_INNER_MSG} if !$self->{permissions}{1} || !$self->{permissions}{1}{7};
         $Msgs->message_reply_add({ %{$query_params}, ID => $path_params->{id} });
       },
@@ -605,7 +623,6 @@ sub admin_routes {
           COLS_NAME => 1
         });
       },
-      type        => 'ARRAY',
       credentials => [
         'ADMIN'
       ]
@@ -659,6 +676,66 @@ sub admin_routes {
       ]
     }
   ];
+}
+
+#**********************************************************
+=head2 msgs_attachment_add($path_params, $query_params, $module_obj)
+
+=cut
+#**********************************************************
+sub msgs_attachment_add {
+  my $self = shift;
+  my ($path_params, $query_params, $msgs_info) = @_;
+
+  my %result = (
+    status      => 0,
+    attachments => [],
+  );
+
+  my $regex_pattern = qr/FILE/;
+  my @files = grep { /$regex_pattern/ } keys %{$query_params};
+
+  return {
+    no_attachments => 1,
+    errno          => 50005,
+    errstr         => 'No attachments added',
+  } if (!scalar @files);
+
+  my $files_count_limit = $self->{conf}->{MSGS_MAX_FILES} || 3;
+  my $files_uploaded = 0;
+  foreach my $file (sort @files) {
+    if ($files_uploaded >= $files_count_limit) {
+      $result{warning} = "Limit of attachments. Count limit is $self->{conf}{MSGS_USER_REPLY_SECONDS_LIMIT} files. Files which processed is present in attachments array.";
+
+      last;
+    }
+
+    my $file_obj = $query_params->{$file};
+    $file_obj->{CONTENT_TYPE} = $file_obj->{'CONTENT-TYPE'} if (!$file_obj->{CONTENT_TYPE});
+    next if ref $query_params->{$file} ne 'HASH';
+    my @keys = ('CONTENT_TYPE', 'SIZE', 'CONTENTS', 'FILENAME');
+    next if (map {$file_obj->{$_} } grep exists($file_obj->{$_}), @keys) != scalar @keys;
+
+    my $add_status = $Attachments->attachment_add({
+      MSG_ID       => $msgs_info->{MSG_ID} || 0,
+      REPLY_ID     => $msgs_info->{REPLY_ID} || 0,
+      MESSAGE_TYPE => $msgs_info->{REPLY_ID} ? 1 : 0,
+      CONTENT      => $file_obj->{CONTENTS},
+      FILESIZE     => $file_obj->{SIZE},
+      FILENAME     => $file_obj->{FILENAME},
+      CONTENT_TYPE => $file_obj->{CONTENT_TYPE},
+      UID          => $path_params->{uid}
+    });
+
+    if ($add_status) {
+      push @{$result{attachments}}, { status => 0, message => 'Successfully added file', file => $file_obj->{NAME} }
+    }
+    else {
+      push @{$result{attachments}}, { errno => $Attachments->{errno} || 50003, errstr => $Attachments->{errstr} || 'Failed to save file', file => $file_obj->{NAME} }
+    }
+  }
+
+  return \%result;
 }
 
 1;

@@ -73,4 +73,39 @@ sub payments_maked {
   return $self;
 }
 
+#**********************************************************
+=head2 payment_del($attr) - Cross module payment deleted
+
+  Arguments:
+    $attr
+      PAYMENT_ID
+      UID
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub paysys_payment_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return 0 if (!$attr->{ID});
+  return 0 if (!$attr->{PAYMENT_INFO} || !$attr->{PAYMENT_INFO}->{EXT_ID});
+
+  my $transaction = $Paysys->list({
+    TRANSACTION_ID => $attr->{PAYMENT_INFO}->{EXT_ID},
+    UID            => $attr->{PAYMENT_INFO}->{UID},
+    COLS_NAME      => 1,
+    SKIP_DEL_CHECK => 1,
+    SKIP_DOMAIN    => 1
+  });
+
+  return 0 if ($Paysys->{errno} || !scalar @{$transaction});
+
+  $Paysys->del($transaction->[0]->{id} || '--');
+
+  return $self;
+}
+
 1;

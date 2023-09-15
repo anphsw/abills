@@ -11,6 +11,7 @@ use warnings FATAL => 'all';
 use Abills::Defs;
 use Abills::Base qw(time2sec);
 use Extfin;
+use Users;
 
 our (
   $db,
@@ -298,7 +299,7 @@ sub extfin_export_customers {
 sub extfin_periodic_paids {
   my ($attr) = @_;
 
-  use Users;
+  require Payments;
   my $Payments = Payments->new($db, $admin, \%conf);
   my $Users = Users->new($db, $admin, \%conf);
 
@@ -435,6 +436,7 @@ sub extfin_paids {
       }
       @form_ids = grep { my $id = $_; not grep $_ eq $id, @stock_ids } @form_ids;
 
+      require Payments;
       my $Payments = Payments->new($db, $admin, \%conf);
       foreach my $id (@form_ids) {
 
@@ -481,6 +483,7 @@ sub extfin_paids {
     }
     $Extfin->paid_add({ %FORM });
     if (defined($FORM{PAIDS})) {
+      require Payments;
       my $Payments = Payments->new($db, $admin, \%conf);
       $Payments->add(
         {

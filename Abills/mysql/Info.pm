@@ -39,6 +39,8 @@ my Attach $Attach;
 
 # Singleton reference;
 my dbcore $instance;
+my $MODULE = 'Info';
+my ($db, $admin, $CONF);
 
 use constant {
   COMMENT_TABLE  => {
@@ -80,7 +82,7 @@ Instantiation of singleton db object
 sub new {
   unless (defined $instance) {
     my $class = shift;
-    my ($db, $admin, $CONF) = @_;
+    ($db, $admin, $CONF) = @_;
     
     my $self = {
       db    => $db,
@@ -89,6 +91,7 @@ sub new {
     };
     
     bless($self, $class);
+    $admin->{MODULE}=$MODULE;
 
     $instance = $self;
   }
@@ -145,8 +148,8 @@ sub get_comments {
  Main function to add comment for $type, $id
    $attr - hash reference of extra arguments
      OBJ_TYPE - The table name for object you want add comments for
-     ID   - id of object you want add comments for
-     TEXT - text of comment
+     OBJ_ID   - id of object you want add comments for
+     TEXT     - text of comment
 
  Comment will always be added with current system datetime, and aid of current administrator
 
@@ -158,6 +161,8 @@ sub add_comment {
 
   my $obj_type = $attr->{OBJ_TYPE};
   my $id = $attr->{OBJ_ID};
+
+  $admin->action_add($attr->{OBJ_ID}, $attr->{TEXT}, { TYPE => 1 });
 
   return _add_info($obj_type, $id, COMMENT_TABLE, $attr);
 }
@@ -176,6 +181,8 @@ sub add_comment {
 sub del_comment {
   my $self = shift;
   my ($attr) = @_;
+
+  $admin->action_add($attr->{UID}, $attr->{COMMENTS}, { TYPE => 10 });
 
   return _del_info(COMMENT_TABLE, $attr);
 }
@@ -681,6 +688,8 @@ sub change_comments {
     OLD_COMMENT => $attr->{OLD_COMMENTS},
   });
 
+  $admin->action_add($attr->{UID}, "$attr->{OLD_COMMENTS} -> $attr->{TEXT}", { TYPE => 2 });
+
   return $self;
 }
 
@@ -761,7 +770,7 @@ sub info_documents_list {
 
   my $search_columns = [
     [ 'ID',           'INT',  'ind.id',           1 ],
-    [ 'COMMENT_ID',   'INT',  'ind.id',           1 ],
+    [ 'COMMENT_ID',   'INT',  'ind.comment_id',   1 ],
     [ 'FILENAME',     'STR',  'ind.filename',     1 ],
     [ 'CONTENT_SIZE', 'STR',  'ind.content_size', 1 ],
     [ 'CONTENT_TYPE', 'STR',  'ind.content_type', 1 ],

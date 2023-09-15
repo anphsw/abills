@@ -27,11 +27,11 @@ sub form_quick_reports {
 
   my %quick_reports = ();
 
-  $quick_reports{last_payments} = $lang{PAYMENTS} if ($permissions{1}{0} || $permissions{1}{3});
+  $quick_reports{last_payments} = $lang{LAST_PAYMENT} if ($permissions{1}{0} || $permissions{1}{3});
   $quick_reports{add_users} = $lang{REGISTRATION} if ($permissions{0}{2});
   $quick_reports{fin_summary} = $lang{DEBETORS} if ($permissions{1}{0} || $permissions{1}{3});
-  $quick_reports{users_summary} = $lang{DEBETORS} if (($permissions{1}{0} || $permissions{1}{3}) && $permissions{0}{2});
-  $quick_reports{payments_types} = $lang{USERS} if (($permissions{1}{0} || $permissions{1}{3}) && $permissions{0}{2});
+  $quick_reports{users_summary} = $lang{USERS} if (($permissions{1}{0} || $permissions{1}{3}) && $permissions{0}{2});
+  $quick_reports{payments_types} = $lang{PAYMENT_TYPE} if (($permissions{1}{0} || $permissions{1}{3}) && $permissions{0}{2});
   $quick_reports{payments_self} = "$lang{PAYMENTS} $lang{TODAY}, $lang{YESTERDAY}" if (($permissions{1}{0} || $permissions{1}{3}) && $permissions{0}{2});
 
   foreach my $mod_name (@MODULES) {
@@ -204,7 +204,7 @@ sub start_page_fin_summary {
 
   my $table = $html->table({
     width       => '100%',
-    caption     => $lang{PAYMENTS},
+    caption     => $lang{DEBETORS},
     title_plain => [ "$lang{PERIOD}", "$lang{COUNT}", "$lang{SUM}" ],
     ID          => 'FIN_SUMMARY',
     rows        => [
@@ -321,7 +321,7 @@ sub start_page_payments_self {
 
   my $table = $html->table({
     width   => '100%',
-    caption => "$lang{PAYMENTS} $lang{ADDED}",
+    caption => "$lang{PAYMENTS} $lang{TODAY}, $lang{YESTERDAY}",
     ID      => 'TODAY_PAYMENTS',
     EXPORT  => 1,
   });

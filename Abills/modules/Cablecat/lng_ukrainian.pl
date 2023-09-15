@@ -13,7 +13,7 @@ $lang{THROUGH_ONE} = 'через один';
 
 $lang{BOX} = 'Ящик';
 $lang{BOXS} = 'Ящики';
-$lang{WELL} = 'Вузол звязку';
+$lang{WELL} = 'Вузол зв&#39;язку';
 $lang{WELLS} = 'Вузли зв&#39;язку';
 $lang{WIFI} = 'Wi-Fi';
 $lang{WIFIS} = 'Wi-Fi';
@@ -51,7 +51,7 @@ $lang{LINKS} = 'З&#39;єднання';
 $lang{DELETE_LINK} = 'Видалити ланку';
 $lang{DELETE_CONNECTION} = 'Видалити з&#39;єднання';
 $lang{CONNECT} = 'З&#39;єднати';
-$lang{CONNECT_BY_NUMBER} = 'З&#39;єднати по номерам';
+$lang{CONNECT_BY_NUMBER} = 'З&#39;єднати по номерах';
 $lang{ATTENUATION} = 'Затухання';
 
 $lang{REMOVE_FS_FROM_SCHEME} = 'Видалити %s з комутації';
@@ -64,14 +64,14 @@ $lang{DIRECTION} = 'Напрямок';
 
 $lang{CREATE_COMMUTATION} = 'Створити комутацію';
 
-$lang{CROSS} = 'Кросс';
-$lang{CROSSES} = 'Кросси';
-$lang{RACK_MOUNTABLE} = 'Стієчний';
+$lang{CROSS} = 'Крос';
+$lang{CROSSES} = 'Кроси';
+$lang{RACK_MOUNTABLE} = 'Стоєчний';
 $lang{RETRACTABLE} = 'Висувний';
 $lang{SOLID_PANEL} = 'Суцільна панель';
 $lang{CHANGEABLE_PLANKS} = 'Змінні планки';
-$lang{CROSS_TYPE} = 'Тип кросса';
-$lang{CROSS_TYPES} = 'Типи кросса';
+$lang{CROSS_TYPE} = 'Тип кроса';
+$lang{CROSS_TYPES} = 'Типи кроса';
 $lang{PANEL_TYPE} = 'Тип панелі';
 $lang{RACK_HEIGHT} = 'Висота';
 $lang{PORTS_TYPE} = 'Типи портів';
@@ -96,10 +96,10 @@ $lang{OTHER_COMMUTATIONS} = 'Інші комутації';
 
 $lang{GO_TO} = 'Перейти до';
 $lang{CAN_BE_SPLITTED} = 'Можна розділяти';
-$lang{CONNECTION_TRACE} = 'Відслідкувати з&#39єднання';
+$lang{CONNECTION_TRACE} = 'Відслідкувати з\'єднання';
 $lang{TRACE_UP_TO} = 'Відслідкувати до';
 
-$lang{WRONG_LINKS} = 'Неправильні з&#39єднання';
+$lang{WRONG_LINKS} = 'Неправильні з\'єднання';
 $lang{PRINT_SCHEME} = 'Друк схеми';
 
 $lang{WHITE} = 'Білий';
@@ -111,7 +111,7 @@ $lang{RED} = 'Червоний';
 $lang{ORANGE} = 'Помаранчевий';
 $lang{PINK} = 'Рожевий';
 $lang{GRAY} = 'Сірий';
-$lang{BLUE} = 'Синий';
+$lang{BLUE} = 'Синій';
 $lang{VIOLET} = 'Фіолетовий';
 $lang{BLACK} = 'Чорний';
 $lang{YELLOWGREEN} = 'Жовто-зелений';
@@ -120,20 +120,20 @@ $lang{BEIGE} = 'Бежевий';
 $lang{NATURAL} = 'Природній';
 $lang{LEMON} = 'Лимонний';
 $lang{CHERRY} = 'Вишневий';
-$lang{CABLE_RESERVE} = 'Запас кабеля';
+$lang{CABLE_RESERVE} = 'Запас кабелю';
 $lang{CAT_CABLE} = 'Розрізати кабель';
 $lang{RESERVE} = 'Запас';
 
 $lang{ADD_SCHEME} = 'Додати схему комутації';
-$lang{REMOVE_SCHEME} = 'Видалити схему коммутації';
+$lang{REMOVE_SCHEME} = 'Видалити схему комутації';
 $lang{POSITION_CHANGE_ERROR} = 'Помилка зміни позиції';
 $lang{POSITION_SUCCESSFULLY_CHANGED} = 'Позиція успішно змінена';
 $lang{BIG_COMMUTATION} = 'Велика схема комутації';
 $lang{CHOOSE_COMMUTATION} = 'Виберіть комутацію';
 
 $lang{ROTATE} = 'Повернути';
-$lang{FAILED_TO_CHANGE_NAME} = 'Не вдалося змінити імя. Відсутні необхідні дані!';
-$lang{NAME_ALREADY_IN_USE} = 'Таке імя вже використовується';
+$lang{FAILED_TO_CHANGE_NAME} = 'Не вдалося змінити ім\'я. Відсутні необхідні дані!';
+$lang{NAME_ALREADY_IN_USE} = 'Таке ім\'я вже використовується';
 $lang{ERROR_ON_CHANGE} = 'Помилка при зміні';
 $lang{HEIGHT_CANNOT_BE_LESS} = 'Висота не може бути менше';
 

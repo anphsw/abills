@@ -11,7 +11,7 @@ $lang{AVAILABLE_COLORS} = 'Доступные цвета';
 $lang{DUPLICATE_WITH_MARK} = 'Дублировать с меткой';
 $lang{THROUGH_ONE} = 'через один';
 
-$lang{BOX} = 'Ящики';
+$lang{BOX} = 'Ящик';
 $lang{BOXES} = 'Ящики';
 $lang{WELL} = 'Узел связи';
 $lang{WELLS} = 'Узлы связи';
@@ -29,7 +29,7 @@ $lang{FIBERS_IN} = 'Входов';
 $lang{FIBERS_OUT} = 'Выходов';
 
 $lang{PILLAR} = 'Опора';
-$lang{PILLARS} = 'Опора';
+$lang{PILLARS} = 'Опоры';
 $lang{TYPES} = 'Типы';
 $lang{TYPE} = 'Тип';
 
@@ -46,7 +46,7 @@ $lang{CALCULATED} = 'расч.';
 
 $lang{RESERVE} = 'Запас';
 
-$lang{COMMUTATION_SCHEME} = 'Схема комутации';
+$lang{COMMUTATION_SCHEME} = 'Схема коммутации';
 $lang{LINK} = 'Соединение';
 $lang{LINKS} = 'Соединения';
 
@@ -57,7 +57,7 @@ $lang{CONNECT_BY_NUMBER} = 'Соединить по номерам';
 $lang{ATTENUATION} = 'Затухание';
 $lang{REMOVE_FS_FROM_SCHEME} = 'Убрать %s с схемы';
 $lang{GO_TO} = 'Перейти к ';
-$lang{TO_COMMUTATION} = 'комутации';
+$lang{TO_COMMUTATION} = 'коммутации';
 $lang{FIBER} = 'Волокно';
 $lang{ENTER} = 'Вход';
 $lang{OUTER} = 'Выход';

@@ -57,7 +57,7 @@ sub group {
     'sql_query',
   );
 
-  if ($result->{sql_errstr} || $result->{sql_errno}) {
+  if (ref $result eq 'HASH' && ($result->{sql_errstr} || $result->{sql_errno})) {
     push @del_fields_array, 'list';
   }
 

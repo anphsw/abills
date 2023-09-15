@@ -40,6 +40,10 @@ my %tables = (
   'internet_log'    => { 'period' => 'month', 'keep_history' => '30', main_field => 'start' },
 );
 
+if ($conf{API_LOG}) {
+  $tables{'api_log'} = { 'period' => 'day', 'keep_history' => '14', main_field => 'date' };
+}
+
 if ($conf{PARTITIONING_FIN}) {
   $tables{'fees'}    = { 'period' => 'month', 'keep_history' => '60', main_field => 'date' };
   $tables{'payments'}= { 'period' => 'month', 'keep_history' => '60', main_field => 'date' };
@@ -102,14 +106,14 @@ sub partitioning {
     @skip_tables = split(/,\s?/, $argv->{SKIP_TABLES});
   }
 
-  $Admin->$query_cmd(qq{SELECT table_name,
-     partition_name,
+  $Admin->$query_cmd(qq{SELECT lower(table_name) as table_name,
+     lower(partition_name) as partition_name,
      lower(partition_method) AS partition_method,
      RTRIM(LTRIM(partition_expression)) AS partition_expression,
-     partition_description,
-     table_rows
+     lower(partition_description) as partition_description,
+     lower(table_rows) as table_rows
    FROM information_schema.partitions
-   WHERE partition_name IS NOT NULL AND table_schema = '$conf{dbname}';}, undef, { COLS_NAME => 1 });
+   WHERE partition_name IS NOT NULL AND table_schema = '$conf{dbname}';}, undef, { COLS_NAME => 1, COLS_UPPER => 1 });
 
   foreach my $line (@{ $Admin->{list} }) {
     $part_tables->{$line->{'table_name'}}->{$line->{'partition_name'}} = $line;
@@ -174,7 +178,10 @@ sub check_have_partition {
   #return 1 if ($row && $row eq 'YES');
   # MySQL 5.6
 
-  if ($Admin->{list}->[0]->[0] eq 'ACTIVE') {
+  if ($Admin->{list}->[0]->[0] && $Admin->{list}->[0]->[0] eq 'ACTIVE') {
+    return 1;
+  }
+  elsif (!$Admin->{list}->[0]->[0] && $version >= 8) {
     return 1;
   }
 

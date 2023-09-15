@@ -633,16 +633,16 @@ sub internet_user_outflow {
   my $builds_sel = $html->form_select('BUILD_ID', {
     SELECTED    => $FORM{BUILD_ID} || 0,
     NO_ID       => 1,
-    SEL_LIST    => $Address->build_list({
-      STREET_ID => $FORM{STREET_ID} || '_SHOW',
+    SEL_LIST    => !$FORM{STREET_ID} ? [] : $Address->build_list({
+      STREET_ID => $FORM{STREET_ID},
       NUMBER    => '_SHOW',
-      COLS_NAME => 1,
       SORT      => 'b.number+0',
-      PAGE_ROWS => 999999
+      PAGE_ROWS => 999999,
+      COLS_NAME => 1,
     }),
     SEL_KEY     => 'id',
     SEL_VALUE   => 'number',
-    SEL_OPTIONS => { 0 => '--' },
+    SEL_OPTIONS => { '' => '--' },
   });
 
   require Control::Reports;
@@ -653,9 +653,18 @@ sub internet_user_outflow {
     NO_GROUP    => 1,
     NO_TAGS     => 1,
     EXT_SELECT  => {
-      DISTRICT   => { LABEL => $lang{DISTRICT}, SELECT => sel_districts({ SEL_OPTIONS => { 0 => '--' }, DISTRICT_ID => $FORM{DISTRICT_ID} }) },
-      STREET     => { LABEL => $lang{STREET}, SELECT => sel_streets({ SEL_OPTIONS => { 0 => '--' }, STREET_ID => $FORM{STREET_ID} }) },
-      _BUILD     => { LABEL => $lang{BUILD}, SELECT => $builds_sel },
+      DISTRICT => { LABEL => $lang{DISTRICT}, SELECT => sel_districts({
+        SEL_OPTIONS       => { '' => '--' },
+        DISTRICT_ID       => $FORM{DISTRICT_ID},
+        FULL_NAME         => 1,
+        ONLY_WITH_STREETS => 1
+      }) },
+      STREET   => { LABEL => $lang{STREET}, SELECT => sel_streets({
+        SEL_OPTIONS => { '' => '--' },
+        STREET_ID   => $FORM{STREET_ID},
+        DISTRICT_ID => $FORM{DISTRICT_ID}
+      }) },
+      _BUILD   => { LABEL => $lang{BUILD}, SELECT => $builds_sel },
     }
   });
 
@@ -717,10 +726,11 @@ sub users_development_report {
         MULTIPLE     => 1
       }) },
       DISTRICT => { LABEL => $lang{DISTRICT}, SELECT => sel_districts({
-        SEL_OPTIONS          => { 0 => '--' },
+        SEL_OPTIONS          => { '' => '--' },
         DISTRICT_ID          => $FORM{DISTRICT_ID},
         SKIP_MULTIPLE_BUTTON => 1,
-        MULTIPLE             => 1
+        MULTIPLE             => 1,
+        ONLY_WITH_STREETS    => 1
       }), },
       CITY     => { LABEL => $lang{CITY}, SELECT => sel_cities({ SEL_OPTIONS => { 0 => '--' }, CITY => $FORM{CITY}, MULTIPLE => 1 }) }
     }
@@ -1114,6 +1124,7 @@ sub _internet_get_builds_outflow_charts {
     LOCATION_ID  => '<>0',
     BUILD_NUMBER => '_SHOW',
     STREET_NAME  => '_SHOW',
+    STREET_ID    => '!',
     UID          => $uids,
     SORT         => 'users_count',
     DESC         => 'DESC',
@@ -1172,7 +1183,7 @@ sub _internet_get_streets_outflow_charts {
   my $users_by_street = $Internet->users_outflow_by_address({
     USERS_COUNT => '_SHOW',
     LOCATION_ID => '<>0',
-    STREET_ID   => '_SHOW',
+    STREET_ID   => '!',
     STREET_NAME => '_SHOW',
     UID         => $uids,
     SORT        => 'users_count',

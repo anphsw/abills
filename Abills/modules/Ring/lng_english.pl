@@ -11,9 +11,9 @@ $lang{RULES_LIST}='List of rules';
 $lang{WAITING}='Waiting';
 $lang{SUCCESS}='Success';
 $lang{INTERRUPTED}='Interrupted';
-$lang{ANSWERPHONE}='Answerphone';
+$lang{ANSWERPHONE}='Answer phone';
 $lang{NOT_AVAILABLE}='Not Available';
 $lang{EVERY_MONTH}='Every month';
 $lang{UPDATE_DAY} = 'Update day';
-$lang{SQL_QUERY} = 'Sql query';
+$lang{SQL_QUERY} = 'SQL query';
 1

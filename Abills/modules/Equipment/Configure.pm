@@ -304,6 +304,7 @@ sub equipment_model{
 
   $Equipment->{AUTO_PORT_SHIFT} = ' checked' if ($Equipment->{AUTO_PORT_SHIFT});
   $Equipment->{FDB_USES_PORT_NUMBER_INDEX} = ' checked' if ($Equipment->{FDB_USES_PORT_NUMBER_INDEX});
+  $Equipment->{CONT_NUM_EXTRA_PORTS} = ' checked' if ($Equipment->{CONT_NUM_EXTRA_PORTS});
 
   my @contents = ();
 

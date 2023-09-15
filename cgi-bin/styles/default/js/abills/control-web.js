@@ -129,20 +129,46 @@ function sidebarSearch() {
 
   jQuery('#Search_menus').on('input', function () {
     const searchValue = this.value.toLowerCase();
-    const searchElementTrees = [];
+    const matchedTrees = [];
 
-    if(searchValue) {
-      menuTrees.css('display', 'block');
-      menuItems.css('display', 'none');
-
-      menuItems.filter(function () {
-        return this.textContent.toLowerCase().includes(searchValue)
-      }).css('display', 'block');
-
-    } else {
-      menuItems.removeAttr("style");
-      menuTrees.removeAttr("style");
+    if (!searchValue) {
+      menuItems.removeAttr('style');
+      menuTrees.removeAttr('style');
+      return;
     }
+
+    menuTrees.css('display', 'block');
+    menuItems.css('display', 'none');
+
+    menuItems.filter(function () {
+      let item = this.children[0];
+      let tree = this.children[1];
+      let isMatched = item.textContent.toLowerCase().includes(searchValue);
+
+      if (tree) {
+        let isMatchedTree = tree.textContent.toLowerCase().includes(searchValue);
+        if (isMatched && !isMatchedTree) {
+          matchedTrees.push(this);
+        }
+        else if (isMatchedTree) {
+          isMatched = true;
+        }
+
+      };
+
+      return isMatched;
+    }).css('display', 'block');
+
+    matchedTrees.forEach(function(item) {
+      let _this = jQuery(item);
+      let tree = jQuery(_this.children()[1]);
+      // Cleanup hardcoded css for smooth animation
+      tree.css('display', '');
+      _this.on('click', function() {
+        tree.children().css('display', '');
+        _this.off('click');
+      })
+    })
   });
 }
 

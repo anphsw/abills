@@ -119,7 +119,7 @@ sub user_info {
     tp.abon_distribution,
     tp.credit AS tp_credit,
     tp.priority AS tp_priority,
-    tp.activate_price AS tp_activate_price,
+    tp.activate_price,
     tp.age AS tp_age,
     tp.activate_price AS tp_activate_price,
     tp.change_price AS tp_change_price,
@@ -333,7 +333,8 @@ sub user_change {
       }
 
       my $Fees = Fees->new($self->{db}, $admin, $self->{conf});
-      $Fees->take($user, $Tariffs->{CHANGE_PRICE}, { DESCRIBE => "CHANGE TP" });
+
+      $Fees->take($user, $Tariffs->{CHANGE_PRICE}, { DESCRIBE => 'CHANGE_TP' });
     }
 
     if ($Tariffs->{AGE} > 0) {
@@ -568,6 +569,8 @@ sub user_list {
     ['MONTH_FEE',         'INT', 'tp.month_fee',                           1 ],
     ['ABON_DISTRIBUTION', 'INT', 'tp.abon_distribution',                   1 ],
     ['DAY_FEE',           'INT', 'tp.day_fee',                             1 ],
+    ['AGE',               'INT', 'tp.age as tp_age',                       1 ],
+    ['ACTIV_PRICE',       'INT', 'tp.activate_price',                      1 ],
     ['PERSONAL_TP',       'INT', 'internet.personal_tp',                   1 ],
     ['PAYMENT_TYPE',      'INT', 'tp.payment_type',                        1 ],
     ['INTERNET_PASSWORD', '', '',  "DECODE(internet.password, '$CONF->{secretkey}') AS internet_password" ],
@@ -874,7 +877,7 @@ sub report_tp {
     LEFT JOIN payments p ON (p.uid=internet.uid
       AND (p.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00') AND p.date <= CONCAT(CURDATE(), ' 24:00:00')) )
     $WHERE
-    GROUP BY tp.id
+    GROUP BY tp.tp_id
     ORDER BY $SORT $DESC;",
     undef,
     $attr
@@ -1541,6 +1544,4 @@ sub account_check {
   return $self;
 }
 
-
-1
-
+1;

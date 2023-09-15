@@ -144,111 +144,24 @@ sub user_routes {
     },
     {
       method      => 'POST',
-      path        => '/user/:uid/contacts/push/subscribe/:id/',
+      path        => '/user/contacts/push/subscribe/:id/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
-
-        return {
-          errstr => 'No field token in body',
-          errno  => 5000
-        } if (!$query_params->{TOKEN});
-
-        my $validation = _validate_allowed_types_push($path_params->{id});
-        return $validation if ($validation->{errno});
-
-        my $Ureports = '';
-        if (in_array('Ureports', \@main::MODULES)) {
-          eval {require Ureports; Ureports->import()};
-          if (!$@) {
-            $Ureports = Ureports->new($self->{db}, $self->{conf}, $self->{admin});
-          }
-        }
-
-        my $list = $Contacts->push_contacts_list({
-          UID     => $path_params->{uid},
-          TYPE_ID => $path_params->{id},
-          VALUE   => '_SHOW'
-        });
-
-        if ($list && !scalar(@{$list})) {
-          $Contacts->push_contacts_add({
-            TYPE_ID => $path_params->{id},
-            VALUE   => $query_params->{TOKEN},
-            UID     => $path_params->{uid},
-          });
-
-          if ($Ureports) {
-            $Ureports->user_send_type_add({
-              TYPE        => 10,
-              DESTINATION => 1,
-              UID         => $path_params->{uid}
-            });
-          }
-
-          return 1;
-        }
-        else {
-          if ($query_params->{TOKEN} ne $list->[0]->{value}) {
-            $Contacts->push_contacts_change({
-              ID    => $list->[0]->{id},
-              VALUE => $query_params->{TOKEN},
-            });
-
-            if ($Ureports) {
-              $Ureports->user_send_type_del({
-                TYPE => 10,
-                UID  => $path_params->{uid}
-              });
-
-              $Ureports->user_send_type_add({
-                TYPE        => 10,
-                DESTINATION => 1,
-                UID         => $path_params->{uid}
-              });
-            }
-
-            return 1;
-          }
-          else {
-            return {
-              errstr => 'You are already subscribed',
-              errno  => 5001
-            }
-          }
-        }
+        return $self->_contacts_push_add($path_params, $query_params);
       },
       credentials => [
-        'USER'
+        'USER', 'PUBLIC'
       ]
     },
     {
-      method      => 'DELETE',
-      path        => '/user/contacts/push/badges/:id/',
+      method      => 'POST',
+      path        => '/user/:uid/contacts/push/subscribe/:id/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
-
-        my $validation = _validate_allowed_types_push($path_params->{id});
-        return $validation if ($validation->{errno});
-
-        my $list = $Contacts->push_contacts_list({
-          UID     => $path_params->{uid},
-          TYPE_ID => $path_params->{id},
-          VALUE   => '_SHOW'
-        });
-
-        if (scalar @$list) {
-          $Contacts->push_contacts_change({
-            ID     => $list->[0]->{id},
-            BADGES => 0,
-          });
-        }
-
-        return {
-          result => 'OK',
-        };
+        return $self->_contacts_push_add($path_params, $query_params);
       },
       credentials => [
-        'USER'
+        'USER', 'PUBLIC'
       ]
     },
     {
@@ -256,50 +169,19 @@ sub user_routes {
       path        => '/user/:uid/contacts/push/subscribe/:id/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
-
-        my $validation = _validate_allowed_types_push($path_params->{id});
-        return $validation if ($validation->{errno});
-
-        my $message = 'OK';
-
-        $Contacts->push_contacts_del({
-          TYPE_ID => $path_params->{id},
-          UID     => $path_params->{uid},
-        });
-
-        if (!$Contacts->{errno}) {
-          if ($Contacts->{AFFECTED} && $Contacts->{AFFECTED} =~ /^[0-9]$/) {
-            $message = 'Successfully deleted';
-          }
-          else {
-            return {
-              errno  => 10084,
-              errstr => "Push contact with typeId $path_params->{id} not found",
-            };
-          }
-        }
-
-        if (in_array('Ureports', \@main::MODULES)) {
-          $Contacts->push_contacts_list({
-            UID     => $path_params->{uid},
-          });
-
-          if (!$Contacts->{TOTAL}) {
-            my $Ureports = '';
-            eval {require Ureports; Ureports->import()};
-            if (!$@) {
-              $Ureports = Ureports->new($self->{db}, $self->{conf}, $self->{admin});
-              $Ureports->user_send_type_del({
-                TYPE => 10,
-                UID  => $path_params->{uid}
-              });
-            }
-          }
-        }
-
-        return {
-          result => $message,
-        };
+        return $self->_contacts_push_del($path_params, $query_params, {});
+      },
+      module      => 'Contacts',
+      credentials => [
+        'USER'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/user/:uid/contacts/push/subscribe/:id/:string_token/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+        return $self->_contacts_push_del($path_params, $query_params, { TOKEN => $path_params->{token} });
       },
       module      => 'Contacts',
       credentials => [
@@ -342,12 +224,13 @@ sub user_routes {
         }
 
         my $list = $Contacts->push_messages_list({
-          UID     => $path_params->{uid},
-          TITLE   => '_SHOW',
-          MESSAGE => '_SHOW',
-          CREATED => '_SHOW',
-          STATUS  => 0,
-          TYPE_ID => $query_params->{TYPE_ID} ? $query_params->{TYPE_ID} : '_SHOW',
+          UID      => $path_params->{uid},
+          TITLE    => '_SHOW',
+          MESSAGE  => '_SHOW',
+          CREATED  => '_SHOW',
+          STATUS   => 0,
+          GROUP_BY => 'CASE WHEN message_id = 0 THEN id ELSE message_id END',
+          TYPE_ID  => $query_params->{TYPE_ID} ? $query_params->{TYPE_ID} : '_SHOW',
         });
 
         return $list || [];
@@ -357,7 +240,210 @@ sub user_routes {
         'USER'
       ]
     },
+    {
+      method      => 'DELETE',
+      path        => '/user/contacts/push/badges/:id/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        my $validation = _validate_allowed_types_push($path_params->{id});
+        return $validation if ($validation->{errno});
+
+        my $list = $Contacts->push_contacts_list({
+          UID     => $path_params->{uid},
+          TYPE_ID => $path_params->{id},
+          VALUE   => '_SHOW'
+        });
+
+        if (scalar @$list) {
+          $Contacts->push_contacts_change({
+            ID     => $list->[0]->{id},
+            BADGES => 0,
+          });
+        }
+
+        return {
+          result => 'OK',
+        };
+      },
+      credentials => [
+        'USER'
+      ]
+    },
   ],
+}
+
+#**********************************************************
+=head2 _contacts_push_add ($path_params)
+
+=cut
+#**********************************************************
+sub _contacts_push_add {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  return {
+    errstr => 'No field token in body',
+    errno  => 5000
+  } if (!$query_params->{TOKEN});
+
+  my $validation = _validate_allowed_types_push($path_params->{id});
+  return $validation if ($validation->{errno});
+
+  require Abills::Sender::Push;
+  my $Push = Abills::Sender::Push->new($conf, { db => $self->{db}, admin => $self->{admin} });
+  my $status = $Push->dry_run({
+    TOKEN => $query_params->{TOKEN} || '',
+  });
+
+  return {
+    internal_status => $status,
+    errno           => 5004,
+    errstr          => 'Invalid FCM token',
+  } if ($status);
+
+  my $list = $Contacts->push_contacts_list({
+    VALUE => $query_params->{TOKEN},
+    UID   => '_SHOW',
+    AID   => '_SHOW',
+  });
+
+  if ($list && !scalar(@{$list})) {
+    return $self->_add_fcm_token($path_params, $query_params);
+  }
+  else {
+    if ($list->[0]->{aid}) {
+      return {
+        errstr => 'Token already used. Can\'t add again',
+        errno  => 5002
+      };
+    }
+    elsif (!$path_params->{uid}) {
+      return {
+        errstr => 'Token already used. Can\'t add again',
+        errno  => 5001,
+      };
+    }
+    else {
+      if ("$list->[0]->{uid}" eq "$path_params->{uid}") {
+        return {
+          errstr => 'You are already subscribed',
+          errno  => 5003,
+        };
+      }
+
+      if ($path_params->{uid}) {
+        $self->_contacts_push_del($path_params, $query_params, {
+          SKIP_DEL_STATUS => 1,
+          TOKEN           => $query_params->{TOKEN},
+          UID             => $list->[0]->{uid}
+        });
+      }
+
+      return $self->_add_fcm_token($path_params, $query_params);
+    }
+  }
+}
+
+#**********************************************************
+=head2 _contacts_push_del ($path_params)
+
+    SKIP_DEL_STATUS
+
+=cut
+#**********************************************************
+sub _contacts_push_del {
+  my $self = shift;
+  my ($path_params, $query_params, $attr) = @_;
+
+  my $validation = _validate_allowed_types_push($path_params->{id});
+  return $validation if ($validation->{errno});
+
+  my $message = 'OK';
+
+  my %params = (
+    TYPE_ID => $path_params->{id},
+    UID     => $attr->{UID} || $path_params->{uid},
+  );
+
+  $params{VALUE} = $attr->{TOKEN} if ($attr->{TOKEN});
+
+  $Contacts->push_contacts_del(\%params);
+
+  if (!$Contacts->{errno} && !$attr->{SKIP_DEL_STATUS}) {
+    if ($Contacts->{AFFECTED} && $Contacts->{AFFECTED} =~ /^[0-9]$/) {
+      $message = 'Successfully deleted';
+    }
+    else {
+      return {
+        errno  => 10084,
+        errstr => "Push contact with typeId $path_params->{id} not found",
+      };
+    }
+  }
+
+  if (in_array('Ureports', \@main::MODULES)) {
+    $Contacts->{TOTAL} = 0;
+    $Contacts->push_contacts_list({
+      UID     => $path_params->{uid},
+    });
+
+    if (!$Contacts->{TOTAL}) {
+      my $Ureports = '';
+      eval {require Ureports; Ureports->import()};
+      if (!$@) {
+        $Ureports = Ureports->new($self->{db}, $self->{conf}, $self->{admin});
+        $Ureports->user_send_type_del({
+          TYPE => 10,
+          UID  => $path_params->{uid}
+        });
+      }
+    }
+  }
+
+  return {
+    result => $message,
+  };
+}
+
+#**********************************************************
+=head2 _add_fcm_token()
+
+=cut
+#**********************************************************
+sub _add_fcm_token {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  $Contacts->push_contacts_add({
+    TYPE_ID => $path_params->{id},
+    VALUE   => $query_params->{TOKEN},
+    UID     => $path_params->{uid} || 0,
+  });
+
+  if ($path_params->{uid} && in_array('Ureports', \@main::MODULES)) {
+    eval {require Ureports; Ureports->import()};
+    if (!$@) {
+      my $Ureports = Ureports->new($self->{db}, $self->{conf}, $self->{admin});
+
+      $Ureports->user_send_type_del({
+        TYPE => 10,
+        UID  => $path_params->{uid},
+      });
+
+      $Ureports->user_send_type_add({
+        TYPE        => 10,
+        DESTINATION => 1,
+        UID         => $path_params->{uid},
+      });
+    }
+  }
+
+  return {
+    result  => 'OK',
+    message => 'Successfully added push notification token',
+    uid     => $path_params->{uid} || 0,
+  };
 }
 
 #**********************************************************
@@ -368,6 +454,12 @@ sub user_routes {
 sub _validate_allowed_types_push {
   my ($id) = @_;
   my @allowed_types = (1, 2, 3);
+
+  return {
+    errno  => 5005,
+    errstr => 'Push disabled',
+  } if ((!$conf->{FIREBASE_SERVER_KEY} &&
+    (!$conf->{GOOGLE_PROJECT_ID} || !$conf->{FIREBASE_KEY})) || !$conf->{PUSH_ENABLED});
 
   if (in_array($id, \@allowed_types)) {
     return {
@@ -437,6 +529,5 @@ sub _validate_allowed_types_contacts {
     }
   };
 }
-
 
 1;

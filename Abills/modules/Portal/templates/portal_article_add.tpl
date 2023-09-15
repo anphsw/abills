@@ -10,6 +10,7 @@
 <script src='/styles/codemirror/addon/hint/html-hint.js'></script>
 
 <script src='/styles/default/js/modules/portal.js'></script>
+<script src='/styles/default/js/beautify-html.js'></script>
 
 <form action=$SELF_URL name='portal_form' method=POST class='form-horizontal' enctype='multipart/form-data'>
   <input type=hidden name=index value=$index>
@@ -235,7 +236,9 @@
                   _{UNDERLINED}_
                 </button>
                 <button type='button' class='btn btn-xs btn-primary' title='_{LINK}_' data-tag='a'>_{LINK}_</button>
+                <button id='portal_reindent_button' type='button' class='btn btn-xs btn-default'>_{FORMAT}_</button>
               </div>
+
               <div class='form-group col-md-6 col-12'>
                 <label>_{COPY_MODE}_</label>
                 <div>

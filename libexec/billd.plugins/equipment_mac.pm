@@ -29,7 +29,6 @@ require Equipment::Pon_mng;
 require Equipment::Grabbers;
 
 our (
-  $Admin,
   $db,
   %conf,
   $argv,
@@ -37,6 +36,8 @@ our (
   $var_dir,
   %lang
 );
+
+our Admins $Admin;
 
 $Admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 my $Equipment = Equipment->new($db, $Admin, \%conf);
@@ -121,6 +122,7 @@ sub equipment_check {
       }
       next;
     }
+
     my $mac_list = $Equipment->mac_log_list({
       NAS_ID        => $equip->{NAS_ID},
       COLS_NAME     => 1,

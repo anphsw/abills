@@ -12,6 +12,12 @@ our (
   %CROSS_CROSS_TYPE, %CROSS_PANEL_TYPE, %CROSS_PORT_TYPE, %CROSS_POLISH_TYPE, %CROSS_FIBER_TYPE
 );
 
+my %STORAGE_TYPES = (
+  CABLE    => 1,
+  WELL     => 2,
+  SPLITTER => 3
+);
+
 use Maps::Auxiliary;
 my $Auxiliary = Maps::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
@@ -277,9 +283,10 @@ sub cablecat_cables {
       if ($FORM{ARTICLE_ID}) {
         load_module('Storage', $html);
         storage_hardware({ ADD_ONLY => 1, WITHOUT_USER => 1 });
-        $Cablecat->cablecat_storage_add({
-          CABLE_ID        => $new_cable_id,
+        $Cablecat->cablecat_storage_installation_add({
+          OBJECT_ID       => $new_cable_id,
           INSTALLATION_ID => $FORM{INSTALLATION_ID},
+          TYPE            => $STORAGE_TYPES{CABLE}
         }) if $FORM{INSTALLATION_ID};
       }
 
@@ -311,7 +318,7 @@ sub cablecat_cables {
 
     $TEMPLATE_ARGS{LENGTH_CALCULATED} = sprintf("%.2f", _cablecat_cable_length($FORM{chg})) if !$TEMPLATE_ARGS{LENGTH_CALCULATED};
 
-    $TEMPLATE_ARGS{INSTALLATIONS_TABLE} = _cablecat_storage_installations($FORM{chg});
+    $TEMPLATE_ARGS{INSTALLATIONS_TABLE} = cablecat_storage_installations($FORM{chg}, $STORAGE_TYPES{CABLE});
     $TEMPLATE_ARGS{HIDE_STORAGE_FORM} = 'd-none';
   }
   elsif ($FORM{del}) {
@@ -394,24 +401,9 @@ sub cablecat_cables {
     $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID}, $MAP_LAYER_ID{CABLE});
     $TEMPLATE_ARGS{LENGTH_CALCULATED} = $FORM{LENGTH_CALCULATED} || '0.00';
 
-
-    if (in_array('Storage', \@MODULES) && !$FORM{chg}) {
-      load_module('Storage', $html);
-      my $Storage = Storage->new($db, $admin, \%conf);
-
-      $TEMPLATE_ARGS{STORAGE_STORAGES} = storage_storage_sel($Storage, { DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) });
-      $TEMPLATE_ARGS{ARTICLE_ID} = storage_articles_sel($Storage, { ARTICLE_ID => $FORM{ARTICLE_ID}, EMPTY_SEL => 1 });
-      $TEMPLATE_ARGS{ARTICLE_TYPES} = $html->form_select("ARTICLE_TYPE_ID", {
-        SELECTED    => $FORM{ARTICLE_TYPE_ID} || $Storage->{ARTICLE_TYPE_ID},
-        SEL_LIST    => $Storage->storage_types_list({ COLS_NAME => 1, DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) }),
-        SEL_OPTIONS => { '' => '--' },
-        EX_PARAMS   => "onchange='selectArticles(this, false, false);'",
-        MAIN_MENU   => get_function_index('storage_articles_types')
-      });
-    }
-
     $html->tpl_show(_include('cablecat_cable', 'Cablecat'), {
       %TEMPLATE_ARGS,
+      %{_cablecat_storage_installation_template() || {}},
       CABLE_TYPE_SELECT => _cablecat_cable_type_select({ SELECTED => $TEMPLATE_ARGS{TYPE_ID}, NAME => 'TYPE_ID', REQUIRED => 1 }),
       SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
       SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
@@ -694,8 +686,17 @@ sub cablecat_wells {
     $FORM{NAME} =~ s/\\"//gm if $FORM{NAME};
     $FORM{POINT_ID} = $FORM{NEW_POINT_ID};
     my $inserted_well_id = $Cablecat->wells_add(\%FORM);
-    _error_show($Cablecat);
     $show_add_form = !show_result($Cablecat, $lang{ADDED}, $lang{WELL});
+
+    if (!_error_show($Cablecat) && $inserted_well_id && $FORM{ARTICLE_ID}) {
+      load_module('Storage', $html);
+      storage_hardware({ ADD_ONLY => 1, WITHOUT_USER => 1 });
+      $Cablecat->cablecat_storage_installation_add({
+        OBJECT_ID       => $inserted_well_id,
+        INSTALLATION_ID => $FORM{INSTALLATION_ID},
+        TYPE            => $STORAGE_TYPES{WELL}
+      }) if $FORM{INSTALLATION_ID};
+    }
   }
   elsif ($FORM{add}) {
     $FORM{NAME} =~ s/\\"//gm if $FORM{NAME};
@@ -704,7 +705,6 @@ sub cablecat_wells {
     $FORM{POINT_ID} = $new_point_id;
 
     my $inserted_well_id = $Cablecat->wells_add(\%FORM);
-    _error_show($Cablecat);
     if ($inserted_well_id && $FORM{INSERT_ON_CABLE}) {
       my $result = _cablecat_break_cable_in_two_parts($FORM{INSERT_ON_CABLE}, $inserted_well_id);
       if ($result ne '1') {
@@ -712,6 +712,17 @@ sub cablecat_wells {
         return 0;
       }
     }
+
+    if (!_error_show($Cablecat) && $inserted_well_id && $FORM{ARTICLE_ID}) {
+      load_module('Storage', $html);
+      storage_hardware({ ADD_ONLY => 1, WITHOUT_USER => 1 });
+      $Cablecat->cablecat_storage_installation_add({
+        OBJECT_ID       => $inserted_well_id,
+        INSTALLATION_ID => $FORM{INSTALLATION_ID},
+        TYPE            => $STORAGE_TYPES{WELL}
+      }) if $FORM{INSTALLATION_ID};
+    }
+
     $show_add_form = !show_result($Cablecat, $lang{ADDED}, $lang{WELL});
   }
   elsif ($FORM{change}) {
@@ -744,6 +755,9 @@ sub cablecat_wells {
       if (defined $TEMPLATE_ARGS{POINT_ID}) {
         $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID},, $MAP_LAYER_ID{WELL});
       }
+
+      $TEMPLATE_ARGS{INSTALLATIONS_TABLE} = cablecat_storage_installations($FORM{chg}, $STORAGE_TYPES{WELL});
+      $TEMPLATE_ARGS{HIDE_STORAGE_FORM} = 'd-none';
     }
   }
   elsif ($FORM{del}) {
@@ -810,6 +824,7 @@ sub cablecat_wells {
     $html->tpl_show(_include('cablecat_well', 'Cablecat'), {
       %TEMPLATE_ARGS,
       %FORM,
+      %{_cablecat_storage_installation_template() || {}},
       CONNECTERS_VISIBLE => !$FORM{TEMPLATE_ONLY} && $TEMPLATE_ARGS{CONNECTERS_VISIBLE},
       MAIN_FORM_SIZE     => $FORM{TEMPLATE_ONLY} ? 'col-md-12' : 'col-md-6',
       SUBMIT_BTN_ACTION  => ($FORM{chg}) ? 'change' : 'add',
@@ -1299,8 +1314,18 @@ sub cablecat_splitters {
     show_result($Maps, $lang{ADDED} . ' ' . $lang{OBJECT});
     $FORM{POINT_ID} = $new_point_id;
 
-    $Cablecat->splitters_add({ %FORM });
+    my $splitter_id = $Cablecat->splitters_add({ %FORM });
     $show_add_form = !show_result($Cablecat, $lang{ADDED});
+
+    if (!$Cablecat->{errno} && $splitter_id && $FORM{ARTICLE_ID}) {
+      load_module('Storage', $html);
+      storage_hardware({ ADD_ONLY => 1, WITHOUT_USER => 1 });
+      $Cablecat->cablecat_storage_installation_add({
+        OBJECT_ID       => $splitter_id,
+        INSTALLATION_ID => $FORM{INSTALLATION_ID},
+        TYPE            => $STORAGE_TYPES{SPLITTER}
+      }) if $FORM{INSTALLATION_ID};
+    }
   }
   elsif ($FORM{change}) {
     $Cablecat->splitters_change({ %FORM });
@@ -1317,6 +1342,8 @@ sub cablecat_splitters {
       if (defined $TEMPLATE_ARGS{POINT_ID}) {
         $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID}, undef);
       }
+      $TEMPLATE_ARGS{INSTALLATIONS_TABLE} = cablecat_storage_installations($FORM{chg}, $STORAGE_TYPES{SPLITTER});
+      $TEMPLATE_ARGS{HIDE_STORAGE_FORM} = 'd-none';
     }
   }
   elsif ($FORM{del}) {
@@ -1361,6 +1388,7 @@ sub cablecat_splitters {
     $html->tpl_show(_include('cablecat_splitter', 'Cablecat'), {
       %TEMPLATE_ARGS,
       %FORM,
+      %{_cablecat_storage_installation_template() || {}},
       COLOR_SCHEME_ID_SELECT => $fibers_colors_select,
       SUBMIT_BTN_ACTION      => ($FORM{chg}) ? 'change' : 'add',
       SUBMIT_BTN_NAME        => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
@@ -1369,9 +1397,7 @@ sub cablecat_splitters {
 
   return 1 if ($FORM{TEMPLATE_ONLY});
 
-  if ($TEMPLATE_ARGS{ID}) {
-    print _cablecat_splitter_links_table($TEMPLATE_ARGS{ID});
-  }
+  print _cablecat_splitter_links_table($TEMPLATE_ARGS{ID}) if ($TEMPLATE_ARGS{ID});
 
   my Abills::HTML $table;
   ($table) = result_former({
@@ -2390,18 +2416,19 @@ sub _cablecat_get_closest_well {
 
 =cut
 #**********************************************************
-sub _cablecat_storage_installations {
-  my $cable_id = shift;
+sub cablecat_storage_installations {
+  my ($object_id, $type) = @_;
 
-  return '' if !$cable_id;
+  return '' if !$object_id || !$type;
   return '' if !in_array('Storage', \@MODULES) || ($admin->{MODULES} && !$admin->{MODULES}{Storage});
 
   my $installation_function_index = get_function_index('storage_main');
   return '' if !$installation_function_index;
 
-  my $installations = $Cablecat->cablecat_storage_list({
+  my $installations = $Cablecat->cablecat_storage_installation_list({
     ARTICLE_TYPE_NAME => '_SHOW',
-    CABLE_ID          => $cable_id,
+    OBJECT_ID         => $object_id,
+    TYPE              => $type,
     ARTICLE_NAME      => '_SHOW',
     COUNT             => '_SHOW',
     DATE              => '_SHOW',
@@ -2422,7 +2449,35 @@ sub _cablecat_storage_installations {
     $storage_table->addrow($installation->{article_type_name}, $installation->{article_name}, $installation->{count},
       $installation->{date}, $installation_btn);
   }
+
   return $storage_table->show({ OUTPUT2RETURN => 1 });
+}
+
+#**********************************************************
+=head2 _cablecat_storage_installation_template($attr)
+
+=cut
+#**********************************************************
+sub _cablecat_storage_installation_template {
+  my ($attr) = @_;
+
+  return {} if (!in_array('Storage', \@MODULES) || $FORM{chg} || ($admin->{MODULES} && !$admin->{MODULES}{Storage}));
+
+  load_module('Storage', $html);
+  my $Storage = Storage->new($db, $admin, \%conf);
+
+  my %result = ();
+  $result{STORAGE_STORAGES} = storage_storage_sel($Storage, { DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) });
+  $result{ARTICLE_ID} = storage_articles_sel($Storage, { ARTICLE_ID => $FORM{ARTICLE_ID}, EMPTY_SEL => 1 });
+  $result{ARTICLE_TYPES} = $html->form_select('ARTICLE_TYPE_ID', {
+    SELECTED    => $FORM{ARTICLE_TYPE_ID} || $Storage->{ARTICLE_TYPE_ID},
+    SEL_LIST    => $Storage->storage_types_list({ COLS_NAME => 1, DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) }),
+    SEL_OPTIONS => { '' => '--' },
+    EX_PARAMS   => "onchange='selectArticles(this, false, false);'",
+    MAIN_MENU   => get_function_index('storage_articles_types')
+  });
+
+  return \%result;
 }
 
 1;

@@ -8,7 +8,7 @@ my Abills::HTML $html;
 my $lang;
 my Iptv $Iptv;
 
-use Abills::Base qw/days_in_month in_array/;
+use Abills::Base qw/days_in_month in_array next_month/;
 
 #**********************************************************
 =head2 new($html, $lang)
@@ -71,6 +71,8 @@ sub iptv_payments_maked {
   foreach my $service_user (@{$list}) {
     if ($form->{newpassword} && !in_array($service_user->{service_status}, [ 4, 5 ])) {
       $Iptv->{SERVICE_ID} = $service_user->{service_id};
+      $main::Iptv->{SERVICE_ID} = $service_user->{service_id} if ($main::Iptv);
+
       ::iptv_account_action({
         %{($Iptv && ref $Iptv eq 'HASH') ? $Iptv : {}},
         PASSWORD  => $form->{newpassword},
@@ -257,6 +259,7 @@ sub iptv_docs {
     FEES_METHOD       => '_SHOW',
     SERVICE_STATUS    => '_SHOW',
     TP_REDUCTION_FEE  => '_SHOW',
+    #@Fixit not unification option
     SERVICE_STATUS    => $CONF->{IPTV_SHOW_ALL_SERVICES} ? '_SHOW' : '0',
     COLS_NAME         => 1,
     ABON_DISTRIBUTION => '_SHOW'
@@ -316,11 +319,55 @@ sub _iptv_docs_monthly_fee {
   my $self = shift;
   my ($service_info, $attr) = @_;
 
+  require Shedule;
+  Shedule->import();
+  my $Schedule = Shedule->new($db, $admin, $CONF);
+
+  use Tariffs;
+  my $Tariffs = Tariffs->new($db, $CONF, $admin);
+
+  my $next_month = next_month({ DATE => $main::DATE });
+  $service_info->{day_fee} = 0 if $service_info->{day_fee} && $service_info->{day_fee} eq '0.00';
+  $service_info->{abon_distribution} = 0 if $service_info->{abon_distribution} && $service_info->{abon_distribution} eq '0.00';
+
+  if (!$service_info->{day_fee} && !$service_info->{abon_distribution}) {
+    my $schedule_list = $Schedule->list({
+      UID          => $service_info->{uid},
+      MODULE       => 'Iptv',
+      TYPE         => 'tp',
+      ACTION       => "$service_info->{id}:*",
+      SHEDULE_DATE => $service_info->{iptv_activate} && $service_info->{iptv_activate} ne '0000-00-00' ? "<" .
+        (next_month({ DATE => $service_info->{iptv_activate}, PERIOD => 1, END => 1 })) : "<=$next_month",
+      SORT         => 's.id',
+      DESC         => 'DESC',
+      COLS_NAME    => 1
+    });
+
+    foreach my $schedule (@{$schedule_list}) {
+      my (undef, $tp_id) = split(/:/, $schedule->{action});
+
+      $Tariffs->info(undef, { TP_ID => $tp_id });
+      next if $Tariffs->{TOTAL} < 0;
+
+      $service_info->{tp_id} = $tp_id;
+      $service_info->{tp_name} = $Tariffs->{NAME};
+      $service_info->{fees_method} = $Tariffs->{FEES_METHOD};
+      $service_info->{iptv_activate} = '0000-00-00';
+      $service_info->{iptv_expire} = '0000-00-00';
+      $service_info->{tp_fixed_fees_day} = $Tariffs->{FIXED_FEES_DAY} || 0;
+      $service_info->{tp_reduction_fee} = $Tariffs->{REDUCTION_FEE};
+      $service_info->{month_fee} = $Tariffs->{MONTH_FEE};
+      $service_info->{day_fee} = $Tariffs->{DAY_FEE};
+      $service_info->{abon_distribution} = $Tariffs->{ABON_DISTRIBUTION};
+      last;
+    }
+  }
+
   return if $service_info->{month_fee} <= 0 && !$CONF->{IPTV_SHOW_FREE_TPS};
 
   my %info = ();
   my %FEES_DSC = (
-    MODULE          => "Iptv",
+    MODULE          => 'Iptv',
     SERVICE_NAME    => $lang->{TV},
     TP_ID           => $service_info->{tp_id},
     TP_NAME         => $service_info->{tp_name},
@@ -540,6 +587,125 @@ sub iptv_screen_fees {
   }
 
   return $debug_output;
+}
+
+#**********************************************************
+=head2 iptv_get_available_tariffs($attr) - Return array with tariff list
+
+  Arguments:
+    $attr: hash
+       UID: int                             - user id
+       MODULE: string                       - module of tariffs
+       SKIP_NOT_AVAILABLE_TARIFFS: boolean  - don't return tariffs for which not enough money
+
+  Results:
+    \@tariffs: array - list of tariff plans
+
+=cut
+#**********************************************************
+sub iptv_get_available_tariffs {
+  my $self = shift;
+  my ($attr, $service_info, $user_info) = @_;
+
+  $Iptv->user_list({
+    ID              => $attr->{ID},
+    UID             => $attr->{UID},
+    TV_SERVICE_NAME => '_SHOW',
+    TV_USER_PORTAL  => '>1',
+    SERVICE_STATUS  => 0,
+    COLS_NAME       => 1
+  });
+
+  return {
+    message       => '$lang{NOT_ALLOWED}',
+    message_type  => 'err',
+    message_title => '$lang{ERROR}',
+    error         => 4514,
+    errstr        => 'Not allowed to change tariff plan'
+  } if (!($Iptv->{TOTAL} && $Iptv->{TOTAL} > 0));
+
+  require Tariffs;
+  Tariffs->import();
+  my $Tariffs = Tariffs->new($db, $CONF, $admin);
+
+  my @tariffs = ();
+
+  my $tp_list = $Tariffs->list({
+    TP_GID            => $service_info->{TP_GID} || '_SHOW',
+    CHANGE_PRICE      => ($attr->{skip_check_deposit} || $CONF->{uc $attr->{MODULE} . '_USER_CHG_TP_SMALL_DEPOSIT'}) ?
+      undef : '<=' . ($user_info->{DEPOSIT} + $user_info->{CREDIT}),
+    MODULE            => $attr->{MODULE},
+    STATUS            => '<1',
+    MONTH_FEE         => '_SHOW',
+    DAY_FEE           => '_SHOW',
+    CREDIT            => '_SHOW',
+    COMMENTS          => '_SHOW',
+    TP_CHG_PRIORITY   => $service_info->{TP_PRIORITY},
+    REDUCTION_FEE     => '_SHOW',
+    NEW_MODEL_TP      => 1,
+    DOMAIN_ID         => $user_info->{DOMAIN_ID},
+    PAYMENT_TYPE      => '_SHOW',
+    ABON_DISTRIBUTION => '_SHOW',
+    SERVICE_ID        => $service_info->{SERVICE_ID} || '_SHOW',
+    IN_SPEED          => '_SHOW',
+    OUT_SPEED         => '_SHOW',
+    AGE               => '_SHOW',
+    ACTIV_PRICE       => '_SHOW',
+    COLS_NAME         => 1
+  });
+
+  my @skip_tp_changes = $CONF->{uc $attr->{MODULE} . '_SKIP_CHG_TPS'} ?
+    split(/,\s?/, $CONF->{uc $attr->{MODULE} . '_SKIP_CHG_TPS'}) : ();
+
+  foreach my $tp (@$tp_list) {
+    next if (in_array($tp->{id}, \@skip_tp_changes));
+    next if ($tp->{tp_id} == $service_info->{TP_ID} && $user_info->{EXPIRE} eq '0000-00-00');
+
+    my $tariff = {
+      id            => $tp->{id},
+      tp_id         => $tp->{tp_id},
+      name          => $tp->{name},
+      comments      => $tp->{comments},
+      service_id    => $tp->{service_id},
+      day_fee       => $tp->{day_fee},
+      month_fee     => $tp->{month_fee},
+      reduction_fee => $tp->{reduction_fee},
+      activate_fee  => $tp->{activate_price},
+      tp_age        => $tp->{age},
+    };
+
+    my $tp_fee = $tp->{day_fee} + $tp->{month_fee} + ($tp->{change_price} || 0);
+
+    if ($tp->{reduction_fee} && $user_info->{REDUCTION} && $user_info->{REDUCTION} > 0) {
+      $tp_fee = $tp_fee - (($tp_fee / 100) * $user_info->{REDUCTION});
+      $tariff->{original_day_fee} = $tp->{day_fee};
+      $tariff->{original_month_fee} = $tp->{month_fee};
+      $tariff->{day_fee} = $tp->{day_fee} ? $tp->{day_fee} - (($tp->{day_fee} / 100) * $user_info->{REDUCTION}) : $tp->{day_fee};
+      $tariff->{month_fee} = $tp->{month_fee} ? $tp->{month_fee} - (($tp->{month_fee} / 100) * $user_info->{REDUCTION}) : $tp->{month_fee};
+    }
+
+    $user_info->{CREDIT} = ($user_info->{CREDIT} > 0) ? $user_info->{CREDIT} : (($tp->{credit} > 0) ? $tp->{credit} : 0);
+
+    $tariff->{tp_fee} = $tp_fee;
+
+    if ($tp_fee < $user_info->{DEPOSIT} + $user_info->{CREDIT} || $tp->{payment_type} || $tp->{abon_distribution}) {
+      push @tariffs, $tariff;
+      next;
+    }
+
+    if ($CONF->{uc $attr->{MODULE} . '_USER_CHG_TP_SMALL_DEPOSIT'}) {
+      push @tariffs, $tariff;
+      next;
+    }
+
+    next if ($attr->{SKIP_NOT_AVAILABLE_TARIFFS});
+
+    $tariff->{ERROR} = ::_translate('$lang{ERR_SMALL_DEPOSIT}');
+
+    push @tariffs, $tariff;
+  }
+
+  return \@tariffs;
 }
 
 1;

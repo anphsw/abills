@@ -90,6 +90,7 @@ sub internet_daily_fees {
   my %USERS_LIST_PARAMS         = ( REGISTRATION => "<$ADMIN_REPORT{DATE}" );
   $USERS_LIST_PARAMS{LOGIN}     = $attr->{LOGIN} if ($attr->{LOGIN});
   $USERS_LIST_PARAMS{GID}       = $attr->{GID} if ($attr->{GID});
+  $USERS_LIST_PARAMS{COMPANY_ID}= $attr->{COMPANY_ID} if ($attr->{COMPANY_ID});
 
   $Tariffs->{debug} = 1 if ($debug > 6);
 
@@ -696,6 +697,7 @@ sub internet_monthly_fees {
   $USERS_LIST_PARAMS{REGISTRATION} = "<$ADMIN_REPORT{DATE}";
   $USERS_LIST_PARAMS{GID}   = $attr->{GID} if ($attr->{GID});
   $USERS_LIST_PARAMS{INTERNET_STATUS} = $attr->{INTERNET_STATUS} if ($attr->{INTERNET_STATUS});
+  $USERS_LIST_PARAMS{COMPANY_ID} = $attr->{COMPANY_ID} if ($attr->{COMPANY_ID});
 
   my $START_PERIOD_DAY = ($conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} : 1;
 

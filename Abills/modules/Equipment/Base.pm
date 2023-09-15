@@ -75,20 +75,30 @@ sub equipment_search {
     $Equipment->{debug} = 1;
   }
 
-  $Equipment->mac_log_list({
+  my $mac_list = $Equipment->mac_log_list({
     %LIST_PARAMS,
+    NAS_ID    => '_SHOW',
+    COLS_NAME => 1
   });
 
   my @info = ();
+  my $nas_id = $mac_list->[0]->{nas_id};
 
   if ($Equipment->{TOTAL}) {
+    push @info, {
+    'TOTAL'        => $Equipment->{TOTAL},
+    'MODULE'       => 'Equipment',
+    'MODULE_NAME'  => $lang->{EQUIPMENT},
+    'SEARCH_INDEX' => '&full=1&get_index=equipment_mac_log'
+    . '&' . join('&', @qs) . "&search=1",
+    };
+
     push @info, {
       'TOTAL'        => $Equipment->{TOTAL},
       'MODULE'       => 'Equipment',
       'MODULE_NAME'  => $lang->{EQUIPMENT},
-      'SEARCH_INDEX' => 261
+      'SEARCH_INDEX' => "&full=1&get_index=equipment_info&visual=6&NAS_ID=$nas_id"
         . '&' . join('&', @qs) . "&search=1",
-
     };
   }
 

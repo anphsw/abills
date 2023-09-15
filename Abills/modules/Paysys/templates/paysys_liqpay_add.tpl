@@ -8,7 +8,7 @@
       <h4>_{BALANCE_RECHARCHE}_</h4>
     </div>
     <div class='card-body pt-0'>
-      <div class='text-center'>
+      <div class='text-center m-1'>
         <img src='/styles/default/img/paysys_logo/liqpay-logo.png'
              style='max-width: 300px; max-height: 200px;'
              alt='LiqPay'>
@@ -35,6 +35,7 @@
           <b>_{TOTAL}_ _{SUM}_</b>
           <div class='float-right'>%TOTAL_SUM%</div>
         </li>
+        %EXTRA_DESCRIPTIONS%
       </ul>
       <input type='submit' class='btn btn-primary float-right' value='_{PAY}_'>
     </div>

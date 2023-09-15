@@ -78,7 +78,7 @@ sub change{
     EXT_CHANGE_INFO => "TAG_ID:$attr->{ID}"
   });
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -93,7 +93,7 @@ sub del{
   $self->query_del('tags', { ID => $id });
 
   $self->{admin}->system_action_add( "TAG_ID:$id", { TYPE => 10 } );
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -101,7 +101,7 @@ sub del{
 
 =cut
 #**********************************************************
-sub list{
+sub list {
   my $self = shift;
   my ($attr) = @_;
 
@@ -111,15 +111,15 @@ sub list{
   my $EXT_TABLE = $self->{EXT_TABLES} || '';
 
   my $WHERE = $self->search_former( $attr, [
-      [ 'NAME',           'STR',    't.name',               1 ],
-      [ 'COMMENTS',       'STR',    't.comments',           1 ],
-      [ 'PRIORITY',       'int',    't.priority',           1 ],
-      [ 'ID',             'INT',    't.id',                   ],
-      [ 'ID_RESPONSIBLE', 'INT',    'tr.id AS id_responsible' ],
-      [ 'RESPONSIBLE',    'INT',    'GROUP_CONCAT(DISTINCT a.id) AS responsible',               1 ],
-      [ 'TAGS_ID',        'INT',    'tr.tags_id'              ],
-      [ 'COLOR',          'STR',    't.color',              1 ]
-    ], { WHERE => 1 }
+      [ 'NAME',           'STR',    't.name',                                     1 ],
+      [ 'COMMENTS',       'STR',    't.comments',                                 1 ],
+      [ 'PRIORITY',       'int',    't.priority',                                 1 ],
+      [ 'ID',             'INT',    't.id',                                         ],
+      [ 'ID_RESPONSIBLE', 'INT',    'tr.id AS id_responsible',                    1 ],
+      [ 'RESPONSIBLE',    'INT',    'GROUP_CONCAT(DISTINCT a.id) AS responsible', 1 ],
+      [ 'TAGS_ID',        'INT',    'tr.tags_id',                                 1 ],
+      [ 'COLOR',          'STR',    't.color',                                    1 ]
+    ], { WHERE => 1 },
   );
 
   if ($attr->{RESPONSIBLE_ADMIN}) {
@@ -127,7 +127,7 @@ sub list{
                   LEFT JOIN  admins AS a ON tr.aid = a.aid";
   }
 
-  $self->query( "SELECT $self->{SEARCH_FIELDS} t.id
+  $self->query("SELECT $self->{SEARCH_FIELDS} t.id
      FROM tags AS t
      $EXT_TABLE
      $WHERE
@@ -139,7 +139,7 @@ sub list{
 
   return $self->{list_hash} if ($attr->{LIST2HASH});
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -163,11 +163,7 @@ sub tags_user{
       [ 'LAST_ABON',  'INT', 'tu.date',                         ],
       [ 'USERS_SUM',  'INT', 'SUM(tu.uid) AS tu.users_sum',     ],
       [ 'RESPONSIBLE','INT', 'GROUP_CONCAT(DISTINCT a.id) AS responsible', 1 ],
-    ],
-    {
-      WHERE => 1,
-    }
-  );
+    ], { WHERE => 1 });
 
   my $EXT_TABLE = '';
   $EXT_TABLE = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
@@ -196,7 +192,7 @@ sub tags_user{
     $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   $WHERE .= (! $WHERE) ? "WHERE tu.uid='$attr->{UID}'" : " AND tu.uid='$attr->{UID}'";
 
@@ -303,16 +299,13 @@ sub tags_list{
 
   $self->{EXT_TABLES} = '';
 
-  my $WHERE = $self->search_former( $attr, [
+  my $WHERE = $self->search_former($attr, [
       ['FIO',        'STR',    'up.fio',  ],
       ['TAG_ID',     'INT',    't.id',    ],
       ['LAST_ABON',  'INT',    'tu.date', ],
       ['UID',        'INT',    'tu.uid',  ],
       ['NAME',       'STR',    't.name',  ],
-    ],
-    {
-      WHERE => 1,
-    }
+    ], { WHERE => 1 }
   );
 
   my $EXT_TABLE = '';
@@ -336,7 +329,7 @@ sub tags_list{
     $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   return $list;
 }
@@ -394,7 +387,7 @@ sub del_responsible{
 
   $self->query_del( 'tags_responsible', undef, { TAGS_ID => $id } );
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -443,9 +436,6 @@ sub responsible_tag_list {
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-
   my $WHERE = $self->search_former( $attr, [
       ['ID',        'INT',    'tr.id',      1 ],
       ['AID',       'INT',    'tr.aid',     1 ],
@@ -462,4 +452,4 @@ sub responsible_tag_list {
   return $self->{list} || [];
 }
 
-1
+1;

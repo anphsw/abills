@@ -6,6 +6,7 @@
     POOL_ID= - id of ip pool
     UID= - user uid
     ACTION= - ACTIVE OR ALERT
+    FORCE_IP_ASSIGN=1 - change IP if it is not exist in pool
     DEBUG=10
   USEGE:
     internet_static_ip POOL_ID=3 UID=1  ACTION=ACTIVE
@@ -40,6 +41,7 @@ use Abills::SQL;
 use Abills::Base qw/_bp parse_arguments ip2int int2ip/;
 use Nas;
 use Internet;
+use Admins;
 
 my $argv = parse_arguments(\@ARGV);
 
@@ -83,7 +85,7 @@ Please select action
     active();
   }
   elsif ($argv->{ACTION} eq 'ALERT') {
-    alert()
+    alert();
   }
 
   return 1;
@@ -122,12 +124,20 @@ sub active {
   my @active = [];
   my $service_id = $service->[0]->{id};
   my $cur_ip     = $service->[0]->{ip_num} || 0;
-
-  if ($cur_ip) {
+  my $ip_exist_in_pools = '';
+  
+  if ($cur_ip && !$argv->{'FORCE_IP_ASSIGN'}) {
     if ($debug > 0) {
-      print "User have IP: ". int2ip($cur_ip)."\n";
+      print "User has IP: ". int2ip($cur_ip)."\n";
     }
     return 0;
+  }
+
+  if ($argv->{'FORCE_IP_ASSIGN'}) {
+    $ip_exist_in_pools = _check_cur_ip_in_pools($cur_ip, $argv->{POOL_ID});
+    if ($ip_exist_in_pools){
+        return 0;
+      }
   }
 
   for my $online (@{$internet_list}) {
@@ -179,6 +189,43 @@ sub alert {
   });
 
   return 1;
+}
+
+
+#********************************************************
+=head2 _check_cur_ip_in_pools() - check IP in IP POOL if exist
+
+  Arguments:
+    cur_ip - current user ip
+    pool_id - IP pool ID
+
+=cut
+#********************************************************
+sub _check_cur_ip_in_pools{
+  my ($cur_ip, $pool_id) = @_;
+
+  my $ip_pool = $Nas->ip_pools_info($pool_id);
+  my $next_pool_id  = $ip_pool->{NEXT_POOL_ID};
+
+  my $first_ip = ip2int($ip_pool->{IP});
+  my $last_ip = $first_ip + $ip_pool->{COUNTS};
+
+  if($cur_ip >= $first_ip && $cur_ip <= $last_ip){
+    if ($debug > 0) {
+      print 'IP: '.int2ip($cur_ip) . " exists in POOL_ID=$pool_id\n";
+    }
+    return 1;
+  }
+
+  if($next_pool_id ){
+    _check_cur_ip_in_pools($cur_ip, $next_pool_id);
+  }
+
+  if ($debug > 0) {
+    print 'IP: '.int2ip($cur_ip) . " does not exist in POOL_ID=$pool_id\n";
+  }
+
+  return 0;
 }
 
 

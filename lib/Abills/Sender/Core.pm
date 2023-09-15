@@ -32,7 +32,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Abills::Sender::Plugin;
-use Abills::Base qw(in_array);
+use Abills::Base qw(in_array mk_unique_value);
 
 my Contacts $Contacts;
 
@@ -95,7 +95,7 @@ sub new {
   my $soft_check = {
     Viber_bot => sub { $CONF->{VIBER_BOT_NAME} },
     Telegram  => sub { $CONF->{TELEGRAM_BOT_NAME} },
-    Push      => sub { $CONF->{FIREBASE_SERVER_KEY} },
+    Push      => sub { $CONF->{FIREBASE_SERVER_KEY} || ($CONF->{GOOGLE_PROJECT_ID} && $CONF->{FIREBASE_KEY}) },
     Hyber     => sub { $CONF->{GMS_WORLDWIDE_CLIENT_ID} },
     Viber     => sub { ($CONF->{SMS_OMNICELL_VIBER} || $CONF->{SMS_TURBOSMS_VIBER}) },
     Facebook  => sub { $CONF->{FACEBOOK_ACCESS_TOKEN} },
@@ -103,12 +103,12 @@ sub new {
   };
 
   my $self = {
-    conf        => $CONF,
-    self_url    => $attr->{SELF_URL} || q{},
-    domain_id   => $attr->{DOMAIN_ID} || $CONF->{DOMAIN_ID} || 0,
-    db          => $db,
-    admin       => $admin,
-    debug       => $attr->{DEBUG} || $CONF->{SENDER_DEBUG} || 0,
+    conf       => $CONF,
+    self_url   => $attr->{SELF_URL} || q{},
+    domain_id  => $attr->{DOMAIN_ID} || $CONF->{DOMAIN_ID} || 0,
+    db         => $db,
+    admin      => $admin,
+    debug      => $attr->{DEBUG} || $CONF->{SENDER_DEBUG} || 0,
     soft_check => $soft_check
   };
 
@@ -119,7 +119,6 @@ sub new {
   }
 
   $base_dir = $attr->{BASE_DIR} if $attr->{BASE_DIR};
-
 
   if ($db) {
     require Contacts;
@@ -202,6 +201,7 @@ sub send_message {
   my ($attr) = @_;
 
   my $send_type = $attr->{SENDER_TYPE} || $self->{SENDER_TYPE} || '';
+  $attr->{MESSAGE_ID} = $attr->{MESSAGE_ID} || mk_unique_value(8, { SYMBOLS => '0123456789' });
 
   if ( $send_type =~ /\d+/ ) {
     $send_type = $PLUGIN_NAME_FOR_TYPE_ID{$send_type};
@@ -326,7 +326,7 @@ sub send_message_auto {
   push @{$contacts_list}, @contacts;
 
   my $send_messages_types = ();
-  if ($attr->{SEND_TYPES}) {
+  if (defined $attr->{SEND_TYPES}) {
     map push(@{$send_messages_types}, $PLUGIN_NAME_FOR_TYPE_ID{$_}), split(/,\s?/, $attr->{SEND_TYPES});
   }
   else {
@@ -349,6 +349,7 @@ sub send_message_auto {
 
   #Send email if present. (no email in admins_contacts)
   if($attr->{AID} && (!$attr->{SEND_TYPES} || in_array(9, $send_messages_types))){
+    my $current_aid = $self->{admin}{AID};
     my $info = $self->{admin}->info($attr->{AID});
 
     if ($info->{EMAIL}) {
@@ -358,6 +359,7 @@ sub send_message_auto {
         SENDER_TYPE => $PLUGIN_NAME_FOR_TYPE_ID{9},
       }));
     }
+    $self->{admin}->info($current_aid)
   }
 
   return $at_least_one_was_successful;
@@ -393,8 +395,8 @@ sub get_contacts_for {
   my $send_type = $attr->{SENDER_TYPE};
   my $receiver_type = ($attr->{AID}) ? 'AID' : (($attr->{UID}) ? 'UID' : 0);
 
-  if (!$receiver_type) {
-    $self->{errstr} = "Invalid receiver type. Should be AID or UID";
+  if (!$receiver_type && $send_type ne 'Push') {
+    $self->{errstr} = 'Invalid receiver type. Should be AID or UID';
     $self->{errno} = 1;
     print $self->{errstr} if ($self->{debug});
     return 0;
@@ -406,15 +408,29 @@ sub get_contacts_for {
     return wantarray ? @{[ $contact_for_browser ]} : [ $contact_for_browser ];
   }
   elsif ($send_type eq 'Push') {
-    my @contacts = $self->get_push_contacts({
-      AID          => ($receiver_type eq 'AID') ? $attr->{AID} : '_SHOW',
-      UID          => ($receiver_type eq 'UID') ? $attr->{UID} : '_SHOW',
-      VALUE        => '_SHOW',
-      PUSH_TYPE_ID => '_SHOW',
-      BADGES       => '_SHOW',
-      COLS_NAME    => 1,
-      PAGE_ROWS    => 3,
-    });
+    my @contacts;
+    if (!$receiver_type) {
+      @contacts = $self->get_push_contacts({
+        AID          => 0,
+        UID          => 0,
+        VALUE        => $attr->{TO_ADDRESS},
+        PUSH_TYPE_ID => '_SHOW',
+        BADGES       => '_SHOW',
+        COLS_NAME    => 1,
+        PAGE_ROWS    => 1,
+      });
+    }
+    else {
+      @contacts = $self->get_push_contacts({
+        AID          => ($receiver_type eq 'AID') ? $attr->{AID} : '_SHOW',
+        UID          => ($receiver_type eq 'UID') ? $attr->{UID} : '_SHOW',
+        VALUE        => '_SHOW',
+        PUSH_TYPE_ID => '_SHOW',
+        BADGES       => '_SHOW',
+        COLS_NAME    => 1,
+        PAGE_ROWS    => 3,
+      });
+    }
 
     return wantarray ? @contacts : \@contacts;
   }

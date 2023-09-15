@@ -46,6 +46,7 @@ my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 
 =cut
 #**********************************************************
+#@deprecated
 sub ureports_send_reports {
   my ($type, $destination, $message, $attr) = @_;
 

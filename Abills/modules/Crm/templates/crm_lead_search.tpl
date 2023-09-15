@@ -137,6 +137,21 @@
                 </div>
               </div>
 
+              <div class='form-group row'>
+                <label class='col-form-label text-md-right col-md-4'>_{HOLDUP_TO}_:</label>
+                <div class='col-md-8'>
+                  <div class='input-group'>
+                    <div class='input-group-prepend'>
+                      <span class='input-group-text'>
+                        <input type='checkbox' id='HOLDUP_DATE_CHECKBOX' name='HOLDUP_DATE_CHECKBOX' class='form-control-static'
+                               data-input-enables='HOLDUP_DATE_RANGE'/>
+                      </span>
+                    </div>
+                    %HOLDUP_DATE%
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>

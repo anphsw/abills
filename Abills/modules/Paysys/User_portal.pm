@@ -9,6 +9,7 @@ use strict;
 use warnings FATAL => 'all';
 use Paysys::Init;
 use Users;
+use Paysys;
 use Abills::Base qw(ip2int in_array mk_unique_value cmd);
 
 our (
@@ -104,6 +105,7 @@ sub paysys_payment {
     my $payment_system_info = $Paysys->paysys_connect_system_info({
       PAYSYS_ID => $FORM{PAYMENT_SYSTEM},
       MODULE    => '_SHOW',
+      NAME      => '_SHOW',
       COLS_NAME => '_SHOW'
     });
 
@@ -112,18 +114,44 @@ sub paysys_payment {
     }
     else {
       my $Module = _configure_load_payment_module($payment_system_info->{module});
-      my $Paysys_plugin = $Module->new($db, $admin, \%conf, { HTML => $html, lang => \%lang });
+      my $Paysys_plugin = $Module->new($db, $admin, \%conf, {
+        HTML        => $html,
+        lang        => \%lang,
+        CUSTOM_NAME => $payment_system_info->{name},
+        CUSTOM_ID   => $payment_system_info->{paysys_id}
+      });
+      $attr->{EXTRA_DESCRIPTIONS} = q{};
+      my $params = $Paysys->gid_params({
+        GID       => $user->{GID} || 0,
+        PAYSYS_ID => $FORM{PAYMENT_SYSTEM},
+        LIST2HASH => 'param,value'
+      });
+
+      if (scalar keys %{$params}) {
+        my ($payment_description) = grep {/PORTAL_DESCRIPTION/g} keys %{$params};
+        if ($payment_description && $params->{$payment_description}) {
+          my @descriptions = split /;/, $params->{$payment_description};
+
+          foreach my $description (@descriptions) {
+            my ($title, $desc) = split (/:/, ($description || ''));
+            $attr->{EXTRA_DESCRIPTIONS} .= $html->tpl_show(_include('paysys_portal_payment_description', 'Paysys'),
+              { DESCRIPTION => $desc, TITLE => $title }, { OUTPUT2RETURN => 1 });
+          }
+        }
+      }
+
       return $Paysys_plugin->user_portal($user, { %FORM, %{($attr) ? $attr : {}} });
     }
   }
 
   my $connected_systems = $Paysys->paysys_connect_system_list({
-    PAYSYS_ID => '_SHOW',
-    NAME      => '_SHOW',
-    MODULE    => '_SHOW',
-    STATUS    => 1,
-    COLS_NAME => 1,
-    SORT      => 'priority',
+    PAYSYS_ID    => '_SHOW',
+    NAME         => '_SHOW',
+    MODULE       => '_SHOW',
+    SUBSYSTEM_ID => '_SHOW',
+    STATUS       => 1,
+    COLS_NAME    => 1,
+    SORT         => 'priority',
   });
 
   my $list = $Paysys->paysys_merchant_to_groups_info({
@@ -161,30 +189,13 @@ sub paysys_payment {
 
   my $count = 1;
   my @payment_systems = ();
-  my $Users = Users->new($db, $admin, \%conf);
-  my $gid_list = $Users->groups_list({
-    COLS_NAME => 1,
-    DOMAIN_ID => $ENV{DOMAIN_ID} || $user->{DOMAIN_ID} || '_SHOW',
-    GID       => '_SHOW'
-  });
 
   foreach my $payment_system (@$connected_systems) {
-    my $zero_gid = 1;
-
-    if (defined($user->{GID}) && !$user->{GID}) {
-      $zero_gid = 0;
-      foreach my $gid (@{$gid_list}) {
-        next if ($gid->{gid} != 0);
-        $zero_gid = 1;
-      }
-    }
-
     next if (defined($user->{GID})
       && exists $group_to_paysys_id{$user->{GID}}
-      && !(in_array($payment_system->{paysys_id}, $group_to_paysys_id{$user->{GID}}))
-      && $zero_gid);
+      && !(in_array($payment_system->{paysys_id}, $group_to_paysys_id{$user->{GID}})));
 
-    next if (defined($user->{GID}) && !$group_to_paysys_id{$user->{GID}} && $zero_gid);
+    next if (defined($user->{GID}) && !$group_to_paysys_id{$user->{GID}});
 
     my $Plugin = _configure_load_payment_module($payment_system->{module});
     if ($Plugin->can('user_portal')) {
@@ -192,11 +203,21 @@ sub paysys_payment {
         (($paysys_id == $payment_system->{paysys_id}) ?
           'checked' : '') : $count == 1 ? 'checked' : '';
 
+      my $subsystem_name = q{};
+      if ($payment_system->{subsystem_id}) {
+        my %SETTINGS = $Plugin->get_settings();
+        if ($SETTINGS{SUBSYSTEMS} && ref $SETTINGS{SUBSYSTEMS} eq 'HASH' &&  exists($SETTINGS{SUBSYSTEMS}{$payment_system->{subsystem_id}})) {
+          $subsystem_name = $SETTINGS{SUBSYSTEMS}{$payment_system->{subsystem_id}};
+        }
+      }
+
       push @payment_systems, _paysys_system_radio({
-        NAME    => $payment_system->{merchant_name} || $payment_system->{name},
-        MODULE  => $payment_system->{module},
-        ID      => $payment_system->{paysys_id},
-        CHECKED => $checked,
+        NAME           => $payment_system->{merchant_name} || $payment_system->{name},
+        SUBSYSTEM_NAME => $subsystem_name,
+        MODULE         => $payment_system->{module},
+        ID             => $payment_system->{paysys_id},
+        CHECKED        => $checked,
+        GID            => $user->{GID},
       });
       $count++;
     }
@@ -325,6 +346,7 @@ sub paysys_external_cmd {
 sub _paysys_system_radio {
   my ($attr) = @_;
 
+  my $commission = 0;
   my $radio_paysys;
   my $paysys_logo_path = $base_dir . 'cgi-bin/styles/default/img/paysys_logo/';
   my $file_path = q{};
@@ -334,18 +356,33 @@ sub _paysys_system_radio {
   $paysys_module =~ s/ /_/g;
   $paysys_module = lc($paysys_module);
 
-  if (-e "$paysys_logo_path" . lc($paysys_module) . '-logo.png') {
+  if ($attr->{SUBSYSTEM_NAME} && -e "$paysys_logo_path" . lc($attr->{SUBSYSTEM_NAME}) . '-logo.png') {
+    $file_path = '/styles/default/img/paysys_logo/' . lc($attr->{SUBSYSTEM_NAME}) . '-logo.png';
+  }
+  elsif (-e "$paysys_logo_path" . lc($paysys_module) . '-logo.png') {
     $file_path = '/styles/default/img/paysys_logo/' . lc($paysys_module) . '-logo.png';
   }
 
-  $radio_paysys .= $html->tpl_show(
-    _include('paysys_system_select', 'Paysys'),
+  my $params = $Paysys->gid_params({
+    GID       => $attr->{GID},
+    PAYSYS_ID => $attr->{ID},
+    LIST2HASH => 'param,value'
+  });
+
+  if (scalar keys %{$params}) {
+    my ($payment_commission) = grep {/PORTAL_COMMISSION/g} keys %{$params};
+    $commission = $params->{$payment_commission} if ($payment_commission && $params->{$payment_commission});
+  }
+
+  $radio_paysys .= $html->tpl_show(_include('paysys_system_select', 'Paysys'),
     {
-      PAY_SYSTEM_LC   => $file_path,
-      PAY_SYSTEM      => $attr->{ID},
-      PAY_SYSTEM_NAME => $paysys_name,
-      CHECKED         => $attr->{CHECKED},
-      HIDDEN          => $conf{PAYSYS_USER_PORTAL_BTN_TEXT} ? '' : 'hidden hidden-btn-text'
+      PAY_SYSTEM_LC     => $file_path,
+      PAY_SYSTEM        => $attr->{ID},
+      PAY_SYSTEM_NAME   => $paysys_name,
+      CHECKED           => $attr->{CHECKED},
+      HIDDEN            => $conf{PAYSYS_USER_PORTAL_BTN_TEXT} ? '' : 'hidden hidden-btn-text',
+      COMMISSION_HIDDEN => $commission ? '' : 'hidden',
+      COMMISSION        => $commission
     },
     {
       OUTPUT2RETURN => 1,

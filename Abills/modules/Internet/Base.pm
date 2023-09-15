@@ -46,7 +46,7 @@ sub new {
 }
 
 #**********************************************************
-=head iptv_quick_info($attr) - Quick information
+=head internet_quick_info($attr) - Quick information
 
   Arguments:
     $attr
@@ -79,9 +79,9 @@ sub internet_quick_info {
     });
 
     $result = $list->[0];
-    my $service_status = ::sel_status({ HASH_RESULT => 1 });
-    $result->{STATUS} = (defined($result->{INTERNET_STATUS})) ? $service_status->{ $result->{INTERNET_STATUS} } : '';
-    ($result->{STATUS}, undef) = split(/:/, $result->{STATUS});
+    #my $service_status = ::sel_status({ HASH_RESULT => 1 });
+    #$result->{STATUS} = (defined($result->{INTERNET_STATUS})) ? $service_status->{ $result->{INTERNET_STATUS} } : '';
+    ($result->{STATUS}, undef) = split(/:/, $result->{INTERNET_STATUS} || q{});
     $result->{PERIOD} = $lang->{MONTH};
 
     if (!$result->{MONTH_FEE} && $result->{DAY_FEE}) {
@@ -119,9 +119,21 @@ sub internet_quick_info {
   return ($Internet->{TOTAL_SERVICES} && $Internet->{TOTAL_SERVICES} > 0) ? $Internet->{TOTAL_SERVICES} : '';
 }
 
+#**********************************************************
+=head internet_docs($attr)
+
+=cut
+#**********************************************************
 sub internet_docs {
   my $self = shift;
   my ($attr) = @_;
+
+  require Shedule;
+  Shedule->import();
+  my $Schedule = Shedule->new($db, $admin, $CONF);
+
+  use Tariffs;
+  my $Tariffs = Tariffs->new($db, $CONF, $admin);
 
   my $uid = $attr->{UID} || '';
   my @services = ();
@@ -150,7 +162,46 @@ sub internet_docs {
   });
 
   if ($attr->{FEES_INFO} || $attr->{FULL_INFO}) {
+    my $next_month = next_month({ DATE => $main::DATE });
+
     foreach my $service_info (@{$service_list}) {
+      $service_info->{day_fee} = 0 if $service_info->{day_fee} && $service_info->{day_fee} eq '0.00';
+      $service_info->{abon_distribution} = 0 if $service_info->{abon_distribution} && $service_info->{abon_distribution} eq '0.00';
+      $service_info->{personal_tp} = 0 if $service_info->{personal_tp} && $service_info->{personal_tp} eq '0.00';
+
+      if (!$service_info->{day_fee} && !$service_info->{abon_distribution} && !$service_info->{personal_tp}) {
+        my $schedule_list = $Schedule->list({
+          UID          => $uid,
+          MODULE       => 'Internet',
+          TYPE         => 'tp',
+          ACTION       => "$service_info->{id}:*",
+          SHEDULE_DATE => $service_info->{internet_activate} && $service_info->{internet_activate} ne '0000-00-00' ? "<" .
+            (next_month({ DATE => $service_info->{internet_activate}, PERIOD => 1, END => 1 })) : "<=$next_month",
+          SORT         => 's.id',
+          DESC         => 'DESC',
+          COLS_NAME    => 1
+        });
+
+        foreach my $schedule (@{$schedule_list}) {
+          my (undef, $tp_id) = split(/:/, $schedule->{action});
+
+          $Tariffs->info(undef, { TP_ID => $tp_id });
+          next if $Tariffs->{TOTAL} < 0;
+
+          $service_info->{tp_id} = $tp_id;
+          $service_info->{tp_name} = $Tariffs->{NAME};
+          $service_info->{fees_method} = $Tariffs->{FEES_METHOD};
+          $service_info->{internet_activate} = '0000-00-00';
+          $service_info->{internet_expire} = '0000-00-00';
+          $service_info->{tp_fixed_fees_day} = $Tariffs->{FIXED_FEES_DAY} || 0;
+          $service_info->{tp_reduction_fee} = $Tariffs->{REDUCTION_FEE};
+          $service_info->{month_fee} = $Tariffs->{MONTH_FEE};
+          $service_info->{day_fee} = $Tariffs->{DAY_FEE};
+          $service_info->{abon_distribution} = $Tariffs->{ABON_DISTRIBUTION};
+          last;
+        }
+      }
+      
       my %FEES_DSC = (
         MODULE          => 'Internet',
         TP_ID           => $service_info->{tp_id},

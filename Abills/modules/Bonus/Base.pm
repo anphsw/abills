@@ -223,6 +223,8 @@ sub bonus_service_discount_mk {
 
   return 0 if in_array($pay_method, \@excluder_arr);
 
+  $Bonus->{debug} = 1 if ($CONF->{BONUS_DEBUG} && $CONF->{BONUS_DEBUG} > 6);
+
   my %RULES = ();
   my $list = $Bonus->service_discount_list({
     PAGE_ROWS           => 1000,
@@ -317,9 +319,11 @@ sub bonus_service_discount_mk {
   if ($RULES{TOTAL_PAYMENT} || ($RULES{ONETIME_PAYMENT_SUM} && $RULES{ONETIME_PAYMENT_SUM} > 0)) {
     my $payments_sum = 0;
     my %get_bonus = (
-      PAGE_ROWS => 1,
+      #PAGE_ROWS => 1,
+      ID        => '_SHOW',
       TP_ID     => '_SHOW',
-      SORT      => "2 DESC, 3 DESC, onetime_payment_sum DESC",
+      NAME      => '_SHOW',
+      SORT      => "service_period DESC, registration_days DESC, onetime_payment_sum DESC",
       COLS_NAME => 1
     );
 
@@ -341,37 +345,51 @@ sub bonus_service_discount_mk {
       $get_bonus{PERIODS} = "<=$periods";
     }
 
-    $list = $Bonus->service_discount_list({ %get_bonus });
+    my $discount_list = $Bonus->service_discount_list({ %get_bonus });
 
     if ($Bonus->{TOTAL} > 0) {
-      my @pay_methods = ();
-
-      if (defined($list->[0]{pay_method}) && $list->[0]{pay_method} ne '-1') {
-        @pay_methods = split(/,\s?/, $list->[0]{pay_method});
-      }
-
       my $fill_bonus = 0;
-      if (!$list->[0]->{tp_id}) {
-        $fill_bonus = 1;
-      }
-      elsif($Internet->{TP_ID} && in_array($Internet->{TP_ID}, [ grep {$_ ne ''} split(',\s?', $list->[0]->{tp_id}) ])) {
-        $fill_bonus = 1;
-      }
+      foreach my $discount (@$discount_list) {
+        my @pay_methods = ();
 
-      if ($#pay_methods > -1 && !in_array($pay_method, \@pay_methods)) {
-
-      }
-      elsif ($fill_bonus) {
-        $RESULT{DISCOUNT}          = $list->[0]->{discount};
-        $RESULT{DISCOUNT_PERIOD}   = $list->[0]->{discount_days};
-        $RESULT{BONUS_SUM}         = $list->[0]->{bonus_sum};
-        $RESULT{BONUS_PERCENT}     = $list->[0]->{bonus_percent};
-        $RESULT{BONUS_EXT_ACCOUNT} = $list->[0]->{ext_account};
-        $RESULT{ID}                = $list->[0]->{id};
-
-        if ($RESULT{DISCOUNT_PERIOD} > 0) {
-          $RESULT{DISCOUNT_PERIOD} = POSIX::strftime('%Y-%m-%d', localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD}));
+        if (defined($discount->{pay_method}) && $discount->{pay_method} ne '-1') {
+          @pay_methods = split(/,\s?/, $discount->{pay_method});
         }
+
+        if (!$discount->{tp_id}) {
+          $fill_bonus = 1;
+        }
+        elsif ($Internet->{TP_ID} && in_array($Internet->{TP_ID}, [ grep {$_ ne ''} split(',\s?', $discount->{tp_id}) ])) {
+          $fill_bonus = 1;
+        }
+
+        if ($#pay_methods > -1 && !in_array($pay_method, \@pay_methods)) {
+          #Skip bonus if no other program
+          #return 0;
+        }
+        elsif ($fill_bonus) {
+          $RESULT{DISCOUNT}         = $discount->{discount};
+          $RESULT{DISCOUNT_PERIOD}  = $discount->{discount_days};
+          $RESULT{BONUS_SUM}        = $discount->{bonus_sum};
+          $RESULT{BONUS_PERCENT}    = $discount->{bonus_percent};
+          $RESULT{BONUS_EXT_ACCOUNT}= $discount->{ext_account};
+          $RESULT{ID}               = $discount->{id};
+          $RESULT{BONUS_NAME}       = $discount->{name};
+
+          if ($CONF->{BONUS_DEBUG}) {
+            print "Bonus activate: $discount->{id}\n";
+          }
+
+          if ($RESULT{DISCOUNT_PERIOD} > 0) {
+            $RESULT{DISCOUNT_PERIOD} = POSIX::strftime('%Y-%m-%d', localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD}));
+          }
+
+          last;
+        }
+      }
+
+      if (! $fill_bonus) {
+        %RESULT = ();
       }
     }
   }
@@ -383,6 +401,7 @@ sub bonus_service_discount_mk {
       REDUCTION_DATE => $RESULT{DISCOUNT_PERIOD},
       UID            => $user_info->{UID}
     });
+
     $html->message('info', $lang->{INFO},
       "$lang->{BONUS}: \n $lang->{REDUCTION}: $RESULT{DISCOUNT}\n  $lang->{DATE}: $RESULT{DISCOUNT_PERIOD}");
   }
@@ -397,7 +416,7 @@ sub bonus_service_discount_mk {
     $Payments->add($user_info,{
       SUM          => $RESULT{BONUS_SUM},
       METHOD       => 4,
-      DESCRIBE     => $lang->{BONUS} . (($RESULT{ID}) ? " # $RESULT{ID}" : q{}),
+      DESCRIBE     => $RESULT{BONUS_NAME} ? $RESULT{BONUS_NAME}  : $lang->{BONUS} . (($RESULT{ID}) ? " # $RESULT{ID}" : q{}),
       BILL_ID      => ($RESULT{BONUS_EXT_ACCOUNT}) ? $user_info->{EXT_BILL_ID} : $user_info->{BILL_ID},
       EXT_ID       => ($attr->{EXT_ID}) ? 'B_' . $attr->{EXT_ID} : undef,
       CHECK_EXT_ID => ($attr->{EXT_ID}) ? 'B_' . $attr->{EXT_ID} : undef

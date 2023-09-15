@@ -1,4 +1,4 @@
-$lang{ERR_FIELDS_FOR_NOTIFIED_AND_SUBJECT_ARE_REQUIRED} = "Поле \'Текст\' не заполнено";
+$lang{ERR_FIELDS_FOR_NOTIFIED_AND_SUBJECT_ARE_REQUIRED} = "Поле &#39;Текст&#39; не заполнено";
 
 $lang{NEXT_SHOW} = 'Показать';
 

@@ -1,14 +1,14 @@
-<form name='PAYSYS_CONNECT_SYSTEM' id='form_PAYSYS_CONNECT_SYSTEM' method='post'>
+<form name='PAYSYS_CONNECT_SYSTEM' id='FORM_PAYSYS_CONNECT_SYSTEM' method='post'>
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='ID' value='%ID%'>
   <input type='hidden' name='OLD_NAME' value='%NAME%'>
 
   <div class='card card-primary card-outline box-form'>
     <div class='card-header with-border'>
-      <h4 class='card-title'>_{PAY_SYSTEM}_</h4>
+      <h4 class='card-title'>_{ADD}_ _{PAY_SYSTEM}_</h4>
     </div>
     <div class='card-body'>
-      <div class='form-group row %HIDE_SELECT%'>
+      <div id='PAY_SYSTEM_CONTAINER' class='form-group row %HIDE_SELECT%'>
         <label class='col-md-4 col-form-label text-md-right'>_{PAY_SYSTEM}_:</label>
         <div class='col-md-8'>
           %PAYSYS_SELECT%
@@ -32,8 +32,16 @@
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' for='paysys_name'>_{NAME}_:</label>
         <div class='col-md-8'>
-          <input type='text' class='form-control' name='NAME' value='%NAME%'
-                 id='paysys_name' required pattern='[A-Za-z0-9_]{1,30}' data-tooltip='Только лат. буквы, цифры и подчеркивание'>
+          <input id='NAME' name='NAME' value='%NAME%' required placeholder='%NAME%' class='form-control'
+                 type='text' %GID_DISABLE% data-check-for-pattern='^[A-Za-z0-9_]{1,30}\$'
+                 data-check-for-pattern-text='_{PAYSYS_SYSTEM_ALLOWED_CHARS}_'>
+        </div>
+      </div>
+
+      <div id='SUBSYSTEM_CONTAINER' hidden class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='SUBSYSTEM_ID'>_{SUBSYSTEM}_</label>
+        <div class='col-md-8'>
+          <select id='SUBSYSTEM_ID' name='SUBSYSTEM_ID'></select>
         </div>
       </div>
 
@@ -97,10 +105,28 @@
       jQuery('#IP').val(arr[module]['IP']);
       jQuery('#docs').val(arr[module]['DOCS']);
       jQuery('#link').attr('href', arr[module]['DOCS']);
+
+      if (arr[module]['SUBSYSTEMS'] && typeof arr[module]['SUBSYSTEMS'] === 'object') {
+        jQuery('#SUBSYSTEM_CONTAINER').removeAttr('hidden');
+        arr[module]['SUBSYSTEMS']['0'] = '_{DEFAULT_SUBSYSTEM}_';
+
+        var selectElement = jQuery('#SUBSYSTEM_ID');
+        selectElement.empty();
+
+        jQuery.each(arr[module]['SUBSYSTEMS'], function(value, text) {
+          selectElement.append(jQuery('<option>', {
+            value: value,
+            text: text
+          }));
+        });
+      }
+      else {
+        jQuery('#SUBSYSTEM_CONTAINER').attr('hidden', true);
+      }
     });
   });
 
-  if(jQuery('.form-group').is(':hidden')){
+  if(jQuery('#PAY_SYSTEM_CONTAINER').is(':hidden')){
     jQuery('#create_payment_method').remove();
   }
 </script>

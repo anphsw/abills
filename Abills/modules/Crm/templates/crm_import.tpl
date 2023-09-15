@@ -367,7 +367,6 @@
       this.showImportProgressModal(resultData.length)
 
       for (const [index, item] of resultData.entries()) {
-        console.log(item);
         await fetch('/api.cgi/crm/leads/', {
           method: 'POST',
           mode: 'cors',

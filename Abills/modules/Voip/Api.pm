@@ -157,8 +157,11 @@ sub user_routes {
           SORT      => 2,
           DESC      => 'DESC',
           PAGE_ROWS => $query_params->{PAGE_ROWS} || 25,
-          FROM_DATE => $query_params->{FROM_DATE} || undef,
-          TO_DATE   => $query_params->{TO_DATE} || undef,
+
+          #TODO: move it to base params and defined them if they are possible
+
+          FROM_DATE => ($query_params->{TO_DATE} && !$query_params->{FROM_DATE}) ? '0000-00-00' : $query_params->{FROM_DATE} ? $query_params->{FROM_DATE} : undef,
+          TO_DATE   => ($query_params->{FROM_DATE} && !$query_params->{TO_DATE}) ? '_SHOW' : $query_params->{TO_DATE} ? $query_params->{TO_DATE} : undef,
         };
 
         require Voip_Sessions;
@@ -182,15 +185,15 @@ sub user_routes {
         $Sessions->calculation($query_params);
 
         $result{periods}{stats} = {
-          min   => {
+          min => {
             sum      => $Sessions->{MIN_SUM},
             duration => $Sessions->{MIN_DUR}
           },
-          max   => {
+          max => {
             sum      => $Sessions->{MAX_SUM},
             duration => $Sessions->{MAX_DUR}
           },
-          avg   => {
+          avg => {
             sum      => $Sessions->{AVG_SUM},
             duration => $Sessions->{AVG_DUR}
           },
@@ -286,6 +289,33 @@ sub user_routes {
         'USER'
       ]
     },
+    {
+      method      => 'GET',
+      path        => '/user/voip/tariffs/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        require Control::Service_control;
+        Control::Service_control->import();
+        my $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
+
+        my $result = $Service_control->available_tariffs({
+          SKIP_NOT_AVAILABLE_TARIFFS => 1,
+          UID                        => $path_params->{uid},
+          MODULE                     => 'Voip'
+        });
+
+        return {
+          errno  => $result->{errno} || $result->{error},
+          errstr => $result->{errstr}
+        } if (ref $result eq 'HASH' && ($result->{error} || $result->{errno}));
+
+        return $result;
+      },
+      credentials => [
+        'USER'
+      ]
+    },
   ]
 }
 
@@ -369,6 +399,10 @@ sub admin_routes {
         $query_params->{PG} = $query_params->{PG} ? $query_params->{PG} : 0;
         $query_params->{DESC} = $query_params->{DESC} ? $query_params->{DESC} : '';
         $query_params->{SORT} = $query_params->{SORT} ? $query_params->{SORT} : 1;
+
+        if (($query_params->{EXTRA_NUMBERS_DAY_FEE} || $query_params->{EXTRA_NUMBERS_MONTH_FEE}) && !$query_params->{EXTRA_NUMBER}) {
+          $query_params->{EXTRA_NUMBER} = '_SHOW'
+        }
 
         $Voip->user_list($query_params);
       },
@@ -623,9 +657,20 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        my $voip_tp = $Voip->tp_info($path_params->{id});
+        $Voip->tp_info($path_params->{id});
+
+        return {
+          errno  => 30019,
+          errstr => "Tariff with tpId $path_params->{id}"
+        } if (!$Voip->{TP_ID} || ($Voip->{errno} && $Voip->{errno} == 2));
+
+        return {
+          errno  => $Voip->{errno},
+          errstr => $Voip->{errstr},
+        } if ($Voip->{errno});
+
         delete $Voip->{TP_INFO};
-        return $voip_tp;
+        return $Voip;
       },
       credentials => [
         'ADMIN'
@@ -711,9 +756,14 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        foreach my $param (keys %{$query_params}) {
+          $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+        }
+
         $Voip->routes_list({
+          %$query_params,
           ROUTE_NAME   => $query_params->{NAME} || '_SHOW',
-          DESCRIBE     => $query_params->{DESCRIBE} || '_SHOW',
+          DESCRIBE     => $query_params->{DESCR} || '_SHOW',
           ROUTE_PREFIX => $query_params->{PREFIX} || '_SHOW',
           SORT         => $query_params->{SORT} ? $query_params->{SORT} : 1,
           DESC         => $query_params->{DESC} ? $query_params->{DESC} : '',
@@ -747,9 +797,12 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         return {
-          errno      => 30005,
-          errstr     => 'no fields prefix or name',
+          errno  => 30005,
+          errstr => 'no fields prefix or name',
         } if (!$query_params->{PREFIX} || !$query_params->{NAME});
+
+        my $validation_result = _validate_route_add($query_params);
+        return $validation_result if ($validation_result->{errno});
 
         $Voip->route_add({
           ROUTE_PREFIX => $query_params->{PREFIX} || '',
@@ -771,10 +824,16 @@ sub admin_routes {
         $query_params->{ROUTE_PREFIX} = $query_params->{PREFIX} if (defined $query_params->{PREFIX});
         $query_params->{ROUTE_NAME} = $query_params->{NAME} if (defined $query_params->{NAME});
 
+        my $validation_result = _validate_route_add($query_params);
+        return $validation_result if ($validation_result->{errno});
+
         $Voip->route_change({
           %$query_params,
           ROUTE_ID => $path_params->{id},
         });
+
+        delete @{$Voip}{qw/AFFECTED TOTAL list/};
+        return $Voip;
       },
       credentials => [
         'ADMIN'
@@ -796,8 +855,8 @@ sub admin_routes {
           }
           else {
             return {
-              errno      => 30006,
-              errstr     => "routeId $path_params->{id} not exists",
+              errno  => 30006,
+              errstr => "routeId $path_params->{id} not exists",
             };
           }
         }
@@ -813,14 +872,17 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        foreach my $param (keys %{$query_params}) {
+          $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+        }
+
         $Voip->extra_tarification_list({
-          ID        => $query_params->{ID} || '_SHOW',
-          NAME      => $query_params->{NAME} || '_SHOW',
-          SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
-          DESC      => $query_params->{DESC} ? $query_params->{DESC} : '',
-          PG        => $query_params->{PG} ? $query_params->{PG} : 0,
-          PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
-          COLS_NAME => 1
+          %$query_params,
+          SORT         => $query_params->{SORT} ? $query_params->{SORT} : 1,
+          DESC         => $query_params->{DESC} ? $query_params->{DESC} : '',
+          PG           => $query_params->{PG} ? $query_params->{PG} : 0,
+          PAGE_ROWS    => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
+          COLS_NAME    => 1
         });
       },
       credentials => [
@@ -834,7 +896,7 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         my $route = $Voip->extra_tarification_info({ ID => $path_params->{id} });
-        delete @{$route}{qw/AFFECTED TOTAL/};
+        delete @{$route}{qw/AFFECTED TOTAL list/};
         return $route;
       },
       credentials => [
@@ -848,8 +910,8 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         return {
-          errno      => 30007,
-          errstr     => 'no fields prepaidTime or name',
+          errno  => 30007,
+          errstr => 'no fields prepaidTime or name',
         } if (!$query_params->{NAME} || !$query_params->{PREPAID_TIME});
 
         $Voip->extra_tarification_add({
@@ -868,13 +930,13 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         return {
-          errno      => 30008,
-          errstr     => 'no fields prepaidTime and name, so no params to change',
+          errno  => 30008,
+          errstr => 'no fields prepaidTime and name, so no params to change',
         } if (!$query_params->{NAME} && !$query_params->{PREPAID_TIME});
 
         my $params = {};
 
-        $params->{ROUTE_PREFIX} = $query_params->{PREPAID_TIME} if (defined $query_params->{PREPAID_TIME});
+        $params->{PREPAID_TIME} = $query_params->{PREPAID_TIME} if (defined $query_params->{PREPAID_TIME});
         $params->{NAME} = $query_params->{NAME} if (defined $query_params->{NAME});
 
         $Voip->extra_tarification_change({
@@ -901,7 +963,7 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        $Voip->route_del($path_params->{id});
+        $Voip->extra_tarification_del({ ID => $path_params->{id} });
 
         if (!$Voip->{errno}) {
           if ($Voip->{AFFECTED} && $Voip->{AFFECTED} =~ /^[0-9]$/) {
@@ -911,7 +973,7 @@ sub admin_routes {
           }
           else {
             return {
-              errno  => 30010,
+              errno  => 30015,
               errstr => "tarificationId $path_params->{id} not exists",
             };
           }
@@ -991,6 +1053,8 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        $Voip->trunk_del($path_params->{id});
+
         if (!$Voip->{errno}) {
           if ($Voip->{AFFECTED} && $Voip->{AFFECTED} =~ /^[0-9]$/) {
             return {
@@ -1000,7 +1064,7 @@ sub admin_routes {
           else {
             return {
               errno  => 30010,
-              errstr => "trunk id $path_params->{id} not exists",
+              errstr => "trunkId $path_params->{id} not exists",
             };
           }
         }
@@ -1019,6 +1083,33 @@ sub admin_routes {
         delete $query_params->{ID};
 
         $Voip->trunk_change({ %$query_params, ID => $path_params->{id} });
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/voip/sessions/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        require Voip_Sessions;
+        Voip_Sessions->import();
+        my $Voip_Sessions = Voip_Sessions->new($self->{db}, $self->{admin}, $self->{conf});
+
+        foreach my $param (keys %{$query_params}) {
+          $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+        }
+
+        my $list = $Voip_Sessions->list({
+          %$query_params,
+          FROM_DATE => ($query_params->{TO_DATE} && !$query_params->{FROM_DATE}) ? '0000-00-00' : $query_params->{FROM_DATE} ? $query_params->{FROM_DATE} : undef,
+          TO_DATE   => ($query_params->{FROM_DATE} && !$query_params->{TO_DATE}) ? '_SHOW' : $query_params->{TO_DATE} ? $query_params->{TO_DATE} : undef,
+          COLS_NAME => 1,
+        });
+
+        return $list;
       },
       credentials => [
         'ADMIN'
@@ -1073,6 +1164,40 @@ sub _tp_add_filter {
   }
 
   return \%PARAMS;
+}
+
+#**********************************************************
+=head2 _tp_add_filter()
+
+=cut
+#**********************************************************
+sub _validate_route_add {
+  my ($attr) = @_;
+
+  if ($attr->{PREFIX}) {
+    my $routes = $Voip->routes_list({
+      ROUTE_PREFIX => $attr->{PREFIX} || '_SHOW',
+      COLS_NAME    => 1
+    });
+
+    return {
+      errno  => 9,
+      errstr => 'Validation failed',
+      errors => [ {
+        errno    => 21,
+        errstr   => 'prefix is not valid',
+        param    => 'prefix',
+        type     => 'number',
+        prefix   => $attr->{PREFIX},
+        route_id => $routes->[0]->{id},
+        reason   => "prefix already exists in route with id $routes->[0]->{id}"
+      } ],
+    } if ($routes->[0]->{id});
+  }
+
+  return {
+    result => 'OK',
+  };
 }
 
 1;

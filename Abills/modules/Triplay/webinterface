@@ -54,41 +54,29 @@ sub triplay_tp {
 
   require Control::Services;
 
-  $Triplay->{ACTION}='add';
-  $Triplay->{ACTION_LNG}=$lang{ADD};
-  $FORM{SMALL_DEPOSIT_ACTION}=-1;
-  # add tp to database
+  $Triplay->{ACTION} = 'add';
+  $Triplay->{ACTION_LNG} = $lang{ADD};
+  $FORM{SMALL_DEPOSIT_ACTION} = -1;
+
   if ($FORM{add}) {
-    $Tariffs->add( { %FORM, MODULE => 'Triplay' } );
-    if ( !$Tariffs->{errno} ){
-      #$html->message( 'info', $lang{ADDED}, "$lang{ADDED} $Tariffs->{TP_ID}" );
-      $Triplay->tp_add({
-        %FORM,
-        TP_ID => $Tariffs->{TP_ID}
-      });
+    $Tariffs->add({ %FORM, MODULE => 'Triplay' });
+    if (!$Tariffs->{errno}) {
+      $Triplay->tp_add({ %FORM, TP_ID => $Tariffs->{TP_ID} });
     }
 
     if (!$Triplay->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{TARIF_PLAN} $lang{ADDED}");
     }
   }
-  # change tp in database
   elsif ($FORM{change}) {
-    $Triplay->tp_change({
-      %FORM,
-      ID => $FORM{chg},
-    });
+    $Triplay->tp_change({ %FORM, ID => $FORM{chg} });
 
-    $Tariffs->change($Triplay->{TP_ID}, {
-      %FORM,
-      TP_ID => $Triplay->{TP_ID},
-    });
+    $Tariffs->change($Triplay->{TP_ID}, { %FORM, TP_ID => $Triplay->{TP_ID} });
 
     if (!$Triplay->{errno}) {
-      $html->message('info', "$lang{SUCCESS}", "$lang{TARIF_PLAN} $lang{CHANGED}");
+      $html->message('info', $lang{SUCCESS}, "$lang{TARIF_PLAN} $lang{CHANGED}");
     }
   }
-  # get info about tp
   elsif ($FORM{chg}) {
     $Triplay->{ACTION} = 'change';
     $Triplay->{ACTION_LNG} = $lang{CHANGE};
@@ -96,7 +84,6 @@ sub triplay_tp {
 
     _error_show($Triplay);
   }
-  # delete tp from database
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Triplay->tp_del({ ID => $FORM{del} });
 
@@ -141,20 +128,16 @@ sub triplay_tp {
     }
   });
 
-  $Triplay->{SEL_METHOD} = $html->form_select(
-    'FEES_METHOD',
-    {
-      SELECTED    => $Triplay->{FEES_METHOD} || 1,
-      SEL_HASH    => get_fees_types(),
-      NO_ID       => 1,
-      SORT_KEY    => 1,
-      SEL_OPTIONS => { 0 => '' },
-      MAIN_MENU   => get_function_index('form_fees_types'),
-      CHECKBOX    => 'create_fees_type',
-      CHECKBOX_TITLE => $lang{CREATE},
-      # SEL_WIDTH   => '440px'
-    }
-  );
+  $Triplay->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
+    SELECTED       => $Triplay->{FEES_METHOD} || 1,
+    SEL_HASH       => get_fees_types(),
+    NO_ID          => 1,
+    SORT_KEY       => 1,
+    SEL_OPTIONS    => { 0 => '' },
+    MAIN_MENU      => get_function_index('form_fees_types'),
+    CHECKBOX       => 'create_fees_type',
+    CHECKBOX_TITLE => $lang{CREATE}
+  });
 
   my %payment_types = (
     0 => $lang{PREPAID},
@@ -162,48 +145,43 @@ sub triplay_tp {
     2 => $lang{GUEST}
   );
 
-  $Triplay->{PAYMENT_TYPE_SEL} = $html->form_select(
-    'PAYMENT_TYPE',
-    {
-      SELECTED => $Triplay->{PAYMENT_TYPE},
-      SEL_HASH => \%payment_types,
-      NO_ID    => 1
-    }
-  );
+  $Triplay->{PAYMENT_TYPE_SEL} = $html->form_select('PAYMENT_TYPE', {
+    SELECTED => $Triplay->{PAYMENT_TYPE},
+    SEL_HASH => \%payment_types,
+    NO_ID    => 1
+  });
 
 
-  $Triplay->{PERIOD_ALIGNMENT}   = ($Triplay->{PERIOD_ALIGNMENT} || $FORM{PERIOD_ALIGNMENT})   ? 'checked' : '';
+  $Triplay->{PERIOD_ALIGNMENT} = ($Triplay->{PERIOD_ALIGNMENT} || $FORM{PERIOD_ALIGNMENT}) ? 'checked' : '';
   $html->tpl_show(_include('triplay_tp', 'Triplay'), {
     %$Triplay,
-    #BUTTON   => $button,
     INTERNET => $internet_select,
     IPTV     => $iptv_select,
     VOIP     => $voip_select,
-    #ACTION   => $action,
-    INDEX    => $index,
+    INDEX    => $index
   });
 
   result_former({
     INPUT_DATA      => $Triplay,
     FUNCTION        => 'tp_list',
     BASE_FIELDS     => 6,
-    DEFAULT_FIELDS  => "ID, NAME, MONTH_FEE, INTERNET_NAME, IPTV_NAME, VOIP_NAME, COMMENT",
+    DEFAULT_FIELDS  => 'ID,NAME,MONTH_FEE,DAY_FEE,INTERNET_NAME,IPTV_NAME,VOIP_NAME,COMMENT',
     FUNCTION_FIELDS => 'change, del',
     EXT_TITLES      => {
-      'id'            => 'ID',
-      'name'          => $lang{NAME},
-      'internet_name' => $lang{INTERNET},
-      'iptv_name'     => $lang{TV},
-      'voip_name'     => $lang{VOIP},
-      'month_fee'     => $lang{MONTH_FEE},
-      'comment'       => $lang{COMMENTS}
+      id            => 'ID',
+      name          => $lang{NAME},
+      internet_name => $lang{INTERNET},
+      iptv_name     => $lang{TV},
+      voip_name     => $lang{VOIP},
+      month_fee     => $lang{MONTH_FEE},
+      day_fee       => $lang{DAY_FEE},
+      comment       => $lang{COMMENTS}
     },
     TABLE           => {
       width   => '100%',
       caption => $lang{TARIF_PLANS},
       qs      => $pages_qs,
       ID      => 'TRIPLAY_TP',
-      header  => '',
       EXPORT  => 1,
       MENU    => "$lang{ADD}:index=" . get_function_index('triplay_tp') . ':add' . ";",
     },

@@ -17,6 +17,7 @@ use warnings FATAL => 'all';
 use Abills::Base qw(_bp in_array int2byte convert);
 use Abills::Filters qw(bin2mac bin2hex _mac_former);
 use Equipment::Misc qw(equipment_get_telnet_tpl);
+use JSON qw(decode_json);
 
 our (
   %lang,
@@ -26,6 +27,8 @@ our (
   $base_dir,
   %ONU_STATUS_TEXT_CODES
 );
+
+my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
 
 my %type_name = (
   1  => 'epon_olt_virtualIfBER', # gpon on C300
@@ -463,579 +466,25 @@ sub _zte_onu_list2 { #TODO: delete?
 sub _zte {
   my ($attr) = @_;
 
-  my %snmp = (
-    epon            => {
-      'ONU_MAC_SERIAL' => {
-        NAME   => 'Mac/Serial',
-        OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.4',
-        PARSER => 'bin2mac'
-      },
-      'ONU_STATUS'     => {
-        NAME   => 'STATUS',
-        OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.17',
-      },
-      'ONU_TX_POWER'   => {
-        NAME   => 'ONU_TX_POWER',
-        OIDS   => '', #.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.4
-        PARSER => '_zte_convert_epon_power'
-      },
-      'ONU_RX_POWER'   => {
-        NAME   => 'ONU_RX_POWER',
-        OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.5',
-        PARSER => '_zte_convert_epon_power'
-      },
-      'OLT_RX_POWER'   => {
-        NAME   => 'OLT_RX_POWER',
-        OIDS   => '',
-      },
-      'ONU_DESC'       => {
-        NAME   => 'DESCRIBE',
-        OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.1',
-        PARSER => '_zte_convert_epon_description'
-      },
-      'ONU_IN_BYTE'    => {
-        NAME => 'ONU_IN_BYTE',
-        #OIDS   => '.1.3.6.1.4.1.3902.1015.1010.5.5.1.2',
-      },
-      'ONU_OUT_BYTE'   => {
-        NAME => 'ONU_OUT_BYTE',
-        #OIDS   => '.1.3.6.1.4.1.3902.1015.1010.5.5.1.2',
-      },
-      'TEMPERATURE'    => {
-        NAME   => 'TEMPERATURE',
-        OIDS   => '', #.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.1
-        PARSER => '_zte_convert_epon_temperature'
-      },
-      'VLAN'           => {
-        NAME   => 'VLAN',
-        OIDS   => '1.3.6.1.4.1.3902.1015.1010.1.1.1.10.2.1.1',
-        PARSER => '_zte_convert_eth_vlan',
-        WALK   => 1
-      },
-      'reset'          => {
-        NAME        => '',
-        OIDS        => '.1.3.6.1.4.1.3902.1015.1010.1.1.2.1.1.1', #tested on ZTE C220, system description: ZXR10 ROS Version V4.8.01A ZXPON C220 Software, Version V2.8.01A.21
-        RESET_VALUE => 1,
-        PARSER      => ''
-      },
-      main_onu_info    => {
-        'VLAN'           => {
-          NAME   => 'VLAN',
-          OIDS   => '1.3.6.1.4.1.3902.1015.1010.1.1.1.10.2.1.1',
-          PARSER => '_zte_convert_eth_vlan',
-          WALK   => 1
-        },
-        'HARD_VERSION' => {
-          NAME   => 'Hard_Version',
-          OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.5',
-          PARSER => ''
-        },
-        'SOFT_VERSION' => {
-          NAME   => 'Soft_Version',
-          OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.6',
-          PARSER => ''
-        },
-        'MODEL'        => {
-          NAME   => 'VERSION',
-          OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.5',
-          PARSER => ''
-        },
-        'VENDOR'       => {
-          NAME   => 'VENDOR',
-          OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.2',
-          PARSER => ''
-        },
-        'VOLTAGE'      => {
-          NAME   => 'VOLTAGE',
-          OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.2',
-          PARSER => '_zte_convert_epon_voltage'
-        },
-        'DISTANCE'     => {
-          NAME   => 'DISTANCE',
-          OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.2.1.1.10',
-          PARSER => '_zte_convert_distance',
-        },
-        'TEMPERATURE'  => {
-          NAME   => 'TEMPERATURE',
-          OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.1',
-          PARSER => '_zte_convert_epon_temperature'
-        },
-        'ONU_TX_POWER' => {
-          NAME   => 'ONU_TX_POWER',
-          OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.4',
-          PARSER => '_zte_convert_epon_power'
-        },
-        'MAC_BEHIND_ONU' => {
-          NAME                        => 'MAC_BEHIND_ONU',
-          USE_MAC_LOG                 => 1,
-          MAC_LOG_SEARCH_BY_PORT_NAME => 'no_pon_type'
-        },
-        'ONU_PORTS_STATUS' => {
-          NAME   => 'ONU_PORTS_STATUS',
-          OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.5.1.2 ',
-          PARSER => '_zte_eth_status',
-          WALK   => 1
-        }
-      }
-    },
-    gpon            => {
-      'ONU_MAC_SERIAL' => {
-        NAME   => 'Mac/Serial',
-        OIDS   => '.1.3.6.1.4.1.3902.1012.3.28.1.1.5',
-        PARSER => 'serial2mac'
-      },
-      'ONU_STATUS'     => {
-        NAME => 'STATUS',
-        OIDS => '.1.3.6.1.4.1.3902.1012.3.28.2.1.4',
-      },
-      'ONU_TX_POWER'   => {
-        NAME      => 'ONU_TX_POWER',
-        OIDS      => '', #.1.3.6.1.4.1.3902.1012.3.50.12.1.1.14
-        PARSER    => '_zte_convert_power',
-        ADD_2_OID => '.1'
-      }, # tx_power = tx_power * 0.002 - 30.0;
-      'ONU_RX_POWER'   => {
-        NAME      => 'ONU_RX_POWER',
-        OIDS      => '.1.3.6.1.4.1.3902.1012.3.50.12.1.1.10',
-        PARSER    => '_zte_convert_power',
-        ADD_2_OID => '.1'
-      }, # rx_power = rx_power * 0.002 - 30.0;
-      'OLT_RX_POWER'   => {
-        NAME   => 'OLT_RX_POWER',
-        OIDS   => '.1.3.6.1.4.1.3902.1015.1010.11.2.1.2', #enabled only for c320
-        PARSER => '_zte_convert_olt_power'
-      }, # olt_rx_power = olt_rx_power * 0.001;
-      'ONU_DESC'       => {
-        NAME   => 'DESCRIBE',
-        OIDS   => '.1.3.6.1.4.1.3902.1012.3.28.1.1.3',
-        PARSER => '_zte_convert_description'
-      },
-      'ONU_IN_BYTE'    => {
-        NAME => 'ONU_IN_BYTE',
-        #OIDS   => '.1.3.6.1.4.1.3902.1015.1010.5.5.1.3',
-      },
-      'ONU_OUT_BYTE'   => {
-        NAME   => 'ONU_OUT_BYTE',
-        #OIDS   => '.1.3.6.1.4.1.3902.1015.1010.5.5.1.2',
-        PARSER => ''
-      },
-      'TEMPERATURE'    => {
-        NAME      => 'TEMPERATURE',
-        OIDS      => '', #.1.3.6.1.4.1.3902.1012.3.50.12.1.1.19
-        PARSER    => '_zte_convert_temperature',
-        ADD_2_OID => '.1'
-      },
-      'reset'          => { #there are different OID on firmware V2
-        NAME        => '',
-        OIDS        => '1.3.6.1.4.1.3902.1012.3.27.1.1.3',
-        #'1.3.6.1.4.1.3902.1012.3.27.1.2.1.1'
-        #'.1.3.6.1.4.1.3902.1012.3.50.11.3.1.1',
-        RESET_VALUE => 1,
-        PARSER      => ''
-      },
-      'catv_port_manage' => {
-        NAME               => '',
-        OIDS               => '.1.3.6.1.4.1.3902.1012.3.50.19.1.1.1',
-        ENABLE_VALUE       => 1,
-        DISABLE_VALUE      => 2,
-        USING_CATV_PORT_ID => 1,
-        PARSER             => ''
-      },
-      'disable_onu_manage' => {
-        OIDS               => '1.3.6.1.4.1.3902.1012.3.28.1.1.17',
-        SKIP               => 1,
-        ENABLE_VALUE       => 1,
-        DISABLE_VALUE      => 2,
-      },
-      'LLID'           => {
-        NAME   => 'LLID',
-        OIDS   => '.1.3.6.1.4.1.3902.1012.3.28.3.1.8',
-        PARSER => ''
-      },
-      main_onu_info    => {
-        'VERSION_ID'   => {
-          NAME   => 'VERSION',
-          OIDS   => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.2',
-          PARSER => ''
-        },
-        'VENDOR'    => {
-          NAME   => 'VENDOR',
-          OIDS   => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.1',
-          PARSER => ''
-        },
-        'EQUIPMENT_ID' => {
-          NAME   => 'Equipment_ID',
-          OIDS   => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.9',
-          PARSER => ''
-        },
-        'VOLTAGE'      => {
-          NAME      => 'VOLTAGE',
-          OIDS      => '.1.3.6.1.4.1.3902.1012.3.50.12.1.1.17',
-          PARSER    => '_zte_convert_voltage',
-          ADD_2_OID => '.1'
-        },
-        'DISTANCE'     => {
-          NAME   => 'DISTANCE',
-          OIDS   => '.1.3.6.1.4.1.3902.1012.3.11.4.1.2',
-          PARSER => '_zte_convert_distance'
-        },
-        'TEMPERATURE'  => {
-          NAME      => 'TEMPERATURE',
-          OIDS      => '.1.3.6.1.4.1.3902.1012.3.50.12.1.1.19',
-          PARSER    => '_zte_convert_temperature',
-          ADD_2_OID => '.1'
-        },
-        'ONU_TX_POWER' => {
-          NAME      => 'ONU_TX_POWER',
-          OIDS      => '.1.3.6.1.4.1.3902.1012.3.50.12.1.1.14',
-          PARSER    => '_zte_convert_power',
-          ADD_2_OID => '.1'
-        },
-        'ONU_NAME'       => {
-          NAME   => 'Onu name',
-          OIDS   => '.1.3.6.1.4.1.3902.1012.3.28.1.1.2',
-          PARSER => '_zte_convert_description'
-        },
-        'CATV_PORTS_STATUS' => {
-          NAME   => 'CATV_PORTS_STATUS',
-          OIDS   => '.1.3.6.1.4.1.3902.1012.3.50.19.1.1.2',
-          WALK   => 1
-        },
-        'CATV_PORTS_COUNT' => {
-          NAME   => 'CATV_PORTS_COUNT',
-          OIDS   => '.1.3.6.1.4.1.3902.1012.3.50.11.14.1.14',
-        },
-        'CATV_PORTS_ADMIN_STATUS' => {
-          NAME   => 'CATV_PORTS_ADMIN_STATUS',
-          OIDS   => '1.3.6.1.4.1.3902.1012.3.50.19.1.1.1',
-          PARSER => '_zte_convert_catv_port_admin_status',
-          WALK   => 1
-        },
-        'VIDEO_RX_POWER' => {
-          NAME   => 'VIDEO_RX_POWER',
-          OIDS   => '.1.3.6.1.4.1.3902.1012.3.50.19.3.1.8',
-          PARSER => '_zte_convert_video_power'
-        },
-        'MAC_BEHIND_ONU' => {
-          NAME                        => 'MAC_BEHIND_ONU',
-          USE_MAC_LOG                 => 1,
-          MAC_LOG_SEARCH_BY_PORT_NAME => 'no_pon_type'
-        },
-        'ONU_LAST_DOWN_CAUSE' => {
-          NAME   => 'ONU_LAST_DOWN_CAUSE',
-          OIDS   => '1.3.6.1.4.1.3902.1012.3.28.2.1.7',
-          PARSER => '_zte_last_down_cause'
-        },
-        'ETH_ADMIN_STATE'         => {
-          NAME   => 'ETH_ADMIN_STATE',
-          OIDS   => '1.3.6.1.4.1.3902.1012.3.50.14.1.1.5',
-          PARSER => '_zte_convert_admin_state',
-          WALK   => '1'
-        },
-        'ONU_PORTS_STATUS'        => {
-          NAME   => 'ONU_PORTS_STATUS',
-          OIDS   => '1.3.6.1.4.1.3902.1012.3.50.14.1.1.6',
-          PARSER => '_zte_convert_state',
-          WALK   => '1'
-        },
-        'ETH_SPEED'               => {
-          NAME   => 'ETH_SPEED',
-          OIDS   => '1.3.6.1.4.1.3902.1012.3.50.14.1.1.7',
-          PARSER => '_zte_convert_speed',
-          WALK   => '1'
-        },
-      },
-    },
-    #  1015 -  EPON unreg 220 epon
-    #  Unregister epon count
-    #  OIDS   => '.1.3.6.1.4.1.3902.1012.3.13.1.1.14',
-    unregister      => {
-      UNREGISTER => {
-        NAME   => 'UNREGISTER',
-        OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.7.14.1',
-        TYPE   => 'epon',
-        PARSER => '',
-        WALK   => '1'
-      }
-    },
-    #1012. - GPON 320/220
-    unregister_gpon => {
-      UNREGISTER       => {
-        NAME   => 'UNREGISTER',
-        OIDS   => '.1.3.6.1.4.1.3902.1012.3.13.3.1.2',
-        TYPE   => 'gpon',
-        PARSER => '',
-        WALK   => '1'
-      },
-      sn               => {
-        NAME   => 'SN',
-        OIDS   => '.1.3.6.1.4.1.3902.1012.3.13.3.1.2',
-        PARSER => '',
-        WALK   => '1'
-      },
-      mac              => {
-        NAME   => 'MAC',
-        OIDS   => '.1.3.6.1.4.1.3902.1012.3.13.3.1.3',
-        PARSER => '',
-        WALK   => '1'
-      },
-      # Online time
-      RTD              => {
-        OIDS   => '.1.3.6.1.4.1.3902.1012.3.13.3.1.4',
-        WALK   => '1'
-      },
-      ONU_PASSWORD     => {
-        OIDS   => '.1.3.6.1.4.1.3902.1012.3.13.3.1.5',
-        WALK   => '1'
-      },
-      #      ??? RTD \ Online time
-      #        .1.3.6.1.4.1.3902.1012.3.13.3.1.6.268501504.1=0
-      #      ???
-      #    .1.3.6.1.4.1.3902.1012.3.13.3.1.7.268501504.1=07_e1_02_09_0e_16_28_00
-      #      LOID
-      #        .1.3.6.1.4.1.3902.1012.3.13.3.1.8.268501504.1="C4C9EC01012F"
-      #    LOID password
-      #        .1.3.6.1.4.1.3902.1012.3.13.3.1.9.268501504.1="C4C9EC01012F"
-      ONU_TYPE         => {
-        NAME => 'ONU_TYPE',
-        OIDS => '.1.3.6.1.4.1.3902.1012.3.13.3.1.10',
-        WALK => '1'
-      },
-      SOFTWARE_VERSION => {
-        NAME => 'SOFTWARE_VERSION',
-        OIDS => '.1.3.6.1.4.1.3902.1012.3.13.3.1.11',
-        WALK => '1'
-      }
-
-      #    'reg_onu_count'   => '.1.3.6.1.4.1.3902.1012.3.13.1.1.13', #
-      #    'unreg_onu_count' => '.1.3.6.1.4.1.3902.1012.3.13.1.1.14', #
-      #    'onu_type'    => '.1.3.6.1.4.1.3902.1012.3.28.1.1.1',
-      #    'mac_onu'     => '.1.3.6.1.4.1.3902.1012.3.28.1.1.5', #'.1.3.6.1.4.1.3902.1012.3.28.1.1.5', #'.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.7',
-      #    'onu_vlan'    => '1.3.6.1.4.1.3902.1012.3.50.13.3.1.1',
-      #    'serial'      => '.1.3.6.1.4.1.3902.1012.3.28.1.1.5', #'.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.7',
-      #    'onustatus'   => '.1.3.6.1.4.1.3902.1012.3.28.2.1.4',
-      #    'num'         => '.1.3.6.1.4.1.3902.1012.3.28.3.1.8', #lld
-      #    'onu_model'   => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.9',
-      #    'cur_tx'      => '.1.3.6.1.4.1.3902.1015.1010.11.2.1.2', # lazerpower
-      #    'epon_n'      => '.1.3.6.1.4.1.3902.1012.3.13.1.1.1',
-      #    'onu_distance'=> '.1.3.6.1.4.1.3902.1012.3.11.4.1.2',
-      #    'onu_Reset'   => '.1.3.6.1.4.1.3320.101.10.1.1.29',
-      #    'onu_load'    => '.1.3.6.1.4.1.3902.1012.3.28.2.1.5',
-      #    'onu_uptime'  => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.20',
-      #    'byte_in'     => '.1.3.6.1.4.1.3902.1012.3.28.6.1.5'
-      #.1.3.6.1.4.1.3902.1012.3.13.1.1.1 - gpon port descr
-      #.1.3.6.1.4.1.3902.1015.1010.1.7.16.1.1 - epon port descr
-      #.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.7 - MAC-адреса ОНУ
-      #.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.8 - !!! MAC-адреса ОНУ
-      #.1.3.6.1.4.1.3902.1015.1010.1.2.1.1.10 - расстояние до ОНУ
-      #.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.5.ID - уровень сигнала (только через snmpget)
-      #.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.5 - модель ОНУ
-      #.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.2 - производитель ОНУ
-      #.1.3.6.1.4.1.3902.1015.1010.1.1.1.19.1.1 - Vlan
-    },
-    "FDB_OID"       => ".1.3.6.1.4.1.3902.1015.6.1.3.1.5.1",
-  );
-
-  if ($attr->{MODEL} && $attr->{MODEL} !~ /C320/i) {
-    delete $snmp{gpon}->{OLT_RX_POWER};
+  if ($attr->{MODEL} && $attr->{MODEL} =~ /^C320/) {
+    return _zte_c320($attr);
   }
 
-  if ($attr->{MODEL} && $attr->{MODEL} =~ /^C6/i) {
-    $snmp{unregister_gpon} = {
-      UNREGISTER       => {
-        NAME   => 'UNREGISTER',
-        OIDS   => '1.3.6.1.4.1.3902.1082.500.2.2.11.2.1.2',
-        TYPE   => 'gpon',
-        PARSER => '',
-        WALK   => '1'
-      },
-      sn               => {
-        NAME   => 'SN',
-        OIDS   => '1.3.6.1.4.1.3902.1082.500.2.2.11.2.1.2',
-        PARSER => '',
-        WALK   => '1'
-      },
-      mac              => {
-        NAME   => 'MAC',
-        OIDS   => '1.3.6.1.4.1.3902.1082.500.2.2.11.2.1.6',
-        PARSER => '',
-        WALK   => '1'
-      },
-      ONU_PASSWORD     => {
-        OIDS   => '1.3.6.1.4.1.3902.1082.500.2.2.11.2.1.3',
-        WALK   => '1'
-      },
-      ONU_TYPE         => {
-        NAME => 'ONU_TYPE',
-        OIDS => '1.3.6.1.4.1.3902.1082.500.2.2.11.2.1.8',
-        WALK => '1'
-      },
-      SOFTWARE_VERSION => {
-        NAME => 'SOFTWARE_VERSION',
-        OIDS => '1.3.6.1.4.1.3902.1082.500.2.2.11.2.1.10',
-        WALK => '1'
-      }
-    };
+  my $file_content = file_op({
+    FILENAME   => 'zte.snmp',
+    PATH       => $TEMPLATE_DIR,
+  });
 
-    $snmp{gpon} = {
-      'ONU_MAC_SERIAL' => {
-        NAME   => 'Mac/Serial',
-        OIDS   => '1.3.6.1.4.1.3902.1082.500.20.2.1.2.1.3',
-        PARSER => 'serial2mac'
-      },
-      'ONU_STATUS'     => {
-        NAME => 'STATUS',
-        OIDS => '1.3.6.1.4.1.3902.1082.500.20.2.1.2.1.7',
-        PARSER => '_zte_convert_status'
-      },
-      'ONU_TX_POWER'   => {
-        NAME      => 'ONU_TX_POWER',
-        OIDS      => '', #.1.3.6.1.4.1.3902.1012.3.50.12.1.1.14
-        PARSER    => '_zte_convert_power',
-        ADD_2_OID => '.1'
-      }, # tx_power = tx_power * 0.002 - 30.0;
-      'ONU_RX_POWER'   => {
-        NAME      => 'ONU_RX_POWER',
-        OIDS      => '1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.10',
-        PARSER    => '_zte_convert_power',
-        ADD_2_OID => '.1'
-      }, # rx_power = rx_power * 0.002 - 30.0;
-      'OLT_RX_POWER'   => {
-        NAME   => 'OLT_RX_POWER',
-        OIDS   => '1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.2',
-        PARSER => '_zte_convert_olt_power'
-      }, # olt_rx_power = olt_rx_power * 0.001;
-      'ONU_DESC'       => {
-        NAME   => 'DESCRIBE',
-        OIDS   => '1.3.6.1.4.1.3902.1082.500.10.2.3.3.1.3',
-        PARSER => '_zte_convert_description'
-      },
-      'reset'          => { #there are different OID on firmware V2
-        NAME        => '',
-        OIDS        => '1.3.6.1.4.1.3902.1082.500.20.2.1.10.1.1',
-        RESET_VALUE => 1,
-        PARSER      => ''
-      },
-      'catv_port_manage' => {
-        NAME               => '',
-        OIDS               => '',
-        ENABLE_VALUE       => 1,
-        DISABLE_VALUE      => 2,
-        USING_CATV_PORT_ID => 1,
-        PARSER             => ''
-      },
-      'disable_onu_manage' => {
-        OIDS               => '',
-        SKIP               => 1,
-        ENABLE_VALUE       => 1,
-        DISABLE_VALUE      => 2,
-      },
-      'LLID'           => {
-        NAME   => 'LLID',
-        OIDS   => '1.3.6.1.4.1.3902.1082.500.10.2.2.3.1.14',
-        PARSER => ''
-      },
-      main_onu_info    => {
-        'VERSION_ID'   => {
-          NAME   => 'VERSION',
-          OIDS   => '1.3.6.1.4.1.3902.1082.500.20.2.1.2.1.2',
-          PARSER => ''
-        },
-        'VENDOR'    => {
-          NAME   => 'VENDOR',
-          OIDS   => '1.3.6.1.4.1.3902.1082.500.20.2.1.2.1.1',
-          PARSER => ''
-        },
-        'EQUIPMENT_ID' => {
-          NAME   => 'Equipment_ID',
-          OIDS   => '.1.3.6.1.4.1.3902.1082.500.20.2.1.2.1.8',
-          PARSER => ''
-        },
-        'VOLTAGE'      => {
-          NAME      => 'VOLTAGE',
-          OIDS      => '.1.3.6.1.4.1.3902.1012.3.50.12.1.1.17',
-          PARSER    => '_zte_convert_voltage',
-          ADD_2_OID => '.1'
-        },
-        'DISTANCE'     => {
-          NAME   => 'DISTANCE',
-          OIDS   => '.1.3.6.1.4.1.3902.1082.500.10.2.3.10.1.2',
-          PARSER => '_zte_convert_distance'
-        },
-        'TEMPERATURE'  => {
-          NAME      => 'TEMPERATURE',
-          OIDS      => '',
-          PARSER    => '_zte_convert_temperature',
-          ADD_2_OID => '.1'
-        },
-        'ONU_TX_POWER' => {
-          NAME      => 'ONU_TX_POWER',
-          OIDS      => '',
-          PARSER    => '_zte_convert_power',
-          ADD_2_OID => '.1'
-        },
-        'ONU_NAME'       => {
-          NAME   => 'Onu name',
-          OIDS   => '',
-          PARSER => '_zte_convert_description'
-        },
-        'ETH_DUPLEX'              => {
-          NAME   => 'ETH_DUPLEX',
-          OIDS   => '1.3.6.1.4.1.3902.1082.500.20.2.3.2.1.7',
-          PARSER => '_zte_convert_duplex',
-          WALK   => '1'
-        },
-        'ETH_ADMIN_STATE'         => {
-          NAME   => 'ETH_ADMIN_STATE',
-          OIDS   => '1.3.6.1.4.1.3902.1082.500.20.2.3.2.1.5',
-          PARSER => '_zte_convert_admin_state',
-          WALK   => '1'
-        },
-        'ONU_PORTS_STATUS'        => {
-          NAME   => 'ONU_PORTS_STATUS',
-          OIDS   => '1.3.6.1.4.1.3902.1082.500.20.2.3.2.1.6',
-          PARSER => '_zte_convert_state',
-          WALK   => '1'
-        },
-        'ETH_SPEED'               => {
-          NAME   => 'ETH_SPEED',
-          OIDS   => '1.3.6.1.4.1.3902.1082.500.20.2.3.2.1.7',
-          PARSER => '_zte_convert_speed',
-          WALK   => '1'
-        },
-        'CATV_PORTS_STATUS' => {
-          NAME   => 'CATV_PORTS_STATUS',
-          OIDS   => '',
-          WALK   => 1
-        },
-        'CATV_PORTS_COUNT' => {
-          NAME   => 'CATV_PORTS_COUNT',
-          OIDS   => '',
-        },
-        'CATV_PORTS_ADMIN_STATUS' => {
-          NAME   => 'CATV_PORTS_ADMIN_STATUS',
-          OIDS   => '',
-          PARSER => '_zte_convert_catv_port_admin_status',
-          WALK   => 1
-        },
-        'VIDEO_RX_POWER' => {
-          NAME   => 'VIDEO_RX_POWER',
-          OIDS   => '',
-          PARSER => '_zte_convert_video_power'
-        },
-        'MAC_BEHIND_ONU' => {
-          NAME                        => 'MAC_BEHIND_ONU',
-          USE_MAC_LOG                 => 1,
-          MAC_LOG_SEARCH_BY_PORT_NAME => 'no_pon_type'
-        }
-      }
-    }
-#reboot - 1.3.6.1.4.1.3902.1082.500.20.2.1.10.1.1
-#LLID - 1.3.6.1.4.1.3902.1082.500.10.2.2.3.1.14
+  $file_content =~ s#//.*$##gm;
+
+  my $snmp = decode_json($file_content);
+
+  if ($attr->{MODEL} && $attr->{MODEL} !~ /C320/i) {
+    delete $snmp->{gpon}->{OLT_RX_POWER};
   }
 
   if ($attr->{MODEL} && $attr->{MODEL} =~ /_V2$|C300/i) {
-    $snmp{gpon}->{reset} = {
+    $snmp->{gpon}->{reset} = {
       NAME        => '',
       OIDS        => '1.3.6.1.4.1.3902.1082.500.20.2.1.10.1.1',
       RESET_VALUE => 1,
@@ -1043,11 +492,20 @@ sub _zte {
     }
   }
 
-  if ($attr->{TYPE}) {
-    return $snmp{$attr->{TYPE}};
+  if ($attr->{MODEL} && $attr->{MODEL} =~ /^C6/i) {
+    $file_content = file_op({
+      FILENAME   => 'zte_c6xx.snmp',
+      PATH       => $TEMPLATE_DIR,
+    });
+
+    $file_content =~ s#//.*$##gm;
+    $snmp = decode_json($file_content);
   }
 
-  return \%snmp;
+  if ($attr->{TYPE}) {
+    return $snmp->{$attr->{TYPE}};
+  }
+  return $snmp;
 }
 #**********************************************************
 =head2 _zte_convert_admin_state();
@@ -1928,7 +1386,7 @@ sub _zte_get_fdb {
     if ($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C6/i) {
       $_oid = '.1.3.6.1.4.1.3902.1082.40.10.2.1.5.1.1';
     }
-    elsif($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C320|C300/i) {
+    elsif($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C320_|C300/i) {
       $_oid = '.1.3.6.1.4.1.3902.1082.40.10.2.1.2.1.50.1';
     }
   }
@@ -1950,7 +1408,7 @@ sub _zte_get_fdb {
       ($vlan, $port, $port_onu, $mac) = ($1, $2, $3, $4);
       $mac = _mac_former($mac);
     }
-    elsif ($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C320|^C300/i) {
+    elsif ($attr->{NAS_INFO}->{MODEL_NAME} =~ /^C320_|^C300/i) {
       $line =~ /(\d+\.\d+)\.(\d+)\.(\d+\.\d+\.\d+\.\d+\.\d+\.\d+):/;
       ($onu_ether, $vlan, $mac) = ($1, $2, $3);
       $mac = _mac_former($mac);
@@ -1981,7 +1439,7 @@ sub _zte_get_fdb {
     }
     elsif($onu_info) {
       if ($onu_info->{type} == 4 || $onu_info->{type} == 10 || $onu_info->{type} == 1) {
-        $port_name = "$onu_info->{shelf}/$onu_info->{slot}/$onu_info->{olt}:$onu_info->{onu}";
+        $port_name = "$onu_info->{shelf}/$onu_info->{slot}/$onu_info->{olt}:". ($onu_info->{onu} || q{});
       }
       else {
         $port_name = "--$onu_info->{type}--" . ($onu_info->{shelf} || 0) . '/' . ($onu_info->{slot} || 0) . '/' . ($onu_info->{olt} || 0);
@@ -2424,4 +1882,28 @@ sub _index2port {
   return \%onu_info;
 }
 
+
+#**********************************************************
+=head2 _zte_c320($attr) - for c320
+
+
+=cut
+#**********************************************************
+sub _zte_c320 {
+  my ($attr) = @_;
+
+  my $file_content = file_op({
+    FILENAME   => 'zte_c320.snmp',
+    PATH       => $TEMPLATE_DIR,
+  });
+  $file_content =~ s#//.*$##gm;
+
+  my $snmp = decode_json($file_content);
+
+  if ($attr->{TYPE}) {
+    return $snmp->{$attr->{TYPE}};
+  }
+
+  return $snmp;
+}
 1

@@ -6,7 +6,7 @@
 
 <div class='login-box card card-outline card-primary' style='margin: 7% auto;'>
   <div class='mb-0 login-logo card-header text-center'>
-    <b><a href='/' class='h1'><img src=''><span style='color: red;'>A</span>BillS</a></b>
+    <b><a href='/?login_page=1' class='h1'><img src=''><span style='color: red;'>A</span>BillS</a></b>
   </div>
   <div class='card-body'>
     <p class='login-box-msg h5 text-muted'>_{CHANGE_PASSWD}_</p>

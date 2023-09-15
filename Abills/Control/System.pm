@@ -57,10 +57,10 @@ sub form_status {
     $FORM{GET_FEES} = 0   if(!$FORM{GET_FEES});
     $Service->status_change({%FORM});
     if (!$Service->{errno}) {
-      $html->message('info', $lang{CHANGED}, "$lang{CHANGED} ". ($FORM{ID} || q{}));
+      $html->message('info', $lang{CHANGED}, "$lang{CHANGED} ID=". ($FORM{ID} || q{}));
     }
   }
-  elsif ($FORM{chg}) {
+  elsif (defined($FORM{chg})) {
     $Service->status_info({ ID => $FORM{chg} });
     $FORM{add_form} = 1;
 
@@ -74,8 +74,11 @@ sub form_status {
   }
   elsif (defined($FORM{del}) && $FORM{COMMENTS}) {
     $Service->status_del({ ID => $FORM{del} });
-    if (!$Service->{errno}) {
-      $html->message('info', $lang{DELETED}, "$lang{DELETED} $FORM{del}");
+    if (!$Service->{errno} && $FORM{del} ne '') {
+      $html->message('info', $lang{DELETED}, "ID=$FORM{del}");
+    }
+    else {
+      $html->message('danger', $lang{NOT_DELETED}, "");
     }
   }
 
@@ -136,7 +139,7 @@ sub form_status {
 }
 
 #**********************************************************
-=head2 form_user_status() - service status listing
+=head2 form_user_status() - user status listing
 
 
 =cut
@@ -145,8 +148,6 @@ sub form_user_status {
 
   require Users;
   Users->import();
-  
-  # Abills::Base::_bp('', 'dddd', {HEADER => 1});
 
   my $User = Users->new($db, $admin, \%conf);
 
@@ -157,7 +158,7 @@ sub form_user_status {
     $FORM{COLOR} =~ s/#// if($FORM{COLOR});
     $User->user_status_add({%FORM});
     if (!$User->{errno}) {
-      $html->message('info', $lang{ADDED}, "$lang{ADDED}");
+      $html->message('info', $lang{ADDED}, "ID=". ($FORM{ID} || 0));
     }
   }
   elsif ($FORM{change}) {
@@ -165,24 +166,24 @@ sub form_user_status {
     $FORM{GET_FEES} = 0   if(!$FORM{GET_FEES});
     $User->user_status_change({%FORM});
     if (!$User->{errno}) {
-      $html->message('info', $lang{CHANGED}, "$lang{CHANGED} ". ($FORM{ID} || q{}));
+      $html->message('info', $lang{CHANGED}, "$lang{EXECUTED} $lang{FOR} ID=". ($FORM{ID} || 0));
     }
   }
-  elsif ($FORM{chg}) {
+  elsif (defined($FORM{chg})) {
     $User->user_status_info({ ID => $FORM{chg} });
-    $FORM{add_form} = 1;
-
     if (!$User->{errno}) {
       $User->{ACTION}     = 'change';
       $User->{LNG_ACTION} = $lang{CHANGE};
-      $FORM{add_form}=1;
-      $html->message('info', $lang{CHANGED}, "$lang{CHANGING} $User->{ID}");
+      $FORM{add_form} = 1;
     }
   }
   elsif (defined($FORM{del}) && $FORM{COMMENTS}) {
     $User->user_status_del({ ID => $FORM{del} });
-    if (!$User->{errno}) {
-      $html->message('info', $lang{DELETED}, "$lang{DELETED} $FORM{del}");
+    if (!$User->{errno} && $FORM{del} ne '') {
+      $html->message('info', $lang{DELETED}, "ID=$FORM{del}");
+    }
+    else {
+      $html->message('danger', $lang{NOT_DELETED}, "");
     }
   }
 
@@ -255,7 +256,7 @@ sub form_billd_plugins {
       $html->message('info', $lang{CHANGED}, "$lang{CHANGED} ". ($Billd->{ID} || q{}));
     }
   }
-  elsif ($FORM{chg}) {
+  elsif (defined($FORM{chg})) {
     $Billd->info({ ID => $FORM{chg} });
 
     if (!$Billd->{errno}) {
@@ -399,10 +400,18 @@ sub form_billd_plugins {
   return 1;
 }
 
+#**********************************************************
+=head2 form_templates_pdf_edit() - build plugin organizer
+
+=cut
+#**********************************************************
 sub form_templates_pdf_edit {
   my $file = $FORM{file};
 
-  return 0 unless ($file);
+  if (! $file) {
+    $html->message('err', $lang{ERROR}, $lang{ERROR_FILE});
+    return 0
+  }
 
   my $json_docs_vars = "{}";
   if(in_array("Docs", \@MODULES)) {
@@ -448,16 +457,21 @@ sub form_templates_pdf_edit {
   my $json = JSON->new()->utf8(0);
 
   $html->tpl_show(templates('form_templates_pdf_edit'), {
-    DOCS_VARS => $json_docs_vars,
-    FILE_NAME => $file,
+    DOCS_VARS  => $json_docs_vars,
+    FILE_NAME  => $file,
     PDF_BASE64 => $pdf_base64,
-    DSC => $json->encode($dsc_parsed_data),
+    DSC        => $json->encode($dsc_parsed_data),
     SAVE_INDEX => get_function_index('form_templates_pdf_save')
   });
 
   return 1;
 }
 
+#**********************************************************
+=head2 form_templates_pdf_save() - build plugin organizer
+
+=cut
+#**********************************************************
 sub form_templates_pdf_save {
   if(!defined($FORM{FILE_NAME})) {
     print json_former({ 'status' => 400, 'text' => 'UNDEFINED_FILE_NAME'});
@@ -493,7 +507,6 @@ sub form_templates {
 
   my $sys_templates      = '../../Abills/modules';
   my $main_templates_dir = '../../Abills/main_tpls/';
-  #my $template           = '';
   my %info               = (TEMPLATE => '');
   my $main_tpl_name      = '';
 
@@ -677,20 +690,17 @@ sub form_templates {
   elsif($info{TPL_NAME} =~ /_client_menu/){
     client_menu();
   }
+
+  my $templates_modules = '';
   my @caption = sort keys %LANG;
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => $lang{TEMPLATES},
-      title_plain => [ $lang{FILE}, "$lang{SIZE} (Byte)", $lang{DATE}, $lang{DESCRIBE}, $lang{MAIN}, @caption ],
-      ID          => 'TEMPLATES_LIST'
-    }
-  );
 
   #Main templates section
-  $table->{rowcolor} = 'bg-info';
-  $table->{extra} = "colspan='" . (6 + $#caption) . "' class='small'";
-  $table->addrow("$lang{PRIMARY}: ($main_templates_dir) ");
+  my $table = $html->table({
+    width       => '100%',
+    title_plain => [ $lang{FILE}, "$lang{SIZE} (Byte)", $lang{DATE}, $lang{DESCRIBE}, $lang{MAIN}, @caption ],
+    ID          => 'TEMPLATES_LIST_MAIN'
+  });
+
   if (-d $main_templates_dir) {
     my $tpl_describe = get_tpl_describe("describe.tpls", $main_templates_dir);
     opendir my $fh, "$main_templates_dir" or die "Can't open dir '$sys_templates/main_tpls' $!\n";
@@ -741,10 +751,19 @@ sub form_templates {
     }
   }
 
+  $templates_modules .= $html->tpl_show(templates('form_template_item'), {
+    TITLE => $html->b("$lang{PRIMARY}") . " ($main_templates_dir) ",
+    TABLE => $table->show({ OUTPUT2RETURN => 1 }),
+  },{ OUTPUT2RETURN => 1 });
+
+  # Modules templates sections
   foreach my $module (sort @MODULES) {
-    $table->{rowcolor} = "active";
-    $table->{extra} = "colspan='" . (6 + $#caption) . "'";
-    $table->addrow("$module ($sys_templates/$module/templates)");
+
+    $table = $html->table({
+      width       => '100%',
+      title_plain => [ $lang{FILE}, "$lang{SIZE} (Byte)", $lang{DATE}, $lang{DESCRIBE}, $lang{MAIN}, @caption ],
+      ID          => 'TEMPLATES_LIST_MODULES',
+    });
 
     if (-d "$sys_templates/$module/templates") {
       my $tpl_describe = get_tpl_describe("describe.tpls", "$sys_templates/$module/templates/");
@@ -800,18 +819,30 @@ sub form_templates {
 
         $table->addrow(@rows);
       }
+
+
     }
+
+    $templates_modules .= $html->tpl_show(templates('form_template_item'), {
+      TITLE => $html->b($module) . " ($sys_templates/$module/templates)",
+      TABLE => $table->show({ OUTPUT2RETURN => 1 }),
+    }, { OUTPUT2RETURN => 1 });
+
   }
 
-  print $table->show();
+  my $form_template = $html->tpl_show(templates('form_template_all'), {
+    TITLE             => $lang{TEMPLATES},
+    TEMPLATES_MODULES => $templates_modules,
+  },{ OUTPUT2RETURN => 1 });
 
-  $table = $html->table(
-    {
-      width       => '600',
-      caption     => $lang{OTHER},
-      title_plain => [ "FILE", "$lang{SIZE} (Byte)", "$lang{DATE}", "$lang{DESCRIBE}", "-" ],
-    }
-  );
+  print $form_template;
+
+  # OTHER
+  $table = $html->table({
+    width       => '600',
+    caption     => $lang{OTHER},
+    title_plain => [ "FILE", "$lang{SIZE} (Byte)", "$lang{DATE}", "$lang{DESCRIBE}", "-" ],
+  });
 
   if (-d "$conf{TPL_DIR}") {
     opendir my $fh, "$conf{TPL_DIR}" or die "Can't open dir '$conf{TPL_DIR}' $!\n";
@@ -911,14 +942,12 @@ sub show_tpl_info {
   my ($filename, $path) = @_;
 
   $filename =~ s/\.tpl$//;
-  my $table = $html->table(
-    {
-      width       => '600',
-      caption     => "$lang{INFO} - '$filename'",
-      title_plain => [ "$lang{NAME}", "$lang{DESCRIBE}", "$lang{PARAMS}" ],
-      ID          => 'TPL_INFO'
-    }
-  );
+  my $table = $html->table({
+    width       => '600',
+    caption     => "$lang{INFO} - '$filename'",
+    title_plain => [ $lang{NAME}, $lang{DESCRIBE}, $lang{PARAMS} ],
+    ID          => 'TPL_INFO'
+  });
 
   my $tpl_params = tpl_describe("$filename", $path);
 
@@ -1095,15 +1124,16 @@ sub form_dictionary {
   my %sub_dictionary = ();
 
   if($sub_dict){
-    $rows = file_op( {
-      FILENAME     => $sub_dict . '.pl',
+    $rows = file_op({
+      FILENAME   => $sub_dict . '.pl',
       PATH       => $libpath . '/language/',
       SKIP_CHECK => 1,
       ROWS       => 1
-    } );
+    });
 
-    if($rows) {
+    if ($rows) {
       foreach my $line (@{$rows}) {
+        $line =~ s/ = /=/ if ($line =~ / = /g);
         my ($name, $value) = split(/=/, $line, 2);
         $name =~ s/ //ig;
         $name =~ s/^our//;
@@ -1117,20 +1147,18 @@ sub form_dictionary {
     }
   }
 
-  $table = $html->table(
-    {
-      width       => '600',
-      caption     => $lang{DICTIONARY},
-      title_plain => [ "$lang{NAME}", "$lang{VALUE}", "-" ],
-      ID          => 'FORM_DICTIONARY'
-    }
-  );
+  $table = $html->table({
+    width       => '600',
+    caption     => $lang{DICTIONARY},
+    title_plain => [ "$lang{NAME}", "$lang{VALUE}", "-" ],
+    ID          => 'FORM_DICTIONARY'
+  });
 
   foreach my $k (sort keys %main_dictionary) {
     my $v  = $main_dictionary{$k};
     my $v2 = '';
 
-    if($k eq '1') {
+    if($k eq '1' || $k eq '1;') {
       next;
     }
 
@@ -1154,16 +1182,14 @@ sub form_dictionary {
   $table->{rowcolor} = 'active';
   $table->addrow("$lang{TOTAL}", "$i", '');
 
-  print $html->form_main(
-    {
-      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-      HIDDEN  => {
-        index    => "$index",
-        SUB_DICT => ($sub_dict || '')
-      },
-      SUBMIT => { change => "$lang{CHANGE}" }
-    }
-  );
+  print $html->form_main({
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => {
+      index    => "$index",
+      SUB_DICT => ($sub_dict || '')
+    },
+    SUBMIT  => { change => "$lang{CHANGE}" }
+  });
 
   return 1;
 }
@@ -1217,14 +1243,11 @@ sub form_sql_backup {
     $html->message('info', $lang{INFO}, "$lang{DELETED} : $conf{BACKUP_DIR}/$FORM{del} [$status]");
   }
 
-  my $table = $html->table(
-    {
-      width       => '600',
-      caption     => "$lang{SQL_BACKUP}",
-      title_plain => [ "$lang{NAME}", $lang{DATE}, $lang{SIZE}, '-' ],
-      ID          => 'SQL_BACKUP_LIST',
-    }
-  );
+  my $table = $html->table({
+    caption     => $lang{SQL_BACKUP},
+    title_plain => [ $lang{NAME}, $lang{DATE}, $lang{SIZE}, '-' ],
+    ID          => 'SQL_BACKUP_LIST',
+  });
 
   opendir my $fh, $conf{BACKUP_DIR} or do {
     $html->message( 'err', $lang{ERROR}, "Can't open dir '$conf{BACKUP_DIR}' $!\n" );
@@ -1367,28 +1390,23 @@ sub form_holidays {
   Tariffs->import();
   my $holidays = Tariffs->new($db, \%conf, $admin);
 
-  #my %holiday = ();
   if($FORM{action} && $FORM{action} eq 'add'){
-    $holidays->holidays_add(
-      {
-        DAY      => "$FORM{month}-$FORM{DAY}",
-        FILE     => $FORM{FILE_SELECT},
-        DESCR    => $FORM{COMMENTS}
-      }
-    );
+    $holidays->holidays_add({
+      DAY      => "$FORM{month}-$FORM{DAY}",
+      FILE     => $FORM{FILE_SELECT},
+      DESCR    => $FORM{COMMENTS}
+    });
 
     if (!$holidays->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{ADDED}");
     }
   }
   elsif($FORM{action} && $FORM{action} eq 'change'){
-    $holidays->holidays_change(
-      {
-        DAY      => "$FORM{month}-$FORM{DAY}",
-        FILE     => $FORM{FILE_SELECT},
-        DESCR    => $FORM{COMMENTS}
-      }
-    );
+    $holidays->holidays_change({
+      DAY      => "$FORM{month}-$FORM{DAY}",
+      FILE     => $FORM{FILE_SELECT},
+      DESCR    => $FORM{COMMENTS}
+    });
 
     if (!$holidays->{errno}) {
       $html->message('info', $lang{INFO}, $lang{CHANGED});
@@ -1418,8 +1436,7 @@ sub form_holidays {
     my ($month, $day) = split('-', $FORM{add});
     my @files_select = holiday_files_list();
     my $file_upload_link = "$SELF_URL?index=" . get_function_index('form_holidays') . "&file=1";
-    $html->tpl_show(
-          templates('form_holiday_add'),
+    $html->tpl_show(templates('form_holiday_add'),
     {
       MONTH        => $MONTHES[$month - 1],
       NUMBER_MONTH => $month,
@@ -1480,7 +1497,6 @@ sub form_holidays {
 
   _error_show($holidays);
 
-  # список праздников из таблицы
   my $list  = $holidays->holidays_list({COLS_NAME => 1});
   my $year  = $FORM{year}  || POSIX::strftime("%Y", localtime(time));
   my $month = $FORM{month} || POSIX::strftime("%m", localtime(time));
@@ -1489,20 +1505,17 @@ sub form_holidays {
   my $last_year = $year;       # год для кнопки LAST
   my $next_year = $year;       # год для кнопки NEXT
 
-  #Если следующий месяц в следующем году
   if($next_month > 12){
     $next_month = 1;
     $next_year = $year + 1;
   }
 
-  # если прошлый месяц в прошлом году
   if($last_month < 1){
     $last_month = 12;
     $last_year = $year - 1;
   }
 
   my $tyear = $year - 1900;
-
   my $curtime = POSIX::mktime(0, 1, 4, 1, ($month - 1), $tyear);
   my $cur_wday = (gmtime($curtime))[6];
 
@@ -1546,7 +1559,6 @@ sub form_holidays {
 
   print $table->show();
 
-  # таблица праздничных дней
   $table = $html->table({
     caption    => $lang{HOLIDAYS},
     width      => '500',
@@ -1593,17 +1605,15 @@ sub table_for_calendar{
   Tariffs->import();
   my $holidays = Tariffs->new($db, \%conf, $admin);
 
-  my $i       = 1;        # дни месяца для цикла
-  my $no_days = 1;        # начало календаря
+  my $i       = 1;
+  my $no_days = 1;
   my $week_row .= "<tr>";
 
-  # заполняем календарь пустыми ячейками
   while ($no_days < $attr->{CUR_WDAY}) {
     $week_row .= "<td></td>";
     $no_days++;
   }
 
-  # заполняем календарь днями
   while ($i <= $attr->{MONTH_DAYS}) {
     if (($no_days % 7) == 1) {
       $week_row .= "<tr>";
@@ -2112,13 +2122,11 @@ sub form_config {
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      caption     => 'config options',
-      width       => '600',
-      title_plain => [ "$lang{NAME}", "$lang{VALUE}", $lang{STATUS} ],
-    }
-  );
+  $table = $html->table({
+    caption     => 'config options',
+    title_plain => [ "$lang{NAME}", "$lang{VALUE}", $lang{STATUS} ],
+  });
+
   $table->addrow("Perl Version:", $], '');
 
   foreach my $k (sort keys %conf) {
@@ -2157,7 +2165,7 @@ sub form_fees_types {
       $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
     }
   }
-  elsif ($FORM{chg}) {
+  elsif (defined($FORM{chg})) {
     $Fees->fees_type_info({ ID => $FORM{chg} });
     $Fees->{ACTION}     = 'change';
     $Fees->{LNG_ACTION} = $lang{CHANGE};
@@ -2280,7 +2288,7 @@ sub form_tp_groups {
       $html->message('info', $lang{CHANGED}, "$lang{CHANGED} ");
     }
   }
-  elsif ($FORM{chg}) {
+  elsif (defined($FORM{chg})) {
     $Tariffs->tp_group_info($FORM{chg});
     if (!$Tariffs->{errno}) {
       $html->message('info', $lang{CHANGE}, "$lang{CHANGE} ");
@@ -2300,6 +2308,7 @@ sub form_tp_groups {
 
   $Tariffs->{USER_CHG_TP} = ($Tarrifs->{USER_CHG_TP}) ? 'checked' : '';
   $html->tpl_show(templates('form_tp_group'), $Tarrifs);
+
   result_former({
     INPUT_DATA      => $Tariffs,
     FUNCTION        => 'tp_group_list',
@@ -2392,15 +2401,13 @@ sub form_intervals {
     }
 
     my $list  = $tarif_plan->ti_list({ %LIST_PARAMS, COLS_NAME => 1 });
-    my $table = $html->table(
-      {
-        width      => '100%',
-        caption    => $lang{INTERVALS},
-        title      => [ '#', $lang{DAYS}, $lang{BEGIN}, $lang{END}, $lang{HOUR_TARIF}, $lang{TRAFFIC}, '-', '-', '-' ],
-        qs         => $pages_qs,
-        class      => 'table table-hover table-condensed table-striped table-bordered'
-      }
-    );
+    my $table = $html->table({
+      width      => '100%',
+      caption    => $lang{INTERVALS},
+      title      => [ '#', $lang{DAYS}, $lang{BEGIN}, $lang{END}, $lang{HOUR_TARIF}, $lang{TRAFFIC}, '-', '-', '-' ],
+      qs         => $pages_qs,
+      class      => 'table table-hover table-condensed table-striped table-bordered'
+    });
 
     my $color = "AAA000";
     foreach my $line (@$list) {
@@ -2435,14 +2442,12 @@ sub form_intervals {
         my $TI_ID = $line->{id};
 
         #Traffic tariff IN (1 Mb) Traffic tariff OUT (1 Mb) Prepaid (Mb) Speed (Kbits) Describe NETS
-        my $table2 = $html->table(
-          {
-            width       => '100%',
-            title_plain => [ "#", "$lang{TRAFIC_TARIFS} In ", "$lang{TRAFIC_TARIFS} Out ", "$lang{PREPAID} (Mb)", "$lang{SPEED} IN", "$lang{SPEED} OUT", "DESCRIBE", "NETS", "-", "-" ],
-            caption     => "$lang{TRAFIC_TARIFS}",
-            class       => 'table table-hover table-condensed table-striped table-bordered'
-          }
-        );
+        my $table2 = $html->table({
+          width       => '100%',
+          title_plain => [ "#", "$lang{TRAFIC_TARIFS} In ", "$lang{TRAFIC_TARIFS} Out ", "$lang{PREPAID} (Mb)", "$lang{SPEED} IN", "$lang{SPEED} OUT", "DESCRIBE", "NETS", "-", "-" ],
+          caption     => "$lang{TRAFIC_TARIFS}",
+          class       => 'table table-hover table-condensed table-striped table-bordered'
+        });
 
         my $list_tt = $tarif_plan->tt_list({ TI_ID => $line->{id} });
         foreach my $line2 (@$list_tt) {
@@ -2486,15 +2491,13 @@ sub form_intervals {
 
   _error_show($tarif_plan);
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      title_plain => [ $lang{DAYS}, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 ],
-      caption     => $lang{INTERVALS},
-      rowcolor    => 'odd',
-      class       => 'table table-hover table-condensed table-striped table-bordered'
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    title_plain => [ $lang{DAYS}, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 ],
+    caption     => $lang{INTERVALS},
+    rowcolor    => 'odd',
+    class       => 'table table-hover table-condensed table-striped table-bordered'
+  });
 
   for (my $i = 0 ; $i < 9 ; $i++) {
     my @hours = ();
@@ -2658,14 +2661,12 @@ sub form_prog_pathes {
 #**********************************************************
 sub admin_menu {
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => $lang{FUNCTION},
-      title_plain => [ 'ID', $lang{NAME}, $lang{FUNCTION} ],
-      ID          => 'FUNCTIONS_LIST'
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{FUNCTION},
+    title_plain => [ 'ID', $lang{NAME}, $lang{FUNCTION} ],
+    ID          => 'FUNCTIONS_LIST'
+  });
 
   my @keys = ();
   foreach my $key (keys %functions){
@@ -2782,15 +2783,13 @@ sub organization_info {
     CUSTOM    => 1
   });
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     => $html->element('i', '', { class => 'fa fa-fw fa-tags' }) . $lang{ORGANIZATION_INFO},
-      title_plain => [ $lang{TAGS}, $lang{VALUE} ],
-      ID          => 'ORGANIZATION_INFO',
-      MENU        => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $html->element('i', '', { class => 'fa fa-fw fa-tags' }) . $lang{ORGANIZATION_INFO},
+    title_plain => [ $lang{TAGS}, $lang{VALUE} ],
+    ID          => 'ORGANIZATION_INFO',
+    MENU        => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+  });
 
   foreach my $line (@$value_list) {
     $table->addrow($line->{param},
@@ -2798,7 +2797,6 @@ sub organization_info {
       $html->button($lang{CHANGE}, "index=$index&chg_form=$line->{param}&chg_form_value=$line->{value}", { class => 'change' }),
       $html->button($lang{DEL}, "index=$index&del=$line->{param}", { MESSAGE => "$lang{DEL} [$line->{param}]", class => 'del' }));
     if (!($name_form{ $line->{param} })) {
-
       $name_form{"$line->{param}"} = 1;
     }
   }
@@ -2853,7 +2851,7 @@ sub form_payment_types {
 
     $Payments->payment_type_change(\%FORM);
   }
-  elsif ($FORM{chg}) {
+  elsif (defined($FORM{chg})) {
     $info{BUTTON_LABALE} = 'change';
     $info{BUTTON_NAME}   = $lang{CHANGE};
     $info{ID}            = $FORM{chg};
@@ -2983,45 +2981,47 @@ sub info_fields_new {
     $lang{LANGUAGE},
     'Time zone',
     $lang{DATE},
-    );
+  );
   my @bool = ($lang{NO}, $lang{YES});
 
   my %TEMPLATE_ADVERTISEMENT = ();
   my $show_add_form = $FORM{add_form} || 0;
-  my $chg_list= ();
-  if ( $FORM{add} ) {
+  my $chg_list = ();
+  if ($FORM{add}) {
     if (!$FORM{SQL_FIELD}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} (SQL_FIELD)");
     }
     elsif (length($FORM{SQL_FIELD}) > 20) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} (Length > 20)");
     }
-    else{
-      $users->info_field_add(
-        {
-          POSITION     => $FORM{PRIORITY},
-          FIELD_TYPE   => $FORM{TYPE},
-          USERS_PORTAL => $FORM{ABON_PORTAL},
-          FIELD_ID     => $FORM{SQL_FIELD},
-          CAN_BE_CHANGED_BY_USER => $FORM{USER_CHG},
-          NAME         => $FORM{NAME},
-          COMPANY_ADD  => $FORM{COMPANY},
-        }
-      );
-      $Info_fields->fields_add( { %FORM } );
-      $show_add_form = !show_result( $Info_fields, $lang{ADDED} );
+    else {
+      $users->info_field_add({
+        POSITION               => $FORM{PRIORITY},
+        FIELD_TYPE             => $FORM{TYPE},
+        USERS_PORTAL           => $FORM{ABON_PORTAL},
+        FIELD_ID               => $FORM{SQL_FIELD},
+        CAN_BE_CHANGED_BY_USER => $FORM{USER_CHG},
+        NAME                   => $FORM{NAME},
+        COMPANY_ADD            => $FORM{COMPANY},
+      });
+      $Info_fields->fields_add({ %FORM });
+      $show_add_form = !show_result($Info_fields, $lang{ADDED});
     }
   }
-
-  elsif ( $FORM{change} ) {
-    $Info_fields->fields_change( { %FORM } );
-    show_result( $Info_fields, $lang{CHANGED} );
+  elsif ($FORM{change}) {
+    $Info_fields->fields_change({ %FORM });
+    show_result($Info_fields, $lang{CHANGED});
   }
-  elsif ( $FORM{chg} ) {
-    $show_add_form=1;
+  elsif ($FORM{chg}) {
+    $show_add_form = 1;
     $chg_list = $Info_fields->fields_list({ ID => $FORM{chg} });
-    $TEMPLATE_ADVERTISEMENT{READONLY} = "readonly";
-    $TEMPLATE_ADVERTISEMENT{READONLY2} = "disabled";
+    if ($chg_list->[0]) {
+      $chg_list->[0]{REQUIRED} = 'checked' if $chg_list->[0]{REQUIRED};
+      $chg_list->[0]{ABON_PORTAL} = 'checked' if $chg_list->[0]{ABON_PORTAL};
+      $chg_list->[0]{USER_CHG} = 'checked' if $chg_list->[0]{USER_CHG};
+    }
+    $TEMPLATE_ADVERTISEMENT{READONLY} = 'readonly';
+    $TEMPLATE_ADVERTISEMENT{READONLY2} = 'disabled';
     $TEMPLATE_ADVERTISEMENT{TYPE_SELECT} = $html->element('input', '', {
       readonly => 'readonly',
       type     => 'text',
@@ -3029,44 +3029,39 @@ sub info_fields_new {
       value    => ($chg_list->[0]) ? $fields_types[$chg_list->[0]->{type}] : q{},
     });
   }
-  elsif ( $FORM{del} && $FORM{COMMENTS}) {
-    my $list = $Info_fields->fields_list({ ID => $FORM{del}});
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    my $list = $Info_fields->fields_list({ ID => $FORM{del} });
     $Info_fields->fields_del($FORM{del}, COMMENTS => $FORM{COMMENTS});
     $users->info_field_del({
       FIELD_ID => $list->[0]->{SQL_FIELD},
-      SECTION  => ($list->[0]->{COMPANY} ? 'ifc' : 'ifu' ),
+      SECTION  => ($list->[0]->{COMPANY} ? 'ifc' : 'ifu'),
     });
-    show_result( $Info_fields, $lang{DELETED} );
+    show_result($Info_fields, $lang{DELETED});
   }
-  if ($Info_fields->{errno}) {
-    _error_show($Info_fields);
+  _error_show($Info_fields);
+
+  if ($show_add_form) {
+    $TEMPLATE_ADVERTISEMENT{TYPE_SELECT} //= $html->form_select('TYPE', {
+      SELECTED     => $chg_list->[0]->{type} || 0,
+      SEL_ARRAY    => \@fields_types,
+      ARRAY_NUM_ID => 1,
+      SEL_OPTIONS  => { '' => '' }
+    });
+
+    $html->tpl_show(templates('form_info_fields'), {
+      %TEMPLATE_ADVERTISEMENT,
+      %{($chg_list->[0]) ? $chg_list->[0] : {}},
+      SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
+      SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
+    });
   }
 
-  if ( $show_add_form ) {
-    $TEMPLATE_ADVERTISEMENT{TYPE_SELECT} //= $html->form_select(
-    'TYPE',
-    {
-      SELECTED      => $chg_list->[0]->{type} || 0,
-      SEL_ARRAY     => \@fields_types,
-      ARRAY_NUM_ID  => 1,
-      SEL_OPTIONS   => {"" => ""}
-    }
-    );
-    $html->tpl_show(
-      templates('form_info_fields'),
-      {
-        %TEMPLATE_ADVERTISEMENT,
-        %{ ($chg_list->[0]) ? $chg_list->[0] : {} },
-        SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
-        SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
-      }
-    );
-  }
   my @header_arr = (
     "$lang{ALL}:index=$index&ALL_FIELDS=1",
     "$lang{USERS}:index=$index&USR_FIELDS=1",
     "$lang{COMPANY}:index=$index&COMPANY_FIELDS=1",
-    );
+  );
+
   my $status_bar = $html->table_header(\@header_arr);
 
   if ($FORM{update_table}) {
@@ -3129,22 +3124,25 @@ sub info_fields_new {
   elsif ($FORM{COMPANY_FIELDS}) {
     $LIST_PARAMS{COMPANY} = 1;
   }
+  $LIST_PARAMS{NOT_ALL_FIELDS} = 1;
 
   result_former({
     INPUT_DATA      => $Info_fields,
     FUNCTION        => 'fields_list',
-    DEFAULT_FIELDS  => 'ID, NAME, SQL_FIELD, TYPE, PRIORITY, ABON_PORTAL, USER_CHG, COMPANY, MODULE, COMMENT',
+    DEFAULT_FIELDS  => 'ID,NAME,SQL_FIELD,TYPE,PRIORITY,ABON_PORTAL,USER_CHG,REQUIRED,COMPANY,MODULE,COMMENT',
+    HIDDEN_FIELDS   => 'PATTERN,TITLE,ID',
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
       id          => '#',
       name        => $lang{NAME},
-      sql_field   => "SQL_FIELD",
+      sql_field   => 'SQL_FIELD',
       type        => $lang{TYPE},
       priority    => $lang{PRIORITY},
       abon_portal => $lang{USER_PORTAL},
       user_chg    => $lang{USER} . $lang{CHANGE},
       company     => $lang{COMPANY},
+      required    => $lang{REQUIRED_FIELD},
       module      => $lang{MODULE},
       comment     => $lang{COMMENTS},
     },
@@ -3160,25 +3158,17 @@ sub info_fields_new {
       }
     },
     SELECT_VALUE    => {
-      abon_portal => {
-        0 => $bool[0],
-        1 => $bool[1]
-      },
-      user_chg    => {
-        0 => $bool[0],
-        1 => $bool[1]
-      },
-      company     => {
-        0 => $bool[0],
-        1 => $bool[1]
-      }
+      abon_portal => { 0 => $bool[0], 1 => $bool[1] },
+      user_chg    => { 0 => $bool[0], 1 => $bool[1] },
+      company     => { 0 => $bool[0], 1 => $bool[1] },
+      required    => { 0 => $bool[0], 1 => $bool[1] }
     },
     TABLE           => {
       width   => '100%',
       caption => $lang{INFO_FIELDS},
-      ID      => "INFO_FIELDS",
+      ID      => 'INFO_FIELDS',
       header  => $status_bar,
-      MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add; :index=$index&update_table=1&$pages_qs:fa fa-reply",
+      MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add; :index=$index&update_table=1&$pages_qs:fa fa-reply mt-1 ml-1",
     },
     MAKE_ROWS       => 1,
     TOTAL           => 1

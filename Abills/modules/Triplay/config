@@ -10,6 +10,7 @@ our %FUNCTIONS_LIST = (
 
 our %PERIODIC = (
   monthly => [ 'triplay_monthly_fees' ],
+  daily   => [ 'triplay_daily_fees' ]
 );
 
 1

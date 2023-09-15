@@ -11,14 +11,13 @@ use strict;
 my $domain_path = '';
 our (
   $Bin,
+  $libpath,
   %FORM,
   $admin,
   $html,
   %lang,
   %conf
 );
-
-use FindBin '$Bin';
 
 #**********************************************************
 =head2 _include($tpl, $module, $attr) - templates
@@ -30,9 +29,10 @@ use FindBin '$Bin';
       CHECK_ONLY
       SUFIX
       DEBUG
+      CHECK_WITH_VALUE - return content or 0
 
   Returns:
-    Retun content
+    Return content
 
 =cut
 #**********************************************************
@@ -55,20 +55,16 @@ sub _include {
   my $language = $html->{language} || q{};
 
   my @search_paths = (
-    $Bin . '/../Abills/templates/' . $domain_path . '/' . $FORM{NAS_GID} . '/' . $module . '_' . $tpl . "_$language" . $sufix,
-    $Bin . '/../Abills/templates/' . $domain_path . '/' . $FORM{NAS_GID} . '/' . $module . '_' . $tpl . $sufix,
-    $Bin . '/../Abills/templates/' . $domain_path  . $module . '_' . $tpl . "_$language" . $sufix,
-          '../Abills/templates/' . $domain_path . $module . '_' . $tpl . "_$language" . $sufix,
-          '../../Abills/templates/' . $domain_path . $module . '_' . $tpl . "_$language" . $sufix,
-          '../../Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
-          '../Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
-    $Bin . '/../Abills/templates/'. $domain_path . $module . '_' . $tpl . $sufix,
-    $Bin . '/../Abills/templates/' . $module . '_' . $tpl . "_$language" . $sufix,
-    #Fixme for unifi hotspot
-    $Bin . '/../../../../../../../Abills/templates/'. $domain_path . $module . '_' . $tpl . $sufix,
-    #Fixme for paysys_cons
-    $Bin . '/../../../Abills/templates/'. $domain_path . $module . '_' . $tpl . $sufix
+    $libpath . 'Abills/templates/' . $domain_path . $module . '_' . $tpl . "_$language" . $sufix,
+    $libpath . 'Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
   );
+
+  if ($FORM{NAS_GID}) {
+    unshift(@search_paths,
+      $libpath . 'Abills/templates/' . $domain_path . '/' . $FORM{NAS_GID} . '/' . $module . '_' . $tpl . "_$language" . $sufix,
+      $libpath . 'Abills/templates/' . $domain_path . '/' . $FORM{NAS_GID} . '/' . $module . '_' . $tpl . $sufix,
+    )
+  }
 
   foreach my $result_template (@search_paths) {
     if($attr->{DEBUG}) {
@@ -107,7 +103,7 @@ sub _include {
     $tpl = "modules/$module/templates/$tpl";
   }
 
-  foreach my $prefix ('../', @INC) {
+  foreach my $prefix ($libpath, @INC) {
     my $realfilename = "$prefix/Abills/$tpl$sufix";
 
     if($attr->{DEBUG}) {
@@ -127,6 +123,9 @@ sub _include {
     goto start;
   }
 
+  if ($attr->{CHECK_WITH_VALUE}) {
+    return 0;
+  }
   return "No such module template [$tpl]\n";
 }
 
@@ -183,42 +182,33 @@ sub templates {
     $conf{base_dir} = '/usr/abills/';
   }
 
+  $domain_path = '';
+  my $language = $html->{language} || q{};
+  if ($admin->{DOMAIN_ID}) {
+    $domain_path = "$admin->{DOMAIN_ID}/";
+  }
+
   my @search_paths = (
     #Lang tpls
-    $Bin . "/../../Abills/templates/" . '_' . "$tpl_name" . '.tpl',
-    $Bin . "/../Abills/templates/_$tpl_name" . "_$html->{language}.tpl",
+    $libpath . "Abills/templates/$domain_path" . "_$tpl_name" . "$language.tpl",
+    $libpath . "Abills/templates/$domain_path" . "_$tpl_name" . ".tpl",
 
     #Main tpl
-    $Bin . "/../Abills/templates/_$tpl_name" . ".tpl",
-    $Bin . "/../../Abills/main_tpls/$tpl_name" . ".tpl",
-    $Bin . "/../Abills/main_tpls/$tpl_name" . ".tpl",
+    $libpath . "Abills/main_tpls/$tpl_name" . ".tpl",
     $conf{base_dir} . "/Abills/main_tpls/$tpl_name" . ".tpl",
     $conf{base_dir} . "/Abills/templates/$tpl_name" . ".tpl",
   );
 
-  if ($admin->{DOMAIN_ID}) {
-    $domain_path = "$admin->{DOMAIN_ID}/";
-    @search_paths = (
-      $Bin . "/../../Abills/templates/$domain_path" . '_' . "$tpl_name" . "_$html->{language}.tpl",
-      $Bin . "/../Abills/templates/$domain_path" . '_' . "$tpl_name" . "_$html->{language}.tpl",
-      $Bin . "/../../Abills/templates/$domain_path" . '_' . "$tpl_name" . '.tpl',
-      $Bin . "/../Abills/templates/$domain_path" . '_' . "$tpl_name" . ".tpl",
-      @search_paths
+  if ($FORM{NAS_GID}) {
+    unshift(@search_paths,
+      $libpath . "Abills/templates/$domain_path/$FORM{NAS_GID}/_$tpl_name" . "_$language.tpl",
+      $libpath . "Abills/templates/$domain_path/$FORM{NAS_GID}/_$tpl_name.tpl",
     );
   }
 
-  #Nas path
-  if ($FORM{NAS_GID} && -f $Bin . "/../Abills/templates/$domain_path" . '/' . $FORM{NAS_GID} . '/' . "_$tpl_name" . "_$html->{language}.tpl") {
-    return tpl_content($Bin . "/../Abills/templates/$domain_path" . '/' . $FORM{NAS_GID} . '/' . "_$tpl_name" . "_$html->{language}.tpl");
-  }
-  elsif ($FORM{NAS_GID} && -f $Bin . "/../Abills/templates/$domain_path" . '/' . $FORM{NAS_GID} . '/' . "_$tpl_name" . ".tpl") {
-    return tpl_content($Bin . "/../Abills/templates/$domain_path" . '/' . $FORM{NAS_GID} . '/' . "_$tpl_name" . ".tpl");
-  }
-  else {
-    foreach my $tpl ( @search_paths ) {
-      if (-f $tpl) {
-        return tpl_content($tpl);
-      }
+  foreach my $tpl ( @search_paths ) {
+    if (-f $tpl) {
+      return tpl_content($tpl);
     }
   }
 

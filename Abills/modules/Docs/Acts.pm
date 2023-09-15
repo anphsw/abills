@@ -117,7 +117,7 @@ sub docs_acts_list{
   my $table = $html->table({
     width      => '100%',
     caption    => $lang{ACTS},
-    title      => [ '#', $lang{DATE}, $lang{CUSTOMER}, $lang{SUM}, $lang{ADMIN}, $lang{PERIOD}, $lang{DATE}, '-' ],
+    title      => [ '#', "$lang{ACT} $lang{DATE}", $lang{CUSTOMER}, $lang{SUM}, $lang{ADMIN}, $lang{PERIOD}, $lang{CREATED} , '-' ],
     qs         => $pages_qs,
     pages      => $Docs->{TOTAL},
     MENU       => "$lang{SEARCH}:index=" . ($index || 0)
@@ -129,6 +129,7 @@ sub docs_acts_list{
     $pages_qs = '&subf=' . $FORM{subf};
   }
 
+  my $total_acts_sum = 0;
   foreach my $line ( @{$list} ){
     $table->addrow(
       $line->{act_id},
@@ -149,6 +150,8 @@ sub docs_acts_list{
           ,
           { MESSAGE => "$lang{DEL} ID '$line->{id}' ?", class => 'del' } ) : '')
     );
+
+    $total_acts_sum  += $line->{sum} if ($line->{sum});
   }
   print $table->show();
 
@@ -156,7 +159,7 @@ sub docs_acts_list{
     width      => '100%',
     rows       => [ [
       #$html->button("$lang{PRINT} $lang{LIST}", "qindex=$index&print_list=1$pages_qs" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''), { BUTTON => 1, ex_params => 'target=new' }),
-      "$lang{TOTAL}:", $html->b( $Docs->{TOTAL} ), "$lang{SUM}:", $html->b( $Docs->{SUM} ), ] ]
+      "$lang{TOTAL}:", $html->b( $Docs->{TOTAL} ), "$lang{SUM}:", $html->b( $total_acts_sum ), ] ]
   });
 
   print $table->show();
@@ -421,11 +424,16 @@ sub docs_acts_create {
       }
     }
 
+    if($FORM{MONTH}) {
+      $act_information{START_PERIOD} = "$FORM{MONTH}-01";
+      $act_information{END_PERIOD} = "$FORM{MONTH}-" . days_in_month({ DATE => $FORM{MONTH} });
+    }
+
     if($FORM{PREVIEW}) {
       my $table = $html->table({
         width   => '100%',
         caption => "$lang{ACT} ($lang{PREVIEW}) $lang{DATE}: $act_information{DATE}",
-        title   => [ '#', $lang{DATE}, $lang{DESCRIBE}, "$lang{PAYMENTS} $lang{SUM}", "$lang{FEES} ID" ],
+        title   => [ '#', "$lang{DATE} $lang{FEES} ", $lang{DESCRIBE}, "$lang{PAYMENTS} $lang{SUM}", "$lang{FEES} ID" ],
         qs      => $pages_qs,
         ID      => 'DOCS_ACTS'
       });

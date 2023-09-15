@@ -1,7 +1,7 @@
 get:
   tags:
     - msgs
-  summary: Список заявок пользователя
+  summary: Ответ на существующую заявку
   parameters:
     - name: ID
       in: path
@@ -21,7 +21,7 @@ get:
 post:
   tags:
     - msgs
-  summary: Создание заявки
+  summary: Все сообщения в заявке
   parameters:
     - name: ID
       in: path
@@ -34,6 +34,15 @@ post:
       application/json:
         schema:
           $ref: "../schemas/msgsReplyAddRequest.yaml"
+      multipart/form-data:
+        schema:
+          - $ref: "../schemas/msgsReplyAddRequest.yaml"
+            file1:
+              type: string
+              format: binary
+            file2:
+              type: string
+              format: binary
     required: true
   responses:
     200:

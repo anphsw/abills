@@ -46,6 +46,6 @@
     display: flex;
   }
 </style>
-<div class='row justify-content-around'>
+<div class='row'>
   %SERVICES%
 </div>

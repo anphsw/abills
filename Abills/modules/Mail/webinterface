@@ -661,7 +661,14 @@ sub mail_user_boxes {
       $html->message('info', $lang{INFO}, "$lang{CHANGED}");
     }
   }
-  elsif ($FORM{MBOX_ID}) {
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Mail->mbox_del($FORM{del}, {%LIST_PARAMS});
+    if (!$Mail->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+    }
+  }
+
+  if ($FORM{MBOX_ID}) {
     $Mail->mbox_info({%FORM});
     if (!$Mail->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{CHANGING}");
@@ -670,12 +677,6 @@ sub mail_user_boxes {
     $Mail->{ACTION}     = 'set';
     $Mail->{LNG_ACTION} = $lang{CHANGE};
     $Mail->{SEND_MAIL}  = undef;
-  }
-  elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $Mail->mbox_del($FORM{del}, {%LIST_PARAMS});
-    if (!$Mail->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
-    }
   }
 
   if (_error_show($Mail)) {
@@ -703,12 +704,10 @@ sub mail_user_boxes {
     }
   );
 
-  $Mail->{PASSWORD} = $html->tpl_show(_include('mail_password', 'Mail'), { %{ ($attr) ? $attr : {} } ,
-                                                                           %$Mail,
-                                                                           PW_CHARS  => "abcdefhjmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWYXZ",
-                                                                           PW_LENGTH => 8,
-                                                                          },
-                                                                          { OUTPUT2RETURN => 1, ID => 'mail_password' });
+  $Mail->{PASSWORD} = $html->tpl_show(_include('mail_password', 'Mail'),
+    { %{($attr) ? $attr : {}}, %$Mail },
+    { OUTPUT2RETURN => 1, ID => 'mail_password' }
+  );
 
   if (!$user->{UID}) {
     $html->tpl_show(_include('mail_box', 'Mail'), { %{ ($attr) ? $attr : {} }, %$Mail }, { ID => 'mail_box' });
@@ -1250,8 +1249,6 @@ sub mail_wizard {
     $Mail->{PASSWORD} =  $html->tpl_show(_include('mail_password', 'Mail'), {
       %$attr,
       %$Mail,
-      PW_CHARS  => "abcdefhjmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWYXZ",
-      PW_LENGTH => 8,
     },
     { OUTPUT2RETURN => 1, ID => 'mail_password' });
 

@@ -71,7 +71,8 @@ function selectLanguage(){
   }
   
   var sLocation = document['SELF_URL'] + '?'
-      + (document['DOMAIN_ID'] ? '?DOMAIN_ID=' + document['DOMAIN_ID'] : '')
+      + (document['DOMAIN_ID'] ? 'DOMAIN_ID=' + document['DOMAIN_ID'] : '')
+      + '&login_page=1'
       + '&language=' + sLanguage;
   location.replace(sLocation);
 }
@@ -79,6 +80,20 @@ function selectLanguage(){
 function set_referrer() {
   document.getElementById('REFERER').value = location.href;
 }
+
+jQuery(document).ready(function () {
+  jQuery('.hidden_empty_required_filed_check').on('click', function () {
+    let form = jQuery(this).closest('form');
+    if (form.length < 1) return;
+
+    let hiddenRequiredEmptyFields = form.find("input[required], textarea[required], select[required]");
+    hiddenRequiredEmptyFields.each((index, field) => {
+      if (jQuery(field).val() || jQuery(field).width() > 1) return;
+
+      jQuery(field).closest('.collapsed-card').find('.btn-tool > .fa-plus').first().click();
+    })
+  });
+});
 
 $(setIcons);
 

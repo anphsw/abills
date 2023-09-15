@@ -415,7 +415,6 @@ sub parse_request {
       my $key = $route->{no_decamelize_params} ? $query_key : decamelize($query_key);
       if (ref $query_params->{$query_key} ne '') {
         $query_params->{$query_key} = process_request_body($query_params->{$query_key}, { no_decamelize_params => $route->{no_decamelize_params} || '' });
-
       }
       else {
         if ($key eq 'SORT') {

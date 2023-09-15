@@ -7,12 +7,10 @@ package Ping;
 =cut
 
 use strict;
-use parent 'main';
+use parent qw(dbcore);
 
 my $admin;
 my $CONF;
-my $SORT  = 1;
-my $DESC  = '';
 
 #**********************************************************
 # Init
@@ -99,7 +97,7 @@ sub list {
     }
   );
 
-  $self->query2("SELECT  $self->{SEARCH_FIELDS} pa.uid
+  $self->query("SELECT  $self->{SEARCH_FIELDS} pa.uid
         FROM ping_actions pa
           LEFT JOIN users u ON(u.uid=pa.uid)
           LEFT JOIN tags_users tu ON(tu.uid=pa.uid)
@@ -120,7 +118,7 @@ sub list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= $attr->{PAGE_ROWS} || $PG > 0) {
-    $self->query2("SELECT COUNT(*) AS total FROM ping_actions pa $WHERE",
+    $self->query("SELECT COUNT(*) AS total FROM ping_actions pa $WHERE",
       undef, { INFO => 1 });
   }
 
@@ -141,7 +139,7 @@ sub info {
   my $self = shift;
   my ($uid) = @_;
 
-  $self->query2("SELECT * FROM ping_actions WHERE uid = ? ",
+  $self->query("SELECT * FROM ping_actions WHERE uid = ? ",
     undef,
     {
       INFO => 1,

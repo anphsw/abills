@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `info_media`
 CREATE TABLE IF NOT EXISTS `info_comments`
 (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `text` VARCHAR(300) NOT NULL DEFAULT '',
+  `text` TEXT,
   PRIMARY KEY `id` (`id`)
 )
   DEFAULT CHARSET = utf8
@@ -59,7 +59,8 @@ CREATE TABLE IF NOT EXISTS `info_documents`
   `real_name` TEXT,
   `file` BLOB NULL,
   `content_type` VARCHAR(30) NOT NULL DEFAULT '',
-  `content_size` VARCHAR(30) DEFAULT '0' NOT NULL
+  `content_size` VARCHAR(30) DEFAULT '0' NOT NULL,
+  `comment_id` SMALLINT(6) NOT NULL DEFAULT 0
 )
   ENGINE = InnoDB
   DEFAULT CHARSET = utf8

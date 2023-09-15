@@ -20,7 +20,7 @@ sub new {
   ($admin, $CONF) = @_;
 
   my $self = {
-    db => $db,
+    db    => $db,
     admin => $admin,
     conf  => $CONF
   };
@@ -109,17 +109,15 @@ sub change {
   my $bills_old_info = $self->info({ BILL_ID => $attr->{BILL_ID} });
 
   delete $admin->{MODULE};
-  $self->changes(
-    {
-      CHANGE_PARAM => 'BILL_ID',
-      TABLE        => 'bills',
-      FIELDS       => \%FIELDS,
-      OLD_INFO     => $self->info({ BILL_ID => $attr->{BILL_ID} }),
-      DATA         => $attr,
-      EXT_CHANGE_INFO => "BILL_ID: $attr->{BILL_ID} DEPOSIT: $bills_old_info->{DEPOSIT} -> $attr->{DEPOSIT}",
-      ACTION_ID    => 40
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM    => 'BILL_ID',
+    TABLE           => 'bills',
+    FIELDS          => \%FIELDS,
+    OLD_INFO        => $self->info({ BILL_ID => $attr->{BILL_ID} }),
+    DATA            => $attr,
+    EXT_CHANGE_INFO => "BILL_ID: $attr->{BILL_ID} DEPOSIT: $bills_old_info->{DEPOSIT} -> $attr->{DEPOSIT}",
+    ACTION_ID       => 40
+  });
 
   return $self;
 }
@@ -142,6 +140,12 @@ sub list {
   }
   elsif ($attr->{UID}) {
     $WHERE .= "WHERE b.uid='$attr->{UID}'";
+    if ($attr->{BILL_ID}) {
+      $WHERE .= " AND b.id='$attr->{BILL_ID}'";
+    }
+  }
+  elsif ($attr->{COMPANY_ID}) {
+    $WHERE .= "WHERE b.company_id='$attr->{COMPANY_ID}'";
     if ($attr->{BILL_ID}) {
       $WHERE .= " AND b.id='$attr->{BILL_ID}'";
     }

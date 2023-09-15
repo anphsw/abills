@@ -603,14 +603,20 @@ function defineCheckPatternLogic(context) {
 
     var pattern = new RegExp($this.attr('data-check-for-pattern'));
     var formButton = $this.parents('form').find(':submit');
+    var errorMessage = $this.attr('data-check-for-pattern-text') || '';
 
     if (pattern.test(value)) {
       $this.removeClass('is-invalid');
       formButton.removeAttr('disabled');
+      $this[0].setCustomValidity('');
     }
     else {
       $this.addClass('is-invalid');
       formButton.attr('disabled', true);
+      if (errorMessage) {
+        $this[0].setCustomValidity(errorMessage);
+        $this[0].reportValidity();
+      }
     }
   });
 }
@@ -1216,19 +1222,22 @@ function initDatepickers(context) {
   var $daterangepickers = $('input.date_range_picker', context);
 
   //Date picker
-  $('input.datepicker', context).datepicker({
-    autoclose     : true,
-    format        : 'yyyy-mm-dd',
-    startDate     : '-100y',
-    todayHighlight: true,
-    clearBtn      : true,
-    forceParse    : false,
-    weekStart     : 1,
-    language      : CONTENT_LANGUAGE,
-    // container     : 'section#main-content'
-  })
+  $('input.datepicker', context).each(function() {
+    let start_date = jQuery(this).data('start') || '-100y';
+    jQuery(this).datepicker({
+      autoclose     : true,
+      format        : 'yyyy-mm-dd',
+      startDate     : start_date,
+      todayHighlight: true,
+      clearBtn      : true,
+      forceParse    : false,
+      weekStart     : 1,
+      language      : CONTENT_LANGUAGE,
+      // container     : 'section#main-content'
+    })
       .on('show', cancelEvent)
       .on('hide', cancelEvent);
+  });
 
   $('input.timepicker', context).timepicker({
     showMeridian: false,
@@ -1320,7 +1329,11 @@ function initSelect2(context) {
   }
 
   var $selects = $('select:not(.not-select2)', context);
-  $selects.select2(Object.assign({}, SELECT2_PARAMS, { templateResult: formatState, templateSelection: formatState }));
+  $selects.each(function() {
+    SELECT2_PARAMS.placeholder = jQuery(this).attr('placeholder') || '';
+    jQuery(this).select2(Object.assign({}, SELECT2_PARAMS, { templateResult: formatState, templateSelection: formatState }));
+  });
+  // $selects.select2(Object.assign({}, SELECT2_PARAMS, { templateResult: formatState, templateSelection: formatState }));
 
   function formatState(state) {
     if (!state.id) return state.text;
@@ -1708,6 +1721,19 @@ function formatBytes(bytes, decimals = 2) {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
 
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`
+}
+
+// Put variables into lang
+function vars2lang(string, vars) {
+  if (!vars) return string;
+
+  var result = string;
+  Object.keys(vars).forEach(function(key) {
+    result = result.replace(`%${key}%`, vars[key]);
+    result = result.replace(`&${key}&`, vars[key]);
+  });
+
+  return result;
 }
 
 // jquery extend function

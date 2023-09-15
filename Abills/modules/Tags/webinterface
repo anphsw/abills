@@ -28,7 +28,7 @@ my @priority        = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, 
 my @priority_colors = ('bg-muted', "bg-info", "bg-success", 'bg-warning', "bg-danger");
 
 #*******************************************************************
-=head2 iptv_user_del($uid, $attr) Delete user from module
+=head2 tags_user_del($uid, $attr) Delete user from module
 
 =cut
 #*******************************************************************

@@ -181,6 +181,7 @@ elsif ( defined( $argv->{speed_expr} ) ){ speed_expr();  }
 elsif ( defined( $argv->{check_cisco_cid} ) ){ check_cisco_cid() }
 else{
   my $action = $ARGV[0];
+
   if ( $action && -f "$Bin/billd.plugins/$action" . '.pm' ){
     billd_plugins( $action );
   }
@@ -308,11 +309,6 @@ sub check_lines{
 
   my $Billing = Billing->new( $db, \%conf );
   $Billing->{INTERNET}=1;
-  require Acct2;
-  Acct2->import();
-  my $Acct = Acct2->new( $db, \%conf );
-
-  #my %JOIN_SERVICE_STATS = ();
   my $lost_alive_count = 0;
 
   foreach my $nas ( @{$nas_list} ){
@@ -401,62 +397,9 @@ sub check_lines{
       if ( $nas->{NAS_ALIVE} > 0
         && ($online->{last_alive} > $nas->{NAS_ALIVE} * $error_alive_count) )
       {
-        if ( $nas->{NAS_TYPE} eq 'ipcad' && $online->{last_alive} >= 86400 ){
-          session_hangup( $nas, $online, '' );
-        }
-        elsif ( $online->{last_alive} > ($nas->{NAS_ALIVE} * $error_alive_count * 2) ){
-          my $ACCT_INFO = $Sessions->online_info({
-            NAS_ID          => $online->{nas_id},
-            NAS_PORT        => $online->{nas_port_id},
-            ACCT_SESSION_ID => $online->{acct_session_id}
-          });
-
-          #Calculate session
-          $ACCT_INFO->{'Acct-Output-Octets'}   = $online->{acct_input_octets};
-          $ACCT_INFO->{'Acct-Input-Octets'}    = $online->{acct_output_octets};
-          $ACCT_INFO->{'Acct-Output-Gigawords'}= $online->{acct_input_gigawords},
-          $ACCT_INFO->{'Acct-Input-Gigawords'} = $online->{acct_output_gigawords},
-          $ACCT_INFO->{INBYTE2}                = $online->{ex_input_octets};
-          $ACCT_INFO->{OUTBYTE2}               = $online->{ex_output_octets};
-          $ACCT_INFO->{'User-Name'}            = $online->{user_name};
-          $ACCT_INFO->{'NAS-Port'}             = $online->{nas_port_id};
-          $ACCT_INFO->{'Acct-Session-Time'}    = $online->{acct_session_time} || 0;
-          $ACCT_INFO->{'Acct-Terminate-Cause'} = 'Lost-Alive';
-          $ACCT_INFO->{'Acct-Session-Id'}      = $online->{acct_session_id};
-          $ACCT_INFO->{'Connect-Info'}         = $online->{CONNECT_INFO} || $online->{connect_info};
-          $ACCT_INFO->{'Framed-IP-Address'}    = $online->{client_ip};
-          $ACCT_INFO->{'Calling-Station-Id'}   = $online->{CID} || $online->{cid};
-
-          $Acct->accounting( $ACCT_INFO, $nas, { ACCT_STATUS_TYPE => 2 });
-          my $info = '';
-
-          if ( $debug > 1 ){
-            foreach my $k ( sort keys %{$ACCT_INFO} ){
-              $info .= sprintf( "%-28s | %-30s |\n", $k, (defined( $ACCT_INFO->{$k} )) ? $ACCT_INFO->{$k} : '' );
-            }
-
-            $info .= sprintf( "%-28s\n", '----------------------------------------------------' );
-
-            foreach my $k ( sort keys %{$Acct} ){
-              $info .= sprintf( "%-28s | %-30s |\n", $k, (defined( $Acct->{$k} )) ? $Acct->{$k} : '' );
-            }
-          }
-
-          if ( $nas->{NAS_TYPE} eq 'ipn' || $nas->{NAS_TYPE} eq 'dhcp' ){
-            session_hangup( $nas, $online, '' );
-          }
-
-          $Log->log_print( 'LOG_WARNING', $online->{user_name},
-            "LAST_ALIVE: $online->{last_alive}, SESSION_ID: $online->{acct_session_id} DURATION: $online->{duration}\n$info",
-            { ACTION => 'CALCULATION', NAS => $nas } );
-          next;
-        }
-        else{
-          $Log->log_print( 'LOG_WARNING', $online->{user_name},
-            "LAST_ALIVE: $online->{last_alive} SESSION_ID: $online->{acct_session_id} DURATION: $online->{duration}",
-            { ACTION => 'LOST_ALIVE', NAS => $nas } );
-          $Sessions->zap( $nas->{NAS_ID}, $online->{nas_port_id}, $online->{acct_session_id} );
+        if (close_zap_sessions($nas, $online)) {
           $lost_alive_count++;
+          next;
         }
       }
       elsif ( ref $external_stats eq 'HASH' ) {
@@ -530,11 +473,11 @@ sub check_lines{
           print "Less than minimun session trafic and time\n" if ($debug > 2);
         }
         elsif ( $Billing->{UID} == -2 ){
-          print "Can't find user account '$RAD{USER_NAME}'\n";
+          print "Can't find user account '". $RAD{'User-Name'} ."'\n";
           next;
         }
         elsif ( $Billing->{UID} == -3 ){
-          print "Sql error '$RAD{USER_NAME}' [$Billing->{errno} ". ($Billing->{errstr} || q{}) ."]\n";
+          print "Sql error '" . $RAD{'User-Name'} ."' [$Billing->{errno} ". ($Billing->{errstr} || q{}) ."]\n";
         }
         next;
       }
@@ -579,6 +522,85 @@ sub check_lines{
   return 1;
 }
 
+#**********************************************************
+=head2 close_zap_sessions($nas, $online)
+
+  Arguments:
+    $nas
+    $online
+
+  Return:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub close_zap_sessions {
+  my ($nas, $online, $attr)=@_;
+
+  require Acct2;
+  Acct2->import();
+  my $Acct = Acct2->new( $db, \%conf );
+
+  if ( $nas->{NAS_TYPE} eq 'ipcad' && $online->{last_alive} >= 86400 ){
+    session_hangup( $nas, $online, '' );
+    return 1;
+  }
+  elsif ( $online->{last_alive} > ($nas->{NAS_ALIVE} * $error_alive_count * 2) ){
+    my $ACCT_INFO = $Sessions->online_info({
+      NAS_ID          => $online->{nas_id},
+      NAS_PORT        => $online->{nas_port_id},
+      ACCT_SESSION_ID => $online->{acct_session_id}
+    });
+
+    #Calculate session
+    $ACCT_INFO->{'Acct-Output-Octets'}   = $ACCT_INFO->{ACCT_INPUT_OCTETS};
+    $ACCT_INFO->{'Acct-Input-Octets'}    = $ACCT_INFO->{ACCT_OUTPUT_OCTETS};
+    $ACCT_INFO->{'Acct-Output-Gigawords'}= $ACCT_INFO->{ACCT_INPUT_GIGAWORDS},
+    $ACCT_INFO->{'Acct-Input-Gigawords'} = $ACCT_INFO->{ACCT_OUTPUT_GIGAWORDS},
+    $ACCT_INFO->{INBYTE2}                = $ACCT_INFO->{EX_INPUT_OCTETS};
+    $ACCT_INFO->{OUTBYTE2}               = $ACCT_INFO->{EX_OUTPUT_OCTETS};
+    $ACCT_INFO->{'User-Name'}            = $online->{user_name};
+    $ACCT_INFO->{'NAS-Port'}             = $online->{nas_port_id};
+    $ACCT_INFO->{'Acct-Session-Time'}    = $online->{acct_session_time} || 0;
+    $ACCT_INFO->{'Acct-Terminate-Cause'} = 'Lost-Alive';
+    $ACCT_INFO->{'Acct-Session-Id'}      = $online->{acct_session_id};
+    $ACCT_INFO->{'Connect-Info'}         = $ACCT_INFO->{CONNECT_INFO} || q{};
+    $ACCT_INFO->{'Framed-IP-Address'}    = $online->{client_ip};
+    $ACCT_INFO->{'Calling-Station-Id'}   = $ACCT_INFO->{CALLING_STATION_ID} || q{};
+
+    $Acct->accounting( $ACCT_INFO, $nas, { ACCT_STATUS_TYPE => 2 });
+    my $info = '';
+
+    if ( $debug > 1 ){
+      foreach my $k ( sort keys %{$ACCT_INFO} ){
+        $info .= sprintf( "%-28s | %-30s |\n", $k, (defined( $ACCT_INFO->{$k} )) ? $ACCT_INFO->{$k} : '' );
+      }
+
+      $info .= sprintf( "%-28s\n", '----------------------------------------------------' );
+
+      foreach my $k ( sort keys %{$Acct} ){
+        $info .= sprintf( "%-28s | %-30s |\n", $k, (defined( $Acct->{$k} )) ? $Acct->{$k} : '' );
+      }
+    }
+
+    if ( $nas->{NAS_TYPE} eq 'ipn' || $nas->{NAS_TYPE} eq 'dhcp' ){
+      session_hangup( $nas, $online, '' );
+    }
+
+    $Log->log_print( 'LOG_WARNING', $online->{user_name},
+      "LAST_ALIVE: $online->{last_alive}, SESSION_ID: $online->{acct_session_id} DURATION: $online->{duration}\n$info",
+      { ACTION => $attr->{ACTION} || 'CALCULATION', NAS => $nas } );
+    return 1;
+  }
+  else{
+    $Log->log_print( 'LOG_WARNING', $online->{user_name},
+      "LAST_ALIVE: $online->{last_alive} SESSION_ID: $online->{acct_session_id} DURATION: $online->{duration}",
+      { ACTION => $attr->{ACTION} || 'LOST_ALIVE', NAS => $nas } );
+    $Sessions->zap( $nas->{NAS_ID}, $online->{nas_port_id}, $online->{acct_session_id} );
+  }
+
+  return 0;
+}
 
 #**********************************************************
 =head2 coa_send($online)
@@ -682,11 +704,14 @@ sub billd_plugins{
 
     #my ($plugin, $args) = split( /:/, $action, 2 );
 
-#    eval {
+    #eval {
       do "$Bin/billd.plugins/$action" . '.pm';
-#    };
+    #};
 
-    #print $!;
+    # if ($!) {
+    #   _log('LOG_ALERT', "ERROR: " . $! . " : " . "$Bin/billd.plugins/$action" . '.pm');
+    # }
+
     if ( $@ ){
       print "Plugin error '$action'\n";
       print $@;
@@ -867,12 +892,13 @@ sub session_hangup{
     );
 
     #ZAP unknown sessions Session-Context-Not-Found
-    if ($Nas_cmd->{RESULT} && $Nas_cmd->{RESULT} =~ /Session-Context-Not-Found/) {
-      $Log->log_print( 'LOG_WARNING', $online->{user_name},
-        "UNKNOWN_HANGUP_SESSION: $online->{last_alive} SESSION_ID: $online->{acct_session_id} DURATION: $online->{duration}",
-        { ACTION => 'UNKNOWN_SESSION', NAS => $nas_info } );
+    if ($Nas_cmd->{RESULT} && $Nas_cmd->{RESULT} =~ /Session-Context-Not-Found|No valid Session/) {
+      # $Log->log_print( 'LOG_WARNING', $online->{user_name},
+      #   "UNKNOWN_HANGUP_SESSION: $online->{last_alive} SESSION_ID: $online->{acct_session_id} DURATION: $online->{duration}",
+      #   { ACTION => 'UNKNOWN_SESSION', NAS => $nas_info } );
 
-      $Sessions->zap( $nas_info->{NAS_ID}, $online->{nas_port_id}, $online->{acct_session_id} );
+      #$Sessions->zap( $nas_info->{NAS_ID}, $online->{nas_port_id}, $online->{acct_session_id} );
+      close_zap_sessions($nas_info, $online, { ACTION => 'UNKNOWN_SESSION' });
       return 0;
     }
   }

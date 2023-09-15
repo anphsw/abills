@@ -26,9 +26,21 @@ items:
     dayFee:
       type: integer
       example: 0
+    tpAge:
+      type: number
+      example: 1
+    activatePrice:
+      type: number
+      example: 60
     tpReductionFee:
       type: integer
       example: 1
+    originalMonthFee:
+      type: number
+      example: 300
+    originalDayFee:
+      type: number
+      example: 0
     nextAbon:
       type: object
       properties:

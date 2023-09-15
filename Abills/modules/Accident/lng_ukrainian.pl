@@ -1,7 +1,7 @@
 $lang{ACCIDENT_LOG} = 'Журнал аварій';
 $lang{ACCIDENT_QUANTITY} = 'Кількість аварій';
 $lang{ACCIDENTS} = 'Аварії';
-$lang{ACCIDENT_NOTIFICATION} = 'Інформування про аваріях';
+$lang{ACCIDENT_NOTIFICATION} = 'Інформування щодо аварій';
 $lang{WORK_END_DATE} = 'Орієнтовний час виправлення';
 $lang{WORK_REALY_DATE} = 'Реальний час виправлення';
 $lang{ADD_ACCIDENT} = 'Додати аварію';
@@ -24,8 +24,8 @@ $lang{ACCIDENT_FOR_EQUIPMENT} = 'Несправне обладнання';
 $lang{WARNING_TIME} = 'Роботи будуть завершені до: ';
 $lang{COMPENSATION} = 'Компенсація';
 $lang{PROCENT} = 'Відсоток';
-$lang{USER_ACCIDENT_EMPTY} = 'В користувача немає аварій чи поломок!';
+$lang{USER_ACCIDENT_EMPTY} = 'В користувача немає аварій чи поламок!';
 
-$lang{EQUIPMENT_ERR} = 'Аварія! Ми знаємо про неї і займаємося її усуненням';
+$lang{EQUIPMENT_ERR} = 'Аварія! Ми знаємо про неї й займаємося її усуненням';
 $lang{ACCIDENT_FIXED} = 'Аварійно-ремонтні роботи в районі закінчені';
 1;

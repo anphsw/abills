@@ -64,8 +64,8 @@ sub validate_params {
       if ($attr->{params}->{$param}->{type}) {
         my $cam_param = camelize($param);
         if (($attr->{params}->{$param}->{type} eq 'date' && $attr->{query_params}->{$param} !~ /^\d{4}-\d{2}-\d{2}$/) ||
-            ($attr->{params}->{$param}->{type} eq 'unsigned_integer' && $attr->{query_params}->{$param} !~ /^[1-9]\d*$/) ||
-            ($attr->{params}->{$param}->{type} eq 'integer' && $attr->{query_params}->{$param} !~ /^-?[1-9]\d*$/) ||
+            ($attr->{params}->{$param}->{type} eq 'unsigned_integer' && $attr->{query_params}->{$param} !~ /^(0|[1-9]\d*)$/) ||
+            ($attr->{params}->{$param}->{type} eq 'integer' && $attr->{query_params}->{$param} !~ /^-?(0|[1-9]\d*)$/) ||
             ($attr->{params}->{$param}->{type} eq 'unsigned_number' && !is_number($attr->{query_params}->{$param})) ||
             ($attr->{params}->{$param}->{type} eq 'number' && !is_number($attr->{query_params}->{$param}, 0, 1))
           ) {
@@ -78,7 +78,7 @@ sub validate_params {
         }
         elsif ($attr->{params}->{$param}->{type} eq 'custom') {
           my $result = $attr->{params}->{$param}->{function}->($self, $attr->{query_params}->{$param});
-          if (ref $result eq 'HASH' && $result->{result} eq 0) {
+          if (ref $result eq 'HASH' && !$result->{result}) {
             delete $result->{result};
             push @errors, {
               errno    => 21,

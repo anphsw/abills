@@ -145,7 +145,7 @@ sub _change_tariff_after_payment {
       return 1;
     }
 
-    if ($list->[0]->{MONTH_FEE} == 0 ||
+    if ($conf{PAYSYS_FORCE_CHANGE_TP_AFTER_PAYMENT} || $list->[0]->{MONTH_FEE} == 0 ||
       (($Internet->{STATUS} == 2 || $Internet->{STATUS} == 5) &&
         $list->[0]->{MONTH_FEE} && $Users->{DEPOSIT} && $Users->{DEPOSIT} >= $list->[0]->{MONTH_FEE})) {
 

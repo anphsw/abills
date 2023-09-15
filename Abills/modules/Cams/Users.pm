@@ -204,9 +204,15 @@ sub cams_cameras {
   my $show_add_form = 0;
   my $correct_name = 1;
   my $services = $html->form_main({
-    CONTENT => cams_tariffs_sel({ UID => $attr->{UID} || $FORM{UID} }),
-    HIDDEN  => { index => $index, UID => $FORM{UID} },
-    SUBMIT  => { show => $lang{SHOW} },
+    CONTENT => cams_tariffs_sel({
+      UID        => $attr->{UID} || $FORM{UID},
+      AUTOSUBMIT => 'form'
+    }),
+    HIDDEN  => {
+      index => $index,
+      UID => $FORM{UID},
+      show => 1
+    },
     class   => 'form-inline ml-auto flex-nowrap',
   });
 

@@ -244,10 +244,14 @@ sub credit {
   my $self = shift;
   my ($attr) = @_;
 
-  my $credit_info = $Service_control->user_set_credit({ UID => $attr->{uid}, change_credit => 1 });
+  use Users;
+  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+  $Users->info($attr->{uid});
+
+  my $credit_info = $Service_control->user_set_credit({ UID => $attr->{uid}, REDUCTION => $Users->{REDUCTION}, change_credit => 1 });
 
   $self->{bot}->send_message({
-    text       => $credit_info->{error} ? "$self->{bot}{lang}{CREDIT_NOT_EXIST}" : $self->{bot}{lang}{CREDIT_SUCCESS},
+    text       => $credit_info->{errstr} ? ($self->{bot}{lang}{$credit_info->{errstr}} || $self->{bot}{lang}{CREDIT_NOT_EXIST}) : $self->{bot}{lang}{CREDIT_SUCCESS},
     parse_mode => 'HTML'
   });
 

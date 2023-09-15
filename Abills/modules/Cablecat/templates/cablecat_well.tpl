@@ -86,6 +86,38 @@
 
           <hr/>
 
+          %INSTALLATIONS_TABLE%
+
+          <div class='%HIDE_STORAGE_FORM%'>
+            <div class='form-group row'>
+              <label class='col-md-4 control-label'>_{STORAGE}_: </label>
+              <div class='col-md-8'>%STORAGE_STORAGES%
+              </div>
+            </div>
+            <div class='form-group row'>
+              <label class='col-md-4 control-label'>_{TYPE}_:</label>
+              <div class='col-md-8'>%ARTICLE_TYPES%</div>
+            </div>
+            <div class='form-group row'>
+              <label class='col-md-4 control-label'>_{NAME}_:</label>
+
+              <div class='col-md-8'>
+                <div id='ARTICLES_S'>
+                  %ARTICLE_ID%
+                </div>
+              </div>
+            </div>
+            <div class='form-group row'>
+              <label class='col-md-4 control-label'>_{COUNT}_:</label>
+              <div class='col-md-8'>
+                <input class='form-control' name='COUNT' type='text'/>
+              </div>
+            </div>
+
+          </div>
+
+          <hr/>
+
           <div class='form-group row'>
             <label class='col-md-4 col-form-label text-md-right' for='PARENT_ID'>_{INSIDE}_:</label>
             <div class='col-md-8'>
@@ -222,6 +254,25 @@
 </script>
 
 <script>
+  function selectArticles() {
+    let articleTypeId = jQuery('#ARTICLE_TYPE_ID').val();
+    if (articleTypeId === null) return;
+
+    let storageId = jQuery('#STORAGE_SELECT_ID').val();
+    let searchFields = '&ARTICLE_TYPE_ID=' + articleTypeId;
+    if (storageId) searchFields += '&STORAGE_ID=' + storageId;
+
+    jQuery.post('/admin/index.cgi', 'header=2&get_index=storage_hardware&quick_info=1' + searchFields, function (result) {
+      jQuery('#ARTICLES_S').empty();
+      jQuery('#ARTICLES_S').html(result);
+      initChosen();
+    });
+  }
+
+  function selectStorage() {
+    jQuery('#ARTICLE_TYPE_ID').change();
+  }
+
   jQuery(function () {
     var form_id        = 'form_CABLECAT_CONNECTERS';
     var connecters_box = jQuery('div#CONNECTERS_BOX');

@@ -217,4 +217,52 @@ sub events_rotate {
 }
 
 
+#**********************************************************
+=head2 events_start_page() - quick reports for start page
+
+=cut
+#**********************************************************
+sub events_start_page {
+  my %START_PAGE_F = (
+    'events_widget' => $lang{EVENTS}
+  );
+
+  return \%START_PAGE_F;
+}
+
+#**********************************************************
+=head2 events_widget ()
+
+=cut
+#**********************************************************
+sub events_widget {
+
+  my $events_list = $Events->events_list({
+    MODULE    => '_SHOW',
+    COMMENTS  => '_SHOW',
+    CREATED   => '_SHOW',
+    AID       => $admin->{AID},
+    COLS_NAME => 1
+  });
+
+  my $table = $html->table({
+    width       => '100%',
+    title_plain => [ $lang{MODULE}, $lang{COMMENTS}, $lang{CREATED} ],
+    caption     => $html->button( "$lang{EVENTS}", 'index=' . get_function_index('events_main') ),
+    ID          => 'EVENTS_INFO',
+  });
+
+  if ($Events->{TOTAL}){
+    foreach my $line (@$events_list) {
+      $table->addrow(
+        $line->{module},
+        $line->{comments},
+        substr($line->{created}, 0, 16)
+      );
+    }
+  }
+
+  return $table->show();
+}
+
 1

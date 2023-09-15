@@ -1481,10 +1481,12 @@ sub changes2{
 
   my $change_params_list = join(' AND ', @change_params);
   my $OLD_DATA = $attr->{OLD_INFO};
-  if ( $OLD_DATA->{errno} ){
-    print  "Old date errors: $OLD_DATA->{errno} '$TABLE' $change_params_list\n";
-    print %{$DATA};
-    print "\nError: $OLD_DATA->{errstr}\n";
+  if ($OLD_DATA->{errno}) {
+    if (!$self->{db}->{api}) {
+      print "Old date errors: $OLD_DATA->{errno} '$TABLE' $change_params_list\n";
+      print %{$DATA} if ($DATA && ref $DATA eq 'HASH');
+      print "\nError: $OLD_DATA->{errstr}\n";
+    }
     $self->{errno} = $OLD_DATA->{errno};
     $self->{errstr} = $OLD_DATA->{errstr};
     return $self;

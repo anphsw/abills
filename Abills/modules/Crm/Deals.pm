@@ -110,10 +110,12 @@ sub crm_users {
   my ($table) = result_former({
     INPUT_DATA      => $Crm,
     FUNCTION        => 'crm_deals_list',
-    DEFAULT_FIELDS  => 'NAME,UID,BEGIN_DATE,CLOSE_DATE,CURRENT_STEP,COMMENTS',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'LOGIN,NAME,UID,BEGIN_DATE,CLOSE_DATE,CURRENT_STEP,COMMENTS',
     FUNCTION_FIELDS => 'crm_deal_info:change:deal_id;uid,del',
     FUNCTION_INDEX  => $index,
     EXT_TITLES      => {
+      id           => '#',
       name         => $lang{NAME},
       begin_date   => $lang{CRM_BEGIN_DATE},
       close_date   => $lang{CRM_CLOSE_DATE},
@@ -121,6 +123,12 @@ sub crm_users {
       comments     => $lang{COMMENTS},
     },
     FILTER_VALUES   => {
+      id           => sub {
+        my ($id, $line) = @_;
+
+        return $id if !$id || !$line->{uid};
+        return $html->button($id, "get_index=crm_deal_info&full=1&DEAL_ID=$id&UID=$line->{uid}");
+      },
       current_step => sub {
         my ($step_number, $line) = @_;
 
@@ -202,7 +210,7 @@ sub crm_deals_list {
   result_former({
     INPUT_DATA      => $Crm,
     FUNCTION        => 'crm_deals_list',
-    DEFAULT_FIELDS  => 'ID,NAME,UID,BEGIN_DATE,CLOSE_DATE,CURRENT_STEP,COMMENTS,LOGIN',
+    DEFAULT_FIELDS  => 'LOGIN,NAME,UID,BEGIN_DATE,CLOSE_DATE,CURRENT_STEP,COMMENTS',
     FUNCTION_FIELDS => 'crm_deal_info:change:deal_id;uid',
     FUNCTION_INDEX  => $index,
     EXT_TITLES      => {
@@ -212,9 +220,15 @@ sub crm_deals_list {
       begin_date   => $lang{CRM_BEGIN_DATE},
       close_date   => $lang{CRM_CLOSE_DATE},
       current_step => $lang{STEP},
-      comments     => $lang{COMMENTS},
+      comments     => $lang{COMMENTS}
     },
     FILTER_VALUES   => {
+      id           => sub {
+        my ($id, $line) = @_;
+
+        return $id if !$id || !$line->{uid};
+        return $html->button($id, "get_index=crm_deal_info&full=1&DEAL_ID=$id&UID=$line->{uid}");
+      },
       current_step => sub {
         my ($step_number, $line) = @_;
 

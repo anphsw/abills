@@ -14,7 +14,7 @@ package Equipment::Api;
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw(cmd);
+use Abills::Base qw(cmd in_array);
 use Equipment;
 use Nas;
 require Equipment::Ports;
@@ -174,6 +174,16 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        return {
+          errno  => 200212,
+          errstr => 'No parameter nasId and fullList. Required during using portsOnly parameter.',
+        } if ($query_params->{PORTS_ONLY} && !$query_params->{NAS_ID});
+
+        return {
+          errno  => 200213,
+          errstr => 'No parameter portsOnly. Required during using nasId parameter.',
+        } if ($query_params->{NAS_ID} && !$query_params->{PORTS_ONLY});
+
         my @allowed_params = (
           'NAS_ID',
           'GET_MAC',
@@ -225,61 +235,6 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        my @allowed_params = (
-          'TYPE',
-          'NAS_NAME',
-          'SYSTEM_ID',
-          'TYPE_ID',
-          'VENDOR_ID',
-          'NAS_TYPE',
-          'MODEL_NAME',
-          'SNMP_TPL',
-          'MODEL_ID',
-          'VENDOR_NAME',
-          'STATUS',
-          'DISABLE',
-          'TYPE_NAME',
-          'PORTS',
-          'PORTS_WITH_EXTRA',
-          'MAC',
-          'PORT_SHIFT',
-          'AUTO_PORT_SHIFT',
-          'FDB_USES_PORT_NUMBER_INDEX',
-          'EPON_SUPPORTED_ONUS',
-          'GPON_SUPPORTED_ONUS',
-          'GEPON_SUPPORTED_ONUS',
-          'DEFAULT_ONU_REG_TEMPLATE_EPON',
-          'DEFAULT_ONU_REG_TEMPLATE_GPON',
-          'NAS_IP',
-          'NAS_MNG_HOST_PORT',
-          'NAS_MNG_USER',
-          'NAS_MNG_USER',
-          'NAS_MNG_PASSWORD',
-          'NAS_ID',
-          'NAS_GID',
-          'NAS_GROUP_NAME',
-          'DISTRICT_ID',
-          'STREET_ID',
-          'LOCATION_ID',
-          'DOMAIN_ID',
-          'DOMAIN_NAME',
-          'COORDX',
-          'COORDY',
-          'REVISION',
-          'SNMP_VERSION',
-          'SERVER_VLAN',
-          'LAST_ACTIVITY',
-          'INTERNET_VLAN',
-          'TR_069_VLAN',
-          'IPTV_VLAN',
-          'NAS_DESCR',
-          'NAS_IDENTIFIER',
-          'NAS_ALIVE',
-          'NAS_RAD_PAIRS',
-          'NAS_ENTRANCE',
-          'ZABBIX_HOSTID',
-        );
-
         my %PARAMS = (
           COLS_NAME => 1,
           PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
@@ -287,14 +242,40 @@ sub admin_routes {
           PG        => $query_params->{PG} ? $query_params->{PG} : 0,
         );
 
-        foreach my $param (@allowed_params) {
-          next if (!defined($query_params->{$param}));
-          $PARAMS{$param} = $query_params->{$param} || '_SHOW';
+        my @address_params = ('DISTRICT_ID', 'STREET_ID', 'LOCATION_ID', 'COORDX', 'COORDY');
+
+        foreach my $param (keys %{$query_params}) {
+          $PARAMS{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+          $PARAMS{ADDRESS_FULL} = 1 if (in_array($param, \@address_params))
         }
 
-        $Equipment->_list({
+        $PARAMS{TYPE} = $PARAMS{TYPE_ID} if (defined $PARAMS{TYPE_ID});
+        $PARAMS{TR_069_VLAN} = $PARAMS{TR069_VLAN} if (defined $PARAMS{TR069_VLAN});
+
+        if (in_array('Multidoms', \@main::MODULES)) {
+          $PARAMS{DOMAIN_ID} = $self->{admin}->{DOMAIN_ID} || 0 if (defined $PARAMS{DOMAIN_NAME});
+        }
+        else {
+          delete $PARAMS{DOMAIN_NAME};
+        }
+
+        my $result = $Equipment->_list({
           %PARAMS
         });
+
+        foreach my $equipment (@{$result}) {
+          if (exists($equipment->{name})) {
+            $equipment->{district_id} = $equipment->{name};
+            delete $equipment->{name};
+          }
+
+          if ((exists $query_params->{DOMAIN_ID} || exists $query_params->{DOMAIN_NAME}) && !in_array('Multidoms', \@main::MODULES)) {
+            $equipment->{domain_id} = 'null';
+            $equipment->{domain_name} = 'Error. Module Multidoms disabled';
+          }
+        }
+
+        return $result;
       },
       credentials => [
         'ADMIN'
@@ -306,48 +287,18 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        my @allowed_params = (
-          'NAS_ID',
-          'NAS_NAME',
-          'NAS_IDENTIFIER',
-          'NAS_IP',
-          'NAS_TYPE',
-          'DISABLE',
-          'DESCR',
-          'NAS_GROUP_NAME',
-          'ALIVE',
-          'DOMAIN_ID',
-          'MAC',
-          'GID',
-          'DISTRICT_ID',
-          'LOCATION_ID',
-          'NAS_MNG_HOST_PORT',
-          'NAS_MNG_IP_PORT',
-          'NAS_MNG_USER',
-          'NAS_MNG_USER',
-          'NAS_MNG_PASSWORD',
-          'NAS_RAD_PAIRS',
-          'NAS_IDS',
-          'NAS_FLOOR',
-          'NAS_ENTRANCE',
-          'ADDRESS_FULL',
-          'ZABBIX_HOSTID',
-          'SHORT',
-        );
-
         my %PARAMS = (
           COLS_NAME => 1,
-          SHORT     => 1,
           PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
           SORT      => $query_params->{SORT} ? $query_params->{SORT} : 1,
           PG        => $query_params->{PG} ? $query_params->{PG} : 0,
         );
 
-        foreach my $param (@allowed_params) {
-          next if (!defined($query_params->{$param}));
-          $param = 'MNG_HOST_PORT' if ($param eq 'NAS_MNG_IP_PORT');
-          $PARAMS{$param} = $query_params->{$param} || '_SHOW';
+        foreach my $param (keys %{$query_params}) {
+          $PARAMS{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
         }
+
+        $PARAMS{MNG_HOST_PORT} = $PARAMS{NAS_MNG_IP_PORT} if (defined $PARAMS{MNG_HOST_PORT});
 
         $Nas->list({
           %PARAMS
@@ -436,7 +387,7 @@ sub admin_routes {
 
         my $result = $Nas->change({ NAS_ID => $path_params->{id}, %$query_params });
 
-        if ($conf{RESTART_RADIUS} && $conf{RESTART_RADIUS_API}) {
+        if ($conf{RESTART_RADIUS} && $conf{RESTART_RADIUS_API} && !$Nas->{errno}) {
           cmd($conf{RESTART_RADIUS});
         }
 
@@ -473,6 +424,9 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        my $validation_result = _validate_nas_group_add($query_params);
+        return $validation_result if ($validation_result->{errno});
+
         $Nas->nas_group_add({
           NAME     => $query_params->{NAME} || '',
           COMMENTS => $query_params->{COMMENTS} || '',
@@ -489,12 +443,18 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
+        my $validation_result = _validate_nas_group_add($query_params);
+        return $validation_result if ($validation_result->{errno});
+
         $Nas->nas_group_change({
           ID       => $path_params->{id} || '--',
           NAME     => $query_params->{NAME} || '',
           COMMENTS => $query_params->{COMMENTS} || '',
           DISABLE  => $query_params->{DISABLE} ? 1 : undef,
         });
+
+        delete @{$Nas}{qw/AFFECTED TOTAL list/};
+        return $Nas;
       },
       credentials => [
         'ADMIN'
@@ -507,6 +467,22 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         $Nas->nas_group_del($path_params->{id});
+
+        if (!$Nas->{errno}) {
+          if ($Nas->{AFFECTED} && $Nas->{AFFECTED} =~ /^[0-9]$/) {
+            return {
+              result => 'Successfully deleted',
+            };
+          }
+          else {
+            return {
+              errno  => 30031,
+              errstr => "nasGroup with id $path_params->{id} not exists",
+            };
+          }
+        }
+
+        return $Nas;
       },
       credentials => [
         'ADMIN'
@@ -518,46 +494,6 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        my @allowed_params = (
-          'ID',
-          'NAS_NAME',
-          'POOL_NAME',
-          'FIRST_IP',
-          'LAST_IP',
-          'IP',
-          'LAST_IP_NUM',
-          'IP_COUNT',
-          'IP_FREE',
-          'INTERNET_IP_FREE',
-          'PRIORITY',
-          'SPEED',
-          'NAME',
-          'NAS',
-          'NETMASK',
-          'GATEWAY',
-          'STATIC',
-          'ACTIVE_NAS_ID',
-          'IP_SKIP',
-          'COMMENTS',
-          'DNS',
-          'VLAN',
-          'GUEST',
-          'NEXT_POOL',
-          'STATIC',
-          'NAS_ID',
-          'SHOW_ALL_COLUMNS'
-        );
-
-        if ($self->{conf}->{IPV6}) {
-          push @allowed_params,
-            'IPV6_PREFIX',
-            'IPV6_MASK',
-            'IPV6_TEMP',
-            'IPV6_PD',
-            'IPV6_PD_MASK',
-            'IPV6_PD_TEMP';
-        }
-
         my %PARAMS = (
           COLS_NAME => 1,
           PAGE_ROWS => $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25,
@@ -565,9 +501,8 @@ sub admin_routes {
           PG        => $query_params->{PG} ? $query_params->{PG} : 0,
         );
 
-        foreach my $param (@allowed_params) {
-          next if (!defined($query_params->{$param}));
-          $PARAMS{$param} = $query_params->{$param} || '_SHOW';
+        foreach my $param (keys %{$query_params}) {
+          $PARAMS{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
         }
 
         $Nas->nas_ip_pools_list({
@@ -613,7 +548,22 @@ sub admin_routes {
           NAS_ID  => $path_params->{nasId},
           POOL_ID => $path_params->{poolId}
         });
-        return 1;
+
+        if (!$Nas->{errno}) {
+          if ($Nas->{AFFECTED} && $Nas->{AFFECTED} =~ /^[0-9]$/) {
+            return {
+              result => 'Successfully deleted',
+            };
+          }
+          else {
+            return {
+              errno  => 30032,
+              errstr => "nasIpPool with id $path_params->{nasId} and poolId $path_params->{poolId} not exists",
+            };
+          }
+        }
+
+        return $Nas;
       },
       credentials => [
         'ADMIN'
@@ -669,6 +619,40 @@ sub _get_onu_list {
   else {
     return $list;
   }
+}
+
+#**********************************************************
+=head2 _tp_add_filter()
+
+=cut
+#**********************************************************
+sub _validate_nas_group_add {
+  my ($attr) = @_;
+
+  if ($attr->{NAME}) {
+    my $groups = $Nas->nas_group_list({
+      NAME      => $attr->{NAME} || '--',
+      COLS_NAME => 1
+    });
+
+    return {
+      errno  => 9,
+      errstr => 'Validation failed',
+      errors => [ {
+        errno    => 21,
+        errstr   => 'name is not valid',
+        param    => 'name',
+        type     => 'string',
+        group_id => $groups->[0]->{id},
+        name     => $attr->{NAME},
+        reason   => "name already exists in group with id $groups->[0]->{id}"
+      } ],
+    } if (scalar @{$groups});
+  }
+
+  return {
+    result => 'OK',
+  };
 }
 
 1;

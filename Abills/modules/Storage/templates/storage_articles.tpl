@@ -22,7 +22,7 @@
         <div class='col-md-8'>%MEASURE_SEL%</div>
       </div>
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right required'>_{EQUIPMENT}_ - _{MODEL}_:</label>
+        <label class='col-md-4 col-form-label text-md-right'>_{EQUIPMENT}_ - _{MODEL}_:</label>
         <div class='col-md-8'>%EQUIPMENT_MODEL_SEL%</div>
       </div>
       <div class='form-group row'>

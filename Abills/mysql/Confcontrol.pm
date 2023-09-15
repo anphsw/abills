@@ -1,8 +1,8 @@
 package Confcontrol;
+
 use strict;
 use warnings FATAL => 'all';
-
-use parent "main";
+use parent qw(dbcore);
 
 my $MODULE = 'Conf_Control';
 
@@ -24,9 +24,8 @@ my $stats_table_name = 'confcontrol_stats';
 
 =cut
 #**********************************************************
-sub new{
+sub new {
   my $class = shift;
-
   my ($db, $admin, $CONF) = @_;
 
   my $self = {
@@ -35,7 +34,7 @@ sub new{
     conf  => $CONF,
   };
 
-  bless( $self, $class );
+  bless($self, $class);
 
   return $self;
 }
@@ -51,7 +50,7 @@ sub new{
 
 =cut
 #**********************************************************
-sub controlled_files_list{
+sub controlled_files_list {
   my $self = shift;
   my ($attr) = @_;
 
@@ -62,23 +61,23 @@ sub controlled_files_list{
 
   my $WHERE = '';
 
-  $WHERE = $self->search_former( $attr, [
-      [ 'ID', 'INT', 'id', 1 ],
-      [ 'NAME', 'STR', 'name', 1 ],
-      [ 'PATH', 'STR', 'path', 1 ],
-      [ 'COMMENTS', 'STR', 'comments', 1 ],
+  $WHERE = $self->search_former($attr, [
+    [ 'ID', 'INT', 'id', 1 ],
+    [ 'NAME', 'STR', 'name', 1 ],
+    [ 'PATH', 'STR', 'path', 1 ],
+    [ 'COMMENTS', 'STR', 'comments', 1 ],
 
-     ],
+  ],
     {
       WHERE => 1
     }
   );
 
-  if ($attr->{SHOW_ALL_COLUMNS}){
+  if ($attr->{SHOW_ALL_COLUMNS}) {
     $self->{SEARCH_FIELDS} = '*,'
   }
 
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id FROM $files_table_name $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, $attr );
+  $self->query("SELECT $self->{SEARCH_FIELDS} id FROM $files_table_name $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, $attr);
 
   return $self->{list} || [];
 }
@@ -94,27 +93,27 @@ sub controlled_files_list{
 
 =cut
 #**********************************************************
-sub controlled_files_count{
+sub controlled_files_count {
   my $self = shift;
   my ($attr) = @_;
 
   my $WHERE = '';
 
-  $WHERE = $self->search_former( $attr, [
-      [ 'ID', 'INT', 'id', 1 ],
-      [ 'NAME', 'STR', 'name', 1 ],
-      [ 'PATH', 'STR', 'path', 1 ],
-    ],
+  $WHERE = $self->search_former($attr, [
+    [ 'ID', 'INT', 'id', 1 ],
+    [ 'NAME', 'STR', 'name', 1 ],
+    [ 'PATH', 'STR', 'path', 1 ],
+  ],
     {
       WHERE => 1
     }
   );
 
-  if ($attr->{SHOW_ALL_COLUMNS}){
+  if ($attr->{SHOW_ALL_COLUMNS}) {
     $self->{SEARCH_FIELDS} = '*,'
   }
 
-  $self->query2( "SELECT COUNT(*) id FROM $files_table_name $WHERE", undef, $attr );
+  $self->query("SELECT COUNT(*) id FROM $files_table_name $WHERE", undef, $attr);
 
   return 0 unless $self->{list};
 
@@ -133,11 +132,11 @@ sub controlled_files_count{
 
 =cut
 #**********************************************************
-sub controlled_files_info{
+sub controlled_files_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2(" SELECT *
+  $self->query(" SELECT *
     FROM $files_table_name ft LEFT JOIN $stats_table_name st ON (st.file_id=ft.id)
     WHERE id= ?
      ", undef, { Bind => [ $id ], COLS_NAME => 1, COLS_UPPER => 1 }
@@ -160,7 +159,7 @@ sub controlled_files_info{
 
 =cut
 #**********************************************************
-sub controlled_files_add{
+sub controlled_files_add {
   my $self = shift;
   my ($attr) = @_;
 
@@ -180,7 +179,7 @@ sub controlled_files_add{
 
 =cut
 #**********************************************************
-sub controlled_files_del{
+sub controlled_files_del {
   my $self = shift;
   my ($attr) = @_;
 
@@ -202,14 +201,14 @@ sub controlled_files_del{
 
 =cut
 #**********************************************************
-sub controlled_files_change{
+sub controlled_files_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2({
-      CHANGE_PARAM => 'ID',
-      TABLE        => $files_table_name,
-      DATA         => $attr,
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => $files_table_name,
+    DATA         => $attr,
   });
 
   return 1;
@@ -226,7 +225,7 @@ sub controlled_files_change{
 
 =cut
 #**********************************************************
-sub stats_list{
+sub stats_list {
   my $self = shift;
   my ($attr) = @_;
 
@@ -237,26 +236,26 @@ sub stats_list{
 
   my $WHERE = '';
 
-  $WHERE = $self->search_former( $attr, [
-      [ 'ID', 'INT', 'ccf.id', 1 ],
-      [ 'NAME', 'STR', 'ccf.name', 1 ],
-      [ 'PATH', 'STR', 'ccf.path', 1 ],
-      [ 'LAST_CHANGE', 'DATE', 'ccs.last_chg', 1 ],
-      [ 'CRC', 'STR', 'ccs.crc', 1 ],
-    ],
+  $WHERE = $self->search_former($attr, [
+    [ 'ID', 'INT', 'ccf.id', 1 ],
+    [ 'NAME', 'STR', 'ccf.name', 1 ],
+    [ 'PATH', 'STR', 'ccf.path', 1 ],
+    [ 'LAST_CHANGE', 'DATE', 'ccs.last_chg', 1 ],
+    [ 'CRC', 'STR', 'ccs.crc', 1 ],
+  ],
     {
       WHERE => 1
     }
   );
 
-  if ($attr->{SHOW_ALL_COLUMNS}){
+  if ($attr->{SHOW_ALL_COLUMNS}) {
     $self->{SEARCH_FIELDS} = '*,'
   }
 
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
    FROM $stats_table_name ccs
       LEFT JOIN $files_table_name ccf ON (ccf.id=ccs.file_id)
-   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, $attr );
+   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, $attr);
 
   return $self->{list} || [];
 }
@@ -272,31 +271,31 @@ sub stats_list{
 
 =cut
 #**********************************************************
-sub stats_last_list{
+sub stats_last_list {
   my $self = shift;
   my ($attr) = @_;
 
   my $WHERE = '';
 
-  $WHERE = $self->search_former( $attr, [
-      [ 'ID', 'INT', 'ccf.id', 1 ],
-      [ 'NAME', 'STR', 'ccf.name', 1 ],
-      [ 'PATH', 'STR', 'ccf.path', 1 ],
-      [ 'LAST_CHANGE', 'DATE', 'ccs2.mtime', 1 ],
-      [ 'CRC', 'STR', 'ccs2.crc', 1 ],
-    ],
+  $WHERE = $self->search_former($attr, [
+    [ 'ID', 'INT', 'ccf.id', 1 ],
+    [ 'NAME', 'STR', 'ccf.name', 1 ],
+    [ 'PATH', 'STR', 'ccf.path', 1 ],
+    [ 'LAST_CHANGE', 'DATE', 'ccs2.mtime', 1 ],
+    [ 'CRC', 'STR', 'ccs2.crc', 1 ],
+  ],
     {
       WHERE => 1
     }
   );
 
-  $self->query2( "
+  $self->query("
 SELECT ccf.id AS id, ccf.path, ccf.name, ccs2.mtime, ccs2.crc, UNIX_TIMESTAMP(ccs2.mtime) AS last_mtime
 FROM (SELECT file_id, MAX(mtime) AS mtime FROM confcontrol_stats ccs1 GROUP BY file_id) ccs1
   LEFT JOIN confcontrol_stats ccs2 ON (ccs2.file_id = ccs1.file_id AND ccs1.mtime=ccs2.mtime)
   LEFT JOIN confcontrol_controlled_files ccf ON (ccf.id=ccs2.file_id)
  $WHERE"
-    , undef, { COLS_NAME => 1, %{ $attr ? $attr : {} } });
+    , undef, { COLS_NAME => 1, %{$attr ? $attr : {}} });
 
   return $self->{list} || [];
 }
@@ -313,11 +312,11 @@ FROM (SELECT file_id, MAX(mtime) AS mtime FROM confcontrol_stats ccs1 GROUP BY f
 
 =cut
 #**********************************************************
-sub stats_info{
+sub stats_info {
   my $self = shift;
   my ($id) = @_;
 
-  my $list = $self->stats_list( { COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 } );
+  my $list = $self->stats_list({ COLS_NAME => 1, ID => $id, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
 
   return $list->[0] || {};
 }
@@ -333,14 +332,13 @@ sub stats_info{
 
 =cut
 #**********************************************************
-sub stats_add{
+sub stats_add {
   my $self = shift;
   my ($attr) = @_;
 
-  if ($attr->{LAST_MTIME}){
+  if ($attr->{LAST_MTIME}) {
     $attr->{MTIME} = POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime($attr->{LAST_MTIME}));
   }
-
 
   $self->query_add($stats_table_name, $attr);
 
@@ -358,7 +356,7 @@ sub stats_add{
 
 =cut
 #**********************************************************
-sub stats_del{
+sub stats_del {
   my $self = shift;
   my ($attr) = @_;
 
@@ -378,20 +376,19 @@ sub stats_del{
 
 =cut
 #**********************************************************
-sub stats_change{
+sub stats_change {
   my $self = shift;
   my ($attr) = @_;
 
-  if ($attr->{LAST_MTIME}){
+  if ($attr->{LAST_MTIME}) {
     $attr->{MTIME} = POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime($attr->{LAST_MTIME}));
   }
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => $stats_table_name,
-      DATA         => $attr,
-    });
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => $stats_table_name,
+    DATA         => $attr,
+  });
 
   return 1;
 }

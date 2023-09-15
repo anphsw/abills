@@ -22,6 +22,7 @@
         <b>_{BALANCE_RECHARCHE_SUM}_</b>
         <div class='float-right'>$FORM{SUM}</div>
       </li>
+      %EXTRA_DESCRIPTIONS%
     </ul>
     <div class='abills-form-main-buttons'>
       <a href='%LINK%' class='btn btn-primary btn-lg' role='button' id='FASTPAY'>_{PAY}_</a>

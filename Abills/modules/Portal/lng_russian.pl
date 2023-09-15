@@ -38,3 +38,4 @@ $lang{MODE_CLEAN_HTML} = 'Очищенный HTML';
 $lang{MODE_PLAIN} = 'Только текст';
 $lang{CONTENT_FULL} = 'Текст статьи';
 $lang{PORTAL_NEWSLETTERS} = 'Рассылка статей';
+$lang{FORMAT} = 'Форматировать';

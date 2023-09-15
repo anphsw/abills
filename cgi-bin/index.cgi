@@ -24,8 +24,8 @@ BEGIN {
 
   my $sql_type = $conf{dbtype} || 'mysql';
   unshift(@INC,
-    $libpath . "Abills/$sql_type/",
     $libpath . "Abills/modules/",
+    $libpath . "Abills/$sql_type/",
     $libpath . '/lib/',
     $libpath . 'Abills/',
     $libpath
@@ -621,7 +621,12 @@ sub form_info {
   $deposit = sprintf("%.2f", $user->{DEPOSIT} || 0);
 
   $user->{DEPOSIT} = $deposit;
-  my $sum = ($FORM{AMOUNT_FOR_PAY}) ? $FORM{AMOUNT_FOR_PAY} : ($deposit < 0) ? abs($deposit * 2) : 0;
+
+  my $sum = 0;
+  if ($user && defined &recomended_pay) {
+    $sum = recomended_pay($user) || 1;
+  }
+
   $pages_qs = "&SUM=$sum&sid=$sid";
 
   if (in_array('Docs', \@MODULES) && !$conf{DOCS_SKIP_USER_MENU}) {
@@ -728,16 +733,13 @@ sub form_info {
   $user->{SHOW_ACCEPT_RULES} = (exists $conf{ACCEPT_RULES} && $conf{ACCEPT_RULES}) ? 'd-inline-block' : 'd-none';
 
   my %contacts = ();
-  if ($conf{CONTACTS_NEW}) {
-    # Show all contacts of this type in one field
-    my @phones = ();
+  my @phones = ();
 
-    if($user->{PHONE_ALL}) { push @phones, $user->{PHONE_ALL}; }
-    if($user->{CELL_PHONE_ALL}) { push @phones, $user->{CELL_PHONE_ALL}; }
+  if ($user->{PHONE_ALL}) {push @phones, $user->{PHONE_ALL};}
+  if ($user->{CELL_PHONE_ALL}) {push @phones, $user->{CELL_PHONE_ALL};}
 
-    $contacts{PHONE} = ($#phones > -1) ?  join(', ', @phones) : q{};
-    $contacts{EMAIL} = $user->{EMAIL_ALL} || q{};
-  }
+  $contacts{PHONE} = ($#phones > -1) ? join(', ', @phones) : q{};
+  $contacts{EMAIL} = $user->{EMAIL_ALL} || q{};
 
   if (in_array('Accident', \@MODULES) && $conf{USER_ACCIDENT_LOG}) {
     load_module('Accident', $html);
@@ -853,7 +855,7 @@ sub _user_pi {
     $user->{ACTION} = 'change';
     $user->{LNG_ACTION} = $lang{CHANGE};
 
-    if (exists $conf{user_chg_info_fields} && $conf{user_chg_info_fields}) {
+    if ($conf{user_chg_info_fields}) {
       require Control::Users_mng;
       $user->{INFO_FIELDS} = form_info_field_tpl({
         VALUES                => $user_pi,
@@ -864,15 +866,9 @@ sub _user_pi {
     }
 
     my %contacts = ();
-    if ($conf{CONTACTS_NEW}) {
-      # Show all contacts of this type in one field
-      $contacts{PHONE} = $user_pi->{PHONE_ALL};
-      $contacts{CELL_PHONE} = $user_pi->{CELL_PHONE_ALL};
-      $contacts{EMAIL} = $user_pi->{EMAIL_ALL};
-    }
-    else{
-      $contacts{CELL_PHONE_HIDDEN} = 'hidden';
-    }
+    $contacts{PHONE} = $user_pi->{PHONE_ALL};
+    $contacts{CELL_PHONE} = $user_pi->{CELL_PHONE_ALL};
+    $contacts{EMAIL} = $user_pi->{EMAIL_ALL};
 
     $user_pi->{FIO_READONLY} = 'readonly' if $user_pi->{FIO2} && $user_pi->{FIO3};
 
@@ -889,6 +885,7 @@ sub _user_pi {
     }
 
     $html->tpl_show(templates('form_chg_client_info'), { %$user_pi, %contacts }, { SKIP_DEBUG_MARKERS => 1 });
+
     return 1;
   }
   elsif ($FORM{change}) {
@@ -904,7 +901,7 @@ sub _user_pi {
     || !$user->{ADDRESS_BUILD}
     || !$user->{EMAIL}) {
     # scripts for address
-    $user->{MESSAGE_CHG} = $html->message('info', '', "$lang{INFO_CHANGE_MSG}", { OUTPUT2RETURN => 1 });
+    $user->{MESSAGE_CHG} = $html->message('info', '', $lang{INFO_CHANGE_MSG}, { OUTPUT2RETURN => 1 });
 
     $user->{PINFO} = 1;
     $user->{ACTION} = 'change';
@@ -1066,6 +1063,7 @@ sub user_pi_change {
   }
 
   $html->message('info', $lang{CHANGED}, $lang{CHANGED});
+
   $user->pi();
 
   return 1;
@@ -1083,36 +1081,55 @@ sub string_encoding {
 }
 
 #**********************************************************
-=head2 _get_mobile_app_links()
+=head2 _make_mobile_app_link($link, $title, $img_path)
 
 =cut
 #**********************************************************
-sub _get_mobile_app_links {
+sub _make_mobile_app_link {
+  my ($link, $title, $img_path) = @_;
+
+  return $html->button(
+    $html->img($img_path, "$title Badge", { class => 'w-100' }),
+    '',
+    { target => '_blank', title => $title, GLOBAL_URL => $link }
+  );
+}
+
+#**********************************************************
+=head2 _mobile_app_links()
+
+=cut
+#**********************************************************
+sub _mobile_app_links {
+  my ($page) = @_;
   my @supported_langs = (
     'ukrainian',
     'russian',
     'english',
   );
 
-  # TODO: to 1.0, create normal config for app links like this
-  # $conf{MOBILE_APP_LINKS} = (
-  #  GOOGLE => '...',
-  #  APPLE  => '...',
-  # );
-
   my $supported = in_array($html->{language}, \@supported_langs)
     ? $html->{language}
     : 'english';
 
-  # manual offset, re-review in future
-  my $google_play_link =
-    "<div style='margin: 0 27px;'>
-      <a title='Google Play' href='$conf{APP_LINK_GOOGLE_PLAY}' target='_blank'>
-       <img class='mw-100' src='/img/google/play/$supported.png'>
-      </a>
-     </div>";
 
-  return $google_play_link;
+  if ($conf{APP_LINK_APP_STORE}) {
+    $page->{APP_LINK_APP_STORE} = _make_mobile_app_link(
+      $conf{APP_LINK_APP_STORE},
+      'App Store',
+      "/img/apple/store/$supported.png"
+    );
+  }
+
+  if ($conf{APP_LINK_GOOGLE_PLAY}) {
+    $page->{APP_LINK_GOOGLE_PLAY} = _make_mobile_app_link(
+      $conf{APP_LINK_GOOGLE_PLAY},
+      'Google Play',
+      "/img/google/play/$supported.png"
+    );
+  }
+
+  return 1;
 }
 
 #**********************************************************
@@ -1132,10 +1149,7 @@ sub form_login_clients {
   $first_page{PASSWORD_RECOVERY} = $conf{PASSWORD_RECOVERY};
   $first_page{FORGOT_PASSWD_LINK} = '/registration.cgi&FORGOT_PASSWD=1';
 
-  # TODO: to 1.0 create normal config
-  if ($conf{APP_LINK_GOOGLE_PLAY}) {
-    $first_page{APP_LINK_GOOGLE_PLAY} = _get_mobile_app_links();
-  }
+  _mobile_app_links(\%first_page);
 
   if (!$conf{REGISTRATION_PORTAL_SKIP}) {
     $first_page{REGISTRATION_ENABLED} = scalar @REGISTRATION || $conf{NEW_REGISTRATION_FORM};
@@ -1673,6 +1687,13 @@ sub form_fees {
   $table->table_summary($html->tpl_show(templates('form_table_summary'), $summary, { OUTPUT2RETURN => 1 }));
 
   foreach my $line (@$list) {
+    while ( $line->{dsc} =~ /([A-Z\_]+)/g) {
+      my $res = $1;
+      my $lang_res = $lang{$res};
+      next if !$lang_res;
+      $line->{dsc} =~ s/$1/$lang_res/g;
+    }
+
     $table->addrow(
       $line->{datetime},
       $line->{dsc},
@@ -1748,6 +1769,13 @@ sub form_payments_list {
   $table->table_summary($html->tpl_show(templates('form_table_summary'), $summary, { OUTPUT2RETURN => 1 }));
 
   foreach my $line (@$list) {
+    while ( $line->{dsc} =~ /([A-Z\_]+)/g) {
+      my $res = $1;
+      my $lang_res = $lang{$res};
+      next if !$lang_res;
+      $line->{dsc} =~ s/$1/$lang_res/g;
+    }
+
     $table->addrow(
       $line->{datetime},
       $line->{dsc},
@@ -2162,8 +2190,10 @@ sub fl {
       #TODO: do we really need it in finance operations?
       if ($Company->{TOTAL} > 0 && $company_list->[0]->{is_company_admin} eq '1'
       ) {
-        push @m, "44:40:$user->{COMPANY_NAME}:form_company_list::";
-        push @m, "45:40:$lang{COMPANY}:form_companies::Control/Companies_mng:";
+        push @m, "44:40:$lang{SERVICES}:form_company_list::";
+        push @m, "45:0:$user->{COMPANY_NAME}:null::";
+        push @m, "46:45:$lang{INFO}:form_company_info::";
+
       }
     }
   }
@@ -2250,10 +2280,12 @@ sub form_custom {
     }
   }
 
-  if (!check_credit_availability()) {
-    $info{CREDIT_CHG_PRICE} = $user->{CREDIT_CHG_PRICE};
-    $info{CREDIT_SUM} = $user->{CREDIT_SUM};
-    $info{SMALL_BOX} .= $html->tpl_show(templates('form_small_box'), \%info, { OUTPUT2RETURN => 1 });
+  require Control::Service_control;
+  my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+  my $credit_info = $Service_control->user_set_credit({ UID => $user->{UID}, REDUCTION => $user->{REDUCTION}, %FORM });
+
+  if ($credit_info->{CREDIT_SUM}) {
+    $info{SMALL_BOX} .= $html->tpl_show(templates('form_small_box'), $credit_info, { OUTPUT2RETURN => 1 });
   }
 
   if ($html->{NEW_MSGS}) {
@@ -2803,53 +2835,6 @@ sub change_pi_popup {
 }
 
 #**********************************************************
-=head2 check_credit_availability()
-
-  returns:
-  1: credit do not available (no need show box or button)
-  2: month changes limit (credit not available, show warning)
-
-
-=cut
-#**********************************************************
-sub check_credit_availability {
-
-  return 1 if (!$conf{user_credit_change});
-  $user->group_info($user->{GID});
-  return 1 if ($user->{TOTAL} > 0 && !$user->{ALLOW_CREDIT});
-  my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $conf{user_credit_change});
-
-  if ($month_changes) {
-    my ($y, $m) = split(/\-/, $DATE);
-    $admin->action_list({
-      UID       => $user->{UID},
-      TYPE      => 5,
-      AID       => $admin->{AID},
-      FROM_DATE => "$y-$m-01",
-      TO_DATE   => "$y-$m-31"
-    });
-
-    if ($admin->{TOTAL} && $month_changes && $admin->{TOTAL} >= $month_changes) {
-      return 2;
-    }
-  }
-
-  if (!$sum || $sum =~ /\d+/ && $sum == 0) {
-    load_module('Internet', $html);
-    my $Internet = Internet->new($db, $admin, \%conf);
-    $Internet->user_info($user->{UID});
-    if ($Internet->{USER_CREDIT_LIMIT} && $Internet->{USER_CREDIT_LIMIT} > 0) {
-      $sum = $Internet->{USER_CREDIT_LIMIT};
-    }
-  }
-  $user->{CREDIT_CHG_PRICE} = sprintf("%.2f", $price || 0);
-  $user->{CREDIT_SUM} = sprintf("%.2f", $sum || 0);
-
-  return 0;
-}
-
-
-#**********************************************************
 =head2 form_credit()
 
 
@@ -2862,17 +2847,45 @@ sub form_credit {
 
   my $credit_info = $Service_control->user_set_credit({ UID => $user->{UID}, REDUCTION => $user->{REDUCTION}, %FORM });
 
-  if ($credit_info->{errstr} && $credit_info->{errstr} eq 'ERR_CREDIT_CHANGE_LIMIT_REACH' && $credit_info->{MONTH_CHANGES}) {
-    $user->{CREDIT_CHG_BUTTON} = $html->color_mark(
-      "$lang{ERR_CREDIT_CHANGE_LIMIT_REACH}. "."$lang{TOTAL}: $admin->{TOTAL}/$credit_info->{MONTH_CHANGES}",
-      'bg-danger',
-      {
-        ID => "credit-button"
-      }
-    );
+  if ($credit_info->{error}) {
+    if ($credit_info->{errstr} eq 'ERR_CREDIT_CHANGE_LIMIT_REACH' && $credit_info->{MONTH_CHANGES}) {
+      $user->{CREDIT_CHG_BUTTON} = $html->color_mark(
+        "$lang{ERR_CREDIT_CHANGE_LIMIT_REACH}. " . "$lang{TOTAL}: $admin->{TOTAL}/$credit_info->{MONTH_CHANGES}",
+        'bg-danger',
+        {
+          ID => "credit-button"
+        }
+      );
+    }
+    else {
+      $html->message('err', $lang{ERROR}, _translate($credit_info->{errstr}), { ID => $credit_info->{error} });
+    }
   }
 
-  if (!$credit_info->{errstr} && !$FORM{change_credit}) {
+  if( $credit_info->{CREDIT_RULES} ) {
+    my $table = $html->table({
+      width       => '100%',
+      caption     => $lang{SETTING_CREDIT},
+      title_plain => [ $lang{DAYS}, $lang{PRICE}, '-' ],
+      ID          => 'CREDIT_FORM',
+      HIDE_TABLE  => 1
+    });
+
+    for (my $i = 0; $i <= $#{$credit_info->{CREDIT_RULES}}; $i++) {
+      my (undef, $days, $price, undef, undef) = split(/:/, $credit_info->{CREDIT_RULES}[$i]);
+      $table->addrow($days, sprintf("%.2f", $price),
+        $html->button("$lang{SET} $lang{CREDIT}", '#', {
+          ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'
+              onClick=\"document.getElementById('change_credit').value='1'; document.getElementById('CREDIT_RULE').value='$i'; document.getElementById('CREDIT_CHG_PRICE').textContent='" . sprintf("%.2f", $price || 0) . "'\"",
+          class     => 'btn btn-xs btn-success',
+          SKIP_HREF => 1
+        })
+      );
+    }
+
+    $table->show();
+  }
+  elsif (!$credit_info->{errstr} && !$FORM{change_credit}) {
     %{$user} = (%{$user}, %{$credit_info});
     $user->{CREDIT_CHG_BUTTON} = $html->button("$lang{SET} $lang{CREDIT}", '#', {
       ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'",
@@ -2881,6 +2894,7 @@ sub form_credit {
       ID        => "credit-button"
     });
   }
+
 
   return 1;
 }
@@ -3046,6 +3060,76 @@ sub func_menu {
     }
     _function($FORM{subf}, $f_args->{f_args});
   }
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 form_company_info - show info about company.
+
+    Arguments:
+
+    Returns:
+      print table.
+=cut
+#**********************************************************
+sub form_company_info {
+  
+  require Companies;
+  Companies->import();
+  my $Company = Companies->new($db, $admin, \%conf);
+
+  my $company_info = $Company->list({
+    COMPANY_ID       => $user->{COMPANY_ID},
+    COMPANY_NAME     => '_SHOW',
+    ADDRESS          => '_SHOW',
+    USERS_COUNT      => '_SHOW',
+    DEPOSIT          => '_SHOW',
+    REGISTRATION     => '_SHOW',
+    CONTRACT_ID      => '_SHOW',
+    CONTRACT_DATE    => '_SHOW',
+    TAX_NUMBER       => '_SHOW',
+    BANK_ACCOUNT     => '_SHOW',
+    BANK_NAME        => '_SHOW',
+    COR_BANK_ACCOUNT => '_SHOW',
+    BANK_BIC         => '_SHOW',
+    EDRPOU           => '_SHOW',
+    PHONE            => '_SHOW',
+    VAT              => '_SHOW',
+    REPRESENTATIVE   => '_SHOW',
+    REPRESENTATIVE   => '_SHOW',
+    CREDIT           => '_SHOW',
+    CREDIT_DATE      => '_SHOW',
+    COLS_NAME        =>  1
+  });
+
+  return if (!$company_info);
+
+  my $money_unit_names = '';
+  if ($conf{MONEY_UNIT_NAMES}) {
+    $money_unit_names=(split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
+  }
+
+  $html->tpl_show(templates('form_client_company_info'), {
+    COMPANY_NAME    => $company_info->[0]->{name},
+    ADDRESS         => $company_info->[0]->{address},
+    USERS_COUNT     => $company_info->[0]->{users_count},
+    DEPOSIT         => sprintf('%.2f',$company_info->[0]->{deposit})." $money_unit_names",
+    REGISTRATION    => $company_info->[0]->{registration} || '',
+    CONTRACT_ID     => $company_info->[0]->{contract_id} || '',
+    CONTRACT_DATE   => $company_info->[0]->{contract_date} || '',
+    TAX_NUMBER      => $company_info->[0]->{tax_number} || '',
+    COR_BANK_ACCOUNT=> $company_info->[0]->{cor_bank_account} || '',
+    BANK_ACCOUNT    => $company_info->[0]->{bank_account} || '',
+    BANK_NAME       => $company_info->[0]->{bank_name} || '',
+    VAT             => $company_info->[0]->{vat} || '',
+    PHONE           => $company_info->[0]->{phone} || '',
+    BANK_BIC        => $company_info->[0]->{bank_bic} || '',
+    EDRPOU          => $company_info->[0]->{edrpou},
+    REPRESENTATIVE  => $company_info->[0]->{representative},
+    CREDIT          => ($company_info->[0]->{credit}) ? "$company_info->[0]->{credit} $money_unit_names $lang{TO} $company_info->[0]->{credit_date}" : '',
+  });
 
   return 1;
 }

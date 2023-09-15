@@ -565,7 +565,7 @@ sub table_function_fields {
         "&index=" . get_function_index($function_fields->[$i]) . $query_string, { class => 'stats' });
     }
     elsif ($function_fields->[$i] eq 'change') {
-      push @fields_array, $html->button($lang{CHANGE}, "index=$index&chg=" . ($line->{id} || q{})
+      push @fields_array, $html->button($lang{CHANGE}, "index=$index&chg=" . ($line->{id} || 0)
         . (($attr->{MODULE}) ? "&MODULE=$attr->{MODULE}" : '')
         . $query_string, { class => 'change' });
     }
@@ -910,6 +910,7 @@ sub _result_former_data_extra_fields {
   return $SEARCH_TITLES if (! $data->{EXTRA_FIELDS});
 
   foreach my $line (@{$data->{EXTRA_FIELDS}}) {
+    next if (in_array('Multidoms', \@MODULES) && $admin->{DOMAIN_ID} && $admin->{DOMAIN_ID} ne $line->{domain_id});
     if (ref $line eq 'ARRAY' && $line->[0] =~ /ifu(\S+)/) {
       my $field_id = $1;
       my (undef, undef, $name, undef) = split(/:/, $line->[1]);
@@ -971,6 +972,9 @@ sub _get_search_titles {
     uid            => 'UID',
     birth_date     => $lang{BIRTH_DATE},
 
+    latitude       => $lang{LATITUDE},
+    longitude      => $lang{LONGITUDE},
+
     telegram       => 'Telegram',
     viber          => 'Viber',
   );
@@ -1009,7 +1013,7 @@ sub _get_search_titles {
 
   $SEARCH_TITLES{accept_rules} = $lang{ACCEPT_RULES} if ($conf{ACCEPT_RULES});
   $SEARCH_TITLES{ext_deposit} = "$lang{EXTRA} $lang{DEPOSIT}" if ($conf{EXT_BILL_ACCOUNT});
-  $SEARCH_TITLES{cell_phone} = $lang{CELL_PHONE} if ($conf{CONTACTS_NEW} && !$attr->{SKIP_USERS_FIELDS});
+  $SEARCH_TITLES{cell_phone} = $lang{CELL_PHONE} if (!$attr->{SKIP_USERS_FIELDS});
 
   _result_former_data_extra_fields($data, \%SEARCH_TITLES);
 

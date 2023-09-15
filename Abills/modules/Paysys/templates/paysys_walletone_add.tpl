@@ -33,6 +33,7 @@
           <b>_{BALANCE_RECHARCHE_SUM}_</b>
           <div class='float-right'>%WMI_PAYMENT_AMOUNT%</div>
         </li>
+        %EXTRA_DESCRIPTIONS%
       </ul>
       <input type='submit' class='btn btn-primary float-right' value='_{PAY}_'>
     </div>

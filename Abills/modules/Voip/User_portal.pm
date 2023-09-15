@@ -23,12 +23,25 @@ our Abills::HTML $html;
 my $Voip = Voip->new($db, $admin, \%conf);
 my $Sessions = Voip_Sessions->new($db, $admin, \%conf);
 
+require Shedule;
+Shedule->import();
+my $Shedule  = Shedule->new($db, $admin, \%conf);
+
+require Tariffs;
+Tariffs->import();
+my $Tariffs  = Tariffs->new($db, \%conf, $admin);
+
+require Control::Service_control;
+Control::Service_control->import();
+my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+
 #**********************************************************
 =head2 voip_user_info();
 
 =cut
 #**********************************************************
 sub voip_user_info {
+
   my $user = $Voip->user_info($user->{UID});
 
   if ($user->{TOTAL} < 1) {
@@ -36,6 +49,45 @@ sub voip_user_info {
     return 0;
   }
 
+  # Check for sheduled tp change
+  my $sheduled_tp_actions_list = $Shedule->list({
+    SERVICE_ID => $user->{ID},
+    UID        => $user->{UID},
+    TYPE       => 'tp',
+    MODULE     => 'Voip',
+    COLS_NAME  => 1
+  });
+
+  if ($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0){
+    my $next_tp_action = $sheduled_tp_actions_list->[0];
+    my $next_tp_date   = "$next_tp_action->{y}-$next_tp_action->{m}-$next_tp_action->{d}";
+
+    my $next_tp_id = $next_tp_action->{action};
+    if ($next_tp_id =~ /:/) {
+      ($user->{ID}, $next_tp_id) = split(/:/, $next_tp_id);
+    }
+
+    # Get info about next TP
+    my $tp_list = $Tariffs->list({
+      INNER_TP_ID => $next_tp_id,
+      NAME        => '_SHOW',
+      COLS_NAME   => 1
+    });
+
+    if ($Tariffs->{TOTAL} && $Tariffs->{TOTAL} > 0){
+      my $next_tp_name = $tp_list->[0]{name};
+      $Voip->{TP_CHANGE_WARNING} = $html->message("info", $lang{TP_CHANGE_SHEDULED}." ($next_tp_date)", $next_tp_name, { OUTPUT2RETURN => 1 });
+    }
+  }
+
+  $Voip->{ALLOW_ANSWER} = $Voip->{ALLOW_ANSWER} ? $lang{YES} : $lang{NO};
+  $Voip->{ALLOW_CALLS} = $Voip->{ALLOW_CALLS} ? $lang{YES} : $lang{NO};
+  if ($conf{VOIP_USER_CHG_TP}) {
+    $Voip->{TP_CHANGE} = $html->button($lang{CHANGE}, 'index=' . get_function_index('voip_user_portal_chg_tp')
+      . '&ID=' . $Voip->{ID} . '&sid=' . $sid, { class => 'float-right', ICON => 'fa fa-pencil-alt' });
+
+  }
+  $Voip->{DISABLE} = $Voip->{DISABLE} ? $html->color_mark($lang{DISABLE}, 'danger') : $html->color_mark($lang{ENABLE}, 'success');
   $html->tpl_show(_include('voip_user_info', 'Voip'), $Voip);
 
   voip_user_phone_aliases($Voip);
@@ -49,6 +101,8 @@ sub voip_user_info {
 =cut
 #**********************************************************
 sub voip_user_stats {
+
+  require Voip::Reports;
 
   if (!defined($FORM{sort})) {
     $LIST_PARAMS{SORT} = 2;
@@ -147,11 +201,8 @@ sub voip_user_routes {
 
   my $user = $Voip->user_info($user->{UID});
 
-  require Tariffs;
-  Tariffs->import();
-  my $Voip_tp = Tariffs->new($db, \%conf, $admin);
   $WEEKDAYS[0] = $lang{ALL};
-  my $list = $Voip_tp->ti_list({ TP_ID => $user->{TP_ID} });
+  my $list = $Tariffs->ti_list({ TP_ID => $user->{TP_ID} });
   my @caption = ($lang{PREFIX}, $lang{ROUTES}, "$lang{STATUS}");
   my @aligns = ('left', 'left', 'center');
   my @interval_ids = ();
@@ -164,7 +215,7 @@ sub voip_user_routes {
     push @aligns, 'center';
     push @interval_ids, $line->[0];
   }
-  $intervals = $Voip_tp->{TOTAL};
+  $intervals = $Tariffs->{TOTAL};
 
   $list = $Voip->rp_list({ %LIST_PARAMS, COLS_NAME => 1 });
   my %prices = ();
@@ -213,16 +264,15 @@ sub voip_user_phone_aliases {
 
   my $alias_list = $Voip->phone_aliases_list({
     %LIST_PARAMS,
-    NUMBER     => '_SHOW',
-    DISABLE    => '_SHOW',
-    CHANGED    => '_SHOW',
-    COLS_NAME  => 1,
-    UID        => $user->{UID},
+    NUMBER    => '_SHOW',
+    DISABLE   => '_SHOW',
+    CHANGED   => '_SHOW',
+    COLS_NAME => 1,
+    UID       => $user->{UID},
   });
 
   my $table = $html->table({
-    caption => $lang{EXTRA_NUMBERS} . ': ' . ($Voip->{TOTAL} || q{}),
-    width   => '400',
+    caption => $lang{EXTRA_NUMBERS} . ': ' . ($Voip->{TOTAL} > 0 ? $Voip->{TOTAL} : 0),
     title   => [ $lang{PHONE}, $lang{STATUS}, $lang{CHANGED} ],
     qs      => $pages_qs,
     ID      => 'VOIP_PHONE_ALIASES'
@@ -234,7 +284,144 @@ sub voip_user_phone_aliases {
 
   $table->show(),
 
-  return  1;
+    return 1;
+}
+
+#**********************************************************
+=head2 voip_user_portal_chg_tp($attr)
+
+=cut
+#**********************************************************
+sub voip_user_portal_chg_tp {
+  my ($attr) = @_;
+
+  my $period = $FORM{period} || 0;
+  if (!$conf{VOIP_USER_CHG_TP}) {
+    $html->message('err', "$lang{CHANGE} $lang{TARIF_PLAN}", $lang{NOT_ALLOW}, { ID => 140 });
+    return 0;
+  }
+
+  my $uid = $LIST_PARAMS{UID};
+
+  if (!$uid) {
+    $html->message('err', $lang{ERROR}, $lang{USER_NOT_EXIST}, { ID => 19 });
+    return 0;
+  }
+
+  $Voip = $Voip->user_info($uid, { ID => $FORM{ID} });
+
+  if ($Voip->{TOTAL} < 1) {
+    $html->message('info', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 22 });
+    return 0;
+  }
+
+  if ($user->{GID}) {
+    #Get user groups
+    $user->group_info($user->{GID});
+    if ($user->{DISABLE_CHG_TP}) {
+      $html->message('err', "$lang{CHANGE} $lang{TARIF_PLAN}", $lang{NOT_ALLOW}, { ID => 143 });
+      return 0;
+    }
+  }
+
+  #Get TP groups
+  $Tariffs->tp_group_info($Voip->{TP_GID});
+  if (!$Tariffs->{USER_CHG_TP}) {
+    $html->message('err', "$lang{CHANGE} $lang{TARIF_PLAN}", $lang{NOT_ALLOW}, { ID => 144 });
+    return 0;
+  }
+
+  my $next_abon = $Service_control->get_next_abon_date({ SERVICE_INFO => $Voip });
+  $Voip->{ABON_DATE} = $next_abon->{ABON_DATE};
+
+  if ($FORM{set} && $FORM{ACCEPT_RULES}) {
+    my $add_result = $Service_control->user_chg_tp({ %FORM, UID => $uid, SERVICE_INFO => $Voip, MODULE => 'Voip' });
+    $html->message('info', $lang{CHANGED}, $lang{CHANGED}) if !_message_show($add_result);
+  }
+  elsif ($FORM{del} && $FORM{ACCEPT_RULES}) {
+    my $del_result = $Service_control->del_user_chg_shedule({ %FORM, UID => $uid });
+    $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{SHEDULE_ID}]") if (!_message_show($del_result));
+  }
+
+  $Shedule->info({ UID => $user->{UID}, TYPE => 'tp', MODULE => 'Voip' });
+
+  my $table;
+  if ($Shedule->{TOTAL} > 0) {
+    my $action = $Shedule->{ACTION};
+    my $service_id = 0;
+    if ($action =~ /:/) {
+      ($service_id, $action) = split(/:/, $action);
+    }
+
+    $Tariffs->info(0, { TP_ID => $action });
+
+    $table = $html->table({
+      width      => '100%',
+      caption    => $lang{SHEDULE},
+      ID         => 'VOIP_TP_SHEDULE',
+      rows       => [
+        [ "$lang{TARIF_PLAN}:", "$Tariffs->{ID} : $Tariffs->{NAME}" ],
+        [ "$lang{DATE}:", "$Shedule->{Y}-$Shedule->{M}-$Shedule->{D}" ],
+        [ "$lang{ADDED}:", $Shedule->{DATE} ],
+        [ "ID:", $Shedule->{SHEDULE_ID} ] ]
+    });
+
+    $Tariffs->{TARIF_PLAN_SEL} = $table->show({ OUTPUT2RETURN => 1 }) .
+      $html->form_input('SHEDULE_ID', $Shedule->{SHEDULE_ID}, { TYPE => 'HIDDEN', OUTPUT2RETURN => 1 });
+    $Tariffs->{TARIF_PLAN_TABLE} = $Tariffs->{TARIF_PLAN_SEL};
+    if (!$Shedule->{ADMIN_ACTION}) {
+      $Tariffs->{ACTION} = 'del';
+      $Tariffs->{LNG_ACTION} = "$lang{DEL}  $lang{SHEDULE}";
+    }
+  }
+  else {
+    my $available_tariffs = $Service_control->available_tariffs({ %FORM, MODULE => 'Voip', UID => $uid });
+
+    if (ref($available_tariffs) ne 'ARRAY' || $#{$available_tariffs} < 0) {
+      $html->message('info', $lang{INFO}, $lang{ERR_NO_AVAILABLE_TP}, { ID => 142 });
+      return 0;
+    }
+
+    $table = $html->table({
+      width   => '100%',
+      ID      => 'VOIP_TP',
+      title   => [ 'ID', $lang{NAME}, '-' ],
+      FIELDS_IDS => $Tariffs->{COL_NAMES_ARR},
+      caption => $lang{TARIF_PLANS},
+    });
+
+    foreach my $tp (@{$available_tariffs}) {
+      my $radio_but = $tp->{ERROR} ? $tp->{ERROR} : $html->form_input('TP_ID', $tp->{tp_id}, { TYPE => 'radio', OUTPUT2RETURN => 1 });
+
+      my $text .= $html->b($tp->{name} || q{});
+
+      if ($tp->{comments}) {
+        $text .= $html->br() . $tp->{comments};
+      }
+      $table->addrow($tp->{id}, $text, $radio_but);
+    }
+
+    $Tariffs->{TARIF_PLAN_TABLE} = $table->show({ OUTPUT2RETURN => 1 });
+
+    $Tariffs->{PARAMS} .= form_period($period, {
+      ABON_DATE => $Voip->{ABON_DATE},
+      TP        => $Tariffs,
+      # PERIOD    => $FORM{period}
+    });
+
+    $Tariffs->{ACTION} = 'set';
+    $Tariffs->{LNG_ACTION} = $lang{CHANGE};
+  }
+
+  $Tariffs->{UID} = $attr->{USER_INFO}->{UID};
+  $Tariffs->{TP_ID} = $Voip->{TP_ID};
+  $Tariffs->{TP_NAME} = "$Voip->{TP_NUM}:$Voip->{TP_NAME}";
+
+  $Tariffs->{CHG_TP_RULES} = $html->tpl_show(_include('voip_chg_tp_rule', 'Voip'), {}, { OUTPUT2RETURN => 1 });
+
+  $html->tpl_show(templates('form_client_chg_tp'), { %$Tariffs, ID => $Voip->{ID} }, { ID => 'VOIP_CHG_TP' });
+
+  return 1;
 }
 
 1;

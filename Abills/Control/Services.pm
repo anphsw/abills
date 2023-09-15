@@ -178,12 +178,14 @@ sub get_services {
 
           my $day_fee = ($service_info->{day} && $service_info->{day} > 0) ? $service_info->{day} * $days_in_month : 0;
           my $sum = $day_fee + ($service_info->{month} || 0);
-
+          my $original_sum = $sum;
           if ($service_info->{tp_reduction_fee} && $user_info->{REDUCTION}) {
             if ($user_info->{REDUCTION} < 100) {
               $sum = $sum * ((100 - $user_info->{REDUCTION}) / 100);
               $service_info->{month} = $service_info->{month} * ((100 - $user_info->{REDUCTION}) / 100);
-              $service_info->{day} = $service_info->{day} * ((100 - $user_info->{REDUCTION}) / 100);
+              if ($service_info->{day}) {
+                $service_info->{day} = $service_info->{day} * ((100 - $user_info->{REDUCTION}) / 100);
+              }
             }
             else {
               $service_info->{month} = 0;
@@ -197,6 +199,7 @@ sub get_services {
             SERVICE_NAME     => $service_info->{service_name} || q{},
             SERVICE_DESC     => $service_info->{service_desc} || q{},
             SUM              => $sum,
+            ORIGINAL_SUM     => $original_sum,
             STATUS           => $status,
             TP_REDUCTION_FEE => $service_info->{tp_reduction_fee} || 0,
             ACTIVATE         => $service_info->{service_activate},
@@ -463,7 +466,7 @@ sub get_user_services {
       'NAT',
       'PROVISION_NAS_ID',
       'PROVISION_PORT',
-      'SIMULTANEONSLY',
+      'SIMULTANEOUSLY',
       'SIMULTANEOUSLY',
       'TOTAL',
       'TP_CREDIT',
@@ -496,6 +499,9 @@ sub get_user_services {
     foreach my $service (@{$services}) {
       next if (!$service->{manual_activate} && !$service->{date});
       require POSIX;
+      require Users;
+      my $Users = Users->new($db, $admin, \%conf);
+      $Users->info($uid);
       POSIX->import(qw(strftime));
       $DATE = strftime("%Y-%m-%d", localtime(time));
       my $date_if = $service->{next_abon} ? date_diff($DATE, $service->{next_abon}) : 0;
@@ -512,13 +518,19 @@ sub get_user_services {
         active               => (!$service->{next_abon} || ($date_if && $date_if <= 0)) ? 'false' : 'true',
         start_date           => $service->{date},
         end_date             => $service->{next_abon},
-        description          => $service->{description},
+        description          => $service->{user_description} || '',
         period               => $periods[$service->{period}],
         activate             => ($service->{user_portal} > 1 && $service->{manual_activate}) ? 'true' : 'false',
         service_link         => $service->{service_link},
         service_img          => "$base_attach_link/$service->{service_img}",
-        personal_description => $service->{personal_description}
+        personal_description => $service->{personal_description},
+        tp_reduction_fee     => $service->{reduction_fee},
       );
+
+      if ($tariff{tp_reduction_fee} && $Users->{REDUCTION} && $Users->{REDUCTION} > 0) {
+        $tariff{original_price} = $tariff{price};
+        $tariff{price} = $tariff{price} ? $tariff{price} - (($tariff{price} / 100) * $Users->{REDUCTION}) : $tariff{price};
+      }
 
       if ($date_if && $date_if > 0) {
         $tariff{next_abon} = {

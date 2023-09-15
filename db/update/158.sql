@@ -19,12 +19,13 @@ ALTER TABLE `voip_main` ADD COLUMN `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY 
 
 CREATE TABLE IF NOT EXISTS `voip_phone_aliases`
 (
-    `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-    `uid`              INT(11) UNSIGNED     NOT NULL DEFAULT '0',
-    `disable`          TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0',
-    `number`           VARCHAR(16)          NOT NULL DEFAULT '',
-    `changed`          DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `id`        INT(11) UNSIGNED     NOT NULL AUTO_INCREMENT,
+    `uid`       INT(11) UNSIGNED     NOT NULL DEFAULT '0',
+    `disable`   TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0',
+    `number`    VARCHAR(16)          NOT NULL DEFAULT '',
+    `changed`   DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
+    UNIQUE KEY `number` (`number`),
     KEY `uid` (`uid`)
 )
-    DEFAULT CHARSET = utf8 COMMENT = 'Voip online';
+    DEFAULT CHARSET = utf8 COMMENT = 'Voip phone aliasese';

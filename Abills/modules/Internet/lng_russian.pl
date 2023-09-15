@@ -1,7 +1,7 @@
 $lang{INTERNET}='Интернет';
 $lang{ADD_SERVICE}='Добавить услугу';
 $lang{MASK}='Маска';
-$lang{SWITCH}='Комутатор';
+$lang{SWITCH}='Коммутатор';
 $lang{TO_PLAN}='Запланировать';
 
 $lang{FILTERS_LOG}='Журнал фильтров';

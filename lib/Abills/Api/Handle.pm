@@ -53,7 +53,8 @@ sub _start {
 
   my $request_body = $self->{req_params}->{__BUFFER} || '';
 
-  if (!$self->{conf}->{API_ENABLE} && !$self->{direct}) {
+  #TODO : Is it ok to add !$self->{cookies}->{admin_sid}?
+  if (!$self->{conf}->{API_ENABLE} && !$self->{direct} && !$self->{cookies}->{admin_sid}) {
     $status = 400;
     $response = { errstr => 'It seems that the API is currently disabled in the configuration. To enable it,  add the following line of code: $conf{API_ENABLE}=1;', errno => 301 };
   }
@@ -66,10 +67,9 @@ sub _start {
       ::check_permissions('', '', '', { API_KEY => $ENV{HTTP_KEY} });
     }
 
-    #TODO : Fix %FORM add make possible to paste query params with request body
     $router = Abills::Api::Router->new($self->{path}, $self->{db}, $self->{admin}, $self->{conf}, $self->{req_params}, $self->{lang}, \@main::MODULES, 0, $self->{html}, $self->{request_method});
 
-    if ($router->{errno}) {
+    if (defined $router->{errno}) {
       $status = $router->{errno} == 10 ? 403 : ($router->{status}) ? $router->{status} : 400;
       $response = { errstr => $router->{errstr}, errno => $router->{errno} };
     }

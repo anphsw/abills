@@ -31,3 +31,9 @@ items:
     serviceLink:
       type: string
       example: Скачати|https://sourceforge.net/projects/abills/
+    tpReductionFee:
+      type: number
+      example: 1
+    originalPrice:
+      type: number
+      example: 90

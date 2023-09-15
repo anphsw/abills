@@ -764,12 +764,14 @@ sub action_list {
     $EXT_TABLES =  " LEFT JOIN users u FORCE INDEX FOR JOIN (`PRIMARY`) ON (aa.uid=u.uid) ". $EXT_TABLES;
   }
 
+  my $db_index = (! $WHERE) ? q{USE INDEX (`PRIMARY`)} : q{};
+
   $self->query("SELECT aa.id,
       $self->{SEARCH_FIELDS}
       aa.uid,
       aa.aid
-   FROM admin_actions aa
-     $EXT_TABLES
+   FROM admin_actions aa $db_index
+   $EXT_TABLES
    $WHERE
    $GROUP_BY
    ORDER BY $SORT $DESC
@@ -780,12 +782,14 @@ sub action_list {
 
   my $list = $self->{list} || [];
 
-  $self->query("SELECT COUNT(*) AS total FROM admin_actions aa
+  if (! $attr->{SKIP_TOTAL}) {
+    $self->query("SELECT COUNT(*) AS total FROM admin_actions aa $db_index
     $EXT_TABLES
     $WHERE;",
-    undef,
-    { INFO => 1 }
-  );
+      undef,
+      { INFO => 1 }
+    );
+  }
 
   return $list;
 }

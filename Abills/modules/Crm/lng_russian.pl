@@ -40,7 +40,7 @@ $lang{ADD_TAGS} = 'Добавить теги';
 $lang{NO_CLICK_USER} = 'Не выбрано ни одного пользователя для рассылки';
 
 $lang{NO_EMAIL} = 'Укажите в конфигурационном файле E-Mail адрес: ';
-$lang{NO_EMAIL_LEAD} = 'В лидов нет E-Mail:';
+$lang{NO_EMAIL_LEAD} = 'У лидов нет E-Mail:';
 $lang{DELIVERY} = 'Рассылка';
 
 $lang{COMPETITOR} = 'Конкурент';
@@ -102,7 +102,7 @@ $lang{THE_USER_JOINED_VIA_TELEGRAM} = 'Пользователь присоеди
 $lang{OPEN_LINES} = 'Открытые линии';
 $lang{OPEN_LINE} = 'Открытая линия';
 $lang{LEADS_ARE_UNITED} = 'Лиды объединены';
-$lang{MERGE} = 'Объеденить';
+$lang{MERGE} = 'Объединить';
 $lang{SEPARATOR} = 'Разделитель';
 
 $lang{CRM_CHANGE} = 'изменить';
@@ -131,9 +131,9 @@ $lang{CRM_SELECT_RESPONSIBLE} = 'Выберите ответственного..
 $lang{CRM_SET_RESPONSIBLE} = 'Установить ответственного';
 $lang{CRM_SEND_MESSAGE} = 'Отправить сообщение';
 $lang{CRM_ENTER_MESSAGE} = 'Введите сообщение...';
-$lang{SET_PRIORITY} = 'Встановити приоритет';
+$lang{SET_PRIORITY} = 'Установить приоритет';
 $lang{CRM_ADD_ACTION} = 'Добавить действие';
-$lang{CRM_PLANNING_DATE} = 'Запланирования дата';
+$lang{CRM_PLANNING_DATE} = 'Запланированная дата';
 $lang{CRM_ADD_TASK} = 'Добавить задачу';
 $lang{CRM_TASK_TYPE} = 'Тип задачи';
 $lang{CRM_TASK_NAME} = 'Название задачи';
@@ -159,5 +159,9 @@ $lang{ADD_ACTION} = 'Добавить действие';
 
 $lang{CRM_SUBJECT_MESSAGE} = 'Тема сообщения';
 $lang{CRM_MESSAGE} = 'Текст сообщения';
+$lang{HOLDUP_TO} = 'Приостановлено до';
+
+$lang{TRACKED_LEADS} = 'Выбранные потенциальные клиенты';
+$lang{DEFERRED_LEADS} = 'Отложенные потенциальные клиенты';
 
 1

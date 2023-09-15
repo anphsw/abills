@@ -196,7 +196,7 @@ sub internet_traffic_limit_block {
       my $month_start = ($u->{internet_activate} && $u->{internet_activate} eq '0000-00-00') ? q/DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00')/ : "'$u->{internet_activate} 00:00:00'";
       my %SQL_params = (
         TOTAL   => '',
-        DAY     => "AND (start >= CONCAT(CURDATE(), ' 00:00:00') AND start<=CONCAT(CURDATE(), ' 24:00:00'))",
+        DAY     => "AND (start >= TIMESTAMP(CURDATE(), ' 00:00:00') AND start<=TIMESTAMP(CURDATE(), ' 24:00:00'))",
         WEEK    => "AND (YEAR(CURDATE())=YEAR(start)) AND (WEEK(CURDATE()) = WEEK(start))",
         MONTH   => "AND (start >= $month_start) ", #AND start<=DATE_FORMAT($month_start, '%Y-%m-31 24:00:00'))"
         PREPAID => "AND (start >= $month_start) "

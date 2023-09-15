@@ -9,19 +9,20 @@ get:
       schema:
         type: number
         default: 25
-    - name: dateFrom
+    - name: fromDate
       in: query
       description: С даты
       schema:
+        type: string
         example: '2022-12-12'
         default: '0000-00-00'
-    - name: dateTo
+    - name: toDate
       in: query
       description: По какую дату
       schema:
         type: string
-        default: '0000-00-00'
         example: '2022-12-12'
+        default: '0000-00-00'
   responses:
     200:
       description: Успешное выполнение

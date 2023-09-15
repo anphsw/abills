@@ -14,7 +14,8 @@ our (
   $admin,
   $db,
   %permissions,
-  %LIST_PARAMS
+  %LIST_PARAMS,
+  $users
 );
 
 use Time::Piece;
@@ -500,10 +501,8 @@ sub crm_info_field_language_label {
   my $field = shift;
   my ($attr) = @_;
 
-  my @lang_list = map {my ($language, $lang_name) = split(':', $_);
-    { id => $language, name => $lang_name };} split(';\s*', $conf{LANGS});
-
-  return $lang_list[$attr->{VALUE}]{name} || '';
+  my %lang_list = map { split /:/ } split(';\s*', $conf{LANGS});
+  return $attr->{VALUE} && $lang_list{$attr->{VALUE}} ? $lang_list{$attr->{VALUE}} : '';
 }
 
 #**********************************************************
@@ -750,7 +749,7 @@ sub crm_lead_fields {
 
         my $competitor_info = $Crm->crm_competitor_info({ ID => $competitor_id });
         return _crm_base_label($competitor_info->{NAME}, $lang{COMPETITOR}) .
-          _crm_base_label($assessments[$lead->{ASSESSMENT} - 1]{name}, $lang{ASSESSMENT});
+          _crm_base_label($assessments[$lead->{ASSESSMENT} ? $lead->{ASSESSMENT} - 1 : 0 ]{name}, $lang{ASSESSMENT});
       },
       input => sub {
         my $competitor_id = shift;
@@ -788,7 +787,7 @@ sub crm_lead_fields {
           NO_ID       => 1,
           SEL_KEY     => 'id',
           SEL_VALUE   => 'name',
-          SEL_OPTIONS => { "" => "" },
+          SEL_OPTIONS => { '' => '' },
         });
 
         return $html->element('div', $span . $competitors_select, { class => 'form-group mb-2' }) .
@@ -819,6 +818,61 @@ sub crm_lead_fields {
 
         return $html->element('div', $span . $html->element('div', $datepicker, { class => 'input-group' }),
           { class => 'form-group mb-2' });
+      }
+    },
+    {
+      key   => 'HOLDUP_DATE',
+      lang  => $lang{HOLDUP_TO},
+      input => sub {
+        my $holdup_date = shift;
+
+        my $span = $html->element('span', $lang{HOLDUP_TO}, { class => 'text-muted' });
+        my $datepicker = $html->form_datepicker('HOLDUP_DATE', $holdup_date, { RETURN_INPUT => 1 });
+
+        return $html->element('div', $span . $html->element('div', $datepicker, { class => 'input-group' }),
+          { class => 'form-group mb-2' });
+      }
+    },
+    {
+      key   => 'UID',
+      lang  => $lang{USER},
+      label => sub {
+        my $uid = shift;
+        
+        my $user_btn = $lang{NOT_EXIST};
+
+        if ($uid) {
+          my $user_info = $users->info($uid);
+          
+          $user_btn = $html->button($user_info->{LOGIN}, "get_index=form_users&header=1&full=1&UID=$uid");
+          $user_btn .= $html->button("", "index=$index&delete_uid=1&LEAD_ID=$lead->{LEAD_ID}", {
+            ICON  => 'fa fa-trash',
+            class => 'ml-1 text-danger',
+          });
+        }
+
+        return _crm_base_label($user_btn, $lang{USER});
+      },
+      input => sub {
+        my $uid = shift;
+
+        require Control::Users_mng;
+        my $user_search = user_modal_search();
+        my $user_info = $uid ? $users->info($uid) : {};
+
+        my $span = $html->element('span', $lang{USER}, { class => 'text-muted' });
+        my $user_btn = $html->tpl_show(_include('crm_lead_add_user', 'Crm'), {
+          USER_SEARCH     => $user_search,
+          USER_LOGIN      => $user_info->{LOGIN},
+          LEAD_ID         => $lead->{LEAD_ID},
+          INDEX           => get_function_index('crm_lead_info'),
+          DELETE_USER_BTN => $uid ? $html->button('', "index=$index&delete_uid=1&LEAD_ID=$lead->{LEAD_ID}", {
+            ICON  => 'fa fa-trash text-danger',
+            class => 'btn btn-default',
+          }) : ''
+        }, { OUTPUT2RETURN => 1 });
+
+        return $span . $user_btn;
       }
     },
   ];

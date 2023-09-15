@@ -1,4 +1,4 @@
-$lang{TRACKER} = 'Трэкер';
+$lang{TRACKER} = 'Трекер';
 $lang{TRACKERS} = 'Трекеры';
 $lang{TRACKED_ADMINS} = 'Отслеживаемые администраторы';
 $lang{NOT_REGISTERED} = 'Не зарегистрированные';

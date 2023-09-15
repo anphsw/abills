@@ -225,6 +225,7 @@ sub msgs_new {
 
     my $refresh_time = $conf{MSGS_REFRESH_HEADER_MENU} || 30;
 
+    $conf{MSGS_HEADER_MENU_DYNAMIC} //= 1;
     if (!$FORM{xml} && !$FORM{json}) {
       my $url = '';
       if ($conf{API_ENABLE}) {
@@ -240,7 +241,7 @@ sub msgs_new {
 
       # Forming JSON
       $admin->{ADMIN_MSGS} = '';
-      $admin->{ADMIN_MSGS} .= qq{"HEADER":"$lang{OPEN} : $Msgs->{OPENED}",} if ($Msgs->{OPENED});
+      $admin->{ADMIN_MSGS} .= qq{"HEADER":"$lang{OPEN}: $Msgs->{OPENED}",} if ($Msgs->{OPENED});
       $admin->{ADMIN_MSGS} .= qq{"BADGE":$Msgs->{OPENED},} if ($Msgs->{OPENED});
       $admin->{ADMIN_MSGS} .= $conf{MSGS_HEADER_MENU_DYNAMIC} ? qq{"UPDATE":"$url",} : qq{};
       $admin->{ADMIN_MSGS} .= qq{"REFRESH":$refresh_time,};
@@ -252,7 +253,7 @@ sub msgs_new {
 
       # Forming JSON
       $admin->{ADMIN_RESPONSIBLE} = '';
-      $admin->{ADMIN_RESPONSIBLE} .= qq{"HEADER":"$lang{RESPOSIBLE} : $Msgs->{RESPOSIBLE}",} if ($Msgs->{RESPOSIBLE});
+      $admin->{ADMIN_RESPONSIBLE} .= qq{"HEADER":"$lang{RESPOSIBLE}: $Msgs->{RESPOSIBLE}",} if ($Msgs->{RESPOSIBLE});
       $admin->{ADMIN_RESPONSIBLE} .= qq{"BADGE":$Msgs->{RESPOSIBLE},} if ($Msgs->{RESPOSIBLE});
       $admin->{ADMIN_RESPONSIBLE} .= qq{"AID":$admin->{AID},} if ($admin->{AID});
       $admin->{ADMIN_RESPONSIBLE} .= $conf{MSGS_HEADER_MENU_DYNAMIC} ? qq{"UPDATE":"$url",} : qq{};

@@ -115,7 +115,7 @@ sub config_list {
     }
   }
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
@@ -170,16 +170,16 @@ sub config_change {
   else {
     #print "// PARAM => $param, DOMAIN_ID => $attr->{DOMAIN_ID} //<br>";
     $attr->{NAME}=$attr->{$param};
-    $self->changes(
-      {
-        CHANGE_PARAM => 'PARAM,DOMAIN_ID',
-        TABLE        => 'config',
-        #OLD_INFO     => $self->config_info({ PARAM => $param, DOMAIN_ID => $attr->{DOMAIN_ID} }),
-        DATA         => $attr,
-        %$attr
-      }
-    );
+    $self->changes({
+      CHANGE_PARAM => 'PARAM,DOMAIN_ID',
+      TABLE        => 'config',
+      #OLD_INFO     => $self->config_info({ PARAM => $param, DOMAIN_ID => $attr->{DOMAIN_ID} }),
+      DATA         => $attr,
+      %$attr
+    });
   }
+  $admin->action_add(0, "CONFIG:$attr->{PARAM}", { TYPE => 2 });
+
   return $self;
 }
 
@@ -214,6 +214,7 @@ sub config_add {
       },
       { REPLACE => ($attr->{REPLACE}) ? 1 : undef });
   }
+  $admin->action_add(0, "CONFIG:$attr->{PARAM}", { TYPE => 1 });
 
   return $self;
 }
@@ -240,6 +241,7 @@ sub config_del {
   }
 
   $self->query_del('config', undef,  { %params });
+  $admin->action_add(0, "CONFIG:$id", { TYPE => 10 });
 
   return $self;
 }
@@ -254,6 +256,7 @@ sub add {
   my ($attr) = @_;
 
   $self->query_add('config_variables', $attr);
+  $admin->action_add(0, "CONFIG_VAR:$attr->{PARAM}", { TYPE => 1 });
 
   return $self;
 }
@@ -268,6 +271,7 @@ sub del {
   my ($id) = @_;
 
   $self->query_del('config_variables', undef, {  param=> $id });
+  $admin->action_add(0, "CONFIG_VAR:$id", { TYPE => 10 });
 
   return $self;
 }
@@ -281,13 +285,12 @@ sub change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'PARAM',
-      TABLE        => 'config_variables',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'PARAM',
+    TABLE        => 'config_variables',
+    DATA         => $attr
+  });
+  $admin->action_add(0, "CONFIG_VAR:$attr->{PARAM}", { TYPE => 2 });
 
   return $self;
 }
@@ -305,8 +308,10 @@ sub info {
   $self->query("SELECT * FROM config_variables
     WHERE param= ? ;",
    undef,
-   { INFO => 1,
-     Bind => [ $attr->{ID} ] }
+   {
+     INFO      => 1,
+     Bind      => [ $attr->{ID} ],
+   }
   );
 
   return $self;
@@ -349,7 +354,7 @@ sub list {
 
   return [ ] if ($self->{errno});
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   if ($self->{TOTAL} >= $attr->{PAGE_ROWS} || $PG > 0) {
     $self->query("SELECT COUNT(*) AS total FROM config_variables $WHERE",

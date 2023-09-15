@@ -47,7 +47,7 @@
     const paymentDataRequest = Object.assign({}, baseRequest);
     paymentDataRequest.allowedPaymentMethods = [cardPaymentMethod];
     paymentDataRequest.transactionInfo = getGoogleTransactionInfo();
-    paymentDataRequest.merchantInfo = googlePayConfig.merchantInfo
+    paymentDataRequest.merchantInfo = googlePayConfig.merchantInfo;
     return paymentDataRequest;
   }
 
@@ -165,3 +165,9 @@
         src='https://pay.google.com/gp/p/js/pay.js'
         onload='onGooglePayLoaded()'>
 </script>
+
+<style>
+  #GooglePay {
+    height: 45px;
+  }
+</style>

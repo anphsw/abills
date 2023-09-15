@@ -211,7 +211,7 @@ sub password_recovery {
       my $status = $Sender->send_message({
         TO_ADDRESS   => $user->{email},
         MESSAGE      => $message,
-        SUBJECT      => "$main::PROGRAM Password Repair",
+        SUBJECT      => "$main::PROGRAM $lang{PASSWORD_RECOVERY}",
         SENDER_TYPE  => 'Mail',
         QUITE        => 1,
         CONTENT_TYPE => $conf{PASSWORD_RECOVERY_MAIL_CONTENT_TYPE} ? $conf{PASSWORD_RECOVERY_MAIL_CONTENT_TYPE} : '',
@@ -245,7 +245,7 @@ sub password_recovery {
 }
 
 #**********************************************************
-=head2 password_recovery()
+=head2 password_reset()
 
 =cut
 #**********************************************************
@@ -307,10 +307,57 @@ sub password_reset {
   } if ($Users->{errno});
 
   $self->{admin}->action_del($list->[0]->{id});
-  $self->{admin}->action_add($list->[0]->{uid}, "Finished recovery process", { TYPE => 52 });
+  $self->{admin}->action_add($list->[0]->{uid}, 'Finished password recovery process', { TYPE => 52 });
+
+  my $users_info = $Users->list({
+    UID        => $list->[0]->{uid},
+    EMAIL      => '_SHOW',
+    PHONE      => '_SHOW',
+    COLS_UPPER => 1,
+    COLS_NAME  => 1
+  });
+
+  $Users->info($list->[0]->{uid});
+  $Users->pi({ UID => $list->[0]->{uid} });
+
+  ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
+
+  require Abills::Sender::Core;
+  Abills::Sender::Core->import();
+  my $Sender = Abills::Sender::Core->new($self->{db}, $self->{admin}, $self->{conf});
+
+  if ($users_info->[0]->{email}) {
+    my ($email) = split(/:/, $users_info->[0]->{email});
+    my $message = $html->tpl_show(::templates('email_password_recovery'), {
+      %$Users, %$attr,
+    }, { OUTPUT2RETURN => 1 });
+
+    $Sender->send_message({
+      TO_ADDRESS   => $email,
+      MESSAGE      => $message,
+      SUBJECT      => "$main::PROGRAM $lang{PASSWORD_RECOVERY}",
+      SENDER_TYPE  => 'Mail',
+      QUITE        => 1,
+      UID          => $Users->{UID},
+      CONTENT_TYPE => $conf{PASSWORD_RECOVERY_MAIL_CONTENT_TYPE} ? $conf{PASSWORD_RECOVERY_MAIL_CONTENT_TYPE} : '',
+    });
+  }
+  else {
+    my ($phone) = split(/:/, $users_info->[0]->{phone});
+    my $message = $html->tpl_show(::templates('sms_password_recovery'), {
+      %$Users, %$attr,
+    }, { OUTPUT2RETURN => 1 });
+
+    $Sender->send_message({
+      TO_ADDRESS  => $phone,
+      MESSAGE     => $message,
+      SENDER_TYPE => 'Sms',
+      UID         => $Users->{UID},
+    });
+  }
 
   return {
-    result => 'Successfully changed password'
+    result => 'Successfully changed password',
   };
 }
 
@@ -863,7 +910,7 @@ sub _send_registration_message {
     $Sender->send_message({
       TO_ADDRESS   => $attr->{EMAIL},
       MESSAGE      => $message,
-      SUBJECT      => $self->{lang}->{REGISTRATION},
+      SUBJECT      => "$main::PROGRAM $lang{REGISTRATION}",
       SENDER_TYPE  => 'Mail',
       QUITE        => 1,
       UID          => $Users->{UID},

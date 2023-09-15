@@ -10,6 +10,7 @@ use Abills::Base qw(int2byte in_array int2ip _bp);
 our(
   %lang,
   $admin,
+  $base_dir,
   $db,
   %conf,
   %permissions,
@@ -484,14 +485,14 @@ sub equipment_ports {
     $Equipment->port_add( { %FORM } );
 
     if ( !$Equipment->{errno} ){
-      $html->message( 'info', $lang{INFO}, "$lang{ADDED}" );
+      $html->message( 'info', $lang{INFO}, $lang{ADDED});
       $Equipment->{ID}     = $Equipment->{INSERT_ID};
       $FORM{chg}           = $Equipment->{ID};
       $Equipment->{ACTION} = 'change';
       $Equipment->{ACTION_LNG} = $lang{CHANGE};
     }
   }
-  elsif ( $FORM{change} ){
+  elsif ( defined($FORM{change}) ){
     $Equipment->port_change( { %FORM } );
     if ( !$Equipment->{errno} ){
       $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" );
@@ -544,10 +545,12 @@ sub equipment_ports {
 
   if ($FORM{SNMP} && $FORM{PORT} && $FORM{STATUS}) {
     my $result = equipment_change_port_status({
-      PORT => $FORM{PORT},
-      PORT_STATUS => $FORM{STATUS},
-      SNMP_COMMUNITY => $SNMP_COMMUNITY
+      PORT           => $FORM{PORT},
+      PORT_STATUS    => $FORM{STATUS},
+      SNMP_COMMUNITY => $SNMP_COMMUNITY,
+      DEBUG          => $FORM{DEBUG}
     });
+
     if ($result) {
       $html->message( 'info', $lang{INFO}, "$lang{PORT_STATUS_CHANGING_SUCCESS} (SNMP)" );
     }
@@ -599,6 +602,17 @@ sub equipment_ports {
   }
   elsif ( $visual == 10) {
     equipment_show_log($FORM{NAS_ID});
+  }
+  elsif ( $visual == 13) {
+    equipment_pon_map();
+  }
+  elsif ( $visual == 14) {
+    my $run_cmd = equipment_run_cmd_on_equipment_button({
+      nas_id   => $attr->{NAS_INFO}->{NAS_ID},
+      model_id => $attr->{NAS_INFO}->{MODEL_ID},
+      status   => $attr->{NAS_INFO}->{STATUS},
+    });
+    print $html->tpl_show(_include('equipment_command_run', 'Equipment'), { CMD_RUN => $run_cmd}, { OUTPUT2RETURN => 1 });
   }
   elsif ( $visual == 2 && $FORM{PORT}) {
     $Equipment->{TYPE_SEL} = $html->form_select(
@@ -921,6 +935,7 @@ sub equipment_port_panel {
 
   my $number = 0;
   my $unit_border = '';
+  my $main_port_number = 0;
 
   my $panel = "<div class='equipment-panel'>\n";
 
@@ -931,7 +946,8 @@ sub equipment_port_panel {
   $panel .= "<link rel='stylesheet' type='text/css' href='/styles/default/css/modules/equipment.css'>";
 
   my @reversed_rows = ();
-  my $no_port = 0;
+  my $leveling = 0;
+  my %combo_numeration = ();
 
   #############################
   #  NEW SCHEME FOR PORT ROWS
@@ -943,15 +959,15 @@ sub equipment_port_panel {
       for ( my $row_in_num = 0; $row_in_num < $rows_count; $row_in_num++) {
         my $row_some = "<div class='row equipment-row flex-nowrap'>";
         for ( my $port_num = 0; $port_num < $block_size; $port_num++ ) {
-          my $real_number = $row_in_num + ($rows_count * $port_num) + ($block_num * $block_size * $rows_count) + 1;
+          $main_port_number = $row_in_num + ($rows_count * $port_num) + ($block_num * $block_size * $rows_count) + 1;
+          if ( $main_port_number <= $port_count ) {
+            my $class = (!$used_ports->{$main_port_number})
+            ? "clickSearchResult port port-$port_type_name-free"
+            : "clickSearchResult port port-$port_type_name-used port-used";
 
-          if ( $real_number <= $port_count ) {
-            my $class = (!$used_ports->{$real_number})
-              ? "clickSearchResult port port-$port_type_name-free"
-              : "clickSearchResult port port-$port_type_name-used port-used";
+            my $title = (($combo_for_non_extra_ports->{$main_port_number}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $main_port_number ($port_type_name)";
+            $row_some .= _get_html_for_port( $main_port_number, $class, $title, $search_result->{$main_port_number});
 
-            my $title = (($combo_for_non_extra_ports->{$real_number}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $real_number ($port_type_name)";
-            $row_some .= _get_html_for_port( $real_number, $class, $title, $search_result->{$real_number});
           }
         }
         $row_some .= "</div>";
@@ -989,30 +1005,36 @@ sub equipment_port_panel {
           foreach my $port (@{$ports_by_row->{$extra_row_number}}) {
             my $extra_port_type_name = $port_types[$port->{port_type}];
             my $class = "port port-$extra_port_type_name-free"; #TODO: add possibility to have busy extra port
-
-            my $port_number = $port->{port_number} - $no_port ;
-            $port_number = "e$port_number";
+            my $extra_port_number = 0;
+            # continuation of the numbering of the main row
+            $extra_port_number = ($attr->{CONT_NUM_EXTRA_PORTS}) ? ($port_count + $port->{port_number}) : $port->{port_number};
+            $extra_port_number -= $leveling;
+            $combo_numeration{$port->{port_number}} = $extra_port_number if ($port->{port_combo_with} !=0) ;
 
             if ($port->{port_combo_with}) {
+              $leveling += 1;
               if ($port->{port_combo_with} < 0) {
-                $port_number = -$port->{port_combo_with};
-                if ($used_ports->{$port_number}) {
+                $extra_port_number = -$port->{port_combo_with};
+                if ($used_ports->{$extra_port_number}) {
                   $class = "port port-$extra_port_type_name-used port-used";
                 }
               }
-              elsif ($port->{port_number} > $port->{port_combo_with}) {
-                $port_number = "e$port->{port_combo_with}";
+              elsif ($port->{port_number} > $port->{port_combo_with} && $port->{port_combo_with} != 0) {
+                $extra_port_number = $combo_numeration{$port->{port_combo_with}};
+                $leveling -= 1;
               }
             }
 
+            $extra_port_number = 'e'.$extra_port_number;
+
             # if empty port
             if ($port->{port_type} == 9){
-              $no_port += 1;
-              $port_number = '';
+              $leveling += 1;
+              $extra_port_number = '';
             }
 
-            my $title = (($port->{port_combo_with}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $port_number ($extra_port_type_name)";
-            $extra_row .= _get_html_for_port($port_number, $class, $title, $port_number); #TODO: if extra ports will have correct number, it will be possible to fill $data_value
+            my $title = (($port->{port_combo_with}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $extra_port_number ($extra_port_type_name)";
+            $extra_row .= _get_html_for_port($extra_port_number, $class, $title, $extra_port_number); #TODO: if extra ports will have correct number, it will be possible to fill $data_value
           }
         }
         $extra_row .= "</div>";
@@ -1036,14 +1058,14 @@ sub equipment_port_panel {
         my $block = "<div class='equipment-block'>";
         # for row building
         for (my $port_num = 0; $port_num < $block_size; $port_num++) {
-          $number++;
-          if ($number <= $port_count) {
+          $main_port_number++;
+          if ($main_port_number <= $port_count) {
             my $class = (!$used_ports->{$number})
               ? "clickSearchResult port port-$port_type_name-free"
               : "clickSearchResult port port-$port_type_name-used port-used";
 
-            my $title = (($combo_for_non_extra_ports->{$number}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $number ($port_type_name)";
-            $block .= _get_html_for_port($number, $class, $title, $search_result->{$number});
+            my $title = (($combo_for_non_extra_ports->{$main_port_number}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $main_port_number ($port_type_name)";
+            $block .= _get_html_for_port($main_port_number, $class, $title, $search_result->{$main_port_number});
           }
         }
         $block .= "</div>";
@@ -1056,30 +1078,37 @@ sub equipment_port_panel {
         foreach my $port (@{$ports_by_row->{$row_num}}) {
           my $extra_port_type_name = $port_types[$port->{port_type}];
           my $class = "port port-$extra_port_type_name-free"; #TODO: add possibility to have busy extra port
+          my $extra_port_number = 0;
 
-          my $port_number = $port->{port_number} - $no_port ;
-          $port_number = "e$port_number";
+          # continuation of the numbering of the main row
+          $extra_port_number = ($attr->{CONT_NUM_EXTRA_PORTS}) ? ($port_count + $port->{port_number}) : $port->{port_number};
+          $extra_port_number -= $leveling;
+          $combo_numeration{$port->{port_number}} = $extra_port_number if ($port->{port_combo_with} !=0) ;
 
           if ($port->{port_combo_with}) {
+            $leveling += 1;
             if ($port->{port_combo_with} < 0) {
-              $port_number = -$port->{port_combo_with};
-              if ($used_ports->{$port_number}) {
+              $extra_port_number = -$port->{port_combo_with};
+              if ($used_ports->{$extra_port_number}) {
                 $class = "port port-$extra_port_type_name-used port-used";
               }
             }
-            elsif ($port->{port_number} > $port->{port_combo_with}) {
-              $port_number = "e$port->{port_combo_with}";
+            elsif ($port->{port_number} > $port->{port_combo_with} && $port->{port_combo_with} != 0) {
+              $extra_port_number = $combo_numeration{$port->{port_combo_with}};
+              $leveling -= 1;
             }
           }
 
+          $extra_port_number = 'e'.($extra_port_number || 0);
+
           # if empty port
-          if ($port->{port_type} == 9){
-            $no_port += 1;
-            $port_number = '';
+          if ($port->{port_type} && $port->{port_type} == 9){
+            $leveling += 1;
+            $extra_port_number = '';
           }
 
-          my $title = (($port->{port_combo_with}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $port_number ($extra_port_type_name)";
-          $row .= _get_html_for_port($port_number, $class, $title, $port_number); #TODO: if extra ports will have correct number, it will be possible to fill $data_value
+          my $title = (($port->{port_combo_with}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $extra_port_number ($extra_port_type_name)";
+          $row .= _get_html_for_port($extra_port_number, $class, $title, $extra_port_number); #TODO: if extra ports will have correct number, it will be possible to fill $data_value
         }
         $row .= "</div>";
       }
@@ -1222,6 +1251,7 @@ sub equipment_port_info {
 sub port_result_former {
   my($port_info, $attr) = @_;
   $html->tpl_show( _include( 'equipment_icons', 'Equipment' ));
+  my $user_index = get_function_index('form_users');
 
   my @info        = ();
   my @info_fields = ();
@@ -1493,21 +1523,39 @@ sub port_result_former {
       }
     }
     elsif($key eq 'PORT_IN_ERR') {
+      my $reset_errors_button = '';
+
+      my $list = $Equipment->_list({ SNMP_TPL => '_SHOW', NAS_ID => $FORM{NAS_ID}, COLS_NAME => 1 });
+      my $nas_info = $list->[0];
+
+      if ($nas_info->{'snmp_tpl'}){
+        my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
+        my $file_content = file_op({
+          FILENAME => $nas_info->{'snmp_tpl'},
+          PATH     => $TEMPLATE_DIR,
+        });
+        $file_content =~ s#//.*$##gm;
+        my $snmp = decode_json($file_content);
+        if ($snmp->{ERRORS_RESET}){
+          $reset_errors_button = $html->button($lang{RESET}, "index=$user_index&UID=$FORM{UID}&ERRORS_RESET=1", { class => 'btn btn-secondary btn-sm ml-2' });
+        }
+      }
+
       $key = "$lang{PACKETS_WITH_ERRORS} (in/out)";
       $value = $html->color_mark(($port_info->{$port_id}->{PORT_IN_ERR} // '?')
-          . '/'
-          . ($port_info->{$port_id}->{PORT_OUT_ERR} // '?'),
-          ( $port_info->{$port_id}->{PORT_OUT_ERR} || $port_info->{$port_id}->{PORT_IN_ERR} ) ? 'text-danger' : undef );
+        . '/'
+        . ($port_info->{$port_id}->{PORT_OUT_ERR} // '?') . $reset_errors_button,
+        ( $port_info->{$port_id}->{PORT_OUT_ERR} || $port_info->{$port_id}->{PORT_IN_ERR} ) ? 'text-danger' : undef );
     }
     elsif($key eq 'PORT_IN_DISCARDS') {
       $key = "Discarded $lang{PACKETS_} (in/out)";
       $value = $html->color_mark(($port_info->{$port_id}->{PORT_IN_DISCARDS} // '?')
-          . '/'
-          . ($port_info->{$port_id}->{PORT_OUT_DISCARDS} // '?'),
-          ( $port_info->{$port_id}->{PORT_OUT_DISCARDS} || $port_info->{$port_id}->{PORT_IN_DISCARDS} ) ? 'text-danger' : undef );
+        . '/'
+        . ($port_info->{$port_id}->{PORT_OUT_DISCARDS} // '?'),
+        ( $port_info->{$port_id}->{PORT_OUT_DISCARDS} || $port_info->{$port_id}->{PORT_IN_DISCARDS} ) ? 'text-danger' : undef );
     }
     elsif($key eq 'TEMPERATURE') {
-      $key = $html->element( 'i', "", { class => 'fa fa-thermometer-2' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$lang{$key}" );
+      $key = $html->element( 'i', "", { class => 'fa fa-thermometer-half' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$lang{$key}" );
       $value = $port_info->{$port_id}->{TEMPERATURE} . " &deg;C";
     }
     elsif($key eq 'VOLTAGE') {
@@ -1744,4 +1792,32 @@ sub equipment_vlans {
   return 1;
 }
 
+#********************************************************
+=head2 equipment_show_map() - Show map in visual
+
+
+=cut
+#********************************************************
+sub equipment_pon_map {
+
+  require Maps::Maps_view;
+  Maps::Maps_view->import();
+  my $Maps_view = Maps::Maps_view->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+
+  require Equipment::Maps_info;
+  Equipment::Maps_info->import();
+  my $Maps_info = Equipment::Maps_info->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+
+  my $pon_maps = $Maps_info->pon_maps({RETURN_HASH => 1, NAS_ID => $FORM{NAS_ID}, TO_VISUAL => 1});
+
+  print $Maps_view->show_map({}, {
+    DATA              => $pon_maps,
+    DONE_DATA         => 1,
+    OUTPUT2RETURN     => 1,
+    QUICK             => 1,
+    HIDE_EDIT_BUTTONS => 1,
+  });
+
+  return 1;
+}
 1;

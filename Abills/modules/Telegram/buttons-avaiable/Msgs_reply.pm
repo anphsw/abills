@@ -139,6 +139,7 @@ sub send_msg {
     ID         => $msg_hash->{message}->{id},
     UID        => $self->{bot}->{uid},
     REPLY_TEXT => $text,
+    STATE      => 0
   });
 
   my $reply_id = $Msgs->{REPLY_ID};

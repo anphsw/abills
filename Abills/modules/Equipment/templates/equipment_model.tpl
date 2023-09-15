@@ -152,14 +152,14 @@
 
             <div class='form-group row'>
               <label  class='col-md-4 col-form-label text-md-right' for='AUTO_PORT_SHIFT'>_{USE_AUTO_PORT_SHIFT}_ SNMP:</label>
-              <div class='col-md-8'>
+              <div class='col-md-8 p-2'>
                 <input type='checkbox' name='AUTO_PORT_SHIFT' value=1 %AUTO_PORT_SHIFT% ID='AUTO_PORT_SHIFT'/>
               </div>
             </div>
 
             <div class='form-group row'>
               <label  class='col-md-4 col-form-label text-md-right' for='FDB_USES_PORT_NUMBER_INDEX'>_{FDB_USES_PORT_NUMBER_INDEX}_:</label>
-              <div class='col-md-8'>
+              <div class='col-md-8 p-2'>
                 <input type='checkbox' name='FDB_USES_PORT_NUMBER_INDEX' value=1 %FDB_USES_PORT_NUMBER_INDEX% ID='FDB_USES_PORT_NUMBER_INDEX'/>
               </div>
             </div>
@@ -209,7 +209,7 @@
             </div>
 
             <div class='form-group row'>
-              <label  class='col-md-4 col-form-label text-md-right' for='HEIGHT'>_{HIEGHT}_, U:</label>
+              <label  class='col-md-4 col-form-label text-md-right' for='HEIGHT_id'>_{HIEGHT}_, U:</label>
               <div class='col-md-8'>
                 <input type='number' class='form-control' name='HEIGHT' value='%HEIGHT%'
                        id='HEIGHT_id'/>
@@ -217,13 +217,19 @@
             </div>
 
             <div class='form-group row'>
-              <label  class='col-md-4 col-form-label text-md-right' for='WIDTH'>_{WIDTH}_, U:</label>
+              <label  class='col-md-4 col-form-label text-md-right' for='WIDTH_id'>_{WIDTH}_, U:</label>
               <div class='col-md-8'>
                 <input type='number' class='form-control' name='WIDTH' value='%WIDTH%'
                        id='WIDTH_id'/>
               </div>
             </div>
 
+            <div class='form-group row'>
+              <label  class='col-md-4 col-form-label text-md-right' for='CONT_NUM_EXTRA_PORTS'>_{CONTINUATION_NUMBERING_FOR_EXTRA_PORTS}_:</label>
+              <div class='col-md-8 p-2'>
+                <input type='checkbox' name='CONT_NUM_EXTRA_PORTS' value=1 %CONT_NUM_EXTRA_PORTS% ID='CONT_NUM_EXTRA_PORTS'/>
+              </div>
+            </div>
 
             <div id='extraPortWrapper'>
               <div id='templateWrapper'>

@@ -84,6 +84,7 @@ sub user_info {
 
   $self->query("SELECT
    voip.*,
+   tarif_plans.gid AS tp_gid,
    tarif_plans.name AS tp_name,
    INET_NTOA(voip.ip) AS ip,
    voip.logins AS simultaneously,
@@ -278,12 +279,13 @@ sub user_list {
     [ 'IP',               'IP',  'service.ip', 'INET_NTOA(service.ip) AS ip' ],
     [ 'CID',              'STR', 'service.cid',              1 ],
     [ 'SERVICE_STATUS',   'INT', 'service.disable AS voip_status', 1 ],
-    [ 'SIMULTANEONSLY',   'INT', 'service.logins',           1 ],
+    [ 'SIMULTANEOUSLY',   'INT', 'service.logins',           1 ],
     [ 'FILTER_ID',        'STR', 'service.filter_id',        1 ],
     [ 'TP_ID',            'INT', 'service.tp_id',            1 ],
     [ 'TP_CREDIT',        'INT', 'tp.credit', 'tp.credit AS tp_credit' ],
     [ 'VOIP_EXPIRE',      'DATE','service.expire AS voip_expire',     1 ],
-    [ 'VOIP_ACTIVATE',    'DATE','service.activate AS voip_activate', 1 ],
+    # activate dont exist in table voip_main
+    # [ 'VOIP_ACTIVATE',    'DATE','service.activate AS voip_activate', 1 ],
     [ 'PROVISION_PORT',   'INT', 'service.provision_port',   1 ],
     [ 'PROVISION_NAS_ID', 'INT', 'service.provision_nas_id', 1 ],
     [ 'MONTH_FEE',        'INT', 'tp.month_fee',             1 ],
@@ -293,6 +295,7 @@ sub user_list {
     [ 'EXTRA_NUMBERS_DAY_FEE',  'INT', 'voip_tp.extra_numbers_day_fee',   1 ],
     [ 'EXTRA_NUMBERS_MONTH_FEE','INT', 'voip_tp.extra_numbers_month_fee', 1 ],
     [ 'UID',              'INT', 'u.uid',                    1 ],
+    [ 'ID',               'INT', 'service.id',               1 ],
   ],
     { WHERE            => 1,
       WHERE_RULES      => \@WHERE_RULES,
@@ -487,15 +490,19 @@ sub routes_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
-    [ 'ROUTE_NAME',     'STR', 'r.name',  ],
-    [ 'DESCRIBE',       'STR', 'r.descr', ],
-    [ 'ROUTE_PREFIX',   'STR', 'r.prefix' ],
+    [ 'ROUTE_NAME',   'STR',  'r.name',     1],
+    [ 'DESCRIBE',     'STR',  'r.descr',    1],
+    [ 'ROUTE_PREFIX', 'STR',  'r.prefix',   1],
+    [ 'DATE',         'DATE', 'r.date',     1],
+    [ 'DISABLE',      'INT',  'r.disable',  1],
+    [ 'ID',           'INT',  'r.id',       1],
+    [ 'PARENT',       'INT',  'r.parent',   1],
   ],
     { WHERE => 1,
     }
   );
 
-  $self->query("SELECT r.prefix, r.name, r.disable, r.date, r.id, r.parent
+  $self->query("SELECT $self->{SEARCH_FIELDS} r.prefix, r.name, r.disable, r.date, r.id, r.parent
      FROM voip_routes r
      $WHERE 
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -617,13 +624,20 @@ sub tp_list {
   my @WHERE_RULES = ('tp.tp_id=voip.id');
   my $SORT = $attr->{SORT} ? $attr->{SORT} : 1;
   my $DESC = $attr->{DESC} ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
-    [ 'FREE_TIME',      'INT', 'voip.free_time',     1 ],
-    [ 'TIME_DIVISION',  'STR', 'voip.time_division', 1 ],
-    [ 'DAY_FEE',        'INT', 'voip.day_fee',       1 ],
-    [ 'MONTH_FEE',      'INT', 'voip.month_fee',     1 ],
-    [ 'TP_ID',          'INT', 'tp.tp_id',           1 ],
+    [ 'FREE_TIME',      'INT', 'voip.free_time',     1],
+    [ 'TIME_DIVISION',  'STR', 'voip.time_division', 1],
+    [ 'DAY_FEE',        'INT', 'tp.day_fee',         1],
+    [ 'MONTH_FEE',      'INT', 'tp.month_fee',       1],
+    [ 'TP_ID',          'INT', 'tp.tp_id',           1],
+    [ 'ID',             'INT', 'tp.id',              1],
+    [ 'AGE',            'INT', 'tp.age',             1],
+    [ 'LOGINS',         'INT', 'tp.logins',          1],
+    [ 'NAME',           'STR', 'tp.name',            1],
+    [ 'TIME_TARIFS',    'INT', 'i.tarif',            1],
   ],
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
@@ -644,7 +658,8 @@ sub tp_list {
     LEFT JOIN intervals i ON (i.tp_id=tp.tp_id)
     $WHERE
     GROUP BY tp.id
-    ORDER BY $SORT $DESC;",
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
@@ -1011,14 +1026,15 @@ sub extra_tarification_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
-    [ 'ID', 'INT', 'et.id', 1 ],
-    [ 'NAME', 'STR', 'et.name', 1 ],
+    [ 'ID',           'INT', 'et.id',           1 ],
+    [ 'NAME',         'STR', 'et.name',         1 ],
+    [ 'PREPAID_TIME', 'INT', 'et.prepaid_time', 1 ],
   ],
     { WHERE => 1 }
   );
 
   $self->query("SELECT id, name, prepaid_time
-     FROM voip_route_extra_tarification
+     FROM voip_route_extra_tarification et
      $WHERE 
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,

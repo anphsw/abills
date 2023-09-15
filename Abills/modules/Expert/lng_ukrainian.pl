@@ -1,5 +1,5 @@
 $lang{EXPERT_SYSTEM} = 'Експертна система';
-$lang{NORMAL_MODE} = 'Нормальний режи';
+$lang{NORMAL_MODE} = 'Нормальний режим';
 $lang{EDIT_MODE} = 'Режим редагування';
 $lang{ENTER_IDENTIFIER} = 'Вкажіть ідентифікатор користувача';
 $lang{QUESTION} = 'Питання';

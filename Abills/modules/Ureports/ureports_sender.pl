@@ -63,8 +63,6 @@ our $html = Abills::HTML->new({
 $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
   { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 
-# require Ureports::Send; # qw/ureports_send_reports/;
-
 #Always our for crossmodules
 our $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
@@ -526,7 +524,7 @@ sub ureports_periodic_reports {
             print "Function: $report_function Name: $Report->{SYS_CONF}{REPORT_NAME} Tpl: $Report->{SYS_CONF}{TEMPLATE}\n";
           }
 
-          $Report->$report_function($user, $argv);
+          $Report->$report_function($user, { %$argv, DATE => $DATE });
           if ($Report->{errno}) {
             print "ERROR: [$Report->{errno}] $Report->{errstr}\n";
           }

@@ -115,7 +115,11 @@
     var _COMMENTS_PLEASE      = '_{COMMENTS_PLEASE}_' || 'Comments please';
     var _WORLD_PLEASE         = '_{ENTER_DEL}_' || 'Enter please';
     var _DEL                  = '_{DEL}_' || 'Delete';
+    var _NO_RESULTS_FOUND = '_{NO_RESULTS_FOUND}_';
+    var _SEARCH_AT_LEAST_MIN_CHARS = '_{SEARCH_AT_LEAST_MIN_CHARS}_';
+
     var _UNIVERSAL_SEARCH_FIELDS = '$conf{UNIVERSAL_SEARCH_FIELDS}';
+
     document['WEBSOCKET_URL'] = '%WEBSOCKET_URL%';
 
     //CHOSEN INIT PARAMS

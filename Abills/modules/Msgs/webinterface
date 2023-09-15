@@ -553,10 +553,10 @@ sub msgs_start_page {
 
   my %START_PAGE_F = (
     msgs_sp_show_new                      => $lang{MESSAGES},
-    msgs_sp_show_overdue                  => "$lang{MESSAGES} $lang{OVERDUE}",
-    msgs_user_watch                       => $lang{MESSAGE_ADMIN_WATCH},
+    msgs_sp_show_overdue                  => $lang{OVERDUE},
+    msgs_user_watch                       => $lang{WATCHED},
     msgs_dispatch_quick_report            => $lang{DISPATCH},
-    msgs_open_msgs                        => $lang{OPEN_MSGS},
+    msgs_open_msgs                        => $lang{RESPOSIBLE},
     msgs_rating                           => $lang{EVALUATION_OF_PERFORMANCE},
     msgs_support_stats_block              => $lang{SUPPORT_SYSTEM_STATS},
     msgs_support_stats_chart              => $lang{RESPONSE_TIME},
@@ -754,14 +754,12 @@ sub msgs_text_quoting {
       $quote .= $1;
     }
     elsif ($reply_line && $reply_line !~ /^<br>$/) {
-      $text .= (($quote && $msgs_permissions{1} && $msgs_permissions{1}{12}) ?
-        $html->element('div', $quote, { OUTPUT2RETURN => 1, class => 'callout callout-quoting' }) : '') . $reply_line;
+      $text .= ($quote ? $html->element('div', $quote, { OUTPUT2RETURN => 1, class => 'callout callout-quoting' }) : '') . $reply_line;
       $quote = '';
     }
   }
 
-  $text = (($quote && $msgs_permissions{1} && $msgs_permissions{1}{12}) ?
-    $html->element('div', $quote, { OUTPUT2RETURN => 1, class => 'callout callout-quoting' }) : '') . $text;
+  $text = ($quote ? $html->element('div', $quote, { OUTPUT2RETURN => 1, class => 'callout callout-quoting' }) : '') . $text;
 
   while ($text =~ /\[\[(\d+)\]\]/) {
     my $msg_button = $html->button($1, "&index=$index&" . ($is_admin ? "chg" : "ID") . "=$1",

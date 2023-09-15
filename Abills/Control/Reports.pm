@@ -219,7 +219,7 @@ sub reports {
 
       if ($permissions{0}{28}) {
         push @rows, $html->element('label', "$lang{GROUP}: ", { class => 'col-md-2 control-label' })
-          . $html->element('div', sel_groups({ FILTER_SEL => !$attr->{NO_MULTI_GROUP} }), { class => 'col-md-8' });
+          . $html->element('div', sel_groups({ FILTER_SEL => !$attr->{NO_MULTI_GROUP}, ID => 'REPORT_GID_SEL' }), { class => 'col-md-8' });
       }
 
       if ($attr->{EXT_TYPE} || %select_types) {
@@ -267,7 +267,7 @@ sub reports {
         my $tag_count;
         my $form_tags_sel;
 
-        ($form_tags_sel, $tag_count) = tags_sel({ HASH => 1 });
+        ($form_tags_sel, $tag_count) = tags_sel({ HASH => 1, ID => 'REPORT_TAGS_SEL' });
 
         if ($tag_count) {
           push @rows, $html->element('label', "$lang{TAGS}: ", { class => 'col-md-2 control-label' })
@@ -497,6 +497,13 @@ sub report_fees {
       DATASET => \@charts_dataset,
       PERIOD  => $x_variable{$type} || 'date',
     },
+    FILTER_VALUES => {
+      admin_name => sub  {
+        my ($aid, $line) = @_;
+
+        return search_link($aid, { PARAMS => ['report_fees', "$type=1&$pages_qs&A_LOGIN"], LINK_NAME => $line->{admin_name} });
+      }
+    },
     EXT_TITLES      => {
       #          arpu          => $lang{ARPU},
       #          arpuu         => $lang{ARPPU},
@@ -517,7 +524,7 @@ sub report_fees {
       gid           => $lang{GROUPS}
     },
     FILTER_COLS     => {
-      admin_name    => "search_link:report_fees:ADMIN_NAME,$type=1,$pages_qs",
+      # admin_name    => "search_link:report_fees:ADMIN_NAME,$type=1,$pages_qs",
       method        => "search_link:report_fees:METHOD,TYPE=USER,$pages_qs",
       login         => "search_link:from_users:UID,$type=1,$pages_qs",
       date          => "search_link:report_fees:DATE,DATE",
@@ -536,9 +543,7 @@ sub report_fees {
     SEARCH_FORMER   => 1,
   });
 
-  _report_chart_info(\%DATA_HASH, \@charts_dataset, {
-    COUNT => $lang{NUMBER_OF_FEES}
-  });
+  _report_chart_info(\%DATA_HASH, \@charts_dataset, { COUNT => $lang{NUMBER_OF_FEES} });
 
   print $table_fees->show();
 
@@ -747,13 +752,19 @@ sub report_payments {
       method => $PAYMENT_METHODS,
       gid    => sel_groups({ HASH_RESULT => 1 }),
     },
+    FILTER_VALUES => {
+      admin_name => sub  {
+        my ($aid, $line) = @_;
+        return search_link($aid, { PARAMS => ['report_payments', "$type=1&$pages_qs$fields&A_LOGIN"], LINK_NAME => $line->{admin_name} });
+      }
+    },
     CHARTS      => {
       DATASET => \@charts_dataset,
       PERIOD  => $x_variable{$type} || 'date',
     },
     EXT_TITLES      => $ext_titles{$type} || $ext_titles{'DAYS'},
     FILTER_COLS     => {
-      admin_name    => "search_link:report_payments:ADMIN_NAME,$type=1,$pages_qs,$fields",
+      # admin_name    => "search_link:report_payments:ADMIN_NAME,$type=1,$pages_qs,$fields",
       method        => "search_link:report_payments:METHOD,TYPE=USER,$pages_qs",
       login         => "search_link:from_users:UID,$type=1,$pages_qs",
       date          => "search_link:report_payments:DATE,DATE,$fields",

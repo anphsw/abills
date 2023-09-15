@@ -677,7 +677,7 @@ sub _paysys_import_types {
     COLS_NAME        => 1,
   });
 
-  return [] if ($Paysys->{errno} || !scalar @{$connected_systems});
+  return {} if ($Paysys->{errno} || !scalar @{$connected_systems});
 
   my %modules = ();
 

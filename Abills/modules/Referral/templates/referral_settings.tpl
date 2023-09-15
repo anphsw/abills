@@ -60,11 +60,25 @@
       </div>
 
       <div class='form-group row'>
+        <label class='control-label col-md-3' for='PAYMENT_TYPE_SEL'>_{TYPE}_ _{PAYMENTS}_</label>
+        <div class='col-md-9'>
+          %PAYMENT_TYPE_SEL%
+        </div>
+      </div>
+
+      <div class='form-group row'>
         <label class='control-label col-md-3' for='SPEND_PERCENT'>_{SPEND_PERCENT}_</label>
         <div class='col-md-9'>
           <input type='number' min='0' max='100' class='form-control'
                  data-tooltip='<b>_{MIN}_</b>: 0 <br> <b>_{MAX}_</b>:100'
                  name='SPEND_PERCENT' value='%SPEND_PERCENT%' id='SPEND_PERCENT'/>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='control-label col-md-3' for='FEES_TYPE_SEL'>_{TYPE}_ _{FEES}_</label>
+        <div class='col-md-9'>
+          %FEES_TYPE_SEL%
         </div>
       </div>
 
@@ -89,10 +103,23 @@
         <div class='col-sm-9'>
           <div class='form-check text-left'>
             <input type='checkbox' class='form-check-input' id='STATIC_ACCRUAL' value='1' %STATIC_ACCRUAL%
-                   name='STATIC_ACCRUAL' data-input-disables='REPL_PERCENT,SPEND_PERCENT'>
+                   name='STATIC_ACCRUAL' data-input-disables='REPL_PERCENT,SPEND_PERCENT,MULTI_ACCRUAL'>
           </div>
         </div>
       </div>
+
+
+
+      <div class='form-group row'>
+        <label class='col-md-3 text-right' for='STATIC_ACCRUAL'>_{MULTI_ACCRUAL}_</label>
+        <div class='col-sm-9'>
+          <div class='form-check text-left'>
+            <input type='checkbox' class='form-check-input' id='MULTI_ACCRUAL' value='1' %MULTI_ACCRUAL%
+                   name='MULTI_ACCRUAL'>
+          </div>
+        </div>
+      </div>
+
     </div>
     <div class='card-footer'>
       %ACTION%

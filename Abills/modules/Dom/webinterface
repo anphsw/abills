@@ -253,10 +253,21 @@ sub _dom_pon_color {
 
   return '#f8f9fa' if !$rx_power || $rx_power == 65535;
   return '#6c757d' if $rx_power > 0;
-  return '#28a745' if $rx_power < -8 && $rx_power > -27;
-  return '#dc3545' if $rx_power < -8 && $rx_power > -30;
 
-  return '#f8f9fa';
+  if ($conf{PON_LEVELS_ALERT}){
+    if ($rx_power > $conf{PON_LEVELS_ALERT}{BAD}{MAX} || $rx_power < $conf{PON_LEVELS_ALERT}{BAD}{MIN}){
+      return '#dc3545';
+    }
+    elsif ($rx_power > $conf{PON_LEVELS_ALERT}{WORTH}{MAX} || $rx_power < $conf{PON_LEVELS_ALERT}{WORTH}{MIN}){
+      return '#ffc107';
+    }
+  }
+  else {
+    return '#dc3545' if $rx_power > -8 || $rx_power < -30;
+    return '#ffc107' if $rx_power > -10 || $rx_power < -27;
+  }
+
+  return '#28a745';
 }
 
 1

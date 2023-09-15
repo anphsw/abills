@@ -214,8 +214,10 @@
 
           <div class='form-group row %MSGS_TAGS_HIDE%'>
             <label class='control-label col-md-3' for='MSGS_TAGS'>_{MSGS_TAGS}_:</label>
-            <div class='col-md-9' id='accordion'>
-              %MSGS_TAGS%
+            <div class='col-md-9'>
+              <ul class='list-unstyled' id='accordion'>
+                %MSGS_TAGS%
+              </ul>
             </div>
           </div>
 
@@ -435,13 +437,8 @@
 </script>
 
 <style type='text/css'>
-	#accordion li {
-		color: #3c8dbc;
-		cursor: pointer;
-	}
-
-	#accordion li:hover {
-		color: #437ea0;
-		cursor: pointer;
-	}
+	#accordion .card {
+    border-top: none;
+    margin-bottom: 0;
+  }
 </style>

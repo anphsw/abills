@@ -374,7 +374,7 @@ sub internet_online {
     'netmask'             => 'NETMASK',
     'speed'               => $lang{SPEED},
     'online_tp_id'        => 'Online TP_ID',
-    'tp_id',              => 'TP_ID',
+    'tp_id'               => 'TP_ID',
     'cid'                 => 'CID',
     'filter_id'           => 'Filter ID',
     'tp_name'             => $lang{TARIF_PLAN},
@@ -468,22 +468,43 @@ sub internet_online {
     my $total = $#{$l} + 1;
     if (!$FORM{json}) {
       $table->{rowcolor} = 'bg-info';
-      $table->{extra} = "colspan='" . ($Sessions->{SEARCH_FIELDS_COUNT}) . "'";
-      $table->addrow("$nas_id:"
-        . $html->button($html->b($_nas->{nas_name}),
-        "index=" . get_function_index('form_nas') . "&NAS_ID=$nas_id")
-        . ":$_nas->{ip}:$lang{TOTAL}: $total "
-        . ($permissions{5}{1} ? $html->button("Zap $lang{SESSIONS}", "index=$index&zapall=1&NAS_ID=$nas_id",
-        { MESSAGE => "Do you realy want zap all sessions on NAS '$nas_id' ?", class => 'btn btn-secondary' }) : '')
-        . $html->button($lang{ERROR},
+      $table->{extra} = "colspan='" . ($Sessions->{SEARCH_FIELDS_COUNT} + 1) . "'";
+      my $nas_button = $html->button(
+        $html->b($_nas->{nas_name}),
+        "index=" . get_function_index('form_nas') . "&NAS_ID=$nas_id",
+          { class => 'btn btn-primary btn-sm mx-2', title => $_nas->{nas_name} }
+      );
+
+      my $langed_zap = $lang{MSG_WANT_ZAP};
+      chop($langed_zap);
+      my $zap_message = "$langed_zap $lang{ON} NAS $_nas->{nas_name} ($nas_id)?";
+      my $nas_zap_button = ($permissions{5}{1} ? $html->button("Zap $lang{SESSIONS}", "index=$index&zapall=1&NAS_ID=$nas_id",
+        { MESSAGE => $zap_message, class => 'btn btn-secondary btn-sm mx-2' }) : '');
+
+      my $nas_error_button =$html->button($lang{ERROR},
         "index=" . get_function_index('internet_error') . "&NAS_ID=$nas_id&search_form=1&search=1",
-        { class => 'btn btn-secondary' })
-        . $html->button('', "#",
-        { class                                                        => 'btn btn-secondary', ICON =>
-          'fa fa-chart-bar', TITLE                                     => "$lang{GRAPH} $lang{NAS}",
-          NEW_WINDOW                                                   =>
-            internet_get_chart_query("NAS_ID=$nas_id", '1',
-              $chart_new_window_width, $chart_height), NEW_WINDOW_SIZE => "$new_window_size" })
+        { class => 'btn btn-secondary btn-sm mr-2' }
+      );
+      my $nas_chart_button = $html->button('', "#",
+        { class => 'btn btn-secondary btn-sm mr-2',
+          ICON  => 'fa fa-chart-bar',
+          TITLE                                     => "$lang{GRAPH} $lang{NAS}",
+          NEW_WINDOW => internet_get_chart_query("NAS_ID=$nas_id", '1', $chart_new_window_width, $chart_height),
+          NEW_WINDOW_SIZE => "$new_window_size"
+        }
+      );
+
+      my $nas_ip = $html->b("| $_nas->{ip} ");
+      my $delimiter = $html->b('|');
+      my $nas_total = $html->b($total);
+      $table->addrow(
+        $html->b("$nas_id:")
+        . $nas_button
+        . $nas_ip
+        . "$delimiter $lang{TOTAL}: $nas_total $delimiter"
+        . $nas_zap_button
+        . $nas_error_button
+        . $nas_chart_button
       );
     }
 
@@ -778,7 +799,7 @@ sub internet_diagnostic {
   });
 
   foreach my $key (keys %$extra_params) {
-    if ($extra_params->{$key} !~ /^[A-Za-z_0-9]*$/) {
+    if ($extra_params->{$key} && $extra_params->{$key} !~ /^[A-Za-z_0-9]*$/) {
       delete $extra_params->{$key};
     }
   }

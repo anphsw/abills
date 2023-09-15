@@ -36,7 +36,10 @@ CREATE TABLE IF NOT EXISTS `referral_tp`
     `spend_percent`      SMALLINT(3) UNSIGNED   NOT NULL DEFAULT 0,
     `bonus_bill`         TINYINT(1) UNSIGNED    NOT NULL DEFAULT 0,
     `is_default`         SMALLINT(1)            NOT NULL DEFAULT 0,
-    `static_accrual`     SMALLINT(1)            NOT NULL DEFAULT 0
+    `static_accrual`     SMALLINT(1)            NOT NULL DEFAULT 0,
+    `multi_accrual`      SMALLINT(1)            NOT NULL DEFAULT 0,
+    `payments_type`      VARCHAR(60)            NOT NULL DEFAULT '0, 1, 2',
+    `fees_type`          VARCHAR(60)            NOT NULL DEFAULT '0, 1'
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Referral tp table stores information about referral tariffs';

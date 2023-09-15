@@ -15,5 +15,5 @@ $lang{ANSWERPHONE}='Автоответчик';
 $lang{NOT_AVAILABLE}='Не доступен';
 $lang{EVERY_MONTH}='Каждый месяц';
 $lang{UPDATE_DAY} = 'День обновления';
-$lang{SQL_QUERY} = 'Sql запрос';
+$lang{SQL_QUERY} = 'SQL запрос';
 1

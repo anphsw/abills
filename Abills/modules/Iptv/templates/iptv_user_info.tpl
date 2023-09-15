@@ -24,6 +24,10 @@
           <td class='text-bold'>_{TARIF_PLAN}_</td>
           <td>%TP_NAME%</td>
         </tr>
+        <tr>
+          <td class='text-bold'>_{DESCRIBE}_</td>
+          <td>%COMMENTS%</td>
+        </tr>
         %IPTV_EXTRA_FIELDS%
       </table>
       <div class='form-group col-md-12 mt-1'>

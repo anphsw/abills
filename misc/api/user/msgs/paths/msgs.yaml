@@ -22,6 +22,15 @@ post:
       application/json:
         schema:
           $ref: "../schemas/msgAddRequest.yaml"
+      multipart/form-data:
+        schema:
+          - $ref: "../schemas/msgAddResponse.yaml"
+            file1:
+              type: string
+              format: binary
+            file2:
+              type: string
+              format: binary
     required: true
   responses:
     200:

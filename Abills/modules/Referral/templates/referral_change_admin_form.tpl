@@ -23,6 +23,18 @@
       </div>
 
       <div class='form-group row'>
+        <label class='control-label col-md-4' for='REFERRAL_LOGIN'>_{USER}_</label>
+          <div class='input-group col-md-8'>
+            <div class='input-group-prepend'>
+              %USER_SEARCH%
+            </div>
+            <input type='text' form='unexistent' class='form-control col-md-3' name='LOGIN' value='%LOGIN%' id='LOGIN'
+                   readonly='readonly' style='display: none'/>
+            %REFERRAL_BUTTON%
+          </div>
+      </div>
+
+      <div class='form-group row'>
         <label class='control-label col-md-4'> </label>
         <div class='col-md-8'>
           %ADDRESS_SELECT%
@@ -54,3 +66,27 @@
     </div>
   </form>
 </div>
+
+<script>
+
+  jQuery(function(){
+    Events.on('search_form.value_selected.UID', function(data_str){
+      var uid = 0, login = 0;
+      var uid_login = data_str.split('#@#');
+
+      uid = uid_login[0].split('::')[1];
+      login = uid_login[1].split('::')[1];
+
+      var referralUid = document.querySelector("input[name='REFERRAL_UID']");
+
+      if (referralUid) {
+        referralUid.value = uid;
+      }
+
+      var referralLogin = document.getElementById("LOGIN");
+      referralLogin.style.display = 'block';
+
+    });
+  });
+
+</script>

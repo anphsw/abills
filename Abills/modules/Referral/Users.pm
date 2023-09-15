@@ -216,6 +216,8 @@ sub referrals_list {
     USER_DELETED => '_SHOW',
     COMMENTS     => '_SHOW',
     DATE         => '_SHOW',
+    PAYMENTS_TYPE=> '_SHOW',
+    FEES_TYPE    => '_SHOW',
     SORT         => 'r.id',
     DESC         => 'DESC',
     COLS_NAME    => 1,
@@ -234,7 +236,9 @@ sub referrals_list {
         REFERRER => $referral->{referrer},
         UID      => $referral->{referral_uid},
         TP_ID    => $referral->{referral_tp} || '',
-        DATE     => $referral->{date} || ''
+        DATE     => $referral->{date} || '',
+        PAYMENTS_TYPE => $referral->{payments_type} || '',
+        FEES_TYPE     => $referral->{fees_type} || '',
       });
 
       if (!$result->{errno}) {
@@ -305,7 +309,7 @@ sub _referral_calculate_bonus {
 
   my $tariff_settings;
   if ($attr->{TP_ID}) {
-    $tariff_settings = $Referral->get_default_tp($attr->{TP_ID} || '--');
+    $tariff_settings = $Referral->tp_info($attr->{TP_ID} || '--');
   }
   else {
     $tariff_settings = $Referral->get_default_tp();
@@ -325,7 +329,7 @@ sub _referral_calculate_bonus {
   my $fees_bonus = 0;
   my $max_bonus = 0;
 
-  if ($tariff_settings->{MAX_BONUS_AMOUNT}) {
+  if ($tariff_settings->{MAX_BONUS_AMOUNT} && $tariff_settings->{MAX_BONUS_AMOUNT} > 0) {
     $Referral->get_total_bonus($attr->{UID});
     my $max_amount = sprintf('%.2f', $tariff_settings->{MAX_BONUS_AMOUNT} || 0);
     my $curr_total_sum = sprintf('%.2f', $Referral->{TOTAL_SUM} || 0);
@@ -402,7 +406,7 @@ sub _referral_calculate_bonus {
     }
     else {
       if ($recharge_percent) {
-        my $payments = $Referral->get_payments_bonus($attr->{UID});
+        my $payments = $Referral->get_payments_bonus($attr);
         if (!$Referral->{errno} && scalar @{$payments}) {
           foreach my $payment (@{$payments}) {
             next if (!$payment->{sum});
@@ -421,7 +425,7 @@ sub _referral_calculate_bonus {
       }
 
       if ($spend_percent) {
-        my $fees = $Referral->get_fees_bonus($attr->{UID});
+        my $fees = $Referral->get_fees_bonus($attr);
         if (!$Referral->{errno} && scalar @{$fees}) {
           foreach my $fee (@{$fees}) {
             next if (!$fee->{sum});
@@ -537,7 +541,7 @@ sub _referral_add_bonus {
     $Payments->add($Users, {
       SUM      => $referral->{TOTAL_BONUS},
       METHOD   => 4,
-      DESCRIBE => "$lang{BONUS_DESC} ($referral->{UID}) " . ($referral_info->{FIO} || ''),
+      DESCRIBE => "$lang{BONUS_DESC} ($referral->{UID}) " . ($referral_info->{FIO} || $referral->{FIO} || ''),
     });
   }
   else {

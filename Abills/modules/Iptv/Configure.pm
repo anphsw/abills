@@ -21,6 +21,8 @@ our Conf $Conf;
 our Abills::HTML $html;
 my $Tariffs = Tariffs->new( $db, \%conf, $admin );
 
+require Control::System;
+
 #**********************************************************
 =head2 iptv_tp() - Tarif plans
 
@@ -258,7 +260,8 @@ sub iptv_tp{
       module               => $lang{MODULE},
       inner_tp_id          => 'ID',
       ext_bill_fees_method => "EXT_BILL $lang{FEES} $lang{TYPE}",
-      describe_aid         => $lang{DESCRIBE_FOR_ADMIN}
+      describe_aid         => $lang{DESCRIBE_FOR_ADMIN},
+      comments             => $lang{DESCRIBE_FOR_SUBSCRIBER}
     },
     SKIP_USER_TITLE => 1,
     TABLE           => {

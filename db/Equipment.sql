@@ -32,8 +32,24 @@ REPLACE INTO `equipment_vendors` (`id`, `name`, `support`, `site`) VALUES
   (19, 'Foundry Networks', '', 'http://www.brocade.com/en.html'),
   (20, 'Alcatel', '', 'https://www.alcatel-lucent.com/'),
   (21, 'Hewlett-Packard', '', 'http://www8.hp.com/ru/ru/home.html'),
-  (22, 'CDATA', '', 'http://ru.cdatatec.com/product-item/'),
-  (23, 'Foxgate', '', 'https://www.foxgate.com');
+  (22, 'Huawei', '', 'http://huawei.com/ru/'),
+  (23, 'SMC', '', 'http://www.smc.com/'),
+  (24, 'Gw Delight', '', 'http://www.gwdelight.com/'),
+  (25, 'Raisecom', '', 'https://www.raisecom.com'),
+  (26, 'SNR', '', ''),
+  (27, 'Linksys', '', 'http://www.linksys.com/us/'),
+  (28, 'Planet', '', 'http://www.planet.com.tw'),
+  (29, 'V-SOLUTION', '', 'https://ru.ftthcpe.com'),
+  (30, 'CDATA', '', 'http://ru.cdatatec.com/'),
+  (31, 'Brocade', '', 'https://www.broadcom.com'),
+  (32, 'Netgear', '', 'https://www.netgear.ru/business/products/switches/'),
+  (33, 'GCOM', '', 'https://gcom.com.ua/'),
+  (34, 'HSGQ', '', 'https://www.hsgq.com/'),
+  (35, 'FoxGate', '', 'https://foxgate.ua/'),
+  (36, 'DCN', '', 'https://dcneurope.eu/'),
+  (37, 'Extreme', '', 'https://www.extremenetworks.com/'),
+  (38, 'NextHop', '', ''),
+  (39, 'SmartFiber', '', 'http://www.smartfiberbd.com/');
 
 
 CREATE TABLE IF NOT EXISTS `equipment_types` (
@@ -91,6 +107,7 @@ CREATE TABLE IF NOT EXISTS `equipment_models` (
   `default_onu_reg_template_gpon` VARCHAR(150),
   `width`   TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
   `height`  TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
+  `cont_num_extra_ports` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Continuation of numbering for extra port from main row',
   PRIMARY KEY (`id`),
   KEY type_id (`type_id`),
   UNIQUE KEY `model` (`vendor_id`, `type_id`, `model_name`)
@@ -238,7 +255,7 @@ CREATE TABLE IF NOT EXISTS `equipment_mac_log` (
   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `mac` VARCHAR(17) NOT NULL DEFAULT '',
   `ip` INT UNSIGNED NOT NULL DEFAULT 0,
-  `port` VARCHAR(16) NOT NULL DEFAULT '',
+  `port` VARCHAR(20) NOT NULL DEFAULT '',
   `vlan` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `datetime` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',

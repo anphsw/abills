@@ -61,7 +61,7 @@ sub add {
   $attr = $users->info_field_attach_add({ %$attr, COMPANY_PREFIX => 1 });
 
   $self->query_add('companies', { %$attr,
-    REGISTRATION   => 'NOW()',
+    REGISTRATION   => $attr->{REGISTRATION} || 'NOW()',
   });
 
   if ($self->{errno}) {

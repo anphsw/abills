@@ -1,5 +1,11 @@
-# Billd plugin for autoclose old messages
+=head1 NAME
 
+ billd plugin
+
+ DESCRIBE: billd plugin automatic closing of old messages
+
+=cut
+#**********************************************************
 
 use strict;
 use warnings FATAL => 'all';
@@ -8,90 +14,104 @@ our (
   %conf,
   $Admin,
   $db,
-  $users,
-  $var_dir,
   $argv,
+  %lang
 );
 
-use Abills::Base qw/_bp sendmail/;
 use Msgs;
+use Msgs::Notify;
 use Abills::Templates qw/templates/;
+use Abills::Base qw/date_diff/;
 our $html = Abills::HTML->new( { CONF => \%conf } );
 
 my $date = $argv->{DATE} || $DATE;
-
 my $Msgs = Msgs->new($db, $Admin, \%conf);
 my $Log  = Log->new($db, $Admin);
-$Log->{LOG_FILE} = $var_dir.'/log/msgs_autoclose.log';
+my $Notify = Msgs::Notify->new($db, $Admin, \%conf, { HTML => $html });
 
-$Msgs->chapters_list({ LIST2HASH => 'id,autoclose' });
+do "../language/$html->{language}.pl";
+do 'Abills/Misc.pm';
+our $admin = $Admin;
+load_module('Msgs', $html);
 
-my $autoclose_list = $Msgs->{list_hash};
+msgs_autoclose();
 
-my $messages_list = $Msgs->messages_list({
-  LAST_REPLIE_DATE => '_SHOW',
-  STATE            => 6,
-  EMAIL            => '_SHOW',
-  PAGE_ROWS        => 999999,
-  COLS_NAME        => 1,
-});
+#**********************************************************
+=head2 msgs_autoclose()
 
-foreach my $message (@$messages_list) {
-  next if (!$message->{last_replie_date} || $message->{last_replie_date} eq '0000-00-00 00:00:00');
-  next if (!$autoclose_list->{$message->{chapter_id}} );
-  my ($last_action, undef) = split(/ /, $message->{last_replie_date}, 2);
-  
-  if (_period_days($last_action, $date) == $autoclose_list->{$message->{chapter_id}} - 2) {
-    $Log->log_print('LOG_INFO', '', "Alert for message $message->{id}");
-    my $message_body = $html->tpl_show(templates('form_msgs_autoclose'), { MSGS_ID => $message->{id} } , {
-        OUTPUT2RETURN      => 1, 
+=cut
+#**********************************************************
+sub msgs_autoclose {
+
+  $Msgs->chapters_list({ AUTOCLOSE => '!', LIST2HASH => 'id,autoclose' });
+  my $autoclose_list = $Msgs->{list_hash};
+
+  my $messages_list = $Msgs->messages_list({
+    LAST_REPLIE_DATE => '_SHOW',
+    REPLY_STATUS      => '!3',
+    CHAPTER          => join(';', keys %{$autoclose_list}),
+    STATE            => 6,
+    RESPOSIBLE       => '_SHOW',
+    PAGE_ROWS        => 999999,
+    COLS_NAME        => 1
+  });
+
+  foreach my $message (@$messages_list) {
+    next if (!$message->{last_replie_date} || $message->{last_replie_date} eq '0000-00-00 00:00:00');
+    next if !$autoclose_list->{$message->{chapter_id}};
+
+    my $period = $autoclose_list->{$message->{chapter_id}};
+    my $half_period = int($period / 2);
+
+    if (date_diff($message->{last_replie_date}, $date) == $half_period) {
+      my $message_body = $html->tpl_show(templates('form_msgs_autoclose'), { MSGS_ID => $message->{id} }, {
+        OUTPUT2RETURN      => 1,
         SKIP_DEBUG_MARKERS => 1
-    });
-    my $email = $message->{email};
-    sendmail("$conf{ADMIN_MAIL}", "$email", "You did not respond for a long time", "$message_body", "$conf{MAIL_CHARSET}", "");
-    $Log->log_print('LOG_INFO', '', "Sendmail to UID:'$message->{uid}' about message $message->{id}");
-  }
-  elsif (_period_days($last_action, $date) >= $autoclose_list->{$message->{chapter_id}}) {
-    $Log->log_print('LOG_INFO', '', "Autoclose message $message->{id}");
-    my $message_body = $html->tpl_show(templates('form_msgs_autoclose2'), { MSGS_ID => $message->{id} } , {
-        OUTPUT2RETURN      => 1, 
-        SKIP_DEBUG_MARKERS => 1
-    });
-    $Msgs->message_reply_add({
-      ID         => $message->{id},
-      REPLY_TEXT => $message_body,
-      STATE      => 2,
-      UID        => $message->{uid},
-      AID        => 2,
-    });
-    $Msgs->message_change({
-      ID         => $message->{id},
-      ADMIN_READ => "$DATE $TIME",
-      STATE      => 2,
-    });
-  }
-}
+      });
 
+      $Msgs->message_reply_add({
+        ID         => $message->{id},
+        REPLY_TEXT => $message_body,
+        STATE      => 3,
+        UID        => $message->{uid},
+        AID        => $message->{resposible},
+      });
 
-sub _period_days {
-  my ($s_date, $e_date) = @_;
-  return 0 if ($s_date gt $e_date);
-  my ($s_year, $s_month, $s_day) = split '-', $s_date;
-  my ($e_year, $e_month, $e_day) = split '-', $e_date;
-  my @lastday = (31,28,31,30,31,30,31,31,30,31,30,31);
-  
-  $lastday[1] = ($e_year % 4) ? 28 : 29;
-  
-  while ($e_year > $s_year || $e_month > $s_month ) {
-    $e_month--;
-    if ($e_month == 0) {
-      $e_year--;
-      $e_month = 12;
-      $lastday[1] = ($e_year % 4) ? 28 : 29;
+      $Notify->notify_user({
+        REPLY_ID => $Msgs->{INSERT_ID},
+        MSG_ID   => $message->{id},
+        MESSAGE  => $message_body,
+        UID      => $message->{uid}
+      });
+      next;
     }
-    $e_day += $lastday[$e_month-1]
-  }
 
-  return $e_day - $s_day;
+    if (date_diff($message->{last_replie_date}, $date) == $period) {
+      my $message_body = $html->tpl_show(templates('form_msgs_autoclose2'), { MSGS_ID => $message->{id} }, {
+        OUTPUT2RETURN      => 1,
+        SKIP_DEBUG_MARKERS => 1
+      });
+
+      $Msgs->message_reply_add({
+        ID         => $message->{id},
+        REPLY_TEXT => $message_body,
+        STATE      => 3,
+        UID        => $message->{uid},
+        AID        => $message->{resposible},
+      });
+      next if $Msgs->{error};
+
+      $Msgs->message_change({ ID => $message->{id}, ADMIN_READ => "$DATE $TIME", STATE => 2 });
+      $Notify->notify_user({
+        REPLY_ID => $Msgs->{INSERT_ID},
+        MSG_ID   => $message->{id},
+        MESSAGE  => $message_body,
+        UID      => $message->{uid},
+        STATE    => 2
+      });
+      next;
+    }
+  }
 }
-1
+
+1;

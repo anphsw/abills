@@ -250,19 +250,19 @@ sub list {
       ['METHOD',         'INT', 'p.method',                                              1 ],
       ['AMOUNT',         'INT', 'p.amount',                                              1 ],
       ['CURRENCY',       'INT', 'p.currency',                                            1 ],
-      ['A_LOGIN',        'STR', 'a.id'                                                     ],
-      ['ADMIN_NAME',     'STR', 'a.id'                                                     ],
+      ['A_LOGIN',        'STR', 'a.id', 'a.id as a_login'                                  ],
+      # ['ADMIN_NAME',     'STR', 'a.id'                                                     ],
       ['PAYMENT_METHOD_ID','INT', 'p.method', 'p.method AS payment_method_id'              ],
       ['BILL_ID',        'INT', 'p.bill_id',                                             1 ],
-      ['AID',            'INT', 'p.aid',                                                   ],
+      ['AID',            'INT', 'p.aid',                                                 1 ],
       ['IP',             'INT', 'INET_NTOA(p.ip)',  'INET_NTOA(p.ip) AS ip'                ],
       ['EXT_ID',         'STR', 'p.ext_id',                                              1 ],
-      ['ADMIN_NAME',     'STR', '', "IF(a.name is null, 'Unknown', a.name) AS admin_name"  ],
+      ['ADMIN_NAME',     'STR', 'a.name', "IF(a.name is null, 'Unknown', a.name) AS admin_name"  ],
       ['INVOICE_NUM',    'INT', 'd.invoice_num',                                         1 ],
       ['INVOICE_DATE',   'INT', 'd.date', 'd.date AS invoice_date',                        ],
       ['DATE',           'DATE','DATE_FORMAT(p.date, \'%Y-%m-%d\')'                        ],
       ['REG_DATE',       'DATE','p.reg_date',                                            1 ],
-      ['MONTH',          'DATE','DATE_FORMAT(p.date, \'%Y-%m\')'                           ],
+      ['MONTH',          'DATE', "DATE_FORMAT(p.date, '%Y-%m')", "DATE_FORMAT(p.date, '%Y-%m') as month"],
       ['ID',             'INT', 'p.id'                                                     ],
       ['FROM_DATE_TIME|TO_DATE_TIME','DATE', "p.date"                                      ],
       ['FROM_DATE|TO_DATE', 'DATE', 'DATE_FORMAT(p.date, \'%Y-%m-%d\')'                    ],
@@ -270,11 +270,11 @@ sub list {
       ['AFTER_DEPOSIT',  'INT', '(p.sum+p.last_deposit) as after_deposit',               1 ],
       ['ADMIN_DISABLE',  'INT', 'a.disable', 'a.disable AS admin_disable',               1 ],
     ],
-    { WHERE       => 1,
-    	WHERE_RULES => \@WHERE_RULES,
-    	USERS_FIELDS=> 1,
-    	SKIP_USERS_FIELDS => [ 'BILL_ID', 'UID', 'LOGIN' ],
-    	USE_USER_PI => 1
+    { WHERE             => 1,
+      WHERE_RULES       => \@WHERE_RULES,
+      USERS_FIELDS      => 1,
+      SKIP_USERS_FIELDS => [ 'BILL_ID', 'UID', 'LOGIN' ],
+      USE_USER_PI       => 1
     }
     );
 
@@ -417,13 +417,11 @@ sub pool_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'payments_pool',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'payments_pool',
+    DATA         => $attr
+  });
 
   return 1;
 }
@@ -595,7 +593,7 @@ sub reports {
   );
 
   my $total= $self->{TOTAL};
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0) {
     $self->query("SELECT COUNT(DISTINCT p.uid) AS total_users,
@@ -806,7 +804,7 @@ sub payment_type_list {
     $attr
   );
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -841,13 +839,11 @@ sub payment_type_change {
     $self->query("UPDATE payments_type SET default_payment = 1 WHERE id = 0;");
   }
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'payments_type',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'payments_type',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -873,7 +869,8 @@ sub payment_report_admin {
     undef,
     $attr
   );
-  return $self->{list};
+
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -889,4 +886,4 @@ sub payment_default_type {
   return $self;
 }
 
-1
+1;

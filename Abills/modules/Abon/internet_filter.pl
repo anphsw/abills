@@ -1,14 +1,15 @@
 #!/usr/bin/perl
 =head NAME internet_filter
 
-  GIVE STATICK IP FOR USER FORM IP POOL
+  GIVE FILTER FOR USER
+
   ATTRIBUTES:
-    POOL_ID= - id of ip pool
-    UID= - user uid
-    ACTION= - ACTIVE OR ALERT
-    DEBUG=10
+      UID=
+      FILTER_ID=
+
   USEGE:
-    internet_static_ip POOL_ID=3 UID=1  ACTION=ACTIVE
+
+    internet_filter.pl FILTER_ID=parent_control UID=1  ACTION=ACTIVE
 
 =cut
 no if $] >= 5.017011, warnings => 'experimental::smartmatch';
@@ -37,6 +38,7 @@ our (%conf);
 use Abills::SQL;
 use Abills::Base qw/parse_arguments/;
 use Internet;
+use Admins;
 
 my $argv = parse_arguments(\@ARGV);
 

@@ -103,8 +103,10 @@ sub view_file {
     FILENAME   => $attr->{FILE},
     PATH       => $TEMPLATE_DIR
   });
+  my $file_content_without_comments = $file_content;
+  $file_content_without_comments =~ s#//.*$##gm;
 
-  my $attributes = eval {decode_json($file_content)};
+  my $attributes = eval {decode_json($file_content_without_comments)};
 
   my $text_area = $html->form_textarea('json_string', $file_content, { ROWS => 15 });
   my $json_form_content = $html->tpl_show(_include('equipment_json_conf_json_form', 'Equipment'), { TEXT_AREA => $text_area }, { OUTPUT2RETURN => 1 });
@@ -118,6 +120,7 @@ sub view_file {
 
   if ($@) {
     $html->message('err', $lang{ERROR}, $lang{INVALID_JSON}.' '.$TEMPLATE_DIR . $attr->{FILE});
+    print $@;
     return 1;
   }
   my $add_main = $html->button('', undef,

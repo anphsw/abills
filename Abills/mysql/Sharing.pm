@@ -996,7 +996,7 @@ sub change {
         return $self;
       }
       my $fees = Fees->new($self->{db}, $admin, $CONF);
-      $fees->take($user, $tariffs->{CHANGE_PRICE}, { DESCRIBE => "CHANGE TP [$attr->{TP_ID}]" });
+      $fees->take($user, $tariffs->{CHANGE_PRICE}, { DESCRIBE => 'CHANGE_TP'. [$attr->{TP_ID}] });
     }
 
     if ($tariffs->{AGE} > 0) {
@@ -1770,7 +1770,7 @@ sub priority_list {
 }
 
 #**********************************************************
-=head2 add_file() -
+=head2 file_add($attr) -
 
   Arguments:
     $attr -
@@ -1780,17 +1780,18 @@ sub priority_list {
 
 =cut
 #**********************************************************
-sub add_file {
+sub file_add {
   my $self = shift;
   my ($attr) = @_;
 
   $self->query_add('sharing_files', $attr);
 
+  $self->{admin}->system_action_add("FILE:". ($attr->{NAME} || q{}), { TYPE => 1 });
+
   return $self;
 }
 
 #*******************************************************************
-
 =head2 function file_list() - get list of all files
 
   Arguments:
@@ -1803,7 +1804,6 @@ sub add_file {
     my @list = $Sharing->file_list({ COLS_NAME => 1});
 
 =cut
-
 #*******************************************************************
 sub file_list {
   my $self = shift;
@@ -1882,6 +1882,8 @@ sub file_delete {
   my ($attr) = @_;
 
   $self->query_del('sharing_files', $attr);
+
+  $self->{admin}->system_action_add("ID:" . ($attr->{ID} || q{}), { TYPE => 10 });
 
   return $self;
 }

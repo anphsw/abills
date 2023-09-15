@@ -2,7 +2,7 @@
 <html lang='en'>
 <head>
   <meta charset='utf-8'>
-  <title>Выписка по счету</title>
+  <title>_{STATEMENT_OF_ACCOUNT}_</title>
   <link href='/styles/default/css/adminlte.min.css' rel='stylesheet'>
 </head>
 <script language='JavaScript'>
@@ -33,8 +33,8 @@
         <div class='row col-md-6 invoice-col'>
 
           <div class='col-md-6 text-right'>
-            <b>Почтовый адрес:</b> <br>
-            <b>Адрес:</b> <br>
+            <b>_{MAIL_ADDRESS}_:</b> <br>
+            <b>_{ADDRESS}_:</b> <br>
             <br>
           </div>
 
@@ -49,9 +49,9 @@
         <div class='row col-md-6 invoice-col'>
 
           <div class='col-md-6 text-right'>
-            <b>Телефон:</b> <br>
-            <b>Факс:</b> <br>
-            <b>Электронная почта:</b> <br>
+            <b>_{PHONE}_:</b> <br>
+            <b>_{FAX}_:</b> <br>
+            <b>E-mail:</b> <br>
           </div>
 
           <div class='col-md-6 text-left'>
@@ -63,15 +63,17 @@
         </div>
 
         <div class='col-md-12 text-center'>
-          <h4>Выписка</h4>
+          <br>
+          <h4>_{STATEMENT_OF_ACCOUNT}_</h4>
+          _{FOR_TIME}_ _{FROM}_ %PERIOD_FROM% _{TO}_ %PERIOD_TO%
         </div>
 
         <div class='row col-md-6 float-left'>
           <div class='col-md-6 text-right'>
             <br>
-            <b>Номер выписки:</b> <br>
-            <b>Дата:</b> <br>
-            <b>Код клиента: </b>
+            <b>_{NUMBER_STATEMENT}_:</b> <br>
+            <b>_{DATE}_:</b> <br>
+            <b>_{CODE_CLIENT}_: </b>
             <br>
           </div>
           <div class='col-md-6 text-left'>
@@ -86,7 +88,7 @@
         <div class='row col-md-6 float-right'>
           <div class='col-md-6 text-right'>
             <br>
-            <b>Плательщик:</b>
+            <b>_{PAYER}_:</b>
             <br>
 
           </div>
@@ -107,14 +109,14 @@
       <table class='table table-striped'>
         <thead>
         <tr>
-          <th>Дата</th>
-          <th>Логин</th>
-          <th>Денежный счет</th>
-          <th>Счет</th>
-          <th>Описание</th>
-          <th>Списание</th>
-          <th>Платеж</th>
-          <th>Баланс</th>
+          <th>_{DATE}_</th>
+          <th>_{LOGIN}_</th>
+          <th>_{BILL_ACCOUNT}_</th>
+          <th>_{ACCOUNT}_</th>
+          <th>_{DESCRIBE}_</th>
+          <th>_{FEE}_</th>
+          <th>_{PAYMENT}_</th>
+          <th>_{BALANCE}_</th>
         </tr>
         </thead>
         <tbody>

@@ -104,18 +104,18 @@
   });
 </script>
 
-<form action=$SELF_URL name='storage_hardware_form' method=POST class='form-horizontal'>
-  <input type=hidden name=index value=$index>
-  <input type=hidden name=CHG_ID value=%CHG_ID%>
+<form action='%SELF_URL%' name='storage_hardware_form' method=POST class='form-horizontal'>
+  <input type=hidden name='index' value='%index%'>
+  <input type=hidden name='CHG_ID' value='%CHG_ID%'>
   <input type=hidden name='type' value='prihod2'>
-  <input type=hidden name=UID value=$FORM{UID}>
-  <input type=hidden name=COUNT1 value=%COUNT1%>
-  <input type=hidden name=ARTICLE_ID1 value=%ARTICLE_ID1%>
+  <input type=hidden name='UID' value='$FORM{UID}'>
+  <input type=hidden name='COUNT1' value='%COUNT1%'>
+  <input type=hidden name='ARTICLE_ID1' value='%ARTICLE_ID1%'>
   <input type=hidden name='step' value='$FORM{step}'>
   <input type=hidden name='STORAGE_MSGS_ID' value='$FORM{STORAGE_MSGS_ID}'>
 
   <div class='card card-primary card-outline card-form'>
-    <div class="card-header">
+    <div class='card-header'>
 
       <ul class='nav nav-tabs' role='tablist'>
         <li class='nav-item'>

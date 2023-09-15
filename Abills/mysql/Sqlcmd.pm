@@ -241,7 +241,7 @@ sub list {
     my $q;
     $query =~ s/^ //g;
 
-    if ($query =~ /CREATE |UPDATE |INSERT |ALTER /i) {
+    if ($query =~ /^CREATE |^UPDATE |^INSERT |^ALTER |^DROP/i) {
       $db->{mysql_client_found_rows} = 1;
 
       if (my $count = $db->do($query)) {
@@ -285,7 +285,7 @@ sub list {
       $self->{MYSQL_TYPE_NAME}      = $q->{mysql_type_name};
 
       $self->{TOTAL} = $q->rows;
-      if ($query !~ /INSERT |UPDATE |CREATE |DELETE |ALTER |DROP /i) {
+      if ($query !~ /^INSERT |^UPDATE |^CREATE |^DELETE |^ALTER |^DROP /i) {
         if($attr->{COLS_NAME}) {
           while (my $row = $q->fetchrow_hashref()) {
             push @rows, $row;

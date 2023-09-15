@@ -1,29 +1,29 @@
-$lang{TIMETRACKER} = "Облік часу";
-$lang{FILLING_TIMETRACKER} = "Заповнення обліку часу";
-$lang{ADDING_TIMETRACKER}  = "Додавання задач";
+$lang{TIMETRACKER} = 'Облік часу';
+$lang{FILLING_TIMETRACKER} = 'Заповнення обліку часу';
+$lang{ADDING_TIMETRACKER}  = 'Додавання задач';
 
-$lang{SUPPORT_TIMETRACK} = "Саппорт";
-$lang{SPRINT_TIMETRACK} = "Спринт";
-$lang{COEFFICIENT} = "Фокус-фактор, %";
+$lang{SUPPORT_TIMETRACK} = 'Саппорт';
+$lang{SPRINT_TIMETRACK} = 'Спринт';
+$lang{COEFFICIENT} = 'Фокус-фактор, %';
 
-$lang{SUBMIT_BTN_ADD_TIMETRACK} = "Додати";
-$lang{SUBMIT_BTN_EDIT_TIMETRACK} = "Змінити";
+$lang{SUBMIT_BTN_ADD_TIMETRACK} = 'Додати';
+$lang{SUBMIT_BTN_EDIT_TIMETRACK} = 'Змінити';
 
-$lang{ADD_MASSAGE} = "Додати";
-$lang{DELETE_MASSAGE} = "Видалити";
-$lang{CHANGE_MASSAGE} = "Зміна";
-$lang{OPERATION} = "Операція успішно виконана";
+$lang{ADD_MASSAGE} = 'Додати';
+$lang{DELETE_MASSAGE} = 'Видалити';
+$lang{CHANGE_MASSAGE} = 'Зміна';
+$lang{OPERATION} = 'Операція успішно виконана';
 
-$lang{ADD_ITEM} = "Додати тип робіт";
-$lang{EDIT_ITEM} = "Змінити тип робіт";
-$lang{NEW_ITEM} = "Новий тип робіт";
+$lang{ADD_ITEM} = 'Додати тип робіт';
+$lang{EDIT_ITEM} = 'Змінити тип робіт';
+$lang{NEW_ITEM} = 'Новий тип робіт';
 
-$lang{FOCUS_FACTOR} = "Фокус-фактор";
-$lang{ELEMENTS} = "Тип робіт";
-$lang{ELEMENT} = "Тип робіт";
+$lang{FOCUS_FACTOR} = 'Фокус-фактор';
+$lang{ELEMENTS} = 'Тип робіт';
+$lang{ELEMENT} = 'Тип робіт';
 
-$lang{NOTABLES} = "Таблиць не виявлено";
-$lang{ERROR} = "Помилка";
+$lang{NOTABLES} = 'Таблиць не виявлено';
+$lang{ERROR} = 'Помилка';
 
 $lang{DECOMPOSITION} = 'Декомпозиція задачі';
 $lang{IT_DECOMPOSITION} = 'Декомпозиція';
@@ -37,7 +37,7 @@ $lang{EXTERNAL_SYSTEM} = 'Зовнішні системи обліку';
 
 $lang{ERROR_API_KEY} = 'KEY не має дозволу переглядати користувачів або неправильний URL.
 Змінити: $ conf (TIMETRACKER_REDMINE_KEY) & $ conf (TIMETRACKER_REDMINE_URL) ';
-$lang{ERROR_EMAIL} = "Неможливо знайти користувача по електронній пошті";
+$lang{ERROR_EMAIL} = 'Неможливо знайти користувача за електронною поштою';
 $lang{NO_FIELD} = 'не заповнено';
 
 $lang{EXECUTOR} = 'Виконавець';
@@ -59,3 +59,13 @@ $lang{TIME_COMPLEXITY} = 'складність помножена на кіль�
 $lang{CLOSED_TICKETS} = 'кількість закритих support тікетів';
 $lang{TIME_SUPPORT} = 'Сумарний час роботи з сапортом';
 $lang{REPORTS_HEADER} = 'Звіт про роботу адміністраторів';
+
+$lang{SPRINT_REPORT} = 'Звіт по спринтам';
+$lang{TASKS} = 'Всі задачі';
+$lang{AMOUNT_POINTS} = 'Сума поінтів';
+$lang{AVARAGE_POINT} = 'Середній поінт';
+$lang{SUCCESS} = 'Успішність';
+$lang{PLAN} = 'план';
+$lang{FACT} = 'факт';
+$lang{AVARAGE_TIME_EXECUTION} = 'Середній час виконання';
+$lang{NO_TASKS_RESPONSIBLE} = 'По даному спринту немає задач для відповідального';

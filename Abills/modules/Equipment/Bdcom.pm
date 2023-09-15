@@ -9,9 +9,11 @@ use warnings;
 use Abills::Base qw(in_array);
 use Abills::Filters qw(bin2mac _mac_former dec2hex);
 use Equipment::Misc qw(equipment_get_telnet_tpl);
+use JSON qw(decode_json);
 require Equipment::Snmp_cmd;
 
 our (
+  $base_dir,
   %lang,
   $html,
   %conf,
@@ -33,9 +35,9 @@ sub _bdcom_get_ports {
   my ($attr) = @_;
 
   my $ports_info = equipment_test({
+    VERSION  => $attr->{SNMP_VERSION} || 2,
+    TIMEOUT  => $attr->{SNMP_TIMEOUT} || 5,
     %{$attr},
-    TIMEOUT   => 5,
-    VERSION   => 2,
     PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,IN,OUT,PORT_IN_ERR,PORT_OUT_ERR'
   });
 
@@ -83,9 +85,9 @@ sub _bdcom_onu_list {
   my %port_ids = ();
 
   my $snmp_info = equipment_test({
+    TIMEOUT  => $attr->{SNMP_TIMEOUT} || 5,
+    VERSION  => $attr->{SNMP_VERSION} || 2,
     %{$attr},
-    TIMEOUT  => 5,
-    VERSION  => 2,
     TEST_OID => 'PORTS,UPTIME'
   });
 
@@ -107,11 +109,11 @@ sub _bdcom_onu_list {
   }
 
   my $ports_descr = snmp_get({
+    TIMEOUT  => $attr->{SNMP_TIMEOUT} || 5,
+    VERSION  => $attr->{SNMP_VERSION} || 2,
     %$attr,
     WALK    => 1,
     OID     => '.1.3.6.1.2.1.2.2.1.2',
-    VERSION => 2,
-    TIMEOUT => $attr->{TIMEOUT} || 2
   });
 
   if (!$ports_descr || $#{$ports_descr} < 1) {
@@ -150,9 +152,10 @@ sub _bdcom_onu_list {
         print "$oid_name -- " . ($snmp->{$oid_name}->{NAME} || 'Unknown oid') . '--' . ($snmp->{$oid_name}->{OIDS} || 'unknown') . " \n" if ($debug > 1);
 
         my $result = snmp_get({
+          TIMEOUT  => $attr->{SNMP_TIMEOUT} || 5,
+          VERSION  => $attr->{SNMP_VERSION} || 2,
           %{$attr},
           OID     => $oid,
-          VERSION => 2,
           WALK    => 1
         });
 
@@ -192,9 +195,10 @@ sub _bdcom_onu_list {
         my @oids = map { $oid . '.' . $_ } @part;
 
         my $result = snmp_get({
+          VERSION  => $attr->{SNMP_VERSION} || 2,
+          TIMEOUT  => $attr->{SNMP_TIMEOUT} || 5,
           %{$attr},
           OID     => \@oids,
-          VERSION => 2,
         });
 
         while (@$result) {
@@ -279,350 +283,33 @@ sub _bdcom_onu_list {
 #**********************************************************
 sub _bdcom {
   my ($attr) = @_;
+  my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
 
-  my %snmp = (
-    epon => {
-      'ONU_MAC_SERIAL' => {
-        NAME   => 'MAC/Serial',
-        OIDS   => '.1.3.6.1.4.1.3320.101.10.4.1.1',
-        PARSER => 'bin2mac'
-      },
-      'ONU_STATUS'     => {
-        NAME   => 'STATUS',
-        OIDS   => '.1.3.6.1.4.1.3320.101.10.1.1.26',
-      },
-      'ONU_TX_POWER'   => {
-        NAME   => 'ONU_TX_POWER',
-        OIDS   => '.1.3.6.1.4.1.3320.101.10.5.1.6',
-        PARSER => '_bdcom_convert_power'
-      }, #tx_power = tx_power * 0.1;
-      'ONU_RX_POWER'   => {
-        NAME   => 'ONU_RX_POWER',
-        OIDS   => '.1.3.6.1.4.1.3320.101.10.5.1.5',
-        PARSER => '_bdcom_convert_power'
-      }, #tx_power = tx_power * 0.1;
-      # OLT_RX_POWER have different OID for P3310C, P3310D, P3608, P3612-2TE, P3616-2TE
-      'OLT_RX_POWER'   => {
-        NAME   => 'OLT_RX_POWER',
-        OIDS   => '.1.3.6.1.4.1.3320.9.183.1.1.5',
-        PARSER => '_bdcom_convert_power',
-      }, #olt_rx_power = olt_rx_power * 0.1;
-      'ONU_DESC'       => {
-        NAME   => 'DESCRIBE',
-        OIDS   => '.1.3.6.1.2.1.31.1.1.1.18',
-      },
-      'ONU_IN_BYTE'    => {
-        NAME   => 'ONU_IN_BYTE',
-        OIDS   => '.1.3.6.1.2.1.31.1.1.1.10', #ifHCOutOctets. reversed because we need traffic from ONU side
-      },
-      'ONU_OUT_BYTE'   => {
-        NAME   => 'ONU_OUT_BYTE',
-        OIDS   => '.1.3.6.1.2.1.31.1.1.1.6', #ifHCInOctets. reversed because we need traffic from ONU side
-      },
-      'TEMPERATURE'    => {
-        NAME   => 'TEMPERATURE',
-        OIDS   => '.1.3.6.1.4.1.3320.101.10.5.1.2',
-        PARSER => '_bdcom_convert_temperature'
-      }, #temperature = temperature / 256;
-      'reset'          => {
-        NAME        => '',
-        OIDS        => '.1.3.6.1.4.1.3320.101.10.1.1.29',
-        RESET_VALUE => 0,
-      },
-      'VLAN'           => {
-        NAME   => 'VLAN',
-        OIDS   => '1.3.6.1.4.1.3320.101.12.1.1.3',
-        WALK   => 1
-      },
-      'catv_port_manage'    => {
-        NAME               => '',
-        OIDS               => '1.3.6.1.4.1.3320.101.10.30.1.2',
-        ENABLE_VALUE       => 1,
-        DISABLE_VALUE      => 2,
-      },
-      main_onu_info    => {
-        'HARD_VERSION'     => {
-          NAME   => 'VERSION',
-          OIDS   => '.1.3.6.1.4.1.3320.101.10.1.1.4',
-        },
-        'FIRMWARE'         => {
-          NAME   => 'FIRMWARE',
-          OIDS   => '.1.3.6.1.4.1.3320.101.10.1.1.5',
-        },
-        'VOLTAGE'          => {
-          NAME   => 'VOLTAGE',
-          OIDS   => '.1.3.6.1.4.1.3320.101.10.5.1.3',
-          PARSER => '_bdcom_convert_voltage'
-        }, #voltage = voltage * 0.0001;
-        'DISTANCE'         => {
-          NAME   => 'DISTANCE',
-          OIDS   => '.1.3.6.1.4.1.3320.101.10.1.1.27',
-          PARSER => '_bdcom_convert_distance_epon'
-        }, #distance = distance * 0.001;
-        'CATV_PORTS_ADMIN_STATUS' => {
-          NAME   => 'CATV_PORTS_ADMIN_STATUS',
-          OIDS   => '1.3.6.1.4.1.3320.101.10.30.1.2',
-          PARSER => '_bdcom_convert_catv_port_admin_status',
-        },
-        'CATV_PORTS_COUNT' => {
-          NAME   => 'CATV_PORTS_COUNT',
-          OIDS   => '1.3.6.1.4.1.3320.101.10.3.1.15', # cap2NumCATVRFPorts
-        },
-        #'VIDEO_RX_POWER' => { #XXX is very slow, at least when there's no CATV port on ONU
-        #  NAME   => 'VIDEO_RX_POWER',
-        #  OIDS   => '1.3.6.1.4.1.3320.101.10.31.1.2',
-        #  PARSER => '_bdcom_convert_video_power'
-        #},
-        'MAC_BEHIND_ONU'   => {
-          NAME   => 'MAC_BEHIND_ONU',
-          USE_MAC_LOG => 1
-        },
-        # 0-1 - Active
-        # 2 - Not connected
-        'ONU_PORTS_STATUS' => {
-          NAME   => 'ONU_PORTS_STATUS',
-          OIDS   => '1.3.6.1.4.1.3320.101.12.1.1.8',
-          WALK   => 1
-        }
-      }
-    },
-    gpon => {
-      'ONU_MAC_SERIAL'      => {
-        NAME   => 'MAC/Serial',
-        OIDS   => '.1.3.6.1.4.1.3320.10.3.3.1.2',
-        #PARSER => 'bin2hex'
-      },
-      'ONU_STATUS'          => {
-        NAME   => 'STATUS',
-        OIDS   => '.1.3.6.1.4.1.3320.10.3.3.1.4',
-        #OIDS   => '1.3.6.1.4.1.3320.10.3.1.1.8',
-      },
-      'ONU_TX_POWER'        => {
-        NAME   => 'ONU_TX_POWER',
-        OIDS   => '.1.3.6.1.4.1.3320.10.3.4.1.3',
-        PARSER => '_bdcom_convert_power'
-      }, #tx_power = tx_power * 0.1;
-      'ONU_RX_POWER'        => {
-        NAME   => 'ONU_RX_POWER',
-        OIDS   => '.1.3.6.1.4.1.3320.10.3.4.1.2',
-        PARSER => '_bdcom_convert_power'
-      }, #tx_power = tx_power * 0.1;
-      # ONU_TX_POWER NOt work on BDCOM(tm) P3616-2TE Software, Version 10.1.0E Build 28164
-      'OLT_RX_POWER'        => {
-        NAME   => 'OLT_RX_POWER',
-        OIDS   => '.1.3.6.1.4.1.3320.9.183.1.1.5',
-        PARSER => '_bdcom_convert_power',
-        #SKIP   => 'P3616-2TE' #seems that SKIP is not used anywhere. fix? rename to SKIP_MODEL?
-      }, #olt_rx_power = olt_rx_power * 0.1;
-      'ONU_DESC'            => {
-        NAME   => 'DESCRIBE',
-        OIDS   => '.1.3.6.1.2.1.31.1.1.1.18',
-      },
-      'ONU_IN_BYTE'         => {
-        NAME   => 'ONU_IN_BYTE',
-        OIDS   => '.1.3.6.1.2.1.31.1.1.1.10', #ifHCOutOctets. reversed because we need traffic from ONU side
-      },
-      'ONU_OUT_BYTE'        => {
-        NAME   => 'ONU_OUT_BYTE',
-        OIDS   => '.1.3.6.1.2.1.31.1.1.1.6', #ifHCInOctets. reversed because we need traffic from ONU side
-      },
-      'PROFILE' => {
-        NAME   => 'PROFILE',
-        OIDS   => '1.3.6.1.4.1.3320.10.4.1.1.6',
-      },
-      'VLAN'           => {
-         NAME   => 'VLAN',
-         OIDS   => '1.3.6.1.4.1.3320.101.12.1.1.3',
-         PARSER => '_bdcom_pon_vlan',
-      #   WALK   => 1
-      },
-      # Port temperature
-      # 'TEMPERATURE'    => {
-      #   NAME   => 'TEMPERATURE',
-      #   OIDS   => '1.3.6.1.4.1.3320.10.2.2.1.4',
-      #   PARSER => '_bdcom_convert_temperature'
-      # }, #temperature = temperature / 256;
-      'reset'               => {
-        NAME        => '',
-        OIDS        => '1.3.6.1.4.1.3320.10.3.2.1.4',
-        RESET_VALUE => 1,
-      },
-      main_onu_info         => {
-        'HARD_VERSION'        => {
-          NAME   => 'VERSION',
-          OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.9',
-        },
-        'FIRMWARE'            => {
-          NAME   => 'FIRMWARE',
-          OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.9',
-        },
-        # 'VOLTAGE'          => {
-        #   NAME   => 'VOLTAGE',
-        #   OIDS   => '.1.3.6.1.4.1.3320.101.10.5.1.3',
-        #   PARSER => '_bdcom_convert_voltage'
-        # }, #voltage = voltage * 0.0001;
-        'DISTANCE'         => {
-          NAME   => 'DISTANCE',
-          OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.33',
-          PARSER => '_bdcom_convert_distance_gpon'
-        }, #distance = distance * 0.001;
-        # 0-1 - Active
-        # 2 - Not connected
-        'ONU_PORTS_STATUS' => {
-          NAME   => 'ONU_PORTS_STATUS',
-          OIDS   => '1.3.6.1.4.1.3320.10.4.9.1.3',
-          WALK   => 1
-        },
-        'UPTIME'           => {
-          NAME   => 'UPTIME',
-          OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.19.22',
-          PARSER => '_bdcom_sec2time',
-        },
-        'ONU_LAST_DOWN_CAUSE' => {
-          NAME   => 'ONU last down cause',
-          OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.35',
-          PARSER => '_bdcom_convert_onu_last_down_cause'
-        },
-        'MAC_BEHIND_ONU'      => {
-          NAME        => 'MAC_BEHIND_ONU',
-          USE_MAC_LOG => 1
-        }
-      }
+  my $file_content = file_op({
+    FILENAME => 'bdcom.snmp',
+    PATH     => $TEMPLATE_DIR,
+  });
+  # Removing json comments
+  $file_content =~ s#//.*$##gm;
+
+  my $snmp = decode_json($file_content);
+
+  # P3616-2TE need test
+  if ($attr->{MODEL}) {
+    if ($attr->{MODEL} =~ /OLT P3310|P3310C|P3310D|P3608$|P3612-2TE/i) {
+      $snmp->{epon}->{OLT_RX_POWER}->{OIDS} = '.1.3.6.1.4.1.3320.101.108.1.3';
     }
-    #
-    #    #''        => '1.3.6.1.4.1.3320.101.10.5.1.6', #TX ULimit
-    #    'cur_rx'                          => '1.3.6.1.4.1.3320.9.183.1.1.5', #RX cure
 
-    #    !!! 'mac_onu' => '1.3.6.1.4.1.3320.101.10.1.1.3',  VERSION: P3608-2TE
-
-    #    #'RTT(TQ)' =>  '1.3.6.1.4.1.3320.101.11.1.1.8.8',
-    #    'onu_ports_status'                => '1.3.6.1.4.1.3320.101.12.1.1.8',
-    #    'onustatus'                       => '1.3.6.1.4.1.3320.101.10.1.1.26',
-    #    #'onu_mac' =>  '1.3.6.1.4.1.3320.101.10.1.1.76',  #new params
-    #    #                'speed_in' => '1.3.6.1.4.1.3320.101.12.1.1.13',  # onu_id.onu_port
-    #    #                'speed_out'=> '1.3.6.1.4.1.3320.101.12.1.1.21',  # onu_id.onu_port
-    #
-    #    # bdEponOnuEntry
-    #    'onuVendorID'                     => '1.3.6.1.4.1.3320.101.10.1.1.1',
-    #    'onuIcVersion'                    => '1.3.6.1.4.1.3320.101.10.1.1.10',
-    #    'onuServiceSupported'             => '1.3.6.1.4.1.3320.101.10.1.1.11',
-    #    'onuGePortCount'                  => '1.3.6.1.4.1.3320.101.10.1.1.12',
-    #    'onuGePortDistributing'           => '1.3.6.1.4.1.3320.101.10.1.1.13',
-    #    'onuFePortCount'                  => '1.3.6.1.4.1.3320.101.10.1.1.14',
-    #    'onuFePortDistributing'           => '1.3.6.1.4.1.3320.101.10.1.1.15',
-    #    'onuPotsPortCount'                => '1.3.6.1.4.1.3320.101.10.1.1.16',
-    #    'onuE1PortCount'                  => '1.3.6.1.4.1.3320.101.10.1.1.17',
-    #    'onuUsQueueCount'                 => '1.3.6.1.4.1.3320.101.10.1.1.18',
-    #    'onuUsQueueMaxCount'              => '1.3.6.1.4.1.3320.101.10.1.1.19',
-    #    'onuModuleID'                     => '1.3.6.1.4.1.3320.101.10.1.1.2',
-    #    'onuDsQueueCount'                 => '1.3.6.1.4.1.3320.101.10.1.1.20',
-    #    'onuDsQueueMaxCount'              => '1.3.6.1.4.1.3320.101.10.1.1.21',
-    #    'onuIsBakupBattery'               => '1.3.6.1.4.1.3320.101.10.1.1.22',
-    #    'onuADSL2PlusPortCount'           => '1.3.6.1.4.1.3320.101.10.1.1.23',
-    #    'onuVDSL2PortCount'               => '1.3.6.1.4.1.3320.101.10.1.1.24',
-    #    'onuLLIDCount'                    => '1.3.6.1.4.1.3320.101.10.1.1.25',
-    #    'onuStatus'                       => '1.3.6.1.4.1.3320.101.10.1.1.26',
-    #    'onuDistance'                     => '1.3.6.1.4.1.3320.101.10.1.1.27',
-    #    'onuBindStatus'                   => '1.3.6.1.4.1.3320.101.10.1.1.28',
-    #    'onuReset'                        => '1.3.6.1.4.1.3320.101.10.1.1.29',
-    #    'onuID'                           => '1.3.6.1.4.1.3320.101.10.1.1.3',
-    #    'onuUpdateImage'                  => '1.3.6.1.4.1.3320.101.10.1.1.30',
-    #    'onuUpdateEepromImage'            => '1.3.6.1.4.1.3320.101.10.1.1.31',
-    #    'onuEncryptionStatus'             => '1.3.6.1.4.1.3320.101.10.1.1.32',
-    #    'onuEncryptionMode'               => '1.3.6.1.4.1.3320.101.10.1.1.33',
-    #    'onuIgmpSnoopingStatus'           => '1.3.6.1.4.1.3320.101.10.1.1.34',
-    #    'onuMcstMode'                     => '1.3.6.1.4.1.3320.101.10.1.1.35',
-    #    'OnuAFastLeaveAbility'            => '1.3.6.1.4.1.3320.101.10.1.1.36',
-    #    'onuAcFastLeaveAdminControl'      => '1.3.6.1.4.1.3320.101.10.1.1.37',
-    #    'onuAFastLeaveAdminState'         => '1.3.6.1.4.1.3320.101.10.1.1.38',
-    #    'onuInFecStatus'                  => '1.3.6.1.4.1.3320.101.10.1.1.39',
-    #    'onuHardwareVersion'              => '1.3.6.1.4.1.3320.101.10.1.1.4',
-    #    'onuOutFecStatus'                 => '1.3.6.1.4.1.3320.101.10.1.1.40',
-    #    'onuIfProtectedStatus'            => '1.3.6.1.4.1.3320.101.10.1.1.41',
-    #    'onuSehedulePolicy'               => '1.3.6.1.4.1.3320.101.10.1.1.42',
-    #    'onuDynamicMacLearningStatus'     => '1.3.6.1.4.1.3320.101.10.1.1.43',
-    #    'onuDynamicMacAgingTime'          => '1.3.6.1.4.1.3320.101.10.1.1.44',
-    #    #          'onuStaticMacAddress' => '1.3.6.1.4.1.3320.101.10.1.1.45',
-    #    #          'onuStaticMacAddressPortBitmap' => '1.3.6.1.4.1.3320.101.10.1.1.46',
-    #    #          'onuStaticMacAddressConfigRowStatus' => '1.3.6.1.4.1.3320.101.10.1.1.47',
-    #    'onuClearDynamicMacAddressByMac'  => '1.3.6.1.4.1.3320.101.10.1.1.48',
-    #    'onuClearDynamicMacAddressByPort' => '1.3.6.1.4.1.3320.101.10.1.1.49',
-    #    'onuSoftwareVersion'              => '1.3.6.1.4.1.3320.101.10.1.1.5',
-    #    'onuPriorityQueueMapping'         => '1.3.6.1.4.1.3320.101.10.1.1.50',
-    #    #          'onuVlanMode'             => '1.3.6.1.4.1.3320.101.10.1.1.51',
-    #    'onuIpAddressMode'                => '1.3.6.1.4.1.3320.101.10.1.1.52',
-    #    'onuStaticIpAddress'              => '1.3.6.1.4.1.3320.101.10.1.1.53',
-    #    'onuStaticIpMask'                 => '1.3.6.1.4.1.3320.101.10.1.1.54',
-    #    'onuStaticIpGateway'              => '1.3.6.1.4.1.3320.101.10.1.1.55',
-    #    'onuMgmtVlan'                     => '1.3.6.1.4.1.3320.101.10.1.1.56',
-    #    'onuStaticIpAddressRowStatus'     => '1.3.6.1.4.1.3320.101.10.1.1.57',
-    #    #nf          'onuCIR' => '1.3.6.1.4.1.3320.101.10.1.1.58',
-    #    #nf          'onuCBS' => '1.3.6.1.4.1.3320.101.10.1.1.59',
-    #    'onuFirmwareVersion'              => '1.3.6.1.4.1.3320.101.10.1.1.6',
-    #    #60          'onuEBS' => '1.3.6.1.4.1.3320.101.10.1.1.60',
-    #    'onuIfMacACL'                     => '1.3.6.1.4.1.3320.101.10.1.1.61',
-    #    'onuIfIpACL'                      => '1.3.6.1.4.1.3320.101.10.1.1.62',
-    #    'onuVlans'                        => '1.3.6.1.4.1.3320.101.10.1.1.63',
-    #    'onuActivePonDiid'                => '1.3.6.1.4.1.3320.101.10.1.1.64',
-    #    'onuPonPortCount'                 => '1.3.6.1.4.1.3320.101.10.1.1.65',
-    #    'onuActivePonPortIndex'           => '1.3.6.1.4.1.3320.101.10.1.1.66',
-    #    'onuSerialPortWorkMode'           => '1.3.6.1.4.1.3320.101.10.1.1.67',
-    #    'onuSerialPortWorkPort'           => '1.3.6.1.4.1.3320.101.10.1.1.68',
-    #    'onuSerialWorkModeRowStatus'      => '1.3.6.1.4.1.3320.101.10.1.1.69',
-    #    'onuChipVendorID'                 => '1.3.6.1.4.1.3320.101.10.1.1.7',
-    #    'onuRemoteServerIpAddrIndex'      => '1.3.6.1.4.1.3320.101.10.1.1.70',
-    #    'onuPeerOLTIpAddr'                => '1.3.6.1.4.1.3320.101.10.1.1.71',
-    #    'onuPeerPONIndex'                 => '1.3.6.1.4.1.3320.101.10.1.1.72',
-    #    'onuSerialPortCount'              => '1.3.6.1.4.1.3320.101.10.1.1.73',
-    #    'onuChipModuleID'                 => '1.3.6.1.4.1.3320.101.10.1.1.8',
-    #    'onuChipRevision'                 => '1.3.6.1.4.1.3320.101.10.1.1.9',
-    #
-    #
-    #    #Mac argument  bdEponLlidOnuBindEntry ->
-    #    mac_arg                           => {
-    #      'llidEponIfDiid'      => '1.3.6.1.4.1.3320.101.11.1.1.1',
-    #      'llidSequenceNo'      => '1.3.6.1.4.1.3320.101.11.1.1.2',
-    #      'onuMacAddressIndex'  => '1.3.6.1.4.1.3320.101.11.1.1.3',
-    #      'llidOnuBindDesc'     => '1.3.6.1.4.1.3320.101.11.1.1.4',
-    #      'llidOnuBindType'     => '1.3.6.1.4.1.3320.101.11.1.1.5',
-    #      'llidOnuBindStatus'   => '1.3.6.1.4.1.3320.101.11.1.1.6',
-    #      'llidOnuBindDistance' => '1.3.6.1.4.1.3320.101.11.1.1.7', # distance
-    #      'llidOnuBindRTT'      => '1.3.6.1.4.1.3320.101.11.1.1.8',
-    #    },
-    #
-    #    #bdEponOnuIfEntry
-    #    onu_info                          => {
-    #      'onuLlidDiid'                     => '1.3.6.1.4.1.3320.101.12.1.1.1',
-    #      'onuUniIfSpeed'                   => '1.3.6.1.4.1.3320.101.12.1.1.10',
-    #      'onuUniIfFlowControlStatus'       => '1.3.6.1.4.1.3320.101.12.1.1.11',
-    #      'onuUniIfLoopbackTest'            => '1.3.6.1.4.1.3320.101.12.1.1.12',
-    #      'onuUniIfSpeedLimit'              => '1.3.6.1.4.1.3320.101.12.1.1.13',
-    #      'onuUniIfStormControlType'        => '1.3.6.1.4.1.3320.101.12.1.1.14',
-    #      'onuUniIfStormControlThreshold'   => '1.3.6.1.4.1.3320.101.12.1.1.15',
-    #      'onuUniIfStormControlRowStatus'   => '1.3.6.1.4.1.3320.101.12.1.1.16',
-    #      'onuUniIfDynamicMacLearningLimit' => '1.3.6.1.4.1.3320.101.12.1.1.17',
-    #      'onuUniIfVlanMode'                => '1.3.6.1.4.1.3320.101.12.1.1.18',
-    #      'onuUniIfVlanCost'                => '1.3.6.1.4.1.3320.101.12.1.1.19',
-    #      'onuIfSequenceNo'                 => '1.3.6.1.4.1.3320.101.12.1.1.2',
-    #      'onuPvid'                         => '1.3.6.1.4.1.3320.101.12.1.1.3',
-    #      'onuOuterTagTpid'                 => '1.3.6.1.4.1.3320.101.12.1.1.4',
-    #      'onuMcstTagStrip'                 => '1.3.6.1.4.1.3320.101.12.1.1.5',
-    #      'onuMcstMaxGroup'                 => '1.3.6.1.4.1.3320.101.12.1.1.6',
-    #      'onuUniIfAdminStatus'             => '1.3.6.1.4.1.3320.101.12.1.1.7',
-    #      'onuUniIfOperStatus'              => '1.3.6.1.4.1.3320.101.12.1.1.8',
-    #      'onuUniIfMode'                    => '1.3.6.1.4.1.3320.101.12.1.1.9',
-    #    }
-  );
-
-  if ($attr->{MODEL} && $attr->{MODEL} =~ /OLT P3310|P3310C|P3310D|P3608|P3612-2TE|P3616-2TE/i) {
-    $snmp{epon}->{OLT_RX_POWER}->{OIDS} = '.1.3.6.1.4.1.3320.101.108.1.3';
+    if ($attr->{MODEL} =~ /P3310D/i) {
+      delete $snmp->{epon}->{catv_port_manage};
+    }
   }
 
   if ($attr->{TYPE}) {
-    return $snmp{$attr->{TYPE}};
+    return $snmp->{$attr->{TYPE}};
   }
 
-  return \%snmp;
+  return $snmp;
 }
 
 
@@ -642,11 +329,11 @@ sub _bdcom_get_profiles {
 
   my %profiles = ();
   my $profile_info = snmp_get({
+    VERSION  => $attr->{SNMP_VERSION} || 2,
+    TIMEOUT  => $attr->{SNMP_TIMEOUT} || 2
     %$attr,
     WALK    => 1,
-    OID     => '.1.3.6.1.4.1.3320.10.6.1.1.1.4',
-    VERSION => 2,
-    TIMEOUT => $attr->{TIMEOUT} || 2
+    OID     => '.1.3.6.1.4.1.3320.10.6.1.1.1.4'
   });
 
   foreach my $profile ( @$profile_info ) {
@@ -919,10 +606,10 @@ sub _bdcom_get_fdb {
   my $port_name_oid = $perl_scalar->{ports}->{PORT_NAME}->{OIDS} || '';
   if ($port_name_oid) {
     $ports_name = snmp_get({
+      VERSION  => $attr->{SNMP_VERSION} || 2,
+      TIMEOUT  => $attr->{SNMP_TIMEOUT} || 5,
       %$attr,
-      TIMEOUT => $attr->{TIMEOUT} || 8,
       OID     => $port_name_oid,
-      VERSION => 2,
       WALK    => 1
     });
   }
@@ -937,16 +624,15 @@ sub _bdcom_get_fdb {
 
     #get macs
     my $mac_list = snmp_get({
+      VERSION  => $attr->{SNMP_VERSION} || 2,
+      TIMEOUT  => $attr->{SNMP_TIMEOUT} || 4,
       %$attr,
       WALK    => 1,
       OID     => '.1.3.6.1.4.1.3320.152.1.1.3.' . $id,
-      VERSION => 2,
-      TIMEOUT => $attr->{TIMEOUT} || 4
     });
 
     foreach my $line (@$mac_list) {
       #print "$line <br>";
-      #my ($oid, $value);
       next if (!$line);
       my $vlan;
       my $mac_dec;

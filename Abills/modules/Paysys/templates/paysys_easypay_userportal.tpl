@@ -35,6 +35,7 @@
           <b>_{CREATE_REGULAR_PAYMENT}_</b>
           <div class='float-right'>%CREATE_REGULAR_PAYMENT%</div>
         </li>
+        %EXTRA_DESCRIPTIONS%
       </ul>
       <input type='submit' class='btn btn-primary float-right' value='_{PAY}_'>
     </div>

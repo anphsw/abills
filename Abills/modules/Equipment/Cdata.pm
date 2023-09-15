@@ -24,21 +24,28 @@
   .1.3.6.1.4.1.17409.2.3.1.2.1.1.2.1 = STRING: "TAsvan_CDATA1608"
   .1.3.6.1.4.1.17409.2.3.1.2.1.1.3.1 = STRING: "FD1608SN-R1"
 
-  Pon PORTS
-   1.3.6.1.4.1.17409.2.3.3.1.1.21.1.0
+  ponPortName
+    1.3.6.1.4.1.17409.2.3.3.1.1.21.1.0
+  ponPortIndex
+    1.3.6.1.4.1.17409.2.3.3.1.1.3
+
 
 =cut
 
 use strict;
 use warnings;
 use Abills::Filters qw(bin2mac bin2hex serial2mac);
+use JSON qw(decode_json);
 
 our (
+  $base_dir,
   %lang,
   %conf,
   %FORM,
   %ONU_STATUS_TEXT_CODES
 );
+
+my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
 
 #**********************************************************
 =head2 _cdata_get_ports($attr) - Get OLT slots and connect ONU
@@ -148,7 +155,7 @@ sub _cdata_onu_list {
 
   my $snmp_info = equipment_test({
     %{$attr},
-    TIMEOUT  => 5,
+    TIMEOUT  => $attr->{TIMEOUT} || 5,
     VERSION  => 2,
     TEST_OID => 'PORTS,UPTIME'
   });
@@ -268,100 +275,19 @@ sub _cdata {
     return _cdata_fd16($attr)
   }
 
-  my %snmp = (
-    epon => {
-      'ONU_MAC_SERIAL' => {
-        NAME   => 'Mac/Serial',
-        OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.7.1',
-        PARSER => 'bin2mac'
-      },
-      'ONU_STATUS'     => {
-        NAME   => 'STATUS',
-        OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.11.1',
-        PARSER => ''
-      },
-      'ONU_TX_POWER'   => {
-        NAME   => 'ONU_TX_POWER',
-        OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.37.1',
-        PARSER => '_cdata_convert_power'
-      },
-      'ONU_RX_POWER'   => {
-        NAME   => 'ONU_RX_POWER',
-        OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.36.1',
-        PARSER => '_cdata_convert_power'
-      },
-      'ONU_DESC'       => {
-        NAME   => 'ONU_DESC',
-        OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.4.1',
-        PARSER => ''
-      },
-      #        'ONU_IN_BYTE'    => {
-      #          NAME   => '',
-      #          OIDS   => '',
-      #          PARSER => ''
-      #        },
-      #        'ONU_OUT_BYTE'   => {
-      #          NAME   => '',
-      #          OIDS   => '',
-      #          PARSER => ''
-      #        },
-      'TEMPERATURE'    => {
-        NAME   => 'TEMPERATURE',
-        OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.40.1',
-        PARSER => '_cdata_convert_temperature'
-      },
-      #        'reset'          => {
-      #          NAME        => '',
-      #          OIDS        => '',
-      #          RESET_VALUE => 0,
-      #          PARSER      => ''
-      #        },
-      #        'VLAN'           => {
-      #          NAME   => '',
-      #          OIDS   => '',
-      #          PARSER => '',
-      #          WALK   => 1
-      #        },
-      main_onu_info    => {
-        'HARD_VERSION'     => {
-          NAME   => 'VERSION',
-          OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.5.1',
-          PARSER => ''
-        },
-        'FIRMWARE'         => {
-          NAME   => 'FIRMWARE',
-          OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.6.1',
-        },
-        'VOLTAGE' => {
-          NAME   => 'VOLTAGE',
-          OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.37.1',
-          PARSER => '_cdata_convert_voltage'
-        }, #voltage = voltage * 0.0001;
-        'DISTANCE'       => {
-          NAME   => 'DISTANCE',
-          OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.13.1',
-          PARSER => '_cdata_convert_distance'
-        },
-        #        'ONU_PORTS_STATUS' => {
-        #          NAME   => '',
-        #          OIDS   => '',
-        #          PARSER => '',
-        #          WALK   => 1
-        #        }
-      }
-    },
-    gpon => {
-    },
-    #      unregister => {
-    #
-    #      }
-  );
+  my $file_content = file_op({
+    FILENAME   => 'cdata.snmp',
+    PATH       => $TEMPLATE_DIR,
+  });
+  $file_content =~ s#//.*$##gm;
+
+  my $snmp = decode_json($file_content);
 
   if ($attr->{TYPE}) {
-    return $snmp{$attr->{TYPE}};
+    return $snmp->{$attr->{TYPE}};
   }
 
-  return \%snmp;
+  return $snmp;
 }
 
 #**********************************************************
@@ -559,110 +485,19 @@ sub _cdata_sec2time {
 sub _cdata_fd12 {
   my ($attr) = @_;
 
-  my %snmp = (
-    epon => {
-      'ONU_MAC_SERIAL' => {
-        NAME      => 'Mac/Serial',
-        OIDS      => '1.3.6.1.4.1.17409.2.3.4.1.1.7',
-        PARSER    => 'bin2mac'
-      },
-      'ONU_STATUS'     => {
-        NAME      => 'STATUS',
-        OIDS      => '1.3.6.1.4.1.17409.2.3.4.1.1.8',
-        ADD_2_OID => ''
-      },
-      'ONU_TX_POWER'   => {
-        NAME      => 'ONU_TX_POWER',
-        OIDS      => '1.3.6.1.4.1.17409.2.3.4.2.1.5',
-        PARSER    => '_cdata_fd12_convert_power',
-        ADD_2_OID => '.0.0'
-      },
-      'ONU_RX_POWER'   => {
-        NAME      => 'ONU_RX_POWER',
-        OIDS      => '1.3.6.1.4.1.17409.2.3.4.2.1.4',
-        PARSER    => '_cdata_fd12_convert_power',
-        ADD_2_OID => '.0.0'
-      },
-      'ONU_DESC'       => {
-        NAME      => 'ONU_DESC',
-        OIDS      => '1.3.6.1.4.1.17409.2.3.4.1.1.2',
-        ADD_2_OID => ''
-      },
-      'ONU_IN_BYTE'    => {
-        NAME   => 'ONU_IN_BYTE',
-        OIDS   => '1.3.6.1.4.1.17409.2.3.10.1.1.4',
-        PARSER => ''
-      },
-      'ONU_OUT_BYTE'   => {
-        NAME   => 'ONU_OUT_BYTE',
-        OIDS   => '1.3.6.1.4.1.17409.2.3.10.1.1.26',
-        PARSER => ''
-      },
-      'TEMPERATURE'    => {
-        NAME      => 'TEMPERATURE',
-        OIDS      => '1.3.6.1.4.1.17409.2.3.4.2.1.8',
-        PARSER    => '_cdata_convert_temperature',
-        ADD_2_OID => '.0.0'
-      },
-      'reset'          => {
-        NAME        => '',
-        OIDS        => '1.3.6.1.4.1.17409.2.3.4.1.1.17',
-        RESET_VALUE => 0,
-        PARSER      => ''
-      },
-      #        'VLAN'           => {
-      #          NAME   => '',
-      #          OIDS   => '',
-      #          PARSER => '',
-      #          WALK   => 1
-      #        },
-      main_onu_info    => {
-        'DISTANCE'     => {
-          NAME   => 'DISTANCE',
-          OIDS   => '1.3.6.1.4.1.17409.2.3.4.1.1.15',
-          PARSER => '_cdata_convert_distance'
-        },
-        'HARD_VERSION' => {
-          NAME   => 'VERSION',
-          OIDS   => '1.3.6.1.4.1.17409.2.3.4.1.1.27',
-          PARSER => ''
-        },
-        'FIRMWARE'     => {
-          NAME   => 'FIRMWARE',
-          OIDS   => '1.3.6.1.4.1.17409.2.3.4.1.1.13',
-          PARSER => ''
-        },
-        'VOLTAGE'      => {
-          NAME      => 'VOLTAGE',
-          OIDS      => '1.3.6.1.4.1.17409.2.3.4.2.1.7',
-          PARSER    => '_cdata_fd12_convert_voltage',
-          ADD_2_OID => '.0.0'
-        }, #voltage = voltage * 0.0001;
-        'ONU_PORTS_STATUS' => {
-          NAME    => 'ONU_PORTS_STATUS',
-          OIDS    => '1.3.6.1.4.1.17409.2.3.5.1.1.5',
-          PARSER  => '',
-          WALK    => 1,
-          TIMEOUT => 10
-        },
-        'MAC_BEHIND_ONU' => {
-          NAME        => 'MAC_BEHIND_ONU',
-          USE_MAC_LOG => 1
-        }
-      }
-    },
-    gpon => {
-    },
-    #      unregister => {
-    #
-    #      }
-  );
+  my $file_content = file_op({
+    FILENAME   => 'cdata_fd12.snmp',
+    PATH       => $TEMPLATE_DIR,
+  });
+  $file_content =~ s#//.*$##gm;
+
+  my $snmp = decode_json($file_content);
 
   if ($attr->{TYPE}) {
-    return $snmp{$attr->{TYPE}};
+    return $snmp->{$attr->{TYPE}};
   }
 
-  return \%snmp;
+  return $snmp;
 }
 
 #**********************************************************
@@ -683,7 +518,7 @@ sub _cdata_fd12_onu_list { #TODO: merge with _cdata_onu_list
 
   my $snmp_info = equipment_test({
     %{$attr},
-    TIMEOUT  => 5,
+    TIMEOUT  => $attr->{TIMEOUT} || 5,
     VERSION  => 2,
     TEST_OID => 'PORTS,UPTIME'
   });
@@ -791,100 +626,19 @@ sub _cdata_fd12_onu_list { #TODO: merge with _cdata_onu_list
 sub _cdata_fd16 {
   my ($attr) = @_;
 
-  my %snmp = (
-    epon => {
-    },
-    gpon => {
-      'ONU_MAC_SERIAL' => {
-        NAME   => 'Mac/Serial',
-        OIDS   => '1.3.6.1.4.1.17409.2.8.4.1.1.3',
-        PARSER => 'serial2mac'
-      },
-      'ONU_STATUS'     => {
-        NAME      => 'STATUS',
-        OIDS      => '1.3.6.1.4.1.17409.2.8.4.1.1.7',
-        ADD_2_OID => ''
-      },
-      'ONU_TX_POWER'   => {
-        NAME      => 'ONU_TX_POWER',
-        OIDS      => '1.3.6.1.4.1.17409.2.8.4.4.1.5',
-        PARSER    => '_cdata_fd12_convert_power',
-        ADD_2_OID => '.0.0'
-      },
-      'ONU_RX_POWER'   => {
-        NAME      => 'ONU_RX_POWER',
-        OIDS      => '1.3.6.1.4.1.17409.2.8.4.4.1.4',
-        PARSER    => '_cdata_fd12_convert_power',
-        ADD_2_OID => '.0.0'
-      },
-      'ONU_DESC'       => {
-        NAME      => 'ONU_DESC',
-        OIDS      => '1.3.6.1.4.1.17409.2.8.4.1.1.2',
-        ADD_2_OID => ''
-      },
-      'ONU_IN_BYTE'    => {
-        NAME   => 'ONU_IN_BYTE',
-        OIDS   => '1.3.6.1.4.1.17409.2.3.10.1.1.4',
-        PARSER => ''
-      },
-      'ONU_OUT_BYTE'   => {
-        NAME   => 'ONU_OUT_BYTE',
-        OIDS   => '1.3.6.1.4.1.17409.2.3.10.1.1.26',
-        PARSER => ''
-      },
-      'reset'          => {
-        NAME        => '',
-        OIDS        => '1.3.6.1.4.1.17409.2.3.4.1.1.17',
-        RESET_VALUE => 0,
-        PARSER      => ''
-      },
-      main_onu_info    => {
-        'DISTANCE'         => {
-          NAME   => 'DISTANCE',
-          OIDS   => '1.3.6.1.4.1.17409.2.8.4.1.1.9',
-          PARSER => '_cdata_convert_distance'
-        },
-        "PORT_UPTIME" => {
-          "NAME" => 'PORT_UPTIME',
-          "OIDS" => '1.3.6.1.4.1.17409.2.8.4.1.1.13',
-          "PARSER" => '_cdata_sec2time'
-        },
-        'HARD_VERSION'     => {
-          NAME   => 'VERSION',
-          OIDS   => '1.3.6.1.4.1.17409.2.8.4.1.1.14',
-          PARSER => ''
-        },
-        'FIRMWARE'         => {
-          NAME   => 'FIRMWARE',
-          OIDS   => '1.3.6.1.4.1.17409.2.8.4.2.1.2',
-          PARSER => ''
-        },
-        'VOLTAGE'          => {
-          NAME      => 'VOLTAGE',
-          OIDS      => '1.3.6.1.4.1.17409.2.8.4.4.1.7',
-          PARSER    => '_cdata_fd12_convert_voltage',
-          ADD_2_OID => '.0.0'
-        }, #voltage = voltage * 0.0001;
-        'ONU_PORTS_STATUS' => {
-          NAME    => 'ONU_PORTS_STATUS',
-          OIDS    => ' 1.3.6.1.4.1.17409.2.8.5.1.1.5',
-          PARSER  => '',
-          WALK    => 1,
-          TIMEOUT => 10
-        },
-        'MAC_BEHIND_ONU'   => {
-          NAME        => 'MAC_BEHIND_ONU',
-          USE_MAC_LOG => 1
-        }
-      }
-    }
-  );
+  my $file_content = file_op({
+    FILENAME   => 'cdata_fd16.snmp',
+    PATH       => $TEMPLATE_DIR,
+  });
+  $file_content =~ s#//.*$##gm;
+
+  my $snmp = decode_json($file_content);
 
   if ($attr->{TYPE}) {
-    return $snmp{$attr->{TYPE}};
+    return $snmp->{$attr->{TYPE}};
   }
 
-  return \%snmp;
+  return $snmp;
 }
 
 sub _cdata_fd16_onu_list { #TODO: merge with _cdata_onu_list

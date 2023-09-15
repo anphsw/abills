@@ -22,7 +22,8 @@ our ($db,
   %permissions,
   $admin,
   $ui,
-  %conf
+  %conf,
+  %msgs_permissions
 );
 
 my $Msgs = Msgs->new($db, $admin, \%conf);
@@ -60,9 +61,10 @@ sub msgs_sp_show_new {
     PRIORITY       => '_SHOW',
     PRIORITY_ID    => '_SHOW',
     PLAN_DATE_TIME => '_SHOW',
+    CHAPTER        => $msgs_permissions{4} ? join(';', keys %{$msgs_permissions{4}}) : '_SHOW',
+    STATE          => ($attr && $attr->{STATE}) ? $attr->{STATE} : 0,
     SORT           => 'id',
     DESC           => 'desc',
-    STATE          => ($attr && $attr->{STATE}) ? $attr->{STATE} : 0,
     PAGE_ROWS      => 5,
     COLS_NAME      => 1
   });
@@ -145,6 +147,7 @@ sub msgs_user_watch {
     PRIORITY_ID      => '_SHOW',
     LAST_REPLIE_DATE => '_SHOW',
     SUBJECT          => '_SHOW',
+    CHAPTER          => $msgs_permissions{4} ? join(';', keys %{$msgs_permissions{4}}) : '_SHOW',
     SORT             => 'last_replie_date',
     CHAPTER_NAME     => '_SHOW',
   });
@@ -227,11 +230,12 @@ sub msgs_open_msgs {
   });
 
   my $list = $Msgs->messages_list({
-    COLS_NAME              => 1,
     ADMIN_LOGIN            => '_SHOW',
     RESPOSIBLE             => '_SHOW',
     RESPOSIBLE_ADMIN_LOGIN => '_SHOW',
+    CHAPTER                => $msgs_permissions{4} ? join(';', keys %{$msgs_permissions{4}}) : '_SHOW',
     STATE                  => 0,
+    COLS_NAME              => 1,
     PAGE_ROWS              => 10000
   });
 
@@ -382,6 +386,7 @@ sub msgs_rating {
     RESPOSIBLE_ADMIN_LOGIN => '_SHOW',
     SUBJECT                => '_SHOW',
     STATE                  => '_SHOW',
+    CHAPTER                => $msgs_permissions{4} ? join(';', keys %{$msgs_permissions{4}}) : '_SHOW',
 
     PAGE_ROWS              => 5,
     SORT                   => 'date',

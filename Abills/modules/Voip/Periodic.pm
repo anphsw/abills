@@ -369,6 +369,7 @@ sub voip_sheduler {
 
 	$Voip->user_info($uid);
 	if ($type eq 'tp') {
+		(undef, $action) = split(':', $action) if ($action && $action =~ /:/);
 		$Voip->user_change({
 			UID   => $uid,
 			TP_ID => $action

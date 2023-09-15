@@ -63,6 +63,10 @@
     padding: 0 20px;
   }
 
+  .passwd-toggle-icon {
+    margin: -3px;
+	  min-width: 18.25px;
+  }
 </style>
 
 <link rel='stylesheet' type='text/css' href='/styles/default/css/social_button.css'>
@@ -70,7 +74,7 @@
 <!-- Login Form -->
 <div class='login-box card card-outline card-primary' style='margin: 7% auto 4%;'>
   <div class='mb-0 login-logo card-header text-center'>
-    <b><a href='/' class='h1'><img src=''><span style='color: red;'>A</span>BillS</a></b>
+    <b><a href='/?login_page=1' class='h1'><img src=''><span style='color: red;'>A</span>BillS</a></b>
   </div>
   <div class='card-body'>
     <p class='login-box-msg h5 text-muted'>%TITLE%</p>
@@ -104,11 +108,6 @@
           <div class='input-group'>
             <input type='text' id='user' name='user' value='%user%' class='form-control' placeholder='_{LOGIN}_'
                    autocomplete='off'>
-            <div class='input-group-append'>
-              <div class='input-group-text'>
-                <span class='input-group-addon fa fa-user'></span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -117,8 +116,8 @@
             <input type='password' id='passwd' name='passwd' value='%password%' class='form-control'
                    placeholder='_{PASSWD}_' autocomplete='off'>
             <div class='input-group-append'>
-              <div class='input-group-text'>
-                <span class='input-group-addon fa fa-lock'></span>
+              <div id='togglePasswd' class='input-group-text cursor-pointer'>
+                <span class='input-group-addon passwd-toggle-icon fa fa-eye-slash'></span>
               </div>
             </div>
           </div>
@@ -126,13 +125,8 @@
 
         <div class='row p-0 m-0  %G2FA_hidden%'>
           <div class='input-group'>
-            <input type='password' id='g2fa' name='g2fa' value="%g2fa%" class='form-control'
+            <input type='password' id='g2fa' name='g2fa' value='%g2fa%' class='form-control'
                    placeholder='_{CODE}_' autocomplete='off'>
-            <div class='input-group-append'>
-              <div class='input-group-text'>
-                <span class='input-group-addon fa fa-asterisk'></span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -186,8 +180,9 @@
   </div>
 </div>
 
-<div class='login-box' style='margin: 0 auto 4%;'>
+<div class='login-box row flex-nowrap' style='margin: 0 auto 4%; gap: 10px;'>
   %APP_LINK_GOOGLE_PLAY%
+  %APP_LINK_APP_STORE%
 </div>
 
 <!-- Accept cookie -->
@@ -260,12 +255,23 @@
   function hideBanner() {
     var banner = document.getElementById('cookieAcceptBar');
 
-    if (banner.style.display === "none") {
-      banner.style.display = "block";
+    if (banner.style.display === 'none') {
+      banner.style.display = 'block';
     } else {
-      banner.style.display = "none";
+      banner.style.display = 'none';
       localStorage.setItem('successCookie', 1);
     }
   }
 
+  const togglePassword = document.querySelector('#togglePasswd');
+  const password = document.querySelector('#passwd');
+
+  togglePassword.addEventListener('click', function () {
+    // toggle the type attribute
+    const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+    password.setAttribute('type', type);
+    // toggle the eye icon
+    this.children[0].classList.toggle('fa-eye');
+    this.children[0].classList.toggle('fa-eye-slash');
+  });
 </script>

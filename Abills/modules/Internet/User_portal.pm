@@ -451,37 +451,50 @@ sub internet_service_info {
   }
 
   my $money_name = '';
-  if (exists $conf{MONEY_UNIT_NAMES} && defined $conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY'){
-    $money_name = $conf{MONEY_UNIT_NAMES}->[0] || '';
+  if ($conf{MONEY_UNIT_NAMES}) {
+    if (ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY') {
+      $money_name = $conf{MONEY_UNIT_NAMES}->[0] || '';
+    }
+    else {
+      $money_name = (split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
+    }
   }
 
   #Extra fields
   $Internet_->{EXTRA_FIELDS} = '';
   my @check_fields = (
-    "MONTH_ABON:0.00:\$_MONTH_FEE:$money_name",
-    "DAY_ABON:0.00:\$_DAY_FEE:$money_name",
-    "TP_ACTIVATE_PRICE:0.00:\$_ACTIVATE_TARIF_PLAN:$money_name",
-    "INTERNET_EXPIRE:0000-00-00:\$_EXPIRE",
-    "TP_AGE:0:\$_AGE",
-    "IP:0.0.0.0:\$_STATIC IP",
-    "IPV6::\$_STATIC IPv6",
+    "MONTH_ABON:0.00:MONTH_FEE:$money_name",
+    "DAY_ABON:0.00:DAY_FEE:$money_name",
+    "TP_ACTIVATE_PRICE:0.00:ACTIVATE_TARIF_PLAN:$money_name",
+    "SERVICE_EXPIRE:0000-00-00:EXPIRE",
+    "TP_AGE:0:AGE:DAYS",
+    "IP:0.0.0.0:STATIC_IP",
+    "IPV6::STATIC IPv6",
     "IPV6_PREFIX::IPv6 Prefix",
     "CID::MAC:"
       . (($conf{INTERNET_MAC_DICOVERY}) ? $html->button($lang{CHANGE}, "index=". get_function_index('internet_user_info')
       ."&DISCOVERY_MAC=1", { BUTTON => 1 }) :  ''),
-    'ACTIVATE:0000-00-00:$_ACTIVATE',
+    'ACTIVATE:0000-00-00:ACTIVATE',
   );
 
   my @extra_fields = ();
   foreach my $param ( @check_fields ) {
     my($id, $default_value, $lang_, $value_prefix )=split(/:/, $param, 4);
+
     if(! defined($Internet_->{$id}) || $Internet_->{$id} eq $default_value) {
       next;
+    }
+    elsif ($Internet_->{TP_AGE} && $id =~/MONTH_ABON|DAY_ABON/) {
+      next;
+    }
+
+    if ($value_prefix && $lang{$value_prefix}) {
+      $value_prefix=$lang{$value_prefix};
     }
 
     push @extra_fields,$html->tpl_show(templates('form_row_client'), {
         ID    => $id,
-        NAME  => _translate($lang_),
+        NAME  => $lang{$lang_},
         VALUE => $Internet_->{$id} . ( $value_prefix ? (' ' . $value_prefix) : '' ),
       }, { OUTPUT2RETURN => 1, ID => $id });
   }
@@ -764,7 +777,20 @@ sub internet_user_chg_tp {
     foreach my $tp (@{$available_tariffs}) {
       my $radio_but = $tp->{ERROR} ? $tp->{ERROR} : $html->form_input('TP_ID', $tp->{tp_id}, { TYPE => 'radio', OUTPUT2RETURN => 1 });
 
-      $table->addrow($tp->{id}, $html->b($tp->{name} || q{}) . $html->br() . ($tp->{comments} || q{}), $radio_but);
+      my $text = '';
+      if ($tp->{popular}) {
+        $table->{rowcolor} = 'table-info';
+        $text .= ' ' . $html->badge("$lang{POPULAR}!", { TYPE => 'badge-warning', OUTPUT2RETURN => 1 }) . $html->br();
+      } else {
+        undef $table->{rowcolor};
+      }
+
+      $text .= $html->b($tp->{name} || q{});
+
+      if ($tp->{comments}) {
+        $text .= $html->br() . $tp->{comments};
+      }
+      $table->addrow($tp->{id}, $text, $radio_but);
     }
 
     $Tariffs->{TARIF_PLAN_TABLE} = $table->show({ OUTPUT2RETURN => 1 });
@@ -1382,7 +1408,8 @@ sub internet_filters_control {
 =cut
 #**********************************************************
 sub internet_hangup {
-  my ($attr)=@_;
+  #TODO: move to package
+  my ($attr) = @_;
 
   $Sessions->online_info( $attr );
   $Nas->info({ NAS_ID => $Sessions->{NAS_ID} });

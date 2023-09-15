@@ -32,6 +32,11 @@
 	.wrapper {
 		overflow: visible;
 	}
+
+	.passwd-toggle-icon {
+	  margin: -3px;
+	  min-width: 18.25px;
+	}
 </style>
 
 <div class='d-flex flex-sm-row flex-md-row-reverse bg-light pl-2 mb-3 border-bottom'>
@@ -96,6 +101,11 @@
             </div>
             <input type='password' id='passwd' name='passwd' value='%password%' class='form-control'
                    placeholder='_{PASSWD}_'>
+            <div class='input-group-append'>
+              <div id='togglePasswd' class='input-group-text cursor-pointer'>
+                <span class='input-group-addon passwd-toggle-icon fa fa-eye-slash'></span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -138,4 +148,16 @@
   jQuery(function () {
     jQuery('#user').val(localStorage.getItem('lastLogin'));
   }())
+
+  const togglePassword = document.querySelector('#togglePasswd');
+  const password = document.querySelector('#passwd');
+
+  togglePassword.addEventListener('click', function () {
+    // toggle the type attribute
+    const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+    password.setAttribute('type', type);
+    // toggle the eye icon
+    this.children[0].classList.toggle('fa-eye');
+    this.children[0].classList.toggle('fa-eye-slash');
+  });
 </script>

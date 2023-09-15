@@ -23,6 +23,8 @@
    SNMP_SERIAL_SCAN_ALL
    QUERY_OIDS - query only this OIDs
    TRANSACTION - perform all grabber queries to DB in one transaction
+   ALERT - send event if RX signal is worth or bad
+   CLEAN_DELETED - clean all deleted ONU
    DEBUG - debug level
 
 =cut
@@ -76,6 +78,9 @@ elsif ($argv->{FILL_CPE_FROM_NAS_AND_PORT}) {
 }
 elsif ($argv->{FILL_SWITCH_PORT_FROM_CID}) {
   _fill_switch_port_from_cid();
+}
+elsif ($argv->{CLEAN_DELETED}) {
+  _clean_deleted_onu();
 }
 else {
   _equipment_pon();
@@ -287,7 +292,7 @@ sub _equipment_pon_load {
       });
 
       if (! $onu_snmp_list || $#{$onu_snmp_list} < 0) {
-        _generate_new_event("NAS_ID: $nas_id NOT_RESPONSE_SNMP");
+        _generate_new_event("NAS_ID: $nas_id NOT_RESPONSE_SNMP ($onu_list_fn)");
         return 1;
       }
 
@@ -405,7 +410,9 @@ sub _equipment_pon_load {
             $onu->{SRV_PROFILE} || 'ALL',
           ];
         }
-        #        pon_alert($onu->{ONU_RX_POWER});
+        if( in_array( 'Events', \@MODULES ) && $argv->{ALERT} ){
+          pon_alert($onu->{ONU_RX_POWER});
+        }
       }
 
       my $time=0;
@@ -681,6 +688,9 @@ sub _scan_mac_serial_on_all_nas {
     elsif ($nas_type eq "_cdata") {
       $oids = _cdata({ TYPE => $port_type->[0]{pon_type} });
     }
+    elsif ($nas_type eq "_smartfiber") {
+      $oids = _smartfiber({ TYPE => $port_type->[0]{pon_type} });
+    }
     else {
       next;
     }
@@ -783,7 +793,13 @@ sub _save_port_and_nas_to_internet_main {
           print "User:$onu_to_set->{uid} add port ($onu_to_set->{onu_port}) and nas ($onu_to_set->{onu_nas})\n";
         }
       }
-      $attached_onu_by_uid{$onu_to_set->{uid}} = $onu_to_set;
+
+      if($onu_to_set->{uid}) {
+        $attached_onu_by_uid{$onu_to_set->{uid}} = $onu_to_set;
+      }
+      else {
+        _log('LOG_ERR', "ERROR: UID not defined for '$onu_to_set'");
+      }
     }
 
     if ($argv->{VLANS}) {
@@ -921,6 +937,46 @@ sub _fill_switch_port_from_cid {
       });
 
       print "SERVICE_ID: $line->{service_id}, UID: $line->{uid}, Port: $line->{cid}\n";
+    }
+  }
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 _clean_deleted_onu() - clean deleted onu from database
+
+=cut
+#**********************************************************
+sub _clean_deleted_onu {
+
+  if ($debug > 6) {
+    $Equipment->{debug} = 1;
+  }
+
+  my $equipment_list = $Equipment->onu_list({
+    DELETED         => 1,
+    PAGE_ROWS       => 10000,
+    COLS_NAME       => 1
+  });
+
+  if ($Equipment->{TOTAL} < 1) {
+    print "Not found any PON ONU equipment\n";
+    return 1;
+  }
+  my $onu_list_id = '';
+  my $total_deleted = 0;
+
+  foreach my $deleted_onu(@$equipment_list){
+    $onu_list_id .= "$deleted_onu->{id},",
+    $total_deleted ++;
+  }
+
+  if ($onu_list_id){
+    $Equipment->onu_del($onu_list_id);
+    if ($debug > 0) {
+      print "Total ONU deleted: $total_deleted\n";
     }
   }
 

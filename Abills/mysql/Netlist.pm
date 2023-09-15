@@ -8,7 +8,7 @@ package Netlist;
 =cut
 
 use strict;
-use parent 'main';
+use parent qw( dbcore );
 use Socket;
 
 my ($admin, $CONF);
@@ -47,7 +47,7 @@ sub groups_list {
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my @list = ();
-  $self->query2("SELECT
+  $self->query("SELECT
     ng.name,
     ng.comments,
     count(ni.ip) AS count,
@@ -91,13 +91,11 @@ sub group_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'netlist_groups',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'netlist_groups',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -121,7 +119,7 @@ sub group_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2("SELECT *
+  $self->query("SELECT *
     FROM netlist_groups
     WHERE id= ? ;",
     undef,
@@ -160,7 +158,7 @@ sub ip_list {
 
   my $ipv6_field = ($self->db_version() < 5.6) ? 'ipv6' : "INET6_NTOA(ipv6)";
 
-  $self->query2("SELECT ni.ip_id as ip_id, ni.ip AS ip_num,
+  $self->query("SELECT ni.ip_id as ip_id, ni.ip AS ip_num,
       IF(ip <> 0 and
     INET_NTOA(ip) REGEXP '(25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})',
     INET_NTOA(ni.netmask), ni.ipv6_prefix) AS netmask,
@@ -186,7 +184,7 @@ sub ip_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
-    $self->query2("SELECT count(*) AS total
+    $self->query("SELECT count(*) AS total
     FROM netlist_ips ni
     LEFT JOIN netlist_groups ng ON (ng.id=ni.gid)
     $WHERE;",
@@ -227,26 +225,22 @@ sub ip_change {
       $attr->{IP_ID} = $id;
       $attr->{HOSTNAME} = gethostbyaddr(inet_aton($id), AF_INET) if ($attr->{RESOLV});
 
-      $self->changes2(
-        {
-          CHANGE_PARAM => 'IP_ID',
-          TABLE        => 'netlist_ips',
-          DATA         => $attr
-        }
-      );
+      $self->changes({
+        CHANGE_PARAM => 'IP_ID',
+        TABLE        => 'netlist_ips',
+        DATA         => $attr
+      });
 
       return [ ] if ($self->{errno});
     }
     return 0;
   }
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'IP_ID',
-      TABLE        => 'netlist_ips',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'IP_ID',
+    TABLE        => 'netlist_ips',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -269,7 +263,7 @@ sub ip_info {
   my $self = shift;
   my ($ip_id) = @_;
 
-  $self->query2("SELECT *,
+  $self->query("SELECT *,
       IF(ip <> 0 and IS_IPV4(INET_NTOA(ip)), INET_NTOA(ip), INET6_NTOA(ipv6)) as ip,
       IF(ip <> 0 and IS_IPV4(INET_NTOA(ip)), INET_NTOA(netmask), ipv6_prefix) AS netmask,
        ip AS ip_num

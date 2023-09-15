@@ -416,7 +416,6 @@ sub _socket_request {
   close($socket);
 
   $res //= q{};
-  # my ($header, $content)
   my ($header) = split(/\n\n/, $res);
 
   # Allow to be redirected

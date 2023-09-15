@@ -38,7 +38,7 @@ $lang{NEXT_PERIOD_TP} = 'Next account period tariff plan';
 
 $lang{BLOCKED} = 'Blocked';
 $lang{STOLEN} = 'Stolen';
-$lang{DEMAGED} = 'Demage';
+$lang{DEMAGED} = 'Damage';
 $lang{UNUSED} = 'Unused';
 $lang{SUBSRIBES} = 'Subscribes';
 $lang{DEVICE} = 'Device';
@@ -91,7 +91,7 @@ $lang{CARD_SUCCESSFULLY_SIGNED} = 'Card successfully signed';
 $lang{CARD_SUBSCRIPTION_FAILED} = 'Card subscription failed';
 $lang{CARD_UNSUBSCRIBED} = 'Сard was successfully unsubscribed';
 $lang{CARD_NUMBER} = 'Card number';
-$lang{AUTHORISATION_END} = 'Authorisation end';
+$lang{AUTHORISATION_END} = 'Authorization end';
 $lang{UNBLOCK} = 'Unblock';
 $lang{BLOCK} = 'Block';
 $lang{CARD_LOCKED} = 'Card locked';

@@ -76,6 +76,15 @@
             </div>
           </div>
 
+          <div class='form-group row'>
+            <label class='col-sm-4 col-md-4 text-right' for='POPULAR'>_{POPULAR}_ _{TARIF_PLAN}_:</label>
+            <div class='col-sm-8'>
+              <div class='form-check text-left'>
+                <input type='checkbox' class='form-check-input' id='POPULAR' name='POPULAR' %POPULAR% value='1'>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 

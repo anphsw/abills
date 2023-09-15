@@ -33,6 +33,7 @@
           <b>_{DESCRIBE}_</b>
           <div class='float-right'>$FORM{SUM}</div>
         </li>
+        %EXTRA_DESCRIPTIONS%
       </ul>
 
     </div>

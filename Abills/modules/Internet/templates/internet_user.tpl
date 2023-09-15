@@ -111,10 +111,16 @@
         <div class='form-group row'>
           <label class='col-form-label text-md-right col-xs-4 col-md-2' for='CID'>CID (;):</label>
           <div class='col-xs-8 col-md-4'>
-            <input id='CID' name='CID' value='%CID%' placeholder='%CID%' %CID_PATTERN% class='form-control' type='text'>
+            <div class='input-group'>
+              <input id='CID' name='CID' value='%CID%' placeholder='%CID%' %CID_PATTERN% class='form-control' type='text'>
+                <div class='input-group-append'>
+                  %CID_BUTTON_COPY%
+                </div>
+            </div>
           </div>
+
           <label class='col-form-label text-md-right col-xs-4 col-md-2' for='NETMASK'>MASK:</label>
-          <div class='col-xs-8 col-md-4 '>
+          <div class='col-xs-8 col-md-4'>
             <input id='NETMASK' name='NETMASK' value='%NETMASK%' placeholder='%NETMASK%' class='form-control'
                    type='text'>
           </div>
@@ -123,8 +129,13 @@
         <div class='form-group row'>
           <label class='col-form-label text-md-right col-xs-4 col-md-2' for='CPE_MAC'>CPE MAC:</label>
           <div class='col-xs-8 col-md-4'>
+            <div class='input-group'>
             <input id='CPE_MAC' type='text' class='form-control' name='CPE_MAC' value='%CPE_MAC%'
                    %CPE_PATTERN%>
+              <div class='input-group-append'>
+                %CPE_MAC_BUTTON_COPY%
+              </div>
+            </div>
           </div>
         </div>
       </div>

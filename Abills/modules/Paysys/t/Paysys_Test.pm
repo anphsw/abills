@@ -9,18 +9,19 @@ use strict;
 use warnings;
 use Abills::Fetcher qw(web_request);
 use Abills::Base qw(json_former);
+use Paysys;
 use JSON qw(decode_json);
 
 our (
   $admin,
   $db,
   %conf,
-  %PAYSYS_PAYMENTS_METHODS,
   %lang,
-  $base_dir
+  %FORM,
 );
 
 our Abills::HTML $html;
+my $Paysys = Paysys->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 paysys_main_test()
@@ -39,7 +40,8 @@ sub paysys_main_test {
     6  => 6,
     7  => 7,
     8  => 8,
-    9  => 9);
+    9  => 9
+  );
 
   my $debug_select = q{};
 
@@ -54,9 +56,17 @@ sub paysys_main_test {
     $html->message('err', "There is not paysys system id.");
   }
 
+  my $system = $Paysys->paysys_connect_system_info({
+    MODULE           => $FORM{MODULE},
+    SHOW_ALL_COLUMNS => 1,
+    COLS_NAME        => 1,
+  });
+
   my $templates = q{};
   my $test_params = paysys_get_params({
     MODULE => $FORM{MODULE},
+    NAME   => $system->{name} || q{},
+    ID     => $system->{id} || q{},
   });
 
   my $fn_index = get_function_index('paysys_test');
@@ -70,16 +80,17 @@ sub paysys_main_test {
       my $type = $test_params->{$action}{$request_key}{type} || '';
       my $val = $test_params->{$action}{$request_key}{val} || '';
 
-      my $input_form = $html->form_input($request_key, $val,
-        { class     => 'form-control',
-          TYPE      => $type,
-          EX_PARAMS => "NAME='$request_key' $ex_params data-tooltip-position='bottom' data-tooltip='$tooltip'" });
+      my $input_form = $html->form_input($request_key, $val, {
+        class     => 'form-control',
+        TYPE      => $type,
+        EX_PARAMS => "NAME='$request_key' $ex_params data-tooltip-position='bottom' data-tooltip='$tooltip'"
+      });
 
       if ($request_key eq '_POST_') {
-        $input_form = $html->form_textarea($request_key, $val,
-          { class     => 'form-control',
-            EX_PARAMS => "NAME='$request_key' $ex_params data-tooltip-position='bottom' data-tooltip='$tooltip'"
-          });
+        $input_form = $html->form_textarea($request_key, $val, {
+          class     => 'form-control',
+          EX_PARAMS => "NAME='$request_key' $ex_params data-tooltip-position='bottom' data-tooltip='$tooltip'"
+        });
       }
 
       my $input = $html->element('label', "$request_key: ", { class => 'col-md-3 control-label' })
@@ -104,18 +115,15 @@ sub paysys_main_test {
       MODULE       => $FORM{MODULE},
       ACTION       => $action,
       SELECT_DEBUG => $debug_select,
-      HEADERS      => json_former($test_params->{$action}->{headers}),
+      HEADERS      => $test_params->{$action}->{headers} ? json_former($test_params->{$action}->{headers}) : '',
     }, { OUTPUT2RETURN => 1 });
   }
 
-  $debug_select = $html->form_select(
-    'DEBUG',
-    {
-      SELECTED => '',
-      SEL_HASH => \%debug_list,
-      NO_ID    => 1,
-    }
-  );
+  $debug_select = $html->form_select('DEBUG', {
+    SELECTED => '',
+    SEL_HASH => \%debug_list,
+    NO_ID    => 1,
+  });
 
   $templates = $html->tpl_show(_include('paysys_test_action', 'Paysys'), {
     INPUTS       => $html->form_textarea('ROW_TEST', $FORM{ROW_TEST}),
@@ -148,9 +156,18 @@ sub paysys_test {
 
   my $debug = $FORM{DEBUG} || 0;
 
-  my $params = paysys_get_params({ MODULE => $FORM{module} });
+  my $system = $Paysys->paysys_connect_system_info({
+    MODULE           => $FORM{module},
+    SHOW_ALL_COLUMNS => 1,
+    COLS_NAME        => 1,
+  });
 
-  my $response = q{};
+  my $params = paysys_get_params({
+    MODULE => $FORM{module},
+    NAME   => $system->{name} || q{},
+    ID     => $system->{id} || q{},
+  });
+
   my $url = $conf{PAYSYS_TEST_URL} || qq{$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/paysys_check.cgi?};
   my @request_params = ();
   my %request_params = ();
@@ -186,7 +203,7 @@ sub paysys_test {
 
   $url .= join('&', @request_params);
 
-  $response = web_request("$url", {
+  my $response =  web_request($url, {
     INSECURE => 1,
     DEBUG    => $debug,
     TIMEOUT  => 5,

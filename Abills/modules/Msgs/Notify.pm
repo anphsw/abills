@@ -120,7 +120,7 @@ sub notify_admins {
   }
 
   my $ATTACHMENTS = $attr->{ATTACHMENTS} || [];
-  my $RESPONSIBLE = (!defined $FORM{RESPOSIBLE} || $FORM{RESPOSIBLE} eq $responsible_aid) ? $lang{YES} : $lang{NO};
+  my $RESPONSIBLE = $message_info->{RESPONSIBLE_NAME} || $lang{NO};
   my $preview_url = ($preview_url_without_message_id && $message_id ne '--')
     ? $preview_url_without_message_id . $message_id : undef;
   $preview_url .= "&UID=$message_info->{UID}" if $message_info->{UID} && $preview_url;
@@ -271,20 +271,6 @@ sub notify_user {
       MESSAGE     => $message,
     }, { OUTPUT2RETURN => 1 });
 
-    # #Old Contacts depricated
-    # my $to_address;
-    # if(! $CONF->{CONTACTS_NEW}) {
-    #   if(!  $send_type) {
-    #     $to_address = $user_info->{email};
-    #   }
-    #   elsif ( $send_type == 1 && $user_info->{phone}) {
-    #     $to_address = $user_info->{phone};
-    #   }
-    #   elsif (in_array( $send_type, [0, 1]) && $user_info->{email}) {
-    #     $to_address = $user_info->{email};
-    #   }
-    # }
-
     $subject = "#$message_id ".$lang{YOU_HAVE_NEW_REPLY} . " '" . $subject . "'";
 
     $Sender->send_message_auto({
@@ -299,7 +285,7 @@ sub notify_user {
       LANG        => \%lang,
       PARSE_MODE  => 'HTML',
       ALL         => 1,
-      USER_EMAIL  => !$CONF->{CONTACTS_NEW} ? $user_info->{email} : '',
+      # USER_EMAIL  => !$CONF->{CONTACTS_NEW} ? $user_info->{email} : '',
       SEND_TYPE   => $attr->{SEND_TYPE}
     });
 

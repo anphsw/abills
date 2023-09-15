@@ -70,7 +70,7 @@ sub get_closed_issues {
   for my $aid (@{$attr->{ADMIN_AIDS}}) {
     my $url =
      $self->{conf}{TIMETRACKER_REDMINE_URL}
-       ."/issues.json?offset=0&limit=100&status_id=closed&assigned_to.cf_8=$aid&closed_on=><$attr->{FROM_DATE}|$attr->{TO_DATE}";
+       ."/issues.json?offset=0&limit=100&status_id=closed&assigned_to.cf_8=$aid";
     my $json = web_request($url, { CURL => 1, JSON_RETURN => 1, DEBUG => $attr->{DEBUG} });
     $issues_list{$aid}            = $json->{issues};
     $issues_list{'closed->'.$aid} = $json->{total_count};
@@ -214,6 +214,90 @@ sub get_scheduled_hours {
   }
 
   return \%hours;
+}
+
+#**********************************************************
+=head2 get_list_sprints() - return list of the sprints
+
+  Returns:
+    $self
+
+  Examples:
+    get_list_sprints($attr);
+=cut
+#**********************************************************
+sub get_list_sprints {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $url = "$self->{conf}{TIMETRACKER_REDMINE_URL}/projects/$self->{conf}{TIMETRACKER_REDMINE_PROJECT_ID}/versions.json?status=open&key=$self->{conf}{TIMETRACKER_REDMINE_APIKEY}";
+  my $json = web_request($url, { CURL => 1, JSON_RETURN => 1, DEBUG => $attr->{DEBUG} });
+
+  if($json->{versions}){
+    $self = ($json->{versions});
+  }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 get_list_issue($attr) - return list of the issues
+  Arguments:
+    $attr = {
+      VERSION_ID => 174, # sprint id
+    };
+
+  Returns:
+    $self
+
+  Examples:
+    get_list_issues($attr);
+=cut
+#**********************************************************
+sub get_list_issues {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $url = "$self->{conf}{TIMETRACKER_REDMINE_URL}/projects/$self->{conf}{TIMETRACKER_REDMINE_PROJECT_ID}/issues.json?status_id=*&limit=200&fixed_version_id=$attr->{VERSION_ID}&key=$self->{conf}{TIMETRACKER_REDMINE_APIKEY}";
+  my $json = web_request($url, { CURL => 1, JSON_RETURN => 1, DEBUG => $attr->{DEBUG} });
+
+  if($json->{issues}){
+    $self = ($json->{issues});
+  } else {
+    $self = ($json);
+  }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 get_issue_by_id ($attr) - return issue
+  Arguments:
+    $attr = {
+      ISSUE_ID => 3999, # issue id
+    };
+
+  Returns:
+    $self
+
+  Examples:
+    get_issue_by_id($attr);
+=cut
+#**********************************************************
+sub get_issue_by_id {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $url = "$self->{conf}{TIMETRACKER_REDMINE_URL}/issues/$attr->{ISSUE_ID}.json";
+  my $json = web_request($url, { CURL => 1, JSON_RETURN => 1, DEBUG => $attr->{DEBUG} });
+
+  if($json->{issue}){
+    $self = ($json->{issue});
+  } else {
+    $self = ($json);
+  }
+
+  return $self;
 }
 
 1;

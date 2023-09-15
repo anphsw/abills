@@ -46,6 +46,12 @@ properties:
       monthFee:
         type: number
         example: 0
+      tpAge:
+        type: number
+        example: 1
+      activatePrice:
+        type: number
+        example: 60
       sheduleId:
         type: number
         example: 248
@@ -85,6 +91,12 @@ properties:
   tvServiceName:
     type: string
     example: Trinity-TV
+  originalMonthFee:
+    type: number
+    example: 300
+  originalDayFee:
+    type: number
+    example: 0
   uid:
     type: number
     example: 49

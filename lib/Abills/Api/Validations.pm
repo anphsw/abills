@@ -12,12 +12,14 @@ our @EXPORT = qw(
   POST_INTERNET_HANGUP
   POST_INTERNET_TARIFF
   PUT_INTERNET_TARIFF
+  POST_INTERNET_MAC_DISCOVERY
 );
 
 our @EXPORT_OK = qw(
   POST_INTERNET_HANGUP
   POST_INTERNET_TARIFF
   PUT_INTERNET_TARIFF
+  POST_INTERNET_MAC_DISCOVERY
 );
 
 use constant {
@@ -161,7 +163,7 @@ use constant {
 };
 
 use constant {
-  POST_INTERNET_HANGUP => {
+  POST_INTERNET_HANGUP        => {
     NAS_ID          => {
       required => 1,
       type     => 'unsigned_integer'
@@ -177,7 +179,7 @@ use constant {
       required => 1
     },
   },
-  POST_INTERNET_TARIFF => {
+  POST_INTERNET_TARIFF        => {
     NAME        => {
       required => 1
     },
@@ -191,7 +193,7 @@ use constant {
     },
     %{+INTERNET_TARIFF},
   },
-  PUT_INTERNET_TARIFF  => {
+  PUT_INTERNET_TARIFF         => {
     NAME        => {},
     ID          => {
       type => 'unsigned_integer'
@@ -201,6 +203,17 @@ use constant {
     },
     %{+INTERNET_TARIFF},
   },
+  POST_INTERNET_MAC_DISCOVERY => {
+    ID  => {
+      required => 1,
+      type     => 'unsigned_integer'
+    },
+    CID => {
+      required => 1,
+      type     => 'custom',
+      function => \&check_mac,
+    },
+  }
 };
 
 #**********************************************************
@@ -373,6 +386,31 @@ sub check_payment_types {
           description => 'Guest',
         },
       ]
+    };
+  }
+}
+
+#**********************************************************
+=head2 check_mac($validator, $value)
+
+=cut
+#**********************************************************
+sub check_mac {
+  my ($validator, $value) = @_;
+
+  require Abills::Filters;
+  Abills::Filters->import(qw($MAC));
+
+  if ($value =~ /^$Abills::Filters::MAC$/) {
+    return {
+      result => 1
+    };
+  }
+  else {
+    return {
+      errstr => 'Value is not valid',
+      type   => 'mac',
+      regex  => "^$Abills::Filters::MAC\$"
     };
   }
 }

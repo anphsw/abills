@@ -12,8 +12,7 @@ package Cams;
 
 use strict;
 use warnings FATAL => 'all';
-
-use parent qw(dbcore main);
+use parent qw(dbcore);
 
 use Tariffs;
 my $Tariffs;
@@ -39,7 +38,6 @@ my ($db, $admin, $CONF);
 #**********************************************************
 sub new {
   my $class = shift;
-
   ($db, $admin, $CONF) = @_;
 
   my $self = {
@@ -100,7 +98,7 @@ sub _list {
 
   my $EXT_TABLE = $self->{EXT_TABLES} || '';
 
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} cm.uid
    FROM cams_main cm
    LEFT JOIN users u           ON (cm.uid=u.uid)
@@ -272,7 +270,7 @@ sub users_list {
 
   $EXT_TABLE = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} cm.uid
    FROM cams_main cm
    LEFT JOIN users u           ON (cm.uid=u.uid)
@@ -291,7 +289,20 @@ sub users_list {
 
   return [] if ($self->{errno});
 
-  return $self->{list};
+  my $list = $self->{list} || [];
+
+  $self->query("SELECT count(DISTINCT cm.id) AS total
+    FROM cams_main cm
+    LEFT JOIN users u           ON (cm.uid=u.uid)
+    LEFT JOIN cams_streams cs   ON (cm.uid=cs.uid)
+    LEFT JOIN cams_tp ctp       ON (cm.tp_id=ctp.tp_id)
+    LEFT JOIN tarif_plans tp    ON (cm.tp_id=tp.tp_id)
+    LEFT JOIN cams_services s   ON (tp.service_id=s.id)
+    $EXT_TABLE
+    $WHERE", undef, { INFO => 1 }
+  );
+
+  return $list;
 }
 
 #**********************************************************
@@ -502,7 +513,7 @@ sub tp_list {
 
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
 
-  $self->query2(
+  $self->query(
     "SELECT
     $self->{SEARCH_FIELDS} 1
    FROM cams_tp ctp
@@ -710,7 +721,7 @@ sub streams_list {
   my $EXTRA_JOIN = "LEFT JOIN cams_services s ON (f.service_id=s.id OR g.service_id=s.id)";
   $EXTRA_JOIN .= "\n LEFT JOIN maps_points mp ON (cs.point_id=mp.id)" if $self->{SEARCH_FIELDS} =~ /mp\./;
 
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} cs.id, cs.coordx, cs.coordy
    FROM cams_streams cs
    LEFT JOIN users u       ON (cs.uid=u.uid)

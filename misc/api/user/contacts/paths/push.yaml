@@ -36,7 +36,7 @@ post:
 delete:
   tags:
     - contacts
-  summary: Отписка от Push уведомлений
+  summary: Отписка от Push уведомлений от всех устройств данного типа
   parameters:
     - name: typeId
       in: path

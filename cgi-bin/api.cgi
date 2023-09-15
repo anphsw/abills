@@ -32,6 +32,7 @@ use Abills::Api::Handle;
 
 require Control::Auth;
 
+# PLEASE DO NOT DELETE THIS GLOBAL VARIABLES
 our (
   %LANG,
   %lang,

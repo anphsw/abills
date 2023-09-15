@@ -506,10 +506,10 @@ sub equipment_change_port_status {
 
   if ($snmp_ports_template{ADMIN_PORT_STATUS}{OIDS}) {
     my $snmp_set_status = snmp_set({
-      %{$attr},
+      %{$attr // {}},
       SNMP_COMMUNITY => $attr->{SNMP_COMMUNITY},
       OID            => [ $snmp_ports_template{ADMIN_PORT_STATUS}{OIDS} . '.' . $port, 'integer', $status ],
-      IGNORE_ERRORS  => '.*'
+      IGNORE_ERRORS  => ($attr->{DEBUG}) ? undef : '.*'
     });
 
     return $snmp_set_status;

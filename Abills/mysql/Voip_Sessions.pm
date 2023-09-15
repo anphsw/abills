@@ -113,7 +113,6 @@ sub online{
       @{ $nas_sorted{$line->[8]} },
       [
         $line->[0], $line->[1], $line->[2], $line->[3], $line->[4], $line->[5], $line->[6], $line->[7], $line->[8],
-
         $line->[9], $line->[10], $line->[11],
         $line->[13], $line->[14], $line->[15], $line->[16], $line->[17], $line->[18], $line->[19], $line->[20],
         $line->[21], $line->[22]
@@ -124,7 +123,9 @@ sub online{
   $self->{dub_logins} = \%dub_logins;
   $self->{nas_sorted} = \%nas_sorted;
 
-  return $self->{list};
+  my $_list = $self->{list} || [];
+
+  return $_list;
 }
 
 #**********************************************************
@@ -299,7 +300,6 @@ sub list{
   if ( $attr->{INTERVAL} ){
     ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split( /\//, $attr->{INTERVAL}, 2 );
   }
-
   #Period
   elsif ( defined( $attr->{PERIOD} ) ){
     my $period = $attr->{PERIOD};
@@ -321,13 +321,12 @@ sub list{
       [ 'START',              'DATE',   'l.start',                                      1 ],
       [ 'DATE',               'DATE',   'l.start',                                      1 ],
       [ 'DURATION',           'DATE',   'SEC_TO_TIME(l.duration) AS duration',          1 ],
-      [ 'IP',                 'IP',     'l.ip',  'INET_NTOA(l.client_ip_address) AS ip'   ],
+      [ 'IP',                 'IP',     'l.client_ip_address', 'INET_NTOA(l.client_ip_address) AS ip', 1 ],
       [ 'CALLING_STATION_ID', 'STR',    'l.calling_station_id',                         1 ],
       [ 'CALLED_STATION_ID',  'STR',    'l.called_station_id',                          1 ],
       [ 'TP_ID',              'INT',    'l.tp_id',                                      1 ],
       [ 'SUM',                'INT',    'l.sum',                                        1 ],
       [ 'NAS_ID',             'INT',    'l.nas_id',                                     1 ],
-      [ 'NAS_PORT',           'INT',    'l.port_id',                                    1 ],
       [ 'ACCT_SESSION_ID',    'STR',    'l.acct_session_id',                              ],
       [ 'TERMINATE_CAUSE',    'INT',    'l.terminate_cause',                            1 ],
       [ 'BILL_ID',            'STR',    'l.bill_id',                                    1 ],
@@ -336,6 +335,8 @@ sub list{
       [ 'START_UNIXTIME',     'INT',    'UNIX_TIMESTAMP(l.start) AS asstart_unixtime',  1 ],
       [ 'FROM_DATE|TO_DATE',  'DATE',   "DATE_FORMAT(l.start, '%Y-%m-%d')"                ],
       [ 'MONTH',              'DATE',   "DATE_FORMAT(l.start, '%Y-%m')"                   ],
+      [ 'CALL_ORIGIN',        'INT',    'l.call_origin',                                1 ],
+      [ 'ROUTE_ID',           'INT',    'l.route_id',                                   1 ],
     ],
     {
       WHERE        => 1,
@@ -364,7 +365,8 @@ sub list{
     $attr
   );
 
-  my $list = $self->{list};
+  return [] if $self->{errno};
+  my $list = $self->{list} || [];
 
   if ( $self->{TOTAL} > 0 ){
     $self->query( "SELECT COUNT(*) AS total, SEC_TO_TIME(SUM(l.duration)) AS duration, SUM(sum) AS sum
@@ -556,4 +558,4 @@ sub reports{
   return $list;
 }
 
-1
+1;

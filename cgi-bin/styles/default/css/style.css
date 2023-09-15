@@ -96,21 +96,6 @@ ol.mp_list li span.mp_address {
 	margin-right: 5px;
 }
 
-/* When a request is made that returns zero results. */
-ol.mp_list li.mp_no_results {
-	display: none;
-}
-
-/* When a request is made that doesn't meet the 'minChars' length option. */
-ol.mp_list li.mp_min_chars {
-	display: none;
-}
-
-/* When a request is made that fails during the ajax request. */
-ol.mp_list li.mp_error {
-	display: none;
-}
-
 /* up-btn strange rules - dont understand where uses */
 #up-btn {
 	z-index: 2600;

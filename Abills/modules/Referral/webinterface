@@ -35,6 +35,14 @@ my $Referral_users = Referral::Users->new($db, $admin, \%conf, {
   lang        => \%lang,
 });
 
+my %bills_types = (
+  0 => $lang{MAIN},
+);
+my $payments_types = get_payment_methods();
+my $fees_types = get_fees_types();
+
+$bills_types{1} = $lang{EXTRA_BILL} if ($conf{EXT_BILL_ACCOUNT});
+
 #**********************************************************
 =head2 referral_settings()
 
@@ -58,10 +66,7 @@ sub referral_settings {
   $bonus_bill = $bonus_bill->{REFERRAL_BONUS_BILL};
 
   my $select = $html->form_select('BONUS_BILL', {
-    SEL_HASH => {
-      0 => $lang{MAIN},
-      1 => $lang{EXTRA_BILL},
-    },
+    SEL_HASH => \%bills_types,
     SELECTED => $bonus_bill,
   });
 
@@ -498,8 +503,13 @@ sub _get_users_list {
   });
 
   _error_show($Referral);
+  my $index_ref_request = get_function_index('referral_requests');
+
   foreach (@$list){
-    $_->{id} = "<a href='$SELF_URL?index=15&UID=$_->{uid}'>$_->{id}</url>"
+    $_->{id} = "<a href='$SELF_URL?index=15&UID=$_->{uid}'>$_->{id}</url>";
+    if ($_->{ref_request_id}){
+      $_->{id} .= $html->button($lang{CHANGE_REFERRAL_REQUEST}, "index=$index_ref_request&chg=$_->{ref_request_id}&MODULE=Referral&UID=$_->{uid}", { class => 'change' }),
+    }
   }
   my $hash = transform_to_hash($list, { NAME_KEY => 'uid', VALUE_KEY => 'referrer' });
 
@@ -595,7 +605,7 @@ sub add_friend {
     $table->addrow(
       $referral->{FIO} || '--',
       $referral->{PHONE} || '--',
-      $status{$referral->{STATUS_NAME}} || '--',
+      $status{$referral->{STATUS}} || '--',
       $referral->{SPENDING_BONUS} || '--',
       $referral->{PAYMENT_BONUS} || '--',
       $user_status->{$referral->{DISABLE}} || '--',
@@ -647,6 +657,12 @@ sub add_friend {
 sub referral_requests {
   my $info = '';
   my $referral_uid = '';
+  my $referral_button = '';
+
+  my $search_referrer_button = user_modal_search();
+  if ($search_referrer_button && $search_referrer_button eq 2) {
+    return 1;
+  }
 
   if ($FORM{del}) {
     $info = $Referral->request_list({
@@ -725,16 +741,24 @@ sub referral_requests {
     $FORM{LOCATION_ID} = $info->[0]->{location_id};
 
     $referral_uid = ($Referral->{TOTAL} && $Referral->{TOTAL} > 0 && ref $info->[0] eq 'HASH') ? $info->[0]->{referral_uid} : q{};
+    if ($referral_uid){
+      my $form_users_index = get_function_index('form_users');
+      my $referrer_info = $Referral->get_user_info($referral_uid);
+      $referral_button = $html->button($referrer_info->{id}, "index=$form_users_index&UID=$referrer_info->{uid}", {class => 'p-2'}) if ($referrer_info->{id}),
+    }
+
 
     $html->tpl_show(_include('referral_change_admin_form', 'Referral'), {
-      %{ ($Referral->{TOTAL} && $Referral->{TOTAL} > 0) ? $info->[0] : {} },
-      ID            => $FORM{chg},
-      REFERRAL_UID  => $referral_uid,
-      STATUS_SELECT => $status_select,
-      TARIF_SELECT  => $tarif_select,
-      ADDRESS_SELECT=> $address_select,
-      COMMENTS      => $info->[0]->{comments},
-      ACTION        => $html->form_input('change', $lang{CHANGE}, { TYPE => 'submit', OUTPUT2RETURN => 1 })
+      %{($Referral->{TOTAL} && $Referral->{TOTAL} > 0) ? $info->[0] : {}},
+      ID             => $FORM{chg},
+      REFERRAL_UID   => $referral_uid,
+      REFERRAL_BUTTON=> $referral_button,
+      USER_SEARCH    => $search_referrer_button,
+      STATUS_SELECT  => $status_select,
+      TARIF_SELECT   => $tarif_select,
+      ADDRESS_SELECT => $address_select,
+      COMMENTS       => $info->[0]->{comments},
+      ACTION         => $html->form_input('change', $lang{CHANGE}, { TYPE => 'submit', OUTPUT2RETURN => 1 }),
     });
   }
 
@@ -875,16 +899,37 @@ sub referral_pay {
 =cut
 #**********************************************************
 sub referral_tp {
+  my $default_payments_types = '0,1,2';
+  my $default_fees_types = '0,1';
+
+  my $payments_type_sel = $html->form_select('PAYMENTS_TYPE', {
+  SEL_HASH     => $payments_types,
+  SORT_KEY_NUM => 1,
+  SELECTED     => $default_payments_types,
+  MULTIPLE     => 1,
+  NO_ID        => 1,
+});
+
+  my $fees_types_sel = $html->form_select('FEES_TYPE', {
+  SEL_HASH     => $fees_types,
+  SORT_KEY_NUM => 1,
+  SELECTED     => $default_fees_types,
+  MULTIPLE     => 1,
+  NO_ID        => 1,
+});
+
   if ($FORM{add_form}) {
     my $select = $html->form_select('BONUS_BILL', {
-      SEL_HASH => {
-        0 => $lang{MAIN},
-        1 => $lang{EXTRA_BILL},
-      },
+      SEL_HASH => \%bills_types,
       SELECTED => 0,
     });
 
-    $html->tpl_show(_include('referral_settings', 'Referral'), { BILL_SELECT => $select, ACTION => $html->form_input('add', $lang{ADD}, { TYPE => 'submit' }) });
+    $html->tpl_show(_include('referral_settings', 'Referral'), {
+      BILL_SELECT       => $select,
+      PAYMENT_TYPE_SEL  => $payments_type_sel,
+      FEES_TYPE_SEL     => $fees_types_sel,
+      ACTION            => $html->form_input('add', $lang{ADD}, { TYPE => 'submit' })
+    });
   }
   elsif ($FORM{add}) {
     $Referral->get_default_tp();
@@ -906,25 +951,42 @@ sub referral_tp {
     my $tp = $Referral->tp_info($FORM{chg});
 
     my $select = $html->form_select('BONUS_BILL', {
-      SEL_HASH => {
-        0 => $lang{MAIN},
-        1 => $lang{EXTRA_BILL},
-      },
+      SEL_HASH => \%bills_types,
       SELECTED => $tp->{BONUS_BILL},
+    });
+
+    $payments_type_sel = $html->form_select('PAYMENTS_TYPE', {
+      SEL_HASH     => $payments_types,
+      SORT_KEY_NUM => 1,
+      SELECTED     => defined($tp->{PAYMENTS_TYPE}) ? $tp->{PAYMENTS_TYPE} : $default_payments_types,
+      MULTIPLE     => 1,
+      NO_ID        => 1,
+    });
+
+    $fees_types_sel = $html->form_select('FEES_TYPE', {
+      SEL_HASH     => $fees_types,
+      SORT_KEY_NUM => 1,
+      SELECTED     => defined($tp->{FEES_TYPE}) ? $tp->{FEES_TYPE} : $default_fees_types,
+      MULTIPLE     => 1,
+      NO_ID        => 1,
     });
 
     $html->tpl_show(_include('referral_settings', "Referral"), {
       %{$tp},
-      BILL_SELECT    => $select,
-      CHANGE         => $html->form_input('ID', $FORM{chg}, { TYPE => 'hidden' }),
-      ACTION         => $html->form_input('change', $lang{CHANGE}, { TYPE => 'submit' }),
-      DEFAULT        => $tp->{IS_DEFAULT} ? 'checked' : '',
-      STATIC_ACCRUAL => $tp->{STATIC_ACCRUAL} ? 'checked' : ''
+      BILL_SELECT       => $select,
+      CHANGE            => $html->form_input('ID', $FORM{chg}, { TYPE => 'hidden' }),
+      ACTION            => $html->form_input('change', $lang{CHANGE}, { TYPE => 'submit' }),
+      DEFAULT           => $tp->{IS_DEFAULT} ? 'checked' : '',
+      STATIC_ACCRUAL    => $tp->{STATIC_ACCRUAL} ? 'checked' : '',
+      MULTI_ACCRUAL     => $tp->{MULTI_ACCRUAL} ? 'checked' : '',
+      PAYMENT_TYPE_SEL  => $payments_type_sel,
+      FEES_TYPE_SEL     => $fees_types_sel,
     });
   }
   elsif ($FORM{change}) {
     $FORM{IS_DEFAULT} = 0 if (!$FORM{IS_DEFAULT});
     $FORM{STATIC_ACCRUAL} = 0 if (!$FORM{STATIC_ACCRUAL});
+    $FORM{MULTI_ACCRUAL} = 0 if (!$FORM{MULTI_ACCRUAL});
     $Referral->get_default_tp();
     if ($Referral->{IS_DEFAULT} && $FORM{IS_DEFAULT} && $FORM{ID} && $FORM{ID} ne $Referral->{ID}) {
       $html->message('err', $lang{ERROR}, $lang{ONE_DEFAULT});
@@ -978,16 +1040,37 @@ sub referral_tp {
       period           => $lang{PERIOD} . ' ' . $lang{ACCRUALS},
       repl_percent     => $lang{REPL_PERCENT},
       spend_percent    => $lang{SPEND_PERCENT},
+      payments_type    => "$lang{TYPE} $lang{PAYMENT}",
+      fees_type        => "$lang{TYPE} $lang{FEES}",
       bonus_bill       => $lang{BILL},
       is_default       => $lang{DEFAULT},
       max_bonus_amount => $lang{MAX_BONUS_AMOUNT},
       static_accrual   => $lang{STATIC_ACCRUAL},
+      multi_accrual    => $lang{MULTI_ACCRUAL},
+    },
+    FILTER_VALUES => {
+      payments_type => sub {
+        my $payments_type = shift;
+        my @payments = split (', ', $payments_type);
+        my $result = '';
+        foreach my $type (@payments){
+          return $result if (!defined($type));
+          $result .= "$payments_types->{$type}, " if (defined($type));
+        }
+        return $result;
+      },
+      fees_type => sub {
+        my $fees_type = shift;
+        my @fees = split (', ', $fees_type);
+        my $result = '';
+        foreach my $type (@fees){
+          $result .= "$fees_types->{$type}, " if (defined($type));
+        }
+        return $result;
+      }
     },
     SELECT_VALUE => {
-      bonus_bill      => {
-        0 => $lang{MAIN},
-        1 => $lang{EXTRA_BILL}
-      },
+      bonus_bill      => \%bills_types,
       payment_arrears => {
         0 => '0'
       },
@@ -1000,6 +1083,10 @@ sub referral_tp {
       },
       ,
       static_accrual  => {
+        0 => '<i class="fa fa-times"></i>',
+        1 => '<i class="fa fa-check"></i>'
+      },
+      multi_accrual  => {
         0 => '<i class="fa fa-times"></i>',
         1 => '<i class="fa fa-check"></i>'
       }
@@ -1042,11 +1129,14 @@ sub referral_redirect {
     LOCATION_ID   => '_SHOW',
     ADDRESS_FLAT  => '_SHOW',
     COMMENTS      => '_SHOW',
+    REFERRER      => '_SHOW',
   });
 
   my $location_id = $Referral->{list}[0]->{location_id} || '';
   my $address_flat = $Referral->{list}[0]->{address_flat} || '';
   my $comments = $Referral->{list}[0]->{comments} || '';
+  my $referrer = $Referral->{list}[0]->{referrer} || '';
+  my $referral_tp = $Referral->{list}[0]->{referral_tp} || '';
 
   if ($Referral->{list}[0]->{referral_tp} || $FORM{TP_ID}) {
 
@@ -1058,7 +1148,7 @@ sub referral_redirect {
     }
 
     $html->redirect("?index=" . get_function_index("form_wizard") .
-      "&FIO=$FORM{FIO}&phone=$FORM{PHONE}&REFERRAL_REQUEST=$FORM{REFERRAL_REQUEST}&LOCATION_ID=$location_id&ADDRESS_FLAT=$address_flat&COMMENTS=$comments");
+      "&FIO=$FORM{FIO}&phone=$FORM{PHONE}&REFERRAL_REQUEST=$FORM{REFERRAL_REQUEST}&REFERRER=$referrer&REFERRAL_TP=$referral_tp&LOCATION_ID=$location_id&ADDRESS_FLAT=$address_flat&COMMENTS=$comments");
   }
   else {
     my $tarifs = $Referral->tp_list({

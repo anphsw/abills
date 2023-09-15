@@ -27,6 +27,7 @@ our(
 );
 
 use Internet::Sessions;
+use Internet;
 use Nas;
 our Abills::HTML $html;
 my $Internet = Internet->new($db, $admin, \%conf);

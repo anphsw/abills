@@ -469,7 +469,10 @@ sub decomposition {
     HTML          => 1,
     Perl          => 1,
     SQL           => 1,
-    "Service API" => 2,
+    JS            => 2,
+    "Service external API" => 3,
+    'New extra futures' => 5,
+    'New module'  => 8
   );
 
   my $checkboxes;

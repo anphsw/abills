@@ -201,10 +201,12 @@ sub list {
   $self->query(
     "SELECT
        r.uid, r.referrer,
+       rr.id AS ref_request_id,
         IF(pi.fio='', u.id, CONCAT( pi.fio, ' (', u.id, ')' )) AS id
      FROM referral_main r
        INNER JOIN users u ON (r.uid=u.uid)
        LEFT JOIN users_pi pi ON (r.uid=pi.uid)
+       LEFT JOIN referral_requests rr ON (r.uid=rr.referral_uid)
     $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
      ",
     undef,
@@ -245,6 +247,9 @@ sub tp_list {
     [ 'IS_DEFAULT',       'INT', 'r.is_default',        1 ],
     [ 'MAX_BONUS_AMOUNT', 'INT', 'r.max_bonus_amount',  1 ],
     [ 'STATIC_ACCRUAL',   'INT', 'r.static_accrual',    1 ],
+    [ 'MULTI_ACCRUAL',    'INT', 'r.multi_accrual',     1 ],
+    [ 'PAYMENTS_TYPE',    'STR', 'r.payments_type',     1 ],
+    [ 'FEES_TYPE',        'STR', 'r.fees_type',         1 ],
   ], { WHERE => 1 });
 
   $self->query(
@@ -292,11 +297,14 @@ sub request_list{
     [ 'TP_ID',        'INT',   'r.tp_id as referral_tp',   1 ],
     [ 'TP_NAME',      'INT',   'rt.name as tp_name',       1 ],
     [ 'REFERRAL_UID', 'INT',   'r.referral_uid',           1 ],
+    [ 'REFERRAL_LOGIN','STR',  'ur.id as referral_login',  1 ],
     [ 'USER_STATUS',  'INT',   'ur.disable',               1 ],
     [ 'USER_DELETED', 'INT',   'ur.deleted',               1 ],
     [ 'LOCATION_ID',  'INT',   'r.location_id',            1 ],
     [ 'ADDRESS_FLAT', 'STR',   'r.address_flat',           1 ],
     [ 'COMMENTS',     'STR',   'r.comments',               1 ],
+    [ 'PAYMENTS_TYPE','STR',   'rt.payments_type',         1 ],
+    [ 'FEES_TYPE',    'STR',   'rt.fees_type',             1 ],
   ],
     {
       WHERE => 1
@@ -375,7 +383,7 @@ sub log_list{
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
@@ -720,7 +728,7 @@ sub referral_bonus_multi_add {
 =head2 get_payments_bonus($uid) get all new payments
 
   Arguments:
-    UID
+    attr
 
   Returns:
     list of payments
@@ -729,7 +737,8 @@ sub referral_bonus_multi_add {
 #**********************************************************
 sub get_payments_bonus {
   my $self = shift;
-  my ($uid) = @_;
+  my ($attr) = @_;
+  my $payments_type = $attr->{PAYMENTS_TYPE} ? $attr->{PAYMENTS_TYPE} : 0;
 
   $self->query("
     SELECT p.uid, p.date, p.sum, p.id
@@ -737,9 +746,9 @@ sub get_payments_bonus {
     WHERE p.id NOT IN
     (SELECT rub.payment_id FROM referral_users_bonus rub WHERE rub.payment_id = p.id)
     AND DATE(p.date) >= DATE(NOW())- INTERVAL 2 DAY
-    AND p.method NOT IN (4, 5, 6, 7, 8)
+    AND p.method IN ($payments_type)
     AND p.uid = ?;
-  ", undef, { COLS_NAME => 1, Bind => [ $uid ] } );
+  ", undef, { COLS_NAME => 1, Bind => [ $attr->{UID} ] } );
 
   return $self->{list} || [];
 }
@@ -757,7 +766,8 @@ sub get_payments_bonus {
 #**********************************************************
 sub get_fees_bonus {
   my $self = shift;
-  my ($uid) = @_;
+  my ($attr) = @_;
+  my $fees_type = $attr->{FEES_TYPE} ? $attr->{FEES_TYPE} : 0;
 
   $self->query("
     SELECT f.uid, f.date, f.sum, f.id
@@ -765,9 +775,9 @@ sub get_fees_bonus {
     WHERE f.id NOT IN
     (SELECT rub.fee_id FROM referral_users_bonus rub WHERE rub.fee_id = f.id)
     AND DATE(f.date) >= DATE(NOW())- INTERVAL 2 DAY
-    AND f.method IN (0, 1)
+    AND f.method IN ($fees_type)
     AND f.uid = ?;
-  ", undef, { COLS_NAME => 1, Bind => [ $uid ] } );
+  ", undef, { COLS_NAME => 1, Bind => [ $attr->{UID} ] } );
 
   return $self->{list} || [];
 }

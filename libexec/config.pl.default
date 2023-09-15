@@ -81,7 +81,7 @@ $conf{USERS_WEB_ADMIN_ID}=3;
 $conf{LANGS}="english:English;
  russian:Русский;
  ukrainian:Українська;
- bulgarian:Болгарська;
+ bulgarian:Български;
  french:French;
  armenian:Armenian;
  azeri:Azeri;

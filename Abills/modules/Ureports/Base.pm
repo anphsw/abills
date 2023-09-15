@@ -156,6 +156,8 @@ sub ureports_payments_maked {
   my %info = ();
   $info{AMOUNT} = $attr->{AMOUNT} if $attr->{AMOUNT};
 
+  ::load_module('Control::Services', { LOAD_PACKAGE => 1 }) if (!exists($INC{"Control/Services.pm"}));
+
   my $service_info = ::get_services({
     UID           => $user->{UID},
     REDUCTION     => $user->{REDUCTION},
@@ -290,7 +292,7 @@ sub ureports_payments_maked {
 
   Arguments:
     $type           - sender type
-    $destination    - Destination address
+    $destination    - Destination address (See: Sender Core)
     $message
     $attr
        MESSAGE_TEPLATE || REPORT_ID
@@ -314,6 +316,7 @@ sub ureports_send_reports {
   my @types = split(',\s?', $type);
   my @destinations = split(',\s?', $destination);
   my $debug = $attr->{DEBUG} || 0;
+  my $subject = $attr->{SUBJECT} || '';
 
   my $type_index = 0;
   my $status = 0;
@@ -333,8 +336,15 @@ sub ureports_send_reports {
       $message = $html->tpl_show(main::_include('ureports_report_' . $attr->{REPORT_ID}, 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
     }
 
+    if ($attr->{SUBJECT_TEMPLATE}) {
+      $subject = $html->tpl_show(main::_include($attr->{SUBJECT_TEMPLATE}, 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
+    }
+
     if ($debug > 6) {
-      print "TYPE: $send_type DESTINATION: $destinations[$type_index] MESSAGE: $message\n";
+      print "TYPE: ". ($send_type || 'Not defined')
+        ." DESTINATION: ". ($destinations[$type_index] || 'Use default')
+        ." MESSAGE: ". ($message || 'TPL only') ."\n";
+
       $type_index++;
       next;
     }
@@ -350,7 +360,7 @@ sub ureports_send_reports {
         TO_ADDRESS  => $destinations[$type_index],
         SENDER_TYPE => $send_type,
         MESSAGE     => $message,
-        SUBJECT     => $attr->{SUBJECT} || '',
+        SUBJECT     => $subject,
         DEBUG       => ($debug > 2) ? $debug - 2 : undef
       }) || $status;
     }
@@ -405,6 +415,7 @@ sub ureports_docs {
         TP_NAME         => $service_info->{tp_name},
         FEES_PERIOD_DAY => $lang->{MONTH_FEE_SHORT},
         FEES_METHOD     => $service_info->{fees_method} ? $FEES_METHODS{$service_info->{fees_method}} : undef,
+        SERVICE_NAME    => 'Ureports'
       );
 
       $info{service_name} = ::fees_dsc_former(\%FEES_DSC);

@@ -308,7 +308,7 @@ sub form_fees_list {
       SHOW_COLS_HIDDEN => {
         TYPE_PAGE => $FORM{type}
       }
-    }
+    },
   });
 
   $table->{SKIP_FORMER}=1;
@@ -364,6 +364,8 @@ sub form_fees_list {
         $fee->{login} = $html->button($fee->{login}, "index=15&UID=$fee->{uid}");
       }
       elsif($field_name eq 'dsc') {
+        # fees period from-to
+        $fee->{dsc} =~ s/(\d{4}-\d{2}-\d{2})-(\d{4}-\d{2}-\d{2})/$lang{FROM} $1 $lang{TO} $2/g;
         $fee->{$field_name} = Abills::Base::convert($fee->{$field_name}, { text2html => 1 });
         $fee->{inner_describe} = Abills::Base::convert($fee->{inner_describe}, { text2html => 1 }) if ($fee->{inner_describe});
 
@@ -372,10 +374,7 @@ sub form_fees_list {
           $fee->{dsc} = $html->button($fee->{dsc}, "index=". get_function_index('msgs_admin')."&chg=$1");
         }
 
-        if ($fee->{dsc} =~ /\$/) {
-          $fee->{dsc} = _translate($fee->{dsc});
-        }
-
+        $fee->{dsc} = _translate($fee->{dsc});
         $fee->{dsc} = ($fee->{dsc} || q{}) . $html->b(" ($fee->{inner_describe})") if ($fee->{inner_describe});
       }
       elsif($field_name =~ /deposit/ && defined($fee->{$field_name})) {

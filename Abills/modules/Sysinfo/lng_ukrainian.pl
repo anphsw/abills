@@ -1,4 +1,4 @@
-$lang{MEMORY}='Память';
+$lang{MEMORY}='Пам\'ять';
 $lang{CPU}='Процесор';
 $lang{DISC}='Диск';
 $lang{NETWORK}='Мережа';

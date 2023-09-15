@@ -25,8 +25,9 @@ my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 sub internet_start_page {
 
   my %START_PAGE_F = (
-    'internet_sp_online' => "Online",
-    'internet_sp_errors' => "$lang{ERROR}",
+    'internet_sp_online' => "$lang{INTERNET} - Online",
+    'internet_sp_errors' => "$lang{INTERNET} $lang{ERROR}",
+    'internet_users_summary' => "$lang{INTERNET} - $lang{ERR_SMALL_DEPOSIT}",
   );
 
   return \%START_PAGE_F;
@@ -104,5 +105,45 @@ sub internet_sp_errors {
   return $reports;
 }
 
+
+#**********************************************************
+=head2 internet_users_summary($attr)
+
+=cut
+#**********************************************************
+sub internet_users_summary {
+
+  require Internet;
+  Internet->import();
+  my $Internet = Internet->new($db, $admin, \%conf);
+  my $index = get_function_index ('internet_users_list');
+  my $deposit = 0;
+  my $fee = 0;
+
+  my $user_list = $Internet->user_list({
+    DEPOSIT         => '_SHOW',
+    MONTH_FEE       => '_SHOW',
+    INTERNET_STATUS => 5,
+    COLS_NAME       => 1
+});
+
+  foreach my $line (@$user_list) {
+    $deposit += $line->{deposit} if ($line->{deposit});
+    $fee += $line->{month_fee} if ($line->{month_fee});
+  }
+  
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$lang{INTERNET} - $lang{ERR_SMALL_DEPOSIT}",
+    ID      => 'INTERNET_USERS_SUMMARY',
+    rows    => [
+      [ $html->button($lang{TOTAL}, "index=$index&INTERNET_STATUS=5"), $Internet->{TOTAL} ],
+      [ $lang{DEPOSIT}, $deposit ],
+      [ $lang{MONTH_FEE}, $fee ],
+    ],
+  });
+
+  return $table->show();
+}
 
 1;

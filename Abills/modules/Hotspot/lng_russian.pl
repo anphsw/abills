@@ -3,8 +3,8 @@ $lang{FIRST_SEEN} = 'Первый вход';
 
 $lang{VISITS} = 'Посещения';
 
-$lang{LOGINS_ONLY} = 'Только авторизованые';
-$lang{VISITS_ONLY} = 'Только неавторизованые';
+$lang{LOGINS_ONLY} = 'Только авторизованные';
+$lang{VISITS_ONLY} = 'Только неавторизованные';
 $lang{BOTH} = 'Все';
 
 $lang{ADVERTISE} = 'Реклама';

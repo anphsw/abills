@@ -40,10 +40,10 @@
                 <p class='form-control-static'>%DAY_FEES%</p>
               </div>
               <div class='checkbox text-center'>
-                <label>
-                  <input type='checkbox' name='ACCEPT_RULES' id='ACCEPT_RULES' value='1'>
+                <label class='required' for='ACCEPT_RULES'>
                   <strong>_{ACCEPT}_</strong>
                 </label>
+                <input type='checkbox' name='ACCEPT_RULES' id='ACCEPT_RULES' value='1' required>
               </div>
 
             </fieldset>

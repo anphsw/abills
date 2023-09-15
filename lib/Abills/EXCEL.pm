@@ -543,7 +543,7 @@ sub addtd {
     if ($val =~ /\[(.+)\|(.{0,100})\]/) {
       $worksheet->write_url($self->{row_number}, $self->{col_num}, $SELF_URL . '?' . $1, decode('utf8', $2));
     }
-    elsif ($val =~ /_COLOR:(.+):(.+)/) {
+    elsif ($val =~ /_COLOR:([a-z0-9\-#]+):(.+)/i) {
       my $color = $1;
       my $text = $2;
 

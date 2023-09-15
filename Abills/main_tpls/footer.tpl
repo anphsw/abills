@@ -67,6 +67,18 @@
       jQuery('button[type=submit]:focus').attr('disabled', true);
     }
   });
+
+  jQuery('.hidden_empty_required_filed_check').on('click', function() {
+    let form = jQuery(this).closest('form');
+    if (form.length < 1) return;
+
+    let hiddenRequiredEmptyFields = form.find("input[required], textarea[required], select[required]");
+    hiddenRequiredEmptyFields.each((index, field) => {
+      if (jQuery(field).val() || jQuery(field).width() > 1) return;
+
+      jQuery(field).closest('.collapsed-card').find('.btn-tool > .fa-plus').first().click();
+    })
+  });
 </script>
 %PUSH_SCRIPT%
 

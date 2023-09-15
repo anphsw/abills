@@ -45,6 +45,9 @@ if (typeof info_script_loaded === 'undefined') {
       if (callback) {
         callback();
       }
+
+      blocks_pagination();
+      document.getElementById("page1").click();
     });
   }
 
@@ -165,7 +168,7 @@ if (typeof info_script_loaded === 'undefined') {
 
     function bindDelBtns() {
       $(document).on('click', '.commentDeleteBtn', function (e) {
-        console.log('ASD');
+        console.log('DelBtns');
         e.preventDefault();
         var $commentDiv = $(this).parent().parent().parent();
 
@@ -173,9 +176,16 @@ if (typeof info_script_loaded === 'undefined') {
         $icon.removeClass('fa-trash ');
         $icon.addClass('fa fa-spinner fa-pulse');
 
+        var text = $commentDiv.find(".text").text().trim().substring(0, 100);
+        var uid = $commentsId.val() || '';
         var url = $(this).data('url');
 
-        $.getJSON(url, function (data) {
+        var params = $.param({
+          UID: uid,
+          COMMENTS: text,
+        });
+
+        $.getJSON(url, params, function (data) {
           if (data.status == 0) {
             Events.emit('info_something_changed', 'comments');
             renewDOM();
@@ -207,6 +217,7 @@ if (typeof info_script_loaded === 'undefined') {
 
           var text = $(this).parent().parent().find("textarea").val();
           var type = $commentsType.val();
+          var uid = $commentsId.val() || '';
           var id = $(this).data('id');
 
           var params = $.param({
@@ -214,6 +225,7 @@ if (typeof info_script_loaded === 'undefined') {
             COMMENTS: text,
             OBJ_TYPE: type,
             ID: id,
+            UID: uid,
             COMMENTS_OLD: $text,
             SAVE: 1,
             EDIT: 1,
@@ -440,5 +452,66 @@ if (typeof info_script_loaded === 'undefined') {
 
     }
   }
+
+  var div_num;
+  var cnt = 5;
+
+  // PAGINATION
+  function blocks_pagination() {
+    var numElements = document.querySelectorAll('.num');
+    var count = numElements.length;
+    var cnt_page = Math.ceil(count / cnt);
+
+    var paginator = document.querySelector(".paginator");
+    var page = "";
+    for (var i = 0; i < cnt_page; i++) {
+      page += "<span data-page=" + i * cnt + "  id=\"page" + (i + 1) + "\">" + (i + 1) + "</span>";
+    }
+
+    paginator.innerHTML = page;
+
+    // show first items
+    div_num = document.querySelectorAll(".num");
+    for (var i = 0; i < div_num.length; i++) {
+      if (i < cnt) {
+        div_num[i].style.display = "block";
+      }
+    }
+  }
+
+  blocks_pagination();
+
+  var main_page = document.getElementById("page1");
+  main_page.classList.add("paginator_active");
+
+
+  function listing_pagination(event) {
+    var e = event || window.event;
+    var target = e.target;
+    var id = target.id;
+
+    if (target.tagName.toLowerCase() != "span") return;
+
+    var num_ = id.substr(4);
+    var data_page = +target.dataset.page;
+    main_page.classList.remove("paginator_active");
+    main_page = document.getElementById(id);
+    main_page.classList.add("paginator_active");
+
+    var j = 0;
+    for (var i = 0; i < div_num.length; i++) {
+      var data_num = div_num[i].dataset.num;
+      if (data_num <= data_page || data_num >= data_page)
+        div_num[i].style.display = "none";
+
+    }
+    for (var i = data_page; i < div_num.length; i++) {
+      if (j >= cnt) break;
+      div_num[i].style.display = "block";
+      j++;
+    }
+  }
+
+  main_page.click();
 
 }

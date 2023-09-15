@@ -24,3 +24,8 @@ $lang{ACCOUNT_REPLENISHMENT} = 'Пополнение счета';
 $lang{PAYMENT_MAKED}= 'Оплата осуществлена';
 $lang{LAST_MESSAGE} = 'Последнее сообщение';
 $lang{AUTHOR} = 'Автор';
+
+$lang{UNREG_MESSAGE_TITLE} = 'Мы рады, что Вы с нами!';
+$lang{UNREG_MESSAGE_BODY} = 'Зарегистрируйтесь, чтобы остаться с нами и получать от нас специальные предложения.';
+
+1;

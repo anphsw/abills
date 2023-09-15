@@ -88,11 +88,14 @@ sub plugin_show {
   my $history_result = $self->_get_history_button($attr);
   return $history_result if (ref $history_result eq 'HASH');
 
+  my $payment_result = $self->_payments_btn($attr);
+  return $payment_result if (ref $payment_result eq 'HASH');
+
   my $info = $self->_get_watch_button($attr);
   $info .= $export_result . $history_result;
   $info .= $self->_get_delegate_buttons($attr);
   $info .= $self->_get_tags_button($attr);
-  $info .= $self->_payments_btn($attr);
+  $info .= $payment_result;
 
   my $button_group = $html->element('div', $info, {
     class        => 'btn-group',
@@ -336,6 +339,30 @@ sub _payments_btn {
   my ($sum, $method) = split ':', $CONF->{MSGS_TICKET_PRICE};
   return if !defined($sum) || !defined($method);
 
+  if ($attr->{CONFIRM_PAYMENT}) {
+    my $title = $html->element('h4', $lang->{DO_YOU_REALLY_WANT_TO_CHARGE_FOR_MESSAGE}, { class => 'card-title' });
+    my $card_header = $html->element('div', $title, { class => 'card-header with-border' });
+
+    my $yes_btn = $html->button($lang->{EXECUTE}, "get_index=form_fees&header=2&full=1&SUM=$sum&METHOD=$method&UID=$attr->{UID}" .
+      "&DESCRIBE=$attr->{SUBJECT} %23 $attr->{ID}", {
+      class     => 'btn btn-danger ml-2',
+      target    => '_blank',
+      ex_params => 'onclick=aModal.hide()'
+    });
+    my $no_btn = $html->button($lang->{CANCEL}, '', {
+      class          => 'btn btn-default',
+      ex_params      => 'onclick=aModal.hide()',
+      JAVASCRIPT     => 1,
+      NO_LINK_FORMER => 1,
+      SKIP_HREF      => 1
+    });
+
+    my $card_body = $html->element('div', $no_btn . $yes_btn, { class => 'card-body p-0 text-right' });
+
+    print $card_header . $card_body;
+    return { RETURN_VALUE => 1 };
+  }
+
   return '' if $attr->{PLUGIN} && !$attr->{change};
 
   require Fees;
@@ -343,9 +370,18 @@ sub _payments_btn {
   my $Fees = Fees->new($db, $admin, $CONF);
   $Fees->list({ DESCRIBE  => "$Msgs->{SUBJECT} # $Msgs->{ID}", COLS_NAME => 1, PAGE_ROWS => 1 });
 
+  if ($Fees->{TOTAL} > 0) {
+    return $html->button('', "qindex=$attr->{index}&header=2&UID=$attr->{UID}&CONFIRM_PAYMENT=1&ID=$Msgs->{ID}&PLUGIN=$self->{PLUGIN_NAME}", {
+      class         => 'btn btn-success group-btn',
+      ICON          => 'fas fa-credit-card',
+      TITLE         => $lang->{FEESs},
+      LOAD_TO_MODAL => 1,
+    });
+  }
+
   return $html->button('', "get_index=form_fees&header=2&full=1&SUM=$sum&METHOD=$method&UID=$attr->{UID}" .
     "&DESCRIBE=$Msgs->{SUBJECT} %23 $Msgs->{ID}", {
-    class  => 'btn group-btn ' . ($Fees->{TOTAL} > 0 ? 'btn-success' : 'btn-primary'),
+    class  => 'btn group-btn btn-primary',
     ICON   => 'fas fa-credit-card',
     target => '_blank',
     TITLE  => $lang->{FEES},

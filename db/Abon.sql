@@ -30,14 +30,18 @@ CREATE TABLE IF NOT EXISTS `abon_tariffs` (
   `user_description` TEXT NOT NULL DEFAULT '' COMMENT 'User portal describe',
   `service_recovery` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0' COMMENT 'Service recovery mode',
   `service_img` VARCHAR(240) NOT NULL DEFAULT '',
-  `module` VARCHAR(24) NOT NULL DEFAULT '' COMMENT 'Service plugin',
+  `plugin` VARCHAR(24) NOT NULL DEFAULT '' COMMENT 'Service plugin',
+  `ext_service_id` VARCHAR(24) NOT NULL DEFAULT '' COMMENT 'External service ID',
   `login` VARCHAR(72) NOT NULL DEFAULT '' COMMENT 'API Login',
   `password` BLOB COMMENT 'API Password',
   `url` VARCHAR(120) NOT NULL DEFAULT '' COMMENT 'API url',
   `debug` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'API DEBUG',
   `debug_file` VARCHAR(120) NOT NULL DEFAULT '' COMMENT 'API DEBUG file',
+  `category_id` SMALLINT(6) UNSIGNED NOT NULL default 0,
+  `activate_price` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `promotional` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `promo_period` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
 )
   DEFAULT CHARSET = utf8
@@ -62,3 +66,15 @@ CREATE TABLE IF NOT EXISTS `abon_user_list` (
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Abon user list';
+
+CREATE TABLE IF NOT EXISTS `abon_categories` (
+  `id`              SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name`            VARCHAR(50) NOT NULL DEFAULT '',
+  `dsc`             VARCHAR(80) NOT NULL DEFAULT '' COMMENT 'Description',
+  `public_dsc`      VARCHAR(80) NOT NULL DEFAULT '' COMMENT 'Public description',
+  `visible`         TINYINT(1)  NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Abon category';

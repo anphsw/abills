@@ -573,6 +573,7 @@ sub check_permissions {
       DATETIME       => 'NOW()',
       IP             => $ENV{REMOTE_ADDR},
       SID            => $admin->{SID},
+      # FIXME: This takes possible crash in Paranoid log, because dbcore sets '' value to NULL
       PARAMS         => '',
     });
   }
@@ -1044,14 +1045,20 @@ sub auth_sql {
 =cut
 #**********************************************************
 sub load_lang {
+  my $fallback_locale = 'english';
+  my $is_fallback = 0;
+
   if (!$html || !$html->{language}) {
-    $html->{language}='english';
+    $html->{language} = $fallback_locale;
+    $is_fallback = 1;
   }
 
-  if ($html->{language} ne 'english') {
-    do "language/english.pl"
+  $is_fallback = 1 if (!$is_fallback && $html->{language} eq $fallback_locale);
+
+  do "language/$fallback_locale.pl";
+  if (!$is_fallback) {
+    eval { do "language/$html->{language}.pl" };
   }
-  eval { do "$libpath/language/$html->{language}.pl" };
 
   if ($@) {
     print "Content-Type: text/plain\n\n";

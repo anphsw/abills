@@ -251,7 +251,7 @@ sub del {
 
   $admin->action_add($user->{UID}, "$id $sum $comments", { TYPE => 17 });
 
-  return $self->{result};
+  return $self;
 }
 
 #**********************************************************
@@ -287,31 +287,31 @@ sub list {
       ['METHOD',         'INT', 'f.method',                        1 ],
       ['METHOD_ID',      'INT', 'f.method', 'f.method AS method_id'  ],
       ['COMPANY_ID',     'INT', 'u.company_id',                      ],
-      ['A_LOGIN',        'STR', 'a.id',                            1 ],
-      ['ADMIN_NAME',     'STR', 'a.id'                               ],
-      ['ADMIN_NAME',     'STR', '', "IF(a.name is NULL, 'Unknown', a.name) AS admin_name" ],
+      ['A_LOGIN',        'STR', 'a.id', 'a.id as a_login',         1 ],
+      # ['ADMIN_NAME',     'STR', 'a.id'                               ],
+      ['ADMIN_NAME',     'STR', 'a.name', "IF(a.name is NULL, 'Unknown', a.name) AS admin_name" ],
       ['BILL_ID',        'INT', 'f.bill_id',                       1 ],
-      ['IP',             'INT', 'f.ip',      'INET_NTOA(f.ip) AS ip' ],
-      ['AID',            'INT', 'f.aid',                             ],
+      ['IP',             'INT', 'INET_NTOA(f.ip)', 'INET_NTOA(f.ip) AS ip'  ],
+      ['AID',            'INT', 'f.aid',                           1 ],
       ['DOMAIN_ID',      'INT', 'u.domain_id',                       ],
       ['UID',            'INT', 'f.uid',                           1 ],
       ['INNER_DESCRIBE', 'STR', 'f.inner_describe',                  ],
       ['DATE',           'DATE','DATE_FORMAT(f.date, \'%Y-%m-%d\')'  ],
       ['FROM_DATE|TO_DATE','DATE', 'DATE_FORMAT(f.date, \'%Y-%m-%d\')'  ],
       ['FROM_DATE_TIME|TO_DATE_TIME','DATE', "f.date"                   ],
-      ['MONTH',          'DATE', "DATE_FORMAT(f.date, '%Y-%m')"      ],
+      ['MONTH',          'DATE', "DATE_FORMAT(f.date, '%Y-%m')", "DATE_FORMAT(f.date, '%Y-%m') as month"],
       ['REG_DATE',       'DATE', "f.reg_date", "f.reg_date",       1 ],
       ['TAX',            'INT',  'ft.tax',                         1 ],
-      ['TAX_SUM',        'INT',  '', 'IF(ft.tax>0, SUM(f.sum) / 100 * ft.tax, 0) AS tax_sum'  ],
+      ['TAX_SUM',        'INT',  '', 'IF(ft.tax>0, SUM(f.sum) / 100 * ft.tax, 0) AS tax_sum'],
       ['ADMIN_DISABLE',  'INT', 'a.disable', 'a.disable AS admin_disable',               1 ],
       ['INVOICE_NUM',    'INT', 'd.invoice_num',                                         1 ],
       ['INVOICE_ID',     'INT', 'd.id',  'd.id AS invoice_id'                              ],
     ],
-    { WHERE       => 1,
-      USERS_FIELDS=> 1,
-      SKIP_USERS_FIELDS=> [ 'BILL_ID', 'UID', 'LOGIN' ],
-      USE_USER_PI => 1,
-      WHERE_RULES => \@WHERE_RULES,
+    { WHERE             => 1,
+      USERS_FIELDS      => 1,
+      SKIP_USERS_FIELDS => [ 'BILL_ID', 'UID', 'LOGIN' ],
+      USE_USER_PI       => 1,
+      WHERE_RULES       => \@WHERE_RULES,
     });
 
   my $EXT_TABLES  = $self->{EXT_TABLES};

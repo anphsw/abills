@@ -15,6 +15,7 @@ our(
   %conf,
   %lang,
   $admin,
+  $SELF_URL
 );
 
 our Abills::HTML $html;
@@ -380,6 +381,7 @@ sub msgs_user {
 
     $Notify->notify_admins({ MSG_ID => $new_msg_id });
     _notify_admins_by_chapter($FORM{CHAPTER}, $new_msg_id) if !$FORM{RESPOSIBLE} && $FORM{CHAPTER};
+    _msgs_send_support_request_mail();
 
     my $message_added_text = "$lang{MESSAGE} " . ($Msgs->{MSG_ID} ? " #$Msgs->{MSG_ID} " : '') . $lang{MSG_SENDED};
     my $header_message = urlencode($message_added_text);
@@ -602,6 +604,47 @@ my ($attr, $msgs_status, $list) = @_;
   }
 
   return $table;
+}
+
+#**********************************************************
+=head2 _msgs_send_support_request_mail()
+
+  Arguments:
+    $email
+
+  Returns: sending status
+
+=cut
+#**********************************************************
+sub _msgs_send_support_request_mail {
+  my $email = shift;
+  $email ||= $user->{EMAIL};
+
+  return if !$email;
+
+  require Abills::Sender::Core;
+  Abills::Sender::Core->import();
+  my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+
+  my $img_url = $SELF_URL;
+  $img_url =~ s/index\.cgi//;
+
+  my $message_link = "$SELF_URL?index=$index&ID=" . ($Msgs->{MSG_ID} || q{});
+
+  my $message = $html->tpl_show(_include('msgs_support_request', 'Msgs'), { %FORM, %{$Msgs},
+    IMG_URL => $img_url,
+    MSG_URL => $message_link,
+    MSG_ID  => $Msgs->{MSG_ID}
+  }, { OUTPUT2RETURN => 1 });
+
+  return $Sender->send_message({
+    TO_ADDRESS   => $email,
+    MESSAGE      => $message,
+    SUBJECT      => $lang{MSGS_SUPPORT_REQUEST_HEADER},
+    SENDER_TYPE  => 'Mail',
+    QUITE        => 1,
+    CONTENT_TYPE => 'text/html'
+  });
 }
 
 #**********************************************************

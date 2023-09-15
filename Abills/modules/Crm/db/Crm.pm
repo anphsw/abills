@@ -141,9 +141,11 @@ sub crm_lead_delete {
   my ($attr) = @_;
 
   $self->query_del('crm_leads', $attr);
+  my %delete_info = %{$self};
+
   $self->crm_action_add("DELETED: $attr->{ID}", { ID => $attr->{ID}, TYPE => 4 }) if !$self->{errno};
 
-  return $self;
+  return \%delete_info;
 }
 
 #**********************************************************
@@ -212,6 +214,8 @@ sub crm_lead_list {
   # }
 
   $attr->{SKIP_DEL_CHECK} = 1;
+  $attr->{SKIP_GID} = 1;
+  $attr->{HOLDUP_DATE} = "<$main::DATE" if (!$attr->{SKIP_HOLDUP} && (!$attr->{HOLDUP_DATE} || $attr->{HOLDUP_DATE} eq '_SHOW'));
   $attr->{SEARCH_COLUMNS} = $attr->{SEARCH_COLUMNS} && ref $attr->{SEARCH_COLUMNS} eq 'ARRAY' ? $attr->{SEARCH_COLUMNS} : ();
   my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
   my $search_columns = [
@@ -237,7 +241,7 @@ sub crm_lead_list {
     [ 'PRIORITY' ,        'STR',   'cl.priority',                    1 ],
     [ 'PERIOD',           'DATE',  'cl.date as period',              1 ],
     [ 'SOURCE',           'INT',   'cl.source',                      1 ],
-    [ 'COMMENTS',         'STR',   'cl.comments',                      ],
+    [ 'COMMENTS',         'STR',   'cl.comments',                    1 ],
     [ 'TAG_IDS' ,         'STR',   'cl.tag_ids',                     1 ],
     [ 'DOMAIN_ID',        'INT',   'cl.domain_id',                   0 ],
     [ 'CL_UID',           'INT',   'cl.uid',                         0 ],
@@ -251,7 +255,8 @@ sub crm_lead_list {
       "IF(cl.build_id, CONCAT(districts.name, '$build_delimiter', streets.name, '$build_delimiter', builds.number), '') AS lead_address",  1 ],
     [ 'ADDRESS_FULL',     'STR',
       "IF(cl.build_id, CONCAT(districts.name, '$build_delimiter', streets.name, '$build_delimiter', builds.number, '$build_delimiter', cl.address_flat), '') AS address_full",  1 ],
-    [ 'WATCHER',          'INT',   'clw.aid',                        0 ],
+    [ 'WATCHER',          'INT',   'clw.aid', 'clw.aid AS watcher'     ],
+    [ 'HOLDUP_DATE',      'DATE',  'cl.holdup_date',                 1 ],
   ];
 
   map push(@{$search_columns}, $_), @{$attr->{SEARCH_COLUMNS}};
@@ -1831,33 +1836,21 @@ sub lead_field_add {
   my ($attr) = @_;
 
   my @column_types = (
-    " varchar(120) not null default ''",
-    " int(11) NOT NULL default '0'",
-    " smallint unsigned NOT NULL default '0' ",
-    " text not null ",
-    " tinyint(11) NOT NULL default '0' ",
-    " content longblob NOT NULL",
-    " varchar(100) not null default ''",
-    " int(11) unsigned NOT NULL default '0'",
-    " varchar(12) not null default ''",
-    " varchar(120) not null default ''",
-    " varchar(20) not null default ''",
-    " varchar(50) not null default ''",
-    " varchar(50) not null default ''",
-    " int unsigned NOT NULL default '0' ",
-    " INT(11) UNSIGNED NOT NULL DEFAULT '0' REFERENCES users(uid) ",
-    " varchar(120) not null default ''",
-    " varchar(120) not null default ''",
-    " varchar(120) not null default ''",
-    " varchar(120) not null default ''",
-    " tinyint(2) not null default '0' ",
-    " DATE not null default '0000-00-00' ",
+    " VARCHAR(120) NOT NULL DEFAULT '' ",
+    " INT(11) NOT NULL DEFAULT '0' ",
+    " SMALLINT UNSIGNED NOT NULL DEFAULT '0' ",
+    " TEXT NOT NULL ",
+    " TINYINT(11) NOT NULL DEFAULT '0' ",
+    " INT(11) UNSIGNED NOT NULL DEFAULT '0' ",
+    " VARCHAR(120) NOT NULL DEFAULT ''",
+    " VARCHAR(120) NOT NULL DEFAULT ''",
+    " TINYINT(2) NOT NULL DEFAULT '0' ",
+    " DATE NOT NULL DEFAULT '0000-00-00' ",
   );
 
   $attr->{FIELD_TYPE} = 0 if (!$attr->{FIELD_TYPE});
 
   my $column_type  = $column_types[ $attr->{FIELD_TYPE} ] || " varchar(120) not null default ''";
-
 
   my $table = $attr->{TP_INFO_FIELDS} ? 'crm_competitors_tps' : 'crm_leads';
 
@@ -2053,25 +2046,41 @@ sub crm_action_list {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $GROUP_BY = $attr->{GROUP_BY} || 'ca.id';
+  my $HAVING = $attr->{HAVING} ? "HAVING $attr->{HAVING}" : '';
+
+  if ($attr->{LAST_ACTION} && $attr->{LAST_ACTION} ne '_SHOW') {
+    $HAVING = $HAVING ? "$HAVING AND last_action $attr->{LAST_ACTION}" : " HAVING last_action $attr->{LAST_ACTION}";
+    $attr->{LAST_ACTION} = '_SHOW';
+  }
 
   my $WHERE = $self->search_former($attr, [
-    ['ACTIONS',           'STR',  'ca.actions',                                       1 ],
-    ['LID',               'INT',  'ca.lid',                                           1 ],
-    ['TYPE',              'INT',  'ca.action_type',                                   1 ],
-    ['IP',                'IP',   'ca.ip', 'INET_NTOA(ca.ip) AS ip',                  1 ],
-    ['DATETIME',          'DATE', 'ca.datetime',                                      1 ],
-    ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(ca.datetime, '%Y-%m-%d')",             1 ],
-    ['AID',               'INT',  'ca.aid',                                           1 ],
-    ['ADMIN',             'STR',  'a.id', 'a.id AS admin',                            1 ],
-    ['LEAD_FIO',          'STR',  'cl.fio', 'cl.fio AS lead_fio',                     1 ]
+    [ 'ACTIONS',           'STR',  'ca.actions',                                       1 ],
+    [ 'LID',               'INT',  'ca.lid',                                           1 ],
+    [ 'TYPE',              'INT',  'ca.action_type',                                   1 ],
+    [ 'IP',                'IP',   'ca.ip', 'INET_NTOA(ca.ip) AS ip',                  1 ],
+    [ 'DATETIME',          'DATE', 'ca.datetime',                                      1 ],
+    [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(ca.datetime, '%Y-%m-%d')",             1 ],
+    [ 'AID',               'INT',  'ca.aid',                                           1 ],
+    [ 'ADMIN',             'STR',  'a.id', 'a.id AS admin',                            1 ],
+    [ 'LAST_ACTION',       'STR',  "DATE_FORMAT(MAX(ca.datetime), '%Y-%m-%d') AS last_action",  1 ],
+    [ 'LEAD_FIO',          'STR',  'cl.fio', 'cl.fio AS lead_fio',                     1 ],
+    [ 'CURRENT_STEP_NAME', 'STR',  'cps.name as current_step_name',                    1 ],
+    [ 'STEP_COLOR',        'STR',  'cps.color as step_color',                          1 ],
+    [ 'ADMIN_NAME',        'STR',  'al.name as admin_name',                            1 ],
   ], { WHERE => 1 });
+
+  my $EXT_TABLES = $self->{EXT_TABLES} || q{};
+  $EXT_TABLES .= "\nLEFT JOIN crm_progressbar_steps cps ON (cps.step_number = cl.current_step)" if $self->{SEARCH_FIELDS} =~ /cps\./;
+  $EXT_TABLES .= "\nLEFT JOIN admins al ON (al.aid = cl.responsible)" if $self->{SEARCH_FIELDS} =~ /al\./;
 
   $self->query(
     "SELECT $self->{SEARCH_FIELDS} ca.id
      FROM crm_admin_actions ca
       LEFT JOIN admins a ON (ca.aid=a.aid)
       LEFT JOIN crm_leads cl ON (ca.lid=cl.id)
-      $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+      $EXT_TABLES
+      $WHERE GROUP BY $GROUP_BY $HAVING ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
@@ -2782,6 +2791,21 @@ sub crm_section_fields_info {
 }
 
 #**********************************************************
+=head2 crm_sections_info($id)
+
+=cut
+#**********************************************************
+sub crm_sections_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT * FROM crm_sections WHERE id = ? ", undef, { INFO => 1, Bind => [ $attr->{ID} ] });
+
+  return $self;
+}
+
+
+#**********************************************************
 =head2 crm_sections_add() - add lead sections
 
 =cut
@@ -2926,13 +2950,14 @@ sub crm_deals_list {
     [ 'DATE',         'DATE', 'cd.date',         1 ],
     [ 'COMMENTS',     'STR',  'cd.comments',     1 ],
   ], {
-    WHERE            => 1,
-    USERS_FIELDS_PRE => 1,
-    USE_USER_PI      => 1,
+    WHERE             => 1,
+    USERS_FIELDS_PRE  => 1,
+    SKIP_USERS_FIELDS => [ 'UID', 'COMMENTS' ],
+    USE_USER_PI       => 1
   });
 
   my $EXT_TABLE = $self->{EXT_TABLES} || '';
-  $self->query("SELECT cd.id, $self->{SEARCH_FIELDS} u.uid, cd.id AS deal_id
+  $self->query("SELECT cd.id, $self->{SEARCH_FIELDS} cd.id AS deal_id
     FROM users u
     INNER JOIN crm_deals cd ON (u.uid=cd.uid)
     $EXT_TABLE

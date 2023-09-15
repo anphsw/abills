@@ -16,8 +16,10 @@ use strict;
 use warnings;
 use Abills::Base qw(in_array);
 use Abills::Filters qw(bin2mac);
+use JSON qw(decode_json);
 
 our (
+  $base_dir,
   %lang,
   %conf,
   %FORM,
@@ -233,79 +235,22 @@ sub _raisecom_onu_list {
 =cut
 #**********************************************************
 sub _raisecom { #TODO: move part of OIDs to main_onu_info, fix _raisecom_get_onu_info, _raisecom_onu_list accordingly
-    my ($attr) = @_;
+  my ($attr) = @_;
+  my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
 
-  my %snmp = (
-    gpon => {
-      'ONU_MAC_SERIAL' => {
-        NAME   => 'Mac/Serial',
-        OIDS   => '1.3.6.1.4.1.8886.18.3.1.3.1.1.2',
-        ONU_INDEX_DECODER => 2,
-      },
-      'ONU_STATUS'     => {
-        NAME   => 'STATUS',
-        OIDS   => '1.3.6.1.4.1.8886.18.3.1.3.1.1.17',
-        ONU_INDEX_DECODER => 2,
-      },
-      'ONU_TX_POWER'   => {
-        NAME   => 'ONU_TX_POWER',
-        OIDS   => '1.3.6.1.4.1.8886.18.3.6.3.1.1.17',
-        PARSER => '_raisecom_convert_onu_power',
-        ONU_INDEX_DECODER => 1,
-      },
-      'ONU_RX_POWER'   => {
-        NAME   => 'ONU_RX_POWER',
-        OIDS   => '1.3.6.1.4.1.8886.18.3.6.3.1.1.16',
-        PARSER => '_raisecom_convert_onu_power',
-        ONU_INDEX_DECODER => 1,
-      },
-      'OLT_RX_POWER'   => {
-        NAME   => 'OLT_RX_POWER',
-        OIDS   => '1.3.6.1.4.1.8886.18.3.1.3.3.1.1',
-        PARSER => '_raisecom_convert_olt_power',
-        ONU_INDEX_DECODER => 2,
-      },
-      'ONU_DESC'       => {
-        NAME   => 'ONU_DESC',
-        OIDS   => '1.3.6.1.4.1.8886.18.3.1.3.1.1.20',
-        ONU_INDEX_DECODER => 2,
-      },
-      'TEMPERATURE'    => { #XXX move to main_onu_info?
-        NAME   => 'TEMPERATURE',
-        OIDS   => '1.3.6.1.4.1.8886.18.3.6.3.1.1.18',
-        PARSER => '_raisecom_convert_temperature',
-        ONU_INDEX_DECODER => 1,
-      },
-      'DISTANCE'       => {
-        NAME   => 'DISTANCE',
-        OIDS   => '1.3.6.1.4.1.8886.18.3.1.3.1.1.16',
-        PARSER => '_raisecom_convert_distance',
-        ONU_INDEX_DECODER => 2,
-      },
-      'VOLTAGE'        => {
-        NAME   => 'VOLTAGE',
-        OIDS   => '1.3.6.1.4.1.8886.18.3.6.3.1.1.19',
-        PARSER => '_raisecom_convert_voltage',
-        ONU_INDEX_DECODER => 1,
-      },
-      'ONU_IN_BYTE'    => {
-        NAME   => 'ONU_IN_BYTE',
-        OIDS   => '1.3.6.1.4.1.8886.18.3.6.5.2.1.15',
-        ONU_INDEX_DECODER => 1,
-      },
-      'ONU_OUT_BYTE'   => {
-        NAME   => 'ONU_OUT_BYTE',
-        OIDS   => '1.3.6.1.4.1.8886.18.3.6.5.2.1.2',
-        ONU_INDEX_DECODER => 1,
-      },
-    }
-  );
+  my $file_content = file_op({
+    FILENAME   => 'raisecom.snmp',
+    PATH       => $TEMPLATE_DIR,
+  });
+
+  $file_content =~ s#//.*$##gm;
+
+  my $snmp = decode_json($file_content);
 
   if ($attr->{TYPE}) {
-    return $snmp{$attr->{TYPE}};
+    return $snmp->{$attr->{TYPE}};
   }
-
-  return \%snmp;
+  return $snmp;
 }
 
 #**********************************************************

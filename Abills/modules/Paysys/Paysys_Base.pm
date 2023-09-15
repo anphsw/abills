@@ -12,7 +12,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Abills::Filters;
-use Abills::Base qw(sendmail convert);
+use Abills::Base qw(sendmail convert in_array is_number);
 use Finance;
 use Users;
 use Paysys;
@@ -88,6 +88,7 @@ my @status = ("$lang{UNKNOWN}",    #0
       USER_INFO         - Additional information;
       CROSSMODULES_TIMEOUT - Crossmodules function timeout
       ERROR             - Status error;
+      PAYMENT_METHOD    - Payment method;
   Returns:
     Payment status code.
     All codes:
@@ -256,8 +257,8 @@ sub paysys_pay {
     $uid        = $list->[0]->{uid};
     $paysys_id  = $list->[0]->{id};
 
-    if(!$attr->{NEW_SUM}){
-      $amount     = $list->[0]->{sum};
+    if (!$attr->{NEW_SUM}) {
+      $amount = $list->[0]->{sum};
     }
 
     if ($amount && $list->[0]->{sum} != $amount && !$attr->{NEW_SUM}) {
@@ -402,7 +403,21 @@ sub paysys_pay {
     COLS_NAME      => 1,
   });
 
-  my $method = $system_info->[0]{payment_method} || 0;
+  my $method = $attr->{PAYMENT_METHOD} || $system_info->[0]{payment_method} || 0;
+
+  #TODO: delete first if condition after half year
+  if (!$attr->{PAYMENT_METHOD} && $Paysys->can('gid_params')) {
+    my $params = $Paysys->gid_params({
+      GID       => $user->{GID},
+      PAYSYS_ID => $payment_system_id,
+      LIST2HASH => 'param,value'
+    });
+
+    if (scalar keys %{$params}) {
+      my ($payment_method) = grep {/PAYMENT_METHOD/g} keys %{$params};
+      $method = $params->{$payment_method} if ($payment_method && $params->{$payment_method});
+    }
+  }
 
   #Sucsess
   if (!$conf{PAYMENTS_POOL}) {
@@ -677,7 +692,7 @@ sub paysys_pay {
       USER_ID         - User identifier for CHECK_FIELD;
       EXTRA_FIELDS    - Extra fields
       DEBUG           - Debug mode
-      SKIP_FIO_HIDE  - Skip hide fio
+      SKIP_FIO_HIDE   - Skip hide fio
       RECOMENDED_PAY  - Returns total sum
 
   Returns:
@@ -1045,17 +1060,18 @@ sub paysys_payment_list { #TODO REMOVE THIS FUNCTION
 
   Arguments:
     $attr
-      GID           - group identifier;
-      NAME: string  - custom name of Payment system
-      PARAMS        - Array of parameters
-      SERVICE       - Service ID
-      SERVICE2GID   - Service to gid
-                        delimiter :
-                        separator ;
-      GET_MAIN_GID-
+      GID: int           - group identifier;
+      NAME: string       - custom name of Payment system
+      PARAMS: object     - Array of parameters
+      SERVICE: int       - Service ID
+      SERVICE2GID        - Service to gid
+                             delimiter :
+                             separator ;
+      GET_MAIN_GID
+      PAYMENT_SYSTEM_ID  - ID of payment system;
 
   Returns:
-    TRUE or FALSE
+
 
   Examples:
 
@@ -1075,10 +1091,18 @@ sub conf_gid_split {
 
   my $gid = $attr->{GID};
 
-  if (!$gid) {
-    return 1;
+  if ($attr->{PARAMS}) {
+    my $param_name = $attr->{PARAMS}->[0] || '';
+    my ($paysys_name) = $param_name =~ /^PAYSYS_[^_]+/gm;
+    push @{$attr->{PARAMS}}, ($paysys_name || '') . '_PAYMENT_METHOD',
+      ($paysys_name || '') . '_PORTAL_DESCRIPTION', ($paysys_name || '') . '_PORTAL_COMMISSION';
   }
 
+  if (!$gid) {
+    return _check_max_payments($attr);
+  }
+
+  # FIXME: it's unused maybe delete?
   if ($attr->{SERVICE} && $attr->{SERVICE2GID}) {
     my @services_arr = split(/;/, $attr->{SERVICE2GID});
     foreach my $line (@services_arr) {
@@ -1094,7 +1118,7 @@ sub conf_gid_split {
     my $params = $attr->{PARAMS};
     foreach my $key (@$params) {
       $key =~ s/_NAME_/_$attr->{NAME}\_/ if ($attr->{NAME} && $key =~ /_NAME_/);
-      if ($conf{$key . '_' . $gid}) {
+      if (defined $conf{$key . '_' . $gid}) {
         $conf{$key} = $conf{$key . '_' . $gid};
         if ($attr->{GET_MAIN_GID}) {
           $FORM{MAIN_GID} = $gid; # gid
@@ -1103,7 +1127,104 @@ sub conf_gid_split {
     }
   }
 
-  return 1;
+  return _check_max_payments($attr);
+}
+
+#**********************************************************
+=head2 _check_max_payments($attr) - Check is allowed make payment for user
+
+  Arguments:
+    $attr
+      PARAMS: object     - Array of parameters
+      PAYMENT_SYSTEM_ID  - ID of payment system
+      MERCHANT_ID        - ID of merchant which need to check
+      MERCHANTS          - list of executed merchants, prevent boot loop
+
+  Returns:
+
+    0 - not allowed payment
+    1 - allowed payment
+
+=cut
+#**********************************************************
+sub _check_max_payments {
+  my ($attr) = @_;
+
+  my $params = {};
+  my $merchant_id = '--';
+
+  if ($attr->{MERCHANT_ID}) {
+    $params = $Paysys->merchant_params_info({ MERCHANT_ID => $attr->{MERCHANT_ID} });
+  }
+  else {
+    return 1 if (!$attr->{PAYMENT_SYSTEM_ID});
+    return 1 if (!$Paysys->can('gid_params'));
+
+    my $list_params = $Paysys->gid_params({
+      GID       => $attr->{GID} || 0,
+      PAYSYS_ID => $attr->{PAYMENT_SYSTEM_ID},
+      COLS_NAME => 1,
+    });
+
+    foreach my $param (@{$list_params}) {
+      $params->{$param->{param}} = $param->{value} || '';
+    }
+
+    $merchant_id = $list_params->[0]->{merchant_id} || '--' if (scalar @{$list_params});
+  }
+
+  delete $Paysys->{errno};
+
+  return 1 if (!scalar keys %{$params} && !$attr->{MERCHANT_ID});
+
+  my ($max_sum_key) = grep {/PAYMENTS_MAX_SUM/g} keys %{$params};
+  return 1 if ((!$max_sum_key || !$params->{$max_sum_key}) && !$attr->{MERCHANT_ID});
+
+  my ($payment_method_key) = grep {/PAYMENT_METHOD/g} keys %{$params};
+  return 1 if ((!$payment_method_key || !$params->{$payment_method_key}) && !$attr->{MERCHANT_ID});
+
+  my $payment_method = $params->{$payment_method_key || '--'};
+  my $max_sum = $params->{$max_sum_key || ''} || 0;
+
+  if ($max_sum) {
+    my ($year, $month) = $DATE =~ /(\d{4})\-(\d{2})\-(\d{2})/g;
+    $payments->list({
+      PAYMENT_METHOD => $payment_method,
+      FROM_DATE      => "$year-$month-01",
+      TO_DATE        => $DATE,
+      TOTAL_ONLY     => 1
+    });
+
+    $payments->{SUM} //= 0;
+    delete $payments->{errno};
+  }
+
+  if (!$max_sum || (defined $payments->{SUM} && $max_sum > $payments->{SUM})) {
+    if ($attr->{MERCHANT_ID}) {
+      foreach my $param (keys %{$params}) {
+        $conf{$param} = $params->{$param};
+      }
+    }
+
+    return 1;
+  }
+
+  my ($merchant_id_key) = grep {/PAYMENTS_NEXT_MERCHANT/g} keys %{$params};
+  if (!$merchant_id_key || !$params->{$merchant_id_key}) {
+    if ($attr->{MERCHANT_ID} || $max_sum) {
+      return 0;
+    }
+    else {
+      return 1;
+    }
+  }
+
+  $attr->{MERCHANT_ID} = $params->{$merchant_id_key || ''} || '--';
+  $attr->{MERCHANTS} ||= [ $merchant_id ];
+  return 0 if (in_array($attr->{MERCHANT_ID}, $attr->{MERCHANTS}));
+  push @{$attr->{MERCHANTS}}, $attr->{MERCHANT_ID};
+
+  return _check_max_payments($attr);
 }
 
 #**********************************************************
@@ -1742,6 +1863,123 @@ sub _paysys_execute_external_command {
   $Paysys_base->payments_maked({ UID => $attr->{UID} });
 
   return 1;
+}
+
+#**********************************************************
+=head2 paysys_statement_processing() - execute external command
+
+=cut
+#**********************************************************
+sub paysys_statement_processing {
+  my ($statement) = @_;
+
+  return 1 if (!$conf{PAYSYS_STATEMENTS_MULTI_CHECK});
+
+  my @check_arr = split(/;\s?/, $conf{PAYSYS_STATEMENTS_MULTI_CHECK});
+
+  return 2 if (!scalar @check_arr);
+
+  my $regex = $conf{PAYSYS_STATEMENTS_MULTI_CHECK_REGEX} || '\s|\;|:|№|\/';
+
+  my @values = split(/$regex/, $statement);
+  @values = grep { defined $_ && $_ ne '' } @values;
+
+  foreach my $check_field (@check_arr) {
+    my ($field_name, $field_type, $field_regex) = split(/:/, $check_field);
+
+    next if (!$field_name);
+    $field_name = uc($field_name);
+
+    my $pattern = $field_regex ? qr/$field_regex/ : '';
+    my $search_str = '';
+
+    if ($field_type && $field_type eq 'INT') {
+      foreach my $value (@values) {
+        next if (!is_number($value));
+        next if ($pattern && $value !~ $pattern);
+        $search_str .= "$value,";
+      }
+    }
+    else {
+      foreach my $value (@values) {
+        next if ($pattern && $value !~ /$pattern/);
+        if ($check_field eq 'FIO') {
+          $search_str .= "*$value*,";
+        }
+        else {
+          $search_str .= "$value,";
+        }
+      }
+    }
+
+    my $users_list = $users->list({
+      LOGIN          => '_SHOW',
+      FIO            => '_SHOW',
+      DEPOSIT        => '_SHOW',
+      CREDIT         => '_SHOW',
+      PHONE          => '_SHOW',
+      ADDRESS_FULL   => '_SHOW',
+      DISABLE_PAYSYS => '_SHOW',
+      GROUP_NAME     => '_SHOW',
+      DISABLE        => '_SHOW',
+      CONTRACT_ID    => '_SHOW',
+      ACTIVATE       => '_SHOW',
+      REDUCTION      => '_SHOW',
+      BILL_ID        => '_SHOW',
+      $field_name    => $search_str || '--',
+      _MULTI_HIT     => 1,
+      COLS_NAME      => 1,
+      COLS_UPPER     => 1,
+      PAGE_ROWS      => 1000,
+    });
+
+    if ($users->{errno}) {
+      delete $users->{errno};
+      next;
+    }
+
+    my %users_list = ();
+
+    foreach my $user (@{$users_list}) {
+      my $key = $user->{$field_name};
+      $users_list{$key} = [] if (!exists $users_list{$key});
+      push @{$users_list{$key}}, $user;
+    }
+
+    foreach my $key (keys %users_list) {
+      my $matches = scalar @{$users_list{$key}} || 0;
+      next if (!$matches);
+
+      return 0, $users_list{$key} if ($matches < 2);
+
+      #TODO: add logic of advanced address search
+
+      next if ($matches > 1 && $field_name ne 'FIO');
+
+      my $matched_user = '';
+
+      foreach my $user_obj (@{$users_list{$key}}) {
+        my @fio = split(/\s/, lc($user_obj->{FIO}));
+        @fio = grep { defined $_ && $_ ne '' } @fio;
+
+        my $fio_pattern = '(?=.*' . join(')(?=.*', map { quotemeta } @fio) . ')';
+
+        if (lc($statement) =~ /$fio_pattern/) {
+          if ($matched_user) {
+            $matched_user = '';
+            last;
+          }
+          else {
+            $matched_user = $user_obj;
+          }
+        }
+      }
+
+      return 0, $matched_user if ($matched_user);
+    }
+  }
+
+  return 3;
 }
 
 1;

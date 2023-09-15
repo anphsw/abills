@@ -105,6 +105,8 @@ sub equipment_pon_report {
     GEPON_SUPPORTED_ONUS => '_SHOW',
     COLS_NAME            => 1
   });
+  my $index_equipment_list = get_function_index('equipment_list');
+  my $index_equipment_onu_report = get_function_index('equipment_onu_report');
 
   my %equipment_list = map { $_->{nas_id} => $_ } @$equipment_list;
   my $olt_count = $Equipment->{TOTAL} || '0';
@@ -144,13 +146,13 @@ sub equipment_pon_report {
     caption => $html->button($lang{REPORT_PON}, "index=" . get_function_index('equipment_pon_form')),
     ID      => 'PON_INFO',
     rows    => [
-      [ $lang{OLT_COUNT}, $olt_count ],
-      [ $lang{BRANCH_COUNT}, $branch_count ],
-      [ $lang{BRANCH_TOTAL_FILL}, $branch_total_fill ],
-      [ $lang{ONU_COUNT}, $onu_count ],
-      [ $lang{ACTIVE_ONU_COUNT}, $active_onu_count ],
-      [ $lang{INACTIVE_ONU_COUNT}, $inactive_onu_count ],
-      [ $lang{BAD_ONU_COUNT}, $bad_onu_count ]
+      [ $lang{OLT_COUNT},          $html->button($olt_count, "index=$index_equipment_list&TYPE_ID=4") ],
+      [ $lang{BRANCH_COUNT},       $html->button($branch_count, "index=$index_equipment_onu_report") ],
+      [ $lang{BRANCH_TOTAL_FILL},  $branch_total_fill ],
+      [ $lang{ONU_COUNT},          $html->button($onu_count, "index=$index_equipment_onu_report") ],
+      [ $lang{ACTIVE_ONU_COUNT},   $html->button($active_onu_count, "index=$index_equipment_onu_report")],
+      [ $lang{INACTIVE_ONU_COUNT}, $html->button($inactive_onu_count, "index=$index_equipment_onu_report&ONU=INACTIVE") ],
+      [ $lang{BAD_ONU_COUNT},      $html->button($bad_onu_count, "index=$index_equipment_onu_report&ONU=BAD") ]
     ]
   });
 
@@ -170,9 +172,13 @@ sub equipment_unreg_report {
     title_plain => [ "OLT", $lang{COUNT} ],
     ID          => 'UNREG_ITEMS',
   });
+  my $refresh_period = ($conf{REFRESH_PERIOD_FOR_UNREG_ONU}) ? ($conf{REFRESH_PERIOD_FOR_UNREG_ONU}) : 300;
 
   return $html->tpl_show(_include('equipment_unreg_onu_report', 'Equipment'),
-    { UNREG_TABLE => $table->show() }, { OUTPUT2RETURN => 1 });
+    {
+      UNREG_TABLE  => $table->show(),
+      PERIOD       => $refresh_period
+    }, { OUTPUT2RETURN => 1 });
 }
 
 #**********************************************************
@@ -341,14 +347,15 @@ sub equipment_onu_report {
     next if(!$nas_info->[0]);
 
     my $onus = $Equipment->onu_list({
-      NAS_ID    => $line->{nas_id},
-      RX_POWER  => '_SHOW',
-      NAS_IP    => '_SHOW',
-      DELETED   => 0,
-      STATUS    => '_SHOW',
-      PON_TYPE  => '_SHOW',
-      BRANCH    => '_SHOW',
-      COLS_NAME => 1,
+      NAS_ID      => $line->{nas_id},
+      RX_POWER    => ($FORM{ONU} && $FORM{ONU} eq 'INACTIVE') ? '0' : '_SHOW',
+      NAS_IP      => '_SHOW',
+      DELETED     => 0,
+      STATUS      => '_SHOW',
+      PON_TYPE    => '_SHOW',
+      BRANCH      => '_SHOW',
+      BRANCH_DESC => '_SHOW',
+      COLS_NAME   => 1,
     });
 
     my %branch_list = ();
@@ -359,6 +366,7 @@ sub equipment_onu_report {
       }
 
       $branch_list{$onu->{branch}}{total_count} += 1;
+      $branch_list{$onu->{branch}}{branch_desc} = $onu->{branch_desc};
 
       if (in_array($onu->{status}, \@ONU_ONLINE_STATUSES)) {
         $branch_list{$onu->{branch}}{online_count} += 1;
@@ -379,6 +387,8 @@ sub equipment_onu_report {
     my $total_count = 0;
     my $total_possible = 0;
     my $busy = 0;
+    my $title_count = $lang{COUNT};
+
     foreach my $branch (@$full_branch_list) {
       next if ($branch->{nas_id} != $line->{nas_id});
 
@@ -400,13 +410,17 @@ sub equipment_onu_report {
     if ($total_possible != 0) {
       $busy = sprintf("%.2f", $total_count / $total_possible * 100);
     }
+    if ($FORM{ONU} && $FORM{ONU} eq 'INACTIVE'){
+      $title_count .= " $lang{OFFLINE}";
+    }
+    my $index_equipment_info = get_function_index('equipment_info');
 
     my $table = $html->table({
       ID      => 'info_' . $line->{nas_id},
-      title   => [ $lang{INTERFACE}, $lang{COUNT}, $lang{GOOD_SIGNAL}, $lang{GOOD_SIGNAL} . ' %', $lang{WORTH_SIGNAL}, $lang{WORTH_SIGNAL} . ' %', $lang{BAD_SIGNAL}, $lang{BAD_SIGNAL} . ' %' ],
+      title   => [ $lang{INTERFACE}, $title_count, $lang{GOOD_SIGNAL}, $lang{GOOD_SIGNAL} . ' %', $lang{WORTH_SIGNAL}, $lang{WORTH_SIGNAL} . ' %', $lang{BAD_SIGNAL}, $lang{BAD_SIGNAL} . ' %', $lang{COMMENTS} ],
       caption => $html->button(
           "$nas_info->[0]->{nas_id}: $nas_info->[0]->{nas_name} ($nas_info->[0]->{nas_ip})",
-          "index=" . get_function_index('equipment_info') . "&visual=4&NAS_ID=$nas_info->[0]->{nas_id}"
+          "index=" . $index_equipment_info. "&visual=4&NAS_ID=$nas_info->[0]->{nas_id}"
         ) .
         " - $lang{OLT_BUSY} $busy% ($total_count ONU $lang{REGISTERED})",
     });
@@ -415,21 +429,28 @@ sub equipment_onu_report {
       my $total = $branch_list{$key}->{total_count};
       my $online = $branch_list{$key}->{online_count};
 
+      if ($FORM{ONU} && $FORM{ONU} eq 'INACTIVE'){
+        $total = ($branch_list{$key}->{total_count} || 0) - ($branch_list{$key}->{online_count} || 0);
+      }
+
       my $good = $branch_list{$key}->{good_count};
       my $worth = $branch_list{$key}->{worth_count};
-      my $bad = $branch_list{$key}->{bad_count};
+      my $bad = $branch_list{$key}->{bad_count} || 0;
+      next if ($FORM{ONU} && $FORM{ONU} eq 'BAD' && $bad == 0);
+
       $table->addrow(
         $html->button(
           $branch_list{$key}->{pon_type} . ' ' . $key,
-          "index=" . get_function_index('equipment_info') . "&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$branch_list{$key}->{id}"
+          "index=" . $index_equipment_info . "&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$branch_list{$key}->{id}"
         ),
         $total,
         $html->badge($good, { TYPE => 'badge-success' }),
         $good ? sprintf("%.2f", $good / $online * 100) . '%' : '',
-        $html->badge($worth, { TYPE => 'badge-warning' }),
+        $html->button($html->badge($worth, { TYPE => 'badge-warning' }), "index=$index_equipment_info&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$branch_list{$key}->{id}&RX_POWER_SIGNAL=WORTH", {target => '_blank' }),
         $worth ? sprintf("%.2f", $worth / $online * 100) . '%' : '',
-        $html->badge($bad, { TYPE => 'badge-danger' }),
-        $bad ? sprintf("%.2f", $bad / $online * 100) . '%' : ''
+        $html->button($html->badge($bad, { TYPE => 'badge-danger' }), "index=$index_equipment_info&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$branch_list{$key}->{id}&RX_POWER_SIGNAL=BAD", {target => '_blank' }),
+        $bad ? sprintf("%.2f", $bad / $online * 100) . '%' : '',
+        $branch_list{$key}->{branch_desc}
       );
     }
 

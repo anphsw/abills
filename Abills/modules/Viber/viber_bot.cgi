@@ -45,7 +45,13 @@ require Abills::Misc;
 
 our $db = Abills::SQL->connect(@conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
   { CHARSET => $conf{dbcharset} });
+
 our $admin = Admins->new($db, \%conf);
+$admin->info($conf{USERS_WEB_ADMIN_ID} ? $conf{USERS_WEB_ADMIN_ID} : 3, {
+  IP        => $ENV{REMOTE_ADDR},
+  SHORT     => 1
+});
+
 our $Users = Users->new($db, $admin, \%conf);
 our $Contacts = Contacts->new($db, $admin, \%conf);
 our $Bot_db = Viber->new($db, $admin, \%conf);

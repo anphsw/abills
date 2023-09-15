@@ -1,4 +1,4 @@
-<form class='col-md-4' action=%SELF_URL% method='POST'>
+<form class='col-md-4 mb-3' action=%SELF_URL% method='POST'>
   <input class='form-control' type='hidden' name='index' value='%index%'/>
   <div class='card card-primary abon-card'>
     <div class='card-header text-center border-0'>
@@ -14,7 +14,7 @@
           <div class='text-center mt-3'><p>%PERSONAL_DESCRIPTION%</p></div>
           %ADDON%
         </div>
-        <div class='button-wrapper d-flex justify-content-between align-items-end'>
+        <div class='button-wrapper justify-content-between row m-0' style='gap: 8px'>
           <div class='row flex-nowrap px-1'>
             <div>
               <p class='sum'>%PRICE%</p>
@@ -25,7 +25,7 @@
               /%PERIOD%
             </div>
           </div>
-          <div>
+          <div class='ml-auto'>
             %BUTTON%
           </div>
         </div>

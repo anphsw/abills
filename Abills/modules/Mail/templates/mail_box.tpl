@@ -54,10 +54,10 @@
       	<input class='form-control' id='MAILS_LIMIT' placeholder='%MAILS_LIMIT%' name='MAILS_LIMIT' value='%MAILS_LIMIT%'>
      	</div>
       <div class='col-md-3'>
-      	<label for='card_SIZE' class='control-label'>_{SIZE}_(Mb):</label>
+      	<label for='BOX_SIZE' class='control-label'>_{SIZE}_(Mb):</label>
       </div>
       <div class='col-md-3'>
-      	<input class='form-control' id='card_SIZE' placeholder='%BOX_SIZE%' name='card_SIZE' value='%BOX_SIZE%'>
+      	<input class='form-control' id='BOX_SIZE' placeholder='%BOX_SIZE%' name='BOX_SIZE' value='%BOX_SIZE%'>
      	</div>
   	</div>
 

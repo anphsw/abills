@@ -6,7 +6,7 @@ package Sorm::Uzb;
 
 =head1 DOCS
 
-  version: v1.5
+  version: v1.6
 
   Standart execute
   /usr/abills/libexec/billd sorm TYPE=Uzb START=1
@@ -15,8 +15,8 @@ package Sorm::Uzb;
 
 =head1 VERSION
 
-  VERSION: 1.5
-  UPDATE: 20230505
+  VERSION: 1.6
+  UPDATE: 20230705
 
 =cut
 
@@ -379,6 +379,8 @@ sub BASE_STATION_report {
   });
 
   foreach my $nas (@$nas_list) {
+    $nas->{mac} =~ s/\://g;
+
     my @arr = ();
     $arr[0] = $nas->{nas_id};       #ID
     $arr[1] = '';                   #BEGIN_TIME
@@ -422,6 +424,9 @@ sub NAT_report {
     my $user_internal_ip_int = $traffic->{src_addr};
     my $user_external_ip = '';
 
+    my $ip_in_range = _check_internal_network($traffic->{src_addr});
+    next if ($ip_in_range == 0);
+
     if ($self->{conf}->{SORM_INTERNAL_TO_EXTERNAL_IP}){
       my $ip_pool = ($self->{conf}->{SORM_INTERNAL_TO_EXTERNAL_IP});
 
@@ -442,18 +447,22 @@ sub NAT_report {
       }
     };
 
+    # internal and external port is the same
+    my $ip_port = ($traffic->{src_port} != 0) ? $traffic->{src_port} : 80;
+    my $dest_ip_port = ($traffic->{dst_port} != 0) ? $traffic->{dst_port} : 80;
+
     my @arr = ();
-    $arr[0] = $traffic->{s_time};   #TRANSLATION_TIME
-    $arr[1] = $sorm_id;             #REGION_ID
-    $arr[2] = 1;                    #RECORD_TYPE
+    $arr[0] = $traffic->{s_time};           #TRANSLATION_TIME
+    $arr[1] = $sorm_id;                     #REGION_ID
+    $arr[2] = 1;                            #RECORD_TYPE
     $arr[3] = int2ip($traffic->{src_addr}); #PRIVATE_IPV4
-    $arr[4] = $traffic->{src_port}; #PRIVATE_IP_PORT
-    $arr[5] = $user_external_ip;    #PUBLIC_IPV4
-    $arr[6] = 65000;                #PUBLIC_IP_PORT_END
+    $arr[4] = $ip_port;                     #PRIVATE_IP_PORT
+    $arr[5] = $user_external_ip;            #PUBLIC_IPV4
+    $arr[6] = 65000;                        #PUBLIC_IP_PORT_END
     $arr[7] = int2ip($traffic->{dst_addr}); #DEST_IPV4
-    $arr[8] = $traffic->{dst_port}; #DEST_IP_PORT
-    $arr[9] = '';                   #TRANSLATION_TYPE ???
-    $arr[10] = '';                  #PUBLIC_IP_PORT ???
+    $arr[8] = $dest_ip_port;                #DEST_IP_PORT
+    $arr[9] = '';                           #TRANSLATION_TYPE
+    $arr[10] = $ip_port;                    #PUBLIC_IP_PORT
 
     _add_report("NAT", @arr);
   }
@@ -649,6 +658,41 @@ sub _add_header {
 
   return 1;
 }
+
+#**********************************************************
+=head2 _check_internal_network(internal_ip) - check IP for internal network range
+
+      Argument:
+        internal_ip
+
+      Return
+        TRUE - in range
+        FALSE - out of range
+
+=cut
+#**********************************************************
+sub _check_internal_network {
+  my ($internal_ip) = @_;
+
+  my @internal_networks = (
+    '10.0.0.0/8',
+    '172.16.0.0/12',
+    '192.168.0.0/16',
+  );
+
+  foreach my $ip_range (@internal_networks) {
+    my ($ip, $prefix) = split('/', $ip_range);
+    my $ip_range_start = ip2int($ip);
+    my $ip_range_end = ip2int($ip) + 512;
+
+    if ($internal_ip >= $ip_range_start && $internal_ip <= $ip_range_end) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
 
 #**********************************************************
 =head2 send()

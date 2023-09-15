@@ -170,15 +170,28 @@ sub click {
   $message .= " $money_currency\\n";
 
   if ($credit_warn) {
-    if ($self->{conf}{user_credit_change} && $Users->{ALLOW_CREDIT}) {
-      $message .= "$self->{bot}->{lang}->{MESSAGE_PAYMENT}\\n";
-      my $inline_button = {
-        Text       => "$self->{bot}->{lang}->{SET_CREDIT_USER}",
-        ActionType => 'reply',
-        ActionBody => "fn:Services_and_account&credit",
-        TextSize   => 'regular'
-      };
-      push(@inline_keyboard, $inline_button);
+    if ($self->{conf}{user_credit_change}) {
+      my $credit_info = $Service_control->user_set_credit({ UID => $self->{bot}{uid}, REDUCTION => $Users->{REDUCTION} });
+      if (!$credit_info->{errstr}) {
+        my $currency = $self->{conf}{MONEY_UNIT_NAMES} || '';
+        my $sum = $credit_info->{CREDIT_SUM} || 0;
+        my $days = $credit_info->{CREDIT_DAYS} || 0;
+        my $price = $credit_info->{CREDIT_CHG_PRICE} || 0;
+        my $month_changes = $credit_info->{CREDIT_MONTH_CHANGES} || 0;
+
+        $message .= "$self->{bot}{lang}{SET_CREDIT}: $sum $currency\\n";
+        $message .= "$self->{bot}{lang}{CREDIT_OPEN}: $days $self->{bot}->{lang}->{DAYS}\\n";
+        $message .= "$self->{bot}{lang}{CREDIT_PRICE}: $price $currency\\n";
+        $message .= "$self->{bot}{lang}{SET_CREDIT_ALLOW}: $month_changes $self->{bot}->{lang}->{COUNT}\\n";
+
+        my $inline_button = {
+          Text       => "$self->{bot}->{lang}->{CREDIT_SET}",
+          ActionType => 'reply',
+          ActionBody => "fn:Services_and_account&credit",
+          TextSize   => 'regular'
+        };
+        push(@inline_keyboard, $inline_button);
+      }
     }
     else {
       $message .= "$self->{bot}->{lang}->{MESSAGE_PAYMENT}\\n";
@@ -258,7 +271,7 @@ sub stop_holdup {
   });
 
   $self->{bot}->send_message({
-    text       => $stop_holdup_result->{error} ?  $self->{bot}{lang}{ACTIVATION_ERROR} : $self->{bot}{lang}{SERVICE_ACTIVATED},
+    text       => $stop_holdup_result->{error} ? $self->{bot}{lang}{ACTIVATION_ERROR} : $self->{bot}{lang}{SERVICE_ACTIVATED},
     parse_mode => 'HTML'
   });
 
@@ -274,14 +287,18 @@ sub credit {
   my $self = shift;
   my ($attr) = @_;
 
-  my $credit_info = $Service_control->user_set_credit({ UID => $attr->{uid}, change_credit => 1 });
+  use Users;
+  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+  $Users->info($self->{bot}->{uid});
+
+  my $credit_info = $Service_control->user_set_credit({ UID => $self->{bot}->{uid}, REDUCTION => $Users->{REDUCTION}, change_credit => 1 });
 
   $self->{bot}->send_message({
-    text => $credit_info->{error} ? "$self->{bot}->{lang}->{CREDIT_NOT_EXIST}" : $self->{bot}->{lang}->{CREDIT_SUCCESS},
+    text => $credit_info->{errstr} ? ($self->{bot}{lang}{$credit_info->{errstr}} || $self->{bot}{lang}{CREDIT_NOT_EXIST}) : $self->{bot}{lang}{CREDIT_SUCCESS},
     type => 'text'
   });
 
-  return 1
+  return 1;
 }
 
 #**********************************************************
@@ -324,25 +341,25 @@ sub equipment_info_bot {
     COLS_NAME     => 1,
   });
 
-  unless ($onu_list) {
+  if ($Equipment->{TOTAL} < 1) {
     $message = "$self->{bot}->{lang}->{NOT_INFO}";
   }
   else {
-    $message .= "$self->{bot}->{lang}->{EQUIPMENT_USER}: $onu_list->[0]{branch_desc} $onu_list->[0]{branch}\\n";
-    $message .= "$self->{bot}->{lang}->{STATUS}: " . $status{ $onu_list->[0]{status} } . "\\n";
+    $message .= "$self->{bot}{lang}{EQUIPMENT_USER}: $onu_list->[0]{branch_desc} $onu_list->[0]{branch}\\n";
+    $message .= "$self->{bot}{lang}{STATUS}: " . $status{ $onu_list->[0]{status} } . "\\n";
     if ($internet_nas->[0]{online}) {
-      $message .= "$self->{bot}->{lang}->{CONNECTED}: Online\\n";
+      $message .= "$self->{bot}{lang}{CONNECTED}: Online\\n";
     }
     else {
-      $message .= "$self->{bot}->{lang}->{CONNECTED}: Offline\\n";
+      $message .= "$self->{bot}{lang}{CONNECTED}: Offline\\n";
     }
 
     if ($internet_nas->[0]{cid}
       && $internet_nas->[0]{online_cid}
       && $internet_nas->[0]{cid} ne $internet_nas->[0]{online_cid}) {
-      $message .= "$self->{bot}->{lang}->{MAC_INVALID}\\n";
-      $message .= "$self->{bot}->{lang}->{ALLOW_MAC}: $internet_nas->[0]{cid}\\n";
-      $message .= "$self->{bot}->{lang}->{INVALID_MAC}: $internet_nas->[0]{online_cid}\\n";
+      $message .= "$self->{bot}{lang}{MAC_INVALID}\\n";
+      $message .= "$self->{bot}{lang}{ALLOW_MAC}: $internet_nas->[0]{cid}\\n";
+      $message .= "$self->{bot}{lang}{INVALID_MAC}: $internet_nas->[0]{online_cid}\\n";
     }
   }
 

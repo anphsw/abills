@@ -61,44 +61,10 @@
           </div>
         </div>
       </div>
-
-      <div class='form-group row' data-visible='%OLD_CONTACTS_VISIBLE%' style='display:none'>
-        <label class='control-label col-md-2 col-xs-4' for='PHONE'>_{PHONE}_:</label>
-        <div class='col-md-10 col-xs-8'>
-          <div class='input-group'>
-          <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%'
-                 class='form-control' type='text' %OLD_PHONE_VISIBLE%
-                 data-inputmask='{"mask" : "(999) 999-9999", "removeMaskOnSubmit" : true}' />
-
-          <div class='input-group-append'>
-            <div class='input-group-text'>
-              <span class='input-group-addon clear_button'>
-                <span class='fa fa-phone'></span>
-              </span>
-            </div>
-          </div>
-          </div>
-        </div>
-      </div>
-
-      <div class='form-group row' data-visible='%OLD_CONTACTS_VISIBLE%' style='display:none'>
-        <label class='control-label col-md-2 col-xs-4' for='EMAIL'>E-mail (;):</label>
-        <div class='input-group col-md-10 col-xs-8'>
-          <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%'
-              class='form-control' type='text' %OLD_PHONE_VISIBLE%>
-          <span class='input-group-append'>
-            <a class='btn input-group-button'
-               href='%SELF_URL%?UID=$FORM{UID}&get_index=msgs_admin&add_form=1&SEND_TYPE=1&header=1&full=1'>
-              <i class='fa fa-envelope'></i>
-            </a>
-          </span>
-        </div>
-      </div>
     </div>
 
     %CONTACTS%
     %ADDRESS_TPL%
-
 
     <div class='card card-outline card-big-form collapsed-card mb-0 border-top'>
       <div class='card-header with-border'>
@@ -189,7 +155,7 @@
     </div>
 
     <div class='card-footer'>
-      <input type=submit class='btn btn-primary double_click_check' name='%ACTION%' value='%LNG_ACTION%'>
+      <input type=submit class='btn btn-primary double_click_check hidden_empty_required_filed_check' name='%ACTION%' value='%LNG_ACTION%'>
     </div>
   </div>
 

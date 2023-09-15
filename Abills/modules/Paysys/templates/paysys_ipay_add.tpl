@@ -46,6 +46,7 @@
             <a class='btn btn-default' href='https://www.ipay.ua/ua/faq'>_{READ_HERE}_</a>
           </div>
         </li>
+        %EXTRA_DESCRIPTIONS%
       </ul>
 
       <input type='submit' class='btn btn-primary float-right' value='_{PAY}_'>

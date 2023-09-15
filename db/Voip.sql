@@ -13,8 +13,6 @@ CREATE TABLE IF NOT EXISTS `voip_phone_aliases`
 )
     DEFAULT CHARSET = utf8 COMMENT = 'Voip online';
 
-
-
 CREATE TABLE IF NOT EXISTS `voip_calls`
 (
     `status`             TINYINT(4) UNSIGNED   NOT NULL DEFAULT '0',
@@ -37,7 +35,6 @@ CREATE TABLE IF NOT EXISTS `voip_calls`
     KEY `uid` (`uid`)
 )
     DEFAULT CHARSET = utf8 COMMENT = 'Voip online';
-
 
 CREATE TABLE IF NOT EXISTS `voip_log`
 (
@@ -102,7 +99,6 @@ CREATE TABLE IF NOT EXISTS `voip_route_groups`
 )
     DEFAULT CHARSET = utf8 COMMENT = 'Voip route groups';
 
-
 CREATE TABLE IF NOT EXISTS `voip_route_prices`
 (
     `route_id`           INT(11) UNSIGNED       NOT NULL DEFAULT '0',
@@ -115,7 +111,6 @@ CREATE TABLE IF NOT EXISTS `voip_route_prices`
     UNIQUE KEY `route_id` (`route_id`, `interval_id`)
 )
     DEFAULT CHARSET = utf8 COMMENT = 'Voip route price';
-
 
 CREATE TABLE IF NOT EXISTS `voip_routes`
 (
@@ -133,7 +128,6 @@ CREATE TABLE IF NOT EXISTS `voip_routes`
     UNIQUE KEY `prefix` (`prefix`)
 )
     DEFAULT CHARSET = utf8 COMMENT = 'Voip routes list';
-
 
 CREATE TABLE IF NOT EXISTS `voip_tps`
 (
@@ -1689,5 +1683,3 @@ COMMIT;
 
 INSERT INTO `voip_routes` (`prefix`, `name`, `descr`)
 VALUES ('9', 'Services', 'Services');
-
-
