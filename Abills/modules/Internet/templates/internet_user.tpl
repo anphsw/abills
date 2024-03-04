@@ -109,12 +109,15 @@
         </div>
 
         <div class='form-group row'>
-          <label class='col-form-label text-md-right col-xs-4 col-md-2' for='CID'>CID (;):</label>
+          <label class='col-form-label text-md-right col-xs-4 col-md-2' for='CID'>CID:</label>
           <div class='col-xs-8 col-md-4'>
             <div class='input-group'>
               <input id='CID' name='CID' value='%CID%' placeholder='%CID%' %CID_PATTERN% class='form-control' type='text'>
                 <div class='input-group-append'>
                   %CID_BUTTON_COPY%
+                </div>
+                <div class='input-group-append btn input-group-button d-none' id='CID_BLOCK_ANY'>
+                  %CID_BUTTON_ANY%
                 </div>
             </div>
           </div>
@@ -134,6 +137,9 @@
                    %CPE_PATTERN%>
               <div class='input-group-append'>
                 %CPE_MAC_BUTTON_COPY%
+              </div>
+              <div class='input-group-append btn input-group-button d-none' id='CPE_BLOCK_ANY'>
+                %CPE_BUTTON_ANY%
               </div>
             </div>
           </div>
@@ -335,6 +341,7 @@
   </div>
 </form>
 
+<script src='/styles/default/js/jquery.maskedinput.min.js'></script>
 <script>
   jQuery('#STATIC_IP_POOL').on('change', function () {
     let pool = jQuery(this);
@@ -353,4 +360,71 @@
       }
     });
   });
+
+  jQuery(function() {
+    // CID
+    var cid = document.getElementById("CID");
+    var cid_value = cid.value;
+    var cid_pattern = cid.pattern;
+    var cid_any = document.getElementById("CID_ANY");
+
+    if(cid_pattern){
+      jQuery('#CID_BLOCK_ANY').removeClass('d-none');
+    }
+
+    if (cid_value == 'ANY' || cid_value == 'Any' || cid_value == 'any'){
+      jQuery("#CID").unmask();
+      cid_any.checked = true;
+    }
+    else {
+      if (cid_pattern){
+        jQuery("#CID").mask('%CID_MASK%');
+        cid_any.checked = false;
+      }
+    }
+
+    jQuery('#CID_ANY').on('click', function (event) {
+      if (cid_any.checked == true){
+        jQuery("#CID").unmask();
+        cid.value = 'ANY';
+      }
+      else {
+        jQuery("#CID").mask('%CID_MASK%');
+        cid.value = cid_value || '';
+      }
+    });
+
+    // CPE MAC
+    var cpe = document.getElementById("CPE_MAC");
+    var cpe_value = cpe.value;
+    var cpe_pattern = cpe.pattern;
+    var cpe_any = document.getElementById("CPE_ANY");
+
+    if(cpe_pattern){
+      jQuery('#CPE_BLOCK_ANY').removeClass('d-none');
+    }
+
+    if (cpe_value == 'ANY' || cpe_value == 'Any' || cpe_value == 'any'){
+      jQuery("#CPE_MAC").unmask();
+      cpe_any.checked = true;
+    }
+    else {
+      if (cpe_pattern){
+        jQuery("#CPE_MAC").mask('%CPE_MASK%');
+        cpe_any.checked = false;
+      }
+    }
+
+    jQuery('#CPE_ANY').on('click', function (event) {
+      if (cpe_any.checked == true){
+        jQuery("#CPE_MAC").unmask();
+        cpe.value = 'ANY';
+      }
+      else {
+        jQuery("#CPE_MAC").mask('%CPE_MASK%');
+        cpe.value = cpe_value || '';
+      }
+    });
+  });
+
 </script>

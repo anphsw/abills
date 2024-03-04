@@ -1,6 +1,7 @@
 $lang{ORG_NAME}  ='Назва організації';
 $lang{WRONG_SUM} ='Мала сума';
 @MONTHES_LIT=('січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня');
+@MONTHES_LIT_NOM=('січень', 'лютий', 'березень', 'квітень', 'травень', 'червень', 'липень', 'серпень', 'вересень', 'жовтень', 'листопад', 'грудень');
 $lang{YEAR_SHORT}='p.';
 
 $lang{ERR_NO_ORDERS}='Не вибрані замовлення';
@@ -29,13 +30,11 @@ $lang{AMOUNT_FOR_PAY}='Сума для оплати';
 $lang{CURENT_BILLING_PERIOD}='Поточний обрахунковий період';
 $lang{NEXT_PERIODS}='Наступні обрахункові періоди';
 
-
 $lang{INCLUDE_CUR_BILLING_PERIOD}='Включити рахунки за поточний період';
 $lang{NOT_INCLUDE_CUR_BILLING_PERIOD}='Не включати рахунки за поточний період';
 
 $lang{LAST_INVOICE_DATE}='Дата останнього рахунку';
 $lang{NEXT_INVOICE_DATE}='Дата наступного рахунку';
-
 
 $lang{INVOICE_AUTO_GEN}='Автоматичне створення рахунку';
 $lang{INVOICING_PERIOD}='Період виписки рахунку';
@@ -60,9 +59,9 @@ $lang{PRINT_TERMO_PRINTER} = 'Чек для термопринтера';
 $lang{UNPAID_INVOICES} = 'Неоплачені рахунки';
 $lang{SAVE_CONTROL_SUM}='Завантажити контрольну суму документа';
 $lang{LIST_OF_CHARGES}='Список нарахувань';
-$lang{DELETED_GROUP}="Видалити групою";
-$lang{NO_CHECK_DOCUMENT}="Виберіть документи, які потрібно видалити";
-$lang{OPERATION}="Операція успішно виконана";
+$lang{DELETED_GROUP}='Видалити групою';
+$lang{NO_CHECK_DOCUMENT}='Виберіть документи, які потрібно видалити';
+$lang{OPERATION}='Операція успішно виконана';
 $lang{PAYMENT_SUM}='Оплачено';
 
 $lang{FOR_TIME} = "за період";
@@ -74,5 +73,21 @@ $lang{PAYER} = 'Платник';
 $lang{FEE} = 'Списання';
 $lang{PAYMENT} = 'Оплата';
 
+$lang{ESIGN} = 'Електронний підпис';
+$lang{ESIGN_SERVICE_NOT_CONNECTED} = 'Служби електронного підпису не підключені';
+$lang{ESIGN_SERVICE_BAD_CONFIGURATION} = 'Некоректні налаштування сервісу електронного підпису. Перевірте налаштування або зверніться до технічної підтримки';
+$lang{DEPARTMENT_NAME} = 'Назва відділення';
+$lang{FULL_DEPARTMENT_NAME} = 'Повна назва відділення';
+$lang{FULL_DEPARTMENT_ADDR} = 'Повний адрес';
+$lang{REGION} = 'Область';
+$lang{RETURN_LINK} = 'Зворотне посилання';
+$lang{NO_SIGN_SERVICE} = 'Немає можливості зробити підпис, сервіс не підтримує дану операцію';
+$lang{ERR_IIT_LIBRARY} = 'ІІТ бібліотека не налаштована, прохання перевірити налаштування бібліотеки.';
+$lang{IIT_LIBRARY_CONFIGURED} = 'ІІТ бібліотека налаштована успішно, можливе проведення підписів.';
+$lang{DOCUMENT_ALREADY_SIGNING} = 'Документ уже уже в процесі підписання';
+$lang{DOCUMENT_SIGNING} = 'Документ очікує на підписання від користувача';
+$lang{DOCUMENT_SEND_USER_FOR_SIGN} = 'Документ успішно відправлено користувачеві на підписання';
+$lang{DOCUMENT_SIGNED} = 'Документ підписаний';
+$lang{SIGNED_DOCUMENTS} = 'Підписані документи';
 
 1;

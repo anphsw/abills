@@ -76,6 +76,10 @@ sub contacts_list {
 
   return [] if ( !$attr->{UID} );
 
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'priority';
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $GROUP_BY = $attr->{GROUP_BY} || 'uc.id';
+
   my @search_columns = (
     [ 'UID',       'INT',     'uc.uid'        ,1 ],
     [ 'VALUE',     'STR',     'uc.value'      ,1 ],
@@ -84,7 +88,13 @@ sub contacts_list {
     [ 'TYPE',      'INT',     'uc.type_id'    ,1 ],
     [ 'DEFAULT',   'INT',     'uct.is_default',1 ],
     [ 'TYPE_NAME', 'STR',     'uct.name'      ,1 ],
-    [ 'HIDDEN',    'INT',     'uct.hidden'       ]
+    [ 'HIDDEN',      'INT',     'uct.hidden'       ],
+    [ 'FIO',         'STR',     'up.fio',       ,1 ],
+    [ 'GROUP',       'INT',     'u.gid',        ,1 ],
+    [ 'DISTRICT_ID', 'INT','d.id','d.id AS district_id' ],
+    [ 'STREET_ID',   'INT','s.id','s.id AS street_id '  ],
+    [ 'LOCATION_ID', 'INT','b.id','b.id AS builds_id'   ],
+    [ 'DATE',        'DATE',    'uc.date',      ,1 ]
   );
 
   if ( $attr->{SHOW_ALL_COLUMNS} ) {
@@ -98,11 +108,26 @@ sub contacts_list {
     $EXT_TABLES = "LEFT JOIN users_contact_types uct ON (uc.type_id=uct.id)"
   }
 
+  if ( $attr->{GROUP}) {
+    $EXT_TABLES .= "LEFT JOIN users u ON (u.uid=uc.uid)";
+  }
+
+  if ( $attr->{DISTRICT_ID} || $attr->{BUILD_ID}) {
+    $EXT_TABLES .= qq{
+       LEFT JOIN builds    b ON (b.id=up.location_id)
+       LEFT JOIN streets   s ON (s.id=b.street_id)
+       LEFT JOIN districts d ON (d.id=s.district_id)
+    };
+  }
+
   $self->query("
     SELECT $self->{SEARCH_FIELDS} uc.id
     FROM users_contacts uc
+    LEFT JOIN users_pi up ON (up.uid=uc.uid)
     $EXT_TABLES
-    $WHERE ORDER BY priority;",
+    $WHERE
+    GROUP BY $GROUP_BY
+    ORDER BY $SORT $DESC;",
     undef,
     { COLS_NAME => 1, %{ $attr ? $attr : {} } }
   );
@@ -146,6 +171,7 @@ sub contacts_add{
   my ($attr) = @_;
 
   $attr->{value} =~ s/(.*?)\t//g if ($attr->{value});
+  $attr->{DATE} = "NOW()" if (!$attr->{DATE});
 
   $self->query_add('users_contacts', $attr, { REPLACE => 1 });
 
@@ -717,6 +743,7 @@ sub push_messages_list {
     [ 'STATUS',     'INT', 'status',    1],
     [ 'UID',        'INT', 'uid',       1],
     [ 'AID',        'INT', 'aid',       1],
+    ['DATE_START|DATE_END', 'STR', 'created' ],
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}){

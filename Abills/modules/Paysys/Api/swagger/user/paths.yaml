@@ -1,0 +1,10 @@
+/user/paysys/systems:
+  $ref: "./paths/systems.yaml"
+/user/paysys/pay:
+  $ref: "./paths/pay.yaml"
+/user/paysys/transaction/status:
+  $ref: "./paths/transactionInfo.yaml"
+/user/paysys/transaction/status/{id}:
+  $ref: "./paths/transactionInfoNew.yaml"
+/user/paysys/applePay/session:
+  $ref: "./paths/appleSession.yaml"

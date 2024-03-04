@@ -1,0 +1,2 @@
+/user/expert/faqs:
+  $ref: "./paths/faqs.yaml"

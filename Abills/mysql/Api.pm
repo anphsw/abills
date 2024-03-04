@@ -113,6 +113,10 @@ sub list {
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my @WHERE_RULES = ();
+
+  push @WHERE_RULES, "al.request_headers LIKE '%ABillSLite%'" if $attr->{MOBILE_APP};
+  push @WHERE_RULES, "al.date>=(NOW() - INTERVAL 31 DAY)" if $attr->{LAST_MONTH};
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',              'INT',    'al.id'       ,                     1],
@@ -130,7 +134,9 @@ sub list {
     [ 'HTTP_STATUS',     'INT',    'al.http_status',                   1],
     [ 'HTTP_METHOD',     'STR',    'al.http_method',                   1],
   ],
-    { WHERE => 1 }
+    { WHERE => 1,
+      WHERE_RULES => \@WHERE_RULES
+    }
   );
 
   $self->query("
@@ -147,7 +153,8 @@ sub list {
       COLS_UPPER => 1
     }
   );
-  my $list = $self->{list};
+
+  my $list = $self->{list} || [];
 
   return [] if ($self->{errno} || $self->{TOTAL} < 1);
 
@@ -159,6 +166,37 @@ sub list {
   );
 
   return $list;
+}
+
+#**********************************************************
+=head2 log_rotate($attr) - Rotate api logs (MONTHLY)
+
+  Arguments:
+    $attr
+
+=cut
+#**********************************************************
+sub log_rotate{
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @rq = ();
+
+  if($self->{conf}->{USE_PARTITIONING}) {
+    return $self;
+  }
+
+  push @rq, 'CREATE TABLE IF NOT EXISTS api_log_new LIKE api_log;',
+    'RENAME TABLE api_log TO api_log_old, api_log_new TO api_log;',
+    "INSERT INTO api_log SELECT * FROM api_log_old WHERE date>=(NOW() - INTERVAL 31 DAY) ORDER BY 1;",
+    'DROP TABLE api_log_old;',
+  ;
+
+  foreach my $query (@rq) {
+    $self->query($query, 'do');
+  }
+
+  return $self;
 }
 
 1;

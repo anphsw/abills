@@ -177,27 +177,23 @@ sub internet_ipoe_activate{
       $html->message( 'err', $lang{ERROR}, $lang{ERR_UNKNOWN_IP}, { ID => 323 } );
     }
     else{
-      my $user = $users->info( $LIST_PARAMS{UID} );
-      $Internet_ipoe->online_alive(
-        {
-          LOGIN       => $user->{LOGIN} || $users->{LOGIN},
-          REMOTE_ADDR => $ip,
-        }
-      );
+      $user = $users->info( $LIST_PARAMS{UID} );
+      $Internet_ipoe->online_alive({
+        LOGIN       => $user->{LOGIN},
+        REMOTE_ADDR => $ip,
+      });
 
       if ( $Internet_ipoe->{TOTAL} < 1 ){
         $Nas->info( { NAS_ID => $nas_id } );
 
         if ( $Internet->{SIMULTANEONSLY} && $Internet->{SIMULTANEONSLY} == 1 ){
-          $Ipoe_collector->acct_stop(
-            {
-              USER_NAME            => $user->{LOGIN},
-              NAS_ID               => $nas_id,
-              STATUS               => 2,
-              CALLING_STATION_ID   => $Internet->{CID} || $ip,
-              ACCT_TERMINATE_CAUSE => $attr->{ACCT_TERMINATE_CAUSE} || 6
-            }
-          );
+          $Ipoe_collector->acct_stop({
+            USER_NAME            => $user->{LOGIN},
+            NAS_ID               => $nas_id,
+            STATUS               => 2,
+            CALLING_STATION_ID   => $Internet->{CID} || $ip,
+            ACCT_TERMINATE_CAUSE => $attr->{ACCT_TERMINATE_CAUSE} || 6
+          });
         }
 
        ($Nas->{NAS_MNG_IP}, undef, $Nas->{NAS_MNG_PORT})=split(/:/, $Nas->{NAS_MNG_IP_PORT} || q{});
@@ -991,7 +987,7 @@ sub ipoe_use{
   });
 
   my %totals = ();
-  our %DATA_HASH;
+  our %DATA_HASH = ();
   %CHARTS = (
     TYPES  => {
       date        => 'column',

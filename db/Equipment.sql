@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS `equipment_models` (
   `extra_port3` SMALLINT(6) UNSIGNED DEFAULT '0',
   `extra_port4` SMALLINT(6) UNSIGNED DEFAULT '0',
   `ports_type` SMALLINT(5) UNSIGNED DEFAULT '1',
-  `port_shift` smallint(4) NOT NULL DEFAULT '0',
+  `port_shift` int(11) NOT NULL DEFAULT '0',
   `auto_port_shift` TINYINT(1) NOT NULL DEFAULT '0',
   `fdb_uses_port_number_index` TINYINT(1) NOT NULL DEFAULT '0',
   `electric_power` INT(6) UNSIGNED NOT NULL DEFAULT '0',
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS `equipment_models` (
   KEY type_id (`type_id`),
   UNIQUE KEY `model` (`vendor_id`, `type_id`, `model_name`)
 )
-  AUTO_INCREMENT = 1000
+  AUTO_INCREMENT = 10000
   DEFAULT CHARSET = utf8
   COMMENT = 'Equipment models';
 
@@ -271,7 +271,7 @@ CREATE TABLE IF NOT EXISTS `equipment_pon_onu` (
   `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `port_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `onu_snmp_id` VARCHAR(30) NOT NULL DEFAULT '',
-  `onu_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `onu_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `onu_mac_serial` VARCHAR(20) NOT NULL DEFAULT '',
   `onu_desc` VARCHAR(50) NOT NULL DEFAULT '',
   `onu_billing_desc` VARCHAR(50) NOT NULL DEFAULT '',

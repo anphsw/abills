@@ -39,3 +39,10 @@ $lang{MODE_PLAIN} = 'Тільки текст';
 $lang{CONTENT_FULL} = 'Текст статті';
 $lang{PORTAL_NEWSLETTERS} = 'Розсилка статей';
 $lang{FORMAT} = 'Форматувати';
+$lang{PORTAL_ATTACHMENTS} = 'Вкладення';
+$lang{DROP_FILE_OR_CLICK_TO_UPLOAD} = 'Перетягніть файл сюди або натисніть, щоб завантажити';
+$lang{NEWSLETTER_AGAIN} = 'Почати розсилку';
+$lang{NEWSLETTER_ALREADY_EXIST} = 'Невідправлена розсилка вже існує';
+$lang{DEEPLINK} = 'Діплінк';
+
+1;

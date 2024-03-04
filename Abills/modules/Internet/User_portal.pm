@@ -135,9 +135,9 @@ sub internet_user_info_proceed {
           #Deactive cure service (TP Service)
           if ($Isg->{CURE_SERVICE} =~ /TP/) {
             if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "deactivate-service", {
-                USER_NAME    => $user->{LOGIN},
-                CURE_SERVICE => $Isg->{CURE_SERVICE},
-                SERVICE_NAME => $service_name  })) {
+              USER_NAME    => $user->{LOGIN},
+              CURE_SERVICE => $Isg->{CURE_SERVICE},
+              SERVICE_NAME => $service_name  })) {
 
             }
           }
@@ -290,7 +290,7 @@ sub internet_user_info_proceed {
     $Internet->{STATUS_VALUE} = $status;
     $Internet->{STATUS_FIELD} = 'text-warning';
     $Internet->{STATUS_BTN} = ($user->{DISABLE} > 0) ? $html->b("($lang{ACCOUNT} $lang{DISABLE})")
-                                                  : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ID=>'ACTIVATE', class=> 'btn btn-sm btn-success float-right' });
+      : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ID=>'ACTIVATE', class=> 'btn btn-sm btn-success float-right' });
   }
   elsif ($Internet->{STATUS} == 5) {
     $Internet->{STATUS_VALUE} = $status;
@@ -298,7 +298,7 @@ sub internet_user_info_proceed {
 
     if ($Internet->{MONTH_ABON} && $user->{DEPOSIT} && $Internet->{MONTH_ABON} <= $user->{DEPOSIT}) {
       $Internet->{STATUS_BTN} = ($user->{DISABLE} > 0) ? $html->b("($lang{ACCOUNT} $lang{DISABLE})")
-                                                    : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ex_params => ' ID="ACTIVATE"', class=> 'btn btn-sm btn-success float-right' });
+        : $html->button($lang{ACTIVATE}, "&index=$index&sid=$sid&activate=1", { ex_params => ' ID="ACTIVATE"', class=> 'btn btn-sm btn-success float-right' });
     }
     else {
       if ($functions{$index} && $functions{$index} eq 'internet_user_info') {
@@ -399,8 +399,8 @@ sub internet_isg {
         width    => '600',
         rows     => [
           [
-              ($Isg->{ISG_SESSION_DURATION}) ? "$lang{SESSIONS} $lang{DURATION}: " . sec2time($Isg->{ISG_SESSION_DURATION}, { str => 1 }) : '',
-              ($Isg->{CURE_SERVICE} && $Isg->{CURE_SERVICE} !~ /TP/ && !$Isg->{TURBO_MODE_RUN}) ? $html->form_input('logon', "$lang{LOGON} ", { TYPE => 'submit', OUTPUT2RETURN => 1 }) : '',
+            ($Isg->{ISG_SESSION_DURATION}) ? "$lang{SESSIONS} $lang{DURATION}: " . sec2time($Isg->{ISG_SESSION_DURATION}, { str => 1 }) : '',
+            ($Isg->{CURE_SERVICE} && $Isg->{CURE_SERVICE} !~ /TP/ && !$Isg->{TURBO_MODE_RUN}) ? $html->form_input('logon', "$lang{LOGON} ", { TYPE => 'submit', OUTPUT2RETURN => 1 }) : '',
           ]
         ],
       }
@@ -493,10 +493,10 @@ sub internet_service_info {
     }
 
     push @extra_fields,$html->tpl_show(templates('form_row_client'), {
-        ID    => $id,
-        NAME  => $lang{$lang_},
-        VALUE => $Internet_->{$id} . ( $value_prefix ? (' ' . $value_prefix) : '' ),
-      }, { OUTPUT2RETURN => 1, ID => $id });
+      ID    => $id,
+      NAME  => $lang{$lang_} || $lang_,
+      VALUE => $Internet_->{$id} . ( $value_prefix ? (' ' . $value_prefix) : '' ),
+    }, { OUTPUT2RETURN => 1, ID => $id });
   }
 
   $Internet_->{EXTRA_FIELDS} = join(($FORM{json} ? ',' : ''), @extra_fields);
@@ -595,7 +595,7 @@ sub internet_discovery {
 
   if ($Sessions->{TOTAL} < 1 || $session_list->[0]->{guest} && ! $session_list->[0]->{uid}) {
 
-    my $DHCP_INFO = internet_dhcp_get_mac($user_ip, { CHECK_STATIC => 1 }); 
+    my $DHCP_INFO = internet_dhcp_get_mac($user_ip, { CHECK_STATIC => 1 });
 
     if (!$DHCP_INFO->{MAC}) {
       my $log_type = 'LOG_WARNING';
@@ -624,8 +624,8 @@ sub internet_discovery {
       if($FORM{discovery}) {
         if (internet_dhcp_get_mac_add($user_ip, $DHCP_INFO, { NAS_ID => $session_list->[0]->{nas_id} })) {
           $html->message('info', $lang{INFO}, "$lang{ACTIVATE}\n\n "
-              . (($Internet->{NEW_IP} && $Internet->{NEW_IP} ne '0.0.0.0') ? "IP: $Internet->{NEW_IP}\n" : q{})
-              .  "CID: $DHCP_INFO->{MAC}");
+            . (($Internet->{NEW_IP} && $Internet->{NEW_IP} ne '0.0.0.0') ? "IP: $Internet->{NEW_IP}\n" : q{})
+            .  "CID: $DHCP_INFO->{MAC}");
 
           if ($session_list->[0]->{acct_session_id}) {
             internet_hangup({
@@ -659,52 +659,8 @@ sub internet_user_chg_tp {
   my ($attr) = @_;
 
   my $period = $FORM{period} || 0;
-  if (!$conf{INTERNET_USER_CHG_TP}) {
-    $html->message('err', "$lang{CHANGE} $lang{TARIF_PLAN}", $lang{NOT_ALLOW}, { ID => 140 });
-    return 0;
-  }
-
-  my $uid = $LIST_PARAMS{UID};
-
-  if (!$uid) {
-    $html->message('err', $lang{ERROR}, $lang{USER_NOT_EXIST}, { ID => 19 });
-    return 0;
-  }
-
+  my $uid = $LIST_PARAMS{UID} || 0;
   $Internet = $Internet->user_info($uid, { DOMAIN_ID => $user->{DOMAIN_ID}, ID => $FORM{ID} });
-
-  if ($Internet->{TOTAL} < 1) {
-    $html->message('info', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 22 });
-    return 0;
-  }
-
-  if($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
-    $html->message('err', $lang{ERROR}, "$lang{PERSONAL} $lang{TARIF_PLAN}  $lang{ENABLED}", { ID => 23 });
-    return 0;
-  }
-
-  if ($conf{FEES_PRIORITY} && $conf{FEES_PRIORITY} =~ /bonus/ && $user->{EXT_BILL_DEPOSIT}) {
-    $user->{DEPOSIT} += $user->{EXT_BILL_DEPOSIT};
-  }
-
-  if ($user->{GID}) {
-    #Get user groups
-    $user->group_info($user->{GID});
-    if ($user->{DISABLE_CHG_TP}) {
-      $html->message('err', "$lang{CHANGE} $lang{TARIF_PLAN}", $lang{NOT_ALLOW}, { ID => 143 });
-      return 0;
-    }
-  }
-
-  #Get TP groups
-  $Tariffs->tp_group_info($Internet->{TP_GID});
-  if (!$Tariffs->{USER_CHG_TP}) {
-    $html->message('err', "$lang{CHANGE} $lang{TARIF_PLAN}", $lang{NOT_ALLOW}, { ID => 144 });
-    return 0;
-  }
-
-  my $next_abon = $Service_control->get_next_abon_date({ SERVICE_INFO => $Internet });
-  $Internet->{ABON_DATE} = $next_abon->{ABON_DATE};
 
   if ($FORM{set} && $FORM{ACCEPT_RULES}) {
     my $add_result = $Service_control->user_chg_tp({ %FORM, UID => $uid, SERVICE_INFO => $Internet, MODULE => 'Internet' });
@@ -715,17 +671,44 @@ sub internet_user_chg_tp {
     $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{SHEDULE_ID}]") if (!_message_show($del_result));
   }
 
-  $Shedule->info({ UID => $user->{UID}, TYPE => 'tp', MODULE => 'Internet' });
+  my $services_info = $Service_control->all_info({
+    INTERNAL_CALL   => 1,
+    UID             => $uid,
+    MODULE          => 'Internet',
+    FUNCTION_PARAMS => {
+      GROUP_BY        => 'internet.id',
+      INTERNET_STATUS => '_SHOW',
+      IP              => '_SHOW',
+      ID              => $Internet->{ID} || 0
+    },
+  });
+
+  if (ref($services_info) ne 'ARRAY' || $#{$services_info} < 0) {
+    $html->message('info', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 1360016 });
+    return 0;
+  }
+
+  my $service_info = $services_info->[0];
+
+  if ($service_info->{can_change_tp} eq 'false' && !$service_info->{schedule}) {
+    _message_show($service_info->{internal_results}->{can_change_tp});
+    return 0;
+  }
+
+  $Internet->{ABON_DATE} = '';
+  if ($service_info->{next_abon}) {
+    $Internet->{ABON_DATE} = $service_info->{next_abon}->{ABON_DATE};
+  }
+
+  my $next_abon = $Service_control->get_next_abon_date({ SERVICE_INFO => $Internet });
+  $Internet->{ABON_DATE} = $next_abon->{ABON_DATE};
 
   my $table;
-  if ($Shedule->{TOTAL} > 0) {
-    my $action = $Shedule->{ACTION};
-    my $service_id = 0;
-    if ($action =~ /:/) {
-      ($service_id, $action) = split(/:/, $action);
-    }
+  if ($service_info->{schedule}) {
+    my $schedule = $service_info->{schedule};
+    my $new_tp_id = $schedule->{TP_ID};
 
-    $Tariffs->info(0, { TP_ID => $action });
+    $Tariffs->info(0, { TP_ID => $new_tp_id });
 
     $table = $html->table({
       width      => '100%',
@@ -733,14 +716,14 @@ sub internet_user_chg_tp {
       ID         => 'INTERNET_TP_SHEDULE',
       rows       => [
         [ "$lang{TARIF_PLAN}:", "$Tariffs->{ID} : $Tariffs->{NAME}" ],
-        [ "$lang{DATE}:", "$Shedule->{Y}-$Shedule->{M}-$Shedule->{D}" ],
-        [ "$lang{ADDED}:", $Shedule->{DATE} ],
-        [ "ID:", $Shedule->{SHEDULE_ID} ] ]
+        [ "$lang{DATE}:", $schedule->{DATE_FROM} ],
+        [ "$lang{ADDED}:", $schedule->{DATE} ],
+        [ "ID:", $schedule->{SHEDULE_ID} ] ]
     });
 
-    $Tariffs->{TARIF_PLAN_SEL} = $table->show({ OUTPUT2RETURN => 1 }) . $html->form_input('SHEDULE_ID', "$Shedule->{SHEDULE_ID}", { TYPE => 'HIDDEN', OUTPUT2RETURN => 1 });
+    $Tariffs->{TARIF_PLAN_SEL} = $table->show({ OUTPUT2RETURN => 1 }) . $html->form_input('SHEDULE_ID', "$schedule->{SHEDULE_ID}", { TYPE => 'HIDDEN', OUTPUT2RETURN => 1 });
     $Tariffs->{TARIF_PLAN_TABLE} = $Tariffs->{TARIF_PLAN_SEL};
-    if (!$Shedule->{ADMIN_ACTION}) {
+    if ($schedule->{CAN_CANCEL} eq 'true') {
       $Tariffs->{ACTION} = 'del';
       $Tariffs->{LNG_ACTION} = "$lang{DEL}  $lang{SHEDULE}";
     }
@@ -759,12 +742,7 @@ sub internet_user_chg_tp {
       }),
     });
 
-    my $available_tariffs = $Service_control->available_tariffs({ %FORM, MODULE => 'Internet', UID => $uid });
-
-    if (ref($available_tariffs) ne 'ARRAY' || $#{$available_tariffs} < 0) {
-      $html->message('info', $lang{INFO}, $lang{ERR_NO_AVAILABLE_TP}, { ID => 142 });
-      return 0;
-    }
+    my $available_tariffs = $service_info->{internal_results}->{can_change_tp}->{available_tariffs};
 
     $table = $html->table({
       width   => '100%',
@@ -1002,8 +980,8 @@ sub internet_user_stats {
         $line->{interval_end},
         $line->{activate},
         $line->{prepaid},
-          ($line->{prepaid} > 0 && $traffic_rest > 0) ? $traffic_rest      : 0,
-          ($line->{prepaid} > 0 && $traffic_rest < 0) ? $html->color_mark(abs($traffic_rest), 'red') : 0,
+        ($line->{prepaid} > 0 && $traffic_rest > 0) ? $traffic_rest : 0,
+        ($line->{prepaid} > 0 && $traffic_rest < 0) ? $html->color_mark(abs($traffic_rest), 'red') : 0,
       );
     }
 

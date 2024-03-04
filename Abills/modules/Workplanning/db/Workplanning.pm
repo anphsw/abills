@@ -7,7 +7,7 @@ package Workplanning;
 =cut
 
 use strict;
-use parent 'main';
+use parent 'dbcore';
 my $MODULE = 'Workplanning';
 
 #**********************************************************
@@ -92,11 +92,12 @@ sub list {
     }
   );
 
-  $self->query2(
+  $self->query(
     "SELECT wp.*, a.name 
      FROM work_planning wp 
      JOIN admins a ON wp.aid=a.aid
-     $WHERE;",
+     $WHERE
+     ORDER BY $SORT $DESC;",
     undef,
     { COLS_NAME => 1 }
   );
@@ -117,13 +118,11 @@ sub change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'work_planning',
-      DATA         => $attr,
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'work_planning',
+    DATA         => $attr,
+  });
 
   return $self->{result};
 }

@@ -27,7 +27,8 @@ our (
   @bool_vals,
   @state_colors,
   @state_icon_colors,
-  @status
+  @status,
+  %menu_items
 );
 
 our Abills::HTML $html;
@@ -424,7 +425,7 @@ sub form_user_info {
   }
 
   if ($user_info->{DISABLE} && $user_info->{DISABLE} =~ /\d+/) {
-    if ($user_info->{DISABLE} == 1) {
+    if ($conf{HOLDUP_ALL} || $user_info->{DISABLE} == 1) {
       $user_info->{DISABLE_MARK} = $html->color_mark($html->b($lang{DISABLE}), $_COLORS[6]);
       $user_info->{DISABLE_CHECKBOX} = 'checked';
       $user_info->{DISABLE_COLOR} = 'bg-danger';
@@ -612,6 +613,11 @@ sub form_user_change {
     delete($form->{EXPIRE});
   }
 
+  if (!$permissions{0}{18}) {
+    $form->{SKIP_STATUS_CHANGE}=1;
+    delete($form->{DISABLE});
+  }
+
   if (!$permissions{0}{13} && $user_info->{DISABLE} =~ /\d+/ && $user_info->{DISABLE} == 2) {
     $form->{DISABLE} = 2;
   }
@@ -624,7 +630,7 @@ sub form_user_change {
     }
   }
 
-  $FORM{DISABLE_DATE} = ($user_info->{DISABLE} == 0) ? $DATE : '0000-00-00';
+  $FORM{DISABLE_DATE} = ($user_info->{DISABLE} || $FORM{DISABLE}) ? $DATE : '0000-00-00';
 
   $user_info->change($user_info->{UID}, { %FORM });
 
@@ -787,42 +793,6 @@ sub form_user_add {
     require Referral;
     Refferal->import();
     my $Referral = Referral->new($db, $admin, \%conf);
-
-    my $request_list = $Referral->request_list({
-      ID        => $FORM{REFERRAL_REQUEST},
-      REFERRER  => '_SHOW',
-      TP_ID     => '_SHOW',
-      COLS_NAME => 1,
-    });
-
-    my $tp = $Referral->tp_info($request_list->[0]->{referral_tp});
-    my $referrer = $request_list->[0]->{referrer};
-
-    if ($tp->{MULTI_ACCRUAL}) {
-      require Referral::Users;
-      Referral::Users->import();
-      my $Referral_users = Referral::Users->new($db, $admin, \%conf, {
-        html => $html,
-        lang => \%lang,
-      });
-
-      $Referral_users->_referral_add_bonus({
-        REFERRER    => $referrer,
-        UID         => $user_info->{UID},
-        FIO         => $FORM{FIO},
-        TOTAL_BONUS => $tp->{BONUS_AMOUNT},
-        BONUSES     => [ {
-          'FEE_ID'     => 0,
-          'UID'        => $user_info->{UID},
-          'REFERRER'   => $referrer,
-          'SUM'        => $tp->{BONUS_AMOUNT},
-          'PAYMENT_ID' => 0,
-        } ]
-      });
-
-      _error_show($Referral_users);
-    }
-
     $Referral->change_request({
       ID           => $FORM{REFERRAL_REQUEST},
       REFERRAL_UID => $user_info->{UID},
@@ -901,8 +871,9 @@ sub form_users_multiuser {
 
     foreach my $id (@multiuser_arr) {
       $Tags->tags_user_change({
-        IDS => $FORM{TAGS_IDS},
-        UID => $id,
+        IDS     => $FORM{TAGS_IDS},
+        UID     => $id,
+        REPLACE => $FORM{OPT_TAGS_RADIO} && $FORM{OPT_TAGS_RADIO} eq 'TAGS_APPEND' ? 1 : 0
       });
       $html->message('err', $lang{INFO}, "$lang{TAGS} $lang{NOT} $lang{ADDED} UID:$id") if ($Tags->{errno});
     }
@@ -972,11 +943,11 @@ sub form_users {
   my ($attr) = @_;
 
   if ($FORM{LOGIN_ERROR}) {
-    $html->message("err", $lang{ERROR}, "User with this login already exits");
+    $html->message("err", $lang{ERROR}, $lang{USER_EXIST});
   }
 
   if ($FORM{LOGIN_SUCCESS}) {
-    $html->message("info", $lang{SUCCESS}, "Login successfully changed");
+    $html->message("info", $lang{SUCCESS}, 'LOGIN '. $lang{CHANGED});
   }
 
   if ($FORM{PRINT_CONTRACT}) {
@@ -1229,7 +1200,8 @@ sub user_pi {
           $Contacts->contacts_add({
             TYPE_ID => $contact_type_id,
             VALUE   => $item,
-            UID     => $FORM{UID}
+            UID     => $FORM{UID},
+            DATE    => $DATE
           });
           _error_show($user);
         }
@@ -1266,9 +1238,6 @@ sub user_pi {
 
     form_show_attach({ UID => $user->{UID} });
     return '';
-  }
-  elsif ($FORM{address}) {
-    form_address_sel();
   }
   elsif ($FORM{add}) {
     if (!$permissions{0}{1}) {
@@ -1347,6 +1316,12 @@ sub user_pi {
       $user_pi->{PRINT_CONTRACT} = $html->button($lang{PRINT},
         "qindex=15&UID=$user_pi->{UID}&PRINT_CONTRACT=$user_pi->{UID}" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''),
         { ex_params => ' target=new', class => 'btn input-group-button', ICON => "fa fa-print" });
+
+      if ($conf{DOCS_ESIGN} && !$user_pi->{COMPANY_ID} && $user_pi->{CONTRACT_ID}) {
+        $user_pi->{SIGN_CONTRACT} = $html->button($lang{SIGN},
+          "get_index=docs_esign&mk_sign=1&DOC_ID=$user_pi->{CONTRACT_ID}&UID=$user_pi->{UID}&DOC_TYPE=4&header=2",
+          { LOAD_TO_MODAL => 1, ICON => 'fas fa-signature', class => 'btn input-group-button', ex_params => "style='cursor:pointer'" });
+      }
     }
 
     if ($conf{DOCS_CONTRACT_TYPES}) {
@@ -1397,6 +1372,7 @@ sub user_pi {
     PRIORITY => '_SHOW',
     COMMENTS => '_SHOW',
     TYPE     => '_SHOW',
+    DATE     => '_SHOW',
     HIDDEN   => '0'
   });
   _error_show($Contacts);
@@ -1505,12 +1481,12 @@ sub user_pi {
 
     $users->{conf}->{BUILD_DELIMITER} //= ', ';
     $user_pi->{ADDRESS_FLAT} //= q{};
-    if ($conf{ADDRESS_REGISTER}) {
-      $user_pi->{ADDRESS_STR} = full_address_name($location_id) . $users->{conf}->{BUILD_DELIMITER} . $user_pi->{ADDRESS_FLAT};
-    }
-    else {
-      $user_pi->{ADDRESS_STR} = (($user_pi->{CITY}) ? "$user_pi->{CITY}, " : "") . ($user_pi->{ADDRESS_STREET} || q{}) . ' ' . ($user_pi->{ADDRESS_BUILD} || q{}) . '/' . ($user_pi->{ADDRESS_FLAT} || q{});
-    }
+    # if ($conf{ADDRESS_REGISTER}) {
+    $user_pi->{ADDRESS_STR} = full_address_name($location_id) . $users->{conf}->{BUILD_DELIMITER} . $user_pi->{ADDRESS_FLAT};
+    # }
+    # else {
+    #   $user_pi->{ADDRESS_STR} = (($user_pi->{CITY}) ? "$user_pi->{CITY}, " : "") . ($user_pi->{ADDRESS_STREET} || q{}) . ' ' . ($user_pi->{ADDRESS_BUILD} || q{}) . '/' . ($user_pi->{ADDRESS_FLAT} || q{});
+    # }
 
     if (!$permissions{0}{26}) {
       $user_pi->{PHONE} = $lang{HIDE};
@@ -1794,11 +1770,28 @@ sub user_info_items {
     22  => $lang{LOG},
     21  => $lang{COMPANY},
     12  => $lang{GROUP},
-    18  => $lang{NAS},
-    19  => $lang{BILL}
+    18  => $lang{NAS}
   );
 
+  if($user_info->{GID}){
+    my $group_info = $users->group_info($user_info->{GID});
+    if (!$group_info->{DOCUMENTS_ACCESS}){
+      my $key_to_delete = 0;
+      foreach my $key (keys %uf_menus) {
+        if ($uf_menus{$key} eq $lang{DOCS}) {
+          $key_to_delete = $key;
+          last;
+        }
+      }
+      if (defined $key_to_delete) {
+        delete $uf_menus{$key_to_delete};
+      }
+    }
+    delete $users->{errno};
+  }
+
   $userform_menus{17} = $lang{PASSWD} if ($permissions{0}{3});
+  $userform_menus{19} = $lang{BILL} if ($permissions{0}{15});
 
   while (my ($k, $v) = each %uf_menus) {
     $userform_menus{$k} = $v;
@@ -2351,7 +2344,7 @@ sub user_info {
         'data-tooltip'          => "$lang{TAGS} ($lang{ADD})",
         'data-tooltip-position' => 'top',
         onclick                 => $permissions{0}{3} ? "loadToModal('$SELF_URL?qindex=" . get_function_index('tags_user')
-          . "&UID=$uid&header=2&FORM_NAME=USERS_TAG')" : '',
+          . "&UID=$uid&header=2&FORM_NAME=USERS_TAG&PAGE_ROWS=999')" : '',
       });
     }
   }
@@ -2572,12 +2565,6 @@ sub form_users_list {
     $search_color_mark = $html->color_mark($FORM{UNIVERSAL_SEARCH}, $_COLORS[6]);
   }
 
-  my $countries_hash;
-
-  if (!$conf{ADDRESS_REGISTER}) {
-    ($countries_hash, undef) = sel_countries();
-  }
-
   my $base_fields = 1;
 
   if ($FORM{UNIVERSAL_SEARCH}) {
@@ -2645,9 +2632,6 @@ sub form_users_list {
           $line->{$col_name} = $html->color_mark($line->{$col_name}, 'text-danger');
         }
       }
-      elsif ($col_name eq 'country_id') {
-        $line->{$col_name} = $countries_hash->{$line->{$users->{COL_NAMES_ARR}->[$i]}};
-      }
       elsif ($col_name eq 'build_id') {
         $line->{$col_name} = form_add_map(undef, { BUILD_ID => $line->{$col_name} });
       }
@@ -2687,8 +2671,8 @@ sub form_users_list {
 
   my @totals_rows = (
     [ $html->button("$lang{TOTAL}:", "index=$index&USERS_STATUS=0"), $html->b($users->{TOTAL}) ],
-    [ $html->button("$lang{EXPIRE}:", "index=$index&USERS_STATUS=4"), $html->b($users->{TOTAL_EXPIRED}) ],
-    [ $html->button("$lang{DISABLE}:", "index=$index&USERS_STATUS=3"), $html->b($users->{TOTAL_DISABLED}) ]
+    [ $html->button("$lang{EXPIRED}:", "index=$index&USERS_STATUS=4"), $html->b($users->{TOTAL_EXPIRED}) ],
+    [ $html->button("$lang{DISABLED}:", "index=$index&USERS_STATUS=3"), $html->b($users->{TOTAL_DISABLED}) ]
   );
 
   if ($admin->{permissions}->{0} && $admin->{permissions}->{0}->{8}) {
@@ -2784,10 +2768,20 @@ sub form_users_list {
         class         => 'btn btn-default',
       });
 
+      my $mu_tags_radio1_input = $html->form_input('OPT_TAGS_RADIO', 'TAGS_APPEND', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="tags-radio-append"' }) . "  $lang{APPEND}";
+      my $mu_tags_radio2_input = $html->form_input('OPT_TAGS_RADIO', 'TAGS_CHANGE', { TYPE => 'radio', class => 'form-check-input', EX_PARAMS => 'id="tags-radio-change" checked' }) . "  $lang{CHANGE}";
+      my $mu_tags_radio1_label = $html->element('label', $mu_tags_radio1_input, { class => 'form-check-label', for => 'radio1' });
+      my $mu_tags_radio2_label = $html->element('label', $mu_tags_radio2_input, { class => 'form-check-label', for => 'radio2' });
+      my $mu_tags_radio1 = $html->element('div', $mu_tags_radio1_label, { class => 'form-check' });
+      my $mu_tags_radio2 = $html->element('div', $mu_tags_radio2_label, { class => 'form-check' });
+      my $mu_tags_radio_div = $html->element('div', $mu_tags_radio1 . $mu_tags_radio2, { class => 'col-md-6' });
+      my $mu_tags_textarea_div = $html->element('div', $load_to_modal_btn, { class => 'col-md-6' });
+      my $mu_tags_row = $html->element('div', $mu_tags_textarea_div . $mu_tags_radio_div, { class => 'row' });
+
       @multi_operation = (
         [
           $html->form_input('MU_TAGS', 1, { TYPE => 'checkbox', class => 'mr-1' }) . $lang{TAGS},
-          $load_to_modal_btn
+          $mu_tags_row
         ],
         @multi_operation,
       );
@@ -2806,15 +2800,13 @@ sub form_users_list {
       );
     }
 
-    my $table3 = $html->table(
-      {
-        width      => '100%',
-        caption    => $lang{MULTIUSER_OP},
-        HIDE_TABLE => 1,
-        rows       => \@multi_operation,
-        ID         => 'USER_MANAGMENT'
-      }
-    );
+    my Abills::HTML $table3 = $html->table({
+      width      => '100%',
+      caption    => $lang{MULTIUSER_OP},
+      HIDE_TABLE => 1,
+      rows       => \@multi_operation,
+      ID         => 'USER_MANAGMENT'
+    });
 
     if ($FORM{json} && $FORM{API_KEY}) {
       print $table->show({ OUTPUT2RETURN => 1 });
@@ -2884,27 +2876,19 @@ sub user_del {
   }
 
   if ($FORM{FULL_DELETE}) {
-    my $mods = '';
     $user_info->{COMMENTS} = $FORM{COMMENTS};
-    foreach my $mod (@MODULES) {
-      $mods .= "$mod,";
-      load_module($mod, $html);
-
-      my $function = lc($mod) . '_user_del';
-
-      if (defined(&$function)) {
-        &{\&$function}($user_info->{UID}, $user_info);
-      }
-    }
 
     if (!_error_show($user_info)) {
+      my $del_result = cross_modules('user_del', { UID => $user_info->{UID}, USER_INFO => $user_info });
+      my @deleted_modules = $del_result && ref $del_result eq 'HASH' ? keys %{$del_result} : ();
+
       if ($conf{external_userdel}) {
         if (!_external($conf{external_userdel}, { %FORM, %$user_info })) {
           $html->message('err', $lang{DELETED}, "External cmd: $conf{external_userdel}");
         }
       }
 
-      $html->message('info', $lang{DELETED}, "UID: $user_info->{UID}\n $lang{MODULES}: $mods");
+      $html->message('info', $lang{DELETED}, "UID: $user_info->{UID}\n $lang{MODULES}: " . join(',', @deleted_modules));
     }
   }
 
@@ -3034,7 +3018,7 @@ sub form_wizard {
     $conf{REG_WIZARD} .= ";msgs_admin_add:Msgs:$lang{MESSAGES}" if (in_array('Msgs', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Msgs}));
   }
 
-  if ($FORM{FIO}) {
+  if ($FORM{FIO} && ! $conf{REG_WIZARD_SKIP_FIO_SPLIT}) {
     my ($last_name, $name, $second_name) = split(/ /, $FORM{FIO});
     $FORM{FIO1} = $last_name;
     $FORM{FIO2} = $name || '';
@@ -3107,16 +3091,8 @@ sub form_wizard {
     $users->pi({ UID => $FORM{UID} });
 
     if (in_array('Voip', \@MODULES) && $conf{VOIP_NUM_POOL}) {
-      if ($FORM{finish}) {
-        require Voip::Users;
-        Voip::Users->import();
-        my $Voip_users = Voip::Users->new($db, $admin, \%conf, {
-          html        => $html,
-          lang        => \%lang,
-          permissions => \%permissions
-        });
-        $Voip_users->voip_user_number_add($FORM{UID});
-      }
+      load_module('Voip', $html);
+      voip_user();
     }
   }
 
@@ -3973,6 +3949,9 @@ sub form_fees_wizard {
 
   if ($FORM{add}) {
     %FEES_METHODS = %{get_fees_types({ SHORT => 1 })};
+    require Fees;
+    Fees->import();
+    my $Fees = Fees->new($db, $admin, \%conf);
 
     my $i = 0;
     my $message = '';
@@ -3988,12 +3967,15 @@ sub form_fees_wizard {
         next;
       }
 
+      my $fees_type_info = $Fees->fees_type_info({ ID => $FORM{ 'METHOD_'.$i } });
+
       $fees->take(
         $attr->{USER_INFO},
         $FORM{ 'SUM_' . $i },
         {
-          DESCRIBE       => $FORM{ 'DESCRIBE_' . $i } || $FEES_METHODS{ $FORM{ 'METHOD_' . $i } },
-          INNER_DESCRIBE => $FORM{ 'INNER_DESCRIBE_' . $i }
+          DESCRIBE       => $FORM{ 'DESCRIBE_' . $i } || $fees_type_info->{DEFAULT_DESCRIBE} || $FEES_METHODS{ $FORM{ 'METHOD_' . $i } },
+          INNER_DESCRIBE => $FORM{ 'INNER_DESCRIBE_' . $i },
+          METHOD         => $FORM{ 'METHOD_' . $i } || 0
         }
       );
 
@@ -4255,7 +4237,13 @@ sub user_modal_search {
     if ($FORM{user_search_form} == 1) {
 
       my $search_form = $html->tpl_show($main_search_template, {
-        ADDRESS_FORM => $html->tpl_show(templates('form_address_search'), undef, { OUTPUT2RETURN => 1 })
+        ADDRESS_FORM => form_address_select({
+          HIDE_FLAT             => 1,
+          HIDE_ADD_BUILD_BUTTON => 1,
+          DISTRICT_SELECT_ID    => 'DISTRICT_USER_SEARCH',
+          STREET_SELECT_ID      => 'STREET_USER_SEARCH',
+          BUILD_SELECT_ID       => 'BUILD_USER_SEARCH',
+        })
       }, { OUTPUT2RETURN => 1 });
 
       $html->tpl_show(templates('form_popup_window'),
@@ -4489,9 +4477,16 @@ sub form_user_holdup {
   if (!$holdup_info->{DEL}) {
     return '' if ($holdup_info->{error} || _error_show($holdup_info) || $holdup_info->{success});
     if (($user_->{STATUS} && $user_->{STATUS} == 3) || $user_->{DISABLE}) {
-      $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n " .
-        $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=" . ($FORM{ID} || q{}) . "&sid=" . ($sid || q{}),
-          { BUTTON => 2, MESSAGE => "$lang{ACTIVATE}?" }));
+      my $activate_btn = q{};
+      if($holdup_info->{CAN_CANCEL}) {
+        $activate_btn = $html->button($lang{ACTIVATE}, "index=$index&Shedule=status&del=1&ID=" . ($FORM{ID} || q{})
+          . "&sid=" . ($sid || q{})
+          . "&UID=" . $uid ,
+          { BUTTON => 2, MESSAGE => "$lang{ACTIVATE}?" });
+      }
+
+      $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n " . $activate_btn );
+
       return '';
     }
 
@@ -4529,7 +4524,7 @@ sub form_money_transfer_admin {
     ($deposit_limit, $transfer_price, $no_companies) = split(/:/, $conf{MONEY_TRANSFER});
 
     if ($no_companies eq 'NO_COMPANIES' && $user->{COMPANY_ID}) {
-      $html->message('info', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
+      $html->message('err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
       return 0;
     }
   }
@@ -4538,10 +4533,8 @@ sub form_money_transfer_admin {
   if ($FORM{s2} || $FORM{transfer}) {
     $FORM{SUM} = sprintf("%.2f", $FORM{SUM});
 
-    if ($user->{DEPOSIT} < $FORM{SUM} + $deposit_limit + $transfer_price) {
-      $html->message('err', $lang{ERROR}, "$lang{ERR_SMALL_DEPOSIT}");
-    }
-    elsif (!$FORM{SUM}) {
+
+    if (!$FORM{SUM}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_SUM}");
     }
     elsif (!$FORM{RECIPIENT}) {
@@ -4550,9 +4543,11 @@ sub form_money_transfer_admin {
     elsif ($FORM{RECIPIENT} == $FORM{UID}) {
       $html->message('err', $lang{ERROR}, "$lang{USER_NOT_EXIST}");
     }
+    elsif ($user->{DEPOSIT} < $FORM{SUM} + $deposit_limit + $transfer_price) {
+      $html->message('err', $lang{ERROR}, "$lang{ERR_SMALL_DEPOSIT}");
+    }
     else {
       my $user2 = Users->new($db, $admin, \%conf);
-
       $user2->info(int($FORM{RECIPIENT}));
 
       if ($user2->{TOTAL} < 1) {
@@ -4660,10 +4655,10 @@ sub _user_auth_data_modal_content {
   my $i = 0;
   for my $key (@$auth_keys) {
     my $field_name = $lang{$key} || $key;
-    my $checked_data = $auth_data->[$i];
+    my $checked_data = $auth_data->[$i] || '';
     my $escaped_notify = '';
     if ($checked_data =~ / |\n|\r|\"|\'/) {
-      $checked_data = qq{"$auth_data->[$i]"};
+      $checked_data = qq{"$checked_data"};
       my $message = vars2lang($lang{ERR_SYMBOLS_FIELD}, { FIELD => $field_name });
       $escaped_notify = $html->element('b', "$lang{ATTENTION}! $message", { class => 'text-danger' }) . $html->br();
     }

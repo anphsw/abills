@@ -19,7 +19,7 @@ sub connect {
 
   my $self = { };
   bless($self, $class);
-  my $db_engine = 'main';
+  my $db_engine = 'dbbase';
   if ($attr->{db_engine}) {
     $db_engine = 'dbcore';
   }
@@ -31,6 +31,7 @@ sub connect {
   }
   else {
     print "Module '$sql_type' not supported yet";
+    #print join("\n", caller());
   }
 
   my $sql = $db_engine->connect($dbhost, $dbname, $dbuser, $dbpasswd, $attr);

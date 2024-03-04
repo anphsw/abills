@@ -1,0 +1,48 @@
+type: object
+properties:
+  result:
+    type: string
+    example: OK
+  results:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 0
+        method:
+          type: string
+          example: POST
+        response:
+          type: object
+          properties:
+            affected:
+              type: number
+              example: 1
+            billId:
+              type: number
+              example: 215701
+            insertId:
+              type: number
+              example: 120561
+            login:
+              type: string
+              example: apiuser12
+            total:
+              type: number
+              example: 0
+            uid:
+              type: number
+              example: 120561
+        status:
+          type: number
+          example: 200
+        successful:
+          type: boolean
+        url:
+          type: string
+          example: /users/
+  uid:
+    type: number
+    example: 120561

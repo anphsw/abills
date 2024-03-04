@@ -8,6 +8,7 @@ package Extreceipt;
 
 use strict;
 use parent 'dbcore';
+
 my $MODULE = 'Extreceipt';
 
 #**********************************************************
@@ -51,7 +52,7 @@ sub list {
   );
 
   my $limit = '';
-  if($attr->{PAGE_ROWS}) {
+  if ($attr->{PAGE_ROWS}) {
     $limit = " LIMIT $attr->{PAGE_ROWS}";
   }
 
@@ -84,7 +85,7 @@ sub list {
     }
   );
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -108,6 +109,7 @@ sub info {
       e.*,
       ek.api_id,
       ek.kkt_group,
+      ek.tax_id,
       ek.aid,
       p.sum,
       p.uid,
@@ -143,7 +145,7 @@ sub add {
     { Bind => [ $payment_id, $api ] }
   );
 
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -159,15 +161,17 @@ sub get_new_payments {
     undef,
     { }
   );
-  my $last_id = $self->{list}[0][0];
 
-  if ($self->{TOTAL} < 1) {
-    $self->{error}=111;
-    $self->{errstr}="NO KKT_LIST VALUES";
-    return 0;
-  }
+  my $last_id = $self->{list}[0][0];
+  $self->{LAST_ID} = $last_id;
 
   my $kkt_list = $self->kkt_list();
+
+  if ($self->{TOTAL} < 1) {
+    $self->{error} = 1330001;
+    $self->{errstr} = 'ERR_KKT_LIST_EMPTY';
+    return 0;
+  }
 
   my $CASE = "CASE\n";
   foreach my $kkt (@$kkt_list) {
@@ -201,8 +205,6 @@ sub get_new_payments {
     { Bind => [ $start_id, $last_id ] }
   );
 
-  $self->{LAST_ID} = $last_id;
-
   return 1;
 }
 
@@ -221,7 +223,7 @@ sub change {
     DATA         => $attr
   });
   
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -266,7 +268,7 @@ sub payments_list {
     { %$attr, COLS_NAME => 1, COLS_UPPER => 1 }
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   $self->query("SELECT COUNT(*) AS total, SUM(sum) AS total_sum
       FROM payments p
@@ -288,10 +290,10 @@ sub payments_list {
 sub kkt_add {
   my $self = shift;
   my ($attr) = @_;
-  
-  $self->query_add( 'extreceipts_kkt', $attr );
 
-  return 1;
+  $self->query_add('extreceipts_kkt', $attr);
+
+  return $self;
 }
 
 #**********************************************************
@@ -322,7 +324,17 @@ sub kkt_list {
     { COLS_NAME => 1, COLS_UPPER => 1 }
   );
 
-  return $self->{list};
+  my $list = $self->{list} || [];
+
+  $self->query("SELECT COUNT(*) AS total
+      FROM extreceipts_kkt ek
+      LEFT JOIN extreceipts_api ea ON (ek.api_id = ea.api_id)
+      $WHERE;",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
 }
 
 #**********************************************************
@@ -340,7 +352,7 @@ sub kkt_change {
     DATA         => $attr
   });
   
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -351,10 +363,10 @@ sub kkt_change {
 sub kkt_del {
   my $self = shift;
   my ($kkt_id) = @_;
-  
-  $self->query_del( 'extreceipts_kkt', {}, { KKT_ID => $kkt_id } );
 
-  return 1;
+  $self->query_del('extreceipts_kkt', {}, { KKT_ID => $kkt_id });
+
+  return $self;
 }
 
 #**********************************************************
@@ -370,9 +382,9 @@ sub api_add {
     $attr->{PASSWORD} = "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')",
   }
 
-  $self->query_add( 'extreceipts_api', $attr );
+  $self->query_add('extreceipts_api', $attr );
 
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -398,7 +410,7 @@ sub api_list {
     { COLS_NAME => 1, COLS_UPPER => 1, Bind => [ $self->{conf}->{secretkey} ] }
   );
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -416,7 +428,7 @@ sub api_change {
     DATA         => $attr
   });
   
-  return 1;
+  return $self;
 }
 
 #**********************************************************
@@ -427,10 +439,10 @@ sub api_change {
 sub api_del {
   my $self = shift;
   my ($api_id) = @_;
-  
-  $self->query_del( 'extreceipts_api', {}, { API_ID => $api_id } );
 
-  return 1;
+  $self->query_del('extreceipts_api', {}, { API_ID => $api_id });
+
+  return $self;
 }
 
 1;

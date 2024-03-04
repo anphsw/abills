@@ -11,6 +11,7 @@ use warnings FATAL => 'all';
 
 use Reports;
 use Abills::Base qw(json_former);
+use Time::Piece;
 
 our (
   $db,
@@ -337,14 +338,6 @@ sub rwizard_old {
     my $ADDRESS_TPL = '';
     if ($Reports->{QUERY} =~ /%ADDRESS%/g) {
       $ADDRESS_TPL = form_address({ SHOW => 1 });
-      #        $html->tpl_show(templates('form_show_hide'),
-      #         {
-      #           CONTENT => $html->tpl_show(templates('form_address_sel'), \%FORM, { OUTPUT2RETURN => 1, ID => 'form_address_sel' }),
-      #           NAME    => $lang{ADDRESS},
-      #           ID      => 'ADDRESS_FORM',
-      #           PARAMS  => ''
-      #          },
-      #         { OUTPUT2RETURN => 1 });
 
       while (my ($k, $v) = each %FORM) {
         if ($k =~ /^ADDRESS|STREET|LOCATION/ && $v) {
@@ -707,9 +700,19 @@ sub rwizard_groups {
 =cut
 #**********************************************************
 sub rwizard_start_page {
-  #my ($attr) = @_;
 
   my %START_PAGE_F = ('rwizard_sp' => $lang{DEPOSIT_CHECK});
+
+  my $rwizard_reports_list = $Reports->list({
+    QUICK_REPORT => 1,
+    NAME         => '_SHOW',
+    COLS_NAME    => 1,
+  });
+  if ($Reports->{TOTAL} > 0){
+    foreach (@$rwizard_reports_list) {
+      $START_PAGE_F{"quick_report:$_->{id}"} = $_->{name};
+    }
+  }
 
   return \%START_PAGE_F;
 }
@@ -814,6 +817,9 @@ sub quick_report {
     elsif ($col_title =~ /^\$_/) {
       $col_title = _translate($col_title);
     }
+    else {
+      $col_title = _translate($col_title);
+    }
 
     $cols_params{$col_name}{TITLE} = _translate($col_title);
     $cols_params{$col_name}{CHART} = $chart_type;
@@ -822,6 +828,23 @@ sub quick_report {
 
     push @col_names, $col_name;
     push @titles, $col_title;
+  }
+
+  if ($Reports->{QUERY} =~ /%GID%/) {
+      $Reports->{QUERY} =~ s/and [a-z0-9\.\_]+\=\'%GID%\'//ig;
+      $Reports->{QUERY_TOTAL} =~ s/and [a-z0-9\.\_]+\=\'%GID%\'//ig;
+  }
+  if ($Reports->{QUERY} =~ /%DATE_TO%/) {
+    $Reports->{QUERY} =~ s/%DATE_TO%/$DATE/g;
+    $Reports->{QUERY_TOTAL} =~ s/%DATE_TO%/$DATE/g;
+  }
+  if ($Reports->{QUERY} =~ /%DATE_FROM%/) {
+    my $date_to = Time::Piece->strptime($DATE, "%Y-%m-%d");
+    my $date_from_sec = $date_to - 365 * 86400;
+    my $date_from = $date_from_sec->strftime('%Y-%m-%d');
+
+    $Reports->{QUERY} =~ s/%DATE_FROM%/$date_from/g;
+    $Reports->{QUERY_TOTAL} =~ s/%DATE_FROM%/$date_from/g;
   }
 
   my $list = $Reports->mk(
@@ -1354,6 +1377,9 @@ sub _read_titles {
     elsif ($col_title =~ /^\$_/) {
       $col_title = _translate($col_title);
     }
+    else {
+      $col_title = _translate($col_title);
+    }
 
     $cols_params{$col_name}{TITLE} = _translate($col_title);
     $cols_params{$col_name}{CHART} = $chart_type;
@@ -1374,6 +1400,8 @@ sub _read_titles {
 #**********************************************************
 sub _make_report_query {
   my ($attr) = @_;
+
+  $Reports->{QUERY_TOTAL} //= '';
 
   if ($Reports->{QUERY} =~ /%DATE_FROM%/) {
     my $month = $attr->{MONTH} ? $attr->{MONTH} : ($DATE =~ m/^(\d+\-\d+)/)[0];

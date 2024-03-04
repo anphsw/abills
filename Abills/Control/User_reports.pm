@@ -7,6 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Users;
+use Tariffs;
 use List::Util qw/max min/;
 require Abills::Misc;
 
@@ -119,7 +120,21 @@ sub report_new_arpu {
     $search_year = $FORM{NEXT} || $FORM{PRE};
   }
 
-  my $min_tariff_amount = $Users->min_tarif_val({ COLS_NAME => 1 });
+  if ($FORM{DEBUG}) {
+    $Users->{debug}=1;
+  }
+
+  my $Tariffs  = Tariffs->new($db, \%conf, $admin);
+  my $tp_list = $Tariffs->list({
+    MONTH_FEE => '>0',
+    PAGE_ROWS => 1,
+    COLS_NAME => 1,
+    MODULE    => 'Internet',
+    SORT      => 'tp.month_fee',
+  });
+
+  my $min_tariff_amount = $tp_list->[0]->{month_fee} || 0;
+
   my $data_for_report = $Users->all_data_for_report({
     YEAR      => $search_year,
     COLS_NAME => 1
@@ -154,7 +169,7 @@ sub report_new_arpu {
     }
 
     #   Predicted ARPU
-    my $result = ((($data_per_month->{month_fee_sum}) + (($data_per_month->{count_new_users}) * ($min_tariff_amount->{min_t} || 0))) / ($data_per_month->{count_all_users} || 1));
+    my $result = ((($data_per_month->{month_fee_sum}) + (($data_per_month->{count_new_users}) * $min_tariff_amount)) / ($data_per_month->{count_all_users} || 1));
     if ($data_per_month->{month} eq ($m) && $search_year eq $y) {
       push @data_array5, sprintf("%0.3f", $result);
     }
@@ -165,8 +180,6 @@ sub report_new_arpu {
 
   unshift(@data_array5, 0.000);
   pop(@data_array5);
-
-  my @array_all_data = (@data_array2, @data_array3, @data_array4, @data_array5);
 
   my $chart3 = $html->chart({
     TYPE       => 'line',
@@ -223,18 +236,22 @@ sub report_new_arpu {
     ICON  => 'fa fa-arrow-left',
     TITLE => $lang{BACK}
   });
+
   my $next_button = $html->button(" ", "index=$index&NEXT=" . ($search_year + 1), {
     class => 'btn btn-sm btn-default',
     ICON  => 'fa fa-arrow-right',
     TITLE => $lang{NEXT}
   });
-  print " <div class='pl-0'>
-            <div class='card card-primary card-outline'>
-              <div class='card-header with-border'>$pre_button $search_year $next_button<h4 class='card-title'>$lang{REPORT_NEW_ARPU_USERS}</h4></div>
-              <div class='card-body'>
-                $chart3
-              </div>
-          </div>\n";
+
+  $html->tpl_show(templates('form_report_arpu'), {
+    ID           => 'INTERNET_LOGIN',
+    CHARTS       => $chart3,
+    TITLE        => $lang{REPORT_NEW_ARPU_USERS},
+    PRE_BUTTON   => $pre_button,
+    SEARCH_YEAR  => $search_year,
+    NEXT_BUTTON  => $next_button
+  });
+
   return 1;
 }
 
@@ -378,7 +395,6 @@ sub report_users_disabled {
     DESC         => $FORM{desc}
   });
 
-
   my $table = $html->table({
     width   => '100%',
     caption => $lang{REPORT_REASON_USERS_DISABLED},
@@ -415,5 +431,100 @@ sub report_users_disabled {
 
   return 1;
 }
+
+
+#*******************************************************************
+=head1 report_users_telegram () - show users with telegram
+
+=cut
+#*******************************************************************
+sub report_users_telegram {
+  my $index_user = get_function_index( 'form_users' );
+
+  # TODO: add date of adding telegram
+  use Address;
+  my $Address = Address->new($db, $admin, \%conf);
+  my $builds_sel = $html->form_select('BUILD_ID', {
+    SELECTED    => $FORM{BUILD_ID} || 0,
+    NO_ID       => 1,
+    SEL_LIST    => !$FORM{STREET_ID} ? [] : $Address->build_list({
+      STREET_ID => $FORM{STREET_ID},
+      NUMBER    => '_SHOW',
+      SORT      => 'b.number+0',
+      PAGE_ROWS => 999999,
+      COLS_NAME => 1,
+    }),
+    SEL_KEY     => 'id',
+    SEL_VALUE   => 'number',
+    SEL_OPTIONS => { '' => '--' },
+  });
+
+  require Control::Reports;
+  reports({
+    PERIOD_FORM       => 1,
+    NO_PERIOD         => 1,
+    DATE_RANGE        => 1,
+    NO_TAGS           => 1,
+    NO_MULTI_GROUP    => 1,
+    NO_STANDART_TYPES => 1,
+    EXT_SELECT  => {
+      DISTRICT => { LABEL => $lang{DISTRICT}, SELECT => sel_districts({
+        SEL_OPTIONS       => { '' => '--' },
+        DISTRICT_ID       => $FORM{DISTRICT_ID},
+        FULL_NAME         => 1,
+        ONLY_WITH_STREETS => 1,
+        AUTOSUBMIT => 'form',
+      }) },
+      STREET   => { LABEL => $lang{STREET}, SELECT => sel_streets({
+        SEL_OPTIONS => { '' => '--' },
+        STREET_ID   => $FORM{STREET_ID},
+        DISTRICT_ID => $FORM{DISTRICT_ID},
+        AUTOSUBMIT => 'form',
+      }) },
+      _BUILD  => { LABEL => $lang{BUILD}, SELECT => $builds_sel },
+    },
+    col_md  => 'col-md-6'
+  });
+
+  require Contacts;
+  my $Contacts = Contacts->new($db, $admin, \%conf);
+  $Contacts->{debug} = 1 if ($FORM{DEBUG});
+
+  my $contacts_list = $Contacts->contacts_list({
+    VALUE       => '_SHOW',
+    UID         => '_SHOW',
+    FIO         => '_SHOW',
+    DISTRICT_ID => $FORM{DISTRICT_ID} || '_SHOW',
+    STREET_ID   => $FORM{STREET_ID} || '_SHOW',
+    LOCATION_ID => $FORM{BUILD_ID} || '_SHOW',
+    TYPE        => 6,
+    GROUP       => $FORM{GID} || '_SHOW',
+    SORT        => $FORM{sort},
+    DESC        => $FORM{desc}
+  });
+
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$lang{STATS} Telegram",
+    border  => 1,
+    title   => [ 'UID', $lang{USER}, 'Telegram'],
+    qs      => $pages_qs,
+    ID      => 'USER_TELEGRAM_REPORT',
+    EXPORT  => 1,
+  });
+  foreach my $contact (@$contacts_list) {
+    $table->addrow(
+      $contact->{uid},
+      $html->button(($contact->{fio} ? $contact->{fio} : $contact->{uid}), 'index=' . $index_user . "&UID=$contact->{uid}"),
+      $contact->{value},
+    );
+  }
+  $table->addfooter("$lang{TOTAL}: ", $Contacts->{TOTAL}, '');
+
+  print $table->show();
+
+  return 1;
+}
+
 
 1;

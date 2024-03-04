@@ -34,7 +34,7 @@ use Address;
 exit if form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Maps',
-  REQUIRE_VERSION => 7.75,
+  REQUIRE_VERSION => 7.78,
 });
 
 require Maps;
@@ -76,7 +76,7 @@ sub maps_main {
   my ($attr) = @_;
 
   if ($FORM{SHOW_ADDRESS}) {
-    $html->tpl_show(templates('form_address_build_sel'), $attr);
+    print form_address_select({ HIDE_FLAT => 1 });
     return 1;
   }
 
@@ -325,6 +325,10 @@ sub _maps_del_objects {
     });
   }
   elsif (_isPolygon({ LAYER_ID => $FORM{LAYER_ID} })) {
+    if ($layer_id && LAYER_ID_BY_NAME->{DISTRICT} eq $layer_id) {
+      $Maps->districts_del({}, { object_id => $object_id });
+    }
+    
     return _maps_del_poligon($FORM{LAYER_ID}, $object_id);
   }
 

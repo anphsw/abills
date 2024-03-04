@@ -17,7 +17,7 @@
         </div>
         <div class='card-body'>
           <div class='form-group row'>
-            <label class='col-sm-4 col-md-4 control-label' for='ID'>#</label>
+            <label class='col-sm-4 col-md-4 control-label' for='ID'>_{NUMBER}_</label>
             <div class='col-sm-8 col-md-8'>
               <input id='ID' name='ID' value='%ID%' placeholder='%ID%' class='form-control' type='text'>
             </div>
@@ -205,7 +205,7 @@
             </div>
           </div>
 
-          <div class='form-group row bg-secondary'>
+          <div class='form-group row'>
             <label for='NEXT_TARIF_PLAN_SEL' class='control-label col-md-4'>_{TARIF_PLAN}_ _{NEXT_PERIOD}_:</label>
             <div class='col-md-8'>
               %NEXT_TARIF_PLAN_SEL%
@@ -499,5 +499,4 @@
       </div>
     </div>
   </div>
-  <br>
 </form>

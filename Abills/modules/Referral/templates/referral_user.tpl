@@ -18,6 +18,12 @@
                 %SHOW_BUTTON%
             </div>
         </div>
+        <div class='row %SHOW_BUTTON_CHANGE_REF_REQUEST%'>
+            <span class='col-md-3'>_{CHANGE_REFERRAL_REQUEST}_</span>
+            <div class='col-md-9'>
+                %CHANGE_REF_REQUEST%
+            </div>
+        </div>
     </div>
 </div>
 
@@ -40,4 +46,10 @@
         }, function(){location.reload(true)});
       });
     });
+
+    if (window.location.search.includes('REFERRER_DEL=1')) {
+        var url = new URL(window.location.href);
+        url.searchParams.delete('REFERRER_DEL');
+        window.location.href = url;
+    }
 </script>

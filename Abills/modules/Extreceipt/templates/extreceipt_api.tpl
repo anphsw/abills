@@ -15,9 +15,9 @@
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='API_NAME'>API plugin:</label>
+        <label class='control-label col-md-3' for='API_NAME'>API _{MODULE}_:</label>
         <div class='col-md-9'>
-          <input type='text' class='form-control' value='%API_NAME%' name='API_NAME' id='API_NAME'/>
+          %API_NAME%
         </div>
       </div>
 
@@ -43,14 +43,14 @@
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='CALLBACK'>Callback url:</label>
+        <label class='control-label col-md-3' for='CALLBACK'>_{CALLBACK}_:</label>
         <div class='col-md-9'>
           <input type='text' class='form-control' value='%CALLBACK%' name='CALLBACK' id='CALLBACK'/>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='INN'>INN:</label>
+        <label class='control-label col-md-3' for='INN'>_{INN}_:</label>
         <div class='col-md-9'>
           <input type='text' class='form-control' value='%INN%' name='INN' id='INN'/>
         </div>

@@ -58,7 +58,7 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-sm-4 col-md-4 col-form-label' for='ID'>EXT ID</label>
+        <label class='col-sm-4 col-md-4 col-form-label' for='EXT_ID'>EXT ID</label>
         <div class='col-sm-8 col-md-8'>
           <input id='EXT_ID' name='EXT_ID' value='%EXT_ID%' placeholder='%EXT_ID%' class='form-control'
                  type='text'>
@@ -66,7 +66,7 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-sm-4 col-md-4 col-form-label' for='ID'>IP</label>
+        <label class='col-sm-4 col-md-4 col-form-label' for='IP'>IP</label>
         <div class='col-sm-8 col-md-8'>
           <input id='IP' name='IP' value='%IP%' placeholder='%IP%' class='form-control'
                  type='text'>

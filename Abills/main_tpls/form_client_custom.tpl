@@ -1,4 +1,3 @@
-
 <div class='row'>
 %NEWS%
 </div>
@@ -13,12 +12,12 @@
                 <p>_{RECOMMENDED_PAYMENT}_ %RECOMENDED_PAY% %MONEY_UNIT_NAME%</p>
                 <p>_{PAYMENT_NUMBER}_ UID: %MAIN_INFO_UID%</p>
                 <p>_{LAST_PAYMENT_FEE}_: &nbsp; %PAYMENTS_DATETIME% &nbsp; %PAYMENTS_SUM% %MONEY_UNIT_NAME% &nbsp; %PAYMENTS_DSC%</p>
-                <a href='$SELF_URL?get_index=paysys_payment&SUM=%RECOMENDED_PAY%' class='btn btn-primary text-white'>_{MAKE_PAYMENT}_!</a>
+                <a href='%SELF_URL%?get_index=paysys_payment&SUM=%RECOMENDED_PAY%' class='btn btn-primary text-white'>_{MAKE_PAYMENT}_!</a>
             </div>
             <div class='icon'>
                 <i class='fas fa-chart-pie'></i>
             </div>
-            <a href='/index.cgi?index=10' class='small-box-footer'>_{INFO}_ <i class='fa fa-arrow-circle-right'></i></a>
+            <a href='%SELF_URL%?index=10' class='small-box-footer'>_{INFO}_ <i class='fa fa-arrow-circle-right'></i></a>
         </div>
 
         %BIG_BOX%
@@ -48,7 +47,7 @@
             <label>
                 <input type='checkbox'> _{CONFIRM}_
             </label>
-            <a href='$SELF_URL?get_index=dv_user_info&del=1' class='btn btn-primary text-white'>_{YES}_!</a>
+            <a href='%SELF_URL%?get_index=dv_user_info&del=1' class='btn btn-primary text-white'>_{YES}_!</a>
 
         </div>
 

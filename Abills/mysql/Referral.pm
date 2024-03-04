@@ -187,7 +187,7 @@ sub list {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
 
   my $WHERE = $self->search_former( $attr, [
       [ 'UID',      'INT', 'r.uid'       ],
@@ -250,6 +250,7 @@ sub tp_list {
     [ 'MULTI_ACCRUAL',    'INT', 'r.multi_accrual',     1 ],
     [ 'PAYMENTS_TYPE',    'STR', 'r.payments_type',     1 ],
     [ 'FEES_TYPE',        'STR', 'r.fees_type',         1 ],
+    [ 'INACTIVE_DAYS',    'INT', 'r.inactive_days',     1 ]
   ], { WHERE => 1 });
 
   $self->query(
@@ -279,11 +280,14 @@ sub request_list{
   my $self = shift;
   my ($attr) = @_;
 
+
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my $GROUP_BY = $attr->{GROUP_BY} || '';
+  my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
+
   my $WHERE = $self->search_former( $attr, [
     [ 'ID',           'INT',   'r.id as referral_request', 1 ],
     [ 'FIO',          'STR',   'r.fio',                    1 ],
@@ -303,13 +307,25 @@ sub request_list{
     [ 'LOCATION_ID',  'INT',   'r.location_id',            1 ],
     [ 'ADDRESS_FLAT', 'STR',   'r.address_flat',           1 ],
     [ 'COMMENTS',     'STR',   'r.comments',               1 ],
+    [ 'INNER_COMMENTS','STR',  'r.inner_comments',         1 ],
     [ 'PAYMENTS_TYPE','STR',   'rt.payments_type',         1 ],
     [ 'FEES_TYPE',    'STR',   'rt.fees_type',             1 ],
+    [ 'FROM_DATE|TO_DATE', 'DATE',  "DATE_FORMAT(r.date, '%Y-%m-%d')", 1 ],
+    [ 'INACTIVE_DAYS', 'INT',  'rt.inactive_days',         1 ],
+    [ 'ADDRESS_FULL',     'STR',
+      "IF(r.location_id, CONCAT(districts.name, '$build_delimiter', streets.name, '$build_delimiter', builds.number, '$build_delimiter', r.address_flat), '') AS address_full",  1 ],
   ],
     {
       WHERE => 1
     }
   );
+  my $EXT_TABLES = $self->{EXT_TABLES};
+
+  if ($attr->{ADDRESS_FULL}) {
+    $EXT_TABLES .= "LEFT JOIN builds ON (builds.id=r.location_id)";
+    $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=builds.street_id)
+      LEFT JOIN districts ON (districts.id=streets.district_id) ";
+  }
 
   $self->query(
     "SELECT
@@ -318,6 +334,7 @@ sub request_list{
      LEFT JOIN users u ON (u.uid = r.referrer)
      LEFT JOIN users ur ON (ur.uid = r.referral_uid)
      LEFT JOIN referral_tp rt ON (r.tp_id = rt.id)
+    $EXT_TABLES
     $WHERE $GROUP_BY ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
      ",
     undef,

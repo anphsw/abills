@@ -21,7 +21,8 @@ our (
   $db,
   %conf,
   $pages_qs,
-  %permissions
+  %permissions,
+  $base_dir
 );
 
 our Abills::HTML $html;
@@ -79,16 +80,17 @@ sub extreceipt_api {
     $html->message('info', $lang{SUCCESS}) if (!_error_show($Receipt));
   }
   elsif ($FORM{test}) {
-    $html->message('info', $lang{TEST});
     my $Receipt_apies = receipt_init($Receipt, { API_ID => $FORM{test}, DEBUG => $debug });
     my $Receip_api = $Receipt_apies->{$FORM{test}};
 
     if ($Receip_api && $Receip_api->can('test')) {
       $Receip_api->test();
-      if ($Receip_api->{error}) {
-        _error_show($Receip_api, { MESSAGE => $lang{TEST} });
+      if ($Receip_api->{error} || $Receip_api->{errno}) {
+        $Receip_api->{errno} = $Receip_api->{error} if (!$Receip_api->{errno});
+        _error_show($Receip_api, { MESSAGE => $Receip_api->{errstr} || $lang{TEST} });
       }
       else {
+        $html->message('info', $lang{TEST});
         my $table = $html->table({
           width   => '100%',
           caption => 'Test',
@@ -110,6 +112,15 @@ sub extreceipt_api {
     $FORM{AID} = sel_admins({
       NAME     => 'AID',
       SELECTED => $Receipt->{AID} || $FORM{AID}
+    });
+
+    my $plugins = _extreceipt_plugins();
+
+    $FORM{API_NAME} = $html->form_select('API_NAME', {
+      SELECTED    => $FORM{API_NAME} || '',
+      SEL_ARRAY   => $plugins,
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => '--' },
     });
 
     $html->tpl_show(_include('extreceipt_api', 'Extreceipt'), { %$Receipt, %FORM });
@@ -186,17 +197,44 @@ sub extreceipt_kkt {
   }
 
   if ($FORM{add_form}) {
-    use Payments;
-    my $Payments = Payments->new($db, $admin, \%conf);
-
     $params{methods} =~ s/'//gm if ($params{methods});
+    my $PAYMENTS_METHODS = get_payment_methods();
+
     $params{METHODS_SEL} = $html->form_select('METHODS', {
-      SEL_LIST  => $Payments->payment_type_list({ COLS_NAME => 1 }),
       SELECTED  => $params{methods},
-      SEL_KEY   => 'id',
-      SEL_VALUE => 'name',
+      SEL_HASH  => $PAYMENTS_METHODS,
       MULTIPLE  => 1
     });
+
+    $params{TAX_ID_SEL} = $html->form_select('TAX_ID', {
+      EX_PARAMS => "disabled title='$lang{ENTER_KKT_LICENSE}'"
+    });
+
+    if ($FORM{chg}) {
+      my $Receipt_apies = receipt_init($Receipt, { API_ID => $params{api_id}, DEBUG => $debug });
+      my $Receipt_api = $Receipt_apies->{$params{api_id}};
+      if ($Receipt_api && $Receipt_api->can('get_taxes')) {
+        my $taxes = $Receipt_api->get_taxes({ kkt_key => $params{kkt_key} });
+        $taxes->{'--'} = '';
+        if (!_error_show($Receipt_api)) {
+          $params{TAX_ID_SEL} = $html->form_select('TAX_ID', {
+            SELECTED => $params{tax_id} || '--',
+            SEL_HASH => $taxes,
+            NO_ID    => 1
+          });
+        }
+      }
+      else {
+        $params{TAX_ID_SEL} = $html->form_select('TAX_ID', {
+          SELECTED  => '--',
+          SEL_HASH  => {
+            '--' => $lang{NOT_SUPPORTED_TAX_RATES},
+          },
+          NO_ID     => 1,
+          EX_PARAMS => 'disabled'
+        });
+      }
+    }
 
     $params{API_SEL} = $html->form_select('API_ID', {
       SEL_LIST  => $Receipt->api_list(),
@@ -223,7 +261,7 @@ sub extreceipt_kkt {
     width               => '100%',
     caption             => "KKT",
     ID                  => 'KKT',
-    title               => [ "#", "API name", 'API conf name', "KKT $lang{GROUP}", $lang{PAYMENT_METHOD}, $lang{GROUPS}, $lang{ADMIN}, "" ],
+    title               => [ "#", "API $lang{MODULE}", "API $lang{NAME}", "KKT $lang{GROUP}", $lang{PAYMENT_METHOD}, $lang{GROUPS}, $lang{ADMIN}, "" ],
     HAS_FUNCTION_FIELDS => 1,
     MENU                => "$lang{ADD}:index=$index&add_form=1:add"
   });
@@ -414,7 +452,7 @@ sub _extreceipt_send {
   my ($payment_id, $attr) = @_;
   my $info = $Receipt->info($payment_id);
 
-  if (!$Receipt->{TOTAL}) {
+  if (!$Receipt->{TOTAL} || (defined $Receipt->{TOTAL} && $Receipt->{TOTAL} < 1)) {
     return 0;
   }
 
@@ -429,8 +467,7 @@ sub _extreceipt_send {
     return 0;
   }
 
-  ($info->[0]->{check_header}, $info->[0]->{check_desc}, $info->[0]->{check_footer}) = $conf{EXTRECEIPTS_EXT_RECEIPT_INFO} ?
-    _extreceipt_receipt_ext_info($info->[0]) : ('', '', '');
+  ($info->[0]->{check_header}, $info->[0]->{check_desc}, $info->[0]->{check_footer}) = _extreceipt_receipt_ext_info($info->[0]);
 
   my $command_id = $Receipt->{API}->{$api_id}->payment_register($info->[0]);
   if (ref $command_id eq 'HASH' && $command_id->{ERROR}) {
@@ -527,8 +564,7 @@ sub _extreceipt_undo {
 
   my $info = $Receipt->info($payment_id);
   if (defined($info->[0]->{api_id})) {
-    ($info->[0]->{check_header}, $info->[0]->{check_desc}, $info->[0]->{check_footer}) = $conf{EXTRECEIPTS_EXT_RECEIPT_INFO} ?
-      _extreceipt_receipt_ext_info($info->[0]) : ('', '', '');
+    ($info->[0]->{check_header}, $info->[0]->{check_desc}, $info->[0]->{check_footer}) = _extreceipt_receipt_ext_info($info->[0]);
     my $command_id = $Receipt->{API}->{$info->[0]->{api_id}}->payment_cancel($info->[0]);
 
     if (ref $command_id eq 'HASH' && $command_id->{ERROR}) {
@@ -721,6 +757,7 @@ sub _extreceipt_receipt_ext_info {
   if ($kkt_info->[0]->{check_desc}) {
     my $Users = Users->new($db, $admin, \%conf);
     my $users_pi = $Users->pi({ UID => $attr->{uid} });
+    $users_pi->info($attr->{uid});
 
     my @vars = $kkt_info->[0]->{check_desc} =~ /\&(.+?)\&/g;
     foreach my $var (@vars) {
@@ -746,13 +783,17 @@ sub extreceipt_cash_register_report {
   my $Receipt_api = receipt_init($Receipt, { DEBUG => $debug });
   $Receipt->{API} = $Receipt_api;
 
+  require Extreceipt::Cash_register;
+  Extreceipt::Cash_register->import();
+  my $Cash_register = Extreceipt::Cash_register->new($db, $admin, \%conf);
+
   if ($FORM{del} && $FORM{COMMENTS}) {
-    my $service_receipt = $Receipt->{API}->{$FORM{del}}->create_service_receipt(-$FORM{SUM});
+    my $service_receipt = $Cash_register->service_receipt($FORM{del}, -$FORM{SUM});
     if ($service_receipt->{ERROR}) {
       $html->message('error', $lang{ERROR}, $service_receipt->{ERROR});
     }
     else {
-      $html->message('info', $lang{SUCCESS}, "ID: $service_receipt->{id}, STATUS: $service_receipt->{status}");
+      $html->message('info', $lang{SUCCESS}, "ID: " . ($service_receipt->{id} || '') . "STATUS: " . ($service_receipt->{status} || '') );
     }
   }
   elsif ($FORM{chg}) {
@@ -764,7 +805,7 @@ sub extreceipt_cash_register_report {
     $html->tpl_show(_include('extreceipt_cash_register', 'Extreceipt'), { %params });
   }
   elsif ($FORM{change}) {
-    my $service_receipt = $Receipt->{API}->{$FORM{change}}->create_service_receipt($FORM{SUM});
+    my $service_receipt = $Cash_register->service_receipt($FORM{change}, $FORM{SUM});
     if ($service_receipt->{ERROR}) {
       $html->message('error', $lang{ERROR}, $service_receipt->{ERROR});
     }
@@ -858,6 +899,33 @@ sub extreceipt_start_page {
   );
 
   return \%START_PAGE_F;
+}
+
+#**********************************************************
+=head2 _extreceipt_plugins()
+
+  Arguments:
+     -
+
+  Returns:
+    \@plugins - present modules in folder
+
+=cut
+#**********************************************************
+sub _extreceipt_plugins {
+  my $paysys_folder = $base_dir . 'Abills/modules/Extreceipt/API/';
+
+  my @plugins = ();
+  opendir(my $folder, $paysys_folder);
+  while (my $filename = readdir $folder) {
+    if ($filename =~ /pm$/) {
+      $filename =~ s/\.pm//;
+      push(@plugins, $filename);
+    }
+  }
+  closedir $folder;
+
+  return \@plugins;
 }
 
 1;

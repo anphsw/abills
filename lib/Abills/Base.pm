@@ -71,6 +71,7 @@ our @EXPORT = qw(
   is_number
   decode_quoted_printable
   get_period_dates
+  expire_date
 );
 
 our @EXPORT_OK = qw(
@@ -121,6 +122,7 @@ our @EXPORT_OK = qw(
   is_number
   decode_quoted_printable
   get_period_dates
+  expire_date
 );
 
 # As said in perldoc, should be called once on a program
@@ -438,7 +440,9 @@ sub txt2translit {
     'Ш' => 'Sh',
     'Щ' => 'Shch',
     'Ю' => 'Ju',
-    'Я' => 'Ja'
+    'Я' => 'Ja',
+    'є' => 'ye',
+    'Є' => 'Ye'
   );
 
   for my $c (keys %mchars) {
@@ -2494,6 +2498,8 @@ sub json_former {
     }
 
     $request =~ s/[\x{00}-\x{1f}]+//ig;
+    # $request =~ s/[\x{80}-\x{a0}]+//ig;
+    $request =~ s/[\x{200b}]+//ig;
 
     if ($request =~/[\\]$/g) {
       $request =~ s/[\\]$/\\\\/g;
@@ -2906,6 +2912,37 @@ sub get_period_dates {
   }
 
   return '';
+}
+
+#**********************************************************
+=head2 expire_date(attr); - Get expire date
+
+  Arguments:
+    $attr,
+    $Tariffs
+
+  Result:
+    $self
+
+=cut
+#**********************************************************
+sub expire_date {
+  my ($attr, $Tariffs) = @_;
+
+  $attr->{EXPIRE} = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $Tariffs->{AGE}));
+
+  eval { require Date::Calc };
+  if (!$@) {
+    Date::Calc->import( qw/Add_Delta_Days/ );
+
+    my (undef, undef, undef,$mday,$mon,$year,undef,undef,undef) = localtime(time);
+    $year += 1900;
+    $mon++;
+    ($year,$mon,$mday) = Date::Calc::Add_Delta_Days($year, $mon, $mday, $Tariffs->{AGE});
+    $attr->{EXPIRE} ="$year-$mon-$mday";
+  }
+
+  return $attr->{EXPIRE};
 }
 
 =head1 AUTHOR

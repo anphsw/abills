@@ -43,10 +43,11 @@ use Abills::HTML;
 use Nas;
 use Admins;
 
-my $html = Abills::HTML->new( { IMG_PATH => 'img/',
-  NO_PRINT                               => 1,
-  CONF                                   => \%conf,
-  CHARSET                                => $conf{default_charset},
+my $html = Abills::HTML->new( {
+  IMG_PATH => 'img/',
+  NO_PRINT => 1,
+  CONF     => \%conf,
+  CHARSET  => $conf{default_charset}
 });
 
 my $db = Abills::SQL->connect($conf{dbtype},
@@ -197,7 +198,7 @@ sub nas_registration {
   else {
     my $nas = $Nas;
     if ( $nas->{NAS_IP} && $nas->{NAS_IP} ne $ENV{REMOTE_ADDR} ) {
-      $Nas->query2("UPDATE nas SET mac='' WHERE mac='$FORM{MAC}';", 'do');
+      $Nas->query("UPDATE nas SET mac='' WHERE mac='$FORM{MAC}';", 'do');
       $Nas->change({ NAS_ID => $FORM{NAS_ID},
         MAC                 => $FORM{MAC},
         NAS_IP              => $ENV{REMOTE_ADDR}
@@ -209,7 +210,7 @@ sub nas_registration {
     }
     
     if ( $FORM{MAC} && $nas->{MAC} ne $FORM{MAC} ) {
-      $Nas->query2("UPDATE nas SET mac='' WHERE mac='$FORM{MAC}'", 'do');
+      $Nas->query("UPDATE nas SET mac='' WHERE mac='$FORM{MAC}'", 'do');
       $Nas->change({ NAS_ID => $FORM{NAS_ID},
         MAC                 => $FORM{MAC},
         NAS_IP              => $ENV{REMOTE_ADDR}

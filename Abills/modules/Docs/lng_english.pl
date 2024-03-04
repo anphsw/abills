@@ -6,9 +6,9 @@ $lang{YEAR_SHORT}='y.';
 
 $lang{ERR_NO_ORDERS}='No orders';
 
-@ones  = ('', 'thousand', 'million', 'billion', 'tryllyon');
-@twos  = ('', 'thousand', 'million', 'billion', 'tryllyon');
-@fifth = ('', 'thousand', 'million', 'billion', 'tryllyon');
+@ones  = ('', 'thousand', 'million', 'billion', 'trillion');
+@twos  = ('', 'thousand', 'million', 'billion', 'trillion');
+@fifth = ('', 'thousand', 'million', 'billion', 'trillion');
 
 @one              = ('', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine');
 @onest            = ('', 'one', 'two');
@@ -18,7 +18,7 @@ $lang{ERR_NO_ORDERS}='No orders';
 @money_unit_names = ('dollars','cents');
 
 $lang{PARTLY_PAID}='Partly paid';
-$lang{UNPAID}='UnPaid invoice';
+$lang{UNPAID}='Unpaid invoice';
 $lang{VAT_INCLUDE}='Vat include';
 $lang{AMOUNT_FOR_PAY}='Amount for pay';
 #$lang{ACTIVATE_NEXT_PERIOD}='For next activation period';
@@ -39,7 +39,7 @@ $lang{LAST_INVOICE_DATE}='Last Invoice date';
 $lang{NEXT_INVOICE_DATE}='Next Invoice Date';
 $lang{INCLUDE_DEPOSIT}='Include current balance';
 $lang{APPLY_TO_INVOICE}='Auto apply to invoice';
-$lang{PRINT_EXT}='Extenssion print';
+$lang{PRINT_EXT}='Extension print';
 $lang{PRINT_EXT_LIST}='Print List Extended';
 $lang{NEXT_PERIOD_INVOICE}='Next period invoice';
 $lang{STATEMENT_OF_ACCOUNT}='Statement of Account';
@@ -52,9 +52,9 @@ $lang{PRINT_TERMO_PRINTER} = 'Thermal printer check';
 $lang{UNPAID_INVOICES} = 'Unpaid invoices';
 $lang{SAVE_CONTROL_SUM}='Download document checksum';
 $lang{LIST_OF_CHARGES}='List of charges';
-$lang{DELETED_GROUP}="Delete by group";
-$lang{NO_CHECK_DOCUMENT}="Select the documents to delete";
-$lang{OPERATION}="The operation was successfully completed";
+$lang{DELETED_GROUP}='Delete by group';
+$lang{NO_CHECK_DOCUMENT}='Select the documents to delete';
+$lang{OPERATION}='The operation was successfully completed';
 $lang{PAYMENT_SUM}='Paid';
 
 $lang{FOR_TIME} = "for time";
@@ -65,3 +65,22 @@ $lang{TOTAL_END_MONTH} = 'Total at the end of the month';
 $lang{PAYER} = 'Payer';
 $lang{FEE} = 'Fee';
 $lang{PAYMENT} = 'Payment';
+
+$lang{ESIGN} = 'Electronic signature';
+$lang{ESIGN_SERVICE_NOT_CONNECTED} = 'No electronic signature services connected';
+$lang{ESIGN_SERVICE_BAD_CONFIGURATION} = 'Incorrect settings of the electronic signature service. Check settings or contact technical support';
+$lang{DEPARTMENT_NAME} = 'Name of department';
+$lang{FULL_DEPARTMENT_NAME} = 'Full department name';
+$lang{FULL_DEPARTMENT_ADDR} = 'Full address';
+$lang{REGION} = 'Region';
+$lang{RETURN_LINK} = 'Return link';
+$lang{NO_SIGN_SERVICE} = 'No sign service';
+$lang{ERR_IIT_LIBRARY} = 'IIT library is not configured, please check the library settings.';
+$lang{IIT_LIBRARY_CONFIGURED} = 'IIT library has been successfully configured, signature processing is possible.';
+$lang{DOCUMENT_ALREADY_SIGNING} = 'The document is already in the signing process';
+$lang{DOCUMENT_SIGNING} = 'Document is awaiting signature from the user';
+$lang{DOCUMENT_SEND_USER_FOR_SIGN} = 'The document has been successfully sent to the user for signing';
+$lang{DOCUMENT_SIGNED} = 'Document signed';
+$lang{SIGNED_DOCUMENTS} = 'Signed documents';
+
+1;

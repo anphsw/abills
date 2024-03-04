@@ -136,6 +136,7 @@ sub info {
       IF(c.name IS NULL, 0, c.credit) AS company_credit,
       u.domain_id,
       u.deleted,
+      u.disable_date,
       $password
     FROM `users` u
     LEFT JOIN `bills` b ON (u.bill_id=b.id)
@@ -299,7 +300,7 @@ sub pi {
     return $self;
   }
 
-  if ( ($self->{FIO} || $self->{FIO} eq '' ) && ($self->{FIO2} || $self->{FIO3} )) {
+  if ( $self->{FIO} && ($self->{FIO2} || $self->{FIO3} )) {
     $self->{FIO1} = $self->{FIO};
     $self->{FIO} = join (' ', ($self->{FIO1} || q{}), ($self->{FIO2} || q{}), ($self->{FIO3} || q{}));
   }
@@ -312,17 +313,18 @@ sub pi {
     $Address->address_info($self->{LOCATION_ID});
 
     $self->{DISTRICT_ID} = $Address->{DISTRICT_ID};
-    $self->{CITY} = $Address->{CITY};
+    # $self->{CITY} = $Address->{CITY};
     $self->{ADDRESS_DISTRICT} = $Address->{ADDRESS_DISTRICT};
     $self->{STREET_ID} = $Address->{STREET_ID};
     $self->{ZIP} = $Address->{ZIP};
     $self->{COORDX} = $Address->{COORDX};
-    $self->{COUNTRY} = $Address->{COUNTRY};
+    # $self->{COUNTRY} = $Address->{COUNTRY};
 
     $self->{ADDRESS_STREET} = $Address->{ADDRESS_STREET};
     $self->{ADDRESS_STREET2} = $Address->{ADDRESS_STREET2};
     $self->{ADDRESS_BUILD} = $Address->{ADDRESS_BUILD};
     $self->{ADDRESS_FLORS} = $Address->{ADDRESS_FLORS};
+    $self->{ADDRESS_DISTRICT_FULL} = $Address->{ADDRESS_DISTRICT_FULL} || '';
 
     if ($self->{conf}->{STREET_TYPE}) {
       $self->{ADDRESS_STREET_TYPE_NAME} = (split (';', $self->{conf}->{STREET_TYPE}))[$Address->{STREET_TYPE}];
@@ -342,9 +344,11 @@ sub pi {
       }
 
       $self->{ADDRESS_FULL} = $address;
+      $self->{ADDRESS_FULL_LOCATION} = $address;
     }
     else {
       $self->{ADDRESS_FULL} = "$self->{ADDRESS_STREET_TYPE_NAME} $self->{ADDRESS_STREET}$self->{conf}->{BUILD_DELIMITER}$self->{ADDRESS_BUILD}$self->{conf}->{BUILD_DELIMITER}$self->{ADDRESS_FLAT}";
+      $self->{ADDRESS_FULL_LOCATION} = "$self->{ADDRESS_DISTRICT_FULL}: $self->{ADDRESS_FULL}";
     }
   }
 
@@ -1018,9 +1022,10 @@ sub list {
     $WHERE .= (($WHERE) ? 'AND' : 'WHERE ') ." u.domain_id IN ($admin->{DOMAIN_ID})";
   }
 
-  if ( ! $admin->{permissions}->{0}->{8} ) {
-    $WHERE .= " AND u.deleted=0";
-  }
+  # Duplicate dbcore function
+  # if ( ! $admin->{permissions}->{0}->{8} ) {
+  #   $WHERE .= " AND u.deleted=0";
+  # }
 
   if($self->{SORT_BY}) {
     $SORT=$self->{SORT_BY};
@@ -2296,18 +2301,29 @@ sub contracts_list {
   my ($attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
-      ['ID',         'INT', 'uc.id'         ],
-      ['UID',        'INT', 'uc.uid'        ],
-      ['COMPANY_ID', 'INT', 'uc.company_id' ],
+      ['ID',         'INT',  'uc.id',                1 ],
+      ['NAME',       'STR',  'uc.name',              1 ],
+      ['UID',        'INT',  'uc.uid',               1 ],
+      ['TYPE',       'INT',  'uc.type',              1 ],
+      ['AID',        'INT',  'uc.aid',               1 ],
+      ['NUMBER',     'STR',  'uc.number',            1 ],
+      ['DATE',       'DATE', 'uc.date',              1 ],
+      ['REG_DATE',   'DATE', 'uc.reg_date',          1 ],
+      ['END_DATE',   'DATE', 'uc.end_date',          1 ],
+      ['TEMPLATE',   'DATE', 'uc.template',          1 ],
+      ['TYPE_NAME',  'STR',  'ct.name AS type_name', 1 ],
     ],
     {
       WHERE => 1
     }
   );
 
+  # deleted useless fields
+  # add if will be needed
+  # uc.parrent_id - never used, suggested to rename to parent_id
+
   $self->query("SELECT
     uc.id,
-    uc.parrent_id,
     uc.uid,
     uc.company_id,
     uc.number,
@@ -2327,7 +2343,7 @@ sub contracts_list {
     { COLS_NAME => 1, %$attr }
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   $self->query("SELECT COUNT(*) AS total FROM users_contracts uc
     $WHERE;",
@@ -2339,6 +2355,37 @@ sub contracts_list {
 }
 
 #**********************************************************
+=head2 info($id, $attr) - Info
+
+  Arguments:
+    $id
+    $attr
+      TP_ID
+      MODULES
+      ID      - TP num
+      NAME
+
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub contracts_info {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query("SELECT *
+    FROM users_contracts
+    WHERE id = ?",
+    undef,
+    { INFO => 1,
+      Bind => [ $id || '--' ] }
+  );
+
+  return $self;
+}
+
+#**********************************************************
 =head2 contracts_add()
 
 =cut
@@ -2347,7 +2394,14 @@ sub contracts_add {
   my $self = shift;
   my ($attr) = @_;
 
+  # aid do not defined before, always zero
+  $attr->{AID} = $admin->{AID} || 1;
+
   $self->query_add('users_contracts', $attr);
+
+  if (!$self->{errno}) {
+    $self->contracts_info($self->{INSERT_ID});
+  }
 
   return $self;
 }
@@ -2363,13 +2417,15 @@ sub contracts_change {
 
   $attr->{ID} = $id;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'users_contracts',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'users_contracts',
+    DATA         => $attr
+  });
+
+  if (!$self->{errno}) {
+    $self->contracts_info($id);
+  }
 
   return $self;
 }
@@ -2398,9 +2454,9 @@ sub contracts_type_list {
   my ($attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
-      ['ID',         'INT', 'id'         ],
-      ['NAME',       'STR', 'name'       ],
-      ['TEMPLATE',   'STR', 'template'   ],
+      ['ID',         'INT', 'id',       1 ],
+      ['NAME',       'STR', 'name',     1 ],
+      ['TEMPLATE',   'STR', 'template', 1 ],
     ],
     {
       WHERE => 1
@@ -2417,7 +2473,7 @@ sub contracts_type_list {
     { COLS_NAME => 1, %$attr }
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   $self->query("SELECT COUNT(*) AS total FROM contracts_type
     $WHERE;",
@@ -2453,13 +2509,11 @@ sub contracts_type_change {
 
   $attr->{ID} = $id;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'contracts_type',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'contracts_type',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -2476,31 +2530,6 @@ sub contracts_type_del {
   $self->query_del('contracts_type', $attr);
 
   return $self;
-}
-
-#**********************************************************
-=head2 min_tarif_val() - Get minimum value for internet tarif
-
-  Arguments:
-
-  Returns:
-    $list
-=cut
-#**********************************************************
-sub min_tarif_val {
-  my $self = shift;
-  my ($attr) = @_;
-  my $value = '';
-
-    $self->query("SELECT MIN(tr.month_fee) as min_t
-      FROM tarif_plans tr
-      WHERE (tr.module='Internet');",
-      undef,
-      $attr
-    );
-    $value = $self->{list}[0] || 0;
-
-  return $value;
 }
 
 #**********************************************************
@@ -2695,8 +2724,8 @@ sub phone_pin_add {
 
   my $interval = $CONF->{AUTH_BY_PHONE_PIN_INTERVAL} || 5;
 
-  $self->query("REPLACE INTO users_phone_pin (uid, pin_code, time_code)
-    VALUES(?, ?, NOW() + INTERVAL $interval MINUTE);", undef, { Bind => [ $attr->{UID}, $attr->{PIN_CODE} ] });
+  $self->query("REPLACE INTO users_phone_pin (uid, pin_code, time_code, phone)
+    VALUES(?, ?, NOW() + INTERVAL '$interval' MINUTE, ?);", undef, { Bind => [ $attr->{UID}, $attr->{PIN_CODE}, $attr->{PHONE} ] });
 
   return $self;
 }

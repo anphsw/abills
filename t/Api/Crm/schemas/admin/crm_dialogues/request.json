@@ -1,0 +1,6 @@
+{
+  "name": "CRM_DIALOGUES",
+  "method": "GET",
+  "path": "crm/dialogues/",
+  "params": {}
+}

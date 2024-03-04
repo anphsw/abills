@@ -81,13 +81,14 @@
 <input type='hidden' name='MAIN_INNER_MESSAGE' value='%MAIN_INNER_MSG%'/>
 <input type='hidden' name='SUBJECT' value='%SUBJECT%' size=50/>
 <input type='hidden' id='MAX_FILES' value='%MAX_FILES%'/>
+<input type='hidden' id='RUN_TIME_START' value='%RUN_TIME_START%'/>
 <a name='reply' class='anchor'></a>
 
 <div class='card card-primary card-outline'>
   <div class='card-header with-border'>
     <h5 class='card-title'>_{REPLY}_</h5>
   </div>
-  <div class='card-body form form-horizontal'>
+  <div class='card-body form'>
 
     <div class='form-group row w-100 m-0'>
         <textarea id='REPLY_TEXT' name='REPLY_TEXT' data-action='drop-zone' class='form-control' rows=10>%QUOTING%%REPLY_TEXT%</textarea>
@@ -112,78 +113,78 @@
         </div>
       </div>
     </div>
+  </div>
 
-    <div class='card card-default card-outline collapsed-card'>
+  <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
 
-      <div class='card-header with-border'><h3 class='card-title'>_{EXTRA}_</h3>
-        <div class='card-tools float-right'>
-          <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-plus'></i></button>
-        </div>
+    <div class='card-header with-border'><h3 class='card-title'>_{EXTRA}_</h3>
+      <div class='card-tools float-right'>
+        <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-plus'></i></button>
       </div>
+    </div>
 
-      <div class='card-body'>
-        <div class='form-group row'>
-          <label class='col-md-3 control-label'>_{ATTACHMENT}_:</label>
-          <div class='col-md-9'>
-            <div class='input-group'>
-              <div id='file_upload_holder' class='form-file-input'>
-                <div class='form-group m-1'>
-                  <input name='FILE_UPLOAD' type='file' data-number='0' class='fixed'>
-                </div>
-              </div>
-              <div class='input-group-append'>
-                <a href='$SELF_URL?UID=$FORM{UID}&index=$index&PHOTO=$FORM{chg}&webcam=1'
-                   class='btn input-group-button'>
-                  <i class='fa fa-camera'></i>
-                </a>
+    <div class='card-body'>
+      <div class='form-group row'>
+        <label class='col-md-3 control-label'>_{ATTACHMENT}_:</label>
+        <div class='col-md-9'>
+          <div class='input-group'>
+            <div id='file_upload_holder' class='form-file-input'>
+              <div class='form-group m-1'>
+                <input name='FILE_UPLOAD' type='file' data-number='0' class='fixed'>
               </div>
             </div>
-          </div>
-        </div>
-
-        <div class='form-group row %SURVEY_HIDE%'>
-          <label class='col-md-3 control-label'>_{TEMPLATES}_ (_{SURVEY}_):</label>
-          <div class='col-md-9'>
-            %SURVEY_SEL%
-          </div>
-        </div>
-
-        <div class='form-group row'>
-          <label class='col-md-3 control-label'>_{RUN_TIME}_:</label>
-          <div class='input-group col-md-9'>
-            <div class='input-group-prepend'>
-              <div class='input-group-text'>
-                <i class='far fa-clock'></i>
-              </div>
-            </div>
-
-            <input class='form-control' id='RUN_TIME' type='text' name='RUN_TIME' %RUN_TIME_STATUS%>
-
-            <div id='func_btn' run_status='1' class='input-group-append'>
-              <a class='btn input-group-button'>
-                <i id='func_icon' class='fa fa-play'></i>
-              </a>
-            </div>
-
-            <div id='func_rst' run_status='1' class='input-group-append'>
-              <a class='btn input-group-button'>
-                <i class='fas fa-sync'></i>
+            <div class='input-group-append'>
+              <a href='%SELF_URL%?UID=$FORM{UID}&index=$index&PHOTO=$FORM{chg}&webcam=1'
+                 class='btn input-group-button'>
+                <i class='fa fa-camera'></i>
               </a>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class='form-group row %CHANGE_CHAPTER_HIDE%'>
-          <label class='col-md-3 control-label'>_{CHANGE_CHAPTER}_:</label>
-          <div class='col-md-9'>
-            %CHAPTERS_SEL%
+      <div class='form-group row %SURVEY_HIDE%'>
+        <label class='col-md-3 control-label'>_{TEMPLATES}_ (_{SURVEY}_):</label>
+        <div class='col-md-9'>
+          %SURVEY_SEL%
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-3 control-label' for='RUN_TIME'>_{RUN_TIME}_:</label>
+        <div class='input-group col-md-9'>
+          <div class='input-group-prepend'>
+            <div class='input-group-text'>
+              <i class='far fa-clock'></i>
+            </div>
+          </div>
+
+          <input class='form-control' id='RUN_TIME' type='text' name='RUN_TIME' %RUN_TIME_STATUS%>
+
+          <div id='func_btn' run_status='1' class='input-group-append'>
+            <a class='btn input-group-button'>
+              <i id='func_icon' class='fa fa-play'></i>
+            </a>
+          </div>
+
+          <div id='func_rst' run_status='1' class='input-group-append'>
+            <a class='btn input-group-button'>
+              <i class='fas fa-sync'></i>
+            </a>
           </div>
         </div>
       </div>
 
+      <div class='form-group row %CHANGE_CHAPTER_HIDE%'>
+        <label class='col-md-3 control-label'>_{CHANGE_CHAPTER}_:</label>
+        <div class='col-md-9'>
+          %CHAPTERS_SEL%
+        </div>
+      </div>
     </div>
 
   </div>
+
   <div class='card-footer'>
     <input type='hidden' name='sid' value='$sid'/>
     <input type='submit' class='btn btn-primary double_click_check' name='%ACTION%' value='%LNG_ACTION%' id='go' title='Ctrl+C'/>

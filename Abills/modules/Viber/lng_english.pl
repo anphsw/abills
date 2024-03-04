@@ -40,7 +40,7 @@ $lang{FIRST_PAYMENT} = "You have not yet topped up your account";
 $lang{UNIQUE_NUMBER} = "Your unique number";
 $lang{DEPOSIT_USER} = "In your account";
 $lang{LAST_PAYMENT_SUM} = "Last updated on";
-$lang{WRITE_TEXT} = "Write the text of your answer in the telegram field";
+$lang{WRITE_TEXT} = "Write your question";
 $lang{SEND_FILE} = "You can also send a file or photo, they will be attached to your reply";
 $lang{CHANCEL} = "Click cancel if you change your mind";
 $lang{CHANCEL_TEXT} = "Cancel";
@@ -101,5 +101,16 @@ $lang{MSGS_CREATE} = 'Message begin for tag: ';
 $lang{WEB_SITE} = 'Website';
 $lang{PAYMENT_CREDENTIAL} = 'Payment credential';
 $lang{NO_PAYMENT_SYSTEMS} = 'No available payment systems';
+
+$lang{EQUIPMENT_ERROR} = 'Error, please try again later';
+$lang{EQUIPMENT_WAIT} = 'Wait, checking in progress';
+$lang{EQUIPMENT_OPTICAL_TERMINAL_NOT_WORKING} = 'Optical terminal is not working';
+$lang{EQUIPMENT_OPTICAL_TERMINAL_WORKING} = 'Optical terminal is working';
+$lang{EQUIPMENT_ROUTER_NOT_WORKING} = 'Router is not working';
+$lang{EQUIPMENT_ROUTER_WORKING} = 'Router is working';
+$lang{EQUIPMENT_CHECK_COMPLETED} = 'Check completed';
+$lang{EQUIPMENT_CONNECTION_CHECK} = 'Connection check';
+
+$lang{VIBER_SCHEDULED_FEES} = 'Scheduled fees';
 
 1;

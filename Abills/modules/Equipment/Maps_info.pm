@@ -247,6 +247,7 @@ sub pon_maps {
 
   my $equipment_list = $Equipment->onu_list({ #XXX pay attention to DELETED status?
     NAS_ID      => ($attr->{NAS_ID}) ? $attr->{NAS_ID} : '_SHOW',
+    OLT_PORT    => ($attr->{OLT_PORT}) ? $attr->{OLT_PORT} : '_SHOW',
     LOCATION_ID => '!',
     MAPS_COORDS => '!',
     LOGIN       => '_SHOW',
@@ -263,14 +264,17 @@ sub pon_maps {
   my %builds_info = ();
 
   foreach my $point (@{$equipment_list}) {
-    my ($color, $panel_color) = _pon_state($point->{rx_power});
+    my ($color, $row_color) = _pon_state($point->{rx_power});
 
+    my @address_info = ();
+    push @address_info, $point->{address_street} if $point->{address_street};
+    push @address_info, $point->{address_build} if $point->{address_build};
     push @{$builds_info{$point->{build_id}}}, {
       rx_power  => $point->{rx_power},
       color     => $color,
-      row_color => $panel_color,
+      row_color => $row_color,
       uid       => $point->{uid} || '',
-      address   => "$point->{address_street}, $point->{address_build}",
+      address   => join(', ', @address_info),
       coordx    => $point->{coordx},
       coordy    => $point->{coordy}
     };
@@ -278,6 +282,9 @@ sub pon_maps {
 
   foreach my $build (keys %builds_info) {
     my $build_info = $builds_info{$build}[0];
+    $build_info->{rx_power} ||= 'N/A';
+    next if !$build_info->{color};
+
     my $marker_info = $Auxiliary->maps_point_info_table($html, $lang, {
       OBJECTS           => $builds_info{$build},
       TABLE_TITLES      => [ 'UID', 'RX_POWER', 'ADDRESS', ],
@@ -290,16 +297,26 @@ sub pon_maps {
       }
     });
 
+    my $selected_onu = ($attr->{LOCATION_ID} && $attr->{LOCATION_ID} == $build) ? ' selected-onu-equipment' : '';
+    my $onu_marker = "$build_info->{color} text-center rounded $selected_onu";
+    $onu_marker = (($attr->{TO_VISUAL})) ? "\\\"$onu_marker\\\"" : "\'$onu_marker\'";
+
     push @export_arr, {
       MARKER   => {
         LAYER_ID     => PON_MAPS_LAYER_ID,
         OBJECT_ID    => $build,
         COORDX       => $build_info->{coordy},
         COORDY       => $build_info->{coordx},
-        TYPE         => "pon_" . $build_info->{color},
+        # TYPE         => "pon_" . $build_info->{color},
+        CUSTOM_MARKER => {
+          HTML         => "<div class=$onu_marker>$build_info->{rx_power}</div>",
+          ICON_SIZE    => [ 50, 30 ],
+          POPUP_ANCHOR => [ 2, -15 ],
+          ICON_ANCHOR  => [ 25, 5 ]
+        },
         INFOWINDOW   => $marker_info,
         NAME         => $build_info->{address},
-        DISABLE_EDIT => 1
+        DISABLE_EDIT => 1,
       },
       LAYER_ID => PON_MAPS_LAYER_ID
     };
@@ -336,7 +353,7 @@ sub pon_maps {
     my $coordx = $point->{coordx};
     my $coordy = $point->{coordy};
     if ($showed_equipment{$point->{coordy} . ":" . $point->{coordx}}) {
-      $coordx = $coordx + 0.000005 * + +$showed_equipment{$point->{maps_coords}};
+      $coordx = $coordx + 0.000005 * + +$showed_equipment{$point->{coordy} . ":" . $point->{coordx}};
     }
     else {
       $showed_equipment{$point->{coordy} . ":" . $point->{coordx}} = 1;
@@ -358,7 +375,7 @@ sub pon_maps {
     my $info = "<div class='panel-group'>$tb</div>";
 
     if ($attr->{TO_VISUAL}) {
-      $info =~ s/\'/\\"/g;
+      $info =~ s/'/\\\'/g;
     }
 
     $count++;
@@ -450,31 +467,11 @@ sub _maps_equipments_report_info {
 sub _pon_state {
   my $rx_power = shift;
 
-  my $color = 'normal';
-  my $panel_color = "success";
+  return ('bg-light', 'light') if (!$rx_power || $rx_power > 0);
+  return ('bg-danger', 'danger') if ($rx_power > -8 || $rx_power < -30);
+  return ('bg-warning', 'warning') if ($rx_power > -10 || $rx_power < -27);
 
-  if (!$rx_power || $rx_power == 65535) {
-    $color = "off";
-    $panel_color = "default";
-  }
-  elsif ($rx_power > 0) {
-    $color = "off";
-    $panel_color = "default";
-  }
-  elsif ($rx_power < -8 && $rx_power > -27) {
-    $color = "normal";
-    $panel_color = "success";
-  }
-  elsif ($rx_power < -8 && $rx_power > -30) {
-    $color = "not_normal";
-    $panel_color = "danger";
-  }
-  else {
-    $color = "off";
-    $panel_color = "default";
-  }
-
-  return ( $color, $panel_color );
+  return ('bg-success', 'success');
 }
 
 1;

@@ -29,13 +29,25 @@
 
 <script>
   /* Closing right sidebar by resize */
+  let canBeOpen = '$admin->{RIGHT_MENU_OPEN}' !== '';
+  let openRightSidebar = !canBeOpen;
+  jQuery(function () {
+    jQuery(rightSidebarButton).on('click', function() {
+      if (mybody.classList.contains('control-sidebar-slide-open')) {
+        openRightSidebar = false;
+      } else {
+        openRightSidebar = true;
+      }
+    });
+  });
+
   function controlRightMenu() {
     if(mybody.classList.contains('control-sidebar-slide-open')) {
       if(mybody.clientWidth < 1200) {
         rightSidebarButton.click();
       }
     } else {
-      if('$admin->{RIGHT_MENU_OPEN}' !== '') {
+      if(!openRightSidebar) {
         if(mybody.clientWidth > 1200) {
           rightSidebarButton.click();
         }

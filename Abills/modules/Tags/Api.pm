@@ -132,6 +132,7 @@ sub admin_routes {
         $query_params->{RESPONSIBLE_ADMIN} = 1 if (exists $query_params->{ID_RESPONSIBLE} || exists $query_params->{RESPONSIBLE} || exists $query_params->{TAGS_ID});
 
         $Tags->list({
+          NAME      => '_SHOW',
           %$query_params,
           COLS_NAME => 1,
         });
@@ -164,7 +165,10 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         $Tags->tags_list({
+          %{$query_params},
           UID       => $path_params->{uid},
+          LOGIN     => '_SHOW',
+          DISABLE   => '_SHOW',
           COLS_NAME => 1
         });
       },

@@ -274,11 +274,15 @@ $lang{CHANGE_OF_DISPATCH} = 'Changing dispatch';
 $lang{MESSAGES_CAN_BE_SENT_UP_TO_ONCE} = 'Messages can be sent up to once every %SECONDS% seconds';
 $lang{LAST_MESSAGE_ID} = 'Last message id';
 $lang{CLOSED_ORDER_RATIO} = 'Closed order ratio';
+$lang{ADDITIONALLY} = 'Additionally';
 
 $lang{MSGS_SUPPORT_REQUEST_HEADER} = 'Support request submitted';
 $lang{MSGS_SUPPORT_REQUEST_BODY} = 'We\'re sorry you\'re having difficulty. We will do our best to solve the problem and make you satisfied.';
 $lang{MSGS_SUPPORT_REQUEST_FOOTER} = 'Our manager will contact you soon.';
 $lang{MSGS_SUPPORT_REQUEST_NUMBER} = 'The number of your request is';
 $lang{DO_YOU_REALLY_WANT_TO_CHARGE_FOR_MESSAGE} = 'Do you really want to charge for message?';
+$lang{MSGS_MAKE_PRIVATE} = 'Make private';
+$lang{MSGS_MAKE_PUBLIC} = 'Make public';
+$lang{MSGS_PROJECT} = 'Project';
 
 1;

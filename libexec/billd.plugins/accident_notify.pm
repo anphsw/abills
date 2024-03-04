@@ -69,6 +69,7 @@ sub accident_notify_open {
   my $accident_list = $Accident->list({
     SKIP_STATUS => '2',
     NAME        => '_SHOW',
+    DESCR       => '_SHOW',
     FROM_DATE   => $DATE,
     TO_DATE     => '_SHOW',
     END_TIME    => '_SHOW',
@@ -101,7 +102,7 @@ sub accident_notify_open {
         foreach my $user (@$users) {
           accident_send_warning({
             UID  => $user->{uid},
-            TEXT => "$lang{WARNING_TIME}$accident->{end_time}"
+            TEXT => "$accident->{descr}\n$lang{WARNING_TIME}$accident->{end_time}"
           });
           $count++;
         }
@@ -195,6 +196,7 @@ sub accident_equipment_notify_open {
     DATE         => $DATE,
     STATUS       => 0,
     SENT_OPEN    => 0,
+    DESCR        => '_SHOW',
     END_DATE     => '_SHOW',
     PAGE_ROWS    => 9999,
     COLS_NAME    => 1
@@ -214,7 +216,7 @@ sub accident_equipment_notify_open {
       foreach my $user (@$users) {
         accident_send_warning({
           UID  => $user->{uid},
-          TEXT => "$lang{WARNING_TIME}$equipment->{end_date}"
+          TEXT => "$equipment->{descr}\n$lang{WARNING_TIME}$equipment->{end_date}"
         });
         $count++;
       }

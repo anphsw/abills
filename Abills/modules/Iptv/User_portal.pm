@@ -26,6 +26,8 @@ my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Shedule = Shedule->new($db, $admin, \%conf);
 my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
+$users = Users->new($db, $admin, \%conf) if !$users;
+
 #**********************************************************
 =head2 iptv_subcribe_add() - IPTV user interface
 
@@ -161,7 +163,7 @@ sub iptv_user_info {
         PAGE_ROWS  => 99999,
       });
 
-      if ($service_info && $service_info->{SUBSCRIBE_COUNT} <= $Iptv->{TOTAL}) {
+      if ($service_info && $service_info->{SUBSCRIBE_COUNT} <= ($Iptv->{TOTAL} || 0)) {
         $html->message("err", $lang{ERROR}, "$lang{EXCEEDED_THE_NUMBER_OF_SUBSCRIPTIONS}: $service_info->{SUBSCRIBE_COUNT}");
         return 0;
       }
@@ -771,9 +773,7 @@ sub iptv_activation {
 #**********************************************************
 sub iptv_portal_additional_info {
 
-  return [] if !$FORM{chg} || !$FORM{UID} || !$FORM{sid};
-
-  $users = Users->new($db, $admin, \%conf) if !$users;
+  return [] if !$FORM{chg} || !$FORM{UID} || !$FORM{sid};;
 
   $Iptv->user_info($FORM{chg});
   $users->info($FORM{UID}, { SHOW_PASSWORD => 1 });

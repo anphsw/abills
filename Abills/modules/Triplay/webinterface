@@ -22,6 +22,8 @@ use warnings FATAL => 'all';
 use Triplay;
 use Triplay::Services;
 use Tariffs;
+use Abills::Base qw(expire_date);
+require Triplay::Users;
 
 our (
   $db,
@@ -57,15 +59,19 @@ sub triplay_tp {
   $Triplay->{ACTION} = 'add';
   $Triplay->{ACTION_LNG} = $lang{ADD};
   $FORM{SMALL_DEPOSIT_ACTION} = -1;
-
   if ($FORM{add}) {
-    $Tariffs->add({ %FORM, MODULE => 'Triplay' });
-    if (!$Tariffs->{errno}) {
-      $Triplay->tp_add({ %FORM, TP_ID => $Tariffs->{TP_ID} });
+    if (! $FORM{NAME}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_NAME});
     }
+    else {
+      $Tariffs->add({ %FORM, MODULE => 'Triplay' });
+      if (!$Tariffs->{errno}) {
+        $Triplay->tp_add({ %FORM, TP_ID => $Tariffs->{TP_ID} });
+      }
 
-    if (!$Triplay->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{TARIF_PLAN} $lang{ADDED}");
+      if (!$Triplay->{errno}) {
+        $html->message('info', $lang{INFO}, "$lang{TARIF_PLAN} $lang{ADDED}");
+      }
     }
   }
   elsif ($FORM{change}) {
@@ -76,6 +82,10 @@ sub triplay_tp {
     if (!$Triplay->{errno}) {
       $html->message('info', $lang{SUCCESS}, "$lang{TARIF_PLAN} $lang{CHANGED}");
     }
+
+    $Triplay->tp_info({ ID => $FORM{chg} });
+    $Triplay->{ACTION} = 'change';
+    $Triplay->{ACTION_LNG} = $lang{CHANGE};
   }
   elsif ($FORM{chg}) {
     $Triplay->{ACTION} = 'change';
@@ -123,9 +133,21 @@ sub triplay_tp {
     VOIP_TP   => $Triplay->{VOIP_TP},
     SELECT    => 'VOIP_TP',
     EX_PARAMS   => {
-      MAIN_MENU => get_function_index('internet_tp'),
-      MAIN_MENU_ARGV => ($Triplay->{INTERNET_TP}) ? "TP_ID=$Triplay->{INTERNET_TP}" : ''
+      MAIN_MENU => get_function_index('voip_tp'),
+      MAIN_MENU_ARGV => ($Triplay->{VOIP_TP}) ? "TP_ID=$Triplay->{VOIP_TP}" : ''
     }
+  });
+
+  use Abon;
+  my $Abon = Abon->new($db, $admin, \%conf);
+  my $abon_select = $html->form_select('ABON_TP', {
+    SELECTED       => $Triplay->{ABON_TP} || 0,
+    SEL_LIST       => $Abon->tariff_list_former({ TP_NAME=>'_SHOW', COLS_NAME => 1, PAGE_ROWS => 60000 }),
+    SEL_VALUE      => 'tp_name',
+    NO_ID          => 1,
+    SEL_OPTIONS    => { '' => '--' },
+    MAIN_MENU      => get_function_index('abon_tariffs'),
+    MAIN_MENU_ARGV => ($Triplay->{ABON_TP}) ? "TP_ID=$Triplay->{ABON_TP}" : ''
   });
 
   $Triplay->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
@@ -146,36 +168,51 @@ sub triplay_tp {
   );
 
   $Triplay->{PAYMENT_TYPE_SEL} = $html->form_select('PAYMENT_TYPE', {
-    SELECTED => $Triplay->{PAYMENT_TYPE},
+    SELECTED => $Triplay->{PAYMENT_TYPE} || 0,
     SEL_HASH => \%payment_types,
     NO_ID    => 1
   });
 
+  $Triplay->{NEXT_TARIF_PLAN_SEL} = sel_tp({
+    SELECT          => 'NEXT_TARIF_PLAN',
+    NEXT_TARIF_PLAN => $Triplay->{NEXT_TARIF_PLAN},
+    MAIN_MENU       => 'triplay_tp',
+    MODULE          => 'Triplay'
+  });
 
+  $Triplay->{REDUCTION_FEE}    = ($Triplay->{REDUCTION_FEE})      ? 'checked' : '';
   $Triplay->{PERIOD_ALIGNMENT} = ($Triplay->{PERIOD_ALIGNMENT} || $FORM{PERIOD_ALIGNMENT}) ? 'checked' : '';
+
   $html->tpl_show(_include('triplay_tp', 'Triplay'), {
     %$Triplay,
     INTERNET => $internet_select,
     IPTV     => $iptv_select,
     VOIP     => $voip_select,
+    ABON     => $abon_select,
     INDEX    => $index
   });
 
   result_former({
     INPUT_DATA      => $Triplay,
     FUNCTION        => 'tp_list',
-    BASE_FIELDS     => 6,
-    DEFAULT_FIELDS  => 'ID,NAME,MONTH_FEE,DAY_FEE,INTERNET_NAME,IPTV_NAME,VOIP_NAME,COMMENT',
+    BASE_FIELDS     => 2,
+    DEFAULT_FIELDS  => 'ID,NAME,MONTH_FEE,DAY_FEE,INTERNET_NAME,IPTV_NAME,VOIP_NAME,ABON_NAME,COMMENT',
     FUNCTION_FIELDS => 'change, del',
     EXT_TITLES      => {
-      id            => 'ID',
-      name          => $lang{NAME},
-      internet_name => $lang{INTERNET},
-      iptv_name     => $lang{TV},
-      voip_name     => $lang{VOIP},
-      month_fee     => $lang{MONTH_FEE},
-      day_fee       => $lang{DAY_FEE},
-      comment       => $lang{COMMENTS}
+      id              => 'ID',
+      name            => $lang{NAME},
+      internet_name   => $lang{INTERNET},
+      iptv_name       => $lang{TV},
+      voip_name       => $lang{VOIP},
+      month_fee       => $lang{MONTH_FEE},
+      day_fee         => $lang{DAY_FEE},
+      comment         => $lang{COMMENTS},
+      internet_name   => $lang{INTERNET},
+      iptv_name       => $lang{TV},
+      voip_name       => $lang{VOIP},
+      abon_name       => $lang{ABON},
+      age             => $lang{AGE},
+      next_tarif_plan => "$lang{NEXT} $lang{TARIF_PLAN}"
     },
     TABLE           => {
       width   => '100%',
@@ -199,6 +236,9 @@ sub triplay_tp {
 
   Arguments:
     $attr
+      UID
+      TP_ID
+      STATUS - Default: 0
 
   Returns:
 
@@ -211,6 +251,8 @@ sub triplay_service_activate_web {
   my $triplay_tp_info = $Triplay->tp_info({ TP_ID => $attr->{TP_ID} });
   my $internet_tp_id = $triplay_tp_info->{INTERNET_TP};
   my $iptv_tp_id = $triplay_tp_info->{IPTV_TP};
+  my $abon_tp_id = $triplay_tp_info->{ABON_TP};
+  my $status = $attr->{STATUS} || 0;
 
   if ($internet_tp_id) {
     my $service_id = $attr->{INTERNET_SERVICE_ID} || 0;
@@ -237,6 +279,7 @@ sub triplay_service_activate_web {
         %$attr,
         USER_INFO => $users,
         UID       => $uid,
+        STATUS    => $status,
         ID        => $service_id,
         TP_ID     => $internet_tp_id,
       });
@@ -276,7 +319,7 @@ sub triplay_service_activate_web {
         %$attr,
         USER_INFO => $users,
         UID       => $uid,
-        STATUS    => 0,
+        STATUS    => $status,
         ID        => $service_id,
         TP_ID     => $iptv_tp_id,
       });
@@ -288,6 +331,46 @@ sub triplay_service_activate_web {
       MODULE     => 'Iptv',
     });
   }
+
+  if ($abon_tp_id) {
+    my $service_id = $attr->{ABON_SERVICE_ID} || 0;
+    # For multi import
+    # if ($FORM{ASSIGN_CUR} && ! $FORM{IPTV_SERVICE_ID}) {
+    #   $service_id = triplay_get_services({
+    #     MODULE => 'Internet',
+    #     UID    => $uid,
+    #   });
+    # }
+    if (!$service_id) {
+      load_module('Abon');
+      $service_id = abon_user_add({
+        %$attr,
+        SERVICE_ADD => 1,
+        USER_INFO   => $users,
+        UID         => $uid,
+        TP_ID       => $abon_tp_id,
+        EXPIRE      => $attr->{EXPIRE}
+      });
+    }
+    # elsif ($FORM{ABON_SERVICE_ID}) {
+    #   load_module('Abon');
+    #   iptv_user_change({
+    #     %$attr,
+    #     USER_INFO => $users,
+    #     UID       => $uid,
+    #     STATUS    => 0,
+    #     ID        => $service_id,
+    #     TP_ID     => $iptv_tp_id,
+    #   });
+    #}
+
+    $Triplay->service_add({
+      UID        => $uid,
+      SERVICE_ID => $service_id,
+      MODULE     => 'Abon',
+    });
+  }
+
   #Make month fee
   $Triplay->user_info({ UID => $uid });
   if (!$attr->{DISABLE} && !$attr->{SKIP_MONTH_FEE}) {
@@ -319,11 +402,19 @@ sub triplay_user {
   $Triplay->{ACTION_LNG}=$lang{ADD};
   my $uid = $FORM{UID} || 0;
 
+  if ($FORM{TP_ID}) {
+    $Triplay->tp_info({ TP_ID => $FORM{TP_ID} });
+    if ($Triplay->{AGE}) {
+      my $expire = expire_date($Triplay, $Triplay);
+      $FORM{EXPIRE} = $Triplay->{EXPIRE};
+    }
+  }
+
   if ($FORM{add}) {
     $Triplay->user_add(\%FORM);
 
     if (!$Triplay->{errno}) {
-      $html->message('info', $lang{INFO}, $lang{ADDED});
+      $html->message('info', '3Play', $lang{ADDED});
       triplay_service_activate_web(\%FORM);
     }
     else {
@@ -337,20 +428,23 @@ sub triplay_user {
 
     if (!$Triplay->{errno}) {
       $Triplay->user_info({ UID => $uid });
-      if (! $Triplay->{DISABLE}) {
-        my $service_list = $Triplay->service_list({
-          UID        => $uid,
-          MODULE     => '_SHOW',
-          SERVICE_ID => '_SHOW',
-          COLS_NAME  => 1
-        });
 
-        foreach my $service (@$service_list) {
-          $FORM{uc($service->{module}).'_SERVICE_ID'} = $service->{service_id} if ($service->{service_id});
-        }
+      my $service_list = $Triplay->service_list({
+        UID        => $uid,
+        MODULE     => '_SHOW',
+        SERVICE_ID => '_SHOW',
+        COLS_NAME  => 1
+      });
 
-        triplay_service_activate_web(\%FORM);
+      foreach my $service (@$service_list) {
+        $FORM{uc($service->{module}).'_SERVICE_ID'} = $service->{service_id} if ($service->{service_id});
       }
+
+      if ($FORM{DISABLE}) {
+        $FORM{STATUS} = 1;
+      }
+      triplay_service_activate_web(\%FORM);
+
       $html->message('info', $lang{SUCCESS}, $lang{CHANGED});
       #service_get_month_fee($Triplay, { SERVICE_NAME => 'Triplay', MODULE => 'Triplay' });
     }
@@ -388,8 +482,10 @@ sub triplay_user {
       INTERNET_TP=> $tp_info->{INTERNET_NAME},
       VOIP_TP  => $tp_info->{VOIP_NAME},
       IPTV_TP  => $tp_info->{IPTV_NAME},
+      ABON_TP  => $tp_info->{ABON_NAME},
       INTERNET_LINK => "$SELF_URL?index=" . get_function_index('internet_user') . "&UID=" . $uid .'&chg='.($user_services{INTERNET_SERVICE_ID} || q{}),
       VOIP_LINK     => in_array('Voip', \@MODULES) ? "$SELF_URL?index=" . get_function_index('voip_user') . "&UID=" . $uid .'&chg='.($user_services{VOIP_SERVICE_ID} || q{}) : q{},
+      ABON_LINK     => in_array('Abon', \@MODULES) ? "$SELF_URL?index=" . get_function_index('abon_user') . "&UID=" . $uid .'&chg='.($user_services{ABON_SERVICE_ID} || q{}) : q{},
       IPTV_LINK     => "$SELF_URL?index=" . get_function_index('iptv_user') . "&UID=" . $uid .'&chg='.($user_services{IPTV_SERVICE_ID} || q{}),
     }, { OUTPUT2RETURN => 1 });
   }
@@ -440,7 +536,7 @@ sub triplay_user {
     $Triplay->{DEL_BUTTON} = $html->button($lang{DEL}, "index=$index&del=1&UID=$uid&ID=$Triplay->{ID}",
       {
         MESSAGE => "$lang{DEL} $lang{SERVICE} Triplay $lang{FOR} $lang{USER} $uid?",
-        class   => 'btn btn-danger float-right'
+        class   => 'btn btn-danger'
       });
   }
 

@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS `crm_leads` (
   `comments` TEXT,
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `holdup_date` DATE NOT NULL DEFAULT '0000-00-00',
+  `floor` SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
+  `entrance` SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY uid (`uid`),
   KEY competitor_id (`competitor_id`)
@@ -129,7 +131,11 @@ CREATE TABLE IF NOT EXISTS `crm_competitor_geolocation` (
   `competitor_id` SMALLINT(5) UNSIGNED DEFAULT '0' NOT NULL,
   `district_id`   SMALLINT(6) UNSIGNED DEFAULT '0' NOT NULL,
   `street_id`     SMALLINT(6) UNSIGNED DEFAULT '0' NOT NULL,
-  `build_id`      SMALLINT(6) UNSIGNED DEFAULT '0' NOT NULL
+  `build_id`      SMALLINT(6) UNSIGNED DEFAULT '0' NOT NULL,
+  KEY `competitor_id` (`competitor_id`),
+  KEY `district_id` (`district_id`),
+  KEY `street_id` (`street_id`),
+  KEY `build_id` (`build_id`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Geolocation of competitor';
 
@@ -137,7 +143,11 @@ CREATE TABLE IF NOT EXISTS `crm_competitor_tps_geolocation` (
   `tp_id`       SMALLINT(6) UNSIGNED DEFAULT '0' NOT NULL,
   `district_id` SMALLINT(6) UNSIGNED DEFAULT '0' NOT NULL,
   `street_id`   SMALLINT(6) UNSIGNED DEFAULT '0' NOT NULL,
-  `build_id`    SMALLINT(6) UNSIGNED DEFAULT '0' NOT NULL
+  `build_id`    SMALLINT(6) UNSIGNED DEFAULT '0' NOT NULL,
+  KEY `tp_id` (`tp_id`),
+  KEY `district_id` (`district_id`),
+  KEY `street_id` (`street_id`),
+  KEY `build_id` (`build_id`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Geolocation of competitor tps';
 
@@ -352,3 +362,15 @@ CREATE TABLE IF NOT EXISTS `crm_workflow_actions`
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm workflow actions';
+
+CREATE TABLE IF NOT EXISTS `crm_attachments` (
+  `id`           INT(10)     UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `filename`     VARCHAR(255)          NOT NULL DEFAULT '',
+  `file_size`    INT(10)      UNSIGNED NOT NULL DEFAULT 0,
+  `content_type` VARCHAR(50)           NOT NULL DEFAULT '',
+  `uploaded_at`  TIMESTAMP             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `message_id`   INT          UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Crm attachments table';

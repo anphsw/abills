@@ -1,7 +1,7 @@
-<FORM action='$SELF_URL' METHOD='POST' class='form form-horizontal'>
+<FORM action='%SELF_URL%' METHOD='POST' class='form'>
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='ID' value='%ID%'>
-  <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'>
+  <input type='hidden' name='NAS_ID' value='%NAS_ID%'>
   <input type='hidden' name='visual' value='%visual%'>
 
   <div class='card card-primary card-outline card-form'>
@@ -15,7 +15,6 @@
           <input type='text' name='PORT' value='%PORT%' class='form-control' ID='PORT'>
         </div>
       </div>
-
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' for='STATUS'>Admin _{STATUS}_:</label>
         <div class='col-md-4 mb-3 mb-md-0'>
@@ -50,6 +49,46 @@
           <input type='text' name='COMMENTS' value='%COMMENTS%' class='form-control' ID='COMMENTS'>
         </div>
       </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='PORT_NAME'>_{PORT}_ _{NAME}_:</label>
+        <div class='col-md-8 p-2'>
+          %PORT_NAME%
+        </div>
+        <label class='col-md-4 col-form-label text-md-right' for='PORT_DESCR'>_{PORT}_ _{DESCRIBE}_:</label>
+        <div class='col-md-8 p-2'>
+          %PORT_DESCR%
+        </div>
+        <label class='col-md-4 col-form-label text-md-right' for='PORT_UPTIME'>_{PORT_UPTIME}_:</label>
+        <div class='col-md-8 p-2'>
+          %PORT_UPTIME%
+        </div>
+        <label class='col-md-4 col-form-label text-md-right' for='PORT_STATUS'>_{PORT_STATUS}_:</label>
+        <div class='col-md-8 p-2'>
+          %PORT_STATUS%
+        </div>
+        <label class='col-md-4 col-form-label text-md-right' for='PORT_TYPE'>_{PORT_TYPE}_:</label>
+        <div class='col-md-8 p-2'>
+          %PORT_TYPE%
+        </div>
+        <label class='col-md-4 col-form-label text-md-right' for='PORT_SPEED'>_{SPEED}_:</label>
+        <div class='col-md-8 p-2'>
+          %PORT_SPEED%
+        </div>
+        <label class='col-md-4 col-form-label text-md-right' for='TRAFFIC'>_{TRAFFIC}_:</label>
+        <div class='col-md-8 p-2'>
+          %TRAFFIC%
+        </div>
+        <label class='col-md-4 col-form-label text-md-right' for='PORT_ERRORS'>_{PACKETS_WITH_ERRORS}_ (in/out):</label>
+        <div class='col-md-8 p-2'>
+          %PORT_ERRORS%
+        </div>
+        <label class='col-md-4 col-form-label text-md-right' for='PORT_DISCARDS'>Discarded _{PACKETS_}_ (in/out):</label>
+        <div class='col-md-8 p-2'>
+          %PORT_DISCARDS%
+        </div>
+      </div>
+
     </div>
     <div class='card-footer'>
       <button type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary float-left'>%ACTION_LNG%</button>

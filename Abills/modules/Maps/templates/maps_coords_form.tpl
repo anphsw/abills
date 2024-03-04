@@ -37,18 +37,56 @@
 
   const streetId = jQuery('#STREET_ID');
 
+  document.addEventListener('district-change-DISTRICT_SEL', function(event) {
+    GetStreets(event.detail.district);
+  });
+
   function GetStreets(data) {
-    const districtId = jQuery("#" + data.id).val();
-    jQuery.post('$SELF_URL', getUrl(districtId ? districtId : '_SHOW'), function (result) {
-      streetId.html(result);
-      streetId.focus();
-      streetId.select2('open');
-    });
+    let street = streetId;
+    street.attr('disabled', 'disabled');
+
+    let district_id = jQuery(data).val();
+    district_id = district_id ? district_id : '_SHOW';
+
+    fetch(`/api.cgi/streets?DISTRICT_ID=${district_id}&DISTRICT_NAME=_SHOW&PAGE_ROWS=1000000`, {
+      mode: 'cors',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json'},
+    })
+      .then(response => {
+        if (!response.ok) throw response;
+        return response;
+      })
+      .then(response => response.json())
+      .then(data => {
+        street.html('');
+
+        if (data.length < 1) return 1;
+
+        feelOptionGroup(street, data, 'districtId', 'districtName', 'streetName');
+
+        let feel_options = street.find('option[value!=""]').length;
+        if (feel_options > 0) initChosen();
+        if (!jQuery(data).prop('multiple') && feel_options > 0) street.focus().select2('open');
+        street.removeAttr('disabled');
+      });
   }
 
-  function getUrl(districtId) {
-    return '%QINDEX%header=2&get_index=form_address_select2&DISTRICT_ID=' + districtId
-    + '&STREET=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%';
+  function feelOptionGroup (select, data, groupKey, groupLabel, optionName) {
+    let default_option = jQuery('<option></option>', {value: '', text: '--'});
+    select.append(default_option);
+
+    let optgroups = {};
+    data.forEach(address => {
+      if (!optgroups[address[groupKey]]) {
+        optgroups[address[groupKey]] = jQuery(`<optgroup label='== ${address[groupLabel]} =='></optgroup>`);
+      }
+
+      let option = jQuery('<option></option>', {value: address.id, text: address[optionName]});
+      optgroups[address[groupKey]].append(option);
+    });
+
+    jQuery.each(optgroups, function(key, value) { select.append(value);});
   }
 </script>
 

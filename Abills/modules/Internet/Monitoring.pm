@@ -141,6 +141,8 @@ sub internet_online {
       SESSION_START      => '_SHOW',
       TP_NUM             => '_SHOW',
       NAS_ID             => $FORM{nas_id},
+      SWITCH_PORT        => $FORM{SWITCH_PORT} || '_SHOW',
+      SWITCH_MAC         => $FORM{SWITCH_MAC} || '_SHOW',
     });
 
     my $online_list = $Sessions->{nas_sorted};
@@ -286,7 +288,8 @@ sub internet_online {
         caption => "Online $lang{TOTAL} ($lang{NAS}: $Sessions->{TOTAL_NAS})",
         title   => [ "NAS ID", "NAS $lang{NAME}", "NAS IP", $lang{TYPE}, $lang{SESSIONS}, $lang{USERS}, "ZAPPED", $lang{ERROR}, $lang{GUEST}, "-" ],
         qs      => $pages_qs,
-        ID      => 'ONLINE'
+        ID      => 'ONLINE',
+        DATA_TABLE => ($conf{DATA_TABLE_ENABLE}) ? $conf{DATA_TABLE_ENABLE} : ''
       });
 
       foreach my $line (@$list) {
@@ -321,6 +324,7 @@ sub internet_online {
 
   if ($FORM{NAS_ERROR_SESSIONS}) {
     $LIST_PARAMS{NAS_ERROR_SESSIONS} = $FORM{NAS_ERROR_SESSIONS};
+    $LIST_PARAMS{SESSIONS_COUNT}=1;
   }
 
   if (-f '/usr/abills/webreports/internet_online_count.log') {
@@ -450,6 +454,7 @@ sub internet_online {
       qs         => $pages_qs,
       ID         => 'INTERNET_ONLINE',
       EXPORT     => 1,
+      DATA_TABLE => ($conf{DATA_TABLE_ENABLE}) ? $conf{DATA_TABLE_ENABLE} : '',
     },
     SKIP_PAGES      => 1
   });
@@ -721,6 +726,8 @@ sub internet_online_search {
     LAST_ALIVE      => $lang{LAST_UPDATE},
     VLAN            => 'Client VLAN',
     SERVER_VLAN     => 'Server VLAN',
+    SWITCH_PORT     => "$lang{SWITCH} $lang{PORT}",
+    SWITCH_MAC      => "$lang{SWITCH} MAC",
   );
 
   if ($FORM{FILTER}) {
@@ -1021,8 +1028,53 @@ sub _internet_map_menu {
   my $builds_for_users = $Maps->users_monitoring_list({ COLS_NAME => 1 });
   return 0 if _error_show($Maps);
 
-  my @build_ids = ();
-  map push(@build_ids, $_->{build_id}), @{$builds_for_users} if $Maps->{TOTAL};
+  my $map_info = {};
+
+  foreach my $user (@{$builds_for_users}) {
+    next if !$user->{build_id};
+
+    if ($map_info->{$user->{build_id}} && $map_info->{$user->{build_id}}{MARKER}{INFO} && $map_info->{$user->{build_id}}{TABLE_INFO}) {
+      my $online = $user->{online} ? $html->element('span', '', {
+        class => 'far fa-check-circle text-green',
+        title => $lang{ONLINE}
+      }) : '';
+      $map_info->{$user->{build_id}}{TABLE_INFO}->addrow($online, $user->{login}, $user->{deposit}, $user->{fio});
+
+      $map_info->{$user->{build_id}}{MARKER}{INFO} = $map_info->{$user->{build_id}}{TABLE_INFO}->show({ NO_DEBUG_MARKERS => 1 });
+    }
+    else {
+      my $info_table = $html->table({
+        width          => '100%',
+        caption        => $lang{USERS},
+        NOT_RESPONSIVE => 1,
+        class          => 'table table-condensed table-hover table-bordered'
+      });
+      $info_table->addrow($lang{ONLINE}, $lang{LOGIN}, $lang{DEPOSIT}, $lang{FIO});
+      my $online = $user->{online} ? $html->element('span', '', {
+        class => 'far fa-check-circle text-green',
+        title => $lang{ONLINE}
+      }) : '';
+      $info_table->addrow($online, $user->{login}, $user->{deposit}, $user->{fio});
+
+      $map_info->{$user->{build_id}}{TABLE_INFO} = $info_table;
+      $map_info->{$user->{build_id}}{MARKER}{INFO} = $info_table->show({ NO_DEBUG_MARKERS => 1 });
+    }
+
+    $map_info->{$user->{build_id}}{MARKER}{INFO} =~ s/"/\\\'/g;
+    $map_info->{$user->{build_id}} = {
+      MARKER     => {
+        ID           => $user->{build_id},
+        OBJECT_ID    => $user->{build_id},
+        COORDX       => $user->{coordx},
+        COORDY       => $user->{coordy},
+        TYPE         => "build_green",
+        INFO         => $map_info->{$user->{build_id}}{MARKER}{INFO},
+        DISABLE_EDIT => 1
+      },
+      TABLE_INFO => $map_info->{$user->{build_id}}{TABLE_INFO},
+      ID         => $user->{build_id}
+    }
+  }
 
   require Maps::Maps_view;
   Maps::Maps_view->import();
@@ -1031,7 +1083,7 @@ sub _internet_map_menu {
   $html->tpl_show(_include('internet_online_map', 'Internet'), {
     FILTERS => $attr->{FILTERS},
     TABLE   => $attr->{TABLE},
-    MAPS    => $Maps_view->show_map(\%FORM, { QUICK => 1, BUILD_IDS => \@build_ids })
+    MAPS    => $Maps_view->show_map(\%FORM, { DATA => [ values %{$map_info} ], DONE_DATA => 1, QUICK => 1 })
   });
 
   return 1;

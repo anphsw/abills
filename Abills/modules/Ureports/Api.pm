@@ -3,10 +3,15 @@ use strict;
 use warnings FATAL => 'all';
 
 use Ureports;
+use Control::Errors;
 
+my Control::Errors $Errors;
 my Ureports $Ureports;
 require Abills::Sender::Core;
 my %send_methods = %Abills::Sender::Core::PLUGIN_NAME_FOR_TYPE_ID;
+
+our %lang;
+require 'Abills/modules/Ureports/lng_english.pl';
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -26,7 +31,10 @@ sub new {
 
   bless($self, $class);
 
+  my %LANG = (%{$lang}, %lang);
+
   $Ureports = Ureports->new($db, $admin, $conf);
+  $Errors = Control::Errors->new($db, $admin, $conf, { lang => \%LANG, module => 'Ureports' });
 
   $Ureports->{debug} = $self->{debug};
 
@@ -205,32 +213,18 @@ sub admin_routes {
           errstr => 'Access denied'
         } if !$self->{admin}->{permissions}{0}{10};
 
-        return {
-          errno  => 103001,
-          errstr => 'No field tpId'
-        } if !$query_params->{TP_ID};
+        return $Errors->throw_error(1210001) if !$query_params->{TP_ID};
 
-        return {
-          errno  => 103002,
-          errstr => 'No field destinations'
-        } if !defined $query_params->{DESTINATIONS};
+        return $Errors->throw_error(1210002) if !defined $query_params->{DESTINATIONS};
 
-        return {
-          errno  => 103015,
-          errstr => 'Destinations must be array'
-        } if ref $query_params->{DESTINATIONS} ne 'ARRAY';
+        return $Errors->throw_error(1210003) if ref $query_params->{DESTINATIONS} ne 'ARRAY';
 
         my $list = $Ureports->user_list({
           UID       => $path_params->{uid},
           COLS_NAME => 1,
         });
 
-        if ($list && scalar @{$list}) {
-          return {
-            errno  => 103003,
-            errstr => 'User info exists'
-          };
-        }
+        return $Errors->throw_error(1210004) if ($list && scalar @{$list});
 
         my %destinations = (
           TYPE => '',
@@ -285,10 +279,7 @@ sub admin_routes {
           errstr => 'Access denied'
         } if !$self->{admin}->{permissions}{0}{10};
 
-        return {
-          errno  => 103016,
-          errstr => 'Destinations must be array'
-        } if $query_params->{DESTINATIONS} && ref $query_params->{DESTINATIONS} ne 'ARRAY';
+        return $Errors->throw_error(1210005) if $query_params->{DESTINATIONS} && ref $query_params->{DESTINATIONS} ne 'ARRAY';
 
         my %destinations = ();
 
@@ -358,10 +349,7 @@ sub admin_routes {
             };
           }
           else {
-            return {
-              errno  => 103006,
-              errstr => "No user with uid $path_params->{uid}",
-            };
+            return $Errors->throw_error(1210006);
           }
         }
 
@@ -384,10 +372,7 @@ sub admin_routes {
         });
 
         if ($active_reports && !scalar @{$active_reports}) {
-          return {
-            errno  => 103007,
-            errstr => 'No user with report service'
-          };
+          return $Errors->throw_error(1210007);
         }
 
         my %report_names = (
@@ -444,15 +429,9 @@ sub admin_routes {
           errstr => 'Access denied'
         } if !$self->{admin}->{permissions}{0}{10};
 
-        return {
-          errno  => 103010,
-          errstr => 'No field reports'
-        } if !$query_params->{REPORTS};
+        return $Errors->throw_error(1210008) if !$query_params->{REPORTS};
 
-        return {
-          errno  => 103012,
-          errstr => 'Field reports not array'
-        } if ref $query_params->{REPORTS} ne 'ARRAY';
+        return $Errors->throw_error(1210009) if ref $query_params->{REPORTS} ne 'ARRAY';
 
         my $active_reports = $Ureports->tp_user_reports_list({
           UID       => $path_params->{uid},
@@ -461,12 +440,7 @@ sub admin_routes {
           COLS_NAME => 1
         });
 
-        if ($active_reports && !scalar @{$active_reports}) {
-          return {
-            errno  => 103007,
-            errstr => 'No user with report service'
-          };
-        }
+        return $Errors->throw_error(1210010) if ($active_reports && !scalar @{$active_reports});
 
         #TODO: maybe Do not delete existing reports and add logic to operate old reports?
 
@@ -494,10 +468,7 @@ sub admin_routes {
             };
           }
           else {
-            return {
-              warn => 'No reports added',
-              code => 103013
-            };
+            return $Errors->throw_error(1210011);
           }
         }
 
@@ -534,10 +505,7 @@ sub admin_routes {
             };
           }
           else {
-            return {
-              errno  => 103008,
-              errstr => "User with uid $path_params->{uid} has no reports",
-            };
+            return $Errors->throw_error(1210012, { lang_vars => { UID => $path_params->{uid} } });
           }
         }
 
@@ -575,10 +543,7 @@ sub admin_routes {
             };
           }
           else {
-            return {
-              errno  => 103008,
-              errstr => "User with uid $path_params->{uid} has no report with id $path_params->{id}",
-            };
+            return $Errors->throw_error(1210013, { lang_vars => { UID => $path_params->{uid}, ID => $path_params->{id} } });
           }
         }
 

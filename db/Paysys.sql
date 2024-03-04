@@ -16,8 +16,10 @@ CREATE TABLE IF NOT EXISTS `paysys_log`
     `domain_id`      SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
     `status`         TINYINT(2) UNSIGNED    NOT NULL DEFAULT '0',
     `user_info`      varchar(120)                    DEFAULT NULL,
+    `merchant_id`    TINYINT UNSIGNED       NOT NULL DEFAULT '0',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `id` (`id`),
+    KEY `uid` (`uid`),
+    KEY `system_id` (`system_id`),
     UNIQUE KEY `ps_transaction_id` (`domain_id`, `transaction_id`)
 )
     CHARSET = 'utf8'
@@ -87,7 +89,7 @@ CREATE TABLE IF NOT EXISTS `paysys_tyme_report`
 
 CREATE TABLE IF NOT EXISTS `paysys_ipay_report`
 (
-    `id`             SMALLINT UNSIGNED      NOT NULL AUTO_INCREMENT,
+    `id`             INT(11) UNSIGNED      NOT NULL AUTO_INCREMENT,
     `sum`            DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
     `date`           DATETIME               NOT NULL DEFAULT '0000-00-00 00:00:00',
     `transaction_id` VARCHAR(24)            NOT NULL DEFAULT '',
@@ -100,7 +102,7 @@ CREATE TABLE IF NOT EXISTS `paysys_ipay_report`
 
 CREATE TABLE IF NOT EXISTS `paysys_easypay_report`
 (
-    `id`             SMALLINT UNSIGNED      NOT NULL AUTO_INCREMENT,
+    `id`             INT(11) UNSIGNED      NOT NULL AUTO_INCREMENT,
     `uid`            INT(11) UNSIGNED       NOT NULL DEFAULT '0',
     `sum`            DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
     `prov_bill`      int(11) UNSIGNED       NOT NULL DEFAULT '0',
@@ -129,7 +131,8 @@ CREATE TABLE IF NOT EXISTS `paysys_groups_settings`
     `paysys_id` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
     `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
     PRIMARY KEY `id` (`id`),
-    KEY `paysys_id` (`paysys_id`)
+    KEY `paysys_id` (`paysys_id`),
+    KEY `gid` (`gid`)
 )
     CHARSET = 'utf8'
     COMMENT = 'Settings for each group';
@@ -143,25 +146,13 @@ CREATE TABLE IF NOT EXISTS `paysys_connect`
     `module`         VARCHAR(40)          NOT NULL DEFAULT '',
     `status`         TINYINT UNSIGNED     NOT NULL DEFAULT 0,
     `paysys_ip`      TEXT                 NOT NULL,
-    `payment_method` INT(11) UNSIGNED     NOT NULL DEFAULT '0',
+    `payment_method` TINYINT(4) UNSIGNED  NOT NULL  DEFAULT '0',
     `priority`       TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
-    PRIMARY KEY `id` (`id`)
+    PRIMARY KEY `id` (`id`),
+    KEY `paysys_id` (`paysys_id`)
 )
     CHARSET = 'utf8'
     COMMENT = 'Paysys connected systems';
-
-CREATE TABLE IF NOT EXISTS `paysys_ibox_report`
-(
-    `id`             SMALLINT UNSIGNED      NOT NULL AUTO_INCREMENT,
-    `sum`            DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
-    `date`           DATETIME               NOT NULL DEFAULT '0000-00-00 00:00:00',
-    `transaction_id` VARCHAR(24)            NOT NULL DEFAULT '',
-    `user_key`       VARCHAR(16)            NOT NULL DEFAULT '',
-    PRIMARY KEY `id` (`id`),
-    UNIQUE `transaction_id` (`transaction_id`)
-)
-    DEFAULT CHARSET = utf8
-    COMMENT = 'Paysys ibox report';
 
 CREATE TABLE IF NOT EXISTS `paysys_merchant_settings`
 (
@@ -195,6 +186,8 @@ CREATE TABLE IF NOT EXISTS `paysys_merchant_to_groups_settings`
     `merch_id`  TINYINT UNSIGNED     NOT NULL DEFAULT 0,
     `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
     PRIMARY KEY `id` (`id`),
+    KEY `paysys_id` (`paysys_id`),
+    KEY `merch_id` (`merch_id`),
     FOREIGN KEY (`merch_id`) REFERENCES `paysys_merchant_settings` (`id`) ON DELETE CASCADE
 )
     CHARSET = 'utf8'
@@ -209,6 +202,7 @@ CREATE TABLE IF NOT EXISTS `paysys_global_money_report`
     `transaction_id` VARCHAR(24)            NOT NULL DEFAULT '',
     `description`    VARCHAR(200)           NOT NULL DEFAULT '',
     PRIMARY KEY `id` (`id`),
+    KEY `uid` (`uid`),
     UNIQUE KEY `transaction_id` (`transaction_id`)
 )
     CHARSET = 'utf8'
@@ -216,7 +210,7 @@ CREATE TABLE IF NOT EXISTS `paysys_global_money_report`
 
 CREATE TABLE IF NOT EXISTS `paysys_city24_report`
 (
-    `id`             SMALLINT UNSIGNED      NOT NULL AUTO_INCREMENT,
+    `id`             INT UNSIGNED      NOT NULL AUTO_INCREMENT,
     `sum`            DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
     `date`           DATETIME               NOT NULL DEFAULT '0000-00-00 00:00:00',
     `transaction_id` VARCHAR(24)            NOT NULL DEFAULT '',
@@ -242,7 +236,9 @@ CREATE TABLE IF NOT EXISTS `paysys_requests`
     `status`         SMALLINT(2) UNSIGNED   NOT NULL DEFAULT '0',
     `request_type`   TINYINT(2) UNSIGNED    NOT NULL DEFAULT '0',
     `sum`            DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    KEY `paysys_id` (`system_id`),
+    KEY `uid` (`uid`)
 )
     DEFAULT CHARSET = utf8
     COMMENT = 'Paysys access log';

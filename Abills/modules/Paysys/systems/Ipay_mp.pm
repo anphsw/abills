@@ -17,8 +17,8 @@ package Paysys::systems::Ipay_mp;
 =head2 VERSION
 
   Date: 07.06.2018
-  UPDATED: 20230503
-  VERSION: 8.38
+  UPDATED: 20240223
+  VERSION: 8.41
 
 =cut
 
@@ -27,10 +27,11 @@ use warnings FATAL => 'all';
 
 use JSON qw(decode_json);
 use Paysys;
-use Abills::Base qw(load_pmodule json_former);
+use Abills::Base qw(load_pmodule json_former vars2lang);
 use Abills::Fetcher qw(web_request);
+use Abills::Filters qw(_utf8_encode);
 
-our $PAYSYSTEM_VERSION = '8.38';
+our $PAYSYSTEM_VERSION = '8.41';
 my $PAYSYSTEM_NAME = 'Ipay_mp';
 my $PAYSYSTEM_SHORT_NAME = 'IPAY';
 my $PAYSYSTEM_ID = 72;
@@ -46,7 +47,9 @@ my %PAYSYSTEM_CONF = (
   PAYSYS_IPAY_DESC_KEY          => '',
   PAYSYS_IPAY_DEFAULT_ACC       => '',
   PAYSYS_IPAY_INNER_DESCRIPTION => '',
-  PAYSYS_IPAY_MERCHANT_ID       => ''
+  PAYSYS_IPAY_MERCHANT_ID       => '',
+  PAYSYS_IPAY_SMERCHANT_ID      => '',
+  PAYSYS_IPAY_TEST              => '',
 );
 
 our (%conf, %lang);
@@ -116,6 +119,7 @@ sub create_request_params {
   my ($action, $attr) = @_;
 
   my $user = $attr->{USER};
+  $self->{uid} = $user->{UID};
 
   ($user->{PHONE}) = $user->{PHONE} =~ /(\d+)/;
   $user->{PHONE} =~ s/^0/380/;
@@ -167,6 +171,9 @@ sub create_request_params {
     $request{request}{body}{pmt_info}{invoice} = $attr->{INVOICE} * 100;
     $request{request}{body}{pmt_info}{acc}     = $account_key;
 
+    if ($self->{conf}->{PAYSYS_IPAY_SMERCHANT_ID}) {
+      $request{request}{body}{pmt_info}{smch_id} = $self->{conf}->{PAYSYS_IPAY_SMERCHANT_ID};
+    }
 
     $request{request}{body}{threeds_info}{notification_url} = ($ENV{PROT} || 'http') . "://$ENV{SERVER_NAME}" . (($ENV{SERVER_PORT} != 80) ? ":$ENV{SERVER_PORT}" : '') . "/paysys_check.cgi"
       ."?ipay_purchase=1&invoice=" . ($attr->{INVOICE} * 100) . "&pmt_id=$attr->{ACC}&UID=$user->{UID}";
@@ -239,6 +246,10 @@ sub _request {
   my $self = shift;
   my ($request, $attr) = @_;
 
+  if ($self->{conf}->{PAYSYS_IPAY_TEST} && $self->{uid} && "$self->{conf}->{PAYSYS_IPAY_TEST}" eq "$self->{uid}") {
+    return $self->_mock_request($request, $attr);
+  }
+
   if (!$self->{conf}->{PAYSYS_IPAY_REQUEST_URL}) {
     $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{NO} URL", { ID => 1790 });
     return {};
@@ -277,6 +288,50 @@ sub _request {
   }
 
   return $result;
+}
+
+#**********************************************************
+=head2 _mock_request($request) - fake request
+
+  Arguments:
+    $request
+
+  Returns:
+    $result_hash_ref
+
+  Example
+    my$result = _request($request_params, { TREE => 'response' });
+
+=cut
+#**********************************************************
+sub _mock_request {
+  shift;
+  my ($request, $attr) = @_;
+
+  our %mock_responses;
+  eval { require "Paysys/t/Ipay_mp.t" };
+
+  if ($@) {
+    print "Content-Type: text/html\n\n";
+    print $@;
+    return {};
+  }
+
+  $request =~ s/\\\"/\"/g;
+  $request = decode_json($request);
+
+  my $action = $request->{request}->{action} || '';
+  my $response = $mock_responses{$action} || {};
+
+  if ($action eq 'PaymentCreate') {
+    $response->{response}->{invoice} = $request->{request}->{body}->{invoice};
+  }
+
+  if ($attr->{TREE}) {
+    $response = $response->{$attr->{TREE}} || {};
+  }
+
+  return $response;
 }
 
 #**********************************************************
@@ -329,6 +384,20 @@ sub user_portal_special {
   }
   # make payment if registered
   elsif ($attr->{ipay_pay}) {
+    my $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
+    $Paysys->list({
+      INFO     => "*OPERATION_ID, $attr->{OPERATION_ID}*",
+      COLS_NAME => 1,
+      PAGE_ROWS => 2
+    });
+
+    if ($Paysys->{TOTAL} && $Paysys->{TOTAL} > 0) {
+      $html->message('err', $self->{lang}->{ERROR}, vars2lang($self->{lang}->{TRANSACTION_EXISTS}, {
+        ID => $attr->{OPERATION_ID},
+      }), { ID => 2226 });
+      return 0;
+    }
+
     my $json_create_payment_string = $self->create_request_params('PaymentCreate', {
       CARD_ALIAS => $attr->{CARD_ALIAS},
       INVOICE    => $attr->{SUM},
@@ -559,7 +628,7 @@ sub proccess {
 
     if ($json_transaction_info) {
       $json_transaction_info =~ s/^"|"$//g;
-      $transaction_extra_info = decode_json($json_transaction_info);
+      $transaction_extra_info = decode_json(_utf8_encode($json_transaction_info));
     }
 
     return 9 if (defined($transaction_extra_info->{acc}) && $transaction_extra_info->{acc} eq 'UID');
@@ -571,6 +640,12 @@ sub proccess {
       if ($transaction_extra_info->{UID}) {
         $account = $transaction_extra_info->{UID};
         $account_key = 'UID';
+
+        # all request the same except json body of info field. Need handle payment as from iPay checkout
+        if ($transaction_extra_info->{FIO}) {
+          $PAYSYSTEM_ID = 172;
+          $PAYSYSTEM_NAME = 'Ipay';
+        }
       }
       else {
         $payment_amount = $transaction_extra_info->{invoice} / 100 if ($transaction_extra_info->{invoice});

@@ -6,7 +6,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(days_in_month mk_unique_value);
+use Abills::Base qw(days_in_month mk_unique_value encode_base64);
 
 our(
   %conf,
@@ -83,33 +83,35 @@ sub docs_acts_list{
   my $docs_acts = get_function_index( 'docs_acts_list' );
 
   # user portal
-  if ($FORM{sid} ){
+  if ($FORM{sid}){
     require Companies;
     Companies->import();
     my $Company = Companies->new($db, $admin, \%conf);
     my $company_index = get_function_index('form_companies');
 
-    my $company_admin = $Company->admins_list({UID => $user->{UID}, GET_ADMINS => 1, COLS_NAME => 1});
+    my $company_admin = $Company->admins_list({ UID => $user->{UID}, GET_ADMINS => 1, COLS_NAME => 1 });
 
-    $FORM{COMPANY_ID} = $company_admin->[0]->{company_id};
-    $index = $company_index;
-    $FORM{subf} = $docs_acts;
-    $LIST_PARAMS{UID} = '';
+    if ($company_admin->[0]->{company_id}) {
+      $FORM{COMPANY_ID} = $company_admin->[0]->{company_id};
+      $index = $company_index;
+      $FORM{subf} = $docs_acts;
+      $LIST_PARAMS{UID} = '';
+    }
   }
 
-  my $list = $Docs->acts_list( {
-    ACT_ID       => '_SHOW',
-    DATE         => '_SHOW',
-    COMPANY_NAME => '_SHOW',
-    SUM          => '_SHOW',
-    ADMIN_NAME   => '_SHOW',
-    CREATED      => '_SHOW',
-    START_PERIOD => '_SHOW',
-    END_PERIOD   => '_SHOW',
-    SKIP_DEL_CHECK=>1,
+  my $list = $Docs->acts_list({
+    ACT_ID         => '_SHOW',
+    DATE           => '_SHOW',
+    COMPANY_NAME   => '_SHOW',
+    SUM            => '_SHOW',
+    ADMIN_NAME     => '_SHOW',
+    CREATED        => '_SHOW',
+    START_PERIOD   => '_SHOW',
+    END_PERIOD     => '_SHOW',
+    SKIP_DEL_CHECK => 1,
     %LIST_PARAMS,
-    COMPANY_ID   => $FORM{COMPANY_ID},
-    COLS_NAME    => 1
+    COMPANY_ID     => $FORM{COMPANY_ID},
+    COLS_NAME      => 1
   });
 
   _error_show($Docs);
@@ -130,7 +132,30 @@ sub docs_acts_list{
   }
 
   my $total_acts_sum = 0;
-  foreach my $line ( @{$list} ){
+  foreach my $line (@{$list}) {
+    my $btn_sign = q{};
+    if ($conf{DOCS_ESIGN} && !$FORM{sid}) {
+      my $params = $FORM{COMPANY_ID} ? "&COMPANY_ID=$FORM{COMPANY_ID}" : $FORM{UID} ? "&UID=$FORM{UID}" : '';
+      $btn_sign = $html->button($lang{SIGN},
+        "get_index=docs_esign&mk_sign=1&ACT_ID=$line->{id}&DOC_ID=$line->{id}&DOC_TYPE=2&header=2$params",
+        { LOAD_TO_MODAL => 1, ICON => 'fas fa-signature', class => 'primary', ex_params => "style='cursor:pointer'" });
+    }
+    elsif ($conf{DOCS_CERT_CMD} && !$FORM{sid}) {
+      $btn_sign = $html->button($lang{SAVE_CONTROL_SUM},
+        "qindex=$index&cert=$line->{id}&COMPANY_ID=" . ($line->{company_id} || q{}) . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '') .
+          (($pages_qs) ? $pages_qs : ''),
+        { ex_params => 'target=_new', ICON => 'fas fa-certificate' })
+    }
+
+    my $btn_print = $html->button($lang{PRINT},
+      "qindex=$index&DOC_ID=$line->{id}&DOC_TYPE=2&print=$line->{id}&COMPANY_ID=" . ($line->{company_id} || q{}) . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '') .
+        (($pages_qs) ? $pages_qs : ''),
+      { ex_params => 'target=_new', class => 'print' });
+
+    my $btn_del = (($permissions{1} && $permissions{1}{2}) ? ' ' . $html->button($lang{DEL},
+      "index=$index$pages_qs&del=$line->{id}&COMPANY_ID=" . ($line->{company_id} || q{}),
+      { MESSAGE => "$lang{DEL} ID '$line->{id}' ?", class => 'del' }) : '');
+
     $table->addrow(
       $line->{act_id},
       $line->{date},
@@ -139,16 +164,7 @@ sub docs_acts_list{
       (defined($FORM{sid})) ? $line->{admin_name} : $html->button( $line->{admin_name}, "index=11&UID=$line->{uid}" ),
       "$line->{start_period}/$line->{end_period}",
       $line->{created},
-      (($conf{DOCS_CERT_CMD}) ? $html->button( $lang{SAVE_CONTROL_SUM},
-        "qindex=$index&cert=$line->{id}&COMPANY_ID=". ($line->{company_id} || q{}) . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '') . (($pages_qs) ? $pages_qs : ""),
-          { ex_params => 'target=_new', ICON => 'fa fa-certificate' } ) : q{})
-        . $html->button( $lang{PRINT},
-          "qindex=$index&print=$line->{id}&COMPANY_ID=". ($line->{company_id} || q{}) . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '') . (($pages_qs) ? $pages_qs : ""),
-          { ex_params => 'target=_new', class => 'print' } )
-        . (($permissions{1} && $permissions{1}{2}) ? ' '.$html->button( $lang{DEL},
-          "index=$index$pages_qs&del=$line->{id}&COMPANY_ID=". ($line->{company_id} || q{})
-          ,
-          { MESSAGE => "$lang{DEL} ID '$line->{id}' ?", class => 'del' } ) : '')
+      $btn_sign . $btn_print . $btn_del
     );
 
     $total_acts_sum  += $line->{sum} if ($line->{sum});
@@ -156,8 +172,8 @@ sub docs_acts_list{
   print $table->show();
 
   $table = $html->table({
-    width      => '100%',
-    rows       => [ [
+    width => '100%',
+    rows  => [ [
       #$html->button("$lang{PRINT} $lang{LIST}", "qindex=$index&print_list=1$pages_qs" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''), { BUTTON => 1, ex_params => 'target=new' }),
       "$lang{TOTAL}:", $html->b( $Docs->{TOTAL} ), "$lang{SUM}:", $html->b( $total_acts_sum ), ] ]
   });
@@ -205,26 +221,23 @@ sub docs_acts{
     $users->info($uid);
   }
 
-  #  require Dv_Sessions;
-  #  Dv_Sessions->import();
-  #  my $Sessions = Dv_Sessions->new( $db, $admin, \%conf );
-
   $Docs->{DATE} = $FORM{DATE} || $DATE;
   $Docs->{DONE_DATE} = $DATE;
   $Docs->{FROM_DATE} = $DATE;
 
-  if ( $FORM{create} ){
+  if ($FORM{create}) {
     docs_acts_create({
-      COMPANY  => $Company,
-      USER_INFO=> $users
+      COMPANY   => $Company,
+      USER_INFO => $users
     });
   }
   elsif ( $FORM{print} || $FORM{cert} ){
     docs_acts_print({
-      COMPANY  => $Company,
-      USER_INFO=> $users,
-      DOC_ID   => $FORM{cert} || $FORM{print},
-      CERT     => $FORM{cert}
+      COMPANY   => $Company,
+      USER_INFO => $users,
+      DOC_ID    => $FORM{cert} || $attr->{DOC_ID} || $FORM{print} || $FORM{DOC_ID},
+      DOC_TYPE  => $attr->{DOC_TYPE} || $FORM{DOC_TYPE},
+      CERT      => $FORM{cert}
     });
 
     return 0;
@@ -424,7 +437,7 @@ sub docs_acts_create {
       }
     }
 
-    if($FORM{MONTH}) {
+    if ($FORM{MONTH}) {
       $act_information{START_PERIOD} = "$FORM{MONTH}-01";
       $act_information{END_PERIOD} = "$FORM{MONTH}-" . days_in_month({ DATE => $FORM{MONTH} });
     }

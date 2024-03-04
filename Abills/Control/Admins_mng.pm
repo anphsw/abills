@@ -197,7 +197,7 @@ sub form_admins {
   }
 
   if ($conf{ADMIN_NEW_ADDRESS_FORM}) {
-    $admin_form->{ADDRESS_FORM} = form_address_select2({ %FORM, %{$admin_form} });
+    $admin_form->{ADDRESS_FORM} = form_address_select({ %FORM, %{$admin_form} });
     $admin_form->{OLD_ADDRESS_CLASS} = 'd-none';
   }
   else {
@@ -908,6 +908,7 @@ sub form_admin_permissions {
       "$lang{ADD} $lang{COMPANIES}", # 37
       "$lang{EDIT} $lang{COMPANIES}", # 38
       "$lang{DEL} $lang{COMPANIES}", # 39
+      $lang{DISTRICTS}, # 40
     ],
     # Users
     [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ], # Payments
@@ -945,7 +946,7 @@ sub form_admin_permissions {
 
     [
       $lang{ALL},
-      "", # 1 permission is empty !!!
+      $lang{REQUEST_STATUS},
       "$lang{ADD} CRM $lang{STEP}",
       $lang{TIME_SHEET},
       $lang{CRM_SHOW_ALL_LEADS},

@@ -14,6 +14,9 @@
 
 use strict;
 use warnings;
+use FindBin '$Bin';
+
+push @INC, $Bin . '/../', $Bin . '/../Abills/';
 
 use Abills::Base qw(sendmail in_array date_diff);
 use Abills::Sender::Core;
@@ -189,7 +192,7 @@ sub _get_newsletter_message {
 
   my $message = '';
   if ($sender_name eq 'Telegram' || !$conf{PORTAL_LINK_SEND}) {
-    my $message_template = _include('portal_newsletter_message_short', 'Portal', { EXTERNAL_CALL => 1 });
+    my $message_template = _include('portal_newsletter_message_short', 'Portal');
     $message =  $html->tpl_show($message_template, {
       MESSAGE   => $letter->{short_description},
     }, { OUTPUT2RETURN => 1 });
@@ -200,7 +203,7 @@ sub _get_newsletter_message {
     ? 'portal_newsletter_message'
     : 'portal_newsletter_message_short';
 
-  my $message_template = _include($template_name, 'Portal', { EXTERNAL_CALL => 1 });
+  my $message_template = _include($template_name, 'Portal');
   $message = $html->tpl_show($message_template, {
     MESSAGE   => $letter->{short_description},
     NEWS_LINK => $link
@@ -234,7 +237,7 @@ sub _get_newsletter_sender_options {
     my @keyboard = ();
     if ($letter->{content} && !$conf{PORTAL_LINK_SEND}) {
       my $read_button = $html->tpl_show(
-        _include('portal_newsletter_read_button', 'Portal', { EXTERNAL_CALL => 1 }), {}, { OUTPUT2RETURN => 1 }
+        _include('portal_newsletter_read_button', 'Portal'), {}, { OUTPUT2RETURN => 1 }
       );
       push @keyboard, { text => $read_button, url => $link };
     }

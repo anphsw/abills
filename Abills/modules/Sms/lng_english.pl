@@ -38,5 +38,6 @@ $lang{ADD_SUM_TRANSFER} = 'Add payment sum';
 $lang{SMS_GATEWAY} = 'SMS gateway';
 
 $lang{EXCEEDED_SMS_LIMIT} = 'Exceeded SMS limit for this user';
+$lang{ERR_SMS_ACCOUNT_INFO} = 'You are using the %SERVICE_NAME% module, which does not provide for displaying this report';
 
-1
+1;

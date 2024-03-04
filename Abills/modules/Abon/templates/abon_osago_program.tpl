@@ -28,7 +28,7 @@
 
       %DGO_SEL%
 
-      <a class='btn btn-primary apply-program' data-id='%PROGRAM_ID%' data-price='%PRICE%'>_{ABON_CHOOSE}_</a>
+      %CHOOSE_BTN%
     </div>
   </div>
 </div>

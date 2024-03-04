@@ -212,7 +212,8 @@ $lang{PORT_STATUS_CHANGING_ERROR} = 'Error when changing port status';
 $lang{RUN_CMD_ON_EQUIPMENT} = 'Run command on equipment';
 
 $lang{CONTINUATION_NUMBERING_FOR_EXTRA_PORTS} = 'Continuation of numbering for extra port';
-
-
+$lang{AUTODETECT}='Autodetect';
+$lang{GENERAL_INFORMATION} = 'General information';
+$lang{ONU_LAST_DOWN_CAUSE} = 'Last down case';
 
 1

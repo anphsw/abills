@@ -21,6 +21,7 @@
   "31:30:$lang{CHANNELS} $lang{USED}:iptv_reports_channels:" => 4,
   "32:30:$lang{CONSOLE}:iptv_console:"                       => 4,
   "34:30:$lang{FEES}:iptv_users_fees:"                       => 4,
+  "35:30:$lang{TARIF_PLANS}:iptv_report_tp:"                 => 4,
 );
 
 %USER_FUNCTION_LIST = (

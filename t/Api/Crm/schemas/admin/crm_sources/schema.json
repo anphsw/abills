@@ -1,0 +1,14 @@
+{
+  "definitions": {},
+  "type": "array",
+  "title": "Crm",
+  "required": [
+    "id"
+  ],
+  "properties": {
+    "id": {
+      "$id": "#/properties/id",
+      "type": "number"
+    }
+  }
+}

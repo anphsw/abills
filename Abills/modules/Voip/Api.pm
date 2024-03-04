@@ -15,13 +15,13 @@ use strict;
 use warnings FATAL => 'all';
 
 use Voip;
-use Voip::Users;
+use Voip::Services;
 
 use Abills::Base qw(next_month);
 use Voip::Constants qw/TRUNK_PROTOCOLS/;
 
 my Voip $Voip;
-my Voip::Users $Voip_users;
+my Voip::Services $Voip_users;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -43,7 +43,7 @@ sub new {
   bless($self, $class);
 
   $Voip = Voip->new($db, $admin, $conf);
-  $Voip_users = Voip::Users->new($db, $admin, $conf, {
+  $Voip_users = Voip::Services->new($db, $admin, $conf, {
     html        => $html,
     lang        => $lang,
     permissions => $admin->{permissions} || {}

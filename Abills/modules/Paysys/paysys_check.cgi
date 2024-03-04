@@ -31,7 +31,7 @@ use Abills::Defs;
 do "../libexec/config.pl";
 
 use Abills::Filters;
-use Abills::Base qw(decode_base64 check_ip);
+use Abills::Base qw(decode_base64 check_ip in_array);
 use Users;
 use Paysys;
 use Paysys::Init;

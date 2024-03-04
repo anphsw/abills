@@ -19,7 +19,7 @@ use strict;
 use warnings 'FATAL' => 'all';
 use v5.16;
 
-our $VERSION = 0.95;
+our $VERSION = 1.14;
 
 our $begin_time;
 BEGIN {

@@ -12,18 +12,19 @@
 use strict;
 use warnings;
 
-use Callcenter;
+use Callcenter::db::Callcenter;
 use Users;
 use Admins;
 use Abills::Base qw(in_array);
+use Callcenter::Reports;
 
-our ($db, $admin, %lang, %conf, %OUTPUT, %LIST_PARAMS);
+our ($db, $admin, %lang, %conf, %OUTPUT, %LIST_PARAMS, $DATE);
 our Abills::HTML $html;
 
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Callcenter',
-  REQUIRE_VERSION => 7.15
+  REQUIRE_VERSION => 7.21
 })) {
   exit;
 }
@@ -34,317 +35,18 @@ my $Admins = Admins->new($db, $admin, \%conf);
 
 
 #**********************************************************
-=head2 callcenter_calls_handler() - all the calls show here
+=head2 callcenter_ivr_log($attr)
 
   Arguments:
-    $attr -
+    $attr
+
   Returns:
-
-  Examples:
-
-=cut
-#**********************************************************
-sub callcenter_calls_handler {
-
-  my @STATUSES = ('', $lang{RINGING}, $lang{IN_PROCESSING}, $lang{PROCESSED}, $lang{NOT_PROCESSED});
-
-  my $STATUS_SELECT = $html->form_select('STATUS', {
-    SELECTED     => $FORM{STATUS} || q{},
-    SEL_ARRAY    => \@STATUSES,
-    ARRAY_NUM_ID => 1,
-  });
-
-  my $ADMINS_SELECT = $html->form_select('ADMIN_SELECT', {
-    SELECTED     => $FORM{ADMIN_SELECT} || q{},
-    SEL_LIST     => $Admins->list({ COLS_NAME => 1, WITH_SIP_NUMBER => 1, SIP_NUMBER => '_SHOW' }),
-    SEL_KEY      => 'sip_number',
-    SEL_VALUE    => 'login',
-    ARRAY_NUM_ID => 1,
-    NO_ID        => 1,
-    SEL_OPTIONS  => { "" => "" },
-  });
-
-  if ($FORM{call_status} && $FORM{call_status} == 1) {
-    $Callcenter->callcenter_add_cals({
-      USER_PHONE     => $FORM{user_phone},
-      OPERATOR_PHONE => $FORM{operator_phone},
-      STATUS         => $FORM{call_status},
-      UID            => $FORM{uid} || 0,
-      ID             => $FORM{call_id}
-    });
-
-    print !$Callcenter->{errno} ? 'Call successfully added' : 'Error';
-
-    return 1;
-  }
-  elsif ($FORM{call_status} && $FORM{call_status} == 2) {
-
-    $Callcenter->callcenter_change_calls({
-      STATUS => $FORM{call_status},
-      ID     => $FORM{call_id}
-    });
-
-    print !$Callcenter->{errno} ? 'Status changed to 2' : 'Error';
-
-    return 1;
-  }
-  elsif ($FORM{call_status} && $FORM{call_status} == 3) {
-    $Callcenter->callcenter_change_calls({
-      STATUS => $FORM{call_status},
-      ID     => $FORM{call_id}
-    });
-
-    print !$Callcenter->{errno} ? 'Status changed to 3' : 'Error';
-
-    return 1;
-  }
-  elsif ($FORM{call_status} && $FORM{call_status} == 4) {
-    $Callcenter->callcenter_change_calls({
-      STATUS => $FORM{call_status},
-      ID     => $FORM{call_id}
-    });
-
-    print !$Callcenter->{errno} ? 'Status changed to 4' : 'Error'; 
-
-    return 1;
-  }
-
-  if ($FORM{chg}) {
-    my $call_info = $Callcenter->callcenter_info_calls({ COLS_NAME => 1, ID => $FORM{chg} });
-
-    $STATUS_SELECT = $html->form_select('STATUS', {
-      SELECTED     => $call_info->{status} || q{},
-      SEL_ARRAY    => \@STATUSES,
-      ARRAY_NUM_ID => 1,
-    });
-
-    $html->tpl_show(_include('callcenter_calls_change', 'Callcenter'), {
-      STATUS_SELECT => $STATUS_SELECT,
-      USER          => $call_info->{user_phone},
-      ADMIN         => $call_info->{operator_phone},
-      ID            => $call_info->{id}
-    });
-
-    return 1;
-  }
-
-  if ($FORM{del} && $FORM{COMMENTS}) {
-    $Callcenter->callcenter_delete_calls({ ID => $FORM{del} });
-    $html->message('info', $lang{SUCCESS}, $lang{DELETED}) if !$Callcenter->{errno};
-  }
-  elsif ($FORM{change}) {
-    $Callcenter->callcenter_change_calls({
-      STATUS => $FORM{STATUS},
-      ID     => $FORM{change}
-    });
-
-    $html->message('info', $lang{SUCCESS}, $lang{CHANGED}) if !$Callcenter->{errno};
-  }
-
-  _error_show($Callcenter);
-
-  if ($FORM{refresh} && $FORM{refresh} == 1) {
-    my $not_found_users = 0;
-    my $unrecognized_users_list = $Callcenter->callcenter_list_calls({
-      COLS_NAME    => 1,
-      UNRECOGNIZED => 1,
-      USER_PHONE   => '_SHOW'
-    });
-
-    foreach my $unrecognized_user (@$unrecognized_users_list) {
-      my $unrecognized_user_phone = $unrecognized_user->{user_phone};
-      if ($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}) {
-        $unrecognized_user_phone =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
-      }
-
-      my $admins_for_number_list = $Admins->list({ SIP_NUMBER => $unrecognized_user_phone, AID => '_SHOW', COLS_NAME => 1 });
-      if ($admins_for_number_list && ref $admins_for_number_list eq 'ARRAY' && scalar @{$admins_for_number_list} > 0) {
-        next;
-      }
-
-      my $u_info = $Users->list({ COLS_NAME => 1, PHONE => "*$unrecognized_user_phone" })->[0];
-
-      if ($Users->{errno}) {
-        $not_found_users++;
-        next;
-      }
-
-      $Callcenter->callcenter_change_calls({
-        ID  => $unrecognized_user->{id},
-        UID => $u_info->{uid}
-      });
-    }
-
-    if ($not_found_users > 0) {
-      $html->message('success', "$lang{NOT_FOUND} $not_found_users $lang{USERS}");
-    }
-  }
-
-  if (defined $FORM{STATUS} && $FORM{STATUS} != 0) {
-    $LIST_PARAMS{STATUS} = $FORM{STATUS};
-  }
-
-  if ($FORM{ADMIN_SELECT}) {
-    $LIST_PARAMS{OPERATOR_PHONE} = $FORM{ADMIN_SELECT};
-  }
-
-  if ($FORM{DATE_START}) {
-    $LIST_PARAMS{DATE_START} = $FORM{DATE_START};
-  }
-
-  if ($FORM{DATE_END}) {
-    $LIST_PARAMS{DATE_END} = $FORM{DATE_END};
-  }
-
-  $html->tpl_show(_include('callcenter_calls_filter', 'Callcenter'), {
-    STATUS_SELECT      => $STATUS_SELECT,
-    STATUS_VISIBILITY  => 1,
-    ADMINS_SELECT      => $ADMINS_SELECT,
-    REFRESH_VISIBILITY => 1,
-  });
-
-  if (!$FORM{sort}) {
-    $LIST_PARAMS{SORT} = 'date';
-  }
-
-  result_former({
-    INPUT_DATA      => $Callcenter,
-    FUNCTION        => 'callcenter_list_calls',
-    BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => "ID, UID, USER_PHONE, ADMIN, OPERATOR_PHONE, STATUS, DATE, LOGIN",
-    FUNCTION_FIELDS => 'change, del',
-    STATUS_VALS     => \@STATUSES,
-    EXT_TITLES      => {
-      id             => "ID",
-      user_phone     => $lang{CALL_FROM},
-      admin          => $lang{ADMIN},
-      status         => $lang{STATUS},
-      date           => $lang{DATE},
-      operator_phone => $lang{CALL_TO},
-      fio            => $lang{FIO},
-      login          => $lang{USER},
-      address_full   => $lang{ADDRESS},
-      city           => $lang{CITY},
-      stop           => $lang{END},
-      duration       => $lang{DURATION}
-    },
-    TABLE           => {
-      width   => '100%',
-      caption => $lang{CALL_CENTER},
-      qs      => $pages_qs,
-      ID      => 'CALLCENTER_CALLS_HANDLER',
-      EXPORT  => 1,
-      # MENU    => "$lang{ADD}:index=" . get_function_index('poll_main') . ':add' . ";",
-    },
-    MAKE_ROWS       => 1,
-    SEARCH_FORMER   => 1,
-    FUNCTION_INDEX  => $index,
-    MODULE          => 'Callcenter',
-    TOTAL           => 1,
-    SKIP_USER_TITLE => 1
-  });
-
-  return 1;
-}
-
-#**********************************************************
-=head2 callcenter_admins_report() -
-
-  Arguments:
-    $attr -
-  Returns:
-
-  Examples:
-
-=cut
-#**********************************************************
-sub callcenter_admins_report {
-
-  my $ADMINS_SELECT = $html->form_select('ADMIN_SELECT', {
-    SELECTED     => $FORM{ADMIN_SELECT} || q{},
-    SEL_LIST     => $Admins->list({ COLS_NAME => 1, WITH_SIP_NUMBER => 1, SIP_NUMBER => '_SHOW' }),
-    SEL_KEY      => 'sip_number',
-    SEL_VALUE    => 'login',
-    ARRAY_NUM_ID => 1,
-    NO_ID        => 1,
-    SEL_OPTIONS  => { "" => "" }
-  });
-
-  my $chart = '';
-  my $calls_list;
-  if ($FORM{ADMIN_SELECT}) {
-    $calls_list = $Callcenter->callcenter_list_calls({
-      DATE_START     => $FORM{DATE_START},
-      DATE_END       => $FORM{DATE_END},
-      OPERATOR_PHONE => $FORM{ADMIN_SELECT},
-      DATE           => '_SHOW',
-      STATUS         => '_SHOW',
-      COLS_NAME      => 1
-    });
-
-    if (!$calls_list) {
-      $html->message('err', $lang{NO_CALLS_FOR_DATE_OR_OPERATOR});
-      return 1;
-    }
-
-    my @dates;
-    my @processed;
-    my @not_processed;
-
-    @$calls_list = reverse(@$calls_list);
-
-    for (my $i = 1; $i <= scalar(@$calls_list); $i++) {
-      my ($date, undef) = split(' ', $calls_list->[$i - 1]->{date});
-
-      if (in_array($date, \@dates)) {
-        if ($calls_list->[$i - 1]->{status} == 3) {
-          exists $processed[scalar(@dates) - 1] ? $processed[scalar(@dates) - 1]++ : push(@processed, 1);
-        }
-
-        if ($calls_list->[$i - 1]->{status} == 4) {
-
-          exists $not_processed[scalar(@dates) - 1] ? $not_processed[scalar(@dates) - 1]++ : push(@not_processed, 1);
-
-        }
-      }
-      else {
-
-        push(@dates, $date);
-        if ($calls_list->[$i - 1]->{status} == 3) {
-          push(@processed, 1);
-        }
-
-        if ($calls_list->[$i - 1]->{status} == 4) {
-          push(@not_processed, 1);
-        }
-      }
-    }
-
-    $chart = $html->make_charts({
-      TRANSITION    => 1,
-      TYPES         => { $lang{PROCESSED} => 'COLUMN', $lang{NOT_PROCESSED} => 'COLUMN' },
-      X_TEXT        => \@dates,
-      DATA          => { $lang{PROCESSED} => \@processed, $lang{NOT_PROCESSED} => \@not_processed },
-      OUTPUT2RETURN => 1
-    });
-  }
-
-  $html->tpl_show(_include('callcenter_calls_filter', 'Callcenter'), {
-    ADMINS_SELECT => $ADMINS_SELECT,
-    CHART         => $chart,
-    DATE_START    => $FORM{DATE_START} || '',
-    DATE_END      => $FORM{DATE_END} || '',
-  });
-
-  return 1;
-}
-
-#**********************************************************
-=head2 callcenter_ivr_log()
+    TTRUE or FALSE
 
 =cut
 #**********************************************************
 sub callcenter_ivr_log {
+  my ($attr)=@_;
 
   if (!$FORM{sort}) {
     $LIST_PARAMS{SORT} = 1;
@@ -374,7 +76,9 @@ sub callcenter_ivr_log {
     push @status_vals, $ivr_status{$id};
   }
 
-  result_former({
+  my Abills::HTML $table;
+
+  ($table) = result_former({
     INPUT_DATA      => $Callcenter,
     FUNCTION        => 'log_list',
     BASE_FIELDS     => 2,
@@ -433,15 +137,22 @@ sub callcenter_ivr_log {
       width   => '100%',
       caption => 'IVR',
       qs      => $pages_qs,
-      ID      => 'VOIP_USERS_LIST',
+      ID      => 'IVR_USERS_LIST',
       EXPORT  => 1,
       MENU    => "$lang{SEARCH}:index=$index&search_form=1:search",
     },
-    STATUS_VALS     => \@status_vals,
     MAKE_ROWS       => 1,
-    MODULE          => 'Voip',
-    TOTAL           => 1
+    SEARCH_FORMER   => 1,
+    MODULE          => 'Callcenter',
+    SHOW_MORE_THEN  => 1,
+    OUTPUT2RETURN   => 1
   });
+
+  my $service_info_subscribes = $table->show();
+
+  return ('', '', '', $service_info_subscribes) if ($attr->{PROFILE_MODE});
+
+  print(('' || q{}) . ('' || q{}) . ($service_info_subscribes || q{})) ;
 
   return 1;
 }
@@ -1017,99 +728,6 @@ sub _callcenter_convert_data_for_chart {
   return %result;
 }
 
-#**********************************************************
-=head2 callcenter_sound($attr)
-
-  Arguments:
-    $attr -
-
-  Returns:
-
-=cut
-#**********************************************************
-sub callcenter_sound {
-  #my ($attr) = @_;
-
-  my $table = $html->table({
-    width       => '100%',
-    caption     => $lang{CALLS_SOUNDS},
-    title_plain => [ $lang{CALL_FROM}, $lang{CALL_TO}, $lang{DATE}, $lang{LISTEN} ],
-    DATA_TABLE  => 1
-  });
-
-  my $result_cmd = Abills::Base::cmd("ls /usr/abills/Abills/templates/asterisk/");
-
-  foreach my $file (split(/\s/, $result_cmd)) {
-    my ($date, $call_from, $call_to) = $file =~ /^(\d+)\-(\d+)\-(\d+)/;
-    my ($y, $m, $d, $h, $mn) = $date =~ /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/g;
-    $table->addrow(
-      $call_from || '',
-      $call_to || '',
-      "$d-$m-$y $h:$mn" || '',
-      qq{<audio controls style="width: 350px;height: 25px;"><source src="/images/asterisk/$file" type="audio/wav"</audio>},
-    );
-  }
-
-  print $table->show();
-
-  return 1;
-}
-
-#**********************************************************
-=head2 callcenter_start_page($attr)
-
-=cut
-#**********************************************************
-sub callcenter_start_page {
-
-  my %START_PAGE_F = (
-    callcenter_personal_call_statistics => $lang{PERSONAL_CALL_STATISTICS},
-    callcenter_total_call_statistics    => $lang{TOTAL_CALL_STATISTICS},
-  );
-
-  return \%START_PAGE_F;
-}
-
-#**********************************************************
-=head2 callcenter_personal_call_statistics()
-
-=cut
-#**********************************************************
-sub callcenter_personal_call_statistics {
-
-  my $avatar_logo = $admin->{AVATAR_LINK} ? "/images/$admin->{AVATAR_LINK}" : '/styles/default/img/admin/avatar5.png';
-
-  $Callcenter->log_list({ AID => $admin->{AID} });
-
-  return $html->tpl_show(_include('callcenter_call_statistics', 'Callcenter'), {
-    ADMIN_AVATAR => $avatar_logo,
-    ADMIN        => $admin->{ADMIN},
-    DATE         => $DATE,
-    TITLE        => $lang{PERSONAL_CALL_STATISTICS},
-    TOTAL        => $Callcenter->{TOTAL} || 0,
-    INCOMING     => $Callcenter->{INCOMING} || 0,
-    OUTGOING     => $Callcenter->{OUTGOING} || 0
-  }, { OUTPUT2RETURN => 1 });
-}
-
-#**********************************************************
-=head2 callcenter_total_call_statistics()
-
-=cut
-#**********************************************************
-sub callcenter_total_call_statistics {
-
-  $Callcenter->log_list();
-
-  return $html->tpl_show(_include('callcenter_call_statistics', 'Callcenter'), {
-    ADMIN_AVATAR => '/styles/default/img/modules/callcenter/support-team.png',
-    DATE         => $DATE,
-    TITLE        => $lang{TOTAL_CALL_STATISTICS},
-    TOTAL        => $Callcenter->{TOTAL} || 0,
-    INCOMING     => $Callcenter->{INCOMING} || 0,
-    OUTGOING     => $Callcenter->{OUTGOING} || 0
-  }, { OUTPUT2RETURN => 1 });
-}
 
 1
 

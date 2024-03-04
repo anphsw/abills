@@ -6,17 +6,19 @@ package Sorm::Uzb;
 
 =head1 DOCS
 
-  version: v1.6
+  Execute:
+  full downloading
+   /usr/abills/libexec/billd sorm TYPE=Uzb START=1
 
-  Standart execute
-  /usr/abills/libexec/billd sorm TYPE=Uzb START=1
+  previuos day (for cron)
+  /usr/abills/libexec/billd sorm TYPE=Uzb
 
   DESCRIBE: Plugin for SORM of Uzbekistan
 
 =head1 VERSION
 
-  VERSION: 1.6
-  UPDATE: 20230705
+  VERSION: 1.10
+  UPDATE: 20231214
 
 =cut
 
@@ -30,17 +32,22 @@ use Abills::Base qw(in_array ip2int int2ip);
 
 my ($User, $Company, $Internet, $Sessions, $Nas, $Traffic, $debug);
 my Payments $Payments;
-my %online_mac = ();
 
 my $service_begin_date = '2010-01-01 01:00:00';
 my $service_end_date = '2049-12-31 23:59:59';
 my $t = localtime;
+my $prev_t = $t - 86400;
 
-my $month = sprintf("%02d", $t->mon());
 my $year  = sprintf("%04d", $t->year());
+my $month = sprintf("%02d", $t->mon());
 my $day   = sprintf("%02d", $t->mday());
 my $hour  = sprintf("%02d", $t->hour());
 my $min   = sprintf("%02d", $t->min());
+
+my $prev_year = sprintf("%04d", $prev_t->year());
+my $prev_month = sprintf("%02d", $prev_t->mon());
+my $prev_day = sprintf("%02d", $prev_t->mday());
+my $prev_date = "$prev_year-$prev_month-$prev_day";
 
 my $sufix = $year . $month . $day . "_" . $hour . $min . ".txt";
 my $sorm_id = '';
@@ -95,58 +102,61 @@ sub init {
     return 1;
   }
 
-  my $online_list = $Sessions->online({ CID => '_SHOW' });
-
-  foreach my $online (@$online_list) {
-    $online_mac{$online->{uid}}=$online->{cid};
-  }
-
   if ($argv->{START}) {
     mkdir($main::var_dir . '/sorm/');
     mkdir($main::var_dir . '/sorm/UZB/');
-    mkdir($main::var_dir . '/sorm/UZB/'.$sorm_id);
-
-    # ABONENT
-    my $users_list = $User->list({
-      COLS_NAME => 1,
-      PAGE_ROWS => 99999,
-      DELETED   => 0,
-      DISABLE   => 0,
-    });
-
-    _add_header('ABONENT');
-
-    foreach my $u (@$users_list) {
-      $self->ABONENT_report($u->{uid});
-    }
-
-    # PAYMENT
-    my $payments = $Payments->list({
-      COLS_NAME => 1,
-      PAGE_ROWS => 99999,
-      DATE      => '>' . $service_begin_date,
-      ID        => '_SHOW',
-      SORT      => 'id',
-      DESC      => 'DESC'
-    });
-
-    _add_header("PAYMENT");
-
-    foreach my $p (@$payments) {
-      $self->PAYMENT_report($p->{id});
-    }
-
-    _add_header('CONNECTION');
-    $self->CONNECTION_report();
-
-    _add_header('BASE_STATION');
-    $self->BASE_STATION_report();
-
-    _add_header('NAT');
-    $self->NAT_report();
-
-    $self->send();
+    mkdir($main::var_dir . '/sorm/UZB/' . $sorm_id);
   }
+
+  # ABONENT
+  my $users_list = $User->list({
+    COLS_NAME => 1,
+    PAGE_ROWS => 99999,
+    DELETED   => 0,
+    REGISTRATION => ($argv->{START}) ? '_SHOW' : ">=$prev_date",
+    DISABLE   => 0,
+  });
+
+  if ($debug > 1) {
+    print "Users: $User->{TOTAL}\n";
+  }
+
+  _add_header('ABONENT');
+
+  foreach my $u (@$users_list) {
+    $self->ABONENT_report($u->{uid});
+  }
+
+  # PAYMENT
+  my $payments = $Payments->list({
+    COLS_NAME => 1,
+    PAGE_ROWS => 99999,
+    DATE      => ($argv->{START}) ? ('>'.$service_begin_date) : $prev_date,
+    ID        => '_SHOW',
+    SORT      => 'id',
+    DESC      => 'DESC'
+  });
+
+  if ($debug > 1) {
+    print "Payments: $Payments->{TOTAL}\n";
+  }
+
+  _add_header("PAYMENT");
+
+  foreach my $p (@$payments) {
+    $self->PAYMENT_report($p->{id});
+  }
+
+  _add_header('CONNECTION');
+  $self->CONNECTION_report();
+
+  _add_header('BASE_STATION');
+  $self->BASE_STATION_report();
+
+  _add_header('NAT');
+  $self->NAT_report();
+
+  $self->send();
 
   return 1;
 }
@@ -209,7 +219,10 @@ sub ABONENT_report {
     $Internet->info($uid);
   }
 
-  $arr[16] = $Internet->{CID};      # MAC
+  my $user_mac = $Internet->{CPE_MAC} ? $Internet->{CPE_MAC} : $Internet->{CID};
+  $user_mac =~ s/://g if $user_mac;
+
+  $arr[16] = $user_mac;             # MAC
   $arr[17] = $Internet->{IP};       # IPV4
   $arr[18] = $Internet->{NETMASK};  # IPV4_MASK
   $arr[19] = $User->{LOGIN};        # LOGIN
@@ -272,14 +285,14 @@ sub PAYMENT_report {
 
   $arr[0] = $payment_type; # PAYMENT_TYPE
   $arr[1] = $payment->{dsc}; # PAY_TYPE_ID
-  $arr[2] = $payment->{datetime}; # PAYMENT_DATE
+  $arr[2] = time2UTC($payment->{datetime}); # PAYMENT_DATE
   $arr[3] = $payment->{sum}; # AMOUNT
   $arr[4] = ''; # AMOUNT_CURRENCY
   $arr[5] = ($User->{PHONE} && $User->{PHONE} =~ /[0-9]+/) ? $User->{PHONE} : q{}; # PHONE_NUMBER
   $arr[6] = $User->{BILL_ID}; # ACCOUNT
   $arr[7] = ''; # BANK_ACCOUNT -
   $arr[8] = ''; # BANK_NAME -
-  @arr[9] = ''; # EXPRESS_CARD_NUMBER -
+  @arr[9] = ''; # EXPRESS_CARD_NUMBER -:
   @arr[10] = ''; # TERMINAL_ID -
   @arr[11] = ''; # TERMINAL_NUMBER -
   @arr[12] = ''; # CENTER_ID -
@@ -300,58 +313,69 @@ sub PAYMENT_report {
 #**********************************************************
 sub CONNECTION_report {
   my $self = shift;
+  my $argv = $self->{argv};
 
   my $session_list = $Sessions->list({
     COLS_NAME       => 1,
     UID             => '_SHOW',
     LOGIN           => '_SHOW',
-    START           => '_SHOW',
+    START           => ($argv->{START}) ? '_SHOW' : ">=$prev_date",
     END             => '_SHOW',
     SENT            => '_SHOW',
     RECV            => '_SHOW',
     ACCT_SESSION_ID => '_SHOW',
     IP              => '_SHOW',
+    NAS_IP          => '_SHOW',
     NAS_PORT        => '_SHOW',
+    MASK            => '_SHOW',
     PAGE_ROWS       =>  100000,
     DESC            => 'DESC',
   });
+
+  if ($debug > 1) {
+    print "Sessions: $Sessions->{TOTAL}\n";
+  }
 
   foreach my $session (@$session_list) {
     my @arr_start = ();
     my @arr_end   = ();
 
-    $arr_start[0] = $session->{start}; #CONNECTION_TIME
+    my $user_internet_info = $Internet->user_info($session->{uid});
+    my $user_mac = ($user_internet_info->{CPE_MAC}) ? $user_internet_info->{CPE_MAC} : '';
+    $user_mac =~ s/://g;
+
+    $arr_start[0] = time2UTC($session->{start}); #CONNECTION_TIME
     $arr_start[1] = $sorm_id; #REGION_ID
     $arr_start[2] = '0';      #LOGIN_TYPE
     $arr_start[3] = $session->{acct_session_id}; #SESSION_ID
-    $arr_start[4] = $session->{ip}; #ALLOCATED_IPV4
-    $arr_start[5] = ''; #ALLOCATED_IPV4_MASK
+    $arr_start[4] = $session->{ip};                           #ALLOCATED_IPV4
+    $arr_start[5] = $session->{mask} ? $session->{mask} : ''; #ALLOCATED_IPV4_MASK
     $arr_start[6] = $session->{login}; #USER_NAME
     $arr_start[7] = ''; #CONNECT_TYPE -
     $arr_start[8] = ''; #CALLING_NUMBER -
     $arr_start[9] = ''; #CALLED_NUMBER -
-    $arr_start[10] = ''; #NAS_IPV4 -
+    $arr_start[10] = $session->{nas_ip} ? $session->{nas_ip} : ''; #NAS_IPV4
     $arr_start[11] = $session->{port_id}; #NAS_IP_PORT
     $arr_start[12] = $session->{recv}; #IN_BYTES_COUNT
     $arr_start[13] = $session->{sent}; #OUT_BYTES_COUNT
-    $arr_start[14] = ''; #USER_EQ_MAC
-    $arr_start[15] = ''; #APN -
+    $arr_start[14] = $user_mac;        #USER_EQ_MAC
+    $arr_start[15] = ''; #APN
 
-    $arr_end[0] = $session->{end}; #CONNECTION_TIME
+    $arr_end[0] = time2UTC($session->{end}); #CONNECTION_TIME
     $arr_end[1] = $sorm_id; #REGION_ID
     $arr_end[2] = '1';      #LOGIN_TYPE
     $arr_end[3] = $session->{acct_session_id}; #SESSION_ID
     $arr_end[4] = $session->{ip}; #ALLOCATED_IPV4
-    $arr_end[5] = ''; #ALLOCATED_IPV4_MASK
+    $arr_end[5] = $session->{mask} ? $session->{mask} : ''; #ALLOCATED_IPV4_MASK
     $arr_end[6] = $session->{login}; #USER_NAME
     $arr_end[7] = ''; #CONNECT_TYPE -
     $arr_end[8] = ''; #CALLING_NUMBER -
     $arr_end[9] = ''; #CALLED_NUMBER -
-    $arr_end[10] = ''; #NAS_IPV4 -
+    $arr_end[10] = $session->{nas_ip} ? $session->{nas_ip} : '';  #NAS_IPV4
     $arr_end[11] = $session->{port_id}; #NAS_IP_PORT
     $arr_end[12] = $session->{recv}; #IN_BYTES_COUNT
     $arr_end[13] = $session->{sent}; #OUT_BYTES_COUNT
-    $arr_end[14] = ''; #USER_EQ_MAC
+    $arr_end[14] = $user_mac; #USER_EQ_MAC
     $arr_end[15] = ''; #APN -
 
     _add_report("CONNECTION", @arr_start);
@@ -374,9 +398,14 @@ sub BASE_STATION_report {
   COLS_NAME    => 1,
   NAS_ID       => '_SHOW',
   ADDRESS_FULL => '_SHOW',
+  DISABLE      => 0,
   DESCR        => '_SHOW',
   PAGE_ROWS    => 60000,
   });
+
+  if ($debug > 1) {
+    print "Nas: $Nas->{TOTAL}\n";
+  }
 
   foreach my $nas (@$nas_list) {
     $nas->{mac} =~ s/\://g;
@@ -407,27 +436,34 @@ sub BASE_STATION_report {
 #**********************************************************
 sub NAT_report {
   my $self = shift;
+  my $argv = $self->{argv};
 
   my $traffic_list = $Traffic->traffic_user_list({
     COLS_NAME    => 1,
-    S_TIME       => '_SHOW',
+    S_TIME       => ($argv->{START}) ? '_SHOW' : $prev_date,
     SRC_IP       => '_SHOW',
     SRC_PORT     => '_SHOW',
     DST_IP       => '_SHOW',
     DST_PORT     => '_SHOW',
     NAS_ID       => '_SHOW',
     DESC         => 'DESC',
-    PAGE_ROWS    => 100000,
+    PAGE_ROWS    => 1000000,
   });
 
+  if ($debug > 1) {
+    print "Traffic: $Traffic->{TOTAL}\n";
+  }
+
   foreach my $traffic (@$traffic_list) {
-    my $user_internal_ip_int = $traffic->{src_addr};
+    my $user_internal_ip = '';
     my $user_external_ip = '';
 
-    my $ip_in_range = _check_internal_network($traffic->{src_addr});
-    next if ($ip_in_range == 0);
+    my $ip_in_internal_range = _check_internal_network($traffic->{src_addr});
 
     if ($self->{conf}->{SORM_INTERNAL_TO_EXTERNAL_IP}){
+      next if ($ip_in_internal_range == 0);
+      my $user_internal_ip_int = $traffic->{src_addr};
+      $user_internal_ip = int2ip($traffic->{src_addr});
       my $ip_pool = ($self->{conf}->{SORM_INTERNAL_TO_EXTERNAL_IP});
 
       foreach my $item (keys (%{$ip_pool})){
@@ -445,6 +481,26 @@ sub NAT_report {
       if (!$user_external_ip){
         $user_external_ip = $ip_pool->{default};
       }
+    }
+    else {
+    # PPTP (CID = internal IP)
+      my $cur_date = "$year-$month-$day";
+      $user_external_ip = int2ip($traffic->{src_addr});
+
+      next if ($ip_in_internal_range == 1);
+
+      my $session_list = $Sessions->list({
+        COLS_NAME     => 1,
+        FROM_DATE     => $cur_date,
+        TO_DATE       => $cur_date,
+        CID           => '_SHOW',
+        IP            => $user_external_ip,
+        PAGE_ROWS     =>  1000,
+        DESC          => 'DESC',
+      });
+
+      next if (!$session_list->[0]->{'cid'});
+      $user_internal_ip = $session_list->[0]->{'cid'};
     };
 
     # internal and external port is the same
@@ -452,13 +508,13 @@ sub NAT_report {
     my $dest_ip_port = ($traffic->{dst_port} != 0) ? $traffic->{dst_port} : 80;
 
     my @arr = ();
-    $arr[0] = $traffic->{s_time};           #TRANSLATION_TIME
+    $arr[0] = time2UTC($traffic->{s_time}); #TRANSLATION_TIME
     $arr[1] = $sorm_id;                     #REGION_ID
     $arr[2] = 1;                            #RECORD_TYPE
-    $arr[3] = int2ip($traffic->{src_addr}); #PRIVATE_IPV4
+    $arr[3] = $user_internal_ip;            #PRIVATE_IPV4
     $arr[4] = $ip_port;                     #PRIVATE_IP_PORT
     $arr[5] = $user_external_ip;            #PUBLIC_IPV4
-    $arr[6] = 65000;                        #PUBLIC_IP_PORT_END
+    $arr[6] = 65535;                        #PUBLIC_IP_PORT_END
     $arr[7] = int2ip($traffic->{dst_addr}); #DEST_IPV4
     $arr[8] = $dest_ip_port;                #DEST_IP_PORT
     $arr[9] = '';                           #TRANSLATION_TYPE
@@ -496,10 +552,6 @@ sub _add_report {
   $string =~ s/\n/ /g;
   $string =~ s/\t/ /g;
   $string =~ s/;$/\n/;
-
-  # if ($debug > 3) {
-  #   print "TYPE: $type\n";
-  # }
 
   _save_report($type, $string);
 
@@ -691,6 +743,29 @@ sub _check_internal_network {
   }
 
   return 0;
+}
+
+
+#**********************************************************
+=head2 time2UTC($time) - format time to UTC
+
+      Argument:
+        time
+
+      Return
+        time UTC
+
+=cut
+#**********************************************************
+sub time2UTC {
+  my $t = shift;
+  my $utc_hour = 5;
+
+  my $cur_time = Time::Piece->strptime($t, "%Y-%m-%d %H:%M:%S");
+  my $cur_time_sec = $cur_time - $utc_hour * 3600;
+  my $utc_time = $cur_time_sec->strftime('%Y-%m-%d %H:%M:%S');
+
+  return $utc_time;
 }
 
 

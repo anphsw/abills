@@ -394,6 +394,10 @@ sub list {
     push @WHERE_RULES, "(a.gid IN ($attr->{GID}) OR ag.gid IN ($attr->{GID}))";
   }
 
+  if ($attr->{ACTIVE_ONLY}) {
+    push @WHERE_RULES, $attr->{AID_EXCEPTION} ? "(a.disable = 0 OR a.aid = $attr->{AID_EXCEPTION})" : "a.disable = 0";
+  }
+
   my $build_delimiter = $self->{conf}{BUILD_DELIMITER} || ', ';
   my $WHERE = $self->search_former($attr, [
       ['ADMIN_NAME',       'STR',  'a.name',  'a.name AS admin_name' ],
@@ -411,7 +415,7 @@ sub list {
       ['DOMAIN_NAME',      'STR',  'a.name', 'd.name AS domain_name' ],
       ['DOMAIN_ID',        'INT',  'a.domain_id',                  1 ],
       ['AID',              'INT',  'a.aid'                           ],
-      ['SIP_NUMBER',       'INT',  'a.sip_number',                 1 ],
+      ['SIP_NUMBER',       'STR',  'a.sip_number',                 1 ],
       ['TELEGRAM_ID',      'STR',  'a.telegram_id',                1 ],
       ['EMAIL',            'STR',  "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id=9)",
         "(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `admins_contacts` ac WHERE ac.aid=a.aid AND type_id=9) AS email",                      1 ],
@@ -454,6 +458,7 @@ sub list {
       $EMPLOYEE_COLS .= ' ep.position as position, ';
 
       $EMPLOYEE_JOIN .= " LEFT JOIN employees_department ed ON (ed.id=a.department) ";
+      $WHERE .= " AND a.position = $attr->{POSITION}" if (int($attr->{POSITION}));
     }
   }
 

@@ -121,6 +121,18 @@
       </div>
     </div>
 
+    <div class='form-group'>
+      <div class='row'>
+        <div class='col-md-4'>
+          <input type='checkbox' name='MU_GID' value='1' form='internet_users_list' id='MU_GID'>
+          <label class='col-form-label text-md-left form-check-label' for='MU_GID'>_{GROUPS}_</label>
+        </div>
+        <div class='col-md-8'>
+          %MU_GROUPS%
+        </div>
+      </div>
+    </div>
+
     <div class='form-group d-none %MU_USER_TAGS_VISIBLE%'>
       <div class='row'>
         <div class='col-md-4'>

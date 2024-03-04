@@ -160,6 +160,16 @@ sub paysys_import_form_new {
 
   return 0 if (!$attr->{TYPE});
 
+  if (!$conf{PAYSYS_IMPORT_RULES}) {
+    $html->message('err', $lang{PAYSYS_IMPORT_NOT_CONFIGURED},
+      $html->button($lang{DOCUMENTATION}, '', {
+        GLOBAL_URL => 'http://abills.net.ua/wiki/pages/viewpage.action?pageId=18612234',
+        class => 'btn btn-xs btn-primary'
+      }),
+    );
+    return 0;
+  }
+
   if ($attr->{TYPE} eq 'FEES') {
     return 0 if (!defined($permissions{2}));
   }

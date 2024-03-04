@@ -1,4 +1,4 @@
-package Abills::Filters v2.0.3;
+package Abills::Filters v2.0.4;
 
 =head1 NAME
 
@@ -27,12 +27,13 @@ our (
 
 use base 'Exporter';
 use Encode;
-use POSIX qw(locale_h);
+use POSIX qw(locale_h strftime);
 
 our @EXPORT = qw(
   _expr
   _utf8_encode
   _mac_former
+  _mac_format_mask
   human_exp
   bin2mac
   mac2dec
@@ -40,6 +41,7 @@ our @EXPORT = qw(
   bin2hex
   serial2mac
   url2parts
+  value2readable
   $IPV4
   $IPV4CIDR
   $HD
@@ -57,12 +59,14 @@ our @EXPORT_OK = qw(
   _expr
   _utf8_encode
   _mac_former
+  _mac_format_mask
   bin2mac
   mac2dec
   dec2hex
   bin2hex
   serial2mac
   url2parts
+  value2readable
   $IPV4
   $IPV4CIDR
   $HD
@@ -453,5 +457,77 @@ sub url2parts {
     $params[3] || ''
   );
 }
+
+#**********************************************************
+=head2 value2readable($value); - convert value to human-readable form
+
+  Arguments:
+    value
+
+=cut
+#**********************************************************
+sub value2readable {
+  my $value = shift;
+
+  return '' if !$value;
+
+  if ($value =~ /^(?!0{1,10}$)(\d{10}|\d{13})$/) {
+    return strftime('%Y-%m-%d %H:%M:%S', localtime($value))
+  }
+
+  return $value;
+}
+
+
+#**********************************************************
+=head2 _mac_format_mask ($attr) - checking expression and format to html field mask
+
+   Arguments:
+     $exp  - expession for checking CID or MAC. Example "^(([0-9A-F]{2}[:]){5}([0-9A-F]{2})){1,}\$"
+
+   Results:
+     $mask - mask for field input
+
+     Example: '**:**:**:**:**:**'
+
+=cut
+#**********************************************************
+sub _mac_format_mask {
+  my ($exp) = @_;
+  return if !$exp;
+
+  my $mask = '';
+  my $value = '*';
+  my $value_quantity = 0;
+  my $delimiter = '';
+  my $octet_quantity = 1;
+  $exp  =~ s/\^|\$//g;
+
+  if ($exp =~ /\[([^]]+)\]/) {
+    my $value_content = $1;
+    $value = '*' if ($exp =~ /\[0-9A-/i);
+    $value = 'a' if ($exp =~ /\[A-/i);
+    $value = '9' if ($exp =~ /\[0-9]/i);
+    $exp  =~ s/\[$value_content\]//g;
+  }
+  if ($exp =~ /\{([^}]+)\}/) {
+    $value_quantity = $1;
+    $exp  =~ s/\{$value_quantity\}//g if $value_quantity;
+  }
+  if ($exp =~ /\[(([^\[\]]|\[\])*)\]/) {
+    $delimiter = $1;
+    $exp  =~ s/\[$delimiter\]//g if $delimiter;
+  }
+  if ($exp =~ /\{([^}]+)\}/) {
+    $octet_quantity = $1;
+    $octet_quantity += 1 if ($delimiter);
+    $exp  =~ s/\{$octet_quantity\}//g if $octet_quantity;
+  }
+
+  $mask = join($delimiter, map { join("", map { sprintf($value, int(rand(16))) } 1..$value_quantity) } 1..$octet_quantity);
+
+  return $mask;
+}
+
 
 1;

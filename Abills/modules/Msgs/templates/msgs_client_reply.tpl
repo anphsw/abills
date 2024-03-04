@@ -185,7 +185,7 @@
     };
 
     form.submit(function (e) {
-      if (btn_name == 'change') return true;
+      if (btn_name == 'change' || btn_name == 'change_answer') return true;
       cancelEvent(e);
 
       // Submit if going to close

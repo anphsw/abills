@@ -719,6 +719,16 @@ function defineLinkedInputsLogic(context) {
 
     var has_value = $this.data('is-checkbox') ? ($this.prop('checked')) : ( value !== '' );
 
+    if (!has_value) {
+      let has_linked_checked = false;
+      $.each($linked, function () {
+        if (jQuery(this).data('is-checkbox') && jQuery(this).prop('checked')) {
+          has_linked_checked = true;
+        }
+      });
+      if (has_linked_checked) return;
+    }
+
     if (enable !== true) {
       $.each($linked, has_value ? disableSingleLinked : enableSingleLinked)
     }
@@ -1679,7 +1689,15 @@ function copyToBuffer(value){
       .text(value);
 
   // Place on page
-  $('footer.main-footer').after($textarea);
+  var mainFooter = $('footer.main-footer').after($textarea);
+
+  if(!mainFooter[0]){
+    navigator.clipboard.writeText(value).then(() => {
+    }).catch((error) => {
+      console.error("", error);
+    });
+    return 0;
+  }
 
   // Select text inside
   $textarea.select();
@@ -1721,6 +1739,20 @@ function formatBytes(bytes, decimals = 2) {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
 
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`
+}
+
+async function sendRequest(url = '', data = {}, method = 'POST', headers = {}) {
+  const response = await fetch(url, {
+    method: method,
+    mode: 'cors',
+    cache: 'no-cache',
+    credentials: 'same-origin',
+    headers: {'Content-Type': 'application/json', ...headers},
+    redirect: 'follow',
+    referrerPolicy: 'no-referrer',
+    body: method === 'GET' || method === 'DELETE' ? undefined : JSON.stringify(data)
+  });
+  return response.json();
 }
 
 // Put variables into lang
@@ -1792,7 +1824,14 @@ $(function () {
 
   $('a#admin-status').on('click', function() {
     $.get('?get_index=msgs_admin_quick_message&header=2', function(data) {
-      // First check function exists
+
+      // Check if module configure
+      if (!data.match(/modal_MSGS_QUICK_MESSAGE/)) {
+        console.log('Module Msgs is not configured');
+        return;
+      }
+
+      // Check if function exists
       if (! data.match(/not exist/)) {
         // If data is normal, show it in modal
         loadDataToModal(data, false, true);
@@ -1800,5 +1839,4 @@ $(function () {
     });
   });
 });
-
 

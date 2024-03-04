@@ -8,7 +8,7 @@ our ($db, $admin, %conf);
 require '../libexec/config.pl'; # assunming we are in /usr/abills/t/
 use lib '../lib';
 use lib '../Abills/mysql';
-use Abills::Base qw/_bp/;
+use Abills::Base qw/_bp parse_arguments/;
 _bp(undef, undef, { SET_ARGS => { TO_CONSOLE => 1 } });
 
 use JSON qw/decode_json encode_json/;
@@ -16,7 +16,9 @@ use JSON qw/decode_json encode_json/;
 my $plans_count = 21 -1 ;
 plan tests => $plans_count;
 
-my $test_aid = 1;
+my $argv = parse_arguments(\@ARGV);
+
+my $test_aid = $argv->{AID} || 1;
 
 my $ping_request = {"TYPE" => "PING"};
 #my $ping_responce = {"TYPE" => "PONG"};
@@ -60,7 +62,7 @@ ok( $Browser->connected_admins(), 'Should have clients connected to run tests' )
 
 SKIP_BROWSER_CLIENT_CHECK : {
   my $test_admin_connected = $Browser->has_connected_admin( $test_aid );
-  skip ( 'No test admin connected', 3 ) if (!$test_admin_connected);
+  skip ( 'No test admin connected AID: '. $test_aid, 3 ) if (!$test_admin_connected);
   ok( $test_admin_connected, 'Our test admin ' . $test_aid . ' should be connected' );
   ok( $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification } ), 'Should be able to send message' );
 #  ok( $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification, NON_SAFE => 1 } ), 'Just check Instant send message' );

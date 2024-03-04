@@ -72,7 +72,7 @@ sub send_message {
   my $self = shift;
   my ($attr, $callback) = @_;
 
-  my $text = $attr->{MESSAGE} || return 0;
+  my $text = $attr->{MESSAGE} || $attr->{ATTACHMENTS} || return 0;
 
   $text = $attr->{SUBJECT} . "\n\n" . $text if $attr->{SUBJECT};
   $self->{api}{debug} = $attr->{DEBUG} if $attr->{DEBUG};
@@ -82,7 +82,7 @@ sub send_message {
   $text =~ s/<b>//g;
   $text =~ s/<\/b>//g;
 
-  $self->send_attachments($attr);
+  my $attachment_result = $self->send_attachments($attr);
 
   if ($attr->{MAKE_REPLY}) {
     $text .= "\\n\\n$attr->{LANG}->{MSGS_REPLY}: ";
@@ -105,7 +105,7 @@ sub send_message {
     return $result;
   }
 
-  return $result && $result->{status_message} eq 'ok';
+  return ($result && $result->{status_message} eq 'ok') || $attachment_result;
 }
 
 
@@ -254,11 +254,15 @@ sub send_attachments {
       media           => $SELF_URL . $file_path
     };
 
-    $message->{size} = $file->{content_size} if $type ne 'picture';
-    $message->{text} = $file->{filename} || '' if $type eq 'picture';
+    if ($type ne 'picture') {
+      $message->{size} = $file->{content_size};
+      $message->{file_name} = $file->{filename};
+    }
+    # $message->{text} = $file->{filename} || '' if $type eq 'picture';
 
     $self->send_request($message);
   }
+  return 1;
 }
 
 1;

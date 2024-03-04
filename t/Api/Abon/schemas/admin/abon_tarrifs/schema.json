@@ -3,9 +3,19 @@
   "type": "array",
   "title": "The Root Schema",
   "required": [
+    "activateNotification",
+    "createAccount",
+    "discount",
+    "extCmd",
+    "manualActivate",
+    "paymentType",
+    "periodAlignment",
+    "priority",
+    "promoPeriod",
+    "vat",
     "tpId",
     "price",
-    "name",
+    "tpName",
     "nextAbonDate",
     "userCount",
     "feesType",
@@ -14,6 +24,46 @@
     "userPortal"
   ],
   "properties": {
+    "activateNotification": {
+      "$id": "#/properties/activateNotification",
+      "type": "number"
+    },
+    "createAccount": {
+      "$id": "#/properties/createAccount",
+      "type": "number"
+    },
+    "discount": {
+      "$id": "#/properties/discount",
+      "type": "number"
+    },
+    "extCmd": {
+      "$id": "#/properties/extCmd",
+      "type": "string"
+    },
+    "manualActivate": {
+      "$id": "#/properties/manualActivate",
+      "type": "number"
+    },
+    "paymentType": {
+      "$id": "#/properties/paymentType",
+      "type": "number"
+    },
+    "periodAlignment": {
+      "$id": "#/properties/periodAlignment",
+      "type": "number"
+    },
+    "priority": {
+      "$id": "#/properties/priority",
+      "type": "number"
+    },
+    "promoPeriod": {
+      "$id": "#/properties/promoPeriod",
+      "type": "number"
+    },
+    "vat": {
+      "$id": "#/properties/vat",
+      "type": "number"
+    },
     "tpId": {
       "$id": "#/properties/tpId",
       "type": "number"
@@ -22,8 +72,8 @@
       "$id": "#/properties/price",
       "type": "number"
     },
-    "name": {
-      "$id": "#/properties/numbenamer",
+    "tpName": {
+      "$id": "#/properties/tpName",
       "type": "string"
     },
     "nextAbonDate": {
@@ -31,23 +81,23 @@
       "type": "string"
     },
     "userCount": {
-      "$id": "#/properties/nextAbonDate",
+      "$id": "#/properties/userCount",
       "type": "number"
     },
     "feesType": {
-      "$id": "#/properties/nextAbonDate",
+      "$id": "#/properties/feesType",
       "type": "number"
     },
     "period": {
-      "$id": "#/properties/nextAbonDate",
+      "$id": "#/properties/period",
       "type": "number"
     },
     "description": {
-      "$id": "#/properties/nextAbonDate",
+      "$id": "#/properties/description",
       "type": "string"
     },
     "userPortal": {
-      "$id": "#/properties/nextAbonDate",
+      "$id": "#/properties/userPortal",
       "type": "number"
     }
   }

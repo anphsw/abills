@@ -27,20 +27,6 @@ my $Mail = Mail->new($db, $admin, \%conf);
 $Mail->{ACTION}     = 'add';
 $Mail->{LNG_ACTION} = $lang{ADD};
 
-#*******************************************************************
-=head2 mail_user_del($uid) - Delete user from module
-
-=cut
-#*******************************************************************
-sub mail_user_del {
-  my ($uid) = @_;
-
-  $Mail->{UID} = $uid;
-  $Mail->mbox_del(undef, { UID => $uid, FULL_DELETE => 1 });
-
-  return 0;
-}
-
 #**********************************************************
 #  Global spamassassin configuration
 #**********************************************************

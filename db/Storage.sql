@@ -332,6 +332,7 @@ CREATE TABLE IF NOT EXISTS `storage_deliveries`
   `id`              INT(10) UNSIGNED AUTO_INCREMENT,
   `type_id`         SMALLINT(6) NOT NULL DEFAULT 0,
   `installation_id` SMALLINT(6) NOT NULL DEFAULT 0,
+  `status`          SMALLINT(2) UNSIGNED NOT NULL DEFAULT 4,
   `tracking_number` VARCHAR(100) NOT NULL DEFAULT '',
   `comments`        VARCHAR(255) NOT NULL DEFAULT '',
   `date`            DATETIME NOT NULL,

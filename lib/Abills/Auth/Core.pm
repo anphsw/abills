@@ -32,7 +32,10 @@ sub new {
     conf      => $conf,
     self_url  => $attr->{SELF_URL} || q{},
     username  => $attr->{USERNAME} || q{},
-    domain_id => $attr->{DOMAIN_ID}
+    domain_id => $attr->{DOMAIN_ID},
+    db        => $attr->{DB},
+    admin     => $attr->{ADMIN},
+    html      => $attr->{HTML}
   };
 
   bless($self, $class);

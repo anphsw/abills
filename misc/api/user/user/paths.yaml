@@ -1,0 +1,32 @@
+/users/login:
+  $ref: "./paths/login.yaml"
+/user/login:
+  $ref: "./paths/loginNew.yaml"
+/user/password/recovery:
+  $ref: "./paths/passwordRecovery.yaml"
+/user/password/reset:
+  $ref: "./paths/passwordReset.yaml"
+/user/password/send:
+  $ref: "./paths/passwordSend.yaml"
+/user:
+  $ref: "./paths/user.yaml"
+/user/pi:
+  $ref: "./paths/userPi.yaml"
+/user/credit:
+  $ref: "./paths/credit.yaml"
+/user/recommendedPay:
+  $ref: "./paths/recommendedPay.yaml"
+/user/internet/registration:
+  $ref: "./paths/internetRegistration.yaml"
+/user/registration:
+  $ref: "./paths/registration.yaml"
+/user/verify:
+  $ref: "./paths/registrationVerify.yaml"
+/user/resend/verification:
+  $ref: "./paths/registrationResend.yaml"
+/user/logout:
+  $ref: "./paths/logout.yaml"
+/user/social/networks:
+  $ref: "./paths/socialNetworks.yaml"
+/user/reset/password:
+  $ref: "./paths/resetPassword.yaml"

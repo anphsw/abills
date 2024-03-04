@@ -272,8 +272,16 @@ sub user_routes {
             delete @{$reply}{qw/filename attachment_id content_size run_time inner_msg ip/};
           }
 
+          my %attachment_attr = ();
+          if ($reply->{main_msg}) {
+            $attachment_attr{REPLY_ID} = $reply->{id};
+          }
+          else {
+            $attachment_attr{MESSAGE_ID} = $reply->{id};
+          }
+
           my $attachments_list = $Msgs->attachments_list({
-            REPLY_ID     => $reply->{id},
+            %attachment_attr,
             FILENAME     => '_SHOW',
             CONTENT_SIZE => '_SHOW',
             CONTENT_TYPE => '_SHOW',
@@ -315,7 +323,7 @@ sub user_routes {
           REPLY_TEXT => $query_params->{REPLY_TEXT} || '',
           ID         => $path_params->{id},
           UID        => $path_params->{uid},
-          STATE      => $query_params->{STATUS} || 0,
+          STATE      => $query_params->{STATE} || 0,
         });
 
         ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 });
@@ -335,6 +343,65 @@ sub user_routes {
       credentials => [
         'USER', 'USERBOT'
       ]
+    },
+    {
+      method       => 'GET',
+      path         => '/user/msgs/attachments/:id/',
+      handler      => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Msgs->attachment_info({
+          ID => $path_params->{id},
+        });
+
+        if ($Msgs->{errno} || $Msgs->{errstr}) {
+          return {
+            errno  => 50004,
+            errstr => "Not found attachment with id $path_params->{id}"
+          };
+        }
+
+        delete $Msgs->{TOTAL};
+
+        if ($Msgs->{MESSAGE_TYPE}) {
+          $Msgs->messages_reply_list({
+            UID => $path_params->{uid},
+            ID  => $Msgs->{MESSAGE_ID},
+          });
+        }
+        else {
+          $Msgs->messages_list({
+            UID    => $path_params->{uid},
+            MSG_ID => $Msgs->{MESSAGE_ID},
+          });
+        }
+
+        if ($Msgs->{TOTAL}) {
+          my $attachment = $Attachments->attachment_info($path_params->{id});
+          if ($attachment->{errno} || $attachment->{error}) {
+            return {
+              errno  => 50005,
+              errstr => 'Failed to read attachment'
+            };
+          }
+          else {
+            return {
+              CONTENT_TYPE => 'Content-Type: ' . ($Msgs->{CONTENT_TYPE} || ''),
+              CONTENT      => $attachment->{CONTENT}
+            };
+          }
+        }
+        else {
+          return {
+            errno  => 50006,
+            errstr => "Not found attachment with id $path_params->{id}",
+          }
+        }
+      },
+      credentials  => [
+        'USER', 'USERBOT'
+      ],
+      content_type => 'undefined',
     },
   ]
 }
@@ -715,6 +782,10 @@ sub msgs_attachment_add {
     next if ref $query_params->{$file} ne 'HASH';
     my @keys = ('CONTENT_TYPE', 'SIZE', 'CONTENTS', 'FILENAME');
     next if (map {$file_obj->{$_} } grep exists($file_obj->{$_}), @keys) != scalar @keys;
+
+    if ($file_obj->{CONTENTS} =~ /^[\n\r]/g) {
+      $file_obj->{CONTENTS} =~ s/^.*\r?\n?//;
+    }
 
     my $add_status = $Attachments->attachment_add({
       MSG_ID       => $msgs_info->{MSG_ID} || 0,

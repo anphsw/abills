@@ -76,7 +76,7 @@ require Abills::Misc;
 my $main_file = $base_dir . '/language/english.pl';
 require $main_file;
 my $userside_default_url = q{http://demo.ubilling.net.ua:9999/billing/?module=remoteapi&key=UB45fc024bbb2632be0b3de41ff8a8b15b&action=userside};
-my $request_timeout   = $argv->{REQUEST_TIMEOUT} || 15;
+my $request_timeout   = $argv->{REQUEST_TIMEOUT} || 60;
 
 if($argv->{ODOO_CUSTOM}) {
   odoo_custom();
@@ -183,7 +183,7 @@ sub us_get_house_list {
 
   _log('LOG_DEBUG', "Userside: get_house_list");
 
-  #Fixme
+  #@Fixme
   #get_city_list
 
   my $city_district_list = us_get_city_district_list();
@@ -201,6 +201,11 @@ sub us_get_house_list {
     TIMEOUT     => $request_timeout,
     FILE_CURL   => $conf{FILE_CURL}
   });
+
+  if (! $result) {
+    _log('LOG_ALERT', "ERROR: Empty result for: ". $url);
+    return 0;
+  }
 
   foreach my $build_id ( keys %{ $result } ) {
     $build_list{$build_id}{NAME}        = $result->{$build_id}->{full_name};

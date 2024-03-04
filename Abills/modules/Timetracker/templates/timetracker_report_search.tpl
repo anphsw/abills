@@ -15,9 +15,9 @@
     <div class='card-body row'>
 
       <div class='form-group row col-md-6'>
-        <label class='col-md-3 control-label'>_{SPRINT_TIMETRACK}_:</label>
+        <label class='col-md-3 control-label required'>_{PROJECT}_:</label>
         <div class='col-md-8'>
-          %SELECT_SPRINT%
+          %SELECT_PROJECT%
         </div>
       </div>
 
@@ -25,6 +25,22 @@
         <label class='col-md-3 control-label'>_{RESPONSIBLE}_:</label>
         <div class='col-md-8'>
           %SELECT_RESPONSIBLE%
+        </div>
+      </div>
+
+      <div class='form-group row col-md-6'>
+        <label class='col-md-3 control-label'>_{SPRINT_TIMETRACK}_:</label>
+        <div class='col-md-8'>
+          %SELECT_SPRINT%
+        </div>
+      </div>
+
+      <div class='form-group row col-md-6'>
+        <label class='col-md-3 control-label text-md-right' for='SPRINTS_INDICATORS'>_{GENERAL_INDICATORS_FOR_SPRINTS}_:</label>
+        <div class='col-md-8 p-2'>
+          <div class='form-check'>
+            <input type='checkbox' class='form-check-input' id='SPRINTS_INDICATORS' name='SPRINTS_INDICATORS' %SPRINTS_INDICATORS% value='1'>
+          </div>
         </div>
       </div>
 

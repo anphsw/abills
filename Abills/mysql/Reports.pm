@@ -79,7 +79,7 @@ sub list {
 
   if (defined($attr->{QUICK_REPORT})) {
     push @WHERE_RULES, "rw.quick_report='1'";
-    push @WHERE_RULES, "IF(rw.gid = 0, 1 , IF(rg.admins = '', 1, FIND_IN_SET($attr->{AID}, rg.admins)))";
+    # push @WHERE_RULES, "IF(rw.gid = 0, 1 , IF(rg.admins = '', 1, FIND_IN_SET($attr->{AID}, rg.admins)))";
   }
   if (defined($attr->{SEND_MAIL})) {
     push @WHERE_RULES, "rw.send_mail='1'";

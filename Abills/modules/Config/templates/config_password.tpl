@@ -65,7 +65,7 @@
           </div>
           <div class='radio'>
             <label>
-              <input type='radio' name='CHARS' id='CHARSLOWER' %CHARS_1_CHECKED% value='1'>_{SPECIAL_CHARS}_
+              <input type='radio' name='CHARS' id='CHARSLOWER' %CHARS_1_CHECKED% value='1'>_{SPECIAL_CHARS}_
             </label>
           </div>
           <div class='radio'>
@@ -131,7 +131,7 @@
     var _chars = getRadioValue('CHARS');
 
     var generated_password = generatePassword({LENGTH: length, CASE: _case, CHARS: _chars});
-
+console.log(generated_password);
     _preview_input.val(generated_password);
   });
 

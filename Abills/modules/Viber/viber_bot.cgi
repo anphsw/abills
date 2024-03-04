@@ -42,6 +42,8 @@ use Buttons;
 use API::Botapi;
 use db::Viber;
 require Abills::Misc;
+use Abills::Templates;
+use Abills::Fetcher qw/web_request/;
 
 our $db = Abills::SQL->connect(@conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
   { CHARSET => $conf{dbcharset} });
@@ -56,8 +58,11 @@ our $Users = Users->new($db, $admin, \%conf);
 our $Contacts = Contacts->new($db, $admin, \%conf);
 our $Bot_db = Viber->new($db, $admin, \%conf);
 
-use Crm::Dialogue;
-my $Dialogue = Crm::Dialogue->new($db, $admin, \%conf, { SOURCE => 'viber_bot' });
+my $Dialogue;
+eval {
+  require Crm::Dialogue;
+  $Dialogue = Crm::Dialogue->new($db, $admin, \%conf, { SOURCE => 'viber_bot' });
+};
 
 my $hash = ();
 our $Bot = ();
@@ -93,22 +98,13 @@ message_process();
 sub message_process {
   my $uid = get_uid($hash->{user}{id} || $hash->{sender}{id});
   my $aid = get_aid($hash->{user}{id} || $hash->{sender}{id});
+
   if (!$uid && !$aid) {
-
-
     if ($hash->{event} && $hash->{event} =~ m/^conversation_started/) {
       subscribe($hash);
     }
     elsif ($hash->{event} && $hash->{event} =~ m/^message/) {
-      my $lead_id = $Dialogue->crm_lead_by_source({
-        USER_ID => $hash->{sender}{id},
-        FIO     => 'Viber ' . $hash->{sender}{id},
-        AVATAR  => $hash->{sender}{avatar} || '',
-      });
-      if ($lead_id) {
-        $Dialogue->crm_send_message($hash->{message}{text}, { LEAD_ID => $lead_id });
-        exit 1;
-      }
+      crm_add_dialogue_message($hash);
     }
     return 1;
   }
@@ -216,6 +212,69 @@ sub main_menu {
   $Bot->send_message($message);
 
   return 1;
+}
+
+#**********************************************************
+=head2 crm_add_dialogue_message($message)
+
+=cut
+#**********************************************************
+sub crm_add_dialogue_message {
+  my $message = shift;
+
+  return if !$Dialogue || !$Dialogue->can('crm_lead_by_source') || !$message;
+
+  my $lead_id = $Dialogue->crm_lead_by_source({
+    USER_ID => $message->{sender}{id},
+    FIO     => 'Viber ' . $message->{sender}{id},
+    AVATAR  => $message->{sender}{avatar} || '',
+  });
+  return if !$lead_id;
+
+  my $attachments = _crm_dialogue_attachment($message);
+
+  my $message_id = $Dialogue->crm_send_message($message->{message}{text}, {
+    LEAD_ID     => $lead_id,
+    ATTACHMENTS => $attachments
+  });
+  return if !$message_id;
+
+  exit 1;
+}
+
+#**********************************************************
+=head2 _crm_dialogue_attachment($message)
+
+=cut
+#**********************************************************
+sub _crm_dialogue_attachment {
+  my $message = shift;
+
+  return if !$message || !$message->{message} || !$message->{message}{media};
+
+  my $file_name = $message->{message}{file_name};
+  return if !$file_name;
+
+  my ($file_extension) = $file_name =~ /\.([^.]+)$/;
+  my $mime_type = ($file_extension && $file_extension =~ /^(jpg|jpeg|png|gif|bmp)$/i) ? 'image/jpeg' : '';
+
+  my @attachments = ();
+  my $file_content = web_request($message->{message}{media}, { CURL => 1, CURL_OPTIONS => '-s', });
+
+  require Crm::Attachments;
+  my $Attachments = Crm::Attachments->new($db, $admin, \%conf);
+
+  my $result = $Attachments->attachment_add({
+    filename       => $file_name,
+    Size           => $message->{message}{size},
+    Contents       => $file_content,
+    'Content-Type' => $mime_type
+  });
+
+  return \@attachments if $result->{errno} || !$result->{INSERT_ID};
+
+  push @attachments, $result->{INSERT_ID};
+  return \@attachments;
 }
 
 1;

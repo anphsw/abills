@@ -31,18 +31,17 @@
       </div>
 
 
-      <div class='row'>
-        <div class='col-6'>
+      <div class='row pl-1'>
+<!--        <div class='col-6'>-->
 <!--          <div class='panel-heading' role='tab' id='%PROGRAM_ID%_%PRICE%_accordion'>-->
 <!--            <a class='btn btn-default' role='button' data-toggle='collapse' data-parent='#%PROGRAM_ID%_%PRICE%_accordion'-->
 <!--               href='#collapse_%PROGRAM_ID%_%PRICE%'-->
 <!--               aria-expanded='true' aria-controls='collapse_%PROGRAM_ID%_%PRICE%'>Детальніше</a>-->
 <!--          </div>-->
-        </div>
-        <div class='col-6'>
-          <a class='btn btn-primary float-right apply-program' data-id='%PROGRAM_ID%' data-franchise='%FRANCHISE%'
-             data-price='%PRICE%'>_{ABON_CHOOSE}_</a>
-        </div>
+<!--        </div>-->
+<!--        <div class='col-6'>-->
+          %CHOOSE_BTN%
+<!--        </div>-->
       </div>
 
       <div id='collapse_%PROGRAM_ID%_%PRICE%' data-parent='#%PROGRAM_ID%_%PRICE%_accordion'

@@ -8,6 +8,10 @@ use Users;
 use Conf;
 require Abills::Misc;
 
+my %icons = (
+  payment => "\xF0\x9F\x92\xB3"
+);
+
 #**********************************************************
 =head2 new($Botapi)
 
@@ -39,7 +43,7 @@ sub new {
 sub btn_name {
   my $self = shift;
 
-  return $self->{bot}->{lang}->{LIQPAY_PAYMENT};
+  return "$icons{payment} $self->{bot}{lang}{LIQPAY_PAYMENT}";
 }
 
 #**********************************************************

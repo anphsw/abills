@@ -127,7 +127,7 @@ sub take {
       }
     }
     elsif ($fees_priority =~ /^main,bonus/) {
-      if (! $user->{EXT_BILL_ID} || ! defined($self->{EXT_BILL_DEPOSIT})) {
+      if (! $user->{EXT_BILL_ID} || ! defined($user->{EXT_BILL_DEPOSIT})) {
         my $uid = $user->{UID}; 
         my $fn  = 'user::info';
         if (! defined( &$fn )) {
@@ -204,7 +204,7 @@ sub take {
       return $self;
     }
     else {
-      $self->{db}{db}->commit() if(! $self->{db}->{TRANSACTION});
+      $self->{db}{db}->commit() if(!$self->{db}->{TRANSACTION});
     }
 
     $self->{FEES_ID} = $self->{INSERT_ID};
@@ -268,6 +268,11 @@ sub list {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my $GROUP_BY  = $attr->{GROUP_BY} || 'f.id';
+
+  my $table_name = 'fees';
+  if($attr->{TABLE_SUFIX}) {
+    $table_name .= '_' . $attr->{TABLE_SUFIX};
+  }
 
   my @WHERE_RULES = ();
   if($attr->{FEES_MONTHES}){
@@ -339,7 +344,7 @@ sub list {
      $self->{SEARCH_FIELDS}
    f.inner_describe,
    f.uid
-    FROM fees f
+    FROM `$table_name` f
     $EXT_TABLES
     $WHERE 
     GROUP BY $GROUP_BY
@@ -355,7 +360,7 @@ sub list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
-    $self->query("SELECT COUNT(*) AS total, SUM(f.sum) AS sum, COUNT(DISTINCT f.uid) AS total_users FROM fees f
+    $self->query("SELECT COUNT(*) AS total, SUM(f.sum) AS sum, COUNT(DISTINCT f.uid) AS total_users FROM `$table_name` f
   $EXT_TABLES
   $WHERE",
   undef,

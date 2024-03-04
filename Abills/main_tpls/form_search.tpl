@@ -1,6 +1,6 @@
 %SEL_TYPE%
 
-<form action='$SELF_URL' METHOD='GET' name='form_search' id='form_search' class='pb-4 pt-4'>
+<form action='%SELF_URL%' METHOD='GET' name='form_search' id='form_search' class='pb-4 pt-4'>
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='search_form' value='1'>
   %HIDDEN_FIELDS%
@@ -29,8 +29,8 @@
                 <input id='LOGIN' name='LOGIN' value='%LOGIN%' placeholder='%LOGIN%'
                   class='form-control' type='text'>
               </div>
-              <div class="col-md-2">
-                <input placeholder="UID" pattern="\d+\,?\*?" id="UID" name="UID" value="%UID%" type="text" class="form-control" />
+              <div class='col-md-2'>
+                <input placeholder='UID' pattern='\d+\,?\*?' id='UID' name='UID' value='%UID%' type='text' class='form-control' />
               </div>
             </div>
 
@@ -74,8 +74,9 @@
                 %TO_DATE%
               </div>
             </div>
-            %ADDRESS_FORM%
+            %ARCHIVE_TABLE%
           </div>
+          %ADDRESS_FORM%
         </div>
       </div>
       %SEARCH_FORM%

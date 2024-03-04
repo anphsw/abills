@@ -49,6 +49,9 @@
 
 <script type='text/javascript' src='/styles/default/js/maps/Leaflet.MovingMarker.js'></script>
 
+<script type='text/javascript' src='/styles/default/js/maps/L.Control.MousePosition.min.js'></script>
+<link rel='stylesheet' href='/styles/default/css/modules/maps/L.Control.MousePosition.min.css'>
+
 %JS_VARIABLES%
 
 <div class='row'>

@@ -36,7 +36,6 @@ sub new {
   return $self;
 }
 
-
 #**********************************************************
 =head2 iptv_payments_maked($attr) - Cross module payment maked
 
@@ -665,13 +664,16 @@ sub iptv_get_available_tariffs {
       id            => $tp->{id},
       tp_id         => $tp->{tp_id},
       name          => $tp->{name},
+      tp_name       => $tp->{name},
       comments      => $tp->{comments},
+      tp_comments   => $tp->{comments},
       service_id    => $tp->{service_id},
       day_fee       => $tp->{day_fee},
       month_fee     => $tp->{month_fee},
       reduction_fee => $tp->{reduction_fee},
       activate_fee  => $tp->{activate_price},
       tp_age        => $tp->{age},
+      can_change_tp => 'true',
     };
 
     my $tp_fee = $tp->{day_fee} + $tp->{month_fee} + ($tp->{change_price} || 0);
@@ -700,12 +702,47 @@ sub iptv_get_available_tariffs {
 
     next if ($attr->{SKIP_NOT_AVAILABLE_TARIFFS});
 
+    $tariff->{can_change_tp} = 'false';
+
     $tariff->{ERROR} = ::_translate('$lang{ERR_SMALL_DEPOSIT}');
 
     push @tariffs, $tariff;
   }
 
   return \@tariffs;
+}
+
+#**********************************************************
+=head2 iptv_user_del($attr) - deleting the user's iptv services
+
+  Arguments:
+    UID
+
+=cut
+#**********************************************************
+sub iptv_user_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return 0 if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
+  my $uid = $attr->{USER_INFO}{UID};
+
+  my $users_list = $Iptv->user_list({ UID => $uid, COLS_NAME => 1 });
+
+  ::load_module('Iptv', $html);
+  foreach my $line (@$users_list) {
+    $Iptv->user_info($line->{id});
+    $main::Iptv->{SERVICE_ID} = $Iptv->{SERVICE_ID} if ($main::Iptv);
+    ::iptv_account_action({
+      %$Iptv,
+      del       => $line->{id},
+      USER_INFO => $attr->{USER_INFO}
+    });
+  }
+
+  $Iptv->{UID} = $uid;
+  $Iptv->user_del({ UID => $uid, COMMENTS => $attr->{USER_INFO}{COMMENTS} });
+  return 1;
 }
 
 1;

@@ -87,7 +87,9 @@ if (! $argv->{SKIPPID} && make_pid( $log_dir . '/'. $pid_name .'.pid' ) == 1) {
 }
 
 our $db = Abills::SQL->connect( $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+  { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
+    db_engine => 'dbcore'
+  });
 
 if ( !$db->{db} ){
   print "Error: SQL connect error\n";
@@ -326,6 +328,7 @@ sub check_lines{
       my $deposit = sprintf("%.2f", $online->{deposit} || 0);
       $online->{tp_num} = $online->{tp_id};
       $online->{credit_tresshold} //= 0;
+      $online->{duration} //= q{};
 
       my $state = int( ($online->{service_status} || 0) + ($online->{login_status} || 0) );
       $online->{user_service_state}=$state;
@@ -3807,13 +3810,63 @@ sub get_accel_ppp_info {
 =cut
 #**********************************************************
 sub _log {
-  my($type, $message)=@_;
+  my($type, $message, $attr)=@_;
+
+  my %ERRORS = (
+    LOG_EMERG   => 0,
+    LOG_ALERT   => 1,
+    LOG_CRIT    => 2,
+    LOG_ERR     => 3,
+    LOG_WARNING => 4,
+    LOG_NOTICE  => 5,
+    LOG_INFO    => 6,
+    LOG_DEBUG   => 7,
+    LOG_SQL     => 8,
+  );
 
   if ($debug < 3 && $type eq 'LOG_DEBUG') {
     return 1;
   }
+  elsif($ERRORS{$type} > ($debug || 0) + 2) {
+    return 1;
+  }
 
   print "$type: $message\n";
+
+  if ($attr->{EVENT_TITLE}) {
+    _generate_event($message, $attr);
+  }
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 _generate_event(_generate_event)
+
+  Arguments:
+    $title_event - title of message
+    $comments - text of message to show
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _generate_event {
+  my ($comments,  $attr) = @_;
+
+  my $title_event = $attr->{EVENT_TITLE};
+
+  require Events::API;
+  Events->import();
+  my $Events = Events::API->new($db, $Admin, \%conf);
+
+  $Events->add_event({
+    MODULE      => $attr->{EVENT_MODULE} || '',
+    TITLE       => $title_event,
+    COMMENTS    => $comments,
+    PRIORITY_ID => $attr->{EVENT_PRIORITY} || 3
+  });
 
   return 1;
 }

@@ -105,5 +105,7 @@ $lang{MAPS_SCALE} = 'Масштаб';
 $lang{PLOT} = 'Участок дома';
 
 $lang{NO_MOVES_FOUND} = 'В этот период не найдено перемещений';
+$lang{THE_COORDINATES_DISTRICT_ALREADY_INDICATED} = 'Координаты района уже указаны';
+$lang{CURSOR_COORDINATES} = 'Координаты курсора';
 
 1;

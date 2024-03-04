@@ -68,6 +68,7 @@
   var _COMMUTATION      = '_{COMMUTATION}_' || 'Commutation';
   var _PREVIOUS = '_{PREVIOUS}_' || 'Prev';
   var _NEXT = '_{NEXT_NEXT}_' || 'Next';
+  var _CURSOR_COORDINATES = '_{CURSOR_COORDINATES}_' || 'Cursor coordinates';
 
   //ENABLING FEATURES
   var SHOW_MARKERS              = '%SHOW_MARKERS%' || true;

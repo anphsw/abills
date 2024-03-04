@@ -10,8 +10,8 @@ package Redmine;
 
 =head2 VERSION
 
-  VERSION: 0.2
-  REVISION: 20200806
+  VERSION: 0.3
+  REVISION: 20231004
 
 =head2 SYNOPSIS
 
@@ -217,10 +217,39 @@ sub get_scheduled_hours {
 }
 
 #**********************************************************
-=head2 get_list_sprints() - return list of the sprints
+=head2 get_list_projects() - return list of the projects
+
+  https://www.redmine.org/projects/redmine/wiki/Rest_Projects
 
   Returns:
-    $self
+    list
+
+  Examples:
+    get_list_projects($attr);
+=cut
+#**********************************************************
+sub get_list_projects {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $url = "$self->{conf}{TIMETRACKER_REDMINE_URL}projects.json?key=$self->{conf}{TIMETRACKER_REDMINE_APIKEY}";
+  my $json = web_request($url, { CURL => 1, JSON_RETURN => 1, DEBUG => $attr->{DEBUG} });
+
+  if($json->{projects}){
+    $self = ($json->{projects});
+  }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 get_list_sprints() - return list of the sprints
+
+  Attr
+    project - project id
+
+  Returns:
+    list of sprints
 
   Examples:
     get_list_sprints($attr);
@@ -230,7 +259,7 @@ sub get_list_sprints {
   my $self = shift;
   my ($attr) = @_;
 
-  my $url = "$self->{conf}{TIMETRACKER_REDMINE_URL}/projects/$self->{conf}{TIMETRACKER_REDMINE_PROJECT_ID}/versions.json?status=open&key=$self->{conf}{TIMETRACKER_REDMINE_APIKEY}";
+  my $url = "$self->{conf}{TIMETRACKER_REDMINE_URL}/projects/$attr->{PROJECT_ID}/versions.json?status=open&key=$self->{conf}{TIMETRACKER_REDMINE_APIKEY}";
   my $json = web_request($url, { CURL => 1, JSON_RETURN => 1, DEBUG => $attr->{DEBUG} });
 
   if($json->{versions}){
@@ -242,8 +271,10 @@ sub get_list_sprints {
 
 #**********************************************************
 =head2 get_list_issue($attr) - return list of the issues
+
   Arguments:
     $attr = {
+      PROJECT_ID
       VERSION_ID => 174, # sprint id
     };
 
@@ -258,7 +289,7 @@ sub get_list_issues {
   my $self = shift;
   my ($attr) = @_;
 
-  my $url = "$self->{conf}{TIMETRACKER_REDMINE_URL}/projects/$self->{conf}{TIMETRACKER_REDMINE_PROJECT_ID}/issues.json?status_id=*&limit=200&fixed_version_id=$attr->{VERSION_ID}&key=$self->{conf}{TIMETRACKER_REDMINE_APIKEY}";
+  my $url = "$self->{conf}{TIMETRACKER_REDMINE_URL}/projects/$attr->{PROJECT_ID}/issues.json?status_id=*&limit=200&fixed_version_id=$attr->{VERSION_ID}&key=$self->{conf}{TIMETRACKER_REDMINE_APIKEY}";
   my $json = web_request($url, { CURL => 1, JSON_RETURN => 1, DEBUG => $attr->{DEBUG} });
 
   if($json->{issues}){

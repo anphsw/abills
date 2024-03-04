@@ -1,10 +1,14 @@
 package Price;
+
+
 use strict;
-use parent 'main';
+use parent 'dbcore';
+
 our $VERSION = 0.01;
+
 my ($admin,
-  $CONF);
-my ($SORT,
+  $CONF,
+  $SORT,
   $DESC,
   $PG,
   $PAGE_ROWS);
@@ -78,7 +82,7 @@ sub change_service {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'price_services_list',
@@ -106,7 +110,7 @@ sub show_services {
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->query2(
+  $self->query(
     "SELECT *
     FROM price_services_list
     ORDER BY $SORT $DESC
@@ -143,7 +147,7 @@ sub show_services_with_groups {
     { WHERE => 1 }
   );
 
-  $self->query2("SELECT
+  $self->query("SELECT
       $self->{SEARCH_FIELDS}
       ps.id
       FROM price_services_list ps
@@ -159,7 +163,7 @@ sub show_services_with_groups {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
-    $self->query2("SELECT count( DISTINCT ps.id) AS total
+    $self->query("SELECT count( DISTINCT ps.id) AS total
         FROM price_services_list ps
         $WHERE",
       undef,
@@ -188,7 +192,7 @@ sub show_groups {
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->query2(
+  $self->query(
     "SELECT *
     FROM price_groups
     ORDER BY $SORT $DESC
@@ -214,14 +218,14 @@ sub take_service_info {
   my ($attr) = @_;
 
   if ($attr->{ID}) {
-    $self->query2(
+    $self->query(
       "SELECT *
       FROM price_services_list
       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
     );
   }
   if ($attr->{GROUP_ID}) {
-    $self->query2(
+    $self->query(
       "SELECT *
       FROM price_services_list
       WHERE id_group = ?;", undef, { INFO => 1, Bind => [ $attr->{GROUP_ID} ] }
@@ -244,7 +248,7 @@ sub select_service_with_group {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM price_services_list WHERE id_group = ?;",
     undef,
     { COLS_NAME => 1, Bind => [ $attr->{ID} ] }
@@ -267,7 +271,7 @@ sub select_price_groups {
   my ($attr) = @_;
 
   if ($attr->{ID}) {
-    $self->query2(
+    $self->query(
       "SELECT *
       FROM price_groups
       WHERE id = ?;",
@@ -276,7 +280,7 @@ sub select_price_groups {
     );
   }
   else {
-    $self->query2(
+    $self->query(
       "SELECT * FROM price_groups",
       undef,
       { COLS_NAME => 1 }
@@ -318,13 +322,12 @@ sub change_group {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'price_groups',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'price_groups',
+    DATA         => $attr
+  });
+
   return $self;
 }
 
@@ -376,12 +379,12 @@ sub select_price_form {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT *
       FROM price_form
       WHERE lead_id = ?;",
     undef,
-    { COLS_NAME => 1,, Bind => [ $attr->{LEAD_ID} ] }
+    { COLS_NAME => 1, Bind => [ $attr->{LEAD_ID} ] }
   );
 
   return $self->{list};
@@ -419,10 +422,10 @@ sub select_lead_id {
   my ($attr) = @_;
 
   if ($attr->{E_MAIL}) {
-    $self->query2(
+    $self->query(
       "SELECT lead_id
       FROM price_form
-      WHERE key_ = E_MAIL and value = ?;",
+      WHERE key_='E_MAIL' and value = ?;",
       undef,
       { COLS_NAME => 1, Bind => [ $attr->{E_MAIL} ] }
     );
@@ -430,5 +433,6 @@ sub select_lead_id {
 
   return $self->{list};
 }
+
 return 1;
 

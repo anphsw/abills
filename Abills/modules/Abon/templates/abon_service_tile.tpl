@@ -1,7 +1,7 @@
 <form class='col-md-4 mb-3' action=%SELF_URL% method='POST'>
   <input class='form-control' type='hidden' name='index' value='%index%'/>
-  <div class='card card-primary abon-card'>
-    <div class='card-header text-center border-0'>
+  <div class='card card-primary card-outline abon-card'>
+    <div class='card-header text-center'>
       <h3 class='card-title' style='float: unset'>%TP_NAME%</h3>
     </div>
     <div class='card-body'>
@@ -31,5 +31,6 @@
         </div>
       </div>
     </div>
+    %HOT_DEAL%
   </div>
 </form>

@@ -1,6 +1,13 @@
 our %FUNCTIONS_LIST = (
-  "01:0:$lang{BILLING_API}:null"      => 4,
-  "02:1:$lang{API_LOGS}:api_log_list" => 4,
+  "01:0:$lang{BILLING_API}:null"             => 4,
+  "02:1:$lang{API_LOGS}:api_log_list"        => 4,
+  "03:0:$lang{MOBILE_APP}:user_mobile:UID"   => 20,
+);
+
+our %PERIODIC = (
+  monthly => [
+    'api_periodic_logrotate',
+  ]
 );
 
 1;

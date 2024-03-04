@@ -448,8 +448,9 @@ sub iptv_user_add {
     COLS_NAME  => 1,
     PAGE_ROWS  => 99999,
   });
+
   if ($service_info->{SUBSCRIBE_COUNT} && $service_info->{SUBSCRIBE_COUNT} == $Iptv->{TOTAL}) {
-    $html->message("err", "$lang{ERROR}", "$lang{EXCEEDED_THE_NUMBER_OF_SUBSCRIPTIONS}: $service_info->{SUBSCRIBE_COUNT}");
+    $html->message("err", "$lang{ERROR}", "$lang{EXCEEDED_THE_NUMBER_OF_SUBSCRIPTIONS}: $service_info->{SUBSCRIBE_COUNT}", { ID => 1080012 });
     return 0;
   }
 
@@ -917,9 +918,9 @@ sub iptv_account_action {
     if ($attr->{chg} || $attr->{ID}) {
       $Iptv->user_info($attr->{chg} || $attr->{ID});
       $request{SUBSCRIBE_ID} = $Iptv->{SUBSCRIBE_ID} if $Iptv->{TOTAL} && $Iptv->{SUBSCRIBE_ID};
-      $request{LOGIN} = $users->{LOGIN};
 
-      $users->info($users->{UID}, { SHOW_PASSWORD => 1 });
+      $users->info($users->{UID} || $Iptv->{UID}, { SHOW_PASSWORD => 1 });
+      $request{LOGIN} = $users->{LOGIN};
       $request{PASSWORD} = $users->{PASSWORD};
       $request{DEPOSIT} = $users->{DEPOSIT};
     }
@@ -931,7 +932,7 @@ sub iptv_account_action {
         if ($Tv_service->{CID} || $Tv_service->{SERIAL}) {
           $Iptv->users_screens_add({
             SERVICE_ID => $Iptv->{ID},
-            SCREEN_ID  => $Tv_service->{SCREEN_ID} || $Iptv->{SCREEN_ID},
+            SCREEN_ID  => $Tv_service->{SCREEN_ID} || $Iptv->{SCREEN_ID} || $attr->{SCREEN_ID},
             CID        => $Tv_service->{CID},
             SERIAL     => $Tv_service->{SERIAL} || '',
             COMMENT    => $Tv_service->{COMMENT} || ''

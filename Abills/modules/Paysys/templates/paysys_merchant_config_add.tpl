@@ -96,12 +96,6 @@
       let param = sorted[i];
       param = param.replace(/(_NAME_)/, '_' + type.toUpperCase() + '_');
 
-      jQuery("input[name*='MFO']").attr('maxlength', '6')
-        .attr('title', 'Поле должно содержать 6 цифр')
-        .hover(() => {
-          jQuery(this).tooltip()
-        });
-
       if (param.includes('ACCOUNT_KEY')) {
         SHOW_SELECT = 1;
         KEY_NAME = param;
@@ -139,11 +133,12 @@
 
       if (i + 1 === sorted.length && SHOW_SELECT === 0) {
         jQuery('#ACCOUNT_KEYS_SELECT').hide();
-        jQuery('#PAYMENT_METHOD_SELECT').hide();
       } else if (i + 1 === sorted.length && SHOW_SELECT === 1) {
         SHOW_SELECT = 0;
       }
     }
+
+    generateTooltips(type);
   }
 
   jQuery('#BTN_ADD').on('click', () => {
@@ -168,4 +163,56 @@
       rebuild_form(jQuery('#MODULE').val());
     });
   });
+
+  function generateTooltips (type) {
+    const docsUrl = arr[type]['DOCS'] || '';
+    let url = '';
+
+    const urlType = /pageId/.test(docsUrl);
+    const match = docsUrl.match(/[a-zA-Z0-9_\\-\\+]+\$/);
+    if (match.length < 1) return 1;
+
+    if (urlType) {
+      url = `http://abills.net.ua/wiki/rest/api/content/${match}?expand=body.storage`
+    } else {
+      url = `http://abills.net.ua/wiki/rest/api/content/search?cql=space=AB AND title=${match}&expand=body.storage`;
+    }
+
+    fetch(url)
+      .then(async response => {
+        if (!response.ok) throw response;
+
+        const content = await response.json();
+        console.log(content);
+        const body = urlType ? content?.body?.storage?.value : content?.results[0]?.body?.storage?.value;
+
+        const tooltipsInfo = body.match(/(?<=<td[^>]*>)(.*?)(?=<\/td)/gm);
+
+        if (tooltipsInfo.length < 1) return 1;
+
+        tooltipsInfo.map((val, index) => {
+          console.log(`input[name*=${val}]`);
+          if (val.includes('PAYSYS_')) {
+            const value = val.replace(/<[^>]*>/gm, '');
+            const tooltipValue = tooltipsInfo[index + 1].replace(/<[^>]*>/gm, '');
+            jQuery(`input[name*=${value}]`).attr('title', tooltipValue)
+              .hover(() => {
+                jQuery().tooltip()
+              });
+          }
+        });
+      })
+      .catch(e => console.warn(e));
+
+    jQuery("input[name*='PORTAL_DESCRIPTION']").attr('title', 'Описание в кабинете пользователя')
+      .hover(() => {
+        jQuery().tooltip()
+      });
+
+    jQuery("input[name*='PORTAL_COMMISSION']").attr('title', 'Описание комиссии в кабинете пользователя')
+      .hover(() => {
+        jQuery().tooltip()
+      });
+  }
+
 </script>

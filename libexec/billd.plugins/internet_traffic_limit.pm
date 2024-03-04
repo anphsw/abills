@@ -213,7 +213,7 @@ sub internet_traffic_limit_block {
 
           my $octets_direction          = "(sent + 4294967296 * acct_output_gigawords) + (recv + 4294967296 * acct_input_gigawords) ";
           my $octets_direction2         = "sent2 + recv2";
-          my $octets_online_direction   = "acct_input_octets + acct_output_octets";
+          my $octets_online_direction   = "(acct_input_octets + 4294967296 * acct_input_gigawords) + (acct_output_octets + 4294967296 * acct_output_gigawords)";
           my $octets_online_direction2  = "ex_input_octets + ex_output_octets";
           my $octets_direction_interval = "(li.sent + li.recv)";
 

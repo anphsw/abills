@@ -98,6 +98,10 @@ sub info{
     push @WHERE_RULES, "s.id='$attr->{ID}'";
   }
 
+  if ( $attr->{ACTION} ){
+    push @WHERE_RULES, "s.action LIKE '$attr->{ACTION}'";
+  }
+
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join( ' and ', @WHERE_RULES ) : '';
 
   $self->query( "SELECT s.h,
@@ -108,6 +112,7 @@ sub info{
      s.action,
      s.date,
      s.comments,
+     s.module,
      s.uid,
      s.id AS shedule_id,
      a.id As admin_name,

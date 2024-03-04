@@ -1,0 +1,210 @@
+/districts:
+  get:
+    tags:
+      - districts
+    summary: Получить районы
+    description: Возвращает список районов
+    operationId: getDistricts
+    parameters:
+      - name: id
+        in: query
+        description: ID района.
+        schema:
+          type: boolean
+          default: true
+      - name: name
+        in: query
+        description: Название района.
+        schema:
+          type: boolean
+          default: true
+      - name: zip
+        in: query
+        description: ZIP населенного пункта.
+        schema:
+          type: boolean
+          default: true
+      - name: coordx
+        in: query
+        description: Координата x района.
+        schema:
+          type: boolean
+          default: false
+      - name: coordy
+        in: query
+        description: Координата y района.
+        schema:
+          type: boolean
+          default: false
+      - name: path
+        in: query
+        description: Полный путь предков района
+        schema:
+          type: boolean
+          default: false
+      - name: parentId
+        in: query
+        description: ID родителя
+        schema:
+          type: boolean
+          default: false
+      - name: typeId
+        in: query
+        description: ID типа района
+        schema:
+          type: boolean
+          default: false
+      - name: typeName
+        in: query
+        description: Название типа района
+        schema:
+          type: boolean
+          default: false
+      - name: fullName
+        in: query
+        description: Полное название района вместе со всеми предками
+        schema:
+          type: boolean
+          default: false
+      - name: parentName
+        in: query
+        description: Название района-предка
+        schema:
+          type: boolean
+          default: false
+      - name: streetCount
+        in: query
+        description: Количество улиц на районе
+        schema:
+          type: boolean
+          default: true
+      - name: pageRows
+        in: query
+        description: Количество записей
+        schema:
+          type: integer
+          default: 25
+      - name: pg
+        in: query
+        description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+        schema:
+          type: integer
+          default: 0
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DistrictsArray"
+    security:
+      - KEY: []
+  post:
+    tags:
+      - districts
+    summary: Добавление района
+    operationId: addDistrict
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Districts"
+      required: true
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DistrictsAddResponse200"
+      400:
+        description: Нет поля name
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                errno:
+                  type: integer
+                  example: 10094
+                errstr:
+                  type: string
+                  example: "No field name"
+    security:
+      - KEY: []
+/districts/{ID}:
+  get:
+    tags:
+      - districts
+    summary: Получить информацию о районе
+    operationId: getDistrictInfo
+    parameters:
+      - name: ID
+        in: path
+        description: ID района
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: pageRows
+        in: query
+        description: Количество записей
+        schema:
+          type: integer
+          default: 25
+      - name: pg
+        in: query
+        description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+        schema:
+          type: integer
+          default: 0
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Districts"
+    security:
+      - KEY: []
+  put:
+    tags:
+      - districts
+    summary: Обновить информацию о районе
+    operationId: updateDistrict
+    parameters:
+      - name: ID
+        in: path
+        description: ID района
+        required: true
+        schema:
+          type: integer
+          format: int64
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Districts"
+      required: true
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DistrictsChangeResponse200"
+      400:
+        description: Район уже есть с таким названием(name)
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                errno:
+                  type: integer
+                  example: 7
+                errstr:
+                  type: string
+                  example: "ERROR_DUPLICATE"
+    security:
+      - KEY: []

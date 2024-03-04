@@ -27,18 +27,25 @@ sub paysys_log {
   if (form_purchase_module({
     HEADER          => $user->{UID},
     MODULE          => 'Paysys',
-    REQUIRE_VERSION => 9.19
+    REQUIRE_VERSION => 9.36
   })) {
     return 0;
   }
 
   my %PAY_SYSTEMS = ();
 
+  my $merchants = $Paysys->merchant_settings_list({
+    ID            => '_SHOW',
+    MERCHANT_NAME => '_SHOW',
+    LIST2HASH     => 'id,merchant_name',
+  });
+
   my $connected_systems = $Paysys->paysys_connect_system_list({
     PAYSYS_ID => '_SHOW',
     NAME      => '_SHOW',
     MODULE    => '_SHOW',
     COLS_NAME => 1,
+    PAGE_ROWS => 50,
   });
 
   foreach my $payment_system (@$connected_systems) {
@@ -93,24 +100,24 @@ sub paysys_log {
   if ($FORM{search_form} && !$user->{UID}) {
     my %ACTIVE_SYSTEMS = %PAY_SYSTEMS;
 
-    $info{PAY_SYSTEMS_SEL} = $html->form_select(
-      'PAYMENT_SYSTEM',
-      {
-        SELECTED => $FORM{PAYMENT_SYSTEM} || '',
-        SEL_HASH => { '' => $lang{ALL}, %ACTIVE_SYSTEMS },
-        NO_ID    => 1
-      }
-    );
+    $info{PAY_SYSTEMS_SEL} = $html->form_select('PAYMENT_SYSTEM', {
+      SELECTED => $FORM{PAYMENT_SYSTEM} || '',
+      SEL_HASH => { '' => $lang{ALL}, %ACTIVE_SYSTEMS },
+      NO_ID    => 1
+    });
 
-    $info{STATUS_SEL} = $html->form_select(
-      'STATUS',
-      {
-        SELECTED     => $FORM{STATUS} || '',
-        SEL_ARRAY    => \@status,
-        ARRAY_NUM_ID => 1,
-        SEL_OPTIONS  => { '' => $lang{ALL} }
-      }
-    );
+    $info{MERCHANTS_SEL} = $html->form_select('MERCHANT_ID', {
+      SELECTED => $FORM{MERCHANT_ID} || '',
+      SEL_HASH => { '' => $lang{ALL}, %{$merchants} },
+      NO_ID    => 1,
+    });
+
+    $info{STATUS_SEL} = $html->form_select('STATUS', {
+      SELECTED     => $FORM{STATUS} || '',
+      SEL_ARRAY    => \@status,
+      ARRAY_NUM_ID => 1,
+      SEL_OPTIONS  => { '' => $lang{ALL} }
+    });
 
     $info{DATERANGE_PICKER} = $html->form_daterangepicker({
       NAME  => 'FROM_DATE/TO_DATE',
@@ -147,6 +154,10 @@ sub paysys_log {
       date           => $lang{DATE},
       month          => $lang{MONTH},
       datetime       => $lang{DATE},
+      merchant_id    => $lang{MERCHANT},
+      merchant_name  => $lang{MERCHANT_NAME2},
+      login          => $lang{LOGIN},
+      ext_id         => $lang{EXTERNAL_ID},
     },
     SKIP_USER_TITLE => 1,
     TABLE           => {

@@ -6,6 +6,8 @@ use warnings FATAL => 'all';
 require Control::Service_control;
 my $Service_control;
 
+my %icons = (credit => "\xF0\x9F\x92\xB5");
+
 #**********************************************************
 =head2 new($Botapi)
 
@@ -37,7 +39,7 @@ sub new {
 sub btn_name {
   my $self = shift;
   
-  return $self->{bot}{lang}{CREDIT};
+  return "$icons{credit} $self->{bot}{lang}{CREDIT}";
 }
 
 #**********************************************************

@@ -1,0 +1,49 @@
+{
+  "definitions": {},
+  "type": "array",
+  "title": "Tags users",
+  "required": [
+    "id",
+    "name",
+    "uid",
+    "priority",
+    "date",
+    "disable",
+    "login",
+    "comments"
+  ],
+  "properties": {
+    "id": {
+      "$id": "#/properties/id",
+      "type": "number"
+    },
+    "name": {
+      "$id": "#/properties/name",
+      "type": "string"
+    },
+    "uid": {
+      "$id": "#/properties/uid",
+      "type": "number"
+    },
+    "priority": {
+      "$id": "#/properties/priority",
+      "type": "number"
+    },
+    "date": {
+      "$id": "#/properties/date",
+      "type": "string"
+    },
+    "disable": {
+      "$id": "#/properties/disable",
+      "type": "number"
+    },
+    "login": {
+      "$id": "#/properties/login",
+      "type": "string"
+    },
+    "comments": {
+      "$id": "#/properties/comments",
+      "type": "string"
+    }
+  }
+}

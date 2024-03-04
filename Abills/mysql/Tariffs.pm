@@ -377,6 +377,7 @@ sub defaults {
     COMMENTS                => '',
     BILLS_PRIORITY          => 0,
     ACTIVE_DAY_FEE          => 0,
+    ACTIVE_MONTH_FEE        => 0,
     NEG_DEPOSIT_IPPOOL      => 0,
     NEXT_TARIF_PLAN         => 0,
     FEES_METHOD             => 0,
@@ -502,6 +503,7 @@ sub change {
     PROMOTIONAL             => 'promotional',
     EXT_BILL_FEES_METHOD    => 'ext_bill_fees_method',
     POPULAR                 => 'popular',
+    ACTIVATE_PRICE          => 'activate_price',
   );
 
   $attr->{REDUCTION_FEE}        = 0 if (!$attr->{REDUCTION_FEE});
@@ -544,8 +546,8 @@ sub del {
   my ($id, $attr) = @_;
 
   $self->query_del('tarif_plans', undef, { tp_id => $id, module => $attr->{MODULE} });
-
-  $self->{admin}->system_action_add("TP:$id", { TYPE => 10 });
+  my $comments = ($attr->{COMMENTS}) ? ' COMMENTS: ' . $attr->{COMMENTS} : q{};
+  $self->{admin}->system_action_add("TP:$id$comments", { TYPE => 10 });
 
   return $self;
 }
@@ -1285,6 +1287,11 @@ sub tp_geo_list {
     return $self->{list};
   }
 
+  if ($attr->{DISTRICT_ID} && $attr->{DISTRICT_ID} ne '_SHOW') {
+    push @WHERE_RULES, "FIND_IN_SET($attr->{DISTRICT_ID}, (SELECT GROUP_CONCAT(dc.id) FROM districts dc WHERE FIND_IN_SET(d.id, REPLACE(dc.path, '/', ','))))";
+    delete $attr->{DISTRICT_ID};
+  }
+
   my $WHERE = $self->search_former($attr, [
     [ 'TP_GID',      'INT', 'tpg.tp_gid',      1 ],
     [ 'STREET_ID',   'INT', 'tpg.street_id',   1 ],
@@ -1292,8 +1299,13 @@ sub tp_geo_list {
     [ 'DISTRICT_ID', 'INT', 'tpg.district_id', 1 ],
   ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
-  $self->query(
-    "SELECT tpg.tp_gid, tpg.street_id, tpg.build_id, tpg.district_id $EXT_COLUMNS FROM tp_geolocation AS tpg
+  $self->query("SELECT tpg.tp_gid, tpg.street_id, tpg.build_id,
+    SUBSTRING_INDEX(d.path, CONCAT('/', tpg.district_id), 1) AS district_path, IF(tpg.build_id, s.id, null) AS build_street,
+    tpg.district_id $EXT_COLUMNS
+    FROM tp_geolocation AS tpg
+    LEFT JOIN builds b ON tpg.build_id = b.id
+    LEFT JOIN streets s ON b.street_id = s.id OR tpg.street_id = s.id
+    LEFT JOIN districts d ON d.id = s.district_id OR tpg.district_id = d.id
     $EXT_TABLE
     $WHERE
     ORDER BY $SORT $DESC;", undef, $attr

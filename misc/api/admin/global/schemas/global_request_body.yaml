@@ -1,0 +1,28 @@
+type: object
+properties:
+  requests:
+    type: array
+    items:
+      type: object
+      properties:
+        method:
+          type: string
+          example: POST
+        url:
+          type: string
+          example: /users/
+        body:
+          type: object
+          properties:
+            login:
+              type: string
+              example: apiuser1
+            password:
+              type: string
+              example: 123456
+            createBill:
+              type: number
+              example: 1
+            fio:
+              type: string
+              example: test api create

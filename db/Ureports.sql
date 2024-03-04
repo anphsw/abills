@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS `ureports_tp_reports` (
   `module` VARCHAR(32) NOT NULL DEFAULT '',
   `visual` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  KEY `tp_id` (`tp_id`, `report_id`)
+  KEY `tp_id` (`tp_id`),
+  KEY `tp_id_report_id` (`tp_id`, `report_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Ureports users Tarif plans';

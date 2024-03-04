@@ -7,6 +7,8 @@ use Abills::Base qw(in_array);
 require Control::Service_control;
 my $Service_control;
 
+my %icons = (services => "\xF0\x9F\xA7\xA9");
+
 #**********************************************************
 =head2 new($Botapi)
 
@@ -38,7 +40,7 @@ sub new {
 sub btn_name {
   my $self = shift;
   
-  return $self->{bot}{lang}{SERVICES};
+  return "$icons{services} $self->{bot}{lang}{SERVICES}";
 }
 
 #**********************************************************

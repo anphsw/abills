@@ -12,4 +12,26 @@ properties:
   password:
     type: string
     example: "`ab012WXY"
-    description: Параметр который возвращает биллинг если авторизация через социальную сеть и если включена опция $conf{API_LOGIN_SHOW_PASSWORD}. Если значение 0 сдвиг не происходит, если значение не 0, происходит смещение или влево или вправо, по алгоритму цезаря таблиця ASCII c значения 33 до 126
+    description: Параметр который возвращает биллинг если авторизация через социальную сеть и если включена опция $conf{API_LOGIN_SHOW_PASSWORD}. Если значение 0 сдвиг не происходит, если значение не 0, происходит смещение или влево или вправо, по алгоритму цезаря таблица ASCII c значения 33 до 126
+  authCode:
+    type: integer
+    description: ID авторизации к которому привязан пин код
+    example: 103382
+  sent:
+    type: boolean
+    description: Статус отправки смс
+    example: true
+  users:
+    type: array
+    description: список пользователей с тем же номером
+    items:
+      type: object
+      properties:
+        login:
+          type: string
+          description: Логин пользователя, нужно передать в 3 запросе
+          example: test user
+        uid:
+          type: integer
+          description: ID пользователя, нужно передать в 3 запросе
+          example: 12312

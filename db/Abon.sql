@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS `abon_tariffs` (
   `activate_price` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   `promotional` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `promo_period` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `hot_deal` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 )
@@ -78,3 +79,13 @@ CREATE TABLE IF NOT EXISTS `abon_categories` (
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Abon category';
+
+CREATE TABLE IF NOT EXISTS `abon_gids` (
+  `id`              SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `tp_id`           SMALLINT(6) UNSIGNED NOT NULL,
+  `gid`             SMALLINT(4) UNSIGNED NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `tp_id_gid` (`tp_id`, `gid`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Abon tariffs to user groups';

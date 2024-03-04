@@ -1,0 +1,24 @@
+$lang{ERR_MOBILE_UNFILLED_MANDATORY_CATEGORIES} = "Обов'язкові категорії не заповнені: %CATEGORIES%";
+$lang{ERR_MOBILE_LIFECELL_API} = 'Помилка при роботі API';
+$lang{ERR_MOBILE_TP_ALREADY_ACTIVATED} = 'Тарифний план вже активовано';
+$lang{ERR_MOBILE_PHONE_NOT_FOUND} = 'Активований номер не знайдено';
+$lang{ERR_MOBILE_TP_NOT_FOUND} = 'Тарифний план не знайдено';
+$lang{ERR_MOBILE_SERVICES_NOT_FOUND} = 'У тарифному плані не обрано жодної послуги';
+$lang{ERR_MOBILE_PHONE_ALREADY_ACTIVATED} = 'Номер телефону вже активовано';
+$lang{ERR_MOBILE_WAIT_PHONE_NUMBER_ACTIVATION} = 'Зачекайте підтвердження активації номера телефону';
+$lang{ERR_MOBILE_WRONG_PARAMETERS} = 'Невірні параметри';
+
+$lang{MOBILE_COMMUNICATION} = "Мобільний зв'язок";
+$lang{PHONE_ACTIVATE} = 'Активувати номер';
+$lang{MOBILE_CATEGORIES} = 'Категорії';
+$lang{MOBILE_CATEGORY} = 'Категорія';
+$lang{MOBILE_MAIN_CATEGORY} = 'Головна категорія';
+$lang{MOBILE_MANDATORY} = 'Обов\'язковий';
+$lang{MOBILE_SERVICES} = 'Послуги';
+$lang{MOBILE_STATUS_NUMBER} = 'Статус номера';
+$lang{MOBILE_STATUS_TARIFF_PLAN} = 'Статус тарифного плану';
+$lang{MOBILE_ACTIVATION_DATE} = 'Дата активації';
+$lang{MOBILE_WAIT_CONFIRMATION_TARIFF} = 'Зачекайте підтвердження активації тарифного плану';
+$lang{MOBILE_WAIT_CONFIRMATION_NUMBER} = 'Зачекайте підтвердження активації номера телефону';
+$lang{MOBILE_CONFIRM} = 'Підтвердження';
+$lang{MOBILE_CONFIRMATION_ACTIVATION} = 'Підтвердження активації номера телефону';

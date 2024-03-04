@@ -7,8 +7,9 @@ package Bills;
 =cut
 
 use strict;
-our $VERSION = 2.00;
 use parent qw(dbcore);
+
+our $VERSION = 2.00;
 my ($admin, $CONF);
 
 #**********************************************************
@@ -170,7 +171,7 @@ sub list {
      $attr
   );
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -219,4 +220,4 @@ sub info {
   return $self;
 }
 
-1
+1;

@@ -59,8 +59,11 @@ our $Bot_db = Telegram->new($db, $admin, \%conf);
 our $Users = Users->new($db, $admin, \%conf);
 our $Contacts = Contacts->new($db, $admin, \%conf);
 
-use Crm::Dialogue;
-my $Dialogue = Crm::Dialogue->new($db, $admin, \%conf, { SOURCE => 'telegram' });
+my $Dialogue;
+eval {
+  require Crm::Dialogue;
+  $Dialogue = Crm::Dialogue->new($db, $admin, \%conf, { SOURCE => 'telegram' });
+};
 
 use Abills::Misc;
 use Abills::Templates;
@@ -139,11 +142,7 @@ sub message_process {
   if (!$uid) {
     my $message_text = encode_utf8($message->{text}) || '';
 
-    my $lead_id = $Dialogue->crm_get_lead_id_by_chat_id($message->{chat}{id});
-    if ($lead_id) {
-      $Dialogue->crm_send_message($message->{text}, { LEAD_ID => $lead_id });
-      exit 1;
-    }
+    crm_add_dialogue_message($message);
 
     if ($message->{text} && $message->{text} =~ m/^\/start/) {
       subscribe($message);
@@ -435,6 +434,72 @@ sub get_gid_conf{
   $conf_info = $conf_info->{conf};
 
   return $conf_info->{$param."_$gid"} ?  $conf_info->{$param."_$gid"} : $conf_info->{"$param"};
+}
+
+#**********************************************************
+=head2 crm_add_dialogue_message($message)
+
+=cut
+#**********************************************************
+sub crm_add_dialogue_message {
+  my $message = shift;
+
+  return if !$Dialogue || !$Dialogue->can('crm_get_lead_id_by_chat_id');
+
+  my $lead_id = $Dialogue->crm_get_lead_id_by_chat_id($message->{chat}{id});
+  return if !$lead_id;
+
+  my $attachments = _crm_dialogue_attachment($message);
+
+  my $message_id = $Dialogue->crm_send_message($message->{text} || $message->{caption}, {
+    LEAD_ID     => $lead_id,
+    ATTACHMENTS => $attachments
+  });
+  return if !$message_id;
+
+  exit 1;
+}
+
+#**********************************************************
+=head2 _crm_dialogue_attachment($message)
+
+=cut
+#**********************************************************
+sub _crm_dialogue_attachment {
+  my $message = shift;
+
+  my $file_id;
+  my @attachments = ();
+  my $mime_type;
+
+  require Crm::Attachments;
+  my $Attachments = Crm::Attachments->new($db, $admin, \%conf);
+
+  if ($message->{photo}) {
+    my $photo = pop @{$message->{photo}};
+    $file_id = $photo->{file_id};
+    $mime_type = 'image/jpeg';
+  }
+  elsif ($message->{document}) {
+    $file_id = $message->{document}{file_id};
+    $mime_type = $message->{document}{mime_type};
+  }
+  return \@attachments if !$file_id;
+
+  my ($file_path, $file_size, $file_content) = $Bot->get_file($file_id);
+  return \@attachments if !$file_path || !$file_size;
+
+  my $result = $Attachments->attachment_add({
+    filename       => $file_path,
+    'Content-Type' => $mime_type,
+    Size           => $file_size,
+    Contents       => $file_content
+  });
+
+  return \@attachments if $result->{errno} || !$result->{INSERT_ID};
+
+  push @attachments, $result->{INSERT_ID};
+  return \@attachments;
 }
 
 1;

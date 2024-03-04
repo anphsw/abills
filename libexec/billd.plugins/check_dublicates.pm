@@ -80,7 +80,7 @@ sub check_dublicates {
    ;";
   }
 
-  $Nas->query2($sql);
+  $Nas->query($sql);
 
   my %logins = ();
   my %CIDS   = ();

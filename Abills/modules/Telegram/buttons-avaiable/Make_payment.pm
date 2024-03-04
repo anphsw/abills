@@ -3,6 +3,10 @@ package Make_payment;
 use strict;
 use warnings FATAL => 'all';
 
+my %icons = (
+  payment => "\xF0\x9F\x92\xB3"
+);
+
 #**********************************************************
 =head2 new($Botapi)
 
@@ -32,7 +36,7 @@ sub new {
 sub btn_name {
   my $self = shift;
   
-  return $self->{bot}->{lang}->{PAYMENT};
+  return "$icons{payment} $self->{bot}{lang}{PAYMENT}";
 }
 
 #**********************************************************
@@ -51,7 +55,7 @@ sub click {
   
   use Users;
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
-  $Users->info($uid);
+  $Users->info($uid, { SHOW_PASSWORD => 1 });
   
   use Payments;
   my $Payments = Payments->new($self->{db}, $self->{admin}, $self->{conf});
@@ -72,7 +76,7 @@ sub click {
      $message = $self->{bot}->{lang}->{PAYMENT_NUMBER} . ': <b>' . $users_info->{__UKRPAYS} . '</b>\n';
   } 
 
-  if ($last_payments && $last_payments > 0) {
+  if ($Payments->{TOTAL} && $Payments->{TOTAL} > 0) {
     my $last_sum = $last_payments->[0]{sum};
     my $last_date = $last_payments->[0]{datetime};
 
@@ -82,13 +86,22 @@ sub click {
     $message .= "$self->{bot}->{lang}->{LAST_PAYMENT_SUM}: <b>$last_sum $money_currency</b>\n$self->{bot}->{lang}->{DATE}: <b>$last_date</b>";
   }
 
-  my $url = (%ENV) ? "https://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}" : $self->{bot}->{SELF_URL};
+  if ($self->{conf}{TELEGRAM_BALANCE_URL}) {
+    my $inline_button = {
+      text => $self->{bot}{lang}{PAYMENT},
+      url  => "$self->{conf}{TELEGRAM_BALANCE_URL}?get_index=paysys_payment&user=$Users->{LOGIN}&passwd=$Users->{PASSWORD}"
+    };
+    push @inline_keyboard, [$inline_button];
+  }
+  else {
+    my $url = (%ENV) ? "https://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}" : $self->{bot}->{SELF_URL};
 
-  my $inline_button = {
-    text     => "$self->{bot}->{lang}->{PAYMENT}",
-    url      => "$url/paysys_check.cgi"
-  };
-  push (@inline_keyboard, [$inline_button]);
+    my $inline_button = {
+      text     => "$self->{bot}{lang}{PAYMENT}",
+      url      => "$url/paysys_check.cgi"
+    };
+    push (@inline_keyboard, [$inline_button]);
+  }
 
   $self->{bot}->send_message({
     text         => $message,

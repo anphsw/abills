@@ -18,9 +18,11 @@ package Log;
 =cut
 
 use strict;
-use base qw(Exporter dbcore);
+use parent qw(Exporter dbcore);
 use POSIX qw(strftime);
 our @EXPORT_OK = qw(log_add log_print);
+our @EXPORT = ();
+our %EXPORT_TAGS = ();
 
 # Log levels. For details see <syslog.h>
 our %log_levels = (

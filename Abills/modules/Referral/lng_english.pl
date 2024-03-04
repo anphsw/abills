@@ -28,5 +28,8 @@ $lang{STATIC_ACCRUAL} = 'Static accrual';
 $lang{MULTI_ACCRUAL} = 'Multi accrual';
 $lang{REF_TP_ACTIVE_IN_USERS} = "Tariff plan already active in users\n%USERS%";
 $lang{CHANGE_REFERRAL_REQUEST} = 'Change referral request';
+$lang{QUANTITY_INACTIVE_DAYS_REFERRAL} = 'Quantity of inactive days';
+$lang{QUANTITY_INACTIVE_DAYS_REFERRAL_COMMENT} = 'If the user is inactive for more than the specified days, the bonus will not be calculated';
+$lang{INNER_COMMENT} = 'Inner comment';
 
 1;

@@ -1,4 +1,4 @@
-<form action=$SELF_URL METHOD=POST>
+<form action=$SELF_URL METHOD='POST'>
   <input type='hidden' name='index' value='%index%'>
   %HIDDEN_INPUTS%
 
@@ -35,29 +35,12 @@
         })
       }
     });
-    jQuery('.tree_box').change(function () {
-      var a = jQuery(this).prop('checked');
-      if (a) {
-        jQuery(this).parent().addClass('text-success');
-      } else {
-        jQuery(this).parent().removeClass('text-success');
-      }
-      jQuery(this).closest('li').find('ul').find('input').each(function () {
-        if (a) {
-          jQuery(this).prop('checked', true);
-          jQuery(this).prop('disabled', true);
-          jQuery(this).parent().addClass('text-success');
-        } else {
-          jQuery(this).prop('checked', false);
-          jQuery(this).prop('disabled', false);
-          jQuery(this).parent().removeClass('text-success');
-        }
-      });
-    });
+    jQuery('.tree_box').change(checkNodes);
 
     function checkParent(e) {
       let parent_id = e.data('parentId');
       if (!parent_id) return;
+
       let parent = jQuery('#' + parent_id);
       if (parent.prop('checked')) return;
 

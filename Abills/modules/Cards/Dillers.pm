@@ -10,17 +10,20 @@ use Abills::Base qw(in_array mk_unique_value sendmail);
 use Cards;
 use Tariffs;
 use Users;
+use Payments;
+
 
 our (
   $db,
   %conf,
   $admin,
   %lang,
-  $html,
   %permissions,
   @MONTHES,
   @WEEKDAYS
 );
+
+our Abills::HTML $html;
 
 my $Diller = Dillers->new($db, $admin, \%conf);
 my $Cards = Cards->new($db, $admin, \%conf);
@@ -129,13 +132,11 @@ sub cards_diller {
 
     my $permits = $Diller->diller_permissions_list({ %FORM, DILLER_ID => $LIST_PARAMS{DILLER_ID} });
 
-    my $table = $html->table(
-      {
-        width   => '400',
-        caption => $lang{PERMISSION},
-        title   => [ $lang{ACTION}, $lang{COMMENTS}, '-' ],
-      }
-    );
+    my $table = $html->table({
+      width   => '400',
+      caption => $lang{PERMISSION},
+      title   => [ $lang{ACTION}, $lang{COMMENTS}, '-' ],
+    });
 
     foreach my $key (sort keys %ACTIONS) {
       $table->addrow(
@@ -151,17 +152,15 @@ sub cards_diller {
       );
     }
 
-    print $html->form_main(
-      {
-        CONTENT => $table->show(),
-        HIDDEN  => {
-          index     => $index,
-          DILLER_ID => $LIST_PARAMS{DILLER_ID},
-          UID       => $uid
-        },
-        SUBMIT  => { change_permits => $lang{CHANGE} },
-      }
-    );
+    print $html->form_main({
+      CONTENT => $table->show(),
+      HIDDEN  => {
+        index     => $index,
+        DILLER_ID => $LIST_PARAMS{DILLER_ID},
+        UID       => $uid
+      },
+      SUBMIT  => { change_permits => $lang{CHANGE} },
+    });
   }
 
   return 1;
@@ -276,7 +275,6 @@ sub diller_add {
         $html->message('err', "$lang{INFO}", "$lang{ERR_SELECT_TARIF_PLAN}");
       }
       elsif ($FORM{TYPE}) {
-        load_module('Dv', $html);
         $FORM{add} = 1;
         $FORM{create} = 1;
         if (!$FORM{BEGIN}) {
@@ -292,12 +290,9 @@ sub diller_add {
           $FORM{LOGIN_BEGIN} = $list->[0]->{uid};
         }
 
-        my $return = cards_users_add(
-          {
-            #EXTRA_TPL => $dv_tpl,
-            NO_PRINT => 1
-          }
-        );
+        my $return = cards_users_add({
+          NO_PRINT => 1
+        });
 
         my $added_count = 0;
 
@@ -314,7 +309,6 @@ sub diller_add {
               last if (!$line->{SKIP_ERRORS});
             }
             else {
-
               #Confim card creation
               $added_count++;
               $line->{NUMBER} = sprintf("%.11d", $line->{NUMBER});
@@ -515,8 +509,8 @@ sub diller_add {
   }
   else {
     $html->tpl_show(_include('cards_dillers_cod_gen', 'Cards'), {
-      COUNT      => 1,
-      SUM        => 0.00,
+      COUNT       => 1,
+      SUM         => 0.00,
       EXPIRE_DATE => $DATE,
       %$Diller
     }, { ID => 'CARD_GEN' });
@@ -737,9 +731,9 @@ sub cards_diller_stats {
       {
         SELECTED => $FORM{STATUS} || 0,
         SEL_HASH => {
-          0  => $lang{ALL},
-          1  => $lang{ENABLE},
-          2  => $lang{USED}
+          0 => $lang{ALL},
+          1 => $lang{ENABLE},
+          2 => $lang{USED}
         },
         SORT_KEY => 1,
         NO_ID    => 1
@@ -839,16 +833,14 @@ sub cards_diller_stats {
       COLS_NAME => 1,
     });
 
-    $table = $html->table(
-      {
-        width   => '100%',
-        caption => $lang{LOG},
-        title   => \@caption,
-        qs      => $pages_qs,
-        pages   => $Diller->{TOTAL},
-        ID      => 'CARDS_LIST'
-      }
-    );
+    $table = $html->table({
+      width   => '100%',
+      caption => $lang{LOG},
+      title   => \@caption,
+      qs      => $pages_qs,
+      pages   => $Diller->{TOTAL},
+      ID      => 'CARDS_LIST'
+    });
 
     my @rows = ();
     foreach my $line (@$list) {
@@ -880,12 +872,11 @@ sub cards_diller_stats {
 
     my $total_cards = $Cards->{list}[0]{count} || 0;
     my $total_sum = $Cards->{list}[0]{sum} || 0;
-    $table = $html->table(
-      {
-        width => '100%',
-        rows  => [ [ "$lang{TOTAL}:", $html->b($total_cards), "$lang{SUM}:", $html->b(sprintf('%.2f', $total_sum)) ] ]
-      }
-    );
+    $table = $html->table({
+      width => '100%',
+      rows  => [ [ "$lang{TOTAL}:", $html->b($total_cards), "$lang{SUM}:", $html->b(sprintf('%.2f', $total_sum)) ] ]
+    });
+
     print $table->show();
   }
   elsif ($FORM{TYPE} && $FORM{TYPE} eq 'CARDS') {
@@ -925,22 +916,17 @@ sub cards_diller_stats {
       NO_GROUP       => 1
     });
 
-    $table = $html->table(
-      {
-        width   => '100%',
-        caption => $lang{LOG},
-        title   => [ $lang{SERIAL}, $lang{NUM}, $lang{LOGIN}, $lang{SUM}, $lang{STATUS}, $lang{EXPIRE}, $lang{ADDED} ],
-        qs      => $pages_qs,
-        pages   => $Cards->{TOTAL},
-        ID      => 'CARDS_LIST',
-      }
-    );
+    $table = $html->table({
+      width   => '100%',
+      caption => $lang{LOG},
+      title   => [ $lang{SERIAL}, $lang{NUM}, $lang{LOGIN}, $lang{SUM}, $lang{STATUS}, $lang{EXPIRE}, $lang{ADDED} ],
+      qs      => $pages_qs,
+      pages   => $Cards->{TOTAL},
+      ID      => 'CARDS_LIST',
+    });
 
     my $count_cards = $Cards->{TOTAL_CARDS} || 0;
     my $sum_cards = $Cards->{TOTAL_SUM} || 0;
-
-    require Users;
-    Users->import();
     my $Users = Users->new($db, $admin, \%conf);
 
     my $user_list = $Users->list({
@@ -1007,16 +993,14 @@ sub cards_diller_stats {
     print $table->show();
   }
   else {
-    $table = $html->table(
-      {
-        width   => '100%',
-        caption => $lang{LOG},
-        title   => [ $lang{DATE}, $lang{COUNT}, $lang{SUM}, '-' ],
-        qs      => $pages_qs,
-        pages   => $Diller->{TOTAL},
-        ID      => 'CARDS_REPORTS_DAYS'
-      }
-    );
+    $table = $html->table({
+      width   => '100%',
+      caption => $lang{LOG},
+      title   => [ $lang{DATE}, $lang{COUNT}, $lang{SUM}, '-' ],
+      qs      => $pages_qs,
+      pages   => $Diller->{TOTAL},
+      ID      => 'CARDS_REPORTS_DAYS'
+    });
 
     if ($LIST_PARAMS{STATUS} && $LIST_PARAMS{STATUS} eq '2') {
       ++$LIST_PARAMS{STATUS};
@@ -1142,12 +1126,11 @@ sub cards_dillers {
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width => '100%',
-      rows  => [ [ "$lang{TOTAL}:", $html->b($Diller->{TOTAL}) ] ]
-    }
-  );
+  $table = $html->table({
+    width => '100%',
+    rows  => [ [ "$lang{TOTAL}:", $html->b($Diller->{TOTAL}) ] ]
+  });
+
   print $table->show();
 
   return 1;
@@ -1188,7 +1171,13 @@ sub cards_reseller_face {
 }
 
 #**********************************************************
-=head2 cards_diller_face()
+=head2 cards_diller_face($attr)
+
+  Argumnets:
+    $attr
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -1235,12 +1224,6 @@ sub cards_diller_face {
 sub cards_diller_search {
   my ($attr) = @_;
 
-  require Users;
-  Users->import();
-
-  require Payments;
-  Payments->import();
-
   my $Payments = Payments->new($db, $admin, \%conf);
   my $Users = Users->new($db, $admin, \%conf);
 
@@ -1264,7 +1247,7 @@ sub cards_diller_search {
 
       $Payments->add({ UID => $FORM{UID} }, {
         SUM          => $FORM{SUM},
-        METHOD       => $FORM{TYPE_PAYMENT} || 0,
+        METHOD       => $conf{DILLERS_PAYMENT_TYPE} || $FORM{TYPE_PAYMENT} || 0,
         DESCRIBE     => $FORM{COMMENTS} || $lang{DILLER_PAY},
         BILL_ID      => $attr->{USER_INFO}->{BILL_ID},
         EXT_ID       => 50,
@@ -1388,23 +1371,29 @@ sub cards_diller_search {
   }
 
   if ($FORM{payment_diller}) {
+    my $payment_types_sel = $html->form_select(
+      'TYPE_PAYMENT',
+      {
+        SELECTED => 0,
+        SEL_HASH => {
+          4 => $lang{BONUS},
+          2 => $lang{EXTERNAL_PAYMENTS},
+          3 => 'Credit Card',
+          7 => $lang{MONEY_TRANSFER}
+        },
+        NO_ID    => 1
+      }
+    );
+
+    if ($conf{DILLERS_PAYMENT_TYPE}) {
+      $payment_types_sel = $conf{DILLERS_PAYMENT_TYPE};
+    }
+
     $html->tpl_show(_include('cards_diller_payments', 'Cards'), {
       INDEX        => get_function_index('cards_diller_search'),
       SID          => $main::sid,
       UID          => $FORM{UID},
-      TYPE_PAYMENT => $html->form_select(
-        'TYPE_PAYMENT',
-        {
-          SELECTED => 0,
-          SEL_HASH => {
-            4 => $lang{BONUS},
-            2 => $lang{EXTERNAL_PAYMENTS},
-            3 => 'Credit Card',
-            7 => $lang{MONEY_TRANSFER}
-          },
-          NO_ID    => 1
-        }
-      ),
+      TYPE_PAYMENT => $payment_types_sel,
       TP_NAME      => $name_tariff->[0]->{name} || '',
       DEPOSIT      => sprintf('%.2f', $FORM{DEPOSIT}) || '',
       ADDRESS      => $FORM{CITY} || '',
@@ -1493,8 +1482,18 @@ sub cards_diller_search {
       ID      => 'DILLERS_SEARCH_USER'
     });
 
-    my @default_search = ('FIO', 'FIO2', 'FIO3', 'ADDRESS_FLAT', 'EXT_DEPOSIT', 'DEPOSIT', 'UID', 'LOGIN', 'CONTRACT_ID',
-      'CITY', 'DEPOSIT', 'GID', 'ADDRESS_STREET', 'ADDRESS_BUILD', 'TP_NAME', 'CREDIT', 'LOGIN_STATUS', 'PHONE', 'EMAIL');
+    my @default_search = ('FIO', 'FIO2',
+      'FIO3',
+      'ADDRESS_FLAT',
+      'EXT_DEPOSIT',
+      'DEPOSIT',
+      'UID',
+      'LOGIN',
+      'CONTRACT_ID',
+      'CITY',
+      #'GID',
+      'ADDRESS_STREET',
+      'ADDRESS_BUILD', 'TP_NAME', 'CREDIT', 'LOGIN_STATUS', 'PHONE', 'EMAIL');
 
     my $search_string = $FORM{UNIVERSAL_SEARCH};
     $search_string =~ s/\s+$//;
@@ -1521,42 +1520,44 @@ sub cards_diller_search {
       $LIST_PARAMS{ADDRESS_STREET} = $build_list_address->[0]->{street_name};
     }
 
-    my $list = $Users->list({
+    my $users_list = $Users->list({
       %LIST_PARAMS,
       _MULTI_HIT       => $search_string,
       UNIVERSAL_SEARCH => $search_string,
       COLS_NAME        => 1
     });
 
+    if (_error_show($Users)) {
+      return 1;
+    }
+
     if ($Users->{TOTAL} > 0) {
-      foreach my $element (@$list) {
+      foreach my $u (@$users_list) {
         my $tarrif_plan = '';
         foreach my $tarrif (@$name_tariff) {
-          if ($element->{gid} == $tarrif->{tp_gid}) {
+          if ($u->{gid} && $u->{gid} == $tarrif->{tp_gid}) {
             $tarrif_plan = $tarrif->{name};
           }
         }
+
         $table->addrow(
-          $element->{uid},
-          $element->{login},
-          $element->{fio},
-          $element->{contract_id},
-          ($element->{city} && $element->{address_street}) ? ($element->{city}
-            . ', ' . $element->{address_street} . ' ' .
-            ($element->{address_build} ? $element->{address_build} : 0)
-            . '/' . ($element->{address_flat} ? $element->{address_flat} : 0)) : $element->{city},
+          $u->{uid},
+          $u->{login},
+          $u->{fio},
+          $u->{contract_id},
+          ($u->{city} && $u->{address_street}) ? ($u->{city}
+            . ', ' . $u->{address_street} . ' ' .
+            ($u->{address_build} ? $u->{address_build} : 0)
+            . '/' . ($u->{address_flat} ? $u->{address_flat} : 0)) : $u->{city},
           $tarrif_plan,
           $html->button($lang{PAYMENTS}, 'index=' . get_function_index('cards_diller_search') . '&payment_diller=1'
-            . '&UID=' . $element->{uid} . '&GID=' . $list->[0]->{gid} . '&LOGIN=' . $element->{login}
-            . '&DEPOSIT=' . $element->{deposit},
-            { class => 'payments' })
+            . '&UID=' . $u->{uid} . '&GID=' . ($u->{gid} || q{}) . '&LOGIN=' . $u->{login}
+            . '&DEPOSIT=' . $u->{deposit},
+            { BUTTON => 1 })
         );
       }
 
       print $table->show();
-    }
-    else {
-      $html->message('err', $lang{ERROR}, $lang{USER_NOT_EXIST});
     }
   }
 
@@ -1574,12 +1575,6 @@ sub cards_diller_search {
 =cut
 #**********************************************************
 sub cards_diller_operations_log {
-  require Users;
-  Users->import();
-
-  require Payments;
-  Payments->import();
-
   my $Payments = Payments->new($db, $admin, \%conf);
   my $Users = Users->new($db, $admin, \%conf);
 

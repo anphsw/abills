@@ -245,4 +245,34 @@ sub cams_docs {
   return \@services;
 }
 
+#*******************************************************************
+=head2 cams_user_del($uid) - Delete user from module
+
+  Arguments:
+    $uid
+
+=cut
+#*******************************************************************
+sub cams_user_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return 0 if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
+  my $uid = $attr->{USER_INFO}{UID};
+
+  my $users_list = $Cams->users_list({ ID => '_SHOW', UID => $uid, COLS_NAME => 1 });
+
+  ::load_module('Cams', $html);
+  foreach my $line (@{$users_list}) {
+    $Cams->_info($line->{id});
+    $main::Cams->{SERVICE_ID} = $Cams->{SERVICE_ID} if ($main::Cams);
+    ::cams_account_action({ %{$Cams}, del => 1, UID => $uid });
+  }
+
+  $Cams->{UID} = $uid;
+  $Cams->users_del({ UID => $uid, COMMENTS => $attr->{USER_INFO}{COMMENTS} });
+
+  return 0;
+}
+
 1;

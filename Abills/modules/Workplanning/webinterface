@@ -141,7 +141,7 @@ sub work_planning_add {
           SEL_OPTIONS => {"" => ""}
         }
       );
-      $builds = $html->tpl_show(templates('form_address_sel'), { FLAT_CHECK_FREE => 0, FLAT_CHECK_OCCUPIED => 0 }, { OUTPUT2RETURN => 1, ID => 'form_address_sel' });
+      # $builds = $html->tpl_show(templates('form_address_sel'), { FLAT_CHECK_FREE => 0, FLAT_CHECK_OCCUPIED => 0 }, { OUTPUT2RETURN => 1, ID => 'form_address_sel' });
       $html->tpl_show(
         _include("workplanning_add_form", "Workplanning"),
         {
@@ -200,26 +200,26 @@ sub work_planning_add {
       #   return 1;
       # }
       foreach my $builds_item (@$Builds_list) {
-        if($builds_item->{BUILD_ID} == $item->{builds_id})
-        {
-            $builds = $html->tpl_show(templates('form_address_sel'), 
-              { 
-                FLAT_CHECK_FREE => 0, 
-                FLAT_CHECK_OCCUPIED => 0, 
-                ADDRESS_DISTRICT => $builds_item->{DISTRICT_NAME}, 
-                DISTRICT_ID => $builds_item->{DISTRICT_ID}, 
-                ADDRESS_STREET => $builds_item->{STREET_NAME}, 
-                STREET_ID => $builds_item->{STREET_ID}, 
-                ADDRESS_BUILD => $builds_item->{BUILD_NAME},
-                LOCATION_ID => $builds_item->{BUILD_ID}
-              }, 
-              { 
-                OUTPUT2RETURN => 1,
-                ID => 'form_address_sel'
-              }
-            );
-          }
-        }
+        # if($builds_item->{BUILD_ID} == $item->{builds_id})
+        # {
+        #     $builds = $html->tpl_show(templates('form_address_sel'),
+        #       {
+        #         FLAT_CHECK_FREE => 0,
+        #         FLAT_CHECK_OCCUPIED => 0,
+        #         ADDRESS_DISTRICT => $builds_item->{DISTRICT_NAME},
+        #         DISTRICT_ID => $builds_item->{DISTRICT_ID},
+        #         ADDRESS_STREET => $builds_item->{STREET_NAME},
+        #         STREET_ID => $builds_item->{STREET_ID},
+        #         ADDRESS_BUILD => $builds_item->{BUILD_NAME},
+        #         LOCATION_ID => $builds_item->{BUILD_ID}
+        #       },
+        #       {
+        #         OUTPUT2RETURN => 1,
+        #         ID => 'form_address_sel'
+        #       }
+        #     );
+        #   }
+        # }
 
       $html->tpl_show(
         _include("workplanning_add_form", "Workplanning"),
@@ -272,7 +272,7 @@ sub work_planning_add {
     if($FORM{user_search_form} && $FORM{user_search_form}==1){
       return 1;
     }
-    $builds = $html->tpl_show(templates('form_address_sel'), { FLAT_CHECK_FREE => 0, FLAT_CHECK_OCCUPIED => 0 }, { OUTPUT2RETURN => 1, ID => 'form_address_sel' });
+    # $builds = $html->tpl_show(templates('form_address_sel'), { FLAT_CHECK_FREE => 0, FLAT_CHECK_OCCUPIED => 0 }, { OUTPUT2RETURN => 1, ID => 'form_address_sel' });
     $html->tpl_show(
       _include("workplanning_add_form", "Workplanning"),
       {
@@ -417,9 +417,8 @@ sub workplanning_installation_search{
   if ( $FORM{user_search_form} ) {
     # First step : Show search form
     if ( $FORM{user_search_form} == 1 ) {
-      #      my $address_form = $html->tpl_show( templates('form_address_search'), undef, {OUTPUT2RETURN => 1});
       my $search_form = $html->tpl_show( _include( 'workplanning_user_search', 'Workplanning' ), {
-          ADDRESS_FORM => $html->tpl_show( templates('form_address_search'), undef, { OUTPUT2RETURN => 1 })
+          # ADDRESS_FORM => $html->tpl_show( templates('form_address_search'), undef, { OUTPUT2RETURN => 1 })
         }, { OUTPUT2RETURN => 1 } );
       
       $html->tpl_show( templates( 'form_popup_window' ),

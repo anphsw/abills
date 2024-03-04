@@ -8,6 +8,7 @@
     5 Result former activating fields on click
       Result former "activate" checked fields
     6 Result former field search
+    7 Add dark-mode style for themed iframe
 */
 
 var mybody = document.body;
@@ -227,7 +228,21 @@ function resultFormerCheckboxSearch() {
   });
 }
 
+/* 7 */
+// Styles for iframe cannot be applied by css from outer scope, so this solution can help.
+function themedIframe() {
+  jQuery('.themed-iframe').on('load', function () {
+    const bodyInsideIframe = jQuery(this).contents().find('body');
+
+    if (document.body.classList.contains('dark-mode')) {
+      bodyInsideIframe.addClass('dark-mode rounded-sm');
+      bodyInsideIframe.attr('style', 'background-color: #343a40 !important');
+    }
+  });
+}
+
 sidebarSearch();
 sidebarButton();
 resultFormerFillCheckboxes();
 resultFormerCheckboxSearch();
+themedIframe();

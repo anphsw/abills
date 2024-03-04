@@ -1,0 +1,249 @@
+/global:
+  post:
+    tags:
+      - global
+    summary: Унифицированные вызовы несколько ADMIN API путей в одном
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas/global_request_body.yaml"
+          examples:
+            UserRegistrationVoip:
+              summary:
+                Создание пользователя и добавление услуги Voip, списания и Abon услги
+              value:
+                requests:
+                  - method: POST
+                    url: "/users/"
+                    body:
+                      login: apiuser1
+                      password: 123456
+                      createBill: 1
+                      fio: test api create
+                  - method: POST
+                    url: "/payments/users/{UID}/"
+                    body:
+                      sum: 100
+                      method: 123456
+                      billId: "{BILL_ID}"
+                  - method: POST
+                    url: "/voip/{UID}/"
+                    body:
+                      tpId: 4
+                      number: "38050631262"
+                  - method: POST
+                    url: "/abon/tariffs/2/users/{UID}/"
+                  - method: POST
+                    url: "/abon/tariffs/3/users/{UID}/"
+      required: true
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas/global_response_200.yaml"
+            examples:
+              UserRegistrationVoip:
+                summary:
+                  Создание пользователя и добавление услуги Voip, списания и Abon услги
+                value:
+                  result: OK
+                  uid: 120561
+                  response:
+                    - id: 0
+                      method: POST
+                      url: "/users/"
+                      response:
+                        affected: 1
+                        billId: 215701
+                        insertId: 120561
+                        login: apiuser1
+                        total: 0
+                        uid: 120561
+                      status: 200
+                      successful: true
+                    - id: 1
+                      method: POST
+                      url: "/payments/users/120561/"
+                      response:
+                        insertId: 3647
+                        paymentId: 3647
+                        uid: 120561
+                      status: 200
+                      successful: true
+                    - id: 2
+                      method: POST
+                      url: "/voip/120561/"
+                      response:
+                        result: OK
+                      status: 200
+                      successful: true
+                    - id: 3
+                      method: POST
+                      url: "/abon/tariffs/2/users/120561/"
+                      response:
+                        account: 0
+                        activateNotification: 0
+                        activatePrice: 0
+                        affected: 1
+                        alert: 0
+                        alertAccount: 0
+                        categoryId: 0
+                        comments: ""
+                        createAccount: 0
+                        createDocs: 0
+                        date: '2023-09-29'
+                        datetime: '2023-09-29 13:52:11'
+                        debug: 0
+                        debugFile: ""
+                        description: Test
+                        discount: 0
+                        docsOrder: Test3
+                        docsSum: 0.67
+                        domainId: 0
+                        extBillAccount: 0
+                        extCmd: ""
+                        extServiceId: ""
+                        feesType: 1
+                        id: 2
+                        login: ""
+                        manualActivate: 1
+                        module: Nod32
+                        name: Test
+                        nextAbonDate: ""
+                        nonfixPeriod: 0
+                        notification1: 0
+                        notification2: 0
+                        notificationAccount: 0
+                        password: ""
+                        paymentType: 0
+                        period: 2
+                        periodAlignment: 1
+                        personalDescription: ""
+                        plugin: ""
+                        price: 10
+                        priority: 0
+                        promotional: 0
+                        promoPeriod: 0
+                        serviceCount: 1
+                        serviceImg: ""
+                        serviceLink: ""
+                        serviceRecovery: 0
+                        total: 0
+                        url: ""
+                        userDescription: ""
+                        userPortal: 2
+                        vat: 0
+                      status: 200
+                      successful: true
+                    - id: 4
+                      method: POST
+                      url: "/abon/tariffs/3/users/120561/"
+                      response:
+                        account: 0
+                        activateNotification: 0
+                        activatePrice: 0
+                        affected: 1
+                        alert: 0
+                        alertAccount: 0
+                        categoryId: 0
+                        comments: ""
+                        createAccount: 0
+                        createDocs: 0
+                        date: '2023-09-29'
+                        datetime: '2023-09-29 13:52:11'
+                        debug: 0
+                        debugFile: ""
+                        description: Test
+                        discount: 0
+                        docsOrder: Test3
+                        docsSum: 0.67
+                        domainId: 0
+                        extBillAccount: 0
+                        extCmd: ""
+                        extServiceId: ""
+                        feesType: 1
+                        id: 2
+                        login: ""
+                        manualActivate: 1
+                        module: Nod32
+                        name: Test
+                        nextAbonDate: ""
+                        nonfixPeriod: 0
+                        notification1: 0
+                        notification2: 0
+                        notificationAccount: 0
+                        password: ""
+                        paymentType: 0
+                        period: 2
+                        periodAlignment: 1
+                        personalDescription: ""
+                        plugin: ""
+                        price: 10
+                        priority: 0
+                        promotional: 0
+                        promoPeriod: 0
+                        serviceCount: 1
+                        serviceImg: ""
+                        serviceLink: ""
+                        serviceRecovery: 0
+                        total: 0
+                        url: ""
+                        userDescription: ""
+                        userPortal: 2
+                        vat: 0
+                      status: 200
+                      successful: true
+      400:
+        description: Произошла ошибка
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas/global_response_400.yaml"
+            examples:
+              UserRegistrationVoip:
+                summary:
+                  Создание пользователя и добавление услуги Voip, списания и Abon услги
+                value:
+                  result: Execution failed
+                  errno: 7
+                  results:
+                    - id: 0
+                      url: "/users/"
+                      response:
+                        errno: 7
+                        errstr: ERROR_DUPLICATE
+                      status: 200
+                      successful: false
+                    - id: 1
+                      url: "/payments/users/120561/"
+                      errno: 10149
+                      errstr: "Fatal error, not executed"
+                      response:
+                      status: 200
+                      successful: false
+                    - id: 2
+                      url: "/voip/120561/"
+                      errno: 10149
+                      errstr: "Fatal error, not executed"
+                      response:
+                      status: 200
+                      successful: false
+                    - id: 3
+                      url: "/abon/tariffs/2/users/120561/"
+                      errno: 10149
+                      errstr: "Fatal error, not executed"
+                      response:
+                      status: 200
+                      successful: false
+                    - id: 4
+                      url: "/abon/tariffs/3/users/120561/"
+                      errno: 10149
+                      errstr: "Fatal error, not executed"
+                      response:
+                      status: 200
+                      successful: false
+    security:
+      - KEY: [ ]

@@ -50,7 +50,7 @@ my @item_status = ($lang{INSTALLED}, $lang{SOLD}, $lang{RENT}, $lang{BY_INSTALLM
 if (form_purchase_module({
   HEADER          => $users->{UID} || $user->{UID} || $FORM{UID},
   MODULE          => 'Storage',
-  REQUIRE_VERSION => 8.60
+  REQUIRE_VERSION => 8.63
 })) {
   exit;
 }
@@ -79,6 +79,14 @@ our %article_actions = (
   15 => $lang{BY_INSTALLMENTS},
   16 => $lang{INVENTORY},
   17 => $lang{MOVED}
+);
+
+our %delivery_status = (
+  0 => $lang{STORAGE_PURCHASE_MADE},
+  1 => $lang{STORAGE_PURCHASE_PROCESSING},
+  2 => $lang{STORAGE_ORDER_SENT_TO_CUSTOMER},
+  3 => $lang{STORAGE_ORDER_RECEIVED_BY_CUSTOMER},
+  4 => $lang{STORAGE_SOLD},
 );
 
 #***********************************************************
@@ -2481,16 +2489,8 @@ sub storage_hardware {
       });
     }
   }
-  elsif ($FORM{add_delivery}) {
-    $Storage->storage_deliveries_list({ INSTALLATION_ID => $FORM{INSTALLATION_ID}, COLS_NAME => 1 });
-
-    if (!$Storage->{TOTAL}) {
-      $Storage->storage_delivery_add({ %FORM, TYPE_ID => $FORM{DELIVERY_TYPE_ID} });
-      $html->message('info', $lang{INFO}, $lang{DELIVERY_ADDED}) if !_error_show($Storage);
-    }
-  }
   elsif ($FORM{change_delivery}) {
-    $Storage->storage_delivery_change({ %FORM, TYPE_ID => $FORM{DELIVERY_TYPE_ID} });
+    $Storage->storage_delivery_change({ %FORM, TYPE_ID => $FORM{DELIVERY_TYPE_ID}, STATUS => $FORM{DELIVERY_STATUS} });
     $html->message('info', $lang{INFO}, $lang{CHANGED}) if !_error_show($Storage);
   }
 
@@ -2593,18 +2593,23 @@ sub storage_hardware {
         SEL_LIST    => $Storage->storage_delivery_types_list({ COLS_NAME => 1 }),
         SEL_KEY     => 'id',
         SEL_VALUE   => 'name',
-        SEL_OPTIONS => { '' => '' },
-        EX_PARAMS   => 'required="required"'
+        SEL_OPTIONS => { '' => '' }
       });
 
       $html->tpl_show(_include('storage_delivery', 'Storage'), { %FORM,
-        INSTALLATION_ID    => $FORM{delivery},
-        DELIVERY_TYPES_SEL => $delivery_sel,
-        COMMENTS           => $delivery_info->{COMMENTS},
-        TRACKING_NUMBER    => $delivery_info->{TRACKING_NUMBER},
-        NAME               => $installation->{STA_NAME},
-        DATE               => $html->form_datetimepicker('DATE', $delivery_info->{DATE}),
-        ACTION             => $delivery_info->{ID} ? 'change_delivery' : 'add_delivery'
+        INSTALLATION_ID     => $FORM{delivery},
+        DELIVERY_TYPES_SEL  => $delivery_sel,
+        DELIVERY_STATUS_SEL => $html->form_select('DELIVERY_STATUS', {
+          SELECTED => $delivery_info->{STATUS} || 0,
+          SEL_HASH => \%delivery_status,
+          SORT_KEY => 1,
+          NO_ID    => 1
+        }),
+        COMMENTS            => $delivery_info->{COMMENTS},
+        TRACKING_NUMBER     => $delivery_info->{TRACKING_NUMBER},
+        NAME                => $installation->{STA_NAME},
+        DATE                => $html->form_datetimepicker('DATE', $delivery_info->{DATE}),
+        ACTION              => 'change_delivery'
       }, { ID => 'storage_hardware_installation' });
     }
   }
@@ -2863,31 +2868,19 @@ sub storage_installation_list_result_former {
   $admin->list({ LIST2HASH => 'aid,login,name', PAGE_ROWS => 10000 });
   my $admins_list = $admin->{list_hash};
 
-  my $table_header = (
-      (defined($FORM{SHOW_STATUS}) && $FORM{SHOW_STATUS} == 5)
-    ? $html->b($lang{ALL})
-    : $html->button($lang{ALL}, "index=$index&UID=$FORM{UID}&SHOW_STATUS=5", { BUTTON => 1 })) . ' '
+  my @header_arr = ();
+  my $status_id = 0;
 
-    . ((defined($FORM{SHOW_STATUS}) && $FORM{SHOW_STATUS} == 2)
-    ? $html->b($item_status[2])
-    : $html->button($item_status[2], "index=$index&UID=$FORM{UID}&SHOW_STATUS=2", { BUTTON => 1 })) . ' '
+  foreach my $status (@item_status) {
+    push @header_arr, "$status:index=$index&SHOW_STATUS=$status_id&UID=$FORM{UID}:class=dropdown-item";
+    $status_id++;
+  }
+  unshift(@header_arr, "$lang{ALL}:index=$index&SHOW_STATUS=$status_id&UID=$FORM{UID}:class=dropdown-item");
 
-    . ((defined($FORM{SHOW_STATUS}) && $FORM{SHOW_STATUS} == 1)
-    ? $html->b($item_status[1])
-    : $html->button($item_status[1], "index=$index&UID=$FORM{UID}&SHOW_STATUS=1", { BUTTON => 1 })) . ' '
-
-    . ((defined($FORM{SHOW_STATUS}) && $FORM{SHOW_STATUS} == 3)
-    ? $html->b($lang{BY_INSTALLMENTS})
-    : $html->button($lang{BY_INSTALLMENTS}, "index=$index&UID=$FORM{UID}&SHOW_STATUS=3", { BUTTON => 1 })) . ' '
-
-    . ((defined($FORM{SHOW_STATUS}) && $FORM{SHOW_STATUS} == 4)
-    ? $html->b($lang{RETURNED_STORAGE})
-    : $html->button($lang{RETURNED_STORAGE}, "index=$index&UID=$FORM{UID}&SHOW_STATUS=4", { BUTTON => 1 })) . ' '
-
-    . ((!defined($FORM{SHOW_STATUS}) or $FORM{SHOW_STATUS} == 0)
-    ? $html->b($item_status[0])
-    : $html->button($item_status[0], "index=$index&UID=$FORM{UID}&SHOW_STATUS=0", { BUTTON => 1 }
-    ));
+  my $table_header = $html->table_header(\@header_arr, {
+    CAPTION           => $lang{STORAGE},
+    FORCED_CHECK_NAME => 'SHOW_STATUS'
+  });
 
   $LIST_PARAMS{STATUS} = $FORM{SHOW_STATUS} if ($FORM{SHOW_STATUS} && $FORM{SHOW_STATUS} != 5);
   my Abills::HTML $table;
@@ -4284,8 +4277,8 @@ sub storage_hardware_user_portal {
   });
 
   foreach my $installation (@{$installations}) {
-    $table->addrow($installation->{sta_name}, ($installation->{count} || 0) . ' ' . ($installation->{measure_name} || ''),
-      $item_status[$installation->{status}], $installation->{date})
+    $table->addrow($installation->{sta_name}, ($installation->{count} || 0) . ' ' . _translate($installation->{measure_name}),
+      $item_status[$installation->{status}], $installation->{date});
   }
 
   $table->show();

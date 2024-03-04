@@ -114,8 +114,27 @@ sub maps_leads {
   my ($attr) = @_;
 
   my $leads = $Crm->crm_lead_points_list();
-
   return $Crm->{TOTAL} if $attr->{ONLY_TOTAL};
+
+  my $competitors = $Crm->crm_competitor_list({ NAME => '_SHOW', COLS_NAME => 1 });
+  my $competitors_options = [];
+  map push(@{$competitors_options}, { id => $_->{id}, value => $_->{name} }), @{$competitors};
+
+  my $steps = $Crm->crm_progressbar_step_list({ STEP_NUMBER => '_SHOW', NAME => '_SHOW', DEAL_STEP => '0', SORT => 1, COLS_NAME => 1 });
+  my $steps_options = [];
+  map push(@{$steps_options}, { id => $_->{step_number}, value => $_->{name} }), @{$steps};
+
+  my $competitor_tps = $Crm->crm_competitors_tps_list({ NAME => '_SHOW', COMPETITOR_ID => '_SHOW', COLS_NAME => 1 });
+  my $competitor_tp_options = [];
+  map push(@{$competitor_tp_options}, { id => $_->{id}, value => $_->{name} }), @{$competitor_tps};
+
+  my @assessments = (
+    { id => 1, value => $lang->{CRM_BAD} },
+    { id => 2, value => $lang->{CRM_UNSATISFACTORILY} },
+    { id => 3, value => $lang->{CRM_SATISFACTORILY} },
+    { id => 4, value => $lang->{CRM_GOOD} },
+    { id => 5, value => $lang->{CRM_IDEALLY} },
+  );
 
   my @objects_to_show = ();
   my %build_info = ();
@@ -127,15 +146,19 @@ sub maps_leads {
     }
 
     push @{$build_info{$lead->{BUILD_ID}}}, {
-      id_btn       => $html->button($lead->{ID}, 'index=' . ::get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{ID}"),
-      id           => $lead->{ID},
-      fio          => $lead->{FIO},
-      address_flat => $lead->{ADDRESS_FLAT},
-      address_full => $lead->{ADDRESS_FULL},
-      step         => $html->color_mark(::_translate($lead->{STEP}), $lead->{COLOR}),
-      comments     => $lead->{COMMENTS},
-      uid          => $lead->{UID} ? $html->button($lead->{UID}, 'index=' . ::get_function_index('form_users') . "&UID=$lead->{UID}") : '',
-      competitor   => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' . 
+      id_btn        => $html->button($lead->{ID}, 'index=' . ::get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{ID}"),
+      id            => $lead->{ID},
+      fio           => $lead->{FIO},
+      address_flat  => $lead->{ADDRESS_FLAT},
+      address_full  => $lead->{ADDRESS_FULL},
+      step          => $html->color_mark(::_translate($lead->{STEP}), $lead->{COLOR}),
+      comments      => $lead->{COMMENTS},
+      phone         => $lead->{PHONE},
+      assessment    => _assessment_text($lead->{ASSESSMENT}),
+      tp_name       => $lead->{TP_NAME},
+      uid           => $lead->{UID} ? $html->button($lead->{UID}, 'index=' . ::get_function_index('form_users') . "&UID=$lead->{UID}") : '',
+      competitor_id => $lead->{COMPETITOR_ID},
+      competitor    => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' .
         ::get_function_index('crm_competitors') . "&chg=$lead->{COMPETITOR_ID}") : ''
     };
   }
@@ -148,10 +171,19 @@ sub maps_leads {
     my $marker_info = $Auxiliary->maps_point_info_table({
       TABLE_TITLE       => $lang->{LEADS},
       OBJECTS           => $build_info{$lead->{BUILD_ID}},
-      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'UID', 'COMPETITOR', 'ADDRESS_FULL', 'ADDRESS_FLAT', 'COMMENTS' ],
-      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{USER},
-        $lang->{COMPETITOR}, $lang->{ADDRESS}, $lang->{FLAT}, $lang->{COMMENTS} ],
-      EDITABLE_FIELDS   => [ 'FIO', 'PHONE' ],
+      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'UID', 'COMPETITOR', 'ASSESSMENT', 'TP_NAME',
+        'ADDRESS_FULL', 'ADDRESS_FLAT', 'COMMENTS' ],
+      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{USER}, $lang->{COMPETITOR},
+        $lang->{CRM_ASSESSMENT}, $lang->{TARIF_PLAN}, $lang->{ADDRESS}, $lang->{FLAT}, $lang->{COMMENTS} ],
+      EDITABLE_FIELDS   => {
+        FIO        => { type => 'input' },
+        PHONE      => { type => 'input' },
+        COMMENTS   => { type => 'textarea' },
+        COMPETITOR => { type => 'select', options => $competitors_options, field_name => 'COMPETITOR_ID', selected => $lead->{competitor_id} },
+        TP_NAME    => { type => 'select', options => $competitor_tp_options, field_name => 'TP_ID', selected => $lead->{TP_ID} },
+        ASSESSMENT => { type => 'select', options => \@assessments, selected => $lead->{assessment} },
+        STEP       => { type => 'select', options => $steps_options, field_name => 'CURRENT_STEP', selected => $lead->{current_step} }
+      },
       CHANGE_FUNCTION   => 'crm_leads'
     });
 
@@ -202,6 +234,26 @@ sub maps_leads_by_tags {
   return $Crm->{TOTAL} if $attr->{ONLY_TOTAL};
   return 0 if !in_array('Tags', \@::MODULES);
 
+  my $competitors = $Crm->crm_competitor_list({ NAME => '_SHOW', COLS_NAME => 1 });
+  my $competitors_options = [];
+  map push(@{$competitors_options}, { id => $_->{id}, value => $_->{name} }), @{$competitors};
+
+  my $steps = $Crm->crm_progressbar_step_list({ STEP_NUMBER => '_SHOW', NAME => '_SHOW', DEAL_STEP => '0', SORT => 1, COLS_NAME => 1 });
+  my $steps_options = [];
+  map push(@{$steps_options}, { id => $_->{step_number}, value => $_->{name} }), @{$steps};
+
+  my $competitor_tps = $Crm->crm_competitors_tps_list({ NAME => '_SHOW', COMPETITOR_ID => '_SHOW', COLS_NAME => 1 });
+  my $competitor_tp_options = [];
+  map push(@{$competitor_tp_options}, { id => $_->{id}, value => $_->{name} }), @{$competitor_tps};
+
+  my @assessments = (
+    { id => 1, value => $lang->{CRM_BAD} },
+    { id => 2, value => $lang->{CRM_UNSATISFACTORILY} },
+    { id => 3, value => $lang->{CRM_SATISFACTORILY} },
+    { id => 4, value => $lang->{CRM_GOOD} },
+    { id => 5, value => $lang->{CRM_IDEALLY} },
+  );
+
   require Tags;
   Tags->import();
   $Tags = Tags->new($self->{db}, $self->{admin}, $self->{conf});
@@ -237,19 +289,22 @@ sub maps_leads_by_tags {
     }
 
     push @{$build_info{$lead->{BUILD_ID}}}, {
-      id_btn       => $html->button($lead->{ID}, 'index=' . ::get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{ID}"),
-      id           => $lead->{ID},
-      fio          => $lead->{FIO},
-      step         => $html->color_mark(::_translate($lead->{STEP}), $lead->{color}),
-      phone        => $lead->{PHONE},
-      address_flat => $lead->{ADDRESS_FLAT},
-      address_full => $lead->{ADDRESS_FULL},
-      comments     => $lead->{COMMENTS},
-      icon_color   => $tags_list->[0]{color},
-      name         => $tags_list->[0]{name},
-      tags         => $tags_container,
-      tags_list    => $tags_list,
-      competitor   => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' . ::get_function_index('crm_competitors') . "&chg=$lead->{COMPETITOR_ID}") : ''
+      id_btn        => $html->button($lead->{ID}, 'index=' . ::get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{ID}"),
+      id            => $lead->{ID},
+      fio           => $lead->{FIO},
+      step          => $html->color_mark(::_translate($lead->{STEP}), $lead->{color}),
+      phone         => $lead->{PHONE},
+      address_flat  => $lead->{ADDRESS_FLAT},
+      address_full  => $lead->{ADDRESS_FULL},
+      comments      => $lead->{COMMENTS},
+      icon_color    => $tags_list->[0]{color},
+      name          => $tags_list->[0]{name},
+      tags          => $tags_container,
+      tags_list     => $tags_list,
+      assessment    => _assessment_text($lead->{ASSESSMENT}),
+      tp_name       => $lead->{TP_NAME},
+      competitor_id => $lead->{COMPETITOR_ID},
+      competitor    => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' . ::get_function_index('crm_competitors') . "&chg=$lead->{COMPETITOR_ID}") : ''
     };
   }
 
@@ -261,10 +316,19 @@ sub maps_leads_by_tags {
     my $marker_info = $Auxiliary->maps_point_info_table({
       TABLE_TITLE       => "$lang->{LEADS} ($lang->{TAGS})",
       OBJECTS           => $build_info{$lead->{BUILD_ID}},
-      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR', 'ADDRESS_FULL', 'ADDRESS_FLAT', 'COMMENTS' ],
-      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{TAGS},
-        $lang->{COMPETITOR}, $lang->{ADDRESS}, $lang->{FLAT}, $lang->{COMMENTS} ],
-      EDITABLE_FIELDS   => [ 'FIO', 'PHONE' ],
+      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR', 'ASSESSMENT', 'TP_NAME',
+        'ADDRESS_FULL', 'ADDRESS_FLAT', 'COMMENTS' ],
+      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{TAGS}, $lang->{COMPETITOR},
+        $lang->{CRM_ASSESSMENT}, $lang->{TARIF_PLAN}, $lang->{ADDRESS}, $lang->{FLAT}, $lang->{COMMENTS} ],
+      EDITABLE_FIELDS   => {
+        FIO        => { type => 'input' },
+        PHONE      => { type => 'input' },
+        COMMENTS   => { type => 'textarea' },
+        COMPETITOR => { type => 'select', options => $competitors_options, field_name => 'COMPETITOR_ID', selected => $lead->{competitor_id} },
+        TP_NAME    => { type => 'select', options => $competitor_tp_options, field_name => 'TP_ID', selected => $lead->{TP_ID} },
+        ASSESSMENT => { type => 'select', options => \@assessments, selected => $lead->{assessment} },
+        STEP       => { type => 'select', options => $steps_options, field_name => 'CURRENT_STEP', selected => $lead->{current_step} }
+      },
       CHANGE_FUNCTION   => 'crm_leads'
     });
 
@@ -314,6 +378,26 @@ sub maps_leads_by_competitors {
   my $leads = $Crm->crm_lead_points_list({ COMPETITOR_ID => '!0' });
   return $Crm->{TOTAL} if $attr->{ONLY_TOTAL};
 
+  my $competitors = $Crm->crm_competitor_list({ NAME => '_SHOW', COLS_NAME => 1 });
+  my $competitors_options = [];
+  map push(@{$competitors_options}, { id => $_->{id}, value => $_->{name} }), @{$competitors};
+
+  my $steps = $Crm->crm_progressbar_step_list({ STEP_NUMBER => '_SHOW', NAME => '_SHOW', DEAL_STEP => '0', SORT => 1, COLS_NAME => 1 });
+  my $steps_options = [];
+  map push(@{$steps_options}, { id => $_->{step_number}, value => $_->{name} }), @{$steps};
+
+  my $competitor_tps = $Crm->crm_competitors_tps_list({ NAME => '_SHOW', COMPETITOR_ID => '_SHOW', COLS_NAME => 1 });
+  my $competitor_tp_options = [];
+  map push(@{$competitor_tp_options}, { id => $_->{id}, value => $_->{name} }), @{$competitor_tps};
+
+  my @assessments = (
+    { id => 1, value => $lang->{CRM_BAD} },
+    { id => 2, value => $lang->{CRM_UNSATISFACTORILY} },
+    { id => 3, value => $lang->{CRM_SATISFACTORILY} },
+    { id => 4, value => $lang->{CRM_GOOD} },
+    { id => 5, value => $lang->{CRM_IDEALLY} },
+  );
+
   my @objects_to_show = ();
   my %build_info = ();
 
@@ -324,16 +408,19 @@ sub maps_leads_by_competitors {
     }
 
     push @{$build_info{$lead->{BUILD_ID}}}, {
-      id_btn       => $html->button($lead->{ID}, 'index=' . ::get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{ID}"),
-      id           => $lead->{ID},
-      fio          => $lead->{FIO},
-      address_flat => $lead->{ADDRESS_FLAT},
-      address_full => $lead->{ADDRESS_FULL},
-      step         => $html->color_mark(::_translate($lead->{STEP}), $lead->{COLOR}),
-      phone        => $lead->{PHONE},
-      comments     => $lead->{COMMENTS},
-      uid          => $lead->{UID} ? $html->button($lead->{UID}, 'index=' . ::get_function_index('form_users') . "&UID=$lead->{UID}") : '',
-      competitor   => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' .
+      id_btn        => $html->button($lead->{ID}, 'index=' . ::get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{ID}"),
+      id            => $lead->{ID},
+      fio           => $lead->{FIO},
+      address_flat  => $lead->{ADDRESS_FLAT},
+      address_full  => $lead->{ADDRESS_FULL},
+      step          => $html->color_mark(::_translate($lead->{STEP}), $lead->{COLOR}),
+      phone         => $lead->{PHONE},
+      comments      => $lead->{COMMENTS},
+      assessment    => _assessment_text($lead->{ASSESSMENT}),
+      tp_name       => $lead->{TP_NAME},
+      competitor_id => $lead->{COMPETITOR_ID},
+      uid           => $lead->{UID} ? $html->button($lead->{UID}, 'index=' . ::get_function_index('form_users') . "&UID=$lead->{UID}") : '',
+      competitor    => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' .
         ::get_function_index('crm_competitors') . "&chg=$lead->{COMPETITOR_ID}") : ''
     };
   }
@@ -346,10 +433,19 @@ sub maps_leads_by_competitors {
     my $marker_info = $Auxiliary->maps_point_info_table({
       TABLE_TITLE       => "$lang->{LEADS} ($lang->{COMPETITORS})",
       OBJECTS           => $build_info{$lead->{BUILD_ID}},
-      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR', 'ADDRESS_FULL', 'ADDRESS_FLAT', 'COMMENTS' ],
-      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{TAGS},
-        $lang->{COMPETITOR}, $lang->{ADDRESS}, $lang->{FLAT}, $lang->{COMMENTS} ],
-      EDITABLE_FIELDS   => [ 'FIO', 'PHONE' ],
+      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR', 'ASSESSMENT', 'TP_NAME',
+        'ADDRESS_FULL', 'ADDRESS_FLAT', 'COMMENTS' ],
+      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{TAGS}, $lang->{COMPETITOR},
+        $lang->{CRM_ASSESSMENT}, $lang->{TARIF_PLAN}, $lang->{ADDRESS}, $lang->{FLAT}, $lang->{COMMENTS} ],
+      EDITABLE_FIELDS   => {
+        FIO        => { type => 'input' },
+        PHONE      => { type => 'input' },
+        COMMENTS   => { type => 'textarea' },
+        COMPETITOR => { type => 'select', options => $competitors_options, field_name => 'COMPETITOR_ID', selected => $lead->{competitor_id} },
+        TP_NAME    => { type => 'select', options => $competitor_tp_options, field_name => 'TP_ID', selected => $lead->{TP_ID} },
+        ASSESSMENT => { type => 'select', options => \@assessments, selected => $lead->{assessment} },
+        STEP       => { type => 'select', options => $steps_options, field_name => 'CURRENT_STEP', selected => $lead->{current_step} }
+      },
       CHANGE_FUNCTION   => 'crm_leads'
     });
 
@@ -484,5 +580,24 @@ sub _crm_get_icon {
       stroke-width="2"></path>
     </svg>
   };
+}
+
+#**********************************************************
+=head2 _assessment_text($assessment)
+
+=cut
+#**********************************************************
+sub _assessment_text {
+  my $assessment = shift;
+
+  my %assessments = (
+    1 => $lang->{CRM_BAD},
+    2 => $lang->{CRM_UNSATISFACTORILY},
+    3 => $lang->{CRM_SATISFACTORILY},
+    4 => $lang->{CRM_GOOD},
+    5 => $lang->{CRM_IDEALLY},
+  );
+
+  return $assessments{$assessment} || '';
 }
 1;

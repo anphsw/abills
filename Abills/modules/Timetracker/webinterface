@@ -465,14 +465,16 @@ sub add_item {
 =cut
 #**********************************************************
 sub decomposition {
+
   my %hash = (
-    HTML          => 1,
-    Perl          => 1,
-    SQL           => 1,
-    JS            => 2,
+    HTML                   => 1,
+    Perl                   => 1,
+    SQL                    => 1,
+    JS                     => 2,
     "Service external API" => 3,
-    'New extra futures' => 5,
-    'New module'  => 8
+    'New extra futures'    => 5,
+    'New module'           => 8,
+    'Tests'                => 0
   );
 
   my $checkboxes;
@@ -524,6 +526,20 @@ sub decomposition {
   my $percentbal = ($balcount > 0 && $totalcount > 0) ? int(($balcount * 100) / $totalcount) : 0;
 
   my $fibonacci = fibonacci($balcount);
+
+  if( $balcount >= 4 && $balcount <= 6) {
+    $balcount = 5;
+  } elsif ($balcount >= 7 && $balcount <= 10){
+    $balcount = 8;
+  } elsif ($balcount >= 11 && $balcount <= 15) {
+    $balcount = 13;
+  } elsif ($balcount >= 16 && $balcount <= 30) {
+    $balcount = 20;
+  }
+
+  if ( $FORM{"SwitchOption"} && $FORM{"SwitchOption"} =~ /0/ ){
+    $balcount = _next_story_point({ POINT => $balcount });
+  }
 
   if ($percentbal == 0) {
     $html->message("info", "$lang{FIBONACHI}", undef);
@@ -743,5 +759,38 @@ sub get_ticket_work {
 
   return 1;
 }
+
+#**********************************************************
+=head2 _next_story_point ($attr) - calculate next difficulty if chosen Tests
+
+  Arguments:
+    point - current point
+
+  Returns:
+    next_point from @story_points
+
+  Example:
+    _next_story_point({ POINT => 8 });
+
+=cut
+#**********************************************************
+sub _next_story_point {
+  my ($attr) = @_;
+
+  my @story_points = (1, 2, 3, 5, 8, 13, 20, 40, 100);
+  my $next_point = 0;
+
+  for my $i (0..$#story_points) {
+    if ($story_points[$i] == $attr->{POINT}) {
+      if ($i < $#story_points) {
+        $next_point = $story_points[$i + 1];
+      }
+      last;
+    }
+  }
+
+  return $next_point;
+}
+
 
 1;

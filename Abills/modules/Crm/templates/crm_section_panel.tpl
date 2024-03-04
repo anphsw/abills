@@ -66,9 +66,24 @@
       function() { jQuery(this).find('.edit-title-btn').addClass('d-none'); });
 
   function changeRowView() {
+    let label = jQuery(this).find('label');
+    if (label.length > 1) {
+      jQuery(this).removeAttr('class');
+      let element = jQuery('<div></div>');
+
+      label.each(function() {
+        let input = jQuery(this).next(`div[class*='col-']`).first().removeAttr('class');
+        let label = jQuery(this).removeAttr('class').addClass('text-muted font-weight-normal mb-0');
+        label.text(label.text().replace(':', ''))
+        let row = jQuery('<div></div>').addClass('form-group mb-2').append(label).append(input);
+        element.append(row);
+      });
+      jQuery(this).html('').append(element);
+      return;
+    }
+    label.removeAttr('class').addClass('text-muted font-weight-normal mb-0');
+    label.text(label.text().replace(':', ''));
     jQuery(this).removeClass('row').addClass('mb-2');
-    let label = jQuery(this).find('label').removeAttr('class').addClass('text-muted font-weight-normal mb-0');
-    label.text(label.text().replace(':', ''))
     jQuery(this).find('.col-md-8').removeAttr('class');
   }
 

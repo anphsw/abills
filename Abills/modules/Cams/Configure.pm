@@ -270,7 +270,7 @@ sub cams_folder {
     $db_->{AutoCommit} = 1;
   }
 
-  $TEMPLATE_CAMS_TP{ADDRESS} = form_address_select2({
+  $TEMPLATE_CAMS_TP{ADDRESS} = form_address_select({
     HIDE_FLAT             => 1,
     HIDE_ADD_BUILD_BUTTON => 1,
     LOCATION_ID           => $TEMPLATE_CAMS_TP{LOCATION_ID} || 0,

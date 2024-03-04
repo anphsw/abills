@@ -182,7 +182,8 @@ sub maps_point_info_table {
     $point_info_object .= '<tr>' . join('', map {'<th>' . ($_ || q{}) . '</th>'} @{$attr->{TABLE_LANG_TITLES}}) . '</tr>';
   }
 
-  my $editable_fields = $attr->{EDITABLE_FIELDS} && ref($attr->{EDITABLE_FIELDS}) eq 'ARRAY' ? $attr->{EDITABLE_FIELDS} : [];
+  my $editable_fields = $attr->{EDITABLE_FIELDS} && ref($attr->{EDITABLE_FIELDS}) eq 'HASH' ? $attr->{EDITABLE_FIELDS} : {};
+  my @keys_fields = keys %{$editable_fields};
 
   foreach my $u (@{$objects}) {
     $point_info_object .= $u->{row_color} ? "<tr class='table-$u->{row_color}'>" : '<tr>';
@@ -204,8 +205,9 @@ sub maps_point_info_table {
 
       my $ext_params = !$attr->{TO_SCREEN} ? "data-field='$table_titles->[$i]'" : '';
 
-      if (in_array($table_titles->[$i], $editable_fields) && $attr->{CHANGE_FUNCTION}) {
-        $ext_params .= " onclick='editField(this)'";
+      if (in_array($table_titles->[$i], \@keys_fields) && $attr->{CHANGE_FUNCTION}) {
+        my $json_attr = Abills::Base::json_former($editable_fields->{$table_titles->[$i]});
+        $ext_params .= " onclick='editField(this, $json_attr)'";
         $ext_params .= " data-url='?header=2&get_index=$attr->{CHANGE_FUNCTION}&RETURN_JSON=1&change=1'";
         $ext_params .= " data-id='$u->{id}'";
       }

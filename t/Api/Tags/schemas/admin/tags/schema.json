@@ -1,0 +1,19 @@
+{
+  "definitions": {},
+  "type": "array",
+  "title": "Tags",
+  "required": [
+    "id",
+    "name"
+  ],
+  "properties": {
+    "id": {
+      "$id": "#/properties/id",
+      "type": "number"
+    },
+    "name": {
+      "$id": "#/properties/name",
+      "type": "string"
+    }
+  }
+}

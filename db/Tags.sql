@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS `tags_users` (
     `uid`    INT(10) UNSIGNED     NOT NULL DEFAULT '0',
     `tag_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
     `date`   DATE                 NOT NULL DEFAULT '0000-00-00',
+    `end_date` DATE               NOT NULL DEFAULT '0000-00-00' COMMENT 'Tag expiration date',
     UNIQUE KEY `uid_tag_id` (`uid`, `tag_id`)
 )
     COMMENT = 'Users Tags';

@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS `extreceipts_kkt` (
   `groups`       VARCHAR(30)           NOT NULL DEFAULT '',
   `admins`       VARCHAR(30)           NOT NULL DEFAULT '',
   `aid`          VARCHAR(60)           NOT NULL DEFAULT '',
+  `tax_id`       SMALLINT     UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`kkt_id`)
 )
   DEFAULT CHARSET = utf8

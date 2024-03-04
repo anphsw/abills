@@ -241,7 +241,7 @@ sub send_message {
     print "TO_ADDRESS => @{[ join(',', map {$_->{value}} @contacts) ]}, TYPE => $contacts[0]->{type_id} MESSAGE => $attr->{MESSAGE}\n";
   }
 
-  if ($self->{debug} && $self->{debug} == 9){
+  if ($self->{debug} && $self->{debug} == 9) {
     require Data::Dumper;
     require POSIX;
     POSIX->import(qw( strftime ));
@@ -272,11 +272,13 @@ sub send_message {
   else {
     my $at_least_once_successful = 0;
     foreach my $contact ( @contacts ) {
-      $at_least_once_successful ||= $plugin->send_message({
+      my $send_result = $plugin->send_message({
         %{$attr},
         TO_ADDRESS => $contact->{value},
         CONTACT    => $contact
       });
+
+      $at_least_once_successful ||= $send_result;
     }
 
     return $at_least_once_successful;

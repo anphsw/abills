@@ -395,7 +395,6 @@ sub crm_competitors_report {
     %FORM
   });
 
-
   my $competitors_table = $html->table({
     width   => '100%',
     caption => $lang{COMPETITORS},
@@ -606,12 +605,12 @@ sub _crm_report_form {
   });
 
   my $EXT_SELECT = {
-    DISTRICT => { LABEL => $lang{DISTRICT}, SELECT => sel_districts({
+    DISTRICT => { LABEL => $lang{DISTRICT}, SELECT => sel_districts_full_path({
       SEL_OPTIONS          => { '' => '--' },
       DISTRICT_ID          => $FORM{DISTRICT_ID},
       SKIP_MULTIPLE_BUTTON => 1,
-      FULL_NAME            => 1,
-      ONLY_WITH_STREETS    => 1
+      # FULL_NAME            => 1,
+      # ONLY_WITH_STREETS    => 1
     }) },
     STREET   => { LABEL => $lang{STREET}, SELECT => sel_streets({
       SEL_OPTIONS => { '' => '--' },

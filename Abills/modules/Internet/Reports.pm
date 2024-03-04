@@ -297,7 +297,9 @@ sub internet_report_debetors {
 =cut
 #**********************************************************
 sub internet_report_tp {
+
   require Control::Reports;
+
   reports({
     PERIODS           => 1,
     NO_TAGS           => 1,
@@ -308,6 +310,10 @@ sub internet_report_tp {
     col_md            => 'col-md-11'
   });
 
+  if ($FORM{DEBUG}) {
+    $Internet->{debug} = 1;
+  }
+
   my $list = $Internet->report_tp({
     %LIST_PARAMS,
     COLS_NAME => 1
@@ -317,15 +323,17 @@ sub internet_report_tp {
     {
       caption     => $lang{TARIF_PLANS},
       width       => '100%',
-      title       => [ "#", $lang{NAME}, $lang{TOTAL}, $lang{ACTIV}, $lang{DISABLE},
-        $lang{DEBETORS}, "ARPPU $lang{ARPPU}", "ARPU $lang{ARPU}" ],
-      ID          => 'REPORTS_TARIF_PLANS'
+      title       => [ '#', $lang{NUMBER}, 'ID', $lang{NAME}, $lang{TOTAL}, $lang{ACTIV}, $lang{DISABLE},
+        $lang{DEBETORS}, "$lang{REDUCTION} 100%", "ARPPU $lang{ARPPU}", "ARPU $lang{ARPU}", $lang{MONTH_FEE}, $lang{DAY_FEE}, $lang{GROUP} ],
+      ID          => 'REPORTS_TARIF_PLANS',
+      EXPORT      => 1,
     }
   );
 
   my $internet_users_list_index = get_function_index('internet_users_list') || 0;
 
-  my ($total_users, $totals_active, $total_disabled, $total_debetors)=(0,0,0,0);
+  my ($total_users, $totals_active, $total_disabled, $total_debetors, $total_reduction) = (0,0,0,0,0);
+  my $i = 1;
 
   foreach my $line (@$list) {
     $line->{id} = 0 if (! defined($line->{id}));
@@ -336,29 +344,39 @@ sub internet_report_tp {
     $main_link .= "&GID=$FORM{GID}" if $FORM{GID};
 
     $table->addrow(
+      $i,
       $line->{id},
+      $line->{tp_id},
       $html->button($line->{name}, "$main_link"),
-      $html->button($line->{counts}, "$main_link"),
-      $html->button($line->{active}, "$main_link&INTERNET_STATUS=0"),
-      $html->button($line->{disabled}, "$main_link&INTERNET_STATUS=1"),
-      $html->button($line->{debetors}, "$main_link&DEPOSIT=<0&search=1"),
+      ($line->{counts} > 0 )          ? $html->button($line->{counts}, "$main_link")                        : 0,
+      ($line->{active} > 0 )          ? $html->button($line->{active}, "$main_link&INTERNET_STATUS=0")      : 0,
+      ($line->{disabled} > 0 )        ? $html->button($line->{disabled}, "$main_link&INTERNET_STATUS=1")    : 0,
+      ($line->{debetors} > 0 )        ? $html->button($line->{debetors}, "$main_link&DEPOSIT=<0&search=1")  : 0,
+      ($line->{users_reduction} > 0 ) ? $html->button($line->{users_reduction}, "$main_link&REDUCTION=100") : 0,
       sprintf('%.2f', $line->{arppu} || 0),
-      sprintf('%.2f', $line->{arpu} || 0)
+      sprintf('%.2f', $line->{arpu} || 0),
+      $line->{month_fee},
+      $line->{day_fee},
+      $line->{group_name},
     );
 
+    $i++;
     $total_users    += $line->{counts};
     $totals_active  += $line->{active};
     $total_disabled += $line->{disabled};
     $total_debetors += $line->{debetors};
+    $total_reduction += $line->{users_reduction};
   }
 
   $table->addrow(
-    '',
-    $lang{TOTAL},
-    $total_users,
-    $totals_active,
-    $total_disabled,
-    $total_debetors
+    '', '', '',
+    $html->b($lang{TOTAL}),
+    $html->b($total_users),
+    $html->b($totals_active),
+    $html->b($total_disabled),
+    $html->b($total_debetors),
+    $html->b($total_reduction),
+    '', '', '', '', '', 
   );
 
   print $table->show();
@@ -732,7 +750,6 @@ sub users_development_report {
         MULTIPLE             => 1,
         ONLY_WITH_STREETS    => 1
       }), },
-      CITY     => { LABEL => $lang{CITY}, SELECT => sel_cities({ SEL_OPTIONS => { 0 => '--' }, CITY => $FORM{CITY}, MULTIPLE => 1 }) }
     }
   });
 
@@ -761,11 +778,12 @@ sub users_development_report {
   $FORM{DISTRICT_ID} =~ s/,/;/g if $FORM{DISTRICT_ID};
   $FORM{CITY} =~ s/,\s?/;/g if $FORM{CITY};
   my $districts = $Address->district_list({
-    ID        => $FORM{DISTRICT_ID} || '_SHOW',
-    CITY      => $FORM{CITY} || '_SHOW',
+    ID         => $FORM{DISTRICT_ID} || '_SHOW',
+    FULL_NAME  => '_SHOW',
+    PATH       => '_SHOW',
     _MULTI_HIT => 1,
-    PAGE_ROWS => 1000,
-    COLS_NAME => 1
+    PAGE_ROWS  => 1000,
+    COLS_NAME  => 1
   });
 
   my %rows_by_city = ();
@@ -776,9 +794,13 @@ sub users_development_report {
   $growth_by_city{$lang{WITHOUT_CITY}} = [ 0, 0 ] if !$FORM{DISTRICT_ID} && !$FORM{CITY};
 
   foreach (@{$districts}) {
-    push(@{$rows_by_city{$_->{city} || $lang{WITHOUT_CITY}}{$_->{name}}}, @empty_row);
-    push(@{$growth_by_district{$_->{city} || $lang{WITHOUT_CITY}}{$_->{name}}}, (0, 0));
-    push(@{$growth_by_city{$_->{city} || $lang{WITHOUT_CITY}}}, (0, 0)) if !exists($growth_by_city{$_->{city} || $lang{WITHOUT_CITY}});
+    my $city = $_->{full_name};
+    $city =~ s/\/?\s?$_->{name}$// if $city;
+    $city ||= $lang{WITHOUT_CITY};
+
+    push(@{$rows_by_city{$city}{$_->{name}}}, @empty_row);
+    push(@{$growth_by_district{$city}{$_->{name}}}, (0, 0));
+    push(@{$growth_by_city{$city}}, (0, 0)) if !exists($growth_by_city{$city});
   }
 
   my $days = date_diff($FORM{FROM_DATE} || $DATE, $FORM{TO_DATE} || $DATE) + 2;
@@ -901,8 +923,12 @@ sub _district_rows {
   my $prev_period = $Internet->users_development_report("<= '$prev_date'", \%FORM);
   my $prev_info = {};
   foreach my $district (@{$prev_period}) {
-    my $city_key = $district->{city} || $lang{WITHOUT_CITY};
     my $district_key = $district->{name} || $lang{WITHOUT_DISTRICT};
+    my $city = $district->{full_name};
+    $city =~ s/\/?\s?$district_key$// if $city;
+    $city ||= $lang{WITHOUT_CITY};
+
+    my $city_key = $city;
     $prev_info->{$city_key}{$district_key} = [];
 
     map push(@{$prev_info->{$city_key}{$district_key}}, $district->{$_->{name}} || 0), @{$keys};
@@ -914,8 +940,12 @@ sub _district_rows {
   my @total_info = (0) x scalar(@{$keys});
   foreach my $district (@{$current_period}) {
     my $i = 0;
-    my $city_key = $district->{city} || $lang{WITHOUT_CITY};
     my $district_key = $district->{name} || $lang{WITHOUT_DISTRICT};
+    my $city = $district->{full_name};
+    $city =~ s/\/?\s?$district_key$// if $city;
+    $city ||= $lang{WITHOUT_CITY};
+    
+    my $city_key = $city;
     $main_info->{$city_key}{$district_key} = [];
 
     @{$city_info->{$city_key}} = (0) x scalar(@{$keys}) if !$city_info->{$city_key};
@@ -1121,7 +1151,7 @@ sub _internet_get_builds_outflow_charts {
 
   my $users_by_build = $Internet->users_outflow_by_address({
     USERS_COUNT  => '_SHOW',
-    LOCATION_ID  => '<>0',
+    LOCATION_ID  => '>0',
     BUILD_NUMBER => '_SHOW',
     STREET_NAME  => '_SHOW',
     STREET_ID    => '!',
@@ -1136,7 +1166,7 @@ sub _internet_get_builds_outflow_charts {
   foreach my $build (sort { $a->{location_id} <=> $b->{location_id} } @{$users_by_build}) {
     push(@builds_outflow, $build->{users_count});
     push(@builds_labels, join(', ', ($build->{street_name}, $build->{build_number})));
-    push(@builds_id, $build->{location_id});
+    push(@builds_id, $build->{location_id}) if ($build->{location_id});
   }
 
   my $builds_total_users = $Internet->users_outflow_by_address({

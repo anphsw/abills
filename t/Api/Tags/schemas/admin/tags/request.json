@@ -1,0 +1,6 @@
+{
+  "name": "TAGS_LIST",
+  "method": "GET",
+  "path": "tags/",
+  "params": {}
+}

@@ -8,5 +8,5 @@
     <div class='icon'>
         <i class='fas fa-user-plus'></i>
     </div>
-    <a href='$SELF_URL?get_index=triplay_user_info' class='small-box-footer'>_{INFO}_ <i class='fa fa-arrow-circle-right'></i></a>
+    <a href='%SELF_URL%?get_index=triplay_user_info' class='small-box-footer'>_{INFO}_ <i class='fa fa-arrow-circle-right'></i></a>
 </div>

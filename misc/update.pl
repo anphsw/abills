@@ -10,8 +10,8 @@ use feature 'say';
 
 =head1 VERSION
 
-  VERSION: 0.11
-  UPDATED: 20230517
+  VERSION: 0.12
+  UPDATED: 20231128
 
 =head1 SYNOPSIS
 
@@ -27,6 +27,7 @@ use feature 'say';
      --git-repo       - username@host, where abills.git repository is located
      --skip-check-sql - will not fault if your MySQL Server version is lower than recommended
      --skip-backup    - skip copying current sources
+     --skip_check_freesize - skip checking free space on disc
      --login          - support login
      --password       - support password
      license, -dl   - ONLY renew license
@@ -86,6 +87,7 @@ BEGIN {
     'git-repo=s'                    => \$OPTIONS{GIT_REPO_HOST},
     'skip_check_sql|skip-check-sql' => \$OPTIONS{skip_check_sql},
     'skip_backup|skip-backup'       => \$OPTIONS{skip_backup},
+    'skip-check-freesize|skip_check_freesize' => \$OPTIONS{skip_check_freesize},
     'login=s'                       => \$OPTIONS{USERNAME},
     'password=s'                    => \$OPTIONS{PASSWORD},
     'dl|license'                    => \$OPTIONS{renew_license},
@@ -108,7 +110,7 @@ use lib $OPTIONS{PREFIX} . '/';
 
 do "libexec/config.pl";
 use Abills::Fetcher qw/web_request/;
-use Abills::Base qw/_bp urlencode/;
+use Abills::Base qw/_bp urlencode dirname/;
 
 _bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } });
 
@@ -660,10 +662,12 @@ sub sources_backup {
   my $abills_size_mb_formatted = sprintf("%.2f", $sources_size_kb / 1024);
   print "Free space available : $free_space_mb_formatted Mb ( $abills_size_mb_formatted Mb needed ) \n";
 
-  if ($free_space_kb - ($sources_size_kb * 2) < 0) {
-    print "Not enough free space to make copy of current abills sources directory.\n";
-    # TODO: ask delete old backups
-    exit 1;
+  if (!$OPTIONS{skip_check_freesize}) {
+    if ($free_space_kb - ($sources_size_kb * 2) < 0) {
+      print "Not enough free space to make copy of current abills sources directory.\n";
+      # TODO: ask delete old backups
+      exit 1;
+    }
   }
 
   print "Copying $base_dir sources to $backup_dir.\n";
@@ -685,7 +689,7 @@ sub update_sql {
   }
 
   print "Check SQL updates\n";
-  `$OPTIONS{PREFIX}/misc/db_check/db_check.pl -a`;
+  `$OPTIONS{PREFIX}/misc/db_check/db_check.pl -a CREATE_NOT_EXIST_TABLES=1`;
 
   return 1;
   my $last_updated = '';
@@ -935,9 +939,9 @@ sub update_modules {
     print sprintf(" %-16s|%-10s|%-10s\n", $module, $current_version, $required_version);
 
     # Next if the same
-    next if ($current_version eq $required_version);
+    next if ($current_version >= $required_version);
 
-    print "$module should be updated to new version\n";
+    print "'$module' should be updated to new version\n";
 
     # Download
     my $downloaded_module = download_module($module_name, "$base_dir/$relative_file_path");
@@ -981,13 +985,13 @@ sub download_module {
   });
 
   if (! $module_info || !$module_info->{purchased}) {
-    my $time = $module_info->{time};
+    my $time = $module_info->{time} || q{};
     my $price = $module_info->{price};
     my $file_id = $module_info->{id};
 
     my $agree_to_buy = _read_input(
       'BUY_' . uc($module_name),
-      "\nDo you agree to buy $module_name for $time days? Price is $price USD (y/N)",
+      "\nDo you agree to buy $module_name for $time days? Price is ". ($price || q{}) ." USD (y/N)",
       undef,
       {
         CHECK => sub {$_[0] =~ /y|n/i}
@@ -1427,7 +1431,7 @@ sub _read_file {
     $content = '-1';
   }
 
-  return $content;
+  return $content || -1;
 }
 
 #**********************************************************
@@ -1444,6 +1448,14 @@ sub _read_file {
 #**********************************************************
 sub _write_to_file {
   my ($file_content, $destination) = @_;
+
+  #Check fiolder
+  my $dirname = dirname($destination);
+  if (! -d $dirname) {
+    if (mkdir $dirname) {
+      print "folder: $dirname created\n";
+    }
+  }
 
   open(my $fh, '>', $destination) or do {
     say " !!! Can't save file $destination : $!";
@@ -1647,10 +1659,11 @@ sub modules_list {
 
   foreach my $module (@$module_info) {
     my $path = $module->{path} || q{};
+
     my $module_name = $module->{name};
     my $local_file = $OPTIONS{PREFIX} . '/'. $module->{path} .'/' . $module_name;
 
-    if ($module_name =~ /Paysys_old/ ) {
+    if ($module_name =~ /Paysys_old|Alite/ ) {
       next;
     }
 
@@ -1670,7 +1683,7 @@ sub modules_list {
 
     printf(" %-36s|%8s|%10s|%-10s|%-20s|%5s|\n",
       $module_name,
-      ((($module->{version} || 0) > $local_version) ? '>>' : '') . $module->{version},
+      ((($module->{version} || 0) > $local_version) ? '>>' : '') . ($module->{version} || 0),
       ($cur_version eq '-1') ? 'Not exist' : $cur_version,
       $module->{expire},
       $path,

@@ -77,7 +77,7 @@ sub send_message {
 
   my $result = $Google->access_token();
 
-  return 1 if ($result->{errno} || !$result->{access_token});
+  return $result->{errno} || 1 if ($result->{errno} || !$result->{access_token});
 
   my $receiver_type = ($attr->{AID})
     ? 'AID'
@@ -205,7 +205,7 @@ sub dry_run {
 
   my $result = $Google->access_token();
 
-  return 1 if ($result->{errno} || !$result->{access_token});
+  return $result->{errno} || 1 if ($result->{errno} || !$result->{access_token});
 
   my @registration_ids = ();
 
@@ -248,9 +248,7 @@ sub dry_run {
 
   return $results if ($attr->{RETURN_RESULT});
 
-  return 3 if ($results->{errno});
-
-  ($results->{name}) ? return 0 : return 1;
+  return $results->{results}->[0]->{error} ? 3 : 0;
 }
 
 #**********************************************************

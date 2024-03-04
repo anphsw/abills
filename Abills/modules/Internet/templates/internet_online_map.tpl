@@ -44,3 +44,13 @@
     </div>
   </div>
 </div>
+
+<script>
+  jQuery(document).ready(function () {
+    jQuery(`[href='#tab2default']`).on('click', function() {
+      setTimeout(function () {
+        map.invalidateSize(true);
+      }, 0);
+    });
+  });
+</script>

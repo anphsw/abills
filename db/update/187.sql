@@ -1,0 +1,1 @@
+ALTER TABLE `referral_tp` ADD COLUMN `inactive_days` SMALLINT(3) DEFAULT 0 NOT NULL COMMENT 'Quantity of users inactive days';

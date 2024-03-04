@@ -68,3 +68,5 @@ $lang{PLAN} = 'plan';
 $lang{FACT} = 'fact';
 $lang{AVARAGE_TIME_EXECUTION} = 'Avarage time of execution';
 $lang{NO_TASKS_RESPONSIBLE} = 'There are no tasks for the person responsible for this sprint';
+$lang{GENERAL_INDICATORS_FOR_SPRINTS} = 'General indicators by sprints';
+$lang{PROJECT} = 'Project';

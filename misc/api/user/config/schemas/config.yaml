@@ -167,11 +167,36 @@ properties:
   userChgPasswd:
     type: number
     example: 1
+  userChgPi:
+    type: number
+    example: 1
+  userChgPiAllowedParams:
+    type: object
+    properties:
+      pinAbs:
+        type: number
+        example: 1
+      test:
+        type: number
+        example: 4
+      cellPhone:
+        type: number
+        example: 99
+      email:
+        type: number
+        example: 99
+      fio:
+        type: number
+        example: 99
+      phone:
+        type: number
+        example: 99
   userCredit:
     type: number
     example: 1001
   userHoldupAll:
     type: object
+    deprecated: true
     properties:
       activeFees:
         type: number
@@ -188,6 +213,26 @@ properties:
       minPeriod:
         type: number
         example: 1
+  holdup:
+    type: array
+    items:
+      type: object
+      properties:
+        activeFees:
+          type: number
+          example: 10
+        dailyFees:
+          type: number
+          example: 0
+        holdupPeriod:
+          type: string
+          example: 10
+        maxPeriod:
+          type: number
+          example: 30
+        minPeriod:
+          type: number
+          example: 1
   voipUserInfo:
     type: number
     example: 1

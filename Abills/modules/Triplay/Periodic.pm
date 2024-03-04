@@ -225,6 +225,7 @@ sub triplay_monthly_fees {
     my $postpaid = $TP_INFO->{POSTPAID_MONTHLY_FEE} || $TP_INFO->{PAYMENT_TYPE} || 0;
     $USERS_LIST_PARAMS{DOMAIN_ID} = $TP_INFO->{DOMAIN_ID};
 
+
     #Monthfee & min use
     if ($month_fee > 0) {
       $debug_output .= "TP ID: $TP_INFO->{ID} MF: $TP_INFO->{MONTH_FEE} POSTPAID: $postpaid "
@@ -290,6 +291,7 @@ sub triplay_monthly_fees {
           triplay_service_deactivate({
             TP_INFO   => $TP_INFO,
             USER_INFO => \%user,
+            DATE      => $ADMIN_REPORT{DATE},
             DEBUG     => $debug
           });
           next;
@@ -349,6 +351,9 @@ sub triplay_monthly_fees {
         ID
       DEBUG
 
+  Result:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub triplay_service_activate {
@@ -357,7 +362,7 @@ sub triplay_service_activate {
   my $debug = $attr->{DEBUG} || 0;
 
   $Triplay->user_change({
-    UID    => $attr->{USER_INFO}->{UID},
+    UID     => $attr->{USER_INFO}->{UID},
     DISABLE => 0
   });
 
@@ -404,6 +409,9 @@ sub triplay_service_activate {
       USER_INFO
       DEBUG
 
+  Returns:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub triplay_service_deactivate {
@@ -422,6 +430,7 @@ sub triplay_service_deactivate {
     });
   }
 
+  $Triplay->{debug}=1 if ($debug > 6);
   my $service_list = $Triplay->service_list({
     UID        => $attr->{USER_INFO}->{UID},
     MODULE     => '_SHOW',
@@ -438,15 +447,18 @@ sub triplay_service_deactivate {
       if ($debug > 3) {
         print "run: $fn\n";
       }
+
       &{ \&$fn }({
         USER_INFO => {
           UID => $service->{uid},
           ID  => $service->{service_id},
         },
-        TP_INFO  => {
-          SMALL_DEPOSIT_ACTION => -1
+        TP_INFO   => {
+          #SMALL_DEPOSIT_ACTION => -1
+          small_deposit_action => -1
         },
-        STATUS    => 1
+        STATUS    => 1,
+        DATE      => $attr->{DATE}
       });
     }
   }

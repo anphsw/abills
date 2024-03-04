@@ -82,9 +82,8 @@ sub maps_layers {
 
   return {} if !$Maps;
 
-  my @modules = @main::MODULES;
   my $layers_list = $Maps->layers_list({
-    MODULE           => join(';', @modules),
+    MODULE           => 'Maps',
     COLS_NAME        => 1,
     COLS_UPPER       => 0,
     SORT             => 'id',
@@ -179,6 +178,20 @@ sub location_info {
   }
   elsif ($attr->{GROUP_ID}) {
     return 0;
+  }
+
+  if ($users_for_location_id->{$attr->{LOCATION_ID}}->[0]->{BUILD_ID}){
+    my $builds_list = $Address->build_list({
+      LOCATION_ID  => $users_for_location_id->{$attr->{LOCATION_ID}}->[0]->{BUILD_ID},
+      STATUS_NAME  => '_SHOW',
+      COLS_NAME    => '_SHOW'
+    });
+
+    if ($builds_list->[0]->{status_name}){
+      my $translated_status_name = ::_translate($builds_list->[0]->{status_name});
+      my $status = $html->element('div', "$lang->{STATUS}: $translated_status_name", {});
+      $info.= $status.$html->br();
+    }
   }
 
   return {
@@ -398,8 +411,11 @@ sub maps_districts_show {
       $attr->{ID} : $attr->{OBJECT_ID} ? $attr->{OBJECT_ID} : '_SHOW',
     DISTRICT_ID => $attr->{DISTRICT_ID} || '_SHOW',
     DISTRICT    => '_SHOW',
+    FULL_NAME   => '_SHOW',
     CREATED     => '_SHOW',
-    LIST2HASH   => 'object_id,district_id'
+    LIST2HASH   => 'object_id,district_id',
+    PAGE_ROWS   => $attr->{NEW_OBJECT} ? 1 : '',
+    SORT        => 'md.object_id'
   });
 
   my $district_for_object_id = ();
@@ -419,9 +435,10 @@ sub maps_districts_show {
   }
 
   foreach my $object (@{$layer_objects}) {
-    $object->{POLYGON}{name} = $district_for_object_id->{$object->{OBJECT_ID}}{district} || '';
+    my $name = $district_for_object_id->{$object->{OBJECT_ID}}{full_name} || $district_for_object_id->{$object->{OBJECT_ID}}{district} || '';
+    $object->{POLYGON}{name} = $name;
     $object->{POLYGON}{created} = $district_for_object_id->{$object->{OBJECT_ID}}{created} || '';
-    $object->{POLYGON}{NAME} = $district_for_object_id->{$object->{OBJECT_ID}}{district} || '';
+    $object->{POLYGON}{NAME} = $name;
   }
 
   return $layer_objects if ($attr->{RETURN_HASH});

@@ -8,6 +8,9 @@ use Abills::Sender::Core;
 
 require 'buttons-enabled/Send_message.pm';
 
+my $Notify;
+my $Msgs;
+
 #**********************************************************
 =head2 new($db, $admin, $conf, $bot_api, $bot_db)
 
@@ -26,6 +29,22 @@ sub new {
   };
   
   bless($self, $class);
+
+  $Msgs = Msgs->new($self->{db}, $self->{admin}, $self->{conf});
+
+  use Msgs::Notify;
+  use Abills::HTML;
+
+  my $html = Abills::HTML->new({
+    CONF     => $self->{conf},
+    NO_PRINT => 0,
+    PATH     => $self->{conf}->{WEB_IMG_SCRIPT_PATH} || '../',
+    CHARSET  => $self->{conf}->{default_charset},
+  });
+
+  $Notify = Msgs::Notify->new($self->{db}, $self->{admin}, $self->{conf}, {
+    LANG => $self->{bot}->{lang}, HTML => $html
+  });
   
   return $self;
 }
@@ -82,23 +101,23 @@ sub send_reply {
   my $Send_message = Send_message->new($self->{db}, $self->{admin},
     $self->{conf}, $self->{bot}, $self->{bot_db});
 
-  if ($attr->{message}->{text}) {
+  if ($attr->{message}{text}) {
     my $text = encode_utf8($attr->{message}->{text});
-    if ($text eq "$self->{bot}->{lang}->{CANCEL_TEXT}") {
+    if ($text eq $self->{bot}{lang}{CANCEL_TEXT}) {
       $Send_message->cancel_msg();
       return 0;
     }
-    elsif ($text eq "$self->{bot}->{lang}->{SEND}") {
+    elsif ($text eq $self->{bot}{lang}{SEND}) {
       $self->send_msg($attr);
       return 0;
     }
     $Send_message->add_text_to_msg($attr);
   }
-  elsif ($attr->{message}->{photo}) {
-    my $photo = pop @{$attr->{message}->{photo}};
+  elsif ($attr->{message}{photo}) {
+    my $photo = pop @{$attr->{message}{photo}};
     $Send_message->add_file_to_msg($attr, $photo->{file_id});
   }
-  elsif ($attr->{message}->{document}) {
+  elsif ($attr->{message}{document}) {
     $Send_message->add_file_to_msg($attr, $attr->{message}->{document}->{file_id});
   }
   else {
@@ -124,16 +143,10 @@ sub send_msg {
 
   my $text = $msg_hash->{message}->{text} || "";
 
-
-  if(!$text && !$msg_hash->{message}->{files}){
-    $self->{bot}->send_message({
-      text => "$self->{bot}->{lang}->{NOT_SEND_MSGS}",
-    });
+  if (!$text && !$msg_hash->{message}->{files}) {
+    $self->{bot}->send_message({ text => $self->{bot}->{lang}->{NOT_SEND_MSGS} });
     return 0;
   }
-
-  my $Msgs = Msgs->new($self->{db}, $self->{admin}, $self->{conf});
-
 
   $Msgs->message_reply_add({
     ID         => $msg_hash->{message}->{id},
@@ -178,28 +191,10 @@ sub send_msg {
     }
   }
 
-  use Abills::HTML;
-  use Msgs::Notify;
-
-  my $html = Abills::HTML->new({
-    CONF     => $self->{conf},
-    NO_PRINT => 0,
-    PATH     => $self->{conf}->{WEB_IMG_SCRIPT_PATH} || '../',
-    CHARSET  => $self->{conf}->{default_charset},
-  });
-
-
-  my $Notify = Msgs::Notify->new($self->{db}, $self->{admin}, $self->{conf}, {LANG => $self->{bot}->{lang}, HTML => $html});
-
-  $Notify->notify_admins({
-    MSG_ID        => $msg_hash->{message}->{id},
-    MESSAGE       => $text,
-  });
+  $self->_notify_admin($msg_hash->{message}->{id}, $text);
 
   $self->{bot_db}->del($self->{bot}->{uid});
-  $self->{bot}->send_message({
-    text => "$self->{bot}->{lang}->{SEND_MSGS}",
-  });
+  $self->{bot}->send_message({ text => $self->{bot}->{lang}->{SEND_MSGS} });
 
   return 1;
 }
@@ -238,6 +233,29 @@ sub send_msgs_main_menu {
   });
 
   return 1;
+}
+
+#**********************************************************
+=head2 _notify_admin($msg_id, $message)
+
+=cut
+#**********************************************************
+sub _notify_admin {
+  my $self = shift;
+  my ($msg_id, $message) = @_;
+
+  my $attachments_list = $Msgs->attachments_list({
+    REPLY_ID     => $msg_id,
+    FILENAME     => '_SHOW',
+    CONTENT      => '_SHOW',
+    CONTENT_TYPE => '_SHOW',
+  });
+
+  $Notify->notify_admins({
+    MSG_ID      => $msg_id,
+    MESSAGE     => $message,
+    ATTACHMENTS => $attachments_list,
+  });
 }
 
 

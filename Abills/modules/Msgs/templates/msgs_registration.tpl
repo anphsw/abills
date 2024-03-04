@@ -8,7 +8,7 @@
             <h4 class='card-title'>_{REGISTRATION}_</h4>
         </div>
         <div class='card-body'>
-
+            %CHECKED_ADDRESS_MESSAGE%
             <div class='form-group row'>
                 <label class='col-sm-4 col-md-4' for='LOGIN'>_{LOGIN}_:</label>
                 <div class='col-sm-8 col-md-8'>

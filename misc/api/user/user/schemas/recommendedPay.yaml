@@ -1,0 +1,26 @@
+type: object
+properties:
+  allServicesSum:
+    type: number
+    example: 10
+    description: >
+      Сумма за все сервисы за один учетный период
+  maxSum:
+    type: number
+    example: 5000
+    default: 0
+    description: >
+      Максимальная сумма к оплате определяется через опцию `PAYSYS_MAX_SUM`
+  minSum:
+    type: number
+    example: 5
+    default: 0
+    description: >
+      Минимальная сумма к оплате определяется через опцию `PAYSYS_MIN_SUM`
+      Если есть опция `PAYSYS_MIN_SUM_RECOMMENDED_PAY`, то поле `minSum` будет равно `sum`,
+      при условии, что изначальная `minSum` меньше `sum`.
+  sum:
+    type: number
+    example: 10
+    description: >
+      Рекомендуемая сумма к оплате

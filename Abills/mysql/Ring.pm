@@ -297,10 +297,6 @@ sub rule_users {
     push @WHERE_RULES, "r_id = $attr->{RID}";
   }
 
-  if(defined $attr->{STATUS}){
-    push @WHERE_RULES, "status = $attr->{STATUS}";
-  }
-
   my $WHERE = $self->search_former( $attr, [
       [ 'UID',          'INT',  'uid',     1],
       [ 'R_ID',         'INT',  'r_id',    1],

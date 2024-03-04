@@ -7,7 +7,7 @@ package Acct2 v3.0.0;
 =cut
 
 use strict;
-use parent 'main';
+use parent 'dbbase';
 use Billing;
 
 my ($conf);
@@ -94,7 +94,7 @@ sub accounting {
   }
 
   if ($NAS->{NAS_TYPE} eq 'cid_auth') {
-    $self->query2("SELECT u.uid, u.id
+    $self->query("SELECT u.uid, u.id
      FROM users u, internet_main internet WHERE internet.uid=u.uid AND internet.CID= ? AND u.deleted = 0;",
       undef, { Bind => [ $RAD->{'Calling-Station-Id'} ]}
     );
@@ -130,7 +130,7 @@ sub accounting {
 
   #Start
   if ($acct_status_type == 1) {
-    $self->query2("SELECT acct_session_id, uid FROM internet_online
+    $self->query("SELECT acct_session_id, uid FROM internet_online
     WHERE user_name= ?
       AND nas_id= ?
       AND (framed_ip_address=INET_ATON( ? )
@@ -147,7 +147,7 @@ sub accounting {
       foreach my $line (@{ $self->{list} }) {
         if ($line->[0] eq 'IP' || $line->[0] eq $RAD->{'Acct-Session-Id'}) {
           $self->{UID}=$line->[1];
-          $self->query2("UPDATE internet_online SET
+          $self->query("UPDATE internet_online SET
            status= ? ,
            started=NOW() - INTERVAL ? SECOND,
            lupdated=UNIX_TIMESTAMP(),
@@ -199,7 +199,7 @@ sub accounting {
     if ($RAD->{'Acct-Session-Time'} > 5) {
       #IPN Service
       if ($NAS->{NAS_EXT_ACCT} || $NAS->{NAS_TYPE} eq 'ipn') {
-        $self->query2("SELECT
+        $self->query("SELECT
        online.acct_input_octets AS inbyte,
        online.acct_output_octets AS outbyte,
        online.acct_input_gigawords,
@@ -232,7 +232,7 @@ sub accounting {
         }
 
         if ($self->{COMPANY_ID} > 0) {
-          $self->query2("SELECT bill_id FROM companies WHERE id= ? ;", undef, { Bind => [ $self->{COMPANY_ID} ] });
+          $self->query("SELECT bill_id FROM companies WHERE id= ? ;", undef, { Bind => [ $self->{COMPANY_ID} ] });
           if ($self->{TOTAL} < 1) {
             $self->{errno} = 2;
             $self->{errstr} = "Company not exists '$self->{COMPANY_ID}'";
@@ -259,7 +259,7 @@ sub accounting {
         }
 
         if ($self->{UID} > 0) {
-          $self->query2('INSERT INTO internet_log SET
+          $self->query('INSERT INTO internet_log SET
           uid= ? ,
           start=NOW() - INTERVAL ? SECOND,
           tp_id= ? ,
@@ -332,7 +332,7 @@ sub accounting {
           $self->{SUM} += $self->{CALLS_SUM};
         }
 
-        $self->query2("INSERT INTO internet_log SET
+        $self->query("INSERT INTO internet_log SET
           uid= ? ,
           start=NOW() - INTERVAL ? SECOND,
           tp_id= ? ,
@@ -382,7 +382,7 @@ sub accounting {
         my %EXT_ATTR = ();
 
         #Get connected TP
-        $self->query2("SELECT uid, tp_id, connect_info, service_id FROM internet_online WHERE
+        $self->query("SELECT uid, tp_id, connect_info, service_id FROM internet_online WHERE
           acct_session_id= ? AND nas_id= ? ;",
           undef,
           { Bind => [ $RAD->{'Acct-Session-Id'}, $NAS->{NAS_ID} ] }
@@ -425,7 +425,7 @@ sub accounting {
             $RAD->{'Acct-Session-Time'} . ", $RAD->{$input_octets}, $RAD->{$output_octets}), $self->{UID}";
         }
         else {
-          $self->query2("INSERT INTO internet_log SET
+          $self->query("INSERT INTO internet_log SET
           uid= ? ,
           start=NOW() - INTERVAL ? SECOND,
           tp_id= ? ,
@@ -475,7 +475,7 @@ sub accounting {
           # If SQL query filed
           else {
             if ($self->{SUM} > 0) {
-              $self->query2("UPDATE bills SET deposit=deposit - ? WHERE id= ? ;", 'do',
+              $self->query("UPDATE bills SET deposit=deposit - ? WHERE id= ? ;", 'do',
                 { Bind => [ $self->{SUM}, $self->{BILL_ID} ] });
             }
           }
@@ -483,7 +483,7 @@ sub accounting {
       }
     }
     # Delete from session
-    $self->query2("DELETE FROM internet_online WHERE acct_session_id= ? AND nas_id= ? ;",
+    $self->query("DELETE FROM internet_online WHERE acct_session_id= ? AND nas_id= ? ;",
       'do', { Bind => [ $RAD->{'Acct-Session-Id'}, $NAS->{NAS_ID} ] });
   }
 
@@ -502,7 +502,7 @@ sub accounting {
       acct_output_gigawords='". $RAD->{$output_gigawords} ."',";
       }
 
-      $self->query2('UPDATE internet_online SET '
+      $self->query('UPDATE internet_online SET '
         . $ipn_fields
         . "status= ? ,
         acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
@@ -543,7 +543,7 @@ sub accounting {
       $ex_octets = "ex_input_octets='$RAD->{INBYTE2}',  ex_output_octets='$RAD->{OUTBYTE2}', ";
     }
 
-    $self->query2('UPDATE internet_online SET
+    $self->query('UPDATE internet_online SET
       status= ? ,
       acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
       acct_input_octets= ? ,
@@ -573,7 +573,7 @@ sub accounting {
     );
   }
   elsif($acct_status_type == '7' || $acct_status_type == '8') {
-    $self->query2("UPDATE internet_online SET status = 2
+    $self->query("UPDATE internet_online SET status = 2
            WHERE nas_id = ?;", 'do',
       { Bind => [
           $NAS->{'NAS_ID'}
@@ -594,7 +594,7 @@ sub accounting {
 
   #detalization radius acct request
   if (($conf->{s_detalization} || $self->{DETAIL_STATS}) && $self->{UID}) {
-    $self->query2("INSERT INTO s_detail (acct_session_id, nas_id, acct_status, last_update, recv1, sent1, recv2, sent2, uid, sum)
+    $self->query("INSERT INTO s_detail (acct_session_id, nas_id, acct_status, last_update, recv1, sent1, recv2, sent2, uid, sum)
        VALUES (?, ?, ?, UNIX_TIMESTAMP(), ?, ?, ?, ?, ?, ?);",
       'do',
       { Bind => [
@@ -633,7 +633,7 @@ sub rt_billing {
   $RAD->{INBYTE2}  //= 0;
   $RAD->{OUTBYTE2} //= 0;
 
-  $self->query2("SELECT IF(UNIX_TIMESTAMP() > lupdated, lupdated, 0), UNIX_TIMESTAMP()-lupdated,
+  $self->query("SELECT IF(UNIX_TIMESTAMP() > lupdated, lupdated, 0), UNIX_TIMESTAMP()-lupdated,
    IF($RAD->{$input_octets}   >= acct_input_octets AND ". $RAD->{$input_gigawords} ."=acct_input_gigawords,
         $RAD->{$input_octets} - acct_input_octets,
         IF(". $RAD->{$input_gigawords} ." > acct_input_gigawords, 4294967296 * (". $RAD->{$input_gigawords} ." - acct_input_gigawords) + $RAD->{$input_octets} - acct_input_octets, 0)),
@@ -747,12 +747,12 @@ sub rt_billing {
   }
   else {
     if ($self->{SUM} > 0) {
-      $self->query2("UPDATE bills SET deposit=deposit-$self->{SUM} WHERE id= ? ;", 'do', { Bind => [ $self->{BILL_ID} ]});
+      $self->query("UPDATE bills SET deposit=deposit-$self->{SUM} WHERE id= ? ;", 'do', { Bind => [ $self->{BILL_ID} ]});
     }
   }
 
   if($conf->{INTERNET_INTERVAL_PREPAID}) {
-    $self->query2('SELECT traffic_type FROM internet_log_intervals
+    $self->query('SELECT traffic_type FROM internet_log_intervals
      WHERE acct_session_id= ?
            AND interval_id= ?
            AND uid= ? FOR UPDATE;',
@@ -772,7 +772,7 @@ sub rt_billing {
       next if ($RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] } + $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] } < 1);
 
       if ($intrval_traffic{$traffic_type}) {
-        $self->query2('UPDATE internet_log_intervals SET
+        $self->query('UPDATE internet_log_intervals SET
                 sent=sent+ ? ,
                 recv=recv+ ? ,
                 duration=duration + ?,
@@ -795,7 +795,7 @@ sub rt_billing {
         );
       }
       else {
-        $self->query2('INSERT INTO internet_log_intervals (interval_id, sent, recv, duration, traffic_type, sum, acct_session_id, uid, added)
+        $self->query('INSERT INTO internet_log_intervals (interval_id, sent, recv, duration, traffic_type, sum, acct_session_id, uid, added)
         VALUES ( ? , ? , ? , ? , ? , ? , ? , ?, NOW());', 'do',
           { Bind => [
             $Billing->{TI_ID},
@@ -848,7 +848,7 @@ sub add_unknown_session {
   }
   else {
     #Get TP_ID
-    $self->query2("SELECT u.uid, internet.tp_id, internet.join_service, internet.id AS service_id
+    $self->query("SELECT u.uid, internet.tp_id, internet.join_service, internet.id AS service_id
        FROM (users u, internet_main internet)
        WHERE u.uid=internet.uid AND u.id= ? ;",
       undef,
@@ -893,7 +893,7 @@ sub add_unknown_session {
         uid= ? ,
         service_id = ? ". $guest_mode;
 
-  $self->query2($sql, 'do', { Bind =>
+  $self->query($sql, 'do', { Bind =>
     [ $attr->{ACCT_STATUS_TYPE},
       $RAD->{'User-Name'} || '',
       $RAD->{'Acct-Session-Time'} || 0,
@@ -912,7 +912,7 @@ sub add_unknown_session {
   $sql  = "DELETE FROM internet_online WHERE nas_id= ? AND acct_session_id='IP'
         AND (framed_ip_address=INET_ATON( ? ) OR UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started) > 120 );";
 
-  $self->query2($sql, 'do', { Bind => [ $NAS->{NAS_ID}, $RAD->{'Framed-IP-Address'} ] });
+  $self->query($sql, 'do', { Bind => [ $NAS->{NAS_ID}, $RAD->{'Framed-IP-Address'} ] });
 
   return 1;
 }

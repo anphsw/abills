@@ -15,7 +15,13 @@
         </div>
       </div>
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right required' for='DELIVERY_TYPE_ID'>_{DELIVERY_TYPE}_:</label>
+        <label class='col-md-4 col-form-label text-md-right' for='DELIVERY_STATUS'>_{STATUS}_:</label>
+        <div class='col-md-8'>
+          %DELIVERY_STATUS_SEL%
+        </div>
+      </div>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='DELIVERY_TYPE_ID'>_{DELIVERY_TYPE}_:</label>
         <div class='col-md-8'>
           %DELIVERY_TYPES_SEL%
         </div>

@@ -37,7 +37,7 @@ sub new {
 sub btn_name {
   my $self = shift;
 
-  return $self->{bot}->{lang}->{INTERNET};
+  return $self->{bot}->{lang}->{TARIF_PLAN};
 }
 
 #**********************************************************

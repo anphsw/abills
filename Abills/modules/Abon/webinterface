@@ -41,20 +41,6 @@ if ($permissions{4}) {
 }
 
 #*******************************************************************
-=head2 abon_user_del($uid, $attr) - Delete user from module
-
-=cut
-#*******************************************************************
-sub abon_user_del {
-  my ($uid, $attr) = @_;
-
-  $Abon->{UID} = $uid;
-  $Abon->del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
-
-  return 0;
-}
-
-#*******************************************************************
 =head2 abon_user($attr) - Change user tarif plan form
 
 Manage users periodic services
@@ -239,7 +225,15 @@ sub abon_user {
     return 1 if ($attr->{QUITE} || $attr->{REGISTRATION});
   }
 
-  my $user_tariff_list = $Abon->user_tariff_list($uid, { %LIST_PARAMS, COLS_NAME => 1 });
+  my $user_tariff_list = $Abon->user_tariff_list($uid, {
+    %LIST_PARAMS,
+    HOT_DEAL  => '_SHOW',
+    GID       => $users->{GID} || 0,
+    SORT      => $LIST_PARAMS{SORT} || 'at.hot_deal',
+    DESC      => $LIST_PARAMS{DESC} || (!$LIST_PARAMS{SORT} ? 'DESC' : ''),
+    COLS_NAME => 1
+  });
+
   my $table = $html->table({
     width      => '100%',
     caption    => $lang{ABON},
@@ -279,7 +273,7 @@ sub abon_user {
       $table->{rowcolor} = 'bg-danger';
     }
     else {
-      $table->{rowcolor} = undef;
+      $table->{rowcolor} = $line->{hot_deal} ? 'table-primary' : undef;
     }
 
     $table->addrow(
@@ -800,16 +794,17 @@ sub abon_client {
     # }
   }
 
-  my $list = $Abon->user_tariff_list(
-    $LIST_PARAMS{UID},
-    {
-      COLS_NAME    => 1,
-      USER_PORTAL  => '>0',
-      SERVICE_LINK => '_SHOW',
-      SERVICE_IMG  => '_SHOW',
-      CATEGORY_ID  => '_SHOW',
-    }
-  );
+  my $list = $Abon->user_tariff_list($LIST_PARAMS{UID}, {
+    COLS_NAME    => 1,
+    USER_PORTAL  => '>0',
+    SERVICE_LINK => '_SHOW',
+    SERVICE_IMG  => '_SHOW',
+    CATEGORY_ID  => '_SHOW',
+    HOT_DEAL     => '_SHOW',
+    GID          => $user->{GID} || 0,
+    SORT         => $FORM{sort} || 'at.hot_deal',
+    DESC         => $FORM{desc} || (!$FORM{sort} ? 'DESC' : ''),
+  });
 
   my %CATEGORIES = ();
   my $categories_list = $Abon->category_list({ VISIBLE => 1, HASH_RETURN => 1, COLS_NAME => 1 });
@@ -819,7 +814,7 @@ sub abon_client {
     $CATEGORIES{$line->{category_id}} = $categories_list->{$line->{category_id}};
   }
 
-  my $is_card_design = (defined($FORM{CARD_FORM})) ? $FORM{CARD_FORM} : 1;
+  my $is_card_design = (defined($FORM{CARD_FORM})) ? $FORM{CARD_FORM} : 0;
 
   if (!defined($FORM{CARD_FORM}) && $conf{ABON_CARDS}) {
     $is_card_design = 1;
@@ -864,13 +859,16 @@ sub abon_client {
     }
 
     my $price = ($line->{discount}) ? $line->{price} * (100 - $line->{discount}) / 100 : $line->{price};
+    my $quantity = ($line->{service_count}) ? $line->{service_count} : 1;
 
     push @rows, [
-      $line->{tp_name},
+      $line->{hot_deal} ? ($html->badge($lang{ABON_HOT_DEAL}, { TYPE => 'badge-warning', OUTPUT2RETURN => 1 })
+        . $html->br() . $line->{tp_name}) : $line->{tp_name},
       $line->{user_description},
       $price,
+      $quantity,
+      $price*$quantity,
       $PERIODS[ $line->{period} ],
-      ($line->{service_count}) ? $line->{service_count} : 1,
       $line->{date},
       $line->{next_abon},
       $line->{personal_description},
@@ -881,7 +879,7 @@ sub abon_client {
       push @upper_lines, {
         TP_NAME              => $line->{tp_name},
         DESCRIPTION          => $line->{user_description},
-        PRICE                => $price,
+        PRICE                => $price * $quantity,
         PERIOD               => lc($PERIODS[$line->{period}]),
         DATE                 => $line->{date},
         NEXT_ABON            => $line->{next_abon},
@@ -889,7 +887,8 @@ sub abon_client {
         BUTTON               => $button,
         LINK_BUTTON          => $link_button,
         SERVICE_IMG          => $line->{service_img},
-        UNIT                 => $money_main_unit
+        UNIT                 => $money_main_unit,
+        HOT_DEAL_TP          => $line->{hot_deal}
       };
     }
   }
@@ -967,6 +966,12 @@ sub abon_client {
       }
       $upper_line{SERVICE_IMG} = $service_img_link;
 
+      if ($upper_line{HOT_DEAL_TP}) {
+        my $label = 'HOT DEAL ' . $html->element('i', '', { class => 'fa fa-fire text-warning', OUTPUT2RETURN => 1 });
+        my $hot_deal_label = $html->element('div', $label, { class => 'ribbon bg-primary', OUTPUT2RETURN => 1 });
+        $upper_line{HOT_DEAL} = $html->element('div', $hot_deal_label, { class => 'ribbon-wrapper ribbon-lg', OUTPUT2RETURN => 1 });
+      }
+
       $result .= $html->tpl_show($tile_template, { %upper_line }, { OUTPUT2RETURN => 1 });
     }
 
@@ -977,7 +982,7 @@ sub abon_client {
       width      => '100%',
       caption    => $lang{EXT_SERVICES},
       FIELDS_IDS => $Abon->{COL_NAMES_ARR},
-      title      => [ $lang{SERVICE}, $lang{DESCRIPTION}, $lang{SUM}, $lang{PERIOD}, $lang{SERVICE_COUNT}, $lang{START}, $lang{EXPIRE}, $lang{ADDITIONAL_DATA}, '-' ],
+      title      => [ $lang{SERVICE}, $lang{DESCRIPTION}, $lang{SUM}, $lang{SERVICE_COUNT}, "$lang{SUM} $lang{TOTAL}", $lang{PERIOD}, $lang{START}, $lang{EXPIRE}, $lang{ADDITIONAL_DATA}, '-' ],
       qs         => $pages_qs,
       ID         => 'USER_ABON',
       rows       => \@rows
@@ -1135,4 +1140,34 @@ sub _plugin_action {
 
   return $Plugin;
 }
+
+
+#**********************************************************
+=head1 abon_user_add($attr) - client interface
+
+  Attributes:
+
+=cut
+#**********************************************************
+sub abon_user_add {
+  my ($attr) = @_;
+
+  $FORM{IDS} = $attr->{TP_ID};
+  $FORM{add} = 1;
+  #$FORM{ 'MANUAL_FEE_' . $FORM{IDS} } = 1;
+
+  my $result = abon_user({
+    USER_INFO     => $attr->{USER_INFO},
+    ACTIVATE_ONLY => 1,
+    QUITE         => 1,
+    ABON_DATE     => '2025-01-02'
+  });
+
+  if ($result) {
+    $html->message('info', $lang{INFO}, "$lang{ACTIVATED} [$LIST_PARAMS{UID}]");
+  }
+
+  return 1;
+}
+
 1

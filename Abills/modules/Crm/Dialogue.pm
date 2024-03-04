@@ -117,6 +117,22 @@ sub crm_send_message {
   });
 
   my $message_id = $Crm->{INSERT_ID};
+
+  if ($attr->{ATTACHMENTS} && ref $attr->{ATTACHMENTS} eq 'ARRAY') {
+    if ($message_id) {
+      foreach my $attachment (@{$attr->{ATTACHMENTS}}) {
+        $Crm->crm_attachment_change({ ID => $attachment, MESSAGE_ID => $message_id });
+      }
+    }
+    else {
+      use Crm::Attachments;
+      my $Attachments = Crm::Attachments->new($db, $admin, $CONF);
+      foreach my $attachment (@{$attr->{ATTACHMENTS}}) {
+        $Attachments->attachment_del($attachment);
+      }
+    }
+  }
+
   return $message_id if $attr->{INNER_MSG} || !$CONF->{PUSH_ENABLED};
 
   $Crm->crm_dialogue_info({ ID => $dialogue_id });
@@ -132,7 +148,9 @@ sub crm_send_message {
   Abills::Sender::Core->import();
   my $Sender = Abills::Sender::Core->new($db, $admin, $CONF);
 
-  use Encode qw(encode);
+  require Encode;
+  Encode->import('encode');
+
   $Sender->send_message({
     AID         => $aid,
     TITLE       => $fio . ($source ? " (" . ucfirst($source) . ")" : ''),

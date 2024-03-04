@@ -58,13 +58,13 @@ our %msgs_permissions = %{$Msgs->permissions_list($admin->{AID})} if (!%msgs_per
 
 require Msgs::Delivery;
 require Msgs::Notify;
+require Msgs::Tickets;
 
 if ($user && $user->{UID}) {
   require Msgs::User_portal;
 }
 else {
   require Msgs::Tickets_list;
-  require Msgs::Tickets;
   require Msgs::Schedule;
   require Msgs::Dispatches;
   require Msgs::Msgs_team_ticket;
@@ -79,19 +79,6 @@ require Msgs::Chat if $conf{MSGS_CHAT};
 require Msgs::Msgs_scrub_box if $conf{MSGS_SCRUB_BOX};
 
 require Msgs::Reg_request;
-
-#**********************************************************
-=head2 msgs_user_del($uid, $attr) - Delete user  from module
-
-=cut
-#**********************************************************
-sub msgs_user_del {
-  my ($uid, $attr) = @_;
-
-  $Msgs->message_del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
-
-  return 0;
-}
 
 #**********************************************************
 =head2 msgs_status_bar($attr)
@@ -394,9 +381,9 @@ sub msgs_survey_show {
 
   my $uid = $user->{UID} || $LIST_PARAMS{UID} || $FORM{UID};
 
-  if ($FORM{change}) {
+  if ($FORM{change_answer}) {
     $Msgs->survey_answer_add({ %FORM, SURVEY_ID => $FORM{SURVEY_ANSWER}, MSG_ID => $FORM{ID}, UID => $uid });
-    $html->message('info', $lang{INFO}, "$lang{SENDED}");
+    $html->message('info', $lang{INFO}, $lang{SENDED});
     delete $FORM{change};
   }
 
@@ -530,7 +517,7 @@ sub msgs_survey_show {
 
   return $html->tpl_show(_include('msgs_survey', 'Msgs'), {
     %{$Msgs},
-    ACTION           => ($survey_questions) ? $html->form_input('change', $lang{SEND},
+    ACTION           => ($survey_questions) ? $html->form_input('change_answer', $lang{SEND},
       { TYPE => 'submit', OUTPUT2RETURN => 1 }) : '',
     SURVEY_ID        => ($survey_questions) ? $html->form_input('SURVEY_ANSWER', $attr->{SURVEY_ID},
       { TYPE => 'hidden', OUTPUT2RETURN => 1 }) : undef,
@@ -566,167 +553,6 @@ sub msgs_start_page {
   return \%START_PAGE_F;
 }
 
-#***************************************************************
-=head2 msgs_events($attr)
-
-=cut
-#***************************************************************
-sub msgs_events {
-  my ($attr) = @_;
-  my @events_json = ();
-
-  #Check if called from cross_modules via User Portal
-  if ($attr->{CLIENT_INTERFACE}) {
-    my $messages_list = $Msgs->messages_list({
-      UID       => $attr->{UID},
-      LOGIN     => '_SHOW',
-      USER_READ => '0000-00-00 00:00:00',
-      GET_NEW   => $attr->{PERIOD} || '60',
-      MESSAGE   => '_SHOW',
-      COLS_NAME => 1
-    });
-
-    my $msgs_index = get_function_index('msgs_user');
-
-    #transform each element to JSON structure
-    #!!! FIXIT
-    @events_json = map {
-      # cleaning unnecessary information
-      $_->{uid} = '';
-      $_->{login} = '';
-
-      $_ = msgs_event_to_json($_, $msgs_index)
-    } @{$messages_list};
-
-    return join(", ", @events_json);
-  }
-
-  $LIST_PARAMS{CHAPTERS_DELIGATION} = $msgs_permissions{deligation_level};
-  my $list = $Msgs->messages_list({
-    PAGE_ROWS  => 3,
-    CLIENT_ID  => '_SHOW',
-    SUBJECT    => '_SHOW',
-    MESSAGE    => '_SHOW',
-    DATETIME   => '_SHOW',
-    RESPOSIBLE => '_SHOW',
-    ADMIN_READ => '0000-00-00 00:00:00',
-    GET_NEW    => $attr->{PERIOD} || '60',
-    %LIST_PARAMS,
-    COLS_NAME  => 1
-  });
-
-  my $msgs_index = get_function_index('msgs_admin');
-
-  foreach my $line (@{$list}) {
-    push @events_json, msgs_event_to_json($line, $msgs_index, { UID => 1 });
-  }
-
-  #new connection
-  my $unreg_req_list = $Msgs->unreg_requests_list({
-    PAGE_ROWS    => 3,
-    ADDRESS_FULL => '_SHOW',
-    SUBJECT      => '_SHOW',
-    COMMENTS     => '_SHOW',
-    FIO          => '_SHOW',
-    GET_NEW      => $attr->{PERIOD} || '60',
-    COLS_NAME    => 1
-  });
-
-  my $unreg_requests_index = get_function_index('msgs_unreg_requests_list');
-
-  foreach my $line (@{$unreg_req_list}) {
-
-    $line->{subject} = $lang{REQUESTS};
-    $line->{message} = ($line->{address_full} || q{}) . " " . ($line->{fio} || q{});
-    $line->{resposible} = 0;
-    $line->{uid} = 0;
-
-    push @events_json, msgs_event_to_json($line, $unreg_requests_index);
-  }
-
-  # Planned work
-  my $responsible_and_planned_for_today_list = $Msgs->messages_list({
-    PAGE_ROWS      => 3,
-    SUBJECT        => '_SHOW',
-    MESSAGE        => '_SHOW',
-    RESPOSIBLE     => $admin->{AID},
-    PLAN_FROM_DATE => $DATE,
-    PLAN_TO_DATE   => $DATE,
-    STATE          => '!1,!2,!5,!9',
-    %LIST_PARAMS,
-    COLS_NAME      => 1,
-    COLS_UPPER     => 0
-  });
-  _error_show($Msgs);
-
-  if ($responsible_and_planned_for_today_list && ref $responsible_and_planned_for_today_list) {
-    foreach my $line (@{$responsible_and_planned_for_today_list}) {
-      $line->{subject} //= '';
-      $line->{subject} = $lang{PLANNED} . ' : ' . $line->{subject};
-      push(@events_json, msgs_event_to_json($line, $msgs_index));
-    }
-  }
-
-  return join(", ", @events_json);
-}
-
-#**********************************************************
-=head2 msgs_event_to_json($message)
-
-  Function to format message to JSON structure needed in AMessageChecker
-
-  Arguments:
-    $message - hash_ref of message from DB
-      subject   - Subject of message
-      message   - Text of message
-      id        - ID of message
-      uid       - UID of client
-      user_name - login of client
-
-    $msgs_index - index to see message
-
-  Returns:
-    JSON structure for message
-
-=cut
-#**********************************************************
-sub msgs_event_to_json {
-  my ($message, $msgs_index, $attr) = @_;
-
-  my $uid_string = ($attr->{UID}) ? "UID=$message->{uid}" : '';
-
-  $message->{subject} //= '';
-  $message->{message} //= '';
-
-  $message->{subject} =~ s/["]/\\"/g;
-  $message->{message} =~ s/["]/\\"/g;
-
-  $message->{datetime} //= '';
-  $message->{login} //= '';
-
-  $message->{resposible} //= '0';
-  $message->{uid} //= '0';
-
-  my $message_json = qq{
-    {
-      "TYPE"       : "MESSAGE",
-      "MODULE"     : "Msgs",
-      "TITLE"      : "$message->{subject}",
-      "TEXT"       : "$message->{message}",
-      "CREATED"    : "$message->{datetime}",
-      "MSGS_ID"    : "$message->{id}",
-      "RESPONSIBLE": $message->{resposible},
-      "EXTRA"      : "$SELF_URL?$uid_string&index=$msgs_index&chg=$message->{id}",
-      "SENDER"     : { "UID" : "$message->{uid}", "LOGIN" : "$message->{login}" }
-    }
-  };
-
-  $message_json =~ s/\"/\\"/g;
-
-  return $message_json;
-}
-
-
 #**********************************************************
 =head1 msgs_text_quoting($input_text) - Quoting text
 
@@ -739,11 +565,13 @@ sub msgs_event_to_json {
 =cut
 #**********************************************************
 sub msgs_text_quoting {
-  my ($input_text, $is_admin) = @_;
+  my ($input_text, $is_admin, $attr) = @_;
 
   $input_text //= '';
 
-  $input_text = convert($input_text, { text2html => 1, json => $FORM{json}, SHOW_URL => 1 });
+  if (!$attr->{SKIP_CONVERT}) {
+    $input_text = convert($input_text, { text2html => 1, json => $FORM{json}, SHOW_URL => 1 });
+  }
   $input_text =~ s/\\/\\\\/g;
   $input_text =~ s/\&#37/\\%/g;
   my $text = '';
@@ -1512,7 +1340,8 @@ sub msgs_receive_attachments {
       FILESIZE     => $FORM{$form_param_name}->{Size},
       FILENAME     => $FORM{$form_param_name}->{filename},
       CONTENT_TYPE => $FORM{$form_param_name}->{'Content-Type'},
-
+      COORDX       => $FORM{COORDX},
+      COORDY       => $FORM{COORDY},
       UID          => $message->{UID} || $attr->{UID}
     });
   };
@@ -1709,13 +1538,42 @@ sub msgs_admin_quick_message {
     return 1;
   }
 
-  my $admins_online_list = $admin->online_list();
-  # make list with checkboxes
+  my $connected_admins;
+  if ($conf{WEBSOCKET_ENABLED}) {
+    use Abills::Backend::API;
+    my $websocket_api = Abills::Backend::API->new(\%conf, {
+      #TOKEN => $self->{token}
+    });
 
-  # Form HTML for checkbox panel
+    my %request = (
+      TYPE      => 'REQUEST_LIST',
+      LIST_TYPE => 'ADMINS',
+    );
+
+    my $responce = $websocket_api->json_request({ MESSAGE => \%request });
+
+    if ($responce) {
+      $connected_admins = $responce->{LIST};
+      print "YES";
+    }
+  }
+
+  my $admins_online_list = $admin->online_list();
   my $checkboxes_html = '';
-  foreach my $adm (sort {$a->{aid} <=> $b->{aid}} @{$admins_online_list}) {
+  my %admins = ();
+
+  foreach my $adm (sort {$a->{admin} cmp $b->{admin}} @{$admins_online_list}) {
     next if ($adm->{aid} == $admin->{AID});
+    if ($admins{$adm->{aid}}) {
+      next;
+    }
+    $admins{$adm->{aid}}++;
+
+    if ($connected_admins) {
+      if (in_array($adm->{aid}, $connected_admins->[0])) {
+        $adm->{admin} .= ' (W)';
+      }
+    }
 
     my $checkbox = $html->form_input('AID', $adm->{aid}, { TYPE => 'checkbox' });
     my $label = $html->element('label', $checkbox . $adm->{admin});

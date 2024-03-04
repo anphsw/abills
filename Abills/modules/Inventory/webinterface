@@ -30,8 +30,10 @@ sub inventory_main {
   my ($attr) = @_;
 
   if ($FORM{message}) {
-    $html->message('info', $lang{INFO}, "$FORM{message}");
+    $html->message('info', $lang{INFO}, $FORM{message});
   }
+
+  $FORM{STATUS} ||= 0;
 
   $Inventory->{ACTION} = 'add_main';
   $Inventory->{ACTION_LNG} = $lang{ADD};
@@ -75,6 +77,12 @@ sub inventory_main {
 
   _error_show($Inventory);
 
+  $Inventory->{STATUS_SEL} = $html->form_select('STATUS', {
+    SELECTED => $Inventory->{STATUS} || $FORM{STATUS} || 0,
+    SEL_HASH => { 0 => $lang{ACTIVE}, 1 => $lang{DISABLE}, 2 => 'Fade out' },
+    NO_ID    => 1
+  });
+
   my $list;
   if ($FORM{add_form}) {
     if ($FORM{chg}) {
@@ -87,12 +95,6 @@ sub inventory_main {
     $Inventory->{ADMINS_SEL} = sel_admins({
       NAME     => 'RESPONSIBLE',
       SELECTED => $Inventory->{RESPONSIBLE}
-    });
-
-    $Inventory->{STATUS_SEL} = $html->form_select('STATUS', {
-      SELECTED => $Inventory->{STATUS},
-      SEL_HASH => { 0 => $lang{ACTIVE}, 1 => $lang{DISABLE}, 2 => 'Fade out' },
-      NO_ID    => 1
     });
 
     my @hardwares = ();
@@ -139,7 +141,8 @@ sub inventory_main {
         'LOG_COMMENTS'     => 'LOG_COMMENTS',
       }
     });
-  } elsif ($FORM{reports}) {
+  }
+  elsif ($FORM{reports}) {
     my ($table) = result_former({
       INPUT_DATA      => $Inventory,
       FUNCTION        => 'inventory_log_info',
@@ -169,6 +172,13 @@ sub inventory_main {
     print $table->show();
   }
 
+  my @status_bar = (
+    "$lang{ALL}:index=$index&UID=$FORM{UID}&STATUS=ALL",
+    "$lang{ACTIVE}:index=$index&UID=$FORM{UID}&STATUS=0",
+    "$lang{DISABLE}:index=$index&UID=$FORM{UID}&STATUS=1",
+    "Fade out:index=$index&UID=$FORM{UID}&STATUS=2"
+  );
+
   my $type_list = $Inventory->inventory_types_list({ COLS_NAME => 1 });
   my %types = ();
   foreach my $line (@{$type_list}) {
@@ -178,7 +188,10 @@ sub inventory_main {
   if ($FORM{UID}) {
     delete $LIST_PARAMS{COMMENTS};
     delete $LIST_PARAMS{LOGIN};
+    delete $LIST_PARAMS{_MULTI_HIT};
   }
+
+  $LIST_PARAMS{STATUS} = defined($FORM{STATUS}) ? $FORM{STATUS} : 0;
 
   my Abills::HTML $table;
   ($table) = result_former({
@@ -214,6 +227,7 @@ sub inventory_main {
     TABLE           => {
       width   => '100%',
       caption => $lang{HOSTS},
+      header  => $html->table_header(\@status_bar),
       border  => 1,
       qs      => $pages_qs,
       ID      => 'INVENTORY_LIST',

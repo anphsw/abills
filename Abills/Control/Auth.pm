@@ -621,6 +621,9 @@ sub auth_user {
   if ($FORM{external_auth}) {
     $Auth = Abills::Auth::Core->new({
       CONF      => \%conf,
+      DB        => $db,
+      ADMIN     => $admin,
+      HTML      => $html,
       AUTH_TYPE => $FORM{external_auth},
       USERNAME  => $login,
       SELF_URL  => $SELF_URL,
@@ -632,6 +635,9 @@ sub auth_user {
     if($Auth->{auth_url}) {
       print "Location: $Auth->{auth_url}\n\n";
       exit;
+    }
+    elsif ($Auth->{RETURN_RESULT}) {
+      return $Auth->{RETURN_RESULT};
     }
     elsif($Auth->{USER_ID}) {
       $user->list({
@@ -686,6 +692,9 @@ sub auth_user {
     elsif($attr->{PASSWORDLESS_ACCESS}) {
       $conf{PASSWORDLESS_ACCESS}=1;
     }
+    elsif($conf{PASSWORDLESS_CREDIT} && $FORM{change_credit}) {
+      $conf{PASSWORDLESS_ACCESS}=1;
+    }
   }
 
   #Passwordless Access
@@ -727,7 +736,7 @@ sub auth_user {
     else {
       $user->info($user->{UID}, { USERS_AUTH => 1 });
       $admin->{DOMAIN_ID} = $user->{DOMAIN_ID};
-      $user->web_session_update({ SID => $session_id, REMOTE_ADD => $REMOTE_ADDR  });
+      $user->web_session_update({ SID => $session_id, REMOTE_ADDR => $REMOTE_ADDR  });
       #Add social id
       if ($Auth->{USER_ID}) {
         if (!$Auth->{USER_EXISTS}) {
@@ -842,6 +851,13 @@ sub auth_user {
               errstr => 'Access denied.',
             };
           }
+
+          $user->bruteforce_add({
+            LOGIN       => $login,
+            PASSWORD    => $password,
+            REMOTE_ADDR => $REMOTE_ADDR,
+            AUTH_STATE  => 0
+          });
 
           $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { OUTPUT2RETURN => 1 });
           return 0;

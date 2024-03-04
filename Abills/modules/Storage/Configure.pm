@@ -374,7 +374,7 @@ sub suppliers_main {
       $Storage->{ACTION} = 'change';
       $Storage->{ACTION_LNG} = $lang{CHANGE};
       $html->message('info', $lang{INFO}, $lang{FIELDS_FOR_NAME_ARE_REQUIRED});
-      $Storage->{ADDRESS_FORM} = form_address_select2({
+      $Storage->{ADDRESS_FORM} = form_address_select({
         HIDE_FLAT             => 1,
         HIDE_ADD_BUILD_BUTTON => 1,
         LOCATION_ID           => 0,
@@ -394,7 +394,7 @@ sub suppliers_main {
     }
     else {
       $html->message('info', $lang{INFO}, $lang{FIELDS_FOR_NAME_ARE_REQUIRED});
-      $Storage->{ADDRESS_FORM} = form_address_select2({
+      $Storage->{ADDRESS_FORM} = form_address_select({
         HIDE_FLAT             => 1,
         HIDE_ADD_BUILD_BUTTON => 1,
         LOCATION_ID           => 0,
@@ -411,7 +411,7 @@ sub suppliers_main {
     $html->message('info', $lang{INFO}, $lang{CHANGING}) if !$Storage->{errno};
   }
   if (!$FORM{add} and !$FORM{change}) {
-    $Storage->{ADDRESS_FORM} = form_address_select2({
+    $Storage->{ADDRESS_FORM} = form_address_select({
       LOCATION_ID           => $Storage->{LOCATION_ID} || 0,
       DISTRICT_ID           => $Storage->{DISTRICT_ID} || 0,
       STREET_ID             => $Storage->{STREET_ID} || 0,

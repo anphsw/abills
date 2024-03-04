@@ -8,9 +8,13 @@
   Arguments:
 
    CLEAN=1
-   IP_RANGE='192.168.1.0/24'
-   SNMP_VERSION=1 - Default:1
-   INFO_ONLY=1 
+   IP_RANGE='192.168.1.0/24' - IP range of scan network
+   FILENAME='xxx.txt'        - file with nas servers with tab delimiter values
+     COLS_NAME               - Columns name for file Examples: IP
+   SNMP_VERSION=1            - Default:1
+   SNMP_COMMUNITY            - Community for scan and get describe
+   INFO_ONLY=1               - Only show info withot adding equipment
+   NAS_ID                    - NAS_ID for NAS autodetect
 
 =cut
 
@@ -21,6 +25,7 @@ use Abills::Base qw(in_array startup_files _bp);
 use Nas;
 use Equipment;
 require Equipment::Snmp_cmd;
+require Equipment::Grabbers;
 
 use SNMP_util;
 use SNMP_Session;
@@ -38,13 +43,11 @@ our (
 );
 
 our Admins $Admin;
-my $comments = '';
 
 $Admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 my $Equipment = Equipment->new($db, $Admin, \%conf);
 my $Nas = Nas->new($db, \%conf, $Admin);
 my $Log = Log->new($db, $Admin);
-my $Events = Events::API->new($db, $Admin, \%conf);
 
 if ($debug > 2) {
   $Log->{PRINT} = 1;
@@ -78,24 +81,22 @@ else {
 #**********************************************************
 sub equipment_grab {
 
-  if ($debug > 3) {
-    print "Equipment grab\n";
-  }
+  _log('LOG_INFO', "Equipment grab");
 
-  my @equipment_info = ();
+  my $equipment_info;
   if ($argv->{FILENAME}) {
-    @equipment_info = @{equipment_from_file($argv->{FILENAME})};
+    $equipment_info = equipment_from_file($argv->{FILENAME});
   }
   elsif ($argv->{IP_RANGE}) {
-    @equipment_info = @{equipment_scan($argv->{IP_RANGE})};
+    $equipment_info = equipment_scan($argv->{IP_RANGE});
   }
   else {
-    print "Show help\n";
+    $equipment_info = equipment_from_nas($argv);
   }
-  return 1 if ($argv->{INFO_ONLY});
-  foreach my $info (@equipment_info) {
+
+  foreach my $info (@$equipment_info) {
     if ($debug > 1) {
-      print "$info->{IP}\n";
+      print "IP: $info->{IP} ";
       foreach my $key (keys %$info) {
         print "$key - $info->{$key}\n";
       }
@@ -105,6 +106,7 @@ sub equipment_grab {
     if (!$info->{IP}) {
       next;
     }
+    next if ($argv->{INFO_ONLY});
 
     my $nas_list = $Nas->list({
       NAS_IP    => $info->{IP},
@@ -114,7 +116,7 @@ sub equipment_grab {
 
     if (!$Nas->{TOTAL}) {
       if ($debug > 2) {
-        print "Not exists \n";
+        _log('LOG_WARNING', "NOT_EXISTS");
       }
 
       if (!$info->{NAS_TYPE}) {
@@ -127,27 +129,41 @@ sub equipment_grab {
     }
     else {
       $info->{NAS_ID} = $nas_list->[0]{nas_id};
+      $info->{IP} = $nas_list->[0]{nas_ip};
     }
 
-    #Check equipment
+    $Equipment->{debug} = 1 if ($debug > 5);
+
     $Equipment->_list({ NAS_ID => $info->{NAS_ID} });
 
     if (!$Equipment->{TOTAL}) {
-      $info->{MODEL_ID} = equipment_model_detect($info->{MODEL}) unless ($argv->{IP_RANGE});
+
+      if ($argv->{SNMP_VERSION}) {
+        $info->{SNMP_VERSION} = $argv->{SNMP_VERSION};
+      }
+
+      if (!$info->{MODEL_ID}) {
+        $info->{MODEL_ID} = _get_sysdescr({
+          IP           => $info->{IP},
+          MNG_PASSWORD => $info->{SNMP_COMMUNITY}
+        });
+      }
+
+      my $model = equipment_model_detect($info->{MODEL_ID}, { _EQUIPMENT => $Equipment }); # unless ($argv->{IP_RANGE});
+      $info->{MODEL_ID} = $model->[0]->{ID} || 0;
+
       if ($info->{MODEL_ID}) {
         $Equipment->_add($info);
         next;
       }
       elsif ($info->{MODEL}) {
-        $comments = "Can't find model '$info->{MODEL}'\n";
-        print $comments;
-        _generate_new_event('Can\'t find model', $comments);
-
+        my $comments = "Can't find model '$info->{MODEL}'\n";
+        _log('LOG_ALERT', $comments, { EVENT_TITLE => 'Can\'t find model', EVENT_MODULE => 'Equipment' });
         next;
       }
     }
     else {
-      print "Equipment exist\n" if ($debug);
+      _log('LOG_INFO', "Equipment exist");
     }
   }
 
@@ -156,10 +172,10 @@ sub equipment_grab {
 
 
 #**********************************************************
-=head2 equipment_from_file($attr)
+=head2 equipment_from_file($filename)
 
   Arguments:
-
+    $filename
 
   Returns:
 
@@ -170,21 +186,27 @@ sub equipment_from_file {
 
   my @equipment_info = ();
   my $content = '';
+
   if (open(my $fh, '<', $filename)) {
     while (<$fh>) {
       $content .= $_;
     }
     close($fh);
   }
+  else {
+    _log('LOG_ALERT', "File: '$filename' not exists");
+    return [];
+  }
 
   my @rows = split(/[\r]\n/, $content);
-  my @cols_name = ();
+  my @cols_name = ('IP');
 
   if ($argv->{COLS_NAME}) {
     @cols_name = split(/,\s?/, $argv->{COLS_NAME});
   }
 
   foreach my $line (@rows) {
+    chomp($line);
     my @cols = split(/\t/, $line);
     my %equipment_info = ();
 
@@ -200,40 +222,14 @@ sub equipment_from_file {
 }
 
 #**********************************************************
-=head2 equipment_model_detect($attr)
+=head2 equipment_scan($ip_range)
 
   Arguments:
-
-
-  Returns:
-
-=cut
-#**********************************************************
-sub equipment_model_detect {
-  my ($model) = @_;
-  my $model_id = 0;
-
-  return 0 unless ($model);
-
-  my $list = $Equipment->model_list({
-    MODEL_NAME => $model,
-    COLS_NAME  => 1
-  });
-
-  if ($Equipment->{TOTAL}) {
-    $model_id = $list->[0]->{id};
-  }
-
-  return $model_id;
-}
-
-#**********************************************************
-=head2 equipment_scan($attr)
-
-  Arguments:
-
+    $ip_range
 
   Returns:
+    $nas_info_hash_ref
+    {IP}
 
 =cut
 #**********************************************************
@@ -275,15 +271,16 @@ sub equipment_scan {
     $host{IP} = "$w.$x.$y.$z";
     $host{NAS_NAME} = join('_', $w, $x, $y, $z);
 
-    $host{COMMENTS} = snmp_get({
-      SNMP_COMMUNITY => $host{IP},
-      OID            => ".1.3.6.1.2.1.1.1.0",
-      SILENT         => 1,
-      VERSION        => $argv->{SNMP_VERSION} || 1
+    $host{COMMENTS} = _get_sysdescr({
+      IP           => $host{IP},
+      MNG_PASSWORD => $argv->{SNMP_COMMUNITY} || 'public'
     });
 
     if ($host{COMMENTS}) {
-      print "SNMP answer: '$host{COMMENTS}'\n" if ($argv->{DEBUG} || $argv->{INFO_ONLY});
+      if ($argv->{DEBUG} || $argv->{INFO_ONLY}) {
+        print "SNMP answer: '$host{COMMENTS}'\n";
+      }
+
       $host{MULTY_RESULT} = '';
       foreach (@$list) {
         next unless ($_->{model_name});
@@ -303,6 +300,7 @@ sub equipment_scan {
 
     push @info, \%host;
   }
+
   return \@info;
 }
 
@@ -316,10 +314,10 @@ sub equipment_scan {
 sub equipment_get_version {
 
   my $Equipment_List = $Equipment->_list({
-    COLS_NAME        => 1,
-    NAS_MNG_HOST_PORT=> '_SHOW',
-    NAS_MNG_PASSWORD => '_SHOW',
-    PAGE_ROWS        => 65000,
+    COLS_NAME         => 1,
+    NAS_MNG_HOST_PORT => '_SHOW',
+    NAS_MNG_PASSWORD  => '_SHOW',
+    PAGE_ROWS         => 65000,
   });
 
   foreach my $element (@$Equipment_List) {
@@ -340,6 +338,8 @@ sub equipment_get_version {
       }
     }
   }
+
+  return 1;
 }
 
 
@@ -353,13 +353,13 @@ sub equipment_get_version {
 sub equipment_scan_equipment {
 
   my $Equipment_List = $Equipment->_list({
-    NAS_ID           => $argv->{NAS_ID} || '',
-    COLS_NAME        => 1,
-    NAS_MNG_HOST_PORT=> '_SHOW',
-    NAS_MNG_PASSWORD => '_SHOW',
-    PORTS            => '_SHOW',
-    PAGE_ROWS        => 65000,
-    STATUS           => '!5;!1;!4'
+    NAS_ID            => $argv->{NAS_ID} || '',
+    COLS_NAME         => 1,
+    NAS_MNG_HOST_PORT => '_SHOW',
+    NAS_MNG_PASSWORD  => '_SHOW',
+    PORTS             => '_SHOW',
+    PAGE_ROWS         => 65000,
+    STATUS            => '!5;!1;!4'
   });
 
   my %Port_id = ();
@@ -374,7 +374,7 @@ sub equipment_scan_equipment {
     });
 
     my $snmp_com = "$element->{nas_mng_password}" . "@" . "$element->{nas_mng_ip_port}";
-#    my $snmp_com = "snmppass" . "@" . "$element->{nas_mng_ip_port}";
+    #    my $snmp_com = "snmppass" . "@" . "$element->{nas_mng_ip_port}";
     my $all_ports = snmp_get({
       SNMP_COMMUNITY => $snmp_com,
       OID            => ".1.3.6.1.2.1.2.2.1.8",
@@ -455,6 +455,8 @@ sub _equipment_port_vlan {
       });
     }
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -486,6 +488,8 @@ sub _equipment_port_description {
       });
     }
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -497,7 +501,7 @@ sub _equipment_port_description {
 #**********************************************************
 sub equipment_delete_ports {
 
-  if ($argv->{NAS_ID}){
+  if ($argv->{NAS_ID}) {
     $Equipment->port_del_nas({
       NAS_ID => $argv->{NAS_ID},
     })
@@ -505,27 +509,64 @@ sub equipment_delete_ports {
 }
 
 #**********************************************************
-=head2 _generate_new_event($title_event, $comments)
+=head2 _get_sysdescr($attr)
 
   Arguments:
-    $title_event - title of message
-    $comments - text of message to show
+    $attr
+      IP
+      MNG_PASSWORD
 
   Returns:
+    $describe
 
 =cut
 #**********************************************************
-sub _generate_new_event {
-  my ($title_event, $comments) = @_;
+sub _get_sysdescr {
+  my ($attr) = @_;
 
-  $Events->add_event({
-    MODULE      => 'Equipment',
-    TITLE       => $title_event,
-    COMMENTS    => "equipment_grabber - $comments",
-    PRIORITY_ID => 3
+  my $snmp_community = ($argv->{SNMP_COMMUNITY} || $attr->{MNG_PASSWORD} || 'public') . '@' . $attr->{IP};
+
+  my $describe = snmp_get({
+    SNMP_COMMUNITY => $snmp_community,
+    OID            => ".1.3.6.1.2.1.1.1.0",
+    SILENT         => (!$debug) ? 1 : 0,
+    VERSION        => $argv->{SNMP_VERSION} || 1
   });
 
-  return 1;
+  return $describe;
+}
+
+#**********************************************************
+=head2 equipment_from_nas($attr)
+
+  Arguments:
+    $attr
+      NAS_ID
+
+  Returns:
+    $equipment_info_arr_ref
+
+=cut
+#**********************************************************
+sub equipment_from_nas {
+  my ($attr) = @_;
+
+  my @equipment_info = ();
+
+  my $nas_list = $Nas->list({
+    NAS_ID    => $attr->{NAS_ID},
+    PAGE_ROWS => 65000,
+    COLS_NAME => 1
+  });
+
+  foreach my $nas (@$nas_list) {
+    push @equipment_info, {
+      IP             => $nas->{nas_mng_ip_port} || $nas->{nas_ip},
+      SNMP_COMMUNITY => $nas->{nas_mng_password}
+    };
+  }
+
+  return \@equipment_info;
 }
 
 1;

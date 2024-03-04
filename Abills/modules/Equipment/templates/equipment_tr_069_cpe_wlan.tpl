@@ -9,25 +9,24 @@
     <input type='hidden' name='info_pon_onu' value='%info_pon_onu%'>
     <input type='hidden' name='menu' value='%menu%'>
     <input type='hidden' name='sub_menu' value='%sub_menu%'>
-
-    <div class='form-group'>
-        <label class='control-label col-md-5' for='SSID'>SSID:</label>
-        <div class='col-md-3 control-element'>
+    <div class='card-body'>
+    <div class='form-group row'>
+        <label class='col-sm-2 col-form-label' for='SSID'>SSID:</label>
+        <div class='col-sm-3'>
             <input type='text' name='ssid' value='%ssid%' class='form-control' ID='ssid'/>
         </div>
     </div>
-    <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"></span>
 
-    <div class='form-group'>
-        <label class='control-label col-md-5' for='PASS'>Password:</label>
-        <div class='col-md-3 control-element'>
-            <input type='text' name='wlan_pass' value='%wlan_pass%' class='form-control' ID='wlan_pass' maxlength='20'/>
+    <div class='form-group row'>
+        <label class='col-sm-2 col-form-label' for='PASS'>Password:</label>
+        <div class='col-sm-3 control-element'>
+            <input type='text' name='wlan_pass' value='%wlan_pass%' class='form-control' ID='wlan_pass' maxlength='20' minlength='8'/>
         </div>
     </div>
-    <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"></span>
 
-    <div class='card-footer'>
+    <div class='form-group row'>
         <input type='submit' name='change' value='_{CHANGE}_' ID='change' class='btn btn-primary'>
+    </div>
     </div>
 </form>
 <script>

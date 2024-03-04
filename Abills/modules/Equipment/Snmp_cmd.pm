@@ -78,7 +78,7 @@ sub snmp_get {
   $snmp_community.=':'.$port.":$timeout:$retries:1:$version";
 
   if ($debug > 2) {
-    print "$attr->{SNMP_COMMUNITY} -> $oid_text<br>\n";
+    print (($snmp_community || $attr->{SNMP_COMMUNITY} || 'SNMP_COMMUNITY not defined') ." -> $oid_text<br>\n");
   }
 
   if ($debug > 5) {
@@ -87,6 +87,10 @@ sub snmp_get {
 
   if (!$attr->{OID}) {
     print "Unknown oid\n";
+    $debug = 4;
+    if ($debug > 3) {
+      print join(',', caller());
+    }
     return [];
   }
 

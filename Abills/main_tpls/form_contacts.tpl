@@ -88,6 +88,7 @@
         <div class='col-sm-4 col-md-4'>
           <input type='text' class='form-control' id='contacts_type_comments' name='comments' placeholder="_{COMMENTS}_"/>
         </div>
+        <input type='hidden' id='contacts_type_date' name='date'>
       </div>
     </div>
 </script>
@@ -112,6 +113,7 @@
       <div class="flex-grow-1 bd-highlight">
         <input class='form-control contact_template_value' type='text' {{#form}}form='{{form}}'{{/form}} name='{{type_id}}' {{#value}}value='{{value}}'{{/value}}/>
         <input data-id='{{id}}' class='form-control contact_template_comments' type='hidden' {{#form}}form='{{form}}'{{/form}} name='COMMENTS' {{#comments}}value='{{comments}}'{{/comments}}/>
+        <input class='contact_template_date' type='hidden' {{#form}}form='{{form}}'{{/form}} name='DATE' {{#date}}value='{{date}}'{{/date}}/>
       </div>
       <div class="p-2 tools d-block">
         <span

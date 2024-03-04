@@ -1,4 +1,4 @@
-<style type="text/css">
+<style type='text/css'>
 	.calend{
 		max-width:1000px;
 	}
@@ -8,16 +8,16 @@
 
 <div class='card-header with-border '>
 
-	<a href='/admin/index.cgi?index=75&year=%LAST_YEAR%&month=%LAST_MONTH%'>
+	<a href='%SELF_URL%?index=%index%&year=%LAST_YEAR%&month=%LAST_MONTH%'>
 		<button type='submit' class='btn btn-secondary btn-xs' align='left'>
-			<span class="fa fa-arrow-left" aria-hidden="true"></span>
+			<span class='fa fa-arrow-left' aria-hidden='true'></span>
 		</button>
 	</a>
 	<label class='control-label'>%MONTH% %YEAR%</label>
 	
-	<a href='/admin/index.cgi?index=75&year=%NEXT_YEAR%&month=%NEXT_MONTH%'>
+	<a href='%SELF_URL%?index=%index%&year=%NEXT_YEAR%&month=%NEXT_MONTH%'>
 		<button type='submit' class='btn btn-secondary btn-xs' align='right'>
-			<span class="fa fa-arrow-right" aria-hidden="true"></span>
+			<span class='fa fa-arrow-right' aria-hidden='true'></span>
 		</button>
 	</a>
 

@@ -17,10 +17,10 @@ our (
   %permissions,
 );
 
-use Voip::Users;
+use Voip::Services;
 
 our Voip $Voip;
-my $Voip_users = Voip::Users->new($db, $admin, \%conf, {
+my $Voip_users = Voip::Services->new($db, $admin, \%conf, {
   html        => $html,
   lang        => \%lang,
   permissions => \%permissions,

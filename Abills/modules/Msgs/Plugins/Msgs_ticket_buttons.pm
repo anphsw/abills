@@ -172,6 +172,7 @@ sub _get_export_button {
     class         => 'btn btn-primary group-btn',
     ICON          => 'fa fa-external-link-alt',
     TITLE         => $lang->{EXPORT},
+    MODAL_SIZE    => 'lg',
     LOAD_TO_MODAL => 1,
   });
 }
@@ -401,21 +402,29 @@ sub export_ticket {
   my $self = shift;
   my ($attr) = @_;
 
-  if ($attr->{EXPORT}) {
-    require Msgs::Export_redmine;
-    Export_redmine->import();
+  require Msgs::Export_redmine;
+  Export_redmine->import();
+  my $Export_redmine = Export_redmine->new($db, $admin, $CONF);
 
-    my $Export_redmine = Export_redmine->new($db, $admin, $CONF);
+  if ($attr->{EXPORT}) {
     $Export_redmine->export_task($attr);
     my $task_link = ($Export_redmine->{TASK_LINK}) ?
       $html->button($Export_redmine->{TASK_ID}, '', { GLOBAL_URL => $Export_redmine->{TASK_LINK} }) :
       $Export_redmine->{TASK_ID};
 
     if(! main::_error_show($Export_redmine, { MESSAGE => $task_link })) {
-      $html->message('info', $lang->{ADDED}, "$lang->{ADDED}: " . $task_link) if $Export_redmine->{TASK_ID};
+      if ($Export_redmine->{TASK_ID}) {
+        $html->message('info', $lang->{ADDED}, "$lang->{ADDED}: " . $task_link);
+        $Msgs->message_reply_add({
+          ID              => $attr->{ID},
+          REPLY_TEXT      => "RM:$Export_redmine->{TASK_ID}",
+          REPLY_INNER_MSG => 1,
+          AID             => $admin->{AID},
+        }) if $attr->{ID};
+      }
     }
 
-    my $list = $Export_redmine->task_list();
+    my $list = $Export_redmine->task_list({ PROJECT_ID => $attr->{PROJECT_ID} });
     my $table;
 
     ($table, $list) = main::result_former({
@@ -447,6 +456,14 @@ sub export_ticket {
   $Msgs->{EXPORT_SYSTEM_SEL} = $html->form_select('EXPORT', {
     SELECTED  => 'redmine',
     SEL_ARRAY => [ 'redmine' ],
+  });
+
+  $Msgs->{PROJECT_SEL} = $html->form_select('PROJECT_ID', {
+    SELECTED  => 1,
+    SEL_LIST  => $Export_redmine->project_list(),
+    SEL_KEY   => 'identifier',
+    SEL_VALUE => 'name',
+    NO_ID     => 1
   });
 
   $html->tpl_show(main::_include('msgs_export', 'Msgs'), {%{$Msgs}, %{$attr} });

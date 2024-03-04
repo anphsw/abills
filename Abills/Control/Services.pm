@@ -22,8 +22,6 @@ our (
   @MODULES
 );
 
-#our $users;
-
 #**********************************************************
 =head sel_tp($tp_id)
 
@@ -39,6 +37,7 @@ our (
     SMALL_DEPOSIT_ACTION
     USER_INFO -
     DOMAIN_ID
+    MAIN_MENU -
 
   Returns:
     \%tp_hash (tp_id => name)
@@ -114,7 +113,12 @@ sub sel_tp {
     %extra_options = %{$attr->{SEL_OPTIONS}} if $attr->{SEL_OPTIONS};
 
     if ($attr->{EX_PARAMS}) {
-      %EX_PARAMS = ref $attr->{EX_PARAMS} eq 'HASH' ? %{$attr->{EX_PARAMS}} : (EX_PARAMS => $attr->{EX_PARAMS});
+      %EX_PARAMS = (ref $attr->{EX_PARAMS} eq 'HASH') ? %{$attr->{EX_PARAMS}} : (EX_PARAMS => $attr->{EX_PARAMS});
+    }
+
+    if ($attr->{MAIN_MENU}) {
+      $EX_PARAMS{MAIN_MENU} = get_function_index($attr->{MAIN_MENU});
+      $EX_PARAMS{MAIN_MENU_ARGV} = "chg=" . ($attr->{$element_name} // $FORM{$element_name} || ''),
     }
 
     return $html->form_select($element_name, {
@@ -394,6 +398,7 @@ sub get_user_services {
       FUNCTION_PARAMS => {
         GROUP_BY        => 'internet.id',
         INTERNET_STATUS => '_SHOW',
+        IP              => '_SHOW',
       },
     });
 
@@ -487,10 +492,15 @@ sub get_user_services {
     Abon->import();
     my $Abon = Abon->new($db, $admin, \%conf);
 
+    require Users;
+    my $Users = Users->new($db, $admin, \%conf);
+    $Users->info($uid);
+
     my $services = $Abon->user_tariff_list($uid, {
       USER_PORTAL  => '>0',
       SERVICE_LINK => '_SHOW',
       SERVICE_IMG  => '_SHOW',
+      GID          => $Users->{GID} || 0,
       COLS_NAME    => 1
     });
 
@@ -499,9 +509,6 @@ sub get_user_services {
     foreach my $service (@{$services}) {
       next if (!$service->{manual_activate} && !$service->{date});
       require POSIX;
-      require Users;
-      my $Users = Users->new($db, $admin, \%conf);
-      $Users->info($uid);
       POSIX->import(qw(strftime));
       $DATE = strftime("%Y-%m-%d", localtime(time));
       my $date_if = $service->{next_abon} ? date_diff($DATE, $service->{next_abon}) : 0;

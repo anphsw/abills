@@ -189,4 +189,13 @@ $lang{STORAGE_TOTAL_COUNT} = 'Загальна кількість';
 $lang{STORAGE_TOTAL_SUM} = 'Загальна сума';
 $lang{REPORT_ON_USED_MATERIALS_FROM_THE_STORAGE} = 'Звіт про використані матеріали зі складу';
 
+$lang{STORAGE_PURCHASE_MADE} = 'Покупка здійснена';
+$lang{STORAGE_PURCHASE_PROCESSING} = 'Покупка обробляється';
+$lang{STORAGE_ORDER_SENT_TO_CUSTOMER} = 'Відправлено замовнику';
+$lang{STORAGE_ORDER_RECEIVED_BY_CUSTOMER} = 'Отримано замовником';
+$lang{STORAGE_SOLD} = 'Продано';
+$lang{STORAGE_PURCHASED_ITEM} = 'Куплено товар';
+$lang{STORAGE_SHIPPING_STATUS} = 'Статус відправки';
+$lang{STORAGE_PURCHASE_REPORT} = 'Звіт про покупки';
+
 1;

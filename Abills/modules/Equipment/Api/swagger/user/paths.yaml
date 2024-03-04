@@ -1,0 +1,2 @@
+/user/equipment/:
+  $ref: "./paths/equipment.yaml"

@@ -5,9 +5,9 @@ use warnings FATAL => 'all';
 
 use Abills::Base qw(in_array mk_unique_value camelize);
 use Abills::Api::Helpers qw(static_string_generate caesar_cipher);
-use Abills::Api::Validations qw(POST_INTERNET_MAC_DISCOVERY);
+use Abills::Api::Validations qw(POST_INTERNET_MAC_DISCOVERY POST_USERS_CONTRACTS PUT_USERS_CONTRACTS);
 
-my $VERSION = 1.21;
+my $VERSION = 1.15;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -55,15 +55,19 @@ sub load_own_resource_info {
     return 0;
   }
 
+  my $error_msg = '';
   my $module = $attr->{package} . '::Api';
   eval "use $module";
 
   if ($@ || !$module->can('new')) {
+    $error_msg = $@;
     $@ = undef;
     $module = 'Abills::Api::Paths::' . $attr->{package};
     eval "use $module";
 
+    $error_msg .= $@;
     if ($@ || !$module->can('new')) {
+      $self->{error_msg} = $error_msg;
       return 0;
     }
   }
@@ -158,6 +162,138 @@ sub list {
 
   #TODO: check how it works with groups, multidoms
   return {
+    global    => [
+      {
+        method               => 'POST',
+        path                 => '/global/',
+        handler              => sub {
+          my ($path_params, $query_params) = @_;
+
+          my DBI $db = $self->{db}->{db};
+          $db->{AutoCommit} = 0;
+          $self->{db}->{TRANSACTION} = 1;
+
+          if (!$query_params->{REQUESTS} || ref $query_params->{REQUESTS} ne 'ARRAY') {
+            return {
+              errno  => 10150,
+              errstr => 'No field requests',
+            };
+          }
+
+          my %results = (
+            result  => 'OK',
+            results => [],
+          );
+
+          my $id = -1;
+          my %new_user;
+
+          foreach my $request (@{$query_params->{REQUESTS}}) {
+            ++$id;
+            # handling routes for new user registration
+            if (%new_user && $request->{URL} =~ /{UID}/) {
+              $request->{URL} =~ s/{UID}/$results{uid}/;
+
+              # handle params sent like "billId": "{BILL_ID}"
+              if ($request->{BODY} && ref $request->{BODY} eq 'HASH') {
+                foreach my $key (keys %{$request->{BODY}}) {
+                  if ($request->{BODY}->{$key} && $request->{BODY}->{$key} =~ /((?<=\{)[a-zA-z0-9_]+(?=\}))/g) {
+                    my $value = $1 || '';
+                    my $new_value = $new_user{$value} || '';
+                    $request->{BODY}->{$key} =~ s/{$value}/$new_value/g;
+                  }
+                }
+              }
+            }
+
+            if ($results{errno}) {
+              push @{$results{results}}, {
+                url        => $request->{URL} || '',
+                response   => {},
+                successful => 'false',
+                errno      => 10149,
+                errstr     => 'Fatal error, not executed',
+                id         => $id,
+              };
+              next;
+            }
+
+            # verify url and method valid or not
+            if (!$request->{URL} || ref $request->{URL} ne '' || !$request->{METHOD} || ref $request->{METHOD} ne '') {
+              $results{result} = 'Not valid method or url parameter';
+              $results{errno} = 10150;
+              push @{$results{results}}, {
+                url        => $request->{URL},
+                response   => {},
+                successful => 'false',
+                errno      => 10150,
+                errstr     => 'Not valid method or url parameter',
+                id         => $id,
+              };
+              next;
+            }
+
+            require Abills::Api::Handle;
+            my $handle = Abills::Api::Handle->new($self->{db}, $self->{admin}, $self->{conf}, {
+              req_params     => $request->{BODY} || {},
+              html           => $self->{html},
+              lang           => $self->{lang},
+              path           => $request->{URL},
+              request_method => $request->{METHOD},
+              direct         => 1
+            });
+            my $result = $handle->_start();
+
+            # catch error if it present
+            if ($result->{response} && ref $result->{response} eq 'HASH' && ($result->{response}->{errno} || $result->{response}->{error})) {
+              $results{result} = 'Execution failed';
+              $results{errno} = $result->{response}->{errno} || $result->{response}->{error};
+              push @{$results{results}}, {
+                url        => $request->{URL},
+                response   => $result->{response},
+                successful => 'false',
+                id         => $id,
+              };
+              next;
+            }
+
+            # handle user registration
+            if ($request->{METHOD} eq 'POST' && $request->{URL} eq '/users/') {
+              $results{uid} = $result->{response}->{UID};
+              require Users;
+              Users->import();
+              my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+              $Users->info($results{uid});
+              $Users->pi({ UID => $results{uid} });
+              %new_user = %$Users;
+            }
+
+            push @{$results{results}}, {
+              response   => $result->{response} || '',
+              status     => $result->{status} || 200,
+              url        => $request->{URL},
+              method     => $request->{METHOD},
+              successful => 'true',
+              id         => $id,
+            };
+          }
+
+          if ($results{errno}) {
+            $db->rollback();
+          }
+          else {
+            $db->commit();
+          }
+
+          $db->{AutoCommit} = 1;
+
+          return \%results;
+        },
+      },
+      credentials => [
+        'ADMIN'
+      ]
+    ],
     users     => [
       {
         method               => 'POST',
@@ -253,6 +389,7 @@ sub list {
 
           if (!$Users->{errno}) {
             if ($query_params->{CREDIT} && $query_params->{CREDIT_DATE}) {
+              $Users->info($path_params->{uid});
               ::cross_modules('payments_maked', { USER_INFO => $Users, SUM => $query_params->{CREDIT}, SILENT => 1, CREDIT_NOTIFICATION => 1 });
             }
 
@@ -700,8 +837,229 @@ sub list {
           'ADMIN'
         ]
       },
+      {
+        method      => 'GET',
+        path        => '/users/contracts/types/',
+        handler     => sub {
+          my ($path_params, $query_params) = @_;
+
+          return {
+            errno  => 10,
+            errstr => 'Access denied'
+          } if !$self->{admin}->{permissions}{0}{0};
+
+          foreach my $param (keys %{$query_params}) {
+            $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+          }
+
+          require Users;
+          Users->import();
+          my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+
+          return $Users->contracts_type_list({
+            %$query_params,
+          });
+        },
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/users/contracts/',
+        handler     => sub {
+          my ($path_params, $query_params) = @_;
+
+          return {
+            errno  => 10,
+            errstr => 'Access denied'
+          } if !$self->{admin}->{permissions}{0}{0};
+
+          foreach my $param (keys %{$query_params}) {
+            $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+          }
+
+          require Users;
+          Users->import();
+          my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+
+          my $contracts_list = $Users->contracts_list({
+            %$query_params,
+          });
+
+          foreach my $contract (@{$contracts_list}) {
+            delete $contract->{signature} if (!$query_params->{SIGNATURE});
+          }
+
+          return $contracts_list;
+        },
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/users/contracts/',
+        params      => POST_USERS_CONTRACTS,
+        handler     => sub {
+          my ($path_params, $query_params) = @_;
+
+          return {
+            errno  => 10,
+            errstr => 'Access denied'
+          } if !$self->{admin}->{permissions}{0}{1};
+
+          $query_params->{DATE} = $main::DATE if (!$query_params->{DATE});
+
+          require Users;
+          Users->import();
+          my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+
+          $Users->contracts_add($query_params);
+
+          delete @{$Users}{qw/list TOTAL AFFECTED/};
+
+          return $Users;
+        },
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'PUT',
+        path        => '/users/contracts/:id/',
+        params      => PUT_USERS_CONTRACTS,
+        handler     => sub {
+          my ($path_params, $query_params) = @_;
+
+          return {
+            errno  => 10,
+            errstr => 'Access denied'
+          } if !$self->{admin}->{permissions}{0}{4};
+
+          require Users;
+          Users->import();
+          my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+
+          $Users->contracts_change($path_params->{id}, $query_params);
+
+          delete @{$Users}{qw/list TOTAL AFFECTED/};
+
+          return $Users;
+        },
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'DELETE',
+        path        => '/users/contracts/:id/',
+        handler     => sub {
+          my ($path_params, $query_params) = @_;
+
+          return {
+            errno  => 10,
+            errstr => 'Access denied'
+          } if !$self->{admin}->{permissions}{0}{4};
+
+          require Users;
+          Users->import();
+          my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+
+          $Users->contracts_del({ ID => $path_params->{id} });
+
+          if (!$Users->{errno}) {
+            if ($Users->{AFFECTED} && $Users->{AFFECTED} =~ /^[0-9]$/) {
+              return {
+                result => 'Successfully deleted',
+                id     => $path_params->{id}
+              };
+            }
+            else {
+              return {
+                errno       => 10225,
+                errstr      => 'ERROR_NOT_EXIST',
+                err_message => 'No exists',
+              };
+            }
+          }
+          return $Users;
+        },
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method       => 'GET',
+        path         => '/users/contracts/:id/',
+        handler      => sub {
+          my ($path_params, $query_params) = @_;
+
+          return {
+            errno  => 10,
+            errstr => 'Access denied'
+          } if !$self->{admin}->{permissions}{0}{0};
+
+          require Users;
+          Users->import();
+          my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+
+          ::load_module('Control::Contracts_mng', { LOAD_PACKAGE => 1 }) if (!exists($INC{'Control/Contracts_mng.pm'}));
+          my $document = ::_print_user_contract({
+            ID            => $path_params->{id},
+            USER_OBJ      => $Users,
+            pdf           => 1,
+            OUTPUT2RETURN => 1
+          });
+
+          return $document;
+        },
+        content_type => 'Content-type: application/pdf',
+        credentials  => [
+          'ADMIN'
+        ]
+      },
     ],
     admins    => [
+      {
+        method      => 'POST',
+        path        => '/admins/login/',
+        handler     => sub {
+          my ($path_params, $query_params) = @_;
+
+          return {
+            errno  => 1000002,
+            errstr => 'ERR_AUTH_PASSWORD_LOGIN_DISABLED',
+          } if !$self->{conf}->{API_ADMIN_AUTH_LOGIN} || !$self->{conf}->{AUTH_METHOD};
+
+          return {
+            errno  => 1000003,
+            errstr => 'ERR_NO_LOGIN',
+          } if !$query_params->{LOGIN};
+
+          return {
+            errno  => 1000004,
+            errstr => 'ERR_NO_PASSWORD'
+          } if !$query_params->{PASSWORD};
+
+          %main::FORM = ();
+
+          my $status = ::check_permissions($query_params->{LOGIN}, $query_params->{PASSWORD}, 'plug', { API => 1 });
+
+          if (!$status) {
+            return {
+              sid => $self->{admin}->{SID} || '',
+            };
+          }
+          else {
+            return {
+              errno  => 10,
+              errstr => 'ACCESS_DENIED',
+              status => $status
+            };
+          }
+        },
+      },
       {
         method      => 'POST',
         path        => '/admins/:aid/contacts/',
@@ -857,7 +1215,8 @@ sub list {
         },
         module      => 'Admins',
         credentials => [
-          'ADMIN'
+          'ADMIN',
+          'ADMINSID'
         ]
       },
       {
@@ -886,6 +1245,69 @@ sub list {
               aid    => $path_params->{aid}
             };
           }
+        },
+        module      => 'Admins',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/admins/settings/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          $module_obj->{AID} = $self->{admin}{AID};
+          $module_obj->settings_info($query_params->{OBJECT_ID});
+        },
+        module      => 'Admins',
+        credentials => [
+          'ADMINSID'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/admins/settings/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          $module_obj->{AID} = $self->{admin}{AID};
+          $module_obj->settings_add({
+            AID => $self->{admin}{AID},
+            %$query_params,
+          });
+        },
+        module      => 'Admins',
+        credentials => [
+          'ADMINSID'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/admins/all/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          return {
+            errno  => 10,
+            errstr => 'Access denied'
+          } if !$self->{admin}->{permissions}{4}{4};
+
+          foreach my $param (keys %{$query_params}) {
+            $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
+          }
+
+          $query_params->{PAGE_ROWS} = $query_params->{PAGE_ROWS} || 25;
+          $query_params->{SORT} = $query_params->{SORT} || 1;
+          $query_params->{DESC} = $query_params->{DESC} || '';
+          $query_params->{PG} = $query_params->{PG} || 0;
+
+          my $admins = $module_obj->list({
+            %{$query_params},
+            COLS_NAME => 1,
+          });
+
+          return $admins;
         },
         module      => 'Admins',
         credentials => [
@@ -985,10 +1407,12 @@ sub list {
           my %config = ();
           $config{social_auth}{facebook} = 1 if ($self->{conf}->{AUTH_FACEBOOK_ID});
           $config{social_auth}{google} = 1 if ($self->{conf}->{AUTH_GOOGLE_ID});
+          $config{social_auth}{apple} = 1 if ($self->{conf}->{AUTH_APPLE_ID});
           $config{password_recovery} = 1 if ($self->{conf}->{PASSWORD_RECOVERY});
           if ($self->{conf}->{NEW_REGISTRATION_FORM}) {
             $config{registration}{facebook} = 1 if ($self->{conf}->{FACEBOOK_REGISTRATION});
             $config{registration}{google} = 1 if ($self->{conf}->{GOOGLE_REGISTRATION});
+            $config{registration}{apple} = 1 if ($self->{conf}->{APPLE_REGISTRATION});
           }
           else {
             $config{registration}{internet} = 1 if (in_array('Internet', \@main::MODULES) && in_array('Internet', \@main::REGISTRATION));
@@ -998,6 +1422,9 @@ sub list {
           $config{password}{symbols} = $self->{conf}->{PASSWD_SYMBOLS} if ($self->{conf}->{PASSWD_SYMBOLS});
           $config{password}{length} = $self->{conf}->{PASSWD_LENGTH} if ($self->{conf}->{PASSWD_LENGTH});
           $config{portal_news} = 1 if ($self->{conf}->{PORTAL_START_PAGE});
+
+          $config{auth}{phone} = 1 if ($self->{conf}->{AUTH_BY_PHONE});
+          $config{phone}{pattern} = $self->{conf}->{PHONE_NUMBER_PATTERN} if ($self->{conf}->{PHONE_NUMBER_PATTERN});
 
           return \%config;
         },
@@ -1289,7 +1716,7 @@ sub list {
           return {
             errno  => 10,
             errstr => 'Access denied'
-          } if !$self->{admin}->{permissions}{0}{35};
+          } if !$self->{admin}->{permissions}{0}{40};
 
           return {
             errno  => 10094,
@@ -1314,7 +1741,7 @@ sub list {
           return {
             errno  => 10,
             errstr => 'Access denied'
-          } if !$self->{admin}->{permissions}{0}{35};
+          } if !$self->{admin}->{permissions}{0}{40};
 
           $module_obj->district_info({ ID => $path_params->{id}, });
 
@@ -1335,7 +1762,7 @@ sub list {
           return {
             errno  => 10,
             errstr => 'Access denied'
-          } if !$self->{admin}->{permissions}{0}{35};
+          } if !$self->{admin}->{permissions}{0}{40};
 
           $module_obj->district_change({
             %$query_params,
@@ -1357,28 +1784,15 @@ sub list {
     ],
     online    => [
       {
+        #@deprecated
         method      => 'GET',
         path        => '/online/:uid/',
         handler     => sub {
-          my ($path_params, $query_params, $module_obj) = @_;
+          require Internet::Api::admin::Sessions;
+          my $Sessions = Internet::Api::admin::Sessions->new($self->{db}, $self->{admin}, $self->{conf});
 
-          return {
-            errno  => 10,
-            errstr => 'Access denied'
-          } if ($self->{admin}->{MODULES} && !$self->{admin}->{MODULES}->{Internet}) || !$self->{admin}->{permissions}{0}{33};
-
-          $module_obj->online({
-            UID           => $path_params->{uid},
-            NAS_PORT_ID   => '_SHOW',
-            CLIENT_IP_NUM => '_SHOW',
-            NAS_ID        => '_SHOW',
-            USER_NAME     => '_SHOW',
-            CLIENT_IP     => '_SHOW',
-            DURATION      => '_SHOW',
-            STATUS        => '_SHOW'
-          });
+          return $Sessions->get_sessions_uid(@_);
         },
-        module      => 'Internet::Sessions',
         credentials => [
           'ADMIN'
         ]
@@ -1462,6 +1876,7 @@ sub list {
           require Bills;
           Bills->import();
           my $Bills = Bills->new($self->{db}, $self->{admin}, $self->{conf});
+          $query_params->{BILL_ID} //= '--';
 
           if ($Users->{COMPANY_ID}) {
             $Bills->list({
@@ -1522,11 +1937,13 @@ sub list {
             }
           }
 
+          my $transaction = $self->{db}->{TRANSACTION} || 0;
+
           $Payments->{db}->{TRANSACTION} = 1;
           my $db_ = $Payments->{db}->{db};
           $db_->{AutoCommit} = 0;
 
-          if (in_array('Docs', \@main::MODULES) && $query_params->{CREATE_RECEIPT}) {
+          if ($query_params->{CREATE_RECEIPT} && in_array('Docs', \@main::MODULES)) {
             $query_params->{INVOICE_ID} = 'create';
             $query_params->{CREATE_RECEIPT} //= 1;
             $query_params->{APPLY_TO_INVOICE} //= 1;
@@ -1546,19 +1963,19 @@ sub list {
                 PAGE_ROWS => 1,
                 COLS_NAME => 1,
               });
-              $query_params->{ER_ID}          = $query_params->{EXCHANGE_ID};
-              $query_params->{ER}             = $list->[0]->{rate} || 1;
-              $query_params->{CURRENCY}       = $list->[0]->{iso} || 0;
-              $extra_results{currency}{name}  = $list->[0]->{money} || q{};
+              $query_params->{ER_ID} = $query_params->{EXCHANGE_ID};
+              $query_params->{ER} = $list->[0]->{rate} || 1;
+              $query_params->{CURRENCY} = $list->[0]->{iso} || 0;
+              $extra_results{currency}{name} = $list->[0]->{money} || q{};
             }
             else {
               my $er = $Payments->exchange_info($query_params->{EXCHANGE_ID});
-              $query_params->{ER_ID}          = $query_params->{EXCHANGE_ID};
-              $query_params->{ER}             = $er->{ER_RATE};
-              $query_params->{CURRENCY}       = $er->{ISO};
-              $extra_results{currency}{name}  = $er->{ER_NAME};
+              $query_params->{ER_ID} = $query_params->{EXCHANGE_ID};
+              $query_params->{ER} = $er->{ER_RATE};
+              $query_params->{CURRENCY} = $er->{ISO};
+              $extra_results{currency}{name} = $er->{ER_NAME};
             }
-            $extra_results{currency}{iso}   = $query_params->{CURRENCY};
+            $extra_results{currency}{iso} = $query_params->{CURRENCY};
 
             $extra_results{currency} = "exchangeId $query_params->{EXCHANGE_ID} not found" if (!$extra_results{currency}{iso} && !$query_params->{ER});
           }
@@ -1585,9 +2002,11 @@ sub list {
           });
 
           if ($Payments->{errno}) {
-            $db_->rollback();
-            $db_->{AutoCommit} = 1;
-            delete($Payments->{db}->{TRANSACTION});
+            if (!$transaction) {
+              $db_->rollback();
+              $db_->{AutoCommit} = 1;
+              delete($Payments->{db}->{TRANSACTION});
+            }
             return {
               errno  => 10071,
               errstr => "Payments error - $Payments->{errno}, errstr - $Payments->{errno}",
@@ -1639,9 +2058,11 @@ sub list {
               FORM         => { %main::FORM },
             });
 
-            delete($Payments->{db}->{TRANSACTION});
-            $db_->commit();
-            $db_->{AutoCommit} = 1;
+            if (!$transaction) {
+              $db_->commit();
+              $db_->{AutoCommit} = 1;
+              delete($Payments->{db}->{TRANSACTION});
+            }
 
             return {
               insert_id  => $Payments->{INSERT_ID},
@@ -1768,8 +2189,8 @@ sub list {
           'ADMIN'
         ]
       },
+      #@deprecated
       {
-        #TODO: we can send uid of one user and bill_id of other user. db will be in inconsistent state. fix it.
         method      => 'POST',
         path        => '/fees/users/:uid/:sum/',
         handler     => sub {
@@ -1784,6 +2205,167 @@ sub list {
             %$query_params,
             UID => $path_params->{uid}
           });
+        },
+        module      => 'Fees',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/fees/users/:uid/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          return {
+            errno  => 10,
+            errstr => 'Access denied'
+          } if (!$self->{admin}->{permissions}{2}{1} && !$self->{admin}->{permissions}{2}{3});
+
+          return {
+            errno  => 10102,
+            errstr => 'Wrong param sum, it\'s empty or must be bigger than zero',
+          } if (!$query_params->{SUM} || $query_params->{SUM} !~ /[0-9\.]+/ || $query_params->{SUM} <= 0);
+
+          my $Users = $path_params->{user_object};
+          require Bills;
+          Bills->import();
+          my $Bills = Bills->new($self->{db}, $self->{admin}, $self->{conf});
+          $query_params->{BILL_ID} //= '--';
+          $query_params->{DESCRIBE} //= '';
+          $query_params->{METHOD} //= 0;
+
+          if ($Users->{COMPANY_ID}) {
+            $Bills->list({
+              COMPANY_ID => $Users->{COMPANY_ID},
+              BILL_ID    => $query_params->{BILL_ID},
+              COLS_NAME  => 1,
+            });
+          }
+          else {
+            $Bills->list({
+              UID       => $path_params->{uid},
+              BILL_ID   => $query_params->{BILL_ID},
+              COLS_NAME => 1,
+            });
+          }
+
+          return {
+            errno  => 10101,
+            errstr => "User not found with uid - $path_params->{uid} and billId - $query_params->{BILL_ID}",
+          } if (!$Bills->{TOTAL});
+
+          my %results = ();
+
+          if ($query_params->{PERIOD} && $query_params->{PERIOD} eq '2') {
+            return {
+              errno  => 10103,
+              errstr => 'No param date',
+            } if (!$query_params->{DATE});
+
+            require Shedule;
+            Shedule->import();
+            my $Schedule = Shedule->new($self->{db}, $self->{admin}, $self->{conf});
+
+            my ($Y, $M, $D) = split(/-/, $query_params->{DATE});
+
+            $Schedule->add({
+              DESCRIBE => $query_params->{DESCRIBE},
+              D        => $D,
+              M        => $M,
+              Y        => $Y,
+              UID      => $path_params->{uid},
+              TYPE     => 'fees',
+              ACTION   => ($self->{conf}->{EXT_BILL_ACCOUNT})
+                ? "$query_params->{SUM}:$query_params->{DESCRIBE}:BILL_ID=$query_params->{BILL_ID}:$query_params->{METHOD}"
+                : "$query_params->{SUM}:$query_params->{DESCRIBE}::$query_params->{METHOD}"
+            });
+
+            if ($Schedule->{errno}) {
+              $results{result} = 'Failed add schedule';
+              $results{errno} = 10105;
+              $results{errstr} = $Schedule->{errstr};
+            }
+            else {
+              $results{result} = 'Schedule added';
+              $results{schedule_id} = $Schedule->{INSERT_ID};
+            }
+          }
+          else {
+            delete $query_params->{DATE};
+
+            if ($query_params->{ER} && $query_params->{ER} ne '') {
+              my $er = $module_obj->exchange_info($query_params->{ER});
+              return {
+                errstr => "Not valid parameter $query_params->{ER}",
+                errno  => 10104
+              } if ($module_obj->{errno});
+              $query_params->{ER}  = $er->{ER_RATE};
+              $query_params->{SUM} = $query_params->{SUM} / $query_params->{ER};
+            }
+
+            $module_obj->take({ UID => $path_params->{uid} }, $query_params->{SUM}, {
+              %$query_params,
+              UID => $path_params->{uid}
+            });
+
+            if ($module_obj->{errno}) {
+              $results{errno} = $module_obj->{errno};
+              $results{errstr} = $module_obj->{errno};
+            }
+            else {
+              $results{result} = 'OK';
+              $results{fee_id} = $module_obj->{INSERT_ID};
+
+              if ($query_params->{CREATE_FEES_INVOICE} && in_array('Docs', \@main::MODULES)) {
+                require Docs;
+                Docs->import();
+                my $Docs = Docs->new($self->{db}, $self->{admin}, $self->{conf});
+                $Docs->invoice_add({ %$query_params, ORDER => $query_params->{DESCRIBE}, UID => $path_params->{uid} });
+
+                if ($Docs->{errno}) {
+                  $results{docs}{result} = 'Failed add fees invoice';
+                  $results{docs}{errno} = $Docs->{errno};
+                  $results{docs}{errstr} = $Docs->{errstr};
+                }
+                else {
+                  $results{docs}{result} = 'OK';
+                  $results{docs}{invoice_id} = $Docs->{INVOICE_NUM};
+                }
+              }
+
+              if ($self->{conf}->{external_fees}) {
+                ::_external($self->{conf}->{external_fees}, { %$query_params, UID => $path_params->{uid} });
+                $results{external_fees} = 'Executed';
+              }
+            }
+          }
+
+          return \%results;
+        },
+        module      => 'Fees',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/fees/schedules/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          require Shedule;
+          Shedule->import();
+          my $Schedule = Shedule->new($self->{db}, $self->{conf}, $self->{admin});
+
+          my $list = $Schedule->list({
+            %$query_params,
+            UID       => $query_params->{UID} || '_SHOW',
+            TYPE      => 'fees',
+            COLS_NAME => 1
+          });
+
+          return $list;
         },
         module      => 'Fees',
         credentials => [
@@ -1945,6 +2527,7 @@ sub list {
             'COMMENTS',
             'CONTACTS_NEW_APPENDED',
             'CONTRACT_SUFFIX',
+            'TOTAL',
           );
 
           foreach my $info_field (@{$info_fields}) {
@@ -1957,7 +2540,7 @@ sub list {
           $users->pi({ UID => $path_params->{uid} });
 
           $users->{ADDRESS_FULL} =~ s/,\s?$// if ($users->{ADDRESS_FULL});
-          $users->{CUSTOM_ADDRESS_FULL} = $users->{ADDRESS_FULL} if ($self->{conf}->{ADDRESS_FORMAT});
+          $users->{ADDRESS_FULL_LOCATION} =~ s/,\s?$// if ($users->{ADDRESS_FULL_LOCATION});
 
           delete @{$users}{@delete_params};
 
@@ -2034,7 +2617,8 @@ sub list {
               my $code = static_string_generate($query_params->{EMAIL}, $path_params->{uid});
 
               if ($query_params->{EMAIL_CODE} && "$query_params->{EMAIL_CODE}" ne "$code") {
-                $result{email_confirm_status} = 'Wrong email code';
+                $result{email_confirm_message} = 'Wrong email code';
+                $result{email_confirm_status} = 1;
                 delete $allowed_params{EMAIL};
               }
               elsif (!$query_params->{EMAIL_CODE}) {
@@ -2048,6 +2632,9 @@ sub list {
                   QUITE       => 1,
                   UID         => $path_params->{uid},
                 });
+
+                $result{email_confirm_status} = 0;
+                $result{email_confirm_status} = 'Email send with code send';
               }
             }
 
@@ -2055,7 +2642,8 @@ sub list {
               my $code = static_string_generate($query_params->{PHONE}, $path_params->{uid});
 
               if ($query_params->{PHONE_CODE} && "$query_params->{PHONE_CODE}" ne "$code") {
-                $result{phone_confirm_status} = 'Wrong phone code';
+                $result{phone_confirm_message} = 'Wrong phone code';
+                $result{email_confirm_status} = 1;
                 delete $allowed_params{PHONE};
               }
               elsif (!$query_params->{PHONE_CODE}) {
@@ -2078,7 +2666,8 @@ sub list {
                 my $sent_sms = $Sms->{TOTAL} || 0;
 
                 if ($sms_limit <= $sent_sms) {
-                  $result{phone_confirm_status} = "User sms limit has been reached - $self->{conf}->{USER_LIMIT_SMS} sms";
+                  $result{phone_confirm_message} = "User sms limit has been reached - $self->{conf}->{USER_LIMIT_SMS} sms";
+                  $result{email_confirm_status} = 2;
                 }
                 else {
                   $Sender->send_message({
@@ -2087,6 +2676,9 @@ sub list {
                     SENDER_TYPE => 'Sms',
                     UID         => $path_params->{uid},
                   });
+
+                  $result{email_confirm_status} = 0;
+                  $result{email_confirm_status} = 'Sms send with code send';
                 }
               }
             }
@@ -2231,6 +2823,7 @@ sub list {
           'USER', 'USERBOT'
         ]
       },
+      #@deprecated
       {
         method      => 'GET',
         path        => '/user/:uid/internet/speed/',
@@ -2248,6 +2841,7 @@ sub list {
           'USER', 'USERBOT'
         ]
       },
+      #@deprecated
       {
         method      => 'GET',
         path        => '/user/:uid/internet/speed/:tpid/',
@@ -2720,6 +3314,20 @@ sub list {
       },
       {
         method  => 'POST',
+        path    => '/user/password/send/',
+        handler => sub {
+          my ($path_params, $query_params) = @_;
+
+          return $self->_user_send_password({
+            UID => $path_params->{uid} || '--',
+          });
+        },
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method  => 'POST',
         path    => '/user/password/recovery/',
         handler => sub {
           my ($path_params, $query_params) = @_;
@@ -3172,6 +3780,7 @@ sub list {
 
           my $user = $module_obj->list({
             UID        => $path_params->{uid},
+            GID        => '_SHOW',
             COMPANY_ID => '_SHOW',
             _GOOGLE    => '_SHOW',
             _FACEBOOK  => '_SHOW',
@@ -3210,15 +3819,31 @@ sub list {
               $holdup = $self->{conf}->{INTERNET_USER_SERVICE_HOLDUP};
             }
 
-            my ($min_period, $max_period, $holdup_period, $daily_fees, undef, $active_fees) = split(/:/, $holdup);
+            my @holdup_rules = split(/;/, $holdup);
+            $functions{holdup} = [];
 
-            $functions{$type_holdup} = {
-              min_period    => $min_period,
-              max_period    => $max_period,
-              holdup_period => $holdup_period,
-              daily_fees    => $daily_fees,
-              active_fees   => $active_fees
-            };
+            foreach my $holdup_rule (@holdup_rules) {
+              my ($min_period, $max_period, $holdup_period, $daily_fees, undef, $active_fees, $holdup_skip_gids) = split(/:/, $holdup_rule);
+
+              if ($holdup_skip_gids) {
+                my @holdup_skip_gids_arr = split(/,\s?/, $holdup_skip_gids);
+                next if ($user->{GID} && in_array($user->{GID}, \@holdup_skip_gids_arr));
+              }
+
+              my $holdup_rules = {
+                min_period    => $min_period,
+                max_period    => $max_period,
+                holdup_period => $holdup_period,
+                daily_fees    => $daily_fees,
+                active_fees   => $active_fees
+              };
+
+              if (!$functions{$type_holdup}) {
+                $functions{$type_holdup} = {%$holdup_rules};
+              }
+
+              push @{$functions{holdup}}, $holdup_rules;
+            }
           }
 
           if ($self->{conf}->{AUTH_GOOGLE_ID}) {
@@ -3281,7 +3906,48 @@ sub list {
           $functions{social_networks} = $self->{conf}->{SOCIAL_NETWORKS} if ($self->{conf}->{SOCIAL_NETWORKS});
           $functions{review_pages} = $self->{conf}->{REVIEW_PAGES} if ($self->{conf}->{REVIEW_PAGES});
 
-          $functions{user_chg_passwd} = 1 if ($self->{conf}->{user_chg_passwd});
+          $functions{phone}{pattern} = $self->{conf}->{PHONE_NUMBER_PATTERN} if ($self->{conf}->{PHONE_NUMBER_PATTERN});
+
+          if ($self->{conf}->{user_chg_passwd} || ($self->{conf}->{group_chg_passwd} && $self->{conf}->{group_chg_passwd} eq $user->{GID})) {
+            $functions{user_chg_passwd} = 1;
+          }
+
+          if ($self->{conf}->{user_chg_pi}) {
+            $functions{user_chg_pi} = 1;
+
+            if ($self->{conf}->{CHECK_CHANGE_PI}) {
+              $functions{user_chg_pi_allowed_params}{($_ || q{})} = 99 for (split ',\s?', ($self->{conf}->{CHECK_CHANGE_PI}));
+            }
+            else {
+              $functions{user_chg_pi_allowed_params} = {
+                fio        => 99,
+                cell_phone => 99,
+                email      => 99,
+                phone      => 99,
+              };
+
+              if ($self->{conf}->{user_chg_info_fields}) {
+                $functions{user_chg_info_fields_types} = [ 'String', 'Integer', 'List', 'Text', 'Flag' ];
+                require Info_fields;
+                Info_fields->import();
+
+                my $Info_fields = Info_fields->new($self->{db}, $self->{admin}, $self->{conf});
+                my $info_fields = $Info_fields->fields_list({
+                  SQL_FIELD   => '_SHOW',
+                  TYPE        => '_SHOW',
+                  ABON_PORTAL => 1,
+                  USER_CHG    => 1,
+                  COLS_NAME   => 1,
+                });
+
+                foreach my $info_field (@{$info_fields}) {
+                  $functions{user_chg_pi_allowed_params}{uc($info_field->{sql_field})} = $info_field->{type};
+                }
+              }
+            }
+          }
+
+          $functions{user_send_password} = 1 if ($self->{conf}->{USER_SEND_PASSWORD});
 
           return \%functions;
         },
@@ -3421,6 +4087,38 @@ sub list {
         ]
       },
       {
+        method      => 'GET',
+        path        => '/user/recommendedPay/',
+        handler     => sub {
+          my ($path_params, $query_params) = @_;
+
+          require Users;
+          Users->import();
+          my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+
+          $Users->info($path_params->{uid});
+
+          my $sum = ::recomended_pay($Users);
+          my $min_sum = $self->{conf}->{PAYSYS_MIN_SUM} || 0;
+
+          if ($self->{conf}->{PAYSYS_MIN_SUM_RECOMMENDED_PAY} && $sum > $min_sum) {
+            $min_sum = $sum;
+          }
+
+          my $all_services_fee = ::recomended_pay($Users, { SKIP_DEPOSIT_CHECK => 1 });
+
+          return {
+            sum              => $sum,
+            all_services_sum => $all_services_fee,
+            max_sum          => $self->{conf}->{PAYSYS_MAX_SUM} || 0,
+            min_sum          => $min_sum,
+          };
+        },
+        credentials => [
+          'USER', 'USERBOT'
+        ]
+      },
+      {
         method               => 'POST',
         path                 => '/user/login/',
         handler              => sub {
@@ -3429,7 +4127,98 @@ sub list {
         },
         no_decamelize_params => 1,
       },
+    ],
+    callback      => [
+      {
+        method      => 'POST',
+        path        => '/callback/subscribe/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          $module_obj->vpbx_subscribe_add($query_params);
+        },
+        module      => 'Voip',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'DELETE',
+        path        => '/callback/unsubscribe/',
+        handler     => sub {
+          my ($path_params, $query_params, $module_obj) = @_;
+
+          $module_obj->vpbx_subscribe_del($query_params->{CALLBACK_URL});
+        },
+        module      => 'Voip',
+        credentials => [
+          'ADMIN'
+        ]
+      }
     ]
+  };
+}
+
+#**********************************************************
+=head2 _user_send_sms_password($path_params, $query_params)
+
+=cut
+#**********************************************************
+sub _user_send_password {
+  #TODO: move to package
+  my $self = shift;
+  my ($attr) = @_;
+
+  return {
+    errno  => 1000001,
+    errstr => 'SERVICE_NOT_ENABLED',
+  } if (!$self->{conf}->{USER_SEND_PASSWORD});
+
+  ::load_module('Abills::Templates', { LOAD_PACKAGE => 1 }) if (!exists($INC{'Abills/Templates.pm'}));
+
+  require Abills::Sender::Core;
+  Abills::Sender::Core->import();
+  my $Sender = Abills::Sender::Core->new($self->{db}, $self->{admin}, $self->{conf});
+
+  require Users;
+  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+  $Users->pi({ UID => $attr->{UID} });
+  $Users->info($attr->{UID});
+
+  my $send_status = 0;
+  my $type = '';
+
+  if (in_array('Sms', \@main::MODULES) && ($Users->{PHONE} || $Users->{CELL_PHONE})) {
+    $type = 'sms';
+    my $sms_number = $Users->{CELL_PHONE} || $Users->{PHONE};
+    my $message = $self->{html}->tpl_show(::templates('sms_password_recovery'), $Users, { OUTPUT2RETURN => 1 });
+
+    $send_status = $Sender->send_message({
+      TO_ADDRESS  => $sms_number,
+      MESSAGE     => $message,
+      SENDER_TYPE => 'Sms',
+      UID         => $Users->{UID},
+    });
+  }
+  else {
+    $type = 'email';
+    my $message = $self->{html}->tpl_show(::templates('email_password_recovery'), $Users, { OUTPUT2RETURN => 1 });
+
+    $send_status = $Sender->send_message({
+      TO_ADDRESS   => $Users->{EMAIL},
+      MESSAGE      => $message,
+      SUBJECT      => $main::PROGRAM,
+      SENDER_TYPE  => 'Mail',
+      QUITE        => 1,
+      UID          => $Users->{UID},
+      CONTENT_TYPE => $self->{conf}->{PASSWORD_RECOVERY_MAIL_CONTENT_TYPE} ? $self->{conf}->{PASSWORD_RECOVERY_MAIL_CONTENT_TYPE} : '',
+    });
+  }
+
+  return {
+    result      => 'Successfully send password',
+    send_status => $send_status,
+    type        => $type
   };
 }
 
@@ -3460,6 +4249,16 @@ sub _users_login {
   elsif ($self->{conf}->{AUTH_APPLE_ID} && $query_params->{apple}) {
     $main::FORM{token} = $query_params->{apple};
     $main::FORM{external_auth} = 'Apple';
+    $main::FORM{API} = 1;
+    $session_id = 'plug' if ($self->{conf}->{PASSWORDLESS_ACCESS});
+  }
+  elsif ($self->{conf}->{AUTH_BY_PHONE} && ($query_params->{phone} || $query_params->{pinCode})) {
+    $main::FORM{PHONE} = $query_params->{phone} || '';
+    $main::FORM{PIN_CODE} = $query_params->{pinCode} || '';
+    $main::FORM{AUTH_CODE} = $query_params->{authCode} || '';
+    $main::FORM{UID} = $query_params->{uid} || '';
+    $main::FORM{PIN_ALREADY_EXIST} = $query_params->{pinAlreadyExists} || '';
+    $main::FORM{external_auth} = 'Phone';
     $main::FORM{API} = 1;
     $session_id = 'plug' if ($self->{conf}->{PASSWORDLESS_ACCESS});
   }

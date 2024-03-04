@@ -1170,4 +1170,50 @@ sub _huawei_convert_last_cable_test_time {
   return strftime("%F %T", localtime(time() - $seconds_ago));
 }
 
+#**********************************************************
+=head2 equipment_model_detect($attr)
+
+  Arguments:
+    $equipment_info
+    $attr
+      _EQUIPMENT - Main object
+
+  Returns:
+    @models_ids
+
+=cut
+#**********************************************************
+sub equipment_model_detect {
+  my ($equipment_info, $attr) = @_;
+  my $model_id = 0;
+
+  our Equipment $Equipment;
+  if ($attr->{_EQUIPMENT}) {
+    $Equipment = $attr->{_EQUIPMENT};
+  }
+
+  return [] if(! $equipment_info);
+
+  my @detected_models = ();
+
+  my $models_list = $Equipment->model_list({
+    TYPE_ID    => '_SHOW',
+    COLS_NAME  => 1,
+    PAGE_ROWS  => 100000
+  });
+
+  foreach my $model (@$models_list) {
+    if ($model->{model_name} && $equipment_info =~ /$model->{model_name}/) {
+      push @detected_models, {
+        VENDOR => $model->{vendor_name},
+        NAME   => $model->{model_name},
+        TYPE_ID=> $model->{type_id},
+        ID     => $model->{id},
+      };
+    }
+  }
+
+  return \@detected_models;
+}
+
 1;

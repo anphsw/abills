@@ -6,6 +6,8 @@ use warnings FATAL => 'all';
 require Control::Service_control;
 my $Service_control;
 
+my %icons = (tariff => "\xF0\x9F\x93\x88");
+
 #**********************************************************
 =head2 new($Botapi)
 
@@ -37,7 +39,7 @@ sub new {
 sub btn_name {
   my $self = shift;
 
-  return $self->{bot}{lang}{INTERNET};
+  return "$icons{tariff} $self->{bot}{lang}{TARIF_PLAN}";
 }
 
 #**********************************************************

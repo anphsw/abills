@@ -1,0 +1,286 @@
+/ureports/user/list:
+  get:
+    tags:
+      - ureports
+    summary: Список пользователей с включенными оповещениями
+    operationId: ureportsUserList
+    parameters:
+      - name: tpId
+        in: query
+        description: ID тарифного план
+        schema:
+          type: boolean
+          default: true
+      - name: tpName
+        in: query
+        description: Название тарифного плана
+        schema:
+          type: boolean
+          default: false
+      - name: destination
+        in: query
+        description: Массив, содержащий различные направления, в которые будет отправлено оповещение
+        schema:
+          type: boolean
+          default: true
+      - name: status
+        in: query
+        description: Статус подписки
+        schema:
+          type: boolean
+          default: false
+      - name: uid
+        in: query
+        description: UID пользователя
+        schema:
+          type: boolean
+          default: true
+      - name: reportsCount
+        in: query
+        description: Количество отчётов
+        schema:
+          type: boolean
+          default: false
+      - name: pageRows
+        in: query
+        description: Количество записей
+        schema:
+          type: integer
+          default: 100000
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UreportsUserInfo"
+    security:
+      - KEY: []
+/ureports/user/{UID}:
+  get:
+    tags:
+      - ureports
+    summary: Получить пользователя
+    parameters:
+      - name: UID
+        in: path
+        description: UID пользователя
+        required: true
+        schema:
+          type: integer
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UreportsUserInfo"
+    security:
+      - KEY: []
+  post:
+    tags:
+      - ureports
+    summary: Добавить оповещения пользователю
+    parameters:
+      - name: UID
+        in: path
+        description: UID пользователя
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UreportsUserAddRequest"
+      required: true
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UreportsUserAddResponse200"
+      400:
+        description: Пользователь существует
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UreportsUserAddResponse400"
+    security:
+      - KEY: []
+  put:
+    tags:
+      - ureports
+    summary: Изменить оповещения пользователю
+    parameters:
+      - name: UID
+        in: path
+        description: UID пользователя
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UreportsUserAddRequest"
+      required: true
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UreportsUserAddResponse200"
+    security:
+      - KEY: []
+  delete:
+    tags:
+      - ureports
+    summary: Удалить оповещения пользователю
+    operationId: ureportsDeleteUser
+    parameters:
+      - name: UID
+        in: path
+        description: UID пользователя
+        required: true
+        schema:
+          type: integer
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                result:
+                  type: string
+                  example: Successfully deleted
+    security:
+      - KEY: []
+/ureports/user/{UID}/reports:
+  get:
+    tags:
+      - ureports
+    summary: Получить отчеты пользователя
+    parameters:
+      - name: UID
+        in: path
+        description: UID пользователя
+        required: true
+        schema:
+          type: integer
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UreportsUserReports"
+    security:
+      - KEY: []
+  post:
+    tags:
+      - ureports
+    summary: Добавить отчеты пользователя
+    parameters:
+      - name: UID
+        in: path
+        description: UID пользователя
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UreportsUserReportAddReqeust"
+      required: true
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                result:
+                  type: string
+                  example: Successfully added reports
+      400:
+        description: Поле отчеты должны быть массивом
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UreportsUserReportAddResponse400"
+    security:
+      - KEY: []
+  delete:
+    tags:
+      - ureports
+    summary: Удалить отчеты пользователя
+    parameters:
+      - name: UID
+        in: path
+        description: UID пользователя
+        required: true
+        schema:
+          type: integer
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                result:
+                  type: string
+                  example: Successfully deleted
+      400:
+        description: Нет пользователя
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UreportsUserReportDeleteResponse400"
+    security:
+      - KEY: []
+/ureports/user/{UID}/reports/{ID}:
+  delete:
+    tags:
+      - ureports
+    summary: Удалить отчет пользователя
+    parameters:
+      - name: UID
+        in: path
+        description: UID пользователя
+        required: true
+        schema:
+          type: integer
+      - name: ID
+        in: path
+        description: ID отчета
+        required: true
+        schema:
+          type: integer
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                result:
+                  type: string
+                  example: Successfully deleted
+      400:
+        description: Нет пользователя
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UreportsUserReportDeleteResponse400"
+    security:
+      - KEY: []

@@ -107,5 +107,7 @@ $lang{MAPS_SCALE} = 'Scale';
 
 $lang{PLOT} = 'Plot';
 $lang{NO_MOVES_FOUND} = 'No moves found during this period';
+$lang{THE_COORDINATES_DISTRICT_ALREADY_INDICATED} = 'The coordinates of the district are already indicated';
+$lang{CURSOR_COORDINATES} = 'Cursor coordinates';
 
 1;

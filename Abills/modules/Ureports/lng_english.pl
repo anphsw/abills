@@ -29,4 +29,16 @@ $lang{AUTHOR} = 'Author';
 $lang{UNREG_MESSAGE_TITLE} = 'We are glad you are with us!';
 $lang{UNREG_MESSAGE_BODY} = 'Sign up to stay with us and receive special offers from us.';
 
+$lang{ERR_TPID_MISSING} = 'No field tpId';
+$lang{ERR_DEST_MISSING} = 'No field destinations';
+$lang{ERR_DEST_NOT_ARRAY} = 'Destinations must be an array';
+$lang{ERR_USER_INFO_EXISTS} = 'User info exists';
+$lang{ERR_USER_NOT_FOUND} = 'No user with UID %UID%';
+$lang{ERR_NO_REPORT_SERVICE} = 'No user with report service';
+$lang{ERR_REPORTS_MISSING} = 'No field reports';
+$lang{ERR_REPORTS_NOT_ARRAY} = 'Field reports is not an array';
+$lang{ERR_NO_REPORTS_ADDED} = 'No reports added';
+$lang{ERR_NO_REPORTS_FOR_USER} = 'User with UID %UID% has no reports';
+$lang{ERR_NO_REPORT_WITH_ID} = 'User with UID %UID% has no report with ID %ID%';
+
 1;

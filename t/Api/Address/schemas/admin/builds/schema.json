@@ -1,0 +1,34 @@
+{
+  "definitions": {},
+  "type": "array",
+  "title": "The Root Schema",
+  "required": [
+    "districtName",
+    "id",
+    "number",
+    "streetId",
+    "streetName"
+  ],
+  "properties": {
+    "districtName": {
+      "$id": "#/properties/districtName",
+      "type": "string"
+    },
+    "id": {
+      "$id": "#/properties/id",
+      "type": "number"
+    },
+    "number": {
+      "$id": "#/properties/number",
+      "type": "string"
+    },
+    "streetId": {
+      "$id": "#/properties/streetId",
+      "type": "number"
+    },
+    "streetName": {
+      "$id": "#/properties/streetName",
+      "type": "string"
+    }
+  }
+}

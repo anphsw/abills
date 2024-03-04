@@ -242,6 +242,12 @@ sub reports {
       }
     }
 
+    if ($attr->{ADMINS}){
+      my $sel_admins = sel_admins({ SELECTED => $FORM{AID} });
+      push @rows, $html->element('label', "$lang{ADMIN}: ", { class => 'col-md-2 control-label' })
+        . $html->element('div', $sel_admins, { class => 'col-md-8' });
+    }
+
     #Show extra select form
     if ($attr->{EXT_SELECT}) {
       if (ref $attr->{EXT_SELECT} eq 'HASH') {
@@ -609,13 +615,14 @@ sub report_payments {
     REPORT      => '',
     PERIOD_FORM => 1,
     DATE_RANGE  => 1,
+    ADMINS      => 1,
     FIELDS      => \%METHODS_HASH,
     EX_INPUTS   => [
       $html->element('label', "$lang{PAYMENT_METHOD}:", { class=> 'col-md-2 col-form-label text-md-right' }) .
         $html->element('div', $html->form_input('PAYMENT_METHOD_FILTER', '', {
           EX_PARAMS => "data-filter='static'",
           OUTPUT2RETURN => 1
-        } ), { class=> 'col-md-10' })
+        } ), { class=> 'col-md-8' })
     ],
     EXT_TYPE    => {
       PAYMENT_METHOD => $lang{PAYMENT_METHOD},
@@ -650,6 +657,8 @@ sub report_payments {
   my $type = $FORM{TYPE} || '';
   $pages_qs .= "&TYPE=$type" if $type && $pages_qs !~ /&TYPE=/;
   $pages_qs .= "&FIELDS=$FORM{FIELDS}" if defined $FORM{FIELDS} && $pages_qs !~ /&FIELDS=/;
+  $pages_qs .= "&AID=$FORM{AID}" if defined $FORM{AID} && $pages_qs !~ /&AID=/;
+  $LIST_PARAMS{AID} = $FORM{AID} if defined $FORM{AID};
 
   my %x_variable = (
     DAYS           => 'date',
@@ -767,7 +776,7 @@ sub report_payments {
       # admin_name    => "search_link:report_payments:ADMIN_NAME,$type=1,$pages_qs,$fields",
       method        => "search_link:report_payments:METHOD,TYPE=USER,$pages_qs",
       login         => "search_link:from_users:UID,$type=1,$pages_qs",
-      date          => "search_link:report_payments:DATE,DATE,$fields",
+      date          => "search_link:report_payments:DATE,DATE,$fields,$pages_qs",
       month         => "search_link:report_payments:MONTH,$pages_qs,$fields",
       build         => "search_link:report_payments:LOCATION_ID,LOCATION_ID,TYPE=USER,$pages_qs",
       district_name => "search_link:report_payments:DISTRICT_ID,DISTRICT_ID,TYPE=USER,$pages_qs",

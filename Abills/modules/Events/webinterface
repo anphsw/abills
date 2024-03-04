@@ -48,6 +48,7 @@ require Events::Profile;
 
 =cut
 #**********************************************************
+#TODO: Move to Events::Base
 sub events_events {
   my ($attr) = @_;
   my @events_list = ();

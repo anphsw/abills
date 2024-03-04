@@ -24,12 +24,8 @@ our(
 );
 
 our Abills::HTML $html;
-
-#my @service_status_colors = ($_COLORS[9], "840000", '#808080', '#0000FF', $_COLORS[6], '#009999');
 my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{ERROR}, $lang{BREAKING}, $lang{NOT_MONITORING});
-
 my @ports_state = ('', "Up", "Down", 'Damage', 'Corp vlan', 'Dormant', 'Not Present', 'lowerLayerDown');
-#my @admin_ports_state = ('', 'Enabled', 'Disabled', 'Testing');
 my @admin_ports_state = ('', 'Up', 'Down', 'Testing');
 my @ports_state_color = ('', '#008000', '#FF0000');
 
@@ -306,6 +302,16 @@ sub equipment_ports_full {
       }
       elsif ( $col_id eq 'IP' || $col_id eq 'LOGIN' || $col_id eq 'ADDRESS_FULL' || $col_id eq 'FIO' ||  $col_id eq 'TP_NAME'){
         my $value = '';
+
+        if ($snmp_port && $snmp_port > $Equipment_->{PORTS}) {
+          my ($sw_port, $sw_extra_ports)=split(/\+/, $Equipment_->{PORTS_WITH_EXTRA} || q{0+0});
+          if($sw_port) {
+            my $sw_ports = $sw_port + ($sw_extra_ports || 0);
+            my $stack = int($snmp_port / $sw_ports);
+            $snmp_port = sprintf("%02d%02d", $stack - 1, $snmp_port - ($sw_ports * $stack));
+          }
+        }
+
         if ($snmp_port && $used_ports->{$snmp_port}) {
           if ($col_id eq 'LOGIN') {
             $value .= show_used_info( $used_ports->{ $snmp_port } );
@@ -580,16 +586,17 @@ sub equipment_ports {
     });
   }
   #Show ports
-  elsif ( $visual == 2 && !$FORM{PORT}){
-    equipment_ports_full( $attr );
+  elsif ( $visual == 2 ){
+    if ( $FORM{PORT}) {
+      equipment_port_manage($attr);
+    }
+    else {
+      equipment_ports_full($attr);
+    }
   }
-  # Pon information
   elsif ( $visual == 4 ){
-    equipment_pon({
-      %$attr,
-    });
+    equipment_pon($attr);
   }
-  #Get FDB
   elsif ( $visual == 6 ){
     equipment_fdb($attr);
   }
@@ -614,67 +621,141 @@ sub equipment_ports {
     });
     print $html->tpl_show(_include('equipment_command_run', 'Equipment'), { CMD_RUN => $run_cmd}, { OUTPUT2RETURN => 1 });
   }
-  elsif ( $visual == 2 && $FORM{PORT}) {
-    $Equipment->{TYPE_SEL} = $html->form_select(
-      'TYPE_ID',
-      {
-        SELECTED => $Equipment->{TYPE_ID},
-        SEL_LIST => [ { id => 0, name => $lang{USER} }, { id => 1, name => 'UPLINK' } ],
-        NO_ID    => 1,
-      }
-    );
-
-    $Equipment->{STATUS_SEL} = $html->form_select(
-      'STATUS',
-      {
-        SELECTED => $FORM{STATUS} || $Equipment->{STATUS} || 0,
-        SEL_LIST => [ {}, { id => 1, name => 'Up' }, { id => 2, name => 'Down' } ],
-        NO_ID    => 1,
-      }
-    );
-
-    $Equipment->{UPLINK_SEL} = $html->form_select(
-      'UPLINK',
-      {
-        SELECTED    => $FORM{UPLINK} || $Equipment->{UPLINK} || '',
-        SEL_LIST    => $Equipment->_list( {
-          %LIST_PARAMS,
-          NAS_ID    => '_SHOW',
-          NAS_NAME  => '_SHOW',
-          SHORT     => 1,
-          PAGE_ROWS => 9999,
-          COLS_NAME => 1 } ),
-        SEL_KEY     => 'nas_id',
-        SEL_VALUE   => 'nas_name',
-        SEL_OPTIONS => { '' => '--' },
-      }
-    );
-
-    $Equipment->{VLAN_SEL} = $html->form_select(
-      'VLAN',
-      {
-        SELECTED    => $Equipment->{VLAN} || $FORM{VLAN} || '',
-        SEL_LIST    => $Equipment->vlan_list( { %LIST_PARAMS, NAME => '_SHOW', SHORT => 1, PAGE_ROWS => 9999, COLS_NAME => 1 } ),
-        SEL_KEY     => 'id',
-        SEL_VALUE   => 'name',
-        NO_ID       => 1,
-        SEL_OPTIONS => { '' => '--' },
-      }
-    );
-
-    $Equipment->{ROWS_COUNT} = 1 if (! $Equipment->{ROWS_COUNT});
-    $Equipment->{BLOCK_SIZE} = 4 if (! $Equipment->{BLOCK_SIZE});
-
-    if ($Equipment->{ACTION} eq 'add') {
-      $FORM{COMMENTS} = ''; #somewhy there are comments of equipment, not port
-    }
-    if (defined $Equipment->{VLAN} && $Equipment->{VLAN} == 0) {
-      $Equipment->{VLAN} = undef; #dont display VLAN if it is 0
-    }
-
-    $html->tpl_show( _include( 'equipment_port', 'Equipment' ), { %FORM, %{$Equipment} } );
-  }
 #  equipment_ports_full( $attr );
+  return 1;
+}
+
+#********************************************************
+=head2 equipment_port_manage($attr) - Prints modal window with ports panel. Used in port selection on abonent's page
+
+  Arguments:
+    $attr
+      NAS_INFO
+
+  Results:
+
+=cut
+#********************************************************
+sub equipment_port_manage {
+  my ($attr)=@_;
+
+  my Equipment $Equipment_ = $attr->{NAS_INFO};
+  my $SNMP_COMMUNITY = $attr->{SNMP_COMMUNITY};
+
+  $Equipment->{TYPE_SEL} = $html->form_select(
+    'TYPE_ID',
+    {
+      SELECTED => $Equipment_->{TYPE_ID},
+      SEL_LIST => [ { id => 0, name => $lang{USER} }, { id => 1, name => 'UPLINK' } ],
+      NO_ID    => 1,
+    }
+  );
+
+  $Equipment_->{STATUS_SEL} = $html->form_select(
+    'STATUS',
+    {
+      SELECTED => $FORM{STATUS} || $Equipment_->{STATUS} || 0,
+      SEL_LIST => [ {}, { id => 1, name => 'Up' }, { id => 2, name => 'Down' } ],
+      NO_ID    => 1,
+    }
+  );
+
+  $Equipment_->{UPLINK_SEL} = $html->form_select(
+    'UPLINK',
+    {
+      SELECTED    => $FORM{UPLINK} || $Equipment_->{UPLINK} || '',
+      SEL_LIST    => $Equipment_->_list( {
+        %LIST_PARAMS,
+        NAS_ID    => '_SHOW',
+        NAS_NAME  => '_SHOW',
+        SHORT     => 1,
+        PAGE_ROWS => 9999,
+        COLS_NAME => 1 } ),
+      SEL_KEY     => 'nas_id',
+      SEL_VALUE   => 'nas_name',
+      SEL_OPTIONS => { '' => '--' },
+    }
+  );
+
+  $Equipment_->{VLAN_SEL} = $html->form_select(
+    'VLAN',
+    {
+      SELECTED    => $Equipment_->{VLAN} || $FORM{VLAN} || '',
+      SEL_LIST    => $Equipment_->vlan_list( { %LIST_PARAMS, NAME => '_SHOW', SHORT => 1, PAGE_ROWS => 9999, COLS_NAME => 1 } ),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => '--' },
+    }
+  );
+
+  $Equipment_->{ROWS_COUNT} = 1 if (! $Equipment_->{ROWS_COUNT});
+  $Equipment_->{BLOCK_SIZE} = 4 if (! $Equipment_->{BLOCK_SIZE});
+
+  if ($Equipment_->{ACTION} eq 'add') {
+    $FORM{COMMENTS} = ''; #somewhy there are comments of equipment, not port
+  }
+  if (defined $Equipment_->{VLAN} && $Equipment_->{VLAN} == 0) {
+    $Equipment_->{VLAN} = undef; #dont display VLAN if it is 0
+  }
+
+  my $port_info_fields = 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,PORT_IN,PORT_OUT,PORT_IN_ERR,PORT_OUT_ERR,PORT_IN_DISCARDS,PORT_OUT_DISCARDS,PORT_UPTIME';
+
+  #Get snmp info
+  my $ports_snmp_info = equipment_test({
+    PORT_ID         => $Equipment_->{PORT} || $FORM{PORT},
+    PORT_INFO       => $port_info_fields,
+    VERSION         => $Equipment_->{SNMP_VERSION},
+    SNMP_TPL        => $Equipment_->{SNMP_TPL},
+    SNMP_COMMUNITY  => $SNMP_COMMUNITY,
+    RUN_CABLE_TEST  => 1,
+    AUTO_PORT_SHIFT => $Equipment_->{AUTO_PORT_SHIFT},
+    %{$attr}
+  });
+
+  my $port_data = $ports_snmp_info->{$Equipment_->{PORT} || $FORM{PORT}};
+  my ($port_in, $port_out) = (0, 0);
+
+  $Equipment_->{PORT_NAME} = $port_data->{PORT_NAME} || '';
+  $Equipment_->{PORT_DESCR} = $port_data->{PORT_DESCR} || '';
+  $Equipment_->{PORT_UPTIME} = $port_data->{PORT_UPTIME} || '';
+  $Equipment_->{PORT_STATUS} = $port_data->{PORT_STATUS} ? ($html->color_mark($ports_state[$port_data->{PORT_STATUS}], $ports_state_color[$port_data->{PORT_STATUS}])) : '';
+  $Equipment_->{PORT_TYPE} = $port_types[$port_data->{PORT_TYPE}] if $port_data->{PORT_TYPE};
+  $Equipment_->{PORT_ERRORS} = ($port_data->{PORT_IN_ERR} || 0) .'/'.($port_data->{PORT_OUT_ERR} || 0);
+  $Equipment_->{PORT_DISCARDS} = ($port_data->{PORT_IN_DISCARDS} || 0) .'/'.($port_data->{PORT_OUT_DISCARDS} || 0);
+
+  if ($port_data->{PORT_SPEED} && $port_data->{PORT_SPEED} > 1000000000) {
+    $Equipment_->{PORT_SPEED} = '10+ Gbps';
+  }
+  elsif ($port_data->{PORT_SPEED} && $port_data->{PORT_SPEED} == 1000000000) {
+    $Equipment_->{PORT_SPEED} = '1 Gbps';
+  }
+  elsif ($port_data->{PORT_SPEED} && $port_data->{PORT_SPEED} == 100000000) {
+    $Equipment_->{PORT_SPEED} = '100 Mbps';
+  }
+  else {
+    $Equipment_->{PORT_SPEED} = int2byte($port_data->{PORT_SPEED}) if $port_data->{PORT_SPEED};
+  }
+
+  if (ref $port_data->{PORT_IN} eq 'HASH' ){
+    $port_in = ($port_data->{PORT_IN}{value}[1] || '').($port_data->{PORT_IN}{value}[0] || '')
+  }
+  else {
+    $port_in = $port_data->{PORT_IN};
+  }
+  if (ref $port_data->{PORT_IN} eq 'HASH' ){
+    $port_out = ($port_data->{PORT_OUT}{value}[1] || '').($port_data->{PORT_OUT}{value}[0] || '')
+  }
+  else {
+    $port_out = $port_data->{PORT_OUT};
+  }
+
+  $Equipment_->{TRAFFIC} =  $lang{RECV} .': '.int2byte($port_in)
+    . $html->br()
+    . $lang{SENDED} .': '. int2byte($port_out);
+
+  $html->tpl_show( _include( 'equipment_port', 'Equipment' ), { %FORM, %{$Equipment_} } );
+
   return 1;
 }
 
@@ -729,10 +810,6 @@ sub equipments_get_used_ports{
     require Internet;
     Internet->import();
     my $Internet = Internet->new($db, $admin, \%conf);
-
-#    require Internet::Sessions;
-#    Internet::Sessions->import();
-#    my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
     if ($attr->{DEBUG} && $attr->{DEBUG} > 6) {
       $Internet->{debug} = 1;
@@ -908,6 +985,14 @@ sub equipment_port_panel {
         . '#@#' . $vlan_name . "::" . ($line->{vlan} || '')
         . '#@#' . $server_vlan_name . "::" . ($Equipment->{SERVER_VLAN} || '');
     }
+
+    if (!$used_ports){
+      $used_ports = equipments_get_used_ports({
+        NAS_ID     => $attr->{NAS_ID},
+        PORTS_ONLY => 1,
+        FULL_LIST  => 1
+      });
+    }
   }
 
   my $extra_ports = $Equipment->extra_ports_list( (defined($attr->{MODEL_ID})) ? $attr->{MODEL_ID} : $attr->{ID});
@@ -1025,10 +1110,10 @@ sub equipment_port_panel {
               }
             }
 
-            $extra_port_number = 'e'.$extra_port_number;
+            $extra_port_number = 'e'.($extra_port_number || 0);
 
             # if empty port
-            if ($port->{port_type} == 9){
+            if ($port->{port_type} && $port->{port_type} == 9){
               $leveling += 1;
               $extra_port_number = '';
             }
@@ -1189,9 +1274,15 @@ sub _get_html_for_port{
       AUTO_PORT_SHIFT - Apply autoshift to port index. true or false
       INFO_FIELDS - List of fields to show
       attrs for equipment_test()
+      SIMPLE - return equipment_test() result as HASH
 
   Returns:
-    $information_table - array ref
+
+    SIMPLE: true
+      $test_result - hash ref
+
+    SIMPLE: false
+      $information_table - array ref
 
 =cut
 #**********************************************************
@@ -1227,6 +1318,11 @@ sub equipment_port_info {
     return [];
   }
 
+  if ($attr->{SIMPLE}) {
+    $test_result->{PORT_ID} = $port_id;
+    return $test_result;
+  }
+
   return port_result_former($test_result, {
     PORT                 => $port_id,
     INFO_FIELDS          => $info_fields
@@ -1250,6 +1346,7 @@ sub equipment_port_info {
 #**********************************************************
 sub port_result_former {
   my($port_info, $attr) = @_;
+
   $html->tpl_show( _include( 'equipment_icons', 'Equipment' ));
   my $user_index = get_function_index('form_users');
 
@@ -1260,6 +1357,7 @@ sub port_result_former {
     'ADMIN_PORT_STATUS');
 
   my $port_id     = $attr->{PORT};
+  my $nas_id      = $attr->{NAS_ID} || $FORM{NAS_ID} || 0;
 
   if($attr->{INFO_FIELDS}) {
     @info_fields = split(/,/, $attr->{INFO_FIELDS});
@@ -1371,15 +1469,6 @@ sub port_result_former {
         my $admin_state = $port_info->{$port_id}->{ETH_ADMIN_STATE}->{$port} || '';
         my $vlan        = ($port_info->{$port_id}->{VLAN} && ref $port_info->{$port_id}->{VLAN} eq 'HASH' ) ? $port_info->{$port_id}->{VLAN}->{$port} : ($port_info->{$port_id}->{VLAN} || '');
 
-#$admin_state = "Disble" if ($port  eq '5');
-#$speed = '1Gb/s' if ($port eq '2');
-#$speed = '10Gb/s' if ($port eq '3');
-#$speed = '10Mb/s' if ($port eq '4');
-#$status = 1 if ($port eq '3' || $port eq '4');
-#$speed = '' if ($port eq '6' || $port eq '8');
-#$admin_state = '' if ($port  eq '7' || $port eq '8');
-#$duplex = 'Full';
-
         $description .= "Speed: $speed ".$html->br() if ($speed);
         $description .= "Duplex: $duplex ".$html->br() if ($duplex);
         $description .= "Native Vlan: $vlan ".$html->br() if ($vlan);
@@ -1392,10 +1481,10 @@ sub port_result_former {
           $color = ($admin_state eq 'Enable') ? $color : 'text-red';
           my $badge = $html->element('span',
             $html->button("",
-              "NAS_ID=$FORM{NAS_ID}" .
+              "NAS_ID=$nas_id" .
               "&index=" . get_function_index('equipment_info') .
               "&visual=4&$disable_or_enable_url_param=$port" .
-              "&ONU=$FORM{ONU}&info_pon_onu=$FORM{info_pon_onu}&ONU_TYPE=$FORM{ONU_TYPE}",
+              "&ONU=$FORM{ONU}&info_pon_onu=$FORM{info_pon_onu}&PON_TYPE=$FORM{PON_TYPE}",
               { ADD_ICON => 'fa fa-power-off', MESSAGE => "$describe_state $port?"}),
             { 'data-tooltip' => $describe_state, 'data-tooltip-position' => 'top' }
           );
@@ -1470,10 +1559,10 @@ sub port_result_former {
           $color = ($admin_state eq 'Enable') ? $color : 'text-red';
           my $badge = $html->element('span',
             $html->button("",
-              "NAS_ID=$FORM{NAS_ID}" .
+              "NAS_ID=$nas_id" .
               "&index=" . get_function_index('equipment_info') .
               "&visual=4&$disable_or_enable_url_param=$port" .
-              "&ONU=". ($FORM{ONU} || q{}) ."&info_pon_onu=". ($FORM{info_pon_onu} || q{}) ."&ONU_TYPE=". ($FORM{ONU_TYPE} || q{}),
+              "&ONU=". ($FORM{ONU} || q{}) ."&info_pon_onu=". ($FORM{info_pon_onu} || q{}) ."&PON_TYPE=". ($FORM{PON_TYPE} || q{}),
               { ADD_ICON => 'fa fa-power-off', MESSAGE => "$describe_state $port?"}),
             { 'data-tooltip' => $describe_state, 'data-tooltip-position' => 'top' }
           );
@@ -1525,7 +1614,7 @@ sub port_result_former {
     elsif($key eq 'PORT_IN_ERR') {
       my $reset_errors_button = '';
 
-      my $list = $Equipment->_list({ SNMP_TPL => '_SHOW', NAS_ID => $FORM{NAS_ID}, COLS_NAME => 1 });
+      my $list = $Equipment->_list({ SNMP_TPL => '_SHOW', NAS_ID => $nas_id, COLS_NAME => 1 });
       my $nas_info = $list->[0];
 
       if ($nas_info->{'snmp_tpl'}){
@@ -1570,8 +1659,11 @@ sub port_result_former {
     elsif($key eq 'STATUS') {
       $key = $html->element( 'i', "", { class => "fa fa-globe $attr->{COLOR_STATUS}" } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;$lang{STATUS}" );
     }
-    elsif($key eq 'PORT_UPTIME') {
-      $key = $html->element( 'i', "", { class => "far fa-clock" } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;$lang{PORT_UPTIME}" );
+    elsif($key eq 'DATETIME') {
+      $key = 'LAST_POLL';
+    }
+    elsif($key =~ 'UPTIME') {
+      $key = $html->element( 'i', "", { class => "far fa-clock" } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;$lang{$key}" );
     }
     elsif($key eq 'MAC_BEHIND_ONU') {
       next if (!$value);
@@ -1583,6 +1675,33 @@ sub port_result_former {
           (($value->{$_}->{vlan}) ? " (VLAN $value->{$_}->{vlan})" : '') . ' (old)'
         } grep { $value->{$_}->{old} } (keys %$value))
       );
+    }
+    elsif($key eq 'LOGIN') {
+      require Internet;
+      Internet->import();
+      my $Internet = Internet->new($db, $admin, \%conf);
+      my $onu_user = $Internet->user_list({
+        LOGIN           => '_SHOW',
+        FIO             => '_SHOW',
+        ADDRESS_FULL    => '_SHOW',
+        CID             => '_SHOW',
+        ONLINE          => '_SHOW',
+        ONLINE_IP       => '_SHOW',
+        ONLINE_CID      => '_SHOW',
+        TP_NAME         => '_SHOW',
+        IP              => '_SHOW',
+        LOGIN_STATUS    => '_SHOW',
+        INTERNET_STATUS => '_SHOW',
+        NAS_ID          => $nas_id,
+        PORT            => $attr->{DHCP_PORT} || '--',
+        COLS_NAME       => 1,
+        PAGE_ROWS       => 1000000
+      });
+
+      if ($onu_user) {
+        $key = 'LOGIN';
+        $value = show_used_info($onu_user);
+      }
     }
 
     $key = ($lang{$key}) ? $lang{$key} : $key;
@@ -1799,6 +1918,7 @@ sub equipment_vlans {
 =cut
 #********************************************************
 sub equipment_pon_map {
+  my ($attr) = @_;
 
   require Maps::Maps_view;
   Maps::Maps_view->import();
@@ -1808,7 +1928,19 @@ sub equipment_pon_map {
   Equipment::Maps_info->import();
   my $Maps_info = Equipment::Maps_info->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
-  my $pon_maps = $Maps_info->pon_maps({RETURN_HASH => 1, NAS_ID => $FORM{NAS_ID}, TO_VISUAL => 1});
+  my @avarage_coord = ();
+
+  my $pon_maps = $Maps_info->pon_maps({
+    RETURN_HASH => 1,
+    NAS_ID      => $FORM{NAS_ID},
+    OLT_PORT    => $FORM{OLT_PORT} ? $FORM{OLT_PORT} : '_SHOW',
+    LOCATION_ID => $FORM{LOCATION_ID} || $attr->{LOCATION_ID} || '',
+    TO_VISUAL   => 1
+  });
+
+  if ($pon_maps){
+    @avarage_coord = equipment_coord_avarage($pon_maps);
+  }
 
   print $Maps_view->show_map({}, {
     DATA              => $pon_maps,
@@ -1816,8 +1948,38 @@ sub equipment_pon_map {
     OUTPUT2RETURN     => 1,
     QUICK             => 1,
     HIDE_EDIT_BUTTONS => 1,
+    POINTS            => \@avarage_coord
   });
 
   return 1;
+}
+
+
+#********************************************************
+=head2 equipment_coord_avarage() - Show avarage coord X and Y
+
+    Attr:
+      pon_maps - array with COORDX and COORDY
+
+    Return:
+      (average coord X, average coord Y)
+
+=cut
+#********************************************************
+sub equipment_coord_avarage {
+  my ($attr) = @_;
+  my ($sum_coord_x, $sum_coord_y, $avg_coord_x, $avg_coord_y) = 0;
+  my $count = scalar @{$attr};
+
+  foreach my $coord (@$attr) {
+    $sum_coord_x += $coord->{MARKER}{COORDX};
+    $sum_coord_y += $coord->{MARKER}{COORDY};
+  }
+  if ($count > 0){
+    $avg_coord_x = $sum_coord_x / $count;
+    $avg_coord_y = $sum_coord_y / $count;
+  }
+
+  return ($avg_coord_x, $avg_coord_y);
 }
 1;

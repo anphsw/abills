@@ -311,4 +311,101 @@ sub iptv_users_fees {
   return 0;
 }
 
+
+#**********************************************************
+=head2 iptv_report_tp($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub iptv_report_tp {
+  require Control::Reports;
+
+  reports({
+    PERIODS           => 1,
+    NO_TAGS           => 1,
+    NO_PERIOD         => 1,
+    NO_MULTI_GROUP    => 1,
+    PERIOD_FORM       => 1,
+    NO_STANDART_TYPES => 1,
+    col_md            => 'col-md-11'
+  });
+
+  if ($FORM{DEBUG}) {
+    $Iptv->{debug} = 1;
+  }
+
+  my $list = $Iptv->report_tp({
+    %LIST_PARAMS,
+    COLS_NAME => 1
+  });
+
+  my $table = $html->table(
+    {
+      caption     => $lang{TARIF_PLANS},
+      width       => '100%',
+      title       => [ '#', $lang{NUMBER}, 'ID', $lang{NAME}, $lang{TOTAL}, $lang{ACTIV}, $lang{DISABLE},
+        $lang{DEBETORS}, "$lang{REDUCTION} 100%", "ARPPU $lang{ARPPU}", "ARPU $lang{ARPU}", $lang{MONTH_FEE}, $lang{DAY_FEE}, $lang{GROUP}, $lang{SERVICE}, ],
+      ID          => 'REPORTS_IPTV_TARIF_PLANS',
+      EXPORT      => 1,
+    }
+  );
+
+  my $iptv_users_list_index = get_function_index('iptv_users_list') || 0;
+
+  my ($total_users, $totals_active, $total_disabled, $total_debetors, $total_reduction) = (0,0,0,0,0);
+  my $i = 1;
+
+  foreach my $line (@$list) {
+    $line->{id} = 0 if (! defined($line->{id}));
+    $line->{tp_id} = 0 if (! defined($line->{tp_id}));
+
+    my $main_link = "search=1&index=$iptv_users_list_index&TP_ID=$line->{tp_id}";
+
+    $main_link .= "&GID=$FORM{GID}" if $FORM{GID};
+
+    $table->addrow(
+      $i,
+      $line->{id},
+      $line->{tp_id},
+      $html->button($line->{name}, "$main_link"),
+      ($line->{counts} > 0 )          ? $html->button($line->{counts}, "$main_link")                        : 0,
+      ($line->{active} > 0 )          ? $html->button($line->{active}, "$main_link&SERVICE_STATUS=0")      : 0,
+      ($line->{disabled} > 0 )        ? $html->button($line->{disabled}, "$main_link&SERVICE_STATUS=1")    : 0,
+      ($line->{debetors} > 0 )        ? $html->button($line->{debetors}, "$main_link&DEPOSIT=<0&search=1")  : 0,
+      ($line->{users_reduction} > 0 ) ? $html->button($line->{users_reduction}, "$main_link&REDUCTION=100") : 0,
+      sprintf('%.2f', $line->{arppu} || 0),
+      sprintf('%.2f', $line->{arpu} || 0),
+      $line->{month_fee},
+      $line->{day_fee},
+      $line->{group_name},
+      $line->{service_name},
+    );
+
+    $i++;
+    $total_users    += $line->{counts};
+    $totals_active  += $line->{active};
+    $total_disabled += $line->{disabled};
+    $total_debetors += $line->{debetors};
+    $total_reduction += $line->{users_reduction};
+  }
+
+  $table->addrow(
+    '', '', '',
+    $html->b($lang{TOTAL}),
+    $html->b($total_users),
+    $html->b($totals_active),
+    $html->b($total_disabled),
+    $html->b($total_debetors),
+    $html->b($total_reduction),
+    '', '', '', '', '', '',
+  );
+
+  print $table->show();
+
+  return 1;
+}
 1;

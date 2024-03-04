@@ -14,49 +14,35 @@ our (
   $Admin,
   %conf,
   %lang,
-  $Sessions,
   $debug,
   %LIST_PARAMS,
   $argv,
   $base_dir,
-  $Nas,
-  $Internet
 );
-
-
 
 $admin = $Admin;
 $LIST_PARAMS{PAGE_ROWS} = $argv->{PAGE_ROWS} || 1000000;
 $LIST_PARAMS{LOGIN} = $argv->{LOGIN} if ($argv->{LOGIN});
 
-my $Auth;
-my $Ipn;
+our Internet::Sessions $Sessions;
+our Internet $Internet;
+our Nas $Nas;
 
-if(in_array('Internet', \@MODULES)) {
-  require Auth2;
-  Auth2->import();
-  require Internet::Ipoe;
-  Internet::Ipoe->import();
-  $Auth = Auth2->new( $db, \%conf );
-  $Ipn = Internet::Ipoe->new( $db, \%conf );
-}
-else {
-  require Ipn;
-  Ipn->import();
-  require Auth;
-  Auth->import();
-  $Auth = Auth->new( $db, \%conf );
-  $Ipn = Ipn->new( $db, \%conf );
-}
+require Auth2;
+Auth2->import();
+require Internet::Ipoe;
+Internet::Ipoe->import();
+my $Auth = Auth2->new($db, \%conf);
+my $Ipn = Internet::Ipoe->new($db, \%conf);
 
 require Abills::Misc;
-load_module('Ipn');
+require Internet::Ipoe_mng;
 
 
-my $online_file = $base_dir .'/var/log/online_snapshot.txt';
+my $online_file = $base_dir . '/var/log/online_snapshot.txt';
 my %nas_info = ();
 
-if(defined($argv->{start})) {
+if (defined($argv->{start})) {
   ipn_snapshot_start();
 }
 else {
@@ -70,8 +56,8 @@ else {
 #**********************************************************
 sub ipn_get_online {
 
-  if($debug > 6) {
-    $Sessions->{debug}=1;
+  if ($debug > 6) {
+    $Sessions->{debug} = 1;
   }
 
   my $online_list = $Sessions->online({
@@ -90,7 +76,7 @@ sub ipn_get_online {
   foreach my $line (@$online_list) {
     my $cid = $line->{CID} || $line->{cid};
     $online_info .= "$line->{uid}\t$line->{login}\t$line->{client_ip}\t$line->{nas_id}\t$line->{tp_id}\t$cid\n";
-    if($debug > 2) {
+    if ($debug > 2) {
       print "$line->{uid}\t$line->{login}\t$line->{client_ip}\t$line->{nas_id}\t$line->{tp_id}\t$cid\n";
     }
   }
@@ -105,14 +91,14 @@ sub ipn_get_online {
 #**********************************************************
 sub ipn_snapshot_save {
 
-  if($debug > 2) {
+  if ($debug > 2) {
     print "Save online sessions '$online_file'\n";
   }
 
   my $online_info = ipn_get_online();
 
-  if(open(my $fh, '>', $online_file)){
-    print $fh $online_info ."\n";
+  if (open(my $fh, '>', $online_file)) {
+    print $fh $online_info . "\n";
     close($fh);
   }
   else {
@@ -130,13 +116,13 @@ sub ipn_snapshot_save {
 #**********************************************************
 sub ipn_snapshot_read {
 
-  if($debug > 2) {
+  if ($debug > 2) {
     print "Read online sessions";
   }
 
   my $content = q{};
-  if(open(my $fh, '<', $online_file)){
-    while(<$fh>) {
+  if (open(my $fh, '<', $online_file)) {
+    while (<$fh>) {
       $content .= $_;
     }
     close($fh);
@@ -158,10 +144,10 @@ sub ipn_snapshot_read {
 #**********************************************************
 sub ipn_snapshot_start {
 
-  if($debug > 1) {
+  if ($debug > 1) {
     print "ipn_snaptshot\n";
-    if($debug > 6) {
-      #$Dv->{debug}=1;
+    if ($debug > 6) {
+      $Internet->{debug}=1;
     }
   }
 
@@ -174,33 +160,33 @@ sub ipn_snapshot_start {
   );
 
   %nas_info = ();
-  foreach my $line ( @{$nas_list} ){
+  foreach my $line (@{$nas_list}) {
     $nas_info{ $line->{NAS_ID} } = $line;
   }
 
   my $online_cur_info = ipn_get_online();
   my @online_arr = split(/\n/, $online_cur_info);
   my %online_ = ();
-  foreach my $info ( @online_arr ) {
-    my ($uid, $login, $ip, $nas_id, undef) =split(/\t/, $info);
-    $online_{$login.'_'.$ip.'_'.$nas_id.'_'.$uid} = 1;
+  foreach my $info (@online_arr) {
+    my ($uid, $login, $ip, $nas_id, undef) = split(/\t/, $info);
+    $online_{$login . '_' . $ip . '_' . $nas_id . '_' . $uid} = 1;
   }
 
   my $online_info = ipn_snapshot_read();
 
-  foreach my $info  ( @$online_info ) {
-    my ($uid, $login, $ip, $nas_id, $tp_id, $cid) =split(/\t/, $info);
-    if($debug > 1) {
+  foreach my $info (@$online_info) {
+    my ($uid, $login, $ip, $nas_id, $tp_id, $cid) = split(/\t/, $info);
+    if ($debug > 1) {
       print "$uid, $login, $ip, $nas_id, $tp_id, $cid\n";
     }
 
-    if($online_{$login.'_'.$ip.'_'.$nas_id.'_'.$uid}) {
-      if($debug > 1) {
+    if ($online_{$login . '_' . $ip . '_' . $nas_id . '_' . $uid}) {
+      if ($debug > 1) {
         print "Online now\n";
       }
     }
     else {
-      if($debug > 1) {
+      if ($debug > 1) {
         print "Activate:\n";
       }
 
@@ -261,21 +247,14 @@ sub ipn_activate {
   $Auth->{UID} = $attr->{uid};
   $Auth->{IPOE_IP} = $attr->{client_ip};
 
-  my ($r, $RAD_PAIRS);
-
-  if(in_array('Internet', \@MODULES)) {
-    ($r, $RAD_PAIRS) = $Auth->internet_auth(\%DATA, $nas_info{$nas_id}, { SECRETKEY => $conf{secretkey} });
-  }
-  else {
-    ($r, $RAD_PAIRS) = $Auth->dv_auth(\%DATA, $nas_info{$nas_id}, { SECRETKEY => $conf{secretkey} });
-  }
+  my ($r, $RAD_PAIRS) = $Auth->internet_auth(\%DATA, $nas_info{$nas_id}, { SECRETKEY => $conf{secretkey} });
 
   if ($r == 1) {
-    print "ACTIVE_IP: LOGIN: $attr->{user_name} $RAD_PAIRS->{'Reply-Message'}\n" if($debug > 1);
+    print "ACTIVE_IP: LOGIN: $attr->{user_name} $RAD_PAIRS->{'Reply-Message'}\n" if ($debug > 1);
   }
   else {
     $Ipn->user_status({ %DATA });
-    ipn_change_status({ STATUS => 'ONLINE_ENABLE', %DATA });
+    internet_ipoe_change_status({ STATUS => 'ONLINE_ENABLE', %DATA });
     #$debug_output .= "ACTIVATE IP: $attr->{client_ip}\n" if ($debug > 1);
   }
 

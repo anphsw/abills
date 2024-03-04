@@ -1,12 +1,15 @@
 openapi: 3.0.3
 info:
   title: Abills user API
-  version: 1.0.17
-  description: "Last modified 2023-07-26"
+  version: 1.1.12
+  description: "Last modified 2023-11-21"
   contact:
     name: Have a question? Support
     url: https://support.abills.net.ua/
     email: dev@abills.net.ua
+  x-logo:
+    url: http://abills.net.ua/wiki/download/attachments/1277998/Logox600.png?version=5&modificationDate=1707907350448&api=v2
+  x-providerName: abills.net.ua
 servers:
   - url: https://demo.abills.net.ua:9443/api.cgi
     description: Test Demo Server
@@ -45,8 +48,9 @@ tags:
     description: Работа с реферальной системой
   - name: portal
     description: Новости в пользовтелям
+  - name: equipment
+    description: информация об оборудовании пользователя
 paths:
-  # base user logic
   /users/login:
     post:
       tags:
@@ -62,19 +66,39 @@ paths:
                 login:
                   type: string
                   example: testuser
+                  description: Логин пользователя
                 password:
                   type: string
                   example: testuser
+                  description: Пароль пользователя
                 google:
                   type: string
                   example: google_token
+                  description: Google токен
                 facebook:
                   type: string
                   example: facebook_token
+                  description: Facebook токен
                 apple:
                   type: string
                   example: apple_token
-    
+                  description: Apple токен
+                phone:
+                  type: string
+                  example: 0999999999
+                  description: Номер телефону
+                pinCode:
+                  type: string
+                  example: 12345
+                  description: Пин который поступает на телефон
+                authCode:
+                  type: string
+                  example: 8765
+                  description: Код, который получается с первого запроса на авторизацию по номеру телефона
+                uid:
+                  type: string
+                  example: 654342
+                  description: UID пользователя которого необходимо авторизовать, если больше одного пользователя с тем же номером
             examples:
               ClassicLogin:
                 summary:
@@ -108,7 +132,29 @@ paths:
                   password:
                     type: string
                     example: "`ab012WXY"
-                    description: Параметр который возвращает биллинг если авторизация через социальную сеть и если включена опция $conf{API_LOGIN_SHOW_PASSWORD}. Если значение 0 сдвиг не происходит, если значение не 0, происходит смещение или влево или вправо, по алгоритму цезаря таблиця ASCII c значения 33 до 126
+                    description: Параметр который возвращает биллинг если авторизация через социальную сеть и если включена опция $conf{API_LOGIN_SHOW_PASSWORD}. Если значение 0 сдвиг не происходит, если значение не 0, происходит смещение или влево или вправо, по алгоритму цезаря таблица ASCII c значения 33 до 126
+                  authCode:
+                    type: integer
+                    description: ID авторизации к которому привязан пин код
+                    example: 103382
+                  sent:
+                    type: boolean
+                    description: Статус отправки смс
+                    example: true
+                  users:
+                    type: array
+                    description: список пользователей с тем же номером
+                    items:
+                      type: object
+                      properties:
+                        login:
+                          type: string
+                          description: Логин пользователя, нужно передать в 3 запросе
+                          example: test user
+                        uid:
+                          type: integer
+                          description: ID пользователя, нужно передать в 3 запросе
+                          example: 12312
   /user/login:
     post:
       tags:
@@ -123,19 +169,39 @@ paths:
                 login:
                   type: string
                   example: testuser
+                  description: Логин пользователя
                 password:
                   type: string
                   example: testuser
+                  description: Пароль пользователя
                 google:
                   type: string
                   example: google_token
+                  description: Google токен
                 facebook:
                   type: string
                   example: facebook_token
+                  description: Facebook токен
                 apple:
                   type: string
                   example: apple_token
-    
+                  description: Apple токен
+                phone:
+                  type: string
+                  example: 0999999999
+                  description: Номер телефону
+                pinCode:
+                  type: string
+                  example: 12345
+                  description: Пин который поступает на телефон
+                authCode:
+                  type: string
+                  example: 8765
+                  description: Код, который получается с первого запроса на авторизацию по номеру телефона
+                uid:
+                  type: string
+                  example: 654342
+                  description: UID пользователя которого необходимо авторизовать, если больше одного пользователя с тем же номером
             examples:
               ClassicLogin:
                 summary:
@@ -148,6 +214,24 @@ paths:
                   Авторизация пользователя через социальную сеть
                 value:
                   google: google_token
+              LoginByPhoneStep1:
+                summary:
+                  Авторизация по номеру телефона шаг 1
+                value:
+                  phone: 0999999999
+              LoginByPhoneStep2:
+                summary:
+                  Авторизация по номеру телефона шаг 2
+                value:
+                  authCode: 8765
+                  pinCode: 12345
+              LoginByPhoneStep3:
+                summary:
+                  Авторизация по номеру телефона шаг 3 (Если больше одного пользователя с тем же номером)
+                value:
+                  authCode: 8765
+                  pinCode: 12345
+                  uid: 654342
         required: true
       responses:
         200:
@@ -169,7 +253,56 @@ paths:
                   password:
                     type: string
                     example: "`ab012WXY"
-                    description: Параметр который возвращает биллинг если авторизация через социальную сеть и если включена опция $conf{API_LOGIN_SHOW_PASSWORD}. Если значение 0 сдвиг не происходит, если значение не 0, происходит смещение или влево или вправо, по алгоритму цезаря таблиця ASCII c значения 33 до 126
+                    description: Параметр который возвращает биллинг если авторизация через социальную сеть и если включена опция $conf{API_LOGIN_SHOW_PASSWORD}. Если значение 0 сдвиг не происходит, если значение не 0, происходит смещение или влево или вправо, по алгоритму цезаря таблица ASCII c значения 33 до 126
+                  authCode:
+                    type: integer
+                    description: ID авторизации к которому привязан пин код
+                    example: 103382
+                  sent:
+                    type: boolean
+                    description: Статус отправки смс
+                    example: true
+                  users:
+                    type: array
+                    description: список пользователей с тем же номером
+                    items:
+                      type: object
+                      properties:
+                        login:
+                          type: string
+                          description: Логин пользователя, нужно передать в 3 запросе
+                          example: test user
+                        uid:
+                          type: integer
+                          description: ID пользователя, нужно передать в 3 запросе
+                          example: 12312
+              examples:
+                ClassicResponse:
+                  summary:
+                    Успешная авторизация
+                  value:
+                    login: testuser
+                    sid: sW44EJZLyWDMeXAV
+                    uid: 12312
+                    password: "`ab012WXY"
+                LoginPhoneStep1Response:
+                  summary:
+                    Авторизация по номеру телефона шаг 1 ответ
+                  value:
+                    authCode: 103382
+                    sent: true
+                LoginPhoneStep2Response:
+                  summary:
+                    Авторизация по номеру телефона шаг 2 ответ (Если больше одного пользователя с тем же номером)
+                  value:
+                    users:
+                      - login: "00100"
+                        uid: 1
+                      - login: "abills"
+                        uid: 7
+                      - login: "testerr44434433"
+                        uid: 103381
+  
   /user/password/recovery:
     post:
       tags:
@@ -231,7 +364,7 @@ paths:
                   errstr:
                     type: string
                     example: No uid, login or contractId field
-
+  
   /user/password/reset:
     post:
       tags:
@@ -277,7 +410,421 @@ paths:
                   errstr:
                     type: string
                     example: No fields code or password
-
+  /user/password/send:
+    post:
+      tags:
+        - user
+      summary: Получить пароль
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully send password
+                  sendStatus:
+                    type: number
+                    example: 1
+                  type:
+                    type: string
+                    example: sms
+        400:
+          description: Не включена опция USER_SEND_PASSWORD
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 1000001
+                  errstr:
+                    type: string
+                    example: SERVICE_NOT_ENABLED
+    
+      security:
+        - USERSID: [ ]
+  /user:
+    get:
+      tags:
+        - user
+      summary: Информация о пользователе
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activate:
+                    type: string
+                    example: "0000-00-00"
+                  billId:
+                    type: number
+                    example: 201009
+                  billOwner:
+                    type: number
+                    example: 0
+                  credit:
+                    type: number
+                    example: 0
+                  creditDate:
+                    type: string
+                    example: "0000-00-00"
+                  deposit:
+                    type: number
+                    example: 8229.65
+                  domainId:
+                    type: number
+                    example: 0
+                  expire:
+                    type: string
+                    example: "0000-00-00"
+                  extBillId:
+                    type: number
+                    example: 0
+                  login:
+                    type: string
+                    example: test123
+                  registration:
+                    type: string
+                    format: date
+                    example: "2022-11-14"
+                  uid:
+                    type: number
+                    example: 103214
+      security:
+        - USERSID: [ ]
+  /user/pi:
+    get:
+      tags:
+        - user
+      summary: Персональная информация пользователя
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  acceptRules:
+                    type: number
+                    example: 0
+                  addressBuild:
+                    type: string
+                    example: 15
+                  addressDistrict:
+                    type: string
+                    example: Снятинське ОТГ
+                  addressDistrictFull:
+                    type: string
+                    example: Коломийський район / Снятинське ОТГ
+                  addressFlat:
+                    type: string
+                    example: ""
+                  addressFull:
+                    type: string
+                    example:  Франка 15
+                  addressFullLocation:
+                    type: string
+                    example:  "Коломийський район / Снятинське ОТГ: Франка, 15"
+                  addressStreet:
+                    type: string
+                    example: Франка
+                  birthDate:
+                    type: string
+                    example: "0000-00-00"
+                  cellPhone:
+                    type: array
+                    items:
+                      type: string
+                    example: []
+                  city:
+                    type: string
+                    example: Коломия
+                  contractDate:
+                    type: string
+                    format: date
+                    example: "2022-11-14"
+                  contractId:
+                    type: number
+                    example: 100001
+                  contractSufix:
+                    type: string
+                    example: ""
+                  coordx:
+                    type: number
+                    example: 24.7255039215088
+                  country:
+                    type: number
+                    example: 804
+                  countryId:
+                    type: number
+                    example: 0
+                  districtId:
+                    type: number
+                    example: 2
+                  email:
+                    type: array
+                    items:
+                      type: string
+                      example: yusk1@gmail.com
+                  entrance:
+                    type: number
+                    example: 0
+                  fio:
+                    type: string
+                    example: Тестовий Клієнт Тестовичч
+                  fio2:
+                    type: string
+                    example: ""
+                  fio3:
+                    type: string
+                    example: ""
+                  floor:
+                    type: number
+                    example: 0
+                  googlePush:
+                    type: array
+                    items:
+                      type: string
+                    example: []
+                  icq:
+                    type: array
+                    items:
+                      type: string
+                    example: []
+                  locationId:
+                    type: number
+                    example: 1
+                  pasportDate:
+                    type: string
+                    example: "0000-00-00"
+                  pasportGrant:
+                    type: string
+                    example: ""
+                  pasportNum:
+                    type: string
+                    example: ""
+                  phone:
+                    type: array
+                    items:
+                      type: number
+                      example: 380509152721
+                  regAddress:
+                    type: string
+                    example: ""
+                  skype:
+                    type: array
+                    items:
+                      type: string
+                    example: []
+                  streetId:
+                    type: number
+                    example: 1
+                  taxNumber:
+                    type: number
+                    example: 0
+                  telegram:
+                    type: array
+                    items:
+                      type: string
+                    example: []
+                  total:
+                    type: number
+                    example: 1
+                  uid:
+                    type: number
+                    example: 103214
+                  viber:
+                    type: array
+                    items:
+                      type: string
+                    example: []
+                  zip:
+                    type: number
+                    example: 72000
+      security:
+        - USERSID: [ ]
+    put:
+      tags:
+        - user
+      summary: Изменение персональной информации пользователем
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fio:
+                  type: string
+                  example: ""
+                fio1:
+                  type: string
+                  example: ""
+                fio2:
+                  type: string
+                  example: ""
+                fio3:
+                  type: string
+                  example: ""
+                сellPhone:
+                  type: string
+                  example: ""
+                floor:
+                  type: string
+                  example: ""
+                email:
+                  type: string
+                  example: ""
+                phone:
+                  type: string
+                  example: ""
+                addressFlat:
+                  type: string
+                  example: ""
+                buildId:
+                  type: number
+                  example: 1
+                locationId:
+                  type: number
+                  example: 1
+                districtId:
+                  type: number
+                  example: 1
+                streetId:
+                  type: number
+                  example: 1
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully changed email, phone
+        400:
+          description: Нет возможности изменить, не включена опция $conf{user_chg_pi}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 10066
+                  errstr:
+                    type: string
+                    example: Unknown operation happened
+      security:
+        - USERSID: [ ]
+  
+  /user/credit:
+    get:
+      tags:
+        - user
+      summary: Информация об установке кредита
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  creditChgPrice:
+                    type: string
+                    example: "500"
+                  creditMonthChanges:
+                    type: string
+                    example: "1"
+                  creditSum:
+                    type: string
+                    example: "800"
+                  creditDays:
+                    type: string
+                    example: "3"
+      security:
+        - USERSID: [ ]
+    post:
+      tags:
+        - user
+      summary: Установка кредита пользователю
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  creditSum:
+                    type: integer
+                    example: 500
+                  creditChangePrice:
+                    type: integer
+                    example: 100
+                  uid:
+                    type: integer
+                    example: 11135
+                  creditDays:
+                    type: string
+                    example: "3"
+                  creditMonthChanges:
+                    type: string
+                    example: "1"
+      security:
+        - USERSID: [ ]
+  /user/recommendedPay:
+    get:
+      tags:
+        - user
+      summary: Рекомендуемая сумма к оплате
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allServicesSum:
+                    type: number
+                    example: 10
+                    description: >
+                      Сумма за все сервисы за один учетный период
+                  maxSum:
+                    type: number
+                    example: 5000
+                    default: 0
+                    description: >
+                      Максимальная сумма к оплате определяется через опцию `PAYSYS_MAX_SUM`
+                  minSum:
+                    type: number
+                    example: 5
+                    default: 0
+                    description: >
+                      Минимальная сумма к оплате определяется через опцию `PAYSYS_MIN_SUM`
+                      Если есть опция `PAYSYS_MIN_SUM_RECOMMENDED_PAY`, то поле `minSum` будет равно `sum`,
+                      при условии, что изначальная `minSum` меньше `sum`.
+                  sum:
+                    type: number
+                    example: 10
+                    description: >
+                      Рекомендуемая сумма к оплате
+    
+      security:
+        - USERSID: [ ]
   /user/internet/registration:
     post:
       tags:
@@ -497,7 +1044,7 @@ paths:
                   errstr:
                     type: string
                     example: Wrong pin
-
+  
   /user/resend/verification:
     post:
       tags:
@@ -542,7 +1089,7 @@ paths:
                   errstr:
                     type: string
                     example: User not exists with this email
-
+  
   /user/logout:
     delete:
       tags:
@@ -561,7 +1108,7 @@ paths:
                     example: Success logout
       security:
         - USERSID: [ ]
-
+  
   /user/social/networks:
     post:
       tags:
@@ -656,342 +1203,6 @@ paths:
                     example: No field password
       security:
         - USERSID: [ ]
-
-  /user:
-    get:
-      tags:
-        - user
-      summary: Информация о пользователе
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  activate:
-                    type: string
-                    example: "0000-00-00"
-                  billId:
-                    type: number
-                    example: 201009
-                  billOwner:
-                    type: number
-                    example: 0
-                  credit:
-                    type: number
-                    example: 0
-                  creditDate:
-                    type: string
-                    example: "0000-00-00"
-                  deposit:
-                    type: number
-                    example: 8229.65
-                  domainId:
-                    type: number
-                    example: 0
-                  expire:
-                    type: string
-                    example: "0000-00-00"
-                  extBillId:
-                    type: number
-                    example: 0
-                  login:
-                    type: string
-                    example: test123
-                  registration:
-                    type: string
-                    format: date
-                    example: "2022-11-14"
-                  uid:
-                    type: number
-                    example: 103214
-      security:
-        - USERSID: [ ]
-  /user/pi:
-    get:
-      tags:
-        - user
-      summary: Персональная информация пользователя
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  acceptRules:
-                    type: number
-                    example: 0
-                  addressBuild:
-                    type: string
-                    example: 15
-                  addressDistrict:
-                    type: string
-                    example: Коломия
-                  addressFlat:
-                    type: string
-                    example: ""
-                  addressFull:
-                    type: string
-                    example:  Вокзальная 15
-                  addressStreet:
-                    type: string
-                    example: Вокзальная
-                  birthDate:
-                    type: string
-                    example: "0000-00-00"
-                  cellPhone:
-                    type: array
-                    items:
-                      type: string
-                    example: []
-                  city:
-                    type: string
-                    example: Коломия
-                  contractDate:
-                    type: string
-                    format: date
-                    example: "2022-11-14"
-                  contractId:
-                    type: number
-                    example: 100001
-                  contractSufix:
-                    type: string
-                    example: ""
-                  coordx:
-                    type: number
-                    example: 24.7255039215088
-                  country:
-                    type: number
-                    example: 804
-                  countryId:
-                    type: number
-                    example: 0
-                  districtId:
-                    type: number
-                    example: 2
-                  email:
-                    type: array
-                    items:
-                      type: string
-                      example: yusk1@gmail.com
-                  entrance:
-                    type: number
-                    example: 0
-                  fio:
-                    type: string
-                    example: Тестовий Клієнт Тестовичч
-                  fio2:
-                    type: string
-                    example: ""
-                  fio3:
-                    type: string
-                    example: ""
-                  floor:
-                    type: number
-                    example: 0
-                  googlePush:
-                    type: array
-                    items:
-                      type: string
-                    example: []
-                  icq:
-                    type: array
-                    items:
-                      type: string
-                    example: []
-                  locationId:
-                    type: number
-                    example: 1
-                  pasportDate:
-                    type: string
-                    example: "0000-00-00"
-                  pasportGrant:
-                    type: string
-                    example: ""
-                  pasportNum:
-                    type: string
-                    example: ""
-                  phone:
-                    type: array
-                    items:
-                      type: number
-                      example: 380509152721
-                  regAddress:
-                    type: string
-                    example: ""
-                  skype:
-                    type: array
-                    items:
-                      type: string
-                    example: []
-                  streetId:
-                    type: number
-                    example: 1
-                  taxNumber:
-                    type: number
-                    example: 0
-                  telegram:
-                    type: array
-                    items:
-                      type: string
-                    example: []
-                  total:
-                    type: number
-                    example: 1
-                  uid:
-                    type: number
-                    example: 103214
-                  viber:
-                    type: array
-                    items:
-                      type: string
-                    example: []
-                  zip:
-                    type: number
-                    example: 72000
-      security:
-        - USERSID: [ ]
-    put:
-      tags:
-        - user
-      summary: Изменение персональной информации пользователем
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                fio:
-                  type: string
-                  example: ""
-                fio1:
-                  type: string
-                  example: ""
-                fio2:
-                  type: string
-                  example: ""
-                fio3:
-                  type: string
-                  example: ""
-                сellPhone:
-                  type: string
-                  example: ""
-                floor:
-                  type: string
-                  example: ""
-                email:
-                  type: string
-                  example: ""
-                phone:
-                  type: string
-                  example: ""
-                addressFlat:
-                  type: string
-                  example: ""
-                buildId:
-                  type: number
-                  example: 1
-                locationId:
-                  type: number
-                  example: 1
-                districtId:
-                  type: number
-                  example: 1
-                streetId:
-                  type: number
-                  example: 1
-        required: true
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  result:
-                    type: string
-                    example: Successfully changed email, phone
-        400:
-          description: Нет возможности изменить, не включена опция $conf{user_chg_pi}
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  errno:
-                    type: integer
-                    example: 10066
-                  errstr:
-                    type: string
-                    example: Unknown operation happened
-      security:
-        - USERSID: [ ]
-
-
-  /user/credit:
-    get:
-      tags:
-        - user
-      summary: Информация об установке кредита
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  creditChgPrice:
-                    type: string
-                    example: "500"
-                  creditMonthChanges:
-                    type: string
-                    example: "1"
-                  creditSum:
-                    type: string
-                    example: "800"
-                  creditDays:
-                    type: string
-                    example: "3"
-      security:
-        - USERSID: [ ]
-    post:
-      tags:
-        - user
-      summary: Установка кредита пользователю
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  creditSum:
-                    type: integer
-                    example: 500
-                  creditChangePrice:
-                    type: integer
-                    example: 100
-                  uid:
-                    type: integer
-                    example: 11135
-                  creditDays:
-                    type: string
-                    example: "3"
-                  creditMonthChanges:
-                    type: string
-                    example: "1"
-      security:
-        - USERSID: [ ]
-
-  # internet paths
-
   /user/internet:
     get:
       tags:
@@ -1007,6 +1218,9 @@ paths:
                 items:
                   type: object
                   properties:
+                    abonDistribution:
+                      type: integer
+                      example: 0
                     id:
                       type: integer
                       example: 2
@@ -1025,6 +1239,21 @@ paths:
                     cid:
                       type: string
                       example: 14:11:11:11:11:c1
+                    macDiscovery:
+                      type: boolean
+                      example: true
+                    serviceHoldup:
+                      type: boolean
+                      example: true
+                    canChangeTp:
+                      type: boolean
+                      example: true
+                    ipNum:
+                      type: number
+                      example: 84215045
+                    ip:
+                      type: string
+                      example: "5.5.5.5"
                     monthFee:
                       type: integer
                       example: 250
@@ -1065,6 +1294,9 @@ paths:
                     schedule:
                       type: object
                       properties:
+                        canCancel:
+                          type: boolean
+                          example: true
                         date:
                           type: string
                           example: '2023-01-13'
@@ -1235,6 +1467,7 @@ paths:
       tags:
         - internet
       summary: Скорость ТП
+      deprecated: true
       parameters:
         - name: ID
           in: path
@@ -1516,7 +1749,7 @@ paths:
                     example: "2023-01-01"
       security:
         - USERSID: [ ]
-
+  
   /user/internet/sessions:
     get:
       tags:
@@ -1637,1767 +1870,6 @@ paths:
                     example: "10:fe:ed:43:8f:36"
       security:
         - USERSID: [ ]
-
-  # abon paths
-
-  /user/abon:
-    get:
-      tags:
-        - abon
-      summary: Информация об периодических списаниях пользователя
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                      example: 2
-                    name:
-                      type: string
-                      example: Test abon TP
-                    price:
-                      type: integer
-                      example: 100
-                    period:
-                      type: string
-                      example: "month"
-                    nextAbon:
-                      type: string
-                      example: "2021-09-01"
-                    comments:
-                      type: string
-                    description:
-                      type: string
-                      example: Test description
-                    personalDescription:
-                      type: string
-                      example: Your test code is
-                    serviceImg:
-                      type: string
-                      example: https://demo.abills.net.ua/9443/images/attach/abon
-                    serviceLink:
-                      type: string
-                      example: Скачати|https://sourceforge.net/projects/abills/
-                    tpReductionFee:
-                      type: number
-                      example: 1
-                    originalPrice:
-                      type: number
-                      example: 90
-    
-      security:
-        - USERSID: [ ]
-
-  # msgs paths
-
-  /user/msgs:
-    get:
-      tags:
-        - msgs
-      summary: Список заявок пользователя
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    subject:
-                      type: string
-                      example: Message user api subject
-                    message:
-                      type: string
-                      example: Test message from user api
-                    chapterName:
-                      type: string
-                      example: Второй раздел
-                    chapter:
-                      type: integer
-                      example: 3
-                    priority:
-                      type: integer
-                      example: 2
-                    state:
-                      type: integer
-                      example: 0
-                    date:
-                      type: string
-                      example: "2021-09-02 13:20:37"
-      security:
-        - USERSID: [ ]
-    post:
-      tags:
-        - msgs
-      summary: Создание заявки
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                chapter:
-                  type: integer
-                  example: 3
-                message:
-                  type: string
-                  example: Some message
-                subject:
-                  type: string
-                  example: Message subject
-                priority:
-                  type: integer
-                  example: 2
-    
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                insertId:
-                  type: integer
-                  example: 43
-                msgId:
-                  type: integer
-                  example: 43
-                affected:
-                  type: integer
-                  example: 1
-                file1:
-                  type: string
-                  format: binary
-                file2:
-                  type: string
-                  format: binary
-        required: true
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  insertId:
-                    type: integer
-                    example: 43
-                  msgId:
-                    type: integer
-                    example: 43
-                  affected:
-                    type: integer
-                    example: 1
-      security:
-        - USERSID: [ ]
-  /user/msgs/{ID}:
-    get:
-      tags:
-        - msgs
-      summary: Информация о заявке пользователя
-      parameters:
-        - name: ID
-          in: path
-          description: ID заявки
-          required: true
-          schema:
-            type: number
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  subject:
-                    type: string
-                    example: Message user api subject
-                  message:
-                    type: string
-                    example: Test message from user api
-                  chapterName:
-                    type: string
-                    example: Второй раздел
-                  chapter:
-                    type: integer
-                    example: 3
-                  priority:
-                    type: integer
-                    example: 2
-                  state:
-                    type: integer
-                    example: 0
-                  date:
-                    type: string
-                    example: "2021-09-02 13:20:37"
-      security:
-        - USERSID: [ ]
-  /user/msgs/{ID}/reply:
-    get:
-      tags:
-        - msgs
-      summary: Ответ на существующую заявку
-      parameters:
-        - name: ID
-          in: path
-          description: ID заявки
-          required: true
-          schema:
-            type: number
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    uid:
-                      type: integer
-                      example: 0
-                    aid:
-                      type: integer
-                      example: 2
-                    id:
-                      type: integer
-                      example: 54
-                    text:
-                      type: string
-                      example: some reply text
-                    datetime:
-                      type: string
-                      example: "2021-09-02 12:50:47"
-      security:
-        - USERSID: [ ]
-    post:
-      tags:
-        - msgs
-      summary: Все сообщения в заявке
-      parameters:
-        - name: ID
-          in: path
-          description: ID заявки
-          required: true
-          schema:
-            type: number
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                reply_text:
-                  type: string
-                  example: Some reply text
-                reply_subject:
-                  type: string
-                  example: Subject
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                reply_text:
-                  type: string
-                  example: Some reply text
-                reply_subject:
-                  type: string
-                  example: Subject
-                file1:
-                  type: string
-                  format: binary
-                file2:
-                  type: string
-                  format: binary
-        required: true
-      responses:
-        200:
-          description: Успешное выполнение
-          content: { }
-      security:
-        - USERSID: [ ]
-  /user/msgs/chapters:
-    get:
-      tags:
-        - msgs
-      summary: Список разделов заявок пользователя
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                      example: 1
-                    name:
-                      type: string
-                      example: Example chapter
-      security:
-        - USERSID: [ ]
-
-  # configuration info paths
-
-  /user/config:
-    get:
-      tags:
-        - config
-      summary: Список доступных конфигураций пользователя
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  abonClient:
-                    type: number
-                    example: 1
-                  addFriend:
-                    type: number
-                    example: 1
-                  bots:
-                    type: object
-                    properties:
-                      telegram:
-                        type: number
-                        example: 1
-                  camsArchives:
-                    type: number
-                    example: 1
-                  camsClientsStreams:
-                    type: number
-                    example: 1
-                  camsUserInfo:
-                    type: number
-                    example: 1
-                  camsUserStreamsManagement:
-                    type: number
-                    example: 1
-                  cardsUserPayment:
-                    type: object
-                    properties:
-                      serial:
-                        type: number
-                        example: 1
-                  internet:
-                    type: object
-                    properties:
-                      nextMonth:
-                        type: number
-                        example: 1
-                      now:
-                        type: number
-                        example: 0
-                      schedule:
-                        type: number
-                        example: 2
-                  internetUserChgTp:
-                    type: number
-                    example: 1
-                  internetUserInfo:
-                    type: number
-                    example: 1
-                  internetUserStats:
-                    type: number
-                    example: 1
-                  iptv:
-                    type: object
-                    properties:
-                      nextMonth:
-                        type: number
-                        example: 1
-                      schedule:
-                        type: number
-                        example: 2
-                  iptvConfig:
-                    type: object
-                    properties:
-                      promotionTps:
-                        type: number
-                        example: 1
-                      subscribe:
-                        type: object
-                        properties:
-                          describe:
-                            type: string
-                            example: Enter your email
-                          id:
-                            type: string
-                            example: EMAIL
-                          name:
-                            type: string
-                            example: E-mail
-                  iptvPortalServiceInfo:
-                    type: number
-                    example: 1
-                  iptvUserChgTp:
-                    type: number
-                    example: 1
-                  iptvUserInfo:
-                    type: number
-                    example: 1
-                  msgsUser:
-                    type: number
-                    example: 1
-                  paysysPayment:
-                    type: number
-                    example: 1
-                  paysysRecurrentPayment:
-                    type: number
-                    example: 1
-                  paysysSubscribe:
-                    type: number
-                    example: 1
-                  paysysUserLog:
-                    type: number
-                    example: 1
-                  portalNews:
-                    type: number
-                    example: 1
-                  showUserChat:
-                    type: number
-                    example: 1
-                  socialAuth:
-                    type: object
-                    properties:
-                      facebook:
-                        type: number
-                        example: 0
-                      google:
-                        type: number
-                        example: 0
-                  socialNetworks:
-                    type: object
-                    description: соответствует параметру config.pl SOCIAL_NETWORKS
-                    properties:
-                      facebook:
-                        type: string
-                        example: https://www.facebook.com/abills.net/
-                      instagram:
-                        type: string
-                        example: https://instagram.com
-                      telegram:
-                        type: string
-                        example: https://t.me/abills
-                      viber:
-                        type: string
-                        example: https://viber.com
-                      youtube:
-                        type: string
-                        example: https://www.youtube.com/c/abillsnetua
-                  reviewPages:
-                    type: object
-                    description: соответствует параметру config.pl REVIEW_PAGES
-                    properties:
-                      2ipUa:
-                        type: string
-                        example: https://2ip.ua/ua/services/providers-rating
-                      2ipIo:
-                        type: string
-                        example: https://2ip.io/ua/isp-rating/
-                      googleMaps:
-                        type: string
-                        example: https://goo.gl/maps/yn7nSx1RdCxGePXV7
-                  system:
-                    type: object
-                    properties:
-                      currency:
-                        type: number
-                        example: 980
-                      password:
-                        type: object
-                        properties:
-                          length:
-                            type: number
-                            example: 7
-                          symbols:
-                            type: number
-                            example: 1234567890
-                  userChgPasswd:
-                    type: number
-                    example: 1
-                  userCredit:
-                    type: number
-                    example: 1001
-                  userHoldupAll:
-                    type: object
-                    properties:
-                      activeFees:
-                        type: number
-                        example: 10
-                      dailyFees:
-                        type: number
-                        example: 0
-                      holdupPeriod:
-                        type: string
-                        example: 10
-                      maxPeriod:
-                        type: number
-                        example: 30
-                      minPeriod:
-                        type: number
-                        example: 1
-                  voipUserInfo:
-                    type: number
-                    example: 1
-                  voipUserRoutes:
-                    type: number
-                    example: 1
-                  voipUserStats:
-                    type: number
-                    example: 1
-    
-      security:
-        - USERSID: [ ]
-
-  /version:
-    get:
-      tags:
-        - config
-      summary: Получить версии биллинга и API
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  version:
-                    type: string
-                    example: 0.91.0
-                  apiVersion:
-                    type: string
-                    example: "0.01"
-                  billing:
-                    type: string
-                    example: Abills
-      security:
-        - USERSID: []
-  /config:
-    get:
-      tags:
-        - config
-      summary: Публичная конфигурация
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  login:
-                    type: object
-                    properties:
-                      maxLength:
-                        type: number
-                        example: 20
-                      regx:
-                        type: string
-                        example: ^[a-z0-9:_][a-z0-9:_-]*$
-                  password:
-                    type: object
-                    properties:
-                      length:
-                        type: number
-                        example: 7
-                      symbols:
-                        type: number
-                        example: 1234567890
-                  passwordRecovery:
-                    type: number
-                    example: 1
-                  portalNews:
-                    type: number
-                    example: 1
-                  registration:
-                    type: object
-                    properties:
-                      facebook:
-                        type: number
-                        example: 1
-                      google:
-                        type: number
-                        example: 1
-                  socialAuth:
-                    type: object
-                    properties:
-                      facebook:
-                        type: number
-                        example: 1
-                      google:
-                        type: number
-                        example: 1
-
-
-  # paysys paths
-
-  /user/paysys/systems:
-    get:
-      tags:
-        - paysys
-      summary: Список платежных систем доступных пользователю
-      parameters:
-        - name: requestMethod
-          in: query
-          description: сделать фильтрацию по методу запроса (GET, POST)
-          schema:
-            type: string
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                      example: 1
-                    name:
-                      type: string
-                      example: LiqPay
-                    module:
-                      type: string
-                      example: Liqpay.pm
-                    request:
-                      type: object
-                      properties:
-                        method:
-                          type: string
-                          example: GET
-    
-      security:
-        - USERSID: [ ]
-
-  /user/paysys/pay:
-    post:
-      tags:
-        - paysys
-      summary: Формирование ссылки на быструю оплату
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                systemId:
-                  type: integer
-                  example: 1
-                sum:
-                  type: integer
-                  example: 100
-                operationId:
-                  type: string
-                  example: 123456789
-        required: true
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  operationId:
-                    type: string
-                    example: 123456789
-                  transactionId:
-                    type: string
-                    example: Liqpay:123456789
-                  url:
-                    type: string
-                    example: https://www.liqpay.ua/api/3/checkout?data=123456789&signature=123456789
-    
-      security:
-        - USERSID: [ ]
-  /user/paysys/transaction/status:
-    post:
-      tags:
-        - paysys
-      summary: Проверка статуса платежа
-      deprecated: true
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                transactionId:
-                  type: string
-                  example: Liqpay:123456789
-    
-        required: true
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
-                    example: 1
-                  datetime:
-                    type: string
-                    example: "2022-01-01 01:01:01"
-                  login:
-                    type: string
-                    example: test
-                  status:
-                    type: integer
-                    example: 1
-                  systemId:
-                    type: integer
-                    example: 1
-                  sum:
-                    type: integer
-                    example: 100
-                  uid:
-                    type: integer
-                    example: 1
-                  transactionId:
-                    type: string
-                    example: Liqpay:123456789
-      security:
-        - USERSID: [ ]
-
-  /user/paysys/transaction/status/{id}:
-    get:
-      tags:
-        - paysys
-      summary: Проверка статуса платежа
-      parameters:
-        - name: id
-          in: path
-          description: ID транзакции
-          required: true
-          schema:
-            type: string
-            example: Liqpay:123456789
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
-                    example: 1
-                  datetime:
-                    type: string
-                    example: "2022-01-01 01:01:01"
-                  login:
-                    type: string
-                    example: test
-                  status:
-                    type: integer
-                    example: 1
-                  systemId:
-                    type: integer
-                    example: 1
-                  sum:
-                    type: integer
-                    example: 100
-                  uid:
-                    type: integer
-                    example: 1
-                  transactionId:
-                    type: string
-                    example: Liqpay:123456789
-      security:
-        - USERSID: [ ]
-
-  /user/paysys/applePay/session:
-    post:
-      tags:
-        - paysys
-      summary: Получение apple pay сессии
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  displayName:
-                    type: string
-                    example: ABillS Lite
-                  domainName:
-                    type: string
-                    example: demo.abills.net.ua
-                  epochTimestamp:
-                    type: number
-                    example: 1675887175073
-                  expiresAt:
-                    type: number
-                    example: 1675890775073
-                  merchantIdentifier:
-                    type: string
-                    example: BC3E7F7A5139613761C820AAEF5D248710B447168841225
-                  merchantSessionIdentifier:
-                    type: string
-                    example: SSH70B5F2E07D9D4DB3AF0A90B8E57333C0_5169
-                  nonce:
-                    type: string
-                    example: 668ca377
-                  operationalAnalyticsIdentifier:
-                    type: string
-                    example: ABillS Lite:BC3E7F7A5139613761C820AAEF5D248710B4471688412251192CAF5862400E65
-                  pspId:
-                    type: string
-                    example: BC3E7F7A5139613761C820AAEF5D248710B4471688412251192CAF5862400E65
-                  retries:
-                    type: number
-                    example: 0
-                  signature:
-                    type: string
-                    example: 308006092a864886f70d010702a0803080020101310d300b060960864801650304020
-      security:
-        - USERSID: [ ]
-
-  # contacts paths
-
-  /user/contacts/{typeId}:
-    delete:
-      tags:
-        - contacts
-      summary: Удаление контакта
-      parameters:
-        - name: typeId
-          in: path
-          description: typeId контакта
-          required: true
-          schema:
-            type: number
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  result:
-                    type: string
-                    example: Successfully deleted
-        400:
-          description: Неизвестный typeId
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  errno:
-                    type: integer
-                    example: 10048
-                  errstr:
-                    type: string
-                    example: No field token
-      security:
-        - USERSID: [ ]
-  /user/contacts/push/subscribe/{typeId}:
-    post:
-      tags:
-        - contacts
-      summary: Подписка на Push уведомления
-      parameters:
-        - name: typeId
-          in: path
-          description: >
-            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
-          required: true
-          schema:
-            type: number
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                token:
-                  type: string
-                  example: "d61FRIQSRI2j1mOwvLqt12:APA91bGpVb1bbokiMBWAoBh6uaGhzFr6YOD9ZT_1WcFeu6b_Dc8a8glaQCEk5GtCM3LYdvnF1XewSIpiT6Y5gkoa9ztFUb8of1wxd28eG-L94DM8MHvaCGa2jIbatHWiPYcPSUOtAdsM"
-        required: true
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  result:
-                    type: string
-                    example: OK
-      security:
-        - USERSID: [ ]
-    delete:
-      tags:
-        - contacts
-      summary: Отписка от Push уведомлений от всех устройств данного типа
-      parameters:
-        - name: typeId
-          in: path
-          description: >
-            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
-          required: true
-          schema:
-            type: number
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  result:
-                    type: string
-                    example: Successfully deleted
-      security:
-        - USERSID: [ ]
-    get:
-      tags:
-        - contacts
-      summary: Получить FCM токен
-      parameters:
-        - name: typeId
-          in: path
-          description: >
-            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
-          required: true
-          schema:
-            type: number
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  value:
-                    type: string
-                    example: "d61FRIQSRI2j1mOwvLqt12:APA91bGpVb1bbokiMBWAoBh6uaGhzFr6YOD9ZT_1WcFeu6b_Dc8a8glaQCEk5GtCM3LYdvnF1XewSIpiT6Y5gkoa9ztFUb8of1wxd28eG-L94DM8MHvaCGa2jIbatHWiPYcPSUOtAdsM"
-                  uid:
-                    type: integer
-                    example: 1
-      security:
-        - USERSID: [ ]
-
-  /user/contacts/push/subscribe/{typeId}/{value}:
-    delete:
-      tags:
-        - contacts
-      summary: Отписка от Push уведомлений избранным токеном
-      parameters:
-        - name: typeId
-          in: path
-          description: >
-            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
-          required: true
-          schema:
-            type: number
-        - name: value
-          in: path
-          description: FCM токен
-          required: true
-          schema:
-            type: string
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  result:
-                    type: string
-                    example: Successfully deleted
-      security:
-        - USERSID: [ ]
-  /user/contacts/push/badges/{typeId}:
-    delete:
-      tags:
-        - contacts
-      summary: Удаление количества непрочитанных сообщений на устройстве
-      parameters:
-        - name: typeId
-          in: path
-          description: >
-            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*. В данный момент Firebase поддерживает только iOS/MacOS Silicon
-          required: true
-          schema:
-            type: number
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  result:
-                    type: string
-                    example: OK
-      security:
-        - USERSID: [ ]
-
-  /user/contacts/push/messages:
-    get:
-      tags:
-        - contacts
-      summary: Получить историю оповещений
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    created:
-                      type: string
-                      example: '2023-04-13 23:15:02'
-                    id:
-                      type: number
-                      example: 1451
-                    message:
-                      type: string
-                      example: Тест текст
-                    status:
-                      type: number
-                      example: 0
-                      description: 0 успешно получено, 1 ошибка
-                    title:
-                      type: string
-                      example: "#201178 Нова відповідь в темі 'Тестове повідомлення'"
-                    typeId:
-                      type: number
-                      example: 2
-                    uid:
-                      type: number
-                      example: 6720
-      security:
-        - USERSID: [ ]
-
-  # holdup paths
-
-  /user/{ID}/holdup:
-    post:
-      tags:
-        - holdup
-      summary: Приостановление всех услуг (или интернет)
-      description: Приостановление всех услуг, если включен параметр $conf{HOLDUP_ALL} или только инетернет, если есть параметр $conf{INTERNET_USER_SERVICE_HOLDUP}, если включены оба параметра тогда $conf{INTERNET_USER_SERVICE_HOLDUP} игнорируется!
-      parameters:
-        - name: ID
-          in: path
-          description: ID услуги Интернет, если параметр $conf{HOLDUP_ALL}, тогда передавать любую цифру, параметр игнорируется
-          required: true
-          schema:
-            type: number
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                fromDate:
-                  type: string
-                  example: "2021-08-14"
-                toDate:
-                  type: string
-                  example: "2021-08-17"
-        required: true
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: integer
-                    example: 1
-                  msg:
-                    type: string
-                    example: Success
-      security:
-        - USERSID: [ ]
-    delete:
-      tags:
-        - holdup
-      summary: Удаление рассписания на приостановление всех услуг (или интернет)
-      description: Удаление рассписания на приостановление всех услуг, если включен параметр $conf{HOLDUP_ALL} или только инетернет, если есть параметр  $conf{INTERNET_USER_SERVICE_HOLDUP}, если включены оба параметра $conf{INTERNET_USER_SERVICE_HOLDUP} игнорируется!
-      parameters:
-        - name: ID
-          in: path
-          description: ID услуги Интернет, если параметр $conf{HOLDUP_ALL}, тогда передавать любую цифру, параметр игнорируется
-          required: true
-          schema:
-            type: number
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: integer
-                    example: 1
-                  msg:
-                    type: string
-                    example: Success
-      security:
-        - USERSID: [ ]
-    get:
-      tags:
-        - holdup
-      summary: Инфомация о приостановлении всех услуг (или интернет)
-      description: Информация о приостановлении всех услуг, если включен параметр $conf{HOLDUP_ALL} или только инетернет, если есть параметр $conf{INTERNET_USER_SERVICE_HOLDUP}, если включены оба параметра, тогда $conf{INTERNET_USER_SERVICE_HOLDUP} игнорируется!
-      parameters:
-        - name: ID
-          in: path
-          description: ID услуги Интернет, если параметр $conf{HOLDUP_ALL}, тогда передавать любую цифру, параметр игнорируется
-          required: true
-          schema:
-            type: number
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  canCancel:
-                    type: boolean
-                    example: true
-                  dateFrom:
-                    type: string
-                    example: "2022-06-12"
-                  dateTo:
-                    type: string
-                    example: "2022-07-12"
-                  delIds:
-                    type: string
-                    example: "1, 2, 3"
-      security:
-        - USERSID: [ ]
-
-
-  # services paths
-
-  /user/services:
-    get:
-      tags:
-        - services
-      summary: Список всех услуг
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  abon:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        activate:
-                          type: boolean
-                        active:
-                          type: boolean
-                        description:
-                          type: string
-                          example: "Test service"
-                        endDate:
-                          type: string
-                          example: "2023-02-02"
-                        id:
-                          type: number
-                          example: 3
-                        period:
-                          type: string
-                          example: day
-                        price:
-                          type: number
-                          example: 1.93
-                        startDate:
-                          type: string
-                          example: "2023-01-02"
-                        tpName:
-                          type: string
-                          example: MMM
-                  internet:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        cid:
-                          type: string
-                          example: 14:11:11:11:11:c1
-                        dayFee:
-                          type: number
-                          example: 10
-                        holdup:
-                          type: object
-                          properties:
-                            canCancel:
-                              type: boolean
-                            dateFrom:
-                              type: string
-                              example: "2023-02-01"
-                            dateTo:
-                              type: string
-                              example: "2023-03-01"
-                            del:
-                              type: number
-                              example: 1
-                            delIds:
-                              type: string
-                              example: 245 246
-                        id:
-                          type: number
-                          example: 77
-                        inSpeed:
-                          type: number
-                          example: 51200
-                        internetStatus:
-                          type: number
-                          example: 0
-                        loginStatus:
-                          type: number
-                          example: 0
-                        monthFee:
-                          type: string
-                          example: 250
-                        nextAbon:
-                          type: object
-                          properties:
-                            abonDate:
-                              type: string
-                              example: "2023-02-02"
-                            daysToFee:
-                              type: number
-                              example: 0
-                        outSpeed:
-                          type: number
-                          example: 51200
-                        serviceHoldup:
-                          type: boolean
-                        statusName:
-                          type: string
-                          example: enable
-                        tpComments:
-                          type: string
-                          example: Cool tariff plan take me
-                        tpId:
-                          type: number
-                          example: 0
-                        tpName:
-                          type: string
-                          example: Test
-                        tpReductionFee:
-                          type: string
-                          example: 10
-                        uid:
-                          type: number
-                          example: 1
-                  iptv:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        cid:
-                          type: string
-                          example: 14:11:11:11:11:c1
-                        dayFee:
-                          type: number
-                          example: 50
-                        id:
-                          type: number
-                          example: 2
-                        iptvExpire:
-                          type: string
-                          example: "0000-00-00"
-                        monthFee:
-                          type: number
-                          example: 50
-                        nextAbon:
-                          type: object
-                          properties:
-                            abonDate:
-                              type: string
-                              example: "2022-09-03"
-                            activateDate:
-                              type: string
-                              example: "2022-08-03"
-                            daysToFee:
-                              type: number
-                              example: -139
-                        serviceHoldup:
-                          type: boolean
-                        serviceId:
-                          type: number
-                          example: 5
-                        serviceStatus:
-                          type: number
-                          example: 0
-                        statusName:
-                          type: string
-                          example: enable
-                        tpComments:
-                          type: string
-                          example: Cool tariff plan take me
-                        tpId:
-                          type: number
-                          example: 15
-                        tpName:
-                          type: string
-                          example: Хаха тест 1
-                        tpReductionFee:
-                          type: number
-                          example: 0
-                        tvServiceName:
-                          type: string
-                          example: Тестоеве середовище
-                        uid:
-                          type: number
-                          example: 1
-                  voip:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        allowAnswer:
-                          type: number
-                          example: 1
-                        allowCalls:
-                          type: number
-                          example: 1
-                        cid:
-                          type: string
-                          example: 14:11:11:11:11:c1
-                        dayAbon:
-                          type: number
-                          example: 0
-                        disable:
-                          type: number
-                          example: 0
-                        expire:
-                          type: string
-                          example: "0000-00-00"
-                        extraNumbersDayFee:
-                          type: number
-                          example: 0
-                        extraNumbersMonthFee:
-                          type: number
-                          example: 0
-                        id:
-                          type: number
-                          example: 47
-                        ip:
-                          type: string
-                          example: 0.0.0.0
-                        logins:
-                          type: number
-                          example: 0
-                        monthAbon:
-                          type: number
-                          example: 0
-                        number:
-                          type: string
-                          example: 0509152720
-                        phoneAliases:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              disable:
-                                type: number
-                                example: 0
-                              id:
-                                type: number
-                                example: 24
-                              number:
-                                type: number
-                                example: 380506712611
-                              uid:
-                                type: number
-                                example: 1
-                        tpId:
-                          type: number
-                          example: 45
-                        tpName:
-                          type: string
-                          example: test api
-                        tpNum:
-                          type: number
-                          example: 567
-                        uid:
-                          type: number
-                          example: 1
-                        voipExpire:
-                          type: string
-                          example: "0000-00-00"
-    
-      security:
-        - USERSID: [ ]
-
-  # finance paths
-
-  /user/payments:
-    get:
-      tags:
-        - finance
-      summary: История платежей
-      parameters:
-        - name: pageRows
-          in: query
-          description: Количество возвращаемых значений
-          required: false
-          schema:
-            type: number
-            default: 1000
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    datetime:
-                      type: string
-                      example: "2021-12-04 17:58:35"
-                    dsc:
-                      type: string
-                      example: "Payments ID: 10323469 ФИО - Иванов Виктор Викторович Логин - ivanov_v # 380509152"
-                    extId:
-                      type: string
-                      example: Liqpay:10323469
-                    id:
-                      type: number
-                      example: 2237
-                    sum:
-                      type: number
-                      example: 451
-                    uid:
-                      type: number
-                      example: 6550
-      security:
-        - USERSID: [ ]
-  /user/fees:
-    get:
-      tags:
-        - finance
-      summary: История списаний
-      parameters:
-        - name: pageRows
-          in: query
-          description: Количество возвращаемых значений
-          required: false
-          schema:
-            type: number
-            default: 1000
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    datetime:
-                      type: string
-                      example: "2021-10-06 00:00:00"
-                    dsc:
-                      type: string
-                      example: 'Internet: М/А test (111)(2021-10-01-2021-10-31)'
-                    id:
-                      type: number
-                      example: 3190
-                    sum:
-                      type: number
-                      example: 10
-                    uid:
-                      type: number
-                      example: 6550
-      security:
-        - USERSID: [ ]
-
-  # bots paths
-
-  /user/bots/subscribe/phone:
-    post:
-      tags:
-        - bots
-      summary: Авторизация пользователя по номеру телефона (Только с бота)
-      parameters:
-        - name: USERBOT
-          in: header
-          description: Какой именно бот Telegram или Viber
-          required: true
-          schema:
-            type: string
-          example: Telegram
-        - name: USERID
-          in: header
-          description: ID Telegram или Viber
-          required: true
-          schema:
-            type: string
-          example: 111111111
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                phone:
-                  type: string
-                  example: 380958656881
-        required: true
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  result:
-                    type: string
-                    example: Successfully added
-                  code:
-                    type: string
-                    example: 1
-        400:
-          description: Нет поля phone
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  errno:
-                    type: integer
-                    example: 10040
-                  errstr:
-                    type: string
-                    example: No field phone
-  /user/bots/subscribe:
-    post:
-      tags:
-        - bots
-      summary: Авторизация пользователя по токену с botLink (Только с бота)
-      parameters:
-        - name: USERBOT
-          in: header
-          description: Какой именно бот Telegram или Viber
-          required: true
-          schema:
-            type: string
-          example: Telegram
-        - name: USERID
-          in: header
-          description: ID Telegram или Viber
-          required: true
-          schema:
-            type: string
-          example: 111111111
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                token:
-                  type: string
-                  example: u_WvnZTywig5qzipYH
-        required: true
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  result:
-                    type: string
-                    example: Successfully added
-                  code:
-                    type: string
-                    example: 1
-        400:
-          description: Нет поля token
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  errno:
-                    type: integer
-                    example: 10047
-                  errstr:
-                    type: string
-                    example: No field token
-  /user/bots/subscribe/link/{bot}:
-    get:
-      tags:
-        - bots
-      summary: Получения ссылки на подписания на бота
-      parameters:
-        - name: bot
-          in: path
-          description: названия бота Viber или Telegram
-          required: true
-          schema:
-            type: string
-          example: Telegram
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  botLink:
-                    type: string
-                    example: "https://t.me/test_tg/?start=u_WvnZTywig5qzipYH"
-        400:
-          description: Нет параметра TELEGRAM_BOT_NAME в сonfig.pl
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  errno:
-                    type: integer
-                    example: 10044
-                  errstr:
-                    type: string
-                    example: "Unknown telegram bot"
-      security:
-        - USERSID: [ ]
-  /user/bots/subscribe/qrcode/{bot}:
-    get:
-      tags:
-        - bots
-      summary: Получения QRCode на подписания на бота
-      parameters:
-        - name: bot
-          in: path
-          description: названия бота Viber или Telegram
-          required: true
-          schema:
-            type: string
-          example: Telegram
-      responses:
-        200:
-          description: |
-            #
-            ![Swagger logo](https://chart.apis.google.com/chart?cht=qr&chs=350x350&chld=L&choe=UTF-8&chl=https%3A%2F%2Ft.me%2Fabills_user_bot%3Fstart%3Du_fB4xWXze5HgdSCu4)
-          content:
-            image/jpeg:
-              schema:
-                type: string
-                format: binary
-
-  # cards paths
-
-  /user/cards/payment:
-    post:
-      tags:
-        - cards
-      summary: Пополнения скретч картой
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                pin:
-                  description: Пин карточки
-                  type: string
-                  example: 12345678
-                serial:
-                  description: Серийный номер карты, необходимо передавать если не включена опция CARDS_PIN_ONLY
-                  type: string
-                  example: 12345678
-        required: true
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  result:
-                    type: string
-                    example: Success payment, ID 18342
-                  amount:
-                    type: number
-                    example: 1.99
-                  paymentId:
-                    type: number
-                    example: 18342
-        400:
-          description: Нет параметра pin в теле запроса
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  errno:
-                    type: integer
-                    example: 10051
-                  errstr:
-                    type: string
-                    example: No field pin
-      security:
-        - USERSID: [ ]
-
-
-  # iptv paths
-
   /user/iptv:
     get:
       tags:
@@ -3413,9 +1885,15 @@ paths:
                 items:
                   type: object
                   properties:
+                    abonDistribution:
+                      type: integer
+                      example: 0
                     cid:
                       type: string
                       example: 14:11:11:11:11:c1
+                    canChangeTp:
+                      type: boolean
+                      example: true
                     dayFee:
                       type: number
                       example: 99
@@ -3447,6 +1925,9 @@ paths:
                     schedule:
                       type: object
                       properties:
+                        canCancel:
+                          type: boolean
+                          example: false
                         date:
                           type: string
                           example: '2023-01-13'
@@ -3516,12 +1997,12 @@ paths:
     
       security:
         - USERSID: [ ]
-
+  
   /user/iptv/tariffs:
     get:
       tags:
         - iptv
-      summary: Список доступных тарифных планов для изменения
+      summary: Список доступных тарифных планов для добавления новой услуги
       responses:
         200:
           description: Успешное выполнение
@@ -3567,9 +2048,15 @@ paths:
                           originalDayFee:
                             type: number
                             example: 0
+                          tpComments:
+                            type: string
+                            example: Дуже класний тариф
                           tpFee:
                             type: number
                             example: 110
+                          tpName:
+                            type: string
+                            example: Тест 1
                           serviceId:
                             type: number
                             example: 5
@@ -3585,7 +2072,7 @@ paths:
     
       security:
         - USERSID: [ ]
-
+  
   /user/iptv/services:
     get:
       tags:
@@ -3610,7 +2097,7 @@ paths:
     
       security:
         - USERSID: [ ]
-
+  
   /user/iptv/{ID}/tariffs:
     get:
       tags:
@@ -3660,9 +2147,15 @@ paths:
                     originalDayFee:
                       type: number
                       example: 0
+                    tpComments:
+                      type: string
+                      example: Дуже класний тариф
                     tpFee:
                       type: number
                       example: 110
+                    tpName:
+                      type: string
+                      example: Тест 1
                     serviceId:
                       type: number
                       example: 5
@@ -3678,7 +2171,7 @@ paths:
     
       security:
         - USERSID: [ ]
-
+  
   /user/iptv/tariffs/{serviceId}:
     get:
       tags:
@@ -3728,9 +2221,15 @@ paths:
                     originalDayFee:
                       type: number
                       example: 0
+                    tpComments:
+                      type: string
+                      example: Дуже класний тариф
                     tpFee:
                       type: number
                       example: 110
+                    tpName:
+                      type: string
+                      example: Тест 1
                     serviceId:
                       type: number
                       example: 5
@@ -3746,7 +2245,7 @@ paths:
     
       security:
         - USERSID: [ ]
-
+  
   /user/iptv/promotion/tariffs:
     get:
       tags:
@@ -3786,9 +2285,15 @@ paths:
                     originalDayFee:
                       type: number
                       example: 0
+                    tpComments:
+                      type: string
+                      example: Дуже класний тариф
                     tpFee:
                       type: number
                       example: 110
+                    tpName:
+                      type: string
+                      example: Тест 1
                     serviceId:
                       type: number
                       example: 5
@@ -3804,7 +2309,7 @@ paths:
     
       security:
         - USERSID: [ ]
-
+  
   /user/iptv/{ID}/warnings:
     get:
       tags:
@@ -4134,7 +2639,7 @@ paths:
                     example: Unknown tpId
       security:
         - USERSID: [ ]
-
+  
   /user/iptv/{ID}:
     put:
       tags:
@@ -4232,10 +2737,1777 @@ paths:
                     example: 1
       security:
         - USERSID: [ ]
-
-
-  # voip paths
-
+  /user/msgs:
+    get:
+      tags:
+        - msgs
+      summary: Список заявок пользователя
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    subject:
+                      type: string
+                      example: Message user api subject
+                    message:
+                      type: string
+                      example: Test message from user api
+                    chapterName:
+                      type: string
+                      example: Второй раздел
+                    chapter:
+                      type: integer
+                      example: 3
+                    priority:
+                      type: integer
+                      example: 2
+                    state:
+                      type: integer
+                      example: 0
+                    date:
+                      type: string
+                      example: "2021-09-02 13:20:37"
+      security:
+        - USERSID: [ ]
+    post:
+      tags:
+        - msgs
+      summary: Создание заявки
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chapter:
+                  type: integer
+                  example: 3
+                message:
+                  type: string
+                  example: Some message
+                subject:
+                  type: string
+                  example: Message subject
+                priority:
+                  type: integer
+                  example: 2
+    
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                insertId:
+                  type: integer
+                  example: 43
+                msgId:
+                  type: integer
+                  example: 43
+                affected:
+                  type: integer
+                  example: 1
+                file1:
+                  type: string
+                  format: binary
+                file2:
+                  type: string
+                  format: binary
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  insertId:
+                    type: integer
+                    example: 43
+                  msgId:
+                    type: integer
+                    example: 43
+                  affected:
+                    type: integer
+                    example: 1
+      security:
+        - USERSID: [ ]
+  /user/msgs/{ID}:
+    get:
+      tags:
+        - msgs
+      summary: Информация о заявке пользователя
+      parameters:
+        - name: ID
+          in: path
+          description: ID заявки
+          required: true
+          schema:
+            type: number
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                    example: Message user api subject
+                  message:
+                    type: string
+                    example: Test message from user api
+                  chapterName:
+                    type: string
+                    example: Второй раздел
+                  chapter:
+                    type: integer
+                    example: 3
+                  priority:
+                    type: integer
+                    example: 2
+                  state:
+                    type: integer
+                    example: 0
+                  date:
+                    type: string
+                    example: "2021-09-02 13:20:37"
+      security:
+        - USERSID: [ ]
+  /user/msgs/{ID}/reply:
+    get:
+      tags:
+        - msgs
+      summary: Все сообщения в заявке
+      parameters:
+        - name: ID
+          in: path
+          description: ID заявки
+          required: true
+          schema:
+            type: number
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    uid:
+                      type: integer
+                      example: 0
+                    aid:
+                      type: integer
+                      example: 2
+                    id:
+                      type: integer
+                      example: 54
+                    text:
+                      type: string
+                      example: some reply text
+                    datetime:
+                      type: string
+                      example: "2021-09-02 12:50:47"
+                    attachments:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          contentType:
+                            type: string
+                            example: application/pdf
+                          contentSize:
+                            type: string
+                            example: 10212
+                          id:
+                            type: number
+                            example: 1
+                          filePath:
+                            type: string
+                            format: uri
+                            example: https://abills.net.ua:9443/api
+                          filename:
+                            type: string
+                            example: Test PDF
+      security:
+        - USERSID: [ ]
+    post:
+      tags:
+        - msgs
+      summary: Ответ на существующую заявку
+      parameters:
+        - name: ID
+          in: path
+          description: ID заявки
+          required: true
+          schema:
+            type: number
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                replyText:
+                  type: string
+                  example: Some reply text
+                replySubject:
+                  type: string
+                  example: Subject
+                state:
+                  type: number
+                  example: 0
+    
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                replyText:
+                  type: string
+                  example: Some reply text
+                replySubject:
+                  type: string
+                  example: Subject
+                state:
+                  type: number
+                  example: 0
+    
+                file1:
+                  type: string
+                  format: binary
+                file2:
+                  type: string
+                  format: binary
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: OK
+      security:
+        - USERSID: [ ]
+  /user/msgs/chapters:
+    get:
+      tags:
+        - msgs
+      summary: Список разделов заявок пользователя
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 1
+                    name:
+                      type: string
+                      example: Example chapter
+      security:
+        - USERSID: [ ]
+  /user/msgs/attachments/{ID}:
+    get:
+      tags:
+        - msgs
+      summary: Получение прикрепленного файла к сообщению
+      parameters:
+        - name: ID
+          in: path
+          description: ID файла
+          required: true
+          schema:
+            type: number
+      responses:
+        200:
+          description: |
+            #
+            ![Swagger logo](https://play-lh.googleusercontent.com/OtF8QmtySwbMtomLbRFYMgVOOFKUw1D63BqR2XxtzGbDsdF97UUO-7IAOhppxBi93NqU=w240-h480-rw)
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+      security:
+        - USERSID: [ ]
+  /user/abon:
+    get:
+      tags:
+        - abon
+      summary: Информация об периодических списаниях пользователя
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 9
+                    name:
+                      type: string
+                      example: Casco
+                    activate:
+                      type: boolean
+                      example: true
+                    active:
+                      type: boolean
+                      example: false
+                    description:
+                      type: string
+                      example: ""
+                    endDate:
+                      type: string
+                      example: ""
+                    period:
+                      type: string
+                      example: year
+                    personalDescription:
+                      type: string
+                      example: ""
+                    price:
+                      type: number
+                      example: 0
+                    serviceImg:
+                      type: string
+                      example: "https://demo.abills.net.ua:9443/images/attach/abon/"
+                    serviceLink:
+                      type: string
+                      example: ""
+                    startDate:
+                      type: string
+                      example: ""
+                    tpName:
+                      type: string
+                      example: Casco
+                    tpReductionFee:
+                      type: number
+                      example: 0
+      security:
+        - USERSID: [ ]
+  /user/paysys/systems:
+    get:
+      tags:
+        - paysys
+      summary: Список платежных систем доступных пользователю
+      parameters:
+        - name: requestMethod
+          in: query
+          description: сделать фильтрацию по методу запроса (GET, POST)
+          schema:
+            type: string
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 1
+                    name:
+                      type: string
+                      example: LiqPay
+                    module:
+                      type: string
+                      example: Liqpay.pm
+                    request:
+                      type: object
+                      properties:
+                        method:
+                          type: string
+                          example: GET
+    
+      security:
+        - USERSID: [ ]
+  
+  /user/paysys/pay:
+    post:
+      tags:
+        - paysys
+      summary: Формирование ссылки на быструю оплату
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                systemId:
+                  type: integer
+                  example: 1
+                sum:
+                  type: integer
+                  example: 100
+                operationId:
+                  type: string
+                  example: 123456789
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  operationId:
+                    type: string
+                    example: 123456789
+                  transactionId:
+                    type: string
+                    example: Liqpay:123456789
+                  url:
+                    type: string
+                    example: https://www.liqpay.ua/api/3/checkout?data=123456789&signature=123456789
+    
+      security:
+        - USERSID: [ ]
+  /user/paysys/transaction/status:
+    post:
+      tags:
+        - paysys
+      summary: Проверка статуса платежа
+      deprecated: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transactionId:
+                  type: string
+                  example: Liqpay:123456789
+    
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  datetime:
+                    type: string
+                    example: "2022-01-01 01:01:01"
+                  login:
+                    type: string
+                    example: test
+                  status:
+                    type: integer
+                    example: 1
+                  systemId:
+                    type: integer
+                    example: 1
+                  sum:
+                    type: integer
+                    example: 100
+                  uid:
+                    type: integer
+                    example: 1
+                  transactionId:
+                    type: string
+                    example: Liqpay:123456789
+      security:
+        - USERSID: [ ]
+  
+  /user/paysys/transaction/status/{id}:
+    get:
+      tags:
+        - paysys
+      summary: Проверка статуса платежа
+      parameters:
+        - name: id
+          in: path
+          description: ID транзакции
+          required: true
+          schema:
+            type: string
+            example: Liqpay:123456789
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  datetime:
+                    type: string
+                    example: "2022-01-01 01:01:01"
+                  login:
+                    type: string
+                    example: test
+                  status:
+                    type: integer
+                    example: 1
+                  systemId:
+                    type: integer
+                    example: 1
+                  sum:
+                    type: integer
+                    example: 100
+                  uid:
+                    type: integer
+                    example: 1
+                  transactionId:
+                    type: string
+                    example: Liqpay:123456789
+      security:
+        - USERSID: [ ]
+  
+  /user/paysys/applePay/session:
+    post:
+      tags:
+        - paysys
+      summary: Получение apple pay сессии
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  displayName:
+                    type: string
+                    example: ABillS Lite
+                  domainName:
+                    type: string
+                    example: demo.abills.net.ua
+                  epochTimestamp:
+                    type: number
+                    example: 1675887175073
+                  expiresAt:
+                    type: number
+                    example: 1675890775073
+                  merchantIdentifier:
+                    type: string
+                    example: BC3E7F7A5139613761C820AAEF5D248710B447168841225
+                  merchantSessionIdentifier:
+                    type: string
+                    example: SSH70B5F2E07D9D4DB3AF0A90B8E57333C0_5169
+                  nonce:
+                    type: string
+                    example: 668ca377
+                  operationalAnalyticsIdentifier:
+                    type: string
+                    example: ABillS Lite:BC3E7F7A5139613761C820AAEF5D248710B4471688412251192CAF5862400E65
+                  pspId:
+                    type: string
+                    example: BC3E7F7A5139613761C820AAEF5D248710B4471688412251192CAF5862400E65
+                  retries:
+                    type: number
+                    example: 0
+                  signature:
+                    type: string
+                    example: 308006092a864886f70d010702a0803080020101310d300b060960864801650304020
+      security:
+        - USERSID: [ ]
+  /user/config:
+    get:
+      tags:
+        - config
+      summary: Список доступных конфигураций пользователя
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  abonClient:
+                    type: number
+                    example: 1
+                  addFriend:
+                    type: number
+                    example: 1
+                  bots:
+                    type: object
+                    properties:
+                      telegram:
+                        type: number
+                        example: 1
+                  camsArchives:
+                    type: number
+                    example: 1
+                  camsClientsStreams:
+                    type: number
+                    example: 1
+                  camsUserInfo:
+                    type: number
+                    example: 1
+                  camsUserStreamsManagement:
+                    type: number
+                    example: 1
+                  cardsUserPayment:
+                    type: object
+                    properties:
+                      serial:
+                        type: number
+                        example: 1
+                  internet:
+                    type: object
+                    properties:
+                      nextMonth:
+                        type: number
+                        example: 1
+                      now:
+                        type: number
+                        example: 0
+                      schedule:
+                        type: number
+                        example: 2
+                  internetUserChgTp:
+                    type: number
+                    example: 1
+                  internetUserInfo:
+                    type: number
+                    example: 1
+                  internetUserStats:
+                    type: number
+                    example: 1
+                  iptv:
+                    type: object
+                    properties:
+                      nextMonth:
+                        type: number
+                        example: 1
+                      schedule:
+                        type: number
+                        example: 2
+                  iptvConfig:
+                    type: object
+                    properties:
+                      promotionTps:
+                        type: number
+                        example: 1
+                      subscribe:
+                        type: object
+                        properties:
+                          describe:
+                            type: string
+                            example: Enter your email
+                          id:
+                            type: string
+                            example: EMAIL
+                          name:
+                            type: string
+                            example: E-mail
+                  iptvPortalServiceInfo:
+                    type: number
+                    example: 1
+                  iptvUserChgTp:
+                    type: number
+                    example: 1
+                  iptvUserInfo:
+                    type: number
+                    example: 1
+                  msgsUser:
+                    type: number
+                    example: 1
+                  paysysPayment:
+                    type: number
+                    example: 1
+                  paysysRecurrentPayment:
+                    type: number
+                    example: 1
+                  paysysSubscribe:
+                    type: number
+                    example: 1
+                  paysysUserLog:
+                    type: number
+                    example: 1
+                  portalNews:
+                    type: number
+                    example: 1
+                  showUserChat:
+                    type: number
+                    example: 1
+                  socialAuth:
+                    type: object
+                    properties:
+                      facebook:
+                        type: number
+                        example: 0
+                      google:
+                        type: number
+                        example: 0
+                  socialNetworks:
+                    type: object
+                    description: соответствует параметру config.pl SOCIAL_NETWORKS
+                    properties:
+                      facebook:
+                        type: string
+                        example: https://www.facebook.com/abills.net/
+                      instagram:
+                        type: string
+                        example: https://instagram.com
+                      telegram:
+                        type: string
+                        example: https://t.me/abills
+                      viber:
+                        type: string
+                        example: https://viber.com
+                      youtube:
+                        type: string
+                        example: https://www.youtube.com/c/abillsnetua
+                  reviewPages:
+                    type: object
+                    description: соответствует параметру config.pl REVIEW_PAGES
+                    properties:
+                      2ipUa:
+                        type: string
+                        example: https://2ip.ua/ua/services/providers-rating
+                      2ipIo:
+                        type: string
+                        example: https://2ip.io/ua/isp-rating/
+                      googleMaps:
+                        type: string
+                        example: https://goo.gl/maps/yn7nSx1RdCxGePXV7
+                  system:
+                    type: object
+                    properties:
+                      currency:
+                        type: number
+                        example: 980
+                      password:
+                        type: object
+                        properties:
+                          length:
+                            type: number
+                            example: 7
+                          symbols:
+                            type: number
+                            example: 1234567890
+                  userChgPasswd:
+                    type: number
+                    example: 1
+                  userChgPi:
+                    type: number
+                    example: 1
+                  userChgPiAllowedParams:
+                    type: object
+                    properties:
+                      pinAbs:
+                        type: number
+                        example: 1
+                      test:
+                        type: number
+                        example: 4
+                      cellPhone:
+                        type: number
+                        example: 99
+                      email:
+                        type: number
+                        example: 99
+                      fio:
+                        type: number
+                        example: 99
+                      phone:
+                        type: number
+                        example: 99
+                  userCredit:
+                    type: number
+                    example: 1001
+                  userHoldupAll:
+                    type: object
+                    deprecated: true
+                    properties:
+                      activeFees:
+                        type: number
+                        example: 10
+                      dailyFees:
+                        type: number
+                        example: 0
+                      holdupPeriod:
+                        type: string
+                        example: 10
+                      maxPeriod:
+                        type: number
+                        example: 30
+                      minPeriod:
+                        type: number
+                        example: 1
+                  holdup:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        activeFees:
+                          type: number
+                          example: 10
+                        dailyFees:
+                          type: number
+                          example: 0
+                        holdupPeriod:
+                          type: string
+                          example: 10
+                        maxPeriod:
+                          type: number
+                          example: 30
+                        minPeriod:
+                          type: number
+                          example: 1
+                  voipUserInfo:
+                    type: number
+                    example: 1
+                  voipUserRoutes:
+                    type: number
+                    example: 1
+                  voipUserStats:
+                    type: number
+                    example: 1
+    
+      security:
+        - USERSID: [ ]
+  
+  /version:
+    get:
+      tags:
+        - config
+      summary: Получить версии биллинга и API
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+                    example: 0.91.0
+                  apiVersion:
+                    type: string
+                    example: "0.01"
+                  billing:
+                    type: string
+                    example: Abills
+      security:
+        - USERSID: []
+  /config:
+    get:
+      tags:
+        - config
+      summary: Публичная конфигурация
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  auth:
+                    type: object
+                    properties:
+                      phone:
+                        type: number
+                        example: 1
+                  login:
+                    type: object
+                    properties:
+                      maxLength:
+                        type: number
+                        example: 20
+                      regx:
+                        type: string
+                        example: ^[a-z0-9:_][a-z0-9:_-]*$
+                  password:
+                    type: object
+                    properties:
+                      length:
+                        type: number
+                        example: 7
+                      symbols:
+                        type: number
+                        example: 1234567890
+                  passwordRecovery:
+                    type: number
+                    example: 1
+                  phone:
+                    type: object
+                    properties:
+                      pattern:
+                        type: string
+                        example: '+380 (xx) xxx-xx-xx'
+                  portalNews:
+                    type: number
+                    example: 1
+                  registration:
+                    type: object
+                    properties:
+                      facebook:
+                        type: number
+                        example: 1
+                      google:
+                        type: number
+                        example: 1
+                      apple:
+                        type: number
+                        example: 1
+                  socialAuth:
+                    type: object
+                    properties:
+                      facebook:
+                        type: number
+                        example: 1
+                      google:
+                        type: number
+                        example: 1
+                      apple:
+                        type: number
+                        example: 1
+  /user/contacts/{typeId}:
+    delete:
+      tags:
+        - contacts
+      summary: Удаление контакта
+      parameters:
+        - name: typeId
+          in: path
+          description: typeId контакта
+          required: true
+          schema:
+            type: number
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully deleted
+        400:
+          description: Неизвестный typeId
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 10048
+                  errstr:
+                    type: string
+                    example: No field token
+      security:
+        - USERSID: [ ]
+  /user/contacts/push/subscribe/{typeId}:
+    post:
+      tags:
+        - contacts
+      summary: Подписка на Push уведомления
+      parameters:
+        - name: typeId
+          in: path
+          description: >
+            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
+          required: true
+          schema:
+            type: number
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  example: "d61FRIQSRI2j1mOwvLqt12:APA91bGpVb1bbokiMBWAoBh6uaGhzFr6YOD9ZT_1WcFeu6b_Dc8a8glaQCEk5GtCM3LYdvnF1XewSIpiT6Y5gkoa9ztFUb8of1wxd28eG-L94DM8MHvaCGa2jIbatHWiPYcPSUOtAdsM"
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: OK
+      security:
+        - USERSID: [ ]
+    delete:
+      tags:
+        - contacts
+      summary: Отписка от Push уведомлений от всех устройств данного типа
+      parameters:
+        - name: typeId
+          in: path
+          description: >
+            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
+          required: true
+          schema:
+            type: number
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully deleted
+      security:
+        - USERSID: [ ]
+    get:
+      tags:
+        - contacts
+      summary: Получить FCM токен
+      parameters:
+        - name: typeId
+          in: path
+          description: >
+            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
+          required: true
+          schema:
+            type: number
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: string
+                    example: "d61FRIQSRI2j1mOwvLqt12:APA91bGpVb1bbokiMBWAoBh6uaGhzFr6YOD9ZT_1WcFeu6b_Dc8a8glaQCEk5GtCM3LYdvnF1XewSIpiT6Y5gkoa9ztFUb8of1wxd28eG-L94DM8MHvaCGa2jIbatHWiPYcPSUOtAdsM"
+                  uid:
+                    type: integer
+                    example: 1
+      security:
+        - USERSID: [ ]
+  
+  /user/contacts/push/subscribe/{typeId}/{value}:
+    delete:
+      tags:
+        - contacts
+      summary: Отписка от Push уведомлений избранным токеном
+      parameters:
+        - name: typeId
+          in: path
+          description: >
+            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
+          required: true
+          schema:
+            type: number
+        - name: value
+          in: path
+          description: FCM токен
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully deleted
+      security:
+        - USERSID: [ ]
+  /user/contacts/push/badges/{typeId}:
+    delete:
+      tags:
+        - contacts
+      summary: Удаление количества непрочитанных сообщений на устройстве
+      parameters:
+        - name: typeId
+          in: path
+          description: >
+            Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*. В данный момент Firebase поддерживает только iOS/MacOS Silicon
+          required: true
+          schema:
+            type: number
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: OK
+      security:
+        - USERSID: [ ]
+  
+  /user/contacts/push/messages:
+    get:
+      tags:
+        - contacts
+      summary: Получить историю оповещений
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    created:
+                      type: string
+                      example: '2023-04-13 23:15:02'
+                    id:
+                      type: number
+                      example: 1451
+                    message:
+                      type: string
+                      example: Тест текст
+                    status:
+                      type: number
+                      example: 0
+                      description: 0 успешно получено, 1 ошибка
+                    title:
+                      type: string
+                      example: "#201178 Нова відповідь в темі 'Тестове повідомлення'"
+                    typeId:
+                      type: number
+                      example: 2
+                    uid:
+                      type: number
+                      example: 6720
+      security:
+        - USERSID: [ ]
+  /user/{ID}/holdup:
+    post:
+      tags:
+        - holdup
+      summary: Приостановление всех услуг (или интернет)
+      description: Приостановление всех услуг, если включен параметр $conf{HOLDUP_ALL} или только инетернет, если есть параметр $conf{INTERNET_USER_SERVICE_HOLDUP}, если включены оба параметра тогда $conf{INTERNET_USER_SERVICE_HOLDUP} игнорируется!
+      parameters:
+        - name: ID
+          in: path
+          description: ID услуги Интернет, если параметр $conf{HOLDUP_ALL}, тогда передавать любую цифру, параметр игнорируется
+          required: true
+          schema:
+            type: number
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fromDate:
+                  type: string
+                  example: "2021-08-14"
+                toDate:
+                  type: string
+                  example: "2021-08-17"
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: integer
+                    example: 1
+                  msg:
+                    type: string
+                    example: Success
+      security:
+        - USERSID: [ ]
+    delete:
+      tags:
+        - holdup
+      summary: Удаление рассписания на приостановление всех услуг (или интернет)
+      description: Удаление рассписания на приостановление всех услуг, если включен параметр $conf{HOLDUP_ALL} или только инетернет, если есть параметр  $conf{INTERNET_USER_SERVICE_HOLDUP}, если включены оба параметра $conf{INTERNET_USER_SERVICE_HOLDUP} игнорируется!
+      parameters:
+        - name: ID
+          in: path
+          description: ID услуги Интернет, если параметр $conf{HOLDUP_ALL}, тогда передавать любую цифру, параметр игнорируется
+          required: true
+          schema:
+            type: number
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: integer
+                    example: 1
+                  msg:
+                    type: string
+                    example: Success
+      security:
+        - USERSID: [ ]
+    get:
+      tags:
+        - holdup
+      summary: Инфомация о приостановлении всех услуг (или интернет)
+      description: Информация о приостановлении всех услуг, если включен параметр $conf{HOLDUP_ALL} или только инетернет, если есть параметр $conf{INTERNET_USER_SERVICE_HOLDUP}, если включены оба параметра, тогда $conf{INTERNET_USER_SERVICE_HOLDUP} игнорируется!
+      parameters:
+        - name: ID
+          in: path
+          description: ID услуги Интернет, если параметр $conf{HOLDUP_ALL}, тогда передавать любую цифру, параметр игнорируется
+          required: true
+          schema:
+            type: number
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  canCancel:
+                    type: boolean
+                    example: true
+                  dateFrom:
+                    type: string
+                    example: "2022-06-12"
+                  dateTo:
+                    type: string
+                    example: "2022-07-12"
+                  delIds:
+                    type: string
+                    example: "1, 2, 3"
+      security:
+        - USERSID: [ ]
+  /user/services:
+    get:
+      tags:
+        - services
+      summary: Список всех услуг
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  abon:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        activate:
+                          type: boolean
+                        active:
+                          type: boolean
+                        description:
+                          type: string
+                          example: "Test service"
+                        endDate:
+                          type: string
+                          example: "2023-02-02"
+                        id:
+                          type: number
+                          example: 3
+                        period:
+                          type: string
+                          example: day
+                        price:
+                          type: number
+                          example: 1.93
+                        startDate:
+                          type: string
+                          example: "2023-01-02"
+                        tpName:
+                          type: string
+                          example: MMM
+                  internet:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        cid:
+                          type: string
+                          example: 14:11:11:11:11:c1
+                        dayFee:
+                          type: number
+                          example: 10
+                        holdup:
+                          type: object
+                          properties:
+                            canCancel:
+                              type: boolean
+                            dateFrom:
+                              type: string
+                              example: "2023-02-01"
+                            dateTo:
+                              type: string
+                              example: "2023-03-01"
+                            del:
+                              type: number
+                              example: 1
+                            delIds:
+                              type: string
+                              example: 245 246
+                        id:
+                          type: number
+                          example: 77
+                        inSpeed:
+                          type: number
+                          example: 51200
+                        internetStatus:
+                          type: number
+                          example: 0
+                        loginStatus:
+                          type: number
+                          example: 0
+                        monthFee:
+                          type: string
+                          example: 250
+                        nextAbon:
+                          type: object
+                          properties:
+                            abonDate:
+                              type: string
+                              example: "2023-02-02"
+                            daysToFee:
+                              type: number
+                              example: 0
+                        outSpeed:
+                          type: number
+                          example: 51200
+                        serviceHoldup:
+                          type: boolean
+                        statusName:
+                          type: string
+                          example: enable
+                        tpComments:
+                          type: string
+                          example: Cool tariff plan take me
+                        tpId:
+                          type: number
+                          example: 0
+                        tpName:
+                          type: string
+                          example: Test
+                        tpReductionFee:
+                          type: string
+                          example: 10
+                        uid:
+                          type: number
+                          example: 1
+                  iptv:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        cid:
+                          type: string
+                          example: 14:11:11:11:11:c1
+                        dayFee:
+                          type: number
+                          example: 50
+                        id:
+                          type: number
+                          example: 2
+                        iptvExpire:
+                          type: string
+                          example: "0000-00-00"
+                        monthFee:
+                          type: number
+                          example: 50
+                        nextAbon:
+                          type: object
+                          properties:
+                            abonDate:
+                              type: string
+                              example: "2022-09-03"
+                            activateDate:
+                              type: string
+                              example: "2022-08-03"
+                            daysToFee:
+                              type: number
+                              example: -139
+                        serviceHoldup:
+                          type: boolean
+                        serviceId:
+                          type: number
+                          example: 5
+                        serviceStatus:
+                          type: number
+                          example: 0
+                        statusName:
+                          type: string
+                          example: enable
+                        tpComments:
+                          type: string
+                          example: Cool tariff plan take me
+                        tpId:
+                          type: number
+                          example: 15
+                        tpName:
+                          type: string
+                          example: Хаха тест 1
+                        tpReductionFee:
+                          type: number
+                          example: 0
+                        tvServiceName:
+                          type: string
+                          example: Тестоеве середовище
+                        uid:
+                          type: number
+                          example: 1
+                  voip:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        allowAnswer:
+                          type: number
+                          example: 1
+                        allowCalls:
+                          type: number
+                          example: 1
+                        cid:
+                          type: string
+                          example: 14:11:11:11:11:c1
+                        dayAbon:
+                          type: number
+                          example: 0
+                        disable:
+                          type: number
+                          example: 0
+                        expire:
+                          type: string
+                          example: "0000-00-00"
+                        extraNumbersDayFee:
+                          type: number
+                          example: 0
+                        extraNumbersMonthFee:
+                          type: number
+                          example: 0
+                        id:
+                          type: number
+                          example: 47
+                        ip:
+                          type: string
+                          example: 0.0.0.0
+                        logins:
+                          type: number
+                          example: 0
+                        monthAbon:
+                          type: number
+                          example: 0
+                        number:
+                          type: string
+                          example: 0509152720
+                        phoneAliases:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              disable:
+                                type: number
+                                example: 0
+                              id:
+                                type: number
+                                example: 24
+                              number:
+                                type: number
+                                example: 380506712611
+                              uid:
+                                type: number
+                                example: 1
+                        tpId:
+                          type: number
+                          example: 45
+                        tpName:
+                          type: string
+                          example: test api
+                        tpNum:
+                          type: number
+                          example: 567
+                        uid:
+                          type: number
+                          example: 1
+                        voipExpire:
+                          type: string
+                          example: "0000-00-00"
+    
+      security:
+        - USERSID: [ ]
+  /user/bots/subscribe/phone:
+    post:
+      tags:
+        - bots
+      summary: Авторизация пользователя по номеру телефона (Только с бота)
+      parameters:
+        - name: USERBOT
+          in: header
+          description: Какой именно бот Telegram или Viber
+          required: true
+          schema:
+            type: string
+          example: Telegram
+        - name: USERID
+          in: header
+          description: ID Telegram или Viber
+          required: true
+          schema:
+            type: string
+          example: 111111111
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  example: 380958656881
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully added
+                  code:
+                    type: string
+                    example: 1
+        400:
+          description: Нет поля phone
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 10040
+                  errstr:
+                    type: string
+                    example: No field phone
+  /user/bots/subscribe:
+    post:
+      tags:
+        - bots
+      summary: Авторизация пользователя по токену с botLink (Только с бота)
+      parameters:
+        - name: USERBOT
+          in: header
+          description: Какой именно бот Telegram или Viber
+          required: true
+          schema:
+            type: string
+          example: Telegram
+        - name: USERID
+          in: header
+          description: ID Telegram или Viber
+          required: true
+          schema:
+            type: string
+          example: 111111111
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  example: u_WvnZTywig5qzipYH
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Successfully added
+                  code:
+                    type: string
+                    example: 1
+        400:
+          description: Нет поля token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 10047
+                  errstr:
+                    type: string
+                    example: No field token
+  /user/bots/subscribe/link/{bot}:
+    get:
+      tags:
+        - bots
+      summary: Получения ссылки на подписания на бота
+      parameters:
+        - name: bot
+          in: path
+          description: названия бота Viber или Telegram
+          required: true
+          schema:
+            type: string
+          example: Telegram
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  botLink:
+                    type: string
+                    example: "https://t.me/test_tg/?start=u_WvnZTywig5qzipYH"
+        400:
+          description: Нет параметра TELEGRAM_BOT_NAME в сonfig.pl
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 10044
+                  errstr:
+                    type: string
+                    example: "Unknown telegram bot"
+      security:
+        - USERSID: [ ]
+  /user/bots/subscribe/qrcode/{bot}:
+    get:
+      tags:
+        - bots
+      summary: Получения QRCode на подписания на бота
+      parameters:
+        - name: bot
+          in: path
+          description: названия бота Viber или Telegram
+          required: true
+          schema:
+            type: string
+          example: Telegram
+      responses:
+        200:
+          description: |
+            #
+            ![Swagger logo](https://chart.apis.google.com/chart?cht=qr&chs=350x350&chld=L&choe=UTF-8&chl=https%3A%2F%2Ft.me%2Fabills_user_bot%3Fstart%3Du_fB4xWXze5HgdSCu4)
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+  /user/cards/payment:
+    post:
+      tags:
+        - cards
+      summary: Пополнения скретч картой
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pin:
+                  description: Пин карточки
+                  type: string
+                  example: 12345678
+                serial:
+                  description: Серийный номер карты, необходимо передавать если не включена опция CARDS_PIN_ONLY
+                  type: string
+                  example: 12345678
+        required: true
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: Success payment, ID 18342
+                  amount:
+                    type: number
+                    example: 1.99
+                  paymentId:
+                    type: number
+                    example: 18342
+        400:
+          description: Нет параметра pin в теле запроса
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errno:
+                    type: integer
+                    example: 10051
+                  errstr:
+                    type: string
+                    example: No field pin
+      security:
+        - USERSID: [ ]
   /user/voip:
     get:
       tags:
@@ -4351,7 +4623,7 @@ paths:
                     example: Not active voip service
       security:
         - USERSID: []
-
+  
   /user/voip/sessions:
     get:
       tags:
@@ -4514,7 +4786,7 @@ paths:
     
       security:
         - USERSID: []
-
+  
   /user/voip/routes:
     get:
       tags:
@@ -4626,9 +4898,6 @@ paths:
                       example: 0
       security:
         - USERSID: [ ]
-
-  # expert paths
-
   /user/expert/faqs:
     get:
       tags:
@@ -4661,208 +4930,6 @@ paths:
                       example: 1
       security:
         - USERSID: [ ]
-
-  # portal paths
-
-  /user/portal/menu:
-    get:
-      tags:
-        - portal
-      summary: Меню новостей
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: number
-                    example: 1
-                  name:
-                    type: string
-                    example: Файні тарфи - тикни і візьми уже зараз
-                  news:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        content:
-                          type: string
-                          example: При замовленні пакету «ABillS+» платіть X грн/міс замість X грн/міс. Підключайте ТВ-пакет «База+» і отримаєте в подарунок півроку користування послугою! Кожен місяць сплачуйте лише 50% вартості пакету. Абонплата складе всього X грн.
-                        id:
-                          type: number
-                          example: 9
-                        importance:
-                          type: number
-                          example: 0
-                        picture:
-                          type: string
-                          example: "http://192.168.99.2:9443/images/attach/portal/9700077.png"
-                        shortDescription:
-                          type: string
-                          example: Тарифний план для всіх у сімї
-                        title:
-                          type: string
-                          example: Акціний тариф візьми поки можеш
-                        date:
-                          type: string
-                          example: "2023-01-01"
-                        onMainPage:
-                          type: number
-                          example: 1
-                        topicId:
-                          type: number
-                          example: 1
-                  url:
-                    type: string
-                    example: "https://demo.abills.net.ua:9443/"
-      security:
-        - USERSID: [ ]
-  /user/portal/news:
-    get:
-      tags:
-        - portal
-      summary: Список новостей
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  news:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        content:
-                          type: string
-                          example: При замовленні пакету «ABillS+» платіть X грн/міс замість X грн/міс. Підключайте ТВ-пакет «База+» і отримаєте в подарунок півроку користування послугою! Кожен місяць сплачуйте лише 50% вартості пакету. Абонплата складе всього X грн.
-                        date:
-                          type: string
-                          format: date
-                          example: 2023-01-23
-                        id:
-                          type: number
-                          example: 4
-                        importance:
-                          type: number
-                          example: 1
-                        onMainPage:
-                          type: number
-                          example: 1
-                        permalink:
-                            type: string
-                            example: special-promotion-50-2023
-                        picture:
-                          type: string
-                          example: "http://192.168.99.2:9443/images/attach/portal/9700077.png"
-                        shortDescription:
-                          type: string
-                          example: Тарифний план для всіх у сімї
-                        title:
-                          type: string
-                          example: Акціний тариф візьми поки можеш
-                        topicId:
-                          type: number
-                          example: 1
-                  topics:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: number
-                          example: 1
-                        name:
-                          type: string
-                          example: Акції від нас
-                        url:
-                          type: string
-                          example: "https://demo.abills.net.ua:9443/"
-      security:
-        - USERSID: [ ]
-  /user/portal/news/{id}:
-    get:
-      tags:
-        - portal
-      summary: Новость
-      parameters:
-          - name: id
-            in: path
-            description: ID новости или permalink
-            required: true
-            schema:
-              example: test-permalink
-              oneOf:
-                - type: integer
-                - type: string
-      responses:
-        200:
-          description: Успешное выполнение
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  news:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        content:
-                          type: string
-                          example: При замовленні пакету «ABillS+» платіть X грн/міс замість X грн/міс. Підключайте ТВ-пакет «База+» і отримаєте в подарунок півроку користування послугою! Кожен місяць сплачуйте лише 50% вартості пакету. Абонплата складе всього X грн.
-                        date:
-                          type: string
-                          format: date
-                          example: 2023-01-23
-                        id:
-                          type: number
-                          example: 4
-                        importance:
-                          type: number
-                          example: 1
-                        onMainPage:
-                          type: number
-                          example: 1
-                        permalink:
-                            type: string
-                            example: special-promotion-50-2023
-                        picture:
-                          type: string
-                          example: "http://192.168.99.2:9443/images/attach/portal/9700077.png"
-                        shortDescription:
-                          type: string
-                          example: Тарифний план для всіх у сімї
-                        title:
-                          type: string
-                          example: Акціний тариф візьми поки можеш
-                        topicId:
-                          type: number
-                          example: 1
-                  topics:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: number
-                          example: 1
-                        name:
-                          type: string
-                          example: Акції від нас
-                        url:
-                          type: string
-                          example: "https://demo.abills.net.ua:9443/"
-      security:
-        - USERSID: [ ]
-
-  # referral paths
-
   /user/referral:
     get:
       tags:
@@ -5088,6 +5155,245 @@ paths:
                     example: No fields fio or number
       security:
         - USERSID: [ ]
+  /user/portal/menu:
+    get:
+      tags:
+        - portal
+      summary: Меню новостей
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+                    example: 1
+                  name:
+                    type: string
+                    example: Файні тарфи - тикни і візьми уже зараз
+                  news:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        content:
+                          type: string
+                          example: При замовленні пакету «ABillS+» платіть X грн/міс замість X грн/міс. Підключайте ТВ-пакет «База+» і отримаєте в подарунок півроку користування послугою! Кожен місяць сплачуйте лише 50% вартості пакету. Абонплата складе всього X грн.
+                        id:
+                          type: number
+                          example: 9
+                        importance:
+                          type: number
+                          example: 0
+                        picture:
+                          type: string
+                          example: "http://192.168.99.2:9443/images/attach/portal/9700077.png"
+                        shortDescription:
+                          type: string
+                          example: Тарифний план для всіх у сімї
+                        title:
+                          type: string
+                          example: Акціний тариф візьми поки можеш
+                        date:
+                          type: string
+                          example: "2023-01-01"
+                        onMainPage:
+                          type: number
+                          example: 1
+                        topicId:
+                          type: number
+                          example: 1
+                  url:
+                    type: string
+                    example: "https://demo.abills.net.ua:9443/"
+      security:
+        - USERSID: [ ]
+  /user/portal/news:
+    get:
+      tags:
+        - portal
+      summary: Список новостей
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  news:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        content:
+                          type: string
+                          example: При замовленні пакету «ABillS+» платіть X грн/міс замість X грн/міс. Підключайте ТВ-пакет «База+» і отримаєте в подарунок півроку користування послугою! Кожен місяць сплачуйте лише 50% вартості пакету. Абонплата складе всього X грн.
+                        date:
+                          type: string
+                          format: date
+                          example: 2023-01-23
+                        id:
+                          type: number
+                          example: 4
+                        importance:
+                          type: number
+                          example: 1
+                        onMainPage:
+                          type: number
+                          example: 1
+                        permalink:
+                            type: string
+                            example: special-promotion-50-2023
+                        picture:
+                          type: string
+                          example: "http://192.168.99.2:9443/images/attach/portal/9700077.png"
+                        shortDescription:
+                          type: string
+                          example: Тарифний план для всіх у сімї
+                        title:
+                          type: string
+                          example: Акціний тариф візьми поки можеш
+                        topicId:
+                          type: number
+                          example: 1
+                  topics:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: number
+                          example: 1
+                        name:
+                          type: string
+                          example: Акції від нас
+                        url:
+                          type: string
+                          example: "https://demo.abills.net.ua:9443/"
+      security:
+        - USERSID: [ ]
+  /user/portal/news/{id}:
+    get:
+      tags:
+        - portal
+      summary: Новость
+      parameters:
+          - name: id
+            in: path
+            description: ID новости или permalink
+            required: true
+            schema:
+              example: test-permalink
+              oneOf:
+                - type: integer
+                - type: string
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  news:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        content:
+                          type: string
+                          example: При замовленні пакету «ABillS+» платіть X грн/міс замість X грн/міс. Підключайте ТВ-пакет «База+» і отримаєте в подарунок півроку користування послугою! Кожен місяць сплачуйте лише 50% вартості пакету. Абонплата складе всього X грн.
+                        date:
+                          type: string
+                          format: date
+                          example: 2023-01-23
+                        id:
+                          type: number
+                          example: 4
+                        importance:
+                          type: number
+                          example: 1
+                        onMainPage:
+                          type: number
+                          example: 1
+                        permalink:
+                            type: string
+                            example: special-promotion-50-2023
+                        picture:
+                          type: string
+                          example: "http://192.168.99.2:9443/images/attach/portal/9700077.png"
+                        shortDescription:
+                          type: string
+                          example: Тарифний план для всіх у сімї
+                        title:
+                          type: string
+                          example: Акціний тариф візьми поки можеш
+                        topicId:
+                          type: number
+                          example: 1
+                  topics:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: number
+                          example: 1
+                        name:
+                          type: string
+                          example: Акції від нас
+                        url:
+                          type: string
+                          example: "https://demo.abills.net.ua:9443/"
+      security:
+        - USERSID: [ ]
+  /user/equipment/:
+    get:
+      tags:
+        - equipment
+      summary: Информация по оборудованию у абонента
+      responses:
+        200:
+          description: Успешное выполнение
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  1.5:
+                    type: object
+                    properties:
+                      describe:
+                        type: string
+                        example: epon
+                      distance:
+                        type: string
+                        example: '2.134 km'
+                      macSerial:
+                        type: string
+                        example: 'b0:7c:06:12:14:38'
+                      onuInByte:
+                        type: number
+                        example: 0
+                      onuOutByte:
+                        type: number
+                        example: 0
+                      onuRxPower:
+                        type: number
+                        example: -20.4096
+                      status:
+                        type: number
+                        example: 1
+                      temperature:
+                        type: number
+                        example: 41
+      security:
+        - USERSID: [ ]
+
 components:
   securitySchemes:
     USERSID:

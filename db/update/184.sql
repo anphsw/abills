@@ -1,0 +1,1 @@
+ALTER TABLE `storage_deliveries` ADD COLUMN `status` SMALLINT(2) UNSIGNED NOT NULL DEFAULT 4;

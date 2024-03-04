@@ -254,6 +254,8 @@ sub admin_routes {
         $Abon->tariff_add({
           %$query_params
         });
+
+        return $Abon;
       },
       credentials => [
         'ADMIN'
@@ -266,6 +268,7 @@ sub admin_routes {
         my ($path_params, $query_params) = @_;
 
         $Abon->tariff_info($path_params->{id});
+        return $Abon;
       },
       credentials => [
         'ADMIN'
@@ -294,11 +297,17 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        $Abon_services->abon_user_tariff_deactivate({
+        my $result = $Abon_services->abon_user_tariff_deactivate({
           %{$query_params},
           UID => $path_params->{uid},
           ID  => $path_params->{id},
         });
+
+        if (!$result->{errno} && $result->{AFFECTED} && $result->{AFFECTED} =~ /^[0-9]$/) {
+          return { result => 'Successfully deleted', };
+        }
+
+        return $result;
       },
       credentials => [
         'ADMIN'
@@ -310,10 +319,18 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        $Abon->user_list({
-          %$query_params,
-          COLS_NAME => 1
-        });
+        foreach my $param (keys %{$query_params}) {
+          $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ?
+            $query_params->{$param} : '_SHOW';
+        }
+
+        $query_params->{COLS_NAME} = 1;
+        $query_params->{PAGE_ROWS} = $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25;
+        $query_params->{PG} = $query_params->{PG} ? $query_params->{PG} : 0;
+        $query_params->{DESC} = $query_params->{DESC} ? $query_params->{DESC} : '';
+        $query_params->{SORT} = $query_params->{SORT} ? $query_params->{SORT} : 1;
+
+        $Abon->user_list($query_params);
       },
       credentials => [
         'ADMIN'

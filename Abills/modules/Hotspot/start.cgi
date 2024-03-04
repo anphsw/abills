@@ -13,12 +13,24 @@ use warnings;
 
 BEGIN {
   our $libpath = '../';
-  our $sql_type = 'mysql';
+  eval { do "$libpath/libexec/config.pl" };
+  our %conf;
+
+  if (!%conf) {
+    print "Content-Type: text/plain\n\n";
+    print "Error: Can't load config file 'config.pl'\n";
+    print "Create ABillS config file /usr/abills/libexec/config.pl\n";
+    exit;
+  }
+
+  my $sql_type = $conf{dbtype} || 'mysql';
   unshift(@INC,
-    $libpath . "Abills/mysql/",
-    $libpath . "Abills/",
-    $libpath . 'lib/',
-    $libpath . 'Abills/modules/');
+    $libpath . 'Abills/modules/',
+    $libpath . "Abills/$sql_type/",
+    $libpath . '/lib/',
+    $libpath . 'Abills/',
+    $libpath
+  );
 
   eval {require Time::HiRes;};
   our $begin_time = 0;
@@ -46,8 +58,6 @@ use Conf;
 use Log;
 use Hotspot;
 use Internet;
-
-do "../libexec/config.pl";
 
 $conf{base_dir} = $base_dir if (!$conf{base_dir});
 

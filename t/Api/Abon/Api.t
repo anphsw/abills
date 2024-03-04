@@ -70,10 +70,14 @@ if (($ARGV[0] && lc($ARGV[0]) eq 'help') || defined($ARGS->{help}) || defined($A
   exit 0;
 }
 
+my $tariff_id = (scalar(@{$abon_tariffs})) ? $abon_tariffs->[0]->{id} : '';
 foreach my $test (@test_list) {
   if ($test->{path} =~ /user\/:uid\/abon\/:id/g) {
-    my $id = (scalar(@{$abon_tariffs})) ? $abon_tariffs->[0]->{id} : '';
-    $test->{path} =~ s/:id/$id/g;
+    $test->{path} =~ s/:id/$tariff_id/g;
+  }
+
+  if ($test->{path} =~ /tariffs\/:id/g) {
+    $test->{path} =~ s/:id/$tariff_id/g;
   }
 }
 

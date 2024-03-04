@@ -354,7 +354,7 @@ sub _message_show {
   my $message = _translate($attr->{message});
   my $message_type = $attr->{message_type} || 'info';
 
-  $html->message($message_type, $message_title, $message, { ID => $attr->{ID} || $attr->{error} });
+  $html->message($message_type, $message_title, $message, { ID => $attr->{ID} || $attr->{error} || $attr->{errno} });
 
   return 1;
 }
@@ -816,7 +816,6 @@ sub fees_dsc_former {
 
     Extra config option:
 
-     $conf{INTERNET_CURDATE_ACTIVATE}=1; - Activate non payment service by cur date
      $conf{INTERNET_PAY_ACTIVATE}=1; - Activate non payment service by cur date
 
   Returns:
@@ -853,19 +852,25 @@ sub service_recalculate {
 
   if ($debug) {
     print join("\b", caller());
-    print "$Service->{TP_INFO_OLD}->{MONTH_FEE} (". ( $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} || q{} ) .") => $tp->{MONTH_FEE} SHEDULE: ".
-      ( $attr->{SHEDULER} || 0 ) ."\n";
+    print "\n".($Service->{TP_INFO_OLD}->{MONTH_FEE} || 'UNDEFINED_TP_INFO_OLD') ." (". ( $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} || q{} ) .") => "
+      . ($tp->{MONTH_FEE} || 'UNDEFINED_MONTH_FEE')
+      . " SHEDULE: " . ( $attr->{SHEDULER} || 0 ) ."\n";
   }
 
   if (($attr->{SHEDULER} && $start_day == $d)
     || ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} == ($tp->{MONTH_FEE} || 0)
-    && $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} <  $Service->{TP_INFO}->{ABON_DISTRIBUTION})) {
+    && $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} < $Service->{TP_INFO}->{ABON_DISTRIBUTION})) {
     #if ($attr->{SHEDULER}) {
     undef $user;
     #}
 
     return 0;
     #return \%total_sum;
+  }
+
+  #skip compensate for month distribution
+  if ($Service->{TP_INFO_OLD} && $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) {
+    return 0;
   }
 
   if ($service_activate eq '0000-00-00') {
@@ -885,11 +890,7 @@ sub service_recalculate {
   }
   else {
     if ( $attr->{SHEDULER} && date_diff($service_activate, $date) >= 31 ) {
-      #if ($attr->{SHEDULER}) {
       undef $user;
-      #}
-
-      #return \%total_sum;
       return 0;
     }
     elsif (! $attr->{SHEDULER} && date_diff($service_activate, $date) < 31) {
@@ -911,7 +912,7 @@ sub service_recalculate {
   #Compensation
   if (defined($return_sum) && $return_sum > 0) {
     $Payments->add($Users, {
-      SUM      => abs($return_sum),
+      SUM      => sprintf("%.2f", abs($return_sum)),
       METHOD   => 8,
       DESCRIBE => "$lang{TARIF_PLAN}: $Service->{TP_INFO_OLD}->{NAME} (".
         ($Service->{TP_INFO_OLD}->{TP_ID} || $Service->{TP_INFO_OLD}->{ID} || q{-}) .") ($lang{DAYS}: $rest_days)",
@@ -944,10 +945,11 @@ sub service_recalculate {
       MODULE       - Caller module
       USER_INFO    - User object
       DEBUG
+      DO_NOT_USE_GLOBAL_USER_PLS
+      FULL_MONTH_FEE
 
     Extra config option:
 
-     $conf{INTERNET_CURDATE_ACTIVATE}=1; - Activate non payment service by cur date
      $conf{INTERNET_PAY_ACTIVATE}=1; - Activate non payment service by cur date
 
   Returns:
@@ -1034,6 +1036,7 @@ sub service_get_month_fee {
     METHOD => ($tp->{FEES_METHOD}) ? $tp->{FEES_METHOD} : 1,
     EXT_BILL_METHOD => ($tp->{EXT_BILL_FEES_METHOD}) ? $tp->{EXT_BILL_FEES_METHOD} : undef,
   );
+  $FEES_PARAMS{INNER_DESCRIBE} = $attr->{INNER_DESCRIBE} if $attr->{INNER_DESCRIBE};
 
   if($Service->{PERSONAL_TP} && $Service->{PERSONAL_TP} > 0) {
     $tp->{MONTH_FEE}=$Service->{PERSONAL_TP};
@@ -1133,6 +1136,9 @@ sub service_get_month_fee {
       $periods += 12 * ($y - $active_y) - 12 if ($y - $active_y);
     }
     elsif ($tp->{FIXED_FEES_DAY} && int($active_d) <= int($d) && (int($active_m) != int($m) && int($active_y) == int($y))) {
+      $periods=1;
+    }
+    elsif(date_diff($service_activate, $DATE) >= 31) {
       $periods=1;
     }
 
@@ -1471,7 +1477,7 @@ sub get_fees_types {
   my $list         = $Fees->fees_type_list({ PAGE_ROWS => 10000, COLS_NAME => 1 });
 
   foreach my $line (@$list) {
-    if ($FORM{METHOD} && $FORM{METHOD} == $line->{id}) {
+    if ($FORM{METHOD} && $FORM{METHOD} eq $line->{id} && !$FORM{search_form}) {
       $FORM{SUM}      = $line->{sum} if ($line->{sum} && $line->{sum} > 0);
       $FORM{DESCRIBE} = $line->{default_describe} if ($line->{default_describe});
     }
@@ -2573,27 +2579,16 @@ sub recomended_pay {
   my ($user_, $attr) = @_;
 
   $user_->{TOTAL_DEBET} = 0;
-  my $cross_modules_return = cross_modules('docs', {
-    UID       => $user_->{UID},
-    REDUCTION => $user_->{REDUCTION},
-    USER_INFO => $user_
-    #PAYMENT_TYPE => 0
-  });
 
-  foreach my $module (sort keys %$cross_modules_return) {
-    if (ref $cross_modules_return->{$module} eq 'ARRAY') {
-      next if ($#{ $cross_modules_return->{$module} } == -1);
-      foreach my $line (@{ $cross_modules_return->{$module} }) {
-        # $name, $describe
-        my (undef, undef, $sum) = split(/\|/, $line);
-        $user_->{TOTAL_DEBET} += $sum if($sum);
+  # with the same config on version 5.34 works, on 5.36
+  # if (!exists($INC{'Control/Services.pm'})) {
+  #   require Control::Services;
+  # }
 
-        if ($user_->{REDUCTION} && $module ne 'Abon') {
-          $user_->{TOTAL_DEBET} = sprintf("%.2f", $user_->{TOTAL_DEBET} * (100 - $user_->{REDUCTION}) / 100);
-        }
-      }
-    }
-  }
+  do 'Control/Services.pm';
+  my $service_info = get_services($user_, { SKIP_MODULES => 'Sqlcmd' });
+
+  $user_->{TOTAL_DEBET} = $service_info->{total_sum} || 0;
 
   if(! defined($user_->{DEPOSIT})) {
     return 0;

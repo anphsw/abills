@@ -10,7 +10,7 @@ $lang{NEW_MESSAGE} = 'Нове повідомлення';
 $lang{RUN_TIME} = 'Час виконання';
 $lang{MSG_SENDED} = 'Відправлено на виконання';
 $lang{ANSWER_WAIT} = 'Чекаємо відповіді користувача';
-$lang{UPDATED} = 'Обновлено';
+$lang{UPDATED} = 'Оновлено';
 $lang{DELIGATE} = 'Делеговано';
 $lang{DELIGATED} = 'Делегувати';
 $lang{UP} = 'Вище';
@@ -286,11 +286,15 @@ $lang{CHANGE_OF_DISPATCH} = 'Зміна наряду робіт';
 $lang{MESSAGES_CAN_BE_SENT_UP_TO_ONCE} = 'Повідомлення можна надсилати до одного разу на %SECONDS% секунд';
 $lang{LAST_MESSAGE_ID} = 'Id останнього повідомлення';
 $lang{CLOSED_ORDER_RATIO} = 'Коефіцієнт закритих заявок';
+$lang{ADDITIONALLY} = 'Додатково';
 
 $lang{MSGS_SUPPORT_REQUEST_HEADER} = 'Запит на підтримку надіслано';
 $lang{MSGS_SUPPORT_REQUEST_BODY} = 'Нам шкода, що у вас виникли труднощі. Ми зробимо все можливе, щоб розв\'язати проблему і зробити вас задоволеними.';
 $lang{MSGS_SUPPORT_REQUEST_FOOTER} = 'Наш менеджер зв\'яжеться з вами найближчим часом.';
 $lang{MSGS_SUPPORT_REQUEST_NUMBER} = 'Номер вашого запиту';
 $lang{DO_YOU_REALLY_WANT_TO_CHARGE_FOR_MESSAGE} = 'Ви дійсно хочете стягувати плату за повідомлення?';
+$lang{MSGS_MAKE_PRIVATE} = 'Зробити внутрішнім';
+$lang{MSGS_MAKE_PUBLIC} = 'Зробити публічним';
+$lang{MSGS_PROJECT} = 'Проєкт';
 
 1

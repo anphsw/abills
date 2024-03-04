@@ -17,7 +17,7 @@ use Sms;
 use Sms::Init;
 use Abills::Filters;
 use Abills::Defs;
-use Abills::Base qw(convert);
+use Abills::Base qw(convert vars2lang);
 
 our ($db,
   $admin,
@@ -62,6 +62,7 @@ my %sms_status = (
   102 => $lang{ERROR_SENDING},
   103 => $lang{REJECT_SYSTEM},
   104 => $lang{DELAYED},
+  105 => $lang{EXPIRED},
 );
 
 #**********************************************************
@@ -252,7 +253,8 @@ sub sms_account_info {
     print $table->show();
   }
   else {
-    $html->message('warn', '', $Sms_service->{SERVICE_NAME} . ' NOT_SUPPORT: account_info');
+    my $message = vars2lang($lang{ERR_SMS_ACCOUNT_INFO}, { SERVICE_NAME => $Sms_service->{SERVICE_NAME} });
+    $html->message('warn', $lang{WARNING}, $message);
   }
 
   return 1;
@@ -369,7 +371,7 @@ sub sms_reports {
         $line->{id},
         $line->{msg_id},
         $html->button( $destination,
-          "index=" . get_function_index( 'ureports_users_list' ) . "&DESTINATION_ID=". ($destination || q{}) ."&search=1&search_form=1" ),
+          "index=" . get_function_index( 'ureports_users_list' ) . "&DESTINATION_ID=". ($destination ? "*$destination" : '') ."&search=1&search_form=1" ),
         $line->{sign},
         $line->{message},
         $line->{wappush},
@@ -562,6 +564,49 @@ sub sms_send_register {
     sms                     => 1,
     step                    => $attr->{step}
   }, { ID => 'sms_send_end_register' });
+
+  my $btn_status_update = $html->button('', "index=$index&update_status=1&UID=".($FORM{UID} ||''), {
+    class       => "p-2",
+    ADD_ICON    => 'fa fa-retweet',
+    title       => $lang{UPDATE}.' '.$lang{STATUS},
+  });
+
+  if ($FORM{update_status}) {
+    require Sms::Misc;
+    Sms::Misc->import();
+    my $Sms_misc = Sms::Misc->new($db, $admin, \%conf);
+    $Sms_misc->sms_status();
+  }
+
+  my $sms_list = $Sms->list({
+    UID          => $FORM{UID} || $uid,
+    DATETIME     => '_SHOW',
+    SMS_PHONE    => '_SHOW',
+    SMS_STATUS   => '_SHOW',
+    SORT         => $FORM{sort},
+    DESC         => $FORM{sort} ? $FORM{desc} : 'DESC',
+    COLS_NAME    => 1,
+  });
+  return 1 if (!$Sms->{TOTAL});
+
+  my $table = $html->table({
+    width   => '100%',
+    caption => "SMS $lang{REPORTS}" . $btn_status_update,
+    title   => [ $lang{DATE}, "SMS $lang{STATUS}", "SMS $lang{PHONE}" ],
+    qs      => $pages_qs,
+    ID      => 'SMS_REPORT_USER',
+  });
+
+  foreach my $line (@$sms_list) {
+    $table->addrow(
+      $line->{datetime},
+      $sms_status{$line->{sms_status}},
+      $line->{sms_phone},
+    );
+  }
+
+  print $table->show();
+
 }
 
 #**********************************************************

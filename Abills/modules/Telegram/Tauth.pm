@@ -182,7 +182,7 @@ sub subscribe_phone {
     };
     push(@inline_keyboard, [ $inline_button ]);
 
-    use Crm::Dialogue;
+    require Crm::Dialogue;
     my $Dialogue = Crm::Dialogue->new($db, $admin, \%conf, { SOURCE => 'telegram' });
 
     my $sender = $message->{contact};

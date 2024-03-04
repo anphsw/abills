@@ -1,0 +1,277 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "loginStatus": {
+        "type": "integer"
+      },
+      "tpId": {
+        "type": "integer"
+      },
+      "uid": {
+        "type": "integer"
+      },
+      "cid": {
+        "type": "string"
+      },
+      "cpeMac": {
+        "type": "string"
+      },
+      "tags": {
+        "type": "string"
+      },
+      "vlan": {
+        "type": "string"
+      },
+      "serverVlan": {
+        "type": "string"
+      },
+      "joinService": {
+        "type": "integer"
+      },
+      "logins": {
+        "type": "integer"
+      },
+      "speed": {
+        "type": "integer"
+      },
+      "nasId": {
+        "type": "integer"
+      },
+      "port": {
+        "type": "string"
+      },
+      "filterId": {
+        "type": "string"
+      },
+      "tpNum": {
+        "type": "integer"
+      },
+      "tpName": {
+        "type": "string"
+      },
+      "monthFee": {
+        "type": "number"
+      },
+      "abonDistribution": {
+        "type": "integer"
+      },
+      "dayFee": {
+        "type": "number"
+      },
+      "personalTp": {
+        "type": "integer"
+      },
+      "paymentType": {
+        "type": "integer"
+      },
+      "internetStatus": {
+        "type": "integer"
+      },
+      "internetStatusDate": {
+        "type": "string",
+        "format": "date"
+      },
+      "internetStatusId": {
+        "type": "integer"
+      },
+      "internetLogin": {
+        "type": "string"
+      },
+      "feesMethod": {
+        "type": "integer"
+      },
+      "ipNum": {
+        "type": "integer"
+      },
+      "monthIpnTrafficIn": {
+        "type": "integer"
+      },
+      "monthIpnTrafficOut": {
+        "type": "integer"
+      },
+      "shedule": {
+        "type": "integer"
+      },
+      "tpFixedFeesDay": {
+        "type": "integer"
+      },
+      "tpReductionFee": {
+        "type": "number"
+      },
+      "online": {
+        "type": "integer"
+      },
+      "onlineIp": {
+        "type": "integer"
+      },
+      "onlineDuration": {
+        "type": "string"
+      },
+      "onlineCid": {
+        "type": "integer"
+      },
+      "onlineTpId": {
+        "type": "integer"
+      },
+      "onlineNasId": {
+        "type": "integer"
+      },
+      "internetPassword": {
+        "type": "string"
+      },
+      "internetExpire": {
+        "type": "string",
+        "format": "date"
+      },
+      "internetActivate": {
+        "type": "string",
+        "format": "date"
+      },
+      "monthTrafficIn": {
+        "type": "integer"
+      },
+      "monthTrafficOut": {
+        "type": "integer"
+      },
+        "lastActivity": {
+        "type": "string"
+      },
+      "dayTrafLimit": {
+        "type": "integer"
+      },
+      "weekTrafLimit": {
+        "type": "integer"
+      },
+      "monthTrafLimit": {
+        "type": "integer"
+      },
+      "totalTrafLimit": {
+        "type": "integer"
+      },
+      "describeAid": {
+        "type": "string"
+      },
+      "serviceCount": {
+        "type": "string"
+      },
+      "ipnActivate": {
+        "type": "integer"
+      },
+      "nasIp": {
+        "type": "integer"
+      },
+      "fio": {
+        "type": "string"
+      },
+      "deposit": {
+        "type": "number"
+      },
+      "extDeposit": {
+        "type": "number"
+      },
+      "extBillId": {
+        "type": "integer"
+      },
+      "credit": {
+        "type": "number"
+      },
+      "creditDate": {
+        "type": "string",
+        "format": "date"
+      },
+      "phone": {
+        "type": "string"
+      },
+      "email": {
+        "type": "string",
+        "format": "email"
+      },
+      "floor": {
+        "type": "string"
+      },
+      "entrance": {
+        "type": "integer"
+      },
+      "addressFlat": {
+        "type": "string"
+      },
+      "passportDate": {
+        "type": "string",
+        "format": "date"
+      },
+      "passportNum": {
+        "type": "string"
+      },
+      "passportGrant": {
+        "type": "string"
+      },
+      "city": {
+        "type": "string"
+      },
+      "zip": {
+        "type": "string"
+      },
+      "gid": {
+        "type": "integer"
+      },
+      "companyId": {
+        "type": "integer"
+      },
+      "companyName": {
+        "type": "string"
+      },
+      "contractId": {
+        "type": "string"
+      },
+      "contractSufix": {
+        "type": "string"
+      },
+      "contractDate": {
+        "type": "string",
+        "format": "date"
+      },
+      "reduction": {
+        "type": "number"
+      },
+      "lastPayment": {
+        "type": "string"
+      },
+      "lastFees": {
+        "type": "string"
+      },
+      "registration": {
+        "type": "string",
+        "format": "date"
+      },
+      "reductionDate": {
+        "type": "string",
+        "format": "date"
+      },
+      "comments": {
+        "type": "string"
+      },
+      "billId": {
+        "type": "integer"
+      },
+      "activate": {
+        "type": "string",
+        "format": "date"
+      },
+      "password": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "loginStatus",
+      "tpId",
+      "uid"
+    ]
+  }
+}

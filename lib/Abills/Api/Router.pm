@@ -17,22 +17,23 @@ use Abills::Api::Paths;
 =cut
 #**********************************************************
 sub new {
-  my ($class, $url, $db, $admin, $conf, $query_params, $lang, $modules, $debug, $html, $request_method) = @_;
+  my ($class, $db, $admin, $conf, $attr) = @_;
 
   my $self = {
     db             => $db,
     admin          => $admin,
     conf           => $conf,
-    lang           => $lang,
-    modules        => $modules,
-    html           => $html,
-    debug          => ($debug || 0),
-    request_method => $request_method
+    lang           => $attr->{lang},
+    modules        => $attr->{modules},
+    html           => $attr->{html},
+    debug          => ($attr->{debug} || 0),
+    request_method => $attr->{request_method},
+    direct         => $attr->{direct} || 0
   };
 
   bless($self, $class);
 
-  $self->preprocess($url, $query_params);
+  $self->preprocess($attr->{url}, $attr->{query_params});
 
   return $self;
 }
@@ -69,7 +70,10 @@ sub preprocess {
 
   my $Paths = Abills::Api::Paths->new($self->{db}, $self->{admin}, $self->{conf}, $self->{lang}, $self->{html});
 
-  if ($self->{request_method} ~~ [ 'GET', 'DELETE' ]) {
+  if ($self->{direct}) {
+    $self->{query_params} = $query_params;
+  }
+  elsif ($self->{request_method} ~~ [ 'GET', 'DELETE' ]) {
     $self->{query_params} = $query_params;
   }
   elsif ($ENV{CONTENT_TYPE} && $ENV{CONTENT_TYPE} =~ 'multipart/form-data') {
@@ -84,6 +88,7 @@ sub preprocess {
         errstr => 'There was an error parsing the body'
       };
       $self->{status} = 400;
+      $self->{error_msg} = $@;
 
       return $self;
     }
@@ -122,6 +127,8 @@ sub preprocess {
       type              => 'admin',
     });
   }
+
+  $self->{error_msg} = $Paths->{error_msg} || '';
 
   if (!$self->{resource_own}) {
     $self->{paths} = $Paths->list();
@@ -189,6 +196,9 @@ sub handle {
       errno  => 2,
       errstr => 'No such route'
     };
+    if ($self->{conf}->{API_DEBUG} && $@) {
+      $self->{result}->{debuginfo} = $@;
+    }
     $self->{status} = 404;
     $self->{allowed} = 1;
 
@@ -268,6 +278,9 @@ sub handle {
         errno  => 4,
         errstr => 'Module is not found'
       };
+      if ($self->{conf}->{API_DEBUG} && $@) {
+        $self->{result}->{debuginfo} = $@;
+      }
       return 0;
     }
 
@@ -290,8 +303,11 @@ sub handle {
       errno  => 20,
       errstr => 'Unknown error, please try later'
     };
-    $self->{status} = 502;
+    if ($self->{conf}->{API_DEBUG} && $@) {
+      $self->{result}->{debuginfo} = $@;
+    }
 
+    $self->{status} = 502;
     $self->{error_msg} = $@;
 
     return 0;
@@ -305,6 +321,8 @@ sub handle {
     $self->{status} = 400;
   }
   else {
+    $self->{content_type} = $route->{content_type} || q{};
+
     if (ref $result ne 'HASH' && ref $result ne 'ARRAY' && ref $result ne '') {
       foreach my $key (keys %{$result}) {
         next if (defined $self->{$key} && $key ne 'result');
@@ -313,7 +331,6 @@ sub handle {
     }
     else {
       $self->{result} = $result;
-      $self->{content_type} = $route->{content_type} || q{};
 
       unless (defined($self->{result})) {
         $self->{result} = {};
@@ -451,13 +468,13 @@ sub process_request_body {
   }
   elsif (ref $query_params eq 'HASH') {
     foreach my $query_key (keys %$query_params) {
-      if (ref $query_key eq '') {
+      if (ref $query_params->{$query_key} eq '') {
         my $key = $attr->{no_decamelize_params} ? $query_key : decamelize($query_key);
         $query_params->{$key} = $query_params->{$query_key};
-        delete $query_params->{$query_key};
       }
       else {
-        $query_params->{$query_key} = process_request_body($query_params->{$query_key}, $attr);
+        my $key = $attr->{no_decamelize_params} ? $query_key : decamelize($query_key);
+        $query_params->{$key} = process_request_body($query_params->{$query_key}, $attr);
       }
     }
   }

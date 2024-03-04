@@ -168,7 +168,7 @@
 /* hide scrollbar but allow scrolling */
 .popover, #navbar-button-container {
 	-ms-overflow-style: none; /* for Internet Explorer, Edge */
-	scrollbar-width: none; /* for Firefox */
+	scrollbar-width: none !important; /* for Firefox */
 	overflow-y: scroll;
 }
 
@@ -192,4 +192,21 @@
 
 .leaflet-sidebar-content::-webkit-scrollbar {
 	display: none; /* for Chrome, Safari, and Opera */
+}
+
+@keyframes blink {
+	0% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0;
+	}
+	100% {
+		opacity: 1;
+	}
+}
+.selected-onu-equipment {
+	display: block;
+	border: 3px solid black;
+	animation: blink 2s infinite;
 }

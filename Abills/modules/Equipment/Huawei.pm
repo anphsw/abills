@@ -9,10 +9,8 @@ use warnings;
 use Abills::Base qw(in_array _bp int2byte load_pmodule check_time gen_time);
 use Abills::Filters qw(bin2hex bin2mac);
 use Equipment::Misc qw(equipment_get_telnet_tpl);
-use JSON qw(decode_json);
 
 our (
-  $base_dir,
   %lang,
   %html_color,
   %ONU_STATUS_TEXT_CODES
@@ -91,7 +89,7 @@ sub _huawei_onu_list {
     $port_begin_time = check_time() if ($debug > 2);
 
     if (!defined($ports_info->{$snmp_id}->{PORT_STATUS}) || !($ports_info->{$snmp_id}->{PORT_STATUS} == 1 || $ports_info->{$snmp_id}->{PORT_STATUS} == 4)) {
-      print "Port is not online\n" if ($debug > 2);
+      print "Port is not online SNMP_PORT_STATUS:". ( $ports_info->{$snmp_id}->{PORT_STATUS} || q{n/d} ) ."\n" if ($debug > 2);
       next;
     }
 
@@ -190,6 +188,7 @@ sub _huawei_unregister {
   my @types = ('epon', 'gpon');
 
   foreach my $pon_type (@types) {
+
     my $snmp = _huawei({ TYPE => $pon_type });
     my $unreg_result;
     if($pon_type eq 'epon') {
@@ -242,10 +241,11 @@ sub _huawei_unregister {
     if($snmp->{unregister}->{'MAC/SERIAL'}->{OIDS}) {
       $unreg_result = snmp_get({
         %{$attr},
-        WALK   => 1,
-        OID    => $snmp->{unregister}->{'MAC/SERIAL'}->{OIDS},
-        TIMEOUT=> $attr->{SNMP_TIMEOUT} || 8,
-        SILENT => 1
+        WALK    => 1,
+        OID     => $snmp->{unregister}->{'MAC/SERIAL'}->{OIDS},
+        TIMEOUT => $attr->{SNMP_TIMEOUT} || 8,
+        SILENT => 1,
+        DEBUG   => $FORM{DEBUG}
       });
     }
 
@@ -484,16 +484,8 @@ sub _huawei_prase_line_profile {
 #**********************************************************
 sub _huawei {
   my ($attr) = @_;
-  my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
 
-  my $file_content = file_op({
-    FILENAME   => 'huawei_pon.snmp',
-    PATH       => $TEMPLATE_DIR,
-  });
-
-  $file_content =~ s#//.*$##gm;
-
-  my $snmp = decode_json($file_content);
+  my $snmp = _get_snmp('huawei_pon');
 
   if ($attr->{TYPE}) {
     return $snmp->{$attr->{TYPE}};
@@ -711,29 +703,41 @@ sub _huawei_get_service_ports_2 {
   Arguments:
     $attr
       ONU_SNMP_ID
+      PON_TYPE=
+      BRANCH
+      DEBUG
+
+  Results:
+    \@list_array_ref
 
 =cut
 #**********************************************************
 sub _huawei_get_service_ports {
   my ($attr) = @_;
 
-  my $onu_type = $attr->{ONU_TYPE} || $attr->{TYPE};
+  my $pon_type = $attr->{PON_TYPE} || $attr->{ONU_TYPE} || $attr->{TYPE} || q{};
+  my $onu_id = $attr->{ONU_ID} || q{};
+  my $branch  = $attr->{BRANCH} || q{};
+  my $debug = $attr->{DEBUG} || 0;
 
   if (_huawei_telnet_open($attr)) {
     my $data = '';
-    $data = _huawei_telnet_cmd("display service-port port $attr->{BRANCH} ont $attr->{ONU_ID} sort-by vlan");
+    $data = _huawei_telnet_cmd("display service-port port $branch ont $onu_id sort-by vlan");
     $Telnet->close();
+    if ($debug > 1) {
+      print "$data";
+    }
     my @list = split('\n', $data || q{});
     my @service_ports = ();
     foreach my $line (@list) {
-      if ($onu_type eq 'gpon') {
+      if ($pon_type eq 'gpon') {
         if ($line =~ /(\d+)\s+(\d+)\s+common\s+gpon\s+\d+\/\d+\s*\/\d+\s+\d+\s+(\d+)\s+vlan\s+(\d+)/) {
-          push @service_ports, [ 'Service port', "service-port $1 vlan $2 $onu_type $attr->{BRANCH} ont $attr->{ONU_ID} "
+          push @service_ports, [ 'Service port', "service-port $1 vlan $2 $pon_type $branch ont $onu_id "
             . "gemport $3 multi-service user-vlan $4" ];
         }
       }
     }
-    return @service_ports;
+    return \@service_ports;
   }
 
   return [];

@@ -30,4 +30,16 @@ $lang{AUTHOR} = 'Автор';
 $lang{UNREG_MESSAGE_TITLE} = 'Ми раді, що Ви з нами!';
 $lang{UNREG_MESSAGE_BODY} = 'Зареєструйтеся, щоб залишатися з нами та отримувати спеціальні пропозиції від нас.';
 
+$lang{ERR_TPID_MISSING} = 'Відсутнє поле tpId';
+$lang{ERR_DEST_MISSING} = 'Відсутнє поле destinations';
+$lang{ERR_DEST_NOT_ARRAY} = 'Поле destinations має бути масивом';
+$lang{ERR_USER_INFO_EXISTS} = 'Інформація про користувача існує';
+$lang{ERR_USER_NOT_FOUND} = 'Користувача з UID %UID% не знайдено';
+$lang{ERR_NO_REPORT_SERVICE} = 'Користувач без сервісу звітності';
+$lang{ERR_REPORTS_MISSING} = 'Відсутнє поле reports';
+$lang{ERR_REPORTS_NOT_ARRAY} = 'Поле reports не є масивом';
+$lang{ERR_NO_REPORTS_ADDED} = 'Звіти не додані';
+$lang{ERR_NO_REPORTS_FOR_USER} = 'Користувач з UID %UID% не має звітів';
+$lang{ERR_NO_REPORT_WITH_ID} = 'Користувач з UID %UID% не має звіту з ID %ID%';
+
 1;

@@ -17,9 +17,10 @@ our (
   $admin,
   %conf,
   %ADMIN_REPORT,
-  $Iptv,
   $html
 );
+
+our Iptv $Iptv;
 
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Fees = Fees->new($db, $admin, \%conf);

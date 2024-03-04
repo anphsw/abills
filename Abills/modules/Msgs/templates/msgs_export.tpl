@@ -20,23 +20,30 @@
       <div class='form-group row'>
         <label class='control-label col-md-3' for='MESSAGE'>_{MESSAGE}_:</label>
         <div class='col-md-9'>
-            <textarea class='form-control' id='MESSAGE' name='MESSAGE' rows='3' class='form-control'>%MESSAGE%</textarea>
+            <textarea id='MESSAGE' name='MESSAGE' rows='3' class='form-control'>%MESSAGE%</textarea>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='STATUS'>_{PRIORITY}_:</label>
+        <label class='control-label col-md-3' for='PRIORITY'>_{PRIORITY}_:</label>
         <div class='col-md-9'>
           %PRIORITY_SEL%
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='STATUS'>_{STATUS}_:</label>
+        <label class='control-label col-md-3' for='PROJECT'>_{MSGS_PROJECT}_:</label>
         <div class='col-md-9'>
-          %STATE_SEL%
+          %PROJECT_SEL%
         </div>
       </div>
+
+<!--      <div class='form-group row'>-->
+<!--        <label class='control-label col-md-3' for='STATUS'>_{STATUS}_:</label>-->
+<!--        <div class='col-md-9'>-->
+<!--          %STATE_SEL%-->
+<!--        </div>-->
+<!--      </div>-->
 
       <div class='form-group row'>
         <label class='control-label col-md-3' for='EXPORT_SYSTEM'>_{EXPORT}_:</label>

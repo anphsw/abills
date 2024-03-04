@@ -28,5 +28,11 @@ $lang{ERROR_SEND_RECEIPT}       = 'Возникла ошибка во время
 $lang{SUCCESS_SEND_RECEIPT}     = 'Чек успешно отправлен';
 $lang{REVIEW}                   = 'Просмотреть';
 $lang{RETURN}                   = 'Возврат';
+$lang{CALLBACK}                 = 'URL-адрес обратного вызова';
+$lang{TAX_RATE}                 = 'Налоговая ставка';
+$lang{CHECK_FOOTER}             = 'Нижний колонтитул чека';
+$lang{CHECK_HEADER}             = 'Верхний колонтитул чека';
+$lang{ENTER_KKT_LICENSE}        = 'Введите лицензию кассы и сохраните изменения';
+$lang{NOT_SUPPORTED_TAX_RATES}  = 'Налоговая ставка не поддерживается или необходимо обновить модуль';
 
 1;

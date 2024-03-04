@@ -39,6 +39,13 @@
           </div>
 
           <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='GROUP'>_{GROUP}_:</label>
+            <div class='col-md-8'>
+              %GROUP_SEL%
+            </div>
+          </div>
+
+          <div class='form-group row'>
             <label class='col-md-4 col-form-label text-md-right' for='USER_PORTAL'>_{USER_PORTAL}_:</label>
             <div class='col-md-8'>
               %USER_PORTAL%
@@ -87,6 +94,15 @@
             <label class='col-md-4 col-form-label text-md-right' for='FEES_TYPES_SEL'>_{FEES}_ _{TYPE}_:</label>
             <div class='col-md-8'>
               %FEES_TYPES_SEL%
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='col-sm-4 col-md-4 text-right' for='HOT_DEAL'>_{ABON_HOT_DEAL}_:</label>
+            <div class='col-sm-8'>
+              <div class='form-check text-left'>
+                <input type='checkbox' class='form-check-input' id='HOT_DEAL' name='HOT_DEAL' %HOT_DEAL% value='1'>
+              </div>
             </div>
           </div>
         </div>

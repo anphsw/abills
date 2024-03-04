@@ -1,0 +1,370 @@
+/admins/login/:
+  post:
+    tags:
+      - admins
+    summary: Авторизация администратора
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AdminAuthRequest"
+      required: true
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAuthResponse"
+      400:
+        description: Нет поля пароль
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                errno:
+                  type: integer
+                  example: 1000004
+                errstr:
+                  type: string
+                  example: ERR_NO_PASSWORD
+    security:
+      - KEY: [ ]
+/admins/{AID}:
+  get:
+    tags:
+      - admins
+    summary: Информация администратора
+    operationId: adminInfo
+    parameters:
+      - name: AID
+        in: path
+        required: true
+        description: ID администратора
+        schema:
+          type: integer
+          format: int64
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminInfo"
+    security:
+      - KEY: []
+  put:
+    tags:
+      - admins
+    summary: Изменить администратора
+    operationId: adminChange
+    parameters:
+      - name: AID
+        in: path
+        required: true
+        description: ID администратора
+        schema:
+          type: integer
+          format: int64
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AdminChangeRequest"
+      required: true
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminChangeResponse"
+    security:
+      - KEY: []
+/admins:
+  post:
+    tags:
+      - admins
+    summary: Добавить администратора
+    operationId: adminAdd
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AdminAddRequest"
+      required: true
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAddResponse"
+      400:
+        description: Нет поля логин
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                errno:
+                  type: integer
+                  example: 700
+                errstr:
+                  type: string
+                  example: No field aLogin
+    security:
+      - KEY: []
+/admins/{AID}/permissions:
+  post:
+    tags:
+      - admins
+    summary: Изменить права администратора
+    operationId: adminSetPermissions
+    parameters:
+      - name: AID
+        in: path
+        description: ID администратора
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AdminSetPermissionsRequest"
+      required: true
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminSetPermissionsResponse"
+    security:
+      - KEY: []
+/admins/all:
+  get:
+    tags:
+      - admins
+    summary: Получить всех администраторов
+    parameters:
+      - name: regdate
+        in: query
+        description: Дата регистрации
+        schema:
+          type: boolean
+          default: false
+      - name: adminName
+        in: query
+        description: Имя админа
+        schema:
+          type: boolean
+          default: false
+      - name: startWork
+        in: query
+        description: Дата начала работы
+        schema:
+          type: boolean
+          default: false
+      - name: gpsImei
+        in: query
+        description: GPS IMEI
+        schema:
+          type: boolean
+          default: false
+      - name: rfidNumber
+        in: query
+        description: RFID номер
+        schema:
+          type: boolean
+          default: false
+      - name: disable
+        in: query
+        description: Статус аккаунта (0 - активен, 1 - отключен)
+        schema:
+          type: boolean
+          default: false
+      - name: cellPhone
+        in: query
+        description: Номер телефона
+        schema:
+          type: boolean
+          default: false
+      - name: birthday
+        in: query
+        description: День рождения
+        schema:
+          type: boolean
+          default: false
+      - name: apiKey
+        in: query
+        description: API ключ
+        schema:
+          type: boolean
+          default: false
+      - name: domainName
+        in: query
+        description: Имя домена
+        schema:
+          type: boolean
+          default: false
+      - name: domainId
+        in: query
+        description: ID домена
+        schema:
+          type: boolean
+          default: false
+      - name: aid
+        in: query
+        description: ID админа
+        schema:
+          type: boolean
+          default: true
+      - name: sipNumber
+        in: query
+        description: SIP номер
+        schema:
+          type: boolean
+          default: false
+      - name: telegramId
+        in: query
+        description: Telegram ID
+        schema:
+          type: boolean
+          default: false
+      - name: email
+        in: query
+        description: Электронная почта
+        schema:
+          type: boolean
+          default: false
+      - name: positionId
+        in: query
+        description: ID должности
+        schema:
+          type: boolean
+          default: false
+      - name: id
+        in: query
+        description: ID админа
+        schema:
+          type: boolean
+          default: false
+      - name: phone
+        in: query
+        description: Номер телефона
+        schema:
+          type: boolean
+          default: false
+      - name: adminExpire
+        in: query
+        description: Срок действия аккаунта
+        schema:
+          type: boolean
+          default: false
+      - name: department
+        in: query
+        description: Департамент
+        schema:
+          type: boolean
+          default: false
+      - name: address
+        in: query
+        description: Адрес
+        schema:
+          type: boolean
+          default: false
+      - name: pasportNum
+        in: query
+        description: Номер паспорта
+        schema:
+          type: boolean
+          default: false
+      - name: pasportDate
+        in: query
+        description: Дата выдачи паспорта
+        schema:
+          type: boolean
+          default: false
+      - name: pasportGrant
+        in: query
+        description: Место выдачи паспорта
+        schema:
+          type: boolean
+          default: false
+      - name: inn
+        in: query
+        description: ИНН
+        schema:
+          type: boolean
+          default: false
+      - name: login
+        in: query
+        description: Логин администратора
+        schema:
+          type: boolean
+          default: true
+      - name: gName
+        in: query
+        description: Название группы
+        schema:
+          type: boolean
+          default: true
+      - name: name
+        in: query
+        description: Назва администратора
+        schema:
+          type: boolean
+          default: true
+      - name: maxRows
+        in: query
+        description: Максимальное количество строк
+        schema:
+          type: boolean
+          default: false
+      - name: minSearchChars
+        in: query
+        description: Минимальное количество символов для поиска
+        schema:
+          type: boolean
+          default: false
+      - name: maxCredit
+        in: query
+        description: Максимальный кредит
+        schema:
+          type: boolean
+          default: false
+      - name: creditDays
+        in: query
+        description: Дни кредита
+        schema:
+          type: boolean
+          default: false
+      - name: comments
+        in: query
+        description: Комментарии
+        schema:
+          type: boolean
+          default: false
+      - name: pageRows
+        in: query
+        description: Количество записей
+        schema:
+          type: integer
+          default: 25
+      - name: sort
+        in: query
+        description: Сортировка по одному параметру выше
+        schema:
+          type: string
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminsList"
+    security:
+      - KEY: []

@@ -266,14 +266,12 @@
         </div>
 
         <div class='card-footer'>
-          <input type='submit' name='get_info' value='SNMP _{GET_INFO}_' class='btn btn-default'>
+          <input type='submit' name='get_info' value='_{AUTODETECT}_' class='btn btn-default'>
           <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary'>
         </div>
       </div>
 
     </div>
-
-    %ONU_STATUS%
 
   </div>
 

@@ -44,6 +44,7 @@ sub extreceipts_list {
   });
 
   foreach my $check (@{$list}) {
+    next if (!$check->{api_id});
     my @columns = ();
     push @columns, $check->{DATE};
 

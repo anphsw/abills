@@ -1,0 +1,4 @@
+/user/payments:
+  $ref: "./paths/payments.yaml"
+/user/fees:
+  $ref: "./paths/fees.yaml"

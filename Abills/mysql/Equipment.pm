@@ -14,10 +14,6 @@ use Abills::Base qw(int2ip);
 
 my $admin;
 my $CONF;
-my $SORT = 1;
-my $DESC = '';
-my $PG = 0;
-my $PAGE_ROWS = 25;
 
 #**********************************************************
 # New
@@ -46,10 +42,10 @@ sub vendor_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',   'INT', 'id',   1 ],
@@ -116,13 +112,11 @@ sub vendor_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'equipment_vendors',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'equipment_vendors',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -151,8 +145,8 @@ sub type_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',   'INT', 'id',   1 ],
@@ -250,10 +244,10 @@ sub model_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   delete $self->{COL_NAMES_ARR};
 
@@ -424,10 +418,10 @@ sub _list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $SECRETKEY = $CONF->{secretkey} || '';
 
@@ -500,7 +494,9 @@ sub _list {
     [ 'ZABBIX_HOSTID',                 'INT',  'nas.zabbix_hostid',               1 ],
     [ 'WIDTH',                         'INT',  'm.width',                         1 ],
     [ 'HEIGHT',                        'INT',  'm.height',                        1 ],
-    [ 'CONT_NUM_EXTRA_PORTS',          'INT',  'm.cont_num_extra_ports',          1 ]
+    [ 'CONT_NUM_EXTRA_PORTS',          'INT',  'm.cont_num_extra_ports',          1 ],
+    [ 'USERS',                         'INT',  'COUNT(im.uid)',            'COUNT(im.uid) AS users' ],
+    [ 'USERS_ONLINE',                  'INT',  'COUNT(io.uid)',     'COUNT(io.uid) AS users_online' ]
   ], { WHERE => 1 });
 
   my %EXT_TABLE_JOINS_HASH = ();
@@ -541,6 +537,8 @@ sub _list {
   });
 
   $EXT_TABLES .= "LEFT JOIN domains on (domains.id=nas.domain_id)" if $attr->{DOMAIN_NAME};
+  $EXT_TABLES .= "LEFT JOIN internet_main im ON (im.nas_id=i.nas_id)" if $attr->{USERS};
+  $EXT_TABLES .= "LEFT JOIN internet_online io ON (io.uid=im.uid)" if $attr->{USERS};
 
   $self->query("SELECT
         $self->{SEARCH_FIELDS}
@@ -691,9 +689,18 @@ sub _info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT *
+  $self->query("SELECT equipment_infos.*,
+     IF(
+        (SELECT
+          \@extra_ports := COUNT(*) FROM equipment_extra_ports
+          WHERE equipment_infos.model_id = equipment_extra_ports.model_id
+        ) > 0,
+        CONCAT(m.ports, '+', \@extra_ports),
+        m.ports
+      ) AS ports_with_extra
     FROM equipment_infos
-    WHERE nas_id= ? ;",
+    LEFT JOIN equipment_models m ON (m.id=equipment_infos.model_id)
+    WHERE equipment_infos.nas_id= ? ;",
     undef,
     { INFO => 1,
       Bind => [ $id ] }
@@ -711,10 +718,10 @@ sub port_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   $self->{SEARCH_FIELDS} = '';
   $self->{EXT_TABLES} = '';
@@ -781,10 +788,10 @@ sub port_list_without_group_by {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   $self->{SEARCH_FIELDS} = '';
   $self->{EXT_TABLES} = '';
@@ -1009,10 +1016,10 @@ sub equipment_box_type_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
     [ 'MARKING', 'STR', 'marking', ],
@@ -1116,10 +1123,10 @@ sub equipment_box_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
     [ 'SERIAL', 'STR', 'serial', ],
@@ -1329,10 +1336,10 @@ sub vlan_list {
   delete $self->{COL_NAMES_ARR};
 
   my @WHERE_RULES = ();
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' AND ', @WHERE_RULES) : '';
 
@@ -1400,10 +1407,10 @@ sub trap_list {
   my ($attr) = @_;
   my $GROUP;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? !$attr->{DESC} : 'DESC';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? !$attr->{DESC} : 'DESC';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   $GROUP = ($attr->{GROUP}) ? "GROUP BY $attr->{GROUP}" : '';
 
   my $WHERE = $self->search_former($attr, [
@@ -1426,7 +1433,8 @@ sub trap_list {
      INNER JOIN nas ON (nas.ip=e.ip)
      $WHERE
      $GROUP
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+     ORDER BY $SORT $DESC
+     LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
@@ -1456,10 +1464,10 @@ sub cvlan_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $SECRETKEY = $CONF->{secretkey} || '';
 
@@ -1653,9 +1661,8 @@ sub graph_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former($attr, [
     [ 'OBJ_ID', 'INT', 'obj_id', 1 ],
@@ -1771,10 +1778,10 @@ sub mac_log_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 50;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 50;
 
   my $GROUP_BY = '';
   if ($attr->{GROUP_BY}) {
@@ -2002,10 +2009,11 @@ sub mac_log_del {
 sub onu_list {
   my $self = shift;
   my ($attr) = @_;
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 5;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 5;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
   my @WHERE_RULES = ();
 
   if ($attr->{RX_POWER_SIGNAL}){
@@ -2035,7 +2043,7 @@ sub onu_list {
     [ 'VLAN_ID',          'STR', 'p.vlan_id',                     1 ],
     #    [ 'VLAN_ID',      'STR', 'onu.vlan', 1 ],
     [ 'ONU_ID',           'STR', 'onu.onu_id',                    1 ],
-    [ 'ID',               'STR', 'onu.id',                        1 ],
+    [ 'ID',               'STR', 'onu.id',  'onu.id AS ID'          ],
     [ 'ONU_VLAN',         'STR', 'onu.vlan',                      1 ],
     [ 'MAC_SERIAL',       'STR', 'onu.onu_mac_serial', 'onu.onu_mac_serial AS mac_serial' ],
     [ 'ONU_DESC',         'STR', 'onu.onu_desc', 'onu.onu_desc AS onu_desc' ],
@@ -2091,7 +2099,10 @@ sub onu_list {
     my @fields = @{$self->search_expr("$attr->{EXTERNAL_SYSTEM_LINK}", "STR", "CONCAT('--') AS external_system_link", { EXT_FIELD => 1 })};
     $self->{SEARCH_FIELDS} .= join(', ', @fields);
   }
-
+  if ($attr->{ONU_NAME}) {
+    my @fields = @{$self->search_expr("$attr->{ONU_NAME}", "STR", "CONCAT('--') AS onu_name", { EXT_FIELD => 1 })};
+    $self->{SEARCH_FIELDS} .= join(', ', @fields);
+  }
 
   # if ($attr->{FIO}) {
   #   my @fields = @{$self->search_expr($attr->{FIO}, "STR", "CONCAT('--') AS fio", { EXT_FIELD => 1 })};
@@ -2112,10 +2123,9 @@ sub onu_list {
   }
 
   $self->query("SELECT
-      onu.id AS ID,
       $self->{SEARCH_FIELDS}
       onu.id,
-      p.id AS PORT_ID,
+      p.id AS port_id,
       p.nas_id,
       p.pon_type,
       p.snmp_id,
@@ -2408,10 +2418,10 @@ sub pon_port_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
 
   my $WHERE = $self->search_former($attr, [
     [ 'NAS_ID',    'STR', 'p.nas_id', 1 ],
@@ -2487,13 +2497,11 @@ sub pon_port_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'equipment_pon_ports',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'equipment_pon_ports',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -2524,6 +2532,7 @@ sub pon_port_del {
 
   return $self;
 }
+
 #**********************************************************
 =head2 type_info($id, $attr)
 
@@ -2581,8 +2590,8 @@ sub trap_type_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $WHERE = $self->search_former($attr, [
     [ 'ID', 'INT', 'id', 1 ],
     [ 'NAME', 'STR', 'name', 1 ],
@@ -2645,13 +2654,11 @@ sub trap_type_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'equipment_trap_types',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'equipment_trap_types',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -2698,8 +2705,8 @@ sub tr_069_settings_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',          'INT', 'id', 1 ],
@@ -2784,25 +2791,6 @@ sub tr_069_settings_change {
 
   return $self;
 }
-#**********************************************************
-=head2 tr_069_settings_change() -
-
-  Arguments:
-     -
-  Returns:
-
-  Examples:
-
-=cut
-#**********************************************************
-sub equipment_all_info {
-  my $self = shift;
-
-  $self->query("
-    SELECT COUNT(name) as total_count FROM nas;");
-
-  return $self->{list} || [];
-}
 
 #**********************************************************
 =head2 onu_and_internet_cpe_list() - return information about ONUs and abonents joined by CPE MAC
@@ -2812,11 +2800,17 @@ sub equipment_all_info {
       NAS_IDS - search only for this NAS_IDS. string, NAS IDs separated by ';'
       DELETED - ONU's deleted status
 
+  Results:
+    $list
+
 =cut
 #**********************************************************
 sub onu_and_internet_cpe_list {
   my $self = shift;
   my ($attr) = @_;
+
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
 
   my $WHERE = '';
 
@@ -2852,7 +2846,9 @@ sub onu_and_internet_cpe_list {
     LEFT JOIN equipment_pon_ports p ON (p.id=onu.port_id)
     LEFT JOIN equipment_infos ei ON (ei.nas_id=p.nas_id)
     INNER JOIN internet_main i ON (onu.onu_mac_serial=i.cpe_mac AND i.cpe_mac<>'')
-    $WHERE;",
+    $WHERE
+    LIMIT $PG, $PAGE_ROWS
+    ;",
     undef,
     { COLS_NAME => 1 }
   );
@@ -2902,10 +2898,10 @@ sub _list_with_coords {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
 
   if ($admin->{DOMAIN_ID}) {
     $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
@@ -2991,10 +2987,10 @@ sub calculator_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
 
 
   my $WHERE = $self->search_former($attr, [
@@ -3004,7 +3000,6 @@ sub calculator_list {
   ],
     { WHERE => 1, }
   );
-
 
   $self->query("SELECT
         c.type,
@@ -3033,7 +3028,6 @@ sub calculator_delete {
   my ($type) = @_;
 
   $self->query_del('equipment_calculator', undef,{ TYPE => $type });
-
 
   return $self;
 }

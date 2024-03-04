@@ -215,11 +215,11 @@
       },
       "UPTIME"           : {
         "NAME"   : "UPTIME",
-        "OIDS"   : ".1.3.6.1.4.1.3320.10.3.1.1.19.22",
+        "OIDS"   : ".1.3.6.1.4.1.3320.10.3.1.1.19",
         "PARSER" : "_bdcom_sec2time"
       },
       "ONU_LAST_DOWN_CAUSE" : {
-        "NAME"   : "ONU last down cause",
+        "NAME"   : "ONU_LAST_DOWN_CAUSE",
         "OIDS"   : ".1.3.6.1.4.1.3320.10.3.1.1.35",
         "PARSER" : "_bdcom_convert_onu_last_down_cause"
       },

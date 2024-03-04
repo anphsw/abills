@@ -1,6 +1,18 @@
 <script>
 
   jQuery(function () {
+    jQuery('.crm-phone').on('click', function () {
+      let lead = jQuery(this);
+      let leadId = lead.data('lead');
+      if (leadId) {
+        lead.addClass('btn disabled');
+        sendRequest(`/api.cgi/crm/leads/${leadId}/phone/`)
+          .finally(() => {
+            lead.removeClass('btn');
+          });
+      }
+    });
+
     let dataTable = jQuery('#CRM_LEAD_LIST_');
     jQuery('#CHECK_LEADS_BTN').on('click', checkLeads);
 

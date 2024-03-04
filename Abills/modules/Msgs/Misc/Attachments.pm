@@ -71,12 +71,6 @@ sub new {
 sub attachment_add {
   my ($self, $attr) = @_;
 
-  if (length($attr->{CONTENT}) != $attr->{FILESIZE}) {
-    $self->{errno} = 50010;
-    $self->{errstr} = 'Not valid filesize. Filesize not equal to content length';
-    return 0;
-  }
-
   if ($self->{save_to_disk}) {
 
     # If have one attachment linked to a lot messages, will save it as one file

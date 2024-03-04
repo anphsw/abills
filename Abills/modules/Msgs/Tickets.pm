@@ -99,6 +99,7 @@ sub msgs_admin {
 
   if ($FORM{chg} || $FORM{ID}) {
     $FORM{chg} =~ s/#// if ($FORM{chg});
+    $FORM{chg} //= $FORM{ID} if !$FORM{change};
     $Msgs->message_info($FORM{chg} || $FORM{ID});
     
     if ($msgs_permissions{1}{21} && (!$Msgs->{RESPOSIBLE} || $Msgs->{RESPOSIBLE} ne $admin->{AID})) {
@@ -116,6 +117,7 @@ sub msgs_admin {
       print $user_info->{TABLE_SHOW} || q{};
     }
     $FORM{UID} = $Msgs->{UID} || 0;
+    $LIST_PARAMS{UID} = $FORM{UID};
   }
 
   $FORM{index} = get_function_index($FORM{get_index}) if (!$FORM{index} && $FORM{get_index});
@@ -316,11 +318,11 @@ sub msgs_admin {
 #**********************************************************
 sub msgs_ticket_change {
 
-  $Msgs->{TAB3_ACTIVE} = "active";
+  $Msgs->{TAB3_ACTIVE} = 'active';
 
   $Msgs->status_info($FORM{STATE});
   if ($Msgs->{TOTAL} > 0 && $Msgs->{TASK_CLOSED}) {
-    $FORM{CLOSED_DATE} = "$DATE  $TIME";
+    $FORM{CLOSED_DATE} = "$DATE $TIME";
     $FORM{STATE} = 0 if $Msgs->{TASK_CLOSED} && (!$msgs_permissions{1} || !$msgs_permissions{1}{3});
   }
   $FORM{DONE_DATE} = $DATE if (defined $FORM{STATE} && $FORM{STATE} > 1);
@@ -414,6 +416,10 @@ sub _msgs_admin_send_message {
   my %query_data = ();
   my @skip_keys = ('LOCATION_ID', 'STREET_ID');
   map $query_data{$_} = $FORM{$_} ? $FORM{$_} : in_array($_, \@skip_keys) ? undef : '_SHOW', keys %FORM;
+
+  my @skip_query_params = ('PHONE');
+  map delete($query_data{$_}), @skip_query_params;
+
   my $users_list = $users->list({
     LOGIN     => '_SHOW',
     FIO       => '_SHOW',
@@ -857,7 +863,7 @@ sub msgs_admin_add_form {
     $tpl_info{MSGS_TAGS_HIDE} = 'd-none';
   }
   $tpl_info{RESPOSIBLE} = sel_admins({ NAME => 'RESPOSIBLE', SELECTED => $admin->{AID}, DISABLE => 0 });
-  $tpl_info{INNER_MSG} = 'checked' if ($conf{MSGS_INNER_DEFAULT});
+  $tpl_info{INNER_MSG} = 'checked' if $conf{MSGS_INNER_DEFAULT};
   $tpl_info{SURVEY_SEL} = msgs_survey_sel();
   $tpl_info{SURVEY_HIDE} = !$msgs_permissions{1}{20} ? 'd-none' : '';
   $tpl_info{SUBJECT_SEL} = msgs_sel_subject({ EX_PARAMS => 'disabled=disabled required' });
@@ -962,11 +968,12 @@ sub msgs_ticket_show {
   return 1 if _error_show($Msgs);
 
   if ($FORM{chg} && !($Msgs->{ID})) {
-    $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}");
+    $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_DATA});
     return 1;
   }
 
-  $Msgs->{MAIN_ID} = $Msgs->{ID};
+  $Msgs->{MAIN_ID} = $Msgs->{ID} // '';
+  $Msgs->{UID} //= '';
   $Msgs->{ACTION} = 'reply';
   $Msgs->{LNG_ACTION} = $lang{SEND};
   $Msgs->{STATE} //= 0;
@@ -976,9 +983,16 @@ sub msgs_ticket_show {
 
   $Msgs->{EDIT} = $html->button($lang{EDIT}, '', {
     class     => 'btn btn-default btn-xs reply-edit-btn',
-    ex_params => "reply_id='m$message_id'" }
-  ) if $msgs_permissions{1}{5};
+    ex_params => "reply_id='m$message_id'"
+  }) if $msgs_permissions{1}{5};
   $Msgs->{INNER_MSG_HIDE} = 'd-none' if !$msgs_permissions{1}{7};
+
+  if ($msgs_permissions{1}{7}) {
+    $Msgs->{INNER_MSG_BTN} = $html->button($Msgs->{INNER_MSG} ? $lang{MSGS_MAKE_PUBLIC} : $lang{MSGS_MAKE_PRIVATE},
+      "index=$index&ID=$Msgs->{MAIN_ID}&change=1&UID=$Msgs->{UID}&INNER_MSG=" . ($Msgs->{INNER_MSG} ? 0 : 1), {
+      class => 'btn btn-default btn-xs',
+    });
+  }
 
   $Msgs->{STATE_SEL} = $html->form_select('STATE', {
     SELECTED     => $Msgs->{STATE} || 0,
@@ -992,9 +1006,10 @@ sub msgs_ticket_show {
 
   my $uid = $Msgs->{UID} || 0;
 
-  $Msgs->{PLUGINS} = _msgs_show_right_plugins($Msgs, { %FORM,
-    PRIORITY_COLORS     => \@priority_colors,
-    PRIORITY_ARRAY      => \@priority
+  $Msgs->{PLUGINS} = _msgs_show_right_plugins($Msgs, {
+    %FORM,
+    PRIORITY_COLORS => \@priority_colors,
+    PRIORITY_ARRAY  => \@priority
   });
 
   $Msgs->{EXT_INFO} = $html->tpl_show(_include($msgs_managment_tpl, 'Msgs'), { %{$users}, %{$Msgs},
@@ -1008,7 +1023,6 @@ sub msgs_ticket_show {
   if (!defined $Msgs->{TIMELINE_LAST_ITEM}) {
     $Msgs->{TIMELINE_LAST_ITEM} = $html->element('i', '', { 'class' => 'fas fa-clock bg-gray' })
   }
-
 
   my $msgs_rating_message = '';
   my $rating_icons = '';
@@ -1059,10 +1073,11 @@ sub msgs_ticket_show {
       QUOTING         => $Msgs->{REPLY_QUOTE} || '',
       RUN_TIME_STATUS => 'DISABLE',
       MAIN_INNER_MSG  => $Msgs->{INNER_MSG},
-      INNER_MSG       => ($FORM{INNER_MSG}) ? ' checked ' : '',
+      INNER_MSG       => ($FORM{INNER_MSG} || $conf{MSGS_INNER_DEFAULT}) ? ' checked ' : '',
       SURVEY_SEL      => msgs_survey_sel(),
       SURVEY_HIDE     => !$msgs_permissions{1} || !$msgs_permissions{1}{20} ? 'd-none' : '',
-      MAX_FILES       => $conf{MSGS_MAX_FILES} || 3
+      MAX_FILES       => $conf{MSGS_MAX_FILES} || 3,
+      RUN_TIME_START  => $conf{MSGS_RUN_TIME} || 2,
     }, { OUTPUT2RETURN => 1, ID => 'MSGS_REPLY', NO_SUBJECT => $lang{NO_SUBJECT} });
   }
 
@@ -1219,6 +1234,24 @@ sub msgs_ticket_reply {
       next;
     }
 
+    my $skip_convert = undef;
+    if ($line->{text} && $line->{text} =~ /^RM\:(\d+)$/) {
+      require Msgs::Export_redmine;
+      Export_redmine->import();
+      my $Export_redmine = Export_redmine->new($db, $admin, \%conf);
+      my $task_info = $Export_redmine->task_info({ TASK_ID => $1 });
+
+      my $task_status = $task_info && $task_info->{status} && $task_info->{status}{name} ? $task_info->{status}{name} : $lang{UNKNOWN};
+      my $text = $html->element('h5', $html->badge($line->{text} . " ($task_status)", { TYPE => 'badge-primary' }));
+      $line->{text} = $html->button($text, '', {
+        GLOBAL_URL     => $Export_redmine->{TASK_LINK},
+        NO_LINK_FORMER => 1,
+        target         => '_blank',
+      });
+
+      $skip_convert = 1;
+    }
+
     $Msgs->{REPLY_QUOTE} = '>' . $line->{text}  if ($FORM{QUOTING} && $FORM{QUOTING} == $line->{id});
 
     my $reply_color = 'fas fa-user bg-green';
@@ -1262,7 +1295,7 @@ sub msgs_ticket_reply {
       REPLY_ID   => $line->{id},
       DATE       => $line->{datetime},
       PERSON     => ($line->{creator_id} || q{}) . ' ' . ($line->{aid} ? " ($lang{ADMIN})" : ''),
-      MESSAGE    => msgs_text_quoting($line->{text}, 1),
+      MESSAGE    => msgs_text_quoting($line->{text}, 1, { SKIP_CONVERT => $skip_convert }),
       QUOTING    => $quote_button,
       NEW_TOPIC  => _msgs_new_topic_button($uid, $message_id, $line->{id}, $Msgs->{CHAPTER}),
       EDIT       => _msgs_edit_reply_button($line->{id}),
@@ -1538,7 +1571,7 @@ sub _msgs_reply_admin {
   $Msgs->message_change({
     UID        => $LIST_PARAMS{UID},
     ID         => $FORM{ID},
-    USER_READ  => "0000-00-00 00:00:00",
+    USER_READ  => !$FORM{REPLY_INNER_MSG} ? "0000-00-00 00:00:00" : undef,
     ADMIN_READ => "$DATE $TIME",
     %params
   });
@@ -1595,15 +1628,16 @@ sub _msgs_reply_admin {
   }) : [];
 
   $Notify->notify_user({
-    UID         => $FORM{UID},
-    STATE_ID    => $Msgs->{STATE},
-    SEND_TYPE   => $Msgs->{SEND_TYPE},
-    STATE       => $msgs_status->{$Msgs->{STATE}},
-    REPLY_ID    => $reply_id,
-    MSG_ID      => $FORM{ID},
-    MSGS        => $Msgs,
-    SENDER_AID  => $admin->{AID},
-    ATTACHMENTS => $attachments_list
+    UID             => $FORM{UID},
+    STATE_ID        => $Msgs->{STATE},
+    SEND_TYPE       => $Msgs->{SEND_TYPE},
+    STATE           => $msgs_status->{$Msgs->{STATE}},
+    REPLY_ID        => $reply_id,
+    MSG_ID          => $FORM{ID},
+    MSGS            => $Msgs,
+    SENDER_AID      => $admin->{AID},
+    ATTACHMENTS     => $attachments_list,
+    REPLY_INNER_MSG => $FORM{REPLY_INNER_MSG}
   });
 
   $Msgs->message_change({

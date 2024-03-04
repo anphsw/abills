@@ -38,17 +38,17 @@
         </div>
         <div class='panel-body'>
             <div class='table table-hover table-striped'>
-                <div class='row'>
-                    <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{LOGIN}_: </div>
-                    <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%LOGIN%</div>
+                <label class='form-group row'>
+                    <label class='col-md-4 col-sm-3 control-label'>_{LOGIN}_: </label>
+                    <div class='col-md-8 col-sm-9'>%LOGIN%</div>
                 </div>
                 <div class='row'>
-                    <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{TARIF_PLAN}_:</div>
-                    <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%TP_NAME%</div>
+                    <label class='col-md-4 col-sm-3 control-label'>_{TARIF_PLAN}_:</label>
+                    <div class='col-md-8 col-sm-9'>%TP_NAME%</div>
                 </div>
                 <div class='row'>
-                    <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{DEPOSIT}_:</div>
-                    <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%DEPOSIT%</div>
+                    <label class='col-md-4 col-sm-3 control-label'>_{DEPOSIT}_:</label>
+                    <div class='col-md-8 col-sm-9'>%DEPOSIT%</div>
                 </div>
             </div>
         </div>

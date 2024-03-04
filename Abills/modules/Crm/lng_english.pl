@@ -157,4 +157,7 @@ $lang{HOLDUP_TO} = 'HoldUp to';
 $lang{TRACKED_LEADS} = 'Tracked leads';
 $lang{DEFERRED_LEADS} = 'Deferred leads';
 
+$lang{CRM_FILE_TOO_LARGE} = 'File is too large. Maximum file size';
+$lang{CRM_MAX_FILES_ALLOWED} = 'Maximum number of files allowed';
+
 1

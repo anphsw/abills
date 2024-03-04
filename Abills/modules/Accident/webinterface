@@ -1,3 +1,4 @@
+#!perl
 =head1 Accident
 
   Accident
@@ -35,7 +36,7 @@ if (
   form_purchase_module({
     HEADER          => 1,
     MODULE          => 'Accident',
-    REQUIRE_VERSION => 8.20,
+    REQUIRE_VERSION => 8.26,
   })
 ) {
   exit;
@@ -113,10 +114,7 @@ sub accident_log {
     $Accident->{LNG_ACTION} = $lang{CHANGE};
 
     $Accident->info($FORM{chg});
-    $Accident->{ADDRESS_LIST} = $Accident->accident_address_info($FORM{chg});
-    foreach my $address (@{$Accident->{ADDRESS_LIST}}) {
-      $address->{$ADDRESS_TYPE{$address->{type_id}}} = $address->{address_id};
-    }
+    $Accident->{ADDRESS_LIST} = $Accident->accident_address_list($FORM{chg});
   }
 
   if ($FORM{add_form} || $FORM{chg}) {
@@ -164,7 +162,7 @@ sub accident_log {
         RETURN_INPUT => 1
       }),
       DATE_PICKER_CHECKED => $FORM{FROM_DATE_TO_DATE} ? 'checked' : '',
-      SELECT_ADDRESS      => form_address_select2({
+      SELECT_ADDRESS      => form_address_select({
         %FORM,
         HIDE_FLAT             => 1,
         HIDE_ADD_BUILD_BUTTON => 1,
@@ -202,7 +200,7 @@ sub accident_log {
     FILTER_VALUES   => {
       priority => sub {
         my $priority_id = shift;
-        return $priority{$priority_id};
+        return $priority{$priority_id || 0};
       },
       status   => sub {
         my $status_id = shift;
@@ -562,6 +560,16 @@ sub accident_compensation {
   my $address_id = $accident_info->[0]{address_id};
   my $location_info = _search_address($type_id, $address_id);
 
+  if (!$location_info->{STREET} && $location_info->{BUILD}){
+    my $build_info = $Address->build_info({ID=> $location_info->{BUILD}, COLS_NAME => 1});
+    $location_info->{STREET} = $build_info->{STREET_ID} if $build_info->{STREET_ID};
+  }
+
+  if (!$location_info->{DISTRICT} && $location_info->{STREET}){
+    my $street_info = $Address->street_info({ID => $location_info->{STREET}, COLS_NAME => 1});
+    $location_info->{DISTRICT} = $street_info->{DISTRICT_ID} if $street_info->{DISTRICT_ID};
+  }
+
   my %EXT_TITLES = (
     'id'          => '#',
     'procent'     => $lang{PROCENT},
@@ -578,7 +586,7 @@ sub accident_compensation {
     NO_ID        => 1
   });
 
-  my $address = form_address_select2({
+  my $address = form_address_select({
     DISTRICT_ID => $location_info->{DISTRICT} || 0,
     STREET_ID   => $location_info->{STREET} || 0,
     BUILD_ID    => $location_info->{BUILD} || 0,
@@ -662,6 +670,7 @@ sub _accident_add_compensation {
 
   return 0 if (!in_array('Internet', \@MODULES));
 
+  use Time::Piece;
   require Internet;
   Internet->import();
   my $Internet = Internet->new($db, $admin, \%conf);

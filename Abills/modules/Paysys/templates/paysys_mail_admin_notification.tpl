@@ -1,0 +1,8 @@
+_{PAY_SYSTEM}_: %PAYMENT_SYSTEM%
+_{DATE}_: %DATE% %TIME%
+_{SUM}_: %SUM%
+_{LOGIN}_: %LOGIN%
+UID: %UID%
+
+_{REQUEST}_
+%REQUEST%

@@ -39,6 +39,10 @@ my $payments = Finance->payments($db, $admin, \%conf);
 my $Paysys = Paysys->new($db, $admin, \%conf);
 our Users $users;
 
+if (!$users) {
+  $users = Users->new($db, $admin, \%conf);
+}
+
 my $insert_id = 0;
 my $paysys_id = 0;
 
@@ -89,6 +93,7 @@ my @status = ("$lang{UNKNOWN}",    #0
       CROSSMODULES_TIMEOUT - Crossmodules function timeout
       ERROR             - Status error;
       PAYMENT_METHOD    - Payment method;
+      MERCHANT_ID       - Merchant id;
   Returns:
     Payment status code.
     All codes:
@@ -281,7 +286,8 @@ sub paysys_pay {
     }
   }
   else {
-    if ($conf{PAYSYS_ACCOUNT_KEY}) { #FIXME Do we really use it?
+    #FIXME Do we really use it?
+    if ($conf{PAYSYS_ACCOUNT_KEY}) {
       $CHECK_FIELD = _account_expression($user_account);
     }
 
@@ -404,18 +410,23 @@ sub paysys_pay {
   });
 
   my $method = $attr->{PAYMENT_METHOD} || $system_info->[0]{payment_method} || 0;
+  my $merchant_id = $attr->{MERCHANT_ID} || 0;
 
-  #TODO: delete first if condition after half year
-  if (!$attr->{PAYMENT_METHOD} && $Paysys->can('gid_params')) {
-    my $params = $Paysys->gid_params({
-      GID       => $user->{GID},
-      PAYSYS_ID => $payment_system_id,
-      LIST2HASH => 'param,value'
-    });
+  my $params = $Paysys->gid_params({
+    GID       => $user->{GID} ? "$user->{GID},0" : '0',
+    PAYSYS_ID => $payment_system_id,
+    COLS_NAME => 1,
+  });
 
-    if (scalar keys %{$params}) {
-      my ($payment_method) = grep {/PAYMENT_METHOD/g} keys %{$params};
-      $method = $params->{$payment_method} if ($payment_method && $params->{$payment_method});
+  if (scalar(@{$params})) {
+    $merchant_id = $params->[0]->{merchant_id} if (!$attr->{MERCHANT_ID});
+    if (!$attr->{PAYMENT_METHOD}) {
+      foreach my $param (@{$params}) {
+        next if !$param->{param};
+        next if $param->{param} !~ /PAYMENT_METHOD/;
+        $method = $param->{value} if ($param->{value});
+        last;
+      }
     }
   }
 
@@ -471,6 +482,7 @@ sub paysys_pay {
         PAYSYS_IP      => $ENV{'REMOTE_ADDR'},
         STATUS         => 2,
         USER_INFO      => $attr->{USER_INFO},
+        MERCHANT_ID    => $merchant_id,
         %{$domain || {}}
       });
 
@@ -506,21 +518,23 @@ sub paysys_pay {
       if ($paysys_id && $list->[0]->{status} != 2) {
         if ($attr->{NEW_SUM}) {
           $Paysys->change({
-            ID        => $paysys_id,
-            STATUS    => 2,
-            PAYSYS_IP => $ENV{'REMOTE_ADDR'},
-            INFO      => $ext_info,
-            USER_INFO => $attr->{USER_INFO},
-            SUM       => $amount
+            ID          => $paysys_id,
+            STATUS      => 2,
+            PAYSYS_IP   => $ENV{'REMOTE_ADDR'},
+            INFO        => $ext_info,
+            USER_INFO   => $attr->{USER_INFO},
+            SUM         => $amount,
+            MERCHANT_ID => $merchant_id,
           });
         }
         else {
           $Paysys->change({
-            ID        => $paysys_id,
-            STATUS    => 2,
-            PAYSYS_IP => $ENV{'REMOTE_ADDR'},
-            INFO      => $ext_info,
-            USER_INFO => $attr->{USER_INFO}
+            ID          => $paysys_id,
+            STATUS      => 2,
+            PAYSYS_IP   => $ENV{'REMOTE_ADDR'},
+            INFO        => $ext_info,
+            USER_INFO   => $attr->{USER_INFO},
+            MERCHANT_ID => $merchant_id,
           });
         }
       }
@@ -546,21 +560,23 @@ sub paysys_pay {
     if ($paysys_id) {
       if ($attr->{NEW_SUM}) {
         $Paysys->change({
-          ID        => $paysys_id,
-          STATUS    => 2,
-          PAYSYS_IP => $ENV{'REMOTE_ADDR'},
-          INFO      => $ext_info,
-          USER_INFO => $attr->{USER_INFO},
-          SUM       => $amount
+          ID          => $paysys_id,
+          STATUS      => 2,
+          PAYSYS_IP   => $ENV{'REMOTE_ADDR'},
+          INFO        => $ext_info,
+          USER_INFO   => $attr->{USER_INFO},
+          SUM         => $amount,
+          MERCHANT_ID => $merchant_id,
         });
       }
       else {
         $Paysys->change({
-          ID        => $paysys_id,
-          STATUS    => 2,
-          PAYSYS_IP => $ENV{'REMOTE_ADDR'},
-          INFO      => $ext_info,
-          USER_INFO => $attr->{USER_INFO}
+          ID          => $paysys_id,
+          STATUS      => 2,
+          PAYSYS_IP   => $ENV{'REMOTE_ADDR'},
+          INFO        => $ext_info,
+          USER_INFO   => $attr->{USER_INFO},
+          MERCHANT_ID => $merchant_id,
         });
       }
     }
@@ -575,6 +591,7 @@ sub paysys_pay {
         PAYSYS_IP      => $ENV{'REMOTE_ADDR'},
         STATUS         => 2,
         USER_INFO      => $attr->{USER_INFO},
+        MERCHANT_ID    => $merchant_id,
         %{$domain || {}}
       });
 
@@ -626,11 +643,16 @@ sub paysys_pay {
 
   #Send mail
   if ($conf{PAYSYS_EMAIL_NOTICE}) {
-    my $message = "\n" . "================================" .
-      "System: $payment_system\n" .
-      "================================" .
-      "DATE: $DATE $TIME\n" .
-      "LOGIN: $user->{LOGIN} [$uid]\n\n" . $ext_info . "\n\n";
+    require Abills::Templates if (!exists($INC{'Abills/Templates.pm'}));
+
+    my $message = $html->tpl_show(_include('paysys_mail_admin_notification', 'Paysys'), {
+      %$user,
+      PAYMENT_SYSTEM => $payment_system,
+      DATE           => $DATE,
+      TIME           => $TIME,
+      SUM            => $amount || 0,
+      REQUEST        => $ext_info,
+    }, { OUTPUT2RETURN => 1 });
 
     sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "$payment_system ADD", "$message", "$conf{MAIL_CHARSET}", "2 (High)");
   }
@@ -727,6 +749,7 @@ sub paysys_check_user {
 
   $user_account =~ s/\*//;
 
+  #FIXME Do we really use it?
   if ($conf{PAYSYS_ACCOUNT_KEY}) {
     $CHECK_FIELD = _account_expression($user_account);
   }
@@ -750,6 +773,7 @@ sub paysys_check_user {
   });
 
   if ($users->{errno}) {
+    mk_log('Mysql error ' . ($users->{errno} || q{}));
     return 2;
   }
   elsif ($users->{TOTAL} < 1) {
@@ -816,6 +840,7 @@ sub paysys_check_user {
       PAYSYS_ID      - Paysys ID (unique number of operation);
       TRANSACTION_ID - Paysys Transaction identifier
       RETURN_CANCELED_ID - 1 (return $result, $paysys_canceled_id)
+      CANCEL_TRANSACTION - force cancel of transaction if payment not exists
       DEBUG
 
   Returns:
@@ -825,6 +850,7 @@ sub paysys_check_user {
       2  - Error with mysql
       8  - Paysys not exist
       10 - Payments not exist
+      11 - no required parameter PAYSYS_ID or TRANSACTION_ID
 
   Examples:
 
@@ -851,8 +877,12 @@ sub paysys_pay_cancel {
     $payments->{debug} = 1;
   }
 
+  if (!$attr->{PAYSYS_ID} && !$attr->{TRANSACTION_ID}) {
+    return 11;
+  }
+
   my $paysys_list = $Paysys->list({
-    ID             => $attr->{PAYSYS_ID},
+    ID             => $attr->{PAYSYS_ID} || '_SHOW',
     TRANSACTION_ID => $attr->{TRANSACTION_ID} || '_SHOW',
     SUM            => '_SHOW',
     COLS_NAME      => 1
@@ -1009,7 +1039,7 @@ sub paysys_info { #TODO REMOVE THIS FUNCTION
 
 =cut
 #**********************************************************
-sub paysys_get_full_info { #TODO REMOVE THIS FUNCTION
+sub paysys_get_full_info {
   my ($attr) = @_;
 
   my $list = $Paysys->list({
@@ -1017,6 +1047,10 @@ sub paysys_get_full_info { #TODO REMOVE THIS FUNCTION
     TRANSACTION_ID => $attr->{TRANSACTION_ID} || '_SHOW',
     STATUS         => '_SHOW',
     PAYMENT_SYSTEM => '_SHOW',
+    SUM            => '_SHOW',
+    IP             => '_SHOW',
+    STATUS         => '_SHOW',
+    DATE           => '_SHOW',
     COLS_NAME      => 1,
   });
 
@@ -1158,7 +1192,6 @@ sub _check_max_payments {
   }
   else {
     return 1 if (!$attr->{PAYMENT_SYSTEM_ID});
-    return 1 if (!$Paysys->can('gid_params'));
 
     my $list_params = $Paysys->gid_params({
       GID       => $attr->{GID} || 0,
@@ -1877,15 +1910,19 @@ sub paysys_statement_processing {
 
   my @check_arr = split(/;\s?/, $conf{PAYSYS_STATEMENTS_MULTI_CHECK});
 
-  return 2 if (!scalar @check_arr);
+  return 1 if (!scalar @check_arr);
 
   my $regex = $conf{PAYSYS_STATEMENTS_MULTI_CHECK_REGEX} || '\s|\;|:|№|\/';
 
   my @values = split(/$regex/, $statement);
   @values = grep { defined $_ && $_ ne '' } @values;
 
+  require Companies;
+  Companies->import();
+  my $Companies = Companies->new($db, $admin, \%conf);
+
   foreach my $check_field (@check_arr) {
-    my ($field_name, $field_type, $field_regex) = split(/:/, $check_field);
+    my ($field_name, $field_type, $field_regex, $extract_regex, $type) = split(/:/, $check_field);
 
     next if (!$field_name);
     $field_name = uc($field_name);
@@ -1897,12 +1934,18 @@ sub paysys_statement_processing {
       foreach my $value (@values) {
         next if (!is_number($value));
         next if ($pattern && $value !~ $pattern);
+        if ($extract_regex) {
+          ($value) = $value =~ /$extract_regex/gm;
+        }
         $search_str .= "$value,";
       }
     }
     else {
       foreach my $value (@values) {
         next if ($pattern && $value !~ /$pattern/);
+        if ($extract_regex) {
+          ($value) = $value =~ /$extract_regex/gm;
+        }
         if ($check_field eq 'FIO') {
           $search_str .= "*$value*,";
         }
@@ -1912,7 +1955,35 @@ sub paysys_statement_processing {
       }
     }
 
-    my $users_list = $users->list({
+    $search_str =~ s/,$//;
+
+    my $CHECK_FIELD = $field_name || '';
+    my $users_list = [];
+
+    if ($type) {
+      my $company = $Companies->list({
+        COMPANY_ADMIN => '_SHOW',
+        COLS_NAME     => 1,
+        $field_name   => $search_str || '--',
+      });
+
+      if ($Companies->{errno}) {
+        delete $Companies->{errno};
+        next;
+      }
+
+      if (scalar @{$company} != 1) {
+        next;
+      }
+
+      # set user info of company admin
+      $CHECK_FIELD = 'UID';
+      $search_str = $company->[0]->{uid};
+    }
+
+    next if (!$search_str);
+
+    $users_list = $users->list({
       LOGIN          => '_SHOW',
       FIO            => '_SHOW',
       DEPOSIT        => '_SHOW',
@@ -1926,11 +1997,12 @@ sub paysys_statement_processing {
       ACTIVATE       => '_SHOW',
       REDUCTION      => '_SHOW',
       BILL_ID        => '_SHOW',
-      $field_name    => $search_str || '--',
+      $CHECK_FIELD   => $search_str,
       _MULTI_HIT     => 1,
       COLS_NAME      => 1,
       COLS_UPPER     => 1,
-      PAGE_ROWS      => 1000,
+      SKIP_DEL_CHECK => 1,
+      PAGE_ROWS      => 100,
     });
 
     if ($users->{errno}) {
@@ -1941,7 +2013,8 @@ sub paysys_statement_processing {
     my %users_list = ();
 
     foreach my $user (@{$users_list}) {
-      my $key = $user->{$field_name};
+      my $key = $user->{$field_name} || '--';
+
       $users_list{$key} = [] if (!exists $users_list{$key});
       push @{$users_list{$key}}, $user;
     }
@@ -1950,7 +2023,7 @@ sub paysys_statement_processing {
       my $matches = scalar @{$users_list{$key}} || 0;
       next if (!$matches);
 
-      return 0, $users_list{$key} if ($matches < 2);
+      return 0, $users_list->[0] if ($matches < 2);
 
       #TODO: add logic of advanced address search
 
@@ -1979,7 +2052,7 @@ sub paysys_statement_processing {
     }
   }
 
-  return 3;
+  return 1;
 }
 
 1;

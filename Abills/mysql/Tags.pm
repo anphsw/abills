@@ -162,6 +162,7 @@ sub tags_user{
       [ 'TAG_ID',     'INT', 't.id',                            ],
       [ 'LAST_ABON',  'INT', 'tu.date',                         ],
       [ 'USERS_SUM',  'INT', 'SUM(tu.uid) AS tu.users_sum',     ],
+      [ 'END_DATE',   'DATE','tu.end_date',       'tu.end_date AS end_date', ],
       [ 'RESPONSIBLE','INT', 'GROUP_CONCAT(DISTINCT a.id) AS responsible', 1 ],
     ], { WHERE => 1 });
 
@@ -217,38 +218,31 @@ sub tags_user_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query( "SELECT GROUP_CONCAT(tag_id)
-    FROM tags_users 
-    WHERE uid = ?
-    GROUP by uid;",
-      undef,
-      { Bind => [ $attr->{UID} ] }
-  );
-  my $old_tags = $self->{list}[0][0] || '';
+  my $old_tags = {};
+  my $old_info = $self->tags_list({ UID => $attr->{UID}, COLS_NAME => 1 });
+  map $old_tags->{$_->{id}} = $_->{date}, @{$old_info};
 
-  $self->{admin}->{MODULE}=$MODULE;
-  $self->user_del({ %$attr, SKIP_LOG => 1 });
+  $self->{admin}{MODULE} = $MODULE;
+  $self->user_del({ %$attr, SKIP_LOG => 1 }) if !$attr->{REPLACE};
 
-  if ( $attr->{IDS} ){
-    my @ids_arr = split( /, /, $attr->{IDS} || '' );
+  if ($attr->{IDS}) {
+    my @ids_arr = split(/,\s?/, $attr->{IDS} || '');
+    my @end_date_arr = split(/,\s?/, $attr->{END_DATE} || '');
     my @MULTI_QUERY = ();
 
-    for ( my $i = 0; $i <= $#ids_arr; $i++ ){
+    for (my $i = 0; $i <= $#ids_arr; $i++) {
       my $id = $ids_arr[$i];
+      my $end_date = $end_date_arr[$i] || '0000-00-00';
 
-      push @MULTI_QUERY, [
-          $attr->{ 'UID' },
-          $id
-        ];
+      push @MULTI_QUERY, [ $attr->{ 'UID' }, $id, $old_tags->{$id} ? $old_tags->{$id} : $main::DATE, $end_date ];
     }
 
-    $self->query( "INSERT INTO tags_users (uid, tag_id, date)
-        VALUES (?, ?, CURDATE());",
-      undef,
-      { MULTI_QUERY => \@MULTI_QUERY } );
+    my $action = $attr->{REPLACE} ? 'REPLACE' : 'INSERT';
+    $self->query("$action INTO tags_users (uid, tag_id, date, end_date) VALUES (?, ?, ?, ?);",
+      undef, { MULTI_QUERY => \@MULTI_QUERY });
   }
   $attr->{IDS} //= '';
-  $self->{admin}->action_add( $attr->{UID}, "$old_tags -> $attr->{IDS}", { TYPE => 1 } );
+  $self->{admin}->action_add( $attr->{UID}, (join(',', keys(%{$old_tags})) || '') . " -> $attr->{IDS}", { TYPE => 1 } );
 
   return $self;
 }
@@ -259,6 +253,7 @@ sub tags_user_change{
   Arguments:
     $attr
       UID
+      TAG_ID
 
 =cut
 #**********************************************************
@@ -300,11 +295,17 @@ sub tags_list{
   $self->{EXT_TABLES} = '';
 
   my $WHERE = $self->search_former($attr, [
-      ['FIO',        'STR',    'up.fio',  ],
-      ['TAG_ID',     'INT',    't.id',    ],
-      ['LAST_ABON',  'INT',    'tu.date', ],
-      ['UID',        'INT',    'tu.uid',  ],
-      ['NAME',       'STR',    't.name',  ],
+      [ 'FIO',        'STR',    'up.fio',     ],
+      [ 'TAG_ID',     'INT',    't.id',       ],
+      [ 'LAST_ABON',  'INT',    'tu.date',    ],
+      [ 'UID',        'INT',    'tu.uid',     ],
+      [ 'NAME',       'STR',    't.name',     ],
+      [ 'PRIORITY',   'INT',    't.priority', ],
+      [ 'COMMENTS',   'STR',    't.comments', ],
+      [ 'LOGIN',      'STR',    'u.id',       ],
+      [ 'DISABLE',    'INT',    'u.disable',  ],
+      [ 'DATE',       'DATE',   'tu.date',    ],
+      [ 'END_DATE',   'DATE',   'tu.end_date', 1],
     ], { WHERE => 1 }
   );
 
@@ -313,6 +314,7 @@ sub tags_list{
 
   $self->query( "SELECT t.name,
        tu.date,
+       tu.end_date,
        t.comments,
        t.priority,
        t.id,

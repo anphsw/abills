@@ -21,7 +21,7 @@ BEGIN {
 our %conf;
 use Abills::SQL;
 use Admins;
-use Callcenter;
+use Callcenter::db::Callcenter;
 use Callcenter::Menu;
 require 'libexec/config.pl';
 

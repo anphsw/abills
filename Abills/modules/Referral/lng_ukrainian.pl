@@ -28,5 +28,8 @@ $lang{STATIC_ACCRUAL} = 'Статичне нарахування';
 $lang{MULTI_ACCRUAL} = 'Мультинарахування';
 $lang{REF_TP_ACTIVE_IN_USERS} = "Тарифний план уже активний у користувачів\n%USERS%";
 $lang{CHANGE_REFERRAL_REQUEST} = 'Змінити реферальную заявку';
+$lang{QUANTITY_INACTIVE_DAYS_REFERRAL} = 'Кількість неактивних днів реферала';
+$lang{QUANTITY_INACTIVE_DAYS_REFERRAL_COMMENT} = 'Якщо неактивність користувача більша за вказані дні - бонус не буде нарахований';
+$lang{INNER_COMMENT} = 'Внутрішній коментар';
 
 1;

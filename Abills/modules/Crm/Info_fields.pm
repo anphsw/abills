@@ -662,15 +662,32 @@ sub crm_lead_fields {
 
         my $span = $html->element('span', $lang{ADDRESS}, { class => 'text-muted' });
         my $h6 = $html->element('h6', $full_address, { class => 'font-weight-normal' });
-        return $span . $h6;
+        my $address = $span . $h6;
+
+        if ($lead->{ENTRANCE}) {
+          $span = $html->element('span', $lang{ENTRANCE}, { class => 'text-muted' });
+          $h6 = $html->element('h6', $lead->{ENTRANCE}, { class => 'font-weight-normal' });
+          $address .= $span . $h6
+        }
+
+        if ($lead->{FLOOR}) {
+          $span = $html->element('span', $lang{FLOOR}, { class => 'text-muted' });
+          $h6 = $html->element('h6', $lead->{FLOOR}, { class => 'font-weight-normal' });
+          $address .= $span . $h6
+        }
+
+        return $address;
       },
       input => sub {
         my $build_id = shift;
 
-        return form_address_select2({
-          LOCATION_ID  => $build_id || 0,
-          SHOW_BUTTONS => 1,
-          ADDRESS_FLAT => $lead->{ADDRESS_FLAT}
+        return form_address_select({
+          LOCATION_ID      => $build_id || 0,
+          ADDRESS_FLAT     => $lead->{ADDRESS_FLAT},
+          FLOOR            => $lead->{FLOOR} || '',
+          ENTRANCE         => $lead->{ENTRANCE} || '',
+          SHOW_BUTTONS     => 1,
+          SHOW_EXT_ADDRESS => 1
         }),
       }
     },

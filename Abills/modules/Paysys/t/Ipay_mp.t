@@ -83,4 +83,46 @@ our @requests = (
 
 test_runner($Payment_plugin, \@requests, { VALIDATE => 'xml_compare' });
 
+our %mock_responses = (
+  "Check"         => {
+    "response" => {
+      "user_status" => "exists"
+    }
+  },
+  "List"          => {
+    "response" => {
+      "TEST_CARD"   => {
+        "card_alias"   => "TEST_CARD",
+        "mask"         => "111122********44",
+        "uid"          => "1B149F911665EBD54331CC3E7DD1BA5496F8F77590455A61511A190231B0FEC6",
+        "is_expired"   => 0,
+        "is_corporate" => 0
+      },
+      "TEST_CARD_2" => {
+        "card_alias"   => "TEST_CARD_2",
+        "mask"         => "111122********44",
+        "uid"          => "5B149F911665EBD54331CC3E7DD1BA5496F8F77590455A61511A190231B0FEC6",
+        "is_expired"   => 1,
+        "is_corporate" => 1
+      }
+    }
+  },
+  "PaymentCreate" => {
+    "response" => {
+      "pmt_id"        => $payment_id,
+      "invoice"       => "100",
+      "amount"        => "102",
+      "pmt_status"    => "5",
+      "card_alias"    => "TEST_CARD",
+      "card_mask"     => "111122********44",
+      "msisdn"        => "380931234567",
+      "bank_response" => {
+        "error_group" => "",
+        "bank_id"     => 28,
+        "trm_id"      => 123456
+      }
+    }
+  }
+);
+
 1;

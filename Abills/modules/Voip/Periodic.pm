@@ -8,7 +8,7 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(days_in_month in_array sendmail sec2time);
 use Voip;
-use Voip::Users;
+use Voip::Services;
 
 our(
 	$db,
@@ -23,7 +23,7 @@ our Abills::HTML $html;
 my $Voip     = Voip->new($db, $admin, \%conf);
 my $Fees     = Fees->new($db, $admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
-my $Voip_users = Voip::Users->new($db, $admin, \%conf, {
+my $Voip_users = Voip::Services->new($db, $admin, \%conf, {
 	html => $html,
 	lang => \%lang
 });

@@ -30,7 +30,7 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right' for='paysys_name'>_{NAME}_:</label>
+        <label class='col-md-4 col-form-label text-md-right' for='NAME'>_{NAME}_:</label>
         <div class='col-md-8'>
           <input id='NAME' name='NAME' value='%NAME%' required placeholder='%NAME%' class='form-control'
                  type='text' %GID_DISABLE% data-check-for-pattern='^[A-Za-z0-9_]{1,30}\$'
@@ -101,7 +101,7 @@
     select_module.change(function () {
       var module = select_module.val();
       jQuery('#paysys_id').val(arr[module]['ID']);
-      jQuery('#paysys_name').val(arr[module]['NAME']);
+      jQuery('#NAME').val(arr[module]['NAME']);
       jQuery('#IP').val(arr[module]['IP']);
       jQuery('#docs').val(arr[module]['DOCS']);
       jQuery('#link').attr('href', arr[module]['DOCS']);

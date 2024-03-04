@@ -261,7 +261,15 @@ sub _test_run_directly {
       }
     }
 
-    my $router = Abills::Api::Router->new($test->{path}, $db, $admin, $Conf->{conf}, \%FORM, \%lang, \@MODULES, 1, $test->{method});
+    my $router = Abills::Api::Router->new($db, $admin, $Conf->{conf}, {
+      url            => $test->{path},
+      request_method => $test->{method},
+      query_params   => \%FORM,
+      lang           => \%lang,
+      modules        => \@MODULES,
+      debug          => 0,
+    });
+
     $router->add_credential('ADMIN', sub {return 1});
     $router->add_credential('USER', sub {return 1});
 

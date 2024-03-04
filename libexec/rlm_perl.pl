@@ -64,20 +64,20 @@ require Abills::SQL;
 require Nas;
 Nas->import();
 
-require Auth;
+require Auth2;
 Auth->import();
 
-require Acct;
+require Acct2;
 Acct->import();
 
 require Log;
-Log->import('log_print');
+Log->import();
 
 my %auth_mod  = ();
 my %acct_mod  = ();
 my $begin_time= 0;
 my $GT        = '';
-my $Log;
+my Log $Log;
 my %NAS_INFO  = ();
 #my $request_count = 0;
 my $debug     = 0;
@@ -89,7 +89,10 @@ my $debug     = 0;
 #**********************************************************
 sub sql_connect {
   my $nas;
-  my $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
+
+  my $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
+    { db_engine => 'dbbase' });
+
   $Log = Log->new($db, \%conf);
 
   return $db if (! $RAD_REQUEST{'NAS-IP-Address'});
@@ -137,19 +140,13 @@ sub authorize {
       }
 
       my $nas_type = ($AUTH{ $nas->{NAS_TYPE} }) ? $nas->{NAS_TYPE} : 'default';
-
-      if ($AUTH{$nas_type} && !defined($auth_mod{$nas_type})) {
-        require $AUTH{$nas_type} . ".pm";
-        $AUTH{$nas_type}->import();
+      my $auth_module = $AUTH{ $nas_type } || 'Auth2';
+      if (!defined($auth_mod{$nas_type})) {
+        require $auth_module . '.pm';
+        $auth_module->import();
       }
 
-      if ($AUTH{ $nas->{NAS_TYPE} }) {
-        $auth_mod{$nas_type} = $AUTH{$nas_type}->new($db, \%conf);
-      }
-      else {
-        $auth_mod{$nas_type} = Auth->new($db, \%conf);
-      }
-
+      $auth_mod{$nas_type} = $auth_module->new($db, \%conf);
       $r = $auth_mod{$nas_type}->pre_auth(\%RAD_REQUEST, $nas);
 
       if ($auth_mod{$nas_type}->{errno}) {
@@ -551,7 +548,8 @@ sub auth_ {
     $nas->{NAS_TYPE} = 'dhcp';
   }
 
-  my $nas_type = $nas->{NAS_TYPE} || 'default';
+  #my $nas_type = $nas->{NAS_TYPE} || 'default';
+  my $nas_type = ($AUTH{ $nas->{NAS_TYPE} }) ? $nas->{NAS_TYPE} : 'default';
   my $extra_info = q{};
   #if ($AUTH{ $nas_type }) {
   my $auth_module = $AUTH{ $nas_type } || 'Auth2';

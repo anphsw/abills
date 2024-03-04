@@ -56,7 +56,11 @@ sub new {
 =head2 save_picture($attr) - saves picture
 
   Arguments:
-    $attr -
+    $data - {
+      filename => your_cool_picture.png
+      Contents => ...
+    }
+    $id? - for deleting
 
   Returns:
 
@@ -89,6 +93,26 @@ sub save_picture {
   }
 
   return $picture_name;
+}
+
+#**********************************************************
+=head2 delete_picture($filename) - delete picture
+
+  Arguments:
+    $filename => your_cool_picture.png
+
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub delete_picture {
+  my $self = shift;
+  my ($filename) = @_;
+
+  $Attach->attachment_file_del({ FILENAME => $filename });
+
+  return $self;
 }
 
 #**********************************************************

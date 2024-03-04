@@ -338,24 +338,29 @@ sub form_start {
     @qr_arr = split(/, /, $quick_reports) if ($quick_reports);
   }
 
-  if ($#qr_arr > -1) {
-    if (in_array('Rwizard', \@MODULES)) {
-      require Reports;
-      Reports->import();
-      my $Reports = Reports->new($db, $admin, \%conf);
-      my $quick_rwizard_reports = $Reports->list({
-        QUICK_REPORT => 1,
-        COLS_NAME    => 1,
-        AID          => $admin->{AID},
-      });
 
-      if ($Reports->{TOTAL} > 0){
-        foreach (@$quick_rwizard_reports) {
+  if (in_array('Rwizard', \@MODULES)) {
+    @qr_arr = grep {!/^Rwizard:quick_report/} @qr_arr;
+    my $info  = $admin->info($admin->{AID});
+    my $web_options = $info->{SETTINGS}->{QUICK_REPORTS} || '';
+
+    require Reports;
+    Reports->import();
+    my $Reports = Reports->new($db, $admin, \%conf);
+    my $quick_rwizard_reports = $Reports->list({
+      QUICK_REPORT => 1,
+      COLS_NAME    => 1,
+    });
+
+    if ($Reports->{TOTAL} > 0){
+      foreach (@$quick_rwizard_reports) {
+        if ($web_options =~ /Rwizard:quick_report:$_->{id}/i) {
           push @qr_arr, "Rwizard:quick_report:$_->{id}";
         }
       }
     }
-
+  }
+  if ($#qr_arr > -1) {
     require Control::Quick_reports;
   }
 
@@ -795,6 +800,11 @@ sub form_nas_allow{
 sub form_bills {
   my ($attr) = @_;
 
+  if (!$permissions{0} || !$permissions{0}{15}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return 1;
+  }
+
   my $user = $attr->{USER_INFO};
   my %BILLS_HASH = ();
 
@@ -1163,7 +1173,7 @@ sub form_events {
   }
 
   print "Content-Type: text/html\n\n" if ($FORM{DEBUG});
-  my $cross_modules_return = cross_modules('_events', {
+  my $cross_modules_return = cross_modules('events', {
     SKIP_MODULES => 'Sqlcmd,Sysinfo',
     UID => $user->{UID},
   });
@@ -1409,7 +1419,7 @@ sub fl {
     if ($permissions{0}{4}) {
       push @m, "30:15:$lang{USER_INFO}:user_pi:UID::";
       push @m, "18:15:$lang{NAS}:form_nas_allow:UID::";
-      push @m, "19:15:$lang{BILL}:form_bills:UID::";
+      push @m, "19:15:$lang{BILL}:form_bills:UID::" if $permissions{0}{15};
       push @m, "23:15:$lang{MONEY_TRANSFER}:form_money_transfer_admin:UID::";
     }
 
@@ -1421,18 +1431,19 @@ sub fl {
     if ($permissions{0}{36}) {
       push @m, "13:1:$lang{COMPANY}:form_companies::Control/Companies_mng:";
       push @m, "21:15:$lang{COMPANY}:user_company:UID:Control/Companies_mng:";
+      push @m, "21:16::companies_edrpou::Control/Companies_mng:AJAX";
     }
     if ($permissions{0}{30}) {
       push @m, "22:15:$lang{LOG}:form_changes:UID::";
     }
   }
-  if ($permissions{1}) {
-    # Control/Payments;
-  }
-
-  if ($permissions{2}) {
-    # Control/Fees
-  }
+  # if ($permissions{1}) {
+  #   # Control/Payments;
+  # }
+  #
+  # if ($permissions{2}) {
+  #   # Control/Fees
+  # }
 
   if ($permissions{8}){
     push @m,
@@ -1445,7 +1456,10 @@ sub fl {
     require Control::Address_mng;
     push @m, "70:8:$lang{LOCATIONS}:form_districts:::",
              "71:70:$lang{STREETS}:form_streets::",
-             "135:70:Address update:form_address_select2:AJAX::";
+             "72:70:$lang{ADDRESS_UNIT_TYPES}:form_address_types::",
+             "73:70:$lang{BUILDING_TYPES}:form_building_types::",
+             "74:70:$lang{TREE_LIKE_STRUCTURE}:form_address_tree::",
+             "135:70:Address update:form_address_select:AJAX::";
   }
   else {
     require Control::Address_mng;
@@ -1454,9 +1468,10 @@ sub fl {
                "71:70:$lang{STREETS}:form_streets::",
                "72:70:$lang{ADDRESS_UNIT_TYPES}:form_address_types::",
                "73:70:$lang{BUILDING_TYPES}:form_building_types::",
-               "74:70:$lang{TREE_LIKE_STRUCTURE}:form_address_tree::";
+               "74:70:$lang{BUILDING_STATUSES}:form_building_statuses::",
+               "75:70:$lang{TREE_LIKE_STRUCTURE}:form_address_tree::";
     }
-    push @m, "135:70:Address update:form_address_select2:AJAX::";
+    push @m, "135:70:Address update:form_address_select:AJAX::";
   }
 
   push @m, "4:0:<i class='nav-icon far fa-chart-bar'></i><p class='d-inline'>$lang{REPORTS}</p>:form_reports::Control/Reports:";
@@ -1475,6 +1490,7 @@ sub fl {
       push @m, "134:131:$lang{REPORT_BALANCE_BY_STATUS}:report_balance_by_status::Control/User_reports:";
       push @m, "136:131:$lang{REPORT_SWITCH_WITH_USERS}:report_switch::Control/User_reports:";
       push @m, "137:131:$lang{REPORT_REASON_USERS_DISABLED}:report_users_disabled::Control/User_reports:";
+      push @m, "138:131:$lang{STATS} Telegram:report_users_telegram::Control/User_reports:";
     }
 
     if($conf{AUTH_FACEBOOK_ID}){
@@ -1609,6 +1625,7 @@ sub mk_navigator {
       SHOW_PERIOD   - Show period inputs
       CONTROL_FORM  - Control form by $FORM{search_form}
       HIDDEN_FIELDS - { key => val }
+      ARCHIVE_TABLE - Main table name
 
   Returns:
 
@@ -1683,7 +1700,8 @@ sub form_search {
 
     while (my ($k, $v) = each %FORM) {
       $v //= q{};
-      if ($k =~ /([A-Z0-9]+|_[a-z0-9]+)/ && $v ne '' && $k ne '__BUFFER' && $v ne ', ') {
+
+      if ($k =~ /([A-Z0-9]+|_[a-z0-9]+|full)/ && $v ne '' && $k ne '__BUFFER' && $v ne ', ') {
         $LIST_PARAMS{$k} = $v;
         $v =~ s/=/%3D/g;
         $v =~ s/\+/%2B/g;
@@ -1718,6 +1736,25 @@ sub form_search {
           OUTPUT2RETURN => 1
         }
       );
+    }
+  }
+
+  if ($attr->{ARCHIVE_TABLE}) {
+    my $archives = $admin->get_archive($attr->{ARCHIVE_TABLE});
+    my $ARCHIVE_TABLE_SEL = $html->form_select('ARCHIVE_TABLE', {
+      SELECTED    => $FORM{ARCHIVE_TABLE} || $attr->{ARCHIVE_TABLE} || q{},
+      SEL_ARRAY   => $archives,
+      SEL_OPTIONS => {'', ''}
+    });
+
+    $SEARCH_DATA{ARCHIVE_TABLE} = $html->tpl_show(templates('form_row'), {
+      ID    => 'ARCHIVE_TABLE',
+      NAME  => $lang{ARCHIVE},
+      VALUE => $ARCHIVE_TABLE_SEL },
+      { OUTPUT2RETURN => 1 });
+
+    if ($FORM{ARCHIVE_TABLE}) {
+      $LIST_PARAMS{TABLE_SUFIX}=$FORM{ARCHIVE_TABLE};
     }
   }
 
@@ -1803,6 +1840,7 @@ sub form_search {
         $attr->{ADDRESS_FORM}=1;
       }
       elsif ($search_type == 3) {
+        $FORM{METHOD} =~ s/;/,/g if $FORM{METHOD};
         $info{SEL_METHOD} = $html->form_select(
           'METHOD',
           {
@@ -1810,7 +1848,7 @@ sub form_search {
             SEL_HASH     => get_fees_types(),
             SORT_KEY_NUM => 1,
             NO_ID        => 1,
-            SEL_OPTIONS  => { '' => $lang{ALL} }
+            MULTIPLE     => 1
           }
         );
         $SEARCH_DATA{SEARCH_FORM} = $html->tpl_show(templates('form_search_personal_info'), { %FORM, %info }, { OUTPUT2RETURN => 1 });
@@ -1896,8 +1934,6 @@ sub form_search {
             },
             NO_ID    => 1
           });
-
-
       }
       elsif ($search_type == 13) {
         $info{INFO_FIELDS}  = form_info_field_tpl({ COMPANY => 1, SKIP_REQUIRED => 1 });
@@ -1910,37 +1946,30 @@ sub form_search {
     if ($attr->{ADDRESS_FORM}) {
       my $address_form = '';
 
-      if ($conf{ADDRESS_REGISTER}) {
-        my %address_info = ();
-        if ($FORM{LOCATION_ID}) {
-          require Address;
-          my $Address = Address->new($db, $admin, \%conf);
-          $Address->address_info($FORM{LOCATION_ID});
-          _error_show($Address);
+      my %address_info = ();
+      if ($FORM{LOCATION_ID}) {
+        require Address;
+        my $Address = Address->new($db, $admin, \%conf);
+        $Address->address_info($FORM{LOCATION_ID});
+        _error_show($Address);
 
-          %address_info = (
-            ADDRESS_DISTRICT => $Address->{ADDRESS_DISTRICT},
-            ADDRESS_STREET   => $Address->{ADDRESS_STREET},
-            ADDRESS_BUILD    => $Address->{ADDRESS_BUILD}
-          );
-        }
-
-        $address_form = form_address_select2({ %FORM,
-          HIDE_ADD_BUILD_BUTTON => $conf{HIDE_SEARCH_BUILD_INPUT} ? 1 : 0,
-          MULTIPLE              => 1,
-          SHOW_BUTTONS          => 1
-        });
-
-        $address_form .= $html->tpl_show(templates('form_ext_address'), {
-          ENTRANCE => $FORM{ENTRANCE},
-          FLOOR    => $FORM{FLOOR}
-        }, { OUTPUT2RETURN => 1 });
+        %address_info = (
+          ADDRESS_DISTRICT => $Address->{ADDRESS_DISTRICT},
+          ADDRESS_STREET   => $Address->{ADDRESS_STREET},
+          ADDRESS_BUILD    => $Address->{ADDRESS_BUILD}
+        );
       }
-      else {
-        my $countries_hash;
-        ($countries_hash, $users->{COUNTRY_SEL}) = sel_countries({ NAME => 'COUNTRY', COUNTRY => $users->{COUNTRY_ID} });
-        $address_form = $html->tpl_show(templates('form_address'), { %FORM, %$users }, { OUTPUT2RETURN => 1, ID => 'form_address' });
-      }
+
+      $address_form = form_address_select({ %FORM,
+        HIDE_ADD_BUILD_BUTTON => $conf{HIDE_SEARCH_BUILD_INPUT} ? 1 : 0,
+        MULTIPLE              => 1,
+        SHOW_BUTTONS          => 1,
+        ENTRANCE              => $FORM{ENTRANCE} || '',
+        FLOOR                 => $FORM{FLOOR} || '',
+        DISTRICT_SELECT_ID    => 'DISTRICT_FORM_SEARCH_ID',
+        STREET_SELECT_ID      => 'STREET_FORM_SEARCH_ID',
+        BUILD_SELECT_ID       => 'BUILD_FORM_SEARCH_ID',
+      });
 
       $SEARCH_DATA{ADDRESS_FORM} = $html->tpl_show(templates('form_show_not_hide'),{
           CONTENT     => $address_form,
@@ -2068,22 +2097,22 @@ sub form_search_all {
   foreach my $module ( sort keys %{$cross_modules_return} ) {
     my $result = $cross_modules_return->{$module};
     if(ref $result eq 'ARRAY') {
-      foreach my $res (@$result) {
-        if ($res->{TOTAL}) {
+      foreach my $module_res (@$result) {
+        if ($module_res->{TOTAL}) {
           if ($debug > 3) {
-            print %$res;
+            print %$module_res;
           }
-          $html->message((! $res->{MODULE}) ? 'info' : 'warn', '',
-            $html->b($res->{MODULE_NAME})
-            . (($res->{MODULE}) ? " ($res->{MODULE})" : q{})
+          $html->message((! $module_res->{MODULE}) ? 'info' : 'warn', '',
+            $html->b($module_res->{MODULE_NAME})
+            . (($module_res->{MODULE}) ? " ($module_res->{MODULE})" : q{})
             . ": "
-            . $html->button($html->badge($res->{TOTAL}), "index=" . $res->{SEARCH_INDEX}));
+            . $html->button($html->badge($module_res->{TOTAL}), "index=" . $module_res->{SEARCH_INDEX}));
         }
-        elsif($res->{EXTRA_LINK}) {
-          my($name, $link)=split(/\|/, $res->{EXTRA_LINK});
+        elsif($module_res->{EXTRA_LINK}) {
+          my($name, $link)=split(/\|/, $module_res->{EXTRA_LINK});
           $html->message('warn', '',
-            $html->b($res->{MODULE_NAME})
-              . (($res->{MODULE}) ? " ($res->{MODULE})" : q{})
+            $html->b($module_res->{MODULE_NAME})
+              . (($module_res->{MODULE}) ? " ($module_res->{MODULE})" : q{})
               . ": "
               . $html->button($html->badge($name, { TYPE => 'alert-success' }), $link));
         }
@@ -2438,14 +2467,16 @@ sub sel_admins {
 
   my $select_name = $attr->{NAME} || 'AID';
 
-  my $admins_list = $admin->list( {
-    GID       => $admin->{GID},
-    COLS_NAME => 1,
-    DOMAIN_ID => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
-    PAGE_ROWS => 10000,
-    POSITION  => ($attr->{POSITION} ? $attr->{POSITION} : undef),
-    DISABLE   => (defined $attr->{DISABLE} ? $attr->{DISABLE} : undef),
-  } );
+  my $admins_list = $admin->list({
+    GID           => $admin->{GID},
+    COLS_NAME     => 1,
+    DOMAIN_ID     => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
+    PAGE_ROWS     => 10000,
+    POSITION      => ($attr->{POSITION} ? $attr->{POSITION} : undef),
+    DISABLE       => (defined $attr->{DISABLE} ? $attr->{DISABLE} : undef),
+    ACTIVE_ONLY   => $attr->{ACTIVE_ONLY} || undef,
+    AID_EXCEPTION => $attr->{AID_EXCEPTION} || undef
+  });
 
   if($attr->{HASH}) {
     my %admins_hash = ();
@@ -2975,7 +3006,17 @@ sub pre_page {
     $avatar_logo = '/styles/default/img/admin/avatar5.png';
   }
 
-  my $module_name   = ($module{$index}) ? "$module{$index}:" : '';
+  my $module_name = ($module{$index}) ? "$module{$index}:" : '';
+  my $ext_navbar_info = '';
+
+  if (in_array('Crm', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Crm})) {
+    my ($proto, $host, $port) = url2parts($SELF_URL);
+    $ext_navbar_info .= $html->tpl_show(_include('crm_dialogue_header_navbar', 'Crm'), {
+      UPDATE => "$proto//$host$port/api.cgi/crm/dialogues?LEAD_FIO&LAST_MESSAGE&DATE&STATE=0" .
+        "&SOURCE&snakeCase=1&PAGE_ROWS=20&SORT=ID&DESC=DESC",
+      BADGE  => $admin->{CRM_TOTAL_DIALOGUE}
+    }, { OUTPUT2RETURN => 1 });
+  }
 
   print $html->tpl_show(templates('header'), {
     %$admin,
@@ -2987,8 +3028,8 @@ sub pre_page {
     AVATAR_LOGO        => $avatar_logo,
     EVENTS_DISABLED    => !in_array('Events', \@MODULES),
     CONTENT_OFFSET     => $conf{dbdebug} ? '155px' : '94px',
-  },
-    { OUTPUT2RETURN => 1 });
+    EXT_NAVBAR         => $ext_navbar_info
+  }, { OUTPUT2RETURN => 1 });
   return 1;
 }
 

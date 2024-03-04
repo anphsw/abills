@@ -73,10 +73,11 @@ sub iptv_tp{
 
     $Tariffs->{NAME_SEL} = $html->form_main({
       CONTENT => $html->form_select('TP_ID', {
-        SELECTED  => $FORM{TP_ID},
-        SEL_LIST  => $Tariffs->list({ %LIST_PARAMS, NEW_MODEL_TP => 1, MODULE => 'Iptv', COLS_NAME => 1 }),
-        SEL_KEY   => 'tp_id',
-        SEL_VALUE => 'name',
+        SELECTED   => $FORM{TP_ID},
+        SEL_LIST   => $Tariffs->list({ %LIST_PARAMS, NEW_MODEL_TP => 1, MODULE => 'Iptv', COLS_NAME => 1 }),
+        SEL_KEY    => 'tp_id',
+        SEL_VALUE  => 'name',
+        AUTOSUBMIT => 'form'
       }),
       HIDDEN  => { index => $index },
       # SUBMIT  => { show => $lang{SHOW} },

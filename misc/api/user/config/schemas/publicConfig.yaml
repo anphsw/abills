@@ -1,5 +1,11 @@
 type: object
 properties:
+  auth:
+    type: object
+    properties:
+      phone:
+        type: number
+        example: 1
   login:
     type: object
     properties:
@@ -21,6 +27,12 @@ properties:
   passwordRecovery:
     type: number
     example: 1
+  phone:
+    type: object
+    properties:
+      pattern:
+        type: string
+        example: '+380 (xx) xxx-xx-xx'
   portalNews:
     type: number
     example: 1
@@ -33,6 +45,9 @@ properties:
       google:
         type: number
         example: 1
+      apple:
+        type: number
+        example: 1
   socialAuth:
     type: object
     properties:
@@ -40,5 +55,8 @@ properties:
         type: number
         example: 1
       google:
+        type: number
+        example: 1
+      apple:
         type: number
         example: 1

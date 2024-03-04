@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS `callcenter_calls_handler` (
   `stop` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `outgoing` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `uid` (`uid`)
 ) DEFAULT CHARSET = utf8
   COMMENT = 'Callcenter calls handler';
 
@@ -27,7 +28,8 @@ CREATE TABLE IF NOT EXISTS `callcenter_ivr_log` (
   `unique_id` VARCHAR(20) NOT NULL DEFAULT '',
   `outgoing` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
   `call_record` VARCHAR(256) NOT NULL DEFAULT '',
-  KEY `uid`(`uid`)
+  KEY `uid`(`uid`),
+  KEY `unique_id` (`unique_id`)
 ) DEFAULT CHARSET = utf8
   COMMENT = 'Voip ivr log';
 

@@ -15,16 +15,37 @@
   jQuery(`[name='DISTRICT_SEL']:not([change-set])`).on('change', loadDistrictChild).attr('change-set', 1);
   function loadDistrictChild() {
     let district_sel = jQuery(this);
+    let infoPanel = false;
 
     let container = district_sel.parent().parent().parent().parent().parent();
 
-    district_sel.parent().parent().parent().parent().nextAll('.mt-3').remove();
-
+    let street_id = district_sel.data('street-id');
     let id = district_sel.val();
     if (Array.isArray(id)) {
       if (!id[0]) id.shift();
       id = !id.length ? '' : id.join(';');
     }
+
+    if (id) {
+      let infoBtn = container.find('.bd-highlight > .input-group-append > a.input-group-button').first();
+
+      if (infoBtn.length > 0) {
+        if (!id.includes(';')) {
+          let url = infoBtn.attr('href');
+          let newUrl = url.replace(/chg=\d+/, `chg=${id}`);
+          infoBtn.attr('href', newUrl);
+        }
+        infoPanel = true;
+      }
+    }
+
+    let districtPanel = district_sel.parent().parent().parent().parent();
+    if (infoPanel) {
+      districtPanel = districtPanel.parent()
+      container = container.parent();
+    }
+
+    districtPanel.nextAll('.mt-3').remove();
 
     jQuery(`[name='%DISTRICT_IDENTIFIER%']`).val(id);
 
@@ -34,7 +55,7 @@
       jQuery(`[name='%SELECT_NAME%']`).val(prev_id);
       jQuery(`[name='%DISTRICT_IDENTIFIER%']`).val(prev_id);
 
-      let customEvent = new CustomEvent('district-change', {detail: {district: lastActiveSelect}});
+      let customEvent = new CustomEvent('district-change-%DISTRICT_EVENT_ID%', {detail: {district: lastActiveSelect}});
       document.dispatchEvent(customEvent);
       return;
     }
@@ -53,23 +74,34 @@
       })
       .then(response => response.json())
       .then(data => {
-        let customEvent = new CustomEvent('district-change', {detail: {district: district_sel}});
+        let customEvent = new CustomEvent('district-change-%DISTRICT_EVENT_ID%', {detail: {district: district_sel}});
         document.dispatchEvent(customEvent);
 
         if (data.length < 1) return;
-        createSelect(data, container, id);
+        createSelect(data, container, id, street_id, infoPanel);
       })
       .catch(e => {
         console.log(e);
       });
   }
 
-  function createSelect(data, container, parent_id) {
+  function createSelect(data, container, parent_id, street_id, info_panel = false) {
     let selectId = `DISTRICT_${Date.now()}`;
-    let selectList = jQuery('<select></select>', {class: 'mt-1', id: selectId, name: 'DISTRICT_SEL'});
+    let selectList = jQuery('<select></select>', {class: 'mt-1', id: selectId, name: 'DISTRICT_SEL', 'data-street-id': street_id});
     let inputGroup = jQuery('<div></div>', {class: 'input-group-append select2-append'}).append(selectList);
-    let flexFill = jQuery('<div></div>', {class: 'flex-fill bd-highlight overflow-hidden select2-border'}).append(inputGroup);
+    let selectDiv = jQuery('<div></div>', {class: 'select'}).append(inputGroup);
+    let flexFill = jQuery('<div></div>', {class: 'flex-fill bd-highlight overflow-hidden select2-border'})
+      .append(info_panel ? selectDiv : inputGroup);
     let dFlex = jQuery('<div></div>', {class: 'd-flex bd-highlight'}).append(flexFill);
+
+    if (info_panel) {
+      let span = jQuery('<span></span>', {class: 'fa fa-list-alt p-1'});
+      let a = jQuery('<a></a>', {class: 'btn input-group-button rounded-left-0'})
+        .attr('href', 'https://192.168.0.108:9443/admin/index.cgi?get_index=form_districts&full=1&chg=0').append(span);
+      let groupAppend = jQuery('<div></div>', {class: 'input-group-append h-100'}).append(a);
+      let db = jQuery('<div></div>', {class: 'bd-highlight'}).append(groupAppend);
+      dFlex.append(db);
+    }
 
     if (jQuery(`[name='DISTRICT_MULTIPLE']`).length > 0) {
       let checkbox = jQuery('<input/>', {type: 'checkbox', name: `DISTRICT_MULTIPLE_${parent_id}`, value: 1,

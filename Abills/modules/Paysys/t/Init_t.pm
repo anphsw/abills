@@ -13,7 +13,6 @@ our (
   %LIST_PARAMS,
   %functions,
   %conf,
-  $html,
   %lang,
   @_COLORS,
   $admin,
@@ -29,7 +28,7 @@ BEGIN {
   unshift(@INC, $libpath . "Abills/mysql/");
 }
 
-our $VERSION = 0.01;
+our $VERSION = 0.02;
 
 our (%EXPORT_TAGS);
 our @EXPORT = qw(
@@ -39,11 +38,9 @@ our @EXPORT_OK = qw(
   test_runner
 );
 
-our $debug = 0;
-
 do "libexec/config.pl";
 
-use Abills::Base qw();
+use Abills::Base;
 use Abills::Init qw/$db $admin $users %conf/;
 
 $conf{language} = 'english';
@@ -52,36 +49,26 @@ do "../lng_english.pl";
 
 require Paysys::Paysys_Base;
 
-
-our $user_id = $conf{PAYSYS_TEST_USER} || 5639;
-our $payment_sum = $conf{PAYSYS_TEST_SUM} || 1.99;
-our $payment_id = '12345678';
-our $argv = Abills::Base::parse_arguments(\@ARGV);
-
-our @methods = ();
-if ($argv->{methods}) {
-  @methods = split(/,\s?/, $argv->{methods});
-}
+our $argv = parse_arguments(\@ARGV);
 
 if (defined($argv->{help})) {
   help();
   exit;
 }
 
-if ($argv->{user_id}) {
-  $user_id=$argv->{user_id};
+our $debug = $argv->{debug} || 0;
+our $user_id = $argv->{user_id} || $argv->{user} || $conf{PAYSYS_TEST_USER} || 1;
+our $payment_sum = $argv->{payment_sum} || $conf{PAYSYS_TEST_SUM} || 1;
+our $payment_id = $argv->{payment_id} || mk_unique_value(6, { SYMBOLS => '0123456789' });
+
+our $html;
+if (!defined($ENV{'REQUEST_METHOD'})) {
+  $html = Abills::HTML->new({ CONF => \%conf });
 }
 
-if ($argv->{payment_sum}) {
-  $payment_sum=$argv->{payment_sum};
-}
-
-if ($argv->{payment_id}) {
-  $payment_id=$argv->{payment_id};
-}
-
-if ($argv->{debug}) {
-  $debug=$argv->{debug};
+our @methods = ();
+if ($argv->{methods}) {
+  @methods = split(/,\s?/, $argv->{methods});
 }
 
 #*******************************************************************
@@ -119,11 +106,13 @@ sub test_runner {
   }
 
   $Payment_plugin->{TEST}=1;
-  #my %FORM = ();
+
   foreach my $request_block (@$requests) {
     if ($#methods > -1 && !in_array($request_block->{name}, \@methods)) {
       next;
     }
+
+    $ENV{PATH_INFO} = $request_block->{path} if ($request_block->{path});
 
     print "REQUEST: $request_block->{name} ======================\n";
     print(($request_block->{request} || q{}) . "\n");
@@ -134,10 +123,20 @@ sub test_runner {
       $request_block->{request} =~ s/\&\&/\&/g;
       my @rows = split(/&/, $request_block->{request});
       foreach my $pairs (sort @rows) {
-        my ($key, $value)=split(/=|\s+=>\s?/, $pairs);
+        my ($key, undef, $value)=split(/(=|\s+=>\s?)(?!\s|$)/, $pairs);
         next if (! $key);
         $key =~ s/^\s+|\s+$//g;
         $FORM{$key}=$value;
+      }
+    }
+
+    if ($request_block->{headers}) {
+      foreach my $header (@{$request_block->{headers}}) {
+        my ($name, $value) = split(':', $header);
+        $name =~ s/\-/_/g;
+        $value =~ s/^\s+//;
+
+        $ENV{'HTTP_' . uc($name)} = $value;
       }
     }
 
@@ -163,7 +162,7 @@ sub test_runner {
       }
     }
 
-    print "\n======================\n";
+    print "\n======================\n\n\n";
   }
 
   return 1;
@@ -194,7 +193,7 @@ sub xml_compare {
 #*******************************************************************
 sub help {
 
-print << "[END]";
+  print << "[END]";
   ABillS Paysys test system
   user_id=
   payment_sum=

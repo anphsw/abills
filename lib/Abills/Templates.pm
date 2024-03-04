@@ -81,20 +81,6 @@ sub _include {
     }
   }
 
-  if ($attr->{EXTERNAL_CALL}) {
-    foreach my $prefix ('../', @INC) {
-      my $realfilename = "$prefix/$module/templates/$tpl$sufix";
-
-      if($attr->{DEBUG}) {
-        print $realfilename . "\n";
-      }
-
-      if (-f $realfilename) {
-        return ($FORM{pdf}) ? $realfilename : tpl_content($realfilename);
-      }
-    }
-  }
-
   if ($attr->{CHECK_ONLY}) {
     return 0;
   }
@@ -190,7 +176,7 @@ sub templates {
 
   my @search_paths = (
     #Lang tpls
-    $libpath . "Abills/templates/$domain_path" . "_$tpl_name" . "$language.tpl",
+    $libpath . "Abills/templates/$domain_path" . "_$tpl_name" . "_$language.tpl",
     $libpath . "Abills/templates/$domain_path" . "_$tpl_name" . ".tpl",
 
     #Main tpl

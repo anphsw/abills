@@ -58,12 +58,14 @@ jQuery(function () {
     $.each(inputs, function (index, contact) {
       var contact_input = $(contact).find('.contact_template_value');
       var comments = $(contact).find('.contact_template_comments');
+      var date = $(contact).find('.contact_template_date');
 
       result.push({
         TYPE_ID: contact_input.attr('name'),
         VALUE: contact_input.val(),
         COMMENTS: comments.val(),
-        PRIORITY: index
+        PRIORITY: index,
+        DATE: date.val()
       });
     });
 
@@ -141,11 +143,18 @@ jQuery(function () {
         var type_id = add_contact_form.$modal.find('select#contacts_type_select').val();
         var value   = add_contact_form.$modal.find('input#contacts_type_value').val();
         var comments = add_contact_form.$modal.find('input#contacts_type_comments').val();
+        var date = add_contact_form.$modal.find('input#contacts_type_date').val();
+
+        var today = new Date();
+        var day = today.getDate();
+        var month = today.getMonth() + 1;
+        var year = today.getFullYear();
 
         contacts_raw.push({
           value  : value,
           type_id: type_id,
-          comments: comments
+          comments: comments,
+          date: year+'-'+month+'-'+day
         });
 
         renderContactsBlock(contacts_raw);

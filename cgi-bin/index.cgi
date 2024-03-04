@@ -58,12 +58,13 @@ our (%LANG,
 $conf{web_session_timeout} = ($conf{web_session_timeout}) ? $conf{web_session_timeout} : '86400';
 
 our $html = Abills::HTML->new({
-  IMG_PATH  => 'img/',
-  NO_PRINT  => 1,
-  CONF      => \%conf,
-  CHARSET   => $conf{default_charset},
-  HTML_STYLE=> $conf{UP_HTML_STYLE},
-  LANG      => \%lang,
+  IMG_PATH    => 'img/',
+  NO_PRINT    => 1,
+  CONF        => \%conf,
+  CHARSET     => $conf{default_charset},
+  HTML_STYLE  => $conf{UP_HTML_STYLE},
+  LANG        => \%lang,
+  USER_PORTAL => 1
 });
 
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
@@ -158,6 +159,10 @@ sub _start {
     $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD}, { OUTPUT2RETURN => 1 });
   }
 
+  if (!$uid && $FORM{external_auth}) {
+    $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_UNKNOWN_SN_ACCOUNT}, { OUTPUT2RETURN => 1 })
+  }
+
   # if uid defined set GLOBAL $ENV{DOMAIN_ID} and enabled Multidoms
   if ($uid && in_array('Multidoms', \@MODULES) && $conf{MULTIDOMS_DOMAIN_ID}) {
     my $user_info = $user->info($uid);
@@ -192,6 +197,7 @@ sub _start {
       && !$conf{tech_works}
       && !$uid
       && !$FORM{login_page}
+      && !$FORM{external_auth}
       && $ENV{REQUEST_METHOD} eq "GET")
       || $FORM{article}
       || $FORM{menu_category}
@@ -326,11 +332,6 @@ sub quick_functions {
       if ($FORM{qindex} eq '100002') {
         form_events();
         return 0;
-      }
-      elsif ($FORM{qindex} eq '30') {
-        require Control::Address_mng;
-        our $users = $user;
-        form_address_sel();
       }
       else {
         if (defined($module{ $FORM{qindex} })) {
@@ -502,9 +503,9 @@ sub form_info {
   $admin->{SESSION_IP} = $ENV{REMOTE_ADDR};
 
   #  For address ajax
-  if ($FORM{get_index} && $FORM{get_index} eq 'form_address_select2') {
+  if ($FORM{get_index} && $FORM{get_index} eq 'form_address_select') {
     require Control::Address_mng;
-    form_address_select2(\%FORM);
+    form_address_select(\%FORM);
     exit 1;
   }
 
@@ -521,6 +522,13 @@ sub form_info {
     return 1;
   }
   elsif ($FORM{print_add_contract}) {
+    require Control::Contracts_mng;
+    my $contract_info = _print_user_contract({
+       USER_PORTAL        => 1,
+       UID                => $uid,
+       print_add_contract => $FORM{print_add_contract}
+    });
+
     $user->pi();
     my $list = $user->contracts_list({ UID => $user->{UID}, ID => $FORM{print_add_contract}, COLS_UPPER => 1 });
     return 1 if ($user->{TOTAL} != 1);
@@ -533,7 +541,7 @@ sub form_info {
       close $fh;
     }
 
-    $html->tpl_show("$conf{TPL_DIR}/$list->[0]->{template}", { %$user, %{$list->[0]}, FIO_S => $user->{FIO} }, { TITLE => "Contract" });
+    $html->tpl_show("$conf{TPL_DIR}/$list->[0]->{template}", { %$user, %{$list->[0]}, %$contract_info, FIO_S => $user->{FIO} }, { TITLE => "Contract" });
     unlink $sig_img;
     return 1;
   }
@@ -578,7 +586,7 @@ sub form_info {
     }
   }
 
-  form_credit();
+  form_credit({ USER_INFO => $user, FORM => \%FORM });
 
   $user->pi();
 
@@ -598,7 +606,7 @@ sub form_info {
 
   _user_pi() if $conf{user_chg_pi};
 
-  $user->{STATUS_CHG_BUTTON} = form_holdup(\%FORM) if $conf{HOLDUP_ALL};
+  $user->{STATUS_CHG_BUTTON} = form_holdup(\%FORM) if ($conf{HOLDUP_ALL});
 
   my $Payments = Finance->payments($db, $admin, \%conf);
   my $payment_list = $Payments->list({
@@ -750,6 +758,27 @@ sub form_info {
     $user->{MONEY_UNIT_NAME} = (split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
   }
 
+  if ($conf{DOCS_ESIGN} && $user->{CONTRACT_ID}) {
+    require Docs;
+    Docs->import();
+    my $Docs = Docs->new($db, $admin, \%conf);
+    my $edocs = $Docs->edocs_list({ DOC_ID => $user->{CONTRACT_ID}, UID => $uid, STATUS => '_SHOW', COLS_NAME => 1 });
+    if ($Docs->{TOTAL} && $Docs->{TOTAL} > 0) {
+      my $edocs_info = $edocs->[0];
+
+      if ($edocs_info->{id} && $edocs_info->{status}) {
+        $user->{SIGN_CONTRACT} = $html->button($lang{SIGN}, '', {
+          ICON           => 'fas fa-signature',
+          class          => 'esign_user_button cursor-pointer',
+          ex_params      => "value='$edocs_info->{id}'",
+          JAVASCRIPT     => '',
+          SKIP_HREF      => 1,
+          NO_LINK_FORMER => 1,
+        });
+      }
+    }
+  }
+
   $html->tpl_show(templates('form_client_info'), { %$user, %contacts }, { ID => 'form_client_info' });
 
   if ($FORM{CONTRACT_LIST}) {
@@ -787,7 +816,7 @@ sub form_holdup {
 
   if ($holdup_info->{error}) {
     my $error_message = $lang{$holdup_info->{errstr}} // $holdup_info->{errstr};
-    $html->message('err', $lang{ERROR}, $error_message, { ID => $holdup_info->{error} })
+    $html->message('err', "$lang{HOLD_UP} : $lang{ERROR}", $error_message, { ID => $holdup_info->{error} })
   }
 
   if (!$holdup_info->{DEL}) {
@@ -804,12 +833,11 @@ sub form_holdup {
     if ($Service_control->{HOLDUP_INFOS}) {
       foreach my $holdup ( @{ $Service_control->{HOLDUP_INFOS} } ) {
         $holdup_info->{HOLDUP_INFO} .= "$lang{MAX} $lang{DAYS}: " .$holdup->{MAX_PERIOD} ." - $lang{PRICE}: "
-          . sprintf("%.2f", $holdup->{PRICE}) . $html->br();
+          . sprintf("%.2f", $holdup->{PRICE} || 0) . $html->br();
 
         $holdup_info->{HOLDUP_PRICE} = sprintf("%.2f", $holdup->{PRICE} || 0) if (! $holdup_info->{HOLDUP_PRICE});
       }
     }
-
 
     return $html->tpl_show(templates('form_holdup'), $holdup_info, { OUTPUT2RETURN => 1 });
   }
@@ -831,24 +859,12 @@ sub form_holdup {
 sub _user_pi {
 
   require Control::Address_mng;
-  if($conf{ADDRESS_REGISTER}){
-    if (defined($user->{FLOOR}) || defined($user->{ENTRANCE})) {
-      $user->{EXT_ADDRESS} = $html->tpl_show(templates('form_ext_address'),
-        { ENTRANCE => $user->{ENTRANCE} || '', FLOOR => $user->{FLOOR} || '' },
-        { OUTPUT2RETURN => 1 });
-    }
-    $user->{ADDRESS_SEL} = form_address_select2($user,{ HIDE_ADD_BUILD_BUTTON => 1});
+  if (defined($user->{FLOOR}) || defined($user->{ENTRANCE})) {
+    $user->{EXT_ADDRESS} = $html->tpl_show(templates('form_ext_address'),
+      { ENTRANCE => $user->{ENTRANCE} || '', FLOOR => $user->{FLOOR} || '' },
+      { OUTPUT2RETURN => 1 });
   }
-  else{
-    my $countries_hash;
-
-    ($countries_hash, $user->{COUNTRY_SEL}) = sel_countries({
-      NAME    => 'COUNTRY_ID',
-      COUNTRY => $user->{COUNTRY_ID},
-    });
-
-    $user->{ADDRESS_SEL} = $html->tpl_show(templates('form_address'), { %$user  }, { OUTPUT2RETURN => 1 });
-  }
+  $user->{ADDRESS_SEL} = form_address_select($user, { HIDE_ADD_BUILD_BUTTON => 1 });
 
   if ($FORM{chg}) {
     my $user_pi = $user->pi();
@@ -1140,11 +1156,6 @@ sub _mobile_app_links {
 sub form_login_clients {
   my %first_page = ();
 
-  if ($FORM{LOGIN_BY_PHONE}) {
-    _login_send_pin();
-    _login_confirm_pin();
-  }
-
   $first_page{LOGIN_ERROR_MESSAGE} = $OUTPUT{LOGIN_ERROR_MESSAGE} || '';
   $first_page{PASSWORD_RECOVERY} = $conf{PASSWORD_RECOVERY};
   $first_page{FORGOT_PASSWD_LINK} = '/registration.cgi&FORGOT_PASSWD=1';
@@ -1197,16 +1208,6 @@ sub form_login_clients {
   }
 
   $OUTPUT{S_MENU} = 'style="display: none;"';
-
-  if ($conf{AUTH_BY_PHONE}) {
-    $first_page{AUTH_BY_PHONE} = 'd-block' ;
-    $first_page{LOGIN_BY_PHONE} = $html->tpl_show(templates('form_login_by_phone'), {
-      PHONE_NUMBER_PATTERN => $conf{PHONE_NUMBER_PATTERN} || ''
-    }, { OUTPUT2RETURN => 1 });
-  }
-  else {
-    $first_page{AUTH_BY_PHONE} = 'd-none' ;
-  }
 
   $OUTPUT{BODY} = $html->tpl_show(templates('form_client_login'), \%first_page, {
     MAIN => 1,
@@ -1867,6 +1868,7 @@ sub form_period {
   return $form_period;
 }
 
+#FIXME: why this function in cgi core?
 #**********************************************************
 =head2 form_money_transfer() transfer funds between users accounts
 
@@ -1883,7 +1885,7 @@ sub form_money_transfer {
     ($deposit_limit, $transfer_price, $no_companies) = split(/:/, $conf{MONEY_TRANSFER});
 
     if ($no_companies eq 'NO_COMPANIES' && $user->{COMPANY_ID}) {
-      $html->message('info', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
+      $html->message('err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}");
       return 0;
     }
   }
@@ -1892,10 +1894,8 @@ sub form_money_transfer {
   if ($FORM{s2} || $FORM{transfer}) {
     $FORM{SUM} = sprintf("%.2f", $FORM{SUM});
 
-    if ($user->{DEPOSIT} < $FORM{SUM} + $deposit_limit + $transfer_price) {
-      $html->message('err', $lang{ERROR}, "$lang{ERR_SMALL_DEPOSIT}");
-    }
-    elsif (!$FORM{SUM}) {
+
+    if (!$FORM{SUM}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_SUM}");
     }
     elsif (!$FORM{RECIPIENT}) {
@@ -1904,15 +1904,18 @@ sub form_money_transfer {
     elsif ($FORM{RECIPIENT} == $user->{UID}) {
       $html->message('err', $lang{ERROR}, "$lang{USER_NOT_EXIST}");
     }
+    elsif ($user->{DEPOSIT} < $FORM{SUM} + $deposit_limit + $transfer_price) {
+      $html->message('err', $lang{ERROR}, "$lang{ERR_SMALL_DEPOSIT}");
+    }
     else {
       my $user2 = Users->new($db, $admin, \%conf);
       $user2->info(int($FORM{RECIPIENT}));
+
       if ($user2->{TOTAL} < 1) {
         $html->message('err', $lang{ERROR}, "$lang{USER_NOT_EXIST}");
       }
       else {
         $user2->pi({ UID => $user2->{UID} });
-
         if (!$FORM{ACCEPT} && $FORM{transfer}) {
           $html->message('err', $lang{ERROR}, "$lang{ERR_ACCEPT_RULES}");
           $html->tpl_show(templates('form_money_transfer_s2'), { %$user2, %FORM });
@@ -2122,7 +2125,7 @@ sub form_events {
   my $first_stage = gen_time($begin_time, { TIME_ONLY => 1 });
   print "Content-Type: text/html\n\n";
 
-  my $cross_modules_return = cross_modules('_events', {
+  my $cross_modules_return = cross_modules('events', {
     UID              => $user->{UID},
     CLIENT_INTERFACE => 1
   });
@@ -2282,6 +2285,7 @@ sub form_custom {
 
   require Control::Service_control;
   my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+
   my $credit_info = $Service_control->user_set_credit({ UID => $user->{UID}, REDUCTION => $user->{REDUCTION}, %FORM });
 
   if ($credit_info->{CREDIT_SUM}) {
@@ -2300,7 +2304,7 @@ sub form_custom {
     $info{SMALL_BOX} .= $html->tpl_show(templates('form_confirm_pi_small_box'), \%info, { OUTPUT2RETURN => 1 });
   }
 
-  $html->tpl_show(templates('form_client_custom'), \%info);
+  $html->tpl_show(templates('form_client_custom'), \%info, { ID => 'form_client_custom' });
 
   return 1;
 }
@@ -2324,6 +2328,16 @@ sub make_social_auth_login_buttons {
     else {
       $result{ $conf_key_name } = 'display: none;';
     }
+  }
+
+  if ($conf{AUTH_BY_PHONE}) {
+    $result{AUTH_BY_PHONE} = 'd-block' ;
+    $result{LOGIN_BY_PHONE} = $html->tpl_show(templates('form_login_by_phone'), {
+      PHONE_NUMBER_PATTERN => $conf{PHONE_NUMBER_PATTERN} || ''
+    }, { OUTPUT2RETURN => 1 });
+  }
+  else {
+    $result{AUTH_BY_PHONE} = 'd-none' ;
   }
 
   if ($conf{AUTH_TELEGRAM_ID}) {
@@ -2504,7 +2518,7 @@ sub make_sender_subscribe_buttons_block {
         {
           class => "btn $btn_class border-left-1",
           # QR-Code by link
-          onclick => "showImgInModal('$SELF_URL?qrcode=1&qindex=10010&QRCODE_URL=$attr->{HREF}', '$name $lang{QR_CODE}');",
+          onclick => "showImgInModal('$SELF_URL?qrcode=1&qindex=10010&QRCODE_URL=$attr->{HREF}&EX_PARAMS=1', '$name $lang{QR_CODE}');",
           OUTPUT2RETURN => 1
         }
       );
@@ -2835,20 +2849,34 @@ sub change_pi_popup {
 }
 
 #**********************************************************
-=head2 form_credit()
+=head2 form_credit($attr)
 
+  Argumnets:
+    $attr
+      USER_INFO
+      FORM
+
+  Return:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
 sub form_credit {
+  my ($attr)=@_;
+
+  my $user_ = $attr->{USER_INFO};
+  my $FORM_ = $attr->{FORM};
 
   require Control::Service_control;
   my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
-  my $credit_info = $Service_control->user_set_credit({ UID => $user->{UID}, REDUCTION => $user->{REDUCTION}, %FORM });
+  my $credit_info = $Service_control->user_set_credit({ %$FORM_, UID => $user_->{UID}, REDUCTION => $user_->{REDUCTION} });
 
   if ($credit_info->{error}) {
-    if ($credit_info->{errstr} eq 'ERR_CREDIT_CHANGE_LIMIT_REACH' && $credit_info->{MONTH_CHANGES}) {
+    if (in_array($credit_info->{error}, [4302, 4303, 4305])) {
+
+    }
+    elsif ($credit_info->{errstr} eq 'ERR_CREDIT_CHANGE_LIMIT_REACH' && $credit_info->{MONTH_CHANGES}) {
       $user->{CREDIT_CHG_BUTTON} = $html->color_mark(
         "$lang{ERR_CREDIT_CHANGE_LIMIT_REACH}. " . "$lang{TOTAL}: $admin->{TOTAL}/$credit_info->{MONTH_CHANGES}",
         'bg-danger',
@@ -2885,7 +2913,7 @@ sub form_credit {
 
     $table->show();
   }
-  elsif (!$credit_info->{errstr} && !$FORM{change_credit}) {
+  elsif (!$credit_info->{errstr} && !$FORM_->{change_credit}) {
     %{$user} = (%{$user}, %{$credit_info});
     $user->{CREDIT_CHG_BUTTON} = $html->button("$lang{SET} $lang{CREDIT}", '#', {
       ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'",
@@ -2895,147 +2923,8 @@ sub form_credit {
     });
   }
 
-
   return 1;
 }
-
-#**********************************************************
-=head2 _login_send_pin()
-
-=cut
-#**********************************************************
-sub _login_send_pin() {
-
-  return if !$FORM{PHONE} || $FORM{PIN_CODE};
-
-  my $params = ();
-
-  require Contacts;
-  my $Contacts = Contacts->new($db, $admin, \%conf);
-  my $contacts = $Contacts->contacts_list({ VALUE => "$FORM{PHONE},+$FORM{PHONE}", UID => '_SHOW' });
-
-  foreach my $contact (@{$contacts}) {
-    $user->info($contact->{uid});
-    last if $user->{UID};
-  }
-
-  if ($Contacts->{TOTAL} < 1 || !in_array('Sms', \@MODULES) || !$user->{UID}) {
-    $params->{message} = $lang{USER_NOT_FOUND};
-    print "Content-Type: application/json\n\n";
-    print json_former($params);
-    exit;
-  }
-
-  if ($FORM{PIN_ALREADY_EXIST}) {
-    my $pin_info = $user->phone_pin_info($user->{UID});
-
-    if ($user->{TOTAL} != 1) {
-      $params->{message} = $lang{CODE_EXPIRED};
-    }
-    else {
-      $params->{uid} = $user->{UID};
-    }
-
-    print "Content-Type: application/json\n\n";
-    print json_former($params);
-    exit;
-  }
-
-  load_module('Sms', $html);
-  my $pin_code = pin_code_generate();
-  my $message = $html->tpl_show(_include('sms_login_by_phone', 'Sms'), {
-    LOGIN    => $user->{LOGIN},
-    PHONE    => $FORM{PHONE},
-    PIN_CODE => $pin_code
-  }, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
-
-  if ($conf{SMS_LIMIT}) {
-    require Sms;
-    Sms->import();
-    my $Sms = Sms->new($db, $admin, \%conf);
-    $Sms->list({
-      UID      => $user->{UID},
-      INTERVAL => "$DATE/$DATE",
-      NO_SKIP  => 1,
-    });
-
-    if ($Sms->{TOTAL} && $Sms->{TOTAL} >= $conf{SMS_LIMIT}) {
-      $params->{message} = $lang{EXCEEDED_SMS_LIMIT};
-      print "Content-Type: application/json\n\n";
-      print json_former($params);
-      exit;
-    }
-  }
-
-  my $sms_sent = sms_send({
-    NUMBER  => $FORM{PHONE},
-    MESSAGE => $message,
-    UID     => $user->{UID}
-  });
-
-  if ($sms_sent) {
-    $params->{uid} = $user->{UID};
-    $user->phone_pin_add({ UID => $user->{UID}, PIN_CODE => $pin_code });
-  }
-
-  print "Content-Type: application/json\n\n";
-  print json_former($params);
-  exit;
-}
-
-#**********************************************************
-=head2 _login_confirm_pin()
-
-=cut
-#**********************************************************
-sub _login_confirm_pin {
-
-  return if !$FORM{PIN_CODE} || !$FORM{UID} || !$FORM{PHONE};
-
-  my $params = ();
-  my $pin_info = $user->phone_pin_info($FORM{UID});
-
-  if ($user->{TOTAL} != 1) {
-    $params->{message} = $lang{CODE_EXPIRED};
-  }
-  elsif ($pin_info->{ATTEMPTS} > 4) {
-    $user->phone_pin_del($FORM{UID});
-    $params->{message} = $lang{USED_ALL_PIN_ATTEMPTS};
-  }
-  elsif ($pin_info->{PIN_CODE} ne $FORM{PIN_CODE}) {
-    $user->phone_pin_update_attempts($FORM{UID});
-    $params->{message} = $lang{CODE_IS_INVALID};
-  }
-  else {
-    $user->phone_pin_del($FORM{UID});
-    require Contacts;
-    my $Contacts = Contacts->new($db, $admin, \%conf);
-    my $contacts = $Contacts->contacts_list({ VALUE => "$FORM{PHONE},+$FORM{PHONE}", UID => '_SHOW' });
-    $params->{buttons} = [];
-    foreach my $contact (@{$contacts}) {
-      $user->info($contact->{uid}, { SHOW_PASSWORD => 1 });
-      my ($uid, $sid, undef) = auth_user($user->{LOGIN}, $user->{PASSWORD}, '');
-
-      push @{$params->{users}}, { url => "/index.cgi?sid=$sid", login => $user->{LOGIN} } if $sid;
-    }
-  }
-
-  print "Content-Type: application/json\n\n";
-  print json_former($params);
-  exit;
-}
-
-#**********************************************************
-=head2 pin_code_generate()
-
-=cut
-#**********************************************************
-sub pin_code_generate {
-  my @alphanumeric = (0 .. 9);
-
-  return join '', map $alphanumeric[rand @alphanumeric], 0 .. 4;
-}
-
 
 #**********************************************************
 =head2 func_menu($f_args) - Functions menu

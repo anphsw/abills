@@ -79,7 +79,7 @@ require Payments;
 Payments->import();
 my $Payments   = Payments->new($db, $admin, \%conf);
 
-require Callcenter;
+require Callcenter::db::Callcenter;
 Callcenter->import();
 my $Callcenter   = Callcenter->new($db, $admin, \%conf);
 

@@ -158,7 +158,7 @@ sub sqlcmd {
   foreach my $line (@$list_history) {
     $table->addrow(
       $line->{datetime},
-       $html->button(convert($line->{sql_query}, { text2html => 1 }), "index=$index&QUERY_ID=". ($line->{id} || q{}), { class => 'sql' })
+      $html->button(convert($line->{sql_query}, { text2html => 1 }), "index=$index&QUERY_ID=". ($line->{id} || q{}), { class => 'sql' })
     );
   }
 
@@ -214,9 +214,9 @@ sub sqlcmd {
           $show_query =~ s/$s | $s / <b>$s<\/b> /ig;
           $show_query =~ s/$s\(/ <b>$s<\/b>\(/gi;
           $show_query =~ s/'(\S+)'/ <font color=\"#0000FF\">'$1'<\/font> /gi;
-#          if ($show_query =~ /\s+(\d+)|(\d+),/){
-#            $show_query =~ s/\s+(\d+)|(\d+),/ <font color=\"red\">$1<\/font>/g;
-#          }
+          #          if ($show_query =~ /\s+(\d+)|(\d+),/){
+          #            $show_query =~ s/\s+(\d+)|(\d+),/ <font color=\"red\">$1<\/font>/g;
+          #          }
         }
 
         $show_query =~ s/(FROM[\/<>b]+\s+)([a-z0-9 _\s\n,]+)/$1 %TABLES% /gi;
@@ -328,8 +328,8 @@ sub sqlcmd {
         $FORM{DEFAULT} = "''" if (!$FORM{DEFAULT});
 
         my $query = "ALTER TABLE $FORM{TABLE_INFO} CHANGE COLUMN `$FORM{FIELD}` `$FORM{NAME}` "
-        . ($FORM{COLUMN_TYPE} || ''). ($FORM{COLUMN_LENGTH} || '') .' '. ($FORM{AUTO_INCREMENT} || '')
-        . ' ' . ($FORM{COLLATION} || '').' '. ($FORM{ATTRIBUTE_TYPE} || '') ." DEFAULT $FORM{DEFAULT} ";
+          . ($FORM{COLUMN_TYPE} || ''). ($FORM{COLUMN_LENGTH} || '') .' '. ($FORM{AUTO_INCREMENT} || '')
+          . ' ' . ($FORM{COLLATION} || '').' '. ($FORM{ATTRIBUTE_TYPE} || '') ." DEFAULT $FORM{DEFAULT} ";
 
         $html->message('info', '', $query);
 
@@ -588,7 +588,7 @@ sub sqlcmd_tables {
     else {
       $cpm_res = (
         length($SORT_HASH{$a} || q{}) <=> length($SORT_HASH{$b} || q{}) ||
-        ($SORT_HASH{$a} || q{}) cmp ($SORT_HASH{$b} || q{})
+          ($SORT_HASH{$a} || q{}) cmp ($SORT_HASH{$b} || q{})
       );
     }
 
@@ -605,8 +605,10 @@ sub sqlcmd_tables {
   foreach my $line (@sorted) {
     my @table_rows = ($html->form_input('TABLES', $line->{Name},
       { TYPE => 'checkbox', STATE => (in_array($line->{Name}, \@active_tables)) ? 'checked' : '' }));
+    my $table_name = $line->{'Name'} || '';
     for ($i = 0 ; $i <= $#ACTIVE_FIELDS ; $i++) {
       my $l = $ACTIVE_FIELDS[$i];
+      my $table_name=$line->{'Name'};
 
       if ($l eq 'Size') {
         $l = int2byte(($line->{'Index_length'} || 0) + ($line->{'Data_length'} || 0) );
@@ -625,7 +627,7 @@ sub sqlcmd_tables {
       push @table_rows, $l;
     }
 
-    $table->addrow(@table_rows, $html->button($lang{SHOW}, "index=" . ($index - 1) . "&TABLE_INFO=$line->{'Name'}&QUERY=SELECT * FROM $line->{'Name'} LIMIT $PAGE_ROWS", { class => 'show' }));
+    $table->addrow(@table_rows, $html->button($lang{SHOW}, "index=" . ($index - 1) . "&TABLE_INFO=$table_name&QUERY=SELECT * FROM $line->{'Name'} LIMIT $PAGE_ROWS", { class => 'show' }));
 
     $tables_total++;
     $tables_size += ($line->{'Index_length'} || 0) + ($line->{'Data_length'} || 0);
@@ -658,7 +660,7 @@ sub sqlcmd_tables {
   $table3->addtd(
     $table->td(
       "$lang{ACTION}:"
-      . $html->form_select(
+        . $html->form_select(
         'ACTION',
         {
           SELECTED => $FORM{ACTION} || '',
@@ -1171,7 +1173,11 @@ sub sqlcmd_cluster_info {
     if ($FORM{HOST_ID} == $id) {
       $Sqlcmd_main = Sqlcmd->new($db, $admin, \%conf);
       if ($conf{ 'SQLCMD_HOST' . $id . '_HOSTNAME' }) {
-        my $sql = Abills::SQL->connect($conf{dbtype}, $conf{ 'SQLCMD_HOST' . $id . '_HOSTNAME' }, $conf{ 'SQLCMD_HOST' . $id . '_DB' }, $conf{ 'SQLCMD_HOST' . $id . '_USER' }, $conf{ 'SQLCMD_HOST' . $id . '_PASSWD' }, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+        my $sql = Abills::SQL->connect($conf{dbtype}, $conf{ 'SQLCMD_HOST' . $id . '_HOSTNAME' },
+          $conf{ 'SQLCMD_HOST' . $id . '_DB' }, $conf{ 'SQLCMD_HOST' . $id . '_USER' },
+          $conf{ 'SQLCMD_HOST' . $id . '_PASSWD' },
+          { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+
         my $db_slave = $sql;
 
         $FORM{DB_ID} = $id;
@@ -1213,7 +1219,7 @@ sub sqlcmd_cluster {
   my @servers = ();
   if ($FORM{SYNC}) {
     $sql =
-    Abills::SQL->connect($conf{dbtype}, $conf{ 'SQLCMD_HOST' . $FORM{SYNC} . '_HOSTNAME' }, $conf{ 'SQLCMD_HOST' . $FORM{SYNC} . '_DB' }, $conf{ 'SQLCMD_HOST' . $FORM{SYNC} . '_USER' }, $conf{ 'SQLCMD_HOST' . $FORM{SYNC} . '_PASSWD' }, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+      Abills::SQL->connect($conf{dbtype}, $conf{ 'SQLCMD_HOST' . $FORM{SYNC} . '_HOSTNAME' }, $conf{ 'SQLCMD_HOST' . $FORM{SYNC} . '_DB' }, $conf{ 'SQLCMD_HOST' . $FORM{SYNC} . '_USER' }, $conf{ 'SQLCMD_HOST' . $FORM{SYNC} . '_PASSWD' }, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 
     my DBI $db_slave = $sql->{db};
 
@@ -1420,14 +1426,14 @@ sub sqlcmd_collation_change {
   }
 
   print $html->form_main({
-      CONTENT => $table->show() . sqlcmd_collation(),
-      HIDDEN  => { index  => $index,
-                   ACTION => $FORM{ACTION},
-                   TABLES => $FORM{TABLES}
-                  },
-      METHOD  => 'POST',
-      SUBMIT  => { 'change' => $lang{CHANGE} },
-    }
+    CONTENT => $table->show() . sqlcmd_collation(),
+    HIDDEN  => { index  => $index,
+      ACTION => $FORM{ACTION},
+      TABLES => $FORM{TABLES}
+    },
+    METHOD  => 'POST',
+    SUBMIT  => { 'change' => $lang{CHANGE} },
+  }
   );
 
   return 1;

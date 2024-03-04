@@ -97,11 +97,14 @@ sub result_row_former {
       INPUT_DATA      - DB object
       FUNCTION        - object list function name
       FUNCTION_PARAMS - params of function (hash)
+      FUNCTION_INDEX  - function index
       LIST            - get input data from list (array_hash)
       BASE_FIELDS     - count of default field for list ( Show first %BASE_FIELDS% $search_columns fields )
       APPEND_FIELDS   - Additional fields to extract from the sheet
 
       DATAHASH        - get input data from json parsed hash
+      DATATOTAL       - total count for DATAHASH (pagination etc.)
+
       BASE_PREFIX     - Base prefix for data hash
 
       FUNCTION_FIELDS - function field forming
@@ -246,8 +249,27 @@ sub result_former {
       @title = @title_;
     }
 
-    $data->{COL_NAMES_ARR} = \@title;
-    @EX_TITLE_ARR = @title;
+    if ($#cols) {
+      my %positions;
+      @positions{@cols} = 0..$#cols;
+
+      my @sorted_title = sort {
+        ($positions{$a} // @cols) <=> ($positions{$b} // @cols)
+      } @title;
+
+      my @translated_titles = map { $SEARCH_TITLES{$_} || $_ } @sorted_title;
+      @title = @translated_titles;
+      $data->{COL_NAMES_ARR} = \@sorted_title;
+      @EX_TITLE_ARR = @sorted_title;
+    }
+    else {
+      $data->{COL_NAMES_ARR} = \@title;
+      @EX_TITLE_ARR = @title;
+    }
+
+    if (defined $attr->{DATATOTAL}) {
+      $data->{TOTAL} = $attr->{DATATOTAL};
+    }
   }
   elsif (!$data->{COL_NAMES_ARR}) {
     @cols = (split(/,/, $attr->{BASE_PREFIX}), @cols) if ($attr->{BASE_PREFIX});
@@ -333,7 +355,7 @@ sub result_former {
     } }, $data, $table);
   }
   elsif ($attr->{DATAHASH} && ref $attr->{DATAHASH} eq 'ARRAY') {
-    $data->{TOTAL} = 0;
+    $data->{TOTAL} = $attr->{DATATOTAL} // 0;
     $table->{sub_ref} = 1;
 
     $attr->{EX_TITLE_ARR} = \@EX_TITLE_ARR;
@@ -342,7 +364,7 @@ sub result_former {
     my $rows = _datahash2table($attr);
     foreach my $row (@$rows) {
       $table->addrow(@$row);
-      $data->{TOTAL}++;
+      $data->{TOTAL}++ if (!defined $attr->{DATATOTAL});
     }
   }
 
@@ -411,7 +433,7 @@ sub _datahash2table {
         push @row, &{\&$filter_fn}($col_data, { PARAMS => \@arr });
       }
       elsif ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$field_name}) {
-        if ($col_data && $attr->{SELECT_VALUE}->{$field_name}->{$col_data}) {
+        if (defined $col_data && $attr->{SELECT_VALUE}->{$field_name}->{$col_data}) {
           my ($value, $color) = split(/:/, $attr->{SELECT_VALUE}->{$field_name}->{$col_data});
           push @row, ($color) ? $html->color_mark($value, $color) : $value;
         }
@@ -458,7 +480,7 @@ sub search_link {
     }
   }
   else {
-    $ext_link .= '&' . "$params->[1]=" . $val;
+    $ext_link .= '&' . "$params->[1]=" . ($val || '');
   }
 
   my $result = $html->button($attr->{LINK_NAME} || $val, "index=" . get_function_index($params->[0]) . "&search_form=1&search=1" . $ext_link);
@@ -910,7 +932,7 @@ sub _result_former_data_extra_fields {
   return $SEARCH_TITLES if (! $data->{EXTRA_FIELDS});
 
   foreach my $line (@{$data->{EXTRA_FIELDS}}) {
-    next if (in_array('Multidoms', \@MODULES) && $admin->{DOMAIN_ID} && $admin->{DOMAIN_ID} ne $line->{domain_id});
+    next if (in_array('Multidoms', \@MODULES) && $admin->{DOMAIN_ID} && $line && ref $line eq 'HASH' && $admin->{DOMAIN_ID} ne $line->{domain_id});
     if (ref $line eq 'ARRAY' && $line->[0] =~ /ifu(\S+)/) {
       my $field_id = $1;
       my (undef, undef, $name, undef) = split(/:/, $line->[1]);
@@ -986,7 +1008,7 @@ sub _get_search_titles {
     $SEARCH_TITLES{address_build} = $lang{ADDRESS_BUILD};
     $SEARCH_TITLES{address_flat} = $lang{ADDRESS_FLAT};
     $SEARCH_TITLES{address_street2} = $lang{SECOND_NAME};
-    $SEARCH_TITLES{city} = $lang{CITY};
+    # $SEARCH_TITLES{city} = $lang{CITY};
     $SEARCH_TITLES{zip} = $lang{ZIP};
     $SEARCH_TITLES{phone} = $lang{PHONE};
     $SEARCH_TITLES{floor} = $lang{FLOOR};

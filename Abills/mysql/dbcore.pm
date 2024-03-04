@@ -10,94 +10,14 @@ use strict;
 use warnings;
 use DBI;
 use Abills::Base qw(int2ip in_array);
+use parent 'dbbase';
 
-our $VERSION = 7.11;
+our $VERSION = 8.00;
 
 my $CONF;
-my $SORT = 1;
-my $sql_errors = '/usr/abills/var/log/sql_errors';
+#my $SORT = 1;
+#my $sql_errors = '/usr/abills/var/log/sql_errors';
 my $info_fields_list;
-
-#**********************************************************
-=head2 connect($dbhost, $dbname, $dbuser, $dbpasswd, $attr) - Connect to DB
-
-  Arguments:
-    $dbhost,
-    $dbname,
-    $dbuser,
-    $dbpasswd,
-    $attr
-      CHARSET  - Default utf8
-      SQL_MODE - Default NO_ENGINE_SUBSTITUTION
-      SCOPE    - Allow to create multiple cached pools ( to use with threads)
-      DBPARAMS=""
-
-=cut
-#**********************************************************
-sub connect {
-  my $class = shift;
-  my $self = { };
-  my ($dbhost, $dbname, $dbuser, $dbpasswd, $attr) = @_;
-
-  bless( $self, $class );
-  #my %conn_attrs = (PrintError => 0, RaiseError => 1, AutoCommit => 1);
-  # TaintIn => 1, TaintOut => 1,
-  my DBI $db;
-  my $db_params = q{};
-
-  if ($attr && $attr->{DBPARAMS}) {
-    $db_params .=";".$attr->{DBPARAMS};
-  }
-
-  my $sql_mode = ($attr->{SQL_MODE}) ? $attr->{SQL_MODE} : 'NO_ENGINE_SUBSTITUTION';
-
-  my $mysql_init_command = "SET sql_mode='$sql_mode'";
-  #For mysql 5 or higher
-  if ($attr->{CHARSET}) {
-    $mysql_init_command .= ", NAMES $attr->{CHARSET}";
-    $self->{dbcharset}=$attr->{CHARSET};
-  }
-  if ( $db = DBI->connect_cached( "DBI:mysql:database=$dbname;host=$dbhost;mysql_client_found_rows=0".$db_params, "$dbuser", "$dbpasswd",
-       {
-         Taint                => 1,
-         private_scope_key    => $attr->{SCOPE} || 0,
-         mysql_auto_reconnect => 1,
-         mysql_init_command   => $mysql_init_command
-       } )
-     ) {
-    $self->{db} = $db;
-  }
-  else {
-    print "Content-Type: text/html\n\nError: Unable connect to DB server '$dbhost:$dbname'\n";
-    $self->{error} = $DBI::errstr;
-
-    require Log;
-    Log->import( 'log_print' );
-    $self->{sql_errno} = 0 if (!$self->{sql_errno});
-    $self->{sql_errstr} = '' if (!$self->{sql_errstr});
-
-    Log::log_print( undef, 'LOG_ERR', '', "Connection Error: $DBI::errstr", {
-      NAS      => 0,
-      LOG_FILE => ( -w $sql_errors) ? $sql_errors : '/tmp/sql_errors'
-    });
-  }
-
-
-  return $self;
-}
-
-#**********************************************************
-=head2 disconnect()
-
-=cut
-#**********************************************************
-sub disconnect{
-  my $self = shift;
-
-  $self->{db}->disconnect;
-
-  return $self;
-}
 
 #**********************************************************
 =head2 db_version() - Get DB version
@@ -118,320 +38,6 @@ sub db_version{
   }
 
   return $version;
-}
-
-#**********************************************************
-=head2 query($query, $type, $attr) - Query maker
-
-  Arguments:
-    $query   - SQL query
-    $type    - Type of query
-      undef - with fetch result like SELECT
-      do    - do query without fetch (INSERT, UPDATE, DELETE)
-
-    $attr   - Extra attributes
-      COLS_NAME   - Return Array of HASH_ref. Column name as hash key
-      COLS_UPPER  - Make hash key upper
-      INFO        - Return fields as objects parameters $self->{LOGIN}
-      LIST2HASH   - Return 2 field hash
-            KEY,VAL
-      MULTI_QUERY - Make multiquery (only for INSERT, UPDATE)
-      Bind        - Array or bind values for placeholders  [ 10, 12, 33 ]
-      DB_REF      - DB object. Using whem manage multi DB server
-      test        - Run function without excute query. if using $self->{debug} show query.
-
-    $self->{debug} - Show query
-    $self->{db}    - DB object
-
-  Returns:
-    $self->{list}          - array of array
-                           - array of hash (COLS_UPPER)
-
-    $self->{INSERT_ID}     - Insert id for autoincrement fields
-    $self->{TOTAL}         - Total rows in result (for query SELECT)
-    $self->{AFFECTED}      - Total added or changed fields
-    $self->{COL_NAMES_ARR} - Array_hash of column names
-
-    Error flags:
-      $self->{errno}      = 3;
-      $self->{sql_errno}  = $db->err;
-      $self->{sql_errstr} = $db->errstr;
-      $self->{errstr}
-
-  Examples:
-
-    Delete query
-
-      $self->query("DELETE FROM users WHERE uid= ?;", 'do', { Bind => [ 100 ] });
-
-      Result:
-
-        $self->{AFFECTED}  - Total deleted rows
-
-
-    Show listing:
-
-      $self->query("SELECT id AS login, uid FROM users LIMIT 10;", undef, { COLS_NAME => 1 });
-
-      Result:
-
-        $self->{TOTAL}  - Total rows
-        $self->{list}   - ARRAY of hash_refs
-
-    Make info atributes
-
-       $self->query("SELECT id AS login, gid, credit FROM users WHERE uid = ? ;", undef, { INFO => 1, Bind => [ 100 ] });
-
-      Result:
-
-        $self->{LOGIN}
-        $self->{GID}
-        $self->{CREDIT}
-
-    LIST2HASH listing
-
-      $self->query("SELECT id AS login, gid, credit FROM users WHERE uid = ? ;", undef, { LIST2HASH => 'login,gid' });
-
-      $self->{list_hash} - Hash ref
-
-=cut
-#**********************************************************
-sub query{
-  my $self = shift;
-  my ($query, $type, $attr) = @_;
-
-  #if(! $CONF){
-  #  print "Query !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Undefined \$CONF\n";
-  #  exit;
-  #}
-
-  my DBI $db = $self->{db};
-
-  if ( $self->{db}->{db} ){
-    $db = $self->{db}->{db};
-
-    $self->{db}->{queries_count}++;
-
-    if ( $self->{db}->{db_debug} ){
-      if ( $self->{db}->{db_debug} > 4 ){
-        $db->trace( 1, '/tmp/sql_trace' );
-      }
-      elsif ( $self->{db}->{db_debug} > 3 ){
-        $db->trace( 'SQL', '/tmp/sql_trace' );
-      }
-      elsif ( $self->{db}->{db_debug} > 2 ){
-        require Log;
-        Log->import( 'log_print' );
-        my $arguments = '';
-        if($attr->{Bind}) {
-          $arguments .= join(', ', @{ $attr->{Bind} });
-        }
-        Log::log_print( undef, 'LOG_ERR', '', "\n-----". ($self->{queries_count} || q{}) ."------\n$query\n------\n$arguments\n",
-          { NAS => 0, LOG_FILE => "/tmp/sql_debug" } );
-      }
-      #sequence
-      elsif ( $self->{db}->{db_debug} > 1 ){
-        # Usually, library is loaded by default, but since
-        # this is a critical script, we will check it just in case.
-        # Fact, that is only done during debugging is also not scary for performance.
-        unless ($Time::HiRes::VERSION) {
-          require Time::HiRes;
-          Time::Hires->import();
-        }
-
-        my $caller = qq{\n\n};
-        my ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash);
-        my $i = 1;
-        my @r = ();
-        while (@r = caller($i)) {
-          ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash) = @r;
-          $caller .= "  $filename:$line $subroutine\n";
-          $i++;
-        }
-
-        push @{ $self->{db}->{queries_list} }, [$query. $caller, 0, $caller];
-      }
-      else{
-        #Queries typisation
-        $self->{db}->{queries_list}->{$query}++;
-      }
-    }
-  }
-
-  if ( $attr->{DB_REF} ){
-    $db = $attr->{DB_REF};
-  }
-
-  #Query
-  delete( $self->{errstr} );
-  delete( $self->{errno} );
-  $self->{TOTAL} = 0;
-
-  if ( $self->{debug} ){
-    print "<pre><code>\n$query\n</code></pre>\n" if ($self->{debug});
-    if ( $self->{debug} ne 1 ){
-      $db->trace( 1, $self->{debug} );
-    }
-  }
-
-  if ( !$db || ref $db eq 'HASH' ){
-    require Log;
-    Log->import( 'log_print' );
-    $self->{sql_errno} = 0 if (!$self->{sql_errno});
-    $self->{sql_errstr} = '' if (!$self->{sql_errstr});
-    my $caller = join(', ', caller());
-    Log::log_print( undef, 'LOG_ERR', '',
-      "Query:\n$query\n Error:$self->{sql_errno}\n Error str:$self->{sql_errstr}\nundefined \$db\n$caller",
-      { NAS => 0, LOG_FILE => ( -w $sql_errors) ? $sql_errors : '/tmp/sql_errors' } );
-    return $self;
-  }
-
-  if ( defined( $attr->{test} ) ){
-    return $self;
-  }
-
-  $self->{AFFECTED} = 0;
-  my DBI $q;
-  my $start_query_time = 0;
-  if ($self->{db}->{db_debug} && $self->{db}->{db_debug} == 2) {
-    $start_query_time = [ Time::HiRes::gettimeofday() ]
-  }
-
-  if ( $type && $type eq 'do' ){
-    $self->{AFFECTED} = $db->do( $query, undef, @{ $attr->{Bind} } );
-    if ( $db->{'mysql_insertid'} ){
-      $self->{INSERT_ID} = $db->{'mysql_insertid'};
-    }
-  }
-  else{
-    $q = $db->prepare( $query );
-
-    if ( $attr->{MULTI_QUERY} ){
-      foreach my $line ( @{ $attr->{MULTI_QUERY} } ){
-        $q->execute( @{$line} );
-        if ( $db->err ){
-          $self->{errno} = 3;
-          $self->{sql_errno} = $db->err;
-          $self->{sql_errstr} = $db->errstr;
-          $self->{errstr} = $db->errstr;
-          return $self->{errno};
-        }
-      }
-
-      if ($self->{db}->{db_debug} && $self->{db}->{db_debug} == 2) {
-        my $elapsed = Time::HiRes::tv_interval($start_query_time);
-        ${ $self->{db}->{queries_list} }[-1]->[1] = $elapsed;
-      };
-
-      $self->{TOTAL} = $#{ $attr->{MULTI_QUERY}  } + 1;
-      return $self;
-    }
-    else{
-      $q->execute( @{ $attr->{Bind} } );
-      $self->{TOTAL} = $q->rows;
-    }
-  }
-
-  if ($self->{db}->{db_debug} && $self->{db}->{db_debug} == 2) {
-    my $elapsed = Time::HiRes::tv_interval($start_query_time);
-    ${ $self->{db}->{queries_list} }[-1]->[1] = $elapsed;
-  }
-
-  if ( $db->err ){
-    if ( $db->err == 1062 ){
-      $self->{errno} = 7;
-      $self->{errstr} = 'ERROR_DUPLICATE';
-    }
-    else{
-      $self->{sql_errno} = $db->err;
-      $self->{sql_errstr} = $db->errstr;
-      $self->{errno} = 3;
-      $self->{errstr} = 'SQL_ERROR';
-      $self->{sql_query} = $query;
-      my $caller = q{}; #join(', ', caller());
-      my ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash);
-      my $i = 1;
-      my @r = ();
-      while (@r = caller($i)) {
-        ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash) = @r;
-        $caller .= "$filename:$line $subroutine\n";
-        $i++;
-      }
-      require Log;
-      Log->import( 'log_print' );
-      Log::log_print( undef, 'LOG_ERR', '',
-        "index:". ($attr->{index} || q{}) ."\n"
-          . ($query || q{}) ."\n --$self->{sql_errno}\n --$self->{sql_errstr}\n --AutoCommit: $db->{AutoCommit}\n$caller\n"
-        , { NAS => 0, LOG_FILE => ( -w $sql_errors) ? $sql_errors : '/tmp/sql_errors' } );
-    }
-    return $self;
-  }
-
-  if ( $self->{TOTAL} > 0 ){
-    my @rows = ();
-
-    if ( $attr->{COLS_NAME} ){
-      push @{ $self->{COL_NAMES_ARR} }, @{ $q->{NAME} || []};
-
-      while (my $row = $q->fetchrow_hashref()) {
-        if ( $attr->{COLS_UPPER} ){
-          my $row2;
-          while(my ($k, $v) = each %{$row}) {
-            $row2->{uc( $k )} = $v;
-          }
-          $row = { %{$row2}, %{$row} };
-        }
-        push @rows, $row;
-      }
-    }
-    elsif ( $attr->{INFO} ){
-      push @{ $self->{COL_NAMES_ARR} }, @{ $q->{NAME} };
-      while (my $row = $q->fetchrow_hashref()) {
-        while(my ($k, $v) = each %{$row} ) {
-          $self->{ uc( $k ) } = $v;
-        }
-      }
-    }
-    elsif ( $attr->{LIST2HASH} ){
-      my ($key, @val) = split( /,\s?/, $attr->{LIST2HASH} );
-      my %list_hash = ();
-
-      while (my $row = $q->fetchrow_hashref()) {
-        my @vals = ();
-        foreach my $v (@val) {
-          push @vals, $row->{$v};
-        }
-
-        $list_hash{$row->{$key}} = join(', ', @vals);
-      }
-
-      $self->{list_hash} = \%list_hash;
-    }
-    else{
-      while (my @row = $q->fetchrow()) {
-        push @rows, \@row;
-      }
-    }
-    $self->{list} = \@rows;
-  }
-  else{
-    if ( $q && $q->{NAME} && ref $q->{NAME} eq 'ARRAY' ){
-      push @{ $self->{COL_NAMES_ARR} }, @{ $q->{NAME} };
-    }
-
-    delete $self->{list};
-    if ( $attr->{INFO} ){
-      $self->{errno} = 2;
-      $self->{errstr} = 'ERROR_NOT_EXIST';
-    }
-  }
-
-  if ( $attr->{CLEAR_NAMES} ){
-    delete $self->{COL_NAMES_ARR};
-  }
-
-  #end
-  return $self;
 }
 
 #**********************************************************
@@ -589,7 +195,7 @@ sub query_del{
     return $self;
   }
 
-  $self->query( "DELETE FROM `$table` WHERE " . join( ' AND ', @WHERE_FIELDS ),
+  $self->query( 'DELETE FROM `'. $table ."` WHERE " . join( ' AND ', @WHERE_FIELDS ),
     'do', { Bind => \@WHERE_VALUES } );
 
   return $self;
@@ -627,7 +233,7 @@ sub get_data{
     $search_params - search params array
        [field_id, where_filed_name, field_show_name, show_field (1 or 0) ],
 
-    $attr          - extra atributes
+    $attr          - extra attributes
       USERS_FIELDS      - Use main users params
       USERS_FIELDS_PRE  - Use main users params before main result
       USE_USER_PI       - Use users pi iformation params
@@ -647,10 +253,6 @@ sub search_former{
   $self->{SEARCH_VALUES}          = [];
   @{ $self->{SEARCH_FIELDS_ARR} } = ();
 
-  # if ($data->{_WHERE_RULES}) {
-  #   push @WHERE_RULES, $data->{_WHERE_RULES};
-  # }
-
   my @user_fields = (
     'LOGIN',
     'UID',
@@ -668,7 +270,7 @@ sub search_former{
     'PASPORT_DATE',
     'PASPORT_NUM',
     'PASPORT_GRANT',
-    'CITY',
+    # 'CITY',
     'ZIP',
     'GID',
     'COMPANY_ID',
@@ -696,6 +298,8 @@ sub search_former{
     'EXT_DEPOSIT',
     'BIRTH_DATE',
     'CELL_PHONE',
+    'TELEGRAM',
+    'VIBER'
   );
 
   if ( $attr->{USERS_FIELDS_PRE} ){
@@ -703,7 +307,8 @@ sub search_former{
         EXT_FIELDS        => \@user_fields,
         SKIP_USERS_FIELDS => $attr->{SKIP_USERS_FIELDS},
         USE_USER_PI       => $attr->{USE_USER_PI},
-        SUPPLEMENT        => 1
+        SUPPLEMENT        => 1,
+        SORT_SHIFT        => 1
       } ) };
   }
 
@@ -844,7 +449,7 @@ sub search_expr{
   my $delimiter = ($value =~ s/;/,/g) ? 'and' : 'or';
   if ( $type eq 'INT' && ! $attr->{_MULTI_HIT} && ( $value !~ /^[0-9,\-\.\s\<\>\=\*!]+$/g) ){
     $self->{errno}=113;
-    $self->{errstr} = 'ERROR_WRONG_FIELD_VALUE '.$field. " VALUE: ". $value;
+    $self->{errstr} = 'ERROR_WRONG_FIELD_VALUE '. ($field || q{}). " VALUE: ". ($value || q{});
     return [];
   }
 
@@ -1019,6 +624,8 @@ sub search_expr_users{
   my ($attr) = @_;
   my @fields = ();
 
+  my $SORT = 1;
+
   if ( !$attr->{SUPPLEMENT} ){
     $self->{SEARCH_FIELDS}          = '';
     $self->{SEARCH_FIELDS_COUNT}    = 0;
@@ -1060,7 +667,7 @@ sub search_expr_users{
     REGISTRATION   => 'DATE:u.registration',
     COMMENTS       => 'STR:pi.comments',
     FIO            => 'STR:CONCAT_WS(" ", pi.fio, pi.fio2, pi.fio3) AS fio',
-    PHONE          => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id IN (1,2)) AS phone/,
+    PHONE          => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id IN (1,2) AND value <> "") AS phone/,
     EMAIL          => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id=9) AS email/,
     ACCEPT_RULES   => 'INT:pi.accept_rules',
 
@@ -1069,6 +676,7 @@ sub search_expr_users{
     VIBER          => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 5) AS viber/,
     VIBER_BOT      => q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM `users_contacts` uc WHERE uc.uid=u.uid AND type_id = 5) AS viber_bot/,
 
+    TAX_NUMBER     => 'STR:IF(u.company_id=0, pi.tax_number, company.tax_number) AS tax_number',
     PASPORT_DATE   => 'DATE:pi.pasport_date',
     PASPORT_NUM    => 'STR:pi.pasport_num',
     PASPORT_GRANT  => 'STR:pi.pasport_grant',
@@ -1095,7 +703,7 @@ sub search_expr_users{
     LAST_FEES      => ($CONF->{LASTFEE_POOL}) ? 'INT:(SELECT max(f.date) FROM `fees_last` f WHERE f.uid=u.uid) AS last_fees' : 'INT:(SELECT max(f.date) FROM `fees` f WHERE f.uid=u.uid) AS last_fees',
     BIRTH_DATE     => 'DATE:pi.birth_date',
     FLOOR          => 'INT:pi.floor',
-    ENTRANCE       => 'INT:pi.entrance'
+    ENTRANCE       => 'INT:pi.entrance',
     #ADDRESS_FLAT  => 'STR:pi.address_flat',
   );
 
@@ -1402,160 +1010,154 @@ sub search_expr_users{
   #   $EXT_TABLE_JOINS_HASH{streets} = 1;
   #   $EXT_TABLE_JOINS_HASH{districts} = 1;
   # }
-  else{
-    if ( $CONF->{ADDRESS_REGISTER} ){
-      if ( $attr->{CITY} ){
-        push @fields, @{ $self->search_expr( $attr->{CITY}, 'STR', 'districts.city', { EXT_FIELD => 1 } ) };
-        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-        $EXT_TABLE_JOINS_HASH{builds} = 1;
-        $EXT_TABLE_JOINS_HASH{streets} = 1;
-        $EXT_TABLE_JOINS_HASH{districts} = 1;
-      }
+  else {
+    # if ( $CONF->{ADDRESS_REGISTER} ){
+    #   if ( $attr->{CITY} ){
+    #     push @fields, @{ $self->search_expr( $attr->{CITY}, 'STR', 'districts.city', { EXT_FIELD => 1 } ) };
+    #     $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+    #     $EXT_TABLE_JOINS_HASH{builds} = 1;
+    #     $EXT_TABLE_JOINS_HASH{streets} = 1;
+    #     $EXT_TABLE_JOINS_HASH{districts} = 1;
+    #   }
 
-      if ($attr->{DISTRICT_ID} && !in_array('DISTRICT_ID', $attr->{SKIP_USERS_FIELDS})) {
-        push @fields, @{ $self->search_expr( $attr->{DISTRICT_ID}, 'INT', 'streets.district_id', { EXT_FIELD => 1 } ) };
-        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-        $EXT_TABLE_JOINS_HASH{builds} = 1;
-        $EXT_TABLE_JOINS_HASH{streets} = 1;
-        $EXT_TABLE_JOINS_HASH{districts} = 1;
-      }
-
-      if ( $attr->{ADDRESS_FULL} && !in_array( 'ADDRESS_FULL', $attr->{SKIP_USERS_FIELDS} )){
-        my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
-
-        # if ($build_delimiter =~ /,/) {
-        #   $attr->{ADDRESS_FULL} =~ s/,/\*/g;
-        # }
-
-        push @fields, @{ $self->search_expr( $attr->{ADDRESS_FULL}, "STR",
-            "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
-            "streets.name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full",
-            { EXT_FIELD => 1 } ) };
-        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-        $EXT_TABLE_JOINS_HASH{builds} = 1;
-        $EXT_TABLE_JOINS_HASH{streets} = 1;
-        $EXT_TABLE_JOINS_HASH{districts} = 1;
-      }
-
-      if ( $attr->{DISTRICT_NAME} ){
-        push @fields, @{ $self->search_expr( $attr->{DISTRICT_NAME}, 'INT', 'streets.district_id',
-            { EXT_FIELD => 'districts.name AS district_name' } ) };
-        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-        $EXT_TABLE_JOINS_HASH{builds} = 1;
-        $EXT_TABLE_JOINS_HASH{streets} = 1;
-        $EXT_TABLE_JOINS_HASH{districts} = 1;
-      }
-
-      if ( $attr->{ZIP} ) {
-        push @fields, @{ $self->search_expr( $attr->{ZIP}, 'INT', 'districts.zip',
-            { EXT_FIELD => 'IF(builds.zip>0,builds.zip,districts.zip) AS zip' } ) };
-        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-        $EXT_TABLE_JOINS_HASH{builds} = 1;
-        $EXT_TABLE_JOINS_HASH{streets} = 1;
-        $EXT_TABLE_JOINS_HASH{districts} = 1;
-      }
-
-      if ( $attr->{LATITUDE} ) {
-        push @fields, @{ $self->search_expr( $attr->{LATITUDE}, 'INT', 'builds.coordy',
-          { EXT_FIELD => 'IF(builds.coordy, builds.coordy, "") AS latitude' } ) };
-        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-        $EXT_TABLE_JOINS_HASH{builds} = 1;
-        $EXT_TABLE_JOINS_HASH{streets} = 1;
-        $EXT_TABLE_JOINS_HASH{districts} = 1;
-      }
-
-      if ( $attr->{LONGITUDE} ) {
-        push @fields, @{ $self->search_expr( $attr->{LONGITUDE}, 'INT', 'builds.coordx',
-          { EXT_FIELD => 'IF(builds.coordx, builds.coordx, "") AS longitude' } ) };
-        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-        $EXT_TABLE_JOINS_HASH{builds} = 1;
-        $EXT_TABLE_JOINS_HASH{streets} = 1;
-        $EXT_TABLE_JOINS_HASH{districts} = 1;
-      }
-
-      if ($attr->{ADDRESS_STREET} && !in_array('ADDRESS_STREET', $attr->{SKIP_USERS_FIELDS})){
-        push @fields, @{ $self->search_expr( $attr->{ADDRESS_STREET}, 'STR', 'streets.name AS address_street',
-            { EXT_FIELD => 1 } ) };
-        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-        $EXT_TABLE_JOINS_HASH{builds} = 1;
-        $EXT_TABLE_JOINS_HASH{streets} = 1;
-      }
-
-      if ( $attr->{ADDRESS_STREET2} ){
-        push @fields, @{ $self->search_expr( $attr->{ADDRESS_STREET2}, 'STR', 'streets.second_name AS address_street2',
-            { EXT_FIELD => 1 } ) };
-        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-        $EXT_TABLE_JOINS_HASH{builds} = 1;
-        $EXT_TABLE_JOINS_HASH{streets} = 1;
-
-        if ($attr->{ADDRESS_FULL} && !in_array('ADDRESS_FULL', $attr->{SKIP_USERS_FIELDS})) {
-          my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
-          push @fields, @{$self->search_expr($attr->{ADDRESS_FULL}, "STR",
-            "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
-              "streets.second_name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full2",
-            { EXT_FIELD => 1 })};
-        }
-      }
-
-      if ( $attr->{ADDRESS_STREET_2} ){
-        push @fields,
-          @{ $self->search_expr( $attr->{ADDRESS_STREET_2}, 'STR', 'streets.second_name AS address_street_2',
-            { EXT_FIELD => 1 } ) };
-        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-        $EXT_TABLE_JOINS_HASH{builds} = 1;
-        $EXT_TABLE_JOINS_HASH{streets} = 1;
-      }
-
-      if ( $attr->{ADD_ADDRESS_BUILD} ){
-        $attr->{ADDRESS_BUILD} = $attr->{ADD_ADDRESS_BUILD};
-      }
-
-      if ( $attr->{ADDRESS_BUILD} ){
-        push @fields, @{ $self->search_expr( $attr->{ADDRESS_BUILD}, 'STR', 'builds.number',
-            { EXT_FIELD => 'builds.number AS address_build' } ) };
-        $EXT_TABLE_JOINS_HASH{builds} = 1;
-      }
-
-#      if ( $attr->{MAP_COORDS} ){
-#        $self->{debug}=1;
-#        push @fields, @{ $self->search_expr( $attr->{MAP_COORDS}, 'INT', '',
-#           { EXT_FIELD => 'CONCAT(builds.coordx, ":", builds.coordy) AS map_coords' } ) };
-#        $EXT_TABLE_JOINS_HASH{builds} = 1;
-#      }
+    if ($attr->{DISTRICT_ID} && !in_array('DISTRICT_ID', $attr->{SKIP_USERS_FIELDS})) {
+      push @fields, @{$self->search_expr($attr->{DISTRICT_ID}, 'INT', 'streets.district_id', { EXT_FIELD => 1 })};
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+      $EXT_TABLE_JOINS_HASH{streets} = 1;
+      $EXT_TABLE_JOINS_HASH{districts} = 1;
     }
-    else{
-      my $f_count = $self->{SEARCH_FIELDS_COUNT};
 
-      if ( $attr->{ADDRESS_FULL} && !in_array( 'ADDRESS_FULL', $attr->{SKIP_USERS_FIELDS} )){
+    if ($attr->{ADDRESS_FULL} && !in_array('ADDRESS_FULL', $attr->{SKIP_USERS_FIELDS})) {
+      my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
+
+      # if ($build_delimiter =~ /,/) {
+      #   $attr->{ADDRESS_FULL} =~ s/,/\*/g;
+      # }
+
+      push @fields, @{$self->search_expr($attr->{ADDRESS_FULL}, "STR",
+        "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
+          "streets.name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full",
+        { EXT_FIELD => 1 })};
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+      $EXT_TABLE_JOINS_HASH{streets} = 1;
+      $EXT_TABLE_JOINS_HASH{districts} = 1;
+    }
+
+    if ($attr->{DISTRICT_NAME}) {
+      push @fields, @{$self->search_expr($attr->{DISTRICT_NAME}, 'INT', 'streets.district_id',
+        { EXT_FIELD => 'districts.name AS district_name' })};
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+      $EXT_TABLE_JOINS_HASH{streets} = 1;
+      $EXT_TABLE_JOINS_HASH{districts} = 1;
+    }
+
+    if ($attr->{ZIP}) {
+      push @fields, @{$self->search_expr($attr->{ZIP}, 'INT', 'districts.zip',
+        { EXT_FIELD => 'IF(builds.zip>0,builds.zip,districts.zip) AS zip' })};
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+      $EXT_TABLE_JOINS_HASH{streets} = 1;
+      $EXT_TABLE_JOINS_HASH{districts} = 1;
+    }
+
+    if ($attr->{LATITUDE}) {
+      push @fields, @{$self->search_expr($attr->{LATITUDE}, 'INT', 'builds.coordy',
+        { EXT_FIELD => 'IF(builds.coordy, builds.coordy, "") AS latitude' })};
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+      $EXT_TABLE_JOINS_HASH{streets} = 1;
+      $EXT_TABLE_JOINS_HASH{districts} = 1;
+    }
+
+    if ($attr->{LONGITUDE}) {
+      push @fields, @{$self->search_expr($attr->{LONGITUDE}, 'INT', 'builds.coordx',
+        { EXT_FIELD => 'IF(builds.coordx, builds.coordx, "") AS longitude' })};
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+      $EXT_TABLE_JOINS_HASH{streets} = 1;
+      $EXT_TABLE_JOINS_HASH{districts} = 1;
+    }
+
+    if ($attr->{ADDRESS_STREET} && !in_array('ADDRESS_STREET', $attr->{SKIP_USERS_FIELDS})) {
+      push @fields, @{$self->search_expr($attr->{ADDRESS_STREET}, 'STR', 'streets.name AS address_street',
+        { EXT_FIELD => 1 })};
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+      $EXT_TABLE_JOINS_HASH{streets} = 1;
+    }
+
+    if ($attr->{ADDRESS_STREET2}) {
+      push @fields, @{$self->search_expr($attr->{ADDRESS_STREET2}, 'STR', 'streets.second_name AS address_street2',
+        { EXT_FIELD => 1 })};
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+      $EXT_TABLE_JOINS_HASH{streets} = 1;
+
+      if ($attr->{ADDRESS_FULL} && !in_array('ADDRESS_FULL', $attr->{SKIP_USERS_FIELDS})) {
         my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
-        push @fields, @{ $self->search_expr( $attr->{ADDRESS_FULL}, "STR",
-            "CONCAT(pi.address_street, '$build_delimiter', pi.address_build, '$build_delimiter', pi.address_flat) AS address_full"
-            , { EXT_FIELD => 1 } ) };
-      }
-
-      if ( $attr->{CITY} ){
-        push @fields, @{ $self->search_expr( $attr->{CITY}, 'STR', 'pi.city', { EXT_FIELD => 1 } ) };
-      }
-
-      if ( $attr->{ADDRESS_STREET} ){
-        push @fields,
-          @{ $self->search_expr( $attr->{ADDRESS_STREET}, 'STR', 'pi.address_street', { EXT_FIELD => 1 } ) };
-      }
-
-      if ( $attr->{ADDRESS_BUILD} ){
-        push @fields, @{ $self->search_expr( $attr->{ADDRESS_BUILD}, 'STR', 'pi.address_build', { EXT_FIELD => 1 } ) };
-      }
-
-      if ( $attr->{COUNTRY_ID} ){
-        push @fields, @{ $self->search_expr( $attr->{COUNTRY_ID}, 'STR', 'pi.country_id', { EXT_FIELD => 1 } ) };
-      }
-      elsif ( $attr->{COUNTRY} ){
-        push @fields, @{ $self->search_expr( $attr->{COUNTRY}, 'STR', 'pi.country_id', { EXT_FIELD => 1 } ) };
-      }
-      if ($f_count < $self->{SEARCH_FIELDS_COUNT}){
-        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+        push @fields, @{$self->search_expr($attr->{ADDRESS_FULL}, "STR",
+          "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
+            "streets.second_name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full2",
+          { EXT_FIELD => 1 })};
       }
     }
+
+    if ($attr->{ADDRESS_STREET_2}) {
+      push @fields,
+        @{$self->search_expr($attr->{ADDRESS_STREET_2}, 'STR', 'streets.second_name AS address_street_2',
+          { EXT_FIELD => 1 })};
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+      $EXT_TABLE_JOINS_HASH{streets} = 1;
+    }
+
+    if ($attr->{ADD_ADDRESS_BUILD}) {
+      $attr->{ADDRESS_BUILD} = $attr->{ADD_ADDRESS_BUILD};
+    }
+
+    if ($attr->{ADDRESS_BUILD}) {
+      push @fields, @{$self->search_expr($attr->{ADDRESS_BUILD}, 'STR', 'builds.number',
+        { EXT_FIELD => 'builds.number AS address_build' })};
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+    }
+
+#     }
+    # else{
+    #   my $f_count = $self->{SEARCH_FIELDS_COUNT};
+    #
+    #   if ( $attr->{ADDRESS_FULL} && !in_array( 'ADDRESS_FULL', $attr->{SKIP_USERS_FIELDS} )){
+    #     my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
+    #     push @fields, @{ $self->search_expr( $attr->{ADDRESS_FULL}, "STR",
+    #         "CONCAT(pi.address_street, '$build_delimiter', pi.address_build, '$build_delimiter', pi.address_flat) AS address_full"
+    #         , { EXT_FIELD => 1 } ) };
+    #   }
+    #
+    #   if ( $attr->{CITY} ){
+    #     push @fields, @{ $self->search_expr( $attr->{CITY}, 'STR', 'pi.city', { EXT_FIELD => 1 } ) };
+    #   }
+    #
+    #   if ( $attr->{ADDRESS_STREET} ){
+    #     push @fields,
+    #       @{ $self->search_expr( $attr->{ADDRESS_STREET}, 'STR', 'pi.address_street', { EXT_FIELD => 1 } ) };
+    #   }
+    #
+    #   if ( $attr->{ADDRESS_BUILD} ){
+    #     push @fields, @{ $self->search_expr( $attr->{ADDRESS_BUILD}, 'STR', 'pi.address_build', { EXT_FIELD => 1 } ) };
+    #   }
+    #
+    #   if ( $attr->{COUNTRY_ID} ){
+    #     push @fields, @{ $self->search_expr( $attr->{COUNTRY_ID}, 'STR', 'pi.country_id', { EXT_FIELD => 1 } ) };
+    #   }
+    #   elsif ( $attr->{COUNTRY} ){
+    #     push @fields, @{ $self->search_expr( $attr->{COUNTRY}, 'STR', 'pi.country_id', { EXT_FIELD => 1 } ) };
+    #   }
+    #   if ($f_count < $self->{SEARCH_FIELDS_COUNT}){
+    #     $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+    #   }
+    # }
   }
 
   if ( $attr->{ADDRESS_FLAT} ){
@@ -1625,7 +1227,7 @@ sub search_expr_users{
     push @fields, @{ $self->search_expr( $attr->{DELETED}, 'INT', 'u.deleted', { EXT_FIELD => 1 } ) };
   }
 
-  if($attr->{EXT_BILL_ID} || $attr->{COMPANY_NAME}) {
+  if($attr->{EXT_BILL_ID} || $attr->{COMPANY_NAME} || $attr->{TAX_NUMBER}) {
     $EXT_TABLE_JOINS_HASH{companies} = 1;
   }
 
@@ -1655,6 +1257,7 @@ sub search_expr_users{
   if ( $attr->{SORT} && $attr->{SORT} =~ /^\d+$/){
     my $sort_position = ($attr->{SORT} - 1 < 1) ? 1 : $attr->{SORT} - (($attr->{SORT_SHIFT}) ? $attr->{SORT_SHIFT} : 2);
     my $sort_field = $self->{SEARCH_FIELDS_ARR}->[$sort_position];
+
     if ( $sort_field ){
       if ( $sort_field =~ m/build$|flat$/i ){
         if ( $sort_field =~ m/([a-z\.\_0-9\(\)]+)\s?/i ){
@@ -1770,7 +1373,7 @@ sub table_info {
     FROM information_schema.columns
     WHERE `table_name` = '$table' AND `table_schema` = '$self->{conf}{dbname}' $EXT_WHERE_RULES", undef, { COLS_NAME  => 1 }
   );
-  
+
   return {} if $self->{errno} || !$self->{list};
   return $cols_info->{list} if $attr->{FULL_INFO};
 
@@ -1917,7 +1520,7 @@ sub changes {
 
     $attr->{EXTENDED} = $second_param if ($second_param);
 
-    my $sql = "SELECT * FROM `$TABLE` WHERE " . $change_params_list . " $second_param;";
+    my $sql = 'SELECT * FROM `'. $TABLE ."` WHERE " . $change_params_list . " $second_param;";
     if ( $self->{debug} ){
       print $sql;
     }
@@ -2011,10 +1614,10 @@ sub changes {
               $changes_info{DISABLE} = undef;
             }
           }
-          elsif ( $value > 1 ){
-            $changes_info{STATUS} = $value;
-          }
-          else{
+          else {
+            if ($value > 1) {
+              $changes_info{STATUS} = $value;
+            }
             $changes_info{DISABLE_ACTION} = 1;
           }
 
@@ -2076,7 +1679,7 @@ sub changes {
   my $CHANGES_QUERY = join( ', ', @change_fields );
 
   $self->query(
-    "UPDATE `$TABLE` SET $CHANGES_QUERY WHERE $change_params_list $extended",
+    "UPDATE `". $TABLE ."` SET $CHANGES_QUERY WHERE $change_params_list $extended",
     'do',
     { Bind => \@bind_values }
   );
@@ -2211,5 +1814,34 @@ sub _space_trim {
   return $attr;
 }
 
+#**********************************************************
+=head2 get_archive($attr) - Get archives for table
+
+  Arguments:
+    $table_name
+
+  Returns:
+    \@archive_sufix
+
+=cut
+#**********************************************************
+sub get_archive {
+  my $self = shift;
+  my ($table_name) = @_;
+
+  my $tables = $self->{db}->{db}->table_info('%', $CONF->{dbname}, $table_name . '%');
+
+  my @archive_sufix = ();
+
+  while (my (undef, undef, $name)=$tables->fetchrow_array()) {
+    if ($name =~ /(\d{4}_\d{2}_\d{2})/) {
+      push @archive_sufix, $1;
+    }
+  }
+
+  #print join('<br>', @archive_tables);
+
+  return \@archive_sufix;
+}
 
 1

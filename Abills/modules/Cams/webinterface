@@ -595,7 +595,7 @@ sub cams_groups {
       EX_PARAMS => 'required="required"',
     });
 
-    $TEMPLATE_CAMS_TP{ADDRESS} = form_address_select2({
+    $TEMPLATE_CAMS_TP{ADDRESS} = form_address_select({
       HIDE_FLAT             => 1,
       HIDE_ADD_BUILD_BUTTON => 1,
       LOCATION_ID           => $TEMPLATE_CAMS_TP{LOCATION_ID} || 0,
@@ -658,7 +658,7 @@ sub _cams_show_location {
   $attr->{STREET_ID} = $attr->{street_id} || $attr->{STREET_ID} || 0;
 
   my $address_params = $attr->{VALUES} || '';
-  return '' if !$address_params || !$address_params->{DISTRICT_ID};
+  return '' if !$address_params;
 
   my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
   if ($address_params->{BUILD_ID}) {
@@ -677,8 +677,10 @@ sub _cams_show_location {
     }
   }
 
-  my $address_info = $Address->district_info({ ID => $address_params->{DISTRICT_ID} });
-  return ($address_info->{NAME} || '') if $Address->{TOTAL};
+  if ($address_params->{DISTRICT_ID}) {
+    my $address_info = $Address->district_info({ ID => $address_params->{DISTRICT_ID} });
+    return ($address_info->{NAME} || '') if $Address->{TOTAL};
+  }
 
   return '';
 }
@@ -1674,30 +1676,6 @@ sub cams_get_badge_info {
   my $cameras = $cameras_count > 0 ? $html->badge($cameras_count, { TYPE => 'badge badge-info' }) : '';
 
   return $subscriptions, $cameras;
-}
-
-#*******************************************************************
-=head2 cams_user_del($uid) - Delete user from module
-
-  Arguments:
-    $uid
-
-=cut
-#*******************************************************************
-sub cams_user_del {
-  my ($uid, $attr) = @_;
-
-  my $users_list = $Cams->users_list({ ID => '_SHOW', UID => $uid, COLS_NAME => 1 });
-
-  foreach my $line (@{$users_list}) {
-    my $user_info = $Cams->user_info($line->{uid});
-    cams_account_action({ %{$user_info}, del => 1, UID => $uid });
-  }
-
-  $Cams->{UID} = $uid;
-  $Cams->users_del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
-
-  return 0;
 }
 
 #*******************************************************************

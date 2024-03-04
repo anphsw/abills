@@ -96,23 +96,11 @@ sub config_list {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  my $list;
-  if($self->can('query2')) {
-    $self->query2("SELECT param, value FROM config $WHERE ORDER BY $SORT $DESC", undef, $attr);
-    $list = $self->{list};
+  $self->query("SELECT param, value FROM config $WHERE ORDER BY $SORT $DESC", undef, $attr);
+  my $list = $self->{list};
 
-    if (!$attr->{CONF_ONLY} || $self->{TOTAL} > 0) {
-      $self->query2("SELECT COUNT(*) AS total FROM config $WHERE", undef, { INFO => 1 });
-    }
-
-  }
-  else {
-    $self->query("SELECT param, value FROM config $WHERE ORDER BY $SORT $DESC", undef, $attr);
-    $list = $self->{list};
-
-    if (!$attr->{CONF_ONLY} || $self->{TOTAL} > 0) {
-      $self->query("SELECT COUNT(*) AS total FROM config $WHERE", undef, { INFO => 1 });
-    }
+  if (!$attr->{CONF_ONLY} || $self->{TOTAL} > 0) {
+    $self->query("SELECT COUNT(*) AS total FROM config $WHERE", undef, { INFO => 1 });
   }
 
   return $list || [];
@@ -214,7 +202,8 @@ sub config_add {
       },
       { REPLACE => ($attr->{REPLACE}) ? 1 : undef });
   }
-  $admin->action_add(0, "CONFIG:$attr->{PARAM}", { TYPE => 1 });
+  my $value = $attr->{VALUE} //= q{};
+  $admin->action_add(0, "CONFIG:$attr->{PARAM}=$value", { TYPE => 1 });
 
   return $self;
 }

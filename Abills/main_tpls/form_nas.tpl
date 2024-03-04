@@ -122,11 +122,11 @@
                        placeholder='%NAS_MNG_USER%'
                        class='form-control' type='text'>
                 <div class='input-group-append'>
-                  <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&create=1&ssh_key=1'
+                  <a href='%SELF_URL%?qindex=$index&NAS_ID=%NAS_ID%&create=1&ssh_key=1'
                      class='btn input-group-button' target='_new' title='_{CREATE}_ SSH public key'>
                     <i class='fa fa-key'></i>
                   </a>
-                  <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&download=1&ssh_key=1'
+                  <a href='%SELF_URL%?qindex=$index&NAS_ID=%NAS_ID%&download=1&ssh_key=1'
                      class='btn input-group-button' target='_new' title='_{DOWNLOAD}_ SSH public key'>
                     <i class='fa fa-download'></i>
                   </a>
@@ -146,11 +146,10 @@
               </div>
             </div>
           </div>
-
-          <div class='form-group'>
-            %ADDRESS_FORM%
-          </div>
         </div>
+
+        %ADDRESS_FORM%
+
       </div>
     </div>
 

@@ -24,7 +24,7 @@
       </div>
 
       <hr>
-      %ADRESS_FORM%
+      %ADDRESS_FORM%
       <hr>
 
       <div class='row'>

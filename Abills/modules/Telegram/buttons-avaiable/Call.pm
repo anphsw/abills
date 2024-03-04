@@ -3,6 +3,8 @@ package Call;
 use strict;
 use warnings FATAL => 'all';
 
+my %icons = (support => "\xF0\x9F\x9B\xA0\xEF\xB8\x8F");
+
 #**********************************************************
 =head2 new($Botapi)
 
@@ -32,7 +34,7 @@ sub new {
 sub btn_name {
   my $self = shift;
 
-  return $self->{bot}->{lang}->{CONTACT_SUPPORT};
+  return "$icons{support} $self->{bot}{lang}{CONTACT_SUPPORT}";
 }
 
 #**********************************************************

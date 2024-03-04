@@ -26,11 +26,15 @@ our (
   $db,
   $admin,
   %conf,
-  %permissions
+  %permissions,
+  %lang
 );
 
+use Internet::Services;
 use Internet;
+
 my Internet $Internet;
+my Internet::Services $Internet_services;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -60,9 +64,15 @@ sub new {
     $self->{routes_list} = $self->admin_routes();
   }
 
+  %permissions = %{$Admin->{permissions} || {}};
+  %lang = (%{$self->{lang}}, %lang);
+
   $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
   $Internet->{debug} = $self->{debug};
-  %permissions = %{$Admin->{permissions} || {}};
+  $Internet_services = Internet::Services->new($db, $admin, \%conf, {
+    lang        => \%lang,
+    permissions => \%permissions
+  });
 
   return $self;
 }
@@ -441,6 +451,37 @@ sub admin_routes {
 
           return $Tariffs;
         }
+      },
+      credentials => [
+        'ADMIN'
+      ],
+    },
+    {
+      method      => 'PUT',
+      path        => '/internet/:uid/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        # clear global form
+        %main::FORM = ();
+
+        return $Internet_services->internet_user_chg_tp({
+          %$query_params,
+          UID => $path_params->{uid},
+        });
+      },
+      credentials => [
+        'ADMIN'
+      ],
+    },
+    {
+      method      => 'GET',
+      path        => '/internet/sessions/:uid/',
+      handler     => sub {
+        require Internet::Api::admin::Sessions;
+        my $Sessions = Internet::Api::admin::Sessions->new($self->{db}, $self->{admin}, $self->{conf});
+
+        return $Sessions->get_sessions_uid(@_);
       },
       credentials => [
         'ADMIN'

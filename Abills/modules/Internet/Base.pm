@@ -482,7 +482,7 @@ sub internet_search {
         'TOTAL'        => $Internet->{TOTAL},
         'MODULE'       => 'Internet',
         'MODULE_NAME'  => $lang->{INTERNET},
-        'SEARCH_INDEX' => '&full=1&get_index=internet_users_list'
+        'SEARCH_INDEX' => '0&full=1&get_index=internet_users_list'
           . '&' . join('&', @qs) . "&search=1&GLOBAL=1"
       };
     }
@@ -492,6 +492,10 @@ sub internet_search {
   require Internet::Sessions;
   Internet::Sessions->import();
   my $Sessions = Internet::Sessions->new($db, $admin, $CONF);
+
+  if($attr->{DEBUG}) {
+    $Sessions->{debug} = 1;
+  }
 
   #if ($permissions{5} && $permissions{5}{0}) {
     @default_search = ('CID', '_MULTI_HIT');
@@ -519,9 +523,16 @@ sub internet_search {
     }
   #}
 
+  if (! $CONF->{INTERNET_LOG_GLOBAL_SEARCH}) {
+    return \@info;
+  }
+
   #Stats
   #if ($permissions{3} && $permissions{3}{6}) {
-    $Sessions->list({ %LIST_PARAMS });
+    $Sessions->list({
+      %LIST_PARAMS,
+      SORT          => 1,
+    });
 
     if($Sessions->{TOTAL}) {
       push @info, {
@@ -535,6 +546,27 @@ sub internet_search {
   #}
 
   return \@info;
+}
+
+#**********************************************************
+=head2 internet_user_del($uid, $attr) - Delete user from module
+
+=cut
+#**********************************************************
+sub internet_user_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return 0 if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
+
+  $Internet->{UID} = $attr->{USER_INFO}{UID};
+  $Internet->user_del({ UID => $attr->{USER_INFO}{UID}, COMMENTS => $attr->{USER_INFO}{COMMENTS} });
+
+  use Log;
+  my $Log = Log->new($db, $CONF);
+  $Log->log_del({ LOGIN => $attr->{USER_INFO}{LOGIN} });
+
+  return 1;
 }
 
 1;

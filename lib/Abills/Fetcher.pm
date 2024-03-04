@@ -115,15 +115,15 @@ sub web_request {
       return { errno => 9, errstr => '500 Internal Server Error' };
     }
     else {
-      ($attr->{MORE_INFO} || $attr->{GET_HEADERS}) ?
-      return json_return($result, $attr), $info :
-      return json_return($result, $attr);
+      ($attr->{MORE_INFO} || $attr->{GET_HEADERS})
+        ? return json_return($result, $attr), $info
+        : return json_return($result, $attr);
     }
   }
 
-  ($attr->{MORE_INFO} || $attr->{GET_HEADERS}) ?
-    return $result, $info :
-    return $result;
+  ($attr->{MORE_INFO} || $attr->{GET_HEADERS})
+    ? return $result, $info
+    : return $result;
 }
 
 #**********************************************************
@@ -288,7 +288,8 @@ sub _curl_request {
     }
   }
 
-  $request_params =~ s/\`/\\\`/g;
+  # delete in next 6 months if all works
+  # $request_params =~ s/\`/\\\`/g;
   $request_url =~ s/\n/%20/g;
   $request_url =~ s/ /%20/g;
   $request_url =~ s/"/\\"/g;
@@ -331,10 +332,10 @@ sub _curl_request {
       if ($attr->{PAGE_HEADER}) {
         print "Content-Type: text/html\n\n";
       }
-      print "<br>DEBUG: $debug COUNT:" . $request_ . "=====REQUEST=====<br>\n";
+      print "\n<br>DEBUG: $debug COUNT:" . $request_ . "=====REQUEST=====<br>\n";
       print "<textarea cols=90 rows=10>$request_cmd</textarea><br>\n";
       print "=====RESPONSE=====<br>\n";
-      print "<textarea cols=90 rows=15>$result</textarea>\n";
+      print "<textarea cols=90 rows=15>$result</textarea>\n\n";
     }
   }
 

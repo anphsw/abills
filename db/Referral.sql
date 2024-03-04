@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS `referral_tp`
     `static_accrual`     SMALLINT(1)            NOT NULL DEFAULT 0,
     `multi_accrual`      SMALLINT(1)            NOT NULL DEFAULT 0,
     `payments_type`      VARCHAR(60)            NOT NULL DEFAULT '0, 1, 2',
-    `fees_type`          VARCHAR(60)            NOT NULL DEFAULT '0, 1'
+    `fees_type`          VARCHAR(60)            NOT NULL DEFAULT '0, 1',
+    `inactive_days`      SMALLINT(3)            NOT NULL DEFAULT 0  COMMENT 'Quantity of users inactive days'
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Referral tp table stores information about referral tariffs';
@@ -58,6 +59,7 @@ CREATE TABLE IF NOT EXISTS `referral_requests`
     `location_id`  INT(11) UNSIGNED     NOT NULL DEFAULT 0,
     `address_flat` VARCHAR(10)          NOT NULL DEFAULT '',
     `comments`     VARCHAR(100)         NOT NULL DEFAULT '',
+    `inner_comments` VARCHAR(200)       NOT NULL DEFAULT '',
     KEY referral_uid (`referral_uid`)
 )
   DEFAULT CHARSET = utf8

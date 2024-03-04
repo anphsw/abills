@@ -58,12 +58,12 @@
                       required>%MESSAGE%</textarea>
           </div>
         </div>
-        <div class='form-group row'>
-          <label class='col-md-4 col-form-label text-md-right'>_{STATE}_:</label>
-          <div class='col-md-8'>
-            %STATE_SEL%
-          </div>
-        </div>
+<!--        <div class='form-group row'>-->
+<!--          <label class='col-md-4 col-form-label text-md-right'>_{STATE}_:</label>-->
+<!--          <div class='col-md-8'>-->
+<!--            %STATE_SEL%-->
+<!--          </div>-->
+<!--        </div>-->
         <div class='form-group row'>
           <label class='col-md-4 col-form-label text-md-right'>_{PRIORITY}_:</label>
           <div class='col-md-8'>

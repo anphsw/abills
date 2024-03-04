@@ -1,0 +1,510 @@
+#!perl
+=head1 NAME
+
+ Mobile web functions
+
+=cut
+
+use strict;
+use warnings FATAL => 'all';
+
+use Mobile;
+use Time::Piece;
+use JSON qw(decode_json);
+use Abills::Base qw/in_array _bp/;
+
+our (
+  %lang,
+  $html,
+  $admin,
+  $db,
+  %conf,
+  @bool_vals,
+  @MODULES,
+  $DATE
+);
+
+my $Mobile = Mobile->new($db, $admin, \%conf);
+my %payment_types = (0 => $lang{PREPAID}, 1 => $lang{POSTPAID});
+my %status = (0 => $lang{ENABLE}, 1 => $lang{DISABLE});
+our @PRIORITY = ($lang{LOW}, $lang{NORMAL}, $lang{HIGH});
+
+require Mobile::Periodic;
+
+use Mobile::Services;
+my $Services = Mobile::Services->new($db, $admin, \%conf, { lang => \%lang });
+
+use Mobile::Configure;
+my $Configure = Mobile::Configure->new($db, $admin, \%conf, { lang => \%lang });
+
+#**********************************************************
+=head2 mobile_categories()
+
+=cut
+#**********************************************************
+sub mobile_categories {
+
+  $Mobile->{ACTION} = 'add';
+  $Mobile->{LNG_ACTION} = $lang{ADD};
+
+  if ($FORM{add}) {
+    $Mobile->category_add(\%FORM);
+    $html->message('info', $lang{ADDED}) if !_error_show($Mobile);
+  }
+  elsif ($FORM{chg}) {
+    $Mobile->category_info({ ID => $FORM{chg} });
+    $Mobile->{ACTION} = 'change';
+    $Mobile->{LNG_ACTION} = $lang{CHANGE};
+    $Mobile->{MANDATORY} = 'checked' if $Mobile->{MANDATORY};
+    $Mobile->{MAIN_CATEGORY} = 'checked' if $Mobile->{MAIN_CATEGORY};
+  }
+  elsif ($FORM{change}) {
+    $Mobile->category_change(\%FORM);
+    $html->message('info', $lang{CHANGED}) if !_error_show($Mobile);
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Mobile->category_del({ ID => $FORM{del} });
+    $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Mobile);
+  }
+
+  $html->tpl_show(_include('mobile_category', 'Mobile'), $Mobile);
+
+  result_former({
+    INPUT_DATA      => $Mobile,
+    FUNCTION        => 'category_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,NAME,DESCRIPTION,MANDATORY,MAIN_CATEGORY',
+    FUNCTION_FIELDS => 'change,del',
+    FUNCTION_INDEX  => $index,
+    SKIP_USER_TITLE => 1,
+    FILTER_VALUES   => {
+      mandatory     => sub {return $bool_vals[ shift ]},
+      main_category => sub {return $bool_vals[ shift ]}
+    },
+    EXT_TITLES      => {
+      id            => '#',
+      name          => $lang{NAME},
+      description   => $lang{DESCRIBE},
+      mandatory     => $lang{MOBILE_MANDATORY},
+      main_category => $lang{MOBILE_MAIN_CATEGORY}
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{MOBILE_CATEGORIES},
+      qs      => $pages_qs,
+      ID      => 'MOBILE_CATEGORIES',
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Mobile',
+    TOTAL           => 1,
+    SEARCH_FORMER   => 1,
+  });
+}
+
+#**********************************************************
+=head2 mobile_services()
+
+=cut
+#**********************************************************
+sub mobile_services {
+
+  $Mobile->{ACTION} = 'add';
+  $Mobile->{LNG_ACTION} = $lang{ADD};
+
+  if ($FORM{add}) {
+    $Mobile->service_add(\%FORM);
+    $html->message('info', $lang{ADDED}) if !_error_show($Mobile);
+  }
+  elsif ($FORM{chg}) {
+    $Mobile->service_info({ ID => $FORM{chg} });
+    $Mobile->{ACTION} = 'change';
+    $Mobile->{LNG_ACTION} = $lang{CHANGE};
+    $Mobile->{MANDATORY} = 'checked' if $Mobile->{MANDATORY};
+  }
+  elsif ($FORM{change}) {
+    $Mobile->service_change(\%FORM);
+    $html->message('info', $lang{CHANGED}) if !_error_show($Mobile);
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Mobile->service_del({ ID => $FORM{del} });
+    $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Mobile);
+  }
+
+  $Mobile->{CATEGORIES_SEL} = categories_sel({ SELECTED => $Mobile->{CATEGORY_ID} });
+  $Mobile->{PRIORITY_SEL} = $html->form_select('PRIORITY', {
+    SELECTED     => $Mobile->{PRIORITY} || 1,
+    SEL_ARRAY    => \@PRIORITY,
+    ARRAY_NUM_ID => 1
+  });
+  $html->tpl_show(_include('mobile_service', 'Mobile'), $Mobile);
+
+  result_former({
+    INPUT_DATA      => $Mobile,
+    FUNCTION        => 'service_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,NAME,DESCRIPTION,CATEGORY_NAME,MANDATORY,PRICE',
+    HIDDEN_FIELDS   => 'USER_DESCRIPTION,PRIORITY',
+    FUNCTION_FIELDS => 'change,del',
+    FUNCTION_INDEX  => $index,
+    SKIP_USER_TITLE => 1,
+    FILTER_VALUES   => {
+      mandatory => sub {return $bool_vals[ shift ]},
+      priority  => sub {return $PRIORITY[ shift ]}
+    },
+    EXT_TITLES      => {
+      id               => '#',
+      name             => $lang{NAME},
+      description      => $lang{DESCRIBE},
+      user_description => $lang{DESCRIBE_FOR_SUBSCRIBER},
+      mandatory        => $lang{MOBILE_MANDATORY},
+      category_name    => $lang{MOBILE_CATEGORY},
+      price            => $lang{PRICE},
+      priority         => $lang{PRIORITY}
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{MOBILE_SERVICES},
+      qs      => $pages_qs,
+      ID      => 'MOBILE_CATEGORIES',
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Mobile',
+    TOTAL           => 1,
+    SEARCH_FORMER   => 1,
+  });
+}
+
+#**********************************************************
+=head2 mobile_tariff_plans()
+
+=cut
+#**********************************************************
+sub mobile_tariff_plans {
+
+  $Mobile->{ACTION} = 'add';
+  $Mobile->{LNG_ACTION} = $lang{ADD};
+
+  if ($FORM{add}) {
+    my $result = $Configure->tariff_plan_add(\%FORM);
+    $result->{message} = $result->{errmsg} if $result->{errmsg};
+    $html->message('info', $lang{ADDED}) if !_error_show($result);
+  }
+  elsif ($FORM{chg}) {
+    $Mobile->tariff_info({ ID => $FORM{chg} });
+    $Mobile->{ACTION} = 'change';
+    $Mobile->{LNG_ACTION} = $lang{CHANGE};
+    $Mobile->{REDUCTION_FEE} = 'checked' if $Mobile->{REDUCTION_FEE};
+  }
+  elsif ($FORM{change}) {
+    my $result = $Configure->tariff_plan_change(\%FORM);
+    $result->{message} = $result->{errmsg} if $result->{errmsg};
+    $html->message('info', $lang{CHANGED}) if !_error_show($result);
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Mobile->tariff_del({ ID => $FORM{del} });
+    $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Mobile);
+  }
+
+  my $services = $Mobile->service_list({
+    NAME          => '_SHOW',
+    PRICE         => '_SHOW',
+    CATEGORY_NAME => '_SHOW',
+    DESCRIPTION   => '_SHOW',
+    CATEGORY_ID   => '!',
+    MANDATORY     => '_SHOW',
+    SORT          => 'ms.category_id, ms.id',
+    COLS_NAME     => 1
+  });
+
+  my $services_table = $html->table({
+    title   => [ '', '#', $lang{MOBILE_CATEGORY}, $lang{NAME}, $lang{PRICE}, $lang{DESCRIBE}, $lang{MOBILE_MANDATORY} ],
+    caption => $lang{MOBILE_SERVICES},
+    width   => '100%',
+  });
+
+  my $categories = {};
+  foreach my $service (@{$services}) {
+    push @{$categories->{$service->{category_id}}}, "SERVICE_$service->{id}";
+  }
+
+  my @checked_services = $Mobile->{SERVICE_ID} ? split(',\s?', $Mobile->{SERVICE_ID}) : ();
+  foreach my $service (@{$services}) {
+    my $input_disables = join(',', grep {$_ ne "SERVICE_$service->{id}"} @{$categories->{$service->{category_id}}});
+    my $checkbox = $html->form_input('SERVICE_ID', $service->{id}, {
+      TYPE      => 'checkbox',
+      class     => 'form-control-static mobile-service',
+      ID        => "SERVICE_$service->{id}",
+      EX_PARAMS => "data-input-disables='$input_disables' data-price='$service->{price}'",
+      STATE     => in_array($service->{id}, \@checked_services) ? '1' : undef
+    });
+
+    $services_table->addrow($checkbox, $service->{id}, $service->{category_name}, $service->{name},
+      $service->{price}, $service->{description}, $service->{mandatory});
+  }
+
+  $Mobile->{PAYMENT_TYPES_SEL} = $html->form_select('PAYMENT_TYPE', {
+    SELECTED => $Mobile->{PAYMENT_TYPE} || 0,
+    SEL_HASH => \%payment_types,
+    NO_ID    => 1
+  });
+
+  $html->tpl_show(_include('mobile_tariff_plan', 'Mobile'), { %{$Mobile}, CATEGORIES_TABLE => $services_table->show() });
+
+  result_former({
+    INPUT_DATA      => $Mobile,
+    FUNCTION        => 'tariff_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,NAME,MONTH_FEE,PAYMENT_TYPE,COMMENTS,REDUCTION_FEE',
+    FUNCTION_FIELDS => 'change,del',
+    FUNCTION_INDEX  => $index,
+    SKIP_USER_TITLE => 1,
+    FILTER_VALUES   => {
+      payment_type  => sub {
+        my $type = shift;
+        return $payment_types{$type};
+      },
+      reduction_fee => sub {
+        return $bool_vals[shift];
+      },
+    },
+    EXT_TITLES      => {
+      id            => '#',
+      name          => $lang{NAME},
+      comments      => $lang{DESCRIBE},
+      month_fee     => $lang{MONTH_FEE},
+      month_fee     => $lang{MONTH_FEE},
+      payment_type  => $lang{PAYMENT_TYPE},
+      reduction_fee => $lang{REDUCTION},
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{TARIF_PLANS},
+      qs      => $pages_qs,
+      ID      => 'MOBILE_TARIFF_PLANS',
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Mobile',
+    TOTAL           => 1,
+    SEARCH_FORMER   => 1,
+  });
+}
+
+#**********************************************************
+=head2 mobile_user()
+
+=cut
+#**********************************************************
+sub mobile_user {
+
+  $Mobile->{ACTION} = 'add';
+  $Mobile->{LNG_ACTION} = $lang{ADD};
+
+  if ($FORM{confirm_pin} && $FORM{ID} && $FORM{PIN}) {
+    $Mobile->user_info($FORM{ID});
+    my $result = $Services->confirm_pin(\%FORM);
+    $result->{message} = $result->{errmsg} if $result->{errmsg};
+    $html->message('info', $lang{INFO}, $lang{MOBILE_WAIT_CONFIRMATION_NUMBER}) if !_error_show($result);
+
+  }
+  elsif ($FORM{cancel_confirm} && $FORM{ID}) {
+    $Mobile->user_info($FORM{ID});
+    if ($Mobile->{EXTERNAL_METHOD} && $Mobile->{EXTERNAL_METHOD} eq 'partnerP2C') {
+      $Mobile->user_change({ ID => $FORM{ID}, EXTERNAL_METHOD => '', TRANSACTION_ID => '' });
+    }
+  }
+  elsif ($FORM{activate} && $FORM{ID}) {
+    $Mobile->user_info($FORM{ID});
+    if ($Mobile->{EXTERNAL_METHOD} && $Mobile->{EXTERNAL_METHOD} eq 'partnerP2C') {
+      $html->tpl_show(_include('mobile_confirm_pin', 'Mobile'), $Mobile);
+    }
+    else {
+      my $result = $Services->phone_activate(\%FORM);
+      $result->{message} = $result->{errmsg} if $result->{errmsg};
+      if (!_error_show($result)) {
+        if ($result->{EXTERNAL_METHOD} && $result->{EXTERNAL_METHOD} eq 'partnerP2C') {
+          $Mobile->user_info($FORM{ID});
+          $html->tpl_show(_include('mobile_confirm_pin', 'Mobile'), $Mobile);
+        }
+        else {
+          $html->message('info', $lang{ADDED}, $lang{MOBILE_WAIT_CONFIRMATION_NUMBER});
+        }
+      }
+    }
+  }
+  elsif ($FORM{balance} && $FORM{ID}) {
+    my $result = $Services->balance(\%FORM);
+    $result->{message} = $result->{errmsg} if $result->{errmsg};
+    if (!_error_show($result) && $result->{balances}) {
+      $Mobile->{BALANCES} = $result->{balances};
+    }
+  }
+  elsif ($FORM{activate_tp_form}) {
+    $Mobile->user_info($FORM{ID});
+    if ($Mobile->{TP_ID}) {
+      $Mobile->{ACTION} = 'tp_activate';
+      $Mobile->{LNG_ACTION} = $lang{CHANGE};
+
+      $Mobile->{TP_SEL} = $html->form_input('TP_NAME', $Mobile->{TP_NAME}, { class => 'form-control', EX_PARAMS => 'readonly' });
+    }
+    else {
+      $Mobile->{ACTION} = 'tp_activate';
+      $Mobile->{LNG_ACTION} = $lang{ADD};
+      $Mobile->{TP_SEL} = $html->form_select('TP_ID', {
+        SEL_LIST    => $Mobile->tariff_list({
+          NAME      => '_SHOW',
+          COLS_NAME => 1,
+          PAGE_ROWS => 100000
+        }),
+        SEL_VALUE    => 'name',
+        SEL_KEY      => 'id',
+        SORT_KEY_NUM => 1,
+        NO_ID        => 1,
+        SEL_OPTIONS  => { '' => '--' },
+        EX_PARAMS    => 'required="required"',
+      });
+    }
+
+    $Mobile->{STATUS_SEL} = sel_status({ STATUS => $Mobile->{TP_ID} ? $Mobile->{TP_STATUS} : 0 });
+
+    if ($Mobile->{EXTERNAL_METHOD} && $Mobile->{EXTERNAL_METHOD} eq 'partnerOrderOffer') {
+      $html->message('info', $lang{INFO}, $lang{MOBILE_WAIT_CONFIRMATION_TARIFF});
+    }
+    else {
+      $html->tpl_show(_include('mobile_user_tp_form', 'Mobile'), $Mobile);
+    }
+  }
+  elsif ($FORM{tp_activate}) {
+    my $result = $Services->user_add_tp(\%FORM);
+    $result->{message} = $result->{errmsg} if $result->{errmsg};
+    $html->message('info', $lang{ADDED}) if !_error_show($result);
+  }
+  elsif ($FORM{add}) {
+    $Mobile->user_add(\%FORM);
+    $html->message('info', $lang{ADDED}) if !_error_show($Mobile);
+  }
+
+  if ($FORM{add_form}) {
+    $Mobile->{DATE} = $html->form_datepicker('DATE', $Mobile->{DATE} || $DATE, { OUTPUT2RETURN => 1 });
+    $Mobile->{UID} //= $FORM{UID};
+    $html->tpl_show(_include('mobile_add_phone_form', 'Mobile'), $Mobile);
+  }
+
+  users_list_table();
+}
+
+#**********************************************************
+=head2 users_list_table()
+
+=cut
+#**********************************************************
+sub users_list_table {
+
+  my $users = $Mobile->user_list({
+    ID             => '_SHOW',
+    UID            => $LIST_PARAMS{UID} || $FORM{UID} || '_SHOW',
+    DESCRIPTION    => '_SHOW',
+    PHONE          => '_SHOW',
+    DATE           => '_SHOW',
+    TP_NAME        => '_SHOW',
+    TP_DISABLE     => '_SHOW',
+    TP_ACTIVATE    => '_SHOW',
+    DISABLE        => '_SHOW',
+    TP_DISABLE     => '_SHOW',
+    TRANSACTION_ID => '_SHOW',
+    COLS_NAME      => 1
+  });
+
+  my $html_language = $html->{language} || 'english';
+  my $column_lang = $html_language eq 'russian' ? 'ru' : $html_language eq 'ukrainian' ? 'ua' : 'en';
+  my $extra_columns = 0;
+
+  my @title = ('#', 'UID', $lang{PHONE}, $lang{DATE}, $lang{MOBILE_STATUS_NUMBER}, $lang{TARIF_PLAN},
+    $lang{MOBILE_STATUS_TARIFF_PLAN}, $lang{MOBILE_ACTIVATION_DATE}, $lang{DESCRIBE});
+  my @extra_row = ();
+  if ($Mobile->{BALANCES} && ref $Mobile->{BALANCES} eq 'ARRAY') {
+    $extra_columns = scalar(@{$Mobile->{BALANCES}});
+    foreach my $column (@{$Mobile->{BALANCES}}) {
+      my $column_name = $column->{"name_$column_lang"} || $column->{name_en};
+      push @title, $column_name;
+
+      my $measure = $column->{"measure_$column_lang"} || $column->{measure_en};
+      my $amount = $column->{amount} || 0;
+
+      push @extra_row, join(' ', ($amount, $measure));
+    }
+  }
+  push @title, '-';
+
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{MOBILE_COMMUNICATION},
+    title   => \@title,
+    ID      => 'MOBILE_USERS_LIST',
+    qs      => $pages_qs,
+    MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+  });
+
+  foreach my $line (@{$users}) {
+    my @buttons = ();
+
+    if ($line->{disable}) {
+      push @buttons, $html->button($lang{PHONE_ACTIVATE}, "index=$index&activate=1&ID=$line->{id}&$pages_qs",
+        { class => 'btn btn-default btn-xs' });
+    }
+    else {
+      push @buttons, $html->button($lang{TARIF_PLAN}, "index=$index&activate_tp_form=1&ID=$line->{id}&$pages_qs",
+        { class => 'btn btn-default btn-xs' });
+      push @buttons, $html->button($lang{BALANCE}, "index=$index&balance=1&ID=$line->{id}&$pages_qs",
+        { class => 'btn btn-default btn-xs' });
+    }
+
+    my $phone_status = $status{defined $line->{disable} ? $line->{disable} : 1};
+    my $tp_status = $status{defined $line->{tp_disable} ? $line->{tp_disable} : 1};
+    my @row = ($line->{id}, $line->{uid}, $line->{phone}, $line->{date}, $phone_status,
+      $line->{tp_name}, $tp_status, $line->{tp_activate}, $line->{description});
+
+    if ($extra_columns) {
+      if ($FORM{ID} && $FORM{ID} eq $line->{id} && scalar(@extra_row)) {
+        @row = (@row, @extra_row);
+      }
+      else {
+        push @row, ('') x $extra_columns;
+      }
+    }
+
+    push @row, $html->element('div', join(' ', @buttons), { class => 'btn-group' });
+
+    $table->addrow(@row);
+  }
+
+  print $table->show();
+}
+
+#**********************************************************
+=head2 categories_sel()
+
+=cut
+#**********************************************************
+sub categories_sel {
+  my ($attr) = @_;
+
+  return $html->form_select('CATEGORY_ID', {
+    SELECTED     => $attr->{SELECTED} ? $attr->{SELECTED} : 0,
+    SEL_LIST     => $Mobile->category_list({
+      NAME      => '_SHOW',
+      COLS_NAME => 1,
+      PAGE_ROWS => 100000
+    }),
+    SEL_VALUE    => 'name',
+    SEL_KEY      => 'id',
+    SORT_KEY_NUM => 1,
+    NO_ID        => 1,
+    SEL_OPTIONS  => { '' => '--' },
+    EX_PARAMS    => 'required="required"',
+  });
+}
+
+1;

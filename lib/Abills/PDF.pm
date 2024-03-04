@@ -942,8 +942,6 @@ sub tpl_show{
     $tpl_describe = { %{$tpl_describe}, %{$attr->{EXTEND_TPL_DESCRIBE}} };
   }
   
-  use Abills::Base qw/_bp/;
-  
   for my $key ( sort keys %{$tpl_describe} ){
     my @patterns = ();
 

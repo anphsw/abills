@@ -88,6 +88,13 @@
 </div>
 
 <div class='form-group row'>
+  <label class='col-sm-4 col-md-4 control-label' for='PLATE_NUMBER'>_{ABON_LICENSE_NUMBER}_:</label>
+  <div class='col-sm-8 col-md-8'>
+    <input id='PLATE_NUMBER' name='PLATE_NUMBER' value='%PLATE_NUMBER%' placeholder='AA0001AA' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group row'>
   <label class='col-sm-4 col-md-4 control-label' for='MARK'>_{ABON_VEHICLE_MAKE}_:</label>
   <div class='col-sm-8 col-md-8'>
     %MARK%
@@ -112,13 +119,6 @@
   <label class='col-sm-4 col-md-4 control-label' for='VIN'>_{ABON_VEHICLE_VIN_NUMBER}_:</label>
   <div class='col-sm-8 col-md-8'>
     <input id='VIN' name='VIN' value='%VIN%' class='form-control' type='text'>
-  </div>
-</div>
-
-<div class='form-group row'>
-  <label class='col-sm-4 col-md-4 control-label' for='PLATE_NUMBER'>_{ABON_LICENSE_NUMBER}_:</label>
-  <div class='col-sm-8 col-md-8'>
-    <input id='PLATE_NUMBER' name='PLATE_NUMBER' value='%PLATE_NUMBER%' placeholder='AA0001AA' class='form-control' type='text'>
   </div>
 </div>
 
@@ -152,17 +152,16 @@
 
 <script>
   jQuery(document).ready(function () {
-    jQuery('#MARK').on('change', function() {
+    jQuery('#MARK').on('change', function(event, attr) {
+      let model_name = attr && attr.model ? attr.model : undefined;
       let brand_name = jQuery(this).val();
       if (!brand_name) return;
 
       jQuery('#MODEL').attr('disabled', true);
-      fetch(`/api.cgi/abon/plugin/${jQuery('#PLUGIN_ID').val()}/info?MARK_NAME=${brand_name}`, {
+      fetch(`/api.cgi/abon/plugin/${jQuery('#PLUGIN_ID').val()}/info?MARK_NAME=${brand_name}&MODEL=${model_name}`, {
         mode: 'cors',
         credentials: 'same-origin',
         headers: {'Content-Type': 'application/json'},
-        redirect: 'follow',
-        referrerPolicy: 'no-referrer',
       })
         .then(response => {
           if (!response.ok) throw response;
@@ -174,11 +173,12 @@
             let selectList = jQuery('<select></select>', {width: '100%', id: 'MODEL', name: 'MODEL'});
 
             data.models.forEach(function(model) {
-              let option = jQuery('<option></option>', {value: model, text: model});
+              let option = jQuery('<option></option>', {value: model.toString().toUpperCase(), text: model});
               selectList.append(option);
             });
 
             jQuery('#VEHICLE_MODEL_CONTAINER').html('').append(selectList);
+            if (model_name) selectList.val(model_name);
             selectList.select2();
             return;
           }
@@ -188,6 +188,41 @@
           console.log(err);
           jQuery('#VEHICLE_MODEL_CONTAINER').html('');
         });
+    });
+
+    jQuery('#PLATE_NUMBER').on('input', function () {
+      let number = jQuery(this).val();
+      if (number.length !== 8) return;
+
+      if (typeof timeout !== 'undefined' && timeout) {
+        clearTimeout(timeout);
+      }
+      timeout = setTimeout(function () {
+        fetch(`/api.cgi/abon/plugin/${jQuery('#PLUGIN_ID').val()}/info?PLATE_NUMBER=${number}`, {
+          mode: 'cors',
+          credentials: 'same-origin',
+          headers: {'Content-Type': 'application/json'},
+        })
+          .then(response => {
+            if (!response.ok) throw response;
+            return response;
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.vin) jQuery('#VIN').val(data.vin);
+            if (data.year) jQuery('#MAKE_YEAR').val(data.year);
+
+            if (data.advancedInfo) {
+              if (data.advancedInfo.brand) {
+                jQuery('#MARK').val(data.advancedInfo.brand);
+                jQuery('#MARK').trigger('change', { model: data.advancedInfo.model });
+              }
+            }
+          })
+          .catch(err => {
+            console.log(err);
+          });
+      }, 500);
     });
   });
 </script>

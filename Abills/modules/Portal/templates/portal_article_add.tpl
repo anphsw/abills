@@ -14,7 +14,7 @@
 
 <form action=$SELF_URL name='portal_form' method=POST class='form-horizontal' enctype='multipart/form-data'>
   <input type=hidden name=index value=$index>
-  <input type=hidden name=ID value=%ID%>
+  <input type=hidden name=id value=%id%>
 
   <div class='row'>
     <div class='col-md-6'>
@@ -24,21 +24,21 @@
         </div>
         <div class='card-body'>
           <div class='form-group row'>
-            <label class='col-md-3 control-label'>_{DATE_PUBLICATE}_:</label>
+            <label class='col-md-3 control-label required'>_{DATE_PUBLICATE}_:</label>
             <div class='col-md-9'>
-              <input required class='form-control datepicker' placeholder='0000-00-00' name='DATE' value='%DATE%'>
+              <input required class='form-control datepicker' placeholder='0000-00-00' name='date' value='%date%'>
             </div>
           </div>
 
           <div class='form-group row'>
             <label class='col-md-3 control-label'>_{DATE_END_PUBLICATE}_:</label>
             <div class='col-md-9'>
-              <input class='form-control datepicker' placeholder='0000-00-00' name='END_DATE' value='%END_DATE%'>
+              <input class='form-control datepicker' placeholder='0000-00-00' name='end_date' value='%end_date%'>
             </div>
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-3 control-label'>_{MENU}_:</label>
+            <label class='col-md-3 control-label required'>_{MENU}_:</label>
             <div class='col-md-9'>%PORTAL_MENU_ID%</div>
           </div>
 
@@ -46,7 +46,7 @@
             <label class='col-md-3 control-label' for='PERMALINK'>_{LINK}_</label>
             <div class='col-md-9'>
               <div class='input-group'>
-                <input id='PERMALINK' name='PERMALINK' value='%PERMALINK%' class='form-control' type='text'>
+                <input id='PERMALINK' name='permalink' value='%permalink%' class='form-control' type='text'>
               </div>
             </div>
           </div>
@@ -57,20 +57,20 @@
               <div class='row'>
                 <div class='col-md-4'>
                   <div class='custom-control custom-radio'>
-                    <input class='custom-control-input' type='radio' id='STATUS' name='STATUS' value='1' %SHOWED%>
+                    <input class='custom-control-input' type='radio' id='STATUS' name='status' value='1' %SHOWED%>
                     <label for='STATUS' class='custom-control-label'>_{SHOW}_</label>
                   </div>
                 </div>
                 <div class='col-md-4'>
                   <div class='custom-control custom-checkbox'>
-                    <input class='custom-control-input' type='checkbox' id='ON_MAIN_PAGE' name='ON_MAIN_PAGE'
+                    <input class='custom-control-input' type='checkbox' id='ON_MAIN_PAGE' name='on_main_page'
                            value='1' %ON_MAIN_PAGE_CHECKED%>
                     <label for='ON_MAIN_PAGE' class='custom-control-label'>_{ON_MAIN_PAGE}_</label>
                   </div>
                 </div>
                 <div class='col-md-4'>
                   <div class='custom-control custom-radio'>
-                    <input class='custom-control-input' type='radio' id='STATUS_OFF' name='STATUS' value='0' %HIDDEN%>
+                    <input class='custom-control-input' type='radio' id='STATUS_OFF' name='status' value='0' %HIDDEN%>
                     <label for='STATUS_OFF' class='custom-control-label'>_{HIDE}_</label>
                   </div>
                 </div>
@@ -93,25 +93,26 @@
             <div class='form-group row'>
               <label class='col-md-3 control-label'>_{PICTURE}_:</label>
               <div class='col'>
-                <div id='file_upload_holder' class='form-file-input'>
-                  <div class='form-group m-1'>
-                    <input name='PICTURE' type='file' data-number='0' class='fixed'>
+                <div class='input-group'>
+                  <input class='form-control' name='picture' type='file' data-number='0'>
+                  <div class='input-group-append'>
+                    %PICTURE_PREVIEW_LINK%
                   </div>
                 </div>
               </div>
             </div>
 
             <div class='form-group row'>
-              <label class='col-md-3 control-label'>_{TITLE}_:</label>
+              <label class='col-md-3 control-label required'>_{TITLE}_:</label>
               <div class='col-md-9'>
-                <input required class='form-control' name='TITLE' type='text' value='%TITLE%' size=90 align=%ALIGN%/>
+                <input required class='form-control' name='title' type='text' value='%title%' size=90 />
               </div>
             </div>
 
             <div class='form-group row mb-0'>
-              <label class='col-md-3 control-label'>_{SHORT_DESCRIPTION}_:</label>
+              <label class='col-md-3 control-label required'>_{SHORT_DESCRIPTION}_:</label>
               <div class='col-md-9'>
-                <textarea class='form-control' name='SHORT_DESCRIPTION' cols=90 rows=4>%SHORT_DESCRIPTION%</textarea>
+                <textarea class='form-control' name='short_description' cols=90 rows=4>%short_description%</textarea>
               </div>
             </div>
           </div>
@@ -131,13 +132,13 @@
               <div class='row'>
                 <div class='col-md-6'>
                   <div class='custom-control custom-radio'>
-                    <input class='custom-control-input' type='radio' id='ARCHIVE' name='ARCHIVE' value='0' %HIDDEN_ARCHIVE%>
+                    <input class='custom-control-input' type='radio' id='ARCHIVE' name='archive' value='0' %HIDDEN_ARCHIVE%>
                     <label for='ARCHIVE' class='custom-control-label'>_{SHOW}_</label>
                   </div>
                 </div>
                 <div class='col-md-6'>
                   <div class='custom-control custom-radio'>
-                    <input class='custom-control-input' type='radio' id='HIDE_ARCHIVE' name='ARCHIVE' value='1' %SHOWED_ARCHIVE%>
+                    <input class='custom-control-input' type='radio' id='HIDE_ARCHIVE' name='archive' value='1' %SHOWED_ARCHIVE%>
                     <label for='HIDE_ARCHIVE' class='custom-control-label'>_{TO_ARCHIVE}_</label>
                   </div>
                 </div>
@@ -179,9 +180,18 @@
           <div class='form-group row'>
             <label for='RESET' class='col-md-6 control-label'>_{RESET_ADDRESS}_</label>
             <div class='custom-control custom-checkbox pt-1'>
-              <input class='custom-control-input' type='checkbox' id='RESET' name='RESET'
-                     value='1' %RESET%>
+              <input class='custom-control-input' type='checkbox' id='RESET' name='reset'
+                     value='1' %reset%>
               <label for='RESET' class='custom-control-label'></label>
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label for='DEEPLINK' class='col-md-6 control-label'>_{DEEPLINK}_</label>
+            <div class='custom-control custom-checkbox pt-1'>
+              <input class='custom-control-input' type='checkbox' id='DEEPLINK' name='deeplink'
+                     value='1' %DEEPLINK%>
+              <label for='DEEPLINK' class='custom-control-label'></label>
             </div>
           </div>
 
@@ -195,24 +205,27 @@
               <label for='NEWSLETTER_TELEGRAM' class='col-md-6 control-label'>Telegram</label>
               <div class='custom-control custom-checkbox pt-1'>
                 <input class='custom-control-input' type='checkbox' id='NEWSLETTER_TELEGRAM' name='NEWSLETTER_TELEGRAM'
-                       value='1' %CURRENTLY_ADDED% %TELEGRAM_SELECTED%>
+                       value='1' method-id='%TELEGRAM_METHOD_ID%' %CURRENTLY_ADDED% %TELEGRAM_SELECTED%>
                 <label for='NEWSLETTER_TELEGRAM' class='custom-control-label'></label>
+                %TELEGRAM_BUTTON_SEND%
               </div>
             </div>
             <div class='form-group row %VIBER_BOT_NOT_EXIST%'>
               <label for='NEWSLETTER_VIBER_BOT' class='col-md-6 control-label'>Viber</label>
               <div class='custom-control custom-checkbox pt-1'>
                 <input class='custom-control-input' type='checkbox' id='NEWSLETTER_VIBER_BOT' name='NEWSLETTER_VIBER_BOT'
-                       value='1' %CURRENTLY_ADDED% %VIBER_BOT_SELECTED%>
+                       value='1' method-id='%VIBER_BOT_METHOD_ID%' %CURRENTLY_ADDED% %VIBER_BOT_SELECTED%>
                 <label for='NEWSLETTER_VIBER_BOT' class='custom-control-label'></label>
+                %VIBER_BOT_BUTTON_SEND%
               </div>
             </div>
             <div class='form-group row %PUSH_NOT_EXIST%'>
               <label for='NEWSLETTER_PUSH' class='col-md-6 control-label'>Push</label>
               <div class='custom-control custom-checkbox pt-1'>
                 <input class='custom-control-input' type='checkbox' id='NEWSLETTER_PUSH' name='NEWSLETTER_PUSH'
-                       value='1' %CURRENTLY_ADDED% %PUSH_SELECTED%>
+                       value='1' method-id='%PUSH_METHOD_ID%' %CURRENTLY_ADDED% %PUSH_SELECTED%>
                 <label for='NEWSLETTER_PUSH' class='custom-control-label'></label>
+                %PUSH_BUTTON_SEND%
               </div>
             </div>
           </div>
@@ -227,7 +240,7 @@
         </div>
         <div class='card-body'>
           <div class='col-md-12'>
-            <textarea class='form-control' name='CONTENT' cols=90 rows=15 id='news-text'>%CONTENT%</textarea>
+            <textarea class='form-control' name='content' cols=90 rows=15 id='news-text'>%content%</textarea>
             <div class='form-group row mt-2 mb-0 justify-content-between'>
               <div class='col-md-6 col-12 mb-2' id='editor-controls'>
                 <button type='button' class='btn btn-xs btn-primary' title='_{BOLD}_' data-tag='b'>_{BOLD}_</button>
@@ -237,6 +250,7 @@
                 </button>
                 <button type='button' class='btn btn-xs btn-primary' title='_{LINK}_' data-tag='a'>_{LINK}_</button>
                 <button id='portal_reindent_button' type='button' class='btn btn-xs btn-default'>_{FORMAT}_</button>
+                %BUTTON_ADD_ATTACHMENTS%
               </div>
 
               <div class='form-group col-md-6 col-12'>

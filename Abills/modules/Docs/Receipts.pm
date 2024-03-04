@@ -698,7 +698,7 @@ sub docs_receipt_print {
 
   $Docs->{TOTAL_SUM} = 0.00;
   $Docs->{PAYMENT_METHOD_ID} = $Docs->{PAYMENT_METHOD};
-  $Docs->{PAYMENT_METHOD} = $PAYMENT_METHODS->{ $Docs->{PAYMENT_METHOD_ID} };
+  $Docs->{PAYMENT_METHOD} = ($Docs->{PAYMENT_METHOD_ID}) ? $PAYMENT_METHODS->{ $Docs->{PAYMENT_METHOD_ID} } : q{};
 
   if ( $Docs->{ORDERS} ){
     my $i = 1;

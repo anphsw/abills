@@ -1,5 +1,7 @@
 <script src="/styles/default/js/cytoscape.min.js"></script>
-
+<!-- FIXME: popper should have loaded from bootstrap bundle,
+            but cytoscape-popper ignores this. -->
+<script src="/styles/default/js/popper.min.js"></script>
 <script src="/styles/default/js/cytoscape-popper.js"></script>
 
 <script src="/styles/default/js/tippy.all.min.js"></script>

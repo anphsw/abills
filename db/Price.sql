@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS `price_services_list` (
   `price` FLOAT(12, 2) UNSIGNED NOT NULL DEFAULT 0,
   `id_group` INT(10) UNSIGNED NOT NULL,
   `comments` TEXT NOT NULL,
+  `type` INT(10) UNSIGNED DEFAULT NULL,
   PRIMARY KEY `services_list_id` (`id`)
 ) DEFAULT CHARSET=utf8 COMMENT = 'Price service list';
 

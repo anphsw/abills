@@ -95,7 +95,7 @@ $lang{HIDE_HARDWARE_LOG} = 'Hide hardware log';
 $lang{GROUND} = 'GROUND';
 $lang{RECORD_CREATED} = 'Record created';
 $lang{RECORD_CHANGED} = 'Record changed';
-$lang{AUTHOR} = 'Author: ';
+$lang{AUTHOR} = 'Author ';
 
 $lang{UNIT} = 'unit';
 $lang{METERS} = 'm';
@@ -187,5 +187,14 @@ $lang{STORAGE_DELIVERY} = 'Delivery';
 $lang{STORAGE_TOTAL_COUNT} = 'Total count';
 $lang{STORAGE_TOTAL_SUM} = 'Total sum';
 $lang{REPORT_ON_USED_MATERIALS_FROM_THE_STORAGE} = 'Report on used materials from the storage';
+
+$lang{STORAGE_PURCHASE_MADE} = 'Purchase made';
+$lang{STORAGE_PURCHASE_PROCESSING} = 'Purchase processing';
+$lang{STORAGE_ORDER_SENT_TO_CUSTOMER} = 'Order sent to customer';
+$lang{STORAGE_ORDER_RECEIVED_BY_CUSTOMER} = 'Order received by customer';
+$lang{STORAGE_SOLD} = 'Sold';
+$lang{STORAGE_PURCHASED_ITEM} = 'Purchase of goods';
+$lang{STORAGE_SHIPPING_STATUS} = 'Shipping status';
+$lang{STORAGE_PURCHASE_REPORT} = 'Purchase report';
 
 1;

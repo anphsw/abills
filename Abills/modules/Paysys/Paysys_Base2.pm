@@ -163,7 +163,6 @@ sub _check_max_payments {
   }
   else {
     return 1 if (!$attr->{PAYMENT_SYSTEM_ID});
-    return 1 if (!$Paysys->can('gid_params'));
 
     my $list_params = $Paysys->gid_params({
       GID       => $attr->{GID} || 0,

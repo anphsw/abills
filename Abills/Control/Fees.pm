@@ -39,6 +39,7 @@ sub form_fees {
   my $FEES_METHODS = get_fees_types();
 
   if (($FORM{search_form} || $FORM{search}) && $index != 7) {
+    $FORM{METHOD} =~ s/,/;/g if $FORM{METHOD};
     $FORM{type} = $FORM{subf} if ($FORM{subf});
     if ($FORM{search_form} || $FORM{search}) {
       form_search({
@@ -46,7 +47,8 @@ sub form_fees {
           ($FORM{DATE} ? (DATE => $FORM{DATE}) : ()),
           subf       => ($FORM{subf}) ? $FORM{subf} : undef,
           COMPANY_ID => $FORM{COMPANY_ID},
-        }
+        },
+        ARCHIVE_TABLE => 'fees'
       });
     }
   }
@@ -71,13 +73,13 @@ sub form_fees {
     if ($FORM{take} && $FORM{SUM}) {
       $FORM{SUM} =~ s/,/\./g;
 
-      # add to shedule
-      if ($FORM{ER} && $FORM{ER} ne '') {
+      if ($FORM{ER} && $FORM{ER} > 0) {
         my $er = $Fees->exchange_info($FORM{ER});
         $FORM{ER}  = $er->{ER_RATE};
         $FORM{SUM} = $FORM{SUM} / $FORM{ER};
       }
 
+      # add to schedule
       if ($period == 2) {
         my $FEES_DATE = $FORM{DATE} || $DATE;
         if (date_diff($DATE, $FEES_DATE) < 1) {
@@ -210,7 +212,7 @@ sub form_fees {
         MAIN_MENU     => get_function_index('form_fees_types'),
       });
 
-      if (!$attr->{REGISTRATION}) {
+      if (!$attr->{REGISTRATION} && $FORM{UID}) {
         $Fees->table_info('fees');
 
         $html->tpl_show(templates('form_fees'), { DESCRIBE => $FORM{DESCRIBE} || '', %{$Fees} }, { ID => 'form_fees' });

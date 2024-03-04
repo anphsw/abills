@@ -1,9 +1,17 @@
 our Abills::HTML $html;
 our ($db, $admin, %conf);
+
 use Crm::db::Crm;
 my $Crm = Crm->new($db, $admin, \%conf);
 
-$Crm->crm_dialogues_list({ AID => $admin->{AID}, STATE => 0 });
+my $enabled_open_lines = $Crm->crm_open_lines_list({ AID => $admin->{AID}, SOURCE => '_SHOW', COLS_NAME => 1 });
+$Crm->crm_dialogues_list({
+  SOURCE => join(';', map {$_->{source}} @{$enabled_open_lines}),
+  AID    => "0;$admin->{AID}",
+  STATE  => "0;2"
+});
+
+$admin->{CRM_TOTAL_DIALOGUE} = $Crm->{TOTAL};
 my $info = $html->badge($Crm->{TOTAL}, { TYPE => 'bg-primary' });
 
 %FUNCTIONS_LIST = (
@@ -53,6 +61,7 @@ my $info = $html->badge($Crm->{TOTAL}, { TYPE => 'bg-primary' });
 
   "72:0:$lang{DEALS}:crm_deals_list:"                             => 11,
   "73:0:$lang{DEALS}:crm_users:UID"                               => 20,
+  "77:0:$lang{LEADS}:crm_user_leads:UID"                          => 20,
   "74:73:$lang{DEAL}:crm_deal_info:DEAL_ID"                       => 1,
 
   "75:0:$lang{LEADS}:null"                                        => 8,

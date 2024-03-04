@@ -119,7 +119,9 @@ sub _get_main_info {
   $user_pi->{ADDRESS_FLAT} ||= '';
 
   my $build_delimiter = $CONF->{BUILD_DELIMITER} || ', ';
-  my $home = $html->element('p', "<b>$lang->{ADDRESS}:</b> $user_pi->{ADDRESS_STREET}$build_delimiter$user_pi->{ADDRESS_BUILD}$build_delimiter$user_pi->{ADDRESS_FLAT}", {
+  my @address_info = ($user_pi->{ADDRESS_STREET}, $user_pi->{ADDRESS_BUILD}, $user_pi->{ADDRESS_FLAT});
+  unshift(@address_info, $user_pi->{ADDRESS_DISTRICT}) if $CONF->{ADDRESS_FULL_SHOW_DISTRICT} && $user_pi->{ADDRESS_DISTRICT};
+  my $home = $html->element('p', "<b>$lang->{ADDRESS}:</b> " . join($build_delimiter, @address_info), {
     class => 'form-control-static',
     title => $lang->{ADDRESS}
   });
@@ -193,9 +195,11 @@ sub _get_responsible_select {
   return '' if !$msgs_permissions->{1}{16};
 
   my $responsible_sel = main::sel_admins({
-    NAME       => 'RESPOSIBLE',
-    RESPOSIBLE => $Msgs->{RESPOSIBLE},
-    DISABLE    => ($Msgs->{RESPOSIBLE}) ? undef : 0,
+    ACTIVE_ONLY   => 1,
+    AID_EXCEPTION => $Msgs->{RESPOSIBLE},
+    NAME          => 'RESPOSIBLE',
+    RESPOSIBLE    => $Msgs->{RESPOSIBLE},
+    DISABLE       => ($Msgs->{RESPOSIBLE}) ? undef : 0,
   });
 
   my $col_div = $html->element('div', $responsible_sel, { class => 'col-md-12' });

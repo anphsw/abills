@@ -19,6 +19,24 @@ post:
               Авторизация пользователя через социальную сеть
             value:
               google: google_token
+          LoginByPhoneStep1:
+            summary:
+              Авторизация по номеру телефона шаг 1
+            value:
+              phone: 0999999999
+          LoginByPhoneStep2:
+            summary:
+              Авторизация по номеру телефона шаг 2
+            value:
+              authCode: 8765
+              pinCode: 12345
+          LoginByPhoneStep3:
+            summary:
+              Авторизация по номеру телефона шаг 3 (Если больше одного пользователя с тем же номером)
+            value:
+              authCode: 8765
+              pinCode: 12345
+              uid: 654342
     required: true
   responses:
     200:
@@ -27,3 +45,29 @@ post:
         application/json:
           schema:
             $ref: "../schemas/loginResponse.yaml"
+          examples:
+            ClassicResponse:
+              summary:
+                Успешная авторизация
+              value:
+                login: testuser
+                sid: sW44EJZLyWDMeXAV
+                uid: 12312
+                password: "`ab012WXY"
+            LoginPhoneStep1Response:
+              summary:
+                Авторизация по номеру телефона шаг 1 ответ
+              value:
+                authCode: 103382
+                sent: true
+            LoginPhoneStep2Response:
+              summary:
+                Авторизация по номеру телефона шаг 2 ответ (Если больше одного пользователя с тем же номером)
+              value:
+                users:
+                  - login: "00100"
+                    uid: 1
+                  - login: "abills"
+                    uid: 7
+                  - login: "testerr44434433"
+                    uid: 103381

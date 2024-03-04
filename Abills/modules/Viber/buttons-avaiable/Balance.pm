@@ -3,6 +3,12 @@ package Balance;
 use strict;
 use warnings FATAL => 'all';
 
+my %icons = (
+  not_active => "\xE2\x9D\x8C",
+  active     => "\xE2\x9C\x85",
+  balance    => "\xF0\x9F\x92\xB0"
+);
+
 #**********************************************************
 =head2 new($Botapi)
 
@@ -31,8 +37,8 @@ sub new {
 #**********************************************************
 sub btn_name {
   my $self = shift;
-  
-  return $self->{bot}->{lang}->{DEPOSIT};
+
+  return $self->{bot}{lang}{BALANCE};
 }
 
 #**********************************************************
@@ -43,70 +49,64 @@ sub btn_name {
 sub click {
   my $self = shift;
   my ($attr) = @_;
+
   my $uid = $self->{bot}->{uid};
   my $money_currency = $self->{conf}->{MONEY_UNIT_NAMES} || '';
+  my @messages = ();
+  my @inline_keyboard = ();
 
   use Users;
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
-  $Users->info($uid);
-  
-  use Payments;
-  my $Payments = Payments->new($self->{db}, $self->{admin}, $self->{conf});
-  my $last_payments = $Payments->list({
-    DATETIME  => '_SHOW',
-    SUM       => '_SHOW',
-    DESCRIBE  => '_SHOW',
-    UID       => $uid,
-    DESC      => 'desc',
-    SORT      => 1,
-    PAGE_ROWS => 1,
-    COLS_NAME => 1
-  });
+  $Users->info($uid, { SHOW_PASSWORD => 1 });
 
-  use Fees;
-  my $Fees = Fees->new($self->{db}, $self->{admin}, $self->{conf});
-  my $last_fees = $Fees->list({
-    DATETIME  => '_SHOW',
-    SUM       => '_SHOW',
-    DESCRIBE  => '_SHOW',
-    UID       => $uid,
-    DESC      => 'desc',
-    SORT      => 1,
-    PAGE_ROWS => 1,
-    COLS_NAME => 1
-  });
-
-  my $message = sprintf("$self->{bot}->{lang}->{YOUR_DEPOSIT}: %.2f", $Users->{DEPOSIT});
-  $message .= " $money_currency\\n";
-  $message .= "$self->{bot}->{lang}->{CREDIT}: $Users->{CREDIT} $money_currency\\n" if ($Users->{CREDIT} && $Users->{CREDIT} > 0);
-  $message .= "$self->{bot}->{lang}->{CREDIT_OPEN}: $Users->{CREDIT_DATE}\\n" if ($Users->{CREDIT_DATE} && $Users->{CREDIT_DATE} ne '0000-00-00');
-  $message .= "\\n";
-
-  if ($last_payments) {
-    $message .= "$self->{bot}->{lang}->{LAST_PAYMENT}:\\n";
-    $message .= sprintf("$self->{bot}->{lang}->{SUM}: %.2f", $last_payments->[0]->{sum}) if ($last_payments->[0]->{sum});
-    $message .= " $money_currency\\n" if ($last_payments->[0]->{sum});
-    $message .= "$self->{bot}->{lang}->{DATE}: $last_payments->[0]->{datetime}\\n" if ($last_payments->[0]->{datetime});
-    $message .= "$self->{bot}->{lang}->{DESCRIBE}: $last_payments->[0]->{describe}\\n" if ($last_payments->[0]->{describe});
-    $message .= "\\n";
-  }
-  
-  if ($last_fees) {
-    $message .= "$self->{bot}->{lang}->{LAST_FEES}:\\n";
-    $message .= sprintf("$self->{bot}->{lang}->{SUM}: %.2f", $last_fees->[0]->{sum}) if ($last_fees->[0]->{sum});
-    $message .= " $money_currency\\n" if ($last_fees->[0]->{sum});
-    $message .= "$self->{bot}->{lang}->{DATE}: $last_fees->[0]->{datetime}\\n" if ($last_fees->[0]->{datetime});
-    $message .= "$self->{bot}->{lang}->{DESCRIBE }: $last_fees->[0]->{describe}\\n" if ($last_fees->[0]->{describe});
-  }
-  $self->{bot}->send_message({
-    text         => $message,
-    type => 'text',
-    sender => {
-      name => 'Abills bot'
+  require Control::Services;
+  my $service_info = get_services($Users, {});
+  my $total_sum = $service_info->{total_sum} || 0;
+  my $user_deposit = $Users->{DEPOSIT} || 0;
+  if ($total_sum > $user_deposit || $user_deposit < 0) {
+    push @messages, sprintf("$icons{not_active} $self->{bot}{lang}{YOUR_DEPOSIT}: %.2f $money_currency\n", $user_deposit);
+    if ($self->{conf}{VIBER_BALANCE_URL}) {
+      my $inline_button = {
+        ActionType => 'open-url',
+        ActionBody => "$self->{conf}{VIBER_BALANCE_URL}?get_index=paysys_payment&user=$Users->{LOGIN}&passwd=$Users->{PASSWORD}",
+        Text       => $self->{bot}{lang}{MAKE_PAYMENT},
+        TextSize   => 'regular'
+      };
+      push @inline_keyboard, $inline_button;
     }
-  }); 
+    push (@inline_keyboard, {
+      ActionType => 'reply',
+      ActionBody => 'MENU',
+      Text       => $self->{bot}{lang}{BACK},
+      BgColor    => "#FF0000",
+      TextSize   => 'regular'
+    });
+  }
+  else {
+    push @messages, sprintf("$icons{active} $self->{bot}{lang}{YOUR_DEPOSIT}: %.2f $money_currency\n", $user_deposit);
+  }
 
-  return 1;
+  if ($service_info->{list}) {
+    push @messages, "$self->{bot}{lang}{VIBER_SCHEDULED_FEES}:";
+
+    foreach my $fee (@{$service_info->{list}}) {
+      next if !$fee->{SERVICE_NAME} || !defined($fee->{SUM});
+
+      push @messages, sprintf("$fee->{SERVICE_NAME} - %.2f $money_currency", $fee->{SUM});
+    }
+  }
+
+  my $buttons = @inline_keyboard;
+  my $params = { text => join('\\n', @messages), type => 'text' };
+  $params->{keyboard} = {
+    Type          => 'keyboard',
+    DefaultHeight => "true",
+    Buttons       => \@inline_keyboard
+  } if $buttons;
+
+  $self->{bot}->send_message($params);
+
+  return $buttons ? "NO_MENU" : 1;
 }
 
 1;

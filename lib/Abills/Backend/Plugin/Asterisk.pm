@@ -7,8 +7,9 @@ use parent 'Abills::Backend::Plugin::BasePlugin';
 use Abills::Base qw/in_array/;
 use Encode;
 use Users;
-use Callcenter;
+use Callcenter::db::Callcenter;
 use Admins;
+use POSIX qw(strftime);
 
 my Users $Users;
 my Callcenter $Callcenter;
@@ -21,14 +22,14 @@ my (
   %conf
 );
 
-our (@MODULES);
+our (@MODULES, $DATE, $TIME);
 
 use Abills::Backend::Log;
 our Abills::Backend::Log $Log;
 my $log_user = ' Asterisk ';
 
 # DEBUGGING EVENTS ( Will be removed )
-my $Event_log = Abills::Backend::Log->new('FILE', 7, 'Asterisk debug', {
+my $Event_log = Abills::Backend::Log->new('FILE', 4, 'Asterisk debug', {
   FILE => ('/usr/abills/var/log/event_asterisk.log'),
 });
 # DEBUGGING EVENTS
@@ -84,6 +85,9 @@ sub new {
 
   bless($self, $class);
 
+  $DATE = strftime("%Y-%m-%d", localtime(time));
+  $TIME = strftime("%H:%M:%S", localtime(time));
+
   return $self;
 }
 
@@ -136,20 +140,31 @@ sub connect_to_asterisk {
 
   delete $self->{astman_guard} if (exists $self->{astman_guard});
 
+  $DATE = strftime("%Y-%m-%d", localtime(time));
+  $TIME = strftime("%H:%M:%S", localtime(time));
+
+
+  # Install handler for new calls
+  my %handlers = (
+    Newchannel        => \&process_asterisk_newchannel,
+    Hangup            => \&process_asterisk_softhangup,
+    Newstate          => \&process_asterisk_newstate,
+    Bridge            => \&process_asterisk_bridge,
+    SoftHangupRequest => \&process_asterisk_softhanguprequest,
+    RTCPSent          => \&process_asterisk_rtcpsent,
+    RTCPReceived      => \&process_asterisk_rtcpreceived,
+    default           => \&process_default
+  );
+
   $self->{astman_guard} = Asterisk::AMI->new(
     PeerAddr   => $conf{ASTERISK_AMI_IP},
     PeerPort   => $conf{ASTERISK_AMI_PORT},
     Username   => $conf{ASTERISK_AMI_USERNAME},
     Secret     => $conf{ASTERISK_AMI_SECRET},
     Events     => 'on', # Give us something to proxy
-    Timeout    => 1,
+    Timeout    => 2,
     Blocking   => 0,
-    Handlers   => { # Install handler for new calls
-      Newchannel => \&process_asterisk_newchannel,
-      Hangup     => \&process_asterisk_softhangup,
-      Newstate   => \&process_asterisk_newstate,
-      default    => \&process_default
-    },
+    Handlers   => \%handlers,
     Keepalive  => 3, # Send a keepalive every 3 seconds
     on_connect => sub {
       # Counter for connections
@@ -165,7 +180,7 @@ sub connect_to_asterisk {
     },
     on_timeout => sub {
       $Log->critical("Connection $self->{connection_num} to Asterisk timed out");
-      $self->reconnect_to_asterisk_in(1) or $self->exit_with_error("Unable to connect to Asterisk");
+      $self->reconnect_to_asterisk_in(2) or $self->exit_with_error("Unable to connect to Asterisk");
     }
   );
 
@@ -214,92 +229,52 @@ sub reconnect_to_asterisk_in {
 sub process_asterisk_newchannel {
   my ($asterisk, $event) = @_;
 
+  my $event_ = $event->{Event} || 'NO EVENT';
+
+  #`echo "NEWCHANNEL: $event_ // $event->{Uniqueid}" >> /tmp/sip`;
+
+  process_default($asterisk, $event, { LOG_FILE => '/usr/abills/var/log/newchannel.log' });
+
   if ($event->{Event} && $event->{Event} eq 'Newchannel') {
-    my $caller_number_param =  $conf{CALLCENTER_ASTERISK_CALLER} || 'CallerIDNum';
+    my $caller_number_param = $conf{CALLCENTER_ASTERISK_CALLER} || 'CallerIDNum';
     my $called_number = $event->{Exten} || q{};
     my $caller_number = $event->{$caller_number_param} || q{};
+    my $call_id = $event->{Uniqueid} || q{};
 
-    return unless $caller_number && $called_number;
-
-    return 0 if ($caller_number =~ /unknown/);
-
-    if ($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}) {
-      $caller_number =~ s/^$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
+    if (skip_call($caller_number, $called_number)) {
+      return 0;
     }
 
-    if ($conf{CALLCENTER_SKIP_LOG}) {
-      if (in_array($caller_number, \@skip_nums)) {
-        #`echo "$caller_number calling to $called_number (Skip)" >> /tmp/a`;
-        $Log->info("Got Newchannel event. $caller_number calling to $called_number (Skip)");
-        return 1;
-      }
-    }
+    `echo "$DATE $TIME NEWCHANNEL: $call_id $caller_number -> $called_number" >> /tmp/sip`;
 
     # CALLCENTER CODE
     if (in_array('Callcenter', \@MODULES)) {
-      if ($caller_number && $called_number) {
-        my ($call_id, undef) = split('\.', $event->{Uniqueid} || q{});
+      call_processing($asterisk, {
+        CALLER_NUMBER => $caller_number,
+        CALLED_NUMBER => $called_number,
+        CALL_ID       => $call_id,
+        STATUS        => 1
+      });
 
-        my $newchannel_handler = sub {
+      # my $ivr_call_info = $Callcenter->log_list({COLS_NAME => 1, UID=> '_SHOW', UNIQUE_ID => $call_id});
 
-          my $user = $Users->list({
-            UID       => '_SHOW',
-            PHONE     => "*$caller_number",
-            COLS_NAME => 1
-          });
-
-          my $uid = 0;
-          if ($Users->{TOTAL} && $Users->{TOTAL} > 0) {
-            $uid = $user->[0]->{uid};
-          }
-
-          $Callcenter->callcenter_add_calls({
-            USER_PHONE     => $caller_number,
-            OPERATOR_PHONE => $called_number,
-            ID             => $call_id,
-            UID            => $uid || 0,
-            STATUS         => 1,
-          });
-
-          if (!$Callcenter->{errno}) {
-            $Log->info("NEW_CALL ID: ". ( $call_id || 'UNKNOWN'));
-          }
-          else {
-            $Log->info("ERR_CANT_ADD_CALL ID: ". ($call_id || 'UNKNOWN'));
-          }
-        };
-
-        # check if its in IVR
-        my $ivr_is_exist = 0;
-        $asterisk->{guard_timer} = AnyEvent->timer(
-          after => 1,
-          cb    => sub {
-            $Callcenter->log_list({
-              COLS_NAME => 1,
-              UID       => '_SHOW',
-              UNIQUE_ID => $call_id
-            });
-
-            print "Total - $Callcenter->{TOTAL}\n";
-            if (!$Callcenter->{TOTAL}) {
-              $newchannel_handler->();
-            }
-          }
-        );
-
-        # $Callcenter->{debug}=1;
-
-        # my $ivr_call_info = $Callcenter->log_list({COLS_NAME => 1, UID=> '_SHOW', UNIQUE_ID => $call_id});
-
-        # use Abills::Base;
-        # _bp("ivr", $ivr_call_info, {TO_CONSOLE=>1});
-      }
+      # use Abills::Base;
+      # _bp("ivr", $ivr_call_info, {TO_CONSOLE=>1});
     }
 
     $Log->info("Got Newchannel event. $caller_number calling to $called_number ");
 
     notify_admin_about_new_call($called_number, $caller_number, $event);
   }
+  # elsif ($event->{Event}) {
+  #   my $caller_number_param = $conf{CALLCENTER_ASTERISK_CALLER} || 'CallerIDNum';
+  #   my $caller_number = $event->{$caller_number_param} || q{};
+  #   my $called_number = $event->{Exten} || q{};
+  #
+  #   my $call_id = $event->{Uniqueid} || q{-};
+  #
+  #   `echo "EVENT END: $event->{Event} ID: $call_id $caller_number -> $called_number" >> /tmp/sip`;
+  # }
 
   return 1;
 }
@@ -319,12 +294,13 @@ sub process_asterisk_newstate {
   my ($asterisk, $event) = @_;
 
   if ($event->{ConnectedLineNum} && $event->{ChannelStateDesc} eq 'Up') {
-    my ($call_id, undef) = split('\.', $event->{Uniqueid} || q{UNKNOWN});
+    #my ($call_id, undef) = split('\.', $event->{Uniqueid} || q{UNKNOWN});
+    my $call_id = $event->{Uniqueid} || q{UNKNOWN};
 
     if ($call_id) {
       $Callcenter->callcenter_change_calls({
-          STATUS => 2,
-          ID     => $call_id
+        STATUS => 2,
+        ID     => $call_id
       });
 
       if (!$Callcenter->{errno}) {
@@ -353,13 +329,24 @@ sub process_asterisk_newstate {
 
   Examples:
 
+    # HangupRequest
+
+   ================EVENT START=================
+    Channel: SIP/mts_one-000058a5
+    Event: HangupRequest
+    Privilege: call,all
+    Uniqueid: 1699956609.22696
+
 =cut
 #**********************************************************
 sub process_asterisk_softhangup {
   my ($asterisk, $event) = @_;
 
   my $called_number = $event->{Exten} || q{};
-  my ($call_id, undef) = split('\.', $event->{Uniqueid} || q{UNKNOWN});
+  #my ($call_id, undef) = split('\.', $event->{Uniqueid} || q{UNKNOWN});
+  my $call_id = $event->{Uniqueid} || q{UNKNOWN};
+
+  #`echo "Event: $event->{Event} ID: $call_id" >> /tmp/sip`;
 
   if (defined($calls_statuses{$call_id}) && $calls_statuses{$call_id} == 2) {
     $Callcenter->callcenter_change_calls({
@@ -375,8 +362,10 @@ sub process_asterisk_softhangup {
     $Callcenter->callcenter_info_calls({
       ID => $call_id
     });
+    my $status = $Callcenter->{STATUS} || 0;
+    my $error = $Callcenter->{errno} || '';
 
-    if ($Callcenter->{STATUS} && $Callcenter->{STATUS} < 3) {
+    if (!$error && $status < 3) {
       $Callcenter->callcenter_change_calls({
         STATUS => 4,
         ID     => $call_id,
@@ -410,6 +399,8 @@ sub get_admin_by_sip_number {
     $params{SIP_NUMBER} = '*' . $sip_number . '*';
   }
 
+  $params{SIP_NUMBER} = $params{SIP_NUMBER} . ',ALL';
+
   my $admins_for_number_list = $Admins->list({
     %params,
     COLS_NAME => 1,
@@ -434,7 +425,7 @@ sub get_admin_by_sip_number {
     $caller_numer  - call initiatior
     
   Returns:
-    1
+    UID or 0 for unknown
     
 =cut
 #**********************************************************
@@ -451,21 +442,31 @@ sub notify_admin_about_new_call {
       push @online_aids, $aid;
     }
     else {
-      $Log->notice("CANT_NOTIFY AID: '". ($aid || q{-}) ."', no connection");
+      $Log->notice("CANT_NOTIFY AID: '" . ($aid || q{-}) . "', NUMBER: $called_number no connection");
     }
   }
 
   if ($#online_aids == -1) {
     $Log->notice("ONLINE_ADMIN_NOT_PRESENT NUMBER: $called_number");
-    return 1;
+    return 0;
   }
 
   if ($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}) {
-    $caller_number =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
+    $caller_number =~ s/^$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
   }
 
-  my $search_list = $Users->list({
-    PHONE        => "*$caller_number*",
+  my $search_expr = '*USER_PHONE';
+  if ($caller_number =~ /(\d{6,13})/) {
+    $search_expr = '*USER_PHONE*';
+  }
+  elsif ($conf{CALLCENTER_ASTERISK_SEARCH}) {
+    $search_expr = $conf{CALLCENTER_ASTERISK_SEARCH};
+  }
+
+  $search_expr =~ s/USER_PHONE/$caller_number/g;
+
+  my $users_list = $Users->list({
+    PHONE        => $search_expr,
     UID          => '_SHOW',
     FIO          => '_SHOW',
     DEPOSIT      => '_SHOW',
@@ -477,28 +478,33 @@ sub notify_admin_about_new_call {
     COLS_NAME    => 1
   });
 
+  #`echo "ADMIN_NOTIFY: $caller_number -> $called_number ($search_expr)" >> /tmp/sip`;
+
   if (!$Users->{TOTAL} || $Users->{TOTAL} < 1) {
     # That's not an ABillS registered number
     $Log->warning("UNKNOWN_NUMBER: '$caller_number'");
     my $notification = _create_lead_notification($caller_number);
     foreach my $aid (@online_aids) {
+      #`echo "POPUP NUMBER: $caller_number USER: LEAD  AID: $aid " >> /tmp/sip `;
       $websocket_api->notify_admin($aid, $notification);
     }
-    return 1;
+    return 0;
   }
 
-  foreach my $user_info (@$search_list) {
+  foreach my $user_info (@$users_list) {
     $Log->info("USER_INFO: $user_info->{UID} NUMBER: $caller_number ");
     my $notification = _create_user_notification({ %{$user_info}, });
     $Log->info("END Notification");
     # Notify admin by messageChecker.ParseMessage
     foreach my $aid (@online_aids) {
       $websocket_api->notify_admin($aid, $notification);
+      my $uid = $user_info->{UID} || '!!! NO USER';
+      #`echo "POPUP  NUMBER: $caller_number USER: $uid  AID: $aid " >> /tmp/sip `;
       #$Log->info("STOP AID: '$aid' <<< NUM: $i/$count  " . join(', ', @online_aids));
     }
   }
 
-  return 1;
+  return $users_list->[0]->{UID} || 0;
 }
 
 
@@ -509,7 +515,7 @@ sub notify_admin_about_new_call {
     $error - text for message
     
   Returns:
-    
+    TRUE or FALSE
     
 =cut
 #**********************************************************
@@ -569,7 +575,7 @@ sub _create_user_notification {
   my $title = ($user_info->{FIO} || '')
     . ' ( '
     . (($user_info->{COMPANY_NAME}) ? $user_info->{COMPANY_NAME} . ' : ' . ($user_info->{LOGIN} || q{})
-    : ($user_info->{LOGIN} || q{}) )
+    : ($user_info->{LOGIN} || q{}))
     . ' )';
 
   our %lang;
@@ -665,7 +671,7 @@ sub _create_lead_notification {
       $lead_info{ID} = $lead->{id};
       $lead_info{ADDRESS_FULL} = $lead->{address_full} || $lead->{address};
       $lead_info{DATE} = $lead->{date};
-      $Log->info("LEAD_FOUND: '". ($lead->{id} || 0) ."'");
+      $Log->info("LEAD_FOUND: '" . ($lead->{id} || 0) . "'");
     }
   }
 
@@ -676,11 +682,11 @@ sub _create_lead_notification {
   my $link = '?get_index=crm_leads&full=1&add_form=1&PHONE=' . $number;
 
   if ($lead_info{'ID'}) {
-    $text = " $lang{FIO} : " .($lead_info{FIO} || q{})
-      .'<br/>'. "$lang{ADDRESS} : ". ($lead_info{ADDRESS_FULL} || q{})
-      .'<br/>'. "$lang{DATE} : ". ($lead_info{DATE} || q{});
+    $text = " $lang{FIO} : " . ($lead_info{FIO} || q{})
+      . '<br/>' . "$lang{ADDRESS} : " . ($lead_info{ADDRESS_FULL} || q{})
+      . '<br/>' . "$lang{DATE} : " . ($lead_info{DATE} || q{});
     $icon = 'fa fa-user text-warning';
-    $link = '?get_index=crm_lead_info&full=1&LEAD_ID=' . ($lead_info{'ID'} || q{}) .'&PHONE=' . $number;
+    $link = '?get_index=crm_lead_info&full=1&LEAD_ID=' . ($lead_info{'ID'} || q{}) . '&PHONE=' . $number;
   }
 
   my %result = (
@@ -704,7 +710,11 @@ sub _create_lead_notification {
 =head2 process_default() -
 
   Arguments:
+    $asterisk
+    $event
     $attr -
+      LOG_FILE
+
   Returns:
 
   Examples:
@@ -712,7 +722,7 @@ sub _create_lead_notification {
 =cut
 #**********************************************************
 sub process_default {
-  my ($asterisk, $event) = @_;
+  my ($asterisk, $event, $attr) = @_;
 
   # Start debuging events, Will be removed
   my $debug_event = "\n================EVENT START=================\n";
@@ -720,11 +730,337 @@ sub process_default {
     $debug_event .= ($key || '') . ": " . ($event->{$key} || '') . "\n";
   }
   $debug_event .= "================EVENT END=================\n";
+  if ($attr->{LOG_FILE}) {
+    $Event_log->{logger}->{main_file}=$Event_log->{logger}->{file};
+    $Event_log->{logger}->{file} = $attr->{LOG_FILE};
+  }
+
   $Event_log->info($debug_event);
+  if ($attr->{LOG_FILE}) {
+    $Event_log->{logger}->{file} = $Event_log->{logger}->{main_file};
+  }
   # End debuging events
 
   return 1;
 }
+
+
+#**********************************************************
+=head2 process_asterisk_bridge($asterisk, $event)
+
+=cut
+#**********************************************************
+sub process_asterisk_bridge {
+  my ($asterisk, $event) = @_;
+
+  # process_default($asterisk, $event);
+
+  my $event_ = $event->{Event} || 'NO EVENT';
+  my $bridgestate = $event->{Bridgestate} || q{};
+  my $called_number = $event->{CallerID2} || q{};
+  my $caller_number = $event->{CallerID1} || q{};
+  my $call_id = $event->{Uniqueid} || $event->{Uniqueid1} || q{UNKNOWN};
+
+  `echo "BRIDGE: $event_ /$bridgestate/ $call_id, $caller_number -> $called_number" >> /tmp/sip`;
+
+  if ($bridgestate eq 'Unlink') {
+    $Callcenter->callcenter_change_calls({
+      STATUS => 5,
+      ID     => $call_id,
+      STOP   => 'NOW()'
+    });
+
+    $Log->info("BRIDGE UNLINK: $call_id NUMBER: $caller_number");
+  }
+  else {
+    notify_admin_about_new_call($called_number, $caller_number, $event);
+
+    $Callcenter->callcenter_change_calls({
+      OPERATOR_PHONE => $called_number,
+      ID             => $call_id,
+      #UID            => $uid || 0,
+      STATUS         => 2,
+    });
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 process_asterisk_bridge($asterisk, $event)
+
+=cut
+#**********************************************************
+sub process_asterisk_softhanguprequest {
+  my ($asterisk, $event) = @_;
+
+  my $event_ = $event->{Event} || 'NO EVENT';
+  #my $called_number = $event->{Exten} || q{};
+  my $call_id = $event->{Uniqueid} || q{UNKNOWN};
+
+  # process_default($asterisk, $event);
+  #`echo "SOFTHANGUPREQUEST: $event_ // $call_id" >> /tmp/sip`;
+
+  $Callcenter->callcenter_info_calls({
+    ID => $call_id
+  });
+
+  my $status = $Callcenter->{STATUS} || 0;
+  my $error = $Callcenter->{errno} || '';
+
+  if (!$error && $status < 3) {
+    $Callcenter->callcenter_change_calls({
+      STATUS => 3,
+      ID     => $call_id,
+      STOP   => 'NOW()'
+    });
+    $Log->warning("CALL_NOT_PROCEESSED ID: $call_id NUMBER: ");
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 process_asterisk_rtcpsent($asterisk, $event)
+
+Kodr, [20.11.2023 17:46]
+================EVENT START=================
+AccountCode:
+CallerIDName: +380964742263
+CallerIDNum: +380964742263
+Channel: SIP/380971365136-000538c9
+ChannelState: 6
+ChannelStateDesc: Up
+ConnectedLineName: КЦ Бригадир Олександр
+ConnectedLineNum: 338
+Context: ext-queues
+Event: RTCPSent
+Exten: 1001
+From: 91.225.160.15:12331
+Language: uk
+Linkedid: 1700494719.829805
+PT: 200(SR)
+Priority: 20
+Privilege: reporting,all
+Report0CumulativeLost:
+Report0DLSR: 0.0000
+Report0FractionLost:
+Report0HighestSequence: 10
+Report0IAJitter: 7
+Report0LSR:
+Report0SequenceNumberCycles:
+Report0SourceSSRC: 0x6474571d
+ReportCount: 1
+SSRC: 0x281b4dae
+SentNTP: 1700495054.196621
+SentOctets: 327560
+SentPackets: 16378
+SentRTP: 14080
+To: 100.64.64.10:16391
+Uniqueid: 1700494719.829805
+================EVENT END=================
+=cut
+#**********************************************************
+sub process_asterisk_rtcpsent {
+  my ($asterisk, $event) = @_;
+
+  # process_default($asterisk, $event);
+  #my $event_ = $event->{Event} || 'NO EVENT';
+  #my $channel_state = $event->{ChannelStateDesc} || q{};
+  my $called_number = $event->{ConnectedLineNum} || q{};
+  my $caller_number = $event->{CallerIDNum} || q{};
+  my $call_id = $event->{Uniqueid} || $event->{Uniqueid1} || q{UNKNOWN};
+
+  if (skip_call($caller_number, $called_number)) {
+    return 0;
+  }
+
+  if ($event->{Context} && $event->{Context} eq 'cos-all') {
+    $called_number = $event->{CallerIDNum} || q{};
+    $caller_number = $event->{ConnectedLineNum} || q{};
+    $call_id = $event->{Linkedid} || $event->{Uniqueid} || q{UNKNOWN};
+    #`echo "$DATE $TIME REPLYYY RTCP: $event_ /$channel_state/ $call_id, $caller_number -> $called_number" >> /tmp/sip`;
+  }
+  # else {
+  #   #`echo "$DATE $TIME  RTCP: $event_ /$channel_state/ $call_id, $caller_number -> $called_number" >> /tmp/sip`;
+  # }
+
+  $Callcenter->query("SELECT status
+    FROM callcenter_calls_handler
+    WHERE id='$call_id';"
+  );
+
+  if (!$Callcenter->{TOTAL}) {
+    call_processing($asterisk, {
+      CALLER_NUMBER => $caller_number,
+      CALLED_NUMBER => $called_number,
+      CALL_ID       => $call_id,
+      STATUS        => 15
+    });
+
+    $DATE = strftime("%Y-%m-%d", localtime(time));
+    $TIME = strftime("%H:%M:%S", localtime(time));
+    #`echo "$DATE $TIME N111111111111111111111111111111111 / $call_id $caller_number -> $called_number" >> /tmp/sip`;
+  }
+  else {
+    my $call_status = $Callcenter->{list}->[0]->[0] || 0;
+    if ($call_status == 1) {
+      notify_admin_about_new_call($called_number, $caller_number, $event);
+      $DATE = strftime("%Y-%m-%d", localtime(time));
+      $TIME = strftime("%H:%M:%S", localtime(time));
+      `echo "$DATE $TIME UPDATEEEEE STATUS: $call_status ID: $call_id -> $called_number ($Callcenter->{AFFECTED})" >> /tmp/sip`;
+    }
+
+    $Callcenter->callcenter_change_calls({
+      OPERATOR_PHONE => $called_number,
+      ID             => $call_id,
+      STATUS         => 2,
+      STOP           => 'NOW()'
+    });
+  }
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 call_processing($asterisk, $caller_number, $called_number, $call_id, $attr)
+
+  Arguments:
+    $asterisk
+    $attr
+      CALLER_NUMBER
+      CALLED_NUMBER
+      CALL_ID
+      STATUS - CUstom status (Default: 1)
+
+  Returns:
+
+=cut
+#**********************************************************
+sub call_processing {
+  my ($asterisk, $attr) = @_;
+
+  my $caller_number = $attr->{CALLER_NUMBER} || q{};
+  my $called_number = $attr->{CALLED_NUMBER} || q{};
+  my $call_id = $attr->{CALL_ID} || q{};
+
+  if ($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}) {
+    $caller_number =~ s/^$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
+  }
+
+  my $newchannel_handler = sub {
+    my $search_expr = '*USER_PHONE';
+
+    if ($caller_number =~ /(\d{6,13})/) {
+      $search_expr = '*USER_PHONE*';
+    }
+    elsif ($conf{CALLCENTER_ASTERISK_SEARCH}) {
+      $search_expr = $conf{CALLCENTER_ASTERISK_SEARCH};
+    }
+
+    $search_expr =~ s/USER_PHONE/$caller_number/g;
+
+    my $user = $Users->list({
+      UID       => '_SHOW',
+      PHONE     => $search_expr,
+      COLS_NAME => 1,
+      TEST      => 1
+    });
+
+    my $uid = 0;
+    if ($Users->{TOTAL} && $Users->{TOTAL} > 0) {
+      $uid = $user->[0]->{uid};
+    }
+    my $error = -1;
+    if ($Users->{errno}) {
+      $error = $Users->{errno} || '-2';
+    }
+
+    $Callcenter->callcenter_add_calls({
+      USER_PHONE     => $caller_number,
+      OPERATOR_PHONE => $called_number,
+      ID             => $call_id,
+      UID            => $uid || 0,
+      STATUS         => $attr->{STATUS} || 1,
+    });
+
+    if (!$Callcenter->{errno}) {
+      $Log->info("NEW_CALL ID: " . ($call_id || 'UNKNOWN'));
+    }
+    else {
+      $Log->info("ERR_CANT_ADD_CALL ID: " . ($call_id || 'UNKNOWN'));
+    }
+
+    #$DATE = strftime("%Y-%m-%d", localtime(time));
+    #$TIME = strftime("%H:%M:%S", localtime(time));
+    #`echo "$DATE $TIME >>>>>>>>>>>>>>>> $caller_number  ->  $called_number ID:  $call_id UID: $uid / $search_expr ($error)" >> /tmp/sip`;
+  };
+
+  my $ivr_is_exist = 0;
+  $asterisk->{guard_timer} = AnyEvent->timer(
+    after => 1,
+    cb    => sub {
+      $Callcenter->callcenter_list_calls({
+        ID => $call_id
+      });
+
+      #print "Total - $Callcenter->{TOTAL}\n";
+      if (!$Callcenter->{TOTAL}) {
+        $newchannel_handler->();
+      }
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+=head2 skip_call($caller_number, $called_number, $call_id)
+
+  Arguments:
+    $asterisk
+    $attr
+      CALLER_NUMBER
+      CALLED_NUMBER
+      CALL_ID
+      STATUS - CUstom status (Default: 1)
+
+  Returns:
+    TRUE or FALSE
+=cut
+#**********************************************************
+sub skip_call {
+  my ($caller_number, $called_number)=@_;
+
+  if (! $caller_number || ! $called_number) {
+    return 1
+  }
+  elsif(in_array($called_number, [ '+', 's'])) {
+    return 1
+  }
+  elsif ($called_number =~ /unknown/ || $caller_number =~ /unknown/) {
+    return 1;
+  }
+  elsif ($conf{CALLCENTER_SKIP_LOG}) {
+    if (in_array($caller_number, \@skip_nums)) {
+      $Log->info("Got Newchannel event. $caller_number calling to $called_number (Skip)");
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+
+sub process_asterisk_rtcpreceived {
+  my ($asterisk, $event) = @_;
+
+  process_default($asterisk, $event, { LOG_FILE => '/usr/abills/var/log/rtcpreceived.log' });
+
+  return 1;
+}
+
 
 
 1;

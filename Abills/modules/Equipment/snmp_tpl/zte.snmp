@@ -181,11 +181,6 @@
       "PARSER"    : "_zte_convert_power",
       "ADD_2_OID" : ".1"
     }, // rx_power = rx_power * 0.002 - 30.0;
-    "OLT_RX_POWER" : {
-      "NAME"   : "OLT_RX_POWER",
-      "OIDS"   : ".1.3.6.1.4.1.3902.1015.1010.11.2.1.2", //enabled only for c320
-      "PARSER" : "_zte_convert_olt_power"
-    }, // olt_rx_power = olt_rx_power * 0.001;
     "ONU_DESC" : {
       "NAME"   : "DESCRIBE",
       "OIDS"   : ".1.3.6.1.4.1.3902.1012.3.28.1.1.3",

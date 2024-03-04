@@ -61,6 +61,13 @@
         </div>
       </div>
 
+      <div class='form-group row'>
+        <label for='COMMENTS' class='control-label col-sm-3 col-md-2 text-right'>_{COMMENTS}_:</label>
+        <div class='col-sm-9 col-md-10'>
+          <textarea class='form-control' type='text' id='COMMENTS' placeholder='%COMMENTS%' name='COMMENTS'>%COMMENTS%</textarea>
+        </div>
+      </div>
+
     </div>
 
     %ADDRESS_TPL%

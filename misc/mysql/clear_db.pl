@@ -70,9 +70,6 @@ if (!$argv->{ACTIONS}) {
   if ($internet_module_enabled){
     $argv->{ACTIONS} .= ',internet_log';
   }
-  else {
-    $argv->{ACTIONS} .= ',dv_log';
-  }
 }
 
 if (!$argv->{DATE}) {
@@ -86,7 +83,6 @@ $Admin->{debug} = 1 if ( $debug > 6 );
 
 $argv->{ACTIONS} =~ s/ //g;
 my @actions = split(/,/, $argv->{ACTIONS});
-
 my $CUR_DATE = $argv->{DATE};
 $CUR_DATE =~ s/\-/\_/g;
 
@@ -207,7 +203,6 @@ sub payments_list {
 
   return ($sql_expr, $sql_expr2);
 }
-
 
 
 #**********************************************************
@@ -368,7 +363,7 @@ sub internet_log_rotate {
   
   $attr->{TABLE_NAME} = 'internet_log';
   
-  return dv_log_rotate($attr);
+  return _log_rotate($attr);
 }
 
 #**********************************************************
@@ -384,20 +379,20 @@ sub internet_log_group_rotate {
     CID => 'cid'
   };
   
-  return dv_log_group_rotate($attr);
+  return _log_group_rotate($attr);
 }
 
 #**********************************************************
-=head2 dv_log_rotate($attr)
+=head2 _log_rotate($attr)
 
 =cut
 #**********************************************************
-sub dv_log_rotate {
+sub _log_rotate {
   my ($attr) = @_;
 
   my @WHERE_RULES = ();
 
-  my $table_name = $attr->{TABLE_NAME} || 'dv_log';
+  my $table_name = $attr->{TABLE_NAME} || 'internet_log';
   if ($attr->{DATE}) {
     push @WHERE_RULES, @{ $Admin->search_expr( "$attr->{DATE}", 'DATE', 'l.start' ) };
   }
@@ -423,11 +418,11 @@ sub dv_log_rotate {
 
 
 #**********************************************************
-=head2 dv_log_group_rotate()
+=head2 _log_group_rotate()
 
 =cut
 #**********************************************************
-sub dv_log_group_rotate {
+sub _log_group_rotate {
   my ($attr) = @_;
 
   my @WHERE_RULES = ();
@@ -437,7 +432,7 @@ sub dv_log_group_rotate {
   }
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE ".join(' AND ', @WHERE_RULES) : '';
-  my $table_name = $attr->{TABLE_NAME} || 'dv_log';
+  my $table_name = $attr->{TABLE_NAME} || 'internet_log';
   my $cid_col_name = ($attr->{SUBSTITUTE_FIELDS} && $attr->{SUBSTITUTE_FIELDS}{CID})
     ? $attr->{SUBSTITUTE_FIELDS}{CID}
     : 'CID';
@@ -512,8 +507,8 @@ sub help {
 
   print << "[END]";
   Clear db utilite VERSION: $version
-  Clear payments, fees, dv_log or internet_log
-  ACTIONS=[payments, fees, dv_log or internet_log ] - default all tables
+  Clear payments, fees, internet_log
+  ACTIONS=[payments, fees, internet_log ] - default all tables
   GID           - Groups
   DATE          - Date time DATE="<YYYY-MM-DD"
   SHOW          - Show clear date (default)

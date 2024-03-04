@@ -49,6 +49,30 @@
 
 <div class='card card-outline card-big-form collapsed-card mb-0 border-top'>
   <div class='card-header with-border ui-sortable-handle' style='cursor: auto;'>
+    <h3 class='card-title'>_{ABON}_: <b>%ABON_TP%</b></h3>
+    <div class='card-tools float-right'>
+      <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+        <i class='fa fa-plus'></i>
+      </button>
+    </div>
+  </div>
+  <div id='internet' class='card-body'>
+    <div class='form-group row'>
+      <label class='control-label col-sm-4' for=ABON_TP>_{TARIF_PLAN}_</label>
+      <div class='col-md-6'>
+        <input type='text' class='form-control' id='ABON_TP' disabled value='%ABON_INFO%'>
+      </div>
+      <div class='col-md-2'>
+        <a href='%ABON_LINK%' class='btn btn-primary'>
+          <span class='fa fa-pencil-alt' aria-hidden='true'></span>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class='card card-outline card-big-form collapsed-card mb-0 border-top'>
+  <div class='card-header with-border ui-sortable-handle' style='cursor: auto;'>
     <h3 class='card-title'>VOIP: <b>%VOIP_TP%</b></h3>
     <div class='card-tools float-right'>
       <button type='button' class='btn btn-tool' data-card-widget='collapse'>

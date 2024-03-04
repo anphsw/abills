@@ -75,34 +75,6 @@ if ($permissions{3}) {
   require Iptv::Reports;
 }
 
-#*******************************************************************
-=head2 iptv_user_del($uid) - Delete user from module
-
-  Arguments:
-    $uid
-
-=cut
-#*******************************************************************
-sub iptv_user_del {
-  my ($uid, $attr) = @_;
-
-  my $users_list = $Iptv->user_list({ UID => $uid, COLS_NAME => 1 });
-
-  foreach my $line (@$users_list) {
-    $Iptv->user_info($line->{id});
-    iptv_account_action({
-      %$Iptv,
-      del       => $line->{id},
-      USER_INFO => $attr
-    });
-  }
-
-  $Iptv->{UID} = $uid;
-  $Iptv->user_del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
-
-  return 0;
-}
-
 #**********************************************************
 =head2 iptv_users_search($Iptv)
 
@@ -161,22 +133,24 @@ sub iptv_users_list {
     $pages_qs .= "&letter=$FORM{letter}";
   }
 
-  my $status_bar = $html->button($lang{ALL}, "index=$index$pages_qs", { class => "btn btn-default active" });
+  my $clear_qs = $pages_qs || q{};
+  $clear_qs =~ s/\&SERVICE_STATUS=\d+//;
+  my @status_bar     = "$lang{ALL}:index=$index$clear_qs";
+  my $service_status = sel_status({ HASH_RESULT => 1 });
 
-  for (my $i = 0; $i <= 2; $i++) {
-    my $name = $service_status[$i];
+  foreach my $i (sort keys %$service_status) {
     my $active = '';
-    my $qs = $pages_qs;
+    my ($name) = split(/:/, $service_status->{$i}, 2);
+
     if (defined($FORM{SERVICE_STATUS}) && $FORM{SERVICE_STATUS} eq $i && $FORM{SERVICE_STATUS} ne '') {
       $LIST_PARAMS{SERVICE_STATUS} = $FORM{SERVICE_STATUS};
-      $qs .= "&SERVICE_STATUS=$i";
-      $active = 'active';
+      $pages_qs .= "&SERVICE_STATUS=$i";
+      $active    = 'active';
     }
-    else {
-      $qs =~ s/\&SERVICE_STATUS=\d//;
-    }
-    $status_bar .= $html->button($name, "index=$index&SERVICE_STATUS=$i$qs", { class => "btn btn-default $active" });
+
+    push @status_bar, "$name:index=$index&SERVICE_STATUS=$i$clear_qs";
   }
+
   if ($FORM{SERVICES} && $FORM{SERVICES} =~ m/^[<>]?\d+$/) {
     my $search = $FORM{SERVICES};
     if ($search !~ m/^[<>]/) {
@@ -193,6 +167,8 @@ sub iptv_users_list {
   $function_fields = 'change,del' if ($permissions{0} && $permissions{0}{14});
 
   $LIST_PARAMS{GROUP_BY} = $FORM{MAC_CID} || $FORM{SERIAL} ? 'GROUP BY u.uid' : 'GROUP BY service.id';
+  $LIST_PARAMS{DEPOSIT} = $FORM{DEPOSIT} || '_SHOW';
+  $LIST_PARAMS{REDUCTION} = $FORM{REDUCTION} || '_SHOW';
 
   ($table, $list) = result_former({
     INPUT_DATA      => $Iptv,
@@ -218,14 +194,17 @@ sub iptv_users_list {
       subscribe_id    => $lang{SUBSRIBES},
       tv_service_name => $lang{SERVICE},
       month_fee       => $lang{MONTH_FEE},
-      day_fee         => $lang{DAY_FEE}
+      day_fee         => $lang{DAY_FEE},
+      tp_id           => "ID $lang{TARIF_PLAN}",
+      user_reduction  => "$lang{REDUCTION},%",
     },
     STATUS_VALS     => sel_status({ HASH_RESULT => 1 }),
     TABLE           => {
       width   => '100%',
       caption => ($FORM{UID}) ? "$lang{SERVICES}" : "$lang{TV} - $lang{USERS}",
       qs      => $pages_qs,
-      header  => $status_bar,
+      # header  => $status_bar,
+      header  => \@status_bar,
       ID      => 'IPTV_USERS_LIST',
       EXPORT  => 1,
       IMPORT  => "$SELF_URL?get_index=iptv_user&import=1&header=2",
@@ -398,7 +377,7 @@ sub iptv_multiuser {
     }
   }
 
-  if ($params{TP_ID} || $params{STATUS} || $params{SERVICE_ACTIVATE} || $params{SERVICE_EXPIRE}) {
+  if ($params{TP_ID} || defined $params{STATUS} || $params{SERVICE_ACTIVATE} || $params{SERVICE_EXPIRE}) {
     $FORM{change} = 1;
     foreach my $id (@multiuser_arr) {
       $Iptv->{db}{db}->{AutoCommit} = 0;
@@ -1166,7 +1145,6 @@ sub iptv_service_deactivate {
   }
 
   if ($attr->{STATUS}) {
-    #$Iptv->{debug}=1;
     my $tv_services = $Iptv->user_list({
       UID          => $user_info->{UID},
       ALL_FILTER_ID=> '_SHOW',
@@ -1689,7 +1667,7 @@ sub iptv_user_activate {
   my $user = $attr->{USER};
   $user->{DEPOSIT} = $user_info->{DEPOSIT} || $user->{DEPOSIT};
   $user->{CREDIT} = $user_info->{CREDIT} || $user->{CREDIT};
-  $user->{CREDIT} = $user->{CREDIT} > 0 ? $user->{CREDIT} : ($Iptv_info->{TP_CREDIT} || 0);
+  $user->{CREDIT} = $user->{CREDIT} && $user->{CREDIT} > 0 ? $user->{CREDIT} : ($Iptv_info->{TP_CREDIT} || 0);
   
   $user->{REDUCTION} = $Iptv_info->{REDUCTION_FEE} ? ($user_info->{REDUCTION} || $user->{REDUCTION}) : 0;
 

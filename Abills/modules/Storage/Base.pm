@@ -5,11 +5,13 @@ use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db);
 my Abills::HTML $html;
-my $lang;
 my $Storage;
 my @item_status = ();
 
-use Abills::Base qw/days_in_month in_array/;
+use Abills::Base qw/days_in_month in_array json_former/;
+
+our %lang;
+require 'Abills/modules/Storage/lng_english.pl';
 
 #**********************************************************
 =head2 new($html, $lang)
@@ -24,9 +26,7 @@ sub new {
   my $attr = shift;
 
   $html = $attr->{HTML} if $attr->{HTML};
-  #TODO: load Storage lang because it`s required param not optional now fixed putting
-  #TODO:  empty string except lang value
-  $lang = $attr->{LANG} if $attr->{LANG};
+  %lang = (%{$attr->{LANG} ? $attr->{LANG} : {}}, %lang);
 
   my $self = {};
 
@@ -34,7 +34,7 @@ sub new {
   Storage->import();
   $Storage = Storage->new($db, $admin, $CONF);
 
-  @item_status = (($lang->{INSTALLED} || q{}), ($lang->{SOLD} || q{}), ($lang->{RENT} || q{}), ($lang->{BY_INSTALLMENTS} || q{}), ($lang->{RETURNED_STORAGE} || q{}));
+  @item_status = (($lang{INSTALLED} || q{}), ($lang{SOLD} || q{}), ($lang{RENT} || q{}), ($lang{BY_INSTALLMENTS} || q{}), ($lang{RETURNED_STORAGE} || q{}));
 
   bless($self, $class);
 
@@ -76,7 +76,7 @@ sub storage_docs {
   });
 
   foreach my $hardware (@{$list}) {
-    $hardware->{describe} = $lang->{MONTH_FEE_SHORT};
+    $hardware->{describe} = $lang{MONTH_FEE_SHORT};
     if ($hardware->{status} eq '3') {
       $hardware->{sum_total} = $hardware->{amount_per_month} if ($hardware->{amount_per_month});
 
@@ -91,14 +91,14 @@ sub storage_docs {
 
       if ($hardware->{abon_distribution}) {
         $hardware->{sum_total} = sprintf("%.6f", $hardware->{sum_total} / days_in_month());
-        $hardware->{describe} = $lang->{ABON_DISTRIBUTION};
+        $hardware->{describe} = $lang{ABON_DISTRIBUTION};
       }
     }
 
     $hardware->{sta_name} ||= '';
-    $info{service_name} = ($lang->{HARDWARE} || q{}) . ':' . ($hardware->{describe} || q{}) . ' ' . ($hardware->{sta_name} || q{}) . ' ' .
-      ($item_status[$hardware->{status}] || q{}) . ' (' . ($hardware->{count} || 0) . ' ' . ($lang->{UNIT} || q{}) . ")";
-    $info{service_name} .= ($lang->{STORAGE_MONTHS_LEFT} || q{}) . ' : ' . ($hardware->{monthes} || 0) . ')';
+    $info{service_name} = ($lang{HARDWARE} || q{}) . ':' . ($hardware->{describe} || q{}) . ' ' . ($hardware->{sta_name} || q{}) . ' ' .
+      ($item_status[$hardware->{status}] || q{}) . ' (' . ($hardware->{count} || 0) . ' ' . ($lang{UNIT} || q{}) . ")";
+    $info{service_name} .= ($lang{STORAGE_MONTHS_LEFT} || q{}) . ' : ' . ($hardware->{monthes} || 0) . ')';
     $info{month} = $hardware->{sum_total};
 
     if ($attr->{FULL_INFO}) {
@@ -163,17 +163,17 @@ sub storage_quick_info {
   }
   elsif ($attr->{GET_PARAMS}) {
     my %result = (
-      HEADER    => $lang->{STORAGE},
+      HEADER    => $lang{STORAGE},
       QUICK_TPL => 'storage_qi_box',
       SLIDES    => [{
-        sat_type           => $lang->{TYPE},
-        actual_sell_price  => $lang->{PRICE},
+        sat_type           => $lang{TYPE},
+        actual_sell_price  => $lang{PRICE},
         mac                => 'MAC',
         ip                 => 'IP',
-        sta_name           => $lang->{NAME},
-        status             => $lang->{STATUS},
-        date               => $lang->{DATE},
-        installed_aid_name => $lang->{ADMIN}
+        sta_name           => $lang{NAME},
+        status             => $lang{STATUS},
+        date               => $lang{DATE},
+        installed_aid_name => $lang{ADMIN}
       }]
     );
 
@@ -183,6 +183,48 @@ sub storage_quick_info {
   $Storage->storage_installation_list({ UID => $uid || 0, COLS_NAME => 1 });
 
   return ($Storage->{TOTAL} > 0) ? $Storage->{TOTAL} : '';
+}
+
+#***************************************************************
+=head2 storage_events($attr)
+
+=cut
+#***************************************************************
+sub storage_events {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my %LIST_PARAMS;
+  my $events_json = [];
+
+  return '' if $attr->{CLIENT_INTERFACE};
+
+  my $installations = $Storage->storage_installation_list({
+    DATE            => $main::DATE,
+    STA_NAME        => '_SHOW',
+    SAT_TYPE        => '_SHOW',
+    LOGIN           => '_SHOW',
+    UID             => '!',
+    DELIVERY_ID     => '!',
+    DELIVERY_STATUS => '0',
+    SORT            => 'i.id',
+    DESC            => 'DESC',
+    COLS_NAME       => 1
+  });
+
+  foreach my $line (@{$installations}) {
+    push @{$events_json}, json_former({
+      TYPE        => 'MESSAGE',
+      MODULE      => 'Storage',
+      TITLE       => $lang{STORAGE_PURCHASED_ITEM},
+      TEXT        => "$line->{sat_type}: $line->{sta_name}",
+      CREATED     => $line->{date},
+      EXTRA       => "?get_index=storage_hardware&UID=$line->{uid}&delivery=$line->{id}&full=1",
+      SENDER      => { UID => $line->{uid}, LOGIN => $line->{login} }
+    });
+  }
+
+  return join(', ', @{$events_json});
 }
 
 1;

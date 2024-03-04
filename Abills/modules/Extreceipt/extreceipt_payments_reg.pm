@@ -11,12 +11,13 @@
   TO_DATE
   RESEND
   CANCEL
-  PAGE_ROWS   - List size of send documents
-  SLEEP       - Sleep in second after each send
-  API_NAME    - Use only one API
-  RENEW_SHIFT - Renew shifts
-  OPEN_SHIFT  - open shifts
-  CLOSE_SHIFT - close shifts
+  PAGE_ROWS       - List size of send documents
+  SLEEP           - Sleep in second after each send
+  API_NAME        - Use only one API
+  RENEW_SHIFT     - Renew shifts
+  OPEN_SHIFT      - open shifts
+  CLOSE_SHIFT     - close shifts
+  CASH_COLLECTION - make cash collection during close of shift
 
   LOGIN - coming soon
   UID
@@ -41,6 +42,7 @@ use Extreceipt::db::Extreceipt;
 use Extreceipt::Base;
 
 my $debug = 0;
+my $cash_collection = $argv->{CASH_COLLECTION} || 0;
 
 my $Config = Conf->new($db, $Admin, \%conf);
 my $Receipt = Extreceipt->new($db, $Admin, \%conf);
@@ -50,7 +52,7 @@ if ($argv->{DEBUG}) {
   $Receipt->{debug} = 1 if ($debug > 4);
 }
 my $Receipt_api = receipt_init($Receipt, {
-  API_NAME => $argv->{API_NAME},
+  API_NAME => $argv->{API_NAME} || '',
   DEBUG    => ($debug > 2) ? 1 : 0
 });
 
@@ -86,13 +88,16 @@ elsif ($argv->{RESEND}) {
   resend_errors();
 }
 elsif ($argv->{RENEW_SHIFT}) {
-  renew_shifts({close => 1, open => 1});
+  renew_shifts({ close => 1, open => 1, cash_collection => $cash_collection });
 }
 elsif ($argv->{OPEN_SHIFT}) {
-  renew_shifts({open => 1});
+  renew_shifts({ open => 1 });
 }
 elsif ($argv->{CLOSE_SHIFT}) {
-  renew_shifts({close => 1});
+  renew_shifts({ close => 1, cash_collection => $cash_collection });
+}
+elsif ($cash_collection) {
+  cash_collection();
 }
 else {
   check_receipts();
@@ -117,12 +122,13 @@ sub check_payments {
     print "ERROR: $Receipt->{error} $Receipt->{errstr}\n";
     return 0;
   }
-
-  $Config->config_add({
-    PARAM   => "EXTRECEIPT_LAST_ID",
-    VALUE   => $Receipt->{LAST_ID},
-    REPLACE => 1
-  });
+  if ($Receipt->{LAST_ID}) {
+    $Config->config_add({
+      PARAM   => "EXTRECEIPT_LAST_ID",
+      VALUE   => $Receipt->{LAST_ID},
+      REPLACE => 1
+    });
+  }
 
   return 1;
 }
@@ -146,8 +152,7 @@ sub send_payments {
     if (!$line->{mail} && !$line->{phone}) {
       $line->{mail} = $conf{EXTRECEIPTS_FAIL_EMAIL} || ($line->{uid} . '@myisp.ru');
     }
-    ($line->{check_header}, $line->{check_desc}, $line->{check_footer}) = $conf{EXTRECEIPTS_EXT_RECEIPT_INFO} ?
-      _extreceipt_receipt_ext_info($line) : ('', '', '');
+    ($line->{check_header}, $line->{check_desc}, $line->{check_footer}) = _extreceipt_receipt_ext_info($line);
     my $command_id = $Receipt_api->{$line->{api_id}}->payment_register($line);
 
     if ($command_id) {
@@ -186,8 +191,7 @@ sub cancel_payments {
   return print("You have deleted the KKT or API, therefore actions with this check are not available\n")
     if (!defined($info->[0]{api_id}));
   return 1 if (!$Receipt_api->{$info->[0]{api_id}});
-  ($info->[0]{check_header}, $info->[0]{check_desc}, $info->[0]{check_footer}) = $conf{EXTRECEIPTS_EXT_RECEIPT_INFO} ?
-    _extreceipt_receipt_ext_info($info->[0]) : ('', '', '');
+  ($info->[0]{check_header}, $info->[0]{check_desc}, $info->[0]{check_footer}) = _extreceipt_receipt_ext_info($info->[0]);
   my $command_id = $Receipt_api->{$info->[0]{api_id}}->payment_cancel($info->[0]);
   if ($command_id) {
     if (ref $command_id eq 'HASH') {
@@ -304,8 +308,7 @@ sub resend_errors {
     print "$line->{c_phone} $line->{mail}\n" if ($debug > 1);
 
     $line->{payments_id} .= "-e";
-    ($line->{check_header}, $line->{check_desc}, $line->[0]->{check_footer}) = $conf{EXTRECEIPTS_EXT_RECEIPT_INFO} ?
-      _extreceipt_receipt_ext_info($line->[0]) : ('', '', '');
+    ($line->{check_header}, $line->{check_desc}, $line->{check_footer}) = _extreceipt_receipt_ext_info($line->[0]);
     my $command_id = $Receipt_api->{$line->{api_id}}->payment_register($line);
     if ($command_id) {
       $Receipt->change({
@@ -320,12 +323,16 @@ sub resend_errors {
 }
 
 #**********************************************************
-=head2 renew_shifts() - Renew cashier shift.
+=head2 renew_shifts() - manage cashier shifts.
 
 =cut
 #**********************************************************
 sub renew_shifts {
   my ($attr) = @_;
+
+  if ($attr->{cash_collection} && $attr->{close}) {
+    cash_collection();
+  }
 
   my $kkt_list = $Receipt->kkt_list();
   my @kkt_keys = ();
@@ -377,6 +384,32 @@ sub renew_shifts {
 }
 
 #**********************************************************
+=head2 renew_shifts() - get all cash.
+
+=cut
+#**********************************************************
+sub cash_collection {
+
+  require Extreceipt::Cash_register;
+  Extreceipt::Cash_register->import();
+  my $Cash_register = Extreceipt::Cash_register->new($db, $Admin, \%conf);
+
+  my $api_list = $Receipt->api_list();
+
+  foreach my $api (@{$api_list}) {
+    my $result = $Cash_register->cash_collection($api->{api_id});
+    next if (!$debug);
+
+    if ($result->{ERROR}) {
+      print "Error - " . ($result->{ERROR} || '') . "\n";
+    }
+    else {
+      print "Get all cash from cash register with ID $api->{api_id} and name $api->{conf_name}. Amount - $result->{AMOUNT}\n";
+    }
+  }
+}
+
+#**********************************************************
 =head2 _extreceipt_receipt_ext_info()
 
 =cut
@@ -392,6 +425,7 @@ sub _extreceipt_receipt_ext_info {
   if ($kkt_info->[0]->{check_desc}) {
     my $Users = Users->new($db, $Admin, \%conf);
     my $users_pi = $Users->pi({ UID => $attr->{uid} });
+    $users_pi->info($attr->{uid});
 
     my @vars = $kkt_info->[0]->{check_desc} =~ /\&(.+?)\&/g;
     foreach my $var (@vars) {

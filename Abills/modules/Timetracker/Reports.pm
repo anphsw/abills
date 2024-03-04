@@ -8,12 +8,14 @@ use warnings FATAL => 'all';
 use strict;
 use Abills::Base qw(time2sec sec2time);
 use Timetracker::db::Timetracker;
+use Timetracker::Redmine;
 use Abills::Fetcher qw/web_request/;
 use Time::Piece;
 
 our (%FORM, $db, %conf, $admin, %lang, @WEEKDAYS, $pages_qs, $DATE);
 our Abills::HTML $html;
 my $Timetracker = Timetracker->new($db, $admin, \%conf);
+my $Redmine = Redmine->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 all_report_time() - shows a table of repots
@@ -23,13 +25,10 @@ my $Timetracker = Timetracker->new($db, $admin, \%conf);
 
 
 sub all_report_time {
-  require Timetracker::Redmine;
   if(!$conf{TIMETRACKER_REDMINE_URL}){
     $html->message('err', $lang{NOT_CONFIGURED}, "$lang{NOT_FOUND} \$conf{TIMETRACKER_REDMINE_URL}");
     return 1;
   }
-  Redmine->import();
-  my $Redmine = Redmine->new($db, $admin, \%conf);
 
   require Control::Reports;
   reports({
@@ -206,36 +205,53 @@ sub get_run_time_with_support {
 #**********************************************************
 =head2 report_sprint() - show sprint report
 
-
 =cut
 #**********************************************************
 sub report_sprint {
-  my ($attr) = @_;
 
   if (!$conf{TIMETRACKER_REDMINE_URL}) {
     $html->message('err', $lang{NOT_CONFIGURED}, "$lang{NOT_FOUND} \$conf{TIMETRACKER_REDMINE_URL}");
     return 1;
   }
-  if (!$conf{TIMETRACKER_REDMINE_PROJECT_ID}) {
-    $html->message('err', $lang{NOT_CONFIGURED}, "$lang{NOT_FOUND} \$conf{TIMETRACKER_REDMINE_PROJECT_ID}");
-    return 1;
-  }
+
   if (!$conf{TIMETRACKER_REDMINE_APIKEY}) {
     $html->message('err', $lang{NOT_CONFIGURED}, "$lang{NOT_FOUND} \$conf{TIMETRACKER_REDMINE_APIKEY}");
     return 1;
   }
 
-  require Timetracker::Redmine;
-  Redmine->import();
-  my $Redmine = Redmine->new($db, $admin, \%conf);
-
+  my $period_last_days = 90;
   my $period_end_sec = Time::Piece->strptime($DATE, '%Y-%m-%d');
-  my $period_start_sec = $period_end_sec - 86400 * 90; # last 90 days
-
-  my $sprints_list_all = $Redmine->get_list_sprints();
-  my @last_sprints = ();
+  my $period_start_sec = $period_end_sec - 86400 * $period_last_days;
+  my %projects_sel = ();
   my %sprint_sel = ();
   my %responsible_sel = ();
+  my @last_sprints = ();
+
+  my $projects_list = $Redmine->get_list_projects();
+
+  if (!$projects_list) {
+    $html->message('err', $lang{ERROR}, "$lang{PROJECT}: $lang{NO_RECORD}");
+    return 1;
+  }
+
+  foreach my $project (@$projects_list) {
+    $projects_sel{$project->{id}} = $project->{name};
+  }
+
+  if(!$FORM{PROJECT_ID}){
+    $FORM{INDEX} = get_function_index('report_sprint');
+    $FORM{PROJECT_SEL} = $html->form_select('PROJECT_ID',{
+      SEL_OPTIONS => { '' => '--' },
+      SEL_HASH    => \%projects_sel,
+      NO_ID       => 1,
+      REQUIRED    => 1
+    });
+
+    $html->tpl_show(_include('timetracker_report_start', 'Timetracker'), { %FORM });
+    return 1;
+  }
+
+  my $sprints_list_all = $Redmine->get_list_sprints({PROJECT_ID => $FORM{PROJECT_ID}});
 
   foreach my $sprint (@$sprints_list_all) {
     my ($sprint_number, $sprint_start_day, $sprint_start_time) = split(' ', $sprint->{name});
@@ -246,7 +262,7 @@ sub report_sprint {
       $sprint_sel{$sprint->{id}} = "$sprint_number - $sprint_start_day";
       push @last_sprints, $sprint;
 
-      my $issues_list = $Redmine->get_list_issues({ VERSION_ID => $sprint->{id} });
+      my $issues_list = $Redmine->get_list_issues({ VERSION_ID => $sprint->{id}, PROJECT_ID => $FORM{PROJECT_ID} });
       foreach my $issue (@$issues_list) {
         next if (!$issue->{assigned_to}->{name});
         $responsible_sel{$issue->{'assigned_to'}->{'id'}} = $issue->{'assigned_to'}->{'name'};
@@ -266,12 +282,24 @@ sub report_sprint {
       SEL_HASH    => \%responsible_sel,
       NO_ID       => 1,
       SEL_OPTIONS => { '' => '' }
-    })
+    }),
+    SPRINTS_INDICATORS => $FORM{SPRINTS_INDICATORS} ? 'checked' : '',
+    SELECT_PROJECT => $html->form_select('PROJECT_ID', {
+      SELECTED => $FORM{PROJECT_ID} || '',
+      SEL_HASH => \%projects_sel,
+      NO_ID    => 1,
+      REQUIRED => 1,
+      SEL_OPTIONS => { '' => '' }
+    }),
   }, { OUTPUT2RETURN => 1 }) });
 
   if (!$FORM{search}) {
     return 1;
   }
+
+  my %sprints_indicators = ();
+  my %sprints_indicators_total = ();
+  my @sprint_numbers = ();
 
   my @sorted_sprints_list = sort {$b->{'id'} <=> $a->{'id'}} @last_sprints;
 
@@ -285,7 +313,7 @@ sub report_sprint {
     if ($sprint_start_sec <= $period_end_sec && $sprint_start_sec > $period_start_sec) {
       my $data_for_table = ();
 
-      my $issues_list = $Redmine->get_list_issues({ VERSION_ID => $FORM{SPRINT} || $sprint->{id} });
+      my $issues_list = $Redmine->get_list_issues({ VERSION_ID => $FORM{SPRINT} || $sprint->{id}, PROJECT_ID => $FORM{PROJECT_ID} });
 
       foreach my $issue (@$issues_list) {
         next if (!$issue->{assigned_to}->{name});
@@ -305,6 +333,8 @@ sub report_sprint {
         # Search for an element with the same assigned_to_id in the new array
         my $data_for_table_element = _find_element_by_assigned_to_id($data_for_table, $assigned_to_id);
 
+        my $points_plan = $estimated_hours * $complexity;
+
         if ($issue->{status}->{id} == 3 || $issue->{status}->{id} == 4 || $issue->{status}->{id} == 5 || $issue->{status}->{id} == 8) {
           $issues_completed += 1;
           $points_completed += $spent_hours * $complexity;
@@ -316,7 +346,7 @@ sub report_sprint {
           $data_for_table_element->{'issues_completed'} += $issues_completed;
           $data_for_table_element->{'estimated_hours'} += $estimated_hours;
           $data_for_table_element->{'spent_hours'} += $spent_hours;
-          $data_for_table_element->{'points'} += $estimated_hours * $complexity;
+          $data_for_table_element->{'points_plan'} += $points_plan;
           $data_for_table_element->{'points_completed'} += $points_completed;
         }
         else {
@@ -329,31 +359,32 @@ sub report_sprint {
             'issues_completed' => $issues_completed,
             'estimated_hours'  => $estimated_hours,
             'spent_hours'      => $spent_hours,
-            'points'           => $estimated_hours * $complexity,
-            'points_completed' => $points_completed
+            'points_plan'      => $points_plan,
+            'points_completed' => $points_completed,
+            'sprint'           => $sprint_number
           };
         }
-      }
 
-      if (!$data_for_table) {
-        $html->message('warn', $lang{INFO}, "$lang{NO_TASKS_RESPONSIBLE}");
-        return 1;
+        if ($FORM{SPRINTS_INDICATORS}){
+          $sprints_indicators{$assigned_to_name}{$sprint_number}{issues} += $issues;
+          $sprints_indicators{$assigned_to_name}{$sprint_number}{issues_completed} += $issues_completed;
+          $sprints_indicators{$assigned_to_name}{$sprint_number}{points_plan} += $points_plan;
+          $sprints_indicators{$assigned_to_name}{$sprint_number}{points_completed} += $points_completed;
+          $sprints_indicators{$assigned_to_name}{$sprint_number}{estimated_hours} += $estimated_hours;
+          $sprints_indicators{$assigned_to_name}{$sprint_number}{spent_hours} += $spent_hours;
+          $sprints_indicators{$assigned_to_name}{$sprint_number}{sprint} = $sprint_number;
+        }
+      }
+      push @sprint_numbers, $sprint_number;
+
+      if (!$data_for_table && !$FORM{SPRINTS_INDICATORS}) {
+        $html->message('warn', $lang{INFO}, "$sprint_number: $lang{NO_TASKS_RESPONSIBLE}");
+        next;
       }
 
       my $url_sprint_redmine = "$conf{MSGS_REDMINE_APIURL}issues?&set_filter=1&fixed_version_id=$sprint->{id}&status_id=*&per_page=50 target=\'_blank\'";
-      my $total_issues = 0;
-      my $total_issues_completed = 0;
-      my $total_estimated_hours = 0;
-      my $total_spent_hours = 0;
-      my $total_points = 0;
-      my $total_points_completed = 0;
-      my @labels_chart = ();
-      my @time_task_plan = ();
-      my @time_task_fact = ();
-      my @point_avarage_plan = ();
-      my @point_avarage_fact = ();
-      my @success_plan = ();
-      my @success_fact = ();
+      my ($total_issues, $total_issues_completed, $total_estimated_hours, $total_spent_hours, $total_points_plan, $total_points_completed) = 0;
+      my (@assigned_to, @time_task_plan, @time_task_fact, @point_avarage_plan, @point_avarage_fact, @success_plan, @success_fact) = ();
 
       my $table_sprint = $html->table({
         width   => "100%",
@@ -381,17 +412,17 @@ sub report_sprint {
       foreach my $line (@$data_for_table) {
         my $estimated_hours = sprintf("%.0f", $line->{estimated_hours});
         my $spent_hours = sprintf("%.0f", $line->{spent_hours});
-        my $points = sprintf("%.0f", $line->{points});
+        my $points_plan = sprintf("%.0f", $line->{points_plan});
         my $points_completed = sprintf("%.0f", $line->{points_completed});
         my $issues = $line->{issues};
         my $issues_completed = $line->{issues_completed};
 
-        my $avarage_point_plan = sprintf("%.1f", $line->{points} / $line->{issues});
+        my $avarage_point_plan = sprintf("%.1f", $line->{points_plan} / $line->{issues});
         my $avarage_point_fact = sprintf("%.1f", $line->{points_completed} / $line->{issues_completed}) if ($issues_completed);
-        my $success_plan = sprintf("%.1f", $line->{points} / $line->{estimated_hours}) if ($line->{estimated_hours});
-        my $success_fact = sprintf("%.1f", $line->{points_completed} / $line->{spent_hours}) if $spent_hours;
-        my $time_task_plan = sprintf("%.2f", $estimated_hours / $issues);
-        my $time_task_fact = sprintf("%.2f", $spent_hours / $issues_completed) if $issues_completed;
+        my $success_plan = sprintf("%.1f", $line->{points_plan} / $line->{estimated_hours}) if ($line->{estimated_hours});
+        my $success_fact = sprintf("%.1f", $line->{points_completed} / $line->{spent_hours}) if ($spent_hours);
+        my $time_task_plan = sprintf("%.1f", $estimated_hours / $issues);
+        my $time_task_fact = sprintf("%.1f", $spent_hours / $issues_completed) if ($issues_completed);
 
         $table_sprint->addrow(
           $line->{assigned_to}->{name},
@@ -399,7 +430,7 @@ sub report_sprint {
           $issues_completed,
           $estimated_hours,
           $spent_hours,
-          $points,
+          $points_plan,
           $points_completed,
           $avarage_point_plan,
           $avarage_point_fact,
@@ -413,11 +444,11 @@ sub report_sprint {
         $total_spent_hours += $spent_hours;
         $total_issues += $issues;
         $total_issues_completed += $issues_completed;
-        $total_points += $points;
+        $total_points_plan += $points_plan;
         $total_points_completed += $points_completed;
 
         #for chart
-        push @labels_chart, ($line->{assigned_to}->{name});
+        push @assigned_to, ($line->{assigned_to}->{name});
         push @time_task_plan, $time_task_plan;
         push @time_task_fact, $time_task_fact if ($issues_completed);
         push @point_avarage_plan, $avarage_point_plan;
@@ -426,41 +457,62 @@ sub report_sprint {
         push @success_fact, $success_fact;
       }
 
-      # Show charts
-      _sprint_report_chart(\@labels_chart, \@time_task_plan, \@time_task_fact, \@point_avarage_plan, \@point_avarage_fact, \@success_plan, \@success_fact);
+      my $total_time_task_plan     = ($total_issues) ? sprintf("%.1f", $total_estimated_hours / $total_issues) : 0;
+      my $total_time_task_fact     = ($total_issues_completed) ? sprintf("%.1f", $total_spent_hours / $total_issues_completed) : 0;
+      my $total_point_avarage_plan = ($total_issues) ? sprintf("%.1f", $total_points_plan / $total_issues) : 0;
+      my $total_point_avarage_fact = ($total_issues_completed) ? sprintf("%.1f", $total_points_completed / $total_issues_completed) : 0;
+      my $total_success_plan       = ($total_estimated_hours) ? sprintf("%.1f", $total_points_plan / $total_estimated_hours) : 0;
+      my $total_success_fact       = ($total_spent_hours) ? sprintf("%.1f", $total_points_completed / $total_spent_hours) : 0;
 
-      if (!$FORM{RESPONSIBLE}) {
-        _sprint_report_chart(
-          [ $lang{TOTAL} ],
-          [ sprintf("%.1f", $total_estimated_hours / $total_issues) ],
-          [ sprintf("%.1f", $total_spent_hours / $total_issues_completed) ],
-          [ sprintf("%.1f", $total_points / $total_issues) ],
-          [ sprintf("%.1f", $total_points_completed / $total_issues_completed) ],
-          [ sprintf("%.1f", $total_points / $total_estimated_hours) ],
-          [ sprintf("%.1f", $total_points_completed / $total_spent_hours) ]
-        );
+      $sprints_indicators_total{$sprint_number}{total_point_avarage_plan} = $total_point_avarage_plan;
+      $sprints_indicators_total{$sprint_number}{total_point_avarage_fact} = $total_point_avarage_fact;
+      $sprints_indicators_total{$sprint_number}{total_time_task_plan} = $total_time_task_plan;
+      $sprints_indicators_total{$sprint_number}{total_time_task_fact} = $total_time_task_fact;
+      $sprints_indicators_total{$sprint_number}{total_success_plan} = $total_success_plan;
+      $sprints_indicators_total{$sprint_number}{total_success_fact} = $total_success_fact;
 
-        $table_sprint->addfooter(
-          "$lang{TOTAL}: ",
-          $total_issues,
-          $total_issues_completed,
-          $total_estimated_hours,
-          $total_spent_hours,
-          $total_points,
-          $total_points_completed,
-          sprintf("%.1f", $total_points / $total_issues),
-          sprintf("%.1f", $total_points_completed / $total_issues_completed),
-          sprintf("%.1f", $total_estimated_hours / $total_issues),
-          sprintf("%.1f", $total_spent_hours / $total_issues_completed),
-          sprintf("%.1f", $total_points / $total_estimated_hours),
-          sprintf("%.1f", $total_points_completed / $total_spent_hours),
-        )
+      if (!$FORM{SPRINTS_INDICATORS}) {
+        _sprint_report_chart(\@assigned_to, \@time_task_plan, \@time_task_fact, \@point_avarage_plan, \@point_avarage_fact, \@success_plan, \@success_fact);
+
+        my $count_responsible = scalar(@{$data_for_table});
+        if ($count_responsible && $count_responsible > 1) {
+          _sprint_report_chart(
+            [ $lang{TOTAL}              ],
+            [ $total_time_task_plan     ],
+            [ $total_time_task_fact     ],
+            [ $total_point_avarage_plan ],
+            [ $total_point_avarage_fact ],
+            [ $total_success_plan       ],
+            [ $total_success_fact       ]
+          );
+
+          $table_sprint->addfooter(
+            "$lang{TOTAL}: ",
+            $total_issues,
+            $total_issues_completed,
+            $total_estimated_hours,
+            $total_spent_hours,
+            $total_points_plan,
+            $total_points_completed,
+            $total_point_avarage_plan,
+            $total_point_avarage_fact,
+            $total_time_task_plan,
+            $total_time_task_fact,
+            $total_success_plan,
+            $total_success_fact,
+          )
+        }
+
+        print $table_sprint->show();
+
+        last if ($FORM{SPRINT});
+
       }
+    } # time
+  } # sprint
 
-      print $table_sprint->show();
-
-      last if ($FORM{SPRINT});
-    }
+  if ($FORM{SPRINTS_INDICATORS}) {
+    _report_sprints_indicators(\%sprints_indicators,\%sprints_indicators_total,\@sprint_numbers);
   }
 
   return 1;
@@ -495,7 +547,7 @@ sub _find_element_by_assigned_to_id {
 =head2 _sprint_report_chart () - show chart
 
       Attr:
-       $labels_chart
+       $assigned_to
        $time_task_plan
        $time_task_fact
        $point_avarage_plan
@@ -506,11 +558,11 @@ sub _find_element_by_assigned_to_id {
 =cut
 # **********************************************************
 sub _sprint_report_chart {
-  my ($labels_chart, $time_task_plan, $time_task_fact, $point_avarage_plan, $point_avarage_fact, $success_plan, $success_fact) = @_;
+  my ($assigned_to, $time_task_plan, $time_task_fact, $point_avarage_plan, $point_avarage_fact, $success_plan, $success_fact) = @_;
 
   print $html->chart({
     TYPE              => 'bar',
-    X_LABELS          => $labels_chart,
+    X_LABELS          => $assigned_to,
     DATA              => {
       "$lang{AVARAGE_TIME_EXECUTION}, $lang{PLAN}" => $time_task_plan,
       "$lang{AVARAGE_TIME_EXECUTION}, $lang{FACT}" => $time_task_fact,
@@ -521,12 +573,158 @@ sub _sprint_report_chart {
     },
     BACKGROUND_COLORS => {
       "$lang{AVARAGE_TIME_EXECUTION}, $lang{PLAN}" => 'rgba(5, 99, 132, 0.5)',
-      "$lang{AVARAGE_TIME_EXECUTION}, $lang{FACT}" => 'rgba(5, 99, 132, 0.8)',
+      "$lang{AVARAGE_TIME_EXECUTION}, $lang{FACT}" => 'rgba(5, 99, 132, 0.9)',
       "$lang{AVARAGE_POINT}, $lang{PLAN}"          => 'rgba(255, 193, 7, 0.5)',
-      "$lang{AVARAGE_POINT}, $lang{FACT}"          => 'rgba(255, 193, 7, 0.8)',
+      "$lang{AVARAGE_POINT}, $lang{FACT}"          => 'rgba(255, 193, 7, 0.9)',
       "$lang{SUCCESS}, $lang{PLAN}"                => 'rgba(220, 53, 69, 0.5)',
-      "$lang{SUCCESS}, $lang{FACT}"                => 'rgba(220, 53, 69, 0.8)'
+      "$lang{SUCCESS}, $lang{FACT}"                => 'rgba(220, 53, 69, 0.9)'
     },
+    OUTPUT2RETURN     => 1,
+    FILL              => 'false',
+    IN_CONTAINER      => 1
+  });
+
+}
+
+#**********************************************************
+=head2 _report_sprints_indicators ($attr) - show chart with last sprints
+
+      Attr:
+        $attr - hash with timetracker data by assigned by -> sprint -> {parameters}
+        $sprint_numbers
+
+=cut
+# **********************************************************
+sub _report_sprints_indicators {
+  my ($sprints_indicators, $sprints_indicators_total, $sprint_numbers) = @_;
+
+  foreach my $assigned (keys %$sprints_indicators) {
+    foreach my $sprint_number (@$sprint_numbers) {
+      if (!$sprints_indicators->{$assigned}{$sprint_number}) {
+        $sprints_indicators->{$assigned}{$sprint_number} = {};
+      }
+    }
+  }
+  my (@assigned_to, %chart_data_avarage_point, %colors_data_avarage_point, %chart_data_time_task, %colors_data_time_task,%chart_data_success,%colors_data_success) = ();
+
+  foreach my $assigned (keys %$sprints_indicators) {
+    push @assigned_to, $assigned;
+    my %sprints = %{$sprints_indicators->{$assigned}};
+
+    foreach my $sprint (keys %sprints) {
+      my $avarage_point_plan = (keys %{$sprints{$sprint}}) ? sprintf("%.1f", $sprints{$sprint}{points_plan} / $sprints{$sprint}{issues}) : 0;
+      my $avarage_point_fact = (keys %{$sprints{$sprint}} && $sprints{$sprint}{issues_completed}) ? sprintf("%.1f", $sprints{$sprint}{points_completed} / $sprints{$sprint}{issues_completed}) : 0;
+      $chart_data_avarage_point{"$sprint, $lang{PLAN}"} .= "$avarage_point_plan,";
+      $colors_data_avarage_point{"$sprint, $lang{PLAN}"} .= 'rgba(255, 193, 7, 0.4)';
+      $chart_data_avarage_point{"$sprint, $lang{FACT}"} .= "$avarage_point_fact,";
+      $colors_data_avarage_point{"$sprint, $lang{FACT}"} .= 'rgba(255, 193, 7, 0.9)';
+
+      my $time_task_plan = (keys %{$sprints{$sprint}}) ? sprintf("%.2f", $sprints{$sprint}{estimated_hours} / $sprints{$sprint}{issues}) : 0;
+      my $time_task_fact = (keys %{$sprints{$sprint}} && $sprints{$sprint}{issues_completed}) ? sprintf("%.2f", $sprints{$sprint}{spent_hours} / $sprints{$sprint}{issues_completed}) : 0;
+      $chart_data_time_task{"$sprint, $lang{PLAN}"} .= "$time_task_plan,";
+      $colors_data_time_task{"$sprint, $lang{PLAN}"} .= 'rgba(5, 99, 132, 0.4)';
+      $chart_data_time_task{"$sprint, $lang{FACT}"} .= "$time_task_fact,";
+      $colors_data_time_task{"$sprint, $lang{FACT}"} .= 'rgba(5, 99, 132, 0.9)';
+
+      my $success_plan = (keys %{$sprints{$sprint}}) ? sprintf("%.1f", $sprints{$sprint}{points_plan} / $sprints{$sprint}{estimated_hours}) : 0;
+      my $success_fact = (keys %{$sprints{$sprint}} && $sprints{$sprint}{spent_hours}) ? sprintf("%.1f", $sprints{$sprint}{points_completed} / $sprints{$sprint}{spent_hours}) : 0;
+      $chart_data_success{"$sprint, $lang{PLAN}"} .= "$success_plan,";
+      $colors_data_success{"$sprint, $lang{PLAN}"} .= 'rgba(220, 53, 69, 0.4)';
+      $chart_data_success{"$sprint, $lang{FACT}"} .= "$success_fact,";
+      $colors_data_success{"$sprint, $lang{FACT}"} .= 'rgba(220, 53, 69, 0.9)';
+
+    }
+  }
+
+  # string to array
+  foreach my $key (keys %chart_data_avarage_point) {
+    my $value = $chart_data_avarage_point{$key};
+    my @array_values = split(',', $value);
+    $chart_data_avarage_point{$key} = \@array_values;
+  }
+  foreach my $key (keys %chart_data_time_task) {
+    my $value = $chart_data_time_task{$key};
+    my @array_values = split(',', $value);
+    $chart_data_time_task{$key} = \@array_values;
+  }
+  foreach my $key (keys %chart_data_success) {
+    my $value = $chart_data_success{$key};
+    my @array_values = split(',', $value);
+    $chart_data_success{$key} = \@array_values;
+  }
+
+  # charts by each responsible
+  _sprint_indicators_report_chart(\@assigned_to,\%chart_data_avarage_point,\%colors_data_avarage_point, $lang{AVARAGE_POINT});
+  _sprint_indicators_report_chart(\@assigned_to,\%chart_data_time_task,\%colors_data_time_task, $lang{AVARAGE_TIME_EXECUTION});
+  _sprint_indicators_report_chart(\@assigned_to,\%chart_data_success,\%colors_data_success, $lang{SUCCESS});
+
+
+  my (@sprints, %chart_data_total, %chart_colors_total) = ();
+  my (@avarage_point_plan, @avarage_point_fact, @avarage_point_plan_color, @avarage_point_fact_color) = ();
+  my (@time_task_plan, @time_task_fact, @time_task_plan_color, @time_task_fact_color) = ();
+  my (@success_plan, @success_fact, @success_plan_color, @success_fact_color) = ();
+
+  foreach my $sprint (sort keys %$sprints_indicators_total) {
+    push @sprints, "$lang{SPRINT_TIMETRACK} № $sprint";
+
+    push @avarage_point_plan, $sprints_indicators_total->{$sprint}->{total_point_avarage_plan};
+    push @avarage_point_plan_color, 'rgba(255, 193, 7, 0.4)';
+    push @avarage_point_fact, $sprints_indicators_total->{$sprint}->{total_point_avarage_fact};
+    push @avarage_point_fact_color, 'rgba(255, 193, 7, 0.9)';
+
+    push @time_task_plan, $sprints_indicators_total->{$sprint}->{total_time_task_plan};
+    push @time_task_plan_color, 'rgba(5, 99, 132, 0.4)';
+    push @time_task_fact, $sprints_indicators_total->{$sprint}->{total_time_task_fact};
+    push @time_task_fact_color, 'rgba(5, 99, 132, 0.9)';
+
+    push @success_plan, $sprints_indicators_total->{$sprint}->{total_success_plan};
+    push @success_plan_color, 'rgba(220, 53, 69, 0.4)';
+    push @success_fact, $sprints_indicators_total->{$sprint}->{total_success_fact};
+    push @success_fact_color, 'rgba(220, 53, 69, 0.9)';
+  }
+
+  $chart_data_total{"$lang{AVARAGE_POINT}, $lang{PLAN}"} = \@avarage_point_plan;
+  $chart_colors_total{"$lang{AVARAGE_POINT}, $lang{PLAN}"} = \@avarage_point_plan_color;
+  $chart_data_total{"$lang{AVARAGE_POINT}, $lang{FACT}"} = \@avarage_point_fact;
+  $chart_colors_total{"$lang{AVARAGE_POINT}, $lang{FACT}"} = \@avarage_point_fact_color;
+
+  $chart_data_total{"$lang{AVARAGE_TIME_EXECUTION}, $lang{PLAN}"} = \@time_task_plan;
+  $chart_colors_total{"$lang{AVARAGE_TIME_EXECUTION}, $lang{PLAN}"} = \@time_task_plan_color;
+  $chart_data_total{"$lang{AVARAGE_TIME_EXECUTION}, $lang{FACT}"} = \@time_task_fact;
+  $chart_colors_total{"$lang{AVARAGE_TIME_EXECUTION}, $lang{FACT}"} = \@time_task_fact_color;
+
+  $chart_data_total{"$lang{SUCCESS}, $lang{PLAN}"} = \@success_plan;
+  $chart_colors_total{"$lang{SUCCESS}, $lang{PLAN}"} = \@success_plan_color;
+  $chart_data_total{"$lang{SUCCESS}, $lang{FACT}"} = \@success_fact;
+  $chart_colors_total{"$lang{SUCCESS}, $lang{FACT}"} = \@success_fact_color;
+
+  # total chart by each sprint
+  _sprint_indicators_report_chart(\@sprints,\%chart_data_total,\%chart_colors_total, $lang{GENERAL_INDICATORS_FOR_SPRINTS});
+  
+  return 1;
+}
+
+
+#**********************************************************
+=head2 _sprint_indicators_report_chart () - show chart for sprints indicators
+
+      Attr:
+       $assigned_to
+       $chart_data
+       $colors_data
+       $title
+
+=cut
+# **********************************************************
+sub _sprint_indicators_report_chart {
+  my ($assigned_to, $chart_data, $colors_data, $title) = @_;
+
+  print $html->element('label', $title, { class => 'card card-outline card-primary text-center text-secondary p-2 m-0"' });
+  print $html->chart({
+    TYPE              => 'bar',
+    X_LABELS          => $assigned_to,
+    DATA              => $chart_data,
+    BACKGROUND_COLORS => $colors_data,
     OUTPUT2RETURN     => 1,
     FILL              => 'false',
     IN_CONTAINER      => 1

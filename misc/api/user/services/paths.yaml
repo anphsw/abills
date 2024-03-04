@@ -1,0 +1,2 @@
+/user/services:
+  $ref: "./paths/services.yaml"

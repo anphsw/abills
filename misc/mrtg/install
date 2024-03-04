@@ -1,8 +1,8 @@
 :DEFAULT:WEB_ACCESS_USER=admin:Web access user
 :DEFAULT:MYSQLADMIN=exec:which mysqladmin:mysqladmin path
 :DEFAULT:MYSQL:exec:which mysql:mysql path
-:OS=FREEBSD,!REMOTE_NAS=1: */5     *       *       *       *       root  /usr/local/bin/mrtg /usr/local/etc/mrtg/mrtg.cfg >> [/etc]/crontab
-:OS=LINUX,!REMOTE_NAS=1: */5     *       *       *       *       root  /usr/local/bin/mrtg /usr/local/etc/mrtg/mrtg.cfg >> [/etc]/crontab
+:OS=FREEBSD,!REMOTE_NAS=1: */5     *       *       *       *       root  env LANG=C /usr/local/bin/mrtg /usr/local/etc/mrtg/mrtg.cfg >> [/etc]/crontab
+:OS=LINUX,!REMOTE_NAS=1: */5     *       *       *       *       root  env LANG=C /bin/mrtg /usr/local/etc/mrtg/mrtg.cfg >> [/etc]/crontab
 :!REMOTE_NAS=1:FILE=mrtg.cfg > [/usr/local/etc/mrtg]/mrtg.cfg
 :OS=FREEBSD,!REMOTE_NAS=1:exec:mkdir /usr/abills/webreports; chown %WEB_SERVER_USER% /usr/abills/webreports; chown %WEB_SERVER_USER% /usr/local/etc/mrtg/
 :OS=LINUX,!REMOTE_NAS=1:exec:mkdir /usr/abills/webreports; chown %WEB_SERVER_USER% /usr/abills/webreports; chown %WEB_SERVER_USER% /usr/local/etc/mrtg/

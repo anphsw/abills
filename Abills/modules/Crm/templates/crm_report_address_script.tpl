@@ -3,10 +3,10 @@
     let street_select = jQuery('#STREET_ID');
     let build_select = jQuery('#BUILD_ID');
 
-    jQuery('#DISTRICT_ID').on('change', function () {
+    document.addEventListener('district-change', function(event) {
       street_select.attr('disabled', 'disabled');
 
-      let district_id = jQuery(this).val();
+      let district_id = event.detail.district.val();
       district_id = district_id ? district_id : '_SHOW';
 
       fetch(`/api.cgi/streets?DISTRICT_ID=${district_id}&DISTRICT_NAME=_SHOW`)
@@ -29,7 +29,7 @@
           }
           street_select.removeAttr('disabled');
         });
-    });
+    }, {passive: true});
 
     street_select.on('change', function () {
       let street_id = jQuery(this).val();

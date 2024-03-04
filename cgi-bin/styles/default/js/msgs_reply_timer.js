@@ -10,7 +10,8 @@ function Stopwatch(display) {
 }
 Stopwatch.prototype = {
   reset    : function () {
-    this.times = [2, 0, 0, 0];
+    let start_min = jQuery('#RUN_TIME_START').val() || 2;
+    this.times = [parseInt(start_min), 0, 0, 0];
   },
   start    : function () {
     if (!this.time) this.time = performance.now();

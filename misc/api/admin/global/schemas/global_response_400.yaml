@@ -1,0 +1,36 @@
+type: object
+properties:
+  errno:
+    type: number
+    example: 7
+  result:
+    type: string
+    example: Execution failed
+  results:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 0
+        response:
+          type: object
+          properties:
+            errno:
+              type: number
+              example: 7
+            errstr:
+              type: string
+              example: ERROR_DUPLICATE
+        successful:
+          type: boolean
+        url:
+          type: string
+          example: /users/
+        errno:
+          type: number
+          example: 10149
+        errstr:
+          type: string
+          example: Fatal error not executed

@@ -67,7 +67,16 @@ sub _start {
       ::check_permissions('', '', '', { API_KEY => $ENV{HTTP_KEY} });
     }
 
-    $router = Abills::Api::Router->new($self->{path}, $self->{db}, $self->{admin}, $self->{conf}, $self->{req_params}, $self->{lang}, \@main::MODULES, 0, $self->{html}, $self->{request_method});
+    $router = Abills::Api::Router->new($self->{db}, $self->{admin}, $self->{conf}, {
+      url            => $self->{path},
+      request_method => $self->{request_method},
+      query_params   => $self->{req_params},
+      lang           => $self->{lang},
+      modules        => \@main::MODULES,
+      html           => $self->{html},
+      debug          => 0,
+      direct         => $self->{direct}
+    });
 
     if (defined $router->{errno}) {
       $status = $router->{errno} == 10 ? 403 : ($router->{status}) ? $router->{status} : 400;
@@ -86,7 +95,7 @@ sub _start {
         $router->{status} = 401;
       }
 
-      if (!$router->{status} && ref $router->{result} eq 'HASH' && ($router->{result}->{errno} || $router->{result}->{error})) {
+      if (!$router->{status} && ref $router->{result} eq 'HASH' && (exists $router->{result}->{errno} || exists $router->{result}->{error})) {
         $router->{status} = 400;
         $router->{status} = 401 if ($router->{result}->{errno} && $router->{result}->{errno} eq 10 || ($router->{result}->{errstr} && $router->{result}->{errstr} eq 'Access denied'));
       }
@@ -94,8 +103,15 @@ sub _start {
       $response = $router->{result};
       $status = $router->{status};
       $content_type = q{};
-      if ($router->{content_type}) {
-        $content_type = ($router->{content_type} =~ /image/ && ref $response eq 'HASH') ? q{} : $router->{content_type};
+
+      if ($router->{content_type} && !$router->{status}) {
+        if ($router->{content_type} eq 'undefined' && ref $response eq 'HASH') {
+          $content_type = $response->{CONTENT_TYPE};
+          $response = $response->{CONTENT};
+        }
+        else {
+          $content_type = ($router->{content_type} =~ /image/ && ref $response eq 'HASH') ? q{} : $router->{content_type};
+        }
       }
       $response = {} if (!defined $response || !$response);
     }
@@ -160,6 +176,166 @@ sub _start {
 }
 
 #**********************************************************
+=head2 experimental_api_call($hash)
+
+  Arguments:
+    METHOD - http method ('GET', 'POST') required
+    PATH   - '/users/889/' required
+    PARAMS - \%hash
+
+  Returns:
+    (
+      $response - { result... } OR { errno => ... }
+      $status   - http code
+      $content_type
+    )
+
+  Examples:
+    # GET
+    my $uid = 228;
+    my $result = $handle->call_api({
+      METHOD       => "GET",
+      PATH         => "/users/$uid",
+    });
+
+    # GET WITH QUERY PARAMS
+    my $uid = 228;
+    my $result = $handle->call_api({
+      METHOD       => "GET",
+      PATH         => "/users/$uid",
+      PARAMS       => \%FORM
+    });
+
+    # POST
+    my $result = $handle->call_api({
+      METHOD  => "POST",
+      PATH    => "/portal/newsletter",
+      PARAMS  => \%FORM
+    });
+
+=cut
+#**********************************************************
+sub experimental_api_call {
+  my $self = shift;
+  my ($attr) = @_;
+  my $response = q{};
+  my $status = 200;
+  my $content_type = q{};
+  my $router = {};
+
+  my $request_body = $self->{req_params}->{__BUFFER} || '';
+
+  #define $admin->{permissions}
+  if ($self->{cookies}->{admin_sid}) {
+    ::check_permissions('', '', ($self->{cookies}->{admin_sid} || q{}), {});
+  }
+  else {
+    ::check_permissions('', '', '', { API_KEY => $ENV{HTTP_KEY} });
+  }
+
+  $router = Abills::Api::Router->new($self->{db}, $self->{admin}, $self->{conf}, {
+    url            => $attr->{PATH},
+    request_method => $attr->{METHOD} // 'GET',
+    query_params   => $attr->{PARAMS},
+    lang           => $self->{lang},
+    modules        => \@main::MODULES,
+    html           => $self->{html},
+    debug          => 0,
+    direct         => 1
+  });
+
+  if (defined $router->{errno}) {
+    $status = $router->{errno} == 10 ? 403 : ($router->{status}) ? $router->{status} : 400;
+    $response = { errstr => $router->{errstr}, errno => $router->{errno} };
+  }
+  else {
+    $self->add_credentials($router);
+    $router->handle();
+
+    if ($router->{allowed}) {
+      $router->transform(\&Abills::Api::FieldsGrouper::group_fields);
+      $router->{status} = 400 if !$router->{status} && $router->{errno};
+    }
+    else {
+      $router->{result} = { errstr => 'Access denied', errno => 10 };
+      $router->{status} = 401;
+    }
+
+    if (!$router->{status} && ref $router->{result} eq 'HASH' && (exists $router->{result}->{errno} || exists $router->{result}->{error})) {
+      $router->{status} = 400;
+      $router->{status} = 401 if ($router->{result}->{errno} && $router->{result}->{errno} eq 10 || ($router->{result}->{errstr} && $router->{result}->{errstr} eq 'Access denied'));
+    }
+
+    $response = $router->{result};
+    $status = $router->{status};
+    $content_type = q{};
+
+    if ($router->{content_type} && !$router->{status}) {
+      if ($router->{content_type} eq 'undefined' && ref $response eq 'HASH') {
+        $content_type = $response->{CONTENT_TYPE};
+        $response = $response->{CONTENT};
+      }
+      else {
+        $content_type = ($router->{content_type} =~ /image/ && ref $response eq 'HASH') ? q{} : $router->{content_type};
+      }
+    }
+    $response = {} if (!defined $response || !$response);
+  }
+
+  if ($router->{error_msg} && !$self->{db}->{db}->{AutoCommit}) {
+    $self->{db}->{db}->rollback();
+    $self->{db}->{db}->{AutoCommit} = 1;
+  }
+
+  if ($self->{conf}->{API_LOG} && $self->{return_type}) {
+    $self->_api_add_log($router, $request_body, $response, $status);
+  }
+
+  return ($response, $status, $content_type);
+}
+
+
+#**********************************************************
+=head2 _api_add_log($router, $request_body, $response, $status)
+
+=cut
+#**********************************************************
+sub _api_add_log {
+  my $self = shift;
+  my ($router, $request_body, $response, $status) = @_;
+
+  require Api;
+  Api->import();
+
+  my $begin_time = $main::begin_time || $self->{begin_time} || 0;
+  my $Api = Api->new($self->{db}, $self->{admin}, $self->{conf});
+  my $response_time = gen_time($begin_time, { TIME_ONLY => 1 });
+
+  my %headers = ();
+  foreach my $var (keys %ENV) {
+    if ($var =~ /(?<=HTTP_).*/) {
+      my ($header) = $var =~ /(?<=HTTP_).*/g;
+      $headers{$header} = $ENV{$var};
+    }
+  }
+
+  $Api->add({
+    UID             => ($router->{handler}->{path_params}->{uid} || q{}),
+    SID             => ($router->{handler}->{query_params}->{REQUEST_USERSID} || q{}),
+    AID             => ($router->{admin}->{AID} || q{}),
+    REQUEST_URL     => $self->{path},
+    REQUEST_BODY    => $request_body,
+    REQUEST_HEADERS => json_former(\%headers),
+    RESPONSE_TIME   => $response_time,
+    RESPONSE        => $response,
+    IP              => $ENV{REMOTE_ADDR},
+    HTTP_STATUS     => ($status || 200),
+    HTTP_METHOD     => $self->{request_method},
+    ERROR_MSG       => $router->{error_msg} || q{}
+  });
+}
+
+#**********************************************************
 =head2 add_credentials()
 
 =cut
@@ -198,6 +374,28 @@ sub add_credentials {
     });
 
     my $SID = $ENV{HTTP_USERSID};
+    $main::FORM{external_auth} = '';
+    my ($uid) = ::auth_user('', '', $SID);
+
+    $request->{path_params}{uid} = $uid;
+    $request->{query_params}{REQUEST_USERSID} = $SID;
+
+    return 0 if ref $uid ne '';
+
+    return $uid != 0;
+  });
+
+  $router->add_credential('USERSID', sub {
+    #TODO check how does it work when user have G2FA
+    my $request = shift;
+
+    $main::admin->info($self->{conf}->{USERS_WEB_ADMIN_ID} ? $self->{conf}->{USERS_WEB_ADMIN_ID} : 3, {
+      DOMAIN_ID => $request->{req_params}->{DOMAIN_ID} || 0,
+      IP        => $ENV{REMOTE_ADDR},
+      SHORT     => 1
+    });
+
+    my $SID = $self->{cookies}->{sid} || '';
     $main::FORM{external_auth} = '';
     my ($uid) = ::auth_user('', '', $SID);
 

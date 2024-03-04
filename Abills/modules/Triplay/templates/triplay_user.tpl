@@ -1,4 +1,4 @@
-<form action=$SELF_URL METHOD=POST>
+<form action=%SELF_URL% METHOD=POST>
 
     <input type='hidden' name='index' value=%INDEX%>
     <input type='hidden' name='UID' value=%UID%>
@@ -22,8 +22,17 @@
                 </div>
             </div>
 
+            <div class='form-group row'>
+                <label class='col-md-4 control-label' for='EXPIRE'>_{EXPIRE}_</label>
+                <div class='col-md-8'>
+                    <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%'
+                           class='form-control datepicker' rel='tcal' type='text'>
+                </div>
+            </div>
+
             %SERVICES_INFO%
-            <br>
+
+
             <div class='form-group'>
                 <label for='COMMENTS' class='col-md-12'>
                     <span class='col'>_{COMMENTS}_:</span>
@@ -38,8 +47,9 @@
         </div>
 
         <div class='card-footer'>
+
             %BACK_BUTTON%
-            <input type='submit' class='btn btn-primary' name='%ACTION%' id='%ACTION%' value='%ACTION_LNG%'>
+            <input type='submit' class='btn btn-primary double_click_check' name='%ACTION%'  value='%ACTION_LNG%'>
             %DEL_BUTTON%
         </div>
 

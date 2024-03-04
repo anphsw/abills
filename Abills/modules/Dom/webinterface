@@ -175,8 +175,8 @@ sub _dom_get_users {
     }
   }
 
-  $info{CLIENTS_FLATS_SUM} = $Dom->{TOTAL} - $attr->{USER_SUM_WITH_NO_ROOM};
-  $info{USER_PERCENTAGE} = int($info{CLIENTS_FLATS_SUM} * 100 / $attr->{BUILD_FLATS});
+  $info{CLIENTS_FLATS_SUM} = $Dom->{TOTAL} - ($attr->{USER_SUM_WITH_NO_ROOM} || 0);
+  $info{USER_PERCENTAGE} = int($info{CLIENTS_FLATS_SUM} * 100 / $attr->{BUILD_FLATS}) if ($attr->{BUILD_FLATS});
   $info{SHOW_USERS} = "$SELF_URL?index=7&search_form=1&type=11&search=1&UID=" . $info{USER_WITH_NO_ROOM_UID} if ($info{USER_WITH_NO_ROOM_UID});
 
   $info{USER_INFO} = to_json(\%user_by_flat, { utf8 => 0 });
@@ -221,8 +221,8 @@ sub _dom_get_pon {
     }
   }
 
-  $info{CLIENTS_FLATS_SUM} = $Dom->{TOTAL} - $attr->{USER_SUM_WITH_NO_ROOM};
-  $info{PON_PERCENTAGE} = int($info{CLIENTS_FLATS_SUM} * 100 / $attr->{BUILD_FLATS});
+  $info{CLIENTS_FLATS_SUM} = $Dom->{TOTAL} - ($attr->{USER_SUM_WITH_NO_ROOM} || 0);
+  $info{PON_PERCENTAGE} = int($info{CLIENTS_FLATS_SUM} * 100 / $attr->{BUILD_FLATS}) if ($attr->{BUILD_FLATS});
 
   $info{PON_INFO} = to_json(\%pon_by_flat, { utf8 => 0 });
 

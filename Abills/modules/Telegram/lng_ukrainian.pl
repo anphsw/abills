@@ -128,5 +128,15 @@ $lang{TELEGRAM_VERIFY_PHONE} = 'Підтвердити телефон';
 $lang{TELEGRAM_SUBSCRIBE_INFO} = "Для підключення телеграм-бота натисніть <b>Підтвердити телефон</b> або використайте кнопку <b>Підписати</b> в кабінеті користувача.";
 $lang{TELEGRAM_LINK_AND_COPY} = 'Для того, щоб запросити свого друга — поділіться посиланням на бота нижче';
 $lang{GREETINGS_YOUR_QUESTION} = 'Вітаю вас! Будь ласка, напишіть своє питання.';
+$lang{TELEGRAM_SCHEDULED_FEES} = 'Планові платежі';
+
+$lang{EQUIPMENT_ERROR} = 'Помилка, спробуйте пізніше';
+$lang{EQUIPMENT_WAIT} = 'Зачекайте, виконується перевірка';
+$lang{EQUIPMENT_OPTICAL_TERMINAL_NOT_WORKING} = 'Оптичний термінал не працює';
+$lang{EQUIPMENT_OPTICAL_TERMINAL_WORKING} = 'Оптичний термінал працює';
+$lang{EQUIPMENT_ROUTER_NOT_WORKING} = 'Роутер не працює';
+$lang{EQUIPMENT_ROUTER_WORKING} = 'Роутер працює';
+$lang{EQUIPMENT_CHECK_COMPLETED} = 'Перевірку завершено';
+$lang{EQUIPMENT_CONNECTION_CHECK} = "Перевірка зв'язку";
 
 1;

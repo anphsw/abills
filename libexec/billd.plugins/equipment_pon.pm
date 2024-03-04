@@ -732,8 +732,14 @@ sub _save_port_and_nas_to_internet_main {
 
   if($debug > 6) {
     $Equipment->{debug}=1;
+    $Internet->{debug}=1;
   }
-  my $onu_list = $Equipment->onu_and_internet_cpe_list({NAS_IDS => $argv->{NAS_IDS}, DELETED => 0});
+
+  my $onu_list = $Equipment->onu_and_internet_cpe_list({
+    NAS_IDS   => $argv->{NAS_IDS},
+    DELETED   => 0,
+    PAGE_ROWS => $LIST_PARAMS{PAGE_ROWS} || 1000000,
+  });
 
   my $check_mode = $argv->{CPE_CHECK} && !$argv->{CPE_FILL} && !$argv->{FORCE_FILL};
 
@@ -798,7 +804,7 @@ sub _save_port_and_nas_to_internet_main {
         $attached_onu_by_uid{$onu_to_set->{uid}} = $onu_to_set;
       }
       else {
-        _log('LOG_ERR', "ERROR: UID not defined for '$onu_to_set'");
+        _log('LOG_ERR', "ERROR: UID: $uid not defined for '". ( $onu_to_set->{user_port} || q{}) ."'");
       }
     }
 

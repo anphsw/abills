@@ -7,7 +7,7 @@ package Timetracker;
 =cut
 
 use strict;
-use parent 'main';
+use parent 'dbcore';
 my $MODULE = 'Timetracker';
 
 #**********************************************************
@@ -96,7 +96,7 @@ sub list_element {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  $self->query2(
+  $self->query(
     "SELECT id, element, priority, external_system
      FROM timetracker_element
      ORDER BY $SORT $DESC;",
@@ -125,7 +125,7 @@ sub list_for_timetracker {
     { WHERE => 1 }
   );
 
-  $self->query2(
+  $self->query(
     "SELECT aid, element_id, time_per_element, date
      FROM timetracker
      $WHERE;",
@@ -145,7 +145,7 @@ sub change_element {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2({
+  $self->changes({
     CHANGE_PARAM => 'ID',
     TABLE        => 'timetracker_element',
     DATA         => $attr,
@@ -163,7 +163,7 @@ sub change_element_work {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT msgs_messages.state,
       Substring(msgs_messages.closed_date, 1, Instr(msgs_messages.closed_date, ' ') - 1),
       msgs_messages.resposible,
@@ -202,7 +202,7 @@ sub get_run_time {
 
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT aid, run_time
      FROM msgs_reply
       WHERE datetime BETWEEN

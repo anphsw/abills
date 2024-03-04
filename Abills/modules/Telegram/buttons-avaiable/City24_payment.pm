@@ -3,6 +3,10 @@ package City24_payment;
 use strict;
 use warnings FATAL => 'all';
 
+my %icons = (
+  payment => "\xF0\x9F\x92\xB3"
+);
+
 #**********************************************************
 =head2 new($Botapi)
 
@@ -32,7 +36,7 @@ sub new {
 sub btn_name {
   my $self = shift;
 
-  return $self->{bot}->{lang}->{CITY24_PAYMENT};
+  return "$icons{payment} $self->{bot}->{lang}->{CITY24_PAYMENT}";
 }
 
 #**********************************************************

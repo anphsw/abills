@@ -73,17 +73,17 @@ sub _parse_swagger {
     my ($_spaces) = $match =~ /^\s+/g;
     my $root_dir = $attr->{root_dir} || '';
     $match =~ s/^\s+//g;
-    my ($path) = $match =~ /(?:(?<=\.\.)|(?<=\.))\/(.*)(?=\")/gm;
+    my ($path) = $match =~ /(?<=\s\"|:\")(.*)(?=\")/gm;
 
-    if (!$attr->{root_dir}) {
-      my @params = split('/', $path);
-      $root_dir = "$params[0]/$params[1]"
-    }
-    else {
-      $path = "$root_dir/$path"
-    }
+    my $swagger_path = "misc/api/$root_dir/$path";
+    $swagger_path =~ s{(?<=\w)(\.)(?=/)}{};
+    print "Path $swagger_path\n";
 
-    my $new_swagger = _read_swagger("misc/api/$path");
+    my $new_swagger = _read_swagger("misc/api/$root_dir/$path");
+    $root_dir .= '/' if ($root_dir);
+    $root_dir .= $path;
+    $root_dir =~ s{(?:/[^/]+)\.yaml$}{};
+    $root_dir =~ s{(?<=\w)(\.)(?=/)}{};
 
     my $parsed_swagger = _parse_swagger({
       spaces   => $_spaces,

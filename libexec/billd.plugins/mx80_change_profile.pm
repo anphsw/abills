@@ -122,7 +122,7 @@ sub mx80_change_profile {
       print "User: $online->{user_name} TP: $online->{tp_id} Connect info: $connection_info\n" if ($debug > 0);
       my $profile_sufix = 'pppoe';
 
-      if ($connection_info !~ /demux/) {
+      if (! $connection_info || $connection_info !~ /demux/ || $argv->{IPOE}) {
         $profile_sufix = 'ipoe';
         $online->{'user_name'} = $online->{cid} || $online->{user_name};
       }
@@ -159,11 +159,15 @@ sub mx80_change_profile {
 
         $RAD_REPLY_DEACTIVATE{'Acct-Session-Id'} = $online->{'acct_session_id'};
         $RAD_REPLY_ACTIVATE{'Acct-Session-Id'}   = $online->{'acct_session_id'};
-        if (! $argv->{OLD_VERSION}) {
-          my $profile = $argv->{PROFILE};
+        if (! $argv->{OLD_VERSION} || $argv->{PROFILE}) {
+          my $profile = $argv->{PROFILE} || q{};
+
           if ($argv->{START}) {
             $RAD_REPLY_DEACTIVATE{'ERX-Service-Deactivate'}[0] =~ /(.+)\(?/;
             my $sub_profile = $1;
+            if (! $profile) {
+              $profile = $RAD_REPLY_DEACTIVATE{'ERX-Service-Activate'}[0];
+            }
 
             @coa_action = ({
               'ERX-Service-Deactivate' => $sub_profile,
@@ -210,7 +214,6 @@ sub mx80_change_profile {
                 'Acct-Session-Id'        => $online->{acct_session_id}
               };
             }
-
           }
 
           $Nas_cmd->hangup(

@@ -11,16 +11,16 @@ use warnings FATAL => 'all';
 sub new {
   my $class = shift;
   my ($db, $admin, $conf, $bot) = @_;
-  
+
   my $self = {
     db    => $db,
     admin => $admin,
     conf  => $conf,
     bot   => $bot,
   };
-  
+
   bless($self, $class);
-  
+
   return $self;
 }
 
@@ -31,7 +31,7 @@ sub new {
 #**********************************************************
 sub btn_name {
   my $self = shift;
-  
+
   return $self->{bot}->{lang}->{PAYMENT};
 }
 
@@ -43,16 +43,16 @@ sub btn_name {
 sub click {
   my $self = shift;
   my ($attr) = @_;
-  
+
   my @inline_keyboard = ();
   my $uid = $self->{bot}->{uid};
   my $message = "$self->{bot}->{lang}->{FIRST_PAYMENT}\\n";
   my $money_currency = $self->{conf}->{MONEY_UNIT_NAMES} || '';
-  
+
   use Users;
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
-  $Users->info($uid);
-  
+  $Users->info($uid, { SHOW_PASSWORD => 1 });
+
   use Payments;
   my $Payments = Payments->new($self->{db}, $self->{admin}, $self->{conf});
   my $last_payments = $Payments->list({
@@ -70,9 +70,9 @@ sub click {
 
   if ($users_info->{__UKRPAYS}) {
      $message = $self->{bot}->{lang}->{PAYMENT_NUMBER} . ': ' . $users_info->{__UKRPAYS} . '\\n';
-  } 
+  }
 
-  if ($last_payments && $last_payments > 0) {
+  if ($Payments->{TOTAL} && $Payments->{TOTAL} > 0) {
     my $last_sum = $last_payments->[0]{sum};
     my $last_date = $last_payments->[0]{datetime};
 
@@ -83,22 +83,33 @@ sub click {
 
   }
 
-  my $inline_button = {
-    ActionType => 'open-url',
-    ActionBody => "$self->{bot}->{SELF_URL}/paysys_check.cgi",
-    TextSize   => 'regular',
-    Text     => "$self->{bot}->{lang}->{PAYMENT}"
-  };
-  push (@inline_keyboard, $inline_button);
+  if ($self->{conf}{VIBER_BALANCE_URL}) {
+    my $inline_button = {
+      ActionType => 'open-url',
+      ActionBody => "$self->{conf}{VIBER_BALANCE_URL}?get_index=paysys_payment&user=$Users->{LOGIN}&passwd=$Users->{PASSWORD}",
+      Text       => $self->{bot}{lang}{PAYMENT},
+      TextSize   => 'regular'
+    };
+    push @inline_keyboard, $inline_button;
+  }
+  else {
+    my $inline_button = {
+      ActionType => 'open-url',
+      ActionBody => "$self->{bot}->{SELF_URL}/paysys_check.cgi",
+      TextSize   => 'regular',
+      Text     => "$self->{bot}->{lang}->{PAYMENT}"
+    };
+    push (@inline_keyboard, $inline_button);
+  }
 
-  $inline_button = {
+  my $menu_button = {
     ActionType => 'reply',
     ActionBody => 'MENU',
     Text       => $self->{bot}->{lang}->{BACK},
     BgColor    => "#FF0000",
     TextSize   => 'regular'
   };
-  push (@inline_keyboard, $inline_button);
+  push (@inline_keyboard, $menu_button);
 
   $self->{bot}->send_message({
     text         => $message,

@@ -4,7 +4,7 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db);
-my Abills::HTML $html;
+my $html;
 my $lang;
 my Abon $Abon;
 
@@ -78,9 +78,13 @@ sub abon_docs {
     $line->{price} = $line->{price} * ((100 - $line->{discount}) / 100) if $line->{discount} > 0;
     $line->{price} = $line->{price} * $line->{service_count} if $line->{service_count} > 1;
 
-    $info{service_name} = "$lang->{ABON}: ($line->{id}) " . "$line->{tp_name}";
+    $info{id} = $line->{id};
+    $info{tp_name} = $line->{tp_name};
+    $info{service_name} = "$lang->{ABON}: ($line->{id}) " . $line->{tp_name};
     $info{module_name} = $lang->{ABON};
-    $info{tp_reduction_fee} = $line->{tp_reduction_fee};
+    $info{tp_reduction_fee} = $line->{reduction_fee} || 0;
+    $info{extra}{comments} = $line->{comments};
+    $info{extra}{personal_description} = $line->{personal_description};
 
     if ($line->{period} == 1) {
       $info{month} += $line->{price};
@@ -318,6 +322,23 @@ sub abon_promotional_tp {
 
   $html->message('callout', $html->tpl_show(main::_include('abon_promotion_tp_carousel', 'Abon'),
     { ITEMS => $items }, { OUTPUT2RETURN => 1 }), '', { class => 'info mb-0 p-0' });
+}
+
+#*******************************************************************
+=head2 abon_user_del($uid, $attr) - Delete user from module
+
+=cut
+#*******************************************************************
+sub abon_user_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return 0 if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
+
+  $Abon->{UID} = $attr->{USER_INFO}{UID};
+  $Abon->del({ UID => $attr->{USER_INFO}{UID}, COMMENTS => $attr->{USER_INFO}{COMMENTS} });
+
+  return 1;
 }
 
 1;

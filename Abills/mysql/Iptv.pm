@@ -23,7 +23,6 @@ use Fees;
 
 my $MODULE = 'Iptv';
 my ($admin, $CONF);
-my ($SORT, $DESC, $PG, $PAGE_ROWS);
 
 #**********************************************************
 # Init
@@ -303,10 +302,10 @@ sub user_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my $GROUP_BY = '';
 
   if ($attr->{GROUP_BY} && $attr->{GROUP_BY} =~ /GROUP/i) {
@@ -357,6 +356,7 @@ sub user_list{
       [ 'MAC_CID',           'STR', 'us.cid AS mac_cid',                                                         1 ],
       [ 'SERIAL',            'STR', 'us.serial',                                                                 1 ],
       [ 'DESCRIBE_AID',      'STR', 'tp.describe_aid',                                                           1 ],
+      [ 'REDUCTION',         'INT', 'u.reduction', 'u.reduction AS user_reduction'                                ],
     ],
     {
       WHERE             => 1,
@@ -383,6 +383,10 @@ sub user_list{
   if ($attr->{MAC_CID} || $attr->{SERIAL}) {
     $EXT_TABLE .= "LEFT JOIN iptv_users_screens us ON (service.id=us.service_id)" .
       "LEFT JOIN iptv_screens s ON (s.num=us.screen_id)";
+  }
+
+  if ($attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW') {
+    $self->{SEARCH_FIELDS} .= 'IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit, ';
   }
 
   my $list;
@@ -591,10 +595,10 @@ sub channel_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former( $attr, [
       [ 'NUM',      'INT', 'num'         ],
@@ -741,10 +745,10 @@ sub channel_ti_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC      = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG        = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC      = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG        = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former(
     $attr,
@@ -816,21 +820,21 @@ sub reports_channels_use{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $sql = "SELECT c.num,  c.name, COUNT(uc.uid) AS users, SUM(IF(IF(company.id IS NULL, b.deposit, cb.deposit)>0, 0, 1)) AS debetors
-FROM iptv_channels c
-LEFT JOIN iptv_users_channels uc ON (c.id=uc.channel_id)
-LEFT JOIN iptv_main service ON (service.id=uc.id)
-LEFT JOIN users u ON (service.uid=u.uid)
-LEFT JOIN bills b ON (u.bill_id = b.id)
-LEFT JOIN companies company ON  (u.company_id=company.id)
-LEFT JOIN bills cb ON  (company.bill_id=cb.id)
-GROUP BY c.id
-ORDER BY $SORT $DESC ";
+    FROM iptv_channels c
+    LEFT JOIN iptv_users_channels uc ON (c.id=uc.channel_id)
+    LEFT JOIN iptv_main service ON (service.id=uc.id)
+    LEFT JOIN users u ON (service.uid=u.uid)
+    LEFT JOIN bills b ON (u.bill_id = b.id)
+    LEFT JOIN companies company ON  (u.company_id=company.id)
+    LEFT JOIN bills cb ON  (company.bill_id=cb.id)
+    GROUP BY c.id
+    ORDER BY $SORT $DESC ";
 
   #  $sql = "select c.num, c.name, count(*), c.id
   #FROM iptv_channels c
@@ -859,8 +863,8 @@ sub reports_channels_use2{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $sql = "SELECT c.num,  c.name, u.uid, ipm.disable, u.id AS user, IF(company.id IS NULL, b.deposit, cb.deposit) as deposit
               FROM  iptv_channels c
@@ -919,8 +923,8 @@ sub online{
     return $self;
   }
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my @WHERE_RULES = ();
 
@@ -961,7 +965,6 @@ sub online{
       [ 'SUM',             'INT', 'c.sum AS session_sum', 1 ],
       [ 'STATUS',          'INT', 'c.status', 1 ],
 
-      #    ['ADDRESS_FULL',    '' ($CONF->{ADDRESS_REGISTER}) ? 'concat(streets.name,\' \', builds.number, \'/\', pi.address_flat) AS ADDRESS' : 'concat(pi.address_street,\' \', pi.address_build,\'/\', pi.address_flat) AS ADDRESS',
       [ 'GID',              'INT', 'u.gid', 1 ],
       [ 'TURBO_MODE',       'INT', 'c.turbo_mode', 1 ],
       [ 'JOIN_SERVICE',     'INT', 'c.join_service', 1 ],
@@ -1099,8 +1102,11 @@ sub online_count{
   my $self = shift;
   my ($attr) = @_;
 
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $EXT_TABLE = '';
   my $WHERE = '';
+
   if ( $attr->{DOMAIN_ID} ){
     $EXT_TABLE = ' INNER JOIN users u ON (c.uid=u.uid)';
     $WHERE = " AND u.domain_id='$attr->{DOMAIN_ID}'";
@@ -1190,10 +1196,10 @@ sub subscribe_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former(
     $attr,
@@ -1390,10 +1396,10 @@ sub screens_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former(
     $attr,
@@ -1605,10 +1611,10 @@ sub users_screens_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my $GROUP_BY = '';
 
   my $WHERE = $self->search_former(
@@ -1742,8 +1748,8 @@ sub services_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former(
     $attr,
@@ -1864,8 +1870,8 @@ sub services_reports{
   my $self = shift;
   my($attr)=@_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   $self->query( "SELECT service.service_id,
      s.name,
@@ -1939,8 +1945,8 @@ sub device_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former(
     $attr,
@@ -2068,8 +2074,8 @@ sub extra_params_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former(
     $attr,
@@ -2218,8 +2224,8 @@ sub iptv_users_fees_by_service{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{sort}) ? $attr->{sort} : 'f.date';
-  $DESC = (defined $attr->{desc}) ? $attr->{desc} : 'DESC';
+  my $SORT = ($attr->{sort}) ? $attr->{sort} : 'f.date';
+  my $DESC = (defined $attr->{desc}) ? $attr->{desc} : 'DESC';
 
   return [] if !$attr->{TP_NAMES} || !$attr->{TP_NAMES}[0];
 
@@ -2299,4 +2305,64 @@ sub iptv_promotion_tps {
   return $self->{list} || [];
 }
 
+
+#**********************************************************
+=head2 report_tp() - tariff's plan report
+
+=cut
+#**********************************************************
+sub report_tp {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $SORT -= 1 if ($SORT > 1);
+
+  $self->{EXT_TABLES}          = '';
+  $self->{SEARCH_FIELDS}       = '';
+  $self->{SEARCH_FIELDS_COUNT} = 0;
+  $attr->{DELETED}             = 0;
+
+  my $WHERE =  $self->search_former($attr, [
+    ['DOMAIN_ID',            'INT', 'tp.domain_id',  ],
+  ],
+    { WHERE       => 1,
+      USERS_FIELDS=> 1
+    }
+  );
+
+  $self->query("SELECT tp.id, tp.tp_id, tp.name, COUNT(DISTINCT iptv.uid) AS counts,
+      COUNT(DISTINCT CASE WHEN iptv.disable=0 AND u.disable=0 THEN iptv.uid ELSE NULL END) AS active,
+      COUNT(DISTINCT CASE WHEN iptv.disable=1 AND u.disable=1 THEN iptv.uid ELSE NULL END) AS disabled,
+      SUM(IF(IF(u.company_id > 0, cb.deposit, b.deposit) < 0, 1, 0)) AS debetors,
+      SUM(IF(u.reduction = 100, 1, 0)) AS users_reduction,
+      ROUND(SUM(p.sum) / COUNT(DISTINCT iptv.uid), 2) AS arpu,
+      ROUND(SUM(p.sum) / COUNT(DISTINCT p.uid), 2) AS arppu,
+      tp.month_fee AS month_fee,
+      tp.day_fee AS day_fee,
+      tg.name AS group_name,
+      s.name AS service_name,
+      iptv.service_id
+    FROM users u
+    INNER JOIN iptv_main iptv ON (u.uid=iptv.uid)
+    LEFT JOIN tarif_plans tp ON (tp.tp_id=iptv.tp_id)
+    LEFT JOIN bills b ON (u.bill_id = b.id)
+    LEFT JOIN companies company ON  (u.company_id=company.id)
+    LEFT JOIN bills cb ON  (company.bill_id=cb.id)
+    LEFT JOIN payments p ON (p.uid=iptv.uid
+      AND (p.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00')) )
+    LEFT JOIN tp_groups tg ON (tp.gid=tg.id)
+    LEFT JOIN iptv_services s ON (tp.service_id=s.id)
+    $WHERE
+    GROUP BY tp.tp_id
+    ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return [ ] if ($self->{errno});
+
+  return $self->{list};
+}
 1;

@@ -14,14 +14,24 @@ our (
 );
 
 BEGIN {
-  use FindBin '$Bin';
-  require $Bin . '/../libexec/config.pl';
+  our $libpath = '../';
+  eval { do "$libpath/libexec/config.pl" };
+  our %conf;
+
+  if (!%conf) {
+    print "Content-Type: text/plain\n\n";
+    print "Error: Can't load config file 'config.pl'\n";
+    print "Create ABillS config file /usr/abills/libexec/config.pl\n";
+    exit;
+  }
+
+  my $sql_type = $conf{dbtype} || 'mysql';
   unshift(@INC,
-    $Bin . '/../',
-    $Bin . '/../lib/',
-    $Bin . '/../Abills',
-    $Bin . '/../Abills/mysql',
-    $Bin . '/../Abills/modules',
+    $libpath . 'Abills/modules/',
+    $libpath . "Abills/$sql_type/",
+    $libpath . '/lib/',
+    $libpath . 'Abills/',
+    $libpath
   );
 }
 

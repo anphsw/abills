@@ -27,6 +27,7 @@
   jQuery(function() {
     if (document.user_form.DISABLE.checked) {
       document.user_form.ACTION_COMMENTS.style.display = 'block';
+      document.user_form.ACTION_COMMENTS.disabled = true;
     } else {
       document.user_form.ACTION_COMMENTS.style.display = 'none';
     }
@@ -82,8 +83,8 @@
                     <label class='custom-control-label' for='DISABLE' id='DISABLE_LABEL'>%DISABLE_LABEL%</label>
                   </div>
                 </div>
-                <input class='form-control' type='text' name='ACTION_COMMENTS' ID='ACTION_COMMENTS' value='%DISABLE_COMMENTS%' size='40'
-                  style='display : none;' />
+                <input class='form-control mt-2' type='text' name='ACTION_COMMENTS' ID='ACTION_COMMENTS' value='%DISABLE_COMMENTS%' size='40'
+                  style='display: none; height: calc(2rem)' />
                 %ACTION_COMMENTS%
               </div>
             </div>

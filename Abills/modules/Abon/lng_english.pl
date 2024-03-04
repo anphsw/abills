@@ -75,5 +75,6 @@ $lang{ABON_TECHNICAL_PASSPORT_SERIES_NUMBER} = 'Technical passport series and nu
 $lang{ABON_ACTIVATION_FROM_USER_PORTAL} = 'Activation only from the user portal';
 $lang{PROMOTIONAL_TP} = 'Promotional tariff plan';
 $lang{ABON_PROMO_PERIOD} = 'Promo period';
+$lang{ABON_HOT_DEAL} = 'Hot deal';
 
 1;

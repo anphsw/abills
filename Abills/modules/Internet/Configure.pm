@@ -108,7 +108,7 @@ sub internet_tp {
         SEL_KEY   => 'tp_id',
         SEL_VALUE => 'id,name',
         AUTOSUBMIT => 'form',
-        NO_ID     => 1
+        NO_ID     => 1,
       }),
       HIDDEN  => {
         index => $index,
@@ -231,6 +231,7 @@ sub internet_tp {
     logins                  => $lang{SIMULTANEOUSLY},
     day_fee                 => $lang{DAY_FEE},
     active_day_fee          => $lang{ACTIVE_DAY_FEE},
+    active_month_fee        => $lang{ACTIVE_MONTH_FEE},
     postpaid_day_fee        => "$lang{DAY_FEE} $lang{POSTPAID}",
     month_fee               => $lang{MONTH_FEE},
     postpaid_month_fee      => "$lang{MONTH_FEE} $lang{POSTPAID}",
@@ -342,7 +343,7 @@ sub internet_tp {
     my @fields_array = ();
     for (my $i = 0; $i < 2+$Tariffs->{SEARCH_FIELDS_COUNT}; $i++) {
       my $col_name =  $Tariffs->{COL_NAMES_ARR}->[$i];
-      if ($col_name =~ /time_tarifs|traf_tarifs|abon_distribution|period_alignment|fixed_fees_day|popular/) {
+      if ($col_name =~ /time_tarifs|traf_tarifs|abon_distribution|period_alignment|fixed_fees_day|popular|active_day_fee|active_month_fee/) {
         $line->{$col_name} = $bool_hash{$line->{$col_name}};
       }
       elsif ($col_name =~ /small_deposit_action/) {
@@ -478,7 +479,7 @@ sub internet_tp_form {
   $tarif_info->{NEXT_TARIF_PLAN_SEL} = sel_tp({
     SELECT          => 'NEXT_TARIF_PLAN',
     NEXT_TARIF_PLAN => $tarif_info->{NEXT_TARIF_PLAN},
-    # SKIP_TP         => $tarif_info->{TP_ID}
+    MAIN_MENU       => 'internet_tp'
   });
 
   if ($conf{EXT_BILL_ACCOUNT}) {

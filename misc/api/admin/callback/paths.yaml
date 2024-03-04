@@ -1,0 +1,53 @@
+/callback/subscribe:
+  post:
+    tags:
+      - callback
+    summary: Регистрация обратного вызова
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CallbackSubscribe"
+      required: true
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                affected:
+                  type: integer
+                  example: 1
+                insertId:
+                  type: integer
+                  example: 9
+    security:
+      - KEY: []
+/callback/unsubscribe:
+  delete:
+    tags:
+      - callback
+    summary: Удаление обратного вызова
+    parameters:
+      - name: callback_url
+        in: query
+        required: true
+        description: URL обратного вызова
+        schema:
+          type: string
+          example: https://my.server.com/callback
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                affected:
+                  type: integer
+                  example: 1
+    security:
+      - KEY: []

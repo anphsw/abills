@@ -288,6 +288,18 @@ sub docs_invoices_list{
   }
   else {
     delete $LIST_PARAMS{LOGIN};
+    $LIST_PARAMS{CUSTOMER}='_SHOW';
+    $LIST_PARAMS{ALT_SUM} = ($conf{DOCS_CURRENCY}) ? '_SHOW' : undef;
+  }
+
+  my @status_bar = (
+    "$lang{ALL}:index=$index". (($FORM{UID}) ? "&UID=$FORM{UID}" : ''),
+    "$lang{UNPAID}:index=$index&INVOICE_STATUS=1". (($FORM{UID}) ? "&UID=$FORM{UID}" : ''),
+    "$lang{PAID}:index=$index&INVOICE_STATUS=2". (($FORM{UID}) ? "&UID=$FORM{UID}" : ''),
+  );
+  if ( $FORM{INVOICE_STATUS} ){
+    $pages_qs .= '&INVOICE_STATUS='. $FORM{INVOICE_STATUS};
+    $LIST_PARAMS{INVOICE_STATUS} = $FORM{INVOICE_STATUS};
   }
 
   my $PAYMENT_METHODS = get_payment_methods();
@@ -297,7 +309,7 @@ sub docs_invoices_list{
 
   if ($user && $user->{UID}) {
     %table_params = (
-      title_plain => $lang{INVOICES},
+      caption => $lang{INVOICES},
     );
   }
   else {
@@ -344,6 +356,7 @@ sub docs_invoices_list{
       qs          => $pages_qs,
       #LITE_HEADER => 1,
       ID          => 'DOCS_INVOICES_LIST',
+      header      => $html->table_header(\@status_bar),
       EXPORT      => 1,
       %table_params
     },
@@ -557,6 +570,9 @@ sub docs_invoices_list{
     $pages_qs .= "&pg=$FORM{pg}";
   }
 
+
+
+
   if (!$admin->{MAX_ROWS}) {
     my @total_result = ();
 
@@ -752,7 +768,7 @@ sub docs_invoice {
 
       if ( !$Docs->{errno} ){
         #Add date of last invoice
-        if ( $attr->{REGISTRATION} ){
+        if ( $attr->{USER_INFO} && $attr->{USER_INFO}{REGISTRATION} ){
           my ($Y, $M) = split( /-/, $DATE, 3 );
           $Docs->user_change({
             UID          => $uid,
@@ -763,7 +779,7 @@ sub docs_invoice {
         }
 
         $FORM{INVOICE_ID} = $Docs->{DOC_ID};
-        #$Docs->invoice_info( $Docs->{DOC_ID}, { UID => $FORM{UID} } );
+        $Docs->invoice_info( $Docs->{DOC_ID}, { UID => $FORM{UID} } );
         $Docs->{CUSTOMER} ||= $Docs->{COMPANY_NAME} || $Docs->{FIO} || '-';
 
         my $list = $Docs->{ORDERS};
@@ -1113,6 +1129,7 @@ sub docs_invoice_period {
     }
 
     #Next period payments
+    my $service_info;
     if ( $FORM{NEXT_PERIOD} ){
       my ($from_date, $to_date) = _next_payment_period({
         PERIOD => $FORM{NEXT_PERIOD},
@@ -1131,7 +1148,7 @@ sub docs_invoice_period {
 
       $users = $user if ($user && $user->{UID});
 
-      my $service_info = get_services($users, {
+      $service_info = get_services($users, {
         ACTIVE_ONLY => 1
       });
 
@@ -1157,9 +1174,6 @@ sub docs_invoice_period {
 
         for (my $i = ($FORM{NEXT_PERIOD} == -1) ? -2 : 0; $i < int($FORM{NEXT_PERIOD}); $i++) {
           my $result_sum = sprintf("%.2f", $sum);
-          if ($users->{REDUCTION} && $module ne 'Abon') {
-            $result_sum = sprintf("%.2f", $sum * (100 - $users->{REDUCTION}) / 100);
-          }
 
           ($period_from, $period_to) = _next_payment_period({
             DATE => $period_from
@@ -1200,15 +1214,6 @@ sub docs_invoice_period {
 
       foreach my $module (keys %services_order) {
         foreach my $row ( @{ $services_order{$module} } ) {
-          # $service_user .= $html->tpl_show(_include('docs_invoice_service', 'Docs'), {
-          #   ORDER       => $row->[0],
-          #   DATE        => $row->[1],
-          #   LOGIN       => $row->[2],
-          #   DESCRIBE    => $row->[3],
-          #   SUM         => $row->[4],
-          #   TAX         => $row->[5],
-          # }, { OUTPUT2RETURN => 1 });
-
           my $num_             = $row->[0];
           my $date_            = $row->[1];
           my $order            = $row->[3];
@@ -1224,11 +1229,6 @@ sub docs_invoice_period {
             ($user) ? undef : sprintf("%.2f", $extra_tax_sum)
           );
         }
-
-        # $service_invoice .= $html->tpl_show(_include('docs_invoice_category', 'Docs'), {
-        #   MODULE  => $module,
-        #   SERVICE => $service_user
-        # }, { OUTPUT2RETURN => 1 });
       }
     }
 
@@ -1244,7 +1244,7 @@ sub docs_invoice_period {
       && ($users->{DEPOSIT} && $users->{DEPOSIT} =~ /^[0-9\.\,]+$/ && $users->{DEPOSIT} < 0)
       && !$conf{DOCS_INVOICE_NO_DEPOSIT} ){
       $deposit_sum = $html->form_input( 'SUM_' . ($num + 1), abs( $users->{DEPOSIT} ),{ TYPE => 'hidden', OUTPUT2RETURN => 1 } )
-        . $html->form_input( 'ORDER_' . ($num + 1), "$lang{DEBT}", { TYPE => 'hidden', OUTPUT2RETURN => 1 } )
+        . $html->form_input( 'ORDER_' . ($num + 1), $lang{DEBT}, { TYPE => 'hidden', OUTPUT2RETURN => 1 } )
         . $html->form_input( 'IDS', ($num + 1), { TYPE => 'hidden', OUTPUT2RETURN => 1 } );
     }
 
@@ -1318,6 +1318,19 @@ sub docs_invoice_period {
 
       $service_invoice = $table->show({ OUTPUT2RETURN => 1 });
       my $title_form = ($users->{UID}) ? sprintf('%s: %.2f %s', $lang{ACTIVATE_NEXT_PERIOD}, $total_sum, $money_main_unit) : "$lang{INVOICE} $lang{PERIOD}: $Y-$M";
+
+      my $pre_info = q{};
+      if ($service_info && $service_info->{distribution_fee} && $service_info->{distribution_fee} > 0 && $users->{REDUCTION} < 100 && defined($users->{DEPOSIT})) {
+        my $days_to_end = int(($users->{DEPOSIT} || 0) / $service_info->{distribution_fee});
+        $pre_info .= " ($lang{DAYS}: " . sprintf("%d", $days_to_end);
+        if ($days_to_end > 0) {
+          my ($Y1, $M1, $D1) = split(/-/, POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $days_to_end)));
+          $pre_info .= " / $Y1-$M1-$D1";
+        }
+        $pre_info .= ')';
+      }
+
+
       $html->tpl_show(_include('docs_user_invoices', 'Docs'), {
         index             => $index,
         UID               => $uid,
@@ -1326,7 +1339,7 @@ sub docs_invoice_period {
         CUSTOMER          => $Docs->{CUSTOMER},
         step              => $FORM{step},
         SERVICE_INVOICE   => $service_invoice,
-        TITLE_INVOICE     => $title_form,
+        TITLE_INVOICE     => $title_form . $pre_info,
       });
     }
     else{
@@ -1765,7 +1778,7 @@ sub docs_invoice_print {
 =cut
 #**********************************************************
 sub docs_summary {
-  my $list = $users->list({
+  my $users_list = $users->list({
     FIO       => '_SHOW',
     CREDIT    => '_SHOW',
     DEPOSIT   => '<0',
@@ -1775,15 +1788,17 @@ sub docs_summary {
   });
   my @MULTI_ARR = ();
 
-  foreach my $line ( @{$list} ){
-    push @MULTI_ARR, {
-      FIO     => $line->{fio},
-      DEPOSIT => $line->{deposit},
-      CREDIT  => $line->{credit},
-      SUM     => $line->{deposit},
-      SUM_VAT => ($conf{DOCS_VAT_INCLUDE}) ? sprintf("%.2f",
-        ($line->{deposit} || 0) / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE})) : 0.00
-    };
+  if ($users->{TOTAL} && $users->{TOTAL} > 0) {
+    foreach my $line (@{$users_list}) {
+      push @MULTI_ARR, {
+        FIO     => $line->{fio},
+        DEPOSIT => $line->{deposit},
+        CREDIT  => $line->{credit},
+        SUM     => $line->{deposit},
+        SUM_VAT => ($conf{DOCS_VAT_INCLUDE}) ? sprintf("%.2f",
+          ($line->{deposit} || 0) / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE})) : 0.00
+      };
+    }
   }
 
   $html->tpl_show( _include( "docs_multi_invoice", 'Docs', { pdf => $FORM{pdf} } ), { MULTI_PRINT => \@MULTI_ARR } );

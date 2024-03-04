@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `admin_actions` (
   PRIMARY KEY (`id`),
   KEY `uid` (`uid`),
   KEY `aid` (`aid`),
+  key `module` (`module`),
   KEY `action_type` (`action_type`)
 )
   DEFAULT CHARSET = utf8
@@ -263,6 +264,7 @@ CREATE TABLE IF NOT EXISTS `companies` (
   `contract_sufix`   VARCHAR(5)            NOT NULL DEFAULT '',
   `location_id`      INT(11) UNSIGNED      NOT NULL DEFAULT '0',
   `address_flat`     VARCHAR(10)           NOT NULL DEFAULT '',
+  `comments`         TEXT                  NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `bill_id` (`bill_id`),
   UNIQUE KEY `name` (`domain_id`, `name`)
@@ -1594,7 +1596,7 @@ CREATE TABLE IF NOT EXISTS `tp_geolocation` (
   `tp_gid`      SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `district_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `street_id`   SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `build_id`    INT(6) UNSIGNED  NOT NULL DEFAULT '0',
+  `build_id`    INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   KEY `tp_gid` (`tp_gid`),
   KEY `district_id` (`district_id`),
   KEY `street_id` (`street_id`),
@@ -1625,12 +1627,14 @@ CREATE TABLE IF NOT EXISTS `trafic_tarifs` (
   `rad_pairs`          TEXT,
   `out_speed`          INT(10) UNSIGNED       NOT NULL DEFAULT '0',
   `expression`         VARCHAR(255)           NOT NULL DEFAULT '',
-  `burst_limit_dl`     SMALLINT UNSIGNED      NOT NULL DEFAULT 0,
-  `burst_limit_ul`     SMALLINT UNSIGNED      NOT NULL DEFAULT 0,
-  `burst_threshold_dl` SMALLINT UNSIGNED      NOT NULL DEFAULT 0,
-  `burst_threshold_ul` SMALLINT UNSIGNED      NOT NULL DEFAULT 0,
+  `burst_limit_dl`     INT(10) UNSIGNED       NOT NULL DEFAULT 0,
+  `burst_limit_ul`     INT(10) UNSIGNED       NOT NULL DEFAULT 0,
+  `burst_threshold_dl` INT(10) UNSIGNED       NOT NULL DEFAULT 0,
+  `burst_threshold_ul` INT(10) UNSIGNED       NOT NULL DEFAULT 0,
   `burst_time_dl`      SMALLINT UNSIGNED      NOT NULL DEFAULT 0,
   `burst_time_ul`      SMALLINT UNSIGNED      NOT NULL DEFAULT 0,
+  `limit_at_dl`        INT(10) UNSIGNED       NOT NULL DEFAULT 0,
+  `limit_at_ul`        INT(10) UNSIGNED       NOT NULL DEFAULT 0,
   UNIQUE KEY `id` (`id`, `interval_id`),
   KEY `interval_id` (`interval_id`)
 )
@@ -1765,6 +1769,7 @@ CREATE TABLE IF NOT EXISTS `users_contacts` (
   `type_id`  SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `value`    VARCHAR(250)         NOT NULL DEFAULT '',
   `priority` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `date`     DATE                 NOT NULL DEFAULT '0000-00-00',
   `comments` TEXT                 NOT NULL,
   FOREIGN KEY (`uid`) REFERENCES users (`uid`)
     ON DELETE CASCADE,
@@ -1836,13 +1841,10 @@ CREATE TABLE IF NOT EXISTS `streets` (
 CREATE TABLE IF NOT EXISTS `districts` (
   `id`        SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name`      VARCHAR(100)         NOT NULL DEFAULT '',
-  `country`   SMALLINT(4) UNSIGNED NOT NULL DEFAULT 0,
   `zip`       VARCHAR(7)           NOT NULL DEFAULT '',
-  `city`      VARCHAR(30)          NOT NULL DEFAULT '',
   `comments`  TEXT                 NOT NULL,
   `coordx`    DOUBLE(20, 14)       NOT NULL DEFAULT '0',
   `coordy`    DOUBLE(20, 14)       NOT NULL DEFAULT '0',
-  `zoom`      TINYINT(2)           NOT NULL DEFAULT '0',
   `parent_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `type_id`   SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `path`      VARCHAR(255)         NOT NULL DEFAULT '',
@@ -1850,7 +1852,7 @@ CREATE TABLE IF NOT EXISTS `districts` (
   PRIMARY KEY (`id`),
   INDEX `idx_path` (`path`),
   INDEX `parent_id` (`parent_id`),
-  UNIQUE KEY `name` (`city`, `name`, `domain_id`)
+  UNIQUE KEY `name` (`name`, `domain_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Locations districts';
@@ -1887,6 +1889,7 @@ CREATE TABLE IF NOT EXISTS `builds` (
   `start_numbering_flat`SMALLINT(6) UNSIGNED NOT NULL DEFAULT '1',
   `block`               VARCHAR(20)          NOT NULL DEFAULT '',
   `type_id`             SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `status_id`           SMALLINT(6) UNSIGNED NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
   UNIQUE KEY `street_id` (`street_id`, `number`, `block`)
 )
@@ -1909,6 +1912,17 @@ CREATE TABLE IF NOT EXISTS `building_types` (
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Building types';
+
+CREATE TABLE IF NOT EXISTS `building_statuses` (
+  `id`         SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name`       VARCHAR(50) NOT NULL DEFAULT '',
+  `is_default` TINYINT(1)  UNSIGNED  NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Build statuses';
+
+REPLACE INTO `building_statuses` (`id`, `name`, `is_default`) VALUES (1, '$lang{ENABLE}', 1), (2, '$lang{PLANNED_TO_CONNECT}', 0), (3, '$lang{CLOSED}', 0);
 
 CREATE TABLE IF NOT EXISTS `service_status` (
   `id`       TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
@@ -2043,6 +2057,7 @@ REPLACE INTO `admin_permits` (`aid`, `section`, `actions`, `module`) VALUES
   (1, 0, 37, ''),
   (1, 0, 38, ''),
   (1, 0, 39, ''),
+  (1, 0, 40, ''),
   (1, 1, 0, ''),
   (1, 1, 1, ''),
   (1, 1, 2, ''),
@@ -2135,6 +2150,7 @@ REPLACE INTO `admin_type_permits` (`type`, `section`, `actions`, `module`) VALUE
   ('$lang{ALL} $lang{PERMISSION}', 0, 37, ''),
   ('$lang{ALL} $lang{PERMISSION}', 0, 38, ''),
   ('$lang{ALL} $lang{PERMISSION}', 0, 39, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0, 40, ''),
   ('$lang{ALL} $lang{PERMISSION}', 1, 0, ''),
   ('$lang{ALL} $lang{PERMISSION}', 1, 1, ''),
   ('$lang{ALL} $lang{PERMISSION}', 1, 2, ''),
@@ -2450,6 +2466,7 @@ CREATE TABLE `users_phone_pin`
   `pin_code`  varchar(10)      NOT NULL DEFAULT '',
   `time_code` datetime         NOT NULL,
   `attempts`  int(11) unsigned NOT NULL DEFAULT '0',
+  `phone`     varchar(15)      NOT NULL DEFAULT '',
   UNIQUE KEY `uid` (`uid`)
 )
   DEFAULT CHARSET = utf8

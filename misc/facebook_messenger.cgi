@@ -48,11 +48,13 @@ sub _send_request {
   my $json = JSON->new->allow_nonref;
   my $perl_scalar = $json->decode($FORM{__BUFFER});
 
+  my $attachments = _crm_dialogue_attachment($perl_scalar->{entry}[0]{messaging}[0]{message}{attachments});
+
   my $sender = $perl_scalar->{entry}[0]{messaging}[0]{sender}{id};
   return if !$sender;
 
   my $message = $perl_scalar->{entry}[0]{messaging}[0]{message}{text};
-  return if !$message;
+  return if !$message && !scalar(@{$attachments});
 
   my $is_instagram = $perl_scalar->{object} eq 'instagram';
   my $fields = $is_instagram ? 'id,name' : 'id,name,email,picture';
@@ -83,9 +85,49 @@ sub _send_request {
   my $dialogue_id = $Dialogue->crm_get_dialogue_id($lead_id);
   return '' if !$dialogue_id;
 
-  $Dialogue->crm_send_message($message, { DIALOGUE_ID => $dialogue_id });
+  $Dialogue->crm_send_message($message, { DIALOGUE_ID => $dialogue_id, ATTACHMENTS => $attachments });
 
   return '';
 }
+
+#**********************************************************
+=head2 _crm_dialogue_attachment($message)
+
+=cut
+#**********************************************************
+sub _crm_dialogue_attachment {
+  my $message_attachments = shift;
+
+  return if !$message_attachments || ref $message_attachments ne 'ARRAY';
+
+  use Crm::Attachments;
+  my $Attachments = Crm::Attachments->new($db, $admin, \%conf);
+  my @attachments = ();
+
+  foreach my $file (@{$message_attachments}) {
+    next if !$file->{payload} || !$file->{payload}{url};
+
+    my ($payload_url, undef) = split('\?', $file->{payload}{url});
+    my ($file_name) = $payload_url =~ m|/([^/]+)$|;
+
+    my ($file_extension) = $file_name =~ /\.([^.]+)$/;
+    my $mime_type = ($file_extension && $file_extension =~ /^(jpg|jpeg|png|gif|bmp)$/i) ? 'image/jpeg' : '';
+
+    my $file_content = web_request($file->{payload}{url}, { CURL => 1, CURL_OPTIONS => '-s', });
+    next if !$file_content || $file_content eq 'Bad URL hash';
+
+    my $result = $Attachments->attachment_add({
+      filename       => $file_name,
+      Contents       => $file_content,
+      'Content-Type' => $mime_type
+    });
+    next if $result->{errno} || !$result->{INSERT_ID};
+
+    push @attachments, $result->{INSERT_ID};
+  }
+
+  return \@attachments;
+}
+
 
 exit();

@@ -176,13 +176,15 @@
                   <div class='bd-highlight'>%CONTRACT_ID%%CONTRACT_SUFIX%%NO_CONTRACT_MSG%</div>
                   <div class='ml-auto bd-highlight'>
                     <div class='bd-example' data-visible='%DOCS_VISIBLE%'>
-                      <a %NO_DISPLAY% title='_{PRINT}_' target='new' class='p-2'
+                      %SIGN_CONTRACT%
+
+                      <a %NO_DISPLAY% title='_{PRINT}_' target='new' class='pl-3'
                          href='%SELF_URL%?qindex=10&PRINT_CONTRACT=%CONTRACT_ID%&sid=$sid&pdf=$conf{DOCS_PDF_PRINT}'>
                         <span class='fas fa-print'></span>
                       </a>
 
-                      <a href='%SELF_URL%?index=10&CONTRACT_LIST=1&sid=$sid' title='_{LIST}_' class='p-2'>
-                        <span class='fa fa-list'></span>
+                      <a href='%SELF_URL%?index=10&CONTRACT_LIST=1&sid=$sid' title='_{LIST}_' class='pl-3'>
+                        <span class='fas fa-list'></span>
                       </a>
                     </div>
                   </div>
@@ -313,6 +315,13 @@
   if ('$user->{conf}->{PUSH_ENABLED}' && '$user->{conf}->{PUSH_USER_PORTAL}') {
     let scriptElement = document.createElement('script');
     scriptElement.src = '/styles/default/js/push_subscribe.js';
+    document.body.appendChild(scriptElement);
+  }
+
+  if ('$user->{conf}->{DOCS_ESIGN}') {
+    var SCAN_QR_CODE_IN_DIIA_APP = '_{SCAN_QR_CODE_IN_DIIA_APP}_' || 'Scan the QR code in the Diia app';
+    let scriptElement = document.createElement('script');
+    scriptElement.src = '/styles/default/js/docs/esign.js';
     document.body.appendChild(scriptElement);
   }
 </script>

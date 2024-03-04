@@ -105,6 +105,7 @@ $lang{MAPS_SCALE} = 'Масштаб';
 $lang{PLOT} = 'Ділянка будинку';
 
 $lang{NO_MOVES_FOUND} = 'У цей період не знайдено переміщень';
-
+$lang{THE_COORDINATES_DISTRICT_ALREADY_INDICATED} = 'Координати району вже вказані';
+$lang{CURSOR_COORDINATES} = 'Координати курсору';
 
 1;

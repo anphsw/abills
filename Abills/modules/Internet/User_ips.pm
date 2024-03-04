@@ -46,7 +46,7 @@ sub get_static_ip {
       $Ip_pool->{IPV6_PD}, $Ip_pool->{IPV6_PD_MASK}, $Ip_pool->{IPV6_PD_TEMPLATE};
   }
 
-  if(_error_show($Ip_pool, { ID => 117, MESSAGE => 'IP POOL:'. $pool_id })) {
+  if(_error_show($Ip_pool, { ID => 117, MESSAGE => 'IP POOL:'. ($pool_id || '') })) {
     return '0.0.0.0';
   }
 

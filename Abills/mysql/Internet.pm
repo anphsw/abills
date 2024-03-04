@@ -224,6 +224,12 @@ sub user_add {
     }
   }
 
+  if (!$attr->{UID}) {
+    $self->{errno}  = 18;
+    $self->{errstr} = "ERROR_ENTER_UID";
+    return $self;
+  }
+
   if(!$attr->{NETMASK}) {
     $attr->{NETMASK}='255.255.255.255';
   }
@@ -310,7 +316,7 @@ sub user_change {
     if ($old_info->{STATUS} == 2 && (defined($attr->{STATUS}) && $attr->{STATUS} == 0) && $Tariffs->{ACTIV_PRICE} > 0) {
       if ($user->{DEPOSIT} + $user->{CREDIT} < $Tariffs->{ACTIV_PRICE} && $Tariffs->{PAYMENT_TYPE} == 0 && $Tariffs->{POSTPAID_FEE} == 0) {
         $self->{errno} = 15;
-        $self->{errstr} = "Active price too hight";
+        $self->{errstr} = "ACTIVE_PRICE_TOO_HIGHT";
         return $self;
       }
 
@@ -391,13 +397,12 @@ sub user_change {
   #$attr->{JOIN_SERVICE} = ($attr->{JOIN_SERVICE}) ? $attr->{JOIN_SERVICE} : 0;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    {
-      CHANGE_PARAM => 'UID'. (($attr->{ID}) ? ',ID' : q{}),
-      TABLE        => 'internet_main',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM    => 'UID'. (($attr->{ID}) ? ',ID' : q{}),
+    TABLE           => 'internet_main',
+    DATA            => $attr,
+    EXT_CHANGE_INFO => "ID:$attr->{ID}"
+  });
 
   $self->{TP_INFO}->{ACTIV_PRICE} = 0 if (! $self->{OLD_STATUS} || $self->{OLD_STATUS} != 2);
 
@@ -496,7 +501,7 @@ sub user_list {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $GROUP_BY = 'u.uid';
+  my $GROUP_BY = ($attr->{GROUP_BY}) ? $attr->{GROUP_BY} : 'u.uid';
   delete $self->{errno};
   if ($attr->{UNIVERSAL_SEARCH}) { # || $self->{GLOBAL}) {
     $attr->{_MULTI_HIT}     = 1;
@@ -581,7 +586,7 @@ sub user_list {
     ['INTERNET_ACTIVATE', 'DATE', 'internet.activate', 'internet.activate AS internet_activate' ],
     ['INTERNET_STATUS_DATE', '',    '',
       '(SELECT aa.datetime FROM admin_actions aa WHERE aa.uid=internet.uid AND aa.module=\'Internet\'
-        AND aa.action_type IN (4, 8, 14)
+        AND aa.action_type IN (4, 8, 9, 14)
         ORDER BY aa.datetime DESC LIMIT 1) AS internet_status_date'            ],
     ['MONTH_TRAFFIC_IN',  'INT', '', "SUM(l.recv) AS month_traffic_in"       ],
     ['MONTH_TRAFFIC_OUT', 'INT', '', "SUM(l.sent) AS month_traffic_out"      ],
@@ -602,7 +607,8 @@ sub user_list {
     ['SHEDULE',           'INT', '', "CONCAT(s.y,'-', s.m, '-', s.d, ' ', s.action) AS shedule" ],
     ['FEES_METHOD',       'INT', 'tp.fees_method',                         1 ],
     ['NAS_IP',            'IP',  'INET_NTOA(nas.ip) AS nas_ip',            1 ],
-    ['REGISTRATION_FROM|REGISTRATION_TO','DATE',"DATE_FORMAT(u.registration, '%Y-%m-%d')"]
+    ['REGISTRATION_FROM|REGISTRATION_TO','DATE',"DATE_FORMAT(u.registration, '%Y-%m-%d')"],
+    ['REDUCTION',         'INT', 'u.reduction', 'u.reduction AS user_reduction' ],
   );
 
   if ($CONF->{IPV6}) {
@@ -612,10 +618,10 @@ sub user_list {
   }
 
   my $WHERE =  $self->search_former($attr, \@search_fields,
-    { WHERE            => 1,
-      USERS_FIELDS_PRE => 1,
-      USE_USER_PI      => 1,
-      SKIP_USERS_FIELDS=> [ 'UID', 'ACTIVE', 'EXPIRE' ]
+    { WHERE             => 1,
+      USERS_FIELDS_PRE  => 1,
+      USE_USER_PI       => 1,
+      SKIP_USERS_FIELDS => [ 'UID', 'ACTIVE', 'EXPIRE' ],
     }
   );
 
@@ -735,6 +741,10 @@ sub user_list {
       LEFT JOIN ipn_log ipn_l ON (ipn_l.uid=internet.uid AND DATE_FORMAT(ipn_l.start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m')) ";
   }
 
+  if($self->{SORT_BY}) {
+    $SORT=$self->{SORT_BY};
+  }
+
   $self->query("SELECT
       $self->{SEARCH_FIELDS}
       u.uid,
@@ -847,6 +857,7 @@ sub report_tp {
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $SORT -= 1 if ($SORT > 1);
 
   $self->{EXT_TABLES}          = '';
   $self->{SEARCH_FIELDS}       = '';
@@ -861,13 +872,16 @@ sub report_tp {
     }
   );
 
-  $self->query("SELECT tp.id, tp.name, COUNT(DISTINCT internet.uid) AS counts,
+  $self->query("SELECT tp.id, tp.tp_id, tp.name, COUNT(DISTINCT internet.uid) AS counts,
       COUNT(DISTINCT CASE WHEN internet.disable=0 AND u.disable=0 THEN internet.uid ELSE NULL END) AS active,
       COUNT(DISTINCT CASE WHEN internet.disable=1 AND u.disable=1 THEN internet.uid ELSE NULL END) AS disabled,
       SUM(IF(IF(u.company_id > 0, cb.deposit, b.deposit) < 0, 1, 0)) AS debetors,
+      SUM(IF(u.reduction = 100, 1, 0)) AS users_reduction,
       ROUND(SUM(p.sum) / COUNT(DISTINCT internet.uid), 2) AS arpu,
       ROUND(SUM(p.sum) / COUNT(DISTINCT p.uid), 2) AS arppu,
-      tp.tp_id
+      tp.month_fee AS month_fee,
+      tp.day_fee AS day_fee,
+      tg.name AS group_name
     FROM users u
     INNER JOIN internet_main internet ON (u.uid=internet.uid)
     LEFT JOIN tarif_plans tp ON (tp.tp_id=internet.tp_id)
@@ -875,7 +889,8 @@ sub report_tp {
     LEFT JOIN companies company ON  (u.company_id=company.id)
     LEFT JOIN bills cb ON  (company.bill_id=cb.id)
     LEFT JOIN payments p ON (p.uid=internet.uid
-      AND (p.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00') AND p.date <= CONCAT(CURDATE(), ' 24:00:00')) )
+      AND (p.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00')) )
+    LEFT JOIN tp_groups tg ON (tp.gid=tg.id)
     $WHERE
     GROUP BY tp.tp_id
     ORDER BY $SORT $DESC;",
@@ -1401,7 +1416,7 @@ sub users_development_report {
   my $date = shift;
   my ($attr) = @_;
 
-  $attr->{GROUP_BY} //= 'districts.name';
+  $attr->{GROUP_BY} = 'districts.name';
   my $GROUP_BY = !$attr->{TOTAL} ? "GROUP BY $attr->{GROUP_BY}" : '';
   my $WHERE = "WHERE ud.date = DATE_FORMAT(NOW(), '%Y-%m-%d')";
   if ($date && $date =~ '^<(.+)') {
@@ -1417,39 +1432,34 @@ sub users_development_report {
     push (@address_filter, "districts.id IN ($attr->{DISTRICT_ID})") ;
   }
 
-  if ($attr->{CITY}) {
-    my $city_exp = join(",", map { "'$_'" } split(';', $attr->{CITY}));
-    push (@address_filter, "districts.city IN ($city_exp)") ;
-  }
-
   $WHERE .= " AND (" . join(' OR ', @address_filter) . ")" if (scalar(@address_filter));
 
-  $self->query("SELECT id, name, users_count, city,
-      allowed, sum_allowed, (sum_allowed / allowed) AS allowed_arpu,
+  $self->query("SELECT RI.id, RI.name, RI.users_count, GROUP_CONCAT(DISTINCT dfp.name ORDER BY dfp.path SEPARATOR ' / ') AS full_name,
+      RI.allowed, RI.sum_allowed, (RI.sum_allowed / RI.allowed) AS allowed_arpu,
 
-      denied, sum_denied, (sum_denied / denied) AS denied_arpu,
+      RI.denied, RI.sum_denied, (RI.sum_denied / RI.denied) AS denied_arpu,
 
-      outflow, sum_outflow, (sum_outflow / outflow) AS outflow_arpu,
+      RI.outflow, RI.sum_outflow, (RI.sum_outflow / RI.outflow) AS outflow_arpu,
 
-      outflow_disable, sum_outflow_disable, (sum_outflow_disable / outflow_disable) AS outflow_disable_arpu,
+      RI.outflow_disable, RI.sum_outflow_disable, (RI.sum_outflow_disable / RI.outflow_disable) AS outflow_disable_arpu,
 
-      outflow_neg_deposit, sum_outflow_neg_deposit, (sum_outflow_neg_deposit / outflow_neg_deposit)
+      RI.outflow_neg_deposit, RI.sum_outflow_neg_deposit, (RI.sum_outflow_neg_deposit / RI.outflow_neg_deposit)
       AS outflow_neg_deposit_arpu,
 
-      outflow_holdup, sum_outflow_holdup, (sum_outflow_holdup / outflow_holdup) AS outflow_holdup_arpu,
+      RI.outflow_holdup, RI.sum_outflow_holdup, (RI.sum_outflow_holdup / RI.outflow_holdup) AS outflow_holdup_arpu,
 
-      (outflow / users_count * 100) AS outflow_percent,
-      (outflow_disable / outflow * 100) AS outflow_disable_percent,
-      (outflow_neg_deposit / outflow * 100) AS outflow_neg_deposit_percent,
-      (outflow_holdup / outflow * 100) AS outflow_holdup_percent,
+      (RI.outflow / RI.users_count * 100) AS outflow_percent,
+      (RI.outflow_disable / RI.outflow * 100) AS outflow_disable_percent,
+      (RI.outflow_neg_deposit / RI.outflow * 100) AS outflow_neg_deposit_percent,
+      (RI.outflow_holdup / RI.outflow * 100) AS outflow_holdup_percent,
 
-      (sum_outflow / total_sum * 100) AS sum_outflow_percent,
-      (sum_outflow_disable / sum_outflow * 100) AS sum_outflow_disable_percent,
-      (sum_outflow_neg_deposit / sum_outflow * 100) AS sum_outflow_neg_deposit_percent,
-      (sum_outflow_holdup / sum_outflow * 100) AS sum_outflow_holdup_percent
+      (RI.sum_outflow / RI.total_sum * 100) AS sum_outflow_percent,
+      (RI.sum_outflow_disable / RI.sum_outflow * 100) AS sum_outflow_disable_percent,
+      (RI.sum_outflow_neg_deposit / RI.sum_outflow * 100) AS sum_outflow_neg_deposit_percent,
+      (RI.sum_outflow_holdup / RI.sum_outflow * 100) AS sum_outflow_holdup_percent
 
     FROM (
-      SELECT districts.id AS id, $attr->{GROUP_BY} AS name, districts.city AS city,
+      SELECT districts.id AS id, $attr->{GROUP_BY} AS name, districts.path,
         COUNT(ud.uid) AS users_count, SUM(ud.sum) AS total_sum,
           COUNT(IF(ud.disable = 0 AND b.deposit > -5, ud.id, null)) AS allowed,
           COUNT(IF(ud.disable = 0 AND b.deposit <= -5, ud.id, null)) AS denied,
@@ -1477,8 +1487,10 @@ sub users_development_report {
       $WHERE
 
       $GROUP_BY
-    ) T1
-    ORDER BY city, name",
+    ) RI
+    LEFT JOIN districts AS dfp ON FIND_IN_SET(dfp.id, REPLACE(IF(RI.path, RI.path, RI.id), '/', ',')) > 0
+    GROUP BY RI.id
+    ORDER BY name",
     undef,
     { COLS_NAME => 1 }
   );
@@ -1506,7 +1518,7 @@ sub users_development_growth {
     }
   }
 
-  $self->query("SELECT COUNT(u.uid) AS users, districts.name, districts.city
+  $self->query("SELECT COUNT(u.uid) AS users, districts.name
     FROM users u
     LEFT JOIN bills b ON (u.bill_id = b.id)
     LEFT JOIN users_pi pi ON (u.uid=pi.uid)

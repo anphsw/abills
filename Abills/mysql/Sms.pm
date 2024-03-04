@@ -137,6 +137,7 @@ sub list {
       ['STATUS_DATE',      'DATE','sms.status_date',            1 ],
       ['FROM_DATE|TO_DATE','DATE',"DATE_FORMAT(sms.datetime, '%Y-%m-%d')"],
       ['ID',               'INT', 'sms.id'                       ],
+      ['UID',              'INT', 'u.uid'                        ],
     ],
     { WHERE            => 1,
       USERS_FIELDS_PRE => 1,

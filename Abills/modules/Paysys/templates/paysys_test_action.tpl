@@ -6,6 +6,7 @@
     <input type='hidden' name='module' value='%MODULE%'>
     <input type='hidden' name='_action' value='%ACTION%'>
     <input type='hidden' name='headers' value='%HEADERS%'>
+    <input type='hidden' name='path' value='%PATH%'>
 
     <div class='card card-primary card-outline'>
       <div class='card-header with-border'><h4 class='card-title'>%ACTION% %MODULE%</h4></div>

@@ -205,7 +205,7 @@ sub cams_cameras {
   my $correct_name = 1;
   my $services = $html->form_main({
     CONTENT => cams_tariffs_sel({
-      UID        => $attr->{UID} || $FORM{UID},
+      UID => $attr->{UID} || $FORM{UID},
       AUTOSUBMIT => 'form'
     }),
     HIDDEN  => {
@@ -616,8 +616,8 @@ sub cams_account_action {
   }
   elsif ($attr->{del}) {
     if ($Cams_service && $Cams_service->can('user_del')) {
-      $users->info($uid, { SHOW_PASSWORD => 1 });
-      $Cams_service->user_del({ %$attr, %{$Cams}, %$users, ID => $attr->{del}, NAME => $attr->{CAM_NAME} });
+      $Users->info($uid, { SHOW_PASSWORD => 1 });
+      $Cams_service->user_del({ %$attr, %{$Cams}, %$Users, ID => $attr->{del}, NAME => $attr->{CAM_NAME} });
     }
   }
   elsif ($attr->{change_cam}) {

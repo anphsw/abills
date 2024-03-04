@@ -36,12 +36,12 @@ BEGIN {
   use FindBin '$Bin';
 
   $libpath = $Bin . '/../'; #assuming we are in /usr/abills/whatever
-  if ( $Bin =~ m/\/abills(\/)/ ) {
+  if ($Bin =~ m/\/abills(\/)/) {
     $libpath = substr($Bin, 0, $-[1]);
   }
-  
-  die "No \$libpath \n" if ( !$libpath );
-  
+
+  die "No \$libpath \n" if (!$libpath);
+
   unshift(@INC,
     "$libpath",
     "$libpath/Abills",
@@ -59,7 +59,7 @@ our ($admin, $db, $users);
 
 our @EXPORT = qw(
   $db $admin %conf $base_dir $DATE $TIME $users @MODULES $var_dir
-  );
+);
 our @EXPORT_OK = qw($db $admin %conf);
 
 
@@ -72,13 +72,13 @@ our (
   $lang_path,
   $lib_path,
   $var_dir,
-  $curtime,
-  $year,
+#  $curtime,
+#  $year,
 );
 eval {
   do "$libpath/libexec/config.pl";
 };
-if ( $@ ) {
+if ($@) {
   print "Content-Type: text/html\n\n";
   print "Can't load config file 'config.pl' <br>";
   print "Check ABillS config file /usr/abills/libexec/config.pl";
@@ -92,14 +92,13 @@ require Abills::SQL;
 # TODO: implement sub import, analyze what we have to import and init only needed objects
 
 $db = Abills::SQL->connect(@conf{'dbtype', 'dbhost', 'dbname', 'dbuser', 'dbpasswd'}, {
-    CHARSET => $conf{dbcharset}
-  });
+  CHARSET => $conf{dbcharset}
+});
 $admin = Admins->new($db, \%conf);
 $admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
 
 use Conf;
 Conf->new($db, $admin, \%conf);
-
 
 $users = Users->new($db, $admin, \%conf);
 

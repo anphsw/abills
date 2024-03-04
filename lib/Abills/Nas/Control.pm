@@ -99,6 +99,7 @@ sub new {
 =cut
 #***********************************************************
 sub hangup {
+  #TODO: unify result statuses, remove direct prints in functions, result will be no crashes in API request
   my $self = shift;
   my ($Nas, $PORT, $USER, $attr) = @_;
 
@@ -825,20 +826,6 @@ sub hangup_ipoe {
   if ($Ipn->{errno}) {
     print "Error: [ $Ipn->{errno} ] $Ipn->{errstr} \n";
   }
-
-  # if ($nas_type eq 'dhcp'
-  #   || $nas_type eq 'mikrotik_dhcp'
-  #   || $nas_type eq 'dlink_pb'
-  #   || $nas_type eq 'dlink'
-  #   || $nas_type eq 'edge_core'
-  # ) {
-  #   if ($Ipn->can('query2')) {
-  #     $Ipn->query2("DELETE FROM dhcphosts_leases WHERE ip=INET_ATON('$ip')", 'do');
-  #   }
-  #   else {
-  #     $Ipn->query("DELETE FROM dhcphosts_leases WHERE ip=INET_ATON('$ip')", 'do');
-  #   }
-  # }
 
   my $num = 0;
   if ($attr->{UID} && $CONF->{IPN_FW_RULE_UID}) {

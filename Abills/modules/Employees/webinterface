@@ -991,7 +991,7 @@ sub form_admins_time_sheet {
     COLS_NAME => 1,
     WITH_POSITION => 1,
     DISABLE => 0,
-    POSITION => $FORM{POSITION} || "",
+    POSITION_ID => $FORM{POSITION} || "",
     DEPARTMENT => $FORM{DEPARTMENT} || "",
   });
 

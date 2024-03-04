@@ -8,6 +8,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Contacts;
+use Admins;
 
 our (
   $db,
@@ -17,6 +18,8 @@ our (
 );
 
 my $Contacts = Contacts->new($db, $admin, \%conf);
+my $Admins = Admins->new($db, \%conf);
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 push_log()
@@ -26,20 +29,68 @@ my $Contacts = Contacts->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub push_log {
+
+  my ($year, $month, $day) = split(/-/, $DATE, 3);
+  my $date_from = "$year-$month-01";
+  $FORM{DATE_START} ||= $date_from;
+  $FORM{DATE_END} ||= $DATE;
+
+  my %push_status = (
+    0 => $lang{SUCCESS},
+    1 => $lang{ERROR},
+  );
+
+  my $admins_list = sel_admins({ HASH=>1, DISABLE => 0 });
+
+  my $admins_sel = $html->form_select('AID', {
+    SELECTED     => (defined($FORM{AID})) ? $FORM{AID} : q{},
+    SEL_OPTIONS  => { '' => '' },
+    SEL_HASH     => $admins_list,
+    NO_ID        => 1,
+  });
+  my $status_sel = $html->form_select('STATUS', {
+    SELECTED     => $FORM{STATUS} || q{},
+    SEL_OPTIONS  => { '' => '' },
+    SEL_HASH     => \%push_status,
+    NO_ID        => 1,
+  });
+  my $datepicker = $html->form_daterangepicker({
+    NAME      => 'DATE_START/DATE_END',
+    FORM_NAME => 'search_form',
+    VALUE     => $FORM{'DATE_START_DATE_END'},
+  });
+
+  form_search({ TPL => $html->tpl_show(_include('push_report_search', 'Push'), {
+    DATEPICKER    => $datepicker,
+    DATE_START    => $FORM{DATE_START},
+    DATE_END      => $FORM{DATE_END},
+    STATUS_SELECT => $status_sel,
+    ADMINS_SELECT => $admins_sel
+  }, { OUTPUT2RETURN => 1 })
+  });
+
+  if ($FORM{del} && $FORM{COMMENTS}) {
+    $Contacts->push_messages_del({ ID => $FORM{del} });
+    $html->message('info', $lang{SUCCESS}, $lang{DELETED}) if !$Contacts->{errno};
+  }
+
   my ($table, undef) = result_former({
     INPUT_DATA      => $Contacts,
     FUNCTION        => 'push_messages_list',
+    FUNCTION_INDEX  => $index,
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'ID,TYPE_ID,TITLE,MESSAGE,CREATED,UID,AID,STATUS',
+    FUNCTION_FIELDS => 'del',
     SELECT_VALUE    => {
       status => {
         0 => $lang{SUCCESS},
         1 => $lang{ERROR},
-      }
+      },
+      aid    => $admins_list,
     },
     EXT_TITLES      => {
-      id       => 'id',
-      type_id  => 'type_id',
+      id       => 'ID',
+      type_id  => $lang{TYPE},
       title    => $lang{TITLE},
       message  => $lang{MESSAGE},
       request  => $lang{REQUEST},
@@ -47,7 +98,7 @@ sub push_log {
       created  => $lang{DATE},
       status   => $lang{STATUS},
       uid      => 'UID',
-      aid      => 'AID',
+      aid      => $lang{ADMIN},
     },
     SKIP_USER_TITLE => 1,
     TABLE           => {
@@ -59,8 +110,8 @@ sub push_log {
       MENU    => "$lang{SEARCH}:index=$index&search_form=1:search;",
       EXPORT  => 1,
     },
+    SKIP_USER_TITLE   => 1,
     MAKE_ROWS       => 1,
-    MODULE          => 'Contacts'
   });
 
   return print $table->show();

@@ -85,12 +85,9 @@
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-4 col-form-label text-md-right' for='CONNECT'>_{PLANNED_TO_CONNECT}_:</label>
+            <label class='col-md-4 col-form-label text-md-right' for='STATUS_SEL'>_{STATUS}_:</label>
             <div class='col-md-8'>
-              <div class='form-check'>
-                <input type='checkbox' class='form-check-input' id='CONNECT' name='PLANNED_TO_CONNECT'
-                       %PLANNED_TO_CONNECT_CHECK% value='1'>
-              </div>
+              %STATUS_SEL%
             </div>
           </div>
 

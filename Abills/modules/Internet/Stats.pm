@@ -879,7 +879,7 @@ sub internet_terminate_causes {
 sub internet_get_chart_iframe {
   my ($query, $periods) = @_;
 
-  my $frameopts = "width='100%' height='" . $chart_height * 1.4 . "px' frameborder='0' seamless='seamless' scrolling='false'";
+  my $frameopts = "class='themed-iframe rounded-lg' width='100%' height='" . $chart_height * 1.4 . "px' frameborder='0' seamless='seamless' scrolling='false'";
   my $chart_query  = internet_get_chart_query($query, $periods);
 
   if ($FORM{xml}){return 1};

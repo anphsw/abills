@@ -1,4 +1,4 @@
-<form action='$SELF_URL' method='POST'>
+<form action='%SELF_URL%' method='POST'>
   <input type=hidden name='index' value='$index'>
   <input type=hidden name='TP_ID' value='%TP_ID%'>
   <input type=hidden name='tt' value='%TI_ID%'>
@@ -33,7 +33,7 @@
         </div>
 
         <div class='form-group row'>
-          <label class='control-label col-sm-3' for='PREPAID'>_{PREPAID}_</label>
+          <label class='control-label col-sm-3' for='PREPAID'>_{PREPAID}_:</label>
 
           <div class='col-sm-8'>
             <input id='PREPAID' name='PREPAID' value='%PREPAID%' placeholder='%PREPAID%'
@@ -45,7 +45,7 @@
         <div class='form-group row'>
           <label class='control-label col-sm-4' style='text-align: center;'>_{TRAFIC_TARIFS}_ (1 Mb):</label>
 
-          <label class='control-label col-sm-1' for='IN_PRICE'>IN</label>
+          <label class='control-label col-sm-1' for='IN_PRICE'>IN:</label>
 
           <div class='col-sm-3'>
             <input id='IN_PRICE' name='IN_PRICE' value='%IN_PRICE%' placeholder='%IN_PRICE%'
@@ -63,7 +63,7 @@
 
         <div class='form-group row'>
           <label class='control-label col-sm-4' for='IN_SPEED'>_{SPEED}_ (Kbits):</label>
-          <label class='control-label col-sm-1' for='IN_SPEED'>IN</label>
+          <label class='control-label col-sm-1' for='IN_SPEED'>IN:</label>
 
           <div class='col-sm-3'>
             <input id='IN_SPEED' name='IN_SPEED' value='%IN_SPEED%' placeholder='%IN_SPEED%'
@@ -77,102 +77,113 @@
           </div>
         </div>
 
-        <div class='card card-primary card-outline collapsed-card'>
-          <div class="card-header with-border">
-            <h3 class="card-title">Burst Mode</h3>
-            <div class="card-tools float-right">
-              <button type="button" class="btn btn-tool" data-card-widget="collapse"  data-parent='#accordion' href='#burstModeCollapse'
-                        aria-expanded='false' aria-controls='collapseOne'>
-                <i class="fa fa-plus"></i>
-              </button>
-            </div>
-          </div>
-         <!-- <div id='burstModeCollapse' class='card-collapse collapse collapsing' role='tabpanel'
-                 aria-labelledby='burstLimit'>-->
-          <div  id='burstModeCollapse' class='card-body'>
-                <p class='bg-info'>
-                  Burst limit > _{SPEED}_</p>
-                <p class='bg-info'>
-                  Burst limit > Burst threshold
-                </p>
-
-                <div class='form-group row'>
-                  <label class='control-label col-md-5' for='BURST_LIMIT_DL'>Burst limit,
-                    kbps</label>
-
-                  <div class='col-md-3'>
-                    <input id='BURST_LIMIT_DL' name='BURST_LIMIT_DL' value='%BURST_LIMIT_DL%'
-                           placeholder='%BURST_LIMIT_DL%'
-                           class='form-control' type='text'>
-                  </div>
-                  <div class='col-md-1 control-label'>/</div>
-                  <div class='col-md-3'>
-                    <input id='BURST_LIMIT_UL' name='BURST_LIMIT_UL' value='%BURST_LIMIT_UL%'
-                           placeholder='%BURST_LIMIT_UL%'
-                           class='form-control' type='text'>
-                  </div>
-                </div>
-
-                <div class='form-group row'>
-                  <label class='control-label col-md-5' for='BURST_THRESHOLD_DL'>Burst threshold,
-                    kbps</label>
-
-                  <div class='col-md-3'>
-                    <input id='BURST_THRESHOLD_DL' name='BURST_THRESHOLD_DL'
-                           value='%BURST_THRESHOLD_DL%'
-                           placeholder='%BURST_THRESHOLD_DL%' class='form-control' type='text'>
-                  </div>
-                  <div class='col-md-1 control-label'>/</div>
-                  <div class='col-md-3'>
-                    <input id='BURST_THRESHOLD_UL' name='BURST_THRESHOLD_UL'
-                           value='%BURST_THRESHOLD_UL%'
-                           placeholder='%BURST_THRESHOLD_UL%' class='form-control' type='text'>
-                  </div>
-                </div>
-
-                <div class='form-group row'>
-                  <label class='control-label col-md-5' for='BURST_TIME_DL'>Burst time,
-                    _{SECONDS}_</label>
-
-                  <div class='col-md-3'>
-                    <input id='BURST_TIME_DL' name='BURST_TIME_DL' value='%BURST_TIME_DL%'
-                           placeholder='%BURST_TIME_DL%'
-                           class='form-control' type='text'>
-                  </div>
-                  <div class='col-md-1 control-label'>/</div>
-                  <div class='col-md-3'>
-                    <input id='BURST_TIME_UL' name='BURST_TIME_UL' value='%BURST_TIME_UL%'
-                           placeholder='%BURST_TIME_UL%' class='form-control' type='text'>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-        <div class='form-group row'>
-          <label class='control-label col-sm-3' for='DESCR'>_{DESCRIBE}_:</label>
-
-          <div class='col-sm-9'>
-            <input id='DESCR' name='DESCR' value='%DESCR%' placeholder='%DESCR%'
-                   class='form-control' type='text'>
-          </div>
-        </div>
-
-        <div class='form-group row'>
-          <label class='control-label col-sm-3' for='EXPRESSION'>_{EXPRESSION}_:</label>
-
-          <div class='col-md-9'>
-                        <textarea class='form-control' id='EXPRESSION'
-                                  name='EXPRESSION'>%EXPRESSION%</textarea>
-          </div>
-
-          <div class='form-group'>
-          </div>
-
-        </div>
-        %DV_EXPPP_NETFILES%
-
 
       </div>
+
+      <div class='card card-primary card-outline collapsed-card card-big-form'>
+        <div class='card-header with-border'>
+          <h3 class='card-title'>Burst Mode</h3>
+          <div class='card-tools float-right'>
+            <button type='button' class='btn btn-tool' data-card-widget='collapse'  data-parent='#accordion' href='#burstModeCollapse'
+                    aria-expanded='false' aria-controls='collapseOne'>
+              <i class='fa fa-plus'></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- <div id='burstModeCollapse' class='card-collapse collapse collapsing' role='tabpanel'
+                aria-labelledby='burstLimit'>-->
+        <div  id='burstModeCollapse' class='card-body'>
+          <div class='form-group row'>
+            <label class='control-label col-md-5' for='BURST_LIMIT_DL'>Burst limit,
+              kbps:</label>
+
+            <div class='col-md-3'>
+              <input id='BURST_LIMIT_DL' name='BURST_LIMIT_DL' value='%BURST_LIMIT_DL%'
+                     placeholder='%BURST_LIMIT_DL%'
+                     class='form-control' type='text'>
+            </div>
+            <div class='col-md-1 control-label'>/</div>
+            <div class='col-md-3'>
+              <input id='BURST_LIMIT_UL' name='BURST_LIMIT_UL' value='%BURST_LIMIT_UL%'
+                     placeholder='%BURST_LIMIT_UL%'
+                     class='form-control' type='text'>
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='control-label col-md-5' for='BURST_THRESHOLD_DL'>Burst threshold, kbps:</label>
+
+            <div class='col-md-3'>
+              <input id='BURST_THRESHOLD_DL' name='BURST_THRESHOLD_DL'
+                     value='%BURST_THRESHOLD_DL%'
+                     placeholder='%BURST_THRESHOLD_DL%' class='form-control' type='text'>
+            </div>
+            <div class='col-md-1 control-label'>/</div>
+            <div class='col-md-3'>
+              <input id='BURST_THRESHOLD_UL' name='BURST_THRESHOLD_UL'
+                     value='%BURST_THRESHOLD_UL%'
+                     placeholder='%BURST_THRESHOLD_UL%' class='form-control' type='text'>
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='control-label col-md-5' for='BURST_TIME_DL'>Burst time, _{SECONDS}_:</label>
+
+            <div class='col-md-3'>
+              <input id='BURST_TIME_DL' name='BURST_TIME_DL' value='%BURST_TIME_DL%'
+                     placeholder='%BURST_TIME_DL%'
+                     class='form-control' type='text'>
+            </div>
+            <div class='col-md-1 control-label'>/</div>
+            <div class='col-md-3'>
+              <input id='BURST_TIME_UL' name='BURST_TIME_UL' value='%BURST_TIME_UL%'
+                     placeholder='%BURST_TIME_UL%' class='form-control' type='text'>
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='control-label col-md-5' for='LIMIT_AT_DL'>Limit-At, kbps:</label>
+
+            <div class='col-md-3'>
+              <input id='LIMIT_AT_DL' name='LIMIT_AT_DL'
+                     value='%LIMIT_AT_DL%'
+                     placeholder='%LIMIT_AT_DL%' class='form-control' type='text'>
+            </div>
+            <div class='col-md-1 control-label'>/</div>
+            <div class='col-md-3'>
+              <input id='LIMIT_AT_UL' name='LIMIT_AT_UL'
+                     value='%LIMIT_AT_UL%'
+                     placeholder='%LIMIT_AT_UL%' class='form-control' type='text'>
+            </div>
+          </div>
+
+
+        </div>
+      </div>
+
+  <div class='card-body'>
+      <div class='form-group row'>
+        <label class='control-label col-sm-3' for='DESCR'>_{DESCRIBE}_:</label>
+
+        <div class='col-sm-9'>
+          <input id='DESCR' name='DESCR' value='%DESCR%' placeholder='%DESCR%'
+                 class='form-control' type='text'>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='control-label col-sm-3' for='EXPRESSION'>_{EXPRESSION}_:</label>
+
+        <div class='col-md-9'>
+                        <textarea class='form-control' id='EXPRESSION'
+                                  name='EXPRESSION'>%EXPRESSION%</textarea>
+        </div>
+
+      </div>
+  </div>
+
+
       <div class='card-footer'>
         %BACK_BUTTON% <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
       </div>

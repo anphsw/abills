@@ -110,6 +110,8 @@ DELETE FROM `maps_layers` WHERE `id`='3';
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (4, '$lang{DISTRICT}', 'POLYGON', 'district');
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (5, '$lang{TRAFFIC}', 'MARKER', 'build');
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (6, '$lang{OBJECTS}', 'MARKER', 'custom');
+REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`, `module`) VALUES (10, '$lang{CABLE}', 'MARKER', 'cable', 'Cablecat');
+REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`, `module`) VALUES (11, '$lang{WELL}', 'MARKER', 'well', 'Cablecat');
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (12, '$lang{PLOT}', 'POLYGON', 'build');
 
 CREATE TABLE IF NOT EXISTS `maps_circles` (

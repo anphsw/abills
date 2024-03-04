@@ -83,9 +83,10 @@ sub form_payments {
       HIDDEN_FIELDS => {
         subf       => ($FORM{subf}) ? $FORM{subf} : undef,
         COMPANY_ID => $FORM{COMPANY_ID},
-        LEAD_ID    => $FORM{LEAD_ID}
+        LEAD_ID    => $FORM{LEAD_ID},
       },
       ID            => 'SEARCH_PAYMENTS',
+      ARCHIVE_TABLE => 'payments',
       CONTROL_FORM  => 1
     });
   }

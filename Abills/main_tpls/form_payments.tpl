@@ -1,4 +1,4 @@
-<form action='$SELF_URL' method='post' id='user_form' name='user_form' role='form'>
+<form action='%SELF_URL%' method='post' id='user_form' name='user_form' role='form'>
   <input type=hidden name=index value='$index'>
   <input type=hidden name=subf value='$FORM{subf}'>
   <input type=hidden name=OP_SID value='%OP_SID%'>
@@ -79,8 +79,8 @@
         %DATE_FORM%
         %EXT_DATA_FORM%
 
-        %DOCS_INVOICE_RECEIPT_ELEMENT%
         </div>
+      %DOCS_INVOICE_RECEIPT_ELEMENT%
       <div class='card-footer'>
         %BACK_BUTTON%
         <input type=submit name=%ACTION% value='%LNG_ACTION%' class='btn btn-primary double_click_check'>

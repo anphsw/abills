@@ -136,4 +136,78 @@ sub _api_filter_request_headers {
   return $headers;
 }
 
+
+#**********************************************************
+=head2 api_periodic_logrotate () - periodic log rotate
+
+  Attr:
+    DEBUG
+
+  Returns:
+    debug - if $attr->debug
+
+=cut
+#**********************************************************
+sub api_periodic_logrotate {
+  my ($attr) = @_;
+
+  my $debug = $attr->{DEBUG} || 0;
+  my $debug_output = '';
+
+  $Api->{debug} = 1 if ($debug > 6);
+
+  $Api->log_rotate();
+
+  $debug_output .= "Make api log rotate\n" if ($debug > 0);
+
+  $DEBUG .= $debug_output;
+  return $debug_output;
+}
+
+
+
+#********************************************************
+=head2 user_mobile($attr) - report of last activity user mobile app
+
+
+=cut
+#********************************************************
+sub user_mobile {
+
+  my $api_list = $Api->list({
+    UID             => $FORM{UID},
+    DATE            => '_SHOW',
+    REQUEST_HEADERS => '_SHOW',
+    MOBILE_APP      => 1,
+    DESC            => 'DESC',
+  });
+
+  return 1 if (!$Api->{TOTAL});
+
+  my Abills::HTML $table;
+  require JSON;
+  JSON->import(qw/decode_json/);
+
+  $table = $html->table({
+    width               => '100%',
+    caption             => "$lang{MOBILE_APP} ($lang{LAST_ACTIVITY})",
+    border              => 1,
+    title               => [ $lang{DATE}, $lang{INFO}],
+    pages               => $Api->{TOTAL},
+    ID                  => 'MOBILE_LIST_ID',
+  });
+
+  foreach my $line (@$api_list) {
+    my $request_headers = decode_json($line->{request_headers});
+    my $user_agent = $request_headers->{X_AGENT} ? $request_headers->{X_AGENT} : '';
+
+    $table->addrow(
+      substr($line->{date},0,16),
+      $user_agent,
+    );
+  }
+
+  print $table->show();
+}
+
 1;

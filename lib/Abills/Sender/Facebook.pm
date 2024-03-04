@@ -68,7 +68,7 @@ sub send_message {
   my $self = shift;
   my ($attr, $callback) = @_;
 
-  my $send_message = $attr->{MESSAGE} || return 0;
+  my $send_message = $attr->{MESSAGE} || $attr->{ATTACHMENTS} || return 0;
   $self->{debug} = $attr->{DEBUG} if $attr->{DEBUG};
 
   my $message = {
@@ -81,10 +81,11 @@ sub send_message {
   if ($attr->{DEBUG} && $attr->{DEBUG} > 1) {
     _bp("Result", $result, { TO_CONSOLE => 1 });
   }
+  $self->send_attachments($attr);
 
   return $result if $attr->{RETURN_RESULT};
 
-  return $result && $result->{message_id};
+  return ($result && $result->{message_id}) || $attr->{ATTACHMENTS};
 }
 
 
@@ -95,9 +96,9 @@ sub send_message {
 #**********************************************************
 sub send_request {
   my $self = shift;
-  my ($attr, $callback) = @_;
+  my ($params, $callback) = @_;
 
-  my $json_str = json_former($attr);
+  my $json_str = json_former($params, { BOOL_VALUES => 1 });
 
   my $url = $self->{api_url} . '?access_token=' . $self->{token};
 
@@ -114,6 +115,43 @@ sub send_request {
   $result = decode_json($result);
 
   return $result;
+}
+
+#**********************************************************
+=head2 send_attachments() - sends message with attachments
+
+=cut
+#**********************************************************
+sub send_attachments {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return if !$attr->{ATTACHMENTS} || ref $attr->{ATTACHMENTS} ne 'ARRAY';
+
+  my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  my $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/" : '';
+
+  foreach my $file (@{$attr->{ATTACHMENTS}}){
+    # TODO Add sending files of different types
+    next if $file->{content_type} !~ /^image\// || !$file->{img_file_path} || !$file->{filename};
+
+    my $img_url = $SELF_URL . $file->{img_file_path} . $file->{filename};
+
+    my $message = {
+      recipient => { id => $attr->{TO_ADDRESS} },
+      message   => {
+        attachment => {
+          type    => 'image',
+          payload => {
+            url => $img_url,
+            is_reusable => 'true'
+          }
+        }
+      },
+    };
+
+    $self->send_request($message);
+  }
 }
 
 1;

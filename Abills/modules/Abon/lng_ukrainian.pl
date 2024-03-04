@@ -75,5 +75,6 @@ $lang{ABON_TECHNICAL_PASSPORT_SERIES_NUMBER} = 'Серія та номер те�
 $lang{ABON_ACTIVATION_FROM_USER_PORTAL} = 'Активація тільки з користувацького порталу';
 $lang{PROMOTIONAL_TP} = 'Акційний ТП';
 $lang{ABON_PROMO_PERIOD} = 'Промо-період';
+$lang{ABON_HOT_DEAL} = 'Гаряча пропозиція';
 
 1;

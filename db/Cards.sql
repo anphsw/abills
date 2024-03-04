@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS `cards_users` (
   UNIQUE KEY `serial` (`number`, `serial`, `domain_id`),
   KEY `diller_id` (`diller_id`),
   KEY `login` (`login`),
+  KEY `datetime` (`datetime`),
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET=utf8

@@ -303,19 +303,6 @@ sub _vsolution {
   return $snmp;
 }
 
-##**********************************************************
-#=head2 _vsolution_mac_list()
-#
-#=cut
-##**********************************************************
-#sub _vsolution_mac_list {
-#  my ($value) = @_;
-#
-#  my (undef, $v) = split(/:/, $value);
-#  $v = bin2mac($v) . ';';
-#
-#  return '', $v;
-#}
 
 #**********************************************************
 =head2 _vsolution_onu_status()
@@ -326,7 +313,8 @@ sub _vsolution_onu_status {
 
   my %status = (
     0 => $ONU_STATUS_TEXT_CODES{OFFLINE},
-    1 => $ONU_STATUS_TEXT_CODES{ONLINE}
+    1 => $ONU_STATUS_TEXT_CODES{ONLINE},
+    2 => $ONU_STATUS_TEXT_CODES{OFFLINE}
   );
 
   return \%status;
@@ -342,9 +330,9 @@ sub _vsolution_set_desc {
 
   my $oid = $attr->{OID} || '';
 
-  if ($attr->{PORT}) {
-    #    $oid = '1.3.6.1.2.1.31.1.1.1.18.'.$attr->{PORT};
-  }
+  # if ($attr->{PORT}) {
+  #   #    $oid = '1.3.6.1.2.1.31.1.1.1.18.'.$attr->{PORT};
+  # }
 
   snmp_set({
     SNMP_COMMUNITY => $attr->{SNMP_COMMUNITY},
@@ -360,6 +348,9 @@ sub _vsolution_set_desc {
   Arguments:
     $power
 
+  Result:
+    $powers
+
 =cut
 #**********************************************************
 sub _vsolution_convert_power {
@@ -369,15 +360,24 @@ sub _vsolution_convert_power {
   $power =~ /\s\(([-0-9.]*)/;
   $power = $1 || 0;
 
-  if (-65535 == $power) {
-    $power = '';
+  if ($power eq '-') {
+    $power = 0;
+  }
+  elsif ($power == -65535) {
+    $power = 0;
   }
 
   return $power;
 }
 
 #**********************************************************
-=head2 _vsolution_convert_temperature();
+=head2 _vsolution_convert_temperature($temperature);
+
+  Arguments:
+    $temperature
+
+  Return:
+    $temperature
 
 =cut
 #**********************************************************
@@ -386,9 +386,7 @@ sub _vsolution_convert_temperature {
 
   $temperature ||= 0;
 
-  $temperature =~ s/\s+C//;
-
-#@  $temperature = ($temperature / 256);
+  $temperature =~ s/\s?\(?C\)?//;
   $temperature = sprintf("%.2f", $temperature);
 
   return $temperature;
@@ -422,6 +420,7 @@ sub _vsolution_convert_distance {
 
   $distance = $distance * 0.001;
   $distance .= ' km';
+
   return $distance;
 }
 

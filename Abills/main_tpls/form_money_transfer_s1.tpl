@@ -8,11 +8,11 @@
     <div class='card-body'>
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right required'>_{TO_USER}_ (UID):</label>
-        <div class='col-md-4'><input type=text name=RECIPIENT value='%RECIPIENT%' class='form-control'></div>
+        <div class='col-md-4'><input type=text name=RECIPIENT value='%RECIPIENT%' class='form-control' required> </div>
       </div>
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right required'>_{SUM}_:</label>
-        <div class='col-md-4'><input type=text name=SUM value='%SUM%' class='form-control'></div>
+        <div class='col-md-4'><input type=text name=SUM value='%SUM%' class='form-control' required> </div>
       </div>
     </div>
     <div class='card-footer'>

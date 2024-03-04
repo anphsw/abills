@@ -215,7 +215,11 @@ sub new {
   }
   elsif ($FORM{language} && $FORM{language} =~ /^[a-z\_]+$/) {
     $self->{language} = $FORM{language};
-    $self->set_cookies('language', "$FORM{language}", "Fri, 1-Jan-2038 00:00:01", '/');
+    $self->set_cookies($FORM{login_page} ? 'user_language' : 'language', "$FORM{language}", "Fri, 1-Jan-2038 00:00:01", '/');
+  }
+  elsif ($attr->{USER_PORTAL} && $COOKIES{user_language} && $COOKIES{user_language} =~ /^[a-z\_]+$/) {
+    $self->{language} = $COOKIES{user_language};
+    $FORM{language} = $self->{language};
   }
   elsif ($COOKIES{language} && $COOKIES{language} =~ /^[a-z\_]+$/) {
     $self->{language} = $COOKIES{language};
@@ -319,6 +323,18 @@ sub new {
       }
     );
   }
+  elsif ($CONF->{EXPORT_GOOGLE} && $FORM{google}) {
+    require Abills::Google_web;
+    $self = Abills::Google_web->new({
+      IMG_PATH => $IMG_PATH,
+      NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
+      CONF     => $CONF,
+      CHARSET  => $attr->{CHARSET},
+      METATAGS => $self->{METATAGS},
+      TYPE     => 'google',
+      LANG     => $lang
+    });
+  }
 
   return $self;
 }
@@ -398,16 +414,15 @@ sub form_parse {
       my (undef, $firstline, $datas) = split(/[\r]\n/, $part, 3);
 
       next if $firstline =~ /filename=\"\"/;
-      $firstline =~ s/^Content-Disposition: form-data; //;
-      $firstline =~ s/^content-disposition: form-data; //;
+      $firstline =~ s/^Content-Disposition: form-data; //i;
       my (@columns) = split(/;\s+/, $firstline);
 
       ($name = $columns[0]) =~ s/^name=\"([^\"]+)\"$/$1/g;
       my $blankline;
       if ($#columns > 0) {
-        if ($datas =~ /^Content-Type:/) {
+        if ($datas =~ /^Content-Type:/i) {
           ($_FORM{"$name"}->{'Content-Type'}, $blankline, $datas) = split(/[\r]\n/, $datas, 3);
-          $_FORM{"$name"}->{'Content-Type'} =~ s/^Content-Type: ([^\s]+)$/$1/g;
+          $_FORM{"$name"}->{'Content-Type'} =~ s/^Content-Type: ([^\s]+)$/$1/gi;
         }
         else {
           ($blankline, $datas) = split(/[\r]\n/, $datas, 2);
@@ -415,7 +430,12 @@ sub form_parse {
         }
       }
       else {
-        ($blankline, $datas) = split(/[\r]\n/, $datas, 2);
+        if ($datas =~ /Content-Length: \d+/i) {
+          (undef, $blankline, $datas) = split(/[\r]\n/, $datas, 3);
+        }
+        else {
+          ($blankline, $datas) = split(/[\r]\n/, $datas, 2);
+        }
 
         #TODO: replace with escape_for_sql?
         $datas =~ s/\\/\\\\/g;
@@ -2089,6 +2109,10 @@ sub table {
     if (!$@) {
       push @export_formats, 'xls';
     }
+    if ($CONF->{EXPORT_GOOGLE}) {
+      push @export_formats, 'google';
+    }
+
     #instantiate new dropdown menu
     $export_obj .= "<button title='Export' role='button' class='dropdown-toggle btn btn-tool' data-toggle='dropdown'" .
       " aria-haspopup='true' aria-expanded='false'>" .
@@ -2159,7 +2183,7 @@ sub table {
 
     if ($attr) {
       require JSON;
-      $ATTR = JSON->new->indent->encode($attr->{DATA_TABLE});
+      $ATTR = JSON->new->indent->encode({ %{$attr->{DATA_TABLE}}, colReorder => 'true' });
     };
 
     if ($attr->{DT_CLICK}) {
@@ -2182,9 +2206,55 @@ sub table {
     }
 
     $show_cols = qq(
+    <link href="/styles/default/css/colReorder.dataTables.css" rel="stylesheet" type="text/css" />
+    <script src="/styles/default/js/dataTables.colReorder.min.js"></script>
 		<script>
 		  jQuery(document).ready(function() {
-		  	var table = jQuery("#$self->{ID}_").DataTable($ATTR);
+		    let pageLength = localStorage.getItem('$self->{ID}_TABLE_LENGTH') || undefined;
+		    let dataTableAttr = { ...$ATTR, "pageLength": pageLength };
+		  	var table = jQuery("#$self->{ID}_").DataTable(dataTableAttr);
+
+		  	jQuery("#$self->{ID}_").find('th').each(function(index) {
+		  	  jQuery(this).attr('data-column-id', index);
+		  	});
+
+		  	jQuery("#$self->{ID}_").on( 'length.dt', function ( e, settings, len ) {
+          localStorage.setItem('$self->{ID}_TABLE_LENGTH', len);
+        });
+
+		  	fetch('/api.cgi/admins/settings?OBJECT_ID=$self->{ID}_COLUMN_SORT')
+          .then(response => {
+            if (!response.ok) throw response;
+            return response;
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.setting) {
+              let columns = data.setting.split(',');
+              if (columns.length === jQuery("#$self->{ID}_").find('th').length) {
+                table.colReorder.order(columns);
+              }
+            }
+          });
+
+		  	table.on('column-reorder', function (e, settings, details) {
+		  	  let columnIds = [];
+          jQuery("#$self->{ID}_").find('th').each(function() {
+              var columnId = jQuery(this).data('column-id');
+              if (columnId >= 0) {
+                columnIds.push(columnId);
+              }
+          });
+
+          let columnIdsStr = columnIds.join(',');
+          if (columnIdsStr) {
+            fetch('/api.cgi/admins/settings', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ SETTING: columnIdsStr, OBJECT: '$self->{ID}_COLUMN_SORT' })
+            })
+          }
+		  	});
 
 		  	//Save table sort
 		  	jQuery("#$self->{ID}_").on('order.dt', function () {
@@ -2255,18 +2325,17 @@ sub table {
     $caption_icon = "<i class='" . $attr->{caption_icon} . "' style='font-size:18px; margin-right: 6px; float:left;'></i>";
   }
   if ($attr->{caption} || $self->{table_caption}) {
-    $self->{table} .=
-    "<div class='card-header d-flex flex-nowrap justify-content-between'>
-      <div class='card-title'>
+    $self->{table} .= qq{<div class="card-header d-flex flex-nowrap justify-content-between">
+      <div class="card-title">
         $caption_icon
-        <h4 class='card-title table-caption'>$attr->{caption}</h4>
+        <h4 class="card-title table-caption">$attr->{caption}</h4>
       </div>
       $table_filters
-      <div class='card-tools'>
+      <div class="card-tools">
         $extra_btn
         $table_management_buttons
       </div>
-     </div>";
+     </div>};
   }
   my $card_tools = '';
   if ((($attr->{caption} ne '') and (($table_export ne '') or ($pagination ne ''))) or (defined($attr->{DATA_TABLE}))) {
@@ -2293,7 +2362,7 @@ sub table {
   $self->{table} .= qq{
   <div class="$border $table_responsive" id="p_$self->{ID}">
     $card_tools
-    <TABLE $table_class ID='$self->{ID}_'>\n};
+    <TABLE $table_class ID="$self->{ID}_">\n};
 
   $self->{pagination} = $pagination;
 
@@ -2656,7 +2725,7 @@ sub table_header {
       $header .= "<button class='btn btn-default btn-xs dropdown-toggle' aria-expanded='false' data-toggle='dropdown'><span class='caret'></span></button>";
     }
     elsif ($i > $elements_before_dropdown) {
-      $drop_down .= $self->button($name, $url, { class => 'dropdown-item' })
+      $drop_down .= $self->button($name, $url, { class => "dropdown-item $active" })
     }
     else {
       $header .= $self->button($name, $url, { class => "btn btn-default btn-xs $active" });
@@ -5613,7 +5682,7 @@ sub chart {
   # hash which will be encode to json
   my %data = ( labels => $chart_labels );
 
-  foreach my $dataset (keys %$chart_data) {
+  foreach my $dataset (sort keys %$chart_data) {
     my %info = (
       label           => $dataset,
       data            => $chart_data->{$dataset},
@@ -5678,22 +5747,14 @@ sub chart {
   Returns:
     HTML code
 
-  Example:
-    my $list = $Address->build_list();
-    my $keys = "city,street_name,number";
-    The key value can be changed as you need
-    foreach my $line (@$list) {
-      $line->{number} = $html->b("$lang{ADDRESS_BUILD} $line->{number}");
-    }
-    my $tree = $html->html_tree($list, $keys);
-
 =cut
 #**********************************************************
 sub html_tree {
   my $self = shift;
-  my ($list, $keys) = @_;
+  my ($list, $keys, $attr) = @_;
 
   my $DATA = Abills::Base::json_former($list);
+  $attr = Abills::Base::json_former($attr);
 
   my $result .= qq(
     <div id="show_tree" style="text-align: left;" class="form-group container"> </div>
@@ -5701,10 +5762,13 @@ sub html_tree {
     <script type='text/javascript' src='/styles/default/js/tree/tree.js'></script>
     <script>
       var htmlTree = "";
+      let attr = $attr;
+      var checked_nodes =  attr.checked_list || {};
+
       jQuery(function() {
-      var keys = '$keys';
-      var list = $DATA;
-      make_tree(list, keys);
+        var keys = '$keys';
+        var list = $DATA;
+        make_tree(list, keys, attr);
       });
     </script> );
 

@@ -9,7 +9,7 @@ use Abills::Base qw(in_array vars2lang json_former);
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Paysys',
-  REQUIRE_VERSION => 9.33
+  REQUIRE_VERSION => 9.36
 })) {
   print $@;
   exit;
@@ -227,16 +227,10 @@ sub paysys_configure_terminals {
     $user_pi{ADDRESS_BUILD} = ($Address->build_info({ ID => $TERMINALS{LOCATION_ID} }))->{NUMBER};
   }
 
-  $TERMINALS{ADRESS_FORM} = $html->tpl_show(
-    templates('form_address_search'),
-    {
-      %user_pi,
-      DISTRICT_ID => $TERMINALS{DISTRICT_ID},
-      STREET_ID   => $TERMINALS{STREET_ID},
-      LOCATION_ID => $TERMINALS{LOCATION_ID},
-    },
-    { OUTPUT2RETURN => 1 }
-  );
+  $TERMINALS{ADDRESS_FORM} = form_address_select({ %TERMINALS,
+    HIDE_FLAT             => 1,
+    HIDE_ADD_BUILD_BUTTON => 1,
+  });
 
   my @WEEKDAYS_WORK = ();
   if ($TERMINALS{WORK_DAYS}) {
@@ -436,7 +430,6 @@ sub paysys_configure_main {
   if ($FORM{add_paysys}) {
     my $list = $Paysys->paysys_connect_system_list({
       SHOW_ALL_COLUMNS => '_SHOW',
-      STATUS           => 1,
       COLS_NAME        => 1,
       PAGE_ROWS        => 100
     });
@@ -515,6 +508,16 @@ sub paysys_configure_main {
     });
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
+    my $merchants = $Paysys->merchant_settings_list({
+      SYSTEM_ID => $FORM{del},
+      ID        => '_SHOW',
+      COLS_NAME => 1
+    });
+
+    foreach my $merchant (@{$merchants}) {
+      del_settings_to_config({ MERCHANT_ID => $merchant->{id}, DEL_ALL => 1 });
+    }
+
     $Paysys->paysys_connect_system_delete({
       ID => $FORM{del},
       %FORM

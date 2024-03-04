@@ -281,7 +281,12 @@ INTO `equipment_models` (
        (381,4,11,'','P3600-08','https://deps.ua/katalog/ru-kontsentratoryi-olt/47188.html',8,'','','bdcom.snmp','',1,4,'',0,0,0,0,0,0,6,0,0,0,50,NULL,NULL,NULL,'https://deps.ua/components/com_jshopping/files/img_products/full_47188_2.jpg',NULL,NULL,0,0,0),
        (382,1,2,'','DES-3200-26/C1','https://ek.ua/ua/D-LINK-DES-3200-26-C1.htm',24,'','','dlink_des_3200_26c1.snmp','',2,4,'',1,0,0,0,0,0,1,0,0,0,0,NULL,NULL,NULL,'https://s.ek.ua/jpg_zoom1/455274.jpg',NULL,NULL,0,0,0),(384,1,2,'','DES-3200-52/C1','https://ua.setevoe.com.ua/aktivka/switches/d-link-des-3200-52.html',48,'','','dlink_des_3200_52c1.snmp','',2,8,'',1,0,0,0,0,0,1,0,0,0,34,NULL,NULL,NULL,'https://ukrinfosystems.com.ua/images/d-link/switches/fast-gigabit-ethernet-2-2plus/des-3200-52-front-2.png',NULL,NULL,0,0,0),
        (383,1,2,'','DES-3200-52/C1','https://ua.setevoe.com.ua/aktivka/switches/d-link-des-3200-52.html',48,'','','dlink_des_3200_52c1.snmp','',2,8,'',1,0,0,0,0,0,1,0,0,0,34,NULL,NULL,NULL,'https://ukrinfosystems.com.ua/images/d-link/switches/fast-gigabit-ethernet-2-2plus/des-3200-52-front-2.png',NULL,NULL,0,0,0),
-       (384,4,12,'','C620','https://www.zte.com.cn/global/product_index/optical_access_en/pon-olt/zxa10/zxa10-c620.html',32,'','','zte_c6xx.snmp','',2,16,'',1,0,0,0,0,0,4,0,0,0,20,NULL,NULL,NULL,'https://lanmarket.ua/upload/resize_cache/iblock/35f/700_393_1bc2c718eacdb6bae56a3e2d7306d879d/35f8e0ca55648c5fafe594f4b6b900b1.jpg',NULL,NULL,0,0,0);
+       (384,4,12,'','C620','https://www.zte.com.cn/global/product_index/optical_access_en/pon-olt/zxa10/zxa10-c620.html',32,'','','zte_c6xx.snmp','',2,16,'',1,0,0,0,0,0,4,0,0,0,20,NULL,NULL,NULL,'https://lanmarket.ua/upload/resize_cache/iblock/35f/700_393_1bc2c718eacdb6bae56a3e2d7306d879d/35f8e0ca55648c5fafe594f4b6b900b1.jpg',NULL,NULL,0,0,0),
+       (385,1,25,'','ISCOM2624G-4GE-AC','https://deps.ua/ua/katalog/ethernet-switches/44342.html',24,'','','raisecom.snmp','',2,4,'',1,1,0,0,0,0,1,2082476032,0,0,25,NULL,NULL,NULL,'https://deps.ua/components/com_jshopping/files/img_products/full_4a055ff5df3394a129007c91aff4d6d0.jpg',NULL,NULL,0,0,1),
+       (386,1,1,'','SF200-48','https://xn--h1aemkx.com.ua/switch/cisco-sb/cisco200/SLM248GT',48,'','','cisco.snmp','',2,6,'',1,0,0,0,0,0,1,0,0,0,27,NULL,NULL,NULL,'https://images.prom.ua/1055927199_w640_h640_1055927199.jpg',NULL,NULL,0,0,0),
+       (387,1,29,'','V1600G0-B','https://sealan.net.ua/ua/p1496836905-kontsentrator-olt-gpon.html',4,'','','','',1,4,'',0,0,0,0,0,0,5,0,0,0,45,NULL,NULL,NULL,'https://telco.ge/images/detailed/5/V1600G0-B_1.jpg',NULL,NULL,0,0,0),
+       (388,3,1,'','ASR-9001','https://www.cisco.com/c/en/us/products/collateral/routers/asr-9001-router/data_sheet_c78-685687.html',40,'','','cisco_ios_xr.snmp','',2,5,'',1,0,0,0,0,0,4,0,0,0,425,NULL,NULL,NULL,'https://www.cisco.com/c/dam/en/us/products/collateral/routers/asr-9001-router/data_sheet_c78-685687.docx/_jcr_content/renditions/data_sheet_c78-685687_0.png',NULL,NULL,0,0,0),
+       (389,3,1,'','ASR-9902','https://www.cisco.com/c/en/us/products/collateral/routers/asr-9000-series-aggregation-services-routers/datasheet-c78-744663.html',40,'','','cisco_ios_xr.snmp','',2,10,'',1,0,0,0,0,0,4,0,0,0,450,NULL,NULL,NULL,'https://www.cisco.com/c/dam/en/us/products/collateral/routers/asr-9000-series-aggregation-services-routers/datasheet-c78-744663.docx/_jcr_content/renditions/datasheet-c78-744663_0.png',NULL,NULL,0,0,0);
 
 REPLACE
 INTO `equipment_extra_ports` (`model_id`, `port_number`, `port_type`, `port_combo_with`, `row`)
@@ -1290,7 +1295,29 @@ VALUES (101, 1, 4, 0, 0),
        (383, 1, 1, 2, 0),
        (383, 2, 4, 1, 0),
        (383, 3, 1, 4, 1),
-       (383, 4, 4, 3, 1);
+       (383, 4, 4, 3, 1),
+       (385, 1, 1, 0, 0),
+       (385, 2, 1, 0, 1),
+       (385, 3, 1, 0, 0),
+       (385, 4, 1, 0, 1),
+       (385, 5, 4, 0, 0),
+       (385, 6, 4, 0, 0),
+       (385, 7, 4, 0, 0),
+       (385, 8, 4, 0, 0),
+       (386, 1, 1, 2, 0),
+       (386, 2, 4, 1, 0),
+       (386, 3, 1, 4, 1),
+       (386, 4, 4, 3, 1),
+       (387, 1, 4, 0, 0),
+       (387, 2, 4, 0, 0),
+       (387, 3, 1, 0, 0),
+       (387, 4, 1, 0, 0),
+       (389, 1, 5, 0, 0),
+       (389, 2, 5, 0, 1),
+       (389, 3, 5, 0, 0),
+       (389, 4, 5, 0, 1),
+       (389, 5, 5, 0, 0),
+       (389, 6, 5, 0, 1);
 
 REPLACE
 INTO `equipment_vendors` (`id`, `name`, `support`, `site`)

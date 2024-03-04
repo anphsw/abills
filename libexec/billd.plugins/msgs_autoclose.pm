@@ -22,11 +22,10 @@ use Msgs;
 use Msgs::Notify;
 use Abills::Templates qw/templates/;
 use Abills::Base qw/date_diff/;
-our $html = Abills::HTML->new( { CONF => \%conf } );
+our $html = Abills::HTML->new({ CONF => \%conf });
 
 my $date = $argv->{DATE} || $DATE;
 my $Msgs = Msgs->new($db, $Admin, \%conf);
-my $Log  = Log->new($db, $Admin);
 my $Notify = Msgs::Notify->new($db, $Admin, \%conf, { HTML => $html });
 
 do "../language/$html->{language}.pl";
@@ -48,7 +47,7 @@ sub msgs_autoclose {
 
   my $messages_list = $Msgs->messages_list({
     LAST_REPLIE_DATE => '_SHOW',
-    REPLY_STATUS      => '!3',
+    REPLY_STATUS     => '!3',
     CHAPTER          => join(';', keys %{$autoclose_list}),
     STATE            => 6,
     RESPOSIBLE       => '_SHOW',
@@ -112,6 +111,8 @@ sub msgs_autoclose {
       next;
     }
   }
+
+  return 1;
 }
 
 1;

@@ -82,7 +82,9 @@ sub abon_user_tariff_activate {
 
   return { errno => 240, errstr => 'ERR_SMALL_DEPOSIT' } if (!defined $user_info->{DEPOSIT});
 
-  my $user_tariffs = $Abon->user_tariff_list($user_info->{UID}, { ID => $attr->{ID}, COLS_NAME => 1 });
+  my $user_tariffs = $Abon->user_tariff_list($user_info->{UID},
+    { GID => $user_info->{GID} || 0, ID => $attr->{ID}, COLS_NAME => 1 }
+  );
   return { errno => 20003, errstr => 'ERR_USER_TARIFF_INFO' } if !$Abon->{TOTAL} || $Abon->{TOTAL} < 1;
 
   my $user_tariff = $user_tariffs->[0];
@@ -162,6 +164,7 @@ sub abon_user_tariff_activate {
 
   if ($tariff_info->{PLUGIN}) {
     $Abon->{EXT_SERVICE_ID} = $tariff_info->{EXT_SERVICE_ID};
+    $attr->{EXT_SERVICE_ID} = $tariff_info->{EXT_SERVICE_ID};
 
     my $plugin = $Abon_base->abon_load_plugin($tariff_info->{PLUGIN}, { SERVICE => $tariff_info, RETURN_ERROR => 1 });
     return { errno => $plugin->{errno}, errstr => $plugin->{errstr} } if ($plugin && $plugin->{errno});
@@ -221,13 +224,6 @@ sub abon_user_tariff_activate {
     }
   }
 
-  if ($ext_cmd) {
-    my $cmd = $ext_cmd;
-    $cmd .= " ACTION=ACTIVE UID=$user_info->{UID} TP_ID=$Abon->{TP_INFO}{TP_ID} COMMENTS=\""
-      . ($Abon->{COMMENTS} || q{}) . "\" SUM=" . sprintf("%.2f", $Abon->{TP_INFO}{PRICE});
-    cmd($cmd);
-  }
-
   if ($activate_notification && $user_info->{EMAIL} && $html) {
     my $email_message = $html->tpl_show(main::_include('abon_notification3', 'Abon'), {
       OPERATION_SUM => $self->{OPERATION_SUM},
@@ -242,13 +238,22 @@ sub abon_user_tariff_activate {
   }
 
   $Abon->user_tariff_add($attr);
+
+  if ($ext_cmd) {
+    my $cmd = $ext_cmd;
+    $cmd .= " ACTION=ACTIVE UID=$user_info->{UID} TP_ID=$Abon->{TP_INFO}{TP_ID} COMMENTS=\""
+      . ($Abon->{COMMENTS} || q{}) . "\" SUM=" . sprintf("%.2f", $Abon->{TP_INFO}{PRICE});
+    cmd($cmd);
+  }
   return $Abon if $Abon->{errno};
+
+  $Abon->{COMMENTS} ||= '';
 
   return {
     %{$Abon},
     MESSAGES    => \@messages,
     CREATE_DOCS => $Abon->{TP_INFO}{CREATE_ACCOUNT} && $attr->{CREATE_DOCS},
-    DOCS_SUM    => $self->{OPERATION_SUM} ? $self->{OPERATION_SUM} : $Abon->{TP_INFO}{PRICE} / $attr->{SERVICE_COUNT},
+    DOCS_SUM    => $self->{OPERATION_SUM} ? $self->{OPERATION_SUM} : $Abon->{TP_INFO}{PRICE} ? ($Abon->{TP_INFO}{PRICE} / $attr->{SERVICE_COUNT}) : 0,
     DOCS_ORDER  => $self->{OPERATION_DESCRIBE} ? $self->{OPERATION_DESCRIBE} : "[$Abon->{TP_INFO}{TP_ID}] $Abon->{TP_INFO}{TP_NAME} $Abon->{COMMENTS}",
   };
 }
@@ -286,6 +291,8 @@ sub abon_user_tariff_deactivate {
   return { errno => 20006, errstr => 'ERR_TARIFF_ALREADY_DEACTIVATED' } if !$Abon->{TOTAL} || $Abon->{TOTAL} < 1;
 
   my $user_tariff = $user_tariffs->[0];
+  return { errno => 20006, errstr => 'ERR_TARIFF_ALREADY_DEACTIVATED' } if !$user_tariff->{active_service};
+
   my $tariff_info = $Abon->tariff_info($user_tariff->{id});
   return { errno => 20005, errstr => 'ERR_TARIFF_INFO' } if !$Abon->{TOTAL} || $Abon->{TOTAL} < 1;
 
@@ -584,7 +591,7 @@ sub abon_get_month_fee {
     $self->{OPERATION_DESCRIBE} .= $fees_message . " $self->{OPERATION_SUM} \n";
 
     if (!$Fees->{errno}) {
-      $fees_message .= " $lang{SUM}: $self->{OPERATION_SUM}";
+      $fees_message .= ($lang{SUM} ? " $lang{SUM}" : ' SUM') . ": $self->{OPERATION_SUM}";
       push @messages, $fees_message;
     }
     else {

@@ -25,7 +25,7 @@ our @EXPORT = qw(
 my $MODULE = 'Maps_view';
 use Maps::Shared qw/LAYER_ID_BY_NAME MAPS_ICONS_DIR_WEB_PATH/;
 use Maps::Maps_info;
-use Abills::Base qw/in_array load_pmodule/;
+use Abills::Base qw/in_array load_pmodule json_former/;
 
 our (
   $admin,
@@ -154,20 +154,19 @@ sub maps_get_js_variables {
 
   my $layers_list = $Maps_info->maps_layers_list({%{$form}, %{$attr}});
 
-  load_pmodule('JSON');
-  my $default_layer_ids = JSON::to_json(LAYER_ID_BY_NAME, { utf8 => 0 });
-  my $layers = JSON::to_json($layers_list->{LAYERS}, { utf8 => 0 });
+  my $default_layer_ids = json_former(LAYER_ID_BY_NAME);
+  my $layers = json_former($layers_list->{LAYERS});
 
   delete $attr->{USER_INFO};
   delete $attr->{__BUFFER};
   delete $form->{__BUFFER};
-  my $form_json = JSON::to_json({ %{$form}, %{$attr} }, { utf8 => 0 });
+  my $form_json = json_former({ %{$form}, %{$attr} });
 
-  my $options = JSON::to_json({
+  my $options = json_former({
     SHOW_ADD_BTN => $attr->{SHOW_ADD_BTN} || 0,
     ICONS_DIR    => MAPS_ICONS_DIR_WEB_PATH,
     EDIT_MODE    => $attr->{SHOW_ADD_BTN} || 0
-  }, { utf8 => 0 });
+  });
 
   return {
     LAYERS           => $layers,

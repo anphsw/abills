@@ -4,6 +4,8 @@ use strict;
 use warnings FATAL => 'all';
 use Conf;
 
+my %icons = (about => "\xF0\x9F\x8F\xA2");
+
 #**********************************************************
 =head2 new($Botapi)
 
@@ -33,7 +35,7 @@ sub new {
 sub btn_name {
   my $self = shift;
 
-  return $self->{bot}->{lang}->{ABOUT};
+  return "$icons{about} $self->{bot}{lang}{ABOUT}";
 }
 
 #**********************************************************

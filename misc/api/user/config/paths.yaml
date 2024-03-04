@@ -1,0 +1,6 @@
+/user/config:
+  $ref: "./paths/config.yaml"
+/version:
+  $ref: "./paths/version.yaml"
+/config:
+  $ref: "./paths/publicConfig.yaml"

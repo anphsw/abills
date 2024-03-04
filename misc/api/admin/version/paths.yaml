@@ -1,0 +1,125 @@
+/version:
+  get:
+    tags:
+      - version
+    summary: Получить версии биллинга и API
+    operationId: getVersion
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Version"
+    security:
+      - KEY: []
+/swagger:
+  get:
+    tags:
+      - version
+    summary: Get Swagger 3 specification for ABillS USER API
+    description: Returns the Swagger 3 specification for the ABillS USER API.
+    responses:
+      200:
+        description: Swagger 3 specification for ABillS USER API
+        content:
+          application/yaml:
+            schema:
+              type: object
+              properties:
+                openapi:
+                  type: string
+                  example: 3.0.3
+                info:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                      example: Abills user API
+                    version:
+                      type: string
+                      example: 0.0.0
+                    description:
+                      type: string
+                      example: "Last modified xxxx-xx-xx"
+                    contact:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: Have a question? Support
+                        url:
+                          type: string
+                          format: uri
+                          example: https://abills.net.ua/
+                        email:
+                          type: string
+                          format: email
+                          example: example@abills.net.ua
+                servers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                        format: uri
+                        example: https://abills.net.ua:9443/api
+                      description:
+                        type: string
+                        example: Test Demo Server
+/swagger/admin:
+  get:
+    tags:
+      - version
+    summary: Get Swagger 3 specification for ABillS ADMIN API
+    description: Returns the Swagger 3 specification for the ABillS ADMIN API.
+    responses:
+      200:
+        description: Swagger 3 specification for ABillS ADMIN API
+        content:
+          application/yaml:
+            schema:
+              type: object
+              properties:
+                openapi:
+                  type: string
+                  example: 3.0.3
+                info:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                      example: Abills user API
+                    version:
+                      type: string
+                      example: 0.0.0
+                    description:
+                      type: string
+                      example: "Last modified xxxx-xx-xx"
+                    contact:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: Have a question? Support
+                        url:
+                          type: string
+                          format: uri
+                          example: https://abills.net.ua/
+                        email:
+                          type: string
+                          format: email
+                          example: example@abills.net.ua
+                servers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                        format: uri
+                        example: https://abills.net.ua:9443/api
+                      description:
+                        type: string
+                        example: Test Demo Server

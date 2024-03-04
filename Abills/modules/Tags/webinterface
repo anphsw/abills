@@ -16,31 +16,18 @@ use Abills::Defs;
 use Abills::Base qw(in_array);
 use Tags;
 
-our $db;
-our $admin;
-our %conf;
-our $html;
-our %lang;
+our (
+  $db,
+  $admin,
+  %conf,
+  $html,
+  %lang
+);
 
 my $Tags    = Tags->new($db, $admin, \%conf);
 
 my @priority        = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
 my @priority_colors = ('bg-muted', "bg-info", "bg-success", 'bg-warning', "bg-danger");
-
-#*******************************************************************
-=head2 tags_user_del($uid, $attr) Delete user from module
-
-=cut
-#*******************************************************************
-sub tags_user_del {
-  my ($uid, $attr) = @_;
-
-  $Tags->{UID} = $uid;
-  $Tags->user_del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
-
-  return 0;
-}
-
 
 #**********************************************************
 =head2 tags_user_add($attr)
@@ -87,6 +74,8 @@ sub tags_user {
   my ($attr) = @_;
 
   if ($FORM{change}) {
+    $FORM{END_DATE} =~ s/ ,//g if $FORM{END_DATE};
+    $FORM{END_DATE} =~ s/^,//g if $FORM{END_DATE};
     tags_user_add(\%FORM);
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
@@ -96,30 +85,39 @@ sub tags_user {
     }
   }
 
-  my $list  = $Tags->tags_user({ %FORM, COLS_NAME => 1 });
+  my $list  = $Tags->tags_user({ %FORM, END_DATE =>'_SHOW', COLS_NAME => 1 });
 
   my $table = $html->table({
     width      => '100%',
     caption    => $lang{TAGS},
-    title      => [ '-', $lang{NAME}, $lang{DATE}, $lang{COMMENTS}, $lang{RESPONSIBLE} ],
+    title      => [ '-', $lang{NAME}, $lang{DATE}, $lang{COMMENTS}, $lang{RESPONSIBLE}, $lang{EXPIRE_DATE} ],
     FIELDS_IDS => $Tags->{COL_NAMES_ARR},
     qs         => $pages_qs,
     ID         => 'TAG_USER',
   });
 
   foreach my $line (@$list) {
+    my $end_date = $line->{end_date} ? $line->{end_date} : '';
     $table->addrow(
       $html->form_input('IDS', $line->{id}, {
         TYPE  => 'CHECKBOX',
-        STATE => ($line->{date}) ? 1 : undef
+        STATE => ($line->{date}) ? 1 : undef,
+        EX_PARAMS => 'onChange="setDefaultEndDate(this)"',
       }),
       $line->{name},
       $line->{date},
       $line->{comments},
       $line->{responsible},
+      $html->form_input('END_DATE', $end_date, {
+        TYPE  => 'TEXT',
+        class => 'form-control datepicker',
+        EX_PARAMS => "data-id='$line->{id}'",
+      }),
       $html->form_input('RESPONSIBLE_HIDDEN', $line->{responsible}, { TYPE => 'HIDDEN' })
     );
   }
+
+  $html->tpl_show(_include('tags_user', 'Tags'), {});
 
   my $action = '';
   if ($attr && $attr->{ACTION}) {
@@ -128,10 +126,10 @@ sub tags_user {
       . ' ' . $html->form_input('next', $lang{NEXT}, { TYPE => 'submit' });
   }
   else {
-    $action = $html->form_input('change', "$lang{CHANGE}", { TYPE => 'submit' });
+    $action = $html->form_input('change', $lang{CHANGE}, { TYPE => 'submit' });
   }
 
-  $table->{extra} = 'colspan=4';
+  $table->{extra} = 'colspan=6';
   $table->addrow($action);
 
   my $service_info1 = $html->form_main({
@@ -541,6 +539,32 @@ sub send_mail_tags {
   }
 
   return 0;
+}
+
+
+#**********************************************************
+=head2 tags_periodic_daily () - check tag expiration date
+
+  Attr:
+    DEBUG
+
+=cut
+#**********************************************************
+sub tags_periodic_daily {
+  my ($attr) = @_;
+
+  my $tags_list  = $Tags->tags_list({ END_DATE => '>0000-00-00', COLS_NAME => 1 });
+
+  my $i = 0;
+  foreach my $tag (@$tags_list ) {
+    if (date_diff($DATE, $tag->{end_date}) < 0) {
+      $Tags->user_del({ UID => $tag->{uid}, TAG_ID => $tag->{id} });
+        $i++;
+    }
+  }
+  print "\n Removed $i expired users tags\n\n" if $attr->{DEBUG};
+
+  return 1;
 }
 
 1

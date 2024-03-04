@@ -50,5 +50,14 @@ $lang{GROWTH} = 'Growth';
 $lang{LAST_FEES} = 'Last fees';
 
 $lang{TP_ACTIVE_IN_USERS} = "Tariff plan already active in users\n%USERS%And active in schedules\n%SCHEDULES%";
+$lang{STATIC_IP} = 'Static IP address';
+$lang{MAC} = 'MAC address';
+
+$lang{ERR_NO_FIELD} = 'No field %FIELD%';
+$lang{ERR_TARIFF_EXISTS} = 'Tariff with such id already exists';
+$lang{ERR_WRONG_DATE} = 'Date is not valid';
+$lang{ERR_FAILED_SET_SCHEDULE} = 'Failed to set schedule of change tp';
+$lang{ERR_CHANGE_TP} = 'Failed to change tp';
+$lang{ERR_NO_TARIFF} = 'No tariff with such id';
 
 1;

@@ -7,8 +7,11 @@
   <input type='hidden' name='FEEDBACK' value='1'/>
 
   <div class='form-group row'>
-    <label class='control-label col-md-3' for='COMMENTS_ID'>_{YOUR_FEEDBACK}_</label>
-    <div class='col-md-9'>
+    <div class='card-header' style='display: none'>
+      <h5 class='card-title'>_{YOUR_FEEDBACK}_</h5>
+    </div>
+    <div class='col-md-12'>
+      <label class='sr-only' for='COMMENTS_ID'>_{YOUR_FEEDBACK}_:</label>
       <textarea class='form-control' rows='5' name='ERROR' id='COMMENTS_ID'>%COMMENTS%</textarea>
     </div>
   </div>

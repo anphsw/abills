@@ -91,7 +91,7 @@
         <div class='form-group row'>
           <label for='EDRPOU' class='control-label col-md-3'>_{EDRPOU}_:</label>
           <div class='input-group col-md-9'>
-            <input class='form-control' id='EDRPOU' placeholder='%EDRPOU%' name='EDRPOU' value='%EDRPOU%'>
+            <input class='form-control' id='EDRPOU' placeholder='%EDRPOU%' name='EDRPOU' value='%EDRPOU%' data-tooltip-position='left'>
           </div>
         </div>
 
@@ -125,6 +125,14 @@
             <input class='form-control' id='PHONE' placeholder='%PHONE%' name='PHONE' value='%PHONE%'>
           </div>
         </div>
+
+        <div class='form-group row'>
+          <label for='COMMENTS' class='control-label col-md-3'>_{COMMENTS}_:</label>
+          <div class='input-group col-md-9'>
+            <textarea class='form-control' type='text' id='COMMENTS' placeholder='%COMMENTS%' name='COMMENTS'>%COMMENTS%</textarea>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -149,4 +157,51 @@
 
   </div>
 </form>
+
+<script>
+
+  let edrpouInput = document.getElementById('EDRPOU');
+
+  edrpouInput.addEventListener('input', function(event) {
+    event.preventDefault();
+
+    let edrpouValue = event.target.value.trim();
+    if( edrpouValue && edrpouValue.length == 8 ){
+      getCompanyData(edrpouValue);
+    }
+  });
+
+  function getCompanyData(edrpou) {
+    fetch('$SELF_URL?header=2&get_index=companies_edrpou&EDRPOU=' + edrpou)
+      .then(response => {
+        if (!response.ok) throw response;
+        return response;
+      })
+      .then(response =>
+        response.json()
+      )
+      .then(result => {
+        if(result.company){
+
+          edrpouInput.dataset.tooltip = result.company.name_short;
+          let comments = result.company.kved_number+' - '+result.company.kved+'\n'+result.company.address
+
+          let arrDate = result.company.inn_date.split('.');
+          let day = arrDate[0];
+          let month = arrDate[1];
+          let year = arrDate[2];
+          let newDate = year + '-' + month + '-' + day;
+
+          jQuery('#NAME').val(result.company.name_short);
+          jQuery('#TAX_NUMBER').val(result.company.inn);
+          jQuery('#REPRESENTATIVE').val(result.company.director);
+          jQuery('#REGISTRATION').val(newDate);
+          jQuery('#COMMENTS').val(comments);
+        }
+      })
+      .catch(err => {
+         console.log(err);
+      });
+  }
+</script>
 

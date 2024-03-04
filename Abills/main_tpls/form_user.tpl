@@ -31,12 +31,41 @@
     }
   }
 
+  function add_comments_multi(e) {
+    // That means 'active' so it's option without commenting and checking
+    if (e.params.args.data.element.value == 0) {
+      document.user_form.ACTION_COMMENTS.style.display = 'none';
+      return;
+    }
+
+    if (e.params.args.data.element.value) {
+      document.user_form.ACTION_COMMENTS.style.display = 'block';
+      var comments = prompt('_{COMMENTS}_', '');
+
+      if (comments === '' || comments == null) {
+        e.preventDefault();
+        alert(_COMMENTS_PLEASE);
+        if (document.user_form.DISABLE.value == 0) {
+          document.user_form.ACTION_COMMENTS.style.display = 'none';
+        }
+      } else {
+        document.user_form.ACTION_COMMENTS.value = comments;
+        document.user_form.ACTION_COMMENTS.style.display = 'block';
+        document.user_form.ACTION_COMMENTS.disabled = false;
+      }
+    }
+  }
+
   jQuery(function () {
     if (jQuery('#CUSTOM_DISABLE_FORM').length) {
       jQuery('#DISABLE_FORM').remove();
     }
 
-    if (document.user_form.DISABLE.checked) {
+    if (
+      document.user_form.DISABLE.checked ||
+      (document.user_form.DISABLE.checked === undefined &&
+        document.user_form.DISABLE.value != 0)
+    ) {
       document.user_form.ACTION_COMMENTS.style.display = 'block';
       document.user_form.ACTION_COMMENTS.disabled = true;
     } else {
@@ -44,6 +73,7 @@
     }
 
     jQuery('input#DISABLE').on('click', add_comments);  //XXX fix input#DISABLE in form_user_lite, add h-0-18 to it.
+    jQuery('select#DISABLE').on('select2:selecting', add_comments_multi);
 
     jQuery('#create_company').on('click', function () {
       if (this.checked) {
@@ -175,7 +205,11 @@
           </div>
         </div>
         <div class='col-7 col-md-9'>
-          <input id='ACTION_COMMENTS' name='ACTION_COMMENTS' value='%DISABLE_COMMENTS%' class='form-control' type='text'
+          <input id='ACTION_COMMENTS'
+                 name='ACTION_COMMENTS'
+                 value='%DISABLE_COMMENTS%'
+                 class='form-control mt-2'
+                 type='text'
                  style='display: none;'>
         </div>
       </div>

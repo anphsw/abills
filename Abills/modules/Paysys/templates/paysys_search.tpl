@@ -24,6 +24,13 @@
       </div>
 
       <div class='form-group row'>
+        <label class='col-md-3 col-form-label' for='PAY_SYSTEMS'>_{MERCHANT}_</label>
+        <div class='col-md-9'>
+          %MERCHANTS_SEL%
+        </div>
+      </div>
+
+      <div class='form-group row'>
         <label class='col-md-3 col-form-label' for='STATUS'>_{STATUS}_</label>
         <div class='col-md-9'>
           %STATUS_SEL%

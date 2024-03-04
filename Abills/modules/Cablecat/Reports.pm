@@ -22,7 +22,7 @@ sub cablecat_cable_reports {
 
   my %ADDRESS_PARAMS = _get_address_named_params(\%FORM);
 
-  my $choose_address_form = form_address_select2({ HIDE_FLAT => 1, HIDE_ADD_BUILD_BUTTON => 1 });
+  my $choose_address_form = form_address_select({ HIDE_FLAT => 1, HIDE_ADD_BUILD_BUTTON => 1 });
 
   my $planned_input = $html->tpl_show(templates('form_row_checkbox'), {
     INPUT => $html->form_input('PLANNED', '', { TYPE => 'checkbox', STATE => $FORM{planned} }),

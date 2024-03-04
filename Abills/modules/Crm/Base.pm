@@ -164,6 +164,45 @@ sub crm_send_action_message {
   });
 }
 
+#***************************************************************
+=head2 crm_events($attr)
+
+=cut
+#***************************************************************
+sub crm_events {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my %LIST_PARAMS;
+  my $events_json = [];
+
+  return '' if $attr->{CLIENT_INTERFACE};
+
+  my $enabled_open_lines = $Crm->crm_open_lines_list({ AID => $admin->{AID}, SOURCE => '_SHOW', COLS_NAME => 1 });
+  my $dialogues = $Crm->crm_dialogues_list({
+    SOURCE       => join(';', map {$_->{source}} @{$enabled_open_lines}),
+    AID          => "0;$admin->{AID}",
+    STATE        => '0',
+    LAST_MESSAGE => '_SHOW',
+    LEAD_FIO     => '_SHOW',
+    DATE         => $main::DATE,
+    COLS_NAME => 1
+  });
+
+  foreach my $line (@{$dialogues}) {
+    push @{$events_json}, Abills::Base::json_former({
+      TYPE    => 'MESSAGE',
+      MODULE  => 'Crm',
+      TITLE   => $line->{lead_fio},
+      TEXT    => $line->{last_message},
+      CREATED => $line->{date},
+      EXTRA   => "?get_index=crm_dialogue&ID=$line->{id}&full=1"
+    });
+  }
+
+  return join(', ', @{$events_json});
+}
+
 #**********************************************************
 =head2 _crm_fill_select_values($lead_info)
 

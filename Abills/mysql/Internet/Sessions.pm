@@ -11,7 +11,6 @@ package Internet::Sessions;
 use strict;
 our $VERSION = 2.00;
 use parent qw( dbcore );
-#use Conf;
 
 my ($admin, $CONF);
 
@@ -338,7 +337,7 @@ sub online {
   }
   elsif($attr->{NAS_ERROR_SESSIONS}) {
     push @WHERE_RULES, "(c.status>3 AND c.status<>6)";
-    $attr->{GROUP_BY}='c.cid';
+    #$attr->{GROUP_BY}='c.cid';
   }
   elsif ($attr->{ALL} || ($attr->{STATUS} && $attr->{STATUS} ne '_SHOW')) {
   }
@@ -433,7 +432,7 @@ sub online {
       ['CIRCUIT_ID',        'STR', 'c.circuit_id',                                 1 ],
       ['NAS_ID',            'INT', 'c.nas_id',                                     1 ],
       ['NAS_TYPE',          'INT', 'nas.nas_type',                                 1 ],
-      ['CPE_MAC',           'STR', 'internet.cpe_mac',                              1 ],
+      ['CPE_MAC',           'STR', 'internet.cpe_mac',                             1 ],
       #['GID',               'INT', 'u.gid',                                        1 ],
       ['ACCT_SESSION_ID',   'STR', 'c.acct_session_id',                            1 ],
       ['SERVICE_ID',        'INT', 'c.service_id',                                 1 ],
@@ -441,7 +440,8 @@ sub online {
       ['LAST_ALIVE',        'INT', 'UNIX_TIMESTAMP() - MIN(c.lupdated)', 'IF(UNIX_TIMESTAMP() > MIN(c.lupdated), UNIX_TIMESTAMP() - MIN(c.lupdated), 0) AS last_alive', 1 ],
       ['ONLINE_BASE',       '',    '', 'c.cid, c.acct_session_id, UNIX_TIMESTAMP() - c.lupdated AS last_alive, c.uid' ],
       ['SHOW_TP_ID',        'INT', 'tp.tp_id', 'tp.tp_id AS real_tp_id' ],
-      ['TP_NUM',            'INT', 'tp.id   AS tp_num',                             1],
+      ['TP_NUM',            'INT', 'tp.id',                         'tp.id AS tp_num'],
+      ['SESSIONS_COUNT',    'INT', '',                   'COUNT(*) AS sessions_count']
     ],
     {
       WHERE             => 1,
@@ -907,10 +907,12 @@ sub periods_totals {
     return $self;
   }
 
-  ($self->{sent_0}, $self->{recv_0}, $self->{duration_0}, $self->{sent_1}, $self->{recv_1}, $self->{duration_1},
-    $self->{sent_2}, $self->{recv_2}, $self->{duration_2}, $self->{sent_3}, $self->{recv_3}, $self->{duration_3},
-    $self->{sent_4}, $self->{recv_4}, $self->{duration_4}) =
-    @{ $self->{list}->[0] };
+  if($self->{list}->[0]) {
+    ($self->{sent_0}, $self->{recv_0}, $self->{duration_0}, $self->{sent_1}, $self->{recv_1}, $self->{duration_1},
+      $self->{sent_2}, $self->{recv_2}, $self->{duration_2}, $self->{sent_3}, $self->{recv_3}, $self->{duration_3},
+      $self->{sent_4}, $self->{recv_4}, $self->{duration_4}) =
+      @{$self->{list}->[0]};
+  }
 
   for (my $i = 0 ; $i < 5 ; $i++) {
     $self->{ 'sum_' . $i } = $self->{ 'sent_' . $i } + $self->{ 'recv_' . $i };
@@ -1185,6 +1187,7 @@ sub list {
       [ 'NAS_NAME',        'STR', 'n.name as nas_name',           1],
       [ 'NAS_ID',          'INT', 'l.nas_id',                     1],
       [ 'NAS_PORT',        'INT', 'l.port_id',                    1],
+      [ 'NAS_IP',          'INT', 'n.ip', 'INET_NTOA(n.ip) AS nas_ip', 1],
       [ 'ACCT_SESSION_ID', 'STR', 'l.acct_session_id',            1],
       [ 'TERMINATE_CAUSE', 'INT', 'l.terminate_cause',            1],
       [ 'BILL_ID',         'STR', 'l.bill_id',                    1],
@@ -1192,7 +1195,9 @@ sub list {
       [ 'FROM_DATE|TO_DATE','DATE',"DATE_FORMAT(l.start, '%Y-%m-%d')"],
       [ 'MONTH',           'DATE',"DATE_FORMAT(l.start, '%Y-%m')"    ],
       [ 'UID',             'INT', 'l.uid'                            ],
-      [ 'GUEST',           'INT', 'l.guest',                      1]
+      [ 'GUEST',           'INT', 'l.guest',                      1],
+      [ 'MASK',            'INT', 'im.netmask', 'INET_NTOA(im.netmask) AS mask', 1]
+
     ],
     {
       WHERE             => 1,
@@ -1218,12 +1223,16 @@ sub list {
     $EXT_TABLE .= " INNER JOIN users u ON (u.uid=l.uid)";
   }
 
-  if ($self->{SEARCH_FIELDS} =~ /nas_name/ && $EXT_TABLE !~ /nas/) {
+  if ($self->{SEARCH_FIELDS} =~ /nas_name/ && $EXT_TABLE !~ /nas/ || $attr->{NAS_IP}) {
     $EXT_TABLE .= " LEFT JOIN nas n ON (n.id=l.nas_id)";
   }
 
   if ($self->{SEARCH_FIELDS} =~ /tp_bills_priority|tp_name|filter_id|tp_credit|payment_method|show_tp_id|tp_num/ && $EXT_TABLE !~ /tarif_plans/) {
     $EXT_TABLE .= " LEFT JOIN tarif_plans tp ON (tp.tp_id=l.tp_id)";
+  }
+
+  if ($attr->{MASK}){
+    $EXT_TABLE .= " INNER JOIN internet_main im ON (l.uid=im.uid)";
   }
 
   $EXT_TABLE .= $self->{EXT_TABLES};

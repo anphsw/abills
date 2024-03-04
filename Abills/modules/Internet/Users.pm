@@ -12,6 +12,7 @@ use Log;
 require Abills::Result_former;
 require Internet::Stats;
 require Control::Service_control;
+use Abills::Filters qw(_mac_former _mac_format_mask);
 
 our (
   $db,
@@ -149,7 +150,7 @@ sub internet_user {
     else {
       $Internet->{ACTION} = 'add';
       $Internet->{LNG_ACTION} = $lang{ACTIVATE};
-      $html->message('warn', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 908 }) unless ($FORM{STATMENT_ACCOUNT});
+      $html->message('warn', $lang{INFO}, "$lang{INTERNET}: $lang{NOT_ACTIVE}", { ID => 1360908 }) unless ($FORM{STATMENT_ACCOUNT});
     }
 
     $Internet->{IP} = '0.0.0.0';
@@ -383,7 +384,7 @@ sub internet_user {
   });
 
   $Internet->{STATIC_IPV6_POOL} = $html->form_select('STATIC_IPV6_POOL', {
-    SELECTED    => $conf{INTERNET_DEFAULT_IP_POOL} || $FORM{STATIC_IPV6_POOL} || 0,
+    SELECTED    => $conf{INTERNET_DEFAULT_IPV6_POOL} || $FORM{STATIC_IPV6_POOL} || 0,
     SEL_LIST    => $pool_ipv6_list,
     SEL_OPTIONS => { '0' => '--' },
     MAIN_MENU   => get_function_index('form_ip_pools'),
@@ -544,9 +545,26 @@ sub internet_user {
 
   if ($conf{INTERNET_CID_FORMAT}) {
     $Internet->{CID_PATTERN} = "pattern='" . $conf{INTERNET_CID_FORMAT} . "|ANY|Any|any'";
+    $Internet->{CID_MASK} = Abills::Filters::_mac_format_mask($conf{INTERNET_CID_FORMAT});
+    $Internet->{CID_BUTTON_ANY} = $html->element('input', '', {
+      type  => 'checkbox',
+      name  => 'CID_ANY',
+      value => 1,
+      id    => 'CID_ANY',
+      ex_params => "title=\"$lang{SET} ANY\" data-tooltip=\"$lang{SET} $lang{VALUE} ANY\" data-tooltip-position='right'",
+    });
+
   }
   if ($conf{INTERNET_CPE_FORMAT}) {
     $Internet->{CPE_PATTERN} = "pattern='" . $conf{INTERNET_CPE_FORMAT} . "|ANY|Any|any'";
+    $Internet->{CPE_MASK} = Abills::Filters::_mac_format_mask($conf{INTERNET_CPE_FORMAT});
+    $Internet->{CPE_BUTTON_ANY} = $html->element('input', '', {
+      type  => 'checkbox',
+      name  => 'CPE_ANY',
+      value => 1,
+      id    => 'CPE_ANY',
+      ex_params => "title=\"$lang{SET} ANY\" data-tooltip=\"$lang{SET} $lang{VALUE} ANY\" data-tooltip-position='right'",
+    });
   }
 
   my $service_info2 = q{};
@@ -590,7 +608,7 @@ sub internet_user {
   if ($Internet->{CID}) {
     $Internet->{CID_BUTTON_COPY} = $html->button('', '', {
       COPY      => $Internet->{CID} || ' ',
-      ADD_ICON  => 'fa fa-clone p-1',
+      ADD_ICON  => 'fa fa-clone',
       class     => 'btn input-group-button',
       ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}: $Internet->{CID}' data-tooltip-onclick=1"
     });
@@ -599,7 +617,7 @@ sub internet_user {
   if ($Internet->{CPE_MAC}) {
     $Internet->{CPE_MAC_BUTTON_COPY} = $html->button('', '', {
       COPY      => $Internet->{CPE_MAC} || ' ',
-      ADD_ICON  => 'fa fa-clone p-1',
+      ADD_ICON  => 'fa fa-clone',
       class     => 'btn input-group-button',
       ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}: $Internet->{CPE_MAC}' data-tooltip-onclick=1"
     });
@@ -688,7 +706,7 @@ sub internet_user_add {
         }
       }
       else {
-        $html->message('info', $lang{INFO}, $lang{ADDED}) if (!$attr->{QUITE});
+        $html->message('info', $lang{INTERNET}, $lang{ADDED}) if (!$attr->{QUITE});
       }
     }
 
@@ -818,9 +836,10 @@ sub internet_user_change {
       if ($conf{INTERNET_SKIP_FIRST_DAY_FEE} && ! $Internet->{STATUS} && $Internet->{TP_INFO}{ABON_DISTRIBUTION}) {
         #print "Skip fee / $Internet->{TP_INFO}{ABON_DISTRIBUTION}";
       }
-      elsif ($attr->{PERSONAL_TP} &&
-        $attr->{PERSONAL_TP} > 0
-        && $Internet->{OLD_PERSONAL_TP} == $attr->{PERSONAL_TP} && $Internet->{OLD_STATUS} == ($attr->{STATUS} || 0)) {
+      elsif ((!$permissions{0}{25} && $Internet->{OLD_PERSONAL_TP} > 0) ||
+        ($attr->{PERSONAL_TP} && $attr->{PERSONAL_TP} > 0
+        && $Internet->{OLD_PERSONAL_TP} == $attr->{PERSONAL_TP}
+        && $Internet->{OLD_STATUS} == ($attr->{STATUS} || 0))) {
 
       }
       else {
@@ -1051,6 +1070,8 @@ sub internet_user_preproccess {
   delete($attr->{SERVICE_EXPIRE})   if (!$permissions{0}{20} && !$attr->{REGISTRATION});
   delete($attr->{PERSONAL_TP})      if (!$permissions{0}{25});
 
+  my $message = q{};
+
   if ((!$attr->{IP} || $attr->{IP} eq '0.0.0.0') && $attr->{STATIC_IP_POOL}) {
     $attr->{IP} = get_static_ip($attr->{STATIC_IP_POOL});
   }
@@ -1086,9 +1107,9 @@ sub internet_user_preproccess {
     });
 
     if ($Internet->{TOTAL} > 0 && $list->[0]{uid} && $list->[0]{uid} != $uid) {
-      $html->message('err', $lang{ERROR},
-        "CID/MAC: $attr->{CID} $lang{EXIST}. $lang{LOGIN}: " . $html->button($list->[0]->{login},
-          "index=15&UID=" . $list->[0]{uid}), { ID => 934 });
+      $message = "CID/MAC: $attr->{CID} $lang{EXIST}. $lang{LOGIN}: " . $html->button($list->[0]->{login},
+        "index=15&UID=" . $list->[0]{uid});
+      $attr->{RETURN}=1360034;
     }
   }
 
@@ -1157,7 +1178,7 @@ sub internet_user_preproccess {
   }
 
   #Check duplicate CPE MAC
-  if ($attr->{CPE_MAC}) {
+  if ($attr->{CPE_MAC} && $attr->{CPE_MAC} !~ /ANY/i) {
     my $list = $Internet->user_list({
       CPE_MAC   => $attr->{CPE_MAC},
       LOGIN     => "_SHOW",
@@ -1181,14 +1202,25 @@ sub internet_user_preproccess {
   }
   elsif ($attr->{newpassword}) {
     if (!$attr->{RESET_PASSWD} && length($attr->{newpassword}) < $conf{PASSWD_LENGTH}) {
-      $html->message('err', $lang{ERROR}, "$lang{ERR_SHORT_PASSWD} $conf{PASSWD_LENGTH}");
+      $message = "$lang{ERR_SHORT_PASSWD} $conf{PASSWD_LENGTH}";
     }
     elsif ($attr->{newpassword} eq $attr->{confirm}) {
       $attr->{PASSWORD} = $attr->{newpassword};
     }
     elsif ($attr->{newpassword} ne $attr->{confirm}) {
-      $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_CONFIRM});
+      $message = $lang{ERR_WRONG_CONFIRM};
     }
+  }
+
+  if ($attr->{add} && ! $attr->{TP_ID}) {
+    $message = $lang{ERR_SELECT_TP};
+    if (!$attr->{SKIP_ERRORS}) {
+      $attr->{RETURN} = 1360011;
+    }
+  }
+
+  if ($message) {
+    $html->message('err', $lang{ERROR}, $message, { ID => $attr->{RETURN} || 1360010 });
   }
 
   return $attr;
@@ -1959,13 +1991,12 @@ sub shedule_list {
   my $service_status = sel_status({ HASH_RESULT => 1 });
   my $module = $attr->{MODULE} || q{};
 
-  my $list = $Shedule->list(
-    {
-      UID       => $attr->{UID},
-      MODULE    => $module,
-      COLS_NAME => 1
-    }
-  );
+  my $list = $Shedule->list({
+    %LIST_PARAMS,
+    UID       => $attr->{UID},
+    MODULE    => $module,
+    COLS_NAME => 1
+  });
 
   my $table = $html->table({
     width   => '100%',
@@ -2013,13 +2044,12 @@ sub shedule_list {
 
   print $table->show();
 
-  $table = $html->table(
-    {
-      width => '100%',
-      ID    => uc($module) . '_SHEDULE_TOTAL',
-      rows  => [ [ "$lang{TOTAL}:", $html->b($Shedule->{TOTAL}) ] ]
-    }
-  );
+  $table = $html->table({
+    width => '100%',
+    ID    => uc($module) . '_SHEDULE_TOTAL',
+    rows  => [ [ "$lang{TOTAL}:", $html->b($Shedule->{TOTAL}) ] ]
+  });
+
   print $table->show();
 
   return 1;
@@ -2103,6 +2133,17 @@ sub internet_chg_tp {
 
   my $message = '';
   if ($FORM{set}) {
+    #TODO: use if all good
+    # require Internet::Services;
+    # Internet::Services->import();
+    # my $Internet_services = Internet::Services->new($db, $admin, \%conf, {
+    #   lang        => \%lang,
+    #   permissions => \%permissions
+    # });
+    #
+    # my $result = $Internet_services->internet_user_chg_tp(\%FORM);
+    # $Internet->user_info($uid, { ID => $FORM{ID} });
+
     my ($year, $month, $day) = split(/-/, $DATE, 3);
     if ($period > 0) {
       if ($period == 1) {
@@ -2279,21 +2320,6 @@ sub internet_chg_tp {
   $html->tpl_show(templates('form_chg_tp'), $Tariffs);
 
   return 1;
-}
-
-#**********************************************************
-=head2 internet_user_del($uid, $attr) - Delete user from module
-
-=cut
-#**********************************************************
-sub internet_user_del {
-  my ($uid, $attr) = @_;
-
-  $Internet->{UID} = $uid;
-  $Internet->user_del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
-  $Log->log_del({ LOGIN => $attr->{LOGIN} });
-
-  return 0;
 }
 
 #**********************************************************

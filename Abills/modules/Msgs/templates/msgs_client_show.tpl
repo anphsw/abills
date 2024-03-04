@@ -91,7 +91,7 @@
     <div class='card card-primary card-outline %MAIN_PANEL_COLOR%'>
       <div class='card-header'>
         <h3 class='card-title'>
-          <span class='badge badge-primary'>%ID%</span>
+          %ID_BUTTON_COPY%
           %SUBJECT%
         </h3>
       </div>

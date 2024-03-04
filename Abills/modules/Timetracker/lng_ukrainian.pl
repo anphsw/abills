@@ -69,3 +69,5 @@ $lang{PLAN} = 'план';
 $lang{FACT} = 'факт';
 $lang{AVARAGE_TIME_EXECUTION} = 'Середній час виконання';
 $lang{NO_TASKS_RESPONSIBLE} = 'По даному спринту немає задач для відповідального';
+$lang{GENERAL_INDICATORS_FOR_SPRINTS} = 'Загальні показники по спринтам';
+$lang{PROJECT} = 'Проєкт';

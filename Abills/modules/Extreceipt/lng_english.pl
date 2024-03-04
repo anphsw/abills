@@ -28,5 +28,11 @@ $lang{ERROR_SEND_RECEIPT}       = 'An error occurred while sending the check';
 $lang{SUCCESS_SEND_RECEIPT}     = 'Receipt successfully sent';
 $lang{REVIEW}                   = 'Review';
 $lang{RETURN}                   = 'Return';
+$lang{CALLBACK}                 = 'Callback url';
+$lang{TAX_RATE}                 = 'Tax rate';
+$lang{CHECK_FOOTER}             = 'Check footer';
+$lang{CHECK_HEADER}             = 'Check header';
+$lang{ENTER_KKT_LICENSE}        = 'Enter kkt license and save settings';
+$lang{NOT_SUPPORTED_TAX_RATES}  = 'Tax rates not supported or need to update the module';
 
 1;

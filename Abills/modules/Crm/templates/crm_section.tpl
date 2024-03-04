@@ -8,6 +8,7 @@
       </div>
       <input type='text' class='card-title form-control d-none' value='%TITLE%'/>
       <div class='card-tools float-right'>
+        %DIALOGUE_BUTTON%
         %WATCHING_BUTTON%
         <button type='button' class='btn btn-tool mr-1 change-tool-btn'>_{CRM_CHANGE}_</button>
       </div>

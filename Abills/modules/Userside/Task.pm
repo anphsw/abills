@@ -13,9 +13,9 @@
 
 use strict;
 use warnings FATAL => 'all';
-our ($html, %FORM, $db, %conf, $admin, %lang, $DATE);
+our ($html, %FORM, $db, %conf, $admin, %lang, $DATE, $debug, $max_page_rows);
 
-my $max_page_rows = $conf{US_API_MAX_PAGE_ROWS} || 10000;
+# $max_page_rows = $conf{US_API_MAX_PAGE_ROWS} || 10000;
 
 use Userside::Api;
 use Msgs;
@@ -23,9 +23,9 @@ use Msgs;
 my $Msgs = Msgs->new($db, $admin, \%conf);
 
 my %PARAMS = (
-  COLS_NAME     => 1,
-  PAGE_ROWS     => $max_page_rows,
-  COLS_UPPER    => 1
+  COLS_NAME  => 1,
+  PAGE_ROWS  => $max_page_rows,
+  COLS_UPPER => 1
 );
 
 #**********************************************************
@@ -36,33 +36,39 @@ my %PARAMS = (
 =cut
 #**********************************************************
 sub get_list {
+  my ($attr) = @_;
+
+  if ($debug > 5) {
+    $Msgs->{debug} = 1;
+  }
+
   my %fields = (
-    author_id            => 'AID',           # Operator ID - the author of the task (can be separated by commas) (up to version 3.16dev2)
-    author_employee_id   => 'AID',           # ID of the employee - the author of the task (can be separated by commas)
-    closer_employee_id   => 'RESPOSIBLE',    # ID of the employee who closed (completed) the task (can be separated by commas)
-    closer_operator_id   => 'AID',           # ID of the operator who closed (completed) the task (can be separated by commas) (up to version 3.16dev2)
-    customer_id          => 'UID',           # ID user
+    author_id            => 'int:AID',        # Operator ID - the author of the task (can be separated by commas) (up to version 3.16dev2)
+    author_employee_id   => 'int:AID',        # ID of the employee - the author of the task (can be separated by commas)
+    closer_employee_id   => 'int:RESPOSIBLE', # ID of the employee who closed (completed) the task (can be separated by commas)
+    closer_operator_id   => 'int:AID',        # ID of the operator who closed (completed) the task (can be separated by commas) (up to version 3.16dev2)
+    customer_id          => 'int:UID',        # ID user
     # date_add_from          => 'RUN_TIME',  # task creation date (since)
     # date_add_to            => 'DONE_DATE', # task creation date (to)
     # date_change_from       => 'NONE',      # task update date (since)
     # date_change_to         => 'NONE',      # task update date (to)
     # date_do_from           => 'FROM_DATE', # the date on which the task is scheduled to be completed (since)
-    date_do_to           => 'DONE_DATE',     # the date on which the task is scheduled to be completed (to)
+    date_do_to           => 'DONE_DATE', # the date on which the task is scheduled to be completed (to)
     # date_finish_from       => 'RUN_TIME',  # date of the assignment (since)
-    date_finish_to       => 'CLOSED_DATE',   # date of the assignment (to)
+    date_finish_to       => 'CLOSED_DATE', # date of the assignment (to)
     # division_id            => 'GID',       # Subdivision ID (can be separated by commas)
     # division_id_with_staff => 'GID',       # Subdivision ID (with tasks of employees of this department) (can be separated by commas)
-    employee_id          => 'RESPOSIBLE',    # performer ID
-    house_id             => 'LOCATION_ID',   # house id
+    employee_id          => 'RESPOSIBLE',      # performer ID
+    house_id             => 'int:LOCATION_ID', # house id
     # is_expired             => 'NONE',      # flag - display only overdue tasks
     # node_id                => 'NONE',      # ID object position
-    staff_id             => 'RESPOSIBLE',    # performer ID
+    staff_id             => 'int:RESPOSIBLE',    # performer ID
     state_id             => 'STATE',         # ID task status
-    task_position        => 'PLAN_POSITION', # job coordinates
-    task_position_tadius => 'PLAN_INTERVAL', # radius from task_position
+    task_position        => 'int:PLAN_POSITION', # job coordinates
+    task_position_tadius => 'int:PLAN_INTERVAL', # radius from task_position
     # type_id                => 'SEND_TYPE', # ID task type
-    watcher_id           => 'DELIGATION',    # ID of the operator observer of the task (can be separated by commas) (up to version 3.16dev2)
-    watcher_employee_id  => 'RESPOSIBLE',    # ID of the employee observer of the task (can be separated by commas)
+    watcher_id           => 'int:DELIGATION', # ID of the operator observer of the task (can be separated by commas) (up to version 3.16dev2)
+    watcher_employee_id  => 'int:RESPOSIBLE', # ID of the employee observer of the task (can be separated by commas)
     # order_by               => 'NONE',      # sorting field
     # limit                  => 'NONE',      # record selection limit
     # offset                 => 'NONE'       # sampling bias
@@ -79,7 +85,8 @@ sub get_list {
     PLAN_POSITION => '_SHOW',
     PLAN_INTERVAL => '_SHOW',
     ADMIN_DISABLE => '_SHOW',
-    %PARAMS
+    %PARAMS,
+    PAGE_ROWS     => $attr->{MAX_ROWS} || $max_page_rows,
   );
 
   my $msgs_list = $Msgs->messages_list({ %LIST_PARAMS });
@@ -87,7 +94,22 @@ sub get_list {
   my %hash = ();
   foreach my $msgs (@$msgs_list) {
     foreach my $key (sort keys %fields) {
-      $hash{$msgs->{id}}{$key} = $msgs->{$fields{$key}};
+      my $value = $fields{$key};
+      if ($value =~ /(\S+):(\S+)/) {
+        my $type = $1;
+        my $v = $2;
+        if ($type =~ /int/i) {
+          $value = $msgs->{$v} || 0;
+        }
+        else {
+          $value = $msgs->{$v};
+        }
+      }
+      else {
+        $value = $msgs->{$value};
+      }
+
+      $hash{$msgs->{id}}{$key} = $value // q{};
     }
   }
 
@@ -134,8 +156,10 @@ sub get_related_task_id {
   my $msg = $Msgs->message_info($attr->{id}, { %PARAMS });
 
   my %hash = ();
-  $hash{$msg->{ID}}{id}              = $msg->{ID};
-  $hash{$msg->{ID}}{related_task_id} = $msg->{PAR};
+  if(! $Msgs->{errno}) {
+    $hash{$msg->{ID}}{id} = $msg->{ID};
+    $hash{$msg->{ID}}{related_task_id} = $msg->{PAR};
+  }
 
   return _json_former(\%hash);
 }
@@ -155,8 +179,8 @@ sub get_catalog_type {
   );
 
   %LIST_PARAMS = (
-    ID         => '_SHOW',
-    NAME       => '_SHOW',
+    ID   => '_SHOW',
+    NAME => '_SHOW',
     %PARAMS
   );
 
@@ -188,9 +212,11 @@ sub show {
   my $msg = $Msgs->message_info($attr->{id}, { %PARAMS });
 
   my %hash = ();
-  $hash{$msg->{ID}}{id}          = $msg->{ID};
-  $hash{$msg->{ID}}{employee_id} = $msg->{AID};
-  $hash{$msg->{ID}}{operator_id} = $msg->{AID};
+  if(! $Msgs->{errno}) {
+    $hash{$msg->{ID}}{id} = $msg->{ID};
+    $hash{$msg->{ID}}{employee_id} = $msg->{AID};
+    $hash{$msg->{ID}}{operator_id} = $msg->{AID};
+  }
 
   return _json_former(\%hash);
 }
@@ -340,6 +366,7 @@ sub get_msg_id {
   foreach my $msgs (@$msgs_list) {
     $id = $msgs->{id};
   }
+
   return $id;
 }
 

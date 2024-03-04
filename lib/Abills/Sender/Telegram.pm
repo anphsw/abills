@@ -102,11 +102,12 @@ sub send_message {
 
   $attr->{TELEGRAM_ATTR}->{reply_markup} = make_reply($attr->{MAKE_REPLY}, $attr) if($attr->{MAKE_REPLY});
 
+  my $attachment_result = {};
   if($attr->{ATTACHMENTS}){
-    my $result = $self->send_with_attachments($attr);
+    $attachment_result = $self->send_with_attachments($attr);
 
     if ( $attr->{DEBUG} && $attr->{DEBUG} > 1 ) {
-      _bp("Result attachments", $result, { TO_CONSOLE => 1 });
+      _bp("Result attachments", $attachment_result, { TO_CONSOLE => 1 });
     }
   }
 
@@ -115,7 +116,7 @@ sub send_message {
       text    => $text,
       %{ $attr->{TELEGRAM_ATTR} // {} }
     });
-  
+
   if ( $attr->{DEBUG} && $attr->{DEBUG} > 1 ) {
     _bp("Result", $result, { TO_CONSOLE => 1 });
   }
@@ -125,7 +126,7 @@ sub send_message {
     return $result;
   }
   
-  return $result && $result->{ok};
+  return ($result && $result->{ok}) || ($attachment_result && $attachment_result->{ok});
 }
 
 #**********************************************************

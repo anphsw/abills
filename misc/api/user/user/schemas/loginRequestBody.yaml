@@ -3,15 +3,36 @@ properties:
   login:
     type: string
     example: testuser
+    description: Логин пользователя
   password:
     type: string
     example: testuser
+    description: Пароль пользователя
   google:
     type: string
     example: google_token
+    description: Google токен
   facebook:
     type: string
     example: facebook_token
+    description: Facebook токен
   apple:
     type: string
     example: apple_token
+    description: Apple токен
+  phone:
+    type: string
+    example: 0999999999
+    description: Номер телефону
+  pinCode:
+    type: string
+    example: 12345
+    description: Пин который поступает на телефон
+  authCode:
+    type: string
+    example: 8765
+    description: Код, который получается с первого запроса на авторизацию по номеру телефона
+  uid:
+    type: string
+    example: 654342
+    description: UID пользователя которого необходимо авторизовать, если больше одного пользователя с тем же номером

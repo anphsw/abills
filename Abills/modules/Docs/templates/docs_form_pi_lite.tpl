@@ -16,6 +16,7 @@
           <input id='CONTRACT_ID' name='CONTRACT_ID' value='%CONTRACT_ID%'
               placeholder='%CONTRACT_ID%' class='form-control' type='text'>
           <div class='input-group-append'>
+            %SIGN_CONTRACT%
             %PRINT_CONTRACT%
             <a href='$SELF_URL?qindex=15&UID=$FORM{UID}&PRINT_CONTRACT=%CONTRACT_ID%&SEND_EMAIL=1&pdf=1'
               class='btn input-group-button' target=_new>

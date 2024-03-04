@@ -1,0 +1,23 @@
+get:
+  tags:
+    - msgs
+  summary: Получение прикрепленного файла к сообщению
+  parameters:
+    - name: ID
+      in: path
+      description: ID файла
+      required: true
+      schema:
+        type: number
+  responses:
+    200:
+      description: |
+        #
+        ![Swagger logo](https://play-lh.googleusercontent.com/OtF8QmtySwbMtomLbRFYMgVOOFKUw1D63BqR2XxtzGbDsdF97UUO-7IAOhppxBi93NqU=w240-h480-rw)
+      content:
+        '*/*':
+          schema:
+            type: string
+            format: binary
+  security:
+    - USERSID: [ ]

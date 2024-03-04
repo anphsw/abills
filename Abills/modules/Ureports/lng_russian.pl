@@ -28,4 +28,16 @@ $lang{AUTHOR} = 'Автор';
 $lang{UNREG_MESSAGE_TITLE} = 'Мы рады, что Вы с нами!';
 $lang{UNREG_MESSAGE_BODY} = 'Зарегистрируйтесь, чтобы остаться с нами и получать от нас специальные предложения.';
 
+$lang{ERR_TPID_MISSING} = 'Отсутствует поле tpId';
+$lang{ERR_DEST_MISSING} = 'Отсутствует поле destinations';
+$lang{ERR_DEST_NOT_ARRAY} = 'Поле destinations должно быть массивом';
+$lang{ERR_USER_INFO_EXISTS} = 'Информация о пользователе существует';
+$lang{ERR_USER_NOT_FOUND} = 'Пользователь с UID %UID% не найден';
+$lang{ERR_NO_REPORT_SERVICE} = 'Пользователь без сервиса отчетов';
+$lang{ERR_REPORTS_MISSING} = 'Отсутствует поле reports';
+$lang{ERR_REPORTS_NOT_ARRAY} = 'Поле reports не является массивом';
+$lang{ERR_NO_REPORTS_ADDED} = 'Отчеты не добавлены';
+$lang{ERR_NO_REPORTS_FOR_USER} = 'Пользователь с UID %UID% не имеет отчетов';
+$lang{ERR_NO_REPORT_WITH_ID} = 'Пользователь с UID %UID% не имеет отчета с ID %ID%';
+
 1;

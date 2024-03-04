@@ -96,7 +96,7 @@ $lang{HIDE_HARDWARE_LOG} = 'Спрятать лог оборудования';
 $lang{GROUND} = 'Инвентарный номер';
 $lang{RECORD_CREATED} = 'Запись создана';
 $lang{RECORD_CHANGED} = 'Запись отредактирована';
-$lang{AUTHOR} = 'Автор: ';
+$lang{AUTHOR} = 'Автор ';
 
 $lang{UNIT} = 'шт';
 $lang{METERS} = 'метр';
@@ -188,5 +188,14 @@ $lang{STORAGE_DELIVERY} = 'Отправка';
 $lang{STORAGE_TOTAL_COUNT} = 'Общее количество';
 $lang{STORAGE_TOTAL_SUM} = 'Общая сумма';
 $lang{REPORT_ON_USED_MATERIALS_FROM_THE_STORAGE} = 'Отчет об использованных материалах со склада';
+
+$lang{STORAGE_PURCHASE_MADE} = 'Покупка произведена';
+$lang{STORAGE_PURCHASE_PROCESSING} = 'Покупка обрабатывается';
+$lang{STORAGE_ORDER_SENT_TO_CUSTOMER} = 'Отправлено заказчику';
+$lang{STORAGE_ORDER_RECEIVED_BY_CUSTOMER} = 'Получено заказчиком';
+$lang{STORAGE_SOLD} = 'Продано';
+$lang{STORAGE_PURCHASED_ITEM} = 'Покупка товара';
+$lang{STORAGE_SHIPPING_STATUS} = 'Статус отправки';
+$lang{STORAGE_PURCHASE_REPORT} = 'Отчет о покупках';
 
 1;

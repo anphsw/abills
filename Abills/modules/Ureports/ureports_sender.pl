@@ -11,14 +11,24 @@ use warnings FATAL => 'all';
 
 BEGIN {
   use FindBin '$Bin';
+  our $libpath = $Bin . '/../';
   our %conf;
   do $Bin . '/config.pl';
+
   unshift(@INC,
-    $Bin . '/../',
+    $libpath,
     $Bin . "/../Abills/mysql",
     $Bin . '/../Abills/',
     $Bin . '/../lib/',
-    $Bin . '/../Abills/modules');
+    $Bin . '/../Abills/modules'
+  );
+
+  our $begin_time = 0;
+  eval { require Time::HiRes; };
+  if ( !$@ ){
+    Time::HiRes->import( qw(gettimeofday) );
+    $begin_time = Time::HiRes::gettimeofday();
+  }
 }
 
 my $version = 0.80;
@@ -35,7 +45,7 @@ our (
 );
 
 use Abills::Defs;
-use Abills::Base qw(int2byte in_array sendmail parse_arguments cmd date_diff);
+use Abills::Base qw(int2byte in_array sendmail parse_arguments cmd date_diff gen_time);
 use Abills::Templates;
 use Abills::Misc;
 use Admins;
@@ -112,6 +122,10 @@ $DATE = $argv->{DATE} if ($argv->{DATE});
 my $debug_output = ureports_periodic_reports($argv);
 print $debug_output;
 
+if ( $debug > 1 ){
+  print gen_time( $begin_time ) . "\n";
+}
+
 #**********************************************************
 =head2 ureports_periodic_reports($attr)
 
@@ -164,7 +178,7 @@ sub ureports_periodic_reports {
       DATE           => '0000-00-00',
       TP_ID          => $tp->{tp_id},
       SORT           => 1,
-      PAGE_ROWS      => 1000000,
+      PAGE_ROWS      => $argv->{LIMIT} || 1000000,
       ACCOUNT_STATUS => 0,
       STATUS         => 0,
       ACTIVATE       => '_SHOW',
@@ -269,13 +283,14 @@ sub ureports_periodic_reports {
 
         $user->{EXPIRE_DATE} = POSIX::strftime("%Y-%m-%d", localtime(time + $user->{EXPIRE_DAYS} * 86400));
 
-        #Report 1 Deposit belove and internet status active
+        #Report 1 Deposit below and internet status active
         if ($user->{REPORT_ID} == 1) {
           if ($user->{VALUE} > $user->{DEPOSIT} && !$internet_status) {
             %PARAMS = (
-              DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-              MESSAGE  => "$lang{DEPOSIT}: $user->{DEPOSIT}",
-              SUBJECT  => "$lang{DEPOSIT_BELOW}"
+              DESCRIBE        => "$lang{REPORTS} ($user->{REPORT_ID}) ",
+              MESSAGE         => "$lang{DEPOSIT}: $user->{DEPOSIT}",
+              MESSAGE_SUBJECT => $lang{DEPOSIT_BELOW}
+              # SUBJECT  => "$lang{DEPOSIT_BELOW}"
             );
           }
           else {
@@ -283,7 +298,7 @@ sub ureports_periodic_reports {
           }
         }
 
-        #Report 2 DEposit + credit below
+        #Report 2 Deposit + credit below
         elsif ($user->{REPORT_ID} == 2) {
           if ($user->{VALUE} > $user->{DEPOSIT} + $user->{CREDIT}) {
             %PARAMS = (
@@ -565,6 +580,7 @@ sub ureports_periodic_reports {
           %{$user},
           %PARAMS,
           SUBJECT         => $PARAMS{SUBJECT},
+          MESSAGE_SUBJECT => $PARAMS{MESSAGE_SUBJECT},
           REPORT_ID       => $user->{REPORT_ID},
           UID             => $user->{UID},
           TP_ID           => $user->{TP_ID},

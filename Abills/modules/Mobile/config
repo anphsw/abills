@@ -1,0 +1,11 @@
+our %FUNCTIONS_LIST = (
+  "01:0:$lang{MOBILE_COMMUNICATION}:null:"           => 5,
+  "02:1:$lang{MOBILE_CATEGORIES}:mobile_categories:" => 5,
+  "03:1:$lang{MOBILE_SERVICES}:mobile_services:"     => 5,
+  "04:1:$lang{TARIF_PLAN}:mobile_tariff_plans:"      => 5,
+  "05:0:$lang{MOBILE_COMMUNICATION}:mobile_user:UID" => 20,
+);
+
+our %PERIODIC = (
+  monthly => [ 'mobile_monthly_fees' ],
+);

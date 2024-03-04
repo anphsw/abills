@@ -100,34 +100,32 @@ sub notify_admins {
   my $message = $FORM{MESSAGE} || $FORM{REPLY_TEXT} || $attr->{MESSAGE} || $message_info->{MESSAGE} || '';
   $message = ($message_info->{MESSAGE} || '') if ($attr->{NEW_RESPONSIBLE});
 
-  # Get status name
   my $state_msg = '';
   my $status_name = $message_info->{STATE} || $attr->{STATE} || $FORM{STATE} || 0;
   if (defined $message_info->{STATE}) {
-    $Msgs->status_list({
-      ID          => '_SHOW',
-      NAME        => '_SHOW',
-      LIST2HASH   => 'id,name',
-      STATUS_ONLY => 1
-    });
-
-    if (!$Msgs->{errno}) {
-      my $status_hash = $Msgs->{list_hash};
-      $status_name = $status_hash->{$message_info->{STATE}} || '';
-      $status_name = ::_translate($status_name);
+    $Msgs->status_info($message_info->{STATE});
+    if ($Msgs->{TOTAL} && $Msgs->{TOTAL} > 0 && $Msgs->{NAME}) {
+      $status_name = ::_translate($Msgs->{NAME}) || $status_name;
       $state_msg = "\n ($lang{STATE} : $status_name)";
+      
+      if ($Msgs->{TASK_CLOSED}) {
+        $message .= "\n\n$Msgs->{RATING_COMMENT}" if $Msgs->{RATING_COMMENT};
+        $message .= "\n$lang{EVALUATION_OF_PERFORMANCE}: $Msgs->{RATING}" if $Msgs->{RATING};
+      }
     }
   }
 
+  my $user_login = $message_info->{LOGIN} || $FORM{LOGIN} || $ui->{LOGIN} || $user->{LOGIN} || '';
   my $ATTACHMENTS = $attr->{ATTACHMENTS} || [];
   my $RESPONSIBLE = $message_info->{RESPONSIBLE_NAME} || $lang{NO};
   my $preview_url = ($preview_url_without_message_id && $message_id ne '--')
     ? $preview_url_without_message_id . $message_id : undef;
   $preview_url .= "&UID=$message_info->{UID}" if $message_info->{UID} && $preview_url;
 
+  $message =~ s/&#(\d+);/chr($1)/ge;
   my $mail_message = $html->tpl_show(::_include('msgs_email_notify', 'Msgs'), {
     SITE        => $site,
-    LOGIN       => $message_info->{LOGIN} || $FORM{LOGIN} || $ui->{LOGIN} || $user->{LOGIN} || '',
+    LOGIN       => $user_login,
     ADMIN       => ($FORM{INNER_MSG}) ? "$lang{ADMIN}: $admin->{A_LOGIN} (" . ($admin->{A_FIO} || q{}) . '}' : '',
     UID         => $message_info->{UID} || $FORM{UID} || '',
     DATE        => $main::DATE,
@@ -141,8 +139,13 @@ sub notify_admins {
     SUBJECT_URL => $preview_url,
   }, { OUTPUT2RETURN => 1 });
 
-  $subject = $attr->{NEW_RESPONSIBLE} ? $lang{YOU_HAVE_BEEN_SET_AS_RESPONSIBLE_IN} . " '" . $subject . "'"
-    : "#$message_id " . $lang{YOU_HAVE_NEW_REPLY} . " '" . $subject . "'" . $state_msg;
+  if ($attr->{NEW_RESPONSIBLE}) {
+    $subject = "#$message_id " . $lang{YOU_HAVE_BEEN_SET_AS_RESPONSIBLE_IN} . " '" . $subject . "'";
+    $subject .= "\n ($lang{AUTHOR} : $user_login)";
+  }
+  else {
+    $subject = "#$message_id " . $lang{YOU_HAVE_NEW_REPLY} . " '" . $subject . "'" . $state_msg;
+  }
   my $aid = $attr->{NEW_RESPONSIBLE} ? $attr->{AID} : ($responsible_aid || $attr->{SEND_TO_AID});
 
   my $msgs_permissions = $Msgs->permissions_list($aid);
@@ -256,6 +259,7 @@ sub notify_user {
     my $preview_url = ($preview_url_without_message_id && $message_id ne '--')
       ? $preview_url_without_message_id . $message_id : undef;
 
+    $message =~ s/&#(\d+);/chr($1)/ge if ($message);
     my $mail_message = $html->tpl_show(::_include($message_tpl, 'Msgs'), {
       SITE        => $site,
       DATE        => $DATE,
@@ -407,5 +411,30 @@ sub _msgs_notify_user_collect_message_content {
   };
 }
 
+#**********************************************************
+=head2 notify_admins_by_chapter()
+
+=cut
+#**********************************************************
+sub notify_admins_by_chapter {
+  my $self = shift;
+  my ($chapter_id, $msg_id) = @_;
+
+  return '' if !$chapter_id || !$msg_id;
+
+  my $admins_permissions = $Msgs->permissions_list();
+
+  foreach my $aid (keys %{$admins_permissions}) {
+    my $admin_permission = $admins_permissions->{$aid};
+
+    next if $admin_permission->{1}{24};
+    next if !$admin_permission->{5} || !$admin_permission->{6}{$chapter_id};
+    next if $admin_permission->{4} && !$admin_permission->{4}{$chapter_id};
+
+    $self->notify_admins({ MSG_ID => $msg_id, SEND_TO_AID => $aid, AID => $aid });
+  }
+
+  return;
+}
 
 1;

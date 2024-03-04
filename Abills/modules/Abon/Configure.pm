@@ -29,7 +29,7 @@ my $Abon_base = Abon::Base->new($db, $admin, \%conf, { HTML => $html, LANG => \%
 #*******************************************************************
 sub abon_tariffs {
 
-  use Abon::Misc::Attachments;
+  require Abon::Misc::Attachments;
   my $Attachments = Abon::Misc::Attachments->new($db, $admin, \%conf);
   my @PERIODS = ($lang{DAY}, $lang{MONTH}, $lang{QUARTER}, $lang{SIX_MONTH}, $lang{YEAR});
 
@@ -44,6 +44,9 @@ sub abon_tariffs {
     # else {
       my $picture_name = $Attachments->save_picture($FORM{SERVICE_IMG});
       $Abon->tariff_add({ %FORM, SERVICE_IMG => $picture_name });
+      if ($FORM{GID}) {
+        $Abon->tariff_gid_add({ GID => $FORM{GID}, TP_ID => $FORM{ABON_ID}});
+      }
       $html->message('info', $lang{INFO}, "$lang{ADDED}") if (!$Abon->{errno});
     # }
   }
@@ -96,7 +99,15 @@ sub abon_tariffs {
         my $picture_name = $Attachments->save_picture($FORM{SERVICE_IMG}, $FORM{ABON_ID});
         $FORM{SERVICE_IMG} = $picture_name;
       }
+      my $local_gid = $Abon->{GID};
       $Abon->tariff_change({ %FORM });
+
+      if ($local_gid) {
+        $Abon->tariff_gid_del({ TP_ID => $FORM{ABON_ID}});
+      }
+      if ($FORM{GID}) {
+        $Abon->tariff_gid_add({ GID => $FORM{GID}, TP_ID => $FORM{ABON_ID}});
+      }
       $html->message('info', $lang{INFO}, $lang{CHANGED}) if !$Abon->{errno};
     }
 
@@ -134,6 +145,7 @@ sub abon_tariffs {
   }
   elsif (defined($FORM{del}) && $FORM{COMMENTS}) {
     $Abon->tariff_del($FORM{del});
+    $Abon->tariff_gid_del({ TP_ID => $FORM{del}});
     $html->message('info', $lang{INFO}, $lang{DELETED}) if !$Abon->{errno};
   }
 
@@ -244,12 +256,25 @@ sub abon_tariffs {
   $Abon->{VAT} = ($Abon->{VAT}) ? 'checked' : '';
   $Abon->{DISCOUNT} = ($Abon->{DISCOUNT}) ? 'checked' : '';
   $Abon->{MANUAL_ACTIVATE} = ($Abon->{MANUAL_ACTIVATE}) ? 'checked' : '';
+  $Abon->{HOT_DEAL} = ($Abon->{HOT_DEAL}) ? 'checked' : '';
 
   if ($FORM{add} || $FORM{chg} || $FORM{change} || $FORM{ABON_ID} || $FORM{add_form}) {
+    $Abon->{GROUP_SEL} = sel_groups({ GID => $FORM{GID} || $Abon->{GID} });
     $html->tpl_show(_include('abon_tp', 'Abon'), $Abon);
   }
 
   my $user_index = get_function_index('abon_user_list');
+
+  my $groups_info = $users->groups_list({
+    GID             => '_SHOW',
+    NAME            => '_SHOW',
+    DESCR           => '_SHOW',
+    ALLOW_CREDIT    => '_SHOW',
+    DISABLE_PAYSYS  => '_SHOW',
+    DISABLE_CHG_TP  => '_SHOW',
+    USERS_COUNT     => '_SHOW',
+    COLS_NAME       => 1,
+  });
 
   my %EXT_TITLES = (
     tp_name               => $lang{NAME},
@@ -274,6 +299,7 @@ sub abon_tariffs {
     user_portal           => $lang{USER_PORTAL},
     vat                   => $lang{VAT},
     category_id           => $lang{CATEGORY},
+    gid                   => $lang{GROUP}
   );
 
   delete $LIST_PARAMS{ABON_ID};
@@ -333,6 +359,24 @@ sub abon_tariffs {
       }
       elsif ($col_name eq 'category_id') {
         $value = $categories->{$value};
+      }
+      elsif ($col_name eq 'gid') {
+        my $group_name = '';
+
+        if ($line->{gid}) {
+          my @ids = split(/,\s+/, $line->{gid});
+          for my $id (@ids) {
+            my ($matched_group) = grep { "$_->{gid}" eq $id } @$groups_info;
+            if ($matched_group) {
+              my $delimiter_or_not = length($group_name) != 0 ? ', ' : '';
+              $group_name .=  $delimiter_or_not . $matched_group->{name};
+            }
+          }
+        } else {
+          $group_name = $lang{ALL};
+        };
+
+        $value = $group_name;
       }
 
       push @fields, $value;

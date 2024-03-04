@@ -287,12 +287,13 @@ sub messages_list {
     [ 'HARD_DEADLINE',          'DATE',   "DATEDIFF(curdate(), MAX(r.datetime))",
       "DATEDIFF(curdate(), MAX(r.datetime)) as hard_deadline"                                                            ],
     [ 'ADMIN_READ',             'INT',    'm.admin_read',                                                              1 ],
-    [ 'PLAN_TIME',              'INT',    'm.plan_time',                                                               1 ],
+    [ 'PLAN_TIME',              'DATE',    'm.plan_time',                                                               1 ],
     [ 'DISPATCH_ID',            'INT',    'm.dispatch_id',                                                             1 ],
     [ 'IP',                     'IP',     'm.ip', 'INET_NTOA(m.ip) AS ip'                                                ],
     [ 'FROM_DATE|TO_DATE',      'DATE',   "DATE_FORMAT(m.date, '%Y-%m-%d')"                                              ],
     [ 'CLOSED_FROM_DATE|CLOSED_TO_DATE',      'DATE',   "DATE_FORMAT(m.closed_date, '%Y-%m-%d')"                         ],
     [ 'ADMIN_LOGIN',            'INT',    'a.aid', 'a.id AS admin_login',                                              1 ],
+    [ 'MSGS_AID',               'INT',    'm.aid', 'm.aid AS msgs_aid',                                                1 ],
     [ 'A_NAME',                 'INT',    'a.name', 'a.name AS admin_name',                                            1 ],
     [ 'REPLIES_COUNTS',         '',       '', 'IF(r.id IS NULL, 0, COUNT(r.id)) AS replies_counts'                       ],
     [ 'RATING',                 'INT',    'm.rating',                                                                  1 ],
@@ -586,6 +587,7 @@ sub message_change {
     $attr->{CLOSED_AID} = '';
     $attr->{CLOSED_DATE} = '0000-00-00';
   }
+  $attr->{SURVEY_ID} ||= $old_info->{SURVEY_ID};
 
   $self->changes({
     CHANGE_PARAM    => 'ID',
@@ -1171,6 +1173,8 @@ sub attachment_info {
   $self->query("SELECT id AS attachment_id, filename,
     content_type,
     content_size,
+    message_type,
+    message_id,
     content
    FROM  msgs_attachments
    WHERE $WHERE",
@@ -1763,11 +1767,7 @@ sub unreg_requests_list {
       LEFT JOIN streets ON (streets.id=builds.street_id)
       LEFT JOIN districts ON (districts.id=streets.district_id) ";
     }
-    elsif ($self->{conf}->{ADDRESS_REGISTER}) {
-      if ($attr->{CITY}) {
-        push @WHERE_RULES, @{$self->search_expr($attr->{CITY}, 'STR', 'city', { EXT_FIELD => 1 })};
-      }
-
+    else {
       if ($attr->{DISTRICT_NAME}) {
         push @WHERE_RULES, @{$self->search_expr($attr->{DISTRICT_NAME}, 'INT', 'streets.district_id', { EXT_FIELD => 'districts.name AS district_name' })};
       }
@@ -1793,24 +1793,6 @@ sub unreg_requests_list {
         push @WHERE_RULES, @{$self->search_expr($attr->{ADDRESS_BUILD}, 'STR', 'builds.number', { EXT_FIELD => 'builds.number AS address_build' })};
 
         $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=m.location_id)" if ($self->{EXT_TABLES} !~ /builds/);
-      }
-    }
-    else {
-      if ($attr->{ADDRESS_FULL}) {
-        my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
-        push @WHERE_RULES, @{$self->search_expr("$attr->{ADDRESS_FULL}", "STR", "CONCAT(m.address_street, '$build_delimiter', m.address_build, '$build_delimiter', m.address_flat) AS address_full", { EXT_FIELD => 1 })};
-      }
-
-      if ($attr->{ADDRESS_STREET}) {
-        push @WHERE_RULES, @{$self->search_expr($attr->{ADDRESS_STREET}, 'STR', 'm.address_street', { EXT_FIELD => 1 })};
-      }
-
-      if ($attr->{ADDRESS_BUILD}) {
-        push @WHERE_RULES, @{$self->search_expr($attr->{ADDRESS_BUILD}, 'STR', 'm.address_build', { EXT_FIELD => 1 })};
-      }
-
-      if ($attr->{COUNTRY_ID}) {
-        push @WHERE_RULES, @{$self->search_expr($attr->{COUNTRY_ID}, 'STR', 'm.country_id', { EXT_FIELD => 1 })};
       }
     }
   }
@@ -1862,13 +1844,9 @@ sub unreg_requests_list {
   );
 
   $self->{SEARCH_FIELDS_COUNT} += $search_fields_count;
-  my $EXT_TABLES = '';
-
-  if ($self->{conf}->{ADDRESS_REGISTER}) {
-    $EXT_TABLES = "LEFT JOIN builds ON builds.id=m.location_id
-     LEFT JOIN streets ON (streets.id=builds.street_id)
-     LEFT JOIN districts ON (districts.id=streets.district_id)";
-  }
+  my $EXT_TABLES = "LEFT JOIN builds ON builds.id=m.location_id
+    LEFT JOIN streets ON (streets.id=builds.street_id)
+    LEFT JOIN districts ON (districts.id=streets.district_id)";
 
   if ($admin->{DOMAIN_ID}) {
     $admin->{DOMAIN_ID} =~ s/;/,/g;
@@ -2015,7 +1993,6 @@ sub unreg_requests_info {
 
   if ($self->{TOTAL} && $self->{LOCATION_ID} > 0) {
     $self->query("SELECT d.id AS district_id,
-      d.city,
       d.name AS address_district,
       s.name AS address_street,
       b.number AS address_build
@@ -2344,11 +2321,12 @@ sub survey_answer_list {
   my ($attr) = @_;
 
   $self->query("SELECT
-    ma.*,
+    ma.*, mq.params,
     u.id as login
     FROM msgs_survey_answers ma
+    LEFT JOIN msgs_survey_questions mq ON (mq.id = ma.question_id)
     LEFT JOIN users u ON (u.uid=ma.uid)
-    WHERE survey_id= ? ;",
+    WHERE ma.survey_id= ? ;",
     undef,
     { Bind => [ $attr->{SURVEY_ID} ], COLS_NAME => 1 }
   );

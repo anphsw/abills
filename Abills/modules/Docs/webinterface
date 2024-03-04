@@ -13,6 +13,7 @@ use Docs;
 use Payments;
 use Fees;
 
+use Docs::Init qw(init_esign_service);
 use Abills::Base qw(int2ml in_array sendmail date_format cmd mk_unique_value);
 use Abills::Defs;
 use FindBin '$Bin';
@@ -23,11 +24,13 @@ our ($db,
   %conf,
   %lang,
   @MONTHES_LIT,
+  @MONTHES_LIT_NOM,
   @MONTHES,
   @WEEKDAYS,
   %err_strs,
   @units, # ??
   %permissions,
+  %COOKIES,
 
   @one,
   @ones,
@@ -92,7 +95,8 @@ sub docs_contract{
   my ($attr) = @_;
 
   my $contract_tpl = 'contract';
-  if ( $FORM{UID} ){
+
+  if ( $FORM{UID} || $attr->{UID} ){
     if ( !$users && $user ){
       $users = $user;
     }
@@ -139,6 +143,9 @@ sub docs_contract{
       }
     }
   }
+
+  $Docs->{DOC_ID} = $users->{CONTRACT_ID};
+  $Docs->{DOC_TYPE} = 4;
 
   return docs_print( $contract_tpl, {
     %{$admin},
@@ -223,7 +230,6 @@ sub docs_take_variables {
 
   my @result = docs_print("doc", {
     TAKE_PARAMS           => 1,
-
     DATE                  => $DATE,
     TOTAL_ALT_SUM         => 1,
     TOTAL_SUM             => 1,
@@ -286,6 +292,17 @@ sub docs_take_variables {
     'ORDERS'
   );
 
+  my @additional_var_contract = (
+    'CONTRACT_ID',
+    'CONTRACT_DATE',
+    'CONTRACT_DATE_LIT',
+    'CONTRACT_DATE_EURO_STANDART',
+    'CONTRACT_ID_ADD',
+    'CONTRACT_DATE_ADD',
+    'CONTRACT_DATE_LIT_ADD',
+    'CONTRACT_DATE_EURO_STANDART_ADD',
+  );
+
   # additional variables for company
   my @additional_var_company = (
     'REPRESENTATIVE',
@@ -303,12 +320,17 @@ sub docs_take_variables {
   # additional variables for internet
   my @additional_var_internet = (
     'DOCS_TPNAME_INTERNET_1',
+    'DOCS_INTERNET_CID',
+    'DOCS_INTERNET_CPE_MAC',
+  );
+
+  my @additional_var_abon = (
+    'DOCS_TPNAME_ABON_1',
     'DOCS_ABON_INTERNET_1',
     'DOCS_ABON_ABON_1',
-    'DOCS_TPNAME_ABON_1',
     'DOCS_ABON_SUM_SERVICE',
-    'DOCS_INTERNET_CID',
-    'DOCS_INTERNET_CPE_MAC'
+    'DOCS_ABON_COMMENTS',
+    'DOCS_ABON_PERSONAL_DESCRIPTION',
   );
 
   # Special variables where cant defined in standard scenario
@@ -325,9 +347,11 @@ sub docs_take_variables {
     @sorted_shared_vars,
     @add_info_fields,
     @additional_var_invoice,
+    @additional_var_contract,
     @additional_var_company,
     @additional_var_internet,
     @additional_special_vars,
+    @additional_var_abon
   );
 
   my $result = {};
@@ -357,15 +381,15 @@ sub docs_take_variables {
 
 =cut
 #**********************************************************
-sub docs_print{
+sub docs_print {
   my ($type, $attr) = @_;
 
   if($attr->{DOCS}) {
     $Docs = $attr->{DOCS};
   }
+  $FORM{pdf} = 1 if ($attr->{PDF});
 
   $conf{DOCS_LANGUAGE} = $conf{default_language} if (!$conf{DOCS_LANGUAGE});
-  my $filestore_dir = $conf{DOCS_STORE_DIR} || '/usr/abills/Abills/temlates/Docs/';
 
   if ( $conf{DOCS_LANGUAGE} && $html->{language} ne $conf{DOCS_LANGUAGE} ){
     if ( -f "../Abills/modules/Docs/lng_$conf{DOCS_LANGUAGE}.pl" ){
@@ -398,6 +422,7 @@ sub docs_print{
     $attr->{DAY} = $d;
     $attr->{MONTH} = $m;
     $attr->{MONTH_LIT} = $MONTHES_LIT[ int( $m ) - 1 ];
+    $attr->{MONTH_LIT_NOM} = $MONTHES_LIT_NOM[ int( $m ) - 1 ];
     $attr->{YEAR} = $y;
     $attr->{YEAR_SHORT} = substr($y,2);
     $attr->{DATE_EURO_STANDART} = "$d.$m.$y";
@@ -521,7 +546,12 @@ sub docs_print{
     });
   }
   else {
-    $users = $user if ($user && $user->{UID});
+    if ($attr->{USER_INFO}) {
+      $users = $attr->{USER_INFO};
+    }
+    else {
+      $users = $user if ($user && $user->{UID});
+    }
   }
 
   if ($Docs->{UID}) {
@@ -603,27 +633,30 @@ sub docs_print{
   $filename .= '_'. ($attr->{UID} || q{});
   $filename .= '_'. ($attr->{DOC_ID} || q{});
 
-  my $save_file = $filestore_dir . $filename . (($FORM{pdf}) ? '.pdf' : '.htm');
   my $content = '';
+
+  require Docs::Misc::Documents;
+  Docs::Misc::Documents->import();
+  my $Documents = Docs::Misc::Documents->new($db, $admin, \%conf, { html => $html });
+
+  my $doc_info = $Documents->document_info({ %{$attr}, CHECK_IS_EXISTS => 1 });
 
   if($attr->{TAKE_PARAMS}) {
     my @variables = (keys %{$attr}, keys %{$users}, keys %{$companies});
     return @variables;
   }
 
-  if(! -f $save_file) {
+  if ($doc_info->{errno} || !$doc_info->{result}) {
     my $html_old;
     if ($FORM{pdf} && !$html->{pdf_output}) {
       $html_old = $html;
       require Abills::PDF;
-      my $pdf = Abills::PDF->new(
-        {
-          #IMG_PATH => $IMG_PATH,
-          NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
-          CONF     => \%conf,
-          CHARSET  => $conf{default_charset}
-        }
-      );
+      my $pdf = Abills::PDF->new({
+        #IMG_PATH => $IMG_PATH,
+        NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
+        CONF     => \%conf,
+        CHARSET  => $conf{default_charset}
+      });
       $html = $pdf;
     }
 
@@ -658,27 +691,16 @@ sub docs_print{
 
     $html = $html_old if ($html_old);
 
-    if($conf{DOCS_CERT_CMD}) {
-      if (open(my $fh, '>', $save_file)) {
-        print $fh $content;
-        close($fh);
-      }
+    if ($conf{DOCS_CERT_CMD}) {
+      $Documents->document_save({ %$attr, LEGACY_SAVE => 1, CONTENT => $content });
+    }
+    elsif ($attr->{SAVE_DOCUMENT}) {
+      $Documents->document_save({ %$attr, CONTENT => $content });
     }
   }
   else {
-    $content = q{};
-
-    if($FORM{pdf}) {
-      $content .= "Content-type: application/pdf; filename=$filename.pdf\n";
-      $content .= "Cache-Control: no-cache\n";
-      $content .= "Content-disposition: inline; name=\"$filename.pdf\"\n\n";
-    }
-
-    open(my $fh, '<', $save_file);
-    while(<$fh>) {
-      $content .= $_;
-    }
-    close($fh);
+    my $doc = $Documents->document_print({ %{$attr}, PDF => $FORM{pdf} ? 1 : 0, PRINT_HEADERS => $FORM{qindex} || '' });
+    $content = $doc->{content};
   }
 
   if ( $@ ){
@@ -1672,18 +1694,25 @@ sub docs_module_info {
         $doc{"DOCS_TPNAME_" . $module_info } = $tp_name || q{};
         $doc{"DOCS_SERVICE_SUM_" . $service_num } = sprintf("%.2f", $sum || 0);
         $doc{"DOCS_SERVICE_NAME_" . $service_num } = $tp_name || q{};
-        $service_num++;
-        $module_num++;
-
         $doc{"DOCS_ABON_SUM_SERVICE"} += $doc{"DOCS_ABON_" . $module_info } || 0;
         $doc{"DOCS_ABON_SUM_SERVICE"} += $doc{"DOCS_SERVICE_SUM_" . $service_num } || 0;
 
-        if ($line->{extra}) {
-          foreach my $param ( keys %{ $line->{extra} }) {
+        if ($module eq 'Abon'){
+          $doc{"DOCS_ABON_". uc($module) .'_ID_'.$line->{id} }   = sprintf("%.2f", $sum || 0);
+          $doc{"DOCS_TPNAME_" . uc($module) .'_ID_'.$line->{id} } = $tp_name || q{};
+        }
+        $service_num++;
+        $module_num++;
+
+        foreach my $param ( keys %{ $line->{extra} }) {
+          if ($module eq 'Abon'){
+            $doc{"DOCS_". uc($module) .'_'. uc($param)} = $line->{extra}->{$param} || q{};
+            $doc{"DOCS_". uc($module) .'_'. uc($param).'_ID_'.$line->{id}} = $line->{extra}->{$param} || q{};
+          }
+          else{
             $doc{"DOCS_". uc($module) .'_'. uc($param)} = $line->{extra}->{$param} || q{};
           }
         }
-
       }
     }
   }
@@ -1718,19 +1747,61 @@ sub docs_qr_code {
   Control::Qrcode->import();
   my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html });
 
-
-  my $qr_code = $QRCode->qr_make( $SELF_URL, {
-    SHOW_IMG          => 1,
-    OUTPUT2RETURN     => 1,
-    GLOBAL_URL        => $url_pay,
-    PARAMS            => {
-      CONVERT_URL       => 1
+  my $qr_code = $QRCode->qr_make($SELF_URL, {
+    SHOW_IMG      => 1,
+    OUTPUT2RETURN => 1,
+    GLOBAL_URL    => $url_pay,
+    PARAMS        => {
+      CONVERT_URL => 1
     },
-    size              => 1,
-    margin            => 0,
+    size          => 1,
+    margin        => 0,
   });
   
   return $qr_code;
 }
 
-1
+#**********************************************************
+=head2 docs_esign()
+
+=cut
+#**********************************************************
+sub docs_esign {
+  my $ESignService = init_esign_service($db, $admin, \%conf, {
+    lang    => \%lang,
+    html    => $html,
+    cookies => \%COOKIES
+  });
+
+  if (!%{$ESignService} || $ESignService->{errno}) {
+    $html->message('warn', $lang{WARNING}, $lang{$ESignService->{errstr} || 'ESIGN_SERVICE_NOT_CONNECTED'});
+    return 0;
+  }
+
+  if ($FORM{mk_sign}) {
+    if ($ESignService->can('mk_sign')) {
+      my $result = $ESignService->document_add(\%FORM);
+      if (!_error_show($result)) {
+        print $ESignService->{output};
+      }
+    }
+    else {
+      $html->message('info', $lang{INFO}, $lang{NO_SIGN_SERVICE}, { ID => 1054013 });
+    }
+  }
+  else {
+    if ($ESignService->can('configuration')) {
+      my $result = $ESignService->configuration(\%FORM);
+      if (!_error_show($result)) {
+        print $ESignService->{output};
+      }
+    }
+    else {
+      $html->message('info', $lang{INFO}, $lang{NO_DATA});
+    }
+  }
+
+  return 1;
+}
+
+1;

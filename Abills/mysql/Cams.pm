@@ -1034,6 +1034,7 @@ sub group_list {
   $self->query("SELECT $self->{SEARCH_FIELDS} g.id
    FROM cams_groups g
    LEFT JOIN cams_services s ON(g.service_id=s.id)
+   LEFT JOIN districts d ON (g.district_id = d.id)
     $WHERE
     GROUP BY g.id
     ORDER BY $SORT $DESC",
@@ -1055,6 +1056,15 @@ sub group_add {
   my $self = shift;
   my ($attr) = @_;
 
+  if ($attr->{BUILD_ID}) {
+    $attr->{STREET_ID} = 0;
+    $attr->{DISTRICT_ID} = 0;
+  }
+
+  if ($attr->{STREET_ID}) {
+    $attr->{DISTRICT_ID} = 0;
+  }
+
   $self->query_add('cams_groups', $attr);
 
   return $self;
@@ -1071,6 +1081,15 @@ sub group_change {
 
   $attr->{USER_PORTAL} //= 0;
   $attr->{DISABLE} //= 0;
+
+  if ($attr->{BUILD_ID}) {
+    $attr->{STREET_ID} = 0;
+    $attr->{DISTRICT_ID} = 0;
+  }
+
+  if ($attr->{STREET_ID}) {
+    $attr->{DISTRICT_ID} = 0;
+  }
 
   $self->changes({
     CHANGE_PARAM => 'ID',
@@ -1128,7 +1147,8 @@ sub access_group_list {
 
   push @WHERE_RULES, "(g.location_id=$attr->{LOCATION_ID})" if $attr->{LOCATION_ID};
   push @WHERE_RULES, "(g.location_id=0 AND g.street_id=$attr->{STREET_ID})" if $attr->{STREET_ID};
-  push @WHERE_RULES, "(g.location_id=0 AND g.street_id=0 AND g.district_id=$attr->{DISTRICT_ID})" if $attr->{DISTRICT_ID};
+  push @WHERE_RULES, "(g.location_id=0 AND g.street_id=0 AND (FIND_IN_SET($attr->{DISTRICT_ID}, REPLACE(IF(d.path, d.path, d.id), '/', ',')) OR
+      FIND_IN_SET($attr->{DISTRICT_ID}, (SELECT GROUP_CONCAT(dc.id) FROM districts dc WHERE FIND_IN_SET(d.id, REPLACE(IF(dc.path, dc.path, d.id), '/', ','))))))";
   push @WHERE_RULES, "(g.location_id=0 AND g.street_id=0 AND g.district_id=0)";
 
   return $self->group_list({
@@ -1158,9 +1178,10 @@ sub access_folder_list {
 
   my @WHERE_RULES = ();
 
-  push @WHERE_RULES, "(f.location_id=$attr->{LOCATION_ID})" if $attr->{LOCATION_ID};
-  push @WHERE_RULES, "(f.location_id=0 AND f.street_id=$attr->{STREET_ID})" if $attr->{STREET_ID};
-  push @WHERE_RULES, "(f.location_id=0 AND f.street_id=0 AND f.district_id=$attr->{DISTRICT_ID})" if $attr->{DISTRICT_ID};
+  push @WHERE_RULES, "(f.build_id=$attr->{LOCATION_ID})" if $attr->{LOCATION_ID};
+  push @WHERE_RULES, "(f.build_id=0 AND f.street_id=$attr->{STREET_ID})" if $attr->{STREET_ID};
+  push @WHERE_RULES, "(f.build_id=0 AND f.street_id=0 AND (FIND_IN_SET($attr->{DISTRICT_ID}, REPLACE(IF(d.path, d.path, d.id), '/', ',')) OR
+      FIND_IN_SET($attr->{DISTRICT_ID}, (SELECT GROUP_CONCAT(dc.id) FROM districts dc WHERE FIND_IN_SET(d.id, REPLACE(IF(dc.path, dc.path, d.id), '/', ','))))))";
   push @WHERE_RULES, "(f.location_id=0 AND f.street_id=0 AND f.district_id=0)";
 
   return $self->folder_list({
@@ -1515,6 +1536,7 @@ sub folder_list {
    LEFT JOIN cams_groups g   ON(g.id=f.group_id)
    LEFT JOIN cams_folder fd  ON(f.parent_id=fd.id)
    LEFT JOIN cams_services s ON(f.service_id=s.id)
+   LEFT JOIN districts d ON (f.district_id = d.id)
     $WHERE
     GROUP BY f.id
     ORDER BY $SORT $DESC",
@@ -1536,6 +1558,15 @@ sub folder_add {
   my $self = shift;
   my ($attr) = @_;
 
+  if ($attr->{BUILD_ID}) {
+    $attr->{STREET_ID} = 0;
+    $attr->{DISTRICT_ID} = 0;
+  }
+
+  if ($attr->{STREET_ID}) {
+    $attr->{DISTRICT_ID} = 0;
+  }
+
   $self->query_add('cams_folder', $attr);
 
   return $self;
@@ -1549,6 +1580,15 @@ sub folder_add {
 sub folder_change {
   my $self = shift;
   my ($attr) = @_;
+
+  if ($attr->{BUILD_ID}) {
+    $attr->{STREET_ID} = 0;
+    $attr->{DISTRICT_ID} = 0;
+  }
+
+  if ($attr->{STREET_ID}) {
+    $attr->{DISTRICT_ID} = 0;
+  }
 
   $self->changes({
     CHANGE_PARAM => 'ID',

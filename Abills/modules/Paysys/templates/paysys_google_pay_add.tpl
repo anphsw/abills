@@ -1,4 +1,15 @@
 <script>
+
+  // prevent double load of script
+  if (!window['GOOGLE_PAY_IS_LOADED']) {
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = 'https://pay.google.com/gp/p/js/pay.js';
+    script.onload = onGooglePayLoaded;
+    document.body.appendChild(script);
+    window['GOOGLE_PAY_IS_LOADED'] = true;
+  }
+
   var googlePayConfig;
   try {
     googlePayConfig = JSON.parse('%GOOGLE_PAY_CONFIG%');
@@ -18,6 +29,8 @@
     googlePayConfig.parameters["stripe:version"] = googlePayConfig?.parameters?.stripe?.version;
     delete googlePayConfig?.parameters?.stripe
   }
+
+  var currency = googlePayConfig.currencyCode || 'UAH';
 
   var tokenizationSpecification = {
     type: 'PAYMENT_GATEWAY',
@@ -90,7 +103,7 @@
 
   function getGoogleTransactionInfo() {
     return {
-      currencyCode: googlePayConfig.currencyCode,
+      currencyCode: currency,
       totalPriceStatus: 'FINAL',
       totalPrice: document.getElementById('sum')?.value || 1,
     };
@@ -100,7 +113,7 @@
     const paymentDataRequest = getGooglePaymentDataRequest();
     paymentDataRequest.transaction = {
       totalPriceStatus: 'NOT_CURRENTLY_KNOWN',
-      currencyCode: googlePayConfig.currencyCode,
+      currencyCode: currency,
     };
     const paymentsClient = getGooglePaymentsClient();
     paymentsClient.prefetchPaymentData(paymentDataRequest);
@@ -159,11 +172,6 @@
       // console.log(e);
     }
   }
-</script>
-
-<script
-        src='https://pay.google.com/gp/p/js/pay.js'
-        onload='onGooglePayLoaded()'>
 </script>
 
 <style>

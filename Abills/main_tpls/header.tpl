@@ -135,6 +135,8 @@
       </div>
     </li>
 
+    %EXT_NAVBAR%
+
     <!--Search Menu-->
     <li class='nav-item mr-2 d-md-none d-sm-inline-block dropdown search-menu'>
       <form class='no-live-select UNIVERSAL_SEARCH_FORM' id='SMALL_SEARCH_FORM' action='%SELF_URL%'>
@@ -222,7 +224,8 @@
       portal: 'admin',
       link: '/admin/index.cgi?get_index=form_events&even_show=1&AID=$admin->{AID}',
       soundsDisabled: ('$admin->{SETTINGS}{NO_EVENT_SOUND}' == '1'),
-      disabled: ('$admin->{SETTINGS}{NO_EVENT}' == '1') || ('%EVENTS_DISABLED%' == '1'),
+      // disabled: ('$admin->{SETTINGS}{NO_EVENT}' == '1') || ('%EVENTS_DISABLED%' == '1'),
+      disabled: ('$admin->{SETTINGS}{NO_EVENT}' == '1'),
       interval: parseInt('$conf{EVENTS_REFRESH_INTERVAL}') || 30000
     };
     AMessageChecker.start(EVENT_PARAMS);

@@ -54,13 +54,20 @@ sub paysys_payment {
     $FORM{SUM} = 0;
   }
 
-  if ($FORM{SUM} == 0 && $user && defined &recomended_pay) {
-    $FORM{SUM} = recomended_pay($user) || 1;
+  my $recommended_pay = 0;
+
+  if ($user && defined &recomended_pay) {
+    $recommended_pay = recomended_pay($user) || 1;
+    $FORM{SUM} = $recommended_pay if ($FORM{SUM} == 0);
   }
 
   my $paysys_id = $FORM{PAYMENT_SYSTEM};
   if ($FORM{PAYMENT_SYSTEM} && $conf{PAYSYS_MIN_SUM} && $FORM{SUM} > 0 && $conf{PAYSYS_MIN_SUM} > $FORM{SUM}) {
     $html->message('err', $lang{ERROR}, "$lang{PAYSYS_MIN_SUM_MESSAGE} $conf{PAYSYS_MIN_SUM}");
+    delete $FORM{PAYMENT_SYSTEM};
+  }
+  elsif ($FORM{PAYMENT_SYSTEM} && $conf{PAYSYS_MIN_SUM_RECOMMENDED_PAY} && $FORM{SUM} > 0 && $recommended_pay > $FORM{SUM}) {
+    $html->message('err', $lang{ERROR}, "$lang{PAYSYS_MIN_SUM_MESSAGE} $recommended_pay");
     delete $FORM{PAYMENT_SYSTEM};
   }
   elsif ($FORM{PAYMENT_SYSTEM} && $conf{PAYSYS_MAX_SUM} && $FORM{SUM} > 0 && $conf{PAYSYS_MAX_SUM} < $FORM{SUM}) {
@@ -540,9 +547,12 @@ sub paysys_subscribe {
     });
   }
 
+  my $sum = $conf{PAYSYS_MIN_SUM} || 1;
+
   if ($paysys_subscribe->{EXTERNAL_LAST_DATE}) {
-    my $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . '&SUM=1.00&UNTOKEN=1';
+    my $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . "&SUM=$sum&UNTOKEN=1";
     my $Users = Users->new($db, $admin, \%conf);
+    #TODO: move check to liqpay module
     if ($paysys_subscribe->{PAYSYS_ID} == 62) {
       my $list = $Users->list({
         GID        => '_SHOW',
@@ -557,10 +567,10 @@ sub paysys_subscribe {
       my $gid_conf_sub = $paysys_subscribe->{conf}->{"PAYSYS_LIQPAY_SUBSCRIBE_$list->[0]->{GID}"} || 0;
 
       if ($gid_conf_sub == 1 || ($default_conf_sub == 1 && !$gid_conf_sub)) {
-        $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . '&SUM=1.00&UNSUBSRIBE=1&UID=' . $paysys_subscribe->{UID};
+        $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . "&SUM=$sum&UNSUBSRIBE=1&UID=" . $paysys_subscribe->{UID};
       }
       elsif ($gid_conf_token == 1 || ($default_conf_token == 1 && !$gid_conf_token)) {
-        $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . '&SUM=1.00&UNTOKEN=1&UID=' . $paysys_subscribe->{UID};
+        $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . "&SUM=$sum&UNSUBSRIBE=1&UID=" . $paysys_subscribe->{UID};
       }
     }
 

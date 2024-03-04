@@ -41,7 +41,7 @@ use warnings FATAL => 'all';
 
 use Voip;
 use Voip_Sessions;
-use Voip::Users;
+use Voip::Services;
 use Voip::Constants qw/ACCT_TERMINATE_CAUSES/;
 use Nas;
 use Log;
@@ -69,7 +69,7 @@ our $Voip = Voip->new($db, $admin, \%conf);
 my $Sessions = Voip_Sessions->new($db, $admin, \%conf);
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Nas = Nas->new($db, \%conf, $admin);
-my $Voip_users = Voip::Users->new($db, $admin, \%conf, {
+my $Voip_users = Voip::Services->new($db, $admin, \%conf, {
   html        => $html,
   lang        => \%lang,
   permissions => \%permissions
@@ -94,20 +94,6 @@ if ($permissions{3}) {
 
 if (%ADMIN_REPORT) {
   require Voip::Periodic;
-}
-
-#*******************************************************************
-=head2 voip_user_del($uid) - Delete user from module
-
-=cut
-#*******************************************************************
-sub voip_user_del {
-  my ($uid, $attr) = @_;
-
-  $Voip->{UID} = $uid;
-  $Voip->user_del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
-
-  return 0;
 }
 
 #*******************************************************************
@@ -344,6 +330,11 @@ sub voip_user {
   }
 
   my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{ALLOW_ANSWER}, $lang{DISABLE} . ':' . $lang{NON_PAYMENT});
+
+  if ($FORM{finish}) {
+    $Voip_users->voip_user_number_add($FORM{UID});
+    return;
+  }
 
   $Voip->user_info($FORM{UID});
 

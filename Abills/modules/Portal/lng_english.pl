@@ -39,3 +39,19 @@ $lang{MODE_PLAIN} = 'Only plain text';
 $lang{CONTENT_FULL} = 'Article text';
 $lang{PORTAL_NEWSLETTERS} = 'Mailing of articles';
 $lang{FORMAT} = 'Format';
+$lang{PORTAL_ATTACHMENTS} = 'Attachments';
+$lang{DROP_FILE_OR_CLICK_TO_UPLOAD} = 'Drop file here or click to upload';
+$lang{NEWSLETTER_AGAIN} = 'Send newsletter';
+$lang{NEWSLETTER_ALREADY_EXIST} = 'Unsended newsletter already exist';
+$lang{DEEPLINK} = 'Deeplink';
+
+$lang{ERR_PORTAL_NO_SENDER} = 'No sender with id %ID%';
+$lang{ERR_PORTAL_NO_ARTICLE} = 'No article with id %ID%';
+$lang{ERR_PORTAL_NEWSLETTER_ALREADY_EXIST} = 'Unsended newsletter for article %PORTAL_ARTICLE_ID% with method %SEND_METHOD% already exist';
+$lang{ERR_PORTAL_NEWSLETTER_NOT_EXIST} = 'Portal newsletter with id %ID% not exist';
+$lang{ERR_PORTAL_NEWSLETTER_DENY_DELETE_ACTIVE} = 'You cannot delete active newsletter';
+$lang{ERR_PORTAL_ATTACHMENT_FAILED_TO_SAVE} = 'Error on file save: %FILENAME%';
+$lang{ERR_PORTAL_ATTACHMENT_NO_FILES} = 'No attachments added';
+$lang{ERR_PORTAL_MENUS_HAVE_ARTICLES} = 'Menu with id %ID% already have articles';
+
+1;

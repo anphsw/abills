@@ -2,15 +2,14 @@
 
 =head1 NAME
 
-  User portal
+  Portal webinterface
 
 =cut
 
 use strict;
 use warnings FATAL => 'all';
 
-use Portal;
-use Portal::Misc::Attachments;
+use Abills::Api::Handle;
 use Abills::Base qw(in_array convert is_html);
 
 our (
@@ -24,8 +23,11 @@ our (
   $users
 );
 
-my $Portal = Portal->new($db, $admin, \%conf);
-my $Attachments = Portal::Misc::Attachments->new($db, $admin, \%conf);
+my $Api = Abills::Api::Handle->new($db, $admin, \%conf, {
+  html        => $html,
+  lang        => \%lang,
+  cookies     => \%COOKIES,
+});
 
 my @allowed_methods = ('Telegram', 'Viber_bot', 'Push');
 
@@ -39,89 +41,92 @@ sub portal_manage_menu {
     $html->message('info', $lang{INFO}, "$FORM{message}");
   }
 
-  $Portal->{ACTION}     = 'add';
-  $Portal->{ACTION_LNG} = $lang{ADD};
-  $Portal->{TITLE_NAME} = $lang{ADD_MENU};
+  my %web_params = ();
+  $web_params{ACTION}     = 'add';
+  $web_params{ACTION_LNG} = $lang{ADD};
+  $web_params{TITLE_NAME} = $lang{ADD_MENU};
 
   if (!$FORM{STATUS} or $FORM{STATUS} == 0) {
-    $Portal->{SHOWED} = '';
-    $Portal->{HIDDEN} = 'checked=\'checked\'';
+    $web_params{SHOWED} = '';
+    $web_params{HIDDEN} = 'checked=\'checked\'';
   }
   else {
-    $Portal->{SHOWED} = 'checked=\'checked\'';
-    $Portal->{HIDDEN} = '';
+    $web_params{SHOWED} = 'checked=\'checked\'';
+    $web_params{HIDDEN} = '';
   }
 
   if ($FORM{add}) {
-    if ($FORM{NAME}) {
-      $Portal->portal_menu_add({%FORM});
+    my ($res) = $Api->experimental_api_call({
+      METHOD => 'POST',
+      PATH   => '/portal/menus',
+      PARAMS => \%FORM
+    });
 
-      if (!$Portal->{errno}) {
-        $html->message('info', $lang{ADDED});
-      }
-    }
-    else {
-      $html->message('err', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}");
-      $html->tpl_show(_include('portal_menu_add', 'Portal'), { %$Portal, %FORM });
+    if ($res->{errno}) {
+      $html->message('error', $lang{ERROR}, $res->{errstr});
+    } else {
+      $html->message('info', $lang{ADDED});
     }
   }
   elsif ($FORM{del}) {
-    my $list = $Portal->portal_articles_list({ ARTICLE_ID => $FORM{del}, COLS_NAME => 1 });
-
-    if (defined($list->[0]->{id})) {
-
-      $html->message('info', $lang{INFO}, "$lang{CANT_DELETE_ERROR}");
+    my ($res) = $Api->experimental_api_call({
+      METHOD => 'DELETE',
+      PATH   => "/portal/menus/$FORM{del}",
+    });
+    if ($res->{errno}) {
+      $html->message('err', $lang{INFO}, "$lang{CANT_DELETE_ERROR}\n" . $res->{errstr});
     }
     else {
-      $Portal->portal_menu_del({ ID => $FORM{del} });
-      if (!$Portal->{errno}) {
-        $html->message('info', $lang{INFO}, "$lang{DELETED}");
-      }
+      $html->message('info', $lang{INFO}, "$lang{DELETED}");
     }
   }
-  elsif ($FORM{change}) {
-    if ($FORM{NAME}) {
-      $Portal->portal_menu_change({%FORM});
-      if (!$Portal->{errno}) {
-        $html->message('info', $lang{CHANGED});
-      }
-    }
-    else {
-      $Portal->{ACTION}     = 'change';
-      $Portal->{ACTION_LNG} = $lang{CHANGE};
-      $Portal->{TITLE_NAME} = $lang{CHANGE_MENU};
-      $html->message('warn', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}");
-      $html->tpl_show(_include('portal_menu_add', 'Portal'), { %$Portal, %FORM });
+  elsif ($FORM{change} && $FORM{id}) {
+    $web_params{ACTION}     = 'change';
+    $web_params{ACTION_LNG} = $lang{CHANGE};
+    $web_params{TITLE_NAME} = $lang{CHANGE_MENU};
+
+    my ($res) = $Api->experimental_api_call({
+      METHOD => 'PUT',
+      PATH => "/portal/menus/$FORM{id}",
+      PARAMS => \%FORM
+    });
+
+    if ($res->{errno}) {
+      $html->message('error', $lang{ERROR}, $res->{errstr});
+    } else {
+      $html->message('info', $lang{CHANGED});
     }
   }
   elsif ($FORM{chg}) {
-    $Portal->{ACTION}     = 'change';
-    $Portal->{ACTION_LNG} = $lang{CHANGE};
-    $Portal->{TITLE_NAME} = $lang{CHANGE_MENU};
+    $web_params{ACTION}     = 'change';
+    $web_params{ACTION_LNG} = $lang{CHANGE};
+    $web_params{TITLE_NAME} = $lang{CHANGE_MENU};
 
-    $Portal->portal_menu_info({ ID => $FORM{chg}, });
+    my ($menu_info) = $Api->experimental_api_call({
+      PATH => "/portal/menus/$FORM{chg}"
+    });
 
-    if (! $Portal->{STATUS}) {
-      $Portal->{SHOWED} = '';
-      $Portal->{HIDDEN} = 'checked=\'checked\'';
+    if ($menu_info->{status}) {
+      $web_params{SHOWED} = 'checked';
     }
-    else {
-      $Portal->{SHOWED} = 'checked=\'checked\'';
-      $Portal->{HIDDEN} = '';
-    }
+    %web_params = (%web_params, %$menu_info);
   }
 
-  if (!$FORM{add} and !$FORM{change}) {
-    $html->tpl_show(_include('portal_menu_add', 'Portal'), $Portal);
-  }
+  $html->tpl_show(_include('portal_menu_add', 'Portal'), { %web_params, %FORM });
+
+  my ($menu_res) = $Api->experimental_api_call({
+    PATH   => '/portal/menus',
+    PARAMS => \%LIST_PARAMS
+  });
 
   result_former({
-    INPUT_DATA      => $Portal,
-    FUNCTION        => 'portal_menu_list',
-    BASE_FIELDS     => 5,
+    DATAHASH => $menu_res->{list},
+    DATATOTAL => $menu_res->{total},
+    DEFAULT_FIELDS  => 'id,name,url,date,status',
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
+      id     => 'ID',
       name   => $lang{NAME},
       url    => 'URL',
       date   => $lang{ADDED},
@@ -133,6 +138,7 @@ sub portal_manage_menu {
       qs         => $pages_qs,
       ID         => 'PORTAL_TYPES',
       EXPORT     => 1,
+      SHOW_COLS  => 0,
       MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
     },
     SELECT_VALUE => {
@@ -142,13 +148,13 @@ sub portal_manage_menu {
       },
     },
     MAKE_ROWS     => 1,
-    SEARCH_FORMER => 1,
     TOTAL         => 1
   });
 
   return 1;
 }
 
+# TODO: rework this unoptimal function
 #***********************************************************
 =head2 portal_articles()-  Portal articles
 
@@ -163,14 +169,15 @@ sub portal_articles {
     $html->message('info', $lang{INFO}, "$FORM{message}");
   }
 
-  $Portal->{ACTION}     = 'add';
-  $Portal->{ACTION_LNG} = $lang{ADD};
-  $Portal->{TITLE_NAME} = $lang{ADD_ARTICLE};
+  my %web_params = ();
+  $web_params{ACTION}     = 'add';
+  $web_params{ACTION_LNG} = $lang{ADD};
+  $web_params{TITLE_NAME} = $lang{ADD_ARTICLE};
 
   my @IMPORTANCE_STATUS = ("$lang{NORMAL}","$lang{CRITICAL}");
 
   my $importance_select = $html->form_select('IMPORTANCE', {
-    SELECTED     => $FORM{IMPORTANCE},
+    SELECTED     => $FORM{importance},
     SEL_ARRAY    => \@IMPORTANCE_STATUS,
     ARRAY_NUM_ID => 1,
     SEL_VALUE    => 'name',
@@ -185,8 +192,7 @@ sub portal_articles {
     $Tags = Tags->new($db, $admin, \%conf);
     $tags_list = $Tags->list({COLS_NAME => 1, NAME => '_SHOW'});
 
-    $Portal->{TAGS} = $html->form_select('TAGS', {
-      SELECTED     => $Portal->{TAGS},
+    $web_params{TAGS} = $html->form_select('TAGS', {
       SEL_LIST     => $tags_list,
       SEL_KEY      => 'id',
       SEL_VALUE    => 'name',
@@ -195,7 +201,7 @@ sub portal_articles {
     });
   }
   else {
-    $Portal->{TAGS} = "Tags $lang{DISABLED}";
+    $web_params{TAGS} = "Tags $lang{DISABLED}";
   }
 
   my $domains_list;
@@ -208,8 +214,8 @@ sub portal_articles {
       NAME      => '_SHOW'
     });
 
-    $Portal->{DOMAIN_ID} = $html->form_select('DOMAIN_ID', {
-      SELECTED     => $Portal->{DOMAIN_ID},
+    $web_params{DOMAIN_ID} = $html->form_select('DOMAIN_ID', {
+      SELECTED     => $web_params{DOMAIN_ID},
       SEL_LIST     => $domains_list,
       SEL_KEY      => 'id',
       SEL_VALUE    => 'name',
@@ -218,48 +224,48 @@ sub portal_articles {
     });
   }
   else {
-    $Portal->{DOMAIN_ID} = "Multidoms $lang{DISABLED}";
+    $web_params{DOMAIN_ID} = "Multidoms $lang{DISABLED}";
     # very dumb
     # style if domains not exist
-    $Portal->{DOMAIN_STYLE} = 'display: none';
+    $web_params{DOMAIN_STYLE} = 'display: none';
   }
 
-  my $group_select = sel_groups();
-
-  $Portal->{GROUPS} = $group_select;
-  $Portal->{IMPORTANCE_STATUS} = $importance_select;
-  $Portal->{ADDRESS_FORM} = form_address_select2({
+  $web_params{GROUPS} = sel_groups({
+    FILTER_SEL => 1
+  });
+  $web_params{IMPORTANCE_STATUS} = $importance_select;
+  $web_params{ADDRESS_FORM} = form_address_select({
     HIDE_FLAT             => 1,
     HIDE_BUILD            => 1,
     HIDE_ADD_BUILD_BUTTON => 1,
   });
 
-  my $PORTAL_MENU_ID = $html->form_select("PORTAL_MENU_ID", {
+  my ($menu_res) = $Api->experimental_api_call({
+    PATH   => '/portal/menus',
+    PARAMS => { URL => '_EMPTY_' }
+  });
+
+  my $menus_without_url = $menu_res->{list} || [];
+
+  $web_params{PORTAL_MENU_ID} = $html->form_select('portal_menu_id', {
     SELECTED    => $FORM{PORTAL_MENU_ID},
-    SEL_LIST    => $Portal->portal_menu_list({
-      NOT_URL   => 1,
-      COLS_NAME => 1
-    }),
-    SEL_OPTIONS => {
-      '' => $lang{CHOOSE_MENU}
-    },
+    SEL_LIST    => $menus_without_url,
+    SEL_OPTIONS => { '' => $lang{CHOOSE_MENU} },
     NO_ID       => 1,
     REQUIRED    => 1
   });
 
-  $Portal->{PORTAL_MENU_ID} = $PORTAL_MENU_ID;
-
   if (!$FORM{STATUS} or $FORM{STATUS} == 0) {
-    $Portal->{SHOWED} = '';
-    $Portal->{HIDDEN} = 'checked=\'checked\'';
+    $web_params{SHOWED} = '';
+    $web_params{HIDDEN} = 'checked=\'checked\'';
   }
   else {
-    $Portal->{SHOWED} = 'checked=\'checked\'';
-    $Portal->{HIDDEN} = '';
+    $web_params{SHOWED} = 'checked=\'checked\'';
+    $web_params{HIDDEN} = '';
   }
 
   if ($FORM{ON_MAIN_PAGE}) {
-    $Portal->{ON_MAIN_PAGE_CHECKED} = 'checked=\'checked\'';
+    $web_params{ON_MAIN_PAGE_CHECKED} = 'checked=\'checked\'';
   }
 
   my $send_methods = $Sender->available_types(
@@ -268,162 +274,179 @@ sub portal_articles {
   foreach my $allowed_method (@allowed_methods) {
     my ($method_id) = grep { $send_methods->{$_} eq $allowed_method } keys %$send_methods;
     if (!defined($method_id)) {
-      $Portal->{uc($allowed_method).'_NOT_EXIST'} = 'hidden';
+      $web_params{uc($allowed_method).'_NOT_EXIST'} = 'hidden';
+    } else {
+      $web_params{uc($allowed_method) . '_METHOD_ID'} = $method_id;
+      if ($FORM{chg} || $FORM{change}) {
+        $web_params{uc($allowed_method) . '_BUTTON_SEND'} = _portal_send_again_button($method_id);
+      }
     }
   }
 
+  $web_params{BUTTON_ADD_ATTACHMENTS} = _portal_upload_button({ LIST => 1 });
+
+  my $change_article_info = {};
+
   if ($FORM{add}) {
-    if ($FORM{TITLE} && ($FORM{CONTENT} || $FORM{SHORT_DESCRIPTION}) && $FORM{PORTAL_MENU_ID}) {
-      my $picture_name = $Attachments->save_picture($FORM{PICTURE});
-      my $permalink = $FORM{PERMALINK} || _portal_generate_permalink($FORM{TITLE});
+    my ($res) = $Api->experimental_api_call({
+      METHOD => 'POST',
+      PATH   => '/portal/articles',
+      PARAMS => \%FORM
+    });
 
-      $Portal->portal_article_add({ %FORM, PICTURE => $picture_name, PERMALINK => $permalink });
-
-      if (!$Portal->{errno}) {
-        my @add_letters = ();
-        for my $key (keys %FORM) {
-          if ($key =~ /^NEWSLETTER_(.+)/g) {
-            my $type = $1;
-            push @add_letters, $type;
-          }
+    if (!$res->{errno}) {
+      my @add_letters = ();
+      for my $key (keys %FORM) {
+        if ($key =~ /^NEWSLETTER_(.+)/g) {
+          my $type = $1;
+          push @add_letters, $type;
         }
+      }
 
-        if (@add_letters) {
-          my $news = $Portal->portal_articles_list({
-            SORT      => 'id',
-            DESC      => 'desc',
-            COLS_NAME => 1
-          });
-
-          my $last_news_id = ${$news}[0]->{id};
-          for my $method (@add_letters) {
-            my ($method_id) = grep { uc($send_methods->{$_}) eq $method } keys %$send_methods;
-            $Portal->portal_newsletter_add({
+      if (@add_letters) {
+        my $last_news_id = $res->{INSERT_ID};
+        for my $method (@add_letters) {
+          my ($method_id) = grep { uc($send_methods->{$_}) eq $method } keys %$send_methods;
+          my ($newsletter_res) = $Api->experimental_api_call({
+            METHOD => 'POST',
+            PATH   => '/portal/newsletter',
+            PARAMS => {
               PORTAL_ARTICLE_ID => $last_news_id,
               SEND_METHOD       => $method_id,
-              STATUS            => 0,
-            });
+            }
+          });
+          if ($newsletter_res->{errno}) {
+            $res->{errno} = $newsletter_res->{errno};
+            $res->{errstr} = $newsletter_res->{errstr};
           }
         }
       }
-
-      if (!$Portal->{errno}) {
-        $html->message('info', $lang{ADDED});
-      }
     }
-    else {
-      $html->message('err', $lang{INFO}, "$lang{FIELDS_FOR_TITLE_TEXT_MENU_ARE_REQUIRED}");
-      $html->tpl_show(_include('portal_article_add', 'Portal'), {
-        %$Portal,
-        %FORM,
-        ALIGN          => 'right',
-        PORTAL_MENU_ID => $PORTAL_MENU_ID,
-      });
+
+    if ($res->{errno}) {
+      $html->message('error', $lang{ERROR}, $res->{errstr});
+    } else {
+      $html->message('info', $lang{ADDED});
     }
   }
   elsif ($FORM{del}) {
-    $Portal->portal_article_del({
-      ID => $FORM{del}
+    my ($res) = $Api->experimental_api_call({
+      METHOD => 'DELETE',
+      PATH   => "/portal/articles/$FORM{del}",
     });
 
-    if (!$Portal->{errno}) {
-      $Attachments->delete_attachment($FORM{del});
+    if ($res->{errno}) {
+      $html->message('error', $lang{ERROR}, $res->{errstr});
+    }
+    else {
       $html->message('info', $lang{INFO}, "$lang{DELETED}");
     }
 
   }
-  elsif ($FORM{change}) {
-    if ($FORM{TITLE} && ($FORM{CONTENT} || $FORM{SHORT_DESCRIPTION}) && $FORM{PORTAL_MENU_ID}) {
-
-      if($FORM{RESET} && $FORM{RESET} == 1){
-        $FORM{DISTRICT_ID} = 0;
-        $FORM{STREET_ID} = 0;
-      }
-
-      if ($FORM{PICTURE}) {
-        my $picture_name = $Attachments->save_picture($FORM{PICTURE}, $FORM{ID});
-        $FORM{PICTURE} = $picture_name;
-      }
-
-      my $permalink = $FORM{PERMALINK} || _portal_generate_permalink($FORM{TITLE});
-
-      $Portal->portal_article_change({ %FORM, PERMALINK => $permalink });
-      if (!$Portal->{errno}) {
-        $html->message('info', $lang{CHANGED});
-      }
+  elsif ($FORM{change} && $FORM{id}) {
+    my %body_props = ();
+    # TODO: make this from frontend
+    if ($FORM{RESET} && $FORM{RESET} == 1){
+      $FORM{DISTRICT_ID} = 0;
+      $FORM{STREET_ID} = 0;
     }
-    else {
-      $Portal->{ACTION} = 'change';
-      $Portal->{ACTION_LNG} = $lang{CHANGE};
-      $Portal->{TITLE_NAME} = $lang{CHANGE_MENU};
-      $Portal->{CURRENTLY_ADDED} = 'disabled';
-      $html->message('info', $lang{INFO}, "$lang{FIELDS_FOR_TITLE_TEXT_MENU_ARE_REQUIRED}");
-      $html->tpl_show(_include('portal_article_add', 'Portal'), {
-        %$Portal,
-        %FORM,
-        ALIGN          => 'right',
-        PORTAL_MENU_ID => $PORTAL_MENU_ID,
-      });
+
+    if (!$FORM{deeplink}) {
+      $body_props{deeplink} = 0;
+    }
+
+    my ($res) = $Api->experimental_api_call({
+      METHOD => 'PUT',
+      PATH   => "/portal/articles/$FORM{id}",
+      PARAMS => { %FORM, %body_props }
+    });
+
+    if ($res->{errno}) {
+      $html->message('error', $lang{ERROR}, $res->{errstr});
+    } else {
+      $html->message('info', $lang{CHANGED});
     }
   }
   elsif ($FORM{chg}) {
-    $Portal->{ACTION}     = 'change';
-    $Portal->{ACTION_LNG} = $lang{CHANGE};
-    $Portal->{TITLE_NAME} = $lang{CHANGE_MENU};
+    $web_params{ACTION}     = 'change';
+    $web_params{ACTION_LNG} = $lang{CHANGE};
+    $web_params{TITLE_NAME} = $lang{CHANGE_MENU};
 
-    $Portal->portal_article_info({ ID => $FORM{chg}, });
-    my $to_changed_newsletters = $Portal->portal_newsletter_list({
-      PORTAL_ARTICLE_ID => $FORM{chg},
-      COLS_NAME         => 1
+    my ($article_info) = $Api->experimental_api_call({
+      PATH   => "/portal/articles/$FORM{chg}",
     });
 
+    $change_article_info = $article_info;
+    my ($newsletters_res) = $Api->experimental_api_call({
+      PATH   => "/portal/newsletter",
+      PARAMS => { ID => $FORM{chg} }
+    });
+
+    my $to_changed_newsletters = $newsletters_res->{list} || [];
     for my $selected (@$to_changed_newsletters) {
       my $method_id = $selected->{send_method};
       if (defined($send_methods->{$method_id})) {
         my $defined_method = $send_methods->{$method_id};
-        $Portal->{uc($defined_method) . "_SELECTED"} = 'checked';
+        $web_params{uc($defined_method) . "_SELECTED"} = 'checked';
+        $web_params{uc($defined_method) . "_METHOD_ID"} = $method_id;
+        if ($selected->{status} == 0) {
+          $web_params{uc($defined_method) . "_BUTTON_SEND"} = $lang{NEWSLETTER_ALREADY_EXIST};
+        }
       }
     }
-    $PORTAL_MENU_ID = $Portal->{PORTAL_MENU_ID} = $html->form_select(
-      "PORTAL_MENU_ID", {
-        SELECTED    => $Portal->{PORTAL_MENU_ID},
-        SEL_LIST    => $Portal->portal_menu_list({ NOT_URL => 1, COLS_NAME => 1 }),
-        NO_ID       => 1,
-        SEL_OPTIONS => { '' => $lang{CHOOSE_MENU} }
-      });
+    $web_params{PORTAL_MENU_ID} = $html->form_select('portal_menu_id', {
+      SELECTED    => $article_info->{portal_menu_id},
+      SEL_LIST    => $menus_without_url,
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => $lang{CHOOSE_MENU} }
+    });
 
-    if (!$Portal->{STATUS}) {
-      $Portal->{SHOWED} = '';
-      $Portal->{HIDDEN} = 'checked=\'checked\'';
+    if (!$change_article_info->{status}) {
+      $web_params{SHOWED} = '';
+      $web_params{HIDDEN} = 'checked=\'checked\'';
     }
     else {
-      $Portal->{SHOWED} = 'checked=\'checked\'';
-      $Portal->{HIDDEN} = '';
+      $web_params{SHOWED} = 'checked=\'checked\'';
+      $web_params{HIDDEN} = '';
     }
 
-    if ($Portal->{ON_MAIN_PAGE}) {
-      $Portal->{ON_MAIN_PAGE_CHECKED} = 'checked=\'checked\'';
+    if ($change_article_info->{picture}) {
+      my $picture_preview_icon = $html->element('i', '', { class => 'fas fa-image' });
+      $web_params{PICTURE_PREVIEW_LINK} = $html->element('a',
+        $picture_preview_icon,
+        {
+          class => 'btn input-group-button',
+          href => $change_article_info->{picture}
+        }, { OUTPUT2RETURN => 1 });
     }
 
-    if(!$Portal->{ARCHIVE}) {
-      $Portal->{SHOWED_ARCHIVE} = '';
-      $Portal->{HIDDEN_ARCHIVE} = 'checked=\'checked\'';
+    if ($change_article_info->{on_main_page}) {
+      $web_params{ON_MAIN_PAGE_CHECKED} = 'checked=\'checked\'';
+    }
+
+    if(!$change_article_info->{archive}) {
+      $web_params{SHOWED_ARCHIVE} = '';
+      $web_params{HIDDEN_ARCHIVE} = 'checked=\'checked\'';
     }
     else {
-      $Portal->{SHOWED_ARCHIVE} = 'checked=\'checked\'';
-      $Portal->{HIDDEN_ARCHIVE} = '';
+      $web_params{SHOWED_ARCHIVE} = 'checked=\'checked\'';
+      $web_params{HIDDEN_ARCHIVE} = '';
     }
 
-    $Portal->{IMPORTANCE_STATUS} =  $html->form_select('IMPORTANCE', {
-      SELECTED       => $Portal->{IMPORTANCE},
+    if ($change_article_info->{deeplink}) {
+      $web_params{DEEPLINK} = 'checked';
+    }
+
+    $web_params{IMPORTANCE_STATUS} =  $html->form_select('importance', {
+      SELECTED       => $change_article_info->{importance},
       SEL_ARRAY      => \@IMPORTANCE_STATUS,
       ARRAY_NUM_ID   => 'id',
       SEL_VALUE      => 'name',
       NO_ID          => 1
     });
 
-    $Portal->{TAGS} = $html->form_select('TAGS', {
-      SELECTED       => $Portal->{TAGS},
+    $web_params{TAGS} = $html->form_select('TAGS', {
+      SELECTED       => $change_article_info->{tags},
       SEL_LIST       => $tags_list,
       SEL_KEY        => 'id',
       SEL_VALUE      => 'name',
@@ -431,8 +454,8 @@ sub portal_articles {
       SEL_OPTIONS    => {"" => ""}
     });
 
-    $Portal->{DOMAIN_ID} = $html->form_select('DOMAIN_ID', {
-      SELECTED       => $Portal->{DOMAIN_ID},
+    $web_params{DOMAIN_ID} = $html->form_select('DOMAIN_ID', {
+      SELECTED       => $change_article_info->{domain_id},
       SEL_LIST       => $domains_list,
       SEL_KEY        => 'id',
       SEL_VALUE      => 'name',
@@ -440,22 +463,24 @@ sub portal_articles {
       SEL_OPTIONS    => {"" => ""}
     });
 
-    $Portal->{GROUPS} = sel_groups({
-      GID => $Portal->{GID}
+    $web_params{GROUPS} = sel_groups({
+      FILTER_SEL => 1,
+      GID        => $change_article_info->{gid}
     });
 
     my %info = ();
-    if($Portal->{DISTRICT_ID}){
-      $info{ADDRESS_DISTRICT} = ($Address->district_info({ID => $Portal->{DISTRICT_ID}}))->{NAME};
+    if($change_article_info->{district_id}){
+      my $district_info = $Address->district_info({ID => $change_article_info->{district_id}});
+      $info{ADDRESS_DISTRICT} = $district_info->{NAME};
     }
 
-    if($Portal->{STREET_ID}){
-      $info{ADDRESS_STREET} = ($Address->street_info({ID => $Portal->{STREET_ID}}))->{NAME};
+    if($change_article_info->{street_id}){
+      my $street_info = $Address->street_info({ID => $change_article_info->{street_id}});
+      $info{ADDRESS_STREET} = $street_info->{NAME};
     }
 
-    $Portal->{ADDRESS_FORM} = form_address_select2({
+    $web_params{ADDRESS_FORM} = form_address_select({
       %info,
-      %$Portal,
       HIDE_FLAT             => 1,
       HIDE_BUILD            => 1,
       HIDE_ADD_BUILD_BUTTON => 1,
@@ -463,11 +488,10 @@ sub portal_articles {
   }
 
   if (!$FORM{add} and !$FORM{change}) {
-    $Portal->{CURRENTLY_ADDED} = 'disabled' if $FORM{chg};
+    $web_params{CURRENTLY_ADDED} = 'disabled' if $FORM{chg};
     $html->tpl_show(_include('portal_article_add', 'Portal'), {
-      %$Portal,
-      ALIGN          => 'right',
-      PORTAL_MENU_ID => $PORTAL_MENU_ID,
+      %web_params,
+      %$change_article_info,
     });
   }
 
@@ -475,6 +499,7 @@ sub portal_articles {
       width      => '100%',
       caption    => $lang{ARTICLES},
       title      => [
+        'ID',
         $lang{MENU},
         $lang{PICTURE},
         $lang{TITLE},
@@ -492,8 +517,13 @@ sub portal_articles {
         '-',
         '-'
       ],
+      DATA_TABLE => {
+        order => [ [0, 'desc'] ],
+        columnDefs =>  [ { type => 'num' }],
+        lengthMenu => [ [ 50, 100, -1 ], [ 50, 100, $lang{ALL} ] ]
+      },
       cols_align => [ 'left', 'left', 'left', 'left', 'right','right', 'center', 'center', 'center' ],
-      ID         => 'PORTAL_TYPES',
+      ID         => 'PORTAL_ARTICLES',
     }
   );
 
@@ -506,7 +536,24 @@ sub portal_articles {
   my @IMPORTANCE = ("<span>$lang{NORMAL}</span>",
                 "<span class='text-danger text-bold'>$lang{CRITICAL}</span>");
 
-  my $list = $Portal->portal_articles_list({ COLS_NAME => 1 });
+
+  my ($res) = $Api->experimental_api_call({
+    PATH   => '/portal/articles',
+    PARAMS => { %LIST_PARAMS, PAGE_ROWS => 10000 }
+  });
+
+  my $list = $res->{list} || [];
+
+  my $groups_info = $users->groups_list({
+    GID             => '_SHOW',
+    NAME            => '_SHOW',
+    DESCR           => '_SHOW',
+    ALLOW_CREDIT    => '_SHOW',
+    DISABLE_PAYSYS  => '_SHOW',
+    DISABLE_CHG_TP  => '_SHOW',
+    USERS_COUNT     => '_SHOW',
+    COLS_NAME       => 1,
+  });
 
   foreach my $line (@$list) {
     my $tag_name;
@@ -528,17 +575,35 @@ sub portal_articles {
       }
     }
 
+    my $group_name = '';
+
+    # Attention: gid 0 is actually "without group" but
+    # I make visible for all groups - otherwise it will break legacy
+    if ($line->{gid} eq '0' || $line->{gid} eq '*' || $line->{gid} eq '') {
+      $group_name = $lang{ALL};
+    } else {
+      my @ids = split(/,\s+/, $line->{gid});
+      for my $id (@ids) {
+        my ($matched_group) = grep { "$_->{gid}" eq $id } @$groups_info;
+        if ($matched_group) {
+          my $delimiter_or_not = length($group_name) != 0 ? ', ' : '';
+          $group_name .=  $delimiter_or_not . $matched_group->{name};
+        }
+      }
+    }
+
     $table->addrow(
+      $line->{id},
       $line->{name},
       $line->{picture} ? $PICTURE_STATUS[1] : $PICTURE_STATUS[0],
       $line->{title},
       $line->{date},
       $line->{end_date},
-      (defined($line->{status}) && $STATUS[ $line->{status} ]) ? $STATUS[ $line->{status} ] : $line->{status},
+      (defined($line->{status}) && $STATUS[ $line->{status} ]) || $line->{status},
       (defined($line->{on_main_page}) && $line->{on_main_page} == 1) ? $lang{YES} : $lang{NO},
-      (defined($line->{archive}) && $ARCHIVE[ $line->{archive} ]) ? $ARCHIVE[ $line->{archive} ] : $line->{archive},
-      (defined($line->{importance}) && $IMPORTANCE[ $line->{importance} ]) ? $IMPORTANCE[ $line->{importance} ] : $line->{importance},
-      $line->{gp_name},
+      (defined($line->{archive}) && $ARCHIVE[ $line->{archive} ]) || $line->{archive},
+      (defined($line->{importance}) && $IMPORTANCE[ $line->{importance} ]) || $line->{importance},
+      $group_name,
       $tag_name,
       $domain_name,
       $line->{dis_name},
@@ -559,17 +624,16 @@ sub portal_articles {
 =cut
 #***********************************************************
 sub portal_user_cabinet {
-  my $list = $Portal->portal_articles_list({ ARCHIVE => 0, COLS_NAME  => 1 });
+  my ($res) = $Api->experimental_api_call({
+    PATH => '/user/portal/news'
+  });
 
-  my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
-  my $base_attach_link = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images/attach/portal" : '';
+  my $list = $res->{news} || [];
+  my @reversed = reverse @$list;
 
   my %USER_NEWS;
   my @NORMAL;
   my @IMPORTANT;
-  my $indicators = 0;
-  my $active = 0;
-  my $not_show = 0;
 
   my $Tags;
   if (in_array('Tags', \@MODULES)) {
@@ -582,78 +646,36 @@ sub portal_user_cabinet {
     portal_user_content         => _include('portal_user_content', 'Portal')
   );
 
-  foreach my $item (@$list) {
-    if (!defined $item->{etimestamp} || $item->{etimestamp} && ($item->{etimestamp} >= time && $item->{utimestamp} < time)) {
-      if (!$item->{gid} || $item->{gid} == $user->{GID}) {
-        if (!$item->{domain_id} || ($FORM{DOMAIN_ID} && $item->{domain_id} == $FORM{DOMAIN_ID}) || ($LIST_PARAMS{DOMAIN_ID} && $item->{domain_id} == $LIST_PARAMS{DOMAIN_ID}) || ( $user->{DOMAIN_ID} && $item->{domain_id} == $user->{DOMAIN_ID})) {
-        if ((!$item->{dis_name} || ($user->{ADDRESS_DISTRICT} && $item->{dis_name} eq $user->{ADDRESS_DISTRICT}))
-          && (!$item->{st_name} || $item->{st_name} eq $user->{ADDRESS_STREET})
-          && (!$item->{dis_name} || $item->{dis_name} eq $user->{ADDRESS_DISTRICT})
-        ) {
-          my $tag_check;
-          if ($Tags) {
-            $tag_check = $Tags->tags_user( { COLS_NAME => 1, UID => $user->{UID}, TAG_ID => $item->{tags} } );
-          }
-          if (defined($tag_check->[0]->{date}) || !$item->{tags}) {
-            if ($item->{importance} && $item->{importance} == 1) {
-              my $short_description = $item->{short_description} || '';
-              if ((length $short_description) > 600) {
-                $short_description = substr($short_description, 0, 600);
-              }
-              my $template = $item->{picture} ? 'portal_user_content_picture' : 'portal_user_content';
-              my $important = $html->tpl_show($templates{$template}, {
-                TITLE             => $item->{title},
-                SHORT_DESCRIPTION => $short_description,
-                COLOR             => "#FFFFCC",
-                ACTIVE            => ($active == 0) ? 'active' : '',
-                HREF              => "$SELF_URL?article=".$item->{id},
-                PICTURE_SRC       => "$base_attach_link/$item->{picture}",
-                IMPORTANT => 'important',
-              },
-              {
-                OUTPUT2RETURN => 1,
-                ID            => 'ARTICLE_'. $item->{id}
-              });
+  foreach my $i (0..$#reversed) {
+    my $item = $reversed[$i];
+    my $active = ($#reversed == $i) ? 'active' : '';
+    my $important = $item->{important} ? 'important' : '';
+    my $template = $item->{picture} ? 'portal_user_content_picture' : 'portal_user_content';
+    my $content = $html->tpl_show($templates{$template}, {
+      TITLE             => $item->{title},
+      SHORT_DESCRIPTION => $item->{short_description},
+      ACTIVE            => $active,
+      HREF              => "$SELF_URL?article=".$item->{id},
+      PICTURE_SRC       => $item->{picture},
+      IMPORTANT         => $important,
+    },
+    {
+      OUTPUT2RETURN => 1,
+      ID            => 'ARTICLE_'. $item->{id}
+    });
 
-              unshift(@IMPORTANT, $important);
-              $indicators++;
-              $active++;
-            }
-            else {
-              my $short_description = $item->{short_description} || '';
-              if ((length $short_description) > 600) {
-                $short_description = substr($short_description, 0, 600);
-              }
-              my $is_active = ((((scalar @$list) - 1 - $not_show) == $indicators) && $active == 0);
-
-              my $template = $item->{picture} ? 'portal_user_content_picture' : 'portal_user_content';
-              my $normal = $html->tpl_show($templates{$template}, {
-                TITLE             => $item->{title},
-                SHORT_DESCRIPTION => $short_description,
-                ACTIVE            => $is_active ? 'active' : '',
-                HREF              => "$SELF_URL?article=".$item->{id},
-                PICTURE_SRC       => "$base_attach_link/$item->{picture}"
-              },
-              {
-                OUTPUT2RETURN => 1,
-                ID            => 'ARTICLE_'. $item->{id}
-              });
-
-              unshift(@NORMAL, $normal);
-              $indicators++;
-            }
-          } else { $not_show++};
-        } else { $not_show++};
-        } else{ $not_show++};
-      } else { $not_show++};
-    } else { $not_show++};
+    if ($important) {
+      unshift(@IMPORTANT, $content);
+    } else {
+      unshift(@NORMAL, $content)
+    }
   }
 
   $USER_NEWS{CONTENT} .= join( ($FORM{json} ? ',' : '')   , @IMPORTANT, @NORMAL);
 
-  for(my $i = 0; $i < $indicators; $i++){
-    if($i==0){
-        $USER_NEWS{INDICATORS} .= "<li data-target='#myPortalCarousel' data-slide-to='$i' class='active'></li>";
+  for my $i (0..$#reversed) {
+    if ($i == 0) {
+      $USER_NEWS{INDICATORS} .= "<li data-target='#myPortalCarousel' data-slide-to='$i' class='active'></li>";
     }
     else{
       $USER_NEWS{INDICATORS} .= "<li data-target='#myPortalCarousel' data-slide-to='$i' ></li>";
@@ -718,150 +740,115 @@ sub portal_s_page {
 
   my $url = '';
 
-  my $list = $Portal->portal_menu_list({ MENU_SHOW => 1, COLS_NAME => 1 });
+  my ($res) = $Api->experimental_api_call({
+    PATH => '/user/portal/news/'
+  });
+
+  my $list = $res->{topics} || [];
+
+  my @portal_menu_template = (
+    _include('portal_menu_hovered', 'Portal'),
+    _include('portal_menu', 'Portal')
+  );
+
   my @MENUS = ();
-  if ($list->[0]->{id}) {
-    foreach my $line (@$list) {
-      if ($line->{url} eq '') {
-        $url = "$SELF_URL?menu_category=" . $line->{id};
-      }
-      else {
-        if (($line->{url} =~ m|http://*|) || ($line->{url} =~ m|https://*|)) {
-          $url = $line->{url};
-        }
-      }
 
-      if (!$FORM{menu_category} || $FORM{menu_category} != $line->{id}) {
-        push @MENUS, $html->tpl_show(
-          _include('portal_menu', 'Portal'), {
-            HREF      => $url,
-            MENU_NAME => $line->{name},
-          }, { OUTPUT2RETURN => 1 }
-        );
-      }
-      else {
-        push @MENUS, $html->tpl_show(_include('portal_menu_hovered', 'Portal'), {
-          MENU_NAME => $line->{name}
-        }, { OUTPUT2RETURN => 1 });
-      }
-    }
+  foreach my $line (@$list) {
+    $url = !$line->{url} ? "$SELF_URL?menu_category=" . $line->{id} : $line->{url};
 
-    $OUTPUT{MENU} = join(($FORM{json} ? ',' : ''), @MENUS);
-  }
-  else {
-    $OUTPUT{MENU} = $lang{NO_MENU};
+    my $is_default = (!$FORM{menu_category} || $FORM{menu_category} != $line->{id});
+    push @MENUS, $html->tpl_show($portal_menu_template[$is_default], {
+      HREF      => $url,
+      MENU_NAME => $line->{name},
+    }, { OUTPUT2RETURN => 1 });
   }
 
-  my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
-  my $base_attach_link = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images/attach/portal" : '';
+  $OUTPUT{MENU} = scalar @MENUS ? join('', @MENUS) : $lang{NO_MENU};
+
+  my @content_templates = (
+    _include('portal_content_picture', 'Portal'),
+    _include('portal_content', 'Portal'),
+  );
 
   my @CONTENTS = ();
   if ($FORM{menu_category}) {
-    $list = $Portal->portal_articles_list({ ARTICLE_ID => $FORM{menu_category}, COLS_NAME => 1 });
-    if ($list->[0]->{id}) {
-      my $total_articles = 0;
-
-      my %templates = (
-        portal_content_picture => _include('portal_content_picture', 'Portal'),
-        portal_content => _include('portal_content', 'Portal'),
-      );
-
-      foreach my $line (@$list) {
-        if ($line->{utimestamp} && $line->{utimestamp} <= time()) {
-          if (!$line->{domain_id} || ($FORM{DOMAIN_ID} && $line->{domain_id}==$FORM{DOMAIN_ID})) {
-            my $template = $line->{picture} ? 'portal_content_picture' : 'portal_content';
-            push @CONTENTS, $html->tpl_show($templates{$template}, {
-              HREF              => "$SELF_URL?article=" . $line->{id},
-              TITLE             => $line->{title},
-              DATE              => $line->{date},
-              SHORT_DESCRIPTION => $line->{short_description},
-              PICTURE_SRC       => "$base_attach_link/$line->{picture}"
-            }, { OUTPUT2RETURN => 1 });
-            $total_articles++;
-          }
-        }
-      }
-
-      if ($total_articles <= 0) {
-        push @CONTENTS, $html->tpl_show(_include('portal_article', 'Portal'), {
-          TITLE   => '',
-          ARTICLE => $lang{NO_DATA}
-        }, { OUTPUT2RETURN => 1 });
-      }
-    }
-    else {
-      push @CONTENTS, $html->tpl_show(_include('portal_article', 'Portal'), {
-        TITLE   => '',
-        ARTICLE => $lang{NO_DATA}
-      }, { OUTPUT2RETURN => 1 });
-    }
-  }
-  elsif ($FORM{article}) {
-    $list = $Portal->portal_articles_list({
-      ID        => $FORM{article},
-      COLS_NAME => 1
+    my ($articles_res) = $Api->experimental_api_call({
+      PATH   => '/user/portal/news',
+      PARAMS => { PORTAL_MENU_ID => $FORM{menu_category} }
     });
 
-    if ($list->[0]->{id}) {
-      my $full_article = $list->[0];
+    $list = $articles_res->{news} || [];
+
+    foreach my $line (@$list) {
+      push @CONTENTS, $html->tpl_show($content_templates[!$line->{picture}], {
+        HREF              => "$SELF_URL?article=" . $line->{id},
+        TITLE             => $line->{title},
+        DATE              => $line->{date},
+        SHORT_DESCRIPTION => $line->{short_description},
+        PICTURE_SRC       => $line->{picture}
+      }, { OUTPUT2RETURN => 1 });
+    }
+
+  }
+  elsif ($FORM{article}) {
+    my ($article_res) = $Api->experimental_api_call({
+      PATH   => "/user/portal/news/$FORM{article}/",
+    });
+
+    my $full_article = $article_res->{news}->[0];
+
+    if ($full_article) {
       my $text = $full_article->{content};
+      my $picture = $full_article->{picture};
+
       my $text_article = is_html($text)
         ? $text
         : convert($text, { text2html => 1 });
 
-      my $picture = $list->[0]->{picture};
       my $template = $picture ? 'portal_article_picture' : 'portal_article';
       push @CONTENTS, $html->tpl_show(_include($template, 'Portal'), {
         TITLE             => $full_article->{title},
         ARTICLE           => $text_article || $full_article->{short_description},
         DATE              => $full_article->{date},
-        PICTURE_SRC       => "$base_attach_link/$picture"
+        PICTURE_SRC       => $picture
       }, { OUTPUT2RETURN => 1 });
     }
   }
   else {
-    $list = $Portal->portal_articles_list({ MAIN_PAGE => 1, COLS_NAME => 1 });
-    if ($list->[0]->{id}) {
+    my ($articles_res) = $Api->experimental_api_call({
+      PATH   => '/user/portal/news',
+      PARAMS => { MAIN_PAGE => 1 }
+    });
 
-      my %templates = (
-        portal_content_picture => _include('portal_content_picture', 'Portal'),
-        portal_content         => _include('portal_content', 'Portal'),
-      );
+    $list = $articles_res->{news} || [];
 
-      foreach my $line (@$list) {
-        if ($line->{utimestamp} && $line->{utimestamp} <= time()) {
-          if (!$line->{domain_id} || ($FORM{DOMAIN_ID} && $line->{domain_id}==$FORM{DOMAIN_ID})) {
-            my $template = $line->{picture} ? 'portal_content_picture' : 'portal_content';
-            push @CONTENTS, $html->tpl_show($templates{$template}, {
-              HREF              => "$SELF_URL?article=" . $line->{id},
-              TITLE             => $line->{title},
-              DATE              => $line->{date},
-              SHORT_DESCRIPTION => $line->{short_description},
-              PICTURE_SRC       => "$base_attach_link/$line->{picture}"
-            }, { OUTPUT2RETURN => 1 });
-          }
-        }
-      }
-    }
-    else {
-      push @CONTENTS, $html->tpl_show(_include('portal_article', 'Portal'), {
-        TITLE   => '',
-        ARTICLE => $lang{NO_DATA}
+    foreach my $line (@$list) {
+      push @CONTENTS, $html->tpl_show($content_templates[!$line->{picture}], {
+        HREF              => "$SELF_URL?article=" . $line->{id},
+        TITLE             => $line->{title},
+        DATE              => $line->{date},
+        SHORT_DESCRIPTION => $line->{short_description},
+        PICTURE_SRC       => $line->{picture}
       }, { OUTPUT2RETURN => 1 });
     }
   }
 
+  if (!scalar @CONTENTS) {
+    push @CONTENTS, $html->tpl_show(_include('portal_article', 'Portal'), {
+      TITLE   => '',
+      ARTICLE => $lang{NO_DATA}
+    }, { OUTPUT2RETURN => 1 });
+  };
+
   if (@REGISTRATION) {
     my $menu_registration_template = _include('portal_menu_registration', 'Portal');
-    $OUTPUT{REGISTRATION} = $html->tpl_show(
-      $menu_registration_template,
+    $OUTPUT{REGISTRATION} = $html->tpl_show($menu_registration_template,
       {
-        HREF      => "registration.cgi?module=$REGISTRATION[0]",
+        HREF      => "registration.cgi?module=$REGISTRATION[0]"
       },
       { OUTPUT2RETURN => 1 }
     );
-    $OUTPUT{REGISTRATION_MOBILE} = $html->tpl_show(
-      $menu_registration_template,
+    $OUTPUT{REGISTRATION_MOBILE} = $html->tpl_show($menu_registration_template,
       {
         CLASS     => 'd-lg-none',
         HREF      => "registration.cgi?module=$REGISTRATION[0]",
@@ -1014,19 +1001,19 @@ sub _portal_generate_permalink {
 =cut
 #***********************************************************
 sub portal_newsletters {
-  my $letters = $Portal->portal_newsletter_list({
-    COLS_NAME => 1,
-    SORT => $FORM{sort},
-    DESC => $FORM{desc}
+  my ($result) = $Api->experimental_api_call({
+    PATH         => "/portal/newsletter",
+    PARAMS       => { %FORM, %LIST_PARAMS }
   });
+  my $letters = $result->{list} || [];
 
   require Abills::Sender::Core;
   my $send_methods = \%Abills::Sender::Core::PLUGIN_NAME_FOR_TYPE_ID;
 
   my $table = $html->table({
-    width      => '100%',
-    caption    => $lang{ARTICLES},
-    title      => [
+    width   => '100%',
+    caption => $lang{ARTICLES},
+    title   => [
       "ID",
       $lang{TITLE},
       $lang{METHOD},
@@ -1034,7 +1021,9 @@ sub portal_newsletters {
       $lang{SENT},
       $lang{DATE}
     ],
-    ID         => 'PORTAL_TYPES',
+    qs      => $pages_qs,
+    pages   => $result->{total},
+    ID      => 'PORTAL_TYPES',
   });
 
   my @STATUSES = (
@@ -1058,6 +1047,140 @@ sub portal_newsletters {
   print $table->show();
 
   return 1;
+}
+
+#***********************************************************
+=head2 portal_attachments($attr) - list of attachments
+
+=cut
+#***********************************************************
+sub portal_attachments {
+  if ($FORM{del}) {
+    $Api->experimental_api_call({
+      METHOD => 'DELETE',
+      PATH   => "/portal/attachment/$FORM{del}/",
+    });
+  }
+
+  my $add_button = _portal_upload_button({ LIST => 0 });
+
+  my ($result) = $Api->experimental_api_call({
+    PATH   => '/portal/attachment',
+    PARAMS => { %FORM, %LIST_PARAMS }
+  });
+
+  result_former({
+    DATAHASH        => $result->{list},
+    DATATOTAL       => $result->{total},
+    DEFAULT_FIELDS  => 'id,filename,file_type,file_size,uploaded_at,src',
+    SKIP_USER_TITLE => 1,
+    FUNCTION_FIELDS => 'del',
+    EXT_TITLES      => {
+      id          => 'ID',
+      filename    => $lang{NAME},
+      file_type   => $lang{TYPE},
+      file_size   => $lang{SIZE},
+      uploaded_at => $lang{ADDED},
+      src         => $lang{LINK}
+    },
+    TABLE           => {
+      width       => '100%',
+      caption     => $lang{PORTAL_ATTACHMENTS},
+      qs          => $pages_qs,
+      ID          => 'PORTAL_ATTACHMENTS',
+      EXPORT      => 1,
+      MENU        => [ $add_button ],
+      SHOW_COLS   => 0,
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1,
+  });
+}
+
+#***********************************************************
+=head2 portal_attachments_ajax_modal($attr) - ajax attachment table
+
+=cut
+#***********************************************************
+sub portal_attachments_ajax_modal {
+  my ($attr) = @_;
+
+  my $table_list = '';
+  if ($FORM{SHOW_LIST}) {
+    my ($result) = $Api->experimental_api_call({
+      PATH   => '/portal/attachment/',
+      PARAMS => {
+        PAGE_ROWS   => 10000,
+        DESC        => 'DESC'
+      }
+    });
+    my $attachments_list = $result->{list} || [];
+    my $template = _include('portal_attachment_card_preview', 'Portal');
+
+    $table_list = join '', map {
+      $html->tpl_show($template, {
+        ATTACH_ID   => $_->{id},
+        FILENAME    => $_->{filename},
+        UPLOADED_AT => $_->{uploaded_at},
+        LINK        => $_->{src},
+      }, { OUTPUT2RETURN => 1 })
+    } @$attachments_list;
+  }
+
+  $table_list = $html->element('div', $table_list, { class => 'row' }, { OUTPUT2RETURN => 1 });
+  $html->tpl_show(_include('portal_attachments_list_add', 'Portal'), { ATTACHMENT_LIST => $table_list });
+}
+
+#**********************************************************
+=head2 _portal_upload_button($attr)
+
+  Arguments:
+    $attr - {
+      LIST => boolean - show list or not
+    }
+
+  Returns:
+    $button - string
+
+=cut
+#**********************************************************
+sub _portal_upload_button {
+  my ($attr) = @_;
+  my $add_icon = $html->element('i', '', { class => 'fas fa-paperclip mr-1' });
+
+  $html->button($add_icon . $lang{PORTAL_ATTACHMENTS}, '', {
+    class     => 'btn btn-xs btn-primary',
+    SKIP_HREF => 1,
+    ex_params => qq{onClick='loadToModal("?get_index=portal_attachments_ajax_modal&header=2&AJAX=1&SHOW_LIST=$attr->{LIST}", "", "xl")' style='min-width: max-content'}
+  })
+}
+
+#**********************************************************
+=head2 _portal_send_again_button($method_id)
+
+  Arguments:
+    $method_id - int
+
+  Returns:
+    $button - newsletter again button
+
+=cut
+#**********************************************************
+sub _portal_send_again_button {
+  my ($method_id) = @_;
+
+  return $html->element(
+    'button',
+    $lang{NEWSLETTER_AGAIN},
+    {
+      class                   => 'btn btn-xs btn-success',
+      type                    => 'button',
+      'data-method-id'        => $method_id,
+      'data-label-on-loading' => "$lang{LOADING}...",
+      'data-label-on-error'   => $lang{ERROR},
+      'data-label-on-success' => $lang{SUCCESS},
+    }
+  );
 }
 
 1;

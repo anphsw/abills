@@ -268,7 +268,13 @@ sub msgs_user_show {
     $Msgs->{UPDATED} = '--';
   }
 
-  $html->tpl_show(_include('msgs_client_show', 'Msgs'), { %{$Msgs}, ID => $main_msgs_id }, { ID => 'MSGS_CLIENT_INFO' });
+  my $button_msgs_id = $html->button($main_msgs_id, '', {
+    COPY      => $main_msgs_id,
+    class     => 'badge badge-primary',
+    ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}' data-tooltip-onclick=1"
+  });
+
+  $html->tpl_show(_include('msgs_client_show', 'Msgs'), { %{$Msgs}, ID => $main_msgs_id, ID_BUTTON_COPY => $button_msgs_id}, { ID => 'MSGS_CLIENT_INFO' });
 
   my %params = ();
   my $state = $FORM{STATE};
@@ -312,7 +318,7 @@ sub msgs_user {
 
   $Msgs->{STATE_SEL} = $html->form_select('STATE', {
     SELECTED   => $FORM{STATE} || 0,
-    SEL_HASH   => !$FORM{ID} ? { 0 => $msgs_status->{0} } : {
+    SEL_HASH   => {
       0 => $msgs_status->{0},
       1 => $msgs_status->{1},
       2 => $msgs_status->{2}
@@ -380,7 +386,7 @@ sub msgs_user {
     $html->message('info', $lang{INFO}, "$lang{MESSAGE} # $Msgs->{MSG_ID}.  $lang{MSG_SENDED} ");
 
     $Notify->notify_admins({ MSG_ID => $new_msg_id });
-    _notify_admins_by_chapter($FORM{CHAPTER}, $new_msg_id) if !$FORM{RESPOSIBLE} && $FORM{CHAPTER};
+    $Notify->notify_admins_by_chapter($FORM{CHAPTER}, $new_msg_id) if !$FORM{RESPOSIBLE} && $FORM{CHAPTER};
     _msgs_send_support_request_mail();
 
     my $message_added_text = "$lang{MESSAGE} " . ($Msgs->{MSG_ID} ? " #$Msgs->{MSG_ID} " : '') . $lang{MSG_SENDED};
@@ -510,8 +516,14 @@ sub msgs_user {
       $table->{rowcolor} = ($FORM{ID} && $line->{id} == $FORM{ID}) ? 'row_active' : undef;
       $line->{subject} = convert($line->{subject}, { text2html => 1, json => $FORM{json} });
 
+      my $msgs_id = $html->button($line->{id}, '', {
+        COPY      => $line->{id},
+        class     => 'btn btn-default btn-sm p-0',
+        ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}' data-tooltip-onclick=1"
+      });
+
       $table->addrow(
-        $line->{id},
+        $msgs_id,
         ($line->{user_read} ne '0000-00-00 00:00:00')
         ? $html->button((($line->{subject}) ? "$line->{subject}" : $lang{NO_SUBJECT}), "index=$index&ID=$line->{id}&sid=$sid#last_msg")
         : $html->button($html->b((($line->{subject}) ? "$line->{subject}" : $lang{NO_SUBJECT})), "index=$index&ID=$line->{id}&sid=$sid#last_msg"),
@@ -720,31 +732,6 @@ sub _user_edit_reply {
     });
   };
   return 1;
-}
-
-#**********************************************************
-=head2 _notify_admins_by_chapter()
-
-=cut
-#**********************************************************
-sub _notify_admins_by_chapter {
-  my ($chapter_id, $msg_id) = @_;
-
-  return '' if !$chapter_id || !$msg_id;
-
-  my $admins_permissions = $Msgs->permissions_list();
-
-  foreach my $aid (keys %{$admins_permissions}) {
-    my $admin_permission = $admins_permissions->{$aid};
-
-    next if $admin_permission->{1}{24};
-    next if !$admin_permission->{5} || !$admin_permission->{6}{$chapter_id};
-    next if $admin_permission->{4} && !$admin_permission->{4}{$chapter_id};
-
-    $Notify->notify_admins({ MSG_ID => $msg_id, SEND_TO_AID => $aid, AID => $aid });
-  }
-
-  return;
 }
 
 1;

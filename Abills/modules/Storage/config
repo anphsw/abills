@@ -24,6 +24,7 @@
   "56:50:$lang{INSTALLED_REPORT}:storage_installation_report:"                                => 4,
   "57:50:$lang{STORAGE_NAS_INSTALLATIONS_REPORT}:storage_nas_installations_report:"           => 4,
   "58:50:$lang{REPORT_ON_USED_MATERIALS_FROM_THE_STORAGE}:storage_total_installation_report:" => 4,
+  "59:50:$lang{STORAGE_PURCHASE_REPORT}:storage_delivery_report:"                             => 4,
 
   # Maintain
   "80:0:$lang{STORAGE}:null"                                                                  => 8,

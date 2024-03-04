@@ -7,7 +7,7 @@
       e-mail
       sms (with Sms module)
 
-  ERROR:_ID: 21xx
+  ERROR:_ID: 121ХХХХ
 
 =cut
 
@@ -17,7 +17,7 @@ use warnings FATAL => 'all';
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Ureports',
-  REQUIRE_VERSION => 8.02,
+  REQUIRE_VERSION => 8.07,
 })) {
 
   exit;
@@ -242,7 +242,7 @@ sub ureports_user {
     if (in_array(0, \@report_types) && (!$FORM{DESTINATION_9} || $FORM{DESTINATION_9} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/)) {
       $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_EMAIL});
     }
-    elsif (in_array(1, \@report_types) && $conf{PHONE_FORMAT} && $FORM{DESTINATION_1} !~ /$conf{PHONE_FORMAT}/) {
+    elsif (in_array(1, \@report_types) && $conf{PHONE_FORMAT} && (!$FORM{DESTINATION_1} || $FORM{DESTINATION_1} !~ /$conf{PHONE_FORMAT}/)) {
       _error_show({ errno => 21, errstr => 'ERR_WRONG_PHONE' });
     }
     else {
@@ -497,11 +497,10 @@ sub ureports_tp {
     $tarif_info->{ACTION} = 'change';
   }
   elsif (defined($FORM{del}) && $FORM{COMMENTS}) {
-    $Tariffs->del($FORM{del});
+    $Ureports->tp_del($FORM{del}, { COMMENTS => $FORM{COMMENTS} });
 
     if (!$Tariffs->{errno}) {
       $html->message('info', $lang{DELETED}, "$lang{DELETED} $FORM{del}");
-      $Ureports->tp_del($FORM{del});
     }
   }
 
@@ -1173,7 +1172,8 @@ sub ureports_extra_reports {
 
   my $contents = _get_files_in($mod_path, { FILTER => '\.pm' });
   foreach my $report_module (@$contents) {
-    if ($report_module eq 'Send.pm' || $report_module eq 'Base.pm') {
+    my @skip_modules = ('Send.pm', 'Base.pm', 'Api.pm', 'Errors.pm');
+    if (in_array($report_module, \@skip_modules)) {
       next;
     }
     require $mod_path . $report_module;
@@ -1594,28 +1594,28 @@ sub _ureports_get_user_contacts {
     }
   }
 
-  my $pi = Users->new($db, $admin, \%conf);
-  $pi->pi({ UID => $uid });
+  # my $pi = Users->new($db, $admin, \%conf);
+  # $pi->pi({ UID => $uid });
 
-  if ($pi->{EMAIL}) {
-    my $email_type_id = $Contacts->contact_type_id_for_name('EMAIL');
-
-    foreach my $email (split(';\s?', $pi->{EMAIL})) {
-      push @{$contacts_list}, {
-        type_id => $email_type_id,
-        value   => $email
-      };
-    }
-  }
-
-  my $phone = $user->{PHONE} || $pi->{PHONE};
-  if ($phone && in_array('Sms', \@MODULES)) {
-    my $cell_phone_type = $Contacts->contact_type_id_for_name('CELL_PHONE');
-    push @{$contacts_list}, {
-      type_id => $cell_phone_type,
-      value   => $phone
-    };
-  }
+  # if ($pi->{EMAIL}) {
+  #   my $email_type_id = $Contacts->contact_type_id_for_name('EMAIL');
+  #
+  #   foreach my $email (split(';\s?', $pi->{EMAIL})) {
+  #     push @{$contacts_list}, {
+  #       type_id => $email_type_id,
+  #       value   => $email
+  #     };
+  #   }
+  # }
+  #
+  # my $phone = $user->{PHONE} || $pi->{PHONE};
+  # if ($phone && in_array('Sms', \@MODULES)) {
+  #   my $cell_phone_type = $Contacts->contact_type_id_for_name('CELL_PHONE');
+  #   push @{$contacts_list}, {
+  #     type_id => $cell_phone_type,
+  #     value   => $phone
+  #   };
+  # }
 
   if ($conf{PUSH_ENABLED}) {
     delete $Contacts->{TOTAL};

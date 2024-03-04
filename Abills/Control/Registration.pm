@@ -106,9 +106,9 @@ sub _start {
     print "Can't find modules services for registration";
     exit;
   }
-  elsif ($FORM{get_index} && $FORM{get_index} eq 'form_address_select2') {
+  elsif ($FORM{get_index} && $FORM{get_index} eq 'form_address_select') {
     print "Content-Type: text/html\n\n";
-    form_address_select2(\%FORM);
+    form_address_select(\%FORM);
     exit 1;
   }
   elsif (!$FORM{no_addr}
@@ -177,7 +177,7 @@ sub _start {
     my $address_modal_form = '';
 
     unless ($FORM{FORGOT_PASSWD}) {
-      $address_modal_form = form_address_select2({
+      $address_modal_form = form_address_select({
         REGISTRATION_MODAL => 1,
         DISTRICT_SELECT_ID => 'REG_DISTRICT_ID',
         STREET_SELECT_ID   => 'REG_STREET_ID',
@@ -391,11 +391,12 @@ sub password_change_process {
 #**********************************************************
 sub get_address_connected_message {
 
-  require Control::Address_mng;
+  return '' if !$FORM{REG_BUILD_ID};
+
   require Address;
   my $Address = Address->new($db, $admin, \%conf);
 
-  my $info = $Address->build_info({ ID => $FORM{LOCATION_ID} });
+  my $info = $Address->build_info({ ID => $FORM{REG_BUILD_ID} });
 
   return ($info->{PLANNED_TO_CONNECT} && $info->{PLANNED_TO_CONNECT} == 1)
     ? "<div class='callout callout-info'>$lang{CHECK_ADDRESS_PLANNED_TO_CONNECT_MSG}</div>"

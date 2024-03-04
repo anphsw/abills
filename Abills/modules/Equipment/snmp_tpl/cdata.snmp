@@ -78,6 +78,11 @@
         "NAME"   : "DISTANCE",
         "OIDS"   : "1.3.6.1.4.1.34592.1.3.4.1.1.13.1",
         "PARSER" : "_cdata_convert_distance"
+      },
+      "ONU_LAST_DOWN_CAUSE" : {
+        "NAME"   : "ONU_LAST_DOWN_CAUSE",
+        "OIDS"   : ".1.3.6.1.4.1.3320.10.3.1.1.35",
+        "PARSER" : ".1.3.6.1.4.1.34592.1.3.6.0.17"
       }
       //        "ONU_PORTS_STATUS" : {
       //          "NAME"   : "",

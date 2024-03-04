@@ -3,7 +3,7 @@ $lang{ERR_PHONE_NOT_DEFINED}='Не вказано телефон';
 $lang{MSG_ID}='Номер повідомлення';
 $lang{SEND_TIME}='Запланований час відправки';
 $lang{SENDED}='Відправлено';
-$lang{UPDATED}='Обновлено';
+$lang{UPDATED}='Оновлено';
 
 $lang{DIRECT} = 'Особисті';
 
@@ -38,5 +38,6 @@ $lang{ADD_SUM_TRANSFER} = 'Переказав коштів в сумі';
 $lang{SMS_GATEWAY} = 'СМС шлюз';
 
 $lang{EXCEEDED_SMS_LIMIT} = 'Перевищено ліміт SMS для цього користувача';
+$lang{ERR_SMS_ACCOUNT_INFO} = 'Ви використовуєте модуль %SERVICE_NAME%, в якому не передбачено відображення цього звіту';
 
-1
+1;

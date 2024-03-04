@@ -17,7 +17,6 @@ use warnings FATAL => 'all';
 use Abills::Base qw(_bp in_array int2byte convert);
 use Abills::Filters qw(bin2mac bin2hex _mac_former);
 use Equipment::Misc qw(equipment_get_telnet_tpl);
-use JSON qw(decode_json);
 
 our (
   %lang,
@@ -28,7 +27,7 @@ our (
   %ONU_STATUS_TEXT_CODES
 );
 
-my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
+#my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
 
 my %type_name = (
   1  => 'epon_olt_virtualIfBER', # gpon on C300
@@ -456,6 +455,7 @@ sub _zte_onu_list2 { #TODO: delete?
   Arguments:
     $attr
       TYPE
+      MODEL
       EPON
 
   Returns:
@@ -466,24 +466,21 @@ sub _zte_onu_list2 { #TODO: delete?
 sub _zte {
   my ($attr) = @_;
 
-  if ($attr->{MODEL} && $attr->{MODEL} =~ /^C320/) {
-    return _zte_c320($attr);
+  my $model_tpl = 'zte';
+  my $model = $attr->{MODEL} || q{};
+  if ($model =~ /^C320_V2/) {
+    $model_tpl = 'zte_c3xx';
+  }
+  elsif ($model =~ /^C320/) {
+    $model_tpl = 'zte_c320';
+  }
+  elsif ($model =~ /^C6/i) {
+    $model_tpl = 'zte_c6xx';
   }
 
-  my $file_content = file_op({
-    FILENAME   => 'zte.snmp',
-    PATH       => $TEMPLATE_DIR,
-  });
+  my $snmp = _get_snmp($model_tpl);
 
-  $file_content =~ s#//.*$##gm;
-
-  my $snmp = decode_json($file_content);
-
-  if ($attr->{MODEL} && $attr->{MODEL} !~ /C320/i) {
-    delete $snmp->{gpon}->{OLT_RX_POWER};
-  }
-
-  if ($attr->{MODEL} && $attr->{MODEL} =~ /_V2$|C300/i) {
+  if ($model =~ /_V2$|C300/i) {
     $snmp->{gpon}->{reset} = {
       NAME        => '',
       OIDS        => '1.3.6.1.4.1.3902.1082.500.20.2.1.10.1.1',
@@ -492,21 +489,13 @@ sub _zte {
     }
   }
 
-  if ($attr->{MODEL} && $attr->{MODEL} =~ /^C6/i) {
-    $file_content = file_op({
-      FILENAME   => 'zte_c6xx.snmp',
-      PATH       => $TEMPLATE_DIR,
-    });
-
-    $file_content =~ s#//.*$##gm;
-    $snmp = decode_json($file_content);
-  }
-
   if ($attr->{TYPE}) {
     return $snmp->{$attr->{TYPE}};
   }
+
   return $snmp;
 }
+
 #**********************************************************
 =head2 _zte_convert_admin_state();
 
@@ -1819,6 +1808,8 @@ sub _zte_convert_info_temperature {
 sub _zte_last_down_cause {
   my ($down_cause)=@_;
 
+  $down_cause //= 1;
+
   my %down_couses = (
     1 => 'Unknown',
     2 => 'LOS',
@@ -1883,27 +1874,4 @@ sub _index2port {
 }
 
 
-#**********************************************************
-=head2 _zte_c320($attr) - for c320
-
-
-=cut
-#**********************************************************
-sub _zte_c320 {
-  my ($attr) = @_;
-
-  my $file_content = file_op({
-    FILENAME   => 'zte_c320.snmp',
-    PATH       => $TEMPLATE_DIR,
-  });
-  $file_content =~ s#//.*$##gm;
-
-  my $snmp = decode_json($file_content);
-
-  if ($attr->{TYPE}) {
-    return $snmp->{$attr->{TYPE}};
-  }
-
-  return $snmp;
-}
 1

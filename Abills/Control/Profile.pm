@@ -27,6 +27,11 @@ our Abills::HTML $html;
 #**********************************************************
 sub admin_profile {
 
+  if (!$permissions{8}{0}){
+    $html->message('err', $lang{PERMISIION_DENIED}, "");
+    return 1;
+  }
+
   _admin_info_change();
 
   require Control::Quick_reports;
@@ -74,8 +79,7 @@ sub admin_profile {
     my $allowed_picture_size = 500000;
 
     if ($FORM{UPLOAD_FILE} && $FORM{UPLOAD_FILE}{Size} && $FORM{UPLOAD_FILE}{Size} <= $allowed_picture_size){
-      my $is_uploaded = upload_file($FORM{UPLOAD_FILE},
-      {
+      my $is_uploaded = upload_file($FORM{UPLOAD_FILE}, {
         FILE_NAME => $file_name,
         EXTENTIONS => 'gif, png, jpg, jpeg',
         REWRITE   => 1
@@ -88,7 +92,6 @@ sub admin_profile {
     else {
       $html->message('err', $lang{ERROR}, "$lang{PICTURE_SIZE_NOT_ALLOWED} 500 Kb");
     }
-
   }
 
   my $subscribe_mng_block = _profile_get_admin_sender_subscribe_block($admin->{AID});
@@ -691,7 +694,7 @@ sub _make_subscribe_btn {
     my $qr_button = $html->element('a', $qr_icon,
       {
         class => "btn $btn_class border-left-1",
-        onclick => "showImgInModal('$SELF_URL?qrcode=1&qindex=10010&QRCODE_URL=$attr->{HREF}', '$name $lang{QR_CODE}');",
+        onclick => "showImgInModal('$SELF_URL?qrcode=1&qindex=10010&QRCODE_URL=$attr->{HREF}&EX_PARAMS=1', '$name $lang{QR_CODE}');",
         OUTPUT2RETURN => 1
       }
     );

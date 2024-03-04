@@ -129,7 +129,11 @@ if ($conf{NEW_REGISTRATION_FORM}) {
   }
 }
 else {
-  require Control::Registration;
+  eval { require Control::Registration };
+  if ($@) {
+    print $@;
+    exit;
+  }
   _start();
 }
 

@@ -145,7 +145,7 @@ sub show_form_location {
     NO_ID       => 1,
   });
 
-  my $address = form_address_select2({
+  my $address = form_address_select({
     HIDE_FLAT             => 1,
     HIDE_ADD_BUILD_BUTTON => 1,
     LOCATION_ID           => $location_id,

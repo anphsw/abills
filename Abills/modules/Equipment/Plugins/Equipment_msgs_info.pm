@@ -83,6 +83,8 @@ sub plugin_show {
   return '' if (!in_array('Internet', \@::MODULES));
   return '' if ($admin->{MODULES} && !$admin->{MODULES}{Equipment});
 
+  require Internet;
+  Internet->import();
   my $Internet = Internet->new($db, $admin, $CONF);
 
   my $user_info = $Internet->user_info($attr->{UID});

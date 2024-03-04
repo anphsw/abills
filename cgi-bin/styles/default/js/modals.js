@@ -53,7 +53,8 @@ function loadToModal(url, callback, size) {
         var modalBody = $('#CurrentOpenedModal').find('.modal-body');
         modalBody.html(data);
 
-        if (modalBody.find('.card-header').length === 1 && !modalBody.find('.card-header').find('.card-tools').length) {
+        let firstCardHeader = modalBody.find('.card-header').first();
+        if (modalBody.find('.card-header').first()) {
           var header_inside = modalBody.find('.card-header').first();
           var header_outside = $('#CurrentOpenedModal_header');
 
@@ -155,7 +156,7 @@ function showImgInModal(url, title) {
   let processed_url = url.replace("\n", '');
 
   loadDataToModal(
-  '<img src="' + processed_url + '" class="center-block" alt="Seems like image...">',
+  '<img src="' + processed_url + '" class="center-block" style="display: block; margin: 0 auto;" alt="Seems like image...">',
   true,
   true,
   title
@@ -167,6 +168,7 @@ function showImgInModal(url, title) {
  * @param data DOM elements to show in modal
  * @param decorated
  * @param withoutButton
+ * @param title
  */
 function loadDataToModal(data, decorated, withoutButton, title) {
   if (decorated) {

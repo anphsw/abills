@@ -28,23 +28,30 @@
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='CHECK_HEADER'>_{CHECK}_ Header:</label>
+        <label class='control-label col-md-3' for='CHECK_HEADER'>_{CHECK_HEADER}_:</label>
         <div class='col-md-9'>
           <input type='text' class='form-control' value='%CHECK_HEADER%' name='CHECK_HEADER' id='CHECK_HEADER'/>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='CHECK_DESC'>_{CHECK}_ Desc:</label>
+        <label class='control-label col-md-3' for='CHECK_DESC'>_{CHECK}_ _{DESCRIBE}_:</label>
         <div class='col-md-9'>
           <input type='text' class='form-control' value='%CHECK_DESC%' name='CHECK_DESC' id='CHECK_DESC'/>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='CHECK_FOOTER'>_{CHECK}_ Footer:</label>
+        <label class='control-label col-md-3' for='CHECK_FOOTER'>_{CHECK_FOOTER}_:</label>
         <div class='col-md-9'>
           <input type='text' class='form-control' value='%CHECK_FOOTER%' name='CHECK_FOOTER' id='CHECK_FOOTER'/>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='control-label col-md-3' for='TAX_ID'>_{TAX_RATE}_:</label>
+        <div class='col-md-9'>
+          %TAX_ID_SEL%
         </div>
       </div>
 

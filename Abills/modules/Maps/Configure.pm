@@ -37,8 +37,8 @@ our ($Maps, @MAPS_CUSTOM_ICONS);
 sub maps_auto_coords {
 
   $html->tpl_show(_include('maps_coords_form', 'Maps'), {
-    DISTRICTS_SELECT => _maps_address_districts(\%FORM),
-    STREETS_SELECT   => _maps_address_streets(\%FORM)
+    DISTRICTS_SELECT => sel_districts_full_path(\%FORM),
+    STREETS_SELECT   => sel_streets(\%FORM)
   });
 
   return 0 if !$FORM{STREET_ID};
@@ -50,10 +50,14 @@ sub maps_auto_coords {
     DISTRICT_NAME      => '_SHOW',
     NUMBER             => '_SHOW',
     LOCATION_ID        => '_SHOW',
-    STREET_SECOND_NAME => '_SHOW'
+    STREET_SECOND_NAME => '_SHOW',
+    SORT               => $FORM{sort} || '',
+    DESC               => $FORM{desc} || '',
   });
 
   return 0 if $Maps->{TOTAL} < 1;
+  $pages_qs .= "&STREET_ID=$FORM{STREET_ID}";
+  $pages_qs .= "&DISTRICT_ID=$FORM{DISTRICT_ID}" if $FORM{DISTRICT_ID};
 
   my $feel_all_btn = $html->button($lang{FEEL_ALL}, '', {
     class     => 'btn btn-sm btn-primary',
@@ -67,6 +71,7 @@ sub maps_auto_coords {
     title   => [ $lang{DISTRICT}, $lang{STREET}, $lang{SECOND_NAME}, $lang{NUMBER}, $lang{STATUS}, '' ],
     pages   => $Maps->{TOTAL},
     ID      => 'BUILDS',
+    qs      => $pages_qs,
     MENU    => [ $feel_all_btn ]
   });
 
@@ -88,64 +93,6 @@ sub maps_auto_coords {
   print $table->show;
 
   return 1;
-}
-
-#**********************************************************
-=head2 _maps_address_districts()
-
-=cut
-#**********************************************************
-sub _maps_address_districts {
-  my ($attr) = @_;
-
-  #  Districts
-  my $districts = $Address->district_list({
-    COLS_NAME => 1,
-    PAGE_ROWS => 999999,
-    SORT      => 'd.name'
-  });
-
-  my $districts_select = $html->form_select('DISTRICT_ID', {
-    ID          => $attr->{DISTRICT_SELECT_ID},
-    SELECTED    => $attr->{DISTRICT_ID} || 0,
-    SEL_LIST    => $districts,
-    SEL_KEY     => 'id',
-    SEL_VALUE   => 'name',
-    NO_ID       => 1,
-    SEL_OPTIONS => { 0 => '--' },
-    EX_PARAMS   => 'onChange="GetStreets(this)"',
-  });
-
-  return $districts_select;
-}
-
-#**********************************************************
-=head2 _maps_address_streets()
-
-=cut
-#**********************************************************
-sub _maps_address_streets {
-  my ($attr) = @_;
-
-  my $streets = $Address->street_list({
-    DISTRICT_ID => $attr->{DISTRICT_ID},
-    STREET_NAME => '_SHOW',
-    SORT        => 's.name',
-    COLS_NAME   => 1,
-    PAGE_ROWS   => 999999
-  });
-
-  my $streets_select = $html->form_select('STREET_ID', {
-    ID          => 'STREET_ID',
-    SELECTED    => $attr->{STREET_ID} || 0,
-    SEL_LIST    => $attr->{DISTRICT_ID} ? $streets : '',
-    SEL_KEY     => 'id',
-    SEL_VALUE   => 'street_name',
-    NO_ID       => 1,
-    SEL_OPTIONS => { 0 => '--' },
-  });
-
-  return $streets_select;
 }
 
 #**********************************************************

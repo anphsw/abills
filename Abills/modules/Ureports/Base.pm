@@ -10,6 +10,7 @@ my Abills::HTML $html;
 my $lang;
 my Ureports $Ureports;
 my $Sender;
+my %sending_types = ();
 
 #**********************************************************
 =head2 new($html, $lang)
@@ -34,6 +35,8 @@ sub new {
 
   use Abills::Sender::Core;
   $Sender = Abills::Sender::Core->new($db, $admin, $CONF);
+
+  %sending_types = %Abills::Sender::Core::PLUGIN_NAME_FOR_TYPE_ID;
 
   bless($self, $class);
 
@@ -311,7 +314,7 @@ sub ureports_send_reports {
   my $self = shift;
   my ($type, $destination, $message, $attr) = @_;
 
-  return 0 if !$type;
+  return 0 if (!$type);
 
   my @types = split(',\s?', $type);
   my @destinations = split(',\s?', $destination);
@@ -320,10 +323,11 @@ sub ureports_send_reports {
 
   my $type_index = 0;
   my $status = 0;
+  my %sended_distination = ();
 
   foreach my $send_type (@types) {
     # Fix old EMAIL type 0 -> 9
-    $send_type = 9 if ($send_type eq '0');
+    $send_type = 9 if (! $send_type || $send_type eq '0');
 
     if ($attr->{MESSAGE_TEPLATE}) {
       $message = $html->tpl_show(main::_include($attr->{MESSAGE_TEPLATE}, 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
@@ -333,19 +337,46 @@ sub ureports_send_reports {
       $message = $html->tpl_show(main::_include('ureports_sms_message', 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
     }
     elsif ($attr->{REPORT_ID}) {
-      $message = $html->tpl_show(main::_include('ureports_report_' . $attr->{REPORT_ID}, 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
+      my $message_template = 'ureports_report_' . $attr->{REPORT_ID};
+
+      if($sending_types{$send_type}) {
+        my $send_type_format = lc($sending_types{$send_type});
+        my $send_type_tpl = 'ureports_report_'. $send_type_format .'_' . $attr->{REPORT_ID};
+        my $check_tpl = $html->tpl_show(main::_include($send_type_tpl, 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
+        if ($check_tpl !~ /No such module/) {
+          $message_template = $send_type_tpl;
+        }
+      }
+
+      $message = $html->tpl_show(main::_include($message_template, 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
     }
 
     if ($attr->{SUBJECT_TEMPLATE}) {
       $subject = $html->tpl_show(main::_include($attr->{SUBJECT_TEMPLATE}, 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
     }
 
+    if (! $destinations[$type_index] ) {
+      print "Skip unknown send type: $type_index Destination: $destination\n";
+      $type_index++;
+      next;
+    }
+
+    $sended_distination{$send_type.'_'.$destinations[$type_index]}++;
+
     if ($debug > 6) {
       print "TYPE: ". ($send_type || 'Not defined')
         ." DESTINATION: ". ($destinations[$type_index] || 'Use default')
         ." MESSAGE: ". ($message || 'TPL only') ."\n";
 
+      if ($sended_distination{$send_type.'_'.$destinations[$type_index]} > 1) {
+        print "DUPLICATE DESTINATION\n\n";
+      }
+
       $type_index++;
+      next;
+    }
+
+    if ($sended_distination{$send_type.'_'.$destinations[$type_index]} > 1) {
       next;
     }
 
@@ -435,6 +466,23 @@ sub ureports_docs {
   }
 
   return \@services;
+}
+
+#**********************************************************
+=head2 ureports_user_del($uid, $attr) - Delete user from module
+
+=cut
+#**********************************************************
+sub ureports_user_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return 0 if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
+
+  $Ureports->{UID} = $attr->{USER_INFO}{UID};
+  $Ureports->user_del({ UID => $attr->{USER_INFO}{UID}, COMMENTS => $attr->{USER_INFO}{COMMENTS} });
+
+  return 1;
 }
 
 1;

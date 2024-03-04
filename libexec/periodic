@@ -45,7 +45,10 @@ require $Bin . '/config.pl';
 my $function_start = $begin_time;
 our $html = Abills::HTML->new( { CONF => \%conf } );
 our $db = Abills::SQL->connect( $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
-  { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef } );
+  { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
+    db_engine => 'dbcore'
+  } );
+
 our %PERIODIC;
 our @MODULES;
 our %lang;
@@ -53,6 +56,7 @@ our %lang;
 our $MYSQLDUMP;
 our $GZIP;
 our $TAR;
+our $var_dir;
 
 
 our $admin = Admins->new( $db, \%conf );
@@ -1059,7 +1063,7 @@ sub backup{
 
   my $cmd =
     qq{ ( $MYSQLDUMP $mysql_opts --default-character-set=$conf{dbcharset} -d --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} ; }
-    . qq{   $MYSQLDUMP $mysql_opts $skip_triggers --single-transaction --no-create-info --default-character-set=$conf{dbcharset} -v $ignore_tables --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname}) | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz };
+    . qq{   $MYSQLDUMP $mysql_opts $skip_triggers --single-transaction --skip-lock-tables --no-create-info --default-character-set=$conf{dbcharset} -v $ignore_tables --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname}) | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz };
 
   my $res = cmd( $cmd, { DEBUG => $debug, timeout => 0, SHOW_RESULT => 1 } );
   $DEBUG .= "Backup created: $conf{BACKUP_DIR}/stats-$DATE.sql.gz ($res)\n" if ($debug > 1);
@@ -1669,7 +1673,6 @@ sub restore_by_table {
 #*******************************************************************
 sub rotate_logs {
   my $rotate_level = 5;
-  #my $debug = $argv->{DEBUG} || 0;
 
   my $files = startup_files({ TPL_DIR => $conf{TPL_DIR} });
 
@@ -1677,7 +1680,9 @@ sub rotate_logs {
     $GZIP=$files->{GZIP};
   }
 
-  my @logs_list = glob '/usr/abills/var/log/*.log';
+  my $rotate_dir = ($var_dir) ? $var_dir .'/log/' : '/usr/abills/var/log/';
+
+  my @logs_list = glob $rotate_dir .'/*.log';
   foreach my $logfile (@logs_list) {
     print "Rotate $logfile\n" if ($debug);
     my $cmd = '';

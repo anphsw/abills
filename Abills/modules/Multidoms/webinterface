@@ -776,14 +776,13 @@ sub multidoms_reseller_nas {
     }
   );
 
-  my $countries_hash;
-  ($countries_hash, $Nas->{COUNTRY_SEL}) = sel_countries({
-      NAME    => 'COUNTRY',
-      COUNTRY => $Nas->{COUNTRY} });
+  # my $countries_hash;
+  # ($countries_hash, $Nas->{COUNTRY_SEL}) = sel_countries({
+  #     NAME    => 'COUNTRY',
+  #     COUNTRY => $Nas->{COUNTRY} });
 
   $Nas->{NAS_DISABLE}    = ($Nas->{NAS_DISABLE} > 0) ? ' checked' : '';
   $Nas->{ADDRESS_TPL}    = form_address();
-  #$Nas->{ADDRESS_TPL}    = $html->tpl_show(templates('form_address'), $Nas, { OUTPUT2RETURN => 1 });
   require Control::Nas_mng;
   $Nas->{NAS_GROUPS_SEL} = sel_nas_groups({ GID => $Nas->{GID} });
 

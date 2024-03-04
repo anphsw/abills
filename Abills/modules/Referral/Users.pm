@@ -1,6 +1,7 @@
 package Referral::Users;
 use strict;
 use warnings FATAL => 'all';
+use POSIX qw(strftime);
 
 =head1 NAME
 
@@ -20,6 +21,7 @@ my Users $Users;
 my Abills::HTML $html;
 
 my %lang;
+my $DATE;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -40,6 +42,7 @@ sub new {
 
   $Users = Users->new($db, $admin, $conf);
   $Referral = Referral->new($db, $admin, $conf, { SKIP_CONF => 1 });
+  $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
 
   bless($self, $class);
 
@@ -209,7 +212,7 @@ sub referrals_list {
     phone        => '_SHOW',
     ADDRESS      => '_SHOW',
     FIO          => '_SHOW',
-    STATUS       => '_SHOW',
+    STATUS       => $attr->{STATUS} || '_SHOW',
     TP_ID        => '_SHOW',
     REFERRAL_UID => $attr->{REFERRAL_UID} || '_SHOW',
     USER_STATUS  => '_SHOW',
@@ -218,6 +221,7 @@ sub referrals_list {
     DATE         => '_SHOW',
     PAYMENTS_TYPE=> '_SHOW',
     FEES_TYPE    => '_SHOW',
+    INACTIVE_DAYS => '_SHOW',
     SORT         => 'r.id',
     DESC         => 'DESC',
     COLS_NAME    => 1,
@@ -267,6 +271,7 @@ sub referrals_list {
         BONUS_BILL     => $bonus_bill,
         REFERRER       => $referral->{referrer},
         UID            => $referral->{referral_uid},
+        TP_INACTIVE_DAYS  => $referral->{inactive_days},
       }
     }
     else {
@@ -537,6 +542,7 @@ sub _referral_add_bonus {
   my $Bills = Bills->new($self->{db}, $self->{admin}, $self->{conf});
   my $Payments = Payments->payments($self->{db}, $self->{admin}, $self->{conf});
 
+
   if (!$referral->{BONUS_BILL}) {
     $Payments->add($Users, {
       SUM      => $referral->{TOTAL_BONUS},
@@ -652,11 +658,16 @@ sub referral_bonus_add {
   my %params = ();
   $params{REFERRAL_UID} = $attr->{REFERRAL_UID} if ($attr->{REFERRAL_UID});
   $params{UID} = $attr->{UID} if ($attr->{UID});
+  $params{STATUS} = 2;
 
   my $result = $self->referrals_list(\%params);
 
   if ($result && $result->{referrals_total}) {
     foreach my $referral (@{$result->{referrals}}) {
+      if ($referral->{TP_INACTIVE_DAYS} > 0){
+        my $check_inactive_days = _referral_check_inactive_days($referral);
+        next if ($check_inactive_days);
+      }
       $self->_referral_add_bonus($referral);
     }
   }
@@ -665,5 +676,32 @@ sub referral_bonus_add {
     result => 'Bonus added',
   };
 }
+
+#**********************************************************
+=head2 _referral_check_inactive_days ($referral)
+
+    Attr:
+      $referral
+
+    Return
+      true or false
+
+=cut
+#**********************************************************
+sub _referral_check_inactive_days {
+  my ($referral) = @_;
+  return if !$referral->{UID};
+
+  my $user_info = $Users->info($referral->{UID});
+  return if $user_info->{DISABLE_DATE} eq '0000-00-00';
+
+  my $fact_inactive_days = date_diff($user_info->{DISABLE_DATE}, $DATE);
+  if ($fact_inactive_days >= $referral->{TP_INACTIVE_DAYS}){
+    return 1;
+  }
+
+  return;
+}
+
 
 1;

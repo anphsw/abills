@@ -127,6 +127,10 @@ _bp(undef, undef, { SET_ARGS => { TO_CONSOLE => 1 } });
     exit 1;
   }
   # Checking if already running
+  elsif (defined($ARGS->{foreground})) {
+    print "foreground mode\n";
+  }
+  # Checking if already running
   elsif (is_running(\%daemon_args)) {
     exit 1;
   }

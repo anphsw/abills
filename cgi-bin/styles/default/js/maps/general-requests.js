@@ -143,7 +143,7 @@ function ABillingLocation(LocationArray) {
         jQuery('#districtModalButton').on('click', function () {
 
           var dId = amodal.$modal.find('input[name="DISTRICT_ID"]').val();
-          var sId = amodal.$modal.find('input[name="STREET_ID"]').val();
+          var sId = amodal.$modal.find('select[name="STREET_ID"]').val();
           var lId = amodal.$modal.find('input[name="LOCATION_ID"]').val();
 
           var newNumber = amodal.$modal.find('input.INPUT-ADD-BUILD').val() || null;

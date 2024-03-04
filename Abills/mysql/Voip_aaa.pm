@@ -6,9 +6,9 @@ package Voip_aaa;
 =cut
 
 use strict;
-our $VERSION     = 7.04;
+our $VERSION     = 8.01;
 
-use base qw(main Auth);
+use base qw(bdbase Auth);
 use Billing;
 
 my ($conf, $Billing);
@@ -101,7 +101,7 @@ sub user_info {
     $WHERE = "(voip.number='". $RAD->{'User-Name'} ."' OR alias.number='". $RAD->{'User-Name'} ."' )";
   }
 
-  $self->query2("SELECT 
+  $self->query("SELECT
    voip.uid, 
    voip.number,
    voip.tp_id, 
@@ -262,7 +262,7 @@ sub auth {
 
   # 
   if ($self->{LOGINS} > 0) {
-    $self->query2("SELECT COUNT(*) FROM voip_calls
+    $self->query("SELECT COUNT(*) FROM voip_calls
        WHERE (calling_station_id='". $RAD->{'Calling-Station-Id'} ."' OR called_station_id='". $RAD->{'Calling-Station-Id'}."')
        AND status<>2;");
 
@@ -431,7 +431,7 @@ sub auth {
     }
 
     #Make start record in voip_calls
-    $self->query2("INSERT INTO voip_calls 
+    $self->query("INSERT INTO voip_calls
      (  status, user_name, started, lupdated,
         calling_station_id, called_station_id, nas_id,
         client_ip_address, conf_id, call_origin, uid,
@@ -458,7 +458,7 @@ sub auth {
   }
 
   if ($self->{ACCOUNT_AGE} && $self->{ACCOUNT_AGE} > 0 && $self->{VOIP_EXPIRE} eq '0000-00-00') {
-    $self->query2("UPDATE voip_main SET expire=curdate() + INTERVAL $self->{ACCOUNT_AGE} day 
+    $self->query("UPDATE voip_main SET expire=curdate() + INTERVAL $self->{ACCOUNT_AGE} day
      WHERE uid='$self->{UID}';", 'do');
   }
 
@@ -494,7 +494,7 @@ sub get_route_prefix {
 
   my $query_params = "'". join("', '", @query_params_arr) ."'";
 
-  $self->query2("SELECT r.id AS route_id,
+  $self->query("SELECT r.id AS route_id,
       r.prefix AS prefix,
       r.gateway_id AS gateway_id,
       r.disable AS route_disable
@@ -521,7 +521,7 @@ sub get_route_prefix {
  sub get_intervals {
   my $self = shift;
 
-  $self->query2("SELECT i.day, TIME_TO_SEC(i.begin), TIME_TO_SEC(i.end), 
+  $self->query("SELECT i.day, TIME_TO_SEC(i.begin), TIME_TO_SEC(i.end),
     rp.price, i.id, rp.route_id,
     IF (t.protocol IS NULL, '', t.protocol),
     IF (t.protocol IS NULL, '', t.provider_ip),
@@ -596,7 +596,7 @@ sub accounting {
       # For Cisco
       $self->user_info($RAD, $NAS);
 
-      $self->query2("INSERT INTO voip_calls 
+      $self->query("INSERT INTO voip_calls
       (  status,
        user_name,
        started,
@@ -631,7 +631,7 @@ sub accounting {
      ]});
     }
     else {
-      $self->query2("UPDATE voip_calls SET
+      $self->query("UPDATE voip_calls SET
       status= ? ,
       acct_session_id= ?
       WHERE conf_id= ? ;", 'do',
@@ -648,7 +648,7 @@ sub accounting {
   # Stop status
   elsif ($acct_status_type == 2) {
     if ($RAD->{'Acct-Session-Time'} > 0) {
-      $self->query2("SELECT 
+      $self->query("SELECT
       UNIX_TIMESTAMP(started) AS session_start,
       lupdated AS last_update,
       acct_session_id,
@@ -710,13 +710,13 @@ sub accounting {
 
         # Extra tarification
         if ($self->{EXTRA_TARIFICATION}) {
-          $self->query2("SELECT prepaid_time FROM voip_route_extra_tarification WHERE id='$self->{EXTRA_TARIFICATION}';");
+          $self->query("SELECT prepaid_time FROM voip_route_extra_tarification WHERE id='$self->{EXTRA_TARIFICATION}';");
           $self->{PREPAID_TIME} = $self->{list}->[0]->[0];
           if ($self->{PREPAID_TIME} > 0) {
             $self->{LOG_DURATION} = 0;
             my $sql = "SELECT SUM(duration) FROM voip_log l, voip_route_prices rp WHERE l.route_id=rp.route_id
                AND uid='$self->{UID}' AND rp.extra_tarification='$self->{EXTRA_TARIFICATION}'";
-            $self->query2("$sql");
+            $self->query("$sql");
             $self->{LOG_DURATION} = 0;
             if ($self->{TOTAL} > 0) {
               $self->{LOG_DURATION} = $self->{list}->[0]->[0];
@@ -765,7 +765,7 @@ sub accounting {
       }
 
       my $filename;
-      $self->query2("INSERT INTO voip_log (uid, start, duration, calling_station_id, called_station_id,
+      $self->query("INSERT INTO voip_log (uid, start, duration, calling_station_id, called_station_id,
               nas_id, client_ip_address, acct_session_id, tp_id, bill_id, sum, terminate_cause, route_id) 
         VALUES (?, NOW() - INTERVAL ? SECOND, ?, ?, ?, ?, INET_ATON( ? ), ?, ?, ?, ?, ?, ?);", 'do',
         { 
@@ -796,7 +796,7 @@ sub accounting {
       # If SQL query filed
       else {
         if ($Billing->{SUM} > 0) {
-          $self->query2("UPDATE bills SET deposit=deposit-$Billing->{SUM} WHERE id='$self->{BILL_ID}';", 'do');
+          $self->query("UPDATE bills SET deposit=deposit-$Billing->{SUM} WHERE id='$self->{BILL_ID}';", 'do');
         }
       }
     }
@@ -805,7 +805,7 @@ sub accounting {
     }
 
     # Delete from session wtmp
-    $self->query2("DELETE FROM voip_calls 
+    $self->query("DELETE FROM voip_calls
      WHERE acct_session_id = ? 
      and nas_id= ?
      and conf_id= ? ;", 'do',
@@ -819,7 +819,7 @@ sub accounting {
   }
   #Alive status 3
   elsif ($acct_status_type eq 3) {
-    $self->query2("UPDATE voip_calls SET
+    $self->query("UPDATE voip_calls SET
     status= ? ,
     client_ip_address = INET_ATON( ? ),
     lupdated=UNIX_TIMESTAMP()

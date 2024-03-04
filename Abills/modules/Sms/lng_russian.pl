@@ -38,5 +38,6 @@ $lang{ADD_SUM_TRANSFER} = 'Перевел средства в сумме';
 $lang{SMS_GATEWAY} = 'СМС шлюз';
 
 $lang{EXCEEDED_SMS_LIMIT} = 'Превышен лимит SMS для этого пользователя';
+$lang{ERR_SMS_ACCOUNT_INFO} = 'Вы используете модуль %SERVICE_NAME%, в котором не предусмотрено отображение этого отчета';
 
-1
+1;

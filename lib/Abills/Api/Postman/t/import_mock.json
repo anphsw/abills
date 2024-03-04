@@ -1,0 +1,300 @@
+{
+  "collection": {
+    "info": {
+      "_postman_id": "ae5764d9-4660-4694-9370-1de09c18f79b",
+      "name": "P24",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+      "updatedAt": "2024-02-09T13:06:04.000Z",
+      "uid": "30128672-ae5764d9-4660-4694-9370-1de09c18f79b",
+      "createdAt": "2024-02-09T12:07:40.000Z",
+      "lastUpdatedBy": "30128672"
+    },
+    "item": [
+      {
+        "name": "archive",
+        "item": [
+          {
+            "name": "archive room",
+            "item": [
+              {
+                "name": "books",
+                "event": [
+                  {
+                    "listen": "test",
+                    "script": {
+                      "id": "ab608ea9-9dc1-437e-85a7-ea63a13c7352",
+                      "exec": [
+                        "const response = JSON.parse(responseBody);",
+                        "",
+                        "pm.test(\"Status code is 200\", () => {",
+                        "  pm.expect(pm.response.code).to.eql(200);",
+                        "});",
+                        "",
+                        "const schema = {",
+                        "  \"type\": \"object\",",
+                        "  \"properties\": {",
+                        "    \"date\": {",
+                        "      \"type\": \"string\"",
+                        "    },",
+                        "    \"bank\": {",
+                        "      \"type\": \"string\"",
+                        "    },",
+                        "    \"baseCurrency\": {",
+                        "      \"type\": \"integer\"",
+                        "    },",
+                        "    \"baseCurrencyLit\": {",
+                        "      \"type\": \"string\"",
+                        "    }",
+                        "  },",
+                        "  \"required\": [",
+                        "    \"date\",",
+                        "    \"bank\",",
+                        "    \"baseCurrency\",",
+                        "    \"baseCurrencyLit\"",
+                        "  ]",
+                        "}",
+                        "",
+                        "pm.test('Response body matches the JSON schema', function() {",
+                        "  const validationResult = tv4.validateMultiple(response, schema);",
+                        "",
+                        "  if (!validationResult.valid) {",
+                        "    const errorMessages = validationResult.errors.map(error => error.message);",
+                        "    pm.expect.fail(`JSON schema validation failed:\\n${errorMessages.join('\\n')}`);",
+                        "  }",
+                        "});",
+                        ""
+                      ],
+                      "type": "text/javascript"
+                    }
+                  }
+                ],
+                "id": "9d9c9602-aa93-446b-88c8-4e93b1ae0f72",
+                "protocolProfileBehavior": {
+                  "disableBodyPruning": true
+                },
+                "request": {
+                  "method": "GET",
+                  "header": [],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"hello\": 1\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
+                    }
+                  },
+                  "url": {
+                    "raw": "https://api.privatbank.ua/p24api/exchange_rates?date=01.12.2014",
+                    "protocol": "https",
+                    "host": [
+                      "api",
+                      "privatbank",
+                      "ua"
+                    ],
+                    "path": [
+                      "p24api",
+                      "exchange_rates"
+                    ],
+                    "query": [
+                      {
+                        "key": "date",
+                        "value": "01.12.2014"
+                      }
+                    ]
+                  }
+                },
+                "response": [],
+                "uid": "30128672-9d9c9602-aa93-446b-88c8-4e93b1ae0f72"
+              }
+            ],
+            "id": "a7dff274-8a91-4b38-bc70-21f31ec6a458",
+            "uid": "30128672-a7dff274-8a91-4b38-bc70-21f31ec6a458"
+          },
+          {
+            "name": "exchange rates",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "id": "ab608ea9-9dc1-437e-85a7-ea63a13c7352",
+                  "exec": [
+                    "const response = JSON.parse(responseBody);",
+                    "",
+                    "pm.test(\"Status code is 200\", () => {",
+                    "  pm.expect(pm.response.code).to.eql(200);",
+                    "});",
+                    "",
+                    "const schema = {",
+                    "  \"type\": \"object\",",
+                    "  \"properties\": {",
+                    "    \"date\": {",
+                    "      \"type\": \"string\"",
+                    "    },",
+                    "    \"bank\": {",
+                    "      \"type\": \"string\"",
+                    "    },",
+                    "    \"baseCurrency\": {",
+                    "      \"type\": \"integer\"",
+                    "    },",
+                    "    \"baseCurrencyLit\": {",
+                    "      \"type\": \"string\"",
+                    "    }",
+                    "  },",
+                    "  \"required\": [",
+                    "    \"date\",",
+                    "    \"bank\",",
+                    "    \"baseCurrency\",",
+                    "    \"baseCurrencyLit\"",
+                    "  ]",
+                    "}",
+                    "",
+                    "pm.test('Response body matches the JSON schema', function() {",
+                    "  const validationResult = tv4.validateMultiple(response, schema);",
+                    "",
+                    "  if (!validationResult.valid) {",
+                    "    const errorMessages = validationResult.errors.map(error => error.message);",
+                    "    pm.expect.fail(`JSON schema validation failed:\\n${errorMessages.join('\\n')}`);",
+                    "  }",
+                    "});",
+                    ""
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ],
+            "id": "d11fc244-357a-47c2-adef-62c46c95bc6e",
+            "protocolProfileBehavior": {
+              "disableBodyPruning": true
+            },
+            "request": {
+              "method": "GET",
+              "header": [],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"hello\": 1\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "url": {
+                "raw": "https://api.privatbank.ua/p24api/exchange_rates?date=01.12.2014",
+                "protocol": "https",
+                "host": [
+                  "api",
+                  "privatbank",
+                  "ua"
+                ],
+                "path": [
+                  "p24api",
+                  "exchange_rates"
+                ],
+                "query": [
+                  {
+                    "key": "date",
+                    "value": "01.12.2014"
+                  }
+                ]
+              }
+            },
+            "response": [],
+            "uid": "30128672-d11fc244-357a-47c2-adef-62c46c95bc6e"
+          }
+        ],
+        "id": "94ff58f5-2ab0-4e11-9cae-99193ada8a91",
+        "uid": "30128672-94ff58f5-2ab0-4e11-9cae-99193ada8a91"
+      },
+      {
+        "name": "netblock",
+        "item": [
+          {
+            "name": "netblock archive",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "id": "ab608ea9-9dc1-437e-85a7-ea63a13c7352",
+                  "exec": [
+                    "const response = JSON.parse(responseBody);",
+                    "",
+                    "pm.test(\"Status code is 200\", () => {",
+                    "  pm.expect(pm.response.code).to.eql(200);",
+                    "});",
+                    "",
+                    "const schema = {",
+                    "  \"type\": \"object\",",
+                    "  \"properties\": {",
+                    "    \"date\": {",
+                    "      \"type\": \"string\"",
+                    "    },",
+                    "    \"bank\": {",
+                    "      \"type\": \"string\"",
+                    "    },",
+                    "    \"baseCurrency\": {",
+                    "      \"type\": \"integer\"",
+                    "    },",
+                    "    \"baseCurrencyLit\": {",
+                    "      \"type\": \"string\"",
+                    "    }",
+                    "  },",
+                    "  \"required\": [",
+                    "    \"date\",",
+                    "    \"bank\",",
+                    "    \"baseCurrency\",",
+                    "    \"baseCurrencyLit\"",
+                    "  ]",
+                    "}",
+                    "",
+                    "pm.test('Response body matches the JSON schema', function() {",
+                    "  const validationResult = tv4.validateMultiple(response, schema);",
+                    "",
+                    "  if (!validationResult.valid) {",
+                    "    const errorMessages = validationResult.errors.map(error => error.message);",
+                    "    pm.expect.fail(`JSON schema validation failed:\\n${errorMessages.join('\\n')}`);",
+                    "  }",
+                    "});",
+                    ""
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ],
+            "id": "b2973e1e-5d66-4737-973d-627e7dd4eab9",
+            "protocolProfileBehavior": {
+              "disableBodyPruning": true
+            },
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "https://api.privatbank.ua/p24api/exchange_rates?date=01.12.2014",
+                "protocol": "https",
+                "host": [
+                  "api",
+                  "privatbank",
+                  "ua"
+                ],
+                "path": [
+                  "p24api",
+                  "exchange_rates"
+                ],
+                "query": [
+                  {
+                    "key": "date",
+                    "value": "01.12.2014"
+                  }
+                ]
+              }
+            },
+            "response": [],
+            "uid": "30128672-b2973e1e-5d66-4737-973d-627e7dd4eab9"
+          }
+        ],
+        "id": "e878105a-f4cd-44de-8cf7-3bfd834c1c53",
+        "uid": "30128672-e878105a-f4cd-44de-8cf7-3bfd834c1c53"
+      }
+    ]
+  }
+}

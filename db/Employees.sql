@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS `employees_cashboxes`
 
 CREATE TABLE IF NOT EXISTS `employees_spending`
 (
-    `id`               SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `id`               INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `amount`           DOUBLE(10, 2)                    NOT NULL DEFAULT 0.00,
     `spending_type_id` SMALLINT                         NOT NULL DEFAULT 0,
     `cashbox_id`       SMALLINT                         NOT NULL DEFAULT 0,
@@ -190,7 +190,7 @@ CREATE TABLE IF NOT EXISTS `employees_spending_types`
 
 CREATE TABLE IF NOT EXISTS `employees_coming`
 (
-    `id`             SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `id`             INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `amount`         DOUBLE(10, 2)                    NOT NULL DEFAULT 0.00,
     `coming_type_id` SMALLINT UNSIGNED                NOT NULL DEFAULT 0,
     `cashbox_id`     SMALLINT UNSIGNED                NOT NULL DEFAULT 0,
@@ -199,7 +199,8 @@ CREATE TABLE IF NOT EXISTS `employees_coming`
     `uid`            INT(11) UNSIGNED                 NOT NULL DEFAULT 0,
     `comments`       TEXT,
     PRIMARY KEY (`id`),
-    KEY `aid` (`aid`)
+    KEY `aid` (`aid`),
+    KEY `uid` (`uid`)
 )
     DEFAULT CHARSET = utf8
     COMMENT = 'Coming';

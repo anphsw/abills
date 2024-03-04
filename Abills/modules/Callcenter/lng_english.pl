@@ -183,5 +183,11 @@ $lang{CALL_TYPE} = 'Call type';
 $lang{BROWSER_DOES_NOT_SUPPORT_ELEMENT} = 'Your browser does not support the element';
 $lang{TOTAL_CALL_STATISTICS} = 'Total call statistics';
 $lang{PERSONAL_CALL_STATISTICS} = 'Personal call statistics';
+$lang{CALL_HANDLER_STATISTICS} = 'Статистика обработчика звонков';
+$lang{MISSING_ADMIN_SIP_NUMBER} = 'SIP number is missing for administrator';
+$lang{INCOMING} = 'Incoming';
+$lang{OUTCOMING} = 'Outcoming';
+$lang{INCOMING_DURATION} = 'Incoming duration';
+$lang{OUTCOMING_DURATION} = 'Outcoming duration';
 
 1;

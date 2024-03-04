@@ -22,7 +22,6 @@ our (
   $db,
   $admin,
   %conf,
-  $html,
   %lang,
   $var_dir,
   $DATE,
@@ -34,6 +33,7 @@ our (
 load_pmodule("JSON");
 
 our Equipment $Equipment;
+our Abills::HTML $html;
 require Equipment::Grabbers;
 
 #*******************************************************************
@@ -166,9 +166,20 @@ sub equipment_pon_report {
 #*******************************************************************
 sub equipment_unreg_report {
 
+  my $url = "$SELF_URL?header=2&get_index=equipment_unreg_report_date";
+  my $btn_update = $html->button('', undef, {
+    class       => "p-2",
+    ADD_ICON    => 'fa fa-retweet',
+    title       => $lang{UPDATE},
+    ex_params   => qq/onclick='equipment_unreg_report("$url")'/,
+    JAVASCRIPT     => 1,
+    NO_LINK_FORMER => 1,
+    SKIP_HREF      => 1,
+  });
+
   my $table = $html->table({
     width       => '100%',
-    caption     => $lang{REPORT_ON_UNREGISTERED_ONU},
+    caption     => $lang{REPORT_ON_UNREGISTERED_ONU}.' '.$btn_update,
     title_plain => [ "OLT", $lang{COUNT} ],
     ID          => 'UNREG_ITEMS',
   });
@@ -209,14 +220,26 @@ sub equipment_unreg_report_date {
     NAS_MNG_USER     => '_SHOW',
     NAS_MNG_PASSWORD => '_SHOW',
     SNMP_TPL         => '_SHOW',
+    SNMP_VERSION     => '_SHOW',
     LOCATION_ID      => '_SHOW',
     COLS_NAME        => 1,
     COLS_UPPER       => 1
   });
 
+  my $url = "$SELF_URL?header=2&get_index=equipment_unreg_report_date";
+  my $btn_update = $html->button('', '', {
+    class       => "p-2",
+    ADD_ICON    => 'fa fa-retweet',
+    title       => $lang{UPDATE},
+    ex_params   => qq/onclick='equipment_unreg_report("$url")'/,
+    JAVASCRIPT     => 1,
+    NO_LINK_FORMER => 1,
+    SKIP_HREF      => 1,
+  });
+
   my $table = $html->table({
     width       => '100%',
-    caption     => $lang{REPORT_ON_UNREGISTERED_ONU},
+    caption     => $lang{REPORT_ON_UNREGISTERED_ONU}.' '.$btn_update,
     title_plain => [ "OLT", $lang{COUNT} ],
     ID          => 'UNREG_ITEMS'
   });
@@ -230,23 +253,8 @@ sub equipment_unreg_report_date {
     my $nas_type = equipment_pon_init($nas);
     next if ($nas_type eq "_bdcom");
 
-    if ($nas_type eq '_eltex') {
-      require Equipment::Eltex;
-    }
-    elsif ($nas_type eq '_zte') {
-      require Equipment::Zte;
-    }
-    elsif ($nas_type eq '_huawei') {
-      require Equipment::Huawei;
-    }
-    elsif ($nas_type eq '_vsolution') {
-      require Equipment::Vsolution;
-    }
-    elsif ($nas_type eq '_cdata') {
-      require Equipment::Cdata;
-    }
-
     $nas->{SNMP_COMMUNITY} = ($nas->{NAS_MNG_PASSWORD} || q{}) . "@" . ($nas->{NAS_MNG_IP_PORT} || q{});
+    $nas->{VERSION} = $nas->{SNMP_VERSION};
     $nas->{FULL} = 1;
 
     my $unregister_fn = $nas_type . '_unregister';
@@ -348,8 +356,8 @@ sub equipment_onu_report {
 
     my $onus = $Equipment->onu_list({
       NAS_ID      => $line->{nas_id},
-      RX_POWER    => ($FORM{ONU} && $FORM{ONU} eq 'INACTIVE') ? '0' : '_SHOW',
       NAS_IP      => '_SHOW',
+      RX_POWER    => ($FORM{ONU} && $FORM{ONU} eq 'INACTIVE') ? '0' : '_SHOW',
       DELETED     => 0,
       STATUS      => '_SHOW',
       PON_TYPE    => '_SHOW',
@@ -367,6 +375,16 @@ sub equipment_onu_report {
 
       $branch_list{$onu->{branch}}{total_count} += 1;
       $branch_list{$onu->{branch}}{branch_desc} = $onu->{branch_desc};
+
+      $branch_list{$onu->{branch}}{rx_power_min} ||= 0;
+      $branch_list{$onu->{branch}}{rx_power_max} ||= -40;
+
+      if ($onu->{rx_power} && $onu->{rx_power} < $branch_list{$onu->{branch}}{rx_power_min}){
+        $branch_list{$onu->{branch}}{rx_power_min} = $onu->{rx_power};
+      }
+      if ($onu->{rx_power} && $onu->{rx_power} > $branch_list{$onu->{branch}}{rx_power_max}){
+        $branch_list{$onu->{branch}}{rx_power_max} = $onu->{rx_power};
+      }
 
       if (in_array($onu->{status}, \@ONU_ONLINE_STATUSES)) {
         $branch_list{$onu->{branch}}{online_count} += 1;
@@ -428,9 +446,15 @@ sub equipment_onu_report {
     foreach my $key (sort keys %branch_list) {
       my $total = $branch_list{$key}->{total_count};
       my $online = $branch_list{$key}->{online_count};
+      my $rx_notification = '';
 
       if ($FORM{ONU} && $FORM{ONU} eq 'INACTIVE'){
         $total = ($branch_list{$key}->{total_count} || 0) - ($branch_list{$key}->{online_count} || 0);
+      }
+
+      if ($branch_list{$key}->{rx_power_max} != 0 && $branch_list{$key}->{rx_power_min} != 0 && $conf{PON_RX_DIFFERENCE}){
+        my $rx_difference = $branch_list{$key}->{rx_power_max} - $branch_list{$key}->{rx_power_min};
+        $rx_notification = ($rx_difference >= $conf{PON_RX_DIFFERENCE} ) ? $html->badge(">=$conf{PON_RX_DIFFERENCE} dBm", { TYPE => 'badge-warning' }) : '';
       }
 
       my $good = $branch_list{$key}->{good_count};
@@ -442,7 +466,7 @@ sub equipment_onu_report {
         $html->button(
           $branch_list{$key}->{pon_type} . ' ' . $key,
           "index=" . $index_equipment_info . "&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$branch_list{$key}->{id}"
-        ),
+        ).' '.$rx_notification,
         $total,
         $html->badge($good, { TYPE => 'badge-success' }),
         $good ? sprintf("%.2f", $good / $online * 100) . '%' : '',

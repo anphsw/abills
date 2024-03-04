@@ -39,7 +39,7 @@ $lang{FIRST_PAYMENT} = 'Ви ще не поповнювали рахунок';
 $lang{UNIQUE_NUMBER} = 'Ваш унікальний номер';
 $lang{DEPOSIT_USER} = 'На вашому рахунку';
 $lang{LAST_PAYMENT_SUM} = 'Останнє поповнення на';
-$lang{WRITE_TEXT} = 'Напишіть текст вашої відповіді в поле телеграм';
+$lang{WRITE_TEXT} = 'Напишіть Ваше питання';
 $lang{SEND_FILE} = 'Також ви можете відправити файл або фотографію, вони будуть прикріплені до вашої відповіді';
 $lang{CHANCEL} = 'Натисніть відмінити якщо ви передумали';
 $lang{CHANCEL_TEXT} = 'Відмінити';
@@ -101,5 +101,16 @@ $lang{MSGS_CREATE} = 'Повідомлення повинно починатис
 $lang{WEB_SITE} = 'Сайт';
 $lang{PAYMENT_CREDENTIAL} = 'Платіжні реквізити';
 $lang{NO_PAYMENT_SYSTEMS} = 'Немає доступних платіжних систем';
+
+$lang{EQUIPMENT_ERROR} = 'Помилка, спробуйте пізніше';
+$lang{EQUIPMENT_WAIT} = 'Зачекайте, виконується перевірка';
+$lang{EQUIPMENT_OPTICAL_TERMINAL_NOT_WORKING} = 'Оптичний термінал не працює';
+$lang{EQUIPMENT_OPTICAL_TERMINAL_WORKING} = 'Оптичний термінал працює';
+$lang{EQUIPMENT_ROUTER_NOT_WORKING} = 'Роутер не працює';
+$lang{EQUIPMENT_ROUTER_WORKING} = 'Роутер працює';
+$lang{EQUIPMENT_CHECK_COMPLETED} = 'Перевірку завершено';
+$lang{EQUIPMENT_CONNECTION_CHECK} = "Перевірка зв'язку";
+
+$lang{VIBER_SCHEDULED_FEES} = 'Планові платежі';
 
 1;

@@ -289,12 +289,13 @@ sub crm_leads {
 
     $FORM{ADDRESS_FORM} = $conf{CRM_OLD_ADDRESS} ?
       $html->tpl_show(_include('crm_old_address', 'Crm'), undef, { OUTPUT2RETURN => 1 }) :
-      form_address_select2({
-        LOCATION_ID  => $client_info->{LOCATION_ID} || 0,
-        DISTRICT_ID  => 0,
-        STREET_ID    => 0,
-        ADDRESS_FLAT => $client_info->{ADDRESS_FLAT} || '',
-        SHOW_BUTTONS => 1
+      form_address_select({
+        LOCATION_ID      => $client_info->{LOCATION_ID} || 0,
+        DISTRICT_ID      => 0,
+        STREET_ID        => 0,
+        ADDRESS_FLAT     => $client_info->{ADDRESS_FLAT} || '',
+        SHOW_EXT_ADDRESS => 1,
+        SHOW_BUTTONS     => 1
       });
 
     $FORM{ASSESSMENTS_SEL} = crm_assessments_select(\%FORM);
@@ -352,7 +353,7 @@ sub crm_leads {
     });
 
     $lead_info->{ADDRESS_FORM} = $conf{CRM_OLD_ADDRESS} ? $html->tpl_show(_include('crm_old_address', 'Crm'), $lead_info, { OUTPUT2RETURN => 1 }) :
-      form_address_select2({ LOCATION_ID => $lead_info->{BUILD_ID} || 0, SHOW_BUTTONS => 1, %{$lead_info} });
+      form_address_select({ LOCATION_ID => $lead_info->{BUILD_ID} || 0, SHOW_BUTTONS => 1, %{$lead_info} });
 
     $lead_info->{ASSESSMENTS_SEL} = crm_assessments_select($lead_info);
 
@@ -482,6 +483,8 @@ sub crm_leads {
     uid               => 'UID',
     lead_address      => $lang{ADDRESS},
     holdup_date       => $lang{HOLDUP_TO},
+    floor             => $lang{FLOOR},
+    entrance          => $lang{ENTRANCE},
     source            => $lang{SOURCE}
   );
 
@@ -508,7 +511,7 @@ sub crm_leads {
     FUNCTION        => 'crm_lead_list',
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => "LEAD_ID,FIO,PHONE,EMAIL,COMPANY,ADMIN_NAME,DATE,CURRENT_STEP_NAME,LAST_ACTION,PRIORITY,UID,USER_LOGIN,TAG_IDS,",
-    HIDDEN_FIELDS   => 'STEP_COLOR,CURRENT_STEP,COMPETITOR_NAME,TP_NAME,ASSESSMENT,LEAD_ADDRESS,SOURCE,HOLDUP_DATE,WATCHER',
+    HIDDEN_FIELDS   => 'FLOOR,ENTRANCE,STEP_COLOR,CURRENT_STEP,COMPETITOR_NAME,TP_NAME,ASSESSMENT,LEAD_ADDRESS,SOURCE,HOLDUP_DATE,WATCHER',
     MULTISELECT     => 'ID:lead_id:' . ($FORM{delivery} ? 'CRM_LEADS' : 'crm_lead_multiselect'),
     FUNCTION_FIELDS => ':del:id:&del=1',
     FUNCTION_INDEX  => $index,
@@ -524,10 +527,23 @@ sub crm_leads {
         my $lead_id = shift;
         return $html->button($lead_id, "get_index=crm_lead_info&full=1&LEAD_ID=$lead_id");
       },
-      fio => sub {
+      fio     => sub {
         my ($fio, $line) = @_;
         return '' if !$fio;
         return $html->button($fio, "get_index=crm_lead_info&full=1&LEAD_ID=$line->{lead_id}");
+      },
+      phone   => sub {
+        my $phone = shift;
+        my $line = shift;
+        return $phone if !$phone || !$conf{CRM_PHONE_EXTERNAL_CMD} || !$line->{id};
+
+        return $html->button($phone, '', {
+          NO_LINK_FORMER => 1,
+          JAVASCRIPT     => 1,
+          SKIP_HREF      => 1,
+          class          => 'crm-phone cursor-pointer',
+          ex_params      => "data-lead='$line->{id}'"
+        });
       }
     },
     SKIP_USER_TITLE => 1,
@@ -743,10 +759,6 @@ sub crm_lead_info {
     LOAD_TO_MODAL => 'raw',
     class         => 'btn btn-warning btn-block',
   });
-  # my $add_user_button = $html->button("$lang{ADD} $lang{USER}", "qindex=" . get_function_index("crm_lead_info") . "&TO_LEAD_ID=$lead_id&header=2", {
-  #   class         => 'btn btn-warning btn-block',
-  #   LOAD_TO_MODAL => 1,
-  # });
   my $convert_lead_to_client = $html->button($lang{ADD_USER}, 'index=' . get_function_index('form_wizard') . "&LEAD_ID=$lead_id", {
     ID    => 'lead_to_client',
     class => 'btn btn-success btn-block',
@@ -755,7 +767,7 @@ sub crm_lead_info {
   $Crm->crm_lead_watch_list({ LEAD_ID => $lead_id, AID => $admin->{AID} });
 
   my $watching_button = '';
-  if ($Crm->{TOTAL} >= 1) {
+  if ($Crm->{TOTAL} && $Crm->{TOTAL} > 0) {
     $watching_button = $html->button('', "index=$index&LEAD_ID=$lead_id&WATCH=1&WATCH_DEL=1", {
       class => 'btn btn-primary btn-sm fa fa-eye-slash',
     });
@@ -763,6 +775,13 @@ sub crm_lead_info {
   else {
     $watching_button = $html->button('', "index=$index&LEAD_ID=$lead_id&WATCH=1", {
       class => 'btn btn-primary btn-sm fa fa-eye',
+    });
+  }
+  my $dialogue_button = '';
+  my $dialogue_info = $Crm->crm_dialogues_list({ LEAD_ID => $lead_id, COLS_NAME => 1 });
+  if ($Crm->{TOTAL} && $Crm->{TOTAL} > 0 && $dialogue_info->[0] && $dialogue_info->[0]{id}) {
+    $dialogue_button = $html->button('', "get_index=crm_dialogue&full=1&ID=$dialogue_info->[0]{id}", {
+      class  => 'btn btn-primary btn-sm fa fa-envelope'
     });
   }
 
@@ -784,6 +803,7 @@ sub crm_lead_info {
         { class => 'btn btn-tool mr-1' }),
     },
     {
+      DIALOGUE_BUTTON     => $dialogue_button,
       WATCHING_BUTTON     => $watching_button,
       CONVERT_LEAD_BUTTON => $convert_lead_to_client,
       CONVERT_DATA_BUTTON => $convert_data_button,
@@ -1172,7 +1192,7 @@ sub crm_short_info {
 
   # if module Callcenter turn on - add this call to calls handler
   if (in_array('Callcenter', \@MODULES)) {
-    require Callcenter;
+    require Callcenter::db::Callcenter;
     Callcenter->import();
     my $Callcenter = Callcenter->new($db, $admin, \%conf);
     my $admin_info = $admin->info($admin->{AID});
@@ -1577,7 +1597,7 @@ sub crm_user_service {
   }
 
   if (in_array('Callcenter', \@MODULES)) {
-    require Callcenter;
+    require Callcenter::db::Callcenter;
     Callcenter->import();
     my $Callcenter = Callcenter->new($db, $admin, \%conf);
     my $calls_list = $Callcenter->callcenter_list_calls({

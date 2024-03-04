@@ -8,13 +8,14 @@ our (
   %lang,
   %article_actions,
   $SELF_URL,
+  %delivery_status
 );
 
+use Abills::Base qw/json_former/;
 use Storage;
 
 our Abills::HTML $html;
 my $Storage = Storage->new($db, $admin, \%conf);
-
 
 #**********************************************************
 =head2 storage_main_report($attr)
@@ -214,7 +215,8 @@ sub storage_start_page {
   #my ($attr) = @_;
 
   my %START_PAGE_F = (
-    'storage_main_report_charts' => $lang{STORAGE},
+    'storage_main_report_charts'             => $lang{STORAGE},
+    'storage_installation_start_page_report' => $lang{STORAGE_PURCHASE_REPORT},
   );
 
   return \%START_PAGE_F;
@@ -251,6 +253,49 @@ sub storage_main_report_charts {
 
   return $html->tpl_show(_include('storage_sp_report_chart', 'Storage'), {
     CHART => $chart
+  }, { OUTPUT2RETURN => 1 });
+}
+
+#**********************************************************
+=head2 storage_installation_start_page_report()
+
+=cut
+#**********************************************************
+sub storage_installation_start_page_report {
+
+  my $report_table = $html->table({
+    width      => '100%',
+    caption    => $lang{STORAGE_PURCHASE_REPORT},
+    title      => [ $lang{NAME}, $lang{TYPE}, $lang{LOGIN}, $lang{STORAGE_SHIPPING_STATUS}, $lang{DATE} ],
+    ID         => 'STORAGE_INSTALLED_SELL_TABLE'
+  });
+
+  my $installations = $Storage->storage_installation_list({
+    DELIVERY_DATE   => '_SHOW',
+    STA_NAME        => '_SHOW',
+    SAT_TYPE        => '_SHOW',
+    LOGIN           => '_SHOW',
+    UID             => '!',
+    DELIVERY_ID     => '!',
+    DELIVERY_STATUS => '!4',
+    SORT            => 'i.id',
+    DESC            => 'DESC',
+    COLS_NAME       => 1
+  });
+
+  my $last_id = $installations->[0] && $installations->[0]{id} ? $installations->[0]{id} : '';
+  foreach my $installation (@{$installations}) {
+    my $login = $html->button($installation->{login},
+      "get_index=storage_hardware&UID=$installation->{uid}&delivery=$installation->{id}&full=1", { target => '_blank' });
+
+    $report_table->addrow($installation->{sta_name}, $installation->{sat_type}, $login,
+      $delivery_status{$installation->{delivery_status}}, $installation->{delivery_date});
+  }
+
+  return $report_table->show() . $html->tpl_show(_include('storage_sells_report_updater', 'Storage'), {
+    TABLE_ID        => 'STORAGE_INSTALLED_SELL_TABLE_',
+    DELIVERY_STATUS => json_former(\%delivery_status),
+    PARAMS => json_former({ TABLE_ID => 'STORAGE_INSTALLED_SELL_TABLE_', LAST_ID => $last_id })
   }, { OUTPUT2RETURN => 1 });
 }
 
@@ -1030,6 +1075,99 @@ sub storage_nas_installations_report {
 }
 
 #**********************************************************
+=head2 storage_delivery_report()
+
+=cut
+#**********************************************************
+sub storage_delivery_report {
+
+  require Control::Reports;
+  reports({
+    PERIOD_FORM => 1,
+    DATE_RANGE  => 1,
+    NO_GROUP    => 1,
+    NO_TAGS     => 1,
+    EXT_SELECT  => {
+      DELIVERY_STATUS => {
+        LABEL  => $lang{STORAGE_SHIPPING_STATUS},
+        SELECT => $html->form_select('DELIVERY_STATUS', {
+          SELECTED => $FORM{DELIVERY_STATUS},
+          SEL_HASH => \%delivery_status,
+          SORT_KEY => 1,
+          NO_ID    => 1,
+          SEL_OPTIONS => { '' => '--' },
+        })
+      },
+      TYPE => {
+        LABEL  => $lang{TYPE},
+        SELECT => $html->form_select('TYPE_ID', {
+          SELECTED    => $FORM{TYPE_ID} || 0,
+          SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
+          NO_ID       => 1,
+          SEL_OPTIONS => { '' => '--' },
+        })
+      }
+    }
+  });
+
+  $LIST_PARAMS{DELIVERY_ID} = '!';
+  $LIST_PARAMS{DELIVERY_STATUS} = defined $FORM{DELIVERY_STATUS} ? $FORM{DELIVERY_STATUS} : '!4';
+  $LIST_PARAMS{SAT_ID} = $FORM{TYPE_ID} if defined $FORM{TYPE_ID};
+
+  result_former({
+    INPUT_DATA      => $Storage,
+    FUNCTION        => 'storage_installation_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,SAT_TYPE,LOGIN,STA_NAME,STATUS,DELIVERY_STATUS,DELIVERY_DATE,COUNT,ACTUAL_SELL_PRICE',
+    HIDDEN_FIELDS   => 'MEASURE_NAME,MONTHES,DELIVERY_ID,STORAGE_MSGS_ID,UID',
+    EXT_TITLES      => {
+      id                           => '#',
+      login                           => $lang{LOGIN},
+      sat_type                        => $lang{TYPE},
+      sta_name                        => $lang{NAME},
+      serial                          => 'SN',
+      action                          => $lang{ACTION},
+      status                          => $lang{STATUS},
+      delivery_date                   => $lang{SEND_DATE},
+      installed_aid                   => $lang{INSTALLED},
+      count                           => $lang{COUNT},
+      sum                             => $lang{SUM},
+      actual_sell_price               => $lang{SELL_PRICE},
+      delivery_status                 => $lang{STORAGE_SHIPPING_STATUS},
+    },
+    FILTER_COLS     => {
+      count  => '_storage_count_measure_show::COUNT,MEASURE_NAME',
+      status => '_storage_status_filter::STATUS,MONTHES',
+    },
+    FILTER_VALUES   => {
+      delivery_status => sub {
+        my $status = shift;
+
+        return '' if !defined($status);
+
+        return $delivery_status{$status} || '';
+      },
+      id      => sub {
+        my $id = shift;
+        my ($line) = @_;
+
+        return $html->button($id, "get_index=storage_hardware&UID=$line->{uid}&delivery=$id&full=1", { target => '_blank' });
+      }
+    },
+    TABLE           => {
+      caption => $lang{STORAGE_PURCHASE_REPORT},
+      width   => '100%',
+      qs      => $pages_qs,
+      ID      => 'STORAGE_INSTALLATION_SELL_REPORT',
+      EXPORT  => 1,
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1,
+    MODULE          => 'Storage'
+  });
+}
+
+#**********************************************************
 =head2 _storage_nas_installation_filter($installations, $attr)
 
 =cut
@@ -1037,7 +1175,7 @@ sub storage_nas_installations_report {
 sub _storage_nas_installation_filter {
   my $installations = shift;
   my ($attr) = @_;
-  
+
   return '' if !$installations;
 
   if ($html->{TYPE} ne 'html') {

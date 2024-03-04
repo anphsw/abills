@@ -220,7 +220,7 @@ var Configuration = (function () {
       ObjectsConfiguration.getObjects(layer, errGetObject, successGetObject);
     });
 
-    if (FORM['LAYER'] && FORM['LAYER'] === layer['id']) {
+    if (FORM['LAYER'] && FORM['LAYER'] == layer['id']) {
       Configuration.addDisabled(layer['id']);
       ObjectsConfiguration.getObjects(layer, errGetObject, successGetObject);
     } else if (LAYERS && LAYERS.includes(layer['id'])) {
@@ -348,6 +348,7 @@ var Configuration = (function () {
       let last_sublayer;
       let content = '';
       let date = '';
+      let clickCount = 0;
       layer.sublayers.forEach(sublayer => {
         if (!layer[sublayer]) return;
 
@@ -422,22 +423,27 @@ var Configuration = (function () {
         jQuery(`#${prev_btn_id}`).on('click', function() {
           if (!sublayers[last_sublayer]['prev']) return;
 
-          date = sublayers[last_sublayer]['prev'];
-          date = date.substring(date.length - 10);
+          let prevVal = (clickCount == 0) ? last_sublayer : sublayers[last_sublayer]['prev'];
+          clickCount++;
+          date = prevVal;
+
+          let match = date.match(/(\d{4}-\d{2}-\d{2})/);
+          date = match[1];
 
           jQuery('#date_filter').text(date);
           Object.keys(sublayers).forEach(layer => {
             jQuery('#' + layer).prop('checked', false).change();
           });
-          jQuery('#' + sublayers[last_sublayer]['prev']).prop('checked', true).change();
-          last_sublayer = sublayers[last_sublayer]['prev'];
+          jQuery('#' + prevVal).prop('checked', true).change();
+          last_sublayer = prevVal;
         });
 
         jQuery(`#${next_btn_id}`).on('click', function() {
           if (!sublayers[last_sublayer]['next']) return;
 
           date = sublayers[last_sublayer]['next'];
-          date = date.substring(date.length - 10);
+          let match = date.match(/(\d{4}-\d{2}-\d{2})/);
+          date = match[1];
 
           jQuery('#date_filter').text(date);
 
@@ -663,7 +669,9 @@ var ObjectsConfiguration = (function () {
 
   function showObjectToShow() {
     let closest_object = null;
+    let add_class_icons = {};
 
+    map._layersMaxZoom ||= 18;
     let markers = FORM['OBJECT_TO_SHOW'].length > 1000 ? L.markerClusterGroup({
       spiderfyOnMaxZoom: 0,
       disableClusteringAtZoom: map._layersMaxZoom
@@ -671,7 +679,12 @@ var ObjectsConfiguration = (function () {
 
     jQuery.each(FORM['OBJECT_TO_SHOW'], function (index, value) {
       if (value['MARKER']) {
-        markers.addLayer(Markers.createMarker(value['MARKER']));
+        let new_marker = Markers.createMarker(value['MARKER']);
+        markers.addLayer(new_marker);
+        if (value['MARKER']['ADD_CLASS']) {
+          add_class_icons[new_marker._leaflet_id] = value['MARKER']['ADD_CLASS'];
+        }
+
         if (FORM['OBJECT_TO_SHOW'].length === 1)
           map.setView([value['MARKER']['COORDX'], value['MARKER']['COORDY']], 18);
         closest_object = ObjectsConfiguration.getClosestObject(closest_object, value['MARKER']);
@@ -689,12 +702,20 @@ var ObjectsConfiguration = (function () {
 
     if (markers) markers.addTo(map);
 
+    if (add_class_icons){
+      for (var key in add_class_icons) {
+        markers._layers[key]._icon.classList.add(add_class_icons[key]);
+      }
+    }
+
     if (closest_object && FORM['BUILD_ROUTE'])
       Routes.showRouteBetweenPoints(closest_object);
 
     if (FORM['OBJECT_TO_SHOW'].length > 1 && !FORM['BUILD_ROUTE']) {
       if (FORM['OBJECT_TO_SHOW'][0]['POLYGON'])
         Configuration.fitByObject(FORM['OBJECT_TO_SHOW'][0]['POLYGON']);
+      else if (FORM['POINTS'])
+        map.setView([FORM['POINTS'][0], FORM['POINTS'][1]], 16);
       else if (FORM['OBJECT_TO_SHOW'][0]['MARKER'])
         map.setView([FORM['OBJECT_TO_SHOW'][0]['MARKER']['COORDX'], FORM['OBJECT_TO_SHOW'][0]['MARKER']['COORDY']], 18);
     }
@@ -707,7 +728,7 @@ var ObjectsConfiguration = (function () {
     let url = `${selfUrl}?header=2&get_index=maps_get_objects&EXPORT_LIST=1&RETURN_JSON=1&MODULE=` +
       `${layer['module']}&FUNCTION=${layer['export_function']}`;
 
-    if (FORM['OBJECT_ID'] && (!FORM['LAYER'] || FORM['LAYER'] === layer['id']))
+    if (FORM['OBJECT_ID'] && (!FORM['LAYER'] || FORM['LAYER'] == layer['id']))
       url += `&OBJECT_ID=${FORM['OBJECT_ID']}`;
     else if (object_id !== 0)
       url += `&OBJECT_ID=${object_id}`;
@@ -1286,6 +1307,29 @@ var Markers = (function () {
       });
 
       return_marker = L.marker([marker['COORDX'], marker['COORDY']], {icon: svg_icon});
+
+      if (infoPopup)
+        return_marker.bindPopup(infoPopup, {maxWidth: 400});
+
+      if (marker['NAME'])
+        return_marker.bindTooltip(marker['NAME'], {
+          permanent: false
+        });
+    }
+    else if (marker['CUSTOM_MARKER']) {
+      let html = marker['CUSTOM_MARKER']['HTML'];
+      let iconSize = marker['CUSTOM_MARKER']['ICON_SIZE'] || [23, 23];
+      let popupAnchor = marker['CUSTOM_MARKER']['POPUP_ANCHOR'] || [-10, -2];
+      let iconAnchor = marker['CUSTOM_MARKER']['ICON_ANCHOR'] || [12, 12];
+
+      var customIcon = L.divIcon({
+        className: 'custom-marker',
+        iconSize: iconSize,
+        iconAnchor: iconAnchor,
+        popupAnchor: popupAnchor,
+        html: html
+      });
+      return_marker = L.marker([marker['COORDX'], marker['COORDY']], {icon: customIcon});
 
       if (infoPopup)
         return_marker.bindPopup(infoPopup, {maxWidth: 400});
@@ -2278,6 +2322,7 @@ var init_map = function () {
     baseMaps['Leaflet'].addTo(map);
 
   L.control.layers(baseMaps).addTo(map);
+  L.control.mousePosition({prefix: `<b>${_CURSOR_COORDINATES}:</b>`}).addTo(map);
 
   L.Control.Watermark = L.Control.extend({
     onAdd: function () {
@@ -2378,23 +2423,60 @@ function fillSearchSelect(items, pageSize) {
   });
 }
 
-function editField(element) {
+function editField(element, attr = { type: 'input' }) {
   let $jelement = jQuery(element)
 
   let oldValue = $jelement.text();
   let newValue = oldValue;
-  let fieldName = $jelement.data('field');
+  let fieldName = attr.field_name || $jelement.data('field');
   let url = $jelement.data('url');
   let id = $jelement.data('id');
 
   if ($jelement.data('input')) return;
-
   $jelement.data('input', true);
-  $jelement.html('<div class="input-group input-group-sm" style="min-width: 150px;">' +
-    '<input name="NAME" class="form-control" value="' + oldValue + '" id="' + fieldName + '_FIELD">' +
-    '<div class="input-group-append"><a class="btn input-group-button" id="CHANGE_' + fieldName + '_BTN">' +
-    '<span class="fa fa-save"></span></a></div></div>'
-  );
+
+  if (attr.type === 'select') {
+    let input = jQuery('<select></select>', { id: `${fieldName}_FIELD` });
+
+    let default_option = jQuery('<option></option>', {value: '', text: ' '});
+    input.append(default_option);
+
+    attr.options.forEach(function(option) {
+      let selected = oldValue ? option.value === oldValue : attr.selected ? attr.selected == option.id : false;
+      input.append(jQuery(`<option></option>`, {value: option.id, text: option.value, selected: selected}));
+    });
+
+    let inputGroup = jQuery('<div></div>', {class: 'input-group-append select2-append', style: `min-width: 150px;`}).append(input);
+    let flexFill = jQuery('<div></div>', {class: 'flex-fill bd-highlight overflow-hidden select2-border'}).append(inputGroup);
+    let dFlex = jQuery(`<div></div>`, {class: 'd-flex bd-highlight'}).append(flexFill);
+
+    let saveBtn = jQuery(`<a id='CHANGE_${fieldName}_BTN'></a>`).addClass('btn')
+      .append(jQuery(`<span class='fa fa-save'></span>`));
+    let checkboxGroup = jQuery('<div></div>', {class: 'input-group-text p-0 px-1 rounded-left-0'}).append(saveBtn);
+    let groupAppend = jQuery('<div></div>', {class: 'input-group-append h-100'}).append(checkboxGroup);
+    let db = jQuery('<div></div>', {class: 'bd-highlight'}).append(groupAppend);
+    dFlex.append(db);
+
+    $jelement.html('');
+    $jelement.append(dFlex);
+
+    input.select2({width: '100%', allowClear: true, placeholder: ''});
+  }
+  else {
+    let input = jQuery(`<input name='NAME' class='form-control' value='${oldValue}' id='${fieldName}_FIELD'\>`);
+    if (attr.type === 'textarea') {
+      input = jQuery(`<textarea rows='5' class='form-control' id='${fieldName}_FIELD'></textarea>`).val(oldValue);
+    }
+
+    let saveBtn = jQuery(`<a id='CHANGE_${fieldName}_BTN'></a>`).addClass('btn input-group-button')
+      .append(jQuery(`<span class='fa fa-save'></span>`));
+    let groupAppend = jQuery(`<div class='input-group-append'></div>`).append(saveBtn);
+    let group = jQuery(`<div class='input-group input-group-sm' style='min-width: 150px;'></div>`)
+      .append(input).append(groupAppend);
+
+    $jelement.html('');
+    $jelement.append(group);
+  }
 
   jQuery('#CHANGE_' + fieldName + '_BTN').on('click', function() {
     url += '&' + fieldName + '=' + jQuery('#' + fieldName + '_FIELD').val();
@@ -2414,7 +2496,8 @@ function editField(element) {
           $jelement.html(oldValue);
           return;
         }
-        newValue = jQuery('#' + fieldName + '_FIELD').val();
+        newValue = attr.type === 'select' ? jQuery(`#${fieldName}_FIELD option:selected`).text()
+          : jQuery(`#${fieldName}_FIELD`).val();
         $jelement.html(newValue);
 
         map.on('popupopen', changePopover);

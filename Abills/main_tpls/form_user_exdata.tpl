@@ -26,12 +26,12 @@
           <span class='info-box-text text-center'></span>
           <div class='info-box-content'>
             <div class='text-center'> <!-- %DISABLE% -->
-              <div class='custom-control custom-switch custom-switch-on-danger custom-switch-off-success'>
+              <div class='custom-control custom-switch custom-switch-on-danger custom-switch-off-success pl-0'>
                 %FORM_DISABLE%
               </div>
             </div>
-            <input class='form-control' type='text' name='ACTION_COMMENTS' ID='ACTION_COMMENTS' value='%DISABLE_COMMENTS%' size='40'
-                   style='display : none;' />
+            <input class='form-control mt-2' type='text' name='ACTION_COMMENTS' ID='ACTION_COMMENTS' value='%DISABLE_COMMENTS%' size='40'
+                   style='display: none; height: calc(2rem)' />
           </div>
         </div>
       </div>

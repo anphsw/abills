@@ -94,18 +94,17 @@ sub accident_report {
   my @data_chart = ();
   my $priority = defined($FORM{PRIORITY}) ? ($FORM{PRIORITY}) : '';
   my $admin = defined($FORM{AID}) ? ($FORM{AID}) : '';
+  my $index = get_function_index('accident_log');
 
 
   foreach my $line (@$accident_report) {
-
-
     if (defined($FORM{TYPE}) && $FORM{TYPE} eq 'months') {
       $from_date = "$line->{month}-01";
       $to_date = "$line->{month}-" . days_in_month({ DATE => $line->{month} });
-      $button_date = $html->button($line->{date}, "index=414&search_form=1&search=1&PRIORITY=$priority&AID=$admin&FROM_DATE=$from_date&TO_DATE=$to_date&FROM_DATE_TO_DATE=$from_date/$to_date", { ex_params => "class=new" });
+      $button_date = $html->button($line->{date}, "index=$index&search_form=1&search=1&PRIORITY=$priority&AID=$admin&FROM_DATE=$from_date&TO_DATE=$to_date&FROM_DATE_TO_DATE=$from_date/$to_date", { ex_params => "class=new" });
     }
     else {
-      $button_date = $html->button($line->{date}, "index=414&search_form=1&search=1&PRIORITY=$priority&AID=$admin&FROM_DATE=$line->{date}&TO_DATE=$line->{date}&FROM_DATE_TO_DATE=$line->{date}/$line->{date}", { ex_params => "class=new" });
+      $button_date = $html->button($line->{date}, "index=$index&search_form=1&search=1&PRIORITY=$priority&AID=$admin&FROM_DATE=$line->{date}&TO_DATE=$line->{date}&FROM_DATE_TO_DATE=$line->{date}/$line->{date}", { ex_params => "class=new" });
     }
 
     $table->addrow(

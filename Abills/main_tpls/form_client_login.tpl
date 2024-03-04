@@ -106,8 +106,8 @@
 
         <div class='row p-0 m-0'>
           <div class='input-group'>
-            <input type='text' id='user' name='user' value='%user%' class='form-control' placeholder='_{LOGIN}_'
-                   autocomplete='off'>
+            <input type='text' id='user' name='user' value='%user%' class='form-control'
+                   placeholder='_{LOGIN}_' autocomplete='off' autocapitalize='none'>
           </div>
         </div>
 

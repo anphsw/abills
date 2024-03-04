@@ -8,6 +8,7 @@ use warnings FATAL => 'all';
 use strict;
 use Abills::Base qw(in_array);
 use Abills::Defs;
+use Abills::Fetcher qw/web_request/;
 
 our ($db,
   %lang,
@@ -33,7 +34,7 @@ sub _add_company {
   $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1, COLS_LEFT => 'col-md-3', COLS_RIGHT => 'col-md-9' });
 
   if (in_array('Docs', \@MODULES)) {
-    $Company->{PRINT_CONTRACT} = $html->button( '',
+    $Company->{PRINT_CONTRACT} = $html->button('',
       "qindex=15&UID=". ($Company->{UID} || '') ."&PRINT_CONTRACT=". ($Company->{UID} || '')  . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''),
       { ex_params => ' target=new', class => 'btn input-group-button', ICON => 'fas fa-print' } );
 
@@ -196,6 +197,13 @@ sub form_companies {
       $Company->{PRINT_CONTRACT} = $html->button( '',
         "qindex=$index$pages_qs&PRINT_CONTRACT=$Company->{ID}" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '')
         , { ex_params => ' target=new', class => 'btn input-group-button', ICON => 'fas fa-print' } );
+
+      # TODO: When will normal logic for managing contracts in the user portal for the company be added?
+      # if ($conf{DOCS_ESIGN} && $Company->{CONTRACT_ID}) {
+      #   $Company->{SIGN_CONTRACT} = $html->button($lang{SIGN},
+      #     "get_index=docs_esign&mk_sign=1&DOC_ID=$Company->{CONTRACT_ID}&COMPANY_ID=$Company->{ID}&DOC_TYPE=4&header=2",
+      #     { LOAD_TO_MODAL => 1, ICON => 'fas fa-signature', class => 'btn input-group-button', ex_params => "style='cursor:pointer'" });
+      # }
     }
 
     my @menu_functions = (
@@ -543,41 +551,6 @@ sub form_companie_admins {
 }
 
 #**********************************************************
-=head2 _form_company_address($attr) get address form for companys
-
-=cut
-#**********************************************************
-sub _form_company_address {
-  my ($attr) = @_;
-
-  require Address;
-
-  my %info = ();
-  Address->import();
-  my $Address = Address->new($db, $admin, \%conf);
-
-  if($attr->{LOCATION_ID}){
-    $Address->address_info($attr->{LOCATION_ID});
-  }
-  elsif($attr->{ADDRESS}){
-    my $address_input    = $html->form_input('ADDRESS', $attr->{ADDRESS});
-    $info{ADDRESS_FORM} .= $html->element('label', $lang{ADDRESS}, { for => 'ADDRESS', class => 'control-label col-md-3'});
-    $info{ADDRESS_FORM} .= $html->element('div',  $address_input, { class => 'col-md-9'});
-    $info{ADDRESS_FORM}  = $html->element('div', $info{ADDRESS_FORM}, {class => 'form-group'});
-  }
-
-  $info{ADDRESS_FORM} .= $html->tpl_show(templates('form_address_sel'),
-    {%$Address, %$attr},
-    {
-      OUTPUT2RETURN => 1,
-      ID            => 'form_address_sel'
-    }
-  );
-
-  return $info{ADDRESS_FORM};
-}
-
-#**********************************************************
 =head2 companies_import($attr)
 
 =cut
@@ -661,5 +634,31 @@ sub companies_import {
 
   return 1;
 }
+
+#**********************************************************
+=head2 companies_edrpou ($attr) - get data of company by edrpou
+
+=cut
+#**********************************************************
+sub companies_edrpou {
+  return if (!$conf{COMPANY_API_DATA_EDRPOU});
+
+  use XML::Simple;
+  use JSON::XS;
+
+  my $url = "$conf{COMPANY_API_DATA_EDRPOU}?egrpou=$FORM{EDRPOU}";
+  my $result = web_request($url, {
+    CURL        => 1,
+    HEADERS     => [ 'Content-Type: text/xml' ],
+  });
+
+  my $xml = XML::Simple->new;
+  my $data = $xml->XMLin($result);
+  my $json = JSON::XS->new->utf8->encode($data);
+
+  print $json || {};
+  return 1;
+}
+
 
 1;

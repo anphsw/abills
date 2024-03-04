@@ -48,5 +48,14 @@ $lang{GROWTH} = 'Прирост';
 $lang{LAST_FEES} = 'Последнее списание';
 
 $lang{TP_ACTIVE_IN_USERS} = "Тарифный план уже активен у пользователей\n%USERS%И активен в расписаниях\n%SCHEDULES%";
+$lang{STATIC_IP} = 'Статический айпи адрес';
+$lang{MAC} = 'MAC-адрес';
+
+$lang{ERR_NO_FIELD} = 'Отсутствует поле %FIELD%';
+$lang{ERR_TARIFF_EXISTS} = 'Тариф с таким ID уже существует';
+$lang{ERR_WRONG_DATE} = 'Неверная дата';
+$lang{ERR_FAILED_SET_SCHEDULE} = 'Не удалось установить расписание изменения ТП';
+$lang{ERR_CHANGE_TP} = 'Не удалось изменить ТП';
+$lang{ERR_NO_TARIFF} = 'Нет тарифа с таким ID';
 
 1;

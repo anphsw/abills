@@ -50,7 +50,11 @@ sub new {
     require Abills::SQL;
     Abills::SQL->import();
 
-    my $sql = Abills::SQL->connect('mysql', $CONF->{IPN_DBHOST}, $CONF->{IPN_DBNAME}, $CONF->{IPN_DBUSER}, $CONF->{IPN_DBPASSWD}, { CHARSET => ($CONF->{IPN_DBCHARSET}) ? $CONF->{IPN_DBCHARSET} : 'utf8' });
+    my $sql = Abills::SQL->connect('mysql', $CONF->{IPN_DBHOST}, $CONF->{IPN_DBNAME}, $CONF->{IPN_DBUSER},
+      $CONF->{IPN_DBPASSWD}, {
+      CHARSET => ($CONF->{IPN_DBCHARSET}) ? $CONF->{IPN_DBCHARSET} : 'utf8',
+      db_engine => 'dbcore'
+    });
 
     if (! $sql->{db}) {
       exit;

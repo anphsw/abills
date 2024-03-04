@@ -4,7 +4,7 @@
 
 =head1 VERSION
 
-  VERSION: 0.07
+  VERSION: 0.08
 
 =cut
 
@@ -984,6 +984,8 @@ sub get_json {
     'uid=s'          => \$opts{uid},
     'help'           => \$opts{help},
     'skip_traffic=s' => \$opts{skip_traffic},
+    'build_id=s'     => \$opts{build_id},
+    'street_id=s'    => \$opts{street_id},
   );
 
   if ($opts{help}) {
@@ -996,6 +998,8 @@ sub get_json {
     DEBUG        => $opts{debug} || 0,
     UID          => $opts{uid},
     SKIP_TRAFFIC => $opts{skip_traffic},
+    BUILD_ID     => $opts{build_id},
+    STREET_ID    => $opts{street_id},
   );
 
   my $count = 0;
@@ -1100,6 +1104,7 @@ sub help {
   -max_rows=
   -start_page=
   -uid=
+  -build_id=
   -skip_traffic=
   -help
 };

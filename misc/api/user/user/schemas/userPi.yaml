@@ -8,16 +8,22 @@ properties:
     example: 15
   addressDistrict:
     type: string
-    example: Коломия
+    example: Снятинське ОТГ
+  addressDistrictFull:
+    type: string
+    example: Коломийський район / Снятинське ОТГ
   addressFlat:
     type: string
     example: ""
   addressFull:
     type: string
-    example:  Вокзальная 15
+    example:  Франка 15
+  addressFullLocation:
+    type: string
+    example:  "Коломийський район / Снятинське ОТГ: Франка, 15"
   addressStreet:
     type: string
-    example: Вокзальная
+    example: Франка
   birthDate:
     type: string
     example: "0000-00-00"

@@ -45,8 +45,8 @@
     <h6 class='card-title'>_{MANAGE}_</h6>
   </div>
 
+  %PLUGINS%
   <div class='card-body'>
-    %PLUGINS%
     <div class='form-group'>
       <div>%TASKS_LIST%</div>
     </div>

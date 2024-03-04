@@ -1,0 +1,5 @@
+{
+   "method": "GET",
+   "name": "SESSIONS_LIST",
+   "path": "internet/sessions/:uid/"
+}

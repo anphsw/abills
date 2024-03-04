@@ -308,7 +308,6 @@ function JSONLoaderCached(options) {
 
 function NavbarDropdownMenu(id, options) {
   this.$wrapper = $('li.dropdown#' + id);
-  // console.log(this.$wrapper);
 
   if (!this.$wrapper.length) {
     throw new Error("Error init NavbarDropdownMenu" + id);
@@ -897,6 +896,165 @@ var EventsMenu = function (id, options) {
 
   this.clear = function () {
     this.events = {};
+    self.$menu.clear();
+    self.$menu.setBadge2(0);
+  };
+
+  this.menu = function () {
+    return this.$menu;
+  }
+};
+
+var CrmDialoguesMenu = function (id, options) {
+  var self = this;
+
+  this.$menu             = null;
+  this.meta              = null;
+  this.default_interval  = 30000; // 30 seconds
+
+  this.filter = options.filter || function () { return true };
+
+  this.dialogues = {};
+  this.notifications = {};
+
+  this.init = function () {
+    try {
+      this.$menu = new NavbarDropdownMenu(id, {
+        BADGE_CUSTOM: true,
+        onRefresh: function (callback) {
+          self.forceUpdate(callback);
+        }
+      });
+
+      this.meta = this.$menu.getMeta();
+
+      if (this.meta && this.meta['UPDATE']) {
+        var refresh = this.meta['REFRESH'] ? this.meta['REFRESH'] * 1000 : this.default_interval;
+
+        // Start loader
+        self.loader = new JSONLoaderCached({
+          id: id,
+          url: this.meta['UPDATE'],
+          refresh: refresh,
+          once: true,
+          after: this.meta['AFTER'] || 0,
+          callback: function (parsed) {
+            self.clear();
+            parsed.map(self.addEvent);
+          },
+          format: function (rawData) {
+            var result = [];
+            if (rawData && rawData.constructor === Array) {
+              rawData.map(message => {
+                if (self.filter(message)) {
+                  result.unshift(self.parseMessage(message));
+                }
+              });
+            }
+            return result;
+          }
+        });
+        $('#' + id).removeClass('hidden');
+      } else {
+        // No need to show element if it has no update link
+        self.clear();
+        return false;
+      }
+    }
+    catch (Error) {
+      return false;
+    }
+  };
+
+  this.parseMessage = function (message) {
+    return {
+      TYPE    : 'MESSAGE',
+      MODULE  : 'Crm',
+      EXTRA   : `/admin/index.cgi?get_index=crm_dialogue&full=1&ID=${message.id}`,
+      ID      : message['id'],
+      SUBJECT : message['last_message'] || '',
+      LOGIN   : message['lead_fio'],
+      CREATED : message['date'],
+      SOURCE  : message['source'] || '',
+      STATE   : message['state'],
+    }
+  };
+
+  this.forceUpdate = function (callback) {
+    if (self.loader !== null && self.loader !== undefined) {
+      self.clear();
+      self.loader.checkUpdates(true, callback);
+    }
+    else {
+      self.$menu.$refresh_btn.addClass('disabled');
+      callback();
+    }
+  };
+
+  this.getSourceClass = function (source) {
+    if (!source) return '';
+
+    if (source === 'mail') return 'far fa-envelope';
+    if (source === 'viber_bot') return 'fab fa-viber';
+
+    return `fab fa-${source}`;
+  };
+
+  this.seenMessageBefore = function(id, message){
+    if (typeof self.dialogues[id] !== 'undefined') {
+      // Already have such dialogue
+      return true;
+    }
+    else {
+      self.dialogues[id] = message;
+      return false;
+    }
+  };
+
+  this.addEvent = function (message) {
+    if (self.seenMessageBefore(message['ID'], message)) return true;
+
+    var new_line = $('<a class="dropdown-item"></a>');
+    new_line.attr('href', (message['EXTRA']) ? message['EXTRA'] : '#');
+    new_line.html(self.formEventHTML(message));
+    if (message['ID']) { new_line.attr('id', (message['ID']))}
+
+    var new_li = $('<li class="p-1"></li>');
+    new_li.html(new_line);
+
+    self.$menu.setBadge2(+(self.$menu.getBadge2()) + 1);
+    self.$menu.addLine(new_line);
+    self.$menu.addLine($('<div class="dropdown-divider"></div>'));
+  };
+
+  this.formEventHTML = function (message) {
+    let source_class = this.getSourceClass(message['SOURCE'])
+    let sender_login = message['LOGIN'];
+    let subject = message['SUBJECT'];
+    let created_data = moment(message['CREATED'], 'YYYY-MM-DD hh:mm:ss').fromNow()
+
+    var message =`
+      <div class="media">
+        <img src="/styles/default/img/admin/avatar0.png" alt="User Avatar" class="img-size-50 mr-3 img-circle">
+          <div class="media-body">
+            <h3 class="dropdown-item-title">
+              ${sender_login}
+              <span class="float-right text-sm">
+              <i class="${source_class}"></i></span>
+            </h3>
+            <p class="text-sm">${subject}</p>
+            <p class="text-sm text-muted">
+              <i class="far fa-clock mr-1"></i>
+              ${created_data}
+            </p>
+          </div>
+      </div>`
+
+    return message
+  };
+
+  this.clear = function () {
+    this.dialogues = {};
     self.$menu.clear();
     self.$menu.setBadge2(0);
   };

@@ -48,6 +48,12 @@ sub maps_districts_main {
   my $show_add_form = $FORM{add_form} || 0;
 
   if ($FORM{add}) {
+    my $district_info = $Maps->districts_info($FORM{DISTRICT_ID});
+    if ($district_info && $district_info->{OBJECT_ID}) {
+      $html->message('err', $lang{THE_COORDINATES_DISTRICT_ALREADY_INDICATED});
+      return 1;
+    }
+
     my $new_point_id = $Auxiliary->maps_add_external_object(LAYER_ID_BY_NAME->{DISTRICT}, \%FORM);
     show_result($Maps, $lang{ADDED} . ' ' . $lang{OBJECT}) unless !$FORM{ADD_ON_NEW_MAP};
     $FORM{OBJECT_ID} = $new_point_id;
@@ -89,18 +95,23 @@ sub maps_districts_main {
     }
   }
   elsif ($FORM{change}) {
-    $Maps->districts_change({ %FORM });
+    $Maps->districts_change({ %FORM }, { CHANGE_PARAM => 'OBJECT_ID' });
     show_result($Maps, $lang{CHANGED});
-    $show_add_form = 1;
+
+    $Maps->polygons_change({
+      OBJECT_ID    => $FORM{OBJECT_ID},
+      COLOR        => $FORM{COLOR},
+    }, { CHANGE_PARAM => 'OBJECT_ID' }) if $FORM{OBJECT_ID} && $FORM{COLOR};
+    # $show_add_form = 1;
   }
   elsif ($FORM{del}) {
     $Maps->districts_del({}, { district_id => $FORM{del} });
     show_result($Maps, $lang{DELETED});
   }
   elsif ($FORM{chg}) {
-    my $tp_info = $Maps->districts_info($FORM{chg});
+    my $district_info = $Maps->districts_info($FORM{chg});
     if (!_error_show($Maps)) {
-      %TEMPLATE_ARGS = %{$tp_info};
+      %TEMPLATE_ARGS = %{$district_info};
       $show_add_form = 1;
     }
   }
@@ -108,35 +119,8 @@ sub maps_districts_main {
   return 1 if ($FORM{MESSAGE_ONLY});
 
   if ($show_add_form) {
-    my $districts = $Address->district_list({ PAGE_ROWS => 1000, COLS_NAME => 1 });
-    my $used_districts_list = $Maps->districts_list({
-      OBJECT_ID   => $FORM{LAST_OBJECT_ID} ? "> $FORM{LAST_OBJECT_ID}" : $FORM{ID} || '_SHOW',
-      DISTRICT_ID => $FORM{DISTRICT_ID} || '_SHOW',
-      DISTRICT    => '_SHOW',
-      LIST2HASH   => 'object_id,district_id'
-    });
-    my @used_districts_ids = ();
-    
-    foreach (@{$used_districts_list}) {
-      my $t = $Maps->polygons_list({ OBJECT_ID => $_->{object_id} });
-      next if !$Maps->{TOTAL};
-
-      push(@used_districts_ids, $_->{district_id});
-    }
-
-    my $not_used_districts_list = ();
-
-    foreach (@{$districts}) {
-      next if in_array($_->{id}, \@used_districts_ids);
-      push @{$not_used_districts_list}, $_;
-    }
-
-    $TEMPLATE_ARGS{DISTRICT_ID_SELECT} = $html->form_select("DISTRICT_ID", {
-      SELECTED    => $TEMPLATE_ARGS{DISTRICT_ID},
-      SEL_LIST    => $not_used_districts_list,
-      SEL_OPTIONS => { '' => '--' },
-      NO_ID       => 1
-    });
+    require Control::Address_mng;
+    $TEMPLATE_ARGS{DISTRICT_ID_SELECT} = sel_districts_full_path({ %TEMPLATE_ARGS, FULL_NAME => undef });
     $TEMPLATE_ARGS{COLOR} ||= '#ffffff';
 
     $html->tpl_show(_include('maps_district', 'Maps'), {
@@ -154,14 +138,15 @@ sub maps_districts_main {
     INPUT_DATA      => $Maps,
     FUNCTION        => 'districts_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'DISTRICT_ID,DISTRICT',
+    DEFAULT_FIELDS  => 'DISTRICT_ID,FULL_NAME',
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
     EXT_FIELDS      => 0,
     EXT_TITLES      => {
       district_id => '#',
-      district    => $lang{DISTRICT},
+      # district    => $lang{DISTRICT},
       object_id   => $lang{MAP},
+      full_name   => $lang{DISTRICT},
     },
     FILTER_VALUES   => {
       district_id => sub {

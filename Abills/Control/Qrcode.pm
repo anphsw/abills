@@ -8,7 +8,7 @@ package Control::Qrcode;
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw(urlencode urldecode load_pmodule encode_base64);
+use Abills::Base qw(urlencode urldecode load_pmodule encode_base64 in_array);
 
 #**********************************************************
 =head2 new($db, $admin, $CONF)
@@ -159,6 +159,12 @@ sub _encode_url_to_img {
   }
   elsif ($attr->{QRCODE_URL}) {
     $url_to_encode = $attr->{QRCODE_URL};
+
+    if ($attr->{EX_PARAMS}) {
+      my @skip_keys = ('EX_PARAMS', 'QRCODE_URL', 'qindex', 'qrcode', 'language', '__BUFFER', 'sid', 'root_index');
+      my $ex_params = join('&', map { "$_=$attr->{$_}" } grep { !in_array($_, \@skip_keys) } keys %{$attr});
+      $url_to_encode .= "&$ex_params" if $ex_params;
+    }
   }
   else {
     $url_to_encode = $url . $self->_stringify_params($attr->{PARAMS}) . "&full=1";

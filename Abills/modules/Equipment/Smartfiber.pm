@@ -9,11 +9,12 @@ use warnings;
 use Abills::Base qw(in_array);
 use Abills::Filters qw(bin2mac _mac_former dec2hex);
 use Equipment::Misc qw(equipment_get_telnet_tpl);
+
+do 'Abills/Misc.pm';
 require Equipment::Snmp_cmd;
-use JSON qw(decode_json);
+
 
 our (
-  $base_dir,
   %lang,
   $html,
   %conf,
@@ -135,7 +136,6 @@ sub _smartfiber_onu_list {
       }
     }
 
-
     foreach my $key (keys %{$onu_snmp_info{ONU_STATUS}}) {
       my %onu_info = ();
 
@@ -145,6 +145,8 @@ sub _smartfiber_onu_list {
         my $oid_name = $cols[$i];
         if ($oid_name eq 'ONU_ID') {
           $value = $onu_id;
+          $onu_info{ONU_DHCP_PORT}  = $onu_id;
+          $onu_info{ONU_SNMP_ID}    = $onu_id;
         }
         elsif ($oid_name eq 'PORT_ID') {
           $value = $port_list->{$snmp_key}->{ID};
@@ -185,20 +187,13 @@ sub _smartfiber_onu_list {
 #**********************************************************
 sub _smartfiber {
   my ($attr) = @_;
-  my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
 
-  my $file_content = file_op({
-    FILENAME   => 'smartfiber.snmp',
-    PATH       => $TEMPLATE_DIR,
-  });
-
-  $file_content =~ s#//.*$##gm;
-
-  my $snmp = decode_json($file_content);
+  my $snmp = _get_snmp('smartfiber');
 
   if ($attr->{TYPE}) {
     return $snmp->{$attr->{TYPE}};
   }
+
   return $snmp;
 }
 
@@ -279,8 +274,9 @@ sub _smartfiber_convert_power {
   my ($power) = @_;
   $power //= 0;
 
-  $power =~ /(\d+.\d+) dBm/;
-  $power = -$1;
+  if ($power =~ /(\d+.\d+) dBm/) {
+    $power = -$1;
+  }
 
   return $power;
 }

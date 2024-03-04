@@ -16,13 +16,13 @@ use threads;
 BEGIN {
   our %conf;
   use FindBin '$Bin';
-  unshift(@INC, $Bin."/../libexec/");
+  unshift(@INC, $Bin . "/../libexec/");
 
   do "config.pl";
 
   unshift(@INC,
-    $Bin."/../lib/",
-    $Bin."/../Abills/$conf{dbtype}");
+    $Bin . "/../lib/",
+    $Bin . "/../Abills/$conf{dbtype}");
 }
 
 
@@ -40,8 +40,11 @@ use Abills::Base qw(check_time parse_arguments mk_unique_value in_array);
 use Abills::SQL;
 
 $begin_time = check_time();
-my $db    = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, \%conf);
-my $argv  = parse_arguments(\@ARGV);
+my $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
+  { %conf,
+    db_engine => 'dbcore'
+  });
+my $argv = parse_arguments(\@ARGV);
 
 my $debug = $argv->{debug} || 1;
 my $count = $argv->{count} || 1000; #24000; # Test iterations.
@@ -68,7 +71,7 @@ elsif (defined($argv->{rad_acct})) {
 elsif (defined($argv->{unifi})) {
   unifi();
 }
-elsif(defined($argv->{help})) {
+elsif (defined($argv->{help})) {
   print "Select test\n";
   help();
 }
@@ -81,17 +84,17 @@ else {
 
 =cut
 #**********************************************************
-sub mac_auth{
+sub mac_auth {
   print "Mac_auth test\n";
 
   my $rad_pairs;
-  if ( $ARGV[1] ) {
-    $rad_pairs = load_rad_pairs( $ARGV[1] );
+  if ($ARGV[1]) {
+    $rad_pairs = load_rad_pairs($ARGV[1]);
   }
 
-  %RAD_REQUEST = %{ $rad_pairs };
-  $Bin = $Bin .'/../libexec/';
-  if($argv->{mac_auth2}) {
+  %RAD_REQUEST = %{$rad_pairs};
+  $Bin = $Bin . '/../libexec/';
+  if ($argv->{mac_auth2}) {
     print "Mac_auth2\n";
     require Mac_auth2;
   }
@@ -114,20 +117,20 @@ sub mac_auth{
 
 =cut
 #**********************************************************
-sub show_reply{
-  my($RAD_REPLY, $message)=@_;
+sub show_reply {
+  my ($RAD_REPLY, $message) = @_;
 
-  print (($message) ? $message : "RAD_REPLY");
+  print(($message) ? $message : "RAD_REPLY");
   print ":\n";
 
   foreach my $k (sort keys %$RAD_REPLY) {
     my $v = $RAD_REPLY->{$k};
-    if ( ref $v eq 'ARRAY' ){
+    if (ref $v eq 'ARRAY') {
       foreach my $value (@$v) {
         print "  $k -> $value\n";
       }
     }
-    else{
+    else {
       print "  $k -> $v\n";
     }
   }
@@ -144,15 +147,15 @@ sub show_reply{
 sub unifi {
 
   my ($username,
-   $password,
-   $userip,
-   $usermac,
+    $password,
+    $userip,
+    $usermac,
   ) =
-  ( 'test',
-    '123456',
-    '192.168.100.11',
-    '00:22:33:44:55:66',
-  );
+    ('test',
+      '123456',
+      '192.168.100.11',
+      '00:22:33:44:55:66',
+    );
 
   $conf{'UNIFI_IP'} = '10.244.127.232';
   $debug = 0;
@@ -167,7 +170,7 @@ sub unifi {
     'Called-Station-Id'  => 'ap_mac',
     'NAS-IP-Address'     => $conf{'UNIFI_IP'},
     #'NAS-Port'          => $Dv->{PORT},
-        #'Filter-Id'         => $Dv->{FILTER_ID} || $Dv->{TP_FILTER_ID},
+    #'Filter-Id'         => $Dv->{FILTER_ID} || $Dv->{TP_FILTER_ID},
     'Connect-Info'       => '_id',
   );
 
@@ -179,25 +182,18 @@ sub unifi {
   $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { %conf, CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
   my $Auth;
 
-  if (in_array('Internet', \@MODULES)) {
-    require Auth2;
-    Auth2->import();
-    $Auth = Auth2->new($db, \%conf);
-  }
-  else {
-    require Auth;
-    Auth->import();
-    $Auth = Auth->new($db, \%conf);
-  }
+  require Auth2;
+  Auth2->import();
+  $Auth = Auth2->new($db, \%conf);
   my $Nas = Nas->new($db, \%conf);
 
   if ($debug) {
     $Auth->{debug} = 1;
-    $Nas->{debug}  = 1;
+    $Nas->{debug} = 1;
   }
 
   $Nas->info({
-    IP     => $conf{'UNIFI_IP'},
+    IP => $conf{'UNIFI_IP'},
     #NAS_ID => $RAD->{'NAS-Identifier'}
   });
 
@@ -206,7 +202,7 @@ sub unifi {
     ($r, $RAD_PAIRS) = $Auth->internet_auth(\%RAD, $Nas, { SECRETKEY => $conf{secretkey} });
   }
 
-  my $text = "Result: ($r) ". (($r) ? 'fail' : 'ok' ) ."\n";
+  my $text = "Result: ($r) " . (($r) ? 'fail' : 'ok') . "\n";
   foreach my $key (keys %$RAD_PAIRS) {
     $text .= "$key -> $RAD_PAIRS->{$key}\n";
   }
@@ -222,7 +218,7 @@ sub unifi {
 =cut
 #**********************************************************
 sub _rad {
-  my ($attr)=@_;
+  my ($attr) = @_;
 
   if ($debug > 0) {
     print "Test radius\n";
@@ -230,10 +226,10 @@ sub _rad {
 
   my $rad_file = $argv->{rad_file} || q{};
 
-  $attr->{rad_file}=$rad_file;
+  $attr->{rad_file} = $rad_file;
 
   my @users_arr = ();
-  if ( $argv->{get_db_users} ) {
+  if ($argv->{get_db_users}) {
     require Users;
 
     my $Users = Users->new($db, undef, \%conf);
@@ -254,41 +250,41 @@ sub _rad {
       };
     }
   }
-  elsif($rad_file) {
+  elsif ($rad_file) {
     my $load_file = (-f $rad_file . '.auth') ? $rad_file . '.auth' : $rad_file;
-    %RAD_REQUEST = %{ load_rad_pairs($load_file) };
+    %RAD_REQUEST = %{load_rad_pairs($load_file)};
   }
   else {
     %RAD_REQUEST = (
-      'User-Name'      => 'test',
-      'Password'       => '123456',
-      'NAS-IP-Address' => '127.0.0.1',
-      'Acct-Session-Id'=> 'test_id' . mk_unique_value(10)
+      'User-Name'       => 'test',
+      'Password'        => '123456',
+      'NAS-IP-Address'  => '127.0.0.1',
+      'Acct-Session-Id' => 'test_id' . mk_unique_value(10)
     );
   }
 
-  if($argv->{NAS_IP}) {
-    $RAD_REQUEST{'NAS-IP-Address'}=$argv->{NAS_IP};
+  if ($argv->{NAS_IP}) {
+    $RAD_REQUEST{'NAS-IP-Address'} = $argv->{NAS_IP};
   }
 
-  $Bin = $Bin .'/../libexec/';
+  $Bin = $Bin . '/../libexec/';
   do "rlm_perl.pl";
   #my $thread_mode = 1;
 
   if ($attr->{acct}) {
     print " acct \n";
-    timethis($count, sub{ acct => accounting(); });
+    timethis($count, sub {acct => accounting();});
   }
-  elsif($argv->{thread_mode}) {
+  elsif ($argv->{thread_mode}) {
     print "Thread mode  \n";
     my $thread_count = $argv->{thread_mode} || 5;
 
-    timethis($count, sub{
+    timethis($count, sub {
       my @threads = ();
-      for my $i (1..$thread_count) {
+      for my $i (1 .. $thread_count) {
         push @threads, threads->create(
-          sub{
-            %RAD_REQUEST = %{ $users_arr[ rand($#users_arr + 1) ] };
+          sub {
+            %RAD_REQUEST = %{$users_arr[ rand($#users_arr + 1) ]};
             authenticate();
           },
           $i);
@@ -298,28 +294,28 @@ sub _rad {
         $thread->join();
       }
 
-                        });
+    });
   }
-  elsif($attr->{dhcp_test}) {
+  elsif ($attr->{dhcp_test}) {
     print "Mac_auth test\n";
-    if($#ARGV < 1) {
+    if ($#ARGV < 1) {
       print "use Aaa.t dhcp_test Mac_auth.rad $#ARGV\n";
       exit;
     }
     #post_auth();
     mac_auth();
   }
-  elsif($argv->{benchmark}) {
+  elsif ($argv->{benchmark}) {
     print " benchmark auth count: $count\n";
 
     my %RAD = %RAD_REQUEST;
 
-    timethis($count, sub{
-      if(%RAD) {
+    timethis($count, sub {
+      if (%RAD) {
         %RAD_REQUEST = %RAD;
       }
-      elsif($#users_arr > -1){
-        %RAD_REQUEST = %{ $users_arr[ rand( $#users_arr + 1 ) ] };
+      elsif ($#users_arr > -1) {
+        %RAD_REQUEST = %{$users_arr[ rand($#users_arr + 1) ]};
       }
 
       authenticate();
@@ -342,10 +338,10 @@ sub _rad {
 
 =cut
 #**********************************************************
-sub aaa_base{
-  my ($attr)=@_;
+sub aaa_base {
+  my ($attr) = @_;
 
-  if($debug) {
+  if ($debug) {
     print "Basic\n";
   }
 
@@ -358,12 +354,12 @@ sub aaa_base{
   my $ret = authenticate();
   print "  authenticate: $ret\n";
   ok($ret);
-  if(! $ret) {
+  if (!$ret) {
     show_reply(\%RAD_REPLY);
     %RAD_REPLY = ();
   }
 
-  if($attr->{auth}) {
+  if ($attr->{auth}) {
     return 1;
   }
 
@@ -379,51 +375,51 @@ sub aaa_base{
 
   %RAD_REPLY = ();
 
-  if($rad_file && -f $rad_file.'.acct_start') {
-    %RAD_REQUEST = %{ load_rad_pairs($rad_file.'.acct_start') };
+  if ($rad_file && -f $rad_file . '.acct_start') {
+    %RAD_REQUEST = %{load_rad_pairs($rad_file . '.acct_start')};
   }
   else {
     $RAD_REQUEST{'Acct-Status-Type'} = 'Start';
-    $RAD_REQUEST{'Acct-Session-Id'} =  $RAD_REQUEST{'Acct-Session-Id'} || ('test_id' . mk_unique_value(10)),  # 'testsesion_1';
+    $RAD_REQUEST{'Acct-Session-Id'} = $RAD_REQUEST{'Acct-Session-Id'} || ('test_id' . mk_unique_value(10)), # 'testsesion_1';
     $RAD_REQUEST{'Framed-IP-Address'} = '192.168.100.20';
   }
 
   if ($debug > 4) {
-    show_reply(\%RAD_REQUEST, 'accounting '. $RAD_REQUEST{'Acct-Status-Type'});
+    show_reply(\%RAD_REQUEST, 'accounting ' . $RAD_REQUEST{'Acct-Status-Type'});
   }
 
   $ret = accounting();
   print "  accounting 'Start': $ret\n";
   ok($ret);
 
-  if($rad_file && -f $rad_file.'.acct_alive') {
-    %RAD_REQUEST = %{ load_rad_pairs($rad_file.'.acct_alive') };
+  if ($rad_file && -f $rad_file . '.acct_alive') {
+    %RAD_REQUEST = %{load_rad_pairs($rad_file . '.acct_alive')};
   }
 
-  $RAD_REQUEST{'Acct-Session-Time'}=200;
-  $RAD_REQUEST{'Acct-Status-Type'}='Interim-Update';
+  $RAD_REQUEST{'Acct-Session-Time'} = 200;
+  $RAD_REQUEST{'Acct-Status-Type'} = 'Interim-Update';
 
   if ($debug > 4) {
-    show_reply(\%RAD_REQUEST, 'accounting '. $RAD_REQUEST{'Acct-Status-Type'});
+    show_reply(\%RAD_REQUEST, 'accounting ' . $RAD_REQUEST{'Acct-Status-Type'});
   }
 
   $ret = accounting();
   print "  accounting '$RAD_REQUEST{'Acct-Status-Type'}': $ret\n";
   ok($ret);
 
-  if($rad_file && -f $rad_file.'.acct_stop') {
-    %RAD_REQUEST = %{ load_rad_pairs($rad_file.'.acct_stop') };
+  if ($rad_file && -f $rad_file . '.acct_stop') {
+    %RAD_REQUEST = %{load_rad_pairs($rad_file . '.acct_stop')};
   }
   else {
-    $RAD_REQUEST{'Acct-Session-Time'}  = 300;
+    $RAD_REQUEST{'Acct-Session-Time'} = 300;
     $RAD_REQUEST{'Acct-Output-Octets'} = 11111111;
-    $RAD_REQUEST{'Acct-Input-Octets'}  = 22222222;
+    $RAD_REQUEST{'Acct-Input-Octets'} = 22222222;
   }
 
-  $RAD_REQUEST{'Acct-Status-Type'}='Stop';
+  $RAD_REQUEST{'Acct-Status-Type'} = 'Stop';
 
   if ($debug > 4) {
-    show_reply(\%RAD_REQUEST, 'accounting '. $RAD_REQUEST{'Acct-Status-Type'});
+    show_reply(\%RAD_REQUEST, 'accounting ' . $RAD_REQUEST{'Acct-Status-Type'});
   }
 
   $ret = accounting();
@@ -441,27 +437,27 @@ sub aaa_base{
 sub load_rad_pairs {
   my ($filename) = @_;
 
-  if (! $filename || ! -f $filename) {
+  if (!$filename || !-f $filename) {
     print "File not found '$filename'.\n User rad_file=\n";
     exit;
   }
 
   print "Load rad file: $filename\n" if ($debug > 0);
 
-  my $content   = '';
+  my $content = '';
   my %rad_pairs = ();
 
   open(my $fh, '<', $filename) or die "Can;t load '$filename' $!";
-    while(<$fh>) {
-      $content .= $_;
-    }
+  while (<$fh>) {
+    $content .= $_;
+  }
   close($fh);
 
   my @rows = split(/[\r\n]+/, $content);
 
   foreach my $line (@rows) {
     my ($key, $val) = split(/\s+\+?=\s+/, $line, 2);
-    if (! $key) {
+    if (!$key) {
       next;
     }
     $key =~ s/^\s+//;
@@ -472,7 +468,7 @@ sub load_rad_pairs {
     $val =~ s/^\"//;
     $val =~ s/\'$//;
     $val =~ s/^\'//;
-    $rad_pairs{$key}=$val;
+    $rad_pairs{$key} = $val;
   }
 
   if ($debug > 2) {
@@ -495,12 +491,12 @@ sub get_nas_info {
   Nas->import();
 
   my $Nas = Nas->new($db, \%conf);
-  my %NAS_PARAMS = ( IP => '127.0.0.1' );
+  my %NAS_PARAMS = (IP => '127.0.0.1');
 
-  cmpthese( $count, {
+  cmpthese($count, {
     #nas_new    => sub{ $Nas = $Nas->info2({ %NAS_PARAMS, SHORT => 1 }) },
-    nas_short  => sub{ $Nas = $Nas->info({ %NAS_PARAMS, SHORT => 1 });  },
-    nas        => sub{ $Nas = $Nas->info({ %NAS_PARAMS  });   }
+    nas_short => sub {$Nas = $Nas->info({ %NAS_PARAMS, SHORT => 1 });},
+    nas       => sub {$Nas = $Nas->info({ %NAS_PARAMS });}
   });
 
   return 1;
@@ -518,17 +514,17 @@ sub _get_ip {
   Auth2->import();
   my $Auth = Auth2->new($db, \%conf);
 
-#  my $first_ip = 185273108;
-#  my $ip_count = 65000;
-#  for (my $i = $first_ip; $i <= $first_ip + $ip_count; $i++) {
-#    $Auth->query2("INSERT INTO ippools_ips (ip, status, ippool_id) VALUES ('$i', 0, '44');", 'do');
-#  }
+  #  my $first_ip = 185273108;
+  #  my $ip_count = 65000;
+  #  for (my $i = $first_ip; $i <= $first_ip + $ip_count; $i++) {
+  #    $Auth->query("INSERT INTO ippools_ips (ip, status, ippool_id) VALUES ('$i', 0, '44');", 'do');
+  #  }
 
-  timethis($count, sub{
-    $Auth->query2("DELETE FROM internet_online WHERE user_name='test';", 'do');
+  timethis($count, sub {
+    $Auth->query("DELETE FROM internet_online WHERE user_name='test';", 'do');
 
     #$Auth->{debug}=1;
-    $Auth->{USER_NAME}='test';
+    $Auth->{USER_NAME} = 'test';
     my $ip = $Auth->get_ip(7, '127.0.0.1',
       {
         #      TP_IPPOOL => $self->{NEG_DEPOSIT_IPPOOL} || $self->{TP_IPPOOL},
@@ -538,13 +534,13 @@ sub _get_ip {
       });
   });
 
-  $conf{GET_IP2}=1;
+  $conf{GET_IP2} = 1;
   $Auth = Auth2->new($db, \%conf);
 
-  timethis($count, sub{
-    $Auth->query2("DELETE FROM internet_online WHERE user_name='test';", 'do');
+  timethis($count, sub {
+    $Auth->query("DELETE FROM internet_online WHERE user_name='test';", 'do');
     #$Auth->{debug}=1;
-    $Auth->{USER_NAME}='test';
+    $Auth->{USER_NAME} = 'test';
     my $ip = $Auth->get_ip2(7, '127.0.0.1',
       {
         #      TP_IPPOOL => $self->{NEG_DEPOSIT_IPPOOL} || $self->{TP_IPPOOL},
@@ -553,7 +549,6 @@ sub _get_ip {
         #      CONNECT_INFO => $self->{IP}
       });
   });
-
 
   return 1;
 }
@@ -564,9 +559,9 @@ sub _get_ip {
 
 =cut
 #**********************************************************
-sub help  {
+sub help {
 
-print << "[END]";
+  print <<"[END]";
 
 nas      - Nas get
 get_ip   - Get IP

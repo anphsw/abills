@@ -9,11 +9,9 @@ use warnings;
 use Abills::Base qw(in_array);
 use Abills::Filters qw(bin2mac _mac_former dec2hex);
 use Equipment::Misc qw(equipment_get_telnet_tpl);
-use JSON qw(decode_json);
 require Equipment::Snmp_cmd;
 
 our (
-  $base_dir,
   %lang,
   $html,
   %conf,
@@ -254,7 +252,9 @@ sub _bdcom_onu_list {
             if ($onu_status) {
               if ($pon_type eq 'gpon') {
                 my $onu_profile = $onu_snmp_info{$interface_index. '.1'}{'PROFILE'};
-                $onu_info{$oid_name}=$profile->{$onu_profile}{VLAN} || 0;
+                if ($onu_profile) {
+                  $onu_info{$oid_name} = $profile->{$onu_profile}{VLAN} || 0;
+                }
               }
               elsif ($onu_status == 3 || $onu_status == 4 || $onu_status == 5) {
                 $onu_info{$oid_name} = $onu_snmp_info{$interface_index . ".1"}{VLAN} || 0;
@@ -283,16 +283,8 @@ sub _bdcom_onu_list {
 #**********************************************************
 sub _bdcom {
   my ($attr) = @_;
-  my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
 
-  my $file_content = file_op({
-    FILENAME => 'bdcom.snmp',
-    PATH     => $TEMPLATE_DIR,
-  });
-  # Removing json comments
-  $file_content =~ s#//.*$##gm;
-
-  my $snmp = decode_json($file_content);
+  my $snmp = _get_snmp('bdcom');
 
   # P3616-2TE need test
   if ($attr->{MODEL}) {
@@ -330,7 +322,7 @@ sub _bdcom_get_profiles {
   my %profiles = ();
   my $profile_info = snmp_get({
     VERSION  => $attr->{SNMP_VERSION} || 2,
-    TIMEOUT  => $attr->{SNMP_TIMEOUT} || 2
+    TIMEOUT  => $attr->{SNMP_TIMEOUT} || 2,
     %$attr,
     WALK    => 1,
     OID     => '.1.3.6.1.4.1.3320.10.6.1.1.1.4'

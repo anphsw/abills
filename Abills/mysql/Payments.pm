@@ -222,6 +222,11 @@ sub list {
 
   my @WHERE_RULES = ();
 
+  my $table_name = 'payments';
+  if($attr->{TABLE_SUFIX}) {
+    $table_name .= '_' . $attr->{TABLE_SUFIX};
+  }
+
   if (! $attr->{PAYMENT_DAYS}) {
   	$attr->{PAYMENT_DAYS}=0;
   }
@@ -294,7 +299,7 @@ sub list {
       $self->{SEARCH_FIELDS}
       p.inner_describe,
       p.uid
-    FROM payments p
+    FROM `$table_name` p
     LEFT JOIN users u ON (u.uid=p.uid)
     LEFT JOIN admins a ON (a.aid=p.aid)
     $EXT_TABLES
@@ -312,7 +317,7 @@ sub list {
 
   $self->query("SELECT COUNT(tt.id) AS total, SUM(tt.sum) AS sum, COUNT(DISTINCT tt.uid) AS total_users
     FROM (SELECT p.id, p.sum, p.uid
-    FROM payments p
+    FROM `$table_name` p
     LEFT JOIN users u ON (u.uid=p.uid)
     LEFT JOIN admins a ON (a.aid=p.aid)
     $EXT_TABLES
@@ -451,6 +456,7 @@ sub reports {
       ['MONTH',             'DATE', "DATE_FORMAT(p.date, '%Y-%m')"     ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(p.date, '%Y-%m-%d')"  ],
       ['DATE',              'DATE', "DATE_FORMAT(p.date, '%Y-%m-%d')"  ],
+      ['AID',               'INT',  "p.aid"                            ],
     ],
     {
       WHERE             => 1,

@@ -1,4 +1,4 @@
-package Me60_auth v7.10.0;
+package Me60_auth v8.01.0;
 
 =head1 NAME
 
@@ -8,7 +8,7 @@ package Me60_auth v7.10.0;
 
 use strict;
 #use parent qw(main Exporter);
-use base qw(main Auth2 Acct2);
+use base qw(dbbase Auth2 Acct2);
 
 our @EXPORT  = qw(
   check_chap
@@ -137,7 +137,7 @@ sub auth {
     $WHERE = "internet.id='$self->{SERVICE_ID}'";
   }
 
-  $self->query2("SELECT
+  $self->query("SELECT
   IF(internet.logins=0, IF(tp.logins IS NULL, 0, tp.logins), internet.logins) AS logins,
   IF(internet.filter_id != '', internet.filter_id, IF(tp.filter_id IS NULL, '', tp.filter_id)) AS filter,
   tp.total_time_limit,
@@ -224,9 +224,9 @@ sub auth {
         $params = ',activate=NOW()';
       }
 
-      $self->query2("UPDATE internet_main SET disable=0 $params WHERE uid='$self->{UID}' AND disable>0;", 'do');
+      $self->query("UPDATE internet_main SET disable=0 $params WHERE uid='$self->{UID}' AND disable>0;", 'do');
 
-      $self->query2("INSERT INTO admin_actions SET
+      $self->query("INSERT INTO admin_actions SET
         AID         = 2,
         IP          = INET_ATON('127.0.0.3'),
         DATETIME    = NOW(),
@@ -288,7 +288,7 @@ sub auth {
     if ($SET =~ /^SET.+/) {
       $SET =~ s/'\s/', /g;
       $SET =~ s/,$//g;
-       $self->query2(
+       $self->query(
        "UPDATE internet_main $SET WHERE uid='$self->{UID}';"
         , 'do');
     }
@@ -314,7 +314,7 @@ sub auth {
   #Check  simultaneously logins if needs
   if ($self->{LOGINS} > 0) {
     # SELECT cid, INET_NTOA(framed_ip_address) AS ip, nas_id, status FROM internet_online WHERE user_name= ? AND (status <> 2)
-    $self->query2("SELECT cid, INET_NTOA(framed_ip_address) AS ip, nas_id, status FROM internet_online
+    $self->query("SELECT cid, INET_NTOA(framed_ip_address) AS ip, nas_id, status FROM internet_online
     WHERE user_name= ? AND (status <> 2) AND guest=0;", undef, { Bind => [ $RAD->{'User-Name'} ] });
 
     my ($active_logins)  = $self->{TOTAL};
@@ -336,7 +336,7 @@ sub auth {
           && $NAS->{NAS_TYPE} ne 'ipcad'
           )
         {
-          $self->query2("UPDATE internet_online SET status=6 WHERE user_name= ? AND cid= ? AND status <> 2;",
+          $self->query("UPDATE internet_online SET status=6 WHERE user_name= ? AND cid= ? AND status <> 2;",
            'do',
           { Bind => [
              $RAD->{'User-Name'} || '',
@@ -473,7 +473,7 @@ sub auth {
       my $session_traf_limit = $self->{TRAF_LIMIT};
       #Get online time
       if(! defined($online_time)) {
-        $self->query2("SELECT SUM(UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started))
+        $self->query("SELECT SUM(UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started))
          FROM internet_online WHERE $WHERE GROUP BY uid;"
         );
         if($self->{TOTAL}) {
@@ -484,7 +484,7 @@ sub auth {
         }
       }
 
-      $self->query2("SELECT if(" . $self->{ $period . '_TIME_LIMIT' } . " > 0, " . $self->{ $period . '_TIME_LIMIT' } . "- $online_time - SUM(duration), 0),
+      $self->query("SELECT if(" . $self->{ $period . '_TIME_LIMIT' } . " > 0, " . $self->{ $period . '_TIME_LIMIT' } . "- $online_time - SUM(duration), 0),
           if(" . $self->{ $period . '_TRAF_LIMIT' } . " > 0, " . $self->{ $period . '_TRAF_LIMIT' } . "- $direction_sum[$self->{OCTETS_DIRECTION}], 0),
           1
          FROM internet_log
@@ -549,7 +549,7 @@ sub auth {
   if ($NAS->{NAS_TYPE} && $NAS->{NAS_TYPE} eq 'ipcad') {
     # SET ACCOUNT expire date
     if ($self->{ACCOUNT_AGE} > 0 && ! $self->{INTERNET_EXPIRE}) {
-       $self->query2("UPDATE internet_main SET expire=CURDATE() + INTERVAL $self->{ACCOUNT_AGE} day
+       $self->query("UPDATE internet_main SET expire=CURDATE() + INTERVAL $self->{ACCOUNT_AGE} day
        WHERE uid='$self->{UID}';", 'do'
        );
     }
@@ -620,12 +620,12 @@ sub auth {
   		$cid = $1;
   	}
 
-    $self->query2("UPDATE internet_main SET cid='$cid' WHERE uid='$self->{UID}';", 'do');
+    $self->query("UPDATE internet_main SET cid='$cid' WHERE uid='$self->{UID}';", 'do');
   }
 
   # SET ACCOUNT expire date
   if ($self->{ACCOUNT_AGE} > 0 && ! $self->{INTERNET_EXPIRE}) {
-    $self->query2("UPDATE internet_main SET expire=CURDATE() + INTERVAL $self->{ACCOUNT_AGE} day
+    $self->query("UPDATE internet_main SET expire=CURDATE() + INTERVAL $self->{ACCOUNT_AGE} day
       WHERE uid='$self->{UID}';", 'do'
     );
   }
@@ -798,7 +798,7 @@ sub authentication {
     }
 
     if ($CONF->{INTERNET_LOGIN}) {
-      $self->query2("SELECT uid, login FROM internet_main WHERE login= ? ;", undef, { INFO => 1, Bind => [ $RAD->{'User-Name'} ] });
+      $self->query("SELECT uid, login FROM internet_main WHERE login= ? ;", undef, { INFO => 1, Bind => [ $RAD->{'User-Name'} ] });
     }
 
     if ($self->{UID}) {
@@ -808,7 +808,7 @@ sub authentication {
       $WHERE = "u.id='". $RAD->{'User-Name'} ."'  " . $WHERE;
     }
 
-    $self->query2("SELECT
+    $self->query("SELECT
   u.uid,
   DECODE(password, '$SECRETKEY') AS passwd,
   UNIX_TIMESTAMP() AS session_start,
@@ -846,7 +846,7 @@ sub authentication {
   }
 
   if ($CONF->{INTERNET_PASSWORD}) {
-    $self->query2("SELECT DECODE(password, '$CONF->{secretkey}') AS password FROM internet_main WHERE uid='$self->{UID}';");
+    $self->query("SELECT DECODE(password, '$CONF->{secretkey}') AS password FROM internet_main WHERE uid='$self->{UID}';");
     if($self->{list}->[0]->[0]) {
       $self->{PASSWD}=$self->{list}->[0]->[0];
     }
@@ -1039,7 +1039,7 @@ sub check_bill_account {
   my $self = shift;
 
   if ($CONF->{EXT_BILL_ACCOUNT} && $self->{EXT_BILL_ID}) {
-    $self->query2("SELECT id, ROUND(deposit, 2) FROM bills
+    $self->query("SELECT id, ROUND(deposit, 2) FROM bills
      WHERE id='$self->{BILL_ID}' OR id='$self->{EXT_BILL_ID}';"
     );
     if ($self->{errno}) {
@@ -1062,7 +1062,7 @@ sub check_bill_account {
   }
   else {
     #get sum from bill account
-    $self->query2("SELECT ROUND(deposit, 2) FROM bills WHERE id='$self->{BILL_ID}';");
+    $self->query("SELECT ROUND(deposit, 2) FROM bills WHERE id='$self->{BILL_ID}';");
     if ($self->{errno}) {
       return $self;
     }
@@ -1085,7 +1085,7 @@ sub check_bill_account {
 sub check_company_account {
   my $self = shift;
 
-  $self->query2("SELECT bill_id, disable, credit
+  $self->query("SELECT bill_id, disable, credit
        FROM companies WHERE id='$self->{COMPANY_ID}';"
   );
 
@@ -1157,7 +1157,7 @@ sub ex_traffic_params {
   my %trafic_limits = ();
   my %expr          = ();
 
-  $self->query2("SELECT id, in_price, out_price, prepaid, in_speed, out_speed, net_id, expression
+  $self->query("SELECT id, in_price, out_price, prepaid, in_speed, out_speed, net_id, expression
     ,burst_limit_dl,burst_limit_ul,burst_threshold_dl,burst_threshold_ul,burst_time_dl,burst_time_ul
      FROM trafic_tarifs
      WHERE interval_id= ?;",
@@ -1426,7 +1426,7 @@ sub get_ip {
   my $user_name = $self->{USER_NAME} || '';
   if (! $self->{LOGINS} || ($guest_mode && $user_name)) {
     my $status = ($guest_mode) ? q{AND status<>2} : q{AND status=11};
-    $self->query2("SELECT INET_NTOA(framed_ip_address) AS ip
+    $self->query("SELECT INET_NTOA(framed_ip_address) AS ip
        FROM internet_online
        WHERE user_name='$user_name'
          $status
@@ -1436,7 +1436,7 @@ sub get_ip {
 
     if ($self->{TOTAL} > 0) {
       my $ip = $self->{list}->[0]->[0];
-      $self->query2("SELECT INET_NTOA(netmask) AS netmask,
+      $self->query("SELECT INET_NTOA(netmask) AS netmask,
         dns,
         ntp,
         INET_NTOA(gateway) AS gateway,
@@ -1459,7 +1459,7 @@ sub get_ip {
   }
 
   if ($attr->{TP_IPPOOL}) {
-    $self->query2("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id,
+    $self->query("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id,
       IF(ippools.gateway > 0, INET_NTOA(ippools.gateway), 0),
       IF(ippools.netmask > 0, INET_NTOA(ippools.netmask), ''), dns, ntp
     FROM ippools
@@ -1486,7 +1486,7 @@ sub get_ip {
       $WHERE .= $guest;
     }
 
-    $self->query2("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id,
+    $self->query("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id,
        IF(ippools.gateway > 0, INET_NTOA(ippools.gateway), ''),
        IF(ippools.netmask > 0, INET_NTOA(ippools.netmask), ''), dns, ntp
      FROM ippools, nas_ippools
@@ -1547,7 +1547,7 @@ sub get_ip {
   $db_->do('lock tables internet_online as c read, nas_ippools as np read, internet_online write');
   #get active address and delete from pool
   # Select from active users and reserv ips
-  $self->query2("SELECT DISTINCT(c.framed_ip_address)
+  $self->query("SELECT DISTINCT(c.framed_ip_address)
     FROM internet_online c
     INNER JOIN nas_ippools np ON (c.nas_id=np.nas_id)
     WHERE np.pool_id in ( $used_pools );"
@@ -1653,7 +1653,7 @@ sub get_ip2 {
   my $user_name = $self->{USER_NAME} || '';
   if (! $self->{LOGINS} || ($guest_mode && $user_name)) {
     my $status = ($guest_mode) ? q{AND status<>2} : q{AND status=11};
-    $self->query2("SELECT INET_NTOA(framed_ip_address) AS ip
+    $self->query("SELECT INET_NTOA(framed_ip_address) AS ip
        FROM internet_online
        WHERE user_name='$user_name'
          $status
@@ -1663,7 +1663,7 @@ sub get_ip2 {
 
     if ($self->{TOTAL} > 0) {
       my $ip = $self->{list}->[0]->[0];
-      $self->query2("SELECT INET_NTOA(netmask) AS netmask,
+      $self->query("SELECT INET_NTOA(netmask) AS netmask,
         dns,
         ntp,
         INET_NTOA(gateway) AS gateway,
@@ -1713,7 +1713,7 @@ sub get_ip2 {
      nas_ippools read');
 
   #get active address and delete from pool  Select from active users and reserv ips
-  $self->query2("SELECT INET_NTOA(pool.ip) AS pool_ip,
+  $self->query("SELECT INET_NTOA(pool.ip) AS pool_ip,
        pool.ippool_id,
        IF(ippools.gateway > 0, INET_NTOA(ippools.gateway), ''),
        IF(ippools.netmask > 0, INET_NTOA(ippools.netmask), ''),
@@ -1741,7 +1741,7 @@ sub get_ip2 {
     $self->{NTP} = $self->{list}->[0]->[5];
   }
   else {
-    $self->query2("SELECT COUNT(*) AS used_ips
+    $self->query("SELECT COUNT(*) AS used_ips
     FROM ippools_ips pool
     LEFT JOIN internet_online c ON (pool.ip=c.framed_ip_address)
     WHERE c.framed_ip_address IS NOT NULL;");
@@ -1843,7 +1843,7 @@ sub online_add {
     print $sql . "\n";
   }
 
-  $self->query2($sql, 'do');
+  $self->query($sql, 'do');
 
   return $self;
 }
@@ -1931,7 +1931,7 @@ sub pre_auth {
       $login = $1;
     }
 
-    $self->query2("SELECT DECODE(password, '$CONF->{secretkey}') FROM users WHERE id= ?;",
+    $self->query("SELECT DECODE(password, '$CONF->{secretkey}') FROM users WHERE id= ?;",
     undef,
     { Bind => [ $login ] } );
 
@@ -2370,7 +2370,7 @@ sub rad_pairs_former  {
 #
 #   my $WHERE = join(' AND ', @WHERE_RULES);
 # #  $self->{debug}=1;
-#   $self->query2("SELECT
+#   $self->query("SELECT
 #       u.uid,
 #       u.id AS user_name,
 #       n.id AS nas_id,
@@ -2427,7 +2427,7 @@ sub rad_pairs_former  {
 #         }
 #
 #         if($self->{IP}) {
-#           $self->query2("SELECT INET_NTOA(netmask) AS netmask,
+#           $self->query("SELECT INET_NTOA(netmask) AS netmask,
 #         dns,
 #         ntp,
 #         INET_NTOA(gateway) AS gateway,
@@ -2457,7 +2457,7 @@ sub rad_pairs_former  {
 #
 #     if($self->{IP}) {
 #       my $total = $self->{TOTAL};
-#       $self->query2("SELECT INET_NTOA(netmask) AS netmask,
+#       $self->query("SELECT INET_NTOA(netmask) AS netmask,
 #         dns,
 #         ntp,
 #         INET_NTOA(gateway) AS gateway,
@@ -2475,7 +2475,7 @@ sub rad_pairs_former  {
 #
 #   if($attr->{IP} && $self->{IP} ne $attr->{IP}) {
 #     #Validate active sessions
-#     $self->query2("SELECT uid FROM internet_online
+#     $self->query("SELECT uid FROM internet_online
 #       WHERE framed_ip_address=INET_ATON('$attr->{IP}') AND cid='$attr->{USER_MAC}';");
 #
 #     if($self->{TOTAL} && $self->{TOTAL} > 0) {
@@ -2523,7 +2523,7 @@ sub leases_add {
 
   # DELETE OLD leases
   $self->{UID}=0 if (! $self->{UID});
-  $self->query2("DELETE FROM dhcphosts_leases WHERE (ip=INET_ATON( ? ) AND nas_id= ? )
+  $self->query("DELETE FROM dhcphosts_leases WHERE (ip=INET_ATON( ? ) AND nas_id= ? )
     OR (uid= ?  AND flag<> ? );", 'do',
     { Bind => [
         $self->{IP},
@@ -2533,7 +2533,7 @@ sub leases_add {
       ]});
 
   #add to dhcp table
-  $self->query2("INSERT INTO dhcphosts_leases
+  $self->query("INSERT INTO dhcphosts_leases
       (start, ends, state, next_state, hardware, uid,
        circuit_id, remote_id, hostname,
        nas_id, ip, port, vlan, server_vlan, switch_mac, flag,
@@ -2611,7 +2611,7 @@ sub guest_access {
 #  }
 #
 #  # check work IP
-#  $self->query2("SELECT UNIX_TIMESTAMP(ends)-UNIX_TIMESTAMP() AS leases_time,
+#  $self->query("SELECT UNIX_TIMESTAMP(ends)-UNIX_TIMESTAMP() AS leases_time,
 #      INET_NTOA(ip) AS ip, flag FROM dhcphosts_leases
 #      WHERE flag=1 $WHERE FOR UPDATE;",
 #    undef, { COLS_NAME => 1 });
@@ -2619,7 +2619,7 @@ sub guest_access {
 #  # In leases
 #  if ($self->{TOTAL} > 0) {
 #    if ($self->{TOTAL} == 1 && $self->{list}->[0]->{leases_time} <= 0) {
-#      $self->query2("UPDATE dhcphosts_leases SET ends=NOW() + INTERVAL " . (($self->{LEASES_TIME} || $NAS->{NAS_ALIVE}) + 60) . " SECOND
+#      $self->query("UPDATE dhcphosts_leases SET ends=NOW() + INTERVAL " . (($self->{LEASES_TIME} || $NAS->{NAS_ALIVE}) + 60) . " SECOND
 #        WHERE flag=1 AND ip=INET_ATON('$self->{list}->[0]->{ip}') $WHERE;",
 #        'do');
 #    }

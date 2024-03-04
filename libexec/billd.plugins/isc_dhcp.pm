@@ -13,6 +13,13 @@
 use strict;
 use warnings FATAL => 'all';
 
+BEGIN {
+  use FindBin '$Bin';
+  our $libpath = $Bin . '/../';
+
+  unshift @INC, $libpath, $libpath . '/Abills';
+}
+
 use Socket;
 use FindBin '$Bin';
 use Abills::Base qw(int2ip ip2int);
@@ -32,7 +39,6 @@ our (
 
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Nas = Nas->new($db, \%conf, $admin);
-push @INC, $Bin.'/../';
 
 isc_dhcp_config();
 
@@ -94,6 +100,7 @@ sub isc_dhcp_config {
 
   my $subnet_tpls //= '';
   my %subnet_params = ();
+  my $subnet_template = _include('internet_isc_dhcp_conf_subnet', 'Internet');
 
   foreach my $subnet (@{$networks}) {
     $subnet->{RANGE} = 'range ' . $subnet->{FIRST_IP} . ' ' . $subnet->{LAST_IP} . ';';
@@ -116,7 +123,7 @@ sub isc_dhcp_config {
       print "SUBNET: " . int2ip($address_int) . " MASK: " . $subnet->{NETMASK} . "\n";
     }
 
-    $subnet_tpls .= $html->tpl_show(_include('internet_isc_dhcp_conf_subnet', 'Internet'), { %$subnet }, { OUTPUT2RETURN => 1 }) . "\n";
+    $subnet_tpls .= $html->tpl_show($subnet_template, { %$subnet }, { OUTPUT2RETURN => 1 }) . "\n";
   }
 
   my $hosts = $Internet->user_list({
@@ -132,6 +139,7 @@ sub isc_dhcp_config {
   _error_show($Internet);
 
   my $hosts_tpls //= '';
+  my $host_template = _include('internet_isc_dhcp_conf_host', 'Internet');
 
   foreach my $host (@{$hosts}) {
     if($host->{CID} !~ /^[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}$/i) {
@@ -139,7 +147,7 @@ sub isc_dhcp_config {
     }
     $host->{IP} = int2ip($host->{IP_NUM});
     my $subnet_info = subnet_params($host->{IP}, \%subnet_params);
-    $hosts_tpls .= $html->tpl_show(_include('internet_isc_dhcp_conf_host', 'Internet'),
+    $hosts_tpls .= $html->tpl_show($host_template,
       { %$subnet_info, %$host },
       { OUTPUT2RETURN => 1 });
   }

@@ -1225,11 +1225,11 @@ sub report_per_month {
 sub msgs_templates_report {
 
   my $form = $html->form_input('index', $index, { TYPE => 'hidden' });
-  $form .= $html->element('div', "", { class => "col-md-4" } );
-  $form .= $html->element('div', msgs_survey_sel(), { class => "col-md-4" } );
-  $form .= $html->element('div', $html->form_input('show', $lang{SHOW}, { TYPE => 'submit' }), { class => "col-md-1" } );
-  $form = $html->element('div', $form, { class => "row" } );
-  $form = $html->element('form', $form, { action => "$SELF_URL" } ) . $html->br() . $html->br();
+  $form .= $html->element('div', '', { class => 'col-md-4' } );
+  $form .= $html->element('div', msgs_survey_sel(), { class => 'col-md-4' } );
+  $form .= $html->element('div', $html->form_input('show', $lang{SHOW}, { TYPE => 'submit' }), { class => 'col-md-1' } );
+  $form = $html->element('div', $form, { class => 'row' } );
+  $form = $html->element('form', $form, { action => $SELF_URL } ) . $html->br() . $html->br();
   print $form;
 
   return 1 if (!$FORM{SURVEY_ID});
@@ -1244,15 +1244,19 @@ sub msgs_templates_report {
 
   my $table = $html->table({ 
     width       => '100%',
-    title_plain => [$lang{USER}, $lang{QUESTION}, $lang{COMMENTS}],
+    title_plain => [$lang{USER}, $lang{QUESTION}, $lang{COMMENTS}, "$lang{USER} $lang{COMMENTS}", $lang{DATE}],
     DATA_TABLE  => 1,
     DT_CLICK    => 1,
-    ID          => "template_report"
+    ID          => 'SURVEY_REPORT'
   });
 
   foreach my $line (@$list) {
-    next unless ($line->{comments});
-    $table->addrow($line->{login}, $q_hash->{$line->{question_id}}, $line->{comments})
+    next if !$line->{comments} && !$line->{answer};
+
+    my @answers = split(';', $line->{params});
+    $line->{answer} = $answers[$line->{answer}] || $line->{answer};
+
+    $table->addrow($line->{login}, $q_hash->{$line->{question_id}}, $line->{answer}, $line->{comments}, $line->{date_time})
   }
 
   print $table->show();

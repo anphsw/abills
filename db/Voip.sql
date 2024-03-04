@@ -151,27 +151,38 @@ CREATE TABLE IF NOT EXISTS `voip_tps`
 )
     DEFAULT CHARSET = utf8 COMMENT = 'Voip  tarif plans';
 
-
-CREATE TABLE IF NOT EXISTS `voip_trunks`
-(
-    `id`                 SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
-    `name`               CHAR(20)             NOT NULL DEFAULT '',
-    `trunkprefix`        CHAR(20)             NOT NULL DEFAULT '',
-    `protocol`           CHAR(10)             NOT NULL DEFAULT '',
-    `provider_ip`        CHAR(80)             NOT NULL DEFAULT '',
-    `removeprefix`       CHAR(20)             NOT NULL DEFAULT '',
-    `addprefix`          CHAR(20)             NOT NULL DEFAULT '',
-    `secondusedreal`     SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
-    `secondusedcarrier`  SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
-    `secondusedratecard` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
-    `failover_trunk`     SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
-    `addparameter`       CHAR(120)            NOT NULL DEFAULT '',
-    `provider_name`      CHAR(120)            NOT NULL DEFAULT '',
-    `status`             TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `name` (`name`)
+CREATE TABLE IF NOT EXISTS `voip_subscribes`(
+  `id`                   SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `callback_url`         VARCHAR(256)         NOT NULL DEFAULT '',
+  `period`               SMALLINT(5) UNSIGNED NOT NULL DEFAULT 1,
+  `sliding_window_count` SMALLINT(5) UNSIGNED NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `callback_url` (`callback_url`)
 )
-    DEFAULT CHARSET = utf8 COMMENT = 'Voip trunks';
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Voip VPBX subscribes';
+
+
+CREATE TABLE IF NOT EXISTS `voip_trunks`(
+  `id`                 SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name`               CHAR(20)             NOT NULL DEFAULT '',
+  `trunkprefix`        CHAR(20)             NOT NULL DEFAULT '',
+  `protocol`           CHAR(10)             NOT NULL DEFAULT '',
+  `provider_ip`        CHAR(80)             NOT NULL DEFAULT '',
+  `removeprefix`       CHAR(20)             NOT NULL DEFAULT '',
+  `addprefix`          CHAR(20)             NOT NULL DEFAULT '',
+  `secondusedreal`     SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `secondusedcarrier`  SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `secondusedratecard` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `failover_trunk`     SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `addparameter`       CHAR(120)            NOT NULL DEFAULT '',
+  `provider_name`      CHAR(120)            NOT NULL DEFAULT '',
+  `status`             TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Voip trunks';
 
 INSERT INTO `voip_routes` (`prefix`, `name`, `descr`)
 VALUES ('0093', 'Afghanistan', 'Afghanistan'),

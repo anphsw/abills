@@ -6,4 +6,10 @@
     "07:0:$lang{TAGS}:tags_multiuser_form:MULTIUSER" => 5,
 );
 
+our %PERIODIC = (
+  daily   => [
+    'tags_periodic_daily'
+  ]
+);
+
 1

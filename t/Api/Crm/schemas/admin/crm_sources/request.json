@@ -1,0 +1,6 @@
+{
+  "name": "CRM_SOURCES",
+  "method": "GET",
+  "path": "crm/sources/",
+  "params": {}
+}

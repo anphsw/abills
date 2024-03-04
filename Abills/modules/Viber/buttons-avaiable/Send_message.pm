@@ -327,7 +327,7 @@ sub send_msg {
     return 1;
   }
 
-  my $subject = $msg_hash->{message}->{title} || "Telegram Bot";
+  my $subject = $msg_hash->{message}->{title} || "Viber Bot";
 
   my $chapter = 1;
 
@@ -430,7 +430,7 @@ sub get_keyboard {
     ActionBody => "fn:Send_message&add_title",
     TextSize   => 'regular'
   };
-  my $cahncle_button = {
+  my $cancel_button = {
     ActionType => 'reply',
     ActionBody => 'fn:Send_message&cancel_msg',
     Text       => $self->{bot}->{lang}->{CHANCEL_TEXT},
@@ -438,7 +438,8 @@ sub get_keyboard {
     TextSize   => 'regular'
   };
 
-  push (@keyboard, $send_button, $subject_button, $cahncle_button);
+  # push (@keyboard, $send_button, $subject_button, $cancel_button);
+  push (@keyboard, $send_button, $cancel_button);
 
   return @keyboard;
 }

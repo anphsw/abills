@@ -139,13 +139,13 @@ sub _start {
 sub _swagger {
   my $swagger = q{};
   if ($ENV{PATH_INFO} && "$ENV{PATH_INFO}" =~ /swagger\/admin/) {
-    $swagger = _read_swagger('misc/api/admin.yaml');
+    $swagger = _read_swagger('misc/api/bundle_admin.yaml');
   }
   else {
     $swagger = _read_swagger('misc/api/bundle_user.yaml');
   }
 
-  _custom_headers({ CONTENT_TYPE => 'Content-Type: application/yaml; charset=utf-8' });
+  _custom_headers({ CONTENT_TYPE => 'Content-Type: text/yaml; charset=utf-8' });
   print $swagger;
 
   return 1;

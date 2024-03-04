@@ -1119,7 +1119,7 @@ sub cards_report_payments {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my @WHERE_RULES = ();
+  my @WHERE_RULES = ("p.ext_id<>''");
 
   if ($attr->{FROM_DATE} && $attr->{TO_DATE}) {
     push @WHERE_RULES, "(DATE_FORMAT(p.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' and DATE_FORMAT(p.date, '%Y-%m-%d')<='$attr->{TO_DATE}')";
@@ -1138,7 +1138,9 @@ sub cards_report_payments {
     pi_d.fio AS diller, u.uid
   FROM payments p
   INNER JOIN users u ON (u.uid=p.uid)
-  INNER JOIN cards_users c ON (p.ext_id=CONCAT(c.serial,if($self->{CARDS_NUMBER_LENGTH}>0, MID(c.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), c.number)))
+  INNER JOIN cards_users c ON (c.datetime > DATE_FORMAT(curdate(), '%Y-%m-01 00:00:00')
+    AND c.datetime < DATE_FORMAT(curdate(), '%Y-%m-31 24:00:00')
+    AND p.ext_id=CONCAT(c.serial,if($self->{CARDS_NUMBER_LENGTH}>0, MID(c.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), c.number)))
   LEFT JOIN users_pi pi ON (pi.uid=u.uid)
   LEFT JOIN cards_dillers cd ON (c.diller_id=cd.id)
   LEFT JOIN users_pi pi_d ON (pi_d.uid=cd.uid)
@@ -1154,7 +1156,9 @@ sub cards_report_payments {
 
   $self->query("SELECT COUNT(p.id) AS total, SUM(p.sum) AS TOTAL_SUM
   FROM payments p
-  INNER JOIN cards_users c ON (p.ext_id=concat(c.serial,if($self->{CARDS_NUMBER_LENGTH}>0, MID(c.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), c.number)))
+  INNER JOIN cards_users c ON (c.datetime > DATE_FORMAT(curdate(), '%Y-%m-01 00:00:00')
+    AND c.datetime < DATE_FORMAT(curdate(), '%Y-%m-31 24:00:00')
+    AND p.ext_id=concat(c.serial,if($self->{CARDS_NUMBER_LENGTH}>0, MID(c.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), c.number)))
   WHERE $WHERE;",
     undef, { INFO => 1 }
   );

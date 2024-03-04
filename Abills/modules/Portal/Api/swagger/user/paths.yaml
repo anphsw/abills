@@ -1,0 +1,6 @@
+/user/portal/menu:
+  $ref: "./paths/portal.yaml"
+/user/portal/news:
+  $ref: "./paths/news.yaml"
+/user/portal/news/{id}:
+  $ref: "./paths/newsId.yaml"

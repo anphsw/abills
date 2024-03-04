@@ -5,6 +5,10 @@ use warnings FATAL => 'all';
 use Encode qw/encode_utf8/;
 use JSON;
 
+my %icons = (
+  message => "\xE2\x9C\x89\xEF\xB8\x8F"
+);
+
 #**********************************************************
 =head2 new($db, $admin, $conf, $bot_api, $bot_db)
 
@@ -35,7 +39,7 @@ sub new {
 sub btn_name {
   my $self = shift;
 
-  return $self->{bot}->{lang}->{CREATE_MSGS};
+  return "$icons{message} $self->{bot}{lang}{SEND_MESSAGE}";
 }
 
 #**********************************************************
@@ -122,7 +126,6 @@ sub simple_msgs {
     CHAPTER   => $chapter,
     PRIORITY  => 2,
   });
-
 
   if (!$Msgs->{errno} && $attr->{photo}) {
     use Msgs::Misc::Attachments;
@@ -340,7 +343,6 @@ sub send_msg {
 
   my $text = $msg_hash->{message}->{text} || "";
 
-
   if(!$text && !$msg_hash->{message}->{files}){
     $self->{bot}->send_message({
       text => "$self->{bot}->{lang}->{NOT_SEND_MSGS}",
@@ -362,6 +364,7 @@ sub send_msg {
     PRIORITY  => 2,
     SEND_TYPE => 6
   });
+  $msg_hash->{message}->{id} ||= $Msgs->{MSG_ID};
 
   if (!$Msgs->{errno} && $msg_hash->{message}->{files}) {
     use Msgs::Misc::Attachments;
@@ -399,14 +402,8 @@ sub send_msg {
     CHARSET  => $self->{conf}->{default_charset},
   });
 
-
-  my $Notify = Msgs::Notify->new($self->{db}, $self->{admin}, $self->{conf}, {LANG => $self->{bot}->{lang}, HTML => $html});
-
-  $Notify->notify_admins({
-    MSG_ID        => $msg_hash->{message}->{id},
-    MESSAGE       => $text,
-  });
-
+  my $Notify = Msgs::Notify->new($self->{db}, $self->{admin}, $self->{conf}, { LANG => $self->{bot}->{lang}, HTML => $html });
+  $Notify->notify_admins_by_chapter($chapter, $msg_hash->{message}->{id}) if $chapter;
 
   $self->{bot_db}->del($self->{bot}->{uid});
   $self->{bot}->send_message({
@@ -513,6 +510,6 @@ sub select_chapter{
 
   $info->{FN} = "add_title_to_msg";
   $self->{bot_db}->change($info);
-
 }
+
 1;

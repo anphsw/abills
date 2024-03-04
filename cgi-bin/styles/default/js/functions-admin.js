@@ -272,6 +272,7 @@ $(function () {
 
   var Proto_Events      = new EventsMenu('events-menu', {});
   var Proto_Messages    = new MessagesMenu('messages-menu', {});
+  var Proto_Dialogues   = new CrmDialoguesMenu('dialogues-menu', {});
 
   var Proto_Responsible = new MessagesMenu('responsible-menu', {
     filter: function (message) {return (!message['state_id'] || message['state_id'] === '0')}
@@ -289,6 +290,7 @@ $(function () {
   };
 
   try_to_init_menu('HEvents', Proto_Events);
+  try_to_init_menu('HCrmDialogues', Proto_Dialogues);
 
   if (try_to_init_menu('HMessages', Proto_Messages)){
     // Init small search form inside header
@@ -307,7 +309,7 @@ $(function () {
 
         drop_search_form.data('enabled', !is_enabled);
       });
-  };
+  }
   try_to_init_menu('HResponsible', Proto_Responsible);
 
   var NOTEPAD_LIST_EXTENSION; NOTEPAD_LIST_EXTENSION = {
@@ -356,18 +358,4 @@ var colorArray = [
 function nextColor(opacity) {
   currColor = ++currColor % colorArray.length;
   return colorArray[currColor] + ',' + opacity + ')';
-}
-
-async function sendRequest(url = '', data = {}, method = 'POST') {
-  const response = await fetch(url, {
-    method: method,
-    mode: 'cors',
-    cache: 'no-cache',
-    credentials: 'same-origin',
-    headers: {'Content-Type': 'application/json'},
-    redirect: 'follow',
-    referrerPolicy: 'no-referrer',
-    body: method === 'GET' || method === 'DELETE' ? undefined : JSON.stringify(data)
-  });
-  return response.json();
 }

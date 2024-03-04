@@ -1,0 +1,8 @@
+/user/voip:
+  $ref: "./paths/voip.yaml"
+/user/voip/sessions:
+  $ref: "./paths/sessions.yaml"
+/user/voip/routes:
+  $ref: "./paths/routes.yaml"
+/user/voip/tariffs:
+  $ref: "./paths/tariffs.yaml"

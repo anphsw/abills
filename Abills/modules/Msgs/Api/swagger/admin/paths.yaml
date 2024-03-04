@@ -1,0 +1,248 @@
+/msgs/:
+  post:
+    tags:
+      - msgs
+    summary: Добавить сообщение
+    operationId: addMsgs
+    requestBody:
+      description: Параметры, которые нужно указать
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Msgs"
+      required: true
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiSuccessAddResponse"
+    security:
+      - KEY: []
+/msgs/{ID}:
+  get:
+    tags:
+      - msgs
+    summary: Получить сообщение по ID
+    description: Возвращает сообщение
+    operationId: getMsgsInfoByID
+    parameters:
+      - name: ID
+        in: path
+        description: ID сообщения
+        required: true
+        schema:
+          type: integer
+          format: int64
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Msgs"
+      400:
+        description: Сообщение не найден
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiResponse"
+    security:
+      - KEY: []
+  put:
+    tags:
+      - msgs
+    summary: Обновить информацию о сообщении
+    operationId: updateMsgs
+    parameters:
+      - name: ID
+        in: path
+        description: ID сообщения
+        required: true
+        schema:
+          type: integer
+          format: int64
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Msgs"
+      required: true
+    responses:
+      400:
+        description: Invalid ID supplied
+        content: {}
+    security:
+      - KEY: []
+/msgs/list:
+  post:
+    tags:
+      - msgs
+    summary: Получить список сообщений
+    operationId: msgsList
+    requestBody:
+      description: Параметры, по которым можно фильтровать сообщения
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Msgs"
+      required: true
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiSuccessAddResponse"
+    security:
+      - KEY: []
+/msgs/{ID}/reply:
+  get:
+    tags:
+      - msgs
+    summary: Ответы на сообщение
+    operationId: repliesListToMsgs
+    parameters:
+      - name: ID
+        in: path
+        description: ID сообщения
+        required: true
+        schema:
+          type: integer
+          format: int64
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MsgsRepliesList"
+    security:
+      - KEY: []
+  post:
+    tags:
+      - msgs
+    summary: Ответить на сообщение
+    operationId: addReplyToMsgs
+    parameters:
+      - name: ID
+        in: path
+        description: ID сообщения
+        required: true
+        schema:
+          type: integer
+          format: int64
+    requestBody:
+      description: Параметры, которые нужно указать
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MsgsReply"
+      required: true
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiSuccessAddResponse"
+    security:
+      - KEY: []
+/msgs/reply/{replyId}/attachment:
+  post:
+    tags:
+      - msgs
+    summary: Прикрепление файла к ответу
+    operationId: addAttachmentToReply
+    parameters:
+      - name: replyId
+        in: path
+        description: ID ответа на сообщение
+        required: true
+        schema:
+          type: integer
+          format: int64
+    requestBody:
+      description: Параметры, которые нужно указать
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MsgsReplyAttachment"
+      required: true
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiSuccessAddResponse"
+    security:
+      - KEY: []
+/msgs/chapters:
+  get:
+    tags:
+      - msgs
+    summary: Получить список разделов
+    operationId: chaptersList
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MsgsChapter"
+    security:
+      - KEY: []
+/msgs/workflow:
+  post:
+    tags:
+      - msgs
+    summary: Добавить рабочий процесс
+    operationId: addMsgsWorkflow
+    requestBody:
+      description: Параметры, которые нужно указать
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MsgsWorkflow"
+      required: true
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiSuccessAddResponse"
+    security:
+      - KEY: []
+/msgs/workflow/{id}:
+  post:
+    tags:
+      - msgs
+    summary: Редактировать рабочий процесс
+    operationId: changeMsgsWorkflow
+    parameters:
+      - name: id
+        in: path
+        description: ID рабочего процесса
+        required: true
+        schema:
+          type: integer
+          format: int64
+    requestBody:
+      description: Параметры, которые нужно указать
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MsgsWorkflow"
+      required: true
+    responses:
+      200:
+        description: успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiSuccessAddResponse"
+    security:
+      - KEY: []

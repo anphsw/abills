@@ -13,13 +13,14 @@ CREATE TABLE IF NOT EXISTS `portal_articles`
   `end_date`          DATETIME                      DEFAULT NULL,
   `archive`           TINYINT(1)           NOT NULL DEFAULT 0,
   `importance`        TINYINT(1)           NOT NULL DEFAULT 0,
-  `gid`               SMALLINT(4) UNSIGNED NOT NULL DEFAULT 0,
+  `gid`               VARCHAR(64)          NOT NULL DEFAULT '*',
   `tags`              SMALLINT(5) UNSIGNED NOT NULL DEFAULT 0,
   `domain_id`         SMALLINT(4)          NOT NULL DEFAULT 0,
   `district_id`       SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `street_id`         SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `picture`           VARCHAR(32)          NOT NULL DEFAULT '',
   `permalink`         VARCHAR(255)                  DEFAULT NULL,
+  `deeplink`          TINYINT(1)           NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `permalink` (`permalink`),
   KEY `fk_portal_content_portal_menu` (`portal_menu_id`)
@@ -52,3 +53,15 @@ CREATE TABLE IF NOT EXISTS `portal_newsletters`
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Portal newsletters';
+
+CREATE TABLE IF NOT EXISTS `portal_attachments`
+(
+  `id`                INT(10)     UNSIGNED NOT NULL AUTO_INCREMENT,
+  `filename`          VARCHAR(255)         NOT NULL DEFAULT '',
+  `file_type`         VARCHAR(50)          NOT NULL DEFAULT '',
+  `file_size`         INT(10)     UNSIGNED NOT NULL DEFAULT 0,
+  `uploaded_at`       TIMESTAMP            NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Portal attachments';

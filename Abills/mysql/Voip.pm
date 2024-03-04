@@ -1243,4 +1243,62 @@ sub phone_aliases_list {
   return $list;
 }
 
+#**********************************************************
+=head2 vpbx_subscribe_list($attr)
+
+=cut
+#**********************************************************
+sub vpbx_subscribe_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = $attr->{SORT} ? $attr->{SORT} : 1;
+  my $DESC = $attr->{DESC} ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',                   'INT', 'vs.id',                   1 ],
+    [ 'CALLBACK_URL',         'STR', 'vs.callback_url',         1 ],
+    [ 'PERIOD',               'INT', 'vs.period',               1 ],
+    [ 'SLIDING_WINDOW_COUNT', 'INT', 'vs.sliding_window_count', 1 ],
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} vs.id
+     FROM voip_subscribes vs
+     $WHERE
+     ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 vpbx_subscribe_add($attr) - vpbx subscribe add
+
+=cut
+#**********************************************************
+sub vpbx_subscribe_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('voip_subscribes', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 vpbx_subscribe_del($id) - vpbx subscribe del
+
+=cut
+#**********************************************************
+sub vpbx_subscribe_del {
+  my $self = shift;
+  my ($callback_url) = @_;
+
+  $self->query_del('voip_subscribes', undef, { CALLBACK_URL => $callback_url });
+
+  return $self;
+}
+
 1;

@@ -290,5 +290,8 @@ $lang{MSGS_SUPPORT_REQUEST_BODY} = 'Нам жаль, что у вас возни
 $lang{MSGS_SUPPORT_REQUEST_FOOTER} = 'Наш менеджер свяжется с вами в ближайшее время.';
 $lang{MSGS_SUPPORT_REQUEST_NUMBER} = 'Номер вашего запроса';
 $lang{DO_YOU_REALLY_WANT_TO_CHARGE_FOR_MESSAGE} = 'Вы действительно хотите взимать плату за заявку?';
+$lang{MSGS_MAKE_PRIVATE} = 'Сделать внутренним';
+$lang{MSGS_MAKE_PUBLIC} = 'Сделать публичным';
+$lang{MSGS_PROJECT} = 'Проект';
 
 1

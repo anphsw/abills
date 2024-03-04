@@ -1,0 +1,235 @@
+/builds:
+  get:
+    tags:
+      - builds
+    summary: Получить дома
+    description: Возвращает список домов
+    operationId: getBuilds
+    parameters:
+      - name: districtName
+        in: query
+        description: Название района.
+        schema:
+          type: boolean
+          default: true
+      - name: districtId
+        in: query
+        description: ID района.
+        schema:
+          type: boolean
+          default: false
+      - name: streetName
+        in: query
+        description: Название улицы.
+        schema:
+          type: boolean
+          default: true
+      - name: streetId
+        in: query
+        description: ID улицы.
+        schema:
+          type: boolean
+          default: true
+      - name: number
+        in: query
+        description: Номер дома.
+        schema:
+          type: boolean
+          default: true
+      - name: flors
+        in: query
+        description: Количество этажей дома.
+        schema:
+          type: boolean
+          default: false
+      - name: flats
+        in: query
+        description: Квартира дома.
+        schema:
+          type: boolean
+          default: false
+      - name: entrances
+        in: query
+        description: Подъезды дома.
+        schema:
+          type: boolean
+          default: false
+      - name: usersCount
+        in: query
+        description: Количество пользователей.
+        schema:
+          type: boolean
+          default: false
+      - name: users
+        in: query
+        description: Список пользователей.
+        schema:
+          type: boolean
+          default: false
+      - name: added
+        in: query
+        description: Дата добавления дома.
+        schema:
+          type: boolean
+          default: false
+      - name: locationId
+        in: query
+        description: ID дома. Возвращает то же, что и поле ID.
+        schema:
+          type: boolean
+          default: false
+      - name: id
+        in: query
+        description: ID дома.
+        schema:
+          type: boolean
+          default: true
+      - name: coordx
+        in: query
+        description: Координата x дома.
+        schema:
+          type: boolean
+          default: false
+      - name: coordy
+        in: query
+        description: Координата y дома.
+        schema:
+          type: boolean
+          default: false
+      - name: zip
+        in: query
+        description: Почтовый индекс дома.
+        schema:
+          type: boolean
+          default: false
+      - name: publicComments
+        in: query
+        description: Публичное описание дома.
+        schema:
+          type: boolean
+          default: false
+      - name: plannedToConnect
+        in: query
+        description: Запланировано подключение.
+        schema:
+          type: boolean
+          default: false
+      - name: typeId
+        in: query
+        description: ID типа дома.
+        schema:
+          type: boolean
+          default: false
+      - name: typeName
+        in: query
+        description: Название типа дома.
+        schema:
+          type: boolean
+          default: false
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuildsArray"
+    security:
+      - KEY: []
+  post:
+    tags:
+      - builds
+    summary: Добавление дома
+    operationId: addBuild
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Builds"
+      required: true
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuildsAddResponse200"
+      400:
+        description: Нет поля ID улицы
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                errno:
+                  type: integer
+                  example: 10097
+                errstr:
+                  type: string
+                  example: No field streetId
+    security:
+      - KEY: []
+/builds/{ID}:
+  get:
+    tags:
+      - builds
+    summary: Получить информацию о доме
+    description: Возвращает дом
+    operationId: getBuildInfo
+    parameters:
+      - name: ID
+        in: path
+        description: ID дома
+        required: true
+        schema:
+          type: integer
+          format: int64
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuildsInfo"
+    security:
+      - KEY: []
+  put:
+    tags:
+      - builds
+    summary: Обновить информацию о доме
+    operationId: updateBuild
+    parameters:
+      - name: ID
+        in: path
+        description: ID дома
+        required: true
+        schema:
+          type: integer
+          format: int64
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Builds"
+      required: true
+    responses:
+      200:
+        description: Успешное выполнение
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuildsAddResponse200"
+      400:
+        description: Улица уже есть с таким названием(name)
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                errno:
+                  type: integer
+                  example: 7
+                errstr:
+                  type: string
+                  example: "ERROR_DUPLICATE"
+    security:
+      - KEY: []

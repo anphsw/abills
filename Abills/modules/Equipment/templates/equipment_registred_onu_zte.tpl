@@ -73,6 +73,14 @@
           %TEMPLATE%
         </div>
       </div>
+
+      <div class='form-group row'>
+        <label for='DEBUG' class='control-label col-md-3'>DEBUG:</label>
+        <div class='col-md-9'>
+          %DEBUG_SEL%
+        </div>
+      </div>
+
     </div>
     <div class='card-footer'>
       <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary float-left'>

@@ -51,6 +51,15 @@
       </div>
 
       <div class='form-group row'>
+        <label class='control-label col-md-3' for='INACTIVE_DAYS'>_{QUANTITY_INACTIVE_DAYS_REFERRAL}_ </label>
+        <div class='col-md-9'>
+          <input type='number'
+                 data-tooltip='_{QUANTITY_INACTIVE_DAYS_REFERRAL_COMMENT}_'
+                 class='form-control' name='INACTIVE_DAYS' value='%INACTIVE_DAYS%' id='INACTIVE_DAYS'/>
+        </div>
+      </div>
+
+      <div class='form-group row'>
         <label class='control-label col-md-3' for='REPL_PERCENT'>_{REPL_PERCENT}_</label>
         <div class='col-md-9'>
           <input type='number' min='0' max='100' class='form-control'

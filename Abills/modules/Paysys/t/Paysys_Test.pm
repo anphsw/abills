@@ -74,7 +74,7 @@ sub paysys_main_test {
   foreach my $action (sort keys %{$test_params}) {
     my $inputs = q{};
     foreach my $request_key (sort keys %{$test_params->{$action}}) {
-      next if ($request_key eq 'result' || $request_key eq 'result_type' || $request_key eq 'headers');
+      next if (in_array($request_key, ['result', 'result_type', 'headers', 'path']));
       my $ex_params = $test_params->{$action}{$request_key}{ex_params} || '';
       my $tooltip = $test_params->{$action}{$request_key}{tooltip} || '';
       my $type = $test_params->{$action}{$request_key}{type} || '';
@@ -116,6 +116,7 @@ sub paysys_main_test {
       ACTION       => $action,
       SELECT_DEBUG => $debug_select,
       HEADERS      => $test_params->{$action}->{headers} ? json_former($test_params->{$action}->{headers}) : '',
+      PATH         => $test_params->{$action}->{path} || '',
     }, { OUTPUT2RETURN => 1 });
   }
 
@@ -168,9 +169,15 @@ sub paysys_test {
     ID     => $system->{id} || q{},
   });
 
-  my $url = $conf{PAYSYS_TEST_URL} || qq{$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/paysys_check.cgi?};
+  my $url = $conf{PAYSYS_TEST_URL} || qq{$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/paysys_check.cgi}
+    . ($FORM{path} || '') . '?';
   my @request_params = ();
   my %request_params = ();
+
+  if ($FORM{headers}) {
+    $FORM{headers} =~ s/\\//gm;
+    $request_params{HEADERS} = eval{decode_json($FORM{headers})};
+  }
 
   if ($FORM{ROW_TEST}) {
     if ($FORM{ROW_TEST} =~ /\s=>\s/) {
@@ -187,12 +194,10 @@ sub paysys_test {
   }
   elsif ($FORM{_POST_}) {
     $request_params{POST} = $FORM{_POST_};
-    $FORM{headers} =~ s/\\//gm;
-    $request_params{HEADERS} = eval{decode_json($FORM{headers})};
   }
   else {
     foreach my $key (sort keys %FORM) {
-      next if (in_array($key, [ '__BUFFER', 'language', 'qindex', 'header', 'module', '_action', 'DEBUG' ]));
+      next if (in_array($key, [ '__BUFFER', 'language', 'qindex', 'header', 'module', '_action', 'DEBUG', 'headers', 'path' ]));
       next if (!$FORM{$key});
       push @request_params, "$key=$FORM{$key}";
     }
@@ -202,6 +207,8 @@ sub paysys_test {
   }
 
   $url .= join('&', @request_params);
+
+  $request_params{GET_HEADERS} = 1 if ($debug > 3);
 
   my $response =  web_request($url, {
     INSECURE => 1,

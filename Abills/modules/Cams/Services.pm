@@ -588,7 +588,7 @@ sub cams_tariffs_sel {
   my %params = ();
   $params{SEL_OPTIONS} = { '' => $lang{ALL} } if ($attr->{ALL} || $FORM{search_form});
   $params{SEL_OPTIONS}->{0} = $lang{UNKNOWN} if ($attr->{UNKNOWN});
-
+  $params{AUTOSUBMIT} = $attr->{AUTOSUBMIT} if ($attr->{AUTOSUBMIT});
   my $active_tariff = $attr->{TP_ID} || $FORM{TP_ID};
 
   my $tariffs = $Cams->_list({
@@ -618,6 +618,7 @@ sub cams_tariffs_sel {
   if ($Cams->{TOTAL} && $Cams->{TOTAL} == 1) {
     delete $params{SEL_OPTIONS};
     $Cams->{TP_ID} = $tariffs->[0]->{id};
+    $FORM{TP_ID} = $tariffs->[0]->{tariff_id};
   }
 
   my $result = $html->form_select('TP_ID', {

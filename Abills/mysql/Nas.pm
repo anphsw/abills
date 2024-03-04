@@ -7,13 +7,16 @@ package Nas;
 =cut
 
 use strict;
-use parent 'main';
+#use parent 'dbbase';
+use parent 'dbcore';
 my $SECRETKEY = '';
 my $IPV6 = 0;
 my $admin;
 
 #**********************************************************
-# new
+=head2 new($db, \%conf, $admin)
+
+=cut
 #**********************************************************
 sub new {
   my $class = shift;
@@ -69,7 +72,7 @@ sub list {
       ['NAS_GROUP_NAME',   'STR', 'ng.name',  'ng.name AS nas_group_name'],
       ['ALIVE',            'INT', 'nas.alive',                         1 ],
       ['DOMAIN_ID',        'INT', 'nas.domain_id',                     1 ],
-      ['MAC',              'INT', 'nas.mac',                           1 ],
+      ['MAC',              'STR', 'nas.mac',                           1 ],
       ['GID',              'INT', 'nas.gid',                           1 ],
       ['DISTRICT_ID',      'INT', 'streets.district_id', 'districts.name'],
       ['LOCATION_ID',      'INT', 'nas.location_id',                   1 ],
@@ -125,7 +128,7 @@ sub list {
     nas.auth_type,";
   }
 
-  $self->query2(
+  $self->query(
     "SELECT
       $ext_fields
       $self->{SEARCH_FIELDS}
@@ -143,7 +146,7 @@ sub list {
 
   my $list = $self->{list};
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
-    $self->query2("SELECT COUNT(*) AS total
+    $self->query("SELECT COUNT(*) AS total
     FROM nas
     LEFT JOIN nas_groups ng ON (ng.id=nas.gid)
     $EXT_TABLES
@@ -204,7 +207,7 @@ sub info {
   ";
   }
 
-  $self->query2(
+  $self->query(
     "SELECT id as nas_id,
       nas_identifier,
       INET_NTOA(ip) AS nas_ip,
@@ -224,10 +227,9 @@ sub info {
   );
 
   if (! $self->{errno} && $self->{LOCATION_ID}) {
-    $self->query2(
+    $self->query(
       "SELECT
         d.id AS district_id,
-        d.city,
         d.name AS address_district,
         s.name AS address_street,
         b.number AS address_build
@@ -306,7 +308,7 @@ sub change {
     $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
   }
 
-  $self->changes2({
+  $self->changes({
     CHANGE_PARAM    => 'NAS_ID',
     TABLE           => 'nas',
     FIELDS          => \%FIELDS,
@@ -413,7 +415,7 @@ sub users_list {
     { WHERE => 1 }
   );
 
-  $self->query2("SELECT uid, nas_id
+  $self->query("SELECT uid, nas_id
     FROM users_nas
     $WHERE
     ORDER BY $SORT $DESC",
@@ -458,7 +460,7 @@ sub nas_ip_pools_list {
     [ 'LAST_IP_NUM',        'INT', '(pool.ip + if(pool.counts > 0, pool.counts - 1, 0)) AS last_ip_num',          1],
     [ 'IP_COUNT',           'INT', 'pool.counts AS ip_count',                               1],
     [ 'INTERNET_IP_FREE',   'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_main internet
-      WHERE internet.ip >= pool.ip AND internet.ip < pool.ip + pool.counts )) AS internet_ip_free', 1],
+      WHERE internet.ip >= pool.ip AND internet.ip < pool.ip + pool.counts AND uid > 0)) AS internet_ip_free', 1],
     [ 'INTERNET_DYNAMIC_IP_FREE',   'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_online online
       WHERE online.framed_ip_address >= pool.ip AND online.framed_ip_address < pool.ip + pool.counts )) AS internet_dynamic_ip_free', 1],
     [ 'PRIORITY',           'INT', 'pool.priority',                                         1],
@@ -494,7 +496,7 @@ sub nas_ip_pools_list {
 
   my $WHERE = $self->search_former($attr, $search_columns,{WHERE => 1});
 
-  $self->query2("SELECT $self->{SEARCH_FIELDS} pool.id
+  $self->query("SELECT $self->{SEARCH_FIELDS} pool.id
     FROM ippools pool
     LEFT JOIN nas_ippools np ON ($WHERE_NAS)
     LEFT JOIN nas n ON (n.id=np.nas_id)
@@ -510,7 +512,7 @@ sub nas_ip_pools_list {
 
   return [] if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT COUNT(*) AS total
     FROM ippools pool
     $WHERE",
@@ -568,7 +570,7 @@ sub nas_ip_pools_set {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("DELETE FROM nas_ippools WHERE nas_id = $self->{NAS_ID} AND pool_id IN ($attr->{ids_remove}) ;", undef, {  });
+  $self->query("DELETE FROM nas_ippools WHERE nas_id = $self->{NAS_ID} AND pool_id IN ($attr->{ids_remove}) ;", undef, {  });
 
   my @MULTI_QUERY = ();
 
@@ -576,7 +578,7 @@ sub nas_ip_pools_set {
     push @MULTI_QUERY, [ $id, $attr->{NAS_ID} ] if ($id);
   }
 
-  $self->query2("INSERT INTO nas_ippools (pool_id, nas_id) VALUES (?, ?);",
+  $self->query("INSERT INTO nas_ippools (pool_id, nas_id) VALUES (?, ?);",
       undef,
       { MULTI_QUERY =>  \@MULTI_QUERY });
 
@@ -601,7 +603,7 @@ sub ip_pools_info {
   $EXT_FIELDS .= ', (ippools.counts - (SELECT if(COUNT(*) > ippools.counts, ippools.counts, COUNT(*)) FROM internet_main internet
       WHERE internet.ip >= ippools.ip AND internet.ip < ippools.ip + ippools.counts )) AS internet_ip_free' if $attr->{INTERNET_IP_FREE};
 
-  $self->query2("SELECT *,
+  $self->query("SELECT *,
       INET_NTOA(ip) AS ip
       $EXT_FIELDS
     FROM ippools  WHERE id= ? ;",
@@ -625,14 +627,12 @@ sub ip_pools_change {
   $attr->{STATIC} = ($attr->{STATIC}) ? $attr->{STATIC} : 0;
   $attr->{GUEST} = ($attr->{GUEST}) ? $attr->{GUEST} : 0;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM    => 'ID',
-      TABLE           => 'ippools',
-      DATA            => $attr,
-      EXT_CHANGE_INFO => "POOL:$attr->{ID}"
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM    => 'ID',
+    TABLE           => 'ippools',
+    DATA            => $attr,
+    EXT_CHANGE_INFO => "POOL:$attr->{ID}"
+  });
 
   return $self;
 }
@@ -671,7 +671,7 @@ sub ip_pools_list {
 
     my $WHERE = ($#WHERE_RULES > -1) ? join(' AND ', @WHERE_RULES) : '';
 
-    $self->query2(
+    $self->query(
       "SELECT
         '',
         pool.name,
@@ -701,7 +701,7 @@ sub ip_pools_list {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "and " . join(' AND ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT
       nas.name,
       pool.name,
@@ -790,7 +790,7 @@ sub stats {
   my $internet_log_table = 'internet_log';
 
 
-  $self->query2(
+  $self->query(
     "SELECT
       n.name,
       l.port_id,
@@ -831,7 +831,7 @@ sub nas_group_list {
     $EXT_TABLES =  'LEFT JOIN nas n ON (n.gid=g.id)';
   }
 
-  $self->query2(
+  $self->query(
     "SELECT
       g.id, g.name,
       g.comments,
@@ -858,7 +858,7 @@ sub nas_group_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT * FROM nas_groups WHERE id = ?;",
+  $self->query("SELECT * FROM nas_groups WHERE id = ?;",
   undef,
   { INFO => 1,
     Bind => [ $attr->{ID} ] }
@@ -878,7 +878,7 @@ sub nas_group_change {
 
   $attr->{DISABLE} = (defined($attr->{DISABLE})) ? 1 : 0;
 
-  $self->changes2({
+  $self->changes({
     CHANGE_PARAM    => 'ID',
     TABLE           => 'nas_groups',
     DATA            => $attr,
@@ -982,7 +982,7 @@ sub query_list {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM `radtest_history`
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -993,7 +993,7 @@ sub query_list {
 
   return [] if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT COUNT(*) AS total
     FROM radtest_history",
     undef,
@@ -1044,7 +1044,7 @@ sub query_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT * FROM `radtest_history` WHERE id = ?;",
+  $self->query("SELECT * FROM `radtest_history` WHERE id = ?;",
     undef, {
       INFO => 1,
       Bind => [ $attr->{ID} ]
@@ -1125,7 +1125,7 @@ sub nas_cmd_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT * FROM nas_cmd WHERE id = ?;",
+  $self->query("SELECT * FROM nas_cmd WHERE id = ?;",
   undef,
   { INFO => 1,
     Bind => [ $attr->{ID} ] }
@@ -1172,7 +1172,7 @@ sub nas_cmd_list {
     }
   );
 
-  $self->query2(
+  $self->query(
     "SELECT 
     id,
     nas_id,
@@ -1189,7 +1189,7 @@ sub nas_cmd_list {
 
   return [] if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT COUNT(*) AS total FROM nas_cmd",
     undef,
     { INFO => 1 }
@@ -1207,7 +1207,7 @@ sub nas_cmd_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2({
+  $self->changes({
     CHANGE_PARAM => 'ID',
     TABLE        => 'nas_cmd',
     DATA         => $attr,
@@ -1234,7 +1234,7 @@ sub divide_ips{
   my $self = shift;
   my ($attr) = (@_);
 
-  $self->query2("INSERT INTO ippools_ips (ip, ippool_id)
+  $self->query("INSERT INTO ippools_ips (ip, ippool_id)
   SELECT
     (?+TWO_1.SeqValue + TWO_2.SeqValue + TWO_4.SeqValue + TWO_8.SeqValue + TWO_16.SeqValue + TWO_32.SeqValue + TWO_64.SeqValue + TWO_128.SeqValue + TWO_256.SeqValue + TWO_512.SeqValue + TWO_1024.SeqValue + TWO_2048.SeqValue + TWO_4096.SeqValue + TWO_8192.SeqValue + TWO_16384.SeqValue + TWO_32768.SeqValue+ TWO_65536.SeqValue) SeqValue, ?
   FROM
@@ -1278,7 +1278,7 @@ sub remove_ippools_ips{
   my $POLL_ID = shift;
 
   if ($POLL_ID->{CHG} || $POLL_ID->{DEL}) {
-    $self->query2(
+    $self->query(
       "DELETE FROM ippools_ips WHERE ippool_id = ?",
       undef,
       {
@@ -1287,7 +1287,7 @@ sub remove_ippools_ips{
     );
   }
   elsif ($POLL_ID->{IPPOOL_ID} && $POLL_ID->{IP}) {
-    $self->query2(
+    $self->query(
       "DELETE FROM ippools_ips WHERE ippools_ips.ippool_id = ? AND ippools_ips.ip = ?",
       undef,
       {
@@ -1326,7 +1326,7 @@ sub ippools_ips_list{
     }
   );
 
-  $self->query2(
+  $self->query(
     "SELECT
       ii.ippool_id,
       ii.ip,

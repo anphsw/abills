@@ -92,6 +92,9 @@ function onPaste(cm, change) {
     if (copyMode === 'PLAIN') {
       return;
     }
+    if (!event || !event?.clipboardData) {
+      return;
+    }
     var cb = event.clipboardData;
 
     if (cb.types.indexOf("text/html") != -1) {        // contains html
@@ -113,9 +116,52 @@ function onPaste(cm, change) {
   }
 };
 
+function setupResendButtons() {
+  jQuery('[data-method-id]').on('click', function() {
+    const thisButton = jQuery(this);
+    const methodId = thisButton.data('method-id');
+    const articleId = jQuery('[name="id"]').prop('value');
+
+    thisButton.prop('disabled', 'disabled');
+    const loadingLabel = thisButton.data('label-on-loading');
+
+    thisButton.html(loadingLabel);
+    _apiCreateNewsletter(methodId, articleId)
+      .then(res => {
+        if (!res.ok) {
+          throw res;
+        }
+        return res.json()
+      })
+      .then(res => {
+        const successLabel = thisButton.data('label-on-success');
+        thisButton.html(successLabel);
+        thisButton.removeClass('btn-success').addClass('btn-info');
+      })
+      .catch(err => {
+        const errorLabel = thisButton.data('label-on-error');
+        thisButton.html(errorLabel);
+        thisButton.removeClass('btn-success').addClass('btn-danger');
+      });
+
+  })
+}
+
+function _apiCreateNewsletter(sendMethod, portalArticleId) {
+  const body = {
+    portalArticleId,
+    sendMethod
+  };
+
+  return fetch("/api.cgi/portal/newsletter", {
+    method: "POST",
+    body: JSON.stringify(body)
+  })
+}
+
 jQuery(function () {
   var portalEditor = document.querySelector('.CodeMirror').CodeMirror;
-  
+
   function create_tag_wrap_handler(tag_name) {
     return function (e) {
       cancelEvent(e);
@@ -145,4 +191,5 @@ jQuery(function () {
   fillPreview();
   portalEditor.on('beforeChange', onPaste);
   portalEditor.on('change', fillPreview);
+  setupResendButtons();
 });

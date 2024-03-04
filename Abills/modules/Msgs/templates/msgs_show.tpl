@@ -44,7 +44,7 @@
           <div class='row'>
             <div class='col-md-3'>_{CREATED}_: %DATE%</div>
             <div class='col-md-3'>_{CHAPTER}_: %CHAPTER_NAME%</div>
-            <div class='col-md-6 text-right'>%QUOTING% %DELETE% %EDIT%</div>
+            <div class='col-md-6 text-right'>%QUOTING% %DELETE% %INNER_MSG_BTN% %EDIT%</div>
           </div>
         </div>
       </div>

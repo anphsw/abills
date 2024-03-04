@@ -4,13 +4,13 @@ use strict;
 use warnings FATAL => 'all';
 
 use Voip;
-use Voip::Users;
+use Voip::Services;
 
 my ($admin, $CONF, $db);
 my Abills::HTML $html;
 my $lang;
 my Voip $Voip;
-my Voip::Users $Voip_users;
+my Voip::Services $Voip_users;
 
 use Abills::Base qw/days_in_month in_array next_month dirname/;
 
@@ -33,7 +33,7 @@ sub new {
 
   $Voip = Voip->new($db, $admin, $CONF);
 
-  $Voip_users = Voip::Users->new($db, $admin, $CONF, {
+  $Voip_users = Voip::Services->new($db, $admin, $CONF, {
     html => $html || {},
     lang => $lang || {}
   });
@@ -213,6 +213,8 @@ sub voip_payments_maked {
   my $form = $attr->{FORM} || {};
   my $user = $attr->{USER_INFO};
 
+  $self->voip_vpbx_callback($attr);
+
   ::load_module('Voip');
 
   if (!$form->{DISABLE}) {
@@ -242,6 +244,59 @@ sub voip_payments_maked {
   if ($CONF->{VOIP_ASTERISK_USERS}) {
     $Voip_users->voip_mk_users_conf($form);
   }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 voip_vpbx_callback($attr)
+
+=cut
+#**********************************************************
+sub voip_vpbx_callback {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $user = $attr->{USER_INFO};
+  return if !$user || !$user->{UID};
+
+  my $callback_list = $Voip->vpbx_subscribe_list({
+    CALLBACK_URL => '_SHOW',
+    PERIOD       => '_SHOW',
+    COLS_NAME    => 1
+  });
+
+  require Abills::Fetcher;
+  Abills::Fetcher->import('web_request');
+
+  foreach my $callback (@{$callback_list}) {
+    next if !$callback->{callback_url};
+
+    web_request($callback->{callback_url}, {
+      JSON_BODY    => {
+        uid     => $user->{UID},
+        balance => $user->{DEPOSIT}
+      },
+      CURL         => 1,
+      INSECURE     => 1,
+      CURL_OPTIONS => '-s -X POST',
+    });
+  }
+}
+
+#*******************************************************************
+=head2 voip_user_del($uid) - Delete user from module
+
+=cut
+#*******************************************************************
+sub voip_user_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return 0 if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
+
+  $Voip->{UID} = $attr->{USER_INFO}{UID};
+  $Voip->user_del({ UID => $attr->{USER_INFO}{UID}, COMMENTS => $attr->{USER_INFO}{COMMENTS} });
 
   return 1;
 }

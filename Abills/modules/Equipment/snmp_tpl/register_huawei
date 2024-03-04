@@ -62,7 +62,7 @@ if ($#ARGV == -1) {
 my $argv = parse_arguments(\@ARGV);
 my $Telnet;
 
-my $onu_type = $argv->{PON_TYPE} || $argv->{TYPE};
+my $pon_type = $argv->{PON_TYPE} || $argv->{TYPE};
 if ($argv->{DEBUG}) {
   $debug = $argv->{DEBUG};
 }
@@ -83,14 +83,14 @@ if ($debug > 3) {
 
 my %service_ports = ();
 if ($argv->{del_onu}) {
-  my $del_fn = 'delete_' . $onu_type . '_huawei';
+  my $del_fn = 'delete_' . $pon_type . '_huawei';
   if (defined(&$del_fn)) {
     exit &{\&$del_fn}($argv);
   }
 }
 
 if ($argv->{onu_registration}) {
-  my $register_fn = 'register_' . $onu_type . '_huawei';
+  my $register_fn = 'register_' . $pon_type . '_huawei';
   if (defined(&$register_fn)) {
     exit &{\&$register_fn}($argv);
   }
@@ -259,6 +259,7 @@ sub register_gpon_huawei {
       }
     }
 
+    $data = telnet_cmd("quit");
     $Telnet->close();
     return 1;
   }
@@ -560,12 +561,12 @@ sub _get_onu_service_ports {
     my $service_ports = ();
 
     foreach my $line (@list) {
-      if ($onu_type eq 'gpon') {
+      if ($pon_type eq 'gpon') {
         if ($line =~ /(\d+)\s+(\d+)\s+(common|stacking)\s+gpon\s+\d+\/\d+\s*\/\d+\s+\d+\s+\d+\s+vlan\s+(\d+)/) {
           $service_ports->{$1} = [ $2, $3 ];
         }
       }
-      elsif ($onu_type eq 'epon') {
+      elsif ($pon_type eq 'epon') {
         if ($line =~ /(\d+)\s+(\d+)\s+(common|stacking)\s+epon\s+\d+\/\d+\s+\/\d+\s+\d+\s+\-+\s+vlan\s+(\d+)/) { #/) {
           $service_ports->{$1} = [ $2, $3 ];
         }

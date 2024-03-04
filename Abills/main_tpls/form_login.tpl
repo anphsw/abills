@@ -69,7 +69,7 @@
 
   <div class='row p-0 m-0 justify-content-center'>
     <div class='col-xs-12 col-sm-6 col-md-6 col-lg-4 col-11'>
-      <form action='$SELF_URL' METHOD='post' name='frm' id='form_login'>
+      <form action='%SELF_URL%' METHOD='post' name='frm' id='form_login'>
 
         <input type=hidden name=DOMAIN_ID value='$FORM{DOMAIN_ID}'>
         <input type=hidden ID=REFERER name=REFERER value='$FORM{REFERER}'>
@@ -88,7 +88,8 @@
                 <span class='fa fa-user'></span>
               </div>
             </div>
-            <input type='text' id='user' name='user' value='%user%' class='form-control' placeholder='_{LOGIN}_'>
+            <input type='text' id='user' name='user' value='%user%' class='form-control'
+                   placeholder='_{LOGIN}_' autocomplete='off' autocapitalize='none'>
           </div>
         </div>
 

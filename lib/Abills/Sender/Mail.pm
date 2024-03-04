@@ -33,7 +33,7 @@ sub send_message {
   my $self = shift;
   my ($attr) = @_;
 
-  unless ($attr->{TO_ADDRESS}) {
+  if (!$attr->{TO_ADDRESS}) {
     print "No recipient address given \n" if ($self->{debug});
     return;
   };

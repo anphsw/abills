@@ -1437,7 +1437,6 @@ sub cards_print {
 #**********************************************************
 sub cards_report_payments {
 
-
   my @rows = ();
 
   push @rows, $html->element('label', "$lang{FROM}: ", { class => 'col-md-2 control-label' })
@@ -1480,25 +1479,25 @@ sub cards_report_payments {
     $LIST_PARAMS{PAGE_ROWS} = $FORM{rows} || q{};
     $LIST_PARAMS{FROM_DATE} = $FORM{FROM_DATE} || q{};
     $LIST_PARAMS{TO_DATE}   = $FORM{TO_DATE} || q{};
-
     $pages_qs .= "&FROM_DATE=$LIST_PARAMS{FROM_DATE}&TO_DATE=$LIST_PARAMS{TO_DATE}&rows=$LIST_PARAMS{PAGE_ROWS}&show=1";
   }
 
-  print $html->form_main(
-    {
-      CONTENT => $report_form,
-      HIDDEN  => {
-        index => "$index",
-        SERIA => '',
-        sid   => $sid,
-        UID   => $FORM{UID},
-      },
-      NAME => 'cards_list'
-    }
-  );
+  print $html->form_main({
+    CONTENT => $report_form,
+    HIDDEN  => {
+      index => $index,
+      SERIA => '',
+      sid   => $sid,
+      UID   => $FORM{UID},
+    },
+    NAME => 'cards_list'
+  });
 
-#  my $list;
-  my ($table, $list) = result_former({
+  if ($FORM{DEBUG}) {
+    $Cards->{debug}=1;
+  }
+
+  result_former({
      INPUT_DATA      => $Cards,
      FUNCTION        => 'cards_report_payments',
      #MAP             => 1,

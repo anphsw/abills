@@ -7,6 +7,7 @@
 
 use Ring;
 use Tags;
+require Control::Address_mng;
 use strict;
 use warnings FATAL => 'all';
 
@@ -16,7 +17,8 @@ our (
   $admin,
   %conf,
   %lang,
-  $html
+  $html,
+  %LIST_PARAMS
 );
 
 my $Ring = Ring->new($db, $admin, \%conf);
@@ -123,7 +125,6 @@ sub ring_rule_add {
   my ($date_start, $time_start);
   my ($date_end, $time_end);
 
-  # добавление правила в таблицу
   if ($FORM{ACTION_TYPE} && $FORM{ACTION_TYPE} eq 'add') {
 
     if($FORM{TIME_START}=~ /\s/ && $FORM{TIME_START}=~ /-/){
@@ -213,7 +214,6 @@ sub ring_rule_add {
     return 1;
   }
 
-  # загрузка файла на сервер
   if ($FORM{FILE}) {
     upload_file($FORM{FILE}, { PREFIX => 'ring' });
       if ($conf{ASTERISK_AMI_REMOTE} && ($conf{ASTERISK_AMI_REMOTE} eq 'yes')) {
@@ -298,7 +298,10 @@ sub ring_user_filters {
 
   if ($FORM{action} && $FORM{action} eq 'addmore') {
     $html->tpl_show(_include('ring_filters', 'Ring'), {
-      ADDRESS_FORM => $html->tpl_show(templates('form_address_search'), {}, { OUTPUT2RETURN => 1 }),
+      ADDRESS_FORM => form_address_select({
+        HIDE_FLAT             => 1,
+        HIDE_ADD_BUILD_BUTTON => 1,
+      }),
       TAGS         => $Tags_info,
       GROUPS       => $group_select,
     });
@@ -309,34 +312,80 @@ sub ring_user_filters {
     my $users_count = $list ? scalar @$list : 0;
     if ( $users_count <= 0) {
       $html->tpl_show(_include('ring_filters', 'Ring'), {
-        ADDRESS_FORM => $html->tpl_show(templates('form_address_search'), {}, { OUTPUT2RETURN => 1 }),
+        ADDRESS_FORM => form_address_select({
+          HIDE_FLAT             => 1,
+          HIDE_ADD_BUILD_BUTTON => 1,
+        }),
         TAGS         => $Tags_info,
         GROUPS       => $group_select
       });
 
       return 1;
     }
-    my $table = $html->table({
-      width   => '100%',
-      caption => $lang{FILTERS},
-      title   => [ 'UID', $lang{RULE}, $lang{DATE}, $lang{TIME}, $lang{STATUS} ],
-      ID      => 'FILTERS',
-      MENU    => "$lang{ADD}:index=" . get_function_index('ring_user_filters') . "&action=addmore&ID=$FORM{ID}" . ':add;'
-    });
-    my $r_info = $Ring->select_rule({ RULE_ID => $FORM{ID} });
-    foreach my $line (@$list) {
-      $table->addrow(
-        $html->button($line->{uid}, "index=15&UID=$line->{uid}", { class => 'btn btn-primary btn-xs', target => '_blank' }),
-        $html->button($r_info->{NAME}, "index=" . get_function_index('ring_main') . "&chg=$r_info->{ID}", {
-          class => 'btn btn-primary btn-xs', target => '_blank' }),
-        $line->{date},
-        $line->{time},
-        $STATUS[$line->{status}],
-        $html->button($lang{DEL}, "index=$index&del=$line->{uid}&r_id=$line->{r_id}", {
-          MESSAGE => "$lang{DEL} $line->{uid}?", class => 'del' })
-      );
+
+    if($FORM{del}){
+      my @uids = split (',', $FORM{del});
+      foreach my $uid (@uids) {
+        $Ring->del_user({UID => $uid, R_ID => $FORM{ID}});
+      }
     }
-    print $table->show();
+
+    my $r_info = $Ring->select_rule({ RULE_ID => $FORM{ID} });
+
+    $LIST_PARAMS{RID} = $FORM{ID};
+    $LIST_PARAMS{STATUS} = '_SHOW';
+    $LIST_PARAMS{PAGE_ROWS} = 1000000;
+
+    result_former({
+      INPUT_DATA     => $Ring,
+      FUNCTION       => 'rule_users',
+      FUNCTION_INDEX => $index,
+      DEFAULT_FIELDS => 'UID,R_ID,DATE,TIME,STATUS',
+      MULTISELECT     => 'del:uid:FILTERS',
+      EXT_TITLES      => {
+        uid       => 'UID',
+        r_id      => $lang{RULE},
+        date      => $lang{DATE},
+        time      => $lang{TIME},
+        status    => $lang{STATUS}
+      },
+      TABLE          => {
+        width   => '100%',
+        caption => $lang{FILTERS},
+        title   => [ 'UID', $lang{RULE}, $lang{DATE}, $lang{TIME}, $lang{STATUS} ],
+        ID      => 'FILTERS',
+        MENU    => "$lang{ADD}:index=" . get_function_index('ring_user_filters') . "&action=addmore&ID=$FORM{ID}" . ':add;',
+        MULTISELECT_ACTIONS => [
+          {
+            TITLE    => $lang{DEL},
+            ICON     => 'fa fa-trash',
+            ACTION   => "$SELF_URL?index=$index&ID=$FORM{ID}",
+            PARAM    => 'del',
+            CLASS    => 'text-danger'
+          },
+        ],
+        SELECT_ALL   => "FILTERS:del:$lang{SELECT_ALL}"
+      },
+      FILTER_VALUES => {
+        uid => sub {
+          my $uid = shift;
+          return $html->button($uid, "index=15&UID=$uid", { class => 'btn btn-primary btn-xs', target => '_blank' });
+        },
+        r_id => sub {
+          my $r_id = shift;
+          return $html->button($r_info->{NAME}, "index=" . get_function_index('ring_main') . "&chg=$r_id", {
+            class => 'btn btn-primary btn-xs', target => '_blank' });
+        },
+        status => sub {
+          my $status = shift;
+          return $STATUS[$status];
+        },
+      },
+      SKIP_USER_TITLE => 1,
+      MODULE          => 'Ring',
+      MAKE_ROWS       => 1,
+      TOTAL           => 1,
+    });
 
     return 1;
   }
@@ -418,7 +467,10 @@ sub ring_user_filters {
     if (! $Ring->{TOTAL}) {
       $FORM{ID} =  $FORM{r_id};
       $html->tpl_show(_include('ring_filters', 'Ring'),{
-        ADDRESS_FORM => $html->tpl_show(templates('form_address_search'), {}, { OUTPUT2RETURN => 1 }),
+        ADDRESS_FORM => form_address_select({
+          HIDE_FLAT             => 1,
+          HIDE_ADD_BUILD_BUTTON => 1,
+        }),
         TAGS         => $Tags_info,
         GROUPS       => $group_select,
       });

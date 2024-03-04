@@ -1245,7 +1245,7 @@ sub form_sql_backup {
 
   my $table = $html->table({
     caption     => $lang{SQL_BACKUP},
-    title_plain => [ $lang{NAME}, $lang{DATE}, $lang{SIZE}, '-' ],
+    title_plain => [ $lang{NAME}, $lang{DATE}, $lang{SIZE}, '' ],
     ID          => 'SQL_BACKUP_LIST',
   });
 
@@ -1256,12 +1256,19 @@ sub form_sql_backup {
     my @contents = grep !/^\.\.?$/, readdir $fh;
   closedir $fh;
 
+  my $i =0;
+  my $total_size = 0;
+
   foreach my $filename (sort @contents) {
     my (undef, undef, undef, undef, undef, undef, undef,, $size, undef, $mtime, undef, undef, undef) = stat("$conf{BACKUP_DIR}/$filename");
 
     my $date = POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime($mtime));
+    $i++;
+    $total_size += $size;
     $table->addrow($filename, $date, int2byte($size), $html->button($lang{DEL}, "index=$index&del=$filename", { MESSAGE => "$lang{DEL} $filename?", class => 'del' }));
   }
+
+  $table->addfooter("$lang{TOTAL}: $i", '', int2byte($total_size), '');
 
   print $table->show() . $html->button($lang{CREATE}, "index=$index&mk_backup=1", { BUTTON => 1 });
 
@@ -1413,7 +1420,6 @@ sub form_holidays {
     }
   }
 
-  # загрузка файла
   if ($FORM{FILE}){
     upload_file($FORM{FILE},
                 {
@@ -1456,12 +1462,10 @@ sub form_holidays {
     }
   }
 
-  # если на календаре выбрать выходной день
   if($FORM{change} || $FORM{show}){
     my $holiday_info;
     my ($month, $day)=split(/\-/, $DATE);
 
-    # получение данных из таблицы
     if ($FORM{change}) {
       $holiday_info = $holidays->holidays_info({ DAY => $FORM{change} });
       if (!$holiday_info->{DAY}) {
@@ -1500,10 +1504,10 @@ sub form_holidays {
   my $list  = $holidays->holidays_list({COLS_NAME => 1});
   my $year  = $FORM{year}  || POSIX::strftime("%Y", localtime(time));
   my $month = $FORM{month} || POSIX::strftime("%m", localtime(time));
-  my $next_month = $month + 1; # месяц для кнопки NEXT
-  my $last_month = $month - 1; # месяц для кнопки LAST
-  my $last_year = $year;       # год для кнопки LAST
-  my $next_year = $year;       # год для кнопки NEXT
+  my $next_month = $month + 1;
+  my $last_month = $month - 1;
+  my $last_year = $year;
+  my $next_year = $year;
 
   if($next_month > 12){
     $next_month = 1;
@@ -1779,7 +1783,8 @@ sub form_info_fields {
     'SOCIAL NETWORK',
     'Crypt',
     $lang{LANGUAGE},
-    'Time zone'
+    'Time zone',
+    $lang{DATE},
   );
 
   my $fields_type_sel = $html->form_select(
@@ -2087,13 +2092,11 @@ sub form_config {
   load_pmodule('Digest::MD5', { IMPORT => 'md5_hex' });
   get_checksum($base_dir, \%file_check_sum);
 
-  my $table = $html->table(
-    {
-      caption     => 'config options',
-      width       => '600',
-      title_plain => [ $lang{NAME}, $lang{DATE}, "MD5", "-" ],
-    }
-  );
+  my $table = $html->table({
+    caption     => 'config options',
+    width       => '600',
+    title_plain => [ $lang{NAME}, $lang{DATE}, "MD5", "-" ],
+  });
 
   foreach my $file (sort keys %file_check_sum) {
     my ($checksum, $date) = split(/:/, $file_check_sum{$file}, 2);
@@ -2130,7 +2133,7 @@ sub form_config {
   $table->addrow("Perl Version:", $], '');
 
   foreach my $k (sort keys %conf) {
-    if ($k eq 'dbpasswd') {
+    if (in_array($k, ['dbpasswd', 'secretkey'])) {
       $conf{$k} = '*******';
     }
     $table->addrow($k, $conf{$k}, '');
@@ -2615,6 +2618,7 @@ sub form_prog_pathes {
           }
         }
         close($fh);
+        $html->message('info', $lang{INFO}, $lang{CHANGED});
       }
       else {
         $html->message('err', $lang{ERROR}, "'$filename' $!");

@@ -210,5 +210,8 @@ $lang{PORT_STATUS_CHANGING_ERROR} = 'Помилка при зміні стату
 
 $lang{RUN_CMD_ON_EQUIPMENT} = 'Запустити команду на обладнанні';
 $lang{CONTINUATION_NUMBERING_FOR_EXTRA_PORTS} = 'Продовження нумерації для додаткових портів';
+$lang{AUTODETECT}='Автовизначення';
+$lang{GENERAL_INFORMATION} = 'Загальна інформація';
+$lang{ONU_LAST_DOWN_CAUSE} = 'Причина розриву';
 
 1

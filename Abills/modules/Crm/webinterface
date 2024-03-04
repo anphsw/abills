@@ -266,7 +266,7 @@ sub crm_tp_geolocation_tree {
     return '';
   }
 
-  my $competitor_builds = $Crm->crm_competitor_builds_list($competitor_id);
+  my $competitor_address = $Crm->crm_competitor_builds_list($competitor_id);
   if ($Crm->{TOTAL} < 1) {
     print $html->message('err', $lang{ERROR}, $lang{COMPETITOR_HAS_NOT_ADDRESS}) if $FORM{PRINT_JSON};
     return '';
@@ -276,12 +276,12 @@ sub crm_tp_geolocation_tree {
   $hidden_inputs .= $html->form_input('chg', $FORM{chg} || '0', { TYPE => 'hidden' });
 
   print geolocation_tree({
-    TITLE         => $lang{LOCALITIES_OF_THE_TP},
-    INDEX         => get_function_index('crm_competitors_tp'),
-    BTN_ACTION    => 'change_geo',
-    BTN_LNG       => $lang{CHANGE},
-    BUILDS        => $competitor_builds,
-    HIDDEN_INPUTS => $hidden_inputs
+    TITLE          => $lang{LOCALITIES_OF_THE_TP},
+    INDEX          => get_function_index('crm_competitors_tp'),
+    BTN_ACTION     => 'change_geo',
+    BTN_LNG        => $lang{CHANGE},
+    # BUILDS        => competitor_address,
+    HIDDEN_INPUTS  => $hidden_inputs,
   }, $Crm->crm_competitor_tps_geo_list({ TP_ID => $FORM{chg} || '0', COLS_NAME => 1 }));
 
   return 1;
@@ -325,8 +325,15 @@ sub crm_mass_adding {
     }
   }
 
-  $Crm->{DISTRICTS_SEL} = sel_districts({ SEL_OPTIONS => { 0 => '--' } });
+  $Crm->{DISTRICTS_SEL} = sel_districts({ SEL_OPTIONS => { 0 => '--' }, FULL_NAME => 1, ONLY_WITH_STREETS => 1 });
   $Crm->{STREETS_SEL} = sel_streets({ SEL_OPTIONS => { 0 => '--' } });
+  $Crm->{BUILD_SEL} = $html->form_select('BUILD_ID', {
+    NO_ID       => 1,
+    SEL_LIST    => [],
+    SEL_KEY     => 'id',
+    SEL_VALUE   => 'number',
+    SEL_OPTIONS => { '' => '--' },
+  });
 
   $html->tpl_show(_include('crm_mass_adding_form', 'Crm'), $Crm);
 
@@ -555,7 +562,7 @@ sub crm_registration {
     $html->message('info', $lang{SUCCESS}, $lang{ADDED}) if !_error_show($Crm);
   }
 
-  $Crm->{ADDRESS_TPL} = form_address_select2();
+  $Crm->{ADDRESS_TPL} = form_address_select();
   $Crm->{INFO_FIELDS} = crm_lead_info_field_tpl({ REGISTRATION => 1 });
   $Crm->{INFO_FIELDS} .= $html->element('hr', '', { OUTPUT2RETURN => 1 }) if $Crm->{INFO_FIELDS};
 
@@ -591,6 +598,7 @@ sub crm_dialogue {
     TIME        => '_SHOW',
     AVATAR_LINK => '_SHOW',
     INNER_MSG   => '_SHOW',
+    ATTACHMENTS => '_SHOW',
     SORT        => 'cdm.date',
     PAGE_ROWS   => 99999,
     COLS_NAME   => 1
@@ -624,6 +632,39 @@ sub crm_dialogue {
 
     $message->{message} =~ s/\n$//;
     $message->{message} = Abills::Base::convert($message->{message}, { text2html => 1, SHOW_URL => 1 });
+
+    if ($message->{attachments}) {
+      my $attachments = $Crm->crm_attachment_list({
+        MESSAGE_ID   => $message->{id},
+        FILENAME     => '_SHOW',
+        FILE_SIZE    => '_SHOW',
+        CONTENT_TYPE => '_SHOW',
+        COLS_NAME    => 1
+      });
+
+      if ($Crm->{TOTAL} && $Crm->{TOTAL} > 0) {
+        $message->{message} .= $html->element('hr', '', { class => 'm-1' });
+
+        foreach my $attachment (@{$attachments}) {
+          my $attachment_block = $html->button(($attachment->{filename} || 'No name'), '', {
+            NO_LINK_FORMER => 1,
+            JAVASCRIPT     => '#',
+            SKIP_HREF      => 1,
+            class          => 'crm-attachment cursor-pointer',
+            ex_params      => "data-id='$attachment->{id}'"
+          }) . "  ($lang{SIZE}:   " . int2byte($attachment->{file_size}) . ')';
+
+          if ($attachment->{content_type} =~ 'image/') {
+            $attachment_block = $html->img("/images/attach/crm/$attachment->{filename}", ($attachment->{filename} || 'No name'), {
+              class => 'd-block img-fluid modal-content-img dialogue-attachment',
+            }) . $attachment_block;
+          }
+
+          $message->{message} .= $attachment_block . $html->element('hr', '', { class => 'm-1' });
+        }
+      }
+    }
+
     my $message_text = $html->element('div', $message->{message} . $time, { class => $message_class });
     $messages .= $html->element('div', !$message->{aid} ? $image . $message_text : $message_text . $image, { class => "d-flex mb-3 $message_type" });
   }
@@ -746,11 +787,13 @@ sub crm_dialogues {
   my @sources = map {$_->{source} || q{}} @{$admin_open_lines};
   $LIST_PARAMS{SOURCE} = join(';', @sources) || 'empty';
 
-  if ($FORM{del} && $FORM{COMMENTS}) {
-    $Crm->crm_dialogue_info({ ID => $FORM{ID} });
+  if ($FORM{del} && $FORM{COMMENTS} && $permissions{0}{5}) {
+    $FORM{del} =~ s/,/;/g;
+    my $dialogues = $Crm->crm_dialogues_list({ ID => $FORM{del}, SOURCE => $LIST_PARAMS{SOURCE}, COLS_NAME => 1 });
+    my $ids = join(';', map { $_->{id} } @{$dialogues});
 
-    if ($Crm->{SOURCE} && in_array($Crm->{SOURCE}, \@sources)) {
-      $Crm->crm_dialogues_del({ ID => $FORM{ID} });
+    if ($ids) {
+      $Crm->crm_dialogues_del({ ID => $ids });
       $html->message('info', $lang{INFO}, $lang{DELETED}) if !_error_show($Crm);
     }
   }
@@ -760,7 +803,7 @@ sub crm_dialogues {
     FUNCTION        => 'crm_dialogues_list',
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'ID,LEAD_FIO,SOURCE,ADMIN,STATE,DATE',
-    FUNCTION_FIELDS => 'crm_dialogue:change:id,:del:id:&del=1',
+    FUNCTION_FIELDS => 'crm_dialogue:change:id' . ($permissions{0}{5} ? ',del' : ''),
     FUNCTION_INDEX  => $index,
     FILTER_VALUES   => {
       state => sub {
@@ -768,6 +811,7 @@ sub crm_dialogues {
         $STATES{$state} || $lang{CRM_STATUS_IS_UNKNOWN}
       }
     },
+    MULTISELECT     => 'del:id:CRM_LEAD_DIALOGUES',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
       id       => '#',
@@ -777,12 +821,23 @@ sub crm_dialogues {
       state    => $lang{STATE},
       date     => $lang{DATE},
     },
-    SKIP_PAGES      => 1,
     TABLE           => {
-      width   => '100%',
-      caption => $lang{DIALOGUES},
-      qs      => $pages_qs,
-      ID      => 'CRM_LEAD_DIALOGUES'
+      width               => '100%',
+      caption             => $lang{DIALOGUES},
+      qs                  => $pages_qs,
+      ID                  => 'CRM_LEAD_DIALOGUES',
+      MULTISELECT_ACTIONS => [
+        {
+          TITLE    => $lang{DEL},
+          ICON     => 'fa fa-trash',
+          ACTION   => "$SELF_URL?index=$index",
+          PARAM    => 'del',
+          CLASS    => 'text-danger',
+          COMMENTS => "$lang{DEL}?"
+        },
+      ],
+      MENU                => "$lang{SEARCH}:search_form=1&index=$index:search",
+      SELECT_ALL          => $permissions{0}{5} ? "CRM_LEAD_DIALOGUES:del:$lang{SELECT_ALL}" : ''
     },
     MAKE_ROWS       => 1,
     MODULE          => 'Crm',
@@ -1273,6 +1328,59 @@ sub crm_schedule_hours {
   $html->tpl_show(_include('crm_actions_schedule', 'Crm'));
 
   return 1;
+}
+
+#**********************************************************
+=head2 crm_user_leads()
+
+=cut
+#**********************************************************
+sub crm_user_leads {
+
+  result_former({
+    INPUT_DATA      => $Crm,
+    FUNCTION        => 'crm_lead_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'LEAD_ID,FIO,PHONE,EMAIL,CURRENT_STEP_NAME,DIALOGUE_ID',
+    HIDDEN_INPUT    => 'HOLDUP_DATE',
+    FUNCTION_INDEX  => $index,
+    FILTER_VALUES => {
+      lead_id => sub {
+        my $lead_id = shift;
+        return $html->button($lead_id, "get_index=crm_lead_info&full=1&LEAD_ID=$lead_id");
+      },
+      dialogue_id => sub {
+        my $dialogue_id = shift;
+        return '' if !$dialogue_id;
+
+        $html->button('', "get_index=crm_dialogue&full=1&ID=$dialogue_id", {
+          class  => 'btn btn-primary btn-sm fa fa-envelope'
+        });
+      }
+    },
+    EXT_TITLES      => {
+      lead_id           => '#',
+      fio               => $lang{FIO},
+      phone             => $lang{PHONE},
+      email             => 'E-Mail',
+      admin_name        => $lang{RESPOSIBLE},
+      current_step_name => $lang{STEP},
+      user_login        => $lang{LOGIN},
+      uid               => 'UID',
+      lead_address      => $lang{ADDRESS},
+      holdup_date       => $lang{HOLDUP_TO},
+      dialogue_id       => $lang{DIALOGUE}
+    },
+    TABLE           => {
+      width       => '100%',
+      caption     => $lang{LEADS},
+      qs          => $pages_qs,
+      ID          => 'CRM_USER_LEADS_LIST',
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1,
+    MODULE          => 'Crm'
+  });
 }
 
 1

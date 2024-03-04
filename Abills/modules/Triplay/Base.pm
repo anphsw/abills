@@ -4,10 +4,9 @@ use strict;
 use warnings FATAL => 'all';
 
 my ($admin, $CONF, $db);
-my $json;
 my Abills::HTML $html;
 my $lang;
-my $Triplay;
+my Triplay $Triplay;
 
 use Abills::Base qw/days_in_month in_array next_month/;
 
@@ -243,6 +242,8 @@ sub triplay_payments_maked {
     });
 
     ::service_get_month_fee($Triplay, { %$attr, SERVICE_NAME => 'Triplay', MODULE => 'Triplay' });
+
+
   }
 
   return 1;
