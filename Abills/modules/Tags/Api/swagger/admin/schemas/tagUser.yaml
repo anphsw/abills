@@ -1,0 +1,31 @@
+type: object
+properties:
+  comments:
+    type: string
+    example: "Cool tag"
+  date:
+    type: string
+    format: date
+    example: "2024-07-19"
+  disable:
+    type: number
+    example: 0
+  endDate:
+    type: string
+    format: date
+    example: "2024-09-17"
+  id:
+    type: number
+    example: 1
+  login:
+    type: string
+    example: coolUser
+  name:
+    type: string
+    example: Monobank
+  priority:
+    type: number
+    example: 2
+  uid:
+    type: number
+    example: 120612

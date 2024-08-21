@@ -1,107 +1,149 @@
-<html>
+<!DOCTYPE html>
+<html lang="uk">
 <head>
-    <title>Доступ заборонено</title>
-  <meta name='viewport' content='width=device-width, initial-scale=1'>
-  <meta http-equiv='X-UA-Compatible' content='IE=edge'>
-
-  <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
-  <meta HTTP-EQUIV='Cache-Control' content='no-cache,no-cache,no-store,must-revalidate,private, max-age=5'/>
-  <meta HTTP-EQUIV='Expires' CONTENT='-1'/>
-  <meta HTTP-EQUIV='Pragma' CONTENT='no-cache'/>
-  <meta HTTP-EQUIV='Content-Type' CONTENT='text/html; charset=utf-8'/>
-  <meta HTTP-EQUIV='Content-Language' content='ua'/>
-    <style>
-        body {
-            background-color: #232020;
-            text-align: center;
-        }
-
-        #page-wrapper {
-            height: 100%;
-            width: 100%;
-            position: relative;
-
-            margin-top: 2em;
-
-            font-family: Tahoma, serif;
-        }
-
-        #alert-wrapper {
-            display: block;
-            position: relative;
-
-            margin-left: auto;
-            margin-right: auto;
-
-            max-width: 500px;
-            font-size: 20px;
-        }
-
-        .alert-header {
-            font-size: 32px;
-            color: #ffffff;
-            text-align: center;
-        }
-
-        .text-orange {
-            color: #FF8000
-        }
-
-        .alert-text {
-            color: #9b9a9a;
-            text-align: center;
-            margin-top: 35px;
-        }
-
-        .alert-btn{
-            display: inline-block;
-            padding: 6px 12px;
-            margin-bottom: 0;
-            font-size: 14px;
-            font-weight: 400;
-            line-height: 1.42857143;
-            text-align: center;
-            white-space: nowrap;
-            vertical-align: middle;
-
-            cursor: pointer;
-
-            border-radius: 4px;
-            color: #333;
-            background-color: #fff;
-            border-color: #ccc;
-            text-decoration: none;
-        }
-
-
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Недостатньо коштів</title>
+  <style>
+    *, ::after, ::before {
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #222;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5;
+      color: #F0F0F0;
+      text-align: left;
+    }
+    a {
+      color: #007bff;
+      text-decoration: none;
+      background-color: transparent;
+    }
+    h2 {
+      margin-top: 0;
+    }
+    .container {
+      max-width: 600px;
+      text-align: center;
+    }
+    .card {
+      position: relative;
+      display: -ms-flexbox;
+      display: flex;
+      -ms-flex-direction: column;
+      flex-direction: column;
+      min-width: 0;
+      word-wrap: break-word;
+      background-clip: border-box;
+      border-radius: .25rem;
+    }
+    .card {
+      border: none;
+      border-radius: 15px;
+    }
+    .card-body {
+      -ms-flex: 1 1 auto;
+      flex: 1 1 auto;
+      min-height: 1px;
+      padding: 1.25rem;
+    }
+    .card-body {
+      padding: 2rem;
+    }
+    .btn:not(:disabled):not(.disabled) {
+	    cursor: pointer;
+    }
+    .btn {
+      display: inline-block;
+      font-weight: 400;
+      color: #212529;
+      text-align: center;
+      vertical-align: middle;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      background-color: transparent;
+      border: 1px solid transparent;
+      padding: .375rem .75rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      border-radius: .25rem;
+      transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+      font-size: 1.12rem;
+      padding: 0.75rem 1.5rem;
+      margin: 0.5rem 0;
+      width: 100%;
+    }
+    .btn-primary {
+      color: #fff;
+      background-color: #007bff;
+      border-color: #007bff;
+    }
+    .btn-secondary {
+      color: #fff;
+      background-color: #6c757d;
+      border-color: #6c757d;
+    }
+    .btn-info {
+      color: #fff;
+      background-color: #17a2b8;
+      border-color: #17a2b8;
+    }
+    .container {
+      width: 100%;
+      padding-right: 15px;
+      padding-left: 15px;
+      margin-right: auto;
+      margin-left: auto;
+     }
+    button, input, optgroup, select, textarea {
+      margin: 0;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+    }
+    .m-0 {
+      margin: 0;
+    }
+  </style>
 </head>
 <body>
 <script>
-    function ReloadPage() {
-        location.reload(true);
-    }
+  function ReloadPage() {
+    location.reload(true);
+  }
 </script>
-<div id='page-wrapper'>
-
-    <div id='alert-wrapper'>
-
-        <p class='alert-header'> На Вашому рахунку <span class='text-orange'>0</span> грн </p>
-
-        <p class='alert-text'> Для подальшого користування послугою Інтернет в повному обсязі,<br>
-            будь ласка,
-            <a href='CHANGE_ME/index.cgi'>поповніть Ваш рахунок</a>
+<div class="container">
+  <div class="card">
+    <div class="card-body">
+      <!-- You can put your inline svg logo here. -->
+      <h2>
+        У вас недостатньо коштів на рахунку!
+      </h2>
+      <div>
+        <p>
+          Для подальшого користування послугою Інтернет в повному обсязі, будь ласка, поповніть Ваш рахунок
         </p>
-
-        <p class='alert-text'>Для роботи у режимі мінімальної пропускної
-            спроможності активуйте обмежений режим</p>
-        <a href='https://CHANGE_ME:9443/skip_warning.cgi?redirect=' class='alert-btn'>Активувати обмежений режим роботи</a>
-        <br>
-        <br>
-        <button onclick="ReloadPage()">Продовжити</button>
+        <p>
+          Для роботи у режимі мінімальної пропускної спроможності активуйте обмежений режим
+        </p>
+      </div>
+      <a href="https://YOUR.PORTAL:9443/" class="btn btn-primary">
+        <b>Поповнити рахунок</b>
+      </a>
+      <a href="https://YOUR.PORTAL:9443/" class="btn btn-info">Активувати обмежений режим</a>
+      <button type="button" class='btn btn-secondary' onclick="ReloadPage()">Продовжити</button>
     </div>
-
+  </div>
 </div>
-
 </body>
 </html>

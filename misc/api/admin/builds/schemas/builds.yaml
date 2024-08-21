@@ -1,0 +1,92 @@
+type: object
+properties:
+  added:
+    type: string
+    example: 2023-02-02 17:51:23
+  affected:
+    type: number
+    example: 0
+  block:
+    type: string
+    example: ''
+  buildSchema:
+    type: string
+    example: 1
+  comments:
+    type: string
+    example: ''
+  contractDate:
+    type: string
+    example: 0000-00-00
+  contractId:
+    type: string
+    example: ""
+  contractPrice:
+    type: number
+    example: 0
+  coordx:
+    type: number
+    example: 0
+  coordy:
+    type: number
+    example: 0
+  entrances:
+    type: number
+    example: 0
+  flats:
+    type: number
+    example: 0
+  flors:
+    type: number
+    example: 0
+  mapX:
+    type: number
+    example: 0
+  mapX2:
+    type: number
+    example: 0
+  mapX3:
+    type: number
+    example: 0
+  mapX4:
+    type: number
+    example: 0
+  mapY:
+    type: number
+    example: 0
+  mapY2:
+    type: number
+    example: 0
+  mapY3:
+    type: number
+    example: 0
+  mapY4:
+    type: number
+    example: 0
+  number:
+    type: string
+    example: ZAP
+  numberingDirection:
+    type: number
+    example: 0
+  plannedToConnect:
+    type: number
+    example: 0
+  publicComments:
+    type: string
+    example: ''
+  startNumberingFlat:
+    type: number
+    example: 1
+  streetId:
+    type: number
+    example: 0
+  total:
+    type: number
+    example: 1
+  typeId:
+    type: number
+    example: 0
+  zip:
+    type: string
+    example: ''

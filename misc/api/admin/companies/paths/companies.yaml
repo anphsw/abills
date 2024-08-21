@@ -1,0 +1,212 @@
+get:
+  tags:
+    - companies
+  summary: Список компаний
+  parameters:
+    - name: name
+      in: query
+      description: Название компании
+      schema:
+        type: boolean
+        default: true
+    - name: deposit
+      in: query
+      description: Депозит компании
+      schema:
+        type: boolean
+        default: true
+    - name: credit
+      in: query
+      description: Кредит
+      schema:
+        type: boolean
+        default: true
+    - name: creditDate
+      in: query
+      description: Дата окончаня кредита
+      schema:
+        type: boolean
+        default: true
+    - name: address
+      in: query
+      description: Адресс
+      schema:
+        type: boolean
+        default: false
+    - name: registration
+      in: query
+      description: Дата регистрации
+      schema:
+        type: boolean
+        default: false
+    - name: status
+      in: query
+      description: Статус компании
+      schema:
+        type: boolean
+        default: false
+    - name: contractId
+      in: query
+      description: Номер договора
+      schema:
+        type: boolean
+        default: true
+    - name: contractDate
+      in: query
+      description: Дата подписания договора
+      schema:
+        type: boolean
+        default: true
+    - name: contractSufix
+      in: query
+      description: Суфикс договора
+      schema:
+        type: boolean
+        default: false
+    - name: id
+      in: query
+      description: ID компании
+      schema:
+        type: boolean
+        default: true
+    - name: billId
+      in: query
+      description: денежный счет
+      schema:
+        type: boolean
+        default: true
+    - name: taxNumber
+      in: query
+      description: ИПН (РНОКПП)
+      schema:
+        type: boolean
+        default: true
+    - name: bankAccount
+      in: query
+      description: Счёт в банке (IBAN)
+      schema:
+        type: boolean
+        default: true
+    - name: bankName
+      in: query
+      description: Название банка
+      schema:
+        type: boolean
+        default: true
+    - name: corBankAccount
+      in: query
+      description: Корреспондентский счёт
+      schema:
+        type: boolean
+        default: false
+    - name: bankBic
+      in: query
+      description: BIC код банка (ISO 9362)
+      schema:
+        type: boolean
+        default: false
+    - name: phone
+      in: query
+      description: Номер телефона
+      schema:
+        type: boolean
+        default: false
+    - name: vat
+      in: query
+      description: НДС
+      schema:
+        type: boolean
+        default: false
+    - name: extBillId
+      in: query
+      description: Дополнительный денежный счет
+      schema:
+        type: boolean
+        default: false
+    - name: representative
+      in: query
+      description: Представитель компании
+      schema:
+        type: boolean
+        default: true
+    - name: locationId
+      in: query
+      description: example description
+      schema:
+        type: boolean
+        default: false
+    - name: addressFlat
+      in: query
+      description: Квартира
+      schema:
+        type: boolean
+        default: false
+    - name: companyAdmin
+      in: query
+      description: Внутренний админ комании
+      schema:
+        type: boolean
+        default: false
+    - name: edrpou
+      in: query
+      description: ЕДРПОУ компании
+      schema:
+        type: boolean
+        default: true
+    - name: comments
+      in: query
+      description: Комментарии к компании
+      schema:
+        type: boolean
+        default: false
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/companies.yaml"
+  security:
+    - KEY: [ ]
+post:
+  tags:
+    - companies
+  summary: Добавление компании
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/companiesManageRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/company.yaml"
+    400:
+      description: Компания уже есть с таким ID
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse400"
+  security:
+    - KEY: [ ]

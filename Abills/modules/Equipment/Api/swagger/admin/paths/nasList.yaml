@@ -1,0 +1,183 @@
+get:
+  tags:
+    - equipment
+  summary: Список серверов доступа
+  operationId: getNAsList
+  parameters:
+    - name: authType
+      in: query
+      description: Тип авторизации
+      schema:
+        type: boolean
+        default: true
+    - name: descr
+      in: query
+      description: Описание
+      schema:
+        type: boolean
+        default: true
+    - name: extAcct
+      in: query
+      description: Внешний аккаунтинг
+      schema:
+        type: boolean
+        default: true
+    - name: id
+      in: query
+      description: ID сервера доступа
+      schema:
+        type: boolean
+        default: true
+    - name: nasName
+      in: query
+      description: Имя сервера доступа
+      schema:
+        type: boolean
+        default: true
+    - name: nasType
+      in: query
+      description: Тип сервера доступа
+      schema:
+        type: boolean
+        default: true
+    - name: nasDisable
+      in: query
+      description: Параметр, который показывает активный (0) или неактивный (1) сервер доступа
+      schema:
+        type: boolean
+        default: true
+    - name: mac
+      in: query
+      description: MAC адрес
+      schema:
+        type: boolean
+        default: true
+    - name: nasIp
+      in: query
+      description: IP сервера доступа
+      schema:
+        type: boolean
+        default: true
+    - name: nasMngIpPort
+      in: query
+      description: IP порт для управления сервером доступа
+      schema:
+        type: boolean
+        default: true
+    - name: nasMngHostPort
+      in: query
+      description: Хост порт управления сервером доступа
+      schema:
+        type: boolean
+        default: false
+    - name: nasMngUser
+      in: query
+      description: Пользователь для управления сервером доступа
+      schema:
+        type: boolean
+        default: true
+    - name: nasMngPassword
+      in: query
+      description: Пароль для управления сервером доступа
+      schema:
+        type: boolean
+        default: true
+    - name: nasId
+      in: query
+      description: ID сервера доступа
+      schema:
+        type: boolean
+        default: true
+    - name: gid
+      in: query
+      description: ID группы
+      schema:
+        type: boolean
+        default: false
+    - name: nasGroupName
+      in: query
+      description: Название группы
+      schema:
+        type: boolean
+        default: true
+    - name: districtId
+      in: query
+      description: ID района
+      schema:
+        type: boolean
+        default: false
+    - name: locationId
+      in: query
+      description: ID дома
+      schema:
+        type: boolean
+        default: false
+    - name: domainId
+      in: query
+      description: ID домена
+      schema:
+        type: boolean
+        default: false
+    - name: nasIdentifier
+      in: query
+      description: Дополнительный идентификатор
+      schema:
+        type: boolean
+        default: true
+    - name: nasAlive
+      in: query
+      description: Время получения Alive сообщений. Используется для контроля за состоянием соединения пользователя.
+      schema:
+        type: boolean
+        default: true
+    - name: nasRadPairs
+      in: query
+      description: RAD Pairs
+      schema:
+        type: boolean
+        default: true
+    - name: nasEntrance
+      in: query
+      description: Подъезд, где размещен сервер доступа
+      schema:
+        type: boolean
+        default: false
+    - name: nasFloor
+      in: query
+      description: Этаж, где размещен сервер доступа
+      schema:
+        type: boolean
+        default: false
+    - name: addressFull
+      in: query
+      description: Полный адрес
+      schema:
+        type: boolean
+        default: false
+    - name: zabbixHostid
+      in: query
+      description: Zabbix хост ID
+      schema:
+        type: boolean
+        default: false
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/nasList.yaml"
+  security:
+    - KEY: []

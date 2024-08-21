@@ -459,7 +459,7 @@ sub extfin_paids {
             BILL_ID => $attr->{USER_INFO}->{BILL_ID},
           },
           {
-            METHOD   => 4,
+            METHOD   => $FORM{'MACCOUNT_ID_' . $id} || 4,
             SUM      => $sum,
             DESCRIBE => $action . $FORM{'COMMENTS_' . $id}
           }
@@ -733,19 +733,21 @@ sub extfin_paids_types {
   my $list = $Extfin->paid_types_list({ %LIST_PARAMS });
 
   my $table = $html->table({
-      width   => '100%',
-      caption => "$lang{TARIF_PLAN}",
-      border  => 1,
-      title   => [ '#', $lang{NAME}, $lang{SUM}, $lang{PERIOD}, $lang{MONTH_ALIGNMENT}, '-', '-' ],
-      ID      => 'ID'
+    width   => '100%',
+    caption => "$lang{TARIF_PLAN}",
+    border  => 1,
+    title   => [ '#', $lang{NAME}, $lang{SUM}, $lang{PERIOD}, $lang{MONTH_ALIGNMENT}, '-', '-', '-' ],
+    ID      => 'EXTFIN_TARIFFS'
   });
 
-  my ($delete, $change);
+  my ($delete, $change, $users_button);
+  my $user_list_index = get_function_index('extfin_users_list');
+
   foreach my $line (@$list) {
     if ($permissions{4}{1}) {
-      $delete = $html->button($lang{DEL}, "index=$index&del=$line->[0]",
-        { MESSAGE => "$lang{DEL} $line->[0]?", BUTTON => 1 });
-      $change = $html->button($lang{CHANGE}, "index=$index&chg=$line->[0]", { BUTTON => 1 });
+      $delete = $html->button($lang{DEL}, "index=$index&del=$line->[0]",{ MESSAGE => "$lang{DEL} $line->[0]?", class => 'del' });
+      $change = $html->button($lang{CHANGE}, "index=$index&chg=$line->[0]", { class => 'change' });
+      $users_button = $html->button($lang{USERS}, "index=$user_list_index&TYPE_ID=$line->[0]", { class => 'user' })
     }
 
     my %bool = (
@@ -758,6 +760,7 @@ sub extfin_paids_types {
       $line->[2],
       $bool{$line->[3]},
       $bool{$line->[4]},
+      $users_button,
       $change,
       $delete,
     );
@@ -1966,56 +1969,6 @@ sub extfin_calculated_balance {
   return 1;
 }
 
-=head extfin_quick_info($attr) - Quick information
-
-  Arguments:
-    $attr
-      UID
-
-  Return:
-
-=cut
-#**********************************************************
-sub extfin_quick_info {
-  my ($attr) = @_;
-  my $result;
-
-  my $uid = $attr->{UID} || $FORM{UID};
-
-  if ($attr->{UID}) {
-    my $list = $Extfin->paid_periodic_list({
-      UID        =>  $uid,
-      COLS_NAME  => 1,
-      COLS_UPPER => 1
-    });
-
-    $result = $list->[0];
-    my $service_status = sel_status({ HASH_RESULT => 1 });
-    $result->{STATUS} = (defined($result->{STATUS})) ? $service_status->{ $result->{STATUS} } : '';
-    ($result->{STATUS}, undef)=split(/:/, $result->{STATUS});
-    return $result;
-  }
-  elsif($attr->{GET_PARAMS}) {
-    $result = {
-      HEADER    => $lang{ACCRUALS},
-      FIELDS => {
-        UID         => 'UID',
-      }
-    };
-
-    return $result;
-  }
-
-  $Extfin->paid_periodic_list({
-    UID        => $uid,
-    TOTAL_SERVICES => '_SHOW',
-    COLS_NAME  => 1,
-    COLS_UPPER => 1
-  });
-
-  return ($Extfin->{TOTAL_SERVICES} && $Extfin->{TOTAL_SERVICES} > 0) ? $Extfin->{TOTAL_SERVICES} : '';
-}
-
 #**********************************************************
 =head2 internet_service_activate($attr)
 
@@ -2147,7 +2100,49 @@ sub extfin_service_deactivate {
   return $debug_output;
 }
 
+#**********************************************************
+=head2 extfin_users_list()
 
+=cut
+#**********************************************************
+sub extfin_users_list {
+  my %extfin_extra_fields = (
+    type_id         => "$lang{ACCRUALS} $lang{NAME}",
+    extfin_comments => "Extfin $lang{COMMENTS}",
+    sum             => $lang{SUM}
+  );
+
+  my $paid_types = $Extfin->paid_types_list({ COLS_NAME => 1 });
+
+  my $reg_index = get_function_index('form_wizard');
+
+  $LIST_PARAMS{TYPE_ID} = $FORM{TYPE_ID} if ($FORM{TYPE_ID});
+
+  result_former({
+    INPUT_DATA      => $Extfin,
+    FUNCTION        => 'user_list',
+    DEFAULT_FIELDS  => 'LOGIN,FIO,DEPOSIT,SUM,TYPE_ID,EXTFIN_COMMENTS',
+    EXT_TITLES      => \%extfin_extra_fields,
+    FILTER_VALUES   => {
+      type_id => sub {
+        my ($id) = @_;
+        my ($last) = grep { $_->{id} eq $id } @$paid_types;
+        return $last->{name} || '';
+      }
+    },
+    TABLE => {
+      width      => '100%',
+      caption    => "$lang{ACCRUALS} - $lang{USERS}",
+      qs         => $pages_qs,
+      ID         => 'EXTFIN_USERS_LIST',
+      EXPORT     => 1,
+      MENU       => "$lang{ADD}:index=" . $reg_index . ':add' . ";",
+    },
+    MAKE_ROWS     => 1,
+    MODULE        => 'Extfin',
+    TOTAL         => 1,
+  });
+}
 
 1;
 

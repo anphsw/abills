@@ -300,7 +300,11 @@ sub _get_snmp_oids_array {
 }
 
 #********************************************************
-=head2 equipment_show_snmp_backup_files()
+=head2 equipment_show_snmp_backup_files() - subfunction for download or delete files
+
+   Attr:
+     operation
+     nas_id
 
 =cut
 #********************************************************
@@ -311,6 +315,7 @@ sub equipment_show_snmp_backup_files {
   $nas_id = $nas_id || $FORM{NAS_ID} || '';
 
   my $backup_directory = $conf{TFTP_ROOT};
+  $backup_directory = $conf{EQUIPMENT_CONF_BACKUP} if $FORM{download_conf};
 
   if ( !$backup_directory ) {
     $html->message( 'err', $lang{ERROR}, '$conf{TFTP_ROOT} is not defined' );
@@ -318,8 +323,8 @@ sub equipment_show_snmp_backup_files {
     $conf{TFTP_ROOT} = '/srv/tftp/';
   }
 
-  if ( $FORM{download} ) {
-    my $filename = $FORM{download};
+  if ( $FORM{download} || $FORM{download_conf} ) {
+    my $filename = $FORM{download} || $FORM{download_conf};
 
     my ($size) = (stat( $filename ))[7];
 
@@ -504,6 +509,81 @@ sub equipment_show_snmp_backup_files {
     table  => $table,
     ROWS   => \@directory_content,
   });
+
+  if ($conf{EQUIPMENT_CONF_BACKUP}){
+    equipment_conf_backup_files();
+  }
+
+  return 1;
+}
+
+#********************************************************
+=head2 equipment_conf_backup_files() - show list with equipment conf backups files
+
+=cut
+#********************************************************
+sub equipment_conf_backup_files {
+
+  my $backup_dir = $conf{EQUIPMENT_CONF_BACKUP};
+  system("chown -R www-data:www-data $backup_dir");
+  my $file_operations_index = get_function_index( 'equipment_show_snmp_backup_files' );
+
+  my $nas_id = $FORM{NAS_ID} || '';
+  my Abills::HTML $table;
+
+  my @backups = ();
+
+  opendir(my $dir, $backup_dir) or do {
+    $html->message( 'err', $lang{ERROR}, "Can't open dir $backup_dir $!\n" );
+    return 0;
+  };
+  if ($nas_id){
+    @backups = grep { /^$nas_id/ } readdir($dir);
+  }
+  else {
+    @backups = sort grep !/^\.\.?$/, readdir $dir;
+  }
+  closedir $dir;
+
+
+  if ($FORM{del_conf}) {
+    if (unlink($conf{EQUIPMENT_CONF_BACKUP}.$FORM{del_conf}) == 1){
+      $html->message('info', $lang{FILE_DELETED}, $backup_dir.$FORM{del_conf} );
+    }
+    else {
+      $html->message('err', $lang{ERROR}, $backup_dir.$FORM{del_conf} . " $!" );
+    }
+  }
+
+  $table = $html->table({
+    width               => '100%',
+    caption             => "$lang{BACKUP} $lang{CONFIGURATION} (expect)",
+    border              => 1,
+    title               => [ $lang{NAME}, $lang{DATE}, $lang{SIZE}],
+    qs                  => "index=$index&NAS_ID=$nas_id",
+    SHOW_COLS_HIDDEN    => { NAS_ID => $nas_id },
+    ID                  => 'EQUIPMENT_CONF_BACKUP_ID',
+  });
+
+  foreach my $filename (sort @backups) {
+    my ($size, $mtime) = (stat( $backup_dir.$filename ))[7, 9];
+    next if (!$mtime);
+    my $date = POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime($mtime));
+
+    my $download_link = $html->button('',
+      "qindex=$file_operations_index&download_conf=$filename",
+      { ICON => 'fa fa-download' }
+    );
+
+    $table->addrow(
+      $filename,
+      $date,
+      int2byte($size),
+      $download_link,
+      $html->button($lang{DEL}, "index=$index&visual=9&NAS_ID=$nas_id&del_conf=$filename", { MESSAGE => "$lang{DEL} $filename?", class => 'del' }));
+  }
+
+  print $table->show();
 
   return 1;
 }

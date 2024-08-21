@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 10097
+  errstr:
+    type: string
+    example: No field streetId

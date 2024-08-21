@@ -38,14 +38,14 @@ sub import_mails {
   use Crm::Dialogue;
   my $Dialogue = Crm::Dialogue->new($db, $Admin, \%conf, { SOURCE => 'mail' });
 
-  foreach my $message_id (keys %{$result}) {
-    my $message = $result->{$message_id};
+  foreach my $message_key (keys %{$result}) {
+    my $message = $result->{$message_key};
     my $message_id = $message->{header}{'message-id'} =~ /\<(.+)\>/ ? $1 : '';
 
     next if !$message->{body}{text} || !$message_id;
 
     my ($fio, $email) = $message->{header}{from} =~ '(.+)\s\<(.+)\>';
-    next if $email eq $admin_email;
+    next if !$email || $email eq $admin_email;
 
     # $message->{body}{text} = $message->{body}{text} =~ /([\s\S]*)\n.+\d{2}:\d{2}\s?(<$admin_email>|<$email>).+/ ? $1 : $message->{body}{text};
 
@@ -55,7 +55,7 @@ sub import_mails {
     my $dialogue_id = $Dialogue->crm_get_dialogue_id($lead_id);
     return '' if !$dialogue_id;
 
-    $Dialogue->crm_send_message($message->{body}{text}, { DIALOGUE_ID => $dialogue_id });
+    $Dialogue->crm_send_message($message->{body}{text}, { DIALOGUE_ID => $dialogue_id, EXTERNAL_ID => $message_id });
   }
 }
 

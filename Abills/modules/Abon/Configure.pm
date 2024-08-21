@@ -17,10 +17,10 @@ our(
 );
 
 our Abills::HTML $html;
-my $Abon = Abon->new($db, $admin, \%conf);
+use Abills::Loader;
+require Control::Services;
 
-require Abon::Base;
-my $Abon_base = Abon::Base->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+my $Abon = Abon->new($db, $admin, \%conf);
 
 #*******************************************************************
 =head2 abon_tariffs() - Change user tp form
@@ -28,7 +28,6 @@ my $Abon_base = Abon::Base->new($db, $admin, \%conf, { HTML => $html, LANG => \%
 =cut
 #*******************************************************************
 sub abon_tariffs {
-
   require Abon::Misc::Attachments;
   my $Attachments = Abon::Misc::Attachments->new($db, $admin, \%conf);
   my @PERIODS = ($lang{DAY}, $lang{MONTH}, $lang{QUARTER}, $lang{SIX_MONTH}, $lang{YEAR});
@@ -38,17 +37,18 @@ sub abon_tariffs {
   my @Payment_Types = ($lang{PREPAID}, $lang{POSTPAID});
 
   if ($FORM{add}) {
-    # if (!$FORM{PRICE} || $FORM{PRICE} < 0) {
-    #   $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_SUM}");
-    # }
-    # else {
-      my $picture_name = $Attachments->save_picture($FORM{SERVICE_IMG});
-      $Abon->tariff_add({ %FORM, SERVICE_IMG => $picture_name });
-      if ($FORM{GID}) {
-        $Abon->tariff_gid_add({ GID => $FORM{GID}, TP_ID => $FORM{ABON_ID}});
+    my $picture_name = $Attachments->save_picture($FORM{SERVICE_IMG});
+    $Abon->tariff_add({ %FORM, SERVICE_IMG => $picture_name });
+
+    my $insert_id = $Abon->{INSERT_ID};
+    if ($FORM{GID} && $insert_id) {
+      my @gids = split(/,\s?/, $FORM{GID});
+      for my $gid (@gids) {
+        $Abon->tariff_gid_add({ GID => $gid, TP_ID => $insert_id });
       }
-      $html->message('info', $lang{INFO}, "$lang{ADDED}") if (!$Abon->{errno});
-    # }
+    }
+
+    $html->message('info', $lang{INFO}, "$lang{ADDED}") if (!$Abon->{errno});
   }
   elsif ($FORM{ABON_ID}) {
     $Abon = $Abon->tariff_info($FORM{ABON_ID});
@@ -106,46 +106,51 @@ sub abon_tariffs {
         $Abon->tariff_gid_del({ TP_ID => $FORM{ABON_ID}});
       }
       if ($FORM{GID}) {
-        $Abon->tariff_gid_add({ GID => $FORM{GID}, TP_ID => $FORM{ABON_ID}});
+        my @gids = split(/,\s?/, $FORM{GID});
+        for my $gid (@gids) {
+          $Abon->tariff_gid_add({ GID => $gid, TP_ID => $FORM{ABON_ID} });
+        }
       }
+
       $html->message('info', $lang{INFO}, $lang{CHANGED}) if !$Abon->{errno};
     }
 
     $Abon->{PROMOTIONAL} = $Abon->{PROMOTIONAL} ? 'checked' : '';
-    if (my $api = $Abon_base->abon_load_plugin($Abon->{PLUGIN}, { SERVICE => $Abon  })) {
+    if ($Abon->{PLUGIN}) {
+      if (my $api = load_plugin('Abon::Plugins::' . $Abon->{PLUGIN}, { SERVICE => $Abon, HTML => $html, LANG => \%lang })) {
+        if ($api->can('test')) {
+          $Abon->{API_TEST} = $html->button($lang{TEST}, "index=$index&test=1&ABON_ID=$FORM{ABON_ID}",
+            { class => 'btn btn-secondary btn-success' });
 
-      if ( $api->can('test')) {
-        $Abon->{API_TEST} = $html->button($lang{TEST}, "index=$index&test=1&ABON_ID=$FORM{ABON_ID}",
-          { class => 'btn btn-secondary btn-success' });
+          if ($FORM{test}) {
+            $api->test();
 
-        if ($FORM{test}) {
-          $api->test();
-
-          if (! _error_show($api)) {
-            $html->message('info', $lang{INFO}, "Test OK\nAPI Connected");
+            if (!_error_show($api)) {
+              $html->message('info', $lang{INFO}, "Test OK\nAPI Connected");
+            }
           }
         }
-      }
 
-      if($api->can('tp_export')) {
-        $Abon->{API_IMPORT} = $html->button($lang{IMPORT}, "index=$index&tp_import=1&ABON_ID=$FORM{ABON_ID}",
-          { class => 'btn btn-secondary btn-success' });
+        if ($api->can('tp_export')) {
+          $Abon->{API_IMPORT} = $html->button($lang{IMPORT}, "index=$index&tp_import=1&ABON_ID=$FORM{ABON_ID}",
+            { class => 'btn btn-secondary btn-success' });
 
-        if ($FORM{tp_import}) {
-          abon_import_tp($api);
+          if ($FORM{tp_import}) {
+            abon_import_tp($api);
+          }
         }
-      }
 
-      if($api->can('reports')) {
-        $Abon->{API_REPORTS} = $html->button($lang{REPORTS}, "index=". get_function_index('abon_plugin_reports') ."&SERVICE_ID=$FORM{ABON_ID}",
-          { class => 'btn btn-secondary btn-success' });
+        if ($api->can('reports')) {
+          $Abon->{API_REPORTS} = $html->button($lang{REPORTS}, "index=" . get_function_index('abon_plugin_reports') . "&SERVICE_ID=$FORM{ABON_ID}",
+            { class => 'btn btn-secondary btn-success' });
+        }
       }
     }
 
   }
   elsif (defined($FORM{del}) && $FORM{COMMENTS}) {
     $Abon->tariff_del($FORM{del});
-    $Abon->tariff_gid_del({ TP_ID => $FORM{del}});
+    $Abon->tariff_gid_del({ TP_ID => $FORM{del} });
     $html->message('info', $lang{INFO}, $lang{DELETED}) if !$Abon->{errno};
   }
 
@@ -257,9 +262,10 @@ sub abon_tariffs {
   $Abon->{DISCOUNT} = ($Abon->{DISCOUNT}) ? 'checked' : '';
   $Abon->{MANUAL_ACTIVATE} = ($Abon->{MANUAL_ACTIVATE}) ? 'checked' : '';
   $Abon->{HOT_DEAL} = ($Abon->{HOT_DEAL}) ? 'checked' : '';
+  $Abon->{PLUGINS_SEL} = sel_plugins('Abon', { SELECT => 'PLUGIN', SELECTED => $Abon->{PLUGIN} });
 
   if ($FORM{add} || $FORM{chg} || $FORM{change} || $FORM{ABON_ID} || $FORM{add_form}) {
-    $Abon->{GROUP_SEL} = sel_groups({ GID => $FORM{GID} || $Abon->{GID} });
+    $Abon->{GROUP_SEL} = sel_groups({ GID => $FORM{GID} || $Abon->{GID}, MULTISELECT => 1 });
     $html->tpl_show(_include('abon_tp', 'Abon'), $Abon);
   }
 
@@ -364,7 +370,7 @@ sub abon_tariffs {
         my $group_name = '';
 
         if ($line->{gid}) {
-          my @ids = split(/,\s+/, $line->{gid});
+          my @ids = split(/,\s?/, $line->{gid});
           for my $id (@ids) {
             my ($matched_group) = grep { "$_->{gid}" eq $id } @$groups_info;
             if ($matched_group) {
@@ -578,7 +584,7 @@ sub _plugin_sel {
   my $service_list = $Abon->tariff_list({
     STATUS      => 0,
     NAME        => '_SHOW',
-    PLUGIN      => '_SHOW',
+    PLUGIN      => '!',
     COLS_NAME   => 1,
     PAGE_ROWS   => 1,
   });
@@ -671,7 +677,13 @@ sub abon_plugin_reports {
 
   $Abon = $Abon->tariff_info($FORM{SERVICE_ID});
 
-  my $Plugin = $Abon_base->abon_load_plugin($FORM{PLUGIN}, { SERVICE_ID => $FORM{SERVICE_ID}, SERVICE => $Abon });
+  my $Plugin = load_plugin('Abon::Plugins::'.$Abon->{PLUGIN}, {
+     SERVICE_ID => $FORM{SERVICE_ID},
+     SERVICE    => $Abon,
+     HTML       => $html,
+     LANG       => \%lang
+  });
+
   return 1 if (!$Plugin);
 
   if ($Plugin->{SERVICE_CONSOLE}) {

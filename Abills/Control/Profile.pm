@@ -365,76 +365,6 @@ sub flist {
 }
 
 #**********************************************************
-=head2 form_slides_create() - Create slides
-
-=cut
-#**********************************************************
-sub form_slides_create {
-
-  require Control::Users_slides;
-
-  my ($base_slides, $active_slides) = form_slides_info();
-
-  my $content = '';
-
-  for(my $slide_num=0;  $slide_num <=  $#{ $base_slides }; $slide_num++  ) {
-    my $slide_name   = $base_slides->[$slide_num]->{ID} || q{};
-    my $table = $html->table({
-        caption => "$slide_name - ". ($base_slides->[$slide_num]{HEADER} || q{}),
-        ID      => $slide_name,
-        width   => '300',
-      }
-    );
-
-    my $slide_fields = $base_slides->[$slide_num]{FIELDS};
-    my $slide_size = $html->form_select('s_'.$slide_name,
-      {
-        SELECTED    => 1, #($active_slides->{$slide_name} && $active_slides->{$slide_name}{'SIZE'}) ? $active_slides->{$slide_name}{'SIZE'} : 1,
-        SEL_HASH    => { 1 => 1,
-          2 => 2,
-          3 => 3,
-          4 => 4
-        },
-        NO_ID       => 1
-      });
-
-    if ( scalar keys %{ $active_slides } == 0 || ( $slide_name && $active_slides->{$slide_name})) {
-      $table->{rowcolor}='info';
-    }
-
-    $table->addrow('',
-      $html->form_input('ENABLED', $slide_name, { TYPE => 'checkbox', STATE => (scalar keys %$active_slides == 0 || $active_slides->{$slide_name}) ? 'checked' : ''}  ). ' '. $lang{ENABLE},
-      $lang{PRIORITY} .':'. $html->form_input('p_'.$slide_name,  ($active_slides->{$slide_name}) ? $active_slides->{$slide_name}{'PRIORITY'} : '' ),
-      $lang{SIZE} .':'. $slide_size
-    );
-
-    delete($table->{rowcolor});
-
-    foreach my $field_name ( keys %{ $slide_fields } ) {
-      $table->addrow(
-        $html->form_input($slide_name.'_'. $field_name, '1', { TYPE => 'checkbox', STATE => ( ( $active_slides->{$slide_name} && $active_slides->{$slide_name}{$field_name} )  ) ? 'checked' : '' }),
-        $slide_fields->{$field_name},
-        $html->form_input('w_'.$slide_name.'_'. $field_name, ($active_slides->{$slide_name}) ? $active_slides->{$slide_name}{'w_'.$field_name} : '' , { EX_PARAMS => "placeholder='$lang{WARNING}'"  }),
-        $html->form_input('c_'.$slide_name.'_'. $field_name, ($active_slides->{$slide_name}) ? $active_slides->{$slide_name}{'c_'.$field_name} : '' , { EX_PARAMS => "placeholder='$lang{COMMENTS}'" }),
-      );
-    }
-
-    $content .= $table->show({ OUTPUT2RETURN => 1 });
-  }
-
-  print $html->form_main({
-    CONTENT => $content,
-    HIDDEN  => {
-      SLIDES => join(',', @$base_slides),
-      index  => $index,
-    },
-    SUBMIT  => { action => "$lang{CHANGE}" }
-  });
-
-  return 1;
-}
-
-#**********************************************************
 =head2 _profile_get_admin_sender_subscribe_block()
 
 =cut
@@ -537,7 +467,9 @@ sub _admin_info_change {
 
   $admin->info($admin->{AID});
   if ($FORM{chg_pswd} || $FORM{newpassword}) {
-    form_passwd();
+    require Control::Password;
+    form_passwd({ ADMIN => $admin });
+
     if ($FORM{PASSWORD}) {
       $admin->change({
         AID      => $admin->{AID},

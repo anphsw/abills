@@ -3,14 +3,14 @@ delete:
     - contacts
   summary: Отписка от Push уведомлений избранным токеном
   parameters:
-    - name: typeId
+    - name: id
       in: path
       description: >
         Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
       required: true
       schema:
         type: number
-    - name: value
+    - name: string_token
       in: path
       description: FCM токен
       required: true

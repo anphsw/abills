@@ -1,0 +1,21 @@
+post:
+  tags:
+    - crm
+  summary: Добавление файла
+  operationId: crmAddAttachment
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/attachment.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addAttachmentResponse200.yaml"
+  security:
+    - KEY: [ ]

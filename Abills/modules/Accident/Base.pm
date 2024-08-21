@@ -56,39 +56,7 @@ sub accident_quick_info {
   my ($attr) = @_;
 
   my $form = $attr->{FORM} || {};
-  my $uid = $attr->{UID} || $form->{UID};
-
-  return () if $form->{sid};
-
-  if ($attr->{UID}) {
-    my $list = $Accident->user_accident_list({ UID => $uid, COLS_NAME => 1 });
-
-    my @result = ();
-
-    foreach my $line (@{$list}) {
-      push @result, {
-        NAME   => $line->{name},
-        DESC   => $line->{descr},
-        STATUS => $status{$line->{status}},
-        AID    => $line->{aid}
-      };
-    }
-
-    return \@result;
-  }
-  elsif ($attr->{GET_PARAMS}) {
-    my %result = (
-      HEADER => $lang->{ACCIDENT_LOG},
-      SLIDES => [
-        { NAME => $lang->{NAME} },
-        { DESC => $lang->{DESCRIBE} },
-        { STATUS => $lang->{STATUS} },
-        { AID => $lang->{RESPONSIBLE} },
-      ]
-    );
-
-    return \%result;
-  }
+  my $uid = $form->{UID};
 
   $Accident->user_accident_list({ UID => $uid, COLS_NAME => 1 });
 

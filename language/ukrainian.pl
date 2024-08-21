@@ -329,7 +329,7 @@ $lang{RETURNED} = 'Повернуті';
 $lang{ADDRESS_STREET} = 'Вулиця';
 $lang{ERR_DELETE_RECEIPT} = 'Видаліть спочатку квитанцію';
 $lang{FLORS} = 'Поверхи';
-$lang{REGISTRATION_COMPLETE} = 'Реєстрація закінчена';
+$lang{REGISTRATION_COMPLETE} = 'Реєстрація завершена';
 $lang{ATTACHMENT} = 'Прикріплення';
 $lang{LAST_LOGIN} = 'Останнє під&#39;єднання';
 $lang{SIZE} = 'Розмір';
@@ -728,7 +728,7 @@ $lang{ONLINE} = 'Онлайн';
 $lang{OFFLINE} = 'Офлайн';
 $lang{EMPTY} = 'Порожні';
 
-$lang{WITHOUT_FEES} = 'Без додаткових оплат.';
+$lang{WITHOUT_FEES} = 'Без додаткових списань';
 $lang{DISTRICT} = 'Район';
 $lang{BLOCK} = 'Корпус';
 
@@ -1100,5 +1100,23 @@ $lang{UPLOAD} = 'Завантажити';
 
 $lang{SCAN_QR_CODE_IN_DIIA_APP} = 'Відскануйте QR код в застосунку Дії';
 $lang{MORE_THEN_ALLOW_LOGIN} = 'Більше ніж дозволено логінів';
+$lang{SEARCH_QUERY} = 'Пошуковий запит';
+$lang{VALIDATION_FAILED} = 'Помилка валідації';
+$lang{UNSIGNED_INTEGER} = 'Цілочисельне додатне число';
+$lang{INTEGER} = 'Цілочисельне число';
+$lang{UNSIGNED_NUMBER} = 'Додатне число';
+$lang{ANY_NUMBER} = 'Число';
+$lang{ANY} = 'Любий';
+$lang{ERR_REQUIRED_PARAMETER} = 'Обовязковий параметр до заповнення %PARAMETER%';
+$lang{ERR_PARAMETER_NOT_VALID} = 'Параметр %PARAMETER% є невалідним. %MESSAGE%';
+
+$lang{MASS_DELETION_PAYMENT} = 'Масове видалення оплат';
+$lang{MASS_DELETION_FEES} = 'Масове видалення списань';
+$lang{ERR_NOT_SELECTED} = 'Не обрано';
+$lang{FIXED_FEES_FREE_PERIOD}='Безкоштовний період до початку місяця';
+
+$lang{MONITORING_ALL_SESSIONS} = 'Перегляд всіх сесій';
+$lang{TAKE_DIALOGUE_FROM_ADMIN} = 'Забрати діалог в адміністратора';
+$lang{NOT_CHANGED} = 'Зміни не внесені';
 
 1;

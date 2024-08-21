@@ -4,15 +4,15 @@ use strict;
 use warnings FATAL => 'all';
 
 use JSON qw(decode_json);
-use Data::Compare qw(Compare);
-use Abills::Base qw(in_array json_former);
+use Abills::Base qw(in_array json_former load_pmodule);
 use Abills::Api::Postman::Constants qw(VARIABLES);
 use Abills::Api::Postman::Utils qw(read_file write_to_file);
 use Abills::Api::Postman::Api;
 use Abills::Api::Postman::Schemas;
 
+load_pmodule('Data::Compare', { IMPORT => 'Compare', PLAIN_TEXT => 1 });
+
 my Abills::Api::Postman::Api $Postman;
-my $json = JSON->new->utf8->space_before(0)->space_after(1)->indent(1)->canonical(1);
 my $Schemas = Abills::Api::Postman::Schemas->new();
 
 #**********************************************************
@@ -124,10 +124,11 @@ sub _collection_variables {
   my @new_values;
 
   if (scalar @{$vars}) {
-    @new_values = grep { my $element = $_->{key} || ''; !grep { $_->{key} && $_->{key} eq $element; } @{$vars} } @{+VARIABLES};
+    @new_values = grep {my $element = $_->{key} || '';
+      !grep {$_->{key} && $_->{key} eq $element;} @{$vars}} @{+VARIABLES};
   }
   else {
-    @new_values = (VARIABLES);
+    @new_values = @{+VARIABLES};
   }
 
   return 0 if (!scalar @new_values);
@@ -139,10 +140,11 @@ sub _collection_variables {
 
   return 0 if (lc($choice) ne 'y');
 
+  push @new_values, @{$vars};
   my $result = $Postman->collection_update({
     request => {
       collection => {
-        variables => [ @new_values, @{$vars} ],
+        variables => \@new_values,
       }
     },
   });
@@ -236,7 +238,22 @@ sub _read_tests {
     }
   }
 
-  foreach my $file (@files) {
+  my $result = $Postman->folder_info({ folder_id => $folder_id });
+  if ($result->{error}) {
+    print "Postman do not have folder with such id ($folder_id). Do you want to recreate it and rewrite local postman folder id?\n";
+    print "Apply? (y/N): ";
+
+    chomp(my $choice = <STDIN>);
+    if (lc($choice) eq 'y') {
+      $folder_id = $self->_create_dir($dir);
+    }
+    else {
+      print "Skip creating tests for directory $dir?\n";
+      return 0;
+    }
+  }
+
+  foreach my $file (sort @files) {
     next if $file eq '.' or $file eq '..';
 
     my $path = "$dir/$file";
@@ -340,7 +357,6 @@ sub _new_request {
     print "Failed add directory to postman $schemas->{postman_request}->{name}";
     print "\nPostman error: " . ($request->{error}->{name} || '')
       . ' Error message: ' . ($request->{error}->{message} || '') . "\n";
-    #TODO: maybe add automatically clean request?
     print "Chosen wrong collection or delete need delete file .postman-id in folder\n";
 
     $self->{errors}++;
@@ -348,9 +364,7 @@ sub _new_request {
   }
   else {
     print "Successfully exported test with from $dir\n";
-    $schemas->{request_schema}->{postmanId} = $request->{data}->{id};
-    my $request_schema_json = $json->encode($schemas->{request_schema});
-    write_to_file("$dir/request.json", $request_schema_json)
+    write_to_file("$dir/.postman-id", $request->{data}->{id});
   }
 
   return 1;
@@ -370,7 +384,8 @@ sub _update_request {
   my $self = shift;
   my ($dir, undef, $schemas) = @_;
 
-  my $id = $schemas->{request_schema}->{postmanId};
+  my $id = read_file("$dir/.postman-id");
+  my $name = $schemas->{request_schema}->{name} || '';
 
   if (!$id) {
     return $self->_new_request(@_);
@@ -378,10 +393,20 @@ sub _update_request {
 
   my $request = $self->_get_request_by_id($self->{collection}->{item}, $id);
 
-  my $request_schema_remote = $Schemas->generate_request_schema($request);
-  my $response_schema_remote = $Schemas->generate_response_schema($request, 1);
+  if (!$request) {
+    print "Postman do not have request ($name) with such id ($id). Do you want to recreate it and rewrite local postman request id?\n";
+    print "Apply? (y/N): ";
 
-  delete $schemas->{request_schema}->{params} if (ref $schemas->{request_schema}->{params} ne 'ARRAY');
+    chomp(my $choice = <STDIN>);
+    return 0 if (lc($choice) ne 'y');
+
+    return $self->_new_request(@_);
+  }
+
+  my $request_schema_remote = $Schemas->generate_request_schema($request, $self->{type});
+  my $response_schema_remote = $Schemas->generate_response_schema($request);
+
+  delete $schemas->{request_schema}->{params} if ($schemas->{request_schema}->{params} && ref $schemas->{request_schema}->{params} ne 'ARRAY');
 
   my $isSameRequest = Compare($schemas->{request_schema}, $request_schema_remote);
   my $isSameResponse = Compare($schemas->{response_schema}, $response_schema_remote);
@@ -390,7 +415,7 @@ sub _update_request {
     return 1;
   }
 
-  print "Postman and local schemas not the same from $dir. Do you want to change remote Postman schema?\n";
+  print "Postman and local schemas not the same request ($name) with such id ($id). Do you want to change remote Postman schema?\n";
   print "Apply? (y/N): ";
 
   chomp(my $choice = <STDIN>);
@@ -434,7 +459,8 @@ sub _get_request_by_id {
     for my $key (keys %$items) {
       if ($key eq 'id' && $items->{$key} eq $id) {
         return $items;
-      } elsif (ref($items->{$key}) eq 'ARRAY' || ref($items->{$key}) eq 'HASH') {
+      }
+      elsif (ref($items->{$key}) eq 'ARRAY' || ref($items->{$key}) eq 'HASH') {
         my $result = $self->_get_request_by_id($items->{$key}, $id);
         return $result if $result;
       }
@@ -466,8 +492,8 @@ sub _get_schemas {
   my $response_schema_json = read_file("$dir/schema.json");
 
   $@ = undef;
-  my $request_schema = eval { decode_json($request_schema_json) };
-  my $response_schema = eval { decode_json($response_schema_json) };
+  my $request_schema = eval {decode_json($request_schema_json)};
+  my $response_schema = eval {decode_json($response_schema_json)};
 
   if ($@) {
     print "ERROR. Failed to decode json of schemas in folder $dir\n $@";
@@ -476,21 +502,39 @@ sub _get_schemas {
     return 0;
   }
 
-  my $name = lc($request_schema->{name} || '');
+
+  # Abills::Base::_bp('', $request_schema, {TO_CONSOLE => 1});
+
+  if (!$request_schema->{path}) {
+    print "Error. No field path in request schema skip. Possible reason - confused with naming of request.json and schema.json\n";
+    $self->{errors}++;
+    return 0;
+  }
+
+  my ($name) = $dir =~ /[^\/\\]+(?=[\/\\]*$)/g;
+  $name =~ s/^\d+\s?//gm;
   $name =~ s/_/ /gm;
   my $postman_request = {
-    method => $request_schema->{method},
-    url    => "{{BILLING_URL}}/" . ($request_schema->{path} || ''),
-    name   => $name,
+    method           => $request_schema->{method},
+    url              => "{{BILLING_URL}}/" . ($request_schema->{path} || ''),
+    name             => $name,
+    pathVariableData => [],
   };
 
-  if ($request_schema->{path} =~ /:uid/) {
-    $postman_request->{pathVariableData} = [
-      {
+  my @vars = $request_schema->{path} =~ /(?<=:)\w+/g;
+  foreach my $var (@vars) {
+    if ($var eq 'uid') {
+      push @{$postman_request->{pathVariableData}}, {
         key   => 'uid',
         value => '{{UID}}'
-      }
-    ];
+      };
+    }
+    else {
+      push @{$postman_request->{pathVariableData}}, {
+        key   => $var,
+        value => "{{$var}}"
+      };
+    }
   }
 
   my @headers = ();
@@ -506,7 +550,7 @@ sub _get_schemas {
   $postman_request->{headerData} = \@headers;
 
   if ($request_schema->{body}) {
-    $postman_request->{rawModeData} = json_former($request_schema->{body}, { ESCAPE_DQ => 1 });
+    $postman_request->{rawModeData} = json_former($request_schema->{body});
     $postman_request->{dataMode} = 'raw';
     $postman_request->{dataOptions} = {
       raw => {
@@ -519,7 +563,7 @@ sub _get_schemas {
     $postman_request->{queryParams} = $request_schema->{params};
   }
 
-  $postman_request->{events} = $self->_get_postman_test($response_schema_json);
+  $postman_request->{events} = $self->_get_postman_test($request_schema, $response_schema_json);
 
   return {
     postman_request => $postman_request,
@@ -537,8 +581,8 @@ sub _get_schemas {
 =cut
 #**********************************************************
 sub _get_postman_test {
-  my $self = shift;
-  my ($response_schema) = @_;
+  shift;
+  my ($request_schema, $response_schema) = @_;
 
   $response_schema =~ s/"/\"/gm;
   my $pattern = qr/\r\n|\r|\n/;
@@ -547,9 +591,17 @@ sub _get_postman_test {
 
   $lines[0] = 'const schema = ' . ($lines[0] || '');
 
+  my @variables = ();
+  if ($request_schema->{'post-response'}) {
+    foreach my $variable (@{$request_schema->{'post-response'}->{variables}}) {
+      push @variables, "pm.collectionVariables.set(\"$variable->{name}\", response?.$variable->{value});";
+      push @variables, "";
+    }
+  }
+
   #TODO: make it more clever maybe do separate .js file with test
   my @script = (
-    "const response = JSON.parse(responseBody);",
+    "const response = pm.response.json();",
     "",
     "pm.test(\"Status code is 200\", () => {",
     "  pm.expect(pm.response.code).to.eql(200);",
@@ -567,17 +619,17 @@ sub _get_postman_test {
     "    pm.expect.fail('JSON schema validation failed: ' + errorMessages.join(' '));",
     "  }",
     "});",
-    ""
+    "",
   );
 
-  push @script, @lines, @script_end;
+  push @script, @lines, @script_end, @variables;
 
   return [
     {
-      'listen' => 'test',
+      listen => 'test',
       script => {
-        'exec' => \@script,
-        type   => 'text/javascript'
+        exec => \@script,
+        type => 'text/javascript'
       },
     }
   ];

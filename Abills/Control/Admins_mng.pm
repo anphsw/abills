@@ -100,6 +100,7 @@ sub form_admins {
       'Paranoid' . ':' . get_function_index('form_admins_full_log_analyze') . ":AID=$admin_form->{AID}:",
       $lang{CONTACTS} . ":61:AID=$admin_form->{AID}:contacts";
     push @admin_menu, $lang{AUTH_HISTORY} . ":115:AID=$admin_form->{AID}:form_admin_auth_history";
+
     if (in_array('Multidoms', \@MODULES)) {
       push @admin_menu, $lang{DOMAINS} . ":113:AID=$admin_form->{AID}:domains";
     }
@@ -116,6 +117,7 @@ sub form_admins {
       { f_args => { ADMIN => $admin_form } }
     );
 
+    require Control::Password;
     delete $FORM{change} if (defined $FORM{newpassword} && !form_passwd({ ADMIN => $admin_form }));
 
     if ($FORM{subf}) {
@@ -495,17 +497,19 @@ sub form_admin_auth_history {
 
   my Admins $admin_ = $attr->{ADMIN};
   my $aid = $FORM{AID} || 0;
+
   result_former({
     INPUT_DATA      => $admin_,
     FUNCTION        => 'full_log_list',
     FUNCTION_PARAMS => {
       FUNCTION_NAME => 'ADMIN_AUTH',
     },
-    DEFAULT_FIELDS  => 'DATETIME,IP,SID',
+    DEFAULT_FIELDS  => 'DATETIME,IP,SID,PARAMS',
     EXT_TITLES => {
       ip       => 'IP',
       datetime => $lang{DATE},
-      sid      => 'SID'
+      sid      => 'SID',
+      params   => $lang{PARAMS}
     },
     SKIP_USER_TITLE   => 1,
     TABLE           => {
@@ -518,6 +522,8 @@ sub form_admin_auth_history {
     MAKE_ROWS       => 1,
     TOTAL           => 1
   });
+
+  return 1;
 }
 
 #**********************************************************
@@ -649,7 +655,6 @@ sub form_admins_full_log_analyze {
   else {
     $LIST_PARAMS{FUNCTION_NAME} = "!msgs_admin";
   }
-
 
   my $index_for_search = $saved_subf || $index;
 
@@ -909,6 +914,8 @@ sub form_admin_permissions {
       "$lang{EDIT} $lang{COMPANIES}", # 38
       "$lang{DEL} $lang{COMPANIES}", # 39
       $lang{DISTRICTS}, # 40
+      $lang{MASS_DELETION_PAYMENT}, # 41
+      $lang{MASS_DELETION_FEES}, # 42
     ],
     # Users
     [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ], # Payments
@@ -940,7 +947,7 @@ sub form_admin_permissions {
       "$lang{SEND} SMS"
     ], # system management
 
-    [ $lang{MONITORING}, 'ZAP', $lang{HANGUP} ],
+    [ $lang{MONITORING}, 'ZAP', $lang{HANGUP}, $lang{MONITORING_ALL_SESSIONS} ],
 
     [ $lang{SEARCH} ], # Search
 
@@ -955,6 +962,7 @@ sub form_admin_permissions {
       "$lang{DEL} $lang{EQUIPMENT}",
       "$lang{SHOW} $lang{SALARY}",
       "$lang{SHOW} $lang{AND} $lang{ALL_SALARY} $lang{SALARY}",
+      $lang{TAKE_DIALOGUE_FROM_ADMIN},
     ], # Modules managments
 
     [ $lang{PROFILE}, $lang{SHOW_ADMINS_ONLINE} ],
@@ -1174,17 +1182,21 @@ sub form_admin_permissions {
   my $table2 = $html->table({
     width       => '500',
     caption     => "$lang{MODULES}",
-    title_plain => [ $lang{NAME}, $lang{VERSION}, '' ],
+    title_plain => [ $lang{NAME}, $lang{VERSION}, $lang{PERMISSION}, '' ],
     ID          => 'ADMIN_MODULES'
   });
 
   my $i = 0;
   my $version = '';
   foreach my $name (sort @MODULES) {
+    my $module_permissions = get_function_index(lc($name) . '_permissions');
+    my $permissions_btn = $module_permissions ? $html->button($name, "index=$module_permissions&AID=$admin_->{AID}") : '';
+
     $table2->addrow(
       $html->button("$name", '',
         { GLOBAL_URL => 'http://abills.net.ua/wiki/display/AB/' . $name}),
       $version,
+      $permissions_btn,
       $html->form_input(
         "9_" . $i . "_" . $name,
         '1',

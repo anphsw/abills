@@ -198,4 +198,6 @@ $lang{STORAGE_PURCHASED_ITEM} = 'Покупка товара';
 $lang{STORAGE_SHIPPING_STATUS} = 'Статус отправки';
 $lang{STORAGE_PURCHASE_REPORT} = 'Отчет о покупках';
 
+$lang{ERR_STORAGE_QUANTITY_OF_GOODS_IS_INCORRECT} = 'Количество товаров указано неверно';
+
 1;

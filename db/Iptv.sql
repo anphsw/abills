@@ -201,3 +201,18 @@ CREATE TABLE IF NOT EXISTS `iptv_extra_params` (
 )
   DEFAULT CHARSET=utf8 COMMENT = 'IPTV extra_params';
 
+CREATE TABLE IF NOT EXISTS `iptv_monthly_active_users_report` (
+  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `uid` int(11) UNSIGNED NOT NULL DEFAULT '0',
+  `subscribe_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `service_id` TINYINT(2) NOT NULL DEFAULT '0',
+  `expire` DATE NOT NULL DEFAULT '0000-00-00',
+  `activate` DATE NOT NULL DEFAULT '0000-00-00',
+  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `uid` (`uid`),
+  KEY `tp_id` (`tp_id`),
+  KEY `subscribe_id` (`subscribe_id`),
+  KEY `service_id` (`service_id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Iptv monthly active users';

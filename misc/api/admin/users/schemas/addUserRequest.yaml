@@ -1,0 +1,3 @@
+allOf:
+  - $ref: "../schemas/user.yaml"
+  - $ref: "../schemas/pi.yaml"

@@ -1,0 +1,160 @@
+get:
+  tags:
+    - docs
+  summary: Список инвойсов(счетов-фактура)
+  parameters:
+    - name: id
+      in: query
+      description: ID инвойса
+      schema:
+        type: boolean
+        default: true
+    - name: date
+      in: query
+      description: Дата инвойса
+      schema:
+        type: boolean
+        default: true
+    - name: uid
+      in: query
+      description: UID пользователя
+      schema:
+        type: boolean
+        default: true
+    - name: customer
+      in: query
+      description: UID пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: paymentId
+      in: query
+      description: ID платежа
+      schema:
+        type: boolean
+        default: false
+    - name: extId
+      in: query
+      description: внешний id платежа
+      schema:
+        type: boolean
+        default: false
+    - name: adminName
+      in: query
+      description: Имя администратора, сделавшего операцию
+      schema:
+        type: boolean
+        default: false
+    - name: currency
+      in: query
+      description: Валюта операции
+      schema:
+        type: boolean
+        default: false
+    - name: exchangeRate
+      in: query
+      description: Обменный курс операции
+      schema:
+        type: boolean
+        default: false
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/invoicesList.yaml"
+  security:
+    - KEY: [ ]
+post:
+  tags:
+    - docs
+  summary: Создание платежа на основе инвойса
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/InvoiceAddRequest.yaml"
+        examples:
+          NextPeriod:
+            summary:
+              Добавить инвойс
+            value:
+              orders:
+                - order: "Інтернет послуги"
+                  sum: 10
+                  counts: 1
+                  unit: 0
+                  fees_type: 0
+              customer: "ФОП Іваненко"
+              uid: 1234
+              includeDeposit: 1
+              includeCurBillingPeriod: 1
+          InvoiceAdd:
+            summary:
+              Добавить инвойс (старый метод)
+            value:
+              order_1: "Інтернет послуги"
+              sum_1: 10
+              counts_1: 1
+              unit_1: 0
+              fees_type_1: 0
+              order_2: "IPTV послуги"
+              sum_2: 10
+              counts_2: 1
+              unit_2: 0
+              fees_type_2: 0
+              customer: "ФОП Іваненко"
+              uid: 1234
+              includeDeposit: 1
+              includeCurBillingPeriod: 1
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/invoiceAddResponse200.yaml"
+    400:
+      description: Некорректный запрос нет поля ids
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/invoiceAddResponse400.yaml"
+  security:
+    - KEY: [ ]
+delete:
+  tags:
+    - docs
+  summary: Удаление инвойса
+  parameters:
+    - name: ids
+      in: query
+      description: ID инвойсов, несовместим с параметром id
+      schema:
+        type: string
+        default: ""
+        example: "1,2,3"
+    - name: id
+      in: query
+      description: ID инвойса, несовместим с параметром ids
+      schema:
+        type: number
+        default: 0
+        example: 1
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/invoiceDeleteResponse200.yaml"
+    400:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/invoiceDeleteResponse400.yaml"
+  security:
+    - KEY: [ ]

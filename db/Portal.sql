@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS `portal_articles`
   `domain_id`         SMALLINT(4)          NOT NULL DEFAULT 0,
   `district_id`       SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `street_id`         SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `build_id`          SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `address_flat`      VARCHAR(10)          NOT NULL DEFAULT '',
   `picture`           VARCHAR(32)          NOT NULL DEFAULT '',
   `permalink`         VARCHAR(255)                  DEFAULT NULL,
   `deeplink`          TINYINT(1)           NOT NULL DEFAULT 0,
@@ -48,6 +50,7 @@ CREATE TABLE IF NOT EXISTS `portal_newsletters`
   `send_method`       TINYINT(2)  UNSIGNED NOT NULL DEFAULT '0',
   `status`            TINYINT(1)  UNSIGNED NOT NULL DEFAULT '0',
   `sent`              INT(10)     UNSIGNED NOT NULL DEFAULT '0',
+  `start_datetime`    DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `portal_article_id` (`portal_article_id`)
 )

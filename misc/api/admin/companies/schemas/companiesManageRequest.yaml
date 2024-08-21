@@ -1,0 +1,74 @@
+type: object
+properties:
+  id:
+    type: number
+    example: 21
+  name:
+    type: string
+    example: АТ А-БАНК
+  createBill:
+    type: number
+    example: 1
+  credit:
+    type: number
+    example: 100
+  creditDate:
+    type: string
+    format: date
+    example: 2024-04-04
+  registration:
+    type: string
+    format: date
+    example: 1997-07-25
+  edrpou:
+    type: string
+    example: 14360080
+  taxNumber:
+    type: string
+    example: 143600826652
+  bankAccount:
+    type: string
+    example: UA206586843844738424164369993
+  bankName:
+    type: string
+    example: АТ А-БАНК
+  corBankAccount:
+    type: string
+    example: 32004100701
+  bankBic:
+    type: string
+    example: HBUKGB4B
+  vat:
+    type: string
+    example: 10
+  representative:
+    type: string
+    example: КАНДАУРОВ ЮРІЙ ВАСИЛЬОВИЧ
+  phone:
+    type: string
+    example: "380999999999"
+  comments:
+    type: string
+    example: "64.19 - Інші види грошового посередництваУкраїна 49074 Дніпропетровська обл. місто Дніпро ВУЛИЦЯ БАТУМСЬКА будинок 11"
+  locationId:
+    type: number
+    example: 1
+  districtId:
+    type: number
+    example: 1
+  streetId:
+    type: number
+    example: 1
+  buildId:
+    type: number
+    example: 12
+  addressFlat:
+    type: string
+    example: 5a
+  contractId:
+    type: string
+    example: 100500
+  contractDate:
+    type: string
+    format: date
+    example: 2024-04-03

@@ -1,5 +1,5 @@
 {
-  "definitions": {},
+  "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
   "title": "The Root Schema",
   "required": [
@@ -9,17 +9,14 @@
   ],
   "properties": {
     "sid": {
-      "$id": "#/properties/sid",
       "type": "string",
       "title": "Session id"
     },
     "uid": {
-      "$id": "#/properties/uid",
       "type": "integer",
       "title": "user id"
     },
     "login": {
-      "$id": "#/properties/login",
       "type": "string",
       "title": "user login"
     }

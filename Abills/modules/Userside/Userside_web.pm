@@ -201,6 +201,7 @@ sub userside_page {
     $user_info->{INFO_COMMENTS_SHOW} = info_comments_show('admins', 25, { OUTPUT2RETURN => 1 });
   }
 
+  require Control::Password;
   $user_info->{PASSWD_BTN} = ($permissions{0}{3}) 
    ? $html->button("", "index=" . get_function_index('form_passwd') . "&UID=$uid", { class => '', ICON => 'fa fa-pencil-alt' })
    : $lang{NO_DATAS};

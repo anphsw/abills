@@ -1,0 +1,20 @@
+type: object
+properties:
+  fileSize:
+    type: integer
+    example: 1024768
+  fileType:
+    type: string
+    example: "image/png"
+  filename:
+    type: string
+    example: "5500526.png"
+  id:
+    type: integer
+    example: 1
+  src:
+    type: string
+    example: "https://demo.abills.net.ua:9443/images/attach/portal/5500526.png"
+  uploadedAt:
+    type: string
+    example: "2023-10-05"

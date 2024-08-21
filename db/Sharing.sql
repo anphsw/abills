@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS `sharing_files` (
   `group_id` int(2) NOT NULL DEFAULT 0,
   `version` VARCHAR(32) NOT NULL DEFAULT '',
   `remind_for` int(10) NOT NULL DEFAULT 0,
+  `show_in_report` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0' COMMENT 'Show in quick report',
   `comment` text NOT NULL,
   PRIMARY KEY (`id`)
 )

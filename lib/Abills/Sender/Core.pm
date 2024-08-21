@@ -95,7 +95,7 @@ sub new {
   my $soft_check = {
     Viber_bot => sub { $CONF->{VIBER_BOT_NAME} },
     Telegram  => sub { $CONF->{TELEGRAM_BOT_NAME} },
-    Push      => sub { $CONF->{FIREBASE_SERVER_KEY} || ($CONF->{GOOGLE_PROJECT_ID} && $CONF->{FIREBASE_KEY}) },
+    Push      => sub { $CONF->{GOOGLE_PROJECT_ID} && $CONF->{FIREBASE_KEY} },
     Hyber     => sub { $CONF->{GMS_WORLDWIDE_CLIENT_ID} },
     Viber     => sub { ($CONF->{SMS_OMNICELL_VIBER} || $CONF->{SMS_TURBOSMS_VIBER}) },
     Facebook  => sub { $CONF->{FACEBOOK_ACCESS_TOKEN} },
@@ -262,7 +262,7 @@ sub send_message {
   $plugin->{admin} = $self->{admin};
   $plugin->{conf} = $self->{conf};
 
-  if (scalar @contacts > 1 && $plugin->support_batch()) {
+  if (scalar @contacts > 1 && ($plugin->can('support_batch') && $plugin->support_batch())) {
     return $plugin->send_message({
       %{$attr},
       TO_ADDRESS => $contacts[0]{value},

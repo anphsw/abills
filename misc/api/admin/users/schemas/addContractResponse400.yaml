@@ -1,0 +1,25 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 9
+  errors:
+    type: array
+    items:
+      type: object
+      properties:
+        errno:
+          type: integer
+          example: 20
+        errstr:
+          type: string
+          example: "uid is required"
+        param:
+          type: string
+          example: "uid"
+        required:
+          type: boolean
+          example: true
+  errstr:
+    type: string
+    example: "Validation failed"

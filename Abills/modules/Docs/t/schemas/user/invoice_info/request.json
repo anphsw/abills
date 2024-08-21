@@ -1,0 +1,5 @@
+{
+  "name": "USER_DOCS_INVOICE_INFO",
+  "method": "GET",
+  "path": "user/docs/invoices/:id/"
+}

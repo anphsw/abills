@@ -1,0 +1,58 @@
+put:
+  tags:
+    - users
+  summary: Обновить контакт пользователю
+  operationId: updateUserConctact
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+    - name: id
+      in: path
+      description: ID контакта
+      required: true
+      schema:
+        type: integer
+        format: int64
+  responses:
+    400:
+      description: Пользователь не найден
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiGetResponse400"
+  security:
+    - KEY: []
+delete:
+  tags:
+    - users
+  summary: Удалить контакт пользователя
+  operationId: deleteUserContact
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+    - name: id
+      in: path
+      description: ID контакта
+      required: true
+      schema:
+        type: integer
+        format: int64
+  responses:
+    400:
+      description: Пользователь не найден
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiGetResponse400"
+  security:
+    - KEY: []

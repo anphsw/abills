@@ -94,6 +94,8 @@ my @status = ("$lang{UNKNOWN}",    #0
       ERROR             - Status error;
       PAYMENT_METHOD    - Payment method;
       MERCHANT_ID       - Merchant id;
+      FORCE_PAYMENT     - Force make payment without checking is present transaction in system
+
   Returns:
     Payment status code.
     All codes:
@@ -420,12 +422,13 @@ sub paysys_pay {
 
   if (scalar(@{$params})) {
     $merchant_id = $params->[0]->{merchant_id} if (!$attr->{MERCHANT_ID});
-    if (!$attr->{PAYMENT_METHOD}) {
-      foreach my $param (@{$params}) {
-        next if !$param->{param};
-        next if $param->{param} !~ /PAYMENT_METHOD/;
-        $method = $param->{value} if ($param->{value});
-        last;
+    foreach my $param (@{$params}) {
+      next if !$param->{param};
+      if (!$attr->{PAYMENT_METHOD} && $param->{param} =~ /PAYMENT_METHOD/ && is_number($param->{param}, 0, 1)) {
+        $method = $param->{value};
+      }
+      elsif (!$attr->{PAYMENT_INNER_DESCRIBE} && $param->{param} =~ /INNER_DESCRIPTION/) {
+        $attr->{PAYMENT_INNER_DESCRIBE} = $param->{value};
       }
     }
   }
@@ -459,13 +462,13 @@ sub paysys_pay {
     INNER_DESCRIBE => $attr->{PAYMENT_INNER_DESCRIBE} || '',
     METHOD         => $method || (($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2'),
     EXT_ID         => "$payment_system:$ext_id",
-    CHECK_EXT_ID   => "$payment_system:$ext_id",
+    CHECK_EXT_ID   => $attr->{FORCE_PAYMENT} ? '' : "$payment_system:$ext_id",
     ER             => $er,
     CURRENCY       => $currency,
     USER_INFO      => $attr->{USER_INFO}
   });
 
-  #Exists payments Dublicate
+  #Exists payments Duplicate
   if ($payments->{errno} && $payments->{errno} == 7) {
     my $list = $Paysys->list({ TRANSACTION_ID => "$payment_system:$ext_id", STATUS => '_SHOW', COLS_NAME => 1 });
     $payments_id = $payments->{ID};
@@ -490,24 +493,27 @@ sub paysys_pay {
 
       if (!$Paysys->{errno}) {
         my @params = ('payments_maked', {
-          USER_INFO    => $user,
-          PAYMENT_ID   => $payments_id,
-          SUM          => $PAYMENT_SUM || $amount,
-          AMOUNT       => $amount || $PAYMENT_SUM,
-          SILENT       => 1,
-          QUITE        => 1,
-          timeout      => $attr->{CROSSMODULES_TIMEOUT} || $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
-          SKIP_MODULES => 'Cards',
-          FORM         => \%FORM
+          PAYSYS_PAYMENT => {
+            PAYMENT_SYSTEM => $payment_system,
+            EXT_ID         => $ext_id,
+          },
+          USER_INFO      => $user,
+          PAYMENT_ID     => $payments_id,
+          SUM            => $PAYMENT_SUM || $amount,
+          AMOUNT         => $amount || $PAYMENT_SUM,
+          SILENT         => 1,
+          QUITE          => 1,
+          timeout        => $attr->{CROSSMODULES_TIMEOUT} || $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
+          SKIP_MODULES   => 'Cards',
+          FORM           => \%FORM
         });
+
         if ($attr->{API}) {
           ::cross_modules(@params);
         }
         else {
           cross_modules(@params);
         }
-
-        _paysys_execute_external_command($user);
       }
 
       $status = 3;
@@ -604,17 +610,20 @@ sub paysys_pay {
       }
       else {
         my %crossmodules_params = (
-          USER_INFO  => $user,
-          PAYMENT_ID => $payments->{PAYMENT_ID},
-          SUM        => $amount,
-          SILENT     => 1,
-          QUITE      => 1,
-          timeout    => $attr->{CROSSMODULES_TIMEOUT} || $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
+          PAYSYS_PAYMENT => {
+            PAYMENT_SYSTEM => $payment_system,
+            EXT_ID         => $ext_id,
+          },
+          USER_INFO      => $user,
+          PAYMENT_ID     => $payments->{PAYMENT_ID},
+          SUM            => $amount,
+          SILENT         => 1,
+          QUITE          => 1,
+          timeout        => $attr->{CROSSMODULES_TIMEOUT} || $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
         );
 
         if ($debug > 5) {
           delete $crossmodules_params{SILENT};
-          delete $crossmodules_params{crossmodules_params};
           $crossmodules_params{DEBUG} = 1;
         }
 
@@ -624,14 +633,12 @@ sub paysys_pay {
         else {
           cross_modules('payments_maked', \%crossmodules_params);
         }
-
-        _paysys_execute_external_command($user);
       }
     }
     #Transactions registration error
     else {
       if ($Paysys->{errno} && $Paysys->{errno} == 7) {
-        $status = 3;
+        $status = $attr->{FORCE_PAYMENT} ? 0 : 3;
         $payments_id = $payments->{ID};
       }
       #Payments error
@@ -639,22 +646,6 @@ sub paysys_pay {
         $status = 2;
       }
     }
-  }
-
-  #Send mail
-  if ($conf{PAYSYS_EMAIL_NOTICE}) {
-    require Abills::Templates if (!exists($INC{'Abills/Templates.pm'}));
-
-    my $message = $html->tpl_show(_include('paysys_mail_admin_notification', 'Paysys'), {
-      %$user,
-      PAYMENT_SYSTEM => $payment_system,
-      DATE           => $DATE,
-      TIME           => $TIME,
-      SUM            => $amount || 0,
-      REQUEST        => $ext_info,
-    }, { OUTPUT2RETURN => 1 });
-
-    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "$payment_system ADD", "$message", "$conf{MAIL_CHARSET}", "2 (High)");
   }
 
   if ($conf{SECOND_BILLING_SYNC}) {
@@ -680,22 +671,6 @@ sub paysys_pay {
         PAYMENT_ID   => $attr->{PAYMENT_ID} || 0
       });
     }
-  }
-
-  if ($conf{PAYSYS_EXTERN_SYNC}) {
-    my $message = "\n" . "============Receive amount====================\n" .
-      "LOGIN:       $user->{LOGIN} [UID: $uid]\n" .
-      "DATE:        $DATE $TIME\n" .
-      "SUM:         $amount \n" .
-      "SYSTEM_NAME: $payment_system  \n" .
-      "TRANSACTION_ID: $payment_system:$ext_id \n" .
-      "DESCRIBE: $attr->{PAYMENT_DESCRIBE} \n\n" .
-      "============Request Parameters===============\n" .
-      $ext_info . "\n\n" .
-
-      "================================";
-
-    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "$payment_system ADD", "$message", "$conf{MAIL_CHARSET}", "2 (High)");
   }
 
   if ($attr->{PAYMENT_ID}) {
@@ -806,12 +781,13 @@ sub paysys_check_user {
 
   foreach my $user (@{$list}) {
     if ($attr->{RECOMENDED_PAY}) {
-      $user->{RECOMENDED_PAY} = recomended_pay($list->[0]);
+      $user->{RECOMENDED_PAY} = recomended_pay($user);
     }
 
     if ($user->{FIO}) {
       $user->{FIO} =~ s/\'/_/g;
       $user->{FIO} =~ s/\s+$//g;
+      $user->{FIO} =~ s/&|%//g;
     }
 
     $user->{DEPOSIT} = sprintf("%.2f", $user->{DEPOSIT} || 0);
@@ -1125,11 +1101,15 @@ sub conf_gid_split {
 
   my $gid = $attr->{GID};
 
+  # module with inheritance
   if ($attr->{PARAMS}) {
     my $param_name = $attr->{PARAMS}->[0] || '';
     my ($paysys_name) = $param_name =~ /^PAYSYS_[^_]+/gm;
-    push @{$attr->{PARAMS}}, ($paysys_name || '') . '_PAYMENT_METHOD',
-      ($paysys_name || '') . '_PORTAL_DESCRIPTION', ($paysys_name || '') . '_PORTAL_COMMISSION';
+    push @{$attr->{PARAMS}},
+      ($paysys_name || '') . '_PAYMENT_METHOD',
+      ($paysys_name || '') . '_PORTAL_DESCRIPTION',
+      ($paysys_name || '') . '_PORTAL_COMMISSION',
+      ($paysys_name || '') . '_INNER_DESCRIPTION';
   }
 
   if (!$gid) {
@@ -1881,24 +1861,6 @@ sub _paysys_extra_check_user {
 }
 
 #**********************************************************
-=head2 _paysys_execute_external_command() - execute external command
-
-  UID: int - uid of user
-
-=cut
-#**********************************************************
-sub _paysys_execute_external_command {
-  my ($attr) = @_;
-
-  require Paysys::Base;
-  my $Paysys_base = Paysys::Base->new($db, $admin, \%conf);
-
-  $Paysys_base->payments_maked({ UID => $attr->{UID} });
-
-  return 1;
-}
-
-#**********************************************************
 =head2 paysys_statement_processing() - execute external command
 
 =cut
@@ -1912,7 +1874,7 @@ sub paysys_statement_processing {
 
   return 1 if (!scalar @check_arr);
 
-  my $regex = $conf{PAYSYS_STATEMENTS_MULTI_CHECK_REGEX} || '\s|\;|:|№|\/';
+  my $regex = $conf{PAYSYS_STATEMENTS_MULTI_CHECK_REGEX} || '\s';
 
   my @values = split(/$regex/, $statement);
   @values = grep { defined $_ && $_ ne '' } @values;

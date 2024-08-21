@@ -1,0 +1,11 @@
+type: object
+properties:
+  name:
+    type: string
+    example: Test name
+  descr:
+    type: string
+    example: Some descr
+  disable:
+    type: integer
+    example: 0

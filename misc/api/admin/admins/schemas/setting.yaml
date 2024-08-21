@@ -1,0 +1,11 @@
+type: object
+properties:
+  object:
+    type: string
+    example: ABON_TARIFFS_RESFORMER
+  setting:
+    type: string
+    example: DESCRIPTION, GID, PAYMENT_TYPE, PERIOD, PRICE, TP_NAME, USER_COUNT, USER_DESCRIPTION
+  sortTable:
+    type: string
+    example: '1|'

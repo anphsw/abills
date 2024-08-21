@@ -1,0 +1,103 @@
+get:
+  tags:
+    - storage
+  summary: Список установок
+  parameters:
+    - name: id
+      in: query
+      description: id установки
+      schema:
+        type: boolean
+        default: true
+    - name: aid
+      in: query
+      description: ID администратора
+      schema:
+        type: boolean
+        default: false
+    - name: login
+      in: query
+      description: Логин пользователя, которому установлено оборудование
+      schema:
+        type: boolean
+        default: false
+    - name: sta_name
+      in: query
+      description: Название установленного оборудования
+      schema:
+        type: boolean
+        default: false
+    - name: sat_type
+      in: query
+      description: Тип установленного оборудования
+      schema:
+        type: boolean
+        default: false
+    - name: count
+      in: query
+      description: Количество установленного оборудования
+      schema:
+        type: boolean
+        default: false
+    - name: actual_sell_price
+      in: query
+      description: Цена продажи
+      schema:
+        type: boolean
+        default: false
+    - name: sum
+      in: query
+      description: Цена
+      schema:
+        type: boolean
+        default: false
+    - name: status
+      in: query
+      description: Статус установки
+      schema:
+        type: boolean
+        default: false
+    - name: date
+      in: query
+      description: Дата установки оборудования
+      schema:
+        type: boolean
+        default: false
+    - name: delivery_id
+      in: query
+      description: ID отправки
+      schema:
+        type: boolean
+        default: false
+    - name: delivery_status
+      in: query
+      description: Статус отправки
+      schema:
+        type: boolean
+        default: false
+    - name: delivery_date
+      in: query
+      description: Дата отправки
+      schema:
+        type: boolean
+        default: false
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/installationList.yaml"
+  security:
+    - KEY: [ ]

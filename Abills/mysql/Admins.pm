@@ -456,6 +456,7 @@ sub list {
     if (($self->{SHOW_EMPLOYEES} && $self->{SHOW_EMPLOYEES} == 1) || ($attr->{SHOW_EMPLOYEES})) {
       $EMPLOYEE_JOIN .= " LEFT JOIN employees_positions ep ON (ep.id=a.position) ";
       $EMPLOYEE_COLS .= ' ep.position as position, ';
+      $EMPLOYEE_COLS .= ' ep.id as position_id, ';
 
       $EMPLOYEE_JOIN .= " LEFT JOIN employees_department ed ON (ed.id=a.department) ";
       $WHERE .= " AND a.position = $attr->{POSITION}" if (int($attr->{POSITION}));
@@ -771,11 +772,16 @@ sub action_list {
 
   my $db_index = (! $WHERE) ? q{USE INDEX (`PRIMARY`)} : q{};
 
+  my $table_name = 'admin_actions';
+  if($attr->{TABLE_SUFIX}) {
+    $table_name .= '_' . $attr->{TABLE_SUFIX};
+  }
+
   $self->query("SELECT aa.id,
       $self->{SEARCH_FIELDS}
       aa.uid,
       aa.aid
-   FROM admin_actions aa $db_index
+   FROM $table_name aa $db_index
    $EXT_TABLES
    $WHERE
    $GROUP_BY
@@ -788,7 +794,7 @@ sub action_list {
   my $list = $self->{list} || [];
 
   if (! $attr->{SKIP_TOTAL}) {
-    $self->query("SELECT COUNT(*) AS total FROM admin_actions aa $db_index
+    $self->query("SELECT COUNT(*) AS total FROM $table_name aa $db_index
     $EXT_TABLES
     $WHERE;",
       undef,
@@ -1597,6 +1603,33 @@ sub del_type_permits {
   $self->query("DELETE FROM admin_type_permits WHERE type= ? ;", 'do', { Bind => [ $type ] });
 
   return $self->{result};
+}
+
+#**********************************************************
+=head2 admins_last_action($attr)
+
+=cut
+#**********************************************************
+sub admins_last_action {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return [] if !$attr->{ADMIN_NOT_ACTIVE_DAYS} || $attr->{ADMIN_NOT_ACTIVE_DAYS} < 1;
+
+  $self->query("SELECT a.id, a.aid,
+      DATEDIFF(NOW(), MAX(aa.datetime)) AS last_action,
+			DATE_FORMAT(MAX(aa.datetime), '%Y-%m-%d') AS last_date,
+      a.disable
+   FROM admins a
+   LEFT JOIN admin_system_actions aa ON (a.aid = aa.aid)
+	 WHERE a.disable = 0 AND a.aid > 4
+	 GROUP BY a.aid
+   HAVING DATEDIFF(NOW(), MAX(aa.datetime)) > $attr->{ADMIN_NOT_ACTIVE_DAYS};",
+    undef,
+    { COLS_NAME => 1 }
+  );
+
+  return $self->{list} || [];
 }
 
 1

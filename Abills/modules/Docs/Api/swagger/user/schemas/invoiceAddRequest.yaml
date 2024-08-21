@@ -1,0 +1,22 @@
+type: object
+properties:
+  nextPeriod:
+    type: number
+    example: 1
+    description: Добавить счет фактуру за следующий учетный период
+  customer:
+    type: string
+    example: "ФОП Іваненко"
+    description: На кого выписывают счет фактуру
+  order:
+    type: string
+    example: "Інтернет/Voip"
+    description: Описание заказа
+  phone:
+    type: string
+    example: 0999999999
+    description: Номер телефону
+  sum:
+    type: number
+    example: 250.50
+    description: Сумма инвойса

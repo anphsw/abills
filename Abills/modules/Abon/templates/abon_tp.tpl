@@ -236,8 +236,7 @@
           <div class='form-group row'>
             <label for='PLUGIN' class='control-label col-md-3'>Plug-in:</label>
             <div class='col-md-9'>
-              <input id='PLUGIN' name='PLUGIN' value='%PLUGIN%' placeholder='%PLUGIN%' class='form-control'
-                     type='text'>
+              %PLUGINS_SEL%
             </div>
           </div>
 

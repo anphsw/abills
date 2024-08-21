@@ -1,0 +1,10 @@
+{
+  "name": "ADMIN_COMPANIES_ADMINS_ADD",
+  "method": "PUT",
+  "path": "companies/:id/admins/",
+  "body": {
+    "uids": [
+      1
+    ]
+  }
+}

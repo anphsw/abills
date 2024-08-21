@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "The Root Schema",
+  "required": [
+    "status",
+    "login",
+    "id",
+    "transactionId",
+    "datetime",
+    "extId"
+  ],
+  "properties": {
+    "login": {
+      "type": "string"
+    },
+    "id": {
+      "type": "number"
+    },
+    "transactionId": {
+      "type": "string"
+    },
+    "datetime": {
+      "type": "string"
+    },
+    "sum": {
+      "type": "number"
+    },
+    "domainId": {
+      "$id": "#/properties/domainId",
+      "type": "number"
+    },
+    "uid": {
+      "type": "number"
+    },
+    "systemId": {
+      "type": "number"
+    },
+    "status": {
+      "type": "number"
+    },
+    "extId": {
+      "type": "string"
+    }
+  }
+}

@@ -114,7 +114,7 @@ sub msgs_plugin_priority {
     $html->tpl_show(_include('msgs_plugins_priority', 'Msgs'), {
       JSON => _plugins_to_json($plugins, $plugins_enabled)
     });
-    return;
+    return 0;
   }
 
   my $json_plugin = $FORM{PLUGINS};
@@ -126,6 +126,8 @@ sub msgs_plugin_priority {
   );
 
   print(JSON->new->utf8->encode(\%success));
+
+  return 1;
 }
 
 #**********************************************************
@@ -242,8 +244,8 @@ sub _msgs_get_plugins {
       $plugin =~ s/\.pm//g;
       my $plugin_name = $module . '::Plugins::' . $plugin;
 
-      eval "require $plugin_name;";
-      if ($@) {
+      my $success = ::load_module($plugin_name, { LOAD_PACKAGE => 1 });
+      if (!$success) {
         $html->message('err', $lang{ERROR}, "$lang{PLUGIN_LOADING_ERROR}: $plugin ($@)");
         next;
       }
@@ -293,8 +295,9 @@ sub _msgs_get_enable_plugins {
 
     my $plugin_name = $plugin->{module} . '::Plugins::' . $plugin->{plugin_name};
 
-    eval "require $plugin_name;";
-    if ($@) {
+    my $success = ::load_module($plugin_name, { LOAD_PACKAGE => 1 });
+
+    if (!$success) {
       $html->message('err', $lang{ERROR}, "$lang{PLUGIN_LOADING_ERROR}: $plugin->{plugin_name} ($@)");
       next;
     }
@@ -485,8 +488,9 @@ sub msgs_get_plugin_by_name {
     next unless (-e $plugin_dir . '/' . $plugin . '.pm');
 
     my $plugin_name = $module . '::Plugins::' . $plugin;
-    eval "require $plugin_name;";
-    if ($@) {
+    my $success = ::load_module($plugin_name, { LOAD_PACKAGE => 1 });
+
+    if (!$success) {
       $html->message('err', $lang{ERROR}, "$lang{PLUGIN_LOADING_ERROR}: $plugin ($@)");
       return 0;
     }

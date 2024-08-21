@@ -1,6 +1,6 @@
 =head1 NAME
 
-  Global API test
+  Address API test
 
 =cut
 
@@ -14,10 +14,9 @@ use FindBin '$Bin';
 use FindBin qw($RealBin);
 use JSON;
 
-require $Bin . '/../../../libexec/config.pl';
-
 BEGIN {
-  our $libpath = '../../../';
+  our $libpath = $Bin . '/../../../';
+  require "$libpath/libexec/config.pl";
   my $sql_type = 'mysql';
   unshift(@INC, $libpath . "Abills/$sql_type/");
   unshift(@INC, $libpath);
@@ -28,10 +27,11 @@ BEGIN {
 }
 
 use Abills::Defs;
-use Init_t qw(test_runner folder_list help);
+use Abills::Api::Tests::Init qw(test_runner folder_list help);
 use Abills::Base qw(parse_arguments);
 use Admins;
 use Users;
+use Address;
 
 our (
   %conf
@@ -44,9 +44,9 @@ my $db = Abills::SQL->connect(
     dbdebug => $conf{dbdebug}
   }
 );
-# my $admin = Admins->new($db, \%conf);
-# my $Users = Users->new($db, $admin, \%conf);
-# my $Abon = Abon->new($db, $admin, \%conf);
+
+my $admin = Admins->new($db, \%conf);
+my $Address = Address->new($db, $admin, \%conf);
 
 my $ARGS = parse_arguments(\@ARGV);
 my $apiKey = $ARGS->{KEY} || $ARGV[$#ARGV] || q{};
@@ -56,6 +56,41 @@ my $debug = $ARGS->{DEBUG} || 0;
 if (($ARGV[0] && lc($ARGV[0]) eq 'help') || defined($ARGS->{help}) || defined($ARGS->{HELP})) {
   help();
   exit 0;
+}
+
+my $districts = $Address->district_list({
+  ID        => '_SHOW',
+  COLS_NAME => 1
+});
+
+my $streets = $Address->street_list({
+  ID        => '_SHOW',
+  COLS_NAME => 1
+});
+
+my $builds = $Address->build_list({
+  ID        => '_SHOW',
+  COLS_NAME => 1
+});
+
+my $district_id = $districts->[-1]->{id} || 0;
+my $street_id = $streets->[-1]->{id} || 0;
+my $build_id = $builds->[-1]->{id} || 0;
+
+foreach my $test (@test_list) {
+  if ($test->{method} eq 'GET' && $test->{path} =~ /:id/g) {
+    $test->{path} =~ /streets\/:id/g;
+
+    if ($test->{path} =~ /districts\/:id/g) {
+      $test->{path} =~ s/:id/$district_id/g;
+    }
+    elsif ($test->{path} =~ /streets\/:id/g) {
+      $test->{path} =~ s/:id/$street_id/g;
+    }
+    elsif ($test->{path} =~ /builds\/:id/g) {
+      $test->{path} =~ s/:id/$build_id/g;
+    }
+  }
 }
 
 test_runner({

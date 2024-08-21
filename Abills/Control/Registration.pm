@@ -310,8 +310,8 @@ sub password_recovery {
         G2FA_HIDDEN   => 'hidden',
         LNG_ACTION    => $lang{CHANGE},
         ACTION        => 'CHANGE_PASSWORD',
-        PW_CHARS      => $conf{PASSWD_SYMBOLS} || "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ",
-        PW_LENGTH     => $conf{PASSWD_LENGTH} || 6,
+        PW_CHARS      => $conf{PASSWD_SYMBOLS},
+        PW_LENGTH     => $conf{PASSWD_LENGTH},
         HIDDDEN_INPUT => $hidden_input
       });
 

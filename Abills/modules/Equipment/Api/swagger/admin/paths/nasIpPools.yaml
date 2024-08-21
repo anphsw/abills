@@ -1,0 +1,239 @@
+get:
+  tags:
+    - equipment
+  summary: Список IP pools к серверам доступа
+  operationId: getIpPoolsList
+  parameters:
+    - name: id
+      in: query
+      description: ID пула
+      schema:
+        type: boolean
+        default: true
+    - name: nasName
+      in: query
+      description: Имя сервера доступа
+      schema:
+        type: boolean
+        default: false
+    - name: poolName
+      in: query
+      description: Название пула
+      schema:
+        type: boolean
+        default: false
+    - name: firstIp
+      in: query
+      description: Первый IP
+      schema:
+        type: boolean
+        default: false
+    - name: lastIp
+      in: query
+      description: Последний IP
+      schema:
+        type: boolean
+        default: false
+    - name: ip
+      in: query
+      description: IP (число)
+      schema:
+        type: boolean
+        default: false
+    - name: lastIpNum
+      in: query
+      description: Последний IP (число)
+      schema:
+        type: boolean
+        default: false
+    - name: IpCount
+      in: query
+      description: Количество
+      schema:
+        type: boolean
+        default: false
+    - name: internetIpFree
+      in: query
+      description: Количество свободных IP
+      schema:
+        type: boolean
+        default: false
+    - name: priority
+      in: query
+      description: Приоритет
+      schema:
+        type: boolean
+        default: false
+    - name: speed
+      in: query
+      description: Скорость
+      schema:
+        type: boolean
+        default: false
+    - name: name
+      in: query
+      description: Имя
+      schema:
+        type: boolean
+        default: false
+    - name: nas
+      in: query
+      description: Сервер доступа
+      schema:
+        type: boolean
+        default: false
+    - name: netmask
+      in: query
+      description: Маска подсети
+      schema:
+        type: boolean
+        default: false
+    - name: gateway
+      in: query
+      description: Сетевой шлюз
+      schema:
+        type: boolean
+        default: false
+    - name: static
+      in: query
+      description: Статический пул
+      schema:
+        type: boolean
+        default: false
+    - name: activeNasId
+      in: query
+      description: ID активного сервера доступа
+      schema:
+        type: boolean
+        default: false
+    - name: ipSkip
+      in: query
+      description: IP, которые пропускаются
+      schema:
+        type: boolean
+        default: false
+    - name: comments
+      in: query
+      description: Комментарии
+      schema:
+        type: boolean
+        default: false
+    - name: dns
+      in: query
+      description: DNS
+      schema:
+        type: boolean
+        default: false
+    - name: vlan
+      in: query
+      description: VLAN
+      schema:
+        type: boolean
+        default: false
+    - name: guest
+      in: query
+      description: Гостевой режим
+      schema:
+        type: boolean
+        default: false
+    - name: nextPool
+      in: query
+      description: Следующий пул
+      schema:
+        type: boolean
+        default: false
+    - name: nasId
+      in: query
+      description: ID сервера доступа
+      schema:
+        type: boolean
+        default: false
+    - name: showAllColumns
+      in: query
+      description: Параметр, при котором выводятся все поля
+      schema:
+        type: boolean
+        default: false
+    - name: ipv6Prefix
+      in: query
+      description: IPV6 Prefix
+      schema:
+        type: boolean
+        default: false
+    - name: ipv6Mask
+      in: query
+      description: IPV6 Mask
+      schema:
+        type: boolean
+        default: false
+    - name: ipv6Temp
+      in: query
+      description: IPV6 Temp
+      schema:
+        type: boolean
+        default: false
+    - name: ipv6Pd
+      in: query
+      description: IPV6 Pd
+      schema:
+        type: boolean
+        default: false
+    - name: ipv6PdMask
+      in: query
+      description: IPV6 Pd Mask
+      schema:
+        type: boolean
+        default: false
+    - name: ipv6PdTemp
+      in: query
+      description: IPV6 Pd Temp
+      schema:
+        type: boolean
+        default: false
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 100000
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+        default: false
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/ipPoolList.yaml"
+  security:
+    - KEY: []
+post:
+  tags:
+    - equipment
+  summary: Добавить IP pool к серверу доступа
+  operationId: nasIpPoolsAdd
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addNasIpPoolRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+    400:
+      description: Нет поля ip
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addNasIpPoolResponse400.yaml"
+  security:
+    - KEY: []

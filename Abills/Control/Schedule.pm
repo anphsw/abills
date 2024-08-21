@@ -87,8 +87,15 @@ sub schedule_hours_tasks_board {
   my $self = shift;
   my ($tasks) = @_;
 
-  my $admins_hash = ();
-  map $admins_hash->{$_->{aid}} = $_, @{$admin->list({ DISABLE => 0, PAGE_ROWS => 1000, COLS_NAME => 1 })};
+  $admin->settings_info('MSGS_SCHEDULE_TASKS_BOARD');
+  my @priority_list = $admin->{SETTING} ? reverse split(',', $admin->{SETTING}) : ();
+  my %priority = map { $priority_list[$_] => $_ + 1 } 0..$#priority_list;
+
+  my $admins_hash = {};
+  map {
+    $_->{priority} = $priority{$_->{aid}} // 0;
+    $admins_hash->{$_->{aid}} = $_;
+  } @{$admin->list({ DISABLE => 0, PAGE_ROWS => 1000, COLS_NAME => 1 })};
 
   $html->tpl_show(::templates('form_schedule_table'), {
     TASKS  => $tasks,

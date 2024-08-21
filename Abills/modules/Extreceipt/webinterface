@@ -1,5 +1,5 @@
 #!perl
-=head1 NAME
+=head NAME
 
   Extreceipts web functions
 
@@ -10,7 +10,7 @@ use warnings FATAL => 'all';
 
 use Abills::Sender::Core;
 use Extreceipt::db::Extreceipt;
-use Extreceipt::Base;
+use Extreceipt::Init qw(init_extreceipt_service);
 use Reports;
 use Conf;
 
@@ -80,7 +80,7 @@ sub extreceipt_api {
     $html->message('info', $lang{SUCCESS}) if (!_error_show($Receipt));
   }
   elsif ($FORM{test}) {
-    my $Receipt_apies = receipt_init($Receipt, { API_ID => $FORM{test}, DEBUG => $debug });
+    my $Receipt_apies = init_extreceipt_service($db, $admin, \%conf, { API_ID => $FORM{test}, DEBUG => $debug });;
     my $Receip_api = $Receipt_apies->{$FORM{test}};
 
     if ($Receip_api && $Receip_api->can('test')) {
@@ -211,7 +211,7 @@ sub extreceipt_kkt {
     });
 
     if ($FORM{chg}) {
-      my $Receipt_apies = receipt_init($Receipt, { API_ID => $params{api_id}, DEBUG => $debug });
+      my $Receipt_apies = init_extreceipt_service($db, $admin, \%conf, { API_ID => $params{api_id}, DEBUG => $debug });
       my $Receipt_api = $Receipt_apies->{$params{api_id}};
       if ($Receipt_api && $Receipt_api->can('get_taxes')) {
         my $taxes = $Receipt_api->get_taxes({ kkt_key => $params{kkt_key} });
@@ -290,8 +290,8 @@ sub extreceipt_kkt {
 =cut
 #**********************************************************
 sub extreceipt_check_list {
-  my $Receipt_api = receipt_init($Receipt, { DEBUG => $debug });
-  $Receipt->{API} = $Receipt_api;
+  my $Receipt_apies = init_extreceipt_service($db, $admin, \%conf, { DEBUG => $debug });;
+  $Receipt->{API} = $Receipt_apies;
 
   if ($FORM{new}) {
     _extreceipt_new();
@@ -377,9 +377,9 @@ sub extreceipt_check_list {
   result_former({
     INPUT_DATA     => $Receipt,
     FUNCTION       => 'payments_list',
-    DEFAULT_FIELDS => 'ID,DATETIME,LOGIN,SUM,PAYMENT_METHOD,STATUS,EXTST',
+    DEFAULT_FIELDS => 'ID,DATETIME,LOGIN,SUM,PAYMENT_METHOD,STATUS,EXIST',
     FILTER_COLS    => {
-      extst          => '_extreceipt_buttons_filter::id,extst,payment_method',
+      exist          => '_extreceipt_buttons_filter::id,exist,payment_method',
       payment_method => '_extreceipt_payment_filter::',
     },
     SELECT_VALUE   => {
@@ -393,12 +393,12 @@ sub extreceipt_check_list {
     },
     FUNCTION_INDEX => $index,
     EXT_TITLES     => {
-      'id'             => $lang{NUM},
-      'datetime'       => $lang{DATE},
-      'sum'            => $lang{SUM},
-      'payment_method' => $lang{PAYMENT_METHOD},
-      'status'         => $lang{STATUS},
-      'extst'          => $lang{EXIST}
+      id             => $lang{NUM},
+      datetime       => $lang{DATE},
+      sum            => $lang{SUM},
+      payment_method => $lang{PAYMENT_METHOD},
+      status         => $lang{STATUS},
+      exist          => $lang{EXIST}
     },
     TABLE          => {
       width   => '100%',
@@ -457,7 +457,7 @@ sub _extreceipt_send {
   }
 
   if (!$attr->{API}) {
-    $Receipt->{API} = receipt_init($Receipt, { DEBUG => $debug });
+    $Receipt->{API} = init_extreceipt_service($db, $admin, \%conf, { DEBUG => $debug });
   }
 
   my $api_id = $info->[0]->{api_id} || 0;
@@ -563,7 +563,7 @@ sub _extreceipt_undo {
   my ($payment_id) = @_;
 
   my $info = $Receipt->info($payment_id);
-  if (defined($info->[0]->{api_id})) {
+  if (defined($info->[0]->{api_id}) && $Receipt->{API}->{$info->[0]->{api_id}}->can('payment_cancel')) {
     ($info->[0]->{check_header}, $info->[0]->{check_desc}, $info->[0]->{check_footer}) = _extreceipt_receipt_ext_info($info->[0]);
     my $command_id = $Receipt->{API}->{$info->[0]->{api_id}}->payment_cancel($info->[0]);
 
@@ -679,13 +679,16 @@ sub _extreceipt_buttons_filter {
   my $attr = $values->{VALUES};
   my $buttons = '';
 
-  if ($attr->{id} > $conf{"EXTRECEIPT_LAST_ID"}) {
-    $buttons = $html->button($lang{NEW}, "index=$index&new=1&$pages_qs", { class => 'btn btn-xs btn-secondary' });
-  }
-  elsif (!defined($attr->{extst})) {
+  if (!$attr->{id}) {
     return '';
   }
-  elsif (!$attr->{extst}) {
+  elsif ($attr->{id} > $conf{"EXTRECEIPT_LAST_ID"}) {
+    $buttons = $html->button($lang{NEW}, "index=$index&new=1&$pages_qs", { class => 'btn btn-xs btn-secondary' });
+  }
+  elsif (!defined($attr->{exist})) {
+    return '';
+  }
+  elsif (!$attr->{exist}) {
     $buttons = $html->button($lang{SEND}, "index=$index&send=$attr->{id}&$pages_qs", { class => 'btn btn-xs btn-success' });
   }
   else {
@@ -696,7 +699,7 @@ sub _extreceipt_buttons_filter {
         NEW_WINDOW      => "index.cgi?qindex=$index&print=$attr->{id}&header=1",
         NEW_WINDOW_SIZE => '640:750' }),
       info      => $html->button($lang{INFO},
-        "index=$index&info=$attr->{id }&$pages_qs",
+        "index=$index&info=$attr->{id}&$pages_qs",
         { class => 'btn btn-xs btn-info', ex_params => "style='margin-right:5px'" }),
       cancel    => $html->button($lang{CANCEL},
         "index=$index&undo=$attr->{id}&$pages_qs",
@@ -708,19 +711,19 @@ sub _extreceipt_buttons_filter {
           { class => 'btn btn-xs btn-success' }) : '',
     );
 
-    if ($attr->{extst} == 1) {
+    if ($attr->{exist} == 1) {
       $buttons = $buttons_list{info} . $buttons_list{cancel} . $buttons_list{print} . $buttons_list{send_user};
     }
-    elsif ($attr->{extst} == 2) {
+    elsif ($attr->{exist} == 2) {
       $buttons = $buttons_list{cancel} . $buttons_list{print} . $buttons_list{send_user};
     }
-    elsif ($attr->{extst} == 3) {
+    elsif ($attr->{exist} == 3) {
       $buttons = $buttons_list{print} . $buttons_list{send_user};
     }
-    elsif ($attr->{extst} == 4) {
+    elsif ($attr->{exist} == 4) {
       $buttons = $buttons_list{resend};
     }
-    elsif ($attr->{extst} == 5) {
+    elsif ($attr->{exist} == 5) {
       $buttons = $buttons_list{resend};
     }
   }
@@ -734,7 +737,7 @@ sub _extreceipt_buttons_filter {
 #**********************************************************
 sub _extreceipt_payment_filter {
   my ($method) = @_;
-  return '' unless $method;
+  return '' if (!defined $method);
 
   my $PAYMENTS_METHODS = get_payment_methods();
 
@@ -780,8 +783,7 @@ sub _extreceipt_receipt_ext_info {
 =cut
 #**********************************************************
 sub extreceipt_cash_register_report {
-  my $Receipt_api = receipt_init($Receipt, { DEBUG => $debug });
-  $Receipt->{API} = $Receipt_api;
+  $Receipt->{API} = init_extreceipt_service($db, $admin, \%conf, { DEBUG => $debug });
 
   require Extreceipt::Cash_register;
   Extreceipt::Cash_register->import();

@@ -12,7 +12,7 @@
             <label class='col-md-3 col-form-label text-md-right required' for='A_LOGIN'>_{LOGIN}_:</label>
             <div class='col-md-9'>
               <input id='A_LOGIN' name='A_LOGIN' value='%A_LOGIN%' placeholder='%A_LOGIN%'
-                     class='form-control' type='text' pattern= '%PATTERN%' >
+                     class='form-control' type='text' pattern='%PATTERN%'>
             </div>
           </div>
 
@@ -25,22 +25,22 @@
             </div>
           </div>
 
-<!--          <div class='form-group row'>-->
-<!--            <label class='col-md-3 col-form-label text-md-right' for='PHONE'>_{PHONE}_:</label>-->
-<!--            <div class='col-md-9'>-->
-<!--              <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%'-->
-<!--                     class='form-control'-->
-<!--                     type='text'>-->
-<!--            </div>-->
-<!--          </div>-->
-<!--          <div class='form-group row'>-->
-<!--            <label class='col-md-3 col-form-label text-md-right' for='EMAIL'>E-Mail:</label>-->
-<!--            <div class='col-md-9'>-->
-<!--              <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%'-->
-<!--                     class='form-control'-->
-<!--                     type='text'>-->
-<!--            </div>-->
-<!--          </div>-->
+          <!--          <div class='form-group row'>-->
+          <!--            <label class='col-md-3 col-form-label text-md-right' for='PHONE'>_{PHONE}_:</label>-->
+          <!--            <div class='col-md-9'>-->
+          <!--              <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%'-->
+          <!--                     class='form-control'-->
+          <!--                     type='text'>-->
+          <!--            </div>-->
+          <!--          </div>-->
+          <!--          <div class='form-group row'>-->
+          <!--            <label class='col-md-3 col-form-label text-md-right' for='EMAIL'>E-Mail:</label>-->
+          <!--            <div class='col-md-9'>-->
+          <!--              <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%'-->
+          <!--                     class='form-control'-->
+          <!--                     type='text'>-->
+          <!--            </div>-->
+          <!--          </div>-->
 
           <div class='form-group row'>
             <label class='col-md-3 col-form-label text-md-right' for='DISABLE'>_{STATUS}_:</label>
@@ -49,13 +49,13 @@
             </div>
           </div>
 
-<!--          <div class='form-group row'>-->
-<!--            <label class='col-md-3 col-form-label text-md-right' for='CELL_PHONE'>_{CELL_PHONE}_:</label>-->
-<!--            <div class='col-md-9'>-->
-<!--              <input id='CELL_PHONE' name='CELL_PHONE' value='%CELL_PHONE%' placeholder='%CELL_PHONE%'-->
-<!--                     class='form-control' type='text'>-->
-<!--            </div>-->
-<!--          </div>-->
+          <!--          <div class='form-group row'>-->
+          <!--            <label class='col-md-3 col-form-label text-md-right' for='CELL_PHONE'>_{CELL_PHONE}_:</label>-->
+          <!--            <div class='col-md-9'>-->
+          <!--              <input id='CELL_PHONE' name='CELL_PHONE' value='%CELL_PHONE%' placeholder='%CELL_PHONE%'-->
+          <!--                     class='form-control' type='text'>-->
+          <!--            </div>-->
+          <!--          </div>-->
 
           <div class='form-group row'>
             <label class='col-md-3 col-form-label text-md-right'>_{DEPARTMENT}_:</label>
@@ -80,55 +80,58 @@
             </div>
           </div>
 
-          <div class='card card-primary card-outline collapsed-card %ADDRESS_CARD_CLASS%'>
-            <div class='card-header with-border'>
-              <h3 class='card-title'>_{ADDRESS}_:</h3>
-              <div class='card-tools'>
-                <button type='button' class='btn btn-tool' data-card-widget='collapse'>
-                  <i class='fa fa-plus'></i>
-                </button>
-              </div>
-            </div>
-            <div class='card-body'>
-              %ADDRESS_FORM%
+        </div>
+
+        <div class='card mb-0 card-outline border-top card-big-form collapsed-card %ADDRESS_CARD_CLASS%'>
+          <div class='card-header with-border'>
+            <h3 class='card-title'>_{ADDRESS}_:</h3>
+            <div class='card-tools'>
+              <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+                <i class='fa fa-plus'></i>
+              </button>
             </div>
           </div>
+          <div class='card-body'>
+            %ADDRESS_FORM%
+          </div>
+        </div>
 
-          <div class='card card-primary card-outline collapsed-card'>
-            <div class='card-header with-border'>
-              <h3 class='card-title'>_{PASPORT}_:</h3>
-              <div class='card-tools'>
-                <button type='button' class='btn btn-tool' data-card-widget='collapse'>
-                  <i class='fa fa-plus'></i>
-                </button>
+        <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
+          <div class='card-header with-border'>
+            <h3 class='card-title'>_{PASPORT}_:</h3>
+            <div class='card-tools'>
+              <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+                <i class='fa fa-plus'></i>
+              </button>
+            </div>
+          </div>
+          <div id='_passport' class='card-collapse card-body'>
+            <div class='form-group row'>
+              <label class='col-md-3 col-form-label text-md-right' for='PASPORT_NUM'>_{NUM}_:</label>
+              <div class='col-md-9'>
+                <input id='PASPORT_NUM' name='PASPORT_NUM' value='%PASPORT_NUM%'
+                       placeholder='%PASPORT_NUM%' class='form-control' type='text'>
               </div>
             </div>
-            <div id='_passport' class='card-collapse card-body'>
-              <div class='form-group row'>
-                <label class='col-md-3 col-form-label text-md-right' for='PASPORT_NUM'>_{NUM}_:</label>
-                <div class='col-md-9'>
-                  <input id='PASPORT_NUM' name='PASPORT_NUM' value='%PASPORT_NUM%'
-                         placeholder='%PASPORT_NUM%' class='form-control' type='text'>
-                </div>
-              </div>
 
-              <div class='form-group row'>
-                <label for='PASPORT_DATE' class='col-md-3 col-form-label text-md-right'>_{DATE}_:</label>
-                <div class='col-md-9'>
-                  %PASPORT_DATE%
-                </div>
+            <div class='form-group row'>
+              <label for='PASPORT_DATE' class='col-md-3 col-form-label text-md-right'>_{DATE}_:</label>
+              <div class='col-md-9'>
+                %PASPORT_DATE%
               </div>
+            </div>
 
-              <div class='form-group row'>
-                <label class='col-md-3 col-form-label text-md-right' for='PASPORT_GRANT'>_{GRANT}_:</label>
-                <div class='col-md-9'>
+            <div class='form-group row'>
+              <label class='col-md-3 col-form-label text-md-right' for='PASPORT_GRANT'>_{GRANT}_:</label>
+              <div class='col-md-9'>
                   <textarea class='form-control' id='PASPORT_GRANT' name='PASPORT_GRANT'
                             rows='1'>%PASPORT_GRANT%</textarea>
-                </div>
               </div>
             </div>
           </div>
-          <br/>
+        </div>
+
+        <div class='card-body'>
 
           <div class='form-group row'>
             <label for='GROUP_SEL' class='col-md-3 col-form-label text-md-right'>_{USERS}_ _{GROUPS}_:</label>

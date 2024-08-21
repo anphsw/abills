@@ -1,0 +1,73 @@
+type: object
+description: Список компаний
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        companyId:
+          type: number
+          example: 1
+        deposit:
+          type: number
+          example: 15.05
+        fio:
+          type: string
+          example: Любимий абонент
+        gid:
+          type: number
+          example: 10
+        login:
+          type: number
+          example: 102143
+        loginStatus:
+          type: number
+          example: 0
+        reduction:
+          type: number
+          example: 0
+        services:
+          type: array
+          items:
+            type: object
+            properties:
+              activate:
+                type: string
+                example: 2024-00-00
+              module:
+                type: string
+                example: Internet
+              moduleName:
+                type: string
+                example: Інтернет
+              originalSum:
+                type: number
+                example: 6
+              serviceDesc:
+                type: string
+                example: Рік інтернету 1Гб за 6 гривень!
+              serviceName:
+                type: string
+                example: "Internet: M/F Тариф 1Gb (2)"
+              status:
+                type: number
+                example: 0
+              sum:
+                type: number
+                example: 6
+              tpReductionFee:
+                type: number
+                example: 0
+        uid:
+          type: number
+          example: 102143
+  servicesCount:
+    type: number
+    example: 1
+  servicesSum:
+    type: number
+    example: 6
+  total:
+    type: number
+    example: 1

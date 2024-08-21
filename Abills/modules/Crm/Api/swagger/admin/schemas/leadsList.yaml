@@ -1,0 +1,16 @@
+type: array
+items:
+  type: object
+  properties:
+    id:
+      type: number
+      example: 3
+    leadId:
+      type: number
+      example: 3
+    holdupDate:
+      type: string
+      example: '0000-00-00'
+    uid:
+      type: number
+      example: 22199

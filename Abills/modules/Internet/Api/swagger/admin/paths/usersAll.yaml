@@ -1,0 +1,547 @@
+get:
+  tags:
+    - internet
+  summary: Получить всех пользователей
+  parameters:
+    - name: id
+      in: query
+      description: ID услуги
+      schema:
+        type: boolean
+        default: true
+    - name: loginStatus
+      in: query
+      description: Статус пользователя
+      schema:
+        type: boolean
+        default: true
+    - name: tpId
+      in: query
+      description: Идентификатор тарифного плана
+      schema:
+        type: boolean
+        default: true
+    - name: uid
+      in: query
+      description: UID пользователя
+      schema:
+        type: boolean
+        default: true
+    - name: cid
+      in: query
+      description: Идентификатор пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: cpeMac
+      in: query
+      description: MAC клиентского устройства
+      schema:
+        type: boolean
+        default: false
+    - name: tags
+      in: query
+      description: Метки пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: vlan
+      in: query
+      description: Клиентский VLAN
+      schema:
+        type: boolean
+        default: false
+    - name: serverVlan
+      in: query
+      description: Серверный VLAN
+      schema:
+        type: boolean
+        default: false
+    - name: joinService
+      in: query
+      description: Совместный сервис
+      schema:
+        type: boolean
+        default: false
+    - name: logins
+      in: query
+      description: Количество одновременных сессий для выбранного логина
+      schema:
+        type: boolean
+        default: false
+    - name: speed
+      in: query
+      description: Скорость ТП
+      schema:
+        type: boolean
+        default: false
+    - name: nasId
+      in: query
+      description: ID сервера доступа
+      schema:
+        type: boolean
+        default: false
+    - name: port
+      in: query
+      description: Порт
+      schema:
+        type: boolean
+        default: false
+    - name: filterId
+      in: query
+      description: Id фильтра тарифного плана
+      schema:
+        type: boolean
+        default: false
+    - name: tpNum
+      in: query
+      description: Номер тарифного плана
+      schema:
+        type: boolean
+        default: false
+    - name: tpName
+      in: query
+      description: Название тарифного плана
+      schema:
+        type: boolean
+        default: false
+    - name: monthFee
+      in: query
+      description: Абонплата за месяц
+      schema:
+        type: boolean
+        default: false
+    - name: abonDistribution
+      in: query
+      description: Распределение абонплаты
+      schema:
+        type: boolean
+        default: false
+    - name: dayFee
+      in: query
+      description: Дневная абонплата
+      schema:
+        type: boolean
+        default: false
+    - name: personalTp
+      in: query
+      description: Персональный тарифный план
+      schema:
+        type: boolean
+        default: false
+    - name: paymentType
+      in: query
+      description: Вид оплаты
+      schema:
+        type: boolean
+        default: false
+    - name: internetStatus
+      in: query
+      description: Статус услуги Интернет
+      schema:
+        type: boolean
+        default: false
+    - name: internetStatusDate
+      in: query
+      description: Дата изменения статуса Интернет
+      schema:
+        type: boolean
+        default: false
+    - name: internetStatusId
+      in: query
+      description: ID статуса
+      schema:
+        type: boolean
+        default: false
+    - name: internetLogin
+      in: query
+      description: Логин услуги Интернет
+      schema:
+        type: boolean
+        default: false
+    - name: feesMethod
+      in: query
+      description: Тип списания
+      schema:
+        type: boolean
+        default: true
+    - name: ipNum
+      in: query
+      description: IP адрес пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: monthIpnTrafficIn
+      in: query
+      description: Месячный входящий трафик IPN
+      schema:
+        type: boolean
+        default: false
+    - name: monthIpnTrafficOut
+      in: query
+      description: Месячный исходящий трафик IPN
+      schema:
+        type: boolean
+        default: false
+    - name: shedule
+      in: query
+      description: Расписания
+      schema:
+        type: boolean
+        default: false
+    - name: tpFixedFeesDay
+      in: query
+      description: Фиксированная дата абонплаты
+      schema:
+        type: boolean
+        default: false
+    - name: tpReductionFee
+      in: query
+      description: Скидка
+      schema:
+        type: boolean
+        default: false
+    - name: online
+      in: query
+      description: Online сессия пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: onlineIp
+      in: query
+      description: IP сессии
+      schema:
+        type: boolean
+        default: false
+    - name: onlineDuration
+      in: query
+      description: Продолжительность сессии
+      schema:
+        type: boolean
+        default: false
+    - name: onlineCid
+      in: query
+      description: Идентификатор сессии
+      schema:
+        type: boolean
+        default: false
+    - name: onlineTpId
+      in: query
+      description: Идентификатор тарифного плана сессии
+      schema:
+        type: boolean
+        default: false
+    - name: onlineNasId
+      in: query
+      description: Идентификатор сервера доступа сессии
+      schema:
+        type: boolean
+        default: false
+    - name: internetPassword
+      in: query
+      description: Пароль услуги Интернет
+      schema:
+        type: boolean
+        default: false
+    - name: internetExpire
+      in: query
+      description: Окончание услуги Интернет
+      schema:
+        type: boolean
+        default: false
+    - name: internetActivate
+      in: query
+      description: Дата активации услуги Интернет
+      schema:
+        type: boolean
+        default: false
+    - name: monthTrafficIn
+      in: query
+      description: Месячный входящий трафик
+      schema:
+        type: boolean
+        default: false
+    - name: monthTrafficOut
+      in: query
+      description: Месячный исходящий трафик
+      schema:
+        type: boolean
+        default: false
+    - name: lastActivity
+      in: query
+      description: Последняя активность
+      schema:
+        type: boolean
+        default: false
+    - name: dayTrafLimit
+      in: query
+      description: Лимит дневного трафика
+      schema:
+        type: boolean
+        default: false
+    - name: weekTrafLimit
+      in: query
+      description: Недельный лимит трафика
+      schema:
+        type: boolean
+        default: false
+    - name: monthTrafLimit
+      in: query
+      description: Лимит месячного трафика
+      schema:
+        type: boolean
+        default: false
+    - name: totalTrafLimit
+      in: query
+      description: Лимит трафика
+      schema:
+        type: boolean
+        default: false
+    - name: describeAid
+      in: query
+      description: Описание для администратора
+      schema:
+        type: boolean
+        default: false
+    - name: serviceCount
+      in: query
+      description: Количество подключених тарифных планов
+      schema:
+        type: boolean
+        default: false
+    - name: ipnActivate
+      in: query
+      description: IPN активация
+      schema:
+        type: boolean
+        default: false
+    - name: nasIp
+      in: query
+      description: IP адрес сервера доступа
+      schema:
+        type: boolean
+        default: false
+    - name: fio
+      in: query
+      description: ФИО пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: deposit
+      in: query
+      description: Депозит
+      schema:
+        type: boolean
+        default: false
+    - name: extDeposit
+      in: query
+      description: Дополнительный баланc
+      schema:
+        type: boolean
+        default: false
+    - name: extBillId
+      in: query
+      description: ID дополнительного счета
+      schema:
+        type: boolean
+        default: false
+    - name: credit
+      in: query
+      description: Кредит пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: creditDate
+      in: query
+      description: Дата установки кредита
+      schema:
+        type: boolean
+        default: false
+    - name: phone
+      in: query
+      description: Номер телефона
+      schema:
+        type: boolean
+        default: false
+    - name: email
+      in: query
+      description: E-mail
+      schema:
+        type: boolean
+        default: false
+    - name: floor
+      in: query
+      description: Этаж
+      schema:
+        type: boolean
+        default: false
+    - name: entrance
+      in: query
+      description: Подъезд
+      schema:
+        type: boolean
+        default: false
+    - name: addressFlat
+      in: query
+      description: Номер квартиры
+      schema:
+        type: boolean
+        default: false
+    - name: pasportDate
+      in: query
+      description: Дата выдачи паспорта
+      schema:
+        type: boolean
+        default: false
+    - name: pasportNum
+      in: query
+      description: Номер паспорта
+      schema:
+        type: boolean
+        default: false
+    - name: pasportGrant
+      in: query
+      description: Орган выдачи паспорта
+      schema:
+        type: boolean
+        default: false
+    - name: city
+      in: query
+      description: Город проживания
+      schema:
+        type: boolean
+        default: false
+    - name: zip
+      in: query
+      description: Индекс города
+      schema:
+        type: boolean
+        default: false
+    - name: gid
+      in: query
+      description: ID группы
+      schema:
+        type: boolean
+        default: false
+    - name: companyId
+      in: query
+      description: ID компании
+      schema:
+        type: boolean
+        default: false
+    - name: companyName
+      in: query
+      description: Название компании
+      schema:
+        type: boolean
+        default: false
+    - name: contractId
+      in: query
+      description: ID контракта
+      schema:
+        type: boolean
+        default: false
+    - name: contractSufix
+      in: query
+      description: Суффикс контракта
+      schema:
+        type: boolean
+        default: false
+    - name: contractDate
+      in: query
+      description: Дата подписания контракта
+      schema:
+        type: boolean
+        default: false
+    - name: expire
+      in: query
+      description: Дата окончания аккаунта
+      schema:
+        type: boolean
+        default: false
+    - name: reduction
+      in: query
+      description: Скидка
+      schema:
+        type: boolean
+        default: false
+    - name: lastPayment
+      in: query
+      description: Дата последней оплаты
+      schema:
+        type: boolean
+        default: false
+    - name: lastFees
+      in: query
+      description: Дата последнего списания
+      schema:
+        type: boolean
+        default: false
+    - name: registration
+      in: query
+      description: Дата регистрации
+      schema:
+        type: boolean
+        default: false
+    - name: reductionDate
+      in: query
+      description: Дата установки кредита
+      schema:
+        type: boolean
+        default: false
+    - name: comments
+      in: query
+      description: Комментарий
+      schema:
+        type: boolean
+        default: false
+    - name: billId
+      in: query
+      description: Уникальный идентификатор счета пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: activate
+      in: query
+      description: Дата активации пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: acceptRules
+      in: query
+      description: 1 - пользователь принял условия соглашения в кабинете пользователя, 2 - не принял
+      schema:
+        type: boolean
+        default: false
+    - name: password
+      in: query
+      description: Пароль пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: birthDate
+      in: query
+      description: Дата рождения
+      schema:
+        type: boolean
+        default: false
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 100000
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/userList.yaml"
+  security:
+    - KEY: []

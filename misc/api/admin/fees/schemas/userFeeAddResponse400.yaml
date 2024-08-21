@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: number
+    example: 10102
+  errstr:
+    type: string
+    example: "Wrong param sum, it's empty or must be bigger than zero"

@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "allowCredit": {
+      "type": "integer"
+    },
+    "bonus": {
+      "type": "integer"
+    },
+    "descr": {
+      "type": "string"
+    },
+    "disableAccess": {
+      "type": "integer"
+    },
+    "disableChgTp": {
+      "type": "integer"
+    },
+    "disablePayments": {
+      "type": "integer"
+    },
+    "disablePaysys": {
+      "type": "integer"
+    },
+    "documentsAccess": {
+      "type": "integer"
+    },
+    "domainId": {
+      "type": "integer"
+    },
+    "gid": {
+      "type": "integer"
+    },
+    "name": {
+      "type": "string"
+    },
+    "smsService": {
+      "type": "integer"
+    },
+    "separateDocs": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "allowCredit",
+    "bonus",
+    "descr",
+    "disableAccess",
+    "disableChgTp",
+    "disablePayments",
+    "disablePaysys",
+    "documentsAccess",
+    "domainId",
+    "gid",
+    "name",
+    "smsService",
+    "separateDocs"
+  ]
+}

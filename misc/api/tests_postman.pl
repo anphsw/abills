@@ -39,7 +39,7 @@ sub _start {
   }
 
   if (!$type) {
-    print "No entered value type if import. Please enter admin or user? (admin/user): ";
+    print "No entered value type of tests. Please enter admin or user? (admin/user): ";
     chomp($type = <STDIN>);
     $type = lc($type);
   }
@@ -56,8 +56,6 @@ sub _start {
 
   $module = ucfirst(lc($module));
 
-  my $collection;
-
   if ($argv->{export}) {
     $Postman_action_plugin = Abills::Api::Postman::Export->new({
       conf     => \%conf,
@@ -69,11 +67,6 @@ sub _start {
     });
   }
   else {
-    my $Postman = Abills::Api::Postman::Api->new({
-      conf  => \%conf,
-      debug => $argv->{debug},
-    });
-
     #TODO: add argument module for import
     $Postman_action_plugin = Abills::Api::Postman::Import->new({
       conf        => \%conf,
@@ -83,12 +76,9 @@ sub _start {
       new_schemas => $argv->{new_schemas} || 0,
       base_dir    => $base_dir
     });
-
-    my $collection_id = $type eq 'admin' ? $conf{POSTMAN_ADMIN_COLLECTION_ID} : $conf{POSTMAN_USER_COLLECTION_ID};
-    $collection = $Postman->collection_info({ collection_id => $collection_id });
   }
 
-  $Postman_action_plugin->process($collection);
+  $Postman_action_plugin->process();
 
   if ($argv->{preview}) {
     print $Postman_action_plugin->{preview};

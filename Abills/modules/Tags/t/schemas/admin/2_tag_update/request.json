@@ -1,0 +1,13 @@
+{
+  "name": "TAG_UPDATE",
+  "method": "PUT",
+  "path": "tags/:tagId/",
+  "body": {
+    "responsible": "1",
+    "priority": 4,
+    "color": "#124456",
+    "name": "REST API TAG",
+    "expireDays": 10,
+    "comments": "Tag added by REST API"
+  }
+}

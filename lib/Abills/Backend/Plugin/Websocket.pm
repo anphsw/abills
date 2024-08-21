@@ -64,7 +64,9 @@ sub init {
   my ($attr) = @_;
 
   # Starting websocket server
-  $Log->info("Starting WebSocket server");
+  my $websocket_port = $conf{WEBSOCKET_PORT} || 19443;
+  my $user_websocket_port = $conf{USER_WEBSOCKET_PORT} || 19445;
+  $Log->info("Starting WebSocket admin server 127.0.0.1:$websocket_port");
 
   $self->{session_managers} = {
     admin => Abills::Backend::Plugin::Websocket::SessionsManager->new({ CLIENT_CLASS => 'Admin' }),
@@ -74,11 +76,13 @@ sub init {
   $adminSessions = $self->{session_managers}->{admin};
   $userSessions = $self->{session_managers}->{user};
 
-  AnyEvent::Socket::tcp_server('127.0.0.1', $conf{WEBSOCKET_PORT} || 19443, sub {
+  AnyEvent::Socket::tcp_server('127.0.0.1', $websocket_port, sub {
     $self->new_websocket_client(@_, 'ADMIN');
   });
 
-  AnyEvent::Socket::tcp_server('127.0.0.1', $conf{USER_WEBSOCKET_PORT} || 19445, sub {
+  $Log->info("Starting WebSocket user server 127.0.0.1:$user_websocket_port");
+
+  AnyEvent::Socket::tcp_server('127.0.0.1', $user_websocket_port, sub {
     $self->new_websocket_client(@_, 'USER');
   });
 

@@ -90,6 +90,7 @@ use Users;
 require Abills::SQL;
 
 # TODO: implement sub import, analyze what we have to import and init only needed objects
+# TODO: add export of html object and base lang load optionally
 
 $db = Abills::SQL->connect(@conf{'dbtype', 'dbhost', 'dbname', 'dbuser', 'dbpasswd'}, {
   CHARSET => $conf{dbcharset}

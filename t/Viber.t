@@ -11,7 +11,6 @@ use warnings;
 
 use lib '../';
 use Test::More;
-use Test::JSON::More;
 use FindBin '$Bin';
 use JSON;
 
@@ -29,7 +28,7 @@ BEGIN {
 }
 
 use Abills::Defs;
-use Abills::Base qw(parse_arguments);
+use Abills::Base qw(parse_arguments show_hash);
 use Admins;
 use Users;
 use Conf;
@@ -66,21 +65,36 @@ if (!$conf{VIBER_BOT_NAME}) {
   plan skip_all => 'Undefined $conf{VIBER_BOT_NAME}';
 }
 
-if (!$ARGS->{WEBHOOK_URL}) {
-  plan skip_all => 'Undefined WEBHOOK_URL'
-}
+my $webhook = $ARGS->{WEBHOOK_URL} || q{};
 
+my $debug = $ARGS->{DEBUG} || 0;
 my $api_base = 'https://chatapi.viber.com/pa/';
 my @header = ('Content-Type: application/json', 'X-Viber-Auth-Token: ' . $conf{VIBER_TOKEN});
 
 CHECK_IF_BOT_EXIST: {
   my $get_me_url = "$api_base/get_account_info";
 
-  my $get_account_info_response = web_request($get_me_url, { CURL => 1, HEADERS => \@header, JSON_RETURN => 1 });
+  my $get_account_info_response = web_request($get_me_url, {
+    CURL        => 1,
+    HEADERS     => \@header,
+    JSON_RETURN => 1,
+    DEBUG       => $debug
+  });
+
+  if ($debug) {
+    show_hash($get_account_info_response, { DELIMITER => "\n" });
+  }
+
+  $webhook //= $get_account_info_response->{webhook};
+
   if (!$get_account_info_response->{name}) {
     plan skip_all => 'FAILED: Bot is not exist, recheck your token';
   }
   ok(1, 'Bot exist in Viber');
+
+  if (!$webhook) {
+    plan skip_all => 'Undefined WEBHOOK_URL'
+  }
 
 
   if ($@) {
@@ -101,19 +115,26 @@ SHOW_MODULES: {
   ok(scalar(@AVAILABLE_MODULES), 'Check avaiable Viber modules');
 
   for my $available_module (sort @AVAILABLE_MODULES) {
-    if (grep { $_ eq $available_module } @ENABLED_MODULES) {
+    if (grep {$_ eq $available_module} @ENABLED_MODULES) {
       print " ✅ $available_module\n";
-    } else {
+    }
+    else {
       print " ❌ $available_module\n"
     }
   }
 }
 
 CHECK_ENDPOINT: {
-  my $response = web_request($ARGS->{WEBHOOK_URL}, { MORE_INFO => 1, CURL => 1 });
+  my $response = web_request($webhook, {
+    MORE_INFO => 1,
+    CURL      => 1,
+    DEBUG     => $debug
+  });
 
-  ok($response->{http_code} && $response->{http_code} == 200, 'WEBHOOK_URL check');
+  ok(defined($response->{ssl_verify_result}) && $response->{ssl_verify_result} == 0, 'SSL Verify');
+  ok($response->{http_code} && $response->{http_code} == 200, 'WEBHOOK_URL check '. $webhook);
 }
+
 done_testing();
 
 sub process_modules {
@@ -144,12 +165,13 @@ sub process_available_modules {
 #*******************************************************************
 sub help {
 
-  print << "[END]";
+  print <<"[END]";
   Viber integration test
 
   Params:
     WEBHOOK_URL=https://HOST:PORT/VIBER_PATH/viber_bot.cgi  - required
     VIBER_TOKEN=5ccea26459e7df08-a55b3aaa0a371b15-...       - optional
+    DEBUG=
 
 [END]
 }

@@ -1,0 +1,38 @@
+delete:
+  tags:
+    - payments
+  summary: Удалить платеж
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+    - name: id
+      in: path
+      description: ID платежа
+      required: true
+      schema:
+        type: integer
+    - name: comments
+      in: query
+      description: Комментарии при удалении платежа
+      schema:
+        type: string
+        default: Deleted from API request
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deletePaymentResponse200.yaml"
+    400:
+      description: Нет платежа с таким id
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deletePaymentResponse400.yaml"
+  security:
+    - KEY: []

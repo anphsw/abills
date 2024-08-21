@@ -59,9 +59,14 @@ sub click {
   my $html = Abills::HTML->new({ CONF => $self->{conf} });
   my $custom_error_text = $html->tpl_show(main::_include('telegram_equipment_info_error', 'Telegram'), {}, { OUTPUT2RETURN => 1 });
 
+  # my $result = $self->fetch_api({
+  #   method => 'GET',
+  #   url   => ($self->{conf}->{API_URL} || '') . '/api.cgi/user/equipment/'
+  # });
+
   my $result = $self->fetch_api({
     method => 'GET',
-    url   => ($self->{conf}->{API_URL} || '') . '/api.cgi/user/equipment/'
+    path   => '/user/equipment/'
   });
 
   if ($result && ref $result eq 'HASH') {
@@ -77,7 +82,19 @@ sub click {
     }
     my $equipment_info = $result->{$id};
 
-    if (!defined($equipment_info->{status}) || $equipment_info->{status} ne '1') {
+    if (defined($equipment_info->{PORT_STATUS})) {
+      if ($equipment_info->{PORT_STATUS} ne '1') {
+        $self->{bot}->send_message({ text => "$icons{not_active} $self->{bot}{lang}{EQUIPMENT_ROUTER_NOT_WORKING}" });
+        $self->{bot}->send_message({ text => $custom_error_text }) if $custom_error_text;
+      }
+      else {
+        $self->{bot}->send_message({ text => "$icons{active} $self->{bot}{lang}{EQUIPMENT_ROUTER_WORKING}" });
+      }
+      $self->{bot}->send_message({ text => $self->{bot}{lang}{EQUIPMENT_CHECK_COMPLETED} });
+      return;
+    }
+
+    if (!defined($equipment_info->{STATUS}) || $equipment_info->{STATUS} < 1) {
       $self->{bot}->send_message({ text => "$icons{not_active} $self->{bot}{lang}{EQUIPMENT_OPTICAL_TERMINAL_NOT_WORKING}" });
       $self->{bot}->send_message({ text => $custom_error_text }) if $custom_error_text;
       return;
@@ -85,9 +102,9 @@ sub click {
 
     $self->{bot}->send_message({ text => "$icons{active} $self->{bot}{lang}{EQUIPMENT_OPTICAL_TERMINAL_WORKING}" });
 
-    $equipment_info->{onu_ports_status} //= $equipment_info->{onuPortsStatus};
-    if (defined $equipment_info->{onu_ports_status}) {
-      my @ports_status = split(/\n/, $equipment_info->{onu_ports_status});
+    $equipment_info->{ONU_PORTS_STATUS} //= $equipment_info->{onuPortsStatus};
+    if (defined $equipment_info->{ONU_PORTS_STATUS}) {
+      my @ports_status = split(/\n/, $equipment_info->{ONU_PORTS_STATUS});
       my $port_info = pop @ports_status;
       my ($port, $status) = split(/ /, $port_info);
       $status //= 0;
@@ -120,19 +137,15 @@ sub fetch_api {
   my ($attr) = @_;
 
   return {} if !$self->{bot} || !$self->{bot}{chat_id};
-  my @req_headers = ('Content-Type: application/json', 'USERBOT: TELEGRAM', "USERID: $self->{bot}{chat_id}");
-  my $req_body = q{};
 
-  if ($attr->{method} ne 'GET') {
-    $req_body = $attr->{body};
-  }
+  $ENV{HTTP_USERBOT} = 'TELEGRAM';
+  $ENV{HTTP_USERID} = $self->{bot}{chat_id};
+  use Abills::Api::Handle;
+  my $handle = Abills::Api::Handle->new($self->{db}, $self->{admin}, $self->{conf}, { direct => 1 });
 
-  my $result = web_request($attr->{url}, {
-    HEADERS     => \@req_headers,
-    JSON_BODY   => $req_body,
-    JSON_RETURN => 1,
-    INSECURE    => 1,
-    METHOD      => $attr->{method}
+  my ($result) = $handle->api_call({
+    METHOD => $attr->{method},
+    PATH   => $attr->{path},
   });
 
   return $result;

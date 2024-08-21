@@ -44,7 +44,7 @@ sub msgs_dispatches {
 
   if (!$msgs_permissions{3}{0}) {
     $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
-    return;
+    return 0;
   }
 
   if ($FORM{print} || $FORM{chg} || $FORM{change_modal} || $FORM{add} || $FORM{add_form} || $FORM{del_dispatch}) {

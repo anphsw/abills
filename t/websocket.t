@@ -19,6 +19,7 @@ plan tests => $plans_count;
 my $argv = parse_arguments(\@ARGV);
 
 my $test_aid = $argv->{AID} || 1;
+my $uid = $argv->{UID} || 1;
 
 my $ping_request = {"TYPE" => "PING"};
 #my $ping_responce = {"TYPE" => "PONG"};
@@ -64,7 +65,11 @@ SKIP_BROWSER_CLIENT_CHECK : {
   my $test_admin_connected = $Browser->has_connected_admin( $test_aid );
   skip ( 'No test admin connected AID: '. $test_aid, 3 ) if (!$test_admin_connected);
   ok( $test_admin_connected, 'Our test admin ' . $test_aid . ' should be connected' );
-  ok( $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification } ), 'Should be able to send message' );
+  ok( $Browser->send_message( {
+    AID     => $test_aid,
+    MESSAGE => $test_notification,
+    TITLE   => "<a href='/admin/index.cgi?UID=$uid&index=15'>Test User</a>" } ), 'Should be able to send message' );
+
 #  ok( $Browser->send_message( { AID => $test_aid, MESSAGE => $test_notification, NON_SAFE => 1 } ), 'Just check Instant send message' );
   
   my $ping_res = $api->call( $test_aid, $ping_request );
@@ -103,3 +108,5 @@ SKIP_BROWSER_CLIENT_CHECK : {
 # TODO: check asterisk connection
 
 done_testing();
+
+1

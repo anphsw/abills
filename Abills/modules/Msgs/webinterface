@@ -11,7 +11,6 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Defs;
-use Abills::Filters qw(url2parts);
 use Abills::Base qw(tpl_parse cmd in_array
   int2byte convert sendmail mk_unique_value
   sec2time time2sec urlencode load_pmodule decode_base64);
@@ -77,8 +76,6 @@ require Msgs::Reports if $permissions{3};
 require Msgs::Configure if $permissions{4};
 require Msgs::Chat if $conf{MSGS_CHAT};
 require Msgs::Msgs_scrub_box if $conf{MSGS_SCRUB_BOX};
-
-require Msgs::Reg_request;
 
 #**********************************************************
 =head2 msgs_status_bar($attr)
@@ -152,8 +149,13 @@ sub msgs_status_bar {
     $LIST_PARAMS{STATE} = "!2";
     $pages_qs .= "&EVERYTHING_EXCEPT_DONE=1";
   }
+  if ($FORM{EVERYTHING_EXCEPT_CLOSED}) {
+    $LIST_PARAMS{STATE} = "!1,!2";
+    $pages_qs .= "&EVERYTHING_EXCEPT_CLOSED=1";
+  }
 
   push @header_arr, "$lang{EVERYTHING_EXCEPT_DONE}:index=$index&EVERYTHING_EXCEPT_DONE=1$sort_qs:class=dropdown-item";
+  push @header_arr, "$lang{EVERYTHING_EXCEPT_CLOSED}:index=$index&EVERYTHING_EXCEPT_CLOSED=1$sort_qs:class=dropdown-item";
 
   # state for watching messages
   push @header_arr, "$lang{WATCH}:index=$index&ALL_MSGS=1&STATE=12$sort_qs:class=dropdown-item";
@@ -291,70 +293,6 @@ sub msgs_task_info {
   else {
     print $result;
   }
-
-  return 1;
-}
-
-#**********************************************************
-=head msgs_registration($attr)
-
-=cut
-#**********************************************************
-sub msgs_registration {
-  my ($attr) = @_;
-
-  $FORM{REGISTRATION_REQUEST} = 1 if ($conf{MSGS_REG_REQUEST});
-
-  if ($FORM{REGISTRATION_REQUEST}) {
-    $attr->{DOMAIN_ID} = $attr->{DOMAIN_ID} || $FORM{DOMAIN_ID} || 0;
-    return msgs_unreg_requests({ %$attr, REGISTRATION_HIDE_ADDRESS_BUTTON => 1 });
-  }
-  elsif ($FORM{reg}) {
-    if ($FORM{EMAIL} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
-      $Msgs->{MESSAGE} = $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_EMAIL}");
-    }
-    elsif (!$FORM{ACCEPT_RULES}) {
-      $html->message('err', $lang{ERROR}, "$lang{ERR_ACCEPT_RULES}");
-    }
-    else {
-      my $password = mk_unique_value($conf{PASSWD_LENGTH} || 8, { SYMBOLS => $conf{PASSWD_SYMBOLS} || undef });
-
-      $users->add({
-        LOGIN       => $FORM{LOGIN},
-        CREATE_BILL => 1,
-        PASSWORD    => $password
-      });
-
-      my $message = '';
-
-      if (!_error_show($users)) {
-        my $uid = $users->{UID};
-        $users->info($uid);
-
-        #3 personal  info
-        $users->pi_add({
-          %FORM,
-          UID   => $uid,
-          FIO   => $FORM{FIO},
-          EMAIL => $FORM{EMAIL},
-        });
-
-        if (!_error_show($users)) {
-          $html->tpl_show(_include('msgs_reg_complete', 'Msgs'), { %{$Msgs}, %FORM });
-
-          #Send  mail to  user
-          $message = $html->tpl_show(_include('msgs_reg_complete_mail', 'Msgs'),
-            { %{$Msgs}, %FORM, PASSWORD => "$password" }, { OUTPUT2RETURN => 1 });
-          sendmail("$conf{ADMIN_MAIL}", "$FORM{EMAIL}", "$lang{REGISTRATION}", "$message",
-            $conf{MAIL_CHARSET} || 'utf-8', '',
-            { MAIL_HEADER => [ "X-ABillS-Msg-Reg-ID: $users->{UID}" ] });
-          return 2;
-        }
-      }
-    }
-  }
-
-  $html->tpl_show(_include('msgs_registration', 'Msgs'), { %{$Msgs}, %FORM, %{$attr} }, { ID => 'MSGS_REGISTRATION' });
 
   return 1;
 }
@@ -1512,12 +1450,16 @@ sub _msgs_footer_row {
 #**********************************************************
 sub msgs_admin_quick_message {
 
-  unless ( $conf{PUSH_ENABLED} || $conf{WEBSOCKET_ENABLED} ) {
+  if (!$conf{PUSH_ENABLED} && !$conf{WEBSOCKET_ENABLED}) {
     $html->message('err', $lang{ERROR}, 'Need Websocket or Push to be configured');
     return 0;
   }
 
-  if ( $FORM{MESSAGE} && $FORM{AID} && $FORM{SEND_TYPE} ) {
+  if ($FORM{MESSAGE} && $FORM{SEND_TYPE}) {
+    if (!$FORM{AID}) {
+      $html->message('err', "$lang{ERR_NOT_SELECTED} $lang{ADMIN}");
+      return 1;
+    }
 
     my $Sender = Abills::Sender::Core::->new($db, $admin, \%conf);
     foreach my $aid ( split(',\s?', $FORM{AID}) ) {
@@ -1532,6 +1474,14 @@ sub msgs_admin_quick_message {
 
       if ($sended) {
         $html->message('info', $lang{SENT} . ' : ' . $aid);
+      }
+      else {
+        if ($FORM{SEND_TYPE} eq 'Push') {
+          $html->message('err', $lang{ERR_SEND_PUSH_ADMIN} . ' : ' . $aid);
+        }
+        else {
+          $html->message('err', $lang{ERR_SEND_MESSAGE_ADMIN} . ' : ' . $aid);
+        }
       }
     }
 
@@ -1554,7 +1504,6 @@ sub msgs_admin_quick_message {
 
     if ($responce) {
       $connected_admins = $responce->{LIST};
-      print "YES";
     }
   }
 
@@ -1585,7 +1534,7 @@ sub msgs_admin_quick_message {
   $html->tpl_show(_include('msgs_admin_quick_message', 'Msgs'), {
     CHECKBOXES            => $checkboxes_html,
     PUSH_RADIO_VISIBLE    => $conf{PUSH_ENABLED},
-    BROWSER_RADIO_VISIBLE => $conf{WEBSOCKET_ENABLED}
+    BROWSER_RADIO_VISIBLE => $conf{WEBSOCKET_ENABLED},
   });
 
   return 1;
@@ -1678,6 +1627,64 @@ sub msgs_assessment_stars {
   }
 
   return $stars;
+}
+
+#**********************************************************
+=head msgs_registration($attr)
+
+=cut
+#**********************************************************
+sub msgs_registration {
+  my ($attr) = @_;
+
+  if ($FORM{reg}) {
+    if ($FORM{EMAIL} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
+      $Msgs->{MESSAGE} = $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_EMAIL}");
+    }
+    elsif (!$FORM{ACCEPT_RULES}) {
+      $html->message('err', $lang{ERROR}, "$lang{ERR_ACCEPT_RULES}");
+    }
+    else {
+      my $password = mk_unique_value($conf{PASSWD_LENGTH}, { SYMBOLS => $conf{PASSWD_SYMBOLS} });
+
+      $users->add({
+        LOGIN       => $FORM{LOGIN},
+        CREATE_BILL => 1,
+        PASSWORD    => $password
+      });
+
+      my $message = '';
+
+      if (!_error_show($users)) {
+        my $uid = $users->{UID};
+        $users->info($uid);
+
+        #3 personal  info
+        $users->pi_add({
+          %FORM,
+          UID   => $uid,
+          FIO   => $FORM{FIO},
+          EMAIL => $FORM{EMAIL},
+        });
+
+        if (!_error_show($users)) {
+          $html->tpl_show(_include('msgs_reg_complete', 'Msgs'), { %{$Msgs}, %FORM });
+
+          #Send  mail to  user
+          $message = $html->tpl_show(_include('msgs_reg_complete_mail', 'Msgs'),
+            { %{$Msgs}, %FORM, PASSWORD => "$password" }, { OUTPUT2RETURN => 1 });
+          sendmail("$conf{ADMIN_MAIL}", "$FORM{EMAIL}", "$lang{REGISTRATION}", "$message",
+            $conf{MAIL_CHARSET} || 'utf-8', '',
+            { MAIL_HEADER => [ "X-ABillS-Msg-Reg-ID: $users->{UID}" ] });
+          return 2;
+        }
+      }
+    }
+  }
+
+  $html->tpl_show(_include('msgs_registration', 'Msgs'), { %{$Msgs}, %FORM, %{$attr} }, { ID => 'MSGS_REGISTRATION' });
+
+  return 1;
 }
 
 #**********************************************************

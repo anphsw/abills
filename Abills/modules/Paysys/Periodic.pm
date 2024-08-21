@@ -60,7 +60,7 @@ sub paysys_periodic_new {
     my $module = $connected_system->{module};
     my $name = $connected_system->{name};
 
-    my $Module = _configure_load_payment_module($module);
+    my $Module = _configure_load_payment_module($module, 0, \%conf);
     if ($Module->can('periodic')) {
       if ($debug > 2) {
         print "Paysys periodic: $module ($connected_system->{id}/$connected_system->{paysys_id})\n";
@@ -136,7 +136,7 @@ sub paysys_monthly_new {
     my $module = $connected_system->{module};
     my $name = $connected_system->{name};
 
-    my $Module = _configure_load_payment_module($module);
+    my $Module = _configure_load_payment_module($module, 0, \%conf);
     if ($Module->can('subscribe_pay')) {
       if ($debug > 2) {
         print "Paysys periodic: $module ($connected_system->{id}/$connected_system->{paysys_id})\n";

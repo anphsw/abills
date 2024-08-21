@@ -119,6 +119,10 @@ sub bonus_pre_payment {
   my $REPORT = '';
   my $sum = $form->{PAYMENT_SUM} || $attr->{SUM} || 0;
 
+  if ($CONF->{BONUS_SERVICE_EXCLUDE_USERS_COMPANY} && $attr->{USER_INFO} && $attr->{USER_INFO}->{COMPANY_ID}) {
+    return;
+  }
+
   if ($CONF->{BONUS_SERVICE_DISCOUNT} && $sum > 0) {
     $self->bonus_service_discount_mk({ %$attr, SUM => $sum, FORM => $form });
   }

@@ -6,7 +6,6 @@ use Test::More;
 use lib '.';
 use lib '../../';
 use Paysys::t::Init_t;
-require Paysys::systems::Privat_terminal;
 
 our (
   %conf,
@@ -19,16 +18,27 @@ our (
   $argv
 );
 
-my $Payment_plugin = Paysys::systems::Privat_terminal->new($db, $admin, \%conf);
-if ($debug > 3) {
-  $Payment_plugin->{DEBUG}=7;
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::systems::Privat_terminal;
+  $Payment_plugin = Paysys::systems::Privat_terminal->new($db, $admin, \%conf);
 }
+else {
+  require Paysys::Plugins::Privat_terminal;
+  $Payment_plugin = Paysys::Plugins::Privat_terminal->new($db, $admin, \%conf);
+}
+if ($debug > 3) {
+  $Payment_plugin->{DEBUG} = 7;
+}
+
+my $invoice_salt = int(rand(10000));
+my $invoice = "invoice$invoice_salt";
 
 $payment_id = int(rand(10000));
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 
 our @requests = (
-   {
+  {
     name    => 'GET_USER',
     request => qq{<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Transfer action="Search" interface="Debt" xmlns="http://debt.privatbank.ua/Transfer">
@@ -60,7 +70,7 @@ our @requests = (
           </Data>
           </Transfer>
      }
-   },
+  },
   {
     name    => 'CHECK_USER',
     request => qq{<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -86,9 +96,9 @@ our @requests = (
 </Transfer>
      }
   },
-     {
-       name    => 'PAY',
-       request => qq{<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  {
+    name    => 'PAY',
+    request => qq{<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Transfer action="Pay" interface="Debt" xmlns="http://debt.privatbank.ua/Transfer">
     <Data xsi:type="Payment" id="$payment_id" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <CompanyInfo/>
@@ -106,14 +116,29 @@ our @requests = (
     </Data>
 </Transfer>
 },
-       result  => q{<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    result  => q{<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
           <Transfer xmlns="http://debt.privatbank.ua/Transfer" interface="Debt" action="Pay">
             <Data xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Gateway" reference="856348">
             </Data>
           </Transfer>
        }
-     }
-
+  },
+  {
+    name    => 'INVOICE_PAYMENT',
+    request => qq{<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MakeAPayment>
+<Doc>
+<PKGID>$invoice</PKGID>
+<STATUS>S</STATUS>
+<Payments>
+<Payment>
+<DATE>2024-04-11T13:33:12</DATE>
+<SUMOPL>2.00</SUMOPL>
+</Payment>
+</Payments>
+</Doc>
+</MakeAPayment>},
+  },
 );
 
 test_runner($Payment_plugin, \@requests, { VALIDATE => 'xml_compare' });

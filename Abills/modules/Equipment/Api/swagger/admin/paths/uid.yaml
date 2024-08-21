@@ -1,0 +1,21 @@
+get:
+  tags:
+    - equipment
+  summary: Список оборудования в пользование
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+  operationId: equipmentUserDevices
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/userDevices.yaml"
+  security:
+    - KEY: [ ]

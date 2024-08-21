@@ -1,0 +1,8 @@
+type: object
+properties:
+  aid:
+    type: integer
+    example: 0
+  title:
+    type: string
+    example: main info

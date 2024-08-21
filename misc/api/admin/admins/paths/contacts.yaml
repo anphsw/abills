@@ -1,0 +1,50 @@
+post:
+  tags:
+    - admins
+  summary: Создать контакт администратора
+  operationId: addAdminContact
+  parameters:
+    - name: aid
+      in: path
+      required: true
+      description: ID администратора
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/contact.yaml"
+  responses:
+    200:
+      description: Успешное добавление контакта администратору
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+put:
+  tags:
+    - admins
+  summary: Изменить контакт администратора
+  operationId: changeAdminContact
+  parameters:
+    - name: aid
+      in: path
+      required: true
+      description: ID администратора
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/contact.yaml"
+  responses:
+    200:
+      description: Успешное изменение контакта администратору
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"

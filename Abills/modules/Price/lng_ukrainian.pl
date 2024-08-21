@@ -34,7 +34,7 @@ $lang{PRICE_FOR} = 'Ціна за';
 $lang{ADDITIONAL_SUBSCRIBERS} = ' додаткових абонентів';
 $lang{YOUR_ORDER_HAS_BEEN_SAVED} = 'Ваша заявка збережена.';
 $lang{PAYMENT_SYSTEM} = 'Інтеграція з платіжними системами';
-$lang{NOTE} = 'Примітка: вартість підключення залежить від кількості <a target="_blank" href="http://abills.net.ua/wiki/doku.php/abills:price:price">користувачів</a>';
+$lang{NOTE} = 'Примітка: вартість підключення залежить від кількості <a target="_blank" href="http://abills.net.ua/wiki/display/AB/Price">користувачів</a>';
 $lang{STATE_OR_REGION} = 'Область або регіон';
 $lang{EMAIL_RESPONSIBLE} = 'E-mail відповідального';
 $lang{WEB_ADDRESS} = 'WEB-адрес сторінки білінгу';

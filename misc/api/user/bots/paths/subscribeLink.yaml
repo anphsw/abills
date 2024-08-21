@@ -3,7 +3,7 @@ get:
     - bots
   summary: Получения ссылки на подписания на бота
   parameters:
-    - name: bot
+    - name: string_bot
       in: path
       description: названия бота Viber или Telegram
       required: true

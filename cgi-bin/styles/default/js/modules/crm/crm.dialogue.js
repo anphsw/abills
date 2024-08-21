@@ -26,6 +26,20 @@ jQuery(document).ready(function () {
       });
   });
 
+  jQuery('#take-dialogue').on('click', function () {
+    let self = this;
+    sendRequest(`/api.cgi/crm/dialogue/${jQuery('#DIALOGUE_ID').val()}`, {aid: jQuery('#AID').val()}, 'PUT')
+      .then((data) => {
+        if (data.affected) {
+          jQuery(self).hide()
+          jQuery('#control-btn').removeClass('d-none');
+          jQuery('#message-textarea').removeAttr('disabled');
+        } else {
+          jQuery(self).addClass('disabled').text(DIALOGUE_ALREADY_ACCEPTED);
+        }
+      });
+  });
+
   jQuery('#close-dialogue').on('click', function () {
     jQuery('#message-textarea').attr('disabled', 'disabled');
     sendRequest(`/api.cgi/crm/dialogue/${jQuery('#DIALOGUE_ID').val()}`, {state: 1}, 'PUT')

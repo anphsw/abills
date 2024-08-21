@@ -11,7 +11,7 @@ use warnings;
 BEGIN {
   die "
     Deprecated. use websocket_backend.pl
-    http://abills.net.ua/wiki/doku.php/abills:docs:manual:websocket_backend
+    http://abills.net.ua/wiki/pages/viewpage.action?pageId=9601510
   ";
   
   use FindBin '$Bin';

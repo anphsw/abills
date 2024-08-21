@@ -1,6 +1,7 @@
 <form action='%SELF_URL%' method='POST' class='form-horizontal'>
   <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='TP_ID' value='%TP_ID%'>
+  %HIDDEN_INPUTS%
 
   <div class='row'>
     <div class='col-md-6'>
@@ -38,9 +39,15 @@
             </div>
           </div>
           <div class='form-group row'>
-            <label class='col-md-4 col-form-label text-md-right' for='COMMENTS'>_{DESCRIBE}_:</label>
+            <label class='col-md-4 col-form-label text-md-right' for='COMMENTS'>_{DESCRIBE_FOR_SUBSCRIBER}_:</label>
             <div class='col-md-8'>
-              <textarea class='form-control' rows='5' name='COMMENTS' id='COMMENTS'>%COMMENTS%</textarea>
+              <textarea class='form-control' rows='2' name='COMMENTS' id='COMMENTS'>%COMMENTS%</textarea>
+            </div>
+          </div>
+          <div class='form-group row'>
+            <label class='col-sm-4 col-md-4 control-label' for='DESCRIBE_AID'>_{DESCRIBE_FOR_ADMIN}_:</label>
+            <div class='col-sm-8 col-md-8'>
+              <textarea rows='2' name='DESCRIBE_AID' class='form-control' id='DESCRIBE_AID'>%DESCRIBE_AID%</textarea>
             </div>
           </div>
         </div>
@@ -50,23 +57,16 @@
       </div>
     </div>
     <div class='col-md-6'>
-<!--      <div class='card card-primary card-outline'>-->
-<!--        <div class='card-header'>-->
-<!--          <h4 class='card-title'>Послуги</h4>-->
-<!--        </div>-->
-<!--        <div class='card-body'>-->
-          %CATEGORIES_TABLE%
-<!--        </div>-->
-<!--      </div>-->
+      %CATEGORIES_TABLE%
     </div>
   </div>
 </form>
 
 <script>
-  jQuery('.mobile-service').on('change', function() {
+  jQuery('.mobile-service').on('change', function () {
     let price = 0;
-    jQuery('.mobile-service:checked').each(function() {
-      price += jQuery(this).data('price') || 0;
+    jQuery('.mobile-service:checked').each(function () {
+      price += parseFloat(jQuery(this).data('price')) || 0;
     });
 
     jQuery(`[name='MONTH_FEE']`).val(price);

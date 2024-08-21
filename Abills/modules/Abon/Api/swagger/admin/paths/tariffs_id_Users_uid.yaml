@@ -1,0 +1,71 @@
+post:
+  tags:
+    - abon
+  summary: Добавление ТП пользователю
+  operationId: addAbonTpToUser
+  parameters:
+    - name: id
+      in: path
+      description: ID ТП
+      required: true
+      schema:
+        type: integer
+        format: int64
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addTpToUserResponse200.yaml"
+    400:
+      description: Тарифный план уже активирован
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addTpToUserResponse400.yaml"
+  security:
+    - KEY: []
+delete:
+  tags:
+    - abon
+  summary: Удаление ТП пользователя
+  description: Удаление ТП пользователя
+  operationId: getUserAbonTps
+  parameters:
+    - name: id
+      in: path
+      description: Идентификатор тарифного плана
+      required: true
+      schema:
+        type: integer
+        format: int64
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiDeleteResponse200"
+    400:
+      description: Тарифный план уже деактивирован
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteTpToUserResponse400.yaml"
+  security:
+    - KEY: []

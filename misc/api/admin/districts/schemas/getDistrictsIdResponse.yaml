@@ -1,0 +1,81 @@
+type: object
+properties:
+  childDistricts:
+    type: array
+    items:
+      type: object
+      properties:
+        fullName:
+          type: string
+          example: "Україна / Івано-Франківська"
+        id:
+          type: number
+          example: 14
+        name:
+          type: string
+          example: Івано-Франківська
+        parentId:
+          type: number
+          example: 13
+        streetCount:
+          type: number
+          example: 1
+        typeId:
+          type: number
+          example: 3
+        typeName:
+          type: string
+          example: Область
+        zip:
+          type: string
+          example: 72111
+  comments:
+    type: string
+    example: "Wow cool"
+  coordx:
+    type: number
+    example: 0
+  coordy:
+    type: number
+    example: 0
+  id:
+    type: number
+    example: 13
+  name:
+    type: string
+    example: Україна
+  parentId:
+    type: number
+    example: 0
+  path:
+    type: number
+    example: 13
+  typeId:
+    type: number
+    example: 2
+  streets:
+    type: array
+    items:
+      type: object
+      properties:
+        districtId:
+          type: number
+          example: 14
+        id:
+          type: number
+          example: 13
+        secondName:
+          type: string
+          example: sınaq küçəsi
+        streetId:
+          type: number
+          example: 13
+        streetName:
+          type: string
+          example: Test
+        type:
+          type: number
+          example: 0
+  zip:
+    type: string
+    example: 72114

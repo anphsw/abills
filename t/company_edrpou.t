@@ -35,6 +35,7 @@ our (
   %conf
 );
 
+#TODO: we really need such test? Technically it present in Api test of Companies
 companies_edrpou_test();
 
 #**********************************************************

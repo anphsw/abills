@@ -1,0 +1,70 @@
+type: object
+properties:
+  serviceOrders:
+    type: object
+    properties:
+      internet:
+        type: object
+        properties:
+          1:
+            type: object
+            properties:
+              currentInvoice:
+                type: number
+                example: 0
+              date:
+                type: string
+                format: date
+                example: '2024-04-01'
+              feesType:
+                type: number
+                example: 0
+              login:
+                type: string
+                example: 0000000002
+              num:
+                type: number
+                example: 1
+              order:
+                type: string
+                example: 'Internet: M/F Супер сила (80) (2024-04-01-2024-04-30)'
+              resultSum:
+                type: number
+                example: 310
+              taxSum:
+                type: number
+                example: 0
+      voip:
+        type: object
+        properties:
+          2:
+            type: object
+            properties:
+              currentInvoice:
+                type: number
+                example: 0
+              date:
+                type: string
+                format: date
+                example: '2024-04-01'
+              feesType:
+                type: number
+                example: 0
+              login:
+                type: string
+                example: 0000000002
+              num:
+                type: number
+                example: 2
+              order:
+                type: string
+                example: 'Voip: M/F test api change (39) (2024-04-01-2024-04-30)'
+              resultSum:
+                type: number
+                example: 410
+              taxSum:
+                type: number
+                example: 0
+  total:
+    type: number
+    example: 2

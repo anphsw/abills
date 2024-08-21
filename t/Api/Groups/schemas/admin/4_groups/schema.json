@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "total": {
+      "type": "integer"
+    },
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "allowCredit": {
+            "type": "integer"
+          },
+          "bonus": {
+            "type": "integer"
+          },
+          "descr": {
+            "type": "string"
+          },
+          "disableAccess": {
+            "type": "integer"
+          },
+          "disableChgTp": {
+            "type": "integer"
+          },
+          "disablePayments": {
+            "type": "integer"
+          },
+          "disablePaysys": {
+            "type": "integer"
+          },
+          "documentsAccess": {
+            "type": "integer"
+          },
+          "domainId": {
+            "type": "integer"
+          },
+          "gName": {
+            "type": "string"
+          },
+          "gid": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "smsService": {
+            "type": "integer"
+          },
+          "separateDocs": {
+            "type": "integer"
+          },
+          "usersCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "allowCredit",
+          "bonus",
+          "descr",
+          "disableAccess",
+          "disableChgTp",
+          "disablePayments",
+          "disablePaysys",
+          "documentsAccess",
+          "domainId",
+          "gName",
+          "gid",
+          "id",
+          "name",
+          "smsService",
+          "separateDocs",
+          "usersCount"
+        ]
+      }
+    }
+  },
+  "required": [
+    "total",
+    "list"
+  ]
+}

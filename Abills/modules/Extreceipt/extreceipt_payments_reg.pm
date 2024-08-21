@@ -39,7 +39,7 @@ our (
 use Abills::Base qw(show_hash);
 use Conf;
 use Extreceipt::db::Extreceipt;
-use Extreceipt::Base;
+use Extreceipt::Init qw(init_extreceipt_service);
 
 my $debug = 0;
 my $cash_collection = $argv->{CASH_COLLECTION} || 0;
@@ -51,7 +51,7 @@ if ($argv->{DEBUG}) {
   $debug = $argv->{DEBUG};
   $Receipt->{debug} = 1 if ($debug > 4);
 }
-my $Receipt_api = receipt_init($Receipt, {
+my $Receipt_api = init_extreceipt_service($db, $Admin, \%conf, {
   API_NAME => $argv->{API_NAME} || '',
   DEBUG    => ($debug > 2) ? 1 : 0
 });
@@ -354,6 +354,7 @@ sub renew_shifts {
           kkt_key  => $kkt->{kkt_key},
           shift_id => $kkt->{shift_uuid}
         }) || q{};
+
         if ($debug) {
           my $msg = $old_shift ? "$old_shift didn't closed" : 'successfully closed';
           print "Shift $msg\n"

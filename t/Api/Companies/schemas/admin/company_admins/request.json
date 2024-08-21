@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_COMPANIES_ADMINS",
+  "method": "GET",
+  "path": "companies/admins/",
+  "params": {}
+}

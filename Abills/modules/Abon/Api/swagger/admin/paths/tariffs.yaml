@@ -1,0 +1,179 @@
+get:
+  tags:
+    - abon
+  summary: Получить список ТП
+  description: Возвращает список ТП
+  operationId: getAbonTps
+  parameters:
+    - name: activateNotification
+      in: query
+      description: Оповещать о продлении услуги
+      schema:
+        type: boolean
+        default: true
+    - name: createAccount
+      in: query
+      description: Создать счет
+      schema:
+        type: boolean
+        default: true
+    - name: description
+      in: query
+      description: Описание
+      schema:
+        type: boolean
+        default: true
+    - name: extCmd
+      in: query
+      description: Внешняя команда
+      schema:
+        type: boolean
+        default: true
+    - name: feesType
+      in: query
+      description: Тип списания
+      schema:
+        type: boolean
+        default: true
+    - name: manualActivate
+      in: query
+      description: Ручное включение услуги
+      schema:
+        type: boolean
+        default: true
+    - name: nextAbonDate
+      in: query
+      description: Дата следующего списания
+      schema:
+        type: boolean
+        default: true
+    - name: paymentType
+      in: query
+      description: Тип оплаты
+      schema:
+        type: boolean
+        default: true
+    - name: period
+      in: query
+      description: Период
+      schema:
+        type: boolean
+        default: true
+    - name: periodAlignment
+      in: query
+      description: Выравнивание месяца
+      schema:
+        type: boolean
+        default: true
+    - name: price
+      in: query
+      description: Цена
+      schema:
+        type: boolean
+        default: true
+    - name: priority
+      in: query
+      description: Приоритет
+      schema:
+        type: boolean
+        default: true
+    - name: promoPeriod
+      in: query
+      description: Промо период
+      schema:
+        type: boolean
+        default: true
+    - name: tpId
+      in: query
+      description: Id тарифного плана
+      schema:
+        type: boolean
+        default: true
+    - name: tpName
+      in: query
+      description: Название тарифного плана
+      schema:
+        type: boolean
+        default: true
+    - name: userCount
+      in: query
+      description: Количество пользователей
+      schema:
+        type: boolean
+        default: true
+    - name: userPortal
+      in: query
+      description: Активация только с пользовательского портала
+      schema:
+        type: boolean
+        default: true
+    - name: vat
+      in: query
+      description: НДС
+      schema:
+        type: boolean
+        default: true
+    - name: plugin
+      in: query
+      description: Плагин
+      schema:
+        type: boolean
+        default: false
+    - name: activatePrice
+      in: query
+      description: Цена активации
+      schema:
+        type: boolean
+        default: false
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tpList.yaml"
+  security:
+    - KEY: []
+post:
+  tags:
+    - abon
+  summary: Добавление ТП
+  operationId: addAbonTp
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addTpRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+    400:
+      description: Тарифный план уже существует
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse400"
+  security:
+    - KEY: []

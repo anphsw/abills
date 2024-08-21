@@ -29,5 +29,6 @@ $lang{USER_ACCIDENT_EMPTY} = 'У пользователя нет аварий и
 $lang{EQUIPMENT_ERR} = 'Авария! Мы знаем о ней и занимаемся ее устранением';
 
 $lang{ACCIDENT_FIXED} = 'Аварийно-ремонтные работы в районе закончены';
+$lang{ACCIDENT_TYPES} = 'Типы аварий';
 
 1;

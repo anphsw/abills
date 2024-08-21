@@ -22,6 +22,10 @@
 	min-width: 10%;
 	border-right: 1px solid #c8c8c8;
 	background: #3a414d;
+	list-style: none;
+	margin: 0;
+	overflow: auto;
+	padding: 0;
 }
 
 .time-sidebar > .hours {

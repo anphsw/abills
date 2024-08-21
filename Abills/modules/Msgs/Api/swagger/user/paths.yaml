@@ -1,10 +1,10 @@
 /user/msgs:
   $ref: "./paths/msgs.yaml"
-/user/msgs/{ID}:
+/user/msgs/{id}:
   $ref: "./paths/msg.yaml"
-/user/msgs/{ID}/reply:
+/user/msgs/{id}/reply:
   $ref: "./paths/msgsReply.yaml"
 /user/msgs/chapters:
   $ref: "./paths/chapters.yaml"
-/user/msgs/attachments/{ID}:
+/user/msgs/attachments/{id}:
   $ref: "./paths/attachments.yaml"

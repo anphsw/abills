@@ -1,0 +1,17 @@
+{
+  "name": "TAGS_USER_ADD",
+  "method": "POST",
+  "path": "tags/users/:uid/",
+  "body": {
+    "tags": [
+      {
+        "id": "{{tagId}}",
+        "endDate": "2024-09-17"
+      },
+      {
+        "id": "1",
+        "endDate": "2024-10-17"
+      }
+    ]
+  }
+}

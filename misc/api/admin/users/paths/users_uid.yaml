@@ -1,0 +1,104 @@
+get:
+  tags:
+    - users
+  summary: Получить пользователя по UID
+  description: Возвращает пользователя
+  operationId: getUserByUID
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя в биллинге
+      required: true
+      schema:
+        type: integer
+        format: int64
+    - name: showPassword
+      in: query
+      description: Параметр который возвращает пароль пользователя
+      schema:
+        type: boolean
+        default: false
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/user.yaml"
+    400:
+      description: Пользователь не найден
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiGetResponse400"
+  security:
+    - KEY: []
+put:
+  tags:
+    - users
+  summary: Обновить информацию о пользователе
+  operationId: updateUser
+  description: >
+    Также можно добавлять все информационные поля
+    Пример: если в БД `_TEST_FIELD` то можно добавить как `_testField`
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addUserRequest.yaml"
+    required: true
+  responses:
+    400:
+      description: Invalid ID supplied
+      content: {}
+  security:
+    - KEY: []
+delete:
+  tags:
+    - users
+  summary: Удалить пользователя
+  description: Удаление пользователя по UID, полностью через API пользователя невозможно
+  operationId: deleteUser
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+    - name: date
+      in: query
+      description: Дата удаления
+      schema:
+        type: string
+        example: '2023-01-01'
+    - name: comments
+      in: query
+      description: Комментарии к удалению
+      schema:
+        type: string
+        example: Больше не наш абонент
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteUserResponse200.yaml"
+    400:
+      description: Пользователь не найден
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteUserResponse400.yaml"
+  security:
+    - KEY: []

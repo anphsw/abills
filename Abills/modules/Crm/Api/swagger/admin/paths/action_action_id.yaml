@@ -1,0 +1,73 @@
+get:
+  tags:
+    - crm
+  summary: Получить информацию о действии
+  operationId: getCrmActionInfo
+  parameters:
+    - name: action_id
+      in: path
+      description: ID действия
+      required: true
+      schema:
+        type: integer
+        format: int64
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/action.yaml"
+  security:
+    - KEY: [ ]
+put:
+  tags:
+    - crm
+  summary: Изменить действие
+  operationId: crmActionChange
+  parameters:
+    - name: action_id
+      in: path
+      required: true
+      description: ID действия
+      schema:
+        type: integer
+        default: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/action.yaml"
+    required: true
+  responses:
+    400:
+      description: Can't get old data for change
+      content: { }
+  security:
+    - KEY: [ ]
+delete:
+  tags:
+    - crm
+  summary: Удалить действие
+  parameters:
+    - name: action_id
+      in: path
+      description: ID действия
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiDeleteResponse200"
+    400:
+      description: Нет действия с таким id
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteActionResponse400.yaml"
+  security:
+    - KEY: []

@@ -15,12 +15,16 @@ our (
   $admin,
   $db,
   %permissions,
+  $libpath,
   %LIST_PARAMS
 );
 
 require Control::Address_mng;
 use Address;
 my $Address = Address->new($db, $admin, \%conf);
+
+require Abills::Template;
+my $Templates = Abills::Template->new($db, $admin, \%conf, { html => $html, lang => \%lang, libpath => $libpath });
 
 #**********************************************************
 =head2 crm_start_page($attr)
@@ -164,7 +168,7 @@ sub crm_sales_funnel {
 
   print $table->show();
   my $data = Abills::Base::json_former(\@leads_array);
-  $html->tpl_show(_include('sales_funnel_chart', 'Crm'), { DATA => $data });
+  $html->tpl_show($Templates->_include('sales_funnel_chart', 'Crm'), { DATA => $data });
 
   return 1;
 }
@@ -217,34 +221,7 @@ sub crm_today_actions {
 #**********************************************************
 sub crm_watch_leads_report {
 
-  my $leads = $Crm->crm_lead_list({
-    WATCHER           => $admin->{AID},
-    LEAD_ID           => '_SHOW',
-    FIO               => '_SHOW',
-    CURRENT_STEP_NAME => '_SHOW',
-    STEP_COLOR        => '_SHOW',
-    ADMIN_NAME        => '_SHOW',
-    COLS_NAME         => 1,
-    PAGE_ROWS         => 999999
-  });
-
-  my $actions_table = $html->table({
-    width   => '100%',
-    caption => $lang{TRACKED_LEADS},
-    title   => [ '#', $lang{FIO}, $lang{STEP}, $lang{RESPONSIBLE} ],
-    ID      => 'CRM_TRACKED_LEADS',
-  });
-
-  foreach my $lead (@{$leads}) {
-    my $fio = $html->button($lead->{fio}, "get_index=crm_lead_info&full=1&LEAD_ID=$lead->{lead_id}");
-    my $step = $html->element('span', _translate($lead->{current_step_name}), {
-      class => 'text-white badge',
-      style => "background-color:" . ($lead->{step_color} || '')
-    });
-    $actions_table->addrow($lead->{lead_id}, $fio, $step, $lead->{admin_name});
-  }
-
-  return $actions_table->show();
+  return $html->tpl_show(_include('crm_watch_leads_report', 'Crm'), {}, { OUTPUT2RETURN => 1 });
 }
 
 #**********************************************************
@@ -322,7 +299,7 @@ sub crm_competitors_tp_report {
     %FORM
   });
 
-  $html->tpl_show(_include('crm_competitors_tps_report', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_competitors_tps_report', 'Crm'), {
     MIN_PRICE_CHART => _crm_make_tps_chart($min_tps),
     MAX_PRICE_CHART => _crm_make_tps_chart($max_tps)
   });
@@ -451,6 +428,66 @@ sub crm_top_admins {
   }
 
   return $admins_table->show();
+}
+
+#**********************************************************
+=head2 crm_admin_leads_report()
+
+=cut
+#**********************************************************
+sub crm_admin_leads_report {
+
+  my @x_column_name;
+  my %COLUMNS;
+  my %column_types = ();
+  my $step_hash = {};
+
+  require Control::Reports;
+  reports({
+    DATE_RANGE        => 1,
+    REPORT            => '',
+    NO_GROUP          => 1,
+    NO_STANDART_TYPES => 1,
+    NO_TAGS           => 1,
+    ADMINS            => 1,
+    PERIOD_FORM       => 1,
+  });
+
+  my $admin_leads = $Crm->crm_admin_leads_list({ %FORM, COLS_NAME => 1 });
+  if (!$Crm->{TOTAL} || $Crm->{TOTAL} < 1) {
+    $html->message('warning', $lang{WARNING}, $lang{NO_DATA});
+    return 0;
+  }
+
+  my $lead_steps = $Crm->crm_progressbar_step_list({
+    STEP_NUMBER => '_SHOW',
+    NAME        => '_SHOW',
+    DEAL_STEP   => '0',
+    COLS_NAME   => 1
+  });
+
+  foreach my $step (@{$lead_steps}) {
+    $column_types{$step->{name}} = 'COLUMN';
+    $step_hash->{'step_' . $step->{step_number}} = $step->{name};
+  }
+  $column_types{$lang{TOTAL}} = 'COLUMN';
+
+  my $i = 0;
+  foreach my $a (@{$admin_leads}) {
+    push @x_column_name, $a->{admin_name};
+    
+    foreach my $step_key (sort keys %{$step_hash}) {
+      $COLUMNS{$step_hash->{$step_key}}->[$i]  = $a->{$step_key} || 0;
+    }
+    $COLUMNS{$lang{TOTAL}}->[$i++]  = $a->{total_leads} || 0;
+  }
+
+  $html->make_charts_simple({
+    TRANSITION => 1,
+    TYPES      => \%column_types,
+    X_TEXT     => \@x_column_name,
+    DATA       => \%COLUMNS,
+  });
 }
 
 #**********************************************************
@@ -634,7 +671,7 @@ sub _crm_report_form {
     EXT_SELECT  => $EXT_SELECT
   });
 
-  $html->tpl_show(_include('crm_report_address_script', 'Crm'));
+  $html->tpl_show($Templates->_include('crm_report_address_script', 'Crm'));
 }
 
 1;

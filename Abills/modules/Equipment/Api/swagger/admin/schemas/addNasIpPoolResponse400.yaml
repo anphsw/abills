@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: number
+    example: 209
+  errstr:
+    type: string
+    example: No field nasId

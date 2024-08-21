@@ -1,0 +1,25 @@
+put:
+  tags:
+    - crm
+  summary: Изменить сделку
+  operationId: crmDealChange
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: ID сделки
+      schema:
+        type: integer
+        default: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/changeDealRequest.yaml"
+    required: true
+  responses:
+    400:
+      description: Can't get old data for change
+      content: { }
+  security:
+    - KEY: [ ]

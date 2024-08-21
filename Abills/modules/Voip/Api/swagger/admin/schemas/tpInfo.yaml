@@ -1,0 +1,29 @@
+type: object
+properties:
+  age:
+    type: number
+    example: 0
+  dayFee:
+    type: number
+    example: 10
+  id:
+    type: number
+    example: 1235
+  logins:
+    type: number
+    example: 0
+  monthFee:
+    type: number
+    example: 50
+  name:
+    type: string
+    example: TestVoipTp
+  paymentType:
+    type: number
+    example: 0
+  timeTarifs:
+    type: number
+    example: 0
+  tpId:
+    type: number
+    example: 40

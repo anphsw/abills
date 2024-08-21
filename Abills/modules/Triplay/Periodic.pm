@@ -12,13 +12,18 @@ our(
   %conf,
   $admin,
   %ADMIN_REPORT,
-  %lang
+  %lang,
+  $html
 );
 
 use Triplay;
 use Fees;
-my $Triplay = Triplay->new($db, $admin, \%conf);
-my $Fees     = Fees->new($db, $admin, \%conf);
+use Triplay::Base;
+
+my $Triplay      = Triplay->new($db, $admin, \%conf);
+my $Fees         = Fees->new($db, $admin, \%conf);
+my $Triplay_base = Triplay::Base->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+
 #my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 
 #**********************************************************
@@ -258,7 +263,7 @@ sub triplay_monthly_fees {
           UID            => $u->{uid},
           ID             => $u->{id},
           BILL_ID        => $u->{bill_id},
-          REDUCTION      => $u->{reduction},
+          REDUCTION      => $u->{reduction} || 0,
           DEPOSIT        => $u->{deposit},
           SERVICE_STATUS => $u->{service_status},
           CREDIT         => ($u->{credit} > 0) ? $u->{credit} : ($TP_INFO->{CREDIT} || 0),
@@ -285,7 +290,14 @@ sub triplay_monthly_fees {
             . "REDUCTION: $user{REDUCTION} DEPOSIT: $user{DEPOSIT} CREDIT $user{CREDIT} TP: $user{TP_ID}\n";
         }
 
-        if (! $postpaid && $user{DEPOSIT} + $user{CREDIT} < $month_fee) {
+        my $sum = $month_fee;
+
+        if (! $postpaid && $user{DEPOSIT} + $user{CREDIT} < $sum) {
+
+          if ($TP_INFO->{REDUCTION_FEE} == 1 && $user{REDUCTION} > 0) {
+            $sum = $sum * (100 - $user{REDUCTION}) / 100;
+          }
+
           #Block services
           $debug_output .= "$user{LOGIN} deactivate";
           triplay_service_deactivate({
@@ -307,8 +319,8 @@ sub triplay_monthly_fees {
         }
 
         if ($debug < 8) {
-          if ($month_fee <= 0) {
-            $debug_output .= "!!REDUCTION!! $user{LOGIN} UID: $user{UID} SUM: $month_fee REDUCTION: $user{REDUCTION}\n";
+          if ($sum <= 0) {
+            $debug_output .= "!!REDUCTION!! $user{LOGIN} UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n";
             next;
           }
 
@@ -319,16 +331,16 @@ sub triplay_monthly_fees {
           );
           $PARAMS{DESCRIBE} .= " ($cure_month_begin-$cure_month_end)";
 
-          $Fees->take(\%user, $month_fee, \%PARAMS);
+          $Fees->take(\%user, $sum, \%PARAMS);
           if ($Fees->{errno}) {
-            print "Triplay Error: [ $user{UID} ] $user{LOGIN} SUM: $month_fee [$Fees->{errno}] $Fees->{errstr} ";
+            print "Triplay Error: [ $user{UID} ] $user{LOGIN} SUM: $sum [$Fees->{errno}] $Fees->{errstr} ";
             if ($Fees->{errno} == 14) {
               print "[ $user{UID} ] $user{LOGIN} - Don't have money account";
             }
             print "\n";
           }
           elsif ($debug > 0) {
-            $debug_output .= " $user{LOGIN}  UID: $user{UID} SUM: $month_fee REDUCTION: $user{REDUCTION}\n";
+            $debug_output .= " $user{LOGIN}  UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n";
           }
         }
       }
@@ -470,5 +482,159 @@ sub triplay_service_deactivate {
   return $debug_output;
 }
 
+#***********************************************************
+=head2 triplay_sheduler($type, $action, $uid, $attr)
+
+  Arguments:
+    $type
+    $action
+    $uid
+    $attr
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#***********************************************************
+sub triplay_sheduler {
+  my ($type, $action, $uid, $attr) = @_;
+
+  my $debug = $attr->{DEBUG} || 0;
+  $action //= q{};
+  my $d  = (split(/-/, $ADMIN_REPORT{DATE}, 3))[2];
+  my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
+
+  my $user = $users->info($uid);
+
+  if ($type eq 'tp') {
+    my $service_id;
+    my $tp_id = 0;
+    if($action =~ /(\d{0,16}):(\d+)/) {
+      $service_id = $1;
+      $tp_id      = $2;
+    }
+
+    my %params = ();
+    $Triplay->user_info({ UID => $uid, ID => $service_id });
+
+    #Change activation date after change TP
+    #Date must change after tp fees
+    #if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00' && !$Internet->{STATUS}) {
+    #  $params{ACTIVATE} = $ADMIN_REPORT{DATE};
+    #}
+
+    $Triplay->user_change({
+      UID         => $uid,
+      TP_ID       => $tp_id,
+      ID          => $service_id,
+      %params
+    });
+
+    if ($attr->{GET_ABON} && $attr->{GET_ABON} eq '-1' && $attr->{RECALCULATE} && $attr->{RECALCULATE} eq '-1') {
+      print "Skip: GET_ABON, RECALCULATE\n" if ($debug > 1);
+      return 0;
+    }
+
+    if ($Triplay->{errno}) {
+      return $Triplay->{errno};
+    }
+    else {
+      if ($Triplay->{TP_INFO}->{ABON_DISTRIBUTION} || $d == $START_PERIOD_DAY) {
+        $Triplay->{TP_INFO}->{MONTH_FEE} = 0;
+      }
+
+      service_get_month_fee($Triplay, {
+        QUITE       => 1,
+        SHEDULER    => 1,
+        DATE        => $attr->{DATE},
+        RECALCULATE => 1,
+        USER_INFO   => $user
+      });
+
+      $Triplay_base->triplay_service_activate_web({ UID => $uid, USER_INFO => $user });
+    }
+  }
+  elsif ($type eq 'status') {
+    my $service_id;
+
+    if($action =~ /:/) {
+      ($service_id, $action)=split(/:/, $action);
+    }
+
+    $Triplay->user_change({
+      UID        => $uid,
+      STATUS     => $action,
+      SERVICE_ID => $service_id
+    });
+
+    #Get fee for holdup service
+    if ($action == 3) {
+      my $active_fees = 0;
+
+      #@deprecated
+      if (! $conf{INTERNET_USER_SERVICE_HOLDUP} && $conf{HOLDUP_ALL}) {
+        $conf{INTERNET_USER_SERVICE_HOLDUP} = $conf{HOLDUP_ALL};
+      }
+
+      if ($conf{INTERNET_USER_SERVICE_HOLDUP}) {
+        $active_fees =  (split(/:/, $conf{INTERNET_USER_SERVICE_HOLDUP}))[5];
+      }
+
+      if ($active_fees && $active_fees > 0) {
+        #$user = $users->info($uid);
+        $Fees->take(
+          $user,
+          $active_fees,
+          {
+            DESCRIBE => $lang{HOLD_UP},
+            DATE     => "$ADMIN_REPORT{DATE} $TIME",
+          }
+        );
+
+        if ($Fees->{errno}) {
+          print "Error: Holdup fees: $Fees->{errno} $Fees->{errstr}\n";
+        }
+      }
+
+      # if ($conf{INTERNET_HOLDUP_COMPENSATE}) {
+      #   $Triplay->{TP_INFO_OLD} = $Tariffs->info(0, { TP_ID => $Triplay->{TP_ID} });
+      #   if ($Triplay->{TP_INFO_OLD}->{PERIOD_ALIGNMENT}) {
+      #     #$Triplay->{TP_INFO}->{MONTH_FEE} = 0;
+      #     service_recalculate($Triplay,
+      #       { RECALCULATE => 1,
+      #         QUITE       => 1,
+      #         SHEDULER    => 1,
+      #         USER_INFO   => $user,
+      #         DATE        => $ADMIN_REPORT{DATE}
+      #       });
+      #   }
+      # }
+
+      if ($action) {
+        _external('', { EXTERNAL_CMD => 'Triplay', %{$Triplay} });
+      }
+    }
+    elsif ($action == 0) {
+      if ($Triplay->{TP_INFO}->{ABON_DISTRIBUTION} || $d == $START_PERIOD_DAY) {
+        $Triplay->{TP_INFO}->{MONTH_FEE} = 0;
+      }
+
+      service_get_month_fee($Triplay, {
+        QUITE    => 1,
+        SHEDULER => 1,
+        DATE     => $attr->{DATE},
+        USER_INFO=> $user
+      });
+
+      $Triplay_base->triplay_service_activate_web({ UID => $uid, USER_INFO => $user });
+    }
+
+    if ($Triplay->{errno} && $Triplay->{errno} == 15) {
+      return $Triplay->{errno};
+    }
+  }
+
+  return 1;
+}
 
 1;

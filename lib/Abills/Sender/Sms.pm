@@ -51,9 +51,9 @@ sub send_message {
   my $Sms = Sms->new($self->{db}, $self->{admin}, $self->{conf});
   my $Sms_service = init_sms_service($self->{db}, $self->{admin}, $self->{conf}, { UID => $attr->{UID} || $self->{UID} || 0 });
 
-  if ($Sms_service && (ref $Sms_service eq 'HASH' && $Sms_service->{errno} || !$Sms_service->can('send_sms'))) {
-    $self->{errno}=10;
-    $self->{errstr}='SMS_SERVICE_NOT_REGISTER';
+  if (!$Sms_service || ref $Sms_service eq 'HASH' || !$Sms_service->can('send_sms')) {
+    $self->{errno} = 10;
+    $self->{errstr} = 'SMS_SERVICE_NOT_REGISTER';
     return 0;
   }
 

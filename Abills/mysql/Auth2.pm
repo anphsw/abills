@@ -1718,6 +1718,10 @@ sub get_ip {
   my ($nas_num, $nas_ip, $attr) = @_;
   my $guest_mode = $self->{GUEST} || $attr->{GUEST} || 0;
 
+  if ($self->{conf}->{NAS_IP_ASSIGN}) {
+    return 0;
+  }
+
   if($self->{conf}->{GET_IP2}) {
     return $self->get_ip2($nas_num, $nas_ip, $attr);
   }
@@ -2304,6 +2308,7 @@ sub pre_auth {
        FILTER_TYPE - (see %connect_errors_ids)
        NEG_DEPOSIT_IPPOOL
        VLAN        - Guest pool by vlan
+       USER_FILTER
 
   Returns:
     result, $RAD_PAIRS

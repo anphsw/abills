@@ -1,0 +1,11 @@
+type: object
+properties:
+  name:
+    type: string
+    example: Test API
+  comments:
+    type: string
+    example: created as example for REST API
+  disable:
+    type: number
+    example: 1

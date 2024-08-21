@@ -1,0 +1,11 @@
+type: object
+properties:
+  errmsg:
+    type: string
+    example: Failed add invoice
+  errno:
+    type: number
+    example: 1054022
+  errstr:
+    type: string
+    example: ERR_ADD_INVOICE

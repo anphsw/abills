@@ -53,7 +53,7 @@ sub _add_company {
         ID      => "",
         NAME    => $lang{TYPE},
         VALUE   => $html->form_select(
-        'CONTRACT_TYPE', {
+          'CONTRACT_TYPE', {
           SELECTED => $FORM{CONTRACT_SUFIX},
           SEL_HASH => { '' => '', %CONTRACTS_LIST_HASH },
           NO_ID    => 1
@@ -127,6 +127,13 @@ sub form_companies {
       $html->message( 'err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}" );
       return 0;
     }
+
+    # TODO: rewrite company phone check to API use by validator
+    if ($FORM{PHONE} && $conf{PHONE_FORMAT} && $FORM{PHONE} !~ /$conf{PHONE_FORMAT}/) {
+      _error_show({ errno => 21, errstr => 'ERR_WRONG_PHONE', MESSAGE => human_exp($conf{PHONE_FORMAT}) }, { ID => 1505 });
+      return 0;
+    }
+
     if ($FORM{ADD_ADDRESS_BUILD}) {
       require Address;
       Address->import();
@@ -212,13 +219,16 @@ sub form_companies {
       $lang{PAYMENTS} .":2:COMPANY_ID=$Company->{ID}",
       $lang{FEES}     .":3:COMPANY_ID=$Company->{ID}",
       $lang{ADD_USER} .":24:COMPANY_ID=$Company->{ID}",
-      $lang{BILL}     .":19:COMPANY_ID=$Company->{ID}"
+      $lang{BILL}     .":19:COMPANY_ID=$Company->{ID}",
+      $lang{ADMIN}    .":16:COMPANY_ID=$Company->{ID}"
     );
 
     if (in_array('Docs', \@MODULES)) {
       load_module('Docs', $html);
       push @menu_functions, "$lang{DOCS}:" . get_function_index( 'docs_acts' ) . ":COMPANY_ID=$Company->{ID}";
     }
+
+    push @menu_functions, "$lang{SERVICES}:" . get_function_index( 'form_company_services' ) . ":COMPANY_ID=$Company->{ID}";
 
     # TODO: #3944 rereview
     my $company_sel = '';
@@ -297,16 +307,16 @@ sub form_companies {
           }
 
           $Company->{CONTRACT_TYPE} = $html->tpl_show(templates('form_row'), {
-              ID    => 'CONTRACT_TYPE',
-              NAME  => $lang{TYPE},
-              VALUE => $html->form_select('CONTRACT_TYPE',
-                {
-                  SELECTED => $FORM{CONTRACT_SUFIX},
-                  SEL_HASH => { '' => '--', %CONTRACTS_LIST_HASH },
-                  NO_ID    => 1
-                }),
-              SIZE_MD => 12
-            }, { OUTPUT2RETURN => 1 });
+            ID    => 'CONTRACT_TYPE',
+            NAME  => $lang{TYPE},
+            VALUE => $html->form_select('CONTRACT_TYPE',
+              {
+                SELECTED => $FORM{CONTRACT_SUFIX},
+                SEL_HASH => { '' => '--', %CONTRACTS_LIST_HASH },
+                NO_ID    => 1
+              }),
+            SIZE_MD => 12
+          }, { OUTPUT2RETURN => 1 });
         }
       }
 
@@ -359,8 +369,16 @@ sub form_companies {
 
       $Company->{DOCS_TEMPLATE} = $html->tpl_show(_include('docs_form_pi_lite', 'Docs'), { %{$Company} }, { OUTPUT2RETURN => 1 });
 
+      my %web_params = ();
+
+      $web_params{PHONE_PATTERN} = qq{pattern='$conf{PHONE_FORMAT}'} if $conf{PHONE_FORMAT};
+
       my $company_main = $html->tpl_show(templates('form_company'), $Company, { OUTPUT2RETURN => 1 });
-      my $company_pi = $html->tpl_show(templates('form_company_pi'), $Company, { OUTPUT2RETURN => 1 });
+      my $company_pi = $html->tpl_show(templates('form_company_pi'),
+        { %$Company, %web_params  },
+        { OUTPUT2RETURN => 1 }
+      );
+
       my $company_profile = $html->tpl_show(
         templates('form_company_profile'),
         {
@@ -412,7 +430,8 @@ sub form_companies {
         'city'          => $lang{CITY},
         'zip'           => $lang{ZIP},
         'phone'         => $lang{PHONE},
-        'edrpou'        => $lang{EDRPOU}
+        'edrpou'        => $lang{EDRPOU},
+        'comments'      => $lang{COMMENTS},
       },
       SKIP_USER_TITLE => 1,
       FILTER_COLS   => {
@@ -537,15 +556,15 @@ sub form_companie_admins {
   }
 
   print $html->form_main(
-      {
-        CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-        HIDDEN  => {
-          index      => $index,
-          COMPANY_ID => $FORM{COMPANY_ID}
-        },
-        SUBMIT  => { change => "$lang{CHANGE}" }
-      }
-    );
+    {
+      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+      HIDDEN  => {
+        index      => $index,
+        COMPANY_ID => $FORM{COMPANY_ID}
+      },
+      SUBMIT  => { change => "$lang{CHANGE}" }
+    }
+  );
 
   return 1;
 }
@@ -636,29 +655,73 @@ sub companies_import {
 }
 
 #**********************************************************
-=head2 companies_edrpou ($attr) - get data of company by edrpou
+=head2 form_company_services ($attr)
 
 =cut
 #**********************************************************
-sub companies_edrpou {
-  return if (!$conf{COMPANY_API_DATA_EDRPOU});
+sub form_company_services {
+  return if !$FORM{COMPANY_ID};
 
-  use XML::Simple;
-  use JSON::XS;
+  my $users = Users->new($db, $admin, \%conf);
+  require Control::Services;
 
-  my $url = "$conf{COMPANY_API_DATA_EDRPOU}?egrpou=$FORM{EDRPOU}";
-  my $result = web_request($url, {
-    CURL        => 1,
-    HEADERS     => [ 'Content-Type: text/xml' ],
+  my $users_list = $users->list({
+    COMPANY_ID => $FORM{COMPANY_ID},
+    FIO        => '_SHOW',
+    DEPOSIT    => '_SHOW',
+    REDUCTION  => '_SHOW',
+    COLS_NAME  => 1,
   });
 
-  my $xml = XML::Simple->new;
-  my $data = $xml->XMLin($result);
-  my $json = JSON::XS->new->utf8->encode($data);
+  if (!$users->{TOTAL}){
+    $html->message('err', $lang{ERROR}, "$lang{USER} $lang{NOT_EXIST}" );
+    return;
+  }
 
-  print $json || {};
-  return 1;
+  my ($sum_total, $sum_for_pay_total) = (0, 0);
+
+  my $table = $html->table({
+    width       => '100%',
+    caption     => "$lang{USERS} $lang{SERVICES}",
+    title_plain => [ $lang{USER}, $lang{SERVICE}, $lang{SUM}, $lang{DEBT}, $lang{MODULE} ],
+    ID          => 'COMPANY_SERVICES_USERS'
+  });
+
+  foreach my $user_ (@$users_list) {
+
+    my $service_info = get_services({ UID => $user_->{uid}, REDUCTION => $user_->{reduction} });
+    $service_info->{total_sum} = ($service_info->{total_sum} && $service_info->{total_sum} > 0) ? sprintf("%.2f",$service_info->{total_sum}) : 0;
+    $user_->{fio} =~ s/^\s+//g;
+
+    $table->addrow(
+      $html->b($html->button(($user_->{fio} || $user_->{login}), "index=11&UID=$user_->{uid}")) .', '. "$lang{SUM}: $service_info->{total_sum}", '', '', '',''
+    );
+
+    foreach my $service ( @{ $service_info->{list} } ) {
+      $sum_total += $service->{SUM} if $service->{SUM};
+      my $sum_for_pay = 0;
+
+      if ($service->{STATUS} && $service->{STATUS} eq '5'){
+        $sum_for_pay = $service->{SUM};
+        if (defined($user_->{deposit}) && $user_->{deposit} != 0) {
+          $sum_for_pay = $sum_for_pay - int($user_->{deposit});
+        }
+        $sum_for_pay_total += $sum_for_pay;
+      }
+
+      $table->addrow('',
+        $service->{SERVICE_NAME},
+        sprintf("%.2f",$service->{SUM}),
+        sprintf("%.2f",$sum_for_pay),
+        $service->{MODULE_NAME},
+      );
+    }
+  }
+
+  $table->addfooter("$lang{NUMBER_OF_USERS}: $users->{TOTAL}", '', sprintf("%.2f",$sum_total), sprintf("%.2f",$sum_for_pay_total), '');
+  print $table->show();
+
+  return;
 }
-
 
 1;

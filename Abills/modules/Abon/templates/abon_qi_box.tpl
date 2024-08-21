@@ -2,8 +2,8 @@
 <div class='small-box bg-aqua'>
     <div class='inner'>
         <h4>_{EXT_SERVICES}_</h4>
-        <p> %ABON_TP_NAME_0%  %ABON_SCOMMENTS_0% </p>
-        <p>_{PRICE}_ %ABON_PRICE_0% грн/_{MONTH}_</p>
+        <p> %TP_NAME%  %PERSONAL_DESCRIPTION% </p>
+        <p>_{PRICE}_ %PRICE% %MONEY_UNIT_NAME%/%PERIOD%</p>
     </div>
     <div class='icon'>
         <i class='fas fa-shopping-bag'></i>

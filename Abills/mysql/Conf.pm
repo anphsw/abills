@@ -54,6 +54,8 @@ sub new {
     $CONF->{$line->[0]}=$line->[1];
   }
 
+  $self->_fill_conf_defaults();
+
   return $self;
 }
 
@@ -88,7 +90,8 @@ sub config_list {
   if ($attr->{VALUE}) {
     push @WHERE_RULES, @{ $self->search_expr($attr->{VALUE}, 'STR', 'value') };
   }
-  if($attr->{CUSTOM}){
+  #TODO: review name of parameter
+  if ($attr->{CUSTOM}) {
     push @WHERE_RULES, "param LIKE 'ORGANIZATION_%'";
   }
 
@@ -413,6 +416,26 @@ sub check_password {
   }
   
   return 0;
+}
+
+#**********************************************************
+=head2 _fill_conf_defaults()
+
+  This function is for filling some configuration
+  variables that must, in any cases, have values.
+
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub _fill_conf_defaults {
+  my $self = shift;
+
+  $CONF->{PASSWD_SYMBOLS} //= 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ';
+  $CONF->{PASSWD_LENGTH} //= 8;
+
+  return $self;
 }
 
 1;

@@ -48,17 +48,6 @@ sub referral_quick_info {
 
   my $form = $attr->{FORM} || {};
   my $uid = $form->{UID};
-  my $result = {};
-
-  if ($attr->{GET_PARAMS}) {
-    $result = {
-      HEADER    => 'Refferral',
-      QUICK_TPL => 'referral_qi_box',
-      FIELDS    => {}
-    };
-
-    return $result;
-  }
 
   $Referral->list({ REFERRAL => $uid });
 

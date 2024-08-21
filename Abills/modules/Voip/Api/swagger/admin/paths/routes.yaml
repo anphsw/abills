@@ -1,0 +1,73 @@
+get:
+  tags:
+    - voip
+  summary: Направления звонков
+  parameters:
+    - name: date
+      in: query
+      description: Дата добавления направления.
+      schema:
+        type: boolean
+        default: true
+    - name: descr
+      in: query
+      description: Описание направления.
+      schema:
+        type: boolean
+        default: true
+    - name: disable
+      in: query
+      description: Статус направления.
+      schema:
+        type: boolean
+        default: true
+    - name: id
+      in: query
+      description: ID направления.
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название направления.
+      schema:
+        type: boolean
+        default: true
+    - name: parent
+      in: query
+      description: ID родительского пути куда привязан, зарезервировано и не используется.
+      schema:
+        type: boolean
+        default: true
+    - name: prefix
+      in: query
+      description: Префикс направления.
+      schema:
+        type: boolean
+        default: true
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/routeInfoList.yaml"
+  security:
+    - KEY: []

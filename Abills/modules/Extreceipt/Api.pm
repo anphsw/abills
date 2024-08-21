@@ -15,7 +15,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Extreceipt::db::Extreceipt;
-use Extreceipt::Base;
+use Extreceipt::Init qw(init_extreceipt_service);
 
 my Extreceipt $Receipt;
 
@@ -44,7 +44,7 @@ sub new {
   }
 
   $Receipt = Extreceipt->new($self->{db}, $self->{admin}, $self->{conf});
-  my $Receipt_api = receipt_init($Receipt, { SKIP_INIT => 1 });
+  my $Receipt_api = init_extreceipt_service($db, $admin, $conf);
   $Receipt->{API} = $Receipt_api;
   $Receipt->{debug} = $self->{debug};
 
@@ -113,7 +113,7 @@ sub user_routes {
   return [
     {
       method      => 'GET',
-      path        => '/user/:uid/extreceipt/checks/',
+      path        => '/user/extreceipt/checks/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
@@ -128,6 +128,7 @@ sub user_routes {
             date       => $check->{date},
             payment_id => $check->{payments_id},
           );
+          next if (!$check->{api_id});
           if ($Receipt->{API}->{$check->{api_id}}->can('get_receipt')) {
             $params{check_url} = ($check->{command_id} =~ /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/gm) ?
               $Receipt->{API}->{$check->{api_id}}->get_receipt($check) : "";

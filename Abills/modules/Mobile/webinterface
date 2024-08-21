@@ -27,9 +27,13 @@ our (
 my $Mobile = Mobile->new($db, $admin, \%conf);
 my %payment_types = (0 => $lang{PREPAID}, 1 => $lang{POSTPAID});
 my %status = (0 => $lang{ENABLE}, 1 => $lang{DISABLE});
+my @service_status_colors = ("#000000", "#FF0000", '#808080', '#0000FF', '#FF8000', '#009999');
+my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HOLD_UP},
+  "$lang{DISABLE}: $lang{NON_PAYMENT}", $lang{ERR_SMALL_DEPOSIT}, $lang{VIRUS_ALERT});
 our @PRIORITY = ($lang{LOW}, $lang{NORMAL}, $lang{HIGH});
 
 require Mobile::Periodic;
+require Mobile::User_portal;
 
 use Mobile::Services;
 my $Services = Mobile::Services->new($db, $admin, \%conf, { lang => \%lang });
@@ -203,8 +207,11 @@ sub mobile_tariff_plans {
     $html->message('info', $lang{CHANGED}) if !_error_show($result);
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $Mobile->tariff_del({ ID => $FORM{del} });
-    $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Mobile);
+    use Tariffs;
+    my $Tariffs = Tariffs->new($db, \%conf, $admin);
+
+    $Tariffs->del($FORM{del}, { MODULE => 'Mobile' });
+    $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Tariffs);
   }
 
   my $services = $Mobile->service_list({
@@ -230,18 +237,28 @@ sub mobile_tariff_plans {
   }
 
   my @checked_services = $Mobile->{SERVICE_ID} ? split(',\s?', $Mobile->{SERVICE_ID}) : ();
+  my @hidden_inputs = ();
   foreach my $service (@{$services}) {
     my $input_disables = join(',', grep {$_ ne "SERVICE_$service->{id}"} @{$categories->{$service->{category_id}}});
+    my $checkbox_class = 'form-control-static mobile-service';
+    my $ex_params = "data-input-disables='$input_disables' data-price='$service->{price}'";
+
+    if ($service->{mandatory}) {
+      $checkbox_class .= ' disabled';
+      $ex_params .= ' disabled';
+      push @hidden_inputs, $html->form_input('SERVICE_ID', $service->{id}, { TYPE => 'hidden' });
+    }
+
     my $checkbox = $html->form_input('SERVICE_ID', $service->{id}, {
       TYPE      => 'checkbox',
-      class     => 'form-control-static mobile-service',
+      class     => $checkbox_class,
       ID        => "SERVICE_$service->{id}",
-      EX_PARAMS => "data-input-disables='$input_disables' data-price='$service->{price}'",
-      STATE     => in_array($service->{id}, \@checked_services) ? '1' : undef
+      EX_PARAMS => $ex_params,
+      STATE     => (in_array($service->{id}, \@checked_services) || $service->{mandatory}) ? '1' : undef
     });
 
     $services_table->addrow($checkbox, $service->{id}, $service->{category_name}, $service->{name},
-      $service->{price}, $service->{description}, $service->{mandatory});
+      $service->{price}, $service->{description}, $bool_vals[$service->{mandatory} || 0]);
   }
 
   $Mobile->{PAYMENT_TYPES_SEL} = $html->form_select('PAYMENT_TYPE', {
@@ -250,13 +267,16 @@ sub mobile_tariff_plans {
     NO_ID    => 1
   });
 
-  $html->tpl_show(_include('mobile_tariff_plan', 'Mobile'), { %{$Mobile}, CATEGORIES_TABLE => $services_table->show() });
+  $html->tpl_show(_include('mobile_tariff_plan', 'Mobile'), { %{$Mobile},
+    CATEGORIES_TABLE => $services_table->show(),
+    HIDDEN_INPUTS    => join(' ', @hidden_inputs)
+  });
 
   result_former({
     INPUT_DATA      => $Mobile,
     FUNCTION        => 'tariff_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'ID,NAME,MONTH_FEE,PAYMENT_TYPE,COMMENTS,REDUCTION_FEE',
+    DEFAULT_FIELDS  => 'ID,NAME,MONTH_FEE,PAYMENT_TYPE,DESCRIBE_AID,REDUCTION_FEE',
     FUNCTION_FIELDS => 'change,del',
     FUNCTION_INDEX  => $index,
     SKIP_USER_TITLE => 1,
@@ -272,7 +292,7 @@ sub mobile_tariff_plans {
     EXT_TITLES      => {
       id            => '#',
       name          => $lang{NAME},
-      comments      => $lang{DESCRIBE},
+      describe_aid  => $lang{DESCRIBE},
       month_fee     => $lang{MONTH_FEE},
       month_fee     => $lang{MONTH_FEE},
       payment_type  => $lang{PAYMENT_TYPE},
@@ -334,6 +354,15 @@ sub mobile_user {
       }
     }
   }
+  elsif ($FORM{phone_deactivate} && $FORM{ID}) {
+    $Mobile->user_info($FORM{ID});
+
+    my $result = $Services->phone_deactivate(\%FORM);
+    $result->{message} = $result->{errmsg} if $result->{errmsg};
+    if (!_error_show($result)) {
+      $html->message('info', $lang{ADDED}, $lang{MOBILE_WAIT_NUMBER_DEACTIVATE});
+    }
+  }
   elsif ($FORM{balance} && $FORM{ID}) {
     my $result = $Services->balance(\%FORM);
     $result->{message} = $result->{errmsg} if $result->{errmsg};
@@ -353,7 +382,7 @@ sub mobile_user {
       $Mobile->{ACTION} = 'tp_activate';
       $Mobile->{LNG_ACTION} = $lang{ADD};
       $Mobile->{TP_SEL} = $html->form_select('TP_ID', {
-        SEL_LIST    => $Mobile->tariff_list({
+        SEL_LIST     => $Mobile->tariff_list({
           NAME      => '_SHOW',
           COLS_NAME => 1,
           PAGE_ROWS => 100000
@@ -384,6 +413,10 @@ sub mobile_user {
   elsif ($FORM{add}) {
     $Mobile->user_add(\%FORM);
     $html->message('info', $lang{ADDED}) if !_error_show($Mobile);
+  }
+  elsif ($FORM{del} && $FORM{ID} && $FORM{COMMENTS}) {
+    $Mobile->user_del(\%FORM);
+    $html->message('info', $lang{DELETED}) if !_error_show($Mobile);
   }
 
   if ($FORM{add_form}) {
@@ -453,8 +486,20 @@ sub users_list_table {
     if ($line->{disable}) {
       push @buttons, $html->button($lang{PHONE_ACTIVATE}, "index=$index&activate=1&ID=$line->{id}&$pages_qs",
         { class => 'btn btn-default btn-xs' });
+
+      if (!$line->{transaction_id}) {
+        $line->{phone} ||= '';
+        push @buttons, $html->button($lang{DELETE}, "index=$index&del=1&ID=$line->{id}&$pages_qs", {
+          MESSAGE => "$lang{DEL} $lang{PHONE} $line->{phone}?",
+          class   => 'btn btn-danger btn-xs'
+        });
+      }
     }
     else {
+      push @buttons, $html->button($lang{MOBILE_PHONE_DEACTIVATE}, "index=$index&phone_deactivate=1&ID=$line->{id}&$pages_qs", {
+        MESSAGE => "$lang{DEL} $lang{PHONE} $line->{phone}?",
+        class   => 'btn btn-danger btn-xs'
+      });
       push @buttons, $html->button($lang{TARIF_PLAN}, "index=$index&activate_tp_form=1&ID=$line->{id}&$pages_qs",
         { class => 'btn btn-default btn-xs' });
       push @buttons, $html->button($lang{BALANCE}, "index=$index&balance=1&ID=$line->{id}&$pages_qs",
@@ -462,7 +507,8 @@ sub users_list_table {
     }
 
     my $phone_status = $status{defined $line->{disable} ? $line->{disable} : 1};
-    my $tp_status = $status{defined $line->{tp_disable} ? $line->{tp_disable} : 1};
+    # my $tp_status = $status{defined $line->{tp_disable} ? $line->{tp_disable} : 1};
+    my $tp_status = $html->color_mark($service_status[ $line->{tp_disable} ], $service_status_colors[ $line->{tp_disable} ]);
     my @row = ($line->{id}, $line->{uid}, $line->{phone}, $line->{date}, $phone_status,
       $line->{tp_name}, $tp_status, $line->{tp_activate}, $line->{description});
 

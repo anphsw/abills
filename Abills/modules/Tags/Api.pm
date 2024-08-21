@@ -1,27 +1,19 @@
-package Tags::Api;
+package Tags::Api v1.01.00;
 =head1 NAME
 
   Tags::Api - Tags api functions
-
-=head VERSION
-
-  DATE: 20230618
-  UPDATE: 20230618
-  VERSION: 0.01
 
 =cut
 
 use strict;
 use warnings FATAL => 'all';
 
+use Control::Errors;
+
 use Tags;
+use Tags::Api::Validations qw(POST_TAGS);
 
-our (
-  $db,
-  $admin,
-  %conf
-);
-
+my Control::Errors $Errors;
 my Tags $Tags;
 
 #**********************************************************
@@ -30,25 +22,24 @@ my Tags $Tags;
 =cut
 #**********************************************************
 sub new {
-  my ($class, $Db, $Admin, $conf, $lang, $debug, $type) = @_;
+  my ($class, $db, $admin, $conf, $lang, $debug, $type) = @_;
 
   my $self = {
-    db    => $Db,
-    admin => $Admin,
+    db    => $db,
+    admin => $admin,
     conf  => $conf,
     lang  => $lang,
     debug => $debug
   };
-
-  $db = $self->{db};
-  $admin = $self->{admin};
-  %conf = %{$self->{conf}};
 
   $self->{routes_list} = ();
 
   bless($self, $class);
 
   $Tags = Tags->new($self->{db}, $self->{admin}, $self->{conf});
+
+  $Errors = Control::Errors->new($self->{db}, $self->{admin}, $self->{conf}, { lang => $lang, module => 'Tags' });
+  $self->{Errors} = $Errors;
 
   $Tags->{debug} = $self->{debug} || 0;
 
@@ -122,21 +113,72 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/tags/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        foreach my $param (keys %{$query_params}) {
-          $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ? $query_params->{$param} : '_SHOW';
-        }
-
-        $query_params->{RESPONSIBLE_ADMIN} = 1 if (exists $query_params->{ID_RESPONSIBLE} || exists $query_params->{RESPONSIBLE} || exists $query_params->{TAGS_ID});
-
-        $Tags->list({
-          NAME      => '_SHOW',
-          %$query_params,
-          COLS_NAME => 1,
-        });
-      },
+      controller  => 'Tags::Api::Admin::Tags',
+      endpoint    => \&Tags::Api::Admin::Tags::get_tags,
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/tags/',
+      params      => POST_TAGS,
+      controller  => 'Tags::Api::Admin::Tags',
+      endpoint    => \&Tags::Api::Admin::Tags::post_tags,
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/tags/:id/',
+      controller  => 'Tags::Api::Admin::Tags',
+      endpoint    => \&Tags::Api::Admin::Tags::get_tags_id,
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/tags/:id/',
+      controller  => 'Tags::Api::Admin::Tags',
+      endpoint    => \&Tags::Api::Admin::Tags::put_tags_id,
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/tags/:id/',
+      controller  => 'Tags::Api::Admin::Tags',
+      endpoint    => \&Tags::Api::Admin::Tags::delete_tags_id,
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/tags/:id/users/:uid/',
+      controller  => 'Tags::Api::Admin::Users',
+      endpoint    => \&Tags::Api::Admin::Users::post_tags_id_users_uid,
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/tags/:id/users/:uid/',
+      controller  => 'Tags::Api::Admin::Users',
+      endpoint    => \&Tags::Api::Admin::Users::put_tags_id_users_uid,
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/tags/:id/users/:uid/',
+      controller  => 'Tags::Api::Admin::Users',
+      endpoint    => \&Tags::Api::Admin::Users::delete_tags_id_users_uid,
       credentials => [
         'ADMIN'
       ]
@@ -144,16 +186,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/tags/users/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        $query_params->{TAG_ID} = $query_params->{ID} if (defined $query_params->{ID});
-
-        $Tags->tags_list({
-          %$query_params,
-          COLS_NAME => 1,
-        });
-      },
+      controller  => 'Tags::Api::Admin::Users',
+      endpoint    => \&Tags::Api::Admin::Users::get_tags_users,
       credentials => [
         'ADMIN'
       ]
@@ -161,17 +195,35 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/tags/users/:uid/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        $Tags->tags_list({
-          %{$query_params},
-          UID       => $path_params->{uid},
-          LOGIN     => '_SHOW',
-          DISABLE   => '_SHOW',
-          COLS_NAME => 1
-        });
-      },
+      controller  => 'Tags::Api::Admin::Users',
+      endpoint    => \&Tags::Api::Admin::Users::get_tags_users_uid,
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/tags/users/:uid/',
+      controller  => 'Tags::Api::Admin::Users',
+      endpoint    => \&Tags::Api::Admin::Users::post_tags_users_uid,
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/tags/users/:uid/',
+      controller  => 'Tags::Api::Admin::Users',
+      endpoint    => \&Tags::Api::Admin::Users::put_tags_users_uid,
+      credentials => [
+        'ADMIN'
+      ]
+    },
+    {
+      method      => 'PATCH',
+      path        => '/tags/users/:uid/',
+      controller  => 'Tags::Api::Admin::Users',
+      endpoint    => \&Tags::Api::Admin::Users::patch_tags_users_uid,
       credentials => [
         'ADMIN'
       ]

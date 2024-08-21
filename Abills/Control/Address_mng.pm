@@ -1026,6 +1026,7 @@ sub short_address_name {
         and add value into floor input
       ENTRANCE            => value    - Shows Extra fields entrance and floor at the address box
         and add value into entrance input
+      ADDRESS_HIDE
 
   Results:
     return $result
@@ -1045,6 +1046,7 @@ sub form_address {
   my %params = ();
   my $whatsform = 'form_show_not_hide';
   $params{BUTTON_ICON} = !$attr->{SHOW} ? 'plus' : 'minus';
+  $params{BUTTON_ICON} = 'minus' if (!$attr->{ADDRESS_HIDE});
 
   if ($attr->{LOCATION_ID}) {
     $Address->address_info($attr->{LOCATION_ID});
@@ -1068,12 +1070,41 @@ sub form_address {
     }, { OUTPUT2RETURN => 1 });
   }
 
+  if ($FORM{UID} && $attr->{LOCATION_ID}){
+    $params{PRE_ADDRESS} = $html->button(" ", "index=11&UID=$FORM{UID}&PRE_ADDRESS=$FORM{UID}", {
+      class => 'btn btn-default py-1 px-2 my-n3',
+      ADD_ICON  => 'fa fa-arrow-left',
+      TITLE => $lang{BACK}
+    });
+    $params{NEXT_ADDRESS} = $html->button(" ", "index=11&UID=$FORM{UID}&NEXT_ADDRESS=$FORM{UID}", {
+      class => 'btn btn-default py-1 px-2 my-n3',
+      ADD_ICON  => 'fa fa-arrow-right',
+      TITLE => $lang{NEXT}
+    });
+  }
+
   my $_address_full = _address_full($attr);
-  $params{ADD_NAME} = $_address_full->{address_name} if ($_address_full->{address_name});
+
+  if ($_address_full->{address_name}){
+    $params{ADD_NAME} = $_address_full->{address_name};
+    $params{ADD_TO_BUFFER} = $_address_full->{address_name};
+    $params{ADD_TO_BUFFER} =~ s/\'/\\\'/g;
+  }
+
   $attr->{ADDRESS_FULL} = $_address_full->{address_full} if ($_address_full->{address_full});
 
   $params{ADD_NAME} //= q{};
-  $params{HEADER_PARAMS} = qq{data-tooltip-position='top' data-tooltip='$lang{COPIED}!' data-tooltip-onclick='1' onclick='copyToBuffer("$params{ADD_NAME}", true)'};
+  $params{ADD_TO_BUFFER} //= q{};
+
+  if ($params{ADD_TO_BUFFER}){
+    $params{BTN_ADDRESS_COPY} = $html->button('', '', {
+      COPY      => $params{ADD_TO_BUFFER} || ' ',
+      ADD_ICON  => 'fa fa-clone',
+      class     => 'btn btn-default py-1 px-2 my-n3 m-1',
+      ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}' data-tooltip-onclick=1"
+    });
+  }
+
 
   if ($attr->{ADDRESS_HIDE}) {
     $params{PARAMS} = 'mb-0 border-top';
@@ -1446,15 +1477,15 @@ sub address_create {
 
   if ($address_->{DISTRICT} && (! $district || !$district->{ $address_->{DISTRICT} })) {
     my $districts_id = address_district_add($address_->{DISTRICT}, $attr);
-    $district->{$address_->{DISTRICT}}=$districts_id;
-    my $street_id = address_street_add($address_->{STREET}, $districts_id, $attr);
+    $district->{$address_->{DISTRICT}} = $districts_id;
+    my $street_id = $address_->{STREET} ? address_street_add($address_->{STREET}, $districts_id, $attr) : 0;
     if ($street_id && $address_->{BUILD}) {
       return address_build_add($address_->{BUILD}, $street_id || $street->{ $address_->{STREET} });
     }
   }
   elsif ($address_->{STREET} && !$street->{ $address_->{STREET} }) {
     my $street_id = address_street_add($address_->{STREET}, $district->{ $address_->{DISTRICT} });
-    address_build_add($address_->{BUILD}, $street_id || $street->{ $address_->{STREET} });
+    address_build_add($address_->{BUILD}, $street_id || $street->{ $address_->{STREET} }) if $address_->{BUILD};
   }
   else {
     if ($address_->{STREET} && $address_->{BUILD}) {

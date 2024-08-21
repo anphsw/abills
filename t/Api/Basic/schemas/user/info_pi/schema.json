@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "The Root Schema",
+  "required": [
+    "uid"
+  ],
+  "properties": {
+    "uid": {
+      "type": "number"
+    },
+    "email": {
+      "type": "array"
+    },
+    "contractDate": {
+      "type": "string"
+    },
+    "fio": {
+      "type": "string"
+    },
+    "regAddress": {
+      "type": "string"
+    },
+    "addressBuild": {
+      "type": "string"
+    },
+    "addressStreet": {
+      "type": "string"
+    },
+    "telegram": {
+      "type": "array"
+    },
+    "phone": {
+      "type": "array"
+    },
+    "contactsNewAppended": {
+      "type": "number"
+    },
+    "comments": {
+      "type": "string"
+    },
+    "contractId": {
+      "type": "string"
+    },
+    "locationId": {
+      "type": "number"
+    },
+    "total": {
+      "type": "number"
+    },
+    "pasportNum": {
+      "type": "string"
+    },
+    "entrance": {
+      "type": "number"
+    },
+    "taxNumber": {
+      "type": "number"
+    },
+    "zip": {
+      "type": "string"
+    },
+    "birthDate": {
+      "type": "string"
+    },
+    "countryId": {
+      "type": "number"
+    },
+    "pasportDate": {
+      "type": "string"
+    },
+    "fio2": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "addressFlat": {
+      "type": "string"
+    },
+    "contractSufix": {
+      "type": "string"
+    },
+    "fio3": {
+      "type": "string"
+    },
+    "floor": {
+      "type": "number"
+    },
+    "skype": {
+      "type": "array"
+    },
+    "affected": {
+      "type": "number"
+    },
+    "icq": {
+      "type": "array"
+    },
+    "viber": {
+      "type": "array"
+    },
+    "pasportGrant": {
+      "type": "string"
+    }
+  }
+}

@@ -36,7 +36,7 @@ if (
   form_purchase_module({
     HEADER          => 1,
     MODULE          => 'Accident',
-    REQUIRE_VERSION => 8.26,
+    REQUIRE_VERSION => 8.31,
   })
 ) {
   exit;
@@ -77,6 +77,9 @@ if ($conf{EQUIPMENT_LOG} && in_array('Equipment', \@MODULES)) {
   $Equipment = Equipment->new($db, $admin, \%conf);
 }
 
+use Accident::Configure;
+my $Configure = Accident::Configure->new($db, $admin, \%conf, { lang => \%lang });
+
 #**********************************************************
 =head2 accident_log()
 
@@ -86,15 +89,18 @@ sub accident_log {
 
   $Accident->{ACTION} = 'add';
   $Accident->{LNG_ACTION} = $lang{ADD};
+  my $accident_types = $Accident->type_list({ COLS_NAME => 1 });
+  my %accident_types_name = ();
+  my %accident_types_color = ();
+  foreach my $type (@{$accident_types}) {
+    $accident_types_name{$type->{id}} = $type->{name};
+    $accident_types_color{$type->{id}} = $type->{color};
+  }
 
   if ($FORM{add}) {
-    $Accident->add({ %FORM });
-
-    if (!_error_show($Accident)) {
-      my $accident_id = $Accident->{INSERT_ID};
-      $Accident->address_add({ %FORM, AC_ID => $accident_id });
-      $html->message('info', $lang{SUCCESS}, $lang{ADDED})
-    }
+    my $result = $Configure->accident_add(\%FORM);
+    $result->{message} = $result->{errmsg} if $result->{errmsg};
+    $html->message('info', $lang{SUCCESS}, $lang{ADDED})if !_error_show($result);
   }
   elsif ($FORM{change}) {
     $Accident->change({ %FORM });
@@ -129,6 +135,14 @@ sub accident_log {
     $Accident->{SELECT_STATUS} = $html->form_select('STATUS', {
       SELECTED    => $Accident->{STATUS} || $FORM{STATUS} || 0,
       SEL_HASH    => \%status,
+      SORT_KEY    => 1,
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => '' }
+    });
+
+    $Accident->{SELECT_TYPE} = $html->form_select('TYPE', {
+      SELECTED    => $Accident->{TYPE} || $FORM{TYPE},
+      SEL_HASH    => \%accident_types_name,
       SORT_KEY    => 1,
       NO_ID       => 1,
       SEL_OPTIONS => { '' => '' }
@@ -174,7 +188,14 @@ sub accident_log {
         SORT_KEY    => 1,
         NO_ID       => 1,
         SEL_OPTIONS => { '' => '' }
-      })
+      }),
+      SELECT_TYPE => $html->form_select('ACCIDENT_TYPE', {
+        SELECTED    => $FORM{ACCIDENT_TYPE} || '',
+        SEL_HASH    => \%accident_types_name,
+        SORT_KEY    => 1,
+        NO_ID       => 1,
+        SEL_OPTIONS => { '' => '' }
+      }),
     }, { OUTPUT2RETURN => 1 }) });
   }
 
@@ -182,7 +203,7 @@ sub accident_log {
     INPUT_DATA      => $Accident,
     FUNCTION        => 'list',
     DEFAULT_FIELDS  => 'ID,PRIORITY,NAME,DATE,STATUS,DESCR,ADMIN_NAME,END_TIME,REALY_TIME',
-    HIDDEN_FIELDS   => 'TYPE_ID,BUILD_ID,STREET_ID,DISTRICT_ID,FULL_ADDRESS,AID',
+    HIDDEN_FIELDS   => 'TYPE_ID,BUILD_ID,STREET_ID,DISTRICT_ID,FULL_ADDRESS,AID,ACCIDENT_TYPE',
     SKIP_USER_TITLE => 1,
     FUNCTION_FIELDS => 'change,del,accident_compensation:show:id:&compensation=1',
     EXT_TITLES      => {
@@ -195,7 +216,8 @@ sub accident_log {
       admin_name   => $lang{ADMIN},
       end_time     => $lang{WORK_END_DATE},
       realy_time   => $lang{WORK_REALY_DATE},
-      full_address => $lang{ADDRESS}
+      full_address => $lang{ADDRESS},
+      accident_type=> $lang{TYPE},
     },
     FILTER_VALUES   => {
       priority => sub {
@@ -205,7 +227,11 @@ sub accident_log {
       status   => sub {
         my $status_id = shift;
         return $html->color_mark($status{$status_id}, $STATUSES_COLORS[$status_id]);
-      }
+      },
+      accident_type => sub {
+        my $type_id = shift;
+        return $html->color_mark($accident_types_name{$type_id || 0}, $accident_types_color{$type_id || 0});
+      },
     },
     TABLE           => {
       width   => '100%',
@@ -328,13 +354,14 @@ sub accident_start_page {
 }
 
 #**********************************************************
-=head2 accident_dashboard_mess()
+=head2 accident_dashboard_mess() user portal dashboard
 
 =cut
 #**********************************************************
 sub accident_dashboard_mess {
 
   my $user_accident_list = $Accident->user_accident_list({ UID => $user->{UID}, COLS_NAME => 1 });
+
   for my $accident (@{$user_accident_list}){
     $html->tpl_show(_include('accident_user_warr', 'Accident'), {
       MESSAGE    => $accident->{descr},
@@ -346,6 +373,8 @@ sub accident_dashboard_mess {
   if (in_array('Equipment', \@MODULES) && $conf{EQUIPMENT_LOG}) {
     my $warning_info = $Accident->accident_equipment_list({
       ID_EQUIPMENT => '_SHOW',
+      INTERNET_PORT=> '_SHOW',
+      PORT_ID      => '_SHOW',
       DATE         => '_SHOW',
       END_DATE     => '_SHOW',
       NAS_ID       => '_SHOW',
@@ -358,14 +387,25 @@ sub accident_dashboard_mess {
     return 0 if $Accident->{TOTAL} < 1;
 
     for my $accident (@$warning_info) {
-      $html->tpl_show(_include('accident_user_warr', 'Accident'), {
+
+      if ($accident->{port_id}){
+        if ($accident->{port_id} eq $accident->{internet_port}){
+          $html->tpl_show(_include('accident_user_port_error', 'Accident'), {
+            MESSAGE    => $lang{EQUIPMENT_ERR},
+            START_DATE => $accident->{date} || '',
+            END_DATE   => $accident->{end_date} || ''
+          });
+        }
+        next;
+      }
+
+      $html->tpl_show(_include('accident_user_equipment_error', 'Accident'), {
         MESSAGE    => $lang{EQUIPMENT_ERR},
         START_DATE => $accident->{date} || '',
         END_DATE   => $accident->{end_date} || ''
       });
     }
   }
-
 
   return 0;
 }
@@ -392,21 +432,26 @@ sub accident_equipment_log {
     _equipment_error({ %FORM });
   }
 
+  my $accident_types = $Accident->type_list({ HASH_RETURN => 1, COLS_NAME => 1 });
   my $index = get_function_index('accident_equipment_log');
   my $admins_list = sel_admins({ HASH => 1 });
   my $table = $html->table({
     width   => '100%',
     caption => $lang{ACCIDENT_FOR_EQUIPMENT},
-    title   => [ 'ID', $lang{NAME}, $lang{DATE}, $lang{STATUS}, $lang{RESPONSIBLE} ],
+    title   => [ 'ID', $lang{NAME}, $lang{STATUS}, $lang{DATE}, $lang{RESPONSIBLE}, "ID $lang{NAS}", $lang{PORT}, $lang{TYPE}],
     ID      => 'ACCIDENT_EQUIPMENT',
   });
 
   my $list_equipment_error = $Accident->accident_equipment_list({
     ID_EQUIPMENT => '_SHOW',
+    PORT_ID      => '_SHOW',
     DATE         => '_SHOW',
     END_DATE     => '_SHOW',
     STATUS       => '_SHOW',
     AID          => '_SHOW',
+    TYPE         => '_SHOW',
+    SORT         => $FORM{sort},
+    DESC         => $FORM{desc},
     COLS_NAME    => 1,
   });
 
@@ -418,6 +463,7 @@ sub accident_equipment_log {
   });
 
   my %nas_name = map {$_->{nas_id} => $_->{nas_name}} @{$equipment_list};
+  my $equipment_info = get_function_index('equipment_info');
 
   foreach my $equipment_element (@$list_equipment_error) {
     my $delete = $html->button($lang{DEL}, "index=$index&del=$equipment_element->{id}",
@@ -428,10 +474,13 @@ sub accident_equipment_log {
 
     $table->addrow(
       $equipment_element->{id},
-      $nas_name{ $equipment_element->{id_equipment} },
-      "$equipment_element->{date} - $equipment_element->{end_date}",
+      $html->button($nas_name{ $equipment_element->{id_equipment} }, "index=$equipment_info&NAS_ID=$equipment_element->{id_equipment}"),
       $html->color_mark($status{ $equipment_element->{status} }, $STATUSES_COLORS[ $equipment_element->{status} ]),
+      "$equipment_element->{date} - $equipment_element->{end_date}",
       $admins_list->{ $equipment_element->{aid} },
+      $equipment_element->{id_equipment},
+      $html->button($equipment_element->{port_id}, "index=$equipment_info&NAS_ID=$equipment_element->{id_equipment}&visual=2"),
+      $accident_types->{$equipment_element->{type}},
       $change,
       $delete,
     );
@@ -460,6 +509,7 @@ sub _equipment_error {
       $tpl_info{AID} = $info_accident->[0]{aid};
       $tpl_info{STATUS} = $info_accident->[0]{status};
       $tpl_info{ID_EQUIPMENT} = $info_accident->[0]{id_equipment};
+      $tpl_info{ACCIDENT_TYPE} = $info_accident->[0]{type};
       $tpl_info{chg} = $attr->{change};
     }
 
@@ -479,7 +529,8 @@ sub _equipment_error {
       DATE         => $attr->{FROM_DATE},
       END_DATE     => $attr->{TO_DATE},
       AID          => $attr->{AID},
-      STATUS       => $attr->{ACCIDENT_EQUIPMENT_ID}
+      STATUS       => $attr->{ACCIDENT_EQUIPMENT_ID},
+      TYPE         => $attr->{ACCIDENT_TYPE} || 0,
     });
 
     if (!_error_show($Accident)) {
@@ -496,7 +547,8 @@ sub _equipment_error {
       AID      => $attr->{AID},
       DATE     => $attr->{FROM_DATE},
       END_DATE => $attr->{TO_DATE},
-      STATUS   => $attr->{ACCIDENT_EQUIPMENT_ID}
+      STATUS   => $attr->{ACCIDENT_EQUIPMENT_ID},
+      TYPE     => $attr->{ACCIDENT_TYPE},
     });
 
     if (!_error_show($Accident)) {
@@ -525,6 +577,14 @@ sub _show_equipment_error {
   my ($attr) = @_;
 
   my $admins_list = sel_admins({ SELECTED => $attr->{AID} });
+  my $accident_types = $Accident->type_list({ HASH_RETURN => 1, COLS_NAME => 1 });
+  my $select_type = $html->form_select('ACCIDENT_TYPE', {
+    SELECTED    => $Accident->{ACCIDENT_TYPE} || $attr->{ACCIDENT_TYPE},
+    SEL_HASH    => $accident_types,
+    SORT_KEY    => 1,
+    NO_ID       => 1,
+    SEL_OPTIONS => { '' => '' }
+  });
 
   my $status_sel = $html->form_select('ACCIDENT_EQUIPMENT_ID',{
     SELECTED    => $attr->{ACCIDENT_EQUIPMENT_ID} || $attr->{STATUS} || 0,
@@ -539,6 +599,7 @@ sub _show_equipment_error {
     BUTTON_ACTION => $attr->{add_form} ? $lang{ADD} : $lang{CHANGE},
     RESPONSIBLE   => $admins_list,
     STATUS        => $status_sel,
+    SELECT_TYPE   => $select_type,
     add           => $attr->{add_form} ? 1 : 0,
   });
 
@@ -825,7 +886,7 @@ sub accident_user {
 
   print $table->show();
 
-  return 0;
+  return 1;
 }
 
 
@@ -861,6 +922,244 @@ sub accident_auto_close {
   else {
     print "NO Accidents to close\n" if ($debug);
   }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 accident_equipment_error($attr)
+
+  Attr:
+    NAS_ID
+    NAS_NAME
+    PORT_ID
+    STATUS: 0 - open, 1 - in process, 2 - closed
+
+=cut
+#**********************************************************
+sub accident_equipment_error {
+  my ($attr) = @_;
+
+  return if (!$attr->{NAS_ID});
+
+  my $list_equipment_error = $Accident->accident_equipment_list({
+    ID_EQUIPMENT => $attr->{NAS_ID},
+    PORT_ID      => ($attr->{PORT_ID}) ? $attr->{PORT_ID} : '_SHOW',
+    DATE         => '_SHOW',
+    END_DATE     => '_SHOW',
+    STATUS       => 0,
+    AID          => '_SHOW',
+    EXT_TABLE    => 1,
+    COLS_NAME    => 1,
+  });
+
+  if ($Accident->{TOTAL} > 0){
+    if ($attr->{STATUS} && $attr->{STATUS} == 2){
+      $Accident->accident_equipment_chg({
+        ID       => $list_equipment_error->[0]->{id},
+        STATUS   => $attr->{STATUS}
+      });
+    }
+
+    return;
+  }
+
+  $Accident->accident_equipment_add({
+    ID_EQUIPMENT => $attr->{NAS_ID},
+    PORT_ID      => $attr->{PORT_ID} ? $attr->{PORT_ID} : '',
+    DATE         => $DATE,
+    END_DATE     => $DATE,
+    AID          => $admin->{AID},
+    STATUS       => 0,
+    TYPE         => $conf{EQUIPMENT_TYPE_ACCIDENT} || 0,
+  });
+
+  if ($Accident->{INSERT_ID} && $conf{EQUIPMENT_TYPE_ACCIDENT}){
+    my $admins_equipment = $Accident->admin_info({ ACCIDENT_TYPE => $conf{EQUIPMENT_TYPE_ACCIDENT} });
+    return if (!$admins_equipment->{ADMINS});
+
+    my @arr_admins = split(',', $admins_equipment->{ADMINS});
+
+    foreach my $aid (@arr_admins) {
+      $Sender->send_message({
+        AID       => $aid,
+        TITLE     => "$lang{ACCIDENT_FOR_EQUIPMENT} $attr->{NAS_NAME}",
+        MESSAGE   => "$attr->{NAS_NAME}, ID: $attr->{NAS_ID}"
+      });
+    }
+  }
+
+  return;
+}
+
+#**********************************************************
+=head2 accident_types() - managing accident types
+
+=cut
+#**********************************************************
+sub accident_types {
+  $FORM{COLOR} =~ s/#// if ($FORM{COLOR});
+
+  if ($FORM{add}) {
+    $Accident->type_add(\%FORM);
+    $html->message('success', $lang{ADDED} ) if (!_error_show($Accident));
+  }
+  elsif ($FORM{chg}) {
+    $Accident->{BTN_NAME} = 'change';
+    $Accident->{BTN_VALUE} = $lang{CHANGE};
+    $Accident->type_info({ ID => $FORM{chg} });
+  }
+  elsif ($FORM{change}) {
+    $Accident->type_change(\%FORM);
+    $html->message('success', $lang{CHANGED}) if (!_error_show($Accident));
+  }
+  elsif ($FORM{del}) {
+    $Accident->type_del({ ID => $FORM{del} });
+    $html->message('success', $lang{DELETED})  if (!_error_show($Accident));
+  }
+
+  if ($FORM{add_form} || $FORM{chg} ) {
+    $Accident->{COLOR} = '#'.$Accident->{COLOR} if($Accident->{COLOR});
+
+    $Accident->{SELECT_PRIORITY} = $html->form_select('PRIORITY', {
+      SELECTED    => defined($Accident->{PRIORITY}) ? $Accident->{PRIORITY} : 2,
+      SEL_HASH    => \%priority,
+      SORT_KEY    => 1,
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => '' }
+    });
+
+    print $html->tpl_show(_include('accident_types', 'Accident'), {
+      INDEX => $index,
+      BTN_NAME => 'add',
+      BTN_VALUE => $lang{ADD},
+      %$Accident
+    }, { OUTPUT2RETURN => 1 });
+  }
+
+  result_former({
+    INPUT_DATA      => $Accident,
+    FUNCTION        => 'type_list',
+    DEFAULT_FIELDS  => 'ID,NAME,PRIORITY,COLOR,COMMENTS',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    FILTER_VALUES => {
+      color => sub { $html->color_mark($_[0], $_[0]) },
+      priority => sub {
+        my $priority_id = shift;
+        return $priority{$priority_id || 0};
+      },
+    },
+    EXT_TITLES      => {
+      id         => 'ID',
+      name       => $lang{NAME},
+      color      => $lang{COLOR},
+      priority   => $lang{PRIORITY},
+      comments   => $lang{COMMENTS},
+    },
+    TABLE           => {
+      width      => '100%',
+      caption    => $lang{ACCIDENT_TYPES},
+      qs         => $pages_qs,
+      ID         => 'ACCIDENT_TYPES_LIST',
+      EXPORT     => 1,
+      MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+    },
+    MAKE_ROWS    => 1,
+    SEARCH_FORMER=> 1,
+    TOTAL        => 1
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 accident_admins() - managing accident admins who will receive notification about accident
+
+=cut
+#**********************************************************
+sub accident_admins {
+
+  my $accident_types = $Accident->type_list({ HASH_RETURN => 1, COLS_NAME => 1 });
+
+  if ($FORM{add}) {
+    $Accident->admin_add({ IDS => $FORM{ADMINS}, ACCIDENT_TYPE => $FORM{ACCIDENT_TYPE} });
+    if (!$Accident->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{ADMINS} $lang{ADDED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{ADMINS} $lang{NOT} $lang{ADDED}");
+    }
+  }
+  elsif ($FORM{change}) {
+    $Accident->admin_del({ ACCIDENT_TYPE => $FORM{ACCIDENT_TYPE} });
+    $Accident->admin_add({ IDS => $FORM{ADMINS}, ACCIDENT_TYPE => $FORM{ACCIDENT_TYPE} });
+    if (!$Accident->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", $lang{CHANGED});
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", $lang{NOT_CHANGED});
+    }
+  }
+  elsif ($FORM{del}) {
+    $Accident->admin_del({ ACCIDENT_TYPE => $FORM{ACCIDENT_TYPE} });
+    if (!$Accident->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{DELETED}")
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT} $lang{DELETED}");
+    }
+  }
+
+  if ($FORM{add_form} || $FORM{chg} ) {
+    $Accident->{SELECT_TYPE} = $html->form_select('ACCIDENT_TYPE', {
+      SELECTED    => $Accident->{ACCIDENT_TYPE} || $FORM{ACCIDENT_TYPE},
+      SEL_HASH    => $accident_types,
+      SORT_KEY    => 1,
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => '' }
+    });
+
+    $Accident->admin_info({ ACCIDENT_TYPE => $FORM{ACCIDENT_TYPE} });
+    $Accident->{SELECT_ADMINS} = sel_admins({ NAME => 'ADMINS', SELECTED => $Accident->{ADMINS}, MULTIPLE => 1 });
+
+    print $html->tpl_show(_include('accident_types_admins', 'Accident'), {
+      INDEX     => $index,
+      BTN_NAME  => $FORM{add_form} ? 'add' : 'change',
+      BTN_VALUE => $FORM{add_form} ? $lang{ADD} : $lang{CHANGE},
+      %$Accident
+    }, { OUTPUT2RETURN => 1 });
+  }
+
+  my $btn_acc_types = $html->button($lang{ACCIDENT_TYPES}, 'index='.get_function_index('accident_types'));
+
+  result_former({
+    INPUT_DATA      => $Accident,
+    FUNCTION        => 'admin_list',
+    DEFAULT_FIELDS  => 'ACCIDENT_TYPE,ADMINS',
+    FUNCTION_FIELDS => ':change:accident_type&chg=1&,:del:accident_type:&del=1&',
+    SKIP_USER_TITLE => 1,
+    FILTER_VALUES => {
+      accident_type => sub {
+        my $type_id = shift;
+        return $accident_types->{$type_id || 0};
+      },
+    },
+    EXT_TITLES      => {
+      accident_type => $lang{TYPE},
+      admins        => $lang{ADMINS},
+    },
+    TABLE           => {
+      width            => '100%',
+      caption          => "$lang{ADMINS} - " . $btn_acc_types,
+      qs               => $pages_qs,
+      ID               => 'ACCIDENT_TYPES_ADMINS',
+      MENU             => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+    },
+    MAKE_ROWS    => 1,
+    SEARCH_FORMER=> 1,
+    TOTAL        => 1
+  });
 
   return 1;
 }

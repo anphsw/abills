@@ -1,0 +1,5 @@
+{
+  "name": "USER_PORTAL_MENU_LIST",
+  "method": "GET",
+  "path": "user/portal/menu/"
+}

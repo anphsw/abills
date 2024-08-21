@@ -1,0 +1,25 @@
+put:
+  tags:
+    - crm
+  summary: Изменить диалог
+  operationId: crmDialogueChange
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: ID диалога
+      schema:
+        type: integer
+        default: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/changeDialogueRequest.yaml"
+    required: true
+  responses:
+    400:
+      description: Can't get old data for change
+      content: { }
+  security:
+    - KEY: [ ]

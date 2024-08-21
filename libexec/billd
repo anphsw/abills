@@ -421,9 +421,9 @@ sub check_lines{
       if ( !$uid ){
         next;
       }
-      elsif ( $conf{coa_send} && hascoa( $nas ) ){
-        coa_send($online, $nas);
-      }
+      # elsif ( $conf{coa_send} && hascoa( $nas ) ){
+      #   coa_send($online, $nas);
+      # }
 
       # periodic check deposit, stats and status
       my %RAD = (
@@ -605,78 +605,78 @@ sub close_zap_sessions {
   return 0;
 }
 
-#**********************************************************
-=head2 coa_send($online)
-
-=cut
-#**********************************************************
-sub coa_send {
-  my ($online, $nas) =@_;
-
-  my $uid = $online->{uid};
-  my @time = localtime();
-  my $now = $time[0] + $time[1] * 60 + $time[2] * 3600;
-
-  my $TIME_INTS = $Tariffs->ti_list({ TP_ID => $online->{TP_ID} });
-  my $curr_speed_in = 0;
-  my $curr_speed_out = 0;
-  my $new_speed_in = 0;
-  my $new_speed_out = 0;
-  my $last = 0;
-  my $curr = 0;
-  foreach my $interval (@{$TIME_INTS}) {
-    #if we have more than 1 interval, that works for all days
-    if (($interval->[3] - $interval->[2] < 86400) && ($interval->[1] == 0)) {
-      my $INT_DETL = $Tariffs->tt_list({ TI_ID => $interval->[0] });
-
-      #interval started today
-      if ($now - $interval->[2] >= 0) {
-        #interval ended today
-        if ($now - $interval->[3] >= 0 && $now - $interval->[3] < $conf{billd_interval}) {
-          $last = $now - $interval->[3] < $online->{duration_sec};
-          $curr_speed_in = $INT_DETL->[0]->[4];
-          $curr_speed_out = $INT_DETL->[0]->[5];
-        }
-
-        #current speed
-        elsif ($now - $interval->[2] >= 0 && $now - $interval->[2] < $conf{billd_interval}) {
-          $curr = $now - $interval->[2] < $online->{duration_sec};
-          $new_speed_in = $INT_DETL->[0]->[4];
-          $new_speed_out = $INT_DETL->[0]->[5];
-        }
-      }
-
-      #day change
-      elsif ($now + 86400 - $interval->[3] >= 0 && $now + 86400 - $interval->[3] < $conf{billd_interval}) {
-        $last = $now + 86400 - $interval->[3] < $online->{duration_sec};
-        $curr_speed_in = $INT_DETL->[0]->[4];
-        $curr_speed_out = $INT_DETL->[0]->[5];
-      }
-    }
-  }
-
-  #if we get speed for both intervals, and it was changed
-  if ($curr && $last && ($curr_speed_in != $new_speed_in || $curr_speed_out != $new_speed_out)) {
-    my $ret = $Nas_cmd->setspeed(
-      $nas,
-      $online->{nas_port_id},
-      $online->{user_name},
-      $new_speed_out,
-      $new_speed_in,
-      {
-        ACCT_SESSION_ID   => $online->{acct_session_id},
-        FRAMED_IP_ADDRESS => $online->{client_ip},
-        UID               => $uid,
-        debug             => $debug
-      }
-    );
-    print "Change speed: $online->{user_name} SESSION_ID: $online->{acct_session_id}, SPEED: $curr_speed_in/$curr_speed_out -> $new_speed_in/$new_speed_out"
-      . (($ret > -1) ? ", ERROR: $ret" : "")
-      . "\n"; # if ($debug == 1);
-  }
-
-  return 1;
-}
+# #**********************************************************
+# =head2 coa_send($online)
+#
+# =cut
+# #**********************************************************
+# sub coa_send {
+#   my ($online, $nas) =@_;
+#
+#   my $uid = $online->{uid};
+#   my @time = localtime();
+#   my $now = $time[0] + $time[1] * 60 + $time[2] * 3600;
+#
+#   my $TIME_INTS = $Tariffs->ti_list({ TP_ID => $online->{TP_ID} });
+#   my $curr_speed_in = 0;
+#   my $curr_speed_out = 0;
+#   my $new_speed_in = 0;
+#   my $new_speed_out = 0;
+#   my $last = 0;
+#   my $curr = 0;
+#   foreach my $interval (@{$TIME_INTS}) {
+#     #if we have more than 1 interval, that works for all days
+#     if (($interval->[3] - $interval->[2] < 86400) && ($interval->[1] == 0)) {
+#       my $INT_DETL = $Tariffs->tt_list({ TI_ID => $interval->[0] });
+#
+#       #interval started today
+#       if ($now - $interval->[2] >= 0) {
+#         #interval ended today
+#         if ($now - $interval->[3] >= 0 && $now - $interval->[3] < $conf{billd_interval}) {
+#           $last = $now - $interval->[3] < $online->{duration_sec};
+#           $curr_speed_in = $INT_DETL->[0]->[4];
+#           $curr_speed_out = $INT_DETL->[0]->[5];
+#         }
+#
+#         #current speed
+#         elsif ($now - $interval->[2] >= 0 && $now - $interval->[2] < $conf{billd_interval}) {
+#           $curr = $now - $interval->[2] < $online->{duration_sec};
+#           $new_speed_in = $INT_DETL->[0]->[4];
+#           $new_speed_out = $INT_DETL->[0]->[5];
+#         }
+#       }
+#
+#       #day change
+#       elsif ($now + 86400 - $interval->[3] >= 0 && $now + 86400 - $interval->[3] < $conf{billd_interval}) {
+#         $last = $now + 86400 - $interval->[3] < $online->{duration_sec};
+#         $curr_speed_in = $INT_DETL->[0]->[4];
+#         $curr_speed_out = $INT_DETL->[0]->[5];
+#       }
+#     }
+#   }
+#
+#   #if we get speed for both intervals, and it was changed
+#   if ($curr && $last && ($curr_speed_in != $new_speed_in || $curr_speed_out != $new_speed_out)) {
+#     my $ret = $Nas_cmd->setspeed(
+#       $nas,
+#       $online->{nas_port_id},
+#       $online->{user_name},
+#       $new_speed_out,
+#       $new_speed_in,
+#       {
+#         ACCT_SESSION_ID   => $online->{acct_session_id},
+#         FRAMED_IP_ADDRESS => $online->{client_ip},
+#         UID               => $uid,
+#         debug             => $debug
+#       }
+#     );
+#     print "Change speed: $online->{user_name} SESSION_ID: $online->{acct_session_id}, SPEED: $curr_speed_in/$curr_speed_out -> $new_speed_in/$new_speed_out"
+#       . (($ret > -1) ? ", ERROR: $ret" : "")
+#       . "\n"; # if ($debug == 1);
+#   }
+#
+#   return 1;
+# }
 
 #**********************************************************
 =head2 billd_plugins($actions, $attr)
@@ -750,7 +750,7 @@ sub billd_plugins{
     $online
 
   Return:
-    $radius_request_pairs
+    $radius_request_pairs - array_ref
 
 =cut
 #**********************************************************
@@ -889,8 +889,8 @@ sub session_hangup{
         OLD_TP_ID            => $online->{tp_id},
         ACCT_TERMINATE_CAUSE => 15,
         GUEST                => $online->{guest},
-        #INTERNET             => in_array('Internet', \@MODULES),
-        COA_ACTION           => ($coa_request) ? $coa_actions : undef
+        COA_ACTION           => ($coa_request) ? $coa_actions : undef,
+        COA_TIMEOUT          => $argv->{COA_TIMEOUT} || $conf{INTERNET_COA_TIMEOUT}
       }
     );
 

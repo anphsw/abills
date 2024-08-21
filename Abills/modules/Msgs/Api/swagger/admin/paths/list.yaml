@@ -1,0 +1,21 @@
+post:
+  tags:
+    - msgs
+  summary: Получить список сообщений
+  operationId: msgsList
+  requestBody:
+    description: Параметры, по которым можно фильтровать сообщения
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/msgsList.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+  security:
+    - KEY: []

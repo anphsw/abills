@@ -138,7 +138,7 @@ sub user_routes {
           service => 'Voip',
         });
 
-        return ref $tariffs eq 'ARRAY' ? $tariffs->[0] : $tariffs;
+        return $tariffs;
       },
       credentials => [
         'USER'
@@ -653,15 +653,15 @@ sub admin_routes {
     },
     {
       method      => 'GET',
-      path        => '/voip/tariff/:id/',
+      path        => '/voip/tariff/:tpId/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        $Voip->tp_info($path_params->{id});
+        $Voip->tp_info($path_params->{tpId});
 
         return {
           errno  => 30019,
-          errstr => "Tariff with tpId $path_params->{id}"
+          errstr => "Tariff with tpId $path_params->{tpId}"
         } if (!$Voip->{TP_ID} || ($Voip->{errno} && $Voip->{errno} == 2));
 
         return {

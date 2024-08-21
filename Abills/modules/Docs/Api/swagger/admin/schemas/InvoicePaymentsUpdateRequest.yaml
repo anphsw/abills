@@ -1,0 +1,17 @@
+type: object
+required: [sum, paymentId]
+properties:
+  sum:
+    type: string
+    example: 10
+  paymentId:
+    type: number
+    example: 4188
+  invoiceId:
+    type: number
+    example: 1222
+    description: ID инвойса, параметр не совместим с invoiceCreate
+  invoiceCreate:
+    type: number
+    example: 1
+    description: Создать новый инвойа, параметр не совместим с invoiceId

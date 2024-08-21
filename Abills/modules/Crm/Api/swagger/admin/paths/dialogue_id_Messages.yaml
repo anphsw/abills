@@ -1,0 +1,23 @@
+get:
+  tags:
+    - crm
+  summary: Получить список сообщений диалога
+  description: Возвращает список сообщений диалога
+  operationId: getCrmDialogueMessages
+  parameters:
+    - name: id
+      in: path
+      description: ID диалога
+      required: true
+      schema:
+        type: integer
+        format: int64
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/dialogueMessageList.yaml"
+  security:
+    - KEY: [ ]

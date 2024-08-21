@@ -42,9 +42,9 @@ if (!$conf{PAYMENT_HIDE_USER_MENU}) {
     }
   }
 
-  if ($conf{PAYSYS_RECURRENT_PAYMENT}) {
-    $USER_FUNCTION_LIST{"03:1:$lang{RECURRENT_PAYMENT}:paysys_recurrent_payment:"} = 40;
-  }
+  # if ($conf{PAYSYS_RECURRENT_PAYMENT}) {
+  #   $USER_FUNCTION_LIST{"03:1:$lang{RECURRENT_PAYMENT}:paysys_recurrent_payment:"} = 40;
+  # }
 }
 
 if ($conf{PAYSYS_TERMINALS_ADD}) {

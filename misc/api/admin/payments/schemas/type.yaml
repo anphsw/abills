@@ -1,0 +1,16 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 10
+  name:
+    type: string
+    example: Credit card
+  feesType:
+    type: integer
+    example: 0
+  defaultPayment:
+    type: integer
+    example: 0
+  color:
+    type: string

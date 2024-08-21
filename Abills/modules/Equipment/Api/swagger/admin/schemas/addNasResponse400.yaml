@@ -1,0 +1,19 @@
+type: object
+properties:
+  affected:
+    type: string
+    example:
+  nasId:
+    type: string
+    example:
+  total:
+    type: integer
+    format: int32
+    example: 0
+  errno:
+    type: integer
+    format: int32
+    example: 7
+  errstr:
+    type: string
+    example: ERROR_DUPLICATE

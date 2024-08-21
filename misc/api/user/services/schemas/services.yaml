@@ -179,37 +179,31 @@ properties:
           example: 1
         cid:
           type: string
-          example: 14:11:11:11:11:c1
-        dayAbon:
+          example: '10:fe:ed:43:8f:35'
+        dayFee:
           type: number
-          example: 0
-        disable:
-          type: number
-          example: 0
-        expire:
-          type: string
-          example: "0000-00-00"
+          example: 10
         extraNumbersDayFee:
           type: number
-          example: 0
+          example: 1
         extraNumbersMonthFee:
           type: number
-          example: 0
+          example: 5
         id:
           type: number
-          example: 47
+          example: 43
         ip:
           type: string
           example: 0.0.0.0
         logins:
           type: number
-          example: 0
-        monthAbon:
+          example: 2
+        monthFee:
           type: number
-          example: 0
+          example: 100
         number:
           type: string
-          example: 0509152720
+          example: 00509152720
         phoneAliases:
           type: array
           items:
@@ -220,25 +214,43 @@ properties:
                 example: 0
               id:
                 type: number
-                example: 24
+                example: 1
               number:
                 type: number
-                example: 380506712611
-              uid:
-                type: number
-                example: 1
+                example: 380506712612
+        scheduleTpChange:
+          type: object
+          properties:
+            added:
+              type: string
+              example: '2022-12-20'
+            addedBy:
+              type: string
+              example: abills
+            date:
+              type: string
+              example: '2022-12-21'
+            id:
+              type: number
+              example: 234
+            tpId:
+              type: number
+              example: 38
+        serviceStatus:
+          type: number
+          example: 0
         tpId:
           type: number
-          example: 45
+          example: 39
         tpName:
           type: string
-          example: test api
-        tpNum:
-          type: number
-          example: 567
+          example: test api change
         uid:
           type: number
-          example: 1
+          example: 102167
         voipExpire:
           type: string
-          example: "0000-00-00"
+          example: '0000-00-00'
+        voipStatus:
+          type: number
+          example: 0

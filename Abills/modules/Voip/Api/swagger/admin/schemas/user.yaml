@@ -1,0 +1,29 @@
+type: object
+properties:
+  cid:
+    type: string
+    example: '10:fe:ed:43:8f:35'
+  dayFee:
+    type: number
+    example: 10
+  id:
+    type: number
+    example: 43
+  ip:
+    type: string
+    example: 0.0.0.0
+  monthFee:
+    type: number
+    example: 50
+  number:
+    type: string
+    example: 00509152720
+  tpId:
+    type: number
+    example: 40
+  tpName:
+    type: string
+    example: TestVoipAdd
+  uid:
+    type: number
+    example: 102167

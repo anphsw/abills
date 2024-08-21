@@ -108,6 +108,10 @@ sub msgs_events {
     });
   }
 
+  my @skip_status = ('!5', '!9');
+  my $closed_status = $Msgs->status_list({ TASK_CLOSED => 1, COLS_NAME => 1 });
+  map push(@skip_status, "!$_->{id}"), @{$closed_status};
+
   # Planned work
   my $responsible_and_planned_for_today_list = $Msgs->messages_list({
     PAGE_ROWS      => 3,
@@ -118,7 +122,7 @@ sub msgs_events {
     PLAN_FROM_DATE => $main::DATE,
     PLAN_TO_DATE   => $main::DATE,
     PLAN_TIME      => '<=' . $main::TIME,
-    STATE          => '!1,!2,!5,!9',
+    STATE          => join(',', @skip_status),
     %LIST_PARAMS,
     COLS_NAME      => 1,
     COLS_UPPER     => 0

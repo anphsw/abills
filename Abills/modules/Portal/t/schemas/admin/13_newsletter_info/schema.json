@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer"
+    },
+    "articleId": {
+      "type": "integer"
+    },
+    "sent": {
+      "type": "integer"
+    },
+    "sendMethod": {
+      "type": "integer"
+    },
+    "status": {
+      "type": "integer"
+    },
+    "start_datetime": {
+      "type": "string"
+    }
+  },
+  "required": ["id", "articleId", "sent", "sendMethod", "status", "start_datetime"]
+}

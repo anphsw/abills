@@ -322,6 +322,7 @@ sub has_list_command {
 #**********************************************************
 sub get_list {
   my $self = shift;
+
   return $self->{executor}->get_list(@_);
 }
 

@@ -62,7 +62,7 @@
                 <div class='bd-highlight'>
                   <div class='input-group-append h-100'>
                     <a id='wiki-link' class='btn input-group-button rounded-left-0' data-tooltip='_{GUIDE_WIKI_LINK}_'
-                       href='http://abills.net.ua/wiki/doku.php/abills:docs:nas' target='_blank'>?</a>
+                       href='http://abills.net.ua/wiki/pages/viewpage.action?pageId=7504030' target='_blank'>?</a>
                     %WINBOX%
                   </div>
                 </div>

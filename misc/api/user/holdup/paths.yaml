@@ -1,2 +1,2 @@
-/user/{ID}/holdup:
+/user/{id}/holdup:
   $ref: "./paths/holdup.yaml"

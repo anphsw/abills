@@ -1,0 +1,20 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 187
+  articleId:
+    type: integer
+    example: 167
+  sent:
+    type: integer
+    example: 8841
+  sendMethod:
+    type: integer
+    example: 1
+  status:
+    type: integer
+    example: 0
+  start_datetime:
+    type: string
+    example: "2024-05-15 16:00:00"

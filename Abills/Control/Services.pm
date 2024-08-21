@@ -1,6 +1,6 @@
 =head1 NAME
 
-  INternet base functions
+  Information about user services
 
 =cut
 
@@ -9,7 +9,6 @@ use warnings FATAL => 'all';
 
 use Tariffs;
 use Abills::Base qw(days_in_month);
-use Abills::Api::FieldsGrouper;
 
 our (
   $db,
@@ -19,6 +18,7 @@ our (
   %lang,
   $DATE,
   %FORM,
+  $base_dir,
   @MODULES
 );
 
@@ -94,7 +94,8 @@ sub sel_tp {
     if ($attr->{GROUP_SORT}) {
       my $small_deposit = q{};
       if ($users) {
-        $small_deposit = (($users->{DEPOSIT} || 0) + ($users->{CREDIT} || 0) < ($line->{month_fee} || 0) + ($line->{day_fee} || 0)) ?
+        my $deposit = (defined($users->{DEPOSIT}) && $users->{DEPOSIT} =~ /^[\-0-9,\.\/]+$/) ? $users->{DEPOSIT} : 0;
+        $small_deposit = ($deposit + ($users->{CREDIT} || 0) < ($line->{month_fee} || 0) + ($line->{day_fee} || 0)) ?
           ' (' . $lang{ERR_SMALL_DEPOSIT} . ')' : '';
       }
 
@@ -139,6 +140,8 @@ sub sel_tp {
 
   Arguments:
     $user_info
+      UID
+      REDUCTION
     $attr
       ACTIVE_ONLY
       SKIP_MODULES
@@ -159,6 +162,7 @@ sub get_services {
   my %result = ();
 
   my $cross_modules_return = ::cross_modules('docs', {
+    %{($attr) ? $attr : {} },
     UID          => $user_info->{UID},
     REDUCTION    => $user_info->{REDUCTION},
     FULL_INFO    => 1,
@@ -174,7 +178,8 @@ sub get_services {
       next if ($#{$cross_modules_return->{$module}} == -1);
       foreach my $service_info (@{$cross_modules_return->{$module}}) {
         if (ref $service_info eq 'HASH') {
-          #foreach my $mod_info ( @{ $module_return } ) {
+          $service_info->{month} //= 0;
+          $service_info->{day} //= 0;
           my $status = $service_info->{status} || 0;
           if ($attr->{ACTIVE_ONLY} && $status) {
             next;
@@ -207,7 +212,9 @@ sub get_services {
             STATUS           => $status,
             TP_REDUCTION_FEE => $service_info->{tp_reduction_fee} || 0,
             ACTIVATE         => $service_info->{service_activate},
-            MODULE_NAME      => $service_info->{module_name}
+            MODULE_NAME      => $service_info->{module_name},
+            ID               => $service_info->{id},
+            TP_ID            => $service_info->{tp_id} || 0
           };
 
           $result{total_sum} += $sum;
@@ -384,177 +391,84 @@ sub service_status_change {
 sub get_user_services {
   my ($attr) = @_;
 
-  my $service_name = $attr->{service};
+  my $service_name = $attr->{service} || '';
+  my $skip_services = $attr->{skip_services} || '';
   my $uid = $attr->{uid} || '--';
 
-  if ($service_name && $service_name eq 'Internet') {
-    require Control::Service_control;
-    Control::Service_control->import();
-    my $Service_control = Control::Service_control->new($db, $admin, \%conf);
+  require Users;
+  Users->import();
+  my $Users = Users->new($db, $admin, \%conf);
+  $Users->info($uid);
 
-    my $tariffs = $Service_control->all_info({
-      UID             => $uid,
-      MODULE          => 'Internet',
-      FUNCTION_PARAMS => {
-        GROUP_BY        => 'internet.id',
-        INTERNET_STATUS => '_SHOW',
-        IP              => '_SHOW',
-      },
-    });
+  my $result = ::cross_modules('user_services', {
+    UID                => $uid,
+    SKIP_COMPANY_USERS => 1,
+    USER_INFO          => $Users,
+    MODULES            => $service_name,
+    SKIP_MODULES       => $skip_services,
+    ACTIVE_ONLY        => $attr->{active_only} ? 1 : 0
+  });
 
-    return $tariffs || [];
+  if ($service_name && $result) {
+    return $result->{$service_name} || [];
   }
-  elsif ($service_name && $service_name eq 'Iptv') {
-    require Control::Service_control;
-    Control::Service_control->import();
-    my $Service_control = Control::Service_control->new($db, $admin, \%conf);
 
-    my $tariffs = $Service_control->all_info({
-      UID             => $uid,
-      MODULE          => 'Iptv',
-      FUNCTION_PARAMS => {
-        SERVICE_STATUS  => '_SHOW',
-        IPTV_EXPIRE     => '_SHOW',
-        SERVICE_ID      => '_SHOW',
-        TV_SERVICE_NAME => '_SHOW',
-        TV_USER_PORTAL  => '_SHOW',
-        SERVICE_STATUS  => '_SHOW',
-      },
-    });
+  return $result;
+}
 
-    return $tariffs || [];
-  }
-  elsif ($service_name && $service_name eq 'Voip') {
-    require Voip;
-    Voip->import();
-    my $Voip = Voip->new($db, $admin, \%conf);
+#**********************************************************
+=head2 sel_plugins($module, $attr) - Select available plugins for a module
 
-    $Voip->user_info($uid);
+  Arguments:
+    $module - Name of the module to search for plugins
+    $attr   - Extra attributes
+       SELECT     - Flag to determine if HTML select should be returned; also serves as the name of the select element
+       SELECT_ID  - ID for the HTML select element (optional)
+       SELECTED   - Default selected plugin (optional)
+       PLUGIN     - Plugin name to be selected by default (optional)
+       EX_PARAMS  - Additional parameters for the HTML select element (optional)
 
-    return {
-      errno  => 30012,
-      errstr => 'Not active voip service'
-    } if (!($Voip->{TOTAL} && $Voip->{TOTAL} > 0));
+  Returns:
+   Hash reference of available plugins or HTML select element
 
-    require Shedule;
-    Shedule->import();
-    my $Schedule = Shedule->new($db, $admin, \%conf);
+  Example:
 
-    $Schedule->info({
-      UID    => $uid,
-      TYPE   => 'tp',
-      MODULE => 'Voip'
-    });
+    # To get a hash reference of plugins
+    my $plugins = sel_plugins('Iptv');
 
-    if ($Schedule->{TOTAL} && $Schedule->{TOTAL} > 0) {
-      $Voip->{SCHEDULE_TP_CHANGE} = {
-        DATE     => "$Schedule->{Y}-$Schedule->{M}-$Schedule->{D}",
-        ADDED    => $Schedule->{DATE},
-        ADDED_BY => $Schedule->{ADMIN_NAME},
-        TP_ID    => $Schedule->{ACTION},
-        ID       => $Schedule->{SHEDULE_ID},
-      };
-    }
+    # To get an HTML select element
+    my $html_select = sel_plugins('Iptv', { SELECT => 'PLUGIN' });
 
-    my $phones = $Voip->phone_aliases_list({
-      UID       => $uid,
-      NUMBER    => '_SHOW',
-      DISABLE   => '_SHOW',
-      COLS_NAME => 1,
-    });
+=cut
+#**********************************************************
+sub sel_plugins {
+  my $module = shift;
+  my ($attr) = @_;
 
-    $Voip->{PHONE_ALIASES} = $phones;
+  return '' if !$module;
 
-    my @filter_array = (
-      'AFFECTED',
-      'FILTER_ID',
-      'NAT',
-      'PROVISION_NAS_ID',
-      'PROVISION_PORT',
-      'SIMULTANEOUSLY',
-      'SIMULTANEOUSLY',
-      'TOTAL',
-      'TP_CREDIT',
-      'REGISTRATION',
-      'SEARCH_VALUES',
-      'SEARCH_FIELDS_COUNT',
-      'SEARCH_FIELDS_ARR',
-      'SEARCH_FIELDS',
-      'EXT_TABLES'
-    );
+  my $plugins_folder = "$base_dir" . 'Abills/modules/' . $module . '/Plugins/';
+  return '' if (!-d $plugins_folder);
 
-    delete @{$Voip}{@filter_array};
-    $Voip = { %$Voip };
-    return [ $Voip = Abills::Api::FieldsGrouper::group_fields($Voip) ];
-  }
-  elsif ($service_name && $service_name eq 'Abon') {
-    require Abon;
-    Abon->import();
-    my $Abon = Abon->new($db, $admin, \%conf);
+  opendir(my $folder, $plugins_folder) or return '';
+  my @plugin_files = grep(/\.pm$/, readdir($folder));
+  closedir $folder;
 
-    require Users;
-    my $Users = Users->new($db, $admin, \%conf);
-    $Users->info($uid);
+  my %plugins_hash = map { $_ =~ /(.+)\.pm/; $1 => $1 } @plugin_files;
+  return \%plugins_hash if !$attr->{SELECT};
 
-    my $services = $Abon->user_tariff_list($uid, {
-      USER_PORTAL  => '>0',
-      SERVICE_LINK => '_SHOW',
-      SERVICE_IMG  => '_SHOW',
-      GID          => $Users->{GID} || 0,
-      COLS_NAME    => 1
-    });
-
-    my @service_list = ();
-
-    foreach my $service (@{$services}) {
-      next if (!$service->{manual_activate} && !$service->{date});
-      require POSIX;
-      POSIX->import(qw(strftime));
-      $DATE = strftime("%Y-%m-%d", localtime(time));
-      my $date_if = $service->{next_abon} ? date_diff($DATE, $service->{next_abon}) : 0;
-
-      my @periods = ('day', 'month', 'quarter', 'six months', 'year');
-
-      my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
-      my $base_attach_link = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images/attach/abon" : '';
-
-      my %tariff = (
-        price                => $service->{price},
-        tp_name              => $service->{tp_name},
-        id                   => $service->{id},
-        active               => (!$service->{next_abon} || ($date_if && $date_if <= 0)) ? 'false' : 'true',
-        start_date           => $service->{date},
-        end_date             => $service->{next_abon},
-        description          => $service->{user_description} || '',
-        period               => $periods[$service->{period}],
-        activate             => ($service->{user_portal} > 1 && $service->{manual_activate}) ? 'true' : 'false',
-        service_link         => $service->{service_link},
-        service_img          => "$base_attach_link/$service->{service_img}",
-        personal_description => $service->{personal_description},
-        tp_reduction_fee     => $service->{reduction_fee},
-      );
-
-      if ($tariff{tp_reduction_fee} && $Users->{REDUCTION} && $Users->{REDUCTION} > 0) {
-        $tariff{original_price} = $tariff{price};
-        $tariff{price} = $tariff{price} ? $tariff{price} - (($tariff{price} / 100) * $Users->{REDUCTION}) : $tariff{price};
-      }
-
-      if ($date_if && $date_if > 0) {
-        $tariff{next_abon} = {
-          abon_date   => $service->{next_abon},
-          days_to_fee => $date_if,
-          sum         => $service->{price}
-        }
-      }
-
-      push @service_list, \%tariff;
-    }
-
-    return \@service_list;
-  }
-  else {
-    return [];
-  }
+  return $html->form_select($attr->{SELECT}, {
+    ID          => $attr->{SELECT_ID} || (uc($module) . '_PLUGIN'),
+    SELECTED    => $attr->{SELECTED} || $attr->{PLUGIN},
+    SEL_HASH    => \%plugins_hash,
+    SEL_OPTIONS => { '' => '--' },
+    NO_ID       => 1,
+    EX_PARAMS   => $attr->{EX_PARAMS}
+      ? ((ref $attr->{EX_PARAMS} eq 'HASH')
+        ? %{$attr->{EX_PARAMS}}
+        : (EX_PARAMS => $attr->{EX_PARAMS}))
+      : {},
+  });
 }
 
 1;

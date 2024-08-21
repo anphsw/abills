@@ -1732,6 +1732,10 @@ sub form_info_fields {
     return 1;
   }
 
+  require Info_fields;
+  Info_fields->import();
+  my $Info_fields = Info_fields->new($db, $admin, \%conf);
+
   if ($FORM{FIELD_ID}){
     $FORM{FIELD_ID} = lc( $FORM{FIELD_ID} );
     $FORM{FIELD_ID} =~ s/[ \-]+//g;
@@ -1742,21 +1746,21 @@ sub form_info_fields {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} (Length > 15)");
     }
     else {
-      $users->info_field_add({%FORM});
-      if (!$users->{errno}) {
+      $Info_fields->info_field_add({%FORM});
+      if (!$Info_fields->{errno}) {
         $html->message('info', $lang{INFO}, "$lang{ADDED}: $FORM{FIELD_ID} - $FORM{NAME}");
       }
     }
   }
   elsif ($FORM{COMPANY_ADD}) {
-    $users->info_field_add({%FORM});
-    if (!$users->{errno}) {
+    $Info_fields->info_field_add({%FORM});
+    if (!$Info_fields->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{ADDED}: $FORM{FIELD_ID} - $FORM{NAME}");
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $users->info_field_del({ SECTION => $FORM{del}, %FORM });
-    if (!$users->{errno}) {
+    $Info_fields->info_field_del({ SECTION => $FORM{del}, %FORM });
+    if (!$Info_fields->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{FIELD_ID}");
     }
   }
@@ -1915,146 +1919,76 @@ sub form_info_fields {
 }
 
 #**********************************************************
-=head2 form_info_lists() - Information lists
+=head2 form_info_lists () - manage info lists values
+
+  Attr
+   $Info_fields - object
 
 =cut
 #**********************************************************
 sub form_info_lists {
+  my ($Info_fields) = @_;
 
-  my @ACTIONS = ('add', $lang{ADD});
+  $FORM{LIST_TABLE}=($Info_fields->{list}->[0]->{SQL_FIELD} || '').'_list';
+  my @ACTIONS = ('add_list_element', $lang{ADD});
 
-  if ($FORM{add}) {
-
-    $users->info_list_add({%FORM});
-
-    if (!$users->{errno}) {
+  if ($FORM{add_list_element}) {
+    $Info_fields->info_list_add({%FORM});
+    if (!$Info_fields->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{ADDED}: $FORM{NAME}");
     }
   }
-  elsif ($FORM{change}) {
-    $users->info_list_change($FORM{chg}, { ID => $FORM{chg}, %FORM });
-    if (!$users->{errno}) {
+  elsif ($FORM{change_list_element}) {
+    $Info_fields->info_list_change($FORM{chg_list_element}, { ID => $FORM{chg_list_element}, %FORM });
+    if (!$Info_fields->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{CHANGED}: $FORM{NAME}");
     }
   }
-  elsif ($FORM{chg}) {
-    $users->info_list_info($FORM{chg}, {%FORM});
-    if (!$users->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGE}: $FORM{chg}");
-      @ACTIONS = ('change', $lang{CHANGE});
+  elsif ($FORM{chg_list_element}) {
+    $Info_fields->info_list_info($FORM{chg_list_element}, {%FORM});
+    if (!$Info_fields->{errno}) {
+      @ACTIONS = ('change_list_element', $lang{CHANGE});
     }
   }
-  elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $users->info_list_del({ ID => $FORM{del}, %FORM });
-    if (!$users->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}");
+  elsif ($FORM{del_list_element} && $FORM{COMMENTS}) {
+    $Info_fields->info_list_del({ ID => $FORM{del_list_element}, %FORM });
+    if (!$Info_fields->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{DELETED} $lang{VALUE}: $FORM{del_list_element}");
     }
   }
 
-  my $list = ();
-  my %lists_hash = ();
-  _error_show($users);
-
-  if($conf{info_fields_new}){
-    require Info_fields;
-    my $Info_fields = Info_fields->new($db, $admin, \%conf);
-
-    $list = $Info_fields->fields_list(
-        {
-          TYPE => 2
-        }
-      );
-
-    foreach my $line (@$list) {
-      $lists_hash{ $line->{sql_field} . '_list' } = $line->{name};
-    }
-  }
-  else{
-      $list = $Conf->config_list(
-        {
-          PARAM => 'if*',
-          VALUE => '*:2:*'
-        }
-      );
-      foreach my $line (@$list) {
-        my $field_name = '';
-
-        if ($line->[0] =~ /if[u|c](\S+)/) {
-          $field_name = $1;
-        }
-
-        # $position, $field_type
-        my (undef, undef, $name) = split(/:/, $line->[1]);
-        $lists_hash{ $field_name . '_list' } = $name;
-      }
-    }
-
-  my $lists_sel = $html->form_select(
-    'LIST_TABLE',
-    {
-      SELECTED => $FORM{LIST_TABLE},
-      SEL_HASH => \%lists_hash,
-      NO_ID    => 1,
-    }
-  );
-
-  my @rows = (
-    "$lang{LIST}:",
-    $lists_sel,
-    $html->form_input('SHOW', $lang{SHOW}, { TYPE => 'submit' })
-  );
-
-  my $info = '';
-  foreach my $val ( @rows ) {
-    $info  .= $html->element('div', $val, { class => 'form-group' });
-  }
-
-  my $list_form = $html->element('div', $info, {
-      class => 'navbar navbar-default form-inline'
+  my $table = $html->table({
+    width      => '100%',
+    caption    => "$lang{LIST}",
+    title_plain => [ '#', $lang{NAME} ],
+    ID         => 'LIST'
   });
+
+  my $list = $Info_fields->info_lists_list({%FORM, COLS_NAME => 1});
+
+  foreach my $line (@$list) {
+    $table->addrow(
+      $line->{id}, $line->{name},
+      $html->button($lang{CHANGE}, "index=$index&LIST_TABLE=$FORM{LIST_TABLE}&chg=$FORM{chg}&chg_list_element=$line->{id}&chg_list_value=$line->{name}", { class => 'change' })
+        . (($permissions{0} && $permissions{0}{5}) ? $html->button($lang{DEL}, "index=$index&LIST_TABLE=$FORM{LIST_TABLE}&chg=$FORM{chg}&del_list_element=$line->{id}", { MESSAGE => "$lang{DEL} $line->{id} / $line->{name}?", class => 'del' }) : '')
+    );
+  }
+
+  $table->addrow($users->{ID}, $html->form_input('NAME', $users->{NAME}, { SIZE => 80 }), $html->form_input($ACTIONS[0], $ACTIONS[1], { TYPE => 'SUBMIT' }));
 
   print $html->form_main({
-    CONTENT => $list_form,
-    HIDDEN  => { index => $index, },
-    NAME    => 'tables_list'
+    CONTENT => $table->show(),
+    HIDDEN  => {
+      index             => $index,
+      chg               => $FORM{chg},
+      chg_list_element  => $FORM{chg_list_element},
+      LIST_TABLE        => $FORM{LIST_TABLE}
+    },
+    NAME    => 'list_add',
+    class   => 'container-sm'
   });
 
-  if ($FORM{LIST_TABLE}) {
-    my $table = $html->table(
-      {
-        width      => '450',
-        caption    => "$lang{LIST}",
-        title      => [ '#', $lang{NAME}, '-', '-' ],
-        ID         => 'LIST'
-      }
-    );
-
-    $list = $users->info_lists_list({%FORM, COLS_NAME => 1});
-
-    foreach my $line (@$list) {
-      $table->addrow(
-        $line->{id}, $line->{name},
-        $html->button($lang{CHANGE}, "index=$index&LIST_TABLE=$FORM{LIST_TABLE}&chg=$line->{id}", { class => 'change' })
-        . (($permissions{0} && $permissions{0}{5}) ? $html->button($lang{DEL}, "index=$index&LIST_TABLE=$FORM{LIST_TABLE}&del=$line->{id}", { MESSAGE => "$lang{DEL} $line->{id} / $line->{name}?", class => 'del' }) : '')
-      );
-    }
-
-    $table->addrow($users->{ID}, $html->form_input('NAME', $users->{NAME}, { SIZE => 80 }), $html->form_input($ACTIONS[0], $ACTIONS[1], { TYPE => 'SUBMIT' }));
-
-    print $html->form_main(
-      {
-        CONTENT => $table->show(),
-        HIDDEN  => {
-          index      => $index,
-          chg        => $FORM{chg},
-          LIST_TABLE => $FORM{LIST_TABLE}
-        },
-        NAME => 'list_add'
-      }
-    );
-  }
-
-  return 1;
+  return;
 }
 
 #**********************************************************
@@ -2999,7 +2933,7 @@ sub info_fields_new {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} (Length > 20)");
     }
     else {
-      $users->info_field_add({
+      $Info_fields->info_field_add({
         POSITION               => $FORM{PRIORITY},
         FIELD_TYPE             => $FORM{TYPE},
         USERS_PORTAL           => $FORM{ABON_PORTAL},
@@ -3023,6 +2957,12 @@ sub info_fields_new {
       $chg_list->[0]{REQUIRED} = 'checked' if $chg_list->[0]{REQUIRED};
       $chg_list->[0]{ABON_PORTAL} = 'checked' if $chg_list->[0]{ABON_PORTAL};
       $chg_list->[0]{USER_CHG} = 'checked' if $chg_list->[0]{USER_CHG};
+
+    # manage list values
+    if ($chg_list->[0]{TYPE} && $chg_list->[0]{TYPE} == 2 ){
+      form_info_lists($Info_fields);
+    }
+
     }
     $TEMPLATE_ADVERTISEMENT{READONLY} = 'readonly';
     $TEMPLATE_ADVERTISEMENT{READONLY2} = 'disabled';
@@ -3036,7 +2976,7 @@ sub info_fields_new {
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     my $list = $Info_fields->fields_list({ ID => $FORM{del} });
     $Info_fields->fields_del($FORM{del}, COMMENTS => $FORM{COMMENTS});
-    $users->info_field_del({
+    $Info_fields->info_field_del({
       FIELD_ID => $list->[0]->{SQL_FIELD},
       SECTION  => ($list->[0]->{COMPANY} ? 'ifc' : 'ifu'),
     });
@@ -3153,12 +3093,7 @@ sub info_fields_new {
     FILTER_VALUES   => {
       type => sub {
         my (undef, $line) = @_;
-        if ($line->{type} == 2) {
-          $html->button($fields_types[2], "index=" . ($index + 1) . "&LIST_TABLE=$line->{sql_field}" . '_list');
-        }
-        else {
-          $fields_types[$line->{type}];
-        }
+        $fields_types[$line->{type}]
       }
     },
     SELECT_VALUE    => {

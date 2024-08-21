@@ -1,0 +1,50 @@
+type: object
+properties:
+  addparameter:
+    type: string
+    example: ""
+  addprefix:
+    type: string
+    example: ""
+  affected:
+    type: number
+    example: 0
+  failoverTrunk:
+    type: number
+    example: 1
+  id:
+    type: number
+    example: 1
+  name:
+    type: string
+    example: Hello Test
+  protocol:
+    type: string
+    example: SIP
+  providerIp:
+    type: string
+    example: ""
+  providerName:
+    type: string
+    example: Test
+  removeprefix:
+    type: string
+    example: ""
+  secondusedcarrier:
+    type: number
+    example: 0
+  secondusedratecard:
+    type: number
+    example: 0
+  secondusedreal:
+    type: number
+    example: 0
+  status:
+    type: number
+    example: 0
+  total:
+    type: number
+    example: 1
+  trunkprefix:
+    type: string
+    example: ""

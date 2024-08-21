@@ -1,6 +1,0 @@
-{
-  "name": "USER_PAYSYS_TRANSACTION_STATUS",
-  "method": "POST",
-  "path": "user/:uid/paysys/transaction/status/",
-  "body": {}
-}

@@ -19,7 +19,6 @@ our (
   $admin,
   %conf,
   %lang,
-  %permissions,
   @MONTHES_LIT,
   @MONTHES,
   @WEEKDAYS,
@@ -32,8 +31,6 @@ our (
   %LIST_PARAMS,
   $pages_qs,
   $SELF_URL,
-  #$sid,
-  #$user,
   @_COLORS,
   $Conf
 );
@@ -81,7 +78,7 @@ sub internet_user {
     return 1;
   }
   elsif ($FORM{add}) {
-    if (!$permissions{0}{32} && !$attr->{REGISTRATION}) {
+    if (!$admin->{permissions}{0}{32} && !$attr->{REGISTRATION}) {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
       return 1;
     }
@@ -196,7 +193,7 @@ sub internet_user {
 
     $Internet->{DESCRIBE_AID} = ($Internet->{DESCRIBE_AID}) ? ('['.$Internet->{DESCRIBE_AID}.']') : '';
 
-    if ($permissions{0}{10}) {
+    if ($admin->{permissions}{0}{10}) {
       $Internet->{CHANGE_TP_BUTTON} = $html->button('',
         'ID=' . $Internet->{ID} . '&UID=' . $uid . '&index=' . get_function_index('internet_chg_tp'),
         { class => 'btn input-group-button hidden-print', TITLE => $lang{CHANGE}, ICON => "fa fa-pencil-alt" });
@@ -220,7 +217,7 @@ sub internet_user {
     $Internet->{NETMASK_COLOR} = ($Internet->{NETMASK} ne '255.255.255.255') ? 'bg-warning' : '';
 
     my $shedule_index = get_function_index('internet_form_shedule');
-    if ($permissions{0}{4}) {
+    if ($admin->{permissions}{0}{4}) {
       $Internet->{SHEDULE} = {
         EXT_BUTTON => $html->button('',
           "UID=$uid&ID=$Internet->{ID}&Shedule=status&index=" . (($shedule_index) ? $shedule_index : $index + 4),
@@ -246,6 +243,7 @@ sub internet_user {
       COLS_NAME => 1,
       SORT      => 'id',
       DESC      => 'desc',
+      ACTIONS   => "*ID:$Internet->{ID}*",
       SKIP_TOTAL=> 1
     });
 
@@ -268,7 +266,7 @@ sub internet_user {
     $Internet->{REGISTRATION_INFO} = $html->button("", "qindex=$index&UID=$uid&REGISTRATION_INFO=1",
       { class => 'btn btn-info', ICON => 'fas fa-print', ex_params => 'target=_new' });
 
-    if ($permissions{0} && $permissions{0}{14}) {
+    if ($admin->{permissions}{0} && $admin->{permissions}{0}{14}) {
       $Internet->{DEL_BUTTON} = $html->button($lang{DEL}, "index=$index&del=1&UID=$uid&ID=$Internet->{ID}", {
         MESSAGE => "$lang{DEL} $lang{SERVICE} Internet $lang{FOR} $lang{USER} $uid?",
         class   => 'btn btn-danger'
@@ -324,7 +322,7 @@ sub internet_user {
 
   $Internet->{STATUS_SEL} = sel_status({
     STATUS    => $Internet->{STATUS},
-    EX_PARAMS => (defined($Internet->{STATUS}) && (!$attr->{REGISTRATION} && !$permissions{0}{18})) ? " disabled=disabled" : ''
+    EX_PARAMS => (defined($Internet->{STATUS}) && (!$attr->{REGISTRATION} && !$admin->{permissions}{0}{18})) ? " disabled=disabled" : ''
   }, $Internet->{SHEDULE} || {});
 
   my $service_status_colors = sel_status({ COLORS => 1 });
@@ -678,24 +676,21 @@ sub internet_user_add {
     #Make month fee
     $Internet->user_info($uid, { ID => $service_id });
     if (!$attr->{STATUS} && !$attr->{SKIP_MONTH_FEE}) {
-      service_get_month_fee($Internet, {
+      ::service_get_month_fee($Internet, {
         REGISTRATION               => 1,
         DO_NOT_USE_GLOBAL_USER_PLS => $attr->{DO_NOT_USE_GLOBAL_USER_PLS} || 0
       });
     }
 
-    if ($conf{MSG_REGREQUEST_STATUS} && !$attr->{STATUS}) {
-      msgs_unreg_requests_list({ UID => $uid, NOTIFY_ID => -1 });
-    }
     $attr->{ID}=$service_id;
 
     if ($attr->{REGISTRATION}) {
       if (! $attr->{QUITE}) {
-        my $service_status = sel_status({ HASH_RESULT => 1 });
+        my $service_status = ::sel_status({ HASH_RESULT => 1 });
         my ($status, $color) = split(/:/, (defined($Internet->{STATUS}) && $service_status->{ $Internet->{STATUS} }) ? $service_status->{ $Internet->{STATUS} } : q{});
         $Internet->{STATUS_VALUE} = $html->color_mark($status, $color);
         delete $Internet->{EXTRA_FIELDS};
-        $html->tpl_show(_include('internet_user_info', 'Internet'), $Internet);
+        $html->tpl_show(::_include('internet_user_info', 'Internet'), $Internet);
       }
       return 0;
     }
@@ -768,24 +763,31 @@ sub internet_ipoe_activate_manual {
 #**********************************************************
 =head2 internet_user_change($attr)
 
+  Arguments:
+    UID
+    ID
+
+  Results:
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub internet_user_change {
   my ($attr) = @_;
 
   my $uid = $attr->{UID} || $LIST_PARAMS{UID} || 0;
+  my $web_admin_id = $conf{USERS_WEB_ADMIN_ID} || 3;
 
-  if (!$permissions{0}{4}) {
+  if ($web_admin_id != $admin->{AID} && !$admin->{permissions}{0}{4}) {
     return {
       errno => 950,
       errstr => 'ACCESS DENIED',
     } if ($attr->{API});
-    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { ID => 1360950 });
     return 0;
   }
 
   $attr = internet_user_preproccess($uid, $attr);
-
   if ($attr->{RETURN}) {
     return 0;
   }
@@ -824,11 +826,6 @@ sub internet_user_change {
     }
 
     internet_ipoe_activate_manual($attr);
-
-    #change reg request status to active
-    if ($conf{MSG_REGREQUEST_STATUS}) {
-      msgs_unreg_requests_list({ UID => $uid, NOTIFY_ID => -1 });
-    }
   }
 
   if (!$Internet->{errno}) {
@@ -836,11 +833,20 @@ sub internet_user_change {
       if ($conf{INTERNET_SKIP_FIRST_DAY_FEE} && ! $Internet->{STATUS} && $Internet->{TP_INFO}{ABON_DISTRIBUTION}) {
         #print "Skip fee / $Internet->{TP_INFO}{ABON_DISTRIBUTION}";
       }
-      elsif ((!$permissions{0}{25} && $Internet->{OLD_PERSONAL_TP} > 0) ||
+      elsif ((!$admin->{permissions}{0}{25} && $Internet->{OLD_PERSONAL_TP} > 0) ||
         ($attr->{PERSONAL_TP} && $attr->{PERSONAL_TP} > 0
         && $Internet->{OLD_PERSONAL_TP} == $attr->{PERSONAL_TP}
         && $Internet->{OLD_STATUS} == ($attr->{STATUS} || 0))) {
 
+
+        my $external_cmd = '_EXTERNAL_CMD';
+        my $module = 'Internet';
+        $external_cmd = uc($module).$external_cmd;
+        if ($conf{$external_cmd}) {
+          if (!_external($conf{$external_cmd}, { %FORM, %$users, %$Internet, %$attr })) {
+            print "Error: external cmd '$conf{$external_cmd}'\n";
+          }
+        }
       }
       else {
         # if (!$permissions{0}{25}) {
@@ -869,20 +875,20 @@ sub internet_user_change {
         }
 
         if($month_fee) {
-          service_get_month_fee($Internet);
+          ::service_get_month_fee($Internet);
         }
       }
     }
 
     if ($attr->{STATUS}) {
-      _external('', { EXTERNAL_CMD => 'Internet', %{$Internet} });
+      ::_external('', { EXTERNAL_CMD => 'Internet', %{$Internet} });
     }
 
     if ($Internet->{CHG_STATUS} && $Internet->{CHG_STATUS} eq '0->3' && $conf{INTERNET_HOLDUP_COMPENSATE}) {
       $Internet->{TP_INFO_OLD} = $Tariffs->info(0, { TP_ID => $Internet->{TP_ID} });
       if ($Internet->{TP_INFO_OLD}->{PERIOD_ALIGNMENT}) {
         $Internet->{TP_INFO}->{MONTH_FEE} = 0;
-        service_get_month_fee($Internet, { RECALCULATE => 1 });
+        ::service_get_month_fee($Internet, { RECALCULATE => 1 });
       }
     }
 
@@ -1064,16 +1070,24 @@ sub internet_user_change_nas {
 sub internet_user_preproccess {
   my ($uid, $attr) = @_;
 
-  delete($attr->{TP_ID})            if (!$permissions{0}{10} && !$attr->{REGISTRATION});
-  delete($attr->{STATUS})           if (!$permissions{0}{18} && !$attr->{REGISTRATION});
-  delete($attr->{SERVICE_ACTIVATE}) if (!$permissions{0}{19} && !$attr->{REGISTRATION});
-  delete($attr->{SERVICE_EXPIRE})   if (!$permissions{0}{20} && !$attr->{REGISTRATION});
-  delete($attr->{PERSONAL_TP})      if (!$permissions{0}{25});
+  my $web_admin_id = $conf{USERS_WEB_ADMIN_ID} || 3;
+  if ($web_admin_id != $admin->{AID} && $admin->{permissions}{0}) {
+    my $permits = $admin->{permissions}{0};
+    delete($attr->{TP_ID}) if (! $permits->{10} && !$attr->{REGISTRATION});
+    delete($attr->{STATUS}) if (! $permits->{18} && !$attr->{REGISTRATION});
+    delete($attr->{SERVICE_ACTIVATE}) if (!$permits->{19} && !$attr->{REGISTRATION});
+    delete($attr->{SERVICE_EXPIRE}) if (!$permits->{20} && !$attr->{REGISTRATION});
+    delete($attr->{PERSONAL_TP}) if (!$permits->{25});
+  }
 
   my $message = q{};
 
   if ((!$attr->{IP} || $attr->{IP} eq '0.0.0.0') && $attr->{STATIC_IP_POOL}) {
     $attr->{IP} = get_static_ip($attr->{STATIC_IP_POOL});
+  }
+
+  if ($attr->{SERVER_VLAN} && !$attr->{VLAN}) {
+    $attr->{VLAN} = internet_get_vlan($attr);
   }
 
   if ($attr->{STATIC_IPV6_POOL}) {
@@ -1148,7 +1162,7 @@ sub internet_user_preproccess {
     });
 
     if ($Internet->{TOTAL} > 0 &&  $list->[0]->{uid} && $list->[0]->{uid} != $uid) {
-      $html->message('err', $lang{ERROR}, "SVLAN & CVLAN are already in use. Login: "
+      $html->message('err', $lang{ERROR}, "Server VLAN: $attr->{SERVER_VLAN}, VLAN: $attr->{VLAN} $lang{EXIST}. $lang{LOGIN}: "
         . $html->button("$list->[0]{login}", "index=15&UID=" . $list->[0]->{uid}));
 
       if (!$attr->{SKIP_ERRORS}) {
@@ -1173,6 +1187,22 @@ sub internet_user_preproccess {
       if ($conf{INTERNET_PROHIBIT_DUPLICATE_NAS_PORT} && !$attr->{SKIP_ERRORS}) {
         $attr->{RETURN} = 1;
         return $attr;
+      }
+    }
+
+    if ($attr->{PORT} =~ /^\d+&/) {
+      require Equipment;
+      Equipment->import();
+      my $Equipment = Equipment->new($db, $admin, \%conf);
+
+      my $equipment_info = $Equipment->_info($attr->{NAS_ID});
+      if ($equipment_info->{PORTS_WITH_EXTRA} < $attr->{PORT}) {
+        $html->message('warn', $lang{WARNING}, $lang{ERR_NO_WRONG_PORT_SELECTED});
+
+        if (!$attr->{SKIP_ERRORS}) {
+          $attr->{RETURN} = 1;
+          return $attr;
+        }
       }
     }
   }
@@ -1303,8 +1333,8 @@ sub internet_password_form {
 
   my $uid = $attr->{UID};
   my $password_form;
-  $password_form->{PW_CHARS} = $conf{PASSWD_SYMBOLS} || "abcdefhjmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWYXZ";
-  $password_form->{PW_LENGTH} = $conf{PASSWD_LENGTH} || 6;
+  $password_form->{PW_CHARS} = $conf{PASSWD_SYMBOLS};
+  $password_form->{PW_LENGTH} = $conf{PASSWD_LENGTH};
   $password_form->{ACTION} = 'change';
   $password_form->{LNG_ACTION} = $lang{CHANGE};
 
@@ -1482,10 +1512,10 @@ sub internet_user_online {
 
       push @function_fields, $html->button('Z',
         "index=$online_index&zap=$uid+$online->{nas_id}+$online->{nas_port_id}+$online->{acct_session_id}$pages_qs",
-        { TITLE => 'Zap', class => 'del', NO_LINK_FORMER => 1 }) if ($permissions{5} && $permissions{5}{1});
+        { TITLE => 'Zap', class => 'del', NO_LINK_FORMER => 1 }) if ($admin->{permissions}{5} && $admin->{permissions}{5}{1});
       push @function_fields, $html->button('H',
         "index=$online_index&FRAMED_IP_ADDRESS=$online->{client_ip}&hangup=$online->{nas_id}+$online->{nas_port_id}+$online->{acct_session_id}+$online->{user_name}&$pages_qs",
-        { TITLE => 'Hangup', class => 'power-off', NO_LINK_FORMER => 1 }) if ($permissions{5} && $permissions{5}{2});
+        { TITLE => 'Hangup', class => 'power-off', NO_LINK_FORMER => 1 }) if ($admin->{permissions}{5} && $admin->{permissions}{5}{2});
 
       $table->addrow(@row, join(' ', @function_fields));
     }
@@ -1531,30 +1561,42 @@ sub internet_user_subscribes {
         id => 'search_link:form_users:UID'
       },
       EXT_TITLES      => {
-        'ip_num'               => 'IP',
-        'netmask'              => 'NETMASK',
-        'speed'                => $lang{SPEED},
-        'port'                 => $lang{PORT},
-        'cid'                  => 'CID',
-        'filter_id'            => 'Filter ID',
-        'tp_name'              => "$lang{TARIF_PLAN}",
-        'internet_status'      => "Internet $lang{STATUS}",
-        'internet_status_date' => "$lang{STATUS} $lang{DATE}",
-        'internet_comments'    => "Internet $lang{COMMENTS}",
-        'online'               => 'Online',
-        'online_ip'            => 'Online IP',
-        'online_cid'           => 'Online CID',
-        'online_duration'      => 'Online ' . $lang{DURATION},
-        'month_fee'            => $lang{MONTH_FEE},
-        'day_fee'              => $lang{DAY_FEE},
-        'internet_expire'      => "Internet $lang{EXPIRE}",
-        'internet_activate'    => "Internet $lang{ACTIVATE}",
-        'internet_login'       => "Internet $lang{LOGIN}",
-        'internet_password'    => "Internet $lang{PASSWD}",
-        'month_traffic_in'     => "$lang{MONTH} $lang{RECV}",
-        'month_traffic_out'    => "$lang{MONTH} $lang{SENT}",
-        'id',                  => 'ID',
-        'nas_id'               => 'NAS_ID'
+        'ip_num'                => 'IP',
+        'netmask'               => 'NETMASK',
+        'speed'                 => $lang{SPEED},
+        'port'                  => $lang{PORT},
+        'cid'                   => 'CID',
+        'filter_id'             => 'Filter ID',
+        'tp_name'               => $lang{TARIF_PLAN},
+        'tp_id'                 => "$lang{TARIF_PLAN} ID",
+        'internet_status'       => "Internet $lang{STATUS}",
+        'internet_status_date'  => "$lang{STATUS} $lang{DATE}",
+        'internet_comments'     => "Internet $lang{COMMENTS}",
+        'online'                => 'Online',
+        'online_ip'             => 'Online IP',
+        'online_cid'            => 'Online CID',
+        'online_duration'       => 'Online ' . $lang{DURATION},
+        'month_fee'             => $lang{MONTH_FEE},
+        'day_fee'               => $lang{DAY_FEE},
+        'internet_activate'     => "Internet $lang{ACTIVATE}",
+        'internet_expire'       => "Internet $lang{EXPIRE}",
+        'internet_login'        => "Internet $lang{LOGIN}",
+        'internet_password'     => "Internet $lang{PASSWD}",
+        'month_traffic_in'      => "$lang{MONTH} $lang{RECV}",
+        'month_traffic_out'     => "$lang{MONTH} $lang{SENT}",
+        'month_ipn_traffic_in'  => "$lang{MONTH} IPN $lang{RECV}",
+        'month_ipn_traffic_out' => "$lang{MONTH} IPN $lang{SENT}",
+        'personal_tp'           => "$lang{PERSONAL} $lang{TARIF_PLAN}",
+        'shedule'               => $lang{SHEDULE},
+        'cpe_mac'               => 'CPE MAC',
+        'nas_id'                => 'NAS_ID',
+        'id'                    => $lang{ID_TP_SEARCH},
+        'ipv6'                  => 'IPv6 Address',
+        'ipv6_prefix'           => 'IPv6 Prefix',
+        'vlan'                  => 'VLAN',
+        'server_vlan'           => 'SERVER VLAN',
+        'describe_aid'          => "$lang{DESCRIBE_FOR_ADMIN}",
+        'user_reduction'        => "$lang{REDUCTION},%"
       },
       FILTER_COLS     => {
         ip_num => 'int2ip',
@@ -1787,7 +1829,7 @@ sub internet_registration_info {
   $users = Users->new($db, $admin, \%conf);
   $Internet = $Internet->user_info($uid);
   my $pi = $users->pi({ UID => $uid });
-  my $user = $users->info($uid, { SHOW_PASSWORD => $permissions{0}{3} });
+  my $user = $users->info($uid, { SHOW_PASSWORD => $admin->{permissions}{0}{3} });
   my $company_info = {};
 
   if ($user->{COMPANY_ID}) {
@@ -1892,7 +1934,7 @@ sub internet_form_shedule {
     });
   }
 
-  if ($FORM{add} && $permissions{0}{18} && defined($FORM{ACTION})) {
+  if ($FORM{add} && $admin->{permissions}{0}{18} && defined($FORM{ACTION})) {
     my ($Y, $M, $D) = split(/-/, ($FORM{DATE} || $DATE), 3);
 
     print date_diff("$Y-$M-$D", $DATE);
@@ -1914,7 +1956,7 @@ sub internet_form_shedule {
       }
     }
   }
-  elsif ($FORM{del} && $FORM{COMMENTS} && $permissions{0}{18}) {
+  elsif ($FORM{del} && $FORM{COMMENTS} && $admin->{permissions}{0}{18}) {
     $Shedule->del({ ID => $FORM{del} });
     if (!_error_show($Shedule)) {
       $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{del}]");
@@ -1923,7 +1965,7 @@ sub internet_form_shedule {
 
   my $service_status = sel_status({ HASH_RESULT => 1 });
 
-  if ($FORM{Shedule} && $FORM{Shedule} eq 'status' && $permissions{0}{18}) {
+  if ($FORM{Shedule} && $FORM{Shedule} eq 'status' && $admin->{permissions}{0}{18}) {
     my @rows = (
       " $lang{FROM}: ",
       $html->date_fld2('DATE', {
@@ -2009,7 +2051,7 @@ sub shedule_list {
   });
 
   foreach my $line (@$list) {
-    my $delete = ($permissions{0}{4}) ? $html->button($lang{DEL}, "index=$index&del=$line->{id}&UID=$line->{uid}",
+    my $delete = ($admin->{permissions}{0}{4}) ? $html->button($lang{DEL}, "index=$index&del=$line->{id}&UID=$line->{uid}",
       { MESSAGE => "$lang{DEL} [$line->{id}]?", class => 'del', TEXT => $lang{DEL} }) : '-';
 
     my $action = $line->{action};
@@ -2083,11 +2125,11 @@ sub internet_chg_tp {
     return 0;
   }
 
-  if (!$permissions{0}{4}) {
+  if (!$admin->{permissions}{0}{4}) {
     $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { ID => 943 });
     return 1;
   }
-  elsif (!$permissions{0}{10}) {
+  elsif (!$admin->{permissions}{0}{10}) {
     $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY}, { ID => 944 });
     return 1;
   }
@@ -2294,7 +2336,7 @@ sub internet_chg_tp {
       SORT_VALUE     => 1, # Sort for sub groups
       SORT_KEY       => 1,
       GROUP_COLOR    => 1,
-      MAIN_MENU      => $permissions{4} ? get_function_index('internet_tp') : undef,
+      MAIN_MENU      => $admin->{permissions}{4} ? get_function_index('internet_tp') : undef,
       MAIN_MENU_ARGV => "TP_ID=" . ($Internet->{TP_ID} || '')
     }
   });
@@ -2590,8 +2632,8 @@ sub internet_user_wizard {
   $internet_defaults->{TP_DISPLAY_NONE} = "style='display:none'";
 
   my $password_form;
-  $password_form->{PW_CHARS} = $conf{PASSWD_SYMBOLS} || "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ";
-  $password_form->{PW_LENGTH} = $conf{PASSWD_LENGTH} || 6;
+  $password_form->{PW_CHARS} = $conf{PASSWD_SYMBOLS};
+  $password_form->{PW_LENGTH} = $conf{PASSWD_LENGTH};
   my %pi_form = (INFO_FIELDS => form_info_field_tpl());
 
   if ($conf{DOCS_CONTRACT_TYPES}) {
@@ -2651,7 +2693,7 @@ sub internet_user_wizard {
   );
 
   #Payments
-  if ($permissions{1} && $permissions{1}{1}) {
+  if ($admin->{permissions}{1} && $admin->{permissions}{1}{1}) {
     $Payments->{SEL_METHOD} = $html->form_select(
       'METHOD',
       {
@@ -2687,8 +2729,8 @@ sub internet_user_wizard {
     my $Mail = Mail->new($db, $admin, \%conf);
 
     $Mail->{PASSWORD} = $Mail->{PASSWORD} = $html->tpl_show(_include('mail_password', 'Mail'), {
-      PW_CHARS  => "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ",
-      PW_LENGTH => 8,
+      PW_CHARS  => $conf{PASSWD_SYMBOLS},
+      PW_LENGTH => $conf{PASSWD_LENGTH},
     },
       { OUTPUT2RETURN => 1 });
 
@@ -2795,7 +2837,7 @@ sub internet_wizard_add {
   # Password
   $add_values{1}{GID} = $admin->{GID} if ($admin->{GID});
 
-  if (!$permissions{0}{13} && $admin->{AID} != 2 && !$admin->{DOMAIN_ID}) {
+  if (!$admin->{permissions}{0}{13} && $admin->{AID} != 2 && !$admin->{DOMAIN_ID}) {
     $add_values{1}{DISABLE} = 2;
   }
 
@@ -3545,6 +3587,49 @@ sub internet_ip_pool_check {
   }
 
   return $static_ip_pools->{INTERNET_IP_FREE};
+}
+
+
+#**********************************************************
+=head2 internet_ip_pool_check($attr)
+
+  Arguments:
+    $attr
+      SERVER_VLAN
+      VLAN
+
+  Results:
+    $free_vlan
+
+=cut
+#**********************************************************
+sub internet_get_vlan {
+  my ($attr) = @_;
+
+  my $vlan = 0;
+
+  my $internet_users = $Internet->user_list({
+    SERVER_VLAN => $attr->{SERVER_VLAN},
+    VLAN        => '!',
+    GROUP_BY    => 'internet.id',
+    SORT        => 'MAX(internet.vlan)',
+    DESC        => 'DESC',
+    SKIP_GID    => 1,
+    PAGE_ROWS   => 1,
+    COLS_NAME   => 1
+  });
+
+  if (!$Internet->{errno}) {
+    if ($Internet->{TOTAL} && $Internet->{TOTAL} > 0) {
+      my $last_vlan = $internet_users->[0]{vlan};
+      $vlan = ($last_vlan && $last_vlan < 4098) ? ($last_vlan + 1) : $attr->{VLAN};
+    }
+    else {
+      $vlan = 1;
+    }
+  }
+
+  return $vlan;
 }
 
 1;

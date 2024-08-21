@@ -15,6 +15,7 @@ our (
   $admin,
   $db,
   %permissions,
+  $libpath,
   %LIST_PARAMS
 );
 
@@ -25,6 +26,9 @@ my %action_types = (
   3 => $lang{CRM_VIEWING_INFORMATION},
   4 => $lang{DELETED}
 );
+
+require Abills::Template;
+my $Templates = Abills::Template->new($db, $admin, \%conf, { html => $html, lang => \%lang, libpath => $libpath });
 
 #**********************************************************
 =head2 crm_log($attr)
@@ -105,7 +109,7 @@ sub crm_lead_recent_activity {
 
   my $log = '';
   foreach my $action (@{$recent_activity}) {
-    $log .= $html->tpl_show(_include('crm_lead_log_item', 'Crm'), {
+    $log .= $html->tpl_show($Templates->_include('crm_lead_log_item', 'Crm'), {
       ADMIN_NAME => $action->{admin},
       DATETIME   => $action->{datetime},
       ACTION     => $action->{actions},
@@ -114,7 +118,7 @@ sub crm_lead_recent_activity {
     }, { OUTPUT2RETURN => 1 });
   }
 
-  return $html->tpl_show(_include('crm_lead_log', 'Crm'), { LOG => $log }, { OUTPUT2RETURN => 1 });
+  return $html->tpl_show($Templates->_include('crm_lead_log', 'Crm'), { LOG => $log }, { OUTPUT2RETURN => 1 });
 }
 
 #**********************************************************
@@ -142,7 +146,7 @@ sub _crm_log_search {
   });
 
   form_search({
-    SEARCH_FORM       => $html->tpl_show(_include('crm_lead_log_search_form', 'Crm'),
+    SEARCH_FORM       => $html->tpl_show($Templates->_include('crm_lead_log_search_form', 'Crm'),
       { %search_params, %FORM },
       { OUTPUT2RETURN => 1 }
     ),

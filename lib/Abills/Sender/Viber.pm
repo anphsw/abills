@@ -49,6 +49,7 @@ sub new {
     }
   }
 
+  #TODO: rework sms plugin init to VIBER
   die 'No Viber token ($conf{SMS_OMNICELL_VIBER} or $conf{SMS_TURBOSMS_VIBER})' if !$self->{VIBER_TOKEN};
 
   bless $self, $class;

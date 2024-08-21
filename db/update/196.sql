@@ -1,0 +1,2 @@
+ALTER TABLE `ring_users_filters` ADD COLUMN `comments` VARCHAR(250) NOT NULL DEFAULT '';
+ALTER TABLE `ring_users_filters` ADD COLUMN `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0;

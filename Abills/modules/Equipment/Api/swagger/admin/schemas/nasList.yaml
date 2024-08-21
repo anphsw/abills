@@ -1,0 +1,55 @@
+type: array
+items:
+  type: object
+  properties:
+    authType:
+      type: number
+      example: 0
+    descr:
+      type: string
+      example: 000
+    extAcct:
+      type: number
+      example: 0
+    id:
+      type: number
+      example: 3
+    mac:
+      type: string
+      example: B6:E6:3D:BD:13:F3
+    nasAlive:
+      type: number
+      example: 0
+    nasDisable:
+      type: number
+      example: 0
+    nasGroupName:
+      type: string
+      example: ""
+    nasId:
+      type: number
+      example: 3
+    nasIdentifier:
+      type: string
+      example: ""
+    nasIp:
+      type: string
+      example: 10.1.0.15
+    nasMngIpPort:
+      type: string
+      example: ":::"
+    nasMngPassword:
+      type: string
+      example: ""
+    nasMngUser:
+      type: string
+      example: ""
+    nasName:
+      type: string
+      example: Asterisk
+    nasRadPairs:
+      type: string
+      example: ERX-Service-Activate:1+='svc-global-pppoe(15242880
+    nasType:
+      type: string
+      example: eltex

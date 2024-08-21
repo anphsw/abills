@@ -6,19 +6,20 @@ package Sorm::Uzb;
 
 =head1 DOCS
 
-  Execute:
-  full downloading
-   /usr/abills/libexec/billd sorm TYPE=Uzb START=1
+  Arg:
+    START - full uploading from the begining (START=1)
+    DATE - date uploading (previous date is by default). Format DATE=YYYY.MM.DD
+    DEBUG
 
-  previuos day (for cron)
+  Execute:
   /usr/abills/libexec/billd sorm TYPE=Uzb
 
   DESCRIBE: Plugin for SORM of Uzbekistan
 
 =head1 VERSION
 
-  VERSION: 1.10
-  UPDATE: 20231214
+  VERSION: 1.12
+  UPDATED: 20240805
 
 =cut
 
@@ -33,23 +34,23 @@ use Abills::Base qw(in_array ip2int int2ip);
 my ($User, $Company, $Internet, $Sessions, $Nas, $Traffic, $debug);
 my Payments $Payments;
 
-my $service_begin_date = '2010-01-01 01:00:00';
-my $service_end_date = '2049-12-31 23:59:59';
+my $begin_date = '2015-01-01';
+my $end_date = '2049-12-31';
 my $t = localtime;
-my $prev_t = $t - 86400;
+my $upload_t = $t - 86400;
 
 my $year  = sprintf("%04d", $t->year());
 my $month = sprintf("%02d", $t->mon());
 my $day   = sprintf("%02d", $t->mday());
-my $hour  = sprintf("%02d", $t->hour());
-my $min   = sprintf("%02d", $t->min());
+my $hour  = 23;
+my $min   = 59;
 
-my $prev_year = sprintf("%04d", $prev_t->year());
-my $prev_month = sprintf("%02d", $prev_t->mon());
-my $prev_day = sprintf("%02d", $prev_t->mday());
-my $prev_date = "$prev_year-$prev_month-$prev_day";
+my $upload_year = sprintf("%04d", $upload_t->year());
+my $upload_month = sprintf("%02d", $upload_t->mon());
+my $upload_day = sprintf("%02d", $upload_t->mday());
+my $upload_date = "$upload_year-$upload_month-$upload_day";
 
-my $sufix = $year . $month . $day . "_" . $hour . $min . ".txt";
+my $sufix = $upload_year . $upload_month . $upload_day . "_" . $hour . $min . ".txt";
 my $sorm_id = '';
 my %reports = ();
 
@@ -108,18 +109,36 @@ sub init {
     mkdir($main::var_dir . '/sorm/UZB/' . $sorm_id);
   }
 
+  if ($argv->{DATE}){
+    if ($argv->{DATE} =~ /(\d{4})\-(\d{2})\-(\d{2})/) {
+      $upload_date = $argv->{DATE};
+      my $sufix_date = $argv->{DATE};
+      $sufix_date =~ s/\-//g;
+      $sufix = $sufix_date . "_" . $hour . $min . ".txt";
+    }
+    else {
+      print "Please specify argument DATE in correct format: DATE=YYYY-MM-DD \n";
+      return 1;
+    }
+  }
+
+  if (!$argv->{START}){
+    $begin_date = $upload_date;
+  }
+
+  print "Upload period: $begin_date/$upload_date\n" if ($debug);
+
   # ABONENT
   my $users_list = $User->list({
-    COLS_NAME => 1,
-    PAGE_ROWS => 99999,
-    DELETED   => 0,
-    REGISTRATION => ($argv->{START}) ? '_SHOW' : ">=$prev_date",
-    DISABLE   => 0,
+    REGISTRATION_FROM_REGISTRATION_TO => "$begin_date/$upload_date",
+    DELETED       => 0,
+    REGISTRATION  => '_SHOW',
+    DISABLE       => 0,
+    COLS_NAME     => 1,
+    PAGE_ROWS     => 99999,
   });
 
-  if ($debug > 1) {
-    print "Users: $User->{TOTAL}\n";
-  }
+  print "Users: $User->{TOTAL}\n" if ($debug > 1);
 
   _add_header('ABONENT');
 
@@ -129,17 +148,16 @@ sub init {
 
   # PAYMENT
   my $payments = $Payments->list({
+    ID        => '_SHOW',
+    FROM_DATE => $begin_date,
+    TO_DATE   => $upload_date,
+    SORT      => 'id',
+    DESC      => 'DESC',
     COLS_NAME => 1,
     PAGE_ROWS => 99999,
-    DATE      => ($argv->{START}) ? ('>'.$service_begin_date) : $prev_date,
-    ID        => '_SHOW',
-    SORT      => 'id',
-    DESC      => 'DESC'
-  });
+});
 
-  if ($debug > 1) {
-    print "Payments: $Payments->{TOTAL}\n";
-  }
+  print "Payments: $Payments->{TOTAL}\n" if ($debug > 1);
 
   _add_header("PAYMENT");
 
@@ -194,8 +212,8 @@ sub ABONENT_report {
   $arr[7] = ($User->{COMPANY_ID} > 0) ? $Company->{BANK_ACCOUNT} : '';         # BANK_ACCOUNT
   $arr[8] = $User->{FIO} || q{};                     # UNSTRUCT_NAME
    $arr[8] =~ s/[\"\'<>]+//g;
-  $arr[9] = ($User->{BIRTH_DATE} ne '0000-00-00') ? $User->{BIRTH_DATE} : q{};  # BIRTH_DAY
-  $arr[10] = '';                                      # IDENT_CARD_TYPE_ID
+  $arr[9] = ($User->{BIRTH_DATE} && $User->{BIRTH_DATE} ne '0000-00-00') ? $User->{BIRTH_DATE} : q{};  # BIRTH_DAY
+  $arr[10] = 'паспорт';                              # IDENT_CARD_TYPE_ID
 
   my $passport = $User->{PASPORT_NUM} || q{};
   $passport =~ s/\s//g if ($passport);
@@ -237,9 +255,8 @@ sub ABONENT_report {
   my $address_street = $User->{ADDRESS_STREET} || q{};
   my $address_build = $User->{ADDRESS_BUILD} || q{};
   my $flat = $User->{APPARTMENT} || q{};
-  $arr[22] = "$zip $country $region $city $address_street $address_build $flat"; # A_UNSTRUCT_INFO
-  $arr[23] = '';                    # H_UNSTRUCT_INFO
-
+  $arr[22] = $User->{REG_ADDRESS} || q{};                                        # A_UNSTRUCT_INFO
+  $arr[23] = "$zip $country $region $city $address_street $address_build $flat"; # H_UNSTRUCT_INFO
 
   _add_report("ABONENT", @arr);
 
@@ -256,22 +273,22 @@ sub PAYMENT_report {
   my ($id) = @_;
 
   my $payment = $Payments->list({
-  COLS_NAME => 1,
-  DATETIME  => '_SHOW',
-  METHOD    => '_SHOW',
-  SUM       => '_SHOW',
-  UID       => '_SHOW',
-  DSC       => '_SHOW',
-  CURRENCY  => '_SHOW',
-  ID        => $id,
+    COLS_NAME => 1,
+    DATETIME  => '_SHOW',
+    METHOD    => '_SHOW',
+    SUM       => '_SHOW',
+    UID       => '_SHOW',
+    DSC       => '_SHOW',
+    CURRENCY  => '_SHOW',
+    ID        => $id,
   });
 
   $payment = $payment->[0];
   my $uid = $payment->{uid};
 
   my $payment_type = 86;
-  $payment_type = 83 if($payment->{method} == 0); # cash
-  $payment_type = 80 if($payment->{method} == 1); # bank
+  $payment_type = 83 if ($payment->{method} && $payment->{method} == 0); # cash
+  $payment_type = 80 if ($payment->{method} && $payment->{method} == 1); # bank
 
   $User->info($uid);
   if ($User->{errno}) {
@@ -284,7 +301,7 @@ sub PAYMENT_report {
   my @arr = ();
 
   $arr[0] = $payment_type; # PAYMENT_TYPE
-  $arr[1] = $payment->{dsc}; # PAY_TYPE_ID
+  $arr[1] = $payment->{dsc} ? $payment->{dsc} : 'авансовый платеж'; # PAY_TYPE_ID
   $arr[2] = time2UTC($payment->{datetime}); # PAYMENT_DATE
   $arr[3] = $payment->{sum}; # AMOUNT
   $arr[4] = ''; # AMOUNT_CURRENCY
@@ -313,13 +330,14 @@ sub PAYMENT_report {
 #**********************************************************
 sub CONNECTION_report {
   my $self = shift;
-  my $argv = $self->{argv};
 
   my $session_list = $Sessions->list({
     COLS_NAME       => 1,
     UID             => '_SHOW',
     LOGIN           => '_SHOW',
-    START           => ($argv->{START}) ? '_SHOW' : ">=$prev_date",
+    FROM_DATE       => $begin_date,
+    TO_DATE         => $upload_date,
+    START           => '_SHOW',
     END             => '_SHOW',
     SENT            => '_SHOW',
     RECV            => '_SHOW',
@@ -332,56 +350,53 @@ sub CONNECTION_report {
     DESC            => 'DESC',
   });
 
-  if ($debug > 1) {
-    print "Sessions: $Sessions->{TOTAL}\n";
-  }
+  print "Sessions: $Sessions->{TOTAL}\n" if ($debug > 1);
 
   foreach my $session (@$session_list) {
     my @arr_start = ();
     my @arr_end   = ();
 
     my $user_internet_info = $Internet->user_info($session->{uid});
-    my $user_mac = ($user_internet_info->{CPE_MAC}) ? $user_internet_info->{CPE_MAC} : '';
-    $user_mac =~ s/://g;
+    my $user_mac = ($user_internet_info->{CPE_MAC}) ? $user_internet_info->{CPE_MAC} : $user_internet_info->{CID};
+    $user_mac =~ s/://g if $user_mac;
 
     $arr_start[0] = time2UTC($session->{start}); #CONNECTION_TIME
-    $arr_start[1] = $sorm_id; #REGION_ID
-    $arr_start[2] = '0';      #LOGIN_TYPE
+    $arr_start[1] = $sorm_id;          #REGION_ID
+    $arr_start[2] = '0';               #LOGIN_TYPE
     $arr_start[3] = $session->{acct_session_id}; #SESSION_ID
     $arr_start[4] = $session->{ip};                           #ALLOCATED_IPV4
     $arr_start[5] = $session->{mask} ? $session->{mask} : ''; #ALLOCATED_IPV4_MASK
     $arr_start[6] = $session->{login}; #USER_NAME
-    $arr_start[7] = ''; #CONNECT_TYPE -
-    $arr_start[8] = ''; #CALLING_NUMBER -
-    $arr_start[9] = ''; #CALLED_NUMBER -
+    $arr_start[7] = '';                #CONNECT_TYPE
+    $arr_start[8] = '0';               #CALLING_NUMBER
+    $arr_start[9] = '0';               #CALLED_NUMBER
     $arr_start[10] = $session->{nas_ip} ? $session->{nas_ip} : ''; #NAS_IPV4
     $arr_start[11] = $session->{port_id}; #NAS_IP_PORT
     $arr_start[12] = $session->{recv}; #IN_BYTES_COUNT
     $arr_start[13] = $session->{sent}; #OUT_BYTES_COUNT
     $arr_start[14] = $user_mac;        #USER_EQ_MAC
-    $arr_start[15] = ''; #APN
+    $arr_start[15] = '';               #APN
 
     $arr_end[0] = time2UTC($session->{end}); #CONNECTION_TIME
-    $arr_end[1] = $sorm_id; #REGION_ID
-    $arr_end[2] = '1';      #LOGIN_TYPE
+    $arr_end[1] = $sorm_id;          #REGION_ID
+    $arr_end[2] = '1';               #LOGIN_TYPE
     $arr_end[3] = $session->{acct_session_id}; #SESSION_ID
     $arr_end[4] = $session->{ip}; #ALLOCATED_IPV4
     $arr_end[5] = $session->{mask} ? $session->{mask} : ''; #ALLOCATED_IPV4_MASK
     $arr_end[6] = $session->{login}; #USER_NAME
-    $arr_end[7] = ''; #CONNECT_TYPE -
-    $arr_end[8] = ''; #CALLING_NUMBER -
-    $arr_end[9] = ''; #CALLED_NUMBER -
+    $arr_end[7] = '';                #CONNECT_TYPE
+    $arr_end[8] = '0';               #CALLING_NUMBER
+    $arr_end[9] = '0';               #CALLED_NUMBER
     $arr_end[10] = $session->{nas_ip} ? $session->{nas_ip} : '';  #NAS_IPV4
     $arr_end[11] = $session->{port_id}; #NAS_IP_PORT
     $arr_end[12] = $session->{recv}; #IN_BYTES_COUNT
     $arr_end[13] = $session->{sent}; #OUT_BYTES_COUNT
-    $arr_end[14] = $user_mac; #USER_EQ_MAC
-    $arr_end[15] = ''; #APN -
+    $arr_end[14] = $user_mac;        #USER_EQ_MAC
+    $arr_end[15] = '';               #APN
 
     _add_report("CONNECTION", @arr_start);
     _add_report("CONNECTION", @arr_end);
   }
-
 
   return 1;
 }
@@ -395,17 +410,15 @@ sub BASE_STATION_report {
   my $self = shift;
 
   my $nas_list = $Nas->list({
-  COLS_NAME    => 1,
-  NAS_ID       => '_SHOW',
-  ADDRESS_FULL => '_SHOW',
-  DISABLE      => 0,
-  DESCR        => '_SHOW',
-  PAGE_ROWS    => 60000,
+    COLS_NAME    => 1,
+    NAS_ID       => '_SHOW',
+    ADDRESS_FULL => '_SHOW',
+    DISABLE      => 0,
+    DESCR        => '_SHOW',
+    PAGE_ROWS    => 60000,
   });
 
-  if ($debug > 1) {
-    print "Nas: $Nas->{TOTAL}\n";
-  }
+  print "Nas: $Nas->{TOTAL}\n" if ($debug > 1);
 
   foreach my $nas (@$nas_list) {
     $nas->{mac} =~ s/\://g;
@@ -436,11 +449,10 @@ sub BASE_STATION_report {
 #**********************************************************
 sub NAT_report {
   my $self = shift;
-  my $argv = $self->{argv};
 
   my $traffic_list = $Traffic->traffic_user_list({
-    COLS_NAME    => 1,
-    S_TIME       => ($argv->{START}) ? '_SHOW' : $prev_date,
+    FROM_DATE_START => $begin_date,
+    TO_DATE_START   => $upload_date,
     SRC_IP       => '_SHOW',
     SRC_PORT     => '_SHOW',
     DST_IP       => '_SHOW',
@@ -448,11 +460,10 @@ sub NAT_report {
     NAS_ID       => '_SHOW',
     DESC         => 'DESC',
     PAGE_ROWS    => 1000000,
+    COLS_NAME    => 1,
   });
 
-  if ($debug > 1) {
-    print "Traffic: $Traffic->{TOTAL}\n";
-  }
+  print "Traffic: $Traffic->{TOTAL}\n" if ($debug > 1);
 
   foreach my $traffic (@$traffic_list) {
     my $user_internal_ip = '';
@@ -573,16 +584,14 @@ sub _add_report {
 sub _save_report {
   my($type, $content)=@_;
 
-  if ($debug > 5) {
-    print "$content\n";
-  }
+  print "$content\n" if ($debug > 5);
 
   %reports = (
-    ABONENT               => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_ABONENT_" . $sufix,
-    PAYMENT               => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_PAYMENT_" . $sufix,
-    CONNECTION            => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_CONNECTION_AAA_" . $sufix,
-    BASE_STATION          => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_BASE-STATION_" . $sufix,
-    NAT                   => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_NAT_" . $sufix,
+    ABONENT        => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_ABONENT_" . $sufix,
+    PAYMENT        => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_PAYMENT_" . $sufix,
+    CONNECTION     => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_CONNECTION_AAA_" . $sufix,
+    BASE_STATION   => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_BASE-STATION_" . $sufix,
+    NAT            => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_NAT_" . $sufix,
   );
 
   my $filename = $reports{$type};
@@ -609,7 +618,7 @@ sub _add_header {
   my ($type) = @_;
 
   my %headers = (
-    ABONENT               => [
+    ABONENT    => [
       'REGION_ID',
       'ACTUAL_FROM',
       'ACTUAL_TO',
@@ -635,7 +644,7 @@ sub _add_header {
       'A_UNSTRUCT_INFO',
       'H_UNSTRUCT_INFO'
     ],
-    PAYMENT               => [
+    PAYMENT    => [
       'PAYMENT_TYPE',
       'PAY_TYPE_ID',
       'PAYMENT_DATE',
@@ -654,7 +663,7 @@ sub _add_header {
       'A_UNSTRUCT_INFO',
       'REGION_ID'
     ],
-    CONNECTION            => [
+    CONNECTION  => [
       'CONNECTION_TIME',
       'REGION_ID',
       'LOGIN_TYPE',
@@ -672,7 +681,7 @@ sub _add_header {
       'USER_EQ_MAC',
       'APN'
     ],
-    BASE_STATION          => [
+    BASE_STATION => [
       'ID',
       'BEGIN_TIME',
       'END_TIME',
@@ -685,7 +694,7 @@ sub _add_header {
       'IPV4',
       'IP_PORT'
     ],
-    NAT                   => [
+    NAT          => [
       'TRANSLATION_TIME',
       'REGION_ID',
       'RECORD_TYPE',
@@ -777,11 +786,11 @@ sub time2UTC {
 sub send {
 
   %reports = (
-    ABONENT               => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_ABONENT_" . $sufix,
-    PAYMENT               => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_PAYMENT_" . $sufix,
-    CONNECTION            => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_CONNECTION_AAA_" . $sufix,
-    BASE_STATION          => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_BASE-STATION_" . $sufix,
-    NAT                   => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_NAT_" . $sufix,
+    ABONENT       => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_ABONENT_" . $sufix,
+    PAYMENT       => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_PAYMENT_" . $sufix,
+    CONNECTION    => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_CONNECTION_AAA_" . $sufix,
+    BASE_STATION  => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_BASE-STATION_" . $sufix,
+    NAT           => "$main::var_dir/sorm/UZB/$sorm_id/$sorm_id"."_NAT_" . $sufix,
   );
 
   for my $report (values %reports) {
@@ -791,9 +800,7 @@ sub send {
         FILE => $report
       });
 
-      if ($debug < 3) {
-        unlink $report;
-      }
+      unlink $report if ($debug < 3);
     }
   }
 

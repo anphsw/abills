@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "ADMIN Abon tariff info",
+  "required": ["id"],
+  "properties": {
+    "activeService": {
+      "type": "number"
+    },
+    "account": {
+      "type": "number"
+    },
+    "activateNotification": {
+      "type": "number"
+    },
+    "activatePrice": {
+      "type": "number"
+    },
+    "affected": {
+      "type": "number"
+    },
+    "alert": {
+      "type": "number"
+    },
+    "alertAccount": {
+      "type": "number"
+    },
+    "categoryId": {
+      "type": "number"
+    },
+    "createAccount": {
+      "type": "number"
+    },
+    "debug": {
+      "type": "number"
+    },
+    "debugFile": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "discount": {
+      "type": "number"
+    },
+    "domainId": {
+      "type": "number"
+    },
+    "extBillAccount": {
+      "type": "number"
+    },
+    "extCmd": {
+      "type": "string"
+    },
+    "extServiceId": {
+      "type": "string"
+    },
+    "feesType": {
+      "type": "number"
+    },
+    "hotDeal": {
+      "type": "number"
+    },
+    "id": {
+      "type": "number"
+    },
+    "login": {
+      "type": "string"
+    },
+    "manualActivate": {
+      "type": "number"
+    },
+    "module": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "nonfixPeriod": {
+      "type": "number"
+    },
+    "notification1": {
+      "type": "number"
+    },
+    "notification2": {
+      "type": "number"
+    },
+    "notificationAccount": {
+      "type": "number"
+    },
+    "password": {
+      "type": "string"
+    },
+    "paymentType": {
+      "type": "number"
+    },
+    "period": {
+      "type": "number"
+    },
+    "periodAlignment": {
+      "type": "number"
+    },
+    "plugin": {
+      "type": "string"
+    },
+    "popular": {
+      "type": "number"
+    },
+    "price": {
+      "type": "number"
+    },
+    "priority": {
+      "type": "number"
+    },
+    "promotional": {
+      "type": "number"
+    },
+    "promoPeriod": {
+      "type": "number"
+    },
+    "serviceImg": {
+      "type": "string"
+    },
+    "serviceLink": {
+      "type": "string"
+    },
+    "serviceRecovery": {
+      "type": "number"
+    },
+    "total": {
+      "type": "number"
+    },
+    "url": {
+      "type": "string"
+    },
+    "userDescription": {
+      "type": "string"
+    },
+    "userPortal": {
+      "type": "number"
+    },
+    "vat": {
+      "type": "number"
+    }
+  }
+}

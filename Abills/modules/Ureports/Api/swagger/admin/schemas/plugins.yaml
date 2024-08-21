@@ -1,0 +1,23 @@
+type: object
+properties:
+  report1:
+    type: object
+    properties:
+      comments:
+        type: string
+        example: Happy birthday
+      module:
+        type: string
+        example: Report1
+      reportFunction:
+        type: string
+        example: report1
+      reportId:
+        type: number
+        example: 51
+      reportName:
+        type: string
+        example: Report1 name
+      template:
+        type: string
+        example: ureports_report_51

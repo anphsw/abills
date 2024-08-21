@@ -67,7 +67,7 @@ sub new($;$) {
 
   my ($nas_ip, $coa_port, $ssh_port) = split(":", $host->{nas_mng_ip_port});
   $self->{host} = $nas_ip || return 0;
-  $self->{ssh_port} = $ssh_port || $coa_port || 22;
+  $self->{ssh_port} = $ssh_port || 22;
 
   $self->{admin} = $host->{NAS_MNG_USER} || 'abills_admin';
 
@@ -355,7 +355,6 @@ sub get_list {
   }
 
   my $cmd_result = $self->_ssh_single($command, { SHOW_RESULT => 1 });
-
   return 0 if ($cmd_result eq '0');
 
   if ($command =~ / terse/) {
@@ -418,16 +417,17 @@ sub parse_terse_list {
   my (undef, $raw_input) = @_;
 
   my @rows = split("\n", $raw_input);
-
   my @parsed_rows = ();
   foreach my $element (@rows) {
-    my ($id, $flags) = $element =~ /^ (\d+) ([A-Z ]+) /;
-    $element =~ s/^ (\d+) ([A-Z ]+) //;
+    my ($id, $flags) = $element =~ /^\s{0,5}(\d+)\s+([A-Z ]+) /i;
+    $element =~ s/^\s{0,5}(\d+)\s+([A-Z ]+) //i;
+
 
     next if (!defined $id);
+    next if ($element =~ /^\s{0,20}$/);
 
     my %parsed = ();
-    $parsed{id} = $id;
+    $parsed{id} = $id || 0;
 
     $flags =~ s/ //g;
     $parsed{flags} = $flags;

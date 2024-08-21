@@ -1,0 +1,40 @@
+type: object
+properties:
+  comments:
+    type: string
+    example: Для абонентів з тарифним планом за 10 грн
+  date:
+    type: string
+    format: date
+    example: 2023-09-28
+  feesPeriod:
+    type: number
+    example: 0
+  id:
+    type: number
+    example: 3
+  manualFee:
+    type: number
+    example: 0
+  nextAbon:
+    type: string
+    format: date
+    example: 2023-10-01
+  period:
+    type: number
+    example: 2
+  price:
+    type: number
+    example: 1.93
+  serviceCount:
+    type: number
+    example: 1
+  tpId:
+    type: number
+    example: 3
+  tpName:
+    type: string
+    example: Статичний IP адрес
+  uid:
+    type: number
+    example: 120545

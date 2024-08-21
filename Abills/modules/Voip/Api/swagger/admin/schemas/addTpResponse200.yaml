@@ -1,0 +1,14 @@
+type: object
+properties:
+  affected:
+    type: integer
+    format: int32
+    example: 1
+  tpId:
+    type: integer
+    format: int32
+    example: 253
+  total:
+    type: integer
+    format: int32
+    example: 0

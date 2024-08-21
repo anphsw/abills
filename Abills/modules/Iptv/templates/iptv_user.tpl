@@ -87,7 +87,7 @@
 
           <div class='form-group row'>
             <label class='control-label col-md-3 text-right' for='VOD'>VoD:</label>
-            <div class='col-md-9'>
+            <div class='col-md-9 p-2'>
               <input id='VOD' name='VOD' value='1' %VOD% type='checkbox'>
             </div>
           </div>
@@ -120,7 +120,7 @@
             <div class='col-md-3'>
               <input value='%ID%' ID='ID' class='form-control' disabled>
             </div>
-            <label class='control-label col-md-2 text-right' for='SUBSCRIBE_ID'>_{SERVICE}_:</label>
+            <label class='control-label col-md-2 text-right' for='SUBSCRIBE_ID'>_{SUBSRIBES}_:</label>
             <div class='col-md-4'>
               <input value='%SUBSCRIBE_ID%' class='form-control' ID='SUBSCRIBE_ID' disabled>
             </div>

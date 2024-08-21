@@ -41,12 +41,12 @@ sub new {
 
   bless($self, $class);
 
-  my $pass_symbols = $conf{PASSWD_SYMBOLS} || "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ";
+  my $pass_symbols = $conf{PASSWD_SYMBOLS};
   $patterns{PHONE_NUMBER_PATTERN} = $conf{PHONE_NUMBER_PATTERN} || '';
   $patterns{LOGIN_PATTERN} = $conf{USERNAMEREGEXP} || "^[a-z0-9_][a-z0-9_-]*\$";
   $patterns{LOGIN_MAX_LENGTH} = $conf{MAX_USERNAME_LENGTH} || 15;
   $patterns{PASSWORD_PATTERN} = "^[$pass_symbols]+\$";
-  $patterns{PASSWORD_MIN_LENGTH} = $conf{PASSWD_LENGTH} || 6;
+  $patterns{PASSWORD_MIN_LENGTH} = $conf{PASSWD_LENGTH};
 
   return $self;
 }

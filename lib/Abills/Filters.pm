@@ -93,7 +93,7 @@ $HOCT = '[0-9A-Fa-f]{2}';
 $MAC  = "$HOCT\[.:-\]?$HOCT\[.:-\]?$HOCT\[.:-\]?$HOCT\[.:-\]?$HOCT\[.:-\]?$HOCT";
 $DEFAULT_DATE_FORMAT='\d{4}-\d{2}-\d{2}';
 $EMAIL_EXPR = '(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))';
-$URL_EXPR = '^(.*:)\/\/([A-Za-z0-9\-\.]+)(:[0-9]+)?(.*)$';
+$URL_EXPR = '^([a-z]+):\/\/([A-Za-z0-9\-\.]+):?([0-9]+)?(.*)$';
 
 #**********************************************************
 =head2 _expr($value, $expr_tpl) - Expration
@@ -140,15 +140,15 @@ sub _expr {
 }
 
 #**********************************************************
-=head2 _utf8_encode($value, $attr) - Normilize utf string
+=head2 _utf8_encode($value, $attr) - Normalize utf string
 
   Attributes:
-    $value  - Valie for normalise
+    $value  - Value for normalise
     $attr
 
   Returns:
 
-    return normilize string
+    return normalize string
 
 =cut
 #**********************************************************

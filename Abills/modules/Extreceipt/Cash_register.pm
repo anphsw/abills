@@ -3,7 +3,7 @@ package Extreceipt::Cash_register;
 use strict;
 use warnings FATAL => 'all';
 
-use Extreceipt::Base;
+use Extreceipt::Init qw(init_extreceipt_service);
 use Extreceipt::db::Extreceipt;
 
 my $Extreceipt;
@@ -25,7 +25,7 @@ sub new {
   };
 
   $Extreceipt = Extreceipt->new($db, $admin, $conf);
-  $Receipt_api = receipt_init($Extreceipt);
+  $Receipt_api = init_extreceipt_service($db, $admin, $conf);
 
   bless($self, $class);
 

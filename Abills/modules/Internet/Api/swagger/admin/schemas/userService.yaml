@@ -1,0 +1,199 @@
+type: object
+properties:
+  abonDistribution:
+    type: integer
+    example: 0
+  activate:
+    type: string
+    format: date
+    example: "0000-00-00"
+  activatePrice:
+    type: number
+    format: float
+    example: 0
+  affected:
+    type: integer
+    example: 0
+  cid:
+    type: string
+    example: ""
+  comments:
+    type: string
+    example: ""
+  cpeMac:
+    type: string
+    example: ""
+  dayAbon:
+    type: integer
+    example: 0
+  describeAid:
+    type: string
+    example: ""
+  detailStats:
+    type: integer
+    example: 0
+  disable:
+    type: integer
+    example: 0
+  expire:
+    type: string
+    format: date
+    example: "0000-00-00"
+  filterId:
+    type: string
+    example: ""
+  fixedFeesDay:
+    type: number
+    format: float
+    example: 0
+  freeTurboMode:
+    type: integer
+    example: 0
+  id:
+    type: integer
+    example: 4
+  internetComment:
+    type: string
+    example: ""
+  internetLogin:
+    type: string
+    example: ""
+  ip:
+    type: string
+    format: ipv4
+    example: "0.0.0.0"
+  ipnActivate:
+    type: integer
+    example: 0
+  ipv6:
+    type: string
+    format: ipv6
+    example: ""
+  ipv6Mask:
+    type: integer
+    example: 0
+  ipv6Prefix:
+    type: string
+    example: ""
+  ipv6PrefixMask:
+    type: integer
+    example: 0
+  joinService:
+    type: integer
+    example: 0
+  login:
+    type: string
+    example: ""
+  logins:
+    type: integer
+    example: 0
+  monthAbon:
+    type: number
+    format: float
+    example: 50
+  nasId:
+    type: integer
+    example: 0
+  netmask:
+    type: string
+    example: "255.255.255.255"
+  password:
+    type: string
+    example: ""
+  paymentType:
+    type: integer
+    example: 1
+  personalTp:
+    type: integer
+    example: 0
+  port:
+    type: integer
+    example: 20280
+  postpaidAbon:
+    type: integer
+    example: 0
+  reductionFee:
+    type: number
+    format: float
+    example: 0
+  registration:
+    type: string
+    format: date
+    example: "2022-10-19"
+  serverVlan:
+    type: integer
+    example: 0
+  serviceActivate:
+    type: string
+    format: date
+    example: "0000-00-00"
+  serviceExpire:
+    type: string
+    format: date
+    example: "0000-00-00"
+  speed:
+    type: integer
+    example: 0
+  status:
+    type: integer
+    example: 0
+  total:
+    type: integer
+    example: 1
+  tpActivatePrice:
+    type: number
+    format: float
+    example: 0
+  tpAge:
+    type: integer
+    example: 0
+  tpChangePrice:
+    type: number
+    format: float
+    example: 0
+  tpCredit:
+    type: number
+    format: float
+    example: 0
+  tpFilterId:
+    type: string
+    example: ""
+  tpGid:
+    type: integer
+    example: 1
+  tpId:
+    type: integer
+    example: 1
+  tpName:
+    type: string
+    example: "Admin"
+  tpNum:
+    type: integer
+    example: 0
+  tpPeriodAlignment:
+    type: integer
+    example: 0
+  tpPriority:
+    type: integer
+    example: 0
+  turboMode:
+    type: integer
+    example: 0
+  uid:
+    type: integer
+    example: 130
+  userCreditLimit:
+    type: number
+    format: float
+    example: 50
+  vlan:
+    type: integer
+    example: 0
+  list:
+    type: array
+    items:
+      type: string
+    example: []
+  moduleName:
+    type: string
+    example: "Internet"

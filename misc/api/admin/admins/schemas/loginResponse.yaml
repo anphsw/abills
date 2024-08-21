@@ -1,0 +1,9 @@
+type: object
+properties:
+  sid:
+    type: string
+    example: dewfj
+  apiKey:
+    type: string
+    example: TEST123
+    description: Возвращается только, если включена опция `API_ADMIN_AUTH_LOGIN_RETURN_API_KEY`

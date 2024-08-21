@@ -6,10 +6,12 @@
   var GOOGLE_API_KEY  = '%GOOGLE_API_KEY%';
   var YANDEX_API_KEY  = '%YANDEX_API_KEY%';
   var VISICOM_API_KEY  = '%VISICOM_API_KEY%';
+  var MAPS_MIN_CLUSTER_GROUP  = '%MAPS_MIN_CLUSTER_GROUP%' || 1000;
 
   var MAPS_DEFAULT_TYPE  = '%MAPS_DEFAULT_TYPE%';
   var MAPS_DEFAULT_LATLNG  = '%MAPS_DEFAULT_LATLNG%';
   var MAP_HEIGHT  = '%MAP_HEIGHT%' || 85;
+  var MAP_ONLINE_UPDATE  = '%MAP_ONLINE_UPDATE%' || 30;
 
   var MAPS_WATERMARK_URL  = '%MAPS_WATERMARK_URL%' || '';
   var MAPS_WATERMARK_ICON  = '%MAPS_WATERMARK_ICON%' || '';
@@ -69,6 +71,12 @@
   var _PREVIOUS = '_{PREVIOUS}_' || 'Prev';
   var _NEXT = '_{NEXT_NEXT}_' || 'Next';
   var _CURSOR_COORDINATES = '_{CURSOR_COORDINATES}_' || 'Cursor coordinates';
+
+  var _ONLINE = '_{ONLINE}_' || 'Online';
+  var _USERS = '_{USERS}_' || 'Users';
+  var _LOGIN = '_{LOGIN}_' || 'Login';
+  var _DEPOSIT = '_{DEPOSIT}_' || 'Deposit';
+  var _FIO = '_{FIO}_' || 'FIO';
 
   //ENABLING FEATURES
   var SHOW_MARKERS              = '%SHOW_MARKERS%' || true;

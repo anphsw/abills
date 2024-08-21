@@ -1,0 +1,17 @@
+type: object
+properties:
+  messageType:
+    type: string
+    example: success
+  warning:
+    type: string
+    example: следующее списание через 7 дней
+  daysToFee:
+    type: string
+    example: "2"
+  sum:
+    type: integer
+    example: 150
+  abonDate:
+    type: string
+    example: "2021-10-01"

@@ -3,22 +3,13 @@ package Extreceipt::Base;
 use strict;
 use warnings FATAL => 'all';
 
-use parent 'Exporter';
-
-our $VERSION = 0.01;
-
-our @EXPORT = qw(
-  receipt_init
-);
-
-our @EXPORT_OK = qw(
-  receipt_init
-);
-
 my ($admin, $CONF, $db);
 my Abills::HTML $html;
 my $lang;
-my $Extreceipt;
+
+use Extreceipt::Init qw(init_extreceipt_service);
+use Extreceipt::db::Extreceipt;
+my Extreceipt $Extreceipt;
 
 #**********************************************************
 =head2 new($html, $lang)
@@ -37,62 +28,11 @@ sub new {
 
   my $self = {};
 
-  use Extreceipt::db::Extreceipt;
   $Extreceipt = Extreceipt->new($db, $admin, $CONF);
 
   bless($self, $class);
 
   return $self;
-}
-
-#**********************************************************
-=head2 receipt_init($attr)
-
-  Arguments:
-    $Receipts
-    $attr
-      API_ID: number     - API ID
-      AID: number        - Admin ID
-      API_NAME: string   - Api name - example: Checkbox
-      DEBUG: number      - level of DEBUG
-      SKIP_INIT: number  - skip init if needs public info
-
-  Return
-    $Receipt_apies
-
-=cut
-#**********************************************************
-sub receipt_init {
-  my $Receipt = shift;
-  my ($attr) = @_;
-
-  my $api_list = $Receipt->api_list({ API_ID => $attr->{API_ID} });
-  my $debug = $attr->{DEBUG} || 0;
-  my $Receipt_api = ();
-
-  foreach my $api (@$api_list) {
-    my $api_name = $api->{api_name};
-    my $api_id = $api->{api_id};
-    if ($attr->{API_NAME} && $attr->{API_NAME} ne $api_name) {
-      next;
-    }
-
-    eval {
-      require "Extreceipt/API/$api_name.pm";
-    };
-
-    if (!$@) {
-      $Receipt_api->{$api_id} = $api_name->new($Receipt->{conf}, $api);
-      $Receipt_api->{$api_id}->{debug} = $debug if ($debug);
-      $Receipt_api->{$api_id}->init() if (!$attr->{SKIP_INIT});
-    }
-    else {
-      print $@;
-      $Receipt_api->{$api_id} = ();
-    }
-  }
-
-  return $Receipt_api;
 }
 
 #**********************************************************
@@ -115,6 +55,47 @@ sub extreceipt_payments_maked {
   ::_extreceipt_send($attr->{PAYMENT_ID});
 
   return 1;
+}
+
+#**********************************************************
+=head2 extreceipt_payment_del($attr) - Cross module payment deleted
+
+  Arguments:
+    $attr
+      PAYMENT_ID
+      UID
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub extreceipt_payment_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return 0 if (!$attr->{ID});
+  return 0 if (!$attr->{PAYMENT_INFO} || !$attr->{PAYMENT_INFO}->{SUM});
+
+  my $payment = $Extreceipt->info($attr->{ID});
+
+  return 0 if ($Extreceipt->{errno} || !$Extreceipt->{TOTAL});
+
+  # take sum from payment info, payment already deleted, data in Extreceipt->info(...) is undef
+  $payment->[0]->{sum} = $attr->{PAYMENT_INFO}->{SUM};
+  my $api_id = $payment->[0]->{api_id} // 0;
+
+  return 0 if (!$payment->[0]->{status} || $payment->[0]->{status} != 1 || !$api_id);
+
+  ::load_module('Extreceipt');
+  ($payment->[0]->{check_header}, $payment->[0]->{check_desc}, $payment->[0]->{check_footer}) = ::_extreceipt_receipt_ext_info($payment->[0]);
+
+  my $Plugin = init_extreceipt_service($db, $admin, $CONF, { API_ID => $api_id });
+
+  return 0 if (!$Plugin->{$api_id}->can('payment_cancel'));
+
+  $Plugin->{$api_id}->payment_cancel($payment->[0]);
+  return $self;
 }
 
 1;

@@ -3,8 +3,6 @@ package Abills::Api::Router;
 use strict;
 use warnings FATAL => 'all';
 
-no if $] >= 5.017011, warnings => 'experimental::smartmatch';
-
 use JSON;
 
 use Abills::Base qw(escape_for_sql in_array decamelize);
@@ -27,8 +25,9 @@ sub new {
     modules        => $attr->{modules},
     html           => $attr->{html},
     debug          => ($attr->{debug} || 0),
-    request_method => $attr->{request_method},
-    direct         => $attr->{direct} || 0
+    request_method => $attr->{request_method} || 'GET',
+    direct         => $attr->{direct} || 0,
+    libpath        => $attr->{libpath} || ''
   };
 
   bless($self, $class);
@@ -56,6 +55,17 @@ sub preprocess {
   my $self = shift;
   my ($url, $query_params) = @_;
 
+  if (!in_array($self->{request_method}, [ 'GET', 'POST', 'PATCH', 'PUT', 'DELETE' ])) {
+    $self->{result} = {
+      errno   => 25,
+      errstr  => 'Method not allowed',
+      methods => [ 'GET', 'POST', 'PATCH', 'PUT', 'DELETE' ],
+    };
+    $self->{status} = 405;
+
+    return $self;
+  }
+
   $url =~ s/\?.+//g;
   my @params = split('/', $url);
   my $resource_name = $params[1] || q{};
@@ -68,12 +78,14 @@ sub preprocess {
     $resource_name_user_api = $params[2] || q{};
   }
 
-  my $Paths = Abills::Api::Paths->new($self->{db}, $self->{admin}, $self->{conf}, $self->{lang}, $self->{html});
+  my $Paths = Abills::Api::Paths->new($self->{db}, $self->{admin}, $self->{conf}, $self->{lang}, $self->{html}, {
+    libpath => $self->{libpath}
+  });
 
   if ($self->{direct}) {
     $self->{query_params} = $query_params;
   }
-  elsif ($self->{request_method} ~~ [ 'GET', 'DELETE' ]) {
+  elsif (in_array($self->{request_method}, [ 'GET', 'DELETE' ])) {
     $self->{query_params} = $query_params;
   }
   elsif ($ENV{CONTENT_TYPE} && $ENV{CONTENT_TYPE} =~ 'multipart/form-data') {
@@ -113,20 +125,30 @@ sub preprocess {
   }
 
   #TODO: if in future one Router object will be used for multiple queries, move this to new()
-  if ($resource_name eq 'user' && $resource_name_user_api) {
+  if ($resource_name eq 'user') {
     $self->{resource_own} = $Paths->load_own_resource_info({
-      package           => $resource_name_user_api,
-      debug             => $self->{debug},
-      type              => 'user',
+      package => $resource_name_user_api,
+      debug   => $self->{debug},
+      type    => 'user',
     });
+
+    if (!$self->{resource_own}) {
+      $self->{resource_own} = $Paths->load_own_resource_info({
+        package => 'User_core',
+        debug   => $self->{debug},
+        type    => 'user',
+      });
+    }
   }
   elsif ($resource_name ne 'user') {
     $self->{resource_own} = $Paths->load_own_resource_info({
-      package           => $resource_name,
-      debug             => $self->{debug},
-      type              => 'admin',
+      package => $resource_name,
+      debug   => $self->{debug},
+      type    => 'admin',
     });
   }
+
+  $self->{Errors} = $Paths->{Errors} || undef;
 
   $self->{error_msg} = $Paths->{error_msg} || '';
 
@@ -207,7 +229,8 @@ sub handle {
 
   my $cred = q{};
 
-  if (defined $route->{credentials}) {
+  # check is allowed to execute this path
+  if ($route->{credentials}) {
     foreach my $credential_name (@{$route->{credentials}}) {
       my $credential = $self->{credentials}->{$credential_name};
 
@@ -215,16 +238,18 @@ sub handle {
         if ($credential->($handler)) {
           $cred = $credential_name;
           $self->{allowed} = 1;
+          last;
         }
       }
     }
 
-    return unless $self->{allowed};
+    return if (!$self->{allowed});
   }
   else {
-    $self->{allowed} = 1;
+    return;
   }
 
+  # validate request body or query params
   if (defined $route->{params}) {
     my $Validator = Abills::Api::Validator->new($self->{db}, $self->{admin}, $self->{conf});
     my $validation_result = $Validator->validate_params({
@@ -233,14 +258,19 @@ sub handle {
     });
 
     if ($validation_result->{errno}) {
-      $self->{result} = $validation_result;
+      require Control::Errors;
+      Control::Errors->import();
+      my $Errors = Control::Errors->new($self->{db}, $self->{admin}, $self->{conf}, { lang => $self->{lang} });
+
+      $self->{result} = $Errors->throw_error($validation_result->{errno}, $validation_result);
       return 0;
     }
 
-    $route->{query_params} = $validation_result;
+    $handler->{query_params} = $validation_result;
   }
 
-  if ($cred && $cred ~~ [ 'ADMIN', 'ADMIN_SID' ] && $handler->{path_params} && $handler->{path_params}->{uid}) {
+  # global check user exists and adding user_obj to request
+  if ($cred && in_array($cred, [ 'ADMIN', 'ADMIN_SID' ]) && $handler->{path_params} && $handler->{path_params}->{uid}) {
     require Users;
     Users->import();
     my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
@@ -262,27 +292,8 @@ sub handle {
   $self->{handler} = $handler;
 
   my $module_obj;
-  if ($route->{module} && $self->{resource}) {
-    if ($route->{module} !~ /^[a-zA-Z0-9_:]+$/) {
-      $self->{result} = {
-        errno  => 3,
-        errstr => 'Module is not found'
-      };
-      return 0;
-    }
-
-    eval "use $route->{module}";
-
-    if ($@ || !$route->{module}->can('new')) {
-      $self->{result} = {
-        errno  => 4,
-        errstr => 'Module is not found'
-      };
-      if ($self->{conf}->{API_DEBUG} && $@) {
-        $self->{result}->{debuginfo} = $@;
-      }
-      return 0;
-    }
+  if ($route->{module}) {
+    return $self if !$self->_load_module($route->{module});
 
     $module_obj = $route->{module}->new($self->{db}, $self->{admin}, $self->{conf});
     $module_obj->{debug} = $self->{debug};
@@ -290,13 +301,33 @@ sub handle {
 
   my $result = '';
 
-  eval {
-    $result = $handler->{handler_fn}->(
-      $handler->{path_params},
-      $handler->{query_params},
-      $module_obj
-    );
-  };
+  if ($route->{controller} && $route->{endpoint}) {
+    return $self if !$self->_load_module($route->{controller});
+
+    my $func = $route->{endpoint};
+    my $controller = $route->{controller}->new($self->{db}, $self->{admin}, $self->{conf}, {
+      lang   => $self->{lang},
+      html   => $self->{html},
+      Errors => $self->{Errors},
+    });
+
+    eval {
+      $result = $controller->$func(
+        $handler->{path_params},
+        $handler->{query_params},
+        $module_obj,
+      );
+    };
+  }
+  else {
+    eval {
+      $result = $handler->{handler_fn}->(
+        $handler->{path_params},
+        $handler->{query_params},
+        $module_obj
+      );
+    };
+  }
 
   if ($@) {
     $self->{result} = {
@@ -332,7 +363,7 @@ sub handle {
     else {
       $self->{result} = $result;
 
-      unless (defined($self->{result})) {
+      if (!defined($self->{result})) {
         $self->{result} = {};
       }
 
@@ -342,6 +373,51 @@ sub handle {
         };
       }
     }
+  }
+
+  return 1;
+}
+
+#***********************************************************
+=head2 _load_module() - load module and and define correct result and http status
+
+  ARGS:
+    $module: str - name of module which need load
+
+  Return:
+    status: bool -
+      1 - module is loaded correctly without errors
+      0 - failed load module
+
+=cut
+#***********************************************************
+sub _load_module {
+  my $self = shift;
+  my ($module) = @_;
+
+  if ($module !~ /^[a-zA-Z0-9_:]+$/) {
+    $self->{status} = 502;
+    $self->{result} = {
+      errno  => 3,
+      errstr => 'Module not found'
+    };
+    return 0;
+  }
+
+  my $module_path = $module . '.pm';
+  $module_path =~ s{::}{/}g;
+  eval { require $module_path };
+
+  if ($@ || !$module->can('new')) {
+    $self->{status} = 502;
+    $self->{result} = {
+      errno  => 4,
+      errstr => 'Module not found'
+    };
+    if ($self->{conf}->{API_DEBUG} && $@) {
+      $self->{result}->{debuginfo} = $@;
+    }
+    return 0;
   }
 
   return 1;
@@ -360,8 +436,7 @@ sub handle {
                      always numerical
       query_params - params from query. for details look at sub new(). hashref.
                      keys will be converted from camelCase to UPPER_SNAKE_CASE
-                     using Abills::Base::decamelize unless
-                     $route->{no_decamelize_params} is set
+                     using Abills::Base::decamelize
       conf_params  - variables from $conf to be returned in result. arrayref.
                      experimental feature, currently disabled
     }
@@ -380,7 +455,7 @@ sub parse_request {
     next if (!$self->{request_method} || $route->{method} ne $self->{request_method});
 
     my $route_handler = $route->{handler};
-    next if (ref $route_handler ne 'CODE');
+    next if (ref $route_handler ne 'CODE' && !$route->{endpoint} && !$route->{controller});
 
     my $route_path_template = $route->{path};
 
@@ -391,34 +466,13 @@ sub parse_request {
     $route_path_template =~ s/(\/)/\\\//g;
     $route_path_template = '^' . $route_path_template . '$';
 
-    #TODO: delete next 15 rows when will be finally deprecated user api with :uid paths
-    my $path_uid = 0;
-    if ($route->{credentials} && in_array('USER', $route->{credentials}) && $ENV{HTTP_USERSID} && $route->{path} =~ /:uid/) {
-      if ($request_path !~ $route_path_template) {
-        $route_path_template = $route->{path};
-        $route_path_template =~ s/:uid\///;
-        $route_path_template =~ s/:(string_[a-zA-Z0-9_]+)(?=\/)/([a-zA-Z0-9:_-]+)/gm;
-        $route_path_template =~ s/:([a-zA-Z0-9_]+)(?=\/)/(\\d+)/g;
-        $route_path_template =~ s/(\/)/\\\//g;
-        $route_path_template = '^' . $route_path_template . '$';
-        next unless ($request_path =~ $route_path_template);
-        $path_uid = 1;
-      }
-    }
-    else {
-      next unless ($request_path =~ $route_path_template);
-    }
-
-    #TODO: paste here row -> next unless ($request_path =~ $route_path_template);
+    next if ($request_path !~ $route_path_template);
     my @request_values = $request_path =~ $route_path_template;
 
     my %path_params = ();
 
     while (@path_keys) {
       my $key = shift(@path_keys);
-
-      #TODO: delete next row when will be finally deprecated user api with :uid paths
-      next if ($path_uid && $key && $key eq 'uid');
 
       $key =~ s/string_//;
       my $value = shift(@request_values);
@@ -429,7 +483,7 @@ sub parse_request {
     my %query_params = ();
 
     for my $query_key (keys %{$query_params}) {
-      my $key = $route->{no_decamelize_params} ? $query_key : decamelize($query_key);
+      my $key = decamelize($query_key);
       if (ref $query_params->{$query_key} ne '') {
         $query_params->{$query_key} = process_request_body($query_params->{$query_key}, { no_decamelize_params => $route->{no_decamelize_params} || '' });
       }
@@ -469,11 +523,11 @@ sub process_request_body {
   elsif (ref $query_params eq 'HASH') {
     foreach my $query_key (keys %$query_params) {
       if (ref $query_params->{$query_key} eq '') {
-        my $key = $attr->{no_decamelize_params} ? $query_key : decamelize($query_key);
+        my $key = decamelize($query_key);
         $query_params->{$key} = $query_params->{$query_key};
       }
       else {
-        my $key = $attr->{no_decamelize_params} ? $query_key : decamelize($query_key);
+        my $key = decamelize($query_key);
         $query_params->{$key} = process_request_body($query_params->{$query_key}, $attr);
       }
     }

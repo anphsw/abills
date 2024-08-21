@@ -67,6 +67,13 @@
         </div>
       </div>
 
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='REDUCTION'>_{REDUCTION}_,%:</label>
+        <div class='col-md-8'>
+          <input type=text name='REDUCTION' id='REDUCTION' class='form-control' value='%SERVICE_REDUCTION%'>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>

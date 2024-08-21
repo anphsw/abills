@@ -1,0 +1,13 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 10
+  name:
+    type: string
+    example: Пеня
+  sum:
+    type: integer
+    example: 500
+  defaultDescribe:
+    type: string

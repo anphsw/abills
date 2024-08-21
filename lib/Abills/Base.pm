@@ -72,6 +72,9 @@ our @EXPORT = qw(
   decode_quoted_printable
   get_period_dates
   expire_date
+  datetime_diff
+  _caller
+  module_to_file
 );
 
 our @EXPORT_OK = qw(
@@ -123,6 +126,9 @@ our @EXPORT_OK = qw(
   decode_quoted_printable
   get_period_dates
   expire_date
+  datetime_diff
+  _caller
+  module_to_file
 );
 
 # As said in perldoc, should be called once on a program
@@ -243,16 +249,16 @@ sub in_array {
     return 0;
   }
 
-  if ( $] <= 5.010 ) {
-    if (grep { $_ eq $value } @$array) {
-      return 1;
-    }
+  # if ( $] <= 5.010 || $] >= 5.38 ) {
+  if (grep { $_ eq $value } @$array) {
+    return 1;
   }
-  else {
-    if ($value ~~ @$array) {
-      return 1;
-    }
-  }
+  # }
+  # else {
+  #   if ($value ~~ @$array) {
+  #     return 1;
+  #   }
+  # }
 
   return 0;
 }
@@ -1027,6 +1033,9 @@ sub sec2time {
   elsif ($attr->{str}) {
     return sprintf("+%d %.2d:%.2d:%.2d", $days, $hours, $minutes, $seconds);
   }
+  elsif ($attr->{minutes}) {
+    return int($value / 60);
+  }
   else {
     return ($seconds, $minutes, $hours, $days);
   }
@@ -1757,6 +1766,34 @@ sub date_diff {
 }
 
 #**********************************************************
+=head2 datetime_diff($from_datetime, $to_datetime) - period in seconds from datetime1 to datetime2
+
+  Arguments:
+    $from_datetime - From datetime
+    $to_datetime   - To datetime
+
+  Returns:
+    seconds
+
+  Examples:
+    my $seconds = datetime_diff('2024-05-15 16:00:00', '2024-05-15 19:01:45');
+
+=cut
+#**********************************************************
+sub datetime_diff {
+  my ($from_datetime, $to_datetime) = @_;
+
+  require Time::Piece unless $Time::Piece::VERSION;
+
+  my $datetime1 = Time::Piece->strptime($from_datetime, "%Y-%m-%d %H:%M:%S");
+  my $datetime2 = Time::Piece->strptime($to_datetime, "%Y-%m-%d %H:%M:%S");
+
+  my Time::Piece $diff = $datetime2 - $datetime1;
+
+  return int($diff->seconds());
+}
+
+#**********************************************************
 =head2 date_format($date, $format, $attr) - convert date to other date format
 
   Arguments:
@@ -2325,6 +2362,7 @@ sub show_hash {
       IMPORT      - Function for import
       HEADER      - Add Content-Type header
       SHOW_RETURN - Result to return
+      PLAIN_TEXT  - Print plain text without html
 
   Returns:
     TRUE - Not loaded
@@ -2343,8 +2381,7 @@ sub show_hash {
 sub load_pmodule {
   my ($name, $attr) = @_;
 
-  my $module_path = $name . '.pm';
-  $module_path =~ s{::}{/}g;
+  my $module_path = module_to_file($name);
   eval { require $module_path };
 
   my $result = '';
@@ -2359,10 +2396,19 @@ sub load_pmodule {
   }
   else {
     $result = "Content-Type: text/html\n\n" if ($attr->{HEADER});
-    $result .= "Can't load '$name'\n".
-      " Install Perl Module <a href='http://abills.net.ua/wiki/doku.php/abills:docs:manual:soft:$name' target='_install'>$name</a> \n".
-      " Main Page <a href='http://abills.net.ua/wiki/doku.php/abills:docs:other:ru?&#ustanovka_perl_modulej' target='_install'>Perl modules installation</a>\n".
-      " or install from <a href='http://www.cpan.org'>CPAN</a>\n";
+
+    if ($attr->{PLAIN_TEXT}) {
+      $result .= "Can't load '$name'\n".
+        " Install Perl Module http://abills.net.ua/wiki/display/AB/Perl+$name \n" .
+        " Main Page http://abills.net.ua/wiki/pages/viewpage.action?pageId=2523166 \n" .
+        " or install from http://www.cpan.org \n";
+    }
+    else {
+      $result .= "Can't load '$name'\n".
+        " Install Perl Module <a href='http://abills.net.ua/wiki/display/AB/Perl+$name'>$name</a>\n" .
+        " Main Page <a href='http://abills.net.ua/wiki/pages/viewpage.action?pageId=2523166'>Perl modules installation</a>\n" .
+        " or install from <a href='http://www.cpan.org'>CPAN</a>\n";
+    }
 
     $result .= "$@" if ($attr->{DEBUG});
 
@@ -2498,10 +2544,9 @@ sub json_former {
     }
 
     $request =~ s/[\x{00}-\x{1f}]+//ig;
-    # $request =~ s/[\x{80}-\x{a0}]+//ig;
     $request =~ s/[\x{200b}]+//ig;
 
-    if ($request =~/[\\]$/g) {
+    if ($request =~ /(?<!\\)(\\\\)*\\$/g) {
       $request =~ s/[\\]$/\\\\/g;
     }
 
@@ -2530,6 +2575,8 @@ sub json_former {
 
   Arguments
     $value: string | number - check value
+    $type: boolean          - type of check
+    $unsigned: boolean      - check value is unsigned or not
 
   Result
     $result: boolean - is number or not
@@ -2797,7 +2844,7 @@ sub vars2lang {
     $result = $result =~ s/%$key%/$vars{$key}/r;
   }
 
-  return $result;
+  return $result || '';
 }
 
 #**********************************************************
@@ -2943,6 +2990,57 @@ sub expire_date {
   }
 
   return $attr->{EXPIRE};
+}
+
+#**********************************************************
+=head2 _caller(attr); - Show caller
+
+  Arguments:
+    $attr
+      DELIMITER
+
+  Result:
+    $self
+
+=cut
+#**********************************************************
+sub _caller {
+  my ($attr) = @_;
+
+  my $delimeter = $attr->{DELIMITER} || "\n";
+  my $caller = qq{\n\n};
+  my ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash);
+  my $i = 1;
+  my @r = ();
+  while (@r = caller($i)) {
+    ($package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash) = @r;
+    $caller .= "  $filename:$line $subroutine\n";
+    $i++;
+  }
+  print $caller if (! $attr->{NO_PRINT});
+
+  return $caller;
+}
+
+#**********************************************************
+=head2 module_to_file($module) - prepare module to filename
+
+  Arguments:
+    $module: string
+
+  Result:
+    $module_file: string
+
+  Examples:
+    my $module_name = $module . '::Base';
+    eval { require module_fo_file($module_name) };
+
+=cut
+#**********************************************************
+sub module_to_file {
+  my ($module) = @_;
+  $module =~ s{::}{/}g;
+  return $module . '.pm';
 }
 
 =head1 AUTHOR

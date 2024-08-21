@@ -36,6 +36,13 @@
         </div>
       </div>
 
+      <div class='form-group row'>
+        <label for='COMMENTS' class='control-label col-md-4'>_{COMMENTS}_:</label>
+        <div class='input-group col-md-8'>
+          <textarea class='form-control' type='text' id='COMMENTS' placeholder='%COMMENTS%' name='COMMENTS'>%COMMENTS%</textarea>
+        </div>
+      </div>
+
       <div class='card card-primary card-outline collapsed-card'>
         <div class='card-header with-border'>
           <h3 class='card-title'>_{OTHER}_</h3>

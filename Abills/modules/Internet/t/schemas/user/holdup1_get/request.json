@@ -1,0 +1,6 @@
+{
+  "name": "USER_HOLDUP_SET",
+  "method": "POST",
+  "path": "user/:id/holdup/",
+  "params": {}
+}

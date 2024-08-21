@@ -1,0 +1,11 @@
+type: object
+properties:
+  callbackUrl:
+    type: string
+    example: https://myserver.com/callback
+  period:
+    type: number
+    example: 60
+  slidingWindowCount:
+    type: number
+    example: 10

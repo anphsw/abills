@@ -484,7 +484,12 @@ sub cards_add {
       }
 
       $Cards->cards_add({ MULTI_ADD => \@add_arr, PASSWD_LENGTH => $pin_length, PASSWD_SYMBOLS => $pin_symbols });
-      return 0 if _error_show($Cards);
+      _error_show($Cards) if $FORM{DEBUG};
+
+      if (!$Cards->{TOTAL}){
+        $html->message('err', $lang{ERROR}, "$lang{CARD_DUBLICATE} $lang{ICARDS}");
+        return 0;
+      }
 
       my $export_link = "get_index=cards_main&SERIAL=$FORM{SERIAL}&sort=1&EXPORT_CONTENT=CARDS_LIST_SERIAL&header=1&PAGE_ROWS=1000000";
       my $export_buttons = $html->button('csv', $export_link . '&csv=1', { class => 'btn btn-primary btn-xs text-decoration-none' }) .
@@ -644,7 +649,7 @@ sub cards_users_add {
         next if (!$USER_HASH{LOGIN});
 
         if ($params[1] && $params[1] eq '-') {
-          $USER_HASH{PASSWORD} = mk_unique_value($FORM{PASSWD_LENGTH}, { SYMBOLS => $FORM{PASSWD_SYMBOLS} || $conf{PASSWD_SYMBOLS} || undef });
+          $USER_HASH{PASSWORD} = mk_unique_value($FORM{PASSWD_LENGTH}, { SYMBOLS => $FORM{PASSWD_SYMBOLS} || $conf{PASSWD_SYMBOLS} });
         }
         else {
           $USER_HASH{PASSWORD} = $params[1];

@@ -483,4 +483,77 @@ sub equipment_onu_report {
   return 1;
 }
 
+#********************************************************
+=head2 equipment_errors_report() - Show equipment port errors
+
+=cut
+#********************************************************
+sub equipment_errors_report {
+
+  require Control::Nas_mng;
+  my $Nas = Nas->new($db, \%conf, $admin);
+
+  my $date_picker =  $html->form_daterangepicker({
+    NAME      => 'FROM_DATE/TO_DATE',
+    FORM_NAME => 'report_panel',
+    VALUE     => $FORM{'FROM_DATE_TO_DATE'},
+  });
+
+  my $nas_select = $html->form_select('NAS_ID', {
+    SELECTED   => ( $FORM{NAS_ID} || '' ),
+    SEL_LIST   => $Nas->list({ %LIST_PARAMS, NAS_ID => undef, PAGE_ROWS => 50000, COLS_NAME => 1 }),
+    SEL_KEY    => 'nas_id',
+    SEL_VALUE  => 'nas_name,nas_ip',
+    SEL_OPTIONS => { '' => '--' },
+  });
+
+
+  $html->short_form({
+    LABELED_FIELDS => {
+      "$lang{NAS}: "    => $html->element("div", $nas_select, { class => "row mx-2" }),
+      "$lang{PERIOD}: " => $html->element("div", $date_picker, { class => "row mx-2" }),
+    },
+    FIELDS         => [
+      $html->form_input('submit', $lang{SHOW}, { TYPE => 'submit' }),
+      $html->form_input('index', $index, {TYPE => 'hidden'})],
+    'class'        => 'form-inline',
+    IN_BOX         => 1,
+    NO_BOX_HEADER  => 1,
+  });
+
+  $LIST_PARAMS{NAS_ID} = $FORM{NAS_ID} if ($FORM{NAS_ID});
+  $LIST_PARAMS{FROM_DATE} = $FORM{FROM_DATE} if ($FORM{FROM_DATE});
+  $LIST_PARAMS{TO_DATE} = $FORM{TO_DATE} if ($FORM{TO_DATE});
+
+  result_former({
+    INPUT_DATA      => $Equipment,
+    FUNCTION        => 'port_errors_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'DATE,NAS_ID,NAS_NAME,PORT_ID,IN_ERRORS,OUT_ERRORS',
+    FUNCTION_INDEX  => $index,
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      date       => $lang{DATE},
+      nas_name   => $lang{NAS},
+      nas_id     => "ID $lang{NAS}",
+      port_id    => $lang{PORT},
+      in_errors  => "$lang{INCOMING} $lang{ERRORS}",
+      out_errors => "$lang{OUTCOMING} $lang{ERRORS}",
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{REPORT},
+      qs      => $pages_qs,
+      ID      => 'EQUIPMENT_ERRORS_LIST',
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Equipment',
+    TOTAL           => 1,
+    SEARCH_FORMER   => 1,
+  });
+
+
+  return;
+}
+
 1;

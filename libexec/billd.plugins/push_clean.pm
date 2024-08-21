@@ -35,7 +35,7 @@ push_clean();
 =cut
 #**********************************************************
 sub push_clean {
-  if (!$conf{PUSH_ENABLED} || !$conf{FIREBASE_SERVER_KEY}) {
+  if (!$conf{PUSH_ENABLED} || (!$conf{GOOGLE_PROJECT_ID} || !$conf{FIREBASE_KEY})) {
     return 1;
   }
 

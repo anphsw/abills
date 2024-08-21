@@ -3,7 +3,7 @@ get:
     - internet
   summary: Информация о списаниях
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: ID услуги
       required: true

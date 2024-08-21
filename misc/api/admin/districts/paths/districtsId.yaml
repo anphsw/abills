@@ -1,0 +1,69 @@
+get:
+  tags:
+    - districts
+  summary: Получить информацию о районе
+  description: >
+    Получить информацию о районе
+    Параметр `childDistricts` возвращается, если район является родительским
+    Параметр `streets` возвращается, если район является конечным с прикрепленными улицами
+  operationId: getDistrictInfo
+  parameters:
+    - name: id
+      in: path
+      description: ID района
+      required: true
+      schema:
+        type: integer
+        format: int64
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/getDistrictsIdResponse.yaml"
+  security:
+    - KEY: [ ]
+put:
+  tags:
+    - districts
+  summary: Обновить информацию о районе
+  operationId: updateDistrict
+  parameters:
+    - name: id
+      in: path
+      description: ID района
+      required: true
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            name:
+              type: string
+              example: UBNET
+              description: Название района
+            zip:
+              type: number
+              example: 1900
+              description: Почтовый индекс района
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/putDistrictsIdResponse200.yaml"
+    400:
+      description: Район уже есть с таким названием(name)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse400"
+  security:
+    - KEY: [ ]

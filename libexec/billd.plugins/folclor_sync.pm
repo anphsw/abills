@@ -14,6 +14,7 @@ use Iptv::Microimpuls;
 use Iptv;
 use Tariffs;
 use Abills::Base qw(load_pmodule in_array _bp);
+use Abills::Loader qw/load_plugin/;
 use threads;
 our (
   $argv,
@@ -62,7 +63,8 @@ sub folclor_sync {
       print "Service ID: $service->{id} NAME: $service->{name}\n";
     }
 
-    my $Folclor_api = tv_load_service('', { SERVICE_ID => $service->{id} });
+    $Iptv->services_info($service->{id});
+    my $Folclor_api = load_plugin('Iptv::Plugins::' . ($Iptv->{MODULE} || ''), { SERVICE => $Iptv });
     my $Users_list = $Iptv->user_list({
       SERVICE_ID    => $service->{id},
       LOGIN         => '_SHOW',

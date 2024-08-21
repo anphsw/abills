@@ -346,16 +346,19 @@
       "NAME"   : "UNREGISTER",
       "OIDS"   : ".1.3.6.1.4.1.3902.1012.3.13.3.1.2",
       "TYPE"   : "gpon",
+      "PARSER" : "serial2mac",
       "WALK"   : "1"
     },
     "sn" : {
       "NAME"   : "SN",
       "OIDS"   : ".1.3.6.1.4.1.3902.1012.3.13.3.1.2",
+      "PARSER" : "serial2mac",
       "WALK"   : "1"
     },
     "mac" : {
       "NAME"   : "MAC",
       "OIDS"   : ".1.3.6.1.4.1.3902.1012.3.13.3.1.3",
+      "PARSER" : "bin2mac",
       "WALK"   : "1"
     },
     // Online time

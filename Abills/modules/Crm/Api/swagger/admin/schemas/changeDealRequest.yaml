@@ -1,0 +1,26 @@
+type: object
+properties:
+  uid:
+    type: integer
+    example: 1
+  aid:
+    type: integer
+    example: 1
+  name:
+    type: string
+    example: Some name
+  current_step:
+    type: integer
+    example: 1
+  date:
+    type: string
+    example: "2022-12-01 20:12"
+  begin_date:
+    type: string
+    example: "2022-12-01 20:12"
+  closed_date:
+    type: string
+    example: "2022-12-01 20:12"
+  comments:
+    type: string
+    example: comment

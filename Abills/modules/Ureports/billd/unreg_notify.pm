@@ -45,8 +45,7 @@ notify_unreg();
 sub notify_unreg {
 
   #TODO: move to _get_unreg_push if will be used for another destinations except push
-  if (!$conf{PUSH_ENABLED} || (!$conf{FIREBASE_SERVER_KEY} &&
-    (!$conf{GOOGLE_PROJECT_ID} || !$conf{FIREBASE_KEY}))) {
+  if (!$conf{PUSH_ENABLED} || (!$conf{GOOGLE_PROJECT_ID} || !$conf{FIREBASE_KEY})) {
     return 1;
   }
 

@@ -1,0 +1,22 @@
+type: object
+properties:
+  attachments:
+    type: array
+    items:
+      type: object
+      properties:
+        filename:
+          type: string
+          example: "5500526.png"
+        message:
+          type: string
+          example: "Successfully added file"
+        src:
+          type: string
+          example: "https://demo.abills.net.ua:9443/images/attach/portal/5500526.png"
+        status:
+          type: integer
+          example: 0
+  status:
+    type: integer
+    example: 0

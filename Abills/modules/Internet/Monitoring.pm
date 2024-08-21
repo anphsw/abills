@@ -219,6 +219,11 @@ sub internet_online {
     $LIST_PARAMS{SKIP_DOMAIN} = 1;
   }
 
+  if (!$permissions{5} || !$permissions{5}{3}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    return;
+  }
+
   my $service_status = sel_status({ HASH_RESULT => 1 });
 
   # online count
@@ -604,7 +609,12 @@ sub internet_online {
         }
         elsif ($col_name eq 'cid') {
           if ($line->{$col_name}) {
-            $val = $html->color_mark($line->{$col_name}, 'code');
+            my $cid = $html->element('div', $html->color_mark($line->{$col_name}, 'code'));
+            $val = $html->button($cid, '', {
+              COPY      => $line->{$col_name} || ' ',
+              ex_params => "data-tooltip-position='top' data-tooltip='$lang{COPIED}' data-tooltip-onclick=1"
+            });
+
             if ($line->{$col_name} =~ /$Abills::Filters::MAC/) {
               $val .= $html->button($lang{VENDOR}, "index=$index&mac_info=$line->{cid}&UID=$line->{uid}",
                 { class => 'info', ONLY_IN_HTML => 1 });
@@ -1033,13 +1043,19 @@ sub _internet_map_menu {
   foreach my $user (@{$builds_for_users}) {
     next if !$user->{build_id};
 
+    $user->{fio} =~ s/\'/\\\'/g;
     if ($map_info->{$user->{build_id}} && $map_info->{$user->{build_id}}{MARKER}{INFO} && $map_info->{$user->{build_id}}{TABLE_INFO}) {
       my $online = $user->{online} ? $html->element('span', '', {
         class => 'far fa-check-circle text-green',
         title => $lang{ONLINE}
       }) : '';
-      $map_info->{$user->{build_id}}{TABLE_INFO}->addrow($online, $user->{login}, $user->{deposit}, $user->{fio});
+      $user->{uid} ||= '';
+      my $user_btn = $html->button($user->{login}, "get_index=form_users&header=1&full=1&UID=$user->{uid}");
+      $map_info->{$user->{build_id}}{TABLE_INFO}->addrow($online, $user_btn, $user->{deposit}, $user->{fio});
 
+      if ($user->{online}) {
+        $map_info->{$user->{build_id}}{MARKER}{TYPE} = 'build_green';
+      }
       $map_info->{$user->{build_id}}{MARKER}{INFO} = $map_info->{$user->{build_id}}{TABLE_INFO}->show({ NO_DEBUG_MARKERS => 1 });
     }
     else {
@@ -1049,12 +1065,14 @@ sub _internet_map_menu {
         NOT_RESPONSIVE => 1,
         class          => 'table table-condensed table-hover table-bordered'
       });
-      $info_table->addrow($lang{ONLINE}, $lang{LOGIN}, $lang{DEPOSIT}, $lang{FIO});
+      $info_table->addrow($html->b($lang{ONLINE}), $html->b($lang{LOGIN}), $html->b($lang{DEPOSIT}), $html->b($lang{FIO}));
       my $online = $user->{online} ? $html->element('span', '', {
         class => 'far fa-check-circle text-green',
         title => $lang{ONLINE}
       }) : '';
-      $info_table->addrow($online, $user->{login}, $user->{deposit}, $user->{fio});
+      $user->{uid} ||= '';
+      my $user_btn = $html->button($user->{login}, "get_index=form_users&header=1&full=1&UID=$user->{uid}");
+      $info_table->addrow($online, $user_btn, $user->{deposit}, $user->{fio});
 
       $map_info->{$user->{build_id}}{TABLE_INFO} = $info_table;
       $map_info->{$user->{build_id}}{MARKER}{INFO} = $info_table->show({ NO_DEBUG_MARKERS => 1 });
@@ -1067,7 +1085,8 @@ sub _internet_map_menu {
         OBJECT_ID    => $user->{build_id},
         COORDX       => $user->{coordx},
         COORDY       => $user->{coordy},
-        TYPE         => "build_green",
+        TYPE         => $map_info->{$user->{build_id}}{MARKER}{TYPE} ? $map_info->{$user->{build_id}}{MARKER}{TYPE} :
+          $user->{online} ? "build_green" : "build_grey",
         INFO         => $map_info->{$user->{build_id}}{MARKER}{INFO},
         DISABLE_EDIT => 1
       },
@@ -1081,9 +1100,10 @@ sub _internet_map_menu {
   my $Maps_view = Maps::Maps_view->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
   $html->tpl_show(_include('internet_online_map', 'Internet'), {
-    FILTERS => $attr->{FILTERS},
-    TABLE   => $attr->{TABLE},
-    MAPS    => $Maps_view->show_map(\%FORM, { DATA => [ values %{$map_info} ], DONE_DATA => 1, QUICK => 1 })
+    FILTERS                      => $attr->{FILTERS},
+    TABLE                        => $attr->{TABLE},
+    MAPS                         => $Maps_view->show_map(\%FORM, { DATA => [ values %{$map_info} ], DONE_DATA => 1, QUICK => 1 }),
+    ONLINE_USERS_UPDATE_INTERVAL => $conf{MAPS_ONLINE_USERS_UPDATE_INTERVAL} || 30
   });
 
   return 1;

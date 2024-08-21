@@ -1177,7 +1177,8 @@ sub internet_monthly_fees {
                   else {
                     $Internet->user_change({
                       UID      => $user{UID},
-                      ACTIVATE => $ADMIN_REPORT{DATE}
+                      ACTIVATE => $ADMIN_REPORT{DATE},
+                      ID       => $user{ID}
                     });
                   }
                   next;
@@ -1646,6 +1647,7 @@ sub internet_sheduler {
     $Internet->user_change({
       UID        => $uid,
       STATUS     => $action,
+      ID         => $service_id,
       SERVICE_ID => $service_id
     });
 
@@ -1703,7 +1705,7 @@ sub internet_sheduler {
 
       service_get_month_fee($Internet, {
         QUITE    => 1,
-        SHEDULER => 1, #($attr->{SHEDULEE_ONLY}) ? undef,
+        SHEDULER => 1,
         DATE     => $attr->{DATE},
         USER_INFO=> $user
       });

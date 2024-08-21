@@ -19,6 +19,7 @@ our (
   %permissions,
   $db,
   %conf,
+  $libpath
 );
 
 our Abills::HTML $html;
@@ -28,6 +29,9 @@ my $Tags = Tags->new($db, $admin, \%conf);
 require Address;
 Address->import();
 my $Address = Address->new($db, $admin, \%conf);
+
+require Abills::Template;
+my $Templates = Abills::Template->new($db, $admin, \%conf, { html => $html, lang => \%lang, libpath => $libpath });
 
 #**********************************************************
 =head2 crm_lead_search()
@@ -44,11 +48,11 @@ sub crm_lead_search {
   # Add new lead and redirect to profile page
   if ($FORM{add}) {
     $Crm->crm_lead_add({ %FORM });
-    _error_show($Crm);
-
-    $html->message('success', $lang{ADDED}, $lang{LEAD_ADDED_MESSAGE} . $html->button($lang{GO},
-      "index=" . get_function_index('crm_lead_info') . "&LEAD_ID=$Crm->{INSERT_ID}"));
-
+    if (!_error_show($Crm)) {
+      my $leads_index = get_function_index('crm_lead_info') || 0;
+      $html->message('success', $lang{ADDED}, $lang{LEAD_ADDED_MESSAGE} . $html->button($lang{GO},
+        "index=" . $leads_index . "&LEAD_ID=$Crm->{INSERT_ID}"));
+    }
     return 1;
   }
 
@@ -92,7 +96,7 @@ sub crm_lead_search {
 
   my $current_step_select = _progress_bar_step_sel();
 
-  my $tpl = $html->tpl_show(_include('crm_lead_search', 'Crm'), {
+  my $tpl = $html->tpl_show($Templates->_include('crm_lead_search', 'Crm'), {
     SUBMIT_BTN_NAME     => $submit_button_name,
     SUBMIT_BTN_ACTION   => $submit_button_action,
     DISABLE_ID          => $id_disabled,
@@ -207,7 +211,7 @@ sub crm_lead_search_old {
 
   my $responsible_admin = sel_admins({ NAME => 'RESPONSIBLE' });
 
-  $html->tpl_show(_include('crm_lead_search', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_lead_search', 'Crm'), {
     SUBMIT_BTN_NAME   => $submit_button_name,
     SUBMIT_BTN_ACTION => $submit_button_action,
     DISABLE_ID        => $id_disabled,
@@ -288,7 +292,7 @@ sub crm_leads {
     my $responsible_admin = sel_admins({ NAME => 'RESPONSIBLE', SELECTED => $admin->{AID} });
 
     $FORM{ADDRESS_FORM} = $conf{CRM_OLD_ADDRESS} ?
-      $html->tpl_show(_include('crm_old_address', 'Crm'), undef, { OUTPUT2RETURN => 1 }) :
+      $html->tpl_show($Templates->_include('crm_old_address', 'Crm'), undef, { OUTPUT2RETURN => 1 }) :
       form_address_select({
         LOCATION_ID      => $client_info->{LOCATION_ID} || 0,
         DISTRICT_ID      => 0,
@@ -300,7 +304,7 @@ sub crm_leads {
 
     $FORM{ASSESSMENTS_SEL} = crm_assessments_select(\%FORM);
 
-    $html->tpl_show(_include('crm_lead_search', 'Crm'), {
+    $html->tpl_show($Templates->_include('crm_lead_search', 'Crm'), {
       %FORM,
       SUBMIT_BTN_NAME   => $submit_button_name,
       SUBMIT_BTN_ACTION => $submit_button_action,
@@ -352,12 +356,12 @@ sub crm_leads {
       NAME     => 'RESPONSIBLE'
     });
 
-    $lead_info->{ADDRESS_FORM} = $conf{CRM_OLD_ADDRESS} ? $html->tpl_show(_include('crm_old_address', 'Crm'), $lead_info, { OUTPUT2RETURN => 1 }) :
+    $lead_info->{ADDRESS_FORM} = $conf{CRM_OLD_ADDRESS} ? $html->tpl_show($Templates->_include('crm_old_address', 'Crm'), $lead_info, { OUTPUT2RETURN => 1 }) :
       form_address_select({ LOCATION_ID => $lead_info->{BUILD_ID} || 0, SHOW_BUTTONS => 1, %{$lead_info} });
 
     $lead_info->{ASSESSMENTS_SEL} = crm_assessments_select($lead_info);
 
-    $html->tpl_show(_include('crm_lead_search', 'Crm'), {
+    $html->tpl_show($Templates->_include('crm_lead_search', 'Crm'), {
       SUBMIT_BTN_NAME   => $submit_button_name,
       SUBMIT_BTN_ACTION => $submit_button_action,
       DISABLE_ID        => $id_disabled,
@@ -554,6 +558,7 @@ sub crm_leads {
       caption     => $lang{LEADS},
       qs          => $pages_qs,
       MENU        => "$lang{ADD}:index=$index&add_form=1:add;$lang{DELIVERY}:delivery=1&index=$index:",
+      # TODO: remove data_table
       DATA_TABLE  => { "order" => [ [ 1, "desc" ] ] },
       title_plain => 1,
       header      => $header,
@@ -574,7 +579,7 @@ sub crm_leads {
   });
 
   if ($FORM{delivery}) {
-    $html->tpl_show(_include('crm_send_mess', 'Crm'), {
+    $html->tpl_show($Templates->_include('crm_send_mess', 'Crm'), {
       INDEX     => $index,
       TABLE     => ($table) ? $table->show() : q{},
       TYPE_SEND => _actions_sel()
@@ -583,7 +588,7 @@ sub crm_leads {
     return 1;
   }
 
-  $html->tpl_show(_include('crm_check_leads', 'Crm'));
+  $html->tpl_show($Templates->_include('crm_check_leads', 'Crm'));
   _crm_multiselect_form($table);
 
   return 1;
@@ -808,7 +813,7 @@ sub crm_lead_info {
       CONVERT_LEAD_BUTTON => $convert_lead_to_client,
       CONVERT_DATA_BUTTON => $convert_data_button,
     });
-  my $lead_profile_panel = $html->tpl_show(_include('crm_section_panel', 'Crm'), { %$lead_info,
+  my $lead_profile_panel = $html->tpl_show($Templates->_include('crm_section_panel', 'Crm'), { %$lead_info,
     # TAGS                => $lead_tags,
     # TAGS_BUTTON         => $tags_button,
     CONVERT_LEAD_BUTTON => $convert_lead_to_client,
@@ -816,7 +821,7 @@ sub crm_lead_info {
     %{$fields},
   }, { OUTPUT2RETURN => 1 });
 
-  $html->tpl_show(_include('crm_lead_info', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_lead_info', 'Crm'), {
     LEAD_PROFILE_PANEL => $lead_profile_panel,
     PROGRESSBAR        => crm_progressbar_show($lead_info->{CURRENT_STEP}, {
       DEAL_STEP    => '0',
@@ -852,7 +857,7 @@ sub crm_lead_panels {
       "index=" . get_function_index('crm_lead_info') . "&LEAD_ID=$each_lead->{ID}",
       { class => 'btn btn-primary btn-block' });
 
-    $lead_profile_panels .= $html->tpl_show(_include('crm_section_panel', 'Crm'),
+    $lead_profile_panels .= $html->tpl_show($Templates->_include('crm_section_panel', 'Crm'),
       { %$each_lead, BUTTON_TO_LEAD_INFO => $button_to_lead_info }, { OUTPUT2RETURN => 1, });
   }
 
@@ -895,7 +900,7 @@ sub crm_progressbar_steps {
 
   _error_show($Crm);
 
-  $html->tpl_show(_include('crm_progressbar_step_add', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_progressbar_step_add', 'Crm'), {
     BTN_NAME  => $btn_name,
     BTN_VALUE => $btn_value,
     %{$step_info}
@@ -961,7 +966,7 @@ sub crm_deals_progressbar_steps {
 
   _error_show($Crm);
 
-  $html->tpl_show(_include('crm_progressbar_step_add', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_progressbar_step_add', 'Crm'), {
     BTN_NAME  => $btn_name,
     BTN_VALUE => $btn_value,
     %{$step_info}
@@ -1033,7 +1038,10 @@ sub crm_source_types {
 
   _error_show($Crm);
 
-  $html->tpl_show(_include('crm_leads_sources', 'Crm'), {
+  require Abills::Template;
+  my $Templates = Abills::Template->new($db, $admin, \%conf, { html => $html, lang => \%lang, libpath => $libpath });
+
+  $html->tpl_show($Templates->_include('crm_leads_sources', 'Crm'), {
     BTN_NAME  => $btn_name,
     BTN_VALUE => $btn_value,
     %source_info
@@ -1105,7 +1113,7 @@ sub crm_reports_leads {
     MAIN_MENU   => get_function_index('crm_source_types'),
   });
 
-  $html->tpl_show(_include('crm_leads_reports', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_leads_reports', 'Crm'), {
     DATE_RANGE    => $date_range,
     SOURCE_SELECT => $source_select,
   });
@@ -1316,7 +1324,7 @@ sub crm_leads_progress_report {
     WITH_TIME => $FORM{TIME_FORM} || 0
   });
 
-  $html->tpl_show(_include('crm_leads_reports', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_leads_reports', 'Crm'), {
     DATE_RANGE         => $date_range,
     HIDE_SOURCE_SELECT => 'none',
   });
@@ -1495,17 +1503,17 @@ sub crm_lead_convert {
     
     my $to_lead_info = $Crm->crm_lead_info({ ID => $FORM{TO_LEAD_ID} });
 
-    my $from_lead_panel = $html->tpl_show(_include('crm_convert_panel', 'Crm'), {
+    my $from_lead_panel = $html->tpl_show($Templates->_include('crm_convert_panel', 'Crm'), {
       %$from_lead_info,
       POSTFIX_PANEL_ID => 1
     }, { OUTPUT2RETURN => 1 });
 
-    my $to_lead_panel = $html->tpl_show(_include('crm_convert_panel', 'Crm'), {
+    my $to_lead_panel = $html->tpl_show($Templates->_include('crm_convert_panel', 'Crm'), {
       %$to_lead_info,
       POSTFIX_PANEL_ID => 2
     }, { OUTPUT2RETURN => 1 });
 
-    $html->tpl_show(_include('crm_leads_convert', 'Crm'), {
+    $html->tpl_show($Templates->_include('crm_leads_convert', 'Crm'), {
       FROM_LEAD_PANEL     => $from_lead_panel,
       TO_LEAD_PANEL       => $to_lead_panel,
       LEFT_PANEL_POSTFIX  => 1,
@@ -1535,7 +1543,7 @@ sub crm_lead_convert {
     EX_PARAMS => "data-auto-submit='form'"
   });
 
-  $html->tpl_show(_include('crm_leads_convert_select', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_leads_convert_select', 'Crm'), {
     TO_LEAD_SELECT => $to_lead_select,
     FROM_LEAD_ID   => $FORM{FROM_LEAD_ID},
   });
@@ -1682,7 +1690,7 @@ sub crm_actions_main {
   my $leads_table_info = $Crm->table_info('crm_leads', { FULL_INFO => 1 });
   my $skip_vars = join(',', map { uc $_->{column_name} } @{$leads_table_info});
 
-  $html->tpl_show(_include('crm_actions_add', 'Crm'), { %CRM_ACTIONS_TEMPLATE }, { SKIP_VARS => $skip_vars });
+  $html->tpl_show($Templates->_include('crm_actions_add', 'Crm'), { %CRM_ACTIONS_TEMPLATE }, { SKIP_VARS => $skip_vars });
 
   result_former({
     INPUT_DATA      => $Crm,
@@ -1771,7 +1779,7 @@ sub crm_lead_add_user {
   });
   return 1 if ($user_search && $user_search eq 2);
 
-  $html->tpl_show(_include('crm_lead_add_user', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_lead_add_user', 'Crm'), {
     USER_SEARCH => $user_search,
     LEAD_ID     => $lead_id,
     INDEX       => get_function_index('crm_lead_info'),
@@ -2116,7 +2124,7 @@ sub _crm_multiselect_form {
 
   print $table->show() if $table;
   print $html->form_main({
-    CONTENT => $html->tpl_show(_include('crm_lead_multiselect', 'Crm'), $Crm, { OUTPUT2RETURN => 1 }),
+    CONTENT => $html->tpl_show($Templates->_include('crm_lead_multiselect', 'Crm'), $Crm, { OUTPUT2RETURN => 1 }),
     HIDDEN  => {
       index           => $index,
       CRM_MULTISELECT => 1
@@ -2212,7 +2220,7 @@ sub crm_lead_map_multiple_update {
     $Crm->{TAGS_SEL} = tags_sel();
   }
 
-  $html->tpl_show(_include('crm_lead_map_multiple_update', 'Crm'), { %{$Crm},
+  $html->tpl_show($Templates->_include('crm_lead_map_multiple_update', 'Crm'), { %{$Crm},
     LEADS_TABLE       => $lead_table->show(),
     RESPONSIBLE_ADMIN => sel_admins({ NAME => 'RESPONSIBLE' }),
     IDS               => join(',', @leads_id)
@@ -2248,7 +2256,7 @@ sub crm_response_templates {
   }
 
   if ($FORM{add_form} || $FORM{chg} ) {
-    print $html->tpl_show(_include('crm_response_template', 'Crm'), {
+    print $html->tpl_show($Templates->_include('crm_response_template', 'Crm'), {
       INDEX => $index,
       BTN_NAME => 'add',
       BTN_VALUE => $lang{ADD},
@@ -2302,7 +2310,7 @@ sub crm_leads_import {
     };
   }
 
-  $html->tpl_show(_include('crm_import', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_import', 'Crm'), {
     RESULT_INDEX     => get_function_index('crm_leads') || $index,
     OUTPUT_STRUCTURE => _crm_import_build_output_fields_list(\@output_fields),
   });
@@ -2339,7 +2347,7 @@ sub _crm_import_build_output_fields_list {
 sub _crm_import_build_output_field {
   my ($name, $field_name, $default_select) = @_;
 
-  return $html->tpl_show(_include('crm_import_output_field', 'Crm'), {
+  return $html->tpl_show($Templates->_include('crm_import_output_field', 'Crm'), {
     NAME       => $name,
     FIELD_NAME => $field_name,
     INPUT      => $default_select

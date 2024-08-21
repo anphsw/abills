@@ -1,0 +1,10 @@
+type: array
+items:
+  type: object
+  properties:
+    login:
+      type: string
+      example: testuser
+    uid:
+      type: integer
+      example: 1

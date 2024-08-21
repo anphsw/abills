@@ -50,11 +50,10 @@ my $Payments = Finance->payments($db, $admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 my $Nas      = Nas->new($db, \%conf, $admin);
 my $Log      = Log->new($db, \%conf);
-#my $Language = Abills::Experimental::Language->new($base_dir || '/usr/abills/', $conf{default_language});
+my $Language = Abills::Experimental::Language->new($base_dir || '/usr/abills/', $conf{default_language});
 
 require Control::Services;
-if (($functions{$index} && $functions{$index} eq 'form_intervals')
-  || ($FORM{subf} && $functions{$FORM{subf}} && $functions{$FORM{subf}} eq 'form_intervals')) {
+if ($functions{$index} && $functions{$index} eq 'form_intervals') {
   require Control::System;
 }
 require Internet::User_portal;
@@ -106,6 +105,13 @@ if ($conf{INTERNET_DAY_QUOTA}) {
 sub internet_users_search {
   my ($Internet_) = @_;
 
+
+  $Internet->account_check();
+  if ($Internet->{errno}) {
+    $html->message('err', 'ERROR', 'Please update license.');
+    return 1;
+  }
+
   $index=get_function_index('internet_users_list') if ( $functions{$index} && $functions{$index} ne 'internet_users_list' );
   $Internet->{GROUP_SEL}  = sel_groups();
   $Internet->{STATUS_SEL} = sel_status({
@@ -133,6 +139,7 @@ sub internet_users_search {
     {
       SELECTED          => $Internet->{NAS_ID} || $FORM{NAS_ID},
       SEL_LIST          => '',
+      #$Nas->list({ COLS_NAME => 1, DOMAIN_ID => $users->{DOMAIN_ID}, SHORT => 1, NAS_NAME => '_SHOW' }),
       SEL_KEY           => 'nas_id',
       SEL_VALUE         => 'nas_name',
       SEL_OPTIONS       => { '' => '' },
@@ -199,7 +206,6 @@ sub internet_users_search {
       NO_ID    => 1
     });
 
-  $Internet_->{INFO_FIELDS} = form_info_field_tpl({ SKIP_DATA_RETURN => 1, SKIP_REQUIRED => 1 });
   my $search_form = $html->tpl_show(_include('internet_users_search', 'Internet'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
   $search_form .= $html->tpl_show(templates('form_search_personal_info'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
   $search_form .= $html->tpl_show(templates('form_search_users'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
@@ -226,8 +232,7 @@ sub internet_multiuser {
 
   my @multiuser_arr = split(/, /, $ids || q{});
   my @multiuser_no_error;
-  my %params = ();
-
+  my %params;
   $Internet->user_list({
     GROUP_BY  => 'internet.id',
     ID        => join(';', @multiuser_arr),
@@ -238,9 +243,6 @@ sub internet_multiuser {
 
   if ($FORM{MU_TP} && $FORM{TP_SHEDULE} eq '0000-00-00') {
     $params{TP_ID} = $FORM{INTERNET_MU_TP};
-  }
-  if ($FORM{MU_GID}) {
-    $params{GID} = $FORM{GID};
   }
   if ($FORM{MU_DATE}) {
     $params{SERVICE_EXPIRE} = $FORM{INTERNET_MU_DATEPICKER};
@@ -289,7 +291,7 @@ sub internet_multiuser {
     }
     $html->message('info', $lang{MULTIUSER_OP}, "$lang{TO_PLAN}\n$lang{SERVICE}: " . join(', ', @multiuser_no_error) );
   }
-  elsif ($FORM{MU_CREDIT} || $FORM{MU_REDUCTION} || $FORM{MU_ACTIVATE} || $FORM{MU_GID}) {
+  elsif ($FORM{MU_CREDIT} || $FORM{MU_REDUCTION} || $FORM{MU_ACTIVATE}) {
     $params{CREDIT} = $FORM{MU_CREDIT_SUM} || 0;
     $params{CREDIT_DATE} = $FORM{MU_CREDIT_DATE} || '0000-00-00';
 
@@ -480,6 +482,7 @@ sub internet_users_list {
   }
 
   if ($FORM{GLOBAL}) {
+    #$Internet->{GLOBAL} = 1;
     $FORM{UNIVERSAL_SEARCH} = 1;
   }
 
@@ -616,8 +619,7 @@ sub internet_users_list {
     'ipv6_prefix'           => 'IPv6 Prefix',
     'vlan'                  => 'VLAN',
     'server_vlan'           => 'SERVER VLAN',
-    'describe_aid'          => "$lang{DESCRIBE_FOR_ADMIN}",
-    'user_reduction'        => "$lang{REDUCTION},%"
+    'describe_aid'          => "$lang{DESCRIBE_FOR_ADMIN}"
   );
 
   ($table, $list) = result_former({
@@ -728,20 +730,15 @@ sub internet_users_list {
         SEL_LIST    => $pool_ipv6_list,
         NO_ID    => 1
       });
-
       my $pool_ipv4_list = $Nas->ip_pools_list({
         STATIC    => 1,
         NETMASK   => '_SHOW',
         COLS_NAME => 1
       });
-
       $Internet->{MU_IPV4_POLL_SEL} = $html->form_select('INTERNET_MU_IPV4_POLL', {
         SEL_LIST    => $pool_ipv4_list,
         NO_ID    => 1
       });
-
-      $Internet->{MU_GROUPS} = sel_groups({ SKIP_MULTISELECT => 1, ID => 'MU_GID' });
-
       print $html->form_main({
         CONTENT => $table . $html->tpl_show(_include('internet_user_multiselect', 'Internet'), $Internet, { OUTPUT2RETURN => 1 }),
         HIDDEN  => {
@@ -800,6 +797,13 @@ sub internet_error_user {
 #**********************************************************
 sub internet_error {
   my ($attr)    = @_;
+
+ $Internet->account_check();
+  if ($Internet->{errno}) {
+    $html->message('err', 'ERROR', 'Please update license.');
+    return 1;
+  }
+
 
   if (!$attr->{USER_FORM} && !$permissions{3}{6}) {
     $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY});
@@ -957,7 +961,23 @@ sub internet_error {
 
   foreach my $line (@$list) {
 
-    my $message = $line->{message} || q{};
+    if ($conf{ERRORS_LOG_TRANSLATE}){
+      while ( $line->{message} =~ /([A-Z\_]+)/g) {
+        my $res = $1;
+        my $lang_res = $lang{$res};
+        next if !$lang_res;
+        $line->{message} =~ s/$1/$lang_res/g;
+      }
+    }
+    my $message = $line->{message};
+
+    if($line->{log_type} < 5) {
+      $message = $html->color_mark($line->{message}, $_COLORS[6]);
+    }
+    elsif($line->{action} eq 'GUEST_MODE') {
+      $message = $html->color_mark($line->{message}, $_COLORS[8]);
+      $line->{action} = $html->color_mark($line->{action}, $_COLORS[8]);
+    }
 
     my $auth_switch = q{};
 
@@ -967,24 +987,6 @@ sub internet_error {
       if($nas_ids{$auth_switch}) {
         $auth_switch = $nas_ids{$auth_switch};
       }
-    }
-
-    if ($conf{ERRORS_LOG_TRANSLATE}){
-      while ( $line->{message} =~ /([A-Z\_]+)/g) {
-        my $res = $1;
-        my $lang_res = $lang{$res};
-        $lang_res = $res if (!$lang_res);
-        $lang_res = $html->b($lang_res);
-        $message =~ s/$res/$lang_res/g;
-      }
-    }
-
-    if($line->{log_type} < 5) {
-      $message = $html->color_mark($message, $_COLORS[6]);
-    }
-    elsif($line->{action} eq 'GUEST_MODE') {
-      $message = $html->color_mark($message, $_COLORS[8]);
-      $line->{action} = $html->color_mark($line->{action}, $_COLORS[8]);
     }
 
     my $main_nas = ($line->{nas_id} && $nas_ids{ $line->{nas_id} }) ? $nas_ids{ $line->{nas_id} } : 'Unknown '. ($line->{nas_id} || q{});
@@ -1055,6 +1057,136 @@ sub internet_error {
 
   return 1;
 }
+
+#**********************************************************
+=head2 internet_payments_maked($attr) - Cross module payment maked
+
+  Arguments:
+    $attr
+      USER_INFO
+      SUM
+
+=cut
+#**********************************************************
+# sub internet_payments_maked {
+#   my ($attr) = @_;
+#
+#   $user=$attr->{USER_INFO} if ($attr->{USER_INFO});
+#   return '' if ($FORM{DISABLE});
+#
+#   my $service_list = $Internet->user_list({
+#     UID         => $user->{UID},
+#     TP_NUM      => '>0',
+#     GROUP_BY    => 'internet.id',
+#     COLS_NAME   => 1
+#   });
+#
+#   foreach my $service (@$service_list) {
+#     $Internet->user_info($user->{UID}, { ID => $service->{id} });
+#
+#     if ($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
+#       $Internet->{MONTH_ABON} = $Internet->{PERSONAL_TP};
+#     }
+#
+#     my $deposit = (defined($user->{DEPOSIT})) ? $user->{DEPOSIT} + (($user->{CREDIT} > 0) ? $user->{CREDIT} : $Internet->{TP_CREDIT}) : 0;
+#
+#     my $abon_fees = ($user->{REDUCTION} == 0) ? $Internet->{MONTH_ABON} + $Internet->{DAY_ABON} : ($Internet->{MONTH_ABON} + $Internet->{DAY_ABON}) * (100 - $user->{REDUCTION}) / 100;
+#
+#     if ($conf{INTERNET_FULL_MONTH}) {
+#       $abon_fees = ($user->{REDUCTION} == 0) ? $Internet->{MONTH_ABON} + $Internet->{DAY_ABON} * 30 : ($Internet->{MONTH_ABON} + $Internet->{DAY_ABON} * 30) * (100 - $user->{REDUCTION}) / 100;
+#     }
+#     elsif ($Internet->{ABON_DISTRIBUTION}) {
+#       my $days_in_month = days_in_month({ DATE => $DATE });
+#       $abon_fees = ($Internet->{MONTH_ABON} / $days_in_month) + $Internet->{DAY_ABON};
+#     }
+#
+#     #OLd method. Always change activate period with payments
+#     #@deprecated
+#     if ($conf{payment_chg_activate} && $Internet->{SERVICE_ACTIVATE} ne '0000-00-00') {
+#       if ($conf{payment_chg_activate} ne 2
+#         || date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30) {
+#         $Internet->user_change({
+#           ACTIVATE => $DATE,
+#           UID      => $user->{UID},
+#           ID       => $Internet->{ID},
+#         });
+#       }
+#     }
+#
+#     if($user->{REDUCTION} && $user->{REDUCTION} > 0) {
+#       $abon_fees = $abon_fees * (100 - $user->{REDUCTION}) / 100;
+#     }
+#
+#     if (in_array($Internet->{STATUS}, [4,5]) && $deposit > $abon_fees) {
+#       my %params = ();
+#       if ($conf{INTERNET_CUSTOM_PERIOD}) {
+#         if ($deposit >= $Internet->{TP_CHANGE_PRICE}) {
+#           if ($Internet->{TP_AGE}) {
+#             my ($y, $m, $d) = split(/-/, $DATE);
+#             $params{SERVICE_EXPIRE} = POSIX::strftime("%Y-%m-%d",
+#               localtime(POSIX::mktime(0, 0, 0, $d, ($m - 1), ($y - 1900), 0, 0, 0) + $Internet->{TP_AGE} * 86400));
+#
+#             my $Fees = Fees->new($db, $admin, \%conf);
+#             $Fees->take($user, $Internet->{TP_CHANGE_PRICE}, { DESCRIBE => $lang{ACTIVATE_TARIF_PLAN} });
+#             $service->{DESCRIBE} = ($Internet->{TP_NAME} || "") . " $lang{SUM}: $Internet->{TP_CHANGE_PRICE}";
+#             $html->message('info', "$lang{ACTIVATE} $lang{INTERNET}", $service->{DESCRIBE});
+#           }
+#         }
+#         else {
+#           return 1;
+#         }
+#       }
+#
+#       $Internet->user_change({
+#         UID    => $user->{UID},
+#         ID     => $Internet->{ID},
+#         STATUS => 0,
+#         %params
+#       });
+#
+#       if ($conf{INTERNET_FULL_MONTH} && $Internet->{OLD_STATUS} && $Internet->{OLD_STATUS} == 5) {
+#         $attr->{FULL_MONTH_FEE} = 1;
+#       }
+#
+#       #$Internet->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE} || '0000-00-00';
+#       $conf{MONTH_FEE_TIME}='01:00:00';
+#
+#       #Skip month fee before month periodic
+#       if ($conf{MONTH_FEE_TIME}) {
+#         my $start_day = $conf{START_PERIOD_DAY} || 1;
+#         my (undef, undef, $d)=split(/\-/, $DATE, 3);
+#         if ($start_day == $d && time2sec($TIME) < time2sec($conf{MONTH_FEE_TIME}) ) {
+#           $attr->{SHEDULER} = 1;
+#         }
+#       }
+#       service_get_month_fee($Internet, $attr);
+#     }
+#     elsif ($conf{INTERNET_PAY_ACTIVATE}) {
+#       my $sum = $attr->{SUM} || 0;
+#       if ($Internet->{SERVICE_ACTIVATE} ne '0000-00-00' && date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30
+#         && $deposit - $sum <= 0 && $deposit > $abon_fees) {
+#         #&& $deposit - $sum <= 0 && $deposit > 0) {
+#
+#         my %service_params = (
+#           UID              => $user->{UID},
+#           ID               => $Internet->{ID},
+#           STATUS           => 0,
+#           SERVICE_ACTIVATE => $DATE
+#         );
+#
+#         if ($Internet->{STATUS}) {
+#           $service_params{STATUS} = 0;
+#         }
+#
+#         $Internet->user_change(\%service_params);
+#         service_get_month_fee($Internet, $attr);
+#       }
+#       #service_get_month_fee($Internet, $attr);
+#     }
+#   }
+#
+#   return 1;
+# }
 
 #**********************************************************
 =head2 internet_period_select($attr) - period select
@@ -1164,7 +1296,7 @@ sub internet_registration {
           _internet_registration_form($attr);
           return 1;
         }
-        if ($conf{PASSWD_SYMBOLS} && $FORM{newpassword} !~ /[$conf{PASSWD_SYMBOLS}]/) {
+        if ($conf{conf}->{PASSWD_SYMBOLS} && $FORM{newpassword} !~ /[$conf{PASSWD_SYMBOLS}]/) {
           $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_DATA}, { ID => 100103 });
           _internet_registration_form($attr);
           return 1;
@@ -1397,7 +1529,7 @@ sub internet_registration {
           #Referral
           if ($FORM{REFERRER}) {
             load_module('Referral', $html);
-            referral_link_registered({ REFERRED => $FORM{REFERRER}, UID => $uid });
+            referral_link_registred({ REFERRED => $FORM{REFERRER}, UID => $uid });
           }
 
           return $uid;
@@ -1456,8 +1588,8 @@ sub _internet_registration_form {
   if ($conf{INTERNET_REGISTRATION_IP}) {
     $Internet->{USER_IP_FORM} = $html->tpl_show(templates('form_row'), {
       ID    => 'USER_IP',
-      NAME  => "$lang{USER} IP",
-      VALUE => $html->form_input( 'USER_IP', $FORM{USER_IP} || $ENV{REMOTE_ADDR} || '0.0.0.0', { OUTPUT2RETURN => 1 } ),
+      NAME  => 'User IP',
+      VALUE => $html->form_input( 'USER_IP', $FORM{USER_IP} || '0.0.0.0', { OUTPUT2RETURN => 1 } ),
     }, { OUTPUT2RETURN => 1 });
   }
 
@@ -1481,7 +1613,7 @@ sub _internet_registration_form {
   }
   elsif ($conf{INTERNET_REGISTRATION_ADDRESS}) {
     require Control::Address_mng;
-    $Internet->{ADDRESS_TPL} = form_address_select();
+    $Internet->{ADDRESS_TPL} = form_address_select2();
   }
 
   $html->tpl_show(_include('internet_registration', 'Internet'), { %$Internet, %$attr, %FORM,
@@ -1536,31 +1668,31 @@ sub internet_traffic_names {
 
 =cut
 #**********************************************************
-# sub set_tags_users {
-#   my ($ids, $attr) = @_;
-#
-#   if (!$attr->{TAGS}) {
-#     $html->message('err', $lang{MULTIUSER_OP}, "$lang{SELECT_TAG}");
-#
-#     return 1;
-#   }
-#   my $tags_users = $Internet->user_list({
-#     COLS_NAME => 1,
-#   });
-#
-#   my %hash = map { $_ => $_ } split(', ', $ids);
-#
-#   foreach my $user_ids (@$tags_users) {
-#     if ($hash{ $user_ids->{id} }) {
-#       tags_user_add({
-#         UID => $user_ids->{uid},
-#         IDS => $attr->{TAGS}
-#       });
-#     }
-#   }
-#
-#   return 1;
-# }
+sub set_tags_users {
+  my ($ids, $attr) = @_;
+
+  if (!$attr->{TAGS}) {
+    $html->message('err', $lang{MULTIUSER_OP}, "$lang{SELECT_TAG}");
+
+    return 1;
+  }
+  my $tags_users = $Internet->user_list({
+    COLS_NAME => 1,
+  });
+
+  my %hash = map { $_ => $_ } split(', ', $ids);
+
+  foreach my $user_ids (@$tags_users) {
+    if ($hash{ $user_ids->{id} }) {
+      tags_user_add({
+        UID => $user_ids->{uid},
+        IDS => $attr->{TAGS}
+      });
+    }
+  }
+
+  return 1;
+}
 
 #**********************************************************
 =head2 internet_service_activate($attr)
@@ -1674,7 +1806,6 @@ sub internet_service_deactivate {
           $Internet->{TP_INFO_OLD}->{MONTH_FEE} = $Internet->{MONTH_ABON};
           $Internet->{TP_INFO_OLD}->{NAME} = $Internet->{TP_NAME};
           $Internet->{TP_INFO_OLD}->{ID} = $Internet->{TP_NUM};
-          $Internet->{TP_INFO_OLD}->{ABON_DISTRIBUTION} = $Internet->{ABON_DISTRIBUTION};
           service_recalculate($Internet, $attr);
         }
       }

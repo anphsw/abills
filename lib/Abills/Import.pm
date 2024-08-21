@@ -123,10 +123,10 @@ sub pop3_import {
         next;
       }
 
-      if ($part_header =~ /Content-Type: text\/plain/) {
-        $result->{$msg_num}{body}{text} = $part_body;
-        next;
-      }
+      # if ($part_header =~ /Content-Type: text\/plain/) {
+      #   $result->{$msg_num}{body}{text} = $part_body;
+      #   next;
+      # }
       if ($part_header =~ /Content-Type: text\/html/) {
         $result->{$msg_num}{body}{html} = $part_body;
         next;

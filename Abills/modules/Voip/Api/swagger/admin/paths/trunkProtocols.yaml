@@ -1,0 +1,13 @@
+get:
+  tags:
+    - voip
+  summary: Список доступных протоколов
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/trunkProtocols.yaml"
+  security:
+    - KEY: []

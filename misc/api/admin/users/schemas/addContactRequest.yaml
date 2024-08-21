@@ -1,0 +1,14 @@
+type: object
+properties:
+  value:
+    type: string
+    description: Контакт - email, телефон
+    example: 1234567889
+  typeId:
+    type: integer
+    description: Вид контакта
+    example: 2
+  priority:
+    type: integer
+    description: Приоритет
+    example: 1

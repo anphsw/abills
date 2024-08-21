@@ -8,15 +8,15 @@
         </div>
         <div class='row'>
             <label class='control-label col-md-3'>_{REDUCTION}_:</label>
-            <label class='col-md-9'>%DISCOUNT%</label>
+            <label class='col-md-9 p-2'>%DISCOUNT%</label>
         </div>
         <div class='row'>
             <label class='control-label col-md-3'>_{BONUS}_ _{SUM}_:</label>
-            <label class='col-md-9'>%BONUS_SUM%</label>
+            <label class='col-md-9 p-2'>%BONUS_SUM%</label>
         </div>
         <div class='row'>
             <label class='control-label col-md-3'>_{BONUS_PERCENT}_:</label>
-            <label class='col-md-9'>%BONUS_PERCENT% %</label>
+            <label class='col-md-9 p-2'>%BONUS_PERCENT% %</label>
         </div>
     </div>
 </div>

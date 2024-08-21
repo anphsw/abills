@@ -1,0 +1,17 @@
+{
+  "name": "ADMIN_PORTAL_MENUS_ADD",
+  "method": "POST",
+  "path": "portal/menus/",
+  "body": {
+    "name": "Новини",
+    "status": 1
+  },
+  "post-response": {
+    "variables": [
+      {
+        "name": "menuId",
+        "value": "insertId"
+      }
+    ]
+  }
+}

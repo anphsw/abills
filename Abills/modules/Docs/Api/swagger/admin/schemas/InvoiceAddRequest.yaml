@@ -1,0 +1,62 @@
+type: object
+properties:
+  order_1:
+    type: string
+    example: "Інтернет послуги"
+  sum_1:
+    type: string
+    example: 10
+  counts_1:
+    type: number
+    example: 1
+  unit_1:
+    type: number
+    example: 0
+  fees_type_1:
+    type: number
+    example: 0
+  order_2:
+    type: string
+    example: "Інтернет послуги"
+  sum_2:
+    type: string
+    example: 10
+  counts_2:
+    type: number
+    example: 1
+  unit_2:
+    type: number
+    example: 0
+  fees_type_2:
+    type: number
+    example: 0
+  customer:
+    type: string
+    example: "ФОП Іваненко"
+  includeDeposit:
+    type: number
+    example: 1
+  includeCurBillingPeriod:
+    type: number
+    example: 1
+  orders:
+    type: array
+    items:
+      type: object
+      properties:
+        order:
+          type: string
+          example: "Інтернет послуги"
+        sum:
+          type: string
+          example: 10
+        count:
+          type: number
+          example: 1
+        unit:
+          type: number
+          example: 0
+        fees_type:
+          type: number
+          example: 0
+

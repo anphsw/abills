@@ -89,11 +89,15 @@ sub conf_gid_split {
 
   my %conf = %{$self->{conf}};
 
+  # module with inheritance
   if ($attr->{PARAMS}) {
     my $param_name = $attr->{PARAMS}->[0] || '';
     my ($paysys_name) = $param_name =~ /^PAYSYS_[^_]+/gm;
-    push @{$attr->{PARAMS}}, ($paysys_name || '') . '_PAYMENT_METHOD',
-      ($paysys_name || '') . '_PORTAL_DESCRIPTION', ($paysys_name || '') . '_PORTAL_COMMISSION';
+    push @{$attr->{PARAMS}},
+      ($paysys_name || '') . '_PAYMENT_METHOD',
+      ($paysys_name || '') . '_PORTAL_DESCRIPTION',
+      ($paysys_name || '') . '_PORTAL_COMMISSION',
+      ($paysys_name || '') . '_INNER_DESCRIPTION';
   }
 
   my $gid = $attr->{GID};

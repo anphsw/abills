@@ -1,0 +1,134 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "childDistricts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": "integer"
+          },
+          "streetCount": {
+            "type": "integer"
+          },
+          "typeId": {
+            "type": "integer"
+          },
+          "typeName": {
+            "type": "string"
+          },
+          "zip": {
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "fullName",
+          "id",
+          "name",
+          "parentId",
+          "streetCount",
+          "typeId",
+          "typeName",
+          "zip"
+        ]
+      }
+    },
+    "comments": {
+      "type": "string"
+    },
+    "coordx": {
+      "type": "integer"
+    },
+    "coordy": {
+      "type": "integer"
+    },
+    "densityOfConnections": {
+      "type": "string"
+    },
+    "id": {
+      "type": "integer"
+    },
+    "name": {
+      "type": "string"
+    },
+    "parentId": {
+      "type": "integer"
+    },
+    "path": {
+      "type": "string"
+    },
+    "streets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "districtId": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "secondName": {
+            "type": "string"
+          },
+          "streetId": {
+            "type": "integer"
+          },
+          "streetName": {
+            "type": "string"
+          },
+          "type": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "districtId",
+          "id",
+          "secondName",
+          "streetId",
+          "streetName",
+          "type"
+        ]
+      }
+    },
+    "totalBuilds": {
+      "type": "string"
+    },
+    "totalUsers": {
+      "type": "string"
+    },
+    "typeId": {
+      "type": "integer"
+    },
+    "zip": {
+      "type": [
+        "number",
+        "string"
+      ]
+    }
+  },
+  "required": [
+    "coordx",
+    "coordy",
+    "id",
+    "name",
+    "parentId",
+    "path",
+    "typeId",
+    "zip"
+  ]
+}

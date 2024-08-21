@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "bankAccount": {
+            "type": "string"
+          },
+          "bankName": {
+            "type": "string"
+          },
+          "billId": {
+            "type": "integer"
+          },
+          "contractDate": {
+            "type": "string"
+          },
+          "contractId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "credit": {
+            "type": "number"
+          },
+          "deposit": {
+            "type": "number"
+          },
+          "edrpou": {
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "representative": {
+            "type": "string"
+          },
+          "taxNumber": {
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "bankAccount",
+          "bankName",
+          "billId",
+          "contractDate",
+          "contractId",
+          "credit",
+          "deposit",
+          "edrpou",
+          "id",
+          "name",
+          "representative",
+          "taxNumber"
+        ]
+      }
+    },
+    "total": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "list",
+    "total"
+  ]
+}

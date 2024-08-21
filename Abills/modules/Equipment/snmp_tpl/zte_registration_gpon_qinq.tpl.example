@@ -1,0 +1,34 @@
+#Gpon registration q-in-q example
+# show onu unauthentication
+# config terminal
+
+
+
+configure terminal
+
+
+interface gpon-olt_%BRANCH%
+onu %ONU_ID% type %ONU_TYPE% sn %ONU_SERIAL%
+exit
+
+interface gpon-onu_%BRANCH%:%ONU_ID%
+  name %ONU_COMMENTS% (%SERVER_VLAN%-%CLIENT_VLAN%)
+  tcont 1 name 123 profile 100m
+  gemport 1 name 123 tcont 1
+  encrypt 1 enable downstream
+  service-port 1 vport 1 user-vlan %CLIENT_VLAN% vlan %CLIENT_VLAN% svlan %SERVER_VLAN%
+exit
+
+pon-onu-mng gpon-onu_%BRANCH%:%ONU_ID%
+  service ServiceName gemport 1 cos 0 vlan %CLIENT_VLAN%
+  loop-detect ethuni eth_0/1 enable
+  vlan port eth_0/1 mode hybrid def-vlan %CLIENT_VLAN%
+exit
+exit
+wr
+
+
+#conf t
+#pon-onu-mng gpon-onu_1/13/12:46
+#reboot
+#Confirm to reboot? [yes/no]:yes

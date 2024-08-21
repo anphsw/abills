@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "title": "The Root Schema",
+  "properties": {
+    "branch": {
+      "type": "string"
+    },
+    "branchDesc": {
+      "type": "string"
+    },
+    "onuId": {
+      "type": "string"
+    },
+    "vlan": {
+      "type": "string"
+    },
+    "onuBillingDesc": {
+      "type": "string"
+    },
+    "oltRxPower": {
+      "type": "string"
+    },
+    "onuDhcpPort": {
+      "type": "string"
+    },
+    "onuGraph": {
+      "type": "string"
+    },
+    "nasIp": {
+      "type": "string"
+    },
+    "ponType": {
+      "type": "string"
+    },
+    "onuSnmpId": {
+      "type": "number"
+    },
+    "datetime": {
+      "type": "string"
+    },
+    "deleted": {
+      "type": "number"
+    },
+    "serverVlan": {
+      "type": "string"
+    }
+  }
+}

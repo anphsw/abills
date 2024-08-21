@@ -1,0 +1,83 @@
+type: object
+properties:
+  allowAnswer:
+    type: number
+    example: 0
+  allowCalls:
+    type: number
+    example: 0
+  cid:
+    type: string
+    example: '10:fe:ed:43:8f:35'
+  dayAbon:
+    type: number
+    example: 10
+  dayFee:
+    type: number
+    example: 10
+  disable:
+    type: number
+    example: 0
+  expire:
+    type: string
+    example: '0000-00-00'
+  extraNumbersDayFee:
+    type: number
+    example: 1
+  extraNumbersMonthFee:
+    type: number
+    example: 5
+  filterId:
+    type: number
+    example: 1
+  id:
+    type: number
+    example: 42
+  ip:
+    type: string
+    example: 0.0.0.0
+  logins:
+    type: number
+    example: 0
+  monthAbon:
+    type: number
+    example: 100
+  monthFee:
+    type: number
+    example: 10
+  nat:
+    type: number
+    example: 1
+  number:
+    type: number
+    example: 380509152720
+  provisionNasId:
+    type: number
+    example: 0
+  provisionPort:
+    type: number
+    example: 0
+  registration:
+    type: string
+    example: '0000-00-00'
+  simultaneously:
+    type: number
+    example: 0
+  tpCredit:
+    type: number
+    example: 0
+  tpId:
+    type: number
+    example: 39
+  tpName:
+    type: string
+    example: test api change
+  tpNum:
+    type: number
+    example: 23131
+  uid:
+    type: number
+    example: 103161
+  voipExpire:
+    type: string
+    example: '0000-00-00'

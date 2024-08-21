@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 104005
+  errstr:
+    type: string
+    example: "Step not found"

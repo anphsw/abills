@@ -1,7 +1,290 @@
 {
-  "definitions": {},
+  "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
-  "title": "The Root Schema",
-  "required": [],
-  "properties": {}
+  "properties": {
+    "abonClient": {
+      "type": "integer"
+    },
+    "addFriend": {
+      "type": "integer"
+    },
+    "bots": {
+      "type": "object",
+      "properties": {
+        "telegram": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "cardsUserPayment": {
+      "type": "object",
+      "properties": {
+        "serial": {
+          "type": "integer"
+        }
+      }
+    },
+    "extreceiptsList": {
+      "type": "integer"
+    },
+    "holdup": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "activeFees": {
+            "type": "integer"
+          },
+          "dailyFees": {
+            "type": "integer"
+          },
+          "holdupPeriod": {
+            "type": "string"
+          },
+          "maxPeriod": {
+            "type": "integer"
+          },
+          "minPeriod": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "internet": {
+      "type": "object",
+      "properties": {
+        "nextMonth": {
+          "type": "integer"
+        },
+        "now": {
+          "type": "integer"
+        },
+        "schedule": {
+          "type": "integer"
+        }
+      }
+    },
+    "internetUserChgTp": {
+      "type": "integer"
+    },
+    "internetUserInfo": {
+      "type": "integer"
+    },
+    "internetUserStats": {
+      "type": "integer"
+    },
+    "iptv": {
+      "type": "object",
+      "properties": {
+        "nextMonth": {
+          "type": "integer"
+        }
+      }
+    },
+    "iptvConfig": {
+      "type": "object",
+      "properties": {
+        "promotionTps": {
+          "type": "integer"
+        },
+        "subscribe": {
+          "type": "object",
+          "properties": {
+            "describe": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "iptvPortalServiceInfo": {
+      "type": "integer"
+    },
+    "iptvUserChgTp": {
+      "type": "integer"
+    },
+    "iptvUserInfo": {
+      "type": "integer"
+    },
+    "msgsUser": {
+      "type": "integer"
+    },
+    "organization": {
+      "type": "object",
+      "properties": {
+        "organizationAddress": {
+          "type": "string"
+        },
+        "organizationBankName": {
+          "type": "string"
+        },
+        "organizationBankNum": {
+          "type": "string"
+        },
+        "organizationMail": {
+          "type": "string",
+          "format": "email"
+        },
+        "organizationName": {
+          "type": "string"
+        },
+        "organizationPhone": {
+          "type": "string"
+        },
+        "organizationPrivacyPolicy": {
+          "type": "string",
+          "format": "uri"
+        },
+        "organizationPrivacyPolicyDescription1": {
+          "type": "string"
+        }
+      }
+    },
+    "paysysPayment": {
+      "type": "integer"
+    },
+    "paysysSubscribe": {
+      "type": "integer"
+    },
+    "paysysUserLog": {
+      "type": "integer"
+    },
+    "portalNews": {
+      "type": "integer"
+    },
+    "reviewPages": {
+      "type": "object",
+      "properties": {
+        "2ipUa": {
+          "type": "string",
+          "format": "uri"
+        },
+        "googleMaps": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "socialAuth": {
+      "type": "object",
+      "properties": {
+        "apple": {
+          "type": "integer"
+        },
+        "facebook": {
+          "type": "integer"
+        },
+        "google": {
+          "type": "integer"
+        }
+      }
+    },
+    "socialNetworks": {
+      "type": "object",
+      "properties": {
+        "facebook": {
+          "type": "string"
+        },
+        "instagram": {
+          "type": "string"
+        },
+        "telegram": {
+          "type": "string"
+        },
+        "youtube": {
+          "type": "string"
+        }
+      }
+    },
+    "system": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "integer"
+        },
+        "password": {
+          "type": "object",
+          "properties": {
+            "regex": {
+              "type": "string"
+            },
+            "symbols": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    "userChgInfoFieldsTypes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "userChgPasswd": {
+      "type": "integer"
+    },
+    "userChgPi": {
+      "type": "integer"
+    },
+    "userChgPiAllowedParams": {
+      "type": "object",
+      "properties": {
+        "pinAbs": {
+          "type": "integer"
+        },
+        "test": {
+          "type": "integer"
+        },
+        "cellPhone": {
+          "type": "integer"
+        },
+        "email": {
+          "type": "integer"
+        },
+        "fio": {
+          "type": "integer"
+        },
+        "phone": {
+          "type": "integer"
+        }
+      }
+    },
+    "userHoldupAll": {
+      "type": "object",
+      "properties": {
+        "activeFees": {
+          "type": "integer"
+        },
+        "dailyFees": {
+          "type": "integer"
+        },
+        "holdupPeriod": {
+          "type": "string"
+        },
+        "maxPeriod": {
+          "type": "integer"
+        },
+        "minPeriod": {
+          "type": "integer"
+        }
+      }
+    },
+    "voipUserInfo": {
+      "type": "integer"
+    },
+    "voipUserRoutes": {
+      "type": "integer"
+    },
+    "voipUserStats": {
+      "type": "integer"
+    }
+  }
 }

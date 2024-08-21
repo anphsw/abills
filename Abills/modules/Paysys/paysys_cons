@@ -133,7 +133,7 @@ elsif ($argv->{TYPE}) {
 }
 elsif($argv->{MAIL}) {
   my $module = 'Bss.pm';
-  my $paysys_plugin = _configure_load_payment_module($module);
+  my $paysys_plugin = _configure_load_payment_module($module, 0, \%conf);
   my $Paysys_plugin = $paysys_plugin->new($db, $admin, \%conf, {
     USER => $Users, DATE => $DATE, lang => \%lang });
 
@@ -334,7 +334,7 @@ sub paysys_import_form_cons {
             $bss_date = $DATA_ARR->[$i]->{DATE};
             # if($conf{PAYSYS_NEW_SCHEME}){
             my $module = 'Bss.pm';
-            my $paysysy_plugin = _configure_load_payment_module($module);
+            my $paysysy_plugin = _configure_load_payment_module($module, 0, \%conf);
             my $Paysys_plugin = $paysysy_plugin->new($db, $admin, \%conf, { USERS => $Users, DATE => $DATE });
 
             $Paysys_plugin->bss_log({
@@ -351,7 +351,7 @@ sub paysys_import_form_cons {
             $bss_date = $DATA_ARR->[$i]->{DATE};
             #if($conf{PAYSYS_NEW_SCHEME}){
               my $module = 'Bss.pm';
-              my $paysysy_plugin = _configure_load_payment_module($module);
+              my $paysysy_plugin = _configure_load_payment_module($module, 0, \%conf);
               my $Paysysy_plugin = $paysysy_plugin->new($db, $admin, \%conf, {USER => $Users, DATE => $DATE});
 
               $Paysysy_plugin->bss_log({
@@ -684,7 +684,7 @@ sub paysys_import_pop3 {
           @lines = split('\r?\n', $content);    # split content per lane
 
           my $module = 'Bss.pm';
-          my $paysys_plugin = _configure_load_payment_module($module);
+          my $paysys_plugin = _configure_load_payment_module($module, 0, \%conf);
           my $Plugin = $paysys_plugin->new($db, $admin, \%conf, {USER => $Users, DATE => $DATE});
 
           ($content, $delete_this_message, $do_not_import_content) = $Plugin->bss_content_parse(\@lines, {
@@ -1037,436 +1037,383 @@ sub eript_202 {
   return 1;
 }
 
-#**********************************************************
-=head2 tyme_import() -
+# TODO: use it will be need as import function inside module, do not create plugin logic in common modules
+# #**********************************************************
+# =head2 tyme_import() -
+#
+#   Arguments:
+#     $attr -
+#   Returns:
+#
+#   Examples:
+#
+# =cut
+# #**********************************************************
+# sub tyme_import {
+#   #my ($attr) = @_;
+#
+#   load_pmodule('Net::FTPSSL');
+#
+#   my $host  = $conf{PAYSYS_TYME_HOST};
+#   my $login = $conf{PAYSYS_TYME_LOGIN};
+#   my $pass  = $conf{PAYSYS_TYME_PASSWORD};
+#
+#   my $ftp = Net::FTPSSL->new("$host", useSSL => 0, Debug => 0, Port => 21, SSL_Client_Certificate => {
+#       SSL_version   => 'TLSv1',
+#     },       )
+#   or die "Cannot connect to '$host': $@";
+#   $ftp->login("$login", "$pass");
+#   my $report_date = '';
+#
+#   if($argv->{DATE}){
+#     $report_date = $argv->{DATE};
+#     $report_date =~ s/-//g;
+#   }
+#   else{
+#     $report_date = $DATE;
+#     my ($y, $m, $d) = split('-', $report_date);
+#
+#     $d = $d - 1;
+#
+#     if ($d < 10){
+#       $d = '0' . $d;
+#     }
+#
+#     if($d < 1){
+#       $m = $m - 1;
+#       if($m < 1){
+#         $m = 12;
+#         $y = $y - 1;
+#       }
+#       if($m < 10){
+#         $m = '0' . $m;
+#       }
+#       $d = days_in_month({DATE => "$y-$m"});
+#     }
+#     $report_date = "$y$m$d";
+#
+#     print $report_date;
+#   }
+#
+#   my @files = $ftp->nlst("$conf{PAYSYS_TYME_FILE}$report_date.csv");
+#   # my $report_data = "|Транзакция\t|$lang{DATE}\t|$lang{USER}\t|$lang{SUM}\t|Терминал\t|\n";
+#   my $report_data = "|Транзакция\t\t|$lang{DATE}\t\t\t|$lang{USER}\t|$lang{SUM}\t\t|Терминал\t|\n";
+#   if( scalar @files != 0){
+#     foreach my $filename (@files){
+#
+#       $ftp->get("$filename")
+#       or die "Ftp get failed '$filename' ", $ftp->message;
+#
+#       open(my $fh, '<', "$filename") || die "Can't open file '$filename' $!\n";
+#       my @lanes = <$fh>;
+#       close($fh);
+#
+#       foreach my $lane (@lanes){
+#         my ($txn_id, $date_time, $user, $sum, $terminal) = $lane =~ /(\d+)\s(\d+\-\d+\-\d+ \d+\:\d+\:\d+)\s(\d+)\s(\d+.\d+)\s(\d+)/;
+#         print "|$txn_id, $date_time, $user, $sum, $terminal|\n";
+#
+#         $Paysys->add_tyme_report({
+#           TXN_ID   => $txn_id,
+#           DATE     => $date_time,
+#           USER     => $user,
+#           SUM      => $sum,
+#           TERMINAL => $terminal
+#         });
+#
+#         if(!$Paysys->{errno}){
+#           $report_data .= "|$txn_id\t| $date_time\t| $user\t\t|";
+#           if($sum < 100){
+#             $report_data .= " $sum\t\t";
+#           }else{
+#             $report_data .= " $sum\t";
+#           };
+#           $report_data .= "| $terminal\t|\n";
+#         }
+#       }
+#     }
+#   }
+#   $report_date =~ s/(\d{4})(\d{2})(\d{2})/$3\-$2\-$1/;
+#   sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "Tyme Отчет за $report_date", "$report_data  ", "$conf{MAIL_CHARSET}", "2 (High)");
+#
+#   return 1;
+# }
 
-  Arguments:
-    $attr -
-  Returns:
-
-  Examples:
-
-=cut
-#**********************************************************
-sub tyme_import {
-  #my ($attr) = @_;
-
-  load_pmodule('Net::FTPSSL');
-
-  my $host  = $conf{PAYSYS_TYME_HOST};
-  my $login = $conf{PAYSYS_TYME_LOGIN};
-  my $pass  = $conf{PAYSYS_TYME_PASSWORD};
-
-  my $ftp = Net::FTPSSL->new("$host", useSSL => 0, Debug => 0, Port => 21, SSL_Client_Certificate => {
-      SSL_version   => 'TLSv1',
-    },       )
-  or die "Cannot connect to '$host': $@";
-  $ftp->login("$login", "$pass");
-  my $report_date = '';
-
-  if($argv->{DATE}){
-    $report_date = $argv->{DATE};
-    $report_date =~ s/-//g;
-  }
-  else{
-    $report_date = $DATE;
-    my ($y, $m, $d) = split('-', $report_date);
-
-    $d = $d - 1;
-
-    if ($d < 10){
-      $d = '0' . $d;
-    }
-
-    if($d < 1){
-      $m = $m - 1;
-      if($m < 1){
-        $m = 12;
-        $y = $y - 1;
-      }
-      if($m < 10){
-        $m = '0' . $m;
-      }
-      $d = days_in_month({DATE => "$y-$m"});
-    }
-    $report_date = "$y$m$d";
-
-    print $report_date;
-  }
-
-  my @files = $ftp->nlst("$conf{PAYSYS_TYME_FILE}$report_date.csv");
-  # my $report_data = "|Транзакция\t|$lang{DATE}\t|$lang{USER}\t|$lang{SUM}\t|Терминал\t|\n";
-  my $report_data = "|Транзакция\t\t|$lang{DATE}\t\t\t|$lang{USER}\t|$lang{SUM}\t\t|Терминал\t|\n";
-  if( scalar @files != 0){
-    foreach my $filename (@files){
-
-      $ftp->get("$filename")
-      or die "Ftp get failed '$filename' ", $ftp->message;
-
-      open(my $fh, '<', "$filename") || die "Can't open file '$filename' $!\n";
-      my @lanes = <$fh>;
-      close($fh);
-
-      foreach my $lane (@lanes){
-        my ($txn_id, $date_time, $user, $sum, $terminal) = $lane =~ /(\d+)\s(\d+\-\d+\-\d+ \d+\:\d+\:\d+)\s(\d+)\s(\d+.\d+)\s(\d+)/;
-        print "|$txn_id, $date_time, $user, $sum, $terminal|\n";
-
-        $Paysys->add_tyme_report({
-          TXN_ID   => $txn_id,
-          DATE     => $date_time,
-          USER     => $user,
-          SUM      => $sum,
-          TERMINAL => $terminal
-        });
-
-        if(!$Paysys->{errno}){
-          $report_data .= "|$txn_id\t| $date_time\t| $user\t\t|";
-          if($sum < 100){
-            $report_data .= " $sum\t\t";
-          }else{
-            $report_data .= " $sum\t";
-          };
-          $report_data .= "| $terminal\t|\n";
-        }
-      }
-    }
-  }
-  $report_date =~ s/(\d{4})(\d{2})(\d{2})/$3\-$2\-$1/;
-  sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "Tyme Отчет за $report_date", "$report_data  ", "$conf{MAIL_CHARSET}", "2 (High)");
-
-  return 1;
-}
-#**********************************************************
-=head2 ipay_report() - read file and push data to DB
-
-  Arguments:
-    $attr -
-      DATE - file date
-  Returns:
-
-  Examples:
-
-=cut
-#**********************************************************
-sub ipay_report {
-  my $report_date = q{};
-  my $file_name = q{};
-
-  if ($argv->{DATE}) {
-    if ($argv->{DATE} =~ /(\d{4}\-?()\d{2}\-?()\d{2})/) {
-      $report_date = $argv->{DATE};
-      $report_date =~ s/-//g;
-      $report_date = "ipay$report_date";
-    }
-    else {
-      print "Entered DATE:$argv->{DATE} is wrong!\n\n";
-      return 0;
-    }
-  }
-  else {
-    $report_date = $DATE;
-    my ($y, $m, $d) = split('-', $report_date);
-    $d = $d - 1;
-    if ($d < 10) {
-      $d = '0' . $d;
-    }
-
-    if ($d < 1) {
-      $m = $m - 1;
-      if ($m < 1) {
-        $m = 12;
-        $y = $y - 1;
-      }
-      if ($m < 10) {
-        $m = '0' . $m;
-      }
-      $d = days_in_month({ DATE => "$y-$m" });
-    }
-    $report_date = "ipay$y$m$d";
-    print "$report_date.csv\n";
-  }
-
-  if ($conf{PAYSYS_IPAY_FILE}) {
-    $file_name = "$conf{PAYSYS_IPAY_FILE}$report_date.csv";
-  }
-  else {
-    print "Wrong configuration! \$conf{PAYSYS_IPAY_FILE} is empty!\n\n";
-    return 0;
-  }
-
-  if (-e $file_name) {
-    open(my $fh, '<', "$file_name") || die "Can't open file '$file_name' $!\n";
-    my @file_data = <$fh>;
-    close($fh);
-
-    if (scalar @file_data != 0) {
-      shift @file_data;
-      foreach my $line (@file_data) {
-        my ($date, $transaction_id, $sum, $user_id) = split(';', $line);
-        if ($transaction_id && $transaction_id =~ /\d+/) {
-          print "|$date, $transaction_id, $sum, $user_id|";
-          $sum =~ s/,/./g;
-          $Paysys->paysys_report_add({
-            SUM            => $sum,
-            DATE           => $date,
-            TRANSACTION_ID => $transaction_id,
-            USER_KEY       => $user_id,
-            TABLE          => 'paysys_ipay_report',
-          });
-          if (!$Paysys->{errno}) {
-            print "TRANSACTION: $transaction_id is added.\n";
-          }
-        }
-      }
-    }
-  }
-  else {
-    print "File doesn't exists!\n\n";
-    return 0;
-  }
-
-  return 1;
-}
-#**********************************************************
-=head2 easypay_report() - read file and push data to DB
-
-  Arguments:
-    $attr -
-      DATE - file date
-  Returns:
-
-  Examples:
-
-=cut
-#**********************************************************
-sub easypay_report {
-  my $report_date = q{};
-  my $file_name = q{};
-  my @columns = ('UID', 'SUM', 'PROV_BILL', 'MFO', 'BANK_NAME', 'CLIENT_CMSN', 'COMMISSION', 'CURRENCY', 'DATE',
-    'DESCRIPTION', 'PROV_NAME', 'OKPO', 'COMPANY_NAME', 'TERMINAL_ID', 'TRANSACTION_ID');
-  my %hash_data = ();
-
-  if ($argv->{DATE}) {
-    if ($argv->{DATE} =~ /(\d{4}\-\d{2}\-\d{2})/) {
-      $report_date = $argv->{DATE};
-      $report_date = "ONet_$report_date";
-    }
-    else {
-      print "Entered DATE:$argv->{DATE} is wrong!\n\n";
-      return 0;
-    }
-  }
-  else {
-    $report_date = $DATE;
-    my ($y, $m, $d) = split('-', $report_date);
-    $d = $d - 1;
-    if ($d < 10) {
-      $d = '0' . $d;
-    }
-
-    if ($d < 1) {
-      $m = $m - 1;
-      if ($m < 1) {
-        $m = 12;
-        $y = $y - 1;
-      }
-      if ($m < 10) {
-        $m = '0' . $m;
-      }
-      $d = days_in_month({ DATE => "$y-$m" });
-    }
-    $report_date = "ONet_$y-$m-$d";
-    print "$report_date.csv\n";
-  }
-
-  if ($conf{PAYSYS_EASYPAY_FILE}) {
-    $file_name = "$conf{PAYSYS_EASYPAY_FILE}$report_date.csv";
-  }
-  else {
-    print "Wrong configuration! \$conf{PAYSYS_EASYPAY_FILE} is empty!\n\n";
-    return 0;
-  }
-
-  if (-e $file_name) {
-    open(my $fh, '<:encoding(Windows-1251)', "$file_name") || die "Can't open file '$file_name' $!\n";
-    my @file_data = <$fh>;
-    close($fh);
-
-    if (scalar @file_data != 0) {
-      foreach my $line (@file_data) {
-        $line = Encode::encode("utf8", $line);
-        @hash_data{@columns} = split(';', $line);
-        if ($hash_data{DATE}) {
-          $hash_data{DATE} =~ s/T/ /;
-        }
-        $Paysys->paysys_report_add({ %hash_data,
-          TABLE => 'paysys_easypay_report',
-        });
-        if (!$Paysys->{errno}) {
-          print "TRANSACTION: $line is added.\n";
-        }
-      }
-    }
-  }
-  else {
-    print "File doesn't exists!\n\n";
-    return 0;
-  }
-
-  return 1;
-}
-
-#**********************************************************
-=head2 ibox_report() - read file and push data to DB
-
-  Arguments:
-    $attr -
-      DATE - file date
-  Returns:
-
-  Examples:
-
-=cut
-#**********************************************************
-sub ibox_report {
-  my $report_date = q{};
-  my $file_name = q{};
-
-  if ($argv->{DATE}) {
-    if ($argv->{DATE} =~ /(\d{4}\-?()\d{2}\-?()\d{2})/) {
-      $report_date = $argv->{DATE};
-      $report_date =~ s/-//g;
-      $report_date = "TovOnetp_$report_date" . "v1";
-      print "$report_date.csv\n";
-    }
-    else {
-      print "Entered DATE:$argv->{DATE} is wrong!\n\n";
-      return 0;
-    }
-  }
-  else {
-    $report_date = $DATE;
-    my ($y, $m, $d) = split('-', $report_date);
-    $d = $d - 1;
-    if ($d < 10) {
-      $d = '0' . $d;
-    }
-
-    if ($d < 1) {
-      $m = $m - 1;
-      if ($m < 1) {
-        $m = 12;
-        $y = $y - 1;
-      }
-      if ($m < 10) {
-        $m = '0' . $m;
-      }
-      $d = days_in_month({ DATE => "$y-$m" });
-    }
-    $report_date = "TovOnetp_$y$m$d" . "v1";
-    print "$report_date.csv\n";
-  }
-
-  if ($conf{PAYSYS_IBOX_FILE}) {
-    $file_name = "$conf{PAYSYS_IBOX_FILE}$report_date.csv";
-  }
-  else {
-    print "Wrong configuration! \$conf{PAYSYS_IBOX_FILE} is empty!\n\n";
-    return 0;
-  }
-
-  if (-e $file_name) {
-    open(my $fh, '<', "$file_name") || die "Can't open file '$file_name' $!\n";
-    my @file_data = <$fh>;
-    close($fh);
-
-    if (scalar @file_data != 0) {
-      shift @file_data;
-      pop @file_data;
-      foreach my $line (@file_data) {
-        my ($date, $time, $transaction_id, $user_id, $sum) = split(';', $line);
-        if ($transaction_id && $transaction_id =~ /\d+/) {
-          my ($d, $m, $y) = split('\.', $date);
-          $date = $y.'-'.$m.'-'.$d;
-          my $date_time = ($date || '') . ' ' . ($time || '');
-          print "|$date_time, $transaction_id, $sum, $user_id|";
-          $sum =~ s/,/./g;
-          $Paysys->paysys_report_add({
-            SUM            => $sum,
-            DATE           => $date_time,
-            TRANSACTION_ID => $transaction_id,
-            USER_KEY       => $user_id,
-            TABLE          => 'paysys_ibox_report',
-          });
-          if (!$Paysys->{errno}) {
-            print "TRANSACTION: $transaction_id is added.\n";
-          }
-        }
-      }
-    }
-  }
-  else {
-    print "File doesn't exists!\n\n";
-    return 0;
-  }
-
-  return 1;
-}
-
-=comments
-
-
-Çàïèñè ñîîáùåíèÿ ñîäåðæàò äàííûå îäíîãî òðåáîâàíèÿ ê îïëàòå. Ñòðóêòóðà çàïèñè ïðèâåäåíà â òàáëèöå 1.2.
-Òàáëèöà 1.2 - Ñòðóêòóðà çàïèñè ñîîáùåíèÿ 202
-¹ ïîëÿ  Âåðñèÿ ïðîòîêîëà  Íàèìåíîâàíèå  Îáÿçàòåëüíîñòü,
-Òèï äàííûõ, Ôîðìàò
-1  1,2, 3  Íîìåð çàïèñè  M, N6
-2  1,2, 3  Íîìåð ëèöåâîãî ñ÷åòà  M, S20
-3  1,2, 3  ÔÈÎ ïîòðåáèòåëÿ óñëóã  O, S90
-4  1,2, 3  Àäðåñ ïîòðåáèòåëÿ óñëóã  O, S99
-5  1,2, 3  Ïåðèîä îïëàòû  O, DMM.YYYY
-6  1,2, 3  Ñóììà çàäîëæåííîñòè  M, F12,2
-7  1,2, 3  Òàðèôû è ïîêàçàíèÿ ñ÷åò÷èêîâ  SubField
-8  1,2, 3  Äàòà ôîðìèðîâàíèÿ òðåáîâàíèÿ ê îïëàòå  O, DYYYYMMDDhhmmss
-9  1,2, 3  Äîïîëíèòåëüíûå ñâåäåíèÿ  O, S500
-10  1,2, 3  Äîïîëíèòåëüíûå äàííûå  O, S255
-11  2, 3  Ñóììà ïåíè, íà÷èñëåííàÿ ÏÓ  O, F12,2
-12  2, 3  Êîëè÷åñòâî ïðîæèâàþùèõ  O, N2
-13  2, 3  Êîëè÷åñòâî ëüãîòíèêîâ  O, N2
-
-
-Ïðè ôîðìèðîâàíèè çàïèñè äîëæíû âûïîëíÿòüñÿ ñëåäóþùèå òðåáîâàíèÿ:
-?  ïîëå 2 äîëæíî ñîäåðæàòü íîìåð ëèöåâîãî ñ÷åòà ïîòðåáèòåëÿ óñëóã ó ïðîèçâîäèòåëÿ óñëóã;
-?  ïîëå 6 äîëæíî ñîäåðæàòü ñóììó çàäîëæåííîñòè ïîòðåáèòåëÿ óñëóã ïåðåä ïðîèçâîäè-òåëåì óñëóã. Îòðèöàòåëüíîå çíà÷åíèå îçíà÷àåò çàäîëæåííîñòü ïðîèçâîäèòåëÿ ïåðåä ïîòðåáè-òåëåì;
-?  ïîëå 7 ñîäåðæèò ïîäïîëÿ, ñòðóêòóðà äàííîãî ïîëÿ ïðèâåäåíà â òàáëèöå 1.3;
-?  ïîëå 9 ñîäåðæèò äîïîëíèòåëüíóþ èíôîðìàöèþ, âûâîäèìóþ êëèåíòó ïðè îïëàòå íà ýêðàí è/èëè ÷åê. Ïðåäîñòàâëÿåìàÿ èíôîðìàöèÿ ìîæåò áûòü ðàçáèòà íà ñòðîêè. Äëÿ ðàçáèåíèÿ ñòðîê èñïîëüçóåòñÿ ñèìâîë "~" (êîä ñèìâîëà 0x7E);
-?  ïîëå 10 ìîæåò ñîäåðæàòü íåôîðìàëèçîâàííûå äàííûå î òðåáîâàíèè ê îïëàòå, êîòî-ðûå áóäóò âûãðóæåíû â îäíîèìåííîì ïîëå â èñõîäÿùèõ ñîîáùåíèÿõ 206, 210, 216;
-?  ïîëÿ 6 è/èëè 7 äîëæíî äîëæíû ñîäåðæàòü äàííûå;
-?  ïîëå 11 ñîäåðæèò ñóììó ïåíè, íà÷èñëåííóþ ïðîèçâîäèòåëåì óñëóã ïîòðåáèòåëþ óñ-ëóãè ñâåðõ ñóììû çàäîëæåííîñòè. Â ñëó÷àå ïðîñðî÷êè ïëàòåæà ñèñòåìà ÅÐÈÏ íå íà÷èñëÿåò ïåíþ íà ýòó ñóììó;
-?  ïîëÿ 12 è 13 èñïîëüçóþòñÿ äëÿ ðàñ÷åòà ñóììû îïëàòû ïî ëüãîòíîìó è îáû÷íîìó òà-ðèôó.
-Òàáëèöà 1.3 - Ñòðóêòóðà ïîëÿ "Òàðèôû è ïîêàçàíèÿ ñ÷åò÷èêîâ"
-¹ ïîëÿ  Íàèìåíîâàíèå  Îáÿçàòåëüíîñòü,
-
-
-Òèï äàííûõ, Ôîðìàò
-1  Êîëè÷åñòâî ñ÷åò÷èêîâ  M, N1
-2  Ñåðèéíûé íîìåð ñ÷åò÷èêà  O, S20
-3  Ðàçðÿäíîñòü ñ÷åò÷èêà  O, N2
-4  Òàðèô óñëóãè 1  M, F5,6
-5  Òàðèô óñëóãè 2  O, F5,6
-6  Íîðìà ïîòðåáëåíèÿ  O, F6,5
-7  Íà÷àëüíîå ïîêàçàíèå ñ÷åò÷èêà  M, N16
-8  Êîíå÷íîå ïîêàçàíèå ñ÷åò÷èêà  O, N16
-Ïðè ôîðìèðîâàíèè ïîëÿ äîëæíû âûïîëíÿòüñÿ ñëåäóþùèå òðåáîâàíèÿ:
-?  ïîäïîëå 4 èñïîëüçóåòñÿ äëÿ ðàñ÷åòà ñóììû îïëàòû, åñëè ðàñõîä, ðàññ÷èòàííûé ñ ó÷åòîì êîëè÷åñòâà ëüãîòíèêîâ, ïî ñ÷åò÷èêó ìåíüøå çíà÷åíèÿ ïîäïîëÿ 6. Ðàñõîä, ïðåâû-øàþùèé íîðìó ïîòðåáëåíèÿ, îïëà÷èâàåòñÿ ïî òàðèôó èç ïîäïîëÿ 5;
-?  çíà÷åíèå ïîäïîëÿ 3 äîëæíî áûòü â äèàïàçîíå [1..16];
-?  ìàêñèìàëüíàÿ äëèíà çíà÷åíèé ïîäïîëåé 7 è 8 íå äîëæíà ïðåâûøàòü äëèíó, çàäàí-íóþ ïîäïàðàìåòðîì 3 äëÿ òåêóùåé ãðóïïû ïîäïîëåé;
-?  âûäåëåííûå ïîäïîëÿ ïîâòîðÿþòñÿ â ïîëå â ñîîòâåòñòâèè ñî çíà÷åíèåì ïîäïîëÿ 1.
-Ïî ðåçóëüòàòàì îáðàáîòêè ñîîáùåíèÿ 202 â ðåãèîíàëüíîì óçëå äîëæåí ôîðìèðîâàòüñÿ îòâåò.
-Èìÿ ôàéëà îòâåòà èìååò âèä NNNNNNNN.204, ãäå NNNNNNNN – íîìåð ñîîáùåíèÿ.
-Ñòðóêòóðà îòâåòà ïðèâåäåíà â òàáëèöå 1.4.
-
-=cut
-
+# #**********************************************************
+# =head2 ipay_report() - read file and push data to DB
+#
+#   Arguments:
+#     $attr -
+#       DATE - file date
+#   Returns:
+#
+#   Examples:
+#
+# =cut
+# #**********************************************************
+# sub ipay_report {
+#   my $report_date = q{};
+#   my $file_name = q{};
+#
+#   if ($argv->{DATE}) {
+#     if ($argv->{DATE} =~ /(\d{4}\-?()\d{2}\-?()\d{2})/) {
+#       $report_date = $argv->{DATE};
+#       $report_date =~ s/-//g;
+#       $report_date = "ipay$report_date";
+#     }
+#     else {
+#       print "Entered DATE:$argv->{DATE} is wrong!\n\n";
+#       return 0;
+#     }
+#   }
+#   else {
+#     $report_date = $DATE;
+#     my ($y, $m, $d) = split('-', $report_date);
+#     $d = $d - 1;
+#     if ($d < 10) {
+#       $d = '0' . $d;
+#     }
+#
+#     if ($d < 1) {
+#       $m = $m - 1;
+#       if ($m < 1) {
+#         $m = 12;
+#         $y = $y - 1;
+#       }
+#       if ($m < 10) {
+#         $m = '0' . $m;
+#       }
+#       $d = days_in_month({ DATE => "$y-$m" });
+#     }
+#     $report_date = "ipay$y$m$d";
+#     print "$report_date.csv\n";
+#   }
+#
+#   if ($conf{PAYSYS_IPAY_FILE}) {
+#     $file_name = "$conf{PAYSYS_IPAY_FILE}$report_date.csv";
+#   }
+#   else {
+#     print "Wrong configuration! \$conf{PAYSYS_IPAY_FILE} is empty!\n\n";
+#     return 0;
+#   }
+#
+#   if (-e $file_name) {
+#     open(my $fh, '<', "$file_name") || die "Can't open file '$file_name' $!\n";
+#     my @file_data = <$fh>;
+#     close($fh);
+#
+#     if (scalar @file_data != 0) {
+#       shift @file_data;
+#       foreach my $line (@file_data) {
+#         my ($date, $transaction_id, $sum, $user_id) = split(';', $line);
+#         if ($transaction_id && $transaction_id =~ /\d+/) {
+#           print "|$date, $transaction_id, $sum, $user_id|";
+#           $sum =~ s/,/./g;
+#           $Paysys->paysys_report_add({
+#             SUM            => $sum,
+#             DATE           => $date,
+#             TRANSACTION_ID => $transaction_id,
+#             USER_KEY       => $user_id,
+#             TABLE          => 'paysys_ipay_report',
+#           });
+#           if (!$Paysys->{errno}) {
+#             print "TRANSACTION: $transaction_id is added.\n";
+#           }
+#         }
+#       }
+#     }
+#   }
+#   else {
+#     print "File doesn't exists!\n\n";
+#     return 0;
+#   }
+#
+#   return 1;
+# }
+#
+# #**********************************************************
+# =head2 easypay_report() - read file and push data to DB
+#
+#   Arguments:
+#     $attr -
+#       DATE - file date
+#   Returns:
+#
+#   Examples:
+#
+# =cut
+# #**********************************************************
+# sub easypay_report {
+#   my $report_date = q{};
+#   my $file_name = q{};
+#   my @columns = ('UID', 'SUM', 'PROV_BILL', 'MFO', 'BANK_NAME', 'CLIENT_CMSN', 'COMMISSION', 'CURRENCY', 'DATE',
+#     'DESCRIPTION', 'PROV_NAME', 'OKPO', 'COMPANY_NAME', 'TERMINAL_ID', 'TRANSACTION_ID');
+#   my %hash_data = ();
+#
+#   if ($argv->{DATE}) {
+#     if ($argv->{DATE} =~ /(\d{4}\-\d{2}\-\d{2})/) {
+#       $report_date = $argv->{DATE};
+#       $report_date = "ONet_$report_date";
+#     }
+#     else {
+#       print "Entered DATE:$argv->{DATE} is wrong!\n\n";
+#       return 0;
+#     }
+#   }
+#   else {
+#     $report_date = $DATE;
+#     my ($y, $m, $d) = split('-', $report_date);
+#     $d = $d - 1;
+#     if ($d < 10) {
+#       $d = '0' . $d;
+#     }
+#
+#     if ($d < 1) {
+#       $m = $m - 1;
+#       if ($m < 1) {
+#         $m = 12;
+#         $y = $y - 1;
+#       }
+#       if ($m < 10) {
+#         $m = '0' . $m;
+#       }
+#       $d = days_in_month({ DATE => "$y-$m" });
+#     }
+#     $report_date = "ONet_$y-$m-$d";
+#     print "$report_date.csv\n";
+#   }
+#
+#   if ($conf{PAYSYS_EASYPAY_FILE}) {
+#     $file_name = "$conf{PAYSYS_EASYPAY_FILE}$report_date.csv";
+#   }
+#   else {
+#     print "Wrong configuration! \$conf{PAYSYS_EASYPAY_FILE} is empty!\n\n";
+#     return 0;
+#   }
+#
+#   if (-e $file_name) {
+#     open(my $fh, '<:encoding(Windows-1251)', "$file_name") || die "Can't open file '$file_name' $!\n";
+#     my @file_data = <$fh>;
+#     close($fh);
+#
+#     if (scalar @file_data != 0) {
+#       foreach my $line (@file_data) {
+#         $line = Encode::encode("utf8", $line);
+#         @hash_data{@columns} = split(';', $line);
+#         if ($hash_data{DATE}) {
+#           $hash_data{DATE} =~ s/T/ /;
+#         }
+#         $Paysys->paysys_report_add({ %hash_data,
+#           TABLE => 'paysys_easypay_report',
+#         });
+#         if (!$Paysys->{errno}) {
+#           print "TRANSACTION: $line is added.\n";
+#         }
+#       }
+#     }
+#   }
+#   else {
+#     print "File doesn't exists!\n\n";
+#     return 0;
+#   }
+#
+#   return 1;
+# }
+#
+# #**********************************************************
+# =head2 ibox_report() - read file and push data to DB
+#
+#   Arguments:
+#     $attr -
+#       DATE - file date
+#   Returns:
+#
+#   Examples:
+#
+# =cut
+# #**********************************************************
+# sub ibox_report {
+#   my $report_date = q{};
+#   my $file_name = q{};
+#
+#   if ($argv->{DATE}) {
+#     if ($argv->{DATE} =~ /(\d{4}\-?()\d{2}\-?()\d{2})/) {
+#       $report_date = $argv->{DATE};
+#       $report_date =~ s/-//g;
+#       $report_date = "TovOnetp_$report_date" . "v1";
+#       print "$report_date.csv\n";
+#     }
+#     else {
+#       print "Entered DATE:$argv->{DATE} is wrong!\n\n";
+#       return 0;
+#     }
+#   }
+#   else {
+#     $report_date = $DATE;
+#     my ($y, $m, $d) = split('-', $report_date);
+#     $d = $d - 1;
+#     if ($d < 10) {
+#       $d = '0' . $d;
+#     }
+#
+#     if ($d < 1) {
+#       $m = $m - 1;
+#       if ($m < 1) {
+#         $m = 12;
+#         $y = $y - 1;
+#       }
+#       if ($m < 10) {
+#         $m = '0' . $m;
+#       }
+#       $d = days_in_month({ DATE => "$y-$m" });
+#     }
+#     $report_date = "TovOnetp_$y$m$d" . "v1";
+#     print "$report_date.csv\n";
+#   }
+#
+#   if ($conf{PAYSYS_IBOX_FILE}) {
+#     $file_name = "$conf{PAYSYS_IBOX_FILE}$report_date.csv";
+#   }
+#   else {
+#     print "Wrong configuration! \$conf{PAYSYS_IBOX_FILE} is empty!\n\n";
+#     return 0;
+#   }
+#
+#   if (-e $file_name) {
+#     open(my $fh, '<', "$file_name") || die "Can't open file '$file_name' $!\n";
+#     my @file_data = <$fh>;
+#     close($fh);
+#
+#     if (scalar @file_data != 0) {
+#       shift @file_data;
+#       pop @file_data;
+#       foreach my $line (@file_data) {
+#         my ($date, $time, $transaction_id, $user_id, $sum) = split(';', $line);
+#         if ($transaction_id && $transaction_id =~ /\d+/) {
+#           my ($d, $m, $y) = split('\.', $date);
+#           $date = $y.'-'.$m.'-'.$d;
+#           my $date_time = ($date || '') . ' ' . ($time || '');
+#           print "|$date_time, $transaction_id, $sum, $user_id|";
+#           $sum =~ s/,/./g;
+#           $Paysys->paysys_report_add({
+#             SUM            => $sum,
+#             DATE           => $date_time,
+#             TRANSACTION_ID => $transaction_id,
+#             USER_KEY       => $user_id,
+#             TABLE          => 'paysys_ibox_report',
+#           });
+#           if (!$Paysys->{errno}) {
+#             print "TRANSACTION: $transaction_id is added.\n";
+#           }
+#         }
+#       }
+#     }
+#   }
+#   else {
+#     print "File doesn't exists!\n\n";
+#     return 0;
+#   }
+#
+#   return 1;
+# }
 
 1

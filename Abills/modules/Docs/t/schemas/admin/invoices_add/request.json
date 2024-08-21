@@ -1,0 +1,20 @@
+{
+  "name": "ADMIN_DOCS_INVOICE_ADD",
+  "method": "POST",
+  "path": "docs/invoices/",
+  "body": {
+    "orders": [
+      {
+        "order": "Інтернет послуги",
+        "sum": 10,
+        "counts": 1,
+        "unit": 0,
+        "fees_type": 0
+      }
+    ],
+    "customer": "ФОП Іваненко",
+    "uid": 1,
+    "includeDeposit": 1,
+    "includeCurBillingPeriod": 1
+  }
+}

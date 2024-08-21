@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 10122
+  errstr:
+    type: string
+    example: "Payment with id 121 and uid 11 does not exist"

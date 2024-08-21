@@ -26,6 +26,8 @@ my $users = Users->new($db, $admin, \%conf);
 my $Tags = Tags->new($db, $admin, \%conf);
 my $ring_path = "$conf{TPL_DIR}ring/";
 
+my @STATUS = ($lang{WAITING}, $lang{SUCCESS}, $lang{INTERRUPTED}, $lang{ANSWERPHONE}, $lang{NOT_AVAILABLE});
+
 #*******************************************************************
 # Main function
 #*******************************************************************
@@ -283,9 +285,13 @@ sub files_list {
 #*******************************************************************
 sub ring_user_filters {
 
-  my @STATUS = ($lang{WAITING}, $lang{SUCCESS}, $lang{INTERRUPTED}, $lang{ANSWERPHONE}, $lang{NOT_AVAILABLE});
   my $list;
-  $list = $Ring->rule_users({ RID => $FORM{ID}, COLS_NAME => 1, PAGE_ROWS => 1000000 }) if $FORM{ID};
+  $list = $Ring->rule_users({
+    R_ID => $FORM{ID},
+    UID => '_SHOW',
+    COLS_NAME => 1,
+    PAGE_ROWS => 1000000
+  }) if $FORM{ID};
 
   my $group_select = sel_groups();
   my $tags_list = $Tags->list({ NAME => '_SHOW', COLS_NAME => 1 });
@@ -329,11 +335,25 @@ sub ring_user_filters {
         $Ring->del_user({UID => $uid, R_ID => $FORM{ID}});
       }
     }
+    elsif ($FORM{chg}){
+      ring_user_info($list);
+      return 1;
+    }
+    elsif ($FORM{change}) {
+      $Ring->change_user({
+        UID      => $FORM{UID},
+        R_ID     => $FORM{ID},
+        STATUS   => $FORM{STATUS},
+        TIME     => $FORM{TIME},
+        DATE     => $DATE,
+        COMMENTS => $FORM{COMMENTS},
+        AID      => $admin->{AID},
+      });
+    }
 
     my $r_info = $Ring->select_rule({ RULE_ID => $FORM{ID} });
 
-    $LIST_PARAMS{RID} = $FORM{ID};
-    $LIST_PARAMS{STATUS} = '_SHOW';
+    $LIST_PARAMS{R_ID} = $FORM{ID};
     $LIST_PARAMS{PAGE_ROWS} = 1000000;
 
     result_former({
@@ -341,13 +361,17 @@ sub ring_user_filters {
       FUNCTION       => 'rule_users',
       FUNCTION_INDEX => $index,
       DEFAULT_FIELDS => 'UID,R_ID,DATE,TIME,STATUS',
+      HIDDEN_FIELDS   => 'AID,COMMENTS',
+      FUNCTION_FIELDS => ':change:uid:&chg=1&ID='.$FORM{ID},
       MULTISELECT     => 'del:uid:FILTERS',
       EXT_TITLES      => {
         uid       => 'UID',
         r_id      => $lang{RULE},
         date      => $lang{DATE},
         time      => $lang{TIME},
-        status    => $lang{STATUS}
+        status    => $lang{STATUS},
+        comments  => $lang{COMMENTS},
+        a_name    => $lang{ADMIN},
       },
       TABLE          => {
         width   => '100%',
@@ -364,7 +388,8 @@ sub ring_user_filters {
             CLASS    => 'text-danger'
           },
         ],
-        SELECT_ALL   => "FILTERS:del:$lang{SELECT_ALL}"
+        SELECT_ALL   => "FILTERS:del:$lang{SELECT_ALL}",
+        SHOW_COLS_HIDDEN => { ID => $FORM{ID} },
       },
       FILTER_VALUES => {
         uid => sub {
@@ -413,6 +438,7 @@ sub ring_user_filters {
     my ($table) = result_former({
       INPUT_DATA      => $users,
       LIST            => $list,
+      FUNCTION_INDEX  => $index,
       BASE_FIELDS     => 1,
       MULTISELECT     => 'UID:uid',
       FUNCTION_FIELDS => '',
@@ -462,7 +488,7 @@ sub ring_user_filters {
   if($FORM{del}){
     $Ring->del_user({UID => $FORM{del}, R_ID => $FORM{r_id}});
 
-    $list = $Ring->rule_users({ RID => $FORM{r_id}, COLS_NAME => 1 });
+    $list = $Ring->rule_users({ R_ID => $FORM{r_id}, COLS_NAME => 1 });
 
     if (! $Ring->{TOTAL}) {
       $FORM{ID} =  $FORM{r_id};
@@ -499,7 +525,85 @@ sub ring_user_filters {
     return 1;
   }
 
-  $html->tpl_show(_include('ring_select_rule', 'Ring'), { RULE_SELECT => $rule_select, });
+  $html->tpl_show(_include('ring_select_rule', 'Ring'), { RULE_SELECT => $rule_select, }) if (!$FORM{ID});
 }
+
+
+#*******************************************************************
+=head2 ring_user_info() - get user's ring info
+
+  Arguments:
+    $list
+
+=cut
+#*******************************************************************
+sub ring_user_info {
+  my ($list) = @_;
+
+  require Contacts;
+  my $Contacts = Contacts->new($db, $admin, \%conf);
+  my $user_contacts = $Contacts->contacts_list({ TYPE => 2, VALUE => '_SHOW', UID => $FORM{UID} });
+  my $phone = $user_contacts->[0]->{'value'} || '';
+
+  # TODO callto
+  my $callto_href = '';
+
+  my $user_info = $Ring->rule_users({
+    R_ID      => $FORM{ID},
+    UID       => $FORM{UID},
+    STATUS    => '_SHOW',
+    COMMENTS  => '_SHOW',
+    AID       => '_SHOW',
+    TIME      => '_SHOW',
+    COLS_NAME => 1,
+  }) if $FORM{ID};
+
+  my ($previous_uid, $next_uid) = ('','');
+  foreach my $i (0..@$list-1) {
+    if ($FORM{UID} && $FORM{UID} == $list->[$i]{'uid'} ) {
+      $previous_uid = $list->[$i - 1]{'uid'} || $list->[$i]{'uid'};
+      $next_uid = $list->[$i + 1]{'uid'} || $list->[$i]{'uid'};
+      last;
+    }
+  }
+
+  my $pre_button = $html->button(" ", "index=$index&&chg=1&ID=$FORM{ID}&UID=$previous_uid", {
+    class => 'btn btn-default text-center',
+    ICON  => 'fa fa-arrow-left',
+    TITLE => $lang{BACK}
+  });
+  my $next_button = $html->button(" ", "index=$index&&chg=1&ID=$FORM{ID}&UID=$next_uid", {
+    class => 'btn btn-default',
+    ICON  => 'fa fa-arrow-right',
+    TITLE => $lang{NEXT}
+  });
+  my $STATUS_SEL = $html->form_select('STATUS', {
+    SELECTED     => $FORM{STATUS} || $user_info->[0]->{status} || 0,
+    SEL_OPTIONS  => { '' => $lang{ALL} },
+    SEL_ARRAY    => \@STATUS,
+    ARRAY_NUM_ID => 1,
+  });
+
+  my $time_start = time();
+
+  if ($list && $list->[0]){
+    $html->tpl_show(_include('ring_filter_change_user', 'Ring'), {
+      ID          => $FORM{ID},
+      UID         => $FORM{UID},
+      STATUS      => $STATUS_SEL,
+      PHONE       => $phone,
+      CALLTO_HREF => $callto_href,
+      TIME        => $user_info->[0]->{time},
+      COMMENTS    => $user_info->[0]->{comments},
+      A_NAME      => $user_info->[0]->{a_name},
+      PRE_BUTTON  => $pre_button,
+      NEXT_BUTTON => $next_button,
+      TIME_START  => $time_start,
+    });
+  }
+
+  return 1;
+}
+
 
 1

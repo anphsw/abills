@@ -4,6 +4,8 @@ use warnings FATAL => 'all';
 use Time::Piece;
 use Time::Seconds;
 
+use Abills::Loader qw/load_plugin/;
+
 BEGIN {
   our $Bin;
   use FindBin '$Bin';
@@ -1303,7 +1305,8 @@ sub _smotreshka_change_tp {
   my ($tariff, $user_info, $attr) = @_;
 
   load_module('Iptv', $html);
-  my $Tv_service = tv_load_service($attr->{SERVICE_MODULE}, { SERVICE_ID => $attr->{SERVICE_ID} });
+  # my $Tv_service = tv_load_service($attr->{SERVICE_MODULE}, { SERVICE_ID => $attr->{SERVICE_ID} });
+  my $Tv_service = load_plugin('Iptv::Plugins::' . ($attr->{SERVICE_MODULE} || ''), { SERVICE => $Iptv });
   if (!$Tv_service || !$Tv_service->can('user_change')) {
     print_result({ id => 'internal_error', message => 'Сервис не найден' }, { STATUS => 500 });
     return 0;
@@ -1780,7 +1783,8 @@ sub _iptv_24tv_packet {
   _iptv_24tv_print_err({ message => "Добаление дополнительного пакета возможно только при наличии основного пакета." }) if (!$Iptv->{TOTAL} && !$params->{packet}{is_base});
   return 0 if (!$Iptv->{TOTAL} && !$params->{packet}{is_base});
 
-  my $Tv_service = tv_load_service($attr->{SERVICE_MODULE}, { SERVICE_ID => $attr->{SERVICE_ID} });
+  # my $Tv_service = tv_load_service($attr->{SERVICE_MODULE}, { SERVICE_ID => $attr->{SERVICE_ID} });
+  my $Tv_service = load_plugin('Iptv::Plugins::' . ($attr->{SERVICE_MODULE} || ''), { SERVICE => $Iptv });
   if (!$Tv_service) {
     _iptv_24tv_print_err({ message => "Ошибка при подписке" });
     return 0;
@@ -2175,7 +2179,8 @@ sub _iptv_24tv_del_sub {
   my ($attr) = @_;
 
   load_module('Iptv', $html);
-  my $Tv_service = tv_load_service($attr->{SERVICE_MODULE}, { SERVICE_ID => $attr->{SERVICE_ID} });
+  my $Tv_service = load_plugin('Iptv::Plugins::' . ($attr->{SERVICE_MODULE} || ''), { SERVICE => $Iptv });
+  # my $Tv_service = tv_load_service($attr->{SERVICE_MODULE}, { SERVICE_ID => $attr->{SERVICE_ID} });
   if (!$Tv_service) {
     _iptv_24tv_print_err({ message => "Ошибка при отписке" });
     return 0;

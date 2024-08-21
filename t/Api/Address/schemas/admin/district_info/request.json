@@ -1,0 +1,6 @@
+{
+  "name": "ADDRESS_DISTRICT_INFO",
+  "method": "GET",
+  "path": "districts/:id/",
+  "params": {}
+}

@@ -7,7 +7,7 @@
 
     var password_config_params = {
       LENGTH : '$conf{PASSWD_LENGTH}',
-      SYMBOLS : '$conf{PASSWD_SYMBOLS}' || '1234567890abcdefgjhiklmnopqrstyquvwxyz'
+      SYMBOLS : '$conf{PASSWD_SYMBOLS}'
     };
 
     if (password_configuration_string !== ''){

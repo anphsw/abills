@@ -1,0 +1,23 @@
+type: object
+properties:
+  dsc:
+    type: string
+    example: "Internet: М/А Coolnet wow 100м (41) - Payment for glory"
+  id:
+    type: number
+    example: 5630
+  innerDescribe:
+    type: string
+    example: This see only me
+  method:
+    type: number
+    example: 0
+  regDate:
+    type: string
+    example: '2023-05-18 21:15:04'
+  sum:
+    type: number
+    example: 1
+  uid:
+    type: number
+    example: 103160

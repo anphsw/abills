@@ -251,7 +251,7 @@ sub payments_list {
       ['FDN',               'STR', 'e.fdn',                              1 ],
       ['COMMAND_ID',        'STR', 'e.command_id',                       1 ],
       ['STATUS',            'INT', 'e.status',                           1 ],
-      ['EXTST',             'INT', 'e.status as extst',                  1 ],
+      ['EXIST',             'INT', 'e.status as exist',                  1 ],
     ],
     { WHERE => 1 }
   );

@@ -10,9 +10,14 @@
     </div>
 
     <ul class='list-group list-group-unbordered mb-3'>
-      <li class='list-group-item'>
-        <b>_{BALANCE_RECHARCHE_SUM}_</b>
+      <li class='list-group-item'><b>_{BALANCE_RECHARCHE_SUM}_</b>
         <div class='float-right'>$FORM{SUM}</div>
+      </li>
+      <li class='list-group-item'><b>_{COMMISSION}_</b>
+        <div class='float-right'>%COMMISSION_SUM%</div>
+      </li>
+      <li class='list-group-item'><b>_{TOTAL}_ _{SUM}_</b>
+        <div class='float-right'>%TOTAL_SUM%</div>
       </li>
       %EXTRA_DESCRIPTIONS%
     </ul>

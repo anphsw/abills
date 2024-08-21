@@ -1,0 +1,44 @@
+type: object
+properties:
+  affected:
+    type: number
+    example: 0
+  city:
+    type: string
+    example: ""
+  comments:
+    type: string
+    example: ""
+  coordx:
+    type: number
+    example: 0
+  coordy:
+    type: number
+    example: 0
+  country:
+    type: number
+    example: 0
+  id:
+    type: number
+    example: 12
+  name:
+    type: string
+    example: Вокзальний
+  parentId:
+    type: number
+    example: 0
+  path:
+    type: number
+    example: 12
+  total:
+    type: number
+    example: 1
+  typeId:
+    type: number
+    example: 0
+  zip:
+    type: string
+    example: ""
+  zoom:
+    type: number
+    example: 0

@@ -53,6 +53,34 @@
       "OIDS": "1.3.6.1.4.1.259.6.10.94.1.2.3.2.1.11",
       "PARSER": "",
       "REQUIRES_CABLE_TEST": "1"
+    },
+    "PORT_SPEED": {
+      "NAME": "Port speed",
+      "OIDS": ".1.3.6.1.2.1.2.2.1.5"
+    },
+    "PORT_HIGH_SPEED": {
+      "NAME": "High speed",
+      "OIDS": ".1.3.6.1.2.1.31.1.1.1.15"
+    },
+    "PORT_UPTIME": {
+      "NAME": "Last change",
+      "OIDS": ".1.3.6.1.2.1.2.2.1.9"
+    },
+    "DUPLEX": {
+      "NAME": "DUPLEX",
+      "OIDS": ".1.3.6.1.2.1.10.7.2.1.19"
+    },
+    "VLAN": {
+      "NAME": "VLAN",
+      "OIDS": ".1.3.6.1.2.1.17.7.1.4.3.1.1"
+    },
+    "TRUNK": {
+      "NAME": "Trunk",
+      "OIDS": ".1.3.6.1.4.1.259.10.1.12.1.1.1.1.1.5"
+    },
+    "CONNECTOR": {
+      "NAME": "Connector present",
+      "OIDS": ".1.3.6.1.2.1.31.1.1.1.17"
     }
   }
 }

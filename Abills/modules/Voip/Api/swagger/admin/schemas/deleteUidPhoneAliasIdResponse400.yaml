@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 30023
+  errstr:
+    type: string
+    example: "Phone alias with id 123 and user with uid 12321 not exist"

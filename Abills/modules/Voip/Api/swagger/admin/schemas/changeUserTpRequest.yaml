@@ -1,0 +1,13 @@
+type: object
+properties:
+  date:
+    type: string
+    example: '2022-12-18'
+    description: "Может принимать два значения 1 и 0. При 0 изменяет тариф немедленно, при 1 устанавливает дату изменения тарифа"
+  period:
+    type: number
+    example: 1
+    description: "Игнорируется если period 0. Если значение пустое и period 1, берется 1 день следующего месяца"
+  tpId:
+    type: number
+    example: 39

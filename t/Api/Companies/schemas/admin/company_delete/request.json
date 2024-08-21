@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_COMPANY_DELETE",
+  "method": "DELETE",
+  "path": "companies/:id/",
+  "params": {}
+}

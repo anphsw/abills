@@ -1,13 +1,17 @@
 <div class='card box-solid'>
-  <div class='card-body' style='padding: 0;'>
+  <div class='card-body'>
+
+    <div class='row'>
     <div class='col-md-2' style='padding: 0; text-align: left;'>
-      <ul class="nav nav-stacked">
+      <ul class='nav nav-stacked'>
       %COLLECTION_IDS%
       </ul>
     </div>
-    <div class="col-md-10">
+    <div class='col-md-10'>
       %HTML_CONTENT%
     </div>
+  </div>
+
   </div>
 </div>
 

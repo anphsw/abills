@@ -9,6 +9,8 @@ my $lang;
 my Iptv $Iptv;
 
 use Abills::Base qw/days_in_month in_array next_month/;
+use Abills::Loader qw/load_plugin/;
+use Iptv::Init qw/init_iptv_service/;
 
 #**********************************************************
 =head2 new($html, $lang)
@@ -169,54 +171,8 @@ sub iptv_quick_info {
   my $self = shift;
   my ($attr) = @_;
 
-  my $result;
   my $form = $attr->{FORM} || {};
-
-  my $uid = $attr->{UID} || $form->{UID};
-
-  if ($attr->{UID}) {
-    my $list = $Iptv->user_list({
-      UID         => $uid,
-      TP_NAME     => '_SHOW',
-      MONTH_FEE   => '_SHOW',
-      DAY_FEE     => '_SHOW',
-      CID         => '_SHOW',
-      TP_COMMENTS => '_SHOW',
-      STATUS      => '_SHOW',
-      IP          => '_SHOW',
-      COLS_NAME   => 1,
-      COLS_UPPER  => 1
-    });
-
-    $result = $list->[0];
-    my $service_status = ::sel_status({ HASH_RESULT => 1 });
-    $result->{STATUS} = (defined($result->{SERVICE_STATUS})) ? $service_status->{ $result->{SERVICE_STATUS} } : '';
-    ($result->{STATUS}, undef) = split(/:/, $result->{STATUS});
-    $result->{PERIOD} = $lang->{MONTH};
-    
-    if (!$result->{MONTH_FEE} && $result->{DAY_FEE}) {
-      $result->{MONTH_FEE} = $result->{DAY_FEE};
-      $result->{PERIOD} = $lang->{DAY};
-    }
-    
-    return $result;
-  }
-  elsif ($attr->{GET_PARAMS}) {
-    $result = {
-      HEADER    => $lang->{TV},
-      QUICK_TPL => 'iptv_qi_box',
-      FIELDS    => {
-        TP_NAME     => $lang->{TARIF_PLAN},
-        IP          => 'IP',
-        STATUS      => $lang->{STATUS},
-        MONTH_FEE   => $lang->{MONTH_FEE},
-        TP_COMMENTS => $lang->{COMMENTS},
-        PERIOD      => $lang->{MONTH}
-      }
-    };
-
-    return $result;
-  }
+  my $uid = $form->{UID};
 
   $Iptv->user_list({
     UID         => $uid,
@@ -234,7 +190,10 @@ sub iptv_quick_info {
 
   Arguments:
     UID
+    IPTV_SHOW_FREE_TPS
+
   Results:
+    \@service_list
 
 =cut
 #**********************************************************
@@ -246,7 +205,10 @@ sub iptv_docs {
   my @services = ();
   my %info = ();
 
-  my $list = $Iptv->user_list({
+  $attr->{IPTV_SHOW_FREE_TPS} //= $CONF->{IPTV_SHOW_FREE_TPS} || 0;
+  $attr->{IPTV_SHOW_ALL_SERVICES} //= $CONF->{IPTV_SHOW_ALL_SERVICES} || 0;
+
+  my $user_list = $Iptv->user_list({
     UID               => $uid,
     ACCOUNT_DISABLE   => 0,
     IPTV_ACTIVATE     => '_SHOW',
@@ -259,20 +221,26 @@ sub iptv_docs {
     SERVICE_STATUS    => '_SHOW',
     TP_REDUCTION_FEE  => '_SHOW',
     #@Fixit not unification option
-    SERVICE_STATUS    => $CONF->{IPTV_SHOW_ALL_SERVICES} ? '_SHOW' : '0',
+    SERVICE_STATUS    => ($attr->{IPTV_SHOW_ALL_SERVICES}) ? '_SHOW' : '0;5',
     COLS_NAME         => 1,
     ABON_DISTRIBUTION => '_SHOW'
   });
 
-  foreach my $service_info (@{$list}) {
-    next if (!defined($service_info->{month_fee}));
+  foreach my $service_info (@{$user_list}) {
+    $info{tp_name} = $service_info->{tp_name};
+    $info{tp_id}   = $service_info->{tp_id};
+    $info{id}      = $service_info->{id};
+    $info{module_name} = $lang->{TV};
 
+    #next if (!defined($service_info->{month_fee}) && ! $attr->{SHOW_ALL});
     my $monthly_fee_info = $self->_iptv_docs_monthly_fee($service_info, $attr);
-    push @services, $monthly_fee_info if $monthly_fee_info;
+    push @services, $monthly_fee_info if ($monthly_fee_info);
 
     my $daily_fee_info = $self->_iptv_docs_daily_fee($service_info, $attr);
 
-    push @services, $daily_fee_info if $daily_fee_info;
+    if ($daily_fee_info) {
+      push @services, $daily_fee_info;
+    }
   }
 
   #Channels
@@ -286,7 +254,7 @@ sub iptv_docs {
       $info{tp_name} = $service->{DESCRIBE};
       $info{month} = $service->{SUM};
 
-      push @services, $attr->{FULL_INFO} ? { %info } : "Tv: $service->{DESCRIBE}||$service->{SUM}||$service->{DESCRIBE}";
+      push @services, { %info };
     }
   }
 
@@ -300,7 +268,7 @@ sub iptv_docs {
       $info{tp_name} = $service->{DESCRIBE};
       $info{month} = $service->{SUM};
 
-      push @services, $attr->{FULL_INFO} ? { %info } : "Tv: $service->{DESCRIBE}||$service->{SUM}||$service->{DESCRIBE}";
+      push @services, { %info };
     }
   }
 
@@ -310,7 +278,15 @@ sub iptv_docs {
 }
 
 #**********************************************************
-=head2 _iptv_docs_monthly_fee($attr)
+=head2 _iptv_docs_monthly_fee($service_info, $attr)
+
+  Arguments:
+    $service_info,
+    $attr
+      IPTV_SHOW_FREE_TPS
+
+  Results:
+    \%info
 
 =cut
 #**********************************************************
@@ -362,7 +338,9 @@ sub _iptv_docs_monthly_fee {
     }
   }
 
-  return if $service_info->{month_fee} <= 0 && !$CONF->{IPTV_SHOW_FREE_TPS};
+  if ($service_info->{month_fee} <= 0 && !$attr->{IPTV_SHOW_FREE_TPS}) {
+    return;
+  }
 
   my %info = ();
   my %FEES_DSC = (
@@ -376,6 +354,7 @@ sub _iptv_docs_monthly_fee {
   $info{service_name} = ::fees_dsc_former(\%FEES_DSC);
   $info{service_desc} = q{};
   $info{tp_name} = $service_info->{tp_name};
+  $info{tp_id} = $service_info->{tp_id};
   $info{service_activate} = $service_info->{iptv_activate};
   $info{service_expire} = $service_info->{iptv_expire};
   $info{tp_fixed_fees_day} = $service_info->{tp_fixed_fees_day} || 0;
@@ -385,6 +364,7 @@ sub _iptv_docs_monthly_fee {
   $info{abon_distribution} = $service_info->{abon_distribution};
   $info{tp_reduction_fee} = $service_info->{tp_reduction_fee};
   $info{module_name} = $lang->{TV};
+  $info{id} = $service_info->{id};
 
   if ($service_info->{iptv_status} && $service_info->{iptv_status} != 5 && $attr->{SKIP_DISABLED}) {
     $info{day} = 0;
@@ -430,6 +410,7 @@ sub _iptv_docs_daily_fee {
   $info{abon_distribution} = $service_info->{abon_distribution};
   $info{tp_reduction_fee} = $service_info->{tp_reduction_fee};
   $info{module_name} = $lang->{TV};
+  $info{id} = $service_info->{id};
 
   if ($service_info->{iptv_status} && $service_info->{iptv_status} != 5 && $attr->{SKIP_DISABLED}) {
     $info{day} = 0;
@@ -743,6 +724,60 @@ sub iptv_user_del {
   $Iptv->{UID} = $uid;
   $Iptv->user_del({ UID => $uid, COMMENTS => $attr->{USER_INFO}{COMMENTS} });
   return 1;
+}
+
+#**********************************************************
+=head2 iptv_user_services($attr) - Get user services
+
+=cut
+#**********************************************************
+sub iptv_user_services {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return [] if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
+
+  require Control::Service_control;
+  Control::Service_control->import();
+  my $Service_control = Control::Service_control->new($db, $admin, $CONF);
+
+  my $tariffs = $Service_control->services_info({
+    UID             => $attr->{UID},
+    MODULE          => 'Iptv',
+    FUNCTION_PARAMS => {
+      SERVICE_STATUS    => '_SHOW',
+      IPTV_EXPIRE       => '_SHOW',
+      SERVICE_ID        => '_SHOW',
+      TV_SERVICE_NAME   => '_SHOW',
+      TV_USER_PORTAL    => '_SHOW',
+      TV_SERVICE_MODULE => '_SHOW',
+      SERVICE_STATUS    => '_SHOW',
+    },
+    UPDATE_SERVICE_INFO => sub {
+      my ($service_info, $tariff) = @_;
+
+      if ($tariff->{service_id} && $tariff->{tv_service_module}) {
+        my $Tv_service = init_iptv_service($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf}, {
+          SERVICE_ID   => $tariff->{service_id},
+          HTML         => $html,
+          LANG         => $lang,
+          RETURN_ERROR => 1
+        });
+        if ($Tv_service && ref $Tv_service ne 'HASH') {
+          $tariff->{get_url} = 'true' if ($Tv_service->can('get_url'));
+          $tariff->{get_code} = 'true' if ($Tv_service->can('get_code'));
+          $tariff->{get_playlist} = 'true' if ($Tv_service->can('get_playlist_m3u') && $CONF->{IPTV_CLIENT_M3U});
+        }
+      }
+
+      $tariff->{service_holdup} = ($tariff->{tv_user_portal} && $tariff->{tv_user_portal} > 1 && !$tariff->{service_status}) ? 'false' : 'true';
+      delete $tariff->{tv_service_module};
+
+      return $tariff;
+    }
+  });
+
+  return $tariffs;
 }
 
 1;

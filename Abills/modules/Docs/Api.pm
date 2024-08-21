@@ -15,11 +15,14 @@ use strict;
 use warnings FATAL => 'all';
 
 use Abills::Base qw(in_array);
+use Control::Errors;
 
+use Docs::Validations qw(POST_INVOICE_ADD POST_DOCS_INVOICES_PAYMENTS DELETE_DOCS_INVOICES_PAYMENTS PATCH_DOCS_INVOICES_PAYMENTS POST_USER_DOCS_INVOICES);
 use Docs::Constants qw(EDOCS_STATUS);
 use Docs;
 
 my Docs $Docs;
+my Control::Errors $Errors;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -49,8 +52,12 @@ sub new {
     $self->{routes_list} = $self->admin_routes();
   }
 
+  $Errors = Control::Errors->new($self->{db}, $self->{admin}, $self->{conf}, { lang => $lang, module => 'Docs' });
+
   $Docs = Docs->new($self->{db}, $self->{admin}, $self->{conf});
   $Docs->{debug} = $self->{debug};
+
+  $self->{Errors} = $Errors;
 
   return $self;
 }
@@ -115,6 +122,156 @@ sub admin_routes {
   my $self = shift;
 
   return [
+    {
+      method       => 'GET',
+      path         => '/docs/invoices/payments/',
+      controller   => 'Docs::Api::admin::Invoices',
+      endpoint     => \&Docs::Api::admin::Invoices::get_docs_invoices_payments,
+      credentials  => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'POST',
+      path        => '/docs/invoices/payments/',
+      params      => POST_DOCS_INVOICES_PAYMENTS,
+      handler     => sub {
+        require Docs::Api::admin::Invoices;
+        Docs::Api::admin::Invoices->import();
+        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
+          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
+
+        return $Invoices->post_docs_invoices_payments(@_);
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'PATCH',
+      path        => '/docs/invoices/payments/',
+      params      => PATCH_DOCS_INVOICES_PAYMENTS,
+      handler     => sub {
+        require Docs::Api::admin::Invoices;
+        Docs::Api::admin::Invoices->import();
+        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
+          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
+
+        return $Invoices->patch_docs_invoices_payments(@_);
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/docs/invoices/',
+      handler     => sub {
+        require Docs::Api::admin::Invoices;
+        Docs::Api::admin::Invoices->import();
+        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
+          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
+
+        return $Invoices->get_docs_invoices(@_);
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/docs/invoices/:id/',
+      handler     => sub {
+        require Docs::Api::admin::Invoices;
+        Docs::Api::admin::Invoices->import();
+        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
+          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
+
+        return $Invoices->get_docs_invoices_id(@_);
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'POST',
+      #TODO: use in future when will known all properties
+      # params      => POST_INVOICE_ADD,
+      path        => '/docs/invoices/',
+      handler     => sub {
+        require Docs::Api::admin::Invoices;
+        Docs::Api::admin::Invoices->import();
+        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
+          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
+
+        return $Invoices->post_docs_invoices(@_);
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/docs/invoices/:id/',
+      handler     => sub {
+        require Docs::Api::admin::Invoices;
+        Docs::Api::admin::Invoices->import();
+        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
+          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
+
+        return $Invoices->put_docs_invoices_id(@_);
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/docs/invoices/',
+      params      => DELETE_DOCS_INVOICES_PAYMENTS,
+      handler     => sub {
+        require Docs::Api::admin::Invoices;
+        Docs::Api::admin::Invoices->import();
+        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
+          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
+
+        return $Invoices->delete_docs_invoices(@_);
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/docs/invoices/:uid/period/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        require Docs::Api::admin::Invoices;
+        Docs::Api::admin::Invoices->import();
+        my $Invoices = Docs::Api::admin::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
+          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
+
+        return $Invoices->get_docs_invoices_period(@_);
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/docs/users/:uid/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        $Docs->user_info($path_params->{uid});
+
+        return $Docs;
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
     {
       method      => 'GET',
       path        => '/docs/edocs/branches/',
@@ -369,6 +526,76 @@ sub user_routes {
 
   return [
     {
+      method      => 'GET',
+      path        => '/user/docs/invoices/',
+      handler     => sub {
+        require Docs::Api::user::Invoices;
+        Docs::Api::user::Invoices->import();
+        my $Invoices = Docs::Api::user::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
+          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
+
+        return $Invoices->get_user_docs_invoices(@_);
+      },
+      credentials => [
+        'USER', 'USERSID'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/user/docs/invoices/:id/',
+      handler     => sub {
+        require Docs::Api::user::Invoices;
+        Docs::Api::user::Invoices->import();
+        my $Invoices = Docs::Api::user::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
+          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
+
+        return $Invoices->get_user_docs_invoices_id(@_);
+      },
+      credentials => [
+        'USER', 'USERSID'
+      ]
+    },
+    {
+      method      => 'POST',
+      params      => POST_USER_DOCS_INVOICES,
+      path        => '/user/docs/invoices/',
+      handler     => sub {
+        require Docs::Api::user::Invoices;
+        Docs::Api::user::Invoices->import();
+        my $Invoices = Docs::Api::user::Invoices->new($self->{db}, $self->{admin}, $self->{conf},
+          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
+
+        return $Invoices->post_user_docs_invoices(@_);
+      },
+      credentials => [
+        'USER', 'USERSID'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/user/docs/invoices/period/',
+      controller  => 'Docs::Api::user::Invoices',
+      endpoint    => \&Docs::Api::user::Invoices::get_user_docs_invoices_period,
+      credentials => [
+        'USER', 'USERSID'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/user/docs/',
+      handler     => sub {
+        require Docs::Api::user::Root;
+        Docs::Api::user::Root->import();
+        my $Root = Docs::Api::user::Root->new($self->{db}, $self->{admin}, $self->{conf},
+          { Errors => $Errors, html => $self->{html}, lang => $self->{lang} });
+
+        return $Root->get_user_docs(@_);
+      },
+      credentials => [
+        'USER', 'USERSID'
+      ]
+    },
+    {
       method      => 'POST',
       path        => '/user/docs/edocs/sign/:id/',
       handler     => sub {
@@ -377,7 +604,7 @@ sub user_routes {
         my $ESignService = $self->_init_esign_service();
         return $ESignService if ($ESignService->{errno});
         return {
-          errno  => 1054018,
+          errno  => 1054030,
           errstr => 'UNKNOWN_OPERATION'
         } if (!$ESignService->can('mk_sign'));
 
@@ -393,7 +620,7 @@ sub user_routes {
         });
 
         return {
-          errno  => 1054019,
+          errno  => 1054031,
           errstr => 'UNKNOWN_DOCUMENT'
         } if (!$Docs->{TOTAL} || $Docs->{TOTAL} < 1);
 
@@ -403,19 +630,19 @@ sub user_routes {
           my $company_admin = $Companies->admins_list({ UID => $path_params->{uid}, COMPANY_ID => $document->[0]->{company_id}, COLS_NAME => 1 });
 
           return {
-            errno  => 1054020,
+            errno  => 1054032,
             errstr => 'UNKNOWN_DOCUMENT',
           } if (!scalar @{$company_admin});
         }
         elsif ($document->[0]->{uid}) {
           return {
-            errno  => 1054021,
+            errno  => 1054033,
             errstr => 'UNKNOWN_DOCUMENT',
           } if ($document->[0]->{uid} ne $path_params->{uid});
         }
         else {
           return {
-            errno  => 1054022,
+            errno  => 1054034,
             errstr => 'UNKNOWN_DOCUMENT',
           };
         }

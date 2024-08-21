@@ -1,0 +1,19 @@
+type: array
+items:
+  type: object
+  properties:
+    nasId:
+      type: number
+      example: 279
+    port:
+      type: number
+      example: 5
+    serverVlan:
+      type: number
+      example: 0
+    uid:
+      type: number
+      example: 8854389
+    vlan:
+      type: number
+      example: 0

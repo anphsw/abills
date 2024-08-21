@@ -4,23 +4,23 @@
   $ref: "./paths/availableTariffs.yaml"
 /user/iptv/services:
   $ref: "./paths/services.yaml"
-/user/iptv/{ID}/tariffs:
+/user/iptv/{id}/tariffs:
   $ref: "./paths/tariffs.yaml"
-/user/iptv/tariffs/{serviceId}:
+/user/iptv/tariffs/{service_id}:
   $ref: "./paths/tariffsByService.yaml"
 /user/iptv/promotion/tariffs:
   $ref: "./paths/tariffsPromotion.yaml"
-/user/iptv/{ID}/warnings:
+/user/iptv/{id}/warnings:
   $ref: "./paths/warnings.yaml"
-/user/iptv/{ID}/url:
+/user/iptv/{id}/url:
   $ref: "./paths/url.yaml"
-/user/iptv/{ID}/playlist:
+/user/iptv/{id}/playlist:
   $ref: "./paths/playlist.yaml"
-/user/iptv/{ID}/holdup:
+/user/iptv/{id}/holdup:
   $ref: "./paths/holdup.yaml"
-/user/iptv/{ID}/activate:
+/user/iptv/{id}/activate:
   $ref: "./paths/activate.yaml"
 /user/iptv/tariff/add:
   $ref: "./paths/tariffAdd.yaml"
-/user/iptv/{ID}:
+/user/iptv/{id}:
   $ref: "./paths/iptvTariff.yaml"

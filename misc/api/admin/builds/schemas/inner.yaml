@@ -1,0 +1,17 @@
+type: object
+properties:
+  districtName:
+    type: string
+    example: Коломийський район
+  id:
+    type: number
+    example: 136
+  number:
+    type: string
+    example: 444
+  streetId:
+    type: number
+    example: 1
+  streetName:
+    type: string
+    example: Вокзальная

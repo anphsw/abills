@@ -34,10 +34,6 @@ sub new {
 
   bless($self, $class);
 
-  $Errors = Control::Errors->new($self->{db}, $self->{admin}, $self->{conf},
-    { lang => $lang, module => 'Portal' }
-  );
-
   $self->{routes_list} = ();
 
   if ($type eq 'user') {
@@ -45,6 +41,12 @@ sub new {
   } elsif ($type eq 'admin') {
     $self->{routes_list} = $self->admin_routes();
   }
+
+  $Errors = Control::Errors->new($self->{db}, $self->{admin}, $self->{conf},
+    { lang => $lang, module => 'Portal' }
+  );
+
+  $self->{Errors} = $Errors;
 
   return $self;
 }
@@ -112,13 +114,8 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/portal/menu/',
-      handler     => sub {
-        #TODO: make load and object creating from API itself like option "module"
-        require Portal::Api::user::News;
-        my $User_news = Portal::Api::user::News->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $User_news->get_user_portal_menu(@_);
-      },
+      controller  => 'Portal::Api::user::News',
+      endpoint    => \&Portal::Api::user::News::get_user_portal_menu,
       credentials => [
         'USER', 'USERSID', 'PUBLIC'
       ]
@@ -126,12 +123,8 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/portal/news/',
-      handler     => sub {
-        require Portal::Api::user::News;
-        my $User_news = Portal::Api::user::News->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $User_news->get_user_portal_news(@_);
-      },
+      controller  => 'Portal::Api::user::News',
+      endpoint    => \&Portal::Api::user::News::get_user_portal_news,
       credentials => [
         'USER', 'USERSID', 'PUBLIC'
       ]
@@ -139,12 +132,8 @@ sub user_routes {
     {
       method      => 'GET',
       path        => '/user/portal/news/:string_id/',
-      handler     => sub {
-        require Portal::Api::user::News;
-        my $User_news = Portal::Api::user::News->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $User_news->get_user_portal_news_id(@_);
-      },
+      controller  => 'Portal::Api::user::News',
+      endpoint    => \&Portal::Api::user::News::get_user_portal_news_id,
       credentials => [
         'USER', 'USERSID', 'PUBLIC'
       ]
@@ -218,12 +207,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/attachment/',
-      handler     => sub {
-        require Portal::Api::admin::Attachment;
-        my $Attachment = Portal::Api::admin::Attachment->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Attachment->get_portal_attachment(@_);
-      },
+      controller  => 'Portal::Api::admin::Attachment',
+      endpoint    => \&Portal::Api::admin::Attachment::get_portal_attachment,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -231,12 +216,8 @@ sub admin_routes {
     {
       method      => 'POST',
       path        => '/portal/attachment/',
-      handler     => sub {
-        require Portal::Api::admin::Attachment;
-        my $Attachment = Portal::Api::admin::Attachment->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Attachment->post_portal_attachment(@_);
-      },
+      controller  => 'Portal::Api::admin::Attachment',
+      endpoint    => \&Portal::Api::admin::Attachment::post_portal_attachment,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -244,12 +225,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/attachment/:id/',
-      handler     => sub {
-        require Portal::Api::admin::Attachment;
-        my $Attachment = Portal::Api::admin::Attachment->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Attachment->get_portal_attachment_id(@_);
-      },
+      controller  => 'Portal::Api::admin::Attachment',
+      endpoint    => \&Portal::Api::admin::Attachment::get_portal_attachment_id,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -257,12 +234,8 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/portal/attachment/:id/',
-      handler     => sub {
-        require Portal::Api::admin::Attachment;
-        my $Attachment = Portal::Api::admin::Attachment->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Attachment->delete_portal_attachment_id(@_);
-      },
+      controller  => 'Portal::Api::admin::Attachment',
+      endpoint    => \&Portal::Api::admin::Attachment::delete_portal_attachment_id,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -270,12 +243,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/newsletter/',
-      handler     => sub {
-        require Portal::Api::admin::Newsletter;
-        my $Newsletter = Portal::Api::admin::Newsletter->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->get_portal_newsletter(@_);
-      },
+      controller  => 'Portal::Api::admin::Newsletter',
+      endpoint    => \&Portal::Api::admin::Newsletter::get_portal_newsletter,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -284,12 +253,8 @@ sub admin_routes {
       method      => 'POST',
       path        => '/portal/newsletter/',
       params      => POST_PORTAL_NEWSLETTER,
-      handler     => sub {
-        require Portal::Api::admin::Newsletter;
-        my $Newsletter = Portal::Api::admin::Newsletter->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->post_portal_newsletter(@_);
-      },
+      controller  => 'Portal::Api::admin::Newsletter',
+      endpoint    => \&Portal::Api::admin::Newsletter::post_portal_newsletter,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -297,12 +262,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/newsletter/:id/',
-      handler     => sub {
-        require Portal::Api::admin::Newsletter;
-        my $Newsletter = Portal::Api::admin::Newsletter->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->get_portal_newsletter_id(@_);
-      },
+      controller  => 'Portal::Api::admin::Newsletter',
+      endpoint    => \&Portal::Api::admin::Newsletter::get_portal_newsletter_id,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -310,12 +271,8 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/portal/newsletter/:id/',
-      handler     => sub {
-        require Portal::Api::admin::Newsletter;
-        my $Newsletter = Portal::Api::admin::Newsletter->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->delete_portal_newsletter_id(@_);
-      },
+      controller  => 'Portal::Api::admin::Newsletter',
+      endpoint    => \&Portal::Api::admin::Newsletter::delete_portal_newsletter_id,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -323,12 +280,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/articles/',
-      handler     => sub {
-        require Portal::Api::admin::Articles;
-        my $Newsletter = Portal::Api::admin::Articles->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->get_portal_articles(@_);
-      },
+      controller  => 'Portal::Api::admin::Articles',
+      endpoint    => \&Portal::Api::admin::Articles::get_portal_articles,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -337,12 +290,8 @@ sub admin_routes {
       method      => 'POST',
       path        => '/portal/articles/',
       params      => POST_PORTAL_ARTICLES,
-      handler     => sub {
-        require Portal::Api::admin::Articles;
-        my $Newsletter = Portal::Api::admin::Articles->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->post_portal_articles(@_);
-      },
+      controller  => 'Portal::Api::admin::Articles',
+      endpoint    => \&Portal::Api::admin::Articles::post_portal_articles,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -350,12 +299,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/articles/:id/',
-      handler     => sub {
-        require Portal::Api::admin::Articles;
-        my $Newsletter = Portal::Api::admin::Articles->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->get_portal_articles_id(@_);
-      },
+      controller  => 'Portal::Api::admin::Articles',
+      endpoint    => \&Portal::Api::admin::Articles::get_portal_articles_id,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -363,12 +308,8 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/portal/articles/:id/',
-      handler     => sub {
-        require Portal::Api::admin::Articles;
-        my $Newsletter = Portal::Api::admin::Articles->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->put_portal_articles_id(@_);
-      },
+      controller  => 'Portal::Api::admin::Articles',
+      endpoint    => \&Portal::Api::admin::Articles::put_portal_articles_id,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -376,12 +317,8 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/portal/articles/:id/',
-      handler     => sub {
-        require Portal::Api::admin::Articles;
-        my $Newsletter = Portal::Api::admin::Articles->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->delete_portal_articles_id(@_);
-      },
+      controller  => 'Portal::Api::admin::Articles',
+      endpoint    => \&Portal::Api::admin::Articles::delete_portal_articles_id,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -389,12 +326,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/menus/',
-      handler     => sub {
-        require Portal::Api::admin::Menus;
-        my $Newsletter = Portal::Api::admin::Menus->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->get_portal_menus(@_);
-      },
+      controller  => 'Portal::Api::admin::Menus',
+      endpoint    => \&Portal::Api::admin::Menus::get_portal_menus,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -403,12 +336,8 @@ sub admin_routes {
       method      => 'POST',
       path        => '/portal/menus/',
       params      => POST_PORTAL_MENUS,
-      handler     => sub {
-        require Portal::Api::admin::Menus;
-        my $Newsletter = Portal::Api::admin::Menus->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->post_portal_menus(@_);
-      },
+      controller  => 'Portal::Api::admin::Menus',
+      endpoint    => \&Portal::Api::admin::Menus::post_portal_menus,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -416,12 +345,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/portal/menus/:id/',
-      handler     => sub {
-        require Portal::Api::admin::Menus;
-        my $Newsletter = Portal::Api::admin::Menus->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->get_portal_menus_id(@_);
-      },
+      controller  => 'Portal::Api::admin::Menus',
+      endpoint    => \&Portal::Api::admin::Menus::get_portal_menus_id,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -429,12 +354,8 @@ sub admin_routes {
     {
       method      => 'PUT',
       path        => '/portal/menus/:id/',
-      handler     => sub {
-        require Portal::Api::admin::Menus;
-        my $Newsletter = Portal::Api::admin::Menus->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->put_portal_menus_id(@_);
-      },
+      controller  => 'Portal::Api::admin::Menus',
+      endpoint    => \&Portal::Api::admin::Menus::put_portal_menus_id,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]
@@ -442,12 +363,8 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/portal/menus/:id/',
-      handler     => sub {
-        require Portal::Api::admin::Menus;
-        my $Newsletter = Portal::Api::admin::Menus->new($self->{db}, $self->{admin}, $self->{conf}, { Errors => $Errors });
-
-        return $Newsletter->delete_portal_menus_id(@_);
-      },
+      controller  => 'Portal::Api::admin::Menus',
+      endpoint    => \&Portal::Api::admin::Menus::delete_portal_menus_id,
       credentials => [
         'ADMIN', 'ADMINSID'
       ]

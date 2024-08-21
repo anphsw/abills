@@ -1,0 +1,11 @@
+type: object
+properties:
+  insertId:
+    type: number
+    example: 2001
+  paymentId:
+    type: number
+    example: 2001
+  uid:
+    type: number
+    example: 11

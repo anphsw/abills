@@ -499,7 +499,7 @@ sub _get_info_info {
       FROM
       $table_name $table_al
       LEFT JOIN info_info i ON ($table_al.id = i.$type\_id)
-      LEFT JOIN admins a ON (i.admin_id = a.aid)
+      LEFT JOIN admins a ON (i.aid = a.aid)
       WHERE i.$type\_id <> 0 AND $table_al.id = ?
       LIMIT 1",
     undef,
@@ -541,7 +541,7 @@ sub _get_info_list {
       FROM
       info_info i
       LEFT JOIN $table_name $ALIAS ON ($ALIAS.id = i.$type\_id)
-      LEFT JOIN admins a ON (i.admin_id = a.aid)
+      LEFT JOIN admins a ON (i.aid = a.aid)
       WHERE i.$type\_id <> 0 AND i.obj_type= ? AND i.obj_id= ?
       LIMIT $PG, $PAGE_ROWS",
     undef,
@@ -558,7 +558,7 @@ sub _get_info_list {
         FROM
         info_info i
         LEFT JOIN $table_name $ALIAS ON ($ALIAS.id = i.comment_id)
-        LEFT JOIN admins a ON (i.admin_id = a.aid)
+        LEFT JOIN admins a ON (i.aid = a.aid)
         WHERE i.obj_type= ? AND i.obj_id= ? ",
       undef,
       {
@@ -612,7 +612,7 @@ sub _add_info {
       OBJ_ID   => $obj_id,
       $key     => $instance->{INSERT_ID},
       DATE     => 'NOW()',
-      ADMIN_ID => $instance->{admin}{AID}
+      AID => $instance->{admin}{AID}
     }
   );
 
@@ -648,7 +648,7 @@ sub search_comments {
   my $self = shift;
   my ($comments) = @_;
 
-  $self->query("SELECT ic.id, ic.text, ii.date, ii.obj_id, ii.admin_id FROM info_comments AS ic
+  $self->query("SELECT ic.id, ic.text, ii.date, ii.obj_id, ii.aid FROM info_comments AS ic
    LEFT JOIN info_info AS ii ON ic.id = ii.id WHERE ic.text LIKE '\%$comments\%'", undef, {
     COLS_NAME => 1
   });
@@ -694,7 +694,7 @@ sub change_comments {
 }
 
 #**********************************************************
-=head2 change_comments()
+=head2 log_comments()
 
   Arguments:
     -
@@ -708,15 +708,19 @@ sub log_comments {
   my $self = shift;
   my ($attr) = @_;
 
+  my $SORT = $attr->{SORT} || '1';
+  my $DESC = $attr->{DESC} ? '' : 'DESC';
+
   if($attr->{COMMENT_ID}) {
     $self->query("SELECT * FROM info_change_comments WHERE id_comments = ?;", undef, {
       COLS_NAME => 1,
       Bind => [ $attr->{COMMENT_ID} ]
     });
   } else {
-    $self->query("SELECT icc.aid, icc.date_change, icc.id_comments,
-                icc.old_comment, icc.text, icc.uid
-                FROM info_change_comments AS icc;", undef, {
+    $self->query("
+      SELECT icc.id_comments, icc.old_comment, icc.text, icc.uid, icc.aid, icc.date_change
+      FROM info_change_comments AS icc
+      ORDER BY $SORT $DESC;", undef, {
       COLS_NAME => 1
     });
   }

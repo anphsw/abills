@@ -1,0 +1,34 @@
+type: object
+properties:
+  errno:
+    type: number
+    example: 9
+  errors:
+    type: array
+    items:
+      type: object
+      properties:
+        errno:
+          type: number
+          example: 21
+        errstr:
+          type: string
+          example: name is not valid
+        groupId:
+          type: number
+          example: 1
+        name:
+          type: string
+          example: Mikrotik2
+        param:
+          type: string
+          example: name
+        reason:
+          type: string
+          example: name already exists in group with id 1
+        type:
+          type: string
+          example: string
+  errstr:
+    type: string
+    example: Validation failed

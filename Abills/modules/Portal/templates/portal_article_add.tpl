@@ -202,7 +202,10 @@
           </div>
           <div class='card-body'>
             <div class='form-group row %TELEGRAM_NOT_EXIST%'>
-              <label for='NEWSLETTER_TELEGRAM' class='col-md-6 control-label'>Telegram</label>
+              <label for='NEWSLETTER_TELEGRAM' class='col-md-4 control-label'>Telegram</label>
+              <div class='col-md-4'>
+                %TELEGRAM_START_DATETIME%
+              </div>
               <div class='custom-control custom-checkbox pt-1'>
                 <input class='custom-control-input' type='checkbox' id='NEWSLETTER_TELEGRAM' name='NEWSLETTER_TELEGRAM'
                        value='1' method-id='%TELEGRAM_METHOD_ID%' %CURRENTLY_ADDED% %TELEGRAM_SELECTED%>
@@ -211,7 +214,10 @@
               </div>
             </div>
             <div class='form-group row %VIBER_BOT_NOT_EXIST%'>
-              <label for='NEWSLETTER_VIBER_BOT' class='col-md-6 control-label'>Viber</label>
+              <label for='NEWSLETTER_VIBER_BOT' class='col-md-4 control-label'>Viber</label>
+              <div class='col-md-4'>
+                %VIBER_BOT_START_DATETIME%
+              </div>
               <div class='custom-control custom-checkbox pt-1'>
                 <input class='custom-control-input' type='checkbox' id='NEWSLETTER_VIBER_BOT' name='NEWSLETTER_VIBER_BOT'
                        value='1' method-id='%VIBER_BOT_METHOD_ID%' %CURRENTLY_ADDED% %VIBER_BOT_SELECTED%>
@@ -220,7 +226,10 @@
               </div>
             </div>
             <div class='form-group row %PUSH_NOT_EXIST%'>
-              <label for='NEWSLETTER_PUSH' class='col-md-6 control-label'>Push</label>
+              <label for='NEWSLETTER_PUSH' class='col-md-4 control-label'>Push</label>
+              <div class='col-md-4'>
+                %PUSH_START_DATETIME%
+              </div>
               <div class='custom-control custom-checkbox pt-1'>
                 <input class='custom-control-input' type='checkbox' id='NEWSLETTER_PUSH' name='NEWSLETTER_PUSH'
                        value='1' method-id='%PUSH_METHOD_ID%' %CURRENTLY_ADDED% %PUSH_SELECTED%>

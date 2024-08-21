@@ -1,6 +1,0 @@
-{
-  "name": "USER_MSGS_LIST",
-  "method": "GET",
-  "path": "user/:uid/msgs/",
-  "params": {}
-}

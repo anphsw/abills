@@ -131,54 +131,7 @@ sub storage_quick_info {
   my ($attr) = @_;
 
   my $form = $attr->{FORM} || {};
-  my $uid = $attr->{UID} || $form->{UID} || 0;
-
-  if ($attr->{UID}) {
-    my @result = ();
-
-    my $list = $Storage->storage_installation_list({
-      UID                => $uid,
-      STA_NAME           => '_SHOW',
-      SAT_TYPE           => '_SHOW',
-      ACTUAL_SELL_PRICE  => '_SHOW',
-      MAC                => '_SHOW',
-      IP                 => '_SHOW',
-      STATUS             => '_SHOW',
-      DATE               => '_SHOW',
-      INSTALLED_AID_NAME => '_SHOW',
-      COLS_NAME          => 1
-    });
-
-    foreach my $storage_element (@{$list}) {
-      next if !defined $storage_element->{status} || !defined $storage_element->{sta_name};
-
-      $storage_element->{status} = $item_status[$storage_element->{status}];
-      $storage_element->{sta_name} =~ s/\"/\\"/g;
-      $storage_element->{sta_name} =~ s/\t//g;
-
-      push @result, $storage_element;
-    }
-
-    return \@result;
-  }
-  elsif ($attr->{GET_PARAMS}) {
-    my %result = (
-      HEADER    => $lang{STORAGE},
-      QUICK_TPL => 'storage_qi_box',
-      SLIDES    => [{
-        sat_type           => $lang{TYPE},
-        actual_sell_price  => $lang{PRICE},
-        mac                => 'MAC',
-        ip                 => 'IP',
-        sta_name           => $lang{NAME},
-        status             => $lang{STATUS},
-        date               => $lang{DATE},
-        installed_aid_name => $lang{ADMIN}
-      }]
-    );
-
-    return \%result;
-  }
+  my $uid = $form->{UID} || 0;
 
   $Storage->storage_installation_list({ UID => $uid || 0, COLS_NAME => 1 });
 

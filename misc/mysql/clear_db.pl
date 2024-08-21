@@ -66,7 +66,7 @@ if (defined($argv->{'-h'}) || defined($argv->{'help'})) {
 my $internet_module_enabled = in_array('Internet', \@MODULES);
 
 if (!$argv->{ACTIONS}) {
-  $argv->{ACTIONS} = 'payments,fees';
+  $argv->{ACTIONS} = 'payments,fees,admin_actions';
   if ($internet_module_enabled){
     $argv->{ACTIONS} .= ',internet_log';
   }
@@ -508,7 +508,7 @@ sub help {
   print << "[END]";
   Clear db utilite VERSION: $version
   Clear payments, fees, internet_log
-  ACTIONS=[payments, fees, internet_log ] - default all tables
+  ACTIONS=[payments, fees, internet_log, admin_actions] - default all tables
   GID           - Groups
   DATE          - Date time DATE="<YYYY-MM-DD"
   SHOW          - Show clear date (default)
@@ -519,6 +519,39 @@ sub help {
   help          - Help
 [END]
 
+}
+
+#**********************************************************
+=head2 admin_actions_rotate($attr)
+
+=cut
+#**********************************************************
+sub admin_actions_rotate {
+  my ($attr) = @_;
+
+  my @WHERE_RULES = ();
+
+  my $table_name = 'admin_actions';
+
+  if ($attr->{DATE}) {
+    push @WHERE_RULES, @{ $Admin->search_expr( "$attr->{DATE}", 'DATE', 'aa.datetime' ) };
+  }
+
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE ".join(' and ', @WHERE_RULES) : '';
+  my $action_ = $action;
+
+  if (defined($attr->{ROTATE})) {
+    $action_ = "CREATE TABLE $table_name\_$CUR_DATE DEFAULT CHARSET=$conf{dbcharset} ".$action;
+    $action_ =~ s/\*/aa\.\*/g;
+  }
+  elsif ($action_ =~ /DELETE/) {
+    $action_ .= ' aa ';
+  }
+
+  my @SQL_array = (  "$action_ FROM $table_name aa
+   $WHERE");
+
+  return \@SQL_array;
 }
 
 

@@ -3,7 +3,7 @@ post:
     - contacts
   summary: Подписка на Push уведомления
   parameters:
-    - name: typeId
+    - name: id
       in: path
       description: >
         Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
@@ -38,7 +38,7 @@ delete:
     - contacts
   summary: Отписка от Push уведомлений от всех устройств данного типа
   parameters:
-    - name: typeId
+    - name: id
       in: path
       description: >
         Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*
@@ -63,7 +63,7 @@ get:
     - contacts
   summary: Получить FCM токен
   parameters:
-    - name: typeId
+    - name: id
       in: path
       description: >
         Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*

@@ -1,0 +1,54 @@
+put:
+  tags:
+    - equipment
+  summary: Изменить сервер доступа
+  operationId: nasChange
+  parameters:
+    - name: id
+      in: path
+      description: ID сервера доступа
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addNasRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/changeNasResponse200.yaml"
+    400:
+      description: Нет поля ip
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/changeNasResponse400.yaml"
+  security:
+    - KEY: []
+delete:
+  tags:
+    - equipment
+  summary: Удалить сервер доступа
+  operationId: nasDelete
+  parameters:
+    - name: id
+      in: path
+      description: ID сервера доступа
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiDeleteResponse200"
+  security:
+    - KEY: []

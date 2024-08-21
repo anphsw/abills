@@ -1,0 +1,333 @@
+get:
+  tags:
+    - equipment
+  summary: Список серверов доступа с дополнительной иформацией
+  operationId: getNAsListExtra
+  parameters:
+    - name: id
+      in: query
+      description: ID модели
+      schema:
+        type: boolean
+        default: true
+    - name: nasName
+      in: query
+      description: Имя сервера доступа
+      schema:
+        type: boolean
+        default: false
+    - name: systemId
+      in: query
+      description: System ID
+      schema:
+        type: boolean
+        default: false
+    - name: typeId
+      in: query
+      description: ID типа доступа
+      schema:
+        type: boolean
+        default: false
+    - name: vendorId
+      in: query
+      description: ID вендора
+      schema:
+        type: boolean
+        default: false
+    - name: vendorName
+      in: query
+      description: Название вендора
+      schema:
+        type: boolean
+        default: false
+    - name: nasType
+      in: query
+      description: Тип сервера доступа
+      schema:
+        type: boolean
+        default: false
+    - name: modelName
+      in: query
+      description: Название модели оборудования
+      schema:
+        type: boolean
+        default: false
+    - name: snmpTpl
+      in: query
+      description: Шаблон SNMP
+      schema:
+        type: boolean
+        default: false
+    - name: modelId
+      in: query
+      description: ID модели
+      schema:
+        type: boolean
+        default: false
+    - name: status
+      in: query
+      description: Статус
+      schema:
+        type: boolean
+        default: false
+    - name: disable
+      in: query
+      description: Параметр, который показывает активный (0) или неактивный (1) сервер доступа
+      schema:
+        type: boolean
+        default: false
+    - name: typeName
+      in: query
+      description: Название типа оборудования
+      schema:
+        type: boolean
+        default: false
+    - name: ports
+      in: query
+      description: Порты
+      schema:
+        type: boolean
+        default: false
+    - name: portsWithExtra
+      in: query
+      description: Екстрапорты
+      schema:
+        type: boolean
+        default: false
+    - name: mac
+      in: query
+      description: MAC
+      schema:
+        type: boolean
+        default: false
+    - name: portShift
+      in: query
+      description: Сдвиг портов
+      schema:
+        type: boolean
+        default: false
+    - name: autoPortShift
+      in: query
+      description: Авто сдвиг портов
+      schema:
+        type: boolean
+        default: false
+    - name: fdbUsesPortNumberIndex
+      in: query
+      description: FDB использованные порты
+      schema:
+        type: boolean
+        default: false
+    - name: eponSupportedOnus
+      in: query
+      description: Поддержка Epon ONU
+      schema:
+        type: boolean
+        default: false
+    - name: gponSupportedOnus
+      in: query
+      description: Поддержка Gpon ONU
+      schema:
+        type: boolean
+        default: false
+    - name: geponSupportedOnus
+      in: query
+      description: Поддержка Gepon ONU
+      schema:
+        type: boolean
+        default: false
+    - name: defaultOnuRegTemplateEpon
+      in: query
+      description: Дефолтный шаблон для регистрации Epon
+      schema:
+        type: boolean
+        default: false
+    - name: defaultOnuRegTemplateGpon
+      in: query
+      description: Дефолтный шаблон для регистрации Gpon
+      schema:
+        type: boolean
+        default: false
+    - name: nasIp
+      in: query
+      description: IP сервера доступа
+      schema:
+        type: boolean
+        default: false
+    - name: nasMngHostPort
+      in: query
+      description: Хост порт управления сервером доступа
+      schema:
+        type: boolean
+        default: false
+    - name: nasMngPassword
+      in: query
+      description: Пароль для управления сервером доступа
+      schema:
+        type: boolean
+        default: false
+    - name: nasMngUser
+      in: query
+      description: Пользователь для управления сервером доступа
+      schema:
+        type: boolean
+        default: false
+    - name: nasId
+      in: query
+      description: ID сервера доступа
+      schema:
+        type: boolean
+        default: true
+    - name: nasGid
+      in: query
+      description: Группа серверов доступа
+      schema:
+        type: boolean
+        default: false
+    - name: nasGroupName
+      in: query
+      description: Название группы серверов доступа
+      schema:
+        type: boolean
+        default: false
+    - name: districtId
+      in: query
+      description: ID района
+      schema:
+        type: boolean
+        default: false
+    - name: streetId
+      in: query
+      description: ID улицы
+      schema:
+        type: boolean
+        default: false
+    - name: locationId
+      in: query
+      description: ID дома
+      schema:
+        type: boolean
+        default: false
+    - name: domainId
+      in: query
+      description: ID домена
+      schema:
+        type: boolean
+        default: false
+    - name: domainName
+      in: query
+      description: Название домена (не работает если не включен Multidoms)
+      schema:
+        type: boolean
+        default: false
+    - name: coordx
+      in: query
+      description: Координата x района
+      schema:
+        type: boolean
+        default: false
+    - name: coordy
+      in: query
+      description: Координата y района
+      schema:
+        type: boolean
+        default: false
+    - name: revision
+      in: query
+      description: Номер версии
+      schema:
+        type: boolean
+        default: false
+    - name: snmpVersion
+      in: query
+      description: SNMP версия
+      schema:
+        type: boolean
+        default: false
+    - name: serverVlan
+      in: query
+      description: Vlan сервера
+      schema:
+        type: boolean
+        default: false
+    - name: lastActivity
+      in: query
+      description: Последняя активность
+      schema:
+        type: boolean
+        default: false
+    - name: internetVlan
+      in: query
+      description: Vlan интернета
+      schema:
+        type: boolean
+        default: false
+    - name: tr069Vlan
+      in: query
+      description: Vlan удаленного управления через tr069
+      schema:
+        type: boolean
+        default: false
+    - name: iptvVlan
+      in: query
+      description: Vlan IPTV
+      schema:
+        type: boolean
+        default: false
+    - name: nasDescr
+      in: query
+      description: Описание сервера доступа
+      schema:
+        type: boolean
+        default: false
+    - name: nasIdentifier
+      in: query
+      description: Дополнительный идентификатор
+      schema:
+        type: boolean
+        default: false
+    - name: nasAlive
+      in: query
+      description: Время получения Alive сообщений. Используется для контроля за состоянием соединения пользователя.
+      schema:
+        type: boolean
+        default: false
+    - name: nasRadPairs
+      in: query
+      description: RAD Pairs
+      schema:
+        type: boolean
+        default: false
+    - name: nasEntrance
+      in: query
+      description: Подъезд, где размещен сервер доступа
+      schema:
+        type: boolean
+        default: false
+    - name: zabbixHostid
+      in: query
+      description: Zabbix хост ID
+      schema:
+        type: boolean
+        default: false
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/nasListExtra.yaml"
+  security:
+    - KEY: []

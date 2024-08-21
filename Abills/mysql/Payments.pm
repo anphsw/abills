@@ -164,7 +164,7 @@ sub del {
   my $self = shift;
   my ($user, $id, $attr) = @_;
 
-  $self->query("SELECT sum, bill_id from payments WHERE id= ? ;", undef, { Bind => [ $id ]  });
+  $self->query("SELECT sum, bill_id, date from payments WHERE id= ? ;", undef, { Bind => [ $id ]  });
 
   $self->{db}{db}->{AutoCommit} = 0;
   if ($self->{TOTAL} < 1) {
@@ -176,7 +176,7 @@ sub del {
     return $self;
   }
 
-  my ($sum, $bill_id) = @{ $self->{list}->[0] };
+  my ($sum, $bill_id, $date) = @{ $self->{list}->[0] };
 
   $Bill->action('take', $bill_id, $sum);
   if (! $Bill->{errno}) {
@@ -188,7 +188,7 @@ sub del {
     if (! $self->{errno}) {
     	my $comments = ($attr->{COMMENTS}) ? $attr->{COMMENTS} : '';
       $admin->{MODULE}=q{};
-      $admin->action_add($user->{UID}, "$id $sum $comments", { TYPE => 16 });
+      $admin->action_add($user->{UID}, "ID:$id, AMOUNT:$sum, DATE:$date / $comments", { TYPE => 16 });
       $self->{db}{db}->commit();
     }
     else {
@@ -327,7 +327,7 @@ sub list {
   { INFO => 1 }
   );
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************

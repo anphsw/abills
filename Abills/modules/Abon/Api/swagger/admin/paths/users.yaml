@@ -1,0 +1,105 @@
+get:
+  tags:
+    - abon
+  summary: Получить список пользователей Abon
+  description: Возвращает список пользователей Abon
+  operationId: getUsersAbon
+  parameters:
+    - name: id
+      in: query
+      description: Идентификатор услуги
+      schema:
+        type: boolean
+        default: true
+    - name: uid
+      in: query
+      description: Идентификатор пользователя
+      schema:
+        type: boolean
+        default: true
+    - name: comments
+      in: query
+      description: Комментарии
+      schema:
+        type: boolean
+        default: true
+    - name: date
+      in: query
+      description: Дата активации
+      schema:
+        type: boolean
+        default: true
+    - name: feesPeriod
+      in: query
+      description: Количество списаний
+      schema:
+        type: boolean
+        default: true
+    - name: manualFee
+      in: query
+      description: Ручное списание
+      schema:
+        type: boolean
+        default: true
+    - name: tpName
+      in: query
+      description: Название ТП
+      schema:
+        type: boolean
+        default: true
+    - name: tpId
+      in: query
+      description: Идентификатор ТП
+      schema:
+        type: boolean
+        default: true
+    - name: nextAbon
+      in: query
+      description: Следующая абонплата
+      schema:
+        type: boolean
+        default: true
+    - name: price
+      in: query
+      description: Цена
+      schema:
+        type: boolean
+        default: true
+    - name: period
+      in: query
+      description: Период
+      schema:
+        type: boolean
+        default: true
+    - name: serviceCount
+      in: query
+      description: Количество услуг
+      schema:
+        type: boolean
+        default: true
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/userList.yaml"
+  security:
+    - KEY: []

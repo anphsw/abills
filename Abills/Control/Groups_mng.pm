@@ -13,6 +13,7 @@ our (
   $db,
   %lang,
   $admin,
+  %conf,
   %permissions,
   @bool_vals,
 );
@@ -44,11 +45,12 @@ sub form_groups {
     }
 
     if(in_array('Sms', \@MODULES)) {
-      load_module('Sms', $html);
+      require Sms::Services;
+      my $Sms_services = Sms::Services->new($db, $admin, \%conf, { HTML => $html });
       $users->{SMS_FORM} = $html->tpl_show(templates('form_row'), {
         ID    => '',
         NAME  => $lang{SMS_GATEWAY},
-        VALUE => sel_sms_systems({ SELECTED => $users->{SMS_SERVICE} })
+        VALUE => $Sms_services->sms_services_sel({ SELECTED => $users->{SMS_SERVICE} })
       }, { OUTPUT2RETURN => 1 });
     }
 
@@ -152,11 +154,12 @@ sub form_groups {
     }
 
     if(in_array('Sms', \@MODULES)) {
-      load_module('Sms', $html);
+      require Sms::Services;
+      my $Sms_services = Sms::Services->new($db, $admin, \%conf, { HTML => $html });
       $users->{SMS_FORM} = $html->tpl_show(templates('form_row'), {
         ID    => '',
         NAME  => $lang{SMS_GATEWAY},
-        VALUE => sel_sms_systems({ SELECTED => $users->{SMS_SERVICE} })
+        VALUE => $Sms_services->sms_services_sel({ SELECTED => $users->{SMS_SERVICE} })
       }, { OUTPUT2RETURN => 1 });
     }
 
@@ -177,6 +180,13 @@ sub form_groups {
     }
   }
 
+  my $sms_services = '';
+  if(in_array('Sms', \@MODULES)) {
+    require Sms;
+    my $Sms = Sms->new($db, $admin, \%conf);
+    $sms_services = $Sms->service_list({ NAME => '_SHOW', HASH => '_SHOW', COLS_NAME => 1 });
+  }
+
   _error_show($users);
 
   my %ext_titles = (
@@ -190,7 +200,8 @@ sub form_groups {
     disable_payments => "$lang{DISABLE} $lang{PAYMENTS} $lang{CASHBOX}",
     disable_chg_tp   => $lang{FORBIDDEN_TO_CHANGE_TP_BY_USER},
     documents_access => $lang{ALLOW_ACCESS_DOCUMENTS},
-    disable_access   => $lang{DISABLE_USER_PORTAL_ACCESS}
+    disable_access   => $lang{DISABLE_USER_PORTAL_ACCESS},
+    sms_service      => $lang{SMS_GATEWAY}
   );
 
   my ($table, $list) = result_former({
@@ -198,7 +209,7 @@ sub form_groups {
     FUNCTION        => 'groups_list',
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'DISABLE_PAYMENTS,DISABLE_PAYMENTS,USERS_COUNT,NAME,DESCR,ALLOW_CREDIT,DISABLE_PAYSYS,DISABLE_CHG_TP,DOCUMENTS_ACCESS,DISABLE_ACCESS',
-    HIDDEN_FIELDS   => 'GID',
+    HIDDEN_FIELDS   => 'GID,SMS_SERVICE',
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => \%ext_titles,
     SKIP_USER_TITLE => 1,
@@ -210,12 +221,14 @@ sub form_groups {
       documents_access => sub {return $bool_vals[ shift ]},
       disable_access   => sub {return $bool_vals[ shift ]},
       bonus            => sub {return $bool_vals[ shift ]},
+      sms_service      => sub {
+        my $service_id = shift;
+        return $sms_services->{$service_id}->{name} if $sms_services;
+      },
       users_count => sub {
         my ($users_count, $line) = @_;
-
         my $users_count_button = $html->button($users_count, "index=7&GID=$line->{gid}&search_form=1&search=1&type=11");
         return $users_count_button if ($users_count && $users_count > 0);
-
         return 0;
       }
     },

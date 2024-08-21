@@ -7,3 +7,4 @@ $lang{ADMIN_ROUTES} = 'Маршруты администраторов';
 $lang{FOR_TIME} = 'за период';
 $lang{GPS_MAPS_SETTINGS} = 'Настройки изображения на карте';
 $lang{BATTERY} = 'Батарея';
+$lang{MAP_DISPLAY_SETTINGS} = 'Настройки отображения на карте';

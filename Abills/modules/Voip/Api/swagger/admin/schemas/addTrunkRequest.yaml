@@ -1,0 +1,32 @@
+type: object
+properties:
+  addprefix:
+    type: string
+    example: 1
+  extParams:
+    type: string
+    example: 1
+  failoverTrunk:
+    type: number
+    example: 1
+  name:
+    type: string
+    example: Test
+  password:
+    type: string
+    example: testpass
+  protocol:
+    type: string
+    example: IAX2
+  providerIp:
+    type: string
+    example: 0.0.0.0
+  providerName:
+    type: string
+    example: Test12
+  removeprefix:
+    type: number
+    example: 0
+  username:
+    type: string
+    example: TestName

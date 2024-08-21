@@ -386,3 +386,13 @@ INSERT INTO equipment_calculator (type, name, value) VALUES
 ('splitter', '20/80', '7.11;1.6'),
 ('splitter', '55/45', '3.73;2.71'),
 ('connector', 'SIGNAL_LOSS', '0');
+
+CREATE TABLE IF NOT EXISTS `equipment_ports_errors`(
+ `date`       DATETIME             NOT NULL,
+ `nas_id`     SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+ `port_id`    VARCHAR(32)          NOT NULL DEFAULT '',
+ `in_errors`  INT(11) UNSIGNED     NOT NULL DEFAULT '0',
+ `out_errors` INT(11) UNSIGNED     NOT NULL DEFAULT '0'
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Equipment ports errors';

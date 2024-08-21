@@ -1,0 +1,11 @@
+type: object
+properties:
+  errMessage:
+    type: string
+    example: "No exists"
+  errno:
+    type: integer
+    example: 10225
+  errstr:
+    type: string
+    example: "ERROR_NOT_EXIST"

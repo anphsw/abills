@@ -1,0 +1,11 @@
+type: object
+properties:
+  errmsg:
+    type: string
+    example: Incorrect data parameter id or ids should be provided. Both are missing.
+  errno:
+    type: number
+    example: 1054013
+  errstr:
+    type: string
+    example: ERR_NO_ID_OR_IDS

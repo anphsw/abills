@@ -1,0 +1,9 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      $ref: "./article.yaml"
+  total:
+    type: number
+    example: 173

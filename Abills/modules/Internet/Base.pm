@@ -9,7 +9,7 @@ my $lang;
 my Internet $Internet;
 our $DATE;
 
-use Abills::Base qw(in_array days_in_month next_month date_diff time2sec);
+use Abills::Base qw(in_array days_in_month next_month date_diff time2sec int2ip);
 
 #**********************************************************
 =head2 new($db, $admin, $CONF, $attr)
@@ -59,56 +59,8 @@ sub internet_quick_info {
   my $self = shift;
   my ($attr) = @_;
 
-  my $result;
   my $form = $attr->{FORM} || {};
-  my $uid = $attr->{UID} || $form->{UID};
-
-  if ($attr->{UID}) {
-    my $list = $Internet->user_list({
-      UID                => $uid,
-      TP_NAME            => '_SHOW',
-      MONTH_FEE          => '_SHOW',
-      DAY_FEE            => '_SHOW',
-      CID                => '_SHOW',
-      TP_COMMENTS        => '_SHOW',
-      INTERNET_STATUS    => '_SHOW',
-      INTERNET_STATUS_ID => '_SHOW',
-      IP                 => '_SHOW',
-      COLS_NAME          => 1,
-      COLS_UPPER         => 1
-    });
-
-    $result = $list->[0];
-    #my $service_status = ::sel_status({ HASH_RESULT => 1 });
-    #$result->{STATUS} = (defined($result->{INTERNET_STATUS})) ? $service_status->{ $result->{INTERNET_STATUS} } : '';
-    ($result->{STATUS}, undef) = split(/:/, $result->{INTERNET_STATUS} || q{});
-    $result->{PERIOD} = $lang->{MONTH};
-
-    if (!$result->{MONTH_FEE} && $result->{DAY_FEE}) {
-      $result->{MONTH_FEE} = $result->{DAY_FEE};
-      $result->{PERIOD} = $lang->{DAY};
-    }
-
-    return $result;
-  }
-  elsif ($attr->{GET_PARAMS}) {
-    $result = {
-      HEADER    => $lang->{INTERNET},
-      QUICK_TPL => 'internet_qi_box',
-      FIELDS    => {
-        TP_NAME            => $lang->{TARIF_PLAN},
-        CID                => 'CID',
-        IP                 => 'IP',
-        STATUS             => $lang->{STATUS},
-        INTERNET_STATUS_ID => "$lang->{STATUS} ID",
-        MONTH_FEE          => $lang->{MONTH_FEE},
-        TP_COMMENTS        => $lang->{COMMENTS},
-        PERIOD             => $lang->{MONTH}
-      }
-    };
-
-    return $result;
-  }
+  my $uid = $form->{UID};
 
   $Internet->user_list({
     UID       => $uid,
@@ -210,9 +162,11 @@ sub internet_docs {
         FEES_METHOD     => $service_info->{fees_method} ? $FEES_METHODS{$service_info->{fees_method}} : undef,
       );
 
+      $info{id} = $service_info->{id};
       $info{service_name} = ::fees_dsc_former(\%FEES_DSC);
       $info{service_desc} = q{};
       $info{tp_name} = $service_info->{tp_name};
+      $info{tp_id} = $service_info->{tp_id};
       $info{service_activate} = $service_info->{internet_activate};
       $info{service_expire} = $service_info->{internet_expire};
       $info{tp_fixed_fees_day} = $service_info->{tp_fixed_fees_day} || 0;
@@ -250,38 +204,38 @@ sub internet_docs {
     return \@services;
   }
 
-  foreach my $service_info (@$service_list) {
-    if ($service_info->{internet_status} && $service_info->{internet_status} != 5 && !$attr->{SHOW_ALL}) {
-      next
-    }
-
-    if ($service_info->{personal_tp} && $service_info->{personal_tp} > 0) {
-      $service_info->{month_fee} = $service_info->{personal_tp};
-    }
-
-    if ($service_info->{month_fee} && $service_info->{month_fee} > 0) {
-      my %FEES_DSC = (
-        MODULE          => 'Internet',
-        TP_ID           => $service_info->{tp_id},
-        TP_NAME         => $service_info->{tp_name},
-        FEES_PERIOD_DAY => $lang->{MONTH_FEE_SHORT},
-        FEES_METHOD     => $service_info->{fees_method} ? $FEES_METHODS{$service_info->{fees_method}} : undef,
-      );
-
-      #Fixme / make hash export
-      push @services, ::fees_dsc_former(\%FEES_DSC) . "||$service_info->{month_fee}|$service_info->{tp_num}|$service_info->{tp_name}"
-        . "|$service_info->{fees_method}|$service_info->{internet_activate}|$service_info->{internet_status}";
-    }
-
-    if ($service_info->{day_fee} && $service_info->{day_fee} > 0) {
-
-      my $days_in_month = days_in_month({ DATE => next_month({ DATE => $main::DATE }) });
-      # Describe| days | sum
-      push @services, "Internet: $lang->{MONTH_FEE_SHORT}: $service_info->{tp_name} ($service_info->{tp_id})|$days_in_month $lang->{DAY}|"
-        . sprintf("%.2f", ($service_info->{day_fee} * $days_in_month)) . "||$service_info->{tp_name}"
-        . "|$service_info->{fees_method}|$service_info->{internet_activate}";
-    }
-  }
+  # foreach my $service_info (@$service_list) {
+  #   if ($service_info->{internet_status} && $service_info->{internet_status} != 5 && !$attr->{SHOW_ALL}) {
+  #     next
+  #   }
+  #
+  #   if ($service_info->{personal_tp} && $service_info->{personal_tp} > 0) {
+  #     $service_info->{month_fee} = $service_info->{personal_tp};
+  #   }
+  #
+  #   if ($service_info->{month_fee} && $service_info->{month_fee} > 0) {
+  #     my %FEES_DSC = (
+  #       MODULE          => 'Internet',
+  #       TP_ID           => $service_info->{tp_id},
+  #       TP_NAME         => $service_info->{tp_name},
+  #       FEES_PERIOD_DAY => $lang->{MONTH_FEE_SHORT},
+  #       FEES_METHOD     => $service_info->{fees_method} ? $FEES_METHODS{$service_info->{fees_method}} : undef,
+  #     );
+  #
+  #     #Fixme / make hash export
+  #     push @services, ::fees_dsc_former(\%FEES_DSC) . "||$service_info->{month_fee}|$service_info->{tp_num}|$service_info->{tp_name}"
+  #       . "|$service_info->{fees_method}|$service_info->{internet_activate}|$service_info->{internet_status}";
+  #   }
+  #
+  #   if ($service_info->{day_fee} && $service_info->{day_fee} > 0) {
+  #
+  #     my $days_in_month = days_in_month({ DATE => next_month({ DATE => $main::DATE }) });
+  #     # Describe| days | sum
+  #     push @services, "Internet: $lang->{MONTH_FEE_SHORT}: $service_info->{tp_name} ($service_info->{tp_id})|$days_in_month $lang->{DAY}|"
+  #       . sprintf("%.2f", ($service_info->{day_fee} * $days_in_month)) . "||$service_info->{tp_name}"
+  #       . "|$service_info->{fees_method}|$service_info->{internet_activate}";
+  #   }
+  # }
 
   return \@services;
 }
@@ -567,6 +521,57 @@ sub internet_user_del {
   $Log->log_del({ LOGIN => $attr->{USER_INFO}{LOGIN} });
 
   return 1;
+}
+
+#**********************************************************
+=head2 internet_user_services($attr) - Get user services
+
+=cut
+#**********************************************************
+sub internet_user_services {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return [] if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
+
+  require Control::Service_control;
+  Control::Service_control->import();
+  my $Service_control = Control::Service_control->new($db, $admin, $CONF);
+
+  my $tariffs = $Service_control->services_info({
+    UID                 => $attr->{UID},
+    MODULE              => 'Internet',
+    FUNCTION_PARAMS     => {
+      GROUP_BY        => 'internet.id',
+      INTERNET_STATUS => '_SHOW',
+      INTERNET_EXPIRE => '_SHOW',
+      IP              => '_SHOW',
+    },
+    UPDATE_SERVICE_INFO => sub {
+      my ($service_info, $tariff) = @_;
+
+      my $speed = $service_info->get_speed({
+        UID       => $attr->{UID},
+        TP_ID     => $tariff->{tp_id},
+        COLS_NAME => 1,
+        PAGE_ROWS => 1
+      });
+
+      #@deprecated delete in future release
+      $tariff->{service_holdup} = (($CONF->{INTERNET_USER_SERVICE_HOLDUP} || $CONF->{HOLDUP_ALL}) && $tariff->{internet_status}) ? 'false' : 'true';
+
+      $tariff->{in_speed} = $speed->[0]->{in_speed};
+      $tariff->{out_speed} = $speed->[0]->{out_speed};
+
+      $tariff->{mac_discovery} = $CONF->{INTERNET_MAC_DICOVERY} && $tariff->{cid} ? 'true' : 'false';
+
+      $tariff->{ip} = int2ip($tariff->{ip_num});
+
+      return $tariff;
+    }
+  });
+
+  return $tariffs;
 }
 
 1;

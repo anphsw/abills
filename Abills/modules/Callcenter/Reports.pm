@@ -480,8 +480,8 @@ sub callcenter_last_proceeded_calls {
 =cut
 #**********************************************************
 sub callcenter_calls_handler_statistic {
-  $FORM{DATE_START} ||= $date_from;
-  $FORM{DATE_END} ||= $DATE;
+  $FORM{DATE_START} ||= $date_from .' 00:00:00';
+  $FORM{DATE_END} ||= $DATE .' 24:00:00';
 
   my $ADMINS_SELECT = $html->form_select('ADMIN_SELECT', {
     SELECTED     => $FORM{ADMIN_SELECT} || q{},

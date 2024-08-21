@@ -14,10 +14,9 @@ use FindBin '$Bin';
 use FindBin qw($RealBin);
 use JSON;
 
-require $Bin . '/../../../libexec/config.pl';
-
 BEGIN {
-  our $libpath = '../../../';
+  our $libpath = $Bin . '/../../../';
+  require "$libpath/libexec/config.pl";
   my $sql_type = 'mysql';
   unshift(@INC, $libpath . "Abills/$sql_type/");
   unshift(@INC, $libpath);
@@ -28,7 +27,7 @@ BEGIN {
 }
 
 use Abills::Defs;
-use Init_t qw(test_runner folder_list help);
+use Abills::Api::Tests::Init qw(test_runner folder_list help);
 use Abills::Base qw(parse_arguments);
 use Admins;
 use Paysys;

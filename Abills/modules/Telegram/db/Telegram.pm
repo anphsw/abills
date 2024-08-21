@@ -51,6 +51,37 @@ sub info {
 }
 
 #**********************************************************
+=head2 list($attr)
+
+=cut
+#**********************************************************
+sub list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',         'INT', 'tt.id',         1 ],
+    [ 'UID',        'INT', 'tt.uid',        1 ],
+    [ 'AID',        'INT', 'tt.aid',        1 ],
+    [ 'FN',         'STR', 'tt.fn',         1 ],
+    [ 'BUTTON',     'STR', 'tt.button',     1 ],
+    [ 'ARGS',       'STR', 'tt.args',       1 ],
+    [ 'PING_COUNT', 'INT', 'tt.ping_count', 1 ],
+    [ 'MINUTES_SINCE_LAST_CONTACT', 'INT', 'TIMESTAMPDIFF(MINUTE, tt.created, NOW())', 'TIMESTAMPDIFF(MINUTE, tt.created, NOW()) AS minutes_since_last_contact' ]
+  ], { WHERE => 1 });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} tt.id
+     FROM telegram_tmp tt
+   $WHERE
+   ORDER BY $SORT $DESC;", undef, $attr);
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
 =head2 info_admin($aid)
 
 =cut

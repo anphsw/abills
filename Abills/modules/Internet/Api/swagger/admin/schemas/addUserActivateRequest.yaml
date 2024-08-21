@@ -1,0 +1,59 @@
+type: object
+properties:
+  tpId:
+    type: integer
+    example: 41
+  status:
+    type: integer
+    example: 1
+    default: 0
+  cid:
+    type: string
+    example: 14:11:11:11:11:c1
+  serviceExpire:
+    type: string
+    example: "0000-00-00"
+    default: "0000-00-00"
+  serviceActivate:
+    type: string
+    example: "0000-00-00"
+    default: "0000-00-00"
+  statusDays:
+    type: string
+    default: ""
+  personalTp:
+    type: integer
+    default: 0
+  comments:
+    type: string
+    example: Абонент попросил 2 услугу
+    default: ""
+  staticIpPool:
+    type: string
+    default: ""
+  port:
+    type: integer
+    default: 0
+  nasId:
+    type: integer
+    default: 0
+  serverVlan:
+    type: string
+    default: ""
+  vlan:
+    type: integer
+    default: 0
+  ipv6Mask:
+    type: integer
+    default: 32
+  ivp6:
+    type: string
+    default: "2001:0db8:85a3:0000:0000:8a2e:0370:7334"
+  ipv6Prefix:
+    type: integer
+  ipv6PrefixMask:
+    type: integer
+    default: 32
+  staticIpv6Pool:
+    type: string
+    default: ""

@@ -116,6 +116,7 @@ sub notify_admins {
   }
 
   my $user_login = $message_info->{LOGIN} || $FORM{LOGIN} || $ui->{LOGIN} || $user->{LOGIN} || '';
+  my $uid = $message_info->{UID} || $FORM{UID} || '';
   my $ATTACHMENTS = $attr->{ATTACHMENTS} || [];
   my $RESPONSIBLE = $message_info->{RESPONSIBLE_NAME} || $lang{NO};
   my $preview_url = ($preview_url_without_message_id && $message_id ne '--')
@@ -127,7 +128,7 @@ sub notify_admins {
     SITE        => $site,
     LOGIN       => $user_login,
     ADMIN       => ($FORM{INNER_MSG}) ? "$lang{ADMIN}: $admin->{A_LOGIN} (" . ($admin->{A_FIO} || q{}) . '}' : '',
-    UID         => $message_info->{UID} || $FORM{UID} || '',
+    UID         => $uid,
     DATE        => $main::DATE,
     TIME        => $main::TIME,
     ID          => $message_id . (($reply_id && $reply_id ne '--') ? " / $reply_id" : ''),
@@ -141,11 +142,11 @@ sub notify_admins {
 
   if ($attr->{NEW_RESPONSIBLE}) {
     $subject = "#$message_id " . $lang{YOU_HAVE_BEEN_SET_AS_RESPONSIBLE_IN} . " '" . $subject . "'";
-    $subject .= "\n ($lang{AUTHOR} : $user_login)";
   }
   else {
     $subject = "#$message_id " . $lang{YOU_HAVE_NEW_REPLY} . " '" . $subject . "'" . $state_msg;
   }
+  $subject .= "\n ($lang{AUTHOR} : $user_login [UID: $uid])";
   my $aid = $attr->{NEW_RESPONSIBLE} ? $attr->{AID} : ($responsible_aid || $attr->{SEND_TO_AID});
 
   my $msgs_permissions = $Msgs->permissions_list($aid);
@@ -273,7 +274,7 @@ sub notify_user {
       SUBJECT     => $subject,
       STATUS      => $state,
       MESSAGE     => $message,
-    }, { OUTPUT2RETURN => 1 });
+    }, { OUTPUT2RETURN => 1, SKIP_QUOTE => 1 });
 
     $subject = "#$message_id ".$lang{YOU_HAVE_NEW_REPLY} . " '" . $subject . "'";
 

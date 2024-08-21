@@ -1,10 +1,10 @@
-/user/contacts/{typeId}:
+/user/contacts/{id}:
   $ref: "./paths/contacts.yaml"
-/user/contacts/push/subscribe/{typeId}:
+/user/contacts/push/subscribe/{id}:
   $ref: "./paths/push.yaml"
-/user/contacts/push/subscribe/{typeId}/{value}:
+/user/contacts/push/subscribe/{id}/{string_token}:
   $ref: "./paths/pushDelete.yaml"
-/user/contacts/push/badges/{typeId}:
+/user/contacts/push/badges/{id}:
   $ref: "./paths/badges.yaml"
 /user/contacts/push/messages:
   $ref: "./paths/messages.yaml"

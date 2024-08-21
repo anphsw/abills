@@ -1,0 +1,20 @@
+type: object
+properties:
+  id:
+    type: number
+    example: 3564
+  innerDescribe:
+    type: string
+    example: "It's for me"
+  method:
+    type: number
+    example: 0
+  regDate:
+    type: string
+    example: '2023-06-20 22:40:30'
+  sum:
+    type: number
+    example: 93.76
+  uid:
+    type: number
+    example: 103205

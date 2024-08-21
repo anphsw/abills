@@ -100,6 +100,7 @@ if($admin->{SID}) {
   $html->set_cookies('admin_sid', $admin->{SID}, '', '');
   # if ($conf{API_ENABLE}) {
     $html->set_cookies('admin_sid', $admin->{SID}, 900, '/api.cgi');
+    $html->set_cookies('admin_sid', $admin->{SID}, 900, '/api');
   # }
 }
 #Operation system ID
@@ -194,6 +195,36 @@ if ($permissions{0} && (($FORM{UID} && $FORM{UID} =~ /^(\d+)$/
       LOGIN => (! $FORM{UID} && $FORM{LOGIN}) ? $FORM{LOGIN} : undef,
       QUITE => 1
     } );
+
+    if ($FORM{PRE_ADDRESS} || $FORM{NEXT_ADDRESS}){
+      $user = $users->pi({ UID => $FORM{UID} });
+      require Address;
+      my $Address = Address->new($db, $admin, \%conf);
+      my $user_address = $Address->address_info($user->{LOCATION_ID});
+
+      my $list_address = $users->list({
+        UID            => '_SHOW',
+        DISTRICT_ID    => $user_address->{DISTRICT_ID} || '_SHOW',
+        ADDRESS_STREET => '_SHOW',
+        ADDRESS_BUILD  => '_SHOW',
+        ADDRESS_FLAT   => '_SHOW',
+        PAGE_ROWS      => 3000,
+        COLS_NAME      => 1,
+        SORT           => 'streets.name, CAST(builds.number AS UNSIGNED), CAST(pi.address_flat AS UNSIGNED)',
+        DESC           => 'ASC',
+      });
+
+      my ($previous_uid, $next_uid) = ($FORM{UID}, $FORM{UID});
+      foreach my $i (0..@$list_address-1) {
+        if ($FORM{UID} && $FORM{UID} == $list_address->[$i]{'uid'} ) {
+          $previous_uid = $list_address->[$i - 1]{'uid'} || $FORM{UID};
+          $next_uid = $list_address->[$i + 1]{'uid'} || $FORM{UID};
+          last;
+        }
+      }
+
+      $FORM{UID} = $FORM{NEXT_ADDRESS} ? $next_uid : $previous_uid;
+    }
 
     if ( $ui ){
       $html->{WEB_TITLE} = ($conf{WEB_TITLE} || '') .'['. ( $ui->{LOGIN} || q{deleted} ) .']';
@@ -656,133 +687,6 @@ sub form_image_mng {
   return 1;
 }
 
-#**********************************************************
-=head2 form_nas_allow() - Aloow NAS servers
-
-=cut
-#**********************************************************
-sub form_nas_allow{
-  my ($attr) = @_;
-
-  my @allow     = ();
-  my %allow_nas = ();
-
-  if ( $FORM{ids} ){
-    @allow = split( /, /, $FORM{ids} );
-  }
-
-  my %EX_HIDDEN_PARAMS = (
-    subf  => $FORM{subf},
-    index => $index
-  );
-
-  if ($attr->{USER_INFO}) {
-    my Users $user = $attr->{USER_INFO};
-    if ($FORM{change} && $permissions{0} && $permissions{0}{4}) {
-      $user->nas_add(\@allow);
-      if (!$user->{errno}) {
-        $html->message( 'info', $lang{INFO}, "$lang{ALLOW} $lang{NAS}: ". ($FORM{ids} || '') );
-      }
-    }
-    elsif ($FORM{default} && $permissions{0} && $permissions{0}{4}) {
-      $user->nas_del();
-      if (!$user->{errno}) {
-        $html->message( 'info', $lang{NAS}, $lang{CHANGED} );
-      }
-    }
-
-    _error_show($user);
-
-    my $list = $user->nas_list();
-    foreach my $line (@$list) {
-      $allow_nas{ $line->[0] } = 'test';
-    }
-
-    $EX_HIDDEN_PARAMS{UID} = $user->{UID};
-  }
-  elsif ($attr->{TP}) {
-    my $tarif_plan = $attr->{TP};
-
-    if ($FORM{change}) {
-      $tarif_plan->nas_add(\@allow);
-      if (! _error_show($tarif_plan)) {
-        $html->message( 'info', $lang{INFO}, "$lang{ALLOW} $lang{NAS}: ". ($FORM{ids} || q{}) );
-      }
-    }
-
-    if( $tarif_plan->can('nas_list')) {
-      my $list = $tarif_plan->nas_list();
-      foreach my $nas_id (@$list) {
-        $allow_nas{ $nas_id->[0] } = 1;
-      }
-    }
-
-    $EX_HIDDEN_PARAMS{TP_ID} = $tarif_plan->{TP_ID} || 0;
-  }
-  elsif (defined($FORM{TP_ID})) {
-    $FORM{chg}  = $FORM{TP_ID};
-    $FORM{subf} = $index;
-    if(in_array('Internet', \@MODULES)) {
-      internet_tp();
-    }
-
-    return 0;
-  }
-
-  require Nas;
-  Nas->import();
-  my $Nas = Nas->new($db, \%conf, $admin);
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => $lang{NAS},
-      title      => [ $lang{ALLOW}, $lang{NAME}, 'NAS-Identifier', 'IP', $lang{TYPE} ],
-      qs         => $pages_qs,
-      ID         => 'NAS_ALLOW'
-    }
-  );
-
-  if (!defined($FORM{sort})) {
-    $LIST_PARAMS{SORT} = 1;
-  }
-
-  my $list = $Nas->list({
-    %LIST_PARAMS,
-    PAGE_ROWS => 100000,
-    GID       => undef,
-    COLS_NAME => 1
-  });
-
-  foreach my $line (@$list) {
-    $table->addrow(
-      ($line->{nas_id} || '')
-      . $html->form_input('ids', $line->{nas_id},
-        {
-          TYPE          => 'checkbox',
-          OUTPUT2RETURN => 1,
-          STATE         => (defined($allow_nas{ $line->{nas_id} }) || $allow_nas{all}) ? 1 : undef
-        }
-      ),
-      $line->{nas_name},
-      $line->{nas_identifier},
-      $line->{nas_ip},
-      $line->{nas_type}
-    );
-  }
-
-  print $html->form_main(
-    {
-      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-      HIDDEN  => {%EX_HIDDEN_PARAMS},
-      SUBMIT  => {
-        change  => $lang{CHANGE},
-        default => $lang{DEFAULT}
-      }
-    }
-  );
-
-  return 1;
-}
 
 #**********************************************************
 =head2 form_bills($attr) - Bill account managment
@@ -1001,7 +905,8 @@ sub form_changes {
   form_search({
     HIDDEN_FIELDS => \%hidden_fileds,
     SEARCH_FORM   => $html->tpl_show(templates('form_history_search'), \%search_params, { OUTPUT2RETURN => 1 }),
-    SHOW_PERIOD   => 1
+    SHOW_PERIOD   => 1,
+    ARCHIVE_TABLE => 'admin_actions'
   });
 
   $pages_qs2 .= $pages_qs;
@@ -1231,153 +1136,6 @@ sub form_events {
 }
 
 #**********************************************************
-=head2 form_back_money($type, $sum, $attr) - Back money to bill account
-
-=cut
-#**********************************************************
-sub form_back_money {
-  my ($type, $sum, $attr) = @_;
-  my $uid;
-
-  if ($type eq 'log') {
-    if (defined($attr->{LOGIN})) {
-      my $list = $users->list({ LOGIN => $attr->{LOGIN}, COLS_NAME => 1 });
-
-      if ($users->{TOTAL} < 1) {
-        $html->message( 'err', $lang{USER}, "[$users->{errno}] $err_strs{$users->{errno}}" );
-        return 0;
-      }
-      $uid = $list->[0]->{uid};
-    }
-    else {
-      $uid = $attr->{UID};
-    }
-  }
-
-  my $user = $users->info($uid);
-
-  my $OP_SID = ($FORM{OP_SID}) ? $FORM{OP_SID} : mk_unique_value(16);
-
-  print $html->form_main(
-    {
-      HIDDEN => {
-        index   => $index,
-        subf    => $index,
-        sum     => $sum,
-        OP_SID  => $OP_SID,
-        UID     => $uid,
-        BILL_ID => $user->{BILL_ID}
-      },
-      SUBMIT => { bm => "$lang{BACK_MONEY} ?" }
-    }
-  );
-
-  return 1;
-}
-
-#**********************************************************
-=head2 form_passwd($attr)
-
-  Arguments:
-    $attr
-
-=cut
-#**********************************************************
-sub form_passwd {
-  my ($attr) = @_;
-
-  my $password_form;
-  my $ret  = 0;
-  my $is_g2fa = 0;
-
-  if (defined($FORM{AID})) {
-    $password_form->{HIDDDEN_INPUT} = $html->form_input(
-      'AID',
-      $FORM{AID},
-      {
-        TYPE          => 'hidden',
-        OUTPUT2RETURN => 1
-      }
-    );
-    $index = 50;
-
-    $is_g2fa = 1 if ($conf{AUTH_G2FA} && $attr->{ADMIN} && $attr->{ADMIN}->{G2FA});
-  }
-  elsif (defined($attr->{USER_INFO})) {
-    $password_form->{HIDDDEN_INPUT} = $html->form_input(
-      'UID',
-      $FORM{UID},
-      {
-        TYPE          => 'hidden',
-        OUTPUT2RETURN => 1
-      }
-    );
-    $index = 15 if (!$attr->{REGISTRATION});
-    if ($conf{AUTH_G2FA}) {
-      $attr->{USER_INFO}->pi({ UID => $attr->{USER_INFO}->{UID} });
-      $is_g2fa = 1 if ($attr->{USER_INFO}->{_G2FA});
-    }
-  }
-
-  $conf{PASSWD_LENGTH} = 8 if (!$conf{PASSWD_LENGTH});
-
-  if (! $FORM{newpassword}) {
-
-  }
-  elsif (length($FORM{newpassword}) < $conf{PASSWD_LENGTH}) {
-    $lang{ERR_SHORT_PASSWD} =~ s/6/$conf{PASSWD_LENGTH}/;
-    $html->message( 'err', $lang{ERROR}, "$lang{ERR_SHORT_PASSWD} $conf{PASSWD_LENGTH}");
-    $ret = 0;
-  }
-  elsif ($conf{CONFIG_PASSWORD}
-    && ( defined($FORM{AID}) || ( $conf{PASSWD_POLICY_USERS} && defined $FORM{UID} ) )
-    && !Conf::check_password($FORM{newpassword}, $conf{CONFIG_PASSWORD})
-  ){
-    load_module('Config', $html);
-    my $explain_string = config_get_password_constraints($conf{CONFIG_PASSWORD});
-
-    $html->message( 'err', $lang{ERROR}, "$lang{ERR_PASSWORD_INSECURE} $explain_string");
-    $ret = 0;
-  }
-  elsif ($FORM{newpassword} eq $FORM{confirm}) {
-    $FORM{PASSWORD} = $FORM{newpassword};
-    return 1;
-  }
-  elsif ($FORM{newpassword} ne $FORM{confirm}) {
-    $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_CONFIRM} );
-    $ret = 0;
-  }
-
-  $password_form->{PW_CHARS}   = $conf{PASSWD_SYMBOLS} || "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ";
-  $password_form->{PW_LENGTH}  = $conf{PASSWD_LENGTH}  || 6;
-  $password_form->{ACTION}     = 'change';
-  $password_form->{LNG_ACTION} = $lang{CHANGE};
-  $password_form->{CONFIG_PASSWORD} = $conf{CONFIG_PASSWORD} || q{};
-
-  if ($conf{AUTH_G2FA} && $is_g2fa) {
-    $password_form->{G2FA_HIDDEN} = '';
-    $password_form->{G2FA_REMOVE} = 1;
-    $password_form->{G2FA_INPUT_HIDDEN} = 'hidden';
-    $password_form->{G2FA_STYLE} = 'justify-content-center';
-    $password_form->{G2FA_BUTTON} = $lang{DELETE};
-    $password_form->{G2FA_ACTION} = 'change';
-  }
-  else {
-    $password_form->{G2FA_HIDDEN} = 'hidden';
-  }
-
-  if(! $FORM{generated_pw} || ! $FORM{newpassword} || ! $FORM{confirm}) {
-    $password_form->{newpassword}=mk_unique_value($password_form->{PW_LENGTH},
-      {  SYMBOLS => $password_form->{PW_CHARS} });
-    $password_form->{confirm}=$password_form->{newpassword};
-  }
-
-  $html->tpl_show(templates('form_password'), $password_form);
-
-  return $ret;
-}
-
-#**********************************************************
 =head2 fl() Main functions
 
 =cut
@@ -1386,44 +1144,55 @@ sub fl {
 
   # ID:PARENT:NAME:FUNCTION:SHOW SUBMENU:module:
   my @m = (
-
-    "1:0:<i class='nav-icon fa fa-user'></i><p class='d-inline'>$lang{CUSTOMERS}</p>:null:::",
+    "1:0:<i class='nav-icon fa fa-user'></i><p>$lang{CUSTOMERS}</p>:null:::",
+    # Control/Users_mng
     "11:1:$lang{LOGINS}:form_users_list:::",
     "16:13:$lang{ADMIN}:form_companie_admins:COMPANY_ID:Control/Companies_mng:",
+    "40:13:$lang{SERVICES}:form_company_services:COMPANY_ID:Control/Companies_mng:",
 
+    # Control/Users_mng
     "15:11:$lang{INFO}:form_users:UID::",
     "20:15:$lang{SERVICES}:null:UID::",
     "101:15:$lang{PAYMENTS}:form_payments:UID:Control/Payments:",
     "102:15:$lang{FEES}:form_fees:UID:Control/Fees:",
+    # admin/index.cgi
     "103:15:$lang{SHEDULE}:form_shedule:UID::",
     "125:15:$lang{ADDITION}:user_contract:UID:Control/Contracts_mng:",
-
+    # Control/Users_mng
     "31:15:$lang{SEARCH}:user_modal_search:user_search_form::",
+    # Control/Users_mng
     "32:15:$lang{LOGIN}:check_login_availability:AJAX::",
 
-    "2:0:<i class='nav-icon far fa-plus-square'></i><p class='d-inline'>$lang{PAYMENTS}</p>:form_payments::Control/Payments:",
-    "3:0:<i class='nav-icon far fa-minus-square'></i><p class='d-inline'>$lang{FEES}</p>:form_fees::Control/Fees:",
-    "6:0:<i class='nav-icon far fa-eye'></i><p class='d-inline'>$lang{MONITORING}</p>:null:::",
-    "7:0:<i class='nav-icon fa fa-search'></i><p class='d-inline'>$lang{SEARCH}</p>:form_search:::",
-    "8:0:<i class='nav-icon fa fa-flag'></i><p class='d-inline'>$lang{MAINTAIN}</p>:null:::",
-    "9:0:<i class='nav-icon fa fa-wrench'></i><p class='d-inline'>$lang{PROFILE}</p>:admin_profile::Control/Profile:",
+    "2:0:<i class='nav-icon far fa-plus-square'></i><p>$lang{PAYMENTS}</p>:form_payments::Control/Payments:",
+    "3:0:<i class='nav-icon far fa-minus-square'></i><p>$lang{FEES}</p>:form_fees::Control/Fees:",
+    "6:0:<i class='nav-icon far fa-eye'></i><p>$lang{MONITORING}</p>:null:::",
+    # admin/index.cgi
+    "7:0:<i class='nav-icon fa fa-search'></i><p>$lang{SEARCH}</p>:form_search:::",
+    "8:0:<i class='nav-icon fa fa-flag'></i><p>$lang{MAINTAIN}</p>:null:::",
+    "9:0:<i class='nav-icon fa fa-wrench'></i><p>$lang{PROFILE}</p>:admin_profile::Control/Profile:",
   );
 
   if ($permissions{0}) {
     require Control::Users_mng;
 
     if ($permissions{0}{3}) {
-      push @m, "17:15:$lang{PASSWD}:form_passwd:UID::";
+      # admin/index.cgi
+      push @m, "17:15:$lang{PASSWD}:form_passwd:UID:Control/Password";
     }
 
     if ($permissions{0}{4}) {
+      # Control/Users_mng
       push @m, "30:15:$lang{USER_INFO}:user_pi:UID::";
-      push @m, "18:15:$lang{NAS}:form_nas_allow:UID::";
-      push @m, "19:15:$lang{BILL}:form_bills:UID::" if $permissions{0}{15};
-      push @m, "23:15:$lang{MONEY_TRANSFER}:form_money_transfer_admin:UID::";
+      # Internet
+      push @m, "18:15:$lang{NAS}:form_nas_allow:UID:Internet:";
+      # admin/index.cgi
+      push @m, "19:15:$lang{BILL}:form_bills:UID::" if ($permissions{0}{15});
+      # Control/Users_mng
+      push @m, "23:15:$lang{MONEY_TRANSFER}:form_money_transfer_admin:UID::" if ($permissions{1});
     }
 
     if ($permissions{0}{28}) {
+      # Control/Users_mng
       push @m, "12:15:$lang{GROUP}:user_group:UID::";
       push @m, "27:1:$lang{GROUPS}:form_groups::Control/Groups_mng:";
     }
@@ -1431,9 +1200,9 @@ sub fl {
     if ($permissions{0}{36}) {
       push @m, "13:1:$lang{COMPANY}:form_companies::Control/Companies_mng:";
       push @m, "21:15:$lang{COMPANY}:user_company:UID:Control/Companies_mng:";
-      push @m, "21:16::companies_edrpou::Control/Companies_mng:AJAX";
     }
     if ($permissions{0}{30}) {
+      # admin/index.cgi
       push @m, "22:15:$lang{LOG}:form_changes:UID::";
     }
   }
@@ -1448,8 +1217,8 @@ sub fl {
   if ($permissions{8}){
     push @m,
       "110:9:$lang{FUNCTIONS_LIST}:flist::Control/Profile:",
+      # admin/index.cgi
       "111:9:$lang{EVENTS}:form_events:AJAX::",
-      "112:9:$lang{SLIDES}:form_slides_create::Control/Profile:";
   }
 
   if ($conf{NON_PRIVILEGES_LOCATION_OPERATION}) {
@@ -1474,13 +1243,13 @@ sub fl {
     push @m, "135:70:Address update:form_address_select:AJAX::";
   }
 
-  push @m, "4:0:<i class='nav-icon far fa-chart-bar'></i><p class='d-inline'>$lang{REPORTS}</p>:form_reports::Control/Reports:";
+  push @m, "4:0:<i class='nav-icon far fa-chart-bar'></i><p>$lang{REPORTS}</p>:form_reports::Control/Reports:";
 
   #Reports
   if($permissions{3}){
     if($permissions{3}{7}) {
-      push @m, "76:4:$lang{WEB_SERVER}:report_webserver::Control/Reports:",
-        "122:4:$lang{LIST_OF_LOGS}:logs_list::Control/Reports:";
+      push @m, "76:4:$lang{WEB_SERVER}:report_webserver::Control/Reports:";
+      push @m, "105:4:$lang{LIST_OF_LOGS}:logs_list::Control/Reports:";
     }
 
     if($permissions{3}{8}) {
@@ -1488,7 +1257,6 @@ sub fl {
       push @m, "132:131:$lang{REPORT_NEW_ALL_USERS}:report_new_all_customers::Control/User_reports:";
       push @m, "133:131:$lang{REPORT_NEW_ARPU_USERS}:report_new_arpu::Control/User_reports:";
       push @m, "134:131:$lang{REPORT_BALANCE_BY_STATUS}:report_balance_by_status::Control/User_reports:";
-      push @m, "136:131:$lang{REPORT_SWITCH_WITH_USERS}:report_switch::Control/User_reports:";
       push @m, "137:131:$lang{REPORT_REASON_USERS_DISABLED}:report_users_disabled::Control/User_reports:";
       push @m, "138:131:$lang{STATS} Telegram:report_users_telegram::Control/User_reports:";
     }
@@ -1524,14 +1292,17 @@ sub fl {
 
   #config functions
   if ($permissions{4}) {
-    push (@m, "5:0:<i class='nav-icon fas fa-cog'></i><p class='d-inline'>$lang{CONFIG}</p>:null:::",
+    push (@m, "5:0:<i class='nav-icon fas fa-cog'></i><p>$lang{CONFIG}</p>:null:::",
       "62:5:$lang{NAS}:form_nas::Control/Nas_mng:",
       "63:62:$lang{IP_POOLS}:form_ip_pools::Control/Nas_mng:",
       "64:62:$lang{NAS_STATISTIC}:form_nas_stats::Control/Nas_mng:",
       "65:62:$lang{GROUPS}:form_nas_groups::Control/Nas_mng:",
+      # admin/index.cgi
       "145:50:$lang{LOG}:form_changes:::",
       "148:5::nas_radius_pairs_save:AJAX:Control/Nas_mng:",
+      # admin/index.cgi
       "85:5:$lang{SHEDULE}:form_shedule:::",
+      # Users_mng
       "89:90:$lang{CONTACTS} $lang{TYPES}:form_contact_types:::",
       "90:5:$lang{MISC}:null:::",
       "91:90:$lang{TEMPLATES}:form_templates::Control/System:",
@@ -1540,7 +1311,6 @@ sub fl {
       "94:90:$lang{PATHES}:form_prog_pathes::Control/System:",
       "95:90:$lang{SQL_BACKUP}:form_sql_backup::Control/System:",
       "96:90:$lang{INFO_FIELDS}:form_info_fields::Control/System:",
-      "97:96:$lang{LIST}:form_info_lists::Control/System:",
       "98:90:$lang{TYPE} $lang{FEES}:form_fees_types::Control/System:",
       "99:90:$lang{BILLD}:form_billd_plugins::Control/System:",
       "118:90:$lang{EDIT}:form_templates_pdf_save:AJAX:Control/System:",
@@ -1559,9 +1329,11 @@ sub fl {
     #Allow Admin managment function
     if ($permissions{4}{4}) {
       push @m, "50:5:$lang{ADMINS}:form_admins::Control/Admins_mng:",
+        # admin/index.cgi
         "51:50:$lang{LOG}:form_changes:AID::",
         "52:50:$lang{PERMISSION}:form_admin_permissions:AID:Control/Admins_mng:",
-        "54:50:$lang{PASSWD}:form_passwd:AID::",
+        # admin/index.cgi
+        "54:50:$lang{PASSWD}:form_passwd:AID:Control/Password",
         "146:50:$lang{PAYMENT_TYPE}:form_admin_payment_types:AID:Control/Admins_mng:",
         "55:50:$lang{FEES}:form_fees:AID:Control/Fees:",
         "56:50:$lang{PAYMENTS}:form_payments:AID:Control/Payments:",
@@ -1577,12 +1349,13 @@ sub fl {
   }
 
   if ($permissions{0} && $permissions{0}{1}) {
+    # Control/Users_mng
     push @m, "24:11:$lang{ADD_USER}:form_wizard:::";
   }
 
   if ($conf{AUTH_METHOD}) {
     $permissions{9}{1}=1;
-    push @m, "10:0:<i class='nav-icon fa fa-sign-out-alt'></i><p class='d-inline'>$lang{LOGOUT}</p>:null:::";
+    push @m, "10:0:<i class='nav-icon fa fa-sign-out-alt'></i><p>$lang{LOGOUT}</p>:null:::";
   }
 
   my $custom_menu = custom_menu();
@@ -1685,8 +1458,17 @@ sub form_search {
           $LIST_PARAMS{desc}=q{};
         }
       }
-      elsif($search_type == 13 && $FORM{LOGIN}) {
-        $FORM{COMPANY_NAME}=$FORM{LOGIN};
+      elsif ($search_type == 13 && $FORM{LOGIN}) {
+        my $search_string = $FORM{LOGIN} || q{};
+        $search_string =~ s/\s+$//;
+        $search_string =~ s/^\s+//;
+        $FORM{_MULTI_HIT} = 'COMPANY_NAME, TAX_NUMBER, EDRPOU, PHONE';
+        my @fields_search = split(/, /, $FORM{_MULTI_HIT});
+
+        foreach my $field (@fields_search) {
+          $LIST_PARAMS{$field} = "*$search_string*";
+        }
+
         delete $FORM{LOGIN};
       }
       elsif ($FORM{TYPE_PAGE}) {
@@ -1825,6 +1607,7 @@ sub form_search {
       $SEARCH_DATA{SEARCH_FORM} = $attr->{SEARCH_FORM};
     }
     elsif ($search_type && $search_form{ $search_type }) {
+      $FORM{METHOD} =~ s/;/,/g if $FORM{METHOD};
       if ($FORM{type} == 2) {
         $info{SEL_METHOD} = $html->form_select(
           'METHOD',
@@ -1833,14 +1616,13 @@ sub form_search {
             SEL_HASH     => get_payment_methods(),
             SORT_KEY_NUM => 1,
             NO_ID        => 1,
-            SEL_OPTIONS  => { '' => $lang{ALL} }
+            MULTIPLE     => 1
           }
         );
         $SEARCH_DATA{SEARCH_FORM} = $html->tpl_show(templates('form_search_personal_info'), { %FORM, %info }, { OUTPUT2RETURN => 1 });
         $attr->{ADDRESS_FORM}=1;
       }
       elsif ($search_type == 3) {
-        $FORM{METHOD} =~ s/;/,/g if $FORM{METHOD};
         $info{SEL_METHOD} = $html->form_select(
           'METHOD',
           {
@@ -2016,9 +1798,9 @@ sub form_search {
 
         $SEARCH_DATA{TAG_SEARCH_VAL} = $html->form_select('TAG_SEARCH_VAL', {
           ID          => 'SEARCH_VAL',
-          SELECTED    =>  0,
+          SELECTED    =>  $FORM{TAG_SEARCH_VAL} || 0,
           NO_ID       =>  1,
-          SEL_OPTIONS => {0 => "$lang{OR}", 1 => "$lang{AND}",},
+          SEL_OPTIONS => {0 => "$lang{OR}", 1 => "$lang{AND}", 2 => $lang{NOT}},
         });
 
         ($form_tags_sel, $tag_count) = tags_sel({ HASH => 1, SHOW_EXT_BUTTON => 1 });
@@ -2079,13 +1861,23 @@ sub form_search {
 sub form_search_all {
   my ($search_text)=@_;
 
-  print $html->element('div', "$lang{SEARCH}: '$search_text'",
-    { class => "well well-sm" });
+  my $search_show_text = "$lang{SEARCH_QUERY}: '$search_text'";
+  print $html->element('div', $search_show_text, { class => 'well well-sm m-3' });
+
   my $debug = $FORM{DEBUG} || 0;
 
+  my $skip_modules = '';
+
+  if ($conf{GLOBAL_SEARCH_MODULES}) {
+    my @search_modules = split /,\s?/, $conf{GLOBAL_SEARCH_MODULES};
+    my @missing_modules = grep { !in_array($_, \@search_modules) } @MODULES;
+    $skip_modules = join(',', @missing_modules);
+  }
+
   my $cross_modules_return = cross_modules('search', {
-    SEARCH_TEXT => $search_text,
-    DEBUG       => $FORM{DEBUG},
+    SEARCH_TEXT  => $search_text,
+    DEBUG        => $FORM{DEBUG},
+    SKIP_MODULES => $skip_modules,
   });
 
   #main user_search
@@ -2348,6 +2140,14 @@ sub form_shedule {
 #**********************************************************
 =head2 form_period($period, $attr)
 
+  Arguments:
+    $period,
+    $attr
+      ABON_DATE
+
+  Results:
+    form
+
 =cut
 #**********************************************************
 sub form_period {
@@ -2565,12 +2365,7 @@ sub quick_functions {
     $index = $FORM{qindex};
   }
 
-  if ($FORM{API_INFO}) {
-    require Control::Api;
-    form_system_info($FORM{API_INFO});
-    return 1;
-  }
-  elsif($FORM{key}) {
+  if($FORM{key}) {
     if($conf{US_API}) {
       require Userside::Api;
       userside_api($FORM{request}, \%FORM);
@@ -2754,7 +2549,7 @@ sub set_admin_params {
       $admin->settings_del();
     }
 
-    if ($FORM{GROUP_ID}){
+    if (defined $FORM{GROUP_ID}){
       require Events;
       my $Events = Events->new($db, $admin, \%conf);
       my $event_groups = $Events->groups_for_admin($admin->{AID}) || '';
@@ -3012,7 +2807,7 @@ sub pre_page {
   if (in_array('Crm', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Crm})) {
     my ($proto, $host, $port) = url2parts($SELF_URL);
     $ext_navbar_info .= $html->tpl_show(_include('crm_dialogue_header_navbar', 'Crm'), {
-      UPDATE => "$proto//$host$port/api.cgi/crm/dialogues?LEAD_FIO&LAST_MESSAGE&DATE&STATE=0" .
+      UPDATE => "$proto://$host:$port/api.cgi/crm/dialogues?LEAD_FIO&LAST_MESSAGE&DATE&STATE=0" .
         "&SOURCE&snakeCase=1&PAGE_ROWS=20&SORT=ID&DESC=DESC",
       BADGE  => $admin->{CRM_TOTAL_DIALOGUE}
     }, { OUTPUT2RETURN => 1 });

@@ -17,6 +17,8 @@ our(
   $Cams_service
 );
 
+use Cams::Init qw/init_cams_service/;
+
 #***********************************************************
 =head2 cams_service_report()
 
@@ -49,7 +51,7 @@ sub _cams_get_service_report {
 
   return 0 if !$service_id;
 
-  $Cams_service = cams_load_service('', { SERVICE_ID => $service_id });
+  $Cams_service = init_cams_service($db, $admin, \%conf, { SERVICE_ID => $service_id, HTML => $html, LANG => \%lang });
   return 0 if !$Cams_service;
   return 0 if !$Cams_service->can('service_report');
 

@@ -306,6 +306,10 @@ sub internet_user_info_proceed {
       }
     }
   }
+  elsif ($Internet->{STATUS} == 1) {
+    $Internet->{STATUS_VALUE} = $status;
+    $Internet->{STATUS_FIELD} = 'text-danger';
+  }
   else {
     $Internet->{STATUS_VALUE} = $status;
     $Internet->{STATUS_FIELD} = 'text-success';
@@ -506,7 +510,7 @@ sub internet_service_info {
     SERVICE_ID => $Service->{ID}
   });
 
-  my $internet_user_info = $html->tpl_show(_include('internet_user_info', 'Internet'), $Internet_,
+  $html->tpl_show(_include('internet_user_info', 'Internet'), $Internet_,
     {  ID => 'internet_user_info' });
 
   return 1;
@@ -671,7 +675,7 @@ sub internet_user_chg_tp {
     $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{SHEDULE_ID}]") if (!_message_show($del_result));
   }
 
-  my $services_info = $Service_control->all_info({
+  my $services_info = $Service_control->services_info({
     INTERNAL_CALL   => 1,
     UID             => $uid,
     MODULE          => 'Internet',
@@ -1295,7 +1299,14 @@ sub internet_holdup_service {
   my $holdup_info = $Service_control->user_holdup({ %FORM, UID => $user->{UID}, ID => $Internet->{ID} });
 
   if (!$holdup_info->{DEL}) {
-    return '' if ($holdup_info->{error} || _error_show($holdup_info) || $holdup_info->{success});
+
+    if ($holdup_info->{error} || $holdup_info->{success}) {
+      if ($holdup_info->{error} && ! in_array($holdup_info->{error}, [4404])) {
+        _error_show($holdup_info, { MESSAGE => 'HOLD_UP', SILENT_MODE => 1 });
+      }
+
+      return '';
+    }
 
     if (($Internet->{STATUS} && $Internet->{STATUS} == 3)) { # || $Internet->{DISABLE}) {
       $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n " .

@@ -27,7 +27,6 @@ our (
   @bool_vals,
   @state_colors,
   @state_icon_colors,
-  @status,
   %menu_items
 );
 
@@ -78,6 +77,7 @@ sub form_user_profile {
 
   #Make service menu
   if (defined($FORM{newpassword})) {
+    require Control::Password;
     if (!form_passwd({ USER_INFO => $user_info })) {
       return 0;
     }
@@ -216,6 +216,7 @@ sub form_user_profile {
 sub form_user_info {
   my ($attr) = @_;
 
+  require Control::Password;
   my Users $user_info = $attr->{USER_INFO};
 
   $FORM{UID} = $user_info->{UID} || 0;
@@ -395,6 +396,7 @@ sub form_user_info {
     { OUTPUT2RETURN => 1 });
 
   if ($conf{HOLDUP_ALL}) {
+
     my $user_status_list = $user_info->user_status_list({ NAME => '_SHOW', COLOR => '_SHOW', COLS_NAME => 1 });
     my %user_status_hash = ();
     my @user_status_style = ();
@@ -634,25 +636,32 @@ sub form_user_change {
 
   $user_info->change($user_info->{UID}, { %FORM });
 
-  if ($form->{COMPANY_ID}) {
+  if (defined $form->{COMPANY_ID}) {
     require Customers;
     Customers->import();
     my $Customer = Customers->new($db, $admin, \%conf);
     my $Company = $Customer->company();
 
-    my $company_info = $Company->list({
-      COMPANY_ID  => $form->{COMPANY_ID},
-      USERS_COUNT => '_SHOW',
-      COLS_NAME   => 1,
-    });
-
-    if ($Company->{TOTAL} > 0 && $company_info->[0]->{users_count} == 1) {
-      $Company->admins_change({
-        COMPANY_ID => $form->{COMPANY_ID},
-        IDS        => $user_info->{UID},
+    if (!$form->{COMPANY_ID}) {
+      $Company->admins_del({
+        UID => $user_info->{UID},
       });
-      if (!$Company->{errno}) {
-        $html->message('info', $lang{INFO}, "$lang{NEW} $lang{ADMIN}");
+    }
+    else {
+      $Company->admins_list({
+        COMPANY_ID => $form->{COMPANY_ID},
+        GET_ADMINS => 1,
+        COLS_NAME  => 1,
+      });
+
+      if (defined $Company->{TOTAL} && $Company->{TOTAL} == 0) {
+        $Company->admins_change({
+          COMPANY_ID => $form->{COMPANY_ID},
+          IDS        => $user_info->{UID},
+        });
+        if (!$Company->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{NEW} $lang{ADMIN}");
+        }
       }
     }
   }
@@ -723,9 +732,6 @@ sub form_user_add {
   }
 
   if ($FORM{newpassword}) {
-
-    $conf{PASSWD_LENGTH} //= 6;
-
     if (length($FORM{newpassword}) < $conf{PASSWD_LENGTH}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_SHORT_PASSWD} $conf{PASSWD_LENGTH}");
       return 0;
@@ -822,7 +828,7 @@ sub form_user_add {
 
   if ($FORM{COMPANY_ID}) {
     require Control::Companies_mng;
-    form_companie_admins($attr);
+    form_companie_admins({ %$attr, USER_INFO => $user_info });
   }
 
   return 1;
@@ -956,30 +962,7 @@ sub form_users {
     return 1;
   }
   elsif ($FORM{SEND_SMS_PASSWORD}) {
-    if (!in_array('Sms', \@MODULES)) {
-      $html->message('err', $lang{ERROR}, "SMS not connected");
-      return 1;
-    }
-
-    load_module('Sms', $html);
-    my Users $user_info = $users->info($FORM{UID}, { SHOW_PASSWORD => 1 });
-    my $pi = $users->pi({ UID => $FORM{UID} });
-    my $message = $html->tpl_show(_include('sms_password_recovery', 'Sms'), { %$user_info, %$pi }, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
-    my $sms_id;
-
-    my $sms_number = ($conf{SMS_SEND_ALL})
-      ? ($users->{CELL_PHONE_ALL} || $users->{PHONE_ALL})
-      : ($users->{CELL_PHONE} || $users->{PHONE});
-
-    $sms_id = sms_send({
-      NUMBER  => $sms_number,
-      MESSAGE => $message,
-      UID     => $users->{UID},
-    });
-
-    if ($sms_id) {
-      $html->message('info', $lang{INFO}, "$lang{PASSWD} SMS $lang{SENDED}" . (($sms_id > 1) ? "\n ID: $sms_id" : ''));
-    }
+    _password_recovery_sms({ %{ $attr ? $attr : {} }, %FORM });
     return 1;
   }
   elsif ($FORM{import}) {
@@ -989,27 +972,6 @@ sub form_users {
   elsif ($FORM{bill_correction}) {
     my $user_info = $attr->{USER_INFO};
     form_bill_correction($user_info);
-    return 1;
-  }
-  elsif ($FORM{SUMMARY_SHOW}) {
-    $users->info($FORM{UID});
-    delete $FORM{UID};
-    if ($users->{UID}) {
-      $FORM{UID} = $users->{UID} || 0;
-    }
-
-    require Control::Users_slides;
-    if ($FORM{EXPORT}) {
-      print "Content-Type: application/json; charset=utf8\n\n";
-      print user_full_info({ UID => $FORM{UID}, USER_INFO => $users });
-    }
-    else {
-      my $user_info;
-      $user_info->{METRO_PANELS} = user_full_info({ USER_INFO => $users });
-      $user_info->{METRO_PANELS} =~ s/\r\n|\n//gm;
-      $user_info->{HTML_STYLE} = $html->{HTML_STYLE} || 'default';
-      $html->tpl_show(templates('form_client_view_metro'), $user_info);
-    }
     return 1;
   }
 
@@ -1024,6 +986,51 @@ sub form_users {
   }
   elsif ($FORM{MULTIUSER}) {
     form_users_multiuser($attr);
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _password_recovery_sms($attr) - Personal information form
+
+  Arguments:
+    $attr
+      UID
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub _password_recovery_sms {
+  my ($attr)=@_;
+
+  if (!in_array('Sms', \@MODULES)) {
+    $html->message('err', $lang{ERROR}, "SMS_NOT_CONNECTED");
+    return 1;
+  }
+
+  load_module('Sms', $html);
+
+  my Users $user_info = $users->info($attr->{UID}, { SHOW_PASSWORD => 1 });
+  my $pi = $users->pi({ UID => $attr->{UID} });
+  my $message = $html->tpl_show(_include('sms_password_recovery', 'Sms'), { %$user_info, %$pi },
+    { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
+
+  my $sms_number = ($conf{SMS_SEND_ALL})
+    ? ($users->{CELL_PHONE_ALL} || $users->{PHONE_ALL})
+    : ($users->{CELL_PHONE} || $users->{PHONE});
+
+  my $sms_id = sms_send({
+    NUMBER  => $sms_number,
+    MESSAGE => $message,
+    UID     => $users->{UID},
+    DEBUG   => $attr->{DEBUG}
+  });
+
+  if ($sms_id) {
+    $html->message('info', $lang{INFO}, "$lang{PASSWD} SMS $lang{SENDED}" . (($sms_id > 1) ? "\n ID: $sms_id" : ''));
   }
 
   return 1;
@@ -1415,7 +1422,6 @@ sub user_pi {
     $attr->{BUILD_SELECT_ID} = 'USER_BUILD_ID';
 
     $user_pi->{ADDRESS_TPL} = form_address({
-      # Can be received from MSGS reg_request
       %$attr,
       %$user_pi,
       SHOW               => 0,
@@ -1634,8 +1640,8 @@ sub user_form {
 
     my $main_account = $html->tpl_show(templates('form_user'), { %$user_info, %$attr }, { OUTPUT2RETURN => 1, ID => 'form_user' });
 
-    $user_info->{PW_CHARS} = $conf{PASSWD_SYMBOLS} || "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ";
-    $user_info->{PW_LENGTH} = $conf{PASSWD_LENGTH} || 6;
+    $user_info->{PW_CHARS} = $conf{PASSWD_SYMBOLS};
+    $user_info->{PW_LENGTH} = $conf{PASSWD_LENGTH};
     $user_info->{CONFIG_PASSWORD} = $conf{CONFIG_PASSWORD} || '';
 
     if (!$FORM{generated_pw} || !$FORM{newpassword} || !$FORM{confirm}) {
@@ -2055,9 +2061,7 @@ sub user_right_menu {
             my $info = '';
             my $plugin_name = $module{$key} . '::Base';
 
-            my $plugin_path = $plugin_name . '.pm';
-            $plugin_path =~ s{::}{/}g;
-            eval {require $plugin_path};
+            load_module($plugin_name, { LOAD_PACKAGE => 1 });
 
             my $function_name = lc $module{$key} . '_quick_info';
 
@@ -2349,12 +2353,25 @@ sub user_info {
     }
   }
 
+  my $msgs_quick = '';
+  if ($conf{MSGS_QUICK_ADD} && in_array('Msgs', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Msgs})) {
+    my $msg_add_url = $conf{MSGS_QUICK_ADD};
+    my @url_variables = ('PHONE', 'SUBJECT', 'CALL_ID');
+
+    map $msg_add_url =~ s/%$_%/$FORM{$_} ? $FORM{$_} : ''/ge, @url_variables;
+    $msg_add_url =~ s/%UID%/$uid/g;
+    
+    $msgs_quick = $html->button('', $msg_add_url, {
+      title => $lang{NEW_MESSAGE},
+      class => "btn btn-default btn-sm double_click_check",
+      ICON  => 'fab fa-rocketchat',
+    });
+  }
+
   my $full_info .= ($permissions{1}) ? $html->button('', "index=2&UID=$uid",
     { TITLE => $lang{PAYMENTS}, class => 'btn btn-default btn-sm', ICON => 'fa fa-plus', ex_params => 'style="color: green;"' }) : '';
   $full_info .= ' ' . (($permissions{2}) ? $html->button('', "index=3&UID=$uid",
     { TITLE => $lang{FEES}, class => 'btn btn-default btn-sm', ICON => 'fa fa-minus' }) : '');
-  $full_info .= ' ' . $html->button('', "index=15&UID=$uid&SUMMARY_SHOW=1",
-    { TITLE => $lang{INFO}, class => 'btn btn-default btn-sm', ICON => 'fa fa-th-large' });
 
   if ($conf{USERSIDE_LINK}) {
     my ($name, $us_link) = split(/:/, $conf{USERSIDE_LINK}, 2);
@@ -2368,7 +2385,7 @@ sub user_info {
 
   $pre_button = $html->element('div', $pre_button, { class => 'bd-highlight' });
   $next_button = $html->element('div', $next_button, { class => 'bd-highlight' });
-  my $main_content = $html->element('div', "$ext_menu $full_info $domain_id $deleted $user_tags", { class => 'bd-highlight m-auto' });
+  my $main_content = $html->element('div', "$ext_menu $full_info $domain_id $deleted $msgs_quick $user_tags", { class => 'bd-highlight m-auto' });
 
   $user_info->{TABLE_SHOW} = $html->element('div', "$pre_button $main_content $next_button",
     { class => "user_header d-flex justify-content-between bd-highlight rounded mb-2 $del_class" });
@@ -2511,6 +2528,8 @@ sub form_users_list {
   my $hidden_fields = 'PRIORITY';
   $hidden_fields .= ',BUILD_ID' if !in_array('Maps', \@MODULES) || ($admin->{MODULES} && !$admin->{MODULES}{Maps});
 
+  my $user_status_list = $users->user_status_list({ NAME => '_SHOW', COLOR => '_SHOW', HASH => 1, COLS_NAME => 1 });
+
   ($table, $list) = result_former({
     INPUT_DATA      => $users,
     FUNCTION        => 'list',
@@ -2642,11 +2661,9 @@ sub form_users_list {
       }
 
       if ($col_name eq 'login_status') {
-        my $color = ($state_colors[ $line->{login_status} || 0 ]) ? $state_colors[ $line->{login_status} || 0 ] : '';
-        push @fields_array, $table->td(
-          $status[ $line->{login_status} || 0 ],
-          { class => "text-$color", align => 'center' }
-        );
+        my $color = ($user_status_list->{$line->{login_status}}->{color} || 0) ? $user_status_list->{$line->{login_status}}->{color} || 0 : '';
+        my $status_name = $user_status_list->{$line->{login_status}}->{name} ? ($user_status_list->{$line->{login_status}}->{name}) : 0;
+        push @fields_array, $table->td(_translate($status_name),{ style => "color: #$color" });
       }
       else {
         push @fields_array, $table->td($line->{$col_name});
@@ -2879,7 +2896,7 @@ sub user_del {
     $user_info->{COMMENTS} = $FORM{COMMENTS};
 
     if (!_error_show($user_info)) {
-      my $del_result = cross_modules('user_del', { UID => $user_info->{UID}, USER_INFO => $user_info });
+      my $del_result = cross_modules('user_del', { UID => $user_info->{UID}, USER_INFO => $user_info, SKIP_COMPANY_USERS => 1 });
       my @deleted_modules = $del_result && ref $del_result eq 'HASH' ? keys %{$del_result} : ();
 
       if ($conf{external_userdel}) {
@@ -3203,15 +3220,15 @@ sub form_wizard {
 
   if ($FORM{step} > 2) {
     push @back_button,
-      $html->form_input('finish', $lang{FINISH}, { TYPE => ($steps{ $FORM{step} }) ? 'submit' : 'hidden' }) . ' ',
+      $html->form_input('finish', $lang{REGISTRATION_COMPLETE}, { TYPE => ($steps{ $FORM{step} }) ? 'submit' : 'hidden' }) . ' ',
       $html->form_input('back', $lang{BACK}, { TYPE => 'submit' });
   }
   else {
     if (!$FORM{back}) {
-      push @back_button, $html->form_input('add', $lang{FINISH}, { TYPE => 'submit' });
+      push @back_button, $html->form_input('add', $lang{REGISTRATION_COMPLETE}, { TYPE => 'submit' });
     }
     else {
-      push @back_button, $html->form_input('change', $lang{FINISH}, { TYPE => 'submit' })
+      push @back_button, $html->form_input('change', $lang{REGISTRATION_COMPLETE}, { TYPE => 'submit' })
     }
   }
 
@@ -3617,9 +3634,13 @@ sub form_info_field_tpl {
         $selected = $attr->{VALUES}->{uc("$field_name\_id")} || $attr->{VALUES}->{$field_name};
       }
 
+      require Info_fields;
+      Info_fields->import();
+      my $Info_fields = Info_fields->new($db, $admin, \%conf);
+
       $input = $html->form_select($field_name, {
         SELECTED      => $selected,
-        SEL_LIST      => $users->info_lists_list({ LIST_TABLE => $field_id . '_list', COLS_NAME => 1 }),
+        SEL_LIST      => $Info_fields->info_lists_list({ LIST_TABLE => $field_id . '_list', COLS_NAME => 1 }),
         SEL_OPTIONS   => { '' => '--' },
         NO_ID         => 1,
         ID            => $field_id,
@@ -4517,6 +4538,11 @@ sub form_money_transfer_admin {
   my $transfer_price = 0;
   my $no_companies = q{};
 
+  if (!$permissions{1}) {
+    $html->message( 'err', $lang{ERROR}, $lang{ERR_ACCESS_DENY} );
+    return 0;
+  }
+
   my Users $user = Users->new($db, $admin, \%conf);
   $user->info(int($FORM{UID} || 0));
 
@@ -4590,7 +4616,7 @@ sub form_money_transfer_admin {
               $user2,
               {
                 DESCRIBE       => "$lang{USER}: $user->{UID}",
-                INNER_DESCRIBE => "$Fees->{INSERT_ID}",
+                INNER_DESCRIBE => "MONEY_TRANSFERFEES: $Fees->{INSERT_ID}",
                 SUM            => $FORM{SUM},
                 METHOD         => 7
               }
@@ -4703,7 +4729,7 @@ sub _add_user_comment_to_info {
   my $comments_list = $Info->get_comments('form_user_profile', $FORM{UID}, { COLS_NAME => 1 });
 
   foreach my $comment (@$comments_list) {
-    if ($comment->{text} eq $FORM{COMMENTS}) {
+      if ($comment->{text} && $FORM{COMMENTS} && $comment->{text} eq $FORM{COMMENTS}) {
       return 1;
     }
   }

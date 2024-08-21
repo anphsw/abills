@@ -36,7 +36,7 @@ sub new {
     lang  => $attr->{lang} || {}
   };
 
-  %permissions = %{$attr->{permissions} || {}};
+  %permissions = %{$admin->{permissions} || {}};
 
   bless($self, $class);
   $Internet = Internet->new($db, $admin, $conf);

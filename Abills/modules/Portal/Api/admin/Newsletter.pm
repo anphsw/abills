@@ -16,14 +16,12 @@ use Abills::Base qw(dirname cmd next_month in_array);
 use Control::Errors;
 
 use Portal;
+use Portal::Constants qw(ALLOWED_METHODS);
 
 my Portal $Portal;
 my Control::Errors $Errors;
 
 my %permissions = ();
-
-# TODO: make this centralized and more maintainable
-my @allowed_methods = (5, 6, 10);
 
 #**********************************************************
 =head2 new($db, $admin, $conf)
@@ -135,7 +133,7 @@ sub post_portal_newsletter {
   my $available_methods = $Sender->available_types({ SOFT_CHECK => 1, HASH_RETURN => 1 });
   my @available_methods_ids = keys %$available_methods;
 
-  my $is_available = (in_array($query_params->{SEND_METHOD}, \@allowed_methods) && in_array($query_params->{SEND_METHOD}, \@available_methods_ids));
+  my $is_available = (in_array($query_params->{SEND_METHOD}, ALLOWED_METHODS) && in_array($query_params->{SEND_METHOD}, \@available_methods_ids));
 
   if (!$is_available) {
     return $Errors->throw_error(1440001, { lang_vars => { ID => $query_params->{SEND_METHOD} }});

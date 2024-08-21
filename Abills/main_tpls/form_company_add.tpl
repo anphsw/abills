@@ -22,7 +22,7 @@
       <div class='form-group row'>
         <label for='CREDIT' class='control-label col-md-3'>_{CREDIT}_:</label>
         <div class='input-group col-md-4'>
-          <input type="number" step="0.01" class='form-control' id='CREDIT' placeholder='%CREDIT%' name='CREDIT' value='%CREDIT%'>
+          <input type='number' step='0.01' class='form-control' id='CREDIT' placeholder='%CREDIT%' name='CREDIT' value='%CREDIT%'>
         </div>
         <label for='CREDIT_DATE' class='control-label col-md-1'>_{DATE}_:</label>
         <div class='input-group col-md-4'>
@@ -51,6 +51,13 @@
         <h3 class='card-title'>_{COMPANY}_</h3>
       </div>
       <div class='card-body'>
+        <div class='form-group row'>
+          <label for='EDRPOU' class='control-label col-md-3'>_{EDRPOU}_:</label>
+          <div class='input-group col-md-9'>
+            <input class='form-control' id='EDRPOU' placeholder='%EDRPOU%' name='EDRPOU' value='%EDRPOU%' data-tooltip-position='left'>
+          </div>
+        </div>
+
         <div class='form-group row'>
           <label for='TAX_NUMBER' class='control-label col-md-3'>_{TAX_NUMBER}_:</label>
           <div class='input-group col-md-9'>
@@ -85,13 +92,6 @@
           <label for='BANK_BIC' class='control-label col-md-3'>_{BANK_BIC}_:</label>
           <div class='input-group col-md-9'>
             <input class='form-control' id='BANK_BIC' placeholder='%BANK_BIC%' name='BANK_BIC' value='%BANK_BIC%'>
-          </div>
-        </div>
-
-        <div class='form-group row'>
-          <label for='EDRPOU' class='control-label col-md-3'>_{EDRPOU}_:</label>
-          <div class='input-group col-md-9'>
-            <input class='form-control' id='EDRPOU' placeholder='%EDRPOU%' name='EDRPOU' value='%EDRPOU%' data-tooltip-position='left'>
           </div>
         </div>
 
@@ -172,36 +172,27 @@
   });
 
   function getCompanyData(edrpou) {
-    fetch('$SELF_URL?header=2&get_index=companies_edrpou&EDRPOU=' + edrpou)
-      .then(response => {
-        if (!response.ok) throw response;
-        return response;
-      })
-      .then(response =>
-        response.json()
-      )
-      .then(result => {
-        if(result.company){
+    sendRequest(`/api.cgi/companies/public-records/${edrpou}`, {}, 'GET').then(result => {
+      if (result.company) {
+        edrpouInput.dataset.tooltip = result.company.nameShort;
+        let comments = result.company.kvedNumber + ' - ' + result.company.kved + '\n' + result.company.address
 
-          edrpouInput.dataset.tooltip = result.company.name_short;
-          let comments = result.company.kved_number+' - '+result.company.kved+'\n'+result.company.address
+        let arrDate = result.company.innDate.split('.');
+        let day = arrDate[0];
+        let month = arrDate[1];
+        let year = arrDate[2];
+        let newDate = year + '-' + month + '-' + day;
 
-          let arrDate = result.company.inn_date.split('.');
-          let day = arrDate[0];
-          let month = arrDate[1];
-          let year = arrDate[2];
-          let newDate = year + '-' + month + '-' + day;
-
-          jQuery('#NAME').val(result.company.name_short);
-          jQuery('#TAX_NUMBER').val(result.company.inn);
-          jQuery('#REPRESENTATIVE').val(result.company.director);
-          jQuery('#REGISTRATION').val(newDate);
-          jQuery('#COMMENTS').val(comments);
-        }
-      })
-      .catch(err => {
-         console.log(err);
-      });
+        jQuery('#NAME').val(result.company.nameShort);
+        jQuery('#TAX_NUMBER').val(result.company.inn);
+        jQuery('#REPRESENTATIVE').val(result.company.director);
+        jQuery('#REGISTRATION').val(newDate);
+        jQuery('#COMMENTS').val(comments);
+      } else {
+        console.log(result);
+      }
+    }).catch(err => {
+      console.log(err);
+    });
   }
 </script>
-

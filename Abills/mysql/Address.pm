@@ -285,7 +285,7 @@ sub district_list {
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0) {
-    $self->query("SELECT COUNT(*) AS total FROM districts d $EXT_TABLES $WHERE", undef, { INFO => 1 });
+    $self->query("SELECT COUNT(DISTINCT d.id) AS total FROM districts d $EXT_TABLES $WHERE", undef, { INFO => 1 });
   }
 
   return $list;
@@ -595,7 +595,7 @@ sub build_list {
       [ 'FLORS',             'INT', 'b.flors',                                                           1 ],
       [ 'ENTRANCES',         'INT', 'b.entrances',                                                       1 ],
       [ 'FLATS',             'INT', 'b.flats',                                                           1 ],
-      [ 'SCHEMA',            'INT', 'b.schema',                                                          1 ],
+      [ 'BUILD_SCHEMA',      'INT', 'b.build_schema',                                                          1 ],
       [ 'DISTRICT_ID',       'INT', 's.district_id',                                                     1 ],
       [ 'DISTRICT_NAME',     'STR', 'd.name', 'd.name AS district_name'                                    ],
       [ 'DISTRICT_PARENT_ID','INT', 'd.parent_id', 'd.parent_id AS district_parent_id'                     ],

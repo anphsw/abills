@@ -1,0 +1,38 @@
+type: object
+properties:
+  allowCredit:
+    type: number
+    example: 1
+  bonus:
+    type: number
+    example: 1
+  descr:
+    type: string
+    example: "test description"
+  disableAccess:
+    type: number
+    example: 0
+  disableChgTp:
+    type: number
+    example: 0
+  disablePayments:
+    type: number
+    example: 0
+  disablePaysys:
+    type: number
+    example: 0
+  documentsAccess:
+    type: number
+    example: 1
+  domainId:
+    type: number
+    example: 0
+  name:
+    type: string
+    example: Test
+  smsService:
+    type: number
+    example: 0
+  separateDocs:
+    type: number
+    example: 0

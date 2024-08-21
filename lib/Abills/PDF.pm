@@ -61,19 +61,13 @@ sub new{
     $self->{language} = $CONF->{default_language} || 'english';
   }
 
-  eval { require PDF::API2; };
-  if ( !$@ ){
-    PDF::API2->import();
+  my $err = Abills::Base::load_pmodule('PDF::API2', { HEADER => 1, SHOW_RETURN => 1 });
+  if ($err) {
+    print $err;
+    exit;
   }
-  else{
-    print "Content-Type: text/html\n\n";
 
-    my $name = 'PDF::API2';
-    print "Can't load '$name'\n" .
-        " Install Perl Module <a href='http://abills.net.ua/wiki/doku.php/abills:docs:manual:soft:$name' target='_install'>$name</a> \n" .
-        " Main Page <a href='http://abills.net.ua/wiki/doku.php/abills:docs:other:ru?&#ustanovka_perl_modulej' target='_install'>Perl modules installation</a>\n" .
-        " or install from <a href='http://www.cpan.org'>CPAN</a>\n";
-  }
+  require PDF::API2;
 
   if ( defined( $FORM{xml} ) ){
     require Abills::XML;
@@ -876,27 +870,27 @@ sub get_pdf{
 
 =cut
 #**********************************************************
-sub tpl_show{
+sub tpl_show {
   my $self = shift;
   my ($filename, $variables_ref, $attr) = @_;
 
   if ($attr->{TPL} && $attr->{MODULE}) {
-    $filename = $self->get_tpl($attr->{TPL}, $attr->{MODULE}, {pdf => 1});
+    $filename = $self->get_tpl($attr->{TPL}, $attr->{MODULE}, { pdf => 1 });
   }
 
   $filename =~ s/\.[a-z]{3}$//;
-  my $tpl_describe = tpl_describe( $filename, { debug => $self->{debug} } );
+  my $tpl_describe = tpl_describe($filename, { debug => $self->{debug}, SIG_NAME => ($attr->{SIG_NAME} || 'sig') });
   $filename = $filename . '.pdf';
 
-  if ( !-f $filename ){
-    if ( !$attr->{SKIP_ERRORS} ){
+  if (!-f $filename) {
+    if (!$attr->{SKIP_ERRORS}) {
       print "Content-Type: text/html\n\n";
       print "Error: File not found '$filename' ID: " . ($attr->{ID} || '') . "\n";
     }
     return 0;
   }
 
-  my PDF::API2 $pdf = PDF::API2->open( "$filename" );
+  my PDF::API2 $pdf = PDF::API2->open("$filename");
   my $tpl;
 
   print "Tpl File: $filename\n" if ($self->{debug});
@@ -922,33 +916,33 @@ sub tpl_show{
   my $font;
   my $multi_recs = 0;
 
-  if ( $encode =~ /utf-8/ ){
+  if ($encode =~ /utf-8/) {
     $font_name = $CONF->{TPL_DIR} . '/fonts/FreeSerif.ttf';
 
-    eval { $font = $pdf->ttfont( $font_name, -encode => "$encode" ) };
-    if ( $@ ){
+    eval {$font = $pdf->ttfont($font_name, -encode => "$encode")};
+    if ($@) {
       print "Error: $! '$font_name' encode: $encode";
     }
   }
-  else{
-    $font = $pdf->corefont( $font_name, -encode => "$encode" );
+  else {
+    $font = $pdf->corefont($font_name, -encode => "$encode");
   }
 
   MULTIDOC_LABEL:
   my $start_position_num = 0;
   NEXT_RECORDS:
 
-  if ($attr->{EXTEND_TPL_DESCRIBE} && ref $attr->{EXTEND_TPL_DESCRIBE} eq 'HASH'){
+  if ($attr->{EXTEND_TPL_DESCRIBE} && ref $attr->{EXTEND_TPL_DESCRIBE} eq 'HASH') {
     $tpl_describe = { %{$tpl_describe}, %{$attr->{EXTEND_TPL_DESCRIBE}} };
   }
-  
-  for my $key ( sort keys %{$tpl_describe} ){
+
+  for my $key (sort keys %{$tpl_describe}) {
     my @patterns = ();
 
-    if ( $tpl_describe->{$key}{PARAMS} =~ /\((.+)\)/ ){
-      @patterns = split( /,/, $1 );
+    if ($tpl_describe->{$key}{PARAMS} =~ /\((.+)\)/) {
+      @patterns = split(/,/, $1);
     }
-    else{
+    else {
       push @patterns, $tpl_describe->{$key}{PARAMS};
     }
 
@@ -960,7 +954,7 @@ sub tpl_show{
     my $align = '';
     my $text_file = '';
 
-    for ( my $i = $start_position_num; $i <= $#patterns; $i++ ){
+    for (my $i = $start_position_num; $i <= $#patterns; $i++) {
       my $pattern = $patterns[$i];
 
       $x = $1 if ($pattern =~ /x=(\d+)/);
@@ -969,21 +963,21 @@ sub tpl_show{
 
       my $text = '';
       $doc_page = ($pattern =~ /page=(\d+)/) ? $1 : 1;
-      my $work_page = ($attr->{DOCS_IN_FILE}) ? $doc_page + $page_count * int( $multi_doc_count - 1 ) - ($page_count * $attr->{DOCS_IN_FILE} * int( ($multi_doc_count - 1) / $attr->{DOCS_IN_FILE} )) : $doc_page + (($multi_doc_count) ? $page_count * $multi_doc_count - $page_count : 0);
-      my $page = $pdf->openpage( $work_page );
-      if ( !$page ){
+      my $work_page = ($attr->{DOCS_IN_FILE}) ? $doc_page + $page_count * int($multi_doc_count - 1) - ($page_count * $attr->{DOCS_IN_FILE} * int(($multi_doc_count - 1) / $attr->{DOCS_IN_FILE})) : $doc_page + (($multi_doc_count) ? $page_count * $multi_doc_count - $page_count : 0);
+      my $page = $pdf->openpage($work_page);
+      if (!$page) {
         print "Content-Type: text/plain\n\n";
         print "Can't open page: $work_page ($pattern) '$!' / $doc_page + $page_count * $multi_doc_count\n";
       }
-      
+
       # Make img_insertion
-      if ( $pattern =~ /img=([0-9a-zA-Z_\.\/]+)/ ){
+      if ($pattern =~ /img=([0-9a-zA-Z_\.\/]+)/) {
         my $img_file = $1;
-        if ( !-f "$CONF->{TPL_DIR}/$img_file" ){
+        if (!-f "$CONF->{TPL_DIR}/$img_file") {
           $text = "Img file not exists '$CONF->{TPL_DIR}/$img_file'\n";
           next;
         }
-        else{
+        else {
           print "make image '$CONF->{TPL_DIR}/$img_file'\n" if ($debug > 0);
           my $img_height = ($pattern =~ /img_height=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
           my $img_width = ($pattern =~ /img_width=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
@@ -991,12 +985,12 @@ sub tpl_show{
           my $gfx = $page->gfx;
           my $img;
           if ($pattern =~ /img_type=png/) {
-            $img = $pdf->image_png( "$CONF->{TPL_DIR}/$img_file" );
+            $img = $pdf->image_png("$CONF->{TPL_DIR}/$img_file");
           }
           else {
-            $img = $pdf->image_jpeg( "$CONF->{TPL_DIR}/$img_file" );    #, 200, 200);
+            $img = $pdf->image_jpeg("$CONF->{TPL_DIR}/$img_file"); #, 200, 200);
           }
-          $gfx->image( $img, $x, ($y - $img_height + 10), $img_width, $img_height );    #, 596, 842);
+          $gfx->image($img, $x, ($y - $img_height + 10), $img_width, $img_height); #, 596, 842);
           $gfx->close;
           $gfx->stroke;
           next;
@@ -1010,78 +1004,77 @@ sub tpl_show{
       $encode = $1 if ($pattern =~ /encode=(\S+)/);
       $align = $1 if ($pattern =~ /align=([a-z]+)/i);
 
-      if ( $pattern =~ /font_name=(\S+)/ ){
+      if ($pattern =~ /font_name=(\S+)/) {
         $font_name = $1;
-        if ( $font_name =~ /\.ttf$/ ){
-          if ( $font_name =~ /^\// && !-f $font_name ){
+        if ($font_name =~ /\.ttf$/) {
+          if ($font_name =~ /^\// && !-f $font_name) {
             print "Content-Type: text/plain\n\n";
             print "Font '$font_name' not found\n";
           }
-          else{
-            $font = $pdf->ttfont( $font_name, -encode => "$encode" );
+          else {
+            $font = $pdf->ttfont($font_name, -encode => "$encode");
           }
         }
-        else{
-          $font = $pdf->corefont( $font_name, -encode => "$encode" );
+        else {
+          $font = $pdf->corefont($font_name, -encode => "$encode");
         }
       }
 
       my $txt = $page->text;
-      $txt->font( $font, $font_size );
-      if ( $font_color ){
-        $txt->fillcolor( $font_color );
-        $txt->fillstroke( $font_color );
+      $txt->font($font, $font_size);
+      if ($font_color) {
+        $txt->fillcolor($font_color);
+        $txt->fillstroke($font_color);
       }
 
-      $txt->translate( $x, $y );
+      $txt->translate($x, $y);
 
-      if ( defined( $variables_ref->{$key} ) ){
+      if (defined($variables_ref->{$key})) {
         $text = $variables_ref->{$key};
-        if ( $tpl_describe->{$key}->{EXPR} ){
-          my @expr_arr = split( /\//, $tpl_describe->{$key}->{EXPR}, 2 );
+        if ($tpl_describe->{$key}->{EXPR}) {
+          my @expr_arr = split(/\//, $tpl_describe->{$key}->{EXPR}, 2);
           print "Expration: $key >> $text=~s/$expr_arr[0]/$expr_arr[1]/;\n" if ($attr->{debug});
           $text =~ s/$expr_arr[0]/$expr_arr[1]/g;
         }
       }
 
-      if ( $text_file ne '' ){
+      if ($text_file ne '') {
         my $text_height = ($pattern =~ /text_height=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
         my $text_width = ($pattern =~ /text_width=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
 
-        if ( !-f "$CONF->{TPL_DIR}/$text_file" ){
+        if (!-f "$CONF->{TPL_DIR}/$text_file") {
           $text = "Text file not exists '$CONF->{TPL_DIR}/$text_file'\n";
         }
-        else{
+        else {
           my $content = '';
-          open( my $fh, '<', "$CONF->{TPL_DIR}/$text_file" ) or die "Can't open file '$text_file' $!\n";
+          open(my $fh, '<', "$CONF->{TPL_DIR}/$text_file") or die "Can't open file '$text_file' $!\n";
           while (<$fh>) {
             $content .= $_;
           }
-          close( $fh );
+          close($fh);
 
           my $string_height = ($pattern =~ /string_height=([0-9a-zA-Z_\.]+)/) ? $1 : 15;
-          $txt->lead( $string_height );
-          #my ($idt, $y2) =
+          $txt->lead($string_height);
           $txt->paragraph(
             $content, $text_width, $text_height,
             -align     => $align || 'justified',
             -spillover => 2
-          );    # ,400,14,@text);
+          ); # ,400,14,@text);
           next;
         }
       }
 
-      if ( $pattern =~ /step=(\S+)/ ){
+      if ($pattern =~ /step=(\S+)/) {
         my $step = $1;
-        my $len = length( $pattern );
-        for ( my $c = 0; $c <= $len; $c++ ){
-          $txt->translate( $x + $c * $step, $y );
-          my $char = substr( $text, $c, 1 );
-          $txt->text( $char );
+        my $len = length($pattern);
+        for (my $c = 0; $c <= $len; $c++) {
+          $txt->translate($x + $c * $step, $y);
+          my $char = substr($text, $c, 1);
+          $txt->text($char);
         }
       }
-      else{
-        if ( $align ){
+      else {
+        if ($align) {
           my $text_height = ($pattern =~ /text_height=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
           my $text_width = ($pattern =~ /text_width=([0-9a-zA-Z_\.]+)/) ? $1 : 100;
           my $string_height = ($pattern =~ /string_height=([0-9a-zA-Z_\.]+)/) ? $1 : 15;
@@ -1093,62 +1086,57 @@ sub tpl_show{
             -spillover => 2
           );
         }
-        else{
-          $txt->text( $text, -align => $align || 'justified' );
+        else {
+          $txt->text($text, -align => $align || 'justified');
         }
       }
 
-      if ( $attr->{MULTI_DOCS_PAGE_RECS} && $i == $attr->{MULTI_DOCS_PAGE_RECS} - 1 ){
+      if ($attr->{MULTI_DOCS_PAGE_RECS} && $i == $attr->{MULTI_DOCS_PAGE_RECS} - 1) {
         print "$i % $attr->{MULTI_DOCS_PAGE_RECS} // $start_position_num // $variables_ref->{LOGIN}\n" if ($debug > 1);
         last;
       }
     }
   }
 
-  if ( $attr->{MULTI_DOCS} && ($multi_doc_count * (($attr->{MULTI_DOCS_PAGE_RECS}) ? $attr->{MULTI_DOCS_PAGE_RECS} : 1 )) <= $#{ $attr->{MULTI_DOCS} } ){
-    if ( $attr->{DOCS_IN_FILE} && $multi_doc_count > 0 && $multi_doc_count % $attr->{DOCS_IN_FILE} == 0 ){
+  if ($attr->{MULTI_DOCS} && ($multi_doc_count * (($attr->{MULTI_DOCS_PAGE_RECS}) ? $attr->{MULTI_DOCS_PAGE_RECS} : 1)) <= $#{$attr->{MULTI_DOCS}}) {
+    if ($attr->{DOCS_IN_FILE} && $multi_doc_count > 0 && $multi_doc_count % $attr->{DOCS_IN_FILE} == 0) {
       my $outfile = $attr->{SAVE_AS};
-      my $filenum = int( $multi_doc_count / $attr->{DOCS_IN_FILE} );
+      my $filenum = int($multi_doc_count / $attr->{DOCS_IN_FILE});
 
       $outfile =~ s/\.pdf/$filenum\.pdf/;
 
       print "Save to: $outfile\n" if ($self->{debug});
 
-      $pdf->saveas( "$outfile" );
+      $pdf->saveas("$outfile");
       $pdf->end;
 
-      $pdf = PDF::API2->open( $filename );
+      $pdf = PDF::API2->open($filename);
 
-      if ( $encode =~ /utf-8/ ){
+      if ($encode =~ /utf-8/) {
         $font_name = '/usr/abills/Abills/templates/fonts/FreeSerif.ttf';
-        $font = $pdf->ttfont( $font_name, -encode => "$encode" );
+        $font = $pdf->ttfont($font_name, -encode => "$encode");
       }
-      else{
-        #
-        $font = $pdf->corefont( $font_name, -encode => "$encode" );
+      else {
+         $font = $pdf->corefont($font_name, -encode => "$encode");
       }
     }
 
-    my $array_num = ($multi_doc_count * (($attr->{MULTI_DOCS_PAGE_RECS}) ? $attr->{MULTI_DOCS_PAGE_RECS} : 1  )) + $multi_recs;
+    my $array_num = ($multi_doc_count * (($attr->{MULTI_DOCS_PAGE_RECS}) ? $attr->{MULTI_DOCS_PAGE_RECS} : 1)) + $multi_recs;
 
     $variables_ref = $attr->{MULTI_DOCS}[$array_num];
     print "Doc: $multi_doc_count : $array_num\n" if ($attr->{debug});
 
-    if ( $attr->{MULTI_DOCS_PAGE_RECS} && $multi_doc_count / $attr->{MULTI_DOCS_PAGE_RECS} && !$multi_recs ){
+    if ($attr->{MULTI_DOCS_PAGE_RECS} && $multi_doc_count / $attr->{MULTI_DOCS_PAGE_RECS} && !$multi_recs) {
       $start_position_num = 2;
       $multi_recs = 1;
       goto NEXT_RECORDS;
     }
-    else{
-      $multi_recs = 0;
-    }
 
     $multi_recs = 0;
 
-    if ( $multi_doc_count > 0 ){
-      for ( my $i = 1; $i <= $page_count; $i++ ){
-        #my $page =
-        $pdf->importpage( $pdf, $i );
+    if ($multi_doc_count > 0) {
+      for (my $i = 1; $i <= $page_count; $i++) {
+        $pdf->importpage($pdf, $i);
       }
     }
 
@@ -1156,30 +1144,30 @@ sub tpl_show{
     goto MULTIDOC_LABEL;
   }
 
-  if ( $attr->{SAVE_AS} ){
-    $pdf->saveas( "$attr->{SAVE_AS}" );
+  if ($attr->{SAVE_AS}) {
+    $pdf->saveas("$attr->{SAVE_AS}");
     $pdf->end;
     return 0;
   }
 
   $tpl = $pdf->stringify();
   $pdf->end;
-  if ( $attr->{OUTPUT2RETURN} ){
-    return $tpl;
+
+  if ($attr->{OUTPUT2RETURN}) {
+
   }
-  elsif ( $attr->{notprint} || $self->{NO_PRINT} ){
-    if ( $FORM{qindex} ){
-      $self->{OUTPUT} .= $self->pdf_header( { NAME => $attr->{FILENAME} || $filename } );
-      #print $self->pdf_header( { NAME => $filename } );
+  elsif ($attr->{notprint} || $self->{NO_PRINT}) {
+    if ($FORM{qindex}) {
+      $self->{OUTPUT} .= $self->pdf_header({ NAME => $attr->{FILENAME} || $filename });
     }
     $self->{OUTPUT} .= $tpl;
-    return $tpl;
   }
-  else{
-    print $self->pdf_header( { NAME => $attr->{FILENAME} || $filename } ) if ($FORM{qindex});
+  else {
+    print $self->pdf_header({ NAME => $attr->{FILENAME} || $filename }) if ($FORM{qindex});
     print $tpl;
-    return $tpl;
   }
+
+  return $tpl;
 }
 
 #**********************************************************
@@ -1237,6 +1225,7 @@ sub tpl_describe{
     }
     else{
       my ($name, $describe, $lang, $params, $default, $expr) = split( /:/, $line );
+      $params =~ s/sig/$attr->{SIG_NAME}/g;
       next if ($attr->{LANG} && $attr->{LANG} ne $lang);
       next if (!$name);
       $TPL_DESCRIBE{$name}{DESCRIBE} = $describe;

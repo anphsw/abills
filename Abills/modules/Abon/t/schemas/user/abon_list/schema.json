@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "title": "USER Abon list of services",
+  "required": [
+    "activate",
+    "active",
+    "comments",
+    "endDate",
+    "startDate",
+    "id",
+    "name",
+    "period",
+    "price"
+  ],
+  "properties": {
+    "activate": {
+      "type": "boolean"
+    },
+    "active": {
+      "type": "boolean"
+    },
+    "comments": {
+      "type": "string"
+    },
+    "endDate": {
+      "type": "string"
+    },
+    "startDate": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "period": {
+      "type": "string"
+    },
+    "id": {
+      "type": "number"
+    },
+    "price": {
+      "type": "number"
+    }
+  }
+}

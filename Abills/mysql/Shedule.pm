@@ -233,6 +233,9 @@ sub add{
   my $self = shift;
   my ($attr) = @_;
 
+  $attr->{D} = sprintf('%02d', $attr->{D}) if $attr->{D};
+  $attr->{M} = sprintf('%02d', $attr->{M}) if $attr->{M};
+
   $self->query_add( 'shedule', {
       %{$attr},
       H      => $attr->{H} || '*',

@@ -111,7 +111,7 @@ sub cards_diller {
     $Diller->{DEL_BUTTON} = $html->button($lang{DEL}, "index=$index&del=1&UID=$uid&ID=$diller_id",
       {
         MESSAGE => "$lang{DEL} $lang{SERVICE} Internet $lang{FOR} $lang{USER} $uid?",
-        class   => 'btn btn-danger float-right'
+        class   => 'btn btn-danger'
       });
   }
 
@@ -1230,7 +1230,7 @@ sub cards_diller_search {
   my $contract_list = $Users->list({
     FIO         => '_SHOW',
     CONTRACT_ID => '_SHOW',
-    COLS_NAME   => 1
+    COLS_NAME   => 1,
   });
 
   my $name_tariff = $Tariffs->list({
@@ -1244,13 +1244,14 @@ sub cards_diller_search {
 
   if ($FORM{SUM}) {
     if (sprintf('%.2f', $attr->{USER_INFO}->{DEPOSIT}) >= sprintf('%.2f', $FORM{SUM})) {
+      my $user_info = $Users->info($FORM{UID});
 
-      $Payments->add({ UID => $FORM{UID} }, {
+      $Payments->add($user_info, {
         SUM          => $FORM{SUM},
         METHOD       => $conf{DILLERS_PAYMENT_TYPE} || $FORM{TYPE_PAYMENT} || 0,
         DESCRIBE     => $FORM{COMMENTS} || $lang{DILLER_PAY},
-        BILL_ID      => $attr->{USER_INFO}->{BILL_ID},
-        EXT_ID       => 50,
+        BILL_ID      => $user_info->{BILL_ID},
+        EXT_ID       => "DILLER:$attr->{USER_INFO}->{UID}",
         CHECK_EXT_ID => undef
       });
 
@@ -1260,9 +1261,9 @@ sub cards_diller_search {
         {
           DESCRIBE     => $FORM{COMMENTS} || $lang{DILLER_PAY},
           METHOD       => 4,
-          BILL_ID      => $attr->{USER_INFO}->{DEPOSIT},
-          EXT_ID       => undef,
-          CHECK_EXT_ID => undef
+          #BILL_ID      => $attr->{USER_INFO}->{DEPOSIT},
+          #EXT_ID       => undef,
+          #CHECK_EXT_ID => undef
         }
       );
 

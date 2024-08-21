@@ -38,6 +38,9 @@ properties:
         topicId:
           type: number
           example: 1
+        url:
+          type: string
+          example: "https://demo.abills.net.ua:9443/?article=special-promotion-50-2023"
   url:
     type: string
     example: "https://demo.abills.net.ua:9443/"

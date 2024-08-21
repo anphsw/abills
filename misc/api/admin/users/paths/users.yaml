@@ -1,0 +1,24 @@
+post:
+  tags:
+    - users
+  summary: Добавить нового пользователя
+  operationId: addUser
+  description: >
+    Также можно добавлять все информационные поля
+    Пример: если в БД `_TEST_FIELD` то можно добавить как `_testField`
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addUserRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addUserResponse200.yaml"
+  security:
+    - KEY: []

@@ -10,8 +10,9 @@ CREATE TABLE IF NOT EXISTS `accident_log` (
   `realy_time` DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `status`     TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
   `name`       VARCHAR(255)         NOT NULL DEFAULT '',
-  `sent_open`  INT(10)    UNSIGNED  NOT NULL DEFAULT 0,
-  `sent_close` INT(10)    UNSIGNED  NOT NULL DEFAULT 0,
+  `sent_open`  SMALLINT(6)  UNSIGNED  NOT NULL DEFAULT 0,
+  `sent_close` SMALLINT(6)  UNSIGNED  NOT NULL DEFAULT 0,
+  `type`       TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
   KEY `status` (`status`),
   CONSTRAINT `accident_log` FOREIGN KEY (`aid`) REFERENCES `admins` (`aid`) ON DELETE CASCADE
 )
@@ -37,8 +38,10 @@ CREATE TABLE IF NOT EXISTS `accident_equipments` (
   `end_date`     DATE                 NOT NULL DEFAULT '0000-00-00',
   `aid`          SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `status`       TINYINT(3)  UNSIGNED NOT NULL DEFAULT 0,
-  `sent_open`    INT(10)     UNSIGNED NOT NULL DEFAULT 0,
-  `sent_close`   INT(10)     UNSIGNED NOT NULL DEFAULT 0
+  `sent_open`    SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `sent_close`   SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `port_id`      VARCHAR(32)          NOT NULL DEFAULT '',
+  `type`         TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Accident equipments';
@@ -53,3 +56,23 @@ CREATE TABLE IF NOT EXISTS `accident_compensation` (
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Accident compensations';
+
+CREATE TABLE IF NOT EXISTS `accident_types` (
+  `id`           TINYINT(3) UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `name`         VARCHAR(50)          NOT NULL DEFAULT '',
+  `priority`     TINYINT(2) UNSIGNED  NOT NULL DEFAULT 0,
+  `color`        VARCHAR(7)           NOT NULL DEFAULT '',
+  `comments`     VARCHAR(120)         NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Accident types';
+
+CREATE TABLE IF NOT EXISTS `accident_admins` (
+  `accident_type`  TINYINT(3)  UNSIGNED NOT NULL DEFAULT 0,
+  `aid`            SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  UNIQUE KEY `accident_type` (accident_type,aid)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Accident admins';

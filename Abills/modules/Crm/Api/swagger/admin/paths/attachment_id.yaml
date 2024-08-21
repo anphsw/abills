@@ -1,0 +1,20 @@
+delete:
+  tags:
+    - crm
+  summary: Удалить файл
+  parameters:
+    - name: id
+      in: path
+      description: ID файла
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiDeleteResponse200"
+  security:
+    - KEY: []

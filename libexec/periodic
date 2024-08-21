@@ -100,10 +100,6 @@ if ( $argv->{DEBUG} ){
   print $DEBUG;
 }
 
-if ($argv->{rotate}) {
-  rotate_logs();
-}
-
 my @daily_functions = ('credit_operation', 'reduction_operation');
 push @daily_functions, 'debetors_group_create' if ($conf{DEBETORS_GROUP});
 if ( !$argv->{MODULES} && ! in_array('shedule', \@daily_functions) ){
@@ -189,6 +185,7 @@ if($argv->{SKIP_FN}) {
 }
 
 push @daily_functions, 'admin_report_daily' if (!$argv->{MODULES} && ! $argv->{NO_ADM_REPORT});
+push @daily_functions, 'admin_disable_not_active';
 push @monthly_functions, 'admin_report_monthly' if (!$argv->{NO_ADM_REPORT});
 push @monthly_functions, 'logrotate', 'backup' if (!$argv->{MODULES});
 
@@ -368,7 +365,7 @@ elsif ( defined( $argv->{daily} ) ){
 elsif ( defined( $argv->{backup} ) ){
   backup();
 }
-elsif ( defined( $argv->{logrotate} ) ){
+elsif ( defined( $argv->{rotate} ) ){
   logrotate();
 }
 elsif ( defined( $argv->{SET_FULL_CREDIT} ) ){
@@ -936,6 +933,23 @@ sub admin_report_monthly{
 }
 
 #*******************************************************************
+=head2 admin_disable_not_active()
+
+=cut
+#*******************************************************************
+sub admin_disable_not_active {
+
+  return if !$conf{ADMIN_NOT_ACTIVE_DAYS};
+
+  my $not_active_admins = $admin->admins_last_action({ ADMIN_NOT_ACTIVE_DAYS => $conf{ADMIN_NOT_ACTIVE_DAYS} });
+  return if !$admin->{TOTAL} || $admin->{TOTAL} < 1;
+
+  foreach my $not_active_admin (@{$not_active_admins}) {
+    $admin->change({ AID => $not_active_admin->{aid}, DISABLE => 1 });
+  }
+}
+
+#*******************************************************************
 =head2 logrotate() - Log rotate
 
 =cut
@@ -945,21 +959,32 @@ sub logrotate{
 
   our $base_dir;
 
-  if ( $D == 1 || $argv->{logrotate}){
-    my $logfile = $conf{LOGFILE} || '/usr/abills/var/log/abills.log';
+  if ( $D == 1 || $argv->{rotate}){
+    my $files = startup_files({ TPL_DIR => $conf{TPL_DIR} });
 
-    my $cmd = '';
-    for ( my $i = $rotate_level; $i > 0; $i-- ){
-      if ( -f $logfile . '.' . ($i - 1) . '.gz' ){
-        $cmd = 'mv ' . $logfile . '.' . ($i - 1) . '.gz ' . $logfile . '.' . $i . '.gz';
-        $DEBUG .= $cmd . "\n" if ($debug > 3);
-        cmd( $cmd );
-      }
+    if($files->{GZIP}) {
+      $GZIP=$files->{GZIP};
     }
 
-    $cmd = "$GZIP -c " . $logfile . ' > ' . $logfile . '.1.gz && >' . $logfile;
-    $DEBUG .= $cmd . "\n" if ($debug > 3);
-    cmd( $cmd );
+    my $rotate_dir = ($var_dir) ? $var_dir .'/log/' : '/usr/abills/var/log/';
+
+    my @logs_list = glob $rotate_dir .'/*.log';
+    push @logs_list, $rotate_dir . '/sql_errors';
+    foreach my $logfile (@logs_list) {
+      print "Rotate $logfile\n" if ($debug);
+      my $cmd = '';
+      for ( my $i = $rotate_level; $i > 0; $i-- ){
+        if ( -f $logfile . '.' . ($i - 1) . '.gz' ){
+          $cmd = 'mv ' . $logfile . '.' . ($i - 1) . '.gz ' . $logfile . '.' . $i . '.gz';
+          print $cmd . "\n" if ($debug > 3);
+          cmd( $cmd );
+        }
+      }
+
+      $cmd = "$GZIP -c " . $logfile . ' > ' . $logfile . '.1.gz && >' . $logfile;
+      print $cmd . "\n" if ($debug > 3);
+      cmd( $cmd );
+    }
   }
 
   #Bruteforce clear
@@ -970,10 +995,11 @@ sub logrotate{
   $DEBUG .= "Brute force log cleaned\n" if ($debug > 1);
 
   # Clean old backups
-  my $db_backup_days = $conf{PERIODIC_DBBACKUP_DAYS} || 30;
-  cmd( "find $conf{BACKUP_DIR} -type f -mtime +$db_backup_days -delete" );
-
-  $DEBUG .= "Clean mysql old backups\n" if ($debug > 1);
+  if ($conf{BACKUP_DIR}) {
+    my $db_backup_days = $conf{PERIODIC_DBBACKUP_DAYS} || 30;
+    cmd("find $conf{BACKUP_DIR} -name '*.gz' -type f -mtime +$db_backup_days -delete");
+    $DEBUG .= "Clean mysql old backups ($db_backup_days)\n" if ($debug > 1);
+  }
 
   return 1;
 }
@@ -1003,10 +1029,14 @@ sub backup{
   }
 
   $admin->query( "SHOW TABLE STATUS" );
-  my @ignore_tables_arr =
-    ("--ignore-table=\"$conf{dbname}.ipn_traf_detail\"", "--ignore-table=\"$conf{dbname}.s_detail\"",
-      "--ignore-table=\"$conf{dbname}.ipn_log_backup\"", "--ignore-table=\"$conf{dbname}.ipn_unknow_ips\"",
-      "--ignore-table=\"$conf{dbname}.errors_log\"", "--ignore-table=\"$conf{dbname}.dhcphosts_log\"");
+  my @ignore_tables_arr = (
+    "--ignore-table=\"$conf{dbname}.ipn_traf_detail\"",
+    "--ignore-table=\"$conf{dbname}.s_detail\"",
+    "--ignore-table=\"$conf{dbname}.ipn_log_backup\"",
+    "--ignore-table=\"$conf{dbname}.ipn_unknow_ips\"",
+    "--ignore-table=\"$conf{dbname}.errors_log\"",
+    "--ignore-table=\"$conf{dbname}.dv_log\""
+  );
 
   my @tables = ();
   foreach my $table ( @{ $admin->{list} } ){
@@ -1207,45 +1237,60 @@ sub credit_full_set{
   if ( !$argv->{COMPANY_ID} ){
     #set credit for individual users
     $users->{debug} = 1 if ($debug > 6);
-    my $list = $users->list(
-      {
-        CREDIT     => '_SHOW',
-        DEPOSIT    => '_SHOW',
-        DISABLE    => 0,
-        COMPANY_ID => 0,
-        DELETED    => 0,
-        %LIST_PARAMS,
-        PAGE_ROWS  => 1000000,
-        COLS_NAME  => 1,
-      }
-    );
+    my $list = $users->list({
+      CREDIT     => '_SHOW',
+      DEPOSIT    => '_SHOW',
+      TRDUCTION  => '_SHOW',
+      DISABLE    => 0,
+      COMPANY_ID => 0,
+      DELETED    => 0,
+      %LIST_PARAMS,
+      PAGE_ROWS  => 1000000,
+      COLS_NAME  => 1,
+    });
 
-    foreach my $line ( @{$list} ){
-      my $credit = $line->{credit} || 0;
-      my $uid = $line->{uid};
+    foreach my $u ( @{$list} ){
+      my $credit = $u->{credit} || 0;
+      my $uid = $u->{uid};
+      my $full_sum = 0;
+      my %user_info = (
+        UID       => $uid,
+        REDUCTION => $u->{reduction}
+      );
 
-      $DEBUG .= "$line->{login} UID: $uid\n" if ($debug > 0);
-      my $cross_modules_return = cross_modules('docs', {
-        UID           => $uid,
-        SKIP_MODULES  => 'Docs,Sqlcmd,Multidoms,Bsr1000',
-        DEBUG         => ($debug > 3) ? 1 : undef,
+      $DEBUG .= "$u->{login} UID: $uid\n" if ($debug > 0);
+      # my $cross_modules_return = cross_modules('docs', {
+      #   UID           => $uid,
+      #   SKIP_MODULES  => 'Docs,Sqlcmd,Multidoms,Bsr1000',
+      #   DEBUG         => ($debug > 3) ? 1 : undef,
+      # });
+
+      # foreach my $module ( sort keys %{$cross_modules_return} ){
+      #   if ( ref $cross_modules_return->{$module} eq 'ARRAY' ){
+      #     next if ( $#{ $cross_modules_return->{$module} } == -1 );
+      #
+      #     foreach my $service_info ( @{ $cross_modules_return->{$module} } ){
+      #       my (undef, undef, $sum) = split( /\|/, $service_info );
+      #       next if !$sum;
+      #
+      #       if($debug > 5) {
+      #         print "$module: $sum\n";
+      #       }
+      #
+      #       $full_sum += $sum;
+      #     }
+      #   }
+      # }
+
+      my $services = ::get_services(\%user_info, {
+        IPTV_SHOW_FREE_TPS     => 1,
+        IPTV_SHOW_ALL_SERVICES => 1,
+        SKIP_MODULES           => 'Docs,Sqlcmd,Multidoms,Bsr1000,Paysys'
       });
 
-      my $full_sum = 0;
-      foreach my $module ( sort keys %{$cross_modules_return} ){
-        if ( ref $cross_modules_return->{$module} eq 'ARRAY' ){
-          next if ( $#{ $cross_modules_return->{$module} } == -1 );
-
-          foreach my $service_info ( @{ $cross_modules_return->{$module} } ){
-            my (undef, undef, $sum) = split( /\|/, $service_info );
-            next if !$sum;
-
-            if($debug > 5) {
-              print "$module: $sum\n";
-            }
-
-            $full_sum += $sum;
-          }
+      if ($services->{list}) {
+        foreach my $service (sort @{$services->{list}}) {
+          $full_sum += $service->{SUM};
         }
       }
 
@@ -1262,17 +1307,15 @@ sub credit_full_set{
 
   #set credit for company users
   $Company->{debug} = 1 if ($debug > 6);
-  my $company_list = $Company->list(
-    {
-      DISABLE    => 0,
-      CREDIT     => '_SHOW',
-      DELETED    => 0,
-      %LIST_PARAMS,
-      PAGE_ROWS  => 1000000,
-      COMPANY_ID => (defined( $argv->{COMPANY_ID} )) ? $argv->{COMPANY_ID} : undef,
-      COLS_NAME  => 1,
-    }
-  );
+  my $company_list = $Company->list({
+    DISABLE    => 0,
+    CREDIT     => '_SHOW',
+    DELETED    => 0,
+    %LIST_PARAMS,
+    PAGE_ROWS  => 1000000,
+    COMPANY_ID => (defined( $argv->{COMPANY_ID} )) ? $argv->{COMPANY_ID} : undef,
+    COLS_NAME  => 1,
+  });
 
   foreach my $c ( @{$company_list} ){
     my $credit = $c->{credit};
@@ -1280,43 +1323,59 @@ sub credit_full_set{
 
     $DEBUG .= "Company: $c->{name} ID: $company_id\n" if ($debug > 0);
     #Get users
-    my $users_list = $users->list(
-      {
-        COMPANY_ID => $company_id,
-        DISABLE    => 0,
-        CREDIT     => '_SHOW',
-        DEPOSIT    => '_SHOW',
-        DELETED    => 0,
-        COLS_NAME  => 1,
-        %LIST_PARAMS,
-        PAGE_ROWS  => 100000,
-      }
-    );
+    my $users_list = $users->list({
+      COMPANY_ID => $company_id,
+      DISABLE    => 0,
+      CREDIT     => '_SHOW',
+      DEPOSIT    => '_SHOW',
+      DELETED    => 0,
+      COLS_NAME  => 1,
+      %LIST_PARAMS,
+      PAGE_ROWS  => 100000,
+    });
 
     my $full_sum = 0;
     foreach my $u ( @{$users_list} ){
       #my $credit = $u->{credit};
       my $uid = $u->{uid};
 
-      $DEBUG .= "  $u->{login} UID: $uid" if ($debug > 0);
-      my $cross_modules_return = cross_modules('docs', {
-        UID          => $uid,
-        SKIP_MODULES => 'Docs,Sqlcmd,Multidoms,Bsr1000',
-        DEBUG        => ($debug > 3) ? 1 : undef
+      my %user_info = (
+        UID       => $uid,
+        REDUCTION => $u->{reduction}
+      );
+
+      # $DEBUG .= "  $u->{login} UID: $uid" if ($debug > 0);
+      # my $cross_modules_return = cross_modules('docs', {
+      #   UID          => $uid,
+      #   SKIP_MODULES => 'Docs,Sqlcmd,Multidoms,Bsr1000',
+      #   DEBUG        => ($debug > 3) ? 1 : undef
+      # });
+      #
+      # foreach my $module ( sort keys %{$cross_modules_return} ){
+      #   if ( ref $cross_modules_return->{$module} eq 'ARRAY' ){
+      #     next if ( $#{ $cross_modules_return->{$module} } == -1 );
+      #     foreach my $service_info ( @{ $cross_modules_return->{$module} } ){
+      #       #($name, $describe, $sum)
+      #       my $sum = (split( /\|/, $service_info ))[2];
+      #       next if !$sum;
+      #
+      #       $full_sum += $sum;
+      #     }
+      #   }
+      # }
+
+      my $services = ::get_services(\%user_info, {
+        IPTV_SHOW_FREE_TPS     => 1,
+        IPTV_SHOW_ALL_SERVICES => 1,
+        SKIP_MODULES           => 'Docs,Sqlcmd,Multidoms,Bsr1000,Paysys'
       });
 
-      foreach my $module ( sort keys %{$cross_modules_return} ){
-        if ( ref $cross_modules_return->{$module} eq 'ARRAY' ){
-          next if ( $#{ $cross_modules_return->{$module} } == -1 );
-          foreach my $service_info ( @{ $cross_modules_return->{$module} } ){
-            #($name, $describe, $sum)
-            my $sum = (split( /\|/, $service_info ))[2];
-            next if !$sum;
-
-            $full_sum += $sum;
-          }
+      if ($services->{list}) {
+        foreach my $service (sort @{$services->{list}}) {
+          $full_sum += $service->{SUM};
         }
       }
+
       $DEBUG .= " SUM: $full_sum EXPIRE:". ($CREDIT_EXPIRE_DATE || q{}) ."\n" if ($debug > 0);
     }
 
@@ -1664,42 +1723,6 @@ sub restore_by_table {
   }
 
   return 1;
-}
-
-#*******************************************************************
-=head2 rotate_logs()
-
-=cut
-#*******************************************************************
-sub rotate_logs {
-  my $rotate_level = 5;
-
-  my $files = startup_files({ TPL_DIR => $conf{TPL_DIR} });
-
-  if($files->{GZIP}) {
-    $GZIP=$files->{GZIP};
-  }
-
-  my $rotate_dir = ($var_dir) ? $var_dir .'/log/' : '/usr/abills/var/log/';
-
-  my @logs_list = glob $rotate_dir .'/*.log';
-  foreach my $logfile (@logs_list) {
-    print "Rotate $logfile\n" if ($debug);
-    my $cmd = '';
-    for ( my $i = $rotate_level; $i > 0; $i-- ){
-      if ( -f $logfile . '.' . ($i - 1) . '.gz' ){
-        $cmd = 'mv ' . $logfile . '.' . ($i - 1) . '.gz ' . $logfile . '.' . $i . '.gz';
-        print $cmd . "\n" if ($debug > 3);
-        cmd( $cmd );
-      }
-    }
-
-    $cmd = "$GZIP -c " . $logfile . ' > ' . $logfile . '.1.gz && >' . $logfile;
-    print $cmd . "\n" if ($debug > 3);
-    cmd( $cmd );
-  }
-
-  exit;
 }
 
 #*******************************************************************

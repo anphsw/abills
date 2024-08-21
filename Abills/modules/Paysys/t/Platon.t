@@ -6,7 +6,6 @@ use Test::More;
 use lib '.';
 use lib '../../';
 use Paysys::t::Init_t;
-require Paysys::systems::Platon;
 
 our (
   %conf,
@@ -19,7 +18,15 @@ our (
   $argv
 );
 
-my $Payment_plugin = Paysys::systems::Platon->new($db, $admin, \%conf);
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::systems::Platon;
+  $Payment_plugin = Paysys::systems::Platon->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::Platon;
+  $Payment_plugin = Paysys::Plugins::Platon->new($db, $admin, \%conf);
+}
 $payment_id = int(rand(10000));
 $user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 

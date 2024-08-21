@@ -161,9 +161,9 @@
     }
 
     jQuery('#ADD_LOCATION_ID').attr('value', item);
-    // setTimeout(function () {
-    //   jQuery('.INPUT-FLAT').focus();
-    // }, 100);
+    setTimeout(function () {
+      jQuery('.INPUT-FLAT').focus();
+    }, 100);
     jQuery('#ADDRESS_FLAT.INPUT-FLAT').trigger('input');
   }
 

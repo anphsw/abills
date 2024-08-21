@@ -257,6 +257,7 @@ sub cards_add {
      });
   }
 
+  $self->{admin}->{MODULE} = 'Cards';
   $admin->action_add($attr->{UID}, "ADDED $self->{TOTAL} cards, $self->{SERIAL}", { TYPE => 1 });
 
   $self->{CARD_ID} = $self->{INSERT_ID};
@@ -319,7 +320,8 @@ sub cards_change {
       }
     );
 
-    $admin->action_add($attr->{UID}, "USE id:$attr->{IDS}, STATUS:$attr->{STATUS}, $action_info",{ TYPE=>2 });
+    $self->{admin}->{MODULE} = 'Cards';
+    $admin->action_add($attr->{UID}, "USE id:$attr->{IDS}, STATUS:$attr->{STATUS}, $action_info", { TYPE => 2 });
     return $self;
   }
   elsif ($attr->{IDS} && $attr->{SOLD}) {
@@ -329,7 +331,8 @@ sub cards_change {
        WHERE diller_id='$attr->{DILLER_ID}' AND $WHERE; ", 'do'
     );
 
-    $admin->action_add($attr->{UID}, "SOLD $action_info", { TYPE=>2 });
+    $self->{admin}->{MODULE} = 'Cards';
+    $admin->action_add($attr->{UID}, "SOLD $action_info", { TYPE => 2 });
 
     return $self;
   }
@@ -348,7 +351,8 @@ sub cards_change {
       $self->query("DELETE FROM cards_users
           WHERE domain_id='$admin->{DOMAIN_ID}' AND $WHERE; ", 'do'
       );
-      $admin->action_add(0, "DELETE $action_info",{ TYPE=>10 });
+      $self->{admin}->{MODULE} = 'Cards';
+      $admin->action_add(0, "DELETE $action_info", { TYPE => 10 });
       return $self;
     }
 
@@ -367,7 +371,8 @@ sub cards_change {
        WHERE domain_id='$admin->{DOMAIN_ID}' AND $WHERE; ", 'do'
     );
 
-    $admin->action_add(0, "STATUS: $attr->{STATUS}, $action_info",{ TYPE=>2 });
+    $self->{admin}->{MODULE} = 'Cards';
+    $admin->action_add(0, "STATUS: $attr->{STATUS}, $action_info", { TYPE=>2 });
 
     return $self;
   }
@@ -379,6 +384,7 @@ sub cards_change {
       WHERE domain_id='$admin->{DOMAIN_ID}' AND $WHERE; ", 'do'
     );
 
+    $self->{admin}->{MODULE} = 'Cards';
     $admin->action_add(0, "DILLER ADD $attr->{DILLER_ID} $action_info", { TYPE=>1 });
 
     return $self;
@@ -461,8 +467,10 @@ sub cards_del {
     $self->query("DELETE from cards_users WHERE $WHERE;", 'do');
   }
 
-  $admin->action_add($uid, "DELETE $attr->{SERIA}/$attr->{NUMBER}", { TYPE=>10 });
-  return $self->{result};
+  $self->{admin}->{MODULE} = 'Cards';
+  $admin->action_add($uid, "DELETE $attr->{SERIA}/$attr->{NUMBER}", { TYPE => 10 });
+
+  return $self;
 }
 
 #**********************************************************
@@ -787,8 +795,8 @@ sub cards_report_dillers {
      undef, $attr
     );
 
-    return $self if ($self->{errno});
-    $list = $self->{list};
+    return [] if ($self->{errno});
+    $list = $self->{list} || [];
 
     $self->query("SELECT
        SUM(IF(c.status=0, 1, 0)) as enable_total,
@@ -851,8 +859,8 @@ sub cards_report_dillers {
      undef, $attr
     );
 
-    return $self if ($self->{errno});
-    $list = $self->{list};
+    return [] if ($self->{errno});
+    $list = $self->{list} || [];
 
     $self->query("SELECT
        SUM(IF(c.status=0, 1, 0)) AS ENABLE_TOTAL,
@@ -881,7 +889,7 @@ sub cards_report_dillers {
     );
   }
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
@@ -932,7 +940,7 @@ sub cards_report_days {
    GROUP BY 1;", undef, $attr
     );
 
-    return $self->{list};
+    return $self->{list} || [];
   }
 
   if ($attr->{DILLER_ID}) {
@@ -992,7 +1000,7 @@ from cards_users c
 GROUP BY 1;"
   );
 
-  return $self if ($self->{errno});
+  return {} if ($self->{errno});
 
   foreach my $line (@{ $self->{list} }) {
     $RESULT{ $line->[0] }{ENABLE}     = $line->[1];
@@ -1036,7 +1044,7 @@ from cards_users c
 GROUP BY 1;"
   );
 
-  return $self if ($self->{errno});
+  return {} if ($self->{errno});
 
   foreach my $line (@{ $self->{list} }) {
     $RESULT{ $line->[0] }{DILLERS}     = $line->[1];
@@ -1151,8 +1159,8 @@ sub cards_report_payments {
    $attr
   );
 
-  return $self if ($self->{errno});
-  my $list = $self->{list};
+  return [] if ($self->{errno});
+  my $list = $self->{list} || [];
 
   $self->query("SELECT COUNT(p.id) AS total, SUM(p.sum) AS TOTAL_SUM
   FROM payments p
@@ -1163,7 +1171,7 @@ sub cards_report_payments {
     undef, { INFO => 1 }
   );
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
@@ -1237,8 +1245,8 @@ sub cards_report_seria {
      $attr
   );
 
-  return $self if ($self->{errno});
-  my $list = $self->{list};
+  return [] if ($self->{errno});
+  my $list = $self->{list} || [];
 
   $self->query("SELECT
        SUM(IF{c.status=0, 1, 0)) AS ENABLE_TOTAL,
@@ -1264,7 +1272,7 @@ sub cards_report_seria {
     { INFO => 1 }
   );
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
@@ -1358,7 +1366,7 @@ sub bruteforce_list {
     undef, { INFO => 1 }
   );
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
@@ -1440,11 +1448,11 @@ sub cards_gids_change {
     $self->query("INSERT INTO cards_gids (gid, serial) VALUES ('$gid', '$serial');", 'do');
   }
 
-  $admin->action_add($uid, "CARDS_GIDS $serial,", { TYPE=>2 });
+  $self->{admin}->{MODULE} = 'Cards';
+  $admin->action_add($uid, "CARDS_GIDS $serial,", { TYPE => 2 });
 
   return $self;
 }
-
 
 #**********************************************************
 =head2 cards_gids_change($attr)
@@ -1472,4 +1480,4 @@ sub cards_gids_list {
   return $list;
 }
 
-1
+1;

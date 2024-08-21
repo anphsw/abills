@@ -265,15 +265,11 @@ sub password_reset {
     errstr_lng => $lang{ERR_WRONG_DATA}
   } if (!$attr->{PASSWORD} || !$attr->{CODE});
 
-  $conf{PASSWD_LENGTH} //= 6;
-
   return {
     errno      => 10027,
     errstr     => "Length of password not valid minimum $conf{PASSWD_LENGTH}",
     errstr_lng => "$lang{ERR_SHORT_PASSWD} $conf{PASSWD_LENGTH}",
   } if ($conf{PASSWD_LENGTH} && $conf{PASSWD_LENGTH} > length($attr->{PASSWORD}));
-
-  $conf{PASSWD_SYMBOLS} //= 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ';
 
   return {
     errno      => 10028,
@@ -328,7 +324,7 @@ sub password_reset {
 
   if ($users_info->[0]->{email}) {
     my ($email) = split(/:/, $users_info->[0]->{email});
-    my $message = $html->tpl_show(::templates('email_password_recovery'), {
+    my $message = $html->tpl_show(::templates('email_user_password_recovery'), {
       %$Users, %$attr,
     }, { OUTPUT2RETURN => 1 });
 
@@ -344,8 +340,8 @@ sub password_reset {
   }
   else {
     my ($phone) = split(/:/, $users_info->[0]->{phone});
-    my $message = $html->tpl_show(::templates('sms_password_recovery'), {
-      %$Users, %$attr,
+    my $message = $html->tpl_show(::_include('sms_user_password_recovery', 'Sms'), {
+      %$Users, %$attr
     }, { OUTPUT2RETURN => 1 });
 
     $Sender->send_message({
@@ -702,15 +698,11 @@ sub _registration_validation {
       errstr_lng => "$lang{ERR_WRONG_DATA} $lang{PASSWD}",
     } if (!$attr->{PASSWORD});
 
-    $conf{PASSWD_LENGTH} //= 6;
-
     return {
       errno      => 10206,
       errstr     => "Length of password not valid minimum $conf{PASSWD_LENGTH}",
       errstr_lng => "$lang{ERR_SYMBOLS_PASSWD} $lang{MIN} $conf{PASSWD_LENGTH}",
     } if ($conf{PASSWD_LENGTH} && $conf{PASSWD_LENGTH} > length($attr->{PASSWORD}));
-
-    $conf{PASSWD_SYMBOLS} //= 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ';
 
     return {
       errno      => 10207,
@@ -722,7 +714,7 @@ sub _registration_validation {
   }
 
   if (!$password) {
-    $password = mk_unique_value($conf{PASSWD_LENGTH} || 6, { SYMBOLS => $conf{PASSWD_SYMBOLS} || undef });
+    $password = mk_unique_value($conf{PASSWD_LENGTH}, { SYMBOLS => $conf{PASSWD_SYMBOLS} });
   }
 
   if ($conf{REGISTRATION_VERIFY_PHONE} || $conf{REGISTRATION_VERIFY_EMAIL}) {
@@ -806,7 +798,7 @@ sub _social_registration {
       };
     }
     else {
-      my $password = mk_unique_value($conf{PASSWD_LENGTH} || 6, { SYMBOLS => $conf{PASSWD_SYMBOLS} || undef });
+      my $password = mk_unique_value($conf{PASSWD_LENGTH}, { SYMBOLS => $conf{PASSWD_SYMBOLS} });
       my $login = q{};
 
       $conf{USERNAMEREGEXP} //= "^[a-z0-9_][a-z0-9_-]*\$";

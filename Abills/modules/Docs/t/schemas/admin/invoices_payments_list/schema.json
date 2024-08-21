@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "integer"
+          },
+          "date": {
+            "type": "string"
+          },
+          "dsc": {
+            "type": "string"
+          },
+          "invoiceId": {
+            "type": ["string", "integer"]
+          },
+          "invoiceNum": {
+            "type": ["string", "integer"]
+          },
+          "invoicedSum": {
+            "type": ["string", "number"]
+          },
+          "paymentId": {
+            "type": "integer"
+          },
+          "paymentSum": {
+            "type": "integer"
+          },
+          "uid": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "amount",
+          "date",
+          "dsc",
+          "paymentId",
+          "paymentSum",
+          "uid"
+        ]
+      }
+    },
+    "total": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "list",
+    "total"
+  ]
+}

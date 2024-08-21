@@ -199,7 +199,11 @@ sub pi_add {
     }
   }
 
-  $self->info_field_attach_add($attr);
+  require Info_fields;
+  Info_fields->import();
+  my $Info_fields = Info_fields->new($self->{db}, $self->{admin}, $self->{conf});
+  $Info_fields->info_field_attach_add($attr);
+
   $attr->{CONTRACT_SUFIX} = $attr->{CONTRACT_TYPE};
 
   if ($attr->{CONTRACT_TYPE}) {
@@ -433,7 +437,11 @@ sub pi_change {
   }
 
   if (!$attr->{SKIP_INFO_FIELDS}) {
-    $self->info_field_attach_add($attr);
+
+    require Info_fields;
+    Info_fields->import();
+    my $Info_fields = Info_fields->new($self->{db}, $self->{admin}, $self->{conf});
+    $Info_fields->info_field_attach_add($attr);
     if($self->{errno}) {
       return $self;
     }
@@ -556,6 +564,7 @@ sub groups_list {
       ['SMS_SERVICE',      'STR', 'g.sms_service',               1 ],
       ['DOCUMENTS_ACCESS', 'INT', 'g.documents_access',          1 ],
       ['DISABLE_ACCESS',   'INT', 'g.disable_access',            1 ],
+      ['SEPARATE_DOCS',    'INT', 'g.separate_docs',             1 ],
   ],
     { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
   );
@@ -607,14 +616,14 @@ sub group_change {
   my $self = shift;
   my ($gid, $attr) = @_;
 
-  $attr->{SEPARATE_DOCS} = $attr->{SEPARATE_DOCS} ? 1 : 0;
-  $attr->{ALLOW_CREDIT} = $attr->{ALLOW_CREDIT} ? 1 : 0;
-  $attr->{DISABLE_PAYSYS} = $attr->{DISABLE_PAYSYS} ? 1 : 0;
-  $attr->{DISABLE_PAYMENTS} = $attr->{DISABLE_PAYMENTS} ? 1 : 0;
-  $attr->{DISABLE_CHG_TP} = $attr->{DISABLE_CHG_TP} ? 1 : 0;
-  $attr->{BONUS} = $attr->{BONUS} ? 1 : 0;
-  $attr->{DOCUMENTS_ACCESS} = $attr->{DOCUMENTS_ACCESS} ? 1 : 0;
-  $attr->{DISABLE_ACCESS} = $attr->{DISABLE_ACCESS} ? 1 : 0;
+  $attr->{SEPARATE_DOCS} = 1 if $attr->{SEPARATE_DOCS};
+  $attr->{ALLOW_CREDIT} = 1 if $attr->{ALLOW_CREDIT};
+  $attr->{DISABLE_PAYSYS} = 1 if $attr->{DISABLE_PAYSYS};
+  $attr->{DISABLE_PAYMENTS} = 1 if $attr->{DISABLE_PAYMENTS};
+  $attr->{DISABLE_CHG_TP} = 1 if $attr->{DISABLE_CHG_TP};
+  $attr->{BONUS} = 1 if $attr->{BONUS};
+  $attr->{DOCUMENTS_ACCESS} = 1 if $attr->{DOCUMENTS_ACCESS};
+  $attr->{DISABLE_ACCESS} = 1 if $attr->{DISABLE_ACCESS};
 
   $attr->{GID} = $gid;
 
@@ -693,6 +702,10 @@ sub list {
   if ($attr->{TAGS} && $attr->{TAGS} eq '!') {
     push @WHERE_RULES, "u.uid NOT IN (SELECT uid FROM tags_users)";
     delete ($attr->{TAGS});
+  }
+  elsif ($attr->{TAGS} && $attr->{TAGS} ne '_SHOW' && $attr->{TAG_SEARCH_VAL} && $attr->{TAG_SEARCH_VAL} == 2) {
+    push @WHERE_RULES, "u.uid NOT IN (SELECT tu.uid FROM tags_users tu WHERE tu.tag_id IN ($attr->{TAGS}))";
+    $attr->{TAGS} = '_SHOW';
   }
 
   my @ext_fields = (
@@ -1042,6 +1055,14 @@ sub list {
     }
   }
 
+  if ($attr->{CREATED_ADMIN}) {
+    $self->{SEARCH_FIELDS} .= ' a.name AS created_admin,';
+    $EXT_TABLES .= 'LEFT JOIN `admin_actions` aa ON (u.uid=aa.uid AND aa.action_type=7)
+    LEFT JOIN `admins` a ON (aa.aid=a.aid)';
+    $GROUP_BY = 'GROUP BY u.id';
+    $self->{SEARCH_FIELDS_COUNT}++;
+  }
+
   $self->query("SELECT u.id AS login,
       $self->{SEARCH_FIELDS}
       u.uid
@@ -1355,7 +1376,8 @@ sub del {
       'web_users_sessions',
       'users_contacts',
       'users_registration_pin',
-      'users_phone_pin'
+      'users_phone_pin',
+      'companie_admins'
     );
 
     $self->{info} = '';
@@ -1633,6 +1655,8 @@ sub web_session_update {
       REMOTE_ADDR
       SID
       EXT_INFO
+      COORDX
+      COORDY
 
   Returns:
     Object
@@ -1704,6 +1728,10 @@ sub web_session_info {
   elsif ($attr->{UID}) {
     $WHERE = "WHERE uid= ? ";
     @request_arr = ($attr->{UID});
+  }
+  elsif ($attr->{IP}) {
+    $WHERE = 'WHERE remote_addr = INET_ATON(?) AND UNIX_TIMESTAMP() - datetime < '. ( $CONF->{web_session_timeout} || 86000 ) .';';
+    @request_arr = ($attr->{IP});
   }
   else {
     $self->{errno}  = 2;
@@ -1819,6 +1847,7 @@ sub web_session_del {
 
 =cut
 #**********************************************************
+#@deprecated migrate to web_session_info
 sub web_session_find {
   my ($self, $sid) = @_;
 
@@ -1908,223 +1937,6 @@ sub info_field_attach_add {
   }
 
   return $attr;
-}
-
-
-#**********************************************************
-=head2 info_field_add($attr) - Infofields add
-  Arguments:
-    $attr
-      FIELD_ID
-      FIELD_TYPE
-      COMPANY_ADD
-      CAN_BE_CHANGED_BY_USER
-      USERS_PORTAL
-
-  Returns:
-    $self
-=cut
-#**********************************************************
-sub info_field_add {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my @column_types = (
-    " varchar(120) not null default ''",
-    " int(11) NOT NULL default '0'",
-    " smallint unsigned NOT NULL default '0' ",
-    " text not null ",
-    " tinyint(11) NOT NULL default '0' ",
-    " content longblob NOT NULL",
-    " varchar(100) not null default ''",
-    " int(11) unsigned NOT NULL default '0'",
-    " varchar(12) not null default ''",
-    " varchar(120) not null default ''",
-    " varchar(20) not null default ''",
-    " varchar(50) not null default ''",
-    " varchar(50) not null default ''",
-    " int unsigned NOT NULL default '0' ",
-    " INT(11) UNSIGNED NOT NULL DEFAULT '0' REFERENCES users(uid) ",
-    " varchar(120) not null default ''",
-    " varchar(120) not null default ''",
-    " varchar(120) not null default ''",
-    " varchar(120) not null default ''",
-    " tinyint(2) not null default '0' ",
-    " DATE not null default '0000-00-00' ",
-  );
-
-  $attr->{FIELD_TYPE} = 0 if (!$attr->{FIELD_TYPE});
-
-  my $column_type  = $column_types[ $attr->{FIELD_TYPE} ] || " varchar(120) not null default ''";
-  my $field_prefix = 'ifu';
-
-  #Add field to table
-  if ($attr->{COMPANY_ADD}) {
-    $field_prefix = 'ifc';
-    $self->query('ALTER TABLE companies ADD COLUMN ' .'_'. $attr->{FIELD_ID} . " $column_type;", 'do');
-  }
-  else {
-    $self->query('ALTER TABLE users_pi ADD COLUMN ' .'_' . $attr->{FIELD_ID} . " $column_type;", 'do');
-  }
-
-  if (!$self->{errno} || ($self->{errno} && $self->{errno} == 3)) {
-    if ($attr->{FIELD_TYPE} == 2) {
-      $self->query("CREATE TABLE _$attr->{FIELD_ID}_list (
-        id smallint unsigned NOT NULL primary key auto_increment,
-        name varchar(120) not null default 0
-        )DEFAULT CHARSET=$self->{conf}->{dbcharset};", 'do'
-      );
-    }
-    elsif ($attr->{FIELD_TYPE} == 13) {
-      $self->query("CREATE TABLE `_$attr->{FIELD_ID}_file` (`id` int(11) unsigned NOT NULL PRIMARY KEY auto_increment,
-          `filename` varchar(250) not null default '',
-          `content_size` varchar(30) not null  default '',
-          `content_type` varchar(250) not null default '',
-          `content` longblob NOT NULL,
-          `create_time` datetime NOT NULL default '0000-00-00 00:00:00') DEFAULT CHARSET=$self->{conf}->{dbcharset};", 'do'
-      );
-    }
-
-    my $Conf = Conf->new($self->{db}, $admin, $self->{conf});
-
-    $Conf->config_add(
-      {
-        PARAM     => $field_prefix . "_$attr->{FIELD_ID}",
-        VALUE     => "$attr->{POSITION}:$attr->{FIELD_TYPE}:$attr->{NAME}:$attr->{USERS_PORTAL}:$attr->{CAN_BE_CHANGED_BY_USER}",
-        DOMAIN_ID => $admin->{DOMAIN_ID} || 0
-      }
-    );
-  }
-
-
-  $admin->system_action_add("IF:_$attr->{FIELD_ID}:$attr->{NAME}", { TYPE => 1 });
-
-  return $self;
-}
-
-#**********************************************************
-=head2 info_field_del($attr)
-
-  Arguments:
-    $attr
-      FIELD_ID
-      SECTION
-  Returns:
-    Object
-
-=cut
-#**********************************************************
-sub info_field_del {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $sql = '';
-  if ($attr->{SECTION} eq 'ifc') {
-    $sql = "ALTER TABLE companies DROP COLUMN `$attr->{FIELD_ID}`;";
-  }
-  else {
-    $sql = "ALTER TABLE users_pi DROP COLUMN `$attr->{FIELD_ID}`;";
-  }
-
-  $self->query($sql, 'do');
-
-  if (!$self->{errno} || $self->{errno} == 3) {
-    my $Conf = Conf->new($self->{db}, $admin, $self->{conf});
-
-    $Conf->config_del("$attr->{SECTION}$attr->{FIELD_ID}");
-    $admin->system_action_add("IF:_$attr->{FIELD_ID}", { TYPE => 10 });
-  }
-
-  return $self;
-}
-
-#**********************************************************
-=head2 info_list_add($attr)
-
-=cut
-#**********************************************************
-sub info_list_add {
-  my $self = shift;
-  my ($attr) = @_;
-
-  if(! $attr->{LIST_TABLE}) {
-    $self->{errno}=100;
-    $self->{errstr}='NO list table';
-    return $self;
-  }
-
-  $self->query_add($attr->{LIST_TABLE}, $attr);
-
-  return $self;
-}
-
-#**********************************************************
-=head2 info_list_del($attr) - Info list del value
-
-=cut
-#**********************************************************
-sub info_list_del {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query_del($attr->{LIST_TABLE}, $attr);
-
-  return $self;
-}
-
-#**********************************************************
-=head2 info_lists_list($attr)
-
-=cut
-#**********************************************************
-sub info_lists_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $self->query("SELECT id, name FROM `$attr->{LIST_TABLE}` ORDER BY name;",
-  undef,
-  $attr);
-
-  return $self->{list} || [];
-}
-
-#**********************************************************
-=head2 info_list_info($id, $attr)
-
-=cut
-#**********************************************************
-sub info_list_info {
-  my $self = shift;
-  my ($id, $attr) = @_;
-
-  $self->query("SELECT id, name FROM `$attr->{LIST_TABLE}` WHERE id= ? ;",
-    undef,
-    { INFO => 1,
-      Bind => [ $id ]
-    }
-  );
-
-  return $self;
-}
-
-#**********************************************************
-=head2 info_list_change($id, $attr)
-
-=cut
-#**********************************************************
-sub info_list_change {
-  my $self = shift;
-  my (undef, $attr) = @_;
-
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => $attr->{LIST_TABLE},
-      DATA         => $attr
-    }
-  );
-
-  return $self->{result};
 }
 
 #**********************************************************
@@ -2221,7 +2033,14 @@ sub contacts_migrate {
 
   if ($attr->{IGNORE_DUPLICATE}){
     $self->query("ALTER TABLE users_contacts DROP KEY `_type_value`;");
-    return 0 if ($self->{errno});
+    if ($self->{errno}) {
+      if ($self->{errno} == 1091) {
+
+      }
+      else {
+        return 0;
+      }
+    }
   };
 
   my %old_type_to_new = (
@@ -2229,6 +2048,7 @@ sub contacts_migrate {
     PHONE => 2
   );
 
+  $self->query("SET FOREIGN_KEY_CHECKS=0;", 'do');
   $self->query("SELECT u.uid, up.phone, up.email
     FROM users u
     LEFT JOIN users_pi up ON (u.uid=up.uid)
@@ -2264,7 +2084,7 @@ sub contacts_migrate {
   $db_->{AutoCommit} = 0;
 
   # Add all contacts
-  $self->query( "INSERT INTO users_contacts (uid, type_id, value) VALUES (?, ?, ?);",
+  $self->query( "REPLACE INTO users_contacts (uid, type_id, value) VALUES (?, ?, ?);",
     undef,
     { MULTI_QUERY => \@contacts_to_add }
   );
@@ -2403,6 +2223,9 @@ sub contracts_add {
     $self->contracts_info($self->{INSERT_ID});
   }
 
+  $admin->{MODULE} = 'Docs';
+  $admin->action_add($attr->{UID}, "Contract: $attr->{NAME}, №$attr->{NUMBER}, $attr->{DATE}", { TYPE => 1 });
+
   return $self;
 }
 
@@ -2427,6 +2250,14 @@ sub contracts_change {
     $self->contracts_info($id);
   }
 
+  $admin->{MODULE} = 'Docs';
+  if ($attr->{SIGNATURE}){
+    $admin->action_add($attr->{UID}, "Contract signed: $self->{NAME}, №$self->{NUMBER}, $self->{DATE}", { TYPE => 2 });
+  }
+  else {
+    $admin->action_add($attr->{UID}, "Contract: $self->{NAME}, №$self->{NUMBER}, $self->{DATE}", { TYPE => 2 });
+  }
+
   return $self;
 }
 
@@ -2440,6 +2271,10 @@ sub contracts_del {
   my ($attr) = @_;
 
   $self->query_del('users_contracts', $attr);
+
+  $self->contracts_info($attr->{ID});
+  $admin->{MODULE} = 'Docs';
+  $admin->action_add($attr->{UID}, "Contract: $self->{NAME}, №$self->{NUMBER}, $self->{DATE}", { TYPE => 10 });
 
   return $self;
 }
@@ -2786,81 +2621,6 @@ sub _change_having {
   return $HAVING;
 }
 
-
-#**********************************************************
-=head2 switch_list ($attr) - returns list of switches and users
-
-  Arguments:
-    $attr - hash_ref
-
-  Returns:
-  switch_id
-  switch_name
-  switch_users
-  user_off
-  user_on
-  users_request
-
-=cut
-#**********************************************************
-sub switch_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
-
-  my $search_columns = [
-    [ 'EQUIPMENT_ID',               'INT', 'nas.id',                1 ],
-    [ 'EQUIPMENT_NAME',             'STR', 'nas.name',              1 ],
-    [ 'USER_ID',                    'STR', 'users.uid',             1 ],
-    [ 'USER_ACTIVE',                'STR', 'internet_main.disable', 1 ],
-    [ 'MESSAGES',                   'STR', 'msgs_messages.uid',     1 ],
-  ];
-
-  my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
-  $self->query("
-    SELECT nas.id AS switch_id,
-       nas.name AS switch_name,
-       (SELECT COUNT(uid)
-        FROM internet_main
-        WHERE internet_main.nas_id = nas.id
-       ) AS switch_users,
-       (SELECT COUNT(disable)
-        FROM internet_main
-        WHERE disable = 1
-        AND internet_main.nas_id = nas.id
-        ) AS user_off,
-       (SELECT COUNT(disable)
-        FROM internet_main
-        WHERE disable = 0
-        AND internet_main.nas_id = nas.id
-       ) AS user_on,
-       SUM((SELECT COUNT(id)
-        FROM msgs_messages
-        WHERE msgs_messages.date >= (NOW() - INTERVAL 30 DAY)
-          AND msgs_messages.uid = users.uid
-          AND users.uid = internet_main.uid
-          AND internet_main.nas_id = nas.id
-       )) AS users_request
-
-    FROM internet_main
-    LEFT JOIN nas           ON internet_main.nas_id = nas.id
-    LEFT JOIN users         ON internet_main.uid = users.uid
-    GROUP BY switch_id
-    $WHERE
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef, $attr
-  );
-
-  my $list = $self->{list};
-
-  return $list;
-}
-
 #**********************************************************
 =head2 user_status_add($attr) - Create user status
 
@@ -2924,6 +2684,14 @@ sub user_status_list{
     undef,
     $attr
   );
+
+  if ($attr->{HASH}){
+    my %statuses_hash =();
+    foreach my $status (@{$self->{list}}) {
+      $statuses_hash{$status->{id}} = $status;
+    }
+    return \%statuses_hash;
+  }
 
   return $self->{list};
 }

@@ -26,7 +26,7 @@
       <div class='form-group row'>
         <label for='MODULE' class='control-label col-md-3'>Plug-in:</label>
         <div class='col-md-9'>
-          <input id='MODULE' name='MODULE' value='%MODULE%' placeholder='%MODULE%' class='form-control' type='text'>
+          %PLUGINS_SEL%
         </div>
       </div>
 

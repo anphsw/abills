@@ -35,6 +35,7 @@ use constant {
     'TERMINALS'         => 35,
     'CRM_LEADS'         => 36,
     'CRM_LEADS_BY_TAGS' => 37,
+    'ONLINE'            => 40,
   },
   MAPS_ICONS_DIR_WEB_PATH  => '/images/maps/icons/',
   MAPS_ICONS_DIR           => '/Abills/templates/maps/icons/',

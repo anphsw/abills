@@ -3,7 +3,7 @@ get:
     - iptv
   summary: Получить список каналов доступных для пользователя
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: >
         Значение `id`, можно получить в ответе

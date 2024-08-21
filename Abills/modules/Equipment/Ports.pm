@@ -83,7 +83,7 @@ sub equipment_ports_full {
         next if (ref $key eq 'HASH');
         next if ($perl_scalar->{ports}->{$key}->{REQUIRES_CABLE_TEST});
 
-        if ($perl_scalar->{ports}->{$key}->{PARSER} ne 'hidden') {
+        if ($perl_scalar->{ports}->{$key}->{PARSER} && $perl_scalar->{ports}->{$key}->{PARSER} ne 'hidden') {
           $tpl_fields{$key} = $key;
         }
       }
@@ -193,6 +193,10 @@ sub equipment_ports_full {
 
   my @ports_arr = keys %{ $ports_snmp_info };
 
+  if ($#ports_arr == -1 && $Equipment->{PORTS}) {
+    @ports_arr = (0..$Equipment->{PORTS});
+  }
+
   $used_ports = equipments_get_used_ports({
     NAS_ID     => $nas_id,
     PORTS_ONLY => 1,
@@ -229,7 +233,7 @@ sub equipment_ports_full {
   my %users_mac = ();
 
   my $users_mac = $Equipment->mac_log_list({
-    NAS_ID       => $nas_id,
+    NAS_ID       => $nas_id || '-1',
     PORT         => '_SHOW',
     MAC          => '_SHOW',
     DATETIME     => '_SHOW',
@@ -724,17 +728,22 @@ sub equipment_port_manage {
   $Equipment_->{PORT_ERRORS} = ($port_data->{PORT_IN_ERR} || 0) .'/'.($port_data->{PORT_OUT_ERR} || 0);
   $Equipment_->{PORT_DISCARDS} = ($port_data->{PORT_IN_DISCARDS} || 0) .'/'.($port_data->{PORT_OUT_DISCARDS} || 0);
 
-  if ($port_data->{PORT_SPEED} && $port_data->{PORT_SPEED} > 1000000000) {
-    $Equipment_->{PORT_SPEED} = '10+ Gbps';
-  }
-  elsif ($port_data->{PORT_SPEED} && $port_data->{PORT_SPEED} == 1000000000) {
-    $Equipment_->{PORT_SPEED} = '1 Gbps';
-  }
-  elsif ($port_data->{PORT_SPEED} && $port_data->{PORT_SPEED} == 100000000) {
-    $Equipment_->{PORT_SPEED} = '100 Mbps';
+  if ($port_data->{PORT_SPEED} && $port_data->{PORT_SPEED}=~ /^-?\d+\.?\d*$/){
+    if ($port_data->{PORT_SPEED} > 1000000000) {
+      $Equipment_->{PORT_SPEED} = '10+ Gbps';
+    }
+    elsif ($port_data->{PORT_SPEED} == 1000000000 || $port_data->{PORT_SPEED} eq '1 Gbps') {
+      $Equipment_->{PORT_SPEED} = '1 Gbps';
+    }
+    elsif ($port_data->{PORT_SPEED} == 100000000) {
+      $Equipment_->{PORT_SPEED} = '100 Mbps';
+    }
+    else {
+      $Equipment_->{PORT_SPEED} = int2byte($port_data->{PORT_SPEED}) if $port_data->{PORT_SPEED};
+    }
   }
   else {
-    $Equipment_->{PORT_SPEED} = int2byte($port_data->{PORT_SPEED}) if $port_data->{PORT_SPEED};
+    $Equipment_->{PORT_SPEED} = $port_data->{PORT_SPEED};
   }
 
   if (ref $port_data->{PORT_IN} eq 'HASH' ){
@@ -987,11 +996,7 @@ sub equipment_port_panel {
     }
 
     if (!$used_ports){
-      $used_ports = equipments_get_used_ports({
-        NAS_ID     => $attr->{NAS_ID},
-        PORTS_ONLY => 1,
-        FULL_LIST  => 1
-      });
+      $used_ports = equipments_get_used_ports({ NAS_ID => $attr->{NAS_ID}, FULL_LIST => 1 });
     }
   }
 
@@ -1089,7 +1094,6 @@ sub equipment_port_panel {
         } else {
           foreach my $port (@{$ports_by_row->{$extra_row_number}}) {
             my $extra_port_type_name = $port_types[$port->{port_type}];
-            my $class = "port port-$extra_port_type_name-free"; #TODO: add possibility to have busy extra port
             my $extra_port_number = 0;
             # continuation of the numbering of the main row
             $extra_port_number = ($attr->{CONT_NUM_EXTRA_PORTS}) ? ($port_count + $port->{port_number}) : $port->{port_number};
@@ -1100,9 +1104,6 @@ sub equipment_port_panel {
               $leveling += 1;
               if ($port->{port_combo_with} < 0) {
                 $extra_port_number = -$port->{port_combo_with};
-                if ($used_ports->{$extra_port_number}) {
-                  $class = "port port-$extra_port_type_name-used port-used";
-                }
               }
               elsif ($port->{port_number} > $port->{port_combo_with} && $port->{port_combo_with} != 0) {
                 $extra_port_number = $combo_numeration{$port->{port_combo_with}};
@@ -1117,6 +1118,10 @@ sub equipment_port_panel {
               $leveling += 1;
               $extra_port_number = '';
             }
+
+            my $class = (!$used_ports->{$extra_port_number})
+              ? "clickSearchResult port port-$extra_port_type_name-free"
+              : "clickSearchResult port port-$extra_port_type_name-used port-used";
 
             my $title = (($port->{port_combo_with}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $extra_port_number ($extra_port_type_name)";
             $extra_row .= _get_html_for_port($extra_port_number, $class, $title, $extra_port_number); #TODO: if extra ports will have correct number, it will be possible to fill $data_value
@@ -1145,7 +1150,7 @@ sub equipment_port_panel {
         for (my $port_num = 0; $port_num < $block_size; $port_num++) {
           $main_port_number++;
           if ($main_port_number <= $port_count) {
-            my $class = (!$used_ports->{$number})
+            my $class = (!$used_ports->{$main_port_number})
               ? "clickSearchResult port port-$port_type_name-free"
               : "clickSearchResult port port-$port_type_name-used port-used";
 
@@ -1162,7 +1167,6 @@ sub equipment_port_panel {
         $row .= "<div class='equipment-block'>";
         foreach my $port (@{$ports_by_row->{$row_num}}) {
           my $extra_port_type_name = $port_types[$port->{port_type}];
-          my $class = "port port-$extra_port_type_name-free"; #TODO: add possibility to have busy extra port
           my $extra_port_number = 0;
 
           # continuation of the numbering of the main row
@@ -1174,9 +1178,6 @@ sub equipment_port_panel {
             $leveling += 1;
             if ($port->{port_combo_with} < 0) {
               $extra_port_number = -$port->{port_combo_with};
-              if ($used_ports->{$extra_port_number}) {
-                $class = "port port-$extra_port_type_name-used port-used";
-              }
             }
             elsif ($port->{port_number} > $port->{port_combo_with} && $port->{port_combo_with} != 0) {
               $extra_port_number = $combo_numeration{$port->{port_combo_with}};
@@ -1191,6 +1192,10 @@ sub equipment_port_panel {
             $leveling += 1;
             $extra_port_number = '';
           }
+
+          my $class = (!$used_ports->{$extra_port_number})
+            ? "clickSearchResult port port-$extra_port_type_name-free"
+            : "clickSearchResult port port-$extra_port_type_name-used port-used";
 
           my $title = (($port->{port_combo_with}) ? $lang{COMBO_PORT} : $lang{PORT}) . " $extra_port_number ($extra_port_type_name)";
           $row .= _get_html_for_port($extra_port_number, $class, $title, $extra_port_number); #TODO: if extra ports will have correct number, it will be possible to fill $data_value
@@ -1379,7 +1384,7 @@ sub port_result_former {
     }
     elsif($key eq 'PORT_STATUS') {
       my $port_status = $value;
-      my $admin_port_status = $port_info->{$port_id}->{ADMIN_PORT_STATUS};
+      my $admin_port_status = $port_info->{$port_id}->{ADMIN_PORT_STATUS} || 0;
 
       my $button_text = '';
       my $color = '';
@@ -1702,6 +1707,38 @@ sub port_result_former {
         $key = 'LOGIN';
         $value = show_used_info($onu_user);
       }
+    }
+    elsif($key eq 'DESCRIBE') {
+      my $equipment_info = $Equipment->_list({
+        NAS_ID           => $nas_id,
+        SNMP_TPL         => '_SHOW',
+        NAS_MNG_PASSWORD => '_SHOW',
+        NAS_MNG_HOST_PORT=> '_SHOW',
+        COLS_NAME        => 1
+      });
+      my $equipment_info_ = $equipment_info->[0];
+
+      my $snmp_community = ($equipment_info_->{nas_mng_password} || q{}) . "@" . ($equipment_info_->{nas_mng_ip_port} || q{});
+      my $snmp_tpl = $equipment_info_->{snmp_tpl} || '';
+      my $pon_type = $attr->{PON_TYPE} || '';
+
+      $key = $lang{$key} . $html->button('',
+          "PORT=$port_id&header=2&get_index=equipment_change_onu_desc_ajax&SNMP_COMMUNITY=$snmp_community".
+            '&SNMP_TPL='.$snmp_tpl.
+            '&PON_TYPE='.$pon_type,
+          { MESSAGE    => $lang{CHANGE_ONU_DESC},
+            class      => 'fa fa-pencil-alt ml-1',
+            TITLE      => $lang{CHANGE_ONU_DESC},
+            AJAX       => 'onu_desc_changed',
+            ALLOW_EMPTY_MESSAGE => 1,
+    })
+          . "<script>
+         Events.on('AJAX_SUBMIT.onu_desc_changed', function(e){
+           if (!e.error) {\$('#ONU_DESC').text(e.new_desc)}
+         });
+         </script>";
+
+      $value = $html->element('span', ($FORM{COMMENTS} || $value), { id => 'ONU_DESC' });
     }
 
     $key = ($lang{$key}) ? $lang{$key} : $key;

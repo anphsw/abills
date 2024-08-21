@@ -47,9 +47,6 @@
   <script src='/styles/%HTML_STYLE%/js/js.cookies.js'></script>
   <script src='/styles/%HTML_STYLE%/js/permanent_data.js'></script>
 
-  <!-- Navigation bar saving show/hide state -->
-  <script  src='/styles/%HTML_STYLE%/js/navBarCollapse.js'></script>
-
   <!--Javascript template engine-->
   <script src='/styles/%HTML_STYLE%/js/mustache.min.js'></script>
 

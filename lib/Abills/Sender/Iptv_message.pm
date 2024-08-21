@@ -10,6 +10,7 @@ use warnings FATAL => 'all';
 
 use Abills::Sender::Plugin;
 use parent 'Abills::Sender::Plugin';
+use Iptv::Init qw/init_iptv_service/;
 
 use Abills::Base qw(_bp);
 use Iptv;
@@ -74,7 +75,7 @@ sub send_message {
   foreach my $user (@{$Iptv_user}) {
     next if $Tv_services{$user->{service_id}} || $user->{SERVICE_STATUS};
 
-    my $tv_service = _load_service({ SERVICE_ID => $user->{service_id} });
+    my $tv_service = init_iptv_service($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf}, { SERVICE_ID => $user->{service_id} });
     $Tv_services{$user->{service_id}} = $tv_service;
 
     next if !$tv_service || !$tv_service->can('send_iptv_message');
@@ -84,53 +85,6 @@ sub send_message {
   }
 
   return $total;
-}
-
-#**********************************************************
-=head2 _load_service($service_name, $attr) - Load service module
-
-  Argumnets:
-    $service_name  - service modules name
-    $attr
-       SERVICE_ID
-
-  Returns:
-    Module object
-
-=cut
-#**********************************************************
-sub _load_service {
-  my ($attr) = @_;
-  my $api_object;
-  my $service_name = '';
-
-  if ($attr->{SERVICE_ID}) {
-    $Iptv->services_info($attr->{SERVICE_ID});
-    $service_name = $Iptv->{MODULE} || q{};
-  }
-
-  return $api_object if !$service_name;
-
-  $service_name = 'Iptv::' . $service_name;
-
-  eval " require $service_name; ";
-  if (!$@) {
-    $service_name->import();
-
-    if ($service_name->can('new')) {
-      $api_object = $service_name->new($Iptv->{db}, $Iptv->{admin} || {}, $Iptv->{conf}, { %$Iptv });
-    }
-    else {
-      print "\nCan't load '$service_name'.";
-      return $api_object;
-    }
-  }
-  else {
-    print $@;
-    print "\nCan't load '$service_name'.";
-  }
-
-  return $api_object;
 }
 
 1;

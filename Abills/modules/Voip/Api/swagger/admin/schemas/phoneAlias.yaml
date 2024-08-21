@@ -1,0 +1,17 @@
+type: object
+properties:
+  changed:
+    type: string
+    example: "2022-12-12 17:13:23"
+  disable:
+    type: number
+    example: 0
+  id:
+    type: number
+    example: 1
+  number:
+    type: number
+    example: 380506712612
+  uid:
+    type: number
+    example: 102167

@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "affected": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of affected items"
+    },
+    "total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of items"
+    },
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "comments": {
+            "type": "string",
+            "description": "Comments related to the tag"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "The date of the tag"
+          },
+          "disable": {
+            "type": "integer",
+            "description": "Disable status of the tag"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "The end date of the tag"
+          },
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Unique identifier for the tag"
+          },
+          "login": {
+            "type": "string",
+            "description": "User login name"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the tag"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Priority level of the tag"
+          },
+          "uid": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Unique user identifier"
+          }
+        },
+        "required": ["comments", "date", "disable", "endDate", "id", "login", "name", "priority", "uid"]
+      },
+      "minItems": 1,
+      "description": "List of tags"
+    }
+  },
+  "required": ["affected", "total", "list"]
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "title": "The Root Schema",
+  "properties": {
+    "marking": {
+      "type": "string"
+    },
+    "serial": {
+      "type": "number"
+    },
+    "datetime": {
+      "type": "string"
+    },
+    "id": {
+      "type": "number"
+    }
+  }
+}

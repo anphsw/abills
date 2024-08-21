@@ -1,0 +1,59 @@
+type: object
+description: Список груп
+properties:
+  total:
+    type: integer
+    example: 10
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        allowCredit:
+          type: number
+          example: 1
+        bonus:
+          type: number
+          example: 1
+        descr:
+          type: string
+          example: "test description"
+        disableAccess:
+          type: number
+          example: 0
+        disableChgTp:
+          type: number
+          example: 0
+        disablePayments:
+          type: number
+          example: 0
+        disablePaysys:
+          type: number
+          example: 0
+        documentsAccess:
+          type: number
+          example: 1
+        domainId:
+          type: number
+          example: 0
+        gName:
+          type: string
+          example: Test
+        gid:
+          type: number
+          example: 1
+        id:
+          type: number
+          example: 1
+        name:
+          type: string
+          example: Test
+        smsService:
+          type: number
+          example: 0
+        separateDocs:
+          type: number
+          example: 0
+        usersCount:
+          type: number
+          example: 4

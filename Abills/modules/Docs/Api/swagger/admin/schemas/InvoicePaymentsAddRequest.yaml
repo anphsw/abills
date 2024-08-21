@@ -1,0 +1,9 @@
+type: object
+required: [ ids ]
+properties:
+  ids:
+    type: string
+    example: 10
+  paymentMethod:
+    type: number
+    example: 4188

@@ -14,14 +14,10 @@ package Abon::Api;
 use strict;
 use warnings FATAL => 'all';
 
-use Abon;
-my Abon $Abon;
-my $Abon_services;
-
+use Control::Errors;
 use Abills::Base qw(date_diff);
 
-our %lang;
-require 'Abills/modules/Abon/lng_english.pl';
+my Control::Errors $Errors;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -35,20 +31,13 @@ sub new {
     db    => $db,
     admin => $admin,
     conf  => $conf,
-    lang  => { %{$lang}, %lang },
+    lang  => $lang,
     debug => $debug
   };
 
   bless($self, $class);
 
-  $Abon = Abon->new($self->{db}, $self->{admin}, $self->{conf});
-  $Abon->{debug} = $self->{debug};
-
-  require Abon::Services;
-  $Abon_services = Abon::Services->new($self->{db}, $self->{admin}, $self->{conf}, { LANG => $self->{lang} });
-
   $self->{routes_list} = ();
-  $self->{periods} = [ 'day', 'month', 'quarter', 'six months', 'year' ];
 
   if ($type eq 'user') {
     $self->{routes_list} = $self->user_routes();
@@ -56,6 +45,12 @@ sub new {
   elsif ($type eq 'admin') {
     $self->{routes_list} = $self->admin_routes();
   }
+
+  $Errors = Control::Errors->new($self->{db}, $self->{admin}, $self->{conf},
+    { lang => $self->{lang}, module => 'Abon' }
+  );
+
+  $self->{Errors} = $Errors;
 
   return $self;
 }
@@ -126,41 +121,18 @@ sub user_routes {
   return [
     {
       method      => 'GET',
-      path        => '/user/:uid/abon/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        ::load_module('Control::Services', { LOAD_PACKAGE => 1 });
-        return ::get_user_services({
-          uid     => $path_params->{uid},
-          service => 'Abon',
-        });
-      },
+      path        => '/user/abon/',
+      controller  => 'Abon::Api::user::Root',
+      endpoint    => \&Abon::Api::user::Root::get_user_abon,
       credentials => [
         'USER', 'USERBOT'
       ]
     },
     {
       method      => 'POST',
-      path        => '/user/:uid/abon/:id/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        my $services = $Abon->tariff_info($path_params->{id});
-
-        if ($services->{USER_PORTAL} < 2 && !$services->{MANUAL_ACTIVATE}) {
-          return {
-            errno  => 200,
-            errstr => 'Unknown operation'
-          }
-        }
-
-        $Abon_services->abon_user_tariff_activate({
-          %{$query_params},
-          UID => $path_params->{uid},
-          ID  => $path_params->{id},
-        });
-      },
+      path        => '/user/abon/:id/',
+      controller  => 'Abon::Api::user::Root',
+      endpoint    => \&Abon::Api::user::Root::post_user_abon,
       credentials => [
         'USER', 'USERBOT'
       ]
@@ -234,59 +206,53 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/abon/tariffs/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-        $Abon->tariff_list({
-          %$query_params,
-          COLS_NAME => 1
-        });
-      },
+      controller  => 'Abon::Api::admin::Tariffs',
+      endpoint    => \&Abon::Api::admin::Tariffs::get_abon_tariffs,
       credentials => [
-        'ADMIN'
+        'ADMIN', 'ADMINSID'
       ]
     },
     {
       method      => 'POST',
       path        => '/abon/tariffs/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        $Abon->tariff_add({
-          %$query_params
-        });
-
-        return $Abon;
-      },
+      controller  => 'Abon::Api::admin::Tariffs',
+      endpoint    => \&Abon::Api::admin::Tariffs::post_abon_tariffs,
       credentials => [
-        'ADMIN'
+        'ADMIN', 'ADMINSID'
       ]
     },
     {
       method      => 'GET',
       path        => '/abon/tariffs/:id/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        $Abon->tariff_info($path_params->{id});
-        return $Abon;
-      },
+      controller  => 'Abon::Api::admin::Tariffs',
+      endpoint    => \&Abon::Api::admin::Tariffs::get_abon_tariffs_id,
       credentials => [
-        'ADMIN'
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'PUT',
+      path        => '/abon/tariffs/:id/',
+      controller  => 'Abon::Api::admin::Tariffs',
+      endpoint    => \&Abon::Api::admin::Tariffs::put_abon_tariffs_id,
+      credentials => [
+        'ADMIN', 'ADMINSID'
+      ]
+    },
+    {
+      method      => 'DELETE',
+      path        => '/abon/tariffs/:id/',
+      controller  => 'Abon::Api::admin::Tariffs',
+      endpoint    => \&Abon::Api::admin::Tariffs::delete_abon_tariffs_id,
+      credentials => [
+        'ADMIN', 'ADMINSID'
       ]
     },
     {
       method      => 'POST',
       path        => '/abon/tariffs/:id/users/:uid/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        $Abon_services->abon_user_tariff_activate({
-          DEBUG => 0,
-          % { $query_params },
-          UID   => $path_params->{uid},
-          ID    => $path_params->{id},
-        });
-      },
+      controller  => 'Abon::Api::admin::Tariffs',
+      endpoint    => \&Abon::Api::admin::Tariffs::get_abon_tariffs_id_users_uid,,
       credentials => [
         'ADMIN'
       ]
@@ -294,21 +260,8 @@ sub admin_routes {
     {
       method      => 'DELETE',
       path        => '/abon/tariffs/:id/users/:uid/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        my $result = $Abon_services->abon_user_tariff_deactivate({
-          %{$query_params},
-          UID => $path_params->{uid},
-          ID  => $path_params->{id},
-        });
-
-        if (!$result->{errno} && $result->{AFFECTED} && $result->{AFFECTED} =~ /^[0-9]$/) {
-          return { result => 'Successfully deleted', };
-        }
-
-        return $result;
-      },
+      controller  => 'Abon::Api::admin::Tariffs',
+      endpoint    => \&Abon::Api::admin::Tariffs::delete_abon_tariffs_id_users_uid,
       credentials => [
         'ADMIN'
       ]
@@ -316,22 +269,8 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/abon/users/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        foreach my $param (keys %{$query_params}) {
-          $query_params->{$param} = ($query_params->{$param} || "$query_params->{$param}" eq '0') ?
-            $query_params->{$param} : '_SHOW';
-        }
-
-        $query_params->{COLS_NAME} = 1;
-        $query_params->{PAGE_ROWS} = $query_params->{PAGE_ROWS} ? $query_params->{PAGE_ROWS} : 25;
-        $query_params->{PG} = $query_params->{PG} ? $query_params->{PG} : 0;
-        $query_params->{DESC} = $query_params->{DESC} ? $query_params->{DESC} : '';
-        $query_params->{SORT} = $query_params->{SORT} ? $query_params->{SORT} : 1;
-
-        $Abon->user_list($query_params);
-      },
+      controller  => 'Abon::Api::admin::Users',
+      endpoint    => \&Abon::Api::admin::Users::get_abon_users,
       credentials => [
         'ADMIN'
       ]
@@ -339,35 +278,17 @@ sub admin_routes {
     {
       method      => 'GET',
       path        => '/abon/plugin/:plugin_id/info/',
-      handler     => sub {
-        my ($path_params, $query_params) = @_;
-
-        require Abon::Base;
-        my $Abon_base = Abon::Base->new($self->{db}, $self->{admin}, $self->{conf}, { LANG => $self->{lang} });
-
-        my $Plugin_info = $Abon->tariff_info($path_params->{plugin_id});
-        my $api = $Abon_base->abon_load_plugin($Plugin_info->{PLUGIN}, { SERVICE => $Plugin_info, DEBUG => 0, RETURN_ERROR => 1 });
-        return $api->info($query_params) if ($api->can('info'));
-        return {};
-      },
+      controller  => 'Abon::Api::admin::Plugin',
+      endpoint    => \&Abon::Api::admin::Plugin::get_abon_plugin_plugin_id_info,
       credentials => [
-        'ADMINSID'
+        'ADMIN', 'ADMINSID'
       ]
     },
     {
       method       => 'GET',
       path         => '/abon/plugin/:plugin_id/print/',
-      handler      => sub {
-        my ($path_params, $query_params) = @_;
-
-        require Abon::Base;
-        my $Abon_base = Abon::Base->new($self->{db}, $self->{admin}, $self->{conf}, { LANG => $self->{lang} });
-
-        my $Plugin_info = $Abon->tariff_info($path_params->{plugin_id});
-        my $api = $Abon_base->abon_load_plugin($Plugin_info->{PLUGIN}, { SERVICE => $Plugin_info, DEBUG => 0, RETURN_ERROR => 1 });
-
-        return $api->print($query_params) if ($api->can('print'));
-      },
+      controller  => 'Abon::Api::admin::Plugin',
+      endpoint    => \&Abon::Api::admin::Plugin::get_abon_plugin_plugin_id_print,
       credentials  => [
         'ADMINSID'
       ],

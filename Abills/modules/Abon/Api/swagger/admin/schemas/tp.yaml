@@ -1,0 +1,137 @@
+type: object
+properties:
+  account:
+    type: integer
+    example: 0
+  activateNotification:
+    type: integer
+    example: 0
+  activatePrice:
+    type: integer
+    example: 10
+  affected:
+    type: integer
+    example: 0
+  alert:
+    type: integer
+    example: 0
+  alertAccount:
+    type: integer
+    example: 0
+  categoryId:
+    type: integer
+    example: 0
+  createAccount:
+    type: integer
+    example: 0
+  debug:
+    type: integer
+    example: 0
+  debugFile:
+    type: string
+    example: ""
+  description:
+    type: string
+    example: ""
+  discount:
+    type: integer
+    example: 0
+  domainId:
+    type: integer
+    example: 0
+  extBillAccount:
+    type: integer
+    example: 0
+  extCmd:
+    type: string
+    example: ""
+  extServiceId:
+    type: string
+    example: ""
+  feesType:
+    type: integer
+    example: 0
+  hotDeal:
+    type: integer
+    example: 0
+  id:
+    type: integer
+    example: 3
+  login:
+    type: string
+    example: "4334"
+  manualActivate:
+    type: integer
+    example: 0
+  module:
+    type: string
+    example: "PolisUA"
+  name:
+    type: integer
+    example: 10
+  nonfixPeriod:
+    type: integer
+    example: 0
+  notification1:
+    type: integer
+    example: 0
+  notification2:
+    type: integer
+    example: 0
+  notificationAccount:
+    type: integer
+    example: 0
+  password:
+    type: string
+    example: ""
+  paymentType:
+    type: integer
+    example: 0
+  period:
+    type: integer
+    example: 0
+  periodAlignment:
+    type: integer
+    example: 0
+  plugin:
+    type: string
+    example: ""
+  popular:
+    type: integer
+    example: 0
+  price:
+    type: integer
+    example: 0
+  priority:
+    type: integer
+    example: 0
+  promotional:
+    type: integer
+    example: 0
+  promoPeriod:
+    type: integer
+    example: 0
+  serviceImg:
+    type: string
+    example: ""
+  serviceLink:
+    type: string
+    example: "serviceLink"
+  serviceRecovery:
+    type: integer
+    example: 0
+  total:
+    type: integer
+    example: 1
+  url:
+    type: string
+    example: "https://test.com"
+  userDescription:
+    type: string
+    example: "userDescription"
+  userPortal:
+    type: integer
+    example: 0
+  vat:
+    type: integer
+    example: 0

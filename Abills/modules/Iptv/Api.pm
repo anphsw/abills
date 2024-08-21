@@ -15,6 +15,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Abills::Base qw(camelize next_month);
+use Iptv::Init qw/init_iptv_service/;
 
 use Iptv;
 use Control::Service_control;
@@ -119,7 +120,7 @@ sub user_routes {
   return [
     {
       method      => 'GET',
-      path        => '/user/:uid/iptv/',
+      path        => '/user/iptv/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
@@ -487,8 +488,10 @@ sub user_routes {
 
           if ($Iptv->{SERVICE_ID}) {
             $main::Iptv = $Iptv;
-            ::load_module('Iptv::Services', { LOAD_PACKAGE => 1 });
-            $main::Tv_service = ::tv_load_service($Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} });
+            $main::Tv_service = init_iptv_service($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf}, {
+              SERVICE_ID   => $Iptv->{SERVICE_ID},
+              RETURN_ERROR => 1
+            });
           }
 
           if ($main::Tv_service) {
@@ -632,14 +635,6 @@ sub user_routes {
           errstr => 'Can\'t activate, not allowed',
         } if (!($Iptv->{TOTAL} && $Iptv->{TOTAL} > 0));
 
-        $main::Iptv = $Iptv;
-        $main::Tv_service = undef;
-
-        if ($Iptv->{SERVICE_ID}) {
-          ::load_module('Iptv::Services', { LOAD_PACKAGE => 1 });
-          $main::Tv_service = ::tv_load_service($Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} });
-        }
-
         ::load_module('Iptv::Users', { LOAD_PACKAGE => 1 });
         ::load_module('Iptv', $self->{html});
 
@@ -677,8 +672,10 @@ sub user_routes {
         %main::FORM = ();
         $main::Iptv = $Iptv;
         $main::Tv_service = undef;
-        ::load_module('Iptv::Services', { LOAD_PACKAGE => 1 });
-        $main::Tv_service = ::tv_load_service($Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} });
+
+        $main::Tv_service = init_iptv_service($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf}, {
+          SERVICE_ID => $Iptv->{SERVICE_ID}
+        });
 
         if ($main::Tv_service && $main::Tv_service->can('get_playlist_m3u')) {
           my $m3u = $main::Tv_service->get_playlist_m3u($Iptv);
@@ -724,12 +721,14 @@ sub user_routes {
         %main::FORM = ();
         $main::Iptv = $Iptv;
         $main::Tv_service = undef;
-        ::load_module('Iptv::Services', { LOAD_PACKAGE => 1 });
-        $main::Tv_service = ::tv_load_service($Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} });
+
+        $main::Tv_service = init_iptv_service($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf}, {
+          SERVICE_ID => $Iptv->{SERVICE_ID}
+        });
 
         if ($main::Tv_service && $main::Tv_service->can('get_url')) {
           my $result = $main::Tv_service->get_url($Iptv);
-          my $url = $result->{result}{web_url};
+          my $url = $result->{result} && $result->{result}{web_url} ? $result->{result}{web_url} : '';
           return {
             result    => 'OK',
             watch_url => $url

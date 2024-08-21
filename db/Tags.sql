@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS `tags` (
     `name`     VARCHAR(20)          NOT NULL DEFAULT '',
     `comments` TEXT,
     `color`    VARCHAR(7) NOT NULL DEFAULT '',
+    `expire_days` SMALLINT(3) UNSIGNED NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
     UNIQUE KEY `name` (`name`)
 )

@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "company": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "director": {
+          "type": "string"
+        },
+        "directorGen": {
+          "type": "string"
+        },
+        "egrpou": {
+          "type": "integer"
+        },
+        "inn": {
+          "type": "integer"
+        },
+        "innDate": {
+          "type": "string"
+        },
+        "kved": {
+          "type": "string"
+        },
+        "kvedNumber": {
+          "type": "number"
+        },
+        "name": {
+          "type": "string"
+        },
+        "nameShort": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "address",
+        "director",
+        "directorGen",
+        "egrpou",
+        "inn",
+        "innDate",
+        "kved",
+        "kvedNumber",
+        "name",
+        "nameShort"
+      ]
+    }
+  },
+  "required": [
+    "company"
+  ]
+}

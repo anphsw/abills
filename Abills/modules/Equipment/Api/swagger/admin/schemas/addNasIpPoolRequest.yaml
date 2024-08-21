@@ -1,0 +1,8 @@
+type: object
+properties:
+  poolId:
+    type: number
+    example: 1
+  nasId:
+    type: number
+    example: 2

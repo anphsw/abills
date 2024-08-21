@@ -18,8 +18,16 @@ our (
   $argv
 );
 
-require Paysys::systems::Easypay;
-my $Payment_plugin = Paysys::systems::Easypay->new($db, $admin, \%conf);
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::systems::Easypay;
+  $Payment_plugin = Paysys::systems::Easypay->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::Easypay;
+  $Payment_plugin = Paysys::Plugins::Easypay->new($db, $admin, \%conf);
+}
+
 if ($debug > 3) {
   $Payment_plugin->{DEBUG}=7;
 }

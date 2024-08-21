@@ -1,0 +1,93 @@
+get:
+  tags:
+    - tags
+  summary: Получение метки
+  parameters:
+    - name: id
+      in: path
+      description: ID метки
+      required: true
+      schema:
+        type: integer
+  operationId: getTag
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tagsResponse200.yaml"
+  security:
+    - KEY: [ ]
+put:
+  tags:
+    - tags
+  summary: Обновление метки
+  operationId: updateTag
+  parameters:
+    - name: id
+      in: path
+      description: ID метки
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/tagsAddRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tagsResponse200.yaml"
+    400:
+      description: Ошибка валидации
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tagsResponse400.yaml"
+  security:
+    - KEY: [ ]
+delete:
+  tags:
+    - tags
+  summary: Удаление метки
+  operationId: deleteTag
+  parameters:
+    - name: id
+      in: path
+      description: ID метки
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              result:
+                type: string
+                example: Successfully deleted
+    400:
+      description: Ошибка удаления
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              errno:
+                type: integer
+                example: 1570001
+              errstr:
+                type: string
+                example: ERR_DELETE_TAG_NOT_EXISTS
+  security:
+    - KEY: [ ]

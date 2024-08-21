@@ -158,6 +158,10 @@ foreach my $fn_id (sort keys %functions) {
       $FORM{$action_key}=1;
     }
     $ret = ok( _function($fn_id) );
+
+    if (! $ret) {
+      print STDERR "$fn_id ($functions{ $fn_id }): $ret\n";
+    }
   }
 
   enable_otput();

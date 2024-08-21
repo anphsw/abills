@@ -1025,7 +1025,7 @@ sub paid_types_list{
 
   my $list = $self->{list};
 
-  return $list;
+  return $list || [];
 }
 
 #**********************************************************
@@ -1523,5 +1523,52 @@ sub extfin_report_balance_add {
   return $self;
 }
 
+#**********************************************************
+=head2 user_list($attr) - Extfin users list
+
+=cut
+#**********************************************************
+sub user_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT      = $attr->{SORT} || 1;
+  my $DESC      = $attr->{DESC} || '';
+  my $PG        = $attr->{PG} ||  0;
+  my $PAGE_ROWS = $attr->{PAGE_ROWS} ||  25;
+
+  my @search_fields = (
+    ['ID',              'INT',   'epp.id AS id',                                 1 ],
+    ['UID',             'INT',   'epp.uid AS uid',                               1 ],
+    ['EXTFIN_COMMENTS', 'STR',   'epp.comments', 'epp.comments AS extfin_comments' ],
+    ['TYPE_ID',         'INT',   'epp.type_id AS type_id',                       1 ],
+    ['SUM',             'INT',   'epp.sum AS sum',                               1 ],
+    ['ACTIVATE',        'DATE',  'epp.activate AS activate',                     1 ],
+    ['EXPIRE',          'DATE',  'epp.expire AS expire',                         1 ],
+    ['MACCOUNT_ID',     'INT',   'epp.maccount_id AS maccount_id',               1 ],
+  );
+
+  my $WHERE =  $self->search_former($attr, \@search_fields,
+    { WHERE             => 1,
+      USERS_FIELDS_PRE  => 1,
+      USE_USER_PI       => 1,
+      SKIP_USERS_FIELDS => [ 'EXPIRE' ],
+    }
+  );
+
+  $self->query("SELECT
+      $self->{SEARCH_FIELDS}
+      u.uid
+    FROM users u
+    $self->{EXT_TABLES}
+    INNER JOIN extfin_paids_periodic epp ON (u.uid=epp.uid)
+    $WHERE
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
 
 1

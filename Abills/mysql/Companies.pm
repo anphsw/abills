@@ -58,7 +58,11 @@ sub add {
     $attr->{CONTRACT_SUFIX} = $sufix;
   }
 
-  $attr = $users->info_field_attach_add({ %$attr, COMPANY_PREFIX => 1 });
+  require Info_fields;
+  Info_fields->import();
+  my $Info_fields = Info_fields->new($self->{db}, $self->{admin}, $self->{conf});
+
+  $attr = $Info_fields->info_field_attach_add({ %$attr, COMPANY_PREFIX => 1 });
 
   $self->query_add('companies', { %$attr,
     REGISTRATION   => $attr->{REGISTRATION} || 'NOW()',
@@ -150,7 +154,11 @@ sub change {
   }
 
   $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
-  $attr = $users->info_field_attach_add({ %$attr, COMPANY_PREFIX => 1 });
+
+  require Info_fields;
+  Info_fields->import();
+  my $Info_fields = Info_fields->new($self->{db}, $self->{admin}, $self->{conf});
+  $attr = $Info_fields->info_field_attach_add({ %$attr, COMPANY_PREFIX => 1 });
 
   my ($prefix, $sufix);
   if ($attr->{CONTRACT_TYPE}) {
@@ -357,6 +365,7 @@ sub list {
     ['COMPANY_ADMIN',  'INT',  'u.uid',           1 ],
     ['COMPANY_ID',     'INT',  'c.id',              ],
     ['EDRPOU',         'STR',  'c.edrpou',        1 ],
+    ['COMMENTS',       'STR',  'c.comments',      1 ],
     #['DOMAIN_ID',      'INT',  'c.domain_id',     1 ],
   ],
     {
@@ -365,7 +374,7 @@ sub list {
       #USE_USER_PI      => 1,
       SKIP_USERS_FIELDS=> [ 'DEPOSIT', 'CREDIT', 'BILL_ID', 'CREDIT_DATE', 'ADDRESS',
         'REGISTRATION', 'CONTRACT_ID', 'CONTRACT_DATE', 'PHONE', 'FIO',
-        'DOMAIN_ID', 'LOCATION_ID', 'ADDRESS_FLAT', 'DOMAIN_ID', 'COMPANY_NAME'
+        'DOMAIN_ID', 'LOCATION_ID', 'ADDRESS_FLAT', 'DOMAIN_ID', 'COMPANY_NAME','EDRPOU','COMMENTS'
       ],
       WHERE            => 1,
     }
@@ -460,7 +469,7 @@ sub admins_list {
     $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   return $list;
 }
@@ -474,15 +483,30 @@ sub admins_change {
   my $self = shift;
   my ($attr) = @_;
 
-  my @ADMINS = split(/, /, $attr->{IDS});
+  my @ADMINS = split(/,\s?/, $attr->{IDS});
 
   $self->query_del('companie_admins', undef, { company_id => $attr->{COMPANY_ID} });
 
   foreach my $uid (@ADMINS) {
-    $self->query_add('companie_admins', { %$attr,
-    	                                    UID => $uid
-    	                                  });
+    $self->query_add('companie_admins', {
+      %$attr,
+      UID => $uid
+    });
   }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 admins_del($attr)
+
+=cut
+#**********************************************************
+sub admins_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('companie_admins', undef, { UID => $attr->{UID} || '--' });
 
   return $self;
 }

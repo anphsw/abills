@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_UREPORTS_PLUGINS",
+  "method": "GET",
+  "path": "ureports/plugins/",
+  "params": {}
+}

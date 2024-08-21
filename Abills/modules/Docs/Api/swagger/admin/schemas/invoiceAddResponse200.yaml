@@ -1,0 +1,171 @@
+type: object
+properties:
+  addressBuild:
+    type: string
+    example: ''
+  addressFlat:
+    type: string
+    example: ''
+  addressStreet:
+    type: string
+    example: ''
+  affected:
+    type: number
+    example: 0
+  amountForPay:
+    type: number
+    example: 720
+  aFio:
+    type: string
+    example: Users web portal
+  chargedSum:
+    type: number
+    example: 0
+  companyId:
+    type: number
+    example: 0
+  companyName:
+    type: string
+    example: ''
+  companyPhone:
+    type: string
+    example: ''
+  contractDate:
+    type: string
+    format: date
+    example: 2023-02-01
+  contractId:
+    type: number
+    example: 1150010982
+  created:
+    type: string
+    example: 2024-03-15 10:59:34
+  curentBillingPeriodStart:
+    type: string
+    format: date
+    example: 2024-03-01
+  curentBillingPeriodStop:
+    type: string
+    format: date
+    example: 2024-03-31
+  currency:
+    type: number
+    example: 0
+  customer:
+    type: string
+    example: 'ФОП Іваненко'
+  date:
+    type: string
+    format: date
+    example: 2024-03-15
+  deliveryStatus:
+    type: number
+    example: 0
+  deposit:
+    type: number
+    example: 0
+  docsAccountExpirePeriod:
+    type: number
+    example: 30
+  docId:
+    type: number
+    example: 8832
+  docIds:
+    type: number
+    example: 8832
+  exchangeRate:
+    type: number
+    example: 0
+  expireDate:
+    type: string
+    format: date
+    example: 2024-04-14
+  extId:
+    type: string
+    example: ''
+  fio:
+    type: string
+    example: ''
+  insertId:
+    type: number
+    example: 8832
+  invoiceNum:
+    type: number
+    example: 33417
+  login:
+    type: string
+    example: 0000000002
+  nextId:
+    type: number
+    example: 33417
+  number:
+    type: string
+    example: ''
+  orders:
+    type: array
+    items:
+      type: object
+      properties:
+        counts:
+          type: number
+          example: 1
+        feesId:
+          type: number
+          example: 0
+        feesType:
+          type: number
+          example: 0
+        invoiceId:
+          type: number
+          example: 8832
+        orders:
+          type: string
+          example: 'Voip: M/F test api change (39) (2024-04-01-2024-04-30)'
+        price:
+          type: number
+          example: 410
+        tax:
+          type: number
+          example: 0
+        taxSum:
+          type: number
+          example: 0
+        typeFeesId:
+          type: number
+          example: 0
+        unit:
+          type: number
+          example: 0
+  paymentId:
+    type: number
+    example: 0
+  paymentMethodId:
+    type: string
+    example: ''
+  paymentSum:
+    type: string
+    example: ''
+  phone:
+    type: string
+    example: ''
+  prePayment:
+    type: number
+    example: 720
+  total:
+    type: number
+    example: 2
+  totalInvoices:
+    type: number
+    example: 10
+  totalSum:
+    type: number
+    example: 720
+  totalUsers:
+    type: number
+    example: 1
+  uid:
+    type: number
+    example: 103160
+  vat:
+    type: number
+    example: 0

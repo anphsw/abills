@@ -1,0 +1,159 @@
+get:
+  tags:
+    - districts
+  summary: Получить районы
+  description: Возвращает список районов
+  operationId: getDistricts
+  parameters:
+    - name: id
+      in: query
+      description: ID района.
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название района.
+      schema:
+        type: boolean
+        default: true
+    - name: zip
+      in: query
+      description: ZIP населенного пункта.
+      schema:
+        type: boolean
+        default: true
+    - name: coordx
+      in: query
+      description: Координата x района.
+      schema:
+        type: boolean
+        default: false
+    - name: coordy
+      in: query
+      description: Координата y района.
+      schema:
+        type: boolean
+        default: false
+    - name: path
+      in: query
+      description: Полный путь предков района
+      schema:
+        type: boolean
+        default: false
+    - name: parentId
+      in: query
+      description: ID родителя
+      schema:
+        type: boolean
+        default: false
+    - name: typeId
+      in: query
+      description: ID типа района
+      schema:
+        type: boolean
+        default: false
+    - name: typeName
+      in: query
+      description: Название типа района
+      schema:
+        type: boolean
+        default: false
+    - name: fullName
+      in: query
+      description: Полное название района вместе со всеми предками
+      schema:
+        type: boolean
+        default: false
+    - name: parentName
+      in: query
+      description: Название района-предка
+      schema:
+        type: boolean
+        default: false
+    - name: streetCount
+      in: query
+      description: Количество улиц на районе
+      schema:
+        type: boolean
+        default: true
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              id:
+                type: number
+                example: 47
+                description: ID района
+              streetCount:
+                type: number
+                example: 2
+                description: Количество улиц привязанных к району
+              name:
+                type: string
+                example: UBNET
+                description: Название района
+              zip:
+                type: number
+                example: 1900
+                description: Почтовый индекс района
+  security:
+    - KEY: []
+post:
+  tags:
+    - districts
+  summary: Добавление района
+  operationId: addDistrict
+  requestBody:
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            name:
+              type: string
+              example: UBNET
+              description: Название района
+            zip:
+              type: number
+              example: 1900
+              description: Почтовый индекс района
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/postDistrictsResponse200.yaml"
+    400:
+      description: Нет поля name
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              errno:
+                type: integer
+                example: 10094
+              errstr:
+                type: string
+                example: "No field name"
+  security:
+    - KEY: []

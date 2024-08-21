@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 30032
+  errstr:
+    type: string
+    example: "nasIpPool with id 1 and poolId 2 not exists"

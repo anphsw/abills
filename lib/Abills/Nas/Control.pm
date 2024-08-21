@@ -130,13 +130,18 @@ sub hangup {
     if (ref $attr->{COA_ACTION} eq 'ARRAY') {
       foreach my $coa_request ( @{ $attr->{COA_ACTION} } ) {
         $params{RAD_PAIRS} = $coa_request;
+        $self->radius_request($Nas, \%params, $attr);
 
-        $self->radius_request($Nas, \%params);
+        if ($attr->{COA_TIMEOUT}) {
+          #print "\n !!! Sleep 5\n";
+          #sleep $attr->{COA_TIMEOUT};
+          select(undef, undef, undef, ( $attr->{COA_TIMEOUT} / 1000 ));
+        }
       }
     }
     else {
       $params{RAD_PAIRS} = $attr->{COA_ACTION};
-      $self->radius_request($Nas, \%params);
+      $self->radius_request($Nas, \%params, $attr);
     }
   }
   elsif ($nas_type eq 'mikrotik') {
@@ -648,7 +653,7 @@ sub hangup_snmp {
       USER
       FRAMED_IP_ADDRESS
       SESSION_ID
-      RAD_PAIRS          - Use custom radius pairs form disconnect
+      RAD_PAIRS          - Use custom radius pairs form disconnect { key => val }
       COA                - Change request type to CoA
       DEBUG
 
@@ -663,14 +668,18 @@ sub radius_request {
 
   my $USER = $attr->{USER} || q{};
   if (!$NAS->{NAS_MNG_IP_PORT}) {
-    print "Radius Hangup failed. Can't find NAS IP and port. NAS: $NAS->{NAS_ID} USER: $USER\n";
+    my $message = "Radius Hangup failed. Can't find NAS IP and port. NAS: $NAS->{NAS_ID} USER: $USER\n";
+    $self->{error}=101;
+    $self->{errstr}=$message;
     return 'ERR:';
   }
 
   my ($ip, $mng_port, undef) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 3);
 
   if (!$ip) {
-    print "Radius Hangup failed. Can't find NAS IP and port. NAS: $NAS->{NAS_ID} USER: $USER\n";
+    my $message = "Radius Hangup failed. Can't find NAS IP and port. NAS: $NAS->{NAS_ID} USER: $USER\n";
+    $self->{error}=102;
+    $self->{errstr}=$message;
     return 'ERR:';
   }
 
@@ -734,7 +743,7 @@ sub radius_request {
     # No responce from COA/POD server
     my $message = "No responce from $request_type server '$NAS->{NAS_MNG_IP_PORT}'";
     $result .= $message;
-    $self->{error}=3;
+    $self->{error}=103;
     $self->{errstr}=$message;
     $Log->log_print('LOG_DEBUG', "$USER", $message, { ACTION => 'CMD' });
   }
@@ -771,7 +780,7 @@ sub hangup_mikrotik_telnet {
   push @commands, ">/interface pptp-server remove [find user=$USER]";
   push @commands, ">quit";
 
-  my $result = telnet_cmd2("$NAS->{NAS_IP}", \@commands);
+  my $result = telnet_cmd2($NAS->{NAS_IP}, \@commands);
 
   print $result;
 }
@@ -1127,31 +1136,6 @@ sub hangup_cisco {
 }
 
 #***********************************************************
-=head2 hangup_dslmax
-
-  HANGUP dslmax
-  hangup_dslmax($SERVER, $PORT)
-
-=cut
-#***********************************************************
-sub hangup_dslmax {
-  my ($NAS, $attr) = @_;
-
-  my $PORT = $attr->{PORT};
-  #cotrol
-  my @commands = ();
-  push @commands, "word:\t$NAS->{NAS_MNG_PASSWORD}";
-  push @commands, ">\treset S$PORT";
-  push @commands, ">exit";
-
-  my $result = telnet_cmd("$NAS->{NAS_IP}", \@commands);
-
-  print $result;
-
-  return 0;
-}
-
-#***********************************************************
 =head1 hangup_mpd5($NAS, $attr) - HANGUP MPD
 
 =cut
@@ -1378,25 +1362,25 @@ sub setspeed {
   }
 }
 
-#***********************************************************
-=head2  hascoa($NAS); - Check CoA support
-
-=cut
-#***********************************************************
-sub hascoa {
-  my ($NAS) = @_;
-
-  my $nas_type = $NAS->{NAS_TYPE};
-
-  if ($nas_type eq 'pppd_coa') {
-    return 1;
-  }
-  elsif ($CONF->{coa_send} && $nas_type =~ /$CONF->{coa_send}/) {
-    return 1;
-  }
-
-  return 0;
-}
+# #***********************************************************
+# =head2  hascoa($NAS); - Check CoA support
+#
+# =cut
+# #***********************************************************
+# sub hascoa {
+#   my ($NAS) = @_;
+#
+#   my $nas_type = $NAS->{NAS_TYPE};
+#
+#   if ($nas_type eq 'pppd_coa') {
+#     return 1;
+#   }
+#   elsif ($CONF->{coa_send} && $nas_type =~ /$CONF->{coa_send}/) {
+#     return 1;
+#   }
+#
+#   return 0;
+# }
 
 #***************************************************************
 =head2 hangup_unifi($NAS, $PORT, $USER, $attr) - Hangup unifi

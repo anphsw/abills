@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 10024
+  errstr:
+    type: string
+    example: User already exist

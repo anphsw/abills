@@ -1,0 +1,20 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 2
+  text:
+    type: string
+    example: Reply text
+  aid:
+    type: integer
+    example: 2
+  admin:
+    type: string
+    example: abills
+  datetime:
+    type: string
+    example: "2021-08-09 13:25:41"
+  mainMsg:
+    type: integer
+    example: 40

@@ -178,8 +178,10 @@ sub _portal_menu {
   my $Users = {
     DOMAIN_ID        => 0,
     GID              => 0,
-    ADDRESS_DISTRICT => '',
-    ADDRESS_STREET   => '',
+    DISTRICT_ID      => 0,
+    STREET_ID        => 0,
+    LOCATION_ID      => 0,
+    ADDRESS_FLAT     => '',
     UID              => '--'
   };
 
@@ -189,6 +191,10 @@ sub _portal_menu {
     $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
     $Users->info($uid);
     $Users->pi({ UID => $uid });
+    $Users->{DISTRICT_ID} //= 0;
+    $Users->{STREET_ID} //= 0;
+    $Users->{LOCATION_ID} //= 0;
+    $Users->{ADDRESS_FLAT} //= '',
   }
 
   my $Tags = q{};
@@ -207,8 +213,10 @@ sub _portal_menu {
       ($domain_id && "$news->{domain_id}" eq "$domain_id") ||
       ($Users->{DOMAIN_ID} && $news->{domain_id} == $Users->{DOMAIN_ID}));
 
-    my $address_check = (!$news->{dis_name} || $news->{dis_name} eq $Users->{ADDRESS_DISTRICT})
-      && (!$news->{st_name} || $news->{st_name} eq $Users->{ADDRESS_STREET});
+    my $address_check = (!$news->{district_id} || $news->{district_id} eq $Users->{DISTRICT_ID})
+      && (!$news->{street_id} || $news->{street_id} eq $Users->{STREET_ID})
+      && (!$news->{build_id} || $news->{build_id} eq $Users->{LOCATION_ID})
+      && (!$news->{address_flat} || $news->{address_flat} eq $Users->{ADDRESS_FLAT});
 
     my $tag_check = ($news->{tags} && !$uid) ? 0 : 1;
     if ($Tags) {
@@ -218,6 +226,8 @@ sub _portal_menu {
 
     if ($time_check && $gid_check && $domain_check && $address_check && $tag_check) {
       next if (!$menu{$news->{portal_menu_id}});
+      my $article_sublink = $news->{permalink} || $news->{id};
+
       my %news = (
         id                => $news->{id},
         importance        => $news->{importance},
@@ -229,6 +239,7 @@ sub _portal_menu {
         date              => $news->{date},
         topic_id          => $news->{portal_menu_id},
         permalink         => $news->{permalink},
+        url               => $self->_portal_news_link($article_sublink)
       );
 
       if ($attr->{MENU}) {
@@ -250,6 +261,27 @@ sub _portal_menu {
       topics => \@topics,
     };
   }
+}
+
+#**********************************************************
+=head2 _portal_news_link($filename)
+
+  Arguments:
+    $permalink - string
+
+  Returns:
+    $src - link to news from web
+=cut
+#**********************************************************
+sub _portal_news_link {
+  my $self = shift;
+  my ($filename) = @_;
+
+  my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+  my $maybe_base = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}" : '';
+  my $base_attach_link = ($self->{conf}{BILLING_URL} || $maybe_base) . '/?article=';
+
+  return $base_attach_link . ($filename || '');
 }
 
 1;

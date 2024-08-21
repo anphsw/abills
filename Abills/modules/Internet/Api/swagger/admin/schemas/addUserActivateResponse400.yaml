@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 100
+  errstr:
+    type: string
+    example: No field tpId

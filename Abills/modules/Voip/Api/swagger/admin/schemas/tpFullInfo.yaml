@@ -1,0 +1,218 @@
+type: object
+properties:
+  abonDistribution:
+    type: number
+    example: 0
+  activatePrice:
+    type: number
+    example: 10
+  activeDayFee:
+    type: number
+    example: 0
+  activPrice:
+    type: number
+    example: 10
+  affected:
+    type: number
+    example: 0
+  age:
+    type: number
+    example: 0
+  alert:
+    type: number
+    example: 0
+  billsPriority:
+    type: number
+    example: 0
+  changePrice:
+    type: number
+    example: 50
+  comments:
+    type: string
+    example: ""
+  credit:
+    type: number
+    example: 0
+  creditTresshold:
+    type: number
+    example: 0
+  dayFee:
+    type: number
+    example: 10
+  dayTimeLimit:
+    type: number
+    example: 0
+  dayTrafLimit:
+    type: number
+    example: 0
+  describeAid:
+    type: string
+    example: ""
+  extraNumbersDayFee:
+    type: number
+    example: 1
+  extraNumbersMonthFee:
+    type: number
+    example: 5
+  extBillAccount:
+    type: number
+    example: 0
+  extBillFeesMethod:
+    type: number
+    example: 0
+  feesMethod:
+    type: number
+    example: 1
+  filterId:
+    type: number
+    example: 1
+  fine:
+    type: number
+    example: 0
+  firstPeriod:
+    type: number
+    example: 0
+  firstPeriodStep:
+    type: number
+    example: 0
+  fixedFeesDay:
+    type: number
+    example: 0
+  freeTime:
+    type: number
+    example: 0
+  gid:
+    type: number
+    example: 0
+  id:
+    type: number
+    example: 23131
+  ippool:
+    type: number
+    example: 0
+  logins:
+    type: number
+    example: 2
+  maxSessionDuration:
+    type: number
+    example: 0
+  minSessionCost:
+    type: number
+    example: 0
+  minUse:
+    type: number
+    example: 0
+  module:
+    type: string
+    example: Voip
+  monthFee:
+    type: number
+    example: 100
+  monthTimeLimit:
+    type: number
+    example: 0
+  monthTrafLimit:
+    type: number
+    example: 0
+  name:
+    type: string
+    example: test api change
+  negDepositFilterId:
+    type: string
+    example: ""
+  negDepositIppool:
+    type: number
+    example: 0
+  nextPeriod:
+    type: number
+    example: 0
+  nextPeriodStep:
+    type: number
+    example: 0
+  nextTarifPlan:
+    type: number
+    example: 0
+  nextTpId:
+    type: number
+    example: 0
+  octetsDirection:
+    type: number
+    example: 0
+  paymentType:
+    type: number
+    example: 0
+  periodAlignment:
+    type: number
+    example: 0
+  postpaidDailyFee:
+    type: number
+    example: 0
+  postpaidDayFee:
+    type: number
+    example: 0
+  postpaidMonthlyFee:
+    type: number
+    example: 0
+  postpaidMonthFee:
+    type: number
+    example: 0
+  prepaidTrafic:
+    type: number
+    example: 0
+  priority:
+    type: number
+    example: 0
+  promotional:
+    type: number
+    example: 0
+  radPairs:
+    type: string
+    example: "ERX-Service-Activate:1+='svc-global-pppoe(15242880, 15242880)',"
+  reductionFee:
+    type: number
+    example: 0
+  serviceId:
+    type: number
+    example: 0
+  simultaneously:
+    type: number
+    example: 2
+  smallDepositAction:
+    type: number
+    example: 0
+  status:
+    type: number
+    example: 0
+  timeDivision:
+    type: number
+    example: 0
+  total:
+    type: number
+    example: 1
+  totalTimeLimit:
+    type: number
+    example: 0
+  totalTrafLimit:
+    type: number
+    example: 0
+  tpGid:
+    type: number
+    example: 0
+  tpId:
+    type: number
+    example: 39
+  trafficTransferPeriod:
+    type: number
+    example: 0
+  uplimit:
+    type: number
+    example: 0
+  userCreditLimit:
+    type: number
+    example: 0
+  weekTimeLimit:
+    type: number
+    example: 0
+  weekTrafLimit:
+    type: number
+    example: 0

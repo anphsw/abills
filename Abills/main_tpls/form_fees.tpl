@@ -73,3 +73,15 @@
 
   </div>
 </form>
+
+<script>
+  jQuery('#DATE').on('click', function () {
+    var radioInputs = document.getElementsByName('period');
+    for (var i = 0; i < radioInputs.length; i++) {
+      if (radioInputs[i].value == '2') {
+        radioInputs[i].checked = true;
+        break;
+      }
+    }
+  });
+</script>

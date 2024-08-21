@@ -6,7 +6,6 @@ use Test::More;
 use lib '.';
 use lib '../../';
 use Paysys::t::Init_t;
-require Paysys::systems::Ukrpays;
 
 our (
   %conf,
@@ -19,7 +18,15 @@ our (
   $argv
 );
 
-my $Payment_plugin = Paysys::systems::Ukrpays->new($db, $admin, \%conf);
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::systems::Ukrpays;
+  $Payment_plugin = Paysys::systems::Ukrpays->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::Ukrpays;
+  $Payment_plugin = Paysys::Plugins::Ukrpays->new($db, $admin, \%conf);
+}
 my $Paysys = Paysys->new($db, $admin, \%conf);
 if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;

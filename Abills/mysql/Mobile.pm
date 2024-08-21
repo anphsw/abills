@@ -183,6 +183,7 @@ sub service_list {
     [ 'USER_DESCRIPTION', 'STR',   'ms.user_description',                1 ],
     [ 'PRICE',            'INT',   'ms.price',                           1 ],
     [ 'PERIOD',           'INT',   'ms.period',                          1 ],
+    [ 'FILTER_ID',        'STR',   'ms.filter_id',                       1 ],
     [ 'PRIORITY',         'INT',   'ms.priority',                        1 ]
   ], { WHERE => 1 });
 
@@ -336,15 +337,17 @@ sub tariff_list {
   my @WHERE_RULES = ("tp.module='$MODULE'");
 
   my $WHERE = $self->search_former($attr, [
-    [ 'ID',          'INT',   'tp.id',          1 ],
-    [ 'NAME',        'STR',   'tp.name',        1 ],
-    [ 'COMMENTS',    'STR',   'tp.comments',    1 ],
-    [ 'MONTH_FEE',     'STR',   'tp.month_fee',   1 ],
-    [ 'FEES_METHOD',   'INT', 'tp.fees_method',              1 ],
-    [ 'PAYMENT_TYPE',  'INT', 'tp.payment_type',              1 ],
-    [ 'REDUCTION_FEE', 'INT', 'tp.reduction_fee',              1 ],
-    [ 'TOTAL_SUM',     'INT',   'SUM(ms.price) AS total_sum', 1 ],
-    [ 'SERVICE_ID',    'STR',   'GROUP_CONCAT(DISTINCT mts.service_id) AS service_id', 1 ],
+    [ 'ID',            'INT', 'tp.id',                                               1 ],
+    [ 'NAME',          'STR', 'tp.name',                                             1 ],
+    [ 'COMMENTS',      'STR', 'tp.comments',                                         1 ],
+    [ 'COMMENTS',      'STR', 'tp.comments',                                         1 ],
+    [ 'DESCRIBE_AID',  'STR', 'tp.describe_aid',                                     1 ],
+    [ 'MONTH_FEE',     'INT', 'tp.month_fee',                                        1 ],
+    [ 'FEES_METHOD',   'INT', 'tp.fees_method',                                      1 ],
+    [ 'PAYMENT_TYPE',  'INT', 'tp.payment_type',                                     1 ],
+    [ 'REDUCTION_FEE', 'INT', 'tp.reduction_fee',                                    1 ],
+    [ 'TOTAL_SUM',     'INT', 'SUM(ms.price) AS total_sum',                          1 ],
+    [ 'SERVICE_ID',    'STR', 'GROUP_CONCAT(DISTINCT mts.service_id) AS service_id', 1 ],
   ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
   $self->query(
@@ -484,7 +487,11 @@ sub user_list {
     [ 'TP_NAME',                    'STR',   'tp.name AS tp_name',                                               1 ],
     [ 'EXTERNAL_METHOD',            'STR',   'mm.external_method',                                               1 ],
     [ 'TP_DISABLE',                 'INT',   'mm.tp_disable',                                                    1 ],
+    [ 'SERVICE_STATUS',             'INT',   'mm.tp_disable AS service_status',                                  1 ],
     [ 'TP_ACTIVATE',                'DATE',  'mm.tp_activate',                                                   1 ],
+    [ 'MONTH_FEE',                  'INT',   'tp.month_fee',                                                     1 ],
+    [ 'PAYMENT_TYPE',               'INT',   'tp.payment_type',                                                  1 ],
+    [ 'REDUCTION_FEE',              'INT',   'tp.reduction_fee',                                                 1 ],
     [ 'DAYS_SINCE_LAST_ACTIVATION', 'INT',   'DATEDIFF(NOW(), mm.tp_activate) AS days_since_last_activation',      ],
   ], {
     WHERE             => 1,
@@ -550,6 +557,7 @@ sub user_info {
    tp.name AS tp_name,
    service.disable AS status,
    service.tp_disable AS tp_status,
+   service.tp_disable AS service_status,
    tp.gid AS tp_gid,
    tp.month_fee,
    tp.month_fee AS month_abon,
@@ -571,7 +579,9 @@ sub user_info {
    tp.fees_method as fees_method,
    tp.describe_aid as describe_aid,
    tp.comments as comments,
-   service.*
+   service.*,
+   service.activate AS phone_activate,
+   service.tp_activate AS activate
      FROM mobile_main service
      LEFT JOIN tarif_plans tp ON (service.tp_id=tp.tp_id)
    WHERE service.id= ? ;",

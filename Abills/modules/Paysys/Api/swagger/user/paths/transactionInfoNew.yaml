@@ -3,7 +3,7 @@ get:
     - paysys
   summary: Проверка статуса платежа
   parameters:
-    - name: id
+    - name: string_id
       in: path
       description: ID транзакции
       required: true

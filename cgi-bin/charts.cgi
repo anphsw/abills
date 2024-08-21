@@ -1105,7 +1105,7 @@ sub _get_group_list {
     push @BIND_VALUES, $id;
   }
 
-  $admin->query("SELECT gid, name FROM groups $WHERE ORDER BY gid;", undef, { Bind => \@BIND_VALUES });
+  $admin->query("SELECT gid, name FROM `groups` $WHERE ORDER BY gid;", undef, { Bind => \@BIND_VALUES });
 
   return $admin->{list} || [ [ 0, 0 ] ];
 }

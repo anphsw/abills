@@ -172,7 +172,7 @@ sub show_box {
 
   print qq(<img src="img.png" alt="Smiley face">);
 
-  return;
+  return 1;
 }
 
 #**********************************************************

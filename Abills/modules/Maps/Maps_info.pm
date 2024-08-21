@@ -116,6 +116,16 @@ sub maps_layers {
 
   map $_->{export_function} = $layer_export_list_name_refs{$_->{id}}, @{$layers_list};
 
+  push @{$layers_list}, {
+    id                 => '40',
+    name               => 'ONLINE',
+    lang_name          => 'Online',
+    module             => 'Maps',
+    structure          => 'MARKER',
+    export_function    => 'maps_online',
+    extra_layer_script => '/styles/default/js/maps/maps_online_update.js'
+  };
+
   return { LAYERS => $layers_list, };
 }
 
@@ -414,7 +424,7 @@ sub maps_districts_show {
     FULL_NAME   => '_SHOW',
     CREATED     => '_SHOW',
     LIST2HASH   => 'object_id,district_id',
-    PAGE_ROWS   => $attr->{NEW_OBJECT} ? 1 : '',
+    PAGE_ROWS   => $attr->{NEW_OBJECT} ? 1 : 10000,
     SORT        => 'md.object_id'
   });
 
@@ -446,6 +456,77 @@ sub maps_districts_show {
 
   my $export_string = JSON::to_json($layer_objects, { utf8 => 0 });
   print $export_string;
+
+  return $export_string;
+}
+
+#**********************************************************
+=head2 maps_online($attr)
+
+=cut
+#**********************************************************
+sub maps_online {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $online_users = $Maps->users_monitoring_list({ COLS_NAME => 1 });
+  return $Maps->{TOTAL} if $attr->{ONLY_TOTAL};
+
+  my %build_info = ();
+  my @objects_to_show = ();
+  my %build_type = ();
+  foreach my $user (@{$online_users}) {
+    push @{$build_info{$user->{build_id}}}, {
+      online  => $user->{online} ? $html->element('span', '', {
+        class => 'far fa-check-circle text-green',
+        title => $lang->{ONLINE}
+      }) : '',
+      uid     => $html->button($user->{login}, "get_index=form_users&header=1&full=1&UID=$user->{uid}"),
+      deposit => $user->{deposit},
+      fio     => $user->{fio}
+    };
+
+    if (!$build_type{$user->{build_id}} || $build_type{$user->{build_id}} eq 'build_grey') {
+      $build_type{$user->{build_id}} = $user->{online} ? 'build_green' : 'build_grey';
+    }
+  }
+
+  foreach my $user (@{$online_users}) {
+    next if !$build_info{$user->{build_id}};
+
+    my $marker_info = $Auxiliary->maps_point_info_table({
+      TABLE_TITLE       => $lang->{USERS},
+      OBJECTS           => $build_info{$user->{build_id}},
+      TABLE_TITLES      => [ 'ONLINE', 'UID', 'DEPOSIT', 'FIO' ],
+      TABLE_LANG_TITLES => [ 'Online', $lang->{LOGIN}, $lang->{DEPOSIT}, $lang->{FIO} ],
+    });
+
+    delete $build_info{$user->{build_id}};
+    my %marker = (
+      MARKER    => {
+        ID           => $user->{build_id},
+        OBJECT_ID    => $user->{build_id},
+        COORDX       => $user->{coordx},
+        COORDY       => $user->{coordy},
+        TYPE         => $build_type{$user->{build_id}} || 'build_grey',
+        INFO         => $marker_info,
+        DISABLE_EDIT => 1
+      },
+      LAYER_ID  => 40,
+      ID        => $user->{id},
+      OBJECT_ID => $user->{build_id}
+    );
+
+    push @objects_to_show, \%marker;
+  }
+
+  return \@objects_to_show if $attr->{RETURN_OBJECTS};
+
+  my $export_string = JSON::to_json(\@objects_to_show, { utf8 => 0 });
+  if ($attr->{RETURN_JSON}) {
+    print $export_string;
+    return 1;
+  }
 
   return $export_string;
 }

@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "serviceOrders": {
+      "type": "object",
+      "properties": {
+        "^[a-zA-Z]+$": {
+          "type": "object",
+          "patternProperties": {
+            "^[0-9]+$": {
+              "type": "object",
+              "properties": {
+                "currentInvoice": {
+                  "type": "integer"
+                },
+                "date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "feesType": {
+                  "type": "integer"
+                },
+                "login": {
+                  "type": "string"
+                },
+                "num": {
+                  "type": "integer"
+                },
+                "order": {
+                  "type": "string"
+                },
+                "resultSum": {
+                  "type": "number"
+                },
+                "taxSum": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "currentInvoice",
+                "date",
+                "feesType",
+                "login",
+                "num",
+                "order",
+                "resultSum",
+                "taxSum"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "total": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "serviceOrders",
+    "total"
+  ]
+}

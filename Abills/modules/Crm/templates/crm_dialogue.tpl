@@ -34,6 +34,7 @@
                 </div>
                 <div class='col-md-3'>
                   %ACCEPT_DIALOGUE_BTN%
+                  %TAKE_DIALOGUE_BTN%
                   <div class='balance-buttons mt-2 mb-2 btn-group-vertical %HIDE_CONTROL_BTN%' id='control-btn'
                        style='width: 100%'>
                     <a class='btn btn-default btn-lg' id='send-btn'>_{SEND}_</a>

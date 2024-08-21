@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 10051
+  errstr:
+    type: string
+    example: No field pin

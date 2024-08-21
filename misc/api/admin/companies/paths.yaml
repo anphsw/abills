@@ -1,0 +1,12 @@
+/companies:
+  $ref: "./paths/companies.yaml"
+/companies/{id}:
+  $ref: "./paths/companiesId.yaml"
+/companies/{id}/users:
+  $ref: "./paths/companiesUsers.yaml"
+/companies/admins/:
+  $ref: "./paths/companiesAdmins.yaml"
+/companies/{id}/admins/:
+  $ref: "./paths/companiesAdminsAdd.yaml"
+/companies/public-records/{edrpou}/:
+  $ref: "./paths/publicRecords.yaml"

@@ -1,5 +1,5 @@
-<form action=$SELF_URL method=post class='pswd-confirm'>
-  <input type='hidden' name='index' value='$index'>
+<form action=%SELF_URL% method=post class='pswd-confirm'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='RECIPIENT' value='%RECIPIENT%'>
   <input type='hidden' name='SUM' value='%SUM%'>
   <input type='hidden' name='UID' value='%UID%'>

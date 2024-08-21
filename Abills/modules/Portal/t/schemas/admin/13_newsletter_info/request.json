@@ -1,0 +1,13 @@
+{
+  "name": "ADMIN_PORTAL_NEWSLETTER_INFO",
+  "method": "GET",
+  "path": "portal/newsletter/:newsletterId/",
+  "post-response": {
+    "variables": [
+      {
+        "name": "newsletterId",
+        "value": "insertId"
+      }
+    ]
+  }
+}

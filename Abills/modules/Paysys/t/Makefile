@@ -1,4 +1,5 @@
-#make test all payments systems
+# make test all payments systems
+# to define user in tests need to add to config.pl option PAYSYS_TEST_USER with id of your user
 
 PERL						=	/usr/bin/perl
 AVAILABLE_PAYMENT_SYSTEMS	=	$(shell find ../systems/ -name '*.pm' | xargs -n 1 basename | cut -f 1 -d '.')

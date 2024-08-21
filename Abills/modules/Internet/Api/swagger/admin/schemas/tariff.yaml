@@ -1,0 +1,77 @@
+type: object
+properties:
+  abonDistribution:
+    type: number
+    example: 1
+  activeDayFee:
+    type: number
+    example: 0
+  age:
+    type: number
+    example: 0
+  credit:
+    type: number
+    example: 0
+  extBillAccount:
+    type: number
+    example: 1
+  feesMethod:
+    type: number
+    example: 1
+  fine:
+    type: number
+    example: 0
+  id:
+    type: number
+    example: 3
+  logins:
+    type: number
+    example: 0
+  minUse:
+    type: number
+    example: 0
+  module:
+    type: string
+    example: Internet
+  dayFee:
+    type: number
+    example: 10
+  monthFee:
+    type: number
+    example: 230
+  name:
+    type: string
+    example: stopped
+  nextTpId:
+    type: number
+    example: 0
+  paymentType:
+    type: number
+    example: 0
+  postpaidDailyFee:
+    type: number
+    example: 0
+  postpaidMonthlyFee:
+    type: number
+    example: 0
+  radPairs:
+    type: string
+    example: "PPPD-Downstream-Speed-Limit-1=102400, \nPPPD-Ipstream-Speed-Limit-1=102400, \nPPPD-Downstream-Speed-Limit-2=102400, \nPPPD-Ipstream-Speed-Limit-2=102400, \nSession-Timeout=0, \n"
+  reductionFee:
+    type: number
+    example: 1
+  smallDepositAction:
+    type: number
+    example: -1
+  timeTarifs:
+    type: number
+    example: 0
+  tpGroupName:
+    type: string
+    example: "Test group"
+  tpId:
+    type: number
+    example: 175
+  trafTarifs:
+    type: number
+    example: 0

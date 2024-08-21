@@ -43,12 +43,14 @@ my $db = Abills::SQL->connect(
 our $admin = Admins->new($db, \%conf);
 # Just init Tokens from Config
 my $Conf = Conf->new($db, $admin, \%conf);
+my $debug = $ARGS->{DEBUG} || 0;
 
 _start();
 sub _start {
   if ($ARGS->{help}) {
     help();
-  } else {
+  }
+  else {
     integration();
   }
 }
@@ -74,7 +76,7 @@ sub integration {
   }
 
   if ($billing_url !~ /https:\/\//) {
-    print << "[END]";
+    print <<"[END]";
     Your \$conf{BILLING_URL} is not valid for Viber.
     Change it due to requirements and change web server config.
 
@@ -86,7 +88,12 @@ sub integration {
 
   my @headers = ('Content-Type: application/json', 'X-Viber-Auth-Token: ' . $conf{VIBER_TOKEN});
 
-  my $bot_info = web_request("$VIBER_API_URL/get_account_info", { CURL => 1, HEADERS => \@headers, JSON_RETURN => 1 });
+  my $bot_info = web_request("$VIBER_API_URL/get_account_info", {
+    CURL        => 1,
+    HEADERS     => \@headers,
+    DEBUG       => $debug,
+    JSON_RETURN => 1
+  });
 
   if (!$bot_info || $bot_info->{status} == 2) {
     print "Bot is not exist.\nRecheck your \$conf{VIBER_TOKEN} and try again.\n";
@@ -124,7 +131,7 @@ sub integration {
     # print in debug that symlink exist
   }
   elsif (!$create_folder_and_symlink->()) {
-    print << "[END]";
+    print <<"[END]";
 ERROR Cannot create folder and symlink.
 
 Create it manually with commands:
@@ -142,7 +149,12 @@ And start this script again.
 
   my $generated_url = $billing_url . '/' . $generated_append;
 
-  my $endpoint_result = web_request($generated_url, { MORE_INFO => 1, CURL => 1, INSECURE => 1 });
+  my $endpoint_result = web_request($generated_url, {
+    MORE_INFO => 1,
+    CURL      => 1,
+    DEBUG     => $debug,
+    INSECURE  => 1
+  });
 
   if (!($endpoint_result->{http_code} && $endpoint_result->{http_code} == 200)) {
     print "Viber endpoint is not working!\n\nTry command:\nchmod +x $symlink_end\n";
@@ -151,9 +163,9 @@ And start this script again.
 
   my $subscribe_result = web_request("$VIBER_API_URL/set_webhook",
     {
-      CURL => 1,
-      HEADERS => \@headers,
-      JSON_BODY => {
+      CURL        => 1,
+      HEADERS     => \@headers,
+      JSON_BODY   => {
         url         => $generated_url,
         event_types => [
           'delivered',
@@ -166,7 +178,8 @@ And start this script again.
         send_name   => 'false',
         send_photo  => 'false'
       },
-      JSON_RETURN => 1
+      JSON_RETURN => 1,
+      DEBUG       => $debug
     }
   );
 
@@ -177,9 +190,10 @@ And start this script again.
 
   my $fresh_bot_info = web_request("$VIBER_API_URL/get_account_info",
     {
-      CURL => 1,
-      HEADERS => \@headers,
-      JSON_RETURN => 1
+      CURL        => 1,
+      HEADERS     => \@headers,
+      JSON_RETURN => 1,
+      DEBUG       => $debug
     }
   );
 
@@ -189,7 +203,7 @@ And start this script again.
 
   _load_viber_db();
 
-  print << "[END]";
+  print <<"[END]";
   Congratulations!
   ABillS Viber bot successfully subscribed.
 
@@ -243,7 +257,7 @@ sub _configure_viber_modules {
   my $n = scalar(@AVAILABLE_MODULES);
   for my $available_module (sort @AVAILABLE_MODULES) {
     $i++;
-    if (grep { $_ eq $available_module } @ENABLED_MODULES) {
+    if (grep {$_ eq $available_module} @ENABLED_MODULES) {
       print "($i/$n) Module $available_module already enabled.\n";
       next;
     };
@@ -269,8 +283,9 @@ sub _load_viber_db {
     close($fh);
   };
 
-  eval { $admin->query($content, 'do', {}) };
+  eval {$admin->query($content, 'do', {})};
 }
+
 #*******************************************************************
 =head2 help() - Help
 
@@ -278,7 +293,7 @@ sub _load_viber_db {
 #*******************************************************************
 sub help {
 
-  print << "[END]";
+  print <<"[END]";
 ABillS Viber bot setup in one click
 
   Required config params:

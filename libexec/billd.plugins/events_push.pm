@@ -138,7 +138,7 @@ sub collect_admin_events {
 
   $admin->info($aid);
 
-  my $cross_modules_return = cross_modules('_events', {
+  my $cross_modules_return = cross_modules('events', {
     UID    => $user->{UID},
     PERIOD => 300,
     SILENT => $DEBUG > 0,

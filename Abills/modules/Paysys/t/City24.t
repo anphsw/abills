@@ -6,7 +6,6 @@ use Test::More;
 use lib '.';
 use lib '../../';
 use Paysys::t::Init_t;
-require Paysys::systems::City24;
 
 our (
   %conf,
@@ -22,7 +21,15 @@ our (
 my $login = $argv->{LOGIN} || $conf{PAYSYS_CITY24_LOGIN} || q{};
 my $password = $argv->{PASSWORD} || $conf{PAYSYS_CITY24_PASSWORD} || q{};
 
-my $Payment_plugin = Paysys::systems::City24->new($db, $admin, \%conf);
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::systems::City24;
+  $Payment_plugin = Paysys::systems::City24->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::City24;
+  $Payment_plugin = Paysys::Plugins::City24->new($db, $admin, \%conf);
+}
 $Payment_plugin->{TEST}=1;
 if ($debug > 3) {
   $Payment_plugin->{DEBUG}=7;
@@ -53,20 +60,36 @@ our @requests = (
   {
     name    => 'PAY',
     request => qq{<?xml version="1.0" encoding="UTF-8"?>
-    <commandCall>
-    <login>$login</login>
-    <password>$password</password>
-    <command>pay</command>
-    <transactionID>1234567890123</transactionID>
-    <payTimestamp>$date</payTimestamp>
-    <payID>$payment_id</payID>
-    <payElementID>0</payElementID>
-    <account>$user_id</account>
-    <amount>$payment_sum</amount>
-    <terminalId>11352</terminalId>
-    </commandCall>},
+<commandCall>
+  <login>$login</login>
+  <password>$password</password>
+  <command>pay</command>
+  <transactionID>1234567890123</transactionID>
+  <payTimestamp>$date</payTimestamp>
+  <payID>$payment_id</payID>
+  <payElementID>0</payElementID>
+  <account>$user_id</account>
+  <amount>$payment_sum</amount>
+  <terminalId>11352</terminalId>
+</commandCall>
+},
     result  => q{}
-  }
+  },
+  {
+    name    => 'CANCEL',
+    request => qq{<?xml version="1.0" encoding="UTF-8"?>
+<commandCall>
+	<login>$login</login>
+	<password>$password</password>
+	<command>cancel</command>
+	<transactionID>1111</transactionID>
+	<cancelPayID>$payment_id</cancelPayID>
+	<payElementID>1</payElementID>
+	<account>120487</account>
+	<amount>100</amount>
+</commandCall>},
+    result  => q{}
+  },
 );
 
 test_runner($Payment_plugin, \@requests, { VALIDATE => 'xml_compare' });

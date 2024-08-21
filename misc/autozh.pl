@@ -57,6 +57,7 @@ autozap.pl Version: $VERSION
   HANGUP=1            - Make Hangup
   DURATION=           - Max duration more then
   LOGIN=...           - login for hangup
+  CID=                - User CID/MAC
   COUNT=              - Hangup or zap records (Default: infinity)
   UID=...             - UID for hangup
   TP_ID=...           - TP_ID for hangup
@@ -91,184 +92,16 @@ $Log->{PRINT} = 1;
 my $Sessions = Internet::Sessions->new($db, $Admin, \%conf);
 #my $Internet = Internet->new($db, $Admin, \%conf);
 
-my %LIST_PARAMS = (
-  USER_NAME            => '_SHOW',
-  ACCT_SESSION_ID      => '_SHOW',
-  NAS_PORT_ID          => '_SHOW',
-  NAS_IP               => '_SHOW',
-  CLIENT_IP            => '_SHOW',
-  CONNECT_INFO         => '_SHOW',
-  CID                  => '_SHOW',
-  USER_NAME            => '_SHOW',
-  UID                  => '_SHOW',
-  DEPOSIT              => '_SHOW',
-  CREDIT               => '_SHOW',
-  TP_CREDIT            => '_SHOW',
-  TP_MONTH_FEE         => '_SHOW',
-  TP_DAY_FEE           => '_SHOW',
-  TP_ABON_DISTRIBUTION => '_SHOW',
-);
-
-if ($argv->{LOGIN}) {
-  $LIST_PARAMS{USER_NAME} = $argv->{LOGIN};
-}
-elsif ($argv->{UID}) {
-  $LIST_PARAMS{UID} = $argv->{UID};
-}
-
-if (defined($argv->{GUEST})) {
-  $LIST_PARAMS{GUEST} = $argv->{GUEST};
-}
-
-if ($argv->{DURATION}) {
-  $LIST_PARAMS{DURATION_SEC} = $argv->{DURATION};
-}
-
-if (defined($argv->{PAYMENT_METHOD})) {
-  $LIST_PARAMS{PAYMENT_METHOD} = $argv->{PAYMENT_METHOD};
-}
-
-if ($argv->{TURBO}) {
-  $LIST_PARAMS{TURBO_BEGIN}='_SHOW';
-  $LIST_PARAMS{TURBO_END}="<$DATE $TIME";
-}
-
-if ($argv->{TP_ID}) {
-  $LIST_PARAMS{TP_ID} = $argv->{TP_ID};
-}
-
-if ($argv->{GID}) {
-  $LIST_PARAMS{GID} = $argv->{GID};
-}
-
-if ($argv->{COUNT}) {
-  $LIST_PARAMS{PAGE_ROWS} = $argv->{COUNT};
-  $LIST_PARAMS{LIMIT} = $LIST_PARAMS{PAGE_ROWS};
-}
-
-if ($argv->{LIMIT}) {
-  $LIST_PARAMS{PAGE_ROWS} = $argv->{LIMIT};
-  $LIST_PARAMS{LIMIT} = $LIST_PARAMS{PAGE_ROWS};
-}
-
-if ($argv->{HANGUP_PERIOD}) {
-  $LIST_PARAMS{_HANGUP_PERIOD} = strftime("%H", localtime(time));
-}
-
-$LIST_PARAMS{NAS_ID} = $argv->{NAS_ID} if ($argv->{NAS_ID});
 my $count = 0;
 
 if ($debug > 1) {
   print "DATE: $DATE $TIME\n";
 }
 
+my %LIST_PARAMS = %{ list_forming($argv) };
+
 if ($argv->{HANGUP}) {
-  if ($debug > 6) {
-    $Sessions->{debug} = 1;
-    $Nas->{debug} = 1;
-  }
-
-if ($argv->{VLAN}) {
-  $LIST_PARAMS{VLAN} = $argv->{VLAN};
-}
-
-if ($argv->{SERVER_VLAN}) {
-  $LIST_PARAMS{SERVER_VLAN} = $argv->{SERVER_VLAN};
-}
-
-  $Sessions->online(\%LIST_PARAMS);
-
-  if ($Sessions->{errno}) {
-    print "Error: $Sessions->{errno} $Sessions->{errstr}\n";
-    exit;
-  }
-
-  my $online_list = $Sessions->{nas_sorted};
-  my $nas_list = $Nas->list({ COLS_NAME => 1, PAGE_ROWS => 60000 });
-
-  foreach my $nas_row (@$nas_list) {
-    next if (!defined($online_list->{ $nas_row->{nas_id} }));
-    $Nas->info({ NAS_ID => $nas_row->{nas_id} });
-    foreach my $online (@{$online_list->{ $nas_row->{nas_id} }}) {
-      my %ACCT_INFO = (
-        ACCT_SESSION_ID    => $online->{acct_session_id} || q{},
-        NAS_PORT           => $online->{nas_port_id},
-        NAS_IP_ADDRESS     => $nas_row->{nas_ip},
-        FRAMED_IP_ADDRESS  => $online->{client_ip},
-        CONNECT_INFO       => $online->{connection_info},
-        CALLING_STATION_ID => $online->{cid} || q{},
-        USER_NAME          => $online->{user_name},
-        UID                => $online->{uid},
-        DEPOSIT            => $online->{deposit},
-        CREDIT             => ($online->{credit} > 0) ? $online->{credit} : $online->{tp_credit},
-      );
-
-      if ($argv->{DAYS2FINISH}) {
-        my @day2finish = split(/,/, $argv->{DAYS2FINISH});
-        my $day_fee = $online->{tp_day_fee} || 0;
-
-        if ($online->{tp_month_fee} > 0 && $online->{tp_abon_distribution}) {
-          $day_fee = $online->{tp_month_fee} / days_in_month({ DATE => $DATE });
-        }
-
-        if ($day_fee > 0) {
-          my $last_days = int(($ACCT_INFO{DEPOSIT} + $ACCT_INFO{CREDIT}) / $day_fee);
-          print "$ACCT_INFO{USER_NAME} days: $last_days\n" if ($debug > 3);
-          if (!in_array($last_days, \@day2finish)) {
-            next;
-          }
-          print "$ACCT_INFO{USER_NAME} Days to new period: $last_days\n" if ($debug > 0);
-        }
-      }
-
-      if (defined($argv->{NEGATIVE_DEPOSIT}) && $ACCT_INFO{DEPOSIT} + $ACCT_INFO{CREDIT} > 0) {
-        print "1:INFO=Hangupped '$ACCT_INFO{USER_NAME}'" if ($argv->{LOGIN});
-        next;
-      }
-
-      if ($debug > 1) {
-        print "[$ACCT_INFO{UID}] $ACCT_INFO{USER_NAME} $ACCT_INFO{FRAMED_IP_ADDRESS} $ACCT_INFO{NAS_PORT} $ACCT_INFO{NAS_IP_ADDRESS} $ACCT_INFO{ACCT_SESSION_ID} $ACCT_INFO{CALLING_STATION_ID}\n";
-      }
-
-      if ($debug < 5) {
-        $Nas_cmd->hangup(
-          $Nas,
-          $ACCT_INFO{NAS_PORT},
-          $ACCT_INFO{USER_NAME},
-          {
-            ACCT_SESSION_ID   => $ACCT_INFO{ACCT_SESSION_ID},
-            FRAMED_IP_ADDRESS => $ACCT_INFO{FRAMED_IP_ADDRESS},
-            UID               => $ACCT_INFO{UID},
-            DEBUG             => ($debug > 1) ? $debug : 0,
-            INTERNET          => in_array('Internet', \@MODULES)
-          }
-        );
-
-        #          if ($ret == 0) {
-        if ($argv->{CREDIT}) {
-          print "1:INFO=Hangupped '$ACCT_INFO{USER_NAME}'";
-        }
-
-        #           }
-      }
-      $count++;
-
-      if ($argv->{SLEEP}) {
-        my ($action_count, $sleep_time) = split(/:/, $argv->{SLEEP});
-
-        if ($count % $action_count == 0) {
-          if ($debug > 1) {
-            print "Sleep: $sleep_time ($count)\n";
-          }
-          sleep $sleep_time;
-        }
-      }
-    }
-  }
-
-  if ($LIST_PARAMS{USER_NAME} && $Sessions->{TOTAL} == 0) {
-    print "1:INFO=Not online '". (($LIST_PARAMS{USER_NAME} && $LIST_PARAMS{USER_NAME} ne '_SHOW') ? $LIST_PARAMS{USER_NAME} : q{}) ."'";
-  }
+  _hangup($argv);
 }
 elsif ($argv->{ACTION_EXPR}) {
   $argv->{LAST_ACTIONS_COUNT} = 250 if (!$argv->{LAST_ACTIONS_COUNT});
@@ -305,6 +138,253 @@ else {
 if ($debug > 0) {
   print "Total: $count\n";
   gen_time($begin_time);
+}
+
+
+#**********************************************************
+=head2 mk_cid_list($cid);
+
+  Arguments:
+    $cid
+
+  Results:
+    $cid_list
+
+=cut
+#**********************************************************
+sub mk_cid_list {
+  my ($cid)=@_;
+  my @cid_list = ();
+
+  my @mac_formats = (
+    '([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2})|$1$2.$3$4.$5$6',
+    '([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})|$1:$2:$3:$4:$5:$6',
+    '([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2})|$1$2$3$4$5$6',
+  );
+
+  foreach my $mac_format ( @mac_formats ) {
+    #print $mac_format ."\n";
+    my $_cid = $cid;
+    my ($expr, $result)=split(/\|/, $mac_format);
+
+    $_cid =~ s/$expr/eval "\"$result\""/e;
+
+    push @cid_list, $_cid;
+  }
+
+  return join(',', @cid_list);
+}
+
+#**********************************************************
+=head2 _hangup($cid);
+
+  Arguments:
+    $attr
+
+  Results:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub _hangup {
+  my ($attr)=@_;
+
+  if ($debug > 6) {
+    $Sessions->{debug} = 1;
+    $Nas->{debug} = 1;
+  }
+
+  $Sessions->online(\%LIST_PARAMS);
+
+  if ($Sessions->{errno}) {
+    print "ERROR: $Sessions->{errno} $Sessions->{errstr}\n";
+    exit;
+  }
+
+  my $online_list = $Sessions->{nas_sorted};
+  my $nas_list = $Nas->list({ COLS_NAME => 1, PAGE_ROWS => 60000 });
+
+  foreach my $nas_row (@$nas_list) {
+    next if (!defined($online_list->{ $nas_row->{nas_id} }));
+    $Nas->info({ NAS_ID => $nas_row->{nas_id} });
+    foreach my $online (@{$online_list->{ $nas_row->{nas_id} }}) {
+      my %ACCT_INFO = (
+        ACCT_SESSION_ID    => $online->{acct_session_id} || q{},
+        NAS_PORT           => $online->{nas_port_id},
+        NAS_IP_ADDRESS     => $nas_row->{nas_ip},
+        FRAMED_IP_ADDRESS  => $online->{client_ip},
+        CONNECT_INFO       => $online->{connection_info},
+        CALLING_STATION_ID => $online->{cid} || q{},
+        USER_NAME          => $online->{user_name},
+        UID                => $online->{uid},
+        DEPOSIT            => $online->{deposit},
+        CREDIT             => ($online->{credit} > 0) ? $online->{credit} : $online->{tp_credit},
+      );
+
+      if ($attr->{DAYS2FINISH}) {
+        my @day2finish = split(/,/, $attr->{DAYS2FINISH});
+        my $day_fee = $online->{tp_day_fee} || 0;
+
+        if ($online->{tp_month_fee} > 0 && $online->{tp_abon_distribution}) {
+          $day_fee = $online->{tp_month_fee} / days_in_month({ DATE => $DATE });
+        }
+
+        if ($day_fee > 0) {
+          my $last_days = int(($ACCT_INFO{DEPOSIT} + $ACCT_INFO{CREDIT}) / $day_fee);
+          print "$ACCT_INFO{USER_NAME} days: $last_days\n" if ($debug > 3);
+          if (!in_array($last_days, \@day2finish)) {
+            next;
+          }
+          print "$ACCT_INFO{USER_NAME} Days to new period: $last_days\n" if ($debug > 0);
+        }
+      }
+
+      if (defined($attr->{NEGATIVE_DEPOSIT}) && $ACCT_INFO{DEPOSIT} + $ACCT_INFO{CREDIT} > 0) {
+        print "1:INFO=Hangupped '$ACCT_INFO{USER_NAME}'" if ($attr->{LOGIN});
+        next;
+      }
+
+      if ($debug > 1) {
+        print "[$ACCT_INFO{UID}] $ACCT_INFO{USER_NAME} $ACCT_INFO{FRAMED_IP_ADDRESS} $ACCT_INFO{NAS_PORT} $ACCT_INFO{NAS_IP_ADDRESS} $ACCT_INFO{ACCT_SESSION_ID} $ACCT_INFO{CALLING_STATION_ID}\n";
+      }
+
+      if ($debug < 5) {
+        my $ret = $Nas_cmd->hangup(
+          $Nas,
+          $ACCT_INFO{NAS_PORT},
+          $ACCT_INFO{USER_NAME},
+          {
+            ACCT_SESSION_ID   => $ACCT_INFO{ACCT_SESSION_ID},
+            FRAMED_IP_ADDRESS => $ACCT_INFO{FRAMED_IP_ADDRESS},
+            UID               => $ACCT_INFO{UID},
+            DEBUG             => ($debug > 1) ? $debug : 0,
+          }
+        );
+
+        if ($ret == 0) {
+          #if ($attr->{CREDIT}) {
+            print "1:INFO=Hangupped '$ACCT_INFO{USER_NAME}'";
+          #}
+        }
+      }
+      $count++;
+
+      if ($attr->{SLEEP}) {
+        my ($action_count, $sleep_time) = split(/:/, $attr->{SLEEP});
+
+        if ($count % $action_count == 0) {
+          if ($debug > 1) {
+            print "Sleep: $sleep_time ($count)\n";
+          }
+          sleep $sleep_time;
+        }
+      }
+    }
+  }
+
+  if ($LIST_PARAMS{USER_NAME} && $Sessions->{TOTAL} == 0) {
+    if ($LIST_PARAMS{CID} && $LIST_PARAMS{CID} eq '_SHOW') {
+      delete $LIST_PARAMS{CID};
+    }
+    print "1:INFO=Not online '" . ($LIST_PARAMS{CID} || $LIST_PARAMS{USER_NAME} || q{} ) . "'";
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 list_forming($attr);
+
+  Arguments:
+    $attr
+
+  Results:
+    \%LIST_PARAMS
+
+=cut
+#**********************************************************
+sub list_forming {
+  my ($attr)=@_;
+
+  my %list_params = (
+    USER_NAME            => '_SHOW',
+    ACCT_SESSION_ID      => '_SHOW',
+    NAS_PORT_ID          => '_SHOW',
+    NAS_IP               => '_SHOW',
+    CLIENT_IP            => '_SHOW',
+    CONNECT_INFO         => '_SHOW',
+    CID                  => '_SHOW',
+    USER_NAME            => '_SHOW',
+    UID                  => '_SHOW',
+    DEPOSIT              => '_SHOW',
+    CREDIT               => '_SHOW',
+    TP_CREDIT            => '_SHOW',
+    TP_MONTH_FEE         => '_SHOW',
+    TP_DAY_FEE           => '_SHOW',
+    TP_ABON_DISTRIBUTION => '_SHOW',
+  );
+
+  if ($attr->{CID}) {
+    $list_params{CID} = mk_cid_list($attr->{CID});
+    return \%list_params;
+  }
+  elsif ($attr->{LOGIN}) {
+    $list_params{USER_NAME} = $attr->{LOGIN};
+  }
+  elsif ($attr->{UID}) {
+    $list_params{UID} = $attr->{UID};
+  }
+
+  if (defined($attr->{GUEST})) {
+    $list_params{GUEST} = $attr->{GUEST};
+  }
+
+  if ($attr->{DURATION}) {
+    $list_params{DURATION_SEC} = $attr->{DURATION};
+  }
+
+  if (defined($attr->{PAYMENT_METHOD})) {
+    $list_params{PAYMENT_METHOD} = $attr->{PAYMENT_METHOD};
+  }
+
+  if ($attr->{TURBO}) {
+    $list_params{TURBO_BEGIN} = '_SHOW';
+    $list_params{TURBO_END} = "<$DATE $TIME";
+  }
+
+  if ($attr->{TP_ID}) {
+    $list_params{TP_ID} = $attr->{TP_ID};
+  }
+
+  if ($attr->{GID}) {
+    $list_params{GID} = $attr->{GID};
+  }
+
+  if ($attr->{COUNT}) {
+    $list_params{PAGE_ROWS} = $attr->{COUNT};
+    $list_params{LIMIT} = $list_params{PAGE_ROWS};
+  }
+
+  if ($attr->{LIMIT}) {
+    $list_params{PAGE_ROWS} = $attr->{LIMIT};
+    $list_params{LIMIT} = $list_params{PAGE_ROWS};
+  }
+
+  if ($attr->{HANGUP_PERIOD}) {
+    $list_params{_HANGUP_PERIOD} = strftime("%H", localtime(time));
+  }
+
+  if ($attr->{VLAN}) {
+    $list_params{VLAN} = $attr->{VLAN};
+  }
+
+  if ($attr->{SERVER_VLAN}) {
+    $list_params{SERVER_VLAN} = $attr->{SERVER_VLAN};
+  }
+
+  $list_params{NAS_ID} = $attr->{NAS_ID} if ($attr->{NAS_ID});
+
+  return \%list_params;
 }
 
 1

@@ -1,0 +1,24 @@
+type: object
+properties:
+  errno:
+    type: number
+    example: 9
+  errors:
+    type: array
+    items:
+      type: object
+      properties:
+        errno:
+          type: number
+          example: 20
+        errstr:
+          type: string
+          example: ids is required
+        param:
+          type: string
+          example: ids
+        required:
+          type: boolean
+  errstr:
+    type: string
+    example: Validation failed

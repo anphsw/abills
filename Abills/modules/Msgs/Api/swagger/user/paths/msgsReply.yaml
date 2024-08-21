@@ -3,7 +3,7 @@ get:
     - msgs
   summary: Все сообщения в заявке
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: ID заявки
       required: true
@@ -23,7 +23,7 @@ post:
     - msgs
   summary: Ответ на существующую заявку
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: ID заявки
       required: true
@@ -36,13 +36,9 @@ post:
           $ref: "../schemas/msgsReplyAddRequest.yaml"
       multipart/form-data:
         schema:
-          - $ref: "../schemas/msgsReplyAddRequest.yaml"
-            file1:
-              type: string
-              format: binary
-            file2:
-              type: string
-              format: binary
+          allOf:
+            - $ref: "../schemas/msgsReplyAddRequest.yaml"
+            - $ref: "../schemas/msgsFiles.yaml"
     required: true
   responses:
     200:

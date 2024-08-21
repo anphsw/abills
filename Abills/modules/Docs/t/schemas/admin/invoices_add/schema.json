@@ -1,0 +1,179 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "addressBuild": {
+      "type": "string"
+    },
+    "addressFlat": {
+      "type": "string"
+    },
+    "addressStreet": {
+      "type": "string"
+    },
+    "affected": {
+      "type": "integer"
+    },
+    "amountForPay": {
+      "type": "number"
+    },
+    "aFio": {
+      "type": "string"
+    },
+    "chargedSum": {
+      "type": "integer"
+    },
+    "companyId": {
+      "type": "integer"
+    },
+    "companyName": {
+      "type": "string"
+    },
+    "companyPhone": {
+      "type": "string"
+    },
+    "contractDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "contractId": {
+      "type": ["number", "string"]
+    },
+    "created": {
+      "type": "string"
+    },
+    "currency": {
+      "type": "integer"
+    },
+    "customer": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "deliveryStatus": {
+      "type": "integer"
+    },
+    "deposit": {
+      "type": "number"
+    },
+    "docsAccountExpirePeriod": {
+      "type": "integer"
+    },
+    "docId": {
+      "type": "integer"
+    },
+    "exchangeRate": {
+      "type": "integer"
+    },
+    "expireDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "extId": {
+      "type": "string"
+    },
+    "fio": {
+      "type": "string"
+    },
+    "invoiceNum": {
+      "type": "integer"
+    },
+    "login": {
+      "type": "string"
+    },
+    "number": {
+      "type": "string"
+    },
+    "orders": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "counts": {
+            "type": "integer"
+          },
+          "feesId": {
+            "type": "integer"
+          },
+          "feesType": {
+            "type": "integer"
+          },
+          "invoiceId": {
+            "type": "integer"
+          },
+          "orders": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "tax": {
+            "type": "integer"
+          },
+          "taxSum": {
+            "type": "integer"
+          },
+          "typeFeesId": {
+            "type": "integer"
+          },
+          "unit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "counts",
+          "feesId",
+          "feesType",
+          "invoiceId",
+          "price",
+          "typeFeesId",
+          "unit"
+        ]
+      }
+    },
+    "paymentId": {
+      "type": "integer"
+    },
+    "paymentMethodId": {
+      "type": "string"
+    },
+    "paymentSum": {
+      "type": "string"
+    },
+    "phone": {
+      "type": ["string", "number"]
+    },
+    "prePayment": {
+      "type": "number"
+    },
+    "total": {
+      "type": "integer"
+    },
+    "totalSum": {
+      "type": "number"
+    },
+    "uid": {
+      "type": "integer"
+    },
+    "vat": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "contractDate",
+    "created",
+    "date",
+    "docId",
+    "expireDate",
+    "invoiceNum",
+    "login",
+    "orders",
+    "prePayment",
+    "total",
+    "totalSum",
+    "uid",
+    "vat"
+  ]
+}

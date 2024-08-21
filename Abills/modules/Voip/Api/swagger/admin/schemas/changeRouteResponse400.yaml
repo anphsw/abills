@@ -1,0 +1,34 @@
+type: object
+properties:
+  errno:
+    type: number
+    example: 9
+  errors:
+    type: array
+    items:
+      type: object
+      properties:
+        errno:
+          type: number
+          example: 21
+        errstr:
+          type: string
+          example: prefix is not valid
+        param:
+          type: string
+          example: prefix
+        reason:
+          type: string
+          example: prefix already exists in route with id 2008
+        prefix:
+          type: string
+          example: 00355
+        routeId:
+          type: number
+          example: 2008
+        type:
+          type: string
+          example: number
+  errstr:
+    type: string
+    example: Validation failed

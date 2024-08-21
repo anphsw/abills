@@ -17,7 +17,7 @@
 <form action='%SELF_URL%' method='post'>
 
   <input type=hidden name='index' value='$index'>
-  <input type=hidden name='UID' value='$FORM{UID}'>
+  <input type=hidden name='UID' value='%UID%'>
   <input type=hidden name='STATUS_DAYS' value='%STATUS_DAYS%'>
   <input type=hidden name='step' value='$FORM{step}'>
   <input type=hidden name='ID' value='%ID%'>
@@ -75,7 +75,7 @@
                 <div class='input-group-append'>
                   %CHANGE_TP_BUTTON%
                   <a class='btn input-group-button hidden-print px-3' title='_{PAY_TO}_'
-                     href='$SELF_URL?index=$index&UID=$FORM{UID}&ID=%ID%&pay_to=1'>
+                     href='%SELF_URL%?index=%index%&UID=%UID%&ID=%ID%&pay_to=1'>
                     <i class='$conf{CURRENCY_ICON}'></i>
                   </a>
                 </div>

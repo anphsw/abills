@@ -1,0 +1,17 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 2
+  name:
+    type: string
+    example: Первый раздел
+  responsible:
+    type: integer
+    example: 1
+  innerChapter:
+    type: integer
+    example: 0
+  autoclose:
+    type: integer
+    example: 50

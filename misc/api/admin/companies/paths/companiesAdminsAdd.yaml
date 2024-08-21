@@ -1,0 +1,56 @@
+put:
+  tags:
+    - companies
+  summary: Изменение компании
+  parameters:
+    - name: id
+      in: path
+      description: ID компании
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/companiesAdminsAdd.yaml"
+        examples:
+          NextPeriod:
+            summary:
+              Добавить админов
+            value:
+              uids:
+                - 100500
+                - 100501
+          InvoiceAdd:
+            summary:
+              Добавить админов (старый метод)
+            value:
+              ids: "100500, 100500"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              result:
+                type: string
+                example: Successfully changed
+    400:
+      description: Компания не существует с таким ID
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              errno:
+                type: integer
+                example: 100054
+              errstr:
+                type: string
+                example: "Company does not exist or no users in company"
+  security:
+    - KEY: [ ]

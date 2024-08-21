@@ -1,0 +1,16 @@
+type: array
+items:
+  type: object
+  properties:
+    id:
+      type: number
+      example: 3
+    marking:
+      type: string
+      example: example
+    datetime:
+      type: string
+      example: 2020-12-01 12:14:12
+    serial:
+      type: string
+      example: example

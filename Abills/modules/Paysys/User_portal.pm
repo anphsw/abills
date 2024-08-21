@@ -10,7 +10,7 @@ use warnings FATAL => 'all';
 use Paysys::Init;
 use Users;
 use Paysys;
-use Abills::Base qw(ip2int in_array mk_unique_value cmd);
+use Abills::Base qw(ip2int in_array mk_unique_value cmd next_month);
 
 our (
   $base_dir,
@@ -40,6 +40,10 @@ sub paysys_payment {
   my ($attr) = @_;
   my $index = get_function_index('paysys_payment');
 
+  if ($attr->{PAYMENTS_PORTAL} && $attr->{USER_INFO} && ref $attr->{USER_INFO} eq 'Users') {
+    $user = $attr->{USER_INFO};
+  }
+
   my %TEMPLATES_ARGS = ();
   $user->pi({ UID => $user->{UID} });
 
@@ -57,8 +61,8 @@ sub paysys_payment {
   my $recommended_pay = 0;
 
   if ($user && defined &recomended_pay) {
-    $recommended_pay = recomended_pay($user) || 1;
-    $FORM{SUM} = $recommended_pay if ($FORM{SUM} == 0);
+    $recommended_pay = recomended_pay($user) || 0;
+    $FORM{SUM} = $recommended_pay if ($FORM{SUM} && $FORM{SUM} == 0);
   }
 
   my $paysys_id = $FORM{PAYMENT_SYSTEM};
@@ -97,7 +101,7 @@ sub paysys_payment {
         return $html->message('err', $lang{ERROR}, "ERR_BIG_SUM: $conf{PAYSYS_MAX_SUM}");
       }
 
-      my $paysys_plugin = _configure_load_payment_module('Ipay_mp.pm');
+      my $paysys_plugin = _configure_load_payment_module('Ipay_mp.pm', 0, \%conf);
       my $Paysys_plugin = $paysys_plugin->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, INDEX => $index, SELF_URL => $SELF_URL });
       $TEMPLATES_ARGS{IPAY_HTML} .= $Paysys_plugin->user_portal_special($user, { %FORM, %{($attr) ? $attr : {}} });
       return 1;
@@ -120,7 +124,7 @@ sub paysys_payment {
       print $html->message('err', $lang{ERROR}, 'Payment system not exist');
     }
     else {
-      my $Module = _configure_load_payment_module($payment_system_info->{module});
+      my $Module = _configure_load_payment_module($payment_system_info->{module}, 0, \%conf);
       my $Paysys_plugin = $Module->new($db, $admin, \%conf, {
         HTML        => $html,
         lang        => \%lang,
@@ -147,7 +151,12 @@ sub paysys_payment {
         }
       }
 
-      return $Paysys_plugin->user_portal($user, { %FORM, %{($attr) ? $attr : {}} });
+      if (!$conf{PAYSYS_V4}) {
+        return $Paysys_plugin->user_portal($user, { %FORM, %{($attr) ? $attr : {}} });
+      }
+      else {
+        return _paysys_fast_pay($Paysys_plugin, $payment_system_info, $attr);
+      }
     }
   }
 
@@ -204,8 +213,16 @@ sub paysys_payment {
 
     next if (defined($user->{GID}) && !$group_to_paysys_id{$user->{GID}});
 
-    my $Plugin = _configure_load_payment_module($payment_system->{module});
-    if ($Plugin->can('user_portal')) {
+    my $Plugin = _configure_load_payment_module($payment_system->{module}, 0, \%conf);
+
+    my $user_portal = $conf{PAYSYS_V4} ? $Plugin->can('fast_pay_link') : $Plugin->can('user_portal');
+    if ($Plugin->can('user_portal_special')) {
+      next if $attr->{PAYMENTS_PORTAL};
+      my $Paysys_plugin = $Plugin->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, INDEX => $index, SELF_URL => $SELF_URL });
+      my $portal = $Paysys_plugin->user_portal_special($user, { %FORM });
+      $TEMPLATES_ARGS{IPAY_HTML} .= $portal if ($portal);
+    }
+    elsif ($user_portal) {
       my $checked = ($paysys_id) ?
         (($paysys_id == $payment_system->{paysys_id}) ?
           'checked' : '') : $count == 1 ? 'checked' : '';
@@ -228,11 +245,6 @@ sub paysys_payment {
       });
       $count++;
     }
-    elsif ($Plugin->can('user_portal_special')) {
-      my $Paysys_plugin = $Plugin->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, INDEX => $index, SELF_URL => $SELF_URL });
-      my $portal = $Paysys_plugin->user_portal_special($user, { %FORM });
-      $TEMPLATES_ARGS{IPAY_HTML} .= $portal if ($portal);
-    }
   }
 
   if ($#payment_systems > -1) {
@@ -247,13 +259,106 @@ sub paysys_payment {
     return $TEMPLATES_ARGS{PAY_SYSTEM_SEL};
   }
 
-  return $html->tpl_show(_include('paysys_main', 'Paysys'), {
-    %TEMPLATES_ARGS,
-    SUM => $FORM{SUM}
-  }, {
-    OUTPUT2RETURN => $attr->{OUTPUT2RETURN},
-    ID            => 'PAYSYS_FORM'
+  return $html->tpl_show(_include('paysys_main', 'Paysys'),
+    {
+      %TEMPLATES_ARGS,
+      SUM        => $FORM{SUM},
+      # payment from paysys_check.cgi
+      IDENTIFIER => ($index == 0) ? $FORM{IDENTIFIER} : '',
+    },
+    {
+      OUTPUT2RETURN => $attr->{OUTPUT2RETURN},
+      ID            => 'PAYSYS_FORM'
+    }
+  );
+}
+
+#**********************************************************
+=head2 _paysys_fast_pay($attr) - Show payment page
+
+  Arguments:
+    $attr
+      ID
+      NAME
+      MODULE
+
+  Return:
+
+=cut
+#**********************************************************
+sub _paysys_fast_pay {
+  my ($Paysys_plugin, $payment_system_info, $attr) = @_;
+
+  my $recurrent_info = '';
+  my ($paysys_module) = $payment_system_info->{module} =~ /(.+)\.pm$/;
+  $paysys_module =~ s/ /_/g;
+  $paysys_module = lc($paysys_module);
+
+  if ($Paysys_plugin->can('subscribe_pay') && !$FORM{RECURRENT_FORM}) {
+    my $paysys_subscribe = $Paysys->user_info({
+      UID => $user->{UID},
+    });
+
+    if (!$paysys_subscribe->{PAYSYS_ID}) {
+      my $rec_params = $Paysys_plugin->can('subscribe_pay_settings') ? $Paysys_plugin->subscribe_pay_settings($user) : {};
+
+      if ($rec_params->{SUBSCRIBE}) {
+        $rec_params->{SUBSCRIBE_DEFAULT} = $rec_params->{SUBSCRIBE_DEFAULT} ? 'checked' : '';
+
+        return $html->tpl_show(_include('paysys_recurrent_pay', 'Paysys'), {
+          %FORM,
+          %{($attr) ? $attr : {}},
+          %{($rec_params) ? $rec_params : {}},
+          UID    => $user->{UID},
+          MODULE => $paysys_module
+        }, { OUTPUT2RETURN => 0 });
+      }
+    }
+    elsif ($FORM{PAYMENT_SYSTEM} && $paysys_subscribe->{PAYSYS_ID} == $FORM{PAYMENT_SYSTEM}) {
+      my $btn_index = 'index=' . get_function_index('paysys_subscribe') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . "&RECURRENT_CANCEL=1&UID=$user->{UID}";
+
+      my $fee_date = next_month({ DATE => $main::DATE });
+
+      $recurrent_info = $html->tpl_show(_include('paysys_recurrent_pay_info', 'Paysys'), {
+        %FORM,
+        %{($attr) ? $attr : {}},
+        UID             => $user->{UID},
+        UNSUBSCRIBE_URL => $btn_index,
+        DATE            => $fee_date,
+        SUM             => $paysys_subscribe->{SUM},
+      }, { OUTPUT2RETURN => 0 });
+    }
+  }
+
+  my $pay_link = $Paysys_plugin->fast_pay_link({
+    %FORM,
+    %{($attr) ? $attr : {}},
+    USER => $user,
+    UID  => $user->{UID}
   });
+
+  return 0 if (_error_show($pay_link));
+
+  my $template = $pay_link->{TEMPLATE};
+
+  if (!$template) {
+    $template = "paysys_plugin_$paysys_module";
+  };
+
+  if ($pay_link->{FORM_DATA_PARAMS}) {
+    $pay_link->{FORM_DATA} = {};
+    foreach my $param (@{$pay_link->{FORM_DATA_PARAMS}}) {
+      $pay_link->{FORM_DATA}->{$param->{field}} = $param->{value};
+    }
+  }
+
+  return $html->tpl_show(_include($template, 'Paysys'), {
+    %FORM,
+    %{($attr) ? $attr : {}},
+    %$pay_link,
+    %{($pay_link->{FORM_DATA}) ? $pay_link->{FORM_DATA} : {}},
+    RECURRENT_INFO => $recurrent_info,
+  }, { OUTPUT2RETURN => 0 });
 }
 
 #**********************************************************
@@ -476,24 +581,22 @@ sub paysys_user_log {
 
   my $list = $Paysys->list({ %LIST_PARAMS, COLS_NAME => 1 });
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => "$lang{PAY_JOURNAL}",
-      title   => [
-        'ID',
-        "$lang{DATE}",
-        "$lang{SUM}",
-        "$lang{PAY_SYSTEM}",
-        "$lang{TRANSACTION}",
-        "$lang{STATUS}",
-        '-'
-      ],
-      qs      => $pages_qs,
-      pages   => $Paysys->{TOTAL},
-      ID      => 'PAYSYS',
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$lang{PAY_JOURNAL}",
+    title   => [
+      'ID',
+      "$lang{DATE}",
+      "$lang{SUM}",
+      "$lang{PAY_SYSTEM}",
+      "$lang{TRANSACTION}",
+      "$lang{STATUS}",
+      '-'
+    ],
+    qs      => $pages_qs,
+    pages   => $Paysys->{TOTAL},
+    ID      => 'PAYSYS',
+  });
 
   foreach my $line (@$list) {
     $table->addrow($line->{id},
@@ -506,15 +609,13 @@ sub paysys_user_log {
   }
   print $table->show();
 
-  $table = $html->table(
-    {
-      caption => $lang{ALL},
-      width   => '100%',
-      rows    => [
-        [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL_COMPLETE}), "$lang{SUM}:", $html->b($Paysys->{SUM_COMPLETE}) ]
-      ]
-    }
-  );
+  $table = $html->table({
+    caption => $lang{ALL},
+    width   => '100%',
+    rows    => [
+      [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL_COMPLETE}), "$lang{SUM}:", $html->b($Paysys->{SUM_COMPLETE}) ]
+    ]
+  });
   print $table->show();
 
   return 1;
@@ -530,6 +631,34 @@ sub paysys_subscribe {
   my $paysys_subscribe = $Paysys->user_info({
     UID => $user->{UID},
   });
+
+  if ($paysys_subscribe->{errno}) {
+    $html->message('info', $lang{INFO}, $lang{NO_ACTIVE_RECURRENT_PAYMENTS});
+    return 1;
+  }
+
+  if ($FORM{RECURRENT_CANCEL}) {
+    my $payment_system_info = $Paysys->paysys_connect_system_info({
+      PAYSYS_ID        => $paysys_subscribe->{PAYSYS_ID},
+      SHOW_ALL_COLUMNS => 1,
+      COLS_NAME        => 1
+    });
+
+    my $Pasysy_plugin = _configure_load_payment_module($payment_system_info->{module}, 0, \%conf);
+    if ($Pasysy_plugin->can('recurrent_cancel')) {
+      my $paysys_object = $Pasysy_plugin->new($db, $admin, \%conf);
+      my $result = $paysys_object->recurrent_cancel({ %FORM });
+
+      if (!$result->{errno}) {
+        $html->message('info', $lang{INFO}, $lang{SUCCESS_UNSUBSCRIBE});
+        return 0;
+      }
+      else {
+        $html->message('err', $lang{ERROR}, $lang{ERROR_UNSUBSCRIBE});
+        return 0;
+      }
+    }
+  }
 
   my $table = $html->table({
     width   => '100%',
@@ -547,32 +676,8 @@ sub paysys_subscribe {
     });
   }
 
-  my $sum = $conf{PAYSYS_MIN_SUM} || 1;
-
   if ($paysys_subscribe->{EXTERNAL_LAST_DATE}) {
-    my $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . "&SUM=$sum&UNTOKEN=1";
-    my $Users = Users->new($db, $admin, \%conf);
-    #TODO: move check to liqpay module
-    if ($paysys_subscribe->{PAYSYS_ID} == 62) {
-      my $list = $Users->list({
-        GID        => '_SHOW',
-        COLS_NAME  => 1,
-        COLS_UPPER => 1,
-        UID        => $paysys_subscribe->{UID}
-      });
-
-      my $default_conf_token = $paysys_subscribe->{conf}->{"PAYSYS_LIQPAY_SUBSCRIBE_TOKEN"} || 0;
-      my $default_conf_sub = $paysys_subscribe->{conf}->{"PAYSYS_LIQPAY_SUBSCRIBE"} || 0;
-      my $gid_conf_token = $paysys_subscribe->{conf}->{"PAYSYS_LIQPAY_SUBSCRIBE_TOKEN_$list->[0]->{GID}"} || 0;
-      my $gid_conf_sub = $paysys_subscribe->{conf}->{"PAYSYS_LIQPAY_SUBSCRIBE_$list->[0]->{GID}"} || 0;
-
-      if ($gid_conf_sub == 1 || ($default_conf_sub == 1 && !$gid_conf_sub)) {
-        $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . "&SUM=$sum&UNSUBSRIBE=1&UID=" . $paysys_subscribe->{UID};
-      }
-      elsif ($gid_conf_token == 1 || ($default_conf_token == 1 && !$gid_conf_token)) {
-        $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . "&SUM=$sum&UNSUBSRIBE=1&UID=" . $paysys_subscribe->{UID};
-      }
-    }
+    my $btn_index = "index=$index&RECURRENT_CANCEL=1";
 
     $table->addrow($paysys_subscribe->{EXTERNAL_LAST_DATE},
       $paysys_subscribe->{SUM},
@@ -599,68 +704,6 @@ sub paysys_subscribe {
 #**********************************************************
 sub paysys_system_sel {
   return paysys_payment({ HOTSPOT => 1 });
-}
-
-#**********************************************************
-=head2 paysys_recurrent_payment()
-
-  Arguments:
-     -
-
-  Returns:
-
-=cut
-#**********************************************************
-sub paysys_recurrent_payment {
-  my %data = ();
-
-  if ($FORM{RECURRENT_CANCEL}) {
-    my $Pasysy_plugin = _configure_load_payment_module("$FORM{PAYSYSTEM_NAME}.pm");
-    my $result_code = q{};
-    my $result = q{};
-    if ($Pasysy_plugin->can('recurrent_cancel')) {
-      my $PAYSYS_OBJECT = $Pasysy_plugin->new($db, $admin, \%conf);
-      ($result_code, $result) = $PAYSYS_OBJECT->recurrent_cancel({ %FORM });
-    }
-    if ($result_code eq '200') {
-      $html->message('info', $lang{INFO}, "The regular payment is canceled!");
-      return 1;
-    }
-    else {
-      $html->message('err', $lang{ERROR}, "The regular payment can not be canceled!");
-      return 1;
-    }
-  }
-
-  my $info = $Paysys->user_info({
-    UID       => $user->{UID},
-    COLS_NAME => 1
-  });
-
-  if (!$info->{RECURRENT_ID}) {
-    $html->message('err', $lang{ERROR}, "No regular payment");
-    return 0;
-  }
-
-  if ($Paysys->{errno}) {
-    $html->message('err', $lang{ERROR}, "Error Paysys: $Paysys->{errstr}");
-    return 0;
-  }
-
-  if (!$info->{RECURRENT_MODULE}) {
-    $html->message('err', $lang{ERROR}, "No paysys system");
-    return 0;
-  }
-
-  my ($recurrent_day) = $info->{RECURRENT_CRON} =~ /\d+\s\d+\s(\d+)/g;
-  $data{MESSAGE} = qq{$lang{RECURRENT_MESSAGE} $recurrent_day $lang{RECURRENT_MESSAGE2}};
-  $data{PAYSYSTEM_NAME} = qq{$info->{RECURRENT_MODULE}};
-  $data{RECURRENT_ID} = qq{$info->{RECURRENT_ID}};
-  $data{INDEX} = get_function_index('paysys_recurrent_payment');
-
-  $html->tpl_show(_include('paysys_recurrent_payment', 'Paysys'), \%data);
-
-  return 1;
 }
 
 1;

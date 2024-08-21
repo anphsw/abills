@@ -1,0 +1,11 @@
+type: object
+properties:
+  tpId:
+    type: string
+    example:
+  errno:
+    type: number
+    example: 7
+  errstr:
+    type: string
+    example: ERROR_DUPLICATE

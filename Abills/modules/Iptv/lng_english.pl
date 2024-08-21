@@ -115,5 +115,8 @@ $lang{IPTV_ERROR_DEL_TP} = 'Tariff plan deletion error';
 $lang{IPTV_PROMOTIONAL_TP} = 'Promotional tariff plan';
 $lang{SUGGEST_ACTIVATE_TP} = 'We suggest you activate the tariff plan';
 $lang{IPTV_ERROR_DEVICES_COUNT} = 'Allowed number of devices exceeded';
+$lang{IPTV_MONTHLY_REPORT} = 'Monthly report';
+
+$lang{ERR_IPTV_DEL_ACTIVATED} = 'Before deleting a service, you need to disable it';
 
 1;

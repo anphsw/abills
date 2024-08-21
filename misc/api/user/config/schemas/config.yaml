@@ -90,6 +90,33 @@ properties:
   msgsUser:
     type: number
     example: 1
+  organization:
+    type: object
+    properties:
+      organizationAddress:
+        type: string
+        example: "м. Кременчук вул. Палія 15"
+      organizationBankName:
+        type: string
+        example: "АТ КБ ПРИВАТБАНК"
+      organizationBankNum:
+        type: string
+        example: "UA173000010000032003102901026"
+      organizationMail:
+        type: string
+        example: "kpallisp@kpal.net"
+      organizationName:
+        type: string
+        example: "КНЕТ ISP"
+      organizationPhone:
+        type: string
+        example: "+380930445091"
+      organizationPrivacyPolicy1:
+        type: string
+        example: "https://kpal.net/privacy-policy"
+      organizationPrivacyPolicyDescription1:
+        type: string
+        example: "Privacy Policy ТОВ КНЕТ"
   paysysPayment:
     type: number
     example: 1

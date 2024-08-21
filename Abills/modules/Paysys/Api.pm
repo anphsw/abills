@@ -16,9 +16,13 @@ use warnings FATAL => 'all';
 
 use Paysys;
 use Paysys::Init;
+use Control::Errors;
 use Abills::Base qw(mk_unique_value);
 
+my Control::Errors $Errors;
 my Paysys $Paysys;
+
+# Can not delete until present Paysys V3. Reason - Paysys_Base.pm
 our %lang;
 require 'Abills/modules/Paysys/lng_english.pl';
 
@@ -52,6 +56,10 @@ sub new {
 
   $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
   $Paysys->{debug} = $self->{debug};
+
+  $Errors = Control::Errors->new($self->{db}, $self->{admin}, $self->{conf},
+    { lang => $self->{lang}, module => 'Paysys' }
+  );
 
   return $self;
 }
@@ -118,7 +126,7 @@ sub user_routes {
   return [
     {
       method      => 'GET',
-      path        => '/user/:uid/paysys/systems/',
+      path        => '/user/paysys/systems/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
         require Users;
@@ -155,7 +163,7 @@ sub user_routes {
 
           foreach my $allowed_system (@{$allowed_systems}) {
             next if ($system->{paysys_id} != $allowed_system->{paysys_id});
-            my $Module = _configure_load_payment_module($system->{module}, 1);
+            my $Module = _configure_load_payment_module($system->{module}, 1, $self->{conf});
             next if (ref $Module eq 'HASH' || (!$Module->can('fast_pay_link') && !$Module->can('google_pay') && !$Module->can('apple_pay')));
 
             my $Paysys_plugin = $Module->new($self->{db}, $self->{admin}, $self->{conf}, { lang => \%LANG });
@@ -190,7 +198,7 @@ sub user_routes {
     #@deprecated
     {
       method      => 'POST',
-      path        => '/user/:uid/paysys/transaction/status/',
+      path        => '/user/paysys/transaction/status/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
@@ -236,7 +244,7 @@ sub user_routes {
     },
     {
       method      => 'POST',
-      path        => '/user/:uid/paysys/pay/',
+      path        => '/user/paysys/pay/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
         my $sum = $query_params->{SUM} || 0;
@@ -295,7 +303,7 @@ sub user_routes {
       path        => '/user/paysys/applePay/session/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
-        my $Module = _configure_load_payment_module('ApplePay.pm', 1);
+        my $Module = _configure_load_payment_module('ApplePay.pm', 1, $self->{conf});
         return $Module if (ref $Module eq 'HASH');
 
         my $Paysys_plugin = $Module->new($self->{db}, $self->{admin}, $self->{conf}, { lang => \%LANG });
@@ -329,7 +337,7 @@ sub user_routes {
 sub paysys_pay {
   my $self = shift;
   my ($attr) = @_;
-  my $Module = _configure_load_payment_module($attr->{MODULE}->[0]->{module}, 1);
+  my $Module = _configure_load_payment_module($attr->{MODULE}->[0]->{module}, 1, $self->{conf});
 
   return $Module if (ref $Module eq 'HASH');
 

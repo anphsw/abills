@@ -1,0 +1,17 @@
+{
+  "name": "ADMIN_GROUP_ADD",
+  "method": "POST",
+  "path": "groups/",
+  "body": {
+    "gid": 26000,
+    "name": "Test group add by api"
+  },
+  "post-response": {
+    "variables": [
+      {
+        "name": "groupId",
+        "value": "gid"
+      }
+    ]
+  }
+}

@@ -1,0 +1,171 @@
+get:
+  tags:
+    - equipment
+  summary: Возвращает ONU по уникальнму id
+  operationId: getOnuById
+  parameters:
+    - name: id
+      in: path
+      description: уникальное ID ONU
+      required: true
+      schema:
+        type: integer
+    - name: branch
+      in: query
+      description: Ветка
+      schema:
+        type: boolean
+        default: false
+    - name: branchDesc
+      in: query
+      description: Описание ветки
+      schema:
+        type: boolean
+        default: false
+    - name: vlanId
+      in: query
+      description: ID Vlan
+      schema:
+        type: boolean
+        default: false
+    - name: onuId
+      in: query
+      description: ID ONU
+      schema:
+        type: boolean
+        default: true
+    - name: vlan
+      in: query
+      description: Vlan
+      schema:
+        type: boolean
+        default: true
+    - name: onuDesc
+      in: query
+      description: Описание ONU
+      schema:
+        type: boolean
+        default: false
+    - name: onuBillingDesc
+      in: query
+      description: Дополнительное описание ONU через биллинг
+      schema:
+        type: boolean
+        default: false
+    - name: oltRxPower
+      in: query
+      description: Уровень сигнала OLT
+      schema:
+        type: boolean
+        default: false
+    - name: onuDhcpPort
+      in: query
+      description: ONU DHCP port
+      schema:
+        type: boolean
+        default: true
+    - name: onuGraph
+      in: query
+      description: Данные для графика по ONU
+      schema:
+        type: boolean
+        default: false
+    - name: nasIp
+      in: query
+      description: IP сервера доступа
+      schema:
+        type: boolean
+        default: false
+    - name: nasId
+      in: query
+      description: ID сервера доступа
+      schema:
+        type: boolean
+        default: true
+    - name: onuSnmpId
+      in: query
+      description: ONU SNMP ID
+      schema:
+        type: boolean
+        default: true
+    - name: portId
+      in: query
+      description: ID порта
+      schema:
+        type: boolean
+        default: true
+    - name: ponType
+      in: query
+      description: Тип оборудования
+      schema:
+        type: boolean
+        default: true
+    - name: datetime
+      in: query
+      description: Дата последнего опроса ONU
+      schema:
+        type: boolean
+        default: false
+    - name: serverVlan
+      in: query
+      description: Vlan сервера
+      schema:
+        type: boolean
+        default: false
+    - name: traffic
+      in: query
+      description: Трафик
+      schema:
+        type: boolean
+        default: false
+    - name: login
+      in: query
+      description: Логин абонента
+      schema:
+        type: boolean
+        default: false
+    - name: userMac
+      in: query
+      description: MAC пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: macBehindOnu
+      in: query
+      description: MAC ONU
+      schema:
+        type: boolean
+        default: false
+    - name: distance
+      in: query
+      description: Расстояние между сервером и ONU
+      schema:
+        type: boolean
+        default: false
+    - name: macSerial
+      in: query
+      description: Серийный номер MAC
+      schema:
+        type: boolean
+        default: false
+    - name: status
+      in: query
+      description: Статус
+      schema:
+        type: boolean
+        default: false
+    - name: externalSystemLink
+      in: query
+      description: Ссылка на внешнюю систему
+      schema:
+        type: boolean
+        default: false
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/onuInfo.yaml"
+  security:
+    - KEY: [ ]

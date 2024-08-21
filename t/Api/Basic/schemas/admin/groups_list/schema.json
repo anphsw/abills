@@ -1,5 +1,5 @@
 {
-  "definitions": {},
+  "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "array",
   "title": "The Root Schema",
   "required": [
@@ -14,35 +14,27 @@
   ],
   "properties": {
     "domainId": {
-      "$id": "#/properties/domainId",
       "type": "number"
     },
     "name": {
-      "$id": "#/properties/name",
       "type": "string"
     },
     "usersCount": {
-      "$id": "#/properties/usersCount",
       "type": "number"
     },
     "descr": {
-      "$id": "#/properties/descr",
       "type": "string"
     },
     "allowCredit": {
-      "$id": "#/properties/allowCredit",
       "type": "number"
     },
     "gid": {
-      "$id": "#/properties/gid",
       "type": "number"
     },
     "disableChgTp": {
-      "$id": "#/properties/disableChgTp",
       "type": "number"
     },
     "disablePaysys": {
-      "$id": "#/properties/disablePaysys",
       "type": "number"
     }
   }

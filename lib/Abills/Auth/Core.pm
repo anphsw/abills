@@ -33,9 +33,11 @@ sub new {
     self_url  => $attr->{SELF_URL} || q{},
     username  => $attr->{USERNAME} || q{},
     domain_id => $attr->{DOMAIN_ID},
+    libpath   => $attr->{libpath} || q{},
     db        => $attr->{DB},
     admin     => $attr->{ADMIN},
-    html      => $attr->{HTML}
+    lang      => $attr->{LANG} || $attr->{lang} || {},
+    html      => $attr->{HTML} || $attr->{html},
   };
 
   bless($self, $class);

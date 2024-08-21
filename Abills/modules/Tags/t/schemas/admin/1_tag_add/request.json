@@ -1,0 +1,21 @@
+{
+  "name": "TAG_ADD",
+  "method": "POST",
+  "path": "tags/",
+  "body": {
+    "responsible": "1",
+    "priority": 2,
+    "color": "#123456",
+    "name": "API TAG",
+    "expireDays": 10,
+    "comments": "Tag added by API"
+  },
+  "post-response": {
+    "variables": [
+      {
+        "name": "tagId",
+        "value": "id"
+      }
+    ]
+  }
+}

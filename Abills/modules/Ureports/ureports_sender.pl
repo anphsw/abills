@@ -31,7 +31,7 @@ BEGIN {
   }
 }
 
-my $version = 0.80;
+my $version = 0.81;
 my $debug = 0;
 our (
   $db,
@@ -48,6 +48,7 @@ use Abills::Defs;
 use Abills::Base qw(int2byte in_array sendmail parse_arguments cmd date_diff gen_time);
 use Abills::Templates;
 use Abills::Misc;
+use Abills::Loader qw(load_plugin);
 use Admins;
 use Shedule;
 use Internet::Sessions;
@@ -56,6 +57,7 @@ use Fees;
 use Ureports;
 use Ureports::Base;
 use Tariffs;
+use Conf;
 use POSIX qw(strftime);
 
 require Control::Services;
@@ -83,6 +85,8 @@ my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Shedule = Shedule->new($db, $admin, \%conf);
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 my $Ureports_base = Ureports::Base->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+#define db conf vars
+my $Conf = Conf->new($db, $admin, \%conf);
 
 if ($html->{language} ne 'english') {
   do $Bin . "/../language/english.pl";
@@ -167,6 +171,7 @@ sub ureports_periodic_reports {
   $SERVICE_LIST_PARAMS{CUR_DATE} = $ADMIN_REPORT{DATE};
   my ($Y, $M, $D) = split(/-/, $ADMIN_REPORT{DATE}, 3);
   #my $reports_type = 0;
+  my $i = 0;
 
   foreach my $tp (@{$list}) {
     $debug_output .= "TP ID: $tp->{tp_id} DF: $tp->{day_fee} MF: $tp->{month_fee} POSTPAID: $tp->{payment_type} REDUCTION: $tp->{reduction_fee} EXT_BILL: $tp->{ext_bill_account} CREDIT: $tp->{credit}\n" if ($debug > 1);
@@ -184,6 +189,7 @@ sub ureports_periodic_reports {
       ACTIVATE       => '_SHOW',
       REDUCTION      => '_SHOW',
       PASSWORD       => '_SHOW',
+      GID            => '_SHOW',
       %SERVICE_LIST_PARAMS,
       MODULE         => '_SHOW',
       COLS_NAME      => 1,
@@ -352,12 +358,10 @@ sub ureports_periodic_reports {
           }
         }
         elsif ($user->{REPORT_ID} == 5 && $D == 1) {
-          $Sessions->list(
-            {
-              UID    => $user->{UID},
-              PERIOD => 6
-            }
-          );
+          $Sessions->list({
+            UID    => $user->{UID},
+            PERIOD => 6
+          });
 
           my $traffic_in = ($Sessions->{TRAFFIC_IN}) ? $Sessions->{TRAFFIC_IN} : 0;
           my $traffic_out = ($Sessions->{TRAFFIC_OUT}) ? $Sessions->{TRAFFIC_IN} : 0;
@@ -521,16 +525,20 @@ sub ureports_periodic_reports {
         }
         #Custom reports
         elsif ($user->{module}) {
-          my $report_module = $user->{module};
-          my $load_mod = "Ureports::$report_module";
-          eval " require $load_mod ";
-          if ($@) {
-            print $@;
-            exit;
+          my $load_mod = "Ureports::Plugins::$user->{module}";
+
+          my $Report = load_plugin($load_mod, {
+            SERVICE      => $Ureports,
+            RETURN_ERROR => 1,
+            DEBUG        => $debug > 2 ? 1 : 0,
+          });
+
+          if ($Report->{errno}) {
+            my $mess = ($Report->{errno} || 0) . ' ' . ($Report->{errstr} || '');
+            print "\n$mess\n";
+            next;
           }
-          $report_module =~ s/\.pm//;
-          my $mod = "Ureports::$report_module";
-          my $Report = $mod->new($db, $admin, \%conf);
+
           if ($debug > 2) {
             $Report->{debug} = 1;
           }
@@ -555,7 +563,7 @@ sub ureports_periodic_reports {
             }
           }
           else {
-            if ($debug > 1) {
+            if ($debug > 1 && ($Report->{SYS_CONF} && !$Report->{SYS_CONF}->{LOCAL_SEND})) {
               print "NO PARAMS\n";
             }
             next;
@@ -595,6 +603,8 @@ sub ureports_periodic_reports {
         }
       );
 
+      $i++ if ($send_status);
+
       if ($debug < 5 && !$PARAMS{SKIP_UPDATE_REPORT} && $send_status) {
         $Ureports->tp_user_reports_update({
           UID       => $user->{UID},
@@ -627,6 +637,8 @@ sub ureports_periodic_reports {
     }
   }
 
+  print "Total sent: $i\n" if ($debug > 1);
+
   return $debug_output;
 }
 
@@ -650,5 +662,4 @@ Ureports sender ($version).
   return 1;
 }
 
-1
-
+1;

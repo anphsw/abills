@@ -1,0 +1,17 @@
+type: object
+properties:
+  affected:
+    type: number
+    example: 1
+  aid:
+    type: number
+    example: 100
+  insertId:
+    type: number
+    example: 43822
+  mainAid:
+    type: number
+    example: 1
+  total:
+    type: number
+    example: 0

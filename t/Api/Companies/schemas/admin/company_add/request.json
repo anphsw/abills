@@ -1,0 +1,9 @@
+{
+  "name": "ADMIN_COMPANY_ADD",
+  "method": "POST",
+  "path": "companies/",
+  "body": {
+    "id": 26000,
+    "name": "Test api add"
+  }
+}

@@ -1,0 +1,11 @@
+type: object
+properties:
+  errmsg:
+    type: string
+    example: Incorrect data parameter invoiceCreate or invoiceId should be provided.
+  errno:
+    type: number
+    example: 1054017
+  errstr:
+    type: string
+    example: ERR_NO_INVOICE_ID_AND_CREATE_INVOICE

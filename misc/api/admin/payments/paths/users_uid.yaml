@@ -1,0 +1,207 @@
+get:
+  tags:
+    - payments
+  summary: Получить список оплат пользователя
+  description: Возвращает список оплат пользователя
+  operationId: getUserPayments
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: boolean
+        default: true
+    - name: datetime
+      in: query
+      description: Дата проведения платежа.
+      schema:
+        type: boolean
+        default: false
+    - name: regDate
+      in: query
+      description: Дата регистрации платежа.
+      schema:
+        type: boolean
+        default: true
+    - name: id
+      in: query
+      description: ID платежа.
+      schema:
+        type: boolean
+        default: true
+    - name: innerDescribe
+      in: query
+      description: Внутреннее описание платежа.
+      schema:
+        type: boolean
+        default: true
+    - name: dsc
+      in: query
+      description: Описание платежа.
+      schema:
+        type: boolean
+        default: false
+    - name: method
+      in: query
+      description: Метод платежа.
+      schema:
+        type: boolean
+        default: true
+    - name: fio
+      in: query
+      description: ФИО пользователя.
+      schema:
+        type: boolean
+        default: false
+    - name: login
+      in: query
+      description: Логин пользователя.
+      schema:
+        type: boolean
+        default: false
+    - name: billId
+      in: query
+      description: Счёт пользователя.
+      schema:
+        type: boolean
+        default: false
+    - name: sum
+      in: query
+      description: Сумма платежа.
+      schema:
+        type: boolean
+        default: true
+    - name: amount
+      in: query
+      description: Начисленная сумма на баланс.
+      schema:
+        type: boolean
+        default: false
+    - name: currency
+      in: query
+      description: ID валюты платежа.
+      schema:
+        type: boolean
+        default: false
+    - name: extId
+      in: query
+      description: Внешнее ID платежа, в большинстве случаев вносится платежной системой.
+      schema:
+        type: boolean
+        default: false
+    - name: ip
+      in: query
+      description: IP с которого поступил платеж.
+      schema:
+        type: boolean
+        default: false
+    - name: lastDeposit
+      in: query
+      description: Баланс перед проведением платежа.
+      schema:
+        type: boolean
+        default: false
+    - name: afterDeposit
+      in: query
+      description: Баланс после проведения платежа.
+      schema:
+        type: boolean
+        default: false
+    - name: invoiceNum
+      in: query
+      description: Номер инвойса платежа.
+      schema:
+        type: boolean
+        default: false
+    - name: invoiceDate
+      in: query
+      description: Дата инвойса платежа.
+      schema:
+        type: boolean
+        default: false
+    - name: aid
+      in: query
+      description: ID администратора, который провел платеж.
+      schema:
+        type: boolean
+        default: false
+    - name: adminName
+      in: query
+      description: Имя администратора, который провел платеж.
+      schema:
+        type: boolean
+        default: false
+    - name: aLogin
+      in: query
+      description: Логин администратора, который провел платеж.
+      schema:
+        type: boolean
+        default: false
+    - name: fromDate
+      in: query
+      description: Платежи произведены с даты
+      schema:
+        type: boolean
+        default: false
+    - name: toDate
+      in: query
+      description: Платежи произведены до даты
+      schema:
+        type: boolean
+        default: false
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/userPaymentsArray.yaml"
+  security:
+    - KEY: []
+post:
+  tags:
+    - payments
+  summary: Добавление оплаты пользователю
+  operationId: addUserPayment
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addPaymentRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addPaymentResponse200.yaml"
+    400:
+      description: Нет пользователя
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addPaymentResponse400.yaml"
+  security:
+    - KEY: []

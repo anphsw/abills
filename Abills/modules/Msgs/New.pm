@@ -216,13 +216,6 @@ sub msgs_new {
         . $html->badge($Msgs->{OPENED}, { TYPE => 'badge badge-info', STYLE => "TITLE='$lang{OPEN}'" });
     }
 
-    my $unreg_count = '';
-    $Msgs->unreg_requests_count();
-
-    if ($Msgs->{TOTAL}) {
-      $unreg_count = $html->badge($Msgs->{UNREG_COUNT}, { TYPE => 'badge badge-danger', STYLE => "title='$lang{UNREG_COUNT}'" });
-    }
-
     my $refresh_time = $conf{MSGS_REFRESH_HEADER_MENU} || 30;
 
     $conf{MSGS_HEADER_MENU_DYNAMIC} //= 1;
@@ -230,7 +223,7 @@ sub msgs_new {
       my $url = '';
       if ($conf{API_ENABLE}) {
         my ($proto, $host, $port) = url2parts($SELF_URL);
-        $url = "$proto//$host$port/api.cgi/msgs/list?snakeCase=1&pageRows=20&clientId&" .
+        $url = "$proto://$host:$port/api.cgi/msgs/list?snakeCase=1&pageRows=20&clientId&" .
           "chapterName&datetime&state=0&resposibleAdminLogin&priorityId&domainId&message&" .
           "adminRead&repliesCounts&chgMsgs&delMsgs&userName&adminDisable&msgsTagsIds&" .
           "closedAdmin&watchers&planTime&total&inWork&open&unmaked&closed";
@@ -263,7 +256,7 @@ sub msgs_new {
       $admin->{ADMIN_RESPONSIBLE} =~ s/\"/\"/gm;
     }
 
-    return $msg_count, $unreg_count;
+    return $msg_count;
   }
   return '';
 }

@@ -1,24 +1,24 @@
 package Paysys::systems::Ipay_mp;
 #*********************** ABillS ***********************************
-# Copyright (с) 2003-2023 Andy Gulay (ABillS DevTeam) Ukraine
+# Copyright (с) 2003-2024 Andy Gulay (ABillS DevTeam) Ukraine
 #
 # See COPYRIGHT section in pod text below for usage and distribution rights.
 #
 #******************************************************************
-=head1 NAME
+=head NAME
 
   Ipay Masterpass
   New module for Ipay payment system
 
-=head1 DOCUMENTATION
+=head DOCUMENTATION
 
   https://walletmc.ipay.ua/doc.php
 
-=head2 VERSION
+=head VERSION
 
   Date: 07.06.2018
-  UPDATED: 20240223
-  VERSION: 8.41
+  UPDATED: 20240813
+  VERSION: 8.44
 
 =cut
 
@@ -27,11 +27,11 @@ use warnings FATAL => 'all';
 
 use JSON qw(decode_json);
 use Paysys;
-use Abills::Base qw(load_pmodule json_former vars2lang);
+use Abills::Base qw(load_pmodule json_former vars2lang is_number);
 use Abills::Fetcher qw(web_request);
 use Abills::Filters qw(_utf8_encode);
 
-our $PAYSYSTEM_VERSION = '8.41';
+my $PAYSYSTEM_VERSION = 8.44;
 my $PAYSYSTEM_NAME = 'Ipay_mp';
 my $PAYSYSTEM_SHORT_NAME = 'IPAY';
 my $PAYSYSTEM_ID = 72;
@@ -50,6 +50,7 @@ my %PAYSYSTEM_CONF = (
   PAYSYS_IPAY_MERCHANT_ID       => '',
   PAYSYS_IPAY_SMERCHANT_ID      => '',
   PAYSYS_IPAY_TEST              => '',
+  PAYSYS_IPAY_DEBUG             => '',
 );
 
 our (%conf, %lang);
@@ -166,7 +167,7 @@ sub create_request_params {
   elsif ($action eq 'PaymentCreate') {
     $request{request}{body}{card_alias} = $attr->{CARD_ALIAS};
     $request{request}{body}{invoice}    = $attr->{INVOICE} * 100;
-    $request{request}{body}{pmt_desc}   = 'Оплата послуг згідно рахунку ' . ($user->{_PIN_ABS} || $user->{BILL_ID} || '');
+    $request{request}{body}{pmt_desc}   = 'Оплата послуг згідно рахунку ' . ($user->{$self->{conf}->{PAYSYS_IPAY_ACCOUNT_KEY} || ''} || $user->{_PIN_ABS} || $user->{BILL_ID} || '');
 
     $request{request}{body}{pmt_info}{invoice} = $attr->{INVOICE} * 100;
     $request{request}{body}{pmt_info}{acc}     = $account_key;
@@ -175,8 +176,11 @@ sub create_request_params {
       $request{request}{body}{pmt_info}{smch_id} = $self->{conf}->{PAYSYS_IPAY_SMERCHANT_ID};
     }
 
-    $request{request}{body}{threeds_info}{notification_url} = ($ENV{PROT} || 'http') . "://$ENV{SERVER_NAME}" . (($ENV{SERVER_PORT} != 80) ? ":$ENV{SERVER_PORT}" : '') . "/paysys_check.cgi"
-      ."?ipay_purchase=1&invoice=" . ($attr->{INVOICE} * 100) . "&pmt_id=$attr->{ACC}&UID=$user->{UID}";
+    $request{request}{body}{threeds_info}{notification_url} = "$SELF_URL?index=$self->{index}&PARSE_QUERY_PARAMS=1&EXT_ID=$attr->{OPERATION_ID}&SUM=$attr->{INVOICE}&ipay_pay=1&notification=1";
+  }
+  elsif ($action eq 'PaymentVerify3DS') {
+    $request{request}{body}{pmt_id} = $attr->{PMT_ID};
+    $request{request}{body}{threeds_data} = $attr->{THREEDS_DATA};
   }
   elsif ($action eq 'AddcardByURL') {
     $request{request}{body}{lang}        = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ua';
@@ -217,7 +221,7 @@ sub get_settings {
     CONF            => \%PAYSYSTEM_CONF,
     DOCS            => 'http://abills.net.ua:8090/pages/viewpage.action?pageId=29196294',
     IP              => '89.111.46.143,89.111.46.144,89.21.77.5,81.94.235.66',
-    CHECKBOX_FIELDS => [ 'PAYSYS_IPAY_DEFAULT_ACC', 'PAYSYS_IPAY_FAST_PAY' ],
+    CHECKBOX_FIELDS => [ 'PAYSYS_IPAY_DEFAULT_ACC', 'PAYSYS_IPAY_FAST_PAY', 'PAYSYS_IPAY_DEBUG' ],
     REQUEST => {
       METHOD => 'GET'
     },
@@ -257,8 +261,8 @@ sub _request {
 
   my $check_result = web_request($self->{conf}->{PAYSYS_IPAY_REQUEST_URL}, {
     POST       => $request,
-    DEBUG2FILE => '/tmp/ipay.log',
-    DEBUG      => 1
+    DEBUG      => $self->{conf}->{PAYSYS_IPAY_DEBUG} ? 4 : 0,
+    DEBUG2FILE => $self->{conf}->{PAYSYS_IPAY_DEBUG} ? '/usr/abills/var/log/paysys_check.log' : '',
   });
 
   if (!$check_result) {
@@ -273,10 +277,11 @@ sub _request {
   my $result = decode_json($check_result);
 
   if ($result->{response} && $result->{response}->{error} && $result->{response}->{error}) {
-    if ($result->{response}->{error} eq 'user validation failed') { #user validation failed
+    if ($result->{response}->{error} eq 'user validation failed') {
       $html->message('error', "$self->{lang}->{IPAY_ERR_NUMBER}",
         $html->button("$self->{lang}->{UNLINK}", "index=$self->{index}&ipay_unlink_user=1"));
-    } else {
+    }
+    else {
       $html->message('err', $self->{lang}->{ERROR}, $result->{response}->{error}, { ID => 1793 });
     }
 
@@ -325,6 +330,7 @@ sub _mock_request {
 
   if ($action eq 'PaymentCreate') {
     $response->{response}->{invoice} = $request->{request}->{body}->{invoice};
+    $response->{response}->{security_data}->{redirect_url} = "$request->{request}->{body}->{threeds_info}->{notification_url}&threedsData=tempData";
   }
 
   if ($attr->{TREE}) {
@@ -384,59 +390,123 @@ sub user_portal_special {
   }
   # make payment if registered
   elsif ($attr->{ipay_pay}) {
-    my $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
-    $Paysys->list({
-      INFO     => "*OPERATION_ID, $attr->{OPERATION_ID}*",
-      COLS_NAME => 1,
-      PAGE_ROWS => 2
-    });
+    #3DS payments
+    if ($attr->{notification}) {
+      if (!$attr->{threedsData}) {
+        $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{PAYMENT_ERROR}. 3DS Failed", { ID => 2229 });
+        return 0;
+      }
+      my $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
 
-    if ($Paysys->{TOTAL} && $Paysys->{TOTAL} > 0) {
-      $html->message('err', $self->{lang}->{ERROR}, vars2lang($self->{lang}->{TRANSACTION_EXISTS}, {
-        ID => $attr->{OPERATION_ID},
-      }), { ID => 2226 });
-      return 0;
-    }
+      my $list = $Paysys->list({
+        TRANSACTION_ID => "$PAYSYSTEM_SHORT_NAME:$attr->{EXT_ID}-*",
+        COLS_NAME      => 1,
+        PAGE_ROWS      => 2
+      });
 
-    my $json_create_payment_string = $self->create_request_params('PaymentCreate', {
-      CARD_ALIAS => $attr->{CARD_ALIAS},
-      INVOICE    => $attr->{SUM},
-      ACC        => $attr->{OPERATION_ID},
-      USER       => $user_,
-    });
+      if (!$Paysys->{TOTAL}) {
+        $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{ERR_NOT_EXISTS} $PAYSYSTEM_SHORT_NAME:$attr->{EXT_ID}-*", { ID => 2228 });
+        return 0;
+      }
 
-    my $result = $self->_request($json_create_payment_string, { TREE => 'response' });
+      my $pmt_id = $list->[0]->{transaction_id};
+      $pmt_id =~ s/$PAYSYSTEM_SHORT_NAME:\d+\-//;
 
-    my $desc = 'IPAY MasterPass';
-    if ($self->{conf}{PAYSYS_IPAY_DESC_KEY}) {
-      $desc = $self->{lang}->{IPAY_DESCRIBE} . $self->{conf}{PAYSYS_IPAY_DESC_KEY};
-    }
+      my $json_create_payment_string = $self->create_request_params('PaymentVerify3DS', {
+        PMT_ID       => $pmt_id,
+        THREEDS_DATA => $attr->{threedsData},
+        USER         => $user_,
+      });
 
-    if ($result->{pmt_status} && $result->{pmt_status} == 5) {
-      my ($status_code) = main::paysys_pay({
-        PAYMENT_SYSTEM         => $PAYSYSTEM_SHORT_NAME,
-        PAYMENT_SYSTEM_ID      => $PAYSYSTEM_ID,
-        CHECK_FIELD            => 'UID',
-        USER_ID                => $user_->{UID},
-        SUM                    => ($result->{invoice} / 100),
-        EXT_ID                 => $result->{pmt_id},
-        DATA                   => $attr,
-        MK_LOG                 => 1,
-        PAYMENT_DESCRIBE       => $desc,
-        PAYMENT_INNER_DESCRIBE => $self->{conf}{PAYSYS_IPAY_INNER_DESCRIPTION} || '',
-        USER_INFO              => $user_,
+      my $result = $self->_request($json_create_payment_string, { TREE => 'response' });
+
+      my ($status_code, undef) = main::paysys_pay({
+        PAYMENT_SYSTEM    => $PAYSYSTEM_SHORT_NAME,
+        PAYMENT_SYSTEM_ID => $PAYSYSTEM_ID,
+        PAYSYS_ID         => $list->[0]->{id},
+        MK_LOG            => 1,
+        ERROR             => ($result->{pmt_status} && $result->{pmt_status} == 5) ? 0 : 3
       });
 
       if ($status_code == 0) {
-        $html->message('info', $self->{lang}->{SUCCESS}, "$self->{lang}->{SUCCESS} $self->{lang}->{TRANSACTION}: $result->{pmt_id}", { ID => 2222 });
+        $html->message('info', $self->{lang}->{SUCCESS}, "$self->{lang}->{SUCCESS} $self->{lang}->{TRANSACTION}: $list->[0]->{transaction_id}", { ID => 2222 });
       }
       else {
-        $html->message('err', $self->{lang}->{ERROR}, "$status_code", { ID => 2223 });
+        $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{PAYMENT_ERROR}. Bank error", { ID => 2229 });
       }
     }
-    elsif($result->{pmt_status} && $result->{pmt_status} == 4){
-      $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{PAYMENT_ERROR}: $result->{bank_response}->{error_group}\n$self->{lang}->{TRANSACTION}: $result->{pmt_id}",
-        { ID => 2224 });
+    else {
+      my $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
+      $Paysys->list({
+        INFO     => "*OPERATION_ID, $attr->{OPERATION_ID}*",
+        COLS_NAME => 1,
+        PAGE_ROWS => 2
+      });
+
+      if ($Paysys->{TOTAL} && $Paysys->{TOTAL} > 0) {
+        $html->message('err', $self->{lang}->{ERROR}, vars2lang($self->{lang}->{TRANSACTION_EXISTS}, {
+          ID => $attr->{OPERATION_ID},
+        }), { ID => 2226 });
+        return 0;
+      }
+
+      my $json_create_payment_string = $self->create_request_params('PaymentCreate', {
+        CARD_ALIAS   => $attr->{CARD_ALIAS},
+        INVOICE      => $attr->{SUM},
+        OPERATION_ID => $attr->{OPERATION_ID},
+        USER         => $user_,
+      });
+
+      my $result = $self->_request($json_create_payment_string, { TREE => 'response' });
+
+      my $desc = 'IPAY MasterPass';
+      if ($self->{conf}{PAYSYS_IPAY_DESC_KEY}) {
+        $desc = $self->{lang}->{IPAY_DESCRIBE} . $self->{conf}{PAYSYS_IPAY_DESC_KEY};
+      }
+
+      if (defined $result->{pmt_status} && $result->{pmt_status} == 0) {
+        $Paysys->add({
+          SYSTEM_ID      => $PAYSYSTEM_ID,
+          SUM            => $result->{invoice} / 100,
+          UID            => $user_->{UID},
+          IP             => $ENV{REMOTE_ADDR},
+          TRANSACTION_ID => "$PAYSYSTEM_SHORT_NAME:$attr->{OPERATION_ID}-$result->{pmt_id}",
+          PAYSYS_IP      => $ENV{REMOTE_ADDR},
+          STATUS         => 1,
+        });
+
+        my $url = $result->{security_data}->{redirect_url};
+        $url =~ s/\\\//\//;
+
+        $html->redirect($url, { WAIT => 0 });
+      }
+      #@deprecated delete in next few months
+      elsif ($result->{pmt_status} && $result->{pmt_status} == 5) {
+        my ($status_code) = main::paysys_pay({
+          PAYMENT_SYSTEM         => $PAYSYSTEM_SHORT_NAME,
+          PAYMENT_SYSTEM_ID      => $PAYSYSTEM_ID,
+          CHECK_FIELD            => 'UID',
+          USER_ID                => $user_->{UID},
+          SUM                    => ($result->{invoice} / 100),
+          EXT_ID                 => $result->{pmt_id},
+          DATA                   => $attr,
+          MK_LOG                 => 1,
+          PAYMENT_DESCRIBE       => $desc,
+          PAYMENT_INNER_DESCRIBE => $self->{conf}{PAYSYS_IPAY_INNER_DESCRIPTION} || '',
+          USER_INFO              => $user_,
+        });
+
+        if ($status_code == 0) {
+          $html->message('info', $self->{lang}->{SUCCESS}, "$self->{lang}->{SUCCESS} $self->{lang}->{TRANSACTION}: $result->{pmt_id}", { ID => 2222 });
+        }
+        else {
+          $html->message('err', $self->{lang}->{ERROR}, "$status_code", { ID => 2223 });
+        }
+      }
+      elsif($result->{pmt_status} && $result->{pmt_status} == 4){
+        $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{PAYMENT_ERROR}: $result->{bank_response}->{error_group}\n$self->{lang}->{TRANSACTION}: $result->{pmt_id}",
+          { ID => 2224 });
+      }
     }
   }
   elsif (defined $attr->{card_added}) {
@@ -700,7 +770,12 @@ sub proccess {
 
   $self->{REQUEST}->{REQUEST_TYPE} = $request->{check} ? 'check' : $request->{payment} ? 'payment' : '';
 
-  $self->show_result($result);
+  my $status = 200;
+  if (is_number($result) && $result == 12) {
+    $status = 400;
+  }
+
+  $self->show_result($result, $status);
 
   return 1;
 }
@@ -717,7 +792,9 @@ sub proccess {
 #**********************************************************
 sub show_result {
   my $self = shift;
-  my ($result) = @_;
+  my ($result, $status) = @_;
+
+  $status //= 200;
 
   my %act2req = (
     check   => 3,
@@ -727,7 +804,8 @@ sub show_result {
   print "Content-Type: text/plain\n\n" if ($self->{DEBUG} > 3);
 
   if (! $self->{TEST}) {
-    print "Content-Type: text/xml\n\n";
+    print "Content-Type: text/xml\n";
+    print "Status: $status\n\n";
     print $result;
   }
   else {
@@ -924,7 +1002,7 @@ sub fast_pay_link {
 
 =head1 COPYRIGHT
 
-  Copyright (с) 2003-2023 Andy Gulay (ABillS DevTeam) Ukraine
+  Copyright (с) 2003-2024 Andy Gulay (ABillS DevTeam) Ukraine
   All rights reserved.
   https://abills.net.ua/
 

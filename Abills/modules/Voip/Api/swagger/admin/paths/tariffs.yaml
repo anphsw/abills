@@ -1,0 +1,100 @@
+get:
+  tags:
+    - voip
+  summary: Список тарифов Voip
+  parameters:
+    - name: age
+      in: query
+      description: Срок действия с момента активации (Дни).
+      schema:
+        type: boolean
+        default: true
+    - name: dayFee
+      in: query
+      description: Сумма дневной абонентской платы.
+      schema:
+        type: boolean
+        default: true
+    - name: id
+      in: query
+      description: Внешний ID тарифного плана.
+      schema:
+        type: boolean
+        default: true
+    - name: logins
+      in: query
+      description: Одновременное количество пользователей.
+      schema:
+        type: boolean
+        default: true
+    - name: monthFee
+      in: query
+      description: Сумма месячной абонентской платы.
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название тарифного плана
+      schema:
+        type: boolean
+        default: true
+    - name: paymentType
+      in: query
+      description: >
+        Тип оплаты за услугу
+         * `0` - Предоплата
+         * `1` - Послеоплата
+      schema:
+        type: boolean
+        default: true
+    - name: timeTarifs
+      in: query
+      description: Часовой тариф
+      schema:
+        type: boolean
+        default: true
+    - name: tpId
+      in: query
+      description: Внутренний ID тарифного плана.
+      schema:
+        type: boolean
+        default: true
+    - name: freeTime
+      in: query
+      description: Беслатное время звонка.
+      schema:
+        type: boolean
+        default: false
+    - name: timeDivision
+      in: query
+      description: Интервал тарификации (сек).
+      schema:
+        type: boolean
+        default: false
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tpInfoList.yaml"
+  security:
+    - KEY: []

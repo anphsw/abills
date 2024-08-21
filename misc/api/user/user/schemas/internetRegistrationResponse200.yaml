@@ -1,0 +1,5 @@
+type: object
+properties:
+  result:
+    type: string
+    example: "Successfully created user with uid: 49"

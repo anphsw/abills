@@ -1,0 +1,20 @@
+type: object
+properties:
+  fio:
+    type: string
+    example: Shevchenko Taras
+  phone:
+    type: string
+    example: 0999999999
+  email:
+    type: string
+    example: email@gmail.com
+  responsible:
+    type: integer
+    example: 5
+  currentStep:
+    type: integer
+    example: 2
+  comments:
+    type: string
+    example: some comment

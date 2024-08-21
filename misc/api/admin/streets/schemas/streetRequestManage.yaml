@@ -1,0 +1,18 @@
+type: object
+properties:
+  name:
+    type: string
+    example: Test street
+    description: Название улицы
+  secondName:
+    type: string
+    example: 10
+    description: Второе название улицы
+  districtId:
+    type: number
+    example: 10
+    description: ID района
+  type:
+    type: number
+    example: 2
+    description: Тип улицы

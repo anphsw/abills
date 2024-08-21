@@ -5,7 +5,8 @@
     }
 
     jQuery(function () {
-        var base_wiki_link = 'http://abills.net.ua/wiki/doku.php/abills:docs:manual:admin:equipment:equipment_info:';
+        // TODO: rewrite this function to normal link or delete
+        var base_wiki_link = 'http://abills.net.ua/wiki/pages/viewpage.action?pageId=6258945';
         var model_select = jQuery('select#MODEL_ID');
         var type_select = jQuery('select#TYPE_ID');
         var wiki_link = jQuery('a#MODEL_ID_WIKI_LINK');

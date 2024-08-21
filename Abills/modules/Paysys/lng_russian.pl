@@ -151,6 +151,16 @@ $lang{DEFAULT_SUBSYSTEM}   = 'Подсистема по умолчанию';
 $lang{BILL_ID} = 'Денежный счёт';
 $lang{ERR_MAKE_PAYMENT} = 'Произошла ошибка при проведении платежа';
 $lang{TRANSACTION_EXISTS} = 'Транзакция с ID %ID% уже существует. Просьба повторно выполнить операцию оплаты.';
+$lang{PORTAL_COMMENT_DESC} = 'Описание в кабинете пользователя';
+$lang{PORTAL_COMMISSION_DESC} = 'Описание комиссии в кабинете пользователя';
+$lang{NO_ACTIVE_RECURRENT_PAYMENTS} = 'Нет активных регулярных (рекуррентных) платежей';
+$lang{FORCE_IMPORT} = 'Принудительный импорт';
+$lang{PAYSYS_V3_DEPRECATED} = 'Схема V3 будет удалена со следующего релиза, чтобы перейти на новую схему, включите в config.pl "$conf{PAYSYS_V4}=1;"';
+$lang{PAYMENTS_DISABLED} = 'Платежи отключены';
+
+$lang{ERR_PAYSYS_DOMAIN} = 'Пожалуйста, зайдите через доменный URL или установите опцию %OPTION% или %OPTION%';
+$lang{ERR_NO_FAST_PAY_LINK} = 'Нет ссылки для быстрой оплаты';
+$lang{ERR_WRONG_CONFIGURATIONS} = 'Неверная конфигурация';
 
 $lang{EVENT_MERCHANT_ADDED_TITLE}         = 'Paysys контрагент изменен';
 $lang{EVENT_MERCHANT_ADDED_MESSAGE}       = 'Настройки контрагента изменены id - %MERCHANT_ID% с названием - %MERCHANT_NAME%';

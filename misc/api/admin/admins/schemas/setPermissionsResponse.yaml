@@ -1,0 +1,8 @@
+type: object
+properties:
+  aid:
+    type: number
+    example: 98
+  result:
+    type: string
+    example: Permissions successfully set

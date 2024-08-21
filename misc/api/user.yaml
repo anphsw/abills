@@ -1,74 +1,87 @@
 openapi: 3.0.3
 info:
-  title: Abills user API
-  version: 1.1.12
-  description: "Last modified 2023-11-21"
+  title: ABillS USER API
+  version: 1.2.9
+  description: |
+    Last modified 2024-08-14 <br>
+    Have other version of API? 
+    Specification stored in billing folder. Location /usr/abills/misc/bundle_user.yaml
+    Copy it and upload it to your favorite OPEN API viewer.
   contact:
     name: Have a question? Support
     url: https://support.abills.net.ua/
     email: dev@abills.net.ua
   x-logo:
-    url: http://abills.net.ua/wiki/download/attachments/1277998/Logox600.png?version=5&modificationDate=1707907350448&api=v2
+    url: https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDYlcnHnHZISgLa126i5ofPhroCS3CY3sac_6KCrs-kA&s
   x-providerName: abills.net.ua
+externalDocs:
+  description: Redocly
+  url: https://demo.abills.net.ua:9443/redocly-user.html
 servers:
   - url: https://demo.abills.net.ua:9443/api.cgi
     description: Test Demo Server
 tags:
+  - name: bots
+    description: Пути ботов пользователя
+  - name: config
+    description: Все доступные конфигурации
+  - name: contacts
+    description: Работа с контактами
+  - name: finance
+    description: Финансовая информация по пользователю
+  - name: holdup
+    description: Приостановление услуг
+  - name: services
+    description: Работа с услугами абонента
   - name: user
     description: Работа с пользователем
+  - name: abon
+    description: Работа с периодическими списаниями
+  - name: cards
+    description: Работа с карточками пополнения
+  - name: docs
+    description: информация об документах
+  - name: equipment
+    description: информация об оборудовании пользователя
+  - name: expert
+    description: Работа с экспертной системой
   - name: internet
     description: Работа с услугой Интернет
   - name: iptv
     description: Работа с IPTV
   - name: msgs
     description: Работа с заявками пользователя
-  - name: abon
-    description: Работа с периодическими списаниями
   - name: paysys
     description: Работа с платежными системами
-  - name: config
-    description: Все доступные конфигурации
-  - name: contacts
-    description: Работа с контактами
-  - name: holdup
-    description: Приостановление услуг
-  - name: services
-    description: Работа с услугами абонента
-  - name: finance
-    description: Финансовая информация по пользователю
-  - name: bots
-    description: Пути ботов пользователя
-  - name: cards
-    description: Работа с карточками пополнения
-  - name: voip
-    description: Работа с телефонией
-  - name: expert
-    description: Работа с экспертной системой
-  - name: referral
-    description: Работа с реферальной системой
   - name: portal
     description: Новости в пользовтелям
-  - name: equipment
-    description: информация об оборудовании пользователя
+  - name: referral
+    description: Работа с реферальной системой
+  - name: triplay
+    description: Работа с Triplay
+  - name: voip
+    description: Работа с телефонией
 paths:
+  $ref: "./user/bots/paths.yaml"
+  $ref: "./user/config/paths.yaml"
+  $ref: "./user/contacts/paths.yaml"
+  $ref: "./user/finance/paths.yaml"
+  $ref: "./user/holdup/paths.yaml"
+  $ref: "./user/services/paths.yaml"
   $ref: "./user/user/paths.yaml"
+  $ref: "../../Abills/modules/Abon/Api/swagger/user/paths.yaml"
+  $ref: "../../Abills/modules/Cards/Api/swagger/user/paths.yaml"
+  $ref: "../../Abills/modules/Docs/Api/swagger/user/paths.yaml"
+  $ref: "../../Abills/modules/Equipment/Api/swagger/user/paths.yaml"
+  $ref: "../../Abills/modules/Expert/Api/swagger/user/paths.yaml"
   $ref: "../../Abills/modules/Internet/Api/swagger/user/paths.yaml"
   $ref: "../../Abills/modules/Iptv/Api/swagger/user/paths.yaml"
   $ref: "../../Abills/modules/Msgs/Api/swagger/user/paths.yaml"
-  $ref: "../../Abills/modules/Abon/Api/swagger/user/paths.yaml"
   $ref: "../../Abills/modules/Paysys/Api/swagger/user/paths.yaml"
-  $ref: "./user/config/paths.yaml"
-  $ref: "./user/contacts/paths.yaml"
-  $ref: "./user/holdup/paths.yaml"
-  $ref: "./user/services/paths.yaml"
-  $ref: "./user/bots/paths.yaml"
-  $ref: "../../Abills/modules/Cards/Api/swagger/user/paths.yaml"
-  $ref: "../../Abills/modules/Voip/Api/swagger/user/paths.yaml"
-  $ref: "../../Abills/modules/Expert/Api/swagger/user/paths.yaml"
-  $ref: "../../Abills/modules/Referral/Api/swagger/user/paths.yaml"
   $ref: "../../Abills/modules/Portal/Api/swagger/user/paths.yaml"
-  $ref: "../../Abills/modules/Equipment/Api/swagger/user/paths.yaml"
-
+  $ref: "../../Abills/modules/Referral/Api/swagger/user/paths.yaml"
+  $ref: "../../Abills/modules/Triplay/Api/swagger/user/paths.yaml"
+  $ref: "../../Abills/modules/Voip/Api/swagger/user/paths.yaml"
 components:
   securitySchemes:
     USERSID:

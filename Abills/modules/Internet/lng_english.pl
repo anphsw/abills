@@ -60,4 +60,6 @@ $lang{ERR_FAILED_SET_SCHEDULE} = 'Failed to set schedule of change tp';
 $lang{ERR_CHANGE_TP} = 'Failed to change tp';
 $lang{ERR_NO_TARIFF} = 'No tariff with such id';
 
+$lang{ERR_NO_WRONG_PORT_SELECTED} = 'The wrong port is selected';
+
 1;

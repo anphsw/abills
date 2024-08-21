@@ -14,6 +14,7 @@ our(
   $admin,
   $db,
   $html,
+  @MONTHES,
   $Tv_service
 );
 
@@ -202,11 +203,18 @@ sub iptv_console {
 
   return 1 unless $FORM{SERVICE_ID};
 
-  $Tv_service = tv_load_service('', { SERVICE_ID => $FORM{SERVICE_ID} });
+  $Tv_service = init_iptv_service($db, $admin, \%conf, {
+    SERVICE_ID => $FORM{SERVICE_ID},
+    HTML       => $html,
+    LANG       => \%lang
+  });
   return 1 if (!$Tv_service);
 
   if ($Tv_service->{SERVICE_CONSOLE}) {
     my $fn = $Tv_service->{SERVICE_CONSOLE};
+    if ($Tv_service->{SERVICE_NAME} eq 'Stalker') {
+      require Iptv::Stalker_web;
+    }
     &{\&$fn}({ %FORM, %{$attr}, %{$Iptv}, SERVICE_ID => $FORM{SERVICE_ID} });
   }
   elsif ($Tv_service->can('reports')) {
@@ -311,6 +319,79 @@ sub iptv_users_fees {
   return 0;
 }
 
+#**********************************************************
+=head2 iptv_month_report()
+
+=cut
+#**********************************************************
+sub iptv_month_report {
+  require Control::Reports;
+
+  my ($current_year, $current_month, undef) = split('-', $DATE);
+  if ($FORM{YEAR} && $FORM{MONTH}) {
+    if ($FORM{YEAR} > $current_year) {
+      delete $FORM{YEAR};
+      delete $FORM{MONTH};
+    }
+    elsif ($FORM{YEAR} == $current_year && $FORM{MONTH} >= $current_month) {
+      delete $FORM{YEAR};
+      delete $FORM{MONTH};
+    }
+  }
+
+  reports({
+    PERIODS           => 1,
+    NO_TAGS           => 1,
+    NO_PERIOD         => 1,
+    NO_MULTI_GROUP    => 1,
+    PERIOD_FORM       => 1,
+    NO_STANDART_TYPES => 1,
+    NO_GROUP          => 1,
+    EXT_SELECT  => {
+      MONTH => {
+        LABEL  => $lang{MONTH},
+        SELECT => $html->form_select('MONTH', {
+          SELECTED     => $FORM{MONTH} || sprintf("%d", $current_month),
+          SEL_ARRAY    => [ '', @MONTHES ],
+          ARRAY_NUM_ID => 1,
+        })
+      },
+      YEAR => {
+        LABEL  => $lang{YEAR},
+        SELECT => $html->form_select('YEAR', {
+          SELECTED  => $FORM{YEAR} || $current_year,
+          SEL_ARRAY => [ '', reverse(($current_year - 2) .. $current_year) ]
+        })
+      },
+      SERVICE_ID => {
+        LABEL  => $lang{SERVICE},
+        SELECT => $html->form_select('SERVICE_ID', {
+          SELECTED => $FORM{SERVICE_ID},
+          SEL_HASH => tv_services_sel({ ALL => 1, HASH_RESULT => 1 }),
+          SEL_OPTIONS  => { '' => '--' },
+        })
+      }
+    }
+  });
+
+  $pages_qs .= "&YEAR=$FORM{YEAR}" if defined $FORM{YEAR} && $pages_qs !~ /&YEAR=/;
+  $pages_qs .= "&SERVICE_ID=$FORM{SERVICE_ID}" if defined $FORM{SERVICE_ID} && $pages_qs !~ /&SERVICE_ID=/;
+  my $table = $html->table({
+    caption => $lang{IPTV_MONTHLY_REPORT},
+    width   => '100%',
+    title   => [ $lang{TARIF_PLAN}, $lang{SERVICE}, $lang{USERS}, $lang{DAYS} ],
+    ID      => 'IPTV_MONTH_REPORT',
+    qs      => $pages_qs,
+    EXPORT  => 1,
+  });
+
+  my $services_list = $Iptv->iptv_monthly_active_users_list({ %FORM, COLS_NAME => 1 });
+  foreach my $service (@{$services_list}) {
+    $table->addrow($service->{tp_name}, $service->{service_name}, $service->{users}, $service->{days});
+  }
+
+  print $table->show();
+}
 
 #**********************************************************
 =head2 iptv_report_tp($attr)
@@ -343,16 +424,14 @@ sub iptv_report_tp {
     COLS_NAME => 1
   });
 
-  my $table = $html->table(
-    {
-      caption     => $lang{TARIF_PLANS},
-      width       => '100%',
-      title       => [ '#', $lang{NUMBER}, 'ID', $lang{NAME}, $lang{TOTAL}, $lang{ACTIV}, $lang{DISABLE},
-        $lang{DEBETORS}, "$lang{REDUCTION} 100%", "ARPPU $lang{ARPPU}", "ARPU $lang{ARPU}", $lang{MONTH_FEE}, $lang{DAY_FEE}, $lang{GROUP}, $lang{SERVICE}, ],
-      ID          => 'REPORTS_IPTV_TARIF_PLANS',
-      EXPORT      => 1,
-    }
-  );
+  my $table = $html->table({
+    caption => $lang{TARIF_PLANS},
+    width   => '100%',
+    title   => [ '#', $lang{NUMBER}, 'ID', $lang{NAME}, $lang{TOTAL}, $lang{ACTIV}, $lang{DISABLE},
+      $lang{DEBETORS}, "$lang{REDUCTION} 100%", "ARPPU $lang{ARPPU}", "ARPU $lang{ARPU}", $lang{MONTH_FEE}, $lang{DAY_FEE}, $lang{GROUP}, $lang{SERVICE}, ],
+    ID      => 'REPORTS_IPTV_TARIF_PLANS',
+    EXPORT  => 1,
+  });
 
   my $iptv_users_list_index = get_function_index('iptv_users_list') || 0;
 
@@ -373,8 +452,8 @@ sub iptv_report_tp {
       $line->{tp_id},
       $html->button($line->{name}, "$main_link"),
       ($line->{counts} > 0 )          ? $html->button($line->{counts}, "$main_link")                        : 0,
-      ($line->{active} > 0 )          ? $html->button($line->{active}, "$main_link&SERVICE_STATUS=0")      : 0,
-      ($line->{disabled} > 0 )        ? $html->button($line->{disabled}, "$main_link&SERVICE_STATUS=1")    : 0,
+      ($line->{active} > 0 )          ? $html->button($line->{active}, "$main_link&SERVICE_STATUS=0")       : 0,
+      ($line->{disabled} > 0 )        ? $html->button($line->{disabled}, "$main_link&SERVICE_STATUS=!0")    : 0,
       ($line->{debetors} > 0 )        ? $html->button($line->{debetors}, "$main_link&DEPOSIT=<0&search=1")  : 0,
       ($line->{users_reduction} > 0 ) ? $html->button($line->{users_reduction}, "$main_link&REDUCTION=100") : 0,
       sprintf('%.2f', $line->{arppu} || 0),
@@ -408,4 +487,5 @@ sub iptv_report_tp {
 
   return 1;
 }
+
 1;

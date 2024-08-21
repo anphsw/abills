@@ -1,0 +1,5 @@
+{
+  "name": "ADMIN_DOCS_INVOICE_PAYMENTS_LIST",
+  "method": "GET",
+  "path": "docs/invoices/payments/"
+}

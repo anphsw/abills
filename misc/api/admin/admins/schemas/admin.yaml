@@ -1,0 +1,14 @@
+type: object
+properties:
+  aid:
+    type: integer
+    example: 1
+  gName:
+    type: string
+    example: Test group
+  login:
+    type: string
+    example: abills
+  name:
+    type: string
+    example: Abills

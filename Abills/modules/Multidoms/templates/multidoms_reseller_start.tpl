@@ -69,13 +69,4 @@
 
     <!-- Main Header -->
     <header class='main-header'>
-
-        <!-- Logo -->
-        <a href='reseller.cgi' class='logo'>
-            <!-- mini logo for sidebar mini 50x50 pixels -->
-            <span class='logo-mini'><b><span style='color: red;'>A</span></b></span>
-            <!-- logo for regular state and mobile devices -->
-            <span class='logo-lg'><b><span style='color: red;'>A</span></b>BillS</span>
-        </a>
-
         %BODY%

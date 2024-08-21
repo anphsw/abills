@@ -114,5 +114,8 @@ $lang{IPTV_ERROR_DEL_TP} = 'Помилка видалення тарифного
 $lang{IPTV_PROMOTIONAL_TP} = 'Акційний ТП';
 $lang{SUGGEST_ACTIVATE_TP} = 'Пропонуємо активувати тарифний план';
 $lang{IPTV_ERROR_DEVICES_COUNT} = 'Перевищено дозволену кількість пристроїв';
+$lang{IPTV_MONTHLY_REPORT} = 'Місячний звіт';
+
+$lang{ERR_IPTV_DEL_ACTIVATED} = 'Перш ніж видалити послугу, її потрібно відключити';
 
 1;

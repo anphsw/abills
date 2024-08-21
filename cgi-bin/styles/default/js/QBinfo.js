@@ -72,6 +72,10 @@ function QBinfo(title, msg, group_id, event_id, seen_url, extra) {
     icon = extra.icon;
   }
 
+  if (extra.timeout !== '') {
+    time = extra.timeout;
+  }
+
   /*
    * Input info in DIV
    */

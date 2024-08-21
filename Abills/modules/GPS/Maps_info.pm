@@ -93,54 +93,57 @@ sub maps_gps_show {
   my $date_to = $attr->{TO_DATE} || '';
 
   my $tracked_admins = $Gps->tracked_admins_list($attr->{AID} || '');
-  foreach my $admin (@{$tracked_admins}) {
-    my $route = $Gps->tracked_admin_route_info($admin->{aid}, undef, {
+  foreach my $admin_ (@{$tracked_admins}) {
+    my $route = $Gps->tracked_admin_route_info($admin_->{aid}, undef, {
       SHOW_ALL_COLUMNS => 1,
       FROM_DATE        => $date_from,
       TO_DATE          => $date_to,
       PAGE_ROWS        => !$date_from ? 1 : 99999,
       DESC             => !$date_from ? 'DESC' : '',
     });
-    next if $route == 0;
 
-    my $result = $Gps->admins_color_info({ AID => $admin->{aid} });
+    next if ($route == 0);
+
+    my $result = $Gps->admins_color_info({ AID => $admin_->{aid} });
     my $color = $Gps->{TOTAL} > 0 ? $result->{COLOR} : '#49bcff';
-
 
     my %coords_by_date = ();
 
     my @coords = ();
     my @points_info = ();
-    foreach my $point ( @{$route}) {
+    foreach my $point (@{$route}) {
       push @{$coords_by_date{$point->{gps_date}}{coords}}, [ $point->{coord_y}, $point->{coord_x} ];
 
       my $tb = "<div class='panel panel-info'>" .
         "<ul class='list-group'>" .
-          _gps_info_item('far fa-user', $lang->{ADMIN}, $admin->{name}) .
-          _gps_info_item('fa fa-battery-half', $lang->{BATTERY}, "$point->{battery}%") .
-          _gps_info_item('far fa-calendar', $lang->{DATE}, $point->{gps_time}) .
-          _gps_info_item('fa fa-tachometer-alt', $lang->{SPEED}, $point->{speed}) .
+        _gps_info_item('far fa-user', $lang->{ADMIN}, $admin_->{name}) .
+        _gps_info_item('fa fa-battery-half', $lang->{BATTERY}, "$point->{battery}%") .
+        _gps_info_item('far fa-calendar', $lang->{DATE}, $point->{gps_time}) .
+        _gps_info_item('fa fa-tachometer-alt', $lang->{SPEED}, $point->{speed}) .
+        _gps_info_item('fa fa-info-circle', $lang->{STATUS}, $point->{status}) .
         "</ul>" .
         "</div>";
       my $info = "<div class='panel-group'>$tb</div>";
-      $info .= "<button class='btn btn-default btn-sm mt-1 route-$admin->{aid}'><i class='fa fa-road'></i> $lang->{ROUTE}</button>";
+      $info .= "<button class='btn btn-default btn-sm mt-1 route-$admin_->{aid}'><i class='fa fa-road'></i> $lang->{ROUTE}</button>";
 
       push @{$coords_by_date{$point->{gps_date}}{info}}, $info;
       push @{$coords_by_date{$point->{gps_date}}{speed}}, $point->{speed};
     }
 
     push @export_arr, {
-      GPS      => {
-        coords => \%coords_by_date,
-        SVG    => _gps_car_icon($color),
-        icons  => {
+      OBJECT_ID => $admin_->{aid},
+      GPS       => {
+        coords    => \%coords_by_date,
+        SVG       => _gps_car_icon($color),
+        icons     => {
           point => _gps_info_icon($color)
         },
-        color  => $color,
-        aid    => $admin->{aid},
-        locale => $html->{content_language} || 'en'
+        color     => $color,
+        aid       => $admin_->{aid},
+        locale    => $html->{content_language} || 'en',
+        OBJECT_ID => $admin_->{aid},
       },
-      LAYER_ID => 9,
+      LAYER_ID  => 9,
     };
   }
 

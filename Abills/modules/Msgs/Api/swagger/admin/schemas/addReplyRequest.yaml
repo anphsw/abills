@@ -1,0 +1,8 @@
+type: object
+properties:
+  aid:
+    type: integer
+    example: 2
+  replyText:
+    type: string
+    example: Reply text

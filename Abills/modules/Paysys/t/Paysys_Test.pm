@@ -218,7 +218,7 @@ sub paysys_test {
     %request_params
   });
 
-  if (!$response) {
+  if (!defined $response) {
     $html->message('err', $lang{ERROR}, $lang{NO_DATA});
   }
   else {
@@ -274,7 +274,7 @@ sub paysys_get_params {
   my ($attr) = @_;
 
   my $module = $attr->{MODULE} || '';
-  my $required_module = _configure_load_payment_module($module);
+  my $required_module = _configure_load_payment_module($module, 0, \%conf);
 
   my $Module = $required_module->new($db, $admin, \%conf, {
     CUSTOM_NAME => $attr->{NAME} || '',

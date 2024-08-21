@@ -1,0 +1,48 @@
+type: object
+required: [sum, billId]
+properties:
+  sum:
+    type: integer
+    example: 1.15
+    description: сумма пополнения
+  method:
+    type: integer
+    example: 1
+    description: платежный метод
+  billId:
+    type: integer
+    example: 10
+    description: денежный счет
+  describe:
+    type: string
+    example: Test payment
+    description: описание - видно пользователю!
+  innerDescribe:
+    type: string
+    example: this client is pig
+    description: внутренное описание
+  date:
+    type: string
+    example: "2021-12-01"
+    description: Если нужно платеж зарегистрировать задним числом
+  exchangeId:
+    type: integer
+    example: 1
+    description: id курса
+  cashboxId:
+    type: integer
+    example: 1
+    description: id кассы, работает если включен модуль Employees
+  createReceipt:
+    type: integer
+    example: 1
+    description: cоздать счет, работает если включен модуль Docs
+  applyToInvoice:
+    type: integer
+    example: 1
+    description: привязать invoice, работает если включен модуль Docs
+    default: 1
+  extId:
+    type: string
+    example: "Liqpay:12345"
+    description: id транзакции

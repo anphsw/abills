@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "integer"
+          },
+          "deposit": {
+            "type": "number"
+          },
+          "fio": {
+            "type": "string"
+          },
+          "gid": {
+            "type": "integer"
+          },
+          "login": {
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "loginStatus": {
+            "type": "integer"
+          },
+          "reduction": {
+            "type": "integer"
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "activate": {
+                  "type": "string"
+                },
+                "module": {
+                  "type": "string"
+                },
+                "moduleName": {
+                  "type": "string"
+                },
+                "originalSum": {
+                  "type": "number"
+                },
+                "serviceDesc": {
+                  "type": "string"
+                },
+                "serviceName": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "integer"
+                },
+                "sum": {
+                  "type": "number"
+                },
+                "tpReductionFee": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "activate",
+                "module",
+                "moduleName",
+                "originalSum",
+                "serviceDesc",
+                "serviceName",
+                "status",
+                "sum",
+                "tpReductionFee"
+              ]
+            }
+          },
+          "uid": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "companyId",
+          "deposit",
+          "fio",
+          "gid",
+          "login",
+          "loginStatus",
+          "reduction",
+          "services",
+          "uid"
+        ]
+      }
+    },
+    "servicesCount": {
+      "type": "integer"
+    },
+    "servicesSum": {
+      "type": "number"
+    },
+    "total": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "list",
+    "servicesCount",
+    "servicesSum",
+    "total"
+  ]
+}

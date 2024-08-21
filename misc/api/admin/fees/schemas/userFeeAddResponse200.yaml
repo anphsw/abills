@@ -1,0 +1,8 @@
+type: object
+properties:
+  feeId:
+    type: number
+    example: 5649
+  result:
+    type: string
+    example: OK

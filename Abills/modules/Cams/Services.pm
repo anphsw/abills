@@ -9,6 +9,8 @@ use warnings FATAL => 'all';
 use Abills::Filters qw(_utf8_encode);
 use Abills::Base qw(_bp);
 use Cams;
+use Cams::Init qw/init_cams_service/;
+require Control::Services;
 
 our (
   $html,
@@ -80,6 +82,8 @@ sub cams_services {
     SEL_ARRAY => [ 0, 1, 2, 3, 4, 5, 6, 7 ],
   });
 
+  $Cams->{PLUGINS_SEL} = sel_plugins('Cams', { SELECT => 'MODULE', SELECTED => $Cams->{MODULE} });
+
   $html->tpl_show(_include('cams_services_add', 'Cams'), { %FORM, %$Cams });
 
   result_former({
@@ -135,7 +139,13 @@ sub cams_service_info {
 
   return 1 if !$Cams->{MODULE};
 
-  my $Cams_service = cams_load_service($Cams->{MODULE}, { SERVICE_ID => $Cams->{ID}, SOFT_EXCEPTION => 1 });
+  my $Cams_service = init_cams_service($db, $admin, \%conf, {
+    SERVICE_ID     => $Cams->{ID},
+    HTML           => $html,
+    LANG           => \%lang,
+    SOFT_EXCEPTION => 1
+  });
+
   $Cams->{MODULE_VERSION} = $Cams_service->{VERSION} if ($Cams_service && $Cams_service->{VERSION});
 
   _cams_service_test($Cams_service);
@@ -448,56 +458,6 @@ sub _cams_cameras_import_form {
   });
 
   return 1;
-}
-
-#**********************************************************
-=head2 cams_load_service($service_name, $attr) - Load service module
-
-  Argumnets:
-    $service_name  - service modules name
-    $attr
-       SERVICE_ID
-       SOFT_EXCEPTION
-
-  Returns:
-    Module object
-
-=cut
-#**********************************************************
-sub cams_load_service {
-  my ($service_name, $attr) = @_;
-  my $api_object;
-
-  my $Cams_service = Cams->new($db, $admin, \%conf);
-  if ($attr->{SERVICE_ID}) {
-    $Cams_service->services_info($attr->{SERVICE_ID});
-    $service_name = $Cams_service->{TOTAL} && $Cams_service->{TOTAL} > 0 ? $Cams_service->{MODULE} : '';
-  }
-
-  return $api_object  if (!$service_name);
-
-  $service_name = 'Cams::' . $service_name;
-
-  eval " require $service_name; ";
-  if (!$@) {
-    $service_name->import();
-
-    if ($service_name->can('new')) {
-      $Cams_service->{DEBUG} = 0 if $Cams_service->{DEBUG} < 4 && $admin->{AID} eq '3';
-      $api_object = $service_name->new($Cams->{db}, $Cams->{admin}, $Cams->{conf}, { %{$Cams_service}, HTML => $html, LANG => \%lang });
-    }
-    else {
-      $html->message('err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua");
-      return $api_object;
-    }
-  }
-  else {
-    print $@ if ($FORM{DEBUG});
-    $html->message('err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua");
-    die "Can't load '$service_name'. Purchase this module http://abills.net.ua" if (!$attr->{SOFT_EXCEPTION});
-  }
-
-  return $api_object;
 }
 
 #**********************************************************

@@ -50,7 +50,7 @@ my @item_status = ($lang{INSTALLED}, $lang{SOLD}, $lang{RENT}, $lang{BY_INSTALLM
 if (form_purchase_module({
   HEADER          => $users->{UID} || $user->{UID} || $FORM{UID},
   MODULE          => 'Storage',
-  REQUIRE_VERSION => 8.63
+  REQUIRE_VERSION => 8.64
 })) {
   exit;
 }
@@ -58,6 +58,9 @@ if (form_purchase_module({
 our $Storage = Storage->new($db, $admin, \%conf);
 our $fees = Fees->new($db, $admin, \%conf);
 my $Nas = Nas->new($db, \%conf, $admin);
+
+use Storage::Installation;
+my $Installation = Storage::Installation->new($db, $admin, \%conf, { lang => \%lang });
 
 #load_module('Docs', $html);
 
@@ -2481,8 +2484,9 @@ sub storage_hardware {
   elsif ($FORM{change}) {
     $FORM{ID} = $FORM{CHG_ID} if (!$FORM{ID} && $FORM{CHG_ID});
 
-    $Storage->storage_installation_change({ %FORM });
-    if (!$Storage->{errno}) {
+    my $change_result = $Installation->change_installation(\%FORM);
+    $change_result->{message} = $change_result->{errmsg} if $change_result->{errmsg};
+    if (!_error_show($change_result)) {
       $html->tpl_show(_include('storage_redirect', 'Storage'), {
         SECTION => '&UID=' . ($FORM{UID} || ''),
         MESSAGE => "$lang{CHANGED}",
@@ -2886,6 +2890,8 @@ sub storage_installation_list_result_former {
   my Abills::HTML $table;
 
   $LIST_PARAMS{STORAGE_MSGS_ID} = $FORM{STORAGE_MSGS_ID};
+  $pages_qs .= "&STORAGE_MSGS_ID=$FORM{STORAGE_MSGS_ID}" if $FORM{STORAGE_MSGS_ID} && $pages_qs !~ /&STORAGE_MSGS_ID=/;
+
   ($table) = result_former({
     INPUT_DATA      => $Storage,
     FUNCTION        => 'storage_installation_list',

@@ -23,7 +23,6 @@ BEGIN {
   }
 }
 
-use Abills::JSON;
 use Abills::Defs;
 use Users;
 use Admins;
@@ -76,6 +75,7 @@ our $html = Abills::HTML->new({
   CONF       => \%conf,
   CHARSET    => $conf{default_charset},
   HTML_STYLE => $conf{UP_HTML_STYLE},
+  language   => $conf{API_CONF_LANGUAGE} ? ($conf{default_language} || 'english') : 'english'
 });
 
 if ($conf{API_CONF_LANGUAGE} && -f $libpath . "/language/$html->{language}.pl") {
@@ -100,29 +100,27 @@ else {
 #**********************************************************
 sub _start {
   my $handle = Abills::Api::Handle->new($db, $admin, $Conf->{conf}, {
-    req_params     => \%FORM,
-    html           => $html,
-    lang           => \%lang,
-    cookies        => \%COOKIES,
-    path           => $ENV{PATH_INFO} || q{},
-    request_method => $ENV{REQUEST_METHOD} || q{},
-    return_type    => 'json'
+    html        => $html,
+    lang        => \%lang,
+    cookies     => \%COOKIES,
+    return_type => 'json',
+    libpath     => $libpath
   });
 
-  my $result = $handle->_start();
+  my ($response, $status, $content_type) = $handle->api_call({
+    METHOD => $ENV{REQUEST_METHOD} || q{},
+    PARAMS => \%FORM,
+    PATH   => $ENV{PATH_INFO} || q{},
+  });
 
-  if ($result->{content_type}) {
-    _custom_headers({
-      STATUS       => $result->{status},
-      CONTENT_TYPE => $result->{content_type},
-    });
+  my $header = $content_type ? $content_type : 'Content-Type: application/json; charset=utf-8';
 
-    print $result->{response};
-  }
-  else {
-    print Abills::JSON::header(undef, { STATUS => $result->{status} || '' });
-    print $result->{response};
-  }
+  _custom_headers({
+    STATUS       => $status || 200,
+    CONTENT_TYPE => $header,
+  });
+
+  print $response;
 
   return 1;
 }

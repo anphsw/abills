@@ -13,6 +13,7 @@ my $Abon_base;
 
 use POSIX qw(strftime mktime);
 use Abills::Base qw/days_in_month date_diff get_period_dates cmd sendmail/;
+use Abills::Loader;
 
 #**********************************************************
 =head2 new($html, $lang)
@@ -85,10 +86,13 @@ sub abon_user_tariff_activate {
   my $user_tariffs = $Abon->user_tariff_list($user_info->{UID},
     { GID => $user_info->{GID} || 0, ID => $attr->{ID}, COLS_NAME => 1 }
   );
+
   return { errno => 20003, errstr => 'ERR_USER_TARIFF_INFO' } if !$Abon->{TOTAL} || $Abon->{TOTAL} < 1;
 
   my $user_tariff = $user_tariffs->[0];
-  return { errno => 20004, errstr => 'ERR_TARIFF_ALREADY_ACTIVATED' } if $user_tariff->{date};
+  if ($user_tariff->{date} && ! $attr->{ACTIVATE}) {
+    return { errno => 20004, errstr => 'ERR_TARIFF_ALREADY_ACTIVATED' };
+  }
 
   my $tariff_info = $Abon->tariff_info($user_tariff->{id});
   return { errno => 20005, errstr => 'ERR_TARIFF_INFO' } if !$Abon->{TOTAL} || $Abon->{TOTAL} < 1;
@@ -166,7 +170,13 @@ sub abon_user_tariff_activate {
     $Abon->{EXT_SERVICE_ID} = $tariff_info->{EXT_SERVICE_ID};
     $attr->{EXT_SERVICE_ID} = $tariff_info->{EXT_SERVICE_ID};
 
-    my $plugin = $Abon_base->abon_load_plugin($tariff_info->{PLUGIN}, { SERVICE => $tariff_info, RETURN_ERROR => 1 });
+    my $plugin = load_plugin('Abon::Plugins::'.$tariff_info->{PLUGIN}, {
+      SERVICE      => $tariff_info,
+      HTML         => $html,
+      LANG         => \%lang,
+      RETURN_ERROR => 1
+    });
+
     return { errno => $plugin->{errno}, errstr => $plugin->{errstr} } if ($plugin && $plugin->{errno});
 
     if ($attr->{ACTIVATE_ONLY} && !$attr->{ACCEPT_LICENSE}) {
@@ -309,7 +319,13 @@ sub abon_user_tariff_deactivate {
 
     $Abon->{PERSONAL_DESCRIPTION} = $user_tariff->{personal_description} || 'NO_PERSONAL_DESCRIPTION';
 
-    my $plugin = $Abon_base->abon_load_plugin($tariff_info->{PLUGIN}, { SERVICE => $tariff_info, RETURN_ERROR => 1 });
+    my $plugin = load_plugin('Abon::Plugins::'.$tariff_info->{PLUGIN}, {
+      SERVICE      => $tariff_info,
+      HTML         => $html,
+      LANG         => \%lang,
+      RETURN_ERROR => 1
+    });
+
     return { errno => $plugin->{errno}, errstr => $plugin->{errstr} } if ($plugin && $plugin->{errno});
 
     if ($plugin->can('deactivate')) {

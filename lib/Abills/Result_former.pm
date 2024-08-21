@@ -165,7 +165,7 @@ sub result_row_former {
     $list    - result array list
 
   Examples:
-    http://abills.net.ua/wiki/doku.php/abills:docs:development:modules:ru#result_former
+    http://abills.net.ua/wiki/pages/viewpage.action?pageId=1278129#id-%D0%9C%D0%BE%D0%B4%D1%83%D0%BB%D0%B8%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B-result_former
 
 =cut
 #**********************************************************
@@ -201,10 +201,8 @@ sub result_former {
   }
 
   @cols = _result_former_columns($attr);
-  # _info_fields_hide();
 
   _sort_table($attr->{TABLE}->{ID}, $sort, \@cols);
-
 
   my @hidden_fields = _result_former_hidden_fields($attr, \@cols);
 
@@ -813,10 +811,11 @@ sub _result_former_columns {
 }
 
 #**********************************************************
-=head2 _result_former_hidden_fields($attr)
+=head2 _result_former_hidden_fields($attr, $cols)
 
   Arguments:
     $attr
+    $cols
 
   Return:
 
@@ -840,9 +839,10 @@ sub _result_former_hidden_fields {
     }
   }
 
-  foreach my $line (@{$cols}) {
-    if (!defined($LIST_PARAMS{$line}) || $LIST_PARAMS{$line} eq '') {
-      $LIST_PARAMS{$line} = '_SHOW';
+  for(my $i=0; $i<=$#{$cols}; $i++) {
+    my $field_name = $cols->[$i];
+    if (!defined($LIST_PARAMS{$field_name}) || $LIST_PARAMS{$field_name} eq '') {
+      $LIST_PARAMS{$field_name} = '_SHOW';
     }
   }
 
@@ -900,11 +900,13 @@ sub _result_former_data {
 
     delete($data->{COL_NAMES_ARR});
     $data->{debug} = 1 if ($FORM{DEBUG});
+
     my $list = $data->$fn({
       COLS_NAME      => 1,
       %{$attr->{FUNCTION_PARAMS} || {}},
       %LIST_PARAMS,
-      SHOW_COLUMNS   => $FORM{show_columns},
+      #UNused
+      #SHOW_COLUMNS   => $FORM{show_columns},
       HIDDEN_COLUMNS => $hidden_fields
     });
 
@@ -943,6 +945,7 @@ sub _result_former_data_extra_fields {
       my $field_id = $line->{sql_field};
       my $name = $line->{name};
 
+      next if (!defined $field_id);
       $SEARCH_TITLES->{ $field_id } = ($name =~ /\$/) ? _translate($name) : $name;
     }
   }
@@ -1036,6 +1039,7 @@ sub _get_search_titles {
   $SEARCH_TITLES{accept_rules} = $lang{ACCEPT_RULES} if ($conf{ACCEPT_RULES});
   $SEARCH_TITLES{ext_deposit} = "$lang{EXTRA} $lang{DEPOSIT}" if ($conf{EXT_BILL_ACCOUNT});
   $SEARCH_TITLES{cell_phone} = $lang{CELL_PHONE} if (!$attr->{SKIP_USERS_FIELDS});
+  $SEARCH_TITLES{created_admin} = "$lang{CREATED} $lang{ADMIN}" if (!$attr->{SKIP_USERS_FIELDS});
 
   _result_former_data_extra_fields($data, \%SEARCH_TITLES);
 
@@ -1489,44 +1493,12 @@ sub _column_no_permitss {
     delete $LIST_PARAMS{TAGS};
   }
 
+  if (in_array('Multidoms', \@MODULES) && defined $LIST_PARAMS{DOMAIN_ID} && "$LIST_PARAMS{DOMAIN_ID}" eq '') {
+    $LIST_PARAMS{DOMAIN_ID} = 0;
+  }
+
   return 1;
 }
-
-#**********************************************************
-=head2 _info_fields_hide()
-
-  Arguments:
-    -
-  Return:
-    -
-
-=cut
-#**********************************************************
-# sub _info_fields_hide {
-#
-#   return 0 unless (($admin->{SETTING} || $FORM{show_columns}));
-#
-#   my @info_fields = ();
-#   if (!$FORM{show_columns}) {
-#     @info_fields = split(', ', $admin->{SETTING});
-#   }
-#   else {
-#     @info_fields = split(', ', $FORM{show_columns});
-#   }
-#
-#   my %hash_fields = ();
-#   foreach my $key (@info_fields) {
-#     $hash_fields{$key} = 1;
-#   }
-#
-#   foreach my $key (sort keys %LIST_PARAMS) {
-#     if ($key =~ /^_/ && !$hash_fields{ $key }) {
-#       delete($LIST_PARAMS{ $key });
-#     }
-#   }
-#
-#   return 1;
-# }
 
 #**********************************************************
 =head2 _sort_table($name_table, $sort, $cols)

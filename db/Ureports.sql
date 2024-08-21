@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS `ureports_tp_reports` (
   `comments` TEXT,
   `module` VARCHAR(32) NOT NULL DEFAULT '',
   `visual` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `default_value` VARCHAR(10) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `tp_id` (`tp_id`),
   KEY `tp_id_report_id` (`tp_id`, `report_id`)
@@ -81,7 +82,9 @@ CREATE TABLE IF NOT EXISTS `ureports_users_reports` (
   `date` DATE NOT NULL,
   `value` VARCHAR(10) NOT NULL DEFAULT '',
   `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  UNIQUE KEY uid_reports_id (`uid`, `report_id`)
+  UNIQUE KEY uid_reports_id (`uid`, `report_id`),
+  KEY uid (`uid`),
+  KEY tp_id (`tp_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Ureports users reports';

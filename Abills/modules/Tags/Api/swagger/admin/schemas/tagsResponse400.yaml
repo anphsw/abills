@@ -1,0 +1,31 @@
+type: object
+properties:
+  errmsg:
+    type: string
+    example: Validation failed Parameter Color is not valid.
+  errno:
+    type: number
+    example: 9
+  errors:
+    type: array
+    items:
+      type: object
+      properties:
+        errno:
+          type: number
+          example: 21
+        errstr:
+          type: string
+          example: ERR_PARAMETER_NOT_VALID
+        param:
+          type: string
+          example: color
+        regexPattern:
+          type: string
+          example: "^#?([a-f0-9]{6})$"
+        type:
+          type: string
+          example: string
+  errstr:
+    type: string
+    example: VALIDATION_FAILED

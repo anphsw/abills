@@ -1,0 +1,32 @@
+delete:
+  tags:
+    - voip
+  summary: Удалить привязанный номер
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя в биллинге
+      required: true
+      schema:
+        type: integer
+    - name: id
+      in: path
+      description: ID номера
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteUidPhoneAliasIdResponse200.yaml"
+    400:
+      description: Нет расписания на изменения тарифа пользователя Voip
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteUidPhoneAliasIdResponse400.yaml"
+  security:
+    - KEY: []

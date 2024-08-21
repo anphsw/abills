@@ -1,0 +1,128 @@
+get:
+  tags:
+    - users
+  summary: Получить все дополнительного договора
+  parameters:
+    - name: id
+      in: query
+      description: ID дополнительного договора
+      schema:
+        type: boolean
+        default: true
+    - name: uid
+      in: query
+      description: ID пользователя
+      schema:
+        type: boolean
+        default: true
+    - name: companyId
+      in: query
+      description: ID компании
+      schema:
+        type: boolean
+        default: true
+    - name: aid
+      in: query
+      description: Админ создавший дополнительный договор
+      schema:
+        type: boolean
+        default: true
+    - name: date
+      in: query
+      description: Дата создания дополнительного договора
+      schema:
+        type: boolean
+        default: true
+    - name: endDate
+      in: query
+      description: Дата окончания дополнительного договора
+      schema:
+        type: boolean
+        default: true
+    - name: regDate
+      in: query
+      description: Дата утверждение дополнительного договора
+      schema:
+        type: boolean
+        default: true
+    - name: number
+      in: query
+      description: Номер дополнительного договора
+      schema:
+        type: boolean
+        default: true
+    - name: typeName
+      in: query
+      description: Название типа дополнительного договора
+      schema:
+        type: boolean
+        default: true
+    - name: type
+      in: query
+      description: ID типа дополнительного договора
+      schema:
+        type: boolean
+        default: true
+    - name: template
+      in: query
+      description: Шаблон дополнительного договора
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название дополнительного договора
+      schema:
+        type: boolean
+        default: true
+    - name: signature
+      in: query
+      description: Подпись документа
+      schema:
+        type: boolean
+        default: false
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/contractList.yaml"
+  security:
+    - KEY: []
+post:
+  tags:
+    - users
+  summary: Добавить дополнительный договор
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addContractRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addContractResponse200.yaml"
+    400:
+      description: Нет поля uid
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addContractResponse400.yaml"
+  security:
+    - KEY: [ ]

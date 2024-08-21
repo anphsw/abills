@@ -1,0 +1,8 @@
+{
+  "name": "ADMIN_COMPANY_CHANGE",
+  "method": "PUT",
+  "path": "companies/:id/",
+  "body": {
+    "name": "Test api change"
+  }
+}

@@ -7,6 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(sendmail days_in_month);
+use Abills::Loader qw/load_plugin/;
 use Tariffs;
 require Iptv::Base;
 
@@ -350,7 +351,9 @@ sub iptv_monthly_next_tp {
         $Iptv->{SERVICE_ID} //= $FORM{SERVICE_ID};
         my $Tv_service = undef;
         if ($Iptv->{SERVICE_ID}) {
-          $Tv_service = tv_load_service($Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} });
+          $Tv_service = init_iptv_service($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf}, {
+            SERVICE_ID   => $Iptv->{SERVICE_ID}
+          });
         }
 
         my DBI $db_ = $Iptv->{db}{db};
@@ -768,6 +771,12 @@ $lang{TOTAL}: $Iptv->{TOTAL}\n";
      $uid     - UID
      $attr
        DATE
+       DEBUG
+       GET_ABON
+       RECALCULATE
+
+   Results:
+     TRUE or FALSE
 
 =cut
 #***********************************************************

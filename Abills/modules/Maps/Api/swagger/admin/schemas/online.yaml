@@ -1,0 +1,31 @@
+type: array
+items:
+  type: object
+  properties:
+    uid:
+      type: integer
+      example: 2
+    fio:
+      type: string
+      example: Петренко Иван Петрович
+    login:
+      type: string
+      example: 0001
+    online:
+      type: integer
+      example: 3
+    deposit:
+      type: integer
+      example: 50
+    build_id:
+      type: integer
+      example: 1
+    disable:
+      type: integer
+      example: 0
+    coordx:
+      type: integer
+      example: 49.3210
+    coordy:
+      type: integer
+      example: 31.7890

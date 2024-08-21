@@ -1,0 +1,29 @@
+post:
+  tags:
+    - msgs
+  summary: Редактировать рабочий процесс
+  operationId: changeMsgsWorkflow
+  parameters:
+    - name: id
+      in: path
+      description: ID рабочего процесса
+      required: true
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/workflow.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+  security:
+    - KEY: []

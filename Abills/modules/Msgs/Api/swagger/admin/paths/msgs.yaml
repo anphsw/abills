@@ -1,0 +1,21 @@
+post:
+  tags:
+    - msgs
+  summary: Добавить сообщение
+  operationId: addMsgs
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/msgs.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+  security:
+    - KEY: []

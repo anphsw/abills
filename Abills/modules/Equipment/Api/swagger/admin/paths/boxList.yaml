@@ -1,0 +1,26 @@
+get:
+  tags:
+    - equipment
+  summary: Список OLT
+  operationId: getOltList
+  parameters:
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/oltList.yaml"
+  security:
+    - KEY: []

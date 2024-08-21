@@ -1,0 +1,17 @@
+type: object
+properties:
+  name:
+    type: string
+    example: Some name
+  stepNumber:
+    type: integer
+    example: 1
+  color:
+    type: string
+    example: some color
+  dealStep:
+    type: integer
+    example: 0
+  description:
+    type: string
+    example: some description

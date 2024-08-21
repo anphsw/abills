@@ -1,0 +1,17 @@
+type: object
+properties:
+  filename:
+    type: string
+    example: Test.txt
+  filesize:
+    type: integer
+    example: 12
+  content:
+    type: string
+    example: "  Test content"
+  contentType:
+    type: string
+    example: text/plain
+  messageType:
+    type: integer
+    example: 1

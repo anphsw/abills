@@ -178,6 +178,10 @@ sub msgs_delivery {
       foreach my $attachment (@{$attachments}) {
         push @ATTACHMENTS, {
           ATTACHMENT_ID => $attachment->{id},
+          filename      => $attachment->{filename},
+          content_type  => $attachment->{content_type},
+          filesize      => $attachment->{content_size},
+          content       => $attachment->{content},
           FILENAME      => $attachment->{filename},
           CONTENT_TYPE  => $attachment->{content_type},
           FILESIZE      => $attachment->{content_size},

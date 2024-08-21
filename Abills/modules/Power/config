@@ -1,0 +1,14 @@
+#Iner_ID : Main or Sub or if -1 user menu func list
+%FUNCTIONS_LIST = (
+  "01:0:Power:null"                                                => 5,
+  "02:0:Power:null:"                                               => 4,
+  "03:1:$lang{POWER_GENERATOR_TYPES}:power_genset_types:"          => 5,
+  "04:1:$lang{POWER_GENERATOR_TANK_TYPES}:power_fueltanks:"        => 5,
+  "05:1:$lang{POWER_SERVICE_TYPES}:power_service_types:"           => 5,
+  "06:1:$lang{POWER_GENERATORS}:power_gensets:"                    => 5,
+  "07:2:$lang{POWER_REFUELING_GENERATORS}:power_refuels_report:"   => 4,
+  "08:2:$lang{POWER_GENERATOR_STARTS}:power_runs_report:"          => 4,
+  "09:2:$lang{POWER_GENERATOR_MAINTENANCE}:power_services_report:" => 4,
+);
+
+1;

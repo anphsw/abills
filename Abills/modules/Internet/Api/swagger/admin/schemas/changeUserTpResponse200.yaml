@@ -1,0 +1,8 @@
+type: object
+properties:
+  result:
+    type: string
+    example: OK
+  message:
+    type: string
+    example: TARIFF_CHANGED

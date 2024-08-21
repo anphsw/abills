@@ -1,4 +1,4 @@
-<input type='hidden' name='UID' value='$FORM{UID}'/>
+<input type='hidden' name='UID' value='%UID%'/>
 
 <div class='form-group row'>
     <div class='col-sm col-12 form-group'>
@@ -48,12 +48,12 @@
 -->
 
 <div class='form-group row'>
-  <label class='col-sm-2 col-form-label' for='GRP'>_{GROUPS}_</label>
+  <label class='col-sm-2 col-form-label text-md-right' for='GRP'>_{GROUPS}_:</label>
   <div class='col-sm-10'>
     <div class='input-group'>
       <input type='text' name='GRP' value='%GID%:%G_NAME%' ID='GRP' %GRP_ERR% class='form-control' readonly='readonly'/>
       <div class='input-group-append'>
-        <a class='btn input-group-button' href='$SELF_URL?index=12&UID=$FORM{UID}'>
+        <a class='btn input-group-button' href='%SELF_URL%?index=12&UID=%UID%'>
           <i class='fa fa-pencil-alt'></i>
         </a>
       </div>

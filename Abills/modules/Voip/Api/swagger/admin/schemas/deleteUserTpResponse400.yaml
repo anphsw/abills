@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 30023
+  errstr:
+    type: string
+    example: "No tp change schedule for user with uid 103161"

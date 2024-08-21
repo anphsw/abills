@@ -25,9 +25,6 @@ my Portal::Misc::Attachments $Attachments;
 
 my %permissions = ();
 
-# TODO: make this centralized and more maintainable
-my @allowed_methods = (5, 6, 10);
-
 #**********************************************************
 =head2 new($db, $admin, $conf)
 

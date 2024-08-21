@@ -27,5 +27,7 @@ $lang{FILES_DEMO}        = 'Файлы, к которым предоставле
 
 $lang{TABLE_MODE} = 'Режим таблицы';
 $lang{PLATE_MODE} = 'Режим плиток';
+$lang{ACCESS_FILES} = 'по доступам к файлам';
+$lang{SHOW_IN_REPORT} = 'Показывать в быстром отчете';
 
 1

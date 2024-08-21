@@ -31,4 +31,27 @@ post:
               token: ya29.a0123GB123y890m2fRmDPn_GQYu8kIHraA1Y123Fc9JBi6oJe4RLPQ8CuPR6tIsGH0KINFpPcAiVBx7yap_Jdclgm5vHsvwSMBQZOqYFP3j3R-pUnJPiMa4rO37kq4dXxUcIbXX7DHfRbqmIJV9QDSXvNSU_Y1wwaCgYK123SARASFQHUCsbCxVyg37kTJkIPWDW_KDE84Q0165
     required: true
   responses:
-    $ref: "../schemas/registrationResponse.yaml"
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/registrationResponse200.yaml"
+          examples:
+            Registration:
+              summary:
+                Регистрация пользователя
+              value:
+                result: "Successfully created user with uid: 49"
+            RegistrationConfirmResponse:
+              summary:
+                Регистрация пользователя с подтверждением
+              value:
+                result: "Successfully send pin to email admin@gmail.com"
+                sendPin: 1
+    400:
+      description: Пользователь существует
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/registrationResponse400.yaml"

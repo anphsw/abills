@@ -4,5 +4,5 @@
   $ref: "./paths/bonus.yaml"
 /user/referral/friend:
   $ref: "./paths/referralAdd.yaml"
-/user/referral/friend/{ID}:
+/user/referral/friend/{id}:
   $ref: "./paths/referralChange.yaml"

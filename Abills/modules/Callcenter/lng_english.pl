@@ -93,7 +93,6 @@ $lang{APPLY} = 'Apply';
 $lang{AMENDED} = 'Changes have been made';
 $lang{INCOMING_ROUTES} = 'Inbound routing';
 $lang{MUST_DIFFER} = 'should be different.';
-$lang{AND} = 'and';
 $lang{INPUT_CALL} = 'Incoming call';
 $lang{OUTGOING_CALL} = 'Outgoing call';
 $lang{ENTER_YOUR} = 'Enter your';

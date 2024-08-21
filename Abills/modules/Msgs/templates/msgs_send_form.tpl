@@ -63,15 +63,14 @@
   initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
 </script>
 
-<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'
-      class='form-horizontal'>
+<FORM action='%SELF_URL%' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'>
   <div>%PREVIEW_FORM%</div>
 
   <div class='card card-primary card-outline container-md'>
     <div class='card-header with-border'><h4 class='card-title'>_{MESSAGES}_</h4></div>
     <div class='card-body'>
 
-      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='index' value='%index%'/>
       <input type='hidden' name='add_form' value='1'/>
       <input type='hidden' name='UID' value='$FORM{UID}'/>
       <input type='hidden' name='ID' value='%ID%'/>
@@ -135,188 +134,187 @@
       %SEND_TYPES_FORM%
       %SEND_EXTRA_FORM%
 
+    </div>
+    <div class='form-group row %ATTACH_ADDRESS_HIDE%'>
+      <label class='col-md-4 col-form-label text-md-right' for='CHECK_FOR_ADDRESS'>_{ATTACH_ADDRESS}_:</label>
+      <div class='col-md-8'>
+        <div class='form-check'>
+          <input type='checkbox' class='form-check-input' id='CHECK_FOR_ADDRESS' name='CHECK_FOR_ADDRESS' value='1'>
+        </div>
+      </div>
+    </div>
 
-      <div class='form-group row %ATTACH_ADDRESS_HIDE%'>
-        <label class='col-md-4 col-form-label text-md-right' for='CHECK_FOR_ADDRESS'>_{ATTACH_ADDRESS}_:</label>
-        <div class='col-md-8'>
-          <div class='form-check'>
-            <input type='checkbox' class='form-check-input' id='CHECK_FOR_ADDRESS' name='CHECK_FOR_ADDRESS' value='1'>
-          </div>
+    <div class='mb-0'>%ADDRESS_FORM%</div>
+    %SEND_DELIVERY_FORM%
+
+    <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
+      <div class='card-header with-border'>
+        <h4 class='card-title'>_{ADDITIONALLY}_</h4>
+        <div class='card-tools float-right'>
+          <button type='button' class='btn btn-tool' data-card-widget='collapse'><i
+                    class='fa fa-plus'></i>
+          </button>
         </div>
       </div>
 
-      <div class='mb-3'>%ADDRESS_FORM%</div>
-      %SEND_DELIVERY_FORM%
+      <div class='card-body'>
 
-      <div class='card collapsed-card'>
-        <div class='card-header with-border'>
-          <h4 class='card-title'>_{ADDITIONALLY}_</h4>
-          <div class='card-tools float-right'>
-            <button type='button' class='btn btn-tool' data-card-widget='collapse'><i
-                class='fa fa-plus'></i>
-            </button>
+        <div class='form-group row %INNER_MSG_HIDE%'>
+          <label class='col-md-3 col-form-label text-md-right' for='INNER_MSG'>_{PRIVATE}_:</label>
+          <div class='col-md-9'>
+            <div class='form-check'>
+              <input type='checkbox' class='form-check-input' id='INNER_MSG' name='INNER_MSG' %INNER_MSG% value='1'>
+            </div>
           </div>
         </div>
 
-        <div class='card-body'>
+        <div class='form-group row'>
+          <label class='control-label col-md-3' for='DATE'>_{DATE}_:</label>
+          <div class='col-md-9'>
+            <input id='DATE' type='text' name='DATE' value='%DATE%' class='datepicker form-control'>
+          </div>
+        </div>
 
-          <div class='form-group row %INNER_MSG_HIDE%'>
-            <label class='col-md-3 col-form-label text-md-right' for='INNER_MSG'>_{PRIVATE}_:</label>
-            <div class='col-md-9'>
-              <div class='form-check'>
-                <input type='checkbox' class='form-check-input' id='INNER_MSG' name='INNER_MSG' %INNER_MSG% value='1'>
+        <div class='form-group row'>
+          <label class='control-label col-md-3' for='ATTACHMENT'>_{ATTACHMENT}_:</label>
+          <div class='col-md-9'>
+            <div class='input-group'>
+              <div class='custom-file' id='file_upload_holder'>
+                <input name='FILE_UPLOAD' class='custom-file-input' type='file' data-number='0'>
+                <label class='custom-file-label' for='exampleInputFile'>_{ATTACHMENT}_</label>
+              </div>
+              <div class='input-group-append'>
+                <span class='input-group-text'>_{FILE}_</span>
               </div>
             </div>
           </div>
+        </div>
 
-          <div class='form-group row'>
-            <label class='control-label col-md-3' for='DATE'>_{DATE}_:</label>
-            <div class='col-md-9'>
-              <input id='DATE' type='text' name='DATE' value='%DATE%' class='datepicker form-control'>
+        <div class='form-group row'>
+          <label class='control-label col-md-3' for='STATE'>_{STATE}_:</label>
+          <div class='col-md-9'>
+            %STATE_SEL%
+          </div>
+        </div>
+
+        <div class='form-group row'>
+          <label class='control-label col-md-3' for='PRIORITY'>_{PRIORITY}_:</label>
+          <div class='col-md-9'>
+            %PRIORITY_SEL%
+          </div>
+        </div>
+
+        <div class='form-group row'>
+          <label class='control-label col-md-3' for='RESPOSIBLE'>_{RESPOSIBLE}_:</label>
+          <div class='col-md-9'>
+            %RESPOSIBLE%
+          </div>
+        </div>
+
+        <div class='form-group row %MSGS_TAGS_HIDE%'>
+          <label class='control-label col-md-3' for='MSGS_TAGS'>_{MSGS_TAGS}_:</label>
+          <div class='col-md-9'>
+            <ul class='list-unstyled' id='accordion'>
+              %MSGS_TAGS%
+            </ul>
+          </div>
+        </div>
+
+        <div class='form-group row'>
+          <label class='control-label col-md-3' for='PLAN_TIME'>_{EXECUTION}_:</label>
+          <div class='col-md-9'>
+            <div class='input-group'>
+              <input type='hidden' value='%PLAN_TIME%' name='PLAN_TIME' id='PLAN_TIME'/>
+              <input type='hidden' value='%PLAN_DATE%' name='PLAN_DATE' id='PLAN_DATE'/>
+              %PLAN_DATETIME_INPUT%
             </div>
           </div>
+        </div>
 
-          <div class='form-group row'>
-            <label class='control-label col-md-3' for='ATTACHMENT'>_{ATTACHMENT}_:</label>
-            <div class='col-md-9'>
-              <div class='input-group'>
-                <div class='custom-file' id='file_upload_holder'>
-                  <input name='FILE_UPLOAD' class='custom-file-input' type='file' data-number='0'>
-                  <label class='custom-file-label' for='exampleInputFile'>_{ATTACHMENT}_</label>
-                </div>
-                <div class='input-group-append'>
-                  <span class='input-group-text'>_{FILE}_</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class='form-group row'>
-            <label class='control-label col-md-3' for='STATE'>_{STATE}_:</label>
-            <div class='col-md-9'>
-              %STATE_SEL%
-            </div>
-          </div>
-
-          <div class='form-group row'>
-            <label class='control-label col-md-3' for='PRIORITY'>_{PRIORITY}_:</label>
-            <div class='col-md-9'>
-              %PRIORITY_SEL%
-            </div>
-          </div>
-
-          <div class='form-group row'>
-            <label class='control-label col-md-3' for='RESPOSIBLE'>_{RESPOSIBLE}_:</label>
-            <div class='col-md-9'>
-              %RESPOSIBLE%
-            </div>
-          </div>
-
-          <div class='form-group row %MSGS_TAGS_HIDE%'>
-            <label class='control-label col-md-3' for='MSGS_TAGS'>_{MSGS_TAGS}_:</label>
-            <div class='col-md-9'>
-              <ul class='list-unstyled' id='accordion'>
-                %MSGS_TAGS%
-              </ul>
-            </div>
-          </div>
-
-          <div class='form-group row'>
-            <label class='control-label col-md-3' for='PLAN_TIME'>_{EXECUTION}_:</label>
-            <div class='col-md-9'>
-              <div class='input-group'>
-                <input type='hidden' value='%PLAN_TIME%' name='PLAN_TIME' id='PLAN_TIME'/>
-                <input type='hidden' value='%PLAN_DATE%' name='PLAN_DATE' id='PLAN_DATE'/>
-                %PLAN_DATETIME_INPUT%
-              </div>
-            </div>
-          </div>
-
-          <div class='form-group row %DISPATCH_HIDE%' id='dispatch_list'>
-            <label class='control-label col-md-3' for='DISPATCH'>_{DISPATCH}_:</label>
-            <div class='col-md-9'>
-              <div class='d-flex'>
+        <div class='form-group row %DISPATCH_HIDE%' id='dispatch_list'>
+          <label class='control-label col-md-3' for='DISPATCH'>_{DISPATCH}_:</label>
+          <div class='col-md-9'>
+            <div class='d-flex'>
                 <span class='input-group-prepend input-group-text rounded-right-0 %DISPATCH_ADD_HIDE%'>_{ADD}_
                   <input type='checkbox' id='DISPATCH_CREATE' name='DISPATCH_CREATE' value='1'
                          onClick='add_comments();' title='_{CREATE}_ _{DISPATCH}_'>
                 </span>
-                %DISPATCH_SEL%
-              </div>
+              %DISPATCH_SEL%
             </div>
           </div>
+        </div>
 
-          <div class='form-group row d-none' id='new_dispatch'>
-            <label class='control-label col-md-3' for='DISPATCH_COMMENTS'>_{DISPATCH}_:</label>
-            <div class='col-md-9'>
-              <div class='row'>
-                <div class='col-sm-12 col-md-6'>
-                  <div class='input-group'>
-                    <input type='text' id='DISPATCH_COMMENTS' name='DISPATCH_COMMENTS' value='%DISPATCH_COMMENTS%'
-                           class='form-control'>
-                  </div>
+        <div class='form-group row d-none' id='new_dispatch'>
+          <label class='control-label col-md-3' for='DISPATCH_COMMENTS'>_{DISPATCH}_:</label>
+          <div class='col-md-9'>
+            <div class='row'>
+              <div class='col-sm-12 col-md-6'>
+                <div class='input-group'>
+                  <input type='text' id='DISPATCH_COMMENTS' name='DISPATCH_COMMENTS' value='%DISPATCH_COMMENTS%'
+                         class='form-control'>
                 </div>
+              </div>
 
-                <div class='col-sm-12 col-md-6'>
-                  <div class='row'>
-                    <label class='control-label col-md-3' for='DISPATCH_PLAN_DATE'>_{DATE}_</label>
-                    <div class='col-md-9'>
-                      <div class='input-group'>
-                        <input id='DISPATCH_PLAN_DATE' type='text' name='DISPATCH_PLAN_DATE'
-                               value='%DISPATCH_PLAN_DATE%' class='datepicker form-control'>
-                      </div>
+              <div class='col-sm-12 col-md-6'>
+                <div class='row'>
+                  <label class='control-label col-md-3' for='DISPATCH_PLAN_DATE'>_{DATE}_</label>
+                  <div class='col-md-9'>
+                    <div class='input-group'>
+                      <input id='DISPATCH_PLAN_DATE' type='text' name='DISPATCH_PLAN_DATE'
+                             value='%DISPATCH_PLAN_DATE%' class='datepicker form-control'>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div class='form-group row'>
-            <label class='control-label col-md-3' for='PHONE'>_{PHONE}_:</label>
-            <div class='col-md-9'>
-              <div class='input-group'>
-                <div class='input-group-prepend'>
-                  <div class='input-group-text'>
-                    <i class='fa fa-phone'></i>
-                  </div>
+        <div class='form-group row'>
+          <label class='control-label col-md-3' for='PHONE'>_{PHONE}_:</label>
+          <div class='col-md-9'>
+            <div class='input-group'>
+              <div class='input-group-prepend'>
+                <div class='input-group-text'>
+                  <i class='fa fa-phone'></i>
                 </div>
-                <input class='form-control' id='PHONE' name='PHONE' value='%PHONE%'
-                       placeholder='%PHONE%'
-                       data-inputmask='{"mask" : "(999) 999-9999", "removeMaskOnSubmit" : true}'
-                       type='text'/>
               </div>
+              <input class='form-control' id='PHONE' name='PHONE' value='%PHONE%'
+                     placeholder='%PHONE%'
+                     data-inputmask='{"mask" : "(999) 999-9999", "removeMaskOnSubmit" : true}'
+                     type='text'/>
             </div>
           </div>
+        </div>
 
-          <div class='form-group row %SURVEY_HIDE%'>
-            <label class='control-label col-md-3' for='SURVEY'>_{TEMPLATES}_ (_{SURVEY}_):</label>
-            <div class='col-md-9'>
-              %SURVEY_SEL%
-            </div>
+        <div class='form-group row %SURVEY_HIDE%'>
+          <label class='control-label col-md-3' for='SURVEY'>_{TEMPLATES}_ (_{SURVEY}_):</label>
+          <div class='col-md-9'>
+            %SURVEY_SEL%
           </div>
         </div>
       </div>
+    </div>
 
-      <div class='card collapsed-card'>
-        <div class='card-header with-border'>
-          <h4 class='card-title'>_{SHEDULE}_</h4>
-          <div class='card-tools float-right'>
-            <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-plus'></i></button>
-          </div>
+    <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
+      <div class='card-header with-border'>
+        <h4 class='card-title'>_{SHEDULE}_</h4>
+        <div class='card-tools float-right'>
+          <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-plus'></i></button>
         </div>
-        <div class='card-body'>
-          <div class='form-group custom-control custom-checkbox'>
-            <input class='custom-control-input' type='checkbox' id='PERIODIC' value='1' name='PERIODIC' %PERIODIC%>
-            <label for='PERIODIC' class='custom-control-label'>_{PERIODICALLY}_</label>
-          </div>
-          <div class='row'>
-            <label class='control-label col-md-2' for='DAY'>_{DAY}_:</label>
-            <div class='col-md-2'><input class='form-control' id='DAY' name='DAY' value='%DAY%'></div>
-            <label class='control-label col-md-2' for='MONTH'>_{MONTH}_:</label>
-            <div class='col-md-2'><input class='form-control' id='MONTH' name='MONTH' value='%MONTH%'></div>
-            <label class='control-label col-md-2' for='YEAR'>_{YEAR}_:</label>
-            <div class='col-md-2'><input class='form-control' id='YEAR' name='YEAR' value='%YEAR%'></div>
-          </div>
+      </div>
+      <div class='card-body'>
+        <div class='form-group custom-control custom-checkbox'>
+          <input class='custom-control-input' type='checkbox' id='PERIODIC' value='1' name='PERIODIC' %PERIODIC%>
+          <label for='PERIODIC' class='custom-control-label'>_{PERIODICALLY}_</label>
+        </div>
+        <div class='row'>
+          <label class='control-label col-md-2' for='DAY'>_{DAY}_:</label>
+          <div class='col-md-2'><input class='form-control' id='DAY' name='DAY' value='%DAY%'></div>
+          <label class='control-label col-md-2' for='MONTH'>_{MONTH}_:</label>
+          <div class='col-md-2'><input class='form-control' id='MONTH' name='MONTH' value='%MONTH%'></div>
+          <label class='control-label col-md-2' for='YEAR'>_{YEAR}_:</label>
+          <div class='col-md-2'><input class='form-control' id='YEAR' name='YEAR' value='%YEAR%'></div>
         </div>
       </div>
     </div>

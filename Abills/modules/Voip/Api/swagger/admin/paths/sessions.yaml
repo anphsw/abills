@@ -1,0 +1,184 @@
+get:
+  tags:
+    - voip
+  summary: Список сессий пользователей
+  parameters:
+    - name: acctSessionId
+      in: query
+      description: ID сессии. Уникально на сервере доступа.
+      schema:
+        type: boolean
+        default: true
+    - name: callOrigin
+      in: query
+      description: >
+        Входящий или исходящий вызов
+         * `0` - Входящий
+         * `1` - Исходящий
+      schema:
+        type: boolean
+        default: true
+    - name: nasId
+      in: query
+      description: ID сервера доступа.
+      schema:
+        type: boolean
+        default: true
+    - name: routeId
+      in: query
+      description: Идентификатор пути. Можно получить подробную информацию о пути из /voip/routes.
+      schema:
+        type: boolean
+        default: true
+    - name: uid
+      in: query
+      description: UID пользователя.
+      schema:
+        type: boolean
+        default: true
+    - name: start
+      in: query
+      description: Время звонка.
+      schema:
+        type: boolean
+        default: false
+    - name: duration
+      in: query
+      description: Длительность звонка.
+      schema:
+        type: boolean
+        default: false
+    - name: durationSec
+      in: query
+      description: Длительность звонка в секундах
+      schema:
+        type: boolean
+        default: false
+    - name: ip
+      in: query
+      description: IP клиента, с которого произошел звонок
+      schema:
+        type: boolean
+        default: false
+    - name: calledStationId
+      in: query
+      description: Номер телефона адресата вызова
+      schema:
+        type: boolean
+        default: false
+    - name: callingStationId
+      in: query
+      description: Номер телефона получателя вызова
+      schema:
+        type: boolean
+        default: false
+    - name: terminateCause
+      in: query
+      description: Причина остановки звонка
+      schema:
+        type: boolean
+        default: false
+    - name: tpId
+      in: query
+      description: Тарифный план, по которому тарифицируется звонок
+      schema:
+        type: boolean
+        default: false
+    - name: sum
+      in: query
+      description: Стоимость звонка для пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: fromDate
+      in: query
+      description: Звонок сделан с даты
+      schema:
+        type: string
+        default: false
+    - name: toDate
+      in: query
+      description: Звонок сделан до даты
+      schema:
+        type: string
+        default: false
+    - name: dayBegin
+      in: query
+      description: Время звонка в формате TIMESTAMP. Информационное поле, невозможен поиск по нему
+      schema:
+        type: string
+        default: true
+    - name: dayOfWeek
+      in: query
+      description: День недели когда сделан звонок. Информационное поле, невозможен поиск по нему
+      schema:
+        type: string
+        default: true
+    - name: dayOfYear
+      in: query
+      description: День года когда сделан звонок. Информационное поле, невозможен поиск по нему
+      schema:
+        type: string
+        default: true
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: "../schemas/sessionList.yaml"
+          examples:
+            DefaultProperties:
+              summary:
+                Ответ по умолчанию
+              value:
+                acctSessionId: 1
+                callOrigin: 0
+                dayBegin: 1669845600
+                dayOfWeek: 5
+                dayOfYear: 335
+                nasId: 0
+                routeId: 967
+                uid: 102167
+            AllProperties:
+              summary:
+                Все возможные поля в ответе
+              value:
+                acctSessionId: 1
+                callOrigin: 0
+                calledStationId: 380506712612
+                callingStationId: 380506712612
+                dayBegin: 1669845600
+                dayOfWeek: 5
+                dayOfYear: 335
+                duration: 00:05:03
+                durationSec: 303
+                ip: '0.0.0.0'
+                nasId: 0
+                routeId: 967
+                start: '2022-12-01 11:11:11'
+                sum: 6060
+                terminateCause: 0
+                tpId: 39
+                uid: 102167
+  security:
+    - KEY: []

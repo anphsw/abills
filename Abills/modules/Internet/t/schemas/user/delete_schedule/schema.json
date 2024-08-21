@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "The Root Schema",
+  "required": ["uid", "success"],
+  "properties": {
+    "uid": {
+      "type": "number"
+    },
+    "success": {
+      "type": "number"
+    }
+  }
+}

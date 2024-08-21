@@ -1,0 +1,14 @@
+type: object
+properties:
+  invoiceId:
+    type: number
+    example: 8847
+  paymentId:
+    type: number
+    example: 3
+  result:
+    type: string
+    example: ok
+  sum:
+    type: number
+    example: 1000

@@ -536,7 +536,7 @@ sub mail_users_list {
     $Mail->mbox_info({%FORM});
     my %password_form = ();
     $password_form{PW_CHARS}      = $conf{PASSWD_SYMBOLS};
-    $password_form{PW_LENGTH}     = $conf{PASSWD_LENGTH} || 6;
+    $password_form{PW_LENGTH}     = $conf{PASSWD_LENGTH};
     $password_form{ACTION}        = 'change';
     $password_form{LNG_ACTION}    = $lang{CHANGE};
     $password_form{HIDDDEN_INPUT} = $html->form_input('MBOX_ID', $FORM{MBOX_ID}, {TYPE => 'hidden', OUTPUT2RETURN => 1});

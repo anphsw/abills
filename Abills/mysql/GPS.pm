@@ -70,9 +70,9 @@ sub location_add {
   delete $attr->{ID};
 
   # Revert X and Y coordinates due to ABillS DB specific
-  my $coordx = $attr->{COORD_X};
+  my $coordx = $attr->{COORD_X} || 0;
   $attr->{COORD_X} = $attr->{COORD_Y};
-  $attr->{COORD_Y} = $coordx;
+  $attr->{COORD_Y} = $coordx || 0;
 
   if ($attr->{GPS_TIME}) {
     $attr->{GPS_TIME} = POSIX::strftime('%F %T', localtime($attr->{GPS_TIME}));
@@ -102,6 +102,7 @@ sub location_info {
     [ 'ALTITUDE', 'INT',  'gtl.altitude',        1 ],
     [ 'BEARING',  'INT',  'gtl.bearing',         1 ],
     [ 'BATTERY',  'INT',  'gtl.batt AS battery', 1 ],
+    [ 'STATUS',   'INT',  'gtl.status',          1 ],
   ], { WHERE => 1 });
 
   $self->query("SELECT $self->{SEARCH_FIELDS} gtl.id
@@ -112,6 +113,7 @@ sub location_info {
   );
 
   my $list = $self->{list};
+
   return $list;
 }
 
@@ -153,6 +155,7 @@ sub locations_list {
     [ 'COORD_X',           'INT',  'gtl.coord_x',                                       1 ],
     [ 'COORD_Y',           'INT',  'gtl.coord_y',                                       1 ],
     [ 'SPEED',             'INT',  'gtl.speed',                                         1 ],
+    [ 'STATUS',            'INT',  'gtl.status',                                        1 ],
     [ 'ALTITUDE',          'INT',  'gtl.altitude',                                      1 ],
     [ 'BEARING',           'INT',  'gtl.bearing',                                       1 ],
     [ 'BATTERY',           'INT',  'gtl.batt AS battery',                               1 ],
@@ -170,12 +173,16 @@ sub locations_list {
 
   $self->query("SELECT $self->{SEARCH_FIELDS} gtl.id
       FROM gps_tracker_locations gtl
-      $WHERE $WHERE_CONCAT $WHERE_TIME ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+      $WHERE
+      $WHERE_CONCAT
+      $WHERE_TIME
+      ORDER BY $SORT $DESC
+      LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   return $list;
 }
@@ -190,7 +197,8 @@ sub location_del {
   my ($attr) = @_;
 
   $self->query_del('gps_tracker_locations', undef, $attr);
-  return 1;
+
+  return $self;
 }
 
 #**********************************************************
@@ -235,6 +243,7 @@ sub tracked_admin_info {
     GPS_TIME  => '_SHOW',
     COORD_X   => '_SHOW',
     COORD_Y   => '_SHOW',
+    STATUS    => '_SHOW',
     COLS_NAME => 1,
     DESC      => 1
   });
@@ -273,6 +282,7 @@ sub tracked_admin_route_info {
     AID                 => $aid,
     COLS_NAME           => 1,
     BATTERY             => '_SHOW',
+    STATUS              => '_SHOW',
     'FROM_DATE|TO_DATE' => ($attr->{FROM_DATE} && $attr->{TO_DATE}) ? "$attr->{FROM_DATE}|$attr->{TO_DATE}" : '_SHOW',
     SHOW_ALL_COLUMNS    => 1,
     PAGE_ROWS           => 86400,
@@ -388,7 +398,7 @@ sub unregistered_trackers_del {
 
   my $gps_imei = $attr->{GPS_IMEI};
 
-  $self->query_del('gps_unregistered_trackers', undef, { "GPS_IMEI" => $gps_imei });
+  $self->query_del('gps_unregistered_trackers', undef, { GPS_IMEI => $gps_imei });
 
   return 1;
 }

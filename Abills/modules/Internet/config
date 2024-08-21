@@ -25,6 +25,7 @@ our %FUNCTIONS_LIST = (
   "27:19:$lang{TARIF_PLANS}:internet_report_tp:"              => 4,
   "38:19:$lang{USERS_OUTFLOW}:internet_user_outflow:"         => 4,
   "39:19:$lang{DEVELOPMENT_REPORT}:users_development_report:" => 4,
+  "40:19:$lang{REPORT_SWITCH_WITH_USERS}:users_switch_report:" => 4,
   "36:0:$lang{INTERNET}:internet_online:"                     => 6,
   "37:0:$lang{BUILDS}:internet_online_builds:"                => 6,
   "30:19:$lang{IP_POOLS}:internet_pools_report:"              => 4,

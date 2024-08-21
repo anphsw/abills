@@ -23,8 +23,8 @@ our Abills::HTML $html;
 
 if (form_purchase_module({
   HEADER          => $user->{UID},
-  MODULE          => 'Callcenter',
-  REQUIRE_VERSION => 7.21
+  MODULE          => 'Callcenter::db::Callcenter',
+  REQUIRE_VERSION => 7.24
 })) {
   exit;
 }
@@ -726,6 +726,108 @@ sub _callcenter_convert_data_for_chart {
   $result{ARRAY_Y} = \@array_y;
 
   return %result;
+}
+
+#**********************************************************
+=head2 callcenter_monitor() - dashboard monitoring operators
+
+
+=cut
+#**********************************************************
+sub callcenter_monitor {
+
+  my $admin_list = $admin->list({
+    ADMIN_NAME     => '_SHOW',
+    SIP_NUMBER     => '_SHOW',
+    PAGE_ROWS      => 100,
+    COLS_NAME      => 1
+  });
+
+  my $admin_online = $admin->online_list({
+    SIP_NUMBER     => '_SHOW',
+    PAGE_ROWS      => 100,
+    COLS_NAME      => 1
+  });
+
+  my @online = ();
+  if ($admin->{TOTAL}){
+    foreach my $online (@$admin_online) {
+      push @online, $online->{admin};
+    }
+  }
+
+  my $calls_list = $Callcenter->callcenter_list_calls({
+    OPERATOR_PHONE => '_SHOW',
+    STATUS         => '_SHOW',
+    USER_PHONE     => '_SHOW',
+    DATE_START     => $DATE,
+    DATE_END       => $DATE.' 23:59:59',
+    ADMIN          => '_SHOW',
+    PAGE_ROWS      => 100,
+    COLS_NAME      => 1
+  });
+
+  my %calls_hash = ();
+  if ($Callcenter->{TOTAL}){
+    foreach my $call_handler (@$calls_list) {
+      $calls_hash{$call_handler->{operator_phone}} = $call_handler;
+    }
+  }
+
+  my @STATUSES = ('', $lang{RINGING}, $lang{IN_PROCESSING}, $lang{PROCESSED}, $lang{NOT_PROCESSED}, $lang{PROCESSED}.' in');
+
+  my $total_online = '';
+  my $total_offline = '';
+
+  foreach my $admin_ (@$admin_list) {
+    next if (!$admin_->{sip_number});
+
+    my $background = 'bg-red';
+    my $status_online = '';
+    my $status_call = $calls_hash{$admin_->{sip_number}}{status} || '';
+    my $status_call_name = ($status_call) ? $STATUSES[$status_call] : '';
+    my $user_phone = $calls_hash{$admin_->{sip_number}}{user_phone} || '';
+    my $icon = '';
+
+    if (grep { $_ eq $admin_->{login} } @online) {
+      $background = 'bg-green';
+      $status_online = $html->badge('Online', { TYPE => 'badge-success border border-secondary' });
+    }
+    else {
+      $status_online = $html->badge('Offline', { TYPE => 'badge-danger border border-secondary' });
+    }
+
+    if ($status_call) {
+      $icon = 'fa fa-phone' if ($status_call == 1 || $status_call == 2);
+      if ($status_call == 4) {
+        $icon = 'fa fa-times';
+        $background = 'bg-secondary';
+      }
+    }
+
+    my $item = $html->tpl_show(_include('callcenter_monitor_item', 'Callcenter'), {
+      BACKGROUND    => $background,
+      ICON          => $icon,
+      STATUS_ONLINE => $status_online,
+      ADMIN_NAME    => "SIP:$admin_->{sip_number} $admin_->{admin_name}",
+      STATUS_CALL   => $status_call_name .' '. $user_phone,
+    }, { OUTPUT2RETURN => 1 });
+
+    if (grep { $_ eq $admin_->{login} } @online) {
+      $total_online .= $item;
+    }
+    else {
+      $total_offline .= $item;
+    }
+
+  }
+
+  $html->tpl_show(_include('callcenter_monitor_all', 'Callcenter'), {
+    GROUP_ONLINE    => $total_online,
+    GROUP_OFFLINE   => $total_offline,
+  });
+
+  return 1;
 }
 
 

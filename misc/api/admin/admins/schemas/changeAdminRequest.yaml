@@ -1,0 +1,76 @@
+type: object
+properties:
+  aLogin:
+    type: string
+    example: TestApi
+  aFio:
+    type: string
+    example: Test admin API
+  passportGrant:
+    type: string
+    example: ''
+  birthday:
+    type: string
+    format: date
+    example: 1999-12-31
+  gid:
+    type: number
+    example: 0
+  rfidNumber:
+    type: string
+    example: ''
+  minSearchChars:
+    type: number
+    example: 0
+  email:
+    type: string
+    example: test@gmail.com
+  cellPhone:
+    type: string
+    example: +38050938122960
+  passportDate:
+    type: string
+    format: date
+    example: 2017-12-31
+  gpsImei:
+    type: string
+    example: ''
+  address:
+    type: string
+    example: test address
+  domainId:
+    type: number
+    example: 0
+  pasportNum:
+    type: string
+    example: 0r0f030
+  maxCredit:
+    type: number
+    example: 0
+  inn:
+    type: string
+    example: ''
+  telegramId:
+    type: string
+    example: ''
+  phone:
+    type: string
+    example: 373921
+  comments:
+    type: string
+    example: Test admin for API
+  disable:
+    type: number
+    example: 0
+  maxRows:
+    type: number
+    example: 0
+  expire:
+    type: string
+    example: "0000-00-00 00:00:00"
+  creditDays:
+    type: number
+    example: 0
+  sipNumber:
+    type: string
+    example: ''

@@ -378,8 +378,9 @@ sub test_module {
   my ($module) = @_;
 
   my $module_to_use = $module->{use} || $module->{cpan};
-
-  eval "use $module_to_use";
+  my $module_path = $$module_to_use . '.pm';
+  $module_path =~ s{::}{/}g;
+  eval { require $module_path };
 
   if ($@) {
     return 0;

@@ -33,6 +33,9 @@ if (in_array('Equipment', \@MODULES) && $conf{EQUIPMENT_LOG}) {
 $FUNCTIONS_LIST{"04:1:$lang{COMPENSATION}:accident_compensation:"}  = 8;
 $FUNCTIONS_LIST{"05:0:$lang{ACCIDENT_LOG}:accident_user:"}          = 20;
 $FUNCTIONS_LIST{"06:0:$lang{ACCIDENTS}:accident_report:"}           = 4;
+$FUNCTIONS_LIST{"07:0:$lang{ACCIDENTS}:null:"}                      = 5;
+$FUNCTIONS_LIST{"08:7:$lang{ACCIDENT_TYPES}:accident_types:"}       = 5;
+$FUNCTIONS_LIST{"09:7:$lang{ADMINS}:accident_admins:"}              = 5;
 
 %PERIODIC = (
   daily   => [ 'accident_auto_close' ],

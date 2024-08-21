@@ -511,12 +511,6 @@ sub message_del {
         AND message_type=0 ;',
       'do',
       { Bind => [ $attr->{UID} ] });
-
-    $self->query('UPDATE msgs_unreg_requests SET
-      state = 0,
-      uid   = 0
-      WHERE uid = ? ;', 'do', { Bind => [ $attr->{UID} ] }
-    );
   }
 
   return $self;
@@ -1025,6 +1019,26 @@ sub message_reply_change {
 }
 
 #**********************************************************
+=head2 message_reply_info($id, $attr)
+
+=cut
+#**********************************************************
+sub message_reply_info {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query('SELECT *
+    FROM msgs_reply
+    WHERE id = ? ',
+    undef,
+    { INFO => 1,
+      Bind => [ $id ] }
+  );
+
+  return $self;
+}
+
+#**********************************************************
 =head2 attachments_list($attr)
 
   Arguments:
@@ -1047,6 +1061,9 @@ sub attachments_list {
   if ($attr->{REPLY_ID}) {
     $attr->{MESSAGE_ID} = $attr->{REPLY_ID};
     $attr->{MESSAGE_TYPE} = 1;
+  }
+  else {
+    $attr->{MESSAGE_TYPE} = 0;
   }
 
   my $search_columns = [
@@ -1694,383 +1711,6 @@ sub dispatch_category_list {
   $self->query("SELECT COUNT(*) AS total FROM msgs_dispatch_category dc $WHERE;", undef, { INFO => 1 });
 
   return $list;
-}
-
-#**********************************************************
-=head2 unreg_requests_count($attr) - Count unreg message
-
-=cut
-#**********************************************************
-sub unreg_requests_count {
-  my $self = shift;
-
-  my $WHERE = "WHERE state=0 ";
-  if ($admin->{DOMAIN_ID}) {
-    $admin->{DOMAIN_ID} =~ s/;/,/g;
-    $WHERE .= (($WHERE) ? 'AND' : 'WHERE ') ." m.domain_id IN ($admin->{DOMAIN_ID})";
-  }
-
-  $self->query("SELECT COUNT(m.id) AS unreg_count FROM msgs_unreg_requests m $WHERE", undef, { INFO => 1 });
-
-  return $self;
-}
-
-#**********************************************************
-=head2 unreg_requests_list($attr) - Unreg request list
-
-=cut
-#**********************************************************
-sub unreg_requests_list {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : 'DESC';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-
-  my @WHERE_RULES = ();
-  $self->{COL_NAMES_ARR} = undef;
-  $self->{SEARCH_FIELDS} = undef;
-  $self->{SEARCH_FIELDS_COUNT} = 0;
-
-  if (defined($attr->{STATE})) {
-    if ($attr->{STATE} == 7) {
-      push @WHERE_RULES, @{$self->search_expr(">0", 'INT', 'm.deligation')};
-    }
-    elsif ($attr->{STATE} == 8) {
-      push @WHERE_RULES, @{$self->search_expr("$admin->{AID}", 'INT', 'm.resposible')};
-      push @WHERE_RULES, @{$self->search_expr("0;3;6", 'INT', 'm.state')};
-      delete $attr->{DELIGATION};
-    }
-    else {
-      push @WHERE_RULES, @{$self->search_expr($attr->{STATE}, 'INT', 'm.state')};
-    }
-  }
-
-  if ($attr->{LOCATION_ID}) {
-    push @WHERE_RULES, @{$self->search_expr($attr->{LOCATION_ID}, 'INT', 'm.location_id', { EXT_FIELD => 'streets.name AS address_street, builds.number AS address_build, m.address_flat, builds.id AS build_id' })};
-    $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=m.location_id)
-   LEFT JOIN streets ON (streets.id=builds.street_id)";
-    $self->{SEARCH_FIELDS_COUNT} += 3;
-  }
-  else {
-    if ($attr->{STREET_ID}) {
-      push @WHERE_RULES, @{$self->search_expr($attr->{STREET_ID}, 'INT', 'builds.street_id', { EXT_FIELD => 'streets.name AS address_street, builds.number AS address_build' })};
-      $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=m.location_id)
-     LEFT JOIN streets ON (streets.id=builds.street_id)";
-      $self->{SEARCH_FIELDS_COUNT} += 1;
-    }
-    elsif ($attr->{DISTRICT_ID}) {
-      push @WHERE_RULES, @{$self->search_expr($attr->{DISTRICT_ID}, 'INT', 'streets.district_id', { EXT_FIELD => 'districts.name AS district_name' })};
-      $self->{EXT_TABLES} .= " LEFT JOIN builds ON (builds.id=m.location_id)
-      LEFT JOIN streets ON (streets.id=builds.street_id)
-      LEFT JOIN districts ON (districts.id=streets.district_id) ";
-    }
-    else {
-      if ($attr->{DISTRICT_NAME}) {
-        push @WHERE_RULES, @{$self->search_expr($attr->{DISTRICT_NAME}, 'INT', 'streets.district_id', { EXT_FIELD => 'districts.name AS district_name' })};
-      }
-
-      if ($attr->{ADDRESS_DISTRICT}) {
-        push @WHERE_RULES, @{$self->search_expr($attr->{ADDRESS_DISTRICT}, 'INT', 'streets.district_id', { EXT_FIELD => 'districts.name AS district_name' })};
-      }
-
-      if ($attr->{ADDRESS_STREET}) {
-        push @WHERE_RULES, @{$self->search_expr($attr->{ADDRESS_STREET}, 'STR', 'streets.name AS address_street', { EXT_FIELD => 1 })};
-        $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=m.location_id)
-        LEFT JOIN streets ON (streets.id=builds.street_id)" if ($self->{EXT_TABLES} !~ /streets/);
-      }
-      elsif ($attr->{ADDRESS_FULL}) {
-        my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
-        push @WHERE_RULES, @{$self->search_expr("$attr->{ADDRESS_FULL}", "STR", "CONCAT(streets.name, '$build_delimiter', builds.number, '$build_delimiter', m.address_flat) AS address_full", { EXT_FIELD => 1 })};
-
-        $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=m.location_id)
-          LEFT JOIN streets ON (streets.id=builds.street_id)";
-      }
-
-      if ($attr->{ADDRESS_BUILD}) {
-        push @WHERE_RULES, @{$self->search_expr($attr->{ADDRESS_BUILD}, 'STR', 'builds.number', { EXT_FIELD => 'builds.number AS address_build' })};
-
-        $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=m.location_id)" if ($self->{EXT_TABLES} !~ /builds/);
-      }
-    }
-  }
-
-  if ($attr->{ADDRESS_FLAT}) {
-    push @WHERE_RULES, @{$self->search_expr($attr->{ADDRESS_FLAT}, 'STR', 'm.address_flat', { EXT_FIELD => 1 })};
-  }
-
-  if ($attr->{GET_NEW}) {
-    push @WHERE_RULES, " (m.datetime > now() - interval $attr->{GET_NEW} second) ";
-  }
-
-  my $search_fields = $self->{SEARCH_FIELDS};
-  my $search_fields_count = $self->{SEARCH_FIELDS_COUNT};
-  my $WHERE = $self->search_former($attr, [
-    [ 'MSG_ID',                        'INT',  'm.id'                                     ],
-    [ 'ID',                            'INT',  'm.id'                                     ],
-    [ 'DATETIME',                      'DATE', 'm.datetime',                            1 ],
-    [ 'SUBJECT',                       'STR',  'm.subject',                             1 ],
-    [ 'FIO',                           'STR',  'm.fio',                                 1 ],
-    [ 'PHONE',                         'STR',  'm.phone',                               1 ],
-    [ 'EMAIL',                         'STR',  'm.email',                               1 ],
-    [ 'STATE',                         'INT',  'm.state',                               1 ],
-    [ 'CONNECTION_TIME',               'DATE', 'm.connection_time',                     1 ],
-    [ 'CHAPTER_NAME',                  'INT',  'm.chapter', 'mc.name AS chapter_name'     ],
-    [ 'CLOSED_DATE',                   'DATE', 'm.closed_date',                         1 ],
-    [ 'ADMIN_LOGIN',                   'INT',  'a.id', 'a.id AS admin_login'              ],
-    [ 'INNER_MSG',                     'INT',  'm.inner_msg',                           1 ],
-    [ 'COMMENTS',                      'STR',  'm.comments',                            1 ],
-    [ 'REACTION_TIME',                 'STR',  'm.reaction_time'                          ],
-    [ 'DONE_DATE',                     'DATE', 'm.done_date',                           1 ],
-    [ 'UID',                           'INT',  'm.uid',                                   ],
-    [ 'DELIGATION',                    'INT',  'm.delegation',                          1 ],
-    [ 'RESPOSIBLE_ADMIN_LOGIN',        'STR',  'ra.id', 'ra.id AS resposible_admin_login' ],
-    [ 'RESPOSIBLE',                    'INT',  'm.resposible',                            ],
-    [ 'PRIORITY',                      'INT',  'm.priority',                            1 ],
-    [ 'IP',                            'IP',   'm.ip', 'INET_NTOA(m.ip) AS ip'            ],
-    [ 'DATE',                          'DATE', "DATE_FORMAT(m.datetime, '%Y-%m-%d')"      ],
-    [ 'FROM_DATE|TO_DATE',             'DATE', "DATE_FORMAT(m.datetime, '%Y-%m-%d')"      ],
-    [ 'CLOSE_FROM_DATE|CLOSE_TO_DATE', 'DATE', "DATE_FORMAT(m.closed_date, '%Y-%m-%d')"   ],
-    [ 'SHOW_TEXT',                     '', '', 'm.message'                                ],
-    [ 'REACTION_TIME',                 'STR',  'm.reaction_time',                       1 ],
-    [ 'CONTACT_NOTE',                  'STR',  'm.contact_note',                        1 ],
-    [ 'REFERRAL_UID',                  'INT',  'm.referral_uid',                        1 ]
-  ],
-    { WHERE       => 1,
-      WHERE_RULES => \@WHERE_RULES
-    }
-  );
-
-  $self->{SEARCH_FIELDS_COUNT} += $search_fields_count;
-  my $EXT_TABLES = "LEFT JOIN builds ON builds.id=m.location_id
-    LEFT JOIN streets ON (streets.id=builds.street_id)
-    LEFT JOIN districts ON (districts.id=streets.district_id)";
-
-  if ($admin->{DOMAIN_ID}) {
-    $admin->{DOMAIN_ID} =~ s/;/,/g;
-    $WHERE .= (($WHERE) ? 'AND' : 'WHERE ') ." m.domain_id IN ($admin->{DOMAIN_ID})";
-  }
-
-  $self->query("SELECT  m.id,
-    $self->{SEARCH_FIELDS}
-    $search_fields
-    m.resposible,
-    m.uid,
-    m.chapter AS chapter_id
-    FROM msgs_unreg_requests m
-    LEFT JOIN admins a ON (m.received_admin=a.aid)
-    LEFT JOIN admins ra ON (m.resposible=ra.aid)
-    LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
-    $EXT_TABLES
-    $WHERE
-    GROUP BY m.id
-    ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
-
-  my $list = $self->{list};
-
-  if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query("SELECT count(*) AS total
-    FROM msgs_unreg_requests m
-    LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
-    $EXT_TABLES
-    $WHERE",
-      undef, { INFO => 1 }
-    );
-  }
-
-  $WHERE = '';
-  @WHERE_RULES = ();
-
-  return $list;
-}
-
-#**********************************************************
-=head2 unreg_requests_add($attr) - add unreg request
-
-=cut
-#**********************************************************
-sub unreg_requests_add {
-  my $self = shift;
-  my ($attr) = @_;
-
-  if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD} && !$attr->{LOCATION_ID}) {
-    require Address;
-    Address->import();
-    my $Address = Address->new($self->{db}, $self->{admin}, $self->{conf});
-    $Address->build_add({
-      STREET_ID         => $attr->{STREET_ID},
-      ADD_ADDRESS_BUILD => $attr->{ADD_ADDRESS_BUILD}
-    });
-    $attr->{LOCATION_ID} = $Address->{LOCATION_ID};
-
-    if($attr->{LOCATION_ID}) {
-      $Address->address_info($attr->{LOCATION_ID});
-      $self->{ADDRESS_DISTRICT} = $Address->{ADDRESS_DISTRICT} || q{};
-      $self->{ADDRESS_STREET}   = $Address->{ADDRESS_STREET} || q{};
-      $self->{ADDRESS_BUILD}    = $Address->{ADDRESS_BUILD} || q{};
-      $self->{ADDRESS_FLAT}     = $Address->{ADDRESS_FLAT} || q{};
-    }
-  }
-
-  $self->query_add('msgs_unreg_requests', {
-    %$attr,
-    DATETIME       => 'NOW()',
-    RECEIVED_ADMIN => $admin->{AID},
-    COMMENTS       => $attr->{COMMENTS} || '',
-    IP             => $admin->{SESSION_IP},
-    DOMAIN_ID      => $admin->{DOMAIN_ID} || $attr->{DOMAIN_ID}
-  });
-  $self->{MSG_ID} = $self->{INSERT_ID};
-  $attr->{INSERT_ID} = $self->{INSERT_ID};
-
-  $admin->{MODULE} = $MODULE;
-  $admin->action_add($attr->{UID}, '', {
-    TYPE    => 1,
-    INFO    => ['INSERT_ID', 'SUBJECT', 'FIO', 'TP_ID', 'DOMAIN_ID', 'COMMENTS'],
-    REQUEST => $attr
-  });
-
-  return $self;
-}
-
-#**********************************************************
-=head2 unreg_requests_del($attr) - del unreg request
-
-=cut
-#**********************************************************
-sub unreg_requests_del {
-  my $self = shift;
-  my ($attr) = @_;
-
-  if (!$attr->{ID}) {
-    return $self;
-  }
-
-  $self->query_del('msgs_unreg_requests', $attr, { ID => $attr->{ID} });
-
-  $admin->{MODULE} = $MODULE;
-  $admin->action_add(0, "UNREG_REQUEST_ID: $attr->{ID}", { TYPE => 10 });
-
-  return $self;
-}
-
-#**********************************************************
-=head2 unreg_requests_info($id, $attr)
-
-=cut
-#**********************************************************
-sub unreg_requests_info {
-  my $self = shift;
-  my ($id, $attr) = @_;
-
-  my $WHERE = ($attr->{UID}) ? "AND m.uid='$attr->{UID}'" : '';
-  if ($admin->{DOMAIN_ID}) {
-    $admin->{DOMAIN_ID} =~ s/;/,/g;
-    $WHERE .= " AND m.domain_id IN ($admin->{DOMAIN_ID})";
-  }
-
-  $self->query("SELECT
-    m.*,
-    ra.id AS received_admin,
-    mc.name AS chapter,
-    m.chapter AS chapter_id,
-    INET_NTOA(m.ip) AS ip
-    FROM msgs_unreg_requests m
-    LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)
-    LEFT JOIN admins ra ON (m.received_admin=ra.aid)
-  WHERE m.id=? $WHERE
-  GROUP BY m.id;",
-    undef,
-    { INFO => 1,
-      Bind => [ $id ] }
-  );
-
-  if ($self->{TOTAL} && $self->{LOCATION_ID} > 0) {
-    $self->query("SELECT d.id AS district_id,
-      d.name AS address_district,
-      s.name AS address_street,
-      b.number AS address_build
-     FROM builds b
-     LEFT JOIN streets s  ON (s.id=b.street_id)
-     LEFT JOIN districts d  ON (d.id=s.district_id)
-     WHERE b.id= ? ",
-      undef,
-      { INFO => 1,
-        Bind => [ $self->{LOCATION_ID} ]
-      }
-    );
-  }
-
-  return $self;
-}
-
-
-#**********************************************************
-=head2 unreg_requests_change($attr)
-
-=cut
-#**********************************************************
-sub unreg_requests_change {
-  my $self = shift;
-  my ($attr) = @_;
-
-  if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD}) {
-    require Address;
-    Address->import();
-    my $Address = Address->new($self->{db}, $self->{admin}, $self->{conf});
-    $Address->build_add({
-      STREET_ID         => $attr->{STREET_ID},
-      ADD_ADDRESS_BUILD => $attr->{ADD_ADDRESS_BUILD}
-    });
-    $attr->{LOCATION_ID} = $Address->{LOCATION_ID};
-  }
-  $attr->{STATUS} = ($attr->{STATUS}) ? $attr->{STATUS} : 0;
-
-  $admin->{MODULE} = $MODULE;
-
-  my $unreg_info = $self->unreg_requests_list({
-    ID          => $attr->{ID},
-    FIO         => '_SHOW',
-    SUBJECT     => '_SHOW',
-    PHONE       => '_SHOW',
-    EMAIL       => '_SHOW',
-    STATE       => '_SHOW',
-    COMMENTS    => '_SHOW',
-    RESPOSIBLE  => '_SHOW',
-    PRIORITY    => '_SHOW',
-    LOCATION_ID => '_SHOW',
-    COLS_NAME   => 1,
-    COLS_UPPER  => 1,
-  });
-
-  $attr->{DOMAIN_ID} ||= $admin->{DOMAIN_ID};
-
-  $self->changes({
-      CHANGE_PARAM    => 'ID',
-      TABLE           => 'msgs_unreg_requests',
-      DATA            => $attr,
-      EXT_CHANGE_INFO => "MSG_ID:$attr->{ID}"
-  });
-
-  if (ref $unreg_info eq "ARRAY" && $unreg_info->[0]) {
-    my $changes = "UNREG_REQUEST_ID: $attr->{ID},";
-    foreach my $key (keys %{$unreg_info->[0]}) {
-      if (defined $attr->{$key} && $attr->{$key} ne $unreg_info->[0]{$key}) {
-        $changes .= " $key: $unreg_info->[0]{$key}->$attr->{$key},";
-      }
-    }
-
-    chop $changes;
-    $admin->action_add(0, $changes, { TYPE => 2 });
-  }
-
-  return $self->{result};
 }
 
 #**********************************************************
@@ -3068,75 +2708,6 @@ sub delivery_user_list_change {
   $self->query("UPDATE msgs_delivery_users SET status='$status' WHERE $WHERE;", 'do');
 
   return $self;
-}
-
-#**********************************************************
-=head2 messages_reports($attr)
-  Arguments:
-     $attr
-       $attr->{FROM_DATE} - create date
-       $attr->{TO_DATE}  - create date
-  Returns:
-      $list
-=cut
-#**********************************************************
-sub messages_admins_reports {
-  my $self = shift;
-  my ($attr) = @_;
-
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-
-  my @WHERE_RULES = ();
-
-  if ($attr->{FROM_DATE} && $attr->{TO_DATE}) {
-    push @WHERE_RULES, "mur.datetime BETWEEN '$attr->{FROM_DATE}' AND '$attr->{TO_DATE}'";
-  }
-
-  my $WHERE = $self->search_former(
-    $attr,
-    [
-      [ 'AID',      'INT',      'ra.aid',       1 ],
-      [ 'MSG_ID',   'INT',      'mur.id',       1 ],
-      [ 'DATETIME', 'DATETIME', 'mur.datetime', 1 ],
-    ],
-    {
-      WHERE       => 1,
-      WHERE_RULES => \@WHERE_RULES,
-    }
-  );
-
-  $self->query("SELECT
-    ra.aid,
-    ra.id,
-    COUNT(DISTINCT mur.id) AS total_msg,
-    COUNT(DISTINCT IF(mur.state = 0, mur.id, NULL)) AS open,
-    COUNT(DISTINCT IF(mur.state = 1, mur.id, NULL)) AS unmaked,
-    COUNT(DISTINCT IF(mur.state = 2, mur.id, NULL)) AS closed,
-    COUNT(DISTINCT IF(mur.state = 11, mur.id, NULL)) AS potential_client,
-    COUNT(DISTINCT IF(mur.state = 3, mur.id, NULL)) AS in_process,
-    mur.datetime
-      FROM admins ra
-      LEFT JOIN msgs_unreg_requests mur ON (ra.aid=mur.resposible)
-      $WHERE
-      GROUP BY ra.aid
-      ORDER BY $SORT $DESC
-      LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
-
-  my $list = $self->{list} || [];
-
-  $self->query("SELECT IF(ra.aid=mur.resposible, COUNT(*), NULL) AS total
-      FROM admins ra
-      LEFT JOIN msgs_unreg_requests mur ON (ra.aid=mur.resposible)
-      $WHERE;",
-    undef, { INFO => 1 }
-  );
-  return $list;
 }
 
 #**********************************************************

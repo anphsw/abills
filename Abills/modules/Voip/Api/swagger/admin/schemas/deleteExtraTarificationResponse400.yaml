@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 30015
+  errstr:
+    type: string
+    example: tarificationId 8 not exists

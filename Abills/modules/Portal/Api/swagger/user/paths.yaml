@@ -2,5 +2,5 @@
   $ref: "./paths/portal.yaml"
 /user/portal/news:
   $ref: "./paths/news.yaml"
-/user/portal/news/{id}:
+/user/portal/news/{string_id}:
   $ref: "./paths/newsId.yaml"

@@ -1,0 +1,23 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 2
+  tpId:
+    type: integer
+    example: 83
+  dayFee:
+    type: integer
+  monthFee:
+    type: integer
+  module:
+    type: string
+    example: Internet
+  changePrice:
+    type: integer
+  activPrice:
+    type: integer
+  serviceId:
+    type: integer
+  status:
+    type: integer

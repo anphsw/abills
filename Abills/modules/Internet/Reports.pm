@@ -350,7 +350,7 @@ sub internet_report_tp {
       $html->button($line->{name}, "$main_link"),
       ($line->{counts} > 0 )          ? $html->button($line->{counts}, "$main_link")                        : 0,
       ($line->{active} > 0 )          ? $html->button($line->{active}, "$main_link&INTERNET_STATUS=0")      : 0,
-      ($line->{disabled} > 0 )        ? $html->button($line->{disabled}, "$main_link&INTERNET_STATUS=1")    : 0,
+      ($line->{disabled} > 0 )        ? $html->button($line->{disabled}, "$main_link&INTERNET_STATUS=!0")   : 0,
       ($line->{debetors} > 0 )        ? $html->button($line->{debetors}, "$main_link&DEPOSIT=<0&search=1")  : 0,
       ($line->{users_reduction} > 0 ) ? $html->button($line->{users_reduction}, "$main_link&REDUCTION=100") : 0,
       sprintf('%.2f', $line->{arppu} || 0),
@@ -686,6 +686,9 @@ sub internet_user_outflow {
     }
   });
 
+  if ($FORM{DEBUG}) {
+    $Internet->{debug}=1;
+  }
   my $outflow_users = $Internet->users_outflow_report({
     LOGIN     => '_SHOW',
     LAST_FEE  => '_SHOW',
@@ -816,7 +819,6 @@ sub users_development_report {
     ($cities_end_period, $districts_end_period, $end_total) = _district_rows($table, $FORM{TO_DATE}, $days, $keys);
   }
 
-
   my $total_growth = _users_growth($days, \%growth_by_district, \%growth_by_city);
 
   $table->{rowcolor} = 'text-right';
@@ -858,6 +860,8 @@ sub users_development_report {
 
   print $table->show();
   $html->tpl_show(_include('internet_users_development', 'Internet'));
+
+  return 1;
 }
 
 #**********************************************************
@@ -1253,6 +1257,81 @@ sub _internet_get_streets_outflow_charts {
     },
     OUTPUT2RETURN     => 1,
   });
+}
+
+#*******************************************************************
+=head1 users_switch_report () - show list of switches with users
+
+=cut
+#*******************************************************************
+sub users_switch_report {
+
+  $Internet->{debug} = 1 if ($FORM{DEBUG});
+
+  my $switch_list = $Internet->users_switch_list({
+    ALL       => 1,
+    COLS_NAME => 1,
+    SORT      => $FORM{sort},
+    DESC      => $FORM{sort} ? $FORM{desc} : 'DESC',
+  });
+
+  my $table = $html->table({
+    width               => '100%',
+    caption             => $lang{REPORT_SWITCH_WITH_USERS},
+    border              => 1,
+    title               => [ '#', 'ID', $lang{SWITCHBOARDS}, $lang{USERS}, $lang{DISABLE}, $lang{ENABLED},
+      $lang{QUANTITY_USERS_REQUEST}, $lang{COEFFICIENT_OF_DISABLE_USERS}, $lang{COEFFICIENT_OF_REQUESTS_USERS} ],
+    ID                  => 'SWITCH_REPORT_ID',
+    DATA_TABLE          => 1,
+    EXPORT              => 1,
+  });
+
+  my $i = 1;
+  my $equipment_index = get_function_index('equipment_info');
+  my ($switch_total, $users_total, $user_off_total, $user_on_total, $users_request_total, $coef_users_off, $coef_users_request_total);
+
+  foreach my $line (@$switch_list) {
+    next if (!$line->{switch_id});
+    $table->addrow(
+      $i,
+      $html->button($line->{switch_id},"index=$equipment_index&NAS_ID=". ($line->{switch_id} || 0)),
+      $line->{switch_name},
+      $line->{switch_users},
+      $line->{user_off},
+      $line->{user_on},
+      $line->{users_request},
+      sprintf("%.2f", ($line->{switch_users}) ? $line->{user_off} / $line->{switch_users} * 100 : 0),
+      sprintf("%.2f", ($line->{switch_users}) ? $line->{users_request} / $line->{switch_users} * 100 : 0),
+    );
+
+    $i++;
+    $switch_total ++;
+    $users_total += $line->{switch_users};
+    $user_off_total += $line->{user_off};
+    $user_on_total += $line->{user_on};
+    $users_request_total += $line->{users_request};
+  }
+
+  if ($users_total) {
+    $coef_users_off = sprintf("%.2f", $user_off_total / $users_total * 100);
+    $coef_users_request_total = sprintf("%.2f", $users_request_total / $users_total * 100);
+  }
+
+  $table->addfooter(
+    "$lang{TOTAL}: ",
+    '',
+    $switch_total,
+    $users_total,
+    $user_off_total,
+    $user_on_total,
+    $users_request_total,
+    $coef_users_off,
+    $coef_users_request_total,
+  );
+
+  print $table->show();
+
+  return 1;
 }
 
 1;

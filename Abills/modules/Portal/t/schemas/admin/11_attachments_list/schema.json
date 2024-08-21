@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "fileSize": {
+            "type": "integer"
+          },
+          "fileType": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "src": {
+            "type": "string"
+          },
+          "uploadedAt": {
+            "type": "string"
+          }
+        },
+        "required": ["fileSize", "fileType", "filename", "id", "src", "uploadedAt"]
+      }
+    },
+    "total": {
+      "type": "number"
+    }
+  },
+  "required": ["list", "total"]
+}

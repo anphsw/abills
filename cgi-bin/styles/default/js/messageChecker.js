@@ -146,7 +146,7 @@ var AMessageChecker = (function () {
     message.responsible = data['RESPOSIBLE'] || '';
     message.seen_url    = data['NOTICED_URL'] || '';
     message.icon        = data['ICON'] || '';
-
+    message.timeout     = data['TIMEOUT'] || '';
     message.id       = data['ID'] || 0;
     message.group_id = data['GROUP_ID'] || 0;
 

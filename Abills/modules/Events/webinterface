@@ -37,64 +37,6 @@ require Events::Profile;
 #});
 
 #**********************************************************
-=head2 events_events($attr)
-
-  Arguments:
-    $attr - hash_ref
-      CLIENT_INTERFACE - client interface flaf
-
-  Returns:
-    JSON aray string
-
-=cut
-#**********************************************************
-#TODO: Move to Events::Base
-sub events_events {
-  my ($attr) = @_;
-  my @events_list = ();
-  
-  if ( $attr->{CLIENT_INTERFACE} ) {
-    return '';
-  }
-
-  return events_notice({ EXPORT => 1 }) if ($FORM{AJAX});
-  
-  my $events_index = get_function_index('events_main') || 0;
-  my $seen_index = get_function_index('events_seen_message') || 0;
-  
-  my $events_list = $Events->events_list({
-    STATE_ID         => 1,
-    AID              => $admin->{AID},
-    SHOW_ALL_COLUMNS => 1
-  });
-  
-  eval {
-    require JSON;
-    JSON->import('to_json');
-  };
-  if ($@){
-    return $@;
-  }
-
-  foreach my $event ( @{$events_list} ) {
-    $event->{message} = translate_simple($event->{message} || '');
-    $event->{subject} = $event->{title} || $event->{module} || '';
-    $event->{subject} = translate_simple($event->{subject});
-    $event->{extra} ||= "$SELF_URL?index=$events_index&chg=$event->{id}";
-  
-    push(
-      @events_list, 
-      events_event_to_json(
-        $event, 
-        $seen_index
-      )
-    );
-  }
-  
-  return join(", ", @events_list);
-}
-
-#**********************************************************
 =head2 events_event_to_json($message)
 
   Function to format message to JSON structure needed in AMessageChecker

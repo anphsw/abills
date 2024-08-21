@@ -19,10 +19,14 @@ our (
   %permissions,
   $db,
   %conf,
+  $libpath
 );
 
 our Abills::HTML $html;
 my $Crm = Crm->new($db, $admin, \%conf);
+
+require Abills::Template;
+my $Templates = Abills::Template->new($db, $admin, \%conf, { html => $html, lang => \%lang, libpath => $libpath });
 
 #*******************************************************************
 =head2 crm_users($attr)
@@ -95,7 +99,7 @@ sub crm_users {
     });
     $Crm->{FEES_TYPES} =~ s/\n//g;
 
-    $html->tpl_show(_include('crm_deals_add', 'Crm'), { %FORM, %{$Crm} });
+    $html->tpl_show($Templates->_include('crm_deals_add', 'Crm'), { %FORM, %{$Crm} });
   }
 
   my $progress_steps = $Crm->crm_progressbar_step_list({
@@ -149,7 +153,7 @@ sub crm_users {
 
   my $steps_hash = {};
   map {$steps_hash->{$_->{step_number}} = $_} @{$progress_steps};
-  $html->tpl_show(_include('crm_progressbar_line', 'Crm'), { STEPS_JSON => json_former($steps_hash) });
+  $html->tpl_show($Templates->_include('crm_progressbar_line', 'Crm'), { STEPS_JSON => json_former($steps_hash) });
 
   return ('', $table->show()) if ($attr->{PROFILE_MODE});
   print $table->show();
@@ -171,10 +175,10 @@ sub crm_deal_info {
 
   my $deal_info = $Crm->crm_deal_info({ ID => $FORM{DEAL_ID} });
   my $fields = crm_deal_fields($deal_info, { UID => $FORM{UID}, DEAL_ID => $FORM{DEAL_ID}, DEAL_SECTION => '!' });
-  my $lead_profile_panel = $html->tpl_show(_include('crm_section_panel', 'Crm'),
+  my $lead_profile_panel = $html->tpl_show($Templates->_include('crm_section_panel', 'Crm'),
     { DEAL_SECTION => 1, DEAL_ID => $FORM{DEAL_ID}, UID => $FORM{UID}, %{$fields} }, { OUTPUT2RETURN => 1 });
 
-  $html->tpl_show(_include('crm_lead_info', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_lead_info', 'Crm'), {
     LEAD_PROFILE_PANEL => $lead_profile_panel,
     PROGRESSBAR        => crm_progressbar_show($deal_info->{CURRENT_STEP}, {
       DEAL_STEP    => '!',
@@ -248,7 +252,7 @@ sub crm_deals_list {
 
   my $steps_hash = {};
   map {$steps_hash->{$_->{step_number}} = $_} @{$progress_steps};
-  $html->tpl_show(_include('crm_progressbar_line', 'Crm'), { STEPS_JSON => json_former($steps_hash) });
+  $html->tpl_show($Templates->_include('crm_progressbar_line', 'Crm'), { STEPS_JSON => json_former($steps_hash) });
 }
 
 #*******************************************************************
@@ -275,8 +279,8 @@ sub crm_deals_search {
     NO_ID       => 1
   });
 
-  my $search_form = $html->tpl_show(_include('crm_deals_search', 'Crm'), { %FORM, %info }, { OUTPUT2RETURN => 1 });
-  $search_form .= $html->tpl_show(templates('form_search_personal_info'), { %FORM, %info }, { OUTPUT2RETURN => 1 });
+  my $search_form = $html->tpl_show($Templates->_include('crm_deals_search', 'Crm'), { %FORM, %info }, { OUTPUT2RETURN => 1 });
+  $search_form .= $html->tpl_show($Templates->templates('form_search_personal_info'), { %FORM, %info }, { OUTPUT2RETURN => 1 });
 
   form_search({ SEARCH_FORM => $search_form, ADDRESS_FORM => 1 });
 }

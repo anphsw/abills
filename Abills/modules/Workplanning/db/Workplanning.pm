@@ -10,30 +10,32 @@ use strict;
 use parent 'dbcore';
 my $MODULE = 'Workplanning';
 
+my ($admin);
+
 #**********************************************************
 # Init
 #**********************************************************
 sub new {
-  my $class = shift;
-  my ($db, $admin, $CONF) = @_;
+  my ($class, $db, $Admin, $CONF) = @_;
 
-  my $self = {};
+  $Admin->{MODULE} = $MODULE;
+  $admin = $Admin;
+
+  my $self = {
+    db    => $db,
+    admin => $Admin,
+    conf  => $CONF
+  };
+
   bless($self, $class);
-
-  $admin->{MODULE} = $MODULE;
-  $self->{db}      = $db;
-  $self->{admin}   = $admin;
-  $self->{conf}    = $CONF;
 
   return $self;
 }
 
 #**********************************************************
-
-=head2  add() - Add info
+=head2 add() - Add info
 
 =cut
-
 #**********************************************************
 sub add {
   my $self = shift;
@@ -41,15 +43,18 @@ sub add {
 
   $self->query_add('work_planning', $attr);
 
+  if (!$self->{errno}) {
+    $self->{admin}->{MODULE} = 'Workplanning';
+    $admin->system_ction_add("ADD WORK PLAN", { TYPE => 1 });
+  }
+
   return $self;
 }
 
 #**********************************************************
-
-=head2  del() - Delete info
+=head2 del() - Delete info
 
 =cut
-
 #**********************************************************
 sub del {
   my $self = shift;
@@ -57,15 +62,18 @@ sub del {
 
   $self->query_del('work_planning', { ID => $id });
 
-  return $self->{result};
+  if (!$self->{errno}) {
+    $self->{admin}->{MODULE} = 'Workplanning';
+    $admin->system_action_add("DELETE work plan: $id", { TYPE => 10 });
+  }
+
+  return $self;
 }
 
 #**********************************************************
-
 =head2 list($attr) - list
 
 =cut
-
 #**********************************************************
 sub list {
   my $self = shift;
@@ -105,15 +113,11 @@ sub list {
   return $self->{list} || [];
 }
 
-
 #**********************************************************
-
 =head2 change($attr) - change
 
 =cut
-
 #**********************************************************
-
 sub change {
   my $self = shift;
   my ($attr) = @_;
@@ -124,5 +128,12 @@ sub change {
     DATA         => $attr,
   });
 
-  return $self->{result};
+  if (!$self->{errno}) {
+    $self->{admin}->{MODULE} = 'Workplanning';
+    $admin->system_action_add("CHANGE work plan: $attr->{ID}", { TYPE => 2 });
+  }
+
+  return $self;
 }
+
+1;

@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "The Root Schema",
+  "required": [
+    "subject",
+    "message",
+    "chapterName",
+    "chapter",
+    "priority",
+    "state",
+    "date"
+  ],
+  "properties": {
+    "subject": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "chapterName": {
+      "type": "string"
+    },
+    "chapter": {
+      "type": "number"
+    },
+    "priority": {
+      "type": "number"
+    },
+    "state": {
+      "type": "number"
+    },
+    "date": {
+      "type": "string"
+    },
+    "uid": {
+      "type": "number"
+    }
+  }
+}

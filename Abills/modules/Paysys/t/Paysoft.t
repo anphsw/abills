@@ -6,7 +6,6 @@ use Test::More;
 use lib '.';
 use lib '../../';
 use Paysys::t::Init_t;
-require Paysys::systems::Paysoft;
 
 our (
   %conf,
@@ -19,7 +18,16 @@ our (
   $argv
 );
 
-my $Payment_plugin = Paysys::systems::Paysoft->new($db, $admin, \%conf);
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::systems::Paysoft;
+  $Payment_plugin = Paysys::systems::Paysoft->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::Paysoft;
+  $Payment_plugin = Paysys::Plugins::Paysoft->new($db, $admin, \%conf);
+}
+
 if ($debug > 3) {
   $Payment_plugin->{DEBUG}=7;
 }
@@ -52,7 +60,7 @@ LMI_PAYMENT_DESC=Login: beloshickiyan, UID: 54785216
 LMI_MERCHANT_ID=1234
 LMI_RRN=
 LMI_PAYMENT_NO=$payment_id
-LMI_RESULT_URL=https://bill.ultranetgroup.com.ua:443/paysys_check.cgi
+LMI_RESULT_URL=https://bill.com.ua:443/paysys_check.cgi
 at=
 LMI_PAYMENT_SYSTEM=21
 LMI_PAYER_IDENTIFIER=438146******1239
@@ -73,7 +81,7 @@ LMI_PAYER_IP=},
 #     name    => 'PREREQUEST',
 #     request => qq{LMI_PAYMENT_AMOUNT=$payment_sum
 # UID=$user_id
-# LMI_RESULT_URL=https://bill.ultranetgroup.com.ua:443/paysys_check.cgi
+# LMI_RESULT_URL=https://bill.com.ua:443/paysys_check.cgi
 # LMI_PAYMENT_SYSTEM=21
 # LMI_PREREQUEST=1
 # index=53

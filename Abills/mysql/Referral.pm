@@ -280,7 +280,6 @@ sub request_list{
   my $self = shift;
   my ($attr) = @_;
 
-
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
@@ -292,6 +291,7 @@ sub request_list{
     [ 'ID',           'INT',   'r.id as referral_request', 1 ],
     [ 'FIO',          'STR',   'r.fio',                    1 ],
     [ 'phone',        'STR',   'r.phone',                  1 ],
+    [ 'PHONE',        'STR',   'r.phone',                  1 ],
     [ 'ADDRESS',      'STR',   'r.address',                1 ],
     [ 'STATUS',       'INT',   'r.status',                 1 ],
     [ 'UID',          'INT',   'r.referrer as uid',        1 ],

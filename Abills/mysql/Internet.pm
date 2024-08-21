@@ -617,13 +617,28 @@ sub user_list {
       ['IPV6_PREFIX', 'IPV6', 'INET6_NTOA(internet.ipv6_prefix)', 'INET6_NTOA(internet.ipv6_prefix) AS ipv6_prefix'];
   }
 
-  my $WHERE =  $self->search_former($attr, \@search_fields,
-    { WHERE             => 1,
-      USERS_FIELDS_PRE  => 1,
-      USE_USER_PI       => 1,
-      SKIP_USERS_FIELDS => [ 'UID', 'ACTIVE', 'EXPIRE' ],
-    }
-  );
+  my @WHERE_RULES = ();
+  if ($attr->{TAGS} && $attr->{TAGS} ne '_SHOW' && $attr->{TAG_SEARCH_VAL} && $attr->{TAG_SEARCH_VAL} == 1) {
+    my $tags_count = scalar(split /,\s?/, $attr->{TAGS});
+    push @WHERE_RULES, "u.uid IN (SELECT tu.uid
+      FROM tags_users tu
+      GROUP BY tu.uid
+      HAVING COUNT(DISTINCT CASE WHEN tu.tag_id IN ($attr->{TAGS}) THEN tu.tag_id END) = $tags_count
+    )";
+    $attr->{TAGS} = '_SHOW';
+  }
+  if ($attr->{TAGS} && $attr->{TAGS} ne '_SHOW' && $attr->{TAG_SEARCH_VAL} && $attr->{TAG_SEARCH_VAL} == 2) {
+    push @WHERE_RULES, "u.uid NOT IN (SELECT tu.uid FROM tags_users tu WHERE tu.tag_id IN ($attr->{TAGS}))";
+    $attr->{TAGS} = '_SHOW';
+  }
+
+  my $WHERE = $self->search_former($attr, \@search_fields, {
+    WHERE             => 1,
+    USERS_FIELDS_PRE  => 1,
+    USE_USER_PI       => 1,
+    SKIP_USERS_FIELDS => [ 'UID', 'ACTIVE', 'EXPIRE' ],
+    WHERE_RULES       => \@WHERE_RULES,
+  });
 
   if ($attr->{UNIVERSAL_SEARCH} && $attr->{GID} && $attr->{GID} ne '_SHOW') {
     if ($attr->{GID} =~ /,/) {
@@ -744,6 +759,12 @@ sub user_list {
   if($self->{SORT_BY}) {
     $SORT=$self->{SORT_BY};
   }
+  elsif ($SORT) {
+    my $sort_field = $self->{SEARCH_FIELDS_ARR}->[$SORT-1];
+    if ( $sort_field && $sort_field =~ m/([a-z\.]+port)$/i ) {
+        $SORT = "CAST(  REPLACE( REPLACE($1, '/', ''), ' ', '') AS unsigned)";
+    }
+  }
 
   $self->query("SELECT
       $self->{SEARCH_FIELDS}
@@ -757,7 +778,8 @@ sub user_list {
     $EXT_TABLE
     $WHERE
     GROUP BY $GROUP_BY
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
@@ -874,7 +896,7 @@ sub report_tp {
 
   $self->query("SELECT tp.id, tp.tp_id, tp.name, COUNT(DISTINCT internet.uid) AS counts,
       COUNT(DISTINCT CASE WHEN internet.disable=0 AND u.disable=0 THEN internet.uid ELSE NULL END) AS active,
-      COUNT(DISTINCT CASE WHEN internet.disable=1 AND u.disable=1 THEN internet.uid ELSE NULL END) AS disabled,
+      COUNT(DISTINCT CASE WHEN internet.disable!=0 OR u.disable!=0 THEN internet.uid ELSE NULL END) AS disabled,
       SUM(IF(IF(u.company_id > 0, cb.deposit, b.deposit) < 0, 1, 0)) AS debetors,
       SUM(IF(u.reduction = 100, 1, 0)) AS users_reduction,
       ROUND(SUM(p.sum) / COUNT(DISTINCT internet.uid), 2) AS arpu,
@@ -1555,5 +1577,74 @@ sub account_check {
 
   return $self;
 }
+
+
+#**********************************************************
+=head2 users_switch_list ($attr) - returns list of switches and users
+
+  Arguments:
+    $attr - hash_ref
+
+=cut
+#**********************************************************
+sub users_switch_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = $attr->{SORT} ? $attr->{SORT} : 1;
+  # $SORT -= 1;
+  my $DESC = $attr->{DESC} ? $attr->{DESC} : '';
+  my $PG = $attr->{PG} ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
+
+  my $search_columns = [
+    [ 'EQUIPMENT_ID',               'INT', 'nas.id',                1 ],
+    [ 'EQUIPMENT_NAME',             'STR', 'nas.name',              1 ],
+    [ 'USER_ID',                    'STR', 'users.uid',             1 ],
+    [ 'USER_ACTIVE',                'STR', 'internet_main.disable', 1 ],
+    [ 'MESSAGES',                   'STR', 'msgs_messages.uid',     1 ],
+  ];
+
+  my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
+  $self->query("
+    SELECT nas.id AS switch_id,
+       nas.name AS switch_name,
+       (SELECT COUNT(uid)
+        FROM internet_main
+        WHERE internet_main.nas_id = nas.id
+       ) AS switch_users,
+       (SELECT COUNT(disable)
+        FROM internet_main
+        WHERE disable = 1
+        AND internet_main.nas_id = nas.id
+        ) AS user_off,
+       (SELECT COUNT(disable)
+        FROM internet_main
+        WHERE disable = 0
+        AND internet_main.nas_id = nas.id
+       ) AS user_on,
+       SUM((SELECT COUNT(id)
+        FROM msgs_messages
+        WHERE msgs_messages.date >= (NOW() - INTERVAL 30 DAY)
+          AND msgs_messages.uid = users.uid
+          AND users.uid = internet_main.uid
+          AND internet_main.nas_id = nas.id
+       )) AS users_request
+
+    FROM internet_main
+    LEFT JOIN nas           ON internet_main.nas_id = nas.id
+    LEFT JOIN users         ON internet_main.uid = users.uid
+    GROUP BY switch_id
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef, $attr
+  );
+
+  my $list = $self->{list};
+
+  return $list;
+}
+
 
 1;

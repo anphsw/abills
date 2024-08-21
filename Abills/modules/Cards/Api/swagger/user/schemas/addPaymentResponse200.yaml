@@ -1,0 +1,11 @@
+type: object
+properties:
+  result:
+    type: string
+    example: Success payment, ID 18342
+  amount:
+    type: number
+    example: 1.99
+  paymentId:
+    type: number
+    example: 18342

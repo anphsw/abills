@@ -49,7 +49,7 @@ sub cams_payments_maked {
   my $user = $attr->{USER_INFO};
   my $form = $attr->{FORM} || {};
 
-  my $list = $Cams->users_list({
+  my $list = $Cams->user_list({
     UID            => $user->{UID},
     SERVICE_STATUS => '_SHOW',
     SERVICE_ID     => '_SHOW',
@@ -125,34 +125,8 @@ sub cams_quick_info {
   my $self = shift;
   my ($attr) = @_;
 
-  my $result;
   my $form = $attr->{FORM} || {};
-
-  my $uid = $attr->{UID} || $form->{UID};
-
-  if ($attr->{GET_PARAMS}) {
-    return {
-      HEADER    => $lang->{CAMERAS},
-      QUICK_TPL => 'cams_qi_box',
-      FIELDS    => {
-        TP_NAME     => $lang->{TARIF_PLAN},
-        STATUS      => $lang->{STATUS},
-        MONTH_FEE   => $lang->{MONTH_FEE},
-        TP_COMMENTS => $lang->{COMMENTS},
-      }
-    };
-  }
-
-  if ($attr->{UID}) {
-    my $user_info = $Cams->user_info($uid);
-    return {} if $Cams->{TOTAL} < 1;
-
-    my $service_status = ::sel_status({ HASH_RESULT => 1 });
-    $user_info->{STATUS} = defined($user_info->{SERVICE_STATUS}) ? $service_status->{ $user_info->{SERVICE_STATUS} } : '';
-    ($user_info->{STATUS}, undef) = split(':', $user_info->{STATUS});
-
-    return $user_info;
-  }
+  my $uid = $form->{UID};
 
   my $fn_name = $main::functions{$attr->{FN_INDEX} || ''} || 0;
   return 0 if !$fn_name;
@@ -260,7 +234,7 @@ sub cams_user_del {
   return 0 if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
   my $uid = $attr->{USER_INFO}{UID};
 
-  my $users_list = $Cams->users_list({ ID => '_SHOW', UID => $uid, COLS_NAME => 1 });
+  my $users_list = $Cams->user_list({ ID => '_SHOW', UID => $uid, COLS_NAME => 1 });
 
   ::load_module('Cams', $html);
   foreach my $line (@{$users_list}) {
@@ -273,6 +247,35 @@ sub cams_user_del {
   $Cams->users_del({ UID => $uid, COMMENTS => $attr->{USER_INFO}{COMMENTS} });
 
   return 0;
+}
+
+#**********************************************************
+=head2 cams_user_services($attr) - Get user services
+
+=cut
+#**********************************************************
+sub cams_user_services {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return [] if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
+
+  require Control::Service_control;
+  Control::Service_control->import();
+  my $Service_control = Control::Service_control->new($db, $admin, $CONF);
+
+  my $tariffs = $Service_control->services_info({
+    UID             => $attr->{UID},
+    MODULE          => 'Cams',
+    FUNCTION_PARAMS => {
+      SERVICE_STATUS  => '_SHOW',
+      SERVICE_ID      => '_SHOW',
+      ID              => '_SHOW'
+    },
+    SERVICE_INFO    => $Cams
+  });
+
+  return $tariffs;
 }
 
 1;

@@ -39,7 +39,7 @@ do "libexec/config.pl";
 our (%conf);
 
 use Abills::SQL;
-use Abills::Base qw/_bp parse_arguments ip2int int2ip/;
+use Abills::Base qw/_bp parse_arguments ip2int int2ip in_array/;
 use Nas;
 use Internet;
 use Admins;
@@ -105,7 +105,7 @@ sub active {
   my $counts = $ip_pool->{COUNTS} || 0;
   my $next_pool_id = $ip_pool->{NEXT_POOL_ID} || 0;
   my $first_ip = $ip_pool->{IP};
-  my $last_ip = int2ip(ip2int($first_ip) + $ip_pool->{COUNTS});
+  my $last_ip = int2ip(ip2int($first_ip) + $counts);
 
   if ($debug > 7) {
     $Internet->{debug} = 1;
@@ -155,9 +155,9 @@ sub active {
 
   my $assigned_ip = '';
 
-  for (my $i = 0; $i <= $counts; $i++) {
+  for (my $i = 0; $i < $counts; $i++) {
     my $ip = ip2int($first_ip) + $i;
-    if ($ip ~~ @active) {
+    if (in_array($ip, \@active)) {
       if ($debug > 3) {
         print int2ip($ip) . " exist\n";
       }

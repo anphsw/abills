@@ -85,7 +85,7 @@ sub tags_user {
     }
   }
 
-  my $list  = $Tags->tags_user({ %FORM, END_DATE =>'_SHOW', COLS_NAME => 1 });
+  my $list = $Tags->tags_user({ %FORM, END_DATE => '_SHOW', EXPIRE_DAYS => '_SHOW', COLS_NAME => 1 });
 
   my $table = $html->table({
     width      => '100%',
@@ -102,7 +102,7 @@ sub tags_user {
       $html->form_input('IDS', $line->{id}, {
         TYPE  => 'CHECKBOX',
         STATE => ($line->{date}) ? 1 : undef,
-        EX_PARAMS => 'onChange="setDefaultEndDate(this)"',
+        EX_PARAMS => 'onChange="setExpireDate(this)"',
       }),
       $line->{name},
       $line->{date},
@@ -113,7 +113,8 @@ sub tags_user {
         class => 'form-control datepicker',
         EX_PARAMS => "data-id='$line->{id}'",
       }),
-      $html->form_input('RESPONSIBLE_HIDDEN', $line->{responsible}, { TYPE => 'HIDDEN' })
+      $html->form_input('RESPONSIBLE_HIDDEN', $line->{responsible}, { TYPE => 'HIDDEN' }),
+      $html->form_input('EXPIRE_DAYS', $line->{expire_days}, { TYPE => 'HIDDEN', EX_PARAMS => "data-exp-days-id='$line->{id}'", }),
     );
   }
 
@@ -184,8 +185,8 @@ sub tags_list {
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $Tags->del($FORM{del});
     $Tags->del_responsible($FORM{del});
+    $Tags->del($FORM{del});
 
     $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{del}] ") if (!$Tags->{errstr});
   }
@@ -203,21 +204,25 @@ sub tags_list {
     EX_PARAMS => { EX_PARAMS => 'multiple="multiple"' }
   });
 
-  $html->tpl_show(_include('tags_form', 'Tags'), $Tags);
-  
+  if ($FORM{add_form} || $FORM{chg} ) {
+    $html->tpl_show(_include('tags_form', 'Tags'), $Tags);
+  }
+
   $LIST_PARAMS{RESPONSIBLE_ADMIN} = 1;
 
   result_former({
     INPUT_DATA      => $Tags,
     FUNCTION        => 'list',
     DEFAULT_FIELDS  => 'NAME,COMMENTS,PRIORITY,RESPONSIBLE,COLOR',
+    HIDDEN_FIELDS   => 'EXPIRE_DAYS',
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
       name        => $lang{NAME},
       priority    => $lang{PRIORITY},
       comments    => $lang{COMMENTS},
       responsible => $lang{RESPONSIBLE},
-      color       => $lang{COLOR}
+      color       => $lang{COLOR},
+      expire_days => $lang{TAGS_EXPIRE_DAYS}
     },
     SKIP_USER_TITLE => 1,
     SELECT_VALUE    => {
@@ -234,6 +239,7 @@ sub tags_list {
       caption => $lang{TAGS},
       qs      => $pages_qs,
       ID      => 'TAGS_LIST',
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
     },
     MAKE_ROWS       => 1,
     MODULE          => 'Tags',
@@ -242,7 +248,6 @@ sub tags_list {
 
   return 1;
 }
-
 
 #**********************************************************
 =head2 tags_search_form($attr)
@@ -331,50 +336,44 @@ sub tags_sel {
 
 #**********************************************************
 sub reports_user_tags {
-  my %user_tag_info;
+
   my %tag_info;
   my @priority_colors_tags = ('btn-muted', "btn-info", "btn-success", 'btn-warning', "btn-danger");
-  my $tags = $Tags->tags_list({COLS_NAME => 1});
+
+  my $tags = $Tags->report_list({
+    SORT      => $FORM{sort},
+    DESC      => $FORM{sort} ? $FORM{desc} : 'DESC',
+    COLS_NAME => 1
+  });
+
+  my $tags_table = $html->table({
+    caption => $lang{TAGS},
+    width   => '100%',
+    title   => [ $lang{NAME}, $lang{ENABLE}, $lang{DISABLE}, $lang{TOTAL}, $lang{PERCENTAGE} ],
+    ID      => 'USER_TAGS_REPORTS'
+  });
 
   foreach my $user_tag (@$tags) {
-   $user_tag_info{ $user_tag->{id} } += defined($user_tag->{uid})?1:0;
-
-    $tag_info{ $user_tag->{id} . 'name' }     = $user_tag->{name};
-    $tag_info{ $user_tag->{id} . 'priority' } = $user_tag->{priority};
-    $tag_info{all_usr_with_tags} += 1;
-    if ($user_tag->{disable} && $user_tag->{disable} == 1) {
-      $tag_info{ $user_tag->{id} . 'disable' } += 1;
-    }
-    elsif(defined($user_tag->{disable}) && $user_tag->{disable} == 0) {
-      $tag_info{ $user_tag->{id} . 'active' } += 1;
-    }
-  }
-
-  my $tags_table = $html->table(
-    {
-      caption    => $lang{TAGS},
-      width      => '100%',
-      title      => [ $lang{NAME}, $lang{ENABLE}, $lang{DISABLE}, $lang{TOTAL}, $lang{PERCENTAGE} ],
-      ID         => 'USER_TAGS_REPORTS'
-    }
-  );
-
-  foreach my $tags_key (sort keys %user_tag_info) {
     $tags_table->addrow(
-      $html->button($html->element('span', $tag_info{ $tags_key . 'name' }, { class => "btn btn-xs $priority_colors_tags[$tag_info{$tags_key . 'priority'}]" }), "index=7&search_form=1&TAGS=$tags_key&type=11&search=1", { class => 'button button-default' }),
-      $tag_info{ $tags_key . 'active' }  ? $html->button($tag_info{ $tags_key . 'active' },  "index=7&search_form=1&TAGS=$tags_key&type=11&DISABLE=0&search=1", { class => 'button button-default' }) : 0,
-      $tag_info{ $tags_key . 'disable' } ? $html->button($tag_info{ $tags_key . 'disable' }, "index=7&search_form=1&TAGS=$tags_key&type=11&DISABLE=1&search=1", { class => 'button button-default' }) : 0,
-      $user_tag_info{$tags_key}          ? $html->button($user_tag_info{$tags_key},          "index=7&search_form=1&TAGS=$tags_key&type=11&search=1",           { class => 'button button-default' }) : 0,
-      $html->progress_bar(
-        {
-          TOTAL        => $tag_info{all_usr_with_tags},
-          COMPLETE     => $user_tag_info{$tags_key},
-          PERCENT_TYPE => 1,
-          COLOR        => 'MAX_COLOR',
-        },
-      )
+      $html->button($html->element('span', $user_tag->{name}, { class => "btn btn-xs $priority_colors_tags[$user_tag->{priority}]" }), "index=7&search_form=1&TAGS=$user_tag->{id}&type=11&search=1", { class => 'button button-default' }),
+      $user_tag->{active}   ? $html->button($user_tag->{active},  "index=7&search_form=1&TAGS=$user_tag->{id}&type=11&DISABLE=0&search=1", { class => 'button button-default' }) : 0,
+      $user_tag->{disable}  ? $html->button($user_tag->{disable}, "index=7&search_form=1&TAGS=$user_tag->{id}&type=11&DISABLE=1&search=1", { class => 'button button-default' }) : 0,
+      $user_tag->{usr_tags} ? $html->button($user_tag->{usr_tags}, "index=7&search_form=1&TAGS=$user_tag->{id}&type=11&search=1", { class => 'button button-default' }) : 0,
+      $html->progress_bar({
+        TOTAL        => $user_tag->{tags_total},
+        COMPLETE     => $user_tag->{usr_tags},
+        PERCENT_TYPE => 1,
+        COLOR        => 'MAX_COLOR',
+      })
     );
+
+    $tag_info{active_total} += $user_tag->{active}   if $user_tag->{active};
+    $tag_info{disable_total} += $user_tag->{disable} if $user_tag->{disable};
+    $tag_info{tags_total} = $user_tag->{tags_total}  if $user_tag->{tags_total};
   }
+
+  $tags_table->addfooter("$lang{TOTAL}: $tag_info{tags_total}", $tag_info{active_total}, $tag_info{disable_total}, $tag_info{tags_total}, '');
+
   print $tags_table->show();
 
   return 1;
@@ -388,15 +387,13 @@ sub reports_user_tags {
 sub tags_multiuser_form {
   my $list  = $Tags->tags_user({ COLS_NAME => 1 });
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      title      => [ '-', $lang{NAME}, $lang{DATE}, $lang{COMMENTS}, $lang{RESPONSIBLE} ],
-      FIELDS_IDS => $Tags->{COL_NAMES_ARR},
-      qs         => $pages_qs,
-      ID         => 'TAG_USER',
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    title      => [ '-', $lang{NAME}, $lang{DATE}, $lang{COMMENTS}, $lang{RESPONSIBLE} ],
+    FIELDS_IDS => $Tags->{COL_NAMES_ARR},
+    qs         => $pages_qs,
+    ID         => 'TAG_USER',
+  });
 
   foreach my $line (@$list) {
     $table->addrow(
@@ -551,6 +548,7 @@ sub send_mail_tags {
 =cut
 #**********************************************************
 sub tags_periodic_daily {
+  #TODO: create Periodic module do not in webinterface periodic functions
   my ($attr) = @_;
 
   my $tags_list  = $Tags->tags_list({ END_DATE => '>0000-00-00', COLS_NAME => 1 });
@@ -567,5 +565,4 @@ sub tags_periodic_daily {
   return 1;
 }
 
-1
-
+1;

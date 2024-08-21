@@ -936,11 +936,13 @@ sub get_user_info {
 #**********************************************************
 sub load_clients {
 
+  $Contacts->{db}->{db}->ping();
   my $client_telegram_accounts = $Contacts->contacts_list({
     TYPE  => $Contacts::TYPES{TELEGRAM},
-    VALUE => '_SHOW',
+    VALUE => '!', #'_SHOW',
     UID   => '_SHOW'
   });
+
   foreach (@{$client_telegram_accounts}) {
     $user_for_chat_id{$_->{value}} = $_->{uid};
   }

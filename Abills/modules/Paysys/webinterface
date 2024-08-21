@@ -16,6 +16,7 @@ use Abills::Filters;
 use Abills::Base qw(ip2int in_array mk_unique_value cmd);
 use Finance;
 use Users;
+use Payments;
 require Abills::Misc;
 
 if (form_purchase_module({
@@ -211,7 +212,7 @@ sub paysys_import_form_new {
       my ($Module, $Module_name, $Module_id) = split(/,/, $FORM{IMPORT_TYPE});
       require Paysys::Init;
       Paysys::Init->import('_configure_load_payment_module');
-      my $Plugin = _configure_load_payment_module($Module);
+      my $Plugin = _configure_load_payment_module($Module, 0, \%conf);
 
       if ($Plugin->can('import')) {
         my $Paysys_plugin = $Plugin->new($db, $admin, \%conf, {
@@ -692,7 +693,7 @@ sub _paysys_import_types {
   my %modules = ();
 
   foreach my $system (@{$connected_systems}) {
-    my $Plugin = _configure_load_payment_module($system->{module});
+    my $Plugin = _configure_load_payment_module($system->{module}, 0, \%conf);
     next if (ref $Plugin eq 'HASH');
 
     if ($Plugin->can('import')) {
@@ -720,13 +721,17 @@ sub _paysys_import_types {
 sub get_reg_payments {
   my ($attr) = @_;
 
-  require Payments;
-  Payments->import();
-  my $Payments = Payments->new($db, $admin, \%conf);
+  $Payments = Payments->new($db, $admin, \%conf);
   my %reg_payments_list = ();
 
+  require POSIX;
+  POSIX->import(qw(mktime strftime));
+
+  my ($Y, $M, $D) = split(/-/, ($attr->{DATE_FROM} || $DATE), 3);
+  ($Y, $M, $D) = split(/-/, POSIX::strftime("%Y-%m-%d", localtime((POSIX::mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) - (86400 * 7)))));
+
   my $payments_list = $Payments->list({
-    FROM_DATE => $attr->{DATE_FROM},
+    FROM_DATE => "$Y-$M-$D",
     TO_DATE   => date_inc($DATE),
     EXT_ID    => ($attr->{EXT_ID} || q{}) . ':*',
     LOGIN     => '_SHOW',

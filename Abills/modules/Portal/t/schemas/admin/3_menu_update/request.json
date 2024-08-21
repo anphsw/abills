@@ -1,0 +1,9 @@
+{
+  "name": "ADMIN_PORTAL_MENU_UPDATE",
+  "method": "PUT",
+  "path": "portal/menus/:menuId/",
+  "body": {
+    "name": "Потужні новини",
+    "status": 1
+  }
+}

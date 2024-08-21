@@ -1218,3 +1218,15 @@ body:not(.dark-mode) {
     display: none !important;
   }
 }
+
+.breadcrumb li p {
+  display: inline;
+}
+
+.nav-sidebar .nav-link > .right:nth-child(2), .nav-sidebar .nav-link > p > .right:nth-child(2) {
+	right: 1rem;
+}
+
+.table td > b > p {
+  display: inline;
+}

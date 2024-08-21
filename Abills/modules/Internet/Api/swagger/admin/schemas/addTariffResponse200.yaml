@@ -1,0 +1,17 @@
+type: object
+properties:
+  affected:
+    type: number
+    example: 1
+  insertId:
+    type: number
+    example: 113
+  total:
+    type: number
+    example: 0
+  tpId:
+    type: number
+    example: 113
+  tpNum:
+    type: number
+    example: 1000

@@ -1,0 +1,11 @@
+type: object
+properties:
+  name:
+    type: string
+    example: "Наш сайт"
+  status:
+    type: integer
+    example: 1
+  url:
+    type: string
+    example: "http://abills.net.ua"

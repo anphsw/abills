@@ -28,5 +28,6 @@ $lang{USER_ACCIDENT_EMPTY} = 'The user has no accidents or breakdowns!';
 
 $lang{EQUIPMENT_ERR} = 'Crash! We know about it and are engaged in its elimination';
 $lang{ACCIDENT_FIXED} = 'The emergency repairs in the area have been completed';
+$lang{ACCIDENT_TYPES} = 'Accident types';
 
 1;

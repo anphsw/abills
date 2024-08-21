@@ -1,5 +1,5 @@
-<form action='$SELF_URL' method='post' id='FORM_UPLOAD_KEY_MIKROTIK' class='form form-horizontal'>
-  <input type='hidden' name='index' value='$index'/>
+<form action='%SELF_URL%' method='post' id='FORM_UPLOAD_KEY_MIKROTIK'>
+  <input type='hidden' name='index' value='%index%'/>
   <input type='hidden' name='%RETURN_TO%' value='1'/>
   <input type='hidden' name='%RETURN_TO%' value='1'/>
   <input type='hidden' name='upload_key' value='1'/>
@@ -10,14 +10,14 @@
     <div class='card-body'>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3'>_{LOGIN}_</label>
+        <label class='control-label col-md-3' for='SYSTEM_ADMIN'>_{LOGIN}_</label>
         <div class='col-md-9'>
           <input class='form-control' type='text' name='SYSTEM_ADMIN' id='SYSTEM_ADMIN' value='%SYSTEM_ADMIN%'/>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3'>_{PASSWD}_</label>
+        <label class='control-label col-md-3' for='SYSTEM_PASSWD'>_{PASSWD}_</label>
         <div class='col-md-9'>
           <input class='form-control' type='password' name='SYSTEM_PASSWD' id='SYSTEM_PASSWD' value='%SYSTEM_LOGIN%'/>
         </div>
@@ -41,7 +41,9 @@
     test_button.on('click', function (e) {
       cancelEvent(e);
 
-      jQuery.post('$SELF_URL', {
+      console.log('00000000000000000');
+
+      jQuery.post('%SELF_URL%', {
         qindex                : INDEX,
         header : 2,
         json : 1,
@@ -53,7 +55,10 @@
       }, function (data) {
         console.log(data);
 
+        console.log('111111111111111111');
+
         if (data && data['MESSAGE']){
+          console.log('2222222222222222222222');
           aTooltip.displayMessage(data['MESSAGE'], 3000);
 
           if (data['MESSAGE']['message_type'] === 'info'){
@@ -61,6 +66,7 @@
           }
         }
 
+        console.log('goooooo');
 
       })
     })

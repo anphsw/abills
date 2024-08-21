@@ -139,4 +139,6 @@ $lang{EQUIPMENT_ROUTER_WORKING} = 'Router is working';
 $lang{EQUIPMENT_CHECK_COMPLETED} = 'Check completed';
 $lang{EQUIPMENT_CONNECTION_CHECK} = 'Connection check';
 
+$lang{TELEGRAM_PING_MESSAGE} = 'Can I help you with anything else?';
+
 1;

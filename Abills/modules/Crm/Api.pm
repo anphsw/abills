@@ -20,28 +20,26 @@ use Crm::Attachments;
 my Crm $Crm;
 my Crm::Attachments $Attachments;
 
-our %lang;
-require 'Abills/modules/Crm/lng_english.pl';
-
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
 
 =cut
 #**********************************************************
 sub new {
-  my ($class, $db, $admin, $conf, $lang, $debug, $type, $html) = @_;
+  my ($class, $db, $admin, $conf, $lang, $debug, $type, $html, $attr) = @_;
 
   my $self = {
     db    => $db,
     admin => $admin,
     conf  => $conf,
     lang  => $lang,
+    html  => $html,
     debug => $debug
   };
 
-  bless($self, $class);
+  $self->{libpath} = $attr->{libpath} || '';
 
-  my %LANG = (%{$lang}, %lang);
+  bless($self, $class);
 
   $Attachments = Crm::Attachments->new($db, $admin, $conf);
   $Crm = Crm->new($db, $admin, $conf);
@@ -385,7 +383,7 @@ sub admin_routes {
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
-        if ($query_params->{AID}) {
+        if ($query_params->{AID} && (!$self->{admin}{permissions}{7} || !$self->{admin}{permissions}{7}{10})) {
           $Crm->crm_dialogue_info({ ID => $path_params->{id} });
           return { affected => $Crm->{AID} eq $query_params->{AID} ? 1 : undef } if $Crm->{AID};
         }

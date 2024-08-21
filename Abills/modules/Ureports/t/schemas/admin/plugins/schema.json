@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "patternProperties": {
+    "^\\w$": {
+      "type": "object",
+      "properties": {
+        "comments": {
+          "type": "string"
+        },
+        "module": {
+          "type": "string"
+        },
+        "reportFunction": {
+          "type": "string"
+        },
+        "reportId": {
+          "type": "integer"
+        },
+        "reportName": {
+          "type": "string"
+        },
+        "template": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "comments",
+        "module",
+        "reportFunction",
+        "reportId",
+        "reportName",
+        "template"
+      ]
+    }
+  }
+}

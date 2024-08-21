@@ -242,6 +242,7 @@ CREATE TABLE IF NOT EXISTS `crm_dialogue_messages` (
   `message` TEXT NOT NULL,
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `inner_msg` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `external_id` VARCHAR(256) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8

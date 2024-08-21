@@ -1,0 +1,36 @@
+{
+  "name": "ADMIN_PORTAL_ARTICLES_ADD",
+  "method": "POST",
+  "path": "portal/articles/",
+  "body": {
+    "addressFlat": "4",
+    "archive": 1,
+    "buildId": 8,
+    "content": "<p>Новая Open Source версия биллинга!</p>\n\n\n\n<p>Полный список новинок, исправлений и улучшений биллинга к новому релизу!</p>",
+    "date": "2023-01-27",
+    "districtId": 8,
+    "domainId": 0,
+    "endDate": "",
+    "gid": 0,
+    "importance": 0,
+    "name": "Releases",
+    "onMainPage": 0,
+    "permalink": "releases-abills-095-blackout",
+    "portalMenuId": "{{menuId}}",
+    "shortDescription": "Встречайте новый релиз 2023",
+    "stName": "",
+    "status": 1,
+    "streetId": 0,
+    "tagName": "",
+    "tags": 0,
+    "title": "Релиз ABillS 0.95 Blackout"
+  },
+  "post-response": {
+    "variables": [
+      {
+        "name": "articleId",
+        "value": "insertId"
+      }
+    ]
+  }
+}

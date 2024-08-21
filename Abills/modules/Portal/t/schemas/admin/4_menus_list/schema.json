@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "url": {
+            "type": "integer"
+          }
+        },
+        "required": ["id", "name", "date", "status", "url"]
+      }
+    },
+    "total": {
+      "type": "number"
+    }
+  },
+  "required": ["list", "total"]
+}

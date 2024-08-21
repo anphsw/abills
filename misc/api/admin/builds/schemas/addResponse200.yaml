@@ -1,0 +1,3 @@
+allOf:
+  - $ref: "#/components/schemas/ApiAddResponse200"
+  - $ref: "../schemas/builds.yaml"

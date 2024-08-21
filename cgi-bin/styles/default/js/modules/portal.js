@@ -121,12 +121,16 @@ function setupResendButtons() {
     const thisButton = jQuery(this);
     const methodId = thisButton.data('method-id');
     const articleId = jQuery('[name="id"]').prop('value');
+    const [checkbox] = jQuery('[method-id="' + methodId + '"]');
+    const type = checkbox.name.substring(NEWSLETTER_CHECKBOX_PREFIX.length)
+    const newsletterDatetimeInput = jQuery('[name="' + type + '_START_DATETIME' + '"]');
+    const datetime = newsletterDatetimeInput.val();
 
     thisButton.prop('disabled', 'disabled');
     const loadingLabel = thisButton.data('label-on-loading');
 
     thisButton.html(loadingLabel);
-    _apiCreateNewsletter(methodId, articleId)
+    _apiCreateNewsletter(methodId, articleId, datetime)
       .then(res => {
         if (!res.ok) {
           throw res;
@@ -147,16 +151,32 @@ function setupResendButtons() {
   })
 }
 
-function _apiCreateNewsletter(sendMethod, portalArticleId) {
+function _apiCreateNewsletter(sendMethod, portalArticleId, startDatetime) {
   const body = {
     portalArticleId,
-    sendMethod
+    sendMethod,
+    startDatetime
   };
 
   return fetch("/api.cgi/portal/newsletter", {
     method: "POST",
     body: JSON.stringify(body)
   })
+}
+
+const NEWSLETTER_CHECKBOX_PREFIX = 'NEWSLETTER_';
+
+function _fillDatetimeOnClick(e) {
+  const type = e.target.name.substring(NEWSLETTER_CHECKBOX_PREFIX.length);
+  const newsletterDatetimeInput = jQuery('[name="' + type + '_START_DATETIME' + '"]');
+  const dateInput = jQuery('[name="date"]');
+
+  if (!newsletterDatetimeInput.val()) {
+    const dateOnly = new Date(dateInput.val() || new Date());
+    dateOnly.setHours(12, 0, 0);
+    const formattedDate = formatDate(dateOnly, 'yyyy-mm-dd hh:ii:ss')
+    newsletterDatetimeInput.val(formattedDate);
+  }
 }
 
 jQuery(function () {
@@ -187,6 +207,8 @@ jQuery(function () {
     portalEditor.setValue(editorContentFormatted);
     portalEditor.refresh();
   });
+
+  jQuery('[name^="'+ NEWSLETTER_CHECKBOX_PREFIX + '"]').on('click', _fillDatetimeOnClick);
 
   fillPreview();
   portalEditor.on('beforeChange', onPaste);

@@ -1,0 +1,40 @@
+type: array
+items:
+  type: object
+  properties:
+    aid:
+      type: number
+      example: 1
+    date:
+      type: string
+      example: '0000-00-00'
+    endDate:
+      type: string
+      example: '0000-00-00'
+    id:
+      type: number
+      example: 1
+    name:
+      type: string
+      example: Excellent document
+    number:
+      type: string
+      example: "OP-20201"
+    regDate:
+      type: string
+      example: '0000-00-00 00:00:00'
+    template:
+      type: string
+      example: example
+    type:
+      type: number
+      example: 1
+    typeName:
+      type: string
+      example: IPTV contracts
+    uid:
+      type: number
+      example: 106021
+    companyId:
+      type: number
+      example: 112

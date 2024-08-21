@@ -1,0 +1,29 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 2
+  tpName:
+    type: string
+    example: Премиум Iptvportal
+  tpId:
+    type: integer
+    example: 41
+  serviceStatus:
+    type: integer
+    example: 0
+  monthFee:
+    type: integer
+    example: 250
+  dayFee:
+    type: integer
+    example: 0
+  serviceId:
+    type: integer
+    example: 0
+  subscribeId:
+    type: integer
+    example: 0
+  filterId:
+    type: integer
+    example: 0

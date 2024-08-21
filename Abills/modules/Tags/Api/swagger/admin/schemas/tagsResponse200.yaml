@@ -1,0 +1,26 @@
+type: object
+properties:
+  aid:
+    type: string
+    example: 123
+  color:
+    type: string
+    example: "#123456"
+  comments:
+    type: string
+    example: Tag added by REST API
+  expireDays:
+    type: number
+    example: 10
+  id:
+    type: number
+    example: 5
+  name:
+    type: string
+    example: Cool tag
+  priority:
+    type: number
+    example: 4
+  responsible:
+    type: string
+    example: 123

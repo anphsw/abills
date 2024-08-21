@@ -57,7 +57,7 @@ my @skip_nums = ();
 #**********************************************************
 sub new {
   my $class = shift;
-  my ($CONF) = @_;
+  my ($CONF, $attr) = @_;
 
   %conf = %{$CONF};
 
@@ -65,6 +65,10 @@ sub new {
     CHARSET => $conf{dbcharset},
     SCOPE   => 2
   });
+
+  if ($attr->{DEBUG} && $attr->{DEBUG} > 4) {
+    $Event_log->{level}=$attr->{DEBUG};
+  }
 
   require Service;
   Service->import();
@@ -224,6 +228,13 @@ sub reconnect_to_asterisk_in {
 
   Default handler for asterisk AMI events
 
+  Arguments:
+    $asterisk
+    $event
+
+  Returns:
+
+
 =cut
 #**********************************************************
 sub process_asterisk_newchannel {
@@ -255,11 +266,6 @@ sub process_asterisk_newchannel {
         CALL_ID       => $call_id,
         STATUS        => 1
       });
-
-      # my $ivr_call_info = $Callcenter->log_list({COLS_NAME => 1, UID=> '_SHOW', UNIQUE_ID => $call_id});
-
-      # use Abills::Base;
-      # _bp("ivr", $ivr_call_info, {TO_CONSOLE=>1});
     }
 
     $Log->info("Got Newchannel event. $caller_number calling to $called_number ");
@@ -423,6 +429,7 @@ sub get_admin_by_sip_number {
   Arguments:
     $called_number - call receiver (Admin)
     $caller_numer  - call initiatior
+    $event
     
   Returns:
     UID or 0 for unknown
@@ -493,13 +500,13 @@ sub notify_admin_about_new_call {
 
   foreach my $user_info (@$users_list) {
     $Log->info("USER_INFO: $user_info->{UID} NUMBER: $caller_number ");
-    my $notification = _create_user_notification({ %{$user_info}, });
+    my $notification = _create_user_notification({ %{$user_info}, CALLER_NUMBER => $caller_number });
     $Log->info("END Notification");
     # Notify admin by messageChecker.ParseMessage
     foreach my $aid (@online_aids) {
       $websocket_api->notify_admin($aid, $notification);
       my $uid = $user_info->{UID} || '!!! NO USER';
-      #`echo "POPUP  NUMBER: $caller_number USER: $uid  AID: $aid " >> /tmp/sip `;
+      `echo "POPUP  NUMBER: $caller_number USER: $uid  AID: $aid " >> /tmp/sip `;
       #$Log->info("STOP AID: '$aid' <<< NUM: $i/$count  " . join(', ', @online_aids));
     }
   }
@@ -545,7 +552,7 @@ sub exit_with_error {
 =cut
 #**********************************************************
 sub _create_user_notification {
-  my ($user_info) = @_;
+  my ($user_info, $number) = @_;
 
   my $tp_name = '';
   my $internet_status = 0;
@@ -623,7 +630,7 @@ sub _create_user_notification {
   my $result = {
     TITLE  => Encode::decode('utf8', $title),
     TEXT   => Encode::decode('utf8', $text),
-    EXTRA  => '?index=15&UID=' . ($user_info->{UID} || 0),
+    EXTRA  => '?index=15&UID=' . ($user_info->{UID} || 0) . '&PHONE='. ($user_info->{CALLER_NUMBER} || ''),
     ICON   => 'fa fa-user text-success',
     CLIENT => {
       UID   => $user_info->{UID},
@@ -694,6 +701,7 @@ sub _create_lead_notification {
     TEXT   => Encode::decode('utf8', $text),
     EXTRA  => $link,
     ICON   => $icon,
+    TIMEOUT=> $conf{WEBSOCKET_ASTERISK_INFO_TIMEOUT} || q{},
     CLIENT => {
       FIO          => $lead_info{FIO} || q{},
       ADDRESS_FULL => $lead_info{ADDRESS_FULL} || q{},
@@ -748,6 +756,13 @@ sub process_default {
 #**********************************************************
 =head2 process_asterisk_bridge($asterisk, $event)
 
+  Arguments:
+    $asterisk
+    $event
+
+  Results:
+
+
 =cut
 #**********************************************************
 sub process_asterisk_bridge {
@@ -764,10 +779,12 @@ sub process_asterisk_bridge {
   `echo "BRIDGE: $event_ /$bridgestate/ $call_id, $caller_number -> $called_number" >> /tmp/sip`;
 
   if ($bridgestate eq 'Unlink') {
+    my $aid = 0;
     $Callcenter->callcenter_change_calls({
       STATUS => 5,
       ID     => $call_id,
-      STOP   => 'NOW()'
+      STOP   => 'NOW()',
+      AID    => $aid
     });
 
     $Log->info("BRIDGE UNLINK: $call_id NUMBER: $caller_number");
@@ -780,6 +797,7 @@ sub process_asterisk_bridge {
       ID             => $call_id,
       #UID            => $uid || 0,
       STATUS         => 2,
+      #AID            => $aid || 0;
     });
   }
 
@@ -787,7 +805,14 @@ sub process_asterisk_bridge {
 }
 
 #**********************************************************
-=head2 process_asterisk_bridge($asterisk, $event)
+=head2 process_asterisk_softhanguprequest($asterisk, $event)
+
+  Arguments:
+    $asterisk
+    $event
+
+  Results:
+
 
 =cut
 #**********************************************************
@@ -875,7 +900,9 @@ sub process_asterisk_rtcpsent {
     return 0;
   }
 
-  if ($event->{Context} && $event->{Context} eq 'cos-all') {
+  my $reverse_context = $conf{CALLCENTER_ASTERISK_REVERSE} || q{};
+
+  if ($reverse_context && $event->{Context} && $event->{Context} eq $reverse_context) {
     $called_number = $event->{CallerIDNum} || q{};
     $caller_number = $event->{ConnectedLineNum} || q{};
     $call_id = $event->{Linkedid} || $event->{Uniqueid} || q{UNKNOWN};
@@ -997,12 +1024,13 @@ sub call_processing {
     #`echo "$DATE $TIME >>>>>>>>>>>>>>>> $caller_number  ->  $called_number ID:  $call_id UID: $uid / $search_expr ($error)" >> /tmp/sip`;
   };
 
-  my $ivr_is_exist = 0;
+  #my $ivr_is_exist = 0;
   $asterisk->{guard_timer} = AnyEvent->timer(
     after => 1,
     cb    => sub {
       $Callcenter->callcenter_list_calls({
-        ID => $call_id
+        SKIP_DEL_CHECK => 1,
+        ID             => $call_id
       });
 
       #print "Total - $Callcenter->{TOTAL}\n";

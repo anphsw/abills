@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "result": {
+      "type": "string"
+    },
+    "gid": {
+      "type": "integer"
+    },
+    "errno": {
+      "type": "integer"
+    },
+    "errstr": {
+      "type": "string"
+    }
+  }
+}

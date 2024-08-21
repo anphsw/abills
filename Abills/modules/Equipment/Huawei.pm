@@ -311,6 +311,9 @@ sub _huawei_delete_onu {
   Arguments:
     $attr
       PON_TYPE
+      NAS_INFO
+      TR_069_VLAN
+      DEF_VLAN
 
   Returns;
 
@@ -346,8 +349,13 @@ sub _huawei_unregister_form {
       SILENT => 1
     });
 
+    my $debug = $FORM {DEBUG} || 0;
     foreach my $line (@$profile_list) {
       my ($name, undef) = split(/:/, $line, 2);
+
+      if ($debug > 2) {
+        print "$type: line profile: $line " . huawei_parse_profile_name($name) .$html->br();
+      }
 
       if ($type eq $profiles[0]) {
         push @line_profiles, huawei_parse_profile_name($name);
@@ -358,25 +366,85 @@ sub _huawei_unregister_form {
     }
   }
 
+  #Profile vlans
+  my $profile_snmp_vlans = snmp_get({
+    %{$attr},
+    WALK   => 1,
+    # HUAWEI-XPON-MIB::hwGponDeviceLineProfMappingCfgVlanId
+    OID    => '.1.3.6.1.4.1.2011.6.128.1.1.3.64.1.8',
+    TIMEOUT=> $attr->{SNMP_TIMEOUT} || 8,
+    SILENT => 1
+  });
+
+  my $debug = $FORM{DEBUG} || 0;
+  my %profile_vlans = ();
+  foreach my $line (@$profile_snmp_vlans) {
+    my ($profile_name, $vlan)=split(/:/, $line);
+
+    $profile_name =~ s/^(\d+)\.//;
+    $profile_name =~ s/\.$vlan\.\d+$//g;
+    if ($debug > 1) {
+      print huawei_parse_profile_name($profile_name) . " -> ". $line .$html->br();
+    }
+
+    if ($vlan && $vlan == -1) {
+      next;
+    }
+
+    $profile_name = huawei_parse_profile_name($profile_name);
+    push @{ $profile_vlans{$profile_name} }, $vlan;
+  }
+
+  if($debug > 1) {
+    foreach my $profile_name (keys %profile_vlans) {
+      print " $profile_name: ";
+      print join(', ', @{$profile_vlans{$profile_name}});
+      print $html->br();
+    }
+  }
+
+  my $vlan_num=0;
+  foreach my $profile (keys %profile_vlans) {
+    my $vlan_num=0;
+    $attr->{MULTI_VLANS} .= "{ profile: '$profile', "
+      .  join(', ', map{ $vlan_num++; $_ = "vlan$vlan_num: '$_'"; } @{ $profile_vlans{$profile} } )
+      . "},";
+  }
+
+  if ($debug > 0) {
+    print $attr->{MULTI_VLANS};
+  }
+
   $attr->{INTERNET_VLAN_SEL} = $html->form_select('VLAN_ID', {
     SELECTED    => $attr->{DEF_VLAN} || '',
     SEL_OPTIONS => { '' => '--' },
     SEL_HASH    => \%vlans,
-    NO_ID       => 1
+    NO_ID       => 1,
+    REQUIRED    => ($vlan_num > 1) ? 1 : 0
   });
 
   $attr->{TR_069_VLAN_SEL} = $html->form_select('TR_069_VLAN_ID', {
     SELECTED    => $attr->{TR_069_VLAN} || '',
     SEL_OPTIONS => { '' => '--' },
     SEL_HASH    => \%vlans,
-    NO_ID       => 1
+    NO_ID       => 1,
+    REQUIRED    => ($vlan_num > 2) ? 1 : 0
   });
 
   $attr->{IPTV_VLAN_SEL} = $html->form_select('IPTV_VLAN_ID', {
     SELECTED    => $attr->{IPTV_VLAN} || '',
     SEL_OPTIONS => { '' => '--' },
     SEL_HASH    => \%vlans,
-    NO_ID       => 1
+    NO_ID       => 1,
+    REQUIRED    => ($vlan_num > 3) ? 1 : 0
+  });
+
+  $attr->{VLAN3_SEL} = $html->form_select('VLAN3_ID', {
+    SELECTED    => $attr->{VLAN3_ID} || '',
+    SEL_OPTIONS => { '' => '--' },
+    SEL_HASH    => \%vlans,
+    NO_ID       => 1,
+    #REQUIRED    => ($attr->{MULTI_VLANS}) ? 1 : 0
   });
 
   my $default_line_profile = $conf{HUAWEI_LINE_PROFILE_NAME} || 'ONU';
@@ -401,9 +469,10 @@ sub _huawei_unregister_form {
     SEL_ARRAY   => \@srv_profiles,
   });
 
-  $attr->{TYPE} = $pon_type;
-  $attr->{SHOW_VLANS}=1;
-  $attr->{UC_TYPE} = uc($pon_type);
+  $attr->{TYPE}      = $pon_type;
+  $attr->{SHOW_VLANS}= 1;
+  $attr->{UC_TYPE}   = uc($pon_type);
+  $attr->{visual}    = $FORM{visual} || q{};
 
   $html->tpl_show(_include('equipment_registred_onu', 'Equipment'), $attr);
 
@@ -716,17 +785,13 @@ sub _huawei_get_service_ports {
   my ($attr) = @_;
 
   my $pon_type = $attr->{PON_TYPE} || $attr->{ONU_TYPE} || $attr->{TYPE} || q{};
-  my $onu_id = $attr->{ONU_ID} || q{};
-  my $branch  = $attr->{BRANCH} || q{};
-  my $debug = $attr->{DEBUG} || 0;
+  my $onu_id   = $attr->{ONU_ID} || 0;
+  my $branch   = $attr->{BRANCH} || q{};
+  my $debug    = $attr->{DEBUG} || 0;
 
   if (_huawei_telnet_open($attr)) {
-    my $data = '';
-    $data = _huawei_telnet_cmd("display service-port port $branch ont $onu_id sort-by vlan");
-    $Telnet->close();
-    if ($debug > 1) {
-      print "$data";
-    }
+    my $data = _huawei_telnet_cmd("display service-port port $branch ont $onu_id sort-by vlan", { DEBUG => $debug });
+
     my @list = split('\n', $data || q{});
     my @service_ports = ();
     foreach my $line (@list) {
@@ -1097,7 +1162,7 @@ sub _huawei_convert_onu_last_down_cause {
 }
 
 #**********************************************************
-=head2 huawei_parse_profile_name
+=head2 huawei_parse_profile_name($name)
 
   Decode profile name from OID
 
@@ -1113,11 +1178,6 @@ sub huawei_parse_profile_name {
   my ($name) = @_;
 
   $name = pack('(C)*', split(/\./, $name || q{}));
-  #
-  # #Fixme
-  # my $name1 = 'EponAll';
-  # my @pro_hex = unpack('C*', $name1);
-  # print "<br>$name1 --->". join('.', @pro_hex). '<---<br>';
 
   return $name;
 }
@@ -1151,6 +1211,7 @@ sub huawei_make_profile_name {
 
   Arguments:
     $attr
+      DEBUG
 
   Results:
 
@@ -1161,13 +1222,9 @@ sub _huawei_get_fdb {
   my ($attr) = @_;
 
   my %hash = ();
-  my $debug = $attr->{DEBUG} || 0;
+
   if (_huawei_telnet_open($attr)) {
-    my $data = _huawei_telnet_cmd("display mac-address all");
-    $Telnet->close();
-    if ($debug > 6) {
-      print "<pre>$data</pre>";
-    }
+    my $data = _huawei_telnet_cmd("display mac-address all", $attr);
 
     my @list = split("\n", $data || q{});
     my $port_types = ({ eth => 'ethernet', gpon => 'GPON ', epon => 'EPON ' });
@@ -1273,18 +1330,37 @@ sub _huawei_telnet_open {
 }
 
 #**********************************************************
-=head2 _huawei_telnet_cmd($cmd);
+=head2 _huawei_telnet_cmd($cmd, $attr);
+
+   Arguments:
+     $cmd
+     $attr
+
+   Results:
+     $result
 
 =cut
 #**********************************************************
 sub _huawei_telnet_cmd {
-  my ($cmd) = @_;
+  my ($cmd, $attr) = @_;
+
+  my $debug = $attr->{DEBUG} || 0;
+
+  if ($debug > 2) {
+    print "$cmd\n";
+  }
 
   $Telnet->print($cmd);
   $Telnet->print(" ");
   my @data = $Telnet->waitfor('/#/');
+  $Telnet->close();
+  my $result = $data[0] || q{};
 
-  return $data[0];
+  if ($debug > 1) {
+    print "<pre>$result</pre>\n";
+  }
+
+  return $result;
 }
 
 #**********************************************************
@@ -1314,13 +1390,21 @@ sub _huawei_get_onu_config {
   my $branch = $attr->{BRANCH};
   my $onu_id = $attr->{ONU_ID};
   my $pon_type = $attr->{PON_TYPE};
+  my $pon_model = $attr->{NAS_INFO}->{MODEL_NAME};
 
   my @cmds = @{equipment_get_telnet_tpl({
-    TEMPLATE => "huawei_get_onu_config_$pon_type.tpl",
+    TEMPLATE => "huawei_get_onu_config_" . $pon_type . "_" . $pon_model . ".tpl",
     BRANCH   => $branch,
     ONU_ID   => $onu_id || 0
   })};
 
+  if (!@cmds) {
+    @cmds = @{equipment_get_telnet_tpl({
+      TEMPLATE => "huawei_get_onu_config_$pon_type.tpl",
+      BRANCH   => $branch,
+      ONU_ID   => $onu_id || 0
+    })};
+  }
   if (!@cmds) {
     @cmds = @{equipment_get_telnet_tpl({
       TEMPLATE => "huawei_get_onu_config_$pon_type.tpl.example",
@@ -1346,7 +1430,19 @@ sub _huawei_get_onu_config {
   my @result = ();
 
   foreach my $cmd (@cmds) {
-    my @cmd_result = $Telnet->cmd($cmd);
+    my @cmd_arr = split(';', $cmd);
+
+    foreach my $cmd_ (@cmd_arr) {
+
+      if ($cmd_ =~ /enter/) {
+        $Telnet->print(" ");
+      }
+      else {
+        $Telnet->print("$cmd_");
+      }
+    }
+    my @cmd_result = $Telnet->waitfor('/\(config\)#/');
+
     if (@cmd_result) {
       push @result, [$cmd, join('', @cmd_result)];
     }

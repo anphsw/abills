@@ -1,0 +1,20 @@
+type: object
+properties:
+  uid:
+    type: integer
+    example: 11135
+  chapter:
+    type: integer
+    example: 2
+  message:
+    type: string
+    example: Test message
+  state:
+    type: integer
+    example: 0
+  subject:
+    type: string
+    example: Message subject
+  priority:
+    type: integer
+    example: 2

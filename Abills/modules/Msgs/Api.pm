@@ -22,6 +22,7 @@ my Msgs $Msgs;
 my Msgs::Notify $Notify;
 my Msgs::Misc::Attachments $Attachments;
 
+# Can not delete because is needed in Msgs::Notify. Probably need to create dynamic load of
 our %lang;
 require 'Abills/modules/Msgs/lng_english.pl';
 
@@ -129,7 +130,7 @@ sub user_routes {
   return [
     {
       method      => 'GET',
-      path        => '/user/:uid/msgs/chapters/',
+      path        => '/user/msgs/chapters/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
@@ -152,7 +153,7 @@ sub user_routes {
     },
     {
       method      => 'GET',
-      path        => '/user/:uid/msgs/',
+      path        => '/user/msgs/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
@@ -175,7 +176,7 @@ sub user_routes {
     },
     {
       method      => 'POST',
-      path        => '/user/:uid/msgs/',
+      path        => '/user/msgs/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
         my %extra_params = ();
@@ -225,7 +226,7 @@ sub user_routes {
     },
     {
       method      => 'GET',
-      path        => '/user/:uid/msgs/:id/',
+      path        => '/user/msgs/:id/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
@@ -237,7 +238,7 @@ sub user_routes {
     },
     {
       method      => 'GET',
-      path        => '/user/:uid/msgs/:id/reply/',
+      path        => '/user/msgs/:id/reply/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
@@ -315,7 +316,7 @@ sub user_routes {
     },
     {
       method      => 'POST',
-      path        => '/user/:uid/msgs/:id/reply/',
+      path        => '/user/msgs/:id/reply/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
 
@@ -740,6 +741,46 @@ sub admin_routes {
       },
       credentials => [
         'ADMIN'
+      ]
+    },
+
+    {
+      method      => 'GET',
+      path        => '/msgs/report/dynamics/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        my $messages_and_replies = $Msgs->messages_and_replies_for_two_weeks();
+
+        my $data_by_days = {};
+        foreach my $data (@{$messages_and_replies}) {
+          if ($data_by_days->{$data->{day}}) {
+            $data_by_days->{$data->{day}}{MESSAGES} += $data->{messages} || 0;
+            $data_by_days->{$data->{day}}{REPLIES} += $data->{replies} || 0;
+            next;
+          }
+          $data_by_days->{$data->{day}} = {
+            MESSAGES => $data->{messages} || 0,
+            REPLIES  => $data->{replies} || 0,
+            CLOSED   => 0
+          };
+        }
+
+        my $closed_messages = $Msgs->messages_and_replies_for_two_weeks(join(',', map { "'$_'" } keys %{$data_by_days}));
+        foreach my $closed_message (@{$closed_messages}) {
+          $data_by_days->{$closed_message->{day}}{CLOSED} = $closed_message->{closed_messages};
+        }
+
+        my @result = ();
+
+        foreach my $date (sort keys %{$data_by_days}) {
+          push @result, { DATE  => $date, VALUE => $data_by_days->{$date} }
+        }
+
+        return \@result;
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
       ]
     }
   ];

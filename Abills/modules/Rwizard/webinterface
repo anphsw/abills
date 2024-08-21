@@ -881,6 +881,7 @@ sub quick_report {
   foreach my $line (@$list) {
     my @tr_arr = ();
     foreach (@col_names) {
+      $line->{$_} = _translate($line->{$_}) if ($line->{$_} =~ /^\$/);
       push @tr_arr, $line->{$_};
     }
     $table->addrow(@tr_arr);
@@ -1669,6 +1670,8 @@ sub _make_report_table {
           $val = &{\&$fn_name}($line->{$c});
         }
       }
+
+      $val = _translate($val) if ($val && $val =~ /^\$/ );
 
       push @tr_arr, $val;
     }

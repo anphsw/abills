@@ -1,0 +1,14 @@
+type: object
+properties:
+  filename:
+    type: string
+    example: 'image.png'
+  Size:
+    type: integer
+    example: 563233
+  Contents:
+    type: string
+    example: 'image content'
+  'Content-Type':
+    type: string
+    example: 'image/jpg'

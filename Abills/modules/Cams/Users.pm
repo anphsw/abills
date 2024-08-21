@@ -7,6 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(in_array cmd _bp);
+use Cams::Init qw/init_cams_service/;
 require Abills::Misc;
 
 our (
@@ -45,7 +46,7 @@ sub cams_user {
   my $user_groups = '';
 
   if ($FORM{add}) {
-    $Cams->users_list({ UID => $uid, TP_ID => $FORM{TP_ID} || 0 });
+    $Cams->user_list({ UID => $uid, TP_ID => $FORM{TP_ID} || 0 });
 
     if ($Cams->{TOTAL}) {
       $html->message('err', $lang{ERROR}, "This tariff already used");
@@ -114,7 +115,7 @@ sub cams_user {
     }
   }
   elsif (!$FORM{add_form}) {
-    my $list = $Cams->users_list({ UID => $FORM{UID}, ID => '_SHOW', COLS_NAME => 1 });
+    my $list = $Cams->user_list({ UID => $FORM{UID}, ID => '_SHOW', COLS_NAME => 1 });
     $FORM{chg} = $list->[0]->{id} if $Cams->{TOTAL} == 1;
   }
 
@@ -163,7 +164,7 @@ sub cams_user {
   $LIST_PARAMS{SERVICE_NAME} = "_SHOW";
   result_former({
     INPUT_DATA      => $Cams,
-    FUNCTION        => 'users_list',
+    FUNCTION        => 'user_list',
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'ID,TP_NAME,SERVICE_STATUS',
     FUNCTION_FIELDS => 'change, del',
@@ -456,7 +457,11 @@ sub cams_user_services {
   my DBI $db_ = $Cams->{db}{db};
 
   if ($Cams->{SERVICE_ID}) {
-    $Cams_service = cams_load_service($Cams->{MODULE}, { SERVICE_ID => $Cams->{SERVICE_ID} });
+    $Cams_service = init_cams_service($db, $admin, \%conf, {
+      SERVICE_ID => $Cams->{SERVICE_ID},
+      HTML       => $html,
+      LANG       => \%lang
+    });
   }
   else {
     delete($Cams->{db}->{TRANSACTION});
@@ -524,10 +529,8 @@ sub cams_account_action {
 
   my $result = 0;
 
-  if (($Cams->{SERVICE_ID} || ($attr->{SERVICE_ID} && $attr->{MODULE})) && !$Cams_service) {
-    $Cams->{SERVICE_ID} = $Cams->{SERVICE_ID} || $attr->{SERVICE_ID};
-    $Cams->{MODULE} = $Cams->{MODULE} && $Cams->{MODULE} ne "Cams" ? $Cams->{MODULE} : $attr->{MODULE};
-    $Cams_service = cams_load_service($Cams->{MODULE}, { SERVICE_ID => $Cams->{SERVICE_ID} });
+  if ($Cams->{SERVICE_ID}) {
+    $Cams_service = init_cams_service($db, $admin, \%conf, { SERVICE_ID => $Cams->{SERVICE_ID}, HTML => $html, LANG => \%lang });
     if ($Cams_service && $Cams_service->{SUBSCRIBE_COUNT}) {
       $attr->{SUBSCRIBE_COUNT} = $Cams_service->{SUBSCRIBE_COUNT};
     }

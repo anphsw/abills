@@ -47,12 +47,15 @@ use Finance;
 use Admins;
 use Conf;
 
-our (%LANG,
+our (
+  %LANG,
   %lang,
   @MONTHES,
   @WEEKDAYS,
   $base_dir,
-  @REGISTRATION
+  @REGISTRATION,
+  @MODULES,
+  %COOKIES
 );
 
 $conf{web_session_timeout} = ($conf{web_session_timeout}) ? $conf{web_session_timeout} : '86400';
@@ -99,6 +102,7 @@ $conf{WEB_TITLE} = $admin->{DOMAIN_NAME} if ($admin->{DOMAIN_NAME});
 $conf{TPL_DIR} //= $base_dir . '/Abills/templates/';
 
 do 'Abills/Misc.pm';
+do 'Control/Password.pm';
 require Abills::Templates;
 require Abills::Result_former;
 
@@ -152,7 +156,12 @@ sub _start {
   }
 
   require Control::Auth;
-  ($uid, $sid, $login) = auth_user($login, $passwd, $sid);
+  ($uid, $sid, $login) = auth_user($login, $passwd, $sid, {
+    FORM => \%FORM,
+    HTML => $html,
+    USER => $user,
+    LANG => \%lang
+  });
 
   # if after auth user $uid not exist - show message about wrong password
   if (!$uid && exists $FORM{logined}) {
@@ -204,17 +213,7 @@ sub _start {
   ) {
     print $html->header();
     load_module('Portal', $html);
-    my $wrong_auth = 0;
-
-    # wrong passwd
-    if ($FORM{user} && $FORM{passwd}) {
-      $wrong_auth = 1;
-    }
-    # wrong social acc
-    if ($FORM{code} && !$login) {
-      $wrong_auth = 2;
-    }
-    portal_s_page($wrong_auth);
+    portal_s_page();
 
     $html->fetch({ DEBUG => $ENV{DEBUG} });
     return 1;
@@ -600,13 +599,19 @@ sub form_info {
       TYPE_ID => $Contacts->contact_type_id_for_name(uc($FORM{REMOVE_SUBSCRIBE}))
     });
 
+    if ($FORM{REMOVE_SUBSCRIBE} eq 'Telegram') {
+      use Telegram::db::Telegram;
+      my $Telegram_db = Telegram->new($db, $admin, \%conf);
+      $Telegram_db->del($uid);
+    }
+
     $html->redirect('/index.cgi');
     return 1;
   }
 
   _user_pi() if $conf{user_chg_pi};
 
-  $user->{STATUS_CHG_BUTTON} = form_holdup(\%FORM) if ($conf{HOLDUP_ALL});
+ $user->{STATUS_CHG_BUTTON} = form_holdup(\%FORM) if ($conf{HOLDUP_ALL});
 
   my $Payments = Finance->payments($db, $admin, \%conf);
   my $payment_list = $Payments->list({
@@ -625,14 +630,18 @@ sub form_info {
     $user->{EXT_DATA} = $html->tpl_show(templates('form_client_ext_bill'), $user, { OUTPUT2RETURN => 1 });
   }
 
-  $user->{STATUS} = ($user->{DISABLE}) ? $html->color_mark($lang{DISABLE}, $_COLORS[6]) : $lang{ENABLE};
+  my $service_status = sel_status({ HASH_RESULT => 1 });
+  my ($status, $color) = split(/:/, $service_status->{ $user->{DISABLE} });
+  $user->{STATUS} = $html->color_mark($status, $color);
+
+  #$user->{STATUS} = ($user->{DISABLE}) ? $html->color_mark($lang{DISABLE}, $_COLORS[6]) : $lang{ENABLE};
   $deposit = sprintf("%.2f", $user->{DEPOSIT} || 0);
 
   $user->{DEPOSIT} = $deposit;
 
   my $sum = 0;
   if ($user && defined &recomended_pay) {
-    $sum = recomended_pay($user) || 1;
+    $sum = recomended_pay($user) || 0;
   }
 
   $pages_qs = "&SUM=$sum&sid=$sid";
@@ -727,6 +736,7 @@ sub form_info {
     $user->{HAS_SOCIAL_BUTTONS} = '1';
   }
 
+  $user->{DEPOSIT} = sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $user->{DEPOSIT});
   $user->{SENDER_SUBSCRIBE_BLOCK} = make_sender_subscribe_buttons_block();
   $user->{SHOW_SUBSCRIBE_BLOCK} = ($user->{SENDER_SUBSCRIBE_BLOCK}) ? 1 : 0;
 
@@ -792,7 +802,7 @@ sub form_info {
     internet_user_info();
   }
 
-  cross_modules('promotional_tp', { USER => $user });
+  cross_modules('promotional_tp', { USER_INFO => $user, SKIP_COMPANY_USERS => 1 });
 
   return 1;
 }
@@ -822,9 +832,14 @@ sub form_holdup {
   if (!$holdup_info->{DEL}) {
     return '' if ($holdup_info->{error} || _error_show($holdup_info) || $holdup_info->{success});
     if (($user->{STATUS} && $user->{STATUS} == 3) || $user->{DISABLE}) {
-      $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n " .
-        $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=". ($FORM{ID} || q{}) ."&sid=$sid",
-          { BUTTON => 2, MESSAGE => "$lang{ACTIVATE}?" }) );
+      my $del_btn = ($Service_control->{CAN_ACTIVATE})
+        ? $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=". ($FORM{ID} || q{}) ."&sid=$sid",
+          { BUTTON => 2, MESSAGE => "$lang{ACTIVATE}?" })
+        : q{};
+
+      my $message = $holdup_info->{DATE_TO} ? ": $lang{TO} $holdup_info->{DATE_TO}" : '';
+
+      $html->message('info', $lang{INFO}, "$lang{HOLD_UP}$message\n " . $del_btn);
       return '';
     }
 
@@ -1215,140 +1230,6 @@ sub form_login_clients {
   });
 }
 
-#**********************************************************
-=head2 form_passwd() - User password form
-
-=cut
-#**********************************************************
-sub form_passwd {
-
-  $conf{PASSWD_SYMBOLS} = 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ' if (!$conf{PASSWD_SYMBOLS});
-  $conf{PASSWD_LENGTH} = 6 if (!$conf{PASSWD_LENGTH});
-
-  $user->pi({ UID => $user->{UID} });
-  my $g2fa_message = "";
-
-  if ($conf{AUTH_G2FA}) {
-    require Abills::Auth::OATH;
-    Abills::Auth::OATH->import();
-
-    if ($FORM{g2fa}) {
-      require Abills::Auth::Core;
-      Abills::Auth::Core->import();
-      my $Auth = Abills::Auth::Core->new({
-        CONF      => \%conf,
-        AUTH_TYPE => 'OATH'
-      });
-
-      if ($Auth->check_access({ PIN => $FORM{g2fa}, SECRET => $FORM{g2fa_secret} })) {
-        if ($FORM{g2fa_remove}) {
-          $user->pi_change({
-            UID   => $user->{UID},
-            _G2FA => ''
-          });
-        }
-        else {
-          $user->pi_change({
-            UID   => $user->{UID},
-            _G2FA => $FORM{g2fa_secret}
-          });
-        }
-        $g2fa_message = $html->message('info', $lang{SUCCESS}, '', { OUTPUT2RETURN => 1 });
-      }
-      else {
-        $g2fa_message = $html->message('err', $lang{ERROR}, $lang{G2FA_WRONG_CODE}, { OUTPUT2RETURN => 1 });
-      }
-      $user->pi({ UID => $user->{UID} });
-    }
-  }
-
-  my $password_check_ok = 0;
-  if (!$FORM{newpassword}) {
-
-  }
-  elsif (length($FORM{newpassword}) < $conf{PASSWD_LENGTH}) {
-
-    my $explain_string = $lang{ERR_SHORT_PASSWD};
-    $explain_string =~ s/ 6 / $conf{PASSWD_LENGTH} /;
-
-    $html->message('err', $lang{ERROR}, $explain_string);
-  }
-  elsif ($conf{PASSWD_POLICY_USERS} && $conf{CONFIG_PASSWORD}
-    && defined $user->{UID}
-    && !Conf::check_password($FORM{newpassword}, $conf{CONFIG_PASSWORD})
-  ) {
-    load_module('Config', $html);
-    my $explain_string = config_get_password_constraints($conf{CONFIG_PASSWORD});
-
-    $html->message('err', $lang{ERROR}, "$lang{ERR_PASSWORD_INSECURE} $explain_string");
-  }
-  else {
-    $password_check_ok = 1;
-  }
-
-  if ($password_check_ok && $FORM{newpassword} eq $FORM{confirm}) {
-    my %INFO = (
-      PASSWORD => $FORM{newpassword},
-      UID      => $user->{UID},
-      DISABLE  => $user->{DISABLE}
-    );
-
-    $user->change($user->{UID}, \%INFO);
-
-    if (!_error_show($user)) {
-      $html->message('info', $lang{INFO}, $lang{CHANGED});
-      cross_modules('payments_maked', { USER_INFO => $user });
-    }
-
-    return 0;
-  }
-  elsif ($FORM{newpassword} && $FORM{confirm} && $FORM{newpassword} ne $FORM{confirm}) {
-    $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_CONFIRM});
-  }
-
-  my %password_form = ();
-  $password_form{PW_CHARS} = $conf{PASSWD_SYMBOLS};
-  $password_form{PW_LENGTH} = $conf{PASSWD_LENGTH} || 6;
-  $password_form{ACTION} = 'change';
-  $password_form{LNG_ACTION} = $lang{CHANGE};
-  $password_form{CONFIG_PASSWORD} = $conf{CONFIG_PASSWORD} || '';
-
-  $password_form{G2FA_HIDDEN} = 'hidden';
-
-  if ($conf{AUTH_G2FA} && !$user->{_G2FA}) {
-    $password_form{G2FA_HIDDEN} = '';
-
-    my $secret = $FORM{g2fa_secret} || uc(mk_unique_value(32));
-    $password_form{G2FA_SECRET} = $secret;
-
-    require Control::Qrcode;
-    Control::Qrcode->import();
-    my $QRCode = Control::Qrcode->new($db, $admin, \%conf, { html => $html });
-
-    my $img_qr = $QRCode->_encode_url_to_img(Abills::Auth::OATH::encode_base32($secret), {
-      AUTH_G2FA_NAME => $conf{WEB_TITLE} || 'Abills',
-      AUTH_G2FA_MAIL => $user->{LOGIN},
-      OUTPUT2RETURN  => 1,
-    });
-
-    $password_form{G2FA_QR} = "<img src='data:image/jpg;base64," . encode_base64($img_qr) . "'>";
-    $password_form{G2FA_BUTTON} = $lang{ADD};
-  }
-  elsif ($conf{AUTH_G2FA} && $user->{_G2FA}) {
-    $password_form{G2FA_BUTTON} = $lang{REMOVE};
-    $password_form{G2FA_SECRET} = $user->{_G2FA};
-    $password_form{G2FA_HIDDEN} = '';
-    $password_form{G2FA_REMOVE} = 1;
-  }
-
-  if ($g2fa_message) {
-    $password_form{G2FA_MESSAGE} = $g2fa_message;
-  }
-
-  $html->tpl_show(templates('form_password'), \%password_form);
-
-  return 1;
-}
 
 #**********************************************************
 =head2 accept_rules()
@@ -2171,13 +2052,20 @@ sub fl {
     return 1;
   }
 
+  # cgi-bin/index.cgi
   my @m = ("10:0:$lang{USER_INFO}:form_info:::");
 
   if ($conf{user_finance_menu}) {
+    # cgi-bin/index.cgi
     push @m, "40:0:$lang{FINANCES}:form_finance:::";
+    # cgi-bin/index.cgi
+    # Have same name with sub in Control/Payments
     push @m, "41:40:$lang{PAYMENTS}:form_payments_list:::";
+    # cgi-bin/index.cgi
+    # Have same name with sub in Control/Fees
     push @m, "42:40:$lang{FEES}:form_fees:::";
     if ($conf{MONEY_TRANSFER}) {
+      # cgi-bin/index.cgi
       push @m, "43:40:$lang{MONEY_TRANSFER}:form_money_transfer:::";
     }
 
@@ -2193,8 +2081,10 @@ sub fl {
       #TODO: do we really need it in finance operations?
       if ($Company->{TOTAL} > 0 && $company_list->[0]->{is_company_admin} eq '1'
       ) {
+        # cgi-bin/index.cgi
         push @m, "44:40:$lang{SERVICES}:form_company_list::";
         push @m, "45:0:$user->{COMPANY_NAME}:null::";
+        # cgi-bin/index.cgi
         push @m, "46:45:$lang{INFO}:form_company_info::";
 
       }
@@ -2202,6 +2092,8 @@ sub fl {
   }
 
   # Should be 17 or you should change it at "CHANGE_PASSWORD" button in form_info()
+  # cgi-bin/index.cgi
+  # function is called from Control::Password
   push @m, "17:0:$lang{PASSWD}:form_passwd:::" if (
     $conf{user_chg_passwd} ||
       ($conf{group_chg_passwd} && $conf{group_chg_passwd} eq $user->{GID})
@@ -2220,8 +2112,6 @@ sub fl {
 sub form_custom {
   my %info = ();
 
-  require Control::Users_slides;
-
   if ($conf{MONEY_UNIT_NAMES}) {
     $info{MONEY_UNIT_NAME}=(split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
   }
@@ -2238,55 +2128,69 @@ sub form_custom {
 
   $info{RECOMENDED_PAY} = recomended_pay($user);
 
-  my $json_info = user_full_info({ SHOW_ID => 1, USER_INFO => $user });
-  if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 10) {
-    $html->{OUTPUT} .= '<pre>';
-    $html->{OUTPUT} .= $json_info;
-    $html->{OUTPUT} .= '</pre>';
+  my $Payments = Finance->payments($db, $admin, \%conf);
+  my $payment = $Payments->list({
+    UID        => $user->{UID},
+    DSC        => '_SHOW',
+    DATETIME   => '_SHOW',
+    SUM        => '_SHOW',
+    DESC       => 'DESC',
+    COLS_NAME  => 1,
+    COLS_UPPER => 1,
+    PAGE_ROWS  => 1
+  });
+
+  #define props for form_client_custom
+  $conf{DEPOSIT_FORMAT} //= '%.2f';
+  $info{MAIN_INFO_DEPOSIT} = sprintf($conf{DEPOSIT_FORMAT}, $user->{DEPOSIT});
+  $info{MAIN_INFO_UID} = $user->{$conf{PAYSYS_ACCOUNT_KEY} || 'UID'};
+
+  require Abills::Api::Handle;
+  Abills::Api::Handle->import();
+  my $Api = Abills::Api::Handle->new($db, $admin, \%conf, {
+    html    => $html,
+    lang    => \%lang,
+    cookies => \%COOKIES,
+    direct  => 1
+  });
+
+  my ($services) = $Api->api_call({
+    METHOD => 'GET',
+    PATH   => '/user/services',
+    PARAMS => {
+      ACTIVE_ONLY => 1,
+    }
+  });
+
+  if ($services->{errno}) {
+    $html->message('error', $lang{ERROR}, ($services->{errmsg} || $services->{errstr}), { ID => $services->{errno} });
   }
+  else {
+    # cringe fix of sorting services
+    foreach my $module (@MODULES) {
+      next if !$services->{$module} || ref $services->{$module} ne 'ARRAY' || scalar !@{$services->{$module}};
+      my $service = $services->{$module}->[0];
+      $service->{uc($_)} = delete $service->{$_} for keys %$service;
 
-  load_pmodule('JSON');
+      $service->{PERIOD} //= !$service->{MONTH_FEE} && $service->{DAY_FEE} ? 'day' : 'month';
+      $service->{MONTH_FEE} ||= $service->{DAY_FEE} || 0;
+      $service->{PERIOD} = $lang{uc($service->{PERIOD}) || 'MONTH'};
+      $service->{STATUS} = $lang{uc($service->{STATUS_NAME}) || 'ENABLE'};
 
-  my $json = JSON->new()->utf8(0);
-  my $user_info = ();
-  eval {
-    $user_info = $json->decode($json_info);
-    1;
-  }
-  or do {
-    my $e = $@;
-    $html->message('err', $lang{ERROR}, $e);
-  };
-
-  if (ref($user_info) eq 'ARRAY') {
-    foreach my $key (@{$user_info}) {
-      my $main_name = $key->{NAME};
-      if ($key->{SLIDES}) {
-        for (my $i = 0; $i <= $#{$key->{SLIDES}}; $i++) {
-          foreach my $field_id (keys %{$key->{SLIDES}->[$i]}) {
-            my $id = $main_name . '_' . $field_id . '_' . $i;
-            $html->{OUTPUT} .= "$i  $id ---------------- $key->{SLIDES}->[$i]->{$field_id}<br>" if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 10);
-            $info{$main_name . '' . $field_id. '' . $i} = $key->{SLIDES}->[$i]->{$field_id};
-          }
-        }
-      }
-      else {
-        foreach my $field_id (keys %{$key->{CONTENT}}) {
-          $html->{OUTPUT} .= $main_name . '_' . $field_id . " - $key->{CONTENT}->{$field_id}<br>" if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 10);
-          $info{$main_name . '_' . $field_id} = $key->{CONTENT}->{$field_id};
-        }
-      }
-
-      if ($key->{QUICK_TPL}) {
-        $info{BIG_BOX} .= $html->tpl_show(_include($key->{QUICK_TPL}, $key->{MODULE}), \%info, { OUTPUT2RETURN => 1 });
-      }
+      $info{BIG_BOX} .= $html->tpl_show(
+        _include(lc($module) . '_qi_box', ucfirst(lc($module))),
+        { %info, %{$services->{$module}->[0] || {}} }, { OUTPUT2RETURN => 1 });
     }
   }
 
   require Control::Service_control;
   my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
-  my $credit_info = $Service_control->user_set_credit({ UID => $user->{UID}, REDUCTION => $user->{REDUCTION}, %FORM });
+  my $credit_info = $Service_control->user_set_credit({
+    %FORM,
+    UID       => $user->{UID},
+    REDUCTION => $user->{REDUCTION}
+  });
 
   if ($credit_info->{CREDIT_SUM}) {
     $info{SMALL_BOX} .= $html->tpl_show(templates('form_small_box'), $credit_info, { OUTPUT2RETURN => 1 });
@@ -2304,7 +2208,7 @@ sub form_custom {
     $info{SMALL_BOX} .= $html->tpl_show(templates('form_confirm_pi_small_box'), \%info, { OUTPUT2RETURN => 1 });
   }
 
-  $html->tpl_show(templates('form_client_custom'), \%info, { ID => 'form_client_custom' });
+  $html->tpl_show(templates('form_client_custom'), { %info, $Payments->{TOTAL} ? %{$payment->[0]} : {} }, { ID => 'form_client_custom' });
 
   return 1;
 }
@@ -2879,15 +2783,18 @@ sub form_credit {
     elsif ($credit_info->{errstr} eq 'ERR_CREDIT_CHANGE_LIMIT_REACH' && $credit_info->{MONTH_CHANGES}) {
       $user->{CREDIT_CHG_BUTTON} = $html->color_mark(
         "$lang{ERR_CREDIT_CHANGE_LIMIT_REACH}. " . "$lang{TOTAL}: $admin->{TOTAL}/$credit_info->{MONTH_CHANGES}",
-        'bg-danger',
+        'bg-danger p-1',
         {
-          ID => "credit-button"
+          ID => 'credit-button'
         }
       );
     }
     else {
       $html->message('err', $lang{ERROR}, _translate($credit_info->{errstr}), { ID => $credit_info->{error} });
     }
+  }
+  elsif ($FORM_->{change_credit}) {
+    $html->message('info',$lang{CHANGED}, $lang{CREDIT} .': ' . $credit_info->{CREDIT_SUM});
   }
 
   if( $credit_info->{CREDIT_RULES} ) {
@@ -2919,7 +2826,7 @@ sub form_credit {
       ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'",
       class     => 'btn btn-success btn-lg',
       SKIP_HREF => 1,
-      ID        => "credit-button"
+      ID        => 'credit-button'
     });
   }
 

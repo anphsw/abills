@@ -15,7 +15,8 @@ our(
   %conf,
   %lang,
   $admin,
-  $SELF_URL
+  $SELF_URL,
+  %COOKIES
 );
 
 our Abills::HTML $html;
@@ -104,7 +105,7 @@ sub msgs_user_show {
       });
 
       # Instant redirect
-      my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($Msgs->{INSERT_ID} ? " : $Msgs->{INSERT_ID}" : ''));
+      my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($Msgs->{INSERT_ID} ? ": $Msgs->{INSERT_ID}" : ''));
       $html->redirect("?index=$index&sid=".( $sid || $user->{SID} || $user->{sid} )
         ."&MESSAGE=$header_message&ID=" . ($Msgs->{MSG_ID} || $FORM{ID} || q{}) . '#last_msg');
       exit 0;
@@ -451,8 +452,20 @@ sub msgs_user {
     }
   }
 
+  my $expiration = gmtime(time() + (90 * 86400)) . " GMT";
+  $html->set_cookies('MSGS_SORT', $FORM{sort}, $expiration, '') if $FORM{sort};
+  $html->set_cookies('MSGS_DESC', $FORM{desc}, $expiration, '') if $FORM{desc};
+
+  if (!$FORM{desc} && $FORM{sort}){
+    $html->set_cookies('MSGS_DESC', $FORM{desc}, '-1d', '');
+  }
+
+  my $cookies = get_cookies();
+  $LIST_PARAMS{SORT} = $FORM{sort} || $cookies->{MSGS_SORT};
+  $LIST_PARAMS{DESC} = $FORM{desc} || $cookies->{MSGS_DESC} || '';
+
   $LIST_PARAMS{INNER_MSG} = 0;
-  delete($LIST_PARAMS{STATE}) if ($FORM{STATE} && $FORM{STATE} =~ /\d+/ && $FORM{STATE} == 3);
+  # delete($LIST_PARAMS{STATE}) if ($FORM{STATE} && $FORM{STATE} =~ /\d+/ && $FORM{STATE} == 3);
   delete($LIST_PARAMS{PRIORITY}) if ($FORM{PRIORITY} && $FORM{PRIORITY} == 5);
 
   $FORM{ALL_OPENED} = 1 if !defined($FORM{STATE}) && !$FORM{ALL_MSGS};

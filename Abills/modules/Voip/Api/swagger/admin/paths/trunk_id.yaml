@@ -1,0 +1,78 @@
+get:
+  tags:
+    - voip
+  summary: Информация о транке
+  parameters:
+    - name: id
+      in: path
+      description: ID транка
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/trunkInfo.yaml"
+  security:
+    - KEY: []
+put:
+  tags:
+    - voip
+  summary: Изменить транк
+  parameters:
+    - name: id
+      in: path
+      description: ID транка
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addTrunkRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiChangeResponse200"
+    400:
+      description: Дубликат
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse400"
+  security:
+    - KEY: []
+delete:
+  tags:
+    - voip
+  summary: Удалить транк
+  parameters:
+    - name: id
+      in: path
+      description: ID транка
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteTrunkResponse200.yaml"
+    400:
+      description: Нет транка
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteTrunkResponse400.yaml"
+  security:
+    - KEY: []

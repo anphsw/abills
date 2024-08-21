@@ -1,0 +1,29 @@
+type: object
+properties:
+  portId:
+    type: number
+    example: 29
+  dhcpPort:
+    type: string
+    example: 0/01/3/002
+  id:
+    type: number
+    example: 3
+  nasId:
+    type: number
+    example: 17
+  onuId:
+    type: number
+    example: 2
+  onuSnmpId:
+    type: number
+    example: 268501760
+  ponType:
+    type: string
+    example: gpon
+  snmpId:
+    type: number
+    example: 268501760
+  vlan:
+    type: number
+    example: 0

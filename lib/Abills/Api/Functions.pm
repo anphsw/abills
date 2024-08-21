@@ -122,7 +122,6 @@ sub _user_functions_list {
       else {
         %functions = (paysys_user_log => 1);
       }
-      $functions{paysys_recurrent_payment} = 1 if ($self->{conf}->{PAYSYS_RECURRENT_PAYMENT});
       return \%functions;
     },
     Voip       => sub {

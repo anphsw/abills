@@ -1,0 +1,33 @@
+post:
+  tags:
+    - internet
+  summary: Hangup сессии абонента
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addHangupRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addHangupResponse200.yaml"
+    400:
+      description: Валидация не успешна
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addHangupResponse400.yaml"
+  security:
+    - KEY: []

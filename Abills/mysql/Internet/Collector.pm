@@ -1260,6 +1260,11 @@ sub traffic_user_list {
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100000;
 
+  my $WHERE =  $self->search_former($attr, [
+    ['FROM_DATE_START|TO_DATE_START',   'DATE',      'DATE_FORMAT(s_time, \'%Y-%m-%d\')' ],
+  ],
+    { WHERE  => 1 }
+  );
 
   $self->query("
     SELECT
@@ -1269,6 +1274,7 @@ sub traffic_user_list {
     dst_addr,
     dst_port
     FROM ipn_traf_detail
+    $WHERE
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;",
     undef, $attr
@@ -1278,7 +1284,8 @@ sub traffic_user_list {
 
   $self->query("
     SELECT COUNT(*) AS total
-    FROM ipn_traf_detail;",
+    FROM ipn_traf_detail
+    $WHERE;",
     undef,
     { INFO => 1 }
   );

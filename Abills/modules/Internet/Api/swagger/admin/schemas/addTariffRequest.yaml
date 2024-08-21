@@ -1,0 +1,162 @@
+type: object
+properties:
+  name:
+    type: string
+    example: Example tariff
+  id:
+    type: number
+    example: 15
+  periodAlignment:
+    type: number
+    example: 1
+  abonDistribution:
+    type: number
+    example: 1
+  fixedFeesDay:
+    type: number
+    example: 1
+  postpaidMonthFee:
+    type: number
+    example: 1
+  activeDayFee:
+    type: number
+    example: 1
+  postpaidDayFee:
+    type: number
+    example: 1
+  status:
+    type: number
+    example: 0
+  reductionFee:
+    type: number
+    example: 1
+  totalTimeLimit:
+    type: number
+    example: 1
+  negDepositFilterId:
+    type: string
+    example: ""
+  age:
+    type: number
+    example: 1
+  monthFee:
+    type: number
+    example: 1
+  creditTresshold:
+    type: number
+    example: 1
+  nextTpId:
+    type: number
+    example: 1
+  smallDepositAction:
+    type: number
+    example: 1
+  describeAid:
+    type: string
+    example: Test text
+  paymentType:
+    type: number
+    example: 1
+  trafficTransferPeriod:
+    type: number
+    example: 1
+  dayFee:
+    type: number
+    example: 1
+  uplimit:
+    type: number
+    example: 1
+  activatePrice:
+    type: number
+    example: 1
+  userCreditLimit:
+    type: number
+    example: 1
+  priority:
+    type: number
+    example: 1
+  tpGid:
+    type: number
+    example: 1
+  ippool:
+    type: number
+    example: 1
+  octetsDirection:
+    type: number
+    example: 1
+  minSessionCost:
+    type: number
+    example: 1
+  comments:
+    type: string
+    example:
+  dayTimeLimit:
+    type: number
+    example: 1
+  weekTrafLimit:
+    type: number
+    example: 1
+  changePrice:
+    type: number
+    example: 1
+  totalTrafLimit:
+    type: number
+    example: 1
+  maxSessionDuration:
+    type: number
+    example: 1
+  monthTrafLimit:
+    type: number
+    example: 1
+  credit:
+    type: number
+    example: 1
+  dayTrafLimit:
+    type: number
+    example: 1
+  radPairs:
+    type: array
+    items:
+      type: object
+      properties:
+        left:
+          type: string
+          example: PPPD-Downstream-Speed-Limit-1
+        condition:
+          type: string
+          example: =
+        right:
+          type: string
+          example: 102400
+        ignore:
+          type: boolean
+  logins:
+    type: number
+    example: 1
+  filterId:
+    type: string
+    example: ""
+  weekTimeLimit:
+    type: number
+    example: 1
+  fine:
+    type: number
+    example: 1
+  negDepositIppool:
+    type: number
+    example: 1
+  minUse:
+    type: number
+    example: 1
+  monthTimeLimit:
+    type: number
+    example: 1
+  createFeesType:
+    type: number
+    example: 1
+  popular:
+    type: number
+    example: 0
+  domainId:
+    type: number
+    example: 0

@@ -3,9 +3,6 @@ properties:
   body:
     type: string
     example: Формується через АПІ
-  icon:
-    type: string
-    example: card-bulleted-outline
   id:
     type: number
     example: 5

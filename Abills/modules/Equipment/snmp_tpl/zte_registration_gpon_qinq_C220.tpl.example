@@ -1,0 +1,26 @@
+#Gpon registration example
+# C220 q-in-q
+# show onu unauthentication
+# config terminal
+
+conf t
+
+
+interface gpon-olt_%BRANCH%
+onu %ONU_ID% type ZTE-F601 sn %ONU_SERIAL%
+exit
+
+interface gpon-onu_%BRANCH%:%ONU_ID%
+name %ONU_COMMENTS% (%SERVER_VLAN%-%CLIENT_VLAN%)
+tcont 1 name 123 profile 100m
+gemport 1 name 123 unicast tcont 1 dir both
+encrypt 1 enable
+switchport mode hybrid vport 1
+service-port 1 vport 1 user-vlan %CLIENT_VLAN% vlan %CLIENT_VLAN% svlan %SERVER_VLAN%
+exit
+
+pon-onu-mng gpon-onu_%BRANCH%:%ONU_ID%
+service ServiceName type internet gemport 1 cos 0 vlan %CLIENT_VLAN%
+loop-detect ethuni eth_0/1 enable
+vlan port eth_0/1 mode hybrid def-vlan %CLIENT_VLAN%
+exit

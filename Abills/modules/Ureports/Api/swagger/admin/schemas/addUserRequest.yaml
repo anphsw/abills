@@ -1,0 +1,19 @@
+type: object
+properties:
+  status:
+    type: number
+    example: 1
+  destinations:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 2
+        value:
+          type: string
+          example: 0509999999
+  tpId:
+    type: number
+    example: 7

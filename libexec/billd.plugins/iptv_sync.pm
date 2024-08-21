@@ -46,7 +46,12 @@ sub screen_sync {
   });
 
   foreach my $user (@{$users}) {
-    $Tv_services{$user->{SERVICE_ID}} = tv_load_service('', { SERVICE_ID => $user->{SERVICE_ID} }) if !$Tv_services{$user->{SERVICE_ID}};
+    if (!$Tv_services{$user->{SERVICE_ID}}) {
+
+      $Tv_services{$user->{SERVICE_ID}} = init_iptv_service($db, $Admin, \%conf, {
+        SERVICE_ID   => $user->{SERVICE_ID}
+      });
+    }
 
     next if !$Tv_services{$user->{SERVICE_ID}};
     next if !$Tv_services{$user->{SERVICE_ID}}->can('screen_sync');

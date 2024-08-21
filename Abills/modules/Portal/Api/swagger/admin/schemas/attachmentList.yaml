@@ -1,0 +1,9 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      $ref: "./attachment.yaml"
+  total:
+    type: number
+    example: 173

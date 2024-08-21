@@ -6,6 +6,7 @@
     <div class='col-sm-3 my-1'>
       <label class='sr-only' for='FILTER'>_{FILTERS}_: </label>
       <input type='text' placeholder="_{FILTERS}_" name='FILTER' value='%FILTER%' class='form-control' id='FILTER'>
+      <span class="reset-button" onclick="resetFilter()">×</span>
     </div>
 
     <div class='col-sm-3 my-1'>
@@ -25,3 +26,21 @@
     </div>
   </div>
 </form>
+
+<script>
+  function resetFilter() {
+    document.getElementById('FILTER').value = '';
+  }
+</script>
+
+<style>
+  .reset-button {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+  }
+</style>

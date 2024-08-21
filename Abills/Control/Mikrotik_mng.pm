@@ -23,23 +23,23 @@ sub form_mikrotik_check_access {
   $Nas_->{nas_mng_user} = $FORM{USERNAME};
   $Nas_->{nas_mng_password} = $FORM{PASSWORD};
 
-  my $mt = Abills::Nas::Mikrotik->new( $Nas_, \%conf, {
-      backend          => 'api',
-      FROM_WEB         => 1,
-#      DEBUG => 5,
-      MESSAGE_CALLBACK => sub { $html->message('info', @_[0 ... 1]) },
-      ERROR_CALLBACK   => sub { $html->message('err', @_[0 ... 1]) },
-    });
+  my $mt = Abills::Nas::Mikrotik->new($Nas_, \%conf, {
+    backend          => 'api',
+    FROM_WEB         => 1,
+    #      DEBUG => 5,
+    MESSAGE_CALLBACK => sub {$html->message('info', @_[0 ... 1])},
+    ERROR_CALLBACK   => sub {$html->message('err', @_[0 ... 1])},
+  });
 
-  if ( !$mt->has_access() ) {
+  if (!$mt->has_access()) {
     $html->message('err', $lang{ERR_ACCESS_DENY}, "API: " . ($mt->get_error() || ''));
     return 0;
   }
 
-  my $version_res = $mt->execute(['/system/package/print', undef, { name => 'security'}]);
+  my $version_res = $mt->execute([ '/system/package/print', undef, { name => 'security' } ]);
   if ($version_res && ref $version_res eq 'ARRAY' && $version_res->[0]) {
     my $version = $version_res->[0]->{version};
-    $html->message('info', $lang{SUCCESS} , "VERSION : " . $version);
+    $html->message('info', $lang{SUCCESS}, "VERSION : " . $version);
   }
 
   return 1;
@@ -53,33 +53,32 @@ sub form_mikrotik_check_access {
 sub form_mikrotik_configure {
   my ($Nas_, $attr) = @_;
 
-
   if ($attr->{import_users}) {
-    $attr->{API_BACKEND} = 18728; #@Fixme port 8728
+    $attr->{API_BACKEND} = 18728; #@Fixme  port 8728
   }
 
   ### Step 0 : check access ###
   my Abills::Nas::Mikrotik $mikrotik = _mikrotik_init_and_check_access($Nas_, {
     DEBUG     => $conf{mikrotik_debug} || 0,
     RETURN_TO => 'mikrotik_configure',
-    %{ $attr // { } }
+    %{$attr // {}}
   });
+
+  if (!$mikrotik || ref $mikrotik ne 'Abills::Nas::Mikrotik') {
+    #    $html->message('err', $lang{ERROR}, "No connection to : " . $Nas_->{NAS_NAME});
+    return 0;
+  };
 
   if ($attr->{import_users}) {
     _import_users($mikrotik, $attr);
     return 1;
   }
 
-  if ( !$mikrotik || ref $mikrotik ne 'Abills::Nas::Mikrotik' ) {
-#    $html->message('err', $lang{ERROR}, "No connection to : " . $Nas_->{NAS_NAME});
-    return 0;
-  };
-
   require Abills::Nas::Mikrotik::Configuration;
   Abills::Nas::Mikrotik::Configuration->import();
   my $Configuration = Abills::Nas::Mikrotik::Configuration->new($FORM{NAS_ID}, \%conf, {
-      MESSAGE_CB => sub { $html->message('info', $_[0], $_[1]) },
-      ERROR_CB   => sub { $html->message('err' , $_[0], $_[1]) },
+    MESSAGE_CB => sub {$html->message('info', $_[0], $_[1])},
+    ERROR_CB   => sub {$html->message('err', $_[0], $_[1])},
   });
 
   if (!$Configuration) {
@@ -87,26 +86,27 @@ sub form_mikrotik_configure {
     return 0;
   }
 
-  if ( $FORM{clean} ) {
-    if ( $Configuration->clear() ) {
+  if ($FORM{clean}) {
+    if ($Configuration->clear()) {
       $html->message('info', $lang{SUCCESS}, $lang{DELETED});
     }
   }
 
   #  check_set_default_gateway
   my $all_routes = $mikrotik->routes_list();
-  if ( !$all_routes || ref $all_routes ne 'ARRAY' || !grep { $_->{'dst-address'} eq '0.0.0.0/0' } @{$all_routes} ) {
+
+  if (!$all_routes || ref $all_routes ne 'ARRAY' || !grep {$_->{'dst-address'} eq '0.0.0.0/0'} @{$all_routes}) {
     $html->message('warn', $lang{TIP}, $lang{ERR_NO_DEFAULT_GATEWAY});
   }
 
   $FORM{CONNECTION_TYPE} //= $Configuration->get('CONNECTION_TYPE');
-  $FORM{IP_POOL}         //= $Configuration->get('IP_POOL');
+  $FORM{IP_POOL} //= $Configuration->get('IP_POOL');
 
   ### Step 1 : Select connection type ###
   my $connection_type = _mikrotik_configure_get_connection_type();
   return 0 unless ($connection_type);
 
-  if ( $FORM{action} ) {
+  if ($FORM{action}) {
 
     $Configuration->set(
       %FORM,
@@ -118,7 +118,7 @@ sub form_mikrotik_configure {
 
     my $configuration_applied = mikrotik_configure($mikrotik, $connection_type, $Configuration->get());
 
-    if ( $configuration_applied ) {
+    if ($configuration_applied) {
       $Configuration->save();
 
       my $had_errors = $mikrotik->get_error();
@@ -139,17 +139,20 @@ sub form_mikrotik_configure {
   ### Step 2 : show template ###
   my @ip_addresses = ();
   my $local_host = $ENV{HTTP_HOST};
-  if ($local_host){
-    $local_host =~ s/\:.*$// if $local_host;
-     push (@ip_addresses, $local_host);
+  if ($local_host) {
+    $local_host =~ s/\:.*$// if ($local_host);
+    if ($local_host !~ /(\d+)\.(\d+)\.(\d+)\.(\d+)/) {
+      $local_host = inet_ntoa(scalar(gethostbyname($local_host)));
+    }
+    push(@ip_addresses, $local_host);
   }
 
   my $interfaces = local_network_interfaces_list();
-  if ( $interfaces && ref $interfaces eq 'HASH' ) {
-    foreach my $interface_name ( sort keys %{$interfaces} ) {
+  if ($interfaces && ref $interfaces eq 'HASH') {
+    foreach my $interface_name (sort keys %{$interfaces}) {
       if (
         $interfaces->{$interface_name}->{ADDR}
-        && !in_array($interfaces->{$interface_name}->{ADDR}, \@ip_addresses)
+          && !in_array($interfaces->{$interface_name}->{ADDR}, \@ip_addresses)
       ) {
         push @ip_addresses, $interfaces->{$interface_name}->{ADDR};
       }
@@ -162,41 +165,42 @@ sub form_mikrotik_configure {
     FLOW_PORT     => '9996',
     EXTRA_INPUTS  => '',
     EXTRA_OPTIONS => '',
-    %{ $Configuration->get() },
+    %{$Configuration->get()},
     %FORM
   );
 
-  if ( $FORM{CONNECTION_TYPE} eq 'pppoe' ) {
+  if ($FORM{CONNECTION_TYPE} eq 'pppoe') {
     _mikrotik_configure_pppoe_fields($mikrotik, \%template_args);
   }
-  elsif ( $FORM{CONNECTION_TYPE} eq 'ipn' ) {
+  elsif ($FORM{CONNECTION_TYPE} eq 'ipn') {
     _mikrotik_configure_freeradius_fields($mikrotik, \%template_args, \@ip_addresses);
   }
   #  elsif ( $FORM{CONNECTION_TYPE} eq 'pptp' ) {
   #    TODO: pptp fields
   #    _mikrotik_configure_pptp_fields($mikrotik, \%template_args);
   #  }
-  elsif ( $FORM{CONNECTION_TYPE} eq 'freeradius_dhcp' ) {
+  elsif ($FORM{CONNECTION_TYPE} eq 'freeradius_dhcp') {
     _mikrotik_configure_freeradius_fields($mikrotik, \%template_args, \@ip_addresses);
   }
 
   my $radius_select = $html->form_select('RADIUS_IP', {
-      SELECTED  => $template_args{RADIUS_IP},
-      SEL_ARRAY => \@ip_addresses,
-      NO_ID     => 1
-    });
+    SELECTED  => $template_args{RADIUS_IP},
+    SEL_ARRAY => \@ip_addresses,
+    NO_ID     => 1
+  });
+
   my $radius_input = $html->form_input('RADIUS_IP_ADD', $template_args{RADIUS_IP} || '');
   $template_args{RADIUS_IP_SELECT} = $html->form_blocks_togglable($radius_select, $radius_input);
 
   # Ask user for internal network
   my $internal_network_select = $html->form_select("INTERNAL_NETWORK", {
-      SELECTED  => $template_args{INTERNAL_NETWORK_SELECT},
-      SEL_ARRAY => [
-        '10.0.0.0/8',
-        '172.16.0.0/12',
-        '192.168.0.0/16',
-      ]
-    });
+    SELECTED  => $template_args{INTERNAL_NETWORK_SELECT},
+    SEL_ARRAY => [
+      '10.0.0.0/8',
+      '172.16.0.0/12',
+      '192.168.0.0/16',
+    ]
+  });
   my $internal_network_input = $html->form_input("INTERNAL_NETWORK_INPUT", $template_args{INTERNAL_NETWORK} || '');
   $template_args{INTERNAL_NETWORK_SELECT} = $html->form_blocks_togglable($internal_network_select, $internal_network_input);
 
@@ -224,7 +228,7 @@ sub form_mikrotik_configure {
     { EX_PARAMS => 'disabled="disabled"' }
   );
 
-  if ( $Configuration->get('UPDATED') ) {
+  if ($Configuration->get('UPDATED')) {
     $template_args{CLEAN_BTN} = $html->button('', "index=$index&NAS_ID=$FORM{NAS_ID}&mikrotik_configure=1&clean=1",
       {
         class   => 'del',
@@ -234,10 +238,10 @@ sub form_mikrotik_configure {
     );
   }
 
-  $html->tpl_show(templates('form_mikrotik_configure'), {
-      %template_args
-    }
-  );
+  $template_args{NAS_ID} = $FORM{NAS_ID};
+  $template_args{CONNECTION_TYPE} = $FORM{CONNECTION_TYPE};
+
+  $html->tpl_show(templates('form_mikrotik_configure'), \%template_args);
 
   return 1;
 }
@@ -259,14 +263,14 @@ sub mikrotik_configure {
     hotspot         => 'hotspot'
   );
 
-  if ( exists $connection_type_to_radius_services{$connection_type} ) {
+  if (exists $connection_type_to_radius_services{$connection_type}) {
     $mikrotik->radius_add($params->{RADIUS_IP}, {
-        REPLACE  => 1,
-        SERVICES => $connection_type_to_radius_services{$connection_type}
-      });
+      REPLACE  => 1,
+      SERVICES => $connection_type_to_radius_services{$connection_type}
+    });
   }
 
-  if ( $connection_type eq 'pppoe' || $connection_type eq 'pptp' ) {
+  if ($connection_type eq 'pppoe' || $connection_type eq 'pptp') {
 
     $mikrotik->execute([
       # /radius incoming set accept=yes port=1700
@@ -283,26 +287,26 @@ sub mikrotik_configure {
       SHOW_RESULT => 1
     });
     $mikrotik->execute([
-        # /ppp profile set default local-address=${MIKROTIK_IP}
-        [ '/ppp/profile/set', { 'local-address' => $mikrotik->{ip_address} }, { name => 'default' } ]
+      # /ppp profile set default local-address=${MIKROTIK_IP}
+      [ '/ppp/profile/set', { 'local-address' => $mikrotik->{ip_address} }, { name => 'default' } ]
 
-      ], {
-        SHOW_RESULT => 1
-      });
+    ], {
+      SHOW_RESULT => 1
+    });
 
-    if ( $connection_type eq 'pppoe' ) {
+    if ($connection_type eq 'pppoe') {
       # Add pppoe server
       $mikrotik->execute([
-          # /interface pppoe-server server add interface=${PPPOE_INTERFACE} service-name=pppoe-in authentication=chap disabled=no
-          [ '/interface/pppoe-server/server/add',
-            {
-              interface        => $params->{PPPOE_INTERFACE},
-              'service-name'   => 'pppoe-in',
-              'authentication' => 'chap',
-              disabled         => 'no',
-            }
-          ]
-        ],
+        # /interface pppoe-server server add interface=${PPPOE_INTERFACE} service-name=pppoe-in authentication=chap disabled=no
+        [ '/interface/pppoe-server/server/add',
+          {
+            interface        => $params->{PPPOE_INTERFACE},
+            'service-name'   => 'pppoe-in',
+            'authentication' => 'chap',
+            disabled         => 'no',
+          }
+        ]
+      ],
         {
           SHOW_RESULT => 1
         }
@@ -310,19 +314,19 @@ sub mikrotik_configure {
     }
     else {
       $mikrotik->execute([
-          # /interface pptp-server server set enabled=yes authentication=chap
-          [ '/interface/pptp-server/server/set', { enabled => 'yes', authentication => 'chap' } ],
+        # /interface pptp-server server set enabled=yes authentication=chap
+        [ '/interface/pptp-server/server/set', { enabled => 'yes', authentication => 'chap' } ],
 
-          # /interface pptp-client set profile=default
-          #        [ '/interface/pptp-client/set',        { profile => 'default' }                       ]
-        ],
+        # /interface pptp-client set profile=default
+        #        [ '/interface/pptp-client/set',        { profile => 'default' }                       ]
+      ],
         {
           SHOW_RESULT => 1
         }
       );
     }
   }
-  elsif ( $connection_type eq 'freeradius_dhcp' || $connection_type eq 'ipn' ) {
+  elsif ($connection_type eq 'freeradius_dhcp' || $connection_type eq 'ipn') {
 
     $mikrotik->execute([
       # /ip traffic-flow set enabled=yes
@@ -334,22 +338,22 @@ sub mikrotik_configure {
 
       # /ip traffic-flow set interfaces=ether3 active-flow-timeout=30m inactive-flow-timeout=15s cache-entries=4k enabled=yes
       [ '/ip/traffic-flow/set', {
-          'interfaces'            => $params->{FLOW_INTERFACE},
-          'active-flow-timeout'   => '30m',
-          'inactive-flow-timeout' => '15s',
-          'cache-entries'         => '4k',
-          'enabled'               => 'yes',
-        }
+        'interfaces'            => $params->{FLOW_INTERFACE},
+        'active-flow-timeout'   => '30m',
+        'inactive-flow-timeout' => '15s',
+        'cache-entries'         => '4k',
+        'enabled'               => 'yes',
+      }
       ]
     ]);
 
     # /ip dhcp-server add interface=ether2 address-pool=static-only authoritative=after-2sec-delay use-radius=yes lease-time=5min
 
     my %dhcp_server_params = ();
-    if ( $connection_type eq 'freeradius_dhcp' ) {
+    if ($connection_type eq 'freeradius_dhcp') {
 
       our %AUTH;
-      if ( !exists $AUTH{mikrotik_dhcp} || $AUTH{mikrotik_dhcp} ne 'Mac_auth' ) {
+      if (!exists $AUTH{mikrotik_dhcp} || $AUTH{mikrotik_dhcp} ne 'Mac_auth') {
 
         $dhcp_server_params{'use-radius'} = 'yes';
 
@@ -360,7 +364,7 @@ sub mikrotik_configure {
     }
     else {
 
-      if ( $mikrotik->{nas_type} ne 'mikrotik_dhcp' ) {
+      if ($mikrotik->{nas_type} ne 'mikrotik_dhcp') {
 
         $Nas->{NAS_ID} = $mikrotik->{nas_id};
         $Nas->change({
@@ -369,38 +373,38 @@ sub mikrotik_configure {
         });
         _error_show($Nas);
 
-        $html->message('info', '', "$lang{CHANGED} $lang{TYPE} -> 'mikrotik_dhcp'") if ( !$Nas->{errno} );
+        $html->message('info', '', "$lang{CHANGED} $lang{TYPE} -> 'mikrotik_dhcp'") if (!$Nas->{errno});
       }
 
       $html->message('info', $lang{EXTRA},
         $html->button("$lang{CONFIGURATION} IPN", '',
-          { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:docs:nas:mikrotik:ipn', class => 'alert-link' })
+          { GLOBAL_URL => 'http://abills.net.ua/wiki/display/~admin1/Mikrotik+IPN', class => 'alert-link' })
       );
       $dhcp_server_params{name} = 'dhcp_abills_' . $mikrotik->{nas_id};
     }
 
     $mikrotik->execute([
-        [ '/ip/dhcp-server/add', {
-            interface       => $params->{FLOW_INTERFACE},
-            'address-pool'  => 'static-only',
-            'authoritative' => 'after-2sec-delay',
-            'lease-time'    => '5m',
-            'disabled'      => 'no',
-            %dhcp_server_params
-          }
-        ]
-      ], {
-        SHOW_RESULT => 1
-      });
+      [ '/ip/dhcp-server/add', {
+        interface       => $params->{FLOW_INTERFACE},
+        'address-pool'  => 'static-only',
+        'authoritative' => 'after-2sec-delay',
+        'lease-time'    => '5m',
+        'disabled'      => 'no',
+        %dhcp_server_params
+      }
+      ]
+    ], {
+      SHOW_RESULT => 1
+    });
   }
 
   # Set DNS
-  if ($params->{DNS}){
+  if ($params->{DNS}) {
     $mikrotik->dns_set($params->{DNS});
   }
 
   # SSH Bruteforce protection
-  if ($params->{SSH_BRUTEFORCE} && $params->{RADIUS_IP}){
+  if ($params->{SSH_BRUTEFORCE} && $params->{RADIUS_IP}) {
     $mikrotik->add_ssh_bruteforce_protection($params->{RADIUS_IP});
   }
 
@@ -412,9 +416,9 @@ sub mikrotik_configure {
       'dst-port'    => '53',
       'src-address' => "!$params->{INTERNAL_NETWORK}",
       action        => 'drop',
-      comment           => 'ABillS. Block negative forward'
+      comment       => 'ABillS. Block negative forward'
     });
-    $mikrotik->execute([[ '/ip dns set' , { 'allow-remote-requests' => 'yes' }]]);
+    $mikrotik->execute([ [ '/ip dns set', { 'allow-remote-requests' => 'yes' } ] ]);
   }
 
   # Negative deposit filter
@@ -424,12 +428,12 @@ sub mikrotik_configure {
       'src-address-list' => "negative",
       'dst-address'      => "!$params->{RADIUS_IP}",
       action             => 'reject',
-      comment           => 'ABillS. Serve DNS Only for local hosts'
+      comment            => 'ABillS. Serve DNS Only for local hosts'
     });
   }
 
   # Redirect to user cabinet when negative filter
-#  NEGATIVE_CLIENT_REDIRECT
+  #  NEGATIVE_CLIENT_REDIRECT
   if ($params->{NEGATIVE_REDIRECT} && $params->{RADIUS_IP}) {
     $mikrotik->add_nat_rule({
       chain              => 'dst-nat',
@@ -441,7 +445,7 @@ sub mikrotik_configure {
       'to-addresses'     => "$params->{RADIUS_IP}",
       'to-ports'         => "80",
       'place-before'     => 0,
-       comment           => 'ABillS. Redirect negative to portal'
+      comment            => 'ABillS. Redirect negative to portal'
     });
   }
 
@@ -453,14 +457,14 @@ sub mikrotik_configure {
   # Try to run by ourselves
   my $res = 1;
   eval {
-    $res = cmd($cmd, { SHOW_RESULT => 1, DEBUG => 5, timeout => 30});
+    $res = cmd($cmd, { SHOW_RESULT => 1, DEBUG => 5, timeout => 30 });
   };
-  if ($@){
+  if ($@) {
     $res = 1;
   }
 
   #Normally should return nothing. If failed tell user to do it by himself
-  if ( $res ) {
+  if ($res) {
     $html->message('info', $lang{EXECUTE}, $html->pre('# ' . $cmd, { OUTPUT2RETURN => 1 }));
   }
 
@@ -487,33 +491,33 @@ sub form_mikrotik_hotspot {
 
   ### Step 0 : check access ###
   my Abills::Nas::Mikrotik $mikrotik = _mikrotik_init_and_check_access($Nas_, {
-    DEBUG => $conf{mikrotik_debug} || 1,
+    DEBUG     => $conf{mikrotik_debug} || 1,
     RETURN_TO => 'mikrotik_hotspot'
   });
 
   return 0 unless $mikrotik;
 
-  my ($ip) = $ENV{HTTP_HOST} =~  /(.*):.*/;
+  my ($ip) = $ENV{HTTP_HOST} =~ /(.*):.*/;
   my %default_arguments = (
     #    'INTERFACE'        => 'wlan0',
     BILLING_IP_ADDRESS => $ip,
     'ADDRESS'          => '192.168.4.1',
     'NETWORK'          => '192.168.4.0',
     'NETMASK'          => '24',
-#    'MIKROTIK_GATEWAY' => '192.168.1.1',
+    #    'MIKROTIK_GATEWAY' => '192.168.1.1',
     'DHCP_RANGE'       => '192.168.4.3-192.168.4.254',
     'MIKROTIK_DNS'     => '8.8.8.8',
-    'HOTSPOT_DNS_NAME' => lc ($Nas_->{NAS_NAME}) || 'hotspot.abills.net'
+    'HOTSPOT_DNS_NAME' => lc($Nas_->{NAS_NAME}) || 'hotspot.abills.net'
   );
 
-  if ( $FORM{action} ) {
+  if ($FORM{action}) {
 
     my @walled_garden_hosts = ();
     # Read walled garden hosts from FORM
     my $walled_garden_hosts_count = $FORM{WALLED_GARDEN_ENTRIES} || '';
-    if ( $walled_garden_hosts_count && $walled_garden_hosts_count =~ /^\d+$/ ) {
-      for ( my $i = 0; $i < $walled_garden_hosts_count; $i++ ) {
-        push (@walled_garden_hosts, $FORM{"WALLED_GARDEN_$i"}) if ($FORM{"WALLED_GARDEN_$i"});
+    if ($walled_garden_hosts_count && $walled_garden_hosts_count =~ /^\d+$/) {
+      for (my $i = 0; $i < $walled_garden_hosts_count; $i++) {
+        push(@walled_garden_hosts, $FORM{"WALLED_GARDEN_$i"}) if ($FORM{"WALLED_GARDEN_$i"});
       }
     }
     $mikrotik->{debug} = 9;
@@ -531,7 +535,7 @@ sub form_mikrotik_hotspot {
       WALLED_GARDEN      => \@walled_garden_hosts
     });
 
-    if ( $result ) {
+    if ($result) {
       $html->message('info', $lang{SUCCESS});
     }
 
@@ -539,19 +543,19 @@ sub form_mikrotik_hotspot {
   }
 
   my $interfaces_list = $mikrotik->interfaces_list({ type => '~ether|bridge' });
-  if ( defined $interfaces_list && ref $interfaces_list eq 'ARRAY' && scalar @{$interfaces_list} == 0 ) {
+  if (defined $interfaces_list && ref $interfaces_list eq 'ARRAY' && scalar @{$interfaces_list} == 0) {
     $interfaces_list = [ { name => 'ether0' }, { name => 'ether1' }, { name => 'wlan0' } ];
   }
   my $interface_select = $html->form_select('INTERFACE', {
-      SELECTED  => $FORM{HOTSPOT_INTERFACE} || '',
-      SEL_LIST  => $interfaces_list,
-      SEL_KEY   => 'name',
-      SEL_VALUE => 'name',
-      NO_ID     => 1
-    });
+    SELECTED  => $FORM{HOTSPOT_INTERFACE} || '',
+    SEL_LIST  => $interfaces_list,
+    SEL_KEY   => 'name',
+    SEL_VALUE => 'name',
+    NO_ID     => 1
+  });
 
-  $html->tpl_show( templates( 'form_mikrotik_hotspot' ),
-    { INTERFACE_SELECT => $interface_select, %default_arguments, %FORM } );
+  $html->tpl_show(templates('form_mikrotik_hotspot'),
+    { INTERFACE_SELECT => $interface_select, %default_arguments, %FORM });
 
   return 1;
 }
@@ -572,85 +576,84 @@ sub form_mikrotik_upload_key {
   # Check socket is opened
   my $no_io_portstate = load_pmodule("IO::Socket::PortState", { SHOW_RETURN => 1, IMPORT => 'check_ports' });
   if (!$no_io_portstate) {
-    my ($nas__mng_ip, $coa_port, $nas_port) = split( ":", $Nas_->{nas_mng_ip_port} );
+    my ($nas__mng_ip, $coa_port, $nas_port) = split(":", $Nas_->{nas_mng_ip_port});
     my $host_hr = check_ports($Nas_->{$nas__mng_ip}, 1, '8728');
 
     if ($host_hr
       && exists $host_hr->{tcp}
       && exists $host_hr->{tcp}{8728}
-      && !$host_hr->{tcp}{8728}{open})
-    {
+      && !$host_hr->{tcp}{8728}{open}) {
       $html->message('err', $lang{ERR_ACCESS_DENY}, "API $lang{DISABLED}");
       return 0;
     }
   }
-#  elsif(!load_pmodule("Socket", { SHOW_RETURN => 1})) {
-#    my ($nas__mng_ip, $coa_port, $nas_port) = split( ":", $Nas_->{nas_mng_ip_port} );
-#
-#    my $port    = '8728';  # random port
-#    if ($port =~ /\D/) { $port = Socket::getservbyname($port, "tcp") }
-#    die "No port" unless $port;
-#
-#    my $iaddr   = inet_aton($nas__mng_ip)       || die "no host: $nas__mng_ip";
-#    my $paddr   = sockaddr_in($port, $iaddr);
-#
-#    my $proto   = getprotobyname("tcp");
-#    socket($Socket::SOCK, $Socket::PF_INET, $Socket::SOCK_STREAM, $proto)  || die "socket: $!";
-#    if (!CORE::connect($Socket::SOCK, $paddr)){
-#      $html->message('err', $lang{ERR_ACCESS_DENY}, "API $lang{DISABLED}");
-#      return 0;
-#    };
-#  }
-#
+  #  elsif(!load_pmodule("Socket", { SHOW_RETURN => 1})) {
+  #    my ($nas__mng_ip, $coa_port, $nas_port) = split( ":", $Nas_->{nas_mng_ip_port} );
+  #
+  #    my $port    = '8728';  # random port
+  #    if ($port =~ /\D/) { $port = Socket::getservbyname($port, "tcp") }
+  #    die "No port" unless $port;
+  #
+  #    my $iaddr   = inet_aton($nas__mng_ip)       || die "no host: $nas__mng_ip";
+  #    my $paddr   = sockaddr_in($port, $iaddr);
+  #
+  #    my $proto   = getprotobyname("tcp");
+  #    socket($Socket::SOCK, $Socket::PF_INET, $Socket::SOCK_STREAM, $proto)  || die "socket: $!";
+  #    if (!CORE::connect($Socket::SOCK, $paddr)){
+  #      $html->message('err', $lang{ERR_ACCESS_DENY}, "API $lang{DISABLED}");
+  #      return 0;
+  #    };
+  #  }
+  #
 
-  if ( $FORM{upload_key} ) {
+  if ($FORM{upload_key}) {
     my ($old_adm, $old_pass) = ($Nas_->{nas_mng_user}, $Nas_->{nas_mng_password});
     $Nas_->{nas_mng_user} = $system_admin;
     $Nas_->{nas_mng_password} = $system_password;
 
-    my $mt = Abills::Nas::Mikrotik->new( $Nas_, \%conf, {
-        backend          => 'api',
-        FROM_WEB         => 1,
-        MESSAGE_CALLBACK => sub { $html->message('info', @_[0 ... 1]) },
-        ERROR_CALLBACK   => sub { $html->message('err', @_[0 ... 1]) },
-      });
+    my $mt = Abills::Nas::Mikrotik->new($Nas_, \%conf, {
+      backend          => 'api',
+      FROM_WEB         => 1,
+      MESSAGE_CALLBACK => sub {$html->message('info', @_[0 ... 1])},
+      ERROR_CALLBACK   => sub {$html->message('err', @_[0 ... 1])},
+    });
 
-    if ( !$mt->has_access() ) {
+    if (!$mt->has_access()) {
       $html->message('err', $lang{ERR_ACCESS_DENY}, "API: " . ($mt->get_error() || ''));
       return 0;
     }
     else {
       my $uploaded_key = $mt->upload_key(\%FORM);
 
-      if ( $uploaded_key ) {
+      if ($uploaded_key) {
         $html->message('info', "Upload SSH key", "$lang{SUCCESS}");
 
         $Nas_->{nas_mng_user} = $old_adm;
         $Nas_->{nas_mng_password} = $old_pass;
 
-        my $mt2 = Abills::Nas::Mikrotik->new( $Nas_, \%conf, {
-            backend          => 'ssh',
-            FROM_WEB         => 1,
-            MESSAGE_CALLBACK => sub { $html->message('info', @_[0 ... 1]) },
-            ERROR_CALLBACK   => sub { $html->message('err', @_[0 ... 1]) },
-          });
+        my $mt2 = Abills::Nas::Mikrotik->new($Nas_, \%conf, {
+          backend          => 'ssh',
+          FROM_WEB         => 1,
+          MESSAGE_CALLBACK => sub {$html->message('info', @_[0 ... 1])},
+          ERROR_CALLBACK   => sub {$html->message('err', @_[0 ... 1])},
+        });
 
         return $mt2;
       }
       else {
-        $html->message('err', $lang{ERROR}, $mt->get_error() || "Can't upload key. Check errors above" );
+        $html->message('err', $lang{ERROR}, $mt->get_error() || "Can't upload key. Check errors above");
         return 0;
       }
     }
   }
 
-  $html->tpl_show( templates('form_mikrotik_upload_key'), {
-      NAS_ID          => $FORM{NAS_ID},
-      ADMIN           => $upload_key_for_admin,
-      SYSTEM_ADMIN    => $system_admin,
-      SYSTEM_PASSWORD => $system_password,
-      %{ $attr // {} }
-    } );
+  $html->tpl_show(templates('form_mikrotik_upload_key'), {
+    NAS_ID          => $FORM{NAS_ID},
+    ADMIN           => $upload_key_for_admin,
+    SYSTEM_ADMIN    => $system_admin,
+    SYSTEM_PASSWORD => $system_password,
+    %{$attr // {}}
+  });
 
   return 0;
 }
@@ -663,38 +666,38 @@ sub form_mikrotik_upload_key {
 sub _mikrotik_init_and_check_access {
   my ($Nas_, $attr) = @_;
 
-  my $mikrotik = Abills::Nas::Mikrotik->new( $Nas_, \%conf, {
-      FROM_WEB         => 1,
-      MESSAGE_CALLBACK => sub { $html->message('info', @_[0 ... 1]) },
-      ERROR_CALLBACK   => sub { $html->message('err', @_[0 ... 1]) },
-      DEBUG            => 5,
-      %{ $attr // { } }
-    });
+  my $mikrotik = Abills::Nas::Mikrotik->new($Nas_, \%conf, {
+    FROM_WEB         => 1,
+    MESSAGE_CALLBACK => sub {$html->message('info', @_[0 ... 1])},
+    ERROR_CALLBACK   => sub {$html->message('err', @_[0 ... 1])},
+    DEBUG            => 5,
+    %{$attr // {}}
+  });
 
-  if ( !$mikrotik ) {
+  if (!$mikrotik) {
     $html->message('err', $lang{ERR_WRONG_DATA}, "NAS_IP_PORT_MNG");
     return 0;
   }
 
   my $mikrotik_access = $mikrotik->has_access();
 
-  if ($mikrotik_access > 0){
+  if ($mikrotik_access > 0) {
     return $mikrotik;
   }
 
-  if ($mikrotik->{backend} eq 'ssh' ) {
+  if ($mikrotik->{backend} eq 'ssh') {
 
-    if ( !$FORM{upload_key} ) {
-      my $wiki_mikrotik_ssh_access_link = $html->button( $lang{HELP}, undef, {
-          GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:docs:nas:mikrotik:ssh:key_upload',
-          target     => '_blank',
-          BUTTON     => 2
-        } );
+    if (!$FORM{upload_key}) {
+      my $wiki_mikrotik_ssh_access_link = $html->button($lang{HELP}, undef, {
+        GLOBAL_URL => 'http://abills.net.ua/wiki/pages/viewpage.action?pageId=106005530',
+        target     => '_blank',
+        BUTTON     => 2
+      });
 
-      $html->message( 'warn', $lang{ERR_ACCESS_DENY},
+      $html->message('warn', $lang{ERR_ACCESS_DENY},
         "$Nas_->{NAS_NAME} : " . ($mikrotik->{ip_address} || '[No host defined]')
           . ':' . ($mikrotik->{port} || '[No management port defined]')
-          . $html->br() . "User: ". ($Nas_->{NAS_MNG_USER} || q{Not defined})
+          . $html->br() . "User: " . ($Nas_->{NAS_MNG_USER} || q{Not defined})
           . $html->br() . "Backend : " . $mikrotik->{backend}
           . $html->br() . $wiki_mikrotik_ssh_access_link
       );
@@ -703,7 +706,7 @@ sub _mikrotik_init_and_check_access {
     return form_mikrotik_upload_key($mikrotik_access, $Nas_, $attr);
   }
 
-  $html->message( 'warn', $lang{ERR_ACCESS_DENY},
+  $html->message('warn', $lang{ERR_ACCESS_DENY},
     "$Nas_->{NAS_NAME} : $Nas_->{NAS_MNG_IP_PORT}"
       . $html->br() . "User: $Nas_->{NAS_MNG_USER}. Password : $Nas_->{NAS_MNG_PASSWORD}"
       . $html->br() . "Backend : " . $mikrotik->{backend}
@@ -724,19 +727,19 @@ sub local_network_interfaces_list {
   my %interfaces = ();
   my $os_name = $^O;
 
-  if ( $os_name eq 'linux' ) {
+  if ($os_name eq 'linux') {
     # Parse ifconfig
     my $raw = cmd("ifconfig -a");
     my @lines = split("\n", $raw);
 
     # Need to left 2 lines (1 with name and HWAddr, second with inet address)
-    for ( my $i = 0; $i < $#lines; $i++ ) {
-      if ( $lines[$i] =~ /^([a-z0-9]*) .* ($main::MAC) / ) {
+    for (my $i = 0; $i < $#lines; $i++) {
+      if ($lines[$i] =~ /^([a-z0-9]*) .* ($main::MAC) /) {
         my $name = $1;
         $interfaces{$name}->{MAC} = $2;
-        if ( $lines[$i + 1] =~ /inet +(.*)/ ) {
+        if ($lines[$i + 1] =~ /inet +(.*)/) {
           my @other_params = split(' ', $1);
-          foreach ( @other_params ) {
+          foreach (@other_params) {
             my ($attribut_name, $attribut_value) = split(':', $_);
             $interfaces{$name}->{uc $attribut_name} = $attribut_value;
           }
@@ -744,13 +747,13 @@ sub local_network_interfaces_list {
       }
     }
   }
-  elsif ( $os_name eq 'freebsd' ) {
+  elsif ($os_name eq 'freebsd') {
     # Use netstat
     my $raw = cmd("netstat -i -4 -n | awk -F ' ' '{ print \$1,\$4 }'");
     my @lines = split("\n", $raw);
     shift @lines; # Remove 'Address' line
 
-    foreach my $if_line ( @lines ) {
+    foreach my $if_line (@lines) {
       my ($name, $addr) = split(' ', $if_line);
       $interfaces{$name}->{ADDR} = $addr;
     }
@@ -776,22 +779,18 @@ sub _mikrotik_configure_get_connection_type {
   );
 
   my $connection_type_select = $html->form_select('CONNECTION_TYPE', {
-      SEL_LIST => [ map { { id => $_, name => $connection_types{$_} } } sort keys %connection_types ],
-      SELECTED => $FORM{CONNECTION_TYPE} || '',
-      EX_PARAMS    => 'style="min-width : 300px"',
-      NO_ID    => 1
-    });
-  my $connection_type_label = $html->element('label', $lang{CONNECTION_TYPE}, { class => 'control-label' });
+    SEL_LIST => [ map {{ id => $_, name => $connection_types{$_} }} sort keys %connection_types ],
+    SELECTED => $FORM{CONNECTION_TYPE} || '',
+    NO_ID    => 1
+  });
 
-  print $html->element('div', $html->form_main(
-      {
-        CONTENT => $connection_type_label . " : " . $connection_type_select,
-        HIDDEN  => { index => "$index", subf => $FORM{subf} || 0, mikrotik_configure => 1, NAS_ID => $FORM{NAS_ID} },
-        SUBMIT  => { go => $lang{CHOOSE} },
-        METHOD  => 'GET',
-        class   => 'form navbar-form'
-      }
-    ), { class => 'well well-sm' });
+  print $html->form_main({
+    CONTENT => $lang{CONNECTION_TYPE} . " : " . $connection_type_select,
+    HIDDEN  => { index => $index, subf => $FORM{subf} || 0, mikrotik_configure => 1, NAS_ID => $FORM{NAS_ID} },
+    SUBMIT  => { go => $lang{CHOOSE} },
+    METHOD  => 'GET',
+    class   => 'form-inline ml-auto flex-nowrap'
+  });
 
   return 0 if (!$FORM{CONNECTION_TYPE});
 }
@@ -810,20 +809,20 @@ sub _mikrotik_configure_freeradius_fields {
   my $interfaces = $mikrotik->interfaces_list();
 
   my $interface_select = $html->form_select('FLOW_INTERFACE', {
-      SELECTED => $template_args->{FLOW_INTERFACE} || '',
-      SEL_LIST => $interfaces,
-      SEL_KEY  => 'name',
-      NO_ID    => 1
-    });
+    SELECTED => $template_args->{FLOW_INTERFACE} || '',
+    SEL_LIST => $interfaces,
+    SEL_KEY  => 'name',
+    NO_ID    => 1
+  });
 
   $template_args->{EXTRA_INPUTS} .=
     _create_form_group_row('FLOW_INTERFACE', "Flow/DHCP interface", $interface_select);
 
   my $flow_ip_select = $html->form_select('FLOW_COLLECTOR', {
-      SELECTED  => $template_args->{FLOW_COLLECTOR} || '',
-      SEL_ARRAY => $local_ips,
-      NO_ID     => 1
-    });
+    SELECTED  => $template_args->{FLOW_COLLECTOR} || '',
+    SEL_ARRAY => $local_ips,
+    NO_ID     => 1
+  });
   my $flow_ip_input = $html->form_input('FLOW_COLLECTOR_ADD', $template_args->{FLOW_COLLECTOR},
     { ID => 'FLOW_COLLECTOR_CUSTOM' });
   my $flow_select_with_input = $html->form_blocks_togglable($flow_ip_select, $flow_ip_input);
@@ -849,16 +848,16 @@ sub _mikrotik_configure_pppoe_fields {
   # Get interfaces from mikrotik
   my $remote_interfaces = $mikrotik->interfaces_list();
 
-  if ( $remote_interfaces && ref $remote_interfaces eq 'ARRAY' && scalar @{$remote_interfaces} ) {
+  if ($remote_interfaces && ref $remote_interfaces eq 'ARRAY' && scalar @{$remote_interfaces}) {
 
     my $interface_select = $html->form_select('PPPOE_INTERFACE', {
-        SELECTED => $template_args->{PPPOE_INTERFACE} || '',
-        SEL_LIST => $remote_interfaces,
-        SEL_KEY  => 'name',
-        SEL_NAME => 'name',
+      SELECTED => $template_args->{PPPOE_INTERFACE} || '',
+      SEL_LIST => $remote_interfaces,
+      SEL_KEY  => 'name',
+      SEL_NAME => 'name',
 
-        NO_ID    => 1
-      });
+      NO_ID    => 1
+    });
 
     $template_args->{EXTRA_INPUTS} .=
       _create_form_group_row('PPPOE_INTERFACE', "PPPoE $lang{INTERFACE}", $interface_select);
@@ -895,7 +894,7 @@ sub _create_form_group_row {
 #**********************************************************
 sub _create_input_form_group_row {
   my $input = $html->form_input($_[0], $_[1]);
-  return _create_form_group_row( $_[0], $_[2], $input );
+  return _create_form_group_row($_[0], $_[2], $input);
 }
 
 #**********************************************************
@@ -906,21 +905,25 @@ sub _create_input_form_group_row {
 sub _create_checkbox_form_group_row {
   my ($name, $state, $label, $extra_input_attr) = @_;
   my $input = $html->form_input($name, 1, { TYPE => 'checkbox', STATE => $state, %{$extra_input_attr // {}} });
-  my $label_html = $html->element('label', $input . $label );
+  my $label_html = $html->element('label', $input . $label);
 
-  return $html->element('div', $label_html, { class => 'checkbox', OUTPUT2RETURN => 1});
+  return $html->element('div', $label_html, { class => 'checkbox', OUTPUT2RETURN => 1 });
 }
 
 #**********************************************************
-=head2 _import_users($attr) -
+=head2 _import_users($Mikrotik, $attr) -
+
+  Arguments:
+    $Mikrotik
+    $attr
 
 =cut
 #**********************************************************
 sub _import_users {
   my ($Mikrotik, $attr) = @_;
 
-  my (undef, @rules ) = $Mikrotik->{executor}->mtik_query( '/ppp secret' . ' print',
-    {'.proplist' => '.id,name,service,password,caller-id,profile,remote-address,comment,list' },
+  my (undef, @rules) = $Mikrotik->{executor}->mtik_query('/ppp secret' . ' print',
+    { '.proplist' => '.id,name,service,password,caller-id,profile,remote-address,comment,list' },
   );
 
   my $nas_id = $attr->{NAS_ID} || 0;
@@ -928,7 +931,7 @@ sub _import_users {
 
   my @ppp_profiles = ();
   my $add_to_db = $attr->{pppoe} || 0;
-  foreach my $rule ( @rules ) {
+  foreach my $rule (@rules) {
     my $comments = Abills::Base::convert($rule->{'comment'}, { win2utf8 => 1 });
 
     push @ppp_profiles, [ ($rule->{'.id'} || q{}),
@@ -940,22 +943,21 @@ sub _import_users {
       ($rule->{'remote-address'} || q{}),
       ($comments || q{}) ];
 
-
-    if($add_to_db) {
+    if ($add_to_db) {
       my %user_list = ();
-      $user_list{'1.LOGIN'}=($rule->{'name'} | q{});
-      $user_list{'1.PASSWORD'}=($rule->{'password'} || q{});
-      $user_list{'1.GID'}=101;
-      $user_list{'4.CID'}=($rule->{'caller-id'} || q{});
-      $user_list{'4.TP_NAME'}=($rule->{'profile'} || q{});
-      $user_list{'4.IP'}=($rule->{'remote-address'} || q{});
-      $user_list{'3.COMMENTS'}=$comments;
-      $user_list{'3.FIO'}=$comments;
+      $user_list{'1.LOGIN'} = ($rule->{'name'} | q{});
+      $user_list{'1.PASSWORD'} = ($rule->{'password'} || q{});
+      $user_list{'1.GID'} = 101;
+      $user_list{'4.CID'} = ($rule->{'caller-id'} || q{});
+      $user_list{'4.TP_NAME'} = ($rule->{'profile'} || q{});
+      $user_list{'4.IP'} = ($rule->{'remote-address'} || q{});
+      $user_list{'3.COMMENTS'} = $comments;
+      $user_list{'3.FIO'} = $comments;
       $user_list{'1.CREATE_BILL'} = 1;
 
       internet_wizard_add({
-         %user_list,
-         SHORT_REPORT => 1,
+        %user_list,
+        SHORT_REPORT => 1,
       });
     }
   }
@@ -965,7 +967,7 @@ sub _import_users {
   }
 
   my $table = $html->table({
-    caption => 'PPPoE (' . ($#rules + 1)  .') '. $html->button($lang{IMPORT},
+    caption => 'PPPoE (' . ($#rules + 1) . ') ' . $html->button($lang{IMPORT},
       "index=$index&NAS_ID=$nas_id&mikrotik_configure=1&import_users=1&pppoe=1",
       { BUTTON => 2 }),
     width   => '100%',
@@ -974,13 +976,13 @@ sub _import_users {
 
   print $table->show();
 
-  my (undef, @rules2 ) = $Mikrotik->{executor}->mtik_query( '/queue simple ' . ' print',
-    {'.proplist' => '.id,name,target,max-limit,list' },
+  my (undef, @rules2) = $Mikrotik->{executor}->mtik_query('/queue simple ' . ' print',
+    { '.proplist' => '.id,name,target,max-limit,list' },
   );
 
   my @ipoe_profiles = ();
   $add_to_db = $attr->{ipoe} || 0;
-  foreach my $rule ( @rules2 ) {
+  foreach my $rule (@rules2) {
     my $comments = Abills::Base::convert($rule->{'name'}, { win2utf8 => 1 });
     $rule->{'.id'} =~ s/\*/0x/;
 
@@ -997,18 +999,18 @@ sub _import_users {
       $num,
       $ip,
       $speed,
-      ($comments || q{}) .' '. ($rule->{'max-limit'} || q{})
+      ($comments || q{}) . ' ' . ($rule->{'max-limit'} || q{})
     ];
 
     if ($add_to_db && $comments) {
       my %user_list = ();
-      $user_list{'1.LOGIN'}='ipoe_' . $num;
-      $user_list{'1.GID'}=102;
-      $user_list{'4.TP_NAME'}='IPOE_IMPORT';
-      $user_list{'4.SPEED'}=$speed;
-      $user_list{'4.IP'}=$ip;
-      $user_list{'3.FIO'}=$comments;
-      $user_list{'3.COMMENTS'}=$comments .' '. ($rule->{'max-limit'} || q{});
+      $user_list{'1.LOGIN'} = 'ipoe_' . $num;
+      $user_list{'1.GID'} = 102;
+      $user_list{'4.TP_NAME'} = 'IPOE_IMPORT';
+      $user_list{'4.SPEED'} = $speed;
+      $user_list{'4.IP'} = $ip;
+      $user_list{'3.FIO'} = $comments;
+      $user_list{'3.COMMENTS'} = $comments . ' ' . ($rule->{'max-limit'} || q{});
       $user_list{'1.CREATE_BILL'} = 1;
 
       internet_wizard_add({
@@ -1023,7 +1025,7 @@ sub _import_users {
   }
 
   $table = $html->table({
-    caption => 'IPoE (' . ($#rules2 + 1)  .') '. $html->button($lang{IMPORT},
+    caption => 'IPoE (' . ($#rules2 + 1) . ') ' . $html->button($lang{IMPORT},
       "index=$index&NAS_ID=$nas_id&mikrotik_configure=1&import_users=1&ipoe=1",
       { BUTTON => 2 }),
     width   => '100%',

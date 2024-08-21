@@ -1,0 +1,14 @@
+type: object
+properties:
+  prefix:
+    type: string
+    example: 38094
+  name:
+    type: string
+    example: Ukraine PEOPLEnET
+  describe:
+    type: string
+    example: box inside
+  disable:
+    type: number
+    example: 1

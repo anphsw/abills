@@ -1,0 +1,8 @@
+{
+  "name": "TAG_USER_UPDATE",
+  "method": "PUT",
+  "path": "tags/:tagId/users/:uid/",
+  "body": {
+    "endDate": "2024-11-30"
+  }
+}

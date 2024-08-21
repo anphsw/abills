@@ -886,6 +886,7 @@ sub voip_recalculate_sum {
 =cut
 #**********************************************************
 sub voip_user_number_add {
+  #TODO: review this function direct print of messages
   my $self = shift;
   my ($uid) = @_;
 

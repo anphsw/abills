@@ -58,7 +58,7 @@ sub form_payments {
   foreach my $line (@$payment_list) {
     $attr->{DEFAULT_ID} = $line->{id} if ($line->{default_payment});
     $attr->{PAYMENTS_METHODS}->{$line->{id}} = _translate($line->{name});
-    if ($FORM{METHOD} && $FORM{METHOD} == $line->{id} && $line->{fees_type}) {
+    if ($FORM{METHOD} && $FORM{METHOD} eq $line->{id} && $line->{fees_type}) {
       $attr->{GET_FEES}=$line->{fees_type};
       last;
     }
@@ -77,6 +77,9 @@ sub form_payments {
       exit;
     }
   }
+
+  $FORM{METHOD} = $FORM{FIELDS} if $FORM{FIELDS};
+  $FORM{METHOD} =~ s/,/;/g if $FORM{METHOD};
 
   if (($FORM{search_form} || $FORM{search}) && $index != 7) {
     form_search({
@@ -118,6 +121,10 @@ sub form_payments {
         return 0;
       }
 
+      if ($permissions{0}{41}) {
+        $FORM{del} =~ s/,/;/g;
+      }
+
       my $payment_info = $Payments->list({
         ID         => $FORM{del},
         UID        => '_SHOW',
@@ -129,21 +136,23 @@ sub form_payments {
         COLS_UPPER => 1,
       });
 
-      $Payments->del($user, $FORM{del}, { COMMENTS => $FORM{COMMENTS} });
-      if ($Payments->{errno}) {
-        if ($Payments->{errno} == 3) {
-          $html->message( 'err', $lang{ERROR}, "$lang{ERR_DELETE_RECEIPT} " .
-              $html->button( $lang{SHOW},
-                "search=1&PAYMENT_ID=$FORM{del}&index=" . (get_function_index( 'docs_receipt_list' )),
-                { BUTTON => 1 } ) );
+      foreach my $payment (@{$payment_info}) {
+        $Payments->del($user, $payment->{ID}, { COMMENTS => $FORM{COMMENTS} });
+        if ($Payments->{errno}) {
+          if ($Payments->{errno} == 3) {
+            $html->message('err', $lang{ERROR}, "$lang{ERR_DELETE_RECEIPT} " .
+              $html->button($lang{SHOW},
+                "search=1&PAYMENT_ID=$payment->{ID}&index=" . (get_function_index('docs_receipt_list')),
+                { BUTTON => 1 }));
+          }
+          else {
+            _error_show($Payments);
+          }
         }
         else {
-          _error_show($Payments);
+          cross_modules('payment_del', { %$attr, FORM => \%FORM, ID => $payment->{ID}, PAYMENT_INFO => $payment });
+          $html->message( 'info', $lang{PAYMENTS}, "$lang{DELETED} ID: $payment->{ID}" );
         }
-      }
-      else {
-        cross_modules('payment_del', { %$attr, FORM => \%FORM, ID => $FORM{del}, PAYMENT_INFO => $payment_info->[0] });
-        $html->message( 'info', $lang{PAYMENTS}, "$lang{DELETED} ID: $FORM{del}" );
       }
     }
 
@@ -375,7 +384,7 @@ sub form_payment_add {
 sub _docs_invoice_receipt {
   my $user = shift;
   
-  return if !in_array('Docs', \@MODULES) || $conf{DOCS_PAYMENT_DOCS_SKIP};
+  return if (!in_array('Docs', \@MODULES) || $conf{DOCS_PAYMENT_DOCS_SKIP} || ($admin->{MODULES} && ! $admin->{MODULES}->{Docs}));
 
   if ($user->{GID}) {
     $user->group_info($user->{GID});
@@ -516,6 +525,7 @@ sub payment_add {
             COMMENTS       => $FORM{DESCRIBE},
             AID            => $admin->{AID},
             UID            => $user->{UID},
+            PAYMENT_ID     => $Payments->{PAYMENT_ID} || 0,
           });
 
           _error_show($Employees);
@@ -547,10 +557,15 @@ sub payment_add {
 
     if ($attr->{GET_FEES}) {
       my $Fees = Finance->fees($db, $admin, \%conf);
+      $user->{UID} = $uid;
       $Fees->take($user, $FORM{SUM}, {
         DESCRIBE => ($FORM{DESCRIBE} || q{}) . " PAYMENT: $Payments->{PAYMENT_ID}",
         METHOD   => $attr->{GET_FEES}
       });
+
+      if (! $Fees->{errno}) {
+        $html->message('info', $lang{FEES}, "$lang{FEES}: ". sprintf('%.2f', $FORM{SUM}));
+      }
     }
   }
 
@@ -604,31 +619,134 @@ sub form_payments_list {
   my Abills::HTML $table;
   my $payments_list;
 
+  my $Docs;
+  if (in_array('Docs', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Docs})) {
+    require Docs;
+    Docs->import();
+    $Docs = Docs->new($db, $admin, \%conf);
+  }
+
   ($table, $payments_list) = result_former({
     INPUT_DATA      => $Payments,
     FUNCTION        => 'list',
     BASE_FIELDS     => 1,
     HIDDEN_FIELDS   => 'ADMIN_DISABLE',
     DEFAULT_FIELDS  => 'DATETIME,LOGIN,DSC,SUM,LAST_DEPOSIT,METHOD,EXT_ID',
-    FUNCTION_FIELDS => 'del',
+    FUNCTION_FIELDS => $permissions{1}{2} ? 'del' : '',
+    FUNCTION_INDEX  => $index,
+    MULTISELECT     => $FORM{UID} && $permissions{0}{41} ? 'del:id:PAYMENTS' : '',
+    FILTER_VALUES   => {
+      ext_deposit      => sub {
+        my $ext_deposit = shift;
+        $ext_deposit //= 0;
+
+        return ($ext_deposit < 0) ? $html->color_mark(format_sum($ext_deposit), $_COLORS[6]) : format_sum($ext_deposit);
+      },
+      ext_id           => sub {
+        my $ext_id = shift;
+
+        return convert($ext_id, { text2html => 1 });
+      },
+      ext_bill_deposit => sub {
+        my $ext_bill_deposit = shift;
+
+        return $ext_bill_deposit if !$conf{EXT_BILL_ACCOUNT};
+        return $ext_bill_deposit < 0 ? $html->color_mark($ext_bill_deposit, $_COLORS[6]) : $ext_bill_deposit;
+      },
+      deleted          => sub {
+        my $deleted = shift;
+        $deleted //= 0;
+        return $html->color_mark($bool_vals[ $deleted ], ($deleted == 1) ? $state_colors[ $deleted ] : '')
+      },
+      dsc              => sub {
+        my ($dsc, $line) = @_;
+
+        $dsc = convert($dsc, { text2html => 1 }) if $dsc;
+        return ($dsc || q{}) . ($line->{inner_describe} ? $html->b("($line->{inner_describe})") : '');
+      },
+      deposit          => sub {
+        my $deposit = shift;
+        $deposit //= 0;
+
+        return ($deposit < 0) ? $html->color_mark(format_sum($deposit), $_COLORS[6]) : format_sum($deposit);
+      },
+      last_deposit     => sub {
+        my $last_deposit = shift;
+        $last_deposit //= 0;
+
+        return ($last_deposit < 0) ? $html->color_mark(format_sum($last_deposit), $_COLORS[6]) : format_sum($last_deposit);
+      },
+      method           => sub {
+        my $method = shift;
+        $method //= 0;
+        $method = ($FORM{METHOD_NUM}) ? $method : ($PAYMENTS_METHODS->{ $method } || $method);
+      },
+      login_status     => sub {
+        my $login_status = shift;
+        $login_status //= 0;
+
+        return ($login_status > 0) ?
+          $html->color_mark($service_status[ $login_status ], $service_status_colors[ $login_status ]) :
+          $service_status[$login_status];
+      },
+      bill_id          => sub {
+        my $bill_id = shift;
+
+        return ($conf{EXT_BILL_ACCOUNT} && $attr->{USER_INFO}) ? ($BILL_ACCOUNTS{ $bill_id } || q{--}) : $bill_id;
+      },
+      admin_name       => sub {
+        my ($admin_name, $line) = @_;
+
+        $admin_name = _status_color_state($admin_name, $line->{admin_disable});
+        delete $line->{admin_disable};
+
+        return $admin_name;
+      },
+      invoice_num       => sub {
+        my ($invoice_num, $line) = @_;
+
+        my $payment_sum = $line->{sum} || 0;
+        my $i2p = '';
+
+        if ($Docs) {
+          my $i2p_list = $Docs->invoices2payments_list({ PAYMENT_ID => $line->{id}, COLS_NAME => 1 });
+          
+          if ($Docs->{TOTAL} && $Docs->{TOTAL} > 0) {
+            foreach my $invoice (@{$i2p_list}) {
+              my $invoiced_sum = $invoice->{invoiced_sum} || 0;
+              $i2p .= "$lang{PAID}: $invoiced_sum $lang{INVOICE} #" . $html->button($invoice_num,
+                "index=" . get_function_index( 'docs_invoices_list' ) . "&ID=$invoice->{invoice_id}&search=1" ) . $html->br();
+              $payment_sum -= $invoiced_sum;
+            }
+          }
+        }
+
+        if ($payment_sum > 0) {
+          $i2p .= sprintf( "%.2f", $payment_sum ) . ' ' . $html->color_mark($lang{UNAPPLIED}, $_COLORS[6] ) . ' (' . $html->button( $lang{APPLY},
+            "index=" . get_function_index( 'docs_invoices_list' ) . "&UNINVOICED=1&PAYMENT_ID=$line->{id}&UID=$line->{uid}" ) . ')';
+        }
+
+        return $i2p;
+      }
+    },
     EXT_TITLES      => {
-      'id'              => $lang{NUM},
-      'datetime'        => $lang{DATE},
-      'dsc'             => $lang{DESCRIBE},
-      'dsc2'            => "$lang{DESCRIBE} 2",
-      'inner_describe2' => "$lang{INNER}",
-      'sum'             => $lang{SUM},
-      'last_deposit'    => $lang{OPERATION_DEPOSIT},
-      'deposit'         => $lang{CURRENT_DEPOSIT},
-      'method'          => $lang{PAYMENT_METHOD},
-      'ext_id'          => 'EXT ID',
-      'reg_date'        => "$lang{PAYMENTS} $lang{REGISTRATION}",
-      'ip'              => 'IP',
-      'admin_name'      => $lang{ADMIN},
-      'invoice_num'     => $lang{INVOICE},
-      amount            => "$lang{ALT} $lang{SUM}",
-      currency          => $lang{CURRENCY},
-      after_deposit     => $lang{AFTER_OPERATION_DEPOSIT}
+      id              => $lang{NUM},
+      datetime        => $lang{DATE},
+      dsc             => $lang{DESCRIBE},
+      dsc2            => "$lang{DESCRIBE} 2",
+      inner_describe2 => "$lang{INNER}",
+      sum             => $lang{SUM},
+      last_deposit    => $lang{OPERATION_DEPOSIT},
+      deposit         => $lang{CURRENT_DEPOSIT},
+      method          => $lang{PAYMENT_METHOD},
+      ext_id          => 'EXT ID',
+      reg_date        => "$lang{PAYMENTS} $lang{REGISTRATION}",
+      ip              => 'IP',
+      admin_name      => $lang{ADMIN},
+      invoice_num     => $lang{INVOICE},
+      amount          => "$lang{ALT} $lang{SUM}",
+      currency        => $lang{CURRENCY},
+      after_deposit   => $lang{AFTER_OPERATION_DEPOSIT}
     },
     TABLE           => {
       width            => '100%',
@@ -640,125 +758,201 @@ sub form_payments_list {
       MENU             => "$lang{SEARCH}:search_form=1&index=2" . (($FORM{UID}) ? "&UID=$FORM{UID}&LOGIN=" . ($users->{LOGIN} || q{}) : q{}) . ":search",
       SHOW_COLS_HIDDEN => {
         TYPE_PAGE => $FORM{type}
-      }
+      },
+      SELECT_ALL          => $FORM{UID} && $permissions{0}{41} ? "PAYMENTS:del:$lang{SELECT_ALL}" : '',
+      MULTISELECT_ACTIONS => $FORM{UID} && $permissions{0}{41} ? [
+        {
+          TITLE    => $lang{DEL},
+          ICON     => 'fa fa-trash',
+          ACTION   => "$SELF_URL?index=$index$pages_qs",
+          PARAM    => 'del',
+          CLASS    => 'text-danger',
+          COMMENTS => "$lang{DEL}?"
+        },
+      ] : [],
     },
+    MAKE_ROWS       => 1
   });
-
-  $table->{SKIP_FORMER}=1;
-
-  my %i2p_hash = ();
-  if (in_array('Docs', \@MODULES)) {
-
-    our $Docs;
-    load_module('Docs', $html);
-    my @payment_id_arr = ();
-    foreach my $p (@$payments_list) {
-      push @payment_id_arr, $p->{id};
-    }
-
-    my $i2p_list = $Docs->invoices2payments_list({
-      PAYMENT_ID => join(';', @payment_id_arr),
-      PAGE_ROWS  => ($LIST_PARAMS{PAGE_ROWS} || 25)*3,
-      COLS_NAME  => 1
-    });
-
-    foreach my $i2p (@$i2p_list) {
-      push @{ $i2p_hash{$i2p->{payment_id}} }, ($i2p->{invoice_id} || '') .':'. ($i2p->{invoiced_sum} || '') .':'. ($i2p->{invoice_num} || '');
-    }
-  }
-
-  $pages_qs .= "&subf=2" if (!$FORM{subf});
-
-  foreach my $line (@$payments_list) {
-    my $delete = ($permissions{1}{2}) ? $html->button( $lang{DEL},
-        "index=2&del=$line->{id}$pages_qs". (($pages_qs !~ /UID=/) ? "&UID=$line->{uid}" : q{} ),
-        { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' } ) : '';
-
-    my @fields_array = ();
-    for (my $i = 0; $i < 1+$Payments->{SEARCH_FIELDS_COUNT}; $i++) {
-      my $field_name = $Payments->{COL_NAMES_ARR}->[$i] || q{};
-
-      if ($conf{EXT_BILL_ACCOUNT} && $field_name eq 'ext_bill_deposit') {
-        $line->{ext_bill_deposit} = ($line->{ext_bill_deposit} < 0) ? $html->color_mark($line->{ext_bill_deposit}, $_COLORS[6]) : $line->{ext_bill_deposit};
-      }
-      elsif($field_name eq 'deleted') {
-        if (defined($line->{deleted})){
-          $line->{deleted} = $html->color_mark( $bool_vals[ $line->{deleted} ],
-              ($line->{deleted} && $line->{deleted} == 1) ? $state_colors[ $line->{deleted} ] : '' );
-        }
-      }
-      elsif ($field_name eq 'ext_id' && $line->{ext_id}) {
-        $line->{ext_id} = convert($line->{ext_id}, { text2html => 1 });
-      }
-      elsif($field_name eq 'login' && $line->{uid}) {
-        $line->{login} = $html->button($line->{login}, "index=15&UID=$line->{uid}");
-      }
-      elsif($field_name eq 'dsc') {
-        if ($line->{dsc}) {
-          $line->{$field_name} = convert($line->{$field_name}, { text2html => 1 });
-        }
-
-        $line->{dsc} = ($line->{dsc} || q{}) . $html->b("($line->{inner_describe})") if ($line->{inner_describe});
-      }
-      elsif($field_name =~ /deposit/ && defined($line->{$field_name})) {
-        $line->{$field_name} = ($line->{$field_name} < 0) ? $html->color_mark( format_sum($line->{$field_name}), $_COLORS[6] ) :  format_sum($line->{$field_name});
-      }
-      elsif($field_name eq 'method') {
-        $line->{method} = ($FORM{METHOD_NUM}) ? $line->{method} : (defined($line->{method}) && $PAYMENTS_METHODS->{ defined($line->{method}) }) ? $PAYMENTS_METHODS->{ $line->{method} } : $line->{method};
-      }
-      elsif($field_name eq 'login_status' && defined($line->{login_status})) {
-        $line->{login_status} = ($line->{login_status} > 0) ? $html->color_mark($service_status[ $line->{login_status} ], $service_status_colors[ $line->{login_status} ]) : $service_status[$line->{login_status}];
-      }
-      elsif ($field_name eq 'bill_id') {
-        $line->{bill_id} = ($conf{EXT_BILL_ACCOUNT} && $attr->{USER_INFO}) ? $BILL_ACCOUNTS{ $line->{bill_id} } : $line->{bill_id};
-      }
-      elsif($field_name eq 'invoice_num') {
-        if (in_array('Docs', \@MODULES) && ! $FORM{xml}) {
-          my $payment_sum = $line->{sum};
-          my $i2p         = '';
-
-          if ($i2p_hash{$line->{id}}) {
-            foreach my $val ( @{ $i2p_hash{$line->{id}} }  ) {
-              my ($invoice_id, $invoiced_sum, $invoice_num)=split(/:/, $val);
-              $i2p .= "$lang{PAID}: $invoiced_sum $lang{INVOICE} #" . $html->button( $invoice_num,
-                "index=" . get_function_index( 'docs_invoices_list' ) . "&ID=$invoice_id&search=1" ) . $html->br();
-              $payment_sum -= $invoiced_sum;
-            }
-          }
-          if ($payment_sum > 0) {
-            $i2p .= sprintf( "%.2f", $payment_sum ) . ' ' . $html->color_mark( "$lang{UNAPPLIED}",
-              $_COLORS[6] ) . ' (' . $html->button( $lang{APPLY},
-              "index=" . get_function_index( 'docs_invoices_list' ) . "&UNINVOICED=1&PAYMENT_ID=$line->{id}&UID=$line->{uid}" ) . ')';
-          }
-
-          $line->{invoice_num} = $i2p;
-        }
-      }
-      elsif($field_name eq 'admin_name') {
-        $line->{admin_name} = _status_color_state($line->{admin_name}, $line->{admin_disable});
-        delete $line->{admin_disable};
-      }
-      
-      if ($Payments->{SEARCH_FIELDS_COUNT} == $i) {
-        delete $line->{admin_disable};
-      }
-
-      push @fields_array, $line->{$field_name};
-    }
-
-    $table->addrow(@fields_array, $delete);
-  }
 
   if (!$admin->{MAX_ROWS}) {
     $table->addfooter(
-       '',
-       "$lang{TOTAL}: " .  $Payments->{TOTAL} . $html->br()
-       . (($Payments->{TOTAL_USERS} && $Payments->{TOTAL_USERS} > 1) ? "$lang{USERS}: " .  ($Payments->{TOTAL_USERS}) .$html->br() : q{})
-       . "$lang{SUM}: " . format_sum($Payments->{SUM})
+      $FORM{UID} ? ('', '') : '',
+      "$lang{TOTAL}: " .  $Payments->{TOTAL} . $html->br()
+        . (($Payments->{TOTAL_USERS} && $Payments->{TOTAL_USERS} > 1) ? "$lang{USERS}: " .  ($Payments->{TOTAL_USERS}) .$html->br() : q{})
+        . "$lang{SUM}: " . format_sum($Payments->{SUM})
     );
   }
 
   print $table->show();
+
+  # $table->{SKIP_FORMER}=1;
+  #
+  # my %i2p_hash = ();
+  # if (in_array('Docs', \@MODULES)) {
+  #
+  #   our $Docs;
+  #   load_module('Docs', $html);
+  #   my @payment_id_arr = ();
+  #   foreach my $p (@$payments_list) {
+  #     push @payment_id_arr, $p->{id};
+  #   }
+  #
+  #   my $i2p_list = $Docs->invoices2payments_list({
+  #     PAYMENT_ID => join(';', @payment_id_arr),
+  #     PAGE_ROWS  => ($LIST_PARAMS{PAGE_ROWS} || 25)*3,
+  #     COLS_NAME  => 1
+  #   });
+  #
+  #   foreach my $i2p (@$i2p_list) {
+  #     push @{ $i2p_hash{$i2p->{payment_id}} }, ($i2p->{invoice_id} || '') .':'. ($i2p->{invoiced_sum} || '') .':'. ($i2p->{invoice_num} || '');
+  #   }
+  # }
+  #
+  # $pages_qs .= "&subf=2" if (!$FORM{subf});
+  #
+  # foreach my $line (@$payments_list) {
+  #   my $delete = ($permissions{1}{2}) ? $html->button( $lang{DEL},
+  #       "index=2&del=$line->{id}$pages_qs". (($pages_qs !~ /UID=/) ? "&UID=$line->{uid}" : q{} ),
+  #       { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' } ) : '';
+  #
+  #   my @fields_array = ();
+  #   for (my $i = 0; $i < 1+$Payments->{SEARCH_FIELDS_COUNT}; $i++) {
+  #     my $field_name = $Payments->{COL_NAMES_ARR}->[$i] || q{};
+  #
+  #     if ($conf{EXT_BILL_ACCOUNT} && $field_name eq 'ext_bill_deposit') {
+  #       $line->{ext_bill_deposit} = ($line->{ext_bill_deposit} < 0) ? $html->color_mark($line->{ext_bill_deposit}, $_COLORS[6]) : $line->{ext_bill_deposit};
+  #     }
+  #     elsif($field_name eq 'deleted') {
+  #       if (defined($line->{deleted})){
+  #         $line->{deleted} = $html->color_mark( $bool_vals[ $line->{deleted} ],
+  #             ($line->{deleted} && $line->{deleted} == 1) ? $state_colors[ $line->{deleted} ] : '' );
+  #       }
+  #     }
+  #     elsif ($field_name eq 'ext_id' && $line->{ext_id}) {
+  #       $line->{ext_id} = convert($line->{ext_id}, { text2html => 1 });
+  #     }
+  #     elsif($field_name eq 'login' && $line->{uid}) {
+  #       $line->{login} = $html->button($line->{login}, "index=15&UID=$line->{uid}");
+  #     }
+  #     elsif($field_name eq 'dsc') {
+  #       if ($line->{dsc}) {
+  #         $line->{$field_name} = convert($line->{$field_name}, { text2html => 1 });
+  #       }
+  #
+  #       $line->{dsc} = ($line->{dsc} || q{}) . $html->b("($line->{inner_describe})") if ($line->{inner_describe});
+  #     }
+  #     elsif($field_name =~ /deposit/ && defined($line->{$field_name})) {
+  #       $line->{$field_name} = ($line->{$field_name} < 0) ? $html->color_mark( format_sum($line->{$field_name}), $_COLORS[6] ) :  format_sum($line->{$field_name});
+  #     }
+  #     elsif($field_name eq 'method') {
+  #       $line->{method} = ($FORM{METHOD_NUM}) ? $line->{method} : (defined($line->{method}) && $PAYMENTS_METHODS->{ defined($line->{method}) }) ? $PAYMENTS_METHODS->{ $line->{method} } : $line->{method};
+  #     }
+  #     elsif($field_name eq 'login_status' && defined($line->{login_status})) {
+  #       $line->{login_status} = ($line->{login_status} > 0) ? $html->color_mark($service_status[ $line->{login_status} ], $service_status_colors[ $line->{login_status} ]) : $service_status[$line->{login_status}];
+  #     }
+  #     elsif ($field_name eq 'bill_id') {
+  #       $line->{bill_id} = ($conf{EXT_BILL_ACCOUNT} && $attr->{USER_INFO}) ? $BILL_ACCOUNTS{ $line->{bill_id} } : $line->{bill_id};
+  #     }
+  #     elsif($field_name eq 'invoice_num') {
+  #       if (in_array('Docs', \@MODULES) && ! $FORM{xml}) {
+  #         my $payment_sum = $line->{sum};
+  #         my $i2p         = '';
+  #
+  #         if ($i2p_hash{$line->{id}}) {
+  #           foreach my $val ( @{ $i2p_hash{$line->{id}} }  ) {
+  #             my ($invoice_id, $invoiced_sum, $invoice_num)=split(/:/, $val);
+  #             $i2p .= "$lang{PAID}: $invoiced_sum $lang{INVOICE} #" . $html->button( $invoice_num,
+  #               "index=" . get_function_index( 'docs_invoices_list' ) . "&ID=$invoice_id&search=1" ) . $html->br();
+  #             $payment_sum -= $invoiced_sum || 0;
+  #           }
+  #         }
+  #         if ($payment_sum > 0) {
+  #           $i2p .= sprintf( "%.2f", $payment_sum ) . ' ' . $html->color_mark( "$lang{UNAPPLIED}",
+  #             $_COLORS[6] ) . ' (' . $html->button( $lang{APPLY},
+  #             "index=" . get_function_index( 'docs_invoices_list' ) . "&UNINVOICED=1&PAYMENT_ID=$line->{id}&UID=$line->{uid}" ) . ')';
+  #         }
+  #
+  #         $line->{invoice_num} = $i2p;
+  #       }
+  #     }
+  #     elsif($field_name eq 'admin_name') {
+  #       $line->{admin_name} = _status_color_state($line->{admin_name}, $line->{admin_disable});
+  #       delete $line->{admin_disable};
+  #     }
+  #
+  #     if ($Payments->{SEARCH_FIELDS_COUNT} == $i) {
+  #       delete $line->{admin_disable};
+  #     }
+  #
+  #     push @fields_array, $line->{$field_name};
+  #   }
+  #
+  #   $table->addrow(@fields_array, $delete);
+  # }
+  #
+  # if (!$admin->{MAX_ROWS}) {
+  #   $table->addfooter(
+  #      '',
+  #      "$lang{TOTAL}: " .  $Payments->{TOTAL} . $html->br()
+  #      . (($Payments->{TOTAL_USERS} && $Payments->{TOTAL_USERS} > 1) ? "$lang{USERS}: " .  ($Payments->{TOTAL_USERS}) .$html->br() : q{})
+  #      . "$lang{SUM}: " . format_sum($Payments->{SUM})
+  #   );
+  # }
+  #
+  # print $table->show();
+  return 1;
+}
+
+#**********************************************************
+=head2 form_back_money($type, $sum, $attr) - Back money to bill account
+
+  Arguments:
+    $type,
+    $sum
+    $attr
+      LOGIN
+
+
+  Results:
+    TRUE  or FALSE
+
+=cut
+#**********************************************************
+sub form_back_money {
+  my ($type, $sum, $attr) = @_;
+  my $uid;
+
+  if ($type eq 'log') {
+    if (defined($attr->{LOGIN})) {
+      my $list = $users->list({ LOGIN => $attr->{LOGIN}, COLS_NAME => 1 });
+
+      if ($users->{TOTAL} < 1) {
+        $html->message( 'err', $lang{USER}, "[$users->{errno}] $err_strs{$users->{errno}}" );
+        return 0;
+      }
+      $uid = $list->[0]->{uid};
+    }
+    else {
+      $uid = $attr->{UID};
+    }
+  }
+
+  my $user = $users->info($uid);
+
+  my $OP_SID = ($FORM{OP_SID}) ? $FORM{OP_SID} : mk_unique_value(16);
+
+  print $html->form_main({
+    HIDDEN => {
+      index   => $index,
+      subf    => $index,
+      sum     => $sum,
+      OP_SID  => $OP_SID,
+      UID     => $uid,
+      BILL_ID => $user->{BILL_ID}
+    },
+    SUBMIT => { bm => "$lang{BACK_MONEY} ?" }
+  });
+
   return 1;
 }
 

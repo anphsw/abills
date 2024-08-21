@@ -1,0 +1,5 @@
+{
+  "name": "ADMIN_PORTAL_MENU_UPDATE",
+  "method": "DELETE",
+  "path": "portal/menus/:menuId/"
+}

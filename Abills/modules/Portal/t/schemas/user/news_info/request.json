@@ -1,0 +1,5 @@
+{
+  "name": "USER_PORTAL_NEWS_INFO",
+  "method": "GET",
+  "path": "user/portal/news/:articleId/"
+}

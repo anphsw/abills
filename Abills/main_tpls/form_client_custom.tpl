@@ -10,8 +10,8 @@
             <div class='inner'>
                 <h4>_{YOUR_DEPOSIT}_: %MAIN_INFO_DEPOSIT% %MONEY_UNIT_NAME%</h4>
                 <p>_{RECOMMENDED_PAYMENT}_ %RECOMENDED_PAY% %MONEY_UNIT_NAME%</p>
-                <p>_{PAYMENT_NUMBER}_ UID: %MAIN_INFO_UID%</p>
-                <p>_{LAST_PAYMENT_FEE}_: &nbsp; %PAYMENTS_DATETIME% &nbsp; %PAYMENTS_SUM% %MONEY_UNIT_NAME% &nbsp; %PAYMENTS_DSC%</p>
+                <p>_{PAYMENT_NUMBER}_ %MAIN_INFO_UID%</p>
+                <p>_{LAST_PAYMENT_FEE}_: &nbsp; %DATETIME% &nbsp; %SUM% %MONEY_UNIT_NAME% &nbsp; %DSC%</p>
                 <a href='%SELF_URL%?get_index=paysys_payment&SUM=%RECOMENDED_PAY%' class='btn btn-primary text-white'>_{MAKE_PAYMENT}_!</a>
             </div>
             <div class='icon'>

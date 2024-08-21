@@ -72,6 +72,7 @@ $lang{USER_NOTICE} = 'Уведомление клиенту';
 $lang{RESPONSIBLE_NOTICE} = 'Уведомление ответсвенному';
 $lang{FOLLOWER_NOTICE} = 'Уведомление следящему';
 $lang{EVERYTHING_EXCEPT_DONE} = 'Все кроме выполненных';
+$lang{EVERYTHING_EXCEPT_CLOSED} = 'Все кроме закрытых';
 $lang{DISPACTH_CATEGORY} = 'Категории нарядов работ';
 $lang{CATEGORY} = 'Категория';
 $lang{QUICK_REPLYS_TYPES} = 'Типы быстрых ответов';
@@ -293,5 +294,9 @@ $lang{DO_YOU_REALLY_WANT_TO_CHARGE_FOR_MESSAGE} = 'Вы действительн
 $lang{MSGS_MAKE_PRIVATE} = 'Сделать внутренним';
 $lang{MSGS_MAKE_PUBLIC} = 'Сделать публичным';
 $lang{MSGS_PROJECT} = 'Проект';
+$lang{MSGS_RECENT_USER_REQUESTS} = 'Последние запросы пользователя';
 
-1
+$lang{ERR_SEND_PUSH_ADMIN} = 'Возникла ошибка при отправке Push сообщения. Push не настроен для вебинтерфейса, или администраторы не подписаны на Push уведомления';
+$lang{ERR_SEND_MESSAGE_ADMIN} = 'Возникла ошибка при отправке сообщения.';
+
+1;

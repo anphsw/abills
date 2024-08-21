@@ -11,8 +11,8 @@
   </div>
 </div>
 <div class='form-group row'>
-  <label class='col-sm-4 col-md-4 control-label'>_{SUM}_:</label>
+  <label class='col-sm-4 col-md-4 control-label required'>_{SUM}_:</label>
   <div class='col-sm-8 col-md-8'>
-    <input type='text' name='SUM' value='%SUM%' class='form-control'>
+    <input type='text' required name='SUM' value='%SUM%' class='form-control'>
   </div>
 </div>

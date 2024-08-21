@@ -257,27 +257,26 @@
           </div>
         </div>
       </div>
-
-      <div class='form-group'>
-        <div class='card collapsed-card card-primary card-outline box-big-form'>
-          <div class='card-header with-border text-center'>
-            <h3 class='card-title'>_{EXTRA}_</h3>
-            <div class='card-tools float-right'>
-              <button type='button' class='btn btn-tool' data-card-widget='collapse'>
-                <i class='fa fa-plus'></i>
-              </button>
-            </div>
+    </div>
+    <div class='form-group'>
+      <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
+        <div class='card-header with-border text-center'>
+          <h3 class='card-title'>_{EXTRA}_</h3>
+          <div class='card-tools float-right'>
+            <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+              <i class='fa fa-plus'></i>
+            </button>
           </div>
-          <div class='card-body'>
-            <div class='form-group row'>
-              <label class='col-md-4 control-label'>_{RESPONSIBLE}_ _{FOR_INSTALLATION}_:</label>
-              <div class='col-md-8'>%INSTALLED_AID_SEL%</div>
-            </div>
-            <div class='form-group row'>
-              <label class='col-md-4 control-label'>_{COMMENTS}_:</label>
-              <div class='col-md-8'>
-                <input name='COMMENTS' class='form-control' type='text' value='%COMMENTS%'/>
-              </div>
+        </div>
+        <div class='card-body'>
+          <div class='form-group row'>
+            <label class='col-md-4 control-label'>_{RESPONSIBLE}_ _{FOR_INSTALLATION}_:</label>
+            <div class='col-md-8'>%INSTALLED_AID_SEL%</div>
+          </div>
+          <div class='form-group row'>
+            <label class='col-md-4 control-label'>_{COMMENTS}_:</label>
+            <div class='col-md-8'>
+              <input name='COMMENTS' class='form-control' type='text' value='%COMMENTS%'/>
             </div>
           </div>
         </div>

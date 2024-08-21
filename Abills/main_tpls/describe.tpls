@@ -58,11 +58,20 @@ form_neg_deposit.tpl:russian:Форма вывода сообщения о не�
 form_user.tpl:russian:Форма добавления/изменения аккаунта абонента
 
 form_client_info.tpl:english:User information form
-form_client_login.tpl:russian:Users Login form
-form_client_main.tpl:russian:Main user portal template
+form_client_login.tpl:english:Users Login form
+form_client_main.tpl:english:Main user portal template
 
 
 form_start_page.tpl:english:Admin interface start page
 form_start_page.tpl:russian:Стартовая страница административного интерфейса
 form_start_page.tpl:ukrainian:Стартова сторінка адмін інтерфейсу
+
+email_password_recovery.tpl:english:Email with user password
+email_password_recovery.tpl:russian:Email с паролем пользователя
+email_password_recovery.tpl:ukrainian:Email з паролем користувача
+
+email_user_password_recovery.tpl:english:Email about the successful recovery of the user's password. $conf{PASSWORD_RECOVERY}
+email_user_password_recovery.tpl:russian:Email об успешном восстановлении пароля пользователем. $conf{PASSWORD_RECOVERY}
+email_user_password_recovery.tpl:ukrainian:Email про успішне відновлення пароля користувачем. $conf{PASSWORD_RECOVERY}
+
 

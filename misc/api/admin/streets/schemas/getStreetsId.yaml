@@ -1,0 +1,64 @@
+type: object
+properties:
+  builds:
+    type: array
+    items:
+      type: object
+      properties:
+        buildSchema:
+          type: string
+          example: 1
+        coordy:
+          type: number
+          example: 0
+        entrances:
+          type: number
+          example: 0
+        flors:
+          type: number
+          example: 5
+        id:
+          type: number
+          example: 146
+        locationId:
+          type: number
+          example: 146
+        number:
+          type: string
+          example: 51a
+        numberingDirection:
+          type: number
+          example: 0
+        publicComments:
+          type: string
+          example: Wow
+        statusName:
+          type: string
+          example: Enabled
+        streetId:
+          type: number
+          example: 2
+        typeId:
+          type: number
+          example: 0
+        typeName:
+          type: string
+          example: Cool build
+        zip:
+          type: string
+          example: 76212
+  districtId:
+    type: number
+    example: 2
+  id:
+    type: number
+    example: 2
+  name:
+    type: string
+    example: "Test name"
+  secondName:
+    type: string
+    example: "Test second name"
+  total:
+    type: number
+    example: 1

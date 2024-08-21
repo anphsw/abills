@@ -296,6 +296,7 @@ jQuery(function () {
       }
       catch (JSONParseError) {
         (new ATooltip()).displayError(JSONParseError.toString());
+        renderContactsBlock(contacts_raw);
       }
 
       $sub_btn.prop('disabled', false);
@@ -313,6 +314,7 @@ jQuery(function () {
       }
       else {
         (new ATooltip()).displayError(object.message);
+        renderContactsBlock(contacts_raw);
         return false;
       }
     });

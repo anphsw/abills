@@ -1,0 +1,72 @@
+get:
+  tags:
+    - voip
+  summary: Информация о тарифе Voip
+  parameters:
+    - name: tpId
+      in: path
+      description: tpId Voip тарифа
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tpFullInfo.yaml"
+  security:
+    - KEY: []
+put:
+  tags:
+    - voip
+  summary: Изменить тариф Voip
+  parameters:
+    - name: tpId
+      in: path
+      description: TP_ID Voip тарифа
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addTpRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiChangeResponse200"
+  security:
+    - KEY: []
+delete:
+  tags:
+    - voip
+  summary: Удалить тариф Voip
+  parameters:
+    - name: tpId
+      in: path
+      description: tpId Voip тарифа
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteTpResponse200.yaml"
+    400:
+      description: Нет тарифа
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteTpResponse400.yaml"
+  security:
+    - KEY: []

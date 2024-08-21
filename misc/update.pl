@@ -10,30 +10,32 @@ use feature 'say';
 
 =head1 VERSION
 
-  VERSION: 0.12
-  UPDATED: 20231128
+  VERSION: 0.13
+  UPDATED: 20240813
 
 =head1 SYNOPSIS
 
   update.pl - script for updating ABillS and modules
   
   Arguments:
-     -D, --debug      - numeric(1..7), level of verbosity
-     --branch         - string, git branch to use for update
-     --clean          - reload full git repository
-     --prefix         - ($base_dir),  where your ABillS directory lives
-     --tempdir        - place where script store temprorary sources
-     --source         - which system to use while update cvs(untested) or git(default)
-     --git-repo       - username@host, where abills.git repository is located
-     --skip-check-sql - will not fault if your MySQL Server version is lower than recommended
-     --skip-backup    - skip copying current sources
+     -D, --debug           - numeric(1..7), level of verbosity
+     --branch              - string, git branch to use for update
+     --clean               - reload full git repository
+     --prefix              - ($base_dir),  where your ABillS directory lives
+     --tempdir             - place where script store temporary sources
+     --source              - which system to use while update cvs(untested) or git(default)
+     --git-repo            - username@host, where abills.git repository is located
+     --skip-check-sql      - will not fault if your MySQL Server version is lower than recommended
+     --skip-backup         - skip copying current sources
      --skip_check_freesize - skip checking free space on disc
-     --login          - support login
-     --password       - support password
-     license, -dl   - ONLY renew license
-     --modules, -m    - LIst availeble modules
-     --download=xxx   - Download module
-
+     --login               - support login
+     --password            - support password
+     license, -dl          - ONLY renew license
+     --modules, -m         - List available modules
+     --download=xxx        - Download module
+     --skip_self_update    - skip self update.pl
+     --ex_self_update      - EXPERIMENTAL self update
+     --ex_ssh_registration - EXPERIMENTAL ssh key registration
 =head1 PURPOSES
 
   + Check perl version
@@ -48,7 +50,7 @@ use feature 'say';
 
 =cut
 
-our $VERSION = 0.08;
+our $VERSION = 0.13;
 
 # Core modules from at least Perl 5.6
 use Getopt::Long qw/GetOptions HelpMessage :config auto_help auto_version ignore_case/;
@@ -62,40 +64,43 @@ our (%conf, @MODULES, %OPTIONS);
 
 BEGIN {
   %OPTIONS = (
-    skip_check_sql => '',
-    skip_backup    => '',
-    clean          => '',
-    renew_license  => '',
-    PREFIX         => '/usr/abills',
-    TEMP_DIR       => '/tmp',
-    GIT_BRANCH     => 'master',
-    SOURCE         => 'git',
-    DEBUG          => 0,
-    GIT_REPO_HOST  => 'git@abills.net.ua',
-    USERNAME       => '',
-    PASSWORD       => '',
-    update_sql     => '',
+    skip_check_sql   => '',
+    skip_backup      => '',
+    clean            => '',
+    renew_license    => '',
+    PREFIX           => '/usr/abills',
+    TEMP_DIR         => '/tmp',
+    GIT_BRANCH       => 'master',
+    SOURCE           => 'git',
+    DEBUG            => 0,
+    GIT_REPO_HOST    => 'git@abills.net.ua',
+    USERNAME         => '',
+    PASSWORD         => '',
+    update_sql       => '',
   );
 
   GetOptions(
-    'debug|D=i'                     => \$OPTIONS{DEBUG},
-    'branch=s'                      => \$OPTIONS{GIT_BRANCH},
-    'clean'                         => \$OPTIONS{clean},
-    'prefix=s'                      => \$OPTIONS{PREFIX},
-    'tempdir=s'                     => \$OPTIONS{TEMP_DIR},
-    'source=s'                      => \$OPTIONS{SOURCE},
-    'git-repo=s'                    => \$OPTIONS{GIT_REPO_HOST},
-    'skip_check_sql|skip-check-sql' => \$OPTIONS{skip_check_sql},
-    'skip_backup|skip-backup'       => \$OPTIONS{skip_backup},
+    'debug|D=i'                               => \$OPTIONS{DEBUG},
+    'branch=s'                                => \$OPTIONS{GIT_BRANCH},
+    'clean'                                   => \$OPTIONS{clean},
+    'prefix=s'                                => \$OPTIONS{PREFIX},
+    'tempdir=s'                               => \$OPTIONS{TEMP_DIR},
+    'source=s'                                => \$OPTIONS{SOURCE},
+    'git-repo=s'                              => \$OPTIONS{GIT_REPO_HOST},
+    'skip_check_sql|skip-check-sql'           => \$OPTIONS{skip_check_sql},
+    'skip_backup|skip-backup'                 => \$OPTIONS{skip_backup},
     'skip-check-freesize|skip_check_freesize' => \$OPTIONS{skip_check_freesize},
-    'login=s'                       => \$OPTIONS{USERNAME},
-    'password=s'                    => \$OPTIONS{PASSWORD},
-    'dl|license'                    => \$OPTIONS{renew_license},
-    'sql-update|sql_update'         => \$OPTIONS{update_sql},
-    'modules|m'                     => \$OPTIONS{modules_list},
-    'download=s'                    => \$OPTIONS{module},
-    'apache_check'                  => \$OPTIONS{apache_check},
-    'force'                         => \$OPTIONS{FORCE_UPDATE},
+    'login=s'                                 => \$OPTIONS{USERNAME},
+    'password=s'                              => \$OPTIONS{PASSWORD},
+    'dl|license'                              => \$OPTIONS{renew_license},
+    'sql-update|sql_update'                   => \$OPTIONS{update_sql},
+    'modules|m'                               => \$OPTIONS{modules_list},
+    'download=s'                              => \$OPTIONS{module},
+    'apache_check'                            => \$OPTIONS{apache_check},
+    'force'                                   => \$OPTIONS{FORCE_UPDATE},
+    'skip_self_update'                        => \$OPTIONS{SKIP_SELF_UPDATE},
+    'ex_self_update'                          => \$OPTIONS{EXPERIMENTAL_SELF_UPDATE},
+    'ex_ssh_registration'                     => \$OPTIONS{EXPERIMENTAL_SSH_REGISTRATION}
   ) or die pod2usage();
 
   if (!-d $OPTIONS{PREFIX} && !-d "$OPTIONS{PREFIX}/lib") {
@@ -170,6 +175,10 @@ update();
 =cut
 #**********************************************************
 sub update {
+
+  if ($OPTIONS{EXPERIMENTAL_SELF_UPDATE}) {
+    update_self();
+  }
 
   if ($OPTIONS{apache_check}) {
     apache_check();
@@ -713,6 +722,7 @@ sub update_sql {
     my $update_url = '';
     my $update_date = 0;
 
+    # TODO: remove outdated
     # if ($conf{version}) {
     #   (undef, $update_date) = split('\/', $conf{version});
     #   $update_url = "http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.5x&do=export_raw";
@@ -1236,6 +1246,10 @@ sub check_ssh_access {
   my $system_wide_identity_file_str =
     `cat '/etc/ssh/ssh_config' | grep -E '^\ +IdentityFile' | awk -F' ' '{ print \$2 }'`;
 
+  if ($OPTIONS{EXPERIMENTAL_SSH_REGISTRATION}) {
+    check_or_create_ssh();
+  }
+
   my $user_idenity_file_str = '';
   if (-f '/root/.ssh/config') {
     $user_idenity_file_str =
@@ -1659,7 +1673,6 @@ sub modules_list {
 
   foreach my $module (@$module_info) {
     my $path = $module->{path} || q{};
-
     my $module_name = $module->{name};
     my $local_file = $OPTIONS{PREFIX} . '/'. $module->{path} .'/' . $module_name;
 
@@ -1699,6 +1712,7 @@ sub modules_list {
       if ($res) {
         my $new_version = _read_file($local_file, { GET_VERSION => 1 });
         print "Successfuly updated $module_name to $new_version ($local_file)\n";
+        check_or_install_module($module);
       }
       else {
         say " !!! There were problems while downloading $module_name";
@@ -1707,6 +1721,272 @@ sub modules_list {
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 update_self()
+
+=cut
+#**********************************************************
+sub update_self {
+  my $CUR_FILE = "$FindBin::Bin/$FindBin::Script";
+
+  if ($OPTIONS{SKIP_SELF_UPDATE}) {
+    say "update.pl check skip";
+    return;
+  }
+
+  say "Verifying please wait...";
+
+  my $hostname = `hostname`;
+  my $file = web_request($ABILLS_UPDATE_URL, {
+    CURL => 1,
+    REQUEST_PARAMS => {
+      sign    => $ABILLS_SIGN,
+      hn      => $hostname,
+      SYS_ID  => $SYS_ID,
+      VERSION => $ABILLS_VERSION,
+      getupdate => 1,
+    },
+  });
+
+  my $destination = "$TEMP_DIR/update.pl";
+
+  open(my $fh, '>', $destination) or do {
+    say " !!! Can't save file $destination : $!";
+    return 0;
+  };
+
+  print $fh $file;
+  close($fh);
+
+  if ($DEBUG) {
+    say ("$ABILLS_UPDATE_URL $ABILLS_SIGN $SYS_ID");
+  }
+
+  if (!-f "$TEMP_DIR/update.pl") {
+    say "There is no file. Check destination please.";
+    return;
+  }
+
+  my $err = qx(grep "^ERROR:" $OPTIONS{TEMP_DIR}/update.pl);
+
+  if ($err) {
+    say "Please Registration";
+    _get_support_credentials();
+    return;
+  }
+
+  my $version_new = _get_version_from_new("$TEMP_DIR/update.pl");
+  my $version_old = $VERSION;
+
+  if ($version_old < $version_new) {
+    my $update_confirm = _read_input(
+      'UPDATE_UPDATER',
+      "!!! New version '$version_new' of update.pl available, update it [Y/n]: ",
+      undef,
+      { CHECK => sub {$_[0] =~ /y|n/i} }
+    );
+
+    if ($update_confirm) {
+      `cp $TEMP_DIR/update.pl $CUR_FILE`;
+      say "update.pl updated. Please restart program";
+      exit;
+    }
+  }
+}
+
+#**********************************************************
+=head2 _get_version_from_new($path)
+
+=cut
+#**********************************************************
+sub _get_version_from_new {
+  my ($path) = @_;
+  if (open (my $fh, '<', $path)) {
+    my $content = '';
+    while (<$fh>) {
+      $content .= $_;
+    }
+    my ($matched) = $content =~ /VERSION\s*=\s*([\d.]+)/;
+    return $matched;
+  }
+  return 0;
+}
+
+#**********************************************************
+=head2 check_or_install_module($module_info)
+
+=cut
+#**********************************************************
+sub check_or_install_module {
+  my ($module_info) = @_;
+
+  # Support only for Abills/mysql modules.
+  if ($module_info->{path} !~ /Abills\/mysql/) {
+    return 0;
+  }
+
+  my $libexec = "$FindBin::Bin/../libexec";
+  my $config_file = _read_file("$libexec/config.pl");
+
+  my ($original_modules) = $config_file =~ /\@MODULES\s*=\s*\((.*?)\);/xsg;
+
+  my @lines = split(/\n/, $original_modules);
+
+  my @config_modules = ();
+  for my $line (@lines) {
+    $line =~ s/^\s+|\s+$//g; # Trim leading and trailing whitespace
+    next if $line =~ /^\s*#/; # Skip commented lines
+    if ($line =~ /['"]([^'"]+)['"],?/) {
+      push @config_modules, $1;
+    }
+  }
+  my $current_module_name = $module_info->{name};
+  $current_module_name =~ s/\.pm//;
+
+  if (grep { $_ eq $current_module_name } @config_modules) {
+    return 0;
+  }
+
+  my $agree_to_install = _read_input(
+    'INSTALL_' . uc($current_module_name),
+    "You have purchased but not installed the $current_module_name module, should we install it? (y/N)",
+    undef,
+    {
+      CHECK => sub {$_[0] =~ /y|n/i}
+    }
+  );
+
+  if ($agree_to_install =~ /n/i) {
+    say "Skip install $current_module_name.";
+    return 0;
+  }
+
+  my $sql_content = _read_file("$FindBin::Bin/../db/$current_module_name.sql");
+  _db_statements_execute($sql_content);
+
+  my $files = _get_files_in($libexec);
+  my $max_index = 0;
+
+  foreach my $file (@$files) {
+    if ($file =~ /^config\.pl(\.bak(\d*)?)$/) {
+      my $index = $2 // '';
+      $index = 1 if $index eq '';
+      if ($index > $max_index) {
+        $max_index = $index;
+      }
+    }
+  }
+
+  my $array_content = $original_modules;
+
+  my @config_lines = split /\n/, $array_content;
+  s/^\s+|\s+$//g for @config_lines;
+  @config_lines = grep { $_ !~ /^\s*#/ } @config_lines;
+  @config_lines = grep { $_ ne '' } @config_lines;
+
+  if ($config_lines[-1] !~ /,$/) {
+    $config_lines[-1] .= ',';
+  }
+
+  my $new_item = "'$current_module_name'\n";
+  push @config_lines, $new_item;
+
+  @config_lines = map { "  $_" } @config_lines;
+
+  my $new_array_content = join("\n", @config_lines);
+
+  my $new_config_file = $config_file;
+  $new_config_file =~ s/$array_content/$new_array_content/s;
+
+  my $show_index = $max_index ? $max_index + 1 : '';
+  _write_to_file($config_file, "$libexec/config.pl.bak$show_index");
+  _write_to_file($new_config_file, "$libexec/config.pl");
+
+  my $err = qx(perl -c $libexec/config.pl 2>&1 | grep 'error');
+
+  if ($err) {
+    say "Error! Script cannot modify your config.pl due to syntax error";
+    say "Try to add $current_module_name TO \@MODULES by yourself.";
+    my $latest_backup_content = _read_file("$libexec/config.pl.bak$show_index");
+    _write_to_file($latest_backup_content, "$libexec/config.pl");
+    return 0;
+  }
+
+  say "Module $current_module_name installed successfully!";
+
+  return 1;
+}
+
+#**********************************************************
+=head2 check_or_create_ssh()
+
+=cut
+#**********************************************************
+sub check_or_create_ssh {
+  my $search_key = `ls \`pwd\`/id_rsa.* 2> /dev/null | head -1`;
+  chomp($search_key);
+  my $default_auth_key = '';
+
+  if ($search_key ne '') {
+    $default_auth_key = $search_key;
+    my $basedir = $FindBin::Bin;
+    my $key_dir = 'TODO';
+    say "Found key: $search_key ($basedir $key_dir)";
+  }
+
+  if (!-f '$ENV{HOME}/.ssh/config') {
+    my $install_auth_key = _read_input(
+      'INSTALL_AUTH_KEY_AGREE',
+      "Please, install auth key\nYou have auth key? [Y/n]: ",
+      undef,
+      { CHECK => sub {$_[0] =~ /y|n/i} }
+    );
+
+    if ($install_auth_key !~ 'n') {
+      my $auth_key_path = _read_input(
+        'INSTALL_AUTH_KEY_PATH',
+        "Enter path to auth key [$default_auth_key]: ",
+      );
+      $auth_key_path ||= $default_auth_key;
+      my ($default_auth_user) = $auth_key_path =~ s/^[a-z_\/]*\.//r;
+
+      my $auth_user = _read_input(
+        'ENTER_AUTH_LOGIN',
+        "Enter auth login [$default_auth_user]: ",
+      );
+
+      $auth_user ||= $default_auth_user;
+
+      if (-e $auth_key_path) {
+        say "$auth_key_path $ENV{HOME}/.ssh/id_dsa.$auth_user";
+        system("cp $auth_key_path $ENV{HOME}/.ssh/id_dsa.$auth_user");
+        system("chmod 400 \"$ENV{HOME}/.ssh/id_dsa.$auth_user\"");
+
+        open my $fh, '>>', "$ENV{HOME}/.ssh/config" or die "Cannot open ~/.ssh/config: $!";
+        print $fh <<"[END]";
+Host abills.net.ua
+  User $auth_user
+  Hostname abills.net.ua
+  IdentityFile $ENV{HOME}/.ssh/id_dsa.$auth_user
+[END]
+        close $fh;
+        return 1;
+      } else {
+        say "Wrong key $auth_key_path";
+        return 0;
+      }
+    }
+  }
+
+  my $check_key = `grep abills.net.ua $ENV{HOME}/.ssh/config`;
+  chomp($check_key);
+  if ($check_key eq '') {
+    say "You don't have update key";
+    say "Please, contact ABillS Support Team";
+    return 0;
+  }
 }
 
 1;

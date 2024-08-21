@@ -1,4 +1,4 @@
-=head1 WEATHER
+=head WEATHER
 
   Weather
 
@@ -76,7 +76,7 @@ sub weather_today_actions {
   );
 
   if ($conf{WEATHER_COORDINATES}) {
-
+    # TODO: remake this piece of sh1t
     # Get COOKIE with COORDINATES
     my $cookie_data = $ENV{'HTTP_COOKIE'} || q{};
     my @c = split('; ', $cookie_data);
@@ -117,18 +117,14 @@ sub weather_today_actions {
       $COORDINATES_SEL{$coordinate} = $weather->{city}->{name};
     }
 
-    $city_weather_select = $html->form_select(
-      'CITY',
-      {
-        ID          => 'COORDINATES_SEL',
-        SELECTED    => $FORM{CITY} || q{},
-        SELECTED    => 2,
-        NO_ID       => 1,
-        SEL_HASH    => \%COORDINATES_SEL,
-        SEL_OPTIONS => { '' => '' }
-      },
-      { class => 'form-control' }
-    );
+    $city_weather_select = $html->form_select('CITY', {
+      ID          => 'COORDINATES_SEL',
+      SELECTED    => $FORM{CITY} || q{},
+      SELECTED    => 2,
+      NO_ID       => 1,
+      SEL_HASH    => \%COORDINATES_SEL,
+      SEL_OPTIONS => { '' => '' }
+    }, { class => 'form-control' });
   }
   else {
     $attr->{COORDINATES} = web_request("https://ipapi.co/json/", {
@@ -280,21 +276,23 @@ sub weather_start_page {
 }
 
 #**********************************************************
-=head2 lightning_map()
+=head2 weather_lightning_map()
 
 =cut
 #**********************************************************
 sub weather_lightning_map {
-  my ($attr) = @_;
   my $zoom = 8.5;
 
-  $attr->{COORDINATES} = web_request("https://ipapi.co/json/", {
+  my $coordinates = web_request("https://ipapi.co/json/", {
     METHOD      => 'GET',
     JSON_RETURN => 1,
   });
 
+  $coordinates->{latitude} //= 0;
+  $coordinates->{longitude} //= 0;
+
   print $html->tpl_show(_include('weather_lightning', 'Weather'), {
-    LINK => "https://map.blitzortung.org/?y#$zoom/$attr->{COORDINATES}->{latitude}/$attr->{COORDINATES}->{longitude}",
+    LINK => "https://map.blitzortung.org/?y#$zoom/$coordinates->{latitude}/$coordinates->{longitude}",
   }, { OUTPUT2RETURN => 1 });
 
   return 1;

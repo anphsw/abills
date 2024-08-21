@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "builds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "buildSchema": {
+            "type": "string"
+          },
+          "coordy": {
+            "type": "integer"
+          },
+          "entrances": {
+            "type": "integer"
+          },
+          "flors": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "locationId": {
+            "type": "integer"
+          },
+          "number": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "numberingDirection": {
+            "type": "integer"
+          },
+          "publicComments": {
+            "type": "string"
+          },
+          "statusName": {
+            "type": "string"
+          },
+          "streetId": {
+            "type": "integer"
+          },
+          "typeId": {
+            "type": "integer"
+          },
+          "typeName": {
+            "type": "string"
+          },
+          "zip": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "districtId": {
+      "type": "integer"
+    },
+    "id": {
+      "type": "integer"
+    },
+    "name": {
+      "type": "string"
+    },
+    "secondName": {
+      "type": "string"
+    },
+    "total": {
+      "type": "integer"
+    },
+    "type": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "builds",
+    "districtId",
+    "id",
+    "name",
+    "secondName",
+    "total",
+    "type"
+  ]
+}

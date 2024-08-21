@@ -6,7 +6,6 @@ use Test::More;
 use lib '.';
 use lib '../../';
 use Paysys::t::Init_t;
-require Paysys::systems::Ipay;
 
 our (
   %conf,
@@ -19,7 +18,15 @@ our (
   $argv
 );
 
-my $Payment_plugin = Paysys::systems::Ipay->new($db, $admin, \%conf);
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::systems::Ipay;
+  $Payment_plugin = Paysys::systems::Ipay->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::Ipay;
+  $Payment_plugin = Paysys::Plugins::Ipay->new($db, $admin, \%conf);
+}
 $Payment_plugin->{TEST}=1;
 if ($debug > 3) {
   $Payment_plugin->{DEBUG}=7;

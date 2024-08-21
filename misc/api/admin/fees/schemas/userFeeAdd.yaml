@@ -1,0 +1,41 @@
+type: object
+required: [sum, billId]
+properties:
+  sum:
+    type: number
+    example: 2
+    description: Сумма списания
+  billId:
+    type: number
+    example: 1000
+    description: ID денежного счета
+  describe:
+    type: string
+    example: Test fee
+    description: Описание списания
+  innerDescribe:
+    type: string
+    example: This description user dont see
+    description: Внутреннее описание списания
+  createFeesInvoice:
+    type: number
+    example: 1
+    description: Создать инвойс, работает если включен модуль Docs
+  period:
+    type: number
+    example: 1
+    description: Когда списать деньги - 1 сейчас, 2 по расписанию, но при обязательном параметре date, по умолчанию 1
+    default: 1
+  method:
+    type: number
+    example: 1
+    description: Метод списания
+    default: 0
+  date:
+    type: string
+    example: 2023-12-31
+    description: Дата списания
+  er:
+    type: number
+    example: 11
+    description: ID курса списания

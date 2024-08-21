@@ -1,0 +1,18 @@
+{
+  "name": "ADMIN_PORTAL_ARTICLES_ADD",
+  "method": "POST",
+  "path": "portal/newsletter/",
+  "body": {
+    "portalArticleId": "{{articleId}}",
+    "sendMethod": 10,
+    "start_datetime": "2024-05-15 16:00:00"
+  },
+  "post-response": {
+    "variables": [
+      {
+        "name": "newsletterId",
+        "value": "insertId"
+      }
+    ]
+  }
+}

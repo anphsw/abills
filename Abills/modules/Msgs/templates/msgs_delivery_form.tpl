@@ -1,4 +1,4 @@
-<div class='card collapsed-card %PARAMS%'>
+<div class='card mb-0 card-outline border-top card-big-form collapsed-card %PARAMS%'>
   <div class='card-header with-border'>
     <h4 class='card-title'>_{DELIVERY}_</h4>
     <div class='card-tools float-right'>

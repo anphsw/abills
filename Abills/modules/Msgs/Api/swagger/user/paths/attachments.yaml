@@ -3,7 +3,7 @@ get:
     - msgs
   summary: Получение прикрепленного файла к сообщению
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: ID файла
       required: true

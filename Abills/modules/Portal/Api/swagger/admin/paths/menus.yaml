@@ -1,0 +1,70 @@
+get:
+  tags:
+    - portal
+  summary: Список меню
+  parameters:
+    - name: id
+      in: query
+      description: id меню
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: название меню
+      schema:
+        type: boolean
+        default: true
+    - name: status
+      in: query
+      description: статус меню
+      schema:
+        type: boolean
+        default: true
+    - name: url
+      in: query
+      description: URL меню
+      schema:
+        type: boolean
+        default: true
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/menuList.yaml"
+  security:
+    - KEY: [ ]
+post:
+  tags:
+    - portal
+  summary: Создание меню
+  operationId: portalAddMenu
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/menuAddRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/menuAddResponse.yaml"
+  security:
+    - KEY: [ ]

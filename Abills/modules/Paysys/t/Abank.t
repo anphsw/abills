@@ -6,7 +6,6 @@ use Test::More;
 use lib '.';
 use lib '../../';
 use Paysys::t::Init_t;
-require Paysys::systems::Abank;
 
 our (
   %conf,
@@ -19,7 +18,15 @@ our (
   $argv
 );
 
-my $Payment_plugin = Paysys::systems::Abank->new($db, $admin, \%conf);
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::systems::Abank;
+  $Payment_plugin = Paysys::systems::Abank->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::Abank;
+  $Payment_plugin = Paysys::Plugins::Abank->new($db, $admin, \%conf);
+}
 if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;
 }
@@ -171,6 +178,73 @@ our @requests = (
          <Phone>+321234214</Phone>
          <Address>пр.Ленина 10 кв 5</Address>
       </PayerInfo>
+        <BankInfo pointId="3134784" kassType="1" operday="2024-07-24+03:00" pointType="16" kassSymbol="05" bankAlias="AB" branch="ABTL">
+        <PointName>Киев AB24Mob</PointName>
+        <FilialName>АТ "А-БАНК"</FilialName>
+      </BankInfo>
+      <TotalSum>$payment_sum</TotalSum>
+      <CreateTime>2012-01-01T08:00:00.001+03:00</CreateTime>
+      <ConfirmTime>2013-08-06T16:55:04.120+03:00</ConfirmTime>
+      <NumberPack>143</NumberPack>
+      <SubNumberPack>1</SubNumberPack>
+      <ServiceGroup>
+         <Service sum="$payment_sum" serviceCode="102" id="324124213">
+            <CompanyInfo>
+               <CheckReference>987456321</CheckReference>
+               <CompanyCode>1</CompanyCode>
+               <UnitCode>2221</UnitCode>
+               <CompanyName>КП Воддоканал</CompanyName>
+               <DopData>
+                  <Dop name="city_code" value="3" />
+               </DopData>
+            </CompanyInfo>
+            <idinvoice>12345678</idinvoice>
+            <ServiceName>Холодныя вода</ServiceName>
+            <Destination>Оплата за услугу "Холодная вода"</Destination>
+            <MeterData>
+               <Meter previosValue="213" currentValue="214" tarif="0.01" delta="1" name="Холодная вода кухня" />
+            </MeterData>
+            <DopData>
+               <Dop name="city_code" value="3" />
+            </DopData>
+            <Comissions>
+               <Commision type="3" summ="0.99" />
+               <Commision type="1" summ="0.10" />
+            </Comissions>
+         </Service>
+      </ServiceGroup>
+   </Data>
+</Transfer>},
+    result  => qq{
+<?xml version="1.0" encoding="UTF-8"?>
+<Transfer interface="Debt" action="Pay">
+   <Data xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Gateway" reference="987456321" />
+</Transfer>}
+  },
+  {
+    name    => 'PAY_MONOBANK',
+    request => qq{
+<?xml version="1.0" encoding="UTF-8"?>
+<Transfer interface="Debt" action="Pay">
+   <Data xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Payment" id="$payment_id" number="12432">
+      <CompanyInfo inn="00000000" companyId="412341234">
+         <CompanyCode>1</CompanyCode>
+         <UnitCode>2221</UnitCode>
+         <CompanyName>КП Воддоканал</CompanyName>
+         <DopData>
+            <Dop name="доп информация" value="значение" />
+         </DopData>
+         <CheckReference>987456321</CheckReference>
+      </CompanyInfo>
+      <PayerInfo billIdentifier="$user_id" ls="$user_id">
+         <Fio>Иванов Иван Иванович</Fio>
+         <Phone>+321234214</Phone>
+         <Address>пр.Ленина 10 кв 5</Address>
+      </PayerInfo>
+      <BankInfo pointId="3134784" kassType="1" operday="2024-07-24+03:00" pointType="14" kassSymbol="05" bankAlias="MN" branch="ABTL">
+        <PointName>Додаток Монобанк</PointName>
+        <FilialName>МОНОБАНК</FilialName>
+      </BankInfo>
       <TotalSum>$payment_sum</TotalSum>
       <CreateTime>2012-01-01T08:00:00.001+03:00</CreateTime>
       <ConfirmTime>2013-08-06T16:55:04.120+03:00</ConfirmTime>

@@ -1,0 +1,29 @@
+post:
+  tags:
+    - crm
+  summary: Добавление и отправка сообщения в диалог
+  operationId: addMessageToDialogue
+  parameters:
+    - name: id
+      in: path
+      description: ID диалога
+      required: true
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/dialogueMessage.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+  security:
+    - KEY: [ ]

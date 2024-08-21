@@ -8,9 +8,9 @@
     </div>
     <div class='card-body'>
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='NAME'>_{NAME}_</label>
+        <label class='control-label col-md-3 required' for='NAME'>_{NAME}_</label>
         <div class='col-md-9'>
-            <input type='text' class='form-control' value='%NAME%'  name='NAME'  id='NAME'  />
+            <input type='text' class='form-control' value='%NAME%'  name='NAME'  id='NAME' required />
         </div>
       </div>
 
@@ -36,13 +36,13 @@
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='TYPE'>_{TYPE}_</label>
+        <label class='control-label col-md-3 required' for='TYPE'>_{TYPE}_</label>
         <div class='col-md-9'>%TYPE_SEL%</div>
       </div>
 
     </div>
     <div class='card-footer'>
-      <input type='submit' class='btn btn-primary' name='%BTN_NAME%' value='%BTN_VALUE%'>
+      <input type='submit' class='btn btn-primary' name='%BTN_NAME%' value='%BTN_VALUE%' required>
     </div>
   </div>
 </form>

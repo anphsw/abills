@@ -227,7 +227,7 @@ sub _curl_request {
       $curl_options .= q{ -w "<MORE_INFO>%{json}" };
     }
     else {
-      $curl_options .= q{ -w "<MORE_INFO>{\"status\": \"%{http_code}\", \"time\": \"%{time_total}\"}" };
+      $curl_options .= q{ -w "<MORE_INFO>{\"http_code\": \"%{http_code}\", \"time_total\": \"%{time_total}\"}" };
     }
   }
 
@@ -289,7 +289,7 @@ sub _curl_request {
   }
 
   # delete in next 6 months if all works
-  # $request_params =~ s/\`/\\\`/g;
+  $request_params =~ s/\`/\\\`/g;
   $request_url =~ s/\n/%20/g;
   $request_url =~ s/ /%20/g;
   $request_url =~ s/"/\\"/g;

@@ -1,0 +1,43 @@
+get:
+  tags:
+    - users
+  summary: Получить все типы дополнительных договоров
+  parameters:
+    - name: id
+      in: query
+      description: ID типа дополнительного договора
+      schema:
+        type: boolean
+        default: true
+    - name: template
+      in: query
+      description: Шаблон дополнительного договора
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название дополнительного договора
+      schema:
+        type: boolean
+        default: true
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/contractTypeList.yaml"
+  security:
+    - KEY: []

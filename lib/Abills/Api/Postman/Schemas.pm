@@ -33,12 +33,13 @@ sub new {
 
   Arguments
     $item: str - request object from postman
+    $type: str - admin | user
 
 =cut
 #**********************************************************
 sub generate_request_schema {
   my $self = shift;
-  my ($item) = @_;
+  my ($item, $type) = @_;
 
   if (ref $item ne 'HASH') {
     print "Invalid and unknown request argument. Skip.\n";
@@ -48,11 +49,13 @@ sub generate_request_schema {
 
   my $request = $item->{request};
 
+  $item->{name} =~ s/^\s+//gm;
   $item->{name} =~ s/\s/_/gm;
+  $item->{name} = $type . '_' . $item->{name} if ($type);
+
   my $request_schema = {
-    method    => $request->{method},
-    postmanId => $item->{id},
-    name      => uc($item->{name}),
+    method => $request->{method},
+    name   => uc($item->{name}),
   };
 
   $request_schema->{path} = join('/', @{$request->{url}->{path}});
@@ -77,6 +80,35 @@ sub generate_request_schema {
     $request_schema->{body} = $body;
   }
 
+  if ($item->{event} && $item->{event} && ref $item->{event} eq 'ARRAY' && scalar(@{$item->{event}})) {
+    my $events = $item->{event};
+    my $script;
+
+    foreach my $event (@{$events}) {
+      next if (!$event->{listen} || $event->{listen} ne 'test');
+      $script = $event->{script};
+      last;
+    }
+
+    if ($script) {
+      my $str = join('', map { s/\R//g; $_ } @{$script->{exec}});
+      my $pattern = qr/pm\.collectionVariables\.set\("(?P<name>[^"]+)",\s*response\?\.(?P<value>[^)]+)\)/;
+
+      my $vars = [];
+
+      while ($str =~ /$pattern/gm) {
+        push @{$request_schema->{'post-response'}->{variables}}, {
+          name  => $+{name},
+          value => $+{value},
+        };
+      }
+
+      if (scalar @{$vars}) {
+        $request_schema->{'post-response'}->{variables} = $vars
+      }
+    }
+  }
+
   return $request_schema;
 }
 
@@ -90,10 +122,14 @@ sub generate_request_schema {
 #**********************************************************
 sub generate_response_schema {
   my $self = shift;
-  my ($item, $export) = @_;
+  my ($item) = @_;
 
-  return {} if (!$item || $item->{event});
-  $export //= 0;
+  if (!$item || !$item->{event}) {
+    print "No schema for path in Postman\n";
+    $self->{errors}++;
+    return {};
+  }
+
   my $events = $item->{event};
 
   if (!$events || !scalar(@{$events})) {

@@ -10,7 +10,7 @@ use parent 'Abills::Sender::Plugin';
 use Abills::Base qw(_bp);
 use JSON;
 
-our $VERSION = 0.02;
+our $VERSION = 0.03;
 my %conf = ();
 
 #**********************************************************
@@ -23,7 +23,7 @@ my %conf = ();
   Returns:
 
   Examples:
-    my $Telegram = Abills::Sender::Viber_bot->new($db, $admin, \%conf);
+    my $Viber_bot = Abills::Sender::Viber_bot->new($db, $admin, \%conf);
 
 =cut
 #**********************************************************
@@ -226,6 +226,13 @@ sub make_reply() {
 #**********************************************************
 =head2 send_attachments() - send message with attachments
 
+    Attr:
+      ATTACHMENTS:
+        content
+        content_type
+        content_size
+        filename
+
 =cut
 #**********************************************************
 sub send_attachments {
@@ -236,6 +243,10 @@ sub send_attachments {
 
   my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
   my $SELF_URL = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images" : '';
+
+  # for request from console
+  $SELF_URL ||= $conf{BILLING_URL} ? "$conf{BILLING_URL}/images" : '';
+  return 0 if !$SELF_URL;
 
   foreach my $file (@{$attr->{ATTACHMENTS}}) {
     my $content = $file->{content} || '';

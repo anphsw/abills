@@ -1,6 +1,6 @@
 <form action=%SELF_URL% METHOD=POST>
-  <input type='hidden' name='index' value=%INDEX%>
-  <input type='hidden' name='chg' value=$FORM{chg}>
+  <input type='hidden' name='index' value=%index%>
+  <input type='hidden' name='chg' value=%ID%>
 
   <div class='row'>
 

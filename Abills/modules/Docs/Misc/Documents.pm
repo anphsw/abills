@@ -330,7 +330,7 @@ sub _get_filepath {
   $filename .= '_' . ($attr->{UID} || q{});
   $filename .= '_' . ($attr->{DOC_ID} || q{});
 
-  my $base_dir = $self->{conf}->{DOCS_STORE_DIR} || '/usr/abills/Abills/templates/docs/';
+  my $base_dir = $self->{conf}->{DOCS_STORE_DIR} || '/usr/abills/Abills/templates/Docs/';
 
   my $file_ext = $self->{conf}->{DOCS_PDF_PRINT} ? '.pdf' : '.htm';
   my $filepath = $base_dir . $filename . $file_ext;

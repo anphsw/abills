@@ -18,7 +18,7 @@ use FindBin '$Bin';
 
 push @INC, $Bin . '/../', $Bin . '/../Abills/';
 
-use Abills::Base qw(sendmail in_array date_diff);
+use Abills::Base qw(sendmail in_array datetime_diff);
 use Abills::Sender::Core;
 use Time::HiRes qw(usleep);
 
@@ -40,6 +40,8 @@ use Abills::Templates;
 use Portal;
 use Users;
 
+use Portal::Constants qw/ALLOWED_METHODS/;
+
 my $Sender = Abills::Sender::Core->new($db, $Admin, \%conf);
 my $Portal = Portal->new($db, $Admin, \%conf);
 my $Users = Users->new($db, $Admin, \%conf);
@@ -59,8 +61,6 @@ else {
   $Log->{LOG_FILE} = $var_dir . '/log/portal_newsletter.log';
 }
 
-my @methods = (5, 6, 10);
-
 portal_newsletter();
 
 #**********************************************************
@@ -73,7 +73,7 @@ sub portal_newsletter {
   $debug_output .= "Portal newsletter\n" if ($debug > 1);
   $SELF_URL ||= $conf{BILLING_URL} || '';
 
-  my $SEND_DATE = $argv->{DATE} || $DATE;
+  my $SEND_DATE = $argv->{DATE} || "$DATE $TIME";
   my $send_methods = $Sender->available_types({ HASH_RETURN => 1 });
   my @read_methods = keys %$send_methods;
 
@@ -85,7 +85,7 @@ sub portal_newsletter {
     my $send_method_id = $letter->{SEND_METHOD};
     my $sender_name = $send_methods->{$send_method_id};
 
-    if (!(in_array($send_method_id, \@methods) && in_array($send_method_id, \@read_methods))) {
+    if (!$letter->{article_id} || !(in_array($send_method_id, ALLOWED_METHODS) && in_array($send_method_id, \@read_methods))) {
       $Portal->portal_newsletter_change({
         %$letter,
         STATUS => 2
@@ -93,7 +93,7 @@ sub portal_newsletter {
       next;
     }
 
-    if (date_diff($letter->{date}, $SEND_DATE) < 0) {
+    if (datetime_diff($letter->{start_datetime}, $SEND_DATE) < 0) {
       next;
     }
 
@@ -128,6 +128,8 @@ sub portal_newsletter {
       GID            => $letter->{gid} || undef,
       DISTRICT_ID    => $letter->{district_id},
       STREET_ID      => $letter->{street_id},
+      LOCATION_ID    => $letter->{build_id},
+      ADDRESS_FLAT   => $letter->{address_flat},
       UID            => '_SHOW',
       PAGE_ROWS      => 999999,
       COLS_NAME      => 1,

@@ -20,14 +20,14 @@ our(
 my $Msgs = Msgs->new($db, $admin, \%conf);
 
 #**********************************************************
-=head2 msgs_admin_permissions()
+=head2 msgs_permissions()
 
 =cut
 #**********************************************************
-sub msgs_admin_permissions {
+sub msgs_permissions {
 
-  $FORM{ADMIN_ID} ||= $admin->{AID};
-  return if !$FORM{ADMIN_ID};
+  $FORM{AID} ||= $admin->{AID};
+  return if !$FORM{AID};
 
   my %permits = ();
   if ($FORM{set}) {
@@ -40,7 +40,7 @@ sub msgs_admin_permissions {
       $permits{$section_index}{$action_index} = 1;
     }
 
-    $Msgs->set_permissions($FORM{ADMIN_ID}, \%permits);
+    $Msgs->set_permissions($FORM{AID}, \%permits);
     $html->message('info', $lang{INFO}, $lang{CHANGED}) if !_error_show($Msgs);
   }
   elsif ($FORM{add_permits} && $FORM{TYPE}) {
@@ -63,7 +63,7 @@ sub msgs_admin_permissions {
 
   my ($type_permits, $types) = _msgs_permits_types();
 
-  my $admin_permissions = $FORM{TYPE} ? $type_permits : $Msgs->permissions_list($FORM{ADMIN_ID});
+  my $admin_permissions = $FORM{TYPE} ? $type_permits : $Msgs->permissions_list($FORM{AID});
   my $permissions = _msgs_permissions_list();
 
   my $table = $html->table({
@@ -95,7 +95,7 @@ sub msgs_admin_permissions {
 
   $html->tpl_show(_include('msgs_add_permits', 'Msgs'), {
     PERMISSIONS_TABLE => $table->show({ OUTPUT2RETURN => 1 }),
-    ADMIN_ID          => $FORM{ADMIN_ID},
+    AID               => $FORM{AID},
     BUTTONS           => $types
   });
 }
@@ -161,7 +161,7 @@ sub msgs_admins {
 
     push @{ $A_PRIVILEGES{ $line->{admin_login} } }, "$line->{chapter_name}|$line->{deligation_level}|$line->{aid}|$line->{chapter_id}";
   }
-  my $permissions_index = get_function_index('msgs_admin_permissions');
+  my $permissions_index = get_function_index('msgs_permissions');
   foreach my $admin_id (sort keys %A_PRIVILEGES) {
     my $rows = $#{ $A_PRIVILEGES{$admin_id} } || 0;
     my @arr = @{ $A_PRIVILEGES{$admin_id} };
@@ -173,7 +173,7 @@ sub msgs_admins {
       $table->td($chapter_name),
       $table->td($deligation_level || ($chapter_name ? '0' : '')),
       $table->td($html->button($lang{CHANGE}, "index=$index&chg=$aid&AID=$aid", { class => 'change' }) .
-        $html->button($lang{PERMISSION}, "index=$permissions_index&ADMIN_ID=$aid", { ICON => 'fa fa-check' }),
+        $html->button($lang{PERMISSION}, "index=$permissions_index&AID=$aid", { ICON => 'fa fa-check' }),
         { rowspan => (($rows > 0) ? $rows + 1 : 1) })
     );
 
@@ -1060,8 +1060,8 @@ sub _msgs_permits_types {
 
   foreach my $type (sort keys %admin_types) {
     my $class = 'btn btn-default btn-sm ' . (!$FORM{add_permits} && $FORM{TYPE} && $FORM{TYPE} eq  $type ? 'active' : '');
-    my $type_btn = $html->button($type, "index=$index&ADMIN_ID=$FORM{ADMIN_ID}&TYPE=$type", { class => $class });
-    my $del_btn = $html->button('', "index=$index&ADMIN_ID=$FORM{ADMIN_ID}&del=$type", {
+    my $type_btn = $html->button($type, "index=$index&AID=$FORM{AID}&TYPE=$type", { class => $class });
+    my $del_btn = $html->button('', "index=$index&AID=$FORM{AID}&del=$type", {
       class   => "$class text-danger",
       ICON    => 'fa fa-times',
       MESSAGE => "$lang{DEL} $lang{TEMPLATE}?"

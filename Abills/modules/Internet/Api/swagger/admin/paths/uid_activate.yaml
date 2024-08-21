@@ -1,0 +1,68 @@
+post:
+  tags:
+    - internet
+  summary: Добавление услугу Интернет пользователю
+  operationId: addUserInternet
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addUserActivateRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешно добавлено
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addUserActivateResponse200.yaml"
+    400:
+      description: Нет поля tpId
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addUserActivateResponse400.yaml"
+  security:
+    - KEY: []
+put:
+  tags:
+    - internet
+  summary: Изменение услуги Internet пользователю
+  operationId: changeUserInternet
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/changeUserRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешно изменено
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/changeUserResponse200.yaml"
+    400:
+      description: Нет id услуги
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/changeUserResponse400.yaml"
+  security:
+    - KEY: []

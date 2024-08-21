@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 30032
+  errstr:
+    type: string
+    example: "nasGroup with id 1 not exists"

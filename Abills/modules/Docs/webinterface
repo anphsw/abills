@@ -375,6 +375,7 @@ sub docs_take_variables {
       FILE_NAME
       EMAIL_ATTACH_FILENAME
       DOCS  - Docs obj
+      TAKE_PARAMS
 
   Returns:
     TRUE or FALSE
@@ -387,6 +388,7 @@ sub docs_print {
   if($attr->{DOCS}) {
     $Docs = $attr->{DOCS};
   }
+
   $FORM{pdf} = 1 if ($attr->{PDF});
 
   $conf{DOCS_LANGUAGE} = $conf{default_language} if (!$conf{DOCS_LANGUAGE});
@@ -412,7 +414,7 @@ sub docs_print {
   });
 
   foreach my $line (@$value_list){
-    $attr->{"$line->{param}"}=$line->{value};
+    $attr->{$line->{param}}=$line->{value};
   }
 
   if ( @MONTHES_LIT && $attr->{DATE} ){
@@ -461,75 +463,34 @@ sub docs_print {
     $MONEY_UNIT_NAMES = \@money_unit_names;
   }
 
+  my %sum_locale = (
+    ONES             => \@ones,
+    TWOS             => \@twos,
+    FIFTH            => \@fifth,
+    ONE              => \@one,
+    ONEST            => \@onest,
+    TEN              => \@ten,
+    TENS             => \@tens,
+    HUNDRED          => \@hundred,
+    MONEY_UNIT_NAMES => $MONEY_UNIT_NAMES,
+    LOCALE           => $conf{LOCALE} || ''
+  );
 
   if($attr->{TOTAL_SUM}) {
     ($attr->{SUM_MAIN}, $attr->{SUM_SUB}) = split(/\./, $attr->{TOTAL_SUM});
-
-    $attr->{SUM_LIT} = int2ml(
-      $attr->{TOTAL_SUM},
-      {
-        ONES             => \@ones,
-        TWOS             => \@twos,
-        FIFTH            => \@fifth,
-        ONE              => \@one,
-        ONEST            => \@onest,
-        TEN              => \@ten,
-        TENS             => \@tens,
-        HUNDRED          => \@hundred,
-        MONEY_UNIT_NAMES => $MONEY_UNIT_NAMES,
-        LOCALE           => $conf{LOCALE} || ''
-      }
-    );
+    $attr->{SUM_LIT} = int2ml($attr->{TOTAL_SUM}, \%sum_locale);
   }
 
   if ( $attr->{TOTAL_ALT_SUM} ){
-    $attr->{SUM_ALT_LIT} = int2ml( $attr->{TOTAL_ALT_SUM},
-      {
-        ONES             => \@ones,
-        TWOS             => \@twos,
-        FIFTH            => \@fifth,
-        ONE              => \@one,
-        ONEST            => \@onest,
-        TEN              => \@ten,
-        TENS             => \@tens,
-        HUNDRED          => \@hundred,
-        MONEY_UNIT_NAMES => $MONEY_UNIT_NAMES,
-        LOCALE           => $conf{LOCALE}
-      } );
+    $attr->{SUM_ALT_LIT} = int2ml( $attr->{TOTAL_ALT_SUM}, \%sum_locale );
   }
 
   if ( $Docs->{ORDER_TOTAL_SUM_VAT} ){
-    $attr->{ORDER_TOTAL_SUM_VAT_LIT} = int2ml( $attr->{ORDER_TOTAL_SUM_VAT},
-      {
-        ONES             => \@ones,
-        TWOS             => \@twos,
-        FIFTH            => \@fifth,
-        ONE              => \@one,
-        ONEST            => \@onest,
-        TEN              => \@ten,
-        TENS             => \@tens,
-        HUNDRED          => \@hundred,
-        MONEY_UNIT_NAMES => $MONEY_UNIT_NAMES,
-        LOCALE           => $conf{LOCALE}
-      }
-    );
+    $attr->{ORDER_TOTAL_SUM_VAT_LIT} = int2ml( $attr->{ORDER_TOTAL_SUM_VAT}, \%sum_locale);
   }
 
   if ( $attr->{TOTAL_SUM_WITHOUT_VAT} ){
-    $attr->{TOTAL_SUM_WITHOUT_VAT_LIT} = int2ml( $attr->{TOTAL_SUM_WITHOUT_VAT},
-      {
-        ONES             => \@ones,
-        TWOS             => \@twos,
-        FIFTH            => \@fifth,
-        ONE              => \@one,
-        ONEST            => \@onest,
-        TEN              => \@ten,
-        TENS             => \@tens,
-        HUNDRED          => \@hundred,
-        MONEY_UNIT_NAMES => $MONEY_UNIT_NAMES,
-        LOCALE           => $conf{LOCALE}
-      }
-    );
+    $attr->{TOTAL_SUM_WITHOUT_VAT_LIT} = int2ml( $attr->{TOTAL_SUM_WITHOUT_VAT}, \%sum_locale);
   }
 
   my $template = $type;
@@ -594,7 +555,6 @@ sub docs_print {
 
   # Make qrcode with organization params
   if ($conf{'DOCS_QRCODE_INCLUDE_' . uc($type)}) {
-
     my @qrcode_params = split(/:/, $conf{'DOCS_QRCODE_INCLUDE_' . uc($type)});
     my $pdf_params = pop @qrcode_params; # Shift from the end
 
@@ -619,9 +579,8 @@ sub docs_print {
     }
   }
 
-  my $qr_code_pay = '';
   if ($conf{DOCS_QR_CODE}) {
-    $qr_code_pay = docs_qr_code({
+    my $qr_code_pay = docs_qr_code({
       UID           => $users->{UID},
       TOTAL_SUM     => $attr->{TOTAL_SUM},
     });
@@ -674,9 +633,10 @@ sub docs_print {
           %{$attr},
           %{($users) ? $users : {} },
           %{$companies},
-          QR_CODE_DOCS => $qr_code_pay,
+          %tpl_attributtes,
         },
-        { TITLE         => $template,
+        {
+          TITLE         => $template,
           SUBJECT       => $template,
           ID            => 'docs_' . $template,
           FILENAME      => $filename,
@@ -691,7 +651,7 @@ sub docs_print {
 
     $html = $html_old if ($html_old);
 
-    if ($conf{DOCS_CERT_CMD}) {
+    if ($conf{DOCS_CERT_CMD} || $conf{DOCS_SAVE}) {
       $Documents->document_save({ %$attr, LEGACY_SAVE => 1, CONTENT => $content });
     }
     elsif ($attr->{SAVE_DOCUMENT}) {
@@ -699,33 +659,35 @@ sub docs_print {
     }
   }
   else {
-    my $doc = $Documents->document_print({ %{$attr}, PDF => $FORM{pdf} ? 1 : 0, PRINT_HEADERS => $FORM{qindex} || '' });
+    my $doc = $Documents->document_print({
+      %{$attr},
+      PDF           => $FORM{pdf} ? 1 : 0,
+      PRINT_HEADERS => $FORM{qindex} || ''
+    });
+
     $content = $doc->{content};
   }
 
   if ( $@ ){
-    $html->message( 'err', "Template $lang{ERROR}", "$@" );
+    $html->message( 'err', "TEMPLATE $lang{ERROR}", "$@" );
   }
 
   my @ATTACHMENTS = ();
   if ( $FORM{pdf} ){
-    @ATTACHMENTS = (
-      {
-        CONTENT      => $content,
-        CONTENT_TYPE => 'Content-Type: application/pdf',
-        FILENAME     => $filename . '.pdf'
-      }
-    );
+    @ATTACHMENTS = ({
+      CONTENT      => $content,
+      CONTENT_TYPE => 'Content-Type: application/pdf',
+      FILENAME     => $filename . '.pdf'
+    });
+
     delete $FORM{pdf};
   }
   else{
-    @ATTACHMENTS = (
-      {
-        CONTENT      => $content,
-        CONTENT_TYPE => 'Content-Type: text/html',
-        FILENAME     => $filename . '.htm'
-      }
-    );
+    @ATTACHMENTS = ({
+      CONTENT      => $content,
+      CONTENT_TYPE => 'Content-Type: text/html',
+      FILENAME     => $filename . '.htm'
+    });
   }
 
   if($attr->{CERT}) {
@@ -761,6 +723,10 @@ sub docs_print {
       do "../../language/$html->{language}.pl";
       do "../../Abills/modules/Docs/lng_$html->{language}.pl";
     }
+  }
+
+  if ($attr->{SEND_VIBER} || $users->{VIBER} && $conf{DOCS_SEND_INVOICE_VIBER} && defined($FORM{SUM_1})) {
+    _send_invoice_viber($filename, $attr);
   }
 
   if ( $attr->{SEND_EMAIL} && !$attr->{OUTPUT2RETURN} ){
@@ -1800,6 +1766,46 @@ sub docs_esign {
       $html->message('info', $lang{INFO}, $lang{NO_DATA});
     }
   }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _send_invoice_viber ()
+
+   Attr:
+    filename
+    attr
+
+=cut
+#**********************************************************
+sub _send_invoice_viber {
+  my ($filename, $attr) = @_;
+
+  require Abills::Sender::Core;
+  Abills::Sender::Core->import();
+  my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+
+  my @ATTACHMENTS_VIBER = ({
+    'content'      => "FILE: Abills/templates/Docs/$filename.pdf",
+    'content_type' => 'Content-Type: application/pdf',
+    'content_size' => '100000',
+    'filename'     => "$filename.pdf"
+  });
+
+  my $message = $html->tpl_show(_include('docs_invoice_viber', 'Docs'), $attr, { OUTPUT2RETURN => 1 });
+
+  $Sender->send_message({
+    TO_ADDRESS  => $attr->{SEND_VIBER},
+    MESSAGE     => $message,
+    ATTACHMENTS => \@ATTACHMENTS_VIBER,
+    SENDER_TYPE => 'Viber_bot',
+    UID         => $attr->{UID},
+  });
+
+  if (defined($ENV{HTTP_HOST})) {
+    $html->message('info', $lang{INFO}, "$lang{INVOICE} $lang{SENT} $lang{ON} Viber");
+  };
 
   return 1;
 }

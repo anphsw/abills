@@ -144,6 +144,16 @@ $lang{BILL_ID}   = 'Грошовий рахунок';
 $lang{ERR_MAKE_PAYMENT} = 'Відбулась помилка під час проведення платежу';
 $lang{PAYSYS_IMPORT_NOT_CONFIGURED} = 'Налаштування виписок налаштовані не коректно. Перевірте налаштування $conf{PAYSYS_IMPORT_RULES} та інші параметри згідно документації';
 $lang{TRANSACTION_EXISTS} = 'Транзакція з ID %ID% уже існує. Прохання повторно виконати операцію оплати.';
+$lang{PORTAL_COMMENT_DESC} = 'Опис у кабінеті користувача';
+$lang{PORTAL_COMMISSION_DESC} = 'Опис комісії у кабінеті користувача';
+$lang{NO_ACTIVE_RECURRENT_PAYMENTS} = 'Немає активних регулярних (рекурентних) платежів';
+$lang{FORCE_IMPORT} = 'Примусовий імпорт';
+$lang{PAYSYS_V3_DEPRECATED} = 'Схема V3 буде видалена з наступного релізу, щоб перейти на нову схему, включіть в config.pl "$conf{PAYSYS_V4}=1;"';
+$lang{PAYMENTS_DISABLED} = 'Платежі вимкнено';
+
+$lang{ERR_PAYSYS_DOMAIN} = 'Будь ласка, зайдіть через доменний URL або встановіть опцію %OPTION%';
+$lang{ERR_NO_FAST_PAY_LINK} = 'Немає посилання на швидку оплату';
+$lang{ERR_WRONG_CONFIGURATIONS} = 'Неправильна конфігурація';
 
 $lang{EVENT_MERCHANT_ADDED_TITLE}         = 'Paysys контрагента змінено';
 $lang{EVENT_MERCHANT_ADDED_MESSAGE}       = 'Налаштування контрагента змінено id - %MERCHANT_ID% з назвою - %MERCHANT_NAME%';

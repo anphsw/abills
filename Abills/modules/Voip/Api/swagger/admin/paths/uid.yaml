@@ -1,0 +1,110 @@
+get:
+  tags:
+    - voip
+  summary: Информация о услуге Voip пользователя
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя в биллинге
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/userService.yaml"
+  security:
+    - KEY: []
+post:
+  tags:
+    - voip
+  summary: Добавить услугу Voip пользователю
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя в биллинге
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addUserServiceRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешно добавлена услуга пользователю
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addUserServiceResponse200.yaml"
+    400:
+      description: Невозможно добавить ещё услугу Voip пользователю
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addUserServiceResponse400.yaml"
+  security:
+    - KEY: []
+put:
+  tags:
+    - voip
+  summary: Изменить услугу Voip пользователю
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя в биллинге
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addUserServiceRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/changeUserServiceResponse200.yaml"
+    400:
+      description: Ошибка изменения данных
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/changeUserServiceResponse400.yaml"
+  security:
+    - KEY: []
+delete:
+  tags:
+    - voip
+  summary: Удалить пользователя Voip
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя в биллинге
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteUserServiceResponse200.yaml"
+    400:
+      description: Нет пользователя Voip
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteUserServiceResponse400.yaml"
+  security:
+    - KEY: []

@@ -1,0 +1,10 @@
+type: array
+items:
+  type: object
+  properties:
+    id:
+      type: string
+      example: cisco_isg
+    name:
+      type: string
+      example: Cisco ISG

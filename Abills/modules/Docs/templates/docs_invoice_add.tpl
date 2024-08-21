@@ -14,7 +14,8 @@
     <div class='card-header with-border'>
       <h4 class='card-title'>%CAPTION%</h4>
       <span class='float-right'>
-        <a href='%SELF_URL%?full=1&get_index=docs_invoice_company&UID=%UID%' class='btn btn-xs btn-success'>_{NEXT_PERIOD_INVOICE}_</a>
+        <a href='%SELF_URL%?full=1&get_index=docs_invoice_company&UID=%UID%'
+           class='btn btn-xs btn-success'>_{NEXT_PERIOD_INVOICE}_</a>
       </span>
     </div>
     <div class='card-body'>
@@ -22,8 +23,8 @@
       %FORM_INVOICE_ID%
 
       <div class='form-group row'>
-        <label class='control-label col-sm-12 col-md-3' for='DATE'>_{DATE}_:</label>
-        <div class='col-sm-12 col-md-9'>
+        <label class='col-md-4 col-form-label text-md-right' for='DATE'>_{DATE}_:</label>
+        <div class='col-md-8'>
           <div class='input-group'>
             %DATE_FIELD%
           </div>
@@ -31,8 +32,8 @@
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-sm-12 col-md-3' for='CUSTOMER'>_{CUSTOMER}_:</label>
-        <div class='col-sm-12 col-md-9'>
+        <label class='col-md-4 col-form-label text-md-right' for='CUSTOMER'>_{CUSTOMER}_:</label>
+        <div class='col-md-8'>
           <div class='input-group'>
             <input type='text' id='CUSTOMER' name='CUSTOMER' value='%CUSTOMER%' placeholder='%CUSTOMER%'
                    class='form-control'>
@@ -41,8 +42,8 @@
       </div>
 
       <div class='form-group row'>
-        <label class='control-label col-sm-12 col-md-3' for='PHONE'>_{PHONE}_:</label>
-        <div class='col-sm-12 col-md-9'>
+        <label class='col-md-4 col-form-label text-md-right' for='PHONE'>_{PHONE}_:</label>
+        <div class='col-md-8 '>
           <div class='input-group'>
             <input type='text' id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control'>
           </div>
@@ -54,19 +55,19 @@
           <thead>
           <tr>
             <th style='width: 10px'>
-              #
+              <label>#</label>
             </th>
             <th style='width: 300px'>
-              _{NAME}_
+              <label>_{NAME}_</label>
             </th>
             <th style='width: 200px'>
-              _{LIST_OF_CHARGES}_
+              <label>_{LIST_OF_CHARGES}_</label>
             </th>
             <th style='width: 75px'>
-              _{COUNT}_
+              <label>_{COUNT}_</label>
             </th>
             <th style='width: 75px'>
-              _{SUM}_
+              <label class='required'>_{SUM}_</label>
             </th>
           </tr>
           </thead>
@@ -88,7 +89,8 @@
               <input type='text' id='COUNTS_1' name='COUNTS_1' value='%COUNTS_1%' placeholder='1' class='form-control'/>
             </td>
             <td>
-              <input type='text' name='SUM_1' id='SUM_1' value='%SUM_1%' placeholder='0.00' class='form-control'/>
+              <input required type='text' name='SUM_1' id='SUM_1' value='%SUM_1%' placeholder='0.00'
+                     class='form-control'/>
               <input type='hidden' name='FEES_ID_1' id='FEES_ID_1' value='%FEES_ID_1%'/>
             </td>
           </tr>

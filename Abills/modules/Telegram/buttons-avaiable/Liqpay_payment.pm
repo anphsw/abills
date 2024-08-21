@@ -102,11 +102,14 @@ sub click {
   }
 
   my @inline_keyboard = ();
-  my $inline_button = {
-    text     => $self->{bot}{lang}{LIQPAY_PAYMENT},
-    url      => $paysys_link->{URL} || ""
-  };
-  push (@inline_keyboard, [$inline_button]);
+
+  if ($paysys_link->{URL}) {
+    my $inline_button = {
+      text     => $self->{bot}{lang}{LIQPAY_PAYMENT},
+      url      => $paysys_link->{URL} || ""
+    };
+    push (@inline_keyboard, [$inline_button]);
+  }
 
   $self->{bot}->send_message({
     text         => $message,

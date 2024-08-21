@@ -1,0 +1,75 @@
+get:
+  tags:
+    - crm
+  summary: Список диалогов
+  operationId: getCrmDialoguesList
+  parameters:
+    - name: id
+      in: query
+      description: Id диалога
+      schema:
+        type: boolean
+        default: true
+    - name: leadId
+      in: query
+      description: Id потенциального клиента
+      schema:
+        type: boolean
+        default: false
+    - name: leadFio
+      in: query
+      description: ФИО потенциального клиента
+      schema:
+        type: boolean
+        default: false
+    - name: admin
+      in: query
+      description: Ответственный администратор
+      schema:
+        type: boolean
+        default: false
+    - name: aid
+      in: query
+      description: Id ответственного администратор
+      schema:
+        type: boolean
+        default: false
+    - name: date
+      in: query
+      description: Дата создания диалога
+      schema:
+        type: boolean
+        default: false
+    - name: source
+      in: query
+      description: Источник
+      schema:
+        type: boolean
+        default: false
+    - name: lastMessage
+      in: query
+      description: Последнее сообщение
+      schema:
+        type: boolean
+        default: false
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/dialogueList.yaml"
+  security:
+    - KEY: [ ]

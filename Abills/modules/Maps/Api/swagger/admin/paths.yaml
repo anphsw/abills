@@ -1,0 +1,2 @@
+/maps/online:
+  $ref: "./paths/online.yaml"

@@ -5,7 +5,6 @@ msgs_managment.tpl:russian:Другое/Сообщения/Все/Показат
 msgs_show.tpl:russian:Другое/Сообщения/Все/Показать/
 msgs_reply_show.tpl:russian:Другое/Сообщения/Все/Показать/Ответ
 msgs_request_show.tpl:russian:Другое/Сообщения/Заявки подключения/Показать
-msgs_add_user.tpl:russian:Другое/Сообщения/Заявки подключения/Добавить пользователя
 msgs_reply.tpl:russian:Другое/Сообщения/Все/Показать
 msgs_admin.tpl:russian:Настройка/Сообщения/Администраторы/Изменить
 msgs_request_search.tpl:russian:Настройка/Сообщения/Заявки подключения/Поиск

@@ -10,17 +10,9 @@ use_ok('Crypt::JWT', qw(encode_jwt decode_jwt));
 use_ok('Abills::Base', qw/json_former/);
 use_ok('Paysys::t::Init_t');
 
+use Crypt::JWT qw(encode_jwt);
 use Paysys::t::Init_t;
 use Abills::Base qw(json_former);
-require Paysys::systems::Pumb;
-
-my $public_key = Paysys::systems::Pumb::_load_pem_file('public_pumb.pem');
-cmp_ok($public_key, 'ne', '', 'Check is present public key public_pumb.pem');
-
-my $private_key = Paysys::systems::Pumb::_load_pem_file('private.pem');
-cmp_ok($private_key, 'ne', '', 'Check is present private key private.pem');
-
-use Crypt::JWT qw(encode_jwt);
 
 our (
   %conf,
@@ -35,9 +27,27 @@ our (
   $DATE
 );
 
+my $public_key;
+my $private_key;
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::systems::Pumb;
+  $public_key = Paysys::systems::Pumb::_load_pem_file('public_pumb.pem');
+  $private_key = Paysys::systems::Pumb::_load_pem_file('private.pem');
+  $Payment_plugin = Paysys::systems::Pumb->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::Pumb;
+  $public_key = Paysys::Plugins::Pumb::_load_pem_file('public_pumb.pem');
+  $private_key = Paysys::Plugins::Pumb::_load_pem_file('private.pem');
+  $Payment_plugin = Paysys::Plugins::Pumb->new($db, $admin, \%conf);
+}
+
+cmp_ok($public_key, 'ne', '', 'Check is present public key public_pumb.pem');
+cmp_ok($private_key, 'ne', '', 'Check is present private key private.pem');
+
 # for test swap to local public key
 
-my $Payment_plugin = Paysys::systems::Pumb->new($db, $admin, \%conf);
 if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;
 }
@@ -241,6 +251,41 @@ our @requests = (
     ],
     request   => qq/$request_bodies[1]->{json}/,
     signature => $request_bodies[1]->{signature}
+  },
+  # acquire payment
+  {
+    name      => 'ACQUIRE_PAYMENT',
+    headers   => [
+      'Content-Type: application/json',
+    ],
+    request   => qq/{
+  "id": "9e7dc61a-f947-4942-b323-e32a81c9260e",
+  "rrn": "025698213705",
+  "amount": 105,
+  "params": {},
+  "source": "acquiring.frame",
+  "status": "PROCESSED",
+  "internal": {
+    "status": "SUCCESS",
+    "description": "DESC",
+    "extended_code": "OK",
+    "response_code": "00"
+  },
+  "timeline": [],
+  "commission": 0,
+  "refundable": true,
+  "description": "DESC",
+  "external_id": "PUMB:$payment_id",
+  "inserted_at": "2024-08-07T09:17:30.221Z",
+  "finalized_at": "2024-08-07T09:18:02.470Z",
+  "processed_at": "2024-08-07T09:18:02.470Z",
+  "approval_code": "417774",
+  "card_from_hash": "5355 28** **** 2822",
+  "deducted_amount": 1100,
+  "validation_type": "3DS2_IFRAME",
+  "short_description": "DESC³"
+}
+/,
   },
 );
 

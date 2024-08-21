@@ -16,9 +16,21 @@ our (
   $db,
   %permissions,
   %LIST_PARAMS,
+  $base_dir,
+  $libpath,
   @PRIORITY
 );
 
+my $modules_dir = ($base_dir || '/usr/abills/') . 'Abills/modules/';
+
+require Abills::Template;
+my $Templates = Abills::Template->new($db, $admin, \%conf, { html => $html, lang => \%lang, libpath => $libpath });
+
+#**********************************************************
+=head2 crm_workflow()
+
+=cut
+#**********************************************************
 sub crm_workflow {
 
   $html->message('info', $lang{INFO}, $FORM{MESSAGE}) if $FORM{MESSAGE};
@@ -57,7 +69,7 @@ sub crm_workflow {
     my $triggers = crm_triggers();
     my $actions = crm_actions();
 
-    $html->tpl_show(_include('crm_workflow', 'Crm'), {
+    $html->tpl_show($Templates->_include('crm_workflow', 'Crm'), {
       %FORM,
       TRIGGERS => json_former($triggers),
       ACTIONS  => json_former($actions),
@@ -429,7 +441,51 @@ sub crm_actions {
         }
       ]
     },
+    {
+      type   => 'runPlugin',
+      lang   => $lang{CRM_RUN_PLUGIN},
+      fields => [
+        {
+          type    => 'select',
+          options => _crm_plugins_hash(),
+          name    => 'value',
+          empty   => 1
+        },
+      ]
+    },
   ];
+}
+
+#**********************************************************
+=head2 _crm_plugins_hash($attr)
+
+=cut
+#**********************************************************
+sub _crm_plugins_hash {
+  my ($attr) = @_;
+
+  my $plugins_dir = $modules_dir . 'Crm/Plugins/Workflow';
+  return {} if ! (-d $plugins_dir);
+
+  my $plugins_hash = {};
+
+  my $plugins = _get_files_in($plugins_dir, { FILTER => '\.pm' });
+  foreach my $plugin (@{$plugins}) {
+    $plugin =~ s/\.pm//g;
+    my $plugin_name = 'Crm::Plugins::Workflow::' . $plugin;
+
+    my $success = ::load_module($plugin_name, { LOAD_PACKAGE => 1 });
+    if (!$success) {
+      next;
+    }
+
+    next unless ($plugin_name->can('new'));
+    next unless ($plugin_name->can('execute'));
+
+    $plugins_hash->{$plugin} = $plugin . '.pm';
+  }
+  
+  return $plugins_hash;
 }
 
 1;

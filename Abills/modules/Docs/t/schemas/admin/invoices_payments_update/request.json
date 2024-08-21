@@ -1,0 +1,10 @@
+{
+  "name": "ADMIN_DOCS_INVOICE_PAYMENTS_UPDATE",
+  "method": "PATCH",
+  "path": "docs/invoices/payments/",
+  "body": {
+    "sum": "1",
+    "paymentId": 1,
+    "invoiceCreate": 1
+  }
+}

@@ -283,7 +283,7 @@ sub info_get_documents_view {
     my $attach = '';
     if ($line->{content_type} =~ 'image/') {
       $attach .= $html->img($SELF_URL . "?qindex=$attachments_index&ATTACHMENT=$line->{id}", ($line->{filename} || 'No name'), {
-        class     => 'figure-img img-fluid rounded',
+        class     => 'figure-img img-fluid rounded attachment_responsive',
         EX_PARAMS => 'style="max-height: 100px; width: auto;"'
       });
     }
@@ -902,7 +902,7 @@ sub info_documents_make {
 #**********************************************************
 sub info_document_del {
 
-  return if !$FORM{DEL_ATTACHMENT_ID};
+  return 0 if !$FORM{DEL_ATTACHMENT_ID};
 
   $Info->info_document_del({ ID => $FORM{DEL_ATTACHMENT_ID} });
 
@@ -912,6 +912,8 @@ sub info_document_del {
   else {
     print qq/ {"error"  : $Info->{errstr}} /;
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -1166,18 +1168,16 @@ sub info_edit {
 sub log_comments_edit {
 
   my $index = get_function_index('info_edit');
-  my $log_lits = $FORM{COMMENT} ? $Info->search_comments($FORM{COMMENT})->{list} : $Info->log_comments();
+  my $log_lits = $FORM{COMMENT} ? $Info->search_comments($FORM{COMMENT})->{list} : $Info->log_comments({ SORT => $FORM{sort}, DESC => $FORM{desc} });
+
   my $admin_list = sel_admins({ HASH => 1 });
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{CHANGE_COMMENT},
-      title   =>
-        [ "#", $lang{OLD_COMMENT}, $lang{COMMENTS}, $lang{USER}, $lang{ADMIN}, $lang{DATE} ],
-      ID      => 'INFO_LIST'
-    }
-  );
+  my $table = $html->table({
+      width      => '100%',
+      caption    => $lang{CHANGE_COMMENT},
+      title      => [ "#", $lang{OLD_COMMENT}, $lang{COMMENTS}, $lang{USER}, $lang{ADMIN}, $lang{DATE} ],
+      ID         => 'INFO_LIST'
+  });
 
   foreach my $item_log (@$log_lits) {
     $table->addrow(

@@ -1,0 +1,22 @@
+type: array
+items:
+  type: object
+  properties:
+    changed:
+      type: string
+      example: "2022-12-06"
+    id:
+      type: number
+      example: 1
+    iso:
+      type: number
+      example: 840
+    money:
+      type: string
+      example: Dollars
+    rate:
+      type: number
+      example: 31
+    shortName:
+      type: string
+      example: USD

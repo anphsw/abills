@@ -1,0 +1,50 @@
+type: object
+description: Список компаний
+properties:
+  total:
+    type: integer
+    example: 10
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        bankAccount:
+          type: string
+          example: UA206586843844738424164369993
+        bankName:
+          type: string
+          example: АТ КБ ПРИВАТБАНК
+        billId:
+          type: number
+          example: 4
+        comments:
+          type: string
+          example: "ПриватБанк відділення в Сумах"
+        contractDate:
+          type: string
+          example: "0000-00-00"
+        contractId:
+          type: string
+          example: 12345678
+        credit:
+          type: number
+          example: 250
+        deposit:
+          type: number
+          example: 1000.5
+        edrpou:
+          type: number
+          example: 14360570
+        id:
+          type: number
+          example: 1
+        name:
+          type: string
+          example: АТ КБ ПРИВАТБАНК
+        representative:
+          type: string
+          example: БЬОШ ГЕРХАРД
+        taxNumber:
+          type: number
+          example: 143605704021

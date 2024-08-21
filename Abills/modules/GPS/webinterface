@@ -7,15 +7,17 @@
 
 use strict;
 use warnings FATAL => 'all';
-
 use Abills::Base qw/sec2time time2sec in_array cmd load_pmodule _bp/;
 
-our $db;
-our $admin;
-our %conf;
-our $html;
-our %lang;
-our $base_dir;
+our (
+  $db,
+  $admin,
+  %conf,
+  %lang,
+  $base_dir
+);
+
+our Abills::HTML $html;
 
 require GPS;
 GPS->import();
@@ -31,19 +33,44 @@ my $close_outer_modal_script = qq\
   \;
 
 #**********************************************************
-=head2 - gps_unregistered_trackers
+=head2 - gps_unregistered_trackers()
+
+  Arguments:
+
+  Results:
 
 =cut
 #**********************************************************
 sub gps_unregistered_trackers {
+
+  if ($FORM{change} && $FORM{GPS_IMEI}) {
+    $admin->change({ AID => $FORM{AID}, GPS_IMEI => $FORM{GPS_IMEI} });
+    if (!_error_show($admin)) {
+      $html->message('info', $lang{CHANGED});
+      # $Gps->unregistered_trackers_del({ GPS_IMEI => $FORM{GPS_IMEI} });
+    }
+  }
+  elsif ($FORM{chg}) {
+    $html->tpl_show(_include('gps_unregister_form', 'GPS'), {
+      GPS_IMEI   => $FORM{chg},
+      ADMINS_SEL => sel_admins()
+    });
+  }
+
   my $unregistered_trackers_list = $Gps->unregistered_trackers_list({ COLS_NAME => 1 });
 
-  my $table = $html->table({
+  my Abills::HTML $table = $html->table({
     width   => '100%',
-    caption => "Tracker",
-    title   => [ '#', 'GPS IMEI', $lang{ADDED}, "IP Address" ],
-    ID      => "GPS_UNREGISTERED_TRACKERS"
+    caption => 'Tracker',
+    title   => [ '#', 'GPS IMEI', $lang{ADDED}, 'IP Address' ],
+    ID      => 'GPS_UNREGISTERED_TRACKERS'
   });
+
+  my @maps_arr = ();
+
+  require GPS::Maps_info;
+  my $car_icon = GPS::Maps_info::_gps_car_icon();
+  $car_icon =~ s/"/\\\"/g;
 
   my $i = 1;
   foreach my $tracker (@{$unregistered_trackers_list}) {
@@ -52,10 +79,65 @@ sub gps_unregistered_trackers {
       $tracker->{gps_imei},
       $tracker->{gps_time},
       $tracker->{ip},
+      ($tracker->{coord_x} || 0). '/' . ($tracker->{coord_y} || 0),
+      $html->button('', '', {
+        NO_LINK_FORMER => 1,
+        JAVASCRIPT     => 1,
+        SKIP_HREF      => 1,
+        ex_params      => qq{onclick="Configuration.fitByPoints([[$tracker->{coord_x}, $tracker->{coord_y}], [$tracker->{coord_x}, $tracker->{coord_y}]], undefined)"},
+        class          => 'btn btn-info btn-xs',
+        ICON           => 'fa fa-globe',
+      }),
+      $html->button('', "index=$index&chg=$tracker->{gps_imei}", { class => 'change' })
     );
+
+    my $tb = "<div class='panel panel-info'>" .
+      "<ul class='list-group'>" .
+      GPS::Maps_info::_gps_info_item('fa fa-location-arrow', 'GPS IMEI', $tracker->{gps_imei}) .
+      GPS::Maps_info::_gps_info_item('far fa-calendar', $lang{DATE}, $tracker->{gps_time}) .
+      GPS::Maps_info::_gps_info_item('fa fa-network-wired', 'IP', $tracker->{ip}) .
+      "</ul>" .
+      "</div>";
+    my $info = "<div class='panel-group'>$tb</div>";
+    $info =~ s/'/\\\"/g;
+
+    push @maps_arr, {
+      OBJECT_ID => $tracker->{gps_imei},
+      MARKER    => {
+        ID           => $tracker->{gps_imei},
+        COORDX       => $tracker->{coord_x},
+        COORDY       => $tracker->{coord_y},
+        SVG          => $car_icon,
+        INFO         => $info,
+        DISABLE_EDIT => 1,
+        LAYER_ID     => 9,
+      },
+      LAYER_ID  => 9
+    };
   }
 
   print $table->show();
+
+  use Maps::Maps_view;
+  my $Maps_view = Maps::Maps_view->new($db, $admin, \%conf, {
+    HTML => $html,
+    LANG => \%lang
+  });
+
+  print $Maps_view->show_map({}, {
+    # %{$attr},
+    DATA                => \@maps_arr,
+    DONE_DATA           => 1,
+    # OBJECT_ID  => $Msgs->{LOCATION_ID},
+    HIDE_CONTROLS       => 1,
+    MAPS_DEFAULT_TYPE   => $conf{MAPS_DEFAULT_TYPE} || 'OSM',
+    MAPS_DEFAULT_LATLNG => $conf{MAPS_DEFAULT_LATLNG} || '',
+    MAP_HEIGHT          => 60,
+    MAP_ZOOM            => 16,
+    SMALL               => 1,
+    NAVIGATION_BTN      => 1,
+    HIDE_EDIT_BUTTONS   => 1
+  });
 
   return 1;
 }
@@ -72,22 +154,25 @@ sub gps_tracked_admins {
   if ($FORM{change}) {
     my $result = $Gps->admins_color_info({ AID => $FORM{AID} });
     if (!$Gps->{TOTAL}) {
-      $Gps->admins_color_add({ AID => $FORM{AID}, COLOR => $FORM{COLOR} });
+      $Gps->admins_color_add({
+        AID => $FORM{AID},
+        COLOR => $FORM{COLOR}
+      });
     }
     else {
       $Gps->admins_color_change({ ID => $result->{ID}, COLOR => $FORM{COLOR} });
     }
 
-    $html->message("info", $lang{CHANGED}) if !_error_show($Gps);
+    $html->message('info', $lang{CHANGED}) if !_error_show($Gps);
   }
 
   if ($FORM{COLOR_FORM}) {
-    my $color = "#0000FF";
+    my $color = '#0000FF';
     my $result = $Gps->admins_color_info({ AID => $FORM{AID} });
     $color = $result->{COLOR} if $Gps->{TOTAL};
 
-    $html->tpl_show(_include('gps_color_form', "GPS"), {
-      ACTION      => "add",
+    $html->tpl_show(_include('gps_color_form', 'GPS'), {
+      ACTION      => 'add',
       ACTION_LANG => $lang{ADD},
       COLOR       => $color,
       AID         => $FORM{AID}
@@ -99,29 +184,60 @@ sub gps_tracked_admins {
   my $table = $html->table({
     width   => '100%',
     caption => $lang{ADMIN_ROUTES},
-    title   => [ 'Admin ID', $lang{LOGIN}, "GPS IMEI", $lang{ROUTE_COLOR}, $lang{LAST_UPDATE} ],
+    title   => [ 'Admin ID', $lang{LOGIN}, 'GPS IMEI', $lang{ROUTE_COLOR}, $lang{LAST_UPDATE}, $lang{STATUS}, '' ],
     ID      => "GPS_TRACKED_ADMINS"
   });
 
   foreach my $admin_ (@{$admins_list}) {
+    my $last_location = $Gps->tracked_admin_info($admin_->{aid});
+    next if ($last_location == 0);
 
-    my $last_row = $Gps->tracked_admin_info($admin_->{aid});
-
-    next if ($last_row == 0);
-
-    my $color = "#0000FF";
+    my $color = '#0000FF';
     my $result = $Gps->admins_color_info({ AID => $admin_->{aid} });
     $color = $result->{COLOR} if $Gps->{TOTAL} && $result->{COLOR};
 
     my $colorBtn = $html->button($color, "get_index=gps_tracked_admins&header=2&COLOR_FORM=1&AID=$admin_->{aid}", {
       LOAD_TO_MODAL => 1,
-      ex_params     => "style='color: $color;'"
+      ex_params     => "style='color: $color;'",
+      BUTTON        => 1
     });
 
-    $table->addrow($admin_->{aid}, $admin_->{name} || $admin->{login}, $admin_->{gps_imei}, $colorBtn, $last_row->{gps_time});
+    my $map_btn = $html->button("<span class='fa fa-globe'></span>", undef, {
+      target         => '_blank',
+      class          => 'btn btn-xs btn-info gps-map-btn',
+      NO_LINK_FORMER => 1,
+      JAVASCRIPT     => 1,
+      SKIP_HREF      => 1,
+      ex_params      => "data-coords='$last_location->{coord_y};$last_location->{coord_x}'",
+    });
+
+    $table->addrow(
+      $admin_->{aid},
+      $admin_->{name} || $admin_->{login},
+      $admin_->{gps_imei},
+      $colorBtn,
+      $last_location->{gps_time},
+      $admin_->{status},
+      $map_btn
+    );
   }
 
   print $table->show();
+
+  require Maps::Maps_view;
+  Maps::Maps_view->import();
+  my $Maps_view = Maps::Maps_view->new($db, $admin, \%conf, {
+    HTML => $html,
+    LANG => \%lang
+  });
+
+  print $Maps_view->show_map({ LAYER => 9 }, {
+    SKIP_OBJECTS        => 1,
+    MAPS_DEFAULT_TYPE   => $conf{MAPS_DEFAULT_TYPE} || 'OSM',
+    MAPS_DEFAULT_LATLNG => $conf{MAPS_DEFAULT_LATLNG} || ''
+  });
+
+  $html->tpl_show(_include('gps_monitoring_form', 'GPS'), $Gps);
 
   return 1;
 }
@@ -141,12 +257,10 @@ sub gps_tracked_admins {
 =cut
 #**********************************************************
 sub gps_map_button {
-  my ($coord_x, $coord_y, $admin_id) = @_;
+  my ($admin_id) = @_;
 
-  return '' if !$coord_x || !$coord_y;
-
-  my $maps_index = get_function_index('maps_show_map');
-  my $link = "?index=$maps_index&show_gps=$admin_id&NO_ROUTE=1";
+  my $maps_index = get_function_index('maps_main');
+  my $link = "?index=$maps_index&LAYER=9&OBJECT_ID=$admin_id";
 
   return $html->button("<span class='fa fa-globe'></span>", undef, {
     GLOBAL_URL     => $link,
@@ -262,7 +376,6 @@ sub gps_add_thumbnail {
     }
   }
   else {
-
     my $thumbnail = $Gps->thumbnail_get($FORM{AID});
     _error_show($Gps);
 
@@ -274,7 +387,6 @@ sub gps_add_thumbnail {
       });
     }
     else {
-
       my $icon_select = $html->form_select('ICON_NAME',
         {
           SEL_ARRAY => [ 1 .. 11 ],
@@ -288,8 +400,6 @@ sub gps_add_thumbnail {
         CALLBACK_FUNC => 'gps_add_thumbnail'
       });
     }
-
-    return 1;
   }
 
   return 1;
@@ -342,7 +452,6 @@ sub gps_report {
     my $div_checkbox = '';
 
     foreach my $line (@$admins_list) {
-
       my $show_info = $Gps->admins_color_info({ AID => $line->{aid} });
 
       $checkbox = $html->form_input('AIDS', $line->{aid}, {
@@ -420,7 +529,7 @@ sub gps_report {
     next unless (defined $info && scalar @{$info} > 0);
 
     $by_date = group_by_date($info, 'gps_time');
-    my @dates = sort (keys %{$by_date});
+    my @dates = sort(keys %{$by_date});
 
     foreach my $date (@dates) {
       $stats->{$aid}->{$date}->{work_time} = get_work_time($by_date->{$date});
@@ -430,7 +539,7 @@ sub gps_report {
     $stats->{$aid}->{dates} = \@dates;
   }
 
-  my $filterBtn = $html->button("Настройки отображения на карте", "get_index=gps_report&header=2&FILTER=1", {
+  my $filterBtn = $html->button($lang{MAP_DISPLAY_SETTINGS}, "get_index=gps_report&header=2&FILTER=1", {
     LOAD_TO_MODAL => 1,
     class         => 'btn btn-xs btn-primary',
   });
@@ -461,18 +570,7 @@ sub gps_report {
 
     $time = sec2time($time, { format => 1 });
 
-    my $route_btn = '';
-
-    if ($kilometers > 0) {
-      my $maps_index = get_function_index('maps_show_map');
-      my $link = "?index=$maps_index&show_gps=$aid";
-
-      $route_btn = $html->button("<span class='fa fa-globe'></span>", undef, {
-        GLOBAL_URL     => $link, target => '_blank',
-        class          => 'btn btn-xs btn-info',
-        NO_LINK_FORMER => 1
-      });
-    }
+    my $route_btn = gps_map_button($aid);
 
     $user_table->addrow(
       $adm->{name} || $adm->{login},
@@ -535,7 +633,7 @@ sub get_work_time {
   my $first = extract_date($list->[0]->{gps_time}, 1);
   my $last = extract_date($list->[scalar @{$list} - 1]->{gps_time}, 1);
 
-  return(time2sec($last) - time2sec($first));
+  return (time2sec($last) - time2sec($first));
 }
 
 #**********************************************************

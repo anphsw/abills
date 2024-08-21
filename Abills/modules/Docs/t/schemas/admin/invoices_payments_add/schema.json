@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "payments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "sum": {
+            "type": "number"
+          },
+          "uid": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "sum",
+          "uid"
+        ]
+      }
+    },
+    "skipCount": {
+      "type": "integer"
+    },
+    "totalCount": {
+      "type": "integer"
+    },
+    "totalSum": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "payments",
+    "skipCount",
+    "totalCount",
+    "totalSum"
+  ]
+}

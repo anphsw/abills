@@ -1,0 +1,68 @@
+type: object
+properties:
+  archive:
+    type: integer
+    example: 1
+  addressFlat:
+    type: string
+    example: "4"
+  buildId:
+    type: number
+    example: 8
+  content:
+    type: string
+    example: "<p>Новая Open Source версия биллинга!</p>\n\n\n\n<p>Полный список новинок, исправлений и улучшений биллинга к новому релизу!</p>"
+  date:
+    type: string
+    example: "2023-01-27"
+  districtId:
+    type: number
+    example: 8
+  domainId:
+    type: integer
+    example: 0
+  endDate:
+    type: string
+    example: ""
+  gid:
+    type: integer
+    example: 0
+  importance:
+    type: integer
+    example: 0
+  name:
+    type: string
+    example: "Releases"
+  onMainPage:
+    type: integer
+    example: 0
+  permalink:
+    type: string
+    example: "releases-abills-095-blackout"
+  picture:
+    type: string
+    example: "https://demo.abills.net.ua:9443/images/attach/portal/13863233.jpg"
+  portalMenuId:
+    type: integer
+    example: 8
+  shortDescription:
+    type: string
+    example: "Встречайте новый релиз 2023"
+  stName:
+    type: string
+    example: ""
+  status:
+    type: integer
+    example: 1
+  streetId:
+    type: integer
+    example: 0
+  tagName:
+    type: string
+    example: ""
+  tags:
+    type: integer
+    example: 0
+  title:
+    type: string
+    example: "Релиз ABillS 0.95 Blackout"

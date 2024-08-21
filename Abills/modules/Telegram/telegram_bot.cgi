@@ -48,6 +48,8 @@ use Abills::Misc;
 use Msgs;
 use Abills::Sender::Core;
 
+require Control::Auth;
+
 our $db = Abills::SQL->connect( @conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
   { CHARSET => $conf{dbcharset} });
 our $admin = Admins->new($db, \%conf);
@@ -107,8 +109,12 @@ else {
   $message->{text} = decode_utf8($command);
   $message->{chat}{id} = 'test_id';
   ($fn_data) = $ENV{'QUERY_STRING'} =~ m/fn_data=([^&]*)/;
-  $fn_data =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
-  $fn_data =~ decode_utf8($fn_data);
+
+  if ($fn_data) {
+    $fn_data =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+    $fn_data =~ decode_utf8($fn_data);
+  }
+
   require API::Webtest;
   $Bot = Webtest->new();
 }
@@ -294,10 +300,11 @@ sub admin_fast_replace {
   my $aid = get_aid($msgs->{chat}{id});
 
   if(!ref $msgs_text[0]) {
-    $msgs_text[0] =~ s/MSGS_ID=//g;
+    my $message_id = $msgs_text[0];
+    $message_id =~ s/MSGS_ID=//g;
 
     $Msgs->message_reply_add({
-      ID         => $msgs_text[0],
+      ID         => $message_id,
       REPLY_TEXT => $msgs_text[2] || '',
       AID        => $aid,
     });
@@ -309,10 +316,12 @@ sub admin_fast_replace {
       ARGS => '{"message":{"id":"' . $Msgs->{INSERT_ID} . '", "msg_id":"' . $msgs_text[0] . '"}}',
     });
 
-    $Msgs->message_change({
-      ID    => $msgs_text[0],
-      STATE => 6,
-    });
+    $Msgs->message_info($message_id);
+
+    my $change_params = { ID => $message_id, STATE => 6, };
+    $change_params->{RESPOSIBLE} = $aid if !$Msgs->{RESPOSIBLE};
+
+    $Msgs->message_change($change_params);
   }
 
   my $info =$Bot_db->info_admin($aid);
@@ -443,6 +452,10 @@ sub get_gid_conf{
 #**********************************************************
 sub crm_add_dialogue_message {
   my $message = shift;
+
+  if (! in_array('Crm', \@MODULES)) {
+    return;
+  }
 
   return if !$Dialogue || !$Dialogue->can('crm_get_lead_id_by_chat_id');
 

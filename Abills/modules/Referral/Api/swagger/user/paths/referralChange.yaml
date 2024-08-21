@@ -3,7 +3,7 @@ put:
     - referral
   summary: Изменить реферала
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: ID реферала
       required: true

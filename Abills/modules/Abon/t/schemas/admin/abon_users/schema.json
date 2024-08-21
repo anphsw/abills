@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "title": "ADMIN Abon list of users",
+  "required": [
+    "uid",
+    "period",
+    "comments",
+    "nextAbon",
+    "manualFee",
+    "tpId",
+    "fio",
+    "login",
+    "tpName",
+    "date",
+    "serviceCount",
+    "price"
+  ],
+  "properties": {
+    "uid": {
+      "type": "number"
+    },
+    "period": {
+      "type": "number"
+    },
+    "comments": {
+      "type": "string"
+    },
+    "nextAbon": {
+      "type": "string"
+    },
+    "manualFee": {
+      "type": "number"
+    },
+    "tpId": {
+      "type": "number"
+    },
+    "fio": {
+      "type": "string"
+    },
+    "login": {
+      "type": "string"
+    },
+    "tpName": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string"
+    },
+    "serviceCount": {
+      "type": "number"
+    },
+    "price": {
+      "type": "number"
+    }
+  }
+}

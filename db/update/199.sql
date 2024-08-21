@@ -1,0 +1,1 @@
+ALTER TABLE `sms_services` ADD COLUMN `by_default` TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0;

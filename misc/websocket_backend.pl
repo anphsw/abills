@@ -11,7 +11,7 @@
 
   This is main controlling script for running abills related daemons
   
-  http://abills.net.ua/wiki/doku.php/abills:docs:manual:websocket_backend
+  http://abills.net.ua/wiki/pages/viewpage.action?pageId=9601510
   
 =head1 OPTIONS
 
@@ -201,7 +201,7 @@ sub start_plugin {
   $package_name->import();
 
   eval {
-    my Abills::Backend::Plugin::BasePlugin $plugin_object = $package_name->new(\%conf);
+    my Abills::Backend::Plugin::BasePlugin $plugin_object = $package_name->new(\%conf, { DEBUG => $debug });
     $LOADED_PLUGINS{$plugin_name} = $plugin_object;
 
     my Abills::Backend::Plugin::BaseAPI $plugin_api = $plugin_object->init();

@@ -1,0 +1,46 @@
+get:
+  tags:
+    - payments
+  summary: Получить список типов оплат
+  description: Возвращает список типов оплат
+  operationId: getPaymentTypesList
+  parameters:
+    - name: color
+      in: query
+      description: Цвет отображения в форме оплаты
+      schema:
+        type: boolean
+        default: true
+    - name: defaultPayment
+      in: query
+      description: Оплата по умолчанию
+      schema:
+        type: boolean
+        default: true
+    - name: feesType
+      in: query
+      description: Тип списания
+      schema:
+        type: boolean
+        default: true
+    - name: id
+      in: query
+      description: ID вида оплаты
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название типа оплаты
+      schema:
+        type: boolean
+        default: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/typesList.yaml"
+  security:
+    - KEY: []

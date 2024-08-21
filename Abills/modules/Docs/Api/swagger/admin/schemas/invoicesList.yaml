@@ -1,0 +1,37 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        created:
+          type: string
+          example: '2024-03-15 12:31:01'
+        date:
+          type: string
+          example: '2024-03-15'
+        docsDeposit:
+          type: number
+          example: 0
+        id:
+          type: number
+          example: 8847
+        invoiceNum:
+          type: number
+          example: 33426
+        invoiceSum:
+          type: number
+          example: 1000
+        paymentSum:
+          type: number
+          example: 1000
+        totalSum:
+          type: number
+          example: 1000
+        uid:
+          type: number
+          example: 4
+  total:
+    type: number
+    example: 8368

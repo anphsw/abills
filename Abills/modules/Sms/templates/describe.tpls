@@ -1,0 +1,8 @@
+# $tpl, $lang, $describe
+sms_password_recovery.tpl:english:Sms with user password
+sms_password_recovery.tpl:russian:Sms с паролем пользователя
+sms_password_recovery.tpl:ukrainian:Sms з паролем користувача
+
+sms_user_password_recovery.tpl:english:Sms about the successful recovery of the user's password. $conf{PASSWORD_RECOVERY}
+sms_user_password_recovery.tpl:russian:Sms об успешном восстановлении пароля пользователем. $conf{PASSWORD_RECOVERY}
+sms_user_password_recovery.tpl:ukrainian:Sms про успішне відновлення пароля користувачем. $conf{PASSWORD_RECOVERY}

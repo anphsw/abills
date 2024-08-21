@@ -83,4 +83,10 @@ $lang{DOCUMENT_SEND_USER_FOR_SIGN} = 'The document has been successfully sent to
 $lang{DOCUMENT_SIGNED} = 'Document signed';
 $lang{SIGNED_DOCUMENTS} = 'Signed documents';
 
+$lang{ERR_NO_NEW_INVOICES_FOR_THIS_PERIOD} = 'No new invoices for this period.';
+$lang{ERR_INVOICE_ID_AND_CREATE_INVOICE} = 'Incorrect data, parameter id or ids should be provided. Both are provided.';
+$lang{ERR_NO_ID_OR_IDS} = 'Incorrect data, parameter id or ids should be provided. Both are missing.';
+$lang{ERR_NO_INVOICE_ID_AND_CREATE_INVOICE} = 'Incorrect data, parameter invoiceCreate or invoiceId should be provided.';
+$lang{ERR_ADD_INVOICE} = 'Failed add invoice';
+
 1;

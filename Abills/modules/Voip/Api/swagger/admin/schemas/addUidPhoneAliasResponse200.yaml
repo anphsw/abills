@@ -1,0 +1,5 @@
+type: object
+properties:
+  result:
+    type: string
+    example: "Added phone alias 05032321312 for uid 123321"

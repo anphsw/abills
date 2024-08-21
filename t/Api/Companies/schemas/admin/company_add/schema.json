@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer"
+    },
+    "name": {
+      "type": "string"
+    },
+    "billId": {
+      "type": "integer"
+    },
+    "credit": {
+      "type": "integer"
+    },
+    "creditDate": {
+      "type": "string"
+    },
+    "registration": {
+      "type": "string"
+    },
+    "edrpou": {
+      "type": "string"
+    },
+    "taxNumber": {
+      "type": "string"
+    },
+    "bankAccount": {
+      "type": "string"
+    },
+    "bankName": {
+      "type": "string"
+    },
+    "corBankAccount": {
+      "type": "string"
+    },
+    "bankBic": {
+      "type": "string"
+    },
+    "vat": {
+      "type": [
+        "string",
+        "number"
+      ]
+    },
+    "representative": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "comments": {
+      "type": "string"
+    },
+    "locationId": {
+      "type": "integer"
+    },
+    "addressFlat": {
+      "type": "string"
+    },
+    "contractId": {
+      "type": "string"
+    },
+    "contractDate": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "billId",
+    "credit",
+    "creditDate",
+    "registration",
+    "edrpou",
+    "taxNumber",
+    "bankAccount",
+    "bankName",
+    "corBankAccount",
+    "bankBic",
+    "vat",
+    "representative",
+    "phone",
+    "comments",
+    "locationId",
+    "addressFlat",
+    "contractId",
+    "contractDate"
+  ]
+}

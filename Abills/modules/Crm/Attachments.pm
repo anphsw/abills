@@ -23,7 +23,7 @@ use Abills::Base qw(in_array);
 my %ATTACH_CRM_PARAMS = (ATTACH_PATH => 'crm');
 
 #**********************************************************
-=head2 new($db,$admin,\%conf) - constructor for Portal::Misc::Attachments
+=head2 new($db,$admin,\%conf)
 
 =cut
 #**********************************************************
@@ -47,6 +47,11 @@ sub new {
   return $self;
 }
 
+#**********************************************************
+=head2 attachment_path($attr)
+
+=cut
+#**********************************************************
 sub attachment_path {
   return $Attach->{ATTACH2FILE};
 }

@@ -15,7 +15,6 @@ our @EXPORT_OK = qw(
   _configure_load_payment_module
 );
 
-
 #**********************************************************
 =head2 _configure_load_payment_module($payment_system)
 
@@ -27,11 +26,18 @@ our @EXPORT_OK = qw(
 
 =cut
 #**********************************************************
+#@deprecated migrate to loader after deleting of Paysys v3 schema
 sub _configure_load_payment_module {
-  my ($payment_system, $return_error) = @_;
+  #FIXME: added third parameter conf to prevent braking changes
+  my ($payment_system, $return_error, $conf) = @_;
 
   if (!$payment_system) {
     return 0;
+  }
+
+  my $prefix = 'systems';
+  if ($conf && ref $conf eq 'HASH' && $conf->{PAYSYS_V4}) {
+    $prefix = 'Plugins';
   }
 
   my ($paysys_name) = $payment_system =~ /(.+)\.pm/;
@@ -49,9 +55,9 @@ sub _configure_load_payment_module {
     }
   }
 
-  my $require_module = "Paysys::systems::$paysys_name";
+  my $require_module = "Paysys::$prefix\::$paysys_name";
 
-  eval {require "Paysys/systems/$payment_system";};
+  eval {require "Paysys/$prefix/$payment_system";};
 
   if (!$@) {
     $require_module->import($payment_system);

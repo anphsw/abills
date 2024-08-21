@@ -960,6 +960,11 @@ sub bonus_report {
 sub bonus_service_discount_client {
   my ($attr) = @_;
 
+  if ($conf{BONUS_SERVICE_EXCLUDE_USERS_COMPANY} && $attr->{USER_INFO}{COMPANY_ID}){
+    $html->message('err', $lang{ERROR}, $lang{BONUS_FORBIDDEN_USERS_COMPANY});
+    return;
+  }
+
   my ($year, $month, $day, $seltime);
   my $registration_days = 0;
   if (defined $user->{REGISTRATION}) {
@@ -1105,8 +1110,9 @@ sub bonus_service_discount {
     });
   }
 
-  $html->tpl_show(_include('bonus_service_discount', 'Bonus'), $Bonus);
-
+  if ($FORM{add_form}){
+    $html->tpl_show(_include('bonus_service_discount', 'Bonus'), $Bonus);
+  }
 
   result_former({
     INPUT_DATA      => $Bonus,
@@ -1135,7 +1141,7 @@ sub bonus_service_discount {
       caption => "$lang{BONUS} $lang{SERVICE}",
       qs      => $pages_qs,
       ID      => 'BONUX_SERVICE_DISCOUNT',
-      MENU    => "$lang{ADD}:index=" . $index . ':add' . ";",
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add;",
       EXPORT  => 1,
     },
     SELECT_VALUE    => {

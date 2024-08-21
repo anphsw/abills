@@ -1,0 +1,201 @@
+get:
+  tags:
+    - fees
+  summary: Получить список списаний пользователя
+  description: Возвращает список списаний пользователя
+  operationId: getUserFees
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: boolean
+        default: true
+    - name: datetime
+      in: query
+      description: Дата проведения списания.
+      schema:
+        type: boolean
+        default: false
+    - name: regDate
+      in: query
+      description: Дата регистрации списания.
+      schema:
+        type: boolean
+        default: true
+    - name: id
+      in: query
+      description: ID списания.
+      schema:
+        type: boolean
+        default: true
+    - name: innerDescribe
+      in: query
+      description: Внутреннее описание списания.
+      schema:
+        type: boolean
+        default: true
+    - name: dsc
+      in: query
+      description: Описание списания.
+      schema:
+        type: boolean
+        default: true
+    - name: method
+      in: query
+      description: Метод списания.
+      schema:
+        type: boolean
+        default: true
+    - name: login
+      in: query
+      description: Логин списания.
+      schema:
+        type: boolean
+        default: false
+    - name: fio
+      in: query
+      description: ФИО пользователя.
+      schema:
+        type: boolean
+        default: false
+    - name: companyId
+      in: query
+      description: ID компании пользователя.
+      schema:
+        type: boolean
+        default: false
+    - name: billId
+      in: query
+      description: Счёт пользователя.
+      schema:
+        type: boolean
+        default: false
+    - name: sum
+      in: query
+      description: Сумма списания.
+      schema:
+        type: boolean
+        default: true
+    - name: ip
+      in: query
+      description: IP с которого поступило списание.
+      schema:
+        type: boolean
+        default: false
+    - name: lastDeposit
+      in: query
+      description: Баланс перед проведением списания.
+      schema:
+        type: boolean
+        default: false
+    - name: invoiceId
+      in: query
+      description: ID инвойса списания.
+      schema:
+        type: boolean
+        default: false
+    - name: invoiceNum
+      in: query
+      description: Номер инвойса списания.
+      schema:
+        type: boolean
+        default: false
+    - name: aid
+      in: query
+      description: ID администратора, который провел списание.
+      schema:
+        type: boolean
+        default: false
+    - name: adminName
+      in: query
+      description: Имя администратора, который провел списание.
+      schema:
+        type: boolean
+        default: false
+    - name: aLogin
+      in: query
+      description: Логин администратора, который провел списание.
+      schema:
+        type: boolean
+        default: false
+    - name: tax
+      in: query
+      description: Налог, указанный в методе списания.
+      schema:
+        type: boolean
+        default: false
+    - name: taxSum
+      in: query
+      description: Размер налога.
+      schema:
+        type: boolean
+        default: false
+    - name: fromDate
+      in: query
+      description: Списания произведены с даты
+      schema:
+        type: boolean
+        default: false
+    - name: toDate
+      in: query
+      description: Списания произведены до даты
+      schema:
+        type: boolean
+        default: false
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/userFeesArray.yaml"
+  security:
+    - KEY: []
+post:
+  tags:
+    - fees
+  summary: Добавление списания пользователю
+  operationId: addUserFee
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/userFeeAdd.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/userFeeAddResponse200.yaml"
+    400:
+      description: Не верный параметр сумма
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/userFeeAddResponse400.yaml"
+  security:
+    - KEY: []

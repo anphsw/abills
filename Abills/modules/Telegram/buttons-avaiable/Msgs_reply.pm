@@ -191,7 +191,7 @@ sub send_msg {
     }
   }
 
-  $self->_notify_admin($msg_hash->{message}->{id}, $text);
+  $self->_notify_admin($msg_hash->{message}->{id}, $reply_id);
 
   $self->{bot_db}->del($self->{bot}->{uid});
   $self->{bot}->send_message({ text => $self->{bot}->{lang}->{SEND_MSGS} });
@@ -242,7 +242,9 @@ sub send_msgs_main_menu {
 #**********************************************************
 sub _notify_admin {
   my $self = shift;
-  my ($msg_id, $message) = @_;
+  my ($msg_id, $reply_id) = @_;
+
+  return if !$reply_id || !$msg_id;
 
   my $attachments_list = $Msgs->attachments_list({
     REPLY_ID     => $msg_id,
@@ -251,10 +253,13 @@ sub _notify_admin {
     CONTENT_TYPE => '_SHOW',
   });
 
+  $Msgs->message_reply_info($reply_id);
+  return if !$Msgs->{TOTAL} || $Msgs->{TOTAL} < 1;
+
   $Notify->notify_admins({
     MSG_ID      => $msg_id,
-    MESSAGE     => $message,
     ATTACHMENTS => $attachments_list,
+    MESSAGE     => $Msgs->{TEXT}
   });
 }
 

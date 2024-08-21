@@ -1,0 +1,19 @@
+{
+  "name": "ADMIN_PORTAL_ATTACHMENT_ADD",
+  "method": "POST",
+  "path": "portal/attachment/",
+  "body": {
+    "file": {
+      "content_type": "application/octet-stream",
+      "contents": "file content as binary"
+    }
+  },
+  "post-response": {
+    "variables": [
+      {
+        "name": "attachId",
+        "value": "insertId"
+      }
+    ]
+  }
+}

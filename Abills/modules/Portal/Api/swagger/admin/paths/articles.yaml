@@ -1,0 +1,88 @@
+get:
+  tags:
+    - portal
+  summary: Список статей
+  parameters:
+    - name: fileSize
+      in: query
+      description: Размер вложения
+      schema:
+        type: boolean
+        default: true
+    - name: fileType
+      in: query
+      description: Тип вложения
+      schema:
+        type: boolean
+        default: true
+    - name: filename
+      in: query
+      description: Имя файла
+      schema:
+        type: boolean
+        default: true
+    - name: id
+      in: query
+      description: ID вложения
+      schema:
+        type: boolean
+        default: true
+    - name: src
+      in: query
+      description: Внешняя ссылка на вложение
+      schema:
+        type: boolean
+        default: true
+    - name: uploadedAt
+      in: query
+      description: Дата создания вложения
+      schema:
+        type: boolean
+        default: true
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/articlesList.yaml"
+  security:
+    - KEY: [ ]
+post:
+  tags:
+    - portal
+  summary: Добавление статьи
+  operationId: addArticlePortal
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/articleAddRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/articleAddResponse.yaml"
+  security:
+    - KEY: [ ]

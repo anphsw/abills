@@ -8,9 +8,9 @@
       <input type='hidden' name='ID' value='$FORM{chg}'/>
 
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right' for='NAME'>_{NAME}_:</label>
+        <label class='col-md-4 col-form-label text-md-right required' for='NAME'>_{NAME}_:</label>
         <div class='col-md-8'>
-          <input type='text' class='form-control' id='NAME' name='NAME' value='%NAME%'/>
+          <input type='text' class='form-control' id='NAME' name='NAME' value='%NAME%' required/>
         </div>
       </div>
 
@@ -40,6 +40,13 @@
             </div>
             <input type='color' class='form-control' name='COLOR' id='COLOR' value='%COLOR%'>
           </div>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='NAME'>_{TAGS_EXPIRE_DAYS}_</label>
+        <div class='col-md-8'>
+          <input type='number' class='form-control' id='EXPIRE_DAYS' name='EXPIRE_DAYS' value='%EXPIRE_DAYS%'/>
         </div>
       </div>
 

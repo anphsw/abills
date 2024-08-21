@@ -1,0 +1,12 @@
+type: object
+properties:
+  ids:
+    type: string
+    example: "100500, 100501"
+  uids:
+    type: array
+    items:
+      type: number
+    example:
+      - 100500
+      - 100501

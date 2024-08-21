@@ -1,0 +1,187 @@
+get:
+  tags:
+    - tags
+  summary: Список меток назначенных пользователю
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+    - name: name
+      in: query
+      description: Название метки
+      schema:
+        type: boolean
+        default: true
+    - name: id
+      in: query
+      description: ID метки
+      schema:
+        type: boolean
+        default: true
+    - name: comments
+      in: query
+      description: Комментарии
+      schema:
+        type: boolean
+        default: true
+    - name: priority
+      in: query
+      description: Приоритет
+      schema:
+        type: boolean
+        default: true
+    - name: date
+      in: query
+      description: Дата установки метки
+      schema:
+        type: boolean
+        default: true
+    - name: disable
+      in: query
+      description: Статус пользователя
+      schema:
+        type: boolean
+        default: true
+    - name: login
+      in: query
+      description: Логин пользователя
+      schema:
+        type: boolean
+        default: true
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: "../schemas/tagUser.yaml"
+  security:
+    - KEY: [ ]
+post:
+  tags:
+    - tags
+  summary: Добавление меток пользователю
+  operationId: addTagsUser
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            tags:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: number
+                    example: 1
+                  endDate:
+                    type: string
+                    example: "2024-09-17"
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tagsUserResponse.yaml"
+  security:
+    - KEY: [ ]
+put:
+  tags:
+    - tags
+  summary: Замена меток пользователю
+  operationId: replaceTagsUser
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            tags:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: number
+                    example: 1
+                  endDate:
+                    type: string
+                    example: "2024-09-17"
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tagsUserResponse.yaml"
+  security:
+    - KEY: [ ]
+patch:
+  tags:
+    - tags
+  summary: Обновление меток пользователю
+  operationId: updateTagsUser
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            tags:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: number
+                    example: 1
+                  endDate:
+                    type: string
+                    example: "2024-09-17"
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tagsUserResponse.yaml"
+  security:
+    - KEY: [ ]

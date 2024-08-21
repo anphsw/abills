@@ -124,29 +124,7 @@ sub abon_quick_info {
   my ($attr) = @_;
 
   my $form = $attr->{FORM} || {};
-  my $uid = $attr->{UID} || $form->{UID};
-
-  if ($attr->{UID}) {
-    my $list = $Abon->user_tariff_list($uid, { COLS_NAME => 1, ACTIVE_ONLY => 1 });
-    my @result = ();
-    foreach my $line (@{$list}) {
-      push @result, {
-        TP_NAME  => $line->{tp_name},
-        COMMENTS => $line->{comments},
-        PRICE    => $line->{price}
-      };
-    }
-    return \@result;
-  }
-  elsif ($attr->{GET_PARAMS}) {
-    my %result = (
-      HEADER    => $lang->{ABON},
-      QUICK_TPL => 'abon_qi_box',
-      SLIDES    => [ { TP_NAME => $lang->{TARIF_PLAN} }, { SCOMMENTS => $lang->{COMMENTS} }, { PRICE => $lang->{PRICE} }, ]
-    );
-
-    return \%result;
-  }
+  my $uid = $form->{UID};
 
   if ($uid) {
     $Abon->user_tariff_summary({ UID => $uid });
@@ -208,10 +186,11 @@ sub abon_payments_maked {
 
 =cut
 #**********************************************************
+#@deprecated changed to Abills::Loader::Load_plugin
 sub abon_load_plugin {
   my $self = shift;
   my ($plugin_name, $attr) = @_;
-  
+
   my $api;
   my $Service = $attr->{SERVICE} || {};
   my $main_module = $Service->{MODULE} || 'Abon';
@@ -226,8 +205,9 @@ sub abon_load_plugin {
 
   $plugin_name = $main_module . '::Plugin::' . $plugin_name;
 
-  eval " require $plugin_name; ";
-  if (!$@) {
+  my $load_success = main::load_module($plugin_name, { LOAD_PACKAGE => 1 });
+
+  if ($load_success) {
     $plugin_name->import();
 
     $Service->{DEBUG} = defined $attr->{DEBUG} ? $attr->{DEBUG} : $Service->{DEBUG};
@@ -339,6 +319,76 @@ sub abon_user_del {
   $Abon->del({ UID => $attr->{USER_INFO}{UID}, COMMENTS => $attr->{USER_INFO}{COMMENTS} });
 
   return 1;
+}
+
+#**********************************************************
+=head2 abon_user_services($attr) - Get user services
+
+=cut
+#**********************************************************
+sub abon_user_services {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return [] if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
+
+  my Users $user = $attr->{USER_INFO};
+
+  my $services = $Abon->user_tariff_list($user->{UID}, {
+    USER_PORTAL  => '>0',
+    SERVICE_LINK => '_SHOW',
+    SERVICE_IMG  => '_SHOW',
+    GID          => $user->{GID} || 0,
+    COLS_NAME    => 1
+  });
+
+  my @service_list = ();
+
+  foreach my $service (@{$services}) {
+    next if (!$service->{manual_activate} && !$service->{date});
+    my $date_if = $service->{next_abon} ? date_diff($main::DATE, $service->{next_abon}) : 0;
+    my $is_active = !(!$service->{next_abon} || ($date_if && $date_if <= 0));
+
+    next if ($attr->{ACTIVE_ONLY} && !$is_active);
+
+    my @periods = ('day', 'month', 'quarter', 'six months', 'year');
+
+    my $protocol = (defined($ENV{HTTPS}) && $ENV{HTTPS} =~ /on/i) ? 'https' : 'http';
+    my $base_attach_link = (defined($ENV{HTTP_HOST})) ? "$protocol://$ENV{HTTP_HOST}/images/attach/abon" : '';
+
+    my %tariff = (
+      price                => $service->{price},
+      tp_name              => $service->{tp_name},
+      id                   => $service->{id},
+      active               => $is_active ? 'true' : 'false',
+      start_date           => $service->{date},
+      end_date             => $service->{next_abon},
+      description          => $service->{user_description} || '',
+      period               => $periods[$service->{period}],
+      activate             => ($service->{user_portal} > 1 && $service->{manual_activate}) ? 'true' : 'false',
+      service_link         => $service->{service_link},
+      service_img          => "$base_attach_link/$service->{service_img}",
+      personal_description => $service->{personal_description},
+      tp_reduction_fee     => $service->{reduction_fee},
+    );
+
+    if ($tariff{tp_reduction_fee} && $user->{REDUCTION} && $user->{REDUCTION} > 0) {
+      $tariff{original_price} = $tariff{price};
+      $tariff{price} = $tariff{price} ? $tariff{price} - (($tariff{price} / 100) * $user->{REDUCTION}) : $tariff{price};
+    }
+
+    if ($date_if && $date_if > 0) {
+      $tariff{next_abon} = {
+        abon_date   => $service->{next_abon},
+        days_to_fee => $date_if,
+        sum         => $service->{price}
+      }
+    }
+
+    push @service_list, \%tariff;
+  }
+
+  return \@service_list;
 }
 
 1;

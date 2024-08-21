@@ -1,0 +1,25 @@
+allOf:
+  - $ref: "../schemas/tp.yaml"
+  - type: object
+    properties:
+      account:
+        type: number
+        example: 0
+      activateNotification:
+        type: number
+        example: 0
+      activatePrice:
+        type: number
+        example: 0
+      affected:
+        type: number
+        example: 0
+      alert:
+        type: number
+        example: 0
+      alertAccount:
+        type: number
+        example: 0
+      categoryId:
+        type: number
+        example: 0

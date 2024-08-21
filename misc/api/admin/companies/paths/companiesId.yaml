@@ -1,0 +1,92 @@
+get:
+  tags:
+    - companies
+  summary: Информация о компании
+  parameters:
+    - name: id
+      in: path
+      description: ID компании
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/company.yaml"
+  security:
+    - KEY: [ ]
+put:
+  tags:
+    - companies
+  summary: Изменение компании
+  parameters:
+    - name: id
+      in: path
+      description: ID компании
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/companiesManageRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/company.yaml"
+    400:
+      description: Компания не существует с таким ID
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiGetResponse400"
+  security:
+    - KEY: [ ]
+delete:
+  tags:
+    - companies
+  summary: Удаление компании
+  parameters:
+    - name: id
+      in: path
+      description: ID компании
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              result:
+                type: string
+                example: Successfully deleted
+              id:
+                type: number
+                example: 2005
+    400:
+      description: Компания не существует с таким ID
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              errno:
+                type: integer
+                example: 100051
+              errstr:
+                type: string
+                example: "Failed delete company with id 2005 not exists"
+  security:
+    - KEY: [ ]

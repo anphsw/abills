@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS `telegram_tmp` (
   `button`           VARCHAR(50)          NOT NULL  DEFAULT '',
   `fn`               VARCHAR(50)          NOT NULL  DEFAULT '',
   `args`             TEXT                 CHARACTER SET utf8mb4,
+  `ping_count`       INT(11) UNSIGNED     NOT NULL DEFAULT 0,
+  `created`          DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8

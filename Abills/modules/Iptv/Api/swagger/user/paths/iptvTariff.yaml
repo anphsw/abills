@@ -3,7 +3,7 @@ put:
     - iptv
   summary: Смена ТП
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: >
         Значение `id`, можно получить в ответе
@@ -51,7 +51,7 @@ delete:
     - iptv
   summary: Удалить расписание изменения ТП
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: >
         Значение `id`, можно получить в ответе

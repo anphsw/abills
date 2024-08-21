@@ -3,7 +3,7 @@ delete:
     - contacts
   summary: Удаление количества непрочитанных сообщений на устройстве
   parameters:
-    - name: typeId
+    - name: id
       in: path
       description: >
         Тип пуша. Доступные значения `1` - *Web*, `2` - *Android*, `3` - *iOS/MacOS Silicon*. В данный момент Firebase поддерживает только iOS/MacOS Silicon

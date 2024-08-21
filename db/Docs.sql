@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS `docs_edocs`
   `date`       DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `offer_id`   VARCHAR(128)         NOT NULL DEFAULT '',
   `branch_id`  VARCHAR(128)         NOT NULL DEFAULT '',
+  KEY uid (`uid`),
+  KEY aid (`aid`),
   PRIMARY KEY (`id`)
 )
   CHARSET = utf8

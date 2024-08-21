@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "The Root Schema",
+  "required": [
+    "id",
+    "number",
+    "streetId"
+  ],
+  "properties": {
+    "id": {
+      "type": "number"
+    },
+    "number": {
+      "type": "string"
+    },
+    "streetId": {
+      "type": "number"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+get:
+  tags:
+    - crm
+  summary: Список источников
+  operationId: getCrmSourcesList
+  parameters:
+    - name: id
+      in: query
+      description: Id действия
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название источника
+      schema:
+        type: boolean
+        default: false
+    - name: comments
+      in: query
+      description: Комментарий
+      schema:
+        type: boolean
+        default: false
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/sourceList.yaml"
+  security:
+    - KEY: [ ]

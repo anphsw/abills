@@ -147,43 +147,8 @@ sub voip_quick_info {
   my $self = shift;
   my ($attr) = @_;
 
-  my $result;
   my $form = $attr->{FORM} || {};
-  my $uid = $attr->{UID} || $form->{UID};
-
-  if ($attr->{UID}) {
-    my $list = $Voip->user_list({
-      UID        => $uid,
-      TP_NAME    => '_SHOW',
-      MONTH_FEE  => '_SHOW',
-      CID        => '_SHOW',
-      TP_COMMENTS=> '_SHOW',
-      STATUS     => '_SHOW',
-      IP         => '_SHOW',
-      COLS_NAME  => 1,
-      COLS_UPPER => 1
-    });
-
-    $result = $list->[0];
-    my $service_status = ::sel_status({ HASH_RESULT => 1 });
-    $result->{STATUS} = (defined($result->{STATUS})) ? $service_status->{ $result->{STATUS} } : '';
-
-    return $result;
-  }
-  elsif($attr->{GET_PARAMS}) {
-    $result = {
-      HEADER    => 'Voip',
-      QUICK_TPL => 'voip_qi_box',
-      FIELDS => {
-        TP_NAME     => $lang->{TARIF_PLAN},
-        STATUS      => $lang->{STATUS},
-        MONTH_FEE   => $lang->{MONTH_FEE},
-        TP_COMMENTS => $lang->{COMMENTS},
-      }
-    };
-
-    return $result;
-  }
+  my $uid = $form->{UID};
 
   $Voip->user_list({
     UID        => $uid,
@@ -299,6 +264,54 @@ sub voip_user_del {
   $Voip->user_del({ UID => $attr->{USER_INFO}{UID}, COMMENTS => $attr->{USER_INFO}{COMMENTS} });
 
   return 1;
+}
+
+#**********************************************************
+=head2 voip_user_services($attr) - Get user services
+
+=cut
+#**********************************************************
+sub voip_user_services {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return [] if !$attr->{USER_INFO} || !$attr->{USER_INFO}{UID};
+
+  require Control::Service_control;
+  Control::Service_control->import();
+  my $Service_control = Control::Service_control->new($db, $admin, $CONF);
+
+  my $tariffs = $Service_control->services_info({
+    UID             => $attr->{UID},
+    MODULE          => 'Voip',
+    FUNCTION_PARAMS => {
+      ALLOW_ANSWER            => '_SHOW',
+      ALLOW_CALLS             => '_SHOW',
+      EXTRA_NUMBER            => '_SHOW',
+      NUMBER                  => '_SHOW',
+      EXTRA_NUMBERS_DAY_FEE   => '_SHOW',
+      EXTRA_NUMBERS_MONTH_FEE => '_SHOW',
+      VOIP_EXPIRE             => '_SHOW',
+      SERVICE_STATUS          => '_SHOW',
+      IP                      => '_SHOW',
+    },
+    UPDATE_SERVICE_INFO => sub {
+      my ($service_info, $tariff) = @_;
+
+      my $phones = $Voip->phone_aliases_list({
+        UID       => $attr->{UID},
+        NUMBER    => '_SHOW',
+        DISABLE   => '_SHOW',
+        COLS_NAME => 1,
+      });
+
+      $tariff->{phone_aliases} = $phones;
+
+      return $tariff;
+    }
+  });
+
+  return $tariffs;
 }
 
 1;

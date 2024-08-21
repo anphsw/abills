@@ -14,6 +14,7 @@ use Iptv::Microimpuls;
 use Iptv;
 use Tariffs;
 use Abills::Base qw(load_pmodule in_array _bp);
+use Abills::Loader qw/load_plugin/;
 use threads;
 our (
   $argv,
@@ -57,8 +58,7 @@ sub microimpuls_online {
     if ($debug > 3) {
       print "Service ID: $service->{id} NAME: $service->{name}\n";
     }
-
-    my $Microimpuls_api = tv_load_service('', { SERVICE_ID => $service->{id} });
+    my $Microimpuls_api = load_plugin('Iptv::Plugins::Microimpuls', { SERVICE => $Iptv });
     if ($argv->{PASSWORD_CHANGE}) {
       change_users_password($service->{id}, $Microimpuls_api);
       return 1;

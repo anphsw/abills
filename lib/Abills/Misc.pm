@@ -14,7 +14,7 @@ use v5.16;
 use Abills::Defs;
 use Abills::Base qw(date_diff mk_unique_value convert in_array
   days_in_month startup_files cmd check_time gen_time
-  next_month load_pmodule vars2lang);
+  next_month load_pmodule vars2lang module_to_file);
 use Abills::Filters;
 use POSIX qw(strftime mktime);
 our Abills::HTML $html;
@@ -52,6 +52,8 @@ our ($db,
 #**********************************************************
 sub load_module {
   my ($module, $attr) = @_;
+
+  return 1 if $module =~ /\d/;
 
   if ($attr->{LOAD_PACKAGE} || $module =~ /\//) {
     my $module_path = $module . '.pm';
@@ -128,13 +130,22 @@ sub load_module {
 sub form_purchase_module {
   my ($attr) = @_;
 
-  my $module = $attr->{MODULE};
+  my $module = $attr->{MODULE} || q{};
+
+  my $module_name = $module;
+
+  if ($module =~ s/::/\//g) {
+    if ($module =~ /\/(\w+$)/i) {
+      $module_name = $1;
+    }
+  }
 
   eval { require $module.'.pm'; };
 
   if (!$@) {
-    $module->import();
-    my $module_version = $module->VERSION || 0;
+
+    $module_name->import();
+    my $module_version = $module_name->VERSION || 0;
 
     if ($attr->{DEBUG}) {
       if ($attr->{HEADER}) {
@@ -197,10 +208,10 @@ sub form_purchase_module {
 }
 
 #**********************************************************
-=head2 _error_show($modulename, $attr); - show functions errors
+=head2 _error_show($modulename, $attr) - show functions errors
 
   Arguments:
-    $modulename - Module object
+    $module     - Module object
     $attr       -
       MODULE_NAME  - Module name
       ID_PREFIX
@@ -217,7 +228,7 @@ sub form_purchase_module {
 =cut
 #**********************************************************
 sub _error_show {
-  my ($module, $attr)=@_;
+  my ($module, $attr) = @_;
 
   my $module_name = $attr->{MODULE_NAME} || $module->{MODULE} || '';
 
@@ -227,105 +238,115 @@ sub _error_show {
     $message .= "\n";
   }
 
-  my $errno = $module->{errno};
+  # added error, few modules returns error
+  my $errno = $module->{errno} || $module->{error};
 
-  if ($errno) {
-    if ($attr->{ERROR_IDS}->{$errno}) {
-      $html->message('err', "$module_name:$lang{ERROR}", $message . $attr->{ERROR_IDS}->{$errno});
-      return 1 if($attr->{RIZE_ERROR});
-    }
-    elsif ($errno == 15) {
-      $html->message('err', "$module_name:$lang{ERROR}", $message . " $lang{ERR_SMALL_DEPOSIT}", $attr);
-      return 1 if($attr->{RIZE_ERROR});
-    }
-    elsif ($errno == 7) {
-      $html->message('err', "$module_name:$lang{ERROR}", $message . " $lang{EXIST}", $attr);
-      return 1;
-    }
-    elsif ($errno == 10) {
-      $html->message('err', "$module_name:$lang{ERROR}", $message . " $lang{ERR_WRONG_NAME}", $attr);
-      return 1;
-    }
-    elsif ($errno == 12) {
-      $html->message('err', "$module_name:$lang{ERROR}", $message . " $lang{ERR_WRONG_SUM}", $attr);
-      return 1;
-    }
-    elsif ($errno == 699) {
-      $html->message('err',
-        $lang{LICENSE_EXPIRED},
-        vars2lang(
-          $lang{PLEASE_UPDATE_LICENSE_MODULE},
-          { NUMBER => $module->{errstr} || ""}
-        ),
-      );
-      return 1;
-    }
-    elsif ($errno == 14) {
-      $html->message('err', "$module_name:$lang{ERROR}", $message . "$lang{BILLS} $lang{NOT_EXIST}", $attr);
-      return 1;
-    }
-    elsif ($errno == 2) {
-      $html->message('err', "$module_name:$lang{ERROR}", $message . $lang{NOT_EXIST}, $attr);
-      return 1;
-    }
-    elsif ($errno == 21) {
-      $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PHONE} . (($conf{PHONE_FORMAT}) ? ' '.human_exp($conf{PHONE_FORMAT}) : q{}), $attr);
-      return 1;
-    }
-    elsif ($errno == 3) {
-      my $extra_info = join(', ', caller());
-      my $local_module_name = $module_name || $lang{SYSTEM};
-      my $sql_errno = ($module->{sql_errno} || $errno || '');
-      my $errstr = $html->pre(($module->{sql_errstr} || $module->{errstr} || ''), { OUTPUT2RETURN => 1 });
-      my $sql_code = (($module->{sql_query})
-        ? $html->pre($module->{sql_query}, { OUTPUT2RETURN => 1 })
-        : '');
-      my $sql_title = $html->pre("[$sql_errno/$extra_info]", { OUTPUT2RETURN => 1 });
+  return 0 if !$errno;
 
-      my $card_title = $message . "SQL Error: [$errno]\n";
+  # TODO: rework zoo validation of error numbers
+  if ($module->{errmsg}) {
+    $html->message('err', "$module_name:$lang{ERROR}", $module->{errmsg}, { ID => $attr->{ID} || $errno });
+    return 1;
+  }
+  elsif ($attr->{ERROR_IDS}->{$errno}) {
+    $html->message('err', "$module_name:$lang{ERROR}", $message . $attr->{ERROR_IDS}->{$errno});
+    return 1 if ($attr->{RIZE_ERROR});
+  }
+  elsif ($errno == 15) {
+    $html->message('err', "$module_name:$lang{ERROR}", $message . " $lang{ERR_SMALL_DEPOSIT}", $attr);
+    return 1 if ($attr->{RIZE_ERROR});
+  }
+  elsif ($errno == 7) {
+    $html->message('err', "$module_name:$lang{ERROR}", $message . " $lang{EXIST}", $attr);
+    return 1;
+  }
+  elsif ($errno == 10) {
+    $html->message('err', "$module_name:$lang{ERROR}", $message . " $lang{ERR_WRONG_NAME}", $attr);
+    return 1;
+  }
+  elsif ($errno == 12) {
+    $html->message('err', "$module_name:$lang{ERROR}", $message . " $lang{ERR_WRONG_SUM}", $attr);
+    return 1;
+  }
+  elsif ($errno == 699) {
+    $html->message('err',
+      $lang{LICENSE_EXPIRED},
+      vars2lang(
+        $lang{PLEASE_UPDATE_LICENSE_MODULE},
+        { NUMBER => $module->{errstr} || "" }
+      ),
+    );
+    return 1;
+  }
+  elsif ($errno == 14) {
+    $html->message('err', "$module_name:$lang{ERROR}", $message . "$lang{BILLS} $lang{NOT_EXIST}", $attr);
+    return 1;
+  }
+  elsif ($errno == 2) {
+    $html->message('err', "$module_name:$lang{ERROR}", $message . $lang{NOT_EXIST}, $attr);
+    return 1;
+  }
+  elsif ($errno == 21) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PHONE} . (($conf{PHONE_FORMAT}) ? ' ' . human_exp($conf{PHONE_FORMAT}) : q{}), $attr);
+    return 1;
+  }
+  elsif ($errno == 3) {
+    my $extra_info = join(', ', caller());
+    my $local_module_name = $module_name || $lang{SYSTEM};
+    my $sql_errno = ($module->{sql_errno} || $errno || '');
+    my $errstr = $html->pre(($module->{sql_errstr} || $module->{errstr} || ''), { OUTPUT2RETURN => 1 });
+    my $sql_code = (($module->{sql_query})
+      ? $html->pre($module->{sql_query}, { OUTPUT2RETURN => 1 })
+      : '');
+    my $sql_title = $html->pre("[$sql_errno/$extra_info]", { OUTPUT2RETURN => 1 });
 
-      my $extra_template = ($attr->{SILENT_MODE})
-        ? " [$module->{sql_errno}] " . $module->{sql_errstr}
-        : $html->tpl_show(
-            templates('form_show_hide'),
-            {
-              ID      => 'QUERIES',
-              NAME    => $card_title,
-              CONTENT => $sql_title
-                . $errstr
-                . $sql_code,
-              BUTTON_ICON => 'plus'
-            },
-            { OUTPUT2RETURN => 1 }
-      );
+    my $card_title = $message . "SQL Error: [$errno]\n";
 
-      $html->message('err',
-        "$local_module_name: $lang{ERROR}",
-        " ",
-        { EXTRA => $extra_template }
-      );
-      return 1;
-    }
-    elsif ($errno == 0b1010111011) {
-      my $error = join('', pack( 'H*', '0050004c0045004100530045005f005500500044004100540045005f004c004900430045004e00530045'));
-      $html->message('warn', $lang{$error});
-      return 1;
+    my $extra_template = ($attr->{SILENT_MODE})
+      ? " [$module->{sql_errno}] " . $module->{sql_errstr}
+      : $html->tpl_show(
+      templates('form_show_hide'),
+      {
+        ID          => 'QUERIES',
+        NAME        => $card_title,
+        CONTENT     => $sql_title
+          . $errstr
+          . $sql_code,
+        BUTTON_ICON => 'plus'
+      },
+      { OUTPUT2RETURN => 1 }
+    );
+
+    $html->message('err',
+      "$local_module_name: $lang{ERROR}",
+      " ",
+      { EXTRA => $extra_template }
+    );
+    return 1;
+  }
+  elsif ($errno == 0b1010111011) {
+    my $error = join('', pack('H*', '0050004c0045004100530045005f005500500044004100540045005f004c004900430045004e00530045'));
+    $html->message('warn', $lang{$error});
+    return 1;
+  }
+  else {
+    if ($module->{message}) {
+      $html->message('err', "$module_name:$lang{ERROR}",
+        ($lang{$module->{message}}) ? $lang{$module->{message}} : $module->{message},
+        { ID => $attr->{ID} || $module->{errno} });
     }
     else {
-      if($module->{message}) {
-        $html->message('err', "$module_name:$lang{ERROR}",
-          ($lang{$module->{message}}) ? $lang{$module->{message}} : $module->{message},
-          { ID => $attr->{ID} || $module->{errno} });
+      my $error = ($err_strs{$errno}) ? $err_strs{$errno} : ($module->{errstr} || q{});
+      if ($lang{$error}) {
+        $error = $lang{$error};
       }
-      else {
-        my $error = ($err_strs{$errno}) ? $err_strs{$errno} : ($module->{errstr} || q{});
-        $html->message('err', "$module_name:$lang{ERROR}", $message . "[$errno] $error", { ID => $attr->{ID} });
-      }
-      return 1;
+      $html->message('err', "$module_name:$lang{ERROR}", $message . "[$errno] $error", { ID => $attr->{ID} });
     }
+
+    return 1;
   }
 
-  return 0;
+  return 1;
 }
 
 #**********************************************************
@@ -557,13 +578,16 @@ $inputs
   Arguments:
     $function_suffix - Function suffix
     $attr           - Extra attributes
-      SILENT       - silent mode without output (Default: enable)
-      SKIP_MODULES - Skip modules
-      timeout      - Max timeout for function execute (Default: 4 sec)
-      DEBUG        - Debug mode
-      USER_INFO    - User information hash
-      HTML         - $html object
-      FORM         - Form info
+      SILENT              - silent mode without output (Default: enable)
+      SKIP_MODULES        - Skip modules
+      timeout             - Max timeout for function execute (Default: 4 sec)
+      DEBUG               - Debug mode
+      USER_INFO           - User information hash
+      HTML                - $html object
+      FORM                - Form info
+      SKIP_COMPANY_USERS  - skip check user in company
+      #@experimental
+      MODULES             - run only such modules which given
 
   Return:
     return all modules return hash
@@ -596,8 +620,8 @@ sub cross_modules {
   }
 
   my @users_uids = ();
-  if ($attr->{USER_INFO}{COMPANY_ID}) {
-    if ($users && $users->can('list')) {
+  if ($attr->{USER_INFO}{COMPANY_ID} && !$attr->{SKIP_COMPANY_USERS} && $users) {
+    if ($users->can('list')) {
       my $users_list = $users->list({ COMPANY_ID => $attr->{USER_INFO}{COMPANY_ID}, COLS_NAME => 1 });
       foreach my $user_info (@{$users_list}) {
         push @users_uids, $user_info->{uid};
@@ -653,14 +677,21 @@ sub cross_modules {
         alarm $timeout;
       }
 
-      foreach my $module (@MODULES) {
+      #@experimental
+      my @modules = @MODULES;
+      if ($attr->{MODULES}) {
+        @modules = split(/,/, $attr->{MODULES});
+      }
+
+      foreach my $module (@modules) {
         next if (in_array($module, \@skip_modules));
 
-        my $module_path = $modules_dir . $module . '/Base.pm';
+        my $module_name = $module . '::Base';
+        my $module_file = module_to_file($module_name);
+        my $module_path = $modules_dir . $module_file;
         next if !(-f $module_path);
 
-        my $module_name = $module . '::Base';
-        eval "use $module_name;";
+        eval { require $module_file };
         next if $@;
         if ($attr->{DEBUG}) {
           print " $module -> " . lc($module) .'_' . $function_index . "<br>\n";
@@ -860,12 +891,9 @@ sub service_recalculate {
   if (($attr->{SHEDULER} && $start_day == $d)
     || ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} == ($tp->{MONTH_FEE} || 0)
     && $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} < $Service->{TP_INFO}->{ABON_DISTRIBUTION})) {
-    #if ($attr->{SHEDULER}) {
     undef $user;
-    #}
 
     return 0;
-    #return \%total_sum;
   }
 
   #skip compensate for month distribution
@@ -878,7 +906,6 @@ sub service_recalculate {
       $rest_days     = $days_in_month - $d + 1;
       $rest_day_sum2 = (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} && $Service->{TP_INFO_OLD}->{MONTH_FEE}) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} /  $days_in_month * $rest_days : 0;
       $return_sum    = $rest_day_sum2;
-      #PERIOD_ALIGNMENT
       $tp->{PERIOD_ALIGNMENT}=1;
     }
     # Get back full month abon in 1 day of month
@@ -922,7 +949,8 @@ sub service_recalculate {
       _error_show($Payments) if (!$attr->{QUITE});
     }
     else {
-      $message .= "$lang{RECALCULATE}\n$lang{RETURNED}: ". sprintf("%.2f", abs($return_sum))."\n" if (!$attr->{QUITE});
+      my $module = $attr->{SERVICE_NAME} || q{Internet};
+      $message .= "$module: $lang{RECALCULATE}\n$lang{RETURNED}: ". sprintf("%.2f", abs($return_sum))."\n" if (!$attr->{QUITE});
     }
     return $message || 1;
   }
@@ -1029,6 +1057,10 @@ sub service_get_month_fee {
   #Current Month
   my ($y, $m, $d)   = split(/-/, $DATE, 3);
   my $days_in_month = days_in_month({ DATE => $DATE });
+
+  if ($tp->{FIXED_FEES_FREE_PERIOD} && $d > $tp->{FIXED_FEES_FREE_PERIOD}) {
+    return \%total_sum;
+  }
 
   my $TIME = "00:00:00";
   my %FEES_PARAMS = (
@@ -1380,11 +1412,6 @@ sub service_get_month_fee {
       $m++;
     }
   }
-
-  # if($conf{INTERNET_CUSTOM_PERIOD}) {
-  #   #print $tp->{ACTIV_PRICE};
-  #   #$tp->{CHANGE_PRICE}=1;
-  # }
 
   if($debug < 6) {
     my $external_cmd = '_EXTERNAL_CMD';
@@ -2590,16 +2617,16 @@ sub recomended_pay {
 
   $user_->{TOTAL_DEBET} = $service_info->{total_sum} || 0;
 
-  if(! defined($user_->{DEPOSIT})) {
-    return 0;
-  }
+  return 0 if ($conf{PAYSYS_NET_RECOMMENDED_SUM});
+
+  return 0 if (!defined($user_->{DEPOSIT}));
 
   if(! $attr->{SKIP_DEPOSIT_CHECK}) {
     $user_->{TOTAL_DEBET} = ($user_->{DEPOSIT} < 0) ? $user_->{TOTAL_DEBET} + abs($user_->{DEPOSIT}) : ($user_->{DEPOSIT} > $user_->{TOTAL_DEBET}) ? 0 : $user_->{TOTAL_DEBET} - $user_->{DEPOSIT};
   }
 
   if ($user_->{TOTAL_DEBET} > int($user_->{TOTAL_DEBET})) {
-    $user_->{TOTAL_DEBET} = sprintf("%.2f", int($user_->{TOTAL_DEBET}) + 1);
+    $user_->{TOTAL_DEBET} = sprintf('%.2f', int($user_->{TOTAL_DEBET}) + 1);
   }
 
   $user_->{TOTAL_DEBET} += ($conf{PAYSYS_ADD_TO_RECOMMENDED_SUMM} || 0);
@@ -2638,7 +2665,8 @@ sub format_sum {
     }
 
     my $integer  = int($sum);
-    my $fraction = int(($sum*100) - ($integer*100));
+
+    my $fraction = sprintf('%.0f', ($sum * 100) - ($integer * 100));
     $fraction = sprintf('%02d', $fraction);
     my $rev = scalar reverse ($integer);
     $result = scalar reverse (join (' ', $rev =~ m/\d{1,3}/g));

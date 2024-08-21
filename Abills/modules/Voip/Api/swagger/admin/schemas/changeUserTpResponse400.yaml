@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 31019
+  errstr:
+    type: string
+    example: Same tpId which already active

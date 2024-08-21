@@ -1,0 +1,8 @@
+{
+  "name": "ADMIN_GROUP_CHANGE",
+  "method": "PUT",
+  "path": "groups/:groupId/",
+  "body": {
+    "name": "Test group change by api"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "definitions": {},
+  "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "array",
   "title": "The Root Schema",
   "required": [
@@ -12,27 +12,21 @@
   ],
   "properties": {
     "id": {
-      "$id": "#/properties/id",
       "type": "number"
     },
     "streetId": {
-      "$id": "#/properties/streetId",
       "type": "number"
     },
     "streetName": {
-      "$id": "#/properties/streetName",
       "type": "string"
     },
     "districtId": {
-      "$id": "#/properties/districtId",
       "type": "number"
     },
     "buildCount": {
-      "$id": "#/properties/buildCount",
       "type": "number"
     },
     "type": {
-      "$id": "#/properties/type",
       "type": "number"
     }
   }

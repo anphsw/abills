@@ -609,6 +609,7 @@ sub report_payments {
     $LIST_PARAMS{METHOD} = $FORM{METHOD};
     $FORM{FIELDS} = $FORM{METHOD};
   }
+  $FORM{FIELDS} =~ s/;/, /g if $FORM{FIELDS};
 
   reports({
     DATE        => $FORM{FROM_DATE_TO_DATE} || $FORM{DATE},
@@ -656,7 +657,7 @@ sub report_payments {
 
   my $type = $FORM{TYPE} || '';
   $pages_qs .= "&TYPE=$type" if $type && $pages_qs !~ /&TYPE=/;
-  $pages_qs .= "&FIELDS=$FORM{FIELDS}" if defined $FORM{FIELDS} && $pages_qs !~ /&FIELDS=/;
+  $pages_qs .= $fields if defined $FORM{FIELDS};
   $pages_qs .= "&AID=$FORM{AID}" if defined $FORM{AID} && $pages_qs !~ /&AID=/;
   $LIST_PARAMS{AID} = $FORM{AID} if defined $FORM{AID};
 
@@ -892,6 +893,7 @@ sub form_system_changes {
   }
   elsif ($FORM{AID} && !defined($LIST_PARAMS{AID})) {
     $FORM{subf} = $index;
+    $index = get_function_index('form_admins');
     require Control::Admins_mng;
     form_admins();
     return 0;
@@ -929,6 +931,7 @@ sub form_system_changes {
     HIDDEN_FIELDS => $LIST_PARAMS{AID},
     SEARCH_FORM   =>
       $html->tpl_show(templates('form_history_search'), \%search_params, { OUTPUT2RETURN => 1 }),
+    index         => $FORM{subf} || $index
   });
 
   my $list = $admin->system_action_list({ %LIST_PARAMS, ADMIN_DISABLE => '_SHOW' });

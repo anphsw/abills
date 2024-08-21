@@ -1,0 +1,34 @@
+put:
+  tags:
+    - internet
+  summary: Изменение тарифного плана Internet пользователю
+  operationId: changeUserInternetInfo
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/changeUserTpRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешно изменено
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/changeUserTpResponse200.yaml"
+    400:
+      description: Нет id услуги
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/changeUserTpResponse400.yaml"
+  security:
+    - KEY: []

@@ -1,6 +1,6 @@
 <div>
-  <input type='hidden' name='COMPANY_ID' value='%COMPANY_ID%'>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='COMPANY_ID' value='%ID%'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='FIO_REQUIRE' id='FIO_REQUIRE' value='$FORM{FIO_REQUIRE}'>
 
   <div class='%FORM_ATTR%'>
@@ -38,7 +38,7 @@
         <label class='col-sm-3 col-md-2 text-right control-label' for='PHONE'>_{PHONE}_:</label>
         <div class='col-sm-9 col-md-10'>
           <div class='input-group'>
-            <input class='form-control' id='PHONE' name='PHONE' value='%PHONE%'>
+            <input %PHONE_PATTERN% class='form-control' id='PHONE' name='PHONE' value='%PHONE%'>
           </div>
         </div>
       </div>
@@ -85,10 +85,6 @@
       <div class='card-body'>
         %INFO_FIELDS%
       </div>
-    </div>
-
-    <div class='card-footer'>
-      <input type=submit class='btn btn-primary double_click_check' name='%ACTION%' value='%LNG_ACTION%'>
     </div>
   </div>
 </div>

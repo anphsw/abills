@@ -147,7 +147,9 @@ sub get_closed_tasks {
   return \%closed_tasks;
 }
 
+#**********************************************************
 =head2 get_scheduled_hours_on_complexity($attr) - return scheduled_hours_on_complexity for admin
+
   Arguments:
     $attr = {
       FROM_DATE => '2020-01-01',
@@ -235,7 +237,7 @@ sub get_list_projects {
   my $url = "$self->{conf}{TIMETRACKER_REDMINE_URL}projects.json?key=$self->{conf}{TIMETRACKER_REDMINE_APIKEY}";
   my $json = web_request($url, { CURL => 1, JSON_RETURN => 1, DEBUG => $attr->{DEBUG} });
 
-  if($json->{projects}){
+  if($json && $json->{projects}){
     $self = ($json->{projects});
   }
 
@@ -262,7 +264,7 @@ sub get_list_sprints {
   my $url = "$self->{conf}{TIMETRACKER_REDMINE_URL}/projects/$attr->{PROJECT_ID}/versions.json?status=open&key=$self->{conf}{TIMETRACKER_REDMINE_APIKEY}";
   my $json = web_request($url, { CURL => 1, JSON_RETURN => 1, DEBUG => $attr->{DEBUG} });
 
-  if($json->{versions}){
+  if($json && $json->{versions}){
     $self = ($json->{versions});
   }
 
@@ -292,9 +294,10 @@ sub get_list_issues {
   my $url = "$self->{conf}{TIMETRACKER_REDMINE_URL}/projects/$attr->{PROJECT_ID}/issues.json?status_id=*&limit=200&fixed_version_id=$attr->{VERSION_ID}&key=$self->{conf}{TIMETRACKER_REDMINE_APIKEY}";
   my $json = web_request($url, { CURL => 1, JSON_RETURN => 1, DEBUG => $attr->{DEBUG} });
 
-  if($json->{issues}){
+  if ($json && $json->{issues}) {
     $self = ($json->{issues});
-  } else {
+  }
+  else {
     $self = ($json);
   }
 
@@ -319,13 +322,11 @@ sub get_issue_by_id {
   my $self = shift;
   my ($attr) = @_;
 
-  my $url = "$self->{conf}{TIMETRACKER_REDMINE_URL}/issues/$attr->{ISSUE_ID}.json";
+  my $url = "$self->{conf}{TIMETRACKER_REDMINE_URL}/issues/$attr->{ISSUE_ID}.json?key=$self->{conf}{TIMETRACKER_REDMINE_APIKEY}";
   my $json = web_request($url, { CURL => 1, JSON_RETURN => 1, DEBUG => $attr->{DEBUG} });
 
-  if($json->{issue}){
+  if ($json && $json->{issue}) {
     $self = ($json->{issue});
-  } else {
-    $self = ($json);
   }
 
   return $self;

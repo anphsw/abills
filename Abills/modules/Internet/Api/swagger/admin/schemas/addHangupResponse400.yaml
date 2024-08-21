@@ -1,0 +1,25 @@
+type: object
+properties:
+  errno:
+    type: number
+    example: 9
+  errors:
+    type: array
+    items:
+      type: object
+      properties:
+        errno:
+          type: number
+          example: 21
+        errstr:
+          type: string
+          example: nasId is not valid
+        param:
+          type: string
+          example: nasId
+        type:
+          type: string
+          example: unsigned_integer
+  errstr:
+    type: string
+    example: Validation failed

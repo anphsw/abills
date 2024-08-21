@@ -1,0 +1,46 @@
+type: object
+properties:
+  5c:F4:Ab:C6:Db:De:
+    type: array
+    items:
+      type: object
+      properties:
+        nasMngPassword:
+          type: string
+          example: ""
+        authType:
+          type: integer
+          example: 1
+        nasName:
+          type: string
+          example: zyxel_lab
+        nasDisable:
+          type: integer
+          example: 0
+        id:
+          type: integer
+          example: 100
+        ip:
+          type: string
+          example: "172.17.0.2"
+        disable:
+          type: integer
+          example: 0
+        nasIp:
+          type: string
+          example: "172.17.0.2"
+        nasId:
+          type: number
+          example: 100
+        nasAlive:
+          type: number
+          example: 0
+        mac:
+          type: string
+          example: 5c:f4:ab:c6:db:de
+        nasType:
+          type: string
+          example: dhcp
+        nasRadPairs:
+          type: string
+          example: ""

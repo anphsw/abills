@@ -1,0 +1,17 @@
+type: object
+properties:
+  begin:
+    type: string
+    example: 00:00:00
+  end:
+    type: string
+    example: 23:59:59
+  id:
+    type: integer
+    example: 2
+  tarif:
+    type: string
+  trafficClasses:
+    type: string
+  day:
+    type: integer

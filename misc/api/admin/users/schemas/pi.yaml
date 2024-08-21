@@ -1,0 +1,72 @@
+type: object
+description: >
+  Также можно добавлять все информационные поля
+  Пример: если в БД `_TEST_FIELD` то можно добавить как `_testField`
+properties:
+  fio:
+    type: string
+    description: Фамилия
+    example: Иванов
+  fio2:
+    type: string
+    description: Имя
+    example: Иван
+  fio3:
+    type: string
+    description: Отчество
+    example: Иванович
+  comments:
+    type: string
+    description: Описание о абоненте
+    example: Какой чудесный абонент
+  email:
+    type: string
+    description: Email пользователя
+    example: test@gmail.com
+  phone:
+    type: string
+    description: Телефон пользователя, добавлять в зависимости от формата в конфигурационном файле (сonfig.pl) $conf{PHONE_FORMAT}
+    example: 0994567821
+  cellPhone:
+    type: string
+    description: Мобильный телефон пользователя, добавлять в зависимости от формата в конфигурационном файле (сonfig.pl) $conf{CELL_PHONE_FORMAT}
+    example: 0994567821
+  pasportNum:
+    type: string
+    description: Номер паспорта пользователя
+    example: FLJF21B
+  pasport_date:
+    type: string
+    example: '2023-06-01'
+    default: '0000-00-00'
+    description: Дата выдачи паспорта пользователю
+  birthDate:
+    type: string
+    example: '1923-06-01'
+    default: '0000-00-00'
+    description: Дата рождения пользователя
+  locationId:
+    type: number
+    example: 256
+    default: 0
+    description: >
+      Можно получить с путей API - `get/builds` или добавить новый `post/builds`
+  acceptRules:
+    type: number
+    example: 1
+    default: 0
+    description: Принять условия пользования услугами поставщика услуг
+  contractId:
+    type: string
+    example: RKL-12121
+    default: 0
+    description: Номер договора пользователя
+  contractDate:
+    type: string
+    example: '1923-06-01'
+    default: '0000-00-00'
+    description: Дата договора пользователя
+  contractSufix:
+    type: string
+    example: 14GROUP88
+    description: Суффикс договора пользователя

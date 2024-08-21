@@ -1,0 +1,14 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 1
+  uid:
+    type: string
+    example: "132"
+  value:
+    type: string
+    example: test@gmail.com
+  typeName:
+    type: string
+    example: Email

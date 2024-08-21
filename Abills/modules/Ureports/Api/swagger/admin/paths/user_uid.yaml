@@ -1,0 +1,99 @@
+get:
+  tags:
+    - ureports
+  summary: Получить пользователя
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/user.yaml"
+  security:
+    - KEY: []
+post:
+  tags:
+    - ureports
+  summary: Добавить оповещения пользователю
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addUserRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addUserResponse200.yaml"
+    400:
+      description: Пользователь существует
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addUserResponse400.yaml"
+  security:
+    - KEY: []
+put:
+  tags:
+    - ureports
+  summary: Изменить оповещения пользователю
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addUserRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addUserResponse200.yaml"
+  security:
+    - KEY: []
+delete:
+  tags:
+    - ureports
+  summary: Удалить оповещения пользователю
+  operationId: ureportsDeleteUser
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteUserResponse200.yaml"
+  security:
+    - KEY: []

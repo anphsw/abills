@@ -1,0 +1,132 @@
+type: object
+properties:
+  addressBuild:
+    type: string
+    example: 3
+  addressFlat:
+    type: string
+    example: 2
+  addressStreet:
+    type: string
+    example: 1
+  affected:
+    type: integer
+    example: 0
+  alive:
+    type: integer
+    example: 0
+  authType:
+    type: integer
+    example: 0
+  changed:
+    type: string
+    example: "2022-08-31 21:43:18"
+  changesLog:
+    type: string
+    example: NAS_ID:250 NAS_TYPE accel_ppp->asterik;NAS_NAME joao->tester;IP 3373547590->201.20.64.70
+  city:
+    type: string
+    example: ""
+  country:
+    type: integer
+    example: ""
+  descr:
+    type: string
+    example: test
+  disable:
+    type: integer
+    example: 0
+  domainId:
+    type: integer
+    example: 0
+  entrance:
+    type: string
+    example: ""
+  extAcct:
+    type: integer
+    example: 0
+  floor:
+    type: string
+    example: 1
+  gid:
+    type: integer
+    example: 0
+  id:
+    type: integer
+    example: 250
+  ip:
+    type: integer
+    example: 3373547590
+  locationId:
+    type: integer
+    example: 0
+  mac:
+    type: string
+    example: ""
+  mngHostPort:
+    type: string
+    example: "::::"
+  mngPassword:
+    type: string
+    example: ""
+  mngUser:
+    type: string
+    example: ""
+  name:
+    type: string
+    example: tester
+  nasAlive:
+    type: integer
+    example: 0
+  nasAuthType:
+    type: integer
+    example: 0
+  nasDescribe:
+    type: string
+    example: test nas
+  nasDisable:
+    type: integer
+    example: 0
+  nasExtAcct:
+    type: integer
+    format: int32
+    example: 0
+  nasId:
+    type: integer
+    example: 250
+  nasIdentifier:
+    type: string
+    example: openbts_1111
+  nasIp:
+    type: string
+    example: 201.20.64.70
+  nasMngIpPort:
+    type: string
+    example: ":::"
+  nasMngPassword:
+    type: string
+    example: ""
+  nasMngUser:
+    type: string
+    example: ""
+  nasName:
+    type: string
+    example: tester
+  nasRadPairs:
+    type: string
+    example: "ERX-Service-Activate:1+='svc-global-pppoe(15242880, 15242880)',"
+  nasType:
+    type: string
+    example: asterik
+  radPairs:
+    type: string
+    example: "ERX-Service-Activate:1+='svc-global-pppoe(15242880, 15242880)',"
+  total:
+    type: integer
+    example: 1
+  zabbixHostid:
+    type: integer
+    example: 0
+  zip:
+    type: string
+    example: ""

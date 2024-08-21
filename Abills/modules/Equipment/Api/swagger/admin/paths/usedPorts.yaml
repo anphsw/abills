@@ -1,0 +1,30 @@
+get:
+  tags:
+    - equipment
+  summary: Список использованных портов
+  operationId: getUsedPorts
+  parameters:
+    - name: nasId
+      in: query
+      description: Поиск портов по nasId используется только вместе с portsOnly. Игнорируется когда используется fullList
+      schema:
+        type: string
+    - name: portsOnly
+      in: query
+      description: только порты используется только вместе с nasId. Игнорируется когда используется fullList
+      schema:
+        type: boolean
+    - name: fullList
+      in: query
+      description: полный список
+      schema:
+        type: boolean
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/usedPorts.yaml"
+  security:
+    - KEY: []

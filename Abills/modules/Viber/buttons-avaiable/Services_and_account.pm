@@ -310,10 +310,11 @@ sub equipment_info_bot {
   my $self = shift;
   my ($attr) = @_;
 
-  my %status = (
-    0 => "Offline",
-    1 => "Online"
-  );
+  # TODO: migrate statuses to Equipment::Consts?
+  our %ONU_STATUS_TEXT_CODES;
+  require Equipment::Pon_mng;
+
+  my %status = reverse %ONU_STATUS_TEXT_CODES;
 
   my $uid = $self->{bot}->{uid};
   my $message = '';
@@ -345,8 +346,10 @@ sub equipment_info_bot {
     $message = "$self->{bot}->{lang}->{NOT_INFO}";
   }
   else {
+    my $status_key = $status{$onu_list->[0]{status}} || '';
+    my $maybe_langed_status = $self->{bot}{lang}{$status_key} || $status_key;
     $message .= "$self->{bot}{lang}{EQUIPMENT_USER}: $onu_list->[0]{branch_desc} $onu_list->[0]{branch}\\n";
-    $message .= "$self->{bot}{lang}{STATUS}: " . $status{ $onu_list->[0]{status} } . "\\n";
+    $message .= "$self->{bot}{lang}{STATUS}: $maybe_langed_status\\n";
     if ($internet_nas->[0]{online}) {
       $message .= "$self->{bot}{lang}{CONNECTED}: Online\\n";
     }

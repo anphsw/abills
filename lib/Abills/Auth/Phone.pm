@@ -170,8 +170,13 @@ sub send_pin {
 
   my $pin_code = pin_generate();
 
-  ::load_module("Abills::Templates", { LOAD_PACKAGE => 1 }) if (!exists($INC{"Abills/Templates.pm"}));
-  my $message = $self->{html}->tpl_show(::_include('sms_login_by_phone', 'Sms'), {
+  require Abills::Template;
+  my $Templates = Abills::Template->new($self->{db}, $self->{admin}, $self->{conf}, {
+    html    => $self->{html},
+    lang    => $self->{lang},
+    libpath => $self->{libpath}
+  });
+  my $message = $self->{html}->tpl_show($Templates->_include('sms_login_by_phone', 'Sms'), {
     LOGIN    => $Users->{LOGIN},
     PHONE    => $attr->{PHONE},
     PIN_CODE => $pin_code

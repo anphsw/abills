@@ -1,10 +1,18 @@
 <style>
+	#DEVELOPMENT_REPORT_ {
+		--bg-table: white;
+	}
+
+	.dark-mode #DEVELOPMENT_REPORT_ {
+		--bg-table: #343a40;
+	}
+
 	tfoot > tr > th:nth-child(2),
 	tr > td:not([rowspan]):not([colspan]):first-child,
 	tr.text-right > td:first-child[rowspan] ~ td:nth-child(2) {
 		position: sticky;
 		left: 40px;
-		background: white;
+		background: var(--bg-table);
 	}
 
 	td.skip,
@@ -12,7 +20,7 @@
 	tbody > tr:first-child > td:first-child {
 		position: sticky !important;
 		left: 0 !important;
-		background: white;
+		background: var(--bg-table);
 	}
 
 	table {
@@ -29,24 +37,24 @@
 		position: sticky !important;
 		top: 0 !important;
 		z-index: 1;
-		background: white !important;
+		background: var(--bg-table) !important;
 	}
 
 	tr.bg-inherit:nth-child(2) {
 		position: sticky !important;
 		top: 36px !important;
-		background: white !important;
+		background: var(--bg-table) !important;
 	}
 
 	tr.bg-inherit:nth-child(3) {
 		position: sticky !important;
 		top: 72px !important;
-		background: white !important;
+		background: var(--bg-table) !important;
 	}
 
 	tr.bg-inherit:nth-child(4) {
 		position: sticky !important;
 		top: 107px !important;
-		background: white !important;
+		background: var(--bg-table) !important;
 	}
 </style>

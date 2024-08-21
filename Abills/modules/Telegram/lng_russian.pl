@@ -139,4 +139,6 @@ $lang{EQUIPMENT_ROUTER_WORKING} = 'Роутер работает';
 $lang{EQUIPMENT_CHECK_COMPLETED} = 'Проверка завершена';
 $lang{EQUIPMENT_CONNECTION_CHECK} = 'Проверка связи';
 
+$lang{TELEGRAM_PING_MESSAGE} = 'Могу ли я помочь вам с чем-то еще?';
+
 1;

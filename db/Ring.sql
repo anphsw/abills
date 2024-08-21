@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS `ring_users_filters` (
   `time` TIME NOT NULL DEFAULT '00:00:00',
   `date` DATE NOT NULL DEFAULT '0000-00-00',
   `status` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `comments` VARCHAR(250)       NOT NULL DEFAULT '',
+  `aid`     SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`uid`, `r_id`),
   FOREIGN KEY (`r_id`) REFERENCES `ring_rules` (`id`) ON DELETE CASCADE
 )

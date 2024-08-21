@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "properties": {
+    "uid": {
+      "type": "integer"
+    },
+    "fio": {
+      "type": "string"
+    },
+    "login": {
+      "type": "string"
+    },
+    "online": {
+      "type": "integer"
+    },
+    "buildId": {
+      "type": "integer"
+    },
+    "deposit": {
+      "type": "integer"
+    },
+    "disable": {
+      "type": "integer"
+    },
+    "coordx": {
+      "type": "number"
+    },
+    "coordy": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "uid",
+    "fio",
+    "login",
+    "online",
+    "buildId",
+    "deposit",
+    "disable",
+    "coordx",
+    "coordy"
+  ]
+}

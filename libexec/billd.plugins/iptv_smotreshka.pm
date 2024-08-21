@@ -14,6 +14,7 @@ use Iptv;
 use Iptv::Smotreshka;
 use Tariffs;
 use Abills::Base qw(load_pmodule in_array _bp);
+use Abills::Loader qw/load_plugin/;
 use threads;
 our (
   $argv,
@@ -50,7 +51,7 @@ sub smotreshka_users {
       print "Service ID: $service->{id} NAME: $service->{name}\n";
     }
 
-    my $Smotreshka_api = tv_load_service('', { SERVICE_ID => $service->{id} });
+    my $Smotreshka_api = load_plugin('Iptv::Plugins::Smotreshka', { SERVICE => $Iptv });
     my $result = $Smotreshka_api->user_list();
     my %users_info = ();
     foreach my $user (@{$result}) {

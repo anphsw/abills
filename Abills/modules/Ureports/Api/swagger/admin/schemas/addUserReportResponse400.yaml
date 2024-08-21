@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: number
+    example: 103012
+  errstr:
+    type: string
+    example: Field reports not array

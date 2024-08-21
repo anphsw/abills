@@ -98,8 +98,8 @@ sub form_nas {
       $Sessions = Internet::Sessions->new($db, $admin, \%conf);
     }
 
-    my $service = $Internet->user_list({ UID => '_SHOW', NAS_ID => $FORM{del}, COLS_NAME => 1 });
-    my $session_list = $Sessions->online({ UID => '_SHOW', NAS_ID => $FORM{del},  ALL => 1, COLS_NAME => 1 });
+    $Internet->user_list({ UID => '_SHOW', NAS_ID => $FORM{del}, COLS_NAME => 1 });
+    $Sessions->online({ UID => '_SHOW', NAS_ID => $FORM{del},  ALL => 1, COLS_NAME => 1 });
 
     if ($Internet->{TOTAL} > 0){
       my $internet_users_index = get_function_index('internet_users_list');
@@ -142,16 +142,6 @@ sub form_nas {
   }
 
   unless ($FORM{add_form} || $FORM{NAS_ID} || $FORM{search_form}) {
-    # require Control::Reports;
-    # reports({
-    #   PERIOD_FORM     => 1,
-    #   NO_PERIOD       => 1,
-    #   NO_GROUP        => 1,
-    #   NO_TAGS         => 1,
-    #   EXT_SELECT      => sel_nas_groups(),
-    #   EXT_SELECT_NAME => $lang{GROUPS},
-    # });
-
     $html->short_form({
       LABELED_FIELDS => {
         "$lang{GROUPS}:" => sel_nas_groups(),
@@ -211,7 +201,7 @@ sub form_nas_mng {
       );
     }
     else {
-      $html->message('callout', 'Install wrt_configure.cgi', $html->button("ABillS Wiki ", '', { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:docs:nas:chillispot:openwrt#abills' }));
+      $html->message('callout', 'Install wrt_configure.cgi', $html->button("ABillS Wiki ", '', { GLOBAL_URL => 'http://abills.net.ua/wiki/pages/viewpage.action?pageId=4030617' }));
     }
   }
   elsif ($Nas->{NAS_TYPE} && $Nas->{NAS_TYPE} =~ /mikrotik/) {
@@ -387,48 +377,46 @@ sub form_nas_list {
     $ext_titles{domain_id} = 'Domain ID';
   }
 
-  result_former(
-    {
-      INPUT_DATA     => $Nas,
-      FUNCTION       => 'list',
-      BASE_FIELDS    => 0,
-      DEFAULT_FIELDS => 'NAS_ID,NAS_NAME,NAS_IDENTIFIER,NAS_IP,NAS_TYPE,DISABLE,DESCR',
-      MAP            => (!$FORM{UID}) ? 1 : undef,
-      MAP_FIELDS     => 'NAS_ID,NAS_NAME,NAS_IP',
-      MAP_ICON       => 'nas',
+  result_former({
+    INPUT_DATA      => $Nas,
+    FUNCTION        => 'list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'NAS_ID,NAS_NAME,NAS_IDENTIFIER,NAS_IP,NAS_TYPE,DISABLE,DESCR',
+    MAP             => (!$FORM{UID}) ? 1 : undef,
+    MAP_FIELDS      => 'NAS_ID,NAS_NAME,NAS_IP',
+    MAP_ICON        => 'nas',
 
-      #      MAP_FILTERS     => { id => 'search_link:msgs_admin:UID,chg={ID}' },
-      FUNCTION_FIELDS => (
-        (in_array('Internet', \@MODULES))
-          ? 'internet_users_list:$lang{USERS}:nas_id:&PORT=*&VLAN=*&search=1&search_form=1,'
-          : 'dhcphosts_hosts:$lang{USERS}:nas_id:&VIEW=1&search=1&search_form=1,'
-      )
-        . 'form_ip_pools:IP_Pool:nas_id,form_nas:change:nas_id,'
-        . ((($permissions{4} && $permissions{4}{3})) ? 'del' : ''),
-      MULTISELECT => (in_array('Equipment', \@MODULES)) ? 'NAS_ID:nas_id' : '',
-      EXT_TITLES => \%ext_titles,
-      SKIP_USER_TITLE => 1,
-      SELECT_VALUE    => {
-        auth_type => \%auth_types,
-        disable   => \%status_hash,
-      },
-      FILTER_COLS => {
-        users_count => 'search_link:form_search:LOCATION_ID,type=11',
-      },
-      TABLE => {
-        width          => '100%',
-        caption        => $lang{NAS},
-        qs             => $pages_qs,
-        SHOW_FULL_LIST => 1,
-        ID             => 'NAS_LIST',
-        EXPORT         => 1,
-        SELECT_ALL     => (in_array('Equipment', \@MODULES)) ? "nas_list:NAS_ID:$lang{SELECT_ALL}" : '',
-        MENU           => "$lang{ADD}:add_form=1&index=" . get_function_index('form_nas') . ':add' . ";$lang{SEARCH}:search_form=1&index=" . get_function_index('form_nas') . "&type=13:search"
-      },
-      MAKE_ROWS => 1,
-      TOTAL     => 1
-    }
-  );
+    #      MAP_FILTERS     => { id => 'search_link:msgs_admin:UID,chg={ID}' },
+    FUNCTION_FIELDS => (
+      (in_array('Internet', \@MODULES))
+        ? 'internet_users_list:$lang{USERS}:nas_id:&PORT=*&VLAN=*&search=1&search_form=1,'
+        : 'dhcphosts_hosts:$lang{USERS}:nas_id:&VIEW=1&search=1&search_form=1,'
+    )
+      . 'form_ip_pools:IP_Pool:nas_id,form_nas:change:nas_id,'
+      . ((($permissions{4} && $permissions{4}{3})) ? 'del' : ''),
+    MULTISELECT     => (in_array('Equipment', \@MODULES)) ? 'NAS_ID:nas_id' : '',
+    EXT_TITLES      => \%ext_titles,
+    SKIP_USER_TITLE => 1,
+    SELECT_VALUE    => {
+      auth_type => \%auth_types,
+      disable   => \%status_hash,
+    },
+    FILTER_COLS     => {
+      users_count => 'search_link:form_search:LOCATION_ID,type=11',
+    },
+    TABLE           => {
+      width          => '100%',
+      caption        => $lang{NAS},
+      qs             => $pages_qs,
+      SHOW_FULL_LIST => 1,
+      ID             => 'NAS_LIST',
+      EXPORT         => 1,
+      SELECT_ALL     => (in_array('Equipment', \@MODULES)) ? "nas_list:NAS_ID:$lang{SELECT_ALL}" : '',
+      MENU           => "$lang{ADD}:add_form=1&index=" . get_function_index('form_nas') . ':add' . ";$lang{SEARCH}:search_form=1&index=" . get_function_index('form_nas') . "&type=13:search"
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
 
   return 1;
 }
@@ -479,7 +467,8 @@ sub form_nas_add {
     LOCATION_ID  => $Nas->{LOCATION_ID},
     ADDRESS_FLAT => $Nas->{ADDRESS_FLAT},
     FLOOR        => $Nas->{FLOOR},
-    ENTRANCE     => $Nas->{ENTRANCE}
+    ENTRANCE     => $Nas->{ENTRANCE},
+    ADDRESS_HIDE => 1
   });
   $Nas->{NAS_GROUPS_SEL} = sel_nas_groups({ GID => $Nas->{GID} });
 
@@ -595,7 +584,18 @@ sub form_nas_console {
     @quick_cmd = ('rsh:show run', 'rsh:sh sss session', 'rsh:show log', 'rsh:show interf', 'rsh:show arp', 'rsh:show radius statistics', 'show radius server-group all', 'rsh:sh ver');
   }
   elsif ($Nas_->{NAS_TYPE} =~ /mx80/) {
-    @quick_cmd = ('ssh:show system uptime', 'ssh:show bgp summary', 'ssh:show subscribers summary', 'ssh:show dhcp server binding', 'ssh:show dhcp server binding summary', 'ssh:show interfaces | match "Physical link is Up"', 'ssh:show system memory', 'ssh:show chassis environment pem');
+    @quick_cmd = ('ssh:show system uptime',
+      'ssh:show bgp summary',
+      'ssh:show subscribers summary',
+      'ssh:show dhcp server binding',
+      'ssh:show dhcp server binding summary',
+      'ssh:show interfaces | match "Physical link is Up"',
+      'ssh:show system memory',
+      'ssh:show chassis environment pem',
+      'ssh:show network-access aaa statistics authentication detail',
+      'ssh:show network-access aaa radius-servers',
+      '',
+    );
   }
 
   foreach my $cmd (@quick_cmd) {
@@ -1709,6 +1709,7 @@ sub form_ip_pools {
           ID             => $FORM{chg},
           NAS_IP_SIP_INT => ip2int($FORM{NAS_IP_SIP}),
           GATEWAY        => ip2int($FORM{GATEWAY}),
+          NEXT_POOL_ID   => $FORM{NEXT_POOL_ID} ? $FORM{NEXT_POOL_ID} : 0,
         }
       );
 
@@ -1959,7 +1960,6 @@ sub form_ip_pools {
       SHOW_FULL_LIST => 1,
       qs             => $pages_qs,
       ID             => 'NAS_IP_POOLS',
-      header         => '',
       EXPORT         => 1,
       IMPORT         => "$SELF_URL?get_index=form_ip_pools&import=1&header=2",
       MENU           => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
@@ -1970,18 +1970,18 @@ sub form_ip_pools {
     OUTPUT2RETURN   => 1
   });
 
+  delete $FORM{show_columns};
+
   $html->tpl_show(templates('form_ippools_nas'), { TABLE_IPPOOLS => $pools_table });
 
-  print $html->form_main(
-    {
-      ID     => 'IP_POOLS_CHECKBOXES_FORM',
-      HIDDEN => {
-        index  => get_function_index('form_ip_pools'),
-        NAS_ID => $FORM{NAS_ID} || '',
-      },
-      SUBMIT => { ($FORM{NAS_ID}) ? (set => $lang{SET}) : () }
-    }
-  );
+  print $html->form_main({
+    ID     => 'IP_POOLS_CHECKBOXES_FORM',
+    HIDDEN => {
+      index  => get_function_index('form_ip_pools'),
+      NAS_ID => $FORM{NAS_ID} || '',
+    },
+    SUBMIT => { ($FORM{NAS_ID}) ? (set => $lang{SET}) : () }
+  });
 
   return 1;
 }

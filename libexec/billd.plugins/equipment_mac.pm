@@ -8,6 +8,7 @@
     DEL_MAC=1             - delete old MACs from DB
     SNMP_COMMUNITY        - use this SNMP community instead of community configured on NAS
     SEARCH_MAC            - add event when given MAC(s) appears. now is not working
+    SKIP_UPLINK           - ignore trunk ports (uplink or downlink)
 
 =cut
 
@@ -178,6 +179,13 @@ sub equipment_check {
 
       if ($mac eq '00:00:00:00:00:00') {
         next;
+      }
+
+      if ($argv->{SKIP_LINK}){
+        $argv->{SKIP_LINK} =~ s/,/\|/g;
+        if ($fdb_list->{$mac_dec}{5} && $fdb_list->{$mac_dec}{5} =~ /$argv->{SKIP_LINK}/){
+          next;
+        }
       }
 
       my $vlan = $fdb_list->{$mac_dec}{4} || 0;

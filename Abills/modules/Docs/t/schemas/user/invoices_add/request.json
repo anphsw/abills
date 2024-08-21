@@ -1,0 +1,11 @@
+{
+  "name": "USER_DOCS_INVOICE_ADD",
+  "method": "POST",
+  "path": "user/docs/invoices/",
+  "body": {
+    "customer": "ФОП Іваненко",
+    "order": "Інтернет/Телебачення",
+    "sum": "5",
+    "phone": "3809999999"
+  }
+}

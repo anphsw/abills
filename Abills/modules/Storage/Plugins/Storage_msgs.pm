@@ -86,7 +86,7 @@ sub plugin_show {
 
   my $table = $html->table({
     width      => '100%',
-    title      => [ "ID", $lang->{NAME}, "$lang->{TYPE} $lang->{NAME}", $lang->{COUNT}, "SN", $lang->{ADMIN}, $lang->{DATE} ],
+    title      => [ "ID", $lang->{NAME}, "$lang->{TYPE} $lang->{NAME}", $lang->{COUNT}, "SN", $lang->{ADMIN}, $lang->{DATE}, '' ],
     caption    => $lang->{STORAGE},
     qs         => 1,
     ID         => 'MSGS_STORAGE_ITEMS',
@@ -101,6 +101,7 @@ sub plugin_show {
     COUNT_MEASURE     => '_SHOW',
     SERIAL            => '_SHOW',
     DATE              => '_SHOW',
+    INSTALLATION_ID   => '_SHOW',
     ADMIN_NAME        => '_SHOW',
     MSGS_ID           => $attr->{chg},
     COLS_NAME         => 1,
@@ -108,8 +109,13 @@ sub plugin_show {
   });
 
   foreach my $item (@{$msgs_storages}) {
+    $item->{installation_id} //= 0;
+    my $del_btn = $html->button('', "index=$attr->{index}&STORAGE_MSGS_ID=$attr->{chg}&del=$item->{installation_id}&UID=$attr->{UID}", {
+      ICON      => 'fa fa-times text-danger',
+      MESSAGE   => "$lang->{DEL} $item->{article_name}?",
+    });
     $table->addrow($item->{id}, $item->{article_name}, $item->{article_type_name}, $item->{count_measure},
-      $item->{serial}, $item->{admin_name}, $item->{date})
+      $item->{serial}, $item->{admin_name}, $item->{date}, $del_btn)
   }
 
   return $table->show() || '';

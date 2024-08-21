@@ -10,3 +10,4 @@ $lang{ERR_SMALL_SUM}='Надто мала сума';
 $lang{BONUS_DISABLED_FOR_GROUP}='Бонус відключено для групи';
 $lang{ONETIME_PAYMENT_SUM}='Одноразовий платіж';
 $lang{ACCOUMULATION}='Акумуляційний';
+$lang{BONUS_FORBIDDEN_USERS_COMPANY} = 'Сервіс заборонений для абонентів компанії';

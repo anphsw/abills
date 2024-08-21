@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_DISTRICTS",
+  "method": "GET",
+  "path": "districts/",
+  "params": {}
+}

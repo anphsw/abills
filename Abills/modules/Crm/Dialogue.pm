@@ -109,11 +109,18 @@ sub crm_send_message {
     $attr->{LEAD_ID} ? $self->crm_get_dialogue_id($attr->{LEAD_ID}) : 0;
   return 0 if !$dialogue_id;
 
+  if ($attr->{EXTERNAL_ID}) {
+    $Crm->crm_dialogue_messages_list({ EXTERNAL_ID => $attr->{EXTERNAL_ID} });
+
+    return 0 if $Crm->{TOTAL} && $Crm->{TOTAL} > 0;
+  }
+
   $Crm->crm_dialogue_messages_add({
     MESSAGE     => $message,
     DIALOGUE_ID => $dialogue_id,
     INNER_MSG   => $attr->{INNER_MSG} || 0,
-    SKIP_CHANGE => $attr->{SKIP_CHANGE} || 0
+    SKIP_CHANGE => $attr->{SKIP_CHANGE} || 0,
+    EXTERNAL_ID => $attr->{EXTERNAL_ID},
   });
 
   my $message_id = $Crm->{INSERT_ID};

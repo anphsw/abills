@@ -1,0 +1,11 @@
+type: object
+properties:
+  result:
+    type: string
+    example: Successfully deleted payment for user 11 and payment id 122
+  uid:
+    type: string
+    example: 11
+  paymentId:
+    type: number
+    example: 122

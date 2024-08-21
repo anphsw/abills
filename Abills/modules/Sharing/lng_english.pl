@@ -27,5 +27,7 @@ $lang{FILES_DEMO}        = 'Files to which access granted in demo mode';
 
 $lang{TABLE_MODE} = 'Table mode';
 $lang{PLATE_MODE} = 'Plate mode';
+$lang{ACCESS_FILES} = 'file access';
+$lang{SHOW_IN_REPORT} = 'Show in quick report';
 
 1

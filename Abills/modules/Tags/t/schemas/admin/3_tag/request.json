@@ -1,0 +1,6 @@
+{
+  "name": "TAG_GET",
+  "method": "GET",
+  "path": "tags/:tagId/",
+  "params": {}
+}

@@ -124,17 +124,6 @@ my @test_list = (
     name    => 'Show error for not found user',
     result  => '',
     valid_json => 1
-  },
-  {
-    params => {
-      qindex      => 15,
-      UID         => 112,
-      SUMMARY_SHOW=> 1,
-      EXPORT      => 1,
-    },
-    name    => 'Show error for not found user',
-    result  => '',
-    valid_json => 1
   }
 );
 

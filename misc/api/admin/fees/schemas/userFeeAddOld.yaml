@@ -1,0 +1,10 @@
+type: object
+properties:
+  method:
+    type: integer
+    example: 6
+  billId:
+    type: integer
+    example: 10
+  describe:
+    type: string

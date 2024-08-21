@@ -64,6 +64,7 @@ sub new {
     $attr
        UID
        REDUCTION
+       change_credit
 
   Returns:
     Success:
@@ -78,18 +79,32 @@ sub user_set_credit {
   my $self = shift;
   my ($attr) = @_;
 
-  return { error => 4301, errstr => 'ERR_UID_NOT_DEFINED' } if (!$attr->{UID});
-  return { error => 4302, errstr => 'ERR_NO_CREDIT_CHANGE_ACCESS' } if (!$self->{conf}{user_credit_change});
+  if (!$attr->{UID}) {
+    $self->{error} = 4301;
+    $self->{errstr} = 'ERR_UID_NOT_DEFINED';
+    return $self;
+  }
 
-  my $credit_info = { REDUCTION => $attr->{REDUCTION}, UID => $attr->{UID} };
+  if (!$self->{conf}{user_credit_change}) {
+    $self->{error} = 4302;
+    $self->{errstr} = 'ERR_NO_CREDIT_CHANGE_ACCESS';
+    return $self;
+  }
+
+  my $uid = $attr->{UID};
+  my $credit_info = { REDUCTION => $attr->{REDUCTION}, UID => $uid };
   my $credit_rule = $attr->{CREDIT_RULE};
   my @credit_rules = split(/;/, $self->{conf}{user_credit_change});
 
-  $Users->info($attr->{UID});
+  $Users->info($uid, { SHOW_PASSWORD => 1 });
   $Users->group_info($Users->{GID});
   $Users->{CREDIT} //= 0;
 
-  return { error => 4303, errstr => 'ERR_NO_CREDIT_CHANGE_ACCESS' } if ($Users->{TOTAL} > 0 && (!$Users->{ALLOW_CREDIT} || $Users->{DISABLE}));
+  if ($Users->{TOTAL} > 0 && (!$Users->{ALLOW_CREDIT} || $Users->{DISABLE})) {
+    $self->{error} = 4303;
+    $self->{errstr}= 'ERR_NO_CREDIT_CHANGE_ACCESS';
+    return $self;
+  }
 
   if ($#credit_rules > 0 && ! defined($credit_rule) ) {
     $self->{CREDIT_RULES} = \@credit_rules;
@@ -109,7 +124,7 @@ sub user_set_credit {
   if ($month_changes && $main::DATE) {
     my ($y, $m) = split(/\-/, $main::DATE);
     $admin->action_list({
-      UID       => $attr->{UID},
+      UID       => $uid,
       TYPE      => 5,
       AID       => $admin->{AID},
       FROM_DATE => "$y-$m-01",
@@ -117,39 +132,58 @@ sub user_set_credit {
     });
 
     if ($admin->{TOTAL} >= $month_changes) {
-      return { error => 4304, errstr => 'ERR_CREDIT_CHANGE_LIMIT_REACH', MONTH_CHANGES => $month_changes };
+      $self->{error} = 4304;
+      $self->{errstr} = 'ERR_CREDIT_CHANGE_LIMIT_REACH';
+      $self->{MONTH_CHANGES} = $month_changes;
+      return $self;
     }
   }
+
   $credit_info->{CREDIT_SUM} = sprintf("%.2f", $sum);
+  $sum = $self->_check_payments_exp($uid, $payments_expr) if ($payments_expr && $sum != 1);
 
-  $sum = $self->_check_payments_exp($attr->{UID}, $payments_expr) if ($payments_expr && $sum != 1);
-
-  return { error => 4305, errstr => 'ERR_CREDIT_UNAVAILABLE' } if ($Users->{CREDIT} >= sprintf("%.2f", $sum));
+  if ($Users->{CREDIT} >= sprintf("%.2f", $sum)) {
+    $self->{error} = 4305;
+    $self->{errstr} = 'ERR_CREDIT_UNAVAILABLE';
+    return $self;
+  }
 
   if ($attr->{change_credit}) {
     if ($CONF->{user_confirm_changes}) {
-      return {} if !$attr->{PASSWORD};
-
-      $Users->info($attr->{UID}, { SHOW_PASSWORD => 1 });
+      return {} if (!$attr->{PASSWORD});
       if ($attr->{PASSWORD} ne $Users->{PASSWORD}) {
-        $self->_show_message('err', '$lang{ERROR}', '$lang{ERR_WRONG_PASSWD}');
-        return { error => 4306, errstr => 'ERR_WRONG_PASSWD' };
+        #$self->_show_message('err', '$lang{ERROR}', '$lang{ERR_WRONG_PASSWD}');
+        $self->{error} = 4306;
+        $self->{errstr} = 'ERR_WRONG_PASSWD';
+        return $self;
       }
     }
-    $Users->change($attr->{UID}, { UID => $attr->{UID}, CREDIT => $sum, CREDIT_DATE => $credit_date });
 
-    return { error => $Users->{errno}, errstr => $Users->{errstr} } if $Users->{errno};
+    $Users->change($uid, { UID => $uid, CREDIT => $sum, CREDIT_DATE => $credit_date });
 
-    my $user_info = $Users->info($attr->{UID}, { SHOW_PASSWORD => 1 });
-    $self->_show_message('info', '$lang{CHANGED}', '$lang{CREDIT}: ' . $sum);
-    if ($price && $price > 0) {
-      my $Fees = Finance->fees($db, $admin, $CONF);
-      $Fees->take($Users, $price, { DESCRIBE => ::_translate('$lang{CREDIT} $lang{ENABLE}'), METHOD => 5 });
+    if ($Users->{errno}) {
+      $self->{error} = $Users->{errno};
+      $self->{errstr} = $Users->{errstr};
+      return $self;
     }
 
-    ::cross_modules('payments_maked', { USER_INFO => $user_info, SUM => $sum, SILENT => 1, CREDIT_NOTIFICATION => 1 });
+    $Users->info($uid, { SHOW_PASSWORD => 1 });
+    #$self->_show_message('info', '$lang{CHANGED}', '$lang{CREDIT}: ' . $sum);
+    if ($price && $price > 0) {
+      my $Fees = Finance->fees($db, $admin, $CONF);
+      $Fees->take($Users, $price, { DESCRIBE => ::_translate('$lang{CREDIT} $lang{ENABLE}'), METHOD => $CONF->{FEES_CREDIT_ID} || 5 });
+    }
+
+    ::cross_modules('payments_maked', {
+      USER_INFO => $Users,
+      SUM       => $sum,
+      SKIP_COMPANY_USERS => 1,
+      SILENT    => 1,
+      CREDIT_NOTIFICATION => 1
+    });
+
     if ($CONF->{external_userchange}) {
-      return () if (!::_external($CONF->{external_userchange}, $user_info));
+      return () if (!::_external($CONF->{external_userchange}, $Users));
     }
 
     return $credit_info;
@@ -301,6 +335,7 @@ sub user_holdup {
   return { error => 4401, errstr => 'ERR_UID_NOT_DEFINED' } if (!$attr->{UID});
 
   return $self->_iptv_holdup_functions($attr) if ($attr->{MODULE} && uc($attr->{MODULE}) eq 'IPTV');
+  return {} if ($attr->{MODULE} && uc($attr->{MODULE}) eq 'MOBILE');
 
   my $user_info = $attr->{USER_INFO} || $Users->info($attr->{UID});
   my $internet_info;
@@ -365,7 +400,7 @@ sub user_holdup {
     my ($_hold_up_min_period, $_hold_up_max_period, $_hold_up_period, $_hold_up_day_fee,
       undef, $_active_fees, $_holdup_skip_gids, $_user_del_shedule, $_expr_) = split(/:/, $holdup_rule);
 
-
+    $_hold_up_max_period ||= 999;
     push @{$self->{HOLDUP_INFOS}}, {
       MAX_PERIOD => $_hold_up_max_period,
       PRICE      => $_active_fees
@@ -385,8 +420,6 @@ sub user_holdup {
   }
 
   if ($attr->{add} && !$self->{HOLDUP_ADD_RULES}) {
-    # $self->_show_message('err', '$lang{ERR_WRONG_DATA}', '$lang{ERR_WRONG_DATA}' . "\n" . '$lang{FROM}: ' . ($attr->{FROM_DATE} || '')
-    #   . ' AND $lang{TO}: ' . ($attr->{TO_DATE} || ''));
     # 'Parameters fromDate and toDate do not satisfy rules'
     return { error => 4428, errstr => 'ERR_WRONG_DATA' };
   }
@@ -412,8 +445,9 @@ sub user_holdup {
     $internet_info->{DAY_FEES} = ::_translate('$_' .'DAY_FEE') . ": " . sprintf("%.2f", $hold_up_day_fee);
   }
 
+  $self->{CAN_ACTIVATE} = $user_del_shedule || 0;
+
   if ($attr->{del} && $user_del_shedule) {
-    print "aaaaaaaaaaaaa";
     return $self->_del_holdup({ %{$attr}, INTERNET_STATUS => $internet_info->{DISABLE} });
   }
 
@@ -468,6 +502,7 @@ sub user_holdup {
     }
   }
 
+  # schedule set up
   if ($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0 && !$status) {
     return {
       DEL           => 1,
@@ -475,6 +510,15 @@ sub user_holdup {
       DATE_FROM     => $shedule_date->{3} || '-',
       DATE_TO       => $shedule_date->{0} || '-',
       CAN_CANCEL    => $user_del_shedule ? 'true' : 'false'
+    };
+  }
+  # service already has holdup
+  elsif ($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0 && $status && $status == 3) {
+    return {
+      DATE_FROM  => '',
+      DATE_TO    => $shedule_date->{0} || '-',
+      CAN_CANCEL => 'false',
+      PAUSED     => 'true'
     };
   }
 
@@ -932,11 +976,12 @@ sub user_chg_tp {
 
   my $can_change = $self->user_chg_tp_allow($attr);
 
-  return $can_change if ($can_change->{errno});
+  return $can_change if ($can_change->{errno} || $can_change->{error});
   my ($user_info, $available_tariffs, $service_info) = @{$can_change}{qw/user_info available_tariffs service_info/};
 
   $attr->{UID} ||= $service_info->{UID};
   $attr->{period} ||= $attr->{PERIOD};
+  $user_info->{CREDIT} //= 0;
 
   return {
     message       => '$lang{NOT_ALLOWED_TO_CHANGE_TP}',
@@ -951,7 +996,7 @@ sub user_chg_tp {
     $user_info->{DEPOSIT} += $user_info->{EXT_BILL_DEPOSIT};
   }
 
-  if ($user_info->{CREDIT} + $user_info->{DEPOSIT} < 0) {
+  if (($user_info->{CREDIT} + $user_info->{DEPOSIT}) < 0) {
     return {
       message       => '$lang{ERR_SMALL_DEPOSIT}- $lang{DEPOSIT}: ' . $user_info->{DEPOSIT} . ' $lang{CREDIT}: ' . $user_info->{CREDIT},
       message_type  => 'err',
@@ -1604,7 +1649,13 @@ sub _service_info {
     errstr        => 'No data'
   } if (!$attr->{UID} || !$attr->{MODULE});
 
-  my %info_function = ('Iptv' => $attr->{ID});
+  my %info_function = (
+    'Iptv'    => $attr->{ID},
+    'Triplay' => {
+      UID => $attr->{UID}
+    },
+    'Mobile' => $attr->{ID}
+  );
 
   eval {require $attr->{MODULE} . '.pm';};
 
@@ -1982,24 +2033,26 @@ sub _show_message {
 }
 
 #**********************************************************
-=head2 all_info($attr) - Get All info about active user tariffs
+=head2 services_info($attr) - Get All info about active user tariffs
 
   Arguments:
     $attr: hash
-      MODULE: string        - type of module
-      FUNCTION_PARAMS: hash - params for module user_list function
-      UID: integer          - user id
-      SERVICE_INFO: object  - module object
+      MODULE: string            - type of module
+      FUNCTION_PARAMS: hash     - params for module user_list function
+      UID: integer              - user id
+      SERVICE_INFO: object      - module object
+      UPDATE_SERVICE_INFO: ref  - function which will add extra fields to response except of type of service
 
   Results:
     $result: array of hashes
 
 =cut
 #**********************************************************
-sub all_info {
+sub services_info {
   my $self = shift;
-  my ($attr)= @_;
+  my ($attr) = @_;
 
+  $attr->{MODULE} //= 'Internet';
   my $service_info = $attr->{SERVICE_INFO} || $self->_service_info($attr);
 
   my $tariffs_list = $service_info->user_list({
@@ -2028,15 +2081,13 @@ sub all_info {
     LIST2HASH => 'id,name'
   });
 
-  if ($attr->{MODULE} eq 'Iptv') {
-    %main::FORM = ();
-    ::load_module('Iptv::Services', { LOAD_PACKAGE => 1 });
-  }
-
   foreach my $tariff (@{$tariffs_list}) {
+    # triplay_main.id not exists in table
+    $tariff->{id} = $tariff->{tp_id} if ($attr->{MODULE} eq 'Triplay');
+
     $Shedule->info({ UID => $attr->{UID}, TYPE => 'tp', MODULE => $attr->{MODULE}, ACTION => "$tariff->{id}:%" });
 
-    if ($Shedule->{TOTAL} > 0)  {
+    if ($Shedule->{TOTAL} > 0) {
       my $can_cancel = $self->del_user_chg_shedule({
         CAN_CANCEL => 1,
         UID        => $attr->{UID},
@@ -2092,7 +2143,7 @@ sub all_info {
       });
 
       $tariff->{internal_results}->{can_change_tp} = $change_tp_result if ($attr->{INTERNAL_CALL});
-      $tariff->{can_change_tp} = $change_tp_result->{errno} ? 'false' : 'true';
+      $tariff->{can_change_tp} = ($change_tp_result->{errno} || $change_tp_result->{error}) ? 'false' : 'true';
     }
 
     if ($tariff->{tp_reduction_fee} && $user_info->{REDUCTION} && $user_info->{REDUCTION} > 0) {
@@ -2113,59 +2164,25 @@ sub all_info {
       $tariff->{next_abon} = $next_abon;
     }
 
-    if ($attr->{MODULE} eq 'Internet' || $attr->{MODULE} eq 'Iptv') {
-      my $status = defined $tariff->{service_status} ? $tariff->{service_status} : $tariff->{internet_status};
-      my ($status_name) = $statuses->{$status} =~ /(?<=\$lang\{)(.*)(?=\})/g;
-      $status_name //= q{};
-      $tariff->{status_name} = $lang->{$status_name} || camelize($status_name);
+    my $status = defined $tariff->{service_status} ? $tariff->{service_status} : ($tariff->{internet_status} // $tariff->{voip_status});
+    my ($status_name) = $statuses->{$status} =~ /(?<=\$lang\{)(.*)(?=\})/g;
+    $status_name //= q{};
+    $tariff->{status_name} = $lang->{$status_name} || camelize($status_name);
 
-      #TODO: Add normal info return for IPTV API if enabled HOLDUP_ALL
-      my $holdup = $self->user_holdup({
-        UID          => $attr->{UID},
-        ID           => $tariff->{id},
-        MODULE       => $attr->{MODULE},
-        ACCEPT_RULES => 1
-      });
+    #TODO: Add normal info return for IPTV API if enabled HOLDUP_ALL
+    my $holdup = $self->user_holdup({
+      UID          => $attr->{UID},
+      ID           => $tariff->{id},
+      MODULE       => $attr->{MODULE},
+      ACCEPT_RULES => 1
+    });
 
-      if ($holdup && !$holdup->{result}) {
-        $tariff->{holdup} = $holdup;
-      }
+    if ($holdup && !$holdup->{result}) {
+      $tariff->{holdup} = $holdup;
     }
 
-    if ($attr->{MODULE} eq 'Internet') {
-      $tariff->{service_holdup} = (($CONF->{INTERNET_USER_SERVICE_HOLDUP} || $CONF->{HOLDUP_ALL}) && $tariff->{internet_status}) ? 'false' : 'true';
-
-      my $speed = $service_info->get_speed({
-        UID       => $attr->{UID},
-        TP_ID     => $tariff->{tp_id},
-        COLS_NAME => 1,
-        PAGE_ROWS => 1
-      });
-
-      $tariff->{in_speed} = $speed->[0]->{in_speed};
-      $tariff->{out_speed} = $speed->[0]->{out_speed};
-
-      $tariff->{mac_discovery} = $self->{conf}->{INTERNET_MAC_DICOVERY} && $tariff->{cid} ? 'true' : 'false';
-
-      $tariff->{ip} = int2ip($tariff->{ip_num});
-    }
-
-    if ($attr->{MODULE} eq 'Iptv') {
-      $main::Tv_service = undef;
-
-      if ($tariff->{service_id}) {
-        $main::Iptv = $service_info;
-        $main::Tv_service = ::tv_load_service($service_info->{SERVICE_MODULE}, { SERVICE_ID => $service_info->{SERVICE_ID} });
-
-        if ($main::Tv_service) {
-          $tariff->{get_url} = 'true' if ($main::Tv_service->can('get_url'));
-          $tariff->{get_code} = 'true' if ($main::Tv_service->can('get_code'));
-          $tariff->{get_playlist} = 'true' if ($main::Tv_service->can('get_playlist_m3u') && $CONF->{IPTV_CLIENT_M3U});
-        }
-      }
-
-      delete $tariff->{tv_user_portal};
-      $tariff->{service_holdup} = ($tariff->{tv_user_portal} && $tariff->{tv_user_portal} > 1 && !$tariff->{service_status}) ? 'false' : 'true';
+    if ($attr->{UPDATE_SERVICE_INFO} && ref $attr->{UPDATE_SERVICE_INFO} eq 'CODE') {
+      $tariff = $attr->{UPDATE_SERVICE_INFO}->($service_info, $tariff);
     }
   }
 
@@ -2419,6 +2436,8 @@ sub _iptv_holdup_functions {
 sub _get_module_tariffs {
   my $self = shift;
   my ($attr, $service_info, $user_info) = @_;
+
+  #TODO: rewrite on cross_modules with option MODULES => $module_name
 
   my $module = ucfirst(lc($attr->{MODULE} || ''));
   my $dir = ($main::base_dir || '/usr/abills/') . 'Abills/modules/';

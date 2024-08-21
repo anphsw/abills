@@ -6,7 +6,6 @@ use Test::More;
 use lib '.';
 use lib '../../';
 use Paysys::t::Init_t;
-require Paysys::systems::Ipay_mp;
 
 our (
   %conf,
@@ -19,22 +18,31 @@ our (
   $argv
 );
 
-my $Payment_plugin = Paysys::systems::Ipay_mp->new($db, $admin, \%conf);
-$Payment_plugin->{TEST}=1;
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::systems::Ipay_mp;
+  $Payment_plugin = Paysys::systems::Ipay_mp->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::Ipay_mp;
+  $Payment_plugin = Paysys::Plugins::Ipay_mp->new($db, $admin, \%conf);
+}
+$Payment_plugin->{TEST} = 1;
 if ($debug > 3) {
-  $Payment_plugin->{DEBUG}=7;
+  $Payment_plugin->{DEBUG} = 7;
 }
 
+$user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 $payment_sum = int($payment_sum * 100);
 
 our @requests = (
   {
     name    => 'PAY',
     request => qq{<?xml version="1.0" encoding="utf-8"?>
-<payment id="107384240">
+<payment id="$payment_id">
   <ident>941a161bdf0d6208a820e4004bc5d2afecdb3efe</ident>
   <status>5</status>
-  <amount>500</amount>
+  <amount>$payment_sum</amount>
   <currency>UAH</currency>
   <timestamp>1631099870</timestamp>
   <transactions>
@@ -47,7 +55,7 @@ our @requests = (
       <status>11</status>
       <code>00</code>
       <desc>Login: 22116, Transaction: 30066425, UID: 42365</desc>
-      <info>[]</info>
+      <info>{"UID":"$user_id","amount":"$payment_sum","OPERATION_ID":"70755519","FIO":"Test payment"}</info>
     </transaction>
     <transaction id="211818073">
       <mch_id>3151</mch_id>
@@ -58,7 +66,7 @@ our @requests = (
       <status>11</status>
       <code>00</code>
       <desc>Login: 22116, Transaction: 30066425, UID: 42365</desc>
-      <info>[]</info>
+      <info>{"UID":"$user_id","amount":"$payment_sum","OPERATION_ID":"70755519","FIO":"Test payment"}</info>
     </transaction>
   </transactions>
   <settlements>
@@ -74,22 +82,68 @@ our @requests = (
 </payment>},
     result  => q{}
   },
-    {
-      name    => 'check',
-      request => qq{xml=<?xml version="1.0" encoding="utf-8"?><check><mch_id>dfcbc8b24aef69c676ed9bff3df3d503b9d15445</mch_id><srv_id>0</srv_id><pay_account>10061</pay_account></check>},
-      result  => q{}
-    }
+  {
+    name    => 'CHECK',
+    request => qq{xml=<?xml version="1.0" encoding="utf-8"?><check><mch_id>dfcbc8b24aef69c676ed9bff3df3d503b9d15445</mch_id><srv_id>0</srv_id><pay_account>$user_id</pay_account></check>},
+    result  => q{}
+  },
+  {
+    name    => 'CANCEL',
+    request => qq{<?xml version="1.0" encoding="utf-8"?>
+<payment id="$payment_id">
+  <ident>941a161bdf0d6208a820e4004bc5d2afecdb3efe</ident>
+  <status>9</status>
+  <amount>$payment_sum</amount>
+  <currency>UAH</currency>
+  <timestamp>1631099870</timestamp>
+  <transactions>
+    <transaction id="211818073">
+      <mch_id>3151</mch_id>
+      <srv_id>0</srv_id>
+      <amount>500</amount>
+      <currency>UAH</currency>
+      <type>20</type>
+      <status>11</status>
+      <code>00</code>
+      <desc>Login: 22116, Transaction: 30066425, UID: 42365</desc>
+      <info>{"UID":"$user_id","amount":"$payment_sum","OPERATION_ID":"70755519","FIO":"Test payment"}</info>
+    </transaction>
+    <transaction id="211818073">
+      <mch_id>3151</mch_id>
+      <srv_id>0</srv_id>
+      <amount>500</amount>
+      <currency>UAH</currency>
+      <type>21</type>
+      <status>11</status>
+      <code>00</code>
+      <desc>Login: 22116, Transaction: 30066425, UID: 42365</desc>
+      <info>{"UID":"$user_id","amount":"$payment_sum","OPERATION_ID":"70755519","FIO":"Test payment"}</info>
+    </transaction>
+  </transactions>
+  <settlements>
+    <settlement>
+      <smch_id>7626</smch_id>
+      <invoice>500</invoice>
+      <fee>0</fee>
+      <amount>500</amount>
+    </settlement>
+  </settlements>
+  <salt>bfe63b5d97b5c7903b8a9fdb7bab65b9e10d04cc</salt>
+  <sign>52096b12a7b537ea9b7fa90513d5d71c5724eda3a3ef70d52906c2b12ad619433655b72804690912f02a0107ae05e4dcdaa5e9bee9ad572431d496c4b7ca9ca2</sign>
+</payment>},
+    result  => q{}
+  },
 );
 
 test_runner($Payment_plugin, \@requests, { VALIDATE => 'xml_compare' });
 
 our %mock_responses = (
-  "Check"         => {
+  "Check"            => {
     "response" => {
       "user_status" => "exists"
     }
   },
-  "List"          => {
+  "List"             => {
     "response" => {
       "TEST_CARD"   => {
         "card_alias"   => "TEST_CARD",
@@ -107,20 +161,46 @@ our %mock_responses = (
       }
     }
   },
-  "PaymentCreate" => {
+  "PaymentCreate"    => {
+    "response" => {
+      "pmt_id"        => $payment_id,
+      "invoice"       => "100",
+      "amount"        => "102",
+      "pmt_status"    => "0",
+      "card_alias"    => "TEST_CARD",
+      "card_mask"     => "111122********44",
+      "msisdn"        => "380931234567",
+      "security_rate" => "3D",
+      "security_data" => {
+        # mock redirect, can not here create, because in it present dynamic data, forming in Ipay_mp.pm
+        "redirect_url" => ""
+      }
+    }
+  },
+  "PaymentVerify3DS" => {
     "response" => {
       "pmt_id"        => $payment_id,
       "invoice"       => "100",
       "amount"        => "102",
       "pmt_status"    => "5",
-      "card_alias"    => "TEST_CARD",
+      "card_alias"    => "card",
       "card_mask"     => "111122********44",
       "msisdn"        => "380931234567",
+      "rrn"           => 'null',
+      "auth_code"     => 'null',
       "bank_response" => {
-        "error_group" => "",
-        "bank_id"     => 28,
-        "trm_id"      => 123456
-      }
+        "bank_id"     => "1",
+        "rc"          => "",
+        "action"      => "",
+        "error_group" => 'null',
+        "trm_id"      => "229875"
+      },
+      "mch_amount"    => [
+        {
+          "smch_id" => "4266",
+          "amount"  => 100
+        }
+      ]
     }
   }
 );

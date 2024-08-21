@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 30026
+  errstr:
+    type: string
+    example: "Phone alias 05032321312 already has user with uid 123321"

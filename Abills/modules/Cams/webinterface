@@ -1581,7 +1581,7 @@ sub cams_users_list {
   result_former({
     INPUT_DATA     => $Cams,
     BASE_FIELDS    => 0,
-    FUNCTION       => 'users_list',
+    FUNCTION       => 'user_list',
     DEFAULT_FIELDS => 'LOGIN,FIO,DEPOSIT,CREDIT,TP_NAME,SERVICE_STATUS,SERVICE_NAME',
     EXT_TITLES     => {
       'id'             => 'ID',

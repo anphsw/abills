@@ -138,6 +138,16 @@ $lang{BILL_ID}   = 'Bill id';
 $lang{ERR_MAKE_PAYMENT} = 'An error occurred during payment';
 $lang{PAYSYS_IMPORT_NOT_CONFIGURED} = 'Statement settings are not configured correctly. Check the $conf{PAYSYS_IMPORT_RULES} settings and other parameters according to the documentation';
 $lang{TRANSACTION_EXISTS} = 'The transaction with ID %ID% already exists. Please re-execute the payment transaction.';
+$lang{PORTAL_COMMENT_DESC} = 'Description in user portal';
+$lang{PORTAL_COMMISSION_DESC} = 'Commission description in user portal';
+$lang{NO_ACTIVE_RECURRENT_PAYMENTS} = 'No active regular(recurrent) payments';
+$lang{FORCE_IMPORT} = 'Force import';
+$lang{PAYSYS_V3_DEPRECATED} = 'The V3 schema will be removed from the next release, to switch to the new schema add “$conf{PAYSYS_V4}=1;” in config.pl';
+$lang{PAYMENTS_DISABLED} = 'Payments disabled';
+
+$lang{ERR_PAYSYS_DOMAIN} = 'Please enter through the domain URL or set the %OPTION% option';
+$lang{ERR_NO_FAST_PAY_LINK} = 'No fast pay link';
+$lang{ERR_WRONG_CONFIGURATIONS} = 'Wrong configuration';
 
 $lang{EVENT_MERCHANT_ADDED_TITLE}         = 'Paysys merchant changed';
 $lang{EVENT_MERCHANT_ADDED_MESSAGE}       = 'Configure for merchant changed with id - %MERCHANT_ID% and name - %MERCHANT_NAME%';

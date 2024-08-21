@@ -1,0 +1,10 @@
+type: object
+properties:
+  affected:
+    type: number
+    default: 1
+  aid:
+    type: number
+  total:
+    type: number
+    default: 0

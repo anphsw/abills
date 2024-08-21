@@ -65,7 +65,11 @@ sub phone_activate {
       return $Errors->throw_error(1640011);
     }
   }
-  
+
+  if (!$Lifecell->can('phone_activate')) {
+    return $Errors->throw_error(1640015);
+  }
+
   my $result = $Lifecell->phone_activate($Mobile);
 
   if ($result && $result->{operationResult} && $result->{operationResult}{resultCode}) {
@@ -75,7 +79,50 @@ sub phone_activate {
   }
   $result->{EXTERNAL_METHOD} = $Lifecell->{EXTERNAL_METHOD} if $Lifecell->{EXTERNAL_METHOD};
 
-  if ($Lifecell->{TRANSACTION_ID}) {
+  if ($Lifecell->{TRANSACTION_ID} && !$result->{errno} && !$result->{errstr}) {
+    $Mobile->user_change({
+      ID              => $attr->{ID},
+      TRANSACTION_ID  => $Lifecell->{TRANSACTION_ID},
+      EXTERNAL_METHOD => $result->{EXTERNAL_METHOD}
+    });
+  }
+  return $result;
+}
+
+#**********************************************************
+=head2 phone_deactivate($attr)
+
+  Arguments:
+    $attr
+=cut
+#**********************************************************
+sub phone_deactivate {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $Errors->throw_error(1640012) if !$attr->{ID};
+
+  $Mobile->user_info($attr->{ID});
+  return $Errors->throw_error(1640013) if $Mobile->{DISABLE};
+
+  if ($Mobile->{EXTERNAL_METHOD}) {
+    return $Errors->throw_error(1640014);
+  }
+
+  if (!$Lifecell->can('phone_deactivate')) {
+    return $Errors->throw_error(1640015);
+  }
+
+  my $result = $Lifecell->phone_deactivate($Mobile);
+
+  if ($result && $result->{operationResult} && $result->{operationResult}{resultCode}) {
+    my $errstr = $result && $result->{operationResult} && $result->{operationResult}{resultDescription} ?
+      $result->{operationResult}{resultDescription} : '';
+    return $Errors->throw_error(1640004, { errstr => $errstr });
+  }
+  $result->{EXTERNAL_METHOD} = $Lifecell->{EXTERNAL_METHOD} if $Lifecell->{EXTERNAL_METHOD};
+
+  if ($Lifecell->{TRANSACTION_ID} && !$result->{errno} && !$result->{errstr}) {
     $Mobile->user_change({
       ID              => $attr->{ID},
       TRANSACTION_ID  => $Lifecell->{TRANSACTION_ID},
@@ -102,6 +149,10 @@ sub confirm_pin {
     if (in_array($Mobile->{EXTERNAL_METHOD}, ['partnerP2CConfirm', 'partnerActivationStandart'])) {
       return $Errors->throw_error(1640011);
     }
+  }
+
+  if (!$Lifecell->can('confirm_pin')) {
+    return $Errors->throw_error(1640015);
   }
 
   $Mobile->{PIN} = $attr->{PIN};
@@ -137,6 +188,10 @@ sub balance {
 
   $Mobile->user_info($attr->{ID});
 
+  if (!$Lifecell->can('balance')) {
+    return $Errors->throw_error(1640015);
+  }
+
   my $result = $Lifecell->balance($Mobile);
   return $result if !$result || !$result->{operationResult};
 
@@ -160,7 +215,7 @@ sub balance {
       $amount = Abills::Base::int2byte($amount);
     }
     elsif ($measure eq 'Sec.') {
-      $amount = Abills::Base::sec2time($amount, { format => 1 });
+      $amount = Abills::Base::sec2time($amount, { minutes => 1 });
     }
 
     my $service_info = {
@@ -173,10 +228,15 @@ sub balance {
       amount     => $amount
     };
 
-    if (in_array($measure, ['Bytes', 'Sec.'])) {
+    if (in_array($measure, ['Bytes'])) {
       $service_info->{measure_en} = '';
       $service_info->{measure_ru} = '';
       $service_info->{measure_ua} = '';
+    }
+    elsif ($measure eq 'Sec.') {
+      $service_info->{measure_en} = 'min';
+      $service_info->{measure_ru} = 'мин';
+      $service_info->{measure_ua} = 'хв';
     }
 
     push @balances, $service_info;
@@ -207,12 +267,19 @@ sub user_add_tp {
   return $Errors->throw_error(1640008) if (!$Mobile->{TOTAL} || $Mobile->{TOTAL} < 1 || !$tp_info->{SERVICE_ID});
 
   $tp_info->{SERVICE_ID} =~ s/,/;/g;
-  my $services = $Mobile->service_list({ ID => $tp_info->{SERVICE_ID}, NAME => '_SHOW', COLS_NAME => 1 });
+  my $services = $Mobile->service_list({ ID => $tp_info->{SERVICE_ID}, NAME => '_SHOW', FILTER_ID => '_SHOW', COLS_NAME => 1 });
   return $Errors->throw_error(1640009) if !$Mobile->{TOTAL} || $Mobile->{TOTAL} < 1;
 
-  my $services_name = [];
-  map push(@{$services_name}, $_->{name}), @{$services};
-  my $lego_blocks = join(';', @{$services_name});
+  if (!$Lifecell->can('order_offer')) {
+    return $Errors->throw_error(1640015);
+  }
+
+  my $services_ids = [];
+  foreach my $service (@{$services}) {
+    next if !$service->{filter_id} || $service->{filter_id} !~ /^MVNO_/;
+    push(@{$services_ids}, $service->{filter_id});
+  }
+  my $lego_blocks = join(';', @{$services_ids});
 
   if ($attr->{STATUS}) {
     $Mobile->user_change({ ID => $attr->{ID}, TP_ID => $attr->{TP_ID}, TP_STATUS => $attr->{STATUS} });
@@ -235,6 +302,7 @@ sub user_add_tp {
     if (!$Mobile->{errno}) {
       $Mobile->user_info($attr->{ID});
       $Mobile->{TP_INFO} = $Tariffs->info($Mobile->{TP_ID});
+      delete $Mobile->{ACTIVATE};
       ::service_get_month_fee($Mobile, {
         SERVICE_NAME               => $self->{lang}{MOBILE_COMMUNICATION},
         DO_NOT_USE_GLOBAL_USER_PLS => 1,
@@ -248,7 +316,7 @@ sub user_add_tp {
     $Mobile->user_change({
       ID              => $attr->{ID},
       TP_ID           => $attr->{TP_ID},
-      TP_STATUS       => 1,
+      TP_STATUS       => $attr->{CONTINUE_SUBSCRIPTION} ? 5 : 1,
       TP_ACTIVATE     => '0000-00-00'
     });
 

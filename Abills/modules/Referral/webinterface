@@ -530,6 +530,7 @@ sub _get_users_list {
   my $list = $Referral->list({
     REFERRER  => '_SHOW',
     UID       => '_SHOW',
+    PAGE_ROWS => 10000,
     COLS_NAME => 1
   });
 
@@ -565,6 +566,11 @@ sub add_friend {
 
   my $info = {};
   my $action_res = {};
+
+  require Control::Services;
+  require Service;
+  Service->import();
+  my $Service = Service->new($db, $admin, \%conf);
 
   if ($FORM{add}) {
     $action_res = $Referral_users->referral_user_manage({
@@ -610,14 +616,14 @@ sub add_friend {
     $html->message(@{$action_res->{element}});
   }
 
-  my $result = $Referral_users->referrals_user({ UID => $user->{UID} });
-  my $total_bonus = $result->{total_bonus};
+  my $service_status_list = $Service->status_list({ NAME => '_SHOW', LIST2HASH => 'id,name' });
+  my $user_status_list = $Users->user_status_list({ NAME => '_SHOW', COLOR => '_SHOW', HASH => 1, COLS_NAME => 1 });
 
   my $table = $html->table({
     width   => '100%',
     caption => $lang{USERS},
-    title   => [ $lang{FIO}, $lang{PHONE}, $lang{REQUEST_STATUS},
-      $lang{SPEND_PERCENT}, $lang{REPL_PERCENT}, $lang{STATUS} ],
+    title   => [ $lang{FIO}, $lang{PHONE}, $lang{SPEND_PERCENT}, $lang{REPL_PERCENT},
+      $lang{REQUEST_STATUS}, "$lang{STATUS} Internet","$lang{STATUS} $lang{USER}" ],
     qs      => $pages_qs,
     ID      => 'SEARCH_TABLE_ID'
   });
@@ -629,19 +635,32 @@ sub add_friend {
     3 => $lang{CANCELED}
   );
 
-  my $user_status = {
-    0 => $html->badge($lang{ENABLE}, {TYPE => 'badge-success'}),
-    1 => $html->badge($lang{DISABLE}, {TYPE => 'badge-danger'}),
-  };
+  my $result = $Referral_users->referrals_user({ UID => $user->{UID} });
+  my $total_bonus = $result->{total_bonus};
 
   foreach my $referral (@{$result->{referrals}}) {
+
+    my $status_name = $user_status_list->{$referral->{DISABLE}}->{name} || '';
+    my $status_color = $user_status_list->{$referral->{DISABLE}}->{color} || '';
+    my $user_status = $html->badge(_translate($status_name), {STYLE => "style=\"background-color: #$status_color;\""});
+    my $service_info = ();
+    $service_info = get_services({ UID => $referral->{UID}} ) if $referral->{UID};
+
+    my $user_service_status = '';
+    foreach my $service (@{ $service_info->{list} }){
+      if ($service->{MODULE} && $service->{MODULE} eq 'Internet'){
+        $user_service_status = $service->{STATUS};
+      }
+    }
+
     $table->addrow(
       $referral->{FIO} || '--',
       $referral->{PHONE} || '--',
-      $status{$referral->{STATUS}} || '--',
       $referral->{SPENDING_BONUS} || '--',
       $referral->{PAYMENT_BONUS} || '--',
-      $user_status->{$referral->{DISABLE}} || '--',
+      $status{$referral->{STATUS}} || '--',
+      _translate($service_status_list->{$user_service_status}) || '--',
+      $user_status,
       $referral->{IS_USER} eq 'true' ? '' : $html->button($lang{CHANGE}, "index=$index&chg=$referral->{ID}", { class => 'change' }),
     );
   }
@@ -782,7 +801,6 @@ sub referral_requests {
       $referral_button = $html->button($referrer_info->{id}, "index=$form_users_index&UID=$referrer_info->{uid}", {class => 'p-2'}) if ($referrer_info->{id}),
     }
 
-
     $html->tpl_show(_include('referral_change_admin_form', 'Referral'), {
       %{($Referral->{TOTAL} && $Referral->{TOTAL} > 0) ? $info->[0] : {}},
       ID             => $FORM{chg},
@@ -800,12 +818,13 @@ sub referral_requests {
   }
 
   if ($FORM{change}) {
-    if ($FORM{STATUS} && $FORM{STATUS} == 2) {
-      referral_set({
-        REFERRAL_UID     => $FORM{REFERRAL_UID},
-        REFERRAL_REQUEST => $FORM{ID}
-      });
+    my $main_list = $Referral->list({
+      UID       => $FORM{REFERRAL_UID},
+      REFERRAL  => $FORM{REFERRER_UID},
+      COLS_NAME => 1,
+    });
 
+    if ($FORM{STATUS} && $FORM{STATUS} == 2 && !$main_list->[0]) {
       my $tp = $Referral->tp_info($FORM{TP_ID});
       if ($tp->{MULTI_ACCRUAL} && $FORM{REFERRAL_UID}) {
         $Referral_users->_referral_add_bonus({
@@ -824,6 +843,11 @@ sub referral_requests {
 
         _error_show($Referral_users);
       }
+
+      referral_set({
+        REFERRAL_UID     => $FORM{REFERRAL_UID},
+        REFERRAL_REQUEST => $FORM{ID}
+      });
     }
 
     if($FORM{REFERRAL_UID}){
@@ -1147,6 +1171,7 @@ sub referral_tp {
         my @fees = split (', ', $fees_type);
         my $result = '';
         foreach my $type (@fees){
+          return $result if (!defined($type));
           $result .= "$fees_types->{$type}, " if (defined($type));
         }
         return $result;

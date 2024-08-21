@@ -283,6 +283,12 @@ sub make_request {
     DEBUG       => ($self->{debug}) ? 4 : 0,
   });
 
+  if ($result->{errno}) {
+    $result->{error} = $result->{errno};
+    $result->{name} = "ABILLS_FETCHER_ERROR";
+    $result->{message} = $result->{errstr};
+  }
+
   return $result;
 }
 

@@ -3,7 +3,7 @@ get:
     - msgs
   summary: Информация о заявке пользователя
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: ID заявки
       required: true

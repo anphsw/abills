@@ -80,7 +80,7 @@ class ScheduleTable {
   }
 
   generateSidebar() {
-    this.sidebar = $('<div class="time-sidebar"></div>')
+    this.sidebar = $('<ul class="time-sidebar"></ul>')
     this.sidebar.append($('<div class="time-row hours"></div>'));
   }
 
@@ -93,8 +93,10 @@ class ScheduleTable {
   generateAdminRows() {
     let self = this;
 
-    Object.entries(this.administrators).forEach(([aid, admin]) => {
-      this.sidebar.append($(`<div class='time-row admin-row'>${admin.name}</div>`))
+    Object.entries(this.administrators)
+      .sort(([, adminA], [, adminB]) => adminB.priority - adminA.priority)
+      .forEach(([aid, admin]) => {
+      this.sidebar.append($(`<li class='time-row admin-row'>${admin.name}</li>`))
 
       let mainRowContainer = $('<div class="time-row-container"></div>');
       let row = $(`<div class="time-row draggable-row" data-admin="${aid}" style="width: ${self.width}px !important;"></div>`);

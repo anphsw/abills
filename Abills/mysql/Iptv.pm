@@ -90,6 +90,7 @@ sub user_info {
    tp.filter_id AS tp_filter_id,
    tp.credit AS tp_credit,
    tp.age AS tp_age,
+   tp.priority AS tp_priority,
    tp.activate_price AS tp_activate_price,
    tp.change_price AS tp_change_price,
    tp.period_alignment AS tp_period_alignment,
@@ -178,6 +179,17 @@ sub user_add {
 
   $admin->action_add($attr->{UID}, "ID: $self->{INSERT_ID} ".  join(', ', @actions_history), { TYPE => 1 } );
 
+  if (!$attr->{STATUS}) {
+    $self->iptv_monthly_active_users_add({
+      SUBSCRIBE_ID => $self->{ID},
+      ACTIVATE     => 'NOW()',
+      TP_ID        => $attr->{TP_ID},
+      UID          => $attr->{UID},
+      SERVICE_ID   => $attr->{SERVICE_ID}
+    });
+    $self->{INSERT_ID} = $self->{ID};
+  }
+
   return $self;
 }
 
@@ -199,6 +211,7 @@ sub user_change{
   $attr->{DISABLE} = $attr->{STATUS};
   my $old_info = $self->user_info( $attr->{ID} );
   $self->{OLD_STATUS} = $old_info->{STATUS};
+  $admin->{MODULE} = $MODULE;
 
   if ( $attr->{TP_ID} && $attr->{TP_ID} && $old_info->{TP_ID} != $attr->{TP_ID} ){
     my $Tariffs = Tariffs->new( $self->{db}, $CONF, $admin );
@@ -254,14 +267,40 @@ sub user_change{
 
   $attr->{JOIN_SERVICE} = ($attr->{JOIN_SERVICE}) ? $attr->{JOIN_SERVICE} : 0;
 
-  $admin->{MODULE} = $MODULE;
   $self->changes({
     CHANGE_PARAM => 'ID',
     TABLE        => 'iptv_main',
     DATA         => $attr
   });
 
-  $self->user_info( $attr->{ID} );
+  if ($attr->{TP_ID} && $attr->{TP_ID} && $old_info->{TP_ID} != $attr->{TP_ID}) {
+    $self->iptv_monthly_active_users_change({ SUBSCRIBE_ID => $attr->{ID} });
+
+    if (defined($old_info->{STATUS}) && $old_info->{STATUS} == 0) {
+      $self->iptv_monthly_active_users_add({
+        SUBSCRIBE_ID => $attr->{ID},
+        ACTIVATE     => 'NOW()',
+        TP_ID        => $attr->{TP_ID},
+        UID          => $attr->{UID},
+        SERVICE_ID   => $attr->{SERVICE_ID}
+      });
+    }
+  }
+  elsif ($old_info->{STATUS} && (defined($attr->{STATUS}) && $attr->{STATUS} == 0)) {
+    $self->iptv_monthly_active_users_add({
+      SUBSCRIBE_ID => $attr->{ID},
+      ACTIVATE     => 'NOW()',
+      TP_ID        => $attr->{TP_ID} || $old_info->{TP_ID},
+      UID          => $attr->{UID},
+      SERVICE_ID   => $attr->{SERVICE_ID} || $old_info->{SERVICE_ID}
+    });
+  }
+  elsif (!$old_info->{STATUS} && $attr->{STATUS}) {
+    $self->iptv_monthly_active_users_change({ SUBSCRIBE_ID => $attr->{ID}, UID => $attr->{UID}, PREV_DATE => $attr->{PREV_DATE} });
+  }
+
+  $self->user_info($attr->{ID});
+
   return $self;
 }
 
@@ -274,7 +313,9 @@ sub user_del{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_del( 'iptv_main', $attr, { uid => $self->{UID} } );
+  $self->iptv_monthly_active_users_change({ SERVICE_ID => $attr->{ID}, UID => $self->{UID} });
+
+  $self->query_del('iptv_main', $attr, { uid => $self->{UID} } );
 
   $admin->{MODULE}=$MODULE;
   my @del_descr = ();
@@ -307,6 +348,7 @@ sub user_list{
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my $GROUP_BY = '';
+  my @WHERE_RULES = ();
 
   if ($attr->{GROUP_BY} && $attr->{GROUP_BY} =~ /GROUP/i) {
     $GROUP_BY = $attr->{GROUP_BY};
@@ -315,6 +357,20 @@ sub user_list{
   my $EXT_TABLE = '';
   $self->{EXT_TABLES} = '';
   delete $self->{errno};
+
+  if ($attr->{TAGS} && $attr->{TAGS} ne '_SHOW' && $attr->{TAG_SEARCH_VAL} && $attr->{TAG_SEARCH_VAL} == 1) {
+    my $tags_count = scalar(split /,\s?/, $attr->{TAGS});
+    push @WHERE_RULES, "u.uid IN (SELECT tu.uid
+      FROM tags_users tu
+      GROUP BY tu.uid
+      HAVING COUNT(DISTINCT CASE WHEN tu.tag_id IN ($attr->{TAGS}) THEN tu.tag_id END) = $tags_count
+    )";
+    $attr->{TAGS} = '_SHOW';
+  }
+  if ($attr->{TAGS} && $attr->{TAGS} ne '_SHOW' && $attr->{TAG_SEARCH_VAL} && $attr->{TAG_SEARCH_VAL} == 2) {
+    push @WHERE_RULES, "u.uid NOT IN (SELECT tu.uid FROM tags_users tu WHERE tu.tag_id IN ($attr->{TAGS}))";
+    $attr->{TAGS} = '_SHOW';
+  }
 
   my $WHERE = $self->search_former(
     $attr,
@@ -337,6 +393,7 @@ sub user_list{
       [ 'TV_SERVICE_ID',     'INT', 'tp.service_id', 'tp.service_id AS tv_service_id'                              ],
       [ 'TV_SERVICE_NAME',   'INT', 'tv_service.name', 'tv_service.name AS tv_service_name'                        ],
       [ 'TV_USER_PORTAL',    'INT', 'tv_service.user_portal', 'tv_service.user_portal AS tv_user_portal'           ],
+      [ 'TV_SERVICE_MODULE', 'INT', 'tv_service.module', 'tv_service.module AS tv_service_module'                  ],
       [ 'TP_CREDIT',         'INT', 'tp.credit', 'tp.credit AS tp_credit'                                          ],
       [ 'TP_FILTER',         'INT', 'tp.filter_id',                                                              1 ],
       [ 'TP_REDUCTION_FEE',  'INT', 'tp.reduction_fee', 'tp.reduction_fee AS tp_reduction_fee'                     ],
@@ -362,7 +419,8 @@ sub user_list{
       WHERE             => 1,
       USERS_FIELDS_PRE  => 1,
       USE_USER_PI       => 1,
-      SKIP_USERS_FIELDS => [ 'UID' ]
+      SKIP_USERS_FIELDS => [ 'UID' ],
+      WHERE_RULES       => \@WHERE_RULES
     }
   );
 
@@ -387,6 +445,10 @@ sub user_list{
 
   if ($attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW') {
     $self->{SEARCH_FIELDS} .= 'IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit, ';
+  }
+
+  if($self->{SORT_BY}) {
+    $SORT = $self->{SORT_BY};
   }
 
   my $list;
@@ -1533,7 +1595,8 @@ sub users_screens_add{
     }
   }
 
-  $admin->action_add( $attr->{UID}, "SERVICE_ID: $attr->{SERVICE_ID} SCREEN_ID: $attr->{SCREEN_ID}"
+  $attr->{UID} ||= $self->{UID};
+  $admin->action_add($attr->{UID}, "SERVICE_ID: $attr->{SERVICE_ID} SCREEN_ID: $attr->{SCREEN_ID} "
     .  join(', ', @actions_history), { TYPE => 1 } );
 
   $self->{SERVICE_ID}=$attr->{SERVICE_ID};
@@ -1758,6 +1821,7 @@ sub services_list{
       [ 'NAME',                'STR', 'name',                    1 ],
       [ 'MODULE',              'STR', 'module',                  1 ],
       [ 'STATUS',              'INT', 'status',                  1 ],
+      [ 'URL',                 'STR', 'url',                     1 ],
       [ 'COMMENT',             'STR', 'comment',                 1 ],
       [ 'PROVIDER_PORTAL_URL', 'STR', 'provider_portal_url',     1 ],
       [ 'USER_PORTAL',         'INT', 'user_portal',             1 ],
@@ -2305,6 +2369,157 @@ sub iptv_promotion_tps {
   return $self->{list} || [];
 }
 
+#**********************************************************
+=head2 iptv_monthly_active_users_add($attr)
+
+=cut
+#**********************************************************
+sub iptv_monthly_active_users_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self if !$attr->{SUBSCRIBE_ID} || !$attr->{TP_ID} || !$attr->{UID};
+
+  $self->query("SELECT * FROM iptv_monthly_active_users_report WHERE
+    subscribe_id = ? AND tp_id = ? AND uid = ? AND expire = '0000-00-00'
+    AND activate < DATE_FORMAT(NOW(), '%Y-%m-%d') ORDER BY id DESC LIMIT 1;",
+    undef,
+    {
+      INFO => 1,
+      Bind => [ $attr->{SUBSCRIBE_ID}, $attr->{TP_ID}, $attr->{UID} ]
+    }
+  );
+  return $self if $self->{TOTAL} && $self->{TOTAL} > 0;
+
+  $self->query("SELECT * FROM iptv_monthly_active_users_report WHERE
+    subscribe_id = ? AND tp_id = ? AND uid = ? AND expire = DATE_FORMAT(NOW(), '%Y-%m-%d')
+    AND activate <= DATE_FORMAT(NOW(), '%Y-%m-%d') ORDER BY id DESC LIMIT 1;",
+    undef,
+    {
+      INFO => 1,
+      Bind => [ $attr->{SUBSCRIBE_ID}, $attr->{TP_ID}, $attr->{UID} ]
+    }
+  );
+
+  if ($self->{TOTAL} && $self->{TOTAL} > 0 && $self->{ID}) {
+    $self->changes({
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'iptv_monthly_active_users_report',
+      DATA         => {
+        ID     => $self->{ID},
+        EXPIRE => '0000-00-00'
+      }
+    });
+
+    return $self;
+  }
+
+  $self->query("SELECT * FROM iptv_monthly_active_users_report WHERE
+    subscribe_id = ? AND tp_id = ? AND uid = ? AND expire = DATE_FORMAT(NOW(), '%Y-%m-%d')
+    AND activate = DATE_FORMAT(NOW(), '%Y-%m-%d') ORDER BY id DESC LIMIT 1;",
+    undef,
+    {
+      INFO => 1,
+      Bind => [ $attr->{SUBSCRIBE_ID}, $attr->{TP_ID}, $attr->{UID} ]
+    }
+  );
+
+  if ($self->{TOTAL} && $self->{TOTAL} > 0 && $self->{ID}) {
+    $self->iptv_monthly_active_users_del($self->{ID});
+  }
+
+  $self->query_add('iptv_monthly_active_users_report', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 iptv_monthly_active_users_change($attr)
+
+=cut
+#**********************************************************
+sub iptv_monthly_active_users_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self if !$attr->{SUBSCRIBE_ID};
+
+  $self->query("SELECT * FROM iptv_monthly_active_users_report WHERE subscribe_id = ? AND expire = '0000-00-00' LIMIT 1;",
+    undef,
+    {
+      INFO => 1,
+      Bind => [ $attr->{SUBSCRIBE_ID} ]
+    }
+  );
+  return $self if !$self->{TOTAL} || $self->{TOTAL} < 1 || !$self->{ID};
+
+  $attr->{EXPIRE} = $attr->{PREV_DATE} || 'NOW()';
+  $attr->{ID} = $self->{ID};
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'iptv_monthly_active_users_report',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 iptv_monthly_active_users_del($id)
+
+=cut
+#**********************************************************
+sub iptv_monthly_active_users_del{
+  my $self = shift;
+  my ($id, $attr) = @_;
+
+  $self->query_del('iptv_monthly_active_users_report', $attr, { ID => $id } );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 iptv_monthly_active_users_list($attr)
+
+=cut
+#**********************************************************
+sub iptv_monthly_active_users_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $month = $attr->{MONTH} ? sprintf('%02d', $attr->{MONTH}) : undef;
+  my $year = $attr->{YEAR} || undef;
+
+  my $start_date = $month && $year ? "'$year-$month-01'" : "DATE_FORMAT(NOW() ,'%Y-%m-01')";
+  my $last_date = $month && $year ? "LAST_DAY($start_date)" : 'curdate()';
+
+  my @WHERE_RULES = ("imr.activate <= $last_date", "imr.tp_id <> 0", "(imr.expire = '0000-00-00' OR imr.expire >= $start_date)");
+  push @WHERE_RULES, "imr.service_id = $attr->{SERVICE_ID}" if $attr->{SERVICE_ID};
+
+  my $WHERE = $self->search_former($attr, [
+      [ 'ID', 'INT', 'imr.id',  ],
+    ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
+  );
+
+  $self->query("SELECT COUNT(imr.subscribe_id) AS users, imr.tp_id, ips.name AS service_name, ips.module, tp.name AS tp_name,
+    SUM(DATEDIFF(
+      IF(imr.expire <> '0000-00-00' AND imr.expire <= $last_date,
+         imr.expire,
+         $last_date
+        ),
+      IF(imr.activate < $start_date, $start_date, imr.activate)
+    ) + 1) AS days
+    FROM iptv_monthly_active_users_report imr
+		LEFT JOIN iptv_services ips ON (ips.id = imr.service_id)
+		LEFT JOIN tarif_plans tp ON (tp.tp_id = imr.tp_id)
+    $WHERE
+    GROUP BY imr.tp_id;",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
 
 #**********************************************************
 =head2 report_tp() - tariff's plan report
@@ -2334,7 +2549,7 @@ sub report_tp {
 
   $self->query("SELECT tp.id, tp.tp_id, tp.name, COUNT(DISTINCT iptv.uid) AS counts,
       COUNT(DISTINCT CASE WHEN iptv.disable=0 AND u.disable=0 THEN iptv.uid ELSE NULL END) AS active,
-      COUNT(DISTINCT CASE WHEN iptv.disable=1 AND u.disable=1 THEN iptv.uid ELSE NULL END) AS disabled,
+      COUNT(DISTINCT CASE WHEN iptv.disable!=0 OR u.disable!=0 THEN iptv.uid ELSE NULL END) AS disabled,
       SUM(IF(IF(u.company_id > 0, cb.deposit, b.deposit) < 0, 1, 0)) AS debetors,
       SUM(IF(u.reduction = 100, 1, 0)) AS users_reduction,
       ROUND(SUM(p.sum) / COUNT(DISTINCT iptv.uid), 2) AS arpu,

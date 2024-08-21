@@ -1,0 +1,29 @@
+post:
+  tags:
+    - msgs
+  summary: Прикрепление файла к ответу
+  operationId: addAttachmentToReply
+  parameters:
+    - name: reply_id
+      in: path
+      description: ID ответа на сообщение
+      required: true
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addReplyAttachmentRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+  security:
+    - KEY: []

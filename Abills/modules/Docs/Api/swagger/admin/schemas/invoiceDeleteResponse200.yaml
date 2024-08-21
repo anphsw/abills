@@ -1,0 +1,19 @@
+type: object
+properties:
+  errors:
+    type: number
+    example: 0
+  result:
+    type: string
+    example: OK
+  results:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 8847
+        result:
+          type: string
+          example: OK

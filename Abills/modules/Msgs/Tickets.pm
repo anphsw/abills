@@ -208,6 +208,13 @@ sub msgs_admin {
       });
       return;
     }
+    elsif ($FORM{del}) {
+      storage_hardware();
+      $html->redirect("?index=$index" . "&UID=" . ($FORM{UID} || q{}) . "&chg=" . ($FORM{chg} || q{}) . "#last_msg", {
+        WAIT         => '0'
+      });
+      return;
+    }
     else {
       storage_hardware();
 
@@ -259,6 +266,7 @@ sub msgs_admin {
       $html->message('info', $lang{INFO}, $lang{SUCCESS});
     }
   }
+
   if ($FORM{chg}) {
     $Msgs->{TAB2_ACTIVE} = (!$Msgs->{TAB1_ACTIVE}) ? "active" : "";
     msgs_ticket_show();
@@ -305,6 +313,8 @@ sub msgs_admin {
   $LIST_PARAMS{CHAPTER} = $FORM{CHAPTER} if ($FORM{CHAPTER});
   $LIST_PARAMS{DESC} = 'DESC' if (!$FORM{sort});
   $LIST_PARAMS{RESPOSIBLE} = $attr->{ADMIN}->{AID} if ($attr->{ADMIN}->{AID});
+
+  print _msgs_recent_user_messages($FORM{UID}) if ($FORM{QUICK});
 
   msgs_list();
 
@@ -359,7 +369,7 @@ sub msgs_admin_add {
   my ($attr) = @_;
 
   return 1 if !$msgs_permissions{1}{0} && !$attr->{REGISTRATION};
-  return 1 if (!$FORM{SUBJECT} || !$FORM{MESSAGE}) && defined $FORM{SUBJECT} && $attr->{REGISTRATION};
+  return 1 if (!$FORM{SUBJECT} || (!$FORM{MESSAGE} && !$FORM{QUICK})) && defined $FORM{SUBJECT} && $attr->{REGISTRATION};
 
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
   $FORM{send_message} = 1 if ($FORM{add} && $FORM{next});
@@ -520,8 +530,9 @@ sub _msgs_admin_send_message {
 
   if ($#msgs_ids > -1) {
     $FORM{ID} = join(',', @msgs_ids);
-    my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($FORM{ID} ? " : $FORM{ID}" : ''));
-    $html->redirect("?index=$index" . ($FORM{UID} ? "&UID=$FORM{UID}" : '') . "&MESSAGE=$header_message#last_msg");
+    my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($FORM{ID} ? ": $FORM{ID}" : ''));
+    $html->redirect("?index=$index" . ($FORM{UID} ? "&UID=$FORM{UID}" : '') .
+      ($FORM{QUICK} ? "&QUICK=$FORM{QUICK}" : '') . "&MESSAGE=$header_message#last_msg");
   }
 
   return 0;
@@ -752,7 +763,7 @@ sub msgs_admin_add_form {
   }
 
   $Msgs->{CHAPTER_SEL} =$html->form_select('CHAPTER', {
-    SELECTED       => $Msgs->{CHAPTER},
+    SELECTED       => $Msgs->{CHAPTER} || $FORM{CHAPTER},
     SEL_LIST => $Msgs->chapters_list({
       CHAPTER   => $msgs_permissions{4} ? join(',', keys %{$msgs_permissions{4}}) : '_SHOW',
       DOMAIN_ID => $users->{DOMAIN_ID},
@@ -761,7 +772,7 @@ sub msgs_admin_add_form {
     MAIN_MENU      => get_function_index('msgs_chapters'),
     MAIN_MENU_ARGV => ($Msgs->{CHAPTER}) ? "chg=$Msgs->{CHAPTER}" : ''
   });
-  $tpl_info{ATTACH_ADDRESS_HIDE} = 'd-none' if $FORM{UID} || !$msgs_permissions{1}{6};
+  $tpl_info{ATTACH_ADDRESS_HIDE} = 'd-none' if ($FORM{UID} || !$msgs_permissions{1}{6});
   $tpl_info{INNER_MSG_HIDE} = 'd-none' if !$msgs_permissions{1}{7};
   $tpl_info{DISPATCH_ADD_HIDE} = 'd-none' if !$msgs_permissions{3}{1};
 
@@ -863,7 +874,7 @@ sub msgs_admin_add_form {
     $tpl_info{MSGS_TAGS_HIDE} = 'd-none';
   }
   $tpl_info{RESPOSIBLE} = sel_admins({ NAME => 'RESPOSIBLE', SELECTED => $admin->{AID}, DISABLE => 0 });
-  $tpl_info{INNER_MSG} = 'checked' if $conf{MSGS_INNER_DEFAULT};
+  $tpl_info{INNER_MSG} = 'checked' if ($FORM{INNER_MSG} || $conf{MSGS_INNER_DEFAULT});
   $tpl_info{SURVEY_SEL} = msgs_survey_sel();
   $tpl_info{SURVEY_HIDE} = !$msgs_permissions{1}{20} ? 'd-none' : '';
   $tpl_info{SUBJECT_SEL} = msgs_sel_subject({ EX_PARAMS => 'disabled=disabled required' });
@@ -897,9 +908,59 @@ sub msgs_admin_add_form {
     ID            => 'MSGS_SEND_FORM'
   });
 
+  $message_form .= _msgs_recent_user_messages($FORM{UID});
+
   return $message_form;
 }
 
+#**********************************************************
+=head2 _msgs_recent_user_messages($uid)
+
+  Arguments:
+    $uid
+
+=cut
+#**********************************************************
+sub _msgs_recent_user_messages {
+  my $uid = shift;
+
+  return '' if !$uid;
+
+  my $last_user_messages = $Msgs->messages_list({
+    UID                    => $uid,
+    SUBJECT                => '_SHOW',
+    CHAPTER_NAME           => '_SHOW',
+    DATE                   => '_SHOW',
+    STATE                  => '_SHOW',
+    RESPOSIBLE_ADMIN_LOGIN => '_SHOW',
+    SORT                   => 'm.id',
+    DESC                   => 'DESC',
+    PAGE_ROWS              => 5,
+    COLS_NAME              => 1,
+  });
+
+  return '' if !$Msgs->{TOTAL} || $Msgs->{TOTAL} < 1;
+
+  my $messages_table = $html->table({
+    width   => '100%',
+    caption => $lang{MSGS_RECENT_USER_REQUESTS},
+    title   => [ '#', $lang{SUBJECT}, $lang{CHAPTER}, $lang{DATE}, $lang{STATE}, $lang{RESPOSIBLE} ],
+    ID      => 'MSGS_RECENT_USER_MESSAGES'
+  });
+
+  my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
+  my $msgs_info_index = get_function_index('msgs_admin');
+
+  foreach my $message (@{$last_user_messages}) {
+    my $state = _msgs_list_state_form($message->{state}, $message, $msgs_status);
+    my $subject = $msgs_info_index ? $html->button($message->{subject}, "index=$msgs_info_index&UID=$uid&chg=$message->{id}") : $message->{subject};
+
+    $messages_table->addrow($message->{id}, $subject, $message->{chapter_name}, $message->{date},
+      $state, $message->{resposible_admin_login});
+  }
+
+  return $messages_table->show();
+}
 
 #**********************************************************
 =head2 msgs_ticket_show($attr) - Show message
@@ -1654,7 +1715,7 @@ sub _msgs_reply_admin {
     ATTACHMENTS => $attachments_list
   });
 
-  my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($FORM{ID} ? " : $FORM{ID}" : ''));
+  my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($FORM{ID} ? ": $FORM{ID}" : ''));
   $html->redirect("?index=$index" . "&UID=" . ($FORM{UID} || q{}) . "&chg=" . ($FORM{ID} || q{}) . "&MESSAGE=$header_message#last_msg", {
     MESSAGE_HTML => $html->message('info', $lang{INFO}, "$lang{REPLY}", { OUTPUT2RETURN => 1 }),
     WAIT         => '0'

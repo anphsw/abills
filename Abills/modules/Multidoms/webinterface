@@ -1542,7 +1542,7 @@ sub multidoms_domains_modules {
   foreach my $name (sort @MODULES) {
     $table->addrow(
       $html->button($name, '',
-         { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php?id=abills:docs:modules:'. $name .':ru',
+         { GLOBAL_URL => "http://abills.net.ua/wiki/display/AB/$name",
            ex_params  => 'target='.$name } ),
       $html->form_input($name, '1', {
         TYPE          => 'checkbox',
@@ -1611,7 +1611,7 @@ sub _multidoms_reg_admin {
   $admin->admin_contacts_add({ AID => $admin->{AID}, TYPE_ID => 9, VALUE => $FORM{EMAIL} }) if $FORM{EMAIL};
   $admin->admin_contacts_add({ AID => $admin->{AID}, TYPE_ID => 2, VALUE => $FORM{PHONE} }) if $FORM{PHONE};
 
-  my $password = mk_unique_value($conf{PASSWD_LENGTH} || 8, { EXTRA_RULES => '0:0' });
+  my $password = mk_unique_value($conf{PASSWD_LENGTH}, { EXTRA_RULES => '0:0' });
   $admin->password($password, \%conf);
   return 0 if _error_show($admin);
 

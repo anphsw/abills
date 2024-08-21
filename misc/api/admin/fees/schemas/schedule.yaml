@@ -1,0 +1,51 @@
+type: object
+properties:
+  action:
+    type: string
+    example: "12:::0"
+  adminAction:
+    type: number
+    example: 0
+  adminName:
+    type: string
+    example: abills
+  aid:
+    type: number
+    example: 1
+  comments:
+    type: string
+    example:
+  counts:
+    type: number
+    example: 0
+  d:
+    type: number
+    example: 28
+  date:
+    type: string
+    format: date
+    example: 2023-09-21
+  h:
+    type: string
+    example: '*'
+  id:
+    type: number
+    example: 1924
+  login:
+    type: string
+    example: fwqfweqfewqf
+  m:
+    type: string
+    example: 09
+  module:
+    type: string
+    example:
+  type:
+    type: string
+    example: fees
+  uid:
+    type: number
+    example: 120514
+  y:
+    type: number
+    example: 2023

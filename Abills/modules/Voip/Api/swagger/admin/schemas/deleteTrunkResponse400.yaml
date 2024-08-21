@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 30010
+  errstr:
+    type: string
+    example: trunkId 8 not exists

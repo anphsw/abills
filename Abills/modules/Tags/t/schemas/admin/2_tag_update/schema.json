@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "aid": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^(\\d+,)*\\d+$",
+          "description": "A comma-separated list of numeric IDs"
+        },
+        {
+          "type": "number",
+          "description": "A single numeric ID"
+        }
+      ]
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#([A-Fa-f0-9]{6})$",
+      "description": "A color in hexadecimal format"
+    },
+    "comments": {
+      "type": "string",
+      "description": "Comments related to the tag"
+    },
+    "expireDays": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of days after which the tag expires"
+    },
+    "id": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unique identifier for the tag"
+    },
+    "name": {
+      "type": "string",
+      "description": "Name of the tag"
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Priority level of the tag"
+    },
+    "responsible": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^(\\d+,)*\\d+$",
+          "description": "A comma-separated list of numeric IDs"
+        },
+        {
+          "type": "number",
+          "description": "A single numeric ID"
+        }
+      ]
+    }
+  },
+  "required": ["aid", "color", "expireDays", "id", "name", "priority", "responsible"]
+}

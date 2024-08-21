@@ -4,7 +4,7 @@ get:
   summary: Список доступных тарифных планов в сервисе
   description: Список доступных тарифных планов в сервисе для добавления первой услуги
   parameters:
-    - name: serviceId
+    - name: service_id
       in: path
       description: >
         Значение `serviceId`, можно получить в ответе

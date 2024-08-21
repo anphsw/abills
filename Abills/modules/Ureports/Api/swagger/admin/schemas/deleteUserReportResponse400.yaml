@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: number
+    example: 103008
+  errstr:
+    type: string
+    example: User with uid 1 has no reports

@@ -61,6 +61,7 @@ $lang{USER_NOTICE} = 'User notice';
 $lang{RESPONSIBLE_NOTICE} = 'Responsible notice';
 $lang{FOLLOWER_NOTICE} = 'Follower notice';
 $lang{EVERYTHING_EXCEPT_DONE} = 'Everything except done';
+$lang{EVERYTHING_EXCEPT_CLOSED} = 'Everything except closed';
 $lang{DISPACTH_CATEGORY} = 'Dispatch category';
 $lang{CATEGORY} = 'Category';
 $lang{QUICK_REPLYS_TYPES} = 'Quick replies types';
@@ -284,5 +285,9 @@ $lang{DO_YOU_REALLY_WANT_TO_CHARGE_FOR_MESSAGE} = 'Do you really want to charge 
 $lang{MSGS_MAKE_PRIVATE} = 'Make private';
 $lang{MSGS_MAKE_PUBLIC} = 'Make public';
 $lang{MSGS_PROJECT} = 'Project';
+$lang{MSGS_RECENT_USER_REQUESTS} = 'Recent user requests';
+
+$lang{ERR_SEND_PUSH_ADMIN} = 'An error occurred while sending a Push notification. Push is not configured for the web interface, or administrators are not subscribed to Push notifications';
+$lang{ERR_SEND_MESSAGE_ADMIN} = 'An error occurred while sending notification.';
 
 1;

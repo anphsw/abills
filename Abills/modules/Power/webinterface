@@ -1,0 +1,578 @@
+#!perl
+
+=head1 NAME
+
+  Power webinterface
+
+=cut
+
+use strict;
+use warnings FATAL => 'all';
+
+use Abills::Base qw(in_array convert is_html datetime_diff sec2time);
+
+our (
+  $db,
+  $admin,
+  %conf,
+  %lang,
+  $html,
+  %permissions,
+  @REGISTRATION,
+  $users
+);
+
+use Power::db::Power;
+my $Power = Power::db::Power->new($db, $admin, \%conf);
+
+require Power::Reports;
+
+#***********************************************************
+=head2 power_genset_types()
+
+=cut
+#***********************************************************
+sub power_genset_types {
+
+  $Power->{ACTION} = 'add';
+  $Power->{LNG_ACTION} = $lang{ADD};
+
+  if ($FORM{add}) {
+    $Power->power_genset_type_add(\%FORM);
+    $html->message('info', $lang{ADDED}) if !_error_show($Power);
+  }
+  elsif ($FORM{chg}) {
+    $Power->power_genset_type_info({ ID => $FORM{chg} });
+    $Power->{ACTION} = 'change';
+    $Power->{LNG_ACTION} = $lang{CHANGE};
+    $Power->{PHASE_1_CHECKED} = 'checked' if $Power->{PHASE} && $Power->{PHASE} == 1;
+    $Power->{PHASE_3_CHECKED} = 'checked' if $Power->{PHASE} && $Power->{PHASE} == 3;
+    $FORM{add_form} = 1;
+  }
+  elsif ($FORM{change}) {
+    $Power->power_genset_type_change(\%FORM);
+    $html->message('info', $lang{CHANGED}) if !_error_show($Power);
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Power->power_genset_type_del({ ID => $FORM{del} });
+    $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Power);
+  }
+
+  if ($FORM{add_form}) {
+    $html->tpl_show(_include('power_genset_type_form', 'Power'), $Power);
+  }
+
+  result_former({
+    INPUT_DATA      => $Power,
+    FUNCTION        => 'power_genset_types_list',
+    DEFAULT_FIELDS  => 'ID,NAME,DESCRIPTION,LITRES_PER_HOUR,PHASE,POWER_KVA,POWER_KW',
+    FUNCTION_FIELDS => 'change,del',
+    EXT_TITLES      => {
+      id              => '#',
+      name            => $lang{NAME},
+      description     => $lang{DESCRIBE},
+      litres_per_hour => $lang{POWER_CONSUMPTION_PER_HOUR_IN_LITERS},
+      phase           => $lang{POWER_NUMBER_OF_PHASES},
+      power_kva       => $lang{POWER_POWER_IN_KVA},
+      power_kw        => $lang{POWER_POWER_IN_KW},
+    },
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{POWER_GENERATOR_TYPES},
+      qs      => $pages_qs,
+      ID      => 'POWER_GENSET_TYPES_LIST',
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
+}
+
+#***********************************************************
+=head2 power_fueltanks()
+
+=cut
+#***********************************************************
+sub power_fueltanks {
+
+  $Power->{ACTION} = 'add';
+  $Power->{LNG_ACTION} = $lang{ADD};
+
+  if ($FORM{add}) {
+    $Power->power_fueltank_add(\%FORM);
+    $html->message('info', $lang{ADDED}) if !_error_show($Power);
+  }
+  elsif ($FORM{chg}) {
+    $Power->power_fueltank_info({ ID => $FORM{chg} });
+    $Power->{ACTION} = 'change';
+    $Power->{LNG_ACTION} = $lang{CHANGE};
+    $FORM{add_form} = 1;
+  }
+  elsif ($FORM{change}) {
+    $Power->power_fueltank_change(\%FORM);
+    $html->message('info', $lang{CHANGED}) if !_error_show($Power);
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Power->power_fueltank_del({ ID => $FORM{del} });
+    $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Power);
+  }
+
+  if ($FORM{add_form}) {
+    $html->tpl_show(_include('power_fueltank_form', 'Power'), $Power);
+  }
+
+  result_former({
+    INPUT_DATA      => $Power,
+    FUNCTION        => 'power_fueltanks_list',
+    DEFAULT_FIELDS  => 'ID,NAME,DESCRIPTION,LITRES',
+    FUNCTION_FIELDS => 'change,del',
+    EXT_TITLES      => {
+      id          => '#',
+      name        => $lang{NAME},
+      description => $lang{DESCRIBE},
+      litres      => $lang{POWER_CAPACITY}
+    },
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{POWER_GENERATOR_TANK_TYPES},
+      qs      => $pages_qs,
+      ID      => 'POWER_FUELTANKS_LIST',
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
+}
+
+#***********************************************************
+=head2 power_service_types()
+
+=cut
+#***********************************************************
+sub power_service_types {
+
+  $Power->{ACTION} = 'add';
+  $Power->{LNG_ACTION} = $lang{ADD};
+
+  if ($FORM{add}) {
+    $Power->power_service_type_add(\%FORM);
+    $html->message('info', $lang{ADDED}) if !_error_show($Power);
+  }
+  elsif ($FORM{chg}) {
+    $Power->power_service_type_info({ ID => $FORM{chg} });
+    $Power->{ACTION} = 'change';
+    $Power->{LNG_ACTION} = $lang{CHANGE};
+    $Power->{NAME} = _translate($Power->{NAME});
+    $FORM{add_form} = 1;
+  }
+  elsif ($FORM{change}) {
+    $Power->power_service_type_change(\%FORM);
+    $html->message('info', $lang{CHANGED}) if !_error_show($Power);
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Power->power_service_type_del({ ID => $FORM{del} });
+    $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Power);
+  }
+
+  if ($FORM{add_form}) {
+    $html->tpl_show(_include('power_service_type_form', 'Power'), $Power);
+  }
+
+  result_former({
+    INPUT_DATA      => $Power,
+    FUNCTION        => 'power_service_types_list',
+    DEFAULT_FIELDS  => 'ID,NAME,DESCRIPTION',
+    FUNCTION_FIELDS => 'change,del',
+    EXT_TITLES      => {
+      id          => '#',
+      name        => $lang{NAME},
+      description => $lang{DESCRIBE}
+    },
+    FILTER_COLS     => { name => '_translate' },
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{POWER_SERVICE_TYPES},
+      qs      => $pages_qs,
+      ID      => 'POWER_SERVICE_TYPES_LIST',
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
+}
+
+#***********************************************************
+=head2 power_gensets()
+
+=cut
+#***********************************************************
+sub power_gensets {
+
+  $Power->{ACTION} = 'add';
+  $Power->{LNG_ACTION} = $lang{ADD};
+
+  if ($FORM{add}) {
+    $Power->power_genset_add(\%FORM);
+    $html->message('info', $lang{ADDED}) if !_error_show($Power);
+  }
+  elsif ($FORM{chg}) {
+    $Power->power_genset_info({ ID => $FORM{chg} });
+    $Power->{ACTION} = 'change';
+    $Power->{LNG_ACTION} = $lang{CHANGE};
+    $FORM{add_form} = 1;
+  }
+  elsif ($FORM{change}) {
+    $Power->power_genset_change(\%FORM);
+    $html->message('info', $lang{CHANGED}) if !_error_show($Power);
+  }
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Power->power_genset_del({ ID => $FORM{del} });
+    $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Power);
+  }
+  elsif ($FORM{run_form}) {
+    _power_genset_run();
+  }
+  elsif ($FORM{stop_form}) {
+    _power_genset_stop();
+  }
+  elsif ($FORM{service_form}) {
+    _power_genset_service();
+  }
+  elsif ($FORM{fuel_form}) {
+    _power_genset_fuel();
+  }
+
+  if ($FORM{add_form}) {
+    $Power->{TYPES_SEL} = $html->form_select('TYPE_ID', {
+      SEL_LIST     => $Power->power_genset_types_list({
+        NAME      => '_SHOW',
+        COLS_NAME => 1,
+        PAGE_ROWS => 100000
+      }),
+      SELECTED     => $Power->{TYPE_ID},
+      SEL_VALUE    => 'name',
+      SEL_KEY      => 'id',
+      SORT_KEY_NUM => 1,
+      NO_ID        => 1,
+      SEL_OPTIONS  => { '' => '--' },
+      EX_PARAMS    => 'required="required"',
+    });
+
+    $Power->{FUELTANKS_SEL} = $html->form_select('FUELTANK_ID', {
+      SEL_LIST     => $Power->power_fueltanks_list({
+        NAME      => '_SHOW',
+        COLS_NAME => 1,
+        PAGE_ROWS => 100000
+      }),
+      SELECTED     => $Power->{FUELTANK_ID},
+      SEL_VALUE    => 'name',
+      SEL_KEY      => 'id',
+      SORT_KEY_NUM => 1,
+      NO_ID        => 1,
+      SEL_OPTIONS  => { '' => '--' },
+      EX_PARAMS    => 'required="required"',
+    });
+    $Power->{ADDRESS_TPL} = form_address_select({
+      HIDE_FLAT             => 1,
+      HIDE_ADD_BUILD_BUTTON => 1,
+      LOCATION_ID           => $Power->{BUILD_ID} || 0
+    });
+
+    $html->tpl_show(_include('power_genset_form', 'Power'), $Power);
+  }
+
+  result_former({
+    INPUT_DATA      => $Power,
+    FUNCTION        => 'power_gensets_list',
+    DEFAULT_FIELDS  => 'ID,TYPE,FUEL_LITRES,ADDRESS_FULL,STATE,LAST_START',
+    HIDDEN_FIELDS   => 'LITRES',
+    FUNCTION_FIELDS => 'change,del',
+    EXT_TITLES      => {
+      id           => '#',
+      type         => $lang{POWER_GENERATOR_TYPE},
+      fuel_litres  => $lang{POWER_TANK},
+      last_start   => $lang{POWER_LAST_START},
+      address_full => $lang{ADDRESS},
+      state        => ' ',
+    },
+    FILTER_VALUES   => {
+      fuel_litres => sub {
+        my $fuel_litres = shift;
+        my ($line) = @_;
+
+        my $litres = sprintf("%.2f", $line->{litres} || 0);
+        $fuel_litres = sprintf("%.2f", $fuel_litres);
+
+        my $icon = $html->element('i', '', { class => 'mr-1 fa fa-gas-pump' });
+
+        return $html->element('div', "$icon $litres / $fuel_litres", { class => 'p-2 bg-light rounded' });
+
+        return "$litres / $fuel_litres";
+      },
+      state       => sub {
+        my $state = shift;
+        my ($line) = @_;
+
+        my $fuel_btn = $html->button('', "index=$index&fuel_form=1&ID=$line->{id}", { ICON => 'fa fa-gas-pump text-danger', class => 'btn btn-light' });
+        my $start_btn = $html->button('', "index=$index&run_form=1&ID=$line->{id}", { ICON => 'fa fa-bolt text-success', class => 'btn btn-light' });
+        my $stop_btn = $html->button('', "index=$index&stop_form=1&ID=$line->{id}", { ICON => 'fa fa-power-off text-danger', class => 'btn btn-light' });
+        my $service_btn = $html->button('', "index=$index&service_form=1&ID=$line->{id}", { ICON => 'fas fa-tools', class => 'btn btn-light' });
+        my $report_btn = $html->button('', "get_index=power_runs_report&GENSET_ID=$line->{id}&full=1", {
+          ICON   => 'fas fa-chart-line text-primary',
+          class  => 'btn btn-light',
+          target => '_blank'
+        });
+
+        return join($html->element('span', '', { class => 'ml-2' }), ($report_btn, $fuel_btn, $service_btn, $line->{state} ? $stop_btn : $start_btn));
+      },
+      last_start  => sub {
+        my $date = shift;
+        my ($line) = @_;
+
+        my $date_diff = sec2time(datetime_diff($date, "$DATE $TIME"), { str => 1 });
+
+        return $line->{state} ? ($html->element('div', "$lang{POWER_WORKING_FOR} $date_diff", {
+          class => 'border text-center border-danger text-danger rounded-pill'
+        }) . $date) : $date;
+      }
+    },
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{POWER_GENERATORS},
+      qs      => $pages_qs,
+      ID      => 'POWER_GENSETS_LIST',
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
+}
+
+#***********************************************************
+=head2 _power_genset_run()
+
+=cut
+#***********************************************************
+sub _power_genset_run {
+
+  return if !$FORM{run_form} && !$FORM{ID};
+
+  my $gensets = $Power->power_gensets_list({
+    ID           => $FORM{ID},
+    ADDRESS_FULL => '_SHOW',
+    TYPE         => '_SHOW',
+    STATE        => '_SHOW',
+    COLS_UPPER   => 1,
+    COLS_NAME    => 1
+  });
+  return if !$Power->{TOTAL} || $Power->{TOTAL} < 1;
+
+  my $genset_info = $gensets->[0];
+  return if !$genset_info->{id} || $genset_info->{state};
+
+  if ($FORM{run}) {
+    $Power->power_genset_run_add({
+      START_DATE => $FORM{START_DATE},
+      STOP_DATE  => $FORM{RESULT} ? $FORM{START_DATE} : '',
+      GENSET_ID  => $FORM{ID},
+      TYPE_ID    => $FORM{TYPE_ID},
+      RESULT     => $FORM{RESULT}
+    });
+    if (!_error_show($Power)) {
+      $html->message('info', $lang{ADDED});
+      $Power->power_genset_change({ ID => $FORM{ID}, STATE => 1 }) if !$FORM{RESULT};
+    }
+    return;
+  }
+
+  $Power->{START_DATE} = $html->form_datetimepicker('START_DATE', "$DATE $TIME");
+
+  $Power->{TYPE_SEL} = $html->form_select('TYPE_ID', {
+    SEL_HASH     => {
+      0 => $lang{POWER_ELECTRICAL_NETWORK_FAILURE},
+      1 => $lang{TEST}
+    },
+    ARRAY_NUM_ID => 1,
+    NO_ID        => 1
+  });
+
+  $Power->{RESULT_SEL} = $html->form_select('RESULT', {
+    SEL_HASH     => {
+      0 => $lang{YES},
+      1 => $lang{NO}
+    },
+    ARRAY_NUM_ID => 1,
+    NO_ID        => 1
+  });
+
+  $Power->{ACTION} = 'run';
+  $Power->{LNG_ACTION} = $lang{POWER_START};
+
+  $html->tpl_show(_include('power_genset_run_form', 'Power'), { %{$Power}, %{$genset_info} });
+}
+
+#***********************************************************
+=head2 _power_genset_stop()
+
+=cut
+#***********************************************************
+sub _power_genset_stop {
+
+  return if !$FORM{stop_form} && !$FORM{ID};
+
+  my $gensets = $Power->power_gensets_list({
+    ID           => $FORM{ID},
+    ADDRESS_FULL => '_SHOW',
+    TYPE         => '_SHOW',
+    STATE        => '_SHOW',
+    COLS_UPPER   => 1,
+    COLS_NAME    => 1
+  });
+  return if !$Power->{TOTAL} || $Power->{TOTAL} < 1;
+
+  my $genset_info = $gensets->[0];
+  return if !$genset_info->{id} || !$genset_info->{state};
+
+  if ($FORM{stop} && $FORM{STOP_DATE}) {
+    my $last_run = $Power->power_genset_runs_list({
+      GENSET_ID => $FORM{ID},
+      RESULT    => '0',
+      PAGE_ROWS => 1,
+      SORT      => 'pgr.id',
+      DESC      => 'DESC',
+      COLS_NAME => 1
+    });
+    return if !$Power->{TOTAL} || $Power->{TOTAL} < 1;
+
+    $Power->power_genset_run_change({
+      ID        => $last_run->[0]{id},
+      STOP_DATE => $FORM{STOP_DATE}
+    });
+    if (!_error_show($Power)) {
+      $html->message('info', $lang{POWER_STOPPED});
+      $Power->power_genset_change({ ID => $FORM{ID}, STATE => 0 });
+    }
+    return;
+  }
+
+  $Power->{STOP_DATE} = $html->form_datetimepicker('STOP_DATE', "$DATE $TIME");
+
+  $Power->{ACTION} = 'stop';
+  $Power->{LNG_ACTION} = $lang{POWER_STOP};
+
+  $html->tpl_show(_include('power_genset_stop_form', 'Power'), { %{$Power}, %{$genset_info} });
+}
+
+#***********************************************************
+=head2 _power_genset_service()
+
+=cut
+#***********************************************************
+sub _power_genset_service {
+
+  return if !$FORM{service_form} && !$FORM{ID};
+
+  my $gensets = $Power->power_gensets_list({
+    ID           => $FORM{ID},
+    ADDRESS_FULL => '_SHOW',
+    TYPE         => '_SHOW',
+    STATE        => '_SHOW',
+    COLS_UPPER   => 1,
+    COLS_NAME    => 1
+  });
+  return if !$Power->{TOTAL} || $Power->{TOTAL} < 1;
+
+  my $genset_info = $gensets->[0];
+  return if !$genset_info->{id};
+
+  if ($FORM{service_add}) {
+    $Power->power_genset_service_add({
+      SERVICE_DATE    => $FORM{SERVICE_DATE},
+      GENSET_ID       => $FORM{ID},
+      SERVICE_TYPE_ID => $FORM{SERVICE_TYPE_ID},
+      DESCRIPTION     => $FORM{DESCRIPTION}
+    });
+    $html->message('info', $lang{ADDED}) if !_error_show($Power);
+    return;
+  }
+
+  $Power->{SERVICE_DATE} = $html->form_datetimepicker('SERVICE_DATE', "$DATE $TIME");
+
+  my $service_types = $Power->power_service_types_list({
+    NAME      => '_SHOW',
+    COLS_NAME => 1,
+    PAGE_ROWS => 100000
+  });
+  map $_->{name} = _translate($_->{name}), @{$service_types};
+  $Power->{SERVICE_TYPE_SEL} = $html->form_select('SERVICE_TYPE_ID', {
+    SEL_LIST     => $service_types,
+    SEL_VALUE    => 'name',
+    SEL_KEY      => 'id',
+    SORT_KEY_NUM => 1,
+    NO_ID        => 1,
+    SEL_OPTIONS  => { '' => '--' },
+    EX_PARAMS    => 'required="required"',
+  });
+
+  $Power->{ACTION} = 'service_add';
+  $Power->{LNG_ACTION} = $lang{ADD};
+
+  $html->tpl_show(_include('power_genset_service_form', 'Power'), { %{$Power}, %{$genset_info} });
+}
+
+#***********************************************************
+=head2 _power_genset_fuel()
+
+=cut
+#***********************************************************
+sub _power_genset_fuel {
+
+  return if !$FORM{fuel_form} && !$FORM{ID};
+
+  my $gensets = $Power->power_gensets_list({
+    ID           => $FORM{ID},
+    ADDRESS_FULL => '_SHOW',
+    TYPE         => '_SHOW',
+    STATE        => '_SHOW',
+    LITRES       => '_SHOW',
+    FUEL_LITRES  => '_SHOW',
+    COLS_UPPER   => 1,
+    COLS_NAME    => 1
+  });
+  return if !$Power->{TOTAL} || $Power->{TOTAL} < 1;
+
+  my $genset_info = $gensets->[0];
+  return if !$genset_info->{id};
+
+  if ($FORM{refuel}) {
+    $Power->power_genset_refuel_add({
+      DATE          => $FORM{DATE},
+      GENSET_ID     => $FORM{ID},
+      LITRES_AFTER  => $FORM{LITRES_AFTER},
+      LITRES_BEFORE => $genset_info->{LITRES},
+      LITRES        => $FORM{LITRES}
+    });
+    if (!_error_show($Power)) {
+      $html->message('info', $lang{ADDED});
+      $Power->power_genset_change({ ID => $FORM{ID}, LITRES => $FORM{LITRES_AFTER}, STATE => $genset_info->{state} });
+    }
+    return;
+  }
+
+  $Power->{DATE} = $html->form_datetimepicker('DATE', "$DATE $TIME");
+
+  $Power->{ACTION} = 'refuel';
+  $Power->{LNG_ACTION} = $lang{ADD};
+
+  $html->tpl_show(_include('power_genset_refuel_form', 'Power'), { %{$Power}, %{$genset_info},
+    LITRES_AFTER_LANG => vars2lang($lang{POWER_BECAME_LITERS_CAPACITY_PERCENT_FUEL_LITERS_L}, {
+      FUEL_LITRES => $genset_info->{FUEL_LITRES}
+    })
+  });
+}
+
+1;

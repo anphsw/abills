@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 31027
+  errstr:
+    type: string
+    example: Failed add user already has voip service

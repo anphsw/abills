@@ -1,0 +1,21 @@
+post:
+  tags:
+    - crm
+  summary: Добавление шага прогресса
+  operationId: addCrmStep
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/step.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+  security:
+    - KEY: [ ]

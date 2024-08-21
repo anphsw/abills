@@ -1,0 +1,6 @@
+{
+  "name": "TAG_DELETE",
+  "method": "DELETE",
+  "path": "tags/:tagId/",
+  "params": {}
+}

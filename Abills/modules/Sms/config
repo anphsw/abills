@@ -2,7 +2,9 @@
 %FUNCTIONS_LIST = (
   "1:0:Sms:sms_reports:"              => 4,
   "2:1:$lang{INFO}:sms_account_info:" => 4,
-  "3:0:SMS:sms_send_register:UID"     => 20
+  "3:0:SMS:sms_send_register:UID"     => 20,
+  "4:0:SMS:sms_services:"     => 5,
+
 );
 
 1

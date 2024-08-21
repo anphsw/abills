@@ -1,0 +1,29 @@
+type: object
+properties:
+  affected:
+    type: number
+    example: 0
+  districtId:
+    type: number
+    example: 2
+  id:
+    type: number
+    example: 12
+  insertId:
+    type: number
+    example: 12
+  name:
+    type: string
+    example: test24
+  secondName:
+    type: string
+    example: ""
+  streetId:
+    type: number
+    example: 12
+  total:
+    type: number
+    example: 1
+  type:
+    type: number
+    example: 0

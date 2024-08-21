@@ -1,0 +1,12 @@
+get:
+  tags:
+    - version
+  summary: Get Swagger 3 specification for ABillS ADMIN API
+  description: Returns the Swagger 3 specification for the ABillS ADMIN API.
+  responses:
+    200:
+      description: Swagger 3 specification for ABillS ADMIN API
+      content:
+        application/yaml:
+          schema:
+            $ref: "../schemas/swaggerAdmin.yaml"

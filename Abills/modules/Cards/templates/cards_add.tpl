@@ -8,23 +8,23 @@
         </div>
         <div class='card-body'>
           <div class='form-group row'>
-            <label class='col-md-4 col-form-label text-md-right' for='SERIAL'>_{SERIAL}_:</label>
+            <label class='col-md-4 col-form-label text-md-right required' for='SERIAL'>_{SERIAL}_:</label>
             <div class='col-md-8'>
-              <input id='SERIAL' name='SERIAL' value='%SERIAL%' placeholder='_{SERIAL}_' class='form-control' type='text'>
+              <input id='SERIAL' name='SERIAL' value='%SERIAL%' placeholder='_{SERIAL}_' class='form-control' type='text' required>
             </div>
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-4 col-form-label text-md-right' for='BEGIN'>_{BEGIN}_:</label>
+            <label class='col-md-4 col-form-label text-md-right required' for='BEGIN'>_{BEGIN}_:</label>
             <div class='col-md-8'>
-              <input id='BEGIN' name='BEGIN' value='%BEGIN%' placeholder='_{BEGIN}_' class='form-control' type='text'>
+              <input id='BEGIN' name='BEGIN' value='%BEGIN%' placeholder='_{BEGIN}_' class='form-control' type='text' required>
             </div>
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-4 col-form-label text-md-right' for='COUNT'>_{COUNT}_:</label>
+            <label class='col-md-4 col-form-label text-md-right required' for='COUNT'>_{COUNT}_:</label>
             <div class='col-md-8'>
-              <input id='COUNT' name='COUNT' value='%COUNT%' placeholder='_{COUNT}_' class='form-control' type='text'>
+              <input id='COUNT' name='COUNT' value='%COUNT%' placeholder='_{COUNT}_' class='form-control' type='text' required>
             </div>
           </div>
 

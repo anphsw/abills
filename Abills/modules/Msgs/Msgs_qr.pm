@@ -469,56 +469,7 @@ sub msgs_support_stats_chart {
 #**********************************************************
 sub msgs_dynamics_of_messages_and_replies {
 
-  my $messages_and_replies = $Msgs->messages_and_replies_for_two_weeks();
-
-  my $data_by_days = {};
-  foreach my $data (@{$messages_and_replies}) {
-    if ($data_by_days->{$data->{day}}) {
-      $data_by_days->{$data->{day}}{MESSAGES} += $data->{messages} || 0;
-      $data_by_days->{$data->{day}}{REPLIES} += $data->{replies} || 0;
-      next;
-    }
-    $data_by_days->{$data->{day}} = {
-      MESSAGES => $data->{messages} || 0,
-      REPLIES  => $data->{replies} || 0,
-      CLOSED   => 0
-    };
-  }
-
-  my $closed_messages = $Msgs->messages_and_replies_for_two_weeks(join(',', map { "'$_'" } keys %{$data_by_days}));
-  foreach my $closed_message (@{$closed_messages}) {
-    $data_by_days->{$closed_message->{day}}{CLOSED} = $closed_message->{closed_messages};
-  }
-
-  my $chart = $html->chart({
-    TYPE              => 'bar',
-    X_LABELS          => [ sort keys %{$data_by_days} ],
-    DATA              => {
-      $lang{MESSAGES} => [ map $data_by_days->{$_}{MESSAGES}, sort keys %{$data_by_days} ],
-      $lang{REPLYS}   => [ map $data_by_days->{$_}{REPLIES}, sort keys %{$data_by_days} ],
-      $lang{CLOSED}   => [ map $data_by_days->{$_}{CLOSED}, sort keys %{$data_by_days} ]
-    },
-    BACKGROUND_COLORS => {
-      $lang{MESSAGES} => 'rgba(2, 99, 2, 0.8)',
-      $lang{REPLYS}   => 'rgba(54, 123, 245, 0.8)',
-      $lang{CLOSED}   => 'rgba(255, 193, 7, 0.8)'
-    },
-    OUTPUT2RETURN     => 1,
-  });
-
-
-  my $card_body = $html->element('div', $chart, { class => 'card-body p-1' });
-
-  my $icon = $html->element('i', '', { class => 'fa fa-minus'});
-  my $btn_tool = $html->element('button', $icon, { class => 'btn btn-tool', type => 'button', 'data-card-widget' => 'collapse' });
-  my $header_tools = $html->element('div', $btn_tool, { class => 'card-tools'});
-  my $card_title = $html->element('h4', $lang{DYNAMICS_OF_MESSAGES_AND_REPLIES}, { class => 'card-title'});
-
-  my $card_header = $html->element('div', $card_title . $header_tools, { class => 'card-header'});
-
-  my $card = $html->element('div', $card_header . $card_body, { class => 'card card-primary card-outline' });
-
-  return $card
+  return $html->tpl_show(_include('msgs_dynamic_messages_report', 'Msgs'), {}, { OUTPUT2RETURN => 1 });
 }
 
 1

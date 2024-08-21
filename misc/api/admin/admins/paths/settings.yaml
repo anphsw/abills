@@ -1,0 +1,42 @@
+get:
+  tags:
+    - admins
+  summary: Получить системные настройки администратора
+  operationId: getAdminSettings
+  parameters:
+    - name: objectId
+      in: query
+      description: ID объекта
+      schema:
+        type: string
+        default: '--'
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/setting.yaml"
+    400:
+      description: Отсутствие объекта за OBJECT_ID
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiGetResponse400"
+post:
+  tags:
+    - admins
+  summary: Создать объект системной настройки администратора
+  operationId: addAdminSettings
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/setting.yaml"
+  responses:
+    200:
+      description: Успешное добавление объекта системной настройки администратора
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addSettings200.yaml"

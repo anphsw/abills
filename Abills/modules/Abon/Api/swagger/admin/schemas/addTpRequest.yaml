@@ -1,0 +1,14 @@
+type: object
+properties:
+  price:
+    type: integer
+    example: 100
+  period:
+    type: integer
+    example: 1
+  name:
+    type: string
+    example: Test abon TP
+  description:
+    type: string
+    example: Test description

@@ -7,16 +7,16 @@
       <input type='hidden' name='ID' value='%ID%'/>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='NAME_ID'>_{NAME}_:</label>
+        <label class='col-md-3 control-label required' for='NAME_ID'>_{NAME}_:</label>
         <div class='col-md-9'>
           <div class='input-group'>
-            <input type='text' class='form-control' value='%NAME%' name='NAME' id='NAME_ID'/>
+            <input type='text' class='form-control' value='%NAME%' name='NAME' id='NAME_ID' required/>
           </div>
         </div>
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='SQL_FIELD_ID'>SQL_FIELD:</label>
+        <label class='col-md-3 control-label required' for='SQL_FIELD_ID'>SQL_FIELD:</label>
         <div class='col-md-9'>
           <div class='input-group'>
             <input %READONLY% required type='text' class='form-control' value='%SQL_FIELD%' name='SQL_FIELD'
@@ -26,9 +26,9 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-3 control-label' for='TYPE'>_{TYPE}_:</label>
+        <label class='col-md-3 control-label required' for='TYPE'>_{TYPE}_:</label>
         <div class='col-md-9'>
-          <div class='input-group'>%TYPE_SELECT%</div>
+          <div class='input-group' required>%TYPE_SELECT%</div>
         </div>
       </div>
 
@@ -131,3 +131,14 @@
     <input type='submit' form='form_%FORM_NAME%' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
   </div>
 </div>
+
+<script>
+
+  var url = new URL(window.location.href);
+  var params = new URLSearchParams(url.search);
+  var chgListValue = params.get('chg_list_value');
+  if (chgListValue){
+    jQuery('#NAME').val(chgListValue);
+  }
+
+</script>

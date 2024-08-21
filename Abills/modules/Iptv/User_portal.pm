@@ -9,6 +9,7 @@ use warnings FATAL => 'all';
 use Abills::Base qw(in_array next_month convert);
 use Abills::HTML;
 use Tariffs;
+use Iptv::Init qw(init_iptv_service);
 require Control::Service_control;
 
 our (
@@ -67,7 +68,12 @@ sub iptv_subcribe_add {
   }
 
   my @skip_tp_changes = $conf{IPTV_SKIP_CHG_TPS} ? split(/,\s?/, $conf{IPTV_SKIP_CHG_TPS}) : ();
-  $Tv_service = tv_load_service('', { SERVICE_ID => $FORM{SERVICE_ID} || $Iptv->{SERVICE_ID} });
+
+  $Tv_service = init_iptv_service($db, $admin, \%conf, {
+    SERVICE_ID => $FORM{SERVICE_ID} || $Iptv->{SERVICE_ID},
+    HTML       => $html,
+    LANG       => \%lang
+  });
 
   my $tps_table = $html->table({
     width       => '100%',
@@ -200,10 +206,11 @@ sub iptv_user_info {
         $Iptv->user_info($Iptv->{ID});
 
         $Iptv->{SERVICE_ID} //= $FORM{SERVICE_ID};
-        $Tv_service = undef;
-        if ($Iptv->{SERVICE_ID}) {
-          $Tv_service = tv_load_service($Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} });
-        }
+        $Tv_service = init_iptv_service($db, $admin, \%conf, {
+          SERVICE_ID => $Iptv->{SERVICE_ID},
+          HTML       => $html,
+          LANG       => \%lang
+        });
 
         my DBI $db_ = $Iptv->{db}{db};
         if (!_error_show($Iptv) && $Tv_service) {
@@ -360,8 +367,11 @@ sub iptv_user_service {
     return 1;
   }
 
-  $Tv_service = undef;
-  $Tv_service = tv_load_service($Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} }) if ($Iptv->{SERVICE_ID});
+  $Tv_service = init_iptv_service($db, $admin, \%conf, {
+    SERVICE_ID => $Iptv->{SERVICE_ID},
+    HTML       => $html,
+    LANG       => \%lang
+  });
 
   if ($FORM{additional_functions}) {
     return iptv_additional_functions();
@@ -873,7 +883,11 @@ sub _iptv_portal_get_service_info_btn {
 
   return $tp_name unless $tp_info->{service_id};
 
-  $Tv_service ||= tv_load_service('', { SERVICE_ID => $tp_info->{service_id} });
+  $Tv_service = init_iptv_service($db, $admin, \%conf, {
+    SERVICE_ID => $tp_info->{service_id},
+    HTML       => $html,
+    LANG       => \%lang
+  });
 
   return $tp_name unless ($Tv_service && $Tv_service->can('service_info'));
   
@@ -897,7 +911,12 @@ sub iptv_portal_service_info {
 
   return 0 unless ($FORM{show_service_info} && $FORM{tp_id});
 
-  $Tv_service ||= tv_load_service('', { SERVICE_ID => $FORM{show_service_info} });
+  $Tv_service = init_iptv_service($db, $admin, \%conf, {
+    SERVICE_ID => $FORM{show_service_info},
+    HTML       => $html,
+    LANG       => \%lang
+  });
+  # $Tv_service ||= tv_load_service('', { SERVICE_ID => $FORM{show_service_info} });
 
   return 0 unless ($Tv_service && $Tv_service->can('service_info'));
 

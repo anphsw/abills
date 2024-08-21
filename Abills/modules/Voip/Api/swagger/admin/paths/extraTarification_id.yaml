@@ -1,0 +1,78 @@
+get:
+  tags:
+    - voip
+  summary: Информация тарификации
+  parameters:
+    - name: id
+      in: path
+      description: ID тарификации
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/extraTarification.yaml"
+  security:
+    - KEY: []
+put:
+  tags:
+    - voip
+  summary: Изменить тарификацию
+  parameters:
+    - name: id
+      in: path
+      description: ID тарификации
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addExtraTarificationRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/changeExtraTarificationResponse200.yaml"
+    400:
+      description: Дубликат
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse400"
+  security:
+    - KEY: []
+delete:
+  tags:
+    - voip
+  summary: Удалить тарификацию
+  parameters:
+    - name: id
+      in: path
+      description: ID тарификации
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteExtraTarificationResponse200.yaml"
+    400:
+      description: Нет тарификации
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteExtraTarificationResponse400.yaml"
+  security:
+    - KEY: []

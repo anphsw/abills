@@ -2623,6 +2623,10 @@ sub employees_list_coming {
     push @WHERE_RULES, "coming_type_id = '$attr->{COMING_TYPE_ID}'";
   }
 
+  if ($attr->{PAYMENT_ID}) {
+    push @WHERE_RULES, "cac.payment_id = $attr->{PAYMENT_ID}";
+  }
+
   my $WHERE = $self->search_former(
     $attr,
     [

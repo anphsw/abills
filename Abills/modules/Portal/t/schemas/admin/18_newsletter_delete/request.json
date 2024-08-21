@@ -1,0 +1,5 @@
+{
+  "method": "DELETE",
+  "name": "ADMIN_PORTAL_NEWSLETTER_DELETE",
+  "path": "portal/newsletter/:newsletterId/"
+}

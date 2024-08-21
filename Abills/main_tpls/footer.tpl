@@ -80,6 +80,10 @@
     }
   });
 
+  jQuery('a.double_click_check').on('click', function() {
+    jQuery(this).addClass('disabled').attr('disabled', true);
+  })
+
   jQuery('.hidden_empty_required_filed_check').on('click', function() {
     let form = jQuery(this).closest('form');
     if (form.length < 1) return;

@@ -1,0 +1,150 @@
+get:
+  tags:
+    - groups
+  summary: Получить группы пользователей
+  description: Возвращает группы пользователей
+  operationId: getGroupsList
+  parameters:
+    - name: allowCredit
+      in: query
+      description: Разрешить брать кредит в лк 1 - да, 0 - нет
+      schema:
+        type: boolean
+        default: true
+    - name: bonus
+      in: query
+      description: Включить бонусы 1 - включено, 0 - нет
+      schema:
+        type: boolean
+        default: true
+    - name: descr
+      in: query
+      description: Описание группы
+      schema:
+        type: boolean
+        default: true
+    - name: disableChgTp
+      in: query
+      description: Разрешить смену тарифного плана в лк 1 - да, 0 - нет
+      schema:
+        type: boolean
+        default: true
+    - name: disablePayments
+      in: query
+      description: Запретить внесение платежей через админ панель 1 - да, 0 - нет
+      schema:
+        type: boolean
+        default: true
+    - name: disablePaysys
+      in: query
+      description: Запретить прием платежей через Paysys 1 - да, 0 - нет
+      schema:
+        type: boolean
+        default: true
+    - name: documentsAccess
+      in: query
+      description: Включить доступ к документам 1 - да, 0 - нет
+      schema:
+        type: boolean
+        default: true
+    - name: domainId
+      in: query
+      description: ID домена, по умолчанию, работает только с модулем Multidoms
+      schema:
+        type: boolean
+        default: true
+    - name: gName
+      in: query
+      description: Название группы
+      schema:
+        type: boolean
+        default: true
+    - name: gid
+      in: query
+      description: ID группы в системе
+      schema:
+        type: boolean
+        default: true
+    - name: id
+      in: query
+      description: ID группы в системе
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название группы
+      schema:
+        type: boolean
+        default: true
+    - name: smsService
+      in: query
+      description: СМС Шлюз для группы
+      schema:
+        type: boolean
+        default: true
+    - name: separateDocs
+      in: query
+      description: Собственные Бух. документы 1 да, 0 нет
+      schema:
+        type: boolean
+        default: true
+    - name: usersCount
+      in: query
+      description: Количество пользователей в группе
+      schema:
+        type: boolean
+        default: true
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/groups.yaml"
+  security:
+    - KEY: [ ]
+post:
+  tags:
+    - groups
+  summary: Добавление группы
+  operationId: addGroup
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/groupsId.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/groupsId.yaml"
+    400:
+      description: Группа уже есть с таким GID
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse400"
+  security:
+    - KEY: [ ]
+

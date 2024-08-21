@@ -7,6 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(in_array next_month convert _bp);
+use Cams::Init qw/init_cams_service/;
 
 our (
   %lang,
@@ -17,7 +18,6 @@ our (
   $Cams,
   $users_
 );
-
 
 our Abills::HTML $html;
 
@@ -55,7 +55,7 @@ sub cams_user_info {
 
     $Cams->{db}{db}->{AutoCommit} = 0;
     $Cams->{db}->{TRANSACTION} = 1;
-    $Cams->users_list({
+    $Cams->user_list({
       UID   => $FORM{UID} || "",
       TP_ID => $FORM{TP_ID} || 0,
     });
@@ -173,7 +173,7 @@ sub cams_user_info {
 
   result_former({
     INPUT_DATA      => $Cams,
-    FUNCTION        => 'users_list',
+    FUNCTION        => 'user_list',
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'ID,TP_NAME,SERVICE_STATUS',
     HIDDEN_FIELDS   => 'LOGIN',
@@ -245,7 +245,11 @@ sub cams_clients_streams {
     my $streams_html = "";
     foreach my $stream (@$user_cams) {
       if (($stream->{service_id} && $stream->{service_id} ne $prev_stream) || ($stream->{service_id} && !$Cams_service)) {
-        $Cams_service = cams_load_service($stream->{service_name}, { SERVICE_ID => $stream->{service_id} });
+        $Cams_service = init_cams_service($db, $admin, \%conf, {
+          SERVICE_ID => $stream->{service_id},
+          HTML       => $html,
+          LANG       => \%lang
+        });
       }
 
       $prev_stream = $stream->{service_id};
@@ -595,7 +599,11 @@ sub cams_show_camera_archive {
   $camera->{service_id} ||= $camera->{service_id_folder};
 
   if (($camera->{service_id} && $camera->{service_id} ne $prev_stream) || ($camera->{service_id} && !$Cams_service)) {
-    $Cams_service = cams_load_service($camera->{service_name}, { SERVICE_ID => $camera->{service_id} });
+    $Cams_service = init_cams_service($db, $admin, \%conf, {
+      SERVICE_ID => $camera->{service_id},
+      HTML       => $html,
+      LANG       => \%lang
+    });
   }
 
   $prev_stream = $camera->{service_id};

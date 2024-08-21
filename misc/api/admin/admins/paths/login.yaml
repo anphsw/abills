@@ -1,0 +1,37 @@
+post:
+  tags:
+    - admins
+  summary: Авторизация администратора
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/loginRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/loginResponse.yaml"
+          examples:
+            ClassicResponse:
+              summary:
+                Ответ по умолчанию
+              value:
+                sid: dewfj
+            ResponseWithApiKey:
+              summary:
+                Ответ если включена опция `API_ADMIN_AUTH_LOGIN_RETURN_API_KEY`
+              value:
+                sid: dewfj
+                apiKey: TEST123
+    400:
+      description: Нет поля пароль
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/loginResponse400.yaml"
+  security:
+    - KEY: [ ]

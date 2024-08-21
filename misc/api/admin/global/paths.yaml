@@ -22,20 +22,20 @@
                       createBill: 1
                       fio: test api create
                   - method: POST
-                    url: "/payments/users/{UID}/"
+                    url: "/payments/users/{uid}/"
                     body:
                       sum: 100
                       method: 123456
                       billId: "{BILL_ID}"
                   - method: POST
-                    url: "/voip/{UID}/"
+                    url: "/voip/{uid}/"
                     body:
                       tpId: 4
                       number: "38050631262"
                   - method: POST
-                    url: "/abon/tariffs/2/users/{UID}/"
+                    url: "/abon/tariffs/2/users/{uid}/"
                   - method: POST
-                    url: "/abon/tariffs/3/users/{UID}/"
+                    url: "/abon/tariffs/3/users/{uid}/"
       required: true
     responses:
       200:

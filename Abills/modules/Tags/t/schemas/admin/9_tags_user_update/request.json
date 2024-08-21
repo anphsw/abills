@@ -1,0 +1,13 @@
+{
+  "name": "TAGS_USER_UPDATE",
+  "method": "PATCH",
+  "path": "tags/users/:uid/",
+  "body": {
+    "tags": [
+      {
+        "id": "{{tagId}}",
+        "endDate": "2024-10-17"
+      }
+    ]
+  }
+}

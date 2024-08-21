@@ -24,5 +24,6 @@ $lang{SEARCH_PHRASE}='Search phrase';
 $lang{DILLER_PAY}='Dealer payment';
 $lang{PAY_USER}='Refused to user';
 $lang{NUMBER_AND_SERIA}='Serial and number';
+$lang{CARD_DUBLICATE} = 'Dublicate';
 
 1;

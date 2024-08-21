@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "properties": {
+    "coordx": {
+      "type": "integer"
+    },
+    "coordy": {
+      "type": "integer"
+    },
+    "fullName": {
+      "type": "string"
+    },
+    "id": {
+      "type": "integer"
+    },
+    "name": {
+      "type": "string"
+    },
+    "parentId": {
+      "type": "integer"
+    },
+    "parentName": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "streetCount": {
+      "type": "integer"
+    },
+    "typeId": {
+      "type": "integer"
+    },
+    "typeName": {
+      "type": "string"
+    },
+    "zip": {
+      "type": [
+        "string",
+        "number"
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "streetCount",
+    "zip"
+  ]
+}

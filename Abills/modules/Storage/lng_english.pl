@@ -197,4 +197,6 @@ $lang{STORAGE_PURCHASED_ITEM} = 'Purchase of goods';
 $lang{STORAGE_SHIPPING_STATUS} = 'Shipping status';
 $lang{STORAGE_PURCHASE_REPORT} = 'Purchase report';
 
+$lang{ERR_STORAGE_QUANTITY_OF_GOODS_IS_INCORRECT} = 'The quantity of goods is incorrect';
+
 1;

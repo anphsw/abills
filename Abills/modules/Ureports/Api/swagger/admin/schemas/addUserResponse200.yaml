@@ -1,0 +1,31 @@
+type: object
+properties:
+  destinations:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 2
+        value:
+          type: number
+          example: 0509999999
+  registration:
+    type: string
+    example: '2023-04-11'
+  status:
+    type: number
+    example: 1
+  tpId:
+    type: number
+    example: 7
+  tpName:
+    type: string
+    example: test
+  tpNum:
+    type: number
+    example: 124
+  uid:
+    type: number
+    example: 102144

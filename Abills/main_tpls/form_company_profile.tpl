@@ -11,4 +11,7 @@
     </section>
   </div>
 
+  <div class='abills-form-main-buttons mb-3'>
+    <input type=submit class='btn btn-primary double_click_check' name='%ACTION%' value='%LNG_ACTION%'>
+  </div>
 </form>

@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "title": "The Root Schema",
+  "required": [
+    "name",
+    "module",
+    "status",
+    "id"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "module": {
+      "type": "string"
+    },
+    "status": {
+      "type": "number"
+    },
+    "id": {
+      "type": "number"
+    }
+  }
+}

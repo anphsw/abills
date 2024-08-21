@@ -19,6 +19,7 @@
    VLANS - used with CPE_CHECK/CPE_FILL/FORCE_FILL. check or fill abonent's VLAN/SERVER_VLAN
    FILL_CPE_FROM_NAS_AND_PORT
    FILL_SWITCH_PORT_FROM_CID
+   PON_FILL_SWITCH_PORT_FROM_CID
    SERIAL_SCAN
    SNMP_SERIAL_SCAN_ALL
    QUERY_OIDS - query only this OIDs
@@ -81,6 +82,9 @@ elsif ($argv->{FILL_SWITCH_PORT_FROM_CID}) {
 }
 elsif ($argv->{CLEAN_DELETED}) {
   _clean_deleted_onu();
+}
+elsif ($argv->{PON_FILL_SWITCH_PORT_FROM_CID}) {
+  _pon_fill_switch_port_from_cid();
 }
 else {
   _equipment_pon();
@@ -240,6 +244,12 @@ sub _equipment_pon_load {
         }
 
         $Equipment->{TOTAL} = 0;
+
+        if ($nas_info->{nas_id}){
+          $Admin->{MODULE}='Equipment';
+          $Admin->system_action_add("RELOAD NAS_ID: $nas_info->{nas_id}", { TYPE => 11 });
+        }
+
       }
 
       if (!$Equipment->{TOTAL}) {
@@ -297,12 +307,12 @@ sub _equipment_pon_load {
       }
 
       $onu_counts = $#{$onu_snmp_list} + 1;
-
+      $Equipment->{db}->{db}->ping(); #For long snmp requests
       my $onu_database_list = $Equipment->onu_list({
         NAS_ID     => $nas_id,
         COLS_NAME  => 1,
         SKIP_DOMAIN=> 1,
-        PAGE_ROWS  => 100000,
+        PAGE_ROWS  => 1000000,
         ONU_GRAPH  => '_SHOW',
         STATUS     => '_SHOW',
         DELETED    => '_SHOW'
@@ -983,6 +993,90 @@ sub _clean_deleted_onu {
     $Equipment->onu_del($onu_list_id);
     if ($debug > 0) {
       print "Total ONU deleted: $total_deleted\n";
+    }
+  }
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 _pon_fill_switch_port_from_cid()
+
+=cut
+#**********************************************************
+sub _pon_fill_switch_port_from_cid {
+  require Internet;
+  Internet->import();
+  my $Internet = Internet->new($db, $Admin, \%conf);
+
+  if ($debug > 3) {
+    $Equipment->{debug} = 1;
+  }
+
+  my $onu_list = $Equipment->onu_list({
+    NAS_ID        => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
+    BRANCH        => '_SHOW',
+    ONU_ID        => '_SHOW',
+    ONU_DHCP_PORT => '_SHOW',
+    PAGE_ROWS     => 10000,
+    COLS_NAME     => 1,
+  });
+
+  print "ONU total: $Equipment->{TOTAL}\n" if ($debug > 0);
+  return if (!$Equipment->{TOTAL});
+
+  my %onu_dhcp = ();
+  foreach my $onu (@$onu_list) {
+    $onu_dhcp{"$onu->{branch}:$onu->{onu_id}"} = $onu->{dhcp_port} if ($onu->{branch} && $onu->{onu_id});
+  }
+
+  my $mac_log_list = $Equipment->mac_log_list({
+    NAS_ID       => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
+    PORT         => '_SHOW',
+    PORT_NAME    => '_SHOW',
+    MAC          => '_SHOW',
+    VLAN         => '_SHOW',
+    PAGE_ROWS    => 10000,
+    COLS_NAME    => 1
+  });
+
+  print "MAC log total: $Equipment->{TOTAL}\n" if ($debug > 0);
+  return if (!$Equipment->{TOTAL});
+
+  my %mac_behind_onu = ();
+  foreach my $line (@$mac_log_list) {
+    $line->{port_name} =~ s/EPON//g;
+    $line->{port_name} =~ s/GPON//g;
+    $mac_behind_onu{$line->{mac}}{port}= $onu_dhcp{$line->{port_name}} if ($line->{port_name});
+    $mac_behind_onu{$line->{mac}}{nas}= $line->{nas_id} if ($line->{nas_id});
+  }
+
+  my $internet_list = $Internet->user_list({
+    COLS_NAME => 1,
+    NAS_ID    => ($argv->{PON_FORCE_FILL}) ? '_SHOW' : '0',
+    PORT      => '_SHOW',
+    LOGIN     => '_SHOW',
+    CID       => '!',
+    PAGE_ROWS => 10000000,
+  });
+
+  foreach my $user (@$internet_list) {
+    $user->{cid} = lc($user->{cid});
+    next if ($user->{cid} && $user->{cid} eq 'ANY');
+    next if (!$mac_behind_onu{$user->{cid}}{nas});
+
+    if ( $mac_behind_onu{$user->{cid}}{nas} && $mac_behind_onu{$user->{cid}}{port} ){
+      $Internet->user_change({
+        UID    => $user->{uid},
+        ID     => $user->{id},
+        NAS_ID => $mac_behind_onu{$user->{cid}}{nas},
+        PORT   => $mac_behind_onu{$user->{cid}}{port}
+      });
+      print "UID:$user->{uid}, CID $user->{cid}, added NAS_ID=$mac_behind_onu{$user->{cid}}{nas}, port=$mac_behind_onu{$user->{cid}}{port} \n" if ($debug > 0);
+    }
+    else {
+      print "UID:$user->{uid}, CID $user->{cid}, port did not found \n" if ($debug > 0);
     }
   }
 

@@ -1,0 +1,1 @@
+ALTER TABLE `sharing_files` ADD COLUMN `show_in_report` TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0' COMMENT 'Show in quick report';

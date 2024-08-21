@@ -1,0 +1,63 @@
+get:
+  tags:
+    - voip
+  summary: Список транков
+  parameters:
+    - name: failoverTrunk
+      in: query
+      description: Резервный транк при сбое.
+      schema:
+        type: boolean
+        default: true
+    - name: id
+      in: query
+      description: ID транка.
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название транка.
+      schema:
+        type: boolean
+        default: true
+    - name: protocol
+      in: query
+      description: Протокол транка.
+      schema:
+        type: boolean
+        default: true
+    - name: providerName
+      in: query
+      description: Поставщик услуг Voip
+      schema:
+        type: boolean
+        default: true
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: "../schemas/trunkList.yaml"
+  security:
+    - KEY: []

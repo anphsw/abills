@@ -65,6 +65,8 @@ my %sms_status = (
   105 => $lang{EXPIRED},
 );
 
+require Sms::Configure;
+
 #**********************************************************
 =head2 sms_send($attr) - Send SMS
 
@@ -229,7 +231,7 @@ sub sms_info {
 sub sms_account_info {
   my $Sms_service = init_sms_service($db, $admin, \%conf);
 
-  return 0 if ($Sms_service->{errno});
+  return 0 if (!$Sms_service || ref $Sms_service eq 'HASH');
 
   if ($Sms_service->can('account_info')) {
     my $list = $Sms_service->account_info({
@@ -270,7 +272,7 @@ sub sms_reports {
 
   my $Sms_service = init_sms_service($db, $admin, \%conf);
 
-  return 0 if ($Sms_service->{errno});
+  return 0 if (!$Sms_service || ref $Sms_service eq 'HASH');
 
   if (!$FORM{desc} && !$FORM{sort}) {
     $LIST_PARAMS{DESC} = 'DESC';
@@ -607,56 +609,6 @@ sub sms_send_register {
 
   print $table->show();
 
-}
-
-#**********************************************************
-=head2 sel_sms_systems($attr)
-
-=cut
-#**********************************************************
-sub sel_sms_systems {
-  my ($attr) = @_;
-
-  my %enable_sms_systems = ();
-  my %sms_systems = (
-    SMS_PLAYMOBILE_LOGIN   => 'Playmobile',
-    SMS_CMD                => 'Cmd',
-    SMS_TXTLOCAL_APIKEY    => 'Txtlocal',
-    SMS_SMSC_USER          => 'Smsc',
-    SMS_LITTLESMS_USER     => 'Littlesms',
-    SMS_EPOCHTASMS_OPENKEY => 'Epochtasms',
-    SMS_TURBOSMS_PASSWD    => 'Turbosms',
-    SMS_JASMIN_USER        => 'Jasmin',
-    SMS_SMSEAGLE_USER      => 'Smseagle',
-    SMS_BULKSMS_LOGIN      => 'Bulksms',
-    SMS_IDM_LOGIN          => 'IDM',
-    SMS_TERRA_USER         => 'Sms_terra',
-    SMS_UNIVERSAL_URL      => 'Universal_sms_module',
-    SMS_ESKIZ_URL          => 'Eskizsms',
-    SMS_BROKER_LOGIN       => 'Sms_Broker',
-    SMS_OMNICELL_URL       => 'Omnicell',
-    SMS_LIKON_URL          => 'LikonSms',
-    SMS_MSGAM_URL          => 'MsgAm',
-    SMS_CABLENET_LOGIN     => 'Cablenet',
-    SMS_WEBSMS_URL         => 'WebSms',
-    SMS_FENIX_URL          => 'Fenix',
-    SMS_AMD_URL            => 'AMD',
-    SMS_SMSCLUB_URL        => 'SmsClub',
-    SMS_ALPHASMS_URL        => 'AlphaSms',
-  );
-
-  foreach my $config_key (sort keys %sms_systems) {
-    next if !$conf{$config_key};
-
-    $enable_sms_systems{$config_key} = $sms_systems{$config_key};
-  }
-
-  return $html->form_select($attr->{NAME} || 'SMS_SERVICE', {
-    SELECTED => $attr->{SELECTED} || '',
-    SEL_HASH => { '' => '--', %enable_sms_systems },
-    NO_ID    => 1,
-    SORT_KEY => 1
-  });
 }
 
 1

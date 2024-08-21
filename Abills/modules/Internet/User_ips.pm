@@ -39,27 +39,27 @@ sub get_static_ip {
   my $Internet = Internet->new($db, $admin, \%conf);
   my $Nas      = Nas->new($db, \%conf, $admin);
 
-  my $Ip_pool  = $Nas->ip_pools_info($pool_id);
+  my $ip_pool  = $Nas->ip_pools_info($pool_id);
 
   if($attr->{IPV6}) {
-    return $Ip_pool->{IPV6_PREFIX}, $Ip_pool->{IPV6_MASK}, $Ip_pool->{IPV6_TEMPLATE},
-      $Ip_pool->{IPV6_PD}, $Ip_pool->{IPV6_PD_MASK}, $Ip_pool->{IPV6_PD_TEMPLATE};
+    return $ip_pool->{IPV6_PREFIX}, $ip_pool->{IPV6_MASK}, $ip_pool->{IPV6_TEMPLATE},
+      $ip_pool->{IPV6_PD}, $ip_pool->{IPV6_PD_MASK}, $ip_pool->{IPV6_PD_TEMPLATE};
   }
 
-  if(_error_show($Ip_pool, { ID => 117, MESSAGE => 'IP POOL:'. ($pool_id || '') })) {
+  if(_error_show($ip_pool, { ID => 117, MESSAGE => 'IP POOL:'. ($pool_id || '') })) {
     return '0.0.0.0';
   }
 
-  my @arr_ip_skip = $Ip_pool->{IP_SKIP} ? split(/,\s?|;\s?/, $Ip_pool->{IP_SKIP}) : ();
+  my @arr_ip_skip = $ip_pool->{IP_SKIP} ? split(/,\s?|;\s?/, $ip_pool->{IP_SKIP}) : ();
 
-  my $start_ip = ip2int($Ip_pool->{IP});
-  my $end_ip   = $start_ip + $Ip_pool->{COUNTS};
+  my $start_ip = ip2int($ip_pool->{IP});
+  my $end_ip   = $start_ip + $ip_pool->{COUNTS};
 
   my %users_ips = ();
 
   my $list = $Internet->user_list({
     PAGE_ROWS => 1000000,
-    IP        => ">=$Ip_pool->{IP}",
+    IP        => ">=$ip_pool->{IP}",
     SKIP_GID  => 1,
     GROUP_BY  => 'internet.id',
     COLS_NAME => 1
@@ -73,14 +73,14 @@ sub get_static_ip {
     if ( !$users_ips{ $ip_cur }) {
       my $ip_ = int2ip($ip_cur);
 
-      if(!($ip_ ~~ @arr_ip_skip)) {
+      if(!in_array($ip_, \@arr_ip_skip)) {
         return $ip_;
       }
     }
   }
 
-  if ($Ip_pool->{NEXT_POOL_ID}){
-    return get_static_ip($Ip_pool->{NEXT_POOL_ID});
+  if ($ip_pool->{NEXT_POOL_ID}){
+    return get_static_ip($ip_pool->{NEXT_POOL_ID});
   }
 
   $html->message('err', $lang{ERROR}, $lang{ERR_NO_FREE_IP_IN_POOL});

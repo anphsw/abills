@@ -41,7 +41,9 @@ our @EXPORT_OK = qw(
 sub module_is_exist {
   my $module_name = shift;
 
-  eval "require $module_name";
+  my $module_path = $module_name . '.pm';
+  $module_path =~ s{::}{/}g;
+  eval { require $module_path };
 
   return $@ ? 0 : 1;
 }
@@ -63,7 +65,6 @@ sub load_perl_module {
   my $result = ();
 
   if (module_is_exist($module_name)) {
-    eval "require $module_name";
     return 1;
   }
 
@@ -72,8 +73,7 @@ sub load_perl_module {
 
   if (ref $result eq 'HASH' && $result->{success}) {
     print("Module $module_name installed\n") if $attr->{debug};
-    eval "require $module_name";
-    return 1;
+    return module_is_exist($module_name);
   }
   elsif ($result->{error}) {
     print("Some error: $result->{error}") if $attr->{debug};

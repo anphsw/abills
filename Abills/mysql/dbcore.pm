@@ -681,7 +681,7 @@ sub search_expr_users{
     PASPORT_NUM    => 'STR:pi.pasport_num',
     PASPORT_GRANT  => 'STR:pi.pasport_grant',
     #CONTRACT_ID   => 'STR:if(u.company_id=0, concat(pi.contract_sufix,pi.contract_id), concat(company.contract_sufix,company.contract_id)) AS contract_id',
-    CONTRACT_ID    => 'STR:IF(u.company_id=0, pi.contract_id, company.contract_id) AS contract_id',
+    CONTRACT_ID    => 'STR:IF(u.company_id=0 OR company.contract_id=0, pi.contract_id, company.contract_id) AS contract_id',
     CONTRACT_DATE  => 'STR:IF(u.company_id=0, pi.contract_date, company.contract_date) AS contract_date',
     CONTRACT_SUFIX => 'STR:pi.contract_sufix',
     CONTRACT_DATE  => 'DATE:pi.contract_date',
@@ -1034,11 +1034,18 @@ sub search_expr_users{
       # if ($build_delimiter =~ /,/) {
       #   $attr->{ADDRESS_FULL} =~ s/,/\*/g;
       # }
+      my $full_address_view = "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
+        "streets.name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full";
 
-      push @fields, @{$self->search_expr($attr->{ADDRESS_FULL}, "STR",
-        "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
-          "streets.name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full",
-        { EXT_FIELD => 1 })};
+      my $street_statement = "IF(
+        streets.second_name <> '',
+        CONCAT(streets.name, ' (', streets.second_name, ')'),
+        streets.name
+      )";
+      my $full_address_statement = "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
+        "$street_statement, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full";
+
+      push @fields, @{$self->search_expr($attr->{ADDRESS_FULL}, 'STR', $full_address_view, { EXT_FIELD => $full_address_statement })};
       $EXT_TABLE_JOINS_HASH{users_pi} = 1;
       $EXT_TABLE_JOINS_HASH{builds} = 1;
       $EXT_TABLE_JOINS_HASH{streets} = 1;
@@ -1257,23 +1264,18 @@ sub search_expr_users{
   if ( $attr->{SORT} && $attr->{SORT} =~ /^\d+$/){
     my $sort_position = ($attr->{SORT} - 1 < 1) ? 1 : $attr->{SORT} - (($attr->{SORT_SHIFT}) ? $attr->{SORT_SHIFT} : 2);
     my $sort_field = $self->{SEARCH_FIELDS_ARR}->[$sort_position];
+    #$sort_field = 'internet.port' if $attr->{PORT};
 
     if ( $sort_field ){
-      if ( $sort_field =~ m/build$|flat$/i ){
+      if ( $sort_field =~ m/build$|flat$/i){
         if ( $sort_field =~ m/([a-z\.\_0-9\(\)]+)\s?/i ){
-          #$self->{SEARCH_FIELDS_ARR}->[$sort_position] = $1;
-          #$self->{SEARCH_FIELDS_ARR}->[$sort_position] = "CAST($1 AS UNSIGNED)";
           $SORT = "CAST($1 AS UNSIGNED)";
         }
         else {
-          #$SORT = "CAST($self->{SEARCH_FIELDS_ARR}->[$sort_position] AS unsigned)";
           $SORT = "$sort_field*1";
         }
         $self->{SORT_BY}=$SORT;
       }
-      #elsif ($self->{SEARCH_FIELDS_ARR}->[$sort_position] =~ m/([a-z0-9_\.]{0,12}framed_ip_address)/i) {
-      #	$SORT = "$1+0";
-      #}
       elsif ( $sort_field =~ m/ ([a-z0-9_\.]{0,12}ip )/i ){
         $SORT = "$1+0";
         $self->{SORT_BY}=$SORT;
@@ -1587,6 +1589,12 @@ sub changes {
         push @change_log, "$k $OLD_DATA->{$k}->$value";
         push @change_fields, "$FIELDS->{$k}=INET_ATON( ? )";
         push @bind_values, $value;
+      }
+      elsif ($value =~ /^INET_ATON\(['"]+([0-9\.]+)['"]+\)/i) {
+        push @change_log, "$k $OLD_DATA->{$k}->$value";
+        push @change_fields, "$FIELDS->{$k}=INET_ATON( ? )";
+        push @bind_values, $1;
+        next;
       }
       elsif ( $k eq 'IPV6_PREFIX' || $k eq 'IPV6' || $k eq 'IPV6_PD'){
         push @change_log, "$k $OLD_DATA->{$k}->" . $value;

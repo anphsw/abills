@@ -1,0 +1,6 @@
+/user/docs/invoices:
+  $ref: "./paths/invoices.yaml"
+/user/docs/invoices/{id}:
+  $ref: "./paths/invoice.yaml"
+/user/docs/invoices/period:
+  $ref: "./paths/invoicesPeriod.yaml"

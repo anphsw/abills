@@ -1,0 +1,87 @@
+get:
+  tags:
+    - users
+  summary: Получить персональную информацию о пользователе
+  description: Возвращает персональную информацию пользователя
+  operationId: getUserPiByUID
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя в биллинге
+      required: true
+      schema:
+        type: integer
+        format: int64
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/pi.yaml"
+    400:
+      description: Пользователь не найден
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiGetResponse400"
+  security:
+    - KEY: []
+put:
+  tags:
+    - users
+  summary: Изменение персональной информации пользователю ИСПОЛЬЗОВАТЬ /users/{uid}/
+  deprecated: true
+  operationId: changeUserPi
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/pi.yaml"
+    required: true
+  responses:
+    400:
+      description: Пользователь не найден
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiGetResponse400"
+  security:
+    - KEY: []
+post:
+  tags:
+    - users
+  summary: Добавление персональной информации пользователю ИСПОЛЬЗОВАТЬ /users/
+  deprecated: true
+  operationId: addUserPi
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+        format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/pi.yaml"
+    required: true
+  responses:
+    400:
+      description: Пользователь не найден
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiGetResponse400"
+  security:
+    - KEY: []

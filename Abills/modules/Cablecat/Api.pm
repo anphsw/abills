@@ -18,9 +18,6 @@ use warnings FATAL => 'all';
 #
 # my Cablecat $Cablecat;
 
-our %lang;
-require 'Abills/modules/Cablecat/lng_english.pl';
-
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
 
@@ -38,8 +35,6 @@ sub new {
   };
 
   bless($self, $class);
-
-  my %LANG = (%{$lang}, %lang);
 
   # $Cablecat = Cablecat->new($db, $admin, $conf);
   # $Cablecat->{debug} = $self->{debug};

@@ -1,4 +1,4 @@
-/online/{UID}:
+/online/{uid}:
   get:
     tags:
       - online
@@ -7,7 +7,7 @@
     operationId: getUserSessions
     deprecated: true
     parameters:
-      - name: UID
+      - name: uid
         in: path
         description: UID пользователя в биллинге
         required: true
@@ -25,6 +25,6 @@
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ApiResponse"
+              $ref: "#/components/schemas/ApiGetResponse400"
     security:
       - KEY: []

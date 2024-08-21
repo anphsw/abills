@@ -43,7 +43,7 @@ sub msgs_task_board {
   my $task_status_select = msgs_sel_status({ NAME => 'TASK_STATUS_SELECT', ALL => 1 });
   my $admins_select = sel_admins();
 
-  $Schedule_control->schedule_tasks_board(json_former($tasks), { %FORM,
+  $Schedule_control->schedule_tasks_board(json_former($tasks, { ESCAPE_DQ => 1 }), { %FORM,
     ID      => 'MSGS_TASKS_BOARD',
     FILTERS => $html->tpl_show(_include('msgs_schedule', 'Msgs'), {
       DATE       => $date,

@@ -15,14 +15,7 @@ properties:
           type: number
           example: 0
         response:
-          type: object
-          properties:
-            errno:
-              type: number
-              example: 7
-            errstr:
-              type: string
-              example: ERROR_DUPLICATE
+          $ref: "#/components/schemas/ApiAddResponse400"
         successful:
           type: boolean
         url:

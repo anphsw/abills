@@ -4,16 +4,16 @@ CREATE TABLE IF NOT EXISTS `info_info`
 (
   `id` INT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
   `obj_type` VARCHAR(30) DEFAULT ''         NOT NULL,
-  `obj_id` INT DEFAULT 0                  NOT NULL,
-  `comment_id` SMALLINT(6) DEFAULT 0          NOT NULL,
+  `obj_id` INT DEFAULT 0                    NOT NULL,
+  `comment_id` INT UNSIGNED DEFAULT 0       NOT NULL,
   `media_id` SMALLINT(6) DEFAULT 0          NOT NULL,
   `location_id` INT(11) NOT NULL DEFAULT '0',
   `date` DATETIME NOT NULL,
-  `admin_id` SMALLINT NOT NULL DEFAULT 0,
-  `document_id` SMALLINT(6) NOT NULL DEFAULT '0',
+  `aid`  SMALLINT NOT NULL DEFAULT 0,
+  `document_id` SMALLINT(6) UNSIGNED DEFAULT 0 NOT NULL,
   KEY `location_id` (`location_id`),
   KEY `comment_id` (`comment_id`),
-  KEY `admin_id` (`admin_id`),
+  KEY `aid` (`aid`),
   PRIMARY KEY `id` (`id`)
 )
   DEFAULT CHARSET = utf8
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS `info_media`
 
 CREATE TABLE IF NOT EXISTS `info_comments`
 (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `text` TEXT,
   PRIMARY KEY `id` (`id`)
 )
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS `info_documents`
   `file` BLOB NULL,
   `content_type` VARCHAR(30) NOT NULL DEFAULT '',
   `content_size` VARCHAR(30) DEFAULT '0' NOT NULL,
-  `comment_id` SMALLINT(6) NOT NULL DEFAULT 0
+  `comment_id`   INT UNSIGNED DEFAULT 0  NOT NULL
 )
   ENGINE = InnoDB
   DEFAULT CHARSET = utf8
@@ -68,11 +68,10 @@ CREATE TABLE IF NOT EXISTS `info_documents`
 
 CREATE TABLE IF NOT EXISTS `info_change_comments`
 (
-    `id`          BIGINT UNSIGNED AUTO_INCREMENT
-        PRIMARY KEY,
-    `id_comments` BIGINT           NOT NULL DEFAULT 0,
+    `id`          INT UNSIGNED  AUTO_INCREMENT PRIMARY KEY,
+    `id_comments` INT UNSIGNED     NOT NULL DEFAULT 0,
     `date_change` DATE             NOT NULL DEFAULT '0000-00-00',
-    `aid`         INT(11) UNSIGNED NOT NULL DEFAULT 0,
+    `aid`         SMALLINT(11) UNSIGNED NOT NULL DEFAULT 0,
     `uid`         INT(11) UNSIGNED NOT NULL DEFAULT 0,
     `text`        VARCHAR(300)     NOT NULL DEFAULT '',
     `old_comment` VARCHAR(300)     NOT NULL DEFAULT '',

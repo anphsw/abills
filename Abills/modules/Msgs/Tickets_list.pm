@@ -332,7 +332,7 @@ sub msgs_list {
   $index = get_function_index('msgs_admin');
   _error_show($Msgs);
 
-  if ($FORM{UID} && !defined($FORM{STATE}) && !$FORM{ALL_MSGS} && $Msgs->{TOTAL} == 1) {
+  if ($FORM{UID} && !defined($FORM{STATE}) && !$FORM{ALL_MSGS} && ($Msgs->{TOTAL} == 1 || $FORM{QUICK})) {
     msgs_ticket_show({ ID => $list->[0]->{id} });
     return 1;
   }

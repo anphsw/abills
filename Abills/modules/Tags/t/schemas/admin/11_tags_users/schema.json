@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "title": "Tags users",
+  "required": [
+    "id",
+    "name",
+    "uid",
+    "priority",
+    "date",
+    "disable",
+    "login",
+    "comments"
+  ],
+  "properties": {
+    "id": {
+      "type": "number"
+    },
+    "name": {
+      "type": "string"
+    },
+    "uid": {
+      "type": "number"
+    },
+    "priority": {
+      "type": "number"
+    },
+    "date": {
+      "type": "string"
+    },
+    "disable": {
+      "type": "number"
+    },
+    "login": {
+      "type": "string"
+    },
+    "comments": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,74 @@
+get:
+  tags:
+    - crm
+  summary: Получить информацию о потенциальном клиенте
+  description: Возвращает информацию о лиде
+  operationId: getCrmLeadInfo
+  parameters:
+    - name: id
+      in: path
+      description: ID потенциального клиента
+      required: true
+      schema:
+        type: integer
+        format: int64
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/lead.yaml"
+  security:
+    - KEY: [ ]
+put:
+  tags:
+    - crm
+  summary: Изменить потенциального клиента
+  operationId: crmLeadChange
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: ID потенциального клиента
+      schema:
+        type: integer
+        default: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/lead.yaml"
+    required: true
+  responses:
+    400:
+      description: Can't get old data for change
+      content: { }
+  security:
+    - KEY: [ ]
+delete:
+  tags:
+    - crm
+  summary: Удалить потенциального клиента
+  parameters:
+    - name: id
+      in: path
+      description: ID потенциального клиента
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiDeleteResponse200"
+    400:
+      description: Нет потенциального клиента с таким id
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteLeadResponse400.yaml"
+  security:
+    - KEY: []

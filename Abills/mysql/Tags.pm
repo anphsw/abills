@@ -44,6 +44,9 @@ sub info{
     Bind => [ $id ]
   });
 
+  # declare field with the same name like during manage
+  $self->{RESPONSIBLE} = $self->{AID};
+
   return $self;
 }
 
@@ -118,7 +121,8 @@ sub list {
       [ 'ID_RESPONSIBLE', 'INT',    'tr.id AS id_responsible',                    1 ],
       [ 'RESPONSIBLE',    'INT',    'GROUP_CONCAT(DISTINCT a.id) AS responsible', 1 ],
       [ 'TAGS_ID',        'INT',    'tr.tags_id',                                 1 ],
-      [ 'COLOR',          'STR',    't.color',                                    1 ]
+      [ 'COLOR',          'STR',    't.color',                                    1 ],
+      [ 'EXPIRE_DAYS',    'INT',    't.expire_days',                              1 ],
     ], { WHERE => 1 },
   );
 
@@ -164,6 +168,7 @@ sub tags_user{
       [ 'USERS_SUM',  'INT', 'SUM(tu.uid) AS tu.users_sum',     ],
       [ 'END_DATE',   'DATE','tu.end_date',       'tu.end_date AS end_date', ],
       [ 'RESPONSIBLE','INT', 'GROUP_CONCAT(DISTINCT a.id) AS responsible', 1 ],
+      [ 'EXPIRE_DAYS','INT', 't.expire_days',                 1 ],
     ], { WHERE => 1 });
 
   my $EXT_TABLE = '';
@@ -257,7 +262,7 @@ sub tags_user_change{
 
 =cut
 #**********************************************************
-sub user_del{
+sub user_del {
   my $self = shift;
   my ($attr) = @ _;
 
@@ -276,6 +281,21 @@ sub user_del{
     $self->{admin}->{MODULE}=$MODULE;
     $self->{admin}->action_add($attr->{UID}, "", { TYPE => 10 });
   }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 user_add($attr)
+
+=cut
+#**********************************************************
+sub user_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('tags_users', $attr);
+  $self->{admin}->system_action_add("USER TAG_ID:$self->{INSERT_ID}", { TYPE => 1 });
 
   return $self;
 }
@@ -358,7 +378,7 @@ sub add_responsible {
   return $self if !$attr->{AID};
 
   my @MULTI_QUERY = ();
-  my @ids = split(/, /, $attr->{AID});
+  my @ids = split(/,\s?/, $attr->{AID});
 
   foreach my $id (@ids) {
     push @MULTI_QUERY, [ $id, $attr->{ID} ];
@@ -452,6 +472,43 @@ sub responsible_tag_list {
   });
 
   return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 report_list($attr)
+
+=cut
+#**********************************************************
+sub report_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  $SORT = 4 if ($attr->{SORT} && $attr->{SORT} == 5);
+
+  $self->query( "
+    SELECT
+      t.name,
+      SUM(IF(u.disable=0, 1, 0)) AS active,
+      SUM(IF(u.disable=1, 1, 0)) AS disable,
+      COUNT(u.uid) AS usr_tags,
+      t.priority,
+      t.id,
+      (SELECT COUNT(tag_id) AS tags_total FROM tags_users) AS tags_total
+     FROM tags_users tu
+     RIGHT JOIN tags t ON (t.id=tu.tag_id)
+     LEFT JOIN users u ON (u.uid=tu.uid)
+     GROUP BY t.name
+     ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list} || [];
+
+  return $list;
 }
 
 1;

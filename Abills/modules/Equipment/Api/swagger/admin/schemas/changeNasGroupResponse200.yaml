@@ -1,0 +1,32 @@
+type: object
+properties:
+  affected:
+    type: number
+    example: 0
+  changesLog:
+    type: string
+    example: "NAS_GROUP_ID: NAME test ap->test api1;COMMENTS Hello world->Hello world1"
+  comments:
+    type: string
+    example: Hello world1
+  default:
+    type: number
+    example: 0
+  disable:
+    type: number
+    example: 0
+  domainId:
+    type: number
+    example: 0
+  id:
+    type: number
+    example: 28
+  mainPage:
+    type: string
+    example:
+  name:
+    type: string
+    example: test api1
+  total:
+    type: number
+    example: 1

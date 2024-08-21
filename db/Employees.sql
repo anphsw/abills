@@ -198,6 +198,7 @@ CREATE TABLE IF NOT EXISTS `employees_coming`
     `aid`            SMALLINT(6) UNSIGNED             NOT NULL DEFAULT 0,
     `uid`            INT(11) UNSIGNED                 NOT NULL DEFAULT 0,
     `comments`       TEXT,
+    `payment_id`     INT(11) UNSIGNED                 NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
     KEY `aid` (`aid`),
     KEY `uid` (`uid`)

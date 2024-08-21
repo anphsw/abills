@@ -3,7 +3,7 @@ post:
     - iptv
   summary: Приостановление услуги IPTV
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: >
         Значение `id`, можно получить в ответе
@@ -42,7 +42,7 @@ delete:
     - iptv
   summary: Удаление рассписания на приостановление услуги IPTV
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: >
         Значение `id`, можно получить в ответе
@@ -81,7 +81,7 @@ get:
     - iptv
   summary: Инфомация о приостановлении услуги IPTV
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: >
         Значение `id`, можно получить в ответе

@@ -7,6 +7,9 @@ $lang{ERR_MOBILE_SERVICES_NOT_FOUND} = 'В тарифном плане не вы
 $lang{ERR_MOBILE_PHONE_ALREADY_ACTIVATED} = 'Номер телефона уже активирован';
 $lang{ERR_MOBILE_WAIT_PHONE_NUMBER_ACTIVATION} = 'Ожидайте подтверждения активации номера телефона';
 $lang{ERR_MOBILE_WRONG_PARAMETERS} = 'Неверные параметры';
+$lang{ERR_MOBILE_PHONE_ALREADY_DEACTIVATED} = 'Номер телефона уже деактивирован';
+$lang{ERR_MOBILE_WAIT_SERVER_RESPONSE} = 'Дождитесь ответа сервиса';
+$lang{ERR_MOBILE_FUNCTION_NOT_FOUND} = 'Функция не найдена';
 
 $lang{MOBILE_COMMUNICATION} = 'Мобильная связь';
 $lang{PHONE_ACTIVATE} = 'Активировать номер';
@@ -22,4 +25,6 @@ $lang{MOBILE_WAIT_CONFIRMATION_TARIFF} = 'Ожидайте подтвержде�
 $lang{MOBILE_WAIT_CONFIRMATION_NUMBER} = 'Ожидайте подтверждения активации номера телефона';
 $lang{MOBILE_CONFIRM} = 'Подтверждение';
 $lang{MOBILE_CONFIRMATION_ACTIVATION} = 'Подтверждение активации номера телефона';
+$lang{MOBILE_WAIT_NUMBER_DEACTIVATE} = 'Подождите, пока номер не будет деактивирован';
+$lang{MOBILE_PHONE_DEACTIVATE} = 'Деактивация номера';
 

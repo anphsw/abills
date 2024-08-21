@@ -1,0 +1,17 @@
+type: object
+properties:
+  aid:
+    type: integer
+    example: 1
+  state:
+    type: integer
+    example: 0
+  date:
+    type: string
+    example: "2022-12-01 20:12"
+  source:
+    type: string
+    example: facebook
+  lead_id:
+    type: integer
+    example: 12

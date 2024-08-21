@@ -3,7 +3,7 @@ post:
     - iptv
   summary: Активация услуги IPTV
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: >
         Значение `id`, можно получить в ответе

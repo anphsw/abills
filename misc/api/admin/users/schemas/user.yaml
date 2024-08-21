@@ -1,0 +1,90 @@
+type: object
+description: >
+  Также можно добавлять все информационные поля
+  Пример: если в БД `_TEST_FIELD` то можно добавить как `_testField`
+properties:
+  login:
+    type: string
+    example: testUser
+    description: Логин пользователя
+  password:
+    type: string
+    example: "123456"
+    description: Пароль пользователя
+  createBill:
+    type: integer
+    example: 1
+    default: 0
+    description: Создать денежный счёт
+  disable:
+    type: integer
+    example: 1
+    default: 0
+    description: >
+      Поле имеет по умолчанию 6 значений: `0` - включен, `1` - отключен, `2` - не активирован, `3` - приостановлено, `4` - неуплата , `5` - слишком маленький депозит
+  disableDate:
+    type: string
+    example: '2023-06-01'
+    default: '0000-00-00'
+    description: Дата установления статуса
+  domainId:
+    type: number
+    example: 2
+    default: 0
+    description: >
+      Работает если включен модуль `Multidoms`
+  activate:
+    type: string
+    example: '2023-06-01'
+    default: '0000-00-00'
+    description: Дата активации услуг
+  expire:
+    type: string
+    example: '2023-06-01'
+    default: '0000-00-00'
+    description: Дата отключения услуг
+  reduction:
+    type: number
+    example: 10
+    default: 0
+    description: Скидка на услуги пользователю
+  reductionDate:
+    type: string
+    example: '2023-06-01'
+    default: '0000-00-00'
+    description: Дата окончания скидки на услуги пользователю
+  gid:
+    type: number
+    example: 5
+    default: 0
+    description: Группа пользователя
+  companyId:
+    type: number
+    example: 5
+    default: 0
+    description: Компания пользователя
+  billId:
+    type: number
+    example: 5
+    default: 0
+    description: Добавить денежный счет, если он существует
+  extBillId:
+    type: number
+    example: 5
+    default: 0
+    description: Добавить дополнительный денежный счет, если он существует
+  credit:
+    type: number
+    example: 10
+    default: 0
+    description: Размер кредита
+  creditDate:
+    type: string
+    example: '2023-06-01'
+    default: '0000-00-00'
+    description: Дата окончания кредита пользователю
+  deleted:
+    type: number
+    example: 1
+    default: 0
+    description: Установить статус удалено пользователю, но полностью не удалять

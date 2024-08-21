@@ -17,6 +17,7 @@
 use warnings FATAL => 'all';
 use strict;
 use Abills::Base qw(mk_unique_value show_hash);
+use Abills::Loader qw/load_plugin/;
 use POSIX;
 use Iptv;
 use Tariffs;
@@ -67,12 +68,12 @@ sub stalker_online {
     %PARAMS
   });
 
+  my $Stalker_api = load_plugin('Iptv::Plugins::Stalker_api', { SERVICE => $Iptv });
   foreach my $service (@$service_list) {
     if ($debug > 3) {
       print "Service ID: $service->{id} NAME: $service->{name}\n";
     }
 
-    my $Stalker_api = tv_load_service('', { SERVICE_ID => $service->{id} });
     if ($argv->{BALANCE}) {
       stalker_balance($Stalker_api);
     }

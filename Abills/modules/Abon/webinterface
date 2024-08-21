@@ -12,6 +12,7 @@ use Abon;
 use Fees;
 use Abills::Defs;
 use Abills::Base qw(in_array sendmail days_in_month cmd date_diff get_period_dates);
+use Abills::Loader;
 use Abon::Services;
 require Abon::Base;
 
@@ -326,9 +327,7 @@ sub abon_user {
     $action = $html->form_input('change', $lang{CHANGE}, { TYPE => 'submit' });
   }
 
-  $table->{extra} = 'colspan=16';
-  $table->{rowcolor} = 'even';
-  $table->addrow($action);
+  $table->addcardfooter($action);
 
   my $user_service_form = $html->form_main({
     CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
@@ -1075,14 +1074,10 @@ sub abon_service_deactivate {
 
 
 #**********************************************************
-=head2 _load_plugin($plugin_name, $attr) - Load plugin module
+=head2 abon_service_info($service_id) - Load plugin module
 
   Argumnets:
-    $plugin_name  - service modules name
-    $attr
-       SERVICE_ID
-       SOFT_EXCEPTION
-       RETURN_ERROR
+    $service_id
 
   Returns:
     Module object
@@ -1119,7 +1114,9 @@ sub _plugin_action {
 
   $attr->{SERVICE_ID} = $attr->{TP_INFO}->{TP_ID} || $attr->{TP_ID};
   $attr->{SERVICE_INFO} = \&abon_service_info;
-  my $Plugin = $Abon_base->abon_load_plugin($plugin_, $attr);
+  $attr->{HTML}=$html;
+  $attr->{LANG}=\%lang;
+  my $Plugin = load_plugin('Abon::Plugins::'.$plugin_, $attr);
 
   if ($Plugin) {
     if ($action eq 'ACTIVE' && $Plugin->can('activate')) {
@@ -1160,14 +1157,16 @@ sub abon_user_add {
     USER_INFO     => $attr->{USER_INFO},
     ACTIVATE_ONLY => 1,
     QUITE         => 1,
+    #FIXME: hardcoded date
     ABON_DATE     => '2025-01-02'
   });
 
   if ($result) {
     $html->message('info', $lang{INFO}, "$lang{ACTIVATED} [$LIST_PARAMS{UID}]");
+    return $attr->{TP_ID};
   }
 
-  return 1;
+  return 0;
 }
 
-1
+1;

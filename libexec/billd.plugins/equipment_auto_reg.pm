@@ -327,10 +327,11 @@ sub _register_onu {
   }
 
   $attr->{VLAN_ID} = $port_list->[0]->{VLAN_ID} || $attr->{NAS_INFO}->{internet_vlan};
+
   if ($attr->{VENDOR_NAME} ne 'BDCOM' && !$attr->{VLAN_ID}) {
-    my $comments = "Not exist Vlan ID\n";
+    my $comments = "NOT_EXIST Vlan ID\n";
     print $comments if ($debug);
-    _generate_new_event('Not exist Vlan ID', $comments);
+    _generate_new_event($comments, $comments);
 
     return 0;
   }
@@ -555,6 +556,7 @@ sub _register_onu {
   else {
     print $result . "\n";
   }
+
   return 0;
 }
 

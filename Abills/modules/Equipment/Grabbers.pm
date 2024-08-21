@@ -8,11 +8,13 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Filters qw(dec2hex _mac_former bin2mac);
 use Abills::Base qw(in_array sec2time);
+use Abills::Misc qw(load_module);
 require Equipment::Snmp_cmd;
 require Equipment::Defs;
 
 our (
   %FORM,
+  $html,
 );
 
 use POSIX qw(strftime);
@@ -69,9 +71,13 @@ sub equipment_test {
   my %ports_info = ();
 
   if ( $attr->{PORT_INFO} ){
-    print "Debug" if($debug);
+    print "Debug" if ($debug);
+    
     if ( $attr->{PORT_INFO} =~ /TRAFFIC/ ){
       $attr->{PORT_INFO} .= ",PORT_IN,PORT_OUT";
+    }
+    if ( $attr->{PORT_INFO} =~ /PORT_SPEED/ ){
+      $attr->{PORT_INFO} .= ",PORT_HIGH_SPEED";
     }
 
     my @port_info_list = split( /,\s?/, $attr->{PORT_INFO} );
@@ -142,8 +148,49 @@ sub equipment_test {
       }
 
       if ($attr->{PORT_ID}) {
+        if ($type eq 'PORT_SPEED') {
+          my %port_speed_hash = (
+            10000000000 => '10 Gbps',
+            1000000000  => '1 Gbps',
+            100000000   => '100 Mbps',
+          );
+          $ports_info{$attr->{PORT_ID}}{$type} = $port_speed_hash{$ports_info};
+          next;
+        }
+        if ($type eq 'PORT_HIGH_SPEED') {
+          $ports_info = "$ports_info Mbps";
+          $ports_info{$attr->{PORT_ID}}{PORT_SPEED} .= "/$ports_info";
+          next;
+        }
+        if ($type eq 'DUPLEX') {
+          my %duplex_hash = (
+            3 => 'Auto',
+            4 => 'Half',
+            5 => 'Full'
+          );
+          $ports_info{$attr->{PORT_ID}}{$type} = $duplex_hash{$ports_info};
+          next;
+        }
+        if ($type eq 'CONNECTOR') {
+          $ports_info{$attr->{PORT_ID}}{$type} = (defined($ports_info) && $ports_info == 1) ? 'true' : 'false';
+          next;
+        }
         if ($type eq 'PORT_UPTIME') {
           $ports_info = (defined $equipment_uptime && defined $ports_info) ? sec2time(($equipment_uptime - $ports_info)/100, {str => 1} ) : '?';
+        }
+        if ($type eq 'PORT_STATUS') {
+          if (in_array('Accident', \@main::MODULES) && $ports_info && $ports_info > 0) {
+            load_module('Accident', $html);
+
+            # snmp port status: 1-up, 2-down
+            my $port_status = ($ports_info && $ports_info == 1 ) ? 2 : 0;
+            accident_equipment_error({
+              NAS_ID   => $attr->{NAS_INFO}->{NAS_ID},
+              NAS_NAME => ($attr->{NAS_INFO}->{NAME} || '') . ' '. ($attr->{NAS_INFO}->{MODEL_NAME} || '') ,
+              STATUS   => $port_status,
+              PORT_ID  => $attr->{PORT_ID} || $attr->{NAS_INFO}->{PORT},
+            });
+          }
         }
 
         $ports_info{$attr->{PORT_ID}}{$type} = $ports_info;
@@ -536,7 +583,7 @@ sub equipment_change_port_status {
 sub get_vlans{
   my ($attr) = @_;
 
-  my $oid = '.1.3.6.1.2.1.17.7.1.4.3.1.1';
+  my $oid = '.1.3.6.1.2.1.17.7.1.4.3.1.1'; #Vlan Name
 
   if($attr->{NAS_INFO}) {
     $attr->{VERSION} //= $attr->{NAS_INFO}->{SNMP_VERSION};
@@ -569,7 +616,7 @@ sub get_vlans{
       my $type = $1;
       my $vlan_id = $2;
       my $value2 = $3;
-
+print "$oid $type  / $vlan_id / $value2 <br>";
       if ( $type == 1 ){
         $vlan_hash{$vlan_id}{NAME} = $value2;
       }
@@ -617,6 +664,7 @@ sub get_vlans{
       }
     }
   }
+
   return \%vlan_hash;
 }
 
@@ -775,7 +823,7 @@ sub default_get_fdb {
   }
 
   if ($debug > 1) {
-    print "OID: $oid\n";
+    print "OID: ". ($oid || 'UNDEF_OID') ."\n";
   }
 
   my $mac_port_list = snmp_get({

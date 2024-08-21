@@ -1,0 +1,8 @@
+type: object
+properties:
+  result:
+    type: string
+    example: Successfully deleted
+  id:
+    type: number
+    example: 16

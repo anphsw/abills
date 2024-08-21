@@ -3,7 +3,7 @@ post:
     - internet
   summary: Активация услуги инетрнет
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: ID услуги интернет
       required: true

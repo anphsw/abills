@@ -1,0 +1,26 @@
+type: object
+properties:
+  name:
+    type: string
+    example: "Important contract"
+  number:
+    type: string
+    example: "OP-12098"
+  type:
+    type: integer
+    example: 1
+  uid:
+    type: integer
+    example: 120545
+  companyId:
+    type: number
+    example: 112
+  date:
+    type: string
+    example: '0000-00-00'
+  endDate:
+    type: string
+    example: '0000-00-00'
+  regDate:
+    type: string
+    example: '0000-00-00 00:00:00'

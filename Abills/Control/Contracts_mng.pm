@@ -35,7 +35,7 @@ sub user_contract {
     _print_user_contract(\%FORM);
   }
   elsif ($FORM{signature}) {
-    $users->contracts_change($FORM{sign}, { SIGNATURE => $FORM{signature} });
+    $users->contracts_change($FORM{sign}, { SIGNATURE => $FORM{signature}, UID => $FORM{UID} });
     $html->message('info', $lang{SIGNED});
   }
   elsif ($FORM{sign}) {
@@ -129,7 +129,8 @@ sub _user_contracts_table {
 
       $delete_button = $html->button('', "index=" . $f_index . "&del=$line->{id}&UID=$uid", {
         ICON      => 'fa fa-trash text-danger',
-        ex_params => "data-tooltip='$lang{DEL}' data-tooltip-position='right'"
+        ex_params => "data-tooltip='$lang{DEL}' data-tooltip-position='right'",
+        MESSAGE   => "$lang{DEL} $line->{name}?",
       });
     }
 
@@ -258,20 +259,33 @@ sub _print_user_contract {
     Users->import();
     $users = Users->new($db, $admin, \%conf);
   }
+
   load_module('Docs');
-  my $list = $users->contracts_list({ UID => $uid, ID => $id, NUMBER => '_SHOW', COLS_UPPER => 1 });
-  $uid = $list->[0]->{UID};
-  $users->info($uid, {SHOW_PASSWORD => 1});
+  my $list = $users->contracts_list({
+    UID        => $uid,
+    ID         => $id,
+    NUMBER     => '_SHOW',
+    COLS_UPPER => 1
+  });
+
+  if (!scalar @{$list}) {
+    return $attr->{USER_PORTAL} ? {} : '';
+  }
+
+  my $c_info = $list->[0];
+  $c_info->{template} //= '';
+  $uid = $c_info->{UID};
+  $users->info($uid, { SHOW_PASSWORD => 1 });
   $users->pi({ UID => $uid });
 
   my $contract_info = {};
-  my ($y, $m, $d) = split( /-/, $list->[0]->{DATE} || $DATE, 3 );
+  my ($y, $m, $d) = split( /-/, $c_info->{DATE} || $DATE, 3 );
   $contract_info->{CONTRACT_DATE_ADD} = "$y-$m-$d";
   $contract_info->{CONTRACT_DATE_LIT_ADD} = "$d " . $MONTHES_LIT[ int( $m ) - 1 ] . " $y $lang{YEAR_SHORT}";
   $contract_info->{CONTRACT_DATE_EURO_STANDART_ADD} = "$d.$m.$y";
   ($y, $m, $d) = split( /-/, $DATE, 3 );
   $contract_info->{DATE_LIT} = "$d " . $MONTHES_LIT[ int( $m ) - 1 ] . " $y $lang{YEAR_SHORT}";
-  $contract_info->{CONTRACT_ID_ADD} = $list->[0]->{NUMBER} || '';
+  $contract_info->{CONTRACT_ID_ADD} = $c_info->{NUMBER} || '';
   if ($users->{CONTRACT_DATE}) {
     my ($contract_y, $contract_m, $contract_d) = split(/-/, $users->{CONTRACT_DATE} || $DATE, 3);
     $contract_info->{CONTRACT_DATE_LIT} = "$contract_d " . $MONTHES_LIT[ int($contract_m) - 1 ] . " $contract_y $lang{YEAR_SHORT}";
@@ -335,18 +349,16 @@ sub _print_user_contract {
   }
 
   if ($attr->{pdf}) {
-    my $sig_img = "$conf{TPL_DIR}/sig.png";
-    if ($list->[0]->{SIGNATURE}) {
+    my $sig_name = 'sig_' . int(rand(10000));
+    my $sig_img = "$conf{TPL_DIR}/$sig_name.png";
+
+    if ($c_info->{SIGNATURE}) {
       if (open( my $fh, '>', $sig_img)) {
         binmode $fh;
-        my ($data) = $list->[0]->{SIGNATURE} =~ m/data:image\/png;base64,(.*)/;
+        my ($data) = $c_info->{SIGNATURE} =~ m/data:image\/png;base64,(.*)/;
         print $fh decode_base64($data);
         close $fh;
       }
-    }
-    else {
-      # open( my $fh, '>', $sig_img);
-      # close $fh;
     }
 
     my $html_obj;
@@ -361,9 +373,9 @@ sub _print_user_contract {
       $html = $pdf;
     }
 
-    my $contract = $html->tpl_show("$conf{TPL_DIR}/$list->[0]->{template}",
-      { %$contract_info, %$users, %$company_info, %{$list->[0]}, FIO_S => $users->{FIO} },
-      { TITLE => 'Contract', OUTPUT2RETURN => $attr->{OUTPUT2RETURN} ? 1 : 0 });
+    my $contract = $html->tpl_show("$conf{TPL_DIR}/$c_info->{template}",
+      { %$contract_info, %$users, %$company_info, %{$c_info}, FIO_S => $users->{FIO} },
+      { TITLE => 'Contract', SIG_NAME => $sig_name, OUTPUT2RETURN => $attr->{OUTPUT2RETURN} ? 1 : 0 });
     unlink $sig_img;
 
     $html = $html_obj if ($html_obj);
@@ -371,14 +383,14 @@ sub _print_user_contract {
     return $contract if $contract;
   }
   else {
-    my $contract = $html->tpl_show(templates($list->[0]->{template}),
-      { %$contract_info, %$users, %$company_info, %{$list->[0]} },
+    my $contract = $html->tpl_show(templates($c_info->{template}),
+      { %$contract_info, %$users, %$company_info, %{$c_info} },
       { OUTPUT2RETURN => $attr->{OUTPUT2RETURN} ? 1 : 0 });
 
     return $contract if $contract;
   }
 
-  return 1;
+  return '';
 }
 
-1
+1;

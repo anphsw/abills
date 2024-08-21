@@ -15,12 +15,16 @@ our (
   $db,
   %permissions,
   %LIST_PARAMS,
+  $libpath,
   $users
 );
 
 use Time::Piece;
 our Crm $Crm;
 our Abills::HTML $html;
+
+require Abills::Template;
+my $Templates = Abills::Template->new($db, $admin, \%conf, { html => $html, lang => \%lang, libpath => $libpath });
 
 my @fields_types = (
   'string',
@@ -114,7 +118,7 @@ sub crm_info_fields {
     $Crm->fields_del($FORM{del}, { COMMENTS => $FORM{COMMENTS} });
   }
 
-  $html->tpl_show(_include('crm_info_fields', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_info_fields', 'Crm'), {
     %{$Crm},
     TYPE_SELECT       => $html->form_select('TYPE', {
       SELECTED     => $Crm->{TYPE} || 0,
@@ -182,7 +186,7 @@ sub crm_tp_info_fields {
     $Crm->fields_del($FORM{del}, { COMMENTS => $FORM{COMMENTS}, TP_INFO_FIELDS => 1 });
   }
 
-  $html->tpl_show(_include('crm_info_fields', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_info_fields', 'Crm'), {
     %{$Crm},
     TYPE_SELECT       => $html->form_select('TYPE', {
       SELECTED     => $Crm->{TYPE} || 0,
@@ -372,7 +376,7 @@ sub crm_lead_info_field_tpl {
 
     next if !$input;
 
-    push @field_result, $html->tpl_show(templates('form_row'), {
+    push @field_result, $html->tpl_show($Templates->templates('form_row'), {
       ID         => $field->{ID},
       NAME       => (_translate($field->{NAME})),
       VALUE      => $input,
@@ -878,7 +882,7 @@ sub crm_lead_fields {
         my $user_info = $uid ? $users->info($uid) : {};
 
         my $span = $html->element('span', $lang{USER}, { class => 'text-muted' });
-        my $user_btn = $html->tpl_show(_include('crm_lead_add_user', 'Crm'), {
+        my $user_btn = $html->tpl_show($Templates->_include('crm_lead_add_user', 'Crm'), {
           USER_SEARCH     => $user_search,
           USER_LOGIN      => $user_info->{LOGIN},
           LEAD_ID         => $lead->{LEAD_ID},
@@ -1033,7 +1037,7 @@ sub _crm_form_section_fields {
       $template_info->{'INPUT'} .= $field->{input} ? $field->{input}->($value, $key_lang) :
         _crm_base_input($value, $key, $key_lang);
     }
-    $result->{SECTIONS} .= $html->tpl_show(_include('crm_section', 'Crm'), $template_info, { OUTPUT2RETURN => 1 });
+    $result->{SECTIONS} .= $html->tpl_show($Templates->_include('crm_section', 'Crm'), $template_info, { OUTPUT2RETURN => 1 });
   }
 
   $result->{CHECKED_FIELDS} = json_former($section_checked_fields);

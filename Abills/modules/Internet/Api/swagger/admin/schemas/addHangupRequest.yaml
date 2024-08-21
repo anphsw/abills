@@ -1,0 +1,14 @@
+type: object
+properties:
+  nasId:
+    type: number
+    example: 9
+  nasPortId:
+    type: number
+    example: 1
+  acctSessionId:
+    type: string
+    example: 6Kn8aip1zz
+  userName:
+    type: string
+    example: 0000002

@@ -30,38 +30,6 @@ my @test_list = (
     valid_json => 1
   },
   {
-    name   => 'BILLING_VERSION',
-    params => {
-      # API_KEY  => $api_key,
-      API_INFO => 'system_information',
-      json     => 1,
-      user           => $user,
-      passwd         => $passwd
-    },
-    result     => '',
-    valid_json => 1,
-    schema     => {
-      type       => "object",
-      properties => {
-        TABLE_system_information => {
-          type       => "object",
-          properties => {
-            ID     => { type => "string" },
-            DATA_1 => {
-              type    => "array",
-              "items" => {
-                "type"   => "object",
-                required => [ "billing", "version", "date", "updated", "name", "os" ],
-              },
-            }
-          },
-          required => ["DATA_1"],
-        },
-      },
-      required => ["TABLE_system_information"],
-    }
-  },
-  {
     name   => 'INTERNET_TP',
     params => {
       get_index      => 'internet_tp',
@@ -728,21 +696,6 @@ my @test_list = (
       }
     )
   },
-  {
-    name   => 'SUMMARY_SHOW',
-    params => {
-      qindex      => 15,
-      UID         => 112,
-      SUMMARY_SHOW=> 1,
-      EXPORT      => 1,
-      # API_KEY     => $api_key
-      user           => $user,
-      passwd         => $passwd
-    },
-    result     => '',
-    valid_json => 1,
-    schema     => qq()
-  }
 );
 
 json_test(\@test_list, { TEST_NAME => 'Api JSON test', UI => 1 });

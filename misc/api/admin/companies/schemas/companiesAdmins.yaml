@@ -1,0 +1,28 @@
+type: object
+properties:
+  total:
+    type: integer
+    example: 1
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        companyId:
+          type: number
+          example: 1
+        email:
+          type: string
+          example: test@gmail.com
+        fio:
+          type: string
+          example: Головний бос
+        isCompanyAdmin:
+          type: number
+          example: 1
+        login:
+          type: number
+          example: 102143
+        uid:
+          type: number
+          example: 102143

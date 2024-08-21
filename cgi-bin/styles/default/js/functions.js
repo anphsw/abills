@@ -84,7 +84,7 @@ function displayJSONTooltip(result) {
       }
     }
 
-    if (message !== 'null') {
+    if (message !== null) {
       var text = '<h3>' + (message['caption'] || '') + '</h3>';
       if (message['messaga']) {
         text += '<h4>' + (message['messaga'] || '') + '</h4>';
@@ -1766,6 +1766,20 @@ function vars2lang(string, vars) {
   });
 
   return result;
+}
+
+function formatDate(date, format) {
+  const leadingZero = (num) => `0${num}`.slice(-2);
+  const map = {
+    mm: leadingZero(date.getMonth() + 1),
+    dd: leadingZero(date.getDate()),
+    yyyy: date.getFullYear(),
+    hh: leadingZero(date.getHours()),
+    ii: leadingZero(date.getMinutes()),
+    ss: leadingZero(date.getSeconds()),
+  }
+
+  return format.replace(/mm|dd|yyyy|hh|ii|ss/gi, matched => map[matched])
 }
 
 // jquery extend function

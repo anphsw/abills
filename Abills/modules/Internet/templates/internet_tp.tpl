@@ -376,6 +376,13 @@
           </div>
 
           <div class='form-group row'>
+            <label class='col-sm-4 col-md-4 text-right' for='FIXED_FEES_FREE_PERIOD'>_{FIXED_FEES_FREE_PERIOD}_:</label>
+            <div class='col-sm-8 col-md-8'>
+               <input class='form-control' id='FIXED_FEES_FREE_PERIOD' placeholder='%FIXED_FEES_FREE_PERIOD%' name='FIXED_FEES_FREE_PERIOD' value='%FIXED_FEES_FREE_PERIOD%'>
+            </div>
+          </div>
+
+          <div class='form-group row'>
             <label class='col-sm-4 col-md-4 control-label' for='SMALL_DEPOSIT_ACTION'>_{SMALL_DEPOSIT_ACTION}_:</label>
             <div class='col-sm-8 col-md-8'>
               %SMALL_DEPOSIT_ACTION_SEL%

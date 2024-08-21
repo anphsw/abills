@@ -1,0 +1,89 @@
+package Abon::Api::admin::Plugin;
+
+=head1 NAME
+
+  Abon plugin manage
+
+  Endpoints:
+    /abon/plugin/*
+
+=cut
+
+use strict;
+use warnings FATAL => 'all';
+
+use Abills::Base qw(convert);
+use Control::Errors;
+
+use Abon;
+use Abon::Base;
+
+my Control::Errors $Errors;
+
+my Abon $Abon;
+my Abon::Base $Abon_base;
+my %permissions = ();
+
+#**********************************************************
+=head2 new($db, $admin, $conf)
+
+=cut
+#**********************************************************
+sub new {
+  my ($class, $db, $admin, $conf, $attr) = @_;
+
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $conf,
+    attr  => $attr,
+    lang  => $attr->{lang}
+  };
+
+  %permissions = %{$attr->{permissions} || {}};
+
+  bless($self, $class);
+
+  $Abon = Abon->new($db, $admin, $conf);
+  $Abon_base = Abon::Base->new($self->{db}, $self->{admin}, $self->{conf}, { LANG => $self->{lang} });
+
+  $Errors = $self->{attr}->{Errors};
+
+  return $self;
+}
+
+#**********************************************************
+=head2 get_abon_plugin_plugin_id_info($path_params, $query_params)
+
+  Endpoint GET /abon/plugin/:plugin_id/info/
+
+=cut
+#**********************************************************
+sub get_abon_plugin_plugin_id_info {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  my $Plugin_info = $Abon->tariff_info($path_params->{plugin_id});
+  my $api = $Abon_base->abon_load_plugin($Plugin_info->{PLUGIN}, { SERVICE => $Plugin_info, DEBUG => 0, RETURN_ERROR => 1 });
+  return $api->info($query_params) if ($api->can('info'));
+  return {};
+}
+
+#**********************************************************
+=head2 get_abon_plugin_plugin_id_print($path_params, $query_params)
+
+  Endpoint GET /abon/plugin/:plugin_id/print/
+
+=cut
+#**********************************************************
+sub get_abon_plugin_plugin_id_print {
+  my $self = shift;
+  my ($path_params, $query_params) = @_;
+
+  my $Plugin_info = $Abon->tariff_info($path_params->{plugin_id});
+  my $api = $Abon_base->abon_load_plugin($Plugin_info->{PLUGIN}, { SERVICE => $Plugin_info, DEBUG => 0, RETURN_ERROR => 1 });
+
+  return $api->print($query_params) if ($api->can('print'));
+}
+
+1;

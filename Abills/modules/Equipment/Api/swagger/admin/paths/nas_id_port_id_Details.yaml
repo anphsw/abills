@@ -1,0 +1,27 @@
+get:
+  tags:
+    - equipment
+  summary: Информация об оборудовании
+  parameters:
+    - name: nas_id
+      in: path
+      description: ID сервера доступа
+      required: true
+      schema:
+        type: integer
+    - name: port_id
+      in: path
+      description: ID порта
+      required: true
+      schema:
+        type: integer
+  operationId: equipmentDeviceInfo
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deviceInfo.yaml"
+  security:
+    - KEY: [ ]

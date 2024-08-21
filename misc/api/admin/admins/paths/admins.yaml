@@ -1,0 +1,26 @@
+post:
+  tags:
+    - admins
+  summary: Добавить администратора
+  operationId: adminAdd
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addAdminRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addAdminResponse.yaml"
+    400:
+      description: Нет поля логин
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addAdminResponse400.yaml"
+  security:
+    - KEY: []

@@ -1,0 +1,8 @@
+type: object
+properties:
+  file1:
+    type: string
+    format: binary
+  file2:
+    type: string
+    format: binary

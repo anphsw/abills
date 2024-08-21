@@ -1,0 +1,13 @@
+get:
+  tags:
+    - docs
+  summary: Инвойс (счет-фактура) за следующий период
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/invoicesPeriod.yaml"
+  security:
+    - USERSID: [ ]

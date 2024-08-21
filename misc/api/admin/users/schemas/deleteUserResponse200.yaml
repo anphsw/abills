@@ -1,0 +1,8 @@
+type: object
+properties:
+  result:
+    type: string
+    example: Successfully deleted user with uid 103394
+  uid:
+    type: number
+    example: 103394

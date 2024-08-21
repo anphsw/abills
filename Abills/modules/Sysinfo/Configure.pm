@@ -13,10 +13,12 @@ use Abills::Base qw/ip2int load_pmodule/;
 
 require Abills::Misc;
 
-our (%conf, $db, $admin, %permissions, %lang, $html, $base_dir);
+our (%conf, $db, $admin, %permissions, %lang, $base_dir);
 
 use Sysinfo;
 our Sysinfo $Sysinfo;
+our Abills::HTML $html;
+
 if (!$Sysinfo) {
   $Sysinfo = Sysinfo->new($db, $admin, \%conf);
 }
@@ -448,7 +450,7 @@ sub list_private_keys {
 =cut
 #**********************************************************
 sub sysinfo_server_restart {
-  return if (!$FORM{ID});
+  return 0 if (!$FORM{ID});
 
   require Abills::Backend::API;
   Abills::Backend::API->import();

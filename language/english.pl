@@ -1131,5 +1131,24 @@ $lang{UPLOAD} = 'Upload';
 
 $lang{SCAN_QR_CODE_IN_DIIA_APP} = 'Scan the QR code in the Diia app';
 $lang{MORE_THEN_ALLOW_LOGIN} = 'More then allowed logins';
+$lang{SEARCH_QUERY} = 'Search query';
+$lang{VALIDATION_FAILED} = 'Validation failed';
+$lang{UNSIGNED_INTEGER} = 'Unsigned integer';
+$lang{INTEGER} = 'Integer';
+$lang{UNSIGNED_NUMBER} = 'Unsigned number';
+$lang{ANY_NUMBER} = 'Number';
+$lang{ANY} = 'Any';
+$lang{ERR_REQUIRED_PARAMETER} = 'Required parameter to be filled %PARAMETER%';
+$lang{ERR_PARAMETER_NOT_VALID} = 'Parameter %PARAMETER% is not valid. %MESSAGE%';
+
+$lang{MASS_DELETION_PAYMENT} = 'Mass deletion of payments';
+$lang{MASS_DELETION_FEES} = 'Mass deletion of fees';
+$lang{ERR_NOT_SELECTED} = 'Not selected';
+
+$lang{FIXED_FEES_FREE_PERIOD} = 'Free period to next month';
+
+$lang{MONITORING_ALL_SESSIONS} = 'Monitoring all sessions';
+$lang{TAKE_DIALOGUE_FROM_ADMIN} = 'Take over the dialog from the administrator to yourself';
+$lang{NOT_CHANGED} = 'Not changed';
 
 1;

@@ -132,6 +132,9 @@ my $EQUIPMENT_MAPS_LAYER_ID = 7;
 #********************************************************
 sub equipment_panel {
   my ($attr) = @_;
+
+  my $visual = $FORM{visual} || 0;
+
   my %ports_visualisation = (
     1  => "VLAN",
     2  => $lang{PORTS},
@@ -144,14 +147,16 @@ sub equipment_panel {
     14 => $lang{COMMAND},
   );
 
-  $ports_visualisation{7} = "SNMP $lang{INFO}" if (in_array('Snmputils', \@MODULES));
-
   $pages_qs .= ($FORM{NAS_ID}) ? "&NAS_ID=$FORM{NAS_ID}" : q{};
 
-  $ports_visualisation{4} = "PON" if ($attr->{TYPE_ID} && $attr->{TYPE_ID} == 4);
-  $ports_visualisation{13} = $lang{MAPS} if ($attr->{TYPE_ID} && $attr->{TYPE_ID} == 4 && in_array('Maps', \@MODULES));
+  if ($attr->{TYPE_ID} && $attr->{TYPE_ID} == 4) {
+    $ports_visualisation{4} = "PON";
+    $ports_visualisation{13} = $lang{MAPS} if (in_array('Maps', \@MODULES));
+  }
 
-  my $first_active = (!defined($FORM{visual})) ? 'active' : '';
+  $ports_visualisation{7} = "SNMP $lang{INFO}" if (in_array('Snmputils', \@MODULES));
+
+  my $first_active = ($visual == 0) ? 'active' : '';
   my $buttons = $html->li($html->button($lang{MAIN}, "index=$index$pages_qs", { ex_params => "class='nav-link $first_active'" }),
     { class => "nav-item $first_active" });
 
@@ -159,33 +164,45 @@ sub equipment_panel {
     my $value = $ports_visualisation{$key};
     if ($key == 11) {
       if ($Nas->{ZABBIX_HOSTID} && $conf{ZABBIX_URL}) {
+        my $zabbix_url = $conf{ZABBIX_URL};
+
+        if ($zabbix_url !~ s/\%HOSTID\%/$Nas->{ZABBIX_HOSTID}/) {
+          $zabbix_url = $conf{ZABBIX_URL} . '/charts.php?hostid=' . $Nas->{ZABBIX_HOSTID};
+        }
+
         $buttons .= $html->li(
           $html->button(
             $value,
             undef, {
             target     => "_blank",
             class      => 'nav-link',
-            GLOBAL_URL => $conf{ZABBIX_URL} . '/charts.php?hostid=' . $Nas->{ZABBIX_HOSTID}
+            GLOBAL_URL => $zabbix_url
           }), { class => 'nav-item' }
         );
       }
     }
     elsif ($key == 12) {
-      if ($Nas->{ZABBIX_HOSTID} && $conf{ZABBIX_URL}) {
+      if ($Nas->{ZABBIX_HOSTID} && $conf{ZABBIX_URL_LATEST}) {
+        my $zabbix_url = $conf{ZABBIX_URL_LATEST};
+
+        if ($zabbix_url !~ s/\%HOSTID\%/$Nas->{ZABBIX_HOSTID}/) {
+          $zabbix_url = $conf{ZABBIX_URL_LATEST} . '/latest.php?hostid=' . $Nas->{ZABBIX_HOSTID};
+        }
+
         $buttons .= $html->li(
           $html->button(
             $value,
             undef, {
             target     => '_blank',
             class      => 'nav-link',
-            GLOBAL_URL => $conf{ZABBIX_URL} . '/latest.php?hostid=' . $Nas->{ZABBIX_HOSTID}
+            GLOBAL_URL => $zabbix_url
           }), { class => 'nav-item' }
         );
       }
     }
     else {
       my $eindex = ($key && $key == 7) ? get_function_index('snmp_info_form') : $index;
-      my $active = (defined($FORM{visual}) && $FORM{visual} eq $key) ? 'active' : '';
+      my $active = ($visual eq $key) ? 'active' : '';
       $buttons .= $html->li($html->button($value,
         "index=$eindex&visual=$key$pages_qs", { ex_params => "class='nav-link $active'" }),
         { class => "nav-item $active" });
@@ -197,7 +214,32 @@ sub equipment_panel {
       NAS_NAME  => '_SHOW',
       COLS_NAME => 1,
       PAGE_ROWS => 10000,
-      TYPE_NAME => ($FORM{visual} && $FORM{visual} eq '4') ? 4 : undef
+      TYPE_NAME => ($visual eq '4') ? 4 : undef
+    });
+
+    my ($previous_nas_id, $next_nas_id) = ('','');
+    foreach my $i (0..@$nas_list-1) {
+      if ($FORM{NAS_ID} && $nas_list->[$i]{'nas_id'} == $FORM{NAS_ID}) {
+        $previous_nas_id = $nas_list->[$i - 1]{'nas_id'};
+        $next_nas_id = $nas_list->[$i + 1]{'nas_id'};
+        last;
+      }
+    }
+
+    my $pre_button = $html->button(" ", "index=$index".
+      (($visual) ? "&visual=$visual" : '').
+      "&NAS_ID=" . ($previous_nas_id || $FORM{NAS_ID} || q{}), {
+      class => 'btn btn-default',
+      ICON  => 'fa fa-arrow-left',
+      TITLE => $lang{BACK}
+    });
+
+    my $next_button = $html->button(" ", "index=$index".
+      (($visual) ? "&visual=$visual" : '').
+      "&NAS_ID=" . ($next_nas_id || $FORM{NAS_ID} || q{}), {
+      class => 'btn btn-default mr-1',
+      ICON  => 'fa fa-arrow-right',
+      TITLE => $lang{NEXT}
     });
 
     my $nas_select = $html->form_select(
@@ -213,14 +255,14 @@ sub equipment_panel {
         AUTOSUBMIT     => 'form',
       }
     );
-    my $visual = (defined($FORM{visual})) ? 'visual' : '_visual';
+
     my $nas_select_form = $html->form_main(
       {
-        CONTENT => $nas_select,
+        CONTENT => $pre_button.$next_button . $nas_select,
         HIDDEN  => {
           'index' => $index,
           'SHOW'  => 1,
-          $visual => $FORM{visual} || 0,
+          visual => $visual || 0,
         },
         NAME    => 'equipment_nas_panel',
         ID      => 'equipment_nas_panel',
@@ -460,7 +502,7 @@ sub equipment_info {
         MAIN_MENU      => defined( $permissions{7}{6} ) ? get_function_index('equipment_model') : '',
         MAIN_MENU_ARGV => "chg=" . ($Equipment->{MODEL_ID} || ''),
         EXT_BUTTON     => $html->button(undef, undef, {
-          GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:docs:manual:admin:equipment:equipment_info',
+          GLOBAL_URL => 'http://abills.net.ua/wiki/pages/viewpage.action?pageId=6258945',
           ID         => 'MODEL_ID_WIKI_LINK',
           ICON       => 'fa fa-question',
           target     => '_blank',
@@ -996,6 +1038,20 @@ sub equipment_list {
     return 1;
   }
 
+  require Control::Nas_mng;
+  $html->short_form({
+    LABELED_FIELDS => {
+      "$lang{GROUPS}: " => sel_nas_groups(),
+    },
+    FIELDS         => [
+      $html->form_input('submit', $lang{SHOW}, { TYPE => 'submit' }),
+      $html->form_input('index', $index, {TYPE => 'hidden'})],
+    'class'        => 'form-inline',
+    IN_BOX         => 1,
+    NO_BOX_HEADER  => 1,
+  });
+
+  $LIST_PARAMS{NAS_GID} = $FORM{GID} if ($FORM{GID});
   $LIST_PARAMS{MAC} = $FORM{EQUIPMENT_MAC} if ($FORM{EQUIPMENT_MAC});
   $LIST_PARAMS{TYPE_ID} = $FORM{TYPE_ID} if ($FORM{TYPE_ID});
   if (defined($LIST_PARAMS{DISTRICT_ID}) && !$LIST_PARAMS{DISTRICT_ID}) {
@@ -1970,6 +2026,7 @@ sub equipment_user_graph {
     NAS_IP           => '_SHOW',
     PORT_SHIFT       => '_SHOW',
     AUTO_PORT_SHIFT  => '_SHOW',
+    SNMP_TPL         => '_SHOW',
     NAS_ID           => $nas_id,
     COLS_NAME        => 1
   });
@@ -1982,6 +2039,11 @@ sub equipment_user_graph {
   else {
     return 0;
   }
+
+  my $onu_list = $Equipment->onu_list({ UID => $FORM{UID}, PON_TYPE => '_SHOW', COLS_NAME => 1 });
+  my $pon_type = $onu_list->[0]->{pon_type} || '';
+  my $snmp_tpl = $Nas_info->{snmp_tpl} || '';
+  $snmp_tpl =~ s/.snmp//g ;
 
   my $SNMP_COMMUNITY = ($Nas_info->{nas_mng_password} || '')
     . '@'
@@ -2014,7 +2076,9 @@ sub equipment_user_graph {
 
   $html->tpl_show(_include('equipment_graph', 'Equipment'), {
     SNMP_COMMUNITY => $SNMP_COMMUNITY,
-    PORT           => $port
+    PORT           => $port,
+    SNMP_TPL       => $snmp_tpl,
+    PON_TYPE       => $pon_type,
   });
 
   return 1;
@@ -2149,7 +2213,7 @@ sub equipment_user_info {
         if ($fields->{SW}) {
           @sequence = split(/,\s?/, $fields->{SW});
         }
-        my $count = 0;
+        my $pre_request = 0;
 
         foreach my $snmp_id (@sequence) {
           my $snmp_result = snmp_get({
@@ -2161,30 +2225,34 @@ sub equipment_user_info {
             SILENT         => ($FORM{DEBUG}) ? undef : 1
           });
 
-          if (!$snmp_result && $count > 1) {
-            return $html->message('err', $lang{ERR_NOT_RESPONSE}
-              . ' NAS_ID: ' . $nas_id . "\n" . ($Nas_info->{nas_mng_ip_port} || q{})
-              . ' ' . $html->button('', "NAS_ID=$nas_id&index=" . get_function_index('equipment_info'),
-              { ICON => 'fa fa-info-circle' }), '', { OUTPUT2RETURN => 1 });
-          }
-          elsif ($snmp_result) {
+          if ($snmp_result) {
             push @equipment_infos, [ ($lang{$snmp_id}) ? $lang{$snmp_id} : $snmp_id, $snmp_result ];
+            $pre_request++;
           }
-          $count++;
         }
 
-        require Equipment::Users;
-        my $Equipment_users = Equipment::Users->new($db, $admin, \%conf, $attr);
+        if ($pre_request) {
+          require Equipment::Users;
+          my $Equipment_users = Equipment::Users->new($db, $admin, \%conf, $attr);
 
-        $Equipment_users->cpe_info({
-          %$attr,
-          NAS_INFO => $Nas_info,
-          FIELDS   => $fields,
-          SILENT   => ($FORM{DEBUG}) ? undef : 1
-        });
+          $Equipment_users->cpe_info({
+            %$attr,
+            NAS_INFO => $Nas_info,
+            FIELDS   => $fields,
+            SILENT   => ($FORM{DEBUG}) ? undef : 1
+          });
 
-        if (!$Equipment_users->{errno}) {
-          push @equipment_infos, @{$Equipment_users->{CPE_INFO}};
+          if (!$Equipment_users->{errno}) {
+            push @equipment_infos, @{$Equipment_users->{CPE_INFO}};
+          }
+        }
+        else {
+          my $message = $html->message('err', $lang{ERR_NOT_RESPONSE}
+            . ' NAS_ID: ' . $nas_id . "\n" . ($Nas_info->{nas_mng_ip_port} || q{})
+            . ' ' . $html->button('', "NAS_ID=$nas_id&index=" . get_function_index('equipment_info'),
+            { ICON => 'fa fa-info-circle' }), '', { OUTPUT2RETURN => 1 });
+
+          $equipment_infos[$#equipment_infos] = [ $lang{EQUIPMENT_STATUS}, $message ];
         }
       }
     }
@@ -2336,6 +2404,8 @@ sub equipment_add_color {
   Arguments:
     $FORM{SNMP_COMMUNITY}
     $FORM{PORT} - Port number
+    $FORM{SNMP_TPL}
+    $FORM{PON_TYPE}
 
   Returns:
     true or false
@@ -2347,20 +2417,33 @@ sub equipment_add_color {
 sub equipment_graph_info {
   return 0 if (!$FORM{SNMP_COMMUNITY} || !$FORM{PORT});
 
-  my ($cout, $cin, $time);
+  my $snmp = _get_snmp($FORM{SNMP_TPL});
+  my $pon_type = $FORM{PON_TYPE} || '';
 
-  $time = time();
+  my $onu_out_byte_oid = '1.3.6.1.2.1.31.1.1.1.10.';
+  if ($snmp && $snmp->{$pon_type}->{ONU_OUT_BYTE}->{OIDS} && $FORM{PON_TYPE}) {
+    $onu_out_byte_oid  = "$snmp->{$pon_type}->{ONU_OUT_BYTE}->{OIDS}.";
+  }
+  
+  my $onu_in_byte_oid = '1.3.6.1.2.1.31.1.1.1.6.';
+  if ($snmp && $snmp->{$pon_type}->{ONU_IN_BYTE}->{OIDS} && $FORM{PON_TYPE}) {
+    $onu_in_byte_oid  = "$snmp->{$pon_type}->{ONU_IN_BYTE}->{OIDS}.";
+  }
+
+  my ($cout, $cin)=(0, 0);
+
+  my $time = time();
 
   $cout = snmp_get({
     SNMP_COMMUNITY => $FORM{SNMP_COMMUNITY},
-    OID            => "1.3.6.1.2.1.31.1.1.1.10." . $FORM{PORT},
+    OID            => $onu_out_byte_oid . $FORM{PORT},
     SILENT         => 1,
     VERSION        => 2,
   });
 
   $cin = snmp_get({
     SNMP_COMMUNITY => $FORM{SNMP_COMMUNITY},
-    OID            => "1.3.6.1.2.1.31.1.1.1.6." . $FORM{PORT},
+    OID            => $onu_in_byte_oid . $FORM{PORT},
     SILENT         => 1,
     VERSION        => 2,
   });

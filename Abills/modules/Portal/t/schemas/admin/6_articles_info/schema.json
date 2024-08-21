@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer"
+    },
+    "archive": {
+      "type": "integer"
+    },
+    "addressFlat": {
+      "type": "string"
+    },
+    "buildId": {
+      "type": "number"
+    },
+    "content": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string"
+    },
+    "deeplink": {
+      "type": "integer"
+    },
+    "districtId": {
+      "type": "string"
+    },
+    "domainId": {
+      "type": "integer"
+    },
+    "endDate": {
+      "type": "string"
+    },
+    "etimestamp": {
+      "type": "integer"
+    },
+    "gid": {
+      "type": "integer"
+    },
+    "importance": {
+      "type": "integer"
+    },
+    "name": {
+      "type": "string"
+    },
+    "onMainPage": {
+      "type": "integer"
+    },
+    "permalink": {
+      "type": "string"
+    },
+    "picture": {
+      "type": "string"
+    },
+    "portalMenuId": {
+      "type": "integer"
+    },
+    "shortDescription": {
+      "type": "string"
+    },
+    "stName": {
+      "type": "string"
+    },
+    "status": {
+      "type": "integer"
+    },
+    "streetId": {
+      "type": "integer"
+    },
+    "tagName": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string"
+    },
+    "utimestamp": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "archive",
+    "addressFlat",
+    "buildId",
+    "content",
+    "date",
+    "deeplink",
+    "districtId",
+    "domainId",
+    "endDate",
+    "etimestamp",
+    "gid",
+    "importance",
+    "name",
+    "onMainPage",
+    "permalink",
+    "picture",
+    "portalMenuId",
+    "shortDescription",
+    "stName",
+    "status",
+    "streetId",
+    "tagName",
+    "tags",
+    "title",
+    "url",
+    "utimestamp"
+  ]
+}

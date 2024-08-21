@@ -570,7 +570,7 @@ sub _list {
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0) {
-    $self->query("SELECT COUNT(*) AS total
+    $self->query("SELECT COUNT( DISTINCT i.nas_id) AS total
       FROM equipment_infos i
       INNER JOIN equipment_models m ON (m.id=i.model_id)
       INNER JOIN equipment_types t ON (t.id=m.type_id)
@@ -2063,9 +2063,10 @@ sub onu_list {
     [ 'DATETIME',         'DATE','onu.datetime',                  1 ],
     [ 'DELETED',          'INT', 'onu.deleted',                   1 ],
     [ 'SERVER_VLAN',      'STR', 'i.server_vlan',                 1 ],
+    [ 'TARIFF_PLAN',      'STR', 'tp.name AS tariff_plan',        1 ],
   ], {
     WHERE             => 1,
-    USERS_FIELDS      => 1,
+    USERS_FIELDS      => ($attr->{SKIP_USER_INFO}) ? undef : 1,
     USE_USER_PI       => 1,
     SKIP_USERS_FIELDS => [ 'LOGIN', 'DOMAIN_ID' ],
     WHERE_RULES       => \@WHERE_RULES,
@@ -2115,10 +2116,11 @@ sub onu_list {
 
   my $EXT_TABLES = q{};
 
-  if($self->{EXT_TABLES} || $self->{SEARCH_FIELDS} =~ /\bu\./ || $WHERE =~ /\bu\./) {
+  if($self->{EXT_TABLES} || $self->{SEARCH_FIELDS} =~ /\bu\./ || $WHERE =~ /\bu\./ || $attr->{TARIFF_PLAN}) {
     $EXT_TABLES = '
       LEFT JOIN internet_main internet FORCE INDEX FOR JOIN (`port`) ON (onu.onu_dhcp_port=internet.port AND p.nas_id=internet.nas_id)
-      LEFT JOIN users u ON (u.uid=internet.uid) ';
+      LEFT JOIN users u ON (u.uid=internet.uid)
+      LEFT JOIN tarif_plans tp ON (internet.tp_id = tp.tp_id)';
     $EXT_TABLES .= $self->{EXT_TABLES};
   }
 
@@ -3044,6 +3046,58 @@ sub calculator_add {
   $self->query_add('equipment_calculator', $attr);
 
   return $self;
+}
+
+#**********************************************************
+=head2 port_errors_add ($attr) - add port errors
+
+=cut
+#**********************************************************
+sub port_errors_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('equipment_ports_errors', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 port_errors_list($attr) - list port errors
+
+=cut
+#**********************************************************
+sub port_errors_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'DATE',            'INT', 'epe.date',                       1 ],
+    [ 'NAS_NAME',        'STR', 'nas.name',  'nas.name AS nas_name' ],
+    [ 'NAS_ID',          'INT', 'epe.nas_id',                     1 ],
+    [ 'PORT_ID',         'STR', 'epe.port_id',                    1 ],
+    [ 'IN_ERRORS',       'INT', 'epe.in_errors',                  1 ],
+    [ 'OUT_ERRORS',      'INT', 'epe.out_errors',                 1 ],
+    ['FROM_DATE|TO_DATE','INT', "DATE_FORMAT(epe.date, '%Y-%m-%d')" ],
+  ],
+    { WHERE => 1, });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} id
+    FROM equipment_ports_errors epe
+    LEFT JOIN nas ON (nas.id=epe.nas_id)
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  return $self->{list};
 }
 
 1;

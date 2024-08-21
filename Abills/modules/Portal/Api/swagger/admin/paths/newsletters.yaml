@@ -1,0 +1,83 @@
+get:
+  tags:
+    - portal
+  summary: Список рассылок
+  parameters:
+    - name: id
+      in: query
+      description: id рассылки
+      schema:
+        type: boolean
+        default: true
+    - name: articleId
+      in: query
+      description: id статьи, к которой привязаны рассылки
+      schema:
+        type: boolean
+        default: true
+    - name: status
+      in: query
+      description: Статус рассылки
+      schema:
+        type: boolean
+        default: true
+    - name: sent
+      in: query
+      description: Количество отосланных
+      schema:
+        type: boolean
+        default: true
+    - name: sendMethod
+      in: query
+      description: ID метода рассылки
+      schema:
+        type: boolean
+        default: true
+    - name: start_datetime
+      in: query
+      description: Дата начала рассылки
+      schema:
+        type: boolean
+        default: true
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/newsletterList.yaml"
+
+  security:
+    - KEY: [ ]
+post:
+  tags:
+    - portal
+  summary: Создание рассылки
+  operationId: addNewsletterPortal
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/newsletterAddRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/newsletterAddResponse.yaml"
+  security:
+    - KEY: [ ]

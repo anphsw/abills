@@ -1,5 +1,5 @@
 {
-  "definitions": {},
+  "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "array",
   "title": "The Root Schema",
   "required": [
@@ -11,23 +11,18 @@
   ],
   "properties": {
     "id": {
-      "$id": "#/properties/id",
       "type": "number"
     },
     "message": {
-      "$id": "#/properties/message",
       "type": "string"
     },
     "title": {
-      "$id": "#/properties/title",
       "type": "string"
     },
     "typeId": {
-      "$id": "#/properties/typeId",
       "type": "number"
     },
     "uid": {
-      "$id": "#/properties/uid",
       "type": "number"
     }
   }

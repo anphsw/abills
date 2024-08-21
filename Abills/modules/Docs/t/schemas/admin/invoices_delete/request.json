@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_DOCS_INVOICE_DELETE",
+  "method": "DELETE",
+  "path": "docs/invoices/",
+  "params": {}
+}

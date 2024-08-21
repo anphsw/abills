@@ -1,0 +1,5 @@
+type: object
+properties:
+  number:
+    type: number
+    example: 05032321312

@@ -328,7 +328,7 @@ sub report_sprint {
         my $points_completed = 0;
 
         my $issue_by_id = $Redmine->get_issue_by_id({ ISSUE_ID => $issue->{id} });
-        $spent_hours = $issue_by_id->{spent_hours};
+        $spent_hours = $issue_by_id->{spent_hours} if $issue_by_id->{spent_hours};
 
         # Search for an element with the same assigned_to_id in the new array
         my $data_for_table_element = _find_element_by_assigned_to_id($data_for_table, $assigned_to_id);
@@ -382,6 +382,7 @@ sub report_sprint {
         next;
       }
 
+      # todo: review this option
       my $url_sprint_redmine = "$conf{MSGS_REDMINE_APIURL}issues?&set_filter=1&fixed_version_id=$sprint->{id}&status_id=*&per_page=50 target=\'_blank\'";
       my ($total_issues, $total_issues_completed, $total_estimated_hours, $total_spent_hours, $total_points_plan, $total_points_completed) = 0;
       my (@assigned_to, @time_task_plan, @time_task_fact, @point_avarage_plan, @point_avarage_fact, @success_plan, @success_fact) = ();

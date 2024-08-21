@@ -1,0 +1,8 @@
+{
+  "name": "TAG_USER_ADD",
+  "method": "POST",
+  "path": "tags/:tagId/users/:uid/",
+  "body": {
+    "endDate": "2024-12-31"
+  }
+}

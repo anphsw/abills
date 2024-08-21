@@ -139,7 +139,10 @@ sub get_info_fields_read_only_view {
       my $value_view = '';
 
       if ($type eq $FIELD_TYPE_ID{LIST}) {
-        my $field_value_list = $users->info_lists_list({ LIST_TABLE => $field_id . '_list', COLS_NAME => 1 });
+        require Info_fields;
+        Info_fields->import();
+        my $Info_fields = Info_fields->new($self->{db}, $self->{admin}, $self->{conf});
+        my $field_value_list = $Info_fields->info_lists_list({ LIST_TABLE => $field_id . '_list', COLS_NAME => 1 });
         if (
           # No list or broken list
           !$field_value_list || !ref $field_value_list eq 'ARRAY'

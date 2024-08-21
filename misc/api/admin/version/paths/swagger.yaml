@@ -1,0 +1,12 @@
+get:
+  tags:
+    - version
+  summary: Get Swagger 3 specification for ABillS USER API
+  description: Returns the Swagger 3 specification for the ABillS USER API.
+  responses:
+    200:
+      description: Swagger 3 specification for ABillS USER API
+      content:
+        application/yaml:
+          schema:
+            $ref: "../schemas/swaggerUser.yaml"

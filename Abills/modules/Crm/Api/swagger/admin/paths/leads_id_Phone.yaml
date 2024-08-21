@@ -1,0 +1,25 @@
+post:
+  tags:
+    - crm
+  summary: Инициировать запуск внешней программы обработки для номера телефона потенциального клиента
+  operationId: crmPhoneExternalCMD
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: ID потенциального клиента
+      schema:
+        type: integer
+        default: int64
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addPhoneExternalCMDResponse200.yaml"
+    400:
+      description: ERR_CRM_EXTERNAL_CMD_ERROR
+      content: { }
+  security:
+    - KEY: [ ]

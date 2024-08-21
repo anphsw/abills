@@ -219,12 +219,12 @@ sub cablecat_fill_scheme_coords {
       print qq{{"success": "$lang{POSITION_SUCCESSFULLY_CHANGED}"}};
     }
 
-    return;
+    return 0;
   }
 
   $Cablecat->schemes_add(\%FORM);
 
-  return 0;
+  return 1;
 }
 
 #**********************************************************
@@ -253,7 +253,7 @@ sub cablecat_get_added_schemes {
 
   if ($Cablecat->{TOTAL} < 1) {
     print qq{{"msg": "empty"}};
-    return;
+    return 0;
   }
 
   foreach my $scheme (@{$schemes_list}) {

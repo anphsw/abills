@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "invoiceId": {
+      "type": "integer"
+    },
+    "paymentId": {
+      "type": "integer"
+    },
+    "result": {
+      "type": "string"
+    },
+    "sum": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "invoiceId",
+    "paymentId",
+    "result",
+    "sum"
+  ]
+}

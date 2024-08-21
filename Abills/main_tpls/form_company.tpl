@@ -1,4 +1,4 @@
-<script TYPE='text/javascript'>
+<script type='text/javascript'>
   'use strict';
 
   function add_comments() {
@@ -131,10 +131,6 @@
         </div>
 
       </div>
-    </div>
-
-    <div class='card-footer'>
-      <input type='submit' class='btn btn-primary double_click_check' name='%ACTION%' value='%LNG_ACTION%'>
     </div>
   </div>
 </div>

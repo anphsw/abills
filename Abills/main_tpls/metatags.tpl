@@ -64,9 +64,6 @@
   <!--Keyboard-->
   <script src='/styles/%HTML_STYLE%/js/keys.js'></script>
 
-  <!-- Navigation bar saving show/hide state -->
-  <script  src='/styles/%HTML_STYLE%/js/navBarCollapse.js'></script>
-
   <!--Javascript template engine-->
   <script src='/styles/%HTML_STYLE%/js/mustache.min.js'></script>
 
@@ -172,7 +169,6 @@
 <body class='hold-transition
   $admin->{SETTINGS}{FIXED_LAYOUT}
   $admin->{MENU_HIDDEN}
-  %SIDEBAR_HIDDEN%
   $admin->{SETTINGS}{BODY_SKIN}
   sidebar-mini
   layout-fixed

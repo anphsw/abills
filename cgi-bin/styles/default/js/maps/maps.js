@@ -228,6 +228,10 @@ var Configuration = (function () {
       ObjectsConfiguration.getObjects(layer, errGetObject, successGetObject);
     }
 
+    if (layer['extra_layer_script']) {
+      putScriptInHead(`${layer['id']}_script`, layer['extra_layer_script']);
+    }
+
     function addBtnClick() {
       let addButtonId = "add_" + buttonId;
       htmlElement = createButtonWithAdd(layer['lang_name'], buttonId, addButtonId);
@@ -600,7 +604,7 @@ var Configuration = (function () {
     let bounds = new L.LatLngBounds(first_bound, second_bound);
     map.fitBounds(bounds);
 
-    if (object['layer_id'] && object['object_id']) {
+    if (object && object['layer_id'] && object['object_id']) {
       setTimeout(function () {
         Objects[object.layer_id][object.object_id].openPopup();
       }, 500);
@@ -672,10 +676,11 @@ var ObjectsConfiguration = (function () {
     let add_class_icons = {};
 
     map._layersMaxZoom ||= 18;
-    let markers = FORM['OBJECT_TO_SHOW'].length > 1000 ? L.markerClusterGroup({
+    let markers = FORM['OBJECT_TO_SHOW'].length > MAPS_MIN_CLUSTER_GROUP ? L.markerClusterGroup({
       spiderfyOnMaxZoom: 0,
       disableClusteringAtZoom: map._layersMaxZoom
     }) : new L.layerGroup();
+    FORM['CUSTOM_MARKERS'] = markers;
 
     jQuery.each(FORM['OBJECT_TO_SHOW'], function (index, value) {
       if (value['MARKER']) {
@@ -959,6 +964,7 @@ class GPS {
   constructor(layer_id, params) {
     this._layerId = layer_id;
     this._params = params;
+    this._object_id = params.OBJECT_ID;
     this._coords = params.coords;
     this._color = params.color;
     this._aid = params.aid;
@@ -991,6 +997,11 @@ class GPS {
         params: self._params
       }).addTo(map);
 
+      if (FORM['OBJECT_ID'] && FORM['OBJECT_ID'] == self._object_id) {
+        let first_coords = value.coords[0];
+        Configuration.fitByPoints([first_coords, first_coords], undefined);
+      }
+
       myMovingMarker._points.addTo(map)
 
       for (let i = 1; i < value.coords.length; i++) {
@@ -1017,10 +1028,12 @@ class GPS {
         .setHeader(`<h4 class='card-title'>${_PERIOD}</h4>`)
         .addButton(_SHOW, 'confirmRouteDate', 'default')
         .show(function () {
+          var startDate = new Date();
+          startDate.setHours(0,0,0,0);
           jQuery('#FROM_DATE').datetimepicker({"format":"YYYY-MM-DD HH:mm","showClose":true,"locale":self._locale,
-            "allowInputToggle":true,"sideBySide":true});
+            "allowInputToggle":true,"sideBySide":true, date: startDate});
           jQuery('#TO_DATE').datetimepicker({"format":"YYYY-MM-DD HH:mm","showClose":true,"locale":self._locale,
-            "allowInputToggle":true,"sideBySide":true});
+            "allowInputToggle":true,"sideBySide":true, date: new Date()});
 
           jQuery('#confirmRouteDate').on('click', function () {
             let fromDate = jQuery('#FROM_DATE').val();
@@ -2399,8 +2412,10 @@ function fillSearchSelect(items, pageSize) {
 
       let results = [];
       if (params.term && params.term !== '') {
+        let termWithoutSpacesAndCommas = params.term.replace(/[\s,]+/g, '');
         results = _.filter(items, function (e) {
-          return e.text.toUpperCase().indexOf(params.term.toUpperCase()) >= 0;
+          let textWithoutSpacesAndCommas = e.text.replace(/[\s,]+/g, '');
+          return textWithoutSpacesAndCommas.toUpperCase().indexOf(termWithoutSpacesAndCommas.toUpperCase()) >= 0;
         });
       } else {
         results = items;

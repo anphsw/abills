@@ -1,0 +1,19 @@
+post:
+  tags:
+    - callback
+  summary: Регистрация обратного вызова
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/subscribe.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+  security:
+    - KEY: []

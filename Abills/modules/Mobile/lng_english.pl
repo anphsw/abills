@@ -7,6 +7,9 @@ $lang{ERR_MOBILE_SERVICES_NOT_FOUND} = 'No services are selected in the tariff p
 $lang{ERR_MOBILE_PHONE_ALREADY_ACTIVATED} = 'Phone number already activated';
 $lang{ERR_MOBILE_WAIT_PHONE_NUMBER_ACTIVATION} = 'Wait for confirmation of phone number activation';
 $lang{ERR_MOBILE_WRONG_PARAMETERS} = 'Wrong parameters';
+$lang{ERR_MOBILE_PHONE_ALREADY_DEACTIVATED} = 'The phone number has already been deactivated';
+$lang{ERR_MOBILE_WAIT_SERVER_RESPONSE} = 'Wait for the service response';
+$lang{ERR_MOBILE_FUNCTION_NOT_FOUND} = 'Function not found';
 
 $lang{MOBILE_COMMUNICATION} = 'Mobile communication';
 $lang{PHONE_ACTIVATE} = 'Activate phone number';
@@ -22,6 +25,8 @@ $lang{MOBILE_WAIT_CONFIRMATION_TARIFF} = 'Wait for confirmation of tariff plan a
 $lang{MOBILE_WAIT_CONFIRMATION_NUMBER} = 'Wait for confirmation of phone number activation';
 $lang{MOBILE_CONFIRM} = 'Confirmation';
 $lang{MOBILE_CONFIRMATION_ACTIVATION} = 'Activation confirmation of phone number';
+$lang{MOBILE_WAIT_NUMBER_DEACTIVATE} = 'Wait for the number to be deactivated';
+$lang{MOBILE_PHONE_DEACTIVATE} = 'Phone number deactivation';
 
 
 

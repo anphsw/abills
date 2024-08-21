@@ -3,7 +3,7 @@ delete:
     - contacts
   summary: Удаление контакта
   parameters:
-    - name: typeId
+    - name: id
       in: path
       description: typeId контакта
       required: true

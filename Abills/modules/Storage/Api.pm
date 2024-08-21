@@ -18,9 +18,6 @@ use Storage;
 
 my Storage $Storage;
 
-our %lang;
-require 'Abills/modules/Storage/lng_english.pl';
-
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
 
@@ -38,8 +35,6 @@ sub new {
   };
 
   bless($self, $class);
-
-  my %LANG = (%{$lang}, %lang);
 
   $Storage = Storage->new($db, $admin, $conf);
 

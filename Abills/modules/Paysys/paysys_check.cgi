@@ -3,7 +3,7 @@
 =head1 NAME
 
   Paysys processing system
-  Check payments incomming request
+  Check payments incoming request
 
 =cut
 
@@ -124,7 +124,6 @@ if ($debug > 1) {
 }
 #NEW SCHEME ====================================
 paysys_new_scheme();
-exit;
 
 
 #**********************************************************
@@ -146,6 +145,7 @@ sub paysys_new_scheme {
     SHOW_ALL_COLUMNS => 1,
     STATUS           => 1,
     COLS_NAME        => 1,
+    PAGE_ROWS        => 50,
   });
 
   #test systems
@@ -200,7 +200,7 @@ sub paysys_new_scheme {
         mk_log('', { PAYSYS_ID => $id, DATA => \%FORM });
       }
 
-      my $Paysys_plugin = _configure_load_payment_module($module);
+      my $Paysys_plugin = _configure_load_payment_module($module, 0, \%conf);
 
       if ($debug > 2) {
         mk_log("$module loaded", { PAYSYS_ID => $id });
@@ -274,99 +274,19 @@ sub paysys_payment_gateway {
 
   my %TEMPLATES_ARGS = ();
 
-  if ($FORM{PAYMENT_SYSTEM}) {
-    my $payment_system_info = $Paysys->paysys_connect_system_info({
-      PAYSYS_ID => $FORM{PAYMENT_SYSTEM},
-      MODULE    => '_SHOW',
-      COLS_NAME => '_SHOW'
-    });
+  if ($result == 0) {
+    my $user = Users->new($db, $admin, \%conf);
+    $user->info($user_info->{UID});
 
-    if ($Paysys->{errno}) {
-      print $html->message('err', $lang{ERROR}, 'Payment system not exist');
-    }
-    else {
-      my $Module = _configure_load_payment_module($payment_system_info->{module});
-      my $Paysys_Object = $Module->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
-
-      my $user = Users->new($db, $admin, \%conf);
-      $user->info($user_info->{UID});
-      $user->pi({ UID => $user_info->{UID} });
-
-      print $Paysys_Object->user_portal($user, { %FORM });
-    }
-
-    return 1;
-  }
-
-  if($result == 0){
-    # SHOW TEMPLATE WITH PAYMENT SYSTEMS SELECT
-    $TEMPLATES_ARGS{IDENTIFIER} = $FORM{IDENTIFIER};
-
-    # GENERATE OPERATION_ID
-    $TEMPLATES_ARGS{OPERATION_ID} = mk_unique_value(8, { SYMBOLS => '0123456789' });
-
-    my $allowed_systems = $Paysys->groups_settings_list({
-      GID       => $user_info->{gid},
-      PAYSYS_ID => '_SHOW',
-      COLS_NAME => 1,
-    });
-
-    my $systems = $Paysys->paysys_connect_system_list({
-      NAME      => '_SHOW',
-      MODULE    => '_SHOW',
-      ID        => '_SHOW',
-      PAYSYS_ID => '_SHOW',
-      STATUS    => 1,
-      COLS_NAME => 1,
-    });
-
-    if (!$user_info->{gid}) {
-      my $gid_list = $users->groups_list({
-        COLS_NAME      => 1,
-        GID            => '0'
-      });
-
-      if (!$gid_list) {
-        $allowed_systems = $systems;
-      }
-    }
-
-    my @systems_list;
-    foreach my $allowed_system (@{$allowed_systems}) {
-      foreach my $system (@{$systems}) {
-        next if ($system->{paysys_id} != $allowed_system->{paysys_id});
-        my $Module = _configure_load_payment_module($system->{module}, 1);
-        next if (ref $Module eq 'HASH' || !$Module->can('user_portal'));
-        push(@systems_list, $system);
-      }
-    }
-
-    my $count = 1;
-    foreach my $payment_system (@systems_list) {
-      $TEMPLATES_ARGS{PAY_SYSTEM_SEL} .= _paysys_system_radio({
-        NAME    => $payment_system->{name},
-        MODULE  => $payment_system->{module},
-        ID      => $payment_system->{paysys_id},
-        CHECKED => $count == 1 ? 'checked' : '',
-      });
-      $count++;
-    }
-
-    if (defined(&recomended_pay) && $users) {
-      $users->pi({UID => $user_info->{uid}});
-      $TEMPLATES_ARGS{SUM} = recomended_pay($users);
-    }
-
-    $html->tpl_show(_include('paysys_main', 'Paysys'), \%TEMPLATES_ARGS,
-      { OUTPUT2RETURN => 0});
+    paysys_payment({ USER_INFO => $user, PAYMENTS_PORTAL => 1 });
 
     return 1;
   }
   elsif ($result == 1) {
-    $html->message("err", $lang{USER_NOT_EXIST});
+    $html->message('err', $lang{USER_NOT_EXIST});
   }
   elsif ($result == 11) {
-    $html->message("err", "Paysys" . $lang{DISABLE});
+    $html->message('err', 'Paysys ' . $lang{DISABLE});
   }
 
   $TEMPLATES_ARGS{IDENTIFIER_TEXT} = $lang{ENTER} . ' ' . ($lang{$conf{PAYSYS_GATEWAY_IDENTIFIER} || q{}} || 'UID');

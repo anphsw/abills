@@ -1,0 +1,14 @@
+get:
+  tags:
+    - msgs
+  summary: Получить список разделов
+  operationId: chaptersList
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/chapterList.yaml"
+  security:
+    - KEY: []

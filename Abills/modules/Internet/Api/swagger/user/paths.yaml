@@ -1,18 +1,14 @@
 /user/internet:
   $ref: "./paths/internet.yaml"
-/user/internet/{ID}/activate:
+/user/internet/{id}/activate:
   $ref: "./paths/activate.yaml"
 /user/internet/{id}:
   $ref: "./paths/internetTariff.yaml"
-/user/internet/{ID}/speed:
-  $ref: "./paths/speed.yaml"
-/user/internet/{ID}/holdup:
-  $ref: "./paths/holdup.yaml"
 /user/internet/tariffs:
   $ref: "./paths/tariffs.yaml"
 /user/internet/tariffs/all:
   $ref: "./paths/tariffsAll.yaml"
-/user/internet/{ID}/warnings:
+/user/internet/{id}/warnings:
   $ref: "./paths/warnings.yaml"
 /user/internet/sessions:
   $ref: "./paths/sessions.yaml"

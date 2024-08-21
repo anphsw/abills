@@ -1,0 +1,5 @@
+type: object
+properties:
+  result:
+    type: string
+    example: Ok successfully deleted schedule id 799 for user with uid 7275

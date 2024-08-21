@@ -1,0 +1,20 @@
+type: object
+properties:
+  preAdd:
+    type: integer
+    example: 1
+  total:
+    type: integer
+    example: 0
+  insertId:
+    type: string
+    example: "17"
+  uid:
+    type: string
+    example: "32"
+  affected:
+    type: integer
+    example: 1
+  login:
+    type: string
+    example: testUser

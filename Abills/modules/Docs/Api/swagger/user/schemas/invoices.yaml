@@ -1,0 +1,62 @@
+type: object
+properties:
+  list:
+    type: array
+    items:
+      type: object
+      properties:
+        altSum:
+          type: number
+          example: 0
+        created:
+          type: string
+          example: 2024-03-14 17:11:31
+        currency:
+          type: number
+          example: 0
+        customer:
+          type: string
+          example: 'ФОП Іваненко'
+        date:
+          type: string
+          format: date
+          example: 2024-03-14
+        docsDeposit:
+          type: number
+          example: 5559
+        exchangeRate:
+          type: number
+          example: 0
+        extId:
+          type: string
+          example: ''
+        feesId:
+          type: number
+          example: 0
+        fio:
+          type: string
+          example: 'Іваненко Іван Іванович'
+        id:
+          type: number
+          example: 8756
+        invoiceNum:
+          type: number
+          example: 33358
+        invoiceSum:
+          type: number
+          example: 12
+        paymentMethod:
+          type: string
+          example: 0
+        paymentSum:
+          type: string
+          example: 12
+        totalSum:
+          type: number
+          example: 12
+        uid:
+          type: number
+          example: 103160
+  total:
+    type: number
+    example: 9

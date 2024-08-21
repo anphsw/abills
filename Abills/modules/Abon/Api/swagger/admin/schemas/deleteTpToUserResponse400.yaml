@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 20006
+  errstr:
+    type: string
+    example: "ERR_TARIFF_ALREADY_DEACTIVATED"

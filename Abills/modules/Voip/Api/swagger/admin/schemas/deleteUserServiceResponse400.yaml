@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 31015
+  errstr:
+    type: string
+    example: "User doesn't have a voip service"

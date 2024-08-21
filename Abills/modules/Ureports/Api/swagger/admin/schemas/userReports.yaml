@@ -1,0 +1,48 @@
+type: object
+properties:
+  activeReports:
+    type: array
+    items:
+      type: object
+      properties:
+        date:
+          type: string
+          example: '0000-00-00'
+        msgPrice:
+          type: number
+          example: 0
+        reportId:
+          type: number
+          example: 15
+        reportName:
+          type: string
+          example: Internet Service disabled
+        uid:
+          type: number
+          example: 102144
+        value:
+          type: number
+          example: 1
+  availableReports:
+    type: array
+    items:
+      type: object
+      properties:
+        date:
+          type: string
+          example: ""
+        msgPrice:
+          type: number
+          example: 0
+        reportId:
+          type: number
+          example: 1
+        reportName:
+          type: string
+          example: Deposit below
+        uid:
+          type: string
+          example: ""
+        value:
+          type: string
+          example: ""

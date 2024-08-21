@@ -216,4 +216,11 @@ $lang{AUTODETECT}='Autodetect';
 $lang{GENERAL_INFORMATION} = 'General information';
 $lang{ONU_LAST_DOWN_CAUSE} = 'Last down case';
 
+$lang{PORT_SPEED} = 'Port speed';
+$lang{PORT_HIGH_SPEED} = 'Port throughput speed';
+$lang{PORT_ERRORS} = 'Port errors';
+
+$lang{INCOMING} = 'Incoming';
+$lang{OUTCOMING} = 'Outcoming';
+
 1

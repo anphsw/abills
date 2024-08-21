@@ -1,0 +1,35 @@
+type: object
+properties:
+  company:
+    type: object
+    properties:
+      address:
+        type: string
+        example: Україна 01001 місто Київ ВУЛИЦЯ ГРУШЕВСЬКОГО будинок 1Д
+      director:
+        type: string
+        example: БЬОШ ГЕРХАРД
+      directorGen:
+        type: string
+        example: БЬОШ ГЕРХАРД
+      egrpou:
+        type: number
+        example: 14360570
+      inn:
+        type: number
+        example: 143605704021
+      innDate:
+        type: string
+        example: 07.07.1997
+      kved:
+        type: string
+        example: Інші види грошового посередництва
+      kvedNumber:
+        type: number
+        example: 64.19
+      name:
+        type: string
+        example: АКЦІОНЕРНЕ ТОВАРИСТВО КОМЕРЦІЙНИЙ БАНК ПРИВАТБАНК
+      nameShort:
+        type: string
+        example: АТ КБ ПРИВАТБАНК

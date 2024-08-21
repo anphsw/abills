@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: integer
+    example: 700
+  errstr:
+    type: string
+    example: No field aLogin

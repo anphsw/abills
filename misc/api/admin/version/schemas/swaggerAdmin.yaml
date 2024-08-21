@@ -1,0 +1,43 @@
+type: object
+properties:
+  openapi:
+    type: string
+    example: 3.0.3
+  info:
+    type: object
+    properties:
+      title:
+        type: string
+        example: ABillS ADMIN API
+      version:
+        type: string
+        example: 0.0.0
+      description:
+        type: string
+        example: "Last modified xxxx-xx-xx"
+      contact:
+        type: object
+        properties:
+          name:
+            type: string
+            example: Have a question? Support
+          url:
+            type: string
+            format: uri
+            example: https://abills.net.ua/
+          email:
+            type: string
+            format: email
+            example: example@abills.net.ua
+  servers:
+    type: array
+    items:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          example: https://abills.net.ua:9443/api
+        description:
+          type: string
+          example: Test Demo Server

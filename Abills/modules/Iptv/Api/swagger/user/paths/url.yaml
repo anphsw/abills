@@ -3,7 +3,7 @@ get:
     - iptv
   summary: Получить url для просмотра IPTV
   parameters:
-    - name: ID
+    - name: id
       in: path
       description: >
         Значение `id`, можно получить в ответе

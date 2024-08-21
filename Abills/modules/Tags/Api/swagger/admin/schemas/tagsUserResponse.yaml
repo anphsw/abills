@@ -1,0 +1,12 @@
+type: object
+properties:
+  affected:
+    type: number
+    example: 1
+  total:
+    type: number
+    example: 1
+  list:
+    type: array
+    items:
+      $ref: "../schemas/tagUser.yaml"

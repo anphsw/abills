@@ -1792,7 +1792,7 @@ sub file_add {
 }
 
 #*******************************************************************
-=head2 function file_list() - get list of all files
+=head2 file_list() - get list of all files
 
   Arguments:
     $attr
@@ -1817,16 +1817,17 @@ sub file_list {
 
   my $WHERE = $self->search_former($attr,
     [
-      [ 'ID', 'INT', 'sf.id', 1 ],
-      [ 'NAME', 'STR', 'sf.name', 1 ],
-      [ 'AMOUNT', 'INT', 'sf.amount', 1 ],
-      [ 'COMMENT', 'STR', 'sf.comment', 1 ],
-      [ 'VERSION', 'STR', 'sf.version', 1 ],
-      # [ 'GROUP_ID',  'INT', 'sf.group_id',  1 ],
-      [ 'GROUP_NAME', 'STR', 'sg.name as group_name', 1 ],
-      [ 'LINK_TIME', 'INT', 'sf.link_time', 1 ],
-      [ 'FILE_TIME', 'INT', 'sf.file_time', 1 ],
-      [ 'REMIND_FOR', 'INT', 'sf.remind_for', 1 ],
+      [ 'ID',             'INT', 'sf.id',                 1 ],
+      [ 'NAME',           'STR', 'sf.name',               1 ],
+      [ 'AMOUNT',         'INT', 'sf.amount',             1 ],
+      [ 'COMMENT',        'STR', 'sf.comment',            1 ],
+      [ 'VERSION',        'STR', 'sf.version',            1 ],
+      # [ 'GROUP_ID',  'INT', 'sf.group_id',    1 ],
+      [ 'GROUP_NAME',     'STR', 'sg.name as group_name', 1 ],
+      [ 'LINK_TIME',      'INT', 'sf.link_time',          1 ],
+      [ 'FILE_TIME',      'INT', 'sf.file_time',          1 ],
+      [ 'REMIND_FOR',     'INT', 'sf.remind_for',         1 ],
+      [ 'SHOW_IN_REPORT', 'INT', 'sf.show_in_report',     1 ],
     ],
     {
       WHERE         => 1,
@@ -2508,6 +2509,17 @@ sub sharing_download_dynamic {
   return $self->{list};
 }
 
+#**********************************************************
+=head2 sharing_user_list($attr)
+
+  Arguments:
+    $attr -
+
+  Returns:
+    list
+
+=cut
+#**********************************************************
 sub sharing_user_list {
   my $self = shift;
   my ($attr) = @_;
@@ -2524,9 +2536,12 @@ sub sharing_user_list {
   }
 
   my $WHERE = $self->search_former( $attr, [
-    [ 'LOGIN',   'STR',    'u.id AS login',     1],
-    [ 'DATE',    'DATE',   's.date_to',         1],
-    [ 'DEMO',    'INT',    's.demo',            1],
+    [ 'LOGIN',          'STR',    'u.id AS login',     1],
+    [ 'DATE',           'DATE',   's.date_to',         1],
+    [ 'DEMO',           'INT',    's.demo',            1],
+    [ 'SH_FILE',        'INT',    's.file_id',         1],
+    [ 'FILE_NAME',      'STR',    'sf.name',           1],
+    [ 'SHOW_IN_REPORT', 'INT',    'sf.show_in_report', 1],
   ],
     {
       WHERE        => 1,
@@ -2538,24 +2553,18 @@ sub sharing_user_list {
   my $EXT_TABLES = $self->{EXT_TABLES} || '';
 
   $self->query(
-    "SELECT
-      s.uid,
-    $self->{SEARCH_FIELDS}
-      s.file_id
+    "SELECT $self->{SEARCH_FIELDS}
+     s.uid
     FROM sharing_users s
     LEFT JOIN users u ON (u.uid=s.uid)
     LEFT JOIN sharing_files sf ON (sf.id=s.file_id)
-    WHERE s.file_id = ?
     $EXT_TABLES
     $WHERE
     $GROUP
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;",
     undef,
-      {
-        %$attr,
-        Bind => [ $attr->{SH_FILE} ]
-      }
+      { %$attr }
   );
 
   my $list = $self->{list};
@@ -2567,14 +2576,11 @@ sub sharing_user_list {
         SUM(sf.amount) AS total_sum
        FROM sharing_users s
         INNER JOIN sharing_files sf ON (sf.id=s.file_id)
-      WHERE s.file_id = ?
+      $WHERE
       $GROUP
       $EXT_TABLES;",
       undef,
-      {
-        INFO => 1,
-        Bind => [ $attr->{SH_FILE} ]
-      }
+      { INFO => 1 }
     );
   }
 

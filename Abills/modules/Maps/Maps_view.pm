@@ -87,11 +87,13 @@ sub show_map {
   my $javascript_vars = $html->tpl_show(::_include('maps_js_variables', 'Maps'),
     $self->maps_get_js_variables($form, {
       %{$attr},
-      HIDE_CONTROLS       => ($attr->{QUICK}) ? 1 : '',
-      MAPS_DEFAULT_TYPE   => $CONF->{MAPS_DEFAULT_TYPE} || 'OSM',
-      MAPS_DEFAULT_LATLNG => $CONF->{MAPS_DEFAULT_LATLNG} || '',
-      MAPS_WATERMARK_URL  => $watermark_url,
-      MAPS_WATERMARK_ICON => $icon
+      HIDE_CONTROLS          => ($attr->{QUICK}) ? 1 : '',
+      MAPS_DEFAULT_TYPE      => $CONF->{MAPS_DEFAULT_TYPE} || 'OSM',
+      MAPS_DEFAULT_LATLNG    => $CONF->{MAPS_DEFAULT_LATLNG} || '',
+      MAPS_MIN_CLUSTER_GROUP => $CONF->{MAPS_MIN_CLUSTER_GROUP} || 1000,
+      MAP_ONLINE_UPDATE      => $CONF->{MAPS_ONLINE_USERS_UPDATE_INTERVAL} || 30,
+      MAPS_WATERMARK_URL     => $watermark_url,
+      MAPS_WATERMARK_ICON    => $icon
     }), { OUTPUT2RETURN => 1 }
   );
 

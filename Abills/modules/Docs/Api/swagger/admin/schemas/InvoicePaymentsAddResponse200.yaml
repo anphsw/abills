@@ -1,0 +1,25 @@
+type: object
+properties:
+  payments:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 4098
+        sum:
+          type: number
+          example: 1000
+        uid:
+          type: number
+          example: 102332
+  skipCount:
+    type: number
+    example: 0
+  totalCount:
+    type: number
+    example: 1
+  totalSum:
+    type: number
+    example: 1000

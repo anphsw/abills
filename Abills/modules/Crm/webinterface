@@ -25,13 +25,16 @@ require Abills::Misc;
 require Abills::Defs;
 require Control::Address_mng;
 
-our ($db, $admin, %conf, %lang, @MONTHES, %permissions, @WEEKDAYS);
+our ($db, $admin, %conf, %lang, @MONTHES, %permissions, @WEEKDAYS, $libpath);
 
 our Abills::HTML $html;
 our Crm $Crm = Crm->new($db, $admin, \%conf);
 
 require Control::Schedule;
 my $Schedule_control = Control::Schedule->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, index => $index });
+
+require Abills::Template;
+my $Templates = Abills::Template->new($db, $admin, \%conf, { html => $html, lang => \%lang, libpath => $libpath });
 
 our @PRIORITY = ($lang{LOW}, $lang{NORMAL}, $lang{HIGH});
 my %STATES = (
@@ -81,7 +84,7 @@ sub crm_competitors {
 
   my $geo_list = $Crm->crm_competitor_geo_list({ COMPETITOR_ID => $FORM{chg} || '0', COLS_NAME => 1 });
 
-  $html->tpl_show(_include('crm_competitors', 'Crm'), { %{$Crm}, %{$competitor_info},
+  $html->tpl_show($Templates->_include('crm_competitors', 'Crm'), { %{$Crm}, %{$competitor_info},
     HIDE_SITE        => $Crm->{ACTION} eq 'add' ? 'hidden' : '',
     GEOLOCATION_TREE => geolocation_tree({
       TITLE         => $lang{LOCALITIES_OF_THE_COMPETITOR},
@@ -163,7 +166,7 @@ sub _crm_competitors_import {
     EX_PARAMS => 'multiple="multiple"'
   });
 
-  $html->tpl_show(templates('form_import'), {
+  $html->tpl_show($Templates->templates('form_import'), {
     IMPORT_FIELDS     => 'NAME,SITE,CONNECTION_TYPE,DESCR',
     CALLBACK_FUNC     => 'crm_competitors',
     IMPORT_FIELDS_SEL => $import_fields
@@ -213,7 +216,7 @@ sub crm_competitors_tp {
   my $info_fields = crm_lead_info_field_tpl({ TP_INFO_FIELDS => 1, %competitor_info });
   my $competitors_select = _crm_competitors_select({ %competitor_info, %FORM });
 
-  $html->tpl_show(_include('crm_competitors_tp', 'Crm'), {
+  $html->tpl_show($Templates->_include('crm_competitors_tp', 'Crm'), {
     %{$Crm},
     %competitor_info,
     COMPETITORS_SEL => $competitors_select,
@@ -335,7 +338,7 @@ sub crm_mass_adding {
     SEL_OPTIONS => { '' => '--' },
   });
 
-  $html->tpl_show(_include('crm_mass_adding_form', 'Crm'), $Crm);
+  $html->tpl_show($Templates->_include('crm_mass_adding_form', 'Crm'), $Crm);
 
   return 1;
 }
@@ -566,7 +569,7 @@ sub crm_registration {
   $Crm->{INFO_FIELDS} = crm_lead_info_field_tpl({ REGISTRATION => 1 });
   $Crm->{INFO_FIELDS} .= $html->element('hr', '', { OUTPUT2RETURN => 1 }) if $Crm->{INFO_FIELDS};
 
-  $html->tpl_show(_include('crm_registration', 'Crm'), { %{$Crm}, %FORM, %{$attr} }, { ID => 'CRM_REGISTRATION' });
+  $html->tpl_show($Templates->_include('crm_registration', 'Crm'), { %{$Crm}, %FORM, %{$attr} }, { ID => 'CRM_REGISTRATION' });
   return 1;
 }
 
@@ -578,10 +581,10 @@ sub crm_registration {
 sub crm_dialogue {
 
   my $dialogue = $Crm->crm_dialogue_info({ ID => $FORM{ID} });
-  return if !$dialogue->{SOURCE};
+  return 0 if !$dialogue->{SOURCE};
 
   $Crm->crm_open_lines_list({ SOURCE => $dialogue->{SOURCE}, AID => $admin->{AID} });
-  return if $Crm->{TOTAL} < 1;
+  return 0 if $Crm->{TOTAL} < 1;
 
   my $lead = $Crm->crm_lead_info({ ID => $dialogue->{LEAD_ID} });
   my $admins_avatar = {};
@@ -683,6 +686,14 @@ sub crm_dialogue {
   elsif ($dialogue->{AID} && $dialogue->{AID} ne $admin_id) {
     $Crm->{HIDE_CONTROL_BTN} = 'd-none';
     $Crm->{DISABLE_TEXTAREA} = 'disabled';
+
+    $Crm->{TAKE_DIALOGUE_BTN} = $html->button($lang{TAKE_DIALOGUE_FROM_ADMIN}, '', {
+      JAVASCRIPT     => '',
+      SKIP_HREF      => 1,
+      NO_LINK_FORMER => 1,
+      class          => 'btn btn-success btn-lg w-100',
+      ID             => 'take-dialogue'
+    }) if $admin->{permissions}{7} && $admin->{permissions}{7}{10};
   }
   if ($dialogue->{STATE} && $dialogue->{STATE} == 1) {
     $Crm->{HIDE_CONTROL_BTN} = 'd-none';
@@ -691,17 +702,19 @@ sub crm_dialogue {
 
   my $right_menu = _crm_dialogue_right_menu($dialogue->{ID});
 
-  $html->tpl_show(_include('crm_dialogue', 'Crm'), { %{$Crm}, %FORM,
+  $html->tpl_show($Templates->_include('crm_dialogue', 'Crm'), { %{$Crm}, %FORM,
     MESSAGES              => $messages,
     ADMIN_AVATAR_LINK     => "/images/$admin->{AVATAR_LINK}",
     USER_AVATAR_LINK      => $lead->{_AVATAR_URL} || '/styles/default/img/admin/avatar0.png',
     DIALOGUE_ID           => $FORM{ID},
-    AID                   => $dialogue->{AID} || $admin->{AID},
+    AID                   => $admin->{AID},
     LEAD_FIO              => $lead->{LEAD_ID} ? $html->button($lead->{FIO}, 'index=' .
       get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{LEAD_ID}") : $lead->{FIO},
     LAST_MESSAGE_FROM_AID => $last_message_aid,
     %{$right_menu}
   }, { ID => 'CRM_REGISTRATION' });
+
+  return 1;
 }
 
 #**********************************************************
@@ -802,7 +815,7 @@ sub crm_dialogues {
     INPUT_DATA      => $Crm,
     FUNCTION        => 'crm_dialogues_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'ID,LEAD_FIO,SOURCE,ADMIN,STATE,DATE',
+    DEFAULT_FIELDS  => 'ID,LEAD_FIO,SOURCE,ADMIN,STATE,DATE,PHONE',
     FUNCTION_FIELDS => 'crm_dialogue:change:id' . ($permissions{0}{5} ? ',del' : ''),
     FUNCTION_INDEX  => $index,
     FILTER_VALUES   => {
@@ -820,6 +833,7 @@ sub crm_dialogues {
       admin    => $lang{ADMIN},
       state    => $lang{STATE},
       date     => $lang{DATE},
+      phone    => $lang{PHONE},
     },
     TABLE           => {
       width               => '100%',
@@ -882,7 +896,7 @@ sub crm_open_lines {
     $html->message('info', $lang{INFO}, "$lang{DELETED}: $FORM{del}") if !_error_show($Crm);
   }
 
-  $html->tpl_show(_include('crm_open_line', 'Crm'), { %{$Crm},
+  $html->tpl_show($Templates->_include('crm_open_line', 'Crm'), { %{$Crm},
     ADMIN_SEL  => sel_admins({ MULTIPLE => 1, SELECTED => $Crm->{AID} }),
     SOURCE_SEL => $html->form_select('SOURCE', {
       SELECTED => $Crm->{SOURCE},
@@ -1012,7 +1026,7 @@ sub crm_progressbar_show {
       });
     }
 
-    $timeline .= $html->tpl_show(_include('crm_pb_timeline', 'Crm'), {
+    $timeline .= $html->tpl_show($Templates->_include('crm_pb_timeline', 'Crm'), {
       ID                   => $line->{id},
       # ACTIVE               => ($line->{step_number} == $current_step) ? 'in active show' : '',
       TIMELINE_ITEMS       => $timeline_items,
@@ -1032,7 +1046,7 @@ sub crm_progressbar_show {
     $all_items_result .= $timeline_items_all{$day};
   }
   $all_items_result =~ s/timeline-item/timeline-item timeline-item-all/g;
-  $timeline .= $html->tpl_show(_include('crm_pb_timeline_all', 'Crm'), {
+  $timeline .= $html->tpl_show($Templates->_include('crm_pb_timeline_all', 'Crm'), {
     ID                 => 0,
     ACTIVE             => 'in active show',
     TIMELINE_ITEMS_ALL => $all_items_result,
@@ -1040,10 +1054,10 @@ sub crm_progressbar_show {
     LEAD_ID            => $FORM{LEAD_ID},
   }, { OUTPUT2RETURN => 1 });
 
-  return $html->tpl_show(_include('crm_progressbar', 'Crm'), {
+  return $html->tpl_show($Templates->_include('crm_progressbar', 'Crm'), {
     STEPS          => $steps,
     CUR_STEP       => $current_step || 1,
-    STEPS_COMMENTS => $html->tpl_show(_include('crm_pb_steps_comments', 'Crm'), {
+    STEPS_COMMENTS => $html->tpl_show($Templates->_include('crm_pb_steps_comments', 'Crm'), {
       TIMELINE => $timeline,
     }, { OUTPUT2RETURN => 1 }),
     CSS            => $extra_css,
@@ -1136,7 +1150,7 @@ sub crm_step_timeline {
       }
     };
 
-    $timeline_items_by_day->{$day} .= $html->tpl_show(_include('crm_timeline_item', 'Crm'), {
+    $timeline_items_by_day->{$day} .= $html->tpl_show($Templates->_include('crm_timeline_item', 'Crm'), {
       MESSAGE  => $message->{message},
       DATE     => $time,
       DATA_ID  => $message->{id},
@@ -1210,7 +1224,7 @@ sub crm_step_tasks {
       }
     }
 
-    $timeline_items_by_day->{$day} .= $html->tpl_show(_include('crm_timeline_item', 'Crm'), {
+    $timeline_items_by_day->{$day} .= $html->tpl_show($Templates->_include('crm_timeline_item', 'Crm'), {
       MESSAGE => $task->{NAME} . ($task->{DESCR} ? "<br>(<i>$task->{DESCR}</i>)" : ''),
       DATE    => $task->{CONTROL_DATE},
       ICON    => 'fas fa-tasks ' . ($tasks_state_color->{$task->{STATE}} || 'bg-blue'),
@@ -1279,7 +1293,7 @@ sub crm_tasks_board {
   }), (@{$actions}, @{$free_actions});
 
   $Schedule_control->schedule_tasks_board(json_former(\@tasks), { %FORM, ID => 'CRM_ACTION_TASKS_BOARD' });
-  $html->tpl_show(_include('crm_actions_schedule', 'Crm'));
+  $html->tpl_show($Templates->_include('crm_actions_schedule', 'Crm'));
 }
 
 #**********************************************************
@@ -1325,7 +1339,7 @@ sub crm_schedule_hours {
 
   $Schedule_control->schedule_hours_tasks_board($tasks_json);
 
-  $html->tpl_show(_include('crm_actions_schedule', 'Crm'));
+  $html->tpl_show($Templates->_include('crm_actions_schedule', 'Crm'));
 
   return 1;
 }

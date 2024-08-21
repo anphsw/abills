@@ -17,21 +17,22 @@ use warnings FATAL => 'all';
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Ureports',
-  REQUIRE_VERSION => 8.07,
+  REQUIRE_VERSION => 8.13,
 })) {
-
   exit;
 }
 
 use Finance;
 use Fees;
 use Tariffs;
-use Abills::Base qw(in_array cmd load_pmodule date_diff);
-use Abills::Misc;
-use Abills::Sender::Core;
+use Abills::Api::Handle;
+use Abills::Base qw(in_array cmd load_pmodule date_diff json_former);
+use Abills::Loader;
+use Abills::Sender::Core qw(load_plugin);
 use Ureports::Base;
 
-our ($db,
+our (
+  $db,
   $admin,
   %conf,
   %lang,
@@ -39,7 +40,8 @@ our ($db,
   @bool_vals,
   @MONTHES,
   @WEEKDAYS,
-  %ADMIN_REPORT
+  %ADMIN_REPORT,
+  $base_dir
 );
 
 our Abills::HTML $html;
@@ -50,6 +52,12 @@ my $Ureports_base = Ureports::Base->new($db, $admin, \%conf, { HTML => $html, LA
 my $Fees = Fees->new($db, $admin, \%conf);
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+my $Api = Abills::Api::Handle->new($db, $admin, \%conf, {
+  html    => $html,
+  lang    => \%lang,
+  cookies => \%COOKIES,
+  direct  => 1
+});
 
 my %service_type = %{$Sender->available_types(
   { CLIENT => 1, HASH_RETURN => 1, SOFT_CHECK => 1 }
@@ -62,13 +70,10 @@ my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE});
 my %REPORTS = (
   1  => "$lang{DEPOSIT_BELOW}",
   2  => "$lang{DEPOSIT_CREDIT_BELOW}",
-
   3  => "$lang{PREPAID_TRAFFIC_BELOW}",
   4  => "$lang{DAY}: $lang{TRAFFIC_MORE}",
   5  => "$lang{MONTH}: $lang{DEPOSIT} + $lang{CREDIT} + $lang{TRAFFIC}",
-
   6  => "$lang{DAY}: $lang{DEPOSIT} + $lang{CREDIT} + $lang{TRAFFIC}",
-
   7  => "$lang{CREDIT} $lang{EXPIRE}",
   8  => "$lang{LOGIN} $lang{DISABLE} ",
   9  => "Internet: $lang{DAYS_TO_EXPIRE}",
@@ -79,9 +84,7 @@ my %REPORTS = (
   14 => "$lang{DEPOSIT_NOTIFY_BEFORE_ABON}",
   15 => "$lang{INTERNET_DISABLED}",
   16 => "$lang{NEXT_PERIOD_TP}",
-  #20 => ""
 );
-
 
 #**********************************************************
 =head2 ureports_users_list()
@@ -132,8 +135,6 @@ sub ureports_users_list {
     $LIST_PARAMS{LOGIN} = "$FORM{letter}*";
     $pages_qs .= "&letter=$FORM{letter}";
   }
-  my Abills::HTML $table;
-  my $user_list;
 
   $LIST_PARAMS{TP_ID} = $FORM{TP_ID} if($FORM{TP_ID});
 
@@ -192,9 +193,8 @@ sub ureports_user {
   })) {
     return 0;
   }
-  if ($FORM{UR_MODAL_AJAX} && defined($FORM{TP_ID})) {
-    return '' if ($FORM{TP_ID} eq '');
 
+  if ($FORM{UR_MODAL_AJAX} && $FORM{TP_ID}) {
     my $table = $html->table({
       width   => '100%',
       caption => $lang{REPORTS},
@@ -417,6 +417,7 @@ sub ureports_user {
     MODULE          => 'Ureports',
     TOTAL           => 1
   });
+
   return 1;
 }
 
@@ -1159,29 +1160,28 @@ sub ureports_sheduler {
   return 1;
 }
 
-#**********************************************************
-=head2 ureports_extra_reports($attr)
+#***********************************************************
+=head2 ureports_extra_reports($type, $action, $uid)
 
 =cut
-#**********************************************************
+#***********************************************************
 sub ureports_extra_reports {
-  #my ($attr) = @_;
-
   my %reports = ();
-  my $mod_path = '../../Abills/modules/Ureports/';
+  $base_dir //= '/usr/abills/';
+  my $mod_path = $base_dir . 'Abills/modules/Ureports/Plugins/';
 
   my $contents = _get_files_in($mod_path, { FILTER => '\.pm' });
-  foreach my $report_module (@$contents) {
-    my @skip_modules = ('Send.pm', 'Base.pm', 'Api.pm', 'Errors.pm');
-    if (in_array($report_module, \@skip_modules)) {
-      next;
-    }
-    require $mod_path . $report_module;
+  foreach my $report_module (@{$contents}) {
     $report_module =~ s/\.pm//;
-    my $mod = "Ureports::$report_module";
-    my $report = $mod->new($db, $admin, \%conf);
+    my $plugin_name = "Ureports::Plugins::$report_module";
+
+    my $report = load_plugin($plugin_name, {
+      SERVICE      => $Ureports,
+      RETURN_ERROR => 1
+    });
+
     if ($report->{SYS_CONF}{REPORT_NAME}) {
-      $reports{$report_module} = $report->{SYS_CONF}{REPORT_NAME} . ' : ' . ($report->{SYS_CONF}{COMMENTS} || q{});
+      $reports{$report_module} = { %{$report->{SYS_CONF}}, MODULE => $report_module };
     }
   }
 
@@ -1226,18 +1226,20 @@ sub ureports_tp_reports {
       $TP_REPORTS{ $line->{report_id} }{COMMENTS} = $line->{comments} || q{};
       $TP_REPORTS{ $line->{report_id} }{MODULE} = $line->{module} || q{};
       $TP_REPORTS{ $line->{report_id} }{VISUAL} = $line->{visual} || 0;
+      $TP_REPORTS{ $line->{report_id} }{DEFAULT_VALUE} = defined $line->{default_value} ? $line->{default_value} : q{};
     }
 
     my $table = $html->table({
       width   => '100%',
       caption => $lang{REPORTS},
-      title   => [ '#', $lang{NAME}, $lang{COMMENTS}, $lang{PRICE}, $lang{VISUAL} ], #"$lang{DEFAULT} $lang{VALUE}"],
+      title   => [ '#', $lang{NAME}, $lang{COMMENTS}, $lang{PRICE}, $lang{VISUAL}, "$lang{VALUE} ($lang{DEFAULT})" ],
       qs      => $pages_qs,
       ID      => 'TP_REPORTS'
     });
 
     #Get extra report
     my $extra_reports = ureports_extra_reports();
+    my @extra_modules = values %{$extra_reports};
     my $next_id = 0;
     foreach my $report_id (sort {$a <=> $b} keys %REPORTS) {
       my $visual = $html->form_select('VISUAL_' . $report_id, {
@@ -1251,7 +1253,8 @@ sub ureports_tp_reports {
         $REPORTS{$report_id},
         $html->form_input('COMMENTS_' . $report_id, $TP_REPORTS{$report_id}{COMMENTS}),
         $html->form_input('PRICE_' . $report_id, (($TP_REPORTS{$report_id}) ? $TP_REPORTS{$report_id}{PRICE} : '0.00')),
-        $visual
+        $visual,
+        $html->form_input('DEFAULT_VALUE_' . $report_id, $TP_REPORTS{$report_id}{DEFAULT_VALUE})
       );
       delete $TP_REPORTS{$report_id};
       $next_id = $report_id;
@@ -1259,14 +1262,16 @@ sub ureports_tp_reports {
 
     foreach my $report_id (sort {$a <=> $b} keys %TP_REPORTS) {
       my $visual = $html->form_select('VISUAL_' . $report_id, {
-        SEL_ARRAY    => [ $lang{YES}, $lang{NO} ],
+        SEL_ARRAY    => [ $lang{NO}, $lang{YES} ],
         SELECTED     => $TP_REPORTS{$report_id}{VISUAL},
         ARRAY_NUM_ID => 1
       });
 
       my $report_sel = $html->form_select('MODULE_' . $report_id, {
-        SEL_HASH => $extra_reports,
-        SELECTED => $TP_REPORTS{$report_id}{MODULE}
+        SEL_LIST  => \@extra_modules,
+        SELECTED  => $TP_REPORTS{$report_id}{MODULE},
+        SEL_VALUE => 'REPORT_NAME',
+        SEL_KEY   => 'MODULE'
       });
 
       $table->addrow($html->form_input("IDS", "$report_id",
@@ -1274,40 +1279,47 @@ sub ureports_tp_reports {
         $report_sel,
         $html->form_input('COMMENTS_' . $report_id, $TP_REPORTS{$report_id}{COMMENTS}),
         $html->form_input('PRICE_' . $report_id, (($TP_REPORTS{$report_id}{PRICE}) ? $TP_REPORTS{$report_id}{PRICE} : '0.00')),
-        $visual
+        $visual,
+        $html->form_input('DEFAULT_VALUE_' . $report_id, $TP_REPORTS{$report_id}{DEFAULT_VALUE})
       );
       $next_id = $report_id;
     }
 
     $next_id++;
     my $visual = $html->form_select('VISUAL_' . $next_id, {
-      SEL_ARRAY    => [ $lang{YES}, $lang{NO} ],
+      SEL_ARRAY    => [ $lang{NO}, $lang{YES} ],
       SELECTED     => $TP_REPORTS{$next_id}{VISUAL},
       ARRAY_NUM_ID => 1
     });
 
     my $report_sel = $html->form_select('MODULE_' . $next_id, {
-      SEL_HASH => $extra_reports
+      SEL_LIST  => \@extra_modules,
+      SEL_VALUE => 'REPORT_NAME',
+      SEL_KEY   => 'MODULE'
     });
 
     $table->addrow($html->form_input("IDS", "$next_id", { TYPE => 'checkbox' }) . $next_id,
       $report_sel,
-      $html->form_input('COMMENTS_' . $next_id, ''),
-      $html->form_input('PRICE_' . $next_id, '0.00'),
-      $visual
+      $html->form_input('COMMENTS_' . $next_id, $extra_modules[0]->{COMMENTS}),
+      $html->form_input('PRICE_' . $next_id, 0),
+      $visual,
+      # $html->form_input('DEFAULT_VALUE_' . $report_id, $TP_REPORTS{$report_id}{DEFAULT_VALUE})
     );
 
-    print $html->form_main(
-      {
-        CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-        HIDDEN  => {
-          index => $index,
-          subf  => $FORM{subf},
-          TP_ID => $FORM{TP_ID}
-        },
-        SUBMIT  => { change => $lang{CHANGE} }
-      }
-    );
+    $html->tpl_show(_include('ureports_tp_reports', 'Ureports'), {
+      EXT_REPORTS => json_former($extra_reports),
+      ID          => $next_id,
+    });
+
+    print $html->form_main({
+      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+      HIDDEN  => {
+        index => $index,
+        subf  => $FORM{subf},
+        TP_ID => $FORM{TP_ID}
+      },
+      SUBMIT  => { change => $lang{CHANGE} }
+    });
   }
   elsif ($FORM{TP_ID}) {
     $FORM{subf} = $index;

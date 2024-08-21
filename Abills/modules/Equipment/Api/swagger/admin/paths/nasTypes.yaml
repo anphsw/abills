@@ -1,0 +1,13 @@
+get:
+  tags:
+    - equipment
+  summary: Список типов серверов доступа
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/nasTypesList.yaml"
+  security:
+    - KEY: []

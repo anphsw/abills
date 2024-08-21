@@ -4,13 +4,16 @@ use strict;
 use warnings FATAL => 'all';
 
 use JSON qw(decode_json encode_json);
-use Data::Compare qw(Compare);
 
 use Abills::Base qw(load_pmodule);
 use Abills::Api::Postman::Schemas;
+use Abills::Api::Postman::Api;
 use Abills::Api::Postman::Utils qw(read_file write_to_file);
 
+load_pmodule('Data::Compare', { IMPORT => 'Compare', PLAIN_TEXT => 1 });
+
 my $json = JSON->new->utf8->space_before(0)->space_after(1)->indent(1)->canonical(1);
+my Abills::Api::Postman::Api $Postman;
 my $Schemas = Abills::Api::Postman::Schemas->new();
 
 #**********************************************************
@@ -54,6 +57,12 @@ sub new {
     new_schemas => $attr->{new_schemas} ? 1 : 0
   };
 
+  $Postman = Abills::Api::Postman::Api->new({
+    conf          => $self->{conf},
+    debug         => $self->{debug},
+    collection_id => $self->{type} eq 'admin' ? $self->{conf}->{POSTMAN_ADMIN_COLLECTION_ID} : $self->{conf}->{POSTMAN_USER_COLLECTION_ID},
+  });
+
   bless($self, $class);
 
   return $self;
@@ -69,7 +78,8 @@ sub new {
 #**********************************************************
 sub process {
   my $self = shift;
-  my ($collection) = @_;
+
+  my $collection = $Postman->collection_info({});
 
   print "Postman tests import process start\n";
 
@@ -110,14 +120,17 @@ sub _structure_generate {
 
   $path //= '';
   $delimiter //= '';
+  my $id = 0;
 
   foreach my $item (@{$items}) {
+    $id++;
+    $item->{name} =~ s/^\s+//g;
     $item->{name} =~ s/\s+/_/g;
     $item->{name} = lc($item->{name});
 
     if (!$item->{item}) {
       $self->{preview} .= "$delimiter$item->{name} (request)\n";
-      $self->_schemas_generate($item) if ($self->{import});
+      $self->_schemas_generate($item, $id) if ($self->{import});
     }
     else {
       next if (!scalar(@{$item->{item}}));
@@ -255,12 +268,13 @@ sub _folder_create_id {
 
   Arguments
     $request: str - request object from postman
+    $id: int      - id of request
 
 =cut
 #**********************************************************
 sub _schemas_generate {
   my $self = shift;
-  my ($request) = @_;
+  my ($request, $id) = @_;
 
   my $path = $self->{tests_path};
 
@@ -278,14 +292,30 @@ sub _schemas_generate {
     return 0;
   }
 
-  my $request_schema = $Schemas->generate_request_schema($request);
+  my $folder = lc($request->{name});
+  my $request_schema = $Schemas->generate_request_schema($request, $self->{type});
   my $response_schema = $Schemas->generate_response_schema($request);
 
   my $request_schema_json = $json->encode($request_schema);
   my $response_schema_json = $json->encode($response_schema);
 
-  $self->_schema_check('request', lc($request_schema->{name}), $request_schema, $request_schema_json);
-  $self->_schema_check('schema', lc($request_schema->{name}), $response_schema, $response_schema_json);
+  if (-d "$self->{tests_path}/$id\_$folder") {
+    $folder = "$id\_$folder";
+  }
+  elsif (!-d "$self->{tests_path}/$folder") {
+    $folder = "$id\_$folder";
+    $self->_folder_create("$self->{tests_path}/$folder");
+  }
+
+  my $created = $self->_schema_check('request', $folder, $request_schema, $request_schema_json);
+  $self->_schema_check('schema', $folder, $response_schema, $response_schema_json);
+
+  if ($created) {
+    my $postmanId = $request->{id} || '';
+    if ($postmanId && !-f "$self->{tests_path}/$folder/.postman-id") {
+      write_to_file("$self->{tests_path}/$folder/.postman-id", $postmanId);
+    }
+  }
 
   if ($self->{debug} > 2) {
     $self->{preview} .= "\nREQUEST SCHEMA\n$request_schema_json\nRESPONSE_SCHEMA\n$response_schema\n"
@@ -298,6 +328,7 @@ sub _schemas_generate {
 =head2 _schema_check($name, $folder, $schema, $content) check schemas
 
   Arguments
+    $folder: str  - folder name
     $name: str    - name of schema
     $schema: obj  - hash of schemas
     $content: str - json str of schema
@@ -309,10 +340,6 @@ sub _schema_check {
   my ($name, $folder, $schema, $content) = @_;
 
   return if (!$self->{import});
-
-  if (!-d "$self->{tests_path}/$folder") {
-    $self->_folder_create("$self->{tests_path}/$folder");
-  }
 
   my $schema_path = "$self->{tests_path}/$folder/$name.json";
 
@@ -328,6 +355,11 @@ sub _schema_check {
       $@ = undef;
       return 0;
     }
+
+    if ($name eq 'request' && $local_schema->{params} && ref $local_schema->{params} ne 'ARRAY') {
+      delete $local_schema->{params};
+    }
+
     my $result = Compare($local_schema, $schema);
 
     return 1 if ($result);

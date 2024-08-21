@@ -126,6 +126,12 @@ sub new {
 
   $self->{OUTPUT} = '';
   %FORM = form_parse();
+  #@experimental
+  if ($attr->{USER_PORTAL} && !$FORM{PARSE_QUERY_PARAMS} && $ENV{QUERY_STRING} && $ENV{QUERY_STRING} =~ /PARSE_QUERY_PARAMS=1/g) {
+    my %_FORM = form_parse({ PARSE_QUERY_PARAMS => 1 });
+    %FORM = (%_FORM, %FORM);
+  }
+
   get_cookies();
   $self->{HTML_FORM} = \%FORM;
   $SORT = 1;
@@ -235,29 +241,20 @@ sub new {
   #Make  PDF output
   if ($FORM{pdf} || $attr->{pdf}) {
     $FORM{pdf} = 1;
-    eval {require PDF::API2;};
-    if (!$@) {
-      PDF::API2->import();
-      require Abills::PDF;
-      $self = Abills::PDF->new(
-        {
-          IMG_PATH => $IMG_PATH,
-          NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
-          CONF     => $CONF,
-          CHARSET  => $attr->{CHARSET},
-          TYPE     => 'pdf'
-        }
-      );
+    my $err = Abills::Base::load_pmodule('PDF::API2', { HEADER => 1, SHOW_RETURN => 1 });
+    if ($err) {
+      print $err;
+      exit;
     }
-    else {
-      print "Content-Type: text/html\n\n";
-      my $name = 'PDF::API2';
-      print "Can't load '$name'\n" .
-        " Install Perl Module <a href='http://abills.net.ua/wiki/doku.php/abills:docs:manual:soft:$name'>$name</a>\n" .
-        " Main Page <a href='http://abills.net.ua/wiki/doku.php/abills:docs:other:ru?&#ustanovka_perl_modulej'>Perl modules installation</a>\n" .
-        " or install from <a href='http://www.cpan.org'>CPAN</a>\n";
-      exit; #return 0;
-    }
+
+    require Abills::PDF;
+    $self = Abills::PDF->new({
+      IMG_PATH => $IMG_PATH,
+      NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
+      CONF     => $CONF,
+      CHARSET  => $attr->{CHARSET},
+      TYPE     => 'pdf'
+    });
   }
   elsif (defined($FORM{xml})) {
     require Abills::XML;
@@ -286,28 +283,20 @@ sub new {
   }
   elsif ($FORM{xls} || $attr->{xls}) {
     $FORM{xls} = 1;
-    eval {require Spreadsheet::WriteExcel;};
-    if (!$@) {
-      require Abills::EXCEL;
-      $self = Abills::EXCEL->new(
-        {
-          IMG_PATH => $IMG_PATH,
-          NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
-          CONF     => $CONF,
-          CHARSET  => $attr->{CHARSET},
-          TYPE     => 'xls'
-        }
-      );
+    my $err = Abills::Base::load_pmodule('Spreadsheet::WriteExcel', { HEADER => 1, SHOW_RETURN => 1 });
+    if ($err) {
+      print $err;
+      exit;
     }
-    else {
-      print "Content-Type: text/html\n\n";
-      my $name = 'Spreadsheet::WriteExcel';
-      print "Can't load '$name'\n" .
-        " Install Perl Module <a href='http://abills.net.ua/wiki/doku.php/abills:docs:manual:soft:$name'>$name</a>\n" .
-        " Main Page <a href='http://abills.net.ua/wiki/doku.php/abills:docs:other:ru?&#ustanovka_perl_modulej'>Perl modules installation</a>\n" .
-        " or install from <a href='http://www.cpan.org'>CPAN</a>\n";
-      exit; #return 0;
-    }
+
+    require Abills::EXCEL;
+    $self = Abills::EXCEL->new({
+      IMG_PATH => $IMG_PATH,
+      NO_PRINT => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,
+      CONF     => $CONF,
+      CHARSET  => $attr->{CHARSET},
+      TYPE     => 'xls'
+    });
   }
   elsif ($FORM{json}) {
     require Abills::JSON;
@@ -357,20 +346,23 @@ sub form_parse {
 
   return %_FORM if (!defined($ENV{'REQUEST_METHOD'}));
 
-  if ($ENV{HTTP_TRANSFER_ENCODING} && $ENV{HTTP_TRANSFER_ENCODING} eq 'chunked') {
+  if ($self && $self->{PARSE_QUERY_PARAMS}) {
+    $buffer = $ENV{'QUERY_STRING'};
+  }
+  elsif ($ENV{HTTP_TRANSFER_ENCODING} && $ENV{HTTP_TRANSFER_ENCODING} eq 'chunked') {
     my $newtext;
     while (read(STDIN, $newtext, 1)) {
       $buffer .= $newtext;
     }
   }
-  elsif ($ENV{'REQUEST_METHOD'} ~~ ['GET', 'DELETE']) {
+  elsif ($ENV{'REQUEST_METHOD'} eq 'GET' || $ENV{'REQUEST_METHOD'} eq 'DELETE') {
     $buffer = $ENV{'QUERY_STRING'};
   }
   elsif ($ENV{'REQUEST_METHOD'} eq 'POST' || $ENV{'REQUEST_METHOD'} eq 'PUT' || $ENV{'REQUEST_METHOD'} eq 'PATCH') {
     read(STDIN, $buffer, $ENV{'CONTENT_LENGTH'});
   }
 
-  if (!defined($ENV{CONTENT_TYPE}) || $ENV{CONTENT_TYPE} !~ /boundary/) {
+  if (($self && $self->{PARSE_QUERY_PARAMS}) || !defined($ENV{CONTENT_TYPE}) || $ENV{CONTENT_TYPE} !~ /boundary/) {
     @pairs = split(/&/, $buffer || '');
     $_FORM{__BUFFER} = $buffer if ($#pairs > -1);
 
@@ -809,7 +801,7 @@ sub form_main {
 
     $name        - Element name
     $attr
-      SEL_ARRAY      - ARRAY_ref
+      SEL_ARRAY      - list of scalars
       ARRAY_NUM_ID   - treat array item position as id
       SEL_HASH       - HASH_ref
         SORT_VALUE
@@ -899,6 +891,9 @@ sub form_select {
     @multiselect = split(',\s?', $attr->{SELECTED});
   }
 
+  require Abills::Base;
+  Abills::Base->import('in_array');
+
   if (defined($attr->{SEL_ARRAY})) {
     my $H = $attr->{SEL_ARRAY};
     my $i = 0;
@@ -947,7 +942,7 @@ sub form_select {
           if ($v->{$key} eq $attr->{SELECTED}) {
             $self->{SELECT} .= ' selected ';
           }
-          elsif ($v->{$key} ~~ @multiselect) {
+          elsif (in_array($v->{$key}, \@multiselect)) {
             $self->{SELECT} .= ' selected ';
           }
         }
@@ -1011,7 +1006,7 @@ sub form_select {
             if ($option_value eq $attr->{SELECTED}) {
               $self->{SELECT} .= ' selected'
             }
-            elsif ($option_value ~~ @multiselect) {
+            elsif (in_array($option_value, \@multiselect)) {
               $self->{SELECT} .= ' selected';
             }
           }
@@ -1057,7 +1052,7 @@ sub form_select {
             if ($val eq $attr->{SELECTED}) {
               $self->{SELECT} .= ' selected';
             }
-            elsif ($val ~~ @multiselect) {
+            elsif (in_array($val, \@multiselect)) {
               $self->{SELECT} .= ' selected';
             }
           }
@@ -1069,7 +1064,7 @@ sub form_select {
       }
       else {
         $self->{SELECT} .= "<option value='$k'";
-        my $value = $attr->{SEL_HASH}{$k} || '';
+        my $value = $attr->{SEL_HASH}{$k} || 0;
         if (defined $k && $attr->{STYLE} && $attr->{STYLE}->[$k]) {
           $self->{SELECT} .= " data-style='color:$attr->{STYLE}->[$k];' ";
         }
@@ -1087,7 +1082,7 @@ sub form_select {
           if ($k eq $attr->{SELECTED}) {
             $self->{SELECT} .= ' selected ';
           }
-          elsif ($k ~~ @multiselect) {
+          elsif (in_array($k, \@multiselect)) {
             $self->{SELECT} .= ' selected ';
           }
         }
@@ -1496,9 +1491,18 @@ sub menu {
                     ? " onclick='return false' class='nav-link $active'"
                     : " class='nav-link $active'";
 
-    $name_menu .= "<p>\n<i class='right fa fa-angle-left'></i>\n</p>" if ($menu{$ID});
-
-    $name_menu = "<p>$name_menu</p>" if $name_menu && $name_menu !~ /<p/;
+    if ($menu{$ID}) {
+      my $icon = q{<i class='right fa fa-angle-left'></i>};
+      if ($name_menu !~ /<p/) {
+        $name_menu = '<p>' . $name_menu . $icon . '</p>';
+      } else {
+        my $position = length($name_menu) - 4;
+        $name_menu = substr($name_menu, 0, $position) . $icon . substr($name_menu, $position);
+      }
+    }
+    elsif ($name_menu !~ /<p/) {
+      $name_menu = '<p>' . $name_menu . '</p>';
+    }
 
     my $name = '';
     my $menu_circle_icon = '';
@@ -1665,6 +1669,7 @@ sub menu_right {
 
   return $right_menu_html;
 }
+
 #**********************************************************
 =head2 menu2($menu_items, $menu_args, $permissions, $attr) - User portal menu
 
@@ -1673,54 +1678,6 @@ sub menu_right {
 sub menu2 {
   my $self = shift;
   return $self->menu(@_);
-  # my ($menu_items, $menu_args, $permissions, $attr) = @_;
-  #
-  # my $menu_navigator = '';
-  # my $root_index = 0;
-  # my %tree = ();
-  # my %menu = ();
-  #
-  # # make navigate line
-  # if ($index > 0) {
-  #   $root_index = $index;
-  #   my $h = $menu_items->{$root_index};
-  #
-  #   while (my ($par_key, $name) = each(%$h)) {
-  #     my $ex_params = (defined($menu_args->{$root_index}) && defined($FORM{ $menu_args->{$root_index} })) ? '&' . "$menu_args->{$root_index}=$FORM{$menu_args->{$root_index}}" : '';
-  #     $menu_navigator = " " . $self->button($name, "index=$root_index$ex_params") . '/' . $menu_navigator;
-  #     $tree{$root_index} = 1;
-  #     if ($par_key > 0) {
-  #       $root_index = $par_key;
-  #       $h = $menu_items->{$par_key};
-  #     }
-  #   }
-  # }
-  #
-  # $FORM{root_index} = $root_index;
-  # if ($root_index > 0) {
-  #   my $ri = $root_index - 1;
-  #   if (defined($permissions) && (!defined($permissions->{$ri}))) {
-  #     $self->{ERROR} = "Access deny $ri";
-  #     return '', '';
-  #   }
-  # }
-  #
-  # my @menu_sorted = sort {$a <=> $b} keys %$menu_items;
-  #
-  # foreach my $ID (@menu_sorted) {
-  #   my $VALUE_HASH = $menu_items->{$ID};
-  #   foreach my $parent (sort keys %$VALUE_HASH) {
-  #     push @{$menu{$parent}}, "$ID:$VALUE_HASH->{$parent}";
-  #   }
-  # }
-  #
-  # my $menu_text = "<ul class='nav nav-pills nav-sidebar flex-column' data-widget='treeview' role='menu' data-accordion='false'>\n";
-  #
-  # $menu_text .= $self->mk_menu(\%menu, $menu_args, $attr);
-  #
-  # $menu_text .= "</ul>\n";
-  #
-  # return($menu_navigator, $menu_text);
 }
 
 #**********************************************************
@@ -1961,6 +1918,7 @@ sub table {
       my $col_size = $col_count >= 16 ? 3 : 6;
       my $col_divider_count = int($col_count / (12 / $col_size) + 0.5);
       my $modal_size = ($col_divider_count >= 3) ? 'xl' : 'sm';
+      my $ext_cols_form_name = $attr->{EXT_COLS_FORM_NAME} || 'form_show_cols';
 
       $show_cols .= "<div class='modal fade' id='" . ($attr->{ID} || q{}) . "_cols_modal' tabindex='-1' role='dialog' aria-hidden='true'>
   <div class='modal-dialog modal-$modal_size'>
@@ -1978,7 +1936,7 @@ sub table {
       $show_cols .= "</div>";
       $show_cols .= "</div>";
       $show_cols .= "</div>";
-      $show_cols .= "<FORM action='$SELF_URL' METHOD='post' name='form_show_cols' id='form_show_cols'>\n" if (!$attr->{SKIP_FORM});
+      $show_cols .= "<FORM action='$SELF_URL' METHOD='post' name='$ext_cols_form_name' id='$ext_cols_form_name'>\n" if (!$attr->{SKIP_FORM});
 
       my @global_params = ('get_index', 'index', 'subf', 'sort', 'desc', 'pg', 'PAGE_ROWS', 'search', 'USERS_STATUS', 'STATUS', 'STATE');
       if (!$FORM{index} && $FORM{get_index}) {
@@ -1988,7 +1946,7 @@ sub table {
 
       foreach my $param_name (@global_params) {
         if ($FORM{$param_name}) {
-          $show_cols .= "<input type=hidden form='form_show_cols' name=$param_name value='$FORM{$param_name}'>\n";
+          $show_cols .= "<input type=hidden form='$ext_cols_form_name' name=$param_name value='$FORM{$param_name}'>\n";
         }
       }
 
@@ -2211,6 +2169,7 @@ sub table {
 		<script>
 		  jQuery(document).ready(function() {
 		    let pageLength = localStorage.getItem('$self->{ID}_TABLE_LENGTH') || undefined;
+		    pageLength = (pageLength && pageLength == -1) ? -1 : pageLength;
 		    let dataTableAttr = { ...$ATTR, "pageLength": pageLength };
 		  	var table = jQuery("#$self->{ID}_").DataTable(dataTableAttr);
 
@@ -3496,11 +3455,11 @@ sub color_mark {
     $output = "<code>$text</code>";
   }
   elsif ($color && $color !~ m/[0-9A-F]{3,6}/i) {
-    my $id = "";
+    my $id = '';
     if(defined($attr->{ID})) {
       $id = "id='$attr->{ID}'";
     }
-    $output = (defined($text)) ? "<p $id class='p-1 $color'>$text</p>" : q{};
+    $output = (defined($text)) ? "<div $id class='$color'>$text</div>" : q{};
   }
   elsif ($color) {
     $output = (defined($text)) ? "<font color=$color>$text</font>" : q{};

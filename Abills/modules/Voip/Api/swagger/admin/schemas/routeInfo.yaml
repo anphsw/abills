@@ -1,0 +1,23 @@
+type: object
+properties:
+  date:
+    type: string
+    example: "0000-00-00"
+  disable:
+    type: number
+    example: 0
+  id:
+    type: number
+    example: 29
+  name:
+    type: string
+    example: USA
+  parent:
+    type: number
+    example: 0
+  prefix:
+    type: number
+    example: 12
+  descr:
+    type: string
+    example: "Ukraine"

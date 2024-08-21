@@ -1,0 +1,120 @@
+type: object
+properties:
+  address:
+    type: string
+    example: ''
+  adminAccess:
+    type: number
+    example: 0
+  affected:
+    type: number
+    example: 0
+  aid:
+    type: number
+    example: 98
+  apiKey:
+    type: string
+    example: ''
+  avatarLink:
+    type: string
+    example: ''
+  aFio:
+    type: string
+    example: Admin Test Info
+  aLogin:
+    type: string
+    example: MinorAdmin
+  birthday:
+    type: string
+    example: "0000-00-00"
+  cellPhone:
+    type: string
+    example: ''
+  comments:
+    type: string
+    example: Test admins
+  creditDays:
+    type: number
+    example: 0
+  department:
+    type: number
+    example: 0
+  disable:
+    type: number
+    example: 0
+  domainId:
+    type: number
+    example: 0
+  domainName:
+    type: string
+    example: ''
+  email:
+    type: string
+    example: test@gmail.com
+  expire:
+    type: string
+    example: "2022-09-23 10:08:40"
+  fullLog:
+    type: number
+    example: 0
+  g2fa:
+    type: string
+    example: ''
+  gid:
+    type: number
+    example: 0
+  gpsImei:
+    type: string
+    example: ''
+  inn:
+    type: string
+    example: ''
+  maxCredit:
+    type: number
+    example: 0
+  maxRows:
+    type: number
+    example: 0
+  minSearchChars:
+    type: number
+    example: 0
+  pasportDate:
+    type: string
+    example: "0000-00-00"
+  pasportGrant:
+    type: string
+    example: ''
+  pasportNum:
+    type: string
+    example: ''
+  phone:
+    type: string
+    example: ''
+  position:
+    type: number
+    example: 0
+  regdate:
+    type: string
+    format: date
+    example: "2022-09-23"
+  rfidNumber:
+    type: string
+    example: ''
+  sessionIp:
+    type: string
+    example: 0.0.0.0
+  sipNumber:
+    type: string
+    example: ''
+  startWork:
+    type: string
+    example: "0000-00-00"
+  telegramId:
+    type: string
+    example: ''
+  total:
+    type: number
+    example: 1
+  webOptions:
+    type: string
+    example: ''

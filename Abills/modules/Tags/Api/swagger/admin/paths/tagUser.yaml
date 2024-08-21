@@ -1,0 +1,119 @@
+post:
+  tags:
+    - tags
+  summary: Добавление метки пользователю
+  operationId: addTagUser
+  parameters:
+    - name: id
+      in: path
+      description: ID метки
+      required: true
+      schema:
+        type: integer
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            endDate:
+              type: integer
+              example: "2024-12-31"
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tagsUserResponse.yaml"
+  security:
+    - KEY: [ ]
+put:
+  tags:
+    - tags
+  summary: Обновление метки пользователю
+  operationId: updateTagUser
+  parameters:
+    - name: id
+      in: path
+      description: ID метки
+      required: true
+      schema:
+        type: integer
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            endDate:
+              type: integer
+              example: "2024-12-31"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tagsUserResponse.yaml"
+  security:
+    - KEY: [ ]
+delete:
+  tags:
+    - tags
+  summary: Удаление метки пользователя
+  operationId: deleteTagUser
+  parameters:
+    - name: id
+      in: path
+      description: ID метки
+      required: true
+      schema:
+        type: integer
+    - name: uid
+      in: path
+      description: UID пользователя
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              result:
+                type: string
+                example: Successfully deleted
+    400:
+      description: Ошибка удаления
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              errno:
+                type: integer
+                example: 1570002
+              errstr:
+                type: string
+                example: ERR_DELETE_USER_TAG_NOT_EXISTS
+  security:
+    - KEY: [ ]

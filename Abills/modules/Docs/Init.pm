@@ -9,6 +9,9 @@ use strict;
 use warnings FATAL => 'all';
 use parent 'Exporter';
 
+use Abills::Loader qw(load_plugin);
+use Docs;
+
 our @EXPORT = qw(
   init_esign_service
 );
@@ -25,6 +28,8 @@ our @EXPORT_OK = qw(
 sub init_esign_service {
   my ($db, $admin, $conf, $attr) = @_;
 
+  my $debug = $attr->{DEBUG} || 0;
+
   if (!$conf->{DOCS_ESIGN}) {
     return {
       errno  => 1054017,
@@ -32,44 +37,36 @@ sub init_esign_service {
     };
   }
 
+  my $Docs = Docs->new($db, $admin, $conf);
+
   my %esign_services = (
     DOCS_DIIA_ACQUIRER_TOKEN => 'Diia',
   );
 
-  my $ESignService = {};
+  my $ESign_Service = {};
 
   foreach my $config_key (sort keys %esign_services) {
     next if !$conf->{$config_key};
 
-    $ESignService = $esign_services{$config_key};
+    my $name = $esign_services{$config_key};
 
-    eval {require "Docs/Plugin/$ESignService.pm";};
-
-    $ESignService = "Docs::Plugin::$ESignService";
-
-    if (!$@) {
-      $ESignService->import();
-      $ESignService = $ESignService->new($db, $admin, $conf, $attr);
-
-      if ($ESignService->can('init') && !$ESignService->init()) {
-        $ESignService->{errno} = 1054001;
-        $ESignService->{errstr} = 'ESIGN_SERVICE_BAD_CONFIGURATION';
+    $ESign_Service = load_plugin('Docs::Plugins::' . ($name || ''), {
+      SERVICE      => $Docs,
+      RETURN_ERROR => 1,
+      EXTRA_PARAMS => {
+        debug => $debug || 0,
+        %$attr
       }
-    }
-    else {
-      print $@ if (!$attr->{SILENT});
-    }
+    });
+
+    next if (!$ESign_Service || (ref $ESign_Service eq 'HASH' && $ESign_Service->{errno}));
+
+    $ESign_Service->init();
 
     last;
   }
 
-  if (!%$ESignService) {
-    $ESignService = {};
-    $ESignService->{errno} = 1054002;
-    $ESignService->{errstr} = 'ESIGN_SERVICE_NOT_CONNECTED';
-  }
-
-  return $ESignService;
+  return $ESign_Service;
 }
 
 1;

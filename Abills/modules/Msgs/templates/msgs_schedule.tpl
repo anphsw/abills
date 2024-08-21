@@ -40,4 +40,34 @@
     sendRequest(`/api.cgi/msgs/${id}`, {plan_date: plan_date}, 'PUT');
   });
 
+  jQuery('ul.time-sidebar').sortable({
+    items: 'li.time-row.admin-row',
+    cursor: 'move',
+    start: function(event, ui) {
+      ui.item.data('start-index', ui.item.index());
+
+      let startIndex = ui.item.index();
+      let correspondingRow = jQuery('.time-row-container').eq(startIndex);
+      correspondingRow.addClass('selected');
+    },
+    sort: function(event, ui) {
+      let currentIndex = ui.placeholder.index();
+      jQuery('.time-row-container.selected').insertAfter(jQuery('.time-row-container').eq(currentIndex - 1));
+    },
+    stop: function(event, ui) {
+      jQuery('.time-row-container').removeClass('selected');
+    },
+    update: function () {
+      const adminValues = jQuery('.draggable-row[data-admin]').map(function() {
+        return jQuery(this).attr('data-admin');
+      }).get();
+
+      fetch('/api.cgi/admins/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ SETTING: adminValues.join(','), OBJECT: 'MSGS_SCHEDULE_TASKS_BOARD' })
+      })
+    }
+  });
+
 </script>

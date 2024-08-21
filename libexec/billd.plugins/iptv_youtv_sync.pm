@@ -10,6 +10,7 @@ use strict;
 use warnings;
 use Iptv;
 use Abills::Base qw(load_pmodule in_array _bp);
+use Abills::Loader qw/load_plugin/;
 our (
   $argv,
   $debug,
@@ -48,7 +49,7 @@ sub youtv_sync {
   foreach my $service (@{$services}) {
     print "Service ID: $service->{id} NAME: $service->{name}\n" if $debug > 3;
 
-    my $Service_api = tv_load_service('', { SERVICE_ID => $service->{id} });
+    my $Service_api = load_plugin('Iptv::Plugins::Youtv', { SERVICE => $Iptv });
     next if !$Service_api || !$Service_api->can('renew_subscription');
 
     my $users = $Iptv->user_list({

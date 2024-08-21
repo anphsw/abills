@@ -474,52 +474,80 @@ sub post_auth {
 sub get_nas_info {
   my ($db, $RAD) = @_;
 
-  my $nas = Nas->new($db, \%conf);
-
-  $RAD->{'NAS-IP-Address'} = '' if (!$RAD->{'NAS-IP-Address'});
+  my $nas_ip = $RAD->{'NAS-IP-Address'} || ''; # if (!$RAD->{'NAS-IP-Address'});
   $RAD->{'User-Name'}      = '' if (!$RAD->{'User-Name'});
 
-  my %NAS_PARAMS = (
-    IP    => $RAD->{'NAS-IP-Address'},
-    SHORT => 1
+  my $Nas = Nas->new($db, \%conf);
+  # my %NAS_PARAMS = (
+  #   IP    => $nas_ip,
+  #   SHORT => 1
+  # );
+  #
+  # $NAS_PARAMS{NAS_IDENTIFIER} = $RAD->{'NAS-Identifier'} if ($RAD->{'NAS-Identifier'});
+  #
+  # if ($nas_ip eq '0.0.0.0' && !$RAD->{'DHCP-Message-Type'}) {
+  #   %NAS_PARAMS = (CALLED_STATION_ID => $RAD->{'Called-Station-Id'});
+  # }
+  # $Nas->info( \%NAS_PARAMS );
+
+  my $WHERE = "ip=INET_ATON('$nas_ip')";
+  if ($nas_ip eq '0.0.0.0' && !$RAD->{'DHCP-Message-Type'}) {
+    $WHERE = "mac='". $RAD->{'Called-Station-Id'} ."'";
+  }
+  elsif ($RAD->{'NAS-Identifier'}) {
+    $WHERE .= " AND (nas_identifier='" . $RAD->{'NAS-Identifier'} ."' OR nas_identifier='')";
+  }
+  else {
+    $WHERE .= " AND nas_identifier=''";
+  }
+
+  $Nas->query(
+    "SELECT id AS nas_id,
+      nas_identifier,
+      INET_NTOA(ip) AS nas_ip,
+      nas_type,
+      auth_type AS nas_auth_type,
+      alive AS nas_alive,
+      disable AS nas_disable,
+      ext_acct AS nas_ext_acct,
+      rad_pairs AS nas_rad_pairs,
+      mac,
+      domain_id
+    FROM nas
+    WHERE $WHERE;",
+    undef,
+    { INFO => 1 }
   );
 
-  if ($RAD->{'NAS-IP-Address'} eq '0.0.0.0' && !$RAD->{'DHCP-Message-Type'}) {
-    %NAS_PARAMS = (CALLED_STATION_ID => $RAD->{'Called-Station-Id'});
-  }
-
-  $NAS_PARAMS{NAS_IDENTIFIER} = $RAD->{'NAS-Identifier'} if ($RAD->{'NAS-Identifier'});
-  $nas->info( \%NAS_PARAMS );
-
-  if ($nas->{errno}) {
+  if ($Nas->{errno}) {
     if ($RAD->{'Mikrotik-Host-IP'}) {
-      $nas->info({ NAS_ID => $RAD->{'NAS-Identifier'} });
-      if ($nas->{errno}) {
-        access_deny($RAD->{'User-Name'}, "UNKNOW_SERVER: '". $RAD->{'NAS-IP-Address'} ."'" . (($RAD->{'NAS-Identifier'}) ? " Nas-Identifier: ". $RAD->{'NAS-Identifier'}  : '') . ' ' . (($RAD->{'NAS-IP-Address'} eq '0.0.0.0') ? $RAD->{'Called-Station-Id'} : ''), $nas, $db);
+      $Nas->info({ NAS_ID => $RAD->{'NAS-Identifier'} });
+      if ($Nas->{errno}) {
+        access_deny($RAD->{'User-Name'}, "UNKNOW_SERVER: '". $nas_ip ."'" . (($RAD->{'NAS-Identifier'}) ? " Nas-Identifier: ". $RAD->{'NAS-Identifier'}  : '') . ' ' . (($nas_ip eq '0.0.0.0') ? $RAD->{'Called-Station-Id'} : ''), $Nas, $db);
 
-        $RAD_REPLY{'Reply-Message'} = "UNKNOW_SERVER: '". $RAD->{'NAS-IP-Address'} ."'";
-        return $nas;
+        $RAD_REPLY{'Reply-Message'} = "UNKNOW_SERVER: '". $nas_ip ."'";
+        return $Nas;
       }
-      $nas->{NAS_IP} = $RAD->{'NAS-IP-Address'};
+      $Nas->{NAS_IP} = $nas_ip;
     }
     else {
-      access_deny($RAD->{'User-Name'}, "UNKNOW_SERVER: '". $RAD->{'NAS-IP-Address'} ."'" .
+      access_deny($RAD->{'User-Name'}, "UNKNOW_SERVER: '". $nas_ip ."'" .
       (($RAD->{'NAS-Identifier'}) ? " Nas-Identifier: ". $RAD->{'NAS-Identifier'} : '') .
-      ' ' . (($RAD->{'NAS-IP-Address'} eq '0.0.0.0' && !$RAD->{'DHCP-Message-Type'}) ? $RAD->{'Called-Station-Id'} : ''), $nas, $db);
+      ' ' . (($nas_ip eq '0.0.0.0' && !$RAD->{'DHCP-Message-Type'}) ? $RAD->{'Called-Station-Id'} : ''), $Nas, $db);
 
-      $RAD_REPLY{'Reply-Message'} = "UNKNOW_SERVER: '". $RAD->{'NAS-IP-Address'} ."'";
-      $nas->{errno}=1;
+      $RAD_REPLY{'Reply-Message'} = "UNKNOW_SERVER: '". $nas_ip ."'";
+      $Nas->{errno}=1;
     }
   }
-  elsif (!$nas->{NAS_TYPE} eq 'dhcp' && ! $RAD->{'User-Name'}) {
-    $nas->{errno}=2;
+  elsif (!$Nas->{NAS_TYPE} eq 'dhcp' && ! $RAD->{'User-Name'}) {
+    $Nas->{errno}=2;
   }
-  elsif ($nas->{NAS_DISABLE} > 0) {
-    access_deny($RAD->{'User-Name'}, "DISABLED_NAS_SERVER: '". $RAD->{'NAS-IP-Address'} ."'", $nas, $db);
-    $nas->{errno}=3;
+  elsif ($Nas->{NAS_DISABLE} > 0) {
+    access_deny($RAD->{'User-Name'}, "DISABLED_NAS_SERVER: '". $nas_ip ."'", $Nas, $db);
+    $Nas->{errno}=3;
   }
 
-  return $nas;
+  return $Nas;
 }
 
 #*******************************************************************
@@ -548,10 +576,9 @@ sub auth_ {
     $nas->{NAS_TYPE} = 'dhcp';
   }
 
-  #my $nas_type = $nas->{NAS_TYPE} || 'default';
   my $nas_type = ($AUTH{ $nas->{NAS_TYPE} }) ? $nas->{NAS_TYPE} : 'default';
   my $extra_info = q{};
-  #if ($AUTH{ $nas_type }) {
+
   my $auth_module = $AUTH{ $nas_type } || 'Auth2';
   if (!defined($auth_mod{ $nas_type })) {
     require $auth_module . ".pm";
@@ -564,29 +591,6 @@ sub auth_ {
   $RAD_REQUEST{'User-Name'} = $auth_mod{$nas_type}->{LOGIN} if ($auth_mod{$nas_type}->{LOGIN});
 
   $extra_info = ($auth_mod{$nas_type}->{INFO}) ? $auth_mod{$nas_type}->{INFO} : '';
-  #}
-  # else {  #if ($AUTH{ default }) {
-  #   my $auth_module = $AUTH{ default } || 'Auth2';
-  #   if (!defined($auth_mod{ default })) {
-  #     require $auth_module . ".pm";
-  #     $auth_module->import();
-  #   }
-  #
-  #   delete($auth_mod{default}->{INFO});
-  #   $auth_mod{default} = $auth_module->new($db, \%conf);
-  #   ($r, $RAD_PAIRS) = $auth_mod{default}->auth($RAD, $nas);
-  #   $RAD_REQUEST{'User-Name'} = $auth_mod{"default"}->{LOGIN} if ($auth_mod{"default"}->{LOGIN});
-  #   $extra_info = ($auth_mod{ default }->{INFO}) ? $auth_mod{default}->{INFO} : '';
-  #
-  #   $nas_type = 'default';
-  # }
-  # else {
-  #   $auth_mod{'default'} = Auth->new($db, \%conf);
-  #
-  #   ($r, $RAD_PAIRS) = $auth_mod{"default"}->dv_auth($RAD, $nas, { MAX_SESSION_TRAFFIC => $conf{MAX_SESSION_TRAFFIC} });
-  #   $nas_type='default';
-  #   $RAD->{'User-Name'} = $auth_mod{"default"}->{LOGIN} if ($auth_mod{"default"}->{LOGIN});
-  # }
 
   if($RAD_PAIRS) {
     #@RAD_REPLY{keys %$RAD_PAIRS} = values %$RAD_PAIRS;

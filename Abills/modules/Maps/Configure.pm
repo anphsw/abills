@@ -51,6 +51,7 @@ sub maps_auto_coords {
     NUMBER             => '_SHOW',
     LOCATION_ID        => '_SHOW',
     STREET_SECOND_NAME => '_SHOW',
+    FULL_DISTRICT      => '_SHOW',
     SORT               => $FORM{sort} || '',
     DESC               => $FORM{desc} || '',
   });
@@ -81,10 +82,11 @@ sub maps_auto_coords {
       id    => "number_$_->{location_id}"
     });
 
+    my $district = $_->{full_district} ? $_->{full_district} : $_->{district_name};
     my $find_button = $html->button($lang{SEARCH}, '', {
       class     => 'btn btn-sm btn-primary search-btn',
       SKIP_HREF => 1,
-      ex_params => "onClick='findLocation(\"$_->{district_name}\", \"$_->{street_name}\", \"$_->{street_second_name}\", \"$_->{number}\", \"$_->{location_id}\")' " .
+      ex_params => "onClick='findLocation(\"$district\", \"$_->{street_name}\", \"$_->{street_second_name}\", \"$_->{number}\", \"$_->{location_id}\")' " .
         "id='button_number_$_->{location_id}'"
     });
     $table->addrow($_->{district_name}, $_->{street_name}, $_->{street_second_name}, $_->{number}, $status, $find_button);

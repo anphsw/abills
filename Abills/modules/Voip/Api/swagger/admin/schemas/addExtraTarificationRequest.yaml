@@ -1,0 +1,8 @@
+type: object
+properties:
+  name:
+    type: string
+    example: Test Api
+  prepaidTime:
+    type: number
+    example: 10

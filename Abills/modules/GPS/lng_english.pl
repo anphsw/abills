@@ -7,3 +7,4 @@ $lang{ADMIN_ROUTES} = 'Admin routes';
 $lang{FOR_TIME} = 'for time';
 $lang{GPS_MAPS_SETTINGS} = 'Map Image Settings';
 $lang{BATTERY} = 'Battery';
+$lang{MAP_DISPLAY_SETTINGS} = 'Map display settings';

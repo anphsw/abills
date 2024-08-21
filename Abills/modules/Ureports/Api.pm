@@ -4,14 +4,13 @@ use warnings FATAL => 'all';
 
 use Ureports;
 use Control::Errors;
+use Abills::Sender::Core;
+use Abills::Loader qw(load_plugin);
 
 my Control::Errors $Errors;
 my Ureports $Ureports;
-require Abills::Sender::Core;
-my %send_methods = %Abills::Sender::Core::PLUGIN_NAME_FOR_TYPE_ID;
 
-our %lang;
-require 'Abills/modules/Ureports/lng_english.pl';
+my %send_methods = %Abills::Sender::Core::PLUGIN_NAME_FOR_TYPE_ID;
 
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
@@ -31,10 +30,8 @@ sub new {
 
   bless($self, $class);
 
-  my %LANG = (%{$lang}, %lang);
-
   $Ureports = Ureports->new($db, $admin, $conf);
-  $Errors = Control::Errors->new($db, $admin, $conf, { lang => \%LANG, module => 'Ureports' });
+  $Errors = Control::Errors->new($db, $admin, $conf, { lang => $self->{lang}, module => 'Ureports' });
 
   $Ureports->{debug} = $self->{debug};
 
@@ -551,6 +548,37 @@ sub admin_routes {
       },
       credentials => [
         'ADMIN'
+      ]
+    },
+    {
+      method      => 'GET',
+      path        => '/ureports/plugins/',
+      handler     => sub {
+        my ($path_params, $query_params) = @_;
+
+        my %reports = ();
+        my $base_dir = $main::base_dir || '/usr/abills/';
+        my $mod_path = $base_dir . 'Abills/modules/Ureports/Plugins/';
+
+        my $contents = ::_get_files_in($mod_path, { FILTER => '\.pm' });
+        foreach my $report_module (@{$contents}) {
+          $report_module =~ s/\.pm//;
+          my $plugin_name = "Ureports::Plugins::$report_module";
+
+          my $report = load_plugin($plugin_name, {
+            SERVICE      => $self,
+            RETURN_ERROR => 1
+          });
+
+          if ($report->{SYS_CONF}{REPORT_NAME}) {
+            $reports{$report_module} = { %{$report->{SYS_CONF}}, MODULE => $report_module };
+          }
+        }
+
+        return \%reports;
+      },
+      credentials => [
+        'ADMIN', 'ADMINSID'
       ]
     },
   ];

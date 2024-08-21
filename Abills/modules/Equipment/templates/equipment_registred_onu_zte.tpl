@@ -1,7 +1,7 @@
 <form action='%SELF_URL%' class='form' METHOD='GET'>
   <input type='hidden' name='index' value='%index%'>
-  <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'>
-  <input type='hidden' name='TYPE' value='$FORM{TYPE}'>
+  <input type='hidden' name='NAS_ID' value='%NAS_ID%'>
+  <input type='hidden' name='TYPE' value='%PON_TYPE%'>
   <input type='hidden' name='visual' value='$FORM{visual}'>
   <input type='hidden' name='unregister_list' value='$FORM{unregister_list}'>
   <input type='hidden' name='reg_onu' value='$FORM{reg_onu}'>
@@ -22,6 +22,13 @@
         <label class='col-md-4 col-form-label text-md-right' for='VENDOR'>_{VENDOR}_:</label>
         <div class='col-md-8'>
           <input id='VENDOR' name='VENDOR' value='%VENDOR%' readonly class='form-control' type='text'>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='ONU_TYPE'>ONU_TYPE:</label>
+        <div class='col-md-8'>
+          <input id='ONU_TYPE' name='ONU_TYPE' value='%ONU_TYPE%' readonly class='form-control' type='text'>
         </div>
       </div>
 
@@ -54,9 +61,16 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right' for='VLAN_ID'>VLAN:</label>
+        <label class='col-md-4 col-form-label text-md-right' for='VLAN_ID'>SERVER VLAN:</label>
         <div class='col-md-8'>
           %VLAN_SEL%
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='CLIENT_VLAN'>CLIENT VLAN:</label>
+        <div class='col-md-8'>
+          <input id='CLIENT_VLAN' name='CLIENT_VLAN' value='%CLIENT_VLAN%' class='form-control' type='text'>
         </div>
       </div>
 
@@ -75,15 +89,15 @@
       </div>
 
       <div class='form-group row'>
-        <label for='DEBUG' class='control-label col-md-3'>DEBUG:</label>
-        <div class='col-md-9'>
+        <label for='DEBUG' class='control-label col-md-4'>_{DEBUG}_:</label>
+        <div class='col-md-8'>
           %DEBUG_SEL%
         </div>
       </div>
 
     </div>
     <div class='card-footer'>
-      <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary float-left'>
+      <input type='submit' name='onu_registration' value='_{ADD}_' class='btn btn-primary float-left'>
     </div>
   </div>
 </form>

@@ -1,0 +1,200 @@
+get:
+  tags:
+    - equipment
+  summary: Список ONU
+  operationId: getOnuList
+  parameters:
+    - name: id
+      in: query
+      description: уникальное ID ONU
+      schema:
+        type: integer
+    - name: uid
+      in: query
+      description: UID пользователя
+      schema:
+        type: boolean
+        default: true
+    - name: branch
+      in: query
+      description: Ветка
+      schema:
+        type: boolean
+        default: false
+    - name: branchDesc
+      in: query
+      description: Описание ветки
+      schema:
+        type: boolean
+        default: false
+    - name: portId
+      in: query
+      description: ID порта
+      schema:
+        type: boolean
+        default: true
+    - name: vlanId
+      in: query
+      description: ID Vlan
+      schema:
+        type: boolean
+        default: false
+    - name: onuId
+      in: query
+      description: ID ONU
+      schema:
+        type: boolean
+        default: true
+    - name: vlan
+      in: query
+      description: Vlan
+      schema:
+        type: boolean
+        default: true
+    - name: onuDesc
+      in: query
+      description: Описание ONU
+      schema:
+        type: boolean
+        default: false
+    - name: onuBillingDesc
+      in: query
+      description: Дополнительное описание ONU через биллинг
+      schema:
+        type: boolean
+        default: false
+    - name: oltRxPower
+      in: query
+      description: Уровень сигнала OLT
+      schema:
+        type: boolean
+        default: false
+    - name: dhcpPort
+      in: query
+      description: DHCP port
+      schema:
+        type: boolean
+        default: true
+    - name: onuDhcpPort
+      in: query
+      description: ONU DHCP port
+      schema:
+        type: boolean
+        default: false
+    - name: onuGraph
+      in: query
+      description: Данные для графика по ONU
+      schema:
+        type: boolean
+        default: false
+    - name: nasIp
+      in: query
+      description: IP сервера доступа
+      schema:
+        type: boolean
+        default: false
+    - name: nasId
+      in: query
+      description: ID сервера доступа
+      schema:
+        type: boolean
+        default: true
+    - name: onuSnmpId
+      in: query
+      description: ONU SNMP ID
+      schema:
+        type: boolean
+        default: true
+    - name: datetime
+      in: query
+      description: Дата последнего опроса ONU
+      schema:
+        type: boolean
+        default: false
+    - name: serverVlan
+      in: query
+      description: Vlan сервера
+      schema:
+        type: boolean
+        default: false
+    - name: traffic
+      in: query
+      description: Трафик
+      schema:
+        type: boolean
+        default: false
+    - name: login
+      in: query
+      description: Логин абонента
+      schema:
+        type: boolean
+        default: false
+    - name: userMac
+      in: query
+      description: MAC пользователя
+      schema:
+        type: boolean
+        default: false
+    - name: macBehindOnu
+      in: query
+      description: MAC ONU
+      schema:
+        type: boolean
+        default: false
+    - name: distance
+      in: query
+      description: Расстояние между сервером и ONU
+      schema:
+        type: boolean
+        default: false
+    - name: externalSystemLink
+      in: query
+      description: Ссылка на внешнюю систему
+      schema:
+        type: boolean
+        default: false
+    - name: macSerial
+      in: query
+      description: Серийный номер MAC
+      schema:
+        type: boolean
+        default: false
+    - name: status
+      in: query
+      description: Статус
+      schema:
+        type: boolean
+        default: false
+    - name: ponType
+      in: query
+      description: Тип оборудования
+      schema:
+        type: boolean
+        default: true
+    - name: snmpId
+      in: query
+      description: SNMP ID
+      schema:
+        type: boolean
+        default: true
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/onuInfoList.yaml"
+  security:
+    - KEY: []

@@ -1,0 +1,22 @@
+type: object
+properties:
+  destinations:
+    type: array
+    items:
+      type: object
+      properties:
+        destination:
+          type: string
+          example: 1
+        name:
+          type: string
+          example: Push
+        type:
+          type: number
+          example: 10
+  tpId:
+    type: number
+    example: 7
+  uid:
+    type: number
+    example: 102148

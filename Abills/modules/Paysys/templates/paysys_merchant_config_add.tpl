@@ -1,7 +1,8 @@
 <form name='PAYSYS_GROUP_SETTINGS' id='form_PAYSYS_GROUP_SETTINGS' method='post'>
-  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='SYSTEM_ID' id='SYSTEM_ID' value='%SYSTEM_ID%'>
   <input type='hidden' name='MERCHANT_ID' id='MERCHANT_ID' value='%MERCHANT_ID%'>
+  <input type='hidden' name='PAYSYSTEM_ID' id='PAYSYSTEM_ID' value='%PAYSYSTEM_ID%'>
 
   <div class='card big-box card-primary card-outline'>
     <div class='card-header with-border'>
@@ -164,6 +165,9 @@
     });
   });
 
+  var PORTAL_COMMENT_DESC = '_{PORTAL_COMMENT_DESC}_';
+  var PORTAL_COMMISSION_DESC = '_{PORTAL_COMMISSION_DESC}_';
+
   function generateTooltips (type) {
     const docsUrl = arr[type]['DOCS'] || '';
     let url = '';
@@ -183,7 +187,6 @@
         if (!response.ok) throw response;
 
         const content = await response.json();
-        console.log(content);
         const body = urlType ? content?.body?.storage?.value : content?.results[0]?.body?.storage?.value;
 
         const tooltipsInfo = body.match(/(?<=<td[^>]*>)(.*?)(?=<\/td)/gm);
@@ -191,7 +194,6 @@
         if (tooltipsInfo.length < 1) return 1;
 
         tooltipsInfo.map((val, index) => {
-          console.log(`input[name*=${val}]`);
           if (val.includes('PAYSYS_')) {
             const value = val.replace(/<[^>]*>/gm, '');
             const tooltipValue = tooltipsInfo[index + 1].replace(/<[^>]*>/gm, '');
@@ -204,15 +206,14 @@
       })
       .catch(e => console.warn(e));
 
-    jQuery("input[name*='PORTAL_DESCRIPTION']").attr('title', 'Описание в кабинете пользователя')
+    jQuery("input[name*='PORTAL_DESCRIPTION']").attr('title', PORTAL_COMMENT_DESC)
       .hover(() => {
         jQuery().tooltip()
       });
 
-    jQuery("input[name*='PORTAL_COMMISSION']").attr('title', 'Описание комиссии в кабинете пользователя')
+    jQuery("input[name*='PORTAL_COMMISSION']").attr('title', PORTAL_COMMISSION_DESC)
       .hover(() => {
         jQuery().tooltip()
       });
   }
-
 </script>

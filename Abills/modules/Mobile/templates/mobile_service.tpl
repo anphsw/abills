@@ -38,7 +38,7 @@
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right' for='PRICE'>_{PRICE}_:</label>
         <div class='col-md-8'>
-          <input id='PRICE' name='PRICE' value='%PRICE%' class='form-control' type='number' step='0.1' placeholder='0.0'>
+          <input id='PRICE' name='PRICE' value='%PRICE%' class='form-control' type='number' step='0.01' placeholder='0.00'>
         </div>
       </div>
 
@@ -46,6 +46,13 @@
         <label class='col-md-4 col-form-label text-md-right' for='PRIORITY'>_{PRIORITY}_:</label>
         <div class='col-md-8'>
           %PRIORITY_SEL%
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='FILTER_ID'>Filter Id:</label>
+        <div class='col-md-8'>
+          <input id='FILTER_ID' name='FILTER_ID' value='%FILTER_ID%' class='form-control' type='text'>
         </div>
       </div>
 

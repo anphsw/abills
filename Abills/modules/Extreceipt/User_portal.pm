@@ -8,7 +8,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Extreceipt::db::Extreceipt;
-use Extreceipt::Base;
+use Extreceipt::Init qw(init_extreceipt_service);
 
 our (
   $db,
@@ -32,7 +32,7 @@ sub extreceipts_list {
     UID  => $user->{UID},
   });
 
-  my $Receipt_api = receipt_init($Receipt, { SKIP_INIT => 1 });
+  my $Receipt_api = init_extreceipt_service($db, $admin, \%conf);
   $Receipt->{API} = $Receipt_api;
 
   my $table = $html->table({

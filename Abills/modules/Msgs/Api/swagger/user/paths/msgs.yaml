@@ -24,13 +24,9 @@ post:
           $ref: "../schemas/msgAddRequest.yaml"
       multipart/form-data:
         schema:
-          - $ref: "../schemas/msgAddResponse.yaml"
-            file1:
-              type: string
-              format: binary
-            file2:
-              type: string
-              format: binary
+          allOf:
+            - $ref: "../schemas/msgAddRequest.yaml"
+            - $ref: "../schemas/msgsFiles.yaml"
     required: true
   responses:
     200:

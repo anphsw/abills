@@ -1,0 +1,44 @@
+type: object
+properties:
+  aid:
+    type: integer
+    example: 1
+  companyId:
+    type: integer
+    example: 0
+  date:
+    type: string
+    format: date
+    example: "2023-10-18"
+  endDate:
+    type: string
+    format: date
+    example: "0000-00-00"
+  id:
+    type: integer
+    example: 17
+  insertId:
+    type: integer
+    example: 17
+  name:
+    type: string
+    example: "Important contract"
+  number:
+    type: string
+    example: "OP-12098"
+  parrentId:
+    type: integer
+    example: 0
+  regDate:
+    type: string
+    format: date-time
+    example: "0000-00-00 00:00:00"
+  signature:
+    type: string
+    example: ""
+  type:
+    type: integer
+    example: 1
+  uid:
+    type: integer
+    example: 120545

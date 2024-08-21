@@ -10,10 +10,10 @@
 
 use strict;
 use warnings;
-use Iptv::Iptvportal;
 use Iptv;
 use Tariffs;
 use Abills::Base qw(load_pmodule in_array _bp);
+use Abills::Loader qw/load_plugin/;
 
 our (
   $argv,
@@ -48,7 +48,10 @@ sub iptvportal_ips_sync {
   foreach my $service (@$service_list) {
     print "Service ID: $service->{id} NAME: $service->{name}\n" if ($debug > 3);
 
-    my $Iptvportal_api = tv_load_service('', { SERVICE_ID => $service->{id} });
+    $Iptv->services_info($service->{id});
+    my $Iptvportal_api = load_plugin('Iptv::Plugins::Iptvportal', { SERVICE => $Iptv });
+
+    # my $Iptvportal_api = tv_load_service('', { SERVICE_ID => $service->{id} });
     my $Users_list = $Iptv->user_list({
       SERVICE_ID    => $service->{id},
       LOGIN         => '_SHOW',

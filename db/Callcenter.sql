@@ -8,9 +8,11 @@ CREATE TABLE IF NOT EXISTS `callcenter_calls_handler` (
   `date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `stop` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `outgoing` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  KEY `uid` (`uid`)
+  KEY `uid` (`uid`),
+  KEY `aid` (`aid`)
 ) DEFAULT CHARSET = utf8
   COMMENT = 'Callcenter calls handler';
 

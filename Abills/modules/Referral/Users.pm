@@ -668,6 +668,10 @@ sub referral_bonus_add {
         my $check_inactive_days = _referral_check_inactive_days($referral);
         next if ($check_inactive_days);
       }
+
+      my $user_status = _referral_check_user_status($referral);
+      next if ($user_status > 0);
+
       $self->_referral_add_bonus($referral);
     }
   }
@@ -701,6 +705,39 @@ sub _referral_check_inactive_days {
   }
 
   return;
+}
+
+
+#**********************************************************
+=head2 _referral_check_user_status ($referral) - check user status and service status of Internet
+
+    Attr:
+      $referral
+
+    Return
+      $result
+
+=cut
+#**********************************************************
+sub _referral_check_user_status {
+  my ($referral) = @_;
+  return if !$referral->{UID};
+
+  my $status = 0;
+
+  my $user_info = $Users->info($referral->{UID});
+  $status += $user_info->{DISABLE};
+
+  require Control::Services;
+  my $service_info = get_services({ UID => $referral->{UID}} );
+
+  foreach my $service (@{ $service_info->{list} }){
+    if ($service->{MODULE} && $service->{MODULE} eq 'Internet'){
+      $status += $service->{STATUS};
+    }
+  }
+
+  return $status;
 }
 
 

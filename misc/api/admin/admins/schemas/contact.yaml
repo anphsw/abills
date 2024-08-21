@@ -1,0 +1,11 @@
+type: object
+properties:
+  typeId:
+    type: number
+    example: 2
+  value:
+    type: string
+    example: "380999999148"
+  priority:
+    type: number
+    example: 1

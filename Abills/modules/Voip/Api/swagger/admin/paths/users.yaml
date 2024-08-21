@@ -1,0 +1,184 @@
+get:
+  tags:
+    - voip
+  summary: Список пользователей с услугой Voip
+  parameters:
+    - name: id
+      in: query
+      description: ID услуги Voip
+      schema:
+        type: boolean
+        default: true
+    - name: tpId
+      in: query
+      description: ID тарифного плана.
+      schema:
+        type: boolean
+        default: true
+    - name: uid
+      in: query
+      description: UID пользователя.
+      schema:
+        type: boolean
+        default: true
+    - name: number
+      in: query
+      description: Номер телефона пользователя.
+      schema:
+        type: boolean
+        default: false
+    - name: tpName
+      in: query
+      description: Название тарифного плана.
+      schema:
+        type: boolean
+        default: false
+    - name: ip
+      in: query
+      description: IP пользователя в услуге Voip.
+      schema:
+        type: boolean
+        default: false
+    - name: cid
+      in: query
+      description: MAC адрес пользователя в услуге Voip.
+      schema:
+        type: boolean
+        default: false
+    - name: serviceStatus
+      in: query
+      description: Статус услуги Voip.
+      schema:
+        type: boolean
+        default: false
+    - name: filterId
+      in: query
+      description: ID фильтра.
+      schema:
+        type: boolean
+        default: false
+    - name: simultaneously
+      in: query
+      description: Количество пользователей, которые могут подключиться под одним логином в один промежуток времени.
+      schema:
+        type: boolean
+        default: false
+    - name: tpCredit
+      in: query
+      description: Кредитный лимит тарифного плана.
+      schema:
+        type: boolean
+        default: false
+    - name: voipExpire
+      in: query
+      description: Дата окончания услуги.
+      schema:
+        type: boolean
+        default: false
+    - name: provisionNasId
+      in: query
+      description: ID сервера доступа.
+      schema:
+        type: boolean
+        default: false
+    - name: provisionPort
+      in: query
+      description: Порт.
+      schema:
+        type: boolean
+        default: false
+    - name: monthFee
+      in: query
+      description: Месячная оплата за услугу.
+      schema:
+        type: boolean
+        default: false
+    - name: dayFee
+      in: query
+      description: Ежедневная оплата за услугу.
+      schema:
+        type: boolean
+        default: false
+    - name: extraNumber
+      in: query
+      description: Дополнительный номер пользователя.
+      schema:
+        type: boolean
+        default: false
+    - name: extraNumbersDayFee
+      in: query
+      description: Ежедневная оплата за дополнительный номер.
+      schema:
+        type: boolean
+        default: false
+    - name: extraNumbersMonthFee
+      in: query
+      description: Месячная оплата за дополнительный номер.
+      schema:
+        type: boolean
+        default: false
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/userList.yaml"
+          examples:
+            DefaultProperties:
+              summary:
+                Ответ по умолчанию
+              value:
+                id: 42
+                tpId: 39
+                uid: 103161
+            AllProperties:
+              summary:
+                Все возможные поля в ответе
+              value:
+                allowAnswer: 0
+                allowCalls: 0
+                cid: '10:fe:ed:43:8f:35'
+                dayAbon: 10
+                dayFee: 10
+                disable: 0
+                expire: '0000-00-00'
+                extraNumbersDayFee: 1
+                extraNumbersMonthFee: 5
+                filterId: 1
+                id: 42
+                ip: 0.0.0.0
+                logins: 0
+                monthAbon: 100
+                monthFee: 100
+                nat: 1
+                number: 380509152720
+                provisionNasId: 0
+                provisionPort: 0
+                registration: '0000-00-00'
+                simultaneously: 0
+                tpCredit: 0
+                tpId: 39
+                tpName: test api change
+                tpNum: 23131
+                uid: 103161
+                voipExpire: '0000-00-00'
+  security:
+    - KEY: []

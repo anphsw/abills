@@ -6,11 +6,7 @@ use warnings FATAL => 'all';
 use lib '../../';
 use lib '../../lib/';
 
-use Abills::Base qw(parse_arguments);
-
 my $base_dir = '/usr/abills/';
-
-my $argv = parse_arguments(\@ARGV);
 
 get_docs();
 
@@ -25,29 +21,46 @@ get_docs();
 =cut
 #**********************************************************
 sub get_docs {
-  my $base_swagger = q{};
 
-  if ($argv->{admin}) {
-    $base_swagger = _read_swagger('misc/api/admin.yaml');
-  }
-  else {
-    $base_swagger = _read_swagger('misc/api/user.yaml');
-  }
+  generate_swagger('admin');
+  generate_swagger('user');
+
+  print "OK\n";
+}
+
+#**********************************************************
+=head2 generate_swagger($type) - generate swagger
+
+  Arguments:
+   type: string - type of swagger which need to generate
+
+=cut
+#**********************************************************
+sub generate_swagger {
+  my ($type) = @_;
+
+  my $base_swagger = _read_swagger("misc/api/$type.yaml");
+
+  my $schemas = {
+    core    => {},
+    modules => {}
+  };
 
   my $swagger = _parse_swagger({
     swagger  => $base_swagger,
     spaces   => '',
     root_dir => '',
+    schemas  => $schemas,
   });
 
-  if ($argv->{admin}) {
-    _write_swagger('misc/api/bundle_admin.yaml', $swagger);
-  }
-  else {
-    _write_swagger('misc/api/bundle_user.yaml', $swagger);
-  }
+  $swagger = _fill_schemas({
+    swagger => $swagger,
+    schemas => $schemas
+  });
 
-  print "OK\n";
+  _write_swagger("misc/api/bundle_$type.yaml", $swagger);
+
+  return 1;
 }
 
 #**********************************************************
@@ -67,6 +80,8 @@ sub _parse_swagger {
   my ($attr) = @_;
 
   my $swagger = $attr->{swagger};
+  my $schemas = $attr->{schemas};
+
   my @matches = $swagger =~ /^\s+\-?\s?\$ref: "\.\.?.+/gm;
 
   foreach my $match (@matches) {
@@ -77,7 +92,8 @@ sub _parse_swagger {
 
     my $swagger_path = "misc/api/$root_dir/$path";
     $swagger_path =~ s{(?<=\w)(\.)(?=/)}{};
-    print "Path $swagger_path\n";
+    my ($component) = $swagger_path =~ /schemas.*\/([^\/]+)\.yaml/gm;
+    print "[Path]      $swagger_path\n";
 
     my $new_swagger = _read_swagger("misc/api/$root_dir/$path");
     $root_dir .= '/' if ($root_dir);
@@ -86,13 +102,33 @@ sub _parse_swagger {
     $root_dir =~ s{(?<=\w)(\.)(?=/)}{};
 
     my $parsed_swagger = _parse_swagger({
-      spaces   => $_spaces,
+      spaces   => $component ? "      " : $_spaces,
       swagger  => $new_swagger,
-      root_dir => $root_dir
+      root_dir => $root_dir,
+      schemas  => $schemas
     });
 
     $match = quotemeta($match);
-    $swagger =~ s/(?:(?<=\n)|(?<=\r\n))\s+$match/$parsed_swagger/gm;
+
+    if ($component) {
+      # Try to get module prefix
+      my ($prefix) = $swagger_path =~ /modules\/(.*?)\//gm;
+      my $is_module = !!$prefix;
+      if (!$prefix) {
+        # Try to get core-based prefix
+        ($prefix) = $swagger_path =~ /misc\/api\/\.?\/?.*?\/(.*?)\//gm;
+        $prefix = ucfirst($prefix);
+      }
+      $prefix //= "";
+      my $capitalized_component_file_name = uc(substr($component, 0, 1)) . substr($component, 1);
+      my $key = $prefix . $capitalized_component_file_name;
+      $parsed_swagger =~ s/\n\z//gm;
+      $schemas->{$is_module ? "modules" : "core"}->{$key} = $parsed_swagger;
+      $swagger =~ s{$path}{#/components/schemas/$key}gm;
+      print "[Component] $key\n";
+    } else {
+      $swagger =~ s/(?:(?<=\n)|(?<=\r\n))\s+$match/$parsed_swagger/gm;
+    }
   }
 
   if ($attr->{spaces}) {
@@ -110,6 +146,24 @@ sub _parse_swagger {
   }
 }
 
+sub _fill_schemas {
+  my ($attr) = @_;
+
+  my $schemas = $attr->{schemas};
+  my $swagger = $attr->{swagger};
+
+  if ($swagger !~ /components:\r?\n  schemas:/gm) {
+    $swagger =~ s/components:/components:\r\n  schemas:/gm;
+  }
+
+  for my $core_key (sort keys %{$schemas}) {
+    for my $key (sort keys %{$schemas->{$core_key}}) {
+      $swagger =~ s/  securitySchemes/    $key\:\n$schemas->{$core_key}->{$key}\n  securitySchemes/gm;
+    }
+  }
+
+  return $swagger;
+}
 #**********************************************************
 =head2 _read_swagger() - read swagger file from misc swagger yaml file
 

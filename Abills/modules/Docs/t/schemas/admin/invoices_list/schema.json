@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "ADMIN Docs invoices list",
+  "type": "object",
+  "properties": {
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "altSum": {
+            "type": "integer"
+          },
+          "created": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "integer"
+          },
+          "customer": {
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "docsDeposit": {
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "exchangeRate": {
+            "type": "integer"
+          },
+          "extId": {
+            "type": "string"
+          },
+          "feesId": {
+            "type": "integer"
+          },
+          "fio": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "invoiceNum": {
+            "type": "integer"
+          },
+          "invoiceSum": {
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "paymentMethod": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          },
+          "paymentSum": {
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "totalSum": {
+            "type": "number"
+          },
+          "uid": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "created",
+          "date",
+          "docsDeposit",
+          "id",
+          "invoiceNum",
+          "invoiceSum",
+          "paymentSum",
+          "totalSum",
+          "uid"
+        ]
+      }
+    },
+    "total": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "list",
+    "total"
+  ]
+}

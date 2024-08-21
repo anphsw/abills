@@ -1,0 +1,21 @@
+post:
+  tags:
+    - crm
+  summary: Добавление раздела информации
+  operationId: addLeadSection
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/section.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+  security:
+    - KEY: [ ]

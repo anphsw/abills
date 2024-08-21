@@ -28,19 +28,6 @@ CREATE TABLE IF NOT EXISTS `admin_settings` (
   DEFAULT CHARSET = utf8
   COMMENT = 'Admins settings';
 
-CREATE TABLE IF NOT EXISTS `admin_slides` (
-  `slide_name`     VARCHAR(30)          NOT NULL DEFAULT '',
-  `field_id`       VARCHAR(30)          NOT NULL DEFAULT '',
-  `field_warning`  VARCHAR(130)         NOT NULL DEFAULT '',
-  `field_comments` VARCHAR(200)         NOT NULL DEFAULT '',
-  `priority`       TINYINT(2) UNSIGNED  NOT NULL DEFAULT '0',
-  `size`           TINYINT(2) UNSIGNED  NOT NULL DEFAULT '0',
-  `aid`            SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  UNIQUE KEY `aid` (`aid`, `slide_name`, `field_id`)
-)
-  DEFAULT CHARSET = utf8
-  COMMENT = 'Admin slides';
-
 CREATE TABLE IF NOT EXISTS `admin_system_actions` (
   `id`          INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `actions`     VARCHAR(200)         NOT NULL DEFAULT '',
@@ -482,7 +469,7 @@ CREATE TABLE IF NOT EXISTS `groups` (
   `disable_chg_tp`   TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
   `disable_access`   TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
   `bonus`            TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
-  `sms_service`      VARCHAR(60)          NOT NULL DEFAULT '',
+  `sms_service`      INT(10)    UNSIGNED  NOT NULL DEFAULT 0,
   `documents_access` TINYINT(1) UNSIGNED  NOT NULL DEFAULT 0,
   PRIMARY KEY (`gid`),
   UNIQUE KEY `name` (`domain_id`, `name`)
@@ -590,7 +577,9 @@ CREATE TABLE IF NOT EXISTS `internet_main` (
   KEY `nas_id` (`nas_id`),
   KEY `tp_id` (`tp_id`),
   KEY `cid` (`cid`),
-  KEY `cpe_mac` (`cpe_mac`)
+  KEY `cpe_mac` (`cpe_mac`),
+  KEY `vlan` (`vlan`),
+  KEY `server_vlan` (`server_vlan`)
 )
   DEFAULT CHARSET = utf8
   COMMENT ='Internet users';
@@ -694,7 +683,8 @@ CREATE TABLE IF NOT EXISTS `intervals` (
   `day`   TINYINT(4) UNSIGNED           DEFAULT '0',
   `id`    SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `tp_intervals` (`tp_id`, `begin`, `day`)
+  UNIQUE KEY `tp_intervals` (`tp_id`, `begin`, `day`),
+  KEY `tp_id` (tp_id)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Time intervals for tariffs';
@@ -986,6 +976,8 @@ CREATE TABLE IF NOT EXISTS `msgs_messages` (
   `plan_position`    SMALLINT(6) UNSIGNED     NOT NULL  DEFAULT '0',
   `closed_aid`       SMALLINT(6) UNSIGNED     NOT NULL  DEFAULT '0' COMMENT 'Closed Admin ID',
   PRIMARY KEY (`id`),
+  KEY `aid` (`aid`),
+  KEY `resposible` (`resposible`),
   KEY `uid` (`uid`),
   KEY `chapter` (`chapter`),
   KEY `state` (`state`),
@@ -1024,49 +1016,6 @@ CREATE TABLE IF NOT EXISTS `msgs_reply` (
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Msgs replies';
-
-CREATE TABLE IF NOT EXISTS `msgs_unreg_requests` (
-  `id`              INTEGER(11) UNSIGNED   NOT NULL AUTO_INCREMENT,
-  `datetime`        DATETIME               NOT NULL,
-  `received_admin`  SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
-  `state`           TINYINT(2) UNSIGNED    NOT NULL DEFAULT '0',
-  `priority`        TINYINT(2) UNSIGNED    NOT NULL DEFAULT '0',
-  `subject`         VARCHAR(45)            NOT NULL DEFAULT '',
-  `chapter`         SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
-  `request`         TEXT                   NOT NULL,
-  `comments`        TEXT                   NOT NULL,
-  `resposible`      SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
-  `fio`             VARCHAR(40)            NOT NULL DEFAULT '',
-  `phone`           BIGINT(16) UNSIGNED    NOT NULL DEFAULT '0',
-  `email`           VARCHAR(250)           NOT NULL DEFAULT '',
-  `company`         VARCHAR(60)            NOT NULL DEFAULT '',
-  `country_id`      SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
-  `address_street`  VARCHAR(100)           NOT NULL DEFAULT '',
-  `address_build`   VARCHAR(10)            NOT NULL DEFAULT '',
-  `address_flat`    VARCHAR(10)            NOT NULL DEFAULT '',
-  `location_id`     INTEGER(11) UNSIGNED   NOT NULL DEFAULT '0',
-  `ip`              INTEGER(11) UNSIGNED   NOT NULL,
-  `closed_date`     DATETIME               NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `tp_id`           SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
-  `payment_sum`     DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
-  `extra_sum`       DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
-  `paid`            TINYINT(1) UNSIGNED    NOT NULL DEFAULT '0',
-  `uid`             INTEGER(11) UNSIGNED   NOT NULL DEFAULT '0',
-  `login`           VARCHAR(24)            NOT NULL DEFAULT '',
-  `connection_time` DATETIME               NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `reaction_time`   VARCHAR(100)           NOT NULL DEFAULT '',
-  `last_contact`    DATETIME               NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `planned_contact` DATETIME               NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `contact_note`    TEXT                   NOT NULL,
-  `referral_uid`    INTEGER(11) UNSIGNED   NOT NULL DEFAULT '0',
-  `domain_id`       SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`),
-  KEY `state` (`state`),
-  KEY `datetime` (`datetime`),
-  KEY `location_id` (`location_id`)
-)
-  DEFAULT CHARSET = utf8
-  COMMENT = 'Msgs from unregister users';
 
 CREATE TABLE IF NOT EXISTS `msgs_survey_questions` (
   `id`            INT(11) UNSIGNED     NOT NULL AUTO_INCREMENT,
@@ -1331,7 +1280,7 @@ CREATE TABLE IF NOT EXISTS `payments` (
   `aid`            SMALLINT(6) UNSIGNED NOT NULL  DEFAULT '0',
   `id`             INT(11) UNSIGNED     NOT NULL  AUTO_INCREMENT,
   `method`         TINYINT(4) UNSIGNED  NOT NULL  DEFAULT '0',
-  `ext_id`         VARCHAR(28)          NOT NULL  DEFAULT '',
+  `ext_id`         VARCHAR(36)          NOT NULL  DEFAULT '',
   `bill_id`        INT(11) UNSIGNED     NOT NULL  DEFAULT '0',
   `inner_describe` VARCHAR(80)          NOT NULL  DEFAULT '',
   `amount`         DOUBLE(10, 2)        NOT NULL  DEFAULT '0.00' COMMENT 'Sum in currency',
@@ -1492,7 +1441,8 @@ CREATE TABLE IF NOT EXISTS `shedule` (
 CREATE TABLE IF NOT EXISTS `tarif_plans` (
   `id`                      SMALLINT(5) UNSIGNED   NOT NULL DEFAULT '0',
   `month_fee`               DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
-  `fixed_fees_day`          TINYINT(1)             NOT NULL DEFAULT '0',
+  `fixed_fees_day`          TINYINT(1) UNSIGNED    NOT NULL DEFAULT '0',
+  `fixed_fees_free_period`  TINYINT(1) UNSIGNED    NOT NULL DEFAULT '0',
   `uplimit`                 DOUBLE(14, 2)          NOT NULL DEFAULT '0.00',
   `name`                    VARCHAR(60)            NOT NULL DEFAULT '',
   `day_fee`                 DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
@@ -1775,7 +1725,8 @@ CREATE TABLE IF NOT EXISTS `users_contacts` (
     ON DELETE CASCADE,
   FOREIGN KEY (`type_id`) REFERENCES users_contact_types (`id`)
     ON DELETE CASCADE,
-  INDEX `_uid_contact` (`uid`)
+  KEY `_uid_contact` (`uid`),
+  KEY `priority` (`priority`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Main user contacts table';
@@ -2091,6 +2042,7 @@ REPLACE INTO `admin_permits` (`aid`, `section`, `actions`, `module`) VALUES
   (1, 5, 0, ''),
   (1, 5, 1, ''),
   (1, 5, 2, ''),
+  (1, 5, 3, ''),
   (1, 6, 0, ''),
   (1, 7, 0, ''),
   (1, 7, 1, ''),
@@ -2185,6 +2137,7 @@ REPLACE INTO `admin_type_permits` (`type`, `section`, `actions`, `module`) VALUE
   ('$lang{ALL} $lang{PERMISSION}', 5, 0, ''),
   ('$lang{ALL} $lang{PERMISSION}', 5, 1, ''),
   ('$lang{ALL} $lang{PERMISSION}', 5, 2, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 5, 3, ''),
   ('$lang{ALL} $lang{PERMISSION}', 6, 0, ''),
   ('$lang{ALL} $lang{PERMISSION}', 7, 0, ''),
   ('$lang{ALL} $lang{PERMISSION}', 7, 1, ''),
@@ -2277,7 +2230,8 @@ INSERT INTO `admin_actions` VALUES ('LOGIN:test', '2009-08-03 11:42:53', 1534854
   ('ADD PI', '2009-08-03 11:42:53', 1534854767, 1, 1, 4, '', 0),
   ('ACTIVE', '2009-08-03 11:42:53', 1534854767, 1, 1, 5, 'Internet', 1);
 
-INSERT INTO `config` (`param`, `value`, `domain_id`) VALUES  ('ORGANIZATION_ADDRESS', '', 0),
+INSERT INTO `config` (`param`, `value`, `domain_id`) VALUES
+  ('ORGANIZATION_ADDRESS', '', 0),
   ('ORGANIZATION_FAX', '', 0),
   ('ORGANIZATION_MAIL', '', 0),
   ('ORGANIZATION_NAME', '', 0),
@@ -2291,7 +2245,27 @@ INSERT INTO `config` (`param`, `value`, `domain_id`) VALUES  ('ORGANIZATION_ADDR
   ('ORGANIZATION_CUSTOM_DEPART_LEGAL_ENTITIES', '', 0),
   ('ORGANIZATION_CUSTOM_DEPART_PHYS_PERSON', '', 0),
   ('ORGANIZATION_WEB_SITE', '', 0),
-  ('ORGANIZATION_ADDITIONAL_INFO', '', 0);
+  ('ORGANIZATION_ADDITIONAL_INFO', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_URL_1', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_DESCRIPTION_1', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_URL_2', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_DESCRIPTION_2', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_URL_3', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_DESCRIPTION_3', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_URL_4', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_DESCRIPTION_4', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_URL_5', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_DESCRIPTION_5', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_URL_6', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_DESCRIPTION_6', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_URL_7', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_DESCRIPTION_7', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_URL_8', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_DESCRIPTION_8', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_URL_9', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_DESCRIPTION_9', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_URL_10', '', 0),
+  ('ORGANIZATION_PRIVACY_POLICY_DESCRIPTION_10', '', 0);
 
 INSERT INTO `nas` (`id`, `name`, `nas_identifier`, `descr`, `ip`, `nas_type`, `auth_type`, `mng_host_port`, `mng_user`, `mng_password`, `alive`, `rad_pairs`)
 VALUES (1, 'NAS_Server', '', 'NAS_Server', INET_ATON('127.0.0.1'), 'mpd5', 0, '127.0.0.1:3799:5005', 'admin',

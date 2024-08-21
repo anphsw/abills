@@ -1,0 +1,6 @@
+/docs/invoices/:
+  $ref: "./paths/invoices.yaml"
+/docs/invoices/{id}:
+  $ref: "./paths/invoice.yaml"
+/docs/invoices/payments:
+  $ref: "./paths/invoicePayments.yaml"

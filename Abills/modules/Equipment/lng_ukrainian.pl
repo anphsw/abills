@@ -214,4 +214,11 @@ $lang{AUTODETECT}='Автовизначення';
 $lang{GENERAL_INFORMATION} = 'Загальна інформація';
 $lang{ONU_LAST_DOWN_CAUSE} = 'Причина розриву';
 
+$lang{PORT_SPEED} = 'Швидкість порту';
+$lang{PORT_HIGH_SPEED} = 'Пропускна швидкість порту';
+$lang{PORT_ERRORS} = 'Помилки на портах';
+
+$lang{INCOMING} = 'Вхідні';
+$lang{OUTCOMING} = 'Вихідні';
+
 1

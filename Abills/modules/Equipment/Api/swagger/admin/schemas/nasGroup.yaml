@@ -1,0 +1,14 @@
+type: object
+properties:
+  name:
+    type: string
+    example: Test API
+  comments:
+    type: string
+    example: changed as example for REST API
+  disable:
+    type: number
+    example: 1
+  gid:
+    type: number
+    example: 6

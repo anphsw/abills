@@ -1,16 +1,4 @@
 /groups:
-  get:
-    tags:
-      - groups
-    summary: Получить группы пользователей
-    description: Возвращает группы пользователей
-    operationId: getGroupsList
-    responses:
-      200:
-        description: Успешное выполнение
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Groups"
-    security:
-      - KEY: []
+  $ref: "./paths/groups.yaml"
+/groups/{id}:
+  $ref: "./paths/groupsId.yaml"

@@ -1,0 +1,6 @@
+{
+  "name": "ADMIN_GROUP_DELETE",
+  "method": "DELETE",
+  "path": "groups/:groupId/",
+  "params": {}
+}

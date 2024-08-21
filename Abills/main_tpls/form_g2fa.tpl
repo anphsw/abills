@@ -36,14 +36,14 @@
   <div class='login-box-body'>
     <p class='login-box-msg' style='font-size: large; text-transform: uppercase'>_{ONE_TIME_CODE}_</p>
 
-    <form action='$SELF_URL' METHOD='post' name='form_g2fa' id='form_g2fa'>
+    <form action='%SELF_URL%' METHOD='post' name='form_g2fa' id='form_g2fa'>
       <input type='hidden' id='AUTH_G2FA' name='AUTH_G2FA' value='1'>
       <input type='hidden' name='sid' value='$FORM{sid}'>
       <input type='hidden' name='passwd' value='$FORM{passwd}'>
       <input type='hidden' name='user' value='$FORM{user}'>
 
-      <div class="input-group">
-        <span class="input-group-addon st_icon"><i class="fa fa-lock"></i></span>
+      <div class='input-group'>
+        <span class='input-group-addon st_icon'><i class='fa fa-lock'></i></span>
         <input type='password' id='G2FA' name='G2FA' class='form-control' placeholder='_{CODE}_' autocomplete='off'>
       </div>
 
@@ -59,8 +59,8 @@
 </div>
 
 <!-- Logo -->
-<div class="fixed" >
-  <div style="position: absolute; bottom: 5px;">
+<div class='fixed' >
+  <div style='position: absolute; bottom: 5px;'>
     <span class='logo-lg'  style='color: #02060a;'><b><span style='color: red;'>A</span></b>BillS</span>
   </div>
 </div>

@@ -15,7 +15,6 @@ use lib '../../';
 
 use Paysys::t::Init_t;
 use Abills::Base qw(json_former urlencode);
-require Paysys::systems::Liqpay;
 
 our (
   %conf,
@@ -33,14 +32,14 @@ $user_id = $argv->{user} || $argv->{UID} || $conf{PAYSYS_TEST_USER} || $user_id 
 my $random_number = int(rand(100000));
 
 my $Paysys = Paysys->new($db, $admin, \%conf);
-my $Liqpay = Paysys::systems::Liqpay->new($db, $admin, \%conf, {
-  CUSTOM_NAME => $argv->{CUSTOM_NAME} || '',
-  CUSTOM_ID   => $argv->{CUSTOM_ID} || '',
-  lang        => \%lang
-});
-
-if ($debug > 3) {
-  $Liqpay->{DEBUG}=7;
+my $Payment_plugin;
+if (!$conf{PAYSYS_V4}) {
+  require Paysys::systems::Liqpay;
+  $Payment_plugin = Paysys::systems::Liqpay->new($db, $admin, \%conf);
+}
+else {
+  require Paysys::Plugins::Liqpay;
+  $Payment_plugin = Paysys::Plugins::Liqpay->new($db, $admin, \%conf);
 }
 
 if($argv->{HOTSPOT} && $argv->{HOTSPOT} == 1){
@@ -147,7 +146,7 @@ my @console_tests = map {{ %$_ }} @requests;
 foreach my $request (@console_tests) {
   my $console_request = $request;
 
-  my ($sign, undef, $data) = $Liqpay->cnb_form({}, { JSON => $request->{request} });
+  my ($sign, undef, $data) = $Payment_plugin->cnb_form({}, { JSON => $request->{request} });
   $console_request->{request} = qq{
 signature=$sign
 data=$data
@@ -155,6 +154,6 @@ data=$data
   $console_request->{get} = 1;
 }
 
-test_runner($Liqpay, \@console_tests);
+test_runner($Payment_plugin, \@console_tests);
 
 1;

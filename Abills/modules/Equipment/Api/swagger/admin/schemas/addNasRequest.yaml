@@ -1,0 +1,80 @@
+type: object
+properties:
+  nasName:
+    type: number
+    example: Asterik
+  ip:
+    type: string
+    example: 0.0.0.0
+  nasIdentifier:
+    type: string
+    example: openbts_1111
+  nasDescribe:
+    type: string
+    example: test nas
+  nasType:
+    type: string
+    example: asterisk
+  nasAuthType:
+    type: number
+    example: 1
+  nasMngIpPort:
+    type: string
+    example: 10.11.0.1:3799:22
+  nasMngUser:
+    type: string
+    example: abills
+  nasMngPassword:
+    type: string
+    example: test
+  nasRadPairs:
+    type: string
+    example: ERX-Service-Activate:1+='svc-global-pppoe(15242880, 15242880)',
+  nasAlive:
+    type: number
+    example: 300
+  nasDisable:
+    type: number
+    example: 0
+  nasExtAcct:
+    type: number
+    example: 0
+  addressBuild:
+    type: string
+    example: 10
+  addressFlat:
+    type: string
+    example: 1
+  addressStreet:
+    type: string
+    example: 2
+  locationId:
+    type: number
+    example: 1
+  floor:
+    type: number
+    example: 1
+  zip:
+    type: string
+    example: ""
+  city:
+    type: string
+    example: Lviv
+  country:
+    type: number
+    example: 1
+  gid:
+    type: number
+    example: 2
+  mac:
+    type: string
+    example: B6:E6:3D:BD:13:F3
+  changed:
+    type: string
+    example: "2022-06-16 16:19:18"
+  extrance:
+    type: string
+    example: ""
+  zabbixHostid:
+    type: integer
+    example: 0

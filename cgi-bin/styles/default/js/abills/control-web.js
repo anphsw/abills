@@ -9,6 +9,7 @@
       Result former "activate" checked fields
     6 Result former field search
     7 Add dark-mode style for themed iframe
+    8 Listen left menu closing and set cookie
 */
 
 var mybody = document.body;
@@ -241,8 +242,20 @@ function themedIframe() {
   });
 }
 
+/* 8 */
+function listenLeftSidebarAndSetCookie()  {
+  const pushButton = jQuery('[data-widget="pushmenu"]');
+  const body = jQuery('body');
+
+  pushButton.on('click', function(e) {
+    const status = body.hasClass('sidebar-collapse');
+    setCookie('menuHidden', !status, 'Fri, 1-Jan-2038 00:00:01');
+  });
+}
+
 sidebarSearch();
 sidebarButton();
 resultFormerFillCheckboxes();
 resultFormerCheckboxSearch();
 themedIframe();
+listenLeftSidebarAndSetCookie();

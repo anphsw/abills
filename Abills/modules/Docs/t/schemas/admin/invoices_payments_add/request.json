@@ -1,0 +1,9 @@
+{
+  "name": "ADMIN_DOCS_INVOICE_PAYMENTS_ADD",
+  "method": "POST",
+  "path": "docs/invoices/payments/",
+  "body": {
+    "ids": "1",
+    "paymentMethod": 0
+  }
+}

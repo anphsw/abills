@@ -115,6 +115,27 @@ sub _start {
     return;
   }
 
+  if ($user_info->{external_method} eq 'partnerChangeC2P') {
+    if (defined $params->{resultCode} && (!$params->{resultCode} || $params->{resultCode} eq '000000')) {
+      $Mobile->user_change({
+        DISABLE         => 1,
+        TP_STATUS       => 1,
+        TP_ID           => 0,
+        ID              => $user_info->{id},
+        TRANSACTION_ID  => '',
+        EXTERNAL_METHOD => '',
+        ACTIVATE        => '0000-00-00',
+        TP_ACTIVATE     => '0000-00-00',
+      });
+    }
+    else {
+      $Mobile->user_change({ ID => $user_info->{id}, TRANSACTION_ID => '', EXTERNAL_METHOD => '' });
+    }
+    print Abills::JSON::header(undef, { STATUS => $response_status });
+    print $res;
+    return;
+  }
+
   if ($user_info->{external_method} eq 'partnerOrderOffer') {
     if (defined $params->{resultCode} && (!$params->{resultCode} || $params->{resultCode} eq '000000')) {
       $Mobile->user_change({ ID => $user_info->{id}, TRANSACTION_ID => '', TP_STATUS => 0, TP_ACTIVATE => $DATE, EXTERNAL_METHOD => '' });

@@ -1,0 +1,28 @@
+type: object
+properties:
+  responsible:
+    type: string
+    example: 123
+  priority:
+    type: number
+    example: 4
+    enum: [0, 1, 2, 3, 4]
+    description: >
+      Priority:
+       * `0` - very low
+       * `1` - low
+       * `2` - normal
+       * `3` - high
+       * `4` - very high
+  color:
+    type: string
+    example: "#123456"
+  name:
+    type: string
+    example: Cool tag
+  expireDays:
+    type: number
+    example: 10
+  comments:
+    type: string
+    example: Tag added by REST API

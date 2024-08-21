@@ -1,0 +1,52 @@
+get:
+  tags:
+    - voip
+  summary: Информация о дополнительных номерах
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя в биллинге
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/phoneAliasList.yaml"
+  security:
+    - KEY: []
+post:
+  tags:
+    - voip
+  summary: Добавить номер
+  parameters:
+    - name: uid
+      in: path
+      description: UID пользователя в биллинге
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addUidPhoneAliasRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addUidPhoneAliasResponse200.yaml"
+    400:
+      description: Невозможно добавить номер, он уже привязан
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addUidPhoneAliasResponse400.yaml"
+  security:
+    - KEY: []

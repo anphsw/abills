@@ -1,0 +1,17 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 187
+  name:
+    type: string
+    example: "Наш сайт"
+  date:
+    type: string
+    example: "2024-01-12"
+  status:
+    type: integer
+    example: 1
+  url:
+    type: integer
+    example: "http://abills.net.ua"

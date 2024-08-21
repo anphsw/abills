@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "total": {
+      "type": "integer"
+    },
+    "list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": ["number", "string"]
+          },
+          "email": {
+            "type": "string"
+          },
+          "fio": {
+            "type": "string"
+          },
+          "isCompanyAdmin": {
+            "type": "integer"
+          },
+          "login": {
+            "type": ["number", "string"]
+          },
+          "uid": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "companyId",
+          "email",
+          "fio",
+          "isCompanyAdmin",
+          "login",
+          "uid"
+        ]
+      }
+    }
+  },
+  "required": [
+    "total",
+    "list"
+  ]
+}

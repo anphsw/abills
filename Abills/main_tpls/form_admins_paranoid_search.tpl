@@ -1,5 +1,5 @@
-<form action='$SELF_URL' METHOD='POST' id='admin_form_paranoid' name=admin_form_paranoid>
-  <input type=hidden name='index' value='%INDEX%'>
+<form action='%SELF_URL%' METHOD='POST' id='admin_form_paranoid' name=admin_form_paranoid>
+  <input type=hidden name='index' value='%index%'>
   <input type=hidden name='AID' value='%AID%'>
   <input type=hidden name='subf' value='%subf%'>
   <input type=hidden name='search_form' value='1'>

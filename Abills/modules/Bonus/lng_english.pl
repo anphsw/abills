@@ -9,3 +9,4 @@ $lang{ERR_SMALL_SUM}='Too small sum';
 $lang{BONUS_DISABLED_FOR_GROUP}='Bonus disable for groups';
 $lang{ONETIME_PAYMENT_SUM}='One time payment';
 $lang{ACCOUMULATION}='Accumulation';
+$lang{BONUS_FORBIDDEN_USERS_COMPANY} = 'Service is forbidden for users of company';

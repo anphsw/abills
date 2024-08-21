@@ -146,7 +146,7 @@ sub inventory_main {
     my ($table) = result_former({
       INPUT_DATA      => $Inventory,
       FUNCTION        => 'inventory_log_info',
-      DEFAULT_FIELDS  => 'IP,DATETIME,USERS,ADMINS,TPS,NAS,UID,SYS_ID',
+      DEFAULT_FIELDS  => 'IP,DATETIME,USERS,ADMINS,TPS,NAS,UID,SYS_ID,VERSION',
       SKIP_USER_TITLE => 1,
       EXT_TITLES      => {
         ip       => 'IP',
@@ -156,7 +156,8 @@ sub inventory_main {
         tps      => $lang{TARIF_PLANS},
         datetime => $lang{REACTION_TIME},
         uid      => 'UID',
-        sys_id   => 'SYS_ID'
+        sys_id   => 'SYS_ID',
+        version  => $lang{VERSION}
       },
       TABLE           => {
         width   => '100%',
@@ -607,7 +608,7 @@ sub inventory_hosts {
     }
   }
 
-  if (!$FORM{SORT}) {
+  if (!$FORM{sort}) {
     $LIST_PARAMS{SORT} = '1';
     $LIST_PARAMS{DESC} = 'DESC';
   }

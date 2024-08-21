@@ -1,0 +1,25 @@
+post:
+  tags:
+    - voip
+  summary: Добавить тарифный план Voip
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addTpRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addTpResponse200.yaml"
+    400:
+      description: Дубликат
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addTpResponse400.yaml"
+  security:
+    - KEY: []

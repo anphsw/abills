@@ -1,0 +1,20 @@
+get:
+  tags:
+    - companies
+  summary: Информация о компании
+  parameters:
+    - name: edrpou
+      in: path
+      description: EDRPOU компании
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/publicRecords.yaml"
+  security:
+    - KEY: [ ]

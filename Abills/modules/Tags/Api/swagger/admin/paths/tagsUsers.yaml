@@ -1,0 +1,69 @@
+get:
+  tags:
+    - tags
+  summary: Список меток назначенных пользователям
+  parameters:
+    - name: uid
+      in: query
+      description: UID пользователя
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название метки
+      schema:
+        type: boolean
+        default: true
+    - name: id
+      in: query
+      description: ID метки
+      schema:
+        type: boolean
+        default: true
+    - name: comments
+      in: query
+      description: Комментарии
+      schema:
+        type: boolean
+        default: true
+    - name: priority
+      in: query
+      description: Приоритет
+      schema:
+        type: boolean
+        default: true
+    - name: date
+      in: query
+      description: Дата установки метки
+      schema:
+        type: boolean
+        default: true
+    - name: disable
+      in: query
+      description: Статус пользователя
+      schema:
+        type: boolean
+        default: true
+    - name: login
+      in: query
+      description: Логин пользователя
+      schema:
+        type: boolean
+        default: true
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: "../schemas/tagUser.yaml"
+  security:
+    - KEY: [ ]

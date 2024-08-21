@@ -1,0 +1,549 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "abonTpName": {
+        "type": "string"
+      },
+      "canChangeTp": {
+        "type": "boolean"
+      },
+      "id": {
+        "type": "integer"
+      },
+      "internetTpName": {
+        "type": "string"
+      },
+      "iptvTpName": {
+        "type": "string"
+      },
+      "monthFee": {
+        "type": "number"
+      },
+      "nextAbon": {
+        "type": "object",
+        "properties": {
+          "abonDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "activateDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "daysToFee": {
+            "type": "integer"
+          },
+          "sum": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "abonDate",
+          "activateDate",
+          "daysToFee",
+          "sum"
+        ]
+      },
+      "serviceStatus": {
+        "type": "integer"
+      },
+      "services": {
+        "type": "object",
+        "properties": {
+          "abon": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "activate": {
+                  "type": "boolean"
+                },
+                "active": {
+                  "type": "boolean"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "endDate": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "id": {
+                  "type": "integer"
+                },
+                "nextAbon": {
+                  "type": "object",
+                  "properties": {
+                    "abonDate": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "daysToFee": {
+                      "type": "integer"
+                    },
+                    "sum": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "abonDate",
+                    "daysToFee",
+                    "sum"
+                  ]
+                },
+                "period": {
+                  "type": "string"
+                },
+                "personalDescription": {
+                  "type": "string"
+                },
+                "price": {
+                  "type": "number"
+                },
+                "serviceImg": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "serviceLink": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "startDate": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "tpName": {
+                  "type": "string"
+                },
+                "tpReductionFee": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "activate",
+                "active",
+                "id",
+                "period",
+                "price",
+                "serviceImg",
+                "startDate",
+                "tpName",
+                "tpReductionFee"
+              ]
+            }
+          },
+          "internet": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "abonDistribution": {
+                  "type": "number"
+                },
+                "activatePrice": {
+                  "type": "number"
+                },
+                "canChangeTp": {
+                  "type": "boolean"
+                },
+                "cid": {
+                  "type": "string"
+                },
+                "dayFee": {
+                  "type": "number"
+                },
+                "id": {
+                  "type": "integer"
+                },
+                "inSpeed": {
+                  "type": "number"
+                },
+                "internetExpire": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "internetStatus": {
+                  "type": "integer"
+                },
+                "ip": {
+                  "type": "string",
+                  "format": "ipv4"
+                },
+                "ipNum": {
+                  "type": "integer"
+                },
+                "loginStatus": {
+                  "type": "integer"
+                },
+                "macDiscovery": {
+                  "type": "boolean"
+                },
+                "monthFee": {
+                  "type": "number"
+                },
+                "nextAbon": {
+                  "type": "object",
+                  "properties": {
+                    "abonDate": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "activateDate": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "daysToFee": {
+                      "type": "integer"
+                    },
+                    "sum": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "abonDate",
+                    "activateDate",
+                    "daysToFee",
+                    "sum"
+                  ]
+                },
+                "outSpeed": {
+                  "type": "number"
+                },
+                "serviceHoldup": {
+                  "type": "boolean"
+                },
+                "statusName": {
+                  "type": "string"
+                },
+                "tpAge": {
+                  "type": "number"
+                },
+                "tpComments": {
+                  "type": "string"
+                },
+                "tpId": {
+                  "type": "integer"
+                },
+                "tpName": {
+                  "type": "string"
+                },
+                "tpReductionFee": {
+                  "type": "number"
+                },
+                "uid": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "abonDistribution",
+                "activatePrice",
+                "canChangeTp",
+                "dayFee",
+                "id",
+                "inSpeed",
+                "internetExpire",
+                "internetStatus",
+                "ip",
+                "ipNum",
+                "loginStatus",
+                "macDiscovery",
+                "monthFee",
+                "outSpeed",
+                "serviceHoldup",
+                "statusName",
+                "tpAge",
+                "tpId",
+                "tpName",
+                "tpReductionFee",
+                "uid"
+              ]
+            }
+          },
+          "iptv": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "abonDistribution": {
+                  "type": "number"
+                },
+                "activatePrice": {
+                  "type": "number"
+                },
+                "canChangeTp": {
+                  "type": "boolean"
+                },
+                "cid": {
+                  "type": "string"
+                },
+                "dayFee": {
+                  "type": "number"
+                },
+                "id": {
+                  "type": "integer"
+                },
+                "iptvExpire": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "monthFee": {
+                  "type": "number"
+                },
+                "nextAbon": {
+                  "type": "object",
+                  "properties": {
+                    "abonDate": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "activateDate": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "daysToFee": {
+                      "type": "integer"
+                    },
+                    "sum": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "abonDate",
+                    "activateDate",
+                    "daysToFee",
+                    "sum"
+                  ]
+                },
+                "serviceHoldup": {
+                  "type": "boolean"
+                },
+                "serviceId": {
+                  "type": "integer"
+                },
+                "serviceStatus": {
+                  "type": "integer"
+                },
+                "statusName": {
+                  "type": "string"
+                },
+                "tpAge": {
+                  "type": "number"
+                },
+                "tpComments": {
+                  "type": "string"
+                },
+                "tpId": {
+                  "type": "integer"
+                },
+                "tpName": {
+                  "type": "string"
+                },
+                "tpReductionFee": {
+                  "type": "number"
+                },
+                "tvServiceName": {
+                  "type": "string"
+                },
+                "tvUserPortal": {
+                  "type": "integer"
+                },
+                "uid": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "abonDistribution",
+                "activatePrice",
+                "canChangeTp",
+                "dayFee",
+                "id",
+                "iptvExpire",
+                "monthFee",
+                "serviceHoldup",
+                "serviceId",
+                "serviceStatus",
+                "statusName",
+                "tpAge",
+                "tpId",
+                "tpName",
+                "tpReductionFee",
+                "tvServiceName",
+                "tvUserPortal",
+                "uid"
+              ]
+            }
+          },
+          "voip": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "allowAnswer": {
+                  "type": "integer"
+                },
+                "allowCalls": {
+                  "type": "integer"
+                },
+                "cid": {
+                  "type": "string"
+                },
+                "dayFee": {
+                  "type": "number"
+                },
+                "extraNumbersDayFee": {
+                  "type": "number"
+                },
+                "extraNumbersMonthFee": {
+                  "type": "number"
+                },
+                "id": {
+                  "type": "integer"
+                },
+                "ip": {
+                  "type": "string",
+                  "format": "ipv4"
+                },
+                "logins": {
+                  "type": "integer"
+                },
+                "monthFee": {
+                  "type": "number"
+                },
+                "number": {
+                  "type": "string"
+                },
+                "phoneAliases": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "disable": {
+                        "type": "integer"
+                      },
+                      "id": {
+                        "type": "integer"
+                      },
+                      "number": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "disable",
+                      "id",
+                      "number"
+                    ]
+                  }
+                },
+                "scheduleTpChange": {
+                  "type": "object",
+                  "properties": {
+                    "added": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "addedBy": {
+                      "type": "string"
+                    },
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "id": {
+                      "type": "integer"
+                    },
+                    "tpId": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "added",
+                    "addedBy",
+                    "date",
+                    "id",
+                    "tpId"
+                  ]
+                },
+                "serviceStatus": {
+                  "type": "integer"
+                },
+                "tpId": {
+                  "type": "integer"
+                },
+                "tpName": {
+                  "type": "string"
+                },
+                "uid": {
+                  "type": "integer"
+                },
+                "voipExpire": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "voipStatus": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "allowAnswer",
+                "allowCalls",
+                "cid",
+                "dayFee",
+                "extraNumbersDayFee",
+                "extraNumbersMonthFee",
+                "id",
+                "ip",
+                "logins",
+                "monthFee",
+                "number",
+                "phoneAliases",
+                "scheduleTpChange",
+                "serviceStatus",
+                "tpId",
+                "tpName",
+                "uid",
+                "voipExpire",
+                "voipStatus"
+              ]
+            }
+          }
+        }
+      },
+      "statusName": {
+        "type": "string"
+      },
+      "tpId": {
+        "type": "integer"
+      },
+      "tpName": {
+        "type": "string"
+      },
+      "tpReductionFee": {
+        "type": "number"
+      },
+      "uid": {
+        "type": "integer"
+      },
+      "voipTpName": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "abonTpName",
+      "canChangeTp",
+      "id",
+      "internetTpName",
+      "iptvTpName",
+      "monthFee",
+      "serviceStatus",
+      "statusName",
+      "tpId",
+      "tpName",
+      "tpReductionFee",
+      "uid",
+      "voipTpName"
+    ]
+  }
+}

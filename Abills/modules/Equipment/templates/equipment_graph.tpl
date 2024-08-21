@@ -25,7 +25,9 @@
   var lasttime = 0;
 
   function data() {
-    jQuery.post('$SELF_URL', 'header=2&get_index=equipment_graph_info&PORT=%PORT%&SNMP_COMMUNITY=%SNMP_COMMUNITY%', function (result) {
+    var params = '&PORT=%PORT%&SNMP_COMMUNITY=%SNMP_COMMUNITY%&SNMP_TPL=%SNMP_TPL%&PON_TYPE=%PON_TYPE%';
+    jQuery.post('%SELF_URL%', 'header=2&get_index=equipment_graph_info'+params, function (result) {
+
       var call = result.split(':');
       var cin = call[0];
       var cout = call[1];

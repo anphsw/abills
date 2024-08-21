@@ -11,6 +11,7 @@ our %FUNCTIONS_LIST = (
   "11:3:$lang{CALLS_HANDLER}:callcenter_calls_handler" => 4,
   "12:3:$lang{CALL_HANDLER_STATISTICS}:callcenter_calls_handler_statistic" => 4,
   "10:0:IVR:callcenter_ivr_log:UID"                    => 20,
+  "19:0:$lang{CALL_CENTER}:callcenter_monitor:"        => 6,
 
   #"02:1:$_IVR:callcenter_ivr"                         => 5,
   #"03:1:$_MESSAGES:callcenter_messages"               => 5,

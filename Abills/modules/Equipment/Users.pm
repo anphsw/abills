@@ -132,6 +132,7 @@ sub cpe_info {
     my $port_info_fields = $fields->{PORT}
       // $self->{conf}{EQUIPMENT_PORT_INFO_FIELDS}
       || 'PORT_STATUS,ADMIN_PORT_STATUS,PORT_IN,PORT_OUT,PORT_IN_ERR,PORT_OUT_ERR,PORT_IN_DISCARDS,PORT_OUT_DISCARDS,PORT_UPTIME,CABLE_TESTER';
+    $port_info_fields =~ s/ //g;
 
     $cpe_info = main::equipment_port_info({
       SNMP_COMMUNITY  => $SNMP_COMMUNITY,
@@ -143,6 +144,7 @@ sub cpe_info {
       SNMP_TPL        => $Nas_info->{snmp_tpl},
       INFO_FIELDS     => $port_info_fields,
       SIMPLE          => $attr->{SIMPLE} || 0,
+      %$attr
     });
   }
 
@@ -232,7 +234,7 @@ sub devices_info {
     });
     next if !$info->{CPE_INFO} || ref $info->{CPE_INFO} ne 'HASH';
 
-    my $id = (keys %{$info->{CPE_INFO}})[0];
+    my $id = (sort keys %{$info->{CPE_INFO}})[0];
     $result{$id} = $info->{CPE_INFO}{$id} if ($id);
   }
 

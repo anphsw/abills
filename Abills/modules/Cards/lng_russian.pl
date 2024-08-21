@@ -24,5 +24,6 @@ $lang{SEARCH_PHRASE}='Фраза для поиска';
 $lang{DILLER_PAY}='Оплата дилером';
 $lang{PAY_USER}='Переказано пользователю';
 $lang{NUMBER_AND_SERIA}='Серия и номер';
+$lang{CARD_DUBLICATE} = 'Дубликат';
 
 1;

@@ -89,7 +89,7 @@ sub click {
 
     my $equipment_info = $result->{$id};
 
-    if (!defined($equipment_info->{status}) || $equipment_info->{status} ne '1') {
+    if (!defined($equipment_info->{status}) || $equipment_info->{status} < 1) {
       $self->{bot}->send_message({
         text   => "$icons{not_active} $self->{bot}{lang}{EQUIPMENT_OPTICAL_TERMINAL_NOT_WORKING}",
         type   => 'text',
@@ -162,19 +162,15 @@ sub fetch_api {
   my ($attr) = @_;
 
   return {} if !$self->{bot} || !$self->{bot}{receiver};
-  my @req_headers = ('Content-Type: application/json', 'USERBOT: VIBER', "USERID: $self->{bot}{receiver}");
-  my $req_body = q{};
 
-  if ($attr->{method} ne 'GET') {
-    $req_body = $attr->{body};
-  }
+  $ENV{HTTP_USERBOT} = 'VIBER';
+  $ENV{HTTP_USERID} = $self->{bot}{receiver};
+  use Abills::Api::Handle;
+  my $handle = Abills::Api::Handle->new($self->{db}, $self->{admin}, $self->{conf}, { direct => 1 });
 
-  my $result = web_request($attr->{url}, {
-    HEADERS     => \@req_headers,
-    JSON_BODY   => $req_body,
-    JSON_RETURN => 1,
-    INSECURE    => 1,
-    METHOD      => $attr->{method}
+  my ($result) = $handle->api_call({
+    METHOD => $attr->{method},
+    PATH   => $attr->{path},
   });
 
   return $result;

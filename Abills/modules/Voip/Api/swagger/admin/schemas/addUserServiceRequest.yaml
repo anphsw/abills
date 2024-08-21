@@ -1,0 +1,41 @@
+type: object
+properties:
+  allowAnswer:
+    type: number
+    example: 1
+  allowCalls:
+    type: number
+    example: 1
+  cid:
+    type: string
+    example: 10:fe:ed:43:8f:35
+  disable:
+    type: number
+    example: 0
+  filterId:
+    type: number
+    example: 1
+  ip:
+    type: string
+    example: 0.0.0.0
+  number:
+    type: number
+    example: 380506712617
+  provisionNasId:
+    type: string
+    example: 1
+  provisionPort:
+    type: number
+    example: 0
+  simultaneously:
+    type: number
+    example: 2
+  tpId:
+    type: number
+    example: 40
+  uid:
+    type: number
+    example: 13230
+  voipExpire:
+    type: string
+    example: '0000-00-00'

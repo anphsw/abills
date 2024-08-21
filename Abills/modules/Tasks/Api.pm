@@ -18,9 +18,6 @@ use Tasks::db::Tasks;
 
 my Tasks $Tasks;
 
-our %lang;
-require 'Abills/modules/Tasks/lng_english.pl';
-
 #**********************************************************
 =head2 new($db, $conf, $admin, $lang)
 
@@ -38,8 +35,6 @@ sub new {
   };
 
   bless($self, $class);
-
-  my %LANG = (%{$lang}, %lang);
 
   $Tasks = Tasks->new($db, $admin, $conf);
   $Tasks->{debug} = $self->{debug};

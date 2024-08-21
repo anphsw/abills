@@ -516,6 +516,8 @@ sub config_update_docs {
   }
 
   print json_former({ ok => 1, status => 2 });
+
+  return 1;
 }
 
 #**********************************************************
@@ -566,7 +568,7 @@ sub config_password_generator {
   }
   
   my $config_string = $conf{CONFIG_PASSWORD} || '0:0';
-  my $count = $conf{PASSWD_LENGTH} // 6;
+  my $count = $conf{PASSWD_LENGTH};
   my ($case, $chars) = split(':', $config_string);
   
   $case = 0 if ($case > 3);

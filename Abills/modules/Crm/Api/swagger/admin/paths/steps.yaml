@@ -1,0 +1,63 @@
+get:
+  tags:
+    - crm
+  summary: Список шагов прогресса
+  operationId: getCrmStepsList
+  parameters:
+    - name: id
+      in: query
+      description: Id шага
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название шага
+      schema:
+        type: boolean
+        default: false
+    - name: stepNumber
+      description: Номер шага
+      in: query
+      schema:
+        type: boolean
+        default: false
+    - name: color
+      in: query
+      description: Цвет
+      schema:
+        type: boolean
+        default: false
+    - name: dealStep
+      in: query
+      description: 1 - шаг принадлежит сделкам, 0 - потенциальному клиенту
+      schema:
+        type: boolean
+        default: false
+    - name: description
+      in: query
+      description: Описание
+      schema:
+        type: boolean
+        default: false
+    - name: pageRows
+      in: query
+      description: Количество записей
+      schema:
+        type: integer
+        default: 25
+    - name: pg
+      in: query
+      description: Работает вместе с pageRows, параметр отвечает с какой записи начинать возвращать в запросе
+      schema:
+        type: integer
+        default: 0
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/stepList.yaml"
+  security:
+    - KEY: [ ]

@@ -1,0 +1,30 @@
+#!/usr/bin/expect
+
+if { $argc < 3 } {
+  puts "Usage: mx80.backup <ip> <login> <password>"
+  exit 1
+}
+
+set ip [lindex $argv 0]
+set login [lindex $argv 1]
+set password [lindex $argv 2]
+set port [lindex $argv 3]
+
+set timeout -1
+
+if { $port ne "" } {
+  spawn ssh $login@$ip -p $port
+} else {
+  spawn ssh $login@$ip
+}
+
+expect "password:"
+send "$password\r"
+
+expect "$login@"
+send "ls -l /\r"
+
+expect "$login@"
+
+send "exit\r"
+expect eof

@@ -356,7 +356,7 @@ $lang{OPERATION_FEES} = 'Со счёта будет снято';
 $lang{ONE_TIME} = 'Одноразово';
 $lang{USER} = 'Пользователь';
 $lang{REPRESENTATIVE} = 'Представитель';
-$lang{BACK} = ' Назад';
+$lang{BACK} = 'Назад';
 $lang{LOGIN} = 'Логин';
 $lang{NORMAL} = 'Нормальный';
 $lang{MIN_SESSION_COST} = 'Минимальная цена сессии';
@@ -1099,5 +1099,23 @@ $lang{UPLOAD} = 'Загрузить';
 
 $lang{SCAN_QR_CODE_IN_DIIA_APP} = 'Отсканируйте QR код в приложении Дія';
 $lang{MORE_THEN_ALLOW_LOGIN} = 'Больше чем разрешено логинов';
+$lang{SEARCH_QUERY} = 'Поисковый запрос';
+$lang{VALIDATION_FAILED} = 'Ошибка валидации';
+$lang{UNSIGNED_INTEGER} = 'Целочисленное положительное число';
+$lang{INTEGER} = 'Целочисленное число';
+$lang{UNSIGNED_NUMBER} = 'Положительное число';
+$lang{ANY_NUMBER} = 'Число';
+$lang{ANY} = 'Любой';
+$lang{ERR_REQUIRED_PARAMETER} = 'Обязательный параметр к заполнению %PARAMETER%';
+$lang{ERR_PARAMETER_NOT_VALID} = 'Параметр %PARAMETER% является невалидным. %MESSAGE%';
+
+$lang{MASS_DELETION_PAYMENT} = 'Массовое удаление оплат';
+$lang{MASS_DELETION_FEES} = 'Массовое удаление списаний';
+$lang{ERR_NOT_SELECTED} = 'Не выбрано';
+$lang{FIXED_FEES_FREE_PERIOD}='Бесплатный период до начала месяца';
+
+$lang{MONITORING_ALL_SESSIONS} = 'Просмотр всех сессий';
+$lang{TAKE_DIALOGUE_FROM_ADMIN} = 'Забрать диалог в администратора';
+$lang{NOT_CHANGED} = 'Изменения не внесены';
 
 1;

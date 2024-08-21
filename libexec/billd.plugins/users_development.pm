@@ -58,6 +58,8 @@ sub users_development {
 
     print "UID: $user->{uid}, SUM: $sum\n" if $argv->{DEBUG} && !$Internet->{errno};
   }
+
+  return 1;
 }
 
 1;

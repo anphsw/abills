@@ -1,0 +1,68 @@
+get:
+  tags:
+    - users
+  summary: Получить файл дополнительного договора
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: ID дополнительного договора
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/pdf: {}
+put:
+  tags:
+    - users
+  summary: Изменить дополнительный договор
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: ID дополнительного договора
+      schema:
+        type: integer
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/addContractRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/addContractResponse200.yaml"
+  security:
+    - KEY: [ ]
+delete:
+  tags:
+    - users
+  summary: Удалить дополнительный договор
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: ID дополнительного договора
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteContractResponse200.yaml"
+    400:
+      description: Не существует
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/deleteContractResponse400.yaml"
+  security:
+    - KEY: []

@@ -1,0 +1,14 @@
+get:
+  tags:
+    - maps
+  summary: Получить онлайн-пользователей с координатами
+  operationId: mapsOnlineList
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/online.yaml"
+  security:
+    - KEY: [ ]

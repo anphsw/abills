@@ -6,6 +6,10 @@ our %FUNCTIONS_LIST = (
   "05:0:$lang{MOBILE_COMMUNICATION}:mobile_user:UID" => 20,
 );
 
+our %USER_FUNCTION_LIST = (
+  "01:0:$lang{MOBILE_COMMUNICATION}:mobile_user_info:" => 0
+);
+
 our %PERIODIC = (
   monthly => [ 'mobile_monthly_fees' ],
 );

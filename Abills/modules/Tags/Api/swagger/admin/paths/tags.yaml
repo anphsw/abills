@@ -1,0 +1,97 @@
+get:
+  tags:
+    - tags
+  summary: Список меток
+  operationId: tagsList
+  parameters:
+    - name: id
+      in: query
+      description: ID метки
+      schema:
+        type: boolean
+        default: true
+    - name: name
+      in: query
+      description: Название
+      schema:
+        type: boolean
+        default: true
+    - name: comments
+      in: query
+      description: Комментарии
+      schema:
+        type: boolean
+        default: false
+    - name: priority
+      in: query
+      description: Приоритет
+      schema:
+        type: boolean
+        default: false
+    - name: idReponsible
+      in: query
+      description: ID ответственного администратора
+      schema:
+        type: boolean
+        default: false
+    - name: responsible
+      in: query
+      description: Ответственные администраторы
+      schema:
+        type: boolean
+        default: false
+    - name: tagsId
+      in: query
+      description: Список ID меток
+      schema:
+        type: boolean
+        default: false
+    - name: color
+      in: query
+      description: Цвет
+      schema:
+        type: boolean
+        default: false
+    - name: sort
+      in: query
+      description: Сортировка по одному параметру выше
+      schema:
+        type: string
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: "../schemas/tagsList.yaml"
+  security:
+    - KEY: [ ]
+post:
+  tags:
+    - tags
+  summary: Добавление метки
+  operationId: addTag
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/tagsAddRequest.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tagsResponse200.yaml"
+    400:
+      description: Ошибка валидации
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/tagsResponse400.yaml"
+  security:
+    - KEY: [ ]

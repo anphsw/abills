@@ -1,0 +1,20 @@
+get:
+  tags:
+    - companies
+  summary: Информация о пользователях компании
+  parameters:
+    - name: id
+      in: path
+      description: ID компании
+      required: true
+      schema:
+        type: integer
+  responses:
+    200:
+      description: Успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "../schemas/companiesUsers.yaml"
+  security:
+    - KEY: [ ]

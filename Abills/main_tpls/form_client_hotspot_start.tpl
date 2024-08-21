@@ -59,13 +59,13 @@
   <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
   <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
   <!--[if lt IE 9]>
-  <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
-  <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+  <script src='https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js'></script>
+  <script src='https://oss.maxcdn.com/respond/1.4.2/respond.min.js'></script>
   <![endif]-->
   <!--[if (lt IE 8) & (!IEMobile)]>
-  <p class="chromeframe">Sorry, our site supports Internet Explorer starting from version 9. You need to <a
-      href="http://browsehappy.com/">upgrade your browser</a> or <a
-      href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to use the site.</p>
+  <p class='chromeframe'>Sorry, our site supports Internet Explorer starting from version 9. You need to <a
+      href='http://browsehappy.com/'>upgrade your browser</a> or <a
+      href='http://www.google.com/chromeframe/?redirect=true'>activate Google Chrome Frame</a> to use the site.</p>
   <![endif]-->
 </head>
 <body class='skin-blue layout-top-nav layout-boxed'>
@@ -123,7 +123,7 @@
               <div class='row'>
                 <div class='col-hidden-xs col-sm-3 col-md-3 col-lg-3'></div>
                 <div class='col-xs-12 col-sm-12 col-md-6 col-lg-6'>
-                  <form action='$SELF_URL'>
+                  <form action='%SELF_URL%'>
                     <input type=hidden name=DOMAIN_ID value=%DOMAIN_ID%>
                     <input type=hidden name=NAS_ID value=%NAS_ID%>
                     <input type=hidden name=language value=$FORM{language}>

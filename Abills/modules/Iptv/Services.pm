@@ -7,9 +7,10 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Filters qw(_utf8_encode);
+use Abills::Loader qw/load_plugin/;
+use Iptv::Init qw/init_iptv_service/;
 
 our (
-  $html,
   %lang,
   $db,
   $admin,
@@ -22,6 +23,7 @@ our (
 );
 
 our Iptv $Iptv;
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 tv_services($attr)
@@ -85,6 +87,8 @@ sub tv_services {
     SEL_ARRAY => [ 0, 1, 2, 3, 4, 5, 6, 7 ],
   });
 
+  $Iptv->{PLUGINS_SEL} = sel_plugins('Iptv', { SELECT => 'MODULE', SELECTED => $Iptv->{MODULE} });
+
   $html->tpl_show(_include('iptv_services_add', 'Iptv'), { %FORM, %$Iptv });
 
   my @service_functions = ();
@@ -92,26 +96,27 @@ sub tv_services {
   push @service_functions, 'del' if $permissions{4} && $permissions{4}{3};
 
   result_former({
-    INPUT_DATA        => $Iptv,
-    FUNCTION          => 'services_list',
-    DEFAULT_FIELDS    => 'NAME,MODULE,STATUS,COMMENT',
-    FUNCTION_FIELDS   => join(',', @service_functions),
-    EXT_TITLES        => {
+    INPUT_DATA      => $Iptv,
+    FUNCTION        => 'services_list',
+    DEFAULT_FIELDS  => 'NAME,MODULE,STATUS,COMMENT',
+    FUNCTION_FIELDS => join(',', @service_functions),
+    EXT_TITLES      => {
       comment => $lang{COMMENTS},
       name    => $lang{NAME},
       module  => $lang{MODULE},
-      status  => $lang{STATUS}
+      status  => $lang{STATUS},
+      url     => 'URL'
     },
-    SKIP_USERS_FIELDS => 1,
-    TABLE             => {
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
       width   => '100%',
       caption => "$lang{TV} $lang{SERVICES}",
       qs      => $pages_qs,
       ID      => 'TV_SERVICES',
       MENU    => "$lang{ADD}:index=" . get_function_index('tv_services') . "&add_form=1:add"
     },
-    MAKE_ROWS         => 1,
-    TOTAL             => 1,
+    MAKE_ROWS       => 1,
+    TOTAL           => 1,
   });
 
   return 1;
@@ -142,7 +147,8 @@ sub tv_service_info {
     $html->message('info', $lang{SERVICES}, $lang{CHANGING});
 
     if ($Iptv->{MODULE}) {
-      my $Tv_service = tv_load_service($Iptv->{MODULE}, { SERVICE_ID => $Iptv->{ID}, SOFT_EXCEPTION => 1 });
+      my $Tv_service = init_iptv_service($db, $admin, \%conf, { SERVICE_ID => $id });
+
       if ($Tv_service && $Tv_service->{VERSION}) {
         $Iptv->{MODULE_VERSION} = $Tv_service->{VERSION};
       }
@@ -251,7 +257,7 @@ sub tv_service_import_tp {
     $Tv_service->{SERVICE_ID} = $FORM{chg} if $FORM{chg};
     my $tp_list = $Tv_service->tp_export();
 
-    if($Tv_service->{errno}) {
+    if ($Tv_service->{errno}) {
       _error_show($Tv_service, { MESSAGE => "$lang{TARIF_PLANS} $lang{IMPORT}" });
       return 0;
     }
@@ -368,9 +374,9 @@ sub tv_service_export_form {
   print $html->form_main({
     CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
     HIDDEN  => {
-      index     => $index,
+      index => $index,
       %extra_option,
-      chg       => $Iptv->{ID},
+      chg   => $Iptv->{ID},
     },
     METHOD  => 'post',
     SUBMIT  => { import => $lang{IMPORT} }
@@ -428,7 +434,7 @@ sub tv_services_sel {
   }
 
   if ($Iptv->{TOTAL} && $Iptv->{TOTAL} > 0) {
-    if($Iptv->{TOTAL} == 1) {
+    if ($Iptv->{TOTAL} == 1) {
       delete $params{SEL_OPTIONS};
       $Iptv->{SERVICE_ID} = $service_list->[0]->{id};
     }
@@ -454,7 +460,7 @@ sub tv_services_sel {
 
   return $result if $attr->{RETURN_SELECT};
 
-  if (!$active_service && $service_list->[0] && !$FORM{search_form} && ! $attr->{SKIP_DEF_SERVICE}) {
+  if (!$active_service && $service_list->[0] && !$FORM{search_form} && !$attr->{SKIP_DEF_SERVICE}) {
     $FORM{SERVICE_ID} = $service_list->[0]->{id};
   }
 
@@ -467,88 +473,87 @@ sub tv_services_sel {
   return $result;
 }
 
-#**********************************************************
-=head2 tv_load_service($service_name, $attr) - Load service module
-
-  Argumnets:
-    $service_name  - service modules name
-    $attr
-       SERVICE_ID
-       SOFT_EXCEPTION
-       RETURN_ERROR
-
-  Returns:
-    Module object
-
-=cut
-#**********************************************************
-sub tv_load_service {
-  my ($service_name, $attr) = @_;
-  my $api_object;
-
-  my $Iptv_service = Iptv->new($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf});
-  if ($attr->{SERVICE_ID}) {
-    $Iptv_service->services_info($attr->{SERVICE_ID});
-    $service_name = $Iptv_service->{MODULE} || q{};
-  }
-
-  if (!$service_name) {
-    return $api_object;
-  }
-
-  $service_name = 'Iptv::' . $service_name;
-
-  eval " require $service_name; ";
-  if (!$@) {
-    $service_name->import();
-
-    if ($service_name->can('new')) {
-      $api_object = $service_name->new($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf}, {
-        %$Iptv_service,
-        HTML => $html,
-        LANG => \%lang
-      });
-    }
-    else {
-      if ($attr->{RETURN_ERROR}) {
-        return $api_object, {
-          errno  => 9901,
-          errstr => "Can't load '$service_name'. Purchase this module http://abills.net.ua",
-        };
-      }
-      else {
-        $html->message('err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua");
-        return $api_object;
-      }
-    }
-
-    if ($api_object && $api_object->{SERVICE_NAME}) {
-      if ($api_object->{SERVICE_NAME} eq 'Olltv') {
-        require Iptv::Olltv_web;
-      }
-      elsif ($api_object->{SERVICE_NAME} eq 'Stalker') {
-        require Iptv::Stalker_web;
-      }
-    }
-  }
-  else {
-    if ($attr->{RETURN_ERROR}) {
-      return $api_object, {
-        errno  => 9902,
-        errstr => "Can't load '$service_name'. Purchase this module http://abills.net.ua",
-      };
-    }
-    else {
-      print $@ if ($FORM{DEBUG});
-      $html->message('err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua");
-      if (!$attr->{SOFT_EXCEPTION}) {
-        die "Can't load '$service_name'. Purchase this module http://abills.net.ua";
-      }
-    }
-  }
-
-  return $api_object;
-}
+# #**********************************************************
+# =head2 tv_load_service($service_name, $attr) - Load service module
+#
+#   Argumnets:
+#     $service_name  - service modules name
+#     $attr
+#        SERVICE_ID
+#        SOFT_EXCEPTION
+#        RETURN_ERROR
+#
+#   Returns:
+#     Module object
+#
+# =cut
+# #**********************************************************
+# sub tv_load_service {
+#   my ($service_name, $attr) = @_;
+#   my $api_object;
+#
+#   my $Iptv_service = Iptv->new($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf});
+#   if ($attr->{SERVICE_ID}) {
+#     $Iptv_service->services_info($attr->{SERVICE_ID});
+#     $service_name = $Iptv_service->{MODULE} || q{};
+#   }
+#
+#   if (!$service_name) {
+#     return $api_object;
+#   }
+#
+#   $service_name = 'Iptv::' . $service_name;
+#   load_module($service_name, { LOAD_PACKAGE => 1 });
+#   if (!$@) {
+#     $service_name->import();
+#
+#     if ($service_name->can('new')) {
+#       $api_object = $service_name->new($Iptv->{db}, $Iptv->{admin}, $Iptv->{conf}, {
+#         %$Iptv_service,
+#         HTML => $html,
+#         LANG => \%lang
+#       });
+#     }
+#     else {
+#       if ($attr->{RETURN_ERROR}) {
+#         return $api_object, {
+#           errno  => 9901,
+#           errstr => "Can't load '$service_name'. Purchase this module http://abills.net.ua",
+#         };
+#       }
+#       else {
+#         $html->message('err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua");
+#         return $api_object;
+#       }
+#     }
+#
+#     if ($api_object && $api_object->{SERVICE_NAME}) {
+#       if ($api_object->{SERVICE_NAME} eq 'Olltv') {
+#         require Iptv::Olltv_web;
+#       }
+#       elsif ($api_object->{SERVICE_NAME} eq 'Stalker') {
+#         require Iptv::Stalker_web;
+#       }
+#     }
+#   }
+#   else {
+#     if ($attr->{RETURN_ERROR}) {
+#       return $api_object, {
+#         errno  => 9902,
+#         errstr => "Can't load '$service_name'. Purchase this module http://abills.net.ua",
+#       };
+#     }
+#     else {
+#       print $@ if ($FORM{DEBUG});
+#       $html->message('err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua");
+#       if (!$attr->{SOFT_EXCEPTION}) {
+#         die "Can't load '$service_name'. Purchase this module http://abills.net.ua";
+#       }
+#     }
+#   }
+#
+#   return $api_object;
+# }
 
 #**********************************************************
 =head2 _service_portal_filter(url) -
@@ -580,15 +585,15 @@ sub _service_extra_params {
   use Users;
   my $Users = Users->new($db, $admin, \%conf);
   my $groups_list = $Users->groups_list({
-    COLS_NAME       => 1,
-    DISABLE_PAYSYS  => 0,
-    GID             => '_SHOW',
-    NAME            => '_SHOW',
-    DESCR           => '_SHOW',
-    ALLOW_CREDIT    => '_SHOW',
-    DISABLE_PAYSYS  => '_SHOW',
-    DISABLE_CHG_TP  => '_SHOW',
-    USERS_COUNT     => '_SHOW',
+    COLS_NAME      => 1,
+    DISABLE_PAYSYS => 0,
+    GID            => '_SHOW',
+    NAME           => '_SHOW',
+    DESCR          => '_SHOW',
+    ALLOW_CREDIT   => '_SHOW',
+    DISABLE_PAYSYS => '_SHOW',
+    DISABLE_CHG_TP => '_SHOW',
+    USERS_COUNT    => '_SHOW',
   });
 
   require Tariffs;
@@ -632,7 +637,7 @@ sub _service_extra_params {
     $other_attr{BTN_ACTION} = "chg";
     $other_attr{BTN_LNG} = "$lang{CHANGE}";
     $other_attr{PARAMS_ACTION} = "$lang{CHANGE} $lang{PARAMS}";
-    if ($chg_params->[0]{SEND_SMS} eq '1'){
+    if ($chg_params->[0]{SEND_SMS} eq '1') {
       $other_attr{SEND_SMS} = "1"
     }
   }
@@ -665,7 +670,7 @@ sub _service_extra_params {
     SEL_OPTIONS => { '' => '--' },
   });
 
-  $html->tpl_show( _include( 'iptv_extra_params_add', 'Iptv' ), {
+  $html->tpl_show(_include('iptv_extra_params_add', 'Iptv'), {
     GROUP_LIST => $select_group,
     TP_LIST    => $select_tp,
     SERVICE_ID => $FORM{service_id} || $FORM{SERVICE_ID} || $other_attr{SERVICE_ID},
@@ -686,7 +691,7 @@ sub _service_extra_params {
   my $table = $html->table(
     {
       width      => '100%',
-      title      => [ "ID", "IP", "$lang{GROUP}", "$lang{MAX_DEVICES}", "$lang{DEPOSIT}", "$lang{TARIF_PLAN}", "$lang{SEND} SMS", "SMS $lang{TEXT}" , "PIN"],
+      title      => [ "ID", "IP", "$lang{GROUP}", "$lang{MAX_DEVICES}", "$lang{DEPOSIT}", "$lang{TARIF_PLAN}", "$lang{SEND} SMS", "SMS $lang{TEXT}", "PIN" ],
       caption    => $lang{PARAMS},
       ID         => 'IPTV_PARAMS',
       DATA_TABLE => 1,

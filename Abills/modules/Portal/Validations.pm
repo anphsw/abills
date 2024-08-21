@@ -28,6 +28,10 @@ use constant {
       required => 1,
       type     => 'unsigned_integer',
     },
+    START_DATETIME    => {
+      required => 1,
+      type     => 'datetime'
+    }
   },
   POST_PORTAL_ARTICLES   => {
     TITLE             => {

@@ -1,0 +1,89 @@
+type: object
+properties:
+  activPrice:
+    type: number
+    example: 0
+  addTp:
+    type: string
+    example: Додати
+  age:
+    type: number
+    example: 0
+  alert:
+    type: number
+    example: 0
+  changePrice:
+    type: number
+    example: 0
+  creditTresshold:
+    type: number
+    example: 0
+  dayFee:
+    type: number
+    example: 0
+  dayTimeLimit:
+    type: number
+    example: 0
+  extraNumbersDayFee:
+    type: number
+    example: 0
+  extraNumbersMonthFee:
+    type: number
+    example: 0
+  feesMethod:
+    type: number
+    example: 1
+  filterId:
+    type: string
+    example: 1
+  firstPeriod:
+    type: number
+    example: 0
+  firstPeriodStep:
+    type: number
+    example: 0
+  freeTime:
+    type: number
+    example: 0
+  id:
+    type: number
+    example: 42423423
+  maxSessionDuration:
+    type: number
+    example: 0
+  minSessionCost:
+    type: number
+    example: 0
+  monthFee:
+    type: number
+    example: 0
+  monthTimeLimit:
+    type: number
+    example: 0
+  name:
+    type: string
+    example: TestVoipTp
+  nextPeriod:
+    type: number
+    example: 0
+  nextPeriodStep:
+    type: number
+    example: 0
+  paymentType:
+    type: number
+    example: 0
+  simultaneously:
+    type: number
+    example: 0
+  timeDivision:
+    type: string
+    example: ""
+  timeTarif:
+    type: number
+    example: 0
+  tpId:
+    type: number
+    example: 0
+  weekTimeLimit:
+    type: number
+    example: 0

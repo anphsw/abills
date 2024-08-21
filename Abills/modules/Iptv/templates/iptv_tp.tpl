@@ -167,6 +167,13 @@
             </div>
 
             <div class='form-group row'>
+              <label class='col-sm-4 col-md-4 text-right' for='FIXED_FEES_FREE_PERIOD'>_{FIXED_FEES_FREE_PERIOD}_:</label>
+              <div class='col-sm-8 col-md-8'>
+                <input class='form-control' id='FIXED_FEES_FREE_PERIOD' placeholder='%FIXED_FEES_FREE_PERIOD%' name='FIXED_FEES_FREE_PERIOD' value='%FIXED_FEES_FREE_PERIOD%'>
+              </div>
+            </div>
+
+            <div class='form-group row'>
               <label for='SMALL_DEPOSIT_ACTION_SEL' class='control-label col-md-4'>_{SMALL_DEPOSIT_ACTION}_:</label>
               <div class='col-md-8'>
                 %SMALL_DEPOSIT_ACTION_SEL%
@@ -243,6 +250,13 @@
               <label for='AGE' class='control-label col-md-3'>_{AGE}_ (_{DAYS}_):</label>
               <div class='col-md-9'>
                 <input class='form-control' id='AGE' placeholder='%AGE%' name='AGE' value='%AGE%'>
+              </div>
+            </div>
+
+            <div class='form-group row'>
+              <label class='col-md-3 control-label' for='PRIORITY'>_{PRIORITY}_:</label>
+              <div class='col-md-9'>
+                <input class='form-control' id='PRIORITY' placeholder='%PRIORITY%' name='PRIORITY' value='%PRIORITY%'>
               </div>
             </div>
 

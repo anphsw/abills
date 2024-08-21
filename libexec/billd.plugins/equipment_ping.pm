@@ -25,14 +25,15 @@ our (
   $argv,
   $base_dir,
   $debug,
+  $html,
 );
 
 my $Equipment = Equipment->new( $db, $Admin, \%conf );
 my $Events = Events::API->new( $db, $Admin, \%conf );
 
 local $ENV{PATH} = "$ENV{PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:/root/bin";
-equipment_ping($argv);
 
+equipment_ping($argv);
 
 #**********************************************************
 =head2 equipment_ping($attr)
@@ -57,6 +58,14 @@ sub equipment_ping {
   }
 
   my $ping = Net::Ping->new( 'syn' ) or die "Can't create new ping object: $!\n";
+
+  if (in_array('Accident', \@main::MODULES)) {
+    do 'Abills/Misc.pm';
+    our $admin = $Admin;
+    do $base_dir . "/language/$conf{default_language}.pl";
+    load_module('Accident', $html);
+    unshift( @INC, '/usr/abills/Abills/modules/' );
+  }
 
   if($debug > 6) {
     $Equipment->{debug}=1;
@@ -142,6 +151,10 @@ sub equipment_ping {
           print "Updating host $host_ip STATUS to UNAVAILABLE\n" if ( $debug > 1 );
           $Equipment->_change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 3, SKIP_LOG => 1 } );
           $message .= "$ips{$host_ip}{NAS_NAME}($host_ip) _{UNAVAILABLE}_\n";
+
+          if (in_array('Accident', \@main::MODULES)) {
+            accident_equipment_error($ips{$host_ip});
+          }
         }
 
         # $Equipment->ping_log_add({
@@ -158,6 +171,11 @@ sub equipment_ping {
         if ($ips{$host_ip}{STATUS} == 3) {
           print "Updating host $host_ip STATUS to AVAILABLE\n" if ( $debug > 1 );
           $message .= "$ips{$host_ip}{NAS_NAME}($host_ip) _{AVAILABLE}_\n";
+
+          if (in_array('Accident', \@main::MODULES)) {
+            $ips{$host_ip}{STATUS} = 2;
+            accident_equipment_error($ips{$host_ip});
+          }
         }
 
         # $Equipment->ping_log_add({
@@ -178,7 +196,12 @@ sub equipment_ping {
           print "Updating host $host_ip STATUS to UNAVAILABLE\n" if ( $debug > 1 );
           $Equipment->_change( { NAS_ID => $ips{$host_ip}{NAS_ID}, STATUS => 3, SKIP_LOG => 1 } );
           $message .= "$ips{$host_ip}{NAS_NAME}($host_ip) _{UNAVAILABLE}_\n";
+
+          if (in_array('Accident', \@main::MODULES)) {
+            accident_equipment_error($ips{$host_ip});
+          }
         }
+
         #TODO: ping_log_add STATUS => 0 if ping_log_add will be used
       }
       else {
@@ -188,6 +211,12 @@ sub equipment_ping {
           print "Updating host $host_ip STATUS to AVAILABLE\n" if ( $debug > 1 );
           $message .= "$ips{$host_ip}{NAS_NAME}($host_ip) _{AVAILABLE}_\n";
         }
+
+        if (in_array('Accident', \@main::MODULES)) {
+          $ips{$host_ip}{STATUS} = 2;
+          accident_equipment_error($ips{$host_ip});
+        }
+
         #TODO: ping_log_add STATUS => 1 if ping_log_add will be used
       }
     }

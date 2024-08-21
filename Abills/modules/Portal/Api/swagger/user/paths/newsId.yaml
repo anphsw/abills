@@ -3,7 +3,7 @@ get:
     - portal
   summary: Новость
   parameters:
-      - name: id
+      - name: string_id
         in: path
         description: ID новости или permalink
         required: true

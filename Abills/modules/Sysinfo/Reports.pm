@@ -127,7 +127,8 @@ sub sysinfo_perl {
     my ($desc, $ver) = &module_desc($mod);
     my $date = ($mod->{'time'}) ? POSIX::strftime('%Y-%m-%d %H-%M-%S', localtime($mod->{'time'})) : '';
 
-    eval "require $name";
+    ::load_module($name, { LOAD_PACKAGE => 1 });
+
     $ver  = 0;
     $ver = $name->VERSION unless ( $@ );
 
@@ -136,7 +137,7 @@ sub sysinfo_perl {
       $desc,
       $ver || '-',
       $date,
-      $html->button($lang{INFO}, "", { GLOBAL_URL => "http://abills.net.ua/wiki/doku.php/abills:docs:manual:soft:$name", ex_params => "TARGET=_new", class => 'info' }),
+      $html->button($lang{INFO}, "", { GLOBAL_URL => "http://abills.net.ua/wiki/display/AB/Perl+$name", ex_params => "TARGET=_new", class => 'info' }),
     );
   }
 

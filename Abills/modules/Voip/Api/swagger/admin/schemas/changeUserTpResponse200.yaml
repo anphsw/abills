@@ -1,0 +1,5 @@
+type: object
+properties:
+  result:
+    type: string
+    example: OK, successfully changed tp info for user with uid 103161

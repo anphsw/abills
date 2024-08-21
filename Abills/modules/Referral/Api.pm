@@ -20,6 +20,7 @@ use Referral::Users;
 my Referral $Referral;
 my Referral::Users $Referral_users;
 
+# Can be deleted after review Referral::Users object creation
 our %lang;
 
 #**********************************************************
@@ -60,8 +61,8 @@ sub new {
 
   $Referral = Referral->new($self->{db}, $self->{admin}, $self->{conf});
   $Referral_users = Referral::Users->new($db, $admin, $conf, {
-    html        => $html,
-    lang        => \%LANG,
+    html => $html,
+    lang => \%LANG,
   });
 
   return $self;

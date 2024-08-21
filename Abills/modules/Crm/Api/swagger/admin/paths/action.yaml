@@ -1,0 +1,21 @@
+post:
+  tags:
+    - crm
+  summary: Добавление действия
+  operationId: addCrmAction
+  requestBody:
+    description: Параметры, которые нужно указать
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/action.yaml"
+    required: true
+  responses:
+    200:
+      description: успешное выполнение
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiAddResponse200"
+  security:
+    - KEY: [ ]

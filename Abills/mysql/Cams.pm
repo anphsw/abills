@@ -213,8 +213,7 @@ sub _del {
 }
 
 #**********************************************************
-
-=head2 users_list($attr)
+=head2 user_list($attr)
 
   Arguments:
     $attr - hash_ref
@@ -223,9 +222,8 @@ sub _del {
     list
 
 =cut
-
 #**********************************************************
-sub users_list {
+sub user_list {
   my $self = shift;
   my ($attr) = @_;
 
@@ -250,8 +248,10 @@ sub users_list {
     [ 'MODULE',             'STR', 's.module',                              1 ],
     [ 'SERVICE_ID',         'INT', 'ctp.service_id',                        1 ],
     [ 'MONTH_FEE',          'INT', 'tp.month_fee',                          1 ],
+    [ 'MONTH_ABON',         'INT', 'tp.month_fee AS month_abon',            1 ],
     [ 'PERIOD_ALIGNMENT',   'INT', 'tp.PERIOD_ALIGNMENT',                   1 ],
     [ 'SUBSCRIBE_ID',       'STR', 'cm.subscribe_id',                       1 ],
+    [ 'ACTIVATE',           'DATE', "DATE_FORMAT(cm.activate, '%Y-%m-%d') AS activate", 1 ],
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}) {
@@ -322,7 +322,7 @@ sub user_info {
   my $self = shift;
   my ($uid) = @_;
 
-  my $list = $self->users_list({ COLS_NAME => 1, UID => $uid, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
+  my $list = $self->user_list({ COLS_NAME => 1, UID => $uid, SHOW_ALL_COLUMNS => 1, COLS_UPPER => 1 });
 
   return $list->[0] || {};
 }

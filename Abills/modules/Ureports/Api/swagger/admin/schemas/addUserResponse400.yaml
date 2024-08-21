@@ -1,0 +1,8 @@
+type: object
+properties:
+  errno:
+    type: number
+    example: 103003
+  errstr:
+    type: string
+    example: User info exists

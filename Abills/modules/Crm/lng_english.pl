@@ -159,5 +159,7 @@ $lang{DEFERRED_LEADS} = 'Deferred leads';
 
 $lang{CRM_FILE_TOO_LARGE} = 'File is too large. Maximum file size';
 $lang{CRM_MAX_FILES_ALLOWED} = 'Maximum number of files allowed';
+$lang{CRM_REPORT_ON_ATTRACTING_POTENTIAL_CLIENTS} = 'Report on attracting potential clients';
+$lang{CRM_RUN_PLUGIN} = 'Run the plugin';
 
 1

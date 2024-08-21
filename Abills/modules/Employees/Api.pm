@@ -114,7 +114,7 @@ sub admin_routes {
 
   return [
     {
-      method      => 'POST',
+      method      => 'GET',
       path        => '/employees/rfid/list/',
       handler     => sub {
         my ($path_params, $query_params) = @_;
